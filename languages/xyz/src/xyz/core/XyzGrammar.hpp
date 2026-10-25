@@ -14,9 +14,9 @@ struct Xyz : cursiv::GrammarSpec {
   struct COUNT : terminal<some(cr<"0-9_+-.eE">)> {};
   struct NUM
       : terminal<option(cr<"+-">) +
-                     (((some(d) + option(lit<"."> + many(d))) |
+                     ((((some(d) + option(lit<"."> + many(d))) |
                        (lit<"."> + some(d))) +
-                          option(cr<"eE"> + option(cr<"+-">) + some(d)) |
+                          option(cr<"eE"> + option(cr<"+-">) + some(d))) |
                       cursiv::Lit<"nan", true>{} |
                       (cursiv::Lit<"inf", true>{} +
                        option(cursiv::Lit<"inity", true>{}))),

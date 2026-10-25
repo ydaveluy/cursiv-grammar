@@ -97,7 +97,9 @@ int main(){
   const auto validation=cursiv::test::validationHelper(language.language,c.text);
   if(!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !parents || actual!=c.expected || !validation.diagnostics.empty()){
    std::fprintf(stderr,"html: native regression: %s\nactual: %s\nexpected: %s\n",c.name,actual.c_str(),c.expected);
-   for(const auto&d:validation.diagnostics)std::fprintf(stderr,"%s\n",d.message.c_str());return 1;
+   for(const auto&d:validation.diagnostics)
+     std::fprintf(stderr,"%s\n",d.message.c_str());
+   return 1;
   }
  }
  for(const char* text:{"<書籍>x</書籍>","<div A=x a=y></div>","<div a=a`b></div>","<div a\"b=x></div>"}){

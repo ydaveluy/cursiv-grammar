@@ -11,7 +11,7 @@ struct Lucene : cursiv::GrammarSpec {
   static constexpr auto TermStart = TermCharacter | Escaped;
   static constexpr auto TermPart = TermStart | cr<"+-">;
   static constexpr auto word_boundary = cr<R"(^ \t\n\r\u3000!():^[]"{}~/)">;
-  struct FIELD : terminal<TermStart + many(TermPart) | lit<"*">> {};
+  struct FIELD : terminal<(TermStart + many(TermPart)) | lit<"*">> {};
   struct WORD : terminal<((TermStart | cr<"*?">)+many(TermPart | cr<"*?">)) |
                          (cr<"+!-"> + &ref<WS>)> {};
   struct QUOTED

@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean into a Document.
 add_executable(lrc_grammar_test grammar_test.cpp)
 target_link_libraries(lrc_grammar_test PRIVATE lrcCore)
@@ -7,8 +12,10 @@ target_compile_definitions(lrc_grammar_test PRIVATE
 add_test(NAME lrc_grammar_test COMMAND lrc_grammar_test)
 
 # ...and the command line reads one example.
-add_test(NAME lrc_cli_test COMMAND lrc_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.lrc)
+if(TARGET lrc_cli)
+  add_test(NAME lrc_cli_test COMMAND lrc_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.lrc)
+endif()
 
 add_executable(lrc_native_test native_test.cpp)
 target_link_libraries(lrc_native_test PRIVATE lrcCore cursiv::test)

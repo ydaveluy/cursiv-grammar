@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The upstream corpus ships no examples/ at all, so every document lives
 # here rather than under example/. Each parses clean into a Document.
 add_executable(bcl_grammar_test grammar_test.cpp)
@@ -7,5 +12,7 @@ target_compile_definitions(bcl_grammar_test PRIVATE
 add_test(NAME bcl_grammar_test COMMAND bcl_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME bcl_cli_test COMMAND bcl_cli
-         ${CMAKE_CURRENT_SOURCE_DIR}/program.bcl)
+if(TARGET bcl_cli)
+  add_test(NAME bcl_cli_test COMMAND bcl_cli
+           ${CMAKE_CURRENT_SOURCE_DIR}/program.bcl)
+endif()

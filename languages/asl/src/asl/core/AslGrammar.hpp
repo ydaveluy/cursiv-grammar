@@ -317,7 +317,6 @@ struct Asl : cursiv::GrammarSpec {
                  assign<&ast::Comparison::op>(LogicalOperatorOp) +
                  assign<&ast::Comparison::right>(ref<Operand> |
                                                  ref<UndefinedValueRule>))> {};
-  struct LogicalConditionRule;
   struct SimpleConditionRule
       : rule<(lit<"("> + ref<LogicalConditionRule> + lit<")">) |
              ref<SimpleConditionInner>> {};
@@ -407,13 +406,13 @@ struct Asl : cursiv::GrammarSpec {
       : rule<create<ast::FindSetStatement>(
             assign<&ast::FindSetStatement::target>(ref<SetVariableRule>) +
             lit<"="> +
-            (((kw<"find"> +
+            ((((kw<"find"> +
                assign<&ast::FindSetStatement::object_name>(ref<OBJECT_ID>)) |
               (option(kw<"find">) +
                assign<&ast::FindSetStatement::source>(ref<SetVariableRule>))) +
                  kw<"where"> +
                  assign<&ast::FindSetStatement::where>(
-                     ref<ObjectConditionRule>) |
+                     ref<ObjectConditionRule>)) |
              (flag<&ast::FindSetStatement::find_all>(kw<"find-all">) +
               assign<&ast::FindSetStatement::object_name>(ref<OBJECT_ID>))) +
             option(

@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every command shape, and the whole corpus.
 add_executable(redis_grammar_test grammar_test.cpp)
 target_link_libraries(redis_grammar_test PRIVATE redisCore cursiv::test)
@@ -6,8 +11,10 @@ target_compile_definitions(redis_grammar_test PRIVATE
 add_test(NAME redis_grammar_test COMMAND redis_grammar_test)
 
 # ...and the command line reads one sample of the corpus.
-add_test(NAME redis_cli_test COMMAND redis_cli
-         ${PROJECT_SOURCE_DIR}/example/get.redis)
+if(TARGET redis_cli)
+  add_test(NAME redis_cli_test COMMAND redis_cli
+           ${PROJECT_SOURCE_DIR}/example/get.redis)
+endif()
 
 add_executable(redis_native_test native_test.cpp)
 target_link_libraries(redis_native_test PRIVATE redisCore cursiv::test)

@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document under tests/ (the upstream corpus is
 # empty) parses clean, and real field values read back correctly.
 add_executable(pddl_grammar_test grammar_test.cpp)
@@ -7,5 +12,7 @@ target_compile_definitions(pddl_grammar_test PRIVATE
 add_test(NAME pddl_grammar_test COMMAND pddl_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME pddl_cli_test COMMAND pddl_cli
-         ${CMAKE_CURRENT_SOURCE_DIR}/blocksworld-domain.pddl)
+if(TARGET pddl_cli)
+  add_test(NAME pddl_cli_test COMMAND pddl_cli
+           ${CMAKE_CURRENT_SOURCE_DIR}/blocksworld-domain.pddl)
+endif()

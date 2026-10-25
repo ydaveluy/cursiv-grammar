@@ -400,9 +400,9 @@ struct Langium : cursiv::GrammarSpec {
                lit<",">) +
           lit<">">);
   static constexpr auto ParserReturnType = option(
-      kw<"returns"> +
+      (kw<"returns"> +
           (assign<&ast::AbstractParserRule::returnType>(ref<ID>) |
-           assign<&ast::AbstractParserRule::dataType>(PrimitiveType)) |
+           assign<&ast::AbstractParserRule::dataType>(PrimitiveType))) |
       assign<&ast::AbstractParserRule::inferredType>(ref<InferredTypeRule>));
   static constexpr auto HiddenClause =
       option(flag<&ast::ParserRule::definesHiddenTokens>(kw<"hidden">) +

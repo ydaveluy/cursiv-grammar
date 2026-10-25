@@ -160,10 +160,10 @@ struct Cypher : cursiv::GrammarSpec {
   // (octal run, `\u+HHHH`) is decoded by the converter, not the lexer.
   struct STRING_LITERAL
       : terminal<lit<"\""> +
-                     many(lit<"\\"> + any | cr<R"(^"\\\r\n)">) + lit<"\"">,
+                     many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) + lit<"\"">,
                  Unquoted> {};
   struct CHAR_LITERAL
-      : terminal<lit<"'"> + many(lit<"\\"> + any | cr<R"(^'\\\r\n)">) + lit<"'">,
+      : terminal<lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\\r\n)">) + lit<"'">,
                  Unquoted> {};
 
   static constexpr auto Digit = cr<"0-9">;
@@ -180,9 +180,9 @@ struct Cypher : cursiv::GrammarSpec {
       cr<"eE"> + option(cr<"+-">) + Digits;
   static constexpr auto FloatSuffix = cr<"fFdD">;
   static constexpr auto Float =
-      ((Digits + lit<"."> + Digits) | (lit<"."> + Digits)) +
-          option(ExponentPart) + option(FloatSuffix) |
-      Digits + (ExponentPart + option(FloatSuffix) | FloatSuffix);
+      (((Digits + lit<"."> + Digits) | (lit<"."> + Digits)) +
+          option(ExponentPart) + option(FloatSuffix)) |
+      (Digits + ((ExponentPart + option(FloatSuffix)) | FloatSuffix));
 
   struct NUMBER : terminal<HexDigits | OctalDigits | Float | Digits> {};
 
@@ -772,8 +772,8 @@ struct Cypher : cursiv::GrammarSpec {
 
   struct SingleQuery
       : rule<create<ast::SingleQuery> +
-             (some(append<&ast::SingleQuery::parts>(ref<WithPart>)) +
-                  append<&ast::SingleQuery::parts>(ref<FinalPart>)  //
+             ((some(append<&ast::SingleQuery::parts>(ref<WithPart>)) +
+                  append<&ast::SingleQuery::parts>(ref<FinalPart>))  //
               | append<&ast::SingleQuery::parts>(ref<FinalPart>))> {};
 
   struct UnionClause

@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean into a SegmentHeader.
 add_executable(tcpheader_grammar_test grammar_test.cpp)
 target_link_libraries(tcpheader_grammar_test PRIVATE tcpheaderCore cursiv::test)
@@ -7,5 +12,7 @@ target_compile_definitions(tcpheader_grammar_test PRIVATE
 add_test(NAME tcpheader_grammar_test COMMAND tcpheader_grammar_test)
 
 # ...and the command line reads one example.
-add_test(NAME tcpheader_cli_test COMMAND tcpheader_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.tcpheader)
+if(TARGET tcpheader_cli)
+  add_test(NAME tcpheader_cli_test COMMAND tcpheader_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.tcpheader)
+endif()

@@ -92,7 +92,8 @@ void MetamathValidator::checkDatabase(
       accept
           .error(node, "Only printable ASCII and ASCII whitespace are allowed",
                  "metamath.character")
-          .range({i, i + 1});
+          .range({static_cast<cursiv::TextOffset>(i),
+                  static_cast<cursiv::TextOffset>(i + 1)});
     if (c != '$' || i + 1 == text.size())
       continue;
     bool filename = false;
@@ -110,13 +111,15 @@ void MetamathValidator::checkDatabase(
       accept
           .error(node, "A keyword must be separated by whitespace",
                  "metamath.keyword-space")
-          .range({i, i + 2});
+          .range({static_cast<cursiv::TextOffset>(i),
+                  static_cast<cursiv::TextOffset>(i + 2)});
     if (text[i + 1] == '(') {
       if (comment)
         accept
             .error(node, "Comments cannot be nested",
                    "metamath.comment-nesting")
-            .range({i, i + 2});
+            .range({static_cast<cursiv::TextOffset>(i),
+                    static_cast<cursiv::TextOffset>(i + 2)});
       comment = true;
     } else if (text[i + 1] == ')') {
       comment = false;

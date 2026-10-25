@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document of example/ parses, and the tree holds
 # a Url.
 add_executable(url_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(url_grammar_test PRIVATE
 add_test(NAME url_grammar_test COMMAND url_grammar_test)
 
 # ...and the command line reads one of them.
-add_test(NAME url_cli_test COMMAND url_cli
-         ${PROJECT_SOURCE_DIR}/example/example10.url)
+if(TARGET url_cli)
+  add_test(NAME url_cli_test COMMAND url_cli
+           ${PROJECT_SOURCE_DIR}/example/example10.url)
+endif()

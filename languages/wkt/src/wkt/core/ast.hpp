@@ -131,8 +131,8 @@ struct GeometryCollectionGeom : cursiv::Extends<Geometry> {
 using CurveMember = std::variant<PointList*, Geometry*>;
 using SurfaceMember = std::variant<BarePolygon*, Geometry*>;
 using PatchGeom = std::variant<PolygonGeom*, TriangleGeom*>;
-using ShellMember = std::variant<class PolyhedralSurfaceGeom*,
-                                  class CompoundSurfaceGeom*>;
+using ShellMember = std::variant<struct PolyhedralSurfaceGeom*,
+                                  struct CompoundSurfaceGeom*>;
 
 struct CompoundCurveGeom : cursiv::Extends<Geometry> {
   vector<CurveMember> members;

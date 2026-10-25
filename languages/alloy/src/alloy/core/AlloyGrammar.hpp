@@ -32,7 +32,7 @@ struct Alloy : cursiv::GrammarSpec {
        lit<"String"> | lit<"sum"> | lit<"this"> | lit<"univ">)+!IdentifierPart;
   struct ID : terminal<!Reserved + IdentifierStart + many(IdentifierPart)> {};
   struct NUMBER : terminal<some(cr<"0-9">), std::int64_t> {};
-  struct STRING : terminal<lit<"\""> + many(lit<"\\"> + any | cr<R"(^"\\)">) +
+  struct STRING : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) +
                            lit<"\"">> {};
   inline static constexpr auto string_name =
       [](std::string_view text, std::pmr::memory_resource *resource) {
@@ -218,7 +218,7 @@ struct Alloy : cursiv::GrammarSpec {
                       lit<",">) +
                  option(assign<&ast::SetComprExpr::body>(ref<BlockOrBarRule>)) +
                  lit<"}">) |
-             lit<"("> + ref<ExprRule> + lit<")"> | ref<BlockRule> |
+             (lit<"("> + ref<ExprRule> + lit<")">) | ref<BlockRule> |
              create<ast::NameExpr>(assign<&ast::NameExpr::name>(
                  ref<SigName> | kw<"disj"> | kw<"disjoint"> |
                  lit<"pred/totalOrder"> | lit<"fun/min"> | lit<"fun/max"> |
@@ -410,10 +410,10 @@ struct Alloy : cursiv::GrammarSpec {
             kw<"for"> +
             (some(append<&ast::Scope::typescopes>(ref<TypeScopeRule>),
                   lit<",">) |
-             assign<&ast::Scope::overall>(ref<NUMBER>) +
+             (assign<&ast::Scope::overall>(ref<NUMBER>) +
                  option(kw<"but"> + some(append<&ast::Scope::typescopes>(
                                              ref<TypeScopeRule>),
-                                         lit<",">))))> {};
+                                         lit<",">)))))> {};
 
   struct CmdDeclRule
       : rule<create<ast::CmdDecl>(
@@ -436,14 +436,14 @@ struct Alloy : cursiv::GrammarSpec {
              option(flag<&ast::MacroDecl::private_>(kw<"private">)) +
              kw<"let"> + assign<&ast::MacroDecl::name>(ref<ID>) +
              option(
-                 lit<"("> +
+                 (lit<"("> +
                      many(append<&ast::MacroDecl::params>(ref<ID>), lit<",">) +
-                     lit<")"> |
-                 lit<"["> +
+                     lit<")">) |
+                 (lit<"["> +
                      many(append<&ast::MacroDecl::params>(ref<ID>), lit<",">) +
-                     lit<"]">) +
+                     lit<"]">)) +
              assign<&ast::MacroDecl::body>(ref<BlockRule> |
-                                           lit<"="> + ref<ExprRule>)> {};
+                                           (lit<"="> + ref<ExprRule>))> {};
 
   struct ParagraphRule
       : rule<ref<SigDeclRule> | ref<FactDeclRule> | ref<PredDeclRule> |

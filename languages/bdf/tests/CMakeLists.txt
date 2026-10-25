@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example/ document parses, and the tree holds a
 # Font.
 add_executable(bdf_grammar_test grammar_test.cpp)
@@ -7,8 +12,10 @@ target_compile_definitions(bdf_grammar_test PRIVATE
 add_test(NAME bdf_grammar_test COMMAND bdf_grammar_test)
 
 # ...and the command line reads one of them.
-add_test(NAME bdf_cli_test COMMAND bdf_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.bdf)
+if(TARGET bdf_cli)
+  add_test(NAME bdf_cli_test COMMAND bdf_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.bdf)
+endif()
 
 add_executable(bdf_native_test native_test.cpp)
 target_link_libraries(bdf_native_test PRIVATE bdfCore cursiv::test)

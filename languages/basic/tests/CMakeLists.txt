@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document under example/ parses clean.
 add_executable(basic_grammar_test grammar_test.cpp)
 target_link_libraries(basic_grammar_test PRIVATE basicCore)
@@ -7,5 +12,7 @@ target_compile_definitions(basic_grammar_test PRIVATE
 add_test(NAME basic_grammar_test COMMAND basic_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME basic_cli_test COMMAND basic_cli
-         ${PROJECT_SOURCE_DIR}/example/hello.bas)
+if(TARGET basic_cli)
+  add_test(NAME basic_cli_test COMMAND basic_cli
+           ${PROJECT_SOURCE_DIR}/example/hello.bas)
+endif()

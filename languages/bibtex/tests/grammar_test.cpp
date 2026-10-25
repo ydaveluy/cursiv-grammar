@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
@@ -105,8 +106,8 @@ text} # 999999999999999999999999999999, field:name = "100% @literal")
           *check.diagnostics[0].code == code);
   }
   for (const auto& [dir, name, count] : {
-      std::tuple{CURSIV_EXAMPLE_DIR, "references.bib", 3},
-      std::tuple{CURSIV_TEST_DIR, "kinds.bib", 11}}) {
+      std::tuple{CURSIV_EXAMPLE_DIR, "references.bib", std::size_t{3}},
+      std::tuple{CURSIV_TEST_DIR, "kinds.bib", std::size_t{11}}}) {
     const auto source = cursiv::test::read_file(std::string(dir) + "/" + name);
     const auto tree = parse(source);
     CHECK(tree.value_as<ast::Document>()->declarations.size() == count);

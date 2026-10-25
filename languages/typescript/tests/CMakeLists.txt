@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses, and the tree holds a Program.
 add_executable(typescript_grammar_test grammar_test.cpp)
 target_link_libraries(typescript_grammar_test PRIVATE typescriptCore cursiv::test)
@@ -6,5 +11,7 @@ target_compile_definitions(typescript_grammar_test PRIVATE
 add_test(NAME typescript_grammar_test COMMAND typescript_grammar_test)
 
 # ...and the command line reads one of the same examples.
-add_test(NAME typescript_cli_test COMMAND typescript_cli
-         ${PROJECT_SOURCE_DIR}/example/Class.ts)
+if(TARGET typescript_cli)
+  add_test(NAME typescript_cli_test COMMAND typescript_cli
+           ${PROJECT_SOURCE_DIR}/example/Class.ts)
+endif()

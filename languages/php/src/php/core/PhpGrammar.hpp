@@ -478,7 +478,7 @@ struct Php : cursiv::GrammarSpec {
 
   static constexpr auto AssignOp =
       lit<"+="> | lit<"-="> | lit<"*="> | lit<"**="> | lit<"/="> | lit<".="> | lit<"%="> |
-      lit<"&="> | lit<"|="> | lit<"^="> | lit<"<<="> | lit<">>="> | lit<"??="> |
+      lit<"&="> | lit<"|="> | lit<"^="> | lit<"<<="> | lit<">>="> | lit<"?" "?="> |
       lit<"=", !cr<"=>">>;
 
   struct AssignLevel

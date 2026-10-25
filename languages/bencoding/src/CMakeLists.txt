@@ -1,16 +1,11 @@
-# `ID` names the targets and generated directory; `NAMESPACE` names the
-# grammar type, and everything else follows from it. Defines
-# `bencodingGenerated` (the compiled library) and `bencoding_generate`
-# (writes the sources without compiling them).
+# Generate the parser and its language module.
 cursiv_generate_language(ID bencoding
     GRAMMAR    bencoding/core/BencodingGrammar.hpp
     NAMESPACE  bencoding::Bencoding
     EXTENSIONS .torrent
     OUT        bencoding/generated)
 
-# The core storey: what the author writes over the generated module -- the
-# services container and the validation checks. The grammar is not compiled
-# here; the generated module holds everything derived from it.
+# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/bencoding/core/*.cpp)
 add_library(bencodingCore ${_core})
@@ -18,19 +13,26 @@ target_link_libraries(bencodingCore PUBLIC bencodingGenerated)
 
 file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/bencoding/cli/*.cpp)
-add_executable(bencoding_cli ${_cli})
-target_link_libraries(bencoding_cli
-                      PRIVATE bencodingCore cursiv::cli)
+if(_cli)
+  add_executable(bencoding_cli ${_cli})
+  target_link_libraries(bencoding_cli
+                        PRIVATE bencodingCore cursiv::cli)
+endif()
 
-# The language server.
-file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/bencoding/lsp/*.cpp)
-list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/bencoding/lsp/main.cpp)
-add_library(bencodingLsp ${_lsp})
-target_link_libraries(bencodingLsp PUBLIC bencodingCore cursiv::lsp)
-add_executable(bencoding_lsp bencoding/lsp/main.cpp)
-target_link_libraries(bencoding_lsp PRIVATE bencodingLsp)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bencoding/lsp")
+  file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/bencoding/lsp/*.cpp)
+  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/bencoding/lsp/main.cpp)
+  add_library(bencodingLsp ${_lsp})
+  target_link_libraries(bencodingLsp PUBLIC bencodingCore cursiv::lsp)
+  add_executable(bencoding_lsp bencoding/lsp/main.cpp)
+  target_link_libraries(bencoding_lsp PRIVATE bencodingLsp)
+endif()
 
-cursiv_add_benchmark(bencoding SOURCES bencoding/bench/main.cpp)
+if(TARGET bencodingLsp AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bencoding/bench/main.cpp")
+  cursiv_add_benchmark(bencoding
+      SOURCES bencoding/bench/main.cpp)
+endif()
 
 cursiv_package_language(bencoding)

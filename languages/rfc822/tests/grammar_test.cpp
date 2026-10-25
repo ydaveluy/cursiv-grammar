@@ -28,11 +28,6 @@ int fail(const std::filesystem::path& file, const char* what) {
   return 1;
 }
 
-int fail(const char* what) {
-  std::fprintf(stderr, "rfc822: %s\n", what);
-  return 1;
-}
-
 std::string read_file(const std::filesystem::path& file) {
   std::ifstream in(file);
   return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};

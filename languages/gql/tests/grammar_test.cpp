@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <utility>
 
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
@@ -116,6 +117,57 @@ int check_concat_left_assoc(const auto &language) {
       outer.right->type == &cursiv::ast_type_tag<gql::ast::BinaryExpr>)
     return fail("<probe>", "expected the right operand to be a single literal");
 
+  return 0;
+}
+
+// Postfix LIST/ARRAY wraps the preceding type, retaining each level's
+// nullability, size and parent links, including inside prefix/union types.
+int check_postfix_types(const auto &language) {
+  for (const auto &[type, expected] : {
+           std::pair{"INT LIST ARRAY[2] NOT NULL",
+                     "postfix[2]!<postfix<INT>>"},
+           std::pair{"INT NOT NULL LIST[3] NOT NULL ARRAY",
+                     "postfix<postfix[3]!<INT!>>"},
+           std::pair{"LIST<INT LIST> ARRAY", "postfix<LIST<postfix<INT>>>"},
+           std::pair{"ANY VALUE<INT LIST | STRING> LIST",
+                     "postfix<ANY<postfix<INT>,STRING>>"},
+           std::pair{"ARRAY<LIST<INT>> LIST[4] ARRAY[2] NOT NULL",
+                     "postfix[2]!<postfix[4]<ARRAY<LIST<INT>>>>"}}) {
+    const std::string source = std::string("RETURN CAST(1 AS ") + type + ")";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("<type probe>", "a nested list type does not parse clean");
+    const gql::ast::CastExpr *cast = nullptr;
+    for (const auto *node : result.nodes)
+      if (const auto *value = cursiv::ast_cast<gql::ast::CastExpr>(node))
+        cast = value;
+    if (!cast || !cast->target || cast->target->parent != cast)
+      return fail("<type probe>", "the cast has no owned target type");
+    bool parents = true;
+    const auto shape = [&](const gql::ast::TypeRef &value,
+                           const auto &self) -> std::string {
+      std::string text = value.postfixList ? "postfix" : std::string(value.name);
+      for (const auto *arg : value.args) {
+        const auto *number = cursiv::ast_cast<gql::ast::NumberLit>(arg);
+        parents = parents && number && number->parent == &value;
+        text += "[" + (number ? std::string(number->text) : "?") + "]";
+      }
+      if (value.notNull) text += '!';
+      if (!value.params.empty()) {
+        text += '<';
+        for (const auto *param : value.params) {
+          if (text.back() != '<') text += ',';
+          parents = parents && param && param->parent == &value;
+          text += param ? self(*param, self) : "?";
+        }
+        text += '>';
+      }
+      return text;
+    };
+    if (shape(*cast->target, shape) != expected || !parents)
+      return fail("<type probe>", "nested list type fields or parents changed");
+  }
   return 0;
 }
 
@@ -283,6 +335,7 @@ int main() {
 
   failures += check_match_with_path(language, dir);
   failures += check_select_page(language);
+  failures += check_postfix_types(language);
   failures += check_edge_abbreviation(language);
   failures += check_coverage(language, CURSIV_TEST_DIR);
   failures += check_concat_left_assoc(language);

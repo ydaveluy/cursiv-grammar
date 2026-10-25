@@ -34,11 +34,6 @@ T* as(cursiv::AstNode* n) {
 
 cursiv::ParseResult parse(std::string_view text) { return engine().parse(text); }
 
-bool clean(std::string_view text) {
-  const cursiv::ParseResult r = parse(text);
-  return r.accepted && !r.cst().recovered();
-}
-
 const char* const kExamples[] = {
     "example1.muparser",
 };

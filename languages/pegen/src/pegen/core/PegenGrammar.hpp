@@ -29,8 +29,8 @@ struct Pegen : cursiv::GrammarSpec {
   static constexpr auto dquote1 =
       lit<"\""> + many(escape | cr<R"(^"\\\r\n)">) + lit<"\"">;
   static constexpr auto squote1 = lit<"'"> + many(escape | cr<R"(^'\\\r\n)">) + lit<"'">;
-  static constexpr auto prefix = option(cr<"bB"> + cr<"rR"> |
-                                        cr<"rR"> + cr<"bB"> | cr<"rRuUbB">);
+  static constexpr auto prefix = option((cr<"bB"> + cr<"rR">) |
+                                        (cr<"rR"> + cr<"bB">) | cr<"rRuUbB">);
   struct STRING : terminal<prefix + (dquote3 | squote3 | dquote1 | squote1)> {};
 
   struct FSTRING;
@@ -38,11 +38,11 @@ struct Pegen : cursiv::GrammarSpec {
       many(ref<STRING> | ref<FSTRING> | ref<Interpolation> | ref<COMMENT> |
            cr<R"(^{}'"#)">) + lit<"}">> {};
   static constexpr auto fpart = escape | lit<"{{"> | lit<"}}"> | ref<Interpolation>;
-  struct FSTRING : terminal<(cr<"fF"> + option(cr<"rR">) | cr<"rR"> + cr<"fF">) +
-      (lit<"\"\"\""> + many(fpart | (!lit<"\"\"\""> + cr<R"(^{}\\)">)) + lit<"\"\"\""> |
-       lit<"'''"> + many(fpart | (!lit<"'''"> + cr<R"(^{}\\)">)) + lit<"'''"> |
-       lit<"\""> + many(fpart | cr<R"(^{}"\\\r\n)">) + lit<"\""> |
-       lit<"'"> + many(fpart | cr<R"(^{}'\\\r\n)">) + lit<"'">)> {};
+  struct FSTRING : terminal<((cr<"fF"> + option(cr<"rR">)) | (cr<"rR"> + cr<"fF">)) +
+      ((lit<"\"\"\""> + many(fpart | (!lit<"\"\"\""> + cr<R"(^{}\\)">)) + lit<"\"\"\"">) |
+       (lit<"'''"> + many(fpart | (!lit<"'''"> + cr<R"(^{}\\)">)) + lit<"'''">) |
+       (lit<"\""> + many(fpart | cr<R"(^{}"\\\r\n)">) + lit<"\"">) |
+       (lit<"'"> + many(fpart | cr<R"(^{}'\\\r\n)">) + lit<"'">))> {};
   struct NUMBER : terminal<cr<"0-9"> + many(cr<"a-zA-Z0-9_.">)> {};
 
   struct TargetAtom;

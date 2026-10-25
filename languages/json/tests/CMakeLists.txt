@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean, rooted at Doc.
 add_executable(json_grammar_test grammar_test.cpp)
 target_link_libraries(json_grammar_test PRIVATE jsonCore cursiv::test cursiv::lsp)
@@ -7,8 +12,10 @@ target_compile_definitions(json_grammar_test PRIVATE
 add_test(NAME json_grammar_test COMMAND json_grammar_test)
 
 # ...and the command line reads one of them.
-add_test(NAME json_cli_test COMMAND json_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.json)
+if(TARGET json_cli)
+  add_test(NAME json_cli_test COMMAND json_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.json)
+endif()
 
 # The table engine's own lanes: they read its types or pin its repairs, so they
 # exist only where the language is generated for it.

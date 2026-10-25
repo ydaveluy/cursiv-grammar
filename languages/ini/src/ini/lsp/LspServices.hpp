@@ -17,6 +17,12 @@ struct IniServices final : IniCoreServices, cursiv::LspServices {
       : cursiv::CoreServices(sharedServices),
         IniCoreServices(sharedServices),
         cursiv::LspServices(sharedServices) {}
+
+  void visitServices(
+      cursiv::function_ref<void(const cursiv::ServiceSlot&)> yield) const override {
+    IniCoreServices::visitServices(yield);
+    cursiv::LspServices::visitOwnServices(yield);
+  }
 };
 
 }  // namespace ini

@@ -30,7 +30,7 @@ struct Guido : cursiv::GrammarSpec {
   struct COMMENT : terminal<lit<"%"> + many(cr<R"(^\r\n)">)> {};
   struct BLOCK_COMMENT
       : terminal<lit<"(*"> +
-                 many(ref<BLOCK_COMMENT> | !(lit<"(*"> | lit<"*)">)+any) +
+                 many(ref<BLOCK_COMMENT> | (!(lit<"(*"> | lit<"*)">)+any)) +
                  lit<"*)">> {};
   struct NUMBER : terminal<some(d)> {};
   struct INTEGER : terminal<option(cr<"+-">) + some(d)> {};
@@ -45,8 +45,8 @@ struct Guido : cursiv::GrammarSpec {
                         }>> {};
   struct STRING
       : terminal<
-            lit<"\""> + many(lit<"\\"> + any | !lit<"\""> + any) + lit<"\""> |
-                lit<"'"> + many(lit<"\\"> + any | !lit<"'"> + any) + lit<"'">,
+            (lit<"\""> + many((lit<"\\"> + any) | (!lit<"\""> + any)) + lit<"\"">) |
+                (lit<"'"> + many((lit<"\\"> + any) | (!lit<"'"> + any)) + lit<"'">),
             Unquoted> {};
   struct NOTENAME
       : terminal<lit<"empty"> | lit<"cis"> | lit<"dis"> | lit<"fis"> |
@@ -64,12 +64,12 @@ struct Guido : cursiv::GrammarSpec {
 
   struct DurationRule
       : rule<create<ast::Duration>(
-            flag<&ast::Duration::asterisk>(lit<"*">) +
+            (flag<&ast::Duration::asterisk>(lit<"*">) +
                 option(assign<&ast::Duration::numerator>(ref<NumberRule>)) +
-                option(lit<"/"> + assign<&ast::Duration::denominator>(
-                                      ref<NumberRule>) |
-                       flag<&ast::Duration::milliseconds>(lit<"ms">)) |
-            lit<"/"> + assign<&ast::Duration::denominator>(ref<NumberRule>))> {
+                option((lit<"/"> + assign<&ast::Duration::denominator>(
+                                      ref<NumberRule>)) |
+                       flag<&ast::Duration::milliseconds>(lit<"ms">))) |
+            (lit<"/"> + assign<&ast::Duration::denominator>(ref<NumberRule>)))> {
   };
 
   struct NoteRule
@@ -87,10 +87,10 @@ struct Guido : cursiv::GrammarSpec {
            assign<&ast::Parameter::text>(ref<STRING>)) |
        flag<&ast::Parameter::variable>(
            assign<&ast::Parameter::text>(ref<VARIABLE>)) |
-       (flag<&ast::Parameter::real>(
+       ((flag<&ast::Parameter::real>(
             assign<&ast::Parameter::text>(ref<FLOAT>)) |
         assign<&ast::Parameter::text>(ref<INTEGER>)) +
-           option(assign<&ast::Parameter::unit>(ref<ID>)) |
+           option(assign<&ast::Parameter::unit>(ref<ID>))) |
        flag<&ast::Parameter::bare>(
            assign<&ast::Parameter::text>(ref<ID>)));
 

@@ -327,8 +327,8 @@ struct Peoplecode : cursiv::GrammarSpec {
              ref<SetImpl> | ref<FuncImpl> | ref<VarDeclaration> |
              ref<IfStmt> | ref<ForStmt> | ref<WhileStmt> |
              ref<EvaluateStmt> | ref<TryCatchStmt> |
-             create<ast::ExitStmt> + kw<"Exit"> |
-             create<ast::BreakStmt> + kw<"Break"> |
+             (create<ast::ExitStmt> + kw<"Exit">) |
+             (create<ast::BreakStmt> + kw<"Break">) |
              create<ast::ErrorStmt>(
                  kw<"Error"> + assign<&ast::ErrorStmt::value>(ref<Expr>)) |
              create<ast::WarningStmt>(

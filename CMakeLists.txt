@@ -14,6 +14,12 @@ else()
 endif()
 FetchContent_MakeAvailable(cursiv)
 
+# FetchContent may use a local override or a shared download directory.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI" AND CURSIV_NODE)
+  set(CMAKE_CROSSCOMPILING_EMULATOR ${CURSIV_NODE} --no-warnings
+      "${cursiv_SOURCE_DIR}/tools/wasi-run.mjs")
+endif()
+
 find_program(CURSIV_GRAMMARS_CCACHE ccache)
 if(CURSIV_GRAMMARS_CCACHE AND NOT CMAKE_CXX_COMPILER_LAUNCHER)
   set(CMAKE_CXX_COMPILER_LAUNCHER ${CURSIV_GRAMMARS_CCACHE})

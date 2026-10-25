@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean into a Document.
 add_executable(gedcom_grammar_test grammar_test.cpp)
 target_link_libraries(gedcom_grammar_test PRIVATE gedcomCore cursiv::test)
@@ -7,5 +12,7 @@ target_compile_definitions(gedcom_grammar_test PRIVATE
 add_test(NAME gedcom_grammar_test COMMAND gedcom_grammar_test)
 
 # ...and the command line reads one of them.
-add_test(NAME gedcom_cli_test COMMAND gedcom_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.ged)
+if(TARGET gedcom_cli)
+  add_test(NAME gedcom_cli_test COMMAND gedcom_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.ged)
+endif()

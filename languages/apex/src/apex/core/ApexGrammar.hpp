@@ -657,10 +657,10 @@ struct Apex : cursiv::GrammarSpec {
                         lit<">">) +
                  assign<&ast::MethodDecl::returnType>(ref<TypeOrVoid>) +
                  assign<&ast::MethodDecl::name>(ref<ID>) + lit<"("> +
-                 option(append<&ast::MethodDecl::params>(ref<FormalParameter>) +
+                 option((append<&ast::MethodDecl::params>(ref<FormalParameter>) +
                         many(lit<","> + append<&ast::MethodDecl::params>(ref<FormalParameter>)) +
                         option(lit<","> +
-                               append<&ast::MethodDecl::params>(ref<LastFormalParameter>)) |
+                               append<&ast::MethodDecl::params>(ref<LastFormalParameter>))) |
                         append<&ast::MethodDecl::params>(ref<LastFormalParameter>)) +
                  lit<")"> +
                  option(ikw<"throws"> +
@@ -676,11 +676,11 @@ struct Apex : cursiv::GrammarSpec {
                              lit<",">) +
                         lit<">">) +
                  assign<&ast::ConstructorDecl::name>(ref<ID>) + lit<"("> +
-                 option(append<&ast::ConstructorDecl::params>(ref<FormalParameter>) +
+                 option((append<&ast::ConstructorDecl::params>(ref<FormalParameter>) +
                         many(lit<","> +
                              append<&ast::ConstructorDecl::params>(ref<FormalParameter>)) +
                         option(lit<","> +
-                               append<&ast::ConstructorDecl::params>(ref<LastFormalParameter>)) |
+                               append<&ast::ConstructorDecl::params>(ref<LastFormalParameter>))) |
                         append<&ast::ConstructorDecl::params>(ref<LastFormalParameter>)) +
                  lit<")"> +
                  option(ikw<"throws"> +

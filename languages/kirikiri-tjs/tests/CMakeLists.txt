@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example under example/ parses clean.
 add_executable(kirikiritjs_grammar_test grammar_test.cpp)
 target_link_libraries(kirikiritjs_grammar_test PRIVATE kirikiritjsCore)
@@ -7,5 +12,7 @@ target_compile_definitions(kirikiritjs_grammar_test PRIVATE
 add_test(NAME kirikiritjs_grammar_test COMMAND kirikiritjs_grammar_test)
 
 # ...and the command line reads one of the same examples.
-add_test(NAME kirikiritjs_cli_test COMMAND kirikiritjs_cli
-         ${PROJECT_SOURCE_DIR}/example/test_scripts/test_class.tjs)
+if(TARGET kirikiritjs_cli)
+  add_test(NAME kirikiritjs_cli_test COMMAND kirikiritjs_cli
+           ${PROJECT_SOURCE_DIR}/example/test_scripts/test_class.tjs)
+endif()

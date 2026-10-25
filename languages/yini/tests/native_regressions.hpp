@@ -36,7 +36,7 @@ inline void run() {
     CHECK(number && number->literal == literal);
     CHECK(noErrors(text));
   }
-  for (const std::string literal : {std::string(70, '9'), "0z" + std::string(65, 'B')}) {
+  for (const std::string& literal : {std::string(70, '9'), "0z" + std::string(65, 'B')}) {
     const std::string text = "value=" + literal + "\n";
     const auto parsed = language.language.parser->parse(text);
     const auto* doc = cursiv::ast_cast<a::Document>(parsed.value);
@@ -48,7 +48,7 @@ inline void run() {
   CHECK(!yini::valid_number(std::string(10000, '9')));
   CHECK(!yini::valid_number("0z" + std::string(10000, 'B')));
   struct StringCase { const char* literal; std::string value; };
-  for (const StringCase c : {StringCase{R"(C"\xFF\u00E9\U0001F642\o377")", "ÿé🙂ÿ"},
+  for (const StringCase& c : {StringCase{R"(C"\xFF\u00E9\U0001F642\o377")", "ÿé🙂ÿ"},
       {R"(C"\o1\o12\o123")", std::string("\1\12S", 3)},
       {R"(C"a\0b")", std::string("a\0b", 3)},
       {R"(R"raw\n")", "raw\\n"}, {"\"\"\"a\r\nb\rc\"\"\"", "a\nb\nc"}}) {

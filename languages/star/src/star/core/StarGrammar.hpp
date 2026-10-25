@@ -2,8 +2,10 @@
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "star/core/ast.hpp"
 namespace star {
-using HeadingName =
-    cursiv::text_conv<[](std::string_view text) { return text.substr(5); }>;
+inline constexpr std::string_view heading_name(std::string_view text) {
+  return text.substr(5);
+}
+using HeadingName = cursiv::text_conv<heading_name>;
 struct Star : cursiv::GrammarSpec {
   static constexpr auto eol =
       lit<"\r\n"> | lit<"\n"> | (lit<"\r"> + !lit<"\n">);

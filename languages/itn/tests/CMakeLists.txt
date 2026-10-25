@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean into an Itinerary.
 add_executable(itn_grammar_test grammar_test.cpp)
 target_link_libraries(itn_grammar_test PRIVATE itnCore cursiv::test)
@@ -7,5 +12,7 @@ target_compile_definitions(itn_grammar_test PRIVATE
 add_test(NAME itn_grammar_test COMMAND itn_grammar_test)
 
 # ...and the command line reads one example.
-add_test(NAME itn_cli_test COMMAND itn_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.itn)
+if(TARGET itn_cli)
+  add_test(NAME itn_cli_test COMMAND itn_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.itn)
+endif()

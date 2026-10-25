@@ -140,20 +140,20 @@ struct Squirrel : cursiv::GrammarSpec {
 
   struct FunctionExprRule
       : rule<kw<"function"> + lit<"("> +
-             option(some(append<&ast::FunctionExpr::params>(ref<ParamRule>),
+             option((some(append<&ast::FunctionExpr::params>(ref<ParamRule>),
                          lit<",">) +
                         option(lit<","> +
-                               flag<&ast::FunctionExpr::variadic>(lit<"...">))  //
+                               flag<&ast::FunctionExpr::variadic>(lit<"...">)))  //
                     | flag<&ast::FunctionExpr::variadic>(lit<"...">)) +
              many(ref<NL>) + lit<")"> + many(ref<NL>) +
              assign<&ast::FunctionExpr::body>(ref<StatementOrEmpty>)> {};
 
   struct LambdaExprRule
       : rule<lit<"@"> + lit<"("> +
-             option(some(append<&ast::LambdaExpr::params>(ref<ParamRule>),
+             option((some(append<&ast::LambdaExpr::params>(ref<ParamRule>),
                          lit<",">) +
                         option(lit<","> +
-                               flag<&ast::LambdaExpr::variadic>(lit<"...">))  //
+                               flag<&ast::LambdaExpr::variadic>(lit<"...">)))  //
                     | flag<&ast::LambdaExpr::variadic>(lit<"...">)) +
              many(ref<NL>) + lit<")"> +
              assign<&ast::LambdaExpr::body>(ref<AssignExprRule>)> {};

@@ -119,8 +119,8 @@ struct Promql : cursiv::GrammarSpec {
   struct NumericValue : rule<ref<NUMBER>, NumberValue> {};
 
   struct STRING
-      : terminal<(lit<"'"> + many(lit<"\\"> + any | cr<R"(^'\\)">) + lit<"'">) |
-                     (lit<"\""> + many(lit<"\\"> + any | cr<R"(^"\\)">) + lit<"\"">) |
+      : terminal<(lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\)">) + lit<"'">) |
+                     (lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">) |
                      (lit<"`"> + many(cr<"^`">) + lit<"`">), Unescaped> {};
 
   // Whether the units run longest-to-shortest is a later check, not a

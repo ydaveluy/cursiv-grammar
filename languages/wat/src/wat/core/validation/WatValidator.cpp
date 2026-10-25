@@ -75,7 +75,8 @@ void string(const cursiv::AstNode& node, std::string_view property,
     }
     if (invalid)
       accept.error(node, "Invalid text string escape or newline", "wat.string")
-          .range({span->begin + start, span->begin + i + 1});
+          .range({static_cast<cursiv::TextOffset>(span->begin + start),
+                  static_cast<cursiv::TextOffset>(span->begin + i + 1)});
   }
 }
 void strings(const auto& node, std::string_view property, const auto& values,

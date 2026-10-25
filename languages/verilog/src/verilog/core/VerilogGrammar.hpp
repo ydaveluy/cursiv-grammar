@@ -859,14 +859,14 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct UdpRowRule
       : rule<create<ast::UdpRow>(assign<&ast::UdpRow::text>(PreprocessorText)) |
-             create<ast::UdpRow>(
+             (create<ast::UdpRow>(
                  some(append<&ast::UdpRow::inputs>(ref<UDP_SYMBOL>)) +
                  lit<":"> +
                  ((assign<&ast::UdpRow::current>(ref<UDP_SYMBOL>) +
                    lit<":"> +
                    assign<&ast::UdpRow::next>(ref<UDP_SYMBOL>)) |
                   assign<&ast::UdpRow::next>(ref<UDP_SYMBOL>))) +
-             lit<";">> {};
+             lit<";">)> {};
 
   struct UdpDecl
       : rule<Attrs +

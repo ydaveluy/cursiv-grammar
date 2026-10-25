@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 file(GLOB _samples CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/example/*.pdn)
 list(JOIN _samples "," _samples_joined)
 
@@ -15,5 +20,7 @@ target_compile_definitions(pdn_grammar_test PRIVATE
 add_test(NAME pdn_grammar_test COMMAND pdn_grammar_test)
 
 # ...and the command line reads one of the same samples.
-add_test(NAME pdn_cli_test COMMAND pdn_cli
-         ${PROJECT_SOURCE_DIR}/example/example2.pdn)
+if(TARGET pdn_cli)
+  add_test(NAME pdn_cli_test COMMAND pdn_cli
+           ${PROJECT_SOURCE_DIR}/example/example2.pdn)
+endif()

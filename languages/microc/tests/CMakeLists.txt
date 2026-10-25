@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every sample under example/ parses clean.
 add_executable(microc_grammar_test grammar_test.cpp)
 target_link_libraries(microc_grammar_test PRIVATE microcCore)
@@ -7,5 +12,7 @@ target_compile_definitions(microc_grammar_test PRIVATE
 add_test(NAME microc_grammar_test COMMAND microc_grammar_test)
 
 # ...and the command line reads one of them.
-add_test(NAME microc_cli_test COMMAND microc_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.microc)
+if(TARGET microc_cli)
+  add_test(NAME microc_cli_test COMMAND microc_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.microc)
+endif()

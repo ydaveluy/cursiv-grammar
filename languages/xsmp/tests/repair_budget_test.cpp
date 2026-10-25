@@ -6,7 +6,7 @@
 
 #include "cursiv/core/syntax-tree/Cst.hpp"
 #include "cursiv/engines/lr/runtime/LrParser.hpp"
-#include "cursiv/engines/lr/runtime/LrRepairBudget.hpp"
+#include "cursiv/engines/shared/runtime/RepairBudget.hpp"
 #include "cursiv/test/Check.hpp"
 #include "xsmp/generated/Xsmp/Parser.hpp"
 #include "xsmp/generated/Xsmp/Table.hpp"
@@ -15,7 +15,7 @@ namespace gx = ::xsmp::generated::Xsmp;
 
 namespace {
 
-cursiv::LrRepairBudget floor_only(std::uint64_t floor) {
+cursiv::RepairBudget floor_only(std::uint64_t floor) {
   return {.floor = floor,
           .perByte = 0,
           .perSearch = ~std::uint64_t{0},

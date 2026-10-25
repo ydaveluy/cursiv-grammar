@@ -148,7 +148,7 @@ struct Edn : cursiv::GrammarSpec {
   static constexpr auto Exponent = cr<"eE"> + Sign + Digits;
   struct FLOAT : terminal<Sign + Digits +
                           (lit<"M"> |
-                           ((lit<"."> + many(d) + option(Exponent) | Exponent) +
+                           (((lit<"."> + many(d) + option(Exponent)) | Exponent) +
                             option(lit<"M">)))> {};
   struct RATIO : terminal<Sign + Digits + lit<"/"> + Digits> {};
   struct SYMBOLIC_NUMBER

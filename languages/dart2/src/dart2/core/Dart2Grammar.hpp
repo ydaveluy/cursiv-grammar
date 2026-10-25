@@ -171,11 +171,9 @@ struct Dart2 : cursiv::GrammarSpec {
   struct PrimaryExpression;
   struct Statement;
   struct BlockStmt;
-  struct Type_;
   struct TypeNotVoid;
   struct Element_;
   struct ParamListRule;
-  struct Arguments;
 
   struct Interpolation : rule<skip(ignored<WS>, hide<SL_COMMENT, ML_COMMENT>,
                                    lit<"${"> + ref<Expression> + lit<"}">) |
@@ -677,7 +675,7 @@ struct Dart2 : cursiv::GrammarSpec {
       : rule<ref<Shr3AssignOp> | ref<Shr2AssignOp> | lit<"=", !cr<"=>">> |
              lit<"*="> | lit<"/="> | lit<"~/="> | lit<"%="> | lit<"+="> |
              lit<"-="> | lit<"<<="> | lit<"&="> | lit<"^="> | lit<"|="> |
-             lit<"??=">> {};
+             lit<"?" "?=">> {};
 
   struct AssignExpression
       : rule<create<ast::AssignExpr>(

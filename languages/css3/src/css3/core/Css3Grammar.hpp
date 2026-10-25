@@ -88,7 +88,7 @@ struct Css3 : cursiv::GrammarSpec {
 
   static constexpr auto HexDigit = cr<"0-9a-fA-F">;
   static constexpr auto IdentEscape = lit<"\\"> +
-      (repeat<1, 6>(HexDigit) + option(lit<"\r\n"> | cr<R"( \t\r\n\f)">) |
+      ((repeat<1, 6>(HexDigit) + option(lit<"\r\n"> | cr<R"( \t\r\n\f)">)) |
        cr<R"(^0-9a-fA-F\r\n\f)">);
   static constexpr auto IdentStart =
       ~cr<R"(\x00-@[-^`{-\x7f)"> | IdentEscape;

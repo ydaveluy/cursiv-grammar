@@ -80,17 +80,9 @@ function wasmRun(module: string, runner: string): ServerCommand | undefined {
     };
 }
 
-// The native binary, in the order the answers are trustworthy: what the user
-// configured, then the build tree. The extension lives at `<project>/vscode`,
-// so `../build/src/` is where CMake put the server.
+// The extension lives at `<project>/vscode`, so `../build/src/` is where
+// CMake put the native server.
 function nativeCommand(context: vscode.ExtensionContext): ServerCommand | undefined {
-    const configured = vscode.workspace
-        .getConfiguration()
-        .get<string>(`${ID}.server.path`)
-        ?.trim();
-    if (configured) {
-        return { command: configured, args: [] };
-    }
     const name = executableName();
     for (const candidate of [
         path.join(context.extensionPath, 'bin', name),
@@ -106,12 +98,15 @@ function nativeCommand(context: vscode.ExtensionContext): ServerCommand | undefi
 let client: LanguageClient | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-    const server = presetCommand(context) ?? wasmCommand(context) ??
-        nativeCommand(context);
+    const configured = vscode.workspace.getConfiguration()
+        .get<string>(`${ID}.server.path`)?.trim();
+    const server: ServerCommand | undefined = configured
+        ? { command: configured, args: [] }
+        : presetCommand(context) ?? wasmCommand(context) ?? nativeCommand(context);
     if (!server) {
         void vscode.window.showErrorMessage(
             `Cannot find ${SERVER}. Build it with ` +
-            `\`cmake --build --preset wasi --target ${SERVER}\`, or set ` +
+            `\`cmake --build --preset wasi-release --target ${SERVER}\`, or set ` +
             `\`${ID}.server.path\`.`
         );
         return;

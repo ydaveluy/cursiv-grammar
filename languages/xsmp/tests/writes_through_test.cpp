@@ -15,7 +15,7 @@
 #include "cursiv/engines/lr/runtime/LrContext.hpp"
 #include "cursiv/engines/lr/runtime/LrParseStats.hpp"
 #include "cursiv/engines/lr/runtime/LrParser.hpp"
-#include "cursiv/engines/lr/runtime/LrRepairBudget.hpp"
+#include "cursiv/engines/shared/runtime/RepairBudget.hpp"
 #include "cursiv/engines/lr/runtime/LrSearch.hpp"
 #include "cursiv/engines/lr/runtime/lr_lookahead.hpp"
 #include "cursiv/engines/lr/runtime/lr_repair_write.hpp"

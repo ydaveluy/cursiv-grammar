@@ -999,7 +999,7 @@ struct CSharp : cursiv::GrammarSpec {
 
   static constexpr auto CompoundAssignOp =
       lit<"+="> | lit<"-="> | lit<"*="> | lit<"/="> | lit<"%="> |
-      lit<"&="> | lit<"|="> | lit<"^="> | lit<"<<="> | lit<"??=">;
+      lit<"&="> | lit<"|="> | lit<"^="> | lit<"<<="> | lit<"?" "?=">;
   struct RightShiftAssignOp_ : rule<(Gt + Gt + lit<">=">) | (Gt + lit<">=">)> {
   };
 

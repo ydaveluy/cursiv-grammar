@@ -45,7 +45,13 @@
           "description": "Absolute path to the ttm_lsp executable. Empty means the packaged copy, then ../build/."
         }
       }
-    }
+    },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "cursiv.ttm.mcp",
+        "label": "cursiv Ttm"
+      }
+    ]
   },
   "scripts": {
     "compile": "node esbuild.mjs",
@@ -58,7 +64,7 @@
   "files": [
     "package.json",
     "out",
-    "bin",
+    "{bin,server}/**",
     "language-configuration.json",
     "syntaxes"
   ],
@@ -66,10 +72,18 @@
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
-    "@types/node": "^20.17.0",
-    "@types/vscode": "^1.86.0",
-    "esbuild": "^0.24.0",
-    "typescript": "^5.7.2",
-    "@vscode/vsce": "^3.2.0"
+    "@types/node": "^20.19.43",
+    "@types/vscode": "~1.86.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "@vscode/vsce": "^3.9.2"
+  },
+  "overrides": {
+    "@vscode/vsce": {
+      "@azure/identity": "4.13.0"
+    },
+    "@azure/msal-node": {
+      "uuid": "^11.1.1"
+    }
   }
 }

@@ -36,7 +36,7 @@ struct Bison : cursiv::GrammarSpec {
   struct STRING
       : terminal<lit<"\""> + many(EscSeq | cr<R"(^"\\)">) + lit<"\"">> {};
   struct TSTRING : terminal<lit<"_("> + ref<STRING> + lit<")">> {};
-  struct INT : terminal<lit<"0"> + cr<"xX"> + some(cr<"0-9a-fA-F">) |
+  struct INT : terminal<(lit<"0"> + cr<"xX"> + some(cr<"0-9a-fA-F">)) |
                         some(cr<"0-9">)> {};
 
   struct TAG;

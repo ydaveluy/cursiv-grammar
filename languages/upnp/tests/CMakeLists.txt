@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document in example/ parses, and the tree holds
 # a SearchCrit.
 add_executable(upnp_grammar_test grammar_test.cpp)
@@ -8,8 +13,10 @@ target_compile_definitions(upnp_grammar_test PRIVATE
 add_test(NAME upnp_grammar_test COMMAND upnp_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME upnp_cli_test COMMAND upnp_cli
-         ${PROJECT_SOURCE_DIR}/example/search1.upnp)
+if(TARGET upnp_cli)
+  add_test(NAME upnp_cli_test COMMAND upnp_cli
+           ${PROJECT_SOURCE_DIR}/example/search1.upnp)
+endif()
 
 add_executable(upnp_native_values_test native_values_test.cpp)
 target_link_libraries(upnp_native_values_test PRIVATE upnpCore cursiv::test)

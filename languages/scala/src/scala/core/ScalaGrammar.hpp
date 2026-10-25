@@ -398,7 +398,6 @@ struct Scala : cursiv::GrammarSpec {
                            &ast::BinaryType::op, &ast::BinaryType::right,
                            left(kw<"with">)> {};
 
-  struct RefineStat;
 
   static constexpr auto RefinementTail =
       lit<"{"> + many(append<&ast::RefinedType::members>(ref<RefineStat>)) +
@@ -567,17 +566,6 @@ struct Scala : cursiv::GrammarSpec {
 
   // ==== Expressions ==========================================================
 
-  struct Expr_;
-  struct Expr1;
-  struct PostfixExpr;
-  struct InfixExpr;
-  struct PrefixExpr;
-  struct SimpleExprChain;
-  struct Block_;
-  struct CaseClause_;
-  struct Pattern_;
-  struct ClassTemplate_;
-  struct TemplateBody_;
 
   static constexpr auto CaseClausesBody =
       some(append<&ast::MatchBlock::cases>(ref<CaseClause_>));

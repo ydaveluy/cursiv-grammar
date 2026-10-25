@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every sample parses, and each tree holds a Program.
 add_executable(pascal_grammar_test grammar_test.cpp)
 target_link_libraries(pascal_grammar_test PRIVATE pascalCore cursiv::test)
@@ -7,5 +12,7 @@ target_compile_definitions(pascal_grammar_test PRIVATE
 add_test(NAME pascal_grammar_test COMMAND pascal_grammar_test)
 
 # ...and the command line reads one of the same samples.
-add_test(NAME pascal_cli_test COMMAND pascal_cli
-         ${PROJECT_SOURCE_DIR}/example/helloworld.pas)
+if(TARGET pascal_cli)
+  add_test(NAME pascal_cli_test COMMAND pascal_cli
+           ${PROJECT_SOURCE_DIR}/example/helloworld.pas)
+endif()

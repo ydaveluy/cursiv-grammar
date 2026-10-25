@@ -45,7 +45,7 @@ inline constexpr auto unescape = [](std::string_view t,
         room[n++] = '\r';
         break;
       default:
-        room[n++] = e;  // " ' \
+        room[n++] = e;  // Preserve quote and backslash escapes.
         break;
     }
   }

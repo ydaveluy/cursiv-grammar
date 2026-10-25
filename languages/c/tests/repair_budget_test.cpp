@@ -13,7 +13,7 @@
 #include "cursiv/engines/lr/runtime/LrDrive.hpp"
 #include "cursiv/engines/lr/runtime/LrParseStats.hpp"
 #include "cursiv/engines/lr/runtime/LrParser.hpp"
-#include "cursiv/engines/lr/runtime/LrRepairBudget.hpp"
+#include "cursiv/engines/shared/runtime/RepairBudget.hpp"
 #include "cursiv/test/Check.hpp"
 
 namespace gc = ::c::generated::C;
@@ -29,7 +29,7 @@ struct Parsed {
 
 template <const auto& A>
 Parsed parse(std::string_view text, const cursiv::LrDrive& drive,
-             const cursiv::LrRepairBudget& budget = {}) {
+             const cursiv::RepairBudget& budget = {}) {
   cursiv::Cst cst;
   Parsed p;
   p.accepted = cursiv::lr_parser<A>.parse(text, cst, &p.stats, &drive, budget);
@@ -38,7 +38,7 @@ Parsed parse(std::string_view text, const cursiv::LrDrive& drive,
   return p;
 }
 
-cursiv::LrRepairBudget floor_only(std::uint64_t floor) {
+cursiv::RepairBudget floor_only(std::uint64_t floor) {
   return {.floor = floor,
           .perByte = 0,
           .perSearch = ~std::uint64_t{0},

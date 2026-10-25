@@ -40,8 +40,8 @@ struct Aspectj : cursiv::GrammarSpec {
   static constexpr auto HexDigit = cr<"0-9a-fA-F">;
   static constexpr auto HexDigits = HexDigit + option(many(HexDigit | lit<"_">) + HexDigit);
   static constexpr auto EscapeSeq =
-      lit<"\\"> + (option(lit<"u005c">) + (cr<R"(bstnfr"'\\)">
-                   | (option(option(cr<"0-3">) + cr<"0-7">) + cr<"0-7">))
+      lit<"\\"> + ((option(lit<"u005c">) + (cr<R"(bstnfr"'\\)">
+                   | (option(option(cr<"0-3">) + cr<"0-7">) + cr<"0-7">)))
                    | (some(lit<"u">) + repeat<4>(HexDigit)));
 
   struct DECIMAL_LITERAL
@@ -1171,8 +1171,8 @@ struct Aspectj : cursiv::GrammarSpec {
   // segment anchors it so a bare `.`/`..` cannot also read as one (kept
   // disjoint from FormalsItem's own dotdot marker).
   struct DottedNamePattern
-      : rule<(ref<ID> | lit<"*"> | PrimitiveKw) +
-                 many(ref<ID> | lit<"*"> | lit<"."> | lit<".."> | PrimitiveKw) |
+      : rule<((ref<ID> | lit<"*"> | PrimitiveKw) +
+                 many(ref<ID> | lit<"*"> | lit<"."> | lit<".."> | PrimitiveKw)) |
              kw<"void">> {};
 
   struct SimpleTypePattern

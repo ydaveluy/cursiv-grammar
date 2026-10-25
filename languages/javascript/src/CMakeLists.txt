@@ -1,16 +1,11 @@
-# `ID` names the targets and generated directory; `NAMESPACE` names the
-# grammar type, and everything else follows from it. Defines
-# `javascriptGenerated` (the compiled library) and `javascript_generate`
-# (writes the sources without compiling them).
+# Generate the parser and its language module.
 cursiv_generate_language(ID javascript
     GRAMMAR    javascript/core/JavaScriptGrammar.hpp
     NAMESPACE  javascript::JavaScript
     EXTENSIONS .js
     OUT        javascript/generated)
 
-# The core storey: what the author writes over the generated module -- the
-# services container and the validation checks. The grammar is not compiled
-# here; the generated module holds everything derived from it.
+# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/javascript/core/*.cpp)
 add_library(javascriptCore ${_core})
@@ -18,19 +13,26 @@ target_link_libraries(javascriptCore PUBLIC javascriptGenerated)
 
 file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/javascript/cli/*.cpp)
-add_executable(javascript_cli ${_cli})
-target_link_libraries(javascript_cli
-                      PRIVATE javascriptCore cursiv::cli)
+if(_cli)
+  add_executable(javascript_cli ${_cli})
+  target_link_libraries(javascript_cli
+                        PRIVATE javascriptCore cursiv::cli)
+endif()
 
-# The language server.
-file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/javascript/lsp/*.cpp)
-list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/javascript/lsp/main.cpp)
-add_library(javascriptLsp ${_lsp})
-target_link_libraries(javascriptLsp PUBLIC javascriptCore cursiv::lsp)
-add_executable(javascript_lsp javascript/lsp/main.cpp)
-target_link_libraries(javascript_lsp PRIVATE javascriptLsp)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/javascript/lsp")
+  file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/javascript/lsp/*.cpp)
+  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/javascript/lsp/main.cpp)
+  add_library(javascriptLsp ${_lsp})
+  target_link_libraries(javascriptLsp PUBLIC javascriptCore cursiv::lsp)
+  add_executable(javascript_lsp javascript/lsp/main.cpp)
+  target_link_libraries(javascript_lsp PRIVATE javascriptLsp)
+endif()
 
-cursiv_add_benchmark(javascript SOURCES javascript/bench/main.cpp)
+if(TARGET javascriptLsp AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/javascript/bench/main.cpp")
+  cursiv_add_benchmark(javascript
+      SOURCES javascript/bench/main.cpp)
+endif()
 
 cursiv_package_language(javascript)

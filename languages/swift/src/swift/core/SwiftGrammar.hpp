@@ -502,13 +502,13 @@ struct Swift : cursiv::GrammarSpec {
   };
   struct PlaygroundResourceLit
       : rule<create<ast::PlaygroundResourceLit>(
-            flag<&ast::PlaygroundResourceLit::isImage>(kw<"#imageLiteral">) +
+            (flag<&ast::PlaygroundResourceLit::isImage>(kw<"#imageLiteral">) +
                 lit<"("> + kw<"resourceName"> + lit<":"> +
                 assign<&ast::PlaygroundResourceLit::resourceName>(ref<Expression>) +
-                lit<")"> |
-            kw<"#fileLiteral"> + lit<"("> + kw<"resourceName"> + lit<":"> +
+                lit<")">) |
+            (kw<"#fileLiteral"> + lit<"("> + kw<"resourceName"> + lit<":"> +
                 assign<&ast::PlaygroundResourceLit::resourceName>(ref<Expression>) +
-                lit<")">)> {};
+                lit<")">))> {};
 
   struct LiteralExpr
       : rule<ref<FloatLiteral> | ref<IntLiteral> | ref<StringLiteral> |
@@ -980,10 +980,10 @@ struct Swift : cursiv::GrammarSpec {
             lit<")">)> {};
   struct DiagnosticStatement
       : rule<create<ast::DiagnosticStmt>(
-            flag<&ast::DiagnosticStmt::isError>(kw<"#error">) + lit<"("> +
-                assign<&ast::DiagnosticStmt::message>(ref<Expression>) + lit<")"> |
-            kw<"#warning"> + lit<"("> +
-                assign<&ast::DiagnosticStmt::message>(ref<Expression>) + lit<")">)> {
+            (flag<&ast::DiagnosticStmt::isError>(kw<"#error">) + lit<"("> +
+                assign<&ast::DiagnosticStmt::message>(ref<Expression>) + lit<")">) |
+            (kw<"#warning"> + lit<"("> +
+                assign<&ast::DiagnosticStmt::message>(ref<Expression>) + lit<")">))> {
   };
   struct CompilerControlStatement
       : rule<ref<IfConfigBlock> | ref<LineControlStatement> | ref<DiagnosticStatement>> {
@@ -1111,8 +1111,8 @@ struct Swift : cursiv::GrammarSpec {
             option(flag<&ast::Param::inoutFlag>(kw<"inout">)) +
             many(append<&ast::Param::specifiers>(ParameterSpecifier)) +
             assign<&ast::Param::type>(ref<Type>) +
-            option(lit<"="> +
-                       assign<&ast::Param::defaultValue>(ref<Expression>) |
+            option((lit<"="> +
+                       assign<&ast::Param::defaultValue>(ref<Expression>)) |
                    flag<&ast::Param::variadic>(lit<"...">)))> {};
 
   struct FunctionDecl

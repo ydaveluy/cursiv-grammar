@@ -4,6 +4,9 @@ A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
 ## Build
 
+Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`
+support. Cursiv's CI uses GCC 16 and Clang 22.
+
 ```bash
 cmake -B build
 cmake --build build -j
@@ -44,17 +47,13 @@ read . timeout . ms = 250
 write.timeout.ms = -250
 ```
 
-Configuration files, a restricted INI/TOML: sections, dotted keys, and four
-value kinds -- string, integer, float, boolean. The record separator is the
-newline, not a punctuation mark: a record ends at the line, or at the end of
-the input for the last one, and the ignore rule alone is what makes the format
-line-oriented -- `tests/FreeFormGrammar.hpp`, the same grammar with `\n` put
-back into it, accepts what this one refuses. A dotted key's parts are joined,
-so `a . b` and `a.b` are one key; a section header allows no trivia between
-its brackets.
+Configuration files are read line by line, with sections and key/value entries.
+`IniReader` preserves values as strings; it does not convert them into integer,
+float or boolean alternatives. It trims surrounding whitespace from names but
+preserves internal whitespace, so `a . b` and `a.b` are distinct keys.
 
-`example.ini`, beside this README, is the document the grammar test reads
-entry by entry; `example/broken.ini` is broken on purpose.
+`example/config.ini` is one of the documents the grammar test reads;
+`example/broken.ini` is broken on purpose.
 
 ## The command line
 
@@ -70,9 +69,11 @@ command was wrong, 3 something threw.
 
 `ini_lsp` speaks LSP over stdio. In VS Code, open this folder and
 press **F5**: the task builds the server in the tree of the preset you have
-selected -- `native` runs the host binary, `wasi` the wasm module -- and a
-second window opens on `example/` with the extension loaded. The preset is
-read through the CMake Tools extension, which the workspace recommends.
+selected. GCC/Clang presets run the host binary; WASI presets run the wasm
+module. A second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends along
+with clangd. Native servers require VS Code 1.86 or later; WASI servers require
+1.101 or later.
 
 ```bash
 (cd vscode && npm install && npm run compile)

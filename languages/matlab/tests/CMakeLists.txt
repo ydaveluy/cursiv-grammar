@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: what this language takes, and what it refuses.
 add_executable(matlab_grammar_test grammar_test.cpp)
 target_link_libraries(matlab_grammar_test PRIVATE matlabCore)
@@ -7,5 +12,7 @@ target_compile_definitions(matlab_grammar_test PRIVATE
 add_test(NAME matlab_grammar_test COMMAND matlab_grammar_test)
 
 # ...and the command line reads one sample from the same corpus.
-add_test(NAME matlab_cli_test COMMAND matlab_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.matlab)
+if(TARGET matlab_cli)
+  add_test(NAME matlab_cli_test COMMAND matlab_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.matlab)
+endif()

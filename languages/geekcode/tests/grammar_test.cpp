@@ -14,11 +14,9 @@
 #include "geekcode/core/CoreServices.hpp"
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
 #include "cursiv/core/syntax-tree/Cst.hpp"
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "geekcode/core/ast.hpp"
-#include "geekcode/generated/Geekcode/AstReflection.hpp"
 #include "geekcode/generated/Geekcode/Module.hpp"
 
 namespace {
@@ -31,22 +29,9 @@ const cursiv::Parser& engine() {
   return *p;
 }
 
-const cursiv::AstReflection& reflection() {
-  static const std::unique_ptr<cursiv::AstReflection> r =
-      geekcode::generated::Geekcode::create_ast_reflection();
-  return *r;
-}
-
 bool accepts(std::string_view text) {
   const cursiv::ParseResult r = engine().parse(text);
   return r.accepted && !r.cst().recovered();
-}
-
-template <class T>
-T* as(cursiv::AstNode* n) {
-  return (n != nullptr && reflection().isInstance(*n, &cursiv::ast_type_tag<T>))
-             ? static_cast<T*>(n)
-             : nullptr;
 }
 
 cursiv::ParseResult build(std::string_view text) {

@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document under example/ parses clean.
 add_executable(rfc1035_grammar_test grammar_test.cpp)
 target_link_libraries(rfc1035_grammar_test PRIVATE rfc1035Core)
@@ -7,8 +12,10 @@ target_compile_definitions(rfc1035_grammar_test PRIVATE
 add_test(NAME rfc1035_grammar_test COMMAND rfc1035_grammar_test)
 
 # ...and the command line reads one of them.
-add_test(NAME rfc1035_cli_test COMMAND rfc1035_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.rfc1035)
+if(TARGET rfc1035_cli)
+  add_test(NAME rfc1035_cli_test COMMAND rfc1035_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.rfc1035)
+endif()
 
 add_executable(rfc1035_native_test native_test.cpp)
 target_link_libraries(rfc1035_native_test PRIVATE rfc1035Core cursiv::test)

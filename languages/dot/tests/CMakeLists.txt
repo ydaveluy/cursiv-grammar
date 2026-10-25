@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses, and the tree holds what it declares.
 add_executable(dot_grammar_test grammar_test.cpp)
 target_link_libraries(dot_grammar_test PRIVATE dotCore)
@@ -11,5 +16,7 @@ target_link_libraries(dot_native_regressions PRIVATE dotCore cursiv::test)
 add_test(NAME dot_native_regressions COMMAND dot_native_regressions)
 
 # ...and the command line reads one of the same samples.
-add_test(NAME dot_cli_test COMMAND dot_cli
-         ${PROJECT_SOURCE_DIR}/example/crazy.dot)
+if(TARGET dot_cli)
+  add_test(NAME dot_cli_test COMMAND dot_cli
+           ${PROJECT_SOURCE_DIR}/example/crazy.dot)
+endif()

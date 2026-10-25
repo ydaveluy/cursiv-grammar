@@ -4,12 +4,42 @@
     {
       "label": "build the server and the extension",
       "detail": "Build vaxscan_lsp in the active preset's tree, then bundle the TypeScript.",
-      "type": "shell",
-      "command": "cmake --build ${command:cmake.buildDirectory} --target vaxscan_lsp && cd vscode && npm install && npm run compile",
-      "options": { "cwd": "${workspaceFolder}" },
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "build the language server",
+        "install extension dependencies",
+        "compile the extension"
+      ],
       "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "build the language server",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build", "${command:cmake.buildDirectory}",
+        "--target", "vaxscan_lsp", "--parallel"
+      ],
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": ["$gcc"],
       "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
+    },
+    {
+      "label": "install extension dependencies",
+      "type": "shell",
+      "command": "npm",
+      "args": ["install", "--no-audit", "--no-fund"],
+      "options": { "cwd": "${workspaceFolder}/vscode" },
+      "problemMatcher": []
+    },
+    {
+      "label": "compile the extension",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "compile"],
+      "options": { "cwd": "${workspaceFolder}/vscode" },
+      "problemMatcher": []
     }
   ]
 }

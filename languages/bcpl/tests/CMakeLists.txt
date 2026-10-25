@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document under example/ (upstream) and tests/
 # (constructs the corpus never reaches) parses clean, and the tree holds
 # what it declares.
@@ -9,5 +14,7 @@ target_compile_definitions(bcpl_grammar_test PRIVATE
 add_test(NAME bcpl_grammar_test COMMAND bcpl_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME bcpl_cli_test COMMAND bcpl_cli
-         ${PROJECT_SOURCE_DIR}/example/fact.bcpl)
+if(TARGET bcpl_cli)
+  add_test(NAME bcpl_cli_test COMMAND bcpl_cli
+           ${PROJECT_SOURCE_DIR}/example/fact.bcpl)
+endif()

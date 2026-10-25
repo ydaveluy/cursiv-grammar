@@ -56,7 +56,7 @@ struct Vhdl : cursiv::GrammarSpec {
 
   struct BIT_STRING_LIT
       : terminal<option(IntRun) +
-                 (option(cr<"sSuU">) + cr<"bBoOxX"> | cr<"dD">) +
+                 ((option(cr<"sSuU">) + cr<"bBoOxX">) | cr<"dD">) +
                  lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">> {};
 
   static constexpr auto Identifier = ref<BASIC_ID> | ref<EXT_ID>;

@@ -44,8 +44,8 @@ struct Elixir : cursiv::GrammarSpec {
       lit<"::"> | lit<"<-"> | lit<"->"> | lit<"\\\\">;
 
   struct ATOM
-      : terminal<lit<":"> + ((uc::L | cr<"_">) + many(uc::L | uc::Nl | uc::Mn | uc::Mc | uc::Nd | uc::Pc | cr<"_0-9@">) +
-                                  option(cr<"!?">) |
+      : terminal<lit<":"> + (((uc::L | cr<"_">) + many(uc::L | uc::Nl | uc::Mn | uc::Mc | uc::Nd | uc::Pc | cr<"_0-9@">) +
+                                  option(cr<"!?">)) |
                               AtomOperatorTok),
                  DropFirst> {};
 
@@ -254,7 +254,7 @@ struct Elixir : cursiv::GrammarSpec {
                                      append<&ast::CallExpr::args>(ref<NoDoExpression>);
   static constexpr auto ParenArgs = NLs + option(some(CallArgItem, Comma) + option(Comma) + NLs);
   static constexpr auto NoParenArgs = !gap::none + !lit<"("> + !lit<".."> +
-      (!(lit<"+"> | lit<"-">) | &(lit<"+", !s> | lit<"-", !s>)) +
+      ((!(lit<"+"> | lit<"-">)) | &(lit<"+", !s> | lit<"-", !s>)) +
       flag<&ast::CallExpr::noParens>(some(NoDoArgItem, Comma));
   struct NamedPrimary : rule<ref<VarRefRule> + option(
       nest<ast::CallExpr, &ast::CallExpr::callee>(NoParenArgs))> {};

@@ -53,9 +53,9 @@ struct Golang : cursiv::GrammarSpec {
 
   static constexpr auto EscapedValue =
       lit<"\\"> +
-      (lit<"u"> + repeat<4>(cr<"0-9a-fA-F">) |
-       lit<"U"> + repeat<8>(cr<"0-9a-fA-F">) | cr<R"(abfnrtv\\'")">  //
-       | repeat<3>(cr<"0-7">) | lit<"x"> + repeat<2>(cr<"0-9a-fA-F">));
+      ((lit<"u"> + repeat<4>(cr<"0-9a-fA-F">)) |
+       (lit<"U"> + repeat<8>(cr<"0-9a-fA-F">)) | cr<R"(abfnrtv\\'")">  //
+       | repeat<3>(cr<"0-7">) | (lit<"x"> + repeat<2>(cr<"0-9a-fA-F">)));
 
   struct RUNE_LIT
       : terminal<lit<"'"> + (EscapedValue | ~cr<R"(\n')">) +

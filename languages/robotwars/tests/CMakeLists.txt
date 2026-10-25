@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 add_executable(robotwars_grammar_test grammar_test.cpp)
 target_link_libraries(robotwars_grammar_test PRIVATE robotwarsCore)
 target_compile_definitions(robotwars_grammar_test PRIVATE
@@ -6,5 +11,7 @@ target_compile_definitions(robotwars_grammar_test PRIVATE
 add_test(NAME robotwars_grammar_test COMMAND robotwars_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME robotwars_cli_test COMMAND robotwars_cli
-         ${PROJECT_SOURCE_DIR}/example/scanner.robotwars)
+if(TARGET robotwars_cli)
+  add_test(NAME robotwars_cli_test COMMAND robotwars_cli
+           ${PROJECT_SOURCE_DIR}/example/scanner.robotwars)
+endif()

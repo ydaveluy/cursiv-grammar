@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document under example/ parses clean, and
 # connectives.ctl's tree matches the language's operator precedence.
 add_executable(ctl_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(ctl_grammar_test PRIVATE
 add_test(NAME ctl_grammar_test COMMAND ctl_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME ctl_cli_test COMMAND ctl_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.ctl)
+if(TARGET ctl_cli)
+  add_test(NAME ctl_cli_test COMMAND ctl_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.ctl)
+endif()

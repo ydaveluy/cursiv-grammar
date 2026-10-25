@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 add_executable(informix_grammar_test grammar_test.cpp)
 target_link_libraries(informix_grammar_test PRIVATE informixCore)
 target_compile_definitions(informix_grammar_test PRIVATE
@@ -6,5 +11,7 @@ target_compile_definitions(informix_grammar_test PRIVATE
 add_test(NAME informix_grammar_test COMMAND informix_grammar_test)
 
 # ...and the command line reads one sample.
-add_test(NAME informix_cli_test COMMAND informix_cli
-         ${PROJECT_SOURCE_DIR}/example/example2.4gl)
+if(TARGET informix_cli)
+  add_test(NAME informix_cli_test COMMAND informix_cli
+           ${PROJECT_SOURCE_DIR}/example/example2.4gl)
+endif()

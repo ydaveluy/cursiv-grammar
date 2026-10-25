@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean, and the tree holds a
 # compilation unit.
 add_executable(java_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(java_grammar_test PRIVATE
 add_test(NAME java_grammar_test COMMAND java_grammar_test)
 
 # ...and the command line reads one example.
-add_test(NAME java_cli_test COMMAND java_cli
-         ${PROJECT_SOURCE_DIR}/example/GenericConstructor.java)
+if(TARGET java_cli)
+  add_test(NAME java_cli_test COMMAND java_cli
+           ${PROJECT_SOURCE_DIR}/example/GenericConstructor.java)
+endif()

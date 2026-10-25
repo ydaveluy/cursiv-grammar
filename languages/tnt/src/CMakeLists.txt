@@ -1,16 +1,11 @@
-# `ID` names the targets and generated directory; `NAMESPACE` names the
-# grammar type, and everything else follows from it. Defines
-# `tntGenerated` (the compiled library) and `tnt_generate`
-# (writes the sources without compiling them).
+# Generate the parser and its language module.
 cursiv_generate_language(ID tnt
     GRAMMAR    tnt/core/TntGrammar.hpp
     NAMESPACE  tnt::Tnt
     EXTENSIONS .tnt
     OUT        tnt/generated)
 
-# The core storey: what the author writes over the generated module -- the
-# services container and the validation checks. The grammar is not compiled
-# here; the generated module holds everything derived from it.
+# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/tnt/core/*.cpp)
 add_library(tntCore ${_core})
@@ -18,19 +13,26 @@ target_link_libraries(tntCore PUBLIC tntGenerated)
 
 file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/tnt/cli/*.cpp)
-add_executable(tnt_cli ${_cli})
-target_link_libraries(tnt_cli
-                      PRIVATE tntCore cursiv::cli)
+if(_cli)
+  add_executable(tnt_cli ${_cli})
+  target_link_libraries(tnt_cli
+                        PRIVATE tntCore cursiv::cli)
+endif()
 
-# The language server.
-file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/tnt/lsp/*.cpp)
-list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/tnt/lsp/main.cpp)
-add_library(tntLsp ${_lsp})
-target_link_libraries(tntLsp PUBLIC tntCore cursiv::lsp)
-add_executable(tnt_lsp tnt/lsp/main.cpp)
-target_link_libraries(tnt_lsp PRIVATE tntLsp)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tnt/lsp")
+  file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/tnt/lsp/*.cpp)
+  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/tnt/lsp/main.cpp)
+  add_library(tntLsp ${_lsp})
+  target_link_libraries(tntLsp PUBLIC tntCore cursiv::lsp)
+  add_executable(tnt_lsp tnt/lsp/main.cpp)
+  target_link_libraries(tnt_lsp PRIVATE tntLsp)
+endif()
 
-cursiv_add_benchmark(tnt SOURCES tnt/bench/main.cpp)
+if(TARGET tntLsp AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tnt/bench/main.cpp")
+  cursiv_add_benchmark(tnt
+      SOURCES tnt/bench/main.cpp)
+endif()
 
 cursiv_package_language(tnt)

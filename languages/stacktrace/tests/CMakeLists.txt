@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses, and the tree holds what it declares.
 add_executable(stacktrace_grammar_test grammar_test.cpp)
 target_link_libraries(stacktrace_grammar_test PRIVATE stacktraceCore)
@@ -6,5 +11,7 @@ target_compile_definitions(stacktrace_grammar_test PRIVATE
 add_test(NAME stacktrace_grammar_test COMMAND stacktrace_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME stacktrace_cli_test COMMAND stacktrace_cli
-         ${CMAKE_CURRENT_SOURCE_DIR}/simple.stacktrace)
+if(TARGET stacktrace_cli)
+  add_test(NAME stacktrace_cli_test COMMAND stacktrace_cli
+           ${CMAKE_CURRENT_SOURCE_DIR}/simple.stacktrace)
+endif()

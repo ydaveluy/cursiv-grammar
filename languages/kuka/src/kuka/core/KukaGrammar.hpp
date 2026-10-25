@@ -585,9 +585,9 @@ struct Kuka : cursiv::GrammarSpec {
 
   // A blank line here is one NEWLINE, like every sibling statement list.
   static constexpr auto RoutineData =
-      many(append<&ast::Routine::data>(ref<VarDeclRule>) + ref<NEWLINE> |
-           append<&ast::Routine::data>(ref<ForwardDeclRule>) + ref<NEWLINE> |
-           append<&ast::Routine::data>(ref<ImportDeclRule>) + ref<NEWLINE> |
+      many((append<&ast::Routine::data>(ref<VarDeclRule>) + ref<NEWLINE>) |
+           (append<&ast::Routine::data>(ref<ForwardDeclRule>) + ref<NEWLINE>) |
+           (append<&ast::Routine::data>(ref<ImportDeclRule>) + ref<NEWLINE>) |
            ref<NEWLINE>);
   static constexpr auto RoutineBody =
       RoutineData +
@@ -614,17 +614,17 @@ struct Kuka : cursiv::GrammarSpec {
                  ref<NEWLINE>))> {};
 
   static constexpr auto DataList =
-      many(append<&ast::DataModule::items>(ref<ForwardDeclRule>) +
-               ref<NEWLINE> |
-           append<&ast::DataModule::items>(ref<StructDefRule>) +
-               ref<NEWLINE> |
-           append<&ast::DataModule::items>(ref<EnumDefRule>) + ref<NEWLINE> |
-           append<&ast::DataModule::items>(ref<DataVarDeclRule>) +
-               ref<NEWLINE> |
-           append<&ast::DataModule::items>(ref<ArrayInitRule>) +
-               ref<NEWLINE> |
-           append<&ast::DataModule::items>(ref<ImportDeclRule>) +
-               ref<NEWLINE> |
+      many((append<&ast::DataModule::items>(ref<ForwardDeclRule>) +
+               ref<NEWLINE>) |
+           (append<&ast::DataModule::items>(ref<StructDefRule>) +
+               ref<NEWLINE>) |
+           (append<&ast::DataModule::items>(ref<EnumDefRule>) + ref<NEWLINE>) |
+           (append<&ast::DataModule::items>(ref<DataVarDeclRule>) +
+               ref<NEWLINE>) |
+           (append<&ast::DataModule::items>(ref<ArrayInitRule>) +
+               ref<NEWLINE>) |
+           (append<&ast::DataModule::items>(ref<ImportDeclRule>) +
+               ref<NEWLINE>) |
            ref<NEWLINE>);
 
   struct DataModuleRule

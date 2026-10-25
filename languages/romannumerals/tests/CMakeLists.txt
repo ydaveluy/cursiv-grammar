@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses, and the tree holds what it declares.
 add_executable(romannumerals_grammar_test grammar_test.cpp)
 target_link_libraries(romannumerals_grammar_test PRIVATE romannumeralsCore)
@@ -7,5 +12,7 @@ target_compile_definitions(romannumerals_grammar_test PRIVATE
 add_test(NAME romannumerals_grammar_test COMMAND romannumerals_grammar_test)
 
 # ...and the command line reads one example.
-add_test(NAME romannumerals_cli_test COMMAND romannumerals_cli
-         ${PROJECT_SOURCE_DIR}/example/MCMLXXII.romannumerals)
+if(TARGET romannumerals_cli)
+  add_test(NAME romannumerals_cli_test COMMAND romannumerals_cli
+           ${PROJECT_SOURCE_DIR}/example/MCMLXXII.romannumerals)
+endif()

@@ -40,7 +40,7 @@ export * from "b.json" with {type: "json"};
     if (const auto *assignment =
             cursiv::ast_cast<javascript::ast::AssignExpr>(node))
       logical += assignment->op == "&&=" || assignment->op == "||=" ||
-                 assignment->op == "??=";
+                 assignment->op == "?" "?=";
     if (const auto *value =
             cursiv::ast_cast<javascript::ast::ImportMetaExpr>(node)) {
       const auto *property =

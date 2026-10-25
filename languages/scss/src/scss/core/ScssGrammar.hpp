@@ -242,7 +242,7 @@ struct Scss : cursiv::GrammarSpec {
   static constexpr auto NameFollow =
       ~cr<R"(\x00-,.-@\[\]^`{-\x7f)">;
   static constexpr auto SpaceNext =
-      !lit<"+"> + (!lit<"-", !NameFollow> |
+      !lit<"+"> + ((!lit<"-", !NameFollow>) |
                    (!gap::none + &lit<"-", !cr<"^.0-9">>));
 
   static constexpr auto ListComma =
@@ -530,7 +530,7 @@ struct Scss : cursiv::GrammarSpec {
   struct SelectorRule
       : rule<create<ast::Selector>(
             append<&ast::Selector::sequences>(ref<SimpleSelectorSequenceRule>) +
-            many((!gap::none | &cr<">+~">) +
+            many(((!gap::none) | &cr<">+~">) +
                  append<&ast::Selector::sequences>(
                      ref<SimpleSelectorSequenceRule>)))> {};
 
@@ -592,7 +592,7 @@ struct Scss : cursiv::GrammarSpec {
   static constexpr auto GluedName =
       gap::none + (&NameStart | (&lit<"#"> + !lit<"#", !cr<"{">>));
   static constexpr auto NotGluedName =
-      !gap::none | (!NameStart + (!lit<"#"> | &lit<"#", !cr<"{">>));
+      (!gap::none) | (!NameStart + ((!lit<"#">) | &lit<"#", !cr<"{">>));
 
   template <auto ValueMember>
   static constexpr auto ValueRun =

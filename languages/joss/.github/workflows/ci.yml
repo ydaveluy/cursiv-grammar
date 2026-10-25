@@ -4,23 +4,33 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    container: gcc:16
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: Install a C++26 compiler
+      - name: Install build tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y g++-14 ninja-build
-          echo "CXX=g++-14" >> "$GITHUB_ENV"
+          apt-get update
+          apt-get install -y --no-install-recommends cmake git ninja-build
 
       - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake --preset gcc-release
 
       - name: Build
-        run: cmake --build build -j
+        run: cmake --build --preset gcc-release --parallel 4
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --preset gcc-release --parallel 4 --output-on-failure

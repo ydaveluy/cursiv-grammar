@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean, and the tree holds what it
 # declares.
 add_executable(corundum_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(corundum_grammar_test PRIVATE
 add_test(NAME corundum_grammar_test COMMAND corundum_grammar_test)
 
 # ...and the command line reads the same sample.
-add_test(NAME corundum_cli_test COMMAND corundum_cli
-         ${PROJECT_SOURCE_DIR}/example/test.rb)
+if(TARGET corundum_cli)
+  add_test(NAME corundum_cli_test COMMAND corundum_cli
+           ${PROJECT_SOURCE_DIR}/example/test.rb)
+endif()

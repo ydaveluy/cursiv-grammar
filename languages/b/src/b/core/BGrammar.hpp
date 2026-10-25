@@ -118,9 +118,9 @@ struct B : cursiv::GrammarSpec {
             lit<"="> + option(CompoundOp),
             text_conv<[](std::string_view text) { return text.substr(1); }>> {};
   struct Assignment
-      : rule<assign<&ast::AssignExpr::target>(ref<Ternary>) +
+      : rule<(assign<&ast::AssignExpr::target>(ref<Ternary>) +
                  assign<&ast::AssignExpr::op>(ref<AssignOperator>) +
-                 assign<&ast::AssignExpr::value>(ref<Assignment>) |
+                 assign<&ast::AssignExpr::value>(ref<Assignment>)) |
              ref<Ternary>> {};
 
   struct Rvalue

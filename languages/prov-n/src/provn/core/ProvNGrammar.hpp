@@ -98,8 +98,8 @@ struct ProvN : cursiv::GrammarSpec {
        lit<":"> + cr<"0-5"> + d + option(lit<"."> + some(d))) |
       (lit<"24:00:00"> + option(lit<"."> + some(lit<"0">)));
   static constexpr auto timezone =
-      option(lit<"Z"> | (cr<"+-"> + (((cr<"01"> + d) | (lit<"1"> + cr<"0-3">)) +
-                                     lit<":"> + cr<"0-5"> + d |
+      option(lit<"Z"> | (cr<"+-"> + ((((cr<"01"> + d) | (lit<"1"> + cr<"0-3">)) +
+                                     lit<":"> + cr<"0-5"> + d) |
                                      lit<"14:00">)));
   static constexpr auto datetime_body =
       year + lit<"-"> + month + lit<"-"> + day + lit<"T"> + hour_min_sec +

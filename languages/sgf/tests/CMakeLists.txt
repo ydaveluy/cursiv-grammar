@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every sample parses, and the tree holds a game tree.
 add_executable(sgf_grammar_test grammar_test.cpp)
 target_link_libraries(sgf_grammar_test PRIVATE sgfCore)
@@ -7,5 +12,7 @@ target_compile_definitions(sgf_grammar_test PRIVATE
 add_test(NAME sgf_grammar_test COMMAND sgf_grammar_test)
 
 # ...and the command line reads one of the same samples.
-add_test(NAME sgf_cli_test COMMAND sgf_cli
-         ${PROJECT_SOURCE_DIR}/example/8718-KuroNeko-creedfoxx-chensicha.sgf)
+if(TARGET sgf_cli)
+  add_test(NAME sgf_cli_test COMMAND sgf_cli
+           ${PROJECT_SOURCE_DIR}/example/8718-KuroNeko-creedfoxx-chensicha.sgf)
+endif()

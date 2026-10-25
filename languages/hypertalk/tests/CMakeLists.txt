@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses, and the tree holds a Document.
 add_executable(hypertalk_grammar_test grammar_test.cpp)
 target_link_libraries(hypertalk_grammar_test PRIVATE hypertalkCore)
@@ -6,8 +11,10 @@ target_compile_definitions(hypertalk_grammar_test PRIVATE
 add_test(NAME hypertalk_grammar_test COMMAND hypertalk_grammar_test)
 
 # ...and the command line reads one of the same examples.
-add_test(NAME hypertalk_cli_test COMMAND hypertalk_cli
-         ${PROJECT_SOURCE_DIR}/example/SingleLine.hypertalk)
+if(TARGET hypertalk_cli)
+  add_test(NAME hypertalk_cli_test COMMAND hypertalk_cli
+           ${PROJECT_SOURCE_DIR}/example/SingleLine.hypertalk)
+endif()
 
 # Constructs the six-file upstream corpus does not reach: chunk expressions,
 # containers, `repeat` forms, multi-line `if`/`else`, `send`, `do`, property

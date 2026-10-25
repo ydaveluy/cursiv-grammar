@@ -9,11 +9,11 @@ struct WktCrsV1 : cursiv::GrammarSpec {
   struct NAME : terminal<cr<"A-Za-z_"> + many(cr<"A-Za-z_0-9">)> {};
   struct CODE : terminal<some(cr<"A-Za-z_0-9.:-">)> {};
   struct NUMBER : terminal<option(cr<"+-">) +
-      (some(d) + option(lit<"."> + many(d)) | lit<"."> + some(d)) +
+      ((some(d) + option(lit<"."> + many(d))) | (lit<"."> + some(d))) +
       option(cr<"eE"> + option(cr<"+-">) + some(d))> {};
   struct TEXT : terminal<
-      lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\""> |
-      lit<"“"> + many(!lit<"”"> + any) + lit<"”">> {};
+      (lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">) |
+      (lit<"“"> + many(!lit<"”"> + any) + lit<"”">)> {};
   struct COMMENT : terminal<lit<"#"> + many(cr<R"(^\r\n)">)> {};
 
   struct ClauseRule;

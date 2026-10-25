@@ -344,7 +344,7 @@ struct Protobuf : cursiv::GrammarSpec {
   struct OneofRule
       : rule<create<ast::Oneof> + kw<"oneof"> +
              assign<&ast::Oneof::name>(ref<Ident>) + lit<"{"> +
-             many(append<&ast::Oneof::options>(ref<OptionDeclRule>) + lit<";"> |
+             many((append<&ast::Oneof::options>(ref<OptionDeclRule>) + lit<";">) |
                   append<&ast::Oneof::fields>(ref<OneofFieldRule>) | lit<";">) +
              lit<"}">> {};
 
@@ -379,8 +379,8 @@ struct Protobuf : cursiv::GrammarSpec {
   struct EnumDefRule
       : rule<create<ast::EnumDef> + kw<"enum"> +
              assign<&ast::EnumDef::name>(ref<Ident>) + lit<"{"> +
-             many(append<&ast::EnumDef::options>(ref<OptionDeclRule>) +
-                      lit<";"> |
+             many((append<&ast::EnumDef::options>(ref<OptionDeclRule>) +
+                      lit<";">) |
                   append<&ast::EnumDef::fields>(ref<EnumFieldRule>) |
                   append<&ast::EnumDef::reserved>(ref<ReservedRule>) |
                   lit<";">) +
@@ -400,8 +400,8 @@ struct Protobuf : cursiv::GrammarSpec {
                   append<&ast::MessageDef::enums>(ref<EnumDefRule>) |
                   append<&ast::MessageDef::messages>(ref<MessageDefRule>) |
                   append<&ast::MessageDef::extends_>(ref<ExtendDefRule>) |
-                  append<&ast::MessageDef::options>(ref<OptionDeclRule>) +
-                      lit<";"> |
+                  (append<&ast::MessageDef::options>(ref<OptionDeclRule>) +
+                      lit<";">) |
                   append<&ast::MessageDef::oneofs>(ref<OneofRule>) |
                   append<&ast::MessageDef::mapFields>(ref<MapFieldRule>) |
                   append<&ast::MessageDef::reserved>(ref<ReservedRule>) |
@@ -419,15 +419,15 @@ struct Protobuf : cursiv::GrammarSpec {
              lit<")"> +
              (lit<";"> |
               (lit<"{"> +
-               many(append<&ast::Rpc::options>(ref<OptionDeclRule>) + lit<";"> |
+               many((append<&ast::Rpc::options>(ref<OptionDeclRule>) + lit<";">) |
                     lit<";">) +
                lit<"}">))> {};
 
   struct ServiceDefRule
       : rule<create<ast::ServiceDef> + kw<"service"> +
              assign<&ast::ServiceDef::name>(ref<Ident>) + lit<"{"> +
-             many(append<&ast::ServiceDef::options>(ref<OptionDeclRule>) +
-                      lit<";"> |
+             many((append<&ast::ServiceDef::options>(ref<OptionDeclRule>) +
+                      lit<";">) |
                   append<&ast::ServiceDef::rpcs>(ref<RpcRule>) | lit<";">) +
              lit<"}">> {};
 
@@ -449,8 +449,8 @@ struct Protobuf : cursiv::GrammarSpec {
       : rule<create<ast::Document> + syntax_stmt +
              many(append<&ast::Document::imports>(ref<ImportRule>) |
                   append<&ast::Document::packages>(ref<PackageRule>) |
-                  append<&ast::Document::options>(ref<OptionDeclRule>) +
-                      lit<";"> |
+                  (append<&ast::Document::options>(ref<OptionDeclRule>) +
+                      lit<";">) |
                   append<&ast::Document::messages>(ref<MessageDefRule>) |
                   append<&ast::Document::enums>(ref<EnumDefRule>) |
                   append<&ast::Document::extends_>(ref<ExtendDefRule>) |

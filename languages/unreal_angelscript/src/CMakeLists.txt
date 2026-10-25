@@ -1,16 +1,11 @@
-# `ID` names the targets and generated directory; `NAMESPACE` names the
-# grammar type, and everything else follows from it. Defines
-# `unrealangelscriptGenerated` (the compiled library) and `unrealangelscript_generate`
-# (writes the sources without compiling them).
+# Generate the parser and its language module.
 cursiv_generate_language(ID unrealangelscript
     GRAMMAR    unrealangelscript/core/UnrealAngelscriptGrammar.hpp
     NAMESPACE  unrealangelscript::UnrealAngelscript
     EXTENSIONS .as
     OUT        unrealangelscript/generated)
 
-# The core storey: what the author writes over the generated module -- the
-# services container and the validation checks. The grammar is not compiled
-# here; the generated module holds everything derived from it.
+# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/unrealangelscript/core/*.cpp)
 add_library(unrealangelscriptCore ${_core})
@@ -18,19 +13,26 @@ target_link_libraries(unrealangelscriptCore PUBLIC unrealangelscriptGenerated)
 
 file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/unrealangelscript/cli/*.cpp)
-add_executable(unrealangelscript_cli ${_cli})
-target_link_libraries(unrealangelscript_cli
-                      PRIVATE unrealangelscriptCore cursiv::cli)
+if(_cli)
+  add_executable(unrealangelscript_cli ${_cli})
+  target_link_libraries(unrealangelscript_cli
+                        PRIVATE unrealangelscriptCore cursiv::cli)
+endif()
 
-# The language server.
-file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/unrealangelscript/lsp/*.cpp)
-list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/unrealangelscript/lsp/main.cpp)
-add_library(unrealangelscriptLsp ${_lsp})
-target_link_libraries(unrealangelscriptLsp PUBLIC unrealangelscriptCore cursiv::lsp)
-add_executable(unrealangelscript_lsp unrealangelscript/lsp/main.cpp)
-target_link_libraries(unrealangelscript_lsp PRIVATE unrealangelscriptLsp)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/unrealangelscript/lsp")
+  file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/unrealangelscript/lsp/*.cpp)
+  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/unrealangelscript/lsp/main.cpp)
+  add_library(unrealangelscriptLsp ${_lsp})
+  target_link_libraries(unrealangelscriptLsp PUBLIC unrealangelscriptCore cursiv::lsp)
+  add_executable(unrealangelscript_lsp unrealangelscript/lsp/main.cpp)
+  target_link_libraries(unrealangelscript_lsp PRIVATE unrealangelscriptLsp)
+endif()
 
-cursiv_add_benchmark(unrealangelscript SOURCES unrealangelscript/bench/main.cpp)
+if(TARGET unrealangelscriptLsp AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unrealangelscript/bench/main.cpp")
+  cursiv_add_benchmark(unrealangelscript
+      SOURCES unrealangelscript/bench/main.cpp)
+endif()
 
 cursiv_package_language(unrealangelscript)

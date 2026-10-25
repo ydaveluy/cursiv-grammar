@@ -242,9 +242,9 @@ struct Asn : cursiv::GrammarSpec {
       : rule<create<ast::AtNotation>(
             (flag<&ast::AtNotation::relative>(lit<"@.">) +
              many(lit<".">)) |
-            lit<"@"> +
+            (lit<"@"> +
             append<&ast::AtNotation::path>(ref<ID>) +
-            many(lit<"."> + append<&ast::AtNotation::path>(ref<ID>)))> {};
+            many(lit<"."> + append<&ast::AtNotation::path>(ref<ID>))))> {};
 
   struct ComponentPresenceRule
       : rule<create<ast::ComponentPresence>(

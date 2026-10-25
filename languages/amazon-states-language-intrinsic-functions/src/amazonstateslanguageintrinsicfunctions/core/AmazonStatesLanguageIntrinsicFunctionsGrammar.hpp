@@ -14,7 +14,7 @@ struct AmazonStatesLanguageIntrinsicFunctions : cursiv::GrammarSpec {
   struct STRING
       : terminal<lit<"'"> +
                      many((lit<"\\"> +
-                           (lit<"u"> + repeat<4>(cr<"0-9a-fA-F">) | any)) |
+                           ((lit<"u"> + repeat<4>(cr<"0-9a-fA-F">)) | any)) |
                           cr<R"(^'\\\x00-\x1f)">) +
                      lit<"'">,
                  text_conv<[](std::string_view t) {

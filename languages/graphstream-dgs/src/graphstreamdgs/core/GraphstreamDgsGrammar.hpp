@@ -101,8 +101,8 @@ struct GraphstreamDgs : cursiv::GrammarSpec {
   static constexpr auto hex = cr<"0-9a-fA-F">;
   static constexpr auto real =
       option(lit<"-">) +
-      (((some(d) + lit<"."> + many(d)) | (lit<"."> + some(d))) +
-           option(exponent) |
+      ((((some(d) + lit<"."> + many(d)) | (lit<"."> + some(d))) +
+           option(exponent)) |
        (lit<"0"> + cr<"xX"> +
         ((some(hex) + lit<"."> + many(hex)) | (lit<"."> + some(hex))) +
         cr<"pP"> + option(cr<"+-">) + some(d))) +

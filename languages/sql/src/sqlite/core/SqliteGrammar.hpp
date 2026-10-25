@@ -259,11 +259,11 @@ struct Sqlite : cursiv::GrammarSpec {
   static constexpr auto HexDigits =
       some(cr<"0-9A-Fa-f">) + many(lit<"_"> + some(cr<"0-9A-Fa-f">));
   struct NUMERIC_LITERAL
-      : terminal<((Digits + option(lit<"."> + option(Digits))) |
+      : terminal<(((Digits + option(lit<"."> + option(Digits))) |
                   (lit<"."> + Digits)) +
                          option((lit<"e"> | lit<"E">)+option(cr<"+-">) +
-                                Digits) |
-                     (lit<"0x"> | lit<"0X">)+HexDigits,
+                                Digits)) |
+                     ((lit<"0x"> | lit<"0X">)+HexDigits),
                  std::string_view> {};
 
   static constexpr auto StringBody =

@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses, and the tree it builds is rooted
 # in a proposition.
 add_executable(propcalc_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(propcalc_grammar_test PRIVATE
 add_test(NAME propcalc_grammar_test COMMAND propcalc_grammar_test)
 
 # ...and the command line reads one of them.
-add_test(NAME propcalc_cli_test COMMAND propcalc_cli
-         ${PROJECT_SOURCE_DIR}/example/modusponens.propcalc)
+if(TARGET propcalc_cli)
+  add_test(NAME propcalc_cli_test COMMAND propcalc_cli
+           ${PROJECT_SOURCE_DIR}/example/modusponens.propcalc)
+endif()

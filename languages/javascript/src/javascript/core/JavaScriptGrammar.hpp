@@ -379,7 +379,7 @@ struct JavaScript : cursiv::GrammarSpec {
               right(lit<"=", !cr<"=>">> | lit<"*="> | lit<"/="> | lit<"%="> |
                     lit<"+="> | lit<"-="> | lit<"<<="> | lit<">>>="> |
                     lit<">>="> | lit<"&="> | lit<"^="> | lit<"|="> |
-                    lit<"**="> | lit<"??="> | lit<"&&="> | lit<"||=">)> {};
+                    lit<"**="> | lit<"?" "?="> | lit<"&&="> | lit<"||=">)> {};
 
   struct Expression
       : infix<AssignExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,

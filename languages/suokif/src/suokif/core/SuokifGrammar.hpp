@@ -9,7 +9,7 @@ struct Suokif : cursiv::GrammarSpec {
   struct COMMENT : terminal<lit<";"> + many(cr<R"(^\r\n)">)> {};
   static constexpr auto wordchar = cr<"a-zA-Z0-9_-">;
   struct WORD : terminal<lit<"<=>"> | lit<"=>"> | lit<"="> |
-      cr<"a-zA-Z"> + many(wordchar)> {};
+      (cr<"a-zA-Z"> + many(wordchar))> {};
   struct VARIABLE : terminal<cr<"?@"> + some(wordchar)> {};
   struct STRING : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">> {};
   struct NUMBER : terminal<option(lit<"-">) + some(d) +

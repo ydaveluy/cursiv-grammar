@@ -41,11 +41,6 @@ const std::string& kept(std::string text) {
 
 cursiv::ParseResult parse(std::string_view text) { return engine().parse(text); }
 
-bool clean(std::string_view text) {
-  const cursiv::ParseResult r = parse(text);
-  return r.accepted && !r.cst().recovered();
-}
-
 void every_example_parses_clean() {
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
   for (const auto& entry : std::filesystem::directory_iterator(dir)) {

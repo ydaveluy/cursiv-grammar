@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses, and the tree holds a
 # TranslationUnit.
 add_executable(c_grammar_test grammar_test.cpp)
@@ -8,8 +13,10 @@ target_compile_definitions(c_grammar_test PRIVATE
 add_test(NAME c_grammar_test COMMAND c_grammar_test)
 
 # ...and the command line reads one of them.
-add_test(NAME c_cli_test COMMAND c_cli
-         ${PROJECT_SOURCE_DIR}/example/add.c)
+if(TARGET c_cli)
+  add_test(NAME c_cli_test COMMAND c_cli
+           ${PROJECT_SOURCE_DIR}/example/add.c)
+endif()
 
 # A reserved word read as a name is the validator's to refuse.
 add_executable(c_reserved_test reserved_test.cpp)

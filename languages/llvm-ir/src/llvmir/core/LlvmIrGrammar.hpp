@@ -100,7 +100,6 @@ struct LlvmIr : cursiv::GrammarSpec {
   struct LabelRule;
   struct CallArgRule;
   struct OperandBundleRule;
-  struct CallingConvRule;
   struct BasicBlockRule;
   struct UseListOrderRule;
   struct FuncHeaderRule;

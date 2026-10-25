@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 add_executable(wat_grammar_test grammar_test.cpp)
 target_link_libraries(wat_grammar_test PRIVATE watCore)
 target_compile_definitions(wat_grammar_test PRIVATE
@@ -6,5 +11,7 @@ target_compile_definitions(wat_grammar_test PRIVATE
 add_test(NAME wat_grammar_test COMMAND wat_grammar_test)
 
 # ...and the command line reads one document from the same corpus.
-add_test(NAME wat_cli_test COMMAND wat_cli
-         ${PROJECT_SOURCE_DIR}/example/shared1.wat)
+if(TARGET wat_cli)
+  add_test(NAME wat_cli_test COMMAND wat_cli
+           ${PROJECT_SOURCE_DIR}/example/shared1.wat)
+endif()

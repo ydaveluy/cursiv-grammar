@@ -50,7 +50,7 @@ struct Algol60 : cursiv::GrammarSpec {
   // Unsigned_number: an integer, a fraction, or both, with an optional
   // exponent introduced by the digits `10` (the report's raised "ten").
   struct UnsignedNumber
-      : terminal<(Digits + option(lit<"."> + Digits) | lit<"."> + Digits) +
+      : terminal<((Digits + option(lit<"."> + Digits)) | (lit<"."> + Digits)) +
                      option(lit<"10"> + option(ExpSign) + Digits),
                  UnsignedNumberValue> {};
 

@@ -29,8 +29,8 @@ std::string read_file(const std::string& path) {
 }
 
 const char* const kExamples[] = {
-    "b1_14_bezier_in_u_direction_with_b_spline_in_v_direction_with_basis_"
-    "matrix.obj",
+    ("b1_14_bezier_in_u_direction_with_b_spline_in_v_direction_with_basis_"
+     "matrix.obj"),
     "b1_14_cubic_bezier_surface_with_basis_matrix.obj",
     "b1_14_hermite_curve_with_basis_matrix.obj",
     "b1_20_cube.obj",

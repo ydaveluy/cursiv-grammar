@@ -23,8 +23,8 @@ void examples() {
                           std::filesystem::path(CURSIV_TEST_DIR)}) {
     for (const auto &file : std::filesystem::directory_iterator(dir)) {
       if (!file.is_regular_file() ||
-          file.path().extension() != ".rkt" &&
-              file.path().extension() != ".racketisl")
+          (file.path().extension() != ".rkt" &&
+           file.path().extension() != ".racketisl"))
         continue;
       ++seen;
       const std::string source = cursiv::test::read_file(file.path().string());

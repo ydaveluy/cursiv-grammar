@@ -1,16 +1,11 @@
-# `ID` names the targets and generated directory; `NAMESPACE` names the
-# grammar type, and everything else follows from it. Defines
-# `gqlGenerated` (the compiled library) and `gql_generate`
-# (writes the sources without compiling them).
+# Generate the parser and its language module.
 cursiv_generate_language(ID gql
     GRAMMAR    gql/core/GqlGrammar.hpp
     NAMESPACE  gql::Gql
     EXTENSIONS .gql
     OUT        gql/generated)
 
-# The core storey: what the author writes over the generated module -- the
-# services container and the validation checks. The grammar is not compiled
-# here; the generated module holds everything derived from it.
+# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/gql/core/*.cpp)
 add_library(gqlCore ${_core})
@@ -18,19 +13,26 @@ target_link_libraries(gqlCore PUBLIC gqlGenerated)
 
 file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/gql/cli/*.cpp)
-add_executable(gql_cli ${_cli})
-target_link_libraries(gql_cli
-                      PRIVATE gqlCore cursiv::cli)
+if(_cli)
+  add_executable(gql_cli ${_cli})
+  target_link_libraries(gql_cli
+                        PRIVATE gqlCore cursiv::cli)
+endif()
 
-# The language server.
-file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/gql/lsp/*.cpp)
-list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/gql/lsp/main.cpp)
-add_library(gqlLsp ${_lsp})
-target_link_libraries(gqlLsp PUBLIC gqlCore cursiv::lsp)
-add_executable(gql_lsp gql/lsp/main.cpp)
-target_link_libraries(gql_lsp PRIVATE gqlLsp)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/gql/lsp")
+  file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/gql/lsp/*.cpp)
+  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/gql/lsp/main.cpp)
+  add_library(gqlLsp ${_lsp})
+  target_link_libraries(gqlLsp PUBLIC gqlCore cursiv::lsp)
+  add_executable(gql_lsp gql/lsp/main.cpp)
+  target_link_libraries(gql_lsp PRIVATE gqlLsp)
+endif()
 
-cursiv_add_benchmark(gql SOURCES gql/bench/main.cpp)
+if(TARGET gqlLsp AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gql/bench/main.cpp")
+  cursiv_add_benchmark(gql
+      SOURCES gql/bench/main.cpp)
+endif()
 
 cursiv_package_language(gql)

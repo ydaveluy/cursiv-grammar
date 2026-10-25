@@ -181,8 +181,9 @@ struct Terraform : cursiv::GrammarSpec {
       nest<ast::SplatExpr, &ast::SplatExpr::source>(
           flag<&ast::SplatExpr::legacy>(lit<"."> + lit<"*">) +
           assign<&ast::SplatExpr::each>(ref<LegacyEach>));
-  struct FullEach : rule<create<ast::AnonSymbolExpr> + many(PostfixStep)> {};
-  struct LegacyEach : rule<create<ast::AnonSymbolExpr> + many(MemberStep)> {};
+  struct AnonSymbolRule : rule<create<ast::AnonSymbolExpr>> {};
+  struct FullEach : rule<ref<AnonSymbolRule> + many(PostfixStep)> {};
+  struct LegacyEach : rule<ref<AnonSymbolRule> + many(MemberStep)> {};
   struct UNARY_NOT : terminal<lit<"!">, value<ast::UnaryOp::logical_not>> {};
   struct UNARY_MINUS : terminal<lit<"-">, value<ast::UnaryOp::negate>> {};
   struct UNARY_PLUS : terminal<lit<"+">, value<ast::UnaryOp::positive>> {};

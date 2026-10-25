@@ -13,7 +13,7 @@ struct Yini : cursiv::GrammarSpec {
   struct INLINE_COMMENT : terminal<(lit<"//"> | lit<"#">) + many(cr<R"(^\r\n)">)> {};
   struct LINE_COMMENT : terminal<(lit<";"> | lit<"--">) + many(cr<R"(^\r\n)">)> {};
   struct KEY : terminal<some(cr<"a-zA-Z0-9_.">) |
-      lit<"`"> + many(lit<"\\"> + any | cr<R"(^`\\\r\n)">) + lit<"`">> {};
+      (lit<"`"> + many((lit<"\\"> + any) | cr<R"(^`\\\r\n)">) + lit<"`">)> {};
   static constexpr auto word_boundary = cr<"a-zA-Z0-9_">;
   struct TAG : terminal<lit<"@"> + some(cr<"a-zA-Z_">)> {};
   struct END : terminal<ikw<"/END">> {};
@@ -23,32 +23,32 @@ struct Yini : cursiv::GrammarSpec {
   static constexpr auto fraction = lit<"."> + digits;
   static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + digits;
   static constexpr auto based =
-      (lit<"0x"> | lit<"0X"> | (cr<"hH"> + cr<"eE"> + cr<"xX"> + lit<":">)) + some(cr<"0-9a-fA-F_">) |
-      (lit<"0b"> | lit<"0B"> | lit<"%">) + some(cr<"01_">) |
-      (lit<"0o"> | lit<"0O">) + some(cr<"0-7_">) |
-      (lit<"0z"> | lit<"0Z">) + some(cr<"0-9aAbBxXeE_">);
+      ((lit<"0x"> | lit<"0X"> | (cr<"hH"> + cr<"eE"> + cr<"xX"> + lit<":">)) + some(cr<"0-9a-fA-F_">)) |
+      ((lit<"0b"> | lit<"0B"> | lit<"%">) + some(cr<"01_">)) |
+      ((lit<"0o"> | lit<"0O">) + some(cr<"0-7_">)) |
+      ((lit<"0z"> | lit<"0Z">) + some(cr<"0-9aAbBxXeE_">));
   struct NUMBER : terminal<option(cr<"+-">) + (based |
-      (digits + option(fraction) | fraction) + option(exponent))> {};
+      (((digits + option(fraction)) | fraction) + option(exponent)))> {};
   struct BOOLEAN : terminal<ikw<"true"> | ikw<"on"> | ikw<"yes"> |
       ikw<"false"> | ikw<"off"> | ikw<"no">,
       text_conv<[](std::string_view text) { return text.front() == 't' || text.front() == 'T' ||
-          text.front() == 'y' || text.front() == 'Y' || text.size() == 2 &&
-          (text.back() == 'n' || text.back() == 'N'); }>> {};
+          text.front() == 'y' || text.front() == 'Y' || (text.size() == 2 &&
+          (text.back() == 'n' || text.back() == 'N')); }>> {};
   struct NULL_LIT : terminal<ikw<"null">, value<std::monostate{}>> {};
 
   static constexpr auto escaped = lit<"\\"> + any;
   static constexpr auto triple = lit<"\"\"\"">;
   static constexpr auto raw =
-      triple + many(!triple + any) + triple |
-      lit<"'"> + many(cr<R"(^'\r\n)">) + lit<"'"> |
-      lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">;
+      (triple + many(!triple + any) + triple) |
+      (lit<"'"> + many(cr<R"(^'\r\n)">) + lit<"'">) |
+      (lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">);
   static constexpr auto classic =
-      triple + many(escaped | !triple + cr<R"(^\\)">) + triple |
-      lit<"'"> + many(escaped | cr<R"(^'\\\r\n)">) + lit<"'"> |
-      lit<"\""> + many(escaped | cr<R"(^"\\\r\n)">) + lit<"\"">;
-  struct STRING : terminal<option(cr<"Rr">) + raw | cr<"Cc"> + classic |
-      cr<"Hh"> + (lit<"'"> + many(cr<"^'">) + lit<"'"> |
-                    lit<"\""> + many(cr<R"(^")">) + lit<"\"">)> {};
+      (triple + many(escaped | (!triple + cr<R"(^\\)">)) + triple) |
+      (lit<"'"> + many(escaped | cr<R"(^'\\\r\n)">) + lit<"'">) |
+      (lit<"\""> + many(escaped | cr<R"(^"\\\r\n)">) + lit<"\"">);
+  struct STRING : terminal<(option(cr<"Rr">) + raw) | (cr<"Cc"> + classic) |
+      (cr<"Hh"> + ((lit<"'"> + many(cr<"^'">) + lit<"'">) |
+                    (lit<"\""> + many(cr<R"(^")">) + lit<"\"">)))> {};
 
   static constexpr auto gap = many(ref<NL> | ref<INLINE_COMMENT>);
   static constexpr auto line_end = option(ref<INLINE_COMMENT>) + (some(ref<NL>) | !any);
@@ -72,10 +72,10 @@ struct Yini : cursiv::GrammarSpec {
              option(flag<&ast::Object::trailingComma>(lit<","> + gap))) + lit<"}">> {};
 
   struct Member : rule<assign<&ast::Member::key>(ref<KEY>) +
-      (lit<"="> + option(flag<&ast::Member::hasValue>(
-                        assign<&ast::Member::value>(value_expr))) |
-       flag<&ast::Member::colon>(lit<":">) +
-         option(flag<&ast::Member::hasValue>(assign<&ast::Member::value>(ref<ColonList>)))) + line_end> {};
+      ((lit<"="> + option(flag<&ast::Member::hasValue>(
+                        assign<&ast::Member::value>(value_expr)))) |
+       (flag<&ast::Member::colon>(lit<":">) +
+         option(flag<&ast::Member::hasValue>(assign<&ast::Member::value>(ref<ColonList>))))) + line_end> {};
   struct Section : rule<assign<&ast::Section::markerText>(ref<MARKER>) +
       assign<&ast::Section::name>(ref<KEY>) + line_end> {};
   struct Directive : rule<assign<&ast::Directive::tag>(ref<TAG>) +

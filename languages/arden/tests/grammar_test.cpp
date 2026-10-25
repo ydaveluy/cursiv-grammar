@@ -187,8 +187,8 @@ int main() {
     // node under it point into it.
     std::vector<std::string> probe_texts;
     std::vector<cursiv::ParseResult> probe_results;
-    probe_texts.reserve(16);
-    probe_results.reserve(16);
+    probe_texts.reserve(64);
+    probe_results.reserve(64);
 
     auto probe = [&](const std::string& expr) -> const arden::ast::Expr* {
       probe_texts.push_back(shell + expr + tail);
@@ -263,6 +263,134 @@ int main() {
     if (cmp_matches == nullptr ||
         as<arden::ast::MatchesPattern>(cmp_matches->left) == nullptr)
       return fail("matches pattern does not bind tighter than =");
+
+    // Factoring the matches head must retain the existing precedence and
+    // wider right operand, without the indirect ExprStringPrefix cycle.
+    const auto* add_matches =
+        as<arden::ast::BinaryExpr>(probe("1 + 2 matches pattern \"x\""));
+    if (add_matches == nullptr || add_matches->op != arden::ast::BinOp::add ||
+        as<arden::ast::NumberLit>(add_matches->left) == nullptr ||
+        as<arden::ast::MatchesPattern>(add_matches->right) == nullptr)
+      return fail("matches pattern does not bind to the right addend");
+
+    const auto* matches_add =
+        as<arden::ast::MatchesPattern>(probe("a matches pattern b + c"));
+    if (matches_add == nullptr ||
+        as<arden::ast::BinaryExpr>(matches_add->pattern) == nullptr)
+      return fail("matches pattern lost its wider right operand");
+
+    const auto* neg_matches =
+        as<arden::ast::FuncApply>(probe("-a + b matches pattern c"));
+    const auto* neg_matches_add = neg_matches != nullptr
+        ? as<arden::ast::BinaryExpr>(neg_matches->operand) : nullptr;
+    if (neg_matches == nullptr || neg_matches->func != "-" ||
+        neg_matches_add == nullptr ||
+        as<arden::ast::MatchesPattern>(neg_matches_add->right) == nullptr)
+      return fail("matches pattern changed unary minus precedence");
+
+    const auto* upper_matches = as<arden::ast::CaseConvExpr>(
+        probe("uppercase \"x\" matches pattern \"y\""));
+    if (upper_matches == nullptr || !upper_matches->upper ||
+        as<arden::ast::MatchesPattern>(upper_matches->value) == nullptr)
+      return fail("matches pattern changed uppercase precedence");
+
+    const auto* trim_matches = as<arden::ast::TrimExpr>(
+        probe("trim left \"x\" matches pattern \"y\""));
+    if (trim_matches == nullptr || trim_matches->side != "left" ||
+        as<arden::ast::MatchesPattern>(trim_matches->value) == nullptr)
+      return fail("matches pattern changed trim precedence");
+
+    const auto* concat_matches =
+        as<arden::ast::BinaryExpr>(probe("a || b matches pattern c"));
+    const auto* matches_concat =
+        as<arden::ast::BinaryExpr>(probe("a matches pattern b || c"));
+    if (concat_matches == nullptr ||
+        concat_matches->op != arden::ast::BinOp::concat ||
+        as<arden::ast::MatchesPattern>(concat_matches->right) == nullptr ||
+        matches_concat == nullptr ||
+        matches_concat->op != arden::ast::BinOp::concat ||
+        as<arden::ast::MatchesPattern>(matches_concat->left) == nullptr)
+      return fail("matches pattern changed concatenation precedence");
+
+    const auto* matches_chain = as<arden::ast::MatchesPattern>(
+        probe("a matches pattern b matches pattern c"));
+    if (matches_chain == nullptr ||
+        as<arden::ast::IdentExpr>(matches_chain->value) == nullptr ||
+        as<arden::ast::MatchesPattern>(matches_chain->pattern) == nullptr)
+      return fail("matches pattern is not right associative");
+
+    const auto* localized_matches = as<arden::ast::MatchesPattern>(
+        probe("localized 'x' matches pattern y"));
+    const auto* localized_value = localized_matches != nullptr
+        ? as<arden::ast::LocalizedExpr>(localized_matches->value) : nullptr;
+    if (localized_value == nullptr || localized_value->term != "x")
+      return fail("a localized term cannot be the matched value");
+
+    const auto* parenthesized_prefix = as<arden::ast::MatchesPattern>(
+        probe("(uppercase \"x\") matches pattern \"Y\""));
+    const auto* parenthesized_case = parenthesized_prefix != nullptr
+        ? as<arden::ast::CaseConvExpr>(unwrap(parenthesized_prefix->value))
+        : nullptr;
+    if (parenthesized_case == nullptr || !parenthesized_case->upper ||
+        as<arden::ast::StringLit>(parenthesized_case->value) == nullptr ||
+        parenthesized_prefix->value->parent != parenthesized_prefix ||
+        parenthesized_case->parent != parenthesized_prefix->value)
+      return fail("a parenthesized string prefix lost its matches value or parent");
+
+    const auto* duration_ago = as<arden::ast::FuncApply>(probe("3 days ago"));
+    const auto* days = duration_ago != nullptr
+        ? as<arden::ast::FuncApply>(duration_ago->operand) : nullptr;
+    if (duration_ago == nullptr || duration_ago->func != "ago" ||
+        days == nullptr || days->func != "days" ||
+        as<arden::ast::NumberLit>(days->operand) == nullptr ||
+        days->parent != duration_ago || days->operand->parent != days)
+      return fail("ago does not wrap the duration suffix");
+
+    const auto* parenthesized_ago =
+        as<arden::ast::FuncApply>(probe("(3 days) ago"));
+    const auto* parenthesized_days = parenthesized_ago != nullptr
+        ? as<arden::ast::FuncApply>(unwrap(parenthesized_ago->operand)) : nullptr;
+    if (parenthesized_ago == nullptr || parenthesized_ago->func != "ago" ||
+        parenthesized_days == nullptr || parenthesized_days->func != "days" ||
+        parenthesized_ago->operand->parent != parenthesized_ago ||
+        parenthesized_days->parent != parenthesized_ago->operand)
+      return fail("a parenthesized duration lost its ago operand or parent");
+
+    const auto* ago_matches = as<arden::ast::MatchesPattern>(
+        probe("3 days ago matches pattern x"));
+    const auto* matched_ago = ago_matches != nullptr
+        ? as<arden::ast::FuncApply>(ago_matches->value) : nullptr;
+    if (matched_ago == nullptr || matched_ago->func != "ago")
+      return fail("an ago expression cannot start another matches pattern");
+
+    const auto* matches_ago =
+        as<arden::ast::FuncApply>(probe("x matches pattern y days ago"));
+    const auto* ago_match = matches_ago != nullptr
+        ? as<arden::ast::MatchesPattern>(matches_ago->operand) : nullptr;
+    const auto* pattern_days = ago_match != nullptr
+        ? as<arden::ast::FuncApply>(ago_match->pattern) : nullptr;
+    if (matches_ago == nullptr || matches_ago->func != "ago" ||
+        pattern_days == nullptr || pattern_days->func != "days")
+      return fail("ago changed the matches/duration suffix association");
+
+    // The port also accepts type-inconsistent combinations of Boolean
+    // matches and duration-only ago. Give both backends one stable shape:
+    // the wider pattern argument contains the next ago/matches pair.
+    const auto* mixed_matches = as<arden::ast::MatchesPattern>(
+        probe("a matches pattern b ago matches pattern y"));
+    const auto* mixed_pattern = mixed_matches != nullptr
+        ? as<arden::ast::MatchesPattern>(mixed_matches->pattern) : nullptr;
+    const auto* mixed_ago = mixed_pattern != nullptr
+        ? as<arden::ast::FuncApply>(mixed_pattern->value) : nullptr;
+    if (mixed_matches == nullptr ||
+        as<arden::ast::IdentExpr>(mixed_matches->value) == nullptr ||
+        mixed_ago == nullptr || mixed_ago->func != "ago" ||
+        mixed_pattern->parent != mixed_matches ||
+        mixed_ago->parent != mixed_pattern)
+      return fail("mixed matches/ago chain has an inconsistent shape");
+
+    if (probe("3 days days") != nullptr || probe("x ago ago") != nullptr)
+      return fail("a duration or ago suffix repeats without a match");
 
     // `first n from l` is the function, as the standard's examples
     // (SyntaxTest.mlm) write `MINIMUM 2 FROM (11, 14, 13, 12)`; only

@@ -21,10 +21,10 @@ struct Lisp : cursiv::GrammarSpec {
                             lit<"#:">)+some(symbol_piece)> {};
   static constexpr auto sign = option(cr<"+-">);
   static constexpr auto exponent = cr<"eEsSfFdDlL"> + sign + some(d);
-  struct NUMBER : terminal<sign + ((some(d) + lit<"/"> + some(d)) |
+  struct NUMBER : terminal<(sign + ((some(d) + lit<"/"> + some(d)) |
                                    (((some(d) + option(lit<"."> + many(d))) |
                                      (lit<"."> + some(d))) +
-                                    option(exponent))) |
+                                    option(exponent)))) |
                            (lit<"#"> + option(some(d)) + cr<"bBoOxXrR"> + sign +
                             some(cr<"0-9A-Za-z/+-">))> {};
   struct STRING

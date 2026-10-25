@@ -9,7 +9,7 @@
 #include "cursiv/core/syntax-tree/ParseDiagnostic.hpp"
 #include "cursiv/engines/lr/runtime/LrParseStats.hpp"
 #include "cursiv/engines/lr/runtime/LrParser.hpp"
-#include "cursiv/engines/lr/runtime/LrRepairBudget.hpp"
+#include "cursiv/engines/shared/runtime/RepairBudget.hpp"
 #include "cursiv/test/Check.hpp"
 #include "json/generated/Json/Parser.hpp"
 #include "json/generated/Json/Table.hpp"
@@ -19,7 +19,7 @@ namespace gj = ::json::generated::Json;
 namespace {
 
 std::vector<cursiv::ParseDiagnostic> repaired(
-    std::string_view text, const cursiv::LrRepairBudget& budget = {}) {
+    std::string_view text, const cursiv::RepairBudget& budget = {}) {
   cursiv::Cst cst;
   (void)cursiv::lr_parser<gj::kTable>.parse(text, cst, nullptr, &gj::kDrive,
                                            budget);
@@ -52,7 +52,7 @@ int main() {
     cursiv::LrParseStats stats{};
     (void)cursiv::lr_parser<gj::kTable>.parse(
         doc, cst, &stats, &gj::kDrive,
-        cursiv::LrRepairBudget{
+        cursiv::RepairBudget{
             .floor = 1u << 16, .perByte = 64, .perSearch = 1024});
     const auto& cut = cst.diagnostics();
     CHECK(stats.reachStops == 1 && stats.budgetStops == 0);

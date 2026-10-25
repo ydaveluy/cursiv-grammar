@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: the corpus example and a hand-written document
 # exercising every construct of the language.
 add_executable(lolcode_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(lolcode_grammar_test PRIVATE
 add_test(NAME lolcode_grammar_test COMMAND lolcode_grammar_test)
 
 # ...and the command line reads the corpus sample.
-add_test(NAME lolcode_cli_test COMMAND lolcode_cli
-         ${PROJECT_SOURCE_DIR}/example/hai.lol)
+if(TARGET lolcode_cli)
+  add_test(NAME lolcode_cli_test COMMAND lolcode_cli
+           ${PROJECT_SOURCE_DIR}/example/hai.lol)
+endif()

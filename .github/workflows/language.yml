@@ -15,71 +15,77 @@ permissions:
 
 jobs:
   build:
-    name: Build + test
-    runs-on: ubuntu-24.04
+    name: ${{ matrix.compiler }} / ${{ matrix.engine }}
+    runs-on: ubuntu-26.04
     timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - compiler: GCC
+            engine: LL
+            container: gcc:16
+            cc: gcc
+            cxx: g++
+          - compiler: GCC
+            engine: LR
+            container: gcc:16
+            cc: gcc
+            cxx: g++
+          - compiler: Clang
+            engine: LL
+            container: ""
+            cc: clang-22
+            cxx: clang++-22
+          - compiler: Clang
+            engine: LR
+            container: ""
+            cc: clang-22
+            cxx: clang++-22
+    container: ${{ matrix.container }}
     env:
       LANGUAGE: ${{ inputs.language }}
       CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
       CCACHE_BASEDIR: ${{ github.workspace }}
       CURSIV_SOURCE: ${{ github.workspace }}/.cache/cursiv-engine
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ydaveluy/cursiv
           ref: ${{ inputs.engine_sha }}
           path: .cache/cursiv-engine
           persist-credentials: false
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-      - name: Install toolchains
+      - name: Install GCC build tools
+        if: matrix.compiler == 'GCC'
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends cmake git ninja-build python3 ccache
+      - name: Install Clang build tools
+        if: matrix.compiler == 'Clang'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-14 g++-14 clang-18 ninja-build ccache
-          python -m pip install cmake==3.31.10
-          ccache --max-size 1G
-      # One shared engine cache, rather than hundreds of per-language caches.
-      - uses: actions/cache@v6
+          sudo apt-get install -y --no-install-recommends ccache
+      - name: Configure ccache
+        run: ccache --max-size 1G
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cache/ccache
-          key: ubuntu24-gcc14-clang18-${{ inputs.engine_sha }}-${{ hashFiles('.github/workflows/language.yml', '.github/scripts/run_language.py') }}
-      - name: GCC / LL — build + test
-        continue-on-error: true
+          key: ubuntu26-${{ matrix.compiler }}-${{ inputs.engine_sha }}-${{ hashFiles('.github/workflows/language.yml', '.github/scripts/run_language.py') }}
+      - name: Build and test
         run: >-
           python3 .github/scripts/run_language.py --language "$LANGUAGE"
-          --compiler-label GCC --cc gcc-14 --cxx g++-14 --engine LL
+          --compiler-label "${{ matrix.compiler }}"
+          --cc "${{ matrix.cc }}" --cxx "${{ matrix.cxx }}"
+          --engine "${{ matrix.engine }}"
           --cursiv-source "$CURSIV_SOURCE" --clean-build
-      - name: GCC / LR — build + test
-        continue-on-error: true
-        run: >-
-          python3 .github/scripts/run_language.py --language "$LANGUAGE"
-          --compiler-label GCC --cc gcc-14 --cxx g++-14 --engine LR
-          --cursiv-source "$CURSIV_SOURCE" --clean-build
-      - name: Clang / LL — build + test
-        continue-on-error: true
-        run: >-
-          python3 .github/scripts/run_language.py --language "$LANGUAGE"
-          --compiler-label Clang --cc clang-18 --cxx clang++-18 --engine LL
-          --cxx-flags=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14
-          --cursiv-source "$CURSIV_SOURCE" --clean-build
-      - name: Clang / LR — build + test
-        continue-on-error: true
-        run: >-
-          python3 .github/scripts/run_language.py --language "$LANGUAGE"
-          --compiler-label Clang --cc clang-18 --cxx clang++-18 --engine LR
-          --cxx-flags=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14
-          --cursiv-source "$CURSIV_SOURCE" --clean-build
-      - name: Language verdict
-        if: always()
-        run: python3 .github/scripts/report.py --language "$LANGUAGE"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: ci-${{ inputs.language }}
+          name: ci-${{ inputs.language }}-${{ matrix.compiler }}-${{ matrix.engine }}
           path: build/ci-results/
           if-no-files-found: warn
           overwrite: true

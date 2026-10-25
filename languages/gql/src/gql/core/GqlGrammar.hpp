@@ -273,19 +273,14 @@ struct Gql : cursiv::GrammarSpec {
       some(append<&ast::TypeRef::elements>(ref<ElementTypeSpec>), lit<",">) +
       lit<"}">;
 
-  // Every predefined, constructed, reference and dynamic-union value type,
-  // in one rule: `name` carries the leading keyword or type name, `args` its
+  // Predefined, constructed, reference and dynamic-union base types:
+  // `name` carries the leading keyword or type name, `args` its
   // length/precision/scale, `params` a list-element or union member type.
-  struct TypeRef
+  struct TypeBase
       : rule<
-            // list / array, prefix and postfix forms
+            // list / array, prefix form
             (assign<&ast::TypeRef::name>(ikw<"LIST"> | ikw<"ARRAY">) +
              lit<"<"> + append<&ast::TypeRef::params>(ref<TypeRef>) + lit<">"> +
-             option(lit<"["> + append<&ast::TypeRef::args>(ref<NumberLit>) +
-                    lit<"]">) +
-             option(NotNull)) |
-            (append<&ast::TypeRef::params>(ref<TypeRef>) +
-             flag<&ast::TypeRef::postfixList>(ikw<"LIST"> | ikw<"ARRAY">) +
              option(lit<"["> + append<&ast::TypeRef::args>(ref<NumberLit>) +
                     lit<"]">) +
              option(NotNull)) |
@@ -425,6 +420,15 @@ struct Gql : cursiv::GrammarSpec {
              assign<&ast::TypeRef::qualifier>(ikw<"YEAR"> | ikw<"DAY">) +
              ikw<"TO"> + (ikw<"MONTH"> | ikw<"SECOND">)+lit<")"> +
              option(NotNull))> {};
+
+  // Each postfix LIST/ARRAY keeps the preceding type as its sole parameter.
+  struct TypeRef
+      : rule<ref<TypeBase> +
+             many(nest<ast::TypeRef, &ast::TypeRef::params>(
+                 flag<&ast::TypeRef::postfixList>(ikw<"LIST"> | ikw<"ARRAY">) +
+                 option(lit<"["> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+                        lit<"]">) +
+                 option(NotNull)))> {};
 
   // ---- element type specifications (graph type DDL) -----------------------
 
@@ -729,7 +733,6 @@ struct Gql : cursiv::GrammarSpec {
 
   // ---- label expressions ---------------------------------------------------
 
-  struct LabelExpr;
 
   // A parenthesized sub-expression is transparent: the parens are consumed,
   // and the inner node becomes the atom's own value, unwrapped.
@@ -1046,7 +1049,6 @@ struct Gql : cursiv::GrammarSpec {
               option(assign<&ast::PathPrefix::mode>(PathMode)) +
               option(assign<&ast::PathPrefix::pathOrPaths>(PathOrPaths)))> {};
 
-  struct PathPatternExpr;
 
   struct PathPrimaryRule
       : rule<ref<ElementPattern> |

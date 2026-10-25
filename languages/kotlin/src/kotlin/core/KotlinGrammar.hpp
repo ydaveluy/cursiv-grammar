@@ -562,7 +562,6 @@ struct Kotlin : cursiv::GrammarSpec {
   // EXPRESSIONS
   // ===========
 
-  struct FunctionLiteralRule;
   struct IfExprRule;
   struct WhenExprRule;
   struct TryExprRule;
@@ -571,7 +570,6 @@ struct Kotlin : cursiv::GrammarSpec {
   struct ForExprRule;
   struct WhileExprRule;
   struct DoWhileExprRule;
-  struct CallableReferenceExpr;
 
   struct ThisExprRule
       : rule<create<ast::ThisExpr>(
@@ -1074,12 +1072,12 @@ struct Kotlin : cursiv::GrammarSpec {
                 type_parameters<&ast::PropertyDecl::typeParameters>) +
             option(assign<&ast::PropertyDecl::receiverType>(ref<ReceiverType>) +
                    lit<".">) +
-            (lit<"("> +
+            ((lit<"("> +
                  append<&ast::PropertyDecl::declarators>(
                      ref<VariableDeclaratorRule>) +
                  many(lit<","> + append<&ast::PropertyDecl::declarators>(
                                      ref<VariableDeclaratorRule>)) +
-                 lit<")"> |
+                 lit<")">) |
              append<&ast::PropertyDecl::declarators>(
                  ref<VariableDeclaratorRule>)) +
             NLs +
@@ -1129,9 +1127,9 @@ struct Kotlin : cursiv::GrammarSpec {
       : rule<create<ast::KotlinFile>(
             many(ref<NEWLINE>) +
             many(ref<FILE_SITE> + lit<":"> +
-                 (lit<"["> +
+                 ((lit<"["> +
                       some(append<&ast::KotlinFile::fileAnnotations>(
-                          ref<UnescapedAnnotation>)) + lit<"]"> |
+                          ref<UnescapedAnnotation>)) + lit<"]">) |
                   append<&ast::KotlinFile::fileAnnotations>(
                       ref<UnescapedAnnotation>)) +
                  option(Semi)) +

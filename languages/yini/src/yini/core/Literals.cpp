@@ -126,9 +126,9 @@ bool valid_key(std::string_view text) {
     }
     return true;
   }
-  const auto alpha = [](char c) { return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c == '_'; };
+  const auto alpha = [](char c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_'; };
   return !text.empty() && alpha(text.front()) && std::all_of(text.begin() + 1, text.end(), [&](char c) {
-    return alpha(c) || c >= '0' && c <= '9';
+    return alpha(c) || (c >= '0' && c <= '9');
   });
 }
 bool valid_number(std::string_view text) {

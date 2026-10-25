@@ -46,7 +46,7 @@ bool decoded_values(const cursiv::Parser &parser) {
   const auto *b = std::get_if<std::string_view>(&object->members[1]->value);
   if (!a || *a != std::string_view("A\nB😀\0Z\v", 10) || !b || *b != "xqz")
     return false;
-  for (const std::string newline :
+  for (const std::string& newline :
        {std::string("\n"), std::string("\r\n"), std::string("\r"),
         std::string(" "), std::string(" ")}) {
     const std::string continued = "'one\\" + newline + "two'";

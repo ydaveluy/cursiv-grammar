@@ -401,8 +401,8 @@ struct Arden : cursiv::GrammarSpec {
                          assign<&ast::FuncApply::operand>(ref<ExprFunction>)) |
                         (assign<&ast::FuncApply::operand>(ref<ExprFunction>) +
                          !ikw<"from">)) +
-                       (ikw<"using"> +
-                            assign<&ast::FuncApply::extra>(ref<ExprFunction>) |
+                       ((ikw<"using"> +
+                            assign<&ast::FuncApply::extra>(ref<ExprFunction>)) |
                         !ikw<"using">))
                  //
                  | create<ast::FuncApply>(
@@ -493,17 +493,29 @@ struct Arden : cursiv::GrammarSpec {
                  | ref<ExprFunction>> {};
 
   // A4 group "... year/.../second ... matches pattern ...".
+  // Consume the value before nesting a match. A head ExprStringPrefix
+  // would return here through ExprAgo without consuming any input. The
+  // pattern keeps its wider string-expression argument, while an `ago`
+  // continuation must be followed by another match (never `x ago ago`).
+  static constexpr auto MatchesPatternSuffix =
+      nest<ast::MatchesPattern, &ast::MatchesPattern::value>(
+          ikw<"matches"> + ikw<"pattern"> +
+          assign<&ast::MatchesPattern::pattern>(ref<ExprStringPrefix>));
+  static constexpr auto AgoMatchesPatternSuffix =
+      nest<ast::FuncApply, &ast::FuncApply::operand>(
+          assign<&ast::FuncApply::func>(ikw<"ago">)) +
+      MatchesPatternSuffix;
+
   struct ExprDurationMatches
-      : rule<create<ast::FuncApply>(
-                 assign<&ast::FuncApply::operand>(ref<ExprFind>) +
-                 assign<&ast::FuncApply::func>(ref<DurationOp>))
+      : rule<(ref<ExprFind> +
+              option(nest<ast::FuncApply, &ast::FuncApply::operand>(
+                  assign<&ast::FuncApply::func>(ref<DurationOp>))) +
+              option(MatchesPatternSuffix) + many(AgoMatchesPatternSuffix))
                  //
-                 | create<ast::MatchesPattern>(
-                       assign<&ast::MatchesPattern::value>(ref<ExprStringPrefix>) +
-                       ikw<"matches"> + ikw<"pattern"> +
-                       assign<&ast::MatchesPattern::pattern>(ref<ExprStringPrefix>))
-                 //
-                 | ref<ExprFind>> {};
+                 | (create<ast::LocalizedExpr>(
+                        ikw<"localized"> +
+                        assign<&ast::LocalizedExpr::term>(ref<TERM>)) +
+                    MatchesPatternSuffix + many(AgoMatchesPatternSuffix))> {};
 
   // A4 group "... ago".
   struct ExprAgo
@@ -785,9 +797,9 @@ struct Arden : cursiv::GrammarSpec {
   // ==== Object / call / fuzzy-set phrases ====
 
   struct ObjectInitElementRule
-      : rule<(assign<&ast::ObjectInitElement::name>(ref<ID>) + lit<":="> |
-              ikw<"let"> + assign<&ast::ObjectInitElement::name>(ref<ID>) +
-                  ikw<"be">) +
+      : rule<((assign<&ast::ObjectInitElement::name>(ref<ID>) + lit<":=">) |
+              (ikw<"let"> + assign<&ast::ObjectInitElement::name>(ref<ID>) +
+                  ikw<"be">)) +
                  assign<&ast::ObjectInitElement::value>(ref<ExprList>)> {};
 
   struct NewObjectExprRule

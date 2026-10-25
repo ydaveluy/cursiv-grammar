@@ -129,7 +129,7 @@ struct Ron : cursiv::GrammarSpec {
                             (((lit<"0"> + cr<"xX"> + some(hex | lit<"_">)) |
                               (lit<"0"> + cr<"oO"> + some(cr<"0-7_">)) |
                               (lit<"0"> + cr<"bB"> + some(cr<"01_">)) |
-                              ((digits + option(lit<"."> + many(d | lit<"_">)) |
+                              (((digits + option(lit<"."> + many(d | lit<"_">))) |
                                 (lit<"."> + digits)) +
                                option(exponent)) |
                               kw<"inf"> | kw<"inff32"> | kw<"inff64"> |

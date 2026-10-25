@@ -91,7 +91,7 @@ struct Antlr : cursiv::GrammarSpec {
   struct ACTION : terminal<ref<RawAction>, Unwrapped> {};
 
   struct LEXER_CHAR_SET
-      : terminal<lit<"["> + many(lit<"\\"> + any | cr<R"(^\\])">) + lit<"]">,
+      : terminal<lit<"["> + many((lit<"\\"> + any) | cr<R"(^\\])">) + lit<"]">,
                  Unwrapped> {};
 
   struct EbnfQuestion : rule<lit<"?">, value<ast::EbnfKind::question>> {};

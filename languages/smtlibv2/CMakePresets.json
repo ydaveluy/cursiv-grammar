@@ -2,30 +2,71 @@
   "version": 6,
   "configurePresets": [
     {
-      "name": "native",
-      "displayName": "native (host toolchain)",
-      "binaryDir": "${sourceDir}/build",
+      "name": "gcc-release",
       "generator": "Ninja",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
     },
     {
-      "name": "wasi",
-      "displayName": "wasm32-wasip1-threads (the editor's target)",
-      "binaryDir": "${sourceDir}/build-wasi",
+      "name": "gcc-debug",
+      "inherits": "gcc-release",
+      "binaryDir": "${sourceDir}/build-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "clang-release",
+      "inherits": "gcc-release",
+      "binaryDir": "${sourceDir}/build-clang",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "clang-debug",
+      "inherits": "clang-release",
+      "binaryDir": "${sourceDir}/build-clang-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "wasi-release",
       "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-wasi",
       "toolchainFile": "${sourceDir}/cmake/wasi.cmake",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CURSIV_WASI_THREADS": "ON"
-      },
-      "description": "One artefact for every platform, and the sandbox comes with it. The generator is a host tool, so this configuration builds it for the host in a tree of its own."
+      }
+    },
+    {
+      "name": "wasi-debug",
+      "inherits": "wasi-release",
+      "binaryDir": "${sourceDir}/build-wasi-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "native", "configurePreset": "native" },
-    { "name": "wasi", "configurePreset": "wasi" }
+    {"name": "gcc-release", "configurePreset": "gcc-release"},
+    {"name": "gcc-debug", "configurePreset": "gcc-debug"},
+    {"name": "clang-release", "configurePreset": "clang-release"},
+    {"name": "clang-debug", "configurePreset": "clang-debug"},
+    {"name": "wasi-release", "configurePreset": "wasi-release"},
+    {"name": "wasi-debug", "configurePreset": "wasi-debug"}
   ],
   "testPresets": [
-    { "name": "native", "configurePreset": "native", "output": { "outputOnFailure": true } }
+    {"name": "gcc-release", "configurePreset": "gcc-release"},
+    {"name": "gcc-debug", "configurePreset": "gcc-debug"},
+    {"name": "clang-release", "configurePreset": "clang-release"},
+    {"name": "clang-debug", "configurePreset": "clang-debug"},
+    {"name": "wasi-release", "configurePreset": "wasi-release"},
+    {"name": "wasi-debug", "configurePreset": "wasi-debug"}
   ]
 }

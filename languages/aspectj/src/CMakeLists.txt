@@ -1,16 +1,11 @@
-# `ID` names the targets and generated directory; `NAMESPACE` names the
-# grammar type, and everything else follows from it. Defines
-# `aspectjGenerated` (the compiled library) and `aspectj_generate`
-# (writes the sources without compiling them).
+# Generate the parser and its language module.
 cursiv_generate_language(ID aspectj
     GRAMMAR    aspectj/core/AspectjGrammar.hpp
     NAMESPACE  aspectj::Aspectj
     EXTENSIONS .aj
     OUT        aspectj/generated)
 
-# The core storey: what the author writes over the generated module -- the
-# services container and the validation checks. The grammar is not compiled
-# here; the generated module holds everything derived from it.
+# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/aspectj/core/*.cpp)
 add_library(aspectjCore ${_core})
@@ -18,19 +13,26 @@ target_link_libraries(aspectjCore PUBLIC aspectjGenerated)
 
 file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/aspectj/cli/*.cpp)
-add_executable(aspectj_cli ${_cli})
-target_link_libraries(aspectj_cli
-                      PRIVATE aspectjCore cursiv::cli)
+if(_cli)
+  add_executable(aspectj_cli ${_cli})
+  target_link_libraries(aspectj_cli
+                        PRIVATE aspectjCore cursiv::cli)
+endif()
 
-# The language server.
-file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/aspectj/lsp/*.cpp)
-list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/aspectj/lsp/main.cpp)
-add_library(aspectjLsp ${_lsp})
-target_link_libraries(aspectjLsp PUBLIC aspectjCore cursiv::lsp)
-add_executable(aspectj_lsp aspectj/lsp/main.cpp)
-target_link_libraries(aspectj_lsp PRIVATE aspectjLsp)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/aspectj/lsp")
+  file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/aspectj/lsp/*.cpp)
+  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/aspectj/lsp/main.cpp)
+  add_library(aspectjLsp ${_lsp})
+  target_link_libraries(aspectjLsp PUBLIC aspectjCore cursiv::lsp)
+  add_executable(aspectj_lsp aspectj/lsp/main.cpp)
+  target_link_libraries(aspectj_lsp PRIVATE aspectjLsp)
+endif()
 
-cursiv_add_benchmark(aspectj SOURCES aspectj/bench/main.cpp)
+if(TARGET aspectjLsp AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/aspectj/bench/main.cpp")
+  cursiv_add_benchmark(aspectj
+      SOURCES aspectj/bench/main.cpp)
+endif()
 
 cursiv_package_language(aspectj)

@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean into an Equation.
 add_executable(calculator_grammar_test grammar_test.cpp)
 target_link_libraries(calculator_grammar_test PRIVATE calculatorCore)
@@ -7,5 +12,7 @@ target_compile_definitions(calculator_grammar_test PRIVATE
 add_test(NAME calculator_grammar_test COMMAND calculator_grammar_test)
 
 # ...and the command line reads one example.
-add_test(NAME calculator_cli_test COMMAND calculator_cli
-         ${PROJECT_SOURCE_DIR}/example/area.calc)
+if(TARGET calculator_cli)
+  add_test(NAME calculator_cli_test COMMAND calculator_cli
+           ${PROJECT_SOURCE_DIR}/example/area.calc)
+endif()

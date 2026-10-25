@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every file under example/ parses clean.
 add_executable(trapc_grammar_test grammar_test.cpp)
 target_link_libraries(trapc_grammar_test PRIVATE trapcCore)
@@ -7,5 +12,7 @@ target_compile_definitions(trapc_grammar_test PRIVATE
 add_test(NAME trapc_grammar_test COMMAND trapc_grammar_test)
 
 # ...and the command line reads one of the same samples.
-add_test(NAME trapc_cli_test COMMAND trapc_cli
-         ${PROJECT_SOURCE_DIR}/example/trap_test.tc)
+if(TARGET trapc_cli)
+  add_test(NAME trapc_cli_test COMMAND trapc_cli
+           ${PROJECT_SOURCE_DIR}/example/trap_test.tc)
+endif()

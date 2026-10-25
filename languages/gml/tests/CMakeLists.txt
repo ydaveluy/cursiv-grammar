@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean into a List.
 add_executable(gml_grammar_test grammar_test.cpp)
 target_link_libraries(gml_grammar_test PRIVATE gmlCore cursiv::test)
@@ -7,5 +12,7 @@ target_compile_definitions(gml_grammar_test PRIVATE
 add_test(NAME gml_grammar_test COMMAND gml_grammar_test)
 
 # ...and the command line reads one example.
-add_test(NAME gml_cli_test COMMAND gml_cli
-         ${PROJECT_SOURCE_DIR}/example/karate.gml)
+if(TARGET gml_cli)
+  add_test(NAME gml_cli_test COMMAND gml_cli
+           ${PROJECT_SOURCE_DIR}/example/karate.gml)
+endif()

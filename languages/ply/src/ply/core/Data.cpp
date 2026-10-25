@@ -386,7 +386,7 @@ private:
         if (!names.insert(e->name).second)
           issue(*e, e->name, "ply.duplicate-element",
                 "Element names must be unique.");
-        out.elements.push_back({e, integer(e->count)});
+        out.elements.push_back({e, integer(e->count), {}, {}, 0, {}});
         current = &out.elements.back();
         properties.clear();
         if (!current->count)

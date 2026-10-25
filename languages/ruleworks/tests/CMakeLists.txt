@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every corpus example and the coverage document parse,
 # and the tree holds what they declare. CURSIV_EXAMPLE_DIR is the upstream
 # corpus; CURSIV_TEST_DIR is this directory, for documents of our own.
@@ -10,5 +15,7 @@ target_compile_definitions(ruleworks_grammar_test PRIVATE
 add_test(NAME ruleworks_grammar_test COMMAND ruleworks_grammar_test)
 
 # ...and the command line reads one corpus example.
-add_test(NAME ruleworks_cli_test COMMAND ruleworks_cli
-         ${PROJECT_SOURCE_DIR}/example/count.rul)
+if(TARGET ruleworks_cli)
+  add_test(NAME ruleworks_cli_test COMMAND ruleworks_cli
+           ${PROJECT_SOURCE_DIR}/example/count.rul)
+endif()

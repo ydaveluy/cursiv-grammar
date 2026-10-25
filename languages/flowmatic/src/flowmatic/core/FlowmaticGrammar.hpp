@@ -60,7 +60,7 @@ struct Flowmatic : cursiv::GrammarSpec {
 
   struct JumpToStmtRule
       : rule<create<ast::JumpToStmt>(
-            (ikw<"JUMP"> + ikw<"TO"> | go_to) + ikw<"OPERATION"> +
+            ((ikw<"JUMP"> + ikw<"TO">) | go_to) + ikw<"OPERATION"> +
             assign<&ast::JumpToStmt::target>(ref<NUM>))> {};
 
   struct ReadItemStmtRule
@@ -125,18 +125,18 @@ struct Flowmatic : cursiv::GrammarSpec {
 
   struct ArithmeticStmtRule
       : rule<create<ast::ArithmeticStmt>(
-            (assign<&ast::ArithmeticStmt::op>(ref<Add>) +
+            ((assign<&ast::ArithmeticStmt::op>(ref<Add>) +
                  assign<&ast::ArithmeticStmt::left>(ref<ValueRule>) +
-                 ikw<"TO"> |
-             assign<&ast::ArithmeticStmt::op>(ref<Subtract>) +
+                 ikw<"TO">) |
+             (assign<&ast::ArithmeticStmt::op>(ref<Subtract>) +
                  assign<&ast::ArithmeticStmt::left>(ref<ValueRule>) +
-                 ikw<"FROM"> |
-             assign<&ast::ArithmeticStmt::op>(ref<Multiply>) +
+                 ikw<"FROM">) |
+             (assign<&ast::ArithmeticStmt::op>(ref<Multiply>) +
                  assign<&ast::ArithmeticStmt::left>(ref<ValueRule>) +
-                 ikw<"BY"> |
-             assign<&ast::ArithmeticStmt::op>(ref<Divide>) +
+                 ikw<"BY">) |
+             (assign<&ast::ArithmeticStmt::op>(ref<Divide>) +
                  assign<&ast::ArithmeticStmt::left>(ref<ValueRule>) +
-                 ikw<"BY">)+assign<&ast::ArithmeticStmt::
+                 ikw<"BY">))+assign<&ast::ArithmeticStmt::
                                        right>(ref<ValueRule>) +
             option(ikw<"GIVING"> +
                    assign<&ast::ArithmeticStmt::result>(ref<FieldRule>)))> {};

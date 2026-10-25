@@ -316,9 +316,6 @@ struct Cpp : cursiv::GrammarSpec {
              ref<CharacterLiteral> | ref<BoolLiteral> | ref<PointerLiteral> |
              ref<UserDefinedLiteral>> {};
 
-  struct Param;
-  struct ExceptionSpecRule;
-
   struct SimpleCapture
       : rule<create<ast::Capture>(
                  option(flag<&ast::Capture::byRef>(lit<"&"> | kw<"bitand">)) +
@@ -341,9 +338,9 @@ struct Cpp : cursiv::GrammarSpec {
       assign<&ast::LambdaExpr::captureDefault>(lit<"&"> | kw<"bitand"> | lit<"=">);
   static constexpr auto LambdaIntroducer =
       lit<"["> +
-      option(some(append<&ast::LambdaExpr::captures>(ref<Capture>),
+      option((some(append<&ast::LambdaExpr::captures>(ref<Capture>),
                   lit<",">) +
-                 option(lit<","> + CaptureDefault)  //
+                 option(lit<","> + CaptureDefault))  //
              | (CaptureDefault +
                 option(lit<","> +
                        some(append<&ast::LambdaExpr::captures>(ref<Capture>),
@@ -720,8 +717,8 @@ struct Cpp : cursiv::GrammarSpec {
   // after a declarator's core is the one position this loses.
   struct Declarator
       : rule<many(append<&ast::Declarator::pointers>(ref<PointerOperator>)) +
-             (option(flag<&ast::Declarator::pack>(lit<"...">)) +
-                  assign<&ast::Declarator::name>(ref<IdExpression>)  //
+             ((option(flag<&ast::Declarator::pack>(lit<"...">)) +
+                  assign<&ast::Declarator::name>(ref<IdExpression>))  //
               | (lit<"("> +
                  assign<&ast::Declarator::nested>(ref<Declarator>) +
                  lit<")">)) +

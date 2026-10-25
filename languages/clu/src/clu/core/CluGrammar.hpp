@@ -312,11 +312,11 @@ struct Clu : cursiv::GrammarSpec {
   struct RestrictionRule
       : rule<create<ast::Restriction> +
              assign<&ast::Restriction::name>(ref<ID>) +
-             (kw<"has"> +
+             ((kw<"has"> +
                   some(append<&ast::Restriction::hasOps>(ref<OperDeclRule>),
-                       lit<",">)  //
-              | kw<"in"> +
-                    assign<&ast::Restriction::inTypeSet>(ref<TypeSetRule>))> {};
+                       lit<",">))  //
+              | (kw<"in"> +
+                    assign<&ast::Restriction::inTypeSet>(ref<TypeSetRule>)))> {};
 
   struct BodyRule
       : rule<create<ast::Body> +

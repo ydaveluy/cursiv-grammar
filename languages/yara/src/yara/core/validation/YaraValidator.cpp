@@ -47,7 +47,8 @@ void escapes(const cursiv::AstNode &node, std::string_view property,
       accept
           .error(node, "Illegal escape sequence in a text string",
                  "yara.escape")
-          .range({span->begin + start, span->begin + i + 1});
+          .range({static_cast<cursiv::TextOffset>(span->begin + start),
+                  static_cast<cursiv::TextOffset>(span->begin + i + 1)});
     }
 }
 void quantifier(const ast::Expr *expr, const cursiv::AstNode &node,
@@ -241,9 +242,9 @@ void YaraValidator::checkLiteral(const ast::Literal &node,
 void YaraValidator::checkOf(const ast::OfExpr &node,
                             cursiv::ValidationAcceptor &accept) const {
   quantifier(node.quantifier, node, accept);
-  if (node.percentage)
+  if (node.percentage) {
     if (auto value = integer(node.quantifier);
-        value && (*value < 1 || *value > 100))
+        value && (*value < 1 || *value > 100)) {
       if (auto literal = cursiv::ast_cast<ast::Literal>(node.quantifier))
         accept
             .error(*literal, "A percentage must be between 1 and 100",
@@ -252,6 +253,8 @@ void YaraValidator::checkOf(const ast::OfExpr &node,
       else
         accept.error(*node.quantifier, "A percentage must be between 1 and 100",
                      "yara.percentage");
+    }
+  }
   bool strings = false, rules = false;
   for (auto item : node.set) {
     strings |= item.starts_with('$');

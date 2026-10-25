@@ -92,7 +92,7 @@ int main() {
     bool types = false, bits = false;
     for (const auto* node : audit_result.nodes) {
       if (const auto* t = cursiv::ast_cast<erlang::ast::TypeExpr>(node))
-        types = types || t->parts.size() == 7 && std::get<std::string_view>(t->parts[0]) == "integer" && std::get<std::string_view>(t->parts[3]) == "|" && std::get<std::string_view>(t->parts[4]) == "atom";
+        types = types || (t->parts.size() == 7 && std::get<std::string_view>(t->parts[0]) == "integer" && std::get<std::string_view>(t->parts[3]) == "|" && std::get<std::string_view>(t->parts[4]) == "atom");
       if (const auto* b = cursiv::ast_cast<erlang::ast::BinElement>(node)) bits = b->bitTypes == "integer-little";
     }
     if (!types || !bits) return 1;

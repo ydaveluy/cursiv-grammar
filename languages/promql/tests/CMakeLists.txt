@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document under example/ parses, and the tree
 # holds what it declares.
 add_executable(promql_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(promql_grammar_test PRIVATE
 add_test(NAME promql_grammar_test COMMAND promql_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME promql_cli_test COMMAND promql_cli
-         ${PROJECT_SOURCE_DIR}/example/vector_match_operation.promql)
+if(TARGET promql_cli)
+  add_test(NAME promql_cli_test COMMAND promql_cli
+           ${PROJECT_SOURCE_DIR}/example/vector_match_operation.promql)
+endif()

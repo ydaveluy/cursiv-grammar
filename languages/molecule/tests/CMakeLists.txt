@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example/*.mol parses clean into a Molecule.
 add_executable(molecule_grammar_test grammar_test.cpp)
 target_link_libraries(molecule_grammar_test PRIVATE moleculeCore)
@@ -6,5 +11,7 @@ target_compile_definitions(molecule_grammar_test PRIVATE
 add_test(NAME molecule_grammar_test COMMAND molecule_grammar_test)
 
 # ...and the command line reads one of them.
-add_test(NAME molecule_cli_test COMMAND molecule_cli
-         ${PROJECT_SOURCE_DIR}/example/CCl4.mol)
+if(TARGET molecule_cli)
+  add_test(NAME molecule_cli_test COMMAND molecule_cli
+           ${PROJECT_SOURCE_DIR}/example/CCl4.mol)
+endif()

@@ -18,11 +18,11 @@ struct R : cursiv::GrammarSpec {
   static constexpr auto HEXDIGIT = cr<"0-9a-fA-F">;
   static constexpr auto EXP = cr<"eE"> + option(cr<"+-">) + some(d);
   static constexpr auto DECIMAL =
-      (some(d) + option(lit<"."> + many(d)) | lit<"."> + some(d)) + option(EXP);
+      ((some(d) + option(lit<"."> + many(d))) | (lit<"."> + some(d))) + option(EXP);
   static constexpr auto HEXADECIMAL =
       lit<"0"> + cr<"xX"> +
-      (some(HEXDIGIT) + option(lit<"."> + many(HEXDIGIT)) |
-       lit<"."> + some(HEXDIGIT)) +
+      ((some(HEXDIGIT) + option(lit<"."> + many(HEXDIGIT))) |
+       (lit<"."> + some(HEXDIGIT))) +
       option(cr<"pP"> + option(cr<"+-">) + some(d));
   struct HEX_LIT : terminal<HEXADECIMAL> {};
   struct INT_LIT : terminal<(HEXADECIMAL | DECIMAL) + lit<"L">> {};

@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The lane of this language: one binary, the example directory is where its
 # corpus is read from.
 add_executable(wktcrsv1_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(wktcrsv1_grammar_test PRIVATE
 add_test(NAME wktcrsv1_grammar_test COMMAND wktcrsv1_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME wktcrsv1_cli_test COMMAND wktcrsv1_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.wktcrsv1)
+if(TARGET wktcrsv1_cli)
+  add_test(NAME wktcrsv1_cli_test COMMAND wktcrsv1_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.wktcrsv1)
+endif()

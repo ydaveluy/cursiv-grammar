@@ -2,6 +2,8 @@
 # grammar, and a table is megabytes git has no use for.
 generated/
 /build*
+/.cache/
+/compile_commands.json
 vscode/node_modules
 vscode/out
 vscode/bin

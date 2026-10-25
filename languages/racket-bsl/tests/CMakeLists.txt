@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every file of example/ parses clean, and the tree
 # holds what each sample declares.
 add_executable(racketbsl_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(racketbsl_grammar_test PRIVATE
 add_test(NAME racketbsl_grammar_test COMMAND racketbsl_grammar_test)
 
 # ...and the command line reads one of the same samples.
-add_test(NAME racketbsl_cli_test COMMAND racketbsl_cli
-         ${PROJECT_SOURCE_DIR}/example/temperature-conversion.rkt)
+if(TARGET racketbsl_cli)
+  add_test(NAME racketbsl_cli_test COMMAND racketbsl_cli
+           ${PROJECT_SOURCE_DIR}/example/temperature-conversion.rkt)
+endif()

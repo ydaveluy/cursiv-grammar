@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean, and hello_64.asm's values
 # read back correctly.
 add_executable(nasm_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(nasm_grammar_test PRIVATE
 add_test(NAME nasm_grammar_test COMMAND nasm_grammar_test)
 
 # ...and the command line reads the same sample.
-add_test(NAME nasm_cli_test COMMAND nasm_cli
-         ${PROJECT_SOURCE_DIR}/example/hello_64.asm)
+if(TARGET nasm_cli)
+  add_test(NAME nasm_cli_test COMMAND nasm_cli
+           ${PROJECT_SOURCE_DIR}/example/hello_64.asm)
+endif()

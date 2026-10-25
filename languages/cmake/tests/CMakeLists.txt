@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document under example/ parses, and the tree
 # holds a File at its root.
 add_executable(cmake_grammar_test grammar_test.cpp)
@@ -12,5 +17,7 @@ target_link_libraries(cmake_native_regressions PRIVATE cmakeCore cursiv::test)
 add_test(NAME cmake_native_regressions COMMAND cmake_native_regressions)
 
 # ...and the command line reads one of the same samples.
-add_test(NAME cmake_cli_test COMMAND cmake_cli
-         ${PROJECT_SOURCE_DIR}/example/CMakeLists.cmake)
+if(TARGET cmake_cli)
+  add_test(NAME cmake_cli_test COMMAND cmake_cli
+           ${PROJECT_SOURCE_DIR}/example/CMakeLists.cmake)
+endif()

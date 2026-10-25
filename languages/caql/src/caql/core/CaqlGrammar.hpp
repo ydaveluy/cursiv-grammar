@@ -49,8 +49,8 @@ struct Caql : cursiv::GrammarSpec {
                  double> {};
 
   struct STRING
-      : terminal<(lit<"'"> + many(lit<"\\"> + any | cr<R"(^'\\)">) + lit<"'">) |
-                     (lit<"\""> + many(lit<"\\"> + any | cr<R"(^"\\)">) +
+      : terminal<(lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\)">) + lit<"'">) |
+                     (lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) +
                       lit<"\"">),
                  Unescaped> {};
 

@@ -27,16 +27,16 @@ inline constexpr auto strip_and_undouble =
           room[n++] = char(cp);
         else if (cp < 0x800) {
           room[n++] = char(0xc0 | cp >> 6);
-          room[n++] = char(0x80 | cp & 63);
+          room[n++] = char(0x80 | (cp & 63));
         } else if (cp < 0x10000) {
           room[n++] = char(0xe0 | cp >> 12);
-          room[n++] = char(0x80 | cp >> 6 & 63);
-          room[n++] = char(0x80 | cp & 63);
+          room[n++] = char(0x80 | (cp >> 6 & 63));
+          room[n++] = char(0x80 | (cp & 63));
         } else {
           room[n++] = char(0xf0 | cp >> 18);
-          room[n++] = char(0x80 | cp >> 12 & 63);
-          room[n++] = char(0x80 | cp >> 6 & 63);
-          room[n++] = char(0x80 | cp & 63);
+          room[n++] = char(0x80 | (cp >> 12 & 63));
+          room[n++] = char(0x80 | (cp >> 6 & 63));
+          room[n++] = char(0x80 | (cp & 63));
         }
       };
       for (std::size_t i = 0; i < body.size(); ++i) {

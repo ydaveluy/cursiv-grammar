@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: the upstream corpus and a hand-written sample of this
 # port's own, kept separate from `example/` (the campaign's verifier counts
 # that directory as the upstream corpus).
@@ -9,5 +14,7 @@ target_compile_definitions(stringtemplate_grammar_test PRIVATE
 add_test(NAME stringtemplate_grammar_test COMMAND stringtemplate_grammar_test)
 
 # ...and the command line reads the upstream sample.
-add_test(NAME stringtemplate_cli_test COMMAND stringtemplate_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.st)
+if(TARGET stringtemplate_cli)
+  add_test(NAME stringtemplate_cli_test COMMAND stringtemplate_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.st)
+endif()

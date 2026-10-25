@@ -526,7 +526,7 @@ struct Codeql : cursiv::GrammarSpec {
 
   struct SignatureExprRule
       : rule<option(ref<ModuleExprRule> + lit<"::">) + ref<SimpleIdRule> +
-             option(lit<"/"> + some(d) | ref<ArgumentsRule>)> {};
+             option((lit<"/"> + some(d)) | ref<ArgumentsRule>)> {};
 
   struct SignatureParamRule
       : rule<create<ast::Param>(

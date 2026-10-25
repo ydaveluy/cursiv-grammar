@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The lanes of this language: one binary per lane, the project directory
 # is where a corpus is read from.
 
@@ -9,8 +14,10 @@ target_compile_definitions(xsmp_grammar_test PRIVATE
 add_test(NAME xsmp_grammar_test COMMAND xsmp_grammar_test)
 
 # ...and the command line reads the demo catalogue.
-add_test(NAME xsmp_cli_test COMMAND xsmp_cli
-         ${PROJECT_SOURCE_DIR}/example/demo.xsmpcat)
+if(TARGET xsmp_cli)
+  add_test(NAME xsmp_cli_test COMMAND xsmp_cli
+           ${PROJECT_SOURCE_DIR}/example/demo.xsmpcat)
+endif()
 
 # The emitted grammar text, read back through the language's own source.
 add_executable(xsmp_grammar_source_test grammar_source_test.cpp)

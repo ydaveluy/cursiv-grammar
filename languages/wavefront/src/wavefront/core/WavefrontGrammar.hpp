@@ -65,9 +65,9 @@ struct Wavefront : cursiv::GrammarSpec {
   struct INTEGER : terminal<int_digits, std::int64_t> {};
   struct NUMBER
       : terminal<option(cr<"+-">) +
-                     (((some(d) + option(lit<"."> + many(d))) |
+                     ((((some(d) + option(lit<"."> + many(d))) |
                        (lit<"."> + some(d))) +
-                          option(cr<"eE"> + option(cr<"+-">) + some(d)) |
+                          option(cr<"eE"> + option(cr<"+-">) + some(d))) |
                       ikw<"nan"> | ikw<"inf"> | ikw<"infinity">),
                  cursiv::text_conv<number_value>> {};
   struct INDEX : terminal<int_digits> {};

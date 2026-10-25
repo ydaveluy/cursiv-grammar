@@ -10,7 +10,7 @@ namespace tcpheader {
 void TcpheaderValidator::checkHeader(
     const ast::SegmentHeader& header, cursiv::ValidationAcceptor& accept) const {
   if (header.flags.size() != 2) return;
-  const auto words = static_cast<unsigned char>(header.flags.front()) >> 4;
+  const unsigned words = static_cast<unsigned char>(header.flags.front()) >> 4;
   if (words < 5 || header.options.size() != 4 * (words - 5))
     accept.error(header, "The data offset must match the complete TCP header length.",
                  "tcpheader.length")

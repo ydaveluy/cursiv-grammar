@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses clean into a Prog.
 add_executable(guido_grammar_test grammar_test.cpp)
 target_link_libraries(guido_grammar_test PRIVATE guidoCore cursiv::test)
@@ -7,5 +12,7 @@ target_compile_definitions(guido_grammar_test PRIVATE
 add_test(NAME guido_grammar_test COMMAND guido_grammar_test)
 
 # ...and the command line reads one example.
-add_test(NAME guido_cli_test COMMAND guido_cli
-         ${PROJECT_SOURCE_DIR}/example/example1.gmn)
+if(TARGET guido_cli)
+  add_test(NAME guido_cli_test COMMAND guido_cli
+           ${PROJECT_SOURCE_DIR}/example/example1.gmn)
+endif()

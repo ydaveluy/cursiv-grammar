@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document under example/ and tests/ parses, and
 # the tree holds what it declares.
 add_executable(xpath_grammar_test grammar_test.cpp)
@@ -8,8 +13,10 @@ target_compile_definitions(xpath_grammar_test PRIVATE
 add_test(NAME xpath_grammar_test COMMAND xpath_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME xpath_cli_test COMMAND xpath_cli
-         ${PROJECT_SOURCE_DIR}/example/expressions_001.xpath)
+if(TARGET xpath_cli)
+  add_test(NAME xpath_cli_test COMMAND xpath_cli
+           ${PROJECT_SOURCE_DIR}/example/expressions_001.xpath)
+endif()
 
 add_executable(xpath_native_values_test native_values_test.cpp)
 target_link_libraries(xpath_native_values_test PRIVATE xpathCore cursiv::test)

@@ -228,7 +228,7 @@ struct Vb6 : cursiv::GrammarSpec {
 
   static constexpr auto Exponent = cr<"Ee"> + option(cr<"+-">) + some(d);
   struct INTEGERLITERAL : terminal<some(d) + option(NumSuffix)> {};
-  struct DOUBLELITERAL : terminal<(((some(d) + lit<".", !lit<".">> + many(d)) | (lit<"."> + some(d))) + option(Exponent) | (some(d) + Exponent)) + option(NumSuffix)> {};
+  struct DOUBLELITERAL : terminal<((((some(d) + lit<".", !lit<".">> + many(d)) | (lit<"."> + some(d))) + option(Exponent)) | (some(d) + Exponent)) + option(NumSuffix)> {};
 
   // Digits, or a single letter with nothing else glued to it: a run of two
   // or more letters would collide with the conditional-compilation

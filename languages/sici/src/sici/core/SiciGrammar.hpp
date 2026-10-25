@@ -25,13 +25,13 @@ struct Sici : cursiv::GrammarSpec {
   struct Mfi : rule<repeat<2>(ref<LETTER>)> {};
 
   struct EnumerationRule
-      : rule<assign<&ast::Enumeration::volume>(ref<ENUM_PART>) +
+      : rule<(assign<&ast::Enumeration::volume>(ref<ENUM_PART>) +
                  option(lit<":"> +
                         assign<&ast::Enumeration::issue>(ref<ENUM_PART>)) +
                  many(lit<":"> +
                       append<&ast::Enumeration::additional>(ref<ENUM_PART>)) +
                  option(option(lit<":">) +
-                        assign<&ast::Enumeration::supplement>(cr<"+*">)) |
+                        assign<&ast::Enumeration::supplement>(cr<"+*">))) |
              assign<&ast::Enumeration::supplement>(cr<"+*">)> {};
 
   struct ItemRule

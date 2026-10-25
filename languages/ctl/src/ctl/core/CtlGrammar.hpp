@@ -16,8 +16,8 @@ struct Ctl : cursiv::GrammarSpec {
   static constexpr auto modality = lit<"X"> | lit<"F"> | lit<"G">;
 
   // Compact AXp and EFp retain their temporal meaning.
-  struct ATOMIC : terminal<!(quantifier + modality | modality) + cr<"a-zA-Z_"> + many(word_boundary)> {};
-  struct QUOTED : terminal<lit<"\""> + many(lit<"\\"> + any | cr<R"(^"\\\r\n)">) +
+  struct ATOMIC : terminal<!((quantifier + modality) | modality) + cr<"a-zA-Z_"> + many(word_boundary)> {};
+  struct QUOTED : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) +
                            lit<"\"">, text_conv<quoted_name>> {};
 
   struct UNTIL : terminal<lit<"U">, value<ast::TemporalRelation::until>> {};
@@ -52,8 +52,8 @@ struct Ctl : cursiv::GrammarSpec {
           assign<&ast::UnaryTemporal::modality>(ref<NEXT> | ref<FINALLY> | ref<GLOBALLY>) +
           assign<&ast::UnaryTemporal::operand>(ref<Primary>)) |
       create<ast::Grouped>(
-          lit<"("> + assign<&ast::Grouped::inner>(ref<Proposition>) + lit<")"> |
-          lit<"["> + assign<&ast::Grouped::inner>(ref<Proposition>) + lit<"]">) |
+          (lit<"("> + assign<&ast::Grouped::inner>(ref<Proposition>) + lit<")">) |
+          (lit<"["> + assign<&ast::Grouped::inner>(ref<Proposition>) + lit<"]">)) |
       create<ast::Not>((lit<"⌐"> | lit<"~"> | kw<"not">) +
                        assign<&ast::Not::operand>(ref<Primary>)) |
       create<ast::Missing>> {};

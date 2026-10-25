@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document of example/ parses clean.
 add_executable(metamath_grammar_test grammar_test.cpp)
 target_link_libraries(metamath_grammar_test PRIVATE metamathCore)
@@ -7,5 +12,7 @@ target_compile_definitions(metamath_grammar_test PRIVATE
 add_test(NAME metamath_grammar_test COMMAND metamath_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME metamath_cli_test COMMAND metamath_cli
-         ${CMAKE_CURRENT_SOURCE_DIR}/demo.mm)
+if(TARGET metamath_cli)
+  add_test(NAME metamath_cli_test COMMAND metamath_cli
+           ${CMAKE_CURRENT_SOURCE_DIR}/demo.mm)
+endif()

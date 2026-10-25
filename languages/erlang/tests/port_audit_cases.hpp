@@ -10,7 +10,7 @@ inline bool run(const cursiv::Parser& parser) {
   auto require = [&](bool ok, const char* message) {
     if (!ok) { std::fprintf(stderr, "erlang port audit: %s\n", message); ++failures; }
   };
-  for (const std::string source : {
+  for (const std::string& source : {
     std::string("-module(audit_andalso_assoc).\nf(A,B,C)->A andalso B andalso C.\n"),
     std::string("-module(audit_attribute_prefix).\n-special(foo).\n-callback_extra(bar).\nf()->ok.\n"),
     std::string("-module(audit_char_newline).\nf()->$\n.\n"),

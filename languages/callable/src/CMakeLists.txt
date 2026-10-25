@@ -1,16 +1,11 @@
-# `ID` names the targets and generated directory; `NAMESPACE` names the
-# grammar type, and everything else follows from it. Defines
-# `callableGenerated` (the compiled library) and `callable_generate`
-# (writes the sources without compiling them).
+# Generate the parser and its language module.
 cursiv_generate_language(ID callable
     GRAMMAR    callable/core/CallableGrammar.hpp
     NAMESPACE  callable::Callable
     EXTENSIONS .callable
     OUT        callable/generated)
 
-# The core storey: what the author writes over the generated module -- the
-# services container and the validation checks. The grammar is not compiled
-# here; the generated module holds everything derived from it.
+# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/callable/core/*.cpp)
 add_library(callableCore ${_core})
@@ -18,19 +13,26 @@ target_link_libraries(callableCore PUBLIC callableGenerated)
 
 file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/callable/cli/*.cpp)
-add_executable(callable_cli ${_cli})
-target_link_libraries(callable_cli
-                      PRIVATE callableCore cursiv::cli)
+if(_cli)
+  add_executable(callable_cli ${_cli})
+  target_link_libraries(callable_cli
+                        PRIVATE callableCore cursiv::cli)
+endif()
 
-# The language server.
-file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/callable/lsp/*.cpp)
-list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/callable/lsp/main.cpp)
-add_library(callableLsp ${_lsp})
-target_link_libraries(callableLsp PUBLIC callableCore cursiv::lsp)
-add_executable(callable_lsp callable/lsp/main.cpp)
-target_link_libraries(callable_lsp PRIVATE callableLsp)
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/callable/lsp")
+  file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/callable/lsp/*.cpp)
+  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/callable/lsp/main.cpp)
+  add_library(callableLsp ${_lsp})
+  target_link_libraries(callableLsp PUBLIC callableCore cursiv::lsp)
+  add_executable(callable_lsp callable/lsp/main.cpp)
+  target_link_libraries(callable_lsp PRIVATE callableLsp)
+endif()
 
-cursiv_add_benchmark(callable SOURCES callable/bench/main.cpp)
+if(TARGET callableLsp AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/callable/bench/main.cpp")
+  cursiv_add_benchmark(callable
+      SOURCES callable/bench/main.cpp)
+endif()
 
 cursiv_package_language(callable)

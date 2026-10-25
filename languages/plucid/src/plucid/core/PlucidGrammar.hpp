@@ -165,7 +165,7 @@ struct Plucid : cursiv::GrammarSpec {
       ref<StringLitRule> | ref<ListConstantRule>;
 
   struct ListConstantRule
-      : rule<create<ast::NilLit> + kw<"nil">                        //
+      : rule<(create<ast::NilLit> + kw<"nil">)                        //
              | (create<ast::ListLit> + lit<"[]">)                   //
              | create<ast::ListLit>(
                    lit<"["> +

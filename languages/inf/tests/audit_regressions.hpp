@@ -79,7 +79,7 @@ inline void run() {
   std::vector<cursiv::Diagnostic> diagnostics;
   language.language.documentValidator->validateDocument(document, diagnostics);
   CHECK(diagnostics.empty());
-  for (const std::string invalid : std::vector<std::string>{
+  for (const std::string& invalid : std::vector<std::string>{
        "before=value\n[S]\nk=v\n", "[" + std::string(256, 's') + "]\n"}) {
     cursiv::Document bad(
         cursiv::TextDocument::create("memory:inf", "inf", 0, invalid));

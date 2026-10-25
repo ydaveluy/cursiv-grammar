@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every corpus document parses, features.xq covers what
 # the corpus doesn't, and module.xq is read back field by field.
 add_executable(xquery_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(xquery_grammar_test PRIVATE
 add_test(NAME xquery_grammar_test COMMAND xquery_grammar_test)
 
 # ...and the command line reads one document from the same corpus.
-add_test(NAME xquery_cli_test COMMAND xquery_cli
-         ${PROJECT_SOURCE_DIR}/example/module.xq)
+if(TARGET xquery_cli)
+  add_test(NAME xquery_cli_test COMMAND xquery_cli
+           ${PROJECT_SOURCE_DIR}/example/module.xq)
+endif()

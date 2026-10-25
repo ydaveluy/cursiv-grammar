@@ -1353,7 +1353,7 @@ struct Informix : cursiv::GrammarSpec {
                    many(lit<","> +
                         append<&ast::UpdateStmt::assignments>(
                             ref<AssignmentR>))) |
-                  ((lit<"("> +
+                  (((lit<"("> +
                     append<&ast::UpdateStmt::starColumns>(Name) +
                     many(lit<","> +
                          append<&ast::UpdateStmt::starColumns>(Name)) +
@@ -1367,7 +1367,7 @@ struct Informix : cursiv::GrammarSpec {
                              append<&ast::UpdateStmt::starValues>(
                                  ref<Expression>)) +
                         lit<")">) |
-                       flag<&ast::UpdateStmt::starValue>(lit<"*">))) +
+                       flag<&ast::UpdateStmt::starValue>(lit<"*">)))) +
                  option(ikw<"WHERE"> +
                         (assign<&ast::UpdateStmt::where>(
                              ref<Expression>) |

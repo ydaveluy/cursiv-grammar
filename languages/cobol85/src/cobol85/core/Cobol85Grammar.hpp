@@ -560,7 +560,7 @@ struct Cobol85 : cursiv::GrammarSpec {
               append<&ast::DataItem::pictures>(ref<PICTURE>)) |
              (option(ikw<"USAGE">+ option(ikw<"IS">)) +
               append<&ast::DataItem::usages>(ref<UsageWord>)) |
-             ((ikw<"VALUE">+ option(ikw<"IS">) | ikw<"VALUES">+ option(ikw<"ARE">)) +
+             (((ikw<"VALUE">+ option(ikw<"IS">)) | (ikw<"VALUES">+ option(ikw<"ARE">))) +
               some(append<&ast::DataItem::values>(
                        ref<STRINGLIT> | ref<HEXLIT> | ref<NULLLIT> | ref<DBCSLIT> |
                        ikw<"HIGH-VALUES"> | ikw<"HIGH-VALUE"> | ikw<"LOW-VALUES"> |
@@ -629,15 +629,15 @@ struct Cobol85 : cursiv::GrammarSpec {
                     option(option(ikw<"FROM">) + ref<INTLIT> +
                            option(ikw<"TO"> + ref<INTLIT>) + option(ikw<"CHARACTERS">)) +
                     option(ikw<"DEPENDING"> + option(ikw<"ON">) + ref<CobolWord>)))) |
-             ((ikw<"LABEL"> + (ikw<"RECORD"> + option(ikw<"IS">) |
-                                   ikw<"RECORDS"> + option(ikw<"ARE">))) +
+             ((ikw<"LABEL"> + ((ikw<"RECORD"> + option(ikw<"IS">)) |
+                                   (ikw<"RECORDS"> + option(ikw<"ARE">)))) +
                   (ikw<"OMITTED"> | ikw<"STANDARD"> | some(ref<CobolWord>))) |
              (ikw<"VALUE"> + ikw<"OF"> +
                   some(ref<CobolWord> + option(ikw<"IS">) +
                        (ref<CobolWord> | ref<STRINGLIT> | ref<HEXLIT> | ref<NULLLIT> |
                         ref<DBCSLIT> | ref<NUMLIT> | ref<INTLIT>))) |
-             ((ikw<"DATA"> + (ikw<"RECORD"> + option(ikw<"IS">) |
-                                  ikw<"RECORDS"> + option(ikw<"ARE">))) +
+             ((ikw<"DATA"> + ((ikw<"RECORD"> + option(ikw<"IS">)) |
+                                  (ikw<"RECORDS"> + option(ikw<"ARE">)))) +
                   some(ref<CobolWord>)) |
              (ikw<"LINAGE"> + option(ikw<"IS">) + (ref<CobolWord> | ref<INTLIT>) +
                   option(ikw<"LINES">) +
@@ -649,7 +649,7 @@ struct Cobol85 : cursiv::GrammarSpec {
                         (ref<CobolWord> | ref<INTLIT>)))) |
              (ikw<"RECORDING"> + option(ikw<"MODE">) + option(ikw<"IS">) + ref<CobolWord>) |
              (ikw<"CODE-SET"> + option(ikw<"IS">) + ref<CobolWord>) |
-             ((ikw<"REPORT"> + option(ikw<"IS">) | ikw<"REPORTS"> + option(ikw<"ARE">)) +
+             (((ikw<"REPORT"> + option(ikw<"IS">)) | (ikw<"REPORTS"> + option(ikw<"ARE">))) +
                   some(ref<CobolWord>)))> {};
 
   struct FileDescriptionEntry
@@ -1574,8 +1574,8 @@ struct Cobol85 : cursiv::GrammarSpec {
                    (create<ast::Literal> + assign<&ast::Literal::text>(ikw<"ON"> | ikw<"OFF">)) |
                    (ikw<"ENTRY">+ (ref<IdentifierOrRegister> | ref<LiteralRule>)) |
                    ref<IdentifierOrRegister> | ref<LiteralRule>))) |
-              assign<&ast::SetStatement::op>(ref<SetUpDownOp>) +
-                  append<&ast::SetStatement::values>(ref<IdentifierOrRegister> | ref<LiteralRule>))> {};
+              (assign<&ast::SetStatement::op>(ref<SetUpDownOp>) +
+                  append<&ast::SetStatement::values>(ref<IdentifierOrRegister> | ref<LiteralRule>)))> {};
 
   // sort
 

@@ -7,9 +7,10 @@
 
 namespace pdn {
 
-using Interior = cursiv::text_conv<[](std::string_view text) {
+inline constexpr std::string_view interior(std::string_view text) {
   return text.substr(1, text.size() - 2);
-}>;
+}
+using Interior = cursiv::text_conv<interior>;
 
 struct Pdn : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};

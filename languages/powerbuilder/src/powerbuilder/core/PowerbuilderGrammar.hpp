@@ -766,7 +766,7 @@ struct Powerbuilder : cursiv::GrammarSpec {
   struct ExecuteStmtRule
       : rule<create<ast::ExecuteStmt>(
             ikw<"EXECUTE"> +
-            (option(flag<&ast::ExecuteStmt::immediate>(
+            ((option(flag<&ast::ExecuteStmt::immediate>(
                  ikw<"IMMEDIATE">)) +
                  ((assign<&ast::ExecuteStmt::value>(
                        ref<PathRule> | ref<AtomRule>) +
@@ -777,7 +777,7 @@ struct Powerbuilder : cursiv::GrammarSpec {
                                ikw<"SQLCA">) |
                            assign<&ast::ExecuteStmt::usingName>(
                                ref<PathRule>))) +
-                   lit<";">)) |
+                   lit<";">))) |
              (option(flag<&ast::ExecuteStmt::dynamic>(
                   ikw<"DYNAMIC">)) +
               assign<&ast::ExecuteStmt::identifier>(ref<PathRule>) +

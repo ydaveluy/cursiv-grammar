@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every example parses, and each tree holds what it declares.
 add_executable(ebnf_grammar_test grammar_test.cpp)
 target_link_libraries(ebnf_grammar_test PRIVATE ebnfCore)
@@ -7,5 +12,7 @@ target_compile_definitions(ebnf_grammar_test PRIVATE
 add_test(NAME ebnf_grammar_test COMMAND ebnf_grammar_test)
 
 # ...and the command line reads one of them.
-add_test(NAME ebnf_cli_test COMMAND ebnf_cli
-         ${PROJECT_SOURCE_DIR}/example/postal.ebnf)
+if(TARGET ebnf_cli)
+  add_test(NAME ebnf_cli_test COMMAND ebnf_cli
+           ${PROJECT_SOURCE_DIR}/example/postal.ebnf)
+endif()

@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every document under tests/ (the upstream corpus is
 # empty) parses, and real field values read back correctly.
 add_executable(graphql_grammar_test grammar_test.cpp)
@@ -7,5 +12,7 @@ target_compile_definitions(graphql_grammar_test PRIVATE
 add_test(NAME graphql_grammar_test COMMAND graphql_grammar_test)
 
 # ...and the command line reads one of the same documents.
-add_test(NAME graphql_cli_test COMMAND graphql_cli
-         ${CMAKE_CURRENT_SOURCE_DIR}/query.graphql)
+if(TARGET graphql_cli)
+  add_test(NAME graphql_cli_test COMMAND graphql_cli
+           ${CMAKE_CURRENT_SOURCE_DIR}/query.graphql)
+endif()

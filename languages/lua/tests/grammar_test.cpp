@@ -36,7 +36,7 @@ T* as(cursiv::AstNode* n) {
 // The document outlives the tree: every AST member is a `string_view` into
 // the source, so a composed document must live past the `ParseResult` that
 // points into it.
-const std::string& kept(std::string text) {
+std::string_view kept(std::string text) {
   static std::deque<std::string> documents;
   documents.push_back(std::move(text));
   return documents.back();
@@ -185,12 +185,12 @@ void keywords_may_name() {
 void whitespace_and_line_endings() {
   CHECK(clean("local\vx = 1\n"));
   for (const std::string_view newline : {"\n", "\r", "\r\n", "\n\r"}) {
-    const std::string& escaped = kept("x = \"a\\" + std::string(newline) + "b\"");
+    const std::string_view escaped = kept("x = \"a\\" + std::string(newline) + "b\"");
     CHECK(clean(escaped));
-    const std::string& zapped =
+    const std::string_view zapped =
         kept("x = \"a\\z\v" + std::string(newline) + "b\"");
     CHECK(clean(zapped));
-    const std::string& longString =
+    const std::string_view longString =
         kept("x = [[" + std::string(newline) + "hello]]");
     const auto result = parse(longString);
     CHECK(result.accepted && !result.cst().recovered());
@@ -209,7 +209,7 @@ void numeral_forms() {
   for (const std::string_view numeral :
        {"1", "1.", ".5", "1.25", "1e2", "1.e-2", ".5E+3", "0x1",
         "0X1.", "0x.8", "0x1.fp+2", "0x1p-2", "0X.8P2"}) {
-    const std::string& text = kept("x = " + std::string(numeral));
+    const std::string_view text = kept("x = " + std::string(numeral));
     const auto result = parse(text);
     CHECK(result.accepted && !result.cst().recovered());
     const auto* root = as<ast::Block>(result.value);
@@ -228,7 +228,7 @@ void numeral_forms() {
 // A shebang is a token of the entry itself: the block behind it is still the
 // root, alone, and its record is the whole document.
 void shebang_keeps_the_root() {
-  const std::string& text = kept("#!/usr/bin/lua\nx = 1\n");
+  const std::string_view text = kept("#!/usr/bin/lua\nx = 1\n");
   const cursiv::ParseResult r = parse(text);
   CHECK(r.accepted && !r.cst().recovered());
   ast::Block* const root = as<ast::Block>(r.value);

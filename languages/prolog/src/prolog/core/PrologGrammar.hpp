@@ -71,7 +71,7 @@ struct Prolog : cursiv::GrammarSpec {
 
   static constexpr auto Decimals = some(uc::Nd);
   static constexpr auto Grouped =
-      Decimals + many((lit<"_"> + many(Layout) | lit<" ">)+Decimals);
+      Decimals + many(((lit<"_"> + many(Layout)) | lit<" ">)+Decimals);
   static constexpr auto BaseDigits =
       some(cr<"0-9A-Za-z">) +
       many(lit<"_"> + many(Layout) + some(cr<"0-9A-Za-z">));

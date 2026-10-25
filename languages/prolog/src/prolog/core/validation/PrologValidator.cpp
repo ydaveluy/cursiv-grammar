@@ -116,11 +116,11 @@ void PrologValidator::checkTerm(const ast::Term &node,
           .error(*n, "This prefix operator needs a lower-priority operand",
                  "prolog.operator-clash")
           .property<&ast::UnaryTerm::op>();
-  } else if (auto n = cursiv::ast_cast<ast::AtomTerm>(&node))
+  } else if (cursiv::ast_cast<ast::AtomTerm>(&node))
     quoted(node, "value", accept);
-  else if (auto n = cursiv::ast_cast<ast::StringTerm>(&node))
+  else if (cursiv::ast_cast<ast::StringTerm>(&node))
     quoted(node, "value", accept);
-  else if (auto n = cursiv::ast_cast<ast::CodeListTerm>(&node))
+  else if (cursiv::ast_cast<ast::CodeListTerm>(&node))
     quoted(node, "value", accept);
   else if (auto n = cursiv::ast_cast<ast::IntegerTerm>(&node)) {
     if (!integerText(raw(node, "value", accept)).valid)
@@ -152,7 +152,7 @@ void PrologValidator::checkTerm(const ast::Term &node,
     if (!denominator.valid || denominator.value == "0")
       accept.error(node, "A rational denominator must be a non-zero integer",
                    "prolog.rational");
-  } else if (auto n = cursiv::ast_cast<ast::CompoundTerm>(&node)) {
+  } else if (cursiv::ast_cast<ast::CompoundTerm>(&node)) {
     quoted(node, "functor", accept);
     auto *document = node.getDocument();
     auto span = accept.featureSpan(node, "functor", 0);

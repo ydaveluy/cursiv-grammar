@@ -1,3 +1,8 @@
+# Unit tests skip Binaryen; CLI tools and benchmarks keep their normal flags.
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+  add_link_options(--no-wasm-opt)
+endif()
+
 # The grammar itself: every corpus file parses, and the tree holds what it
 # declares.
 add_executable(mumps_grammar_test grammar_test.cpp)
@@ -8,5 +13,7 @@ target_compile_definitions(mumps_grammar_test PRIVATE
 add_test(NAME mumps_grammar_test COMMAND mumps_grammar_test)
 
 # ...and the command line reads one clean sample from the same corpus.
-add_test(NAME mumps_cli_test COMMAND mumps_cli
-         ${PROJECT_SOURCE_DIR}/example/fibonacci.m)
+if(TARGET mumps_cli)
+  add_test(NAME mumps_cli_test COMMAND mumps_cli
+           ${PROJECT_SOURCE_DIR}/example/fibonacci.m)
+endif()

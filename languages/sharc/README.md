@@ -4,6 +4,9 @@ A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
 ## Build
 
+Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`
+support. Cursiv's CI uses GCC 16 and Clang 22.
+
 ```bash
 cmake -B build
 cmake --build build -j
@@ -58,7 +61,7 @@ command was wrong, 3 something threw.
 
 `sharc_lsp` speaks LSP over stdio. In VS Code, open this folder and press
 **F5**: the task builds the server in the tree of the preset you have selected
--- `native` runs the host binary, `wasi` the wasm module -- and a second
+-- GCC/Clang presets run the host binary, WASI presets the wasm module -- and a second
 window opens with the extension loaded. Point it at `tests/` to use the sample
 documents. The preset is read through the CMake Tools extension, which the
 workspace recommends.
