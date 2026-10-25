@@ -1,0 +1,74 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Peoplecode",
+  "scopeName": "source.peoplecode",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" },
+    { "include": "#variables" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.peoplecode",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.block.peoplecode",
+          "begin": "<\\*",
+          "end": "\\*>"
+        },
+        {
+          "name": "comment.block.documentation.peoplecode",
+          "begin": "/\\+",
+          "end": "\\+/;?"
+        },
+        {
+          "name": "comment.line.rem.peoplecode",
+          "match": "(?i)\\brem\\b.*?;"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.peoplecode",
+      "begin": "\"",
+      "end": "\""
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.peoplecode",
+          "match": "\\b(If|Then|Else|End-If|For|To|Step|End-For|While|End-While|Evaluate|When|When-Other|End-Evaluate|try|catch|end-try|Exit|Break|Return|throw|Error|Warning)\\b"
+        },
+        {
+          "name": "keyword.other.peoplecode",
+          "match": "\\b(import|class|end-class|private|method|end-method|get|end-get|set|end-set|Function|End-Function|Declare|PeopleCode|FieldFormula|FieldChange|Constant|property|readonly|instance|Returns|As|create|Exception)\\b"
+        },
+        {
+          "name": "keyword.operator.word.peoplecode",
+          "match": "\\b(Not|And|Or|True|False)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.peoplecode",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.other.peoplecode",
+          "match": "&[a-zA-Z][0-9a-zA-Z_#]*"
+        },
+        {
+          "name": "variable.language.peoplecode",
+          "match": "%[a-zA-Z][0-9a-zA-Z_#]*"
+        }
+      ]
+    }
+  }
+}

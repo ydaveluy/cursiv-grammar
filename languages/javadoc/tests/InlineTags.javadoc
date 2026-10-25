@@ -1,0 +1,8 @@
+/**
+ * Computes the checksum of {@code data} using {@link Hasher#digest(byte[])}.
+ * A nested brace expression is legal: {@code int[] xs = {1, 2, 3};}.
+ *
+ * @param data the bytes to hash
+ * @return the checksum, or {@code -1} if {@code data} is empty
+ * @see Hasher
+ */

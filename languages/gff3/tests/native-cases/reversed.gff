@@ -1,0 +1,2 @@
+##gff-version 3
+chr1	RefSeq	gene	10	1	.	+	.	ID=g1;Name=Alpha

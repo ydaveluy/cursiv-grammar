@@ -1,0 +1,11 @@
+library 'MyLib';
+
+uses 'Utils';
+
+helper context Families!Member def: fullName(): String =
+  self.firstName + ' ' + self.lastName;
+
+helper def: pi: Real = 3.14159;
+
+helper def: greet(name: String): String =
+  'Hello, ' + name + '!';

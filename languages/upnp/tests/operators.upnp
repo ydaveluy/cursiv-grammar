@@ -1,0 +1,1 @@
+upnp:episodeNumber != "abc" and upnp:episodeNumber < "abc" and upnp:episodeNumber <= "abc" and upnp:episodeNumber > "abc" and upnp:episodeNumber >= "abc" and dc:title doesNotContain "spam"

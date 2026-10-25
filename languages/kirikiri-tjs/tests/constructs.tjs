@@ -1,0 +1,48 @@
+// Constructs the shipped example/ corpus does not exercise on its own.
+
+// object literal: every separator spelling, including bare ',' as key/value
+// separator, and a leading '=>'/','.
+x = %[a=>1, b:2, c=3, d,4];
+
+// array literal: leading/trailing separators, '=>' beside ','.
+y = [, 1, 2 => 3, ,];
+
+// bare '*' rest parameter, unnamed.
+function variadic(a, *) {
+  return a;
+}
+
+// postfix eval '!' beside call/member chains.
+z = obj.method()!;
+
+// swap, reference, pointer, char-code.
+a <-> b;
+r = &a;
+p = *r;
+c = #"A";
+
+// left-associative chained assignment: (a = b) = c.
+a = b = c;
+
+// a cast absorbs the rest of the expression it opens on.
+w = (int) a + 1;
+
+// an unambiguous regex literal (primary position) beside plain division.
+re = /ab+c/i;
+q = a / b / c;
+
+// implicit ('with'-context) member access.
+with (obj) {
+  x = .prop;
+}
+
+// multiple inheritance.
+class Multi extends Base1, Base2 {
+  var m = 1;
+}
+
+// a property with more than one getter/setter-shaped entry.
+property both {
+  getter { return 1; }
+  setter (v) { }
+}

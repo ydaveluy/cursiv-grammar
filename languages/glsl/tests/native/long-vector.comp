@@ -1,0 +1,4 @@
+#version 460
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_EXT_long_vector : require
+layout(local_size_x=32)in;void main(){vector<float,8> x=vector<float,8>(1.0);}

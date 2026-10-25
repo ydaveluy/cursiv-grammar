@@ -1,0 +1,69 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sqlite",
+  "scopeName": "source.sqlite",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.sqlite",
+          "match": "--.*$"
+        },
+        {
+          "name": "comment.block.sqlite",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.sqlite",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "match": "''" }]
+        },
+        {
+          "name": "string.quoted.double.sqlite",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "match": "\"\"" }]
+        },
+        {
+          "name": "variable.other.backtick.sqlite",
+          "begin": "`",
+          "end": "`",
+          "patterns": [{ "match": "``" }]
+        },
+        {
+          "name": "variable.other.bracket.sqlite",
+          "begin": "\\[",
+          "end": "\\]"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.sqlite",
+      "match": "\\b0[xX][0-9a-fA-F]+\\b|\\b[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?\\b|\\.[0-9]+\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.sqlite",
+          "match": "(?i)\\b(SELECT|FROM|WHERE|GROUP|BY|HAVING|ORDER|LIMIT|OFFSET|WITH|RECURSIVE|UNION|ALL|INTERSECT|EXCEPT|VALUES|INSERT|INTO|UPDATE|DELETE|SET|CREATE|ALTER|DROP|TABLE|VIEW|INDEX|TRIGGER|VIRTUAL|USING|REFERENCES|CONSTRAINT|PRIMARY|KEY|FOREIGN|UNIQUE|CHECK|DEFAULT|NOT|NULL|AUTOINCREMENT|COLLATE|CASCADE|RESTRICT|DEFERRABLE|DEFERRED|IMMEDIATE|INITIALLY|CONFLICT|ROLLBACK|ABORT|FAIL|IGNORE|REPLACE|ON|AS|DISTINCT|JOIN|INNER|OUTER|LEFT|RIGHT|FULL|CROSS|NATURAL|INDEXED|WINDOW|OVER|PARTITION|FILTER|RANGE|ROWS|GROUPS|PRECEDING|FOLLOWING|UNBOUNDED|CURRENT|EXCLUDE|OTHERS|TIES|CASE|WHEN|THEN|ELSE|END|CAST|EXISTS|IN|BETWEEN|LIKE|GLOB|REGEXP|MATCH|ESCAPE|ISNULL|NOTNULL|IS|AND|OR|BEGIN|COMMIT|TRANSACTION|SAVEPOINT|RELEASE|PRAGMA|VACUUM|ATTACH|DETACH|REINDEX|ANALYZE|EXPLAIN|QUERY|PLAN|RETURNING|RAISE|GENERATED|ALWAYS|STORED|VIRTUAL|WITHOUT|ROWID|STRICT|IF|TEMP|TEMPORARY|RENAME|COLUMN|ADD|TO|FOR|EACH|ROW|INSTEAD|OF|DO|NOTHING)\\b"
+        },
+        {
+          "name": "constant.language.sqlite",
+          "match": "(?i)\\b(TRUE|FALSE|NULL|CURRENT_TIME|CURRENT_DATE|CURRENT_TIMESTAMP)\\b"
+        }
+      ]
+    }
+  }
+}

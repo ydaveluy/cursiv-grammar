@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Basic",
+  "scopeName": "source.basic",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#linenumbers" },
+    { "include": "#keywords" },
+    { "include": "#functions" },
+    { "include": "#numbers" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.basic",
+          "match": "(?i)\\bREM\\b.*$"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.basic",
+      "match": "\"[^\"\\r\\n]*\""
+    },
+    "linenumbers": {
+      "name": "constant.numeric.linenumber.basic",
+      "match": "^\\s*[0-9]+\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.basic",
+      "match": "(?i)\\b(PRINT|GOTO|GOSUB|RETURN|IF|THEN|FOR|TO|STEP|NEXT|INPUT|DIM|LET|ON|GOTO|GOSUB|GET|DATA|READ|RESTORE|END|STOP|RUN|LIST|CLEAR|CLS|HOME|TEXT|HGR|HGR2|GR|NORMAL|INVERSE|FLASH|TRACE|NOTRACE|CALL|POKE|WAIT|DEF|FN|VTAB|HTAB|PLOT|HPLOT|VPLOT|HLIN|VLIN|HCOLOR|COLOR|SPEED|ROT|SCALE|XDRAW|DRAW|AT|HIMEM|LOMEM|STORE|RECALL|POP|ONERR|PR#|IN#|SAVE|LOAD|SHLOAD|INCLUDE|AND|OR|NOT)\\b"
+    },
+    "functions": {
+      "name": "support.function.basic",
+      "match": "(?i)\\b(CHR\\$|MID\\$|LEFT\\$|RIGHT\\$|STR\\$|SQR|LEN|ASC|SCRN|PDL|PEEK|INT|SPC|FRE|POS|USR|VAL|SIN|COS|TAN|ATN|RND|SGN|EXP|LOG|ABS|TAB)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.basic",
+      "match": "\\b[0-9]*\\.?[0-9]+([eE][0-9]+)?\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.basic",
+      "match": "(\\+|-|\\*|/|\\^|=|<|>|&)"
+    }
+  }
+}

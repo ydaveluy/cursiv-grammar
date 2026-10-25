@@ -1,0 +1,11 @@
+# The grammar itself: every example parses clean into a List.
+add_executable(gml_grammar_test grammar_test.cpp)
+target_link_libraries(gml_grammar_test PRIVATE gmlCore cursiv::test)
+target_compile_definitions(gml_grammar_test PRIVATE
+    CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
+    CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(NAME gml_grammar_test COMMAND gml_grammar_test)
+
+# ...and the command line reads one example.
+add_test(NAME gml_cli_test COMMAND gml_cli
+         ${PROJECT_SOURCE_DIR}/example/karate.gml)

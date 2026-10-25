@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Smtlibv2",
+  "scopeName": "source.smtlibv2",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#quoted-symbols" },
+    { "include": "#keywords-attr" },
+    { "include": "#commands" },
+    { "include": "#reserved" },
+    { "include": "#constants" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.smtlibv2",
+      "match": ";.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.smtlibv2",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.smtlibv2", "match": "\"\"" }
+      ]
+    },
+    "quoted-symbols": {
+      "name": "string.other.quoted-symbol.smtlibv2",
+      "match": "\\|[^|\\\\]*\\|"
+    },
+    "keywords-attr": {
+      "name": "keyword.other.attribute.smtlibv2",
+      "match": ":[a-zA-Z+=/*%?!$_~&^<>@.-]+"
+    },
+    "commands": {
+      "name": "keyword.control.command.smtlibv2",
+      "match": "\\b(assert|check-sat-assuming|check-sat|declare-const|declare-datatypes|declare-datatype|declare-fun|declare-sort|define-fun-rec|define-funs-rec|define-fun|define-sort|echo|exit|get-assertions|get-assignment|get-info|get-model|get-option|get-proof|get-unsat-assumptions|get-unsat-core|get-value|pop|push|reset-assertions|reset|set-info|set-logic|set-option)\\b"
+    },
+    "reserved": {
+      "name": "keyword.control.reserved.smtlibv2",
+      "match": "(!|_)|\\b(as|BINARY|DECIMAL|exists|HEXADECIMAL|forall|let|match|NUMERAL|par|string|model|theory|logic)\\b"
+    },
+    "constants": {
+      "name": "constant.language.smtlibv2",
+      "match": "\\b(true|false|sat|unsat|unknown|success|unsupported|error|continued-execution|immediate-exit|incomplete|memout|not|Bool)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.smtlibv2",
+      "match": "\\b(#x[0-9a-fA-F]{4}|[0-9]+\\.[0-9]+|[0-9]+)\\b"
+    }
+  }
+}

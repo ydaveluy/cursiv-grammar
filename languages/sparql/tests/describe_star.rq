@@ -1,0 +1,3 @@
+PREFIX ex: <http://example.org/ns#>
+
+DESCRIBE ?x <http://example.org/thing> WHERE { ?x a ex:Thing }

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pf",
+  "scopeName": "source.pf",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#tables"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#macros"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.pf",
+      "match": "#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.pf",
+      "begin": "\"",
+      "end": "\""
+    },
+    "tables": {
+      "name": "entity.name.type.table.pf",
+      "match": "<[a-zA-Z][a-zA-Z0-9_]*>"
+    },
+    "macros": {
+      "name": "variable.other.pf",
+      "match": "\\$[a-zA-Z][a-zA-Z0-9_]*"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.pf",
+          "match": "\\b(pass|block|match|scrub|antispoof|anchor|table|queue|include|load|set|return|return-rst|return-icmp|return-icmp6|drop)\\b"
+        },
+        {
+          "name": "keyword.other.pf",
+          "match": "\\b(in|out|log|quick|on|rdomain|from|to|any|all|self|no-route|urpf-failed|route|port|os|user|group|flags|icmp-type|icmp6-type|code|tos|keep|modulate|synproxy|no|state|scrub|fragment|allow-opts|once|divert-packet|divert-reply|divert-to|label|tag|tagged|max-pkt-rate|rtable|probability|prio|af-to|binat-to|rdr-to|nat-to|static-port|route-to|reply-to|dup-to|received-on|inet|inet6|proto|persist|const|counters|file|weight|for)\\b"
+        },
+        {
+          "name": "storage.type.pf",
+          "match": "\\b(timeout|ruleset-optimization|optimization|limit|loginterface|block-policy|state-policy|state-defaults|fingerprints|skip|debug|reassemble)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.pf",
+      "match": "\\b(0[xX][0-9a-fA-F]+|[0-9]+)\\b"
+    }
+  }
+}

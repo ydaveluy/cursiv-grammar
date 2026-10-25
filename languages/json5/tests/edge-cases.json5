@@ -1,0 +1,15 @@
+{
+  // this file's own worth is showing the exponent marker without digits
+  // still lexes as one NUMBER token, unicode identifier continuations
+  // beyond letters, and the two whitespace characters JSON5 admits past
+  // ASCII.
+  bareExp: 1e,
+  bareExpSigned: 2E+,
+  plusInfinity: +Infinity,
+  plusNaN: +NaN,
+  basé: 1,
+  digit०: 2,
+  tie‿: 3,
+  nbsp : 4,
+  emspace : 5,
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Action",
+  "scopeName": "source.action",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.action",
+      "match": ";.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.action",
+      "begin": "\"",
+      "end": "\""
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.action",
+          "match": "\\b(MODULE|IF|THEN|ELSEIF|ELSE|FI|DO|UNTIL|OD|WHILE|FOR|TO|STEP|EXIT|RETURN)\\b"
+        },
+        {
+          "name": "storage.type.action",
+          "match": "\\b(DEFINE|TYPE|CARD|CHAR|BYTE|INT|POINTER|ARRAY|PROC|FUNC)\\b"
+        },
+        {
+          "name": "keyword.operator.word.action",
+          "match": "\\b(AND|OR|XOR|MOD|LSH|RSH)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "name": "keyword.operator.action",
+      "match": "==\\+|==-|<>|<=|>=|[=<>#!&%+\\-*/^@.]"
+    },
+    "numbers": {
+      "name": "constant.numeric.action",
+      "match": "\\$?[0-9A-F]+"
+    }
+  }
+}

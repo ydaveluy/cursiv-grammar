@@ -1,0 +1,29 @@
+@boot Murf
+@chown sword=Murf
+@create Ferret Chow=10
+@dig Igor's House
+@dump
+@find Ferret
+@force Murf=@boot Grondar
+@link n=1234
+@link exit=here
+@name sword=Ferret Chow Snack
+@newpassword Murf=hunter2
+@ofail chest=The chest resists your efforts.
+@open n;north=1234
+@osuccess chest=pries the chest open.
+@osucc lid=creaks open slowly.
+@password oldsecret=newsecret
+@pcreate Grondar
+@set me=3
+@set me=!5
+@shutdown
+@stats Murf
+@success chest=You pry the chest open with a satisfying crack.
+@succ lid=Click.
+@teleport sword=dungeon
+@teleport treasury
+@toad Murf
+@unlink north
+@unlock chest
+@wall The server will restart in five minutes.

@@ -1,0 +1,11 @@
+%rec: Person
+%type: Age int
+%doc:
++ people
+
+Name: Ada
+Age: 37
+
+%rec: Place
+
+Name: Paris

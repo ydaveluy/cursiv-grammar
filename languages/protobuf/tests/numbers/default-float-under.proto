@@ -1,0 +1,2 @@
+syntax="proto2";
+message M { optional float value=1 [default=1e-1000]; }

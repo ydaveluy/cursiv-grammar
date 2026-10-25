@@ -1,0 +1,2 @@
+java.lang.RuntimeException: échec: bad value!
+	at org.demo.lib@2.1-beta/demo.Main.run(Main.java:9)

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Upnp",
+  "scopeName": "source.upnp",
+  "patterns": [
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#properties"
+    },
+    {
+      "include": "#wildcard"
+    }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.upnp",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.upnp",
+          "match": "\\\\\""
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.logical.upnp",
+          "match": "\\b(and|or)\\b"
+        },
+        {
+          "name": "keyword.operator.word.upnp",
+          "match": "\\b(contains|doesnotcontain|derivedfrom|exists)\\b"
+        },
+        {
+          "name": "constant.language.boolean.upnp",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "keyword.operator.comparison.upnp",
+          "match": "(!=|<=|>=|=|<|>)"
+        }
+      ]
+    },
+    "properties": {
+      "name": "variable.other.property.upnp",
+      "match": "(@[A-Za-z]+|[A-Za-z][A-Za-z]*@[A-Za-z]+|[A-Za-z]+:[A-Za-z]+)"
+    },
+    "wildcard": {
+      "name": "constant.language.wildcard.upnp",
+      "match": "\\*"
+    }
+  }
+}

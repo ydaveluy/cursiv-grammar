@@ -1,0 +1,4 @@
+\(b :: data True | False | ) -> case b of
+    True -> False;
+    False -> True;
+  :: data True | False |

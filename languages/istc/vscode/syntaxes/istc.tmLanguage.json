@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Istc",
+  "scopeName": "source.istc",
+  "patterns": [
+    {
+      "include": "#keyword"
+    },
+    {
+      "include": "#code"
+    },
+    {
+      "include": "#separator"
+    }
+  ],
+  "repository": {
+    "keyword": {
+      "name": "keyword.control.istc",
+      "match": "^ISTC\\b"
+    },
+    "code": {
+      "name": "constant.other.istc",
+      "match": "\\b[0-9A-F]+\\b"
+    },
+    "separator": {
+      "name": "punctuation.separator.istc",
+      "match": "-"
+    }
+  }
+}

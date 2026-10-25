@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Callable",
+  "scopeName": "source.callable",
+  "patterns": [
+    {
+      "include": "#calls"
+    },
+    {
+      "include": "#strings"
+    }
+  ],
+  "repository": {
+    "calls": {
+      "name": "entity.name.function.callable",
+      "match": "[A-Za-z-]+(?=\\()"
+    },
+    "strings": {
+      "name": "string.quoted.double.callable",
+      "begin": "\"",
+      "end": "\""
+    }
+  }
+}

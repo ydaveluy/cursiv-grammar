@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Agc",
+  "scopeName": "source.agc",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.agc",
+      "match": "#.*$"
+    },
+    "keywords": {
+      "name": "keyword.control.agc",
+      "match": "\\b(P\\-RHCCTR|Q\\-RHCCTR|R\\-RHCCTR|\\-1DNADR|\\-2DNADR|\\-3DNADR|\\-4DNADR|\\-5DNADR|\\-6DNADR|\\-DNCHAN|CDUXCMD|CDUYCMD|CDUZCMD|GYROCMD|GYROCTR|OPTXCMD|OPTYCMD|OUTLINK|\\-DNPTR|1DNADR|2DNADR|2FCADR|3DNADR|4DNADR|5DNADR|6DNADR|BBRUPT|BNKSUM|COUNT\\*|DDOUBL|DNCHAN|DOUBLE|EDRUPT|EXTEND|INHINT|INLINK|INOTLD|INOTRD|LEMONM|RELINT|RESUME|RETURN|SETLOC|SQUARE|THRUST|2DEC\\*|ABVAL|ADRES|ARUPT|AXT,1|AXT,2|BLOCK|BRUPT|COUNT|DMOVE|DNPTR|FETCH|INDEX|LODON|LRUPT|NOLOD|OCTAL|PIPAX|PIPAY|PIPAZ|QRUPT|RNRAD|SHANC|SHINC|SMOVE|STORE|SUBRO|TCSAJ|TIME1|TIME2|TIME3|TIME4|TIME5|TIME6|VMOVE|WRITE|XXALQ|2DEC|ALTM|BANK|BZMF|CADR|CDUX|CDUY|CDUZ|COMP|DCOM|DINC|DTCB|DTCF|DXCH|EDOP|EXIT|INCR|LXCH|MASK|MCDU|MINC|MOUT|NOOP|OPTX|OPTY|OVSK|PCDU|PINC|POUT|QXCH|RAND|READ|RHCP|RHCR|RHCY|RXOR|TCAA|TEST|TSLT|UNIT|VXSC|WAND|ZOUT|ADS|AUG|BOV|BPL|BZF|CAD|CAE|CAF|CCS|COM|COS|CYL|CYR|DAD|DAS|DCA|DCS|DEC|DIM|DMP|DSU|GOJ|ITC|MSK|MSU|NDX|OCT|ROR|RTB|SIN|TCF|TCR|VAD|VXV|WOR|XCH|XLQ|AD|BB|CA|CS|DV|EB|FB|MP|SR|SU|TC|TS|ZL|ZQ|A|L|Q|Z|ERASE|EQUALS)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.agc",
+      "match": "\\b[0-9][0-9A-Za-z]*\\b"
+    }
+  }
+}

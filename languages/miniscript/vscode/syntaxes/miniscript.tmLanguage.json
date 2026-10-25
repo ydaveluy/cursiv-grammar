@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Miniscript",
+  "scopeName": "source.miniscript",
+  "patterns": [
+    { "include": "#fragments" },
+    { "include": "#wrappers" },
+    { "include": "#numbers" },
+    { "include": "#keys" }
+  ],
+  "repository": {
+    "fragments": {
+      "name": "entity.name.function.miniscript",
+      "match": "\\b(pk|pkh|pk_k|pk_h|older|after|sha256|hash256|hash160|ripemd160|multi|multi_a|and_v|and_b|and_n|or_b|or_c|or_d|or_i|andor|thresh)(?=\\()"
+    },
+    "wrappers": {
+      "name": "keyword.operator.miniscript",
+      "match": "\\b[acdtvjnlsu]+:"
+    },
+    "numbers": {
+      "name": "constant.numeric.miniscript",
+      "match": "\\b[0-9]+\\b"
+    },
+    "keys": {
+      "name": "string.unquoted.miniscript",
+      "match": "\\b[A-Za-z0-9_./*'\\[\\]<>;-]+\\b"
+    }
+  }
+}

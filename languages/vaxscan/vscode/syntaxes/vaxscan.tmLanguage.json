@@ -1,0 +1,69 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Vaxscan",
+  "scopeName": "source.vaxscan",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.exclamation.vaxscan",
+          "match": "!.*$"
+        },
+        {
+          "name": "comment.block.vaxscan",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.vaxscan",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.vaxscan",
+              "match": "''"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.vaxscan",
+          "match": "(?i)\\b(if|then|else|end|for|to|step|while|call|read|write|open|close|goto|case|from|inrange|outrange|return|answer|trigger|fail|start|scan|stop|prune|allocate|free|module|and|or|xor|not|prompt|file)\\b"
+        },
+        {
+          "name": "keyword.other.vaxscan",
+          "match": "(?i)\\b(constant|declare|type|set|token|group|procedure|macro|external|forward|value|reference|descriptor|syntax|expose|main|caseless|alias|ignore|include|list|on|off|page|title|collate|redefine|native|ascii|ebcdic|dec_multi|user|as|ident)\\b"
+        },
+        {
+          "name": "storage.type.vaxscan",
+          "match": "(?i)\\b(integer|string|boolean|pointer|treeptr|fill|varying|fixed|dynamic|common|static|automatic|global|tree|record|overlay|of|nil|true|false)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.vaxscan",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

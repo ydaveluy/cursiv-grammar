@@ -1,0 +1,65 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Clojure",
+  "scopeName": "source.clojure",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#characters"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#reader-macros"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.clojure",
+      "match": ";.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.clojure",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.clojure",
+          "match": "\\\\\""
+        }
+      ]
+    },
+    "characters": {
+      "name": "constant.character.clojure",
+      "match": "\\\\(newline|return|space|tab|formfeed|backspace|u[0-9A-Fa-f]{4}|.)"
+    },
+    "constants": {
+      "name": "constant.language.clojure",
+      "match": "\\b(nil|true|false)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.clojure",
+      "match": "-?\\b(0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+\\.[0-9]+([eE]-?[0-9]+)?|[0-9]+[eE]-?[0-9]+|[0-9]+[lLnN]?)\\b"
+    },
+    "keywords": {
+      "name": "constant.other.keyword.clojure",
+      "match": "::?[^\\s()\\[\\]{}\"'`~^@;]+"
+    },
+    "reader-macros": {
+      "name": "keyword.operator.clojure",
+      "match": "~@|#\\{|#\\(|#\\^|#'|#_|['`~^@#]"
+    }
+  }
+}

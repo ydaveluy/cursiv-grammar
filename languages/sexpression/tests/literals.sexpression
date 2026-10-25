@@ -1,0 +1,6 @@
+(define pi 3.14159)
+(greet "hello, world!")
+(- 5 3)
+(+ 1 -2 3.5)
+(a . b)
+(list 1 -2 3.5 "text" sym ())

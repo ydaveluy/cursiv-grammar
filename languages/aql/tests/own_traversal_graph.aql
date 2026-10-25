@@ -1,0 +1,5 @@
+FOR v, e, p IN 1..3 OUTBOUND "start/1" GRAPH "myGraph"
+  PRUNE v.stop
+  FILTER v.active
+  OPTIONS { bfs: true }
+  RETURN v

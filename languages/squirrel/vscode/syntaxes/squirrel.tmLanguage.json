@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Squirrel",
+  "scopeName": "source.squirrel",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.squirrel",
+          "match": "(//|#).*$"
+        },
+        {
+          "name": "comment.block.squirrel",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.other.squirrel",
+          "begin": "@\"",
+          "end": "\"",
+          "patterns": [{ "match": "\"\"" }]
+        },
+        {
+          "name": "string.quoted.double.squirrel",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.squirrel", "match": "\\\\." }]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.squirrel",
+          "match": "\\b(if|else|while|do|for|foreach|in|switch|case|default|break|continue|return|yield|throw|try|catch|instanceof)\\b"
+        },
+        {
+          "name": "keyword.other.squirrel",
+          "match": "\\b(function|local|const|enum|class|extends|static|constructor|typeof|clone|delete|resume)\\b"
+        },
+        {
+          "name": "constant.language.squirrel",
+          "match": "\\b(true|false|null)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.squirrel",
+      "match": "\\b(0x[0-9a-fA-F]+|[0-9]+\\.[0-9]*|\\.[0-9]+|[0-9]+([eE][+-]?[0-9]+)?)\\b"
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Aql",
+  "scopeName": "source.aql",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#bindvars"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.aql",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.aql",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.aql",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "match": "''" }]
+        },
+        {
+          "name": "string.quoted.double.aql",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.other.aql",
+          "begin": "`",
+          "end": "`"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.aql",
+          "match": "(?i)\\b(FOR|RETURN|FILTER|SORT|LIMIT|LET|COLLECT|INTO|KEEP|WITH|AGGREGATE|WINDOW|SEARCH|OPTIONS|INSERT|UPDATE|REPLACE|REMOVE|UPSERT|GRAPH|PRUNE|OUTBOUND|INBOUND|ANY|ALL|NONE|ASC|DESC|DISTINCT|COUNT|TO)\\b"
+        },
+        {
+          "name": "keyword.operator.word.aql",
+          "match": "(?i)\\b(AND|OR|NOT|IN|LIKE)\\b"
+        },
+        {
+          "name": "constant.language.aql",
+          "match": "(?i)\\b(TRUE|FALSE|NULL)\\b"
+        },
+        {
+          "name": "variable.language.aql",
+          "match": "\\b(NEW|OLD)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.aql",
+      "match": "\\b[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\b"
+    },
+    "bindvars": {
+      "name": "variable.parameter.aql",
+      "match": "@@?[A-Za-z0-9][A-Za-z0-9_]*"
+    }
+  }
+}

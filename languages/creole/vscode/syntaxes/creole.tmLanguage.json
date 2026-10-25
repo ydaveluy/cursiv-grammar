@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Creole",
+  "scopeName": "source.creole",
+  "patterns": [
+    { "include": "#nowiki" },
+    { "include": "#heading" },
+    { "include": "#hline" },
+    { "include": "#tablerow" },
+    { "include": "#listitem" },
+    { "include": "#linebreak" },
+    { "include": "#bold" },
+    { "include": "#italics" },
+    { "include": "#image" },
+    { "include": "#link" }
+  ],
+  "repository": {
+    "nowiki": {
+      "name": "markup.raw.block.creole",
+      "begin": "\\{\\{\\{",
+      "end": "\\}\\}\\}"
+    },
+    "heading": {
+      "name": "markup.heading.creole",
+      "match": "^\\s*(=+).*$"
+    },
+    "hline": {
+      "name": "meta.separator.creole",
+      "match": "^----$"
+    },
+    "tablerow": {
+      "name": "meta.table.creole",
+      "match": "^\\s*\\|=?.*\\|\\s*$"
+    },
+    "listitem": {
+      "name": "markup.list.creole",
+      "match": "^\\s*([*#]+)\\s"
+    },
+    "linebreak": {
+      "name": "constant.character.escape.creole",
+      "match": "\\\\\\\\"
+    },
+    "bold": {
+      "name": "markup.bold.creole",
+      "begin": "\\*\\*",
+      "end": "\\*\\*"
+    },
+    "italics": {
+      "name": "markup.italic.creole",
+      "begin": "//",
+      "end": "//"
+    },
+    "image": {
+      "name": "markup.underline.link.creole",
+      "match": "\\{\\{[^}|]*(\\|[^}]*)?\\}\\}"
+    },
+    "link": {
+      "name": "markup.underline.link.creole",
+      "match": "\\[\\[[^\\]|]*(\\|[^\\]]*)?\\]\\]"
+    }
+  }
+}

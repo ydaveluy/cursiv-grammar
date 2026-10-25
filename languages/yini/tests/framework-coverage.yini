@@ -1,0 +1,31 @@
+#!/usr/bin/env yini
+
+name = "Root Table"
+build = 42
+
+^ Bases
+decimal = 42
+negative = -7
+hexHash = #1F
+hexPrefix = 0x1F
+binPercent = %1010
+binPrefix = 0b1010
+octal = 0o17
+duodecimal = 0z1E
+
+§ Alternate
+euroMarker = true
+
+€ AnotherAlternate
+sectionKind = "euro"
+
+^ Strings
+raw = R'No escapes here: \n stays two chars.'
+classic = C'Line one\nLine two'
+hyper = h'  Padding   collapses
+	across lines too  '
+empty = {}
+
+^ ShorthandLevel
+^7 DeepShorthand
+value = "reached level seven"

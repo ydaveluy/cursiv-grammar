@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sharc",
+  "scopeName": "source.sharc",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#directives" },
+    { "include": "#keywords" },
+    { "include": "#registers" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.sharc", "match": "//.*$" },
+        { "name": "comment.block.sharc", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.sharc",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.sharc", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.sharc",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.sharc", "match": "\\\\." }]
+        }
+      ]
+    },
+    "directives": {
+      "name": "keyword.other.directive.sharc",
+      "match": "\\.(align|compress|elif|else|endif|extern|file_attr|file|forcecompress|global|if|import|leftmargin|list_data|list_datfile|list_deftab|list_loctab|list_wrapdata|list|newpage|nocompress|nolist_data|nolist_datfile|nolist_wrapdata|pagelength|pagewidth|precision|round_minus|round_nearest|round_plus|round_zero|previous|section|segment|endseg|struct|type|var|weak)\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.sharc",
+      "match": "\\b(if|else|do|until|jump|call|rts|rti|modify|nop|idle|idle16|cjump|rframe|flush|cache|forever|true|not|and|or|xor|abs|pass|min|max|clip|mant|logb|fix|trunc|rnd|scalb|float|recips|rsqrts|copysign|sat|lshift|ashift|rot|bclr|bset|btgl|fdep|fext|exp|leftz|lefto|fpack|funpack|btst|bit|bitrev|set|clr|tgl|tst|comp|by|length)\\b"
+    },
+    "registers": {
+      "name": "variable.language.register.sharc",
+      "match": "\\b(r[0-9]|r1[0-5]|f[0-9]|f1[0-5]|b[0-9]|b1[0-5]|l[0-9]|l1[0-5]|i[0-9]|i1[0-5]|m[0-9]|m1[0-5]|mr[012][fb]|mrf|mrb|pc|pcstk|pcstkp|dm|pm|lcntr)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.sharc",
+      "match": "\\b(0[xX][0-9a-fA-F]+|[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?|\\.[0-9]+([eE][+-]?[0-9]+)?)\\b"
+    }
+  }
+}

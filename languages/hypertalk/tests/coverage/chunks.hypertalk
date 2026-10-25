@@ -1,0 +1,5 @@
+put word 2 of line 3 of field "Data" into x
+put char 1 to 5 of it into y
+put the first word of message into z
+put any item of it into w
+put line 2 of word 3 of it into v

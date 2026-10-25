@@ -1,0 +1,5 @@
+SELECT
+  {IIF(1 > 0, [Measures].[Sales], [Measures].[Cost])} ON COLUMNS,
+  {Measures.CurrentMember.Properties("Format String")} ON ROWS
+FROM Sales
+WHERE ([Date].[2002], [Store].[USA], CREATE)

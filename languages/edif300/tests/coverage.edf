@@ -1,0 +1,70 @@
+(edif COVERAGE
+    (edifVersion 3 0 0)
+    (edifHeader
+        (edifLevel 0)
+        (keywordMap
+            (k3KeywordLevel)
+        )
+        (unitDefinitions
+            (unit micron 1 1 (meter 1))
+        )
+        (fontDefinitions)
+        (physicalDefaults)
+    )
+    (library LIB
+        (libraryHeader
+            (edifLevel 0)
+            (nameCaseSensitivity)
+            (technology
+                (physicalScaling)
+            )
+        )
+        (cell CELL
+            (cellHeader)
+            (cluster CLUSTER
+                (interface
+                    (interfaceUnits)
+                    (port A (inputPort))
+                    (port B (outputPort))
+                )
+                (clusterHeader)
+                (connectivityView VIEW1
+                    (connectivityViewHeader
+                        (connectivityUnits)
+                    )
+                    (logicalConnectivity
+                        (signal S1
+                            (signalJoined
+                                (portRef A)
+                            )
+                        )
+                        (instance U1
+                            (clusterRef OTHERCELL)
+                            (integerParameterAssign WIDTH
+                                (integerSum
+                                    (integerSubtract 5 -3)
+                                    2
+                                )
+                            )
+                            (property note
+                                (string "hello there")
+                            )
+                        )
+                    )
+                    (connectivityStructure
+                        (comment "a comment inside connectivityStructure")
+                        (connectivityNet NET1
+                            (signalRef S1)
+                            (interconnectHeader)
+                            (connectivityNetJoined
+                                (portJoined
+                                    (portRef A)
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+)

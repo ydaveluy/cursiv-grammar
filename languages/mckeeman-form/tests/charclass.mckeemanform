@@ -1,0 +1,11 @@
+identifier
+    letter
+    letter identifier
+
+letter
+    'a' . 'z' - 'i' . 'l'
+    '_'
+    emoji
+
+emoji
+    '1F600'

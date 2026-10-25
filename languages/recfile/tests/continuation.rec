@@ -1,0 +1,9 @@
+# A field's value may be written on the line after its key, introduced by
+# '+' -- recfile.g4 allows `(EOL '+')?` before both a descriptor's value and
+# a plain field's, not only a descriptor's.
+
+%rec: Note
+
+Title:
++ A title written on the line after its key
+Summary: A title written on the same line as its key

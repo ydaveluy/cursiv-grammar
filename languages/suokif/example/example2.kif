@@ -1,0 +1,3 @@
+(and
+ (instance Rex Dog)
+ (hasRole Rex Eater Barker))

@@ -1,0 +1,76 @@
+Constructs DEFINITIONS AUTOMATIC TAGS EXTENSIBILITY IMPLIED ::=
+BEGIN
+
+EXPORTS Choice1, Rec;
+IMPORTS Imported1, Imported2 FROM OtherModule;
+
+Rec ::= SEQUENCE {
+    a INTEGER OPTIONAL,
+    b BOOLEAN DEFAULT TRUE,
+    ...,
+    c REAL,
+    COMPONENTS OF Rec2
+}
+
+Rec2 ::= SET {
+    x OCTET STRING,
+    y SEQUENCE OF INTEGER (SIZE(1..10))
+}
+
+Choice1 ::= CHOICE {
+    i INTEGER,
+    s Rec,
+    ...,
+    r REAL
+}
+
+Status ::= ENUMERATED { active(0), inactive(1), ..., unknown(99) }
+
+Flags ::= BIT STRING { first(0), second(1) }
+
+RangedInt ::= INTEGER (1<..<100)
+
+Prefix ::= INTEGER (0..MAX)
+
+Named ::= INTEGER { a(1), b(-1) }
+
+Hex ::= OCTET STRING (SIZE(1))
+hexValue Hex ::= 'FF'H
+
+Binary ::= BIT STRING
+binValue Binary ::= '1010'B
+
+Text ::= UTF8String
+
+id-example OBJECT IDENTIFIER ::= { iso(1) member-body(2) 3 }
+
+flag BOOLEAN ::= TRUE
+
+choiceVal Choice1 ::= i : 5
+
+Vector { INTEGER:min } ::= SEQUENCE (SIZE(min..MAX)) OF INTEGER
+
+MySet { INTEGER:x } ::= { 1 | 2 | 3 }
+
+MY-CLASS ::= CLASS {
+    &id OBJECT IDENTIFIER UNIQUE,
+    &Type OPTIONAL,
+    &desc UTF8String DEFAULT "none"
+}
+WITH SYNTAX {
+    IDENTIFIED BY &id
+    [TYPE &Type]
+    [DESCRIPTION &desc]
+}
+
+Field ::= MY-CLASS.&Type
+
+Presence ::= Rec (WITH COMPONENTS { a PRESENT, b ABSENT, ... })
+
+UserConstrained ::= INTEGER (CONSTRAINED BY { INTEGER })
+
+Content ::= OCTET STRING (CONTAINING Rec)
+
+Qualified ::= OtherModule.Foo
+
+END

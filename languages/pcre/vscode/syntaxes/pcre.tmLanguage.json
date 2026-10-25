@@ -1,0 +1,87 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pcre",
+  "scopeName": "source.pcre",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#backtracking-control" },
+    { "include": "#option-setting" },
+    { "include": "#callout" },
+    { "include": "#conditional" },
+    { "include": "#group" },
+    { "include": "#posix-class" },
+    { "include": "#character-class" },
+    { "include": "#anchor" },
+    { "include": "#backreference" },
+    { "include": "#subroutine-reference" },
+    { "include": "#escape" },
+    { "include": "#character-type" },
+    { "include": "#quantifier" },
+    { "include": "#alternation" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.block.pcre",
+      "begin": "\\(\\?#",
+      "end": "\\)"
+    },
+    "backtracking-control": {
+      "name": "keyword.control.backtracking.pcre",
+      "match": "\\(\\*(ACCEPT|FAIL|F|MARK|COMMIT|PRUNE|SKIP|THEN)?(:[A-Za-z_][A-Za-z0-9_]*)?\\)"
+    },
+    "option-setting": {
+      "name": "keyword.other.option-setting.pcre",
+      "match": "\\(\\*(UTF8|UTF16|UTF32|UTF|UCP|NO_AUTO_POSSESS|NO_START_OPT|CRLF|CR|LF|ANYCRLF|ANY|LIMIT_MATCH=[0-9]+|LIMIT_RECURSION=[0-9]+|BSR_ANYCRLF|BSR_UNICODE)\\)|\\(\\?[iJmsUx]*(-[iJmsUx]+)?\\)"
+    },
+    "callout": {
+      "name": "keyword.other.callout.pcre",
+      "match": "\\(\\?C[0-9]*\\)"
+    },
+    "conditional": {
+      "name": "punctuation.definition.conditional.pcre",
+      "match": "\\(\\?\\("
+    },
+    "group": {
+      "name": "punctuation.definition.group.pcre",
+      "match": "\\((\\?(<[=!]|'|<|P[<=>]|[=!>|]|:|[iJmsUx]*(-[iJmsUx]+)?:))?|\\)"
+    },
+    "posix-class": {
+      "name": "constant.character.class.posix.pcre",
+      "match": "\\[:\\^?[A-Za-z_]+:\\]"
+    },
+    "character-class": {
+      "name": "constant.character.class.pcre",
+      "begin": "\\[\\^?",
+      "end": "\\]",
+      "patterns": [{ "include": "#escape" }, { "include": "#character-type" }]
+    },
+    "anchor": {
+      "name": "keyword.control.anchor.pcre",
+      "match": "\\^|\\$|\\\\[bBAzZG]"
+    },
+    "backreference": {
+      "name": "variable.other.backreference.pcre",
+      "match": "\\\\g\\{-?[0-9]+\\}|\\\\g\\{[A-Za-z_][A-Za-z0-9_]*\\}|\\\\g[0-9]+|\\\\k<[A-Za-z_][A-Za-z0-9_]*>|\\\\k'[A-Za-z_][A-Za-z0-9_]*'|\\\\k\\{[A-Za-z_][A-Za-z0-9_]*\\}|\\(\\?P=[A-Za-z_][A-Za-z0-9_]*\\)"
+    },
+    "subroutine-reference": {
+      "name": "variable.other.subroutine.pcre",
+      "match": "\\(\\?R\\)|\\(\\?[+-]?[0-9]+\\)|\\(\\?&[A-Za-z_][A-Za-z0-9_]*\\)|\\(\\?P>[A-Za-z_][A-Za-z0-9_]*\\)|\\\\g<[+-]?[0-9]+>|\\\\g<[A-Za-z_][A-Za-z0-9_]*>|\\\\g'[+-]?[0-9]+'|\\\\g'[A-Za-z_][A-Za-z0-9_]*'"
+    },
+    "escape": {
+      "name": "constant.character.escape.pcre",
+      "match": "\\\\(Q.*?\\\\E|x\\{[0-9A-Fa-f]+\\}|x[0-9A-Fa-f]{2}|o\\{[0-7]+\\}|u[0-9A-Fa-f]{4}([0-9A-Fa-f]{4})?|c.|[aefnrt]|[0-9]{1,3}|K|.)"
+    },
+    "character-type": {
+      "name": "support.class.character-type.pcre",
+      "match": "\\.|\\\\(p\\{\\^?[A-Za-z_]+&?\\}|P\\{[A-Za-z_]+&?\\}|p[A-Za-z]{1,2}|[CdDhHNRsSvVwWX])"
+    },
+    "quantifier": {
+      "name": "keyword.operator.quantifier.pcre",
+      "match": "(\\?|\\*|\\+|\\{[0-9]+(,[0-9]*)?\\})[+?]?"
+    },
+    "alternation": {
+      "name": "keyword.operator.alternation.pcre",
+      "match": "\\|"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Z",
+  "scopeName": "source.z",
+  "patterns": [
+    {
+      "include": "#delimiters"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "delimiters": {
+      "name": "keyword.control.z",
+      "match": "[─┌╷└]"
+    },
+    "keywords": {
+      "name": "keyword.other.z",
+      "match": "\\b(section|parents|relation|function|generic|leftassoc|rightassoc|if|then|else|let|pre|div|mod|true|false)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.z",
+      "match": "\\d+"
+    }
+  }
+}

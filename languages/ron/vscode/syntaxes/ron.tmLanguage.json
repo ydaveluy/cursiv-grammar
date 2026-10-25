@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Ron",
+  "scopeName": "source.ron",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#booleans"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#chars"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.ron",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.ron",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "booleans": {
+      "name": "constant.language.boolean.ron",
+      "match": "\\b(true|false)\\b"
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.ron",
+          "match": "\\b0[xX][0-9A-F]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.ron",
+          "match": "\\b0[bB][01]+\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.ron",
+          "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.ron",
+      "begin": "\"",
+      "end": "\""
+    },
+    "chars": {
+      "name": "string.quoted.single.ron",
+      "match": "'[^']'"
+    }
+  }
+}

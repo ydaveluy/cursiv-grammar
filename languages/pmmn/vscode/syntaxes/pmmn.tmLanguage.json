@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pmmn",
+  "scopeName": "source.pmmn",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.pmmn",
+      "match": "\\b(inc|dec|if|else|while)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.pmmn",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

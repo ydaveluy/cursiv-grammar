@@ -1,0 +1,5 @@
+SELECT o
+FROM Order o JOIN FETCH o.items
+WHERE o.id NOT IN (1, 2, 3)
+  AND o.total NOT BETWEEN 0 AND 10
+  AND o.code NOT LIKE 'X%'

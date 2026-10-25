@@ -1,0 +1,12 @@
+# The grammar itself: every corpus file parses, and the tree holds what it
+# declares.
+add_executable(mumps_grammar_test grammar_test.cpp)
+target_link_libraries(mumps_grammar_test PRIVATE mumpsCore)
+target_compile_definitions(mumps_grammar_test PRIVATE
+    CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
+    CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(NAME mumps_grammar_test COMMAND mumps_grammar_test)
+
+# ...and the command line reads one clean sample from the same corpus.
+add_test(NAME mumps_cli_test COMMAND mumps_cli
+         ${PROJECT_SOURCE_DIR}/example/fibonacci.m)

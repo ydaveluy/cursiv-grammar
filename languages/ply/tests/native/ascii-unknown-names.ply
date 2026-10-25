@@ -1,0 +1,7 @@
+ply
+format ascii 1.0
+element unrelated 1
+property float list
+property int #property
+end_header
+1.5 4

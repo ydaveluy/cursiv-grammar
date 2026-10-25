@@ -1,0 +1,72 @@
+int control_flow(int x) {
+    if (x > 0) {
+        x = x - 1;
+    } else if (x < 0) {
+        x = x + 1;
+    } else {
+        x = 0;
+    }
+
+    while (x > 0) {
+        x--;
+    }
+
+    do {
+        x++;
+    } while (x < 5);
+
+    for (int i = 0; i < 10; i++) {
+        if (i == 3) {
+            continue;
+        }
+        if (i == 8) {
+            break;
+        }
+    }
+
+    for (; ; ) {
+        break;
+    }
+
+    return x;
+}
+
+int switch_ranges(int x) {
+    int result;
+    switch (x) {
+        case 1..5:
+            result = 1;
+            break;
+        case 6:
+        case 7:
+            result = 2;
+            break;
+        default:
+            result = 0;
+    }
+    return result;
+}
+
+mixed foreach_test(mixed *arr, mapping map1) {
+    mixed sum;
+    foreach (mixed item in arr) {
+        sum = item;
+    }
+    foreach (int i, mixed v in map1) {
+        sum = v;
+    }
+    foreach (mixed key, mixed value in map1) {
+        sum = key;
+    }
+    return sum;
+}
+
+void empty_and_nested() {
+    ;
+    {
+        int y = 1;
+        {
+            int z = 2;
+        }
+    }
+}

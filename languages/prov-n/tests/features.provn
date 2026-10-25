@@ -1,0 +1,25 @@
+document
+  prefix ex <http://example.org/>
+
+  // a line comment
+  /* a block
+     comment */
+
+  entity(ex:e1, [ex:note="value"%%ex:string])
+  activity(ex:a1, 2020-01-01T00:00:00, -)
+  agent(ex:ag1)
+  wasStartedBy(sid; ex:a1, ex:e1, ex:a0, 2020-01-01T00:00:00)
+  wasEndedBy(eid; ex:a1, ex:e1, ex:a0, -)
+  wasInvalidatedBy(ex:e1, ex:a1, 2020-01-02T00:00:00)
+  wasInformedBy(ex:a1, ex:a0)
+  wasInfluencedBy(ex:e1, ex:a0)
+  hadMember(ex:coll, ex:e1)
+  ex:customRelation(rid; ex:e1, "text", 42, 'ex:literal', 2020-01-01T00:00:00,
+                     ex:nested(ex:e1), {ex:e1, ex:a0}, (ex:e1, ex:a0), -)
+
+  bundle ex:b1
+    prefix bx <http://example.org/bundle/>
+    entity(bx:be1)
+    wasAttributedTo(bx:be1, ex:ag1)
+  endBundle
+endDocument

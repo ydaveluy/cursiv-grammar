@@ -1,0 +1,1 @@
+rule r { strings:$s={41 [2147483648] 42} condition:$s }

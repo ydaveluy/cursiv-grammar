@@ -1,0 +1,115 @@
+module Families2Persons;
+create OUT: Persons, LOG: Report from IN: Families, EXTRA: Families;
+
+uses 'Utils';
+
+helper context Families!Member def: fullName(): String =
+  self.firstName + ' ' + self.lastName;
+
+helper def: describe(): String =
+  super.toString() + ' (extra)';
+
+helper def: counts: Map(String, Integer) = Map{('a', 1), ('b', 2)};
+
+helper def: pair: TupleType(x: Integer, y: Integer) = Tuple{x = 1, y : Integer = 2};
+
+helper def: anyType: OclType = OclAny;
+
+helper def: total: Collection(Integer) = Bag{1, 2, 3};
+
+rule Man {
+  from
+    s: Families!Member in IN, EXTRA (s.age > 0)
+  to
+    t: Persons!Male in OUT (
+      fullName <- s.fullName(),
+      gender <- #Male
+    )
+  do {
+    if (s.age >= 18) {
+      t.adult <- true;
+    } else {
+      t.adult <- false;
+    }
+    for (c in s.children) {
+      t.childCount <- t.childCount + 1;
+    }
+  }
+}
+
+lazy rule Address {
+  from
+    s: Families!Member
+  to
+    t: Persons!Address (
+      city <- s.city
+    )
+}
+
+unique lazy abstract refining rule BaseAddress extends Address {
+  from
+    s: Families!Member
+  to
+    t: Persons!Address
+}
+
+nodefault abstract rule AbstractRoot {
+  from
+    s: Families!Member
+  to
+    t: Persons!Person
+}
+
+rule Group {
+  from
+    s: Families!Family
+  to
+    members: distinct Persons!Person foreach (m in s.members) mapsTo pm (
+      name <- m.fullName()
+    )
+}
+
+entrypoint rule Main(cfg: String) {
+  using {
+    total: Integer = 0;
+    label: String = 'ok';
+  }
+  to
+    log: Report!Log (
+      entries <- Sequence{}
+    )
+  do {
+    for (m in Families!Member.allInstances()) {
+      total <- total + 1;
+    }
+  }
+}
+
+endpoint rule Finish() {
+  do {
+    let x: Integer = 1 in
+      x + 1;
+  }
+}
+
+helper context Families!Member def: score(): Real =
+  if self.isMale() then 1.0 else 2.5d endif;
+
+helper def: checks(): Boolean =
+  not self.oclIsUndefined() and
+  self.age <> -1 and
+  (self.age div 2) mod 2 = 0 and
+  self.age + 1 * 2 - 1 / 2 >= 0 and
+  (self.age > 0 implies self.age < 200) or
+  self.age xor false;
+
+helper def: floats(): Sequence(Real) =
+  Sequence{1.5, .5, 2., 1e10, 10f, 2.5d};
+
+helper def: names(): OrderedSet(String) =
+  self.children->select(c | c.age > 0)->collect(c | c.fullName())->asOrderedSet();
+
+helper def: total2(): Integer =
+  self.children->iterate(c; acc: Integer = 0 | acc + c.age);
+
+helper def: odd(): Families!'Odd-Name' = OclUndefined;

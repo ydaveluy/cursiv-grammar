@@ -1,0 +1,372 @@
+[
+  {
+    "id": "legacy-ae",
+    "file": "cases/legacy-ae.xpath",
+    "source": "'abcdæfgh'"
+  },
+  {
+    "id": "legacy-egrave",
+    "file": "cases/legacy-egrave.xpath",
+    "source": "'abcdèfgh'"
+  },
+  {
+    "id": "legacy-degree",
+    "file": "cases/legacy-degree.xpath",
+    "source": "contains(.,'°')"
+  },
+  {
+    "id": "integer",
+    "file": "cases/integer.xpath",
+    "source": "123"
+  },
+  {
+    "id": "integer-leading",
+    "file": "cases/integer-leading.xpath",
+    "source": "000123"
+  },
+  {
+    "id": "integer-uint64-overflow",
+    "file": "cases/integer-uint64-overflow.xpath",
+    "source": "18446744073709551616"
+  },
+  {
+    "id": "integer-huge",
+    "file": "cases/integer-huge.xpath",
+    "source": "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999"
+  },
+  {
+    "id": "decimal-precision",
+    "file": "cases/decimal-precision.xpath",
+    "source": "0.123456789012345678901234567890123456789"
+  },
+  {
+    "id": "decimal-tiny",
+    "file": "cases/decimal-tiny.xpath",
+    "source": "0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+  },
+  {
+    "id": "decimal-whole",
+    "file": "cases/decimal-whole.xpath",
+    "source": "123456789012345678901234567890."
+  },
+  {
+    "id": "decimal-dot",
+    "file": "cases/decimal-dot.xpath",
+    "source": ".25"
+  },
+  {
+    "id": "double",
+    "file": "cases/double.xpath",
+    "source": "1.25e-20"
+  },
+  {
+    "id": "double-overflow",
+    "file": "cases/double-overflow.xpath",
+    "source": "1e999"
+  },
+  {
+    "id": "double-underflow",
+    "file": "cases/double-underflow.xpath",
+    "source": "1e-999"
+  },
+  {
+    "id": "arity-huge",
+    "file": "cases/arity-huge.xpath",
+    "source": "fn:concat#18446744073709551616"
+  },
+  {
+    "id": "precedence",
+    "file": "cases/precedence.xpath",
+    "source": "1+2*3-4 div 2"
+  },
+  {
+    "id": "left-assoc",
+    "file": "cases/left-assoc.xpath",
+    "source": "9-3-1"
+  },
+  {
+    "id": "unary-chain",
+    "file": "cases/unary-chain.xpath",
+    "source": "-+-1"
+  },
+  {
+    "id": "unary-arrow",
+    "file": "cases/unary-arrow.xpath",
+    "source": "-1=>abs()"
+  },
+  {
+    "id": "cast-precedence",
+    "file": "cases/cast-precedence.xpath",
+    "source": "-1 cast as xs:integer"
+  },
+  {
+    "id": "castable",
+    "file": "cases/castable.xpath",
+    "source": "1 castable as xs:string?"
+  },
+  {
+    "id": "instance-function",
+    "file": "cases/instance-function.xpath",
+    "source": "1 instance of function(xs:integer) as xs:string"
+  },
+  {
+    "id": "instance-function-zero",
+    "file": "cases/instance-function-zero.xpath",
+    "source": "1 instance of function() as xs:integer"
+  },
+  {
+    "id": "instance-anyfunction",
+    "file": "cases/instance-anyfunction.xpath",
+    "source": "1 instance of function(*)"
+  },
+  {
+    "id": "instance-map",
+    "file": "cases/instance-map.xpath",
+    "source": "1 instance of map(xs:string, xs:integer*)"
+  },
+  {
+    "id": "instance-array",
+    "file": "cases/instance-array.xpath",
+    "source": "1 instance of array(xs:integer)"
+  },
+  {
+    "id": "instance-parenthesized",
+    "file": "cases/instance-parenthesized.xpath",
+    "source": "1 instance of (xs:integer)?"
+  },
+  {
+    "id": "unicode-name",
+    "file": "cases/unicode-name.xpath",
+    "source": "é"
+  },
+  {
+    "id": "unicode-plane",
+    "file": "cases/unicode-plane.xpath",
+    "source": "𐀀"
+  },
+  {
+    "id": "hyphen-keyword",
+    "file": "cases/hyphen-keyword.xpath",
+    "source": "following-sibling"
+  },
+  {
+    "id": "keyword-name",
+    "file": "cases/keyword-name.xpath",
+    "source": "for/and/map"
+  },
+  {
+    "id": "qualified",
+    "file": "cases/qualified.xpath",
+    "source": "child::p:foo"
+  },
+  {
+    "id": "uri-qualified",
+    "file": "cases/uri-qualified.xpath",
+    "source": "Q{urn:test}foo"
+  },
+  {
+    "id": "uri-empty",
+    "file": "cases/uri-empty.xpath",
+    "source": "Q{}foo"
+  },
+  {
+    "id": "uri-wildcard",
+    "file": "cases/uri-wildcard.xpath",
+    "source": "child::Q{urn:test}*"
+  },
+  {
+    "id": "prefix-wildcard",
+    "file": "cases/prefix-wildcard.xpath",
+    "source": "child::p:*"
+  },
+  {
+    "id": "local-wildcard",
+    "file": "cases/local-wildcard.xpath",
+    "source": "child::*:foo"
+  },
+  {
+    "id": "uri-invalid-local-colon",
+    "file": "cases/uri-invalid-local-colon.xpath",
+    "source": "Q{urn:test}foo:bar"
+  },
+  {
+    "id": "nested-comment",
+    "file": "cases/nested-comment.xpath",
+    "source": "1(: outer (: inner :) done :)+2"
+  },
+  {
+    "id": "string-doubled",
+    "file": "cases/string-doubled.xpath",
+    "source": "'a''b'"
+  },
+  {
+    "id": "string-unicode",
+    "file": "cases/string-unicode.xpath",
+    "source": "'é𐀀'"
+  },
+  {
+    "id": "if",
+    "file": "cases/if.xpath",
+    "source": "if (1) then 2 else 3"
+  },
+  {
+    "id": "for",
+    "file": "cases/for.xpath",
+    "source": "for $x in (1,2), $y in (3,4) return $x+$y"
+  },
+  {
+    "id": "let",
+    "file": "cases/let.xpath",
+    "source": "let $x:=1,$y:=2 return $x+$y"
+  },
+  {
+    "id": "quantified",
+    "file": "cases/quantified.xpath",
+    "source": "every $x in (1,2) satisfies $x>0"
+  },
+  {
+    "id": "path-predicates",
+    "file": "cases/path-predicates.xpath",
+    "source": "child::a[2]/@b"
+  },
+  {
+    "id": "absolute-path",
+    "file": "cases/absolute-path.xpath",
+    "source": "//a/b"
+  },
+  {
+    "id": "parent-step",
+    "file": "cases/parent-step.xpath",
+    "source": "../a"
+  },
+  {
+    "id": "kind-text",
+    "file": "cases/kind-text.xpath",
+    "source": "text()"
+  },
+  {
+    "id": "kind-element",
+    "file": "cases/kind-element.xpath",
+    "source": "self::element(foo,xs:string?)"
+  },
+  {
+    "id": "kind-document",
+    "file": "cases/kind-document.xpath",
+    "source": "self::document-node(element(foo))"
+  },
+  {
+    "id": "kind-pi",
+    "file": "cases/kind-pi.xpath",
+    "source": "processing-instruction(foo)"
+  },
+  {
+    "id": "map-lookup",
+    "file": "cases/map-lookup.xpath",
+    "source": "map{\"a\":1,\"b\":2}?a"
+  },
+  {
+    "id": "array-square",
+    "file": "cases/array-square.xpath",
+    "source": "[1,(2,3),4]"
+  },
+  {
+    "id": "array-curly",
+    "file": "cases/array-curly.xpath",
+    "source": "array{1,2,3}"
+  },
+  {
+    "id": "lookup",
+    "file": "cases/lookup.xpath",
+    "source": "?foo"
+  },
+  {
+    "id": "lookup-dynamic",
+    "file": "cases/lookup-dynamic.xpath",
+    "source": "$x?(1+2)"
+  },
+  {
+    "id": "function-inline",
+    "file": "cases/function-inline.xpath",
+    "source": "function($x as xs:integer) as xs:integer{$x+1}(2)"
+  },
+  {
+    "id": "function-empty",
+    "file": "cases/function-empty.xpath",
+    "source": "function(){}"
+  },
+  {
+    "id": "function-reference",
+    "file": "cases/function-reference.xpath",
+    "source": "fn:abs#1"
+  },
+  {
+    "id": "function-placeholder",
+    "file": "cases/function-placeholder.xpath",
+    "source": "concat(?,\"x\")"
+  },
+  {
+    "id": "sequence",
+    "file": "cases/sequence.xpath",
+    "source": "1,2,3"
+  },
+  {
+    "id": "empty-sequence",
+    "file": "cases/empty-sequence.xpath",
+    "source": "()"
+  },
+  {
+    "id": "simplemap",
+    "file": "cases/simplemap.xpath",
+    "source": "(1,2) ! (. * 2)"
+  },
+  {
+    "id": "union-intersect",
+    "file": "cases/union-intersect.xpath",
+    "source": "a union b intersect c"
+  },
+  {
+    "id": "comparison-concat",
+    "file": "cases/comparison-concat.xpath",
+    "source": "1 to 3 || \"x\" eq \"y\""
+  },
+  {
+    "id": "duplicate-param",
+    "file": "cases/duplicate-param.xpath",
+    "source": "function($x,$x){$x}"
+  },
+  {
+    "id": "reserved-switch",
+    "file": "cases/reserved-switch.xpath",
+    "source": "switch()"
+  },
+  {
+    "id": "reserved-typeswitch",
+    "file": "cases/reserved-typeswitch.xpath",
+    "source": "typeswitch()"
+  },
+  {
+    "id": "bad-comparison-chain",
+    "file": "cases/bad-comparison-chain.xpath",
+    "source": "1<2<3"
+  },
+  {
+    "id": "bad-range-chain",
+    "file": "cases/bad-range-chain.xpath",
+    "source": "1 to 2 to 3"
+  },
+  {
+    "id": "bad-escape-uri",
+    "file": "cases/bad-escape-uri.xpath",
+    "source": "Q{u{v}x"
+  },
+  {
+    "id": "unclosed-comment",
+    "file": "cases/unclosed-comment.xpath",
+    "source": "1(:a"
+  },
+  {
+    "id": "semicolon-extension",
+    "file": "cases/semicolon-extension.xpath",
+    "source": "1;2;"
+  }
+]

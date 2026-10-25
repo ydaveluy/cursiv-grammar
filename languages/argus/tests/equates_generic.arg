@@ -1,0 +1,4 @@
+Bounds = equates T: type where T has less: proctype(T, T) returns(bool)
+  low = 0
+  high = 100
+end Bounds

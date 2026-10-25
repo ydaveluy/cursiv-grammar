@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Tnsnames",
+  "scopeName": "source.tnsnames",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#values" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.tnsnames",
+      "match": "#.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.tnsnames",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.tnsnames",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.tnsnames",
+      "match": "(?i)\\b(IFILE|DESCRIPTION_LIST|DESCRIPTION|ADDRESS_LIST|ADDRESS|PROTOCOL|CONNECT_DATA|FAILOVER_MODE|HOST|PORT|LOCAL|FAILOVER|LOAD_BALANCE|SOURCE_ROUTE|ENABLE|SDU|RECV_BUF_SIZE|SEND_BUF_SIZE|TYPE_OF_SERVICE|SECURITY|SSL_SERVER_CERT_DN|CONNECT_TIMEOUT|RETRY_COUNT|TRANSPORT_CONNECT_TIMEOUT|SERVICE_NAME|SID|INSTANCE_NAME|GLOBAL_NAME|HS|RDB_DATABASE|SERVER|UR|KEY|SERVICE|PIPE|PROGRAM|ARGV0|ARGS|TYPE|BACKUP|METHOD|RETRIES|DELAY)\\b"
+    },
+    "values": {
+      "name": "constant.language.tnsnames",
+      "match": "(?i)\\b(TCP|IPC|SPX|NMP|BEQ|YES|NO|ON|OFF|TRUE|FALSE|OK|BROKEN|DEDICATED|SHARED|POOLED|SESSION|SELECT|NONE|BASIC|PRECONNECT)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.tnsnames",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

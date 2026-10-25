@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Star",
+  "scopeName": "source.star",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#datanames"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.star",
+      "match": "#.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.star",
+          "begin": "'",
+          "end": "'"
+        },
+        {
+          "name": "string.quoted.double.star",
+          "begin": "\"",
+          "end": "\""
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.star",
+      "match": "\\b(loop_|stop_|global_)\\b"
+    },
+    "datanames": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.star",
+          "match": "_[a-zA-Z0-9_]+"
+        },
+        {
+          "name": "entity.name.section.star",
+          "match": "\\bdata_[a-zA-Z0-9_]+"
+        },
+        {
+          "name": "entity.name.function.star",
+          "match": "\\bsave_[a-zA-Z0-9_]+"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Vb6",
+  "scopeName": "source.vb6",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.apostrophe.vb6",
+          "match": "'.*$"
+        },
+        {
+          "name": "comment.line.rem.vb6",
+          "match": "(?i)(?<![A-Za-z0-9_])Rem\\s.*$"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.vb6",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.vb6",
+          "match": "\"\""
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.vb6",
+          "match": "(?i)&H[0-9A-F]+&?|&O[0-7]+&?|\\b[0-9]+(\\.[0-9]*)?([DE][+-]?[0-9]+)?[#&!@]?\\b"
+        },
+        {
+          "name": "constant.other.date.vb6",
+          "match": "#[^#\\r\\n]*#"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.vb6",
+          "match": "(?i)\\b(If|Then|Else|ElseIf|End|Select|Case|For|Each|To|Step|Next|Do|Loop|While|Wend|Until|Exit|GoTo|GoSub|Return|Resume|On|Error|With|Call)\\b"
+        },
+        {
+          "name": "keyword.declaration.vb6",
+          "match": "(?i)\\b(Sub|Function|Property|Get|Let|Set|Dim|ReDim|Preserve|Static|Const|Public|Private|Friend|Global|Type|Enum|Declare|Event|Implements|Option|Explicit|Base|Compare|Attribute|As|Optional|ByVal|ByRef|ParamArray|New|WithEvents|Lib|Alias|Version|Class|Begin|BeginProperty|EndProperty)\\b"
+        },
+        {
+          "name": "keyword.operator.word.vb6",
+          "match": "(?i)\\b(And|Or|Not|Xor|Eqv|Imp|Mod|Is|Like|AddressOf|TypeOf|Me)\\b"
+        },
+        {
+          "name": "constant.language.vb6",
+          "match": "(?i)\\b(True|False|Nothing|Null)\\b"
+        }
+      ]
+    },
+    "types": {
+      "name": "storage.type.vb6",
+      "match": "(?i)\\b(Boolean|Byte|Collection|Currency|Date|Double|Integer|Long|Object|Single|String|Variant)\\b"
+    }
+  }
+}

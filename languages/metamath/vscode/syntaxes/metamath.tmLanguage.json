@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Metamath",
+  "scopeName": "source.metamath",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.block.metamath",
+      "begin": "\\$\\(",
+      "end": "\\$\\)"
+    },
+    "keywords": {
+      "name": "keyword.control.metamath",
+      "match": "\\$[cvdfaep](?=[\\s$])"
+    },
+    "punctuation": {
+      "name": "punctuation.definition.metamath",
+      "match": "\\$[.=\\[\\]{}]"
+    }
+  }
+}

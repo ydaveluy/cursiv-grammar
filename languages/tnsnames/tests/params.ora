@@ -1,0 +1,35 @@
+params_full =
+  (DESCRIPTION =
+    (ENABLE = BROKEN)
+    (FAILOVER = ON)
+    (LOAD_BALANCE = TRUE)
+    (SOURCE_ROUTE = YES)
+    (SDU = 8192)
+    (RECV_BUF_SIZE = 11784)
+    (SEND_BUF_SIZE = 11784)
+    (TYPE_OF_SERVICE = customtype)
+    (SECURITY = (SSL_SERVER_CERT_DN = "cn=test,dc=example"))
+    (CONNECT_TIMEOUT = 10)
+    (RETRY_COUNT = 3)
+    (TRANSPORT_CONNECT_TIMEOUT = 5)
+    (ADDRESS = (PROTOCOL = TCP)(HOST = dbhost)(PORT = 1521)(SEND_BUF_SIZE = 2048)(RECV_BUF_SIZE = 2048))
+    (CONNECT_DATA = (SERVICE_NAME = orcl))
+  )
+
+dlist_params =
+  (DESCRIPTION_LIST =
+    (FAILOVER = off)
+    (LOAD_BALANCE = no)
+    (DESCRIPTION =
+      (ADDRESS_LIST =
+        (SOURCE_ROUTE = yes)
+        (ADDRESS = (PROTOCOL = TCP)(HOST = h1)(PORT = 1521))
+        (ADDRESS = (PROTOCOL = TCP)(HOST = h2)(PORT = 1521))
+      )
+      (CONNECT_DATA = (SERVICE_NAME = orcl))
+    )
+  )
+
+commented =
+  # a listener with a comment before it
+  (ADDRESS = (PROTOCOL = IPC)(KEY = LISTENER))  # trailing note

@@ -1,0 +1,6 @@
+SafetyMargin
+if
+    ((pressure s extremely high boundedAnd (temperature are above 100.5)))
+then
+    valve s roughly 0.25
+;

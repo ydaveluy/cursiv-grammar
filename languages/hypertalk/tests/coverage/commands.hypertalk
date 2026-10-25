@@ -1,0 +1,25 @@
+sort the cards of this stack by field "Name"
+sort lines of it ascending by it
+wait 3 seconds
+wait until the mouse is down
+go to card "Home"
+go back
+speak "hello" with male voice
+write "line" to file "out.txt"
+write "line" to file "out.txt" at eof
+read from file "in.txt" for 10
+convert it to seconds
+convert it from seconds to long date
+drag from 10,20 to 30,40
+click at 5,5
+ask "Name?" with "Bob"
+export paint to file "out.pict"
+import paint from file "in.pict"
+reset the menubar
+type "hello" with commandkey
+exit mouseUp
+pass mouseUp
+push card
+pop card
+choose button tool
+visual "wipe left"

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "LlvmIr",
+  "scopeName": "source.llvmir",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#globals" },
+    { "include": "#locals" },
+    { "include": "#metadata" },
+    { "include": "#attrgroups" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.llvmir",
+      "match": ";.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.llvmir",
+      "begin": "\"",
+      "end": "\""
+    },
+    "globals": {
+      "name": "entity.name.function.llvmir",
+      "match": "@[a-zA-Z$._][a-zA-Z0-9$._-]*|@[0-9]+|@\"[^\"]*\""
+    },
+    "locals": {
+      "name": "variable.other.llvmir",
+      "match": "%[a-zA-Z$._][a-zA-Z0-9$._-]*|%[0-9]+|%\"[^\"]*\""
+    },
+    "metadata": {
+      "name": "variable.parameter.llvmir",
+      "match": "![a-zA-Z$._\\\\][a-zA-Z0-9$._\\\\]*|![0-9]+"
+    },
+    "attrgroups": {
+      "name": "storage.modifier.llvmir",
+      "match": "#[0-9]+"
+    },
+    "types": {
+      "name": "storage.type.llvmir",
+      "match": "\\b(void|opaque|label|token|metadata|x86_mmx|ptr|half|bfloat|float|double|x86_fp80|fp128|ppc_fp128)\\b|\\bi[0-9]+\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.llvmir",
+          "match": "\\b(ret|br|switch|indirectbr|invoke|callbr|resume|catchswitch|catchret|cleanupret|unreachable|call|phi)\\b"
+        },
+        {
+          "name": "keyword.other.llvmir",
+          "match": "\\b(define|declare|module|asm|source_filename|target|datalayout|triple|type|comdat|global|constant|alias|ifunc|attributes|uselistorder|uselistorder_bb|distinct)\\b"
+        },
+        {
+          "name": "keyword.operator.llvmir",
+          "match": "\\b(add|fadd|sub|fsub|mul|fmul|udiv|sdiv|fdiv|urem|srem|frem|shl|lshr|ashr|and|or|xor|extractelement|insertelement|shufflevector|extractvalue|insertvalue|alloca|load|store|fence|cmpxchg|atomicrmw|getelementptr|trunc|zext|sext|fptrunc|fpext|fptoui|fptosi|uitofp|sitofp|ptrtoint|inttoptr|bitcast|addrspacecast|icmp|fcmp|select|freeze|va_arg|landingpad|catchpad|cleanuppad|fneg)\\b"
+        },
+        {
+          "name": "constant.language.llvmir",
+          "match": "\\b(true|false|null|none|undef|poison|zeroinitializer|c)\\b"
+        },
+        {
+          "name": "storage.modifier.llvmir",
+          "match": "\\b(private|internal|available_externally|linkonce|weak|common|appending|extern_weak|linkonce_odr|weak_odr|external|dso_local|dso_preemptable|default|hidden|protected|dllexport|dllimport|thread_local|localdynamic|initialexec|localexec|unnamed_addr|local_unnamed_addr|externally_initialized|inbounds|inrange|exact|nsw|nuw|volatile|atomic|weak|cleanup|nnan|ninf|nsz|arcp|contract|afn|reassoc|fast|tail|musttail|notail|align|section|partition|gc|prefix|prologue|personality)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.llvmir",
+      "match": "-?\\b[0-9]+\\b|\\b[us]0x[0-9a-fA-F]+\\b|\\b0x[KLMHR]?[0-9a-fA-F]+\\b"
+    }
+  }
+}

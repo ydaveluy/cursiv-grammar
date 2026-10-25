@@ -1,0 +1,68 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "CSharp",
+  "scopeName": "source.csharp",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#preprocessor" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.csharp", "match": "//.*$" },
+        { "name": "comment.block.csharp", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "preprocessor": {
+      "name": "meta.preprocessor.csharp",
+      "match": "^\\s*#\\s*(define|undef|if|elif|else|endif|line|error|warning|region|endregion|pragma|nullable).*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.csharp",
+          "begin": "\\$?@\"",
+          "end": "\"(?!\")",
+          "patterns": [{ "match": "\"\"" }]
+        },
+        {
+          "name": "string.quoted.double.csharp",
+          "begin": "\\$?\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.csharp", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.csharp",
+          "match": "'(\\\\.|[^'\\\\])'"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.csharp",
+      "match": "\\b(0[xX][0-9a-fA-F_]+|0[bB][01_]+|[0-9][0-9_]*(\\.[0-9][0-9_]*)?([eE][+-]?[0-9]+)?)[uUlLfFdDmM]*\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.csharp",
+          "match": "\\b(if|else|switch|case|default|while|do|for|foreach|in|break|continue|goto|return|throw|try|catch|finally|yield|when|lock)\\b"
+        },
+        {
+          "name": "keyword.other.csharp",
+          "match": "\\b(abstract|as|async|await|base|checked|class|const|delegate|enum|event|explicit|extern|fixed|implicit|interface|internal|is|namespace|new|operator|out|override|params|partial|private|protected|public|readonly|ref|sealed|sizeof|stackalloc|static|struct|this|typeof|unchecked|unsafe|using|virtual|volatile|nameof|var|dynamic|get|set|add|remove|value|global|alias|from|let|where|select|group|by|into|orderby|join|equals|on|ascending|descending|notnull|unmanaged)\\b"
+        },
+        {
+          "name": "storage.type.csharp",
+          "match": "\\b(bool|byte|char|decimal|double|float|int|long|object|sbyte|short|string|uint|ulong|ushort|void)\\b"
+        },
+        {
+          "name": "constant.language.csharp",
+          "match": "\\b(true|false|null)\\b"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,69 @@
+# abb
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/abb/core/AbbGrammar.hpp` |
+| The AST | `src/abb/core/ast.hpp` |
+| Validation checks | `src/abb/core/validation/` |
+| Services of your own | `src/abb/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/abb/cli/main.cpp` |
+| LSP features | `src/abb/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+```
+module robdata(sysmodule)
+	PERS tooldata tMain:=[TRUE,[[0.0,0.0,700.0],[1.0,0.0,0.0,0.0]],
+		[0.0,[5.0,0,95.5],[1,0,0,0],0.228,0.094,0]];
+
+	PROC ConfigOn()
+		ConfJ\On;
+		ConfL\On;
+	ENDPROC
+endmodule
+```
+
+An ABB RAPID system module (`.sys`): a `MODULE`/`ENDMODULE` block holding
+`PERS`/`VAR`/`CONST` data declarations and `PROC`/`ENDPROC` procedures, whose
+statements here are the bare motion/IO calls a `.sys` module declares
+(`ConfJ\On`) — the full RAPID statement language (`IF`, `WHILE`, assignment)
+is out of scope for this grammar, which only reads `.sys` declarations.
+
+## The command line
+
+```bash
+./build/src/abb_cli example/robdata.sys
+./build/src/abb_cli --dump example/robdata.sys   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`abb_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

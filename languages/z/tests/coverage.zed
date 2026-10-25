@@ -1,0 +1,30 @@
+─ section coverage └
+
+─ Sq == λ x : ℕ ⦁ x × x └
+
+─ TheOne == ( μ x : ℕ | x = 1 ) └
+
+─ PickOne == μ x : ℕ | x = 1 ⦁ x └
+
+┌ Box
+val : ℕ └
+
+─ Snapshot == θ Box └
+
+─ SnapshotAfter == θ Box ′ └
+
+─ ⊢? ∃ ↘1↖ x : ℕ | x = 1 ⦁ x = 1 └
+
+─ Labelled == ⦉ x == 1 , y == 2 ⦊ └
+
+┌ ═ Boxed [ X ]
+contents : X └
+
+╷ ═ [ X ]
+item : X └
+
+─ Prod [ X , Y ] == X × Y └
+
+─ [ X ] ⊢? true └
+
+─ function 30 leftassoc ( _ ⊞ _ ) └

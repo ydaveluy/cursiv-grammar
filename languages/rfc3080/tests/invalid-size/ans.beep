@@ -1,0 +1,5 @@
+ANS 0 1 * 53 86 1
+Content-Type: application/beep+xml
+
+<message>partial answer one</message>
+END

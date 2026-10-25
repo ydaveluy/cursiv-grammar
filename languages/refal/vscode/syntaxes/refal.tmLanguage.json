@@ -1,0 +1,57 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Refal",
+  "scopeName": "source.refal",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#directives" },
+    { "include": "#strings" },
+    { "include": "#variables" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.asterisk.refal",
+          "match": "^\\s*\\*.*$"
+        },
+        {
+          "name": "comment.block.refal",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "directives": {
+      "name": "keyword.control.refal",
+      "match": "\\$(ENTRY|EXTERNAL|EXTERN|EXTRN)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.refal",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.refal",
+          "begin": "'",
+          "end": "'"
+        },
+        {
+          "name": "constant.character.escape.refal",
+          "match": "\\\\(['\"\\\\nrt]|x[0-9][0-9])"
+        }
+      ]
+    },
+    "variables": {
+      "name": "variable.other.refal",
+      "match": "\\b[ste]\\.(\\w+)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.refal",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

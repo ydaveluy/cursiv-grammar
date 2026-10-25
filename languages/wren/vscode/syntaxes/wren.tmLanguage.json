@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Wren",
+  "scopeName": "source.wren",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#attributes" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.wren", "match": "//.*$" },
+        { "name": "comment.block.wren", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.wren",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.double.wren",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.wren", "match": "\\\\." },
+            { "name": "meta.interpolation.wren", "match": "%\\(" }
+          ]
+        },
+        {
+          "name": "string.quoted.single.wren",
+          "match": "'([^'\\\\]|\\\\.)'"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.wren",
+      "match": "\\b(as|break|class|construct|continue|else|for|foreign|if|import|in|is|return|static|var|while)\\b"
+    },
+    "attributes": {
+      "name": "storage.modifier.wren",
+      "match": "#!?[A-Za-z_][A-Za-z0-9_]*"
+    },
+    "numbers": {
+      "name": "constant.numeric.wren",
+      "match": "\\b(0[xX][0-9a-fA-F_]+|[0-9][0-9_]*(\\.[0-9_]+)?([eE][+-]?[0-9]+)?)\\b"
+    }
+  }
+}

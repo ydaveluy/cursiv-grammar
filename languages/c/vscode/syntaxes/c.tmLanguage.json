@@ -1,0 +1,97 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "c",
+  "scopeName": "source.c",
+  "fileTypes": [
+    "c",
+    "h"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "name": "meta.preprocessor.c",
+      "begin": "^\\s*#",
+      "end": "(?=$)",
+      "patterns": [
+        {
+          "name": "keyword.control.directive.c",
+          "match": "\\b(define|elif|else|endif|error|if|ifdef|ifndef|include|line|pragma|undef)\\b"
+        },
+        {
+          "name": "string.quoted.other.include.c",
+          "match": "<[^>\\r\\n]*>|\"[^\"\\r\\n]*\""
+        }
+      ]
+    },
+    {
+      "name": "keyword.control.c",
+      "match": "\\b(break|case|continue|default|do|else|for|goto|if|return|switch|while)\\b"
+    },
+    {
+      "name": "keyword.operator.sizeof.c",
+      "match": "\\bsizeof\\b"
+    },
+    {
+      "name": "keyword.other.c",
+      "match": "\\b(static_assert|_Static_assert|__extension__|__attribute__|__attribute)\\b"
+    },
+    {
+      "name": "storage.type.c",
+      "match": "\\b(_Bool|char|double|enum|float|int|long|short|signed|struct|union|unsigned|void|_Atomic)\\b"
+    },
+    {
+      "name": "storage.modifier.c",
+      "match": "\\b(auto|const|extern|inline|register|restrict|__restrict__|__restrict|static|typedef|volatile|_Noreturn|_Thread_local|thread_local)\\b"
+    },
+    {
+      "name": "string.quoted.double.c",
+      "begin": "(u8|[LuU])?\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "include": "#escapes"
+        }
+      ]
+    },
+    {
+      "name": "string.quoted.single.c",
+      "begin": "[LuU]?'",
+      "end": "'",
+      "patterns": [
+        {
+          "include": "#escapes"
+        }
+      ]
+    },
+    {
+      "name": "constant.numeric.c",
+      "match": "\\b(0[xX][0-9a-fA-F]+|0[bB][01]+|\\d+(\\.\\d*)?([eE][+-]?\\d+)?)([uUlL]+|[fFlL])?|\\.\\d+([eE][+-]?\\d+)?[fFlL]?"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.c",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.line.c",
+          "begin": "//",
+          "end": "(?=$)"
+        }
+      ]
+    },
+    "escapes": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.c",
+          "match": "\\\\(x[0-9a-fA-F]+|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[0-7]{1,3}|.)"
+        }
+      ]
+    }
+  }
+}

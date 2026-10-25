@@ -1,0 +1,58 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Asn",
+  "scopeName": "source.asn",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#binary-hex-strings"
+    },
+    {
+      "include": "#field-references"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-dash.asn",
+      "match": "--.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.asn",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.asn",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "binary-hex-strings": {
+      "name": "string.quoted.single.asn",
+      "match": "'[01]*'B|'[0-9A-Fa-f]*'H"
+    },
+    "field-references": {
+      "name": "entity.name.type.field.asn",
+      "match": "&[A-Za-z][-A-Za-z0-9]*"
+    },
+    "keywords": {
+      "name": "keyword.control.asn",
+      "match": "\\b(DEFINITIONS|BEGIN|END|EXPORTS|IMPORTS|FROM|EXPLICIT|IMPLICIT|AUTOMATIC|TAGS|EXTENSIBILITY|IMPLIED|ALL|EXCEPT|UNION|INTERSECTION|INCLUDES|MIN|MAX|SIZE|WITH|COMPONENT|COMPONENTS|PRESENT|ABSENT|PATTERN|CLASS|UNIQUE|SYNTAX|CONSTRAINED|BY|ENCODED|CONTAINING|OPTIONAL|DEFAULT|OF|SEQUENCE|SET|CHOICE|ENUMERATED|INTEGER|BOOLEAN|NULL|REAL|BIT|OCTET|STRING|OBJECT|IDENTIFIER|TYPE-Identifier|ABSTRACT-SYNTAX|UNIVERSAL|APPLICATION|PRIVATE|TRUE|FALSE)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.asn",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

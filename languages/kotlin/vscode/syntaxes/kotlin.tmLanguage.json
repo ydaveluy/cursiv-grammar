@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Kotlin",
+  "scopeName": "source.kotlin",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#annotations" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.kotlin", "match": "//.*$" },
+        { "name": "comment.block.kotlin", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.kotlin",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [{ "include": "#interpolation" }]
+        },
+        {
+          "name": "string.quoted.double.kotlin",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.kotlin", "match": "\\\\." },
+            { "include": "#interpolation" }
+          ]
+        }
+      ]
+    },
+    "interpolation": {
+      "patterns": [
+        {
+          "name": "meta.template.expression.kotlin",
+          "begin": "\\$\\{",
+          "end": "\\}",
+          "patterns": [{ "include": "$self" }]
+        },
+        { "name": "variable.other.interpolated.kotlin", "match": "\\$[A-Za-z_][A-Za-z0-9_]*" }
+      ]
+    },
+    "annotations": {
+      "name": "storage.type.annotation.kotlin",
+      "match": "@[A-Za-z_][A-Za-z0-9_.]*"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.kotlin",
+          "match": "\\b(if|else|when|try|catch|finally|for|do|while|throw|return|continue|break|is|in|as)\\b"
+        },
+        {
+          "name": "keyword.declaration.kotlin",
+          "match": "\\b(package|import|class|interface|object|fun|val|var|typealias|constructor|init|companion|by|where|context)\\b"
+        },
+        {
+          "name": "storage.modifier.kotlin",
+          "match": "\\b(public|private|protected|internal|enum|sealed|annotation|data|inner|tailrec|operator|inline|infix|external|suspend|override|abstract|final|open|const|lateinit|vararg|noinline|crossinline|reified|out|get|set|field|dynamic|expect|actual)\\b"
+        },
+        {
+          "name": "constant.language.kotlin",
+          "match": "\\b(true|false|null|this|super)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.kotlin",
+      "match": "\\b(0[xX][0-9a-fA-F_]+|0[bB][01_]+|[0-9][0-9_]*(\\.[0-9_]+)?([eE][+-]?[0-9]+)?[fFL]?)\\b"
+    }
+  }
+}

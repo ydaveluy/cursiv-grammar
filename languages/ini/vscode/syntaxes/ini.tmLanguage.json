@@ -1,0 +1,50 @@
+{
+  "name": "ini",
+  "scopeName": "source.ini",
+  "fileTypes": [
+    "ini"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "name": "entity.name.section.ini",
+      "match": "^\\s*\\[[^\\]\\r\\n]*\\]"
+    },
+    {
+      "name": "variable.other.key.ini",
+      "match": "^\\s*[A-Za-z0-9_\\-]+(\\s*\\.\\s*[A-Za-z0-9_\\-]+)*(?=\\s*=)"
+    },
+    {
+      "name": "constant.language.ini",
+      "match": "\\b(false|true)\\b"
+    },
+    {
+      "name": "string.quoted.double.ini",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.ini",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "constant.numeric.ini",
+      "match": "[+-]?\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?\\b"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.ini",
+          "begin": "[#;]",
+          "end": "(?=$)"
+        }
+      ]
+    }
+  }
+}

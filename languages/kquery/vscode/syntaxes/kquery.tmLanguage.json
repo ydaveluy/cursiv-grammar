@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Kquery",
+  "scopeName": "source.kquery",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#widths"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.kquery",
+      "match": "#.*$"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.kquery",
+          "match": "\\b(array|query|symbolic)\\b"
+        },
+        {
+          "name": "keyword.operator.kquery",
+          "match": "\\b(Not|Neg|Concat|Extract|ZExt|SExt|Read|ReadLSB|ReadMSB|Select|And|Or|Xor|Shl|LShr|AShr|Eq|Ne|Ult|Ule|Ugt|Uge|Slt|Sle|Sgt|Sge|Add|Sub|Mul|UDiv|URem|SDiv|SRem)\\b"
+        },
+        {
+          "name": "constant.language.boolean.kquery",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "widths": {
+      "name": "storage.type.width.kquery",
+      "match": "\\bw[0-9]+\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.kquery",
+      "match": "[+-]?\\b(0b[01_]+|0o[0-7_]+|0x[0-9a-fA-F_]+|[0-9]+)\\b"
+    }
+  }
+}

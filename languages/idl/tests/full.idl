@@ -1,0 +1,153 @@
+import Legacy;
+
+@annotation MyAnno {
+  short priority default 1;
+  enum Level { LOW, HIGH };
+  const long MAGIC = 42;
+  typedef long MyLong;
+};
+@annotation ExternalAnno;
+
+module Acme {
+
+  const long HEXV = 0x1F;
+  const long OCTV = 017;
+  const long COMPUTED = (1 + 2) * 3 - 4 / 2 % 3 << 1 >> 1 & 0xF | 0x10 ^ 0x1;
+  const long NEG = -5;
+  const long POS = +5;
+  const long INV = ~5;
+  const char C = 'a';
+  const wchar WC = L'a';
+  const string S = "hi";
+  const wstring WS = L"hi";
+  const boolean B = TRUE;
+  const double PI = 3.14;
+
+  typedef long Matrix[3][4];
+  typedef fixed<5, 2> Money;
+  typedef sequence<long> LongSeq;
+  typedef sequence<long, 10> BoundedLongSeq;
+  typedef set<long> LongSet;
+  typedef map<string, long> StrToLong;
+  typedef map<string, long, 5> BoundedMap;
+  typedef string<32> ShortString;
+  typedef wstring<32> ShortWString;
+  typedef string UnboundedString;
+
+  native OpaqueHandle;
+
+  struct Base {
+    long a;
+  };
+  struct Derived : Base {
+    long b;
+    @deprecated long c;
+  };
+
+  struct Outer {
+    struct Inner {
+      long x;
+    } inner;
+  };
+
+  struct Node;
+  typedef sequence<Node> NodeList;
+
+  enum Color { RED, GREEN, BLUE };
+
+  union Choice switch (long) {
+    case 0:
+      long asLong;
+    case 1:
+      string asString;
+    default:
+      octet raw;
+  };
+
+  union ColorChoice switch (enum Level2 { A, B }) {
+    case A:
+      long value;
+    default:
+      boolean flag;
+  };
+
+  bitset BaseBits {
+    bitfield<4> low;
+  };
+  bitset MoreBits : BaseBits {
+    bitfield<2, unsigned short> mid;
+    bitfield<1>;
+    bitfield<1> flag;
+  };
+
+  bitmask Flags {
+    READ, WRITE, EXEC
+  };
+
+  exception BadInit {
+    string reason;
+  };
+
+  abstract interface AbsIface;
+  local interface LocalIface;
+  interface ForwardIface;
+
+  interface Listener {
+    readonly attribute string name raises (BadInit);
+    attribute long counterA, counterB;
+    attribute long counterC getraises (BadInit) setraises (BadInit);
+
+    void onEvent();
+    oneway void notify();
+    long compute(in long x, out long y, inout long z) raises (BadInit)
+        context ("SECURITY", "AUDIT");
+  };
+
+  interface Combined : Listener {
+    void extra();
+  };
+
+  eventtype MyEvent {
+    public long code;
+  };
+  abstract eventtype AbsEvent : Listener {
+    void onAbs();
+  };
+  eventtype ForwardEvent;
+
+  valuetype LongBox long;
+  abstract valuetype AbsVal {
+    void method();
+  };
+  valuetype ForwardVal;
+  custom valuetype FullVal : truncatable AbsVal supports Listener {
+    private long state;
+    public string label;
+    factory make(in long initial) raises (BadInit);
+  };
+
+  component MyComponent supports Listener {
+    provides Listener listenerPort;
+    uses multiple Listener listenerUses;
+    emits MyEvent onFire;
+    publishes MyEvent onPublish;
+    consumes MyEvent onConsume;
+    attribute long status;
+  };
+  component ForwardComponent;
+
+  home MyComponentHome supports Listener manages MyComponent primarykey Listener {
+    factory create(in long id) raises (BadInit);
+    finder find_by_id(in long id);
+  };
+
+  @MyAnno(priority = 5)
+  interface Annotated {
+    @MyAnno
+    void tagged();
+  };
+
+  typeid Listener "IDL:Acme/Listener:1.0";
+  typeprefix Listener "acme.com";
+
+};

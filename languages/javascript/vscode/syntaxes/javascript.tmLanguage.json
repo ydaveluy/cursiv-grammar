@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "JavaScript",
+  "scopeName": "source.cursiv.javascript",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#templates" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.javascript", "match": "//.*$" },
+        { "name": "comment.block.javascript", "begin": "/\\*", "end": "\\*/" },
+        { "name": "comment.block.javascript", "begin": "<!--", "end": "-->" }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.javascript",
+          "match": "\\b(break|case|catch|continue|debugger|default|do|else|finally|for|if|return|switch|throw|try|while|with|yield)\\b"
+        },
+        {
+          "name": "storage.type.javascript",
+          "match": "\\b(class|const|enum|export|extends|function|import|interface|let|package|private|protected|public|static|var)\\b"
+        },
+        {
+          "name": "keyword.other.javascript",
+          "match": "\\b(async|await|delete|from|in|instanceof|new|of|super|this|typeof|void|as)\\b"
+        },
+        {
+          "name": "constant.language.javascript",
+          "match": "\\b(true|false|null)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.javascript",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.javascript", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.javascript",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.javascript", "match": "\\\\." }]
+        }
+      ]
+    },
+    "templates": {
+      "name": "string.template.javascript",
+      "begin": "`",
+      "end": "`",
+      "patterns": [
+        { "name": "constant.character.escape.javascript", "match": "\\\\." },
+        {
+          "name": "meta.template.expression.javascript",
+          "begin": "\\$\\{",
+          "end": "\\}",
+          "patterns": [{ "include": "#keywords" }, { "include": "#strings" }, { "include": "#numbers" }]
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.javascript",
+      "match": "\\b(0[xX][0-9a-fA-F_]+|0[oO][0-7_]+|0[bB][01_]+|[0-9][0-9_]*(\\.[0-9_]+)?([eE][+-]?[0-9_]+)?)n?\\b"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+repeat with i = 1 to 10
+put i
+end repeat
+
+repeat with j = 10 down to 1
+put j
+end repeat
+
+repeat until x > 10
+put x
+end repeat
+
+repeat while x < 10
+put x
+end repeat
+
+repeat for 5 times
+beep
+end repeat
+
+repeat forever
+exit repeat
+end repeat

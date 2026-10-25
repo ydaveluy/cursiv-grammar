@@ -1,0 +1,9 @@
+DEFDAT mydata PUBLIC
+DECL GLOBAL CONST INT maxSpeed = 100
+GLOBAL STRUC Point REAL x, y, z
+ENUM Color red, green, blue
+
+DECL Point origin
+table[] = 42
+IMPORT INT shared IS /R1/ othermod .. srcvalue
+ENDDAT

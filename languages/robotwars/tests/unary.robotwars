@@ -1,0 +1,8 @@
+; a leading arithmetic operator with no left operand, one of the three
+; shapes of expression -- no program in this port's corpus exercises it.
+START
+  * 5 TO A
+  / RADAR TO B
+  + C TO D
+  - C TO E
+  ENDSUB

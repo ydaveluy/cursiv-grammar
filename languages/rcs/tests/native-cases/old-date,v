@@ -1,0 +1,13 @@
+head 1.1;
+branch 1;
+access joe;
+symbols rel:1.1;
+locks joe:1.1; strict;
+comment @# @;
+expand @o@;
+1.1
+date 99.12.31.23.59.59; author joe; state Exp; branches; next;
+desc @description@
+1.1 log @first log@ text @line one
+line two
+@

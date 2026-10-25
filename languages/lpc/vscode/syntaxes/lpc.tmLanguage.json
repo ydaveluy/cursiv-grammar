@@ -1,0 +1,80 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lpc",
+  "scopeName": "source.lpc",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.lpc",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.lpc",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.line.number-sign.lpc",
+          "match": "^\\s*#.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.lpc",
+          "begin": "@?\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.lpc",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.lpc",
+          "match": "'(\\\\.|[^'\\\\])?'"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.lpc",
+      "match": "\\b(if|else|while|do|for|foreach|in|switch|case|default|break|continue|return|inherit|class|new|catch|sscanf|parse_command|efun|time_expression)\\b"
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.lpc",
+          "match": "\\b(buffer|float|function|int|mapping|mixed|object|object_tx|string|void)\\b"
+        },
+        {
+          "name": "storage.modifier.lpc",
+          "match": "\\b(nomask|private|protected|public|static|varargs)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.lpc",
+      "match": "\\b(0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+\\.[0-9]*|\\.[0-9]+|[0-9]+)\\b"
+    }
+  }
+}

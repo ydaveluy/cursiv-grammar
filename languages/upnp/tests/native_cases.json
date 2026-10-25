@@ -1,0 +1,257 @@
+[
+  {
+    "id": "original-example-search1",
+    "file": "cases/original-example-search1.upnp",
+    "source": "(upnp:class = \"object.container.album.musicAlbum\" and dc:title contains \"cap \\\"a\\\"\")"
+  },
+  {
+    "id": "original-example-search2",
+    "file": "cases/original-example-search2.upnp",
+    "source": "upnp:class derivedfrom \"object.item.audioItem.musicTrack\" and (upnp:album contains \"FindThis\")\n"
+  },
+  {
+    "id": "original-example-search3",
+    "file": "cases/original-example-search3.upnp",
+    "source": "upnp:class derivedfrom \"object.item.audioItem.musicTrack\" and (upnp:artist contains \"FindThis\")\n"
+  },
+  {
+    "id": "original-example-search4",
+    "file": "cases/original-example-search4.upnp",
+    "source": "upnp:class derivedfrom \"object.item.audioItem.musicTrack\" and (upnp:genre contains \"FindThis\")\n"
+  },
+  {
+    "id": "original-example-search5",
+    "file": "cases/original-example-search5.upnp",
+    "source": "upnp:class derivedfrom \"object.item.audioItem.musicTrack\" and (dc:title = \"FindThis\")"
+  },
+  {
+    "id": "original-tests-existence",
+    "file": "cases/original-tests-existence.upnp",
+    "source": "(@id exists true) or (upnp:rating exists false)"
+  },
+  {
+    "id": "original-tests-operators",
+    "file": "cases/original-tests-operators.upnp",
+    "source": "upnp:episodeNumber != \"abc\" and upnp:episodeNumber < \"abc\" and upnp:episodeNumber <= \"abc\" and upnp:episodeNumber > \"abc\" and upnp:episodeNumber >= \"abc\" and dc:title doesNotContain \"spam\""
+  },
+  {
+    "id": "original-tests-wildcard",
+    "file": "cases/original-tests-wildcard.upnp",
+    "source": "*"
+  },
+  {
+    "id": "plain",
+    "file": "cases/plain.upnp",
+    "source": "dc:title = \"abc\""
+  },
+  {
+    "id": "escaped-quote",
+    "file": "cases/escaped-quote.upnp",
+    "source": "dc:title = \"a\\\"b\""
+  },
+  {
+    "id": "escaped-backslash",
+    "file": "cases/escaped-backslash.upnp",
+    "source": "dc:title = \"a\\\\b\""
+  },
+  {
+    "id": "escaped-controls",
+    "file": "cases/escaped-controls.upnp",
+    "source": "dc:title = \"a\\n\\t\\r\\b\\fb\""
+  },
+  {
+    "id": "escaped-octal",
+    "file": "cases/escaped-octal.upnp",
+    "source": "dc:title = \"\\101\\12\\377\""
+  },
+  {
+    "id": "escaped-unknown",
+    "file": "cases/escaped-unknown.upnp",
+    "source": "dc:title = \"a\\qb\""
+  },
+  {
+    "id": "escaped-zero",
+    "file": "cases/escaped-zero.upnp",
+    "source": "dc:title = \"a\\000b\""
+  },
+  {
+    "id": "single-quote",
+    "file": "cases/single-quote.upnp",
+    "source": "dc:title = 'a\\nb'"
+  },
+  {
+    "id": "single-double",
+    "file": "cases/single-double.upnp",
+    "source": "dc:title = 'a\"b'"
+  },
+  {
+    "id": "empty",
+    "file": "cases/empty.upnp",
+    "source": "dc:title = \"\""
+  },
+  {
+    "id": "unicode",
+    "file": "cases/unicode.upnp",
+    "source": "dc:title = \"é𐀀\""
+  },
+  {
+    "id": "operator-upper",
+    "file": "cases/operator-upper.upnp",
+    "source": "dc:title CONTAINS \"a\""
+  },
+  {
+    "id": "operator-mixed",
+    "file": "cases/operator-mixed.upnp",
+    "source": "upnp:class DerivedFrom \"object.item\""
+  },
+  {
+    "id": "operator-not-upper",
+    "file": "cases/operator-not-upper.upnp",
+    "source": "dc:title DOESNOTCONTAIN \"a\""
+  },
+  {
+    "id": "bool-upper",
+    "file": "cases/bool-upper.upnp",
+    "source": "@id EXISTS TRUE"
+  },
+  {
+    "id": "bool-mixed",
+    "file": "cases/bool-mixed.upnp",
+    "source": "@id ExIsTs FaLsE"
+  },
+  {
+    "id": "and-upper",
+    "file": "cases/and-upper.upnp",
+    "source": "p = \"a\" AND q = \"b\""
+  },
+  {
+    "id": "or-mixed",
+    "file": "cases/or-mixed.upnp",
+    "source": "p = \"a\" Or q = \"b\""
+  },
+  {
+    "id": "precedence",
+    "file": "cases/precedence.upnp",
+    "source": "p = \"a\" or q = \"b\" and r = \"c\""
+  },
+  {
+    "id": "left-assoc",
+    "file": "cases/left-assoc.upnp",
+    "source": "p = \"a\" or q = \"b\" or r = \"c\""
+  },
+  {
+    "id": "group",
+    "file": "cases/group.upnp",
+    "source": "(p = \"a\" or q = \"b\") and r = \"c\""
+  },
+  {
+    "id": "group-compact",
+    "file": "cases/group-compact.upnp",
+    "source": "(p = \"a\")and(q = \"b\")"
+  },
+  {
+    "id": "op-compact",
+    "file": "cases/op-compact.upnp",
+    "source": "p =\"a\""
+  },
+  {
+    "id": "rel-compact",
+    "file": "cases/rel-compact.upnp",
+    "source": "p=\"a\""
+  },
+  {
+    "id": "empty-lines",
+    "file": "cases/empty-lines.upnp",
+    "source": "\n\t( p = \"a\"\nOR q = \"b\" )\r\n"
+  },
+  {
+    "id": "block-comment",
+    "file": "cases/block-comment.upnp",
+    "source": "p /* note */ = \"a\""
+  },
+  {
+    "id": "line-comment",
+    "file": "cases/line-comment.upnp",
+    "source": "# note\np = \"a\""
+  },
+  {
+    "id": "between-comment",
+    "file": "cases/between-comment.upnp",
+    "source": "p = \"a\" /* c */ and q = \"b\""
+  },
+  {
+    "id": "multiline-string",
+    "file": "cases/multiline-string.upnp",
+    "source": "p = \"a\nb\""
+  },
+  {
+    "id": "property-case",
+    "file": "cases/property-case.upnp",
+    "source": "DC:Title = \"a\""
+  },
+  {
+    "id": "property-hyphen",
+    "file": "cases/property-hyphen.upnp",
+    "source": "upnp:my-prop = \"a\""
+  },
+  {
+    "id": "property-dot",
+    "file": "cases/property-dot.upnp",
+    "source": "p.foo = \"a\""
+  },
+  {
+    "id": "property-unknown",
+    "file": "cases/property-unknown.upnp",
+    "source": "unknown:future = \"a\""
+  },
+  {
+    "id": "property-unicode",
+    "file": "cases/property-unicode.upnp",
+    "source": "p:é = \"a\""
+  },
+  {
+    "id": "exist-zero",
+    "file": "cases/exist-zero.upnp",
+    "source": "p exists 0"
+  },
+  {
+    "id": "unquoted",
+    "file": "cases/unquoted.upnp",
+    "source": "p = abc"
+  },
+  {
+    "id": "extra-input",
+    "file": "cases/extra-input.upnp",
+    "source": "* garbage"
+  },
+  {
+    "id": "unclosed-quote",
+    "file": "cases/unclosed-quote.upnp",
+    "source": "p = \"abc"
+  },
+  {
+    "id": "unclosed-paren",
+    "file": "cases/unclosed-paren.upnp",
+    "source": "(p = \"a\""
+  },
+  {
+    "id": "missing-right",
+    "file": "cases/missing-right.upnp",
+    "source": "p = \"a\" and"
+  },
+  {
+    "id": "double-op",
+    "file": "cases/double-op.upnp",
+    "source": "p == \"a\""
+  },
+  {
+    "id": "empty-file",
+    "file": "cases/empty-file.upnp",
+    "source": ""
+  },
+  {
+    "id": "wildcard-spaces",
+    "file": "cases/wildcard-spaces.upnp",
+    "source": " \t*\n"
+  }
+]

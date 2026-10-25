@@ -1,0 +1,51 @@
+{
+  "name": "xsmp",
+  "scopeName": "source.xsmp",
+  "fileTypes": [
+    "xsmpcat"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "name": "keyword.control.xsmp",
+      "match": "\\b(abstract|array|association|attribute|catalogue|class|constant|container|def|entrypoint|enum|event|eventsink|eventsource|exception|extends|field|float|get|implements|in|inout|input|integer|interface|model|namespace|native|ns|nullptr|out|output|primitive|private|property|protected|public|readOnly|readWrite|reference|service|set|string|struct|throws|transient|using|void|writeOnly)\\b"
+    },
+    {
+      "name": "constant.language.xsmp",
+      "match": "\\b(false|true)\\b"
+    },
+    {
+      "name": "string.quoted.double.xsmp",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.xsmp",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "constant.numeric.xsmp",
+      "match": "[+-]?\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?\\b"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.xsmp",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.line.xsmp",
+          "begin": "//",
+          "end": "(?=$)"
+        }
+      ]
+    }
+  }
+}

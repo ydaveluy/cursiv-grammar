@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Stacktrace",
+  "scopeName": "source.stacktrace",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#file"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.stacktrace",
+      "match": "\\b(at|more)\\b|Caused by:|Native Method|Unknown Source|<init>"
+    },
+    "numbers": {
+      "name": "constant.numeric.stacktrace",
+      "match": "\\b[0-9]+\\b"
+    },
+    "file": {
+      "name": "string.unquoted.stacktrace",
+      "match": "\\b[A-Za-z0-9_]+\\.java\\b"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Guitartab",
+  "scopeName": "source.guitartab",
+  "patterns": [
+    {
+      "include": "#note"
+    },
+    {
+      "include": "#mark"
+    },
+    {
+      "include": "#bar"
+    }
+  ],
+  "repository": {
+    "note": {
+      "name": "entity.name.tag.guitartab",
+      "match": "[A-Ga-g]"
+    },
+    "mark": {
+      "name": "keyword.other.guitartab",
+      "match": "[xo]"
+    },
+    "bar": {
+      "name": "punctuation.separator.guitartab",
+      "match": "\\|"
+    }
+  }
+}

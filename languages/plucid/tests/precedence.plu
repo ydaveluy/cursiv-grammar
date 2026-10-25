@@ -1,0 +1,21 @@
+[%
+    2 + 3 * 4,
+    2 ** 3 ** 2,
+    a ˆ b ˆ c,
+    1 :: 2 :: 3,
+    not a and b,
+    a and b or c,
+    1 + 2 eq 3 < 4,
+    (2 + 3) * 4,
+    f
+    where
+      f = 1 fby f + g;
+      g = 0 fby f;
+    end,
+    result
+    where
+      w is current 5;
+      scale(x) = x * w;
+      result = scale(10);
+    end
+%]

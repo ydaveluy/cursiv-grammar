@@ -1,0 +1,11 @@
+# The grammar itself: every document under example/ parses clean.
+add_executable(rpn_grammar_test grammar_test.cpp)
+target_link_libraries(rpn_grammar_test PRIVATE rpnCore)
+target_compile_definitions(rpn_grammar_test PRIVATE
+    CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
+    CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(NAME rpn_grammar_test COMMAND rpn_grammar_test)
+
+# ...and the command line reads one of the same documents.
+add_test(NAME rpn_cli_test COMMAND rpn_cli
+         ${PROJECT_SOURCE_DIR}/example/simple.rpn)

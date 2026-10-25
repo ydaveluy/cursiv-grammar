@@ -1,0 +1,63 @@
+# lrc
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/lrc/core/LrcGrammar.hpp` |
+| The AST | `src/lrc/core/ast.hpp` |
+| Validation checks | `src/lrc/core/validation/` |
+| Services of your own | `src/lrc/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/lrc/cli/main.cpp` |
+| LSP features | `src/lrc/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+```
+[00:12.00]Line 1 lyrics
+[00:17.20]Line 2 lyrics
+[00:21.10]Line 3 lyrics
+```
+
+An [LRC](https://en.wikipedia.org/wiki/LRC_(file_format)) file is a sequence
+of timestamped lyric lines. `Document.lines` holds one `Line` per
+`[mm:ss.hh]text`: `minutes`, `seconds` and `hundredths` are read as separate
+numbers, and `text` is everything up to the end of the line — brackets
+included, since nothing after the first `]` opens a new timestamp.
+
+## The command line
+
+```bash
+./build/src/lrc_cli example/example1.lrc
+./build/src/lrc_cli --dump example/example1.lrc   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`lrc_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

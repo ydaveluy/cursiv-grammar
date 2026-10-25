@@ -1,0 +1,43 @@
+context Sample inv named: self.value > 0
+
+context Vehicle::wheelCount: Integer init: 0 derive: self.axles->size() * 2
+
+/* a block comment
+   spanning lines */
+context Catalog inv: let prices : Sequence(Real) = self.items->collect(i | i.price), total : Real = prices->sum() in
+    total > 0 and (total < 1000 or total = 1000)
+
+context Registry inv: self.lookup['key'] <> null
+
+context Registry inv: commonSuperType(self.kind).name
+
+context Warehouse inv: not self.empty and -self.count + 1 >= 0
+
+context Warehouse inv: ?self.flag or !self.other
+
+context Warehouse inv: self.items->including(1)->excluding(2)->asSet()->size() = 3
+
+context Warehouse inv: OrderedSet{1, 2, 3}->union(Bag{4, 5})->size() > 0
+
+context Warehouse inv: Map{ 1 |-> 'a', 2 |-> 'b' }->at(1) = 'a'
+
+context Warehouse inv: self.status = Status::Active
+
+context Warehouse inv:
+    if self.count = 0 then
+        if self.pending then 1 else 2 endif
+    else 3 endif
+
+context Warehouse inv: self.items->iterate( item; acc : Integer = 0 | acc + item.weight ) > 0
+
+context Function::mapper: Function(Integer, Integer) derive: self.ref
+
+context Table::cell: Map(Integer, String) derive: self.values
+
+context Node::parent: Ref(Node) derive: self.up
+
+context Literals inv: 1.5 <> null and "double quoted \n escape" <> ''
+
+context Ranges inv: (1..5)->includes(3)
+
+context Ops inv: (x mod 2) = 0 and (y div 3) > 0 and x : y and x /: y and x <: y

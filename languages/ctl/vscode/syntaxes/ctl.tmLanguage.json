@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Ctl",
+  "scopeName": "source.ctl",
+  "patterns": [
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#connectives"
+    },
+    {
+      "include": "#brackets"
+    },
+    {
+      "include": "#atomic"
+    }
+  ],
+  "repository": {
+    "operators": {
+      "name": "keyword.operator.temporal.ctl",
+      "match": "[AEXFGU]"
+    },
+    "connectives": {
+      "name": "keyword.operator.logical.ctl",
+      "match": "[∧∨⇒⇔⌐⊤⊥]"
+    },
+    "brackets": {
+      "name": "punctuation.ctl",
+      "match": "[\\[\\]()]"
+    },
+    "atomic": {
+      "name": "variable.other.ctl",
+      "match": "\\b[a-z]+\\b"
+    }
+  }
+}

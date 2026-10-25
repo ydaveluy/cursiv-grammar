@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Wat",
+  "scopeName": "source.wat",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#variables" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.semicolon.wat",
+          "match": ";;.*$"
+        },
+        {
+          "name": "comment.block.wat",
+          "begin": "\\(;",
+          "end": ";\\)"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.wat",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.wat",
+          "match": "\\\\(.|u\\{[0-9a-fA-F]+\\})"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.wat",
+      "match": "\\b(module|func|param|result|local|global|table|memory|elem|data|offset|import|export|type|start|mut|funcref|block|loop|end|if|then|else|br|br_if|br_table|return|call|call_indirect|unreachable|nop|drop|select|local\\.get|local\\.set|local\\.tee|global\\.get|global\\.set|memory\\.size|memory\\.grow|script|register|invoke|get|assert_malformed|assert_invalid|assert_unlinkable|assert_return|assert_return_canonical_nan|assert_return_arithmetic_nan|assert_trap|assert_exhaustion|input|output|binary|quote)\\b"
+    },
+    "variables": {
+      "name": "variable.other.wat",
+      "match": "\\$[A-Za-z0-9_.+\\-*/\\\\^~=<>!?@#$%&|:'`]+"
+    },
+    "numbers": {
+      "name": "constant.numeric.wat",
+      "match": "\\b(i32|i64|f32|f64)\\.(const|load\\w*|store\\w*|clz|ctz|popcnt|neg|abs|sqrt|ceil|floor|trunc\\w*|nearest|add|sub|mul|div\\w*|rem\\w*|and|or|xor|shl|shr\\w*|rotl|rotr|min|max|copysign|eqz|eq|ne|lt\\w*|le\\w*|gt\\w*|ge\\w*|wrap_i64|extend_i32_\\w|demote_f64|promote_f32|convert_i\\w+|reinterpret_\\w+)\\b|-?\\b(0x[0-9a-fA-F_]+|[0-9][0-9_]*)(\\.[0-9_]*)?([eEpP][+-]?[0-9][0-9_]*)?\\b"
+    }
+  }
+}

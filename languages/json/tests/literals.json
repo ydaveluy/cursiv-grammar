@@ -1,0 +1,6 @@
+{
+  "flags": [true, false, null],
+  "empty_object": {},
+  "empty_array": [],
+  "escapes": "quote \" backslash \\ slash \/ tab\t newline\n cr\r bs\b ff\f unicode é"
+}

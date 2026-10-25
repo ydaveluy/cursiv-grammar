@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pbm",
+  "scopeName": "source.pbm",
+  "fileTypes": ["pbm"],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#magic"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.pbm",
+      "match": "#.*$"
+    },
+    "magic": {
+      "name": "keyword.other.magic.pbm",
+      "match": "\\bP[0-9]\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.pbm",
+      "match": "[0-9]+"
+    }
+  }
+}

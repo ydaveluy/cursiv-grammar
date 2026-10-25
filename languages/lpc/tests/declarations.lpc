@@ -1,0 +1,40 @@
+inherit "/std/object";
+
+private nomask int hidden_count;
+public static mixed shared_state;
+
+private:
+
+int helper_a() {
+    return 1;
+}
+
+public:
+
+class Point {
+    int x;
+    int y;
+};
+
+int use_class() {
+    class Point p = new(class Point, x: 1, y: 2);
+    return p->x;
+}
+
+varargs void log_all(string fmt, mixed *args...) {
+    sscanf(fmt, "%s", fmt);
+}
+
+int call_parent() {
+    return ::create();
+}
+
+int call_named_parent(object dummy) {
+    return dummy::status();
+}
+
+mixed untyped_global = 1;
+
+untyped_fn() {
+    return untyped_global;
+}

@@ -1,0 +1,157 @@
+DATABASE stores@srv EXCLUSIVE
+
+GLOBALS
+DEFINE g_count INTEGER
+END GLOBALS
+
+DEFINE v_char CHAR(20)
+DEFINE v_varchar VARCHAR(30,10)
+DEFINE v_int INTEGER
+DEFINE v_dec DECIMAL(10,2)
+DEFINE v_date DATE
+DEFINE v_dt DATETIME YEAR TO MONTH
+DEFINE v_iv INTERVAL DAY TO SECOND
+DEFINE v_arr ARRAY[10] OF INTEGER
+DEFINE v_dynarr DYNAMIC ARRAY WITH 1 DIMENSIONS OF INTEGER
+DEFINE v_like LIKE customer.id
+DEFINE v_rec RECORD
+    f1 INTEGER,
+    f2 CHAR(10)
+  END RECORD
+
+MAIN
+DEFINE cur1 INTEGER
+
+CREATE TABLE customer (
+  id INTEGER NOT NULL,
+  name CHAR(30),
+  UNIQUE (id) CONSTRAINT cust_pk
+) WITH NO LOG
+
+CREATE UNIQUE INDEX cust_idx ON customer (id ASC)
+
+INSERT INTO customer (id, name) VALUES (1, "Ann")
+
+SELECT id, name INTO v_int, v_char FROM customer WHERE id = 1
+  GROUP BY id HAVING COUNT(*) > 0
+  ORDER BY id DESC
+
+UPDATE customer SET name = "Bob" WHERE id = 1
+UPDATE customer SET (id, name) = (2, "Cid") WHERE id = 2
+UPDATE customer SET * = * WHERE id = 2
+
+DELETE FROM customer WHERE id = 1
+
+LET v_int = (1,2,3)
+
+DECLARE cur1 CURSOR FOR SELECT id FROM customer
+OPEN cur1
+FETCH cur1 INTO v_int
+CLOSE cur1
+FREE cur1
+
+PREPARE stmt1 FROM "select 1 from customer"
+EXECUTE stmt1
+
+LOCK TABLE customer IN SHARE MODE
+
+WHENEVER NOT FOUND CONTINUE
+WHENEVER ANY ERROR STOP
+
+BEGIN WORK
+COMMIT WORK
+
+IF v_int BETWEEN 1 AND 10 AND v_char LIKE "A%" AND v_int IS NOT NULL THEN
+  DISPLAY v_int
+END IF
+
+IF EXISTS (SELECT 1 FROM customer WHERE id = v_int) THEN
+  DISPLAY "found"
+END IF
+
+LET v_char = v_char || "!"
+LET v_dt = v_int UNITS YEAR
+DISPLAY DAY
+DISPLAY SUM(v_int)
+LET v_arr[1] = 5
+DISPLAY v_rec.f1
+
+WHILE v_int < 10
+  LET v_int = v_int + 1
+END WHILE
+
+FOR v_int = 1 TO 10 STEP 2
+  DISPLAY v_int
+END FOR
+
+FOREACH cur1 INTO v_int
+  DISPLAY v_int
+END FOREACH
+
+CASE v_int
+  WHEN 1
+    DISPLAY "one"
+  OTHERWISE
+    DISPLAY "other"
+END CASE
+
+ALLOCATE ARRAY v_dynarr[5]
+RESIZE ARRAY v_dynarr[10]
+DEALLOCATE ARRAY v_dynarr
+INITIALIZE v_int TO NULL
+VALIDATE v_int LIKE v_int
+LOCATE v_int IN MEMORY
+FREE v_int
+
+DEFER INTERRUPT
+SLEEP 1
+RUN "ls"
+
+DISPLAY "Hello" AT 1,1 ATTRIBUTE(REVERSE)
+INPUT v_int FROM v_int ATTRIBUTE(BOLD)
+DISPLAY ARRAY v_arr TO v_arr
+INPUT ARRAY v_arr FROM v_arr
+
+MENU "Main Menu"
+  COMMAND "Add"
+    CALL do_add()
+  COMMAND "Quit"
+    EXIT MENU
+END MENU
+
+CONSTRUCT BY NAME v_int ON id
+
+PROMPT "Enter value:" FOR v_int
+
+ERROR "An error occurred"
+MESSAGE "A message"
+OPTIONS PROMPT LINE 5, INPUT WRAP
+
+CALL goto_demo() RETURNING v_int
+END MAIN
+
+FUNCTION do_add()
+  DISPLAY "adding"
+END FUNCTION
+
+FUNCTION goto_demo()
+DEFINE i INTEGER
+  LET i = 0
+  lbl1:
+  LET i = i + 1
+  IF i < 3 THEN
+    GOTO lbl1
+  END IF
+  RETURN i
+END FUNCTION
+
+REPORT customer_report(p_title)
+DEFINE line_count INTEGER
+OUTPUT REPORT TO PRINTER
+ORDER BY id
+FORMAT
+  FIRST PAGE HEADER
+    PRINT COLUMN 1, p_title
+  ON EVERY ROW
+    PRINT id
+END REPORT

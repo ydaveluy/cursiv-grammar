@@ -1,0 +1,69 @@
+// Constructs trap_test.tc and hello.c do not exercise: struct/enum types,
+// declarators, initializers, and the C23/GNU forms this port accepts.
+
+typedef struct Point {
+    int x, y;
+} Point;
+
+enum Color { RED, GREEN = 4, BLUE };
+
+struct Box {
+    Point origin;
+    unsigned width : 12;
+    unsigned height : 12;
+    _Static_assert(1, "always true");
+};
+
+static const int primes[5] = { 2, 3, 5, 7, 11 };
+static Point origin = { .x = 0, .y = 0 };
+static int matrix[2][2] = { [0] = { 1, 2 }, [1] = { 3, 4 } };
+
+int (*fp)(int, int);
+int *make_ints(int n);
+
+_Static_assert(sizeof(int) <= sizeof(long), "int no wider than long");
+
+asm("nop");
+
+int classify(int n) {
+    switch (n) {
+        case 0:
+            return 0;
+        case 1:
+        case 2:
+            return 1;
+        default:
+            break;
+    }
+    return -1;
+}
+
+int sum_positive(const int *values, int count) {
+    int total = 0;
+    for (int i = 0; i < count; i++) {
+        if (values[i] < 0) continue;
+        total += values[i];
+    }
+    return total;
+}
+
+const char *describe(int kind) {
+    typeof(kind) local = kind;
+    bool ok = local != 0;
+    return _Generic(local, int: ok ? "set" : __func__, default: "?");
+}
+
+int align_demo(void) {
+    Point p = (Point){ .x = 1, .y = 2 };
+    __asm__ volatile ("nop");
+    return alignof(Point) + p.x;
+}
+
+int loop_demo(void) {
+    int i = 0;
+    retry:
+    while (i < 3) {
+        i++;
+    }
+    return i;
+}

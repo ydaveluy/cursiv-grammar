@@ -1,0 +1,34 @@
+cd_full =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = dbhost)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVICE_NAME = orcl.example.com)
+      (INSTANCE_NAME = orcl1)
+      (FAILOVER_MODE =
+        (TYPE = SELECT)
+        (METHOD = PRECONNECT)
+        (BACKUP = backup.example.com)
+        (RETRIES = 5)
+        (DELAY = 3)
+      )
+      (GLOBAL_NAME = orcl_global.example.com)
+      (HS = OK)
+      (SERVER = DEDICATED)
+      (UR = A)
+    )
+  )
+
+cd_sid_and_rdb =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = dbhost)(PORT = 1521))
+    (CONNECT_DATA =
+      (SID = orcl)
+      (RDB_DATABASE = [.mf]mf_personal.rdb)
+    )
+  )
+
+cd_rdb_no_bracket =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = dbhost)(PORT = 1521))
+    (CONNECT_DATA = (RDB_DATABASE = mf_personal.rdb))
+  )

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Bencoding",
+  "scopeName": "source.bencoding",
+  "patterns": [
+    {
+      "include": "#integer"
+    },
+    {
+      "include": "#string-length"
+    }
+  ],
+  "repository": {
+    "integer": {
+      "name": "constant.numeric.integer.bencoding",
+      "match": "i-?[0-9]+e"
+    },
+    "string-length": {
+      "name": "constant.numeric.string-length.bencoding",
+      "match": "[0-9]+(?=:)"
+    }
+  }
+}

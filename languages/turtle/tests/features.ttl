@@ -1,0 +1,35 @@
+# Directives: '@'-forms (dot-terminated) and the SPARQL-style forms (not).
+@prefix ex: <http://example.org/> .
+@prefix : <http://example.org/default/> .
+@base <http://example.org/base/> .
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+BASE <http://example.org/other/>
+
+# A labelled blank node, and the anonymous `[]` form.
+_:b1 ex:knows _:b2 .
+ex:Anon ex:linkedTo [] .
+
+# The `a` shorthand, a collection, numeric literals (int/decimal/double,
+# signed), a boolean, a language-tagged literal and a typed one.
+ex:Alice a foaf:Person ;
+    ex:age 42 ;
+    ex:balance -3.5 ;
+    ex:score +1.0e3 ;
+    ex:active true ;
+    ex:name "Alice"@en ;
+    ex:id "007"^^ex:Code ;
+    ex:favorites ( "a" "b" 3 ) ;
+    ex:home [ ex:city "Paris" ; ex:zip 75000 ] .
+
+# Long strings, single- and double-quoted, holding raw quotes and a newline.
+ex:Bio ex:text '''She said "hi"
+across two lines''' .
+ex:Bio2 ex:text """It's a test
+with an embedded ' quote""" .
+
+# Escaped and percent-encoded local names.
+ex:a\-b ex:has ex:100\%mark .
+
+# The default (empty) prefix, and a prefix written with no local part.
+:thing a ex:Thing .
+ex: ex:describes "the bare-colon IRI" .

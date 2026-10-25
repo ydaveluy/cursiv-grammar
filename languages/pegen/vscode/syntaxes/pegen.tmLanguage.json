@@ -1,0 +1,68 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pegen",
+  "scopeName": "source.pegen",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#meta" },
+    { "include": "#strings" },
+    { "include": "#action" },
+    { "include": "#keywords" },
+    { "include": "#rulename" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.pegen",
+      "match": "#.*$"
+    },
+    "meta": {
+      "match": "(@)([a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "punctuation.definition.annotation.pegen" },
+        "2": { "name": "entity.name.tag.pegen" }
+      }
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.pegen",
+          "begin": "'''",
+          "end": "'''"
+        },
+        {
+          "name": "string.quoted.triple.pegen",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.single.pegen",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.pegen", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.double.pegen",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.pegen", "match": "\\\\." }]
+        }
+      ]
+    },
+    "action": {
+      "name": "meta.embedded.block.c.pegen",
+      "begin": "\\{",
+      "end": "\\}",
+      "patterns": [{ "include": "#action" }]
+    },
+    "keywords": {
+      "name": "keyword.control.pegen",
+      "match": "\\bmemo\\b"
+    },
+    "rulename": {
+      "match": "^\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "entity.name.function.pegen" }
+      }
+    }
+  }
+}

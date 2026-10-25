@@ -1,0 +1,12 @@
+ply
+format ascii 1.0
+element samples 2
+property short n
+property list uchar float xs
+element metadata 1
+property list uchar int xs
+property double n
+end_header
+7 2 1.5 -0.0
+-8 0
+3 0 2147483647 -2147483648 5.0

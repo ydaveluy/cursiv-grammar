@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Muddb",
+  "scopeName": "source.muddb",
+  "patterns": [
+    {
+      "include": "#end"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "end": {
+      "name": "keyword.control.muddb",
+      "match": "^\\*\\*\\*END OF DUMP\\*\\*\\*$"
+    },
+    "numbers": {
+      "name": "constant.numeric.muddb",
+      "match": "^-?[0-9]+$"
+    }
+  }
+}

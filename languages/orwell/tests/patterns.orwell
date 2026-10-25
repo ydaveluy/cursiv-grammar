@@ -1,0 +1,7 @@
+headOf (Cons x xs) = x
+
+firstOf (x, y) = x
+
+firstList [x, y] = x
+
+withLocal x = y where y = x

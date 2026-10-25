@@ -1,0 +1,67 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Golang",
+  "scopeName": "source.golang",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.golang",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.golang",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.golang",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.golang", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.raw.golang",
+          "begin": "`",
+          "end": "`"
+        },
+        {
+          "name": "string.quoted.single.golang",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.golang", "match": "\\\\." }]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.golang",
+          "match": "\\b(break|case|chan|continue|default|defer|else|fallthrough|for|go|goto|if|range|return|select|switch)\\b"
+        },
+        {
+          "name": "keyword.other.golang",
+          "match": "\\b(const|func|import|interface|map|package|struct|type|var)\\b"
+        },
+        {
+          "name": "constant.language.golang",
+          "match": "\\b(nil|true|false|iota)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.golang",
+      "match": "\\b(0[xXoObB])?[0-9][0-9_]*(\\.[0-9_]*)?([eEpP][+-]?[0-9_]+)?i?\\b"
+    }
+  }
+}

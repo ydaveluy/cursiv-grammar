@@ -1,0 +1,4 @@
+A description with no surrounding /** */ markers, as a tool feeds the
+content after stripping them itself.
+
+@since 1.0

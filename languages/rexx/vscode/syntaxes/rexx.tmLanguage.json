@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Rexx",
+  "scopeName": "source.rexx",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" },
+    { "include": "#operators" },
+    { "include": "#labels" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.block.rexx",
+      "begin": "/\\*",
+      "end": "\\*/",
+      "patterns": [{ "include": "#comments" }]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.rexx",
+          "begin": "\"",
+          "end": "\"|$",
+          "patterns": [{ "match": "\"\"" }]
+        },
+        {
+          "name": "string.quoted.single.rexx",
+          "begin": "'",
+          "end": "'|$",
+          "patterns": [{ "match": "''" }]
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.rexx",
+      "match": "(?i)\\b(address|arg|by|call|digits|do|drop|else|end|engineering|error|exit|expose|external|failure|for|forever|form|fuzz|halt|if|interpret|iterate|leave|name|nop|novalue|numeric|off|on|options|otherwise|parse|procedure|pull|push|queue|return|say|scientific|select|signal|source|syntax|then|to|trace|until|upper|value|var|version|when|while|with)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.rexx",
+      "match": "([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-9]+)?"
+    },
+    "operators": {
+      "name": "keyword.operator.rexx",
+      "match": "==|\\\\==|>>=|<<=|\\\\>>|\\\\<<|>>|<<|\\\\=|<>|><|>=|<=|\\\\>|\\\\<|[=+\\-*/%|&^~¬<>.,:;()]|\\|\\|"
+    },
+    "labels": {
+      "name": "entity.name.label.rexx",
+      "match": "^\\s*[A-Za-z_!?#@$][A-Za-z_!?#@$0-9.]*\\s*(?=:)"
+    }
+  }
+}

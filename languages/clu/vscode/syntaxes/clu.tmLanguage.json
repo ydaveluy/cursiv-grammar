@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Clu",
+  "scopeName": "source.clu",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.percentage.clu",
+      "match": "%.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.clu",
+      "match": "\"[^\"]*\""
+    },
+    "numbers": {
+      "name": "constant.numeric.clu",
+      "match": "\\b[0-9]+(\\.[0-9]*)?\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.clu",
+          "match": "\\b(while|do|for|in|if|then|elseif|else|tagcase|tag|others|return|yield|yields|signal|signals|exit|break|continue|begin|end|resignal|except|when)\\b"
+        },
+        {
+          "name": "keyword.other.clu",
+          "match": "\\b(proc|iter|cluster|is|returns|where|has|own|rep|routine|force|up|down|cand|cor|type)\\b"
+        },
+        {
+          "name": "storage.type.clu",
+          "match": "\\b(null|bool|int|real|char|string|any|cvt|array|sequence|record|struct|oneof|variant|proctype|itertype)\\b"
+        },
+        {
+          "name": "constant.language.clu",
+          "match": "\\b(nil|true|false)\\b"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Ebnf",
+  "scopeName": "source.ebnf",
+  "patterns": [
+    {
+      "include": "#nonterminal"
+    },
+    {
+      "include": "#assign"
+    },
+    {
+      "include": "#brackets"
+    }
+  ],
+  "repository": {
+    "nonterminal": {
+      "name": "entity.name.type.ebnf",
+      "match": "<[A-Za-z][A-Za-z0-9 -]*>"
+    },
+    "assign": {
+      "name": "keyword.operator.assignment.ebnf",
+      "match": "::="
+    },
+    "brackets": {
+      "name": "punctuation.definition.group.ebnf",
+      "match": "[\\[\\]{}()|]"
+    }
+  }
+}

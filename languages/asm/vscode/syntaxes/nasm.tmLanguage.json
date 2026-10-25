@@ -1,0 +1,51 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Nasm",
+  "scopeName": "source.nasm",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#directives" },
+    { "include": "#sizes" },
+    { "include": "#registers" },
+    { "include": "#labels" },
+    { "include": "#mnemonics" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.nasm",
+      "match": ";.*$"
+    },
+    "strings": {
+      "patterns": [
+        { "name": "string.quoted.double.nasm", "match": "\"[^\"]*\"" },
+        { "name": "string.quoted.single.nasm", "match": "'[^']*'" }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.nasm",
+      "match": "\\b(\\$[0-9A-Fa-f]+|0[xXhH][0-9A-Fa-f_]+|0[dD][0-9_]+|0[qQoO][0-7_]+|0[bByY][01_]+|[0-9][0-9_]*\\.[0-9_]*([eE][+-]?[0-9_]+)?|[0-9][0-9A-Fa-f_]*[hH]|[0-7][0-7_]*[qQoO]|[01][01_]*[bByY]|[0-9][0-9_]*[dD]?)\\b"
+    },
+    "directives": {
+      "name": "keyword.control.directive.nasm",
+      "match": "(?i)\\b(bits|use16|use32|default|section|segment|absolute|extern|required|global|common|static|cpu|float|warning|org|align|group|import|export|uppercase|safeseh|osabi|times|equ|incbin|struc|endstruc|istruc|iend|at|rel|abs|bnd|nobnd)\\b"
+    },
+    "sizes": {
+      "name": "storage.type.size.nasm",
+      "match": "(?i)\\b(byte|word|dword|qword|tword|oword|yword|zword|strict)\\b"
+    },
+    "registers": {
+      "name": "variable.language.register.nasm",
+      "match": "(?i)\\b(r[0-9]+[bwd]?|e?[abcd][xhl]|[er]?[sd]i|[er]?[bs]p|[cdefgs]s|cr[0-9]+|dr[0-9]+|tr[0-9]+|st[0-7]|mm[0-7]|x?y?zmm[0-9]+|k[0-7]|bnd[0-3])\\b"
+    },
+    "labels": {
+      "name": "entity.name.label.nasm",
+      "match": "^\\s*[a-zA-Z._?][a-zA-Z0-9_$#@~.?]*\\s*:"
+    },
+    "mnemonics": {
+      "name": "keyword.other.mnemonic.nasm",
+      "match": "(?i)^\\s*(?:[a-zA-Z._?][a-zA-Z0-9_$#@~.?]*\\s*:\\s*)?\\b(?:times\\s+\\S+\\s+)?[a-z][a-z0-9]*\\b"
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Redcode",
+  "scopeName": "source.redcode",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#modifiers"
+    },
+    {
+      "include": "#modes"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.redcode",
+      "match": ";.*$"
+    },
+    "keywords": {
+      "name": "keyword.control.redcode",
+      "match": "\\b(DAT|MOV|ADD|SUB|MUL|DIV|MOD|JMP|JMZ|JMN|DJN|CMP|SLT|SPL|ORG|DJZ)\\b"
+    },
+    "modifiers": {
+      "name": "storage.modifier.redcode",
+      "match": "\\.(AB|BA|A|B|F|X|I)\\b"
+    },
+    "modes": {
+      "name": "keyword.operator.redcode",
+      "match": "[#$@<>]"
+    },
+    "numbers": {
+      "name": "constant.numeric.redcode",
+      "match": "[+-]?\\b[0-9]+\\b"
+    }
+  }
+}

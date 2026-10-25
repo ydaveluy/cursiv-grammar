@@ -1,0 +1,3 @@
+^ conf
+
+1bad = "an identifier may not start with a digit"

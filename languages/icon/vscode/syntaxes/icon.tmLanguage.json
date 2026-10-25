@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Icon",
+  "scopeName": "source.icon",
+  "patterns": [
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keyword-refs" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.icon",
+      "match": "\\b(link|global|record|procedure|local|static|initial|end|break|create|return|suspend|do|fail|next|case|of|if|then|else|repeat|while|until|every|to|by|default|not)\\b"
+    },
+    "strings": {
+      "name": "string.quoted.double.icon",
+      "begin": "\"",
+      "end": "\""
+    },
+    "numbers": {
+      "name": "constant.numeric.icon",
+      "match": "\\b[0-9]*\\.[0-9]+([eE][0-9]+)*\\b|\\b[0-9]+\\b"
+    },
+    "keyword-refs": {
+      "name": "constant.language.icon",
+      "match": "&[a-zA-Z][a-zA-Z0-9]*"
+    },
+    "operators": {
+      "name": "keyword.operator.icon",
+      "match": ":=:|:=|<->|<-|<<=|>>=|~===|===|~==|==|~=|<=|>=|<<|>>|\\*\\*|\\+\\+|--|\\|\\|\\||\\|\\||[&?|!*+\\-./\\\\=?~@^<>%]"
+    }
+  }
+}

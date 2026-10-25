@@ -1,0 +1,1 @@
+rule r { meta: value = 0 condition: true }

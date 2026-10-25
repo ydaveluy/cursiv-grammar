@@ -1,0 +1,61 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Bison",
+  "scopeName": "source.bison",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#chars" },
+    { "include": "#tags" },
+    { "include": "#directives" },
+    { "include": "#named-ref" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.bison",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.bison",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.bison",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.bison", "match": "\\\\." }
+      ]
+    },
+    "chars": {
+      "name": "string.quoted.single.bison",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        { "name": "constant.character.escape.bison", "match": "\\\\." }
+      ]
+    },
+    "tags": {
+      "name": "storage.type.bison",
+      "match": "<[^>]*>"
+    },
+    "named-ref": {
+      "name": "variable.parameter.bison",
+      "match": "\\[[A-Za-z_$][A-Za-z0-9_$.-]*\\]"
+    },
+    "directives": {
+      "name": "keyword.control.directive.bison",
+      "match": "%[A-Za-z][A-Za-z-]*"
+    },
+    "numbers": {
+      "name": "constant.numeric.bison",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

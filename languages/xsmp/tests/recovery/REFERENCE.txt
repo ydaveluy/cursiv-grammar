@@ -1,0 +1,14 @@
+valid.xsmpcat	acc=1 cov=1 rec=0 tok=63/63 inv=0
+01_typo1.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=1 rep:namespace@156<Expecting 'namespace' but found 'namspace'.>
+02_typo2.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=1 rep:struct@529<Expecting 'struct' but found 'sturct'.>
+03_closer_block.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=1 ins:}@456<Expecting '}'.>
+04_closer_eof.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=1 ins:}@893<Expecting '}'.>
+05_intruder.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=0 [433,434) del:INTEGER_LITERAL@433<Unexpected '=', expecting INTEGER_LITERAL.>
+06_truncated.xsmpcat	acc=1 cov=1 rec=1 tok=47/63 inv=3 ins:ID@779<Expecting ID.>
+07_two_faults.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=2 rep:primitive@238<Expecting 'primitive' but found 'primtive'.> ins:}@892<Expecting '}'.>
+08_head_fault.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=1 rep:catalogue@140<Expecting 'catalogue' but found 'cataogue'.>
+09_list_delim.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=1 ins:,@435<Expecting ','.>
+10_noise.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=0 [342,343) [343,344) [344,345) [346,347) [347,348) [348,349) [350,351) [351,352) [352,353) del:public@342<Unexpected '%%% ??? %%%', expecting 'public'.>
+11_head_typo.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=1 rep:public@312<Expecting 'public' but found 'ublic'.>
+12_close_typos.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=2 rep:catalogue@0<Expecting 'catalogue' but found 'cataloue'.> rep:namespace@15<Expecting 'namespace' but found 'namspace'.>
+13_typo_shared_prefix.xsmpcat	acc=1 cov=1 rec=1 tok=63/63 inv=1 rep:primitive@238<Expecting 'primitive' but found 'priitive'.>

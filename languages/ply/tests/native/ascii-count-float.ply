@@ -1,0 +1,6 @@
+ply
+format ascii 1.0
+element custom 1
+property list float double a
+end_header
+2.0 1.5 2.5

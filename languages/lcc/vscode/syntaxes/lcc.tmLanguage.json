@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lcc",
+  "scopeName": "source.lcc",
+  "patterns": [
+    {
+      "include": "#cutter"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#letter"
+    }
+  ],
+  "repository": {
+    "cutter": {
+      "match": "(\\.)([A-Z])([0-9]+)",
+      "captures": {
+        "1": {
+          "name": "punctuation.separator.lcc"
+        },
+        "2": {
+          "name": "entity.name.function.lcc"
+        },
+        "3": {
+          "name": "constant.numeric.lcc"
+        }
+      }
+    },
+    "number": {
+      "name": "constant.numeric.lcc",
+      "match": "[0-9]+"
+    },
+    "letter": {
+      "name": "support.class.lcc",
+      "match": "[A-Z]"
+    }
+  }
+}

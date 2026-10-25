@@ -1,0 +1,26 @@
+<* Exercises constructs the bundled grammars-v4 corpus does not: the
+   angle-bracket comment, a decimal literal, the ">" branch of Evaluate,
+   a For loop with no Step clause, and set/readonly on a property. *>
+import SCC_APP:UTIL:*;
+
+class Sample
+   property number Rate get set;
+   property string Label get readonly;
+   method Compute(&n As number) Returns number;
+end-class;
+
+method Compute
+   Local number &total = 0;
+   Local number &pi = 3.14;
+   For &i = 1 To 10;
+      &total = &total + &i * &pi;
+   End-For;
+   Evaluate &total
+   When > 100
+      &total = 100;
+      Break;
+   When-Other
+      &total = 0;
+   End-Evaluate;
+   Return &total;
+end-method;

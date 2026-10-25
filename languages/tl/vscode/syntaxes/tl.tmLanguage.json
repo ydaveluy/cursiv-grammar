@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Tl",
+  "scopeName": "source.tl",
+  "patterns": [
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#atoms"
+    }
+  ],
+  "repository": {
+    "operators": {
+      "name": "keyword.operator.tl",
+      "match": "[GH∨⌐]"
+    },
+    "atoms": {
+      "patterns": [
+        {
+          "name": "constant.language.tl",
+          "match": "⊥"
+        },
+        {
+          "name": "variable.other.tl",
+          "match": "[a-z]+"
+        }
+      ]
+    }
+  }
+}

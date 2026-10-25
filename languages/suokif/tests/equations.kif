@@ -1,0 +1,8 @@
+; equation, string and number terms, positional and a row variable
+(documentation Foo EnglishLanguage "A cat is a feline.")
+(= (SubtractionFn 5 3) 2)
+(distance CityA CityB (MeasureFn 120.5 KilometerUnit))
+(temperature WaterAtSeaLevel (MeasureFn 1.0e2 CelsiusDegree))
+(greaterThan (SubtractionFn -5 3) -10)
+(instance ?X Animal)
+(partition Number @ROW)

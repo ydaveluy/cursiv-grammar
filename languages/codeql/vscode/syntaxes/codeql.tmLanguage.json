@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Codeql",
+  "scopeName": "source.codeql",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#annotations" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#constants" },
+    { "include": "#aggregates" },
+    { "include": "#numbers" },
+    { "include": "#dbtype" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.codeql",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.codeql",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.codeql",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.codeql",
+          "match": "\\\\(u005c)?."
+        }
+      ]
+    },
+    "annotations": {
+      "name": "storage.modifier.codeql",
+      "match": "\\b(abstract|additional|bindingset|cached|default|deprecated|external|extensible|final|implements|inline_late|inline|language|library|monotonicAggregates|nomagic|noopt|noinline|only_bind_into|only_bind_out|override|pragma|private|query|signature|transient|unique)\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.codeql",
+      "match": "\\b(and|as|asc|by|class|desc|else|exists|extends|forall|forex|from|if|implies|import|in|instanceof|module|newtype|not|or|order|predicate|select|then|where)\\b"
+    },
+    "types": {
+      "name": "storage.type.codeql",
+      "match": "\\b(boolean|date|float|int|string)\\b"
+    },
+    "constants": {
+      "name": "constant.language.codeql",
+      "match": "\\b(false|none|result|super|this|true)\\b"
+    },
+    "aggregates": {
+      "name": "support.function.codeql",
+      "match": "\\b(any|avg|concat|count|max|min|rank|strictconcat|strictcount|strictsum|sum)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.codeql",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    },
+    "dbtype": {
+      "name": "entity.name.type.codeql",
+      "match": "@[a-z][a-zA-Z0-9_]*"
+    }
+  }
+}

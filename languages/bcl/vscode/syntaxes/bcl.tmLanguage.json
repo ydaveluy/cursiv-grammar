@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Bcl",
+  "scopeName": "source.bcl",
+  "patterns": [
+    {
+      "include": "#terms"
+    }
+  ],
+  "repository": {
+    "terms": {
+      "patterns": [
+        {
+          "name": "constant.language.k.bcl",
+          "match": "00"
+        },
+        {
+          "name": "constant.language.s.bcl",
+          "match": "01"
+        },
+        {
+          "name": "keyword.operator.apply.bcl",
+          "match": "1"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,6 @@
+# a bare scalar group, a quoted-string key, an integer key, and all three
+# accessors chained -- constructs the Aleran corpus does not exercise
+flags = { enabled }
+"quoted key" = 1
+42 = "answer"
+path = a.b@c:d

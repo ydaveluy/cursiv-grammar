@@ -1,0 +1,84 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Less",
+  "scopeName": "source.less",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#variables"
+    },
+    {
+      "include": "#interpolation"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#colors"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#at-rules"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.less",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.less",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.less",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.less",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "variables": {
+      "name": "variable.other.less",
+      "match": "@@?[A-Za-z_.][A-Za-z0-9_.-]*"
+    },
+    "interpolation": {
+      "name": "variable.parameter.less",
+      "match": "@\\{[A-Za-z_.][A-Za-z0-9_.-]*\\}"
+    },
+    "keywords": {
+      "name": "keyword.control.less",
+      "match": "\\b(when|and|not|reference|inline|less|css|once|multiple)\\b"
+    },
+    "colors": {
+      "name": "constant.other.color.less",
+      "match": "#[0-9a-fA-F]{3,8}\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.less",
+      "match": "-?[0-9]*\\.?[0-9]+(%|px|cm|mm|in|pt|pc|em|ex|deg|rad|grad|ms|s|hz|khz)?\\b"
+    },
+    "at-rules": {
+      "name": "keyword.control.at-rule.less",
+      "match": "@import\\b"
+    }
+  }
+}

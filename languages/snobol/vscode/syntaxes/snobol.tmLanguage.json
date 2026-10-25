@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "SNOBOL4",
+  "scopeName": "source.snobol",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.asterisk.snobol",
+      "match": "^\\s*\\*.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.snobol",
+          "match": "\"[^\"\\r\\n]*\""
+        },
+        {
+          "name": "string.quoted.single.snobol",
+          "match": "'[^'\\r\\n]*'"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.snobol",
+          "match": "\\bEND\\b"
+        },
+        {
+          "name": "support.function.snobol",
+          "match": "\\b(ident|differ|eq|ne|ge|le|lt|integer|lgt|atan|chop|cos|exp|ln|remdr|sin|tan|date|dupl|reverse|replace|size|trim|array|sort|table|break)(?=\\()"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.snobol",
+      "match": "[+-]?[0-9]+"
+    },
+    "operators": {
+      "name": "keyword.operator.snobol",
+      "match": "[+\\-*/^=:&]"
+    }
+  }
+}

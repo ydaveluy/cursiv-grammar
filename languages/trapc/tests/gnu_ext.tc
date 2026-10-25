@@ -1,0 +1,20 @@
+// _Countof/_Maxof/_Minof (mirroring sizeof/alignof), GCC address-of-label,
+// a __label__ local label declaration, and the Blocks `^` pointer.
+
+int counts(int arr[10]) { return _Countof(arr) + _Countof(int[4]); }
+
+int limits(void) { return _Maxof(int) - _Minof(int); }
+
+void *label_addr(void) {
+    start:
+    return &&start;
+}
+
+int local_labels(void) {
+    __label__ done;
+    int i = 0;
+    done: ;
+    return i;
+}
+
+typedef void (^BlockPtr)(int);

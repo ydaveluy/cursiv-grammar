@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lrc",
+  "scopeName": "source.lrc",
+  "fileTypes": ["lrc"],
+  "patterns": [
+    {
+      "include": "#timestamp"
+    }
+  ],
+  "repository": {
+    "timestamp": {
+      "begin": "(\\[)(\\d+)(:)(\\d+)(\\.)(\\d+)(\\])",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.timestamp.begin.lrc" },
+        "2": { "name": "constant.numeric.minutes.lrc" },
+        "3": { "name": "punctuation.separator.lrc" },
+        "4": { "name": "constant.numeric.seconds.lrc" },
+        "5": { "name": "punctuation.separator.lrc" },
+        "6": { "name": "constant.numeric.hundredths.lrc" },
+        "7": { "name": "punctuation.definition.timestamp.end.lrc" }
+      },
+      "end": "$",
+      "name": "string.unquoted.lyric.lrc"
+    }
+  }
+}

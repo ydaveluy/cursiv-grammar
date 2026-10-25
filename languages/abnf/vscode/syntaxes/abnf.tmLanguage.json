@@ -1,0 +1,58 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Abnf",
+  "scopeName": "source.abnf",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#rulename"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numvals"
+    },
+    {
+      "include": "#prose"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.abnf",
+      "match": ";.*$"
+    },
+    "rulename": {
+      "match": "^\\s*([A-Za-z][A-Za-z0-9\\-_]*)\\s*(=/?)",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.abnf"
+        },
+        "2": {
+          "name": "keyword.operator.abnf"
+        }
+      }
+    },
+    "operators": {
+      "name": "keyword.operator.abnf",
+      "match": "=/|[=/\\[\\]()*]"
+    },
+    "strings": {
+      "name": "string.quoted.double.abnf",
+      "match": "(%[si])?\"[^\"]*\""
+    },
+    "numvals": {
+      "name": "constant.numeric.abnf",
+      "match": "%[bdxBDX][0-9A-Fa-f]+((\\.[0-9A-Fa-f]+)+|-[0-9A-Fa-f]+)?"
+    },
+    "prose": {
+      "name": "string.other.prose.abnf",
+      "match": "<[^>]*>"
+    }
+  }
+}

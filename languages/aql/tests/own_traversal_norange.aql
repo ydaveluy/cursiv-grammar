@@ -1,0 +1,2 @@
+FOR v IN ANY "start/1" GRAPH "g"
+  RETURN v

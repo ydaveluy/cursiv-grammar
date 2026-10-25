@@ -1,0 +1,6 @@
+/ab*c/ AND field=value
+price>=10 OR age<=30
+"quoted \"inside\"" && lucene
+title:["Aida" TO Carmen}
+NOT jakarta || ! lucene
+roam~0.8^2

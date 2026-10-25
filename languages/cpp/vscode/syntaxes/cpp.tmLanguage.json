@@ -1,0 +1,93 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "cpp",
+  "scopeName": "source.cpp",
+  "fileTypes": [
+    "cpp"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "name": "meta.preprocessor.cpp",
+      "match": "^\\s*#.*$"
+    },
+    {
+      "name": "keyword.control.cpp",
+      "match": "\\b(break|case|catch|continue|default|do|else|for|goto|if|return|switch|throw|try|while)\\b"
+    },
+    {
+      "name": "keyword.operator.word.cpp",
+      "match": "\\b(and|or|not|new|delete|sizeof|alignof|typeid|noexcept|const_cast|dynamic_cast|reinterpret_cast|static_cast)\\b"
+    },
+    {
+      "name": "keyword.other.cpp",
+      "match": "\\b(alignas|asm|class|struct|union|enum|namespace|template|typename|using|friend|operator|explicit|export|extern|inline|virtual|override|final|mutable|static_assert|thread_local|typedef)\\b"
+    },
+    {
+      "name": "storage.type.cpp",
+      "match": "\\b(auto|bool|char|char16_t|char32_t|decltype|double|float|int|long|short|signed|unsigned|void|wchar_t)\\b"
+    },
+    {
+      "name": "storage.modifier.cpp",
+      "match": "\\b(const|constexpr|register|static|volatile)\\b"
+    },
+    {
+      "name": "constant.language.cpp",
+      "match": "\\b(true|false|nullptr|this)\\b"
+    },
+    {
+      "name": "storage.type.access.cpp",
+      "match": "\\b(public|protected|private)\\b"
+    },
+    {
+      "name": "string.quoted.double.cpp",
+      "begin": "(u8|[LuU])?R?\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "include": "#escapes"
+        }
+      ]
+    },
+    {
+      "name": "string.quoted.single.cpp",
+      "begin": "[LuU]?'",
+      "end": "'",
+      "patterns": [
+        {
+          "include": "#escapes"
+        }
+      ]
+    },
+    {
+      "name": "constant.numeric.cpp",
+      "match": "\\b(0[xX][0-9a-fA-F']+|0[bB][01']+|\\d[\\d']*(\\.[\\d']*)?([eE][+-]?[\\d']+)?)([uUlLfF]+)?"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.cpp",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.line.cpp",
+          "begin": "//",
+          "end": "(?=$)"
+        }
+      ]
+    },
+    "escapes": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.cpp",
+          "match": "\\\\(x[0-9a-fA-F]+|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|[0-7]{1,3}|.)"
+        }
+      ]
+    }
+  }
+}

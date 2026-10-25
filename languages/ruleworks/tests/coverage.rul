@@ -1,0 +1,121 @@
+(declaration-block |coverage|)
+
+(rule-group |g1|)
+(end-group |g1|)
+
+(object-class base
+    ^id)
+
+(object-class widget (inherits-from base)
+    ^count integer (default 0)
+    ^tag (default |none|)
+    ^data compound (default (compound 1 2 3))
+    ^owner instance of base
+    ^kind any
+    ^ratio float
+    ^blob opaque
+    ^label symbol (fill |x|))
+
+(external-routine my-func
+    (alias-for |MYFUNC|)
+    (accepts <x> long
+             <y> [10] short by reference read-only
+             <z> single-float by value)
+    (returns long by reference))
+
+(generic-method my-gm
+    (accepts <self> when instance of base
+             <n> integer)
+    (returns <r> integer))
+
+(method my-gm
+    (accepts <self> when instance of widget
+             <n> integer)
+    (returns <r> integer)
+    (bind <r> <n>))
+
+(catch |oops|
+    (write |caught| (crlf)))
+
+(entry-block |main|
+    (accepts <argc> long)
+    (returns long)
+    (uses my-func)
+    (strategy lex))
+
+(on-entry
+    (@ startup-step)
+    (make widget ^id 1 ^count 0))
+
+(on-empty
+    (write |empty| (crlf)))
+
+(on-exit
+    (write |bye| (crlf)))
+
+(on-every
+    (write |tick| (crlf)))
+
+(rule-block |rb1| (strategy mea))
+
+(rule two-token-predicates
+    (widget ^data { [+] == <x> })
+    (widget ^data { [-] <> <y> })
+    (widget ^data { == [+] <z> })
+    (widget ^data { <> [-] <w> })
+  -->
+    (write |ok|))
+
+(rule basic-rule
+    (widget ^id <id> ^count { > 0 <= 100 })
+    -(base ^id <id>)
+    <<(widget ^kind |a|)
+      (widget ^kind |b|)>>
+  -->
+    (bind <total> (<id> + 1))
+    (if (<id> == 1) then
+        (write |one| (crlf))
+      else
+        (write |other| (crlf)))
+    (while (<id> <= 3) do
+        (bind <id> (<id> + 1)))
+    (for-each <w> in (every widget)
+        (write <w> (crlf)))
+    (modify <id> ^count[1] (subcompound <id> 1 2))
+    (specialize <id> widget ^count (nth <id> 1))
+    (copy <id> ^count (get <id> ^count))
+    (default <id> 0)
+    (bind <s> (subsymbol <id> 1 2))
+    (bind <p> (position <id> == <id>))
+    (addstate |s1|)
+    (restorestate |s1|)
+    (savestate |s1|)
+    (after 10 |ev|)
+    (openfile <fh> |f.txt| |r|)
+    (closefile <fh>)
+    (remove-every widget)
+    (call-inherited <id>)
+    (trace on *)
+    (debug)
+    (sql-attach filename |db|)
+    (sql-start)
+    (sql-insert widget <id> = <id>)
+    (sql-insert-from-object <id>)
+    (sql-update widget <id> = <id>)
+    (sql-update-from-object <id> <id> = <id>)
+    (sql-delete widget <id> = <id>)
+    (sql-fetch-each <id> (<id> = <id>)
+        (write <id> (crlf)))
+    (bind <o> (sql-fetch-as-object <id> = <id>))
+    (sql-commit)
+    (sql-rollback)
+    (sql-detach)
+    (quit $failure))
+
+(rule open-ended-rule
+    (base ^id <id> -->
+    (widget ^count <id>)
+  -->
+    (write <id> (crlf)))
+
+(end-block |main|)

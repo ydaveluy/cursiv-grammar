@@ -1,0 +1,8 @@
+PREFIX ex: <http://example.org/ns#>
+
+SELECT REDUCED * FROM <http://example.org/graph> FROM NAMED <http://example.org/named>
+WHERE {
+	?x ex:p ?y
+}
+OFFSET 1
+LIMIT 5

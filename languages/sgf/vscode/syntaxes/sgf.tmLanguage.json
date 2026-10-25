@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sgf",
+  "scopeName": "source.sgf",
+  "patterns": [
+    { "include": "#node" },
+    { "include": "#tree" },
+    { "include": "#property" }
+  ],
+  "repository": {
+    "tree": {
+      "name": "punctuation.section.group.sgf",
+      "match": "[()]"
+    },
+    "node": {
+      "name": "punctuation.terminator.sgf",
+      "match": ";"
+    },
+    "property": {
+      "patterns": [
+        {
+          "name": "keyword.other.sgf",
+          "match": "\\b(W|B|KO|MN|AB|AE|AW|PL|C|DM|GB|GW|HO|N|UC|V|BM|DO|IT|TE|AR|CR|DD|LB|LN|MA|SL|SQ|TR|AP|CA|FF|GM|ST|SZ|AN|BR|BT|CP|DT|EV|GN|GC|ON|OT|PB|PC|PW|RE|RO|RU|SO|TM|US|WR|WT|BL|OB|OW|WL|FG|PM|VW|AS|IP|IY|SE|SU|HA|KM|TB|TW)(?=\\[)"
+        },
+        {
+          "name": "entity.name.tag.sgf",
+          "match": "\\b[A-Z][A-Z]+(?=\\[)"
+        },
+        { "include": "#value" }
+      ]
+    },
+    "value": {
+      "name": "string.quoted.bracket.sgf",
+      "begin": "\\[",
+      "end": "\\]",
+      "patterns": [
+        {
+          "name": "constant.character.escape.sgf",
+          "match": "\\\\."
+        }
+      ]
+    }
+  }
+}

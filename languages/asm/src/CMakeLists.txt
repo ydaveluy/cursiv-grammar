@@ -1,0 +1,45 @@
+# `ID` names the targets and generated directory; `NAMESPACE` names the
+# grammar type, and everything else follows from it. Defines
+# `nasmGenerated` (the compiled library) and `nasm_generate`
+# (writes the sources without compiling them).
+cursiv_generate_language(ID nasm
+    GRAMMAR    nasm/core/NasmGrammar.hpp
+    NAMESPACE  nasm::Nasm
+    EXTENSIONS .asm
+    OUT        nasm/generated)
+
+# The mnemonic and register vocabularies alone are ~2450 terminals, past the
+# default 8-word (512-bit) ceiling of the generator's per-state terminal
+# sets; cursivLrGen (linked into nasm_gen) builds the tables, so it needs
+# the same raised ceiling.
+target_compile_definitions(nasm_gen PRIVATE CURSIV_SET_WORDS=64u)
+if(TARGET cursivLrGen)
+  target_compile_definitions(cursivLrGen PRIVATE CURSIV_SET_WORDS=64u)
+endif()
+
+# The core storey: what the author writes over the generated module -- the
+# services container and the validation checks. The grammar is not compiled
+# here; the generated module holds everything derived from it.
+file(GLOB_RECURSE _core CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_SOURCE_DIR}/nasm/core/*.cpp)
+add_library(nasmCore ${_core})
+target_link_libraries(nasmCore PUBLIC nasmGenerated)
+
+file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_SOURCE_DIR}/nasm/cli/*.cpp)
+add_executable(nasm_cli ${_cli})
+target_link_libraries(nasm_cli
+                      PRIVATE nasmCore cursiv::cli)
+
+# The language server.
+file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_SOURCE_DIR}/nasm/lsp/*.cpp)
+list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/nasm/lsp/main.cpp)
+add_library(nasmLsp ${_lsp})
+target_link_libraries(nasmLsp PUBLIC nasmCore cursiv::lsp)
+add_executable(nasm_lsp nasm/lsp/main.cpp)
+target_link_libraries(nasm_lsp PRIVATE nasmLsp)
+
+cursiv_add_benchmark(nasm SOURCES nasm/bench/main.cpp)
+
+cursiv_package_language(nasm)

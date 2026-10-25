@@ -1,0 +1,8 @@
+fun inc n = + n 1
+fun double x = * x 2
+five = 5
+diff = - five 2
+quotient = / five 2
+weird = 1.2.3
+result = (double (inc five))
+(inc -5)

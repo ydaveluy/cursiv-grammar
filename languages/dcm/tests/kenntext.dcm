@@ -1,0 +1,6 @@
+KONSERVIERUNG_FORMAT 2.0
+
+TEXTSTRING BESCHREIBUNG
+LANGNAME "Description string"
+TEXT "This is a free text \"value\" with an escape."
+END

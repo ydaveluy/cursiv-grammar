@@ -1,0 +1,94 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Powerbuilderdw",
+  "scopeName": "source.powerbuilderdw",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#header"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.powerbuilderdw",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.powerbuilderdw",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "header": {
+      "name": "keyword.other.export-header.powerbuilderdw",
+      "match": "\\$[A-Za-z][A-Za-z0-9\\-#%_]*\\$.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.powerbuilderdw",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.powerbuilderdw",
+              "match": "~~|~\""
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.powerbuilderdw",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.powerbuilderdw",
+              "match": "~'"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.powerbuilderdw",
+      "match": "(?i:\\b(TABLE|COLUMN|RETRIEVE|ARGUMENTS|SORT|RELEASE|TRUE|FALSE|NULL|CASE|DYNAMIC|ON|TO|FROM|REF|OPEN|GOTO|CLOSE|CREATE|DESTROY|SELECT|DELETE|INSERT|DESCRIBE|HALT|SUPER|READONLY|UPDATE)\\b)"
+    },
+    "types": {
+      "name": "storage.type.powerbuilderdw",
+      "match": "(?i:\\b(ANY|BLOB|BOOLEAN|BYTE|CHARACTER|CHAR|DATE|DATETIME|DECIMAL|DEC|DOUBLE|INTEGER|INT|LONGLONG|LONG|REAL|STRING|TIME|UNSIGNEDINTEGER|UINT|UNSIGNEDLONG|ULONG|WINDOW|TYPE)\\b)"
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.date.powerbuilderdw",
+          "match": "\\b\\d{4}-\\d{2}-\\d{2}\\b"
+        },
+        {
+          "name": "constant.numeric.time.powerbuilderdw",
+          "match": "\\b\\d{2}:\\d{2}:\\d{2}(:\\d{6})?\\b"
+        },
+        {
+          "name": "constant.numeric.powerbuilderdw",
+          "match": "(?i:\\b(\\d+\\.\\d+|\\.\\d+|\\d+)(E[+-]?\\d+)?[DF]?\\b)"
+        }
+      ]
+    }
+  }
+}

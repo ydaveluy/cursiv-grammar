@@ -1,0 +1,71 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pest",
+  "scopeName": "source.pest",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#modifiers"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#ranges"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#rule-decl"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.pest",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.pest",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.pest",
+      "match": "\\b(PUSH|PEEK)\\b"
+    },
+    "modifiers": {
+      "name": "storage.modifier.pest",
+      "match": "(?<==)\\s*[_@$!](?=\\{)"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.pest",
+          "match": "\\^?\"(\\\\.|[^\"\\\\\\r\\n])*\""
+        }
+      ]
+    },
+    "ranges": {
+      "name": "constant.character.pest",
+      "match": "'(\\\\.|[^'\\\\])'\\s*\\.\\.\\s*'(\\\\.|[^'\\\\])'"
+    },
+    "numbers": {
+      "name": "constant.numeric.pest",
+      "match": "\\b[0-9]+\\b"
+    },
+    "rule-decl": {
+      "name": "entity.name.function.pest",
+      "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*(?==)"
+    }
+  }
+}

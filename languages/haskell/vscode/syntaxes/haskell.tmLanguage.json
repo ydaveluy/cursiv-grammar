@@ -1,0 +1,61 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Haskell",
+  "scopeName": "source.haskell",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#pragmas" },
+    { "include": "#strings" },
+    { "include": "#chars" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.haskell",
+          "match": "--.*$"
+        },
+        {
+          "name": "comment.block.haskell",
+          "begin": "\\{-",
+          "end": "-\\}",
+          "patterns": [
+            { "include": "#comments" }
+          ]
+        }
+      ]
+    },
+    "pragmas": {
+      "name": "meta.preprocessor.haskell",
+      "begin": "\\{-#",
+      "end": "#-\\}"
+    },
+    "strings": {
+      "name": "string.quoted.double.haskell",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.haskell", "match": "\\\\." }
+      ]
+    },
+    "chars": {
+      "name": "string.quoted.single.haskell",
+      "match": "'(\\\\.|[^'\\\\])'"
+    },
+    "numbers": {
+      "name": "constant.numeric.haskell",
+      "match": "\\b(0[xX][0-9a-fA-F]+|0[oO][0-7]+|[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?)\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.haskell",
+      "match": "\\b(case|class|data|default|deriving|do|else|forall|foreign|if|import|in|infix|infixl|infixr|instance|let|mdo|module|newtype|of|pattern|rec|then|type|where)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.haskell",
+      "match": "(->|<-|=>|::|\\.\\.|=|\\||\\\\|@|~)"
+    }
+  }
+}

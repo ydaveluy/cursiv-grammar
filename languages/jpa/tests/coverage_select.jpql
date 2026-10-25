@@ -1,0 +1,12 @@
+SELECT DISTINCT NEW com.acme.OrderSummary(o.id, COUNT(i))
+FROM Order o LEFT JOIN o.items i
+WHERE o.customer.name LIKE 'A%' ESCAPE '!' AND o.total BETWEEN 10 AND 1000
+  AND o.status IN ('OPEN', 'PENDING')
+  AND o.shippedDate IS NOT NULL
+  AND o.items IS NOT EMPTY
+  AND o.owner MEMBER OF o.watchers
+  AND EXISTS (SELECT p FROM Payment p WHERE p.order = o)
+  AND o.total > ALL (SELECT d.limit FROM Discount d)
+GROUP BY o.customer.id
+HAVING COUNT(i) > 2
+ORDER BY o.total DESC

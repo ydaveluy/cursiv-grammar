@@ -1,0 +1,2 @@
+java.lang.RuntimeException: échec: bad value!
+	at demo.loader/org.demo.lib@2.1/demo.Main.run(Main.scala)

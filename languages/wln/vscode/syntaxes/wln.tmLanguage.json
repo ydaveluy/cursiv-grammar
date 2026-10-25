@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Wln",
+  "scopeName": "source.wln",
+  "patterns": [
+    { "include": "#symbols" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "symbols": {
+      "name": "support.class.symbol.wln",
+      "match": "[EGIRUVCKLMNOTWXYZFHQS]"
+    },
+    "numbers": {
+      "name": "constant.numeric.wln",
+      "match": "[1-9]"
+    }
+  }
+}

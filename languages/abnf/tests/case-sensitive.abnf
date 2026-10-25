@@ -1,0 +1,5 @@
+; RFC 7405's %s/%i string prefix and a binary num-val, exercised together.
+
+marker      = %s"OK" / %i"cancel"
+flag        = %b1010.1111 / %b0-1
+prose-note  = 1*3marker <a value read as prose>

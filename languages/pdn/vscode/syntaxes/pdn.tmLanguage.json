@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pdn",
+  "scopeName": "source.pdn",
+  "fileTypes": [
+    "pdn"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#tags"
+    },
+    {
+      "include": "#results"
+    },
+    {
+      "include": "#moves"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.block.pdn",
+      "begin": "\\{",
+      "end": "\\}"
+    },
+    "tags": {
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.tag.begin.pdn"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.tag.end.pdn"
+        }
+      },
+      "patterns": [
+        {
+          "name": "entity.name.tag.pdn",
+          "match": "[A-Za-z][A-Za-z0-9_]+"
+        },
+        {
+          "name": "string.quoted.double.pdn",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.pdn",
+              "match": "\"\""
+            }
+          ]
+        }
+      ]
+    },
+    "results": {
+      "name": "constant.language.pdn",
+      "match": "1/2-1/2|1-0|0-1|\\*"
+    },
+    "moves": {
+      "name": "constant.other.notation.pdn",
+      "match": "\\b[0-9]+[x-][0-9]+\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.pdn",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pddl",
+  "scopeName": "source.pddl",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#sections" },
+    { "include": "#keywords" },
+    { "include": "#variables" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.pddl",
+      "match": ";.*$"
+    },
+    "sections": {
+      "name": "keyword.other.section.pddl",
+      "match": ":[a-zA-Z][a-zA-Z0-9_-]*"
+    },
+    "keywords": {
+      "name": "keyword.control.pddl",
+      "match": "\\b(define|domain|problem|either|number|and|or|not|imply|exists|forall|preference|when|at|over|start|end|all|assign|scale-up|scale-down|increase|decrease|minimize|maximize|total-time|is-violated|always|sometime|within|at-most-once|sometime-after|sometime-before|always-within|hold-during|hold-after)\\b"
+    },
+    "variables": {
+      "name": "variable.parameter.pddl",
+      "match": "\\?[a-zA-Z][a-zA-Z0-9_-]*"
+    },
+    "numbers": {
+      "name": "constant.numeric.pddl",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

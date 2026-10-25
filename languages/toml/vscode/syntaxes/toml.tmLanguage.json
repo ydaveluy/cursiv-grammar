@@ -1,0 +1,86 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Toml",
+  "scopeName": "source.toml",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#table-headers" },
+    { "include": "#strings" },
+    { "include": "#booleans" },
+    { "include": "#dates" },
+    { "include": "#numbers" },
+    { "include": "#keys" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.toml",
+      "match": "#.*$"
+    },
+    "table-headers": {
+      "name": "entity.name.section.toml",
+      "match": "^\\s*\\[{1,2}[^\\[\\]]*\\]{1,2}"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.basic.toml",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [{ "name": "constant.character.escape.toml", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.triple.literal.toml",
+          "begin": "'''",
+          "end": "'''"
+        },
+        {
+          "name": "string.quoted.double.toml",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.toml", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.toml",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "booleans": {
+      "name": "constant.language.boolean.toml",
+      "match": "\\b(true|false)\\b"
+    },
+    "dates": {
+      "name": "constant.other.date.toml",
+      "match": "\\b\\d{4}-\\d{2}-\\d{2}([Tt ]\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?)?\\b|\\b\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?\\b"
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.toml",
+          "match": "\\b0x[0-9A-Fa-f_]+\\b"
+        },
+        {
+          "name": "constant.numeric.octal.toml",
+          "match": "\\b0o[0-7_]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.toml",
+          "match": "\\b0b[01_]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.toml",
+          "match": "[+-]?\\b\\d[0-9_]*(\\.[0-9_]+)?([eE][+-]?[0-9_]+)?\\b"
+        },
+        {
+          "name": "constant.numeric.special.toml",
+          "match": "[+-]?\\b(inf|nan)\\b"
+        }
+      ]
+    },
+    "keys": {
+      "name": "variable.other.key.toml",
+      "match": "[A-Za-z0-9_-]+(\\s*\\.\\s*[A-Za-z0-9_-]+)*(?=\\s*=)"
+    }
+  }
+}

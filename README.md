@@ -1,0 +1,28 @@
+# Cursiv grammars
+
+A library of languages implemented with [Cursiv++](https://github.com/ydaveluy/cursiv).
+Each project in [languages/](languages) provides a C++ grammar, AST, parser,
+command-line tool, language server, examples and tests, and builds independently.
+The grammars are mainly adapted from [ANTLR grammars-v4](https://github.com/antlr/grammars-v4).
+INI and XSMP are based on [Cursiv examples](https://github.com/ydaveluy/cursiv/tree/1fe192701/examples).
+
+## Build a language
+
+Requires a C++20 compiler, CMake 3.30+, Ninja and Git.
+From the repository root, for example with CSV:
+
+```sh
+cmake -S languages/csv -B build/csv -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build/csv --parallel 2
+ctest --test-dir build/csv --output-on-failure
+build/csv/src/csv_cli languages/csv/example/example1.csv
+```
+
+For another language, use its directory and follow its README for commands
+and examples.
+
+Cursiv is downloaded automatically. To use a local checkout, add
+`-DCURSIV_SOURCE_DIR=/path/to/cursiv` when configuring.
+The parser defaults to LR; add `-DCURSIV_DEFAULT_ENGINE=LL` to select LL.
+
+See [bench/README.md](bench/README.md) to run benchmarks.

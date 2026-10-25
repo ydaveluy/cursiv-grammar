@@ -1,0 +1,67 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Geekcode",
+  "scopeName": "source.geekcode",
+  "patterns": [
+    {
+      "include": "#header"
+    },
+    {
+      "include": "#refuse"
+    },
+    {
+      "include": "#crossover"
+    },
+    {
+      "include": "#sizing"
+    },
+    {
+      "include": "#qualifiers"
+    },
+    {
+      "include": "#codes"
+    }
+  ],
+  "repository": {
+    "header": {
+      "name": "entity.name.tag.geekcode",
+      "match": "\\bG[A-Z]+(/[A-Z]+)*\\b"
+    },
+    "refuse": {
+      "name": "keyword.operator.logical.geekcode",
+      "match": "!"
+    },
+    "crossover": {
+      "patterns": [
+        {
+          "name": "punctuation.section.parens.geekcode",
+          "match": "[()]"
+        }
+      ]
+    },
+    "sizing": {
+      "name": "keyword.operator.arithmetic.geekcode",
+      "match": "[-+*]"
+    },
+    "qualifiers": {
+      "name": "keyword.operator.geekcode",
+      "match": "[@>$?]"
+    },
+    "codes": {
+      "patterns": [
+        {
+          "name": "support.type.geekcode",
+          "match": "\\bPGP\\b"
+        },
+        {
+          "name": "support.type.geekcode",
+          "match": "\\b(PS|PE|DI|tv|au|U[A-Z])\\b"
+        },
+        {
+          "name": "variable.other.geekcode",
+          "match": "[A-Za-z0-9]"
+        }
+      ]
+    }
+  }
+}

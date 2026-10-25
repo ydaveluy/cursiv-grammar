@@ -1,0 +1,1 @@
+deb apt+transport+https://example.com/repo?rev=1&type=a jammy main

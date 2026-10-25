@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Smalltalk",
+  "scopeName": "source.smalltalk",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#symbols" },
+    { "include": "#chars" },
+    { "include": "#pseudo-variables" },
+    { "include": "#numbers" },
+    { "include": "#keywords" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.block.smalltalk",
+      "begin": "\"",
+      "end": "\""
+    },
+    "strings": {
+      "name": "string.quoted.single.smalltalk",
+      "begin": "'",
+      "end": "'"
+    },
+    "symbols": {
+      "name": "constant.other.symbol.smalltalk",
+      "match": "#[a-zA-Z][a-zA-Z0-9_]*(:[a-zA-Z][a-zA-Z0-9_]*:)*:?|#[+\\-*/=><,@%~|&?\\\\]+"
+    },
+    "chars": {
+      "name": "constant.character.smalltalk",
+      "match": "\\$."
+    },
+    "pseudo-variables": {
+      "name": "constant.language.smalltalk",
+      "match": "\\b(nil|true|false|self|super)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.smalltalk",
+      "match": "-?[0-9]+(r[0-9a-fA-F]+)?(\\.[0-9]+)?"
+    },
+    "keywords": {
+      "name": "keyword.other.smalltalk",
+      "match": "\\b[a-zA-Z][a-zA-Z0-9_]*:"
+    }
+  }
+}

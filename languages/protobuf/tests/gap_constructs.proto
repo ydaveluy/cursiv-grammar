@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import weak "legacy.proto";
+
+message Outer {
+  message Inner {
+    int32 value = 1;
+  }
+}
+
+extend google.protobuf.FileOptions {
+  string my_option = 51234;
+}
+
+message Widget {
+  .Outer.Inner ref = 1;
+  int32 flags = 0x2A;
+  reserved 100 to max;
+}

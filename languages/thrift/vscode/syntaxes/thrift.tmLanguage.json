@@ -1,0 +1,65 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Thrift",
+  "scopeName": "source.thrift",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#strings" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.thrift",
+          "match": "(//|#).*$"
+        },
+        {
+          "name": "comment.block.thrift",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.thrift",
+      "match": "\\b(include|cpp_include|namespace|cpp_namespace|php_namespace|const|typedef|enum|senum|struct|union|exception|service|extends|required|optional|oneway|async|throws|void|map|set|list|cpp_type)\\b"
+    },
+    "types": {
+      "name": "storage.type.thrift",
+      "match": "\\b(bool|byte|i16|i32|i64|double|string|binary)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.thrift",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.thrift",
+              "match": "\\\\[rnt\"'\\\\]"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.thrift",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.thrift",
+              "match": "\\\\[rnt\"'\\\\]"
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.thrift",
+      "match": "\\b[+-]?(0x[0-9a-fA-F]+|[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?)\\b"
+    }
+  }
+}

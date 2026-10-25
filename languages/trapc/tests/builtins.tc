@@ -1,0 +1,19 @@
+// The GNU `__builtin_*` pseudo-functions, and `__real__`/`__imag__`.
+
+struct Pair { int a; int b; };
+
+double read_arg(char *args) { return __builtin_va_arg(args, double); }
+
+int offset(void) { return __builtin_offsetof(struct Pair, b); }
+
+int pick(int cond, int a, int b) {
+    return __builtin_choose_expr(cond, a, b);
+}
+
+int same_type(void) { return __builtin_types_compatible_p(int, long); }
+
+int accumulate(int a, int b, int c) { return __builtin_tgmath(a, b, c); }
+
+double make_complex(double re, double im) { return __builtin_complex(re, im); }
+
+int parts(double z) { return __real__ z + __imag__ z; }

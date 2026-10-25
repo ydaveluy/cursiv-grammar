@@ -1,0 +1,21 @@
+CONST limit = 10, base = 2;
+VAR i, sum, avg;
+
+PROCEDURE reset;
+BEGIN
+  i := 0;
+  sum := 0
+END;
+
+BEGIN
+  CALL reset;
+  WHILE i < limit DO
+  BEGIN
+    sum := sum + (i * base);
+    i := i + 1
+  END;
+  IF sum >= limit THEN WRITE sum;
+  avg := -sum / limit;
+  IF avg <= 0 THEN ;
+  ! (avg + base)
+END.

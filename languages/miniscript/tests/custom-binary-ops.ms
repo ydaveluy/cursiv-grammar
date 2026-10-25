@@ -1,0 +1,1 @@
+or_i(and_b(pk(A),pk(B)),or_b(pk(C),pk(D)))

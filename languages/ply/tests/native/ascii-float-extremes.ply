@@ -1,0 +1,10 @@
+ply
+format ascii 1.0
+element custom 4
+property float32 a
+property float64 b
+end_header
+1e40 1e309
+1e-99 1e-999
+-1e-99 -1e-999
+1.0000000596046448 1e-320

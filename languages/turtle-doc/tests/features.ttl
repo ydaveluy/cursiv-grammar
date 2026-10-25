@@ -1,0 +1,19 @@
+@prefix ex: <http://example.org/> .
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+ex:Alice a ex:Person ;
+  ex:age 42 ;
+  ex:balance -3.5 ;
+  ex:ratio 1.e5 ;
+  ex:tiny .5e3 ;
+  ex:active true ;
+  ex:hidden false ;
+  ex:name "Alice"@en ;
+  ex:id "007"^^ex:Code ;
+  ex:friend _:b1 ;
+  ex:favorites ( ex:x 1 "y" ) ;
+  ex:extra [ ex:k "v" ] ;
+  ex:tag ex:x\~y ;
+  ex:note '''it''s here''' ;
+  ex:quote """she said ""hi"" to me""" .
+_:b1 ex:knows [] .
+() a ex:EmptyList .

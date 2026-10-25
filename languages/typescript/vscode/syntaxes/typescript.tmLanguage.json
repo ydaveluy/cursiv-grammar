@@ -1,0 +1,83 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "TypeScript",
+  "scopeName": "source.cursiv.typescript",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#templates" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.typescript", "match": "//.*$" },
+        { "name": "comment.block.typescript", "begin": "/\\*", "end": "\\*/" },
+        { "name": "comment.block.typescript", "begin": "<!--", "end": "-->" }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.typescript",
+          "match": "\\b(break|case|catch|continue|debugger|default|do|else|finally|for|if|return|switch|throw|try|while|with|yield)\\b"
+        },
+        {
+          "name": "storage.type.typescript",
+          "match": "\\b(class|const|enum|export|extends|function|import|interface|let|namespace|package|private|protected|public|static|type|var)\\b"
+        },
+        {
+          "name": "storage.modifier.typescript",
+          "match": "\\b(abstract|async|declare|readonly)\\b"
+        },
+        {
+          "name": "support.type.primitive.typescript",
+          "match": "\\b(any|boolean|never|number|object|string|symbol|undefined|unknown|void)\\b"
+        },
+        {
+          "name": "keyword.other.typescript",
+          "match": "\\b(as|await|delete|from|in|instanceof|is|keyof|new|of|super|this|typeof)\\b"
+        },
+        {
+          "name": "constant.language.typescript",
+          "match": "\\b(true|false|null)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.typescript",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.typescript", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.typescript",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.typescript", "match": "\\\\." }]
+        }
+      ]
+    },
+    "templates": {
+      "name": "string.template.typescript",
+      "begin": "`",
+      "end": "`",
+      "patterns": [
+        { "name": "constant.character.escape.typescript", "match": "\\\\." },
+        {
+          "name": "meta.template.expression.typescript",
+          "begin": "\\$\\{",
+          "end": "\\}",
+          "patterns": [{ "include": "#keywords" }, { "include": "#strings" }, { "include": "#numbers" }]
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.typescript",
+      "match": "\\b(0[xX][0-9a-fA-F_]+|0[oO][0-7_]+|0[bB][01_]+|[0-9][0-9_]*(\\.[0-9_]+)?([eE][+-]?[0-9_]+)?)n?\\b"
+    }
+  }
+}

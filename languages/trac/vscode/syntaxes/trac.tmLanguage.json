@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "trac",
+  "scopeName": "source.trac",
+  "fileTypes": [
+    "trac"
+  ],
+  "patterns": [
+    {
+      "include": "#macro"
+    }
+  ],
+  "repository": {
+    "macro": {
+      "name": "meta.macro.trac",
+      "begin": "(##|#)(\\()",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.operator.macro.trac"
+        },
+        "2": {
+          "name": "punctuation.section.arguments.begin.trac"
+        }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.section.arguments.end.trac"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#macro"
+        },
+        {
+          "name": "punctuation.separator.trac",
+          "match": ","
+        },
+        {
+          "name": "string.unquoted.trac",
+          "match": "[a-zA-Z ]+"
+        }
+      ]
+    }
+  }
+}

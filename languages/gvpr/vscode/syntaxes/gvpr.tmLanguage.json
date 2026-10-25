@@ -1,0 +1,51 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Gvpr",
+  "scopeName": "source.gvpr",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#chars" },
+    { "include": "#keywords" },
+    { "include": "#preds" },
+    { "include": "#builtins" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.gvpr", "match": "//.*$" },
+        { "name": "comment.line.shell.gvpr", "match": "^#.*$" },
+        { "name": "comment.block.gvpr", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.gvpr",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [{ "name": "constant.character.escape.gvpr", "match": "\\\\." }]
+    },
+    "chars": {
+      "name": "string.quoted.single.gvpr",
+      "begin": "'",
+      "end": "'",
+      "patterns": [{ "name": "constant.character.escape.gvpr", "match": "\\\\." }]
+    },
+    "preds": {
+      "name": "keyword.other.pred.gvpr",
+      "match": "\\b(BEGIN|BEG_G|END_G|END|N|E)\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.gvpr",
+      "match": "\\b(if|else|for|forr|while|switch|case|default|break|continue|return|unset|static)\\b"
+    },
+    "builtins": {
+      "name": "support.function.builtin.gvpr",
+      "match": "\\b(gsub|sub|substr|split|tokens|exit|rand|srand|procedure|print|printf|query|sprintf|scanf|sscanf|char|double|float|int|long|unsigned|void|string)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.gvpr",
+      "match": "\\b0[xX][0-9a-fA-F]+\\b|\\b[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?\\b"
+    }
+  }
+}

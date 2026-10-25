@@ -1,0 +1,2 @@
+java.lang.RuntimeException: échec: bad value!
+	at 演示.主类.调用(源.java:18)

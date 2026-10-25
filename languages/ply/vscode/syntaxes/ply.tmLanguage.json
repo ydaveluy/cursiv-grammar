@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Ply",
+  "scopeName": "source.ply",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.ply",
+      "match": "^comment.*$"
+    },
+    "keywords": {
+      "name": "keyword.control.ply",
+      "match": "\\b(ply|format|element|property|list|end_header)\\b"
+    },
+    "types": {
+      "name": "storage.type.ply",
+      "match": "\\b(char|uchar|short|ushort|int|uint|float|double|float32|uint8|int32)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.ply",
+      "match": "[-+]?[0-9]+(\\.[0-9]+)?"
+    }
+  }
+}

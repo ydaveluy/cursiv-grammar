@@ -1,0 +1,5 @@
+(a b c)
+(a)
+((a b) (c d))
+(a (b (c (d e))) f)
+(abc123 def456 g7h8i9)

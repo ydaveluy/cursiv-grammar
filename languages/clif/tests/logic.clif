@@ -1,0 +1,41 @@
+// A synthetic CLIF text exercising every construct the ISO grammar accepts
+// that colore's module.clif does not: numerals, quoted and enclosed names,
+// boolean sentences of every arity, the roleset atom, sequence markers, a
+// typed bound variable, and the three shapes of cl-comment.
+
+/* a block comment /* nesting */ closes on the balancing */
+
+(cl-module geometry
+  (cl-excludes triangle 'excluded shape' 7 "AnotherExcludedName"))
+
+(cl-text "worked examples"
+
+(forall ((x Point) ...rest)
+        (if     (and    (Shape x)
+                        (Convex x))
+                (or     (Triangle x)
+                        (Square x)
+                        (Circle x))))
+
+(exists (point)
+        (P point))
+
+(and)
+
+(iff (Tall a) (Short b))
+
+(not (= 1 2))
+
+(and (cl-comment "a nested note" (P Tom)))
+
+(= 'a string' "an enclosed name")
+
+(Loves (cl-comment 'a term note' Tom) Jerry)
+
+(Situation (cl-roleset (agent Tom)))
+
+(cl-comment "an empty remark")
+
+)
+
+(cl-imports "http://example.org/other.clif")

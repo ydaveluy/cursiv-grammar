@@ -1,0 +1,84 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Vba",
+  "scopeName": "source.vba",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#dates" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#constants" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.apostrophe.vba",
+          "match": "'.*$"
+        },
+        {
+          "name": "comment.line.rem.vba",
+          "match": "(?i:\\bREM\\b).*$"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.vba",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.vba", "match": "\"\"" }
+      ]
+    },
+    "dates": {
+      "name": "constant.other.date.vba",
+      "match": "#[^#\\r\\n]*#"
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.vba",
+          "match": "(?i:&H[0-9A-F]+[%&^]?)"
+        },
+        {
+          "name": "constant.numeric.octal.vba",
+          "match": "(?i:&O?[0-7]+[%&^]?)"
+        },
+        {
+          "name": "constant.numeric.float.vba",
+          "match": "\\b[0-9]*\\.[0-9]+(?i:[DE][+-]?[0-9]+)?[!#@]?\\b|\\b[0-9]+(?i:[DE][+-]?[0-9]+)[!#@]?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.vba",
+          "match": "\\b[0-9]+[%&^]?\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.vba",
+          "match": "(?i)\\b(If|Then|Else|ElseIf|EndIf|End|Select|Case|While|Wend|Do|Loop|For|To|Step|Next|Each|In|Exit|GoTo|GoSub|Return|On|Error|Resume|With|Stop|RaiseEvent)\\b"
+        },
+        {
+          "name": "keyword.declaration.vba",
+          "match": "(?i)\\b(Sub|Function|Property|Get|Let|Set|Dim|Static|Const|Public|Private|Friend|Global|Type|Enum|Declare|Event|Implements|Option|Explicit|Compare|Base|ReDim|Preserve|Erase|Attribute|Lib|Alias|Optional|ByVal|ByRef|ParamArray|WithEvents|PtrSafe)\\b"
+        },
+        {
+          "name": "keyword.operator.word.vba",
+          "match": "(?i)\\b(And|Or|Not|Xor|Eqv|Imp|Is|Like|Mod|New|AddressOf|TypeOf)\\b"
+        }
+      ]
+    },
+    "types": {
+      "name": "storage.type.vba",
+      "match": "(?i)\\b(Boolean|Byte|Currency|Date|Double|Integer|Long|LongLong|LongPtr|Object|Single|String|Variant)\\b"
+    },
+    "constants": {
+      "name": "constant.language.vba",
+      "match": "(?i)\\b(True|False|Nothing|Empty|Null|Me)\\b"
+    }
+  }
+}

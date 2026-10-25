@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Restructuredtext",
+  "scopeName": "source.restructuredtext",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#sections" },
+    { "include": "#lists" },
+    { "include": "#lineblock" },
+    { "include": "#inline" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.restructuredtext",
+      "match": "^\\s*\\.\\.\\s?.*$"
+    },
+    "sections": {
+      "name": "markup.heading.restructuredtext",
+      "match": "^\\s*[-=+^]{3,}\\s*$"
+    },
+    "lists": {
+      "patterns": [
+        {
+          "name": "punctuation.definition.list.begin.restructuredtext",
+          "match": "^\\s*[*+-]\\s+"
+        },
+        {
+          "name": "punctuation.definition.list.begin.restructuredtext",
+          "match": "^\\s*[0-9]+\\.\\s+"
+        }
+      ]
+    },
+    "lineblock": {
+      "name": "punctuation.definition.lineblock.restructuredtext",
+      "match": "^\\s*\\|\\s"
+    },
+    "inline": {
+      "patterns": [
+        {
+          "name": "markup.bold.restructuredtext",
+          "match": "\\*\\*[^*\\s][^*]*\\*\\*"
+        },
+        {
+          "name": "markup.italic.restructuredtext",
+          "match": "\\*[^*\\s][^*]*\\*"
+        },
+        {
+          "name": "markup.inline.raw.restructuredtext",
+          "match": "`[^`]*`_?"
+        },
+        {
+          "name": "entity.name.tag.restructuredtext",
+          "match": "\\b\\w[\\w-]*_\\b"
+        },
+        {
+          "name": "entity.name.tag.restructuredtext",
+          "match": "_\\w[\\w-]*\\b"
+        }
+      ]
+    }
+  }
+}

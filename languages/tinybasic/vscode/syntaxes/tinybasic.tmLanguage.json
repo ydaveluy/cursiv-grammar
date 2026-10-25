@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Tinybasic",
+  "scopeName": "source.tinybasic",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#variables"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.tinybasic",
+      "match": "\\b(PRINT|IF|THEN|GOTO|INPUT|LET|GOSUB|RETURN|CLEAR|LIST|RUN|END)\\b"
+    },
+    "strings": {
+      "name": "string.quoted.double.tinybasic",
+      "begin": "\"",
+      "end": "\"|$"
+    },
+    "numbers": {
+      "name": "constant.numeric.tinybasic",
+      "match": "[0-9]+"
+    },
+    "operators": {
+      "name": "keyword.operator.tinybasic",
+      "match": "<>|><|<=|>=|[+\\-*/<>=]"
+    },
+    "variables": {
+      "name": "variable.other.tinybasic",
+      "match": "\\b[A-Z]\\b"
+    }
+  }
+}

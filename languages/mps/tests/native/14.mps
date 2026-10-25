@@ -1,0 +1,10 @@
+NAME TEST
+ROWS
+ N 1
+ L 2
+COLUMNS
+ 7 1 1
+ 8 2 2
+RHS
+ R 2 4
+ENDATA

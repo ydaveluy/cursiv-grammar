@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sieve",
+  "scopeName": "source.sieve",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#tags" },
+    { "include": "#numbers" },
+    { "include": "#control-commands" },
+    { "include": "#commands" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.sieve",
+      "match": "#.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.sieve",
+          "match": "\"[^\"\\\\\\r\\n]*\""
+        },
+        {
+          "name": "string.unquoted.multiline.sieve",
+          "begin": "text:",
+          "end": "^\\.$"
+        }
+      ]
+    },
+    "tags": {
+      "name": "variable.parameter.tag.sieve",
+      "match": ":[A-Za-z_][A-Za-z0-9_]*"
+    },
+    "numbers": {
+      "name": "constant.numeric.sieve",
+      "match": "\\b[0-9]+[KMG]?\\b"
+    },
+    "control-commands": {
+      "name": "keyword.control.sieve",
+      "match": "\\b(if|elsif|else|require|anyof|allof|not)\\b"
+    },
+    "commands": {
+      "name": "entity.name.function.sieve",
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b(?=\\s*(;|\\{|[\\[\"0-9:]))"
+    }
+  }
+}

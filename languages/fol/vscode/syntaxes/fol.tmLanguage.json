@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Fol",
+  "scopeName": "source.fol",
+  "fileTypes": ["fol"],
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#variables"
+    },
+    {
+      "include": "#individuals"
+    },
+    {
+      "include": "#names"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.fol",
+      "match": "\\b(Forall|Exists)\\b"
+    },
+    "variables": {
+      "name": "variable.parameter.fol",
+      "match": "\\?[0-9A-Za-z]*"
+    },
+    "individuals": {
+      "name": "constant.character.fol",
+      "match": "#[0-9A-Za-z]*"
+    },
+    "names": {
+      "name": "entity.name.function.fol",
+      "match": "[_.][0-9A-Za-z]*"
+    },
+    "operators": {
+      "name": "keyword.operator.fol",
+      "match": "<->|->|\\\\/|\\^|!|="
+    }
+  }
+}

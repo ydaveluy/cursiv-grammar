@@ -1,0 +1,1 @@
+DELETE FROM Employee e WHERE e.terminated = true

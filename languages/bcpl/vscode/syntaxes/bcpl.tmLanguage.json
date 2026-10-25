@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Bcpl",
+  "scopeName": "source.bcpl",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#chars" },
+    { "include": "#numbers" },
+    { "include": "#keywords" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.bcpl", "match": "//.*$" },
+        { "name": "comment.block.bcpl", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.bcpl",
+      "begin": "\"",
+      "end": "\""
+    },
+    "chars": {
+      "name": "string.quoted.single.bcpl",
+      "match": "'\\*?.'"
+    },
+    "numbers": {
+      "name": "constant.numeric.bcpl",
+      "match": "#[Xx][0-9A-Fa-f]+|#[Bb][01]+|#[0-7]+|[0-9]+"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.bcpl",
+          "match": "\\b(IF|UNLESS|TEST|THEN|ELSE|OR|DO|WHILE|UNTIL|FOR|TO|BY|SWITCHON|INTO|CASE|DEFAULT|REPEAT|REPEATUNTIL|REPEATWHILE|BREAK|LOOP|ENDCASE|RETURN|FINISH|GOTO|RESULTIS|NEXT|EXIT|VALOF|MATCH|EVERY)\\b"
+        },
+        {
+          "name": "keyword.declaration.bcpl",
+          "match": "\\b(LET|AND|BE|MANIFEST|STATIC|GLOBAL|VEC|GET|SECTION|TABLE|FLT)\\b"
+        },
+        {
+          "name": "keyword.operator.word.bcpl",
+          "match": "\\b(EQ|NE|MOD|REM|ABS|NOT|AND|OR|EQV|NEQV|XOR|OF|SLCT|FLOAT|FIX)\\b"
+        },
+        {
+          "name": "constant.language.bcpl",
+          "match": "\\b(TRUE|FALSE)\\b"
+        }
+      ]
+    }
+  }
+}

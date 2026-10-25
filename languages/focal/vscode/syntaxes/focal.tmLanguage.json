@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Focal",
+  "scopeName": "source.focal",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#linenumbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.focal",
+      "match": "\\bCOMMENT\\b.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.focal",
+      "match": "\"[^\"]*\""
+    },
+    "linenumbers": {
+      "name": "constant.numeric.line.focal",
+      "match": "^\\s*[0-9]+\\.[0-9]+"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.focal",
+          "match": "\\b(ASK|A|DO|D|FOR|F|SET|S|QUIT|GOTO|G|IF|TYPE|T|RETURN|WRITE|all)\\b"
+        },
+        {
+          "name": "support.function.builtin.focal",
+          "match": "\\b(fsin|fcos|fexp|flog|fatn|fsqt|fabs|fsgn|fitr|fran)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.focal",
+      "match": "[+-]?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)([eE][+-]?[0-9]+)?"
+    }
+  }
+}

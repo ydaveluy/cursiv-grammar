@@ -1,0 +1,61 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Ruleworks",
+  "scopeName": "source.ruleworks",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#variables" },
+    { "include": "#numbers" },
+    { "include": "#construct-keywords" },
+    { "include": "#action-keywords" },
+    { "include": "#builtin-keywords" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.ruleworks",
+      "match": ";.*$"
+    },
+    "strings": {
+      "name": "string.quoted.other.ruleworks",
+      "match": "\\|[^|]*\\|"
+    },
+    "variables": {
+      "name": "variable.other.ruleworks",
+      "match": "<\"?[^<>]*\"?>"
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.ruleworks",
+          "match": "[-+]?[0-9]*\\.[0-9]+([eE][-+]?[0-9]+)?"
+        },
+        {
+          "name": "constant.numeric.integer.ruleworks",
+          "match": "[-+]?[0-9]+\\.?"
+        },
+        {
+          "name": "constant.numeric.other.ruleworks",
+          "match": "#[0-9]+|%[Xx][0-9A-Fa-f]+"
+        }
+      ]
+    },
+    "construct-keywords": {
+      "name": "keyword.control.ruleworks",
+      "match": "(?i)\\b(declaration-block|end-block|end-group|entry-block|external-routine|generic-method|method|object-class|on-empty|on-entry|startup|on-every|on-exit|p|rule|rule-block|rule-group|catch)\\b"
+    },
+    "action-keywords": {
+      "name": "keyword.other.action.ruleworks",
+      "match": "(?i)\\b(addstate|after|bind|call-inherited|closefile|copy|debug|default|for-each|if|then|else|make|modify|openfile|quit|remove|remove-every|restorestate|return|savestate|specialize|trace|while|do|write|sql-attach|sql-commit|sql-delete|sql-detach|sql-fetch-each|sql-fetch-as-object|sql-insert|sql-insert-from-object|sql-rollback|sql-start|sql-update|sql-update-from-object)\\b"
+    },
+    "builtin-keywords": {
+      "name": "support.function.builtin.ruleworks",
+      "match": "(?i)\\b(accept-atom|acceptline-compound|accepts|compound|concat|crlf|every|float|genatom|genint|get|integer|is-open|length|max|min|nth|position|returns|rjust|subcompound|subsymbol|symbol|symbol-length|tabto|and|not|or)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.ruleworks",
+      "match": "\\^|<=>|<->|<>|-~=|~=|==|-->|<=|>=|<<|>>|\\[[+-]\\]|\\[[<>=]+\\]|[+\\-*/\\\\=<>@]"
+    }
+  }
+}

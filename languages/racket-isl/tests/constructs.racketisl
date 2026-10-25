@@ -1,0 +1,109 @@
+#lang htdp/isl
+
+; every special form, every literal kind, define-struct, quoted/quasiquoted
+; data, every check- form, every require form, and the NAME/NUMBER tie.
+
+(define pi 3.14159)
+
+(define-struct point (x y))
+
+(define (area-of r) (* pi (* r r)))
+
+(define (classify n)
+  (cond
+    [(< n 0) ’negative]
+    [(= n 0) ’zero]
+    [else ’positive]))
+
+(define (sign n)
+  (if (< n 0) -1 1))
+
+(define (all-positive a b c)
+  (and (> a 0) (> b 0) (> c 0)))
+
+(define (any-positive a b c)
+  (or (> a 0) (> b 0) (> c 0)))
+
+(define counter 0)
+
+(define (bump!)
+  (begin
+    (set! counter (+ counter 1))
+    counter))
+
+(define (first-of-two a b)
+  (begin0 a b))
+
+(define (make-adder n)
+  (lambda (x) (+ x n)))
+
+(define (make-adder2 n)
+  (λ (x) (+ x n)))
+
+(define (with-local x)
+  (local [(define (double v) (* v 2))]
+    (double x)))
+
+(define (sum-to n)
+  (letrec ([go (lambda (i acc) (if (> i n) acc (go (+ i 1) (+ acc i))))])
+    (go 1 0)))
+
+(define (via-shared)
+  (shared ([a (cons 1 b)] [b (cons 2 a)]) a))
+
+(define (via-let x y)
+  (let ([a x] [b y]) (+ a b)))
+
+(define (via-let-star x)
+  (let* ([a x] [b (* a 2)]) (+ a b)))
+
+(define (fact-recur n)
+  (recur go ([i n] [acc 1]) (if (= i 0) acc (go (- i 1) (* acc i)))))
+
+(define lazy (delay (+ 1 2)))
+
+(time (sign 5))
+
+((lambda (x) x) 5)
+
+'()
+#true
+#false
+"a string with \"quotes\" inside"
+#\a
+#\space
+
+’sym
+’(a b c)
+’(a b (c d))
+’(,x ,@y)
+
+‘(1 ,(+ 1 1) ,@(list 3 4) sym)
+
+(check-expect (sign 5) 1)
+(check-random (sign 5) 1)
+(check-within (area-of 1) 3.14159 0.01)
+(check-member-of (sign 5) 1 -1 0)
+(check-satisfied 5 positive?)
+(check-error (/ 1 0))
+(check-error (/ 1 0) "division by zero")
+
+(require racket/list)
+(require (planet "file.rkt"))
+(require (planet "file.rkt" ("a.rkt" "b.rkt")))
+(require (planet "file.rkt" ("user" "pkg.plt" 1 0)))
+
+; NAME's class admits a leading digit too, so a bare digit run is a
+; same-length NAME and NUMBER both. A longer NAME still wins by longest
+; match (2x, 1+, 3rd); an equal-length tie (100, 3/2, 5.5) goes to NUMBER.
+
+(define (2x n) (* n 2))
+
+(define (compare 1+ 3rd)
+  (if (> 1+ 3rd) 1+ 3rd))
+
+(check-expect (2x 4) 8)
+(check-expect (compare 5 3) 5)
+(check-expect 100 100)
+(check-expect 3/2 3/2)
+(check-expect 5.5 5.5)

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "WktCrsV1",
+  "scopeName": "source.wktcrsv1",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.wktcrsv1",
+      "match": "^#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.wktcrsv1",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.wktcrsv1", "match": "\"\"" }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.wktcrsv1",
+      "match": "\\b(COMPD_CS|PROJCS|GEOGCS|GEOCCS|VERT_CS|LOCAL_CS|DATUM|VERT_DATUM|LOCAL_DATUM|SPHEROID|TOWGS84|AUTHORITY|PRIMEM|UNIT|AXIS|PROJECTION|PARAMETER|EAST|WEST|NORTH|SOUTH|NORTH_EAST|NORTH_WEST|UP|DOWN|GEOCENTRIC_X|GEOCENTRIC_Y|GEOCENTRIC_Z)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.wktcrsv1",
+      "match": "[+-]?[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?"
+    }
+  }
+}

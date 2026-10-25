@@ -1,0 +1,6 @@
+ply
+format ascii 1.0
+element méta 1
+property double qualité
+end_header
+1.5

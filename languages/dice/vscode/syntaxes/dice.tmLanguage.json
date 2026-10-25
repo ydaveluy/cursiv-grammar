@@ -1,0 +1,51 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Dice",
+  "scopeName": "source.dice",
+  "patterns": [
+    {
+      "include": "#roll"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#parens"
+    }
+  ],
+  "repository": {
+    "roll": {
+      "name": "meta.roll.dice",
+      "match": "([+-])?([0-9]+)?([dD])([0-9]+)",
+      "captures": {
+        "1": {
+          "name": "keyword.operator.arithmetic.dice"
+        },
+        "2": {
+          "name": "constant.numeric.dice"
+        },
+        "3": {
+          "name": "keyword.operator.roll.dice"
+        },
+        "4": {
+          "name": "constant.numeric.dice"
+        }
+      }
+    },
+    "numbers": {
+      "name": "constant.numeric.dice",
+      "match": "[+-]?\\b[0-9]+\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.arithmetic.dice",
+      "match": "[+\\-*/]"
+    },
+    "parens": {
+      "name": "punctuation.parenthesis.dice",
+      "match": "[()]"
+    }
+  }
+}

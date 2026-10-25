@@ -1,0 +1,12 @@
+; a rest-of-line comment before the first tag
+[Event "Annotated Fragment"]
+[Site "?"]
+[Date "2024.01.03"]
+[Round "1"]
+[White "E"]
+[Black "F"]
+[Annotator "A \"strong\" engine, \\O/"]
+[Result "*"]
+
+{ White opens in the center. } 1.e4 $1 e5 2 Nf3 $10 Nc6 ; developing
+3.Bb5 a6 *

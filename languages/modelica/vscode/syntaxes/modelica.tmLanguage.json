@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Modelica",
+  "scopeName": "source.modelica",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" },
+    { "include": "#quoted-identifiers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.modelica", "match": "//.*$" },
+        { "name": "comment.block.modelica", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.modelica",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [{ "name": "constant.character.escape.modelica", "match": "\\\\." }]
+    },
+    "quoted-identifiers": {
+      "name": "entity.name.function.modelica",
+      "begin": "'",
+      "end": "'",
+      "patterns": [{ "name": "constant.character.escape.modelica", "match": "\\\\." }]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.modelica",
+          "match": "\\b(if|then|elseif|else|for|in|loop|while|when|elsewhen|end|break|return|connect|and|or|not)\\b"
+        },
+        {
+          "name": "keyword.other.modelica",
+          "match": "\\b(within|final|encapsulated|partial|class|model|record|block|connector|type|package|function|operator|extends|import|redeclare|inner|outer|replaceable|constrainedby|public|protected|equation|algorithm|external|annotation|initial|each|constant|parameter|discrete|input|output|flow|stream|expandable|pure|impure|enumeration|der)\\b"
+        },
+        {
+          "name": "constant.language.modelica",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.modelica",
+      "match": "\\b[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?\\b"
+    }
+  }
+}

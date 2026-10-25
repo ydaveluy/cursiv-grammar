@@ -1,0 +1,14 @@
+expr_showcase = proc (a: int, b: int) returns (int)
+    own x: int := a ** 2 // b * 3 || 1 + b - a
+    own flag: bool := a < b & a ~= b cor a >= b
+    own negated: int := ~a
+    own opposite: int := -a
+    up_val: any := up(a)
+    down_val: int := down(up_val)
+    forced: int := force int
+    lst: sequence int := int$[1, 2, 3]
+    rec: my_rec := my_rec${first: a, second: b}
+    rec.first := 5
+    lst[1] := 9
+    return(x)
+    end expr_showcase

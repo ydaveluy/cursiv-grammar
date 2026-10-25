@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Webidl",
+  "scopeName": "source.webidl",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#attributes"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.webidl",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.webidl",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "attributes": {
+      "name": "meta.attribute.webidl",
+      "begin": "\\[",
+      "end": "\\]",
+      "patterns": [
+        {
+          "include": "#strings"
+        },
+        {
+          "name": "entity.other.attribute-name.webidl",
+          "match": "\\b[A-Za-z_][0-9A-Za-z_]*\\b"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.webidl",
+      "begin": "\"",
+      "end": "\""
+    },
+    "keywords": {
+      "name": "keyword.control.webidl",
+      "match": "\\b(callback|interface|mixin|partial|namespace|dictionary|enum|typedef|includes|const|constructor|attribute|readonly|inherit|static|stringifier|getter|setter|deleter|iterable|maplike|setlike|async|required|optional)\\b"
+    },
+    "types": {
+      "name": "storage.type.webidl",
+      "match": "\\b(short|long|unsigned|float|double|unrestricted|undefined|void|boolean|byte|octet|bigint|ByteString|DOMString|USVString|any|object|symbol|sequence|record|Promise|FrozenArray|ObservableArray|ArrayBuffer|DataView|Int8Array|Int16Array|Int32Array|Uint8Array|Uint16Array|Uint32Array|Uint8ClampedArray|Float32Array|Float64Array)\\b"
+    },
+    "constants": {
+      "name": "constant.language.webidl",
+      "match": "\\b(true|false|null|Infinity|NaN)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.webidl",
+      "match": "-?\\b(0[Xx][0-9A-Fa-f]+|[0-9]+\\.?[0-9]*([Ee][+-]?[0-9]+)?|\\.[0-9]+([Ee][+-]?[0-9]+)?)\\b"
+    }
+  }
+}

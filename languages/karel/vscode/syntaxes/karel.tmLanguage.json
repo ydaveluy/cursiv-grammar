@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Karel",
+  "scopeName": "source.karel",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#instructions"
+    },
+    {
+      "include": "#conditions"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.karel",
+      "match": "(?<![A-Za-z0-9-])(BEGINNING-OF-PROGRAM|BEGINNING-OF-EXECUTION|END-OF-EXECUTION|END-OF-PROGRAM|DEFINE|AS|BEGIN|END|ITERATE|TIMES|WHILE|DO|IF|THEN|ELSE)(?![A-Za-z0-9-])"
+    },
+    "instructions": {
+      "name": "support.function.karel",
+      "match": "(?<![A-Za-z0-9-])(MOVE|TURNLEFT|PICKBEEPER|PUTBEEPER|TURNOFF)(?![A-Za-z0-9-])"
+    },
+    "conditions": {
+      "name": "constant.language.karel",
+      "match": "(?<![A-Za-z0-9-])(FRONT-IS-CLEAR|FRONT-IS-BLOCKED|LEFT-IS-CLEAR|LEFT-IS-BLOCKED|RIGHT-IS-CLEAR|RIGHT-IS-BLOCKED|BACK-IS-CLEAR|BACK-IS-BLOCKED|NEXT-TO-A-BEEPER|NOT-NEXT-TO-A-BEEPER|ANY-BEEPERS-IN-BEEPER-BAG|NO-BEEPERS-IN-BEEPER-BAG|FACING-NORTH|NOT-FACING-NORTH|FACING-SOUTH|NOT-FACING-SOUTH|FACING-EAST|NOT-FACING-EAST|FACING-WEST|NOT-FACING-WEST)(?![A-Za-z0-9-])"
+    },
+    "numbers": {
+      "name": "constant.numeric.karel",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

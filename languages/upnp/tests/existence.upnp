@@ -1,0 +1,1 @@
+(@id exists true) or (upnp:rating exists false)

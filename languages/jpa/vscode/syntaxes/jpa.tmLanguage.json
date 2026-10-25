@@ -1,0 +1,57 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Jpa",
+  "scopeName": "source.jpa",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#parameters"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.jpa",
+      "match": "\\b(?i:SELECT|DISTINCT|FROM|WHERE|UPDATE|SET|DELETE|AS|LEFT|OUTER|INNER|JOIN|FETCH|IN|NEW|OBJECT|GROUP|BY|HAVING|ORDER|ASC|DESC|NOT|BETWEEN|AND|OR|LIKE|ESCAPE|IS|EMPTY|MEMBER|OF|EXISTS|ALL|ANY|SOME|NULL)\\b"
+    },
+    "functions": {
+      "name": "support.function.jpa",
+      "match": "\\b(?i:AVG|MAX|MIN|SUM|COUNT|LENGTH|LOCATE|ABS|SQRT|MOD|SIZE|CONCAT|SUBSTRING|TRIM|LOWER|UPPER|LEADING|TRAILING|BOTH|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP)\\b"
+    },
+    "constants": {
+      "name": "constant.language.jpa",
+      "match": "\\b(true|false)\\b"
+    },
+    "strings": {
+      "name": "string.quoted.single.jpa",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "match": "''"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.jpa",
+      "match": "\\b[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?\\b"
+    },
+    "parameters": {
+      "name": "variable.parameter.jpa",
+      "match": "(\\?[0-9]*|:[a-zA-Z_][a-zA-Z0-9_]*)"
+    }
+  }
+}

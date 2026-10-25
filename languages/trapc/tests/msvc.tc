@@ -1,0 +1,11 @@
+// Visual C calling conventions, `__declspec(...)`, and the `__m128*` SIMD
+// types.
+
+void __cdecl legacy_call(int x);
+int __stdcall old_style(void);
+
+__declspec(deprecated) void old_api(void);
+__declspec(deprecated("use new_api")) void old_api2(void);
+
+__m128 zero_vector(void);
+__m128i mask;

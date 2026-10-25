@@ -1,0 +1,7 @@
+ply
+format ascii 1.0
+element custom 0_1
+property int32 i
+property double d
+end_header
+1_000 1_0.25e0_1

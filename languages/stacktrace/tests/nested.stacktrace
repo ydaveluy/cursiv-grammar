@@ -1,0 +1,13 @@
+com.example.service.OrderProcessingException: failed to process order batch 42
+	at com.example.service.OrderProcessor.process(OrderProcessor.java:120)
+	at com.example.service.OrderProcessor$Worker.run(OrderProcessor.java:205)
+	at java.base.Thread.run(Thread.java:833)
+Caused by: java.lang.NumberFormatException: could not parse the value abc as a number
+	at java.base.Integer.parseInt(Integer.java:652)
+	at java.base.Integer.<init>(Integer.java:220)
+	at com.example.service.OrderProcessor.parseAmount(OrderProcessor.java:150)
+	... 3 more
+Caused by: java.lang.ArithmeticException: division by zero
+	at java.base.NativeMath.divide(Native Method)
+	at com.example.util.Loader.load(Unknown Source)
+	... 5 more

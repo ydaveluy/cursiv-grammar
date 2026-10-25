@@ -1,0 +1,2 @@
+syntax="proto3";
+enum E {ZERO=0; reserved -2147483649;}

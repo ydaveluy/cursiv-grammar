@@ -1,0 +1,18 @@
+WITH
+  MEMBER [Measures].[Profit] AS
+    [Measures].[Sales] - [Measures].[Cost],
+    FORMAT_STRING = "Currency"
+  SET [MySet] AS
+    {[Date].[2002] : [Date].[2004]}
+SELECT
+  NON EMPTY {[Measures].[Profit], [Measures].[Sales]} DIMENSION PROPERTIES [Store].[Name] ON COLUMNS,
+  {[Date].[2002].Children} ON ROWS
+FROM [Sales]
+WHERE (
+  CASE
+    WHEN [Measures].[Sales] > 1.5 AND NOT [Measures].[Cost] < 0 THEN [Measures].[Profit]
+    WHEN [Measures].[Sales] = 0 OR [Measures].[Sales] XOR [Measures].[Cost] THEN [Measures].[Sales]
+    ELSE [Measures].[Cost]
+  END
+)
+CELL PROPERTIES CELL_ORDINAL, VALUE, FORMATTED_VALUE

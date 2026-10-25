@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Bibcode",
+  "scopeName": "source.bibcode",
+  "patterns": [
+    {
+      "include": "#year"
+    },
+    {
+      "include": "#code"
+    }
+  ],
+  "repository": {
+    "year": {
+      "name": "constant.numeric.bibcode",
+      "match": "\\b[0-9]{4}\\b"
+    },
+    "code": {
+      "name": "constant.other.bibcode",
+      "match": "[A-Za-z0-9.]{9,}"
+    }
+  }
+}

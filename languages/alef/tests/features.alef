@@ -1,0 +1,146 @@
+/* Not part of the upstream corpus: exercises constructs example1.txt does
+   not, for the grammar test to read. */
+
+adt Point {
+	int x, y;
+};
+
+aggr Rect {
+	Point tl, br;
+} RectTag;
+
+union Cell {
+	int i;
+	float f;
+};
+
+enum Color {
+	red = 1,
+	green,
+	blue
+};
+
+typedef int Celsius;
+typedef aggr *Node (int);
+
+lint big;
+ulint ubig;
+
+int square(int n)
+{
+	return n * n;
+}
+
+Point Point.origin(int x, int y)
+{
+	Point p;
+	p.x = x;
+	p.y = y;
+	return p;
+}
+
+int *incr(int *p)
+{
+	(*p)++;
+	return p;
+}
+
+int sum(int a, int b, int c)
+{
+	return a + b + c;
+}
+
+int variadic(int a, ...)
+{
+	return a;
+}
+
+void main()
+{
+	int i, j, k;
+	int a[10];
+	byte *s;
+	chan(int) c;
+
+	i = 1;
+	j = 2;
+	i += j;
+	i <<= 1;
+	i := 3;
+	i <-= j;
+
+	if (i == j)
+		i = 0;
+	else
+		i = 1;
+
+	for (i = 0; i < 10; i++)
+		a[i] = i;
+
+	while (i > 0)
+		i--;
+
+	do
+		j++;
+	while (j < 10);
+
+	switch (i) {
+	case 1:
+		j = 1;
+	default:
+		j = 0;
+	}
+
+	typeof i {
+	case int:
+		j = 1;
+	default:
+		j = 0;
+	}
+
+loop:
+	if (j > 0)
+		goto loop;
+
+	alt {
+	case i <-= j:
+		j = i;
+	default:
+		j = 0;
+	}
+
+	check i != 0, "must not be zero";
+
+	rescue
+		j = -1;
+
+	rescue e
+	{
+		j = -2;
+	}
+
+	proc square(i);
+	task square(j);
+
+	par {
+		i = square(i);
+	}
+
+	alloc s;
+	unalloc s;
+
+	raise;
+
+	(i, j) = (j, i);
+
+	k = sizeof(int);
+	k = sizeof i;
+
+	s = "hello";
+	s = $"raw";
+
+	continue;
+	break;
+
+	return;
+}

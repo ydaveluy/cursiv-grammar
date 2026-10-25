@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Javadoc",
+  "scopeName": "source.javadoc",
+  "patterns": [
+    {
+      "include": "#markers"
+    },
+    {
+      "include": "#blockTags"
+    },
+    {
+      "include": "#inlineTags"
+    }
+  ],
+  "repository": {
+    "markers": {
+      "patterns": [
+        {
+          "name": "punctuation.definition.comment.begin.javadoc",
+          "match": "/\\*\\*+"
+        },
+        {
+          "name": "punctuation.definition.comment.end.javadoc",
+          "match": "\\*+/"
+        },
+        {
+          "name": "punctuation.definition.comment.continuation.javadoc",
+          "match": "^\\s*\\*"
+        }
+      ]
+    },
+    "blockTags": {
+      "name": "keyword.control.tag.javadoc",
+      "match": "@[a-zA-Z]+"
+    },
+    "inlineTags": {
+      "name": "meta.inline-tag.javadoc",
+      "begin": "\\{@[a-zA-Z]+",
+      "beginCaptures": {
+        "0": {
+          "name": "keyword.control.tag.javadoc"
+        }
+      },
+      "end": "\\}",
+      "patterns": [
+        {
+          "include": "#inlineTags"
+        }
+      ]
+    }
+  }
+}

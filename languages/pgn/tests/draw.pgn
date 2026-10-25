@@ -1,0 +1,20 @@
+[Event "Casual Game"]
+[Site "?"]
+[Date "2024.01.01"]
+[Round "1"]
+[White "A"]
+[Black "B"]
+[Result "1/2-1/2"]
+
+1.d4 Nf6 2.c4 e6 3.Nc3 Bb4 (d5 4.cxd5 exd5 (Qxd5 5.Nf3) 5.Bg5) 4.e3
+O-O 5.Bd3 d5 6.Nf3 c5 7.O-O Nc6 8.a3 Bxc3 9.bxc3 dxc4 10.Bxc4 Qc7 1/2-1/2
+
+[Event "Casual Game 2"]
+[Site "?"]
+[Date "2024.01.02"]
+[Round "1"]
+[White "C"]
+[Black "D"]
+[Result "0-1"]
+
+1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 a6 0-1

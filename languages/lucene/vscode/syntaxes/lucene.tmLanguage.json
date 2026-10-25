@@ -1,0 +1,72 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lucene",
+  "scopeName": "source.lucene",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#regex"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#fields"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#brackets"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.operator.boolean.lucene",
+      "match": "\\b(AND|OR|NOT|TO)\\b|&&|\\|\\||!"
+    },
+    "strings": {
+      "name": "string.quoted.double.lucene",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.lucene",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "regex": {
+      "name": "string.regexp.lucene",
+      "begin": "/",
+      "end": "/",
+      "patterns": [
+        {
+          "name": "constant.character.escape.lucene",
+          "match": "\\\\/"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.lucene",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    },
+    "fields": {
+      "name": "entity.name.tag.lucene",
+      "match": "[^\\s+\\-!():^@<>=\\[\\]\"{}~\\\\/]+(?=\\s*[:=])"
+    },
+    "operators": {
+      "name": "keyword.operator.lucene",
+      "match": "[+\\-:=<>^~]|<=|>="
+    },
+    "brackets": {
+      "name": "punctuation.definition.range.lucene",
+      "match": "[\\[\\]{}()]"
+    }
+  }
+}

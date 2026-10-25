@@ -1,0 +1,7 @@
+put field "Name" into x
+put card field 2 into y
+put background field id 5 into z
+put card button "OK" into w
+put the third card of this stack into v
+put card id 7 into u
+put background button 1 of card 2 into t

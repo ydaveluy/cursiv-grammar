@@ -1,0 +1,112 @@
+name: Languages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      engine_ref:
+        description: Cursiv commit, tag or branch to validate against all languages
+        type: string
+        default: main
+  repository_dispatch:
+    types: [cursiv-engine-updated]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: languages-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  select:
+    name: Select languages
+    runs-on: ubuntu-24.04
+    outputs:
+      languages: ${{ steps.select.outputs.languages }}
+      group_1: ${{ steps.select.outputs.group_1 }}
+      group_2: ${{ steps.select.outputs.group_2 }}
+      count: ${{ steps.select.outputs.count }}
+      engine_sha: ${{ steps.engine.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test CI selection and reporting
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+      - name: Select changed languages
+        id: select
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "$EVENT" = repository_dispatch ]; then EVENT=workflow_dispatch; fi
+          python3 .github/scripts/select_languages.py --event "$EVENT" --base "$BASE" --head "$HEAD"
+      - name: Resolve Cursiv revision once
+        if: steps.select.outputs.count != '0'
+        uses: actions/checkout@v7
+        with:
+          repository: ydaveluy/cursiv
+          ref: ${{ inputs.engine_ref || github.event.client_payload.engine_ref || 'main' }}
+          path: .cache/cursiv-engine
+          persist-credentials: false
+      - name: Record Cursiv revision
+        id: engine
+        if: steps.select.outputs.count != '0'
+        run: |
+          revision=$(git -C .cache/cursiv-engine rev-parse HEAD)
+          echo "sha=$revision" >> "$GITHUB_OUTPUT"
+          echo "Cursiv: $revision" >> "$GITHUB_STEP_SUMMARY"
+
+  # A matrix is limited to 256 entries; both groups still contain one job per language.
+  languages_1:
+    name: ${{ matrix.language }}
+    needs: select
+    if: needs.select.outputs.group_1 != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        language: ${{ fromJSON(needs.select.outputs.group_1) }}
+    uses: ./.github/workflows/language.yml
+    with:
+      language: ${{ matrix.language }}
+      engine_sha: ${{ needs.select.outputs.engine_sha }}
+
+  languages_2:
+    name: ${{ matrix.language }}
+    needs: select
+    if: needs.select.outputs.group_2 != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        language: ${{ fromJSON(needs.select.outputs.group_2) }}
+    uses: ./.github/workflows/language.yml
+    with:
+      language: ${{ matrix.language }}
+      engine_sha: ${{ needs.select.outputs.engine_sha }}
+
+  report:
+    name: Language results
+    needs: [select, languages_1, languages_2]
+    if: always() && needs.select.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        if: needs.select.outputs.count != '0'
+        continue-on-error: true
+        with:
+          pattern: ci-*
+          path: build/ci-results
+      - name: Language OK / KO table
+        env:
+          CI_LANGUAGES: ${{ needs.select.outputs.languages }}
+        run: python3 .github/scripts/report.py

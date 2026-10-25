@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Bdf",
+  "scopeName": "source.bdf",
+  "patterns": [
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.bdf",
+      "begin": "\"",
+      "end": "\""
+    },
+    "keywords": {
+      "name": "keyword.control.bdf",
+      "match": "\\b(STARTFONT|ENDFONT|FONT|SIZE|FONTBOUNDINGBOX|STARTPROPERTIES|ENDPROPERTIES|CHARS|STARTCHAR|ENDCHAR|ENCODING|SWIDTH|DWIDTH|BBX|BITMAP|FOUNDRY|FAMILY_NAME|WEIGHT_NAME|SLANT|SETWIDTH_NAME|ADD_STYLE_NAME|PIXEL_SIZE|POINT_SIZE|RESOLUTION_X|RESOLUTION_Y|SPACING|AVERAGE_WIDTH|CHARSET_REGISTRY|CHARSET_ENCODING|FONTNAME_REGISTRY|CHARSET_COLLECTIONS|FONT_NAME|FACE_NAME|COPYRIGHT|FONT_ASCENT|FONT_DESCENT|FONT_VERSION|UNDERLINE_POSITION|UNDERLINE_THICKNESS|X_HEIGHT|CAP_HEIGHT|RAW_ASCENT|RAW_DESCENT|NORM_SPACE|RELATIVE_WEIGHT|RELATIVE_SETWIDTH|FIGURE_WIDTH|AVG_LOWERCASE_WIDTH|AVG_UPPERCASE_WIDTH)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.bdf",
+      "match": "\\bU?\\+?-?[a-zA-Z0-9.-]+\\b"
+    }
+  }
+}

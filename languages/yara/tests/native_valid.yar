@@ -1,0 +1,1 @@
+rule cli_valid : audit {meta: exact=9007199254740993 strings: $bytes={01 (02 [1-2] (03|04)|05)06} $text="a\x00b" xor(1-2) condition:any of them and for all i in (1,2+1) : (i>0)}

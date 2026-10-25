@@ -1,0 +1,3 @@
+fn broken(a: i32 {
+    return a;
+}

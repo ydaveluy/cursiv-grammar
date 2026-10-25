@@ -1,0 +1,8 @@
+struct
+  public abstract Showable :: # = sig
+      elem :: #;
+      show :: (x :: elem) -> elem = id elem;
+    ;
+
+  private id :: (a :: #) -> (x :: a) -> a
+    = \(a :: #) -> \(x :: a) -> x;

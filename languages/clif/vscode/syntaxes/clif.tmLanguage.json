@@ -1,0 +1,63 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Clif",
+  "scopeName": "source.clif",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#sequence-markers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.clif",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.clif",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.clif",
+      "match": "\\b(and|or|iff|if|forall|exists|not|cl-roleset|cl-text|cl-imports|cl-excludes|cl-module|cl-comment|cl-prefix)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.clif",
+          "begin": "'",
+          "end": "'"
+        },
+        {
+          "name": "string.quoted.double.clif",
+          "begin": "\"",
+          "end": "\""
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.clif",
+      "match": "[0-9]+"
+    },
+    "sequence-markers": {
+      "name": "variable.parameter.clif",
+      "match": "\\.\\.\\.[^\\s()]*"
+    }
+  }
+}

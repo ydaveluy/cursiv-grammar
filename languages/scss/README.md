@@ -1,0 +1,68 @@
+# scss
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/scss/core/ScssGrammar.hpp` |
+| The AST | `src/scss/core/ast.hpp` |
+| Validation checks | `src/scss/core/validation/` |
+| Services of your own | `src/scss/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/scss/cli/main.cpp` |
+| LSP features | `src/scss/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+```scss
+$primary: #036;
+
+.button {
+  color: $primary;
+
+  &:hover {
+    color: lighten($primary, 10%);
+  }
+}
+```
+
+Sass on top of CSS: a stylesheet of rulesets, at-rules and declarations, plus
+variables (`$primary`), nesting (`&:hover`), interpolation (`#{...}`) and
+control flow (`@if`, `@each`, `@for`, `@while`) resolved at parse time rather
+than left to a preprocessor pass.
+
+## The command line
+
+```bash
+./build/src/scss_cli example/basic.scss
+./build/src/scss_cli --dump example/basic.scss   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`scss_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

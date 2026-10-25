@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Javacc",
+  "scopeName": "source.javacc",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#javacc-keywords" },
+    { "include": "#java-keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.javacc", "match": "//.*$" },
+        { "name": "comment.block.javacc", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.javacc",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.javacc", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.javacc",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.javacc", "match": "\\\\." }]
+        }
+      ]
+    },
+    "javacc-keywords": {
+      "name": "keyword.control.javacc",
+      "match": "\\b(LOOKAHEAD|IGNORE_CASE|PARSER_BEGIN|PARSER_END|JAVACODE|CPPCODE|TOKEN|SPECIAL_TOKEN|MORE|SKIP|TOKEN_MGR_DECLS|EOF)\\b"
+    },
+    "java-keywords": {
+      "name": "keyword.other.javacc",
+      "match": "\\b(abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|template|this|throw|throws|transient|try|typename|void|volatile|while)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.javacc",
+      "match": "\\b(0[xX][0-9a-fA-F]+|0[bB][01]+|[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[lLfFdD]?)\\b"
+    }
+  }
+}

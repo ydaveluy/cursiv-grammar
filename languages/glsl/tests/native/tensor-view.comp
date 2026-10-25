@@ -1,0 +1,4 @@
+#version 460
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_NV_cooperative_matrix2 : require
+layout(local_size_x=32)in;void main(){tensorViewNV<2,0,1> x;}

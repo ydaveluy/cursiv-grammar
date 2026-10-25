@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Json5",
+  "scopeName": "source.json5",
+  "fileTypes": ["json5"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#literals" },
+    { "include": "#strings" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.json5",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.json5",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "literals": {
+      "name": "constant.language.json5",
+      "match": "\\b(true|false|null|Infinity|NaN)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.json5",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.json5", "match": "\\\\." }
+          ]
+        },
+        {
+          "name": "string.quoted.single.json5",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            { "name": "constant.character.escape.json5", "match": "\\\\." }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.json5",
+      "match": "[+-]?(0[xX][0-9a-fA-F]+|(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d*)?)"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Telephone",
+  "scopeName": "source.telephone",
+  "patterns": [
+    {
+      "include": "#prefix"
+    },
+    {
+      "include": "#marker"
+    },
+    {
+      "include": "#digits"
+    }
+  ],
+  "repository": {
+    "prefix": {
+      "name": "keyword.operator.telephone",
+      "match": "\\+1|\\+"
+    },
+    "marker": {
+      "name": "constant.language.telephone",
+      "match": "011|010"
+    },
+    "digits": {
+      "name": "constant.numeric.telephone",
+      "match": "[0-9]+"
+    }
+  }
+}

@@ -1,0 +1,86 @@
+name: Build one language
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        required: true
+        type: string
+      engine_sha:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build + test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      LANGUAGE: ${{ inputs.language }}
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CURSIV_SOURCE: ${{ github.workspace }}/.cache/cursiv-engine
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: ydaveluy/cursiv
+          ref: ${{ inputs.engine_sha }}
+          path: .cache/cursiv-engine
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14 clang-18 ninja-build ccache
+          python -m pip install cmake==3.31.10
+          ccache --max-size 1G
+      # One shared engine cache, rather than hundreds of per-language caches.
+      - uses: actions/cache@v6
+        with:
+          path: .cache/ccache
+          key: ubuntu24-gcc14-clang18-${{ inputs.engine_sha }}-${{ hashFiles('.github/workflows/language.yml', '.github/scripts/run_language.py') }}
+      - name: GCC / LL — build + test
+        continue-on-error: true
+        run: >-
+          python3 .github/scripts/run_language.py --language "$LANGUAGE"
+          --compiler-label GCC --cc gcc-14 --cxx g++-14 --engine LL
+          --cursiv-source "$CURSIV_SOURCE" --clean-build
+      - name: GCC / LR — build + test
+        continue-on-error: true
+        run: >-
+          python3 .github/scripts/run_language.py --language "$LANGUAGE"
+          --compiler-label GCC --cc gcc-14 --cxx g++-14 --engine LR
+          --cursiv-source "$CURSIV_SOURCE" --clean-build
+      - name: Clang / LL — build + test
+        continue-on-error: true
+        run: >-
+          python3 .github/scripts/run_language.py --language "$LANGUAGE"
+          --compiler-label Clang --cc clang-18 --cxx clang++-18 --engine LL
+          --cxx-flags=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14
+          --cursiv-source "$CURSIV_SOURCE" --clean-build
+      - name: Clang / LR — build + test
+        continue-on-error: true
+        run: >-
+          python3 .github/scripts/run_language.py --language "$LANGUAGE"
+          --compiler-label Clang --cc clang-18 --cxx clang++-18 --engine LR
+          --cxx-flags=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14
+          --cursiv-source "$CURSIV_SOURCE" --clean-build
+      - name: Language verdict
+        if: always()
+        run: python3 .github/scripts/report.py --language "$LANGUAGE"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ci-${{ inputs.language }}
+          path: build/ci-results/
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 7

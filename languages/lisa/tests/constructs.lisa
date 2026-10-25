@@ -1,0 +1,55 @@
+// Exercises every construct the grammar accepts but example1.txt does not:
+// if/while/generate/break/continue, every operator, both boolean literals,
+// next/hasnext, grouping, a negative literal and an assignment chain.
+declare {
+ int counter;
+ dfa machine;
+ nfa automaton;
+ regex pattern;
+ bool flag;
+ string label;
+}
+
+program {
+ counter = 1;
+ flag = TRUE;
+ label = "sample";
+
+ counter = counter = 3;
+ counter -+ 1;
+ counter *= 2;
+ counter /= 2;
+ counter += 1;
+
+ counter = (counter + 1) * 2;
+ counter = counter - 1;
+ counter = counter / 2 % 3;
+ counter = -5;
+
+ if (counter <= 10 && !flag)
+    counter += 1;
+
+ if (counter >= 1)
+    counter = 6;
+
+ if (counter == 6)
+    counter = 7;
+
+ WHILE (counter != 20 || hasnext)
+    counter -+ 1;
+
+ if (counter > 1)
+    continue;
+
+ generate(random, int, int)
+    counter *= 2;
+
+ generate(enumerate, int, int)
+    break;
+
+ flag = (TRUE);
+ flag = FALSE;
+
+ machine = readfile(dfa, "~/machine.txt");
+ print(machine, pattern, next);
+}

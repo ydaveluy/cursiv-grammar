@@ -1,0 +1,30 @@
+n acc history[9]
+
+PROCEDURE double
+  READ n
+  n += n
+  WRITE n
+
+PROCEDURE main
+  CALL double
+  UNCALL double
+  IF n = 1
+  THEN
+    acc += 1
+  ELSE
+    acc -= 1
+  FI n = 1
+  FROM n = 1
+  DO
+    n += 1
+  LOOP
+    acc += 1
+  UNTIL n = 5
+  history[0] : acc
+  acc += -(n + 1)
+  acc += ~n
+  acc += (n & history[0]) | acc
+  acc += n < history[0]
+  acc += n >= history[0]
+  acc += n # history[0]
+  acc += n * history[0] / n

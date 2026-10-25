@@ -1,0 +1,8 @@
+ply
+format ascii 1.0
+element sample 2
+property int i
+property uint u
+end_header
+-0002147483648 +004294967295
++0000 -0000

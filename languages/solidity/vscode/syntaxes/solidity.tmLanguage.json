@@ -1,0 +1,99 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Solidity",
+  "scopeName": "source.solidity",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.solidity",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.solidity",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.solidity",
+          "begin": "(unicode|hex)?\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.solidity",
+              "match": "\\\\(.|\\n)"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.solidity",
+          "begin": "(unicode|hex)?'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.solidity",
+              "match": "\\\\(.|\\n)"
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.solidity",
+          "match": "\\b0x[0-9A-Fa-f_]+\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.solidity",
+          "match": "\\b[0-9][0-9_]*(\\.[0-9_]+)?([eE][-+]?[0-9_]+)?\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.solidity",
+          "match": "\\b(if|else|for|while|do|break|continue|return|returns|try|catch|revert|emit|throw|unchecked|assembly)\\b"
+        },
+        {
+          "name": "keyword.other.solidity",
+          "match": "\\b(pragma|import|as|from|using|is|contract|interface|library|abstract|function|constructor|modifier|event|error|struct|enum|mapping|type|new|delete|indexed|anonymous|virtual|override|constant|immutable|transient|payable|memory|storage|calldata|internal|external|private|public|pure|view|global|fallback|receive|let|leave|switch|case|default)\\b"
+        },
+        {
+          "name": "constant.language.solidity",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.solidity",
+          "match": "\\b(address|bool|string|bytes([1-9]|[12][0-9]|3[0-2])?|u?int([0-9]{1,3})?|u?fixed([0-9]+x[0-9]+)?)\\b"
+        }
+      ]
+    }
+  }
+}

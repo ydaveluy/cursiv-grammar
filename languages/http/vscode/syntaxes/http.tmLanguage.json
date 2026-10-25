@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Http",
+  "scopeName": "source.http",
+  "patterns": [
+    {
+      "include": "#request-line"
+    },
+    {
+      "include": "#header-field"
+    }
+  ],
+  "repository": {
+    "request-line": {
+      "match": "^(\\S+)( )(\\S+)( )(HTTP)(/)(\\d\\.\\d)",
+      "captures": {
+        "1": { "name": "keyword.control.method.http" },
+        "3": { "name": "string.unquoted.target.http" },
+        "5": { "name": "constant.language.http" },
+        "7": { "name": "constant.numeric.version.http" }
+      }
+    },
+    "header-field": {
+      "match": "^([!#$%&'*+.^_`|~0-9A-Za-z-]+)(:)(.*)$",
+      "captures": {
+        "1": { "name": "entity.name.tag.header.http" },
+        "2": { "name": "punctuation.separator.key-value.http" },
+        "3": { "name": "string.unquoted.value.http" }
+      }
+    }
+  }
+}

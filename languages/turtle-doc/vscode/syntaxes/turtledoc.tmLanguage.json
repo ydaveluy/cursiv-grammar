@@ -1,0 +1,87 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "TurtleDoc",
+  "scopeName": "source.turtledoc",
+  "patterns": [
+    { "include": "#directives" },
+    { "include": "#keywords" },
+    { "include": "#iri" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#prefixed-name" }
+  ],
+  "repository": {
+    "directives": {
+      "name": "keyword.control.directive.turtledoc",
+      "match": "(?i:@prefix|@base|\\bPREFIX\\b|\\bBASE\\b)"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.operator.type.turtledoc",
+          "match": "(?<=\\s)a(?=\\s)"
+        },
+        {
+          "name": "constant.language.boolean.turtledoc",
+          "match": "(?i:\\btrue\\b|\\bfalse\\b)"
+        }
+      ]
+    },
+    "iri": {
+      "name": "string.other.iri.turtledoc",
+      "begin": "<",
+      "end": ">",
+      "patterns": [
+        { "name": "constant.character.escape.turtledoc", "match": "\\\\[uU][0-9a-fA-F]+" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.turtledoc",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [{ "include": "#string-escape" }]
+        },
+        {
+          "name": "string.quoted.triple.turtledoc",
+          "begin": "'''",
+          "end": "'''",
+          "patterns": [{ "include": "#string-escape" }]
+        },
+        {
+          "name": "string.quoted.double.turtledoc",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "include": "#string-escape" }]
+        },
+        {
+          "name": "string.quoted.single.turtledoc",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "include": "#string-escape" }]
+        },
+        {
+          "name": "support.type.langtag.turtledoc",
+          "match": "@[a-zA-Z]+(-[a-zA-Z0-9]+)*"
+        },
+        {
+          "name": "keyword.operator.datatype.turtledoc",
+          "match": "\\^\\^"
+        }
+      ]
+    },
+    "string-escape": {
+      "name": "constant.character.escape.turtledoc",
+      "match": "\\\\([tbnrf\"'\\\\]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})"
+    },
+    "numbers": {
+      "name": "constant.numeric.turtledoc",
+      "match": "[+-]?(\\d+\\.\\d*([eE][+-]?\\d+)?|\\.\\d+[eE][+-]?\\d+|\\d+[eE][+-]?\\d+|\\d+)"
+    },
+    "prefixed-name": {
+      "name": "entity.name.type.turtledoc",
+      "match": "([A-Za-z][\\w.-]*)?:[A-Za-z0-9_][\\w.-]*"
+    }
+  }
+}

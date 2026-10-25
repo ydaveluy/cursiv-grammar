@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Edif300",
+  "scopeName": "source.edif300",
+  "patterns": [
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#forms" }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.edif300",
+      "match": "\"[^\"]*\""
+    },
+    "numbers": {
+      "name": "constant.numeric.edif300",
+      "match": "[+-]?\\b[0-9]+(\\.[0-9]*)?\\b"
+    },
+    "forms": {
+      "comment": "EDIF has no fixed keyword list: every construct is a parenthesized name, `(cell`, `(instance`, `(propertyOverride`, ...",
+      "name": "keyword.control.edif300",
+      "match": "\\([A-Za-z][A-Za-z0-9]*"
+    }
+  }
+}

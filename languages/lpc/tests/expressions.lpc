@@ -1,0 +1,60 @@
+int global_x = 5;
+
+mixed *arr = ({ 1, 2, 3, 4, 5 });
+mapping map1 = ([ "a": 1, "b": 2 ]);
+
+int precedence_test(int a, int b, int c) {
+    int r1 = a + b * c;
+    int r2 = -a * b;
+    int r3 = a || b && c;
+    int r4 = a & b | c;
+    int r5 = a == b < c;
+    int r6 = a << b + c;
+    int r7 = a = b = c;
+    int r8 = a ? b : c ? b : c;
+    int r9 = (int) a + b;
+    int r10 = !a & b;
+    int r11 = ++a * b;
+    return r1 + r2 + r3 + r4 + r5 + r6 + r7 + r8 + r9 + r10 + r11;
+}
+
+mixed slices(mixed *a) {
+    mixed s1 = a[1..3];
+    mixed s2 = a[1..];
+    mixed s3 = a[1..<3];
+    mixed s4 = a[<1..<3];
+    mixed s5 = a[<1];
+    mixed s6 = a[0];
+    return s1;
+}
+
+mixed closures_and_calls() {
+    function f = (: global_x + 1 :);
+    mixed r = f();
+    int e = efun::strlen("hello");
+    int n = efun::new("x");
+    object o = new("/obj/thing");
+    string s = "a" "b" + ("c");
+    mixed c = catch(global_x / 0);
+    return r;
+}
+
+void assign_ops(int a) {
+    a += 1;
+    a -= 1;
+    a *= 2;
+    a /= 2;
+    a %= 2;
+    a &= 1;
+    a |= 1;
+    a ^= 1;
+    a <<= 1;
+    a >>= 1;
+}
+
+int sscanf_test(string line) {
+    int n;
+    string rest;
+    int matched = sscanf(line, "%d %s", n, rest);
+    return matched;
+}

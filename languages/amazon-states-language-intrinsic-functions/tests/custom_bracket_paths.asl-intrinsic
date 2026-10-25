@@ -1,0 +1,1 @@
+States.ArrayContains($.Grid[[0]], States.ArrayUnique($.Items[0].tags))

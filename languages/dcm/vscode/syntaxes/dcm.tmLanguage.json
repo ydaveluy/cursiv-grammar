@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Dcm",
+  "scopeName": "source.dcm",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.dcm",
+      "match": "^[*!.].*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.dcm",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.dcm",
+          "match": "\\\\[btnfr\"'\\\\]"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.dcm",
+      "match": "\\b(KONSERVIERUNG_FORMAT|MODULKOPF|FUNKTIONEN|VARIANTENKODIERUNG|KRITERIUM|FKT|END|FESTWERT|FESTWERTEBLOCK|KENNLINIE|FESTKENNLINIE|GRUPPENKENNLINIE|KENNFELD|FESTKENNFELD|GRUPPENKENNFELD|STUETZSTELLENVERTEILUNG|TEXTSTRING|EINHEIT_X|EINHEIT_Y|EINHEIT_W|LANGNAME|DISPLAYNAME|VAR|FUNKTION|WERT|TEXT)\\b"
+      },
+    "numbers": {
+      "name": "constant.numeric.dcm",
+      "match": "-?\\b[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?\\b"
+    }
+  }
+}

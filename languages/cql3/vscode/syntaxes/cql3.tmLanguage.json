@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Cql3",
+  "scopeName": "source.cql3",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-dash.cql3", "match": "--.*$" },
+        { "name": "comment.line.number-sign.cql3", "match": "#.*$" },
+        { "name": "comment.line.double-slash.cql3", "match": "//.*$" },
+        {
+          "name": "comment.block.cql3",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.cql3",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            { "name": "constant.character.escape.cql3", "match": "\\\\.|''" }
+          ]
+        },
+        {
+          "name": "string.quoted.double.cql3",
+          "match": "\"[^\"]+\""
+        },
+        {
+          "name": "string.other.codeblock.cql3",
+          "begin": "\\$\\$",
+          "end": "\\$\\$"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.cql3",
+      "match": "(?i)\\b(ADD|AGGREGATE|ALL|ALLOW|ALTER|AND|ANY|APPLY|AS|ASC|AUTHORIZE|BATCH|BEGIN|BY|CALLED|CLUSTERING|COLUMNFAMILY|COMPACT|CONSISTENCY|CONTAINS|CREATE|CUSTOM|DEFAULT|DELETE|DESC|DESCRIBE|DISTINCT|DROP|DURABLE_WRITES|EACH_QUORUM|ENTRIES|EXECUTE|EXISTS|FILTERING|FINALFUNC|FROM|FULL|FUNCTION|FUNCTIONS|GRANT|IF|IN|INDEX|INFINITY|INITCOND|INPUT|INSERT|INTO|IS|JSON|KEY|KEYS|KEYSPACE|KEYSPACES|LANGUAGE|LEVEL|LIMIT|LOCAL_ONE|LOCAL_QUORUM|LOGGED|LOGIN|MASKED|MATERIALIZED|MODIFY|NORECURSIVE|NOSUPERUSER|NOT|OF|ON|ONE|OPTIONS|OR|ORDER|PARTITION|PASSWORD|PER|PERMISSION|PERMISSIONS|PRIMARY|QUORUM|RENAME|REPLACE|REPLICATION|RETURNS|REVOKE|ROLE|ROLES|SCHEMA|SELECT|SET|SFUNC|STATIC|STORAGE|STYPE|SUPERUSER|TABLE|THREE|TIMESTAMP|TO|TOKEN|TRIGGER|TRUNCATE|TTL|TYPE|UNLOGGED|UPDATE|USE|USER|USING|VALUES|VIEW|WHERE|WITH|WRITETIME)\\b"
+    },
+    "types": {
+      "name": "storage.type.cql3",
+      "match": "(?i)\\b(ASCII|BIGINT|BLOB|BOOLEAN|COUNTER|DATE|DECIMAL|DOUBLE|FLOAT|FROZEN|INET|INT|LIST|MAP|SMALLINT|TEXT|TIME|TIMEUUID|TINYINT|TUPLE|UUID|VARCHAR|VARINT|VECTOR|NULL|TRUE|FALSE)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.cql3",
+      "match": "\\b(0[xX][0-9a-fA-F]+|[0-9]+(\\.[0-9]+)?)\\b"
+    }
+  }
+}

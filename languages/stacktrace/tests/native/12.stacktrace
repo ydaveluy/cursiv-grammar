@@ -1,0 +1,2 @@
+java.lang.RuntimeException
+	at demo.Init.<clinit>(Main.groovy:12)

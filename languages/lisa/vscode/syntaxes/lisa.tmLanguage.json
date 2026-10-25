@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lisa",
+  "scopeName": "source.lisa",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-slash.lisa",
+      "match": "//.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.lisa",
+      "begin": "\"",
+      "end": "\""
+    },
+    "keywords": {
+      "name": "keyword.control.lisa",
+      "match": "\\b(declare|program|if|WHILE|generate|random|enumerate|break|continue)\\b"
+    },
+    "types": {
+      "name": "storage.type.lisa",
+      "match": "\\b(int|dfa|nfa|regex|bool|string)\\b"
+    },
+    "constants": {
+      "name": "constant.language.lisa",
+      "match": "\\b(TRUE|FALSE|next|hasnext)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.lisa",
+      "match": "\\b[1-9][0-9]*\\b"
+    }
+  }
+}

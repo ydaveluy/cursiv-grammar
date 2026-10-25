@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Bibtex",
+  "scopeName": "source.bibtex",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#entry-kinds"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.percentage.bibtex",
+      "match": "%.*$"
+    },
+    "entry-kinds": {
+      "name": "keyword.control.bibtex",
+      "match": "(?i)@(article|book|booklet|inbook|incollection|inproceedings|proceedings|manual|masterthesis|phdthesis|misc|techreport|unpublished)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.bibtex",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.bibtex",
+              "match": "\\\\([\"\\\\/bfnrt]|u[0-9a-fA-F]{4})"
+            }
+          ]
+        },
+        {
+          "name": "string.unquoted.braced.bibtex",
+          "begin": "\\{",
+          "end": "\\}",
+          "patterns": [
+            {
+              "name": "constant.character.escape.bibtex",
+              "match": "\\\\([\"\\\\/bfnrt]|u[0-9a-fA-F]{4})"
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.bibtex",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

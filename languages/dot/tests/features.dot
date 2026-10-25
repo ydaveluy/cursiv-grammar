@@ -1,0 +1,18 @@
+# 1 "features.dot"
+// strict, an HTML label, an edge attr_stmt, an escaped quote, a
+// preprocessor line, a bare-number id and both port forms, together.
+strict digraph Demo {
+    /* graph-level style */
+    graph [rankdir=LR, label="a \"quoted\" title"];
+    node [shape=box];
+    edge [color=blue];
+
+    1 -> 2 -> 3;
+    start [shape=Mdiamond];
+    box1:n -> box2:f0:s [label=<<B>bold</B> text>];
+
+    subgraph cluster_a {
+        label = "cluster A";
+        x -> y;
+    }
+}

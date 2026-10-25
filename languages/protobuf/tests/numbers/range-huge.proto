@@ -1,0 +1,2 @@
+syntax="proto3";
+message M {reserved 18446744073709551616 to 18446744073709551617;}

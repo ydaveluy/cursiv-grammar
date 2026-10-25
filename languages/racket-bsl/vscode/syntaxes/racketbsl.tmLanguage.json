@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "RacketBsl",
+  "scopeName": "source.racketbsl",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#lang-directive" },
+    { "include": "#keywords" },
+    { "include": "#booleans" },
+    { "include": "#characters" },
+    { "include": "#strings" },
+    { "include": "#symbols" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.racketbsl",
+      "match": ";.*$"
+    },
+    "lang-directive": {
+      "name": "keyword.other.lang.racketbsl",
+      "match": "^#lang.*$"
+    },
+    "keywords": {
+      "name": "keyword.control.racketbsl",
+      "match": "(?<=\\()(define-struct|define|lambda|cond|else|if|and|or|require|check-expect|check-random|check-within|check-member-of|check-satisfied|check-error)(?=[\\s()])"
+    },
+    "booleans": {
+      "name": "constant.language.boolean.racketbsl",
+      "match": "#(true|false|[tTfF])\\b"
+    },
+    "characters": {
+      "name": "constant.character.racketbsl",
+      "match": "#\\\\(space|[A-Za-z0-9])"
+    },
+    "strings": {
+      "name": "string.quoted.double.racketbsl",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.racketbsl", "match": "\\\\." }
+      ]
+    },
+    "symbols": {
+      "name": "constant.other.symbol.racketbsl",
+      "match": "['’][^\\s\"'`(){}\\[\\]|;#]+"
+    },
+    "numbers": {
+      "name": "constant.numeric.racketbsl",
+      "match": "(?<![\\w-])[0-9]+(/[0-9]+|\\.[0-9]+)?(?![\\w-])"
+    }
+  }
+}

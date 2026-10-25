@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "RacketIsl",
+  "scopeName": "source.racketisl",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#lang-directive" },
+    { "include": "#keywords" },
+    { "include": "#booleans" },
+    { "include": "#characters" },
+    { "include": "#strings" },
+    { "include": "#symbols" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.racketisl",
+      "match": ";.*$"
+    },
+    "lang-directive": {
+      "name": "keyword.other.lang.racketisl",
+      "match": "^#lang.*$"
+    },
+    "keywords": {
+      "name": "keyword.control.racketisl",
+      "match": "(?<=\\()(define-struct|define|lambda|local|letrec|shared|let\\*|let|recur|begin0|begin|set!|delay|cond|else|if|and|or|time|require|check-expect|check-random|check-within|check-member-of|check-satisfied|check-error)(?=[\\s()])"
+    },
+    "booleans": {
+      "name": "constant.language.boolean.racketisl",
+      "match": "#(true|false|[tTfF])\\b"
+    },
+    "characters": {
+      "name": "constant.character.racketisl",
+      "match": "#\\\\(space|[A-Za-z0-9])"
+    },
+    "strings": {
+      "name": "string.quoted.double.racketisl",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.racketisl", "match": "\\\\." }
+      ]
+    },
+    "symbols": {
+      "name": "constant.other.symbol.racketisl",
+      "match": "[’‘][^\\s\"'`(){}\\[\\]|;#]+"
+    },
+    "numbers": {
+      "name": "constant.numeric.racketisl",
+      "match": "(?<![\\w-])[0-9]+(/[0-9]+|\\.[0-9]+)?(?![\\w-])"
+    }
+  }
+}

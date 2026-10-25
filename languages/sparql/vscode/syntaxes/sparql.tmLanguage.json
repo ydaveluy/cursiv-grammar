@@ -1,0 +1,61 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sparql",
+  "scopeName": "source.sparql",
+  "patterns": [
+    { "include": "#keywords" },
+    { "include": "#builtins" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#variables" },
+    { "include": "#iris" }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.sparql",
+      "match": "(?i)\\b(SELECT|CONSTRUCT|DESCRIBE|ASK|DISTINCT|REDUCED|FROM|NAMED|WHERE|GRAPH|OPTIONAL|UNION|FILTER|ORDER|BY|ASC|DESC|LIMIT|OFFSET|BASE|PREFIX)\\b"
+    },
+    "builtins": {
+      "name": "support.function.sparql",
+      "match": "(?i)\\b(STR|LANG|LANGMATCHES|DATATYPE|BOUND|sameTerm|isIRI|isURI|isBLANK|isLITERAL|REGEX)\\b(?=\\s*\\()"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.sparql",
+          "begin": "'''",
+          "end": "'''"
+        },
+        {
+          "name": "string.quoted.triple.sparql",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.single.sparql",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.double.sparql",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "match": "\\\\." }]
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.sparql",
+      "match": "[+-]?[0-9]*\\.?[0-9]+([eE][+-]?[0-9]+)?"
+    },
+    "variables": {
+      "name": "variable.other.sparql",
+      "match": "[?$][A-Za-z_][A-Za-z0-9_]*"
+    },
+    "iris": {
+      "name": "string.other.link.sparql",
+      "match": "<[^<>\"{}|^`\\\\]*>"
+    }
+  }
+}

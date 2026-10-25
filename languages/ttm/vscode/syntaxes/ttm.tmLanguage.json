@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Ttm",
+  "scopeName": "source.ttm",
+  "fileTypes": ["ttm"],
+  "patterns": [
+    { "include": "#neutral" },
+    { "include": "#active" },
+    { "include": "#escstring" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "neutral": {
+      "name": "keyword.control.neutral.ttm",
+      "match": "##<"
+    },
+    "active": {
+      "name": "keyword.control.active.ttm",
+      "match": "#<"
+    },
+    "escstring": {
+      "name": "string.quoted.other.ttm",
+      "match": "<[a-zA-Z]+>"
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.terminator.call.ttm", "match": ">" },
+        { "name": "punctuation.separator.arg.ttm", "match": ";" },
+        { "name": "punctuation.definition.wrap.ttm", "match": "<" }
+      ]
+    }
+  }
+}

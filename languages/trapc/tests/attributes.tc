@@ -1,0 +1,17 @@
+// Standard `[[...]]` and GNU `__attribute__((...))` attributes: on a
+// declaration, a struct, an enum and one of its enumerators, a declarator,
+// and standalone.
+
+[[nodiscard]] int compute(int x);
+
+struct [[gnu::packed]] Packed {
+    int value;
+};
+
+enum [[deprecated]] Old { OLD_A, OLD_B [[deprecated]] };
+
+__attribute__((unused)) static int hidden;
+
+int buffer[4] __attribute__((aligned(16)));
+
+[[maybe_unused]];

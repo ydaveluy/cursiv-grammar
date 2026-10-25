@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Wavefront",
+  "scopeName": "source.wavefront",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.wavefront",
+      "match": "#.*$"
+    },
+    "keywords": {
+      "name": "keyword.control.wavefront",
+      "match": "^\\s*(v|vn|vt|vp|p|l|f|cstype|deg|bmat|step|curv2?|surf|parm|trim|hole|scrv|sp|end|con|g|s|mg|o|bevel|c_interp|d_interp|lod|maplib|usemap|mtllib|usemtl|shadow_obj|trace_obj|ctech|stech|call|csh)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.wavefront",
+      "match": "-?\\b[0-9]+(\\.[0-9]*)?\\b"
+    }
+  }
+}

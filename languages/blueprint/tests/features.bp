@@ -1,0 +1,24 @@
+// Constructs example1.bp does not exercise: `+=`, a module in `(...)` form,
+// a negative integer, an escaped quote, a bare (unparenthesized) select
+// condition, and a select case whose value is `unset`.
+extra_flags = ["-Wall"]
+extra_flags += ["-Wextra"]
+
+count = -5
+
+quoted = "she said \"hi\""
+
+cc_defaults(
+    name = "base_defaults",
+    cflags = extra_flags,
+)
+
+cc_binary {
+    name: "tool",
+    srcs: ["main.c"],
+    count: count,
+    enable: select(product_variable("debug"), {
+        true: true,
+        default: unset,
+    }),
+}

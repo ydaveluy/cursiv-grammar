@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Matlab",
+  "scopeName": "source.matlab",
+  "patterns": [
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.single.matlab",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.matlab",
+          "match": "''"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.matlab",
+      "match": "\\b(if|elseif|else|end|while|for|break|return|global|clear|transpose)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.matlab",
+      "match": "\\b[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+(\\.[0-9]+)?)?\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.matlab",
+      "match": "(\\.\\*|\\./|\\.\\\\|\\.\\^|\\.'|<=|>=|==|~=|[+\\-*/\\\\^<>&|:~=])"
+    }
+  }
+}

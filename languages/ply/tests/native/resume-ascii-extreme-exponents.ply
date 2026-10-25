@@ -1,0 +1,13 @@
+ply
+format ascii 1.0
+element sample 8
+property double v
+end_header
+1e999999
+-1e999999
+1e-999999
+-1e-999999
+0.0e999999
+-0.0e999999
+0.0000001e-999999
+000001.0e999999

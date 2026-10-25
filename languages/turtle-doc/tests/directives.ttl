@@ -1,0 +1,5 @@
+@prefix ex: <http://example.org/> .
+@base <http://example.org/base/> .
+PreFIX ex2: <http://example.org/2/>
+BASE <http://example.org/base2/>
+ex:s ex:p ex2:o .

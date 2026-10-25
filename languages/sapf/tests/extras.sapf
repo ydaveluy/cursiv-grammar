@@ -1,0 +1,5 @@
+; A hashed list, a backtick/quote/comma word prefix, and the M/u number
+; suffixes.
+#[1 2 3] size
+5M 2u +
+`sym 'quoted ,rest

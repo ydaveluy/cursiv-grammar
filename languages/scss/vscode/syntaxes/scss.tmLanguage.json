@@ -1,0 +1,103 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Scss",
+  "scopeName": "source.scss",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#interpolation" },
+    { "include": "#variables" },
+    { "include": "#at-rules" },
+    { "include": "#keywords" },
+    { "include": "#colors" },
+    { "include": "#numbers" },
+    { "include": "#placeholder" },
+    { "include": "#parent-ref" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.scss",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.scss",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.scss",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "include": "#interpolation" },
+            { "name": "constant.character.escape.scss", "match": "\\\\." }
+          ]
+        },
+        {
+          "name": "string.quoted.single.scss",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            { "include": "#interpolation" },
+            { "name": "constant.character.escape.scss", "match": "\\\\." }
+          ]
+        }
+      ]
+    },
+    "interpolation": {
+      "name": "meta.interpolation.scss",
+      "begin": "#\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.definition.interpolation.scss" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.interpolation.scss" } },
+      "patterns": [
+        { "include": "#variables" },
+        { "include": "#keywords" },
+        { "include": "#colors" },
+        { "include": "#numbers" }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.other.scss",
+          "match": "\\$[A-Za-z_-][A-Za-z0-9_-]*"
+        },
+        {
+          "name": "variable.other.custom-property.scss",
+          "match": "--[A-Za-z_-][A-Za-z0-9_-]*"
+        }
+      ]
+    },
+    "at-rules": {
+      "name": "keyword.control.at-rule.scss",
+      "match": "@(import|use|require|forward|charset|mixin|include|content|function|return|extend|if|else|for|from|through|to|while|each|in|media|warn|error|font-face|keyframes)\\b"
+    },
+    "keywords": {
+      "name": "keyword.other.scss",
+      "match": "\\b(if|not|and|or|using|as|with|true|false)\\b"
+    },
+    "colors": {
+      "name": "constant.other.color.scss",
+      "match": "#[0-9a-fA-F]{3,8}\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.scss",
+      "match": "-?[0-9]*\\.?[0-9]+(px|cm|mm|pt|pc|q|em|ex|ch|rem|vw|vh|vmin|vmax|deg|rad|grad|turn|dpi|dpcm|dppx|hz|khz|fr|ms|s|%)?\\b"
+    },
+    "placeholder": {
+      "name": "entity.other.attribute-name.placeholder.scss",
+      "match": "%[A-Za-z_-][A-Za-z0-9_-]*"
+    },
+    "parent-ref": {
+      "name": "keyword.operator.parent-reference.scss",
+      "match": "&"
+    }
+  }
+}

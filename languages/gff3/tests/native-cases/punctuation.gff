@@ -1,0 +1,2 @@
+##gff-version 3
+chr1	maker/v2[1]	gene	1	10	.	+	.	ID=g1;Name=kinase(beta)/alpha

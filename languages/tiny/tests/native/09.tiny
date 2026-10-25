@@ -1,0 +1,1 @@
+BEGIN x:=a y:=b WRITE x,y END

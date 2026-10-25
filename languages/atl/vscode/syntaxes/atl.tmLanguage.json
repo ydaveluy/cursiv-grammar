@@ -1,0 +1,80 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Atl",
+  "scopeName": "source.atl",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.atl",
+          "match": "--.*$"
+        },
+        {
+          "name": "comment.block.atl",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.atl",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.atl",
+              "match": "\\\\[btnfr\"'\\\\]"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.atl",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.atl",
+              "match": "\\\\[btnfr\"'\\\\]"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.atl",
+          "match": "\\b(module|library|query|create|refining|from|uses|helper|context|def|unique|lazy|abstract|nodefault|refining|rule|extends|using|entrypoint|endpoint|to|distinct|foreach|mapsTo|do|if|then|else|endif|for|in|let|iterate|not|div|mod|and|or|xor|implies|super)\\b"
+        },
+        {
+          "name": "constant.language.atl",
+          "match": "\\b(true|false|OclUndefined)\\b"
+        },
+        {
+          "name": "support.type.atl",
+          "match": "\\b(Integer|Real|Boolean|String|OclAny|OclType|Collection|Bag|Set|OrderedSet|Sequence|Map|Tuple|TupleType)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.atl",
+      "match": "\\b[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?[fFdD]?\\b"
+    }
+  }
+}

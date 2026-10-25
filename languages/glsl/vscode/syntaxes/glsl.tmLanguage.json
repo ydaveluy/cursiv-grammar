@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Glsl",
+  "scopeName": "source.glsl",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#preprocessor" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.glsl",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.glsl",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "preprocessor": {
+      "patterns": [
+        {
+          "name": "meta.preprocessor.glsl",
+          "begin": "^\\s*#",
+          "end": "(?=$)",
+          "patterns": [
+            {
+              "name": "keyword.control.directive.glsl",
+              "match": "\\b(define|undef|if|ifdef|ifndef|elif|else|endif|error|pragma|extension|version|line)\\b"
+            },
+            {
+              "name": "constant.language.glsl",
+              "match": "\\b(core|compatibility|es|require|enable|warn|disable|on|off|STDGL)\\b"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.glsl",
+          "match": "\\b(if|else|switch|case|default|for|while|do|continue|break|return|discard)\\b"
+        },
+        {
+          "name": "storage.modifier.glsl",
+          "match": "\\b(const|in|out|inout|centroid|patch|sample|uniform|buffer|shared|coherent|volatile|restrict|readonly|writeonly|subroutine|attribute|varying|highp|mediump|lowp|smooth|flat|noperspective|invariant|precise|layout|precision|struct)\\b"
+        },
+        {
+          "name": "constant.language.boolean.glsl",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "types": {
+      "name": "storage.type.glsl",
+      "match": "\\b(void|float|double|int|uint|bool|[bdiu]?vec[234]|d?mat[234](x[234])?|atomic_uint|(i|u)?sampler(1D|2D|3D|Cube|2DRect|Buffer)(Array)?(Shadow)?|(i|u)?sampler2DMS(Array)?|(i|u)?samplerCubeArray(Shadow)?|(i|u)?image(1D|2D|3D|Cube|2DRect|Buffer)(Array)?|(i|u)?image2DMS(Array)?|(i|u)?imageCubeArray)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.glsl",
+      "match": "\\b(0[xX][0-9a-fA-F]+|0[0-7]*|[1-9][0-9]*|((\\.[0-9]+)|([0-9]+\\.[0-9]*)|([0-9]+))([eE][+-]?[0-9]+)?)(u|U|f|F|lf|LF)?\\b"
+    }
+  }
+}

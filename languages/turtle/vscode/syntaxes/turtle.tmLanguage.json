@@ -1,0 +1,92 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Turtle",
+  "scopeName": "source.turtle",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#directives" },
+    { "include": "#keywords" },
+    { "include": "#iri" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#prefixed-name" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.turtle",
+      "match": "#.*$"
+    },
+    "directives": {
+      "name": "keyword.control.directive.turtle",
+      "match": "@prefix|@base|(?i:\\bPREFIX\\b|\\bBASE\\b)"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.operator.type.turtle",
+          "match": "(?<=\\s)a(?=\\s)"
+        },
+        {
+          "name": "constant.language.boolean.turtle",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "iri": {
+      "name": "string.other.iri.turtle",
+      "begin": "<",
+      "end": ">",
+      "patterns": [
+        { "name": "constant.character.escape.turtle", "match": "\\\\[uU][0-9a-fA-F]+" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.turtle",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [{ "include": "#string-escape" }]
+        },
+        {
+          "name": "string.quoted.triple.turtle",
+          "begin": "'''",
+          "end": "'''",
+          "patterns": [{ "include": "#string-escape" }]
+        },
+        {
+          "name": "string.quoted.double.turtle",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "include": "#string-escape" }]
+        },
+        {
+          "name": "string.quoted.single.turtle",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "include": "#string-escape" }]
+        },
+        {
+          "name": "support.type.langtag.turtle",
+          "match": "@[a-zA-Z]+(-[a-zA-Z0-9]+)*"
+        },
+        {
+          "name": "keyword.operator.datatype.turtle",
+          "match": "\\^\\^"
+        }
+      ]
+    },
+    "string-escape": {
+      "name": "constant.character.escape.turtle",
+      "match": "\\\\([tbnrf\"'\\\\]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})"
+    },
+    "numbers": {
+      "name": "constant.numeric.turtle",
+      "match": "[+-]?(\\d+\\.\\d*([eE][+-]?\\d+)?|\\.\\d+[eE][+-]?\\d+|\\d+[eE][+-]?\\d+|\\d+)"
+    },
+    "prefixed-name": {
+      "name": "entity.name.type.turtle",
+      "match": "([A-Za-z][\\w.-]*)?:[A-Za-z0-9_][\\w.-]*"
+    }
+  }
+}

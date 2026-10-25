@@ -1,0 +1,4 @@
+(forall (?X) (=> (instance ?X Dog) (instance ?X Animal)))
+(exists (?X ?Y) (and (instance ?X Dog) (instance ?Y Cat) (not (equal ?X ?Y))))
+(forall (?X ?Y ?Z)
+        (=> (and (subclass ?X ?Y) (subclass ?Y ?Z)) (subclass ?X ?Z)))

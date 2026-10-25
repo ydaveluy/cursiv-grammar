@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Gtin",
+  "scopeName": "source.gtin",
+  "patterns": [
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "numbers": {
+      "name": "constant.numeric.gtin",
+      "match": "[0-9]"
+    }
+  }
+}

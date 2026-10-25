@@ -1,0 +1,11 @@
+/build*
+
+# Local audit artifacts
+/audit/
+/languages/*/PORTING.md
+
+# Tooling caches
+/.cache/
+__pycache__/
+*.pyc
+*.pyo

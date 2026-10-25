@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Aterm",
+  "scopeName": "source.aterm",
+  "patterns": [
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.aterm",
+      "match": "\"[^\"]*\""
+    },
+    "numbers": {
+      "name": "constant.numeric.aterm",
+      "match": "[+-]?[0-9]+(\\.[0-9]+([eE][+-]?[0-9]+)?)?"
+    },
+    "punctuation": {
+      "name": "punctuation.definition.term.aterm",
+      "match": "[()\\[\\]{}<>,]"
+    }
+  }
+}

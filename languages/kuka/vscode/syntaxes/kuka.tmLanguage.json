@@ -1,0 +1,71 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Kuka",
+  "scopeName": "source.kuka",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.semicolon.kuka", "match": ";.*$" },
+        { "name": "comment.line.ampersand.kuka", "match": "^&.*$" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.kuka",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.kuka", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.kuka",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.kuka", "match": "\\\\." }]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.kuka",
+          "match": "(?i)\\b(IF|THEN|ELSE|ENDIF|FOR|TO|ENDFOR|WHILE|ENDWHILE|REPEAT|UNTIL|LOOP|ENDLOOP|SWITCH|CASE|DEFAULT|ENDSWITCH|GOTO|CONTINUE|EXIT|RETURN|HALT|BRAKE|WAIT|SEC|WAIT|INTERRUPT|TRIGGER|WHEN|DELAY|DO|PRIO|ON|OFF)\\b"
+        },
+        {
+          "name": "keyword.other.kuka",
+          "match": "(?i)\\b(DEF|DEFFCT|END|ENDFCT|DEFDAT|ENDDAT|DECL|GLOBAL|CONST|PUBLIC|STRUC|ENUM|SIGNAL|EXT|EXTFCT|IMPORT|IS)\\b"
+        },
+        {
+          "name": "keyword.other.motion.kuka",
+          "match": "(?i)\\b(PTP|PTP_REL|LIN|LIN_REL|CIRC|CIRC_REL|C_PTP|C_DIS|C_ORI|C_VEL|ANIN|ANOUT)\\b"
+        },
+        {
+          "name": "storage.type.kuka",
+          "match": "(?i)\\b(BOOL|CHAR|INT|REAL)\\b"
+        },
+        {
+          "name": "constant.language.kuka",
+          "match": "(?i)\\b(TRUE|FALSE)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.kuka",
+          "match": "(?i)\\b(AND|OR|NOT|EXOR|B_AND|B_OR|B_NOT|B_EXOR)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.kuka", "match": "'[Hh][0-9a-fA-F]+'" },
+        { "name": "constant.numeric.kuka", "match": "'[Bb][01]+'" },
+        { "name": "constant.numeric.kuka", "match": "\\b[0-9]+\\.[0-9]*([eE][+-]?[0-9]+)?\\b" },
+        { "name": "constant.numeric.kuka", "match": "\\b[0-9]+\\b" }
+      ]
+    }
+  }
+}

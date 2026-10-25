@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Powerquery",
+  "scopeName": "source.powerquery",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#constants" },
+    { "include": "#keywords" },
+    { "include": "#types" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.powerquery",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.powerquery",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.powerquery",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.powerquery", "match": "\"\"" },
+            { "name": "constant.character.escape.powerquery", "match": "#\\([0-9a-fA-F,\\t\\r\\n#]*\\)" }
+          ]
+        },
+        {
+          "name": "string.quoted.other.powerquery",
+          "begin": "#\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.powerquery", "match": "\"\"" }
+          ]
+        },
+        {
+          "name": "string.quoted.other.verbatim.powerquery",
+          "begin": "#!",
+          "end": "\""
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.powerquery",
+          "match": "\\b0x[0-9a-fA-F]+\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.powerquery",
+          "match": "\\b([0-9]+\\.[0-9]+|\\.[0-9]+|[0-9]+)([eE][+-]?[0-9]+)?\\b"
+        }
+      ]
+    },
+    "constants": {
+      "name": "constant.language.powerquery",
+      "match": "\\b(true|false|null)\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.powerquery",
+      "match": "\\b(and|as|each|else|error|if|in|is|let|meta|not|or|otherwise|section|shared|then|try|type|optional|nullable)\\b|#(binary|date|datetime|datetimezone|duration|infinity|nan|sections|shared|table|time)\\b"
+    },
+    "types": {
+      "name": "storage.type.powerquery",
+      "match": "\\b(any|anynonnull|binary|date|datetime|datetimezone|duration|function|list|logical|none|number|record|table|text)\\b"
+    }
+  }
+}

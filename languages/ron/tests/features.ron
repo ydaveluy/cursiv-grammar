@@ -1,0 +1,18 @@
+// hex, binary, char (including a multi-byte one), bare identifiers as unit
+// values, and every map key kind -- constructs not otherwise exercised
+Config(
+    flags: 0xFF,
+    mask: 0b1010,
+    grade: 'A',
+    accent: 'é',
+    mode: Fast,
+    single: (1),
+    pair: (1, 2,),
+    list: [1, 2, 3,],
+    lookup: {
+        1: "one",
+        two: 2,
+        "three": 3,
+    },
+    nested: Point(x: 1, y: 2),
+)

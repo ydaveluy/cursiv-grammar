@@ -1,0 +1,86 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Idl",
+  "scopeName": "source.idl",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#annotations"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#chars"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.idl",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.idl",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "annotations": {
+      "name": "storage.type.annotation.idl",
+      "match": "@\\w*(::\\w+)*"
+    },
+    "strings": {
+      "name": "string.quoted.double.idl",
+      "begin": "L?\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.idl",
+          "match": "\\\\(.|u[0-9a-fA-F]{4})"
+        }
+      ]
+    },
+    "chars": {
+      "name": "string.quoted.single.idl",
+      "begin": "L?'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.idl",
+          "match": "\\\\(.|u[0-9a-fA-F]{4})"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.idl",
+          "match": "\\b(module|interface|component|home|valuetype|eventtype|struct|union|enum|bitset|bitmask|exception|typedef|native|const|attribute|readonly|oneway|in|out|inout|raises|getraises|setraises|context|switch|case|default|import|typeid|typeprefix|annotation|abstract|local|custom|truncatable|supports|manages|primarykey|factory|finder|provides|uses|multiple|emits|publishes|consumes)\\b"
+        },
+        {
+          "name": "storage.type.idl",
+          "match": "\\b(void|float|double|short|long|unsigned|char|wchar|boolean|octet|any|Object|ValueBase|string|wstring|sequence|set|map|fixed|bitfield|int8|uint8|int16|uint16|int32|uint32|int64|uint64)\\b"
+        },
+        {
+          "name": "constant.language.idl",
+          "match": "\\b(TRUE|FALSE)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.idl",
+      "match": "\\b0[xX][0-9a-fA-F]+\\b|\\b0[0-7]+\\b|\\b[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?[fFdDlL]?\\b|\\B\\.[0-9]+([eE][+-]?[0-9]+)?[fFdD]?\\b"
+    }
+  }
+}

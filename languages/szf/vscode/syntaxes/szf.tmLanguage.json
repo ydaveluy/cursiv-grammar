@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Szf",
+  "scopeName": "source.szf",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#tags"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-slash.szf",
+      "match": "//.*$"
+    },
+    "tags": {
+      "name": "keyword.control.szf",
+      "match": "<(group|region)>"
+    },
+    "numbers": {
+      "name": "constant.numeric.szf",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  },
+  "fileTypes": [
+    "sfz",
+    "szf"
+  ]
+}

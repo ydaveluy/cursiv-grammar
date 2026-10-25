@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Algol60",
+  "scopeName": "source.algol60",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.block.algol60",
+      "begin": "(?i)\\bcomment\\b",
+      "end": ";"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.algol60",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.other.algol60",
+          "begin": "`",
+          "end": "'"
+        },
+        {
+          "name": "string.quoted.other.algol60",
+          "begin": "⌜",
+          "end": "⌝"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.algol60",
+      "match": "(?i)\\b(array|begin|boolean|do|else|end|false|for|go\\s*to|goto|if|integer|label|own|procedure|real|step|string|switch|then|true|until|value|while)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.algol60",
+      "match": ":=|[+\\-×*÷/↑^<>=]|<=|>=|≤|≥|≠|!=|¬|!|⋀|&|⋁\\||⊃|≡"
+    },
+    "numbers": {
+      "name": "constant.numeric.algol60",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

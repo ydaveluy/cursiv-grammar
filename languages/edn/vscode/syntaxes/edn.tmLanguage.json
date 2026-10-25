@@ -1,0 +1,56 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Edn",
+  "scopeName": "source.edn",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#characters" },
+    { "include": "#keywords" },
+    { "include": "#tags" },
+    { "include": "#numbers" },
+    { "include": "#constants" },
+    { "include": "#symbols" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.edn",
+      "match": ";.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.edn",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.edn",
+          "match": "\\\\(u[0-9a-fA-F]{4}|[ctrn\\\\\"bf])"
+        }
+      ]
+    },
+    "characters": {
+      "name": "constant.character.edn",
+      "match": "\\\\(newline|return|space|tab|backspace|formfeed|u[0-9a-fA-F]{4}|.)"
+    },
+    "keywords": {
+      "name": "constant.other.keyword.edn",
+      "match": ":[A-Za-z0-9.*+!_?$%&=<>#:\\-]*(/[A-Za-z0-9.*+!_?$%&=<>#:\\-]+)?"
+    },
+    "tags": {
+      "name": "storage.type.tag.edn",
+      "match": "#[A-Za-z][A-Za-z0-9.*+!_?$%&=<>#:\\-]*(/[A-Za-z0-9.*+!_?$%&=<>#:\\-]+)?"
+    },
+    "numbers": {
+      "name": "constant.numeric.edn",
+      "match": "[+-]?(0|[1-9][0-9]*)(N|M|\\.[0-9]+([eE][+-]?[0-9]+)?|[eE][+-]?[0-9]+)?"
+    },
+    "constants": {
+      "name": "constant.language.edn",
+      "match": "\\b(nil|true|false)\\b"
+    },
+    "symbols": {
+      "name": "variable.other.edn",
+      "match": "[A-Za-z.*+!_?$%&=<>#:\\-][A-Za-z0-9.*+!_?$%&=<>#:\\-]*"
+    }
+  }
+}

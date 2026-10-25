@@ -1,0 +1,9 @@
+solid numberforms
+  facet normal 12.5 .5 12.
+    outer loop
+      vertex 1.5e10 2e3 2E3
+      vertex 1e+5 1.5e-3 3.0E2
+      vertex 0.0 100. .25
+    endloop
+  endfacet
+endsolid numberforms

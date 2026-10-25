@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Redis",
+  "scopeName": "source.redis",
+  "patterns": [
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#commands"
+    },
+    {
+      "include": "#flags"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.redis",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.redis",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.redis",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.redis",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "commands": {
+      "name": "keyword.control.redis",
+      "match": "(?i)\\b(COPY|DEL|UNLINK|DUMP|EXISTS|EXPIRE|EXPIREAT|EXPIRETIME|PEXPIRE|PEXPIREAT|PEXPIRETIME|KEYS|MOVE|OBJECT|PERSIST|TTL|PTTL|RANDOMKEY|RENAME|RENAMENX|SCAN|TOUCH|TYPE|WAIT|SET|GET|INCR|INCRBY|DECR|DECRBY|APPEND|GETDEL|GETEX|GETRANGE|GETSET|MGET|MSET|MSETNX|PSETEX|SETEX|SETNX|SETRANGE|STRLEN|SUBSTR|LMOVE|BLMOVE|LMPOP|BLMPOP|LPOP|BLPOP|RPOP|BRPOP|RPOPLPUSH|BRPOPLPUSH|LINDEX|LINSERT|LLEN|LPOS|LPUSH|LPUSHX|RPUSH|RPUSHX|LRANGE|LREM|LSET|LTRIM|SADD|SCARD|SDIFF|SDIFFSTORE|SINTER|SINTERCARD|SINTERSTORE|SISMEMBER|SMISMEMBER|SMEMBERS|SMOVE|SPOP|SRANDMEMBER|SREM|SSCAN|SUNION|SUNIONSTORE|ZMPOP|BZMPOP|ZPOPMAX|BZPOPMAX|ZPOPMIN|BZPOPMIN|ZADD|ZCARD|ZCOUNT|ZDIFF|ZDIFFSTORE|ZINCRBY|ZINTER|ZINTERCARD|ZINTERSTORE|ZLEXCOUNT|ZSCORE|ZMSCORE|ZRANDMEMBER|ZRANGE|ZRANGEBYLEX|ZRANGEBYSCORE|ZRANGESTORE|ZRANK|ZREM|ZREMRANGEBYLEX|ZREMRANGEBYRANK|ZREMRANGEBYSCORE|ZREVRANGE|ZREVRANGEBYLEX|ZREVRANGEBYSCORE|ZREVRANK|ZSCAN|ZUNION|ZUNIONSTORE|HDEL|HEXISTS|HEXPIRE|HPEXPIRE|HEXPIREAT|HPEXPIREAT|HEXPIRETIME|HPEXPIRETIME|HGET|HMGET|HGETALL|HINCRBY|HKEYS|HLEN|HSET|HMSET|HSETNX|HPERSIST|HTTL|HPTTL|HRANDFIELD|HSCAN|HSTRLEN|HVALS)\\b"
+    },
+    "flags": {
+      "name": "constant.language.redis",
+      "match": "(?i)\\b(NX|XX|GT|LT|CH|REPLACE|KEEPTTL|EX|PX|EXAT|PXAT|PERSIST|LEFT|RIGHT|BEFORE|AFTER|RANK|MAXLEN|LIMIT|MIN|MAX|SUM|WITHSCORE|WITHSCORES|WEIGHTS|AGGREGATE|BYSCORE|BYLEX|REV|FIELDS|WITHVALUES|NOVALUES|DB|MATCH|COUNT|TYPE|ENCODING|FREQ|IDLETIME|REFCOUNT|INCR)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.redis",
+      "match": "[+-]?\\b[0-9]+\\b|[+-]?\\binf\\b"
+    }
+  }
+}

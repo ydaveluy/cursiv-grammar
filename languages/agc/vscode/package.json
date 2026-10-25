@@ -1,0 +1,75 @@
+{
+  "name": "agc",
+  "displayName": "Agc",
+  "description": "The agc language, parsed by cursiv",
+  "version": "0.1.0",
+  "publisher": "example",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.86.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:agc"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "agc",
+        "aliases": [
+          "Agc"
+        ],
+        "extensions": [
+          ".agc"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "agc",
+        "scopeName": "source.agc",
+        "path": "./syntaxes/agc.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Agc",
+      "properties": {
+        "agc.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the agc_lsp executable. Empty means the packaged copy, then ../build/."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "bundle": "node esbuild.mjs --production",
+    "typecheck": "tsc -p tsconfig.json",
+    "vscode:prepublish": "npm run bundle",
+    "package": "vsce package --no-dependencies --allow-missing-repository"
+  },
+  "files": [
+    "package.json",
+    "out",
+    "bin",
+    "language-configuration.json",
+    "syntaxes"
+  ],
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "@types/vscode": "^1.86.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2",
+    "@vscode/vsce": "^3.2.0"
+  }
+}

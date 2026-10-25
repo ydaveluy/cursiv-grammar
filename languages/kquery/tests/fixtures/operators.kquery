@@ -1,0 +1,30 @@
+array data[4] : w32 -> w8 = symbolic
+
+(query [(Eq false (Not [w8] (Read w8 0 data)))
+        (Eq false (Shl w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (LShr w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (AShr w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Xor w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Sub w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Mul w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (UDiv w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (URem w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (SRem w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Ne w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Ugt w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Uge w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Slt w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Sgt w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Sge w8 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Concat w16 (Read w8 0 data) (Read w8 1 data)))
+        (Eq false (Neg (Read w8 0 data)))
+        (Eq false (Neg w8 (Read w8 0 data)))
+        (w8 5)
+        +3
+        -4
+        0x1F
+        0o17
+        0b101]
+       (ReadMSB w32 0 data)
+       [(Read w8 0 data)]
+       [x y])

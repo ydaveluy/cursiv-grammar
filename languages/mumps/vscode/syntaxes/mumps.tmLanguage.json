@@ -1,0 +1,51 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Mumps",
+  "scopeName": "source.mumps",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.mumps",
+      "match": ";.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.mumps",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.mumps",
+          "match": "\"\""
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.mumps",
+      "match": "(?i)\\b(break|close|do|else|for|goto|halt|hang|if|job|kill|lock|merge|new|open|quit|read|set|tcommit|trestart|trollback|tstart|use|view|write|xecute)\\b"
+    },
+    "functions": {
+      "name": "support.function.mumps",
+      "match": "\\$[A-Za-z][A-Za-z0-9]*"
+    },
+    "numbers": {
+      "name": "constant.numeric.mumps",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

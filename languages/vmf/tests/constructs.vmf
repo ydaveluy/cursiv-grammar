@@ -1,0 +1,8 @@
+unquoted_value bare-token(ok)_$@<>[]/end
+escapes
+{
+	"note" "she said \"hi\" then a backslash \\ done"
+}
+empty_block
+{
+}

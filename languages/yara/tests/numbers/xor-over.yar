@@ -1,0 +1,1 @@
+rule r { strings: $s="AB" xor(256) condition: $s }

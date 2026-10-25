@@ -1,0 +1,10 @@
+DEF main()
+DECL REAL v
+v = square(2.0)
+END
+
+DEFFCT REAL square(x:IN)
+DECL REAL result
+result = x * x
+RETURN result
+ENDFCT

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Zig",
+  "scopeName": "source.zig",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#builtins" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.documentation.zig",
+          "match": "///.*$"
+        },
+        {
+          "name": "comment.line.documentation.zig",
+          "match": "//!.*$"
+        },
+        {
+          "name": "comment.line.double-slash.zig",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.zig",
+          "match": "\\b(if|else|switch|while|for|break|continue|return|defer|errdefer|try|catch|orelse|suspend|nosuspend|resume|comptime|inline|unreachable|asm)\\b"
+        },
+        {
+          "name": "storage.modifier.zig",
+          "match": "\\b(const|var|pub|export|extern|threadlocal|noalias|volatile|allowzero|align|linksection|addrspace|callconv|noinline|packed)\\b"
+        },
+        {
+          "name": "storage.type.zig",
+          "match": "\\b(struct|enum|union|opaque|error|anyframe|anytype|fn|test)\\b"
+        },
+        {
+          "name": "keyword.operator.word.zig",
+          "match": "\\b(and|or)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.zig",
+          "match": "\"[^\"]*\""
+        },
+        {
+          "name": "string.quoted.single.zig",
+          "match": "'[^']*'"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.zig",
+      "match": "\\b[0-9][0-9_]*(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\b"
+    },
+    "builtins": {
+      "name": "support.function.builtin.zig",
+      "match": "@[A-Za-z_][A-Za-z0-9_]*"
+    }
+  }
+}

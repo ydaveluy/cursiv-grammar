@@ -1,0 +1,6 @@
+ply
+format binary_little_endian 1.0
+element sample 1
+property int v
+end_header
+Í[

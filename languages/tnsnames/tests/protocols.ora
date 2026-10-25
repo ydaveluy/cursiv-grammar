@@ -1,0 +1,27 @@
+lsnr_ipc =
+  (ADDRESS = (PROTOCOL = IPC)(KEY = LISTENER))
+
+lsnr_spx =
+  (ADDRESS = (PROTOCOL = SPX)(SERVICE = spx_svc))
+
+lsnr_nmp =
+  (ADDRESS = (PROTOCOL = NMP)(SERVER = srv1)(PIPE = pipe1))
+
+beq_test =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = BEQ)(PROGRAM = oracle)(ARGV0 = orcl)
+      (ARGS = '(DESCRIPTION=(LOCAL = YES)(ADDRESS = (PROTOCOL = BEQ)))'))
+    (CONNECT_DATA = (SID = orcl))
+  )
+
+tcp_ip_host =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.1.10)(PORT = 1521))
+    (CONNECT_DATA = (SERVICE_NAME = orcl.example.com))
+  )
+
+mixed_case =
+  (Description =
+    (Address = (Protocol = Tcp)(Host = dbhost)(Port = 1521))
+    (Connect_Data = (Service_Name = orcl))
+  )

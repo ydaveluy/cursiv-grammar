@@ -1,0 +1,10 @@
+PREFIX ex: <http://example.org/ns#>
+
+CONSTRUCT { ?s ex:derived ?o }
+FROM <http://example.org/graph>
+WHERE {
+	?s ex:p ?o .
+	?o ex:q ?s
+}
+ORDER BY ?s
+LIMIT 5

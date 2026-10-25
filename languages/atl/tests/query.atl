@@ -1,0 +1,5 @@
+query CountAll = Families!Member.allInstances()->size();
+
+uses 'Utils';
+
+helper def: greetingPrefix: String = 'Hello, ';

@@ -1,0 +1,4 @@
+java.lang.IllegalStateException: invalid state reached during startup
+	at com.example.app.Bootstrap.init(Bootstrap.java:88)
+	at com.example.app.Bootstrap.start_all(Bootstrap.java:41)
+	at com.example.app.Main.main(Main.java:12)

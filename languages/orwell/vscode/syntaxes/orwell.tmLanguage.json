@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Orwell",
+  "scopeName": "source.orwell",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#pragmas"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.orwell",
+      "match": "\\b(if|otherwise|where)\\b"
+    },
+    "pragmas": {
+      "name": "keyword.other.orwell",
+      "match": "%(else|prefixcon|prefix|leftcon|rightcon|noncon|left|right|non)\\b"
+    },
+    "strings": {
+      "name": "string.quoted.double.orwell",
+      "begin": "\"",
+      "end": "\""
+    },
+    "numbers": {
+      "name": "constant.numeric.orwell",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+@subheader
+@class MyMetaGrammar
+@header 'emitted verbatim before the parser body'
+
+start[int]: a=typed_attr '$' { a }
+
+typed_attr[Bar]:
+    | b[Bar]=NAME { b }
+    | plain=NAME { plain }

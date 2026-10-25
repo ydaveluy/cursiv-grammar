@@ -1,0 +1,16 @@
+GET "libhdr"
+
+LET classify(x) = VALOF RESULTIS MATCH (x)
+   : ? -> 2
+   : =(0) -> 0
+   : TRUE -> 1
+   : BREAK -> 3
+   .
+
+LET seq(x, y) = VALOF RESULTIS EVERY (x, y)
+   : ?, ? -> 1
+   : ? | ? -> 2
+   : [?, ?] -> 3
+   : (?) -> 4
+   : FLT z -> 5
+   .

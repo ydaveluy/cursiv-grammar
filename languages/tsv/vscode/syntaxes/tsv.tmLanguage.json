@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Tsv",
+  "scopeName": "source.tsv",
+  "patterns": [
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.tsv",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "match": "\"\"",
+          "name": "constant.character.escape.tsv"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.tsv",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

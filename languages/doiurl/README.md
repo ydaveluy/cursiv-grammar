@@ -1,0 +1,61 @@
+# doiurl
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/doiurl/core/DoiurlGrammar.hpp` |
+| The AST | `src/doiurl/core/ast.hpp` |
+| Validation checks | `src/doiurl/core/validation/` |
+| Services of your own | `src/doiurl/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/doiurl/cli/main.cpp` |
+| LSP features | `src/doiurl/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+```
+doi:10.1594/PANGAEA.726855
+```
+
+A DOI name as a URI: `doi:`, a prefix segment, `/`, one or more suffix
+segments separated by `/`, an optional `?query` and an optional `#fragment`.
+Each segment is a run of unreserved characters, a handful of reserved
+sub-delimiters, and `%XX` escapes (uppercase hex, as the source grammar
+allows).
+
+## The command line
+
+```bash
+./build/src/doiurl_cli example/example1.doiurl
+./build/src/doiurl_cli --dump example/example1.doiurl   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`doiurl_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

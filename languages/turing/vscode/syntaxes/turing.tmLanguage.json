@@ -1,0 +1,57 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Turing",
+  "scopeName": "source.turing",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.percentage.turing",
+      "match": "%.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.turing",
+      "match": "\"[^\"]*\""
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.turing",
+          "match": "\\b(if|then|elsif|else|end|loop|exit|when|case|label|for|decreasing|by|result|assert)\\b"
+        },
+        {
+          "name": "keyword.other.turing",
+          "match": "\\b(const|var|type|procedure|function|record|array|of|init|put|get|open|close|skip)\\b"
+        },
+        {
+          "name": "keyword.operator.word.turing",
+          "match": "\\b(div|mod|and|or|not)\\b"
+        },
+        {
+          "name": "storage.type.turing",
+          "match": "\\b(int|real|boolean|string)\\b"
+        },
+        {
+          "name": "constant.language.turing",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.turing",
+      "match": "\\b[0-9]+(\\.[0-9]+)?(e[0-9]+)?\\b"
+    }
+  }
+}

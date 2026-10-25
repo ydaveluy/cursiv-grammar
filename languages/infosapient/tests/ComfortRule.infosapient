@@ -1,0 +1,8 @@
+ComfortRule
+if
+    humidity are somewhat high or airflow s definitely low and setpoint are near reference
+then
+    comfort s increased
+else
+    comfort s decreased
+;

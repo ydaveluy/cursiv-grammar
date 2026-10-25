@@ -1,0 +1,22 @@
+set greeting 0 0 5
+add counter 0 0 1
+replace greeting 0 0 5 noreply
+append greeting 0 0 5
+prepend greeting 0 0 5
+cas greeting 0 0 5 12345
+get greeting
+gets greeting counter
+delete greeting
+delete counter 30 noreply
+incr counter 1
+decr counter 1 noreply
+stats
+stats items
+stats slabs
+stats sizes
+flush_all
+flush_all 30
+flush_all 30 noreply
+version
+verbosity 1
+quit

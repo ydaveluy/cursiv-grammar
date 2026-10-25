@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "MemcachedProtocol",
+  "scopeName": "source.memcachedprotocol",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keys"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.memcachedprotocol",
+      "match": "\\b(set|add|replace|append|prepend|cas|get|gets|delete|incr|decr|stats|items|slabs|sizes|flush_all|version|verbosity|quit|noreply)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.memcachedprotocol",
+      "match": "\\b[0-9]+\\b"
+    },
+    "keys": {
+      "name": "variable.other.memcachedprotocol",
+      "match": "[!-~]+"
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "GraphstreamDgs",
+  "scopeName": "source.graphstreamdgs",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#colors"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.graphstreamdgs",
+      "match": "#.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.graphstreamdgs",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.graphstreamdgs",
+              "match": "\\\\[\"\\\\]"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.graphstreamdgs",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.graphstreamdgs",
+              "match": "\\\\['\\\\]"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.graphstreamdgs",
+      "match": "\\b(an|cn|dn|ae|ce|de|cg|st|cl)\\b"
+    },
+    "colors": {
+      "name": "constant.other.color.graphstreamdgs",
+      "match": "#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.graphstreamdgs",
+      "match": "[+-]?\\b[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?\\b"
+    }
+  }
+}

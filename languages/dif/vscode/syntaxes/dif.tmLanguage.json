@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Dif",
+  "scopeName": "source.dif",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.dif",
+      "match": "\\b(TABLE|VECTORS|TUPLES|DATA|BOT|EOD|V)\\b"
+    },
+    "strings": {
+      "name": "string.quoted.double.dif",
+      "begin": "\"",
+      "end": "\""
+    },
+    "numbers": {
+      "name": "constant.numeric.dif",
+      "match": "-?\\b[0-9]+\\b"
+    }
+  }
+}

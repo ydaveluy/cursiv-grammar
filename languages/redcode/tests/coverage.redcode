@@ -1,0 +1,20 @@
+; not a real warrior: exercises modifiers, remaining opcodes, the $ < >
+; addressing symbols, an inline trailing comment, and operand expressions
+MOV.AB # 0 , $ 1
+MOV.BA @ 1 , < 2
+MOV.A $ 0 , > 1          ; trailing comment
+MOV.B # 1 , 2
+MOV.F 0 , 1
+MOV.X 0 , 1
+MOV.I 0 , 1
+MUL # 2 , 3
+DIV # 2 , 3
+MOD # 2 , 3
+JMZ 1 , 2
+JMN 1 , 2
+DJN 1 , 2
+SLT 1 , 2
+ADD + 1 , -2
+DAT 1+2*3 , (4-1)*2/3%2
+SPL 1
+ORG 0

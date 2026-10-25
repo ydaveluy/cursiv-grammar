@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Rfc1035",
+  "scopeName": "source.rfc1035",
+  "patterns": [
+    {
+      "include": "#label"
+    },
+    {
+      "include": "#separator"
+    }
+  ],
+  "repository": {
+    "label": {
+      "name": "entity.name.tag.rfc1035",
+      "match": "[a-zA-Z][a-zA-Z0-9-]*"
+    },
+    "separator": {
+      "name": "punctuation.separator.rfc1035",
+      "match": "\\."
+    }
+  }
+}

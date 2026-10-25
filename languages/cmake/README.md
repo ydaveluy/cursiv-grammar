@@ -1,0 +1,73 @@
+# cmake
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/cmake/core/CmakeGrammar.hpp` |
+| The AST | `src/cmake/core/ast.hpp` |
+| Validation checks | `src/cmake/core/validation/` |
+| Services of your own | `src/cmake/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cmake/cli/main.cpp` |
+| LSP features | `src/cmake/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+```cmake
+add_executable(hello world.c)
+
+message([=[
+This is the first line in a bracket argument with bracket length 1.
+No \-escape sequences or ${variable} references are evaluated.
+]=])
+
+foreach(arg
+    NoSpace
+    Escaped\ Space
+    This;Divides;Into;Five;Arguments
+    )
+  message("${arg}")
+endforeach()
+```
+
+A document is commands, `name(args...)`; an argument is an identifier, a bare
+word, a `"quoted"` string or a `[[bracketed]]` one, or a parenthesized nested
+list of the same. `if()`, `foreach()` and the rest are syntax only here —
+nothing is evaluated, so the tree holds exactly what the file spells.
+
+## The command line
+
+```bash
+./build/src/cmake_cli example/CMakeLists.cmake
+./build/src/cmake_cli --dump example/CMakeLists.cmake   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`cmake_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

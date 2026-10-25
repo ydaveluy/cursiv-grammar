@@ -1,0 +1,51 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "D2",
+  "scopeName": "source.d2",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.d2",
+      "match": "#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.d2",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.d2",
+          "match": "\\\\[\"\\\\/bfnrt]"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "constant.language.d2",
+      "match": "\\b(true|false)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.d2",
+      "match": "-?\\b[0-9]+(\\.[0-9]+)?\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.d2",
+      "match": "->|<-|--"
+    }
+  }
+}

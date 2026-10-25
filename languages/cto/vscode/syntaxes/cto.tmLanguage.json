@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Cto",
+  "scopeName": "source.cto",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.cto",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.cto",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.cto",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.cto", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.cto",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.cto", "match": "\\\\." }]
+        },
+        {
+          "name": "string.regexp.cto",
+          "match": "/[^/\\n]*/"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.cto",
+      "match": "\\b(namespace|import|abstract|asset|concept|enum|event|extends|identified by|participant|transaction|default|optional|range|regex)\\b"
+    },
+    "types": {
+      "name": "storage.type.cto",
+      "match": "\\b(Boolean|DateTime|Double|Integer|Long|String)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.cto",
+      "match": "\\b[0-9][0-9_]*(\\.[0-9_]+)?([eE][+-]?[0-9_]+)?[lLfFdD]?\\b"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+PREFIX ex: <http://example.org/ns#>
+
+ASK FROM <http://example.org/graph> WHERE {
+	?x ex:p ?y .
+	FILTER ( ?y != 0 )
+}

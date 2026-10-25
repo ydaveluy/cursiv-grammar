@@ -1,0 +1,11 @@
+comment a formal and an actual parameter list split across two
+  parenthesised groups, joined by a documentary name -- no upstream
+  document uses this form;
+begin
+  procedure demo(a)note:(b);
+  value a, b;
+  integer a, b;
+  demo := a + b;
+  integer z;
+  z := demo(1)note:(2)
+end

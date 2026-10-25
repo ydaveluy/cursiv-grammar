@@ -1,0 +1,50 @@
+begin_problem(Features).
+
+list_of_descriptions.
+name({*Features*}).
+author({*cursiv*}).
+version({*1.0*}).
+logic({*FOL*}).
+status(unknown).
+description({*Exercises constructs the corpus never uses.*}).
+date({*2026-01-01*}).
+end_of_list.
+
+list_of_symbols.
+functions[(f,2), g].
+predicates[(P,1), (Q,-1)].
+sorts[nat].
+end_of_list.
+
+list_of_declarations.
+subsort(nat,nat).
+predicate(P,nat).
+sort nat freely generated_by [zero,succ].
+myquant([P(x)],P(x)).
+end_of_list.
+
+list_of_formulae(conjectures).
+formula(P(zero)).
+end_of_list.
+
+list_of_clauses(axioms,dnf).
+clause(exists([P(x)],and(P(x),Q(x))),lab1).
+clause(and(P(zero),Q(zero))).
+clause(or(P(zero))).
+end_of_list.
+
+list_of_proof(cursivproof,[splitlevel:1]).
+step(1,P(zero),SoR,[1],[splitlevel:0]).
+step(2,P(zero),EqR,[1]).
+step(3,P(zero),MPm,[1,2]).
+end_of_list.
+
+list_of_general_settings
+hypothesis[lab1,1].
+end_of_list.
+
+list_of_settings(SPASS).
+{*set flags here*}
+end_of_list.
+
+end_problem.

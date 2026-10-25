@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Wkt",
+  "scopeName": "source.wkt",
+  "patterns": [
+    { "include": "#strings" },
+    { "include": "#constants" },
+    { "include": "#geometries" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.wkt",
+      "match": "\"[a-zA-Z0-9()_.' -]*\""
+    },
+    "constants": {
+      "name": "constant.language.wkt",
+      "match": "(?i)\\b(EMPTY|NAN|-?INF)\\b"
+    },
+    "geometries": {
+      "name": "keyword.control.wkt",
+      "match": "(?i)\\b(POINT|LINESTRING|LINEARRING|POLYGON|TRIANGLE|MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|GEOMETRYCOLLECTION|CIRCULARSTRING|CIRCLE|GEODESICSTRING|ELLIPTICALCURVE|NURBSCURVE|CLOTHOID|SPIRALCURVE|COMPOUNDCURVE|CURVEPOLYGON|MULTICURVE|MULTISURFACE|POLYHEDRALSURFACE|COMPOUNDSURFACE|BREPSOLID|TIN|Z|M|ZM)\\b"
+    },
+    "keywords": {
+      "name": "keyword.other.wkt",
+      "match": "(?i)\\b(REFERENCELOCATION|AFFINEPLACEMENT|LOCATION|REFERENCEDIRECTIONS|VECTOR|UAXISLENGTH|VAXISLENGTH|STARTANGLE|ENDANGLE|DEGREES|GRADIANS|RADIANS|DEGREE|CONTROLPOINTS|NURBSPOINT|WEIGHTEDPOINT|WEIGHT|KNOTS|KNOT|VALUE|MULTIPLICITY|SCALEFACTOR|STARTDISTANCE|ENDDISTANCE|LENGTH|STARTCURVATURE|ENDCURVATURE|SPIRALTYPE|STARTM|ENDM|PATCHES|ELEMENTS|MAXSIDELENGTH|ID|TAG|POINTS|GROUPSPOT|BOUNDARY|BREAKLINE|SOFTBREAK|CONTROLCONTOUR|BREAKVOID|DRAPEVOID|VOID|HOLE|STOPLINE)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.wkt",
+      "match": "-?\\b(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\b"
+    }
+  }
+}

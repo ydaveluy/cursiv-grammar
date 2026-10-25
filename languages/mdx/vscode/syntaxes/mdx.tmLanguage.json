@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Mdx",
+  "scopeName": "source.mdx",
+  "patterns": [
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#brackets" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.mdx",
+      "match": "\\b(AND|AS|CASE|CELL|CELL_ORDINAL|DIMENSION|ELSE|EMPTY|END|FORMATTED_VALUE|FROM|MEMBER|NON|NOT|ON|OR|PROPERTIES|SELECT|SET|THEN|VALUE|WHEN|WHERE|WITH|XOR)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.mdx",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.mdx",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "brackets": {
+      "name": "variable.other.mdx",
+      "match": "\\[&?[^\\]]*\\]"
+    },
+    "numbers": {
+      "name": "constant.numeric.mdx",
+      "match": "\\b[0-9]+(\\.[0-9]*)?\\b"
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Langium",
+  "scopeName": "source.langium",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#regex"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.langium",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.langium",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.langium",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.langium",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.langium",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.langium",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "regex": {
+      "name": "string.regexp.langium",
+      "match": "/(?:[^\\r\\n\\[/\\\\]|\\\\.|\\[(?:[^\\r\\n\\]\\\\]|\\\\.)*\\])+/[a-z]*"
+    },
+    "keywords": {
+      "name": "keyword.control.langium",
+      "match": "\\b(grammar|import|interface|extends|type|terminal|fragment|entry|hidden|returns|infer|infers|with|current|true|false)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.langium",
+      "match": "\\bNaN\\b|\\bInfinity\\b|-?\\b[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\b"
+    }
+  }
+}

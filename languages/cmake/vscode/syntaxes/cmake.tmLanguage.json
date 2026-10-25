@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Cmake",
+  "scopeName": "source.cmake",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#brackets" },
+    { "include": "#strings" },
+    { "include": "#commands" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.cmake",
+          "begin": "#\\[(=*)\\[",
+          "beginCaptures": { "1": { "name": "punctuation.definition.comment.begin.cmake" } },
+          "end": "\\]\\1\\]",
+          "endCaptures": { "0": { "name": "punctuation.definition.comment.end.cmake" } }
+        },
+        {
+          "name": "comment.line.number-sign.cmake",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "brackets": {
+      "name": "string.quoted.other.bracket.cmake",
+      "begin": "\\[(=*)\\[",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.cmake" } },
+      "end": "\\]\\1\\]",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.cmake" } }
+    },
+    "strings": {
+      "name": "string.quoted.double.cmake",
+      "begin": "\"",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.cmake" } },
+      "end": "\"",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.cmake" } },
+      "patterns": [
+        {
+          "name": "constant.character.escape.cmake",
+          "match": "\\\\([trn;\\\\\"]|[^A-Za-z0-9;])"
+        }
+      ]
+    },
+    "commands": {
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+      "name": "support.function.cmake"
+    }
+  }
+}

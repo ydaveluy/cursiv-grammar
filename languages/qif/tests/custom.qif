@@ -1,0 +1,16 @@
+!Type:Bank
+D01/15/24
+T1,234.56
+N1001
+CX
+PACME Corp
+MMonthly payment
+LElectric Utilities
+^
+!Type:Cash
+D02/01/24
+T-50.00
+C*
+PCorner Cafe
+LDining Out
+^

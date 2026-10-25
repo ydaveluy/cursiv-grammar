@@ -1,0 +1,67 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pgn",
+  "scopeName": "source.pgn",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#tags"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#results"
+    },
+    {
+      "include": "#nag"
+    },
+    {
+      "include": "#move-numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.semicolon.pgn",
+          "match": ";.*$"
+        },
+        {
+          "name": "comment.block.pgn",
+          "begin": "\\{",
+          "end": "\\}"
+        }
+      ]
+    },
+    "tags": {
+      "name": "entity.name.tag.pgn",
+      "match": "(?<=\\[)[A-Za-z0-9]+"
+    },
+    "strings": {
+      "name": "string.quoted.double.pgn",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.pgn",
+          "match": "\\\\[\\\\\"]"
+        }
+      ]
+    },
+    "results": {
+      "name": "constant.language.pgn",
+      "match": "(1-0|0-1|1/2-1/2|\\*)"
+    },
+    "nag": {
+      "name": "constant.numeric.pgn",
+      "match": "\\$[0-9]+"
+    },
+    "move-numbers": {
+      "name": "constant.numeric.pgn",
+      "match": "\\b[0-9]+\\."
+    }
+  }
+}

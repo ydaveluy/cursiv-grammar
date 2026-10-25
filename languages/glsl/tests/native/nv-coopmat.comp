@@ -1,0 +1,4 @@
+#version 460
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_NV_cooperative_matrix : require
+layout(local_size_x=32)in;void main(){fcoopmatNV<32,gl_ScopeSubgroup,16,16> x=fcoopmatNV<32,gl_ScopeSubgroup,16,16>(1.0);}

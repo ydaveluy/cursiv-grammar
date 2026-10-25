@@ -1,0 +1,8 @@
+{
+  "autoClosingPairs": [
+    { "open": "\"", "close": "\"", "notIn": ["string"] }
+  ],
+  "surroundingPairs": [
+    ["\"", "\""]
+  ]
+}

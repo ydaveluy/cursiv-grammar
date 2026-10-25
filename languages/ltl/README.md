@@ -1,0 +1,64 @@
+# ltl
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/ltl/core/LtlGrammar.hpp` |
+| The AST | `src/ltl/core/ast.hpp` |
+| Validation checks | `src/ltl/core/validation/` |
+| Services of your own | `src/ltl/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/ltl/cli/main.cpp` |
+| LSP features | `src/ltl/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+A [linear temporal logic](https://en.wikipedia.org/wiki/Linear_temporal_logic)
+formula:
+
+```
+Fp → Fq
+```
+
+`F` (finally), `G` (globally) and `X` (next) are prefix; `∧`, `∨` and `→` are
+infix and bind tighter than `U` (until), `W` (weak until) and `R` (release);
+`⌐` negates. An atomic proposition is a run of lowercase letters; `true` and
+`false` are the two constants. See `example/` for one document per operator
+family.
+
+## The command line
+
+```bash
+./build/src/ltl_cli example/example1.ltl
+./build/src/ltl_cli --dump example/example1.ltl   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`ltl_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

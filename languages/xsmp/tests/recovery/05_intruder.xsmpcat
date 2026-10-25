@@ -1,0 +1,41 @@
+/**
+ * A small catalogue: one namespace, the value types under it, and a model
+ * that uses them.
+ *
+ * @creator cursiv
+ * @version 1.0
+ */
+catalogue demo
+
+namespace Demo
+{
+    /** @uuid 6cdd0a83-0d69-4a9a-84a5-0dbf7f0b1e01 */
+    public primitive Bool
+
+    /** @uuid 6cdd0a83-0d69-4a9a-84a5-0dbf7f0b1e02 */
+    public primitive Float64
+
+    /** @uuid 6cdd0a83-0d69-4a9a-84a5-0dbf7f0b1e03 */
+    public enum Mode
+    {
+        Idle == 0,
+        Running = 1
+    }
+
+    /** @uuid 6cdd0a83-0d69-4a9a-84a5-0dbf7f0b1e04 */
+    public struct Sample
+    {
+        field Float64 value
+        field Bool valid
+    }
+
+    /** A model with a field, a property, an entry point and two operations. */
+    public model Counter
+    {
+        transient field Float64 count
+        property Mode mode
+        entrypoint Tick
+        def void Reset ()
+        def Float64 result Scale (in Float64 factor)
+    }
+}

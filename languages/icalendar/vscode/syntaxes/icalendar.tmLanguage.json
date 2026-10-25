@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Icalendar",
+  "scopeName": "source.icalendar",
+  "patterns": [
+    { "include": "#begin-end" },
+    { "include": "#contentline" }
+  ],
+  "repository": {
+    "begin-end": {
+      "match": "(?i)^\\s*(BEGIN|END)(:)([A-Za-z0-9-]+)",
+      "captures": {
+        "1": { "name": "keyword.control.icalendar" },
+        "2": { "name": "punctuation.separator.icalendar" },
+        "3": { "name": "entity.name.type.icalendar" }
+      }
+    },
+    "contentline": {
+      "begin": "^\\s*([A-Za-z0-9-]+)",
+      "beginCaptures": {
+        "1": { "name": "support.type.property-name.icalendar" }
+      },
+      "end": "$",
+      "patterns": [
+        { "include": "#parameter" },
+        { "include": "#value-colon" },
+        { "include": "#string" }
+      ]
+    },
+    "parameter": {
+      "match": "(;)([A-Za-z0-9-]+)(=)",
+      "captures": {
+        "1": { "name": "punctuation.separator.icalendar" },
+        "2": { "name": "variable.parameter.icalendar" },
+        "3": { "name": "keyword.operator.icalendar" }
+      }
+    },
+    "value-colon": {
+      "match": ":",
+      "name": "punctuation.separator.icalendar"
+    },
+    "string": {
+      "name": "string.quoted.double.icalendar",
+      "begin": "\"",
+      "end": "\""
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "native",
+      "displayName": "native (host toolchain)",
+      "binaryDir": "${sourceDir}/build",
+      "generator": "Ninja",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "wasi",
+      "displayName": "wasm32-wasip1-threads (the editor's target)",
+      "binaryDir": "${sourceDir}/build-wasi",
+      "generator": "Ninja",
+      "toolchainFile": "${sourceDir}/cmake/wasi.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CURSIV_WASI_THREADS": "ON"
+      },
+      "description": "One artefact for every platform, and the sandbox comes with it. The generator is a host tool, so this configuration builds it for the host in a tree of its own."
+    }
+  ],
+  "buildPresets": [
+    { "name": "native", "configurePreset": "native" },
+    { "name": "wasi", "configurePreset": "wasi" }
+  ],
+  "testPresets": [
+    { "name": "native", "configurePreset": "native", "output": { "outputOnFailure": true } }
+  ]
+}

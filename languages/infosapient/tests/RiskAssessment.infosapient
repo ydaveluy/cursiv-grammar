@@ -1,0 +1,13 @@
+RiskAssessment
+if
+    creditScore s about 650.0 cosineNot incomeLevel are generally high meanAnd
+    debtRatio s below 0.4 meanOr collateralValue are closeTo 1.2 productAnd
+    employmentYears s should 3.0 productOr age are around 40.0 sugenoNot
+    savings s not increased thresholdNot expenses are positively low yagerAnd
+    creditHistory s definitely strong yagerNot latePayments are negative 2.0
+    yagerOr region s inVicinityOf reference
+then
+    approval s increased
+else
+    approval s decreased
+;

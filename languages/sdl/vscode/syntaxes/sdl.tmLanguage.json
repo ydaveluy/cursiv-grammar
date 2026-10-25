@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sdl",
+  "scopeName": "source.sdl",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.sdl",
+          "match": "/\\*.*$"
+        },
+        {
+          "name": "comment.line.local.sdl",
+          "match": "\\{.*$"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.sdl",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.sdl", "match": "\\\\\"" }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.sdl", "match": "(?i)%X[0-9A-F]+" },
+        { "name": "constant.numeric.sdl", "match": "(?i)%O[0-7]+" },
+        { "name": "constant.numeric.sdl", "match": "(?i)%B[01]+" },
+        { "name": "constant.character.sdl", "match": "(?i)%A[A-Z]" },
+        { "name": "constant.numeric.sdl", "match": "\\b[0-9]+\\b" }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.sdl",
+      "match": "(?i)\\b(ADDRESS|AGGREGATE|ALIAS|ALIGN|ANY|BASEALIGN|BASED|BITFIELD|BOOLEAN|BYTE|CHARACTER|COMMON|COMPLEX|CONSTANT|COUNTER|D_FLOATING|DECIMAL|DECLARE|DEFAULT|DESCRIPTOR|DIMENSION|ELSE|ELSE_IFSYMBOL|END|END_IFSYMBOL|END_IFLANGUAGE|END_LITERAL|END_MODULE|ENTRY|EQUALS|F_FLOATING|FILL|G_FLOATING|GLOBAL|H_FLOATING|HARDWARE_ADDRESS|HARDWARE_INTEGER|IDENT|IFLANGUAGE|IFSYMBOL|IN|INCLUDE|INCREMENT|INTEGER|INTEGER_BYTE|INTEGER_HW|INTEGER_LONG|INTEGER_QUAD|INTEGER_WORD|ITEM|LENGTH|LINKAGE|LIST|LITERAL|LONGWORD|MARKER|MASK|MODULE|NAMED|NOALIGN|OCTAWORD|OPTIONAL|ORIGIN|OUT|PARAMETER|POINTER|POINTER_HW|POINTER_LONG|POINTER_QUAD|PRECISION|PREFIX|QUADWORD|READ|REFERENCE|RETURNS|RTL_STR_DESC|SIGNED|SIZEOF|STRING|STRUCTURE|TAG|TYPEDEF|TYPENAME|UNION|UNSIGNED|VALUE|VARIABLE|VARYING|VOID|WORD)\\b"
+    }
+  }
+}

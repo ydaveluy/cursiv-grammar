@@ -1,0 +1,63 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Jam",
+  "scopeName": "source.jam",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#meter"
+    },
+    {
+      "include": "#chord"
+    },
+    {
+      "include": "#marks"
+    },
+    {
+      "include": "#bar"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.jam",
+      "match": "#.*$"
+    },
+    "meter": {
+      "name": "constant.numeric.meter.jam",
+      "match": "\\[\\s*[0-9]+\\s*/\\s*[0-9]+\\s*\\]"
+    },
+    "chord": {
+      "match": "([A-G])(b|#)?(maj|min|dim|aug|[mMPd])?([0-9]+)?([-+][0-9]+)?(/[A-G])?",
+      "captures": {
+        "1": {
+          "name": "entity.name.tag.note.jam"
+        },
+        "2": {
+          "name": "keyword.operator.accidental.jam"
+        },
+        "3": {
+          "name": "storage.modifier.quality.jam"
+        },
+        "4": {
+          "name": "constant.numeric.extension.jam"
+        },
+        "5": {
+          "name": "constant.numeric.alteration.jam"
+        },
+        "6": {
+          "name": "entity.name.tag.bass.jam"
+        }
+      }
+    },
+    "marks": {
+      "name": "keyword.operator.mark.jam",
+      "match": "[/=%-]"
+    },
+    "bar": {
+      "name": "punctuation.separator.bar.jam",
+      "match": "\\|"
+    }
+  }
+}

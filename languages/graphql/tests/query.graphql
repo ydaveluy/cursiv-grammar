@@ -1,0 +1,26 @@
+query GetUser($id: ID!, $active: Boolean = true, $tags: [String!] = ["a", "b"]) {
+  user(id: $id, active: $active, limit: 10, ratio: 1.5, note: null, kind: ADMIN, meta: {x: 1, y: "z"}) {
+    id
+    name: fullName
+    ...UserFields
+    ... on Admin @include(if: $active) {
+      permissions
+    }
+  }
+}
+
+mutation {
+  createUser(input: {name: "Ada", tags: ["x", "y"]}) {
+    id
+  }
+}
+
+{
+  ping
+}
+
+fragment UserFields on User {
+  email
+  on
+  type
+}

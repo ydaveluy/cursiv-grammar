@@ -1,0 +1,69 @@
+# qif
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/qif/core/QifGrammar.hpp` |
+| The AST | `src/qif/core/ast.hpp` |
+| Validation checks | `src/qif/core/validation/` |
+| Services of your own | `src/qif/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/qif/cli/main.cpp` |
+| LSP features | `src/qif/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+[QIF](https://en.wikipedia.org/wiki/Quicken_Interchange_Format) is
+line-oriented: each line opens with a field code, and everything to the end
+of the line is that field's content.
+
+```
+!Type:Bank
+D03/03/10
+T-379.00
+PCITY OF SPRINGFIELD
+^
+```
+
+`!Type:` names the account type for the records that follow; `D`, `T`, `N`,
+`C`, `M`, `P` and `L` are the date, total, check number, cleared state, memo,
+payee and account/category of one transaction; `^` closes the record. A
+field's content is read with no whitespace of its own — a stray space right
+after the code is part of the content, not a separator.
+
+## The command line
+
+```bash
+./build/src/qif_cli example/example1.qif
+./build/src/qif_cli --dump example/example1.qif   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`qif_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

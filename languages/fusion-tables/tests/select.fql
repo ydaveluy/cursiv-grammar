@@ -1,0 +1,28 @@
+-- plain select, star
+SELECT * FROM Cities;
+
+-- qualified columns, table star, aggregate call, join, AND chain, group by,
+-- two-key order by (one by ST_DISTANCE), offset+limit
+SELECT Cities.Name, Cities.*, COUNT(Cities.Population)
+FROM Cities AS c
+LEFT OUTER JOIN Countries ON Cities.CountryId = Countries.Id
+WHERE Cities.Population > 1000 AND Cities.Name LIKE 'San%'
+GROUP BY Cities.Name, Cities.CountryId
+ORDER BY ST_DISTANCE(Cities.Location, LATLNG(37.7, -122.4)) DESC, Cities.Name ASC
+OFFSET 10 LIMIT 20;
+
+/* geospatial OR chain: circle and rectangle */
+SELECT Name FROM Places
+WHERE ST_INTERSECTS(Location, CIRCLE(LATLNG(0, 0), 5))
+   OR ST_INTERSECTS(Location, RECTANGLE(LATLNG(0, 0), LATLNG(10, 10)));
+
+-- membership, range, and every text-condition operator, one statement each
+SELECT Name FROM Places WHERE Region IN ('north', 'south', 'east');
+SELECT Name FROM Places WHERE Size BETWEEN 1 AND 100;
+SELECT Name FROM Places WHERE Name STARTS WITH 'A';
+SELECT Name FROM Places WHERE Name ENDS WITH 'Z';
+SELECT Name FROM Places WHERE Name CONTAINS IGNORING CASE 'town';
+SELECT Name FROM Places WHERE Name DOES NOT CONTAIN 'x';
+SELECT Name FROM Places WHERE Name NOT EQUAL TO 'nowhere';
+SELECT Name FROM Places WHERE Name MATCHES 'S.*';
+SELECT Name FROM Places WHERE Name LIKE 'A%';

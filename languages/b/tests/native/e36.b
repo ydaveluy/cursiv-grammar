@@ -1,0 +1,1 @@
+f(a,b,c,p,q,x,y,z,i,j,g){"a*n*t*0*e**z";}

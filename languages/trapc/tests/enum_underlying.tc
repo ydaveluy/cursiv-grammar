@@ -1,0 +1,11 @@
+// `enum Tag T { ... }`: a fixed underlying type, spelled with no `:`
+// before the type, unlike real C23.
+
+enum Color int { RED, GREEN, BLUE };
+
+enum Sized unsigned char {
+    SIZED_A,
+    SIZED_B = 2
+};
+
+enum Color value;

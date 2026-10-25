@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Logo",
+  "scopeName": "source.logo",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#variables"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.logo",
+      "match": ";.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.logo",
+      "match": "\"[a-zA-Z][a-zA-Z0-9_]*"
+    },
+    "keywords": {
+      "name": "keyword.control.logo",
+      "match": "\\b(to|end|if|repeat|for|stop|make)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.logo",
+      "match": "\\b[0-9]+\\b"
+    },
+    "variables": {
+      "name": "variable.other.logo",
+      "match": ":[a-zA-Z][a-zA-Z0-9_]*"
+    }
+  }
+}

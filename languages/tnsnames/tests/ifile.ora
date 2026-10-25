@@ -1,0 +1,3 @@
+IFILE = "included.ora"
+IFILE = 'included2.ora'
+IFILE=included3.ora

@@ -1,0 +1,64 @@
+MODULE custom_constructs IDENT "1.0";
+
+DECLARE my_int SIZEOF INTEGER PREFIX "mi_" TAG "tag1"
+
+INCLUDE "other.sdl";
+
+READ "included.sdl";
+
+#base = 10;
+
+CONSTANT (alpha,beta,gamma) EQUALS 1 INCREMENT 1 PREFIX "k_" TAG "enum1";
+CONSTANT msg EQUALS STRING "hello" PREFIX "m_";
+
+ITEM hex_val WORD;
+ITEM count LONGWORD DIMENSION 0:9;
+ITEM vararray LONGWORD DIMENSION *;
+
+AGGREGATE rec STRUCTURE PREFIX "rec_";
+    id LONGWORD;
+    flags BITFIELD MASK LENGTH 4;
+    sub STRUCTURE;
+        x WORD;
+        y WORD;
+    END sub;
+END rec;
+
+ENTRY my_proc PARAMETER(INTEGER VALUE, ANY IN) RETURNS INTEGER NAMED result ALIAS "MY_PROC" LINKAGE "C";
+
+ITEM cb ADDRESS(ENTRY PARAMETER(INTEGER VALUE) RETURNS VOID);
+
+ITEM aligned_thing INTEGER BASEALIGN LONGWORD;
+ITEM aligned_other INTEGER BASEALIGN(#base);
+
+#flag = 1;
+
+IFSYMBOL flag;
+    ITEM a INTEGER;
+ELSE_IFSYMBOL other;
+    ITEM b INTEGER;
+ELSE;
+    ITEM c INTEGER;
+END_IFSYMBOL;
+
+IFLANGUAGE bliss c;
+    ITEM lang_only INTEGER;
+END_IFLANGUAGE;
+
+LITERAL;
+"raw line one"
+"raw line two"
+END_LITERAL
+
+CONSTANT hexc EQUALS %XFF;
+CONSTANT octc EQUALS %O17;
+CONSTANT binc EQUALS %B101;
+CONSTANT charc EQUALS %AZ;
+CONSTANT exprc EQUALS (1 + 2) * 3 - 4 / 2 & 1 ! 0 @ 1;
+CONSTANT unaryc EQUALS -1;
+CONSTANT unaryc2 EQUALS +1;
+CONSTANT dotc EQUALS .;
+CONSTANT caretc EQUALS ^;
+CONSTANT colonc EQUALS :;
+
+END_MODULE custom_constructs;

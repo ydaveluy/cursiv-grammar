@@ -1,0 +1,63 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Eiffel",
+  "scopeName": "source.eiffel",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#characters" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-dash.eiffel",
+      "match": "--.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.eiffel",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.eiffel", "match": "%." }
+          ]
+        }
+      ]
+    },
+    "characters": {
+      "name": "string.quoted.single.eiffel",
+      "match": "'(%.|[^'%])'"
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.eiffel",
+          "match": "\\b0[bcx][0-9a-fA-F_]+\\b"
+        },
+        {
+          "name": "constant.numeric.eiffel",
+          "match": "\\b[0-9][0-9a-fA-F_]*(\\.[0-9a-fA-F_]*)?([eE][+-]?[0-9]+)?\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.eiffel",
+          "match": "(?i)\\b(if|then|else|elseif|end|inspect|when|across|as|from|until|loop|all|some|debug|check|retry|rescue|separate|do|once|agent)\\b"
+        },
+        {
+          "name": "keyword.other.eiffel",
+          "match": "(?i)\\b(class|feature|inherit|create|convert|note|obsolete|invariant|require|ensure|local|deferred|expanded|frozen|external|attribute|redefine|rename|undefine|select|export|variant|attached|detachable|like|reference|alias|assign|current|result|precursor|void|old|not|and|or|xor|implies|true|false|tuple)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "name": "keyword.operator.eiffel",
+      "match": "(:=|->|\\.\\.|/=|<=|>=|[+\\-*/^~<>=:])"
+    }
+  }
+}

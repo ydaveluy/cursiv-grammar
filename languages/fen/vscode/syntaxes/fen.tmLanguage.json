@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Fen",
+  "scopeName": "source.fen",
+  "patterns": [
+    { "include": "#pieces-white" },
+    { "include": "#pieces-black" },
+    { "include": "#side" },
+    { "include": "#dash" },
+    { "include": "#numbers" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "pieces-white": {
+      "name": "support.class.piece.white.fen",
+      "match": "[PNBRQK]"
+    },
+    "pieces-black": {
+      "name": "entity.name.function.piece.black.fen",
+      "match": "[pnbrqk]"
+    },
+    "side": {
+      "name": "keyword.other.side.fen",
+      "match": "\\b[wb]\\b"
+    },
+    "dash": {
+      "name": "constant.language.none.fen",
+      "match": "-"
+    },
+    "numbers": {
+      "name": "constant.numeric.fen",
+      "match": "[0-9]+"
+    },
+    "punctuation": {
+      "name": "punctuation.separator.fen",
+      "match": "/"
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Mps",
+  "scopeName": "source.mps",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.asterisk.mps",
+      "match": "^[ \\t]*[*$].*$"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.mps",
+          "match": "^(NAME|ROWS|COLUMNS|RHS|RANGES|BOUNDS|ENDATA)\\b"
+        },
+        {
+          "name": "storage.type.mps",
+          "match": "\\b(FREE|UP|LO|FX|LI|UI|SC|FR|BV|MI|PL)\\b"
+        },
+        {
+          "name": "support.constant.mps",
+          "match": "'(MARKER|INTORG|INTEND)'"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.mps",
+      "match": "[+-]?[0-9][0-9.,DEde+-]*"
+    }
+  }
+}

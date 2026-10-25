@@ -1,0 +1,21 @@
+// Exercises constructs no upstream example reaches: character ranges, the
+// non-atomic modifier, the repeat_min / repeat_max / repeat_min_max
+// postfix forms, and PUSH / PEEK[..] stack matching.
+
+digit    = { '0'..'9' }
+/* a /* nested */ block comment, closed by the star-slash that balances it */
+lower    = { 'a'..'z' }
+
+triple   = { digit{3} }
+at_least = { digit{2,} }
+at_most  = { digit{,4} }
+bounded  = { digit{2,4} }
+
+quote    = { "\"" | "'" }
+strict   = !{ digit+ }
+
+str = { PUSH(quote) ~ (!PEEK[..] ~ ANY)* ~ PEEK[..] ~ POP }
+
+// Sequence binds tighter than choice: equivalent to
+// ( ("a"*) ~ ("b"?) ) | ( (&("b"+)) ~ "a" ).
+mixed = { "a"* ~ "b"? | &"b"+ ~ "a" }

@@ -1,0 +1,1 @@
+BEGIN READ a,b,c WRITE x,b+c,-1 END

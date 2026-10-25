@@ -1,0 +1,2 @@
+syntax="proto2";
+message M { optional uint32 value=1 [default=4294967295]; }

@@ -1,0 +1,2 @@
+syntax="proto3";
+message M {reserved 536870910 to max;}

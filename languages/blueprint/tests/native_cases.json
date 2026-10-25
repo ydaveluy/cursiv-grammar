@@ -1,0 +1,347 @@
+[
+  {
+    "id": "original-example",
+    "file": "cases/original-example.bp",
+    "source": "// comment\ncc_binary {\n    name: \"example1\",\n    srcs: [\n        \"example1.c\",\n        \"example2.c\",\n    ],\n    cflags: [\"-Wall\"],\n}\n\nfoo = \"bar\"\n\n/*\n * comments\n * comments\n */\ncc_library {\n    name: \"example2\",\n    enable: select((arch(), os()), {\n\t\t(any @ bar, default): true,\n\t}),\n\tfoobar: {\n\t    value: foo + \"bar\",\n\t},\n}\n"
+  },
+  {
+    "id": "original-features-invalid",
+    "file": "cases/original-features-invalid.bp",
+    "source": "// Constructs example1.bp does not exercise: `+=`, a module in `(...)` form,\n// a negative integer, an escaped quote, a bare (unparenthesized) select\n// condition, and a select case whose value is `unset`.\nextra_flags = [\"-Wall\"]\nextra_flags += [\"-Wextra\"]\n\ncount = -5\n\nquoted = \"she said \\\"hi\\\"\"\n\ncc_defaults(\n    name: \"base_defaults\",\n    cflags: extra_flags,\n)\n\ncc_binary {\n    name: \"tool\",\n    srcs: [\"main.c\"],\n    count: count,\n    enable: select(product_variable(\"debug\"), {\n        true: true,\n        default: unset,\n    }),\n}\n"
+  },
+  {
+    "id": "features-corrected",
+    "file": "cases/features-corrected.bp",
+    "source": "// Constructs example1.bp does not exercise: `+=`, a module in `(...)` form,\n// a negative integer, an escaped quote, a bare (unparenthesized) select\n// condition, and a select case whose value is `unset`.\nextra_flags = [\"-Wall\"]\nextra_flags += [\"-Wextra\"]\n\ncount = -5\n\nquoted = \"she said \\\"hi\\\"\"\n\ncc_defaults(\n    name = \"base_defaults\",\n    cflags = extra_flags,\n)\n\ncc_binary {\n    name: \"tool\",\n    srcs: [\"main.c\"],\n    count: count,\n    enable: select(product_variable(\"debug\"), {\n        true: true,\n        default: unset,\n    }),\n}\n"
+  },
+  {
+    "id": "empty",
+    "file": "cases/empty.bp",
+    "source": ""
+  },
+  {
+    "id": "module-empty",
+    "file": "cases/module-empty.bp",
+    "source": "m {}"
+  },
+  {
+    "id": "module-legacy",
+    "file": "cases/module-legacy.bp",
+    "source": "m(name=\"a\", count=1,)"
+  },
+  {
+    "id": "module-legacy-bad-separator",
+    "file": "cases/module-legacy-bad-separator.bp",
+    "source": "m(name:\"a\")"
+  },
+  {
+    "id": "module-brace-bad-separator",
+    "file": "cases/module-brace-bad-separator.bp",
+    "source": "m{name=\"a\"}"
+  },
+  {
+    "id": "map-bad-separator",
+    "file": "cases/map-bad-separator.bp",
+    "source": "x={a=1}"
+  },
+  {
+    "id": "module-properties",
+    "file": "cases/module-properties.bp",
+    "source": "m {name:\"a\", bool:true, count:123, map:{k:[]}}"
+  },
+  {
+    "id": "properties-duplicate",
+    "file": "cases/properties-duplicate.bp",
+    "source": "m {a:1,a:2}"
+  },
+  {
+    "id": "string-nul",
+    "file": "cases/string-nul.bp",
+    "source": "x=\"\\x00\\u0000\\000\""
+  },
+  {
+    "id": "string-escapes",
+    "file": "cases/string-escapes.bp",
+    "source": "x=\"a\\n\\t\\r\\a\\b\\f\\v\\\\\\\"b\""
+  },
+  {
+    "id": "string-hex-octal",
+    "file": "cases/string-hex-octal.bp",
+    "source": "x=\"\\101\\x42\\377\""
+  },
+  {
+    "id": "string-unicode",
+    "file": "cases/string-unicode.bp",
+    "source": "x=\"\\u00e9\\U00010000\""
+  },
+  {
+    "id": "string-multibyte",
+    "file": "cases/string-multibyte.bp",
+    "source": "x=\"é𐀀\""
+  },
+  {
+    "id": "string-unknown-escape",
+    "file": "cases/string-unknown-escape.bp",
+    "source": "x=\"\\q\""
+  },
+  {
+    "id": "string-octal-large",
+    "file": "cases/string-octal-large.bp",
+    "source": "x=\"\\777\""
+  },
+  {
+    "id": "string-unicode-surrogate",
+    "file": "cases/string-unicode-surrogate.bp",
+    "source": "x=\"\\uD800\""
+  },
+  {
+    "id": "string-unicode-large",
+    "file": "cases/string-unicode-large.bp",
+    "source": "x=\"\\U00110000\""
+  },
+  {
+    "id": "string-newline",
+    "file": "cases/string-newline.bp",
+    "source": "x=\"a\nb\""
+  },
+  {
+    "id": "string-cr",
+    "file": "cases/string-cr.bp",
+    "source": "x=\"a\rb\""
+  },
+  {
+    "id": "raw-string",
+    "file": "cases/raw-string.bp",
+    "source": "x=`a\\nb`"
+  },
+  {
+    "id": "raw-string-lines",
+    "file": "cases/raw-string-lines.bp",
+    "source": "x=`a\r\nb\rc`"
+  },
+  {
+    "id": "raw-condition",
+    "file": "cases/raw-condition.bp",
+    "source": "x=select(f(`foo`),{default:\"x\"})"
+  },
+  {
+    "id": "raw-pattern",
+    "file": "cases/raw-pattern.bp",
+    "source": "x=select(f(),{`foo`:\"x\",default:\"y\"})"
+  },
+  {
+    "id": "int-min",
+    "file": "cases/int-min.bp",
+    "source": "x=-9223372036854775808"
+  },
+  {
+    "id": "int-max",
+    "file": "cases/int-max.bp",
+    "source": "x=9223372036854775807"
+  },
+  {
+    "id": "int-overflow",
+    "file": "cases/int-overflow.bp",
+    "source": "x=9223372036854775808"
+  },
+  {
+    "id": "int-negative-overflow",
+    "file": "cases/int-negative-overflow.bp",
+    "source": "x=-9223372036854775809"
+  },
+  {
+    "id": "int-huge",
+    "file": "cases/int-huge.bp",
+    "source": "x=9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999"
+  },
+  {
+    "id": "int-leading-zero",
+    "file": "cases/int-leading-zero.bp",
+    "source": "x=0123"
+  },
+  {
+    "id": "int-leading-bad-octal",
+    "file": "cases/int-leading-bad-octal.bp",
+    "source": "x=08"
+  },
+  {
+    "id": "int-hex",
+    "file": "cases/int-hex.bp",
+    "source": "x=0x10"
+  },
+  {
+    "id": "int-underscore",
+    "file": "cases/int-underscore.bp",
+    "source": "x=1_000"
+  },
+  {
+    "id": "int-spaced-minus",
+    "file": "cases/int-spaced-minus.bp",
+    "source": "x=- /*c*/ 123"
+  },
+  {
+    "id": "append-spaced",
+    "file": "cases/append-spaced.bp",
+    "source": "x=[] x + /*c*/ = [\"a\"]"
+  },
+  {
+    "id": "unicode-identifier",
+    "file": "cases/unicode-identifier.bp",
+    "source": "é٢=\"é\" m {名:é٢}"
+  },
+  {
+    "id": "hyphen-identifier",
+    "file": "cases/hyphen-identifier.bp",
+    "source": "foo-bar=\"x\""
+  },
+  {
+    "id": "bom",
+    "file": "cases/bom.bp",
+    "source": "﻿x=1"
+  },
+  {
+    "id": "plus-chain",
+    "file": "cases/plus-chain.bp",
+    "source": "x=\"a\"+\"b\"+\"c\""
+  },
+  {
+    "id": "list-nested",
+    "file": "cases/list-nested.bp",
+    "source": "x=[1,[2,3],{a:\"x\"},]"
+  },
+  {
+    "id": "map-merge",
+    "file": "cases/map-merge.bp",
+    "source": "x={a:[\"x\"]}+{a:[\"y\"],b:true}"
+  },
+  {
+    "id": "select-int",
+    "file": "cases/select-int.bp",
+    "source": "x=select(f(),{1:\"a\",2:\"b\",default:\"c\"})"
+  },
+  {
+    "id": "select-zero-int",
+    "file": "cases/select-zero-int.bp",
+    "source": "x=select(f(),{001:\"a\",default:\"b\"})"
+  },
+  {
+    "id": "select-negative-int",
+    "file": "cases/select-negative-int.bp",
+    "source": "x=select(f(),{-1:\"a\",default:\"b\"})"
+  },
+  {
+    "id": "select-any",
+    "file": "cases/select-any.bp",
+    "source": "x=select(f(),{any @ value:value,default:unset})"
+  },
+  {
+    "id": "select-tuple",
+    "file": "cases/select-tuple.bp",
+    "source": "x=select((f(),g(\"a\")),{(true,\"a\"):\"x\",(default,default):\"y\",})"
+  },
+  {
+    "id": "select-empty",
+    "file": "cases/select-empty.bp",
+    "source": "x=select(f(),{})"
+  },
+  {
+    "id": "select-all-unset",
+    "file": "cases/select-all-unset.bp",
+    "source": "x=select(f(),{default:unset})"
+  },
+  {
+    "id": "select-dup-pattern",
+    "file": "cases/select-dup-pattern.bp",
+    "source": "x=select(f(),{\"a\":\"x\",\"a\":\"y\"})"
+  },
+  {
+    "id": "select-default-not-last",
+    "file": "cases/select-default-not-last.bp",
+    "source": "x=select(f(),{default:\"x\",\"a\":\"y\"})"
+  },
+  {
+    "id": "select-dup-condition",
+    "file": "cases/select-dup-condition.bp",
+    "source": "x=select((f(),f()),{(default,default):\"x\"})"
+  },
+  {
+    "id": "select-dup-condition-args",
+    "file": "cases/select-dup-condition-args.bp",
+    "source": "x=select((f(\"a\"),f(\"a\")),{(default,default):\"x\"})"
+  },
+  {
+    "id": "select-dup-binding",
+    "file": "cases/select-dup-binding.bp",
+    "source": "x=select((f(),g()),{(any @ a,any @ a):\"x\"})"
+  },
+  {
+    "id": "select-pattern-arity",
+    "file": "cases/select-pattern-arity.bp",
+    "source": "x=select((f(),g()),{(true):\"x\"})"
+  },
+  {
+    "id": "select-pattern-form",
+    "file": "cases/select-pattern-form.bp",
+    "source": "x=select((f(),g()),{true:\"x\"})"
+  },
+  {
+    "id": "select-single-tuple-condition",
+    "file": "cases/select-single-tuple-condition.bp",
+    "source": "x=select((f()),{(true):\"x\"})"
+  },
+  {
+    "id": "select-single-tuple-pattern",
+    "file": "cases/select-single-tuple-pattern.bp",
+    "source": "x=select(f(),{(true):\"x\"})"
+  },
+  {
+    "id": "select-internal-pattern",
+    "file": "cases/select-internal-pattern.bp",
+    "source": "x=select(f(),{\"__soong_private\":\"x\"})"
+  },
+  {
+    "id": "select-missing-comma",
+    "file": "cases/select-missing-comma.bp",
+    "source": "x=select(f(),{\"a\":\"x\" default:\"y\"})"
+  },
+  {
+    "id": "reserved-default",
+    "file": "cases/reserved-default.bp",
+    "source": "default=1"
+  },
+  {
+    "id": "reserved-unset",
+    "file": "cases/reserved-unset.bp",
+    "source": "unset=1"
+  },
+  {
+    "id": "default-property",
+    "file": "cases/default-property.bp",
+    "source": "m{default:1,unset:2}"
+  },
+  {
+    "id": "bool-variable-name",
+    "file": "cases/bool-variable-name.bp",
+    "source": "true=1"
+  },
+  {
+    "id": "trailing-comma-empty-list",
+    "file": "cases/trailing-comma-empty-list.bp",
+    "source": "x=[,]"
+  },
+  {
+    "id": "trailing-comma-empty-map",
+    "file": "cases/trailing-comma-empty-map.bp",
+    "source": "x={,}"
+  },
+  {
+    "id": "missing-list-comma",
+    "file": "cases/missing-list-comma.bp",
+    "source": "x=[1 2]"
+  },
+  {
+    "id": "unclosed",
+    "file": "cases/unclosed.bp",
+    "source": "m{name:\"x\""
+  }
+]

@@ -1,0 +1,1 @@
+andor(pk(A),pk(B),pk(C))

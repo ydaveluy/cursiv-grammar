@@ -1,0 +1,44 @@
+GET "libhdr"
+
+MANIFEST $( yes = TRUE; no = FALSE $)
+STATIC $( counter = 0 $)
+GLOBAL $( g1: 1; g2 $)
+
+LET id(x) = x
+AND sq(x) = x * x
+AND show(x) BE $( writef("%n*n", x) $)
+
+LET main() = VALOF
+$( LET v = #(1, 2, 3)
+   LET t = TABLE 10, 20, 30
+   LET a = 0
+   LET b = 0
+   a := v!0
+   b := t%1
+   a +:= 1
+   b *:= 2
+   IF a = b THEN show(a)
+   UNLESS a EQ b DO show(b)
+   FOR i = 1 TO 3 BY 1 DO show(i)
+   SWITCHON a INTO
+   $( CASE 1: show(1)
+              ENDCASE
+      DEFAULT: show(0)
+   $)
+   TEST a < b THEN show(1) ELSE show(2)
+   a := VALOF RESULTIS a << 1
+   b := FLOAT a
+   b := FIX b
+   show(!v)
+   show(@a)
+   show(a :: b)
+   show(a OF b)
+   show(NOT (a = b))
+   show(a EQV b)
+   show(a XOR b)
+   show(a NEQV b)
+   show('x')
+   show('*n')
+   a := a + 1 REPEATUNTIL a > 5
+   RESULTIS 0
+$)

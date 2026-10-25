@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Alef",
+  "scopeName": "source.alef",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#chars" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.alef",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.alef",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.alef",
+          "begin": "\\$?\"",
+          "end": "\""
+        }
+      ]
+    },
+    "chars": {
+      "name": "string.quoted.single.alef",
+      "begin": "'",
+      "end": "'"
+    },
+    "keywords": {
+      "name": "keyword.control.alef",
+      "match": "\\b(adt|aggr|alloc|alt|become|break|case|check|chan|continue|default|do|else|enum|extern|for|goto|if|intern|nil|par|proc|private|raise|rescue|return|sizeof|switch|task|tuple|typedef|typeof|unalloc|union|while|zerox)\\b"
+    },
+    "types": {
+      "name": "storage.type.alef",
+      "match": "\\b(int|uint|sint|usint|lint|ulint|byte|float|void)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.alef",
+      "match": "\\b[0-9]+(\\.[0-9]*)?(e[0-9]+)?\\b"
+    }
+  }
+}

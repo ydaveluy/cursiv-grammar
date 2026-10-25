@@ -1,0 +1,61 @@
+# propcalc
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/propcalc/core/PropcalcGrammar.hpp` |
+| The AST | `src/propcalc/core/ast.hpp` |
+| Validation checks | `src/propcalc/core/validation/` |
+| Services of your own | `src/propcalc/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/propcalc/cli/main.cpp` |
+| LSP features | `src/propcalc/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+A propositional-calculus sequent: premises, a turnstile, a conclusion.
+
+```
+((p -> q) ^ p) |- q
+```
+
+`^` is and, `v` is or, `!` is not, `->` is implies, `<->` is equiv, and `|-`
+is the turnstile separating the premises (left) from the conclusion (right).
+A variable is a run of letters; parentheses group a sub-expression.
+
+## The command line
+
+```bash
+./build/src/propcalc_cli example/modusponens.propcalc
+./build/src/propcalc_cli --dump example/modusponens.propcalc   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`propcalc_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

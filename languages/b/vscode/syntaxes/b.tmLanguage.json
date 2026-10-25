@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "B",
+  "scopeName": "source.b",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.b",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.b",
+      "match": "\\b(auto|extrn|case|if|else|while|switch|goto|return)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.b",
+          "match": "\"[^\"\\r\\n]*\""
+        },
+        {
+          "name": "string.quoted.single.b",
+          "match": "'[^'\\r\\n]*'"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.b",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

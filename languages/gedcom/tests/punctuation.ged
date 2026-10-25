@@ -1,0 +1,9 @@
+0 HEAD
+1 CHAR ASCII
+0 @I1@ INDI
+1 NAME Mary-Jane O'Brien & Co. (test), #1!
+1 NOTE Address 123 Main St, cost $5.00/unit
+1 NOTE Literal at sign is written doubled, as in email@@example.com
+1 NOTE Escape marker @#DFHEBREW@X follows in old-style GEDCOM
+1 _CUSTOM a proprietary extension tag
+0 TRLR

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Tinyc",
+  "scopeName": "source.tinyc",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.tinyc",
+      "match": "\\b(if|else|while|do)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.tinyc",
+      "match": "\\b[0-9]+\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.tinyc",
+      "match": "=|\\+|-|<"
+    }
+  }
+}

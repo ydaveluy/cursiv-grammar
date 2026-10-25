@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "SwiftFin",
+  "scopeName": "source.swiftfin",
+  "patterns": [
+    { "include": "#blockOpeners" },
+    { "include": "#fieldTag" },
+    { "include": "#blockEnd" },
+    { "include": "#braces" }
+  ],
+  "repository": {
+    "blockOpeners": {
+      "name": "keyword.control.block.swiftfin",
+      "match": "\\{[1-5]:"
+    },
+    "fieldTag": {
+      "name": "entity.name.tag.swiftfin",
+      "match": ":[^:{}\\r\\n]+:"
+    },
+    "blockEnd": {
+      "name": "keyword.control.block.swiftfin",
+      "match": "-\\}"
+    },
+    "braces": {
+      "name": "punctuation.definition.block.swiftfin",
+      "match": "[{}]"
+    }
+  }
+}

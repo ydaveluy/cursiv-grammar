@@ -1,0 +1,10 @@
+while (dec(100)) {
+    if (dec(200)) {
+        inc(300);
+    } else {
+        inc(400);
+        while (dec(500)) {
+            inc(600);
+        }
+    }
+}

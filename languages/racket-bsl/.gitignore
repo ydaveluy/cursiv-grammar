@@ -1,0 +1,9 @@
+# The generated tree is build output: the generator rewrites it from the
+# grammar, and a table is megabytes git has no use for.
+generated/
+/build*
+vscode/node_modules
+vscode/out
+vscode/bin
+*.vsix
+vscode/server/

@@ -1,0 +1,4 @@
+.presidentOf(?America) = #Trump
+Forall(?x) _isPerson(?x) <-> _isHuman(?x)
+Exists(?x) .parentOf(?x) = .parentOf(#Lucy)
+!_isProf(#Lucy) \/ _isDean(#Lucy)

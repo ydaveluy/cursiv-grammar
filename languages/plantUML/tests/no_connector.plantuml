@@ -1,0 +1,5 @@
+' An association with no arrow symbol at all is still a document PlantUML
+' accepts.
+@startuml
+Left Right
+@enduml

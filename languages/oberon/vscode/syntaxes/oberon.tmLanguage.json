@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Oberon",
+  "scopeName": "source.oberon",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.block.oberon",
+      "begin": "\\(\\*",
+      "end": "\\*\\)",
+      "patterns": [
+        {
+          "include": "#comments"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.oberon",
+      "begin": "\"",
+      "end": "\""
+    },
+    "keywords": {
+      "name": "keyword.control.oberon",
+      "match": "\\b(ARRAY|BEGIN|BY|CASE|CONST|DIV|DO|ELSE|ELSIF|END|FALSE|FOR|IF|IMPORT|IN|IS|MOD|MODULE|NIL|OF|OR|POINTER|PROCEDURE|RECORD|REPEAT|RETURN|THEN|TO|TRUE|TYPE|UNTIL|VAR|WHILE)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.oberon",
+      "match": "\\b[0-9][0-9A-Fa-f]*[HX]?\\b"
+    }
+  }
+}

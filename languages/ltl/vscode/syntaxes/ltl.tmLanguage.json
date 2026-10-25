@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Ltl",
+  "scopeName": "source.ltl",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#atoms"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "constant.language.ltl",
+      "match": "\\b(true|false)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.ltl",
+      "match": "[GFXUWR∧∨→⌐]"
+    },
+    "atoms": {
+      "name": "variable.other.ltl",
+      "match": "\\b[a-z]+\\b"
+    }
+  }
+}

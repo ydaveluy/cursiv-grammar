@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "LOLCODE",
+  "scopeName": "source.lolcode",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#atoms" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.btw.lolcode",
+          "match": "\\bBTW\\b.*$"
+        },
+        {
+          "name": "comment.block.obtw.lolcode",
+          "begin": "\\bOBTW\\b",
+          "end": "\\bTLDR\\b"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.lolcode",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.lolcode",
+          "match": "\\\\\""
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.lolcode",
+      "match": "\\b(HAI|KTHXBYE|VISIBLE|GIMMEH|I HAS A|ITZ|IM IN YR|WILE|IM OUTTA YR|O RLY\\?|YA RLY|MEBBE|NO WAI|OIC|HOW DUZ I|IF U SAY SO|YR|AN YR|AN|R|MAEK|A|NOT|BOTH SAEM|DIFFRINT|BOTH OF|EITHER OF|BIGGR OF|SMALLR OF|SUM OF|DIFF OF|PRODUKT OF|QUOSHUNT OF|MOD OF|ALL OF|ANY OF|MKAY\\?)\\b"
+    },
+    "atoms": {
+      "name": "constant.language.lolcode",
+      "match": "\\b(WIN|FAIL|NOOB)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.lolcode",
+      "match": "\\b[0-9]+(\\.[0-9]*)?\\b"
+    }
+  }
+}

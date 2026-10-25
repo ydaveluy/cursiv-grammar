@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "MckeemanForm",
+  "scopeName": "source.mckeemanform",
+  "patterns": [
+    {
+      "include": "#ruleName"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#singletons"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "ruleName": {
+      "name": "entity.name.function.mckeemanform",
+      "match": "^[a-zA-Z_]+$"
+    },
+    "strings": {
+      "name": "string.quoted.double.mckeemanform",
+      "match": "\"[^\"]*\""
+    },
+    "singletons": {
+      "name": "constant.character.mckeemanform",
+      "match": "'([^']|[0-9a-fA-F]{4,6})'"
+    },
+    "operators": {
+      "name": "keyword.operator.mckeemanform",
+      "match": " \\. | - "
+    }
+  }
+}

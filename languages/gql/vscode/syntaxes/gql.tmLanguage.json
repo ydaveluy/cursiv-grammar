@@ -1,0 +1,77 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Gql",
+  "scopeName": "source.gql",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.gql",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.line.double-dash.gql",
+          "match": "--.*$"
+        },
+        {
+          "name": "comment.block.gql",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.gql",
+          "begin": "@?'",
+          "end": "'",
+          "patterns": [
+            { "name": "constant.character.escape.gql", "match": "\\\\." },
+            { "match": "''" }
+          ]
+        },
+        {
+          "name": "string.quoted.double.gql",
+          "begin": "@?\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.gql", "match": "\\\\." },
+            { "match": "\"\"" }
+          ]
+        },
+        {
+          "name": "string.quoted.other.gql",
+          "begin": "@?`",
+          "end": "`",
+          "patterns": [
+            { "name": "constant.character.escape.gql", "match": "\\\\." },
+            { "match": "``" }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.gql",
+      "match": "\\b(0[xob])?[0-9][0-9_]*(\\.[0-9_]*)?([eE][+-]?[0-9]+)?[mMfFdD]?\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.gql",
+          "match": "(?i)\\b(MATCH|OPTIONAL|RETURN|WITH|LET|FOR|FILTER|WHERE|YIELD|CALL|INSERT|SET|REMOVE|DELETE|DETACH|NODETACH|SELECT|FROM|GROUP|BY|HAVING|ORDER|ASC|DESC|LIMIT|OFFSET|SKIP|UNION|EXCEPT|INTERSECT|OTHERWISE|NEXT|USE|SESSION|START|TRANSACTION|COMMIT|ROLLBACK|CREATE|DROP|SCHEMA|GRAPH|TYPE|CASE|WHEN|THEN|ELSE|END|IS|NOT|AND|OR|XOR|IN|AS|NULL|TRUE|FALSE|UNKNOWN|DISTINCT|ALL|FINISH|EXISTS|KEEP|SHORTEST|WALK|TRAIL|SIMPLE|ACYCLIC|IF|EXISTS)\\b"
+        },
+        {
+          "name": "storage.type.gql",
+          "match": "(?i)\\b(BOOL|BOOLEAN|STRING|INT8|INT16|INT32|INT64|INT128|INT256|INT|INTEGER|BIGINT|SMALLINT|FLOAT|FLOAT16|FLOAT32|FLOAT64|DOUBLE|DECIMAL|LIST|ARRAY|RECORD|PATH|DATE|TIME|DATETIME|TIMESTAMP|DURATION|NODE|VERTEX|EDGE|RELATIONSHIP)\\b"
+        }
+      ]
+    }
+  }
+}

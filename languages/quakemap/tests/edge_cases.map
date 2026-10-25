@@ -1,0 +1,11 @@
+{
+"classname" "worldspawn"
+"message" "the ""hidden"" room"
+}
+{
+{
+( 0 0 0 ) ( 0 1 0 ) ( 1 0 0 ) start_button +0 -0.5 1.25 1 1
+}
+}
+{
+}

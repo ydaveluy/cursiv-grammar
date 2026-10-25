@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Teal",
+  "scopeName": "source.teal",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.teal",
+          "begin": "--\\[(=*)\\[",
+          "beginCaptures": { "1": { "name": "punctuation.definition.comment.teal" } },
+          "end": "\\]\\1\\]"
+        },
+        {
+          "name": "comment.line.double-dash.teal",
+          "match": "--.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.teal",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.teal", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.teal",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.teal", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.other.teal",
+          "begin": "\\[(=*)\\[",
+          "beginCaptures": { "1": { "name": "punctuation.definition.string.teal" } },
+          "end": "\\]\\1\\]"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.teal",
+      "match": "\\b(and|as|break|do|else|elseif|end|enum|for|function|functiontype|global|goto|if|in|is|local|not|or|record|repeat|return|then|until|while)\\b"
+    },
+    "types": {
+      "name": "storage.type.teal",
+      "match": "\\b(string|boolean|nil|number)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.teal",
+      "match": "\\b(0[xX][0-9a-fA-F]+|[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?|\\.[0-9]+([eE][+-]?[0-9]+)?)\\b"
+    }
+  }
+}

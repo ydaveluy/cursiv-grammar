@@ -1,0 +1,465 @@
+// The protobuf (proto3) language: its grammar. Header, then a mix of
+// imports/packages/options/definitions; no lexer modes, no precedence.
+#pragma once
+
+#include <cstdint>
+#include <memory_resource>
+#include <span>
+#include <string_view>
+
+#include "cursiv/core/grammar/GrammarSpec.hpp"
+#include "protobuf/core/ast.hpp"
+
+namespace protobuf {
+
+inline constexpr auto unescape_str =
+    [](std::string_view t, std::pmr::memory_resource *mem) -> std::string_view {
+  const std::span<char> room = cursiv::text_room(mem, t.size());
+  std::size_t n = 0;
+  const auto digit = [](char c) -> unsigned {
+    return c <= '9' ? c - '0' : (c | 32) - 'a' + 10;
+  };
+  const auto utf8 = [&](std::uint32_t cp) {
+    if (cp < 0x80)
+      room[n++] = static_cast<char>(cp);
+    else {
+      if (cp >= 0x10000)
+        room[n++] = static_cast<char>(0xf0 | (cp >> 18));
+      else if (cp >= 0x800)
+        room[n++] = static_cast<char>(0xe0 | (cp >> 12));
+      else
+        room[n++] = static_cast<char>(0xc0 | (cp >> 6));
+      if (cp >= 0x10000)
+        room[n++] = static_cast<char>(0x80 | ((cp >> 12) & 63));
+      if (cp >= 0x800)
+        room[n++] = static_cast<char>(0x80 | ((cp >> 6) & 63));
+      room[n++] = static_cast<char>(0x80 | (cp & 63));
+    }
+  };
+  for (std::size_t i = 0; i < t.size();) {
+    if (t.substr(i, 2) == "//") {
+      i = t.find_first_of("\r\n", i + 2);
+      if (i == std::string_view::npos)
+        break;
+    } else if (t.substr(i, 2) == "/*") {
+      i = t.find("*/", i + 2);
+      if (i == std::string_view::npos)
+        break;
+      i += 2;
+    } else if (t[i] != '\'' && t[i] != '"') {
+      ++i;
+    } else {
+      const char quote = t[i++];
+      while (i < t.size() && t[i] != quote) {
+        if (t[i] != '\\' || i + 1 >= t.size()) {
+          room[n++] = t[i++];
+          continue;
+        }
+        const char escape = t[++i];
+        ++i;
+        if (escape == 'x' || escape == 'X' ||
+            (escape >= '0' && escape <= '7')) {
+          const unsigned base = escape == 'x' || escape == 'X' ? 16 : 8;
+          unsigned value = base == 8 ? escape - '0' : 0;
+          unsigned count = base == 8 ? 1 : 0;
+          while (i < t.size() && count < (base == 8 ? 3 : 2) &&
+                 ((t[i] >= '0' && t[i] <= '7') ||
+                  (base == 16 && ((t[i] >= '8' && t[i] <= '9') ||
+                                  (t[i] >= 'a' && t[i] <= 'f') ||
+                                  (t[i] >= 'A' && t[i] <= 'F'))))) {
+            value = value * base + digit(t[i++]);
+            ++count;
+          }
+          room[n++] = static_cast<char>(value);
+        } else if (escape == 'u' || escape == 'U') {
+          std::uint32_t cp = 0;
+          const std::size_t count = escape == 'u' ? 4 : 8;
+          for (std::size_t j = 0; j < count && i < t.size(); ++j)
+            cp = cp * 16 + digit(t[i++]);
+          if (cp >= 0xd800 && cp <= 0xdbff && t.substr(i, 2) == "\\u" &&
+              i + 6 <= t.size()) {
+            std::uint32_t low = 0;
+            for (std::size_t j = i + 2; j < i + 6; ++j)
+              low = low * 16 + digit(t[j]);
+            if (low >= 0xdc00 && low <= 0xdfff) {
+              cp = 0x10000 + ((cp - 0xd800) << 10) + low - 0xdc00;
+              i += 6;
+            }
+          }
+          utf8(cp);
+        } else {
+          switch (escape) {
+          case 'a':
+            room[n++] = '\a';
+            break;
+          case 'b':
+            room[n++] = '\b';
+            break;
+          case 'f':
+            room[n++] = '\f';
+            break;
+          case 'n':
+            room[n++] = '\n';
+            break;
+          case 'r':
+            room[n++] = '\r';
+            break;
+          case 't':
+            room[n++] = '\t';
+            break;
+          case 'v':
+            room[n++] = '\v';
+            break;
+          default:
+            room[n++] = escape;
+            break;
+          }
+        }
+      }
+      if (i < t.size())
+        ++i;
+    }
+  }
+  return std::string_view(room.data(), n);
+};
+using Unescape = cursiv::text_conv<unescape_str>;
+
+inline constexpr auto text_to_label = [](std::string_view t) {
+  return t == "optional" ? ast::FieldLabel::optional_
+                         : ast::FieldLabel::repeated_;
+};
+using LabelConv = cursiv::text_conv<text_to_label>;
+
+inline constexpr auto numberSource =
+    [](cursiv::Parts parts) -> std::string_view {
+  if (parts.empty())
+    return {};
+  const auto first = parts.front(), last = parts.back();
+  return {first.data(),
+          static_cast<std::size_t>(last.data() + last.size() - first.data())};
+};
+using NumericText = cursiv::parts_conv<numberSource>;
+
+struct Protobuf : cursiv::GrammarSpec {
+  struct WS : terminal<some(cr<R"( \t\r\n\f)">)> {};
+  struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
+  struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
+
+  struct ID : terminal<cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_">)> {};
+
+  // Every keyword also names the general identifier position ("message
+  // message { ... }" -- see keywordasid.proto): spelled once, referenced
+  // both as a keyword and as an alternative of Ident.
+  struct SYNTAX_KW : terminal<kw<"syntax">> {};
+  struct IMPORT_KW : terminal<kw<"import">> {};
+  struct WEAK_KW : terminal<kw<"weak">> {};
+  struct PUBLIC_KW : terminal<kw<"public">> {};
+  struct PACKAGE_KW : terminal<kw<"package">> {};
+  struct OPTION_KW : terminal<kw<"option">> {};
+  struct OPTIONAL_KW : terminal<kw<"optional">> {};
+  struct REPEATED_KW : terminal<kw<"repeated">> {};
+  struct ONEOF_KW : terminal<kw<"oneof">> {};
+  struct MAP_KW : terminal<kw<"map">> {};
+  struct INT32_KW : terminal<kw<"int32">> {};
+  struct INT64_KW : terminal<kw<"int64">> {};
+  struct UINT32_KW : terminal<kw<"uint32">> {};
+  struct UINT64_KW : terminal<kw<"uint64">> {};
+  struct SINT32_KW : terminal<kw<"sint32">> {};
+  struct SINT64_KW : terminal<kw<"sint64">> {};
+  struct FIXED32_KW : terminal<kw<"fixed32">> {};
+  struct FIXED64_KW : terminal<kw<"fixed64">> {};
+  struct SFIXED32_KW : terminal<kw<"sfixed32">> {};
+  struct SFIXED64_KW : terminal<kw<"sfixed64">> {};
+  struct BOOL_KW : terminal<kw<"bool">> {};
+  struct STRING_KW : terminal<kw<"string">> {};
+  struct DOUBLE_KW : terminal<kw<"double">> {};
+  struct FLOAT_KW : terminal<kw<"float">> {};
+  struct BYTES_KW : terminal<kw<"bytes">> {};
+  struct RESERVED_KW : terminal<kw<"reserved">> {};
+  struct TO_KW : terminal<kw<"to">> {};
+  struct MAX_KW : terminal<kw<"max">> {};
+  struct ENUM_KW : terminal<kw<"enum">> {};
+  struct MESSAGE_KW : terminal<kw<"message">> {};
+  struct SERVICE_KW : terminal<kw<"service">> {};
+  struct EXTEND_KW : terminal<kw<"extend">> {};
+  struct RPC_KW : terminal<kw<"rpc">> {};
+  struct STREAM_KW : terminal<kw<"stream">> {};
+  struct RETURNS_KW : terminal<kw<"returns">> {};
+  struct TRUE_KW : terminal<kw<"true">> {};
+  struct FALSE_KW : terminal<kw<"false">> {};
+
+  static constexpr auto scalar_kw =
+      ref<DOUBLE_KW> | ref<FLOAT_KW> | ref<INT32_KW> | ref<INT64_KW> |
+      ref<UINT32_KW> | ref<UINT64_KW> | ref<SINT32_KW> | ref<SINT64_KW> |
+      ref<FIXED32_KW> | ref<FIXED64_KW> | ref<SFIXED32_KW> | ref<SFIXED64_KW> |
+      ref<BOOL_KW> | ref<STRING_KW> | ref<BYTES_KW>;
+  static constexpr auto bool_kw = ref<TRUE_KW> | ref<FALSE_KW>;
+  static constexpr auto other_kw =
+      ref<SYNTAX_KW> | ref<IMPORT_KW> | ref<WEAK_KW> | ref<PUBLIC_KW> |
+      ref<PACKAGE_KW> | ref<OPTION_KW> | ref<OPTIONAL_KW> | ref<REPEATED_KW> |
+      ref<ONEOF_KW> | ref<MAP_KW> | ref<RESERVED_KW> | ref<TO_KW> |
+      ref<MAX_KW> | ref<ENUM_KW> | ref<MESSAGE_KW> | ref<SERVICE_KW> |
+      ref<EXTEND_KW> | ref<RPC_KW> | ref<STREAM_KW> | ref<RETURNS_KW>;
+  static constexpr auto ident_kw = scalar_kw | bool_kw | other_kw;
+
+  struct Ident : rule<ref<ID> | ident_kw> {};
+  struct FullIdent : rule<some(ref<Ident>, lit<".">)> {};
+  static constexpr auto key_type_kw =
+      ref<INT32_KW> | ref<INT64_KW> | ref<UINT32_KW> | ref<UINT64_KW> |
+      ref<SINT32_KW> | ref<SINT64_KW> | ref<FIXED32_KW> | ref<FIXED64_KW> |
+      ref<SFIXED32_KW> | ref<SFIXED64_KW> | ref<BOOL_KW> | ref<STRING_KW>;
+
+  // A bare identifier that names a message or an enum type is one shape in
+  // the grammar either way: its head
+  // leaves the scalar keywords out, so the choice in type_expr does not fork.
+  struct TypeNameRule
+      : rule<(lit<"."> + some(ref<Ident>, lit<".">)) |
+             ((ref<ID> | bool_kw | other_kw) + many(lit<"."> + ref<Ident>))> {};
+  struct QualifiedTypeNameRule
+      : rule<option(lit<".">) + some(ref<Ident>, lit<".">)> {};
+
+  static constexpr auto type_expr = scalar_kw | ref<TypeNameRule>;
+
+  static constexpr auto str_escape =
+      (lit<"\\"> + cr<"xX"> + cr<"0-9a-fA-F"> + option(cr<"0-9a-fA-F">)) |
+      (lit<"\\"> + cr<"0-7"> + repeat<0, 2>(cr<"0-7">)) |
+      (lit<"\\u"> + repeat<4>(cr<"0-9a-fA-F">)) |
+      (lit<"\\U"> + repeat<8>(cr<"0-9a-fA-F">)) |
+      (lit<"\\"> + cr<R"(abfnrtv\\'")">);
+  struct STR_LIT
+      : terminal<(lit<"'"> + many(str_escape | cr<R"(^'\\\n)">) + lit<"'">) |
+                 (lit<"\""> + many(str_escape | cr<R"(^"\\\n)">) + lit<"\"">)> {
+  };
+  struct StringLitRule : rule<some(ref<STR_LIT>), Unescape> {};
+
+  struct INT_LIT_TXT
+      : terminal<(lit<"0"> + cr<"xX"> + some(cr<"0-9a-fA-F">)) |
+                 (lit<"0"> + many(cr<"0-7">)) | (cr<"1-9"> + many(d))> {};
+  struct IntLitRule : rule<ref<INT_LIT_TXT>, NumericText> {};
+  struct SignedIntLitRule
+      : rule<option(cr<"+-">) + ref<INT_LIT_TXT>, NumericText> {};
+
+  static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
+  struct FLOAT_LIT_TXT
+      : terminal<(some(d) + lit<"."> + option(some(d)) + option(exponent)) |
+                 (some(d) + exponent) |
+                 (lit<"."> + some(d) + option(exponent)) | kw<"inf"> |
+                 kw<"nan">> {};
+  struct SignedFloatLitRule
+      : rule<option(cr<"+-">) + ref<FLOAT_LIT_TXT>, NumericText> {};
+
+  struct TRUE_BOOL_KW : terminal<kw<"true">, value<true>> {};
+  struct FALSE_BOOL_KW : terminal<kw<"false">, value<false>> {};
+  static constexpr auto bool_lit = ref<TRUE_BOOL_KW> | ref<FALSE_BOOL_KW>;
+
+  // A constant reads `true` and `false` as the boolean literal; the head of an
+  // identifier leaves them out.
+  struct ConstIdent
+      : rule<(ref<ID> | scalar_kw | other_kw) + many(lit<"."> + ref<Ident>)> {};
+  struct IdentRefRule : rule<create<ast::IdentRef> +
+                             assign<&ast::IdentRef::name>(ref<ConstIdent>)> {};
+
+  struct MessageFieldValueRule;
+  struct MessageListValueRule;
+  struct MessageValueRule : rule<create<ast::MessageValue> + lit<"{"> +
+                                 many(append<&ast::MessageValue::fields>(
+                                          ref<MessageFieldValueRule>) +
+                                      option(cr<",;">)) +
+                                 lit<"}">> {};
+  struct MessageAngleValueRule : rule<create<ast::MessageValue> + lit<"<"> +
+                                      many(append<&ast::MessageValue::fields>(
+                                               ref<MessageFieldValueRule>) +
+                                           option(cr<",;">)) +
+                                      lit<">">> {};
+
+  struct IntegerConstantRule
+      : rule<create<ast::NumberLiteral> +
+             assign<&ast::NumberLiteral::text>(ref<SignedIntLitRule>)> {};
+  struct FloatConstantRule
+      : rule<create<ast::NumberLiteral> +
+             flag<&ast::NumberLiteral::floating>(
+                 assign<&ast::NumberLiteral::text>(ref<SignedFloatLitRule>))> {
+  };
+  static constexpr auto constant =
+      ref<IntegerConstantRule> | ref<FloatConstantRule> | bool_lit |
+      ref<StringLitRule> | ref<IdentRefRule> | ref<MessageValueRule> |
+      ref<MessageAngleValueRule> | ref<MessageListValueRule>;
+
+  struct MessageListValueRule
+      : rule<create<ast::MessageListValue> + lit<"["> +
+             many(append<&ast::MessageListValue::items>(constant), lit<",">) +
+             lit<"]">> {};
+  struct MessageFieldNameRule
+      : rule<ref<FullIdent> |
+             (lit<"["> + ref<QualifiedTypeNameRule> + lit<"]">)> {};
+  struct MessageFieldValueRule
+      : rule<assign<&ast::MessageFieldValue::name>(ref<MessageFieldNameRule>) +
+             option(lit<":">) +
+             assign<&ast::MessageFieldValue::value>(constant)> {};
+
+  struct OptionNameRule
+      : rule<assign<&ast::OptionName::name>(ref<FullIdent>) |
+             (flag<&ast::OptionName::isExtension>(lit<"(">) +
+              assign<&ast::OptionName::name>(ref<FullIdent>) + lit<")"> +
+              option(lit<"."> +
+                     assign<&ast::OptionName::suffix>(ref<FullIdent>)))> {};
+
+  struct OptionDeclRule
+      : rule<kw<"option"> +
+             assign<&ast::OptionDecl::name>(ref<OptionNameRule>) + lit<"="> +
+             assign<&ast::OptionDecl::value>(constant)> {};
+
+  struct FieldOptionRule
+      : rule<assign<&ast::FieldOption::name>(ref<OptionNameRule>) + lit<"="> +
+             assign<&ast::FieldOption::value>(constant)> {};
+
+  template <auto Member>
+  static constexpr auto OptionsInto =
+      lit<"["> + some(append<Member>(ref<FieldOptionRule>), lit<",">) +
+      lit<"]">;
+  static constexpr auto field_options = OptionsInto<&ast::Field::options>;
+  static constexpr auto oneof_field_options =
+      OptionsInto<&ast::OneofField::options>;
+  static constexpr auto map_field_options =
+      OptionsInto<&ast::MapField::options>;
+  static constexpr auto enum_field_options =
+      OptionsInto<&ast::EnumField::options>;
+
+  struct FieldLabelRule : rule<ref<OPTIONAL_KW> | ref<REPEATED_KW>, LabelConv> {
+  };
+
+  struct FieldRule
+      : rule<option(assign<&ast::Field::label>(ref<FieldLabelRule>)) +
+             assign<&ast::Field::type>(type_expr) +
+             assign<&ast::Field::name>(ref<Ident>) + lit<"="> +
+             assign<&ast::Field::number>(ref<IntLitRule>) +
+             option(field_options) + lit<";">> {};
+
+  struct OneofFieldRule
+      : rule<assign<&ast::OneofField::type>(type_expr) +
+             assign<&ast::OneofField::name>(ref<Ident>) + lit<"="> +
+             assign<&ast::OneofField::number>(ref<IntLitRule>) +
+             option(oneof_field_options) + lit<";">> {};
+
+  struct OneofRule
+      : rule<create<ast::Oneof> + kw<"oneof"> +
+             assign<&ast::Oneof::name>(ref<Ident>) + lit<"{"> +
+             many(append<&ast::Oneof::options>(ref<OptionDeclRule>) + lit<";"> |
+                  append<&ast::Oneof::fields>(ref<OneofFieldRule>) | lit<";">) +
+             lit<"}">> {};
+
+  struct MapFieldRule
+      : rule<kw<"map"> + lit<"<"> +
+             assign<&ast::MapField::keyType>(key_type_kw) + lit<","> +
+             assign<&ast::MapField::valueType>(type_expr) + lit<">"> +
+             assign<&ast::MapField::name>(ref<Ident>) + lit<"="> +
+             assign<&ast::MapField::number>(ref<IntLitRule>) +
+             option(map_field_options) + lit<";">> {};
+
+  struct ReservedRangeRule
+      : rule<assign<&ast::ReservedRange::from>(ref<SignedIntLitRule>) +
+             option(kw<"to"> +
+                    (flag<&ast::ReservedRange::toMax>(kw<"max">) |
+                     assign<&ast::ReservedRange::to>(ref<SignedIntLitRule>)))> {
+  };
+
+  struct ReservedRule
+      : rule<create<ast::Reserved> + kw<"reserved"> +
+             (some(append<&ast::Reserved::ranges>(ref<ReservedRangeRule>),
+                   lit<",">) |
+              some(append<&ast::Reserved::fieldNames>(ref<StringLitRule>),
+                   lit<",">)) +
+             lit<";">> {};
+
+  struct EnumFieldRule
+      : rule<assign<&ast::EnumField::name>(ref<Ident>) + lit<"="> +
+             assign<&ast::EnumField::value>(ref<SignedIntLitRule>) +
+             option(enum_field_options) + lit<";">> {};
+
+  struct EnumDefRule
+      : rule<create<ast::EnumDef> + kw<"enum"> +
+             assign<&ast::EnumDef::name>(ref<Ident>) + lit<"{"> +
+             many(append<&ast::EnumDef::options>(ref<OptionDeclRule>) +
+                      lit<";"> |
+                  append<&ast::EnumDef::fields>(ref<EnumFieldRule>) |
+                  append<&ast::EnumDef::reserved>(ref<ReservedRule>) |
+                  lit<";">) +
+             lit<"}">> {};
+
+  struct ExtendDefRule
+      : rule<create<ast::ExtendDef> + kw<"extend"> +
+             assign<&ast::ExtendDef::target>(ref<QualifiedTypeNameRule>) +
+             lit<"{"> +
+             many(append<&ast::ExtendDef::fields>(ref<FieldRule>) | lit<";">) +
+             lit<"}">> {};
+
+  struct MessageDefRule
+      : rule<create<ast::MessageDef> + kw<"message"> +
+             assign<&ast::MessageDef::name>(ref<Ident>) + lit<"{"> +
+             many(append<&ast::MessageDef::fields>(ref<FieldRule>) |
+                  append<&ast::MessageDef::enums>(ref<EnumDefRule>) |
+                  append<&ast::MessageDef::messages>(ref<MessageDefRule>) |
+                  append<&ast::MessageDef::extends_>(ref<ExtendDefRule>) |
+                  append<&ast::MessageDef::options>(ref<OptionDeclRule>) +
+                      lit<";"> |
+                  append<&ast::MessageDef::oneofs>(ref<OneofRule>) |
+                  append<&ast::MessageDef::mapFields>(ref<MapFieldRule>) |
+                  append<&ast::MessageDef::reserved>(ref<ReservedRule>) |
+                  lit<";">) +
+             lit<"}">> {};
+
+  struct RpcRule
+      : rule<create<ast::Rpc> + kw<"rpc"> +
+             assign<&ast::Rpc::name>(ref<Ident>) + lit<"("> +
+             option(flag<&ast::Rpc::requestStream>(kw<"stream">)) +
+             assign<&ast::Rpc::requestType>(ref<QualifiedTypeNameRule>) +
+             lit<")"> + kw<"returns"> + lit<"("> +
+             option(flag<&ast::Rpc::responseStream>(kw<"stream">)) +
+             assign<&ast::Rpc::responseType>(ref<QualifiedTypeNameRule>) +
+             lit<")"> +
+             (lit<";"> |
+              (lit<"{"> +
+               many(append<&ast::Rpc::options>(ref<OptionDeclRule>) + lit<";"> |
+                    lit<";">) +
+               lit<"}">))> {};
+
+  struct ServiceDefRule
+      : rule<create<ast::ServiceDef> + kw<"service"> +
+             assign<&ast::ServiceDef::name>(ref<Ident>) + lit<"{"> +
+             many(append<&ast::ServiceDef::options>(ref<OptionDeclRule>) +
+                      lit<";"> |
+                  append<&ast::ServiceDef::rpcs>(ref<RpcRule>) | lit<";">) +
+             lit<"}">> {};
+
+  struct ImportRule
+      : rule<kw<"import"> +
+             option(flag<&ast::Import::isWeak>(kw<"weak">) |
+                    flag<&ast::Import::isPublic>(kw<"public">)) +
+             assign<&ast::Import::path>(ref<StringLitRule>) + lit<";">> {};
+
+  struct PackageRule
+      : rule<kw<"package"> + assign<&ast::Package::name>(ref<FullIdent>) +
+             lit<";">> {};
+
+  static constexpr auto syntax_stmt =
+      kw<"syntax"> + lit<"="> +
+      assign<&ast::Document::syntax>(ref<StringLitRule>) + lit<";">;
+
+  struct DocumentRule
+      : rule<create<ast::Document> + syntax_stmt +
+             many(append<&ast::Document::imports>(ref<ImportRule>) |
+                  append<&ast::Document::packages>(ref<PackageRule>) |
+                  append<&ast::Document::options>(ref<OptionDeclRule>) +
+                      lit<";"> |
+                  append<&ast::Document::messages>(ref<MessageDefRule>) |
+                  append<&ast::Document::enums>(ref<EnumDefRule>) |
+                  append<&ast::Document::extends_>(ref<ExtendDefRule>) |
+                  append<&ast::Document::services>(ref<ServiceDefRule>) |
+                  lit<";">)> {};
+
+  using entry = DocumentRule;
+  using ignore = WS;
+  using hidden = list<SL_COMMENT, ML_COMMENT>;
+};
+
+} // namespace protobuf

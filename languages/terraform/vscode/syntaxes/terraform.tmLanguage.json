@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Terraform",
+  "scopeName": "source.terraform",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.terraform",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.line.double-slash.terraform",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.terraform",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.terraform",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.terraform",
+              "match": "\\\\\""
+            }
+          ]
+        },
+        {
+          "name": "string.unquoted.heredoc.terraform",
+          "begin": "<<-?\\w+",
+          "end": "^\\s*\\w+$"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.terraform",
+      "match": "\\b(terraform|resource|data|provider|output|locals|module|variable|for|in|true|false|nul)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.terraform",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

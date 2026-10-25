@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Recfile",
+  "scopeName": "source.recfile",
+  "fileTypes": ["rec"],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#descriptor"
+    },
+    {
+      "include": "#field"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.recfile",
+      "match": "#.*$"
+    },
+    "descriptor": {
+      "match": "^(%)([a-zA-Z0-9'.][a-zA-Z0-9_ '.]*)(:)",
+      "captures": {
+        "1": {
+          "name": "keyword.control.recfile"
+        },
+        "2": {
+          "name": "entity.name.tag.recfile"
+        },
+        "3": {
+          "name": "punctuation.separator.key-value.recfile"
+        }
+      }
+    },
+    "field": {
+      "match": "^([a-zA-Z0-9'.][a-zA-Z0-9_ '.]*)(:)",
+      "captures": {
+        "1": {
+          "name": "variable.other.recfile"
+        },
+        "2": {
+          "name": "punctuation.separator.key-value.recfile"
+        }
+      }
+    }
+  }
+}

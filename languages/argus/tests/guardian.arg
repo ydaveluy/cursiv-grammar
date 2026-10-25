@@ -1,0 +1,17 @@
+Bank = guardian is node handles deposit, withdraw
+where node has transmit
+  limit = 1000
+  balance: int := 0
+recover
+  balance := 0
+end
+background
+  balance := balance + 1
+end
+Deposit = proc(amt: int) returns(int)
+  return amt
+end Deposit
+Bank = creator()
+  balance := 0
+end Bank
+end Bank

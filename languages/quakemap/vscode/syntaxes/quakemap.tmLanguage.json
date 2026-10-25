@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Quakemap",
+  "scopeName": "source.quakemap",
+  "fileTypes": ["map"],
+  "patterns": [
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#braces" },
+    { "include": "#parens" },
+    { "include": "#texture" }
+  ],
+  "repository": {
+    "string": {
+      "name": "string.quoted.double.quakemap",
+      "begin": "\"",
+      "end": "\"",
+      "applyEndPatternLast": true,
+      "patterns": [
+        { "name": "constant.character.escape.quakemap", "match": "\"\"" }
+      ]
+    },
+    "number": {
+      "name": "constant.numeric.quakemap",
+      "match": "[+-]?[0-9]+(\\.[0-9]+)?"
+    },
+    "braces": {
+      "name": "punctuation.definition.block.quakemap",
+      "match": "[{}]"
+    },
+    "parens": {
+      "name": "punctuation.section.group.quakemap",
+      "match": "[()]"
+    },
+    "texture": {
+      "name": "variable.other.quakemap",
+      "match": "\\b[a-zA-Z][a-zA-Z0-9_]+\\b"
+    }
+  }
+}

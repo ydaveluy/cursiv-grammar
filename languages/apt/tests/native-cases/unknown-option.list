@@ -1,0 +1,1 @@
+deb [x:y.z=value arch+=amd64,i386 arch-=arm64] http://example.test stable main

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pascal",
+  "scopeName": "source.pascal",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.pascal",
+          "begin": "\\(\\*",
+          "end": "\\*\\)"
+        },
+        {
+          "name": "comment.block.pascal",
+          "begin": "\\{",
+          "end": "\\}"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.single.pascal",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.pascal",
+          "match": "''"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.pascal",
+          "match": "(?i)\\b(if|then|else|case|of|while|do|repeat|until|for|to|downto|with|goto|begin|end)\\b"
+        },
+        {
+          "name": "keyword.other.pascal",
+          "match": "(?i)\\b(program|unit|interface|implementation|uses|label|const|type|var|procedure|function|packed|array|record|set|file|of|nil)\\b"
+        },
+        {
+          "name": "storage.type.pascal",
+          "match": "(?i)\\b(integer|real|boolean|char|string)\\b"
+        },
+        {
+          "name": "constant.language.pascal",
+          "match": "(?i)\\b(true|false)\\b"
+        },
+        {
+          "name": "keyword.operator.word.pascal",
+          "match": "(?i)\\b(and|or|not|div|mod|in)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.pascal",
+      "match": "\\b[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\b"
+    }
+  }
+}

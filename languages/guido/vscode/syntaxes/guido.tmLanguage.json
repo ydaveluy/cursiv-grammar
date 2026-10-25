@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Guido",
+  "scopeName": "source.guido",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#tags"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.percentage.guido",
+      "match": "%.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.guido",
+      "begin": "\"",
+      "end": "\""
+    },
+    "tags": {
+      "match": "(\\\\)(title|tempo|clef|meter|slur|key|barFormat|staff|repeatEnd|t)\\b",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.tag.guido"
+        },
+        "2": {
+          "name": "keyword.control.guido"
+        }
+      }
+    },
+    "numbers": {
+      "name": "constant.numeric.guido",
+      "match": "[-+]?\\b[0-9]+\\b"
+    }
+  }
+}

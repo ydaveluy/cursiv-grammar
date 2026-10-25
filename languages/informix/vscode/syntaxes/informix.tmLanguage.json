@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Informix",
+  "scopeName": "source.informix",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.informix",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.line.double-dash.informix",
+          "match": "--.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.informix",
+          "match": "\"[^\"\\\\]*\""
+        },
+        {
+          "name": "string.quoted.single.informix",
+          "match": "'[^'\\\\]*'"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.informix",
+          "match": "(?i)\\b(IF|THEN|ELSE|END|WHILE|FOR|FOREACH|CASE|WHEN|OTHERWISE|EXIT|CONTINUE|RETURN|GOTO|DEFER|SLEEP|RUN|CALL|LET|MAIN|FUNCTION|REPORT|GLOBALS|DEFINE|DATABASE|STEP|TO)\\b"
+        },
+        {
+          "name": "keyword.other.informix",
+          "match": "(?i)\\b(SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|INTO|VALUES|SET|GROUP|BY|HAVING|ORDER|UNION|ALL|DISTINCT|UNIQUE|AS|CREATE|DROP|TABLE|INDEX|CURSOR|DECLARE|OPEN|CLOSE|FETCH|FLUSH|PUT|PREPARE|EXECUTE|FREE|LOCK|WHENEVER|BEGIN|COMMIT|ROLLBACK|WORK|LOAD|UNLOAD|SCROLL|DISPLAY|INPUT|MENU|CONSTRUCT|PROMPT|ERROR|MESSAGE|OPTIONS|CLEAR|WINDOW|FORM|SCREEN|ATTRIBUTE|ATTRIBUTES|COMMAND|OPTION|OUTPUT|PRINT|SKIP|PAUSE|NEED|FORMAT|START|TERMINATE|FINISH)\\b"
+        },
+        {
+          "name": "keyword.operator.word.informix",
+          "match": "(?i)\\b(AND|OR|NOT|IN|IS|NULL|LIKE|MATCHES|BETWEEN|EXISTS|ANY|GROUP|UNITS|DIV|MOD)\\b"
+        },
+        {
+          "name": "constant.language.informix",
+          "match": "(?i)\\b(TRUE|FALSE|TODAY|CURRENT|USER)\\b"
+        }
+      ]
+    },
+    "types": {
+      "name": "storage.type.informix",
+      "match": "(?i)\\b(CHAR|CHARACTER|VARCHAR|NCHAR|NVARCHAR|INT|INTEGER|SMALLINT|BIGINT|FLOAT|SMALLFLOAT|DOUBLE|DECIMAL|DEC|NUMERIC|MONEY|DATE|DATETIME|INTERVAL|TEXT|BYTE|ARRAY|RECORD|DYNAMIC)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.informix",
+      "match": "\\b[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?\\b"
+    }
+  }
+}

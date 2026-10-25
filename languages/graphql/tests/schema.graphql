@@ -1,0 +1,58 @@
+schema @deprecated {
+  query: Query
+  mutation: Mutation
+}
+
+scalar DateTime
+
+"Root query type"
+type Query implements Node & Named {
+  id: ID!
+  user(id: ID!): User
+  type: String
+  on: String
+}
+
+interface Node {
+  id: ID!
+}
+
+interface Named {
+  name: String
+}
+
+type Mutation {
+  createUser(input: UserInput!): User
+}
+
+type User implements Node & Named {
+  id: ID!
+  name: String
+  tags: [String!]!
+}
+
+union SearchResult = User | Query
+
+enum Role {
+  ADMIN
+  USER
+  GUEST
+}
+
+input UserInput {
+  name: String = "anon"
+  role: Role = ADMIN
+}
+
+directive @auth(role: Role = ADMIN) repeatable on FIELD_DEFINITION | OBJECT
+
+extend scalar DateTime @deprecated
+extend type Query @deprecated
+extend interface Node @deprecated
+extend union SearchResult = Query
+extend enum Role {
+  BANNED
+}
+extend input UserInput {
+  extra: String
+}

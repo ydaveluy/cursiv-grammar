@@ -1,0 +1,9 @@
+ply
+format ascii 1.0
+element custom 2
+property float a
+property double b
+property float64 c
+end_header
+NaN -Infinity +INF
+-nan 1e999 -1e-999

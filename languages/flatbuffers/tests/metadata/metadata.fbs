@@ -1,0 +1,1 @@
+attribute "tag"; enum Color:byte {Blue(deprecated,tag:"blue")}

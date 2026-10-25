@@ -1,0 +1,5 @@
+query ChainedCalls =
+  self.a->collect(a1 | a1->collect(a2 | a2->collect(a3 | a3->collect(a4 |
+    a4->collect(a5 | a5->collect(a6 | a6->collect(a7 | a7->collect(a8 |
+      a8->collect(a9 | a9->collect(a10 | a10->collect(a11 | a11->collect(a12 |
+        a12))))))))))));

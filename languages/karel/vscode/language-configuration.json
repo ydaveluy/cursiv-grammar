@@ -1,0 +1,7 @@
+{
+  "brackets": [
+    ["BEGINNING-OF-PROGRAM", "END-OF-PROGRAM"],
+    ["BEGINNING-OF-EXECUTION", "END-OF-EXECUTION"],
+    ["BEGIN", "END"]
+  ]
+}

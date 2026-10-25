@@ -1,0 +1,41 @@
+AT /home
+GRAPH g = CURRENT_PROPERTY_GRAPH
+VALUE threshold = 21
+
+CREATE SCHEMA IF NOT EXISTS /a/b
+NEXT
+CREATE OR REPLACE PROPERTY GRAPH TYPE my.gtype {
+  (:Person {name STRING, age INT32}),
+  (a)-[:KNOWS {since INT32}]->(b)
+}
+NEXT
+CREATE GRAPH IF NOT EXISTS my.graph ANY
+NEXT
+DROP GRAPH my.graph
+NEXT
+DROP GRAPH TYPE my.gtype
+NEXT
+DROP SCHEMA /a/b
+NEXT
+MATCH (n:Person WHERE n.age > threshold)-[e:KNOWS]->(m:Person)
+LET total = n.age + m.age
+FOR x IN [1, 2, 3] WITH ORDINALITY pos
+FILTER x <> 0
+CALL example.proc(1, 'two') YIELD a, b AS c
+RETURN n.name AS who, total, CASE WHEN x = 1 THEN 'one' ELSE 'other' END
+ORDER BY who ASC
+LIMIT 10
+NEXT
+MATCH (n)
+WHERE EXISTS { MATCH (n)-[]->() }
+RETURN n.id, ELEMENT_ID(n), CAST(n.age AS STRING), n IS NOT NULL
+UNION ALL
+MATCH (m)
+RETURN m.id, ELEMENT_ID(m), CAST(m.age AS STRING), m IS NOT NULL
+NEXT
+SELECT n.name FROM { MATCH (n) RETURN n } WHERE n.name IS NOT NULL
+NEXT
+MATCH p = (a)-[e]->{1,3}(b)
+SET a.visited = true
+REMOVE a.temp
+DETACH DELETE a

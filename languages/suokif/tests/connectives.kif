@@ -1,0 +1,6 @@
+(not (instance Fido Cat))
+(and (instance Rex Dog) (instance Fido Cat) (not (equal Rex Fido)))
+(or (instance ?X Dog) (instance ?X Cat))
+(=> (instance ?X Dog) (instance ?X Animal))
+(<=> (instance ?X Bachelor)
+     (and (instance ?X Man) (not (exists (?Y) (marriedTo ?X ?Y)))))

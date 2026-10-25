@@ -1,0 +1,25 @@
+&KRL declarations coverage
+DEF decls()
+; DECL, SIGNAL, forward declarations, IMPORT, struct literal assignment
+DECL INT i
+DECL REAL x, y, z
+
+DECL INT arr[5]
+DECL INT[3] table
+DECL CHAR c
+DECL BOOL flag
+DECL Point origin
+DECL SIGNAL sig1 $IN[1]
+SIGNAL sig2 $IN[2] TO $IN[8]
+EXT helper()
+EXTFCT REAL compute(REAL:IN)
+IMPORT INT extvar IS /R1/ othermod .. srcvar
+i = 1
+origin = {X 1,Y 2,Z 3}
+arr[1] = 9
+c = 'A'
+flag = TRUE
+i = 'H1F'
+i = 'B101'
+c = '\n'
+END

@@ -1,0 +1,72 @@
+// Constructs the tiny upstream corpus never exercises: variables and their
+// indirection, nesting with combinators, mixins (params, guards, variadic,
+// calls), functions, interpolation, attribute/pseudo/negation selectors,
+// imports with options and media types, and url().
+
+@base: #336699;
+@@indirect-name: base;
+@spacing: 4px;
+
+@import (reference, once) "vars.less";
+@import url(http://example.com/reset.css) screen, print;
+
+.icon-@{name} {
+  @{prop}: red;
+}
+
+.panel {
+  color: @base;
+  margin: @spacing * 2;
+  width: 100% - 4px;
+  background: darken(@base, 10%);
+  content: "a string" 'another';
+
+  > .child {
+    border: 1px solid #ABC;
+  }
+
+  + .sibling,
+  ~ .cousin {
+    display: none;
+  }
+
+  &:hover {
+    color: lighten(@base, 20%);
+  }
+
+  &::before {
+    content: '';
+  }
+
+  input[type=text],
+  input[type~=checkbox],
+  a[href|=en] {
+    outline: none;
+  }
+
+  :not(.a, .b) {
+    opacity: 1;
+  }
+
+  .icon() !important;
+  .box-shadow(0 0 5px, #000);
+}
+
+.mixin(@a: 10px; @b: 20px; @rest...) when (@a > 5) and (@b = 20px) {
+  width: @a;
+  height: @b;
+}
+
+.icon() {
+  display: inline-block;
+}
+
+.box-shadow(@shadow; @color) {
+  box-shadow: @shadow @color;
+}
+
+.precedence {
+  a: 2 + 3 * 4;
+  b: 10 - 2 * 3;
+  c: 2 - 3 - 4;
+}

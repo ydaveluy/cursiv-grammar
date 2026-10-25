@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Rfc3080",
+  "scopeName": "source.rfc3080",
+  "patterns": [
+    {
+      "include": "#trailer"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#more"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "trailer": {
+      "name": "keyword.control.trailer.rfc3080",
+      "match": "^END$"
+    },
+    "keywords": {
+      "name": "keyword.control.rfc3080",
+      "match": "\\b(MSG|RPY|ANS|ERR|NUL)\\b"
+    },
+    "more": {
+      "name": "keyword.operator.rfc3080",
+      "match": "[.*]"
+    },
+    "numbers": {
+      "name": "constant.numeric.rfc3080",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

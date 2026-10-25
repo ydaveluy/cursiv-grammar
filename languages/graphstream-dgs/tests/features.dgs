@@ -1,0 +1,14 @@
+DGS003
+extra 0 0
+
+an A
+an B
+cn A weight:1
+dn B
+an node.sub
+ae e1 A node.sub
+ce e1 color:#00FF00
+de e1
+cg version:1
+st 1.5
+cl

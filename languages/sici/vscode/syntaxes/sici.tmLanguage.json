@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sici",
+  "scopeName": "source.sici",
+  "patterns": [
+    {
+      "include": "#issn"
+    },
+    {
+      "include": "#chronology"
+    },
+    {
+      "include": "#contribution"
+    },
+    {
+      "include": "#punctuation"
+    },
+    {
+      "include": "#digits"
+    },
+    {
+      "include": "#letters"
+    }
+  ],
+  "repository": {
+    "issn": {
+      "name": "constant.other.issn.sici",
+      "match": "\\b[0-9]{4}-[0-9]{4}\\b"
+    },
+    "chronology": {
+      "name": "constant.other.chronology.sici",
+      "match": "\\([0-9/]+\\)"
+    },
+    "contribution": {
+      "begin": "<",
+      "end": ">",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.contribution.sici"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.contribution.sici"
+        }
+      },
+      "patterns": [
+        {
+          "name": "constant.numeric.sici",
+          "match": "[0-9]+"
+        },
+        {
+          "name": "punctuation.separator.sici",
+          "match": ":"
+        },
+        {
+          "name": "entity.name.tag.sici",
+          "match": "[A-Za-z]+"
+        }
+      ]
+    },
+    "punctuation": {
+      "name": "punctuation.separator.sici",
+      "match": "[.:;]"
+    },
+    "digits": {
+      "name": "constant.numeric.sici",
+      "match": "[0-9]+"
+    },
+    "letters": {
+      "name": "variable.other.sici",
+      "match": "[A-Za-z]+"
+    }
+  }
+}

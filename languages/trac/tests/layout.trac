@@ -1,0 +1,7 @@
+##(ds,greeting,Hello World)
+
+#(ps,
+  greeting)
+
+#(rs)
+##(cl,greeting)

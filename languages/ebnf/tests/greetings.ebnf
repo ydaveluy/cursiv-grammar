@@ -1,0 +1,10 @@
+<greeting> ::= <salutation> <name>
+<salutation> ::= hello | hi | good morning | good evening
+<name> ::= Alice | Bob | Carol | well-known guest
+<farewell> ::= <name> goodbye
+<punctuation> ::= bang | question mark
+<decorated> ::= <greeting> [<punctuation>]
+<list> ::= <name> {comma <name>}
+<maybe-list> ::= [{comma <name>}]
+<shout> ::= (bang)
+<phrase> ::= <decorated> | <list> | <maybe-list> | <shout> | <farewell>

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Iri",
+  "scopeName": "source.iri",
+  "patterns": [
+    { "include": "#scheme" },
+    { "include": "#percent-encoded" },
+    { "include": "#authority-marker" },
+    { "include": "#query-fragment" },
+    { "include": "#delimiters" }
+  ],
+  "repository": {
+    "scheme": {
+      "name": "entity.name.tag.scheme.iri",
+      "match": "^[a-zA-Z][a-zA-Z0-9+.-]*(?=:)"
+    },
+    "percent-encoded": {
+      "name": "constant.character.escape.iri",
+      "match": "%[0-9a-fA-F]{2}"
+    },
+    "authority-marker": {
+      "name": "punctuation.definition.authority.iri",
+      "match": "//"
+    },
+    "query-fragment": {
+      "name": "punctuation.separator.query-fragment.iri",
+      "match": "[?#]"
+    },
+    "delimiters": {
+      "name": "punctuation.separator.iri",
+      "match": "[:/\\[\\]@]"
+    }
+  }
+}

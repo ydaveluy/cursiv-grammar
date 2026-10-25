@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Tinymud",
+  "scopeName": "source.tinymud",
+  "patterns": [
+    {
+      "include": "#commands"
+    },
+    {
+      "include": "#actions"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "commands": {
+      "name": "keyword.control.tinymud",
+      "match": "@(boot|chown|create|describe|desc|dig|dump|fail|find|force|link|lock|name|newpassword|ofail|open|osuccess|osucc|password|pcreate|set|shutdown|stats|success|succ|teleport|toad|unlink|unlock|wall)\\b"
+    },
+    "actions": {
+      "name": "keyword.other.tinymud",
+      "match": "\\b(drop|throw|examine|get|take|give|go|goto|move|gripe|help|inventory|inv|kill|look|read|news|page|quit|rob|say|score|whisper|who)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.tinymud",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Flowmatic",
+  "scopeName": "source.flowmatic",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.flowmatic",
+      "match": "\\b(HSP|OUTPUT|INPUT|JUMP|TO|READ-ITEM|WRITE-ITEM|TRANSFER|IF|GO TO|OTHERWISE|REWIND|STOP|COMPARE|WITH|MOVE|SET|TEST|AGAINST|CLOSE-OUT|FILES|OPERATION|EQUAL|GREATER|END OF DATA)\\b"
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.flowmatic",
+          "match": "\\b[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.flowmatic",
+          "match": "\\bZ+\\b"
+        },
+        {
+          "name": "constant.language.flowmatic",
+          "match": "\\(END\\)"
+        }
+      ]
+    }
+  }
+}

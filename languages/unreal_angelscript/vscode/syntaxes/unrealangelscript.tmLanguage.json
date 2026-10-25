@@ -1,0 +1,94 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "UnrealAngelscript",
+  "scopeName": "source.unrealangelscript",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#preprocessor"
+    },
+    {
+      "include": "#annotations"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#builtin-types"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.unrealangelscript",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.unrealangelscript",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "preprocessor": {
+      "name": "meta.preprocessor.unrealangelscript",
+      "match": "^\\s*#(if|ifdef|else|endif).*$"
+    },
+    "annotations": {
+      "name": "entity.name.tag.unrealangelscript",
+      "match": "\\b(UCLASS|USTRUCT|UPROPERTY|UFUNCTION)\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.unrealangelscript",
+      "match": "\\b(import|from|out|property|ensure|ensureAlways|check|mixin|auto|break|case|catch|class|const|continue|default|do|else|enum|export|false|final|for|goto|if|namespace|nullptr|operator|override|private|protected|public|return|short|struct|switch|this|true|virtual|void|while|Cast)\\b"
+    },
+    "builtin-types": {
+      "name": "storage.type.unrealangelscript",
+      "match": "\\b(int|int8|int16|int32|int64|uint|uint8|uint16|uint32|uint64|float|double|bool|char)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.unrealangelscript",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.double.unrealangelscript",
+          "begin": "[nf]?\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.unrealangelscript",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.unrealangelscript",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.unrealangelscript",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.unrealangelscript",
+      "match": "\\b0[xX][0-9a-fA-F']+\\b|\\b0[bB][01']+\\b|\\b[0-9][0-9']*(\\.[0-9']*)?([eE][+-]?[0-9]+)?[fFlLuU]*\\b"
+    }
+  }
+}

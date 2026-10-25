@@ -1,0 +1,6 @@
+##gff-version 3
+# a data line with no attributes field: the trailing tab still separates it
+ctg1	.	region	1	100	.	+	.	
+# TEXT symbols the two NCBI samples never exercise: ^ * $ @ |
+ctg1	custom^source	gene	200	300	.	-	.	ID=gene5;Note=weird value $5@lab|batch*7;Dbxref=x:1
+###

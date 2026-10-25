@@ -1,0 +1,33 @@
+// Constructs no shipped example exercises: a native_include, a union member
+// with an alias, a fixed-length array, hex and inf/nan defaults, and a
+// schema-level default-data object.
+
+native_include "custom_types.h";
+
+attribute "custom_attr";
+
+union Shape { circle:Circle, Square }
+
+struct Circle {
+  radius:float;
+}
+
+struct Square {
+  side:float;
+}
+
+table Grid (custom_attr) {
+  cell:[int:4];
+  mask:uint = 0xFF00;
+  scale:float = inf;
+  offset:float = -nan;
+  shape:Shape;
+}
+
+root_type Grid;
+
+{
+  cell: [1, 2, 3, 4],
+  mask: 255,
+  shape: { side: 1.5 }
+}

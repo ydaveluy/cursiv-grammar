@@ -1,0 +1,84 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Arden",
+  "scopeName": "source.arden",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#slots"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.arden",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.arden",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.arden",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.arden",
+              "match": "\"\""
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.arden",
+          "match": "'[^']*'"
+        }
+      ]
+    },
+    "slots": {
+      "name": "entity.name.section.arden",
+      "match": "(?i)\\b(maintenance|library|knowledge|resources|title|mlmname|filename|arden|version|institution|author|specialist|date|validation|purpose|explanation|keywords|citations|links|type|data|priority|evoke|logic|action|urgency|default|language|end)\\s*:"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.arden",
+          "match": "(?i)\\b(if|then|else|elseif|endif|for|in|do|enddo|while|switch|case|default|endswitch|aggregate|breakloop|return|conclude|write|read|call|delay|include|new|with|let|be|argument|interface|event|message|destination|object|linguistic|variable|mlm|fuzzy|set|fuzzified|find|matches|pattern|sort|merge|remove|add|to|at|from|where|using|as|is|are|was|were|not|and|or|in|it|they)\\b"
+        },
+        {
+          "name": "constant.language.arden",
+          "match": "(?i)\\b(true|false|null|now|today|tomorrow|eventtime|triggertime|currenttime)\\b"
+        },
+        {
+          "name": "support.function.arden",
+          "match": "(?i)\\b(count|average|avg|median|sum|exist|exists|minimum|maximum|min|max|earliest|latest|last|first|index|nearest|extract|attribute|sublist|elements|replace|substring|characters|trim|left|right|uppercase|lowercase|reverse|length|clone|abs|sqrt|exp|log|log10|round|floor|ceiling|truncate|sin|sine|cos|cosine|tan|tangent|arcsin|arccos|arctan|slope|stddev|variance|interval|defuzzified|applicability)\\b"
+        },
+        {
+          "name": "keyword.operator.word.arden",
+          "match": "(?i)\\b(every|starting|until|after|before|ago|within|past|preceding|following|surrounding|seqto|occur|occurs|occurred|equal|less|greater|than|number|string|time|duration|list|boolean|crisp|truth\\s+value|day|days|week|weeks|month|months|year|years|hour|hours|minute|minutes|second|seconds|percent|increase|decrease)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.arden",
+      "match": "\\b[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\b"
+    }
+  }
+}

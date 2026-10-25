@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Oncrpc",
+  "scopeName": "source.oncrpc",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.oncrpc",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.oncrpc",
+      "match": "\\b(typedef|const|struct|union|enum|switch|case|default|program|version|opaque|string)\\b"
+    },
+    "types": {
+      "name": "storage.type.oncrpc",
+      "match": "\\b(unsigned|int|hyper|float|double|quadruple|bool|void)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.oncrpc",
+      "match": "\\b(0[xX][0-9a-fA-F]+|-?[0-9]+)\\b"
+    }
+  }
+}

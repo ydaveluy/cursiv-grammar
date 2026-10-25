@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Rfc1960",
+  "scopeName": "source.rfc1960",
+  "patterns": [
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#punctuation"
+    },
+    {
+      "include": "#octetstring"
+    }
+  ],
+  "repository": {
+    "operators": {
+      "name": "keyword.operator.rfc1960",
+      "match": "~=|>=|<=|=\\*|="
+    },
+    "punctuation": {
+      "name": "keyword.control.rfc1960",
+      "match": "[()&|!*]"
+    },
+    "octetstring": {
+      "name": "string.unquoted.rfc1960",
+      "match": "[a-zA-Z0-9. ]+"
+    }
+  }
+}

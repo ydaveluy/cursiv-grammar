@@ -1,0 +1,2 @@
+syntax="proto3";
+enum E { ZERO=0; VALUE=-2147483649; }

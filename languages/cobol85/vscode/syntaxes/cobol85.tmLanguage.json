@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Cobol85",
+  "scopeName": "source.cobol85",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#divisions" },
+    { "include": "#verbs" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.asterisk-greater-than.cobol85",
+          "match": "\\*>.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.cobol85",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "match": "\"\"", "name": "constant.character.escape.cobol85" }]
+        },
+        {
+          "name": "string.quoted.single.cobol85",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "match": "''", "name": "constant.character.escape.cobol85" }]
+        }
+      ]
+    },
+    "divisions": {
+      "name": "keyword.other.division.cobol85",
+      "match": "(?i)\\b(IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\\s+DIVISION\\b|(?i)\\b(CONFIGURATION|INPUT-OUTPUT|FILE|WORKING-STORAGE|LINKAGE|COMMUNICATION|LOCAL-STORAGE|SCREEN|REPORT|PROGRAM-LIBRARY|DATA-BASE)\\s+SECTION\\b"
+    },
+    "verbs": {
+      "name": "keyword.control.cobol85",
+      "match": "(?i)\\b(ACCEPT|ADD|ALTER|CALL|CANCEL|CLOSE|COMPUTE|CONTINUE|DELETE|DISABLE|DISPLAY|DIVIDE|ENABLE|ENTRY|EVALUATE|EXHIBIT|EXIT|GENERATE|GO|GOBACK|IF|INITIALIZE|INITIATE|INSPECT|MERGE|MOVE|MULTIPLY|OPEN|PERFORM|PURGE|READ|RECEIVE|RELEASE|RETURN|REWRITE|SEARCH|SEND|SET|SORT|START|STOP|STRING|SUBTRACT|TERMINATE|UNSTRING|USE|WRITE)\\b"
+    },
+    "keywords": {
+      "name": "keyword.other.cobol85",
+      "match": "(?i)\\b(PROGRAM-ID|AUTHOR|INSTALLATION|DATE-WRITTEN|DATE-COMPILED|SECURITY|SOURCE-COMPUTER|OBJECT-COMPUTER|SPECIAL-NAMES|FILE-CONTROL|I-O-CONTROL|FD|SD|RD|CD|SELECT|ASSIGN|ORGANIZATION|ACCESS|RECORD|RECORDS|KEY|ALTERNATE|STATUS|PICTURE|PIC|USAGE|OCCURS|DEPENDING|INDEXED|REDEFINES|RENAMES|VALUE|VALUES|JUSTIFIED|JUST|BLANK|SYNCHRONIZED|SYNC|SIGN|LEADING|TRAILING|SEPARATE|COMP|COMP-1|COMP-2|COMP-3|COMP-4|COMP-5|BINARY|DISPLAY-1|PACKED-DECIMAL|POINTER|INDEX|EXTERNAL|GLOBAL|FILLER|DECLARATIVES|END|IS|ARE|BY|TO|FROM|INTO|GIVING|IN|OF|ON|WHEN|OTHER|THEN|ELSE|NOT|AND|OR|THRU|THROUGH|USING|VARYING|UNTIL|TIMES|BEFORE|AFTER|TEST|WITH|NO|ADVANCING|LINE|LINES|PAGE|ALL|FIRST|LAST|DELIMITED|DELIMITER|SIZE|POINTER|TALLYING|REPLACING|CHARACTERS|COUNT|CORRESPONDING|CORR|RETURNING|ROUNDED|REMAINDER|ERROR|OVERFLOW|INVALID|KEY|AT|END-OF-PAGE|EOP|NEXT|GREATER|LESS|EQUAL|THAN|NOT|TRUE|FALSE|ZERO|ZEROS|ZEROES|SPACE|SPACES|HIGH-VALUE|HIGH-VALUES|LOW-VALUE|LOW-VALUES|QUOTE|QUOTES)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.cobol85",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

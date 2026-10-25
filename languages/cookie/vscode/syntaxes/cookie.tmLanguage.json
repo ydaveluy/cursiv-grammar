@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Cookie",
+  "scopeName": "source.cookie",
+  "patterns": [
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#attribute-name"
+    },
+    {
+      "include": "#punctuation"
+    },
+    {
+      "include": "#value"
+    }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.cookie",
+      "begin": "\"",
+      "end": "\"|$"
+    },
+    "attribute-name": {
+      "name": "variable.other.attribute-name.cookie",
+      "match": "[A-Za-z0-9_/:, -]+(?=\\=)"
+    },
+    "punctuation": {
+      "name": "keyword.operator.cookie",
+      "match": "[=;]"
+    },
+    "value": {
+      "name": "string.unquoted.cookie",
+      "match": "[A-Za-z0-9_/:, -]+"
+    }
+  }
+}

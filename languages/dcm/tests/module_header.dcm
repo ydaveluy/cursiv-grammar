@@ -1,0 +1,18 @@
+* a comment line before the header
+KONSERVIERUNG_FORMAT 2.0
+
+! another comment style
+MODULKOPF PROJEKT "Example Project"
+MODULKOPF "continued description line"
+MODULKOPF VERSION "1.0.0"
+
+FUNKTIONEN
+FKT ABC "1.0" "Function ABC"
+FKT XYZ "2.3" "Function XYZ"
+END
+
+. a third comment style
+VARIANTENKODIERUNG
+KRITERIUM MOTORTYP V6 V8
+KRITERIUM GETRIEBE MANUELL AUTOMATIK
+END

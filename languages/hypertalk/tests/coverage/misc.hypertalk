@@ -1,0 +1,8 @@
+send "mouseUp" to card button "OK"
+do "put 1 into x"
+get the name of me
+set the loc of card button 1 to 10,20
+answer "Hi" with "Fine" or "Dandy" or "Ok"
+put "a" & "b" && "c"
+if there is a card button "OK" then beep
+global x, y, z

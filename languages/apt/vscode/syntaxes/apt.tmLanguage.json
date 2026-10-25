@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Apt",
+  "scopeName": "source.apt",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#options"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.apt",
+      "match": "^\\s*#.*$"
+    },
+    "keywords": {
+      "name": "keyword.control.apt",
+      "match": "\\b(deb-src|deb|cdrom)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.apt",
+          "match": "'[^']*'"
+        },
+        {
+          "name": "string.quoted.double.apt",
+          "match": "\"[^\"]*\""
+        }
+      ]
+    },
+    "options": {
+      "name": "support.type.property-name.apt",
+      "match": "\\b(arch|lang|target|pdiffs|by-hash|valid-until-max|allow-downgrade-to-insecure|allow-weak|allow-insecure|trusted|signed-by|check-valid-until|valid-until-min|check-date|inrelease-path|date-max-future)\\b(?=\\s*=)"
+    }
+  }
+}

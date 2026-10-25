@@ -1,0 +1,4 @@
+ply
+format binary_big_endian 1.0
+element empty 3
+end_header

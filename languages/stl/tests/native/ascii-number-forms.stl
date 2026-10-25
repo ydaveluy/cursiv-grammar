@@ -1,0 +1,9 @@
+solid x
+facet normal -0 +0 .1e+1
+outer loop
+vertex 0.0 0.0 0.0
+vertex +1.e0 0e0 -0
+vertex 0.0 1.0 0.0
+endloop
+endfacet
+endsolid x

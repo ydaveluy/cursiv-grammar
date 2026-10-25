@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Alloy",
+  "scopeName": "source.alloy",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.alloy",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.alloy",
+          "match": "\\b(module|open|as|abstract|sig|extends|in|disj|fact|pred|fun|assert|run|check|for|but|exactly|let|all|no|sum|lone|some|one|set|or|and|iff|implies|else|not)\\b"
+        },
+        {
+          "name": "constant.language.alloy",
+          "match": "\\b(none|univ|iden|this)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.alloy",
+      "match": "\\b[0-9]+\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.alloy",
+      "match": "(<=>|=>|\\+\\+|<:|:>|->|=<|>=|&&|\\|\\||[!#~^*&+\\-.=<>|@])"
+    }
+  }
+}

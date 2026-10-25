@@ -1,0 +1,11 @@
+Stack = cluster T: type is new, push, pop, top, isEmpty, transmit
+where T has equal: proctype(T, T) returns(bool)
+  rep = array[T]
+own count: int := 0
+New = proc() returns(cvt)
+  return rep$[]
+end New
+Push = proc(s: cvt, x: T)
+  return
+end Push
+end Stack

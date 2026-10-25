@@ -1,0 +1,8 @@
+LET arr = [1, 2, 3]
+LET allEqual = arr ALL == 1
+LET anyIn = arr ANY IN [1, 2]
+LET noneGt = arr NONE > 10
+LET label = allEqual ? "yes" : "no"
+LET negated = !!true
+LET raw = `raw text`
+RETURN [allEqual, anyIn, noneGt, label, negated, raw, @bindvar]

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Objc",
+  "scopeName": "source.objc",
+  "patterns": [
+    { "include": "#preprocessor" },
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#at-directives" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "preprocessor": {
+      "name": "meta.preprocessor.objc",
+      "match": "^\\s*#.*$"
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.objc",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.objc",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.objc",
+          "begin": "@?\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.objc", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.objc",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.objc", "match": "\\\\." }]
+        }
+      ]
+    },
+    "at-directives": {
+      "name": "keyword.control.objc",
+      "match": "@(interface|implementation|end|protocol|class|property|synthesize|dynamic|selector|encode|synchronized|autoreleasepool|try|catch|finally|throw|optional|required|private|protected|package|public|import)\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.objc",
+          "match": "\\b(if|else|switch|case|default|while|do|for|break|continue|goto|return|sizeof|typedef|struct|union|enum|const|volatile|restrict|static|extern|auto|register|inline)\\b"
+        },
+        {
+          "name": "storage.type.objc",
+          "match": "\\b(void|char|short|int|long|float|double|signed|unsigned|_Bool|BOOL|id|Class|SEL|IMP|self|super|nil|Nil|NULL|YES|NO|instancetype)\\b"
+        },
+        {
+          "name": "storage.modifier.objc",
+          "match": "\\b(__weak|__strong|__unsafe_unretained|__autoreleasing|__bridge|__bridge_transfer|__bridge_retained|__block|nullable|nonnull|null_unspecified|null_resettable|IBOutlet|IBOutletCollection|IBInspectable|IB_DESIGNABLE|NS_ENUM|NS_OPTIONS|NS_CLOSED_ENUM|NS_ERROR_ENUM|NS_INLINE|NS_SWIFT_NAME|NS_SWIFT_UNAVAILABLE|NS_UNAVAILABLE|NS_NOESCAPE|API_AVAILABLE|API_UNAVAILABLE)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.objc",
+      "match": "\\b0[xX][0-9a-fA-F]+\\b|\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Blueprint",
+  "scopeName": "source.blueprint",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.blueprint",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.blueprint",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.blueprint",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.blueprint",
+          "match": "\\\\\""
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.blueprint",
+      "match": "\\b(select|any|default|unset|true|false)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.blueprint",
+      "match": "-?\\b[0-9]+\\b"
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Vmf",
+  "scopeName": "source.vmf",
+  "fileTypes": [
+    "vmf"
+  ],
+  "patterns": [
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#braces"
+    },
+    {
+      "include": "#bareword"
+    }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.vmf",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.vmf",
+          "match": "\\\\[\"\\\\]"
+        }
+      ]
+    },
+    "braces": {
+      "name": "punctuation.section.block.vmf",
+      "match": "[{}]"
+    },
+    "bareword": {
+      "name": "variable.other.vmf",
+      "match": "[a-zA-Z0-9()_$@<>\\[\\]/-]+"
+    }
+  }
+}

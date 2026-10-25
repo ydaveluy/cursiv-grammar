@@ -1,0 +1,39 @@
+link util, extra
+link "helper.icn"
+
+global counter, total
+
+record point(x, y)
+
+procedure demo(a, b, c[])
+    local x, y;
+    static count
+    initial count := 0;
+    x := a + b * c[1];
+    y := (x, a, b);
+    if x > 0 then write("positive") else write("non-positive");
+    every i := 1 to 10 by 2 do write(i);
+    while x > 0 do { x := x - 1 };
+    until x = 0 do x := x + 1;
+    repeat { break x };
+    case x of { 1: write("one") ; 2: write("two") ; default: write("other") };
+    suspend x do write("suspended");
+    fail;
+    next;
+    z := a & b ? c := d;
+    w := (m | n < o << p == q || r + s * t ** u ^ v \ x2 @ y2 ! z2);
+    write(\x, @x, !x, *x, +x, -x, .x, /x, =x, ?x, ~x, ^x, not x, |x2);
+    r := point(1, 2);
+    write(r.x, r.y);
+    write(r{1, 2});
+    write(x[1], x[1:2], x[1+:2], x[1-:2]);
+    write(p2 :=: q2, p2 <- q2, p2 <-> q2,
+          p2 <= q2, p2 >= q2, p2 > q2, p2 ~= q2, p2 <<= q2, p2 >>= q2,
+          p2 >> q2, p2 ~== q2, p2 === q2, p2 ~=== q2,
+          p2 ||| q2, p2 ++ q2, p2 -- q2, p2 / q2, p2 % q2);
+    return create x
+end
+
+procedure helper()
+    write(3.14, .5, 2.5e3, 2.5E2)
+end

@@ -1,0 +1,7 @@
+// File-scope `asm("..." : outputs : inputs)`, with operands -- the
+// statement form (simpler, no operands) is exercised in features.tc.
+
+int shared_value;
+
+asm("nop");
+asm("movl %1, %0" : "=r"(shared_value) : "r"(shared_value));

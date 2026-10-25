@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Cql",
+  "scopeName": "source.cql",
+  "patterns": [
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#operators" },
+    { "include": "#index" }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.cql",
+      "begin": "\"",
+      "end": "\""
+    },
+    "keywords": {
+      "name": "keyword.operator.boolean.cql",
+      "match": "(?i)\\b(and|or|not|prox|sortBy)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.comparison.cql",
+      "match": "(>=|<=|<>|==|=|>|<|/)"
+    },
+    "index": {
+      "name": "variable.other.cql",
+      "match": "[A-Za-z][A-Za-z.]*"
+    }
+  }
+}

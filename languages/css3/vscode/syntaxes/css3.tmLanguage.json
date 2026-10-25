@@ -1,0 +1,92 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Css3",
+  "scopeName": "source.css3",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#at-rules"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#colors"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#selectors"
+    },
+    {
+      "include": "#important"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.css3",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.css3",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.css3",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "at-rules": {
+      "name": "keyword.control.at-rule.css3",
+      "match": "@(-webkit-|-moz-|-o-|-ms-)?[A-Za-z-]+\\b"
+    },
+    "keywords": {
+      "name": "keyword.other.css3",
+      "match": "\\b(only|not|and|or|from|to)\\b"
+    },
+    "colors": {
+      "name": "constant.other.color.css3",
+      "match": "#[0-9a-fA-F]{3,8}\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.css3",
+      "match": "-?[0-9]*\\.?[0-9]+(%|px|cm|mm|in|pt|pc|q|em|ex|ch|rem|vw|vh|vmin|vmax|deg|rad|grad|turn|ms|s|hz|khz|dpi|dpcm|dppx)?\\b"
+    },
+    "selectors": {
+      "patterns": [
+        {
+          "name": "entity.other.attribute-name.class.css3",
+          "match": "\\.[A-Za-z_-][A-Za-z0-9_-]*"
+        },
+        {
+          "name": "entity.other.attribute-name.id.css3",
+          "match": "#[A-Za-z_-][A-Za-z0-9_-]*"
+        },
+        {
+          "name": "entity.other.attribute-name.pseudo-class.css3",
+          "match": "::?[A-Za-z-]+\\b"
+        }
+      ]
+    },
+    "important": {
+      "name": "keyword.other.important.css3",
+      "match": "!\\s*important\\b"
+    }
+  }
+}

@@ -1,0 +1,65 @@
+// Expected input translation recorded from OpenJDK 21 UnicodeReader.
+// Lone UTF-16 units retain a canonical escape because the lexer reads UTF-8.
+#pragma once
+
+struct UnicodeInputCase {
+  const char *name;
+  std::string_view input, output;
+  unsigned diagnostics;
+};
+static const UnicodeInputCase unicode_input_cases[] = {
+    {"empty", R"java()java", R"java()java", 0},
+    {"plain", R"java(class T {})java", R"java(class T {})java", 0},
+    {"raw_backslash_1", R"java(\u0041)java", R"java(A)java", 0},
+    {"raw_backslash_2", R"java(\\u0041)java", R"java(\\u0041)java", 0},
+    {"raw_backslash_3", R"java(\\\u0041)java", R"java(\\A)java", 0},
+    {"raw_backslash_4", R"java(\\\\u0041)java", R"java(\\\\u0041)java", 0},
+    {"raw_backslash_5", R"java(\\\\\u0041)java", R"java(\\\\A)java", 0},
+    {"raw_backslash_6", R"java(\\\\\\u0041)java", R"java(\\\\\\u0041)java", 0},
+    {"multiple_u", R"java(\uuuu0041)java", R"java(A)java", 0},
+    {"nonrecursive", R"java(\u005cu0041)java", R"java(\u0041)java", 0},
+    {"escaped_backslash_then_escaped_A", R"java(\u005c\u0041)java",
+     R"java(\A)java", 0},
+    {"two_escaped_backslashes_then_escaped_A", R"java(\u005c\u005c\u0041)java",
+     R"java(\\A)java", 0},
+    {"escaped_backslash_two_raw_then_u", R"java(\u005c\\u0041)java",
+     R"java(\\A)java", 0},
+    {"escaped_backslash_three_raw_then_u", R"java(\u005c\\\u0041)java",
+     R"java(\\\\u0041)java", 0},
+    {"surrogate_pair", R"java(\uD835\uDC9C)java", R"java(𝒜)java", 0},
+    {"surrogate_pair_u_multiple", R"java(\uuD835\uuuDC9C)java", R"java(𝒜)java",
+     0},
+    {"lone_high_surrogate", R"java(\uD835x)java", R"java(\uD835x)java", 0},
+    {"lone_low_surrogate", R"java(\uDC9Cx)java", R"java(\uDC9Cx)java", 0},
+    {"high_surrogate_before_backslash_escape", R"java(\uD835\u005c\u0041)java",
+     R"java(\uD835\A)java", 0},
+    {"high_surrogate_before_two_raw_backslashes", R"java(\uD800\\u0041)java",
+     R"java(\uD800\A)java", 0},
+    {"high_surrogate_before_three_raw_backslashes", R"java(\uD800\\\u0041)java",
+     R"java(\uD800\\\u0041)java", 0},
+    {"high_surrogate_before_escaped_slash_and_raw",
+     R"java(\uD800\u005c\\u0041)java", R"java(\uD800\\\u0041)java", 0},
+    {"high_surrogate_before_two_escaped_slashes",
+     R"java(\uD800\u005c\u005c\u0041)java", R"java(\uD800\\A)java", 0},
+    {"literal_supplementary", R"java(𝒜)java", R"java(𝒜)java", 0},
+    {"literal_nonascii_prefix", R"java(é\u0041)java", R"java(éA)java", 0},
+    {"arabic_indic_digits", R"java(\u٠٠٤١)java", R"java(A)java", 0},
+    {"extended_arabic_indic_digits", R"java(\u۰۰۴۱)java", R"java(A)java", 0},
+    {"fullwidth_digits", R"java(\u００４１)java", R"java(A)java", 0},
+    {"fullwidth_F", R"java(\u00ＦＦ)java", R"java(ÿ)java", 0},
+    {"ascii_lower_hex", R"java(\u00ff)java", R"java(ÿ)java", 0},
+    {"uppercase_U_not_escape", R"java(\U0041)java", R"java(\U0041)java", 0},
+    {"partial_escape", R"java(\u041)java", R"java()java", 1},
+    {"partial_escape_then_text", R"java(\u04x1z)java", R"java(x1z)java", 1},
+    {"invalid_digit", R"java(\u00g1)java", R"java(g1)java", 1},
+    {"invalid_second_escape", R"java(\u0041\u00g1)java", R"java(Ag1)java", 1},
+    {"trailing_backslash", R"java(x\)java", R"java(x\)java", 0},
+    {"escaped_NUL", R"java(\u0000)java", std::string_view("\000", 1), 0},
+    {"escaped_CR_LF", R"java(\u000D\u000A)java",
+     std::string_view("\015\012", 2), 0},
+    {"escaped_comment", R"java(\u002f\u002f comment\u000Aclass T {})java",
+     std::string_view("\057\057\040\143\157\155\155\145\156\164\012\143\154\141"
+                      "\163\163\040\124\040\173\175",
+                      21),
+     0},
+};

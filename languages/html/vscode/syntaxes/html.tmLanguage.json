@@ -1,0 +1,79 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Html",
+  "scopeName": "source.cursiv-html",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#cdata" },
+    { "include": "#doctype" },
+    { "include": "#scriptlet" },
+    { "include": "#script" },
+    { "include": "#style" },
+    { "include": "#tag" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.block.html",
+      "begin": "<!--",
+      "end": "-->"
+    },
+    "cdata": {
+      "name": "string.unquoted.cdata.html",
+      "begin": "<!\\[",
+      "end": "\\]>"
+    },
+    "doctype": {
+      "name": "meta.tag.sgml.doctype.html",
+      "begin": "<!(?!--|\\[)",
+      "end": ">"
+    },
+    "scriptlet": {
+      "name": "meta.embedded.block.html",
+      "begin": "<[?%]",
+      "end": "[?%]>"
+    },
+    "script": {
+      "name": "meta.embedded.block.js",
+      "begin": "<script\\b",
+      "end": "</(script|)>"
+    },
+    "style": {
+      "name": "meta.embedded.block.css",
+      "begin": "<style\\b",
+      "end": "</(style|)>"
+    },
+    "tag": {
+      "begin": "(</?)([-a-zA-Z:][-_.a-zA-Z0-9:]*)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.html" },
+        "2": { "name": "entity.name.tag.html" }
+      },
+      "end": "(/?>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.html" }
+      },
+      "patterns": [{ "include": "#attribute" }, { "include": "#string" }]
+    },
+    "attribute": {
+      "match": "([-a-zA-Z:][-_.a-zA-Z0-9:]*)\\s*(=)",
+      "captures": {
+        "1": { "name": "entity.other.attribute-name.html" },
+        "2": { "name": "punctuation.separator.key-value.html" }
+      }
+    },
+    "string": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.html",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.html",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    }
+  }
+}

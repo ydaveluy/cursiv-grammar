@@ -1,0 +1,12 @@
+;; A Unicode letter in a name, a `\u` escape in a string and in a
+;; character literal, a raw multi-byte scalar as an unescaped character
+;; literal, `#`/`:` inside a symbol, the bare `/` symbol, a keyword whose
+;; payload is not a Symbol, and more than one top-level value.
+[café :café/naïve compte#rendu also:colon]
+"a \u00e9 escape inside a string"
+\u00e9
+\é
+/
+[:true :42 :nil]
+[1e10 -1e-3 +5 -3 +foo -bar .5x]
+nil

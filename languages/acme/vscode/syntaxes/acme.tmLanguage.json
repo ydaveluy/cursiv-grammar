@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Acme",
+  "scopeName": "source.acme",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.acme",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.acme",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.acme",
+      "begin": "\"",
+      "end": "\""
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.acme",
+          "match": "(?i)\\b(family|style|system|design|import|extends|with|new|extended|analysis|external|invariant|heuristic|rule|forall|exists|unique|distinct|in|select|collect|to)\\b"
+        },
+        {
+          "name": "storage.type.acme",
+          "match": "(?i)\\b(port|role|component|connector|group|property|element|type|representation|bindings|attachment|members|view)\\b"
+        },
+        {
+          "name": "support.type.acme",
+          "match": "(?i)\\b(int|integer|float|double|string|boolean|any|record|set|seq|sequence|enum)\\b"
+        },
+        {
+          "name": "constant.language.acme",
+          "match": "(?i)\\b(true|false)\\b"
+        },
+        {
+          "name": "storage.modifier.acme",
+          "match": "(?i)\\b(public|private|final|abstract)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.acme",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

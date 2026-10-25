@@ -1,0 +1,23 @@
+table <bad> persist
+table <good> const counters
+table <files> file "/etc/pf/allow"
+table <mixed> { !192.168.1.0/24, self, lo0 }
+table <ifgroup> { { em0, em1 } }
+
+queue std on em0 bandwidth 100M
+queue pri on em0 bandwidth 10M min 1M max 20M burst 20M for 1000 ms parent std flows 100 quantum 1500 qlimit 50 default
+
+anchor "test" in on em0 inet proto tcp from any to any {
+pass
+}
+
+anchor "empty"
+
+load anchor outside from "/etc/pf/outside.conf"
+
+antispoof log quick for { lo0 em0 } inet label spoof
+
+pass in proto tcp from any to any port 20:30
+pass in proto tcp from any to any port 1024 <> 2048
+pass in proto tcp from any os "OpenBSD" to any
+pass in proto tcp from route "upstream" to any

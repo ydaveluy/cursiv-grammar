@@ -1,0 +1,4 @@
+' A relation may be an arrowhead alone, with no body symbol.
+@startuml
+Left < Right
+@enduml

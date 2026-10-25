@@ -1,0 +1,90 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "XQuery",
+  "scopeName": "source.xquery",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#pragma" },
+    { "include": "#strings" },
+    { "include": "#string-template" },
+    { "include": "#numbers" },
+    { "include": "#variables" },
+    { "include": "#keywords" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.block.xquery",
+      "begin": "\\(:",
+      "end": ":\\)",
+      "patterns": [
+        { "include": "#comments" }
+      ]
+    },
+    "pragma": {
+      "name": "meta.pragma.xquery",
+      "begin": "\\(#",
+      "end": "#\\)"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.xquery",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "match": "\"\"", "name": "constant.character.escape.xquery" },
+            { "match": "&(lt|gt|amp|quot|apos);", "name": "constant.character.entity.xquery" },
+            { "match": "&#x?[0-9a-fA-F]+;", "name": "constant.character.entity.xquery" }
+          ]
+        },
+        {
+          "name": "string.quoted.single.xquery",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            { "match": "''", "name": "constant.character.escape.xquery" },
+            { "match": "&(lt|gt|amp|quot|apos);", "name": "constant.character.entity.xquery" },
+            { "match": "&#x?[0-9a-fA-F]+;", "name": "constant.character.entity.xquery" }
+          ]
+        }
+      ]
+    },
+    "string-template": {
+      "name": "string.interpolated.xquery",
+      "begin": "`",
+      "end": "`",
+      "patterns": [
+        { "match": "\\{\\{|\\}\\}", "name": "constant.character.escape.xquery" },
+        { "name": "meta.embedded.expression.xquery", "begin": "\\{", "end": "\\}", "patterns": [ { "include": "$self" } ] }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.hex.xquery", "match": "\\b0x[0-9a-fA-F]+\\b" },
+        { "name": "constant.numeric.binary.xquery", "match": "\\b0b[01_]+\\b" },
+        { "name": "constant.numeric.xquery", "match": "\\b[0-9]*\\.?[0-9]+([eE][+-]?[0-9]+)?\\b" }
+      ]
+    },
+    "variables": {
+      "name": "variable.other.xquery",
+      "match": "\\$[A-Za-z_][\\w.\\-]*(:[A-Za-z_][\\w.\\-]*)?"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.xquery",
+          "match": "\\b(if|then|else|for|let|where|return|order|by|group|count|stable|ascending|descending|some|every|satisfies|switch|case|default|typeswitch|try|catch|finally|window|tumbling|sliding|start|end|only|when|while|trace|allowing|empty|member|key|value)\\b"
+        },
+        {
+          "name": "keyword.other.xquery",
+          "match": "\\b(declare|module|namespace|import|schema|function|variable|external|as|instance|of|treat|castable|cast|is|eq|ne|lt|le|gt|ge|and|or|to|div|idiv|mod|union|intersect|except|in|at|item|node|element|attribute|document|text|comment|processing-instruction|namespace-node|map|array|record|enum|type|xquery|version|encoding|ordering|ordered|unordered|boundary-space|preserve|strip|construction|copy-namespaces|inherit|no-inherit|option|default|context|collation|base-uri|decimal-format|validate|lax|strict|insert|delete|rename|replace|copy|modify|into|nodes|before|after|first|last|with|self|child|parent|ancestor|descendant|following|preceding|sibling|fn)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "name": "keyword.operator.xquery",
+      "match": "(:=|=!>|=\\?>|=>|\\+:=|\\|\\||->|<<|>>|<=|>=|!=|::|\\.\\.|[+\\-*=<>?!|,;:.])"
+    }
+  }
+}

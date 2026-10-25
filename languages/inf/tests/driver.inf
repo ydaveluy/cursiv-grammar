@@ -1,0 +1,15 @@
+; A device driver's INF, exercising comma lists the upstream examples do
+; not: AddReg-style bare lists, elided items, and a quoted section name.
+[Manufacturer]
+%Provider%=DeviceList,NTamd64
+
+[DeviceList.NTamd64]
+%DeviceDesc%=Device_Install,USB\VID_0000&PID_0001
+
+[Device_Install.AddReg]
+HKR,,PortSubClass,,05
+HKR,,DeviceType,,,1
+HKR,,LowerFilters,0x00010000,"serenum"   ; trailing comment on a value
+
+["Quoted Section"]
+trailing=a,,b,

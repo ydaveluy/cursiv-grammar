@@ -1,0 +1,69 @@
+Demo = proc(a, b: int) returns(int) signals(oops)
+  x: int
+  y: int := 1
+  z, w: int := f(a, b)
+  y := 2
+  y, x := 1, 2
+  v i := 9
+  call_something()
+  call_something() @ collector
+  fork call_something()
+  seize x do
+    y := 1
+  end
+  pause
+  terminate
+  enter action
+    y := 2
+  end
+  coenter
+    action
+      y := 3
+    topaction
+      y := 4
+  end
+  abort leave
+  while y < 10 do
+    y := y + 1
+  end
+  for k: int in call_something() do
+    y := y + k
+  end
+  for k in call_something() do
+    y := y + k
+  end
+  if y = 0 then
+    y := 1
+  elseif y = 1 then
+    y := 2
+  else
+    y := 3
+  end
+  tagcase tagval
+    tag a, b: y := 1
+    tag c y2: int: y := 2
+    others: y := 0
+  end
+  tagtest tagval
+    tag a y3: int: y := 1
+    wtag b: y := 2
+    others: y := 0
+  end
+  tagwait tagval
+    tag a: y := 1
+  end
+  yield y
+  signal oops
+  exit oops
+  abort break
+  continue
+  begin
+    y := 5
+  end
+  y := 1 resignal oops
+  y := 1 except
+    when oops: y := 0
+    others: y := 9
+  end
+  return y
+end Demo

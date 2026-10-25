@@ -1,0 +1,18 @@
+comment the report's own operator glyphs, the raised-ten exponent mark, an
+  if as an expression, and a nesting string in the report's own brackets --
+  none of the upstream corpus documents use these;
+begin
+  Boolean flag;
+  integer x, y;
+  real r;
+  x := 1;
+  y := 2;
+  r := 2.510+6;
+  flag := (x ⋀ y) ⋁ (¬flag);
+  flag := x ≥ y ⊃ x ≤ y;
+  flag := x ≠ y ≡ flag;
+  r := x × 2 ÷ 1 – 1;
+  r := 2 ↑ 3;
+  x := if flag then 1 else 2;
+  prints (⌜a ⌜nested⌝ b⌝)
+end

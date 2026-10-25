@@ -1,0 +1,51 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Argus",
+  "scopeName": "source.argus",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.percentage.argus",
+          "match": "%.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.argus",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.argus",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.argus",
+      "match": "\\b(equates|guardian|cluster|proc|iter|creator|handler|is|handles|where|has|in|type|own|stable|returns|yields|signals|transmit|recover|background|end|fork|seize|do|pause|terminate|enter|topaction|action|coenter|process|abort|leave|while|for|if|then|elseif|else|tagcase|tagtest|tagwait|tag|wtag|others|return|yield|signal|exit|break|continue|begin|resignal|except|when|with|nil|true|false|self|bind|up|down|null|node|bool|int|real|char|string|any|image|rep|cvt|sequence|array|atomic_array|struct|record|atomic_record|oneof|variant|atomic_variant|proctype|itertype|creatortype|handlertype|mutex|cand|cor)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.argus",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

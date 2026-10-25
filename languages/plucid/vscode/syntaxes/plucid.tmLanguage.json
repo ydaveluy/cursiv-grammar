@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Plucid",
+  "scopeName": "source.plucid",
+  "patterns": [
+    { "include": "#keywords" },
+    { "include": "#operators" },
+    { "include": "#strings" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.plucid",
+      "match": "\\b(if|then|else|elseif|endif|fi|case|of|cond|default|end|error|eod|nil|filter|substr|length|arg)\\b"
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.word.plucid",
+          "match": "\\b(sin|cos|tan|sqrt|abs|log10|log|isnumber|isword|not|mkstring|isstring|mkword|hd|tl|isatom|isnull|islist|first|next|iseod|iserror|div|mod|eq|ne|and|or|fby|whenever|wvr|upon|asa|attime)\\b"
+        },
+        {
+          "name": "keyword.operator.plucid",
+          "match": "\\*\\*|<=|>=|<>|::|[+\\-*/<>=]"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.plucid",
+          "match": "\"[^\"]*\""
+        },
+        {
+          "name": "string.quoted.other.plucid",
+          "begin": "‘",
+          "end": "’"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.plucid",
+      "match": "˜*[0-9]+(\\.[0-9]*)?"
+    }
+  }
+}

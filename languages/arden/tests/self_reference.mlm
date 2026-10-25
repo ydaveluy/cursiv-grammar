@@ -1,0 +1,28 @@
+maintenance:
+title: Self reference test;;
+mlmname: self_reference_test;;
+arden: version 3;;
+version: 1.00;;
+institution: ;;
+author: ;;
+specialist: ;;
+date: 2024-01-01;;
+validation: testing;;
+library:
+purpose: exercises the mlm-self reference, unused by the upstream corpus;;
+explanation: ;;
+keywords: ;;
+knowledge:
+type: data-driven;;
+data: this_mlm := mlm mlm_self;
+other_mlm := mlm 'other_mlm_name' from institution "Test Hospital";
+;;
+evoke: ;;
+logic: conclude true;
+;;
+action: write this_mlm;
+;;
+resources:
+default: en;;
+language: en;;
+end:

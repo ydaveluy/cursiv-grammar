@@ -1,0 +1,1 @@
+rule r { meta: value = 0o777777777777777777777 condition: true }

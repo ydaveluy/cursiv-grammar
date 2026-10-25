@@ -1,0 +1,72 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Dot",
+  "scopeName": "source.dot",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#html-strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.dot",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.dot",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.line.number-sign.dot",
+          "match": "^#.*$"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.dot",
+      "match": "(?i)\\b(strict|graph|digraph|node|edge|subgraph)\\b"
+    },
+    "strings": {
+      "name": "string.quoted.double.dot",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.dot",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "html-strings": {
+      "name": "string.other.html.dot",
+      "begin": "<",
+      "end": ">"
+    },
+    "numbers": {
+      "name": "constant.numeric.dot",
+      "match": "-?(\\.[0-9]+|[0-9]+(\\.[0-9]*)?)"
+    },
+    "operators": {
+      "name": "keyword.operator.dot",
+      "match": "->|--|="
+    }
+  }
+}

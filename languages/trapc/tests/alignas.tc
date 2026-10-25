@@ -1,0 +1,11 @@
+// `alignas`/`_Alignas`, the specifier form (as opposed to the `alignof`
+// operator, already exercised in features.tc).
+
+struct Aligned {
+    alignas(16) char buffer[16];
+    _Alignas(int) char tag;
+};
+
+alignas(8) static int counter;
+
+int check(void) { return alignof(struct Aligned); }

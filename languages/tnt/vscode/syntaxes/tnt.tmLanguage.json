@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Tnt",
+  "scopeName": "source.tnt",
+  "patterns": [
+    {
+      "include": "#quantifiers"
+    },
+    {
+      "include": "#successor"
+    },
+    {
+      "include": "#zero"
+    },
+    {
+      "include": "#variables"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "quantifiers": {
+      "name": "keyword.control.tnt",
+      "match": "[AE]"
+    },
+    "successor": {
+      "name": "storage.modifier.tnt",
+      "match": "S"
+    },
+    "zero": {
+      "name": "constant.numeric.tnt",
+      "match": "0"
+    },
+    "variables": {
+      "name": "variable.other.tnt",
+      "match": "[a-e]'*"
+    },
+    "operators": {
+      "name": "keyword.operator.tnt",
+      "match": "[+*~=:]"
+    }
+  }
+}

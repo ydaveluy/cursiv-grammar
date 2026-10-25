@@ -1,0 +1,94 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Swift",
+  "scopeName": "source.swift",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#attributes" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.swift",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.swift",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "patterns": [{ "include": "#comments" }]
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.swift",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [{ "include": "#stringInterpolation" }]
+        },
+        {
+          "name": "string.quoted.double.swift",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "include": "#stringInterpolation" }]
+        }
+      ]
+    },
+    "stringInterpolation": {
+      "name": "meta.embedded.line.swift",
+      "begin": "\\\\\\(",
+      "end": "\\)",
+      "patterns": [{ "include": "$self" }]
+    },
+    "attributes": {
+      "name": "storage.type.attribute.swift",
+      "match": "@[A-Za-z_][A-Za-z0-9_]*"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.swift",
+          "match": "\\b(if|else|guard|switch|case|default|for|in|while|repeat|break|continue|fallthrough|return|throw|throws|rethrows|try|catch|do|defer|where|as|is)\\b"
+        },
+        {
+          "name": "keyword.declaration.swift",
+          "match": "\\b(func|var|let|class|struct|enum|protocol|extension|import|typealias|associatedtype|init|deinit|subscript|operator|precedencegroup|inout)\\b"
+        },
+        {
+          "name": "storage.modifier.swift",
+          "match": "\\b(public|private|internal|fileprivate|open|static|final|lazy|weak|unowned|mutating|nonmutating|override|required|convenience|indirect|dynamic|optional|some)\\b"
+        },
+        {
+          "name": "constant.language.swift",
+          "match": "\\b(true|false|nil|self|Self|super)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.swift",
+          "match": "\\b0x[0-9a-fA-F_]+\\b"
+        },
+        {
+          "name": "constant.numeric.swift",
+          "match": "\\b0b[01_]+\\b"
+        },
+        {
+          "name": "constant.numeric.swift",
+          "match": "\\b0o[0-7_]+\\b"
+        },
+        {
+          "name": "constant.numeric.swift",
+          "match": "\\b[0-9][0-9_]*(\\.[0-9_]+)?([eE][+-]?[0-9_]+)?\\b"
+        }
+      ]
+    }
+  }
+}

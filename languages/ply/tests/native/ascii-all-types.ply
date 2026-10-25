@@ -1,0 +1,21 @@
+ply
+format ascii 1.0
+element custom 1
+property char p0
+property uchar p1
+property short p2
+property ushort p3
+property int p4
+property uint p5
+property float p6
+property double p7
+property int8 p8
+property uint8 p9
+property int16 p10
+property uint16 p11
+property int32 p12
+property uint32 p13
+property float32 p14
+property float64 p15
+end_header
+-128 255 -32768 65535 -2147483648 4294967295 -0 1e-300 127 0 32767 0 2147483647 0 1.234567890123456 1.234567890123456

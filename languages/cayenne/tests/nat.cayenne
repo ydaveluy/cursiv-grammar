@@ -1,0 +1,10 @@
+struct
+  public concrete Nat :: # = data Zero | Succ Nat | ;
+
+  public concrete pred :: (n :: Nat) -> Nat
+    = \(n :: Nat) -> case n of
+        (Zero) -> Zero;
+        (Succ m) -> m;
+      :: Nat;
+
+  private one :: Nat = Succ @ Nat;

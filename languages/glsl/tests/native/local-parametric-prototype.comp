@@ -1,0 +1,4 @@
+#version 460
+#extension GL_KHR_cooperative_matrix:require
+#extension GL_KHR_memory_scope_semantics:require
+layout(local_size_x=32)in;void main(){coopmat<float,gl_ScopeSubgroup,16,16,gl_MatrixUseA> f();}

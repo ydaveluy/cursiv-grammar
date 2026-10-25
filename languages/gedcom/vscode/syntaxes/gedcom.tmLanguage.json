@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Gedcom",
+  "scopeName": "source.gedcom",
+  "patterns": [
+    {
+      "include": "#line"
+    }
+  ],
+  "repository": {
+    "line": {
+      "match": "^(\\d+)\\s+(?:(@[^@\\s]+@)\\s+)?([A-Za-z_][A-Za-z_0-9]*)(?:\\s+(.*))?$",
+      "captures": {
+        "1": {
+          "name": "constant.numeric.level.gedcom"
+        },
+        "2": {
+          "name": "entity.name.tag.gedcom"
+        },
+        "3": {
+          "name": "keyword.control.tag.gedcom"
+        },
+        "4": {
+          "name": "string.unquoted.value.gedcom",
+          "patterns": [
+            {
+              "include": "#pointer"
+            }
+          ]
+        }
+      }
+    },
+    "pointer": {
+      "name": "entity.name.tag.gedcom",
+      "match": "@[^@\\s]+@"
+    }
+  }
+}

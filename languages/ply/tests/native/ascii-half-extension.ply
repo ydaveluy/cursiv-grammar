@@ -1,0 +1,9 @@
+ply
+format ascii 1.0
+element custom 4
+property float16 a
+end_header
+1.5
+5.960464477539063e-08
+65504.0
+1e+20

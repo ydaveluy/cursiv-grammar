@@ -1,0 +1,2 @@
+java.lang.RuntimeException: échec: bad value!
+	at demo.Main$Worker.<init>(Main.java:0)

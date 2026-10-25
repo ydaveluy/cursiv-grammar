@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Moo",
+  "scopeName": "source.moo",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#directives" },
+    { "include": "#keywords" },
+    { "include": "#numbers" },
+    { "include": "#objref" },
+    { "include": "#sysname" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.moo",
+      "match": ";.+$"
+    },
+    "strings": {
+      "name": "string.quoted.double.moo",
+      "begin": "\"",
+      "end": "\""
+    },
+    "directives": {
+      "name": "keyword.other.directive.moo",
+      "match": "@(program|verb|property|prop|rmproperty|rmprop|set|display|disp|kids|parent|describe|contents|notedit|create|edit|addalias)\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.moo",
+      "match": "\\b(to|as|called|if|elseif|else|endif|while|do|for|in|endfor|try|except|endtry|return)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.moo",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    },
+    "objref": {
+      "name": "constant.other.objref.moo",
+      "match": "#[0-9]+"
+    },
+    "sysname": {
+      "name": "variable.other.sysname.moo",
+      "match": "\\$[a-zA-Z][a-zA-Z0-9!_*]*"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+ply
+format ascii 1.0
+element sample 1
+property int v
+end_header
+1e0

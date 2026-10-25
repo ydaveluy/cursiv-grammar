@@ -1,0 +1,1 @@
+agg{find("a"), find("b"), find("c")}

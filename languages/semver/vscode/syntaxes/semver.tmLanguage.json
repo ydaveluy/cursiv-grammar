@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Semver",
+  "scopeName": "source.semver",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.other.tag.semver",
+      "match": "(?i:\\b(development|devel|dev|milestone|mt|preview|pre|p|alpha|beta|release|candidate|rc|snapshot|daily|nightly|build|bld|test|experimental)\\b)"
+    },
+    "numbers": {
+      "name": "constant.numeric.semver",
+      "match": "\\b(0|[1-9][0-9]*)\\b"
+    },
+    "punctuation": {
+      "name": "punctuation.separator.semver",
+      "match": "[.+-]"
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "inf",
+  "scopeName": "source.inf",
+  "fileTypes": [
+    "inf"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "name": "entity.name.section.inf",
+      "match": "^\\s*\\[[^\\]\\r\\n]*\\]"
+    },
+    {
+      "name": "variable.other.key.inf",
+      "match": "[^,=;\\s\\r\\n]+(?=\\s*=)"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "name": "constant.numeric.inf",
+      "match": "\\b0[xX][0-9A-Fa-f]+\\b|\\b[0-9]+\\b"
+    },
+    {
+      "name": "keyword.operator.assignment.inf",
+      "match": "="
+    },
+    {
+      "name": "punctuation.separator.comma.inf",
+      "match": ","
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.inf",
+      "match": ";.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.inf",
+      "begin": "\"",
+      "end": "\"|$"
+    }
+  }
+}

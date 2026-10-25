@@ -1,0 +1,38 @@
+# Constructs the 30-file upstream corpus never exercises: points, lines,
+# object name, the display toggles, level of detail, the texture map
+# library, "off" smoothing/merging groups, call/csh, and the ctech/stech
+# forms the corpus leaves untried (cspace, curv, cparmb).
+o widget
+
+v 0.0 0.0 0.0
+v 1.0 0.0 0.0
+v 1.0 1.0 0.0
+
+p 1 2 3
+
+l 1 2
+l 1/1 2/2
+
+bevel on
+bevel off
+c_interp on
+c_interp off
+d_interp on
+d_interp off
+
+lod 3
+
+maplib bump.map spec.map
+usemap tiles
+usemap off
+
+s off
+mg off
+
+ctech cspace 0.5
+ctech curv 0.1 5.0
+stech cparmb 2.0
+stech cspace 0.5
+
+call other.obj arg1 arg2
+csh backup - nightly

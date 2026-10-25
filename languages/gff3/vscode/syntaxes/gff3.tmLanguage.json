@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Gff3",
+  "scopeName": "source.gff3",
+  "fileTypes": ["gff"],
+  "patterns": [
+    {
+      "name": "keyword.other.header.gff3",
+      "match": "^##gff-version 3$"
+    },
+    {
+      "name": "comment.line.number-sign.gff3",
+      "match": "^#.*$"
+    },
+    {
+      "include": "#attribute"
+    },
+    {
+      "name": "punctuation.separator.tab.gff3",
+      "match": "\t"
+    }
+  ],
+  "repository": {
+    "attribute": {
+      "match": "([^\t;=]+)(=)([^\t;]*)",
+      "captures": {
+        "1": { "name": "entity.other.attribute-name.gff3" },
+        "2": { "name": "punctuation.separator.key-value.gff3" },
+        "3": { "name": "string.unquoted.gff3" }
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "stellaris",
+  "scopeName": "source.stellaris",
+  "fileTypes": ["stellaris"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keys" },
+    { "include": "#accessors" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.stellaris",
+      "match": "#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.stellaris",
+      "match": "\"[^\"\\r\\n]*\""
+    },
+    "numbers": {
+      "name": "constant.numeric.stellaris",
+      "match": "[+-]?\\b[0-9]+\\b"
+    },
+    "keys": {
+      "name": "variable.other.key.stellaris",
+      "match": "\\b[A-Za-z][A-Za-z0-9_]*\\b(?=\\s*[=<>])"
+    },
+    "accessors": {
+      "name": "punctuation.accessor.stellaris",
+      "match": "[.@:]"
+    },
+    "operators": {
+      "name": "keyword.operator.stellaris",
+      "match": "[=<>]"
+    }
+  }
+}

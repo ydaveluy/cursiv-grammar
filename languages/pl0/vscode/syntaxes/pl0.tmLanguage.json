@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Pl0",
+  "scopeName": "source.pl0",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.pl0",
+      "match": "(?i)\\b(begin|end|if|then|while|do|odd|call|const|var|procedure|write)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.pl0",
+      "match": ":=|<=|>=|#|[?!=<>+\\-*/]"
+    },
+    "numbers": {
+      "name": "constant.numeric.pl0",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

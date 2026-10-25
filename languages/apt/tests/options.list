@@ -1,0 +1,1 @@
+deb [arch=amd64 signed-by=/etc/apt/keyrings/example.gpg,target=amd64+i386,inrelease-path=/by-hash:v2] http://archive.ubuntu.com/ubuntu jammy main

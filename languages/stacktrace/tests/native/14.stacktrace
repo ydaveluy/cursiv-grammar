@@ -1,0 +1,5 @@
+java.lang.RuntimeException: échec: bad value!
+	at demo.Init.<clinit>(Main.groovy:12)
+Caused by: java.lang.RuntimeException: cycle
+	at demo.Main.run(Main.java:42)
+Caused by: [CIRCULAR REFERENCE: java.lang.RuntimeException: échec: bad value!]

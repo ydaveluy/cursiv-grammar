@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Corundum",
+  "scopeName": "source.corundum",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.corundum",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.block.corundum",
+          "begin": "^=begin",
+          "end": "^=end"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.corundum",
+          "match": "\\b(if|elsif|else|unless|while|for|end|return|retry|break)\\b"
+        },
+        {
+          "name": "keyword.other.corundum",
+          "match": "\\b(def|require|pir)\\b"
+        },
+        {
+          "name": "keyword.operator.word.corundum",
+          "match": "\\b(and|or|not)\\b"
+        },
+        {
+          "name": "constant.language.corundum",
+          "match": "\\b(true|false|nil)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.corundum",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "name": "constant.character.escape.corundum", "match": "\\\\\"" }
+          ]
+        },
+        {
+          "name": "string.quoted.single.corundum",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            { "name": "constant.character.escape.corundum", "match": "\\\\\"" }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.corundum",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

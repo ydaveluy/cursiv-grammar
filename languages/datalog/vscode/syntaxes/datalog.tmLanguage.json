@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Datalog",
+  "scopeName": "source.datalog",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#variables"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.datalog",
+      "match": "#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.datalog",
+      "begin": "\"",
+      "end": "\""
+    },
+    "keywords": {
+      "name": "constant.language.datalog",
+      "match": "\\b(true|false)\\b"
+    },
+    "variables": {
+      "name": "variable.other.datalog",
+      "match": "\\b[A-Z][a-zA-Z_]*\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.datalog",
+      "match": "\\b[0-9]+\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.datalog",
+      "match": ":-|!=|=|~|\\?|\\."
+    }
+  }
+}

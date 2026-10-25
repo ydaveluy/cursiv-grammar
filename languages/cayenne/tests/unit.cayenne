@@ -1,0 +1,10 @@
+struct
+  public concrete Unit :: # = data MkUnit | ;
+
+  public concrete id :: (a :: #) -> (x :: a) -> a
+    = \(a :: #) -> \(x :: a) -> x;
+
+  private applied :: Unit = id Unit MkUnit;
+
+  public abstract Type :: # = #;
+.applied

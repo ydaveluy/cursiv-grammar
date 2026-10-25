@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Xml",
+  "scopeName": "source.xml",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#cdata" },
+    { "include": "#doctype" },
+    { "include": "#pi" },
+    { "include": "#tag" },
+    { "include": "#entity" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.block.xml",
+      "begin": "<!--",
+      "end": "-->"
+    },
+    "cdata": {
+      "name": "string.unquoted.cdata.xml",
+      "begin": "<!\\[CDATA\\[",
+      "end": "\\]\\]>"
+    },
+    "doctype": {
+      "name": "meta.tag.sgml.doctype.xml",
+      "begin": "<!(?!--|\\[CDATA\\[)",
+      "end": ">"
+    },
+    "pi": {
+      "name": "meta.tag.preprocessor.xml",
+      "begin": "<\\?",
+      "end": "\\?>",
+      "patterns": [{ "include": "#attribute" }, { "include": "#string" }]
+    },
+    "tag": {
+      "begin": "(</?)([_:a-zA-Z][-_:.a-zA-Z0-9]*)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.xml" },
+        "2": { "name": "entity.name.tag.xml" }
+      },
+      "end": "(/?>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.xml" }
+      },
+      "patterns": [{ "include": "#attribute" }, { "include": "#string" }]
+    },
+    "attribute": {
+      "match": "([_:a-zA-Z][-_:.a-zA-Z0-9]*)\\s*(=)",
+      "captures": {
+        "1": { "name": "entity.other.attribute-name.xml" },
+        "2": { "name": "punctuation.separator.key-value.xml" }
+      }
+    },
+    "string": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.xml",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "include": "#entity" }]
+        },
+        {
+          "name": "string.quoted.single.xml",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "include": "#entity" }]
+        }
+      ]
+    },
+    "entity": {
+      "name": "constant.character.entity.xml",
+      "match": "&(#[0-9]+|#x[0-9a-fA-F]+|[_:a-zA-Z][-_:.a-zA-Z0-9]*);"
+    }
+  }
+}

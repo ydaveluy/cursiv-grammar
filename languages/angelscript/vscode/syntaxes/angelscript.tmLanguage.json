@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Angelscript",
+  "scopeName": "source.angelscript",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.angelscript",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.angelscript",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.angelscript",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.angelscript",
+          "match": "\\b(0[bodxBODX][0-9a-zA-Z]+)\\b"
+        },
+        {
+          "name": "constant.numeric.angelscript",
+          "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.angelscript",
+          "match": "\\b(if|else|for|while|do|switch|case|default|break|continue|return|try|catch)\\b"
+        },
+        {
+          "name": "keyword.other.angelscript",
+          "match": "\\b(class|interface|mixin|enum|namespace|typedef|funcdef|import|from|shared|abstract|final|external|private|protected|const|override|explicit|property|get|set|in|out|inout|cast|is|and|or|xor|auto|function)\\b"
+        },
+        {
+          "name": "constant.language.angelscript",
+          "match": "\\b(true|false|null)\\b"
+        },
+        {
+          "name": "storage.type.angelscript",
+          "match": "\\b(void|int|int8|int16|int32|int64|uint|uint8|uint16|uint32|uint64|float|double|bool)\\b"
+        }
+      ]
+    }
+  }
+}

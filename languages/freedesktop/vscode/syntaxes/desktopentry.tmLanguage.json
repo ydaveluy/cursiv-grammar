@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "DesktopEntry",
+  "scopeName": "source.desktopentry",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#group-header" },
+    { "include": "#key" },
+    { "include": "#values" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.desktopentry",
+      "match": "^\\s*#.*$"
+    },
+    "group-header": {
+      "name": "entity.name.section.desktopentry",
+      "match": "^\\[[^\\[\\]]*\\]"
+    },
+    "key": {
+      "match": "^([A-Za-z][A-Za-z0-9-]*)(\\[[A-Za-z][A-Za-z0-9@._-]*\\])?(=)",
+      "captures": {
+        "1": { "name": "variable.other.key.desktopentry" },
+        "2": { "name": "constant.language.locale.desktopentry" },
+        "3": { "name": "keyword.operator.assignment.desktopentry" }
+      }
+    },
+    "values": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.desktopentry",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.numeric.desktopentry",
+          "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+        },
+        {
+          "name": "punctuation.separator.desktopentry",
+          "match": ";"
+        },
+        {
+          "name": "constant.character.escape.desktopentry",
+          "match": "\\\\[nrst\\\\;]"
+        }
+      ]
+    }
+  }
+}

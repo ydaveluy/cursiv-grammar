@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lark",
+  "scopeName": "source.lark",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#statements"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#regexps"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#names"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-slash.lark",
+      "match": "//.*$"
+    },
+    "statements": {
+      "name": "keyword.control.directive.lark",
+      "match": "%(ignore|import|override|declare)\\b"
+    },
+    "strings": {
+      "name": "string.quoted.double.lark",
+      "match": "\"(\\\\.|[^\"\\\\\\r\\n])*\"i?"
+    },
+    "regexps": {
+      "name": "string.regexp.lark",
+      "match": "/(\\\\.|[^/])+/[imslux]*"
+    },
+    "numbers": {
+      "name": "constant.numeric.lark",
+      "match": "[+-]?[0-9]+"
+    },
+    "names": {
+      "patterns": [
+        {
+          "name": "entity.name.function.lark",
+          "match": "\\b_?[A-Z][A-Z0-9_]*\\b"
+        },
+        {
+          "name": "entity.name.type.lark",
+          "match": "!?[_?]?[a-z][a-z0-9_]*\\b"
+        }
+      ]
+    }
+  }
+}

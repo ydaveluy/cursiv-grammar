@@ -1,0 +1,64 @@
+# datalog
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/datalog/core/DatalogGrammar.hpp` |
+| The AST | `src/datalog/core/ast.hpp` |
+| Validation checks | `src/datalog/core/validation/` |
+| Services of your own | `src/datalog/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/datalog/cli/main.cpp` |
+| LSP features | `src/datalog/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+```
+edge(a, b). edge(b, c). edge(c, d). edge(d, a).
+path(X, Y) :- edge(X, Y).
+path(X, Y) :- edge(X, Z), path(Z, Y).
+path(X, Y)?
+```
+
+A fact (`edge(a, b).`), a rule (`path(X, Y) :- ...`) and a query
+(`path(X, Y)?`) — the three shapes most datalog documents are built from.
+A clause can also be retracted (`edge(a, b)~`, no trailing `.`), and a
+literal can compare two terms (`X = Y`, `X != Y`) or bind a variable to an
+external predicate's answer (`Z :- add(X, Y)`).
+
+## The command line
+
+```bash
+./build/src/datalog_cli example/example1.dl
+./build/src/datalog_cli --dump example/example1.dl   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`datalog_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

@@ -1,0 +1,3 @@
+SELECT o
+FROM Order o
+WHERE o.total > (SELECT AVG(x.total) FROM o.related x)

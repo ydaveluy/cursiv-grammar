@@ -1,0 +1,73 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "CaQL",
+  "scopeName": "source.caql",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#durations"
+    },
+    {
+      "include": "#uuids"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.caql",
+      "match": "\\b(and|or|unless|by|without|on|ignoring|group_left|group_right|offset|bool)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.caql",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.caql",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.caql",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.caql",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "durations": {
+      "name": "constant.numeric.duration.caql",
+      "match": "\\b[0-9]+[smhdwy]\\b"
+    },
+    "uuids": {
+      "name": "constant.other.uuid.caql",
+      "match": "\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.caql",
+      "match": "\\b[0-9]+(\\.[0-9]+)?(e[-+]?[0-9]+(\\.[0-9]+)?)?\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.caql",
+      "match": "==|!=|>=|<=|[+\\-*/%^><|=]"
+    }
+  }
+}

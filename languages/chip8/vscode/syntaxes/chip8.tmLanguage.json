@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Chip8",
+  "scopeName": "source.chip8",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#registers"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.chip8",
+      "match": "\\b(CLS|RET|SYS|JP|CALL|SE|SNE|LD|ADD|OR|AND|XOR|SUB|SHR|SUBN|SHL|RND|DRW|SKP|SKNP|DT|ST|K|I|F|B)\\b"
+    },
+    "registers": {
+      "name": "variable.language.chip8",
+      "match": "\\bV[0-9A-F]\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.chip8",
+      "match": "\\b[0-9A-F]+\\b"
+    }
+  }
+}

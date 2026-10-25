@@ -1,0 +1,24 @@
+' A document exercising constructs no upstream sample uses: a named
+' diagram, an interface, a stereotype, EXTENDS, an enum, associative
+' classes and comments.
+@startuml Constructs
+// a slash-slash comment
+/* a block
+   comment */
+interface Shape <<abstract>> {
+  area() : Real
+}
+
+class Circle extends Shape {
+  radius : Real
+}
+
+enum Color <<enumeration>> {
+  RED
+  GREEN
+  BLUE
+}
+
+(Circle, Color) .. Painted : paints
+Circle .. (Circle, Color) : paints
+@enduml

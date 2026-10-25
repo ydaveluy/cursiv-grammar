@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "AmazonStatesLanguageIntrinsicFunctions",
+  "scopeName": "source.amazonstateslanguageintrinsicfunctions",
+  "patterns": [
+    { "include": "#paths" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.amazonstateslanguageintrinsicfunctions",
+          "match": "\\bStates\\b"
+        },
+        {
+          "name": "support.function.amazonstateslanguageintrinsicfunctions",
+          "match": "\\b(Format|StringToJson|JsonToString|ArrayPartition|ArrayContains|ArrayRange|ArrayGetItem|ArrayLength|ArrayUnique|Array|Base64Encode|Base64Decode|Hash|JsonMerge|MathRandom|MathAdd|StringSplit|UUID)\\b"
+        },
+        {
+          "name": "constant.language.boolean.amazonstateslanguageintrinsicfunctions",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "paths": {
+      "name": "variable.other.readwrite.amazonstateslanguageintrinsicfunctions",
+      "match": "\\$\\$?(\\.[A-Za-z0-9_]*|\\[[^\\]]*\\])*"
+    },
+    "strings": {
+      "name": "string.quoted.single.amazonstateslanguageintrinsicfunctions",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.amazonstateslanguageintrinsicfunctions",
+          "match": "\\\\(u[0-9a-fA-F]{4}|.)"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.amazonstateslanguageintrinsicfunctions",
+      "match": "-?\\b(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\b"
+    }
+  }
+}

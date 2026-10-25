@@ -1,0 +1,17 @@
+BEGIN {
+  static int counter;
+  int total = (int) 3.5 + counter;
+  int arr[int];
+  arr[1, 2];
+  procedure(total, "x");
+  gsub(total, "0", "1");
+  query("ok");
+  int shifted = total lsh 2;
+  shifted = shifted rsh 1;
+  int card = # total;
+  int picked = total ? 1 : 0;
+  int pair = (total, shifted);
+  &total;
+  total.split;
+  label: total = total + 1;
+}

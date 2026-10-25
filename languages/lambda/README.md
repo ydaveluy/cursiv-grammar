@@ -1,0 +1,60 @@
+# lambda
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/lambda/core/LambdaGrammar.hpp` |
+| The AST | `src/lambda/core/ast.hpp` |
+| Validation checks | `src/lambda/core/validation/` |
+| Services of your own | `src/lambda/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/lambda/cli/main.cpp` |
+| LSP features | `src/lambda/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+```
+((λa.a g) bc)
+```
+
+Untyped lambda calculus: a `Variable` is a name, a `Function` binds one
+variable over a body (`λa.a`), and an `Application` applies one term to
+another -- always parenthesized, which is what makes `a b` illegal on its own
+and `(a b)` the only way to write it.
+
+## The command line
+
+```bash
+./build/src/lambda_cli example/example1.lambda
+./build/src/lambda_cli --dump example/example1.lambda   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`lambda_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

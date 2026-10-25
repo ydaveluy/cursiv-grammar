@@ -1,0 +1,25 @@
+# A document of my own: the constructs the four upstream examples never
+# exercise -- hex/octal/binary integers, signed infinity and nan, and a
+# local date-time, a bare date, and a bare time (no offset, no "Z").
+
+[numbers]
+hex1 = 0xDEADBEEF
+hex2 = 0xdead_beef
+oct1 = 0o01234567
+oct2 = 0o755
+bin1 = 0b11010110
+bin2 = 0b1010_1010
+
+[special-floats]
+plus_inf = +inf
+minus_inf = -inf
+plain_inf = inf
+plus_nan = +nan
+minus_nan = -nan
+plain_nan = nan
+
+[dates]
+local_date_time = 1979-05-27T07:32:00
+local_date = 1979-05-27
+local_time = 07:32:00
+local_time_frac = 00:32:00.999999

@@ -1,0 +1,10 @@
+java.lang.RuntimeException: échec: bad value!
+	at demo.Init.<clinit>(Main.groovy:12)
+	Suppressed: java.lang.RuntimeException: close failed
+		at demo.Main.run(Main.java:42)
+		... 1 more
+	Caused by: java.lang.RuntimeException: nested cause
+		... 2 more
+Caused by: java.lang.RuntimeException: outer cause
+	at java.base/java.lang.Thread.run(Thread.java:833)
+	... 1 more

@@ -1,0 +1,61 @@
+# romannumerals
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/romannumerals/core/RomannumeralsGrammar.hpp` |
+| The AST | `src/romannumerals/core/ast.hpp` |
+| Validation checks | `src/romannumerals/core/validation/` |
+| Services of your own | `src/romannumerals/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/romannumerals/cli/main.cpp` |
+| LSP features | `src/romannumerals/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+```
+MCMLXXII
+```
+
+A document is one Roman numeral: a run of `M`, then an optional
+hundreds/tens/ones group each spelled with the classic subtractive forms
+(`CM`, `CD`, `XC`, `XL`, `IX`, `IV`). The AST is one `RomanNumeral` node —
+`thousands` a list of 1000s, `hundreds`/`tens`/`ones` the value each group
+denotes, 0 meaning absent.
+
+## The command line
+
+```bash
+./build/src/romannumerals_cli example/MCMLXXII.romannumerals
+./build/src/romannumerals_cli --dump example/MCMLXXII.romannumerals   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`romannumerals_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

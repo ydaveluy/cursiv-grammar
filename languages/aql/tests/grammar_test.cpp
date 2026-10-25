@@ -1,0 +1,300 @@
+// AQL end to end: every corpus document parses clean, a handful of
+// deliberately unexercised constructs get documents of their own, and a
+// few field values are read back out of the tree.
+
+#include <cstddef>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "aql/core/ast.hpp"
+#include "aql/generated/Aql/AstReflection.hpp"
+#include "aql/generated/Aql/Module.hpp"
+#include "cursiv/core/parser/Parser.hpp"
+#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "cursiv/core/syntax-tree/ParseResult.hpp"
+#include "cursiv/test/Check.hpp"
+
+namespace {
+template <class T> std::vector<T *> operations(const aql::ast::ForOp *op) {
+  std::vector<T *> result;
+  for (const auto &item : op->operations)
+    if (const auto *node = std::get_if<T *>(&item))
+      result.push_back(*node);
+  return result;
+}
+
+namespace ast = aql::ast;
+namespace fs = std::filesystem;
+
+const cursiv::Parser& engine() {
+  static const std::unique_ptr<cursiv::Parser> p =
+      aql::generated::Aql::create_parser();
+  return *p;
+}
+
+const cursiv::AstReflection& reflection() {
+  static const std::unique_ptr<cursiv::AstReflection> r =
+      aql::generated::Aql::create_ast_reflection();
+  return *r;
+}
+
+template <class T>
+T* as(cursiv::AstNode* n) {
+  return (n != nullptr && reflection().isInstance(*n, &cursiv::ast_type_tag<T>))
+             ? static_cast<T*>(n)
+             : nullptr;
+}
+
+// The text lives in the caller: every string_view the tree holds is a slice
+// of it, so it must outlive every read of the tree, not just the parse.
+cursiv::ParseResult build(const std::string& text) {
+  cursiv::ParseResult r = engine().parse(text);
+  CHECK(r.accepted);
+  return r;
+}
+
+std::string load(const char* name) {
+  return cursiv::test::read_file(std::string(CURSIV_EXAMPLE_DIR) +
+                                  "/example/" + name);
+}
+
+std::string load_test(const char* name) {
+  return cursiv::test::read_file(std::string(CURSIV_TEST_DIR) + "/" + name);
+}
+
+// Every document under example/ and this port's own tests/*.aql: a clean
+// parse, no diagnostics, a root that is one of the three query shapes.
+void corpus() {
+  std::vector<fs::path> files;
+  for (const char* const dir : {CURSIV_EXAMPLE_DIR "/example", CURSIV_TEST_DIR})
+    for (const auto& entry : fs::directory_iterator(dir))
+      if (entry.is_regular_file() && entry.path().extension() == ".aql")
+        files.push_back(entry.path());
+  CHECK(!files.empty());
+
+  for (const fs::path& file : files) {
+    const std::string text = cursiv::test::read_file(file.string());
+    CHECK(!text.empty());
+    const cursiv::ParseResult r = engine().parse(text);
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) {
+      std::printf("FAIL %s: accepted=%d recovered=%d diagnostics=%zu\n",
+                  file.filename().string().c_str(),
+                  static_cast<int>(r.accepted),
+                  static_cast<int>(r.cst().recovered()), r.diagnostics.size());
+      ++cursiv::test::failures;
+      continue;
+    }
+    cursiv::AstNode* const root = r.value;
+    const bool isQuery =
+        root != nullptr &&
+        reflection().isInstance(*root, &cursiv::ast_type_tag<ast::Query>);
+    if (!isQuery) {
+      std::printf("FAIL %s: root is not a Query\n",
+                  file.filename().string().c_str());
+      ++cursiv::test::failures;
+    }
+  }
+}
+
+// COLLECT INTO an object literal (collect_1.aql): the group key is a comma
+// chain of assignments, INTO's expression is itself an assignment.
+void collect_into_object() {
+  const std::string src = load("collect_1.aql");
+  cursiv::ParseResult r = build(src);
+  ast::SimpleQuery* const q = as<ast::SimpleQuery>(r.value);
+  CHECK(q != nullptr && q->forOps.size() == 1);
+  if (q == nullptr || q->forOps.empty()) return;
+  ast::ForOp* const op = q->forOps[0];
+  CHECK(operations<ast::Collect>(op).size() == 1);
+  if (operations<ast::Collect>(op).empty()) return;
+  ast::Collect* const c = operations<ast::Collect>(op)[0];
+  ast::BinaryExpr* const key = as<ast::BinaryExpr>(c->expr_);
+  CHECK(key != nullptr && key->op == ast::BinOp::comma);
+  ast::BinaryExpr* const into = as<ast::BinaryExpr>(c->into);
+  CHECK(into != nullptr && into->op == ast::BinOp::assign);
+  ast::IdRef* const intoName = as<ast::IdRef>(into->left);
+  CHECK(intoName != nullptr && intoName->name == "groups");
+}
+
+// WINDOW/AGGREGATE (window_1.aql): two WINDOW clauses on one for_op, each
+// with its own AGGREGATE.
+void window_clauses() {
+  const std::string src = load("window_1.aql");
+  cursiv::ParseResult r = build(src);
+  ast::SimpleQuery* const q = as<ast::SimpleQuery>(r.value);
+  CHECK(q != nullptr && q->forOps.size() == 1);
+  if (q == nullptr || q->forOps.empty()) return;
+  ast::ForOp* const op = q->forOps[0];
+  CHECK(operations<ast::Window>(op).size() == 2);
+  if (operations<ast::Window>(op).size() != 2) return;
+  CHECK(operations<ast::Window>(op)[0]->aggregate != nullptr &&
+        operations<ast::Window>(op)[0]->aggregate->name == "rollingAverage");
+  CHECK(operations<ast::Window>(op)[1]->aggregate != nullptr &&
+        operations<ast::Window>(op)[1]->aggregate->name == "cumulativeSum");
+}
+
+// remove_1.aql: OLD read back as a NewOldRef, through the REMOVE clause and
+// the RETURN clause's own leading LET.
+void new_old_reference() {
+  const std::string src = load("remove_1.aql");
+  cursiv::ParseResult r = build(src);
+  ast::DataModificationQuery* const q = as<ast::DataModificationQuery>(r.value);
+  CHECK(q != nullptr && q->forOps.size() == 1 && q->removes.size() == 1);
+  if (q == nullptr) return;
+  ast::ReturnExpr* const ret = q->return_;
+  CHECK(ret != nullptr && ret->letBefore != nullptr);
+  if (ret == nullptr || ret->letBefore == nullptr) return;
+  // `LET removed = OLD`: one binding, an assignment whose right side is OLD.
+  CHECK(ret->letBefore->bindings.size() == 1);
+  ast::BinaryExpr* const bind = as<ast::BinaryExpr>(ret->letBefore->bindings[0]);
+  CHECK(bind != nullptr && bind->op == ast::BinOp::assign);
+  ast::NewOldRef* const old =
+      bind != nullptr ? as<ast::NewOldRef>(bind->right) : nullptr;
+  CHECK(old != nullptr && !old->isNew);
+  // `RETURN removed._key`: a DotExpr over the LET-bound name.
+  ast::DotExpr* const dot = ret != nullptr ? as<ast::DotExpr>(ret->value) : nullptr;
+  CHECK(dot != nullptr && dot->field == "_key");
+}
+
+// The graph traversal shape: no corpus document exercises it, so
+// tests/own_traversal_graph.aql does.
+void graph_traversal() {
+  const std::string src = load_test("own_traversal_graph.aql");
+  cursiv::ParseResult r = build(src);
+  ast::TraversalQuery* const q = as<ast::TraversalQuery>(r.value);
+  CHECK(q != nullptr);
+  if (q == nullptr) return;
+  CHECK(q->v == "v" && q->e == "e" && q->p == "p");
+  CHECK(q->rangeFrom.has_value() && *q->rangeFrom == 1.0);
+  CHECK(q->rangeTo.has_value() && *q->rangeTo == 3.0);
+  CHECK(q->direction == "OUTBOUND");
+  CHECK(q->graph != nullptr);
+  CHECK(q->prune != nullptr);
+  CHECK(q->filters.size() == 1);
+  CHECK(q->options != nullptr);
+}
+
+// The quantified array comparison, ternary and NOT run: own_operators.aql.
+void quantified_comparison() {
+  const std::string src = load_test("own_operators.aql");
+  cursiv::ParseResult r = build(src);
+  CHECK(static_cast<bool>(r) && r.diagnostics.empty());
+  ast::SimpleQuery* const q = as<ast::SimpleQuery>(r.value);
+  CHECK(q != nullptr && q->forOps.empty());
+  if (q == nullptr) return;
+  CHECK(q->with_.empty());
+}
+
+// `@@name` as a FOR source: own_bindparam_collection.aql.
+void bind_param_collection() {
+  const std::string src = load_test("own_bindparam_collection.aql");
+  cursiv::ParseResult r = build(src);
+  ast::SimpleQuery* const q = as<ast::SimpleQuery>(r.value);
+  CHECK(q != nullptr && q->forOps.size() == 1);
+  if (q == nullptr || q->forOps.empty()) return;
+  ast::CollectionRef* const src2 =
+      as<ast::CollectionRef>(q->forOps[0]->forIn->source);
+  CHECK(src2 != nullptr && src2->name == "@@bindcoll");
+}
+
+ast::Expr* returned(cursiv::ParseResult& r) {
+  ast::SimpleQuery* const q = as<ast::SimpleQuery>(r.value);
+  return (q != nullptr && q->return_ != nullptr) ? q->return_->value : nullptr;
+}
+
+// AQL's own operator table: range above relational, relational above
+// equality/IN/LIKE, AND above OR above assignment above the ternary
+// (loosest), and NOT/`!` a tight unary.
+void operator_precedence() {
+  {
+    cursiv::ParseResult r = build("RETURN 1 .. 5 < 10");
+    ast::BinaryExpr* const lt = as<ast::BinaryExpr>(returned(r));
+    CHECK(lt != nullptr && lt->op == ast::BinOp::lt);
+    ast::BinaryExpr* const range = lt != nullptr ? as<ast::BinaryExpr>(lt->left) : nullptr;
+    CHECK(range != nullptr && range->op == ast::BinOp::range);
+  }
+  {
+    cursiv::ParseResult r = build("RETURN a < b == c");
+    ast::BinaryExpr* const eq = as<ast::BinaryExpr>(returned(r));
+    CHECK(eq != nullptr && eq->op == ast::BinOp::eq);
+    ast::BinaryExpr* const lt = eq != nullptr ? as<ast::BinaryExpr>(eq->left) : nullptr;
+    CHECK(lt != nullptr && lt->op == ast::BinOp::lt);
+  }
+  {
+    cursiv::ParseResult r = build("RETURN a && b || c");
+    ast::BinaryExpr* const or_ = as<ast::BinaryExpr>(returned(r));
+    CHECK(or_ != nullptr && or_->op == ast::BinOp::or_);
+    ast::BinaryExpr* const and_ = or_ != nullptr ? as<ast::BinaryExpr>(or_->left) : nullptr;
+    CHECK(and_ != nullptr && and_->op == ast::BinOp::and_);
+  }
+  {
+    // The condition is the full AND/OR level; NOT/`!` outbinds it (tight
+    // unary), so this is `(a || b) ? (!c) : d`, not `a || (b ? !c : d)`.
+    cursiv::ParseResult r = build("RETURN a || b ? !c : d");
+    ast::TernaryExpr* const t = as<ast::TernaryExpr>(returned(r));
+    CHECK(t != nullptr);
+    if (t == nullptr) return;
+    ast::BinaryExpr* const cond = as<ast::BinaryExpr>(t->cond);
+    CHECK(cond != nullptr && cond->op == ast::BinOp::or_);
+    CHECK(as<ast::NotExpr>(t->then_) != nullptr);
+  }
+  {
+    // Assignment binds tighter than comma, looser than OR.
+    cursiv::ParseResult r = build("RETURN a, b = c || d");
+    ast::BinaryExpr* const comma = as<ast::BinaryExpr>(returned(r));
+    CHECK(comma != nullptr && comma->op == ast::BinOp::comma);
+    ast::BinaryExpr* const assign = comma != nullptr ? as<ast::BinaryExpr>(comma->right) : nullptr;
+    CHECK(assign != nullptr && assign->op == ast::BinOp::assign);
+    ast::BinaryExpr* const or_ = assign != nullptr ? as<ast::BinaryExpr>(assign->right) : nullptr;
+    CHECK(or_ != nullptr && or_->op == ast::BinOp::or_);
+  }
+  {
+    // `a ? b : c ? d : e` reads as `a ? b : (c ? d : e)`.
+    cursiv::ParseResult r = build("RETURN a ? b : c ? d : e");
+    ast::TernaryExpr* const outer = as<ast::TernaryExpr>(returned(r));
+    CHECK(outer != nullptr && as<ast::TernaryExpr>(outer->else_) != nullptr);
+  }
+  {
+    // NOT is a tight unary: `NOT a == b` is `(NOT a) == b`, and it still
+    // stacks (`!!true`, exercised by own_operators.aql).
+    cursiv::ParseResult r = build("RETURN NOT a == b");
+    ast::BinaryExpr* const eq = as<ast::BinaryExpr>(returned(r));
+    CHECK(eq != nullptr && eq->op == ast::BinOp::eq);
+    CHECK(eq != nullptr && as<ast::NotExpr>(eq->left) != nullptr);
+  }
+}
+
+}  // namespace
+
+int main() {
+  {
+    const std::string source = "FOR x IN xs SORT x FILTER x > 0 LIMIT 2 FILTER x < 9 RETURN F()";
+    auto result = build(source);
+    CHECK(!result.cst().recovered() && result.diagnostics.empty());
+    const auto *query = as<ast::SimpleQuery>(result.value);
+    CHECK(query && query->forOps.size() == 1);
+    if (query && query->forOps.size() == 1) {
+      const auto &ops = query->forOps[0]->operations;
+      CHECK(ops.size() == 4);
+      if (ops.size() == 4)
+        CHECK(std::holds_alternative<ast::Sort *>(ops[0]) &&
+              std::holds_alternative<ast::Filter *>(ops[1]) &&
+              std::holds_alternative<ast::Limit *>(ops[2]) &&
+              std::holds_alternative<ast::Filter *>(ops[3]));
+    }
+    const auto *call = as<ast::FuncCall>(returned(result));
+    CHECK(call && !call->args);
+  }
+  corpus();
+  collect_into_object();
+  window_clauses();
+  new_old_reference();
+  graph_traversal();
+  quantified_comparison();
+  bind_param_collection();
+  operator_precedence();
+  return cursiv::test::report("aql_grammar_test");
+}

@@ -1,0 +1,2135 @@
+[
+  {
+    "id": "original-BlockTagsExample",
+    "source": "/**\n * A description text.\n * \n * @see A first block tag\n * @see A second block tag\n *      with multiple lines\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "A description text.",
+            "children": [],
+            "value": "A description text."
+          }
+        ],
+        "tags": [
+          {
+            "kind": "SEE",
+            "text": "@see A first block tag",
+            "children": [
+              {
+                "kind": "REFERENCE",
+                "text": "A",
+                "children": []
+              },
+              {
+                "kind": "TEXT",
+                "text": "first block tag",
+                "children": [],
+                "value": "first block tag"
+              }
+            ],
+            "tag": "see"
+          },
+          {
+            "kind": "SEE",
+            "text": "@see A second block tag\n      with multiple lines",
+            "children": [
+              {
+                "kind": "REFERENCE",
+                "text": "A",
+                "children": []
+              },
+              {
+                "kind": "TEXT",
+                "text": "second block tag\n      with multiple lines",
+                "children": [],
+                "value": "second block tag\n      with multiple lines"
+              }
+            ],
+            "tag": "see"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "original-BlockTagsExample"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "original-SimpleExample",
+    "source": "/**\n * A description text.\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "A description text.",
+            "children": [],
+            "value": "A description text."
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "original-SimpleExample"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "original-Empty",
+    "source": "",
+    "native": {
+      "marked": false,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "original-Empty"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "original-InlineTags",
+    "source": "/**\n * Computes the checksum of {@code data} using {@link Hasher#digest(byte[])}.\n * A nested brace expression is legal: {@code int[] xs = {1, 2, 3};}.\n *\n * @param data the bytes to hash\n * @return the checksum, or {@code -1} if {@code data} is empty\n * @see Hasher\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "Computes the checksum of ",
+            "children": [],
+            "value": "Computes the checksum of "
+          },
+          {
+            "kind": "CODE",
+            "text": "{@code data}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "data",
+                "children": [],
+                "value": "data"
+              }
+            ],
+            "tag": "code"
+          },
+          {
+            "kind": "TEXT",
+            "text": " using ",
+            "children": [],
+            "value": " using "
+          },
+          {
+            "kind": "LINK",
+            "text": "{@link Hasher#digest(byte[])}",
+            "children": [
+              {
+                "kind": "REFERENCE",
+                "text": "Hasher#digest(byte[])",
+                "children": []
+              }
+            ],
+            "tag": "link"
+          },
+          {
+            "kind": "TEXT",
+            "text": ".\n A nested brace expression is legal: ",
+            "children": [],
+            "value": ".\n A nested brace expression is legal: "
+          },
+          {
+            "kind": "CODE",
+            "text": "{@code int[] xs = {1, 2, 3};}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "int[] xs = {1, 2, 3};",
+                "children": [],
+                "value": "int[] xs = {1, 2, 3};"
+              }
+            ],
+            "tag": "code"
+          },
+          {
+            "kind": "TEXT",
+            "text": ".",
+            "children": [],
+            "value": "."
+          }
+        ],
+        "tags": [
+          {
+            "kind": "PARAM",
+            "text": "@param data the bytes to hash",
+            "children": [
+              {
+                "kind": "IDENTIFIER",
+                "text": "data",
+                "children": []
+              },
+              {
+                "kind": "TEXT",
+                "text": "the bytes to hash",
+                "children": [],
+                "value": "the bytes to hash"
+              }
+            ],
+            "tag": "param"
+          },
+          {
+            "kind": "RETURN",
+            "text": "@return the checksum, or {@code -1} if {@code data} is empty",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "the checksum, or ",
+                "children": [],
+                "value": "the checksum, or "
+              },
+              {
+                "kind": "CODE",
+                "text": "{@code -1}",
+                "children": [
+                  {
+                    "kind": "TEXT",
+                    "text": "-1",
+                    "children": [],
+                    "value": "-1"
+                  }
+                ],
+                "tag": "code"
+              },
+              {
+                "kind": "TEXT",
+                "text": " if ",
+                "children": [],
+                "value": " if "
+              },
+              {
+                "kind": "CODE",
+                "text": "{@code data}",
+                "children": [
+                  {
+                    "kind": "TEXT",
+                    "text": "data",
+                    "children": [],
+                    "value": "data"
+                  }
+                ],
+                "tag": "code"
+              },
+              {
+                "kind": "TEXT",
+                "text": " is empty",
+                "children": [],
+                "value": " is empty"
+              }
+            ],
+            "tag": "return"
+          },
+          {
+            "kind": "SEE",
+            "text": "@see Hasher",
+            "children": [
+              {
+                "kind": "REFERENCE",
+                "text": "Hasher",
+                "children": []
+              }
+            ],
+            "tag": "see"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "original-InlineTags"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "original-NoMarkers",
+    "source": "A description with no surrounding /** */ markers, as a tool feeds the\ncontent after stripping them itself.\n\n@since 1.0",
+    "native": {
+      "marked": false,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "SINCE",
+            "text": "@since 1.0",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "1.0",
+                "children": [],
+                "value": "1.0"
+              }
+            ],
+            "tag": "since"
+          }
+        ],
+        "preamble": [
+          {
+            "kind": "TEXT",
+            "text": "A description with no surrounding /** */ markers, as a tool feeds the\ncontent after stripping them itself.",
+            "children": [],
+            "value": "A description with no surrounding /** */ markers, as a tool feeds the\ncontent after stripping them itself."
+          }
+        ],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "original-NoMarkers"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "empty-short",
+    "source": "/**/",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "/",
+            "children": [],
+            "value": "/"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "empty-short"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": true
+  },
+  {
+    "id": "empty-stars",
+    "source": "/***/",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "empty-stars"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "plain",
+    "source": "/** text */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "text",
+            "children": [],
+            "value": "text"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "plain"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "plain-at",
+    "source": "/** mail a@b.test */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "mail a@b.test",
+            "children": [],
+            "value": "mail a@b.test"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "plain-at"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "block-only",
+    "source": "/**\n * @since 1.0\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "SINCE",
+            "text": "@since 1.0",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "1.0",
+                "children": [],
+                "value": "1.0"
+              }
+            ],
+            "tag": "since"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "block-only"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "blocks",
+    "source": "/** desc\n * @author Alice\n * @since 2\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "desc",
+            "children": [],
+            "value": "desc"
+          }
+        ],
+        "tags": [
+          {
+            "kind": "AUTHOR",
+            "text": "@author Alice",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "Alice",
+                "children": [],
+                "value": "Alice"
+              }
+            ],
+            "tag": "author"
+          },
+          {
+            "kind": "SINCE",
+            "text": "@since 2",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "2",
+                "children": [],
+                "value": "2"
+              }
+            ],
+            "tag": "since"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "blocks"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "block-email",
+    "source": "/**\n * @author a@b.test\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "AUTHOR",
+            "text": "@author a@b.test",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "a@b.test",
+                "children": [],
+                "value": "a@b.test"
+              }
+            ],
+            "tag": "author"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "block-email"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "block-continuation",
+    "source": "/**\n * @custom alpha\n *  beta@x\n * @since 1\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "UNKNOWN_BLOCK_TAG",
+            "text": "@custom alpha\n  beta@x",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "alpha\n  beta@x",
+                "children": [],
+                "value": "alpha\n  beta@x"
+              }
+            ],
+            "tag": "custom"
+          },
+          {
+            "kind": "SINCE",
+            "text": "@since 1",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "1",
+                "children": [],
+                "value": "1"
+              }
+            ],
+            "tag": "since"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "block-continuation"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "block-indented",
+    "source": "/**\n *   @custom text\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "UNKNOWN_BLOCK_TAG",
+            "text": "@custom text",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "text",
+                "children": [],
+                "value": "text"
+              }
+            ],
+            "tag": "custom"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "block-indented"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "at-middle",
+    "source": "/** words @custom text */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "words @custom text",
+            "children": [],
+            "value": "words @custom text"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "at-middle"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "code-email",
+    "source": "/** {@code a@b.test} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "CODE",
+            "text": "{@code a@b.test}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "a@b.test",
+                "children": [],
+                "value": "a@b.test"
+              }
+            ],
+            "tag": "code"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "code-email"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "code-spaces",
+    "source": "/** {@code   x} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "CODE",
+            "text": "{@code  x}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "  x",
+                "children": [],
+                "value": "  x"
+              }
+            ],
+            "tag": "code"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "code-spaces"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "code-tab",
+    "source": "/** {@code\t\tx} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "CODE",
+            "text": "{@code\t\tx}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "\t\tx",
+                "children": [],
+                "value": "\t\tx"
+              }
+            ],
+            "tag": "code"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "code-tab"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "code-empty",
+    "source": "/** {@code} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "CODE",
+            "text": "{@code}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "",
+                "children": [],
+                "value": ""
+              }
+            ],
+            "tag": "code"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "code-empty"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "code-braces",
+    "source": "/** {@code {a:{b}}} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "CODE",
+            "text": "{@code {a:{b}}}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "{a:{b}}",
+                "children": [],
+                "value": "{a:{b}}"
+              }
+            ],
+            "tag": "code"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "code-braces"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "literal-inline-open",
+    "source": "/** {@literal {@code x}} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "LITERAL",
+            "text": "{@literal {@code x}}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "{@code x}",
+                "children": [],
+                "value": "{@code x}"
+              }
+            ],
+            "tag": "literal"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "literal-inline-open"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "unknown-inline",
+    "source": "/** {@custom a@b {c}} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "UNKNOWN_INLINE_TAG",
+            "text": "{@custom a@b {c}}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "a@b {c}",
+                "children": [],
+                "value": "a@b {c}"
+              }
+            ],
+            "tag": "custom"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "unknown-inline"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "unknown-name",
+    "source": "/** {@custom-tag2 a} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "UNKNOWN_INLINE_TAG",
+            "text": "{@custom-tag2 a}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "a",
+                "children": [],
+                "value": "a"
+              }
+            ],
+            "tag": "custom-tag2"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "unknown-name"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "block-name",
+    "source": "/**\n * @custom-tag2 a\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "UNKNOWN_BLOCK_TAG",
+            "text": "@custom-tag2 a",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "a",
+                "children": [],
+                "value": "a"
+              }
+            ],
+            "tag": "custom-tag2"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "block-name"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "block-qualified",
+    "source": "/**\n * @custom.tag:2 a\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "UNKNOWN_BLOCK_TAG",
+            "text": "@custom.tag:2 a",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "a",
+                "children": [],
+                "value": "a"
+              }
+            ],
+            "tag": "custom.tag:2"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "block-qualified"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "unicode-name",
+    "source": "/**\n * @标签2 文本\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "UNKNOWN_BLOCK_TAG",
+            "text": "@\\u6807\\u7b7e2 \\u6587\\u672c",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "\\u6587\\u672c",
+                "children": [],
+                "value": "文本"
+              }
+            ],
+            "tag": "标签2"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "unicode-name"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "underscore-name",
+    "source": "/**\n * @_custom text\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "ERRONEOUS",
+            "text": "@_custom text",
+            "children": [],
+            "value": "@_custom text",
+            "error": "compiler.err.dc.no.tag.name"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": false,
+      "id": "underscore-name"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": false
+  },
+  {
+    "id": "link-label",
+    "source": "/** {@link A label} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "LINK",
+            "text": "{@link A label}",
+            "children": [
+              {
+                "kind": "REFERENCE",
+                "text": "A",
+                "children": []
+              },
+              {
+                "kind": "TEXT",
+                "text": "label",
+                "children": [],
+                "value": "label"
+              }
+            ],
+            "tag": "link"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "link-label"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "summary-nested",
+    "source": "/** {@summary One {@code two}} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "SUMMARY",
+            "text": "{@summary One {@code two}}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "One ",
+                "children": [],
+                "value": "One "
+              },
+              {
+                "kind": "CODE",
+                "text": "{@code two}",
+                "children": [
+                  {
+                    "kind": "TEXT",
+                    "text": "two",
+                    "children": [],
+                    "value": "two"
+                  }
+                ],
+                "tag": "code"
+              }
+            ],
+            "tag": "summary"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "summary-nested"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "html-entity",
+    "source": "/** <p title=\"x\">a &amp; b</p> */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "START_ELEMENT",
+            "text": "<p title=\"x\">",
+            "children": [
+              {
+                "kind": "ATTRIBUTE",
+                "text": "title=\"x\"",
+                "children": [
+                  {
+                    "kind": "TEXT",
+                    "text": "x",
+                    "children": [],
+                    "value": "x"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "TEXT",
+            "text": "a ",
+            "children": [],
+            "value": "a "
+          },
+          {
+            "kind": "ENTITY",
+            "text": "&amp;",
+            "children": []
+          },
+          {
+            "kind": "TEXT",
+            "text": " b",
+            "children": [],
+            "value": " b"
+          },
+          {
+            "kind": "END_ELEMENT",
+            "text": "</p>",
+            "children": []
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "html-entity"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "crlf",
+    "source": "/**\r\n * alpha\r\n * @since 1\r\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "alpha",
+            "children": [],
+            "value": "alpha"
+          }
+        ],
+        "tags": [
+          {
+            "kind": "SINCE",
+            "text": "@since 1",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "1",
+                "children": [],
+                "value": "1"
+              }
+            ],
+            "tag": "since"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "crlf"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "bare-body",
+    "source": "alpha\n@since 1",
+    "native": {
+      "marked": false,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "SINCE",
+            "text": "@since 1",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "1",
+                "children": [],
+                "value": "1"
+              }
+            ],
+            "tag": "since"
+          }
+        ],
+        "preamble": [
+          {
+            "kind": "TEXT",
+            "text": "alpha",
+            "children": [],
+            "value": "alpha"
+          }
+        ],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "bare-body"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "bare-email",
+    "source": "a@b\n@custom x@y",
+    "native": {
+      "marked": false,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "UNKNOWN_BLOCK_TAG",
+            "text": "@custom x@y",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "x@y",
+                "children": [],
+                "value": "x@y"
+              }
+            ],
+            "tag": "custom"
+          }
+        ],
+        "preamble": [
+          {
+            "kind": "TEXT",
+            "text": "a@b",
+            "children": [],
+            "value": "a@b"
+          }
+        ],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "bare-email"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "bare-markers",
+    "source": "a /** */ z\n@since 1",
+    "native": {
+      "marked": false,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "SINCE",
+            "text": "@since 1",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "1",
+                "children": [],
+                "value": "1"
+              }
+            ],
+            "tag": "since"
+          }
+        ],
+        "preamble": [
+          {
+            "kind": "TEXT",
+            "text": "a /** */ z",
+            "children": [],
+            "value": "a /** */ z"
+          }
+        ],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "bare-markers"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "blank-prefix",
+    "source": "\n \t/**\n * alpha\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "alpha",
+            "children": [],
+            "value": "alpha"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "blank-prefix"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "long-close",
+    "source": "/** abc\n                              *********************/",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "abc",
+            "children": [],
+            "value": "abc"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "long-close"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "inline-multiline",
+    "source": "/**\n * {@code a\n *  b}\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "CODE",
+            "text": "{@code a\n  b}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "a\n  b",
+                "children": [],
+                "value": "a\n  b"
+              }
+            ],
+            "tag": "code"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "inline-multiline"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "inline-block-looking",
+    "source": "/** {@code a\n * @custom b} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "CODE",
+            "text": "{@code a\n @custom b}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "a\n @custom b",
+                "children": [],
+                "value": "a\n @custom b"
+              }
+            ],
+            "tag": "code"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "inline-block-looking"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "link-empty",
+    "source": "/** {@link} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "LINK",
+            "text": "{@link /*missing*/}",
+            "children": [],
+            "tag": "link"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "link-empty"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "docroot-content",
+    "source": "/** {@docRoot x} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "ERRONEOUS",
+            "text": "{@docRoot x}",
+            "children": [],
+            "value": "{@docRoot x}",
+            "error": "compiler.err.dc.unexpected.content"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": false,
+      "id": "docroot-content"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": false
+  },
+  {
+    "id": "inheritdoc-content",
+    "source": "/** {@inheritDoc x} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "ERRONEOUS",
+            "text": "{@inheritDoc x}",
+            "children": [],
+            "value": "{@inheritDoc x}",
+            "error": "compiler.err.dc.unexpected.content"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": false,
+      "id": "inheritdoc-content"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": false
+  },
+  {
+    "id": "docroot-empty",
+    "source": "/** {@docRoot} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "DOC_ROOT",
+            "text": "{@docRoot}",
+            "children": [],
+            "tag": "docRoot"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "docroot-empty"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "systemproperty-empty",
+    "source": "/** {@systemProperty} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "ERRONEOUS",
+            "text": "{@systemProperty",
+            "children": [],
+            "value": "{@systemProperty",
+            "error": "compiler.err.dc.no.content"
+          },
+          {
+            "kind": "TEXT",
+            "text": "}",
+            "children": [],
+            "value": "}"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": false,
+      "id": "systemproperty-empty"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": false
+  },
+  {
+    "id": "index-empty",
+    "source": "/** {@index} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "ERRONEOUS",
+            "text": "{@index",
+            "children": [],
+            "value": "{@index",
+            "error": "compiler.err.dc.no.content"
+          },
+          {
+            "kind": "TEXT",
+            "text": "}",
+            "children": [],
+            "value": "}"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": false,
+      "id": "index-empty"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": false
+  },
+  {
+    "id": "return-inline",
+    "source": "/** {@return a} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "RETURN",
+            "text": "{@return a}",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "a",
+                "children": [],
+                "value": "a"
+              }
+            ],
+            "tag": "return"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "return-inline"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "param-generic",
+    "source": "/**\n * @param <T> type\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "PARAM",
+            "text": "@param <T> type",
+            "children": [
+              {
+                "kind": "IDENTIFIER",
+                "text": "T",
+                "children": []
+              },
+              {
+                "kind": "TEXT",
+                "text": "type",
+                "children": [],
+                "value": "type"
+              }
+            ],
+            "tag": "param"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "param-generic"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "unknown-inline-empty",
+    "source": "/** {@custom} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "UNKNOWN_INLINE_TAG",
+            "text": "{@custom }",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "",
+                "children": [],
+                "value": ""
+              }
+            ],
+            "tag": "custom"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "unknown-inline-empty"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "stars-text",
+    "source": "/** a***b / c ** d */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "a***b / c ** d",
+            "children": [],
+            "value": "a***b / c ** d"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "stars-text"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "bare-leading-space",
+    "source": "   abc\n  @since 1\n",
+    "native": {
+      "marked": false,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "SINCE",
+            "text": "@since 1",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "1",
+                "children": [],
+                "value": "1"
+              }
+            ],
+            "tag": "since"
+          }
+        ],
+        "preamble": [
+          {
+            "kind": "TEXT",
+            "text": "abc",
+            "children": [],
+            "value": "abc"
+          }
+        ],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "bare-leading-space"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "bare-star-lines",
+    "source": "a\n * plain text\n@custom x",
+    "native": {
+      "marked": false,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "UNKNOWN_BLOCK_TAG",
+            "text": "@custom x",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "x",
+                "children": [],
+                "value": "x"
+              }
+            ],
+            "tag": "custom"
+          }
+        ],
+        "preamble": [
+          {
+            "kind": "TEXT",
+            "text": "a\n * plain text",
+            "children": [],
+            "value": "a\n * plain text"
+          }
+        ],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "bare-star-lines"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "escaped-block-at",
+    "source": "/**\n * @@since literal\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "ESCAPE",
+            "text": "@@",
+            "children": [],
+            "value": "@"
+          },
+          {
+            "kind": "TEXT",
+            "text": "since literal",
+            "children": [],
+            "value": "since literal"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "escaped-block-at"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "escaped-open",
+    "source": "/** {@@tag} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "TEXT",
+            "text": "{",
+            "children": [],
+            "value": "{"
+          },
+          {
+            "kind": "ESCAPE",
+            "text": "@@",
+            "children": [],
+            "value": "@"
+          },
+          {
+            "kind": "TEXT",
+            "text": "tag}",
+            "children": [],
+            "value": "tag}"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "escaped-open"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "escaped-close",
+    "source": "/** *@/ text */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "ERRONEOUS",
+            "text": "@/ text",
+            "children": [],
+            "value": "@/ text",
+            "error": "compiler.err.dc.no.tag.name"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": false,
+      "id": "escaped-close"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": false
+  },
+  {
+    "id": "empty-docroot-multiline",
+    "source": "/** {@docRoot\n * } */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "DOC_ROOT",
+            "text": "{@docRoot}",
+            "children": [],
+            "tag": "docRoot"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "empty-docroot-multiline"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "block-inline-name",
+    "source": "/**\n * @code value\n */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "ERRONEOUS",
+            "text": "@code",
+            "children": [],
+            "value": "@code",
+            "error": "compiler.err.dc.bad.inline.tag"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": false,
+      "id": "block-inline-name"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": false
+  },
+  {
+    "id": "inline-underscore",
+    "source": "/** {@_tag x} */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "ERRONEOUS",
+            "text": "{@",
+            "children": [],
+            "value": "{@",
+            "error": "compiler.err.dc.no.tag.name"
+          },
+          {
+            "kind": "TEXT",
+            "text": "_tag x}",
+            "children": [],
+            "value": "_tag x}"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": false,
+      "id": "inline-underscore"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": false
+  },
+  {
+    "id": "empty-bare",
+    "source": "",
+    "native": {
+      "marked": false,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "empty-bare"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "only-whitespace",
+    "source": " \t\n\n",
+    "native": {
+      "marked": false,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "only-whitespace"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": true,
+    "limit": false
+  },
+  {
+    "id": "unclosed-inline",
+    "source": "/** {@code x */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [
+          {
+            "kind": "ERRONEOUS",
+            "text": "{@code x",
+            "children": [],
+            "value": "{@code x",
+            "error": "compiler.err.dc.unterminated.inline.tag"
+          }
+        ],
+        "tags": [],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": false,
+      "id": "unclosed-inline"
+    },
+    "parser_clean": false,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": false
+  },
+  {
+    "id": "unclosed-comment",
+    "source": "/** alpha",
+    "native": {
+      "marked": true,
+      "diagnostics": [
+        {
+          "code": "compiler.err.unclosed.comment",
+          "message": "unclosed comment",
+          "kind": "ERROR"
+        },
+        {
+          "code": "compiler.err.premature.eof",
+          "message": "reached end of file while parsing",
+          "kind": "ERROR"
+        }
+      ],
+      "accepted": false,
+      "tree": null,
+      "id": "unclosed-comment"
+    },
+    "parser_clean": false,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": false
+  },
+  {
+    "id": "unicode-escape-tag",
+    "source": "/**\\u000a * \\u0040since 1 */",
+    "native": {
+      "marked": true,
+      "diagnostics": [],
+      "tree": {
+        "body": [],
+        "tags": [
+          {
+            "kind": "SINCE",
+            "text": "@since 1",
+            "children": [
+              {
+                "kind": "TEXT",
+                "text": "1",
+                "children": [],
+                "value": "1"
+              }
+            ],
+            "tag": "since"
+          }
+        ],
+        "preamble": [],
+        "postamble": []
+      },
+      "accepted": true,
+      "id": "unicode-escape-tag"
+    },
+    "parser_clean": true,
+    "native_roundtrip_and_outer_tag_topology_equal": false,
+    "limit": true
+  }
+]

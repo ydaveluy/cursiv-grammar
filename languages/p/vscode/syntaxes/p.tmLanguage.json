@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "P",
+  "scopeName": "source.p",
+  "patterns": [
+    {
+      "include": "#atoms"
+    },
+    {
+      "include": "#brackets"
+    }
+  ],
+  "repository": {
+    "atoms": {
+      "name": "constant.language.p",
+      "match": "R|λ"
+    },
+    "brackets": {
+      "name": "punctuation.section.group.p",
+      "match": "[()]"
+    }
+  }
+}

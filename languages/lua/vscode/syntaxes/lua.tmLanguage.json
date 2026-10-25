@@ -1,0 +1,71 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lua",
+  "scopeName": "source.lua",
+  "fileTypes": ["lua"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#constants" },
+    { "include": "#operators" },
+    { "include": "#functions" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.lua",
+          "begin": "--\\[(=*)\\[",
+          "end": "\\]\\1\\]"
+        },
+        {
+          "name": "comment.line.double-dash.lua",
+          "match": "--.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.lua",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.lua", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.lua",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.lua", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.other.multiline.lua",
+          "begin": "\\[(=*)\\[",
+          "end": "\\]\\1\\]"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.lua",
+      "match": "\\b(0[xX][0-9a-fA-F]+(\\.[0-9a-fA-F]*)?([pP][+-]?[0-9]+)?|[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?|\\.[0-9]+([eE][+-]?[0-9]+)?)\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.lua",
+      "match": "\\b(break|do|else|elseif|end|for|goto|if|in|repeat|return|then|until|while|and|or|not|function|local)\\b"
+    },
+    "constants": {
+      "name": "constant.language.lua",
+      "match": "\\b(nil|true|false)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.lua",
+      "match": "\\.\\.\\.|\\.\\.|==|~=|<=|>=|//|<<|>>|::|[+\\-*/%^#&~|<>=(){}\\[\\];:,.]"
+    },
+    "functions": {
+      "name": "entity.name.function.lua",
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*[({\"'])"
+    }
+  }
+}

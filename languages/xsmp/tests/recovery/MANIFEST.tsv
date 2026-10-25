@@ -1,0 +1,15 @@
+file	family	breaks	intent
+valid.xsmpcat	valid		the base document
+01_typo1.xsmpcat	typo1	157	'namespace' written 'namspace' -- one deletion
+02_typo2.xsmpcat	typo2	530	'struct' written 'sturct' -- one transposition, distance 2
+03_closer_block.xsmpcat	closer_block	457	the '}' closing enum Mode is missing, mid file
+04_closer_eof.xsmpcat	closer_eof	895	the '}' closing the namespace is missing at EOF
+05_intruder.xsmpcat	intruder	433	one '=' too many in an enum literal
+06_truncated.xsmpcat	truncated	780	the file stops in the middle of a property
+07_two_faults.xsmpcat	two_faults	239	'primitive' typo near the top AND the last '}' gone
+08_head_fault.xsmpcat	head_fault	141	the 'catalogue' keyword at byte 0 is misspelt
+09_list_delim.xsmpcat	list_delim	436	the ',' between two enum literals is missing
+10_noise.xsmpcat	noise	347	a cluster of garbage bytes between two members
+11_head_typo.xsmpcat	head_typo	313	'public' written 'ublic' -- the FIRST character is gone
+12_close_typos.xsmpcat	close_typos	141	'catalogue' AND 'namespace' misspelt, ONE token apart -- the second is not a cascade of the first
+13_typo_shared_prefix.xsmpcat	typo_shared_prefix	239	'primitive' written 'priitive' -- the fault falls where 'private' still shares the prefix, in a state that shifts nothing

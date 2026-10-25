@@ -1,0 +1,15 @@
+INSERT INTO Cities (Name, Population, Region) VALUES ('San Francisco', 883305, 'west');
+
+UPDATE Cities SET Population = 883305, Region = 'west' WHERE Name = 'San Francisco';
+
+DELETE FROM Cities WHERE Name = 'Obsolete City';
+
+DELETE FROM Cities WHERE Population = 100;
+
+DELETE FROM TempTable;
+
+-- doubled single-quote escaping
+INSERT INTO Cities (Name) VALUES ('O''Fallon');
+
+-- dashed bareword identifiers, and signed/decimal numeric literals
+INSERT INTO my-table (col-a, col-b) VALUES (-3.5, +42.0);

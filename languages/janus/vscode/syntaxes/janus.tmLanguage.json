@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Janus",
+  "scopeName": "source.janus",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.janus",
+      "match": ";.*$"
+    },
+    "keywords": {
+      "name": "keyword.control.janus",
+      "match": "\\b(PROCEDURE|IF|THEN|ELSE|FI|FROM|DO|LOOP|UNTIL|CALL|UNCALL|READ|WRITE)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.janus",
+      "match": "[0-9]"
+    }
+  }
+}

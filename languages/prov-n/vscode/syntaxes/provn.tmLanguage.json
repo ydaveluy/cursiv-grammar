@@ -1,0 +1,80 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "ProvN",
+  "scopeName": "source.provn",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#iriref"
+    },
+    {
+      "include": "#datetime"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.provn",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.provn",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.provn",
+      "match": "\\b(document|endDocument|bundle|endBundle|default|prefix|entity|activity|wasGeneratedBy|used|wasStartedBy|wasEndedBy|wasInvalidatedBy|wasInformedBy|agent|wasAssociatedWith|wasAttributedTo|actedOnBehalfOf|wasDerivedFrom|wasInfluencedBy|alternateOf|specializationOf|hadMember)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.provn",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.double.provn",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.provn",
+              "match": "\\\\[btnfr\"'\\\\]"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.provn",
+          "match": "'[^']*'"
+        }
+      ]
+    },
+    "iriref": {
+      "name": "string.other.link.provn",
+      "match": "<[^<>\"{}|^`\\\\\\x00-\\x20]*>"
+    },
+    "datetime": {
+      "name": "constant.numeric.datetime.provn",
+      "match": "-?[0-9]{4,}-[0-9]{2}-[0-9]{2}T[0-9:.]+(Z|[+-][0-9:]+)?"
+    },
+    "numbers": {
+      "name": "constant.numeric.provn",
+      "match": "-?\\b[0-9]+\\b"
+    }
+  }
+}

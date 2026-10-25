@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Abb",
+  "scopeName": "source.abb",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.exclamation.abb",
+      "match": "!.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.abb",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.abb",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.abb",
+      "match": "(?i)\\b(MODULE|ENDMODULE|PROC|ENDPROC|LOCAL|CONST|PERS|VAR)\\b"
+    },
+    "types": {
+      "name": "storage.type.abb",
+      "match": "(?i)\\b(TOOLDATA|WOBJDATA|SPEEDDATA|ZONEDATA|CLOCK|BOOL)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.abb",
+      "match": "(?i)\\b([0-9]+|'H[0-9A-F]+'|'B[01]+')\\b"
+    }
+  }
+}

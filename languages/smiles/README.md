@@ -1,0 +1,61 @@
+# smiles
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/smiles/core/SmilesGrammar.hpp` |
+| The AST | `src/smiles/core/ast.hpp` |
+| Validation checks | `src/smiles/core/validation/` |
+| Services of your own | `src/smiles/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/smiles/cli/main.cpp` |
+| LSP features | `src/smiles/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+```
+CN1CCC[C@H]1c2cccnc2
+```
+
+Nicotine, written in SMILES: a ring of five aliphatic atoms holding a
+stereocentre (`[C@H]`), bonded to a pyridine ring of aromatic atoms. Each
+atom is one letter, or a bracket carrying an isotope, chirality, hydrogen
+count, charge or atom class; ring-closure digits and `(...)` branches attach
+directly to the atom or bracket they follow, with no separator at all.
+
+## The command line
+
+```bash
+./build/src/smiles_cli example/methane.smi
+./build/src/smiles_cli --dump example/methane.smi   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`smiles_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

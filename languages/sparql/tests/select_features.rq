@@ -1,0 +1,28 @@
+BASE <http://example.org/base/>
+PREFIX ex: <http://example.org/ns#>
+PREFIX : <http://example.org/default#>
+
+SELECT DISTINCT ?x $y WHERE {
+	?x ex:knows $y ;
+	   ex:age ?age .
+	OPTIONAL { ?x ex:nick ?nick }
+	{ ?x ex:type ex:A } UNION { ?x ex:type ex:B }
+	GRAPH ?g { ?x ex:seen "yes" }
+	?x :blank [ ex:p 1 ; ex:q (1 2 3) ] .
+	?x ex:empty () .
+	?x ex:anon [] .
+	?x ex:label "Alice"@en .
+	?x ex:score "42.5"^^ex:decimal .
+	?x ex:flag true .
+	?x ex:bio """multi
+line 'quote' and a \\ backslash""" .
+	?x ex:path "C:\\temp" .
+	FILTER ( ?age > 18 && ( ?age < 999 || bound(?nick) ) )
+	FILTER ( isIRI(?x) && !isBLANK(?x) && isLITERAL(?nick) )
+	FILTER ( sameTerm(?x, ?x) && langMatches(lang(?nick), "en") )
+	FILTER ( datatype(?age) = ex:decimal || 1+2-1 = 2 )
+	FILTER regex(str(?nick), "^A", "i")
+}
+ORDER BY DESC(?age) ?x
+LIMIT 10
+OFFSET 2

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lisp",
+  "scopeName": "source.lisp",
+  "patterns": [
+    {
+      "include": "#parens"
+    },
+    {
+      "include": "#dot"
+    },
+    {
+      "include": "#symbol"
+    }
+  ],
+  "repository": {
+    "parens": {
+      "name": "punctuation.section.parens.lisp",
+      "match": "[()]"
+    },
+    "dot": {
+      "name": "keyword.operator.dot.lisp",
+      "match": "\\."
+    },
+    "symbol": {
+      "name": "constant.other.symbol.lisp",
+      "match": "\\b[a-z][a-z1-9]*\\b"
+    }
+  }
+}

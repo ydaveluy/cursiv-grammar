@@ -1,0 +1,74 @@
+{
+  "name": "json",
+  "scopeName": "source.json",
+  "fileTypes": ["json"],
+  "patterns": [{ "include": "#value" }],
+  "repository": {
+    "value": {
+      "patterns": [
+        { "include": "#constant" },
+        { "include": "#string" },
+        { "include": "#number" },
+        { "include": "#object" },
+        { "include": "#array" }
+      ]
+    },
+    "constant": {
+      "name": "constant.language.json",
+      "match": "\\b(true|false|null)\\b"
+    },
+    "number": {
+      "name": "constant.numeric.json",
+      "match": "-?(0|[1-9]\\d*)(\\.\\d+)?([eE][+-]?\\d+)?"
+    },
+    "string": {
+      "name": "string.quoted.double.json",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [{ "include": "#escape" }]
+    },
+    "objectkey": {
+      "name": "string.quoted.double.json support.type.property-name.json",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [{ "include": "#escape" }]
+    },
+    "escape": {
+      "name": "constant.character.escape.json",
+      "match": "\\\\([\"\\\\/bfnrt]|u[0-9a-fA-F]{4})"
+    },
+    "object": {
+      "name": "meta.structure.dictionary.json",
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.dictionary.begin.json" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.dictionary.end.json" }
+      },
+      "patterns": [
+        { "include": "#objectkey" },
+        { "include": "#value" },
+        {
+          "match": ":",
+          "name": "punctuation.separator.dictionary.key-value.json"
+        },
+        { "match": ",", "name": "punctuation.separator.dictionary.pair.json" }
+      ]
+    },
+    "array": {
+      "name": "meta.structure.array.json",
+      "begin": "\\[",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.array.begin.json" }
+      },
+      "end": "\\]",
+      "endCaptures": { "0": { "name": "punctuation.definition.array.end.json" } },
+      "patterns": [
+        { "include": "#value" },
+        { "match": ",", "name": "punctuation.separator.array.json" }
+      ]
+    }
+  }
+}

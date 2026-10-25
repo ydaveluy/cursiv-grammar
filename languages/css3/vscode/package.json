@@ -1,0 +1,75 @@
+{
+  "name": "css3",
+  "displayName": "Css3",
+  "description": "The css3 language, parsed by cursiv",
+  "version": "0.1.0",
+  "publisher": "example",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.86.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:css3"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "css3",
+        "aliases": [
+          "Css3"
+        ],
+        "extensions": [
+          ".css"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "css3",
+        "scopeName": "source.css3",
+        "path": "./syntaxes/css3.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Css3",
+      "properties": {
+        "css3.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the css3_lsp executable. Empty means the packaged copy, then ../build/."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "bundle": "node esbuild.mjs --production",
+    "typecheck": "tsc -p tsconfig.json",
+    "vscode:prepublish": "npm run bundle",
+    "package": "vsce package --no-dependencies --allow-missing-repository"
+  },
+  "files": [
+    "package.json",
+    "out",
+    "bin",
+    "language-configuration.json",
+    "syntaxes"
+  ],
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "@types/vscode": "^1.86.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2",
+    "@vscode/vsce": "^3.2.0"
+  }
+}

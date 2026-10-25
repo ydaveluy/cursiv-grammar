@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Sapf",
+  "scopeName": "source.sapf",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keys" },
+    { "include": "#brackets" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.sapf",
+      "match": ";.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.sapf",
+      "begin": "\"",
+      "end": "\""
+    },
+    "numbers": {
+      "name": "constant.numeric.sapf",
+      "match": "-?(\\d+\\.\\d+|\\d+\\.|\\.\\d+|\\d+)([e/]-?(\\d+\\.\\d+|\\d+\\.|\\.\\d+|\\d+))?(pi|M|k|h|c|m|u)?\\b"
+    },
+    "keys": {
+      "name": "variable.parameter.sapf",
+      "match": ":[a-zA-Z_]+"
+    },
+    "brackets": {
+      "name": "punctuation.section.sapf",
+      "match": "[\\(\\)\\[\\]\\{\\}]"
+    },
+    "operators": {
+      "name": "keyword.operator.sapf",
+      "match": "[+*/=]|(?<![0-9.])-"
+    }
+  }
+}

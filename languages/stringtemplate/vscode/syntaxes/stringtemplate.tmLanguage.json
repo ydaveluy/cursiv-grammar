@@ -1,0 +1,89 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Stringtemplate",
+  "scopeName": "source.stringtemplate",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#expression"
+    },
+    {
+      "include": "#text"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.template.stringtemplate",
+          "begin": "<!",
+          "end": "!>"
+        },
+        {
+          "name": "comment.line.double-slash.stringtemplate",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.stringtemplate",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "expression": {
+      "begin": "<",
+      "end": ">",
+      "name": "meta.expression.stringtemplate",
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "name": "keyword.control.stringtemplate",
+          "match": "\\b(if|elseif|else|endif|super)\\b"
+        },
+        {
+          "name": "constant.language.stringtemplate",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "string.quoted.double.stringtemplate",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.stringtemplate",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "variable.parameter.stringtemplate",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\|)"
+        },
+        {
+          "name": "entity.name.function.stringtemplate",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\()"
+        },
+        {
+          "name": "variable.other.stringtemplate",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+        },
+        {
+          "name": "keyword.operator.stringtemplate",
+          "match": "&&|\\|\\||!|:|;|,|\\.|="
+        }
+      ]
+    },
+    "text": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.stringtemplate",
+          "match": "<\\\\[^>]*>"
+        }
+      ]
+    }
+  }
+}

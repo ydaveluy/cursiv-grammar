@@ -1,0 +1,50 @@
+DEFINE greeting = "Hi"
+
+TYPE
+   Point = CARD x, y
+
+BYTE POINTER bp = 100
+CARD ARRAY nums(10) = 1 2 3
+BYTE ARRAY label = "hi"
+Point rec1, rec2 = $3000
+
+PROC Demo(CARD n BYTE flag)
+   BYTE i
+   IF n > 0 AND flag <> 0 THEN
+      i = 1
+   ELSEIF n = 0 OR flag = 1 THEN
+      i = 2
+   ELSE
+      i = 3
+   FI
+   DO
+      i ==+ 1
+   UNTIL i >= 5
+   OD
+   DO
+      i ==- 1
+   OD
+   FOR i = 1 TO 10 STEP 2
+      DO
+         rec1.x = i
+      OD
+   IF i # 0 THEN
+      EXIT
+   FI
+   IF n XOR flag THEN
+      bp^ = 5
+   FI
+   IF n # 0 % flag = 1 THEN
+      nums(0) = @bp
+   FI
+   IF n <> 0 & flag = 1 THEN
+      i = 5
+   FI
+   i = 2 + 3 * 4
+   i = n - -flag
+   i = n ! flag
+   [1 2 3]
+RETURN
+
+INT FUNC Square(INT n)
+RETURN (n * n)

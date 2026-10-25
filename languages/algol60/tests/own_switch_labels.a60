@@ -1,0 +1,22 @@
+comment own arrays and variables, a switch declaration, numeric labels,
+  and go to spelled across a line break -- none of the upstream corpus
+  documents use these;
+begin
+  own real total;
+  integer x;
+  switch dispatch := 1, 2, 3;
+  x := 1;
+  total := 0;
+  go
+    to skip;
+10:
+  total := total + x;
+skip:
+  goto dispatch[x];
+1:
+  x := 1;
+2:
+  x := 2;
+3:
+  x := 3
+end

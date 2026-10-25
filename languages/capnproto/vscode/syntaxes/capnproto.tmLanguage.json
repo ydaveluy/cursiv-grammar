@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Capnproto",
+  "scopeName": "source.capnproto",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#annotations" },
+    { "include": "#locators" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.capnproto",
+      "match": "#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.capnproto",
+      "begin": "\"",
+      "end": "\""
+    },
+    "numbers": {
+      "name": "constant.numeric.capnproto",
+      "match": "-?\\b0x[0-9a-fA-F]+\\b|-?\\b[0-9]+(\\.[0-9]+)?([eE]-?[0-9]+)?\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.capnproto",
+          "match": "\\b(struct|interface|enum|annotation|const|union|group|using|import|extends)\\b"
+        },
+        {
+          "name": "constant.language.capnproto",
+          "match": "\\b(true|false|void)\\b"
+        }
+      ]
+    },
+    "annotations": {
+      "name": "entity.name.tag.capnproto",
+      "match": "\\$[A-Za-z][A-Za-z0-9.]*"
+    },
+    "locators": {
+      "name": "constant.numeric.locator.capnproto",
+      "match": "@!?[0-9x][0-9a-fA-F]*!?"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Yini",
+  "scopeName": "source.yini",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#section-headers" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.yini", "match": "//.*$" },
+        { "name": "comment.line.number-sign.yini", "match": "#[ \\t].*$" },
+        { "name": "comment.line.double-dash.yini", "match": "--.*$" },
+        { "name": "comment.line.semicolon.yini", "match": ";.*$" },
+        {
+          "name": "comment.block.yini",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "section-headers": {
+      "name": "entity.name.section.yini",
+      "match": "^[ \\t]*([\\^<]+|\\u00a7+|\\u20ac+|[\\^<\\u00a7\\u20ac][1-9][0-9]*)[ \\t]*(`[^`]*`|[a-zA-Z_][a-zA-Z0-9_.]*)"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.yini",
+          "match": "(?i)\\b(true|on|yes|false|off|no)\\b"
+        },
+        { "name": "constant.language.null.yini", "match": "(?i)\\bnull\\b" },
+        {
+          "name": "keyword.other.marker.yini",
+          "match": "(?i)@yini|/END"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.yini",
+          "begin": "[RrCc]?\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.double.yini",
+          "begin": "[RrCcHh]?\"",
+          "end": "\"",
+          "patterns": [{ "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.yini",
+          "begin": "[RrCcHh]?'",
+          "end": "'",
+          "patterns": [{ "match": "\\\\." }]
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.yini",
+      "match": "[+-]?(0[xXoObBzZ][0-9a-zA-Z]+|#[0-9a-fA-F]+|%[01]+|[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?|\\.[0-9]+([eE][+-]?[0-9]+)?)"
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "keyword.operator.assignment.yini", "match": "=" },
+        { "name": "punctuation.separator.colon.yini", "match": ":" },
+        { "name": "punctuation.separator.comma.yini", "match": "," },
+        { "name": "keyword.operator.concat.yini", "match": "\\+" }
+      ]
+    }
+  }
+}

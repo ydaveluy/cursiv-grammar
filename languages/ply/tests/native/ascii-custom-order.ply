@@ -1,0 +1,13 @@
+ply
+format ascii 1.0
+element measure 2
+property float64 quality
+property list uint16 int16 samples
+property uint32 flags
+element 5meta 1
+property uchar .key
+property int x-y
+end_header
+1.25 3 1 -2 3 4294967295
+2.5 0 1
+255 -2147483648

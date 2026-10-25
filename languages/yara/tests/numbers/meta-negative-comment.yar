@@ -1,0 +1,1 @@
+rule r { meta: value = - /*sign*/ 17 condition: true }

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Ocl",
+  "scopeName": "source.ocl",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.ocl",
+          "match": "--.*$"
+        },
+        {
+          "name": "comment.block.ocl",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.ocl",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.ocl",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.ocl",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.ocl",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.ocl",
+      "match": "\\b(context|inv|derive|init|let|in|if|then|else|endif|not|and|or|xor|implies|mod|div|iterate|collect|select|reject|forAll|exists|one|closure|sortedBy|isUnique)\\b"
+    },
+    "types": {
+      "name": "storage.type.ocl",
+      "match": "\\b(Sequence|Set|Bag|OrderedSet|Ref|Map|Function)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.ocl",
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+    }
+  }
+}

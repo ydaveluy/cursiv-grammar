@@ -1,0 +1,2 @@
+fact 0 = 1
+%else fact n = n, if n > 0

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Rpn",
+  "scopeName": "source.rpn",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#variables"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.rpn",
+      "match": "\\b(cos|sin|tan|acos|asin|atan|log|ln)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.rpn",
+      "match": "[+\\-*/^]"
+    },
+    "numbers": {
+      "name": "constant.numeric.rpn",
+      "match": "[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+(\\.[0-9]+)?)?"
+    },
+    "variables": {
+      "name": "variable.other.rpn",
+      "match": "[a-zA-Z_][a-zA-Z0-9_]*"
+    }
+  }
+}

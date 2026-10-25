@@ -1,0 +1,12 @@
+;This file exercises comment lines, multi-field headers using the
+;full symbol set, and CRLF line endings -- none of which the
+;NC_009925 genome records do.
+;
+>synth1|demo_record|symbols: (paren) [bracket] a,b/c:d&e's +end.-ok
+ACGTACGTACGTACGTACGT
+ACGTACGTACGTACGTACGT
+;a comment line splits one run of sequence lines into two sections
+ACGTACGT
+>synth2|crlf record
+MSKQNSKVLLTLAAAAAAAV
+TLNAKAQEK

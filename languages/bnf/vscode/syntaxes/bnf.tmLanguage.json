@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Bnf",
+  "scopeName": "source.bnf",
+  "patterns": [
+    { "include": "#strings" },
+    { "include": "#nonterminal" },
+    { "include": "#assign" },
+    { "include": "#or" }
+  ],
+  "repository": {
+    "strings": {
+      "patterns": [
+        { "name": "string.quoted.double.bnf", "match": "\"[^\"\\r\\n]*\"" },
+        { "name": "string.quoted.single.bnf", "match": "'[^'\\r\\n]*'" }
+      ]
+    },
+    "nonterminal": {
+      "name": "entity.name.type.bnf",
+      "match": "<[^>|\\r\\n]+>"
+    },
+    "assign": {
+      "name": "keyword.operator.assignment.bnf",
+      "match": "::=|:\u2261|-->|\u2192"
+    },
+    "or": {
+      "name": "keyword.operator.alternation.bnf",
+      "match": "\\||o\u203er\u203e|\u2223"
+    }
+  }
+}

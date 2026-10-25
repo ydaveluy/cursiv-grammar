@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "FusionTables",
+  "scopeName": "source.fusiontables",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.fusiontables",
+          "match": "--.*$"
+        },
+        {
+          "name": "comment.block.fusiontables",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.single.fusiontables",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        { "name": "constant.character.escape.fusiontables", "match": "''" }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.fusiontables",
+      "match": "[+-]*[0-9]+(\\.[0-9]*)?"
+    },
+    "keywords": {
+      "name": "keyword.control.fusiontables",
+      "match": "(?i)\\b(alter|and|or|as|asc|average|by|between|case|circle|column|contains?|count|create|delete|desc|describe|does|drop|ends|equal|from|group|having|ignoring|in|insert|into|join|latlng|left|like|limit|matches|maximum|minimum|not|of|offset|on|order|outer|rectangle|rename|select|set|show|starts|st_distance|st_intersects|sum|table|tables|to|update|values|view|where|with)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.fusiontables",
+      "match": "<=|>=|<>|<|>|="
+    }
+  }
+}

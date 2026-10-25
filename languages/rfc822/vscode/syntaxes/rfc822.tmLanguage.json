@@ -1,0 +1,45 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Rfc822",
+  "scopeName": "source.rfc822",
+  "patterns": [
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#specials"
+    }
+  ],
+  "repository": {
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.rfc822",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.rfc822",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.other.domain-literal.rfc822",
+          "begin": "\\[",
+          "end": "\\]",
+          "patterns": [
+            {
+              "name": "constant.character.escape.rfc822",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "specials": {
+      "name": "keyword.operator.rfc822",
+      "match": "[@.<>:;]"
+    }
+  }
+}

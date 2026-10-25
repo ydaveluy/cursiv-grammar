@@ -1,0 +1,1 @@
+rule r { meta: value = -17 condition: true }

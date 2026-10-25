@@ -1,0 +1,8 @@
+OverheatAlarm
+if
+    temperature s very high and pressure are low
+then
+    alarm s must 0.9
+else
+    alarm s slightly 0.1
+;

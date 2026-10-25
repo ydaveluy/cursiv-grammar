@@ -1,0 +1,12 @@
+# The grammar itself: every document under example/ parses clean, and
+# tests/features.pest (this port's own) reads back the precedence of ~/|.
+add_executable(pest_grammar_test grammar_test.cpp)
+target_link_libraries(pest_grammar_test PRIVATE pestCore cursiv::test cursiv::lsp)
+target_compile_definitions(pest_grammar_test PRIVATE
+    CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
+    CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(NAME pest_grammar_test COMMAND pest_grammar_test)
+
+# ...and the command line reads one of them.
+add_test(NAME pest_cli_test COMMAND pest_cli
+         ${PROJECT_SOURCE_DIR}/example/json.pest)

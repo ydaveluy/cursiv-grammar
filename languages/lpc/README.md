@@ -1,0 +1,69 @@
+# lpc
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/lpc/core/LpcGrammar.hpp` |
+| The AST | `src/lpc/core/ast.hpp` |
+| Validation checks | `src/lpc/core/validation/` |
+| Services of your own | `src/lpc/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/lpc/cli/main.cpp` |
+| LSP features | `src/lpc/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+```
+inherit "/inc/global.h";
+
+int x = 0;
+
+int init(){
+    int a = 0;
+    int b = a;
+    int c = "/actor/adder"->act(a, b);
+    return c;
+}
+```
+
+LPC is the C-like language LPMud drivers (and their descendants, LDMud,
+FluffOS) run: `inherit` pulls in another object's code, `->` calls a method
+or reads a field on an object, and a type omitted on a declaration is
+implicitly `mixed`.
+
+## The command line
+
+```bash
+./build/src/lpc_cli example/example1.lpc
+./build/src/lpc_cli --dump example/example1.lpc   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`lpc_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

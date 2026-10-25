@@ -1,0 +1,13 @@
+// BROKEN ON PURPOSE -- open this file to see the server's diagnostics.
+// The model's closing brace is missing, so the namespace never closes either.
+catalogue broken
+
+namespace Demo
+{
+    /** @uuid 6cdd0a83-0d69-4a9a-84a5-0dbf7f0b1eff */
+    public primitive Bool
+
+    public model Counter
+    {
+        field Bool ready
+}

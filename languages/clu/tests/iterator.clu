@@ -1,0 +1,9 @@
+max_val = 100
+
+count_up = iter (n: int) yields (int)
+    i: int := 0
+    while i < n do
+        yield(i)
+        i := i + 1
+        end
+    end count_up

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Promql",
+  "scopeName": "source.promql",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#aggregations"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#durations"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.promql",
+      "match": "#.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.promql",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.promql",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.promql",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.promql",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.promql",
+      "match": "(?i)\\b(and|or|unless|by|without|on|ignoring|group_left|group_right|offset|bool)\\b"
+    },
+    "aggregations": {
+      "name": "keyword.other.aggregation.promql",
+      "match": "(?i)\\b(sum|min|max|avg|group|stddev|stdvar|count_values|count|bottomk|topk|quantile)\\b"
+    },
+    "functions": {
+      "name": "support.function.promql",
+      "match": "\\b([a-z][a-z0-9_]*)\\b(?=\\s*\\()"
+    },
+    "durations": {
+      "name": "constant.numeric.duration.promql",
+      "match": "\\b([0-9]+(ms|[smhdwy]))+\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.promql",
+      "match": "\\b[0-9]+(\\.[0-9]+)?([eE][-+]?[0-9]+)?\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.promql",
+      "match": "==|!=|=~|!~|<=|>=|[-+*/%^=<>@]"
+    }
+  }
+}

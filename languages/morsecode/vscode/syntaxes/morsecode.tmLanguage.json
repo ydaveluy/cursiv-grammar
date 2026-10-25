@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Morsecode",
+  "scopeName": "source.morsecode",
+  "fileTypes": [
+    "morsecode"
+  ],
+  "patterns": [
+    {
+      "name": "constant.character.morsecode",
+      "match": "[.-]+"
+    },
+    {
+      "name": "invalid.illegal.morsecode",
+      "match": "[^.\\-\\s]+"
+    }
+  ]
+}

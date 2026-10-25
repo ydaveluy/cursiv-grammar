@@ -1,0 +1,36 @@
+pass in proto tcp from any to any user root flags S/SA
+pass out proto udp from any to any group wheel
+pass in inet proto icmp all icmp-type echoreq code 0
+pass in inet6 proto icmp6 all icmp6-type { unreach, timex }
+pass in all tos lowdelay
+pass in all set tos 0x10
+pass out all keep state (max 100, no-sync, sloppy, source-track rule, max-src-nodes 10, max-src-states 10, max-src-conn 10, max-src-conn-rate 10/30, overload <bad> flush global, if-bound)
+match in all scrub (no-df, min-ttl 5, max-mss 1400, reassemble tcp, random-id)
+pass in all fragment
+pass in all allow-opts
+pass in all once
+pass in proto udp from any to any divert-packet port 8500
+pass in proto tcp from any to any divert-reply
+pass in proto tcp from any to any divert-to 127.0.0.1 port 8080
+pass in all label "test label"
+pass in all tag mytag
+pass in all tagged mytag
+pass in all !tagged mytag
+pass out all max-pkt-rate 10/5
+pass out all set delay 10
+pass out all set prio 3
+pass out all set prio (3, 5)
+pass out all set queue std
+pass out all set queue (std, pri)
+pass out all rtable 5
+pass out all probability 50%
+pass out all prio 3
+pass out proto tcp from any to any af-to inet from 10.0.0.1 to 10.0.0.2
+pass out proto tcp from any to any binat-to 10.0.0.1/24 port 80 round-robin sticky-address
+pass out proto tcp from any to any rdr-to 10.0.0.1 port 8080 bitmask
+pass out proto tcp from any to any nat-to 10.0.0.1 port 1024:65535 random static-port
+pass out proto tcp from any to any route-to 10.0.0.1
+pass out proto tcp from any to any reply-to 10.0.0.1
+pass out proto tcp from any to any dup-to 10.0.0.1
+pass out all received-on em0
+pass out all !received-on em0

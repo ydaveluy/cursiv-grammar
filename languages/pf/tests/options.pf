@@ -1,0 +1,15 @@
+set timeout tcp.first 10
+set timeout { tcp.first 10, tcp.established 300 }
+set ruleset-optimization basic
+set optimization aggressive
+set limit states 100000
+set limit { states 100000, frags 5000 }
+set loginterface em0
+set loginterface none
+set block-policy drop
+set state-policy if-bound
+set state-defaults pflow, if-bound
+set fingerprints "/etc/pf.os"
+set skip on lo0
+set debug urgent
+set reassemble yes no-df

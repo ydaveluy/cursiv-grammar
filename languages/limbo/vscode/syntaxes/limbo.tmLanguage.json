@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Limbo",
+  "scopeName": "source.limbo",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.limbo",
+      "match": "#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.limbo",
+      "begin": "\"",
+      "end": "\""
+    },
+    "keywords": {
+      "name": "keyword.control.limbo",
+      "match": "\\b(implement|include|module|adt|pick|con|import|type|array|of|list|chan|ref|fn|self|refopt|nil|cyclicopt|if|else|while|do|for|case|alt|break|continue|return|spawn|exit|load|or|to|hd|tl|len|tagof|byte|int|big|real|string)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.limbo",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

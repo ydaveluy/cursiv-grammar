@@ -1,0 +1,111 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Antlr",
+  "scopeName": "source.antlr",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#action"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#charset"
+    },
+    {
+      "include": "#token-ref"
+    },
+    {
+      "include": "#rule-ref"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.antlr",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.documentation.antlr",
+          "begin": "/\\*\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.block.antlr",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "action": {
+      "name": "meta.embedded.block.antlr",
+      "begin": "\\{",
+      "end": "\\}",
+      "patterns": [
+        {
+          "include": "#action"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.other.antlr",
+          "match": "\\b(grammar|lexer|parser|import|fragment|tokens|channels|options|mode|returns|locals|throws|catch|finally)\\b"
+        },
+        {
+          "name": "storage.modifier.antlr",
+          "match": "\\b(public|private|protected)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.single.antlr",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.antlr",
+          "match": "\\\\(u[0-9a-fA-F]{0,4}|.)"
+        }
+      ]
+    },
+    "charset": {
+      "name": "string.regexp.antlr",
+      "begin": "\\[",
+      "end": "\\]",
+      "patterns": [
+        {
+          "name": "constant.character.escape.antlr",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "token-ref": {
+      "name": "entity.name.function.antlr",
+      "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+    },
+    "rule-ref": {
+      "name": "entity.name.type.antlr",
+      "match": "\\b[a-z][A-Za-z0-9_]*\\b"
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "keyword.operator.antlr",
+          "match": "(->|\\.\\.|::|[:;|#=~?*+^])"
+        }
+      ]
+    }
+  }
+}

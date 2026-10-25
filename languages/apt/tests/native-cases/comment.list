@@ -1,0 +1,3 @@
+#ignored
+deb http://example.test stable main # trailing
+

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Gdscript",
+  "scopeName": "source.gdscript",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.gdscript",
+      "match": "#.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.gdscript",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.gdscript",
+              "match": "\\\\(u[0-9a-fA-F]{4}|.)"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.gdscript",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.gdscript",
+              "match": "\\\\(u[0-9a-fA-F]{4}|.)"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.gdscript",
+          "match": "\\b(if|elif|else|while|for|in|match|continue|break|return|pass|breakpoint|yield|assert)\\b"
+        },
+        {
+          "name": "keyword.other.gdscript",
+          "match": "\\b(extends|class_name|class|onready|var|setget|export|const|signal|enum|static|func|remote|master|puppet|remotesync|mastersync|puppetsync|as|preload|tool)\\b"
+        },
+        {
+          "name": "keyword.operator.word.gdscript",
+          "match": "\\b(is|not|and|or)\\b"
+        },
+        {
+          "name": "constant.language.gdscript",
+          "match": "\\b(true|false|null|self)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.gdscript",
+          "match": "\\b0[xX][0-9a-fA-F]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.gdscript",
+          "match": "\\b0[bB][01]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.gdscript",
+          "match": "\\b[0-9]*\\.[0-9]+([eE][+-]?[0-9]+)?\\b|\\b[0-9]+[eE][+-]?[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.gdscript",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    }
+  }
+}

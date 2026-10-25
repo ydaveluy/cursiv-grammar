@@ -1,0 +1,8 @@
+##gff-version 3
+chr1	RefSeq	gene	1	10	.	+	.	ID=g1;Name=Alpha
+##FASTA
+>chr1 first record
+ACGT
+ACGTAC
+>chr2
+NNNN

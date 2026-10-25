@@ -1,0 +1,14 @@
+module extra
+	LOCAL VAR bool flag:=TRUE;
+	LOCAL CONST clock myClock:=0;
+	PERS zonedata zEdge:=[FALSE,100,100,100,100,100,100];
+	VAR speeddata vSlow:='HFF';
+	CONST tooldata tOffset:=[-1.5,'B101',-5,"hi\n"];
+	CONST bool letter:='\n';
+	VAR bool ready;
+
+	PROC DoWork(tool)
+		MoveOn\On, 5, tool; ! a trailing comment
+		MoveOff\Off;
+	ENDPROC
+endmodule

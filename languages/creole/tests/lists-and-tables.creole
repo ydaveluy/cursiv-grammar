@@ -1,0 +1,22 @@
+This document exercises the constructs no upstream sample reaches.
+
+* First item
+* Second item
+* Third item
+
+# Step one
+# Step two
+
+|=Name|=Age|
+|Alice|30|
+|Bob|25|
+
+{{cat.png}}
+
+{{cat.png|A photo of a cat}}
+
+{{{
+verbatim text, **no** //markup// read in here
+}}}
+
+----

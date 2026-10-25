@@ -1,0 +1,79 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "R",
+  "scopeName": "source.r",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.r",
+      "match": "#.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.r",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.r",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.r",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.r",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.other.backtick.r",
+          "begin": "`",
+          "end": "`"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.r",
+      "match": "\\b(if|else|for|while|repeat|function|in|next|break)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.r",
+      "match": "\\b(0[xX][0-9a-fA-F]+|[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[Li]?|\\.[0-9]+([eE][+-]?[0-9]+)?[Li]?)\\b"
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "constant.language.r",
+          "match": "\\b(NULL|NA|inf|NaN|TRUE|FALSE)\\b"
+        },
+        {
+          "name": "keyword.operator.r",
+          "match": "<<-|->>|<-|->|:=|%[^%]*%|::+|[-+*/^:$@~!&|<>=]+"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+ply
+format ascii 1.0
+comment exercises every declared type and a scalar/list property mix
+element vertex 2
+property char a
+property uchar b
+property short c
+property ushort d
+property int e
+property uint f
+property float g
+comment a blank comment line follows this one
+comment
+property double h
+property float32 i
+property uint8 j
+property int32 k
+element face 1
+property list int32 double indices
+end_header
+0 0 0
+1 1 1
+3 0 1 2

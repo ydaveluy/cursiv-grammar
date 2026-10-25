@@ -1,0 +1,25 @@
+drop sword
+throw rock
+examine mirror
+get key
+take lantern
+give Murf=5
+go north
+goto south
+move east
+gripe The teleporter is broken.
+help
+inventory
+inv
+kill Murf=50
+look here
+read book
+news
+page Murf=Meet me at the fountain.
+quit
+rob Murf
+say Hello there, everyone.
+score
+whisper Murf=Keep this a secret.
+who
+who Murf

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "KirikiriTjs",
+  "scopeName": "source.kirikiritjs",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#octet" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.kirikiritjs", "match": "//.*$" },
+        { "name": "comment.block.kirikiritjs", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.kirikiritjs",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.kirikiritjs", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.kirikiritjs",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.kirikiritjs", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.double.template.kirikiritjs",
+          "begin": "@\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.kirikiritjs", "match": "\\\\\"" }]
+        },
+        {
+          "name": "string.quoted.single.template.kirikiritjs",
+          "begin": "@'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.kirikiritjs", "match": "\\\\'" }]
+        },
+        {
+          "name": "string.regexp.kirikiritjs",
+          "match": "/(?:\\\\.|\\[[^\\]]*\\]|[^/\\r\\n\\\\])+/[a-zA-Z]*"
+        }
+      ]
+    },
+    "octet": {
+      "name": "string.other.octet.kirikiritjs",
+      "begin": "<%",
+      "end": "%>"
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.kirikiritjs",
+          "match": "\\b0[xX][0-9a-fA-F]+(\\.[0-9a-fA-F]+)?([eEpP][+-]?[0-9]+)?\\b"
+        },
+        {
+          "name": "constant.numeric.kirikiritjs",
+          "match": "\\b0[oO]?[0-7]+(\\.[0-7]+)?([eEpP][+-]?[0-9]+)?\\b"
+        },
+        {
+          "name": "constant.numeric.kirikiritjs",
+          "match": "\\b0[bB][01]+(\\.[01]+)?([eEpP][+-]?[0-9]+)?\\b"
+        },
+        {
+          "name": "constant.numeric.kirikiritjs",
+          "match": "\\b[0-9]+(\\.[0-9]*)?([eEpP][+-]?[0-9]+)?\\b|\\.[0-9]+([eEpP][+-]?[0-9]+)?\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "constant.language.kirikiritjs",
+          "match": "\\b(true|false|null)\\b"
+        },
+        {
+          "name": "keyword.control.kirikiritjs",
+          "match": "\\b(if|else|switch|case|default|do|while|for|break|continue|return|with|throw|try|catch|finally|debugger)\\b"
+        },
+        {
+          "name": "storage.type.kirikiritjs",
+          "match": "\\b(var|const|function|class|property|getter|setter|int|real|string)\\b"
+        },
+        {
+          "name": "storage.modifier.kirikiritjs",
+          "match": "\\b(extends|static|enum|export|import)\\b"
+        },
+        {
+          "name": "keyword.other.kirikiritjs",
+          "match": "\\b(new|delete|typeof|instanceof|incontextof|isvalid|invalidate|in|this|super|void)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "name": "keyword.operator.kirikiritjs",
+      "match": "<->|===|!==|>>>=|>>>|<<=|>>=|==|!=|<=|>=|&&|\\|\\||\\+\\+|--|=>|[-+*/%\\\\=<>!&|^~?:]"
+    }
+  }
+}

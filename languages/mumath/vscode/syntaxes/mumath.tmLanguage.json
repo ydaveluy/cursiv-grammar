@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Mumath",
+  "scopeName": "source.mumath",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.block.mumath",
+      "begin": "%",
+      "end": "%"
+    },
+    "keywords": {
+      "name": "keyword.control.mumath",
+      "match": "\\b(BLOCK|ENDBLOCK|FUNCTION|ENDFUN|LOOP|ENDLOOP|WHEN|EXIT|EQ|OR|AND|NOT|mod)\\b"
+    },
+    "strings": {
+      "name": "string.quoted.double.mumath",
+      "begin": "\"",
+      "end": "\""
+    },
+    "numbers": {
+      "name": "constant.numeric.mumath",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

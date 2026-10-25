@@ -1,0 +1,26 @@
+namespace com.example.coverage
+
+concept Base {
+  o String note optional
+}
+
+@meta("v1", 3, true)
+asset Boîte identified by id {
+  ;
+  o String id
+  o String asset
+  o String participant
+  o Integer count range=[,100]
+  o Long total range=[0,1000]
+  o Integer [][] matrix
+  o String label default = 'a\'b' regex=/^[a-z]+$/
+  o Boolean flag default=true optional
+  --> Base ref1
+  o DateTime stamp default = '2000-01-01T00:00:00Z'
+}
+
+transaction Ping {
+  o Integer n default = 1_000L
+  o Double ratio default = 1.5e2D
+  o Long oct default = 0_17L
+}

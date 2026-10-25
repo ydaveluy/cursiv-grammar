@@ -1,0 +1,70 @@
+# bnf
+
+A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+
+## Build
+
+```bash
+cmake -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
+
+The build generates the parser automatically. Rebuild after changing the grammar.
+
+## What to edit
+
+| What you want to change | File |
+|---|---|
+| The grammar | `src/bnf/core/BnfGrammar.hpp` |
+| The AST | `src/bnf/core/ast.hpp` |
+| Validation checks | `src/bnf/core/validation/` |
+| Services of your own | `src/bnf/core/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/bnf/cli/main.cpp` |
+| LSP features | `src/bnf/lsp/LspModule.cpp` |
+| Test cases | `tests/grammar_test.cpp` |
+
+Generated files live under `build/src/generated-src/`; do not edit them.
+
+## The sample
+
+This is a "switching" BNF grammar: it parses several popular BNF styles (but
+not EBNF) rather than one fixed dialect. `example/` contains sample grammars,
+including `arrow-forms.bnf` for additional operator spellings. `wiki-bnf.bnf`
+is representative:
+
+```
+ <rule>           ::= <opt-whitespace> "<" <rule-name> ">" <opt-whitespace> "::=" <opt-whitespace> <expression> <line-end>
+ <expression>     ::= <list> | <list> <opt-whitespace> "|" <opt-whitespace> <expression>
+```
+
+A document is a `Grammar`, a list of `Production`s; each has a `name` and a
+list of `Alternative`s, empty when the right-hand side is absent (as in
+`<empty> ::=`). An `Alternative` is a list of `Element`s: `nonterminal` is
+set when one names another production (bracketed or bare), and clear when
+it is literal text -- a quoted string, or one unquoted character, since most
+BNF dialects leave their terminals unquoted (`ics/digits.bnf`:
+`<digit> ::= 0|1|2|...`). Four spellings of "is defined as" (`::=`, `:≡`,
+`-->`, `→`) and three of "or" (`|`, `o̅r̅`, `∣`) all read the same way.
+
+## The command line
+
+```bash
+./build/src/bnf_cli example/wiki-bnf.bnf
+./build/src/bnf_cli --dump example/wiki-bnf.bnf   # the syntax tree
+```
+
+The exit code is the verdict: 0 clean, 1 the document carries an error, 2 the
+command was wrong, 3 something threw.
+
+## The language server
+
+`bnf_lsp` speaks LSP over stdio. In VS Code, open this folder and
+press **F5**: the task builds the server in the tree of the preset you have
+selected -- `native` runs the host binary, `wasi` the wasm module -- and a
+second window opens on `example/` with the extension loaded. The preset is
+read through the CMake Tools extension, which the workspace recommends.
+
+```bash
+(cd vscode && npm install && npm run compile)
+```

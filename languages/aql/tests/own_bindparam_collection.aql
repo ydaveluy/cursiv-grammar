@@ -1,0 +1,2 @@
+FOR d IN @@bindcoll
+  RETURN d

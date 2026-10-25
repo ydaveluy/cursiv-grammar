@@ -1,0 +1,79 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Fortran",
+  "scopeName": "source.fortran",
+  "fileTypes": ["f90"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#operators" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.fortran",
+      "match": "!.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.fortran",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "match": "''" }]
+        },
+        {
+          "name": "string.quoted.double.fortran",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "match": "\"\"" }]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.fortran",
+          "match": "(?i)\\b(if|then|else|elseif|endif|do|enddo|while|select|selectcase|case|default|endselect|where|elsewhere|endwhere|goto|go|continue|stop|pause|return|cycle|exit|call|contains|entry)\\b"
+        },
+        {
+          "name": "keyword.other.fortran",
+          "match": "(?i)\\b(program|endprogram|module|endmodule|subroutine|endsubroutine|function|endfunction|blockdata|endblockdata|endblock|block|interface|endinterface|end|use|only|implicit|none|type|endtype|sequence|include|format)\\b"
+        },
+        {
+          "name": "storage.type.fortran",
+          "match": "(?i)\\b(integer|real|complex|logical|character|double\\s*precision|type)\\b"
+        },
+        {
+          "name": "storage.modifier.fortran",
+          "match": "(?i)\\b(parameter|dimension|allocatable|pointer|target|optional|intent|in|out|inout|save|external|intrinsic|public|private|recursive|common|equivalence|data|namelist)\\b"
+        },
+        {
+          "name": "support.function.fortran",
+          "match": "(?i)\\b(read|write|print|open|close|inquire|rewind|backspace|endfile|allocate|deallocate|nullify)\\b"
+        },
+        {
+          "name": "constant.language.fortran",
+          "match": "(?i)\\.(true|false)\\."
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.fortran",
+          "match": "(?i)\\.(and|or|not|eqv|neqv|xor|eor|lt|le|gt|ge|ne|eq)\\."
+        },
+        {
+          "name": "keyword.operator.fortran",
+          "match": "==|/=|<=|>=|<|>|=>|\\*\\*|//"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.fortran",
+      "match": "\\b[0-9]+(\\.[0-9]*)?([eEdD][+-]?[0-9]+)?\\b"
+    }
+  }
+}

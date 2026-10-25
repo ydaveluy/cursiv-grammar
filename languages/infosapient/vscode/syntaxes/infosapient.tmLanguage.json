@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Infosapient",
+  "scopeName": "source.infosapient",
+  "patterns": [
+    { "include": "#keywords" },
+    { "include": "#operators" },
+    { "include": "#hedges" },
+    { "include": "#restrictions" },
+    { "include": "#numbers" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.infosapient",
+      "match": "\\b(if|then|else)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.infosapient",
+      "match": "\\b(and|boundedAnd|cosineNot|meanAnd|meanOr|or|productAnd|productOr|sugenoNot|thresholdNot|yagerAnd|yagerNot|yagerOr|s|are)\\b"
+    },
+    "hedges": {
+      "name": "support.function.infosapient",
+      "match": "\\b(about|above|after|around|before|below|closeTo|definitely|extremely|generally|mostly|must|near|negative|negatively|not|positive|positively|roughly|should|slightly|somewhat|very|inVicinityOf)\\b"
+    },
+    "restrictions": {
+      "name": "constant.language.infosapient",
+      "match": "\\b(increased|decreased)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.infosapient",
+      "match": "[0-9]*\\.[0-9]*"
+    },
+    "identifiers": {
+      "name": "variable.other.infosapient",
+      "match": "[a-zA-Z][a-zA-Z0-9]*"
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "HyperTalk",
+  "scopeName": "source.hypertalk",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#control-keywords" },
+    { "include": "#operator-words" },
+    { "include": "#command-keywords" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.hypertalk",
+          "match": "--.*$"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.hypertalk",
+      "begin": "\"",
+      "end": "\"|$"
+    },
+    "numbers": {
+      "name": "constant.numeric.hypertalk",
+      "match": "\\b[0-9]+(\\.[0-9]*)?\\b|\\.[0-9]+"
+    },
+    "control-keywords": {
+      "name": "keyword.control.hypertalk",
+      "match": "(?i)\\b(on|end|function|if|then|else|repeat|with|to|from|for|while|until|forever|down|times|next|exit|pass|return|global)\\b"
+    },
+    "operator-words": {
+      "name": "keyword.operator.word.hypertalk",
+      "match": "(?i)\\b(not|and|or|is|in|within|contains|div|mod|there)\\b"
+    },
+    "command-keywords": {
+      "name": "keyword.other.hypertalk",
+      "match": "(?i)\\b(answer|ask|put|get|set|send|wait|sort|go|enable|disable|read|write|hide|show|add|subtract|multiply|divide|choose|click|drag|type|lock|unlock|domenu|visual|reset|create|delete|play|dial|beep|open|close|select|find|import|export|convert|edit|push|pop)\\b"
+    }
+  }
+}

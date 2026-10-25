@@ -1,0 +1,75 @@
+options {
+  STATIC = false;
+}
+
+PARSER_BEGIN(Coverage)
+
+import java.util.List;
+import static java.util.Collections.*;
+
+@interface Marker {
+  String value() default "x";
+}
+
+enum Color {
+  RED, GREEN(1), BLUE { void shade() {} };
+  Color() {}
+  Color(int n) {}
+}
+
+public class Coverage<T> {
+  @Marker("id")
+  private List<? extends Number> nums;
+
+  void run() throws Exception {
+    for (String s : java.util.Arrays.asList("a", "b")) {
+      System.out.println(s);
+    }
+    try (java.io.StringReader r = new java.io.StringReader("x")) {
+      int c = r.read();
+    } catch (java.io.IOException | RuntimeException e) {
+      throw e;
+    } finally {
+      System.out.println("done");
+    }
+  }
+}
+
+PARSER_END(Coverage)
+
+TOKEN_MGR_DECLS :
+{
+  int line = 0;
+}
+
+< A, B > TOKEN :
+{
+  < FOO: (["a"-"z"])+ >
+| < BAR: (["0"-"9"]){2,4} >
+}
+
+< * > SKIP :
+{
+  < ~[" ","\t"] >
+}
+
+CPPCODE public void cppHook()
+{
+}
+
+const int* PointerResult() :
+{}
+{
+  <FOO> { return null; }
+}
+
+void Rule(List<String> out) #Node(1) :
+{
+  Token t;
+}
+{
+  t = <FOO> { out.add(t.image); }
+  ( LOOKAHEAD(2) Rule<String>(out) )*
+  [ "x" ]
+  ( "y" | "z" )?
+}

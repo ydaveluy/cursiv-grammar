@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Alpaca",
+  "scopeName": "source.alpaca",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#arrows"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.alpaca",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.alpaca",
+      "match": "\"[^\"]*\""
+    },
+    "keywords": {
+      "name": "keyword.control.alpaca",
+      "match": "\\b(state|class|neighbourhood|is|to|when|me|and|or|xor|not|true|false|guess|in|begin)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.alpaca",
+      "match": "\\b[0-9]+\\b"
+    },
+    "arrows": {
+      "name": "keyword.operator.alpaca",
+      "match": "[\\^v<>]"
+    }
+  }
+}

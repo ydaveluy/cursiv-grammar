@@ -1,0 +1,5 @@
+BEGIN
+  READ a, b, c
+  x := a - -5
+  WRITE x, b + c, -1
+END

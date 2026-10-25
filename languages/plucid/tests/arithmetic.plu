@@ -1,0 +1,11 @@
+[%
+    ˜5 + 3.25 * 2 - 1 / 4 ** 2 div 4 mod 2 eq 1 ne 0 <= 10 < 20 > 1 >= 0,
+    sin 1,
+    cos 1,
+    tan 1,
+    sqrt 4,
+    abs ˜3,
+    log10 100,
+    log 10,
+    isnumber 5
+%]

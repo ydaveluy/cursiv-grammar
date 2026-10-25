@@ -1,0 +1,24 @@
+head	1.1;
+access;
+symbols;
+locks;
+comment;
+expand;
+custom-flag;
+
+1.1
+date	2003.01.01.00.00.00;
+author	joe;
+state	Exp;
+branches;
+next	;
+
+desc
+@Every optional list and value left empty, but every optional field of
+admin present: locks, comment and expand with nothing after the keyword.@
+
+1.1
+log
+@Initial revision@
+text
+@empty edge case@

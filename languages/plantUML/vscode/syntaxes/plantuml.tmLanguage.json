@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "PlantUML",
+  "scopeName": "source.plantuml",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#stereotypes" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.plantuml",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.line.apostrophe.plantuml",
+          "match": "'.*$"
+        },
+        {
+          "name": "comment.block.plantuml",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.plantuml",
+      "match": "\\b(class|enum|interface|abstract|extends)\\b|@(startuml|enduml)\\b"
+    },
+    "strings": {
+      "name": "string.quoted.double.plantuml",
+      "match": "\"[^\"\\r\\n]*\""
+    },
+    "stereotypes": {
+      "name": "entity.name.tag.plantuml",
+      "match": "<<[^>\\r\\n]*>>"
+    }
+  }
+}

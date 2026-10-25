@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lambda",
+  "scopeName": "source.lambda",
+  "patterns": [
+    {
+      "include": "#abstraction"
+    },
+    {
+      "include": "#punctuation"
+    },
+    {
+      "include": "#variable"
+    }
+  ],
+  "repository": {
+    "abstraction": {
+      "name": "keyword.operator.lambda",
+      "match": "λ"
+    },
+    "punctuation": {
+      "name": "punctuation.definition.parameters.lambda",
+      "match": "[()]"
+    },
+    "variable": {
+      "name": "variable.other.lambda",
+      "match": "\\b[a-z][a-zA-Z0-9]*\\b"
+    }
+  }
+}

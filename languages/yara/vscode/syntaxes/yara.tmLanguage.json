@@ -1,0 +1,65 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "YARA",
+  "scopeName": "source.yara",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#regex" },
+    { "include": "#string-ids" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.yara", "match": "//.*$" },
+        { "name": "comment.block.yara", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.yara",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.yara", "match": "\\\\." }
+      ]
+    },
+    "regex": {
+      "name": "string.regexp.yara",
+      "match": "/(\\\\/|[^/\\r\\n])+/[is]?[is]?"
+    },
+    "string-ids": {
+      "name": "variable.other.yara",
+      "match": "[$#@!][a-zA-Z0-9_]*\\*?"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.yara",
+          "match": "\\b(rule|private|global|import|include|meta|strings|condition|for|of|in|at|them|all|any|none|not|and|or)\\b"
+        },
+        {
+          "name": "keyword.operator.word.yara",
+          "match": "\\b(contains|icontains|startswith|istartswith|endswith|iendswith|iequals|matches|defined)\\b"
+        },
+        {
+          "name": "support.function.yara",
+          "match": "\\b(int8|int8be|int16|int16be|int32|int32be|uint8|uint8be|uint16|uint16be|uint32|uint32be|entrypoint|filesize)\\b"
+        },
+        {
+          "name": "storage.modifier.yara",
+          "match": "\\b(nocase|wide|ascii|xor|base64|base64wide|fullword|private)\\b"
+        },
+        {
+          "name": "constant.language.yara",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.yara",
+      "match": "\\b(0x[0-9a-fA-F]+|[0-9]+(MB|KB)?)\\b"
+    }
+  }
+}

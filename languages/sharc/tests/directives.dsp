@@ -1,0 +1,10 @@
+.align 4;
+.compress;
+.extern foo, bar;
+.file "test.dsp";
+.global baz;
+.import "lib.dsp";
+.leftmargin 2;
+.list;
+.precision 24;
+.weak sym;

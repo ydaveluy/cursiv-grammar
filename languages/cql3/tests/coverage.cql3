@@ -1,0 +1,43 @@
+BEGIN BATCH
+INSERT INTO cycling.cyclist_name (id, lastname) VALUES (0x1a2b3c, 'Doe');
+APPLY BATCH;
+
+CREATE TRIGGER IF NOT EXISTS myschema.auditTrigger USING 'org.apache.cassandra.triggers.AuditTrigger';
+
+CREATE TABLE IF NOT EXISTS cycling.new_table (id int PRIMARY KEY);
+
+SELECT * FROM cycling.cyclist_name WHERE lastname = 'Doe' ALLOW FILTERING;
+
+LIST ROLES OF coach NORECURSIVE;
+
+SELECT * FROM cycling.cyclist_teams WHERE teams CONTAINS 'Team1';
+
+SELECT * FROM cycling.cyclist_teams WHERE teams CONTAINS KEY 'k1';
+
+SELECT * FROM cycling.cyclist_name WHERE token(id) > 100;
+
+SELECT * FROM cycling.cyclist_name WHERE address.zip = '12345';
+
+CREATE USER admin WITH PASSWORD 'pw' SUPERUSER;
+
+ALTER USER admin WITH PASSWORD 'pw2' NOSUPERUSER;
+
+CREATE ROLE ops WITH OPTIONS = {'storage': 'ssd'} AND LOGIN = true AND SUPERUSER = false;
+
+CREATE MATERIALIZED VIEW cycling.cyclist_by_country
+AS SELECT age, name, country
+FROM cycling.cyclist_mv
+WHERE age IS NOT NULL AND country = 'FR'
+PRIMARY KEY (age, country);
+
+CREATE AGGREGATE cycling.hashed(int)
+SFUNC avgState
+STYPE tuple<int,bigint>
+FINALFUNC avgFinal
+INITCOND {a: (0,0), b: (1,1)};
+
+CREATE AGGREGATE cycling.nested(int)
+SFUNC avgState
+STYPE tuple<int,bigint>
+FINALFUNC avgFinal
+INITCOND ((0,0),(1,1),2);

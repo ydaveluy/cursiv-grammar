@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Parkingsign",
+  "scopeName": "source.parkingsign",
+  "patterns": [
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "keywords": {
+      "name": "keyword.control.parkingsign",
+      "match": "\\b(NO|PARKING|TO|THRU|ANYTIME|ANY|TIME|EXCEPT|DAILY|NIGHTLY|SCHOOL|DAYS|HOLIDAYS|AND|TOW|AWAY|STOPPING|VALET|ONLY|VEHICLES|WITH|DISTRICT|PERMITS|EXEMPTED|EXEMPT|HOUR|MINUTE|MIN|TEMPORARY|PASSENGER|LOADING|STREET|SWEEPING|CLEANING|NOON|MIDNIGHT|AM|PM|MONDAY|MON|TUESDAY|TUE|WEDNESDAY|WED|THURSDAY|THU|FRIDAY|FRI|SATURDAY|SAT|SUNDAY|SUN)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.parkingsign",
+      "match": "\\b[0-9]+\\b"
+    }
+  }
+}

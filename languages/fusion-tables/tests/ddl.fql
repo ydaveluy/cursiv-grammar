@@ -1,0 +1,16 @@
+ALTER TABLE OldCities RENAME TO Cities;
+
+CREATE VIEW BigCities AS (
+    SELECT Name, Population
+    FROM Cities
+    WHERE Population > 1000000
+    LEFT OUTER JOIN Countries ON Cities.CountryId = Countries.Id
+);
+
+CREATE TABLE Snapshot AS SELECT * FROM Cities;
+
+DROP TABLE OldSnapshot;
+
+DESCRIBE Cities;
+
+SHOW TABLES;

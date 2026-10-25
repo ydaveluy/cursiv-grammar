@@ -1,0 +1,16 @@
+/* Extends the game-of-life example: classes, a named neighbourhood, arrow
+   references, and the full boolean grammar. */
+class Filled to Empty when true;
+
+neighbourhood Compass (^ v < >);
+
+state Empty " "
+    to Full when guess,
+    to Empty when not guess;
+
+state Full "#" is Filled
+    to Empty when 2 in Compass Empty or 3 in (^ v) is Filled,
+    to me when (1 Full and 1 Empty) xor 2 in Compass is Filled,
+    to me when me is Filled,
+    to Full when > = > or false
+begin

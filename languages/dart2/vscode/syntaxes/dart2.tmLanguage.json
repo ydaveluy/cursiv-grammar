@@ -1,0 +1,76 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Dart2",
+  "scopeName": "source.dart2",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.dart2",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.dart2",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.dart2",
+          "begin": "r?\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.triple.dart2",
+          "begin": "r?'''",
+          "end": "'''"
+        },
+        {
+          "name": "string.quoted.double.dart2",
+          "begin": "r?\"",
+          "end": "\"",
+          "patterns": [{ "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.dart2",
+          "begin": "r?'",
+          "end": "'",
+          "patterns": [{ "match": "\\\\." }]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.dart2",
+          "match": "\\b(if|else|for|while|do|switch|case|default|break|continue|return|throw|rethrow|try|catch|finally|assert|yield|await|async|sync)\\b"
+        },
+        {
+          "name": "keyword.other.dart2",
+          "match": "\\b(abstract|as|class|const|covariant|deferred|dynamic|enum|export|extends|extension|external|factory|final|get|implements|import|in|interface|is|late|library|mixin|native|new|operator|part|required|set|static|super|this|typedef|var|void|with)\\b"
+        },
+        {
+          "name": "constant.language.dart2",
+          "match": "\\b(true|false|null)\\b"
+        },
+        {
+          "name": "storage.type.dart2",
+          "match": "\\bFunction\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.dart2",
+      "match": "\\b(0[xX][0-9a-fA-F]+|[0-9]+(\\.[0-9]+)?([eE][+-]?[0-9]+)?)\\b"
+    }
+  }
+}

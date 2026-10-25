@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Hexpat",
+  "scopeName": "source.hexpat",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#preprocessor" },
+    { "include": "#strings" },
+    { "include": "#chars" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.hexpat", "match": "//.*$" },
+        {
+          "name": "comment.block.hexpat",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "preprocessor": {
+      "name": "meta.preprocessor.hexpat",
+      "match": "^\\s*#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.hexpat",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [{ "name": "constant.character.escape.hexpat", "match": "\\\\." }]
+    },
+    "chars": {
+      "name": "string.quoted.single.hexpat",
+      "begin": "'",
+      "end": "'",
+      "patterns": [{ "name": "constant.character.escape.hexpat", "match": "\\\\." }]
+    },
+    "numbers": {
+      "name": "constant.numeric.hexpat",
+      "match": "\\b(0[xX][0-9a-fA-F']+|0[oO][0-7']+|0[bB][01']+|[0-9]*\\.[0-9]+([eE][+-]?[0-9]+)?|[0-9]+)\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.hexpat",
+          "match": "\\b(if|else|match|for|while|break|continue|return|try|catch)\\b"
+        },
+        {
+          "name": "keyword.other.hexpat",
+          "match": "\\b(struct|union|bitfield|enum|namespace|fn|using|import|padding|const|ref|in|out|le|be|addressof|sizeof|typenameof)\\b"
+        },
+        {
+          "name": "constant.language.hexpat",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "types": {
+      "name": "storage.type.hexpat",
+      "match": "\\b(u8|u16|u32|u64|u128|s8|s16|s32|s64|s128|float|double|char|str|bool|auto)\\b"
+    }
+  }
+}

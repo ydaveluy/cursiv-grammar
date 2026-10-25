@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Gml",
+  "scopeName": "source.gml",
+  "fileTypes": ["gml"],
+  "patterns": [
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#nested-key" },
+    { "include": "#brackets" }
+  ],
+  "repository": {
+    "strings": {
+      "name": "string.quoted.double.gml",
+      "match": "\"[^\"]*\""
+    },
+    "numbers": {
+      "name": "constant.numeric.gml",
+      "match": "[+-]?([0-9]*\\.[0-9]+(E[+-][0-9])?|[0-9]+)"
+    },
+    "nested-key": {
+      "name": "entity.name.tag.gml",
+      "match": "\\b[A-Za-z0-9]+\\b(?=\\s*\\[)"
+    },
+    "brackets": {
+      "name": "punctuation.section.brackets.gml",
+      "match": "[\\[\\]]"
+    }
+  }
+}

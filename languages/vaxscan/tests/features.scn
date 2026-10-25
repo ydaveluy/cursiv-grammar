@@ -1,0 +1,39 @@
+! Constructs the upstream corpus never exercises: OVERLAY records, every
+! COLLATE form, REDEFINE, EXTERNAL/GLOBAL constants, and the AUTOMATIC and
+! GLOBAL storage attributes.
+
+MODULE features;
+
+    COLLATE NATIVE;
+    COLLATE USER 'a'..'z' | '0'..'9';
+
+    CONSTANT limit = 100;
+    CONSTANT ext_kind EXTERNAL INTEGER;
+    CONSTANT shared GLOBAL = 7;
+
+    DECLARE scratch: AUTOMATIC INTEGER;
+    DECLARE shared_flag: GLOBAL BOOLEAN;
+
+    TYPE point_t: OVERLAY
+        x: INTEGER,
+        y: INTEGER,
+    END OVERLAY;
+
+    REDEFINE s'eol' = s'nul';
+
+    PROCEDURE main MAIN ( );
+
+        IF limit > 0
+        THEN
+            scratch = limit[ 1 .. ];
+        END IF;
+
+        CASE scratch FROM 0 TO 100;
+            [ 1, 2 .. 4 ]: WRITE 'low';
+            [ INRANGE ]: WRITE 'mid';
+            [ OUTRANGE ]: WRITE 'out';
+        END CASE;
+
+    END PROCEDURE;
+
+END MODULE;

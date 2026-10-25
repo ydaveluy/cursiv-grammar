@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Awk",
+  "scopeName": "source.awk",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#regex" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#builtins" },
+    { "include": "#fields" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.awk",
+      "match": "#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.awk",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.awk", "match": "\\\\." }
+      ]
+    },
+    "regex": {
+      "name": "string.regexp.awk",
+      "match": "/([^/\\\\\\n]|\\\\.)*/"
+    },
+    "numbers": {
+      "name": "constant.numeric.awk",
+      "match": "\\b(0[xX][0-9a-fA-F]+|[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?|\\.[0-9]+([eE][+-]?[0-9]+)?)\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.awk",
+      "match": "\\b(BEGIN|END|break|continue|delete|do|else|exit|for|function|getline|if|in|next|print|printf|return|while)\\b"
+    },
+    "builtins": {
+      "name": "support.function.builtin.awk",
+      "match": "\\b(atan2|close|cos|exp|gsub|index|int|length|log|match|rand|sin|split|sprintf|sqrt|srand|sub|substr|system|tolower|toupper)\\b"
+    },
+    "fields": {
+      "name": "variable.other.field.awk",
+      "match": "\\$[0-9]+"
+    }
+  }
+}

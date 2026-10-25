@@ -1,0 +1,61 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Php",
+  "scopeName": "source.php",
+  "patterns": [
+    { "include": "#php-tags" },
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#variables" },
+    { "include": "#keywords" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "php-tags": {
+      "patterns": [
+        { "name": "punctuation.section.embedded.begin.php", "match": "<\\?php|<\\?=|<\\?" },
+        { "name": "punctuation.section.embedded.end.php", "match": "\\?>" }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.php", "match": "(//|#).*$" },
+        { "name": "comment.block.php", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        { "name": "string.quoted.single.php", "match": "'([^'\\\\]|\\\\.)*'" },
+        { "name": "string.quoted.double.php", "match": "\"([^\"\\\\]|\\\\.)*\"" }
+      ]
+    },
+    "variables": {
+      "name": "variable.other.php",
+      "match": "\\$[a-zA-Z_\\x80-\\xff][a-zA-Z0-9_\\x80-\\xff]*"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.php",
+          "match": "(?i)\\b(if|else|elseif|endif|while|endwhile|do|for|endfor|foreach|endforeach|switch|endswitch|case|default|break|continue|return|goto|match|try|catch|finally|throw)\\b"
+        },
+        {
+          "name": "storage.type.php",
+          "match": "(?i)\\b(class|interface|trait|enum|function|fn|namespace|use|const|var|abstract|final|static|public|private|protected|readonly)\\b"
+        },
+        {
+          "name": "keyword.other.php",
+          "match": "(?i)\\b(echo|print|new|clone|instanceof|isset|empty|unset|list|array|yield|global|declare|as|extends|implements|require|require_once|include|include_once)\\b"
+        },
+        {
+          "name": "constant.language.php",
+          "match": "(?i)\\b(true|false|null)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.php",
+      "match": "\\b(0[xX][0-9a-fA-F_]+|0[bB][01_]+|[0-9][0-9_]*\\.[0-9_]*|[0-9][0-9_]*)\\b"
+    }
+  }
+}

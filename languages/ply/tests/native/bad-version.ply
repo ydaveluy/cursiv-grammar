@@ -1,0 +1,6 @@
+ply
+format ascii 2.0
+element custom 1
+property int a
+end_header
+1

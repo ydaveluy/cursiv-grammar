@@ -1,0 +1,81 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Apex",
+  "scopeName": "source.apex",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#soql"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.apex",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.apex",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.single.apex",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.apex",
+          "match": "\\\\(u[0-9a-fA-F]{4}|[0-3]?[0-7]{1,2}|.)"
+        }
+      ]
+    },
+    "soql": {
+      "name": "string.unquoted.soql.apex",
+      "begin": "\\[\\s*(?=[sS][eE][lL][eE][cC][tT])",
+      "end": "\\]"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.apex",
+          "match": "(?i)\\b(if|else|for|while|do|break|continue|return|try|catch|finally|throw|instanceof|new)\\b"
+        },
+        {
+          "name": "keyword.other.apex",
+          "match": "(?i)\\b(class|interface|enum|extends|implements|package|import|static|final|abstract|virtual|override|global|public|protected|private|webservice|testmethod|with\\s+sharing|without\\s+sharing|get|set|void|this|super)\\b"
+        },
+        {
+          "name": "keyword.other.dml.apex",
+          "match": "(?i)\\b(insert|update|delete|undelete|upsert)\\b"
+        },
+        {
+          "name": "storage.type.apex",
+          "match": "\\b(char|byte|short|int|float)\\b"
+        },
+        {
+          "name": "constant.language.apex",
+          "match": "\\b(true|false|null)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.apex",
+      "match": "\\b(0[xX][0-9a-fA-F]+|[0-9]+(\\.[0-9]+)?)[lLfFdD]?\\b"
+    }
+  }
+}

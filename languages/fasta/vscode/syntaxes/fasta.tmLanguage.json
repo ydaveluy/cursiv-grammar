@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Fasta",
+  "scopeName": "source.fasta",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#description"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.semicolon.fasta",
+      "match": "^;.*$"
+    },
+    "description": {
+      "begin": "^>",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.description.fasta"
+        }
+      },
+      "end": "$",
+      "name": "entity.name.section.fasta",
+      "patterns": [
+        {
+          "name": "punctuation.separator.field.fasta",
+          "match": "\\|"
+        }
+      ]
+    }
+  }
+}

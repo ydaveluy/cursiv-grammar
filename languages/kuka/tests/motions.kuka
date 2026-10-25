@@ -1,0 +1,24 @@
+DEF motions()
+DECL POS p1
+DECL POS p2
+
+p1 = {POS: X 100,Y 200,Z 300,A 0,B 0,C 0}
+p2 = {X 150,Y 250,Z 350,A 0,B 0,C 0}
+
+PTP p1
+PTP p1 C_PTP
+PTP p1 C_PTP C_DIS
+PTP_REL p1
+
+LIN p1
+LIN p1 C_VEL
+
+LIN_REL p1
+LIN_REL p1 C_ORI #VAR
+
+CIRC p1, p2
+CIRC p1, p2, aux p1
+CIRC_REL p1, p2 C_DIS
+
+BRAKE F
+END

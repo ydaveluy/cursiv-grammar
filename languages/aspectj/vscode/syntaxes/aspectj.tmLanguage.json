@@ -1,0 +1,92 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Aspectj",
+  "scopeName": "source.aspectj",
+  "fileTypes": ["aj"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#annotations" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#strings" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.aspectj", "match": "//.*$" },
+        { "name": "comment.block.aspectj", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "annotations": {
+      "name": "storage.type.annotation.aspectj",
+      "match": "@[A-Za-z_$][A-Za-z0-9_$.]*"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.aspectj",
+          "match": "\\b(if|else|for|while|do|switch|case|default|break|continue|return|throw|try|catch|finally|yield|assert|synchronized)\\b"
+        },
+        {
+          "name": "keyword.other.aspectj",
+          "match": "\\b(class|interface|enum|record|extends|implements|permits|sealed|non-sealed|package|import|new|instanceof|this|super|var|void|throws|module|requires|exports|opens|uses|provides|transitive|to|with|open|when)\\b"
+        },
+        {
+          "name": "keyword.other.aspect.aspectj",
+          "match": "\\b(aspect|privileged|pointcut|declare|before|after|around|returning|throwing|perthis|pertarget|percflow|percflowbelow|pertypewithin|issingleton|precedence|soft|parents|warning|error)\\b"
+        },
+        {
+          "name": "keyword.other.pointcut.aspectj",
+          "match": "\\b(call|execution|initialization|preinitialization|staticinitialization|get|set|handler|adviceexecution|within|withincode|cflow|cflowbelow|args|target)\\b"
+        },
+        {
+          "name": "storage.modifier.aspectj",
+          "match": "\\b(public|protected|private|static|final|abstract|native|strictfp|transient|volatile|default)\\b"
+        },
+        {
+          "name": "constant.language.aspectj",
+          "match": "\\b(true|false|null)\\b"
+        }
+      ]
+    },
+    "types": {
+      "name": "storage.type.primitive.aspectj",
+      "match": "\\b(boolean|byte|short|int|long|char|float|double)\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.aspectj",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [{ "include": "#escapes" }]
+        },
+        {
+          "name": "string.quoted.double.aspectj",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "include": "#escapes" }]
+        },
+        {
+          "name": "string.quoted.single.aspectj",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "include": "#escapes" }]
+        }
+      ]
+    },
+    "escapes": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.aspectj",
+          "match": "\\\\(u[0-9a-fA-F]{4}|[0-7]{1,3}|.)"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.aspectj",
+      "match": "\\b(0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[0-7_]+|[0-9][0-9_]*)(\\.[0-9_]*)?([eE][+-]?[0-9_]+)?[lLfFdD]?\\b"
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Asl",
+  "scopeName": "source.asl",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#relationships"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.asl",
+      "match": "#.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.asl",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.asl",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.asl",
+          "match": "\\b(if|then|else|endif|switch|case|default|endswitch|for|in|do|endfor|loop|endloop|break|breakif)\\b"
+        },
+        {
+          "name": "keyword.other.asl",
+          "match": "\\b(this|create|unique|with|delete|find|find-one|find-only|find-all|where|link|unlink|using|to|is|append|define|structure|enddefine|countof|and|or|not|ordered by|reverse ordered by|union-of|disunion-of|intersection-of|not-in|current-date|current-time)\\b"
+        },
+        {
+          "name": "keyword.other.event.asl",
+          "match": "%generate|\\$INLINE|\\$ENDINLINE"
+        },
+        {
+          "name": "storage.type.asl",
+          "match": "\\b(Integer|Real|Boolean|Text|Date|Time_of_Day)\\b"
+        },
+        {
+          "name": "constant.language.asl",
+          "match": "\\b(TRUE|FALSE|UNDEFINED)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.asl",
+      "match": "-?\\b[0-9]+(\\.[0-9]+)?\\b"
+    },
+    "relationships": {
+      "name": "entity.name.type.asl",
+      "match": "\\bR[0-9]+\\b"
+    }
+  }
+}

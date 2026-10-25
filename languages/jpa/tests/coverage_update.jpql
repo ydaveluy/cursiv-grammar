@@ -1,0 +1,1 @@
+UPDATE Employee e SET e.salary = e.salary * 1.1, e.status = 'ACTIVE' WHERE e.department = :dept

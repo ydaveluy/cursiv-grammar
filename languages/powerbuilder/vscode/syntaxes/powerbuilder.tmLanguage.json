@@ -1,0 +1,85 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "PowerBuilder",
+  "scopeName": "source.powerbuilder",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#export-header" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#types" },
+    { "include": "#keywords" },
+    { "include": "#enum-literal" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.powerbuilder", "match": "//.*$" },
+        { "name": "comment.block.powerbuilder", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "export-header": {
+      "name": "comment.line.number-sign.powerbuilder",
+      "match": "^(HA)?\\$.*$"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.powerbuilder",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [{ "name": "constant.character.escape.powerbuilder", "match": "~." }]
+        },
+        {
+          "name": "string.quoted.single.powerbuilder",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.powerbuilder", "match": "~." }]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.date.powerbuilder", "match": "\\b\\d{4}-\\d{2}-\\d{2}\\b" },
+        { "name": "constant.numeric.time.powerbuilder", "match": "\\b\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?\\b" },
+        { "name": "constant.numeric.powerbuilder", "match": "\\b(\\d+\\.?\\d*|\\.\\d+)([eE][+-]?\\d+)?[dDfF]?\\b" }
+      ]
+    },
+    "enum-literal": {
+      "name": "constant.other.enum.powerbuilder",
+      "match": "\\b[A-Za-z][A-Za-z0-9$#%_-]*!"
+    },
+    "types": {
+      "name": "storage.type.powerbuilder",
+      "match": "(?i)\\b(any|blob|boolean|byte|character|char|date|datetime|decimal|dec|double|integer|int|long|longlong|real|string|time|unsignedinteger|uint|unsignedlong|ulong|window)\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.powerbuilder",
+          "match": "(?i)\\b(if|then|else|elseif|end|choose|case|is|for|to|step|next|do|while|until|loop|goto|continue|exit|return|try|catch|finally|throw|throws)\\b"
+        },
+        {
+          "name": "keyword.other.powerbuilder",
+          "match": "(?i)\\b(global|shared|local|public|private|protected|privateread|privatewrite|protectedread|protectedwrite|forward|prototypes|type|variables|function|subroutine|event|on|open|close|create|destroy|within|autoinstantiate|descriptor|constant|indirect|readonly|call|super|trigger|post|dynamic|halt|release|alias|library|rpcfunc)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.powerbuilder",
+          "match": "(?i)\\b(and|or|not)\\b"
+        },
+        {
+          "name": "constant.language.boolean.powerbuilder",
+          "match": "(?i)\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.powerbuilder",
+          "match": "(?i)\\bnull\\b"
+        },
+        {
+          "name": "keyword.other.sql.powerbuilder",
+          "match": "(?i)\\b(select|selectblob|insert|update|updateblob|delete|from|where|into|values|declare|cursor|procedure|prepare|execute|immediate|fetch|commit|rollback|connect|disconnect|using|describe|sqlca|set)\\b"
+        }
+      ]
+    }
+  }
+}

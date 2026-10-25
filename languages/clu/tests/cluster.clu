@@ -1,0 +1,18 @@
+counter = cluster is new, increment, value
+    rep = int
+
+    routine
+
+    new = proc () returns (cvt)
+        return(0)
+        end new
+
+    increment = proc (c: cvt) returns (cvt)
+        return(c + 1)
+        end increment
+
+    value = proc (c: cvt) returns (int)
+        return(c)
+        end value
+
+    end counter

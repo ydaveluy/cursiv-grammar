@@ -1,0 +1,22 @@
+type_showcase = proc ()
+    a: null
+    b: bool
+    c: int
+    d: real
+    e: char
+    f: string
+    g: any
+    h: rep
+    i: cvt
+    j: array
+    k: sequence
+    l: sequence int
+    m: record[x: int, y: int]
+    n: struct[x: int, y: int]
+    o: oneof[a: int, b: string]
+    p: variant[a: int, b: string]
+    q: proctype(int, int) returns (int) signals (oops)
+    r: itertype(int) yields (int)
+    s: my_type
+    t: my_type[int, 5]
+    end type_showcase

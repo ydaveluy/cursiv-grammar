@@ -1,0 +1,75 @@
+// Constructs the CMU corpus does not exercise: generic element types,
+// groups/members, structural property types (record/set/sequence), an
+// external analysis, type modifiers, and the design-rule literal and path
+// forms (literal set/sequence/record, a `/`-rooted path, `collect`).
+family CoverageFam = {
+    public final element type Widget = {
+        property size : int;
+    }
+
+    element type Gadget extends Widget with {
+        property weight : float;
+    }
+
+    group type Team = {
+        property lead : string;
+    }
+
+    component type Node = {
+        property shape : record [
+            width : int;
+            height : int;
+        ];
+        property tags : sequence<string>;
+        property kinds : set{string};
+
+        representation Rep = {
+            system Inner = {
+                component m1 : Node = new Node;
+                component m2 : Node = new Node;
+            }
+            bindings {
+                m1 to m2 {
+                    property note : string = "linked";
+                    << owner : string = "team1"; >>
+                };
+            }
+        }
+    }
+
+    design analysis countNodes(sys : system) : int =
+        size(sys.components);
+
+    external design analysis rawCost(c : component) : int = "cost.native";
+}
+
+system CoverageSys : CoverageFam = new CoverageFam extended with {
+    component n1 : Node = new Node;
+    component n2 : Node = new Node;
+
+    group team1 : Team = {
+        members {
+            n1, n2
+        };
+    }
+
+    invariant collect c : component in self.components | true;
+
+    invariant {1, 2, 3} == {1, 2, 3} -> true;
+
+    invariant <1, 2, 3> == <1, 2, 3> -> true;
+
+    invariant [ a = 1; b = "x"; ] == [ a = 1; b = "x"; ] -> true;
+
+    invariant Forall p : port in /self/ports | true;
+
+    invariant Forall distinct a, b : component in self.components |
+        a != b -> true;
+
+    rule namedRule = invariant true;
+
+    property offset : float = -1.5;
+    property extra : int containassign 7;
+
+    attachment n1 to n2;
+}

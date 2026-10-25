@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Robotwars",
+  "scopeName": "source.robotwars",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#registers"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.semicolon.robotwars",
+      "match": ";.*$"
+    },
+    "keywords": {
+      "name": "keyword.control.robotwars",
+      "match": "\\b(IF|TO|GOSUB|GOTO|ENDSUB)\\b"
+    },
+    "registers": {
+      "name": "support.variable.robotwars",
+      "match": "\\b(AIM|SHOT|RADAR|DAMAGE|SPEEDX|SPEEDY|RANDOM|INDEX|DATA|[A-Z])\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.robotwars",
+      "match": "\\b[0-9]+\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.robotwars",
+      "match": "[<>=#+\\-*/.,]"
+    }
+  }
+}

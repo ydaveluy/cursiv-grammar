@@ -1,0 +1,1 @@
+find("a") and find("b") unless find("c") or find("d")

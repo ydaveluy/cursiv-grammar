@@ -1,0 +1,21 @@
+# facts, and a fact later retracted
+number(one).
+number(two).
+number(three).
+temp(a).
+temp(a)~
+
+# equality and inequality in a rule body
+same(X, Y) :- number(X), number(Y), X = Y.
+different(X, Y) :- number(X), number(Y), X != Y.
+
+# a predicate named by a string
+"has space"(a, b).
+
+# a variable bound to an external predicate's answer
+sum(X, Y, Z) :- number(X), number(Y), Z :- add(X, Y).
+
+# a required relation
+(number).
+
+number(X)?

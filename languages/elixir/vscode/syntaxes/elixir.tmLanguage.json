@@ -1,0 +1,113 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Elixir",
+  "scopeName": "source.elixir",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#atoms"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#modules"
+    },
+    {
+      "include": "#variables"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.elixir",
+      "match": "#.*$"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "constant.language.elixir",
+          "match": "\\b(true|false|nil)\\b"
+        },
+        {
+          "name": "keyword.control.elixir",
+          "match": "\\b(when|and|or|not|in|fn|do|end|catch|rescue|after|else|case|cond|if|unless|defmodule|defmacro|def|defp|for|with|try)\\b"
+        }
+      ]
+    },
+    "atoms": {
+      "name": "constant.other.symbol.elixir",
+      "match": ":[a-zA-Z_][a-zA-Z_0-9@]*[!?]?"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.elixir",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.double.elixir",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.elixir",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.elixir",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.elixir",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.elixir",
+          "match": "\\b0x[0-9a-fA-F_]+\\b"
+        },
+        {
+          "name": "constant.numeric.octal.elixir",
+          "match": "\\b0o[0-7_]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.elixir",
+          "match": "\\b0b[01_]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.elixir",
+          "match": "\\b[0-9][0-9_]*\\.[0-9][0-9_]*([eE][+-]?[0-9]+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.elixir",
+          "match": "\\b[0-9][0-9_]*\\b"
+        }
+      ]
+    },
+    "modules": {
+      "name": "entity.name.class.elixir",
+      "match": "\\b[A-Z][a-zA-Z_0-9]*\\b"
+    },
+    "variables": {
+      "name": "variable.other.elixir",
+      "match": "\\b[a-z_][a-zA-Z_0-9]*[!?]?\\b"
+    }
+  }
+}
