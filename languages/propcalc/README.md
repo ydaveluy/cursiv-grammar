@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-A propositional-calculus sequent: premises, a turnstile, a conclusion.
+Propositional-calculus sequents with premises, a turnstile (`|-`) and a conclusion. Formulas use `^`, `v`, `!`, `->` and `<->`.
 
 ```
 ((p -> q) ^ p) |- q
 ```
-
-`^` is and, `v` is or, `!` is not, `->` is implies, `<->` is equiv, and `|-`
-is the turnstile separating the premises (left) from the conclusion (right).
-A variable is a run of letters; parentheses group a sub-expression.
 
 ## The command line
 

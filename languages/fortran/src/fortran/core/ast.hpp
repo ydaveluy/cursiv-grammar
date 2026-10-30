@@ -137,6 +137,7 @@ struct Declarator : cursiv::Extends<cursiv::AstNode> {
   ArraySpec* shape;
   Expr* charLength;
   Expr* init;
+  boolean pointerInit;  // `=>` rather than `=`
 };
 
 // A control spec of an I/O statement (`UNIT=`, `FMT=`, `IOSTAT=`, a bare
@@ -172,6 +173,12 @@ struct CommonGroup : cursiv::Extends<cursiv::AstNode> {
 
 struct CommonDecl : cursiv::Extends<Stmt> {
   vector<CommonGroup*> groups;
+};
+
+// DATA's `repeat * constant`, kept without expanding the value list.
+struct DataRepeat : cursiv::Extends<Expr> {
+  Expr* count;
+  Expr* value;
 };
 
 struct DataSet : cursiv::Extends<cursiv::AstNode> {

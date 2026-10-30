@@ -6,38 +6,38 @@
 namespace fasta {
 
 struct Fasta : cursiv::GrammarSpec {
-  struct EOL : terminal<lit<"\r\n"> | cr<R"(\r\n)">> {};
+  struct EOL : terminal<eol> {};
   static constexpr auto line_end = ref<EOL> | eof;
 
   struct TEXT : terminal<some(cr<R"(^\r\n)">)> {};
   struct SEQUENCELINE
       : terminal<cr<R"(^>;\r\n)"> + many(cr<R"(^\r\n)">)> {};
 
-  struct DescriptionLineRule
+  struct DescriptionLine
       : rule<lit<">"> + option(assign<&ast::DescriptionLine::text>(ref<TEXT>)) +
              line_end> {};
 
-  struct SequenceLineRule
+  struct SequenceLine
       : rule<assign<&ast::SequenceLine::text>(ref<SEQUENCELINE>) + line_end> {};
 
-  struct CommentLineRule
+  struct CommentLine
       : rule<lit<";"> +
              option(assign<&ast::CommentLine::text>(ref<TEXT>)) +
              line_end> {};
 
-  struct BlankLineRule : rule<create<ast::BlankLine> + ref<EOL>> {};
+  struct BlankLine : rule<create<ast::BlankLine> + ref<EOL>> {};
   static constexpr auto BodyLine =
-      ref<SequenceLineRule> | ref<CommentLineRule> | ref<BlankLineRule>;
+      ref<SequenceLine> | ref<CommentLine> | ref<BlankLine>;
 
-  struct RecordRule
-      : rule<assign<&ast::Record::description>(ref<DescriptionLineRule>) +
+  struct Record
+      : rule<assign<&ast::Record::description>(ref<DescriptionLine>) +
              many(append<&ast::Record::body>(BodyLine))> {};
 
-  struct DocumentRule
+  struct Document
       : rule<many(append<&ast::Document::preamble>(BodyLine)) +
-             many(append<&ast::Document::records>(ref<RecordRule>))> {};
+             many(append<&ast::Document::records>(ref<Record>))> {};
 
-  using entry = DocumentRule;
+  using entry = Document;
 };
 
 } // namespace fasta

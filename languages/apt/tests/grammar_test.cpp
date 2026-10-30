@@ -9,6 +9,7 @@
 
 #include "apt/core/CoreServices.hpp"
 #include "apt/core/ast.hpp"
+#include "apt/core/Word.hpp"
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
@@ -25,6 +26,44 @@ int main() {
   const auto language = cursiv::create_language<
       apt::AptCoreServices, apt::AptSharedCoreServices,
       apt::install_core_module>();
+
+  // APT 3.0.3 treats CR as field whitespace, while only LF ends a line.
+  // ParseQuoteWord also keeps CR inside quotes and dequotes option names.
+  const struct {
+    const char* source;
+    std::string_view optionName;
+    std::string_view optionValue;
+  } nativeCases[] = {
+      {"deb https://example.org\rsuite main\n", {}, {}},
+      {"\rdeb https://example.org suite main\n", {}, {}},
+      {"deb [\"custom key\"=\"two words\"] https://example.org suite main\n",
+       "custom key", "two words"},
+      {"deb [label=\"a\rb\"] https://example.org suite main\n", "label", "a\rb"}};
+  for (const auto& c : nativeCases) {
+    const auto result = language.language.parser->parse(c.source);
+    const auto* doc = result.value_as<apt::ast::Document>();
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !doc || doc->records.size() != 1)
+      return (fail("native whitespace/quoting", "not one clean record"), 1);
+    const auto* record = doc->records[0];
+    if (record->uri != "https://example.org" ||
+        record->distribution != "suite" || record->components.size() != 1 ||
+        record->components[0] != "main")
+      return (fail("native whitespace/quoting", "incorrect record fields"), 1);
+    if (!c.optionName.empty()) {
+      if (record->options.size() != 1 ||
+          apt::word_value(record->options[0]->name) != c.optionName ||
+          apt::word_value(record->options[0]->value) != c.optionValue)
+        return (fail("native quoting", "incorrect option fields"), 1);
+    }
+  }
+  {
+    const auto result = language.language.parser->parse(
+        "deb\rhttps://example.org suite main\n");
+    if (result.accepted && !result.cst().recovered() &&
+        result.diagnostics.empty())
+      return (fail("native type", "CR alone cannot terminate a record type"), 1);
+  }
 
   int total = 0;
   int failures = 0;

@@ -126,6 +126,37 @@ void exchange_and_swap_are_distinct() {
   }
 }
 
+void native_1986_forms() {
+  const auto r = parse(kept(
+      "FaCt[20] n\nprocedure Empty\nprocedure Main\n"
+      "read fact[12]\nn += 12345678901\ncall eMpTy\nuncall EMPTY\n"
+      "if n then else fi n\nfrom n do loop until n\n"));
+  CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
+  const auto* program = r.value_as<ast::Program>();
+  CHECK(program && program->decls.size() == 2 && program->procedures.size() == 2);
+  if (!program || program->decls.size() != 2 || program->procedures.size() != 2) return;
+  CHECK(program->decls[0]->name == "FACT" && program->decls[0]->size == 20);
+  CHECK(program->procedures[0]->name == "EMPTY" && program->procedures[0]->statements.empty());
+  const auto* main = program->procedures[1];
+  CHECK(main->name == "MAIN" && main->statements.size() == 6);
+  if (main->statements.size() != 6) return;
+  const auto* read = cursiv::ast_cast<ast::ReadStmt>(main->statements[0]);
+  const auto* index = read ? cursiv::ast_cast<ast::ConstantExpr>(read->index) : nullptr;
+  CHECK(read && read->name == "FACT" && index && index->value == 12 && index->parent == read);
+  const auto* mod = cursiv::ast_cast<ast::ModStmt>(main->statements[1]);
+  const auto* value = mod ? cursiv::ast_cast<ast::ConstantExpr>(mod->value) : nullptr;
+  CHECK(value && value->value == 12345678901LL && mod && value->parent == mod);
+  const auto* call = cursiv::ast_cast<ast::CallStmt>(main->statements[2]);
+  const auto* uncall = cursiv::ast_cast<ast::CallStmt>(main->statements[3]);
+  CHECK(call && call->kind == ast::CallKind::call && call->target.refText == "EMPTY");
+  CHECK(uncall && uncall->kind == ast::CallKind::uncall && uncall->target.refText == "EMPTY");
+  const auto* conditional = cursiv::ast_cast<ast::IfStmt>(main->statements[4]);
+  const auto* loop = cursiv::ast_cast<ast::DoStmt>(main->statements[5]);
+  CHECK(conditional && conditional->thenStatements.empty() && conditional->elseStatements.empty() &&
+        conditional->test && conditional->assertion);
+  CHECK(loop && loop->doStatements.empty() && loop->loopStatements.empty() && loop->from && loop->until);
+}
+
 }  // namespace
 
 int main() {
@@ -133,5 +164,6 @@ int main() {
   chain_is_right_associative();
   unary_wraps_whole_expression();
   exchange_and_swap_are_distinct();
+  native_1986_forms();
   return cursiv::test::report("janus_grammar_test");
 }

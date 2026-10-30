@@ -121,9 +121,9 @@ void refused_texts() {
   CHECK(!accepts("if a end\n"));
   CHECK(!accepts("while a end\n"));
   CHECK(!accepts("x = (1\n")); // unbalanced parenthesis
-  CHECK(!accepts("x()\n"));    // index_expression_list needs >= 1 item
+  CHECK(accepts("x()\n"));     // native zero-argument function call
   CHECK(!accepts("x = 'unterminated\n"));
-  CHECK(!accepts("x = .5\n")); // NUMBER needs a leading digit, unlike C
+  CHECK(accepts("x = .5\n"));  // native fractional literal
 }
 
 void operator_precedence() {
@@ -304,6 +304,35 @@ int main() {
     CHECK(matrices == 2);
   }
 
+  for (const auto source : {"x=.5; y=1.; z=2e-3;", "x=1i; y=2.5j;", "x=1.*2;", "x=2^-1;", "x=-2^2;", "x=--2;", "x=1 && 2 || 3;", "% comment\nx=1+... ignored\n2", "function [a,b]=pair(x,~)\na=x; b=x+1;\nend\n", "function f()\nreturn\n"})
+    CHECK(accepts(source));
+  for (const auto source : {"function=1;", "end=1;", "x=1e2.5;"}) CHECK(!accepts(source));
+  {
+    const auto r = engine().parse("a=-2^2; b=2^-1; c=2^3^4; d=2^3'; e=1.*2; f=2j;");
+    const auto* root = r.value_as<ast::File>();
+    CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && root && root->statements.size() == 6);
+    if (root && root->statements.size() == 6) {
+      const auto value = [&](unsigned i) { auto* a = cursiv::ast_cast<ast::AssignStmt>(root->statements[i]); return a ? a->value : nullptr; };
+      const auto* u = cursiv::ast_cast<ast::UnaryExpr>(value(0));
+      CHECK(u && cursiv::ast_cast<ast::BinaryExpr>(u->operand));
+      const auto* p = cursiv::ast_cast<ast::BinaryExpr>(value(1));
+      CHECK(p && cursiv::ast_cast<ast::UnaryExpr>(p->right));
+      const auto* left = cursiv::ast_cast<ast::BinaryExpr>(value(2));
+      CHECK(left && cursiv::ast_cast<ast::BinaryExpr>(left->left));
+      const auto* post = cursiv::ast_cast<ast::PostfixOpExpr>(value(3));
+      CHECK(post && cursiv::ast_cast<ast::BinaryExpr>(post->operand));
+      const auto* mul = cursiv::ast_cast<ast::BinaryExpr>(value(4));
+      CHECK(mul && mul->op == ast::Operator::ewise_multiply);
+      const auto* imaginary = cursiv::ast_cast<ast::NumberLit>(value(5));
+      CHECK(imaginary && imaginary->imaginary && imaginary->value == 2);
+    }
+  }
+  {
+    const auto r = engine().parse("function [a,b]=pair(x,~)\na=x; b=x+1;\nend\n");
+    const auto* root = r.value_as<ast::File>();
+    const auto* f = root && !root->statements.empty() ? cursiv::ast_cast<ast::FunctionDef>(root->statements[0]) : nullptr;
+    CHECK(f && f->name == "pair" && f->outputs.size() == 2 && f->parameters.size() == 2 && f->parameters[1] == "~");
+  }
   accepted_texts();
   refused_texts();
   operator_precedence();

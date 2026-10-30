@@ -1,4 +1,5 @@
 #include "audit_regressions.hpp"
+#include "native_followup_cases.hpp"
 // sysmlv2 end to end: every corpus document (the three shipped examples)
 // parses clean, and so does every document this port added to exercise a
 // construct the corpus does not reach. One document's field values are read
@@ -49,6 +50,7 @@ int main() {
   const auto language = cursiv::create_language<
       sysmlv2::SysmlV2CoreServices, sysmlv2::SysmlV2SharedCoreServices,
       sysmlv2::install_core_module>();
+  if (!native_followup::run(language.language)) return 1;
 
   std::vector<Doc> docs;
   docs.push_back({CURSIV_EXAMPLE_DIR, "camera.sysml", true, {}, {}});
@@ -86,7 +88,7 @@ int main() {
   CHECK(corpusClean == 3);
 
   // Read real field values back out of toaster-system.sysml's tree: a
-  // converter that silently yields the wrong value, or a `text_conv` that
+  // converter that silently yields the wrong value, or a converter that
   // refuses, would not fail any check above -- diagnostics is where it
   // shows, and this walk is where a wrong value shows.
   const ast::RootNamespace* root =

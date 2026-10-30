@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Bison/Yacc files contain declarations, grammar rules between `%%` separators, and optional target-language code.
+
 ```
 %token NUM
 
@@ -48,11 +50,6 @@ exp
     ;
 %%
 ```
-
-A Bison/Yacc grammar file: a prologue of declarations (`%token`, precedence),
-`%%`, the grammar rules, and an optional `%%`-separated epilogue of raw
-target-language code. `example/calc.y` and `example/irc.y` are full worked
-examples.
 
 ## The command line
 

@@ -31,14 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+URI references with schemes, authorities, paths, queries and fragments. Components retain their source spelling.
+
 ```
 ftps://user:password@example.com/pub/file.txt
 ```
-
-A `Url` node: `scheme` ("ftps"), an optional `login` (`user`/`password`), a
-`host` (a domain name, an IPv4-shaped name, or a bracketed IPv6 literal), an
-optional `port`, an optional `path` (segments plus a trailing-slash flag), a
-`query` list of key/value pairs, and an optional `frag`.
 
 ## The command line
 

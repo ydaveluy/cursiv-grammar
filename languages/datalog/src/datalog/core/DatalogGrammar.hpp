@@ -20,7 +20,6 @@ inline constexpr auto unquote = [](std::string_view t,
   }
   return std::string_view(value, size);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Datalog : cursiv::GrammarSpec {
   static constexpr auto NameChar = cr<R"(^(,)=:.~?"% \n)">;
@@ -43,7 +42,7 @@ struct Datalog : cursiv::GrammarSpec {
   struct WS : terminal<some(s | uc::Zs | uc::Zl | uc::Zp)> {};
   struct COMMENT
       : terminal<(lit<"%"> | (lit<"#"> + &(cr<" \t"> | lit<"lang">))) +
-                 many(cr<R"(^\r\n)">)> {};
+                 many(cr<R"(^\n)">)> {};
 
   struct VARIABLE : terminal<VariableBody + !NameChar> {};
   struct IDENTIFIER : terminal<some(NameChar)> {};
@@ -51,93 +50,92 @@ struct Datalog : cursiv::GrammarSpec {
                             lit<"false">)+!NameChar) +
                          some(NameChar)> {};
   struct STRING
-      : terminal<lit<"\""> +
-                     many(cr<R"(^"\\\n)"> | (lit<"\\"> + cr<R"("\\\n)">)) +
-                     lit<"\"">,
-                 Unquoted> {};
+      : terminal<as<unquote>(
+            lit<"\""> + many(cr<R"(^"\\\n)"> | (lit<"\\"> + cr<R"("\\\n)">)) +
+            lit<"\"">)> {};
   struct INTEGER : terminal<IntegerBody + !NameChar> {};
   struct NameValue
       : rule<ref<IDENTIFIER> | ref<INTEGER> | kw<"true"> | kw<"false">> {};
 
-  struct VariableRule : rule<assign<&ast::Variable::name>(ref<VARIABLE>)> {};
+  struct Variable : rule<assign<&ast::Variable::name>(ref<VARIABLE>)> {};
 
-  struct AtomConstantRule : rule<assign<&ast::AtomConstant::name>(ref<ATOM>)> {
+  struct AtomConstant : rule<assign<&ast::AtomConstant::name>(ref<ATOM>)> {
   };
 
-  struct StringConstantRule
+  struct StringConstant
       : rule<assign<&ast::StringConstant::value>(ref<STRING>)> {};
 
-  struct IntConstantRule
+  struct IntConstant
       : rule<assign<&ast::IntConstant::value>(ref<INTEGER>)> {};
 
-  struct BoolConstantRule
+  struct BoolConstant
       : rule<create<ast::BoolConstant> +
              (flag<&ast::BoolConstant::value>(kw<"true">) | kw<"false">)> {
   };
 
-  struct TermRule : rule<ref<VariableRule> | ref<AtomConstantRule> |
-                         ref<StringConstantRule> | ref<IntConstantRule> |
-                         ref<BoolConstantRule>> {};
+  struct Term : rule<ref<Variable> | ref<AtomConstant> |
+                         ref<StringConstant> | ref<IntConstant> |
+                         ref<BoolConstant>> {};
 
-  struct ExternalLiteralRule
+  struct ExternalLiteral
       : rule<
             create<ast::ExternalLiteral> +
-            assign<&ast::ExternalLiteral::variable>(ref<VariableRule>) +
+            assign<&ast::ExternalLiteral::variable>(ref<Variable>) +
             lit<":-"> +
             assign<&ast::ExternalLiteral::external>(ref<NameValue>) + lit<"("> +
-            some(append<&ast::ExternalLiteral::args>(ref<TermRule>), lit<",">) +
+            some(append<&ast::ExternalLiteral::args>(ref<Term>), lit<",">) +
             lit<")">> {};
 
-  struct EqualityLiteralRule
+  struct EqualityLiteral
       : rule<create<ast::EqualityLiteral> +
-             assign<&ast::EqualityLiteral::left>(ref<TermRule>) +
+             assign<&ast::EqualityLiteral::left>(ref<Term>) +
              (flag<&ast::EqualityLiteral::negated>(lit<"!=">) |
-              lit<"=">)+assign<&ast::EqualityLiteral::right>(ref<TermRule>)> {};
+              lit<"=">)+assign<&ast::EqualityLiteral::right>(ref<Term>)> {};
 
-  struct PredicateAtomRule
+  struct PredicateAtom
       : rule<create<ast::PredicateAtom> +
              (assign<&ast::PredicateAtom::predicate>(ref<NameValue>) |
               flag<&ast::PredicateAtom::quoted>(
                   assign<&ast::PredicateAtom::predicate>(ref<STRING>))) +
              option(
                  lit<"("> +
-                 option(some(append<&ast::PredicateAtom::args>(ref<TermRule>),
+                 option(some(append<&ast::PredicateAtom::args>(ref<Term>),
                              lit<",">)) +
                  lit<")">)> {};
 
-  struct LiteralRule : rule<ref<ExternalLiteralRule> |
-                            ref<EqualityLiteralRule> | ref<PredicateAtomRule>> {
+  struct Literal : rule<ref<ExternalLiteral> |
+                            ref<EqualityLiteral> | ref<PredicateAtom>> {
   };
 
-  struct ClauseRule
+  struct Clause
       : rule<create<ast::Clause> +
-             assign<&ast::Clause::head>(ref<LiteralRule>) +
+             assign<&ast::Clause::head>(ref<Literal>) +
              option(lit<":-"> +
-                    some(append<&ast::Clause::body>(ref<LiteralRule>),
+                    some(append<&ast::Clause::body>(ref<Literal>),
                          lit<",">))> {};
 
-  struct AssertionRule
-      : rule<assign<&ast::Assertion::clause>(ref<ClauseRule>) + lit<".">> {};
+  struct Assertion
+      : rule<assign<&ast::Assertion::clause>(ref<Clause>) + lit<".">> {};
 
-  struct RetractionRule
-      : rule<assign<&ast::Retraction::clause>(ref<ClauseRule>) + lit<"~">> {};
+  struct Retraction
+      : rule<assign<&ast::Retraction::clause>(ref<Clause>) + lit<"~">> {};
 
-  struct QueryRule
-      : rule<assign<&ast::Query::literal>(ref<LiteralRule>) + lit<"?">> {};
+  struct Query
+      : rule<assign<&ast::Query::literal>(ref<Literal>) + lit<"?">> {};
 
-  struct RequirementRule
+  struct Requirement
       : rule<lit<"("> + assign<&ast::Requirement::name>(ref<NameValue>) +
              lit<")"> + lit<".">> {};
 
-  struct StatementRule : rule<ref<RequirementRule> | ref<AssertionRule> |
-                              ref<RetractionRule> | ref<QueryRule>> {};
+  struct Statement : rule<ref<Requirement> | ref<Assertion> |
+                              ref<Retraction> | ref<Query>> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program> +
-             many(append<&ast::Program::statements>(ref<StatementRule>))> {};
+             many(append<&ast::Program::statements>(ref<Statement>))> {};
 
-  using entry = ProgramRule;
-  using ignore = list<WS, COMMENT>;
+  using entry = Program;
+  using ignored = list<WS, COMMENT>;
 };
 
 }  // namespace datalog

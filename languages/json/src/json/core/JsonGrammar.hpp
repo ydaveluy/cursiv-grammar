@@ -19,11 +19,9 @@ inline constexpr auto unquote = [](std::string_view t, std::pmr::memory_resource
   if (body.find('\\') == std::string_view::npos) return body;
   return cursiv::copy_into(mem, decode_string(body));
 };
-using Unquoted = cursiv::text_conv<unquote>;
 inline constexpr auto null_value = [](std::string_view) {
   return std::monostate{};
 };
-using NullValue = cursiv::text_conv<null_value>;
 
 // RFC 8259 §6 allows a double-range implementation to keep going past it:
 // a magnitude from_chars cannot represent saturates to signed infinity
@@ -66,48 +64,50 @@ inline constexpr auto to_double = [](std::string_view t) {
       underflow ? 0.0 : std::numeric_limits<double>::infinity();
   return negative ? -magnitude : magnitude;
 };
-using ToDouble = cursiv::text_conv<to_double>;
 
 struct Json : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\n\r)">)> {};
 
-  struct NUMBER
-      : terminal<option(lit<"-">) + (lit<"0"> | (cr<"1-9"> + many(d))) +
-                     option(lit<"."> + some(d)) +
-                     option(cr<"eE"> + option(cr<"+-">) + some(d)),
-                 ToDouble> {};
+  struct NUMBER : terminal<as<to_double>(
+                      option(lit<"-">) + (lit<"0"> | (cr<"1-9"> + many(d))) +
+                      option(lit<"."> + some(d)) +
+                      option(cr<"eE"> + option(cr<"+-">) + some(d)))> {};
 
   static constexpr auto escape =
       lit<"\\"> +
       (cr<R"("\\/bfnrt)"> | (lit<"u"> + repeat<4>(cr<"0-9a-fA-F">)));
+  // Network JSON is UTF-8 (RFC 8259 §8.1). Keep the allowed scalar set
+  // positive, so a complement does not also admit malformed UTF-8 bytes.
+  static constexpr auto unescaped =
+      cr<R"(\x20-\x21\x23-\x5b\x5d-\u{10ffff})">;
   struct STRING
-      : terminal<lit<"\""> + many(escape | cr<R"(^"\\\x00-\x1f)">) + lit<"\"">,
-                 Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> + many(escape | unescaped) +
+                             lit<"\"">)> {};
 
-  struct BOOL : terminal<kw<"true"> | kw<"false">, bool> {};
-  struct NULLK : terminal<kw<"null">, NullValue> {};
+  struct BOOL : terminal<as<bool>(kw<"true"> | kw<"false">)> {};
+  struct NULLK : terminal<as<null_value>(kw<"null">)> {};
 
-  struct ObjectRule;
-  struct ArrayRule;
-  static constexpr auto value = ref<ObjectRule> | ref<ArrayRule> | ref<STRING> |
+  struct Object;
+  struct Array;
+  static constexpr auto value = ref<Object> | ref<Array> | ref<STRING> |
                                 ref<NUMBER> | ref<BOOL> | ref<NULLK>;
 
-  struct MemberRule : rule<assign<&ast::Member::name>(ref<STRING>) + lit<":"> +
+  struct Member : rule<assign<&ast::Member::name>(ref<STRING>) + lit<":"> +
                            assign<&ast::Member::value>(value)> {};
 
-  struct ObjectRule
+  struct Object
       : rule<lit<"{"> +
-             many(append<&ast::Object::members>(ref<MemberRule>), lit<",">) +
+             many(append<&ast::Object::members>(ref<Member>), lit<",">) +
              lit<"}">> {};
 
-  struct ArrayRule
+  struct Array
       : rule<lit<"["> + many(append<&ast::Array::items>(value), lit<",">) +
              lit<"]">> {};
 
-  struct DocRule : rule<assign<&ast::Doc::value>(value)> {};
+  struct Doc : rule<assign<&ast::Doc::value>(value)> {};
 
-  using entry = DocRule;
-  using ignore = WS;
+  using entry = Doc;
+  using ignored = WS;
 };
 
 } // namespace json

@@ -330,6 +330,25 @@ template <class Language> bool modern_cases(const Language &language) {
               define->thenBranch->items.empty() && !define->elseBranch,
           "empty DEFINE preserves condition and branch presence");
   }
+  {
+    auto result = parse(R"PC((a)\g<1>\g'1'\g<-1>\g'-1')PC");
+    for (std::size_t i = 1; i <= 4; ++i) {
+      const auto* call = cursiv::ast_cast<ast::SubroutineReference>(item(result, i));
+      check(call && call->number == 1 && call->name.empty() &&
+                call->sign == (i <= 2 ? "" : "-") &&
+                call->parent == sequence(result),
+            "Oniguruma numeric subroutines keep number, sign and parent");
+    }
+  }
+  {
+    auto result = parse(R"PC((?<x>a)\g{ x }\k{ x })PC");
+    for (std::size_t i = 1; i <= 2; ++i) {
+      const auto* call = cursiv::ast_cast<ast::Backreference>(item(result, i));
+      check(call && call->name == "x" && !call->number &&
+                call->parent == sequence(result),
+            "braced named backreferences allow native horizontal padding");
+    }
+  }
   auto validate = [&](std::string source, std::string_view code,
                       std::string_view fragment) {
     cursiv::Document document(cursiv::TextDocument::create(
@@ -363,6 +382,7 @@ template <class Language> bool modern_cases(const Language &language) {
   validate("\\q", "pcre.escape", "\\q");
   validate("\\o{8}", "pcre.escape", "\\o{8}");
   validate("(?<1bad>a)", "pcre.group-name", "1bad");
+  validate("(*UTF)(?<١>a)", "pcre.group-name", "١");
   validate("[\\R]", "pcre.class-escape", "\\R");
   validate("a(?i)+", "pcre.repeat-target", "(?i)");
   std::printf("pcre audit: %zu checked native forms, %u checks\n",

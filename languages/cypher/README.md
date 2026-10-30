@@ -31,9 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[Cypher](https://opencypher.org/) is Neo4j's graph query language: patterns
-of nodes and relationships stand in for the SQL `FROM`/`JOIN` a relational
-query would need.
+This port models historical openCypher 9 query syntax with some extensions. Nodes, relationships, properties and query clauses remain source-oriented AST nodes.
 
 ```
 MATCH (node1:Label1)
@@ -42,12 +40,6 @@ WHERE node1.propertyA = $value
 
 RETURN node2.propertyA, node2.propertyB
 ```
-
-`(node1:Label1)` is a node pattern: `node1` binds the match, `:Label1`
-constrains it. `$value` is a query parameter, bound outside the document.
-Variable and property names are plain text here, not cross references: a
-binding's declaration and its uses can sit in different query parts chained
-by `WITH`, past what a single-document scope resolves reliably.
 
 ## The command line
 

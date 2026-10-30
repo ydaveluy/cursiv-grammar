@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+ASCII STL solids with facet normals and vertex loops.
+
 ```
 solid triangle
   facet normal 0.0 0.0 1.0
@@ -42,11 +44,6 @@ solid triangle
   endfacet
 endsolid triangle
 ```
-
-An ASCII STL solid: an optional name, zero or more facets (each a normal and
-exactly three vertices, all triples of floats), and a closing name. More
-documents live under `example/`, one per construct — an anonymous solid, a
-multi-facet one, an empty one, and every spelling `FLOAT` accepts.
 
 ## The command line
 

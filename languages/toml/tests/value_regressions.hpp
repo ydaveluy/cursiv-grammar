@@ -32,6 +32,21 @@ inline bool run() {
                ? d->tables[0]->entries[0]
                : nullptr;
   };
+  for (const char* source : {"[a]#ok\nx=1", "x=1\n[a]\ny=2",
+                             "[ a ]\n x=1", "#tab\t\nx=1",
+                             "#ok\r\nx=1", "x=1\r\n[a]\r\ny=2"}) {
+    const auto parsed = language.language.parser->parse(source);
+    check(clean(parsed), "native table/comment line syntax");
+    check(cursiv::test::validationHelper(language.language, source)
+              .diagnostics.empty(),
+          "valid table/comment lines have no diagnostics");
+  }
+  for (const char* source : {"[a] x=1", "[a]x=1", "x=1[a]", "[a][b]",
+                             "[[a]] x=1", "#bad\x01\nx=1",
+                             "#bad\x7f\nx=1", "#rawCR\rx=1"})
+    check(!cursiv::test::validationHelper(language.language, source)
+               .diagnostics.empty(),
+          "invalid table/comment lines are diagnosed");
   struct StringCase {
     const char *source;
     std::string_view value;

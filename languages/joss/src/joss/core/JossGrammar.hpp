@@ -11,7 +11,11 @@ namespace joss {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
+inline constexpr auto form_layout = [](std::string_view t) {
+  const auto line = t.find_first_of("\r\n");
+  const auto width = t.substr(line).starts_with("\r\n") ? 2u : 1u;
+  return t.substr(line + width);
+};
 
 struct Joss : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -21,151 +25,134 @@ struct Joss : cursiv::GrammarSpec {
   static constexpr auto IntPart = lit<"0"> | (NzDigit + option(DecimalPart));
   static constexpr auto PartNumberBody = NzDigit + option(IntPart);
 
-  struct NUMBER
-      : terminal<option(cr<"+-">) + IntPart + option(lit<"."> + DecimalPart),
-                 double> {};
+  struct NUMBER : terminal<as<double>(option(cr<"+-">) +
+                                      ((IntPart + option(lit<"."> + DecimalPart)) |
+                                       (lit<"."> + DecimalPart)))> {};
   struct PARTNUMBER : terminal<PartNumberBody> {};
-  struct STEPNUMBER : terminal<PartNumberBody + lit<"."> + PartNumberBody> {};
+  struct STEPNUMBER : terminal<PartNumberBody + lit<"."> + some(d)> {};
 
   struct ALPHA : terminal<cr<"A-Za-z">> {};
 
-  // JOSS has no escape for an embedded apostrophe in a quoted string, so
-  // `through` closes on the first one.
-  struct QSTRING : terminal<through(lit<"'">, lit<"'">), Unquoted> {};
+  // Native double quotes, plus the port's legacy single-quoted spelling.
+  struct QSTRING : terminal<as<unquote>(through(lit<"\"">, lit<"\"">) |
+                                        through(lit<"'">, lit<"'">))> {};
+  struct FORM_LAYOUT : terminal<as<form_layout>(many(cr<R"( \t)">) + eol +
+                                                some(cr<R"(^\r\n)">))> {};
 
-  struct STEP_KW : terminal<kw<"step">, value<ast::SelKind::step_>> {};
-  struct PART_KW : terminal<kw<"part">, value<ast::SelKind::part_>> {};
-  struct FORM_KW : terminal<kw<"form">, value<ast::SelKind::form_>> {};
-
-  struct STEPS_KW : terminal<kw<"steps">, value<ast::AllKind::steps_>> {};
-  struct PARTS_KW : terminal<kw<"parts">, value<ast::AllKind::parts_>> {};
-  struct FORMS_KW : terminal<kw<"forms">, value<ast::AllKind::forms_>> {};
-  struct VALUES_KW : terminal<kw<"values">, value<ast::AllKind::values_>> {};
-
-  struct SIZE_KW : terminal<kw<"size">, value<ast::TypeSysKind::size_>> {};
-  struct TIME_KW : terminal<kw<"time">, value<ast::TypeSysKind::time_>> {};
-  struct USERS_KW : terminal<kw<"users">, value<ast::TypeSysKind::users_>> {};
-
-  struct ADD : terminal<lit<"+">, value<ast::MathOp::add>> {};
-  struct SUB : terminal<lit<"-">, value<ast::MathOp::sub>> {};
-  struct MUL : terminal<lit<"*">, value<ast::MathOp::mul>> {};
-  struct DIV : terminal<lit<"/">, value<ast::MathOp::div>> {};
-
-  struct NE : terminal<lit<"!=">, value<ast::BoolCompOp::ne>> {};
-  struct LE : terminal<lit<"<=">, value<ast::BoolCompOp::le>> {};
-  struct GE : terminal<lit<"=>">, value<ast::BoolCompOp::ge>> {};
-  struct EQ : terminal<lit<"=">, value<ast::BoolCompOp::eq>> {};
-  struct LT : terminal<lit<"<">, value<ast::BoolCompOp::lt>> {};
-  struct GT : terminal<lit<">">, value<ast::BoolCompOp::gt>> {};
   static constexpr auto BoolCompTok =
-      ref<NE> | ref<LE> | ref<GE> | ref<EQ> | ref<LT> | ref<GT>;
+      as<ast::BoolCompOp::ne>(lit<"≠"> | lit<"!=">) | as<ast::BoolCompOp::le>(lit<"≤"> | lit<"<=">) | as<ast::BoolCompOp::ge>(lit<"≥"> | lit<"=>"> | lit<">=">) | as<ast::BoolCompOp::eq>(lit<"=">) | as<ast::BoolCompOp::lt>(lit<"<">) | as<ast::BoolCompOp::gt>(lit<">">);
 
-  struct AND_KW : terminal<kw<"and">, value<ast::BoolOp::and_>> {};
-  struct OR_KW : terminal<kw<"or">, value<ast::BoolOp::or_>> {};
-  static constexpr auto BoolOpTok = ref<AND_KW> | ref<OR_KW>;
+  static constexpr auto BoolOpTok = as<ast::BoolOp::and_>(kw<"and">) | as<ast::BoolOp::or_>(kw<"or">);
 
-  struct SQRT_KW : terminal<lit<"sqrt(">, value<ast::UnaryFn::sqrt_>> {};
-  struct LOG_KW : terminal<lit<"log(">, value<ast::UnaryFn::log_>> {};
-  struct EXP_KW : terminal<lit<"exp(">, value<ast::UnaryFn::exp_>> {};
-  struct SIN_KW : terminal<lit<"sin(">, value<ast::UnaryFn::sin_>> {};
-  struct COS_KW : terminal<lit<"cos(">, value<ast::UnaryFn::cos_>> {};
-  struct IP_KW : terminal<lit<"ip(">, value<ast::UnaryFn::ip_>> {};
-  struct FP_KW : terminal<lit<"fp(">, value<ast::UnaryFn::fp_>> {};
-  struct DP_KW : terminal<lit<"dp(">, value<ast::UnaryFn::dp_>> {};
-  struct XP_KW : terminal<lit<"xp(">, value<ast::UnaryFn::xp_>> {};
-  struct SGN_KW : terminal<lit<"sgn(">, value<ast::UnaryFn::sgn_>> {};
-  struct MAX_KW : terminal<lit<"max(">, value<ast::NaryFn::max_>> {};
-  struct MIN_KW : terminal<lit<"min(">, value<ast::NaryFn::min_>> {};
 
-  struct MathExprRule;
-  struct VariableRule;
+  struct MathExpr;
+  struct Variable;
+  struct RangeCall;
+  static constexpr auto UnaryFunction =
+      as<ast::UnaryFn::sqrt_>(kw<"sqrt">) | as<ast::UnaryFn::log_>(kw<"log">) |
+      as<ast::UnaryFn::exp_>(kw<"exp">) | as<ast::UnaryFn::sin_>(kw<"sin">) |
+      as<ast::UnaryFn::cos_>(kw<"cos">) | as<ast::UnaryFn::ip_>(kw<"ip">) |
+      as<ast::UnaryFn::fp_>(kw<"fp">) | as<ast::UnaryFn::dp_>(kw<"dp">) |
+      as<ast::UnaryFn::xp_>(kw<"xp">) | as<ast::UnaryFn::sgn_>(kw<"sgn">);
+  static constexpr auto UnaryArgument = assign<&ast::UnaryCall::arg>(ref<MathExpr>);
+  static constexpr auto NaryFunction = as<ast::NaryFn::max_>(kw<"max">) |
+      as<ast::NaryFn::min_>(kw<"min">) | as<ast::NaryFn::sum_>(kw<"sum">) |
+      as<ast::NaryFn::prod_>(kw<"prod">);
+  static constexpr auto NaryArguments = assign<&ast::NaryCall::first>(ref<MathExpr>) +
+      lit<","> + some(append<&ast::NaryCall::rest>(ref<MathExpr>), lit<",">);
 
-  struct VariableRule
+  struct Variable
       : rule<create<ast::Variable>(
             assign<&ast::Variable::name>(ref<ALPHA>) +
-            option(lit<"("> + assign<&ast::Variable::index>(ref<MathExprRule>) +
+            option(lit<"("> + assign<&ast::Variable::index>(ref<MathExpr>) +
+                   option(lit<","> + assign<&ast::Variable::secondIndex>(ref<MathExpr>)) +
                    lit<")">))> {};
 
   struct PrimaryMath
       : rule<create<ast::GroupedMath>(
-                 lit<"("> + assign<&ast::GroupedMath::inner>(ref<MathExprRule>) +
+                 lit<"("> + assign<&ast::GroupedMath::inner>(ref<MathExpr>) +
                  lit<")">)  //
              | create<ast::GroupedMath>(
-                   lit<"["> + assign<&ast::GroupedMath::inner>(ref<MathExprRule>) +
+                   lit<"["> + assign<&ast::GroupedMath::inner>(ref<MathExpr>) +
                    lit<"]">)  //
              | create<ast::NumberLit>(
                    assign<&ast::NumberLit::value>(ref<NUMBER>))  //
-             | ref<VariableRule>                                 //
+             | create<ast::AbsoluteMath>(lit<"|"> +
+                   assign<&ast::AbsoluteMath::inner>(ref<MathExpr>) + lit<"|">)
+             | ref<Variable>                                 //
+             | ref<RangeCall>
              | create<ast::UnaryCall>(
-                   assign<&ast::UnaryCall::fn>(
-                       ref<SQRT_KW> | ref<LOG_KW> | ref<EXP_KW> | ref<SIN_KW> |
-                       ref<COS_KW> | ref<IP_KW> | ref<FP_KW> | ref<DP_KW> |
-                       ref<XP_KW> | ref<SGN_KW>) +
-                   assign<&ast::UnaryCall::arg>(ref<MathExprRule>) + lit<")">)  //
+                   assign<&ast::UnaryCall::fn>(UnaryFunction) +
+                   ((lit<"("> + UnaryArgument + lit<")">) |
+                    (lit<"["> + UnaryArgument + lit<"]">)))  //
              | create<ast::NaryCall>(
-                   assign<&ast::NaryCall::fn>(ref<MAX_KW> | ref<MIN_KW>) +
-                   assign<&ast::NaryCall::first>(ref<MathExprRule>) + lit<","> +
-                   some(append<&ast::NaryCall::rest>(ref<MathExprRule>),
-                        lit<",">) +
-                   lit<")">)> {};
+                   assign<&ast::NaryCall::fn>(NaryFunction) +
+                   ((lit<"("> + NaryArguments + lit<")">) |
+                    (lit<"["> + NaryArguments + lit<"]">)))> {};
 
-  struct MathExprRule
-      : infix<PrimaryMath, &ast::BinMath::left, &ast::BinMath::op,
-              &ast::BinMath::right,
-              (left(ref<MUL> | ref<DIV>) >> left(ref<ADD> | ref<SUB>))> {};
+  struct MathExpr
+      : infix<PrimaryMath, ast::BinMath,
+              levels(left(as<ast::MathOp::power>(lit<"*">)),
+                     left(as<ast::MathOp::mul>(lit<"·"> | lit<"•">) | as<ast::MathOp::div>(lit<"/">)),
+                     left(as<ast::MathOp::add>(lit<"+">) | as<ast::MathOp::sub>(lit<"-">)))> {};
 
-  struct AssignmentRule
-      : rule<assign<&ast::Assignment::target>(ref<VariableRule>) + lit<"="> +
-             assign<&ast::Assignment::value>(ref<MathExprRule>)> {};
+  struct Assignment
+      : rule<assign<&ast::Assignment::target>(ref<Variable>) + lit<"="> +
+             assign<&ast::Assignment::value>(ref<MathExpr>)> {};
 
-  struct ComparisonRule
-      : rule<assign<&ast::Comparison::left>(ref<MathExprRule>) +
+  struct Comparison
+      : rule<assign<&ast::Comparison::left>(ref<MathExpr>) +
              assign<&ast::Comparison::op>(BoolCompTok) +
-             assign<&ast::Comparison::right>(ref<MathExprRule>)> {};
+             assign<&ast::Comparison::right>(ref<MathExpr>)> {};
 
-  struct BoolExprRule;
-  struct BoolExprRule
+  struct BoolExpr;
+  struct BoolExpr
       : rule<create<ast::GroupedBool>(
                  lit<"("> +
-                 assign<&ast::GroupedBool::inner>(ref<BoolExprRule>) +
+                 assign<&ast::GroupedBool::inner>(ref<BoolExpr>) +
                  lit<")">)  //
              | create<ast::GroupedBool>(
                    lit<"["> +
-                   assign<&ast::GroupedBool::inner>(ref<BoolExprRule>) +
+                   assign<&ast::GroupedBool::inner>(ref<BoolExpr>) +
                    lit<"]">)  //
-             | (ref<ComparisonRule> +
+             | (ref<Comparison> +
                 option(nest<ast::BoolChain, &ast::BoolChain::left>(
                     assign<&ast::BoolChain::op>(BoolOpTok) +
-                    assign<&ast::BoolChain::right>(ref<BoolExprRule>))))> {};
+                    assign<&ast::BoolChain::right>(ref<BoolExpr>))))> {};
 
-  struct RangeValRule;
-  struct RangeValRule
+  struct RangeVal;
+  struct RangeVal
       : rule<create<ast::RangeVal>(
-            assign<&ast::RangeVal::start>(ref<MathExprRule>) +
-            option(lit<"("> + assign<&ast::RangeVal::step>(ref<MathExprRule>) +
+            assign<&ast::RangeVal::start>(ref<MathExpr>) +
+            option(lit<"("> + assign<&ast::RangeVal::step>(ref<MathExpr>) +
                    lit<")"> +
-                   assign<&ast::RangeVal::rest>(ref<RangeValRule>)))> {};
+                   assign<&ast::RangeVal::rest>(ref<RangeVal>)))> {};
 
-  struct IfCondRule
+  struct IfCond
       : rule<create<ast::IfCond>(kw<"if"> +
-                                 assign<&ast::IfCond::cond>(ref<BoolExprRule>))> {
+                                 assign<&ast::IfCond::cond>(ref<BoolExpr>))> {
   };
-  struct ForCondRule
+  static constexpr auto RangeBindingBody = assign<&ast::ForCond::var>(ref<Variable>) +
+      lit<"="> + some(append<&ast::ForCond::values>(ref<RangeVal>), lit<",">);
+  struct RangeBinding : rule<create<ast::ForCond>(RangeBindingBody)> {};
+  struct RangeCall : rule<create<ast::RangeCall>(
+      assign<&ast::RangeCall::fn>(NaryFunction) + lit<"["> +
+      assign<&ast::RangeCall::range>(ref<RangeBinding>) + lit<":"> +
+      assign<&ast::RangeCall::value>(ref<MathExpr>) + lit<"]">)> {};
+  struct ForCond
       : rule<create<ast::ForCond>(
-            kw<"for"> + assign<&ast::ForCond::var>(ref<VariableRule>) +
-            lit<"="> +
-            some(append<&ast::ForCond::values>(ref<RangeValRule>), lit<",">))> {
+            kw<"for"> + RangeBindingBody)> {
   };
-  static constexpr auto ConditionalExpr = ref<IfCondRule> | ref<ForCondRule>;
+  static constexpr auto ConditionalExpr = ref<IfCond> | ref<ForCond>;
 
   static constexpr auto StepSelExpr = create<ast::RefSelector>(
-      assign<&ast::RefSelector::kind>(ref<STEP_KW>) +
+      assign<&ast::RefSelector::kind>(as<ast::SelKind::step_>(kw<"step">)) +
       assign<&ast::RefSelector::number>(ref<STEPNUMBER>));
   static constexpr auto PartSelExpr = create<ast::RefSelector>(
-      assign<&ast::RefSelector::kind>(ref<PART_KW>) +
+      assign<&ast::RefSelector::kind>(as<ast::SelKind::part_>(kw<"part">)) +
       assign<&ast::RefSelector::number>(ref<PARTNUMBER>));
   static constexpr auto FormSelExpr = create<ast::RefSelector>(
-      assign<&ast::RefSelector::kind>(ref<FORM_KW>) +
+      assign<&ast::RefSelector::kind>(as<ast::SelKind::form_>(kw<"form">)) +
       assign<&ast::RefSelector::number>(ref<PARTNUMBER>));
 
   // toSel/doSel: no 'form', no 'all'.
@@ -175,100 +162,105 @@ struct Joss : cursiv::GrammarSpec {
 
   static constexpr auto AllSel3 = create<ast::AllSelector>(
       kw<"all"> + option(assign<&ast::AllSelector::restriction>(
-                      ref<STEPS_KW> | ref<PARTS_KW> | ref<FORMS_KW>)));
+                      as<ast::AllKind::steps_>(kw<"steps">) | as<ast::AllKind::parts_>(kw<"parts">) | as<ast::AllKind::forms_>(kw<"forms">))));
   static constexpr auto AllSel4 = create<ast::AllSelector>(
       kw<"all"> +
       option(assign<&ast::AllSelector::restriction>(
-          ref<STEPS_KW> | ref<PARTS_KW> | ref<FORMS_KW> | ref<VALUES_KW>)));
+          as<ast::AllKind::steps_>(kw<"steps">) | as<ast::AllKind::parts_>(kw<"parts">) | as<ast::AllKind::forms_>(kw<"forms">) | as<ast::AllKind::values_>(kw<"values">))));
 
-  struct GoCmdRule : rule<create<ast::GoCmd>(kw<"Go">)> {};
-  struct CancelCmdRule : rule<create<ast::CancelCmd>(kw<"Cancel">)> {};
-  struct DeleteCmdCmdRule
+  struct GoCmd : rule<create<ast::GoCmd>(kw<"Go">)> {};
+  struct CancelCmd : rule<create<ast::CancelCmd>(kw<"Cancel">)> {};
+  struct DeleteCmdCmd
       : rule<create<ast::DeleteCmdCmd>(
             kw<"Delete"> +
             assign<&ast::DeleteCmdCmd::target>(RefSel3 | AllSel3))> {};
 
-  struct DoneCmdRule : rule<create<ast::DoneCmd>(kw<"Done">)> {};
-  struct StopCmdRule : rule<create<ast::StopCmd>(kw<"Stop">)> {};
-  struct DemandCmdRule
+  struct DoneCmd : rule<create<ast::DoneCmd>(kw<"Done">)> {};
+  struct StopCmd : rule<create<ast::StopCmd>(kw<"Stop">)> {};
+  struct DemandCmd
       : rule<create<ast::DemandCmd>(
-            kw<"Demand"> + assign<&ast::DemandCmd::var>(ref<VariableRule>))> {};
-  struct ToCmdRule
+            kw<"Demand"> + assign<&ast::DemandCmd::var>(ref<Variable>) +
+            option(kw<"as"> + assign<&ast::DemandCmd::prompt>(ref<QSTRING>)))> {};
+  struct ToCmd
       : rule<create<ast::ToCmd>(kw<"To"> +
                                 assign<&ast::ToCmd::target>(RefSel2))> {};
 
-  struct SetCmdRule
+  struct SetCmd
       : rule<create<ast::SetCmd>(
             kw<"Set"> +
-            assign<&ast::SetCmd::assignment>(ref<AssignmentRule>))> {};
-  struct DoCmdRule
+            assign<&ast::SetCmd::assignment>(ref<Assignment>))> {};
+  struct LetCmd : rule<create<ast::LetCmd>(kw<"Let"> +
+      assign<&ast::LetCmd::assignment>(ref<Assignment>))> {};
+  struct DoCmd
       : rule<create<ast::DoCmd>(
-            kw<"Do"> + assign<&ast::DoCmd::target>(RefSel2) +
-            option(assign<&ast::DoCmd::cond>(ConditionalExpr)))> {};
+            kw<"Do"> + assign<&ast::DoCmd::target>(RefSel2))> {};
 
-  struct TypeContentRule
+  struct TypeContent
       : rule<create<ast::TypeFormContent>(
-                 some(append<&ast::TypeFormContent::vars>(ref<VariableRule>),
+                 some(append<&ast::TypeFormContent::vars>(ref<MathExpr>),
                       lit<",">) +
                  kw<"in"> +
                  assign<&ast::TypeFormContent::form>(FormSelExpr))  //
              | create<ast::TypeDataContent>(
                    some(append<&ast::TypeDataContent::items>(
-                            ref<QSTRING> | ref<VariableRule>),
+                            ref<QSTRING> | ref<MathExpr> | create<ast::TypeLineBreak>(lit<"_">)),
                         lit<",">))  //
              | create<ast::TypeSelContent>(assign<&ast::TypeSelContent::sel>(
                    RefSel3 | AllSel4))  //
              | create<ast::TypeSysContent>(assign<&ast::TypeSysContent::kind>(
-                   ref<SIZE_KW> | ref<TIME_KW> | ref<USERS_KW>))> {};
-  struct TypeCmdRule
+                   as<ast::TypeSysKind::size_>(kw<"size">) | as<ast::TypeSysKind::time_>(kw<"time">) | as<ast::TypeSysKind::users_>(kw<"users">)))> {};
+  struct TypeCmd
       : rule<create<ast::TypeCmd>(
             kw<"Type"> +
-            assign<&ast::TypeCmd::content>(ref<TypeContentRule>))> {};
+            assign<&ast::TypeCmd::content>(ref<TypeContent>))> {};
 
-  struct DeleteValCmdRule
+  struct DeleteValCmd
       : rule<create<ast::DeleteValCmd>(
-            some(append<&ast::DeleteValCmd::vars>(ref<VariableRule>),
+            option(kw<"Delete">) + (
+            some(append<&ast::DeleteValCmd::vars>(ref<Variable>),
                  lit<",">)  //
             | (kw<"all"> +
-               flag<&ast::DeleteValCmd::allValues>(kw<"values">)))> {};
+               flag<&ast::DeleteValCmd::allValues>(kw<"values">))))> {};
 
-  struct LineCmdRule : rule<create<ast::LineCmd>(kw<"Line">)> {};
-  struct PageCmdRule : rule<create<ast::PageCmd>(kw<"Page">)> {};
+  struct LineCmd : rule<create<ast::LineCmd>(kw<"Line">)> {};
+  struct PageCmd : rule<create<ast::PageCmd>(kw<"Page">)> {};
 
   static constexpr auto ArbitraryCmd =
-      ref<SetCmdRule> | ref<DoCmdRule> | ref<TypeCmdRule> |
-      ref<DeleteValCmdRule> | ref<LineCmdRule> | ref<PageCmdRule>;
+      ref<SetCmd> | ref<LetCmd> | ref<DoCmd> | ref<TypeCmd> |
+      ref<DeleteValCmd> | ref<LineCmd> | ref<PageCmd>;
   static constexpr auto DirectCmd =
-      ref<CancelCmdRule> | ref<DeleteCmdCmdRule> | ref<GoCmdRule> | ArbitraryCmd;
-  static constexpr auto IndirectCmd = ref<ToCmdRule> | ref<DoneCmdRule> |
-                                      ref<StopCmdRule> | ref<DemandCmdRule> |
+      ref<CancelCmd> | ref<DeleteCmdCmd> | ref<GoCmd> | ArbitraryCmd;
+  static constexpr auto IndirectCmd = ref<ToCmd> | ref<DoneCmd> |
+                                      ref<StopCmd> | ref<DemandCmd> |
                                       ArbitraryCmd;
+  struct DirectCommand : rule<DirectCmd + option(assign<&ast::Command::cond>(ConditionalExpr))> {};
+  struct IndirectCommand : rule<IndirectCmd + option(assign<&ast::Command::cond>(ConditionalExpr))> {};
 
-  struct DirectStmtRule
+  struct DirectStmt
       : rule<create<ast::DirectStmt>(
-            assign<&ast::DirectStmt::command>(DirectCmd) + lit<".">)> {};
-  struct IndirectStmtRule
+            assign<&ast::DirectStmt::command>(ref<DirectCommand>) + lit<".">)> {};
+  struct IndirectStmt
       : rule<create<ast::IndirectStmt>(
             assign<&ast::IndirectStmt::stepNumber>(ref<STEPNUMBER>) +
-            assign<&ast::IndirectStmt::command>(IndirectCmd) + lit<".">)> {};
-  struct FormStmtRule
+            assign<&ast::IndirectStmt::command>(ref<IndirectCommand>) + lit<".">)> {};
+  struct FormStmt
       : rule<create<ast::FormStmt>(
             kw<"Form"> + assign<&ast::FormStmt::partNumber>(ref<PARTNUMBER>) +
-            lit<":">)> {};
-  struct AssignStmtRule
+            lit<":"> + option(gap::none + assign<&ast::FormStmt::layout>(ref<FORM_LAYOUT>)))> {};
+  struct AssignStmt
       : rule<create<ast::AssignStmt>(
-            assign<&ast::AssignStmt::assignment>(ref<AssignmentRule>))> {};
+            assign<&ast::AssignStmt::assignment>(ref<Assignment>))> {};
 
-  struct StatementRule
-      : rule<ref<DirectStmtRule> | ref<IndirectStmtRule> | ref<FormStmtRule> |
-             ref<AssignStmtRule>> {};
+  struct Statement
+      : rule<ref<DirectStmt> | ref<IndirectStmt> | ref<FormStmt> |
+             ref<AssignStmt>> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program> +
-             some(append<&ast::Program::statements>(ref<StatementRule>))> {};
+             some(append<&ast::Program::statements>(ref<Statement>))> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
 };
 
 }  // namespace joss

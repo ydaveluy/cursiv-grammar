@@ -40,10 +40,10 @@ A ---|---|---|---|---|
 E ---|---|---|---|---|
 ```
 
-A tab is one line per guitar string, each starting with the string's note
+A tab is one logical record per string, each starting with a note
 (`e B G D A E`, upper or lower case). The rest of the line is a run of
-`x`/`o`/`-` marks, cut into segments by `|` bars — each segment shows what
-happens on that string during one bar.
+`x`/`o`/`-` marks, cut into segments by `|` bars — each segment retains its
+written marks without assigning rhythmic meaning.
 
 ## The command line
 

@@ -31,6 +31,9 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Pearson FASTA records begin with `>` headers followed by sequence lines.
+The document also keeps preamble text and semicolon comment lines.
+
 ```
 >gi|158333233|ref|NC_009925.1| Acaryochloris marina MBIC11017 chromosome, complete genome
 ATGCCCTATACCTATGATTATCCGCGCCCTGGTCTTACCGTTGACTGCGTGGTGTTTGGCCTAGACGAAC
@@ -38,13 +41,6 @@ AGATCGATCTCAAAGTCCTACTGATTCAGCGCCAGATTCCCCCTTTCCAGCATCAGTGGGCATTACCCGG
 ;a comment line
 ACGTACGTACGTACGTACGT
 ```
-
-A document is a flat list of sections: a description line (`>`, then one or
-more `|`-separated text fields), a sequence line (a run of letters, one per
-line), or a comment line (`;`, then free text). Nothing is skipped between
-lines — a section is exactly one physical line, EOL included — so a run of
-consecutive sequence lines reads as that many adjacent `SequenceLine`
-sections, and neither a header nor a fixed order is required.
 
 ## The command line
 

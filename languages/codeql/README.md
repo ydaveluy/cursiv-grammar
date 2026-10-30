@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+CodeQL queries and library modules contain predicates, classes and modules; query files can finish with `select`.
+
 ```ql
 predicate isSmall(int i) {
   i in [1 .. 9]
@@ -42,10 +44,6 @@ from int x, int y
 where x = 3 and y in [0 .. 2]
 select x, y, x * y as product
 ```
-
-A `.ql` file is a query: predicates, classes and modules, then an optional
-`select`. A `.qll` file is a library module -- the same grammar, no `select`
-expected -- and both extensions are this language.
 
 ## The command line
 

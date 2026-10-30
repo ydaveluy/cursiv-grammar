@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+RDF 1.1 Turtle with prefixes, IRIs, literals, blank nodes and collections. Escapes are decoded; graph semantics are not evaluated.
+
 ```turtle
 @prefix ex: <http://example.org/> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -39,11 +41,6 @@ ex:Alice a foaf:Person ;
     foaf:name "Alice" ;
     foaf:knows ex:Bob .
 ```
-
-RDF 1.1 Turtle: prefixed and full IRIs, blank nodes (labelled and `[...]`),
-collections, and the four literal kinds (plain, language-tagged, typed and
-numeric/boolean). A `prefix:local` term keeps its whole spelling as one
-field; the validator is what checks the prefix was declared.
 
 ## The command line
 

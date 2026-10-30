@@ -14,93 +14,120 @@ namespace spass {
 inline constexpr auto strip_braces = [](std::string_view t) {
   return t.substr(2, t.size() - 4);
 };
-using FreeTextConv = cursiv::text_conv<strip_braces>;
 
 inline constexpr auto log_state_of = [](std::string_view t) {
   if (t == "satisfiable") return ast::LogState::satisfiable;
   if (t == "unsatisfiable") return ast::LogState::unsatisfiable;
   return ast::LogState::unknown;
 };
-using LogStateConv = cursiv::text_conv<log_state_of>;
 
 inline constexpr auto origin_of = [](std::string_view t) {
   return t == "axioms" ? ast::Origin::axioms : ast::Origin::conjectures;
 };
-using OriginConv = cursiv::text_conv<origin_of>;
 
 inline constexpr auto is_dnf_type = [](std::string_view t) {
   return t == "dnf";
 };
-using DnfTypeConv = cursiv::text_conv<is_dnf_type>;
+
+// Native dfglexer.c reserves these tokens globally. Keep the name token
+// permissive and report a reserved spelling as a conversion diagnostic.
+inline constexpr auto identifier_value = [](std::string_view text)
+    -> cursiv::ConversionResult<std::string_view> {
+  constexpr std::string_view reserved[] = {
+      "MIN", "AED", "App", "CRW", "Con", "Def", "EmS",
+      "EqF", "EqR", "Fac", "Inp", "MPm", "MRR", "OHy",
+      "OPm", "Obv", "Res", "Rew", "SHy", "SPASS", "SPm",
+      "SSi", "SoR", "SpL", "SpR", "Spt", "Ter", "Top",
+      "URR", "UnC", "and", "author", "axioms", "begin_problem", "by",
+      "clause", "cnf", "concept_formula", "conjectures", "date", "description", "dnf",
+      "eml", "end_of_list", "end_problem", "equal", "equiv", "exists", "extrafuns",
+      "false", "freely", "forall", "formula", "functions", "generated", "hypothesis",
+      "implied", "implies", "include", "list_of_clauses", "list_of_declarations", "list_of_descriptions", "list_of_formulae",
+      "list_of_general_settings", "list_of_includes", "list_of_proof", "list_of_settings", "list_of_special_formulae", "list_of_symbols", "logic",
+      "name", "nand", "nor", "not", "operators", "or", "predicate",
+      "predicates", "prop_formula", "quantifiers", "rel_formula", "role_formula", "satisfiable", "set_flag",
+      "set_precedence", "set_selection", "set_ClauseFormulaRelation", "set_DomPred", "sort", "sorts", "splitlevel",
+      "status", "step", "subsort", "translpairs", "true", "unknown", "unsatisfiable",
+      "version", "xor",
+  };
+  for (const auto word : reserved)
+    if (word == text)
+      return cursiv::ConversionResult<std::string_view>::err(
+          "A DFG keyword cannot be used as an identifier.");
+  return cursiv::ConversionResult<std::string_view>::ok(text);
+};
 
 struct Spass : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
 
-  // Letter (Letter | Digit | '-')*; keywords below reserve their own
-  // spelling globally, everywhere, not only where a state expects one.
-  struct Identifier : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9-">)> {};
-  struct NUMBER : terminal<some(d), std::int64_t> {};
-  struct MOne : terminal<lit<"-1">, value<std::int64_t(-1)>> {};
+  struct COMMENT : terminal<lit<"%"> + many(cr<R"(^\n)">)> {};
+
+  // SPASS accepts digit-leading names and numeric symbol names as well.
+  struct Identifier : terminal<as<identifier_value>(
+      some(w) | (lit<"-"> + some(d)))> {};
+  struct NUMBER : terminal<as<std::int64_t>(option(lit<"-">) + some(d))> {};
 
   // '{*' everything up to and including the closing '*}', the delimiters
   // stripped by the converter.
-  struct FREE_TEXT : terminal<through(lit<"{*">, lit<"*}">), FreeTextConv> {};
+  struct FREE_TEXT : terminal<as<strip_braces>(through(lit<"{*">, lit<"*}">))> {
+  };
 
   struct LOG_STATE
-      : terminal<kw<"satisfiable"> | kw<"unsatisfiable"> | kw<"unknown">,
-                 LogStateConv> {};
+      : terminal<as<log_state_of>(kw<"satisfiable"> | kw<"unsatisfiable"> |
+                                  kw<"unknown">)> {};
   struct ORIGIN_TYPE
-      : terminal<kw<"axioms"> | kw<"conjectures">, OriginConv> {};
-  struct CLAUSE_TYPE : terminal<kw<"cnf"> | kw<"dnf">, DnfTypeConv> {};
+      : terminal<as<origin_of>(kw<"axioms"> | kw<"conjectures">)> {};
+  struct CLAUSE_TYPE : terminal<as<is_dnf_type>(kw<"cnf"> | kw<"dnf">)> {};
 
-  static constexpr auto word_boundary = cr<"a-zA-Z0-9-">;
+  static constexpr auto word_boundary = w;
 
-  struct TermRule;
+  struct Term;
 
-  static constexpr auto symbolWord =
-      kw<"equal"> | kw<"true"> | kw<"false"> | kw<"or"> | kw<"and"> |
-      kw<"not"> | kw<"implies"> | kw<"implied"> | kw<"equiv"> |
-      ref<Identifier>;
-
-  struct TermListRule
+  struct TermList
       : rule<lit<"["> +
-             some(append<&ast::TermList::items>(ref<TermRule>), lit<",">) +
+             some(append<&ast::TermList::items>(ref<Term>), lit<",">) +
              lit<"]">> {};
 
-  // A term already reads a quantifier headed by `forall`/`exists`/a bare
-  // identifier, so a declaration's `forall(vars, term).` shape is just a
-  // bare term -- no separate alternative needed.
-  struct TermRule
-      : rule<(assign<&ast::QuantTerm::quantifier>(
-                  kw<"forall"> | kw<"exists"> | ref<Identifier>) +
-              lit<"("> + assign<&ast::QuantTerm::vars>(ref<TermListRule>) +
-              lit<","> + assign<&ast::QuantTerm::body>(ref<TermRule>) +
-              lit<")">) |
-             (assign<&ast::AppTerm::symbol>(symbolWord) +
-              option(lit<"("> +
-                     some(append<&ast::AppTerm::args>(ref<TermRule>),
-                          lit<",">) +
-                     lit<")">))> {};
+  static constexpr auto oneArgument = lit<"("> +
+      append<&ast::AppTerm::args>(ref<Term>) + lit<")">;
+  static constexpr auto twoArguments = lit<"("> +
+      append<&ast::AppTerm::args>(ref<Term>) + lit<","> +
+      append<&ast::AppTerm::args>(ref<Term>) + lit<")">;
+  static constexpr auto arguments = lit<"("> +
+      some(append<&ast::AppTerm::args>(ref<Term>), lit<",">) + lit<")">;
+
+  // Shared argument fragments express the reserved connectives' arities.
+  struct Term : rule<
+      (assign<&ast::QuantTerm::quantifier>(kw<"forall"> | kw<"exists">) +
+       lit<"("> + assign<&ast::QuantTerm::vars>(ref<TermList>) + lit<","> +
+       assign<&ast::QuantTerm::body>(ref<Term>) + lit<")">) |
+      (assign<&ast::AppTerm::symbol>(kw<"not">) + oneArgument) |
+      (assign<&ast::AppTerm::symbol>(kw<"equal"> | kw<"implies"> |
+          kw<"implied"> | kw<"equiv"> | kw<"nor"> | kw<"nand"> | kw<"xor">) +
+       twoArguments) |
+      (assign<&ast::AppTerm::symbol>(kw<"and"> | kw<"or">) + arguments) |
+      assign<&ast::AppTerm::symbol>(kw<"true"> | kw<"false">) |
+      (assign<&ast::AppTerm::symbol>(ref<Identifier>) + option(arguments))> {};
 
   static constexpr auto labelExpr = ref<Identifier> | ref<NUMBER>;
 
-  struct SymSpecRule
+  struct SymSpec
       : rule<(lit<"("> + assign<&ast::SymSpec::name>(ref<Identifier>) +
-              lit<","> + assign<&ast::SymSpec::arity>(ref<MOne> |
+              lit<","> + assign<&ast::SymSpec::arity>(as<std::int64_t(-1)>(lit<"-1">) |
                                                        ref<NUMBER>) +
               lit<")">) |
              assign<&ast::SymSpec::name>(ref<Identifier>)> {};
 
-  struct SymbolListRule
+  struct SymbolList
       : rule<kw<"list_of_symbols"> + lit<"."> +
              option(kw<"functions"> + lit<"["> +
                     some(append<&ast::SymbolList::functions>(
-                             ref<SymSpecRule>),
+                             ref<SymSpec>),
                          lit<",">) +
                     lit<"]"> + lit<".">) +
              option(kw<"predicates"> + lit<"["> +
                     some(append<&ast::SymbolList::predicates>(
-                             ref<SymSpecRule>),
+                             ref<SymSpec>),
                          lit<",">) +
                     lit<"]"> + lit<".">) +
              option(kw<"sorts"> + lit<"["> +
@@ -109,22 +136,22 @@ struct Spass : cursiv::GrammarSpec {
                     lit<"]"> + lit<".">) +
              kw<"end_of_list"> + lit<".">> {};
 
-  struct SubsortDeclRule
+  struct SubsortDecl
       : rule<kw<"subsort"> + lit<"("> +
              assign<&ast::SubsortDecl::first>(ref<Identifier>) + lit<","> +
              assign<&ast::SubsortDecl::second>(ref<Identifier>) + lit<")"> +
              lit<".">> {};
 
-  struct TermDeclRule
-      : rule<assign<&ast::TermDecl::term>(ref<TermRule>) + lit<".">> {};
+  struct TermDecl
+      : rule<assign<&ast::TermDecl::term>(ref<Term>) + lit<".">> {};
 
-  struct PredDeclRule
+  struct PredDecl
       : rule<kw<"predicate"> + lit<"("> +
              assign<&ast::PredDecl::pred>(ref<Identifier>) +
              some(lit<","> + append<&ast::PredDecl::sorts>(ref<Identifier>)) +
              lit<")"> + lit<".">> {};
 
-  struct GenDeclRule
+  struct GenDecl
       : rule<kw<"sort"> + assign<&ast::GenDecl::sort>(ref<Identifier>) +
              option(flag<&ast::GenDecl::freely>(kw<"freely">)) +
              kw<"generated_by"> + lit<"["> +
@@ -132,56 +159,56 @@ struct Spass : cursiv::GrammarSpec {
                   lit<",">) +
              lit<"]"> + lit<".">> {};
 
-  struct DeclarationListRule
+  struct DeclarationList
       : rule<kw<"list_of_declarations"> + lit<"."> +
              many(append<&ast::DeclarationList::declarations>(
-                 ref<SubsortDeclRule> | ref<TermDeclRule> |
-                 ref<PredDeclRule> | ref<GenDeclRule>)) +
+                 ref<SubsortDecl> | ref<TermDecl> |
+                 ref<PredDecl> | ref<GenDecl>)) +
              kw<"end_of_list"> + lit<".">> {};
 
-  struct FormulaRule
+  struct Formula
       : rule<kw<"formula"> + lit<"("> +
-             option(assign<&ast::Formula::term>(ref<TermRule>)) +
+             assign<&ast::Formula::term>(ref<Term>) +
              option(lit<","> + assign<&ast::Formula::label>(labelExpr)) +
              lit<")"> + lit<".">> {};
 
-  struct FormulaListRule
+  struct FormulaList
       : rule<kw<"list_of_formulae"> + lit<"("> +
              assign<&ast::FormulaList::origin>(ref<ORIGIN_TYPE>) + lit<")"> +
              lit<"."> + many(append<&ast::FormulaList::formulas>(
-                                 ref<FormulaRule>)) +
+                                 ref<Formula>)) +
              kw<"end_of_list"> + lit<".">> {};
 
-  struct ClauseRule
+  struct Clause
       : rule<(kw<"forall"> + lit<"("> +
-              assign<&ast::Clause::vars>(ref<TermListRule>) + lit<","> +
+              assign<&ast::Clause::vars>(ref<TermList>) + lit<","> +
               kw<"or"> + lit<"("> +
-              some(append<&ast::Clause::literals>(ref<TermRule>), lit<",">) +
+              some(append<&ast::Clause::literals>(ref<Term>), lit<",">) +
               lit<")"> + lit<")">) |
              (kw<"or"> + lit<"("> +
-              some(append<&ast::Clause::literals>(ref<TermRule>), lit<",">) +
+              some(append<&ast::Clause::literals>(ref<Term>), lit<",">) +
               lit<")">) |
              (kw<"exists"> + lit<"("> +
-              assign<&ast::Clause::vars>(ref<TermListRule>) + lit<","> +
+              assign<&ast::Clause::vars>(ref<TermList>) + lit<","> +
               flag<&ast::Clause::isDnf>(kw<"and">) + lit<"("> +
-              some(append<&ast::Clause::literals>(ref<TermRule>), lit<",">) +
+              some(append<&ast::Clause::literals>(ref<Term>), lit<",">) +
               lit<")"> + lit<")">) |
              (flag<&ast::Clause::isDnf>(kw<"and">) + lit<"("> +
-              some(append<&ast::Clause::literals>(ref<TermRule>), lit<",">) +
+              some(append<&ast::Clause::literals>(ref<Term>), lit<",">) +
               lit<")">)> {};
 
-  struct ClauseEntryRule
+  struct ClauseEntry
       : rule<kw<"clause"> + lit<"("> +
-             option(assign<&ast::ClauseEntry::clause>(ref<ClauseRule>)) +
+             assign<&ast::ClauseEntry::clause>(ref<Clause>) +
              option(lit<","> + assign<&ast::ClauseEntry::label>(labelExpr)) +
              lit<")"> + lit<".">> {};
 
-  struct ClauseListRule
+  struct ClauseList
       : rule<kw<"list_of_clauses"> + lit<"("> +
              assign<&ast::ClauseList::origin>(ref<ORIGIN_TYPE>) + lit<","> +
              assign<&ast::ClauseList::isDnf>(ref<CLAUSE_TYPE>) + lit<")"> +
              lit<"."> + many(append<&ast::ClauseList::clauses>(
-                                 ref<ClauseEntryRule>)) +
+                                 ref<ClauseEntry>)) +
              kw<"end_of_list"> + lit<".">> {};
 
   static constexpr auto userRuleApplWord =
@@ -197,88 +224,89 @@ struct Spass : cursiv::GrammarSpec {
   static constexpr auto orCall = lit<"or", !cr<"^(">>;
   static constexpr auto andCall = lit<"and", !cr<"^(">>;
 
-  struct ResultQuantRule
+  struct ResultQuant
       : rule<(assign<&ast::QuantTerm::quantifier>(kw<"forall">) + lit<"("> +
-              assign<&ast::QuantTerm::vars>(ref<TermListRule>) + lit<","> +
-              !orCall + assign<&ast::QuantTerm::body>(ref<TermRule>) +
+              assign<&ast::QuantTerm::vars>(ref<TermList>) + lit<","> +
+              !orCall + assign<&ast::QuantTerm::body>(ref<Term>) +
               lit<")">) |
              (assign<&ast::QuantTerm::quantifier>(kw<"exists">) + lit<"("> +
-              assign<&ast::QuantTerm::vars>(ref<TermListRule>) + lit<","> +
-              !andCall + assign<&ast::QuantTerm::body>(ref<TermRule>) +
+              assign<&ast::QuantTerm::vars>(ref<TermList>) + lit<","> +
+              !andCall + assign<&ast::QuantTerm::body>(ref<Term>) +
               lit<")">)> {};
 
-  static constexpr auto referenceExpr = ref<TermRule> | ref<NUMBER>;
+  static constexpr auto referenceExpr =
+      ref<NUMBER> | (!ref<NUMBER> + ref<Term>);
   // The guard is kept: without it a quantifier or clause reads as a term.
   static constexpr auto resultExpr =
-      ref<ResultQuantRule> |
-      (!(kw<"forall"> | kw<"exists"> | orCall | andCall) + ref<TermRule>) |
-      ref<ClauseRule>;
-  static constexpr auto ruleApplExpr = ref<TermRule> | userRuleApplWord;
-  static constexpr auto parentExpr = ref<TermRule> | ref<NUMBER>;
-  static constexpr auto keyExpr = ref<TermRule> | kw<"splitlevel">;
-  static constexpr auto valueExpr = ref<TermRule> | ref<NUMBER>;
+      ref<ResultQuant> |
+      (!(kw<"forall"> | kw<"exists"> | orCall | andCall) + ref<Term>) |
+      ref<Clause>;
+  static constexpr auto ruleApplExpr = ref<Term> | userRuleApplWord;
+  static constexpr auto parentExpr = referenceExpr;
+  static constexpr auto keyExpr = ref<Term> | kw<"splitlevel">;
+  static constexpr auto valueExpr = referenceExpr;
 
-  struct ParentListRule
+  struct ParentList
       : rule<lit<"["> +
              some(append<&ast::ParentList::items>(parentExpr), lit<",">) +
              lit<"]">> {};
 
-  struct AssocEntryRule
+  struct AssocEntry
       : rule<assign<&ast::AssocEntry::key>(keyExpr) + lit<":"> +
              assign<&ast::AssocEntry::value>(valueExpr)> {};
 
-  struct AssocListRule
+  struct AssocList
       : rule<lit<"["> +
-             some(append<&ast::AssocList::entries>(ref<AssocEntryRule>),
+             some(append<&ast::AssocList::entries>(ref<AssocEntry>),
                   lit<",">) +
              lit<"]">> {};
 
-  struct StepRule
+  struct Step
       : rule<kw<"step"> + lit<"("> +
              assign<&ast::Step::reference>(referenceExpr) + lit<","> +
              assign<&ast::Step::result>(resultExpr) + lit<","> +
              assign<&ast::Step::ruleAppl>(ruleApplExpr) + lit<","> +
-             assign<&ast::Step::parents>(ref<ParentListRule>) +
+             assign<&ast::Step::parents>(ref<ParentList>) +
              option(lit<","> +
-                    assign<&ast::Step::assoc>(ref<AssocListRule>)) +
+                    assign<&ast::Step::assoc>(ref<AssocList>)) +
              lit<")"> + lit<".">> {};
 
-  struct ProofListRule
+  struct ProofList
       : rule<kw<"list_of_proof"> +
              option(lit<"("> +
                     assign<&ast::ProofList::proofType>(
                         ref<Identifier> | kw<"SPASS">) +
                     option(lit<","> +
                            assign<&ast::ProofList::assoc>(
-                               ref<AssocListRule>)) +
+                               ref<AssocList>)) +
                     lit<")">) +
              lit<"."> +
-             many(append<&ast::ProofList::steps>(ref<StepRule>)) +
+             many(append<&ast::ProofList::steps>(ref<Step>)) +
              kw<"end_of_list"> + lit<".">> {};
 
-  struct SettingEntryRule
+  struct SettingEntry
       : rule<kw<"hypothesis"> + lit<"["> +
              some(append<&ast::SettingEntry::labels>(labelExpr), lit<",">) +
              lit<"]"> + lit<".">> {};
 
-  struct GeneralSettingsRule
+  struct GeneralSettings
       : rule<kw<"list_of_general_settings"> +
              some(append<&ast::GeneralSettings::entries>(
-                 ref<SettingEntryRule>)) +
+                 ref<SettingEntry>)) +
              kw<"end_of_list"> + lit<".">> {};
 
   static constexpr auto settingLabelWord =
       kw<"KIV"> | kw<"LEM"> | kw<"OTTER"> | kw<"PROTEIN"> |
       kw<"SATURATE"> | kw<"3TAP"> | kw<"SETHEO"> | kw<"SPASS">;
 
-  struct NamedSettingsRule
+  struct NamedSettings
       : rule<kw<"list_of_settings"> + lit<"("> +
              assign<&ast::NamedSettings::label>(settingLabelWord) +
              lit<")"> + lit<"."> +
              option(assign<&ast::NamedSettings::text>(ref<FREE_TEXT>)) +
              kw<"end_of_list"> + lit<".">> {};
 
-  struct DescriptionRule
+  struct Description
       : rule<kw<"list_of_descriptions"> + lit<"."> + kw<"name"> + lit<"("> +
              option(assign<&ast::Description::name>(ref<FREE_TEXT>)) +
              lit<")"> + lit<"."> + kw<"author"> + lit<"("> +
@@ -301,29 +329,30 @@ struct Spass : cursiv::GrammarSpec {
                     lit<")"> + lit<".">) +
              kw<"end_of_list"> + lit<".">> {};
 
-  struct LogicalPartRule
-      : rule<option(assign<&ast::LogicalPart::symbols>(ref<SymbolListRule>)) +
+  struct LogicalPart
+      : rule<option(assign<&ast::LogicalPart::symbols>(ref<SymbolList>)) +
              option(assign<&ast::LogicalPart::declarations>(
-                 ref<DeclarationListRule>)) +
+                 ref<DeclarationList>)) +
              many(append<&ast::LogicalPart::formulaLists>(
-                 ref<FormulaListRule>)) +
+                 ref<FormulaList>)) +
              many(append<&ast::LogicalPart::clauseLists>(
-                 ref<ClauseListRule>)) +
+                 ref<ClauseList>)) +
              many(append<&ast::LogicalPart::proofLists>(
-                 ref<ProofListRule>))> {};
+                 ref<ProofList>))> {};
 
-  struct ProblemRule
+  struct Problem
       : rule<kw<"begin_problem"> + lit<"("> +
              assign<&ast::Problem::name>(ref<Identifier>) + lit<")"> +
              lit<"."> +
-             assign<&ast::Problem::description>(ref<DescriptionRule>) +
-             assign<&ast::Problem::logicalPart>(ref<LogicalPartRule>) +
+             assign<&ast::Problem::description>(ref<Description>) +
+             assign<&ast::Problem::logicalPart>(ref<LogicalPart>) +
              many(append<&ast::Problem::settings>(
-                 ref<GeneralSettingsRule> | ref<NamedSettingsRule>)) +
+                 ref<GeneralSettings> | ref<NamedSettings>)) +
              kw<"end_problem"> + lit<".">> {};
 
-  using entry = ProblemRule;
-  using ignore = WS;
+  using entry = Problem;
+  using hidden = COMMENT;
+  using ignored = WS;
 };
 
 }  // namespace spass

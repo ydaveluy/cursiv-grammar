@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory_resource>
 #include <string_view>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
@@ -12,10 +13,23 @@
 
 namespace pf {
 
-inline constexpr auto unquote = [](std::string_view t) {
-  return t.substr(1, t.size() - 2);
+inline constexpr auto unquote = [](std::string_view text,
+                                   std::pmr::memory_resource* memory) {
+  if (text.empty() || (text.front() != '\'' && text.front() != '"')) return text;
+  const auto body = text.substr(1, text.size() - 2);
+  if (body.find_first_of("\\\n") == body.npos) return body;
+  const auto room = cursiv::text_room(memory, body.size());
+  std::size_t size = 0;
+  for (std::size_t i = 0; i < body.size(); ++i) {
+    if (body[i] == '\n') continue;
+    if (body[i] == '\\' && i + 1 < body.size()) {
+      if (body[i + 1] == '\n') { ++i; continue; }
+      if (body[i + 1] == text.front()) ++i;
+    }
+    room[size++] = body[i];
+  }
+  return std::string_view(room.data(), size);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Pf : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \r\n\t)">)> {};
@@ -25,7 +39,9 @@ struct Pf : cursiv::GrammarSpec {
   struct NUMBER : terminal<some(d)> {};
   struct HEX : terminal<lit<"0"> + cr<"Xx"> + some(cr<"0-9a-fA-F">)> {};
   struct BWUNIT : terminal<cr<"KMG">> {};
-  struct TOSNUM : terminal<option(lit<"0x">) + some(d)> {};
+  struct TOSNUM : terminal<(lit<"0x"> + some(cr<"0-9a-fA-F">)) | some(d)> {};
+  struct BANDWIDTH_NUMBER : terminal<some(d) + option(lit<"."> + many(d)) +
+      option(cr<"eE"> + option(cr<"+-">) + some(d))> {};
 
   struct IPV4
       : terminal<some(d) + lit<"."> + some(d) + lit<"."> + some(d) +
@@ -37,19 +53,24 @@ struct Pf : cursiv::GrammarSpec {
       : terminal<(some(cr<"0-9a-fA-F">) + lit<":"> + many(cr<"0-9a-fA-F:">)) |
                  (lit<"::"> + many(cr<"0-9a-fA-F:.">))> {};
 
-  struct STRING : terminal<option(lit<"$">) + cr<"a-zA-Z"> + many(w)> {};
-  struct QUOTED_STRING
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
+  static constexpr auto NameCont = cr<"a-zA-Z0-9_.-">;
+  static constexpr auto word_boundary = NameCont;
+  static constexpr auto quoted =
+      (lit<"\""> + many((lit<"\\"> + lit<"\"">) | cr<R"(^")">) + lit<"\"">) |
+      (lit<"'"> + many((lit<"\\"> + lit<"'">) | cr<"^'">) + lit<"'">);
+  struct STRING : terminal<as<unquote>(
+      (option(lit<"$">) + cr<"a-zA-Z_"> + many(NameCont)) | quoted)> {};
+  struct QUOTED_STRING : terminal<as<unquote>(quoted)> {};
 
   // --- ifspec: one interface, or a `{ ... }` list; an antispoof target
   // and an onspec both take this shape. ---
-  struct IfaceRefRule
+  struct IfaceRef
       : rule<option(flag<&ast::IfaceRef::negated>(lit<"!">)) +
              assign<&ast::IfaceRef::name>(ref<STRING>)> {};
 
-  static constexpr auto ifaceItem = ref<IfaceRefRule>;
+  static constexpr auto ifaceItem = ref<IfaceRef>;
 
-  struct IfSpecRule
+  struct IfSpec
       : rule<append<&ast::IfSpec::ifaces>(ifaceItem) |
              (lit<"{"> + append<&ast::IfSpec::ifaces>(ifaceItem) +
               many(option(lit<",">) + append<&ast::IfSpec::ifaces>(ifaceItem)) +
@@ -57,7 +78,7 @@ struct Pf : cursiv::GrammarSpec {
 
   // --- timeout / limit_item: a name plus a number, shared by `set` and a
   // state option. ---
-  struct TimeoutRule
+  struct Timeout
       : rule<assign<&ast::Timeout::name>(
                  kw<"tcp.first"> | kw<"tcp.opening"> | kw<"tcp.established"> |
                  kw<"tcp.closing"> | kw<"tcp.finwait"> | kw<"tcp.closed"> |
@@ -68,20 +89,20 @@ struct Pf : cursiv::GrammarSpec {
                  kw<"adaptive.end">) +
              assign<&ast::Timeout::value>(ref<NUMBER>)> {};
 
-  struct LimitItemRule
+  struct LimitItem
       : rule<assign<&ast::LimitItem::name>(kw<"states"> | kw<"frags"> |
                                            kw<"src-nodes"> | kw<"tables"> |
                                            kw<"table-entries">) +
              assign<&ast::LimitItem::value>(ref<NUMBER>)> {};
 
   // --- state_opt / state_opts ---
-  struct StateOptRule
+  struct StateOpt
       : rule<
             (assign<&ast::StateOpt::kind>(kw<"max">) +
              assign<&ast::StateOpt::num1>(ref<NUMBER>)) |
             assign<&ast::StateOpt::kind>(kw<"no-sync">) |
             (create<ast::StateOpt> +
-             assign<&ast::StateOpt::timeout>(ref<TimeoutRule>)) |
+             assign<&ast::StateOpt::timeout>(ref<Timeout>)) |
             assign<&ast::StateOpt::kind>(kw<"sloppy">) |
             assign<&ast::StateOpt::kind>(kw<"pflow">) |
             (assign<&ast::StateOpt::kind>(kw<"source-track">) +
@@ -103,13 +124,13 @@ struct Pf : cursiv::GrammarSpec {
             assign<&ast::StateOpt::kind>(kw<"floating">)> {};
 
   static constexpr auto stateOptsList =
-      append<&ast::FilterOpt::stateOpts>(ref<StateOptRule>) +
+      append<&ast::FilterOpt::stateOpts>(ref<StateOpt>) +
       many(option(lit<",">) +
-           append<&ast::FilterOpt::stateOpts>(ref<StateOptRule>));
+           append<&ast::FilterOpt::stateOpts>(ref<StateOpt>));
 
   // --- an unbounded run of scrub options, like state options and filter
   // options, not capped at two (Deviation). ---
-  struct ScrubOptRule
+  struct ScrubOpt
       : rule<assign<&ast::ScrubOpt::kind>(kw<"no-df">) |
              (assign<&ast::ScrubOpt::kind>(kw<"min-ttl">) +
               assign<&ast::ScrubOpt::num>(ref<NUMBER>)) |
@@ -119,12 +140,12 @@ struct Pf : cursiv::GrammarSpec {
              assign<&ast::ScrubOpt::kind>(kw<"random-id">)> {};
 
   static constexpr auto scrubOptsList =
-      append<&ast::FilterOpt::scrubOpts>(ref<ScrubOptRule>) +
+      append<&ast::FilterOpt::scrubOpts>(ref<ScrubOpt>) +
       many(option(lit<",">) +
-           append<&ast::FilterOpt::scrubOpts>(ref<ScrubOptRule>));
+           append<&ast::FilterOpt::scrubOpts>(ref<ScrubOpt>));
 
   // --- host / redirhost / address ---
-  struct HostRule
+  struct Host
       : rule<option(flag<&ast::Host::negated>(lit<"!">)) +
              ((flag<&ast::Host::iface>(lit<"(">) +
                assign<&ast::Host::address>(ref<STRING>) + lit<")">) |
@@ -136,7 +157,7 @@ struct Pf : cursiv::GrammarSpec {
              option(kw<"weight"> +
                     assign<&ast::Host::weight>(ref<NUMBER>))> {};
 
-  struct RedirHostRule
+  struct RedirHost
       : rule<((flag<&ast::RedirHost::iface>(lit<"(">) +
                assign<&ast::RedirHost::address>(ref<STRING>) + lit<")">) |
               assign<&ast::RedirHost::address>(
@@ -144,51 +165,64 @@ struct Pf : cursiv::GrammarSpec {
              option(lit<"/"> +
                     assign<&ast::RedirHost::maskBits>(ref<NUMBER>))> {};
 
+  struct RouteHost
+      : rule<((flag<&ast::RedirHost::iface>(lit<"(">) +
+               assign<&ast::RedirHost::routeInterface>(ref<STRING>) +
+               option(assign<&ast::RedirHost::address>(ref<STRING> | ref<IPV4> | ref<IPV6>) +
+                      option(lit<"/"> + assign<&ast::RedirHost::maskBits>(ref<NUMBER>))) + lit<")">) |
+              (assign<&ast::RedirHost::address>(ref<STRING> | ref<IPV4> | ref<IPV6>) +
+               option(lit<"/"> + assign<&ast::RedirHost::maskBits>(ref<NUMBER>)))) +
+             option(kw<"weight"> + assign<&ast::RedirHost::weight>(ref<NUMBER>))> {};
+  static constexpr auto routeHostList =
+      append<&ast::FilterOpt::targets>(ref<RouteHost>) |
+      (lit<"{"> + append<&ast::FilterOpt::targets>(ref<RouteHost>) +
+       many(option(lit<",">) + append<&ast::FilterOpt::targets>(ref<RouteHost>)) + lit<"}">);
+
   static constexpr auto redirHostList =
-      append<&ast::FilterOpt::targets>(ref<RedirHostRule>) |
-      (lit<"{"> + append<&ast::FilterOpt::targets>(ref<RedirHostRule>) +
+      append<&ast::FilterOpt::targets>(ref<RedirHost>) |
+      (lit<"{"> + append<&ast::FilterOpt::targets>(ref<RedirHost>) +
        many(option(lit<",">) +
-            append<&ast::FilterOpt::targets>(ref<RedirHostRule>)) +
+            append<&ast::FilterOpt::targets>(ref<RedirHost>)) +
        lit<"}">);
 
   static constexpr auto redirHostList2 =
-      append<&ast::FilterOpt::targets2>(ref<RedirHostRule>) |
-      (lit<"{"> + append<&ast::FilterOpt::targets2>(ref<RedirHostRule>) +
+      append<&ast::FilterOpt::targets2>(ref<RedirHost>) |
+      (lit<"{"> + append<&ast::FilterOpt::targets2>(ref<RedirHost>) +
        many(option(lit<",">) +
-            append<&ast::FilterOpt::targets2>(ref<RedirHostRule>)) +
+            append<&ast::FilterOpt::targets2>(ref<RedirHost>)) +
        lit<"}">);
 
   // --- unary_op / binary_op / op_list -- port, user, group all read this
   // shape after their own leading keyword. ---
-  struct UnaryOpRule
+  struct UnaryOp
       : rule<option(assign<&ast::PortItem::op>(
                  lit<"!="> | lit<"<="> | lit<">="> | lit<"="> | lit<"<"> |
                  lit<">">)) +
              assign<&ast::PortItem::value1>(ref<STRING> | ref<NUMBER>)> {};
 
-  struct BinaryOpRule
+  struct BinaryOp
       : rule<assign<&ast::PortItem::value1>(ref<NUMBER>) +
              assign<&ast::PortItem::op>(lit<"<>"> | lit<"><"> | lit<":">) +
              assign<&ast::PortItem::value2>(ref<NUMBER>)> {};
 
-  static constexpr auto opListItem = ref<BinaryOpRule> | ref<UnaryOpRule>;
+  static constexpr auto opListItem = ref<BinaryOp> | ref<UnaryOp>;
 
-  struct OpSpecRule
+  struct OpSpec
       : rule<append<&ast::OpSpec::items>(opListItem) |
              (lit<"{"> + append<&ast::OpSpec::items>(opListItem) +
               many(option(lit<",">) + append<&ast::OpSpec::items>(opListItem)) +
               lit<"}">)> {};
 
   // --- os / os_list ---
-  struct OsSpecRule
+  struct OsSpec
       : rule<kw<"os"> +
-             (append<&ast::OsSpec::names>(ref<QUOTED_STRING>) |
-              (lit<"{"> + append<&ast::OsSpec::names>(ref<QUOTED_STRING>) +
-               many(lit<","> + append<&ast::OsSpec::names>(ref<QUOTED_STRING>)) +
+             (append<&ast::OsSpec::names>(ref<STRING>) |
+              (lit<"{"> + append<&ast::OsSpec::names>(ref<STRING>) +
+               many(option(lit<",">) + append<&ast::OsSpec::names>(ref<STRING>)) +
                lit<"}">))> {};
 
   // --- portspec: `port` NUMBER-or-name (`:` `*`-or-NUMBER-or-name)? ---
-  struct PortSpecRule
+  struct PortSpec
       : rule<kw<"port"> +
              assign<&ast::PortSpec::value1>(ref<STRING> | ref<NUMBER>) +
              option(lit<":"> + assign<&ast::PortSpec::value2>(
@@ -199,16 +233,16 @@ struct Pf : cursiv::GrammarSpec {
   struct FLAGCHARS : terminal<some(cr<"FSRPAUEW">)> {};
 
   // --- icmp_type_code / icmp_list ---
-  struct IcmpTypeCodeRule
+  struct IcmpTypeCode
       : rule<assign<&ast::IcmpTypeCode::type>(ref<STRING> | ref<NUMBER>) +
              option(kw<"code"> +
                     assign<&ast::IcmpTypeCode::code>(ref<STRING> | ref<NUMBER>))> {
   };
 
   static constexpr auto icmpList =
-      append<&ast::FilterOpt::icmpCodes>(ref<IcmpTypeCodeRule>) |
-      (lit<"{"> + append<&ast::FilterOpt::icmpCodes>(ref<IcmpTypeCodeRule>) +
-       many(lit<","> + append<&ast::FilterOpt::icmpCodes>(ref<IcmpTypeCodeRule>)) +
+      append<&ast::FilterOpt::icmpCodes>(ref<IcmpTypeCode>) |
+      (lit<"{"> + append<&ast::FilterOpt::icmpCodes>(ref<IcmpTypeCode>) +
+       many(option(lit<",">) + append<&ast::FilterOpt::icmpCodes>(ref<IcmpTypeCode>)) +
        lit<"}">);
 
   // --- pooltype ---
@@ -227,16 +261,18 @@ struct Pf : cursiv::GrammarSpec {
   // class, `kind` names the clause. `divert-packet`/`divert-to` read a
   // single `portspec` clause instead of the word `port` twice in a row
   // (Deviation). ---
-  struct FilterOptRule
+  struct FilterOpt
       : rule<
             (assign<&ast::FilterOpt::kind>(kw<"user">) +
-             assign<&ast::FilterOpt::opspec>(ref<OpSpecRule>)) |
+             assign<&ast::FilterOpt::opspec>(ref<OpSpec>)) |
             (assign<&ast::FilterOpt::kind>(kw<"group">) +
-             assign<&ast::FilterOpt::opspec>(ref<OpSpecRule>)) |
+             assign<&ast::FilterOpt::opspec>(ref<OpSpec>)) |
             (assign<&ast::FilterOpt::kind>(kw<"flags">) +
-             assign<&ast::FilterOpt::flags1>(ref<FLAGCHARS>) +
-             option(lit<"/"> +
-                    assign<&ast::FilterOpt::flags2>(ref<FLAGCHARS>))) |
+             (flag<&ast::FilterOpt::flagsAny>(kw<"any">) |
+              (option(assign<&ast::FilterOpt::flags1>(ref<FLAGCHARS>)) +
+               flag<&ast::FilterOpt::hasFlagMask>(lit<"/">) +
+               assign<&ast::FilterOpt::flags2>(ref<FLAGCHARS>)) |
+              assign<&ast::FilterOpt::flags1>(ref<FLAGCHARS>))) |
             (assign<&ast::FilterOpt::kind>(kw<"icmp-type">) + icmpList) |
             (assign<&ast::FilterOpt::kind>(kw<"icmp6-type">) + icmpList) |
             (assign<&ast::FilterOpt::kind>(kw<"tos">) +
@@ -248,16 +284,16 @@ struct Pf : cursiv::GrammarSpec {
              kw<"state"> +
              option(lit<"("> + stateOptsList + lit<")">)) |
             (assign<&ast::FilterOpt::kind>(kw<"scrub">) + lit<"("> +
-             scrubOptsList + option(lit<")">)) |
+             scrubOptsList + lit<")">) |
             assign<&ast::FilterOpt::kind>(kw<"fragment">) |
             assign<&ast::FilterOpt::kind>(kw<"allow-opts">) |
             assign<&ast::FilterOpt::kind>(kw<"once">) |
             (assign<&ast::FilterOpt::kind>(kw<"divert-packet">) +
-             assign<&ast::FilterOpt::portspec>(ref<PortSpecRule>)) |
+             assign<&ast::FilterOpt::portspec>(ref<PortSpec>)) |
             assign<&ast::FilterOpt::kind>(kw<"divert-reply">) |
             (assign<&ast::FilterOpt::kind>(kw<"divert-to">) +
-             assign<&ast::FilterOpt::target>(ref<HostRule>) +
-             assign<&ast::FilterOpt::portspec>(ref<PortSpecRule>)) |
+             assign<&ast::FilterOpt::target>(ref<Host>) +
+             assign<&ast::FilterOpt::portspec>(ref<PortSpec>)) |
             (assign<&ast::FilterOpt::kind>(kw<"label">) +
              assign<&ast::FilterOpt::text1>(ref<QUOTED_STRING>)) |
             (assign<&ast::FilterOpt::kind>(kw<"tag">) +
@@ -296,19 +332,22 @@ struct Pf : cursiv::GrammarSpec {
              kw<"from"> + redirHostList +
              option(kw<"to"> + redirHostList2)) |
             (assign<&ast::FilterOpt::kind>(kw<"binat-to">) + redirHostList +
-             option(assign<&ast::FilterOpt::portspec>(ref<PortSpecRule>)) + option(pooltypeClause) +
+             option(assign<&ast::FilterOpt::portspec>(ref<PortSpec>)) + option(pooltypeClause) +
              stickyAddressOpt) |
             (assign<&ast::FilterOpt::kind>(kw<"rdr-to">) + redirHostList +
-             option(assign<&ast::FilterOpt::portspec>(ref<PortSpecRule>)) + option(pooltypeClause) +
+             option(assign<&ast::FilterOpt::portspec>(ref<PortSpec>)) + option(pooltypeClause) +
              stickyAddressOpt) |
             (assign<&ast::FilterOpt::kind>(kw<"nat-to">) + redirHostList +
-             option(assign<&ast::FilterOpt::portspec>(ref<PortSpecRule>)) + option(pooltypeClause) +
+             option(assign<&ast::FilterOpt::portspec>(ref<PortSpec>)) + option(pooltypeClause) +
              stickyAddressOpt +
              option(flag<&ast::FilterOpt::staticPort>(
                  kw<"static-port">))) |
-            (assign<&ast::FilterOpt::kind>(kw<"route-to">) + redirHostList) |
-            (assign<&ast::FilterOpt::kind>(kw<"reply-to">) + redirHostList) |
-            (assign<&ast::FilterOpt::kind>(kw<"dup-to">) + redirHostList) |
+            (assign<&ast::FilterOpt::kind>(kw<"route-to">) + routeHostList +
+             option(pooltypeClause) + stickyAddressOpt) |
+            (assign<&ast::FilterOpt::kind>(kw<"reply-to">) + routeHostList +
+             option(pooltypeClause) + stickyAddressOpt) |
+            (assign<&ast::FilterOpt::kind>(kw<"dup-to">) + routeHostList +
+             option(pooltypeClause) + stickyAddressOpt) |
             (flag<&ast::FilterOpt::viaSet>(kw<"set">) +
              assign<&ast::FilterOpt::kind>(kw<"tos">) +
              assign<&ast::FilterOpt::tos>(
@@ -319,16 +358,16 @@ struct Pf : cursiv::GrammarSpec {
              assign<&ast::FilterOpt::text1>(ref<STRING>))> {};
 
   static constexpr auto filterOptsList =
-      append<&ast::Rule::filterOpts>(ref<FilterOptRule>) +
-      many(option(lit<",">) + append<&ast::Rule::filterOpts>(ref<FilterOptRule>));
+      append<&ast::Rule::filterOpts>(ref<FilterOpt>) +
+      many(option(lit<",">) + append<&ast::Rule::filterOpts>(ref<FilterOpt>));
 
   static constexpr auto anchorFilterOptsList =
-      append<&ast::AnchorRule::filterOpts>(ref<FilterOptRule>) +
+      append<&ast::AnchorRule::filterOpts>(ref<FilterOpt>) +
       many(option(lit<",">) +
-           append<&ast::AnchorRule::filterOpts>(ref<FilterOptRule>));
+           append<&ast::AnchorRule::filterOpts>(ref<FilterOpt>));
 
   // --- protospec / proto_list ---
-  struct ProtospecRule
+  struct Protospec
       : rule<kw<"proto"> +
              (append<&ast::Protospec::protos>(ref<STRING> | ref<NUMBER>) |
               (lit<"{"> +
@@ -342,43 +381,43 @@ struct Pf : cursiv::GrammarSpec {
 
   // --- hosts: fromspec? tospec?, or `all` ---
   static constexpr auto fromspecOs =
-      option(assign<&ast::FromSpec::os>(ref<OsSpecRule>));
+      option(assign<&ast::FromSpec::os>(ref<OsSpec>));
 
-  struct FromSpecRule
+  struct FromSpec
       : rule<kw<"from"> +
              ((assign<&ast::FromSpec::kind>(kw<"any"> | kw<"no-route"> |
                                             kw<"urpf-failed"> | kw<"self">)) |
-              append<&ast::FromSpec::hosts>(ref<HostRule>) |
-              (lit<"{"> + append<&ast::FromSpec::hosts>(ref<HostRule>) +
+              append<&ast::FromSpec::hosts>(ref<Host>) |
+              (lit<"{"> + append<&ast::FromSpec::hosts>(ref<Host>) +
                many(option(lit<",">) +
-                    append<&ast::FromSpec::hosts>(ref<HostRule>)) +
+                    append<&ast::FromSpec::hosts>(ref<Host>)) +
                lit<"}">) |
               (assign<&ast::FromSpec::kind>(kw<"route">) +
                assign<&ast::FromSpec::routeName>(
                    ref<STRING> | ref<QUOTED_STRING>))) +
              option(kw<"port"> +
-                    assign<&ast::FromSpec::port>(ref<OpSpecRule>)) +
+                    assign<&ast::FromSpec::port>(ref<OpSpec>)) +
              fromspecOs> {};
 
-  struct ToSpecRule
+  struct ToSpec
       : rule<kw<"to"> +
              ((assign<&ast::ToSpec::kind>(kw<"any"> | kw<"no-route"> |
                                           kw<"self">)) |
-              append<&ast::ToSpec::hosts>(ref<HostRule>) |
-              (lit<"{"> + append<&ast::ToSpec::hosts>(ref<HostRule>) +
+              append<&ast::ToSpec::hosts>(ref<Host>) |
+              (lit<"{"> + append<&ast::ToSpec::hosts>(ref<Host>) +
                many(option(lit<",">) +
-                    append<&ast::ToSpec::hosts>(ref<HostRule>)) +
+                    append<&ast::ToSpec::hosts>(ref<Host>)) +
                lit<"}">) |
               (assign<&ast::ToSpec::kind>(kw<"route">) +
                assign<&ast::ToSpec::routeName>(
                    ref<STRING> | ref<QUOTED_STRING>))) +
              option(kw<"port"> +
-                    assign<&ast::ToSpec::port>(ref<OpSpecRule>))> {};
+                    assign<&ast::ToSpec::port>(ref<OpSpec>))> {};
 
-  struct HostsRule
+  struct Hosts
       : rule<flag<&ast::Hosts::all>(kw<"all">) |
-             (option(assign<&ast::Hosts::from>(ref<FromSpecRule>)) +
-              option(assign<&ast::Hosts::to>(ref<ToSpecRule>)))> {};
+             (option(assign<&ast::Hosts::from>(ref<FromSpec>)) +
+              option(assign<&ast::Hosts::to>(ref<ToSpec>)))> {};
 
   // --- action / return ---
   static constexpr auto returnClause =
@@ -407,7 +446,7 @@ struct Pf : cursiv::GrammarSpec {
 
   // --- logging / logopts: no trailing NUMBER after the list -- real
   // pf.conf logging options (`log(all)`) carry none (Deviation). ---
-  struct LogOptRule
+  struct LogOpt
       : rule<assign<&ast::LogOpt::kind>(kw<"all"> | kw<"matches"> |
                                         kw<"user">) |
              (assign<&ast::LogOpt::kind>(kw<"to">) +
@@ -416,36 +455,36 @@ struct Pf : cursiv::GrammarSpec {
   static constexpr auto loggingClause =
       flag<&ast::Rule::log>(kw<"log">) +
       option(lit<"("> +
-             append<&ast::Rule::logOpts>(ref<LogOptRule>) +
+             append<&ast::Rule::logOpts>(ref<LogOpt>) +
              many(option(lit<",">) +
-                  append<&ast::Rule::logOpts>(ref<LogOptRule>)) +
+                  append<&ast::Rule::logOpts>(ref<LogOpt>)) +
              lit<")">);
 
   // --- onspec ---
   static constexpr auto onspecClause =
       kw<"on"> +
-      (assign<&ast::Rule::onIf>(ref<IfSpecRule>) |
+      (assign<&ast::Rule::onIf>(ref<IfSpec>) |
        (kw<"rdomain"> + assign<&ast::Rule::onRdomain>(ref<NUMBER>)));
 
   // --- pf_rule ---
-  struct RuleRule
+  struct Rule
       : rule<actionExpr +
              option(assign<&ast::Rule::direction>(kw<"in"> | kw<"out">)) +
              many(loggingClause |
                   flag<&ast::Rule::quick>(kw<"quick">)) +
              option(onspecClause) +
              option(assign<&ast::Rule::af>(afWord)) +
-             option(assign<&ast::Rule::proto>(ref<ProtospecRule>)) +
-             assign<&ast::Rule::hosts>(ref<HostsRule>) +
+             option(assign<&ast::Rule::proto>(ref<Protospec>)) +
+             assign<&ast::Rule::hosts>(ref<Hosts>) +
              option(filterOptsList)> {};
 
   // --- antispoof_rule ---
-  struct AntispoofRuleRule
+  struct AntispoofRule
       : rule<kw<"antispoof"> +
              option(flag<&ast::AntispoofRule::log>(kw<"log">)) +
              option(flag<&ast::AntispoofRule::quick>(kw<"quick">)) +
              kw<"for"> +
-             assign<&ast::AntispoofRule::ifspec>(ref<IfSpecRule>) +
+             assign<&ast::AntispoofRule::ifspec>(ref<IfSpec>) +
              option(assign<&ast::AntispoofRule::af>(afWord)) +
              option(kw<"label"> +
                     assign<&ast::AntispoofRule::label>(ref<STRING>))> {};
@@ -455,14 +494,14 @@ struct Pf : cursiv::GrammarSpec {
   // `hostname` (both a plain STRING), so only the `{ ... }` list form -- the
   // one shape a bare name cannot also spell -- is read as an ifspec here;
   // a single interface still reads as the generic name below it.
-  struct IfSpecBracedRule
+  struct IfSpecBraced
       : rule<lit<"{"> + append<&ast::IfSpec::ifaces>(ifaceItem) +
              many(option(lit<",">) + append<&ast::IfSpec::ifaces>(ifaceItem)) +
              lit<"}">> {};
 
-  struct TableAddrRule
+  struct TableAddr
       : rule<option(flag<&ast::TableAddr::negated>(lit<"!">)) +
-             (assign<&ast::TableAddr::ifspec>(ref<IfSpecBracedRule>) |
+             (assign<&ast::TableAddr::ifspec>(ref<IfSpecBraced>) |
               assign<&ast::TableAddr::text>(kw<"self">) |
               assign<&ast::TableAddr::text>(ref<IPV4>) |
               assign<&ast::TableAddr::text>(ref<IPV6>) |
@@ -471,10 +510,10 @@ struct Pf : cursiv::GrammarSpec {
                     assign<&ast::TableAddr::maskBits>(ref<NUMBER>))> {};
 
   static constexpr auto tableAddrsList =
-      append<&ast::TableOpt::addrs>(ref<TableAddrRule>) +
-      many(option(lit<",">) + append<&ast::TableOpt::addrs>(ref<TableAddrRule>));
+      append<&ast::TableOpt::addrs>(ref<TableAddr>) +
+      many(option(lit<",">) + append<&ast::TableOpt::addrs>(ref<TableAddr>));
 
-  struct TableOptRule
+  struct TableOpt
       : rule<flag<&ast::TableOpt::persist>(kw<"persist">) |
              flag<&ast::TableOpt::constFlag>(kw<"const">) |
              flag<&ast::TableOpt::counters>(kw<"counters">) |
@@ -482,32 +521,32 @@ struct Pf : cursiv::GrammarSpec {
              (lit<"{"> + option(tableAddrsList) + lit<"}">)> {};
 
   static constexpr auto tableOptsList =
-      append<&ast::TableRule::opts>(ref<TableOptRule>) +
-      many(append<&ast::TableRule::opts>(ref<TableOptRule>));
+      append<&ast::TableRule::opts>(ref<TableOpt>) +
+      many(append<&ast::TableRule::opts>(ref<TableOpt>));
 
-  struct TableRuleRule
+  struct TableRule
       : rule<kw<"table"> + lit<"<"> +
              assign<&ast::TableRule::name>(ref<STRING>) + lit<">"> +
              option(tableOptsList)> {};
 
   // --- queue_rule ---
-  struct BandwidthRule
-      : rule<assign<&ast::Bandwidth::value>(ref<NUMBER>) +
+  struct Bandwidth
+      : rule<assign<&ast::Bandwidth::value>(ref<BANDWIDTH_NUMBER>) +
              option(assign<&ast::Bandwidth::unit>(ref<BWUNIT>)) +
              option(kw<"burst"> +
-                    assign<&ast::Bandwidth::burstValue>(ref<NUMBER>) +
+                    assign<&ast::Bandwidth::burstValue>(ref<BANDWIDTH_NUMBER>) +
                     option(assign<&ast::Bandwidth::burstUnit>(ref<BWUNIT>)) +
                     kw<"for"> +
                     assign<&ast::Bandwidth::burstMs>(ref<NUMBER>) +
                     kw<"ms">)> {};
 
-  struct QueueOptRule
+  struct QueueOpt
       : rule<(assign<&ast::QueueOpt::kind>(kw<"bandwidth">) +
-              assign<&ast::QueueOpt::bw>(ref<BandwidthRule>)) |
+              assign<&ast::QueueOpt::bw>(ref<Bandwidth>)) |
              (assign<&ast::QueueOpt::kind>(kw<"min">) +
-              assign<&ast::QueueOpt::bw>(ref<BandwidthRule>)) |
+              assign<&ast::QueueOpt::bw>(ref<Bandwidth>)) |
              (assign<&ast::QueueOpt::kind>(kw<"max">) +
-              assign<&ast::QueueOpt::bw>(ref<BandwidthRule>)) |
+              assign<&ast::QueueOpt::bw>(ref<Bandwidth>)) |
              (assign<&ast::QueueOpt::kind>(kw<"parent">) +
               assign<&ast::QueueOpt::text>(ref<STRING>)) |
              assign<&ast::QueueOpt::kind>(kw<"default">) |
@@ -519,42 +558,43 @@ struct Pf : cursiv::GrammarSpec {
               assign<&ast::QueueOpt::num>(ref<NUMBER>))> {};
 
   static constexpr auto queueOptsList =
-      append<&ast::QueueRule::opts>(ref<QueueOptRule>) +
-      many(append<&ast::QueueRule::opts>(ref<QueueOptRule>));
+      append<&ast::QueueRule::opts>(ref<QueueOpt>) +
+      many(option(lit<",">) + append<&ast::QueueRule::opts>(ref<QueueOpt>));
 
-  struct QueueRuleRule
+  struct QueueRule
       : rule<kw<"queue"> + assign<&ast::QueueRule::name>(ref<STRING>) +
              option(kw<"on"> +
                     assign<&ast::QueueRule::iface>(ref<STRING>)) +
              queueOptsList> {};
 
   // --- anchor_rule / anchor_close / load_anchor ---
-  struct AnchorRuleRule
+  struct AnchorRule
       : rule<kw<"anchor"> +
              option(assign<&ast::AnchorRule::name>(
                  ref<STRING> | ref<QUOTED_STRING>)) +
              option(assign<&ast::AnchorRule::direction>(kw<"in"> | kw<"out">)) +
+             option(flag<&ast::AnchorRule::quick>(kw<"quick">)) +
              option(kw<"on"> +
-                    assign<&ast::AnchorRule::onIf>(ref<IfSpecRule>)) +
+                    assign<&ast::AnchorRule::onIf>(ref<IfSpec>)) +
              option(assign<&ast::AnchorRule::af>(afWord)) +
-             option(assign<&ast::AnchorRule::proto>(ref<ProtospecRule>)) +
-             assign<&ast::AnchorRule::hosts>(ref<HostsRule>) +
+             option(assign<&ast::AnchorRule::proto>(ref<Protospec>)) +
+             assign<&ast::AnchorRule::hosts>(ref<Hosts>) +
              option(anchorFilterOptsList) +
              option(flag<&ast::AnchorRule::opensBlock>(lit<"{">))> {};
 
-  struct AnchorCloseRule : rule<create<ast::AnchorClose> + lit<"}">> {};
+  struct AnchorClose : rule<create<ast::AnchorClose> + lit<"}">> {};
 
-  struct LoadAnchorRule
+  struct LoadAnchor
       : rule<kw<"load"> + kw<"anchor"> +
              assign<&ast::LoadAnchor::name>(ref<STRING>) + kw<"from"> +
              assign<&ast::LoadAnchor::file>(ref<QUOTED_STRING>)> {};
 
   // --- include / var ---
-  struct IncludeRule
+  struct Include
       : rule<kw<"include"> +
              assign<&ast::Include::file>(ref<QUOTED_STRING>)> {};
 
-  struct VarRule
+  struct Var
       : rule<assign<&ast::Var::name>(ref<STRING>) + lit<"="> +
              assign<&ast::Var::value>(ref<QUOTED_STRING>)> {};
 
@@ -562,15 +602,15 @@ struct Pf : cursiv::GrammarSpec {
   // per `set`, which is what every corpus file writes; a combination like
   // `optimization ... limit ...` in one statement is not produced
   // (Deviation).
-  struct OptionRule
+  struct Option
       : rule<kw<"set"> +
              option(
                  (assign<&ast::Option::kind>(kw<"timeout">) +
-                  (append<&ast::Option::timeouts>(ref<TimeoutRule>) |
+                  (append<&ast::Option::timeouts>(ref<Timeout>) |
                    (lit<"{"> +
-                    append<&ast::Option::timeouts>(ref<TimeoutRule>) +
-                    many(lit<","> +
-                         append<&ast::Option::timeouts>(ref<TimeoutRule>)) +
+                    append<&ast::Option::timeouts>(ref<Timeout>) +
+                    many(option(lit<",">) +
+                         append<&ast::Option::timeouts>(ref<Timeout>)) +
                     lit<"}">))) |
                  (assign<&ast::Option::kind>(kw<"ruleset-optimization">) +
                   option(assign<&ast::Option::word>(
@@ -581,11 +621,11 @@ struct Pf : cursiv::GrammarSpec {
                       kw<"satellite"> | kw<"aggressive"> |
                       kw<"conservative">))) |
                  (assign<&ast::Option::kind>(kw<"limit">) +
-                  (append<&ast::Option::limits>(ref<LimitItemRule>) |
+                  (append<&ast::Option::limits>(ref<LimitItem>) |
                    (lit<"{"> +
-                    append<&ast::Option::limits>(ref<LimitItemRule>) +
-                    many(lit<","> +
-                         append<&ast::Option::limits>(ref<LimitItemRule>)) +
+                    append<&ast::Option::limits>(ref<LimitItem>) +
+                    many(option(lit<",">) +
+                         append<&ast::Option::limits>(ref<LimitItem>)) +
                     lit<"}">))) |
                  (assign<&ast::Option::kind>(kw<"loginterface">) +
                   assign<&ast::Option::word>(ref<STRING> | kw<"none">)) |
@@ -595,13 +635,13 @@ struct Pf : cursiv::GrammarSpec {
                   assign<&ast::Option::word>(kw<"if-bound"> |
                                              kw<"floating">)) |
                  (assign<&ast::Option::kind>(kw<"state-defaults">) +
-                  append<&ast::Option::stateOpts>(ref<StateOptRule>) +
+                  append<&ast::Option::stateOpts>(ref<StateOpt>) +
                   many(option(lit<",">) +
-                       append<&ast::Option::stateOpts>(ref<StateOptRule>))) |
+                       append<&ast::Option::stateOpts>(ref<StateOpt>))) |
                  (assign<&ast::Option::kind>(kw<"fingerprints">) +
                   assign<&ast::Option::file>(ref<QUOTED_STRING>)) |
                  (assign<&ast::Option::kind>(kw<"skip">) + kw<"on"> +
-                  assign<&ast::Option::ifspec>(ref<IfSpecRule>)) |
+                  assign<&ast::Option::ifspec>(ref<IfSpec>)) |
                  (assign<&ast::Option::kind>(kw<"debug">) +
                   assign<&ast::Option::word>(
                       kw<"emerg"> | kw<"alert"> | kw<"crit"> | kw<"err"> |
@@ -613,17 +653,17 @@ struct Pf : cursiv::GrammarSpec {
 
   // --- line / file_ ---
   static constexpr auto lineItem =
-      ref<OptionRule> | ref<RuleRule> | ref<AntispoofRuleRule> |
-      ref<QueueRuleRule> | ref<AnchorRuleRule> | ref<AnchorCloseRule> |
-      ref<LoadAnchorRule> | ref<TableRuleRule> | ref<IncludeRule> |
-      ref<VarRule>;
+      ref<Option> | ref<Rule> | ref<AntispoofRule> |
+      ref<QueueRule> | ref<AnchorRule> | ref<AnchorClose> |
+      ref<LoadAnchor> | ref<TableRule> | ref<Include> |
+      ref<Var>;
 
-  struct FileRule
+  struct File
       : rule<create<ast::File> + many(append<&ast::File::lines>(lineItem))> {
   };
 
-  using entry = FileRule;
-  using ignore = list<WS, COMMENT, CONTINUATION>;
+  using entry = File;
+  using ignored = list<WS, COMMENT, CONTINUATION>;
 };
 
 }  // namespace pf

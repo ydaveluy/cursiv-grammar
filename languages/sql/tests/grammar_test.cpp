@@ -1,3 +1,4 @@
+#include "native_followup.hpp"
 #include "audit_regressions.hpp"
 #include "code_audit.hpp"
 // The grammar end to end: every document under `example/` parses clean --
@@ -28,7 +29,7 @@ int fail(const fs::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  if (!audit_regressions::run() || !code_audit::run()) return 1;
+  if (!native_followup::run() || !audit_regressions::run() || !code_audit::run()) return 1;
   const auto language = cursiv::create_language<
       sqlite::SqliteCoreServices, sqlite::SqliteSharedCoreServices,
       sqlite::install_core_module>();

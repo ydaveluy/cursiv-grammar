@@ -11,12 +11,14 @@ namespace muparser {
 
 void MuparserValidator::checkArity(const ast::FunctionCall& call,
                                    cursiv::ValidationAcceptor& accept) const {
-  static constexpr std::array<std::string_view, 22> unary = {
+  static constexpr std::array<std::string_view, 21> unary = {
       "sin",  "cos",   "tan",   "asin",  "acos", "atan",  "sinh", "cosh",
       "tanh", "asinh", "acosh", "atanh", "log2", "log10", "log",  "ln",
-      "exp",  "sqrt",  "sign",  "rint",  "abs",  "rnd"};
+      "exp",  "sqrt",  "sign",  "rint",  "abs"};
   bool valid = true;
-  if (call.name == "atan2")
+  if (call.name == "rnd")
+    valid = call.args.empty();
+  else if (call.name == "atan2")
     valid = call.args.size() == 2;
   else if (call.name == "min" || call.name == "max" || call.name == "sum" ||
            call.name == "avg")

@@ -10,6 +10,7 @@ namespace trac::ast {
 struct Macro : cursiv::Extends<cursiv::AstNode> {};
 
 struct Arg : cursiv::Extends<cursiv::AstNode> {
+  boolean quoted; // Protective parentheses suppress evaluation of the macro.
   variant<Macro*, string_view> value;
 };
 

@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Kotlin source includes declarations, expressions, annotations and structured control flow.
+
 ```kotlin
 class C {
     val s: String
@@ -41,17 +43,6 @@ class C {
         get() = t
 }
 ```
-
-`example/` holds seven documents drawn from the Kotlin grammar's own test
-corpus (property getters and setters, generic extension functions, trailing
-commas, annotations, anonymous objects, nested type navigation) and three
-written for this port, covering a construct no corpus document exercises:
-a label on a local declaration, a supertype constructor call's three
-`callSuffix` forms, and a member access whose right side is a literal, a
-parenthesized expression, `if`/`when`/`try`, or a lambda rather than a plain
-name. None declare cross-references — Kotlin resolves names against class
-members and imports, which this port does not attempt — but every construct
-the grammar accepts still parses into a tree.
 
 ## The command line
 

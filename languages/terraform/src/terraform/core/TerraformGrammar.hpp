@@ -6,6 +6,12 @@ namespace terraform {
 inline constexpr auto trim_open = [](std::string_view text) {
   return text.size() > 2 && text[2] == '~';
 };
+inline constexpr auto decimal_index = [](std::string_view text)
+    -> cursiv::ConversionResult<std::string_view> {
+  for (const char c : text) if (c < '0' || c > '9')
+    return cursiv::ConversionResult<std::string_view>::err("A legacy dot index contains decimal digits only");
+  return cursiv::ConversionResult<std::string_view>::ok(text);
+};
 struct HeredocTag {};
 struct Terraform : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -29,52 +35,39 @@ struct Terraform : cursiv::GrammarSpec {
   struct NUMBER : terminal<some(d) + option(lit<"."> + some(d)) +
                            option(cr<"eE"> + option(cr<"+-">) + some(d))> {};
   static constexpr auto Escaped = lit<"\\"> + any;
-  struct INTERP_OPEN : terminal<lit<"${"> + option(lit<"~">) + many(s),
-                                cursiv::text_conv<trim_open>> {};
-  struct DIRECTIVE_OPEN : terminal<lit<"%{"> + option(lit<"~">) + many(s),
-                                   cursiv::text_conv<trim_open>> {};
+  struct INTERP_OPEN
+      : terminal<as<trim_open>(lit<"${"> + option(lit<"~">) + many(s))> {};
+  struct DIRECTIVE_OPEN
+      : terminal<as<trim_open>(lit<"%{"> + option(lit<"~">) + many(s))> {};
   struct STRING_TEXT
       : terminal<some(Escaped | (lit<"$${"> | lit<"%%{">) |
                       (lit<"$", !lit<"{">>) | (lit<"%", !lit<"{">>) |
                       cr<R"(^"\\$%\r\n)">)> {};
   struct HEREDOC
       : terminal<(lit<"<<"> + option(lit<"-">) +
-                  mark<HeredocTag>(some(cr<R"(^ \t\r\n)">)) +
+                  &IdStart + mark<HeredocTag>(some(IdContinue)) +
                   option(lit<"\r">) +
-                  lit<"\n">)+many(!(many(cr<R"( \t)">) + same<HeredocTag> +
+      lit<"\n">)+many(!(many(cr<R"( \t)">) + same<HeredocTag> + many(cr<R"( \t)">) +
                                     &((lit<"\r\n"> | lit<"\n">) | eof)) +
                                   many(cr<R"(^\r\n)">) + option(lit<"\r">) +
                                   lit<"\n">) +
-                 many(cr<R"( \t)">) + same<HeredocTag> +
+                 many(cr<R"( \t)">) + same<HeredocTag> + many(cr<R"( \t)">) +
                  &((lit<"\r\n"> | lit<"\n">) | eof)> {};
-  struct MULTIPLY : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIVIDE : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct MODULO : terminal<lit<"%">, value<ast::Operator::modulo>> {};
-  struct ADD : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct SUBTRACT : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct GREATER_EQUAL
-      : terminal<lit<">=">, value<ast::Operator::greater_equal>> {};
-  struct GREATER : terminal<lit<">">, value<ast::Operator::greater>> {};
-  struct LESS_EQUAL : terminal<lit<"<=">, value<ast::Operator::less_equal>> {};
-  struct LESS : terminal<lit<"<">, value<ast::Operator::less>> {};
-  struct EQUAL : terminal<lit<"==">, value<ast::Operator::equal>> {};
-  struct NOT_EQUAL : terminal<lit<"!=">, value<ast::Operator::not_equal>> {};
-  struct AND : terminal<lit<"&&">, value<ast::Operator::logical_and>> {};
-  struct OR : terminal<lit<"||">, value<ast::Operator::logical_or>> {};
+  struct AND : terminal<as<ast::Operator::logical_and>(lit<"&&">)> {};
 
-  static constexpr auto OpMul = ref<MULTIPLY> | ref<DIVIDE> | ref<MODULO>;
-  static constexpr auto OpAdd = ref<ADD> | ref<SUBTRACT>;
+  static constexpr auto OpMul = as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">) | as<ast::Operator::modulo>(lit<"%">);
+  static constexpr auto OpAdd = as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">);
   static constexpr auto OpCompare =
-      ref<GREATER_EQUAL> | ref<LESS_EQUAL> | ref<GREATER> | ref<LESS>;
-  static constexpr auto OpEq = ref<EQUAL> | ref<NOT_EQUAL>;
+      as<ast::Operator::greater_equal>(lit<">=">) | as<ast::Operator::less_equal>(lit<"<=">) | as<ast::Operator::greater>(lit<">">) | as<ast::Operator::less>(lit<"<">);
+  static constexpr auto OpEq = as<ast::Operator::equal>(lit<"==">) | as<ast::Operator::not_equal>(lit<"!=">);
   static constexpr auto OpAnd = ref<AND>;
-  static constexpr auto OpOr = ref<OR>;
+  static constexpr auto OpOr = as<ast::Operator::logical_or>(lit<"||">);
 
   struct Expression;
   struct FullEach;
   struct LegacyEach;
-  struct BodyItemRule;
-  struct StringRule;
+  struct BodyItem;
+  struct String;
   struct UnaryExpr;
   static constexpr auto ForHead =
       ref<FOR> + some(append<&ast::ForLoop::variables>(Name), lit<",">) +
@@ -82,54 +75,54 @@ struct Terraform : cursiv::GrammarSpec {
   static constexpr auto ForTail =
       option(flag<&ast::ForLoop::grouping>(lit<"...">)) +
       option(ref<IF> + assign<&ast::ForLoop::condition>(ref<Expression>));
-  struct TupleForRule : rule<create<ast::ForLoop>(
+  struct TupleFor : rule<create<ast::ForLoop>(
                             lit<"["> + ForHead +
                             assign<&ast::ForLoop::result>(ref<Expression>) +
                             ForTail + lit<"]">)> {};
-  struct ObjectForRule
+  struct ObjectFor
       : rule<create<ast::ForLoop>(
             flag<&ast::ForLoop::object>(lit<"{">) + ForHead +
             assign<&ast::ForLoop::key>(ref<Expression>) + lit<"=>"> +
             assign<&ast::ForLoop::result>(ref<Expression>) + ForTail +
             lit<"}">)> {};
-  struct NumberRule : rule<create<ast::NumberLit>(
+  struct Number : rule<create<ast::NumberLit>(
                           assign<&ast::NumberLit::text>(ref<NUMBER>))> {};
-  struct FuncCallRule
+  struct FuncCall
       : rule<create<ast::FuncCall>(
             some(append<&ast::FuncCall::name>(Name), lit<"::">) + lit<"("> +
             option(
                 some(append<&ast::FuncCall::args>(ref<Expression>), lit<",">) +
-                (option(flag<&ast::FuncCall::expandFinal>(lit<"...">)) +
+                (flag<&ast::FuncCall::expandFinal>(lit<"...">) |
                  option(lit<",">))) +
             lit<")">)> {};
-  struct ListRule
+  struct List
       : rule<create<ast::List>(
-            lit<"["> +
+            lit<"["> + !ref<FOR> +
             option(some(append<&ast::List::items>(ref<Expression>), lit<",">) +
                    option(lit<",">)) +
             lit<"]">)> {};
-  struct MapEntryRule : rule<create<ast::MapEntry>(
+  struct MapEntry : rule<create<ast::MapEntry>(
                             assign<&ast::MapEntry::key>(ref<Expression>) +
                             (lit<"="> | lit<":">)+assign<&ast::MapEntry::value>(
                                 ref<Expression>))> {};
-  struct MapRule : rule<create<ast::MapObj>(
-                       lit<"{"> +
-                       many(append<&ast::MapObj::entries>(ref<MapEntryRule>) +
+  struct Map : rule<create<ast::MapObj>(
+                       lit<"{"> + !ref<FOR> +
+                       many(append<&ast::MapObj::entries>(ref<MapEntry>) +
                             option(lit<",">)) +
                        lit<"}">)> {};
-  struct InterpolationRule
+  struct Interpolation
       : rule<create<ast::Interpolation>(
             assign<&ast::Interpolation::trimLeft>(ref<INTERP_OPEN>) +
-            skip(ignored<WS>, hide<LINE_COMMENT, BLOCK_COMMENT>,
+            skip(ignore<WS>, hide<LINE_COMMENT, BLOCK_COMMENT>,
 
                  assign<&ast::Interpolation::value>(ref<Expression>) +
                      option(
                          flag<&ast::Interpolation::trimRight>(lit<"~">)) +
                      lit<"}">))> {};
-  struct DirectiveRule
+  struct Directive
       : rule<create<ast::TemplateDirective>(
             assign<&ast::TemplateDirective::trimLeft>(ref<DIRECTIVE_OPEN>) +
-            skip(ignored<WS>, hide<LINE_COMMENT, BLOCK_COMMENT>,
+            skip(ignore<WS>, hide<LINE_COMMENT, BLOCK_COMMENT>,
 
                  ((assign<&ast::TemplateDirective::name>(ref<FOR>) +
                    some(append<&ast::TemplateDirective::variables>(Name),
@@ -142,34 +135,37 @@ struct Terraform : cursiv::GrammarSpec {
                      option(flag<&ast::TemplateDirective::trimRight>(
                          lit<"~">)) +
                      lit<"}">))> {};
-  struct StringRule
+  struct String
       : rule<create<ast::StringLit>(
             lit<"\""> +
             tight(many(append<&ast::StringLit::parts>(create<ast::TemplateText>(
                           assign<&ast::TemplateText::raw>(ref<STRING_TEXT>))) |
-                      append<&ast::StringLit::parts>(ref<InterpolationRule> |
-                                                     ref<DirectiveRule>)) +
+                      append<&ast::StringLit::parts>(ref<Interpolation> |
+                                                     ref<Directive>)) +
                      lit<"\"">))> {};
   struct Primary
       : rule<create<ast::ParenthesizedExpr>(
                  lit<"("> +
                  assign<&ast::ParenthesizedExpr::value>(ref<Expression>) +
                  lit<")">) |
-             ref<TupleForRule> | ref<ObjectForRule> | ref<ListRule> |
-             ref<MapRule> | create<ast::NullLit>(ref<NULL_KW>) |
+             ref<TupleFor> | ref<ObjectFor> | ref<List> |
+             ref<Map> | create<ast::NullLit>(ref<NULL_KW>) |
              create<ast::BoolLit>(flag<&ast::BoolLit::value>(ref<TRUE>) |
                                   ref<FALSE>) |
-             ref<NumberRule> | ref<StringRule> |
+             ref<Number> | ref<String> |
              create<ast::HeredocLit>(
                  assign<&ast::HeredocLit::text>(ref<HEREDOC>)) |
-             ref<FuncCallRule> |
+             ref<FuncCall> |
              create<ast::Identifier>(assign<&ast::Identifier::name>(
                  ref<ID> | ref<FOR> | ref<IN> | ref<IF>))> {};
+  struct LEGACY_INDEX : rule<as<decimal_index>(ref<NUMBER>)> {};
+  struct LegacyIndexNumber : rule<create<ast::NumberLit>(
+      assign<&ast::NumberLit::text>(ref<LEGACY_INDEX>))> {};
   static constexpr auto MemberStep =
       nest<ast::MemberExpr, &ast::MemberExpr::object>(
           lit<"."> + assign<&ast::MemberExpr::name>(Name)) |
       nest<ast::IndexExpr, &ast::IndexExpr::object>(
-          lit<"."> + assign<&ast::IndexExpr::index>(ref<NumberRule>));
+          lit<"."> + assign<&ast::IndexExpr::index>(ref<LegacyIndexNumber>));
   static constexpr auto PostfixStep =
       MemberStep |
       nest<ast::IndexExpr, &ast::IndexExpr::object>(
@@ -181,22 +177,18 @@ struct Terraform : cursiv::GrammarSpec {
       nest<ast::SplatExpr, &ast::SplatExpr::source>(
           flag<&ast::SplatExpr::legacy>(lit<"."> + lit<"*">) +
           assign<&ast::SplatExpr::each>(ref<LegacyEach>));
-  struct AnonSymbolRule : rule<create<ast::AnonSymbolExpr>> {};
-  struct FullEach : rule<ref<AnonSymbolRule> + many(PostfixStep)> {};
-  struct LegacyEach : rule<ref<AnonSymbolRule> + many(MemberStep)> {};
-  struct UNARY_NOT : terminal<lit<"!">, value<ast::UnaryOp::logical_not>> {};
-  struct UNARY_MINUS : terminal<lit<"-">, value<ast::UnaryOp::negate>> {};
-  struct UNARY_PLUS : terminal<lit<"+">, value<ast::UnaryOp::positive>> {};
+  struct AnonSymbol : rule<create<ast::AnonSymbolExpr>> {};
+  struct FullEach : rule<ref<AnonSymbol> + many(PostfixStep)> {};
+  struct LegacyEach : rule<ref<AnonSymbol> + many(MemberStep)> {};
   struct UnaryExpr
       : rule<(create<ast::UnaryExpr>(
                   assign<&ast::UnaryExpr::op>(
-                      ref<UNARY_NOT> | ref<UNARY_MINUS> | ref<UNARY_PLUS>) +
+                      as<ast::UnaryOp::logical_not>(lit<"!">) | as<ast::UnaryOp::negate>(lit<"-">) | as<ast::UnaryOp::positive>(lit<"+">)) +
                   assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>)) |
               ref<Primary>)+many(PostfixStep)> {};
-  struct BinaryExpr : infix<UnaryExpr, &ast::BinaryExpr::left,
-                            &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                            (left(OpMul) >> left(OpAdd) >> left(OpCompare) >>
-                             left(OpEq) >> left(OpAnd) >> left(OpOr))> {};
+  struct BinaryExpr : infix<UnaryExpr, ast::BinaryExpr,
+                            levels(left(OpMul), left(OpAdd), left(OpCompare),
+                                   left(OpEq), left(OpAnd), left(OpOr))> {};
   struct Expression
       : rule<ref<BinaryExpr> +
              option(nest<ast::TernaryExpr, &ast::TernaryExpr::cond>(
@@ -204,22 +196,22 @@ struct Terraform : cursiv::GrammarSpec {
                  assign<&ast::TernaryExpr::thenValue>(ref<Expression>) +
                  lit<":"> +
                  assign<&ast::TernaryExpr::elseValue>(ref<Expression>)))> {};
-  struct ArgumentRule : rule<create<ast::Argument>(
+  struct Argument : rule<create<ast::Argument>(
                             assign<&ast::Argument::name>(Name) + lit<"="> +
                             assign<&ast::Argument::value>(ref<Expression>))> {};
-  struct BlockRule
+  struct Block
       : rule<create<ast::Block>(
             assign<&ast::Block::blockType>(Name) +
             many(append<&ast::Block::labels>(
-                ref<StringRule> | create<ast::Identifier>(
+                ref<String> | create<ast::Identifier>(
                                       assign<&ast::Identifier::name>(Name)))) +
-            lit<"{"> + many(append<&ast::Block::body>(ref<BodyItemRule>)) +
+            lit<"{"> + many(append<&ast::Block::body>(ref<BodyItem>)) +
             lit<"}">)> {};
-  struct BodyItemRule : rule<ref<ArgumentRule> | ref<BlockRule>> {};
-  struct FileRule : rule<create<ast::File>(
-                        many(append<&ast::File::items>(ref<BodyItemRule>)))> {};
-  using entry = FileRule;
-  using ignore = WS;
+  struct BodyItem : rule<ref<Argument> | ref<Block>> {};
+  struct File : rule<create<ast::File>(
+                        many(append<&ast::File::items>(ref<BodyItem>)))> {};
+  using entry = File;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 }  // namespace terraform

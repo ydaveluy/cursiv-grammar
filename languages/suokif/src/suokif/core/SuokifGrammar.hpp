@@ -15,18 +15,18 @@ struct Suokif : cursiv::GrammarSpec {
   struct NUMBER : terminal<option(lit<"-">) + some(d) +
       option(cr<".,"> + some(d)) + option(lit<"e"> + option(lit<"-">) + some(d))> {};
 
-  struct TermRule;
-  struct WordRule : rule<assign<&ast::Word::name>(ref<WORD>)> {};
-  struct VariableRule : rule<assign<&ast::Variable::name>(ref<VARIABLE>)> {};
-  struct StringRule : rule<assign<&ast::Str::literal>(ref<STRING>)> {};
-  struct NumberRule : rule<assign<&ast::Number::value>(ref<NUMBER>)> {};
-  struct ListRule : rule<create<ast::List> + lit<"("> +
-      many(append<&ast::List::items>(ref<TermRule>)) + lit<")">> {};
-  struct TermRule : rule<ref<ListRule> | ref<StringRule> | ref<NumberRule> |
-                         ref<VariableRule> | ref<WordRule>> {};
-  struct DocRule : rule<create<ast::Document> +
-      many(append<&ast::Document::sentences>(ref<TermRule>))> {};
-  using entry = DocRule;
-  using ignore = list<WHITE, COMMENT>;
+  struct Term;
+  struct Word : rule<assign<&ast::Word::name>(ref<WORD>)> {};
+  struct Variable : rule<assign<&ast::Variable::name>(ref<VARIABLE>)> {};
+  struct String : rule<assign<&ast::Str::literal>(ref<STRING>)> {};
+  struct Number : rule<assign<&ast::Number::value>(ref<NUMBER>)> {};
+  struct List : rule<create<ast::List> + lit<"("> +
+      many(append<&ast::List::items>(ref<Term>)) + lit<")">> {};
+  struct Term : rule<ref<List> | ref<String> | ref<Number> |
+                         ref<Variable> | ref<Word>> {};
+  struct Doc : rule<create<ast::Document> +
+      many(append<&ast::Document::sentences>(ref<Term>))> {};
+  using entry = Doc;
+  using ignored = list<WHITE, COMMENT>;
 };
 }  // namespace suokif

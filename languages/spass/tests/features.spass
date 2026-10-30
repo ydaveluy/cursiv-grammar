@@ -20,7 +20,7 @@ list_of_declarations.
 subsort(nat,nat).
 predicate(P,nat).
 sort nat freely generated_by [zero,succ].
-myquant([P(x)],P(x)).
+forall([P(x)],P(x)).
 end_of_list.
 
 list_of_formulae(conjectures).

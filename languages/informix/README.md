@@ -48,6 +48,11 @@ A `MAIN` block: a `DEFINE`d variable, a `FOR` loop, a `DISPLAY` statement.
 `example/` contains sample programs; `tests/coverage.4gl` demonstrates
 embedded SQL, cursors, records/arrays, datetime types and screen statements.
 
+The port models core Informix 4GL statements and an embedded SQL subset,
+using HCL Informix 4GL 7.51 as its reference. Function/report modules can omit
+`MAIN`; the AST retains SQL qualifiers, UI/report options and expression
+formatting. It does not execute 4GL or provide database catalogue/type checking.
+
 ## The command line
 
 ```bash

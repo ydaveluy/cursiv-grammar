@@ -27,6 +27,7 @@ inline bool run(const xyz::XyzCoreServices& services) {
   struct Frame { std::string count, description; std::vector<Atom> atoms; };
   struct Case { const char* source; bool nativeRead; const char* code; std::vector<Frame> frames; };
   const std::array cases = {
+    Case{"1\nseparators\nH 1_000.5 .5_0 1e1_0\n",true,"", {Frame{"1","separators", {Atom{"H", {"408f440000000000","3fe0000000000000","4202a05f20000000"}, {}}}}}},
     Case{"1\none atom\nH 0 0 0\n",true,"", {Frame{"1","one atom", {Atom{"H", {"0000000000000000","0000000000000000","0000000000000000"}, {}}}}}},
     Case{"0\n\n",true,"", {Frame{"0","", {}}}},
     Case{"0\nempty",true,"", {Frame{"0","empty", {}}}},
@@ -52,6 +53,15 @@ inline bool run(const xyz::XyzCoreServices& services) {
     Case{"1\nrange\nH -1e-999 0 0\n",true,"", {Frame{"1","range", {Atom{"H", {"8000000000000000","0000000000000000","0000000000000000"}, {}}}}}},
     Case{"1\nrange\nH -0e99999 0 0\n",true,"", {Frame{"1","range", {Atom{"H", {"8000000000000000","0000000000000000","0000000000000000"}, {}}}}}},
   };
+  for (const char* source : {"1\nbad\nH 1-2+3\n", "1\nbad\nH.5 .5 .5\n",
+                              "1\nbad\nH 0 0 1__0\n", "1\nbad\nH 0 0 1_\n",
+                              "1\nbad\nH 0 0 1_.0\n", "1\nbad\nH 0 0 1._0\n",
+                              "1\nbad\nH 0 0 1e_2\n", "1\nbad\nH 0 0 nanx\n"}) {
+    const auto result = services.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() &&
+        result.diagnostics.empty())
+      return false;
+  }
   for (const auto& test : cases) {
     const std::string source(test.source);
     const auto result = services.parser->parse(source);

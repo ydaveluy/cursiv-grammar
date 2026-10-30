@@ -1,5 +1,4 @@
-// The checks of this language. None yet: nothing here needs a check beyond
-// parsing.
+// Context-sensitive native naming checks; member keywords remain legal.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,9 @@ namespace php {
 class PhpValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkFunction(const ast::FunctionDecl&, cursiv::ValidationAcceptor&) const;
+  void checkClass(const ast::ClassDecl&, cursiv::ValidationAcceptor&) const;
+  void checkEnum(const ast::EnumDecl&, cursiv::ValidationAcceptor&) const;
 };
 
 struct PhpCoreServices;

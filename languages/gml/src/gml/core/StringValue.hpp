@@ -18,12 +18,12 @@ inline constexpr auto decode_string = [](
     return c == ' ' || c == '\t' || c == '\r' || c == '\n' ||
            c == '\v' || c == '\f';
   };
-  if (text.find('\n') != std::string_view::npos) {
+  if (text.find_first_of("\r\n") != std::string_view::npos) {
     auto room = cursiv::text_room(memory, text.size());
     std::size_t written = 0;
     bool first = true;
     while (true) {
-      const auto end = text.find('\n');
+      const auto end = text.find_first_of("\r\n");
       auto line = text.substr(0, end);
       if (!first)
         while (!line.empty() && whitespace(line.front())) line.remove_prefix(1);
@@ -32,7 +32,9 @@ inline constexpr auto decode_string = [](
       for (char c : line) room[written++] = c;
       if (end == std::string_view::npos) break;
       room[written++] = ' ';
-      text.remove_prefix(end + 1);
+      const auto separator = text[end] == '\r' && end + 1 < text.size() &&
+                                     text[end + 1] == '\n' ? 2u : 1u;
+      text.remove_prefix(end + separator);
       first = false;
     }
     text = {room.data(), written};

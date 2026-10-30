@@ -44,6 +44,7 @@ struct TypeSetElement : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct TypeSet : cursiv::Extends<cursiv::AstNode> {
+  string_view binder;
   vector<TypeSetElement*> elements;
   struct Reference* scopedRef = nullptr;
   string_view scopedName;
@@ -184,6 +185,11 @@ struct Call : cursiv::Extends<Expression> {
   vector<Expression*> args;
 };
 
+struct IndexExpr : cursiv::Extends<Expression> {
+  Expression* target = nullptr;
+  Expression* index = nullptr;
+};
+
 enum class Operator : std::uint8_t {
   power,
   intdiv,
@@ -279,6 +285,7 @@ struct DollarExpr : cursiv::Extends<Expression> {
 
 struct Body : cursiv::Extends<cursiv::AstNode> {
   vector<Equate*> equates;
+  vector<struct OwnVar*> ownVars;
   vector<Statement*> statements;
 };
 

@@ -34,9 +34,8 @@ struct Member : cursiv::Extends<cursiv::AstNode> {
   Val value;
 };
 
-// The entry rule is exempt from the "matches at least one token" rule, so
-// an empty document is legal and `value` stays unset rather than
-// defaulting to Null.
+// A complete JSON5 document contains one value. The optional member also
+// represents a missing value when parsing an incomplete document for editing.
 struct Doc : cursiv::Extends<cursiv::AstNode> {
   optional<Val> value;
 };

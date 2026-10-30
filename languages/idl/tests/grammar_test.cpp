@@ -14,6 +14,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "idl/core/CoreServices.hpp"
 #include "idl/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -74,6 +75,8 @@ int main() {
       cursiv::create_language<idl::IdlCoreServices, idl::IdlSharedCoreServices,
                               idl::install_core_module>();
   const cursiv::Parser &parser = *language.language.parser;
+
+  if (!idl_native_followup::run(parser)) return 1;
 
   // helloworld.idl: the corpus's minimal sample.
   {

@@ -45,6 +45,37 @@ int main() {
       alef::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
 
+  {
+    const auto result = parser.parse(
+        R"ALEF(void f() {
+x = 0xFF;
+x = .5;
+x = 1e-2;
+x = "a\"b";
+while(1) { continue 2; break 3; }
+})ALEF");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("native literals or integer jump levels did not parse");
+    bool hex = false, fraction = false, exponent = false, string = false;
+    bool next = false, stop = false;
+    for (const auto* node : result.nodes) {
+      if (const auto* value = as<ast::NumberLit>(node)) {
+        hex |= value->text == "0xFF";
+        fraction |= value->text == ".5";
+        exponent |= value->text == "1e-2";
+      }
+      if (const auto* value = as<ast::StringLit>(node))
+        string |= value->text == R"ALEF("a\"b")ALEF";
+      if (const auto* value = as<ast::ContinueStmt>(node))
+        next |= value->level == "2";
+      if (const auto* value = as<ast::BreakStmt>(node))
+        stop |= value->level == "3";
+    }
+    if (!hex || !fraction || !exponent || !string || !next || !stop)
+      return fail("native literal or jump level lost its spelling");
+  }
+
   // example1.alef: the upstream corpus's own sample.
   {
     const std::string text = read(CURSIV_EXAMPLE_SAMPLE);
@@ -166,7 +197,9 @@ int main() {
       static std::vector<std::unique_ptr<std::string>> kept;
       kept.push_back(std::make_unique<std::string>(
           "void f(){ x = " + expr + "; }"));
-      const cursiv::ParseResult result = parser.parse(*kept.back());
+      static std::vector<cursiv::ParseResult> results;
+      results.push_back(parser.parse(*kept.back()));
+      const auto& result = results.back();
       if (result.cst().recovered() || !result.diagnostics.empty())
         return nullptr;
       const auto* program = as<ast::Program>(result.value);

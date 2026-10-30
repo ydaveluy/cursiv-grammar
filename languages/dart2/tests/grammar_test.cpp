@@ -152,6 +152,69 @@ void arrow_body() {
   CHECK(both != nullptr && cursiv::ast_cast<ast::IsTest>(both->left) != nullptr);
 }
 
+void native_assignment_and_arguments() {
+  const std::string source = R"dart(
+    void main() {
+      @deprecated int local() => 1;
+      use(named: 1, 2, last: 3, 4);
+      var x = target..a = 1..b = 2;
+      holder = target..a = 1;
+      @deprecated var fallback = condition ? throw error : 0;
+    }
+  )dart";
+  const auto result = engine().parse(source);
+  CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
+  const auto* unit = result.value_as<ast::CompilationUnit>();
+  const auto* function = unit && unit->declarations.size() == 1
+      ? cursiv::ast_cast<ast::TopLevelFunction>(unit->declarations[0]) : nullptr;
+  const auto* body = function
+      ? cursiv::ast_cast<ast::BlockStmt>(function->body) : nullptr;
+  CHECK(body && body->statements.size() == 5);
+  if (!body || body->statements.size() != 5) return;
+  const auto* local = cursiv::ast_cast<ast::FunctionDeclStmt>(body->statements[0]);
+  CHECK(local && local->function && local->function->bodyExpr &&
+        local->annotations.size() == 1 && local->annotations[0]->name == "deprecated");
+  const auto* callStatement = cursiv::ast_cast<ast::ExprStmt>(body->statements[1]);
+  const auto* call = callStatement
+      ? cursiv::ast_cast<ast::CallExpr>(callStatement->value) : nullptr;
+  CHECK(call && call->args && call->args->items.size() == 4);
+  if (call && call->args && call->args->items.size() == 4) {
+    CHECK(call->args->items[0]->name == "named");
+    CHECK(call->args->items[1]->name.empty());
+    CHECK(call->args->items[2]->name == "last");
+    CHECK(call->args->items[3]->name.empty());
+  }
+  const auto* variable = cursiv::ast_cast<ast::VarDeclStmt>(body->statements[2]);
+  const auto* cascade = variable && variable->spec->vars.size() == 1
+      ? cursiv::ast_cast<ast::CascadeExpr>(variable->spec->vars[0]->init) : nullptr;
+  CHECK(cascade && cascade->sections.size() == 2);
+  if (cascade && cascade->sections.size() == 2) {
+    CHECK(cascade->sections[0]->assignment &&
+          cursiv::ast_cast<ast::NumberLit>(cascade->sections[0]->assignment->value));
+    CHECK(cascade->sections[1]->assignment &&
+          cursiv::ast_cast<ast::NumberLit>(cascade->sections[1]->assignment->value));
+  }
+  const auto* assignmentStatement = cursiv::ast_cast<ast::ExprStmt>(body->statements[3]);
+  const auto* assignment = assignmentStatement
+      ? cursiv::ast_cast<ast::AssignExpr>(assignmentStatement->value) : nullptr;
+  CHECK(assignment && cursiv::ast_cast<ast::CascadeExpr>(assignment->value));
+  const auto* fallback = cursiv::ast_cast<ast::VarDeclStmt>(body->statements[4]);
+  CHECK(fallback && fallback->annotations.size() == 1 &&
+        fallback->annotations[0]->name == "deprecated");
+  const auto* conditional = fallback && fallback->spec->vars.size() == 1
+      ? cursiv::ast_cast<ast::ConditionalExpr>(fallback->spec->vars[0]->init) : nullptr;
+  CHECK(conditional && cursiv::ast_cast<ast::ThrowExpr>(conditional->thenValue));
+  const std::string abstractSource = "abstract class A { void f(); }";
+  const auto abstractResult = engine().parse(abstractSource);
+  CHECK(abstractResult.accepted && !abstractResult.cst().recovered() &&
+        abstractResult.diagnostics.empty());
+  bool abstractMethod = false;
+  for (const auto* node : abstractResult.nodes)
+    if (const auto* method = cursiv::ast_cast<ast::MethodDecl>(node))
+      abstractMethod |= method->name == "f" && method->isAbstract;
+  CHECK(abstractMethod);
+}
+
 }  // namespace
 
 static int audit_regression() {
@@ -318,5 +381,6 @@ int main() {
   metadata();
   local_declarations();
   arrow_body();
+  native_assignment_and_arguments();
   return cursiv::test::report("dart2_grammar_test");
 }

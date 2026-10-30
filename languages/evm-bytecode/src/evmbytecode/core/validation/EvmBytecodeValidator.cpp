@@ -45,15 +45,28 @@ void EvmBytecodeValidator::checkInstruction(
   }
   const auto name = instruction.mnemonic;
   const bool extended = name == "DUPN" || name == "SWAPN" || name == "EXCHANGE";
-  const bool eof = name == "DATALOADN" || name == "RJUMP" || name == "RJUMPI" ||
-                   name == "RJUMPV" || name == "CALLF" || name == "JUMPF" ||
-                   name == "EOFCREATE" || name == "RETURNCONTRACT";
+  const unsigned fixedBytes =
+      name == "DATALOADN" || name == "RJUMP" || name == "RJUMPI" ||
+      name == "CALLF" || name == "JUMPF" ? 2 :
+      name == "EOFCREATE" || name == "RETURNCONTRACT" || name == "RETURNCODE" ? 1 : 0;
+  const bool jumpTable = name == "RJUMPV";
   const auto digits = instruction.data.empty() ? 0 : instruction.data.size() - 2;
   const auto* program = cursiv::ast_cast<ast::Program>(instruction.parent);
   const bool last = program && !program->opcodes.empty() &&
                     program->opcodes.back() == &instruction;
-  if (digits % 2 != 0 || (extended && (digits > 2 || (digits == 0 && !last))) ||
-      (!extended && !eof && !instruction.data.empty())) {
+  bool valid = digits % 2 == 0;
+  if (extended) valid &= digits <= 2 && (digits != 0 || last);
+  else if (fixedBytes) valid &= digits == fixedBytes * 2;
+  else if (jumpTable) {
+    unsigned maxIndex = 0;
+    if (digits < 2) valid = false;
+    else {
+      const auto parsed = std::from_chars(instruction.data.data() + 2,
+          instruction.data.data() + 4, maxIndex, 16);
+      valid &= parsed.ec == std::errc{} && digits == 2 + 4 * (maxIndex + 1);
+    }
+  } else valid &= instruction.data.empty();
+  if (!valid) {
     accept.error(instruction, "Unexpected immediate width.", "evmbytecode.immediate")
         .property<&ast::Instr::data>();
     return;

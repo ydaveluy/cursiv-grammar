@@ -101,7 +101,8 @@ inline bool native_regressions(const auto &services) {
     const char *message;
   };
   for (const auto &c :
-       {Case{"dictionary X { required long x = 2; };", "required dictionary"},
+       {Case{"interface X { async iterable<long>; };", "Use async_iterable"},
+        {"dictionary X { required long x = 2; };", "required dictionary"},
         {"interface X { undefined f(optional long... values); };",
          "variadic argument"},
         {"interface X { undefined f(long value = 1); };", "optional argument"},

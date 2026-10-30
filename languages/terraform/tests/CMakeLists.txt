@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every document under example/ parses clean.
 add_executable(terraform_grammar_test grammar_test.cpp)
-target_link_libraries(terraform_grammar_test PRIVATE terraformCore)
+target_link_libraries(terraform_grammar_test PRIVATE terraformCore cursiv::test)
 target_compile_definitions(terraform_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

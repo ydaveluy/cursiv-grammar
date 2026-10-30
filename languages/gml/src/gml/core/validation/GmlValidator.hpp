@@ -1,5 +1,5 @@
-// The checks of this language: the grammar is the whole of it, so there are
-// none yet -- the pair exists for whoever adds the first one.
+// Selected imported key/value constraints. Graph identity, endpoints and
+// attribute meaning are not validated by this generic pair-tree reader.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

@@ -340,7 +340,7 @@ struct ProjectionItem : cursiv::Extends<cursiv::AstNode> {
 
 struct ProjectionBody : cursiv::Extends<cursiv::AstNode> {
   boolean distinct;
-  boolean star;  // `RETURN *` / `WITH *` -- items is empty when set
+  boolean star;  // `RETURN *` / `WITH *`; explicit items may follow it
   vector<ProjectionItem*> items;
   OrderClause* orderBy;
   Expr* skip_;

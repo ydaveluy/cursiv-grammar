@@ -45,8 +45,8 @@ $primary: #036;
 
 Sass on top of CSS: a stylesheet of rulesets, at-rules and declarations, plus
 variables (`$primary`), nesting (`&:hover`), interpolation (`#{...}`) and
-control flow (`@if`, `@each`, `@for`, `@while`) resolved at parse time rather
-than left to a preprocessor pass.
+control flow (`@if`, `@each`, `@for`, `@while`) represented explicitly in
+the AST.
 
 ## The command line
 

@@ -99,6 +99,25 @@ inline int datalog_regressions(const cursiv::CoreServices& services) {
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() &&
           variable && variable->name == name && variable->parent == atom);
   }
+  // Racket's Datalog lexer terminates a percent comment at LF. A bare
+  // carriage return remains inside the comment, including any apparent fact.
+  for (const std::string source : {"% comment\rp(hidden).\np(visible).",
+                                   "% comment\r\np(visible)."}) {
+    const auto r = services.parser->parse(source);
+    const auto* root = cursiv::ast_cast<ast::Program>(r.value);
+    check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && root &&
+          root->statements.size() == 1);
+    const auto* assertion = root && root->statements.size() == 1
+                                ? cursiv::ast_cast<ast::Assertion>(root->statements[0])
+                                : nullptr;
+    const auto* atom = assertion && assertion->clause
+                           ? cursiv::ast_cast<ast::PredicateAtom>(assertion->clause->head)
+                           : nullptr;
+    const auto* value = atom && atom->args.size() == 1
+                            ? cursiv::ast_cast<ast::AtomConstant>(atom->args[0])
+                            : nullptr;
+    check(value && value->name == "visible");
+  }
   cursiv::Document invalid(cursiv::TextDocument::create(
       "memory:datalog", "datalog", 0, "X :- add(1,2)."));
   invalid.language = &services;

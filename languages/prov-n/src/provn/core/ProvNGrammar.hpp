@@ -3,7 +3,8 @@
 // agents, namespace prefixes, and nested bundles.
 #pragma once
 
-#include <cstdint>
+#include <memory_resource>
+#include <span>
 #include <string_view>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
@@ -14,16 +15,59 @@ namespace provn {
 inline constexpr auto strip1 = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Strip1 = cursiv::text_conv<strip1>;
 
-inline constexpr auto strip_string = [](std::string_view t) -> std::string_view {
-  if (t.size() >= 6 && t.substr(0, 3) == "\"\"\"") return t.substr(3, t.size() - 6);
-  return t.substr(1, t.size() - 2);
+inline constexpr auto unescape = [](std::string_view t,
+    std::pmr::memory_resource *mem) -> std::string_view {
+  const std::size_t quotes = t.starts_with("\"\"\"") ? 3 : 1;
+  const auto body = t.substr(quotes, t.size() - 2 * quotes);
+  if (body.find('\\') == std::string_view::npos) return body;
+  const std::span<char> room = cursiv::text_room(mem, body.size());
+  std::size_t n = 0;
+  for (std::size_t i = 0; i < body.size(); ++i) {
+    if (body[i] != '\\') { room[n++] = body[i]; continue; }
+    const char e = body[++i];
+    switch (e) {
+      case 'b': room[n++] = '\b'; break;
+      case 't': room[n++] = '\t'; break;
+      case 'n': room[n++] = '\n'; break;
+      case 'f': room[n++] = '\f'; break;
+      case 'r': room[n++] = '\r'; break;
+      case '"': case '\'': case '\\': room[n++] = e; break;
+      default: {
+        unsigned c = 0;
+        for (unsigned j = 0; j < (e == 'u' ? 4u : 8u); ++j) {
+          const char h = body[++i];
+          c = c * 16 + (h <= '9' ? h - '0' : (h | 32) - 'a' + 10);
+        }
+        if (c < 0x80) room[n++] = static_cast<char>(c);
+        else {
+          const unsigned bytes = c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+          room[n++] = static_cast<char>((0xffu << (8 - bytes)) | (c >> (6 * (bytes - 1))));
+          for (unsigned j = bytes - 1; j > 0; --j)
+            room[n++] = static_cast<char>(0x80 | ((c >> (6 * (j - 1))) & 63));
+        }
+      }
+    }
+  }
+  return std::string_view(room.data(), n);
 };
-using StripString = cursiv::text_conv<strip_string>;
 
 inline constexpr auto strip_at = [](std::string_view t) { return t.substr(1); };
-using StripAt = cursiv::text_conv<strip_at>;
+
+inline constexpr auto datetime_value = [](std::string_view t) {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  const auto first = t.starts_with("-") ? 1u : 0u;
+  const auto end = t.find('-', first);
+  unsigned year = 0;
+  for (std::size_t i = first; i < end; ++i) year = (year * 10 + t[i] - '0') % 400;
+  const unsigned month = (t[end + 1] - '0') * 10 + t[end + 2] - '0';
+  const unsigned day = (t[end + 4] - '0') * 10 + t[end + 5] - '0';
+  constexpr unsigned days[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+  const bool leap = year % 4 == 0 && (year % 100 != 0 || year == 0);
+  if (day > days[month - 1] + (month == 2 && leap ? 1u : 0u))
+    return Result::err("Invalid Gregorian day in PROV-N dateTime.");
+  return Result::ok(t);
+};
 
 struct ProvN : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n\f)">)> {};
@@ -33,9 +77,10 @@ struct ProvN : cursiv::GrammarSpec {
   // Unicode ranges of PN_CHARS_BASE, spelled as code points -- same
   // production as Turtle's and SPARQL's NCName-derived PN_CHARS_BASE.
   static constexpr auto pn_chars_base =
-      cr<"A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-"
-         "῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-"
-         "﷏ﷰ-�">;
+      cr<"A-Za-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff"
+         "\u0370-\u037d\u037f-\u1fff\u200c-\u200d\u2070-\u218f"
+         "\u2c00-\u2fef\u3001-\ud7ff\uf900-\ufdcf\ufdf0-\ufffd"
+         "\U00010000-\U000effff">;
   static constexpr auto pn_chars_u = pn_chars_base | cr<"_">;
   static constexpr auto pn_chars =
       pn_chars_u | cr<"0-9·̀-ͯ‿-⁀-">;
@@ -62,30 +107,36 @@ struct ProvN : cursiv::GrammarSpec {
   struct Name : terminal<name_body> {};
   struct PrefixName : terminal<pn_prefix> {};
 
-  static constexpr auto echar = lit<"\\"> + cr<R"(btnfr"'\\)">;
+  static constexpr auto scalar4 = (cr<"0-9a-cA-Ce-fE-F"> + repeat<3>(hex)) |
+      (cr<"dD"> + cr<"0-7"> + repeat<2>(hex));
+  static constexpr auto scalar8 = (lit<"0000"> + scalar4) |
+      (lit<"000"> + cr<"1-9a-fA-F"> + repeat<4>(hex)) |
+      (lit<"0010"> + repeat<4>(hex));
+  static constexpr auto uchar = lit<"\\"> +
+      ((lit<"u"> + scalar4) | (lit<"U"> + scalar8));
+  static constexpr auto echar = (lit<"\\"> + cr<R"(btnfr"'\\)">) | uchar;
   static constexpr auto string_short =
       lit<"\""> + many(echar | cr<R"(^"\\\r\n)">) + lit<"\"">;
   static constexpr auto string_long =
       lit<"\"\"\""> +
       many(option(lit<"\"\""> | lit<"\"">) + (echar | cr<R"(^"\\)">)) +
       lit<"\"\"\"">;
-  struct STRING_SHORT : terminal<string_short, Strip1> {};
-  struct STRING_LONG : terminal<string_long, StripString> {};
+  struct STRING_SHORT : terminal<as<unescape>(string_short)> {};
+  struct STRING_LONG : terminal<as<unescape>(string_long)> {};
 
-  struct QNAME_LITERAL : terminal<lit<"'"> + name_body + lit<"'">, Strip1> {};
+  struct QNAME_LITERAL : terminal<as<strip1>(lit<"'"> + name_body + lit<"'">)> {
+  };
 
-  struct INT_LITERAL
-      : terminal<option(lit<"-">) + some(d), std::int64_t> {};
+  struct INT_LITERAL : terminal<option(lit<"-">) + some(d)> {
+  };
 
   struct LANGTAG
-      : terminal<lit<"@"> + some(cr<"a-zA-Z">) +
-                     many(lit<"-"> + some(cr<"a-zA-Z0-9">)),
-                 StripAt> {};
+      : terminal<as<strip_at>(lit<"@"> + some(cr<"a-zA-Z">) +
+                              many(lit<"-"> + some(cr<"a-zA-Z0-9">)))> {};
 
-  struct IRIREF
-      : terminal<lit<"<"> +
-                     many(cr<R"(^<>"{}|^`\\\x00- )">) + lit<">">,
-                 Strip1> {};
+  struct IRIREF : terminal<as<unescape>(
+                      lit<"<"> + many(uchar | cr<R"(^<>"{}|^`\\\x00- )">) + lit<">">)> {
+  };
 
   static constexpr auto year =
       option(lit<"-">) + ((cr<"1-9"> + d + d + some(d)) |
@@ -98,53 +149,53 @@ struct ProvN : cursiv::GrammarSpec {
        lit<":"> + cr<"0-5"> + d + option(lit<"."> + some(d))) |
       (lit<"24:00:00"> + option(lit<"."> + some(lit<"0">)));
   static constexpr auto timezone =
-      option(lit<"Z"> | (cr<"+-"> + ((((cr<"01"> + d) | (lit<"1"> + cr<"0-3">)) +
+      option(lit<"Z"> | (cr<"+-"> + ((((lit<"0"> + d) | (lit<"1"> + cr<"0-3">)) +
                                      lit<":"> + cr<"0-5"> + d) |
                                      lit<"14:00">)));
   static constexpr auto datetime_body =
       year + lit<"-"> + month + lit<"-"> + day + lit<"T"> + hour_min_sec +
       timezone;
-  struct DATETIME : terminal<datetime_body> {};
+  struct DATETIME : terminal<as<datetime_value>(datetime_body)> {};
 
-  struct AttrPairRule;
-  struct LiteralRule;
-  struct EntityExprRule;
-  struct ActivityExprRule;
-  struct GenerationExprRule;
-  struct UsageExprRule;
-  struct StartExprRule;
-  struct EndExprRule;
-  struct InvalidationExprRule;
-  struct CommunicationExprRule;
-  struct AgentExprRule;
-  struct AssociationExprRule;
-  struct AttributionExprRule;
-  struct DelegationExprRule;
-  struct DerivationExprRule;
-  struct InfluenceExprRule;
-  struct AlternateExprRule;
-  struct SpecializationExprRule;
-  struct MembershipExprRule;
-  struct ExtensibilityExprRule;
-  struct ExtArgRule;
-  struct BundleRule;
+  struct AttrPair;
+  struct Literal;
+  struct EntityExpr;
+  struct ActivityExpr;
+  struct GenerationExpr;
+  struct UsageExpr;
+  struct StartExpr;
+  struct EndExpr;
+  struct InvalidationExpr;
+  struct CommunicationExpr;
+  struct AgentExpr;
+  struct AssociationExpr;
+  struct AttributionExpr;
+  struct DelegationExpr;
+  struct DerivationExpr;
+  struct InfluenceExpr;
+  struct AlternateExpr;
+  struct SpecializationExpr;
+  struct MembershipExpr;
+  struct ExtensibilityExpr;
+  struct ExtArg;
+  struct Bundle;
 
   static constexpr auto ExpressionAlt =
-      ref<EntityExprRule> | ref<ActivityExprRule> | ref<GenerationExprRule> |
-      ref<UsageExprRule> | ref<StartExprRule> | ref<EndExprRule> |
-      ref<InvalidationExprRule> | ref<CommunicationExprRule> |
-      ref<AgentExprRule> | ref<AssociationExprRule> |
-      ref<AttributionExprRule> | ref<DelegationExprRule> |
-      ref<DerivationExprRule> | ref<InfluenceExprRule> |
-      ref<AlternateExprRule> | ref<SpecializationExprRule> |
-      ref<MembershipExprRule> | ref<ExtensibilityExprRule>;
+      ref<EntityExpr> | ref<ActivityExpr> | ref<GenerationExpr> |
+      ref<UsageExpr> | ref<StartExpr> | ref<EndExpr> |
+      ref<InvalidationExpr> | ref<CommunicationExpr> |
+      ref<AgentExpr> | ref<AssociationExpr> |
+      ref<AttributionExpr> | ref<DelegationExpr> |
+      ref<DerivationExpr> | ref<InfluenceExpr> |
+      ref<AlternateExpr> | ref<SpecializationExpr> |
+      ref<MembershipExpr> | ref<ExtensibilityExpr>;
 
-  struct AttrPairRule
+  struct AttrPair
       : rule<assign<&ast::AttributeValuePair::attribute>(ref<Name>) +
              lit<"="> +
-             assign<&ast::AttributeValuePair::value>(ref<LiteralRule>)> {};
+             assign<&ast::AttributeValuePair::value>(ref<Literal>)> {};
 
-  struct LiteralRule
+  struct Literal
       : rule<(assign<&ast::TypedLiteral::text>(ref<STRING_LONG> |
                                                ref<STRING_SHORT>) +
               lit<"%%"> +
@@ -156,17 +207,17 @@ struct ProvN : cursiv::GrammarSpec {
              assign<&ast::QualifiedNameLiteral::value>(
                  ref<QNAME_LITERAL>)> {};
 
-  struct EntityExprRule
+  struct EntityExpr
       : rule<kw<"entity"> + lit<"("> +
              assign<&ast::EntityExpr::entity>(ref<Name>) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::EntityExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct ActivityExprRule
+  struct ActivityExpr
       : rule<kw<"activity"> + lit<"("> +
              assign<&ast::ActivityExpr::activity>(ref<Name>) +
              option(lit<","> +
@@ -177,12 +228,12 @@ struct ProvN : cursiv::GrammarSpec {
                      lit<"-">)) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::ActivityExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct GenerationExprRule
+  struct GenerationExpr
       : rule<kw<"wasGeneratedBy"> + lit<"("> +
              option((assign<&ast::GenerationExpr::id>(ref<Name>) |
                      lit<"-">) +
@@ -196,12 +247,12 @@ struct ProvN : cursiv::GrammarSpec {
                      lit<"-">)) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::GenerationExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct UsageExprRule
+  struct UsageExpr
       : rule<kw<"used"> + lit<"("> +
              option((assign<&ast::UsageExpr::id>(ref<Name>) | lit<"-">) +
                     lit<";">) +
@@ -214,12 +265,12 @@ struct ProvN : cursiv::GrammarSpec {
                      lit<"-">)) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::UsageExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct StartExprRule
+  struct StartExpr
       : rule<kw<"wasStartedBy"> + lit<"("> +
              option((assign<&ast::StartExpr::id>(ref<Name>) | lit<"-">) +
                     lit<";">) +
@@ -235,12 +286,12 @@ struct ProvN : cursiv::GrammarSpec {
                      lit<"-">)) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::StartExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct EndExprRule
+  struct EndExpr
       : rule<kw<"wasEndedBy"> + lit<"("> +
              option((assign<&ast::EndExpr::id>(ref<Name>) | lit<"-">) +
                     lit<";">) +
@@ -253,12 +304,12 @@ struct ProvN : cursiv::GrammarSpec {
                     (assign<&ast::EndExpr::time>(ref<DATETIME>) |
                      lit<"-">)) +
              option(lit<","> + lit<"["> +
-                    many(append<&ast::EndExpr::attributes>(ref<AttrPairRule>),
+                    many(append<&ast::EndExpr::attributes>(ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct InvalidationExprRule
+  struct InvalidationExpr
       : rule<kw<"wasInvalidatedBy"> + lit<"("> +
              option((assign<&ast::InvalidationExpr::id>(ref<Name>) |
                      lit<"-">) +
@@ -272,12 +323,12 @@ struct ProvN : cursiv::GrammarSpec {
                      lit<"-">)) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::InvalidationExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct CommunicationExprRule
+  struct CommunicationExpr
       : rule<kw<"wasInformedBy"> + lit<"("> +
              option((assign<&ast::CommunicationExpr::id>(ref<Name>) |
                      lit<"-">) +
@@ -287,22 +338,22 @@ struct ProvN : cursiv::GrammarSpec {
              assign<&ast::CommunicationExpr::informant>(ref<Name>) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::CommunicationExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct AgentExprRule
+  struct AgentExpr
       : rule<kw<"agent"> + lit<"("> +
              assign<&ast::AgentExpr::agent>(ref<Name>) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::AgentExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct AssociationExprRule
+  struct AssociationExpr
       : rule<kw<"wasAssociatedWith"> + lit<"("> +
              option((assign<&ast::AssociationExpr::id>(ref<Name>) |
                      lit<"-">) +
@@ -316,12 +367,12 @@ struct ProvN : cursiv::GrammarSpec {
                      lit<"-">)) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::AssociationExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct AttributionExprRule
+  struct AttributionExpr
       : rule<kw<"wasAttributedTo"> + lit<"("> +
              option((assign<&ast::AttributionExpr::id>(ref<Name>) |
                      lit<"-">) +
@@ -330,12 +381,12 @@ struct ProvN : cursiv::GrammarSpec {
              assign<&ast::AttributionExpr::agent>(ref<Name>) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::AttributionExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct DelegationExprRule
+  struct DelegationExpr
       : rule<kw<"actedOnBehalfOf"> + lit<"("> +
              option((assign<&ast::DelegationExpr::id>(ref<Name>) |
                      lit<"-">) +
@@ -347,12 +398,12 @@ struct ProvN : cursiv::GrammarSpec {
                      lit<"-">)) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::DelegationExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct DerivationExprRule
+  struct DerivationExpr
       : rule<kw<"wasDerivedFrom"> + lit<"("> +
              option((assign<&ast::DerivationExpr::id>(ref<Name>) |
                      lit<"-">) +
@@ -371,12 +422,12 @@ struct ProvN : cursiv::GrammarSpec {
                      lit<"-">)) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::DerivationExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct InfluenceExprRule
+  struct InfluenceExpr
       : rule<kw<"wasInfluencedBy"> + lit<"("> +
              option((assign<&ast::InfluenceExpr::id>(ref<Name>) |
                      lit<"-">) +
@@ -385,88 +436,88 @@ struct ProvN : cursiv::GrammarSpec {
              assign<&ast::InfluenceExpr::influencer>(ref<Name>) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::InfluenceExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct AlternateExprRule
+  struct AlternateExpr
       : rule<kw<"alternateOf"> + lit<"("> +
              assign<&ast::AlternateExpr::entity1>(ref<Name>) + lit<","> +
              assign<&ast::AlternateExpr::entity2>(ref<Name>) + lit<")">> {};
 
-  struct SpecializationExprRule
+  struct SpecializationExpr
       : rule<kw<"specializationOf"> + lit<"("> +
              assign<&ast::SpecializationExpr::specificEntity>(ref<Name>) +
              lit<","> +
              assign<&ast::SpecializationExpr::generalEntity>(ref<Name>) +
              lit<")">> {};
 
-  struct MembershipExprRule
+  struct MembershipExpr
       : rule<kw<"hadMember"> + lit<"("> +
              assign<&ast::MembershipExpr::collection>(ref<Name>) + lit<","> +
              assign<&ast::MembershipExpr::member>(ref<Name>) + lit<")">> {};
 
-  struct ExtArgRule
-      : rule<assign<&ast::ExtArgLiteral::value>(ref<LiteralRule>) |
+  struct ExtArg
+      : rule<assign<&ast::ExtArgLiteral::value>(ref<Literal>) |
              assign<&ast::ExtArgTime::value>(ref<DATETIME>) |
              assign<&ast::ExtArgExpression::value>(
-                 ref<ExtensibilityExprRule>) |
+                 ref<ExtensibilityExpr>) |
              (create<ast::ExtArgTuple> +
               ((flag<&ast::ExtArgTuple::braces>(lit<"{">) +
-                some(append<&ast::ExtArgTuple::items>(ref<ExtArgRule>),
+                some(append<&ast::ExtArgTuple::items>(ref<ExtArg>),
                      lit<",">) +
                 lit<"}">) |
                (lit<"("> +
-                some(append<&ast::ExtArgTuple::items>(ref<ExtArgRule>),
+                some(append<&ast::ExtArgTuple::items>(ref<ExtArg>),
                      lit<",">) +
                 lit<")">))) |
              (create<ast::ExtArgIdentifier> +
               (assign<&ast::ExtArgIdentifier::value>(ref<Name>) |
                lit<"-">))> {};
 
-  struct ExtensibilityExprRule
+  struct ExtensibilityExpr
       : rule<create<ast::ExtensibilityExpr> +
              assign<&ast::ExtensibilityExpr::name>(ref<Name>) + lit<"("> +
              option((assign<&ast::ExtensibilityExpr::id>(ref<Name>) |
                      lit<"-">) +
                     lit<";">) +
-             some(append<&ast::ExtensibilityExpr::args>(ref<ExtArgRule>),
+             some(append<&ast::ExtensibilityExpr::args>(ref<ExtArg>),
                   lit<",">) +
              option(lit<","> + lit<"["> +
                     many(append<&ast::ExtensibilityExpr::attributes>(
-                             ref<AttrPairRule>),
+                             ref<AttrPair>),
                          lit<",">) +
                     lit<"]">) +
              lit<")">> {};
 
-  struct PrefixDeclRule
+  struct PrefixDecl
       : rule<kw<"prefix"> +
              assign<&ast::PrefixDecl::prefix>(ref<PrefixName>) +
              assign<&ast::PrefixDecl::iri>(ref<IRIREF>)> {};
 
-  struct BundleRule
+  struct Bundle
       : rule<kw<"bundle"> + assign<&ast::Bundle::identifier>(ref<Name>) +
              option(((kw<"default"> +
                      assign<&ast::Bundle::defaultNamespace>(ref<IRIREF>)) |
-                    append<&ast::Bundle::prefixes>(ref<PrefixDeclRule>)) +
-                    many(append<&ast::Bundle::prefixes>(ref<PrefixDeclRule>))) +
+                    append<&ast::Bundle::prefixes>(ref<PrefixDecl>)) +
+                    many(append<&ast::Bundle::prefixes>(ref<PrefixDecl>))) +
              many(append<&ast::Bundle::expressions>(ExpressionAlt)) +
              kw<"endBundle">> {};
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document> + kw<"document"> +
              option(((kw<"default"> +
                      assign<&ast::Document::defaultNamespace>(ref<IRIREF>)) |
-                    append<&ast::Document::prefixes>(ref<PrefixDeclRule>)) +
+                    append<&ast::Document::prefixes>(ref<PrefixDecl>)) +
                     many(append<&ast::Document::prefixes>(
-                        ref<PrefixDeclRule>))) +
+                        ref<PrefixDecl>))) +
              many(append<&ast::Document::expressions>(ExpressionAlt)) +
-             many(append<&ast::Document::bundles>(ref<BundleRule>)) +
+             many(append<&ast::Document::bundles>(ref<Bundle>)) +
              kw<"endDocument">> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

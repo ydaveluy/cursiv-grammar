@@ -49,11 +49,7 @@ salary : Real
 @enduml
 ```
 
-A document is a diagram between `@startuml` and `@enduml`: class and enum
-declarations (with an optional stereotype, `extends`, and a body of raw
-text), associations drawn with an arrow of `-.|><o*^` symbols and an
-optional `"detail"` on either side and a `: name` after it, and associative
-classes written `(A, B) .. C` or `C .. (A, B)`.
+A PlantUML class diagram declares classes and their relationships.
 
 ## The command line
 

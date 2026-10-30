@@ -15,6 +15,7 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "cursiv/test/Check.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
 
 namespace {
 
@@ -247,6 +248,25 @@ void reserved_words_are_not_names() {
 } // namespace
 
 int main() {
+  const auto language = cursiv::create_language<alloy::AlloyCoreServices,
+                                                alloy::AlloySharedCoreServices,
+                                                alloy::install_core_module>();
+  for (const char* source : {"sigÉ {}", "sig$Name {}", "sig\"Name {}"}) {
+    const auto result = engine().parse(source);
+    for (const auto* node : result.nodes)
+      if (cursiv::ast_cast<ast::SigDecl>(node))
+        return fail("keyword split the beginning of a native identifier");
+    // The permissive command grammar preserves malformed top-level names;
+    // its runtime validator must reject them as missing run/check.
+    const auto validation = cursiv::test::validationHelper(language.language, source);
+    if (validation.diagnostics.empty())
+      return fail("an identifier at paragraph position was not diagnosed");
+  }
+  {
+    const auto result = engine().parse("sig É {} sig $Name {} sig A\"Name {}");
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("native identifier characters were rejected after a keyword gap");
+  }
   audit_regressions::run();
   const std::filesystem::path dir =
       std::filesystem::path(CURSIV_EXAMPLE_DIR) / "example";
@@ -258,10 +278,6 @@ int main() {
         files.push_back(entry.path());
   if (files.empty())
     return fail("no example document found");
-
-  const auto language = cursiv::create_language<alloy::AlloyCoreServices,
-                                                alloy::AlloySharedCoreServices,
-                                                alloy::install_core_module>();
 
   int parsed = 0;
   for (const std::filesystem::path &file : files) {

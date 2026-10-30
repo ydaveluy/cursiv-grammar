@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <charconv>
 #include <string_view>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
@@ -19,15 +20,31 @@ inline constexpr auto strip_ends = [](std::string_view t, std::size_t head,
 inline constexpr auto strip_angle = [](std::string_view t) {
   return strip_ends(t, 1, 1);
 };
-using StripAngle = cursiv::text_conv<strip_angle>;
 inline constexpr auto strip_quoted_angle = [](std::string_view t) {
   return strip_ends(t, 2, 2);
 };
-using StripQuotedAngle = cursiv::text_conv<strip_quoted_angle>;
-inline constexpr auto strip_pipes = [](std::string_view t) {
-  return strip_ends(t, 1, 1);
+inline constexpr auto strip_pipes = [](std::string_view t,
+                                       std::pmr::memory_resource* mem) {
+  const auto body = strip_ends(t, 1, 1);
+  if (body.find('|') == body.npos) return body;
+  auto room = cursiv::text_room(mem, body.size());
+  std::size_t n = 0;
+  for (std::size_t i = 0; i < body.size(); ++i) {
+    room[n++] = body[i];
+    if (body[i] == '|' && i + 1 < body.size() && body[i + 1] == '|') ++i;
+  }
+  return std::string_view(room.data(), n);
 };
-using StripPipes = cursiv::text_conv<strip_pipes>;
+inline constexpr auto integer_value = [](std::string_view t)
+    -> cursiv::ConversionResult<std::int64_t> {
+  if (t.ends_with('.')) t.remove_suffix(1);
+  if (t.starts_with('+')) t.remove_prefix(1);
+  std::int64_t value = 0;
+  const auto [end, error] = std::from_chars(t.data(), t.data() + t.size(), value);
+  if (error != std::errc{} || end != t.data() + t.size())
+    return cursiv::ConversionResult<std::int64_t>::err("integer literal out of range");
+  return cursiv::ConversionResult<std::int64_t>::ok(value);
+};
 
 struct Ruleworks : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\n\r\f)">)> {};
@@ -49,25 +66,24 @@ struct Ruleworks : cursiv::GrammarSpec {
   static constexpr auto HexDigit = cr<"0-9A-Fa-f">;
 
   struct TOK_FLOAT_CONST
-      : terminal<(option(NumSign) + many(Digit) + lit<"."> + some(Digit) +
-                  option(Exponent)) |
-                     (option(NumSign) + some(Digit) + lit<"."> + Exponent),
-                 double> {};
+      : terminal<as<double>(
+            (option(NumSign) + many(Digit) + lit<"."> + some(Digit) +
+             option(Exponent)) |
+            (option(NumSign) + some(Digit) + lit<"."> + Exponent))> {};
   struct TOK_INTEGER_CONST
-      : terminal<option(NumSign) + some(Digit) + option(lit<".">),
-                 std::int64_t> {};
+      : terminal<as<integer_value>(option(NumSign) + some(Digit) +
+                                  option(lit<".">))> {};
   struct TOK_INSTANCE_CONST : terminal<lit<"#"> + some(Digit)> {};
   struct TOK_OPAQUE_CONST
       : terminal<(lit<"%X"> | lit<"%x">) + some(HexDigit)> {};
 
   struct TOK_VARIABLE
-      : terminal<lit<"<"> + some(Nonmagic) + lit<">">, StripAngle> {};
-  struct TOK_QUOTED_VAR
-      : terminal<lit<"<\""> + some(Nonmagic) + lit<"\">">,
-                 StripQuotedAngle> {};
+      : terminal<as<strip_angle>(lit<"<"> + some(Nonmagic) + lit<">">)> {};
+  struct TOK_QUOTED_VAR : terminal<as<strip_quoted_angle>(
+                              lit<"'<"> + some(Nonmagic) + lit<">'">)> {};
   struct TOK_SYMBOL_CONST : terminal<some(SymbolChar)> {};
   struct TOK_QUOTED_SYMBOL
-      : terminal<through(lit<"|">, lit<"|">), StripPipes> {};
+      : terminal<as<strip_pipes>(lit<"|"> + many(lit<"||"> | cr<R"(^|\n)">) + lit<"|">)> {};
   // An unmatched '|' is refused: no parser rule names a bare BAR token.
 
   struct TOK_LBRACE : terminal<lit<"{">> {};
@@ -240,7 +256,7 @@ struct Ruleworks : cursiv::GrammarSpec {
   struct TOK_VALUE : terminal<ikw<"VALUE">> {};
   struct TOK_WHEN : terminal<ikw<"WHEN">> {};
   struct TOK_WHILE : terminal<ikw<"WHILE">> {};
-  struct TOK_WM : terminal<ikw<"TM">> {};
+  struct TOK_WM : terminal<ikw<"WM">> {};
   struct TOK_WRITE : terminal<ikw<"WRITE">> {};
 
   // Every one of these words also parses as a plain `name` -- spelled
@@ -313,25 +329,25 @@ struct Ruleworks : cursiv::GrammarSpec {
   // (a value may hold an action, an action may hold values and more
   // actions), so every rule referenced before its own definition is named
   // here first.
-  struct VariableRule;
-  struct QuotedVarRule;
-  struct ConstantRule;
-  struct AttributeLiteralRule;
-  struct IndexNumRule;
-  struct RclassRule;
-  struct ValueRule;
-  struct ValueNonSqlRule;
-  struct ArithValueRule;
-  struct ArithExprRule;
-  struct ExpreValueRule;
-  struct CmplxExprRule;
-  struct ExpressionRule;
-  struct CaIndexRule;
-  struct RestrictionRule;
-  struct LhsTermRule;
-  struct CeFormRule;
-  struct CeRule;
-  struct RhsTermRule;
+  struct Variable;
+  struct QuotedVar;
+  struct Constant;
+  struct AttributeLiteral;
+  struct IndexNum;
+  struct Rclass;
+  struct Value;
+  struct ValueNonSql;
+  struct ArithValue;
+  struct ArithExpr;
+  struct ExpreValue;
+  struct CmplxExpr;
+  struct Expression;
+  struct CaIndex;
+  struct Restriction;
+  struct LhsTerm;
+  struct CeForm;
+  struct Ce;
+  struct RhsTerm;
   struct AcceptAtomBti;
   struct AcceptlineCompoundBti;
   struct CompoundBti;
@@ -355,58 +371,58 @@ struct Ruleworks : cursiv::GrammarSpec {
   struct SymbolBti;
   struct SymbolLenBti;
   struct TabtoBti;
-  struct BuiltInsRule;
-  struct FunctionCallRule;
-  struct ActionRule;
-  struct ActionLineRule;
-  struct AtCommandRule;
-  struct StartupActionRule;
-  struct StartupActionLineRule;
-  struct AddStateActionRule;
-  struct AfterActionRule;
-  struct BindActionRule;
-  struct CallInheritedActionRule;
-  struct CloseFileActionRule;
-  struct CopyActionRule;
-  struct DebugActionRule;
-  struct DefaultActionRule;
-  struct ForEachActionRule;
-  struct IfActionRule;
-  struct MakeActionRule;
-  struct ModifyActionRule;
-  struct OpenFileActionRule;
-  struct QuitActionRule;
-  struct RemoveActionRule;
-  struct RemoveEveryActionRule;
-  struct RestoreStateActionRule;
-  struct ReturnActionRule;
-  struct SaveStateActionRule;
-  struct SpecializeActionRule;
-  struct TraceActionRule;
-  struct WhileActionRule;
-  struct WriteActionRule;
-  struct SqlAttachActionRule;
-  struct SqlCommitActionRule;
-  struct SqlDeleteActionRule;
-  struct SqlDetachActionRule;
-  struct SqlFetchEachActionRule;
-  struct SqlFetchAsObjectActionRule;
-  struct SqlInsertActionRule;
-  struct SqlInsertFromObjectActionRule;
-  struct SqlRollbackActionRule;
-  struct SqlStartActionRule;
-  struct SqlUpdateActionRule;
-  struct SqlUpdateFromObjectActionRule;
+  struct BuiltIns;
+  struct FunctionCall;
+  struct Action;
+  struct ActionLine;
+  struct AtCommand;
+  struct StartupAction;
+  struct StartupActionLine;
+  struct AddStateAction;
+  struct AfterAction;
+  struct BindAction;
+  struct CallInheritedAction;
+  struct CloseFileAction;
+  struct CopyAction;
+  struct DebugAction;
+  struct DefaultAction;
+  struct ForEachAction;
+  struct IfAction;
+  struct MakeAction;
+  struct ModifyAction;
+  struct OpenFileAction;
+  struct QuitAction;
+  struct RemoveAction;
+  struct RemoveEveryAction;
+  struct RestoreStateAction;
+  struct ReturnAction;
+  struct SaveStateAction;
+  struct SpecializeAction;
+  struct TraceAction;
+  struct WhileAction;
+  struct WriteAction;
+  struct SqlAttachAction;
+  struct SqlCommitAction;
+  struct SqlDeleteAction;
+  struct SqlDetachAction;
+  struct SqlFetchEachAction;
+  struct SqlFetchAsObjectAction;
+  struct SqlInsertAction;
+  struct SqlInsertFromObjectAction;
+  struct SqlRollbackAction;
+  struct SqlStartAction;
+  struct SqlUpdateAction;
+  struct SqlUpdateFromObjectAction;
 
   // ---- Values ---------------------------------------------------------
-  struct VariableRule
+  struct Variable
       : rule<create<ast::Variable>(
             assign<&ast::Variable::name>(ref<TOK_VARIABLE>))> {};
-  struct QuotedVarRule
-      : rule<create<ast::Variable>(
-            assign<&ast::Variable::name>(ref<TOK_QUOTED_VAR>))> {};
+  struct QuotedVar
+      : rule<create<ast::QuotedVariable>(
+            assign<&ast::QuotedVariable::name>(ref<TOK_QUOTED_VAR>))> {};
 
-  struct ConstantRule
+  struct Constant
       : rule<create<ast::Literal>(
                  assign<&ast::Literal::value>(ref<TOK_INTEGER_CONST>)) |
              create<ast::Literal>(
@@ -417,66 +433,66 @@ struct Ruleworks : cursiv::GrammarSpec {
                  assign<&ast::Literal::value>(ref<TOK_INSTANCE_CONST>)) |
              create<ast::Literal>(assign<&ast::Literal::value>(Name))> {};
 
-  struct AttributeLiteralRule
+  struct AttributeLiteral
       : rule<create<ast::Literal>(
             assign<&ast::Literal::value>(AttributeText))> {};
 
-  struct IndexNumRule
+  struct IndexNum
       : rule<create<ast::Literal>(
                  assign<&ast::Literal::value>(ref<TOK_INTEGER_CONST>)) |
-             ref<VariableRule> |
-             (ref<TOK_LPAREN> + ref<BuiltInsRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<FunctionCallRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<ArithExprRule> + ref<TOK_RPAREN>) |
+             ref<Variable> |
+             (ref<TOK_LPAREN> + ref<BuiltIns> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<FunctionCall> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<ArithExpr> + ref<TOK_RPAREN>) |
              create<ast::Literal>(
                  assign<&ast::Literal::value>(ref<TOK_DOLLAR_LAST>))> {};
 
-  struct RclassRule
+  struct Rclass
       : rule<create<ast::Literal>(assign<&ast::Literal::value>(Name)) |
-             ref<VariableRule> |
+             ref<Variable> |
              (ref<TOK_LPAREN> + ref<AcceptAtomBti> + ref<TOK_RPAREN>) |
              (ref<TOK_LPAREN> + ref<ConcatBti> + ref<TOK_RPAREN>) |
              (ref<TOK_LPAREN> + ref<GetBti> + ref<TOK_RPAREN>) |
              (ref<TOK_LPAREN> + ref<NthBti> + ref<TOK_RPAREN>) |
              (ref<TOK_LPAREN> + ref<SymbolBti> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<FunctionCallRule> + ref<TOK_RPAREN>)> {};
+             (ref<TOK_LPAREN> + ref<FunctionCall> + ref<TOK_RPAREN>)> {};
 
-  struct ValueNonSqlRule
-      : rule<ref<ConstantRule> | ref<VariableRule> |
-             (ref<TOK_LPAREN> + ref<BuiltInsRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<FunctionCallRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<ArithExprRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<CopyActionRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<MakeActionRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<ModifyActionRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<SpecializeActionRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<CallInheritedActionRule> +
+  struct ValueNonSql
+      : rule<ref<Constant> | ref<Variable> |
+             (ref<TOK_LPAREN> + ref<BuiltIns> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<FunctionCall> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<ArithExpr> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<CopyAction> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<MakeAction> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<ModifyAction> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<SpecializeAction> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<CallInheritedAction> +
               ref<TOK_RPAREN>)> {};
 
-  struct ValueRule
-      : rule<ref<ValueNonSqlRule> |
-             (ref<TOK_LPAREN> + ref<SqlFetchAsObjectActionRule> +
+  struct Value
+      : rule<ref<ValueNonSql> |
+             (ref<TOK_LPAREN> + ref<SqlFetchAsObjectAction> +
               ref<TOK_RPAREN>)> {};
 
   // ---- Built-in functions ----------------------------------------------
   struct EveryBti
       : rule<create<ast::Call>(assign<&ast::Call::name>(ref<TOK_EVERY>) +
-                               append<&ast::Call::args>(ref<RclassRule>))> {
+                               append<&ast::Call::args>(ref<Rclass>))> {
   };
   struct GetBti
       : rule<create<ast::Call>(
             assign<&ast::Call::name>(ref<TOK_GET>) +
-            append<&ast::Call::args>(ref<ValueRule>) + ref<TOK_HAT> +
-            append<&ast::Call::args>(ref<AttributeLiteralRule>))> {};
+            append<&ast::Call::args>(ref<Value>) + ref<TOK_HAT> +
+            append<&ast::Call::args>(ref<AttributeLiteral>))> {};
   struct NthBti
       : rule<create<ast::Call>(assign<&ast::Call::name>(ref<TOK_NTH>) +
-                               append<&ast::Call::args>(ref<ValueRule>) +
-                               append<&ast::Call::args>(ref<IndexNumRule>))> {
+                               append<&ast::Call::args>(ref<Value>) +
+                               append<&ast::Call::args>(ref<IndexNum>))> {
   };
   struct PositionBti
       : rule<create<ast::Call>(
             assign<&ast::Call::name>(ref<TOK_POSITION>) +
-            append<&ast::Call::args>(ref<ValueRule>) +
+            append<&ast::Call::args>(ref<Value>) +
             option(append<&ast::Call::args>(create<ast::Literal>(
                 assign<&ast::Literal::value>(
                     ref<TOK_SAME_TYPE> | ref<TOK_DIFF_TYPE> | ref<TOK_EQUAL> |
@@ -485,23 +501,23 @@ struct Ruleworks : cursiv::GrammarSpec {
                     ref<TOK_NOT_EQUAL> | ref<TOK_GREATER> |
                     ref<TOK_GREATER_EQUAL> | ref<TOK_LESS> |
                     ref<TOK_LESS_EQUAL>)))) +
-            append<&ast::Call::args>(ref<ValueRule>))> {};
+            append<&ast::Call::args>(ref<Value>))> {};
   struct SubcompoundBti
       : rule<create<ast::Call>(assign<&ast::Call::name>(ref<TOK_SUBCOMPOUND>) +
-                               append<&ast::Call::args>(ref<ValueRule>) +
-                               append<&ast::Call::args>(ref<IndexNumRule>) +
-                               append<&ast::Call::args>(ref<IndexNumRule>))> {
+                               append<&ast::Call::args>(ref<Value>) +
+                               append<&ast::Call::args>(ref<IndexNum>) +
+                               append<&ast::Call::args>(ref<IndexNum>))> {
   };
   struct SubsymbolBti
       : rule<create<ast::Call>(assign<&ast::Call::name>(ref<TOK_SUBSYMBOL>) +
-                               append<&ast::Call::args>(ref<ValueRule>) +
-                               append<&ast::Call::args>(ref<IndexNumRule>) +
-                               append<&ast::Call::args>(ref<IndexNumRule>))> {
+                               append<&ast::Call::args>(ref<Value>) +
+                               append<&ast::Call::args>(ref<IndexNum>) +
+                               append<&ast::Call::args>(ref<IndexNum>))> {
   };
   template <auto Keyword>
   struct BuiltinCall : rule<create<ast::Call>(
                            assign<&ast::Call::name>(Keyword) +
-                           many(append<&ast::Call::args>(ref<ValueRule>)))> {};
+                           many(append<&ast::Call::args>(ref<Value>)))> {};
   // These names can also occur in the narrower rclass syntax.
   struct AcceptAtomBti : BuiltinCall<ref<TOK_ACCEPT_ATOM>> {};
   struct ConcatBti : BuiltinCall<ref<TOK_CONCAT>> {};
@@ -515,45 +531,39 @@ struct Ruleworks : cursiv::GrammarSpec {
                     ref<TOK_SYMBOL> | ref<TOK_SYMBOL_LENGTH> | ref<TOK_TABTO>> {
   };
 
-  struct BuiltInsRule
+  struct BuiltIns
       : rule<ref<SimpleBuiltin> | ref<EveryBti> | ref<GetBti> | ref<NthBti> |
              ref<PositionBti> | ref<SubcompoundBti> | ref<SubsymbolBti>> {};
 
-  struct FunctionCallRule
+  struct FunctionCall
       : rule<create<ast::Call>(
             assign<&ast::Call::name>(AllowableFuncName) +
-            many(append<&ast::Call::args>(ref<ValueRule>)))> {};
+            many(append<&ast::Call::args>(ref<Value>)))> {};
 
   // ---- Arithmetic and boolean expressions ------------------------------
-  struct ArithAdd : rule<ref<TOK_PLUS>, value<ast::ArithOp::add>> {};
-  struct ArithSub : rule<ref<TOK_MINUS>, value<ast::ArithOp::sub>> {};
-  struct ArithMul : rule<ref<TOK_TIMES>, value<ast::ArithOp::mul>> {};
-  struct ArithDiv : rule<ref<TOK_DIVIDE>, value<ast::ArithOp::div>> {};
-  struct ArithMod : rule<ref<TOK_MODULUS>, value<ast::ArithOp::mod>> {};
 
   struct ArithUnaryMinus
-      : rule<ref<TOK_MINUS> +
-             create<ast::ArithExpr>(
-                 assign<&ast::ArithExpr::right>(ref<ArithValueRule>))> {};
+      : rule<create<ast::ArithExpr>(
+                 assign<&ast::ArithExpr::op>(as<ast::ArithOp::sub>(ref<TOK_MINUS>)) +
+                 assign<&ast::ArithExpr::right>(ref<ArithValue>))> {};
 
-  struct ArithValueRule
+  struct ArithValue
       : rule<ref<ArithUnaryMinus> |
              create<ast::Literal>(
                  assign<&ast::Literal::value>(ref<TOK_INTEGER_CONST>)) |
              create<ast::Literal>(
                  assign<&ast::Literal::value>(ref<TOK_FLOAT_CONST>)) |
-             ref<VariableRule> |
-             (ref<TOK_LPAREN> + ref<BuiltInsRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<FunctionCallRule> + ref<TOK_RPAREN>) |
-             (ref<TOK_LPAREN> + ref<ArithExprRule> + ref<TOK_RPAREN>)> {};
+             ref<Variable> |
+             (ref<TOK_LPAREN> + ref<BuiltIns> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<FunctionCall> + ref<TOK_RPAREN>) |
+             (ref<TOK_LPAREN> + ref<ArithExpr> + ref<TOK_RPAREN>)> {};
 
-  struct ArithExprRule
-      : infix<ArithValueRule, &ast::ArithExpr::left, &ast::ArithExpr::op,
-              &ast::ArithExpr::right,
-              (left(ref<ArithMul> | ref<ArithDiv> | ref<ArithMod>) >>
-               left(ref<ArithAdd> | ref<ArithSub>))> {};
+  struct ArithExpr
+      : infix<ArithValue, ast::ArithExpr,
+              levels(left(as<ast::ArithOp::mul>(ref<TOK_TIMES>) | as<ast::ArithOp::div>(ref<TOK_DIVIDE>) | as<ast::ArithOp::mod>(ref<TOK_MODULUS>)),
+                     left(as<ast::ArithOp::add>(ref<TOK_PLUS>) | as<ast::ArithOp::sub>(ref<TOK_MINUS>)))> {};
 
-  struct ScalarPredicateRule
+  struct ScalarPredicate
       : rule<ref<TOK_SAME_TYPE> | ref<TOK_DIFF_TYPE> | ref<TOK_EQUAL> |
              ref<TOK_EQUAL_EQUAL> | ref<TOK_APPROX_EQUAL> |
              ref<TOK_NOT_APPROX_EQUAL> | ref<TOK_NOT_EQ> |
@@ -565,269 +575,199 @@ struct Ruleworks : cursiv::GrammarSpec {
   // whole predicate is a rule of its own and the member reads `ref<>` of it
   // -- its value joins the leaves. The two-token forms come first so a
   // pair is never read as its first half alone.
-  struct PredicateRule
-      : rule<(ref<TOK_CONTAINS> + ref<ScalarPredicateRule>) |
-             (ref<TOK_DOES_NOT_CONTAIN> + ref<ScalarPredicateRule>) |
-             (ref<ScalarPredicateRule> + ref<TOK_CONTAINS>) |
-             (ref<ScalarPredicateRule> + ref<TOK_DOES_NOT_CONTAIN>) |
+  struct Predicate
+      : rule<(ref<TOK_CONTAINS> + ref<ScalarPredicate>) |
+             (ref<TOK_DOES_NOT_CONTAIN> + ref<ScalarPredicate>) |
+             (ref<ScalarPredicate> + ref<TOK_CONTAINS>) |
+             (ref<ScalarPredicate> + ref<TOK_DOES_NOT_CONTAIN>) |
              ref<TOK_LENGTH_EQUAL> | ref<TOK_LENGTH_NOT_EQUAL> |
              ref<TOK_LENGTH_GREATER> | ref<TOK_LENGTH_GREATER_EQUAL> |
              ref<TOK_LENGTH_LESS> | ref<TOK_LENGTH_LESS_EQUAL> |
              ref<TOK_CONTAINS> | ref<TOK_DOES_NOT_CONTAIN> |
-             ref<ScalarPredicateRule>> {};
+             ref<ScalarPredicate>> {};
 
-  static constexpr auto PredicateText = ref<PredicateRule>;
+  static constexpr auto PredicateText = ref<Predicate>;
 
-  struct NotRule
+  struct Not
       : rule<ref<TOK_NOT> +
              create<ast::Not>(
-                 assign<&ast::Not::operand>(ref<ExpreValueRule>))> {};
+                 assign<&ast::Not::operand>(ref<ExpreValue>))> {};
 
-  struct CompareRule
+  struct Compare
       : rule<create<ast::Compare>(
-            assign<&ast::Compare::left>(ref<ValueNonSqlRule>) +
+            assign<&ast::Compare::left>(ref<ValueNonSql>) +
             assign<&ast::Compare::predicateText>(PredicateText) +
-            assign<&ast::Compare::right>(ref<ValueNonSqlRule>))> {};
+            assign<&ast::Compare::right>(ref<ValueNonSql>))> {};
 
-  struct ExpreValueRule
-      : rule<ref<NotRule> | ref<CompareRule> |
-             (ref<TOK_LPAREN> + ref<CmplxExprRule> + ref<TOK_RPAREN>)> {};
+  struct ExpreValue
+      : rule<ref<Not> | ref<Compare> |
+             (ref<TOK_LPAREN> + ref<CmplxExpr> + ref<TOK_RPAREN>)> {};
 
-  struct LogicalAndRule
-      : rule<ref<TOK_AND>, value<ast::LogicalOp::logical_and>> {};
-  struct LogicalOrRule
-      : rule<ref<TOK_OR>, value<ast::LogicalOp::logical_or>> {};
 
-  struct CmplxExprRule
-      : infix<ExpreValueRule, &ast::Logical::left, &ast::Logical::op,
-              &ast::Logical::right,
-              (left(ref<LogicalAndRule>) >> left(ref<LogicalOrRule>))> {};
+  struct CmplxExpr
+      : infix<ExpreValue, ast::Logical,
+              levels(left(as<ast::LogicalOp::logical_and>(ref<TOK_AND>)), left(as<ast::LogicalOp::logical_or>(ref<TOK_OR>)))> {};
 
-  struct ExpressionRule
-      : rule<ref<TOK_LPAREN> + ref<CmplxExprRule> + ref<TOK_RPAREN>> {};
+  struct Expression
+      : rule<ref<TOK_LPAREN> + ref<CmplxExpr> + ref<TOK_RPAREN>> {};
 
   // ---- LHS: conditions -------------------------------------------------
-  struct CaIndexRule
-      : rule<ref<ArithExprRule> |
+  struct CaIndex
+      : rule<ref<ArithExpr> |
              create<ast::Literal>(
                  assign<&ast::Literal::value>(ref<TOK_DOLLAR_LAST>))> {};
 
-  struct RestrictionRule
+  struct Restriction
       : rule<create<ast::Restriction>(
                  ref<TOK_START_DISJUNCTION> +
-                 some(append<&ast::Restriction::values>(ref<ValueRule>)) +
+                 some(append<&ast::Restriction::values>(ref<Value>)) +
                  ref<TOK_END_DISJUNCTION>) |
              create<ast::Restriction>(
                  assign<&ast::Restriction::predicateText>(PredicateText) +
-                 append<&ast::Restriction::values>(ref<ValueRule>)) |
+                 append<&ast::Restriction::values>(ref<Value>)) |
              create<ast::Restriction>(
-                 append<&ast::Restriction::values>(ref<ValueRule>))> {};
+                 append<&ast::Restriction::values>(ref<Value>))> {};
 
-  struct LhsTermRule
+  struct LhsTerm
       : rule<create<ast::LhsTerm>(
             ref<TOK_HAT> + assign<&ast::LhsTerm::attribute>(AttributeText) +
             option(ref<TOK_LBRACKET> +
-                   assign<&ast::LhsTerm::index>(ref<CaIndexRule>) +
+                   assign<&ast::LhsTerm::index>(ref<CaIndex>) +
                    ref<TOK_RBRACKET>) +
-            (append<&ast::LhsTerm::restrictions>(ref<RestrictionRule>) |
+            (append<&ast::LhsTerm::restrictions>(ref<Restriction>) |
              (ref<TOK_LBRACE> +
-              some(append<&ast::LhsTerm::restrictions>(ref<RestrictionRule>)) +
+              some(append<&ast::LhsTerm::restrictions>(ref<Restriction>)) +
               ref<TOK_RBRACE>)))> {};
 
-  struct CeFormRule
+  struct CeForm
       : rule<create<ast::CeForm>(
             ref<TOK_LPAREN> + assign<&ast::CeForm::className>(Name) +
-            many(append<&ast::CeForm::terms>(ref<LhsTermRule>)) +
-            (ref<TOK_RPAREN> |
-             flag<&ast::CeForm::openEnded>(ref<TOK_ARROW>)))> {};
+            many(append<&ast::CeForm::terms>(ref<LhsTerm>)) +
+            ref<TOK_RPAREN>)> {};
 
-  struct CeRule
-      : rule<create<ast::Ce>(append<&ast::Ce::alternatives>(ref<CeFormRule>)) |
+  struct Ce
+      : rule<create<ast::Ce>(append<&ast::Ce::alternatives>(ref<CeForm>)) |
              create<ast::Ce>(ref<TOK_START_DISJUNCTION> +
                              some(append<&ast::Ce::alternatives>(
-                                 ref<CeFormRule>)) +
+                                 ref<CeForm>)) +
                              ref<TOK_END_DISJUNCTION>) |
              create<ast::Ce>(
                  flag<&ast::Ce::negated>(ref<TOK_MINUS>) +
-                 append<&ast::Ce::alternatives>(ref<CeFormRule>))> {};
+                 append<&ast::Ce::alternatives>(ref<CeForm>))> {};
 
   // ---- RHS: actions ------------------------------------------------------
-  struct RhsTermRule
+  struct RhsTerm
       : rule<create<ast::RhsTerm>(
             ref<TOK_HAT> + assign<&ast::RhsTerm::attribute>(AttributeText) +
             option(ref<TOK_LBRACKET> +
-                   assign<&ast::RhsTerm::index>(ref<CaIndexRule>) +
+                   assign<&ast::RhsTerm::index>(ref<CaIndex>) +
                    ref<TOK_RBRACKET>) +
-            assign<&ast::RhsTerm::value>(ref<ValueRule>))> {};
+            assign<&ast::RhsTerm::value>(ref<Value>))> {};
 
-  struct KindAddState
-      : rule<ref<TOK_ADDSTATE>, value<ast::ActionKind::add_state>> {};
-  struct KindAfter : rule<ref<TOK_AFTER>, value<ast::ActionKind::after>> {};
-  struct KindAt : rule<ref<TOK_AT>, value<ast::ActionKind::at>> {};
-  struct KindBind : rule<ref<TOK_BIND>, value<ast::ActionKind::bind>> {};
-  struct KindCallInherited
-      : rule<ref<TOK_CALL_INHERITED>, value<ast::ActionKind::call_inherited>> {
-  };
-  struct KindCloseFile
-      : rule<ref<TOK_CLOSEFILE>, value<ast::ActionKind::close_file>> {};
-  struct KindCopy : rule<ref<TOK_COPY>, value<ast::ActionKind::copy>> {};
-  struct KindDebug : rule<ref<TOK_DEBUG>, value<ast::ActionKind::debug>> {};
-  struct KindDefault
-      : rule<ref<TOK_DEFAULT>, value<ast::ActionKind::default_>> {};
-  struct KindForEach
-      : rule<ref<TOK_FOR_EACH>, value<ast::ActionKind::for_each>> {};
-  struct KindIf : rule<ref<TOK_IF>, value<ast::ActionKind::if_>> {};
-  struct KindMake : rule<ref<TOK_MAKE>, value<ast::ActionKind::make>> {};
-  struct KindModify : rule<ref<TOK_MODIFY>, value<ast::ActionKind::modify>> {};
-  struct KindOpenFile
-      : rule<ref<TOK_OPENFILE>, value<ast::ActionKind::open_file>> {};
-  struct KindQuit : rule<ref<TOK_QUIT>, value<ast::ActionKind::quit>> {};
-  struct KindRemove : rule<ref<TOK_REMOVE>, value<ast::ActionKind::remove>> {};
-  struct KindRemoveEvery
-      : rule<ref<TOK_REMOVE_EVERY>, value<ast::ActionKind::remove_every>> {};
-  struct KindRestoreState
-      : rule<ref<TOK_RESTORESTATE>, value<ast::ActionKind::restore_state>> {};
-  struct KindReturn
-      : rule<ref<TOK_RETURN>, value<ast::ActionKind::return_>> {};
-  struct KindSaveState
-      : rule<ref<TOK_SAVESTATE>, value<ast::ActionKind::save_state>> {};
-  struct KindSpecialize
-      : rule<ref<TOK_SPECIALIZE>, value<ast::ActionKind::specialize>> {};
-  struct KindTrace : rule<ref<TOK_TRACE>, value<ast::ActionKind::trace>> {};
-  struct KindWhile : rule<ref<TOK_WHILE>, value<ast::ActionKind::while_>> {};
-  struct KindWrite : rule<ref<TOK_WRITE>, value<ast::ActionKind::write>> {};
-  struct KindSqlAttach
-      : rule<ref<TOK_SQL_ATTACH>, value<ast::ActionKind::sql_attach>> {};
-  struct KindSqlCommit
-      : rule<ref<TOK_SQL_COMMIT>, value<ast::ActionKind::sql_commit>> {};
-  struct KindSqlDelete
-      : rule<ref<TOK_SQL_DELETE>, value<ast::ActionKind::sql_delete>> {};
-  struct KindSqlDetach
-      : rule<ref<TOK_SQL_DETACH>, value<ast::ActionKind::sql_detach>> {};
-  struct KindSqlFetchEach
-      : rule<ref<TOK_SQL_FETCH_EACH>, value<ast::ActionKind::sql_fetch_each>> {
-  };
-  struct KindSqlFetchAsObject
-      : rule<ref<TOK_SQL_FETCH_AS_OBJECT>,
-             value<ast::ActionKind::sql_fetch_as_object>> {};
-  struct KindSqlInsert
-      : rule<ref<TOK_SQL_INSERT>, value<ast::ActionKind::sql_insert>> {};
-  struct KindSqlInsertFromObject
-      : rule<ref<TOK_SQL_INSERT_FROM_OBJECT>,
-             value<ast::ActionKind::sql_insert_from_object>> {};
-  struct KindSqlRollback
-      : rule<ref<TOK_SQL_ROLLBACK>, value<ast::ActionKind::sql_rollback>> {};
-  struct KindSqlStart
-      : rule<ref<TOK_SQL_START>, value<ast::ActionKind::sql_start>> {};
-  struct KindSqlUpdate
-      : rule<ref<TOK_SQL_UPDATE>, value<ast::ActionKind::sql_update>> {};
-  struct KindSqlUpdateFromObject
-      : rule<ref<TOK_SQL_UPDATE_FROM_OBJECT>,
-             value<ast::ActionKind::sql_update_from_object>> {};
 
-  struct AddStateActionRule
-      : rule<create<ast::Action>(assign<&ast::Action::kind>(ref<KindAddState>) +
-                                 append<&ast::Action::values>(ref<ValueRule>))> {
+  struct AddStateAction
+      : rule<create<ast::Action>(assign<&ast::Action::kind>(as<ast::ActionKind::add_state>(ref<TOK_ADDSTATE>)) +
+                                 append<&ast::Action::values>(ref<Value>))> {
   };
-  struct AfterActionRule
-      : rule<create<ast::Action>(assign<&ast::Action::kind>(ref<KindAfter>) +
-                                 append<&ast::Action::values>(ref<ValueRule>) +
+  struct AfterAction
+      : rule<create<ast::Action>(assign<&ast::Action::kind>(as<ast::ActionKind::after>(ref<TOK_AFTER>)) +
+                                 append<&ast::Action::values>(ref<Value>) +
                                  assign<&ast::Action::name>(Name))> {};
-  struct BindActionRule
+  struct BindAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindBind>) +
-            append<&ast::Action::values>(ref<VariableRule>) +
-            append<&ast::Action::values>(ref<ValueRule>))> {};
-  struct CallInheritedActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::bind>(ref<TOK_BIND>)) +
+            append<&ast::Action::values>(ref<Variable>) +
+            append<&ast::Action::values>(ref<Value>))> {};
+  struct CallInheritedAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindCallInherited>) +
-            some(append<&ast::Action::values>(ref<VariableRule>)))> {};
-  struct CloseFileActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::call_inherited>(ref<TOK_CALL_INHERITED>)) +
+            some(append<&ast::Action::values>(ref<Variable>)))> {};
+  struct CloseFileAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindCloseFile>) +
-            some(append<&ast::Action::values>(ref<ValueRule>)))> {};
-  struct CopyActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::close_file>(ref<TOK_CLOSEFILE>)) +
+            some(append<&ast::Action::values>(ref<Value>)))> {};
+  struct CopyAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindCopy>) +
-            append<&ast::Action::values>(ref<VariableRule>) +
-            many(append<&ast::Action::terms>(ref<RhsTermRule>)))> {};
-  struct DebugActionRule
-      : rule<create<ast::Action>(assign<&ast::Action::kind>(ref<KindDebug>))> {
+            assign<&ast::Action::kind>(as<ast::ActionKind::copy>(ref<TOK_COPY>)) +
+            append<&ast::Action::values>(ref<Variable>) +
+            many(append<&ast::Action::terms>(ref<RhsTerm>)))> {};
+  struct DebugAction
+      : rule<create<ast::Action>(assign<&ast::Action::kind>(as<ast::ActionKind::debug>(ref<TOK_DEBUG>)))> {
   };
-  struct DefaultActionRule
+  struct DefaultAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindDefault>) +
-            append<&ast::Action::values>(ref<ValueRule>) +
-            append<&ast::Action::values>(ref<ValueRule>))> {};
-  struct ForEachActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::default_>(ref<TOK_DEFAULT>)) +
+            append<&ast::Action::values>(ref<Value>) +
+            append<&ast::Action::values>(ref<Value>))> {};
+  struct ForEachAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindForEach>) +
-            append<&ast::Action::values>(ref<VariableRule>) + ref<TOK_IN> +
-            append<&ast::Action::values>(ref<ValueRule>) +
-            some(append<&ast::Action::body>(ref<ActionLineRule>)))> {};
-  struct IfActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::for_each>(ref<TOK_FOR_EACH>)) +
+            append<&ast::Action::values>(ref<Variable>) + ref<TOK_IN> +
+            append<&ast::Action::values>(ref<Value>) +
+            some(append<&ast::Action::body>(ref<ActionLine>)))> {};
+  struct IfAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindIf>) +
-            assign<&ast::Action::condition>(ref<ExpressionRule>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::if_>(ref<TOK_IF>)) +
+            assign<&ast::Action::condition>(ref<Expression>) +
             ref<TOK_THEN> +
-            some(append<&ast::Action::body>(ref<ActionLineRule>)) +
+            some(append<&ast::Action::body>(ref<ActionLine>)) +
             option(ref<TOK_ELSE> +
-                   some(append<&ast::Action::elseBody>(ref<ActionLineRule>))))> {
+                   some(append<&ast::Action::elseBody>(ref<ActionLine>))))> {
   };
-  struct MakeActionRule
+  struct MakeAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindMake>) +
-            append<&ast::Action::values>(ref<RclassRule>) +
-            many(append<&ast::Action::terms>(ref<RhsTermRule>)))> {};
-  struct ModifyActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::make>(ref<TOK_MAKE>)) +
+            append<&ast::Action::values>(ref<Rclass>) +
+            many(append<&ast::Action::terms>(ref<RhsTerm>)))> {};
+  struct ModifyAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindModify>) +
-            append<&ast::Action::values>(ref<VariableRule>) +
-            many(append<&ast::Action::terms>(ref<RhsTermRule>)))> {};
-  struct OpenFileActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::modify>(ref<TOK_MODIFY>)) +
+            append<&ast::Action::values>(ref<Variable>) +
+            many(append<&ast::Action::terms>(ref<RhsTerm>)))> {};
+  struct OpenFileAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindOpenFile>) +
-            append<&ast::Action::values>(ref<ValueRule>) +
-            append<&ast::Action::values>(ref<ValueRule>) +
-            append<&ast::Action::values>(ref<ValueRule>))> {};
-  struct QuitActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::open_file>(ref<TOK_OPENFILE>)) +
+            append<&ast::Action::values>(ref<Value>) +
+            append<&ast::Action::values>(ref<Value>) +
+            append<&ast::Action::values>(ref<Value>))> {};
+  struct QuitAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindQuit>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::quit>(ref<TOK_QUIT>)) +
             option(append<&ast::Action::values>(
-                ref<ArithValueRule> |
+                ref<ArithValue> |
                 create<ast::Literal>(
                     assign<&ast::Literal::value>(ref<TOK_FAILURE>)) |
                 create<ast::Literal>(
                     assign<&ast::Literal::value>(ref<TOK_SUCCESS>)))))> {};
-  struct RemoveActionRule
+  struct RemoveAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindRemove>) +
-            some(append<&ast::Action::values>(ref<VariableRule>)))> {};
-  struct RemoveEveryActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::remove>(ref<TOK_REMOVE>)) +
+            some(append<&ast::Action::values>(ref<Variable>)))> {};
+  struct RemoveEveryAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindRemoveEvery>) +
-            some(append<&ast::Action::values>(ref<RclassRule>)))> {};
-  struct RestoreStateActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::remove_every>(ref<TOK_REMOVE_EVERY>)) +
+            some(append<&ast::Action::values>(ref<Rclass>)))> {};
+  struct RestoreStateAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindRestoreState>) +
-            append<&ast::Action::values>(ref<ValueRule>))> {};
-  struct ReturnActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::restore_state>(ref<TOK_RESTORESTATE>)) +
+            append<&ast::Action::values>(ref<Value>))> {};
+  struct ReturnAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindReturn>) +
-            option(append<&ast::Action::values>(ref<ValueRule>)))> {};
-  struct SaveStateActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::return_>(ref<TOK_RETURN>)) +
+            option(append<&ast::Action::values>(ref<Value>)))> {};
+  struct SaveStateAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSaveState>) +
-            append<&ast::Action::values>(ref<ValueRule>))> {};
-  struct SpecializeActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::save_state>(ref<TOK_SAVESTATE>)) +
+            append<&ast::Action::values>(ref<Value>))> {};
+  struct SpecializeAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSpecialize>) +
-            append<&ast::Action::values>(ref<VariableRule>) +
-            append<&ast::Action::values>(ref<RclassRule>) +
-            many(append<&ast::Action::terms>(ref<RhsTermRule>)))> {};
-  struct TraceActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::specialize>(ref<TOK_SPECIALIZE>)) +
+            append<&ast::Action::values>(ref<Variable>) +
+            append<&ast::Action::values>(ref<Rclass>) +
+            many(append<&ast::Action::terms>(ref<RhsTerm>)))> {};
+  struct TraceAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindTrace>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::trace>(ref<TOK_TRACE>)) +
             assign<&ast::Action::name>(ref<TOK_ON> | ref<TOK_OFF>) +
             (append<&ast::Action::values>(create<ast::Literal>(
                  assign<&ast::Literal::value>(ref<TOK_TIMES>))) |
@@ -836,19 +776,19 @@ struct Ruleworks : cursiv::GrammarSpec {
                      ref<TOK_ENTRY_BLOCK> | ref<TOK_EB> |
                      ref<TOK_RULE_GROUP> | ref<TOK_RG> | ref<TOK_RULE> |
                      ref<TOK_WM> | ref<TOK_CS>))))))> {};
-  struct WhileActionRule
+  struct WhileAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindWhile>) +
-            assign<&ast::Action::condition>(ref<ExpressionRule>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::while_>(ref<TOK_WHILE>)) +
+            assign<&ast::Action::condition>(ref<Expression>) +
             ref<TOK_DO> +
-            some(append<&ast::Action::body>(ref<ActionLineRule>)))> {};
-  struct WriteActionRule
+            some(append<&ast::Action::body>(ref<ActionLine>)))> {};
+  struct WriteAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindWrite>) +
-            many(append<&ast::Action::values>(ref<ValueRule>)))> {};
+            assign<&ast::Action::kind>(as<ast::ActionKind::write>(ref<TOK_WRITE>)) +
+            many(append<&ast::Action::values>(ref<Value>)))> {};
 
   static constexpr auto SqlRseElement =
-      ref<ConstantRule> | ref<VariableRule> | ref<QuotedVarRule> |
+      ref<Constant> | ref<Variable> | ref<QuotedVar> |
       create<ast::Literal>(assign<&ast::Literal::value>(
           ref<TOK_EQUAL> | ref<TOK_EQUAL_EQUAL> | ref<TOK_APPROX_EQUAL> |
           ref<TOK_NOT_APPROX_EQUAL> | ref<TOK_NOT_EQ> | ref<TOK_NOT_EQUAL> |
@@ -858,9 +798,9 @@ struct Ruleworks : cursiv::GrammarSpec {
           ref<TOK_ARROW> | ref<TOK_START_DISJUNCTION> |
           ref<TOK_END_DISJUNCTION>));
 
-  struct SqlAttachActionRule
+  struct SqlAttachAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSqlAttach>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::sql_attach>(ref<TOK_SQL_ATTACH>)) +
             (append<&ast::Action::values>(create<ast::Call>(
                  assign<&ast::Call::name>(ref<TOK_FILENAME>) +
                  append<&ast::Call::args>(create<ast::Literal>(
@@ -874,151 +814,151 @@ struct Ruleworks : cursiv::GrammarSpec {
                      DbSpecName)))) +
             option(append<&ast::Action::values>(create<ast::Literal>(
                 assign<&ast::Literal::value>(Name)))))> {};
-  struct SqlCommitActionRule
+  struct SqlCommitAction
       : rule<create<ast::Action>(assign<&ast::Action::kind>(
-            ref<KindSqlCommit>))> {};
-  struct SqlDetachActionRule
+            as<ast::ActionKind::sql_commit>(ref<TOK_SQL_COMMIT>)))> {};
+  struct SqlDetachAction
       : rule<create<ast::Action>(assign<&ast::Action::kind>(
-            ref<KindSqlDetach>))> {};
-  struct SqlRollbackActionRule
+            as<ast::ActionKind::sql_detach>(ref<TOK_SQL_DETACH>)))> {};
+  struct SqlRollbackAction
       : rule<create<ast::Action>(assign<&ast::Action::kind>(
-            ref<KindSqlRollback>))> {};
-  struct SqlDeleteActionRule
+            as<ast::ActionKind::sql_rollback>(ref<TOK_SQL_ROLLBACK>)))> {};
+  struct SqlDeleteAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSqlDelete>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::sql_delete>(ref<TOK_SQL_DELETE>)) +
             append<&ast::Action::values>(
                 create<ast::Literal>(assign<&ast::Literal::value>(Name))) +
             many(append<&ast::Action::values>(SqlRseElement)))> {};
-  struct SqlFetchEachActionRule
+  struct SqlFetchEachAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSqlFetchEach>) +
-            some(append<&ast::Action::values>(ref<VariableRule>)) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::sql_fetch_each>(ref<TOK_SQL_FETCH_EACH>)) +
+            some(append<&ast::Action::values>(ref<Variable>)) +
             ref<TOK_LPAREN> +
             some(append<&ast::Action::values>(SqlRseElement)) +
             ref<TOK_RPAREN> +
-            some(append<&ast::Action::body>(ref<ActionLineRule>)))> {};
-  struct SqlFetchAsObjectActionRule
+            some(append<&ast::Action::body>(ref<ActionLine>)))> {};
+  struct SqlFetchAsObjectAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSqlFetchAsObject>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::sql_fetch_as_object>(ref<TOK_SQL_FETCH_AS_OBJECT>)) +
             some(append<&ast::Action::values>(SqlRseElement)))> {};
-  struct SqlInsertActionRule
+  struct SqlInsertAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSqlInsert>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::sql_insert>(ref<TOK_SQL_INSERT>)) +
             append<&ast::Action::values>(
                 create<ast::Literal>(assign<&ast::Literal::value>(Name))) +
             some(append<&ast::Action::values>(SqlRseElement)))> {};
-  struct SqlInsertFromObjectActionRule
+  struct SqlInsertFromObjectAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSqlInsertFromObject>) +
-            append<&ast::Action::values>(ref<VariableRule>))> {};
-  struct SqlStartActionRule
+            assign<&ast::Action::kind>(as<ast::ActionKind::sql_insert_from_object>(ref<TOK_SQL_INSERT_FROM_OBJECT>)) +
+            append<&ast::Action::values>(ref<Variable>))> {};
+  struct SqlStartAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSqlStart>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::sql_start>(ref<TOK_SQL_START>)) +
             many(append<&ast::Action::values>(SqlRseElement)))> {};
-  struct SqlUpdateActionRule
+  struct SqlUpdateAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSqlUpdate>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::sql_update>(ref<TOK_SQL_UPDATE>)) +
             append<&ast::Action::values>(
                 create<ast::Literal>(assign<&ast::Literal::value>(Name))) +
             some(append<&ast::Action::values>(SqlRseElement)))> {};
-  struct SqlUpdateFromObjectActionRule
+  struct SqlUpdateFromObjectAction
       : rule<create<ast::Action>(
-            assign<&ast::Action::kind>(ref<KindSqlUpdateFromObject>) +
-            append<&ast::Action::values>(ref<VariableRule>) +
+            assign<&ast::Action::kind>(as<ast::ActionKind::sql_update_from_object>(ref<TOK_SQL_UPDATE_FROM_OBJECT>)) +
+            append<&ast::Action::values>(ref<Variable>) +
             many(append<&ast::Action::values>(SqlRseElement)))> {};
 
-  struct ActionRule
-      : rule<ref<AddStateActionRule> | ref<AfterActionRule> |
-             ref<BindActionRule> | ref<CallInheritedActionRule> |
-             ref<CloseFileActionRule> | ref<CopyActionRule> |
-             ref<DebugActionRule> | ref<DefaultActionRule> |
-             ref<ForEachActionRule> | ref<FunctionCallRule> |
-             ref<IfActionRule> | ref<MakeActionRule> | ref<ModifyActionRule> |
-             ref<OpenFileActionRule> | ref<QuitActionRule> |
-             ref<RemoveActionRule> | ref<RemoveEveryActionRule> |
-             ref<RestoreStateActionRule> | ref<ReturnActionRule> |
-             ref<SaveStateActionRule> | ref<SpecializeActionRule> |
-             ref<TraceActionRule> | ref<WhileActionRule> |
-             ref<WriteActionRule> | ref<SqlAttachActionRule> |
-             ref<SqlCommitActionRule> | ref<SqlDeleteActionRule> |
-             ref<SqlDetachActionRule> | ref<SqlFetchEachActionRule> |
-             ref<SqlFetchAsObjectActionRule> | ref<SqlInsertActionRule> |
-             ref<SqlInsertFromObjectActionRule> | ref<SqlRollbackActionRule> |
-             ref<SqlStartActionRule> | ref<SqlUpdateActionRule> |
-             ref<SqlUpdateFromObjectActionRule>> {};
+  struct Action
+      : rule<ref<AddStateAction> | ref<AfterAction> |
+             ref<BindAction> | ref<CallInheritedAction> |
+             ref<CloseFileAction> | ref<CopyAction> |
+             ref<DebugAction> | ref<DefaultAction> |
+             ref<ForEachAction> | ref<FunctionCall> |
+             ref<IfAction> | ref<MakeAction> | ref<ModifyAction> |
+             ref<OpenFileAction> | ref<QuitAction> |
+             ref<RemoveAction> | ref<RemoveEveryAction> |
+             ref<RestoreStateAction> | ref<ReturnAction> |
+             ref<SaveStateAction> | ref<SpecializeAction> |
+             ref<TraceAction> | ref<WhileAction> |
+             ref<WriteAction> | ref<SqlAttachAction> |
+             ref<SqlCommitAction> | ref<SqlDeleteAction> |
+             ref<SqlDetachAction> | ref<SqlFetchEachAction> |
+             ref<SqlFetchAsObjectAction> | ref<SqlInsertAction> |
+             ref<SqlInsertFromObjectAction> | ref<SqlRollbackAction> |
+             ref<SqlStartAction> | ref<SqlUpdateAction> |
+             ref<SqlUpdateFromObjectAction>> {};
 
   // No `"(" construct_keyword` half-open alternative here: the LALR states
   // already stop this loop on any token that isn't a legal action opener.
-  struct ActionLineRule
-      : rule<ref<TOK_LPAREN> + ref<ActionRule> + ref<TOK_RPAREN>> {};
+  struct ActionLine
+      : rule<ref<TOK_LPAREN> + ref<Action> + ref<TOK_RPAREN>> {};
 
-  struct AtCommandRule
-      : rule<create<ast::Action>(assign<&ast::Action::kind>(ref<KindAt>) +
+  struct AtCommand
+      : rule<create<ast::Action>(assign<&ast::Action::kind>(as<ast::ActionKind::at>(ref<TOK_AT>)) +
                                  assign<&ast::Action::name>(Name))> {};
-  struct StartupActionRule
-      : rule<ref<ActionRule> | ref<AtCommandRule>> {};
-  struct StartupActionLineRule
-      : rule<ref<TOK_LPAREN> + ref<StartupActionRule> + ref<TOK_RPAREN>> {};
+  struct StartupAction
+      : rule<ref<Action> | ref<AtCommand>> {};
+  struct StartupActionLine
+      : rule<ref<TOK_LPAREN> + ref<StartupAction> + ref<TOK_RPAREN>> {};
 
   // ---- Top-level constructs ---------------------------------------------
-  struct RuleRule
+  struct Rule
       : rule<create<ast::Rule>(
             assign<&ast::Rule::keyword>(ref<TOK_RULE> | ref<TOK_P>) +
             assign<&ast::Rule::name>(Name) +
             append<&ast::Rule::conditions>(create<ast::Ce>(
-                append<&ast::Ce::alternatives>(ref<CeFormRule>))) +
-            many(append<&ast::Rule::conditions>(ref<CeRule>)) +
+                append<&ast::Ce::alternatives>(ref<CeForm>))) +
+            many(append<&ast::Rule::conditions>(ref<Ce>)) +
             ref<TOK_ARROW> +
-            many(append<&ast::Rule::actions>(ref<ActionLineRule>)))> {};
+            many(append<&ast::Rule::actions>(ref<ActionLine>)))> {};
 
-  struct CatcherRule
+  struct Catcher
       : rule<create<ast::Catcher>(
             ref<TOK_CATCH> + assign<&ast::Catcher::name>(Name) +
-            many(append<&ast::Catcher::actions>(ref<ActionLineRule>)))> {};
+            many(append<&ast::Catcher::actions>(ref<ActionLine>)))> {};
 
-  struct OnEntryRule
+  struct OnEntry
       : rule<create<ast::OnEntry>(
             (ref<TOK_ON_ENTRY> | ref<TOK_STARTUP>) +
-            some(append<&ast::OnEntry::actions>(ref<StartupActionLineRule>)))> {
+            some(append<&ast::OnEntry::actions>(ref<StartupActionLine>)))> {
   };
-  struct OnEmptyRule
+  struct OnEmpty
       : rule<create<ast::OnEmpty>(
             ref<TOK_ON_EMPTY> +
-            some(append<&ast::OnEmpty::actions>(ref<ActionLineRule>)))> {};
-  struct OnExitRule
+            some(append<&ast::OnEmpty::actions>(ref<ActionLine>)))> {};
+  struct OnExit
       : rule<create<ast::OnExit>(
             ref<TOK_ON_EXIT> +
-            some(append<&ast::OnExit::actions>(ref<ActionLineRule>)))> {};
-  struct OnEveryRule
+            some(append<&ast::OnExit::actions>(ref<ActionLine>)))> {};
+  struct OnEvery
       : rule<create<ast::OnEvery>(
             ref<TOK_ON_EVERY> +
-            some(append<&ast::OnEvery::actions>(ref<ActionLineRule>)))> {};
+            some(append<&ast::OnEvery::actions>(ref<ActionLine>)))> {};
 
-  struct DeclarationBlockRule
+  struct DeclarationBlock
       : rule<create<ast::DeclarationBlock>(
             ref<TOK_DECLARATION_BLOCK> +
             assign<&ast::DeclarationBlock::name>(Name))> {};
-  struct RuleGroupDeclRule
+  struct RuleGroupDecl
       : rule<create<ast::RuleGroupDecl>(
             ref<TOK_RULE_GROUP> + assign<&ast::RuleGroupDecl::name>(Name))> {
   };
-  struct EndRuleGroupRule
+  struct EndRuleGroup
       : rule<create<ast::EndRuleGroup>(
             ref<TOK_END_GROUP> +
             option(assign<&ast::EndRuleGroup::name>(Name)))> {};
-  struct EndBlockRule
+  struct EndBlock
       : rule<create<ast::EndBlock>(
             ref<TOK_END_BLOCK> + option(assign<&ast::EndBlock::name>(Name)))> {
   };
 
-  struct ExtRtParamDeclRule
+  struct ExtRtParamDecl
       : rule<create<ast::ParamDecl>(
             option(assign<&ast::ParamDecl::name>(ref<TOK_VARIABLE>)) +
             option(ref<TOK_LBRACKET> +
                    option(assign<&ast::ParamDecl::arrayLength>(
                        create<ast::Literal>(assign<&ast::Literal::value>(
                            ref<TOK_INTEGER_CONST>)) |
-                       ref<VariableRule>)) +
+                       ref<Variable>)) +
                    ref<TOK_RBRACKET>) +
             assign<&ast::ParamDecl::type>(
                 ref<TOK_LONG> | ref<TOK_SHORT> | ref<TOK_BYTE> |
@@ -1032,14 +972,14 @@ struct Ruleworks : cursiv::GrammarSpec {
                          ref<TOK_READ_ONLY> | ref<TOK_READ_WRITE>)) |
                     assign<&ast::ParamDecl::mechanism>(ref<TOK_VALUE>))))> {};
 
-  struct ExtRtReturnDeclRule
+  struct ExtRtReturnDecl
       : rule<create<ast::ParamDecl>(
             option(assign<&ast::ParamDecl::name>(ref<TOK_VARIABLE>)) +
             option(ref<TOK_LBRACKET> +
                    option(assign<&ast::ParamDecl::arrayLength>(
                        create<ast::Literal>(assign<&ast::Literal::value>(
                            ref<TOK_INTEGER_CONST>)) |
-                       ref<VariableRule>)) +
+                       ref<Variable>)) +
                    ref<TOK_RBRACKET>) +
             assign<&ast::ParamDecl::type>(
                 ref<TOK_LONG> | ref<TOK_SHORT> | ref<TOK_BYTE> |
@@ -1054,21 +994,21 @@ struct Ruleworks : cursiv::GrammarSpec {
   static constexpr auto EntryBlockClause =
       ref<TOK_LPAREN> +
       ((ref<TOK_ACCEPTS> +
-        some(append<&ast::EntryBlock::accepts>(ref<ExtRtParamDeclRule>))) |
+        some(append<&ast::EntryBlock::accepts>(ref<ExtRtParamDecl>))) |
        (ref<TOK_ACTIVATES> +
         some(append<&ast::EntryBlock::activates>(Name))) |
        (ref<TOK_USES> + some(append<&ast::EntryBlock::uses>(Name)))) +
       ref<TOK_RPAREN>;
   static constexpr auto EntryBlockReturns =
       ref<TOK_LPAREN> + ref<TOK_RETURNS> +
-      assign<&ast::EntryBlock::returns>(ref<ExtRtReturnDeclRule>) +
+      assign<&ast::EntryBlock::returns>(ref<ExtRtReturnDecl>) +
       ref<TOK_RPAREN>;
   static constexpr auto EntryBlockStrategy =
       ref<TOK_LPAREN> + ref<TOK_STRATEGY> +
       assign<&ast::EntryBlock::strategy>(ref<TOK_LEX> | ref<TOK_MEA>) +
       ref<TOK_RPAREN>;
 
-  struct EntryBlockRule
+  struct EntryBlock
       : rule<create<ast::EntryBlock>(
             ref<TOK_ENTRY_BLOCK> + assign<&ast::EntryBlock::name>(Name) +
             many(EntryBlockClause) +
@@ -1082,7 +1022,7 @@ struct Ruleworks : cursiv::GrammarSpec {
       ref<TOK_LPAREN> + ref<TOK_USES> +
       some(append<&ast::RuleBlock::uses>(Name)) + ref<TOK_RPAREN>;
 
-  struct RuleBlockRule
+  struct RuleBlock
       : rule<create<ast::RuleBlock>(
             ref<TOK_RULE_BLOCK> + assign<&ast::RuleBlock::name>(Name) +
             many(RuleBlockUses) +
@@ -1091,31 +1031,31 @@ struct Ruleworks : cursiv::GrammarSpec {
                                                       ref<TOK_MEA>) +
                    ref<TOK_RPAREN> + many(RuleBlockUses)))> {};
 
-  struct CompoundConstRule
+  struct CompoundConst
       : rule<create<ast::Call>(
             ref<TOK_LPAREN> + assign<&ast::Call::name>(ref<TOK_COMPOUND>) +
-            many(append<&ast::Call::args>(ref<ConstantRule>)) +
+            many(append<&ast::Call::args>(ref<Constant>)) +
             ref<TOK_RPAREN>)> {};
 
-  struct AttributeModifierRule
+  struct AttributeModifier
       : rule<create<ast::AttributeModifier>(
                  ref<TOK_LPAREN> +
                  assign<&ast::AttributeModifier::kind>(ref<TOK_DEFAULT>) +
-                 assign<&ast::AttributeModifier::value>(ref<ConstantRule>) +
+                 assign<&ast::AttributeModifier::value>(ref<Constant>) +
                  ref<TOK_RPAREN>) |
              create<ast::AttributeModifier>(
                  ref<TOK_LPAREN> +
                  assign<&ast::AttributeModifier::kind>(ref<TOK_DEFAULT>) +
                  assign<&ast::AttributeModifier::value>(
-                     ref<CompoundConstRule>) +
+                     ref<CompoundConst>) +
                  ref<TOK_RPAREN>) |
              create<ast::AttributeModifier>(
                  ref<TOK_LPAREN> +
                  assign<&ast::AttributeModifier::kind>(ref<TOK_FILL>) +
-                 assign<&ast::AttributeModifier::value>(ref<ConstantRule>) +
+                 assign<&ast::AttributeModifier::value>(ref<Constant>) +
                  ref<TOK_RPAREN>)> {};
 
-  struct AttributeDeclRule
+  struct AttributeDecl
       : rule<create<ast::AttributeDecl>(
             ref<TOK_HAT> + assign<&ast::AttributeDecl::name>(Name) +
             option(flag<&ast::AttributeDecl::compound>(
@@ -1129,9 +1069,9 @@ struct Ruleworks : cursiv::GrammarSpec {
                    (assign<&ast::AttributeDecl::domain>(ref<TOK_OPAQUE>)) |
                    (assign<&ast::AttributeDecl::domain>(ref<TOK_SYMBOL>))) +
             many(append<&ast::AttributeDecl::modifiers>(
-                ref<AttributeModifierRule>)))> {};
+                ref<AttributeModifier>)))> {};
 
-  struct ObjectClassDeclRule
+  struct ObjectClassDecl
       : rule<create<ast::ObjectClassDecl>(
             ref<TOK_OBJECT_CLASS> +
             assign<&ast::ObjectClassDecl::name>(Name) +
@@ -1139,71 +1079,68 @@ struct Ruleworks : cursiv::GrammarSpec {
                    assign<&ast::ObjectClassDecl::inheritsFrom>(Name) +
                    ref<TOK_RPAREN>) +
             many(append<&ast::ObjectClassDecl::attributes>(
-                ref<AttributeDeclRule>)))> {};
+                ref<AttributeDecl>)))> {};
 
-  struct MethodParamDeclRule
+  static constexpr auto MethodParamOptions =
+      option(flag<&ast::ParamDecl::compound>(ref<TOK_COMPOUND>)) +
+      option((assign<&ast::ParamDecl::type>(ref<TOK_INSTANCE>) +
+              option(ref<TOK_OF> + assign<&ast::ParamDecl::domainClass>(Name))) |
+             assign<&ast::ParamDecl::type>(ref<TOK_ANY> | ref<TOK_INTEGER> |
+                 ref<TOK_FLOAT> | ref<TOK_OPAQUE> | ref<TOK_SYMBOL>));
+  struct MethodParamDecl
       : rule<create<ast::ParamDecl>(
-            assign<&ast::ParamDecl::name>(ref<TOK_VARIABLE>) +
-            option(flag<&ast::ParamDecl::compound>(ref<TOK_COMPOUND>)) +
-            option(assign<&ast::ParamDecl::type>(
-                ref<TOK_ANY> | ref<TOK_INSTANCE> | ref<TOK_INTEGER> |
-                ref<TOK_FLOAT> | ref<TOK_OPAQUE> | ref<TOK_SYMBOL>)))> {};
-
-  struct MethodReturnParamRule
+            assign<&ast::ParamDecl::name>(ref<TOK_VARIABLE>) + MethodParamOptions)> {};
+  struct MethodReturnParam
       : rule<create<ast::ParamDecl>(
-            assign<&ast::ParamDecl::name>(ref<TOK_VARIABLE>) +
-            option(flag<&ast::ParamDecl::compound>(ref<TOK_COMPOUND>)) +
-            option(assign<&ast::ParamDecl::type>(
-                ref<TOK_ANY> | ref<TOK_INSTANCE> | ref<TOK_INTEGER> |
-                ref<TOK_FLOAT> | ref<TOK_OPAQUE> | ref<TOK_SYMBOL>)))> {};
+            assign<&ast::ParamDecl::name>(ref<TOK_VARIABLE>) + MethodParamOptions)> {};
 
-  struct MethodDeclRule
+  struct MethodDecl
       : rule<create<ast::MethodDecl>(
             ref<TOK_METHOD> + assign<&ast::MethodDecl::name>(AllowableFuncName) +
             ref<TOK_LPAREN> + ref<TOK_ACCEPTS> +
-            assign<&ast::MethodDecl::whenVar>(ref<VariableRule>) +
+            assign<&ast::MethodDecl::whenVar>(ref<Variable>) +
             ref<TOK_WHEN> + ref<TOK_INSTANCE> + ref<TOK_OF> +
             assign<&ast::MethodDecl::whenClassName>(Name) +
-            many(append<&ast::MethodDecl::params>(ref<MethodParamDeclRule>)) +
+            many(append<&ast::MethodDecl::params>(ref<MethodParamDecl>)) +
             ref<TOK_RPAREN> +
-            (some(append<&ast::MethodDecl::actions>(ref<ActionLineRule>)) |
+            (some(append<&ast::MethodDecl::actions>(ref<ActionLine>)) |
              (ref<TOK_LPAREN> + ref<TOK_RETURNS> +
-              assign<&ast::MethodDecl::returns>(ref<MethodReturnParamRule>) +
+              assign<&ast::MethodDecl::returns>(ref<MethodReturnParam>) +
               ref<TOK_RPAREN> +
               many(append<&ast::MethodDecl::actions>(
-                  ref<ActionLineRule>)))))> {};
+                  ref<ActionLine>)))))> {};
 
-  struct GenericMethodDeclRule
+  struct GenericMethodDecl
       : rule<create<ast::GenericMethodDecl>(
             ref<TOK_GENERIC_METHOD> +
             assign<&ast::GenericMethodDecl::name>(AllowableFuncName) +
             ref<TOK_LPAREN> + ref<TOK_ACCEPTS> +
-            assign<&ast::GenericMethodDecl::whenVar>(ref<VariableRule>) +
+            assign<&ast::GenericMethodDecl::whenVar>(ref<Variable>) +
             ref<TOK_WHEN> + ref<TOK_INSTANCE> +
             option(ref<TOK_OF> +
                    assign<&ast::GenericMethodDecl::whenClassName>(Name)) +
             many(append<&ast::GenericMethodDecl::params>(
-                ref<MethodParamDeclRule>)) +
+                ref<MethodParamDecl>)) +
             ref<TOK_RPAREN> +
             option(ref<TOK_LPAREN> + ref<TOK_RETURNS> +
                    assign<&ast::GenericMethodDecl::returns>(
-                       ref<MethodReturnParamRule>) +
+                       ref<MethodReturnParam>) +
                    ref<TOK_RPAREN>))> {};
 
   static constexpr auto ExtRtAccepts =
       ref<TOK_LPAREN> + ref<TOK_ACCEPTS> +
       some(append<&ast::ExternalRoutineDecl::accepts>(
-          ref<ExtRtParamDeclRule>)) +
+          ref<ExtRtParamDecl>)) +
       ref<TOK_RPAREN>;
   static constexpr auto ExtRtAlias =
       ref<TOK_LPAREN> + ref<TOK_ALIAS_FOR> +
       assign<&ast::ExternalRoutineDecl::alias>(Name) + ref<TOK_RPAREN>;
   static constexpr auto ExtRtReturns =
       ref<TOK_LPAREN> + ref<TOK_RETURNS> +
-      assign<&ast::ExternalRoutineDecl::returns>(ref<ExtRtReturnDeclRule>) +
+      assign<&ast::ExternalRoutineDecl::returns>(ref<ExtRtReturnDecl>) +
       ref<TOK_RPAREN>;
 
-  struct ExternalRoutineDeclRule
+  struct ExternalRoutineDecl
       : rule<create<ast::ExternalRoutineDecl>(
             ref<TOK_EXTERNAL_ROUTINE> +
             assign<&ast::ExternalRoutineDecl::name>(AllowableFuncName) +
@@ -1214,26 +1151,26 @@ struct Ruleworks : cursiv::GrammarSpec {
                     option(ExtRtAlias + many(ExtRtAccepts)))))> {};
 
   static constexpr auto ProgramLine =
-      ref<DeclarationBlockRule> | ref<EntryBlockRule> | ref<RuleBlockRule> |
-      ref<EndBlockRule> | ref<RuleGroupDeclRule> | ref<EndRuleGroupRule> |
-      ref<ObjectClassDeclRule> | ref<MethodDeclRule> |
-      ref<GenericMethodDeclRule> | ref<ExternalRoutineDeclRule> |
-      ref<OnEntryRule> | ref<OnEmptyRule> | ref<OnExitRule> |
-      ref<OnEveryRule> | ref<RuleRule> | ref<CatcherRule>;
+      ref<DeclarationBlock> | ref<EntryBlock> | ref<RuleBlock> |
+      ref<EndBlock> | ref<RuleGroupDecl> | ref<EndRuleGroup> |
+      ref<ObjectClassDecl> | ref<MethodDecl> |
+      ref<GenericMethodDecl> | ref<ExternalRoutineDecl> |
+      ref<OnEntry> | ref<OnEmpty> | ref<OnExit> |
+      ref<OnEvery> | ref<Rule> | ref<Catcher>;
 
-  struct ProgramConstructRule
+  struct ProgramConstruct
       : rule<create<ast::ProgramConstruct>(
             ref<TOK_LPAREN> +
-            some(append<&ast::ProgramConstruct::lines>(ProgramLine)) +
+            append<&ast::ProgramConstruct::lines>(ProgramLine) +
             ref<TOK_RPAREN>)> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program>(
-            some(append<&ast::Program::constructs>(ref<ProgramConstructRule>)))> {
+            some(append<&ast::Program::constructs>(ref<ProgramConstruct>)))> {
   };
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
   using hidden = list<TrailingComment>;
 };
 

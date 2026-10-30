@@ -1,5 +1,3 @@
-// The checks of this language: the grammar is the whole language, so there
-// are none -- the pair stays as the hook a future check would use.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +9,7 @@ namespace sexpression {
 class SexpressionValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkList(const ast::List&, cursiv::ValidationAcceptor&) const;
 };
 
 struct SexpressionCoreServices;

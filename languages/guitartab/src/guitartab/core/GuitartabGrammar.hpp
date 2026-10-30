@@ -14,20 +14,20 @@ struct Guitartab : cursiv::GrammarSpec {
 
   // A segment is one or more marks; trivia may separate them (`x - o`), so
   // each mark is its own token rather than one run swallowed by the lexer.
-  struct PositionRule
+  struct Position
       : rule<some(append<&ast::Position::marks>(ref<MARK>))> {};
 
-  struct StringRule
+  struct String
       : rule<assign<&ast::StringLine::note>(ref<NOTE>) +
-             some(append<&ast::StringLine::positions>(ref<PositionRule>) +
+             some(append<&ast::StringLine::positions>(ref<Position>) +
                   lit<"|">)> {};
 
-  struct TabRule
+  struct Tab
       : rule<create<ast::Tab> +
-             some(append<&ast::Tab::strings>(ref<StringRule>))> {};
+             some(append<&ast::Tab::strings>(ref<String>))> {};
 
-  using entry = TabRule;
-  using ignore = WS;
+  using entry = Tab;
+  using ignored = WS;
 };
 
 }  // namespace guitartab

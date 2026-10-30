@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Serial Item and Contribution Identifiers with item, contribution and control segments.
+
 ```
 0002-8231(199412)45:10<737:TIODIM>2.3.TX;2-M
 ```
-
-A [SICI](https://en.wikipedia.org/wiki/Serial_Item_and_Contribution_Identifier)
-(ANSI/NISO Z39.56): an ISSN, a chronology in parentheses and an enumeration
-identify the issue; `<737:TIODIM>` locates a contribution inside it by page
-and a compressed title; zero or more `;`-separated control segments follow.
-Whitespace is trivia everywhere in the document.
 
 ## The command line
 

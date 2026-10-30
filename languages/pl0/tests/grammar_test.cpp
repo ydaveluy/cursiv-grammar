@@ -31,6 +31,23 @@ int main() {
       pl0::Pl0CoreServices, pl0::Pl0SharedCoreServices,
       pl0::install_core_module>();
 
+  for (const auto source : {"VAR BEGIN;.", "CONST IF=1;.", "PROCEDURE CALL; ;.",
+                             "VAR a,b;a:=a+-b.", "VAR a,b;a:=a*-b."}) {
+    const auto r = language.language.parser->parse(source);
+    if (r.accepted && !r.cst().recovered() && r.diagnostics.empty())
+      return fail(source, "native-invalid reserved name/sign accepted");
+  }
+  {
+    const std::string digits(80, '9');
+    const auto r = language.language.parser->parse("CONST huge=" + digits + "; !" + digits + ".");
+    const auto* p = r.value_as<pl0::ast::Program>();
+    const auto* print = p && p->block ? cursiv::ast_cast<pl0::ast::PrintStmt>(p->block->body) : nullptr;
+    const auto* number = print ? cursiv::ast_cast<pl0::ast::NumberExpr>(print->value) : nullptr;
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || !p ||
+        p->block->consts.size()!=1 || p->block->consts[0]->value!=digits || !number || number->value!=digits)
+      return fail("large numeric text", "native lexeme was rejected or truncated");
+  }
+
   static constexpr const char* kExamples[] = {
       CURSIV_EXAMPLE_DIR "/example/example1.pl0",
       CURSIV_EXAMPLE_DIR "/example/example2.pl0",

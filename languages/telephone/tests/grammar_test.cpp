@@ -6,10 +6,14 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/core/validation/DocumentValidator.hpp"
+#include "cursiv/core/workspace/Document.hpp"
 #include "telephone/core/CoreServices.hpp"
 #include "telephone/core/ast.hpp"
 
@@ -30,6 +34,41 @@ int main() {
 
   int total = 0;
   int failures = 0;
+  // The author's accepted groups have no domestic NANP NXX constraint.
+  for (const char* source : {"011 123 045 6789", "010 123 045 6789",
+                             "+1+0111230456789", "+1 0101230456789"}) {
+    cursiv::Document document(cursiv::TextDocument::create(
+        "memory:telephone", "telephone", 0, source));
+    document.language = &language.language;
+    document.parseResult = language.language.parser->parse(source);
+    const auto& result = document.parseResult;
+    const auto* number = result.value_as<telephone::ast::Number>();
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !number || !number->variation ||
+        number->variation->areaCode != "123" ||
+        number->variation->exchange != "045" ||
+        number->variation->subscriber != "6789") {
+      failures += fail(source, "teaching grammar groups were lost");
+      continue;
+    }
+    const std::string_view spelling(source);
+    if (number->hasCountryCode != spelling.starts_with("+1") ||
+        number->hasPlus != spelling.starts_with("+1+") || number->parent ||
+        number->variation->parent != number || result.nodes.size() != 2 ||
+        result.cst().text() != spelling)
+      failures += fail(source, "prefix flags or ownership were lost");
+    std::vector<cursiv::Diagnostic> diagnostics;
+    language.language.documentValidator->validateDocument(document, diagnostics);
+    if (!diagnostics.empty())
+      failures += fail(source, "unjustified numbering-plan diagnostic");
+  }
+  for (const char* source : {"4038675309", "011\t1230456789",
+                             "011123045678", "01012304567890"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() &&
+        result.diagnostics.empty())
+      failures += fail(source, "source outside teaching grammar parsed cleanly");
+  }
   for (const std::filesystem::directory_entry& entry :
        std::filesystem::directory_iterator(CURSIV_EXAMPLE_DIR)) {
     if (!entry.is_regular_file()) continue;

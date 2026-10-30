@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+LPC source follows a MudOS/FluffOS profile with inheritance, declarations, functions and structured expressions.
+
 ```
 inherit "/inc/global.h";
 
@@ -43,11 +45,6 @@ int init(){
     return c;
 }
 ```
-
-LPC is the C-like language LPMud drivers (and their descendants, LDMud,
-FluffOS) run: `inherit` pulls in another object's code, `->` calls a method
-or reads a field on an object, and a type omitted on a declaration is
-implicitly `mixed`.
 
 ## The command line
 

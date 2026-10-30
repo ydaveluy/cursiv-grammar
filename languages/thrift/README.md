@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Apache Thrift IDL with types, constants, services and annotations. Constants require an initializer.
+
 ```thrift
 namespace cpp example
 
@@ -43,10 +45,6 @@ service Geometry {
   double distance(1: Point a, 2: Point b),
 }
 ```
-
-A document is a run of headers (`include`, `namespace`) followed by
-definitions (`const`, `typedef`, `enum`, `senum`, `struct`, `union`,
-`exception`, `service`) — Apache Thrift's interface definition language.
 
 ## The command line
 

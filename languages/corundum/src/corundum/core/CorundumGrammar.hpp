@@ -36,46 +36,19 @@ struct Corundum : cursiv::GrammarSpec {
                  (lit<"'"> + many(EscapedQuote | (!cr<R"('\r\n)"> + any)) +
                   lit<"'">)> {};
 
-  struct TrueTok : terminal<kw<"true">, value<true>> {};
-  struct FalseTok : terminal<kw<"false">, value<false>> {};
 
-  struct PlainAssignOp : terminal<lit<"=">, value<ast::AssignOp::assign>> {};
-  struct AddAssignOp : terminal<lit<"+=">, value<ast::AssignOp::add>> {};
-  struct SubAssignOp : terminal<lit<"-=">, value<ast::AssignOp::sub>> {};
-  struct MulAssignOp : terminal<lit<"*=">, value<ast::AssignOp::mul>> {};
-  struct DivAssignOp : terminal<lit<"/=">, value<ast::AssignOp::div>> {};
-  struct ModAssignOp : terminal<lit<"%=">, value<ast::AssignOp::mod>> {};
-  struct ExpAssignOp : terminal<lit<"**=">, value<ast::AssignOp::exp>> {};
   static constexpr auto AnyAssignOp =
-      ref<PlainAssignOp> | ref<AddAssignOp> | ref<SubAssignOp> |
-      ref<MulAssignOp> | ref<DivAssignOp> | ref<ModAssignOp> |
-      ref<ExpAssignOp>;
+      as<ast::AssignOp::assign>(lit<"=">) | as<ast::AssignOp::add>(lit<"+=">) | as<ast::AssignOp::sub>(lit<"-=">) |
+      as<ast::AssignOp::mul>(lit<"*=">) | as<ast::AssignOp::div>(lit<"/=">) | as<ast::AssignOp::mod>(lit<"%=">) |
+      as<ast::AssignOp::exp>(lit<"**=">);
 
-  struct MulOp : terminal<lit<"*">, value<ast::BinOp::mul>> {};
-  struct DivOp : terminal<lit<"/">, value<ast::BinOp::div>> {};
-  struct ModOp : terminal<lit<"%">, value<ast::BinOp::mod>> {};
-  struct AddOp : terminal<lit<"+">, value<ast::BinOp::add>> {};
-  struct SubOp : terminal<lit<"-">, value<ast::BinOp::sub>> {};
-  struct ExpOp : terminal<lit<"**">, value<ast::BinOp::exp>> {};
-  struct ShlOp : terminal<lit<"<<">, value<ast::BinOp::shl>> {};
-  struct ShrOp : terminal<lit<">>">, value<ast::BinOp::shr>> {};
-  struct BitAndOp : terminal<lit<"&">, value<ast::BinOp::bit_and>> {};
-  struct BitOrOp : terminal<lit<"|">, value<ast::BinOp::bit_or>> {};
-  struct BitXorOp : terminal<lit<"^">, value<ast::BinOp::bit_xor>> {};
-  struct LessOp : terminal<lit<"<">, value<ast::BinOp::lt>> {};
-  struct GreaterOp : terminal<lit<">">, value<ast::BinOp::gt>> {};
-  struct LessEqOp : terminal<lit<"<=">, value<ast::BinOp::le>> {};
-  struct GreaterEqOp : terminal<lit<">=">, value<ast::BinOp::ge>> {};
-  struct EqOp : terminal<lit<"==">, value<ast::BinOp::eq>> {};
-  struct NotEqOp : terminal<lit<"!=">, value<ast::BinOp::ne>> {};
-  struct AndOp
-      : terminal<kw<"and"> | lit<"&&">, value<ast::BinOp::logical_and>> {};
-  struct OrOp
-      : terminal<kw<"or"> | lit<"||">, value<ast::BinOp::logical_or>> {};
+  struct MulOp : terminal<as<ast::BinOp::mul>(lit<"*">)> {};
+  struct AddOp : terminal<as<ast::BinOp::add>(lit<"+">)> {};
+  struct AndOp : terminal<as<ast::BinOp::logical_and>(kw<"and"> | lit<"&&">)> {
+  };
+  struct OrOp : terminal<as<ast::BinOp::logical_or>(kw<"or"> | lit<"||">)> {};
 
-  struct NotTok
-      : terminal<kw<"not"> | lit<"!">, value<ast::UnOp::logical_not>> {};
-  struct BitNotTok : terminal<lit<"~">, value<ast::UnOp::bit_not>> {};
+  struct NotTok : terminal<as<ast::UnOp::logical_not>(kw<"not"> | lit<"!">)> {};
 
   struct Stmt;
   struct Expression;
@@ -106,7 +79,7 @@ struct Corundum : cursiv::GrammarSpec {
 
   struct FuncArg
       : rule<create<ast::NamedArg>(
-                 assign<&ast::NamedArg::name>(ref<ID>) + ref<PlainAssignOp> +
+                 assign<&ast::NamedArg::name>(ref<ID>) + as<ast::AssignOp::assign>(lit<"=">) +
                  assign<&ast::NamedArg::value>(ref<Value>))  //
              | ref<Value>> {};
 
@@ -120,7 +93,7 @@ struct Corundum : cursiv::GrammarSpec {
             assign<&ast::StringLit::text>(ref<LITERAL>))> {};
   struct BoolLitAtom
       : rule<create<ast::BoolLit>(
-            assign<&ast::BoolLit::value>(ref<TrueTok> | ref<FalseTok>))> {};
+            assign<&ast::BoolLit::value>(as<true>(kw<"true">) | as<false>(kw<"false">)))> {};
 
   struct ArrayLitAtom
       : rule<lit<"["> +
@@ -135,19 +108,12 @@ struct Corundum : cursiv::GrammarSpec {
                              | ref<StringLitAtom> //
                              | (lit<"("> + ref<Value> + lit<")">)> {};
 
-  // A separate operator set from `Expression`'s: an infix table's operator
-  // tokens belong to one grouping in the whole grammar, so the two ladders
-  // cannot share `MulOp`/`AddOp` even though they spell the same text.
-  struct ValMulOp : terminal<lit<"*">, value<ast::BinOp::mul>> {};
-  struct ValDivOp : terminal<lit<"/">, value<ast::BinOp::div>> {};
-  struct ValModOp : terminal<lit<"%">, value<ast::BinOp::mod>> {};
-  struct ValAddOp : terminal<lit<"+">, value<ast::BinOp::add>> {};
-  struct ValSubOp : terminal<lit<"-">, value<ast::BinOp::sub>> {};
+  // Value is the narrower arithmetic domain used by the source grammar.
 
-  struct Value : infix<ValuePrimary, &ast::BinaryExpr::left,
-                       &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                       (left(ref<ValMulOp> | ref<ValDivOp> | ref<ValModOp>) >>  //
-                        left(ref<ValAddOp> | ref<ValSubOp>))> {};
+  struct Value : infix<ValuePrimary, ast::BinaryExpr,
+                       levels(left(as<ast::BinOp::mul>(lit<"*">) | as<ast::BinOp::div>(lit<"/">) |
+                                   as<ast::BinOp::mod>(lit<"%">)),  //
+                              left(as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::sub>(lit<"-">)))> {};
 
   struct ExprPrimary
       : rule<(ref<ReadAtom> +
@@ -162,28 +128,46 @@ struct Corundum : cursiv::GrammarSpec {
              | create<ast::NilLit>(kw<"nil">)                          //
              | (lit<"("> + ref<Expression> + lit<")">)> {};
 
-  struct Power : infix<ExprPrimary, &ast::BinaryExpr::left,
-                       &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                       left(ref<ExpOp>)> {};
+  struct Power : infix<ExprPrimary, ast::BinaryExpr,
+                       left(as<ast::BinOp::exp>(lit<"**">))> {};
 
   struct UnaryExpr
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<NotTok> | ref<BitNotTok>) +
+                 assign<&ast::UnaryExpr::op>(ref<NotTok> | as<ast::UnOp::bit_not>(lit<"~">)) +
                  assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
              | ref<Power>> {};
 
   struct Expression
-      : infix<UnaryExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<MulOp> | ref<DivOp> | ref<ModOp>) >>         //
-               left(ref<AddOp> | ref<SubOp>) >>                     //
-               left(ref<ShlOp> | ref<ShrOp>) >>                     //
-               left(ref<BitAndOp>) >>                               //
-               left(ref<BitOrOp> | ref<BitXorOp>) >>                //
-               left(ref<LessOp> | ref<GreaterOp> | ref<LessEqOp> |  //
-                    ref<GreaterEqOp>) >>                            //
-               left(ref<EqOp> | ref<NotEqOp>) >>                    //
-               left(ref<OrOp> | ref<AndOp>))> {};
+      : infix<UnaryExpr, ast::BinaryExpr,
+              levels(left(ref<MulOp> | as<ast::BinOp::div>(lit<"/">) | as<ast::BinOp::mod>(lit<"%">)),          //
+                     left(ref<AddOp> | as<ast::BinOp::sub>(lit<"-">)),                       //
+                     left(as<ast::BinOp::shl>(lit<"<<">) | as<ast::BinOp::shr>(lit<">>">)),                       //
+                     left(as<ast::BinOp::bit_and>(lit<"&">)),                                 //
+                     left(as<ast::BinOp::bit_or>(lit<"|">) | as<ast::BinOp::bit_xor>(lit<"^">)),                  //
+                     left(as<ast::BinOp::lt>(lit<"<">) | as<ast::BinOp::gt>(lit<">">) | as<ast::BinOp::le>(lit<"<=">) |  //
+                          as<ast::BinOp::ge>(lit<">=">)),                              //
+                     left(as<ast::BinOp::eq>(lit<"==">) | as<ast::BinOp::ne>(lit<"!=">)),                      //
+                     left(ref<OrOp> | ref<AndOp>))> {};
+
+  struct Condition;
+  struct Comparison
+      : rule<create<ast::BinaryExpr>(
+            assign<&ast::BinaryExpr::left>(ref<Value>) +
+            assign<&ast::BinaryExpr::op>(
+                as<ast::BinOp::lt>(lit<"<">) | as<ast::BinOp::gt>(lit<">">) |
+                as<ast::BinOp::le>(lit<"<=">) | as<ast::BinOp::ge>(lit<">=">) |
+                as<ast::BinOp::eq>(lit<"==">) | as<ast::BinOp::ne>(lit<"!=">)) +
+            assign<&ast::BinaryExpr::right>(ref<Value>))> {};
+  struct ConditionAtom
+      : rule<ref<Comparison> | (lit<"("> + ref<Condition> + lit<")">)> {};
+  // The author's comparison_list is right-recursive, with all four
+  // boolean/bitwise spellings on one level. This differs from rvalue.
+  struct Condition
+      : infix<ConditionAtom, ast::BinaryExpr,
+              right(ref<AndOp> | ref<OrOp> |
+                    as<ast::BinOp::logical_and>(lit<"&">) |
+                    as<ast::BinOp::logical_or>(lit<"|">))> {};
+  static constexpr auto ConditionalValue = ref<Condition> | ref<Expression>;
 
   static constexpr auto Terminator = some(lit<";"> | ref<CRLF>);
 
@@ -192,44 +176,44 @@ struct Corundum : cursiv::GrammarSpec {
              some(option(append<&ast::Block::statements>(ref<Stmt>)) +
                   (lit<";"> | ref<CRLF>))> {};
 
-  struct RetryRule : rule<create<ast::Retry>(kw<"retry">)> {};
-  struct BreakRule : rule<create<ast::Break>(kw<"break">)> {};
+  struct Retry : rule<create<ast::Retry>(kw<"retry">)> {};
+  struct Break : rule<create<ast::Break>(kw<"break">)> {};
 
   struct LoopBlock
       : rule<create<ast::Block> +
              some((append<&ast::Block::statements>(ref<Stmt>) + Terminator) |
-                  (append<&ast::Block::statements>(ref<RetryRule>) +
+                  (append<&ast::Block::statements>(ref<Retry>) +
                    Terminator) |
-                  (append<&ast::Block::statements>(ref<BreakRule>) +
+                  (append<&ast::Block::statements>(ref<Break>) +
                    Terminator))> {};
 
-  struct ElsIfRule
+  struct ElsIf
       : rule<kw<"elsif"> +
-             create<ast::ElsIf>(assign<&ast::ElsIf::cond>(ref<Expression>) +
+             create<ast::ElsIf>(assign<&ast::ElsIf::cond>(ConditionalValue) +
                                 ref<CRLF> +
                                 assign<&ast::ElsIf::body>(ref<LoopBlock>))> {
   };
 
   static constexpr auto ConditionalTail =
-      assign<&ast::Conditional::cond>(ref<Expression>) + ref<CRLF> +
+      assign<&ast::Conditional::cond>(ConditionalValue) + ref<CRLF> +
       assign<&ast::Conditional::thenBody>(ref<LoopBlock>) +
-      many(append<&ast::Conditional::elifs>(ref<ElsIfRule>)) +
+      many(append<&ast::Conditional::elifs>(ref<ElsIf>)) +
       option(kw<"else"> + ref<CRLF> +
              assign<&ast::Conditional::elseBody>(ref<LoopBlock>));
 
-  struct IfRule
+  struct If
       : rule<kw<"if"> + create<ast::Conditional>(ConditionalTail) +
              kw<"end">> {};
 
-  struct UnlessRule
+  struct Unless
       : rule<create<ast::Conditional>(
                  flag<&ast::Conditional::negated>(kw<"unless">) +
                  ConditionalTail) +
              kw<"end">> {};
 
-  struct WhileRule
+  struct While
       : rule<kw<"while"> +
-             create<ast::While>(assign<&ast::While::cond>(ref<Expression>) +
+             create<ast::While>(assign<&ast::While::cond>(ConditionalValue) +
                                 ref<CRLF> +
                                 assign<&ast::While::body>(ref<LoopBlock>)) +
              kw<"end">> {};
@@ -242,27 +226,27 @@ struct Corundum : cursiv::GrammarSpec {
 
   static constexpr auto ForClauses =
       some(append<&ast::For::init>(ref<AssignItem>), lit<",">) + lit<";"> +
-      assign<&ast::For::cond>(ref<Expression>) + lit<";"> +
+      assign<&ast::For::cond>(ConditionalValue) + lit<";"> +
       some(append<&ast::For::step>(ref<AssignItem>), lit<",">);
 
-  struct ForRule
+  struct For
       : rule<kw<"for"> +
              create<ast::For>(
                  ((lit<"("> + ForClauses + lit<")">) | ForClauses) +
                  ref<CRLF> + assign<&ast::For::body>(ref<LoopBlock>)) +
              kw<"end">> {};
 
-  struct ReturnRule
+  struct Return
       : rule<kw<"return"> +
              create<ast::Return>(assign<&ast::Return::value>(ref<Value>))> {
   };
 
-  struct RequireRule
+  struct Require
       : rule<kw<"require"> +
              create<ast::Require>(
                  assign<&ast::Require::value>(ref<StringLitAtom>))> {};
 
-  struct PirRule
+  struct Pir
       : rule<kw<"pir"> +
              create<ast::Pir>(ref<CRLF> + assign<&ast::Pir::body>(ref<Block>)) +
              kw<"end">> {};
@@ -270,7 +254,7 @@ struct Corundum : cursiv::GrammarSpec {
   static constexpr auto ParamList =
       some(append<&ast::FuncDef::params>(ref<ID>), lit<",">);
 
-  struct FuncDefRule
+  struct FuncDef
       : rule<kw<"def"> +
              create<ast::FuncDef>(
                  assign<&ast::FuncDef::name>(ref<ID_FUNCTION> | ref<ID>) +
@@ -279,18 +263,18 @@ struct Corundum : cursiv::GrammarSpec {
                  ref<CRLF> + assign<&ast::FuncDef::body>(ref<Block>)) +
              kw<"end">> {};
 
-  struct Stmt : rule<ref<IfRule>        //
-                     | ref<UnlessRule>  //
-                     | ref<WhileRule>   //
-                     | ref<ForRule>     //
-                     | ref<ReturnRule>  //
-                     | ref<RequireRule> //
-                     | ref<PirRule>     //
-                     | ref<FuncDefRule> //
+  struct Stmt : rule<ref<If>        //
+                     | ref<Unless>  //
+                     | ref<While>   //
+                     | ref<For>     //
+                     | ref<Return>  //
+                     | ref<Require> //
+                     | ref<Pir>     //
+                     | ref<FuncDef> //
                      | ref<Expression>> {};
 
   using entry = Block;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

@@ -197,6 +197,28 @@ inline bool run() {
     check(errors == 6,
           "structural and conflicting-result errors validate at runtime");
   }
+  // PGN1994 requires equality even when exactly one marker is '*'. The
+  // forgiving python-chess reader does not itself diagnose all conflicts.
+  for (const char* source : {"[Result \"1-0\"]\n\n1.e4 *", "[Result \"*\"]\n\n1.e4 1-0"}) {
+    cursiv::Document doc(cursiv::TextDocument::create("memory:result", "pgn", 0, source));
+    doc.parseResult = parse(source);
+    unsigned errors = 0;
+    auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
+    cursiv::ValidationAcceptor accept(sink, doc, source);
+    for (const auto* node : doc.parseResult.nodes)
+      if (const auto* game = cursiv::ast_cast<ast::Game>(node))
+        language.language.validator->checkGame(*game, accept);
+    check(errors==1, "star versus decisive Result mismatch reports a diagnostic");
+  }
+  {
+    const auto r=parse("% initial\n\n% escaped\n1.e4\n% ignored e5\ne5 *");
+    unsigned moves=0;
+    for(const auto* node:r.nodes) moves+=cursiv::ast_cast<ast::SanMove>(node)!=nullptr;
+    check(moves==2, "physical percent escape lines preserve following moves");
+    const auto bad=language.language.parser->parse("1.e4 % garbage e5 *");
+    check(!bad.accepted||bad.cst().recovered()||!bad.diagnostics.empty(),
+          "inline percent cannot silently discard the remaining movetext");
+  }
   return ok;
 }
 }  // namespace code_audit

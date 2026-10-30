@@ -2,8 +2,8 @@ a >< b == (a, b)
 
 * a == [a]
 
-Wrap(a +) == a
+Wrap a == a
 
 a :+: b :== InL a | InR b
 
-sum (n +) :: num
+sum, (+) :: num

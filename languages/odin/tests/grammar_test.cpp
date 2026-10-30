@@ -6,6 +6,7 @@
 #include "cursiv/core/workspace/DocumentFactory.hpp"
 #include "odin/core/CoreServices.hpp"
 #include "odin/core/ast.hpp"
+#include "native_followup.hpp"
 // The smoke test of the language: every corpus document parses clean with no
 // diagnostics, one is read back field by field to catch a converter that
 // silently mismaps its value, and the coverage document (constructs the
@@ -31,6 +32,21 @@ std::string read_file(const std::string& path) {
                      std::istreambuf_iterator<char>());
 }
 
+void parse_failure(const cursiv::ParseResult& result, const std::string& source) {
+  std::fprintf(stderr, "accepted=%d recovered=%d diagnostics=%zu\n", result.accepted,
+               result.cst().recovered(), result.diagnostics.size());
+  for (const auto& diagnostic : result.diagnostics) {
+    const auto start = diagnostic.begin > 80 ? diagnostic.begin - 80 : 0;
+    const auto context = std::string_view(source).substr(start, 160);
+    std::fprintf(stderr, "kind=%u begin=%zu end=%zu element=%u message=%.*s\n"
+                         "context starts at %zu: %.*s\n",
+                 static_cast<unsigned>(diagnostic.kind), std::size_t(diagnostic.begin),
+                 std::size_t(diagnostic.end), static_cast<unsigned>(diagnostic.element),
+                 int(diagnostic.message.size()), diagnostic.message.data(), start,
+                 int(context.size()), context.data());
+  }
+}
+
 const char* const kExamples[] = {"test.odin", "demo.odin"};
 
 }  // namespace
@@ -39,6 +55,7 @@ static int audit_regression() {
   const auto language = cursiv::create_language<odin::OdinCoreServices,
                                                 odin::OdinSharedCoreServices,
                                                 odin::install_core_module>();
+  if (!odin_native_followup(*language.language.parser)) return fail("native follow-up");
   {
     const auto r = language.language.parser->parse(
         "package p\nS :: struct #simple #packed #align(4) #raw_union "
@@ -84,10 +101,10 @@ int main() {
     if (text.empty()) return fail((std::string(name) + ": empty or unreadable").c_str());
 
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    if (result.cst().recovered())
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) {
+      parse_failure(result, text);
       return fail((std::string(name) + ": does not parse clean").c_str());
-    if (!result.diagnostics.empty())
-      return fail((std::string(name) + ": has diagnostics").c_str());
+    }
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr || root->type != &cursiv::ast_type_tag<odin::ast::Unit>)
@@ -106,8 +123,10 @@ int main() {
     const std::string text = read_file(std::string(CURSIV_TEST_DIR) + "/coverage.odin");
     if (text.empty()) return fail("coverage.odin: empty or unreadable");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    if (result.cst().recovered()) return fail("coverage.odin: does not parse clean");
-    if (!result.diagnostics.empty()) return fail("coverage.odin: has diagnostics");
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) {
+      parse_failure(result, text);
+      return fail("coverage.odin: does not parse clean");
+    }
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr || root->type != &cursiv::ast_type_tag<odin::ast::Unit>)
       return fail("coverage.odin: built no Unit");
@@ -185,8 +204,10 @@ int main() {
   // Precedence: `x := <expr>` at package scope, read back as one BinaryExpr
   // (or UnaryExpr) tree. Each check keeps its program text alive for as
   // long as the tree built from it is read.
+  cursiv::ParseResult expressionResult;
   auto exprValue = [&](const std::string& text) -> const odin::ast::Expr* {
-    const cursiv::ParseResult r = language.language.parser->parse(text);
+    expressionResult = language.language.parser->parse(text);
+    const auto& r = expressionResult;
     if (r.cst().recovered() || !r.diagnostics.empty()) return nullptr;
     const auto& u = *static_cast<const odin::ast::Unit*>(r.value);
     if (u.items.size() != 1 ||

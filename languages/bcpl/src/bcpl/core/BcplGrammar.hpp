@@ -14,29 +14,65 @@ struct Bcpl : cursiv::GrammarSpec {
 
   struct WS : terminal<some(cr<R"( \t\n\r)">)> {};
   struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
-  struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
+  struct ML_COMMENT
+      : terminal<lit<"/*"> +
+                 many(ref<ML_COMMENT> | (!lit<"/*"> + !lit<"*/"> + any)) +
+                 lit<"*/">> {};
 
   struct IdentTok : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9._">)> {};
 
-  struct Digits : terminal<some(cr<"0-9">)> {};
-  struct OctalNumber : terminal<lit<"#"> + some(cr<"0-7">)> {};
+  static constexpr auto DecimalDigits = d + many(d | lit<"_">);
+  template <auto Digit>
+  static constexpr auto RadixDigits = many(lit<"_">) +
+      some(Digit + many(lit<"_">));
+  struct Digits : terminal<DecimalDigits> {};
+  struct OctalNumber
+      : terminal<lit<"#"> + option(cr<"oO">) + RadixDigits<cr<"0-7">>> {};
   struct HexNumber
-      : terminal<(lit<"#X"> | lit<"#x">) + some(cr<"0-9A-Fa-f">)> {};
-  struct BinaryNumber : terminal<(lit<"#B"> | lit<"#b">) + some(cr<"01">)> {};
+      : terminal<(lit<"#X"> | lit<"#x">) + RadixDigits<cr<"0-9A-Fa-f">>> {};
+  struct BinaryNumber
+      : terminal<(lit<"#B"> | lit<"#b">) + RadixDigits<cr<"01">>> {};
+  static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + DecimalDigits;
+  static constexpr auto FloatBody =
+      (DecimalDigits + lit<".", !lit<".">> + many(d | lit<"_">) +
+       option(Exponent)) |
+      (lit<"."> + DecimalDigits + option(Exponent)) |
+      (DecimalDigits + Exponent);
+  struct FloatNumber : terminal<FloatBody> {};
 
-  // No escape is lexed: BCPL's `*n`-style runtime escapes reach the AST raw.
-  struct CharConst : terminal<lit<"'"> + option(lit<"*">) + any + lit<"'">> {};
-  struct StringConst : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">> {};
+  // Keep the complete source spelling; interpretation depends on the
+  // compiler's character encoding and word length.
+  static constexpr auto Hex = cr<"0-9A-Fa-f">;
+  static constexpr auto EncodingSwitch = lit<"*#"> + cr<"gGuU">;
+  static constexpr auto CharEscape =
+      lit<"*"> + ((cr<"xX"> + repeat<2>(Hex)) |
+                  repeat<3>(cr<"0-7">) |
+                  (lit<"##"> + repeat<1, 8>(Hex)) |
+                  (lit<"#"> + repeat<1, 4>(Hex)) |
+                  cr<R"(nNcCpPsSbBtTeE"'*)">);
+  struct CharConst
+      : terminal<lit<"'"> + many(EncodingSwitch) +
+                 (CharEscape | cr<R"(^'*\r\n)">) + lit<"'">> {};
+  static constexpr auto StringContinuation =
+      lit<"*"> + some(s | ref<SL_COMMENT>) + lit<"*">;
+  struct StringConst
+      : terminal<lit<"\""> +
+                 many(StringContinuation | (lit<"*"> + any) |
+                      cr<R"(^"*)">) + lit<"\"">> {};
 
   struct SignedNumber
-      : terminal<(lit<"+"> | lit<"-">) + some(cr<"0-9">)> {};
+      : terminal<option(cr<"+-">) +
+                 (FloatBody | ref<OctalNumber> | ref<HexNumber> |
+                  ref<BinaryNumber> | DecimalDigits)> {};
 
   // Builds a node: most name sites hold `Ident*`. Where a field is a bare
   // `string_view` instead, the raw `IdentTok` is used directly.
-  struct Identifier : rule<assign<&ast::Ident::name>(ref<IdentTok>)> {};
+  struct Identifier
+      : rule<option(flag<&ast::Ident::floating>(kw<"FLT">)) +
+             assign<&ast::Ident::name>(ref<IdentTok>)> {};
 
   static constexpr auto MultOp = lit<"*"> | lit<"/"> | kw<"MOD"> | kw<"REM"> |
-                                 lit<"#*"> | kw<"#MOD"> | kw<"#REM">;
+                                 lit<"#*"> | lit<"#/"> | kw<"#MOD"> | kw<"#REM">;
   static constexpr auto AddOp = lit<"+"> | lit<"-"> | lit<"#+"> | lit<"#-">;
   static constexpr auto Relop = lit<"="> | kw<"EQ"> | lit<"~="> | kw<"NE"> |
                                 lit<"<="> | lit<"<"> | lit<">="> | lit<">"> |
@@ -51,7 +87,8 @@ struct Bcpl : cursiv::GrammarSpec {
   static constexpr auto AssOp =
       lit<":="> | lit<"*:="> | lit<"/:="> | kw<"MOD:="> | lit<"+:="> |
       lit<"~:="> | lit<"#:="> | lit<"#*:="> | lit<"#/:="> | kw<"#MOD:="> |
-      lit<"#+:="> | lit<"#~:="> | lit<"<<:="> | lit<">>:="> | lit<"&:="> |
+      lit<"-:="> | lit<"#+:="> | lit<"#-:="> | lit<"#~:="> |
+      lit<"<<:="> | lit<">>:="> | lit<"&:="> |
       lit<"|:="> | kw<"EQV:="> | kw<"NEQV:="> | kw<"XOR:=">;
   // `$(`/`{` and `$)`/`}` are alternate spellings of the same bracket:
   // BCPL does not require a block's closer to match its opener's spelling.
@@ -71,7 +108,7 @@ struct Bcpl : cursiv::GrammarSpec {
   struct PostfixExpr;
   struct MultExpr;
   struct ShiftExpr;
-  struct CompoundStmtRule;
+  struct CompoundStmt;
 
   // -- Constant expressions (8.8.4): no postfix, no relational/logical
   // levels, no `nonl` gating -- a smaller, ungated grammar of its own. --
@@ -82,7 +119,7 @@ struct Bcpl : cursiv::GrammarSpec {
              | create<ast::NumberLit>(
                    assign<&ast::NumberLit::text>(
                        ref<OctalNumber> | ref<HexNumber> | ref<Digits> |
-                       ref<BinaryNumber>))  //
+                       ref<BinaryNumber> | ref<FloatNumber>))  //
              | ref<Identifier>  //
              | create<ast::BoolLit>(
                    flag<&ast::BoolLit::value>(kw<"TRUE">))  //
@@ -99,13 +136,12 @@ struct Bcpl : cursiv::GrammarSpec {
              | ref<ConstPrimary>> {};
 
   struct ConstExpr
-      : infix<ConstUnary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(MultOp) >>          //
-               left(AddOp) >>           //
-               left(ShiftOp) >>         //
-               left(lit<"&">) >>        //
-               left(lit<"|">))> {};
+      : infix<ConstUnary, ast::BinaryExpr,
+              levels(left(MultOp),    //
+                     left(AddOp),     //
+                     left(ShiftOp),   //
+                     left(lit<"&">),  //
+                     left(lit<"|">))> {};
 
   // -- Expressions (8.8.3): postfix, then a manual precedence climb so
   // every step can be gated by `nonl` -- no operator continues onto a new
@@ -171,7 +207,7 @@ struct Bcpl : cursiv::GrammarSpec {
              | create<ast::NumberLit>(
                    assign<&ast::NumberLit::text>(
                        ref<OctalNumber> | ref<HexNumber> | ref<Digits> |
-                       ref<BinaryNumber>))  //
+                       ref<BinaryNumber> | ref<FloatNumber>))  //
              | create<ast::BoolLit>(
                    flag<&ast::BoolLit::value>(kw<"TRUE">))  //
              | create<ast::BoolLit>(kw<"FALSE">)  //
@@ -229,6 +265,7 @@ struct Bcpl : cursiv::GrammarSpec {
       : rule<ref<Primary> +
             many(!gap::line +
                  (nest<ast::CallExpr, &ast::CallExpr::callee>(
+                      option(flag<&ast::CallExpr::method>(lit<"#">)) +
                       lit<"("> +
                       many(append<&ast::CallExpr::args>(ref<Expression>),
                            lit<",">) +
@@ -295,46 +332,47 @@ struct Bcpl : cursiv::GrammarSpec {
   struct Expression
       : rule<create<ast::CondExpr>(
                  assign<&ast::CondExpr::cond>(ref<EqvExpr>) + !gap::line +
-                 Fcond + assign<&ast::CondExpr::thenValue>(ref<Expression>) +
+                 assign<&ast::CondExpr::op>(Fcond) +
+                 assign<&ast::CondExpr::thenValue>(ref<Expression>) +
                  lit<","> +
                  assign<&ast::CondExpr::elseValue>(ref<Expression>))  //
              | ref<EqvExpr>> {};
 
   // -- Declarations (8.8.6) --
 
-  struct ManifestItemRule
+  struct ManifestItem
       : rule<create<ast::ManifestItem>(
             assign<&ast::ManifestItem::name>(ref<Identifier>) +
             option((lit<"="> | kw<"EQ">) +
                    assign<&ast::ManifestItem::value>(ref<ConstExpr>)))> {};
 
-  struct ManifestDeclRule
+  struct ManifestDecl
       : rule<kw<"MANIFEST"> + OB +
-            append<&ast::ManifestDecl::items>(ref<ManifestItemRule>) +
+            append<&ast::ManifestDecl::items>(ref<ManifestItem>) +
             many(Semi +
-                 append<&ast::ManifestDecl::items>(ref<ManifestItemRule>)) +
+                 append<&ast::ManifestDecl::items>(ref<ManifestItem>)) +
             CB> {};
 
-  struct StaticDeclRule
+  struct StaticDecl
       : rule<kw<"STATIC"> + OB +
-            append<&ast::StaticDecl::items>(ref<ManifestItemRule>) +
+            append<&ast::StaticDecl::items>(ref<ManifestItem>) +
             many(Semi +
-                 append<&ast::StaticDecl::items>(ref<ManifestItemRule>)) +
+                 append<&ast::StaticDecl::items>(ref<ManifestItem>)) +
             CB> {};
 
-  struct GlobalItemRule
+  struct GlobalItem
       : rule<create<ast::GlobalItem>(
             assign<&ast::GlobalItem::name>(ref<Identifier>) +
             option(lit<":"> +
                    assign<&ast::GlobalItem::value>(ref<ConstExpr>)))> {};
 
-  struct GlobalDeclRule
+  struct GlobalDecl
       : rule<kw<"GLOBAL"> + OB +
-            append<&ast::GlobalDecl::items>(ref<GlobalItemRule>) +
-            many(Semi + append<&ast::GlobalDecl::items>(ref<GlobalItemRule>)) +
+            append<&ast::GlobalDecl::items>(ref<GlobalItem>) +
+            many(Semi + append<&ast::GlobalDecl::items>(ref<GlobalItem>)) +
             CB> {};
 
-  struct SimpleDefRule
+  struct SimpleDef
       : rule<append<&ast::SimpleDef::names>(ref<Identifier>) +
             many(lit<","> + append<&ast::SimpleDef::names>(ref<Identifier>)) +
             (lit<"="> | kw<"EQ">) +
@@ -342,12 +380,12 @@ struct Bcpl : cursiv::GrammarSpec {
             many(lit<","> +
                  append<&ast::SimpleDef::values>(ref<Expression>))> {};
 
-  struct VectorDefRule
+  struct VectorDef
       : rule<assign<&ast::VectorDef::name>(ref<Identifier>) +
             (lit<"="> | kw<"EQ">) + kw<"VEC"> +
             assign<&ast::VectorDef::size>(ref<ConstExpr>)> {};
 
-  struct FunctionDefRule
+  struct FunctionDef
       : rule<assign<&ast::FunctionDef::name>(ref<Identifier>) + lit<"("> +
             option(append<&ast::FunctionDef::params>(ref<Identifier>) +
                    many(lit<","> + append<&ast::FunctionDef::params>(
@@ -355,7 +393,7 @@ struct Bcpl : cursiv::GrammarSpec {
             lit<")"> + (lit<"="> | kw<"EQ">) +
             assign<&ast::FunctionDef::body>(ref<Expression>)> {};
 
-  struct RoutineDefRule
+  struct RoutineDef
       : rule<assign<&ast::RoutineDef::name>(ref<Identifier>) + lit<"("> +
             option(append<&ast::RoutineDef::params>(ref<Identifier>) +
                    many(lit<","> + append<&ast::RoutineDef::params>(
@@ -363,19 +401,19 @@ struct Bcpl : cursiv::GrammarSpec {
             lit<")"> + kw<"BE"> +
             assign<&ast::RoutineDef::body>(ref<Command>)> {};
 
-  struct DefinitionRule
-      : rule<ref<SimpleDefRule> | ref<VectorDefRule> | ref<FunctionDefRule> |
-            ref<RoutineDefRule>> {};
+  struct Definition
+      : rule<ref<SimpleDef> | ref<VectorDef> | ref<FunctionDef> |
+            ref<RoutineDef>> {};
 
-  struct LetDeclRule
+  struct LetDecl
       : rule<kw<"LET"> +
-            append<&ast::LetDecl::definitions>(ref<DefinitionRule>) +
+            append<&ast::LetDecl::definitions>(ref<Definition>) +
             many(kw<"AND"> +
-                 append<&ast::LetDecl::definitions>(ref<DefinitionRule>))> {};
+                 append<&ast::LetDecl::definitions>(ref<Definition>))> {};
 
   struct Declaration
-      : rule<ref<LetDeclRule> | ref<ManifestDeclRule> | ref<StaticDeclRule> |
-            ref<GlobalDeclRule>> {};
+      : rule<ref<LetDecl> | ref<ManifestDecl> | ref<StaticDecl> |
+            ref<GlobalDecl>> {};
 
   // -- Commands (8.8.8-8.8.10) --
 
@@ -392,30 +430,31 @@ struct Bcpl : cursiv::GrammarSpec {
             many(lit<","> +
                  append<&ast::AssignStmt::values>(ref<Expression>)))> {};
 
-  struct SimpleStmtRule
+  struct SimpleStmt
       : rule<create<ast::SimpleStmt>(assign<&ast::SimpleStmt::kw>(
             kw<"BREAK"> | kw<"LOOP"> | kw<"ENDCASE"> | kw<"RETURN"> |
             kw<"FINISH">))> {};
 
-  struct GotoStmtRule
+  struct GotoStmt
       : rule<create<ast::GotoStmt>(
             kw<"GOTO"> + assign<&ast::GotoStmt::target>(ref<Expression>))> {};
 
   // A call used as a statement is one call layer over a bare primary, not
   // the general postfix chain: `f(x)(y)` is not a statement, only an
   // expression.
-  struct RoutineCmdRule
+  struct RoutineCmd
       : rule<create<ast::CallStmt>(
-            assign<&ast::CallStmt::callee>(ref<Primary>) + lit<"("> +
+            assign<&ast::CallStmt::callee>(ref<Primary>) +
+            option(flag<&ast::CallStmt::method>(lit<"#">)) + lit<"("> +
             many(append<&ast::CallStmt::args>(ref<Expression>), lit<",">) +
             lit<")">)> {};
 
-  struct ResultisStmtRule
+  struct ResultisStmt
       : rule<create<ast::ResultisStmt>(
             kw<"RESULTIS"> +
             assign<&ast::ResultisStmt::value>(ref<Expression>))> {};
 
-  struct CompoundStmtRule
+  struct CompoundStmt
       : rule<create<ast::CompoundStmt>(
             OB +
             option(append<&ast::CompoundStmt::commands>(ref<Command>) +
@@ -423,14 +462,14 @@ struct Bcpl : cursiv::GrammarSpec {
                         append<&ast::CompoundStmt::commands>(ref<Command>))) +
             CB)> {};
 
-  struct SwitchonStmtRule
+  struct SwitchonStmt
       : rule<create<ast::SwitchonStmt>(
             kw<"SWITCHON"> +
             assign<&ast::SwitchonStmt::value>(ref<Expression>) +
             kw<"INTO"> +
-            assign<&ast::SwitchonStmt::body>(ref<CompoundStmtRule>))> {};
+            assign<&ast::SwitchonStmt::body>(ref<CompoundStmt>))> {};
 
-  struct BlockRule
+  struct Block
       : rule<create<ast::Block>(
             OB + append<&ast::Block::declarations>(ref<Declaration>) +
             many(Semi + append<&ast::Block::declarations>(ref<Declaration>)) +
@@ -442,9 +481,9 @@ struct Bcpl : cursiv::GrammarSpec {
 
   // Every form `REPEAT`/`REPEATUNTIL`/`REPEATWHILE` may suffix, one rule.
   struct BaseStmt
-      : rule<(ref<AssignStmtRule> | ref<SimpleStmtRule> | ref<GotoStmtRule> |
-             ref<RoutineCmdRule> | ref<ResultisStmtRule> |
-             ref<SwitchonStmtRule> | ref<CompoundStmtRule> | ref<BlockRule>) +
+      : rule<(ref<AssignStmtRule> | ref<SimpleStmt> | ref<GotoStmt> |
+             ref<RoutineCmd> | ref<ResultisStmt> |
+             ref<SwitchonStmt> | ref<CompoundStmt> | ref<Block>) +
             many(nest<ast::RepeatStmt, &ast::RepeatStmt::body>(
                 assign<&ast::RepeatStmt::kind>(kw<"REPEAT">)  //
                 | (assign<&ast::RepeatStmt::kind>(kw<"REPEATUNTIL">) +
@@ -452,17 +491,17 @@ struct Bcpl : cursiv::GrammarSpec {
                 | (assign<&ast::RepeatStmt::kind>(kw<"REPEATWHILE">) +
                    assign<&ast::RepeatStmt::cond>(ref<Expression>))))> {};
 
-  struct UntilStmtRule
+  struct UntilStmt
       : rule<create<ast::UntilStmt>(
             kw<"UNTIL"> + assign<&ast::UntilStmt::cond>(ref<Expression>) +
             kw<"DO"> + assign<&ast::UntilStmt::body>(ref<Command>))> {};
 
-  struct WhileStmtRule
+  struct WhileStmt
       : rule<create<ast::WhileStmt>(
             kw<"WHILE"> + assign<&ast::WhileStmt::cond>(ref<Expression>) +
             kw<"DO"> + assign<&ast::WhileStmt::body>(ref<Command>))> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<create<ast::ForStmt>(
             kw<"FOR"> + assign<&ast::ForStmt::var>(ref<Identifier>) +
             (lit<"="> | kw<"EQ">) +
@@ -471,7 +510,7 @@ struct Bcpl : cursiv::GrammarSpec {
             option(kw<"BY"> + assign<&ast::ForStmt::by>(ref<ConstExpr>)) +
             option(kw<"DO">) + assign<&ast::ForStmt::body>(ref<Command>))> {};
 
-  struct TestStmtRule
+  struct TestStmt
       : rule<create<ast::TestStmt>(
             kw<"TEST"> + assign<&ast::TestStmt::cond>(ref<Expression>) +
             option(kw<"THEN"> | kw<"DO">) +
@@ -479,60 +518,60 @@ struct Bcpl : cursiv::GrammarSpec {
             (kw<"ELSE"> | kw<"OR">) +
             assign<&ast::TestStmt::elseBranch>(ref<Command>))> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<create<ast::IfStmt>(
             kw<"IF"> + assign<&ast::IfStmt::cond>(ref<Expression>) +
             option(kw<"THEN"> | kw<"DO">) +
             assign<&ast::IfStmt::thenBranch>(ref<Command>))> {};
 
-  struct UnlessStmtRule
+  struct UnlessStmt
       : rule<create<ast::UnlessStmt>(
             kw<"UNLESS"> + assign<&ast::UnlessStmt::cond>(ref<Expression>) +
             option(kw<"THEN"> | kw<"DO">) +
             assign<&ast::UnlessStmt::thenBranch>(ref<Command>))> {};
 
   struct UnlabelledCommand
-      : rule<ref<BaseStmt> | ref<UntilStmtRule> | ref<WhileStmtRule> |
-            ref<ForStmtRule> | ref<UnlessStmtRule> | ref<TestStmtRule> |
-            ref<IfStmtRule>> {};
+      : rule<ref<BaseStmt> | ref<UntilStmt> | ref<WhileStmt> |
+            ref<ForStmt> | ref<UnlessStmt> | ref<TestStmt> |
+            ref<IfStmt>> {};
 
-  struct LabelPrefixRule
+  struct LabelPrefix
       : rule<create<ast::LabelPrefix>(
             assign<&ast::LabelPrefix::name>(ref<IdentTok>) + lit<":">)> {};
 
-  struct CasePrefixRule
+  struct CasePrefix
       : rule<create<ast::CasePrefix>(
             kw<"CASE"> + assign<&ast::CasePrefix::value>(ref<ConstExpr>) +
             lit<":">)> {};
 
-  struct DefaultPrefixRule
+  struct DefaultPrefix
       : rule<create<ast::DefaultPrefix>(kw<"DEFAULT"> + lit<":">)> {};
 
-  struct PrefixRule
-      : rule<ref<LabelPrefixRule> | ref<CasePrefixRule> |
-            ref<DefaultPrefixRule>> {};
+  struct Prefix
+      : rule<ref<LabelPrefix> | ref<CasePrefix> |
+            ref<DefaultPrefix>> {};
 
   struct Command
       : rule<create<ast::Command>(
-                 many(append<&ast::Command::prefixes>(ref<PrefixRule>)) +
+                 many(append<&ast::Command::prefixes>(ref<Prefix>)) +
                  assign<&ast::Command::body>(ref<UnlabelledCommand>))  //
              | create<ast::Command>(
-                   some(append<&ast::Command::prefixes>(ref<PrefixRule>)))> {
+                   some(append<&ast::Command::prefixes>(ref<Prefix>)))> {
   };
 
-  struct DirectiveRule
+  struct Directive
       : rule<create<ast::Directive>(
             assign<&ast::Directive::kw>(kw<"GET"> | kw<"SECTION">) +
             assign<&ast::Directive::text>(ref<StringConst>))> {};
 
-  struct ProgramRule
-      : rule<many(append<&ast::Program::directives>(ref<DirectiveRule>)) +
+  struct Program
+      : rule<many(append<&ast::Program::directives>(ref<Directive>)) +
             append<&ast::Program::declarations>(ref<Declaration>) +
             many(Semi +
                  append<&ast::Program::declarations>(ref<Declaration>))> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
   using hidden = list<ML_COMMENT, SL_COMMENT>;
 };
 

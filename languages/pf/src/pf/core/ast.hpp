@@ -50,7 +50,7 @@ struct StateOpt : cursiv::Extends<cursiv::AstNode> {
 };
 
 // One `set` statement. `kind` names which clause fired; a bare `set` with
-// nothing after is legal too (kind empty).
+// nothing after remains parseable (kind empty) for a runtime diagnostic.
 struct Option : cursiv::Extends<cursiv::AstNode> {
   string_view kind;
   vector<Timeout*> timeouts;
@@ -86,6 +86,8 @@ struct Host : cursiv::Extends<cursiv::AstNode> {
 struct RedirHost : cursiv::Extends<cursiv::AstNode> {
   bool iface = false;
   string_view address;
+  string_view routeInterface;  // route target (interface [gateway])
+  optional<std::int64_t> weight;
   optional<std::int64_t> maskBits;
 };
 
@@ -150,6 +152,8 @@ struct FilterOpt : cursiv::Extends<cursiv::AstNode> {
                         // literal `set` distinguishes these from the bare
                         // `prio`/`tos` clauses, which share the same kind
   OpSpec* opspec = nullptr;  // user, group
+  bool flagsAny = false;
+  bool hasFlagMask = false;
   string_view flags1;
   string_view flags2;  // flags a/b
   vector<IcmpTypeCode*> icmpCodes;
@@ -250,6 +254,7 @@ struct QueueRule : cursiv::Extends<cursiv::AstNode> {
 struct AnchorRule : cursiv::Extends<cursiv::AstNode> {
   string_view name;  // unquoted when written as a QUOTED_STRING
   string_view direction;
+  bool quick = false;
   IfSpec* onIf = nullptr;
   string_view af;
   Protospec* proto = nullptr;

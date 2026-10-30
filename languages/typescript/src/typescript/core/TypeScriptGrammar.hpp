@@ -9,7 +9,18 @@
 namespace typescript {
 
 inline constexpr auto template_open_text = [](std::string_view text) {
-  return text.substr(1);
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (text.empty() || text.front() != '`')
+    return Result::err("A template opening fragment needs its backtick.");
+  for (std::size_t i = 1; i < text.size(); ++i) {
+    if (text[i] == '\\') {
+      if (++i == text.size())
+        return Result::err("Incomplete template escape.");
+    } else if (text[i] == '`' || (text[i] == '$' && i + 1 < text.size() && text[i + 1] == '{')) {
+      return Result::err("A template opening fragment stops before its next delimiter.");
+    }
+  }
+  return Result::ok(text.substr(1));
 };
 
 struct TypeScript : cursiv::GrammarSpec {
@@ -68,7 +79,7 @@ struct TypeScript : cursiv::GrammarSpec {
       kw<"namespace"> | kw<"abstract"> | kw<"module"> | kw<"get"> |
       kw<"set"> | kw<"readonly"> | kw<"is"> | kw<"declare"> | kw<"asserts"> |
       kw<"infer"> | kw<"satisfies"> | kw<"global"> | kw<"override"> |
-      kw<"accessor"> | kw<"out">;
+      kw<"accessor"> | kw<"out"> | kw<"using">;
   static constexpr auto AllKeywords = StrictReserved | ContextualKeyword;
 
   struct PlainId : terminal<!AllKeywords + IdChars> {};
@@ -76,6 +87,7 @@ struct TypeScript : cursiv::GrammarSpec {
       : rule<assign<&ast::Ident::name>(ref<PlainId> | ContextualKeyword)> {};
   // Any word, keywords included: `.foo` and `.#foo` both take one.
   struct PrivateOrName : terminal<option(lit<"#">) + IdChars> {};
+  struct PrivateId : terminal<lit<"#"> + IdChars> {};
   struct MemberName
       : rule<assign<&ast::Ident::name>(ref<PrivateOrName> | AllKeywords)> {};
 
@@ -83,12 +95,12 @@ struct TypeScript : cursiv::GrammarSpec {
   // any word (keyword or not), joined by one or more dots.
   struct QualifiedName
       : rule<(ref<RawId> | AllKeywords) +
-             many(some(lit<".">) + (ref<RawId> | AllKeywords))> {};
+             many(lit<"."> + (ref<RawId> | AllKeywords))> {};
 
   // The first word of a type name is never `this`: that is the `this` type.
   struct TypeRefName
       : rule<(ref<RawId> | StrictReservedButThis | ContextualKeyword) +
-             many(some(lit<".">) + (ref<RawId> | AllKeywords))> {};
+             many(lit<"."> + (ref<RawId> | AllKeywords))> {};
 
   // -- Literals ---- A digit separator stands only between two digits; a dot
   // or a radix prefix must be followed by an actual digit: an under-guarded
@@ -137,7 +149,7 @@ struct TypeScript : cursiv::GrammarSpec {
   static constexpr auto TemplateChar =
       EscapeSeq | cr<R"(^`$\\)"> | lit<"$", !cr<"{">>;
   struct TplOpen
-      : terminal<lit<"`"> + many(TemplateChar), text_conv<template_open_text>> {};
+      : terminal<as<template_open_text>(lit<"`"> + many(TemplateChar))> {};
   struct TplText : terminal<some(TemplateChar)> {};
   struct TplQuasi : rule<option(ref<TplText>)> {};
 
@@ -145,7 +157,7 @@ struct TypeScript : cursiv::GrammarSpec {
   static constexpr auto TemplateContents =
       append<Quasis>(ref<TplOpen>) +
       tight(many(&lit<"${"> +
-                skip(ignored<WS>,
+                skip(ignore<WS>,
                      hide<SL_COMMENT, ML_COMMENT, HTML_COMMENT, CDATA_COMMENT>,
                      lit<"${"> + append<Values>(ref<ValueRule>) + lit<"}">) +
                 append<Quasis>(ref<TplQuasi>)) +
@@ -164,6 +176,7 @@ struct TypeScript : cursiv::GrammarSpec {
   struct NewExpr_;
   struct FunctionExpr_;
   struct ArrowFunctionExpr_;
+  struct NoInAssignExpr;
   struct ClassExpr_;
   struct ArrayLiteral;
   struct ObjectLiteral;
@@ -177,10 +190,10 @@ struct TypeScript : cursiv::GrammarSpec {
   struct TypeOrPredicate;
   struct PrimaryType;
   struct DecoratorExpr;
-  struct ClassMemberRule;
-  struct TypeMemberRule;
-  struct CallSignatureRule;
-  struct AbstractDeclRule;
+  struct ClassMember;
+  struct TypeMember;
+  struct CallSignature;
+  struct AbstractDecl;
   struct AbstractFieldDecl;
   struct VariableStatement;
   struct Declarator_;
@@ -193,7 +206,7 @@ struct TypeScript : cursiv::GrammarSpec {
   struct EnumDeclaration;
   struct ClassDeclaration;
   struct FunctionDeclaration;
-  struct TypeParamRule;
+  struct TypeParam;
 
   // -- Keys shared by object/class/type/enum members ---- `PrivateOrName`, not
   // `RawId`: a property/type-member/enum-member name may spell any keyword
@@ -215,7 +228,7 @@ struct TypeScript : cursiv::GrammarSpec {
       ref<BigIntLit_> | ref<KeywordAsKey>;
 
   // -- Params (shared by every parameter list the grammar has) ----
-  struct TypeAnnotationRule : rule<lit<":"> + ref<TypeOrPredicate>> {};
+  struct TypeAnnotation : rule<lit<":"> + ref<TypeOrPredicate>> {};
 
   static constexpr auto AccessMod =
       kw<"public"> | kw<"private"> | kw<"protected">;
@@ -230,7 +243,7 @@ struct TypeScript : cursiv::GrammarSpec {
                  flag<&ast::Param::rest>(lit<"...">) +
                  assign<&ast::Param::pattern>(ref<Assignable>) +
                  option(assign<&ast::Param::typeAnnotation>(
-                     ref<TypeAnnotationRule>)))  //
+                     ref<TypeAnnotation>)))  //
              | create<ast::Param>(
                    many(append<&ast::Param::decorators>(ref<DecoratorExpr>)) +
                    option(assign<&ast::Param::accessibility>(AccessMod)) +
@@ -239,14 +252,13 @@ struct TypeScript : cursiv::GrammarSpec {
                    assign<&ast::Param::pattern>(ref<Assignable>) +
                    option(flag<&ast::Param::optional>(lit<"?">)) +
                    option(assign<&ast::Param::typeAnnotation>(
-                       ref<TypeAnnotationRule>)) +
+                       ref<TypeAnnotation>)) +
                    option(lit<"="> + assign<&ast::Param::defaultValue>(
                                           ref<AssignExpr>)))> {};
 
   template <auto Ptr>
   static constexpr auto ParamTailFor =
-      option(append<Ptr>(ref<ParamItem>) +
-             many(lit<","> + append<Ptr>(ref<ParamItem>)) +
+      option(some(append<Ptr>(ref<ParamItem>), lit<",">) +
              option(lit<",">)) +
       lit<")">;
   template <auto Ptr>
@@ -255,18 +267,17 @@ struct TypeScript : cursiv::GrammarSpec {
   template <auto Ptr>
   static constexpr auto TypeParamsClauseFor =
       option(lit<"<"> +
-             option(append<Ptr>(ref<TypeParamRule>) +
-                    many(lit<","> + append<Ptr>(ref<TypeParamRule>)) +
+             option(some(append<Ptr>(ref<TypeParam>), lit<",">) +
                     option(lit<",">)) +
              lit<">">);
   template <auto Ptr>
   static constexpr auto TypeArgsClauseFor =
       lit<"<"> +
-      option(append<Ptr>(ref<Type_>) + many(lit<","> + append<Ptr>(ref<Type_>))) +
+      option(some(append<Ptr>(ref<Type_>), lit<",">)) +
       lit<">">;
 
   // -- Types ----
-  struct TypeParamRule
+  struct TypeParam
       : rule<create<ast::TypeParam>(
             many(flag<&ast::TypeParam::isConst>(kw<"const">) |
                  flag<&ast::TypeParam::isIn>(kw<"in">) |
@@ -277,7 +288,7 @@ struct TypeScript : cursiv::GrammarSpec {
             option(lit<"="> +
                    assign<&ast::TypeParam::defaultType>(ref<Type_>)))> {};
 
-  struct PredefinedTypeRule
+  struct PredefinedType
       : rule<create<ast::PredefinedType>(
             option(flag<&ast::PredefinedType::unique>(kw<"unique">)) +
             assign<&ast::PredefinedType::name>(
@@ -286,12 +297,12 @@ struct TypeScript : cursiv::GrammarSpec {
                 kw<"string"> | ref<STRING> | kw<"symbol"> | kw<"never"> |
                 kw<"undefined"> | kw<"object"> | kw<"void"> | kw<"null">))> {};
 
-  struct TypeReferenceRule
+  struct TypeReference
       : rule<create<ast::TypeRef>(
             assign<&ast::TypeRef::name>(ref<TypeRefName>) +
             option(TypeArgsClauseFor<&ast::TypeRef::typeArgs>))> {};
 
-  struct TypeQueryRule
+  struct TypeQuery
       : rule<create<ast::TypeQuery>(
             kw<"typeof"> + assign<&ast::TypeQuery::name>(ref<QualifiedName>) +
             option(TypeArgsClauseFor<&ast::TypeQuery::typeArgs>))> {};
@@ -299,18 +310,19 @@ struct TypeScript : cursiv::GrammarSpec {
   static constexpr auto TypeMemberEnd = lit<";"> | lit<",">;
   template <auto Ptr>
   static constexpr auto TypeMembers =
-      many(append<Ptr>(ref<TypeMemberRule>) +
+      many(append<Ptr>(ref<TypeMember>) +
            option(TypeMemberEnd));
 
-  struct ObjectTypeRule
+  struct ObjectType
       : rule<create<ast::ObjectType>(
             lit<"{"> +
             TypeMembers<&ast::ObjectType::members> +
             lit<"}">)> {};
 
-  struct SignedReadonly : terminal<cr<"+-"> + kw<"readonly">> {};
+  struct SignedReadonly : rule<(lit<"+"> | lit<"-">) + kw<"readonly">> {};
+  struct SignedOptional : rule<(lit<"+"> | lit<"-">) + lit<"?">> {};
 
-  struct MappedTypeRule
+  struct MappedType
       : rule<create<ast::MappedType>(
             lit<"{"> +
             option(assign<&ast::MappedType::readonlyMod>(
@@ -321,8 +333,8 @@ struct TypeScript : cursiv::GrammarSpec {
             option(kw<"as"> + assign<&ast::MappedType::nameType>(ref<Type_>)) +
             lit<"]"> +
             option(assign<&ast::MappedType::optionalMod>(
-                lit<"?"> | lit<"+?"> | lit<"-?">)) +
-            option(assign<&ast::MappedType::type>(ref<TypeAnnotationRule>)) +
+                lit<"?"> | ref<SignedOptional>)) +
+            option(assign<&ast::MappedType::type>(ref<TypeAnnotation>)) +
             option(TypeMemberEnd) + lit<"}">)> {};
 
   static constexpr auto IndexedTypeTail =
@@ -330,25 +342,25 @@ struct TypeScript : cursiv::GrammarSpec {
           !LineBreak + lit<"["> +
           option(assign<&ast::IndexedType::index>(ref<Type_>)) + lit<"]">);
 
-  struct ThisTypeRule : rule<create<ast::ThisType>(kw<"this">)> {};
+  struct ThisType : rule<create<ast::ThisType>(kw<"this">)> {};
 
-  struct NamedTupleMemberRule
+  struct NamedTupleMember
       : rule<create<ast::NamedTupleMember>(
             option(flag<&ast::NamedTupleMember::rest>(lit<"...">)) +
             assign<&ast::NamedTupleMember::name>(ref<RawId> | AllKeywords) +
             option(flag<&ast::NamedTupleMember::optional>(lit<"?">)) +
             lit<":"> + assign<&ast::NamedTupleMember::type>(ref<Type_>))> {};
-  struct RestTypeRule
+  struct RestType
       : rule<create<ast::RestType>(
             lit<"..."> + assign<&ast::RestType::type>(ref<Type_>))> {};
-  struct OptionalTypeRule
+  struct OptionalType
       : rule<create<ast::OptionalType>(
             assign<&ast::OptionalType::type>(ref<Type_>) + lit<"?">)> {};
   struct TupleElement
-      : rule<ref<NamedTupleMemberRule> | ref<RestTypeRule> |
-             ref<OptionalTypeRule> | ref<Type_>> {};
+      : rule<ref<NamedTupleMember> | ref<RestType> |
+             ref<OptionalType> | ref<Type_>> {};
 
-  struct TemplateTypeRule
+  struct TemplateType
       : rule<create<ast::TemplateLiteralType>(
             TemplateContents<&ast::TemplateLiteralType::quasis,
                              &ast::TemplateLiteralType::types, Type_>)> {};
@@ -358,12 +370,12 @@ struct TypeScript : cursiv::GrammarSpec {
             assign<&ast::TypeParam::name>(ref<RawId> | ContextualKeyword) +
             option(kw<"extends"> +
                    assign<&ast::TypeParam::constraint>(ref<TypeNoCond>)))> {};
-  struct InferTypeRule
+  struct InferType
       : rule<create<ast::InferType>(
             kw<"infer"> +
             assign<&ast::InferType::typeParam>(ref<InferTypeParam>))> {};
 
-  struct ImportTypeRule
+  struct ImportType
       : rule<create<ast::ImportType>(
             option(flag<&ast::ImportType::isTypeOf>(kw<"typeof">)) +
             kw<"import"> + lit<"("> +
@@ -378,12 +390,12 @@ struct TypeScript : cursiv::GrammarSpec {
             option(TypeArgsClauseFor<&ast::ImportType::typeArgs>))> {};
 
   struct PrimaryTypeBase
-      : rule<ref<PredefinedTypeRule>  //
-             | ref<ImportTypeRule>  //
-             | ref<TypeQueryRule>  //
-             | ref<TemplateTypeRule>  //
-             | ref<InferTypeRule>  //
-             | ref<ThisTypeRule>  //
+      : rule<ref<PredefinedType>  //
+             | ref<ImportType>  //
+             | ref<TypeQuery>  //
+             | ref<TemplateType>  //
+             | ref<InferType>  //
+             | ref<ThisType>  //
              | create<ast::KeyOfType>(
                    kw<"keyof"> +
                    assign<&ast::KeyOfType::operand>(ref<PrimaryType>))  //
@@ -392,29 +404,27 @@ struct TypeScript : cursiv::GrammarSpec {
                    assign<&ast::ReadonlyType::operand>(ref<PrimaryType>))  //
              | (lit<"["> +
                 create<ast::TupleType>(option(
-                    append<&ast::TupleType::elements>(ref<TupleElement>) +
-                    many(lit<","> +
-                         append<&ast::TupleType::elements>(ref<TupleElement>)) +
+                    some(append<&ast::TupleType::elements>(ref<TupleElement>), lit<",">) +
                     option(lit<",">))) +
                 lit<"]">)  //
-             | ref<MappedTypeRule>  //
-             | ref<ObjectTypeRule>  //
-             | ref<TypeReferenceRule>  //
+             | ref<MappedType>  //
+             | ref<ObjectType>  //
+             | ref<TypeReference>  //
              | (lit<"("> + ref<Type_> + lit<")">)> {};
 
   struct PrimaryType : rule<ref<PrimaryTypeBase> + many(IndexedTypeTail)> {};
 
-  struct TypeBinExprRule
-      : infix<PrimaryType, &ast::TypeBinExpr::left, &ast::TypeBinExpr::op,
-              &ast::TypeBinExpr::right, (left(lit<"&">) >> left(lit<"|">))> {};
+  struct TypeBinExpr
+      : infix<PrimaryType, ast::TypeBinExpr,
+              levels(left(lit<"&">), left(lit<"|">))> {};
 
-  struct FunctionTypeRule
+  struct FunctionType
       : rule<create<ast::FunctionType>(
             TypeParamsClauseFor<&ast::FunctionType::typeParams> +
             ParamListFor<&ast::FunctionType::params> + lit<"=>"> +
             assign<&ast::FunctionType::returnType>(ref<TypeOrPredicate>))> {};
 
-  struct ConstructorTypeRule
+  struct ConstructorType
       : rule<create<ast::ConstructorType>(
             option(flag<&ast::ConstructorType::isAbstract>(
                 kw<"abstract">)) +
@@ -426,40 +436,34 @@ struct TypeScript : cursiv::GrammarSpec {
   // The extends type of a conditional and the constraint of an `infer` hold
   // no conditional type of their own.
   struct TypeNoCond
-      : rule<(option(lit<"|"> | lit<"&">) + ref<TypeBinExprRule>)  //
-             | ref<FunctionTypeRule>  //
-             | ref<ConstructorTypeRule>> {};
+      : rule<(option(lit<"|"> | lit<"&">) + ref<TypeBinExpr>)  //
+             | ref<FunctionType>  //
+             | ref<ConstructorType>> {};
 
-  struct ConditionalTypeRule
-      : rule<create<ast::ConditionalType>(
-            assign<&ast::ConditionalType::checkType>(ref<TypeBinExprRule>) +
-            !LineBreak + kw<"extends"> +
-            assign<&ast::ConditionalType::extendsType>(ref<TypeNoCond>) +
-            lit<"?"> + assign<&ast::ConditionalType::trueType>(ref<Type_>) +
-            lit<":"> +
-            assign<&ast::ConditionalType::falseType>(ref<Type_>))> {};
-
-  // A bare, self-nested generic (with an optional self-nesting before its
-  // closing '>') has no coherent meaning as a type and no example needs
-  // it: not ported.
-  struct Type_ : rule<ref<TypeNoCond> | ref<ConditionalTypeRule>> {};
+  struct Type_
+      : rule<ref<TypeNoCond> +
+             option(nest<ast::ConditionalType, &ast::ConditionalType::checkType>(
+                 !LineBreak + kw<"extends"> +
+                 assign<&ast::ConditionalType::extendsType>(ref<TypeNoCond>) +
+                 lit<"?"> + assign<&ast::ConditionalType::trueType>(ref<Type_>) +
+                 lit<":"> + assign<&ast::ConditionalType::falseType>(ref<Type_>)))> {};
 
   // `x is T` and `this is T` take a whole type; `asserts x` may have none.
-  struct TypePredicateRule
+  struct TypePredicate
       : rule<create<ast::TypePredicateType>(
                  assign<&ast::TypePredicateType::param>(
-                     ref<ThisTypeRule> | ref<TypeReferenceRule>) +
+                     ref<ThisType> | ref<TypeReference>) +
                  !LineBreak + kw<"is"> +
                  assign<&ast::TypePredicateType::type>(ref<Type_>))  //
              | create<ast::TypePredicateType>(
                    flag<&ast::TypePredicateType::asserts>(kw<"asserts">) +
                    !LineBreak +
                    assign<&ast::TypePredicateType::param>(
-                       ref<ThisTypeRule> | ref<TypeReferenceRule>) +
+                       ref<ThisType> | ref<TypeReference>) +
                    option(!LineBreak + kw<"is"> +
                           assign<&ast::TypePredicateType::type>(
                               ref<Type_>)))> {};
-  struct TypeOrPredicate : rule<ref<Type_> | ref<TypePredicateRule>> {};
+  struct TypeOrPredicate : rule<ref<Type_> | ref<TypePredicate>> {};
 
   // No binary operator in a computed key: `[K in T]` is a mapped type.
   static constexpr auto TypeMemberPropName =
@@ -467,15 +471,15 @@ struct TypeScript : cursiv::GrammarSpec {
        assign<&ast::TypeMember::key>(ref<UnaryExpr>) + lit<"]">)  //
       | assign<&ast::TypeMember::key>(PropKey);
 
-  struct CallSignatureRule
+  struct CallSignature
       : rule<create<ast::TypeMember>(
             TypeParamsClauseFor<&ast::TypeMember::typeParams> +
             flag<&ast::TypeMember::isCall>(lit<"(">) +
             ParamTailFor<&ast::TypeMember::params> +
             option(assign<&ast::TypeMember::type>(
-                ref<TypeAnnotationRule>)))> {};
+                ref<TypeAnnotation>)))> {};
 
-  struct TypeMemberRule
+  struct TypeMember
       : rule<create<ast::TypeMember>(  // index signature
                  option(flag<&ast::TypeMember::readonly_>(
                      kw<"readonly">)) +
@@ -485,19 +489,19 @@ struct TypeScript : cursiv::GrammarSpec {
                  lit<":"> +
                  assign<&ast::TypeMember::indexKeyType>(ref<Type_>) +
                  lit<"]"> +
-                 assign<&ast::TypeMember::type>(ref<TypeAnnotationRule>))  //
+                 assign<&ast::TypeMember::type>(ref<TypeAnnotation>))  //
              | create<ast::TypeMember>(  // construct signature
                    flag<&ast::TypeMember::isConstruct>(kw<"new">) +
                    TypeParamsClauseFor<&ast::TypeMember::typeParams> +
                    ParamListFor<&ast::TypeMember::params> +
                    option(assign<&ast::TypeMember::type>(
-                       ref<TypeAnnotationRule>)))  //
-             | ref<CallSignatureRule>  //
+                       ref<TypeAnnotation>)))  //
+             | ref<CallSignature>  //
              | create<ast::TypeMember>(  // getter signature
                    flag<&ast::TypeMember::isGetter>(kw<"get">) +
                    TypeMemberPropName + lit<"("> + lit<")"> +
                    option(assign<&ast::TypeMember::type>(
-                       ref<TypeAnnotationRule>)))  //
+                       ref<TypeAnnotation>)))  //
              | create<ast::TypeMember>(  // setter signature
                    flag<&ast::TypeMember::isSetter>(kw<"set">) +
                    TypeMemberPropName + lit<"("> +
@@ -511,11 +515,11 @@ struct TypeScript : cursiv::GrammarSpec {
                      flag<&ast::TypeMember::isMethod>(lit<"(">) +
                      ParamTailFor<&ast::TypeMember::params> +
                      option(assign<&ast::TypeMember::type>(
-                                ref<TypeAnnotationRule>)  //
+                                ref<TypeAnnotation>)  //
                             | (lit<"=>"> + assign<&ast::TypeMember::type>(
                                               ref<Type_>))))  //
                     | option(assign<&ast::TypeMember::type>(
-                          ref<TypeAnnotationRule>))))> {};
+                          ref<TypeAnnotation>))))> {};
 
   // A statement ends on `;`, or at a line break, a `}` or the end of the text.
   static constexpr auto Eos = implied(lit<";">, LineBreak | &lit<"}"> | eof);
@@ -535,7 +539,7 @@ struct TypeScript : cursiv::GrammarSpec {
   struct ThisExpr_ : rule<create<ast::ThisExpr>(kw<"this">)> {};
   struct SuperExpr_ : rule<create<ast::SuperExpr>(kw<"super">)> {};
   struct NullLit_ : rule<create<ast::NullLit>(kw<"null">)> {};
-  struct BOOL_TOK : terminal<kw<"true"> | kw<"false">, bool> {};
+  struct BOOL_TOK : terminal<as<bool>(kw<"true"> | kw<"false">)> {};
   struct BoolLit_ : rule<assign<&ast::BoolLit::value>(ref<BOOL_TOK>)> {};
   struct RegexLit_ : rule<assign<&ast::RegexLit::text>(ref<REGEX>)> {};
 
@@ -596,15 +600,16 @@ struct TypeScript : cursiv::GrammarSpec {
             Spread + assign<&ast::Spread::argument>(ref<AssignExpr>))> {};
   static constexpr auto OneArg = ref<SpreadArg> | ref<AssignExpr>;
 
+  // `?.` is not an optional-chain punctuator before a decimal digit.
+  static constexpr auto OptionalChain = lit<"?.", !d>;
   static constexpr auto MemberTail =
       nest<ast::MemberExpr, &ast::MemberExpr::object>(
-          option(flag<&ast::MemberExpr::optional>(lit<"?.">)) +
+          option(flag<&ast::MemberExpr::optional>(OptionalChain)) +
           flag<&ast::MemberExpr::computed>(lit<"[">) +
           assign<&ast::MemberExpr::property>(ref<Expression>) + lit<"]">) |
       nest<ast::MemberExpr, &ast::MemberExpr::object>(
-          (flag<&ast::MemberExpr::optional>(lit<"?.">) | lit<".">) +
-          assign<&ast::MemberExpr::property>(ref<MemberName>) +
-          option(TypeArgsClauseFor<&ast::MemberExpr::typeArgs>));
+          (flag<&ast::MemberExpr::optional>(OptionalChain) | lit<".">) +
+          assign<&ast::MemberExpr::property>(ref<MemberName>));
 
   static constexpr auto CallArguments =
       lit<"("> +
@@ -633,102 +638,79 @@ struct TypeScript : cursiv::GrammarSpec {
       nest<ast::InstantiationExpr, &ast::InstantiationExpr::expression>(
           TypeArgsClauseFor<&ast::InstantiationExpr::typeArgs> + !lit<"(">) |
       nest<ast::CallExpr, &ast::CallExpr::callee>(
-          option(flag<&ast::CallExpr::optional>(lit<"?.">)) + CallArguments) |
+          option(flag<&ast::CallExpr::optional>(OptionalChain)) +
+          option(TypeArgsClauseFor<&ast::CallExpr::typeArgs>) + CallArguments) |
       nest<ast::TemplateLit, &ast::TemplateLit::tag>(TemplateBody) |
       // No line break before a postfix operator: `a \n ++b` is two statements.
       nest<ast::PostfixUpdateExpr, &ast::PostfixUpdateExpr::operand>(
           !LineBreak + assign<&ast::PostfixUpdateExpr::op>(lit<"++"> | lit<"--">)) |
-      nest<ast::NonNullExpr, &ast::NonNullExpr::operand>(lit<"!", !cr<"=">>);
+      nest<ast::NonNullExpr, &ast::NonNullExpr::operand>(!LineBreak + lit<"!", !cr<"=">>);
 
   struct PostfixExpr
       : rule<(ref<PrimaryExpr> | ref<NewExpr_>) + many(PostfixTail)> {};
   struct PostfixNoArrow
       : rule<(ref<PrimaryNoArrow> | ref<NewExpr_>) + many(PostfixTail)> {};
 
-  // The identifier's generic-call suffix (a bare name applied to type
-  // arguments and then called): `foo<T>(x)`, narrowed to its only
-  // realistic shape.
-  static constexpr auto GenericCallTail =
-      nest<ast::CallExpr, &ast::CallExpr::callee>(
-          TypeArgsClauseFor<&ast::CallExpr::typeArgs> + CallArguments);
-
-  struct IdentPrimary : rule<ref<Ident> + option(GenericCallTail)> {};
+  struct IdentPrimary : rule<ref<Ident> | create<ast::Ident>(
+      assign<&ast::Ident::name>(ref<PrivateId>))> {};
 
   // -- Unary chain ----
-  struct UnaryExpr
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(kw<"delete"> | kw<"void"> |
-                                             kw<"typeof">) +
-                 assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
-             | create<ast::PrefixUpdateExpr>(
-                   assign<&ast::PrefixUpdateExpr::op>(lit<"++"> | lit<"--">) +
-                   assign<&ast::PrefixUpdateExpr::operand>(ref<UnaryExpr>))  //
-             | create<ast::UnaryExpr>(
-                   assign<&ast::UnaryExpr::op>(
-                       lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">> | lit<"~"> |
-                       lit<"!", !cr<"=">>) +
-                   assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
-             | create<ast::AwaitExpr>(
-                   kw<"await"> +
-                   assign<&ast::AwaitExpr::operand>(ref<UnaryExpr>))  //
-             | ref<PostfixExpr>> {};
+  template <class Recursive, class Chain>
+  static constexpr auto UnaryBody =
+      create<ast::UnaryExpr>(
+          assign<&ast::UnaryExpr::op>(kw<"delete"> | kw<"void"> | kw<"typeof">) +
+          assign<&ast::UnaryExpr::operand>(ref<Recursive>)) |
+      create<ast::PrefixUpdateExpr>(
+          assign<&ast::PrefixUpdateExpr::op>(lit<"++"> | lit<"--">) +
+          assign<&ast::PrefixUpdateExpr::operand>(ref<Recursive>)) |
+      create<ast::UnaryExpr>(
+          assign<&ast::UnaryExpr::op>(lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">> |
+                                     lit<"~"> | lit<"!", !cr<"=">>) +
+          assign<&ast::UnaryExpr::operand>(ref<Recursive>)) |
+      create<ast::AwaitExpr>(kw<"await"> +
+          assign<&ast::AwaitExpr::operand>(ref<Recursive>)) | ref<Chain>;
+  struct UnaryExpr : rule<UnaryBody<UnaryExpr, PostfixExpr>> {};
+  struct CastOperand : rule<UnaryBody<CastOperand, PostfixNoArrow>> {};
 
-  struct CastOperand
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(kw<"delete"> | kw<"void"> |
-                                             kw<"typeof">) +
-                 assign<&ast::UnaryExpr::operand>(ref<CastOperand>))  //
-             | create<ast::PrefixUpdateExpr>(
-                   assign<&ast::PrefixUpdateExpr::op>(lit<"++"> | lit<"--">) +
-                   assign<&ast::PrefixUpdateExpr::operand>(
-                       ref<CastOperand>))  //
-             | create<ast::UnaryExpr>(
-                   assign<&ast::UnaryExpr::op>(
-                       lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">> | lit<"~"> |
-                       lit<"!", !cr<"=">>) +
-                   assign<&ast::UnaryExpr::operand>(ref<CastOperand>))  //
-             | create<ast::AwaitExpr>(
-                   kw<"await"> +
-                   assign<&ast::AwaitExpr::operand>(ref<CastOperand>))  //
-             | ref<PostfixNoArrow>> {};
+  static constexpr auto MultiplicativeOp =
+      lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> | lit<"%", !cr<"=">>;
+  static constexpr auto AdditiveOp = lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>;
 
   struct PowerExpr
-      : infix<UnaryExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, right(lit<"**", !cr<"=">>)> {};
-  struct MultiplyExpr
-      : infix<PowerExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              left(lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> |
-                   lit<"%", !cr<"=">>)> {};
-  struct AddExpr
-      : infix<MultiplyExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              left(lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>)> {};
+      : infix<UnaryExpr, ast::BinaryExpr, right(lit<"**", !cr<"=">>)> {};
+  struct MultiplyExpr : infix<PowerExpr, ast::BinaryExpr, left(MultiplicativeOp)> {};
+  struct AddExpr : infix<MultiplyExpr, ast::BinaryExpr, left(AdditiveOp)> {};
   static constexpr auto ShiftOp =
       lit<"<<", !cr<"=">> |
       (lit<">"> + gap::none + lit<">"> + gap::none + lit<">", !cr<"=">>) |
       (lit<">"> + gap::none + lit<">", !cr<"=>">>);
 
   struct ShiftExpr
-      : infix<AddExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ShiftOp)> {};
+      : infix<AddExpr, ast::BinaryExpr, left(ShiftOp)> {};
 
-  static constexpr auto AssertionTail =
+  template <class Power, class Multiply, class Add>
+  static constexpr auto AssertionTailFor =
       option(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
           assign<&ast::BinaryExpr::op>(lit<"**", !cr<"=">>) +
-          assign<&ast::BinaryExpr::right>(ref<PowerExpr>))) +
+          assign<&ast::BinaryExpr::right>(ref<Power>))) +
       many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
           assign<&ast::BinaryExpr::op>(
               lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> |
               lit<"%", !cr<"=">>) +
-          assign<&ast::BinaryExpr::right>(ref<PowerExpr>))) +
+          assign<&ast::BinaryExpr::right>(ref<Power>))) +
       many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
           assign<&ast::BinaryExpr::op>(
               lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>) +
-          assign<&ast::BinaryExpr::right>(ref<MultiplyExpr>))) +
+          assign<&ast::BinaryExpr::right>(ref<Multiply>))) +
       many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
           assign<&ast::BinaryExpr::op>(ShiftOp) +
-          assign<&ast::BinaryExpr::right>(ref<AddExpr>)));
+          assign<&ast::BinaryExpr::right>(ref<Add>)));
+
+  static constexpr auto AssertionTail =
+      AssertionTailFor<PowerExpr, MultiplyExpr, AddExpr>;
+  static constexpr auto RelationalOpNoIn =
+      lit<"<="> | lit<">="> | lit<"<", !cr<"=<">> |
+      lit<">", !cr<"=>">> | kw<"instanceof">;
 
   struct RelationalExpr
       : rule<(create<ast::AsExpr>(
@@ -741,56 +723,54 @@ struct TypeScript : cursiv::GrammarSpec {
                   assign<&ast::SatisfiesExpr::target>(ref<Type_>)) + AssertionTail) |
              create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<RelationalExpr>) +
-                 assign<&ast::BinaryExpr::op>(
-                     lit<"<="> | lit<">="> | lit<"<", !cr<"=<">> |
-                     lit<">", !cr<"=>">> | kw<"instanceof"> | kw<"in">) +
+                 assign<&ast::BinaryExpr::op>(RelationalOpNoIn | kw<"in">) +
                  assign<&ast::BinaryExpr::right>(ref<ShiftExpr>)) |
              ref<ShiftExpr>> {};
 
-  struct BinaryExpr
-      : infix<RelationalExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"==="> | lit<"!=="> | lit<"==", !cr<"=">> |
-                    lit<"!=", !cr<"=">>) >>
-               left(lit<"&", !cr<"&=">>) >>  //
-               left(lit<"^", !cr<"=">>) >>   //
-               left(lit<"|", !cr<"|=">>) >>  //
-               left(lit<"&&", !cr<"=">>) >>  //
-               left(lit<"||", !cr<"=">>) >>  //
-               left(lit<"??", !cr<"=">>))> {};
+  static constexpr auto BinaryLevels = levels(left(lit<"==="> | lit<"!=="> | lit<"==", !cr<"=">> |
+                          lit<"!=", !cr<"=">>),
+                     left(lit<"&", !cr<"&=">>),  //
+                     left(lit<"^", !cr<"=">>),   //
+                     left(lit<"|", !cr<"|=">>),  //
+                     left(lit<"&&", !cr<"=">>),  //
+                     left(lit<"||", !cr<"=">>),  //
+                     left(lit<"??", !cr<"=">>));
+  struct BinaryExpr : infix<RelationalExpr, ast::BinaryExpr, BinaryLevels> {};
 
   struct ConditionalExpr
       : rule<create<ast::ConditionalExpr>(
                  assign<&ast::ConditionalExpr::test>(ref<BinaryExpr>) +
-                 lit<"?", !cr<".?">> +
+                 lit<"?", !cr<"?"> + !(lit<"."> + !d)> +
                  assign<&ast::ConditionalExpr::consequent>(ref<AssignExpr>) +
                  lit<":"> +
                  assign<&ast::ConditionalExpr::alternate>(ref<AssignExpr>))  //
              | ref<BinaryExpr>> {};
 
-  struct AssignExpr
-      : infix<ConditionalExpr, &ast::AssignExpr::target, &ast::AssignExpr::op,
-              &ast::AssignExpr::value,
-              right(lit<"=", !cr<"=>">> | lit<"*="> | lit<"/="> | lit<"%="> |
+  static constexpr auto AssignmentOp = lit<"=", !cr<"=>">> | lit<"*="> | lit<"/="> | lit<"%="> |
                     lit<"+="> | lit<"-="> | lit<"<<="> | lit<">>>="> |
                     lit<">>="> | lit<"&="> | lit<"^="> | lit<"|="> |
-                    lit<"**="> | lit<"?" "?="> | lit<"&&="> | lit<"||=">)> {};
+                    lit<"**="> |
+                    lit<"?"
+                        "?="> |
+                    lit<"&&="> | lit<"||=">;
+  struct AssignExpr : infix<ConditionalExpr, ast::AssignExpr,
+      right(AssignmentOp), &ast::AssignExpr::target, &ast::AssignExpr::op,
+      &ast::AssignExpr::value> {};
 
   struct Expression
-      : infix<AssignExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(lit<",">)> {};
+      : infix<AssignExpr, ast::BinaryExpr, left(lit<",">)> {};
 
   // -- Functions ----
   struct FunctionExpr_
       : rule<create<ast::FunctionExpr>(
-            option(flag<&ast::FunctionExpr::isAsync>(kw<"async">)) +
+            option(flag<&ast::FunctionExpr::isAsync>(kw<"async">) + !LineBreak) +
             kw<"function"> +
             option(flag<&ast::FunctionExpr::isGenerator>(lit<"*">)) +
             option(assign<&ast::FunctionExpr::name>(ref<RawId>)) +
             TypeParamsClauseFor<&ast::FunctionExpr::typeParams> +
             ParamListFor<&ast::FunctionExpr::params> +
             option(assign<&ast::FunctionExpr::returnType>(
-                ref<TypeAnnotationRule>)) +
+                ref<TypeAnnotation>)) +
             assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {};
 
   struct ArrowSingleParam
@@ -800,17 +780,15 @@ struct TypeScript : cursiv::GrammarSpec {
       ParamListFor<&ast::ArrowFunctionExpr::params>  //
       | append<&ast::ArrowFunctionExpr::params>(ref<ArrowSingleParam>);
 
-  struct ArrowFunctionExpr_
-      : rule<create<ast::ArrowFunctionExpr>(
-            option(flag<&ast::ArrowFunctionExpr::isAsync>(kw<"async">)) +
-            TypeParamsClauseFor<&ast::ArrowFunctionExpr::typeParams> +
-            ArrowParams +
-            option(assign<&ast::ArrowFunctionExpr::returnType>(
-                ref<TypeAnnotationRule>)) +
-            !LineBreak + lit<"=>"> +
-            (assign<&ast::ArrowFunctionExpr::block>(ref<FunctionBody>)  //
-             | assign<&ast::ArrowFunctionExpr::exprBody>(ref<AssignExpr>)))> {
-  };
+  template <class ExpressionBody>
+  static constexpr auto ArrowFunctionBody = create<ast::ArrowFunctionExpr>(
+      option(flag<&ast::ArrowFunctionExpr::isAsync>(kw<"async">) + !LineBreak) +
+      TypeParamsClauseFor<&ast::ArrowFunctionExpr::typeParams> + ArrowParams +
+      option(assign<&ast::ArrowFunctionExpr::returnType>(ref<TypeAnnotation>)) +
+      !LineBreak + lit<"=>"> +
+      (assign<&ast::ArrowFunctionExpr::block>(ref<FunctionBody>) |
+       assign<&ast::ArrowFunctionExpr::exprBody>(ref<ExpressionBody>)));
+  struct ArrowFunctionExpr_ : rule<ArrowFunctionBody<AssignExpr>> {};
 
   // -- Array / object literals ----
   struct ArrayElementBeforeComma : rule<(OneArg | create<ast::Elision>)+lit<",">> {};
@@ -829,17 +807,17 @@ struct TypeScript : cursiv::GrammarSpec {
       : rule<create<ast::FunctionExpr>(
             ParamListFor<&ast::FunctionExpr::params> +
             option(assign<&ast::FunctionExpr::returnType>(
-                ref<TypeAnnotationRule>)) +
+                ref<TypeAnnotation>)) +
             assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {};
   struct GenericMethodBody
       : rule<create<ast::FunctionExpr>(
             TypeParamsClauseFor<&ast::FunctionExpr::typeParams> +
             ParamListFor<&ast::FunctionExpr::params> +
             option(assign<&ast::FunctionExpr::returnType>(
-                ref<TypeAnnotationRule>)) +
+                ref<TypeAnnotation>)) +
             assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {};
 
-  struct PropertyRule
+  struct Property
       : rule<create<ast::Prop>(
             (PropName + lit<":"> +
              assign<&ast::Prop::value>(ref<AssignExpr>))  //
@@ -857,9 +835,9 @@ struct TypeScript : cursiv::GrammarSpec {
   struct ObjectLiteral
       : rule<create<ast::ObjectLit>(
             lit<"{"> +
-            option(append<&ast::ObjectLit::properties>(ref<PropertyRule>) +
+            option(append<&ast::ObjectLit::properties>(ref<Property>) +
                    many(lit<","> + append<&ast::ObjectLit::properties>(
-                                       ref<PropertyRule>)) +
+                                       ref<Property>)) +
                    option(lit<",">)) +
             lit<"}">)> {};
 
@@ -905,18 +883,18 @@ struct TypeScript : cursiv::GrammarSpec {
       option(flag<&ast::ClassMember::isAsync>(kw<"async"> + !LineBreak)) +
       option(flag<&ast::ClassMember::isReadonly>(kw<"readonly">));
 
-  struct ClassMemberRule
+  struct ClassMember
       : rule<
             create<ast::ClassMember>(  // static initialisation block
                 many(append<&ast::ClassMember::decorators>(ref<DecoratorExpr>)) +
-                kw<"static"> +
+                flag<&ast::ClassMember::isStatic>(kw<"static">) +
                 assign<&ast::ClassMember::body>(ref<BlockStmt_>))  //
             | create<ast::ClassMember>(  // `abstract name(...): T;` / field
                   many(append<&ast::ClassMember::decorators>(
                       ref<DecoratorExpr>)) +
                   option(assign<&ast::ClassMember::accessibility>(AccessMod)) +
                   assign<&ast::ClassMember::abstractDecl>(
-                      ref<AbstractDeclRule>))  //
+                      ref<AbstractDecl>))  //
             | create<ast::ClassMember>(  // method, getter or setter
                   MemberBase +
                   ((option(flag<&ast::ClassMember::isGenerator>(
@@ -927,13 +905,13 @@ struct TypeScript : cursiv::GrammarSpec {
                     flag<&ast::ClassMember::isMethod>(lit<"(">) +
                     ParamTailFor<&ast::ClassMember::params> +
                     option(assign<&ast::ClassMember::returnType>(
-                        ref<TypeAnnotationRule>)) +
+                        ref<TypeAnnotation>)) +
                     option(assign<&ast::ClassMember::body>(
                         ref<FunctionBody>)))  //
                    | (flag<&ast::ClassMember::isGetter>(kw<"get">) +
                       ClassMemberKey + lit<"("> + lit<")"> +
                       option(assign<&ast::ClassMember::returnType>(
-                          ref<TypeAnnotationRule>)) +
+                          ref<TypeAnnotation>)) +
                       option(assign<&ast::ClassMember::body>(
                           ref<FunctionBody>)))  //
                    | (flag<&ast::ClassMember::isSetter>(kw<"set">) +
@@ -950,7 +928,7 @@ struct TypeScript : cursiv::GrammarSpec {
                    assign<&ast::ClassMember::indexKeyType>(ref<Type_>) +
                    lit<"]"> +
                    assign<&ast::ClassMember::typeAnnotation>(
-                       ref<TypeAnnotationRule>)) +
+                       ref<TypeAnnotation>)) +
                Eos)  //
             // A field ends at `;`, a line break or `}`: without it a modifier
             // word reads as a field of its own (`readonly type: T` as two).
@@ -959,23 +937,22 @@ struct TypeScript : cursiv::GrammarSpec {
                    option(flag<&ast::ClassMember::optional>(lit<"?">)) +
                    option(flag<&ast::ClassMember::definite>(lit<"!">)) +
                    option(assign<&ast::ClassMember::typeAnnotation>(
-                       ref<TypeAnnotationRule>)) +
+                       ref<TypeAnnotation>)) +
                    option(lit<"="> + assign<&ast::ClassMember::value>(
                                           ref<AssignExpr>))) +
                Eos)> {};
 
   template <auto Ptr>
   static constexpr auto ClassBodyFor =
-      lit<"{"> + many(append<Ptr>(ref<ClassMemberRule>) | lit<";">) + lit<"}">;
+      lit<"{"> + many(append<Ptr>(ref<ClassMember>) | lit<";">) + lit<"}">;
 
   // A plain type reference reads as one; any other expression (a call, a
   // parenthesised cast) lands in the expression member.
   template <auto SuperPtr, auto ExprPtr, auto ImplPtr>
   static constexpr auto ClassHeritageFor =
-      option(kw<"extends"> + (assign<SuperPtr>(ref<TypeReferenceRule>)  //
+      option(kw<"extends"> + (assign<SuperPtr>(ref<TypeReference>)  //
                               | assign<ExprPtr>(ref<PostfixExpr>))) +
-      option(kw<"implements"> + append<ImplPtr>(ref<TypeReferenceRule>) +
-             many(lit<","> + append<ImplPtr>(ref<TypeReferenceRule>)));
+      option(kw<"implements"> + some(append<ImplPtr>(ref<TypeReference>), lit<",">));
 
   // No decorator list here: a decorator applies to a class declaration,
   // never to the expression form.
@@ -1009,9 +986,9 @@ struct TypeScript : cursiv::GrammarSpec {
             TypeParamsClauseFor<&ast::InterfaceDecl::typeParams> +
             option(kw<"extends"> +
                    append<&ast::InterfaceDecl::extendsClause>(
-                       ref<TypeReferenceRule>) +
+                       ref<TypeReference>) +
                    many(lit<","> + append<&ast::InterfaceDecl::extendsClause>(
-                                        ref<TypeReferenceRule>))) +
+                                        ref<TypeReference>))) +
             lit<"{"> +
             TypeMembers<&ast::InterfaceDecl::members> +
             lit<"}"> + option(lit<";">))> {};
@@ -1023,7 +1000,7 @@ struct TypeScript : cursiv::GrammarSpec {
             TypeParamsClauseFor<&ast::TypeAliasDecl::typeParams> + lit<"="> +
             assign<&ast::TypeAliasDecl::type>(ref<Type_>) + Eos)> {};
 
-  struct EnumMemberRule
+  struct EnumMember
       : rule<create<ast::EnumMember>(
             assign<&ast::EnumMember::key>(PropKey) +
             option(lit<"="> +
@@ -1034,9 +1011,9 @@ struct TypeScript : cursiv::GrammarSpec {
             DeclareFor<&ast::EnumDecl::isDeclare> +
             option(flag<&ast::EnumDecl::isConst>(kw<"const">)) +
             kw<"enum"> + assign<&ast::EnumDecl::name>(ref<RawId>) + lit<"{"> +
-            option(append<&ast::EnumDecl::members>(ref<EnumMemberRule>) +
+            option(append<&ast::EnumDecl::members>(ref<EnumMember>) +
                    many(lit<","> + append<&ast::EnumDecl::members>(
-                                        ref<EnumMemberRule>)) +
+                                        ref<EnumMember>)) +
                    option(lit<",">)) +
             lit<"}">)> {};
 
@@ -1075,7 +1052,7 @@ struct TypeScript : cursiv::GrammarSpec {
             assign<&ast::Declarator::id>(ref<Assignable>) +
             option(flag<&ast::Declarator::optional>(lit<"?">)) +
             option(assign<&ast::Declarator::typeAnnotation>(
-                ref<TypeAnnotationRule>)) +
+                ref<TypeAnnotation>)) +
             option(lit<"="> +
                    assign<&ast::Declarator::init>(ref<AssignExpr>)))> {};
 
@@ -1084,14 +1061,14 @@ struct TypeScript : cursiv::GrammarSpec {
             option(flag<&ast::VarDecl::isReadonly>(kw<"readonly">)) +
             append<&ast::VarDecl::declarations>(ref<AbstractDeclarator_>))> {};
 
-  struct AbstractDeclRule
+  struct AbstractDecl
       : rule<create<ast::AbstractDecl>(
                  kw<"abstract"> +
                  assign<&ast::AbstractDecl::name>(ref<RawId> | AllKeywords) +
                  TypeParamsClauseFor<&ast::AbstractDecl::typeParams> +
                  lit<"("> + ParamTailFor<&ast::AbstractDecl::params> +
                  option(assign<&ast::AbstractDecl::returnType>(
-                     ref<TypeAnnotationRule>)) +
+                     ref<TypeAnnotation>)) +
                  Eos)  //
              | create<ast::AbstractDecl>(
                    kw<"abstract"> +
@@ -1099,7 +1076,7 @@ struct TypeScript : cursiv::GrammarSpec {
                    assign<&ast::AbstractDecl::name>(ref<RawId> | AllKeywords) +
                    lit<"("> + lit<")"> +
                    option(assign<&ast::AbstractDecl::returnType>(
-                       ref<TypeAnnotationRule>)) +
+                       ref<TypeAnnotation>)) +
                    Eos)  //
              | create<ast::AbstractDecl>(
                    kw<"abstract"> +
@@ -1117,6 +1094,46 @@ struct TypeScript : cursiv::GrammarSpec {
                        ref<AbstractFieldDecl>) +
                    Eos)> {};
 
+  // Resource for-header initializers keep NoIn through concise arrows;
+  // parentheses, arguments and function blocks use ordinary expressions.
+  struct NoInArrowFunctionExpr : rule<ArrowFunctionBody<NoInAssignExpr>> {};
+  struct NoInPostfixExpr : rule<
+      (ref<PrimaryNoArrow> | ref<NoInArrowFunctionExpr> | ref<NewExpr_>) +
+      many(PostfixTail)> {};
+  struct NoInUnaryExpr : rule<UnaryBody<NoInUnaryExpr, NoInPostfixExpr>> {};
+  struct NoInPowerExpr : infix<NoInUnaryExpr, ast::BinaryExpr,
+      right(lit<"**", !cr<"=">>)> {};
+  struct NoInMultiplyExpr : infix<NoInPowerExpr, ast::BinaryExpr,
+      left(MultiplicativeOp)> {};
+  struct NoInAddExpr : infix<NoInMultiplyExpr, ast::BinaryExpr,
+      left(AdditiveOp)> {};
+  struct NoInShiftExpr : infix<NoInAddExpr, ast::BinaryExpr,
+      left(ShiftOp)> {};
+  static constexpr auto NoInAssertionTail =
+      AssertionTailFor<NoInPowerExpr, NoInMultiplyExpr, NoInAddExpr>;
+  struct NoInRelationalExpr : rule<
+      (create<ast::AsExpr>(
+          assign<&ast::AsExpr::expression>(ref<NoInRelationalExpr>) +
+          !LineBreak + kw<"as"> + assign<&ast::AsExpr::target>(ref<Type_>)) +
+       NoInAssertionTail) |
+      (create<ast::SatisfiesExpr>(
+          assign<&ast::SatisfiesExpr::expression>(ref<NoInRelationalExpr>) +
+          !LineBreak + kw<"satisfies"> + assign<&ast::SatisfiesExpr::target>(ref<Type_>)) +
+       NoInAssertionTail) |
+      create<ast::BinaryExpr>(
+          assign<&ast::BinaryExpr::left>(ref<NoInRelationalExpr>) +
+          assign<&ast::BinaryExpr::op>(RelationalOpNoIn) +
+          assign<&ast::BinaryExpr::right>(ref<NoInShiftExpr>)) | ref<NoInShiftExpr>> {};
+  struct NoInBinaryExpr : infix<NoInRelationalExpr, ast::BinaryExpr, BinaryLevels> {};
+  struct NoInConditionalExpr : rule<create<ast::ConditionalExpr>(
+      assign<&ast::ConditionalExpr::test>(ref<NoInBinaryExpr>) +
+      lit<"?", !cr<"?"> + !(lit<"."> + !d)> +
+      assign<&ast::ConditionalExpr::consequent>(ref<AssignExpr>) + lit<":"> +
+      assign<&ast::ConditionalExpr::alternate>(ref<NoInAssignExpr>)) | ref<NoInBinaryExpr>> {};
+  struct NoInAssignExpr : infix<NoInConditionalExpr, ast::AssignExpr,
+      right(AssignmentOp), &ast::AssignExpr::target, &ast::AssignExpr::op,
+      &ast::AssignExpr::value> {};
+
   // -- Assignable (var/let/const target, parameter, for-in/of target) ----
   // `AllKeywords`, not only `Ident`: a keyword is a legal binding name too
   // (`const function = ...`), spelled once through the same `KeywordAsKey`
@@ -1132,24 +1149,78 @@ struct TypeScript : cursiv::GrammarSpec {
             assign<&ast::Declarator::id>(ref<Assignable>) +
             option(flag<&ast::Declarator::definite>(lit<"!", !cr<"=">>)) +
             option(assign<&ast::Declarator::typeAnnotation>(
-                ref<TypeAnnotationRule>)) +
+                ref<TypeAnnotation>)) +
             option(lit<"="> +
                    assign<&ast::Declarator::init>(ref<AssignExpr>)))> {};
+
+  // parser.ts isBindingIdentifier includes future/contextual words. Keep
+  // this lexical fragment free of AST construction so heads can read it.
+  static constexpr auto ResourceBindingName = ref<PlainId> | ContextualKeyword |
+      kw<"implements"> | kw<"interface"> | kw<"let"> | kw<"package"> |
+      kw<"private"> | kw<"protected"> | kw<"public"> | kw<"static"> | kw<"await">;
+  struct ResourceBindingIdent : rule<
+      assign<&ast::Ident::name>(ResourceBindingName)> {};
+  static constexpr auto ResourceBinding =
+      ref<ResourceBindingIdent> | ref<ArrayLiteral> | ref<ObjectLiteral>;
+  static constexpr auto ResourceFirstBinding = ResourceBindingName | lit<"{">;
+  static constexpr auto ResourceFollower = !LineBreak + &ResourceFirstBinding;
+  static constexpr auto ResourceHead =
+      (kw<"using"> + ResourceFollower) |
+      (kw<"await"> + kw<"using"> + ResourceFollower);
+  // Plain `using of xs` is an expression initializer; `await using` differs.
+  // The plain `of` lookahead precedes the native same-line check.
+  static constexpr auto ResourceForHead =
+      (kw<"using"> +
+       ((kw<"of"> + &(lit<"="> | lit<";"> | lit<":">)) |
+        (!LineBreak + !kw<"of"> + ResourceFirstBinding))) |
+      (kw<"await"> + kw<"using"> + ResourceFollower);
+  static constexpr auto ResourceKind =
+      option(flag<&ast::VarDecl::isAwaitUsing>(kw<"await">)) +
+      assign<&ast::VarDecl::kind>(kw<"using">);
+  template <class Initializer>
+  static constexpr auto ResourceTypeAndInit =
+      option(assign<&ast::Declarator::typeAnnotation>(ref<TypeAnnotation>)) +
+      option(lit<"="> + assign<&ast::Declarator::init>(ref<Initializer>));
+  struct ResourceDeclarator : rule<create<ast::Declarator>(
+      assign<&ast::Declarator::id>(ResourceBinding) +
+      option(!LineBreak + flag<&ast::Declarator::definite>(lit<"!", !cr<"=">>)) +
+      ResourceTypeAndInit<AssignExpr>)> {};
+  struct ResourceForDeclarator : rule<create<ast::Declarator>(
+      assign<&ast::Declarator::id>(ResourceBinding) +
+      ResourceTypeAndInit<NoInAssignExpr>)> {};
+  static constexpr auto ResourceListElementStart =
+      ResourceBindingName | ref<PrivateId> | lit<"["> | lit<"{">;
+  static constexpr auto ResourceTrailingComma =
+      flag<&ast::VarDecl::hasTrailingComma>(lit<",">) + !ResourceListElementStart;
+  struct ResourceStatement : rule<
+      create<ast::VarDecl>(
+          option(flag<&ast::VarDecl::isDeclare>(kw<"declare">) + !LineBreak) +
+          &ResourceHead + ResourceKind + ResourceFollower +
+          append<&ast::VarDecl::declarations>(ref<ResourceDeclarator>) +
+          many(lit<","> + append<&ast::VarDecl::declarations>(ref<ResourceDeclarator>)) +
+          option(ResourceTrailingComma)) + Eos> {};
+  static constexpr auto EmptyResourceForList =
+      &(kw<"of"> + ResourceBindingName + lit<")">);
+  struct ResourceForDeclList : rule<create<ast::VarDecl>(
+      &ResourceForHead + ResourceKind +
+      (EmptyResourceForList |
+       (!EmptyResourceForList +
+        append<&ast::VarDecl::declarations>(ref<ResourceForDeclarator>) +
+        many(lit<","> + append<&ast::VarDecl::declarations>(ref<ResourceForDeclarator>)) +
+        option(ResourceTrailingComma))))> {};
 
   static constexpr auto VarKind = kw<"var"> | kw<"let"> | kw<"const">;
 
   struct VarDeclList
       : rule<create<ast::VarDecl>(
             assign<&ast::VarDecl::kind>(VarKind) +
-            append<&ast::VarDecl::declarations>(ref<Declarator_>) +
-            many(lit<","> +
-                 append<&ast::VarDecl::declarations>(ref<Declarator_>)))> {};
+            some(append<&ast::VarDecl::declarations>(ref<Declarator_>), lit<",">))> {};
 
   struct BareDeclarator_
       : rule<create<ast::Declarator>(
             assign<&ast::Declarator::id>(ref<ArrayLiteral> | ref<ObjectLiteral>) +
             option(assign<&ast::Declarator::typeAnnotation>(
-                ref<TypeAnnotationRule>)) +
+                ref<TypeAnnotation>)) +
             lit<"="> +
             assign<&ast::Declarator::init>(ref<AssignExpr>))> {};
 
@@ -1180,7 +1251,7 @@ struct TypeScript : cursiv::GrammarSpec {
   struct ExpressionStatement
       : rule<create<ast::ExprStmt>(
             !lit<"{"> + !kw<"class"> + !kw<"function"> + !kw<"interface"> +
-            !kw<"abstract"> +
+             !kw<"abstract"> + !ResourceHead +
             assign<&ast::ExprStmt::expression>(ref<Expression>) + Eos)> {};
 
   struct EmptyStatement : rule<create<ast::EmptyStmt>(lit<";">)> {};
@@ -1218,8 +1289,8 @@ struct TypeScript : cursiv::GrammarSpec {
   struct ForClassicStatement
       : rule<create<ast::ForStmt>(
             kw<"for"> + lit<"("> +
-            option(assign<&ast::ForStmt::initDecl>(ref<VarDeclList>) |
-                   assign<&ast::ForStmt::initExpr>(ref<Expression>)) +
+            option(assign<&ast::ForStmt::initDecl>(ref<VarDeclList> | ref<ResourceForDeclList>) |
+                   assign<&ast::ForStmt::initExpr>(!ResourceForHead + ref<Expression>)) +
             lit<";"> + option(assign<&ast::ForStmt::test>(ref<Expression>)) +
             lit<";"> +
             option(assign<&ast::ForStmt::update>(ref<Expression>)) +
@@ -1238,8 +1309,8 @@ struct TypeScript : cursiv::GrammarSpec {
   struct ForInStatement
       : rule<create<ast::ForInStmt>(
             kw<"for"> + lit<"("> +
-            (assign<&ast::ForInStmt::leftDecl>(ref<ForBindingDecl>)  //
-             | assign<&ast::ForInStmt::leftExpr>(ref<UnaryExpr>)) +
+            (assign<&ast::ForInStmt::leftDecl>(ref<ForBindingDecl> | ref<ResourceForDeclList>)  //
+             | assign<&ast::ForInStmt::leftExpr>(!ResourceForHead + ref<UnaryExpr>)) +
             kw<"in"> + assign<&ast::ForInStmt::right>(ref<Expression>) +
             lit<")"> + assign<&ast::ForInStmt::body>(ref<Statement>))> {};
 
@@ -1248,8 +1319,8 @@ struct TypeScript : cursiv::GrammarSpec {
             kw<"for"> +
             option(flag<&ast::ForOfStmt::isAwait>(kw<"await">)) +
             lit<"("> +
-            (assign<&ast::ForOfStmt::leftDecl>(ref<ForBindingDecl>)  //
-             | assign<&ast::ForOfStmt::leftExpr>(ref<UnaryExpr>)) +
+            (assign<&ast::ForOfStmt::leftDecl>(ref<ForBindingDecl> | ref<ResourceForDeclList>)  //
+             | assign<&ast::ForOfStmt::leftExpr>(!ResourceForHead + ref<UnaryExpr>)) +
             kw<"of"> + assign<&ast::ForOfStmt::right>(ref<AssignExpr>) +
             option(kw<"as"> + assign<&ast::ForOfStmt::asType>(ref<Type_>)) +
             lit<")"> + assign<&ast::ForOfStmt::body>(ref<Statement>))> {};
@@ -1330,7 +1401,7 @@ struct TypeScript : cursiv::GrammarSpec {
             option(lit<"("> +
                    assign<&ast::CatchClause::param>(ref<Assignable>) +
                    option(assign<&ast::CatchClause::typeAnnotation>(
-                       ref<TypeAnnotationRule>)) +
+                       ref<TypeAnnotation>)) +
                    lit<")">) +
             assign<&ast::CatchClause::body>(ref<BlockStmt_>))> {};
 
@@ -1346,18 +1417,18 @@ struct TypeScript : cursiv::GrammarSpec {
   struct FunctionDeclaration
       : rule<create<ast::FunctionDecl>(
             DeclareFor<&ast::FunctionDecl::isDeclare> +
-            option(flag<&ast::FunctionDecl::isAsync>(kw<"async">)) +
+            option(flag<&ast::FunctionDecl::isAsync>(kw<"async">) + !LineBreak) +
             kw<"function"> +
             option(flag<&ast::FunctionDecl::isGenerator>(lit<"*">)) +
             assign<&ast::FunctionDecl::name>(ref<RawId>) +
             TypeParamsClauseFor<&ast::FunctionDecl::typeParams> +
             ParamListFor<&ast::FunctionDecl::params> +
             option(assign<&ast::FunctionDecl::returnType>(
-                ref<TypeAnnotationRule>)) +
+                ref<TypeAnnotation>)) +
             (assign<&ast::FunctionDecl::body>(ref<FunctionBody>) | Eos))> {};
 
   struct Statement
-      : rule<ref<BlockStmt_> | ref<VariableStatement> | ref<ImportStatement> |
+      : rule<ref<BlockStmt_> | ref<ResourceStatement> | ref<VariableStatement> | ref<ImportStatement> |
              ref<ImportEqualsStatement> | ref<NamespaceExportDeclaration> |
              ref<ExportStatement> | ref<EmptyStatement> |
              ref<ClassDeclaration> | ref<FunctionDeclaration> |
@@ -1369,12 +1440,12 @@ struct TypeScript : cursiv::GrammarSpec {
              ref<NamespaceDeclaration> | ref<WithStatement> |
              ref<DebuggerStatement> | ref<LabelledStatement> |
              ref<TryStatement> | ref<YieldStatement> |
-             ref<AbstractDeclRule> | ref<ExpressionStatement>> {};
+             ref<AbstractDecl> | ref<ExpressionStatement>> {};
 
   // -- Modules ----
   struct ModuleExportName : rule<ref<RawId> | AllKeywords | ref<STRING>> {};
 
-  struct ImportAttributeRule
+  struct ImportAttribute
       : rule<create<ast::ImportAttribute>(
             assign<&ast::ImportAttribute::key>(ref<RawId> | AllKeywords |
                                                ref<STRING>) +
@@ -1383,14 +1454,13 @@ struct TypeScript : cursiv::GrammarSpec {
   template <auto Ptr>
   static constexpr auto ImportAttributesFor =
       option(kw<"with"> + lit<"{"> +
-             option(append<Ptr>(ref<ImportAttributeRule>) +
-                    many(lit<","> + append<Ptr>(ref<ImportAttributeRule>)) +
+             option(some(append<Ptr>(ref<ImportAttribute>), lit<",">) +
                     option(lit<",">)) +
              lit<"}">);
 
   // `type` leads a specifier as a modifier or as the name itself: the words
   // after it say which (`type`, `type as`, `type as as`, `type as as as`).
-  struct ImportSpecifierRule
+  struct ImportSpecifier
       : rule<create<ast::ImportSpecifier>(
             option(flag<&ast::ImportSpecifier::isTypeOnly>(kw<"type">)) +
             assign<&ast::ImportSpecifier::imported>(ref<ModuleExportName>) +
@@ -1399,21 +1469,18 @@ struct TypeScript : cursiv::GrammarSpec {
 
   static constexpr auto ImportNamedList =
       lit<"{"> +
-      option(append<&ast::ImportStmt::specifiers>(ref<ImportSpecifierRule>) +
+      option(append<&ast::ImportStmt::specifiers>(ref<ImportSpecifier>) +
              many(lit<","> + append<&ast::ImportStmt::specifiers>(
-                                  ref<ImportSpecifierRule>)) +
+                                  ref<ImportSpecifier>)) +
              option(lit<",">)) +
       lit<"}">;
 
-  struct ImportNamespaceRule
+  struct ImportNamespace
       : rule<create<ast::ImportSpecifier>(
-            (flag<&ast::ImportSpecifier::isNamespace>(lit<"*">) +
-             option(kw<"as"> +
-                    assign<&ast::ImportSpecifier::local>(ref<RawId>)))  //
-            | assign<&ast::ImportSpecifier::local>(
-                ref<RawId> | ContextualKeyword))> {};
+            flag<&ast::ImportSpecifier::isNamespace>(lit<"*">) + kw<"as"> +
+            assign<&ast::ImportSpecifier::local>(ref<RawId> | ContextualKeyword))> {};
 
-  struct ImportDefaultRule
+  struct ImportDefault
       : rule<create<ast::ImportSpecifier>(
             assign<&ast::ImportSpecifier::local>(ref<RawId> |
                                                  ContextualKeyword))> {};
@@ -1423,11 +1490,12 @@ struct TypeScript : cursiv::GrammarSpec {
             kw<"import"> +
             option(flag<&ast::ImportStmt::isTypeOnly>(kw<"type"> +
                                                            !kw<"from">)) +
-            ((option(append<&ast::ImportStmt::specifiers>(
-                         ref<ImportDefaultRule>) +
-                     lit<",">) +
-              (append<&ast::ImportStmt::specifiers>(ref<ImportNamespaceRule>)  //
-               | ImportNamedList) +
+            ((((append<&ast::ImportStmt::specifiers>(ref<ImportDefault>) +
+               option(lit<","> +
+                      (append<&ast::ImportStmt::specifiers>(ref<ImportNamespace>) |
+                       ImportNamedList))) |
+              append<&ast::ImportStmt::specifiers>(ref<ImportNamespace>) |
+              ImportNamedList) +
               kw<"from"> + assign<&ast::ImportStmt::source>(ref<STRING>) +
               ImportAttributesFor<&ast::ImportStmt::attributes> + Eos)  //
              | (assign<&ast::ImportStmt::source>(ref<STRING>) +
@@ -1447,7 +1515,7 @@ struct TypeScript : cursiv::GrammarSpec {
              | assign<&ast::ImportEqualsDecl::entity>(ref<QualifiedName>)) +
             Eos)> {};
 
-  struct ExportSpecifierRule
+  struct ExportSpecifier
       : rule<create<ast::ExportSpecifier>(
             option(flag<&ast::ExportSpecifier::isTypeOnly>(kw<"type">)) +
             assign<&ast::ExportSpecifier::local>(ref<ModuleExportName>) +
@@ -1456,9 +1524,9 @@ struct TypeScript : cursiv::GrammarSpec {
 
   static constexpr auto ExportNamedList =
       lit<"{"> +
-      option(append<&ast::ExportStmt::specifiers>(ref<ExportSpecifierRule>) +
+      option(append<&ast::ExportStmt::specifiers>(ref<ExportSpecifier>) +
              many(lit<","> + append<&ast::ExportStmt::specifiers>(
-                                  ref<ExportSpecifierRule>)) +
+                                  ref<ExportSpecifier>)) +
              option(lit<",">)) +
       lit<"}">;
 
@@ -1467,22 +1535,33 @@ struct TypeScript : cursiv::GrammarSpec {
             assign<&ast::ExportSpecifier::exported>(ref<ModuleExportName>))> {
   };
 
-  // `export default function (): T;`, an overload with no body.
-  struct DefaultFunctionSignature
+  // Default function/class declarations may be anonymous. Keep declaration
+  // nodes, rather than routing them through an expression-shaped fallback.
+  struct DefaultFunctionDeclaration
       : rule<create<ast::FunctionDecl>(
-            option(flag<&ast::FunctionDecl::isAsync>(kw<"async">)) +
+            option(flag<&ast::FunctionDecl::isAsync>(kw<"async">) + !LineBreak) +
             kw<"function"> +
             option(flag<&ast::FunctionDecl::isGenerator>(lit<"*">)) +
+            option(assign<&ast::FunctionDecl::name>(ref<RawId>)) +
             TypeParamsClauseFor<&ast::FunctionDecl::typeParams> +
             ParamListFor<&ast::FunctionDecl::params> +
-            option(assign<&ast::FunctionDecl::returnType>(
-                ref<TypeAnnotationRule>)) +
-            Eos)> {};
+            option(assign<&ast::FunctionDecl::returnType>(ref<TypeAnnotation>)) +
+            (assign<&ast::FunctionDecl::body>(ref<FunctionBody>) | Eos))> {};
+
+  struct DefaultClassDeclaration
+      : rule<create<ast::ClassDecl>(
+            option(flag<&ast::ClassDecl::isAbstract>(kw<"abstract">)) +
+            kw<"class"> + option(assign<&ast::ClassDecl::name>(ref<RawId>)) +
+            TypeParamsClauseFor<&ast::ClassDecl::typeParams> +
+            ClassHeritageFor<&ast::ClassDecl::superClass,
+                             &ast::ClassDecl::superExpr,
+                             &ast::ClassDecl::implementsClause> +
+            ClassBodyFor<&ast::ClassDecl::members>)> {};
 
   // Every declaration kind may be exported: var/class/function plus
   // interface/type/enum/namespace.
   struct ExportDeclaration_
-      : rule<ref<VariableStatement> | ref<ClassDeclaration> |
+      : rule<ref<ResourceStatement> | ref<VariableStatement> | ref<ClassDeclaration> |
              ref<FunctionDeclaration> | ref<InterfaceDeclaration> |
              ref<TypeAliasDeclaration> | ref<EnumDeclaration> |
              ref<NamespaceDeclaration> | ref<ImportEqualsStatement>> {};
@@ -1492,9 +1571,11 @@ struct TypeScript : cursiv::GrammarSpec {
             many(append<&ast::ExportStmt::decorators>(ref<DecoratorExpr>)) +
             kw<"export"> +
             ((flag<&ast::ExportStmt::isDefault>(kw<"default">) +
-              (assign<&ast::ExportStmt::declaration>(ref<ExportDeclaration_>)  //
-               | assign<&ast::ExportStmt::declaration>(
-                     ref<DefaultFunctionSignature>)  //
+              (assign<&ast::ExportStmt::declaration>(
+                   ref<DefaultFunctionDeclaration> | ref<DefaultClassDeclaration> |
+                   ref<VariableStatement> | ref<InterfaceDeclaration> |
+                   ref<TypeAliasDeclaration> | ref<EnumDeclaration> |
+                   ref<NamespaceDeclaration> | ref<ImportEqualsStatement>)  //
                | (assign<&ast::ExportStmt::defaultExpr>(ref<AssignExpr>) +
                   Eos)))  //
              | (flag<&ast::ExportStmt::isEquals>(lit<"=">) +
@@ -1521,7 +1602,7 @@ struct TypeScript : cursiv::GrammarSpec {
             many(append<&ast::Program::body>(ref<Statement>)))> {};
 
   using entry = Program_;
-  using ignore = WS;
+  using ignored = WS;
   // A keyword may not run into a name's byte, past ASCII included.
   static constexpr auto word_boundary = IdentifierContinue | cr<R"(\\)">;
   using hidden = list<SL_COMMENT, ML_COMMENT, HTML_COMMENT, CDATA_COMMENT>;

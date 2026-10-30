@@ -31,6 +31,9 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A free-form Fortran grammar centered on Fortran 90, with selected later
+constructs. Files can contain programs, procedures, modules and block data.
+
 ```fortran
 program greet
   character(len=32) :: name
@@ -43,14 +46,6 @@ contains
   end subroutine sub
 end program greet
 ```
-
-A program is a sequence of program units: a main program, functions,
-subroutines, modules and block data, each with a specification part and an
-executable part. Free source form only: `!` starts a line comment and `&` is a
-pure continuation marker, so a statement may already cross lines without
-either. Fortran keywords are never reserved — `integer :: if` declares a
-variable named `if` — so most identifier positions accept any spelling a
-statement keyword could also open on.
 
 ## The command line
 

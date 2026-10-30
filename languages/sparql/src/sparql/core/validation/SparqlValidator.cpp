@@ -157,8 +157,10 @@ void SparqlValidator::checkPrefixesDeclared(
   Prefixes prefixes;
   if (query.prologue != nullptr)
     for (const ast::PrefixDecl *const decl : query.prologue->prefixes)
-      if (decl != nullptr)
-        prefixes.insert(decl->prefix);
+      if (decl != nullptr && !prefixes.insert(decl->prefix).second)
+        accept.error(*decl, "A prefix may not be declared more than once.",
+                     "sparql.prefix.duplicate")
+            .property<&ast::PrefixDecl::prefix>();
 
   std::visit(overloaded{[&](const ast::SelectQuery *q) {
                           if (q == nullptr)

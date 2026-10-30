@@ -1,6 +1,5 @@
-// The checks of this language: none -- the grammar has no constraint a
-// single parse cannot already enforce. The pair stays so a future check has
-// somewhere to go.
+// The historical DOI URI draft permits empty segments in its ABNF, but
+// requires a nonempty prefix and suffix when validating a DOI name.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -12,6 +11,8 @@ namespace doiurl {
 class DoiurlValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkName(const ast::DoiUri& node,
+                 cursiv::ValidationAcceptor& accept) const;
 };
 
 struct DoiurlCoreServices;

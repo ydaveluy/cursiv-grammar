@@ -1,6 +1,6 @@
 # v
 
-A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+A V 0.4.12 syntax subset built with [cursiv](https://github.com/ydaveluy/cursiv).
 
 ## Build
 
@@ -42,7 +42,7 @@ fn main() {
 ```
 
 A module clause, imports, `const`/struct/function declarations,
-`if`/`switch`/`for` statements and V's composite literals are covered too --
+`if`/`match`/`for` statements and V's composite literals are covered too --
 see `tests/features.v`.
 
 ## The command line

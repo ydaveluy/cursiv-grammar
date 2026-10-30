@@ -28,6 +28,15 @@ int main() {
       flowmatic::FlowmaticCoreServices, flowmatic::FlowmaticSharedCoreServices,
       flowmatic::install_core_module>();
 
+  for (const bool closed : {false, true}) {
+    const std::string source = closed ? "(1) STOP . (END)" : "(1) STOP .";
+    const auto result = language.language.parser->parse(source);
+    const auto* program = result.value_as<flowmatic::ast::Program>();
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !program || program->hasEnd != closed)
+      return fail("end-marker", "presence of (END) was lost");
+  }
+
   int total = 0;
   int failures = native_regressions::run(language);
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

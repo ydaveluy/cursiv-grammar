@@ -58,7 +58,7 @@ namespace Demo
 }
 ```
 
-A catalogue of the ECSS SMP modelling language: namespaces holding types --
+XSMP Modeler 2.0.3 catalogue syntax (`.xsmpcat`): namespaces holding ECSS SMP types --
 primitives, enumerations, structures, classes, exceptions, arrays, interfaces,
 models, services and more -- whose members are constants, fields, properties,
 operations, associations, containers, references, entry points and event sinks

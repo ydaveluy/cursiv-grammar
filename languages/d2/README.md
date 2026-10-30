@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+D2 0.9.0 diagram source describes shapes, connections, attributes and nested maps.
+
 ```
 pg: PostgreSQL
 Cloud: my cloud
@@ -38,12 +40,6 @@ Cloud.shape: cloud
 
 pg -> Cloud: reads from
 ```
-
-A node is a dotted name, an optional `: label`, an optional `[...]`
-attribute list and an optional `{...}` block of nested statements. An edge
-chains two or more names with `->`, `<-` or `--`, and takes the same
-optional label and attributes. See `example/` for the constructs this
-grammar accepts.
 
 ## The command line
 

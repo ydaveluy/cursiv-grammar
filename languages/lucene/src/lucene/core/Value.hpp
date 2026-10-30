@@ -86,9 +86,13 @@ inline TextValue term_value(std::string_view raw) {
   return result;
 }
 inline TextValue quoted_value(const ast::QuotedTerm &n) {
+  if (n.raw.size() < 2 || n.raw.front() != '"' || n.raw.back() != '"')
+    return {{}, "A quoted term requires its opening and closing quotes."};
   return term_value(n.raw.substr(1, n.raw.size() - 2));
 }
 inline TextValue bound_value(const ast::RangeBound &n) {
+  if (n.quoted && (n.raw.size() < 2 || n.raw.front() != '"' || n.raw.back() != '"'))
+    return {{}, "A quoted range bound requires its opening and closing quotes."};
   return term_value(n.quoted ? n.raw.substr(1, n.raw.size() - 2) : n.raw);
 }
 inline std::optional<float> suffix_number(std::string_view raw) {

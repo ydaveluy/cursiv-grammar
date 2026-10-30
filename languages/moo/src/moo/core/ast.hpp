@@ -19,6 +19,8 @@ using PropAccess = std::variant<std::string_view, Expr*>;
 
 struct Property : cursiv::Extends<Expr> {
   string_view base;
+  boolean stringBase;
+  boolean objectBase;
   vector<PropAccess> path;
 };
 
@@ -32,6 +34,10 @@ struct IntLit : cursiv::Extends<Expr> {
 
 struct RealLit : cursiv::Extends<Expr> {
   float64 value = 0;
+};
+
+struct ErrorLit : cursiv::Extends<Expr> {
+  string_view name;
 };
 
 struct ObjRef : cursiv::Extends<Expr> {
@@ -68,6 +74,7 @@ enum class Operator : std::uint8_t {
   less_equal,
   logical_and,
   logical_or,
+  in_,
 };
 
 struct BinaryExpr : cursiv::Extends<Expr> {
@@ -89,15 +96,20 @@ struct VerbCall : cursiv::Extends<Expr> {
 
 struct Statement : cursiv::Extends<cursiv::AstNode> {};
 
+struct ElseIfClause : cursiv::Extends<cursiv::AstNode> {
+  Expr* cond;
+  vector<Statement*> body;
+};
 struct IfStmt : cursiv::Extends<Statement> {
   Expr* cond = nullptr;
   vector<Statement*> thenBody;
-  Expr* elifCond = nullptr;
-  vector<Statement*> elifBody;
+  vector<ElseIfClause*> elseIfs;
+  boolean hasElse;
   vector<Statement*> elseBody;
 };
 
 struct WhileStmt : cursiv::Extends<Statement> {
+  string_view name;
   Expr* cond = nullptr;
   vector<Statement*> body;
 };
@@ -110,13 +122,28 @@ struct DoStmt : cursiv::Extends<Statement> {
 struct ForStmt : cursiv::Extends<Statement> {
   string_view var;
   Expr* iterable = nullptr;
+  Expr* from;
+  Expr* to;
   vector<Statement*> body;
 };
 
+struct ExceptClause : cursiv::Extends<cursiv::AstNode> {
+  string_view variable;
+  boolean any;
+  vector<Expr*> codes;
+  vector<Statement*> body;
+};
+struct LoopControlStmt : cursiv::Extends<Statement> {
+  boolean continue_;
+  string_view name;
+};
 struct TryStmt : cursiv::Extends<Statement> {
   vector<Statement*> body;
   Property* except = nullptr;
   vector<Statement*> handler;
+  vector<ExceptClause*> clauses;
+  boolean hasFinally;
+  vector<Statement*> cleanup;
 };
 
 struct AssignStmt : cursiv::Extends<Statement> {
@@ -128,7 +155,7 @@ struct ReturnCommand : cursiv::Extends<cursiv::AstNode> {
   Expr* value = nullptr;
 };
 
-using Command = std::variant<VerbCall*, ReturnCommand*>;
+using Command = std::variant<VerbCall*, ReturnCommand*, FuncCall*>;
 
 struct CommandStmt : cursiv::Extends<Statement> {
   Command command;

@@ -27,6 +27,49 @@ int main() {
       guido::GuidoCoreServices, guido::GuidoSharedCoreServices,
       guido::install_core_module>();
 
+  {
+    const std::string source = R"GMN([s1:3\:5:*1/4.. {s2:7:,s6:0:} \title<"a\:b">])GMN";
+    const auto parsed = language.language.parser->parse(source);
+    const auto* root = parsed.value_as<guido::ast::Prog>();
+    const auto* sequence = root && root->sequences.size() == 1 ? root->sequences[0] : nullptr;
+    const auto* tab = sequence && sequence->items.size() == 3 ?
+        cursiv::ast_cast<guido::ast::Tablature>(sequence->items[0]) : nullptr;
+    const auto* tag = sequence && sequence->items.size() == 3 ?
+        cursiv::ast_cast<guido::ast::Tag>(sequence->items[2]) : nullptr;
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !tab || tab->string != "s1" || tab->frets != "3:5" || tab->dots != ".." ||
+        !tab->duration || !tab->duration->numerator ||
+        tab->duration->numerator->value != "1" || !tag ||
+        tag->parameters.size() != 1 || tag->parameters[0]->text != "a:b" ||
+        !cursiv::test::validationHelper(language.language, source).diagnostics.empty()) {
+      fail(source, "native tablature, duration and colon escapes must retain their values");
+      return 1;
+    }
+  }
+  if (cursiv::test::validationHelper(language.language, "[s1:0:....]").diagnostics.empty()) {
+    fail("[s1:0:....]", "tablature permits at most three duration dots");
+    return 1;
+  }
+
+  for (const auto source : {R"GMN([\title<"a\"b">])GMN",
+                            R"GMN([\title<'a\'b'>])GMN"}) {
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty()) {
+      fail(source, "escaped quote must stay inside its string");
+      return 1;
+    }
+  }
+  for (const auto source : {R"GMN([\title<"unfinished\">])GMN",
+                            R"GMN([\title<'unfinished\'>])GMN"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() &&
+        result.diagnostics.empty()) {
+      fail(source, "an escaped delimiter cannot close a string");
+      return 1;
+    }
+  }
+
   int total = 0;
   int failures = native_regressions::run(language);
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

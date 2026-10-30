@@ -51,11 +51,14 @@ void VerilogValidator::checkProcedural(const ast::ProcAssignStmt& node,
 }
 void VerilogValidator::checkCall(const ast::CallExpr& node,
                                 cursiv::ValidationAcceptor& accept) const {
+  // Task enables may leave input slots unconnected; function expressions may not.
+  if (const auto* statement = cursiv::ast_cast<ast::TaskEnableStmt>(node.parent);
+      statement && statement->call == &node) return;
   const auto* callee = cursiv::ast_cast<ast::HierIdent>(node.callee);
   if (!callee || callee->name.starts_with("$") || callee->name.starts_with("`")) return;
   for (auto arg : node.args)
     if (cursiv::ast_cast<ast::OmittedArg>(arg)) {
-      accept.error(node, "An ordinary call cannot omit an argument", "verilog.call-argument");
+      accept.error(node, "A function call cannot omit an argument", "verilog.call-argument");
       return;
     }
 }

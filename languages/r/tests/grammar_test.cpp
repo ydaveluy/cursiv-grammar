@@ -16,6 +16,8 @@
 #include <vector>
 
 #include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 #include "port_audit_cases.hpp"
 
@@ -44,6 +46,44 @@ static int audit_regression() {
   const auto language =
       cursiv::create_language<r::RCoreServices, r::RSharedCoreServices,
                               r::install_core_module>();
+  for (const auto *source : {"a<b<c", "a<b==c", "a<b>c", "a<b<=c", "a==b<c", "a==b==c",
+                              "a!=b==c", "function(if)1", "for(if in x)1",
+                              "function(NULL)1", "``", "\"\\q\"", "\"\\x00\"",
+                              "\"\\400\"", "\"\\U00110000\"", "`\\u0041`",
+                              "\"\\x41\\u0042\""}) {
+    const auto r = language.language.parser->parse(source);
+    if (r.accepted && !r.cst().recovered() && r.diagnostics.empty()) {
+      std::fprintf(stderr, "R: native-invalid lexical/nonassoc form accepted: %s\n", source);
+      return 1;
+    }
+  }
+  for (const auto *source : {"function(x,x)1", "(x)::y", "f()::x", "x$y::z",
+                              "_", "x |> _", "x |> f(_)", "x |> f(y=_,z=_)",
+                              "x |> f(y=g(z=_))", "x |> f(y=_$a)", "x |> function(a)a",
+                              "if(x=1)y", "f(x=1=2)", "function(x=1=2)x", "x[1=2]",
+                              "if(TRUE)1\nelse 2", "if(TRUE){1}\nelse{2}", "x=>f", "1 |> 2=>3"})
+    if (cursiv::test::validationHelper(language.language, source).diagnostics.empty()) {
+      std::fprintf(stderr, "R: native-invalid static form undiagnosed: %s\n", source);
+      return 1;
+    }
+  for (const auto *source : {"(a<b)<c", "function(...=1)1", "1=2", "if((x=1))y",
+                              "{if(TRUE)1\nelse 2}", "(if(TRUE)1\nelse 2)",
+                              "x |> f(y=_)", "x |> _$a", "x |> f(x |> g(y=_))",
+                              "x |> (function(a)a)()", "x::y$z", "\"x\"::\"y\"",
+                              "f(NULL=1)", "\"\\x1\"", "\"\\u{41}\"", "\"\\uD800\"",
+                              "Ⅰ <- 1", "TRUE١ <- 1",
+                              // Existing optional pipe-bind profile; native oracle enables its flag.
+                              "1 |> x => x + 1", "x |> a=>f(a)"})
+    if (!cursiv::test::validationHelper(language.language, source).diagnostics.empty()) {
+      std::fprintf(stderr, "R: native-valid control diagnosed: %s\n", source);
+      return 1;
+    }
+  {
+    const auto parsed = language.language.parser->parse("for(`a b` in x) 1");
+    const auto *p = parsed.value_as<r::ast::Program>();
+    const auto *f = p && p->body.size() == 1 ? cursiv::ast_cast<r::ast::ForExpr>(p->body[0]) : nullptr;
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() || !f || f->var != "a b") return 1;
+  }
   {
     const auto r = language.language.parser->parse("Inf");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||

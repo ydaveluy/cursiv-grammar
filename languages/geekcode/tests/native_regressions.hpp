@@ -1,4 +1,17 @@
 void native_regressions() {
+  {
+    const std::string source = "GCS a42 a0000000000000000000000000000001";
+    const auto result = build(source);
+    const auto* file = result.value_as<ast::File>();
+    CHECK(file && file->tuples.size() == 2);
+    if (file && file->tuples.size() == 2) {
+      CHECK(std::get<std::string_view>(file->tuples[0]->kind) == "a");
+      CHECK(file->tuples[0]->exactAge == "42");
+      CHECK(file->tuples[1]->exactAge == "0000000000000000000000000000001");
+    }
+    CHECK(!accepts("GCS C42"));
+    CHECK(!accepts("GCS a 42"));
+  }
   const std::string source = "-----BEGIN GEEK CODE BLOCK-----\nVersion: 3.12\n"
       "GCS UB++ dpu dx r% P! h! s+(-)>--:(--)>--- C()\n"
       "------END GEEK CODE BLOCK------\n";

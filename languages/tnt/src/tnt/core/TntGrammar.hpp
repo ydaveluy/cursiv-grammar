@@ -24,44 +24,48 @@ struct Tnt : cursiv::GrammarSpec {
   struct LETTER : terminal<cr<"a-z">> {};
   struct PRIME : terminal<lit<"'"> | lit<"′">> {};
   struct NEGATOR : terminal<cr<"~!">> {};
-  struct FOREVERY : terminal<lit<"A"> | lit<"∀">, value<ast::Quantifier::forevery>> {};
-  struct EXISTS : terminal<lit<"E"> | lit<"∃">, value<ast::Quantifier::exists>> {};
-  struct PLUS : terminal<lit<"+">, value<ast::BinaryOp::add>> {};
-  struct TIMES : terminal<lit<"*"> | lit<"."> | lit<"⋅">, value<ast::BinaryOp::multiply>> {};
-  struct AND : terminal<lit<"&"> | lit<"^"> | lit<"∧">, value<ast::LogicalOp::conjunction>> {};
-  struct OR : terminal<lit<"|"> | lit<"V"> | lit<"v"> | lit<"∨">, value<ast::LogicalOp::disjunction>> {};
-  struct IMPLIES : terminal<lit<"]"> | lit<"⊃"> | lit<"→">, value<ast::LogicalOp::implication>> {};
-  struct SuccessorRun : rule<some(ref<SUCCESSOR>), cursiv::text_conv<count_successors>> {};
-  struct PrimeRun : rule<some(ref<PRIME>), cursiv::text_conv<count_primes>> {};
-  struct NegationRun : rule<some(ref<NEGATOR>), cursiv::text_conv<count_negations>> {};
-  struct VariableRule : rule<assign<&ast::Variable::letter>(ref<LETTER>) +
+  struct FOREVERY
+      : terminal<as<ast::Quantifier::forevery>(lit<"A"> | lit<"∀">)> {};
+  struct EXISTS : terminal<as<ast::Quantifier::exists>(lit<"E"> | lit<"∃">)> {};
+  struct TIMES
+      : terminal<as<ast::BinaryOp::multiply>(lit<"*"> | lit<"."> | lit<"⋅">)> {
+  };
+  struct AND : terminal<as<ast::LogicalOp::conjunction>(lit<"&"> | lit<"^"> |
+                                                        lit<"∧">)> {};
+  struct OR : terminal<as<ast::LogicalOp::disjunction>(lit<"|"> | lit<"V"> |
+                                                       lit<"v"> | lit<"∨">)> {};
+  struct IMPLIES : terminal<as<ast::LogicalOp::implication>(
+                       lit<"]"> | lit<"⊃"> | lit<"→">)> {};
+  struct SuccessorRun : rule<as<count_successors>(some(ref<SUCCESSOR>))> {};
+  struct PrimeRun : rule<as<count_primes>(some(ref<PRIME>))> {};
+  struct NegationRun : rule<as<count_negations>(some(ref<NEGATOR>))> {};
+  struct Variable : rule<assign<&ast::Variable::letter>(ref<LETTER>) +
       option(assign<&ast::Variable::primes>(ref<PrimeRun>))> {};
 
-  struct TermRule;
-  struct GroupRule : rule<lit<"("> + assign<&ast::GroupedExpression::expression>(ref<TermRule>) + lit<")">> {};
-  struct ZeroRule : rule<create<ast::NumberLiteral> + lit<"0">> {};
-  static constexpr auto coreTerm = ref<GroupRule> | ref<ZeroRule> | ref<VariableRule>;
-  struct SuccessorRule : rule<assign<&ast::SuccessorExpression::count>(ref<SuccessorRun>) +
+  struct Term;
+  struct Group : rule<lit<"("> + assign<&ast::GroupedExpression::expression>(ref<Term>) + lit<")">> {};
+  struct Zero : rule<create<ast::NumberLiteral> + lit<"0">> {};
+  static constexpr auto coreTerm = ref<Group> | ref<Zero> | ref<Variable>;
+  struct Successor : rule<assign<&ast::SuccessorExpression::count>(ref<SuccessorRun>) +
       assign<&ast::SuccessorExpression::expression>(coreTerm)> {};
-  struct PrimaryTerm : rule<ref<SuccessorRule> | coreTerm> {};
-  struct TermRule : infix<PrimaryTerm, &ast::BinaryExpression::left,
-      &ast::BinaryExpression::op, &ast::BinaryExpression::right,
-      (left(ref<TIMES>) >> left(ref<PLUS>))> {};
+  struct PrimaryTerm : rule<ref<Successor> | coreTerm> {};
+  struct Term : infix<PrimaryTerm, ast::BinaryExpression,
+      levels(left(ref<TIMES>), left(as<ast::BinaryOp::add>(lit<"+">)))> {};
 
-  struct FormulaRule;
-  struct EquationRule : rule<assign<&ast::Equation::left>(ref<TermRule>) + lit<"="> +
-      assign<&ast::Equation::right>(ref<TermRule>)> {};
-  struct QuantifiedRule : rule<assign<&ast::QuantifiedExpression::quantifier>(ref<FOREVERY> | ref<EXISTS>) +
-      assign<&ast::QuantifiedExpression::variable>(ref<VariableRule>) + lit<":"> +
-      assign<&ast::QuantifiedExpression::expression>(ref<FormulaRule>)> {};
-  struct CompoundRule : rule<lit<"<"> + assign<&ast::LogicalExpression::left>(ref<FormulaRule>) +
+  struct Formula;
+  struct Equation : rule<assign<&ast::Equation::left>(ref<Term>) + lit<"="> +
+      assign<&ast::Equation::right>(ref<Term>)> {};
+  struct Quantified : rule<assign<&ast::QuantifiedExpression::quantifier>(ref<FOREVERY> | ref<EXISTS>) +
+      assign<&ast::QuantifiedExpression::variable>(ref<Variable>) + lit<":"> +
+      assign<&ast::QuantifiedExpression::expression>(ref<Formula>)> {};
+  struct Compound : rule<lit<"<"> + assign<&ast::LogicalExpression::left>(ref<Formula>) +
       assign<&ast::LogicalExpression::op>(ref<AND> | ref<OR> | ref<IMPLIES>) +
-      assign<&ast::LogicalExpression::right>(ref<FormulaRule>) + lit<">">> {};
-  static constexpr auto baseFormula = ref<QuantifiedRule> | ref<CompoundRule> | ref<EquationRule>;
-  struct NegationRule : rule<assign<&ast::Negation::count>(ref<NegationRun>) +
+      assign<&ast::LogicalExpression::right>(ref<Formula>) + lit<">">> {};
+  static constexpr auto baseFormula = ref<Quantified> | ref<Compound> | ref<Equation>;
+  struct Negation : rule<assign<&ast::Negation::count>(ref<NegationRun>) +
       assign<&ast::Negation::expression>(baseFormula)> {};
-  struct FormulaRule : rule<ref<NegationRule> | baseFormula> {};
-  using entry = FormulaRule;
-  using ignore = WS;
+  struct Formula : rule<ref<Negation> | baseFormula> {};
+  using entry = Formula;
+  using ignored = WS;
 };
 }  // namespace tnt

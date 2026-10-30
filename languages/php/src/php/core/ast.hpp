@@ -140,6 +140,8 @@ struct CallExpr : cursiv::Extends<Expr> {
 };
 
 struct NewExpr : cursiv::Extends<Expr> {
+  vector<AttributeGroup*> anonymousAttributes;
+  vector<string_view> anonymousModifiers; // modifiers of the anonymous class being created
   Expr* target;      // NameExpr or an indirect chain (MemberExpr/IndexExpr/Var)
   boolean isStatic;   // `new static(...)`
   Decl* anonClass;    // `new class(...) { ... }`; null otherwise
@@ -147,6 +149,8 @@ struct NewExpr : cursiv::Extends<Expr> {
 };
 
 struct CloneExpr : cursiv::Extends<Expr> {
+  boolean callSyntax;
+  vector<Arg*> args; // PHP8.5 clone(...) function form
   Expr* operand;
 };
 

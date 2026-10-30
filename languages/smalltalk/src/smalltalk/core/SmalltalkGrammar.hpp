@@ -18,7 +18,6 @@ inline constexpr auto unquote = [](std::string_view t, std::pmr::memory_resource
   }
   return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 inline constexpr auto hex_to_double = [](std::string_view t) {
   bool neg = false;
@@ -38,12 +37,10 @@ inline constexpr auto hex_to_double = [](std::string_view t) {
   }
   return neg ? -v : v;
 };
-using HexValue = cursiv::text_conv<hex_to_double>;
 
 inline constexpr auto drop_first = [](std::string_view t) {
   return t.substr(1);
 };
-using DropFirst = cursiv::text_conv<drop_first>;
 
 struct Smalltalk : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -51,40 +48,35 @@ struct Smalltalk : cursiv::GrammarSpec {
 
   struct ID : terminal<cr<"a-zA-Z"> + many(w)> {};
 
-  struct STRING : terminal<lit<"'"> + many(lit<"''"> | cr<"^'">) + lit<"'">, Unquoted> {};
+  struct STRING : terminal<as<unquote>(lit<"'"> + many(lit<"''"> | cr<"^'">) +
+                                       lit<"'">)> {};
 
-  struct NUMBER
-      : terminal<option(lit<"-">) + some(d) + option(lit<"."> + some(d)),
-                 double> {};
+  struct NUMBER : terminal<as<double>(option(lit<"-">) + some(d) +
+                                      option(lit<"."> + some(d)) +
+                                      option(lit<"e"> + option(lit<"-">) + some(d)))> {};
 
   // 16rFF -- the fixed "16r" radix prefix, not a computed base.
-  struct HEX_NUMBER
-      : terminal<option(lit<"-">) + lit<"16r"> + some(cr<"0-9a-fA-F">),
-                 HexValue> {};
+  struct HEX_NUMBER : terminal<as<hex_to_double>(option(lit<"-">) + lit<"16r"> +
+                                                 some(cr<"0-9a-fA-F">))> {};
 
-  // A lone '|' is the temps delimiter, never a one-character selector: the
-  // pipe-starting branch needs a second character.
-  static constexpr auto NoPipeChar = cr<R"(\\\\+*/=><,@%~&?-)">;
-  static constexpr auto AnyBinChar = cr<R"(\\\\+*/=><,@%~|&?-)">;
-  struct BINARY_SELECTOR : terminal<(NoPipeChar + many(AnyBinChar)) |
-                                    (lit<"|"> + some(AnyBinChar))> {};
+  static constexpr auto AnyBinChar = cr<R"(\\+*/=><,@%~|&?-)">;
+  struct BINARY_SELECTOR : terminal<some(AnyBinChar)> {};
 
   struct KEYWORD : terminal<cr<"a-zA-Z"> + many(w) + lit<":">> {};
 
-  struct BLOCK_PARAM : terminal<lit<":"> + cr<"a-zA-Z"> + many(w), DropFirst> {
-  };
+  struct BLOCK_PARAM
+      : terminal<as<drop_first>(lit<":"> + cr<"a-zA-Z"> + many(w))> {};
 
-  struct CHARACTER_CONSTANT
-      : terminal<lit<"$"> + any, DropFirst> {};
+  struct CHARACTER_CONSTANT : terminal<as<drop_first>(lit<"$"> + any)> {};
 
   // nil/true/false/self/super: a pseudo-variable where a state reads one.
   static constexpr auto ReservedWord =
       kw<"nil"> | kw<"true"> | kw<"false"> | kw<"self"> | kw<"super">;
-  struct NameRule : rule<ref<ID>> {};
+  struct Name : rule<ref<ID>> {};
 
   struct Expression;
-  struct BareLiteralArrayRule;
-  struct SequenceRule;
+  struct BareLiteralArray;
+  struct Sequence;
 
   // A run of keyword tokens with no gap between them, the multi-keyword
   // form of a bare symbol (#at:put:); a data rule, so it yields its own
@@ -93,83 +85,87 @@ struct Smalltalk : cursiv::GrammarSpec {
       : rule<ref<KEYWORD> + many(gap::none + ref<KEYWORD>)> {};
 
   static constexpr auto SymbolBody =
-      assign<&ast::SymbolLiteral::name>(ref<NameRule> | ref<BINARY_SELECTOR> |
+      assign<&ast::SymbolLiteral::name>(ref<Name> | ref<BINARY_SELECTOR> |
                                         ref<KeywordSelectorText> | ref<STRING>);
 
   // #foo -- no gap between the '#' and the symbol text.
-  struct SymbolRule
+  struct Symbol
       : rule<lit<"#"> + gap::none + create<ast::SymbolLiteral>(SymbolBody)> {};
 
   // The same shapes, unprefixed: a literal array's bare items are implicit
   // symbols (#(foo bar: + 1)).
-  struct BareSymbolRule : rule<create<ast::SymbolLiteral>(SymbolBody)> {};
+  struct BareSymbol : rule<create<ast::SymbolLiteral>(SymbolBody)> {};
 
-  struct PseudoVariableRule
+  struct PseudoVariable
       : rule<create<ast::PseudoVariable>(
             assign<&ast::PseudoVariable::name>(ReservedWord))> {};
 
-  struct NumberLiteralRule
+  struct NumberLiteral
       : rule<create<ast::NumberLiteral>(assign<&ast::NumberLiteral::value>(
             ref<NUMBER> | ref<HEX_NUMBER>))> {};
 
-  struct CharLiteralRule
+  struct CharLiteral
       : rule<create<ast::CharLiteral>(
             assign<&ast::CharLiteral::value>(ref<CHARACTER_CONSTANT>))> {};
 
-  struct StringLiteralRule
+  struct StringLiteral
       : rule<create<ast::StringLiteral>(
             assign<&ast::StringLiteral::value>(ref<STRING>))> {};
 
-  struct LiteralArrayRule;
-  static constexpr auto ParsetimeLiteral =
-      ref<PseudoVariableRule> | ref<NumberLiteralRule> | ref<CharLiteralRule> |
-      ref<LiteralArrayRule> | ref<StringLiteralRule> | ref<SymbolRule>;
+  struct LiteralArray;
+  static constexpr auto ScalarLiteral =
+      ref<NumberLiteral> | ref<CharLiteral> | ref<LiteralArray> |
+      ref<StringLiteral> | ref<Symbol>;
+  static constexpr auto ParsetimeLiteral = ref<PseudoVariable> | ScalarLiteral;
 
-  struct LiteralArrayRule
+  // Only the three literal constants retain their values in a literal array.
+  // Bare self/super are symbols there, not receiver-dependent pseudo-variables.
+  struct ArrayConstant
+      : rule<create<ast::PseudoVariable>(assign<&ast::PseudoVariable::name>(
+            kw<"nil"> | kw<"true"> | kw<"false">))> {};
+  static constexpr auto ArrayItem = ref<ArrayConstant> | ScalarLiteral;
+
+  struct LiteralArray
       : rule<create<ast::LiteralArray> + lit<"#("> +
-             many(append<&ast::LiteralArray::items>(ParsetimeLiteral |
-                                                    ref<BareLiteralArrayRule> |
-                                                    ref<BareSymbolRule>)) +
+             many(append<&ast::LiteralArray::items>(ArrayItem |
+                                                    ref<BareLiteralArray> |
+                                                    ref<BareSymbol>)) +
              lit<")">> {};
 
-  struct BareLiteralArrayRule
+  struct BareLiteralArray
       : rule<create<ast::LiteralArray> + lit<"("> +
-             many(append<&ast::LiteralArray::items>(ParsetimeLiteral |
-                                                    ref<BareLiteralArrayRule> |
-                                                    ref<BareSymbolRule>)) +
+             many(append<&ast::LiteralArray::items>(ArrayItem |
+                                                    ref<BareLiteralArray> |
+                                                    ref<BareSymbol>)) +
              lit<")">> {};
 
-  // A param list's own closing pipe: mandatory once
-  // matched and reachable only right after at least one param, so it never
-  // overlaps with a temps declaration's leading pipe; `[:x]` (params, no
-  // pipe, no body) still parses.
-  struct BlockRule
+  // Amber closes a nonempty parameter list with its own mandatory pipe.
+  struct Block
       : rule<create<ast::Block> + lit<"["> +
-             ((some(append<&ast::Block::params>(ref<BLOCK_PARAM>)) +
-               option(lit<"|"> +
-                      option(assign<&ast::Block::body>(ref<SequenceRule>)))) |
-              option(assign<&ast::Block::body>(ref<SequenceRule>))) +
+             ((some(append<&ast::Block::params>(ref<BLOCK_PARAM>)) + lit<"|"> +
+               option(assign<&ast::Block::body>(ref<Sequence>))) |
+              option(assign<&ast::Block::body>(ref<Sequence>))) +
              lit<"]">> {};
 
-  struct DynamicArrayRule
+  struct DynamicArray
       : rule<create<ast::DynamicArray> + lit<"{"> +
              option(some(append<&ast::DynamicArray::items>(ref<Expression>),
-                         lit<".">)) +
+                         lit<".">)) + option(lit<".">) +
              lit<"}">> {};
 
-  struct DynamicDictionaryRule
+  struct DynamicDictionary
       : rule<create<ast::DynamicDictionary> + lit<"#{"> +
              option(
                  some(append<&ast::DynamicDictionary::items>(ref<Expression>),
-                      lit<".">)) +
+                      lit<".">)) + option(lit<".">) +
              lit<"}">> {};
 
-  struct VarRefRule
-      : rule<create<ast::VarRef>(assign<&ast::VarRef::name>(ref<NameRule>))> {};
+  struct VarRef
+      : rule<create<ast::VarRef>(assign<&ast::VarRef::name>(ref<Name>))> {};
 
   struct Operand
-      : rule<ref<BlockRule> | ref<DynamicDictionaryRule> |
-             ref<DynamicArrayRule> | ParsetimeLiteral | ref<VarRefRule> |
+      : rule<ref<Block> | ref<DynamicDictionary> |
+             ref<DynamicArray> | ParsetimeLiteral | ref<VarRef> |
              (lit<"("> + ref<Expression> + lit<")">)> {};
 
   // unarySend, folded left: each further unary message wraps the previous
@@ -178,7 +174,7 @@ struct Smalltalk : cursiv::GrammarSpec {
       : rule<ref<Operand> |
              create<ast::MessageSend>(
                  assign<&ast::MessageSend::receiver>(ref<UnarySend>) +
-                 append<&ast::MessageSend::selectorParts>(ref<NameRule>))> {};
+                 append<&ast::MessageSend::selectorParts>(ref<Name>))> {};
 
   // binarySend, folded left the same way; the right operand is its own
   // unary chain, never the outer fold.
@@ -197,28 +193,28 @@ struct Smalltalk : cursiv::GrammarSpec {
             some(append<&ast::MessageSend::selectorParts>(ref<KEYWORD>) +
                  append<&ast::MessageSend::args>(ref<BinarySend>)))> {};
 
-  struct CascadedMessageRule
+  struct CascadedMessage
       : rule<create<ast::CascadedMessage>(
             (append<&ast::CascadedMessage::selectorParts>(
                  ref<BINARY_SELECTOR>) +
              append<&ast::CascadedMessage::args>(ref<UnarySend>)) |
-            append<&ast::CascadedMessage::selectorParts>(ref<NameRule>) |
+            append<&ast::CascadedMessage::selectorParts>(ref<Name>) |
             some(append<&ast::CascadedMessage::selectorParts>(ref<KEYWORD>) +
                  append<&ast::CascadedMessage::args>(ref<BinarySend>)))> {};
 
-  struct CascadeRule
+  struct Cascade
       : rule<create<ast::Cascade>(
             assign<&ast::Cascade::base>(ref<KeywordSend> | ref<BinarySend>) +
             some(lit<";"> +
-                 append<&ast::Cascade::messages>(ref<CascadedMessageRule>)))> {
+                 append<&ast::Cascade::messages>(ref<CascadedMessage>)))> {
   };
 
-  struct AssignmentRule
+  struct Assignment
       : rule<create<ast::Assignment>(
-            assign<&ast::Assignment::name>(ref<NameRule>) + lit<":="> +
+            assign<&ast::Assignment::name>(ref<Name>) + lit<":="> +
             assign<&ast::Assignment::value>(ref<Expression>))> {};
 
-  struct Expression : rule<ref<AssignmentRule> | ref<CascadeRule> |
+  struct Expression : rule<ref<Assignment> | ref<Cascade> |
                            ref<KeywordSend> | ref<BinarySend>> {};
 
   // ^expr, with its optional trailing period.
@@ -227,18 +223,18 @@ struct Smalltalk : cursiv::GrammarSpec {
       option(lit<".">);
 
   static constexpr auto Temps =
-      lit<"|"> + some(append<&ast::Sequence::temps>(ref<NameRule>)) + lit<"|">;
+      lit<"|"> + many(append<&ast::Sequence::temps>(ref<Name>)) + lit<"|">;
 
   static constexpr auto Statements =
       (some(append<&ast::Sequence::statements>(ref<Expression>), lit<".">) +
        option(lit<"."> + option(Answer))) |
       Answer;
 
-  struct SequenceRule : rule<create<ast::Sequence> +
+  struct Sequence : rule<create<ast::Sequence> +
                              ((Temps + option(Statements)) | Statements)> {};
 
-  using entry = SequenceRule;
-  using ignore = list<WS, COMMENT>;
+  using entry = Sequence;
+  using ignored = list<WS, COMMENT>;
 };
 
 }  // namespace smalltalk

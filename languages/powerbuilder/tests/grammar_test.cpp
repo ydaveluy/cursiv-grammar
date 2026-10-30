@@ -15,6 +15,8 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "powerbuilder/core/CoreServices.hpp"
 #include "powerbuilder/core/ast.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 namespace {
 
@@ -52,6 +54,79 @@ int main() {
       powerbuilder::PowerbuilderCoreServices,
       powerbuilder::PowerbuilderSharedCoreServices,
       powerbuilder::install_core_module>();
+  for (const std::string_view number : {"1e999", "1e-999"}) {
+    const std::string source = "global function double f (); return " +
+                               std::string(number) + " end function";
+    const auto result = cursiv::test::validationHelper(language.language,source);
+    if (result.diagnostics.empty())
+      return fail("<numeric-range>", "out-of-range literal needs a diagnostic");
+  }
+
+  {
+    const std::string source=R"PB(global function double f();
+      /* outer /* inner */ outer */
+      x=9007199254740993
+      x=12345678901234.5678901234
+      x=32.
+      x="~~" + "next"
+      x='~n~t~r~v~f~b~"~'~~~065~h42~o103'
+      return
+      MessageBox("a","b")
+      end function)PB";
+    const auto r=language.language.parser->parse(source);
+    const auto* p=r.value_as<powerbuilder::ast::Document>();
+    const auto* f=p&&p->items.size()==1?as<powerbuilder::ast::FunctionBody>(p->items[0]):nullptr;
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!f||f->body.size()!=7)
+      return fail("<native>","comments, literals or RETURN statement boundary rejected");
+    const char* numbers[]={"9007199254740993","12345678901234.5678901234","32."};
+    for(std::size_t i=0;i<3;++i) {
+      const auto* a=as<powerbuilder::ast::AssignStmt>(f->body[i]);
+      const auto* n=a&&a->rhs.size()==1?as<powerbuilder::ast::NumberLit>(a->rhs[0]):nullptr;
+      if(!n||n->value!=numbers[i])return fail("<native>","integer/decimal lexeme was rounded");
+    }
+    const auto* a=as<powerbuilder::ast::AssignStmt>(f->body[3]);
+    const auto* bin=a&&a->rhs.size()==1?as<powerbuilder::ast::BinaryExpr>(a->rhs[0]):nullptr;
+    const auto* left=bin?as<powerbuilder::ast::StringLit>(bin->left):nullptr;
+    const auto* right=bin?as<powerbuilder::ast::StringLit>(bin->right):nullptr;
+    const auto* escaped=as<powerbuilder::ast::AssignStmt>(f->body[4]);
+    const auto* text=escaped&&escaped->rhs.size()==1?as<powerbuilder::ast::StringLit>(escaped->rhs[0]):nullptr;
+    const auto* ret=as<powerbuilder::ast::ReturnStmt>(f->body[5]);
+    if(!left||left->value!="~"||!right||right->value!="next"||!text||
+       text->value!="\n\t\r\v\f\b\"'~ABC"||!ret||ret->value||
+       !as<powerbuilder::ast::ExprStmt>(f->body[6]))
+      return fail("<native>","escape parity, string values or RETURN boundary AST lost");
+  }
+  {
+    const auto r=language.language.parser->parse(
+      "global function string continued(); return \"a&\n b\" end function");
+    const auto* p=r.value_as<powerbuilder::ast::Document>();
+    const auto* f=p&&p->items.size()==1?as<powerbuilder::ast::FunctionBody>(p->items[0]):nullptr;
+    const auto* ret=f&&f->body.size()==1?as<powerbuilder::ast::ReturnStmt>(f->body[0]):nullptr;
+    const auto* str=ret?as<powerbuilder::ast::StringLit>(ret->value):nullptr;
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!str||str->value!="a b")
+      return fail("<native>","string continuation value lost");
+    const auto invalid=language.language.parser->parse(
+      "global function string f(); return \"a\n b\" end function");
+    if(invalid.accepted&&!invalid.cst().recovered()&&invalid.diagnostics.empty())
+      return fail("<native>","uncontinued string line break accepted");
+  }
+  {
+    const auto r=language.language.parser->parse(
+      "function long f() library \"native.dll\" alias for \"RealName;ansi\"\n"
+      "function long g() throws exception\n"
+      "global subroutine run(); call Parent::create fetch cur using descriptor desc end subroutine");
+    const auto* p=r.value_as<powerbuilder::ast::Document>();
+    const auto* f=p&&p->items.size()==3?as<powerbuilder::ast::FunctionForwardDecl>(p->items[0]):nullptr;
+    const auto* g=p&&p->items.size()==3?as<powerbuilder::ast::FunctionForwardDecl>(p->items[1]):nullptr;
+    const auto* run=p&&p->items.size()==3?as<powerbuilder::ast::FunctionBody>(p->items[2]):nullptr;
+    const auto* call=run&&run->body.size()==2?as<powerbuilder::ast::Call>(run->body[0]):nullptr;
+    const auto* fetch=run&&run->body.size()==2?as<powerbuilder::ast::FetchStmt>(run->body[1]):nullptr;
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!f||f->libraryName!="native.dll"||
+       f->aliasText!="RealName;ansi"||!g||g->throwsName!="exception"||!call||call->name!="Parent"||
+       call->ancestorMethod!="create"||!fetch||!fetch->usingDescriptor)
+      return fail("<native>","external declaration, ancestor target or descriptor AST lost");
+  }
+
 
   int checked = 0;
   for (const std::filesystem::path& path : files) {

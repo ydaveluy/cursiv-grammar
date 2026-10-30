@@ -115,6 +115,21 @@ inline bool run() {
               diagnostic.range.end - diagnostic.range.begin) == item.span) found = true;
     check(found, "runtime error points to the invalid value");
   }
+  for (const auto source : {"const int = 1;", "struct struct { int x; };",
+                             "enum E { case = 1 };"}) {
+    const auto result = language.language.parser->parse(source);
+    check(!result.accepted || result.cst().recovered() ||
+              !result.diagnostics.empty(), "rpcgen scanner keywords cannot be names");
+  }
+  {
+    const auto result = language.language.parser->parse("const versioned = 1;");
+    const auto* spec = cursiv::ast_cast<ast::Specification>(result.value);
+    const auto* def = spec && spec->items.size() == 1
+        ? cursiv::ast_cast<ast::ConstantDef>(spec->items[0]) : nullptr;
+    check(result.accepted && !result.cst().recovered() &&
+              result.diagnostics.empty() && def && def->name == "versioned",
+          "keyword prefix remains an ordinary identifier");
+  }
   return ok;
 }
 }  // namespace audit_regressions

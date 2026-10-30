@@ -25,14 +25,12 @@ inline constexpr auto undouble_dq = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<undouble_dq>;
 
 inline constexpr auto label_name = [](std::string_view t,
                                       std::pmr::memory_resource*) {
   return t.substr(0, t.front() == '[' ? t.find(']') + 1
                                       : t.find_first_of(" \t:"));
 };
-using LabelName = cursiv::text_conv<label_name>;
 
 struct Vba : cursiv::GrammarSpec {
   // -- Trivia ---------------------------------------------------------------
@@ -47,8 +45,9 @@ struct Vba : cursiv::GrammarSpec {
   struct COMMENT : terminal<lit<"'"> + many(cr<R"(^\r\n  )">)> {};
 
   struct REMCOMMENT
-      : terminal<ikw<"REM"> + some(cr<R"( \t)">) + many(cr<R"(^\r\n  )">)> {
-  };
+      : terminal<ikw<"REM"> + option(some(cr<R"( \t)">) +
+                                    many(cr<R"(^\r\n  )">))> {};
+
 
   struct NEWLINE
       : terminal<some(cr<R"(\r\n)"> | lit<" "> | lit<" ">)> {};
@@ -64,7 +63,7 @@ struct Vba : cursiv::GrammarSpec {
   static constexpr auto word_boundary = IdChar;
   static constexpr auto IdBody = uc::L + many(IdChar);
   static constexpr auto ForeignBody =
-      lit<"["> + many(cr<R"(^\r\n  )">) + lit<"]">;
+      lit<"["> + some(cr<R"(^\r\n  )">) + lit<"]">;
 
   // A bracketed name, spelling anything a plain identifier cannot (a space, a
   // reserved word, a quote): `variable.[foreign name can be weird]`.
@@ -174,9 +173,9 @@ struct Vba : cursiv::GrammarSpec {
   // A name and its `:` in one token, so a label never forks with a call: an
   // `IDENTIFIER`, never `Randomize` (MS-VBAL 5.4.1.1).
   struct LABEL
-      : terminal<!ReservedWord + !ikw<"RANDOMIZE"> + (IdBody | ForeignBody) +
-                     many(cr<R"( \t)">) + lit<":", !cr<"=">>,
-                 LabelName> {};
+      : terminal<as<label_name>(!ReservedWord + !ikw<"RANDOMIZE"> +
+                                (IdBody | ForeignBody) + many(cr<R"( \t)">) +
+                                lit<":", !cr<"=">>)> {};
 
   // A name: an ID, or one of the words that stay legal as one.
   static constexpr auto NameText =
@@ -216,7 +215,7 @@ struct Vba : cursiv::GrammarSpec {
   static constexpr auto StringBody =
       lit<"\""> + many(lit<"\"\""> | cr<R"(^"\r\n)">) + lit<"\"">;
 
-  struct STRINGLITERAL : terminal<StringBody, Unquoted> {};
+  struct STRINGLITERAL : terminal<as<undouble_dq>(StringBody)> {};
 
   struct FILEOFFSET : terminal<option(lit<"$">) + StringBody + lit<":"> +
                                 some(HEXDIGIT)> {};
@@ -411,10 +410,9 @@ struct Vba : cursiv::GrammarSpec {
 
   // */, \, Mod are each their own level, tightest to loosest.
   struct ArithChain
-      : infix<NegExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMul) >> left(OpIntDiv) >> left(OpModText) >>
-               left(OpAdd) >> left(OpConcat) >> left(OpRel))> {};
+      : infix<NegExpr, ast::BinaryExpr,
+              levels(left(OpMul), left(OpIntDiv), left(OpModText),
+                     left(OpAdd), left(OpConcat), left(OpRel))> {};
 
   // Not: tighter than And, looser than a comparison.
   struct NotExpr
@@ -432,10 +430,9 @@ struct Vba : cursiv::GrammarSpec {
   // And, Or, Xor, Eqv, Imp are each their own level, tightest to loosest
   // -- unlike Comparison, whose members are equal.
   struct Expression
-      : infix<NotExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpAnd) >> left(OpOr) >> left(OpXor) >> left(OpEqv) >>
-               left(OpImp))> {};
+      : infix<NotExpr, ast::BinaryExpr,
+              levels(left(OpAnd), left(OpOr), left(OpXor), left(OpEqv),
+                     left(OpImp))> {};
 
   // -- Types --------------------------------------------------------------
 
@@ -446,11 +443,11 @@ struct Vba : cursiv::GrammarSpec {
   // Its own rule (not spliced into `assign<>` directly), like `QualifiedName`
   // in the `sql` example: a plain `rule<>` with no directives deduces to the
   // text it matched, brackets included in its span.
-  struct BuiltinTypeNameRule
+  struct BuiltinTypeName
       : rule<(lit<"["> + BuiltinTypeWord + lit<"]">) | BuiltinTypeWord> {};
 
   static constexpr auto TypeNameText =
-      ref<BuiltinTypeNameRule> | ref<QualifiedTypeName>;
+      ref<BuiltinTypeName> | ref<QualifiedTypeName>;
 
   static constexpr auto StringLenExpr =
       create<ast::IntLit>(assign<&ast::IntLit::text>(ref<INTEGERLITERAL>)) |
@@ -458,21 +455,25 @@ struct Vba : cursiv::GrammarSpec {
 
   struct TypeExpression
       : rule<create<ast::TypeRef>(
-                 ikw<"STRING"> + lit<"*"> +
+                 assign<&ast::TypeRef::name>(ikw<"STRING">) + lit<"*"> +
                  assign<&ast::TypeRef::stringLength>(StringLenExpr)) |
              create<ast::TypeRef>(assign<&ast::TypeRef::name>(TypeNameText))> {
   };
 
+  struct ParamTypeExpression
+      : rule<ref<TypeExpression> | create<ast::TypeRef>(
+                 assign<&ast::TypeRef::name>(ikw<"ANY">))> {};
+
   // -- Shared list helpers --------------------------------------------------
 
-  struct ArrayBoundRule
+  struct ArrayBound
       : rule<option(assign<&ast::ArrayBound::lower>(ref<Expression>) +
                     ikw<"TO">) +
              assign<&ast::ArrayBound::upper>(ref<Expression>)> {};
 
   template <auto Member>
   static constexpr auto ArrayDimInto =
-      lit<"("> + option(some(append<Member>(ref<ArrayBoundRule>), lit<",">)) +
+      lit<"("> + option(some(append<Member>(ref<ArrayBound>), lit<",">)) +
       lit<")">;
 
   static constexpr auto OptionalPrefix =
@@ -483,10 +484,11 @@ struct Vba : cursiv::GrammarSpec {
         flag<&ast::Param::byVal>(ikw<"BYVAL">)) +
        flag<&ast::Param::optionalP>(ikw<"OPTIONAL">));
 
-  struct ParamRule
+  struct Param
       : rule<create<ast::Param>(
                  flag<&ast::Param::paramArray>(ikw<"PARAMARRAY">) +
-                 assign<&ast::Param::name>(NameText) + lit<"("> + lit<")"> +
+                 assign<&ast::Param::name>(NameText) +
+                 flag<&ast::Param::isArray>(lit<"("> + lit<")">) +
                  option(ikw<"AS"> +
                         ((lit<"["> +
                           assign<&ast::Param::asType>(ref<TypeExpression>) +
@@ -498,8 +500,7 @@ struct Vba : cursiv::GrammarSpec {
                  option(flag<&ast::Param::isArray>(lit<"("> +
                                                          lit<")">)) +
                  option(ikw<"AS"> +
-                        (assign<&ast::Param::asType>(ref<TypeExpression>) |
-                         ikw<"ANY">)) +
+                        assign<&ast::Param::asType>(ref<ParamTypeExpression>)) +
                  option(lit<"="> + assign<&ast::Param::defaultValue>(
                                         ref<Expression>))) |
              create<ast::Param>(
@@ -510,20 +511,18 @@ struct Vba : cursiv::GrammarSpec {
                  option(flag<&ast::Param::isArray>(lit<"("> +
                                                          lit<")">)) +
                  option(ikw<"AS"> +
-                        (assign<&ast::Param::asType>(ref<TypeExpression>) |
-                         ikw<"ANY">))) |
+                        assign<&ast::Param::asType>(ref<ParamTypeExpression>))) |
              create<ast::Param>(
                  assign<&ast::Param::name>(NameText) +
                  TypeSuffixInto<&ast::Param::typeChar> +
                  option(flag<&ast::Param::isArray>(lit<"("> +
                                                          lit<")">)) +
                  option(ikw<"AS"> +
-                        (assign<&ast::Param::asType>(ref<TypeExpression>) |
-                         ikw<"ANY">)))> {};
+                        assign<&ast::Param::asType>(ref<ParamTypeExpression>)))> {};
 
   template <auto Member>
   static constexpr auto ParamListInto =
-      lit<"("> + option(some(append<Member>(ref<ParamRule>), lit<",">)) +
+      lit<"("> + option(some(append<Member>(ref<Param>), lit<",">)) +
       lit<")">;
 
   struct BodyItem;
@@ -555,7 +554,7 @@ struct Vba : cursiv::GrammarSpec {
 
   // -- Variable, constant, type and enum declarations -----------------------
 
-  struct VarDeclItemRule
+  struct VarDeclItem
       : rule<create<ast::VarDeclItem>(
                  flag<&ast::VarDeclItem::withEvents>(ikw<"WITHEVENTS">) +
                  assign<&ast::VarDeclItem::name>(NameText) + ikw<"AS"> +
@@ -572,16 +571,16 @@ struct Vba : cursiv::GrammarSpec {
                         (ikw<"AS"> + assign<&ast::VarDeclItem::asType>(
                                          ref<TypeExpression>))))> {};
 
-  struct VarDeclRule
+  struct VarDecl
       : rule<create<ast::VarDecl>(
                  assign<&ast::VarDecl::scope>(
                      ikw<"GLOBAL"> | ikw<"PUBLIC"> | ikw<"PRIVATE"> |
                      ikw<"DIM"> | ikw<"STATIC">) +
                  option(flag<&ast::VarDecl::shared>(ikw<"SHARED">)) +
-                 some(append<&ast::VarDecl::items>(ref<VarDeclItemRule>),
+                 some(append<&ast::VarDecl::items>(ref<VarDeclItem>),
                       lit<",">))> {};
 
-  struct ConstDeclItemRule
+  struct ConstDeclItem
       : rule<create<ast::ConstDeclItem>(
                  assign<&ast::ConstDeclItem::name>(NameText) +
                  TypeSuffixInto<&ast::ConstDeclItem::typeChar> +
@@ -590,15 +589,15 @@ struct Vba : cursiv::GrammarSpec {
                  lit<"="> +
                  assign<&ast::ConstDeclItem::value>(ref<Expression>))> {};
 
-  struct ConstDeclRule
+  struct ConstDecl
       : rule<create<ast::ConstDecl>(
                  option(assign<&ast::ConstDecl::scope>(
                      ikw<"GLOBAL"> | ikw<"PUBLIC"> | ikw<"PRIVATE">)) +
                  ikw<"CONST"> +
-                 some(append<&ast::ConstDecl::items>(ref<ConstDeclItemRule>),
+                 some(append<&ast::ConstDecl::items>(ref<ConstDeclItem>),
                       lit<",">))> {};
 
-  struct UdtMemberRule
+  struct UdtMember
       : rule<create<ast::UdtMember>(
                  assign<&ast::UdtMember::name>(UnrestrictedNameText) +
                  option(flag<&ast::UdtMember::isArray>(
@@ -606,32 +605,32 @@ struct Vba : cursiv::GrammarSpec {
                  ikw<"AS"> +
                  assign<&ast::UdtMember::asType>(ref<TypeExpression>))> {};
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<create<ast::TypeDecl>(
                  option(assign<&ast::TypeDecl::scope>(
                      ikw<"GLOBAL"> | ikw<"PUBLIC"> | ikw<"PRIVATE">)) +
                  ikw<"TYPE"> + assign<&ast::TypeDecl::name>(NameText) + Eos +
-                 some(append<&ast::TypeDecl::members>(ref<UdtMemberRule>),
+                 some(append<&ast::TypeDecl::members>(ref<UdtMember>),
                       Eos) +
                  Eos + ikw<"END"> + ikw<"TYPE">)> {};
 
-  struct EnumMemberRule
+  struct EnumMember
       : rule<create<ast::EnumMember>(
                  assign<&ast::EnumMember::name>(NameText) +
                  option(lit<"="> +
                         assign<&ast::EnumMember::value>(ref<Expression>)))> {
   };
 
-  struct EnumDeclRule
+  struct EnumDecl
       : rule<create<ast::EnumDecl>(
                  option(assign<&ast::EnumDecl::scope>(
                      ikw<"GLOBAL"> | ikw<"PUBLIC"> | ikw<"PRIVATE">)) +
                  ikw<"ENUM"> + assign<&ast::EnumDecl::name>(NameText) + Eos +
-                 some(append<&ast::EnumDecl::members>(ref<EnumMemberRule>),
+                 some(append<&ast::EnumDecl::members>(ref<EnumMember>),
                       Eos) +
                  Eos + ikw<"END"> + ikw<"ENUM">)> {};
 
-  struct DeclareDeclRule
+  struct DeclareDecl
       : rule<create<ast::DeclareDecl>(
                  option(assign<&ast::DeclareDecl::scope>(
                      ikw<"PUBLIC"> | ikw<"PRIVATE">)) +
@@ -654,19 +653,19 @@ struct Vba : cursiv::GrammarSpec {
                                              ref<STRINGLITERAL>)) +
                    option(ParamListInto<&ast::DeclareDecl::params>))))> {};
 
-  struct EventDeclRule
+  struct EventDecl
       : rule<create<ast::EventDecl>(
                  option(flag<&ast::EventDecl::isPublic>(
                      ikw<"PUBLIC">)) +
                  ikw<"EVENT"> + assign<&ast::EventDecl::name>(NameText) +
                  option(ParamListInto<&ast::EventDecl::params>))> {};
 
-  struct ImplementsDeclRule
+  struct ImplementsDecl
       : rule<create<ast::ImplementsDecl>(
                  ikw<"IMPLEMENTS"> +
                  assign<&ast::ImplementsDecl::typeName>(TypeNameText))> {};
 
-  struct OptionStmtRule
+  struct OptionStmt
       : rule<create<ast::OptionStmt>(
                  ikw<"OPTION"> + assign<&ast::OptionStmt::kind>(ikw<"COMPARE">) +
                  assign<&ast::OptionStmt::value>(ikw<"BINARY"> |
@@ -682,14 +681,14 @@ struct Vba : cursiv::GrammarSpec {
                                      ikw<"PRIVATE">) +
                  ikw<"MODULE">)> {};
 
-  struct LetterSpecRule
+  struct LetterSpec
       : rule<create<ast::LetterSpec>(
                  assign<&ast::LetterSpec::from>(NameText) + lit<"-"> +
                  assign<&ast::LetterSpec::to>(NameText)) |
              create<ast::LetterSpec>(
                  assign<&ast::LetterSpec::from>(NameText))> {};
 
-  struct DefDirectiveRule
+  struct DefDirective
       : rule<create<ast::DefDirective>(
                  assign<&ast::DefDirective::type>(
                      ikw<"DEFBOOL"> | ikw<"DEFBYTE"> | ikw<"DEFCUR"> |
@@ -697,24 +696,24 @@ struct Vba : cursiv::GrammarSpec {
                      ikw<"DEFLNGLNG"> | ikw<"DEFLNGPTR"> | ikw<"DEFLNG"> |
                      ikw<"DEFOBJ"> | ikw<"DEFSNG"> | ikw<"DEFSTR"> |
                      ikw<"DEFVAR">) +
-                 some(append<&ast::DefDirective::letters>(ref<LetterSpecRule>),
+                 some(append<&ast::DefDirective::letters>(ref<LetterSpec>),
                       lit<",">))> {};
 
-  struct AttributeMemberRule
+  struct AttributeMember
       : rule<UnrestrictedNameText + option(lit<"."> + UnrestrictedNameText)> {
   };
 
-  struct AttributeValueRule
+  struct AttributeValue
       : rule<(option(lit<"-">) + ref<INTEGERLITERAL>) | ref<STRINGLITERAL> |
              LiteralIdentifier> {};
 
-  struct AttributeRule
+  struct Attribute
       : rule<create<ast::Attribute>(
                  ikw<"ATTRIBUTE"> + assign<&ast::Attribute::owner>(NameText) +
                  lit<"."> +
-                 assign<&ast::Attribute::member>(ref<AttributeMemberRule>) +
+                 assign<&ast::Attribute::member>(ref<AttributeMember>) +
                  lit<"="> +
-                 assign<&ast::Attribute::value>(ref<AttributeValueRule>)) |
+                 assign<&ast::Attribute::value>(ref<AttributeValue>)) |
              create<ast::Attribute>(
                  ikw<"ATTRIBUTE"> +
                  assign<&ast::Attribute::member>(ikw<"VB_NAME">) + lit<"="> +
@@ -773,18 +772,19 @@ struct Vba : cursiv::GrammarSpec {
                  lit<")"> + lit<"="> +
                  assign<&ast::MidStmt::value>(ref<Expression>))> {};
 
-  struct ReDimItemRule
+  struct ReDimItem
       : rule<create<ast::ReDimItem>(
                  assign<&ast::ReDimItem::target>(CallTarget) +
                  TypeSuffixInto<&ast::ReDimItem::typeChar> +
-                 ArrayDimInto<&ast::ReDimItem::bounds>)> {};
+                 ArrayDimInto<&ast::ReDimItem::bounds> +
+                 option(ikw<"AS"> + assign<&ast::ReDimItem::asType>(ref<TypeExpression>)))> {};
 
   struct ReDimStmt
       : rule<create<ast::ReDimStmt>(
                  ikw<"REDIM"> +
                  option(flag<&ast::ReDimStmt::preserve>(
                      ikw<"PRESERVE">)) +
-                 some(append<&ast::ReDimStmt::items>(ref<ReDimItemRule>),
+                 some(append<&ast::ReDimStmt::items>(ref<ReDimItem>),
                       lit<",">))> {};
 
   struct EraseStmt
@@ -857,7 +857,7 @@ struct Vba : cursiv::GrammarSpec {
 
   // -- If ------------------------------------------------------------------
 
-  struct ElseIfClauseRule
+  struct ElseIfClause
       : rule<create<ast::ElseIfClause>(
                  ikw<"ELSEIF"> +
                  assign<&ast::ElseIfClause::cond>(ref<Expression>) +
@@ -868,7 +868,7 @@ struct Vba : cursiv::GrammarSpec {
       : rule<create<ast::IfStmt>(
                  ikw<"IF"> + assign<&ast::IfStmt::cond>(ref<Expression>) +
                  ikw<"THEN"> + BodyInto<&ast::IfStmt::thenBody> +
-                 many(append<&ast::IfStmt::elseIfs>(ref<ElseIfClauseRule>)) +
+                 many(append<&ast::IfStmt::elseIfs>(ref<ElseIfClause>)) +
                  option(flag<&ast::IfStmt::hasElse>(ikw<"ELSE">) +
                         BodyInto<&ast::IfStmt::elseBody>) +
                  (ikw<"ENDIF"> | (ikw<"END"> + ikw<"IF">)))> {};
@@ -897,10 +897,10 @@ struct Vba : cursiv::GrammarSpec {
   // -- Select Case ----------------------------------------------------------
 
   static constexpr auto ComparisonOpText =
-      ikw<"NEW"> | lit<">="> | lit<"=>"> | lit<"<="> | lit<"=<"> | lit<"<>"> |
+      lit<">="> | lit<"=>"> | lit<"<="> | lit<"=<"> | lit<"<>"> |
       lit<"><"> | lit<">"> | lit<"<"> | lit<"=">;
 
-  struct RangeClauseRule
+  struct RangeClause
       : rule<create<ast::RangeClause>(
                  option(ikw<"IS">) +
                  assign<&ast::RangeClause::compareOp>(ComparisonOpText) +
@@ -912,10 +912,10 @@ struct Vba : cursiv::GrammarSpec {
              create<ast::RangeClause>(
                  assign<&ast::RangeClause::value>(ref<Expression>))> {};
 
-  struct CaseClauseRule
+  struct CaseClause
       : rule<create<ast::CaseClause>(
                  ikw<"CASE"> +
-                 some(append<&ast::CaseClause::ranges>(ref<RangeClauseRule>),
+                 some(append<&ast::CaseClause::ranges>(ref<RangeClause>),
                       lit<",">) +
                  BodyInto<&ast::CaseClause::body>)> {};
 
@@ -925,7 +925,7 @@ struct Vba : cursiv::GrammarSpec {
                  assign<&ast::SelectCaseStmt::selector>(ref<Expression>) +
                  Eos +
                  many(append<&ast::SelectCaseStmt::cases>(
-                     ref<CaseClauseRule>)) +
+                     ref<CaseClause>)) +
                  option(ikw<"CASE"> +
                         flag<&ast::SelectCaseStmt::hasElse>(
                             ikw<"ELSE">) +
@@ -1017,12 +1017,12 @@ struct Vba : cursiv::GrammarSpec {
 
   // -- File statements --------------------------------------------------
 
-  struct FileNumberRule : rule<option(lit<"#">) + ref<Expression>> {};
+  struct FileNumber : rule<option(lit<"#">) + ref<Expression>> {};
 
-  struct AccessKindRule
+  struct AccessKind
       : rule<(ikw<"READ"> + ikw<"WRITE">) | ikw<"READ"> | ikw<"WRITE">> {};
 
-  struct LockKindRule
+  struct LockKind
       : rule<ikw<"SHARED"> | (ikw<"LOCK"> + ikw<"READ"> + ikw<"WRITE">) |
              (ikw<"LOCK"> + ikw<"READ">) | (ikw<"LOCK"> + ikw<"WRITE">)> {};
 
@@ -1035,11 +1035,11 @@ struct Vba : cursiv::GrammarSpec {
                             ikw<"OUTPUT"> | ikw<"RANDOM">)) +
                  option(ikw<"ACCESS"> +
                         assign<&ast::OpenStmt::access>(
-                            ref<AccessKindRule>)) +
+                            ref<AccessKind>)) +
                  option(assign<&ast::OpenStmt::lockKind>(
-                     ref<LockKindRule>)) +
+                     ref<LockKind>)) +
                  ikw<"AS"> +
-                 assign<&ast::OpenStmt::fileNumber>(ref<FileNumberRule>) +
+                 assign<&ast::OpenStmt::fileNumber>(ref<FileNumber>) +
                  option(ikw<"LEN"> + lit<"="> +
                         assign<&ast::OpenStmt::recLength>(ref<Expression>)))> {
   };
@@ -1050,30 +1050,29 @@ struct Vba : cursiv::GrammarSpec {
              create<ast::CloseStmt>(
                  ikw<"CLOSE"> +
                  option(some(append<&ast::CloseStmt::fileNumbers>(
-                                 ref<FileNumberRule>),
+                                 ref<FileNumber>),
                              lit<",">)))> {};
 
   struct SeekStmt
       : rule<create<ast::SeekStmt>(
                  ikw<"SEEK"> +
-                 assign<&ast::SeekStmt::fileNumber>(ref<FileNumberRule>) +
+                 assign<&ast::SeekStmt::fileNumber>(ref<FileNumber>) +
                  lit<","> +
                  assign<&ast::SeekStmt::position>(ref<Expression>))> {};
 
   struct LockStmt
       : rule<create<ast::LockStmt>(
                  ikw<"LOCK"> +
-                 assign<&ast::LockStmt::fileNumber>(ref<FileNumberRule>) +
-                 lit<","> +
-                 option(assign<&ast::LockStmt::startRecord>(
-                     ref<Expression>)) +
-                 option(ikw<"TO"> + assign<&ast::LockStmt::endRecord>(
-                                        ref<Expression>)))> {};
+                 assign<&ast::LockStmt::fileNumber>(ref<FileNumber>) +
+                 option(lit<","> +
+                        option(assign<&ast::LockStmt::startRecord>(ref<Expression>)) +
+                        option(ikw<"TO"> + assign<&ast::LockStmt::endRecord>(
+                                               ref<Expression>))))> {};
 
   struct UnlockStmt
       : rule<create<ast::UnlockStmt>(
                  ikw<"UNLOCK"> +
-                 assign<&ast::UnlockStmt::fileNumber>(ref<FileNumberRule>) +
+                 assign<&ast::UnlockStmt::fileNumber>(ref<FileNumber>) +
                  option(lit<","> +
                         option(assign<&ast::UnlockStmt::startRecord>(
                             ref<Expression>)) +
@@ -1085,14 +1084,14 @@ struct Vba : cursiv::GrammarSpec {
       : rule<create<ast::LineInputStmt>(
                  ikw<"LINE"> + ikw<"INPUT"> +
                  assign<&ast::LineInputStmt::fileNumber>(
-                     ref<FileNumberRule>) +
+                     ref<FileNumber>) +
                  lit<","> +
                  assign<&ast::LineInputStmt::target>(ref<Expression>))> {};
 
   struct WidthStmt
       : rule<create<ast::WidthStmt>(
                  ikw<"WIDTH"> +
-                 assign<&ast::WidthStmt::fileNumber>(ref<FileNumberRule>) +
+                 assign<&ast::WidthStmt::fileNumber>(ref<FileNumber>) +
                  lit<","> +
                  assign<&ast::WidthStmt::width>(ref<Expression>))> {};
 
@@ -1126,7 +1125,7 @@ struct Vba : cursiv::GrammarSpec {
   struct WriteStmt
       : rule<create<ast::WriteStmt>(
                  ikw<"WRITE"> +
-                 assign<&ast::WriteStmt::fileNumber>(ref<FileNumberRule>) +
+                 assign<&ast::WriteStmt::fileNumber>(ref<FileNumber>) +
                  lit<","> +
                  option(some(append<&ast::WriteStmt::items>(PrintItemBody),
                              lit<",">)))> {};
@@ -1134,7 +1133,7 @@ struct Vba : cursiv::GrammarSpec {
   struct InputStmt
       : rule<create<ast::InputStmt>(
                  ikw<"INPUT"> +
-                 assign<&ast::InputStmt::fileNumber>(ref<FileNumberRule>) +
+                 assign<&ast::InputStmt::fileNumber>(ref<FileNumber>) +
                  lit<","> +
                  some(append<&ast::InputStmt::targets>(ref<Expression>),
                       lit<",">))> {};
@@ -1142,7 +1141,7 @@ struct Vba : cursiv::GrammarSpec {
   struct PutStmt
       : rule<create<ast::PutStmt>(
                  ikw<"PUT"> +
-                 assign<&ast::PutStmt::fileNumber>(ref<FileNumberRule>) +
+                 assign<&ast::PutStmt::fileNumber>(ref<FileNumber>) +
                  lit<","> +
                  option(assign<&ast::PutStmt::recordNumber>(
                      ref<Expression>)) +
@@ -1152,7 +1151,7 @@ struct Vba : cursiv::GrammarSpec {
   struct GetStmt
       : rule<create<ast::GetStmt>(
                  ikw<"GET"> +
-                 assign<&ast::GetStmt::fileNumber>(ref<FileNumberRule>) +
+                 assign<&ast::GetStmt::fileNumber>(ref<FileNumber>) +
                  lit<","> +
                  option(assign<&ast::GetStmt::recordNumber>(
                      ref<Expression>)) +
@@ -1175,7 +1174,7 @@ struct Vba : cursiv::GrammarSpec {
              ref<MidStmt> | ref<AssignStmt> | ref<CallStmt>> {};
 
   struct BodyItem
-      : rule<ref<AttributeRule> | ref<VarDeclRule> | ref<ConstDeclRule> |
+      : rule<ref<Attribute> | ref<VarDecl> | ref<ConstDecl> |
              ref<ReDimStmt> | ref<EraseStmt> | ref<IfStmt> |
              ref<SameLineStmt>> {};
 
@@ -1242,10 +1241,10 @@ struct Vba : cursiv::GrammarSpec {
   // -- Module-level items -------------------------------------------------
 
   struct ModuleItem
-      : rule<ref<AttributeRule> | ref<OptionStmtRule> |
-             ref<DefDirectiveRule> | ref<VarDeclRule> | ref<ConstDeclRule> |
-             ref<TypeDeclRule> | ref<EnumDeclRule> | ref<DeclareDeclRule> |
-             ref<EventDeclRule> | ref<ImplementsDeclRule> | ref<Procedure>> {};
+      : rule<ref<Attribute> | ref<OptionStmt> |
+             ref<DefDirective> | ref<VarDecl> | ref<ConstDecl> |
+             ref<TypeDecl> | ref<EnumDecl> | ref<DeclareDecl> |
+             ref<EventDecl> | ref<ImplementsDecl> | ref<Procedure>> {};
 
   // A trailing separator with nothing after it is legal at the very end of a
   // module (a last line closed only by a comment or a bare `:`).
@@ -1254,27 +1253,27 @@ struct Vba : cursiv::GrammarSpec {
 
   // -- Class/form header configuration -------------------------------------
 
-  struct ConfigValueRule
+  struct ConfigValue
       : rule<(option(lit<"-">) +
               (ref<DATELITERAL> | ref<FLOATLITERAL> | ref<INTEGERLITERAL> |
                ref<STRINGLITERAL> | LiteralIdentifier)) |
              ref<FILEOFFSET>> {};
 
-  struct ConfigEntryRule
+  struct ConfigEntry
       : rule<create<ast::ConfigEntry>(
                  option(ikw<"OBJECT"> + lit<".">) + option(lit<"_">) +
                  assign<&ast::ConfigEntry::name>(NameText) + lit<"="> +
-                 assign<&ast::ConfigEntry::value>(ref<ConfigValueRule>))> {};
+                 assign<&ast::ConfigEntry::value>(ref<ConfigValue>))> {};
 
-  struct FormBeginBlockRule;
-  struct BeginPropertyBlockRule;
+  struct FormBeginBlock;
+  struct BeginPropertyBlock;
 
   static constexpr auto BeginBlockElement =
-      append<&ast::BeginBlock::entries>(ref<ConfigEntryRule>) |
-      append<&ast::BeginBlock::children>(ref<FormBeginBlockRule>) |
-      append<&ast::BeginBlock::children>(ref<BeginPropertyBlockRule>);
+      append<&ast::BeginBlock::entries>(ref<ConfigEntry>) |
+      append<&ast::BeginBlock::children>(ref<FormBeginBlock>) |
+      append<&ast::BeginBlock::children>(ref<BeginPropertyBlock>);
 
-  struct FormBeginBlockRule
+  struct FormBeginBlock
       : rule<create<ast::BeginBlock>(
                  ikw<"BEGIN"> +
                  assign<&ast::BeginBlock::classId>(ref<GUID> |
@@ -1282,7 +1281,7 @@ struct Vba : cursiv::GrammarSpec {
                  assign<&ast::BeginBlock::name>(NameText) +
                  some(Eos + BeginBlockElement) + Eos + ikw<"END">)> {};
 
-  struct BeginPropertyBlockRule
+  struct BeginPropertyBlock
       : rule<create<ast::BeginBlock>(
                  flag<&ast::BeginBlock::isProperty>(
                      ikw<"BEGINPROPERTY">) +
@@ -1291,12 +1290,12 @@ struct Vba : cursiv::GrammarSpec {
                  some(Eos + BeginBlockElement) + Eos + ikw<"ENDPROPERTY">)> {
   };
 
-  struct ClassBeginBlockRule
+  struct ClassBeginBlock
       : rule<create<ast::BeginBlock>(
                  ikw<"BEGIN"> + some(Eos + BeginBlockElement) + Eos +
                  ikw<"END">)> {};
 
-  struct FormObjectAssignRule
+  struct FormObjectAssign
       : rule<create<ast::ObjectAssign>(
                  assign<&ast::ObjectAssign::value>(ref<STRINGLITERAL>) +
                  option(lit<";"> + assign<&ast::ObjectAssign::value2>(
@@ -1310,24 +1309,24 @@ struct Vba : cursiv::GrammarSpec {
                  ((ikw<"VERSION"> +
                    assign<&ast::Module::version>(ref<FLOATLITERAL>) +
                    ikw<"CLASS"> + Eos +
-                   assign<&ast::Module::header>(ref<ClassBeginBlockRule>) +
+                   assign<&ast::Module::header>(ref<ClassBeginBlock>) +
                    Eos + option(ModuleBodyExpr)) |
                   flag<&ast::Module::isForm>(
                       ikw<"VERSION"> +
                       assign<&ast::Module::version>(ref<FLOATLITERAL>) +
                       many(Eos + ikw<"OBJECT"> + lit<"="> +
                            append<&ast::Module::objects>(
-                               ref<FormObjectAssignRule>)) +
+                               ref<FormObjectAssign>)) +
                       Eos +
                       assign<&ast::Module::header>(
-                          ref<FormBeginBlockRule>) +
+                          ref<FormBeginBlock>) +
                       Eos + option(ModuleBodyExpr)) |
                   // A module of separators only resumes at its first `:`:
                   // `BlankLines` took the leading newlines.
                   option(ModuleBodyExpr | (lit<":"> + option(Eos)))))> {};
 
   using entry = ModuleRule;
-  using ignore = list<WS, LINE_CONTINUATION>;
+  using ignored = list<WS, LINE_CONTINUATION>;
   using hidden = list<COMMENT, REMCOMMENT>;
 };
 

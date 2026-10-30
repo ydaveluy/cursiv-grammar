@@ -13,7 +13,7 @@ list(JOIN _test_samples "," _test_samples_joined)
 
 # The grammar itself: every sample parses, and the tree holds a Module.
 add_executable(python_grammar_test grammar_test.cpp)
-target_link_libraries(python_grammar_test PRIVATE pythonCore)
+target_link_libraries(python_grammar_test PRIVATE pythonCore cursiv::test)
 target_compile_definitions(python_grammar_test PRIVATE
     "CURSIV_SAMPLES=\"${_samples_joined}\""
     "CURSIV_TEST_SAMPLES=\"${_test_samples_joined}\"")

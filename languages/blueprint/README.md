@@ -31,10 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-Blueprint (`Android.bp`) is the module-declaration language of the Android
-build system: top-level variable assignments and module blocks, values that
-can be a bool, an integer, a string, a list, a nested map, a variable
-reference, or a `select()` on a product/arch condition.
+Blueprint (`Android.bp`) describes Android build modules using assignments, properties, collections and expressions.
 
 ```
 cc_library {
@@ -47,11 +44,6 @@ cc_library {
     },
 }
 ```
-
-`example/example1.bp` is a sample document; `example/features.bp` demonstrates
-additional constructs (`+=`, a module in `(...)` form, a negative integer, an
-escaped quote, an unparenthesized `select` condition, a `default: unset`
-case).
 
 ## The command line
 

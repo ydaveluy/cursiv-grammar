@@ -1,14 +1,16 @@
-// The checks of this language: none -- the grammar's structure is the whole
-// language, nothing else needs judging.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
+#include "cursiv/core/validation/ValidationAcceptor.hpp"
+#include "molecule/core/ast.hpp"
 
 namespace molecule {
 
 class MoleculeValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkStructure(const ast::Structure&, cursiv::ValidationAcceptor&) const;
+  void checkPart(const ast::Part&, cursiv::ValidationAcceptor&) const;
 };
 
 struct MoleculeCoreServices;

@@ -8,6 +8,15 @@
 namespace elixir {
 
 namespace {
+template<class Node>
+void checkHeredocHeader(const Node& node, cursiv::ValidationAcceptor& accept) {
+  const auto text = node.texts.empty() ? std::string_view{} : node.texts[0];
+  const auto first = text.find_first_not_of(" \t");
+  if (first == std::string_view::npos ||
+      (text[first] != '\n' && text.substr(first, 2) != "\r\n"))
+    accept.error(node, "A heredoc opener requires whitespace followed by a newline.",
+                 "elixir.heredoc-header");
+}
 template<class Node, class Positional, class Keywords>
 void checkOrder(const Node& node, const Positional& items, const Keywords& keys,
                 cursiv::ValidationAcceptor& accept) {
@@ -19,6 +28,15 @@ void checkOrder(const Node& node, const Positional& items, const Keywords& keys,
       return;
     }
 }
+}
+void ElixirValidator::checkMultiString(const ast::MultiStringLit& node, cursiv::ValidationAcceptor& accept) const {
+  checkHeredocHeader(node, accept);
+}
+void ElixirValidator::checkMultiCharlist(const ast::MultiCharlistLit& node, cursiv::ValidationAcceptor& accept) const {
+  checkHeredocHeader(node, accept);
+}
+void ElixirValidator::checkSigil(const ast::SigilLit& node, cursiv::ValidationAcceptor& accept) const {
+  if (node.delimiter.size() == 3) checkHeredocHeader(node, accept);
 }
 void ElixirValidator::checkRange(const ast::BinaryExpr& node, cursiv::ValidationAcceptor& accept) const {
   if (node.op != ast::Operator::range_step || !node.left) return;
@@ -39,6 +57,9 @@ void ElixirValidator::checkMap(const ast::MapExpr& node, cursiv::ValidationAccep
 void register_validation_checks(ElixirCoreServices& services) {
   services.validator = std::make_unique<const ElixirValidator>(services);
   services.validationRegistry->registerChecks({
+      cursiv::ValidationRegistry::makeValidationCheck<&ElixirValidator::checkMultiString>(*services.validator),
+      cursiv::ValidationRegistry::makeValidationCheck<&ElixirValidator::checkMultiCharlist>(*services.validator),
+      cursiv::ValidationRegistry::makeValidationCheck<&ElixirValidator::checkSigil>(*services.validator),
       cursiv::ValidationRegistry::makeValidationCheck<&ElixirValidator::checkRange>(*services.validator),
       cursiv::ValidationRegistry::makeValidationCheck<&ElixirValidator::checkCall>(*services.validator),
       cursiv::ValidationRegistry::makeValidationCheck<&ElixirValidator::checkList>(*services.validator),

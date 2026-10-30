@@ -35,6 +35,7 @@ struct Expr;
 struct Assertion;
 struct Alias;
 struct RenamePair;
+struct GenericConstraint;
 
 struct AnchoredType : cursiv::Extends<Type> {
   string_view attachment;
@@ -50,8 +51,7 @@ struct FormalGeneric : cursiv::Extends<cursiv::AstNode> {
   vector<string_view> modifiers;  // frozen, reference
   boolean question;
   string_view name;
-  vector<Type*> constraints;  // one (single) or several (`{...}`)
-  vector<struct RenamePair*> constraintRenames;
+  vector<GenericConstraint*> constraints;
   vector<string_view> creators;
 };
 
@@ -268,11 +268,13 @@ struct LoopInstruction : cursiv::Extends<Instruction> {
   Compound* initBody;
   Assertion* invariant;
   Expr* variantBefore;
+  string_view variantBeforeTag;
   Expr* untilCond;
   Compound* loopBody;
   Expr* allCond;
   Expr* someCond;
   Expr* variantAfter;
+  string_view variantAfterTag;
 };
 
 struct DebugInstruction : cursiv::Extends<Instruction> {
@@ -373,6 +375,11 @@ struct RenamePair : cursiv::Extends<cursiv::AstNode> {
   string_view from;
   string_view to;
   vector<Alias*> toAliases;
+};
+
+struct GenericConstraint : cursiv::Extends<cursiv::AstNode> {
+  Type* type;
+  vector<RenamePair*> renames;
 };
 
 struct ExportItem : cursiv::Extends<cursiv::AstNode> {

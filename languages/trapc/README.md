@@ -1,7 +1,7 @@
 # trapc
 
-TrapC, a memory-safe C dialect, built with
-[cursiv](https://github.com/ydaveluy/cursiv).
+A subset of the 2025 TrapC proposal, centered on C syntax and `trap` blocks,
+built with [cursiv](https://github.com/ydaveluy/cursiv).
 
 ## Build
 
@@ -43,10 +43,8 @@ int main()
 }
 ```
 
-TrapC is C (declarations, structs, enums, pointers, control flow, the full
-expression grammar) with one addition and two removals: `trap { ... }` runs a
-block whose faults are meant to be caught, and `union`/`goto` are gone. Plain
-C source still parses: see `example/hello.tc`.
+This syntax port covers C declarations, expressions and control flow with
+`trap` blocks; see `example/hello.tc` for ordinary C syntax.
 
 ## The command line
 

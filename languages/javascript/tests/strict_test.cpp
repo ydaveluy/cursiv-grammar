@@ -56,6 +56,7 @@ int main() {
   expect("let foo = 123;\nvar let = 123;\nvar async = 456;\n", 0);
   expect("function f() { var static = 1; return static; }\n", 0);
   expect("x = 0755;\n", 0);
+  expect("var a = 08, b = 09.5;\n", 0);
   // Strict by a prologue, by a function's own prologue, by a class body,
   // by being a module.
   expect("\"use strict\";\nvar let = 0;\n", 1);
@@ -65,6 +66,7 @@ int main() {
   expect("class C { m() { var interface = 1; } }\n", 1);
   expect("import \"m\";\nvar let = 1;\n", 1);
   expect("\"use strict\";\nx = 0755;\n", 1);
+  expect("\"use strict\";\nx = 08;\n", 1);
   // A property name is any word, and a sloppy function beside a strict one
   // stays sloppy.
   expect("\"use strict\";\no.let = 1; var p = {static: 2};\n", 0);

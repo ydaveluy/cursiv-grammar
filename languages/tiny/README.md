@@ -39,7 +39,7 @@ BEGIN
 END
 ```
 
-A tiny program is a `BEGIN`/`END` block of statements: `READ` names,
+A program in the educational `tiny.g4` dialect is a `BEGIN`/`END` block of statements: `READ` names,
 `WRITE` expressions, `x := expr` assigns one. There are no declarations —
 a name comes into being at its first mention — so nothing is a cross
 reference here.

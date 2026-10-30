@@ -9,8 +9,10 @@
 namespace objc {
 
 inline constexpr auto identifier_text = [](std::string_view text,
-                                           std::pmr::memory_resource* mem) {
-  if (text.find('\\') == text.npos) return text;
+                                           std::pmr::memory_resource* mem)
+    -> cursiv::ConversionResult<std::string_view> {
+  if (text.find('\\') == text.npos)
+    return cursiv::ConversionResult<std::string_view>::ok(text);
   auto room = cursiv::text_room(mem, text.size());
   std::size_t n = 0;
   for (std::size_t i = 0; i < text.size();) {
@@ -21,14 +23,18 @@ inline constexpr auto identifier_text = [](std::string_view text,
     }
     const unsigned width = text[i + 1] == 'u' ? 4 : 8;
     unsigned value = 0;
-    if (i + 2 + width > text.size()) return text;
+    if (i + 2 + width > text.size())
+      return cursiv::ConversionResult<std::string_view>::err("Incomplete identifier escape.");
     for (unsigned j = 0; j < width; ++j) {
       const char c = text[i + 2 + j];
       value = value * 16 + (c >= '0' && c <= '9'   ? c - '0'
                             : c >= 'a' && c <= 'f' ? c - 'a' + 10
                                                    : c - 'A' + 10);
     }
-    if (value > 0x10FFFF || (value >= 0xD800 && value <= 0xDFFF)) return text;
+    if (value > 0x10FFFF || (value >= 0xD800 && value <= 0xDFFF) ||
+        (value < 0xA0 && value != '$' && value != '@' && value != '`'))
+      return cursiv::ConversionResult<std::string_view>::err(
+          "Invalid universal character name in an identifier.");
     i += 2 + width;
     if (value < 0x80)
       room[n++] = static_cast<char>(value);
@@ -46,7 +52,7 @@ inline constexpr auto identifier_text = [](std::string_view text,
       room[n++] = static_cast<char>(0x80 | (value & 63));
     }
   }
-  return std::string_view(room.data(), n);
+  return cursiv::ConversionResult<std::string_view>::ok({room.data(), n});
 };
 
 struct Objc : cursiv::GrammarSpec {
@@ -66,12 +72,25 @@ struct Objc : cursiv::GrammarSpec {
 
   static constexpr auto IdentStart = cr<"$_a-zA-Z"> | uc::XID_Start;
   static constexpr auto IdentCont = cr<"$_a-zA-Z0-9"> | uc::XID_Continue;
-  static constexpr auto word_boundary = IdentCont;
 
   static constexpr auto UCN = (lit<"\\u"> + repeat<4>(cr<"0-9a-fA-F">)) |
                               (lit<"\\U"> + repeat<8>(cr<"0-9a-fA-F">));
-  struct IDENTIFIER : terminal<(IdentStart | UCN) + many(IdentCont | UCN),
-                               text_conv<identifier_text>> {};
+  static constexpr auto word_boundary = IdentCont;
+  // C17 reserved words remain reserved in the mixed GNU17/GNU23 profile.
+  // ObjC contextual attribute words stay available through NameText.
+  static constexpr auto CReserved =
+      (lit<"_Static_assert"> | lit<"_Thread_local"> | lit<"_Imaginary"> | lit<"_Noreturn"> | lit<"_Alignas"> |
+       lit<"_Alignof"> | lit<"_Complex"> | lit<"_Generic"> | lit<"continue"> | lit<"register"> |
+       lit<"restrict"> | lit<"unsigned"> | lit<"volatile"> | lit<"_Atomic"> | lit<"default"> |
+       lit<"typedef"> | lit<"double"> | lit<"extern"> | lit<"inline"> | lit<"return"> |
+       lit<"signed"> | lit<"sizeof"> | lit<"static"> | lit<"struct"> | lit<"switch"> |
+       lit<"_Bool"> | lit<"break"> | lit<"const"> | lit<"float"> | lit<"short"> |
+       lit<"union"> | lit<"while"> | lit<"auto"> | lit<"case"> | lit<"char"> |
+       lit<"else"> | lit<"enum"> | lit<"goto"> | lit<"long"> | lit<"void"> |
+       lit<"for"> | lit<"int"> | lit<"do"> | lit<"if">) +
+      !(IdentCont | UCN);
+  struct IDENTIFIER : terminal<as<identifier_text>(
+      !CReserved + (IdentStart | UCN) + many(IdentCont | UCN))> {};
 
   static constexpr auto HEXDIGIT = cr<"0-9a-fA-F">;
   static constexpr auto Escape = LineSplice | (lit<"\\"> + any);
@@ -161,7 +180,7 @@ struct Objc : cursiv::GrammarSpec {
   static constexpr auto NameText =
       ref<IDENTIFIER> | K_BOOL | K_Class | K_bycopy | K_byref | K_id | K_IMP |
       K_in | K_inout | K_oneway | K_out | K_Protocol | K_SEL | K_self |
-      K_super | K_atomic | K_nonatomic | K_retain | K_register |
+      K_super | K_atomic | K_nonatomic | K_retain |
       K_autoreleasing | K_block | K_bridge_retained | K_bridge_transfer |
       K_covariant | K_contravariant | K_deprecated | K_kindof | K_unused |
       K_ns_inline | K_ns_enum | K_ns_options | K_ns_swift_name |
@@ -174,7 +193,8 @@ struct Objc : cursiv::GrammarSpec {
       kw<"auto"> | K_register | kw<"static"> | kw<"extern"> | kw<"typedef"> |
       kw<"_Thread_local"> | kw<"thread_local"> | kw<"__thread"> |
       kw<"constexpr">;
-  struct AtomicQualifier : rule<kw<"_Atomic"> + !lit<"(">, std::string_view> {};
+  struct AtomicQualifier
+      : rule<as<std::string_view>(kw<"_Atomic"> + !lit<"(">)> {};
   static constexpr auto TypeQualifierBase =
       kw<"const"> | kw<"volatile"> | kw<"restrict"> | ref<AtomicQualifier>;
   static constexpr auto ProtocolQualifier =
@@ -195,7 +215,7 @@ struct Objc : cursiv::GrammarSpec {
       kw<"_Complex"> | kw<"__int128">;
   static constexpr auto BuiltinWord = HardBuiltinWord | kw<"bool">;
   static constexpr auto MessageSelectorWord =
-      NameText | kw<"auto"> | kw<"break"> | kw<"case"> | kw<"char"> |
+      NameText | kw<"register"> | kw<"auto"> | kw<"break"> | kw<"case"> | kw<"char"> |
       kw<"const"> | kw<"continue"> | kw<"default"> | kw<"do"> | kw<"double"> |
       kw<"else"> | kw<"enum"> | kw<"extern"> | kw<"float"> | kw<"for"> |
       kw<"goto"> | kw<"if"> | kw<"inline"> | kw<"int"> | kw<"long"> |
@@ -277,9 +297,9 @@ struct Objc : cursiv::GrammarSpec {
   struct Attribute
       : rule<assign<&ast::Attribute::name>(kw<"const"> | NameText) +
              option(lit<"("> +
-                    option(some(append<&ast::Attribute::params>(
+                    many(append<&ast::Attribute::params>(
                                     ref<AttributeParameter>),
-                                lit<",">)) +
+                                lit<",">) +
                     lit<")">)> {};
 
   template <auto Member>
@@ -445,7 +465,7 @@ struct Objc : cursiv::GrammarSpec {
                  ref<Declarator> | ref<AbstractDeclarator>))> {};
   template <auto Member>
   static constexpr auto BlockParametersInto =
-      lit<"("> + option(some(append<Member>(ref<Param>), lit<",">)) + lit<")">;
+      lit<"("> + many(append<Member>(ref<Param>), lit<",">) + lit<")">;
   struct TypeName
       : rule<assign<&ast::TypeName::specifiers>(ref<DeclarationSpecifiers>) +
              option(
@@ -522,18 +542,18 @@ struct Objc : cursiv::GrammarSpec {
              assign<&ast::SelectorExpr::simple>(MessageSelectorWord)> {};
 
   struct SelectorExpression
-      : rule<lit<"@selector"> + lit<"("> +
+      : rule<(lit<"@"> + kw<"selector">) + lit<"("> +
              (ref<SelectorName> | (lit<"("> + ref<SelectorName> + lit<")">)) +
              lit<")">> {};
 
   struct ProtocolExpression
-      : rule<lit<"@protocol"> + lit<"("> +
+      : rule<(lit<"@"> + kw<"protocol">) + lit<"("> +
              option(assign<&ast::ProtocolExpr::variance>(K_covariant |
                                                          K_contravariant)) +
              assign<&ast::ProtocolExpr::name>(NameText) + lit<")">> {};
 
   struct EncodeExpression
-      : rule<lit<"@encode"> + lit<"("> +
+      : rule<(lit<"@"> + kw<"encode">) + lit<"("> +
              assign<&ast::EncodeExpr::type>(ref<TypeName>) + lit<")">> {};
 
   struct BracedInit;
@@ -542,7 +562,7 @@ struct Objc : cursiv::GrammarSpec {
               assign<&ast::AvailabilityClause::version>(ref<VERSION>)) |
              flag<&ast::AvailabilityClause::wildcard>(lit<"*">)> {};
   struct AvailableExpression
-      : rule<kw<"@available"> + lit<"("> +
+      : rule<(lit<"@"> + kw<"available">) + lit<"("> +
              some(append<&ast::AvailableExpr::clauses>(ref<AvailabilityClause>),
                   lit<",">) +
              lit<")">> {};
@@ -579,9 +599,9 @@ struct Objc : cursiv::GrammarSpec {
                       lit<"]">) |
                   nest<ast::CallExpr, &ast::CallExpr::callee>(
                       lit<"("> +
-                      option(some(
+                      many(
                           append<&ast::CallExpr::args>(ref<ArgumentExpression>),
-                          lit<",">)) +
+                          lit<",">) +
                       lit<")">) |
                   nest<ast::MemberExpr, &ast::MemberExpr::object>(
                       flag<&ast::MemberExpr::arrow>(lit<"->">) +
@@ -633,11 +653,10 @@ struct Objc : cursiv::GrammarSpec {
   static constexpr auto OpLogOr = lit<"||">;
 
   struct BinaryExpression
-      : infix<CastExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMul) >> left(OpAdd) >> left(OpShift) >> left(OpRel) >>
-               left(OpEq) >> left(OpBitAnd) >> left(OpBitXor) >>
-               left(OpBitOr) >> left(OpLogAnd) >> left(OpLogOr))> {};
+      : infix<CastExpression, ast::BinaryExpr,
+              levels(left(OpMul), left(OpAdd), left(OpShift), left(OpRel),
+                     left(OpEq), left(OpBitAnd), left(OpBitXor), left(OpBitOr),
+                     left(OpLogAnd), left(OpLogOr))> {};
 
   struct ConditionalExpression
       : rule<
@@ -660,8 +679,7 @@ struct Objc : cursiv::GrammarSpec {
              ref<ConditionalExpression>> {};
 
   struct Expression
-      : infix<AssignmentExpression, &ast::BinaryExpr::left,
-              &ast::BinaryExpr::op, &ast::BinaryExpr::right, left(lit<",">)> {};
+      : infix<AssignmentExpression, ast::BinaryExpr, left(lit<",">)> {};
 
   struct ConstantExpression : rule<ref<ConditionalExpression>> {};
 
@@ -702,14 +720,14 @@ struct Objc : cursiv::GrammarSpec {
   struct FieldDeclaration
       : rule<assign<&ast::FieldDeclaration::specifiers>(
                  ref<DeclarationSpecifiers>) +
-             option(some(append<&ast::FieldDeclaration::declarators>(
+             many(append<&ast::FieldDeclaration::declarators>(
                              ref<FieldDeclarator>),
-                         lit<",">)) +
+                         lit<",">) +
              option(assign<&ast::FieldDeclaration::trailingMacro>(ref<Macro>)) +
              lit<";">> {};
 
   static constexpr auto AccessModifier =
-      kw<"@private"> | kw<"@protected"> | kw<"@package"> | kw<"@public">;
+      (lit<"@"> + kw<"private">) | (lit<"@"> + kw<"protected">) | (lit<"@"> + kw<"package">) | (lit<"@"> + kw<"public">);
 
   struct VisibilitySection
       : rule<assign<&ast::VisibilitySection::access>(AccessModifier) +
@@ -809,9 +827,9 @@ struct Objc : cursiv::GrammarSpec {
 
   struct VarDeclaration
       : rule<assign<&ast::Declaration::specifiers>(ref<DeclarationSpecifiers>) +
-             option(some(
+             many(
                  append<&ast::Declaration::declarators>(ref<InitDeclarator>),
-                 lit<",">)) +
+                 lit<",">) +
              option(assign<&ast::Declaration::trailingMacro>(ref<Macro>)) +
              lit<";">> {};
 
@@ -907,7 +925,7 @@ struct Objc : cursiv::GrammarSpec {
              option(assign<&ast::Label::body>(ref<BlockItem>))> {};
 
   struct ThrowStatement
-      : rule<lit<"@throw"> +
+      : rule<(lit<"@"> + kw<"throw">) +
              option(assign<&ast::ThrowStmt::value>(ref<Expression>)) +
              lit<";">> {};
 
@@ -930,12 +948,12 @@ struct Objc : cursiv::GrammarSpec {
   };
 
   struct SynchronizedStatement
-      : rule<lit<"@synchronized"> + lit<"("> +
+      : rule<(lit<"@"> + kw<"synchronized">) + lit<"("> +
              assign<&ast::SynchronizedStmt::lock>(ref<Expression>) + lit<")"> +
              assign<&ast::SynchronizedStmt::body>(ref<CompoundStatement>)> {};
 
   struct AutoreleaseStatement
-      : rule<lit<"@autoreleasepool"> +
+      : rule<(lit<"@"> + kw<"autoreleasepool">) +
              assign<&ast::AutoreleaseStmt::body>(ref<CompoundStatement>)> {};
 
   struct Statement
@@ -995,7 +1013,7 @@ struct Objc : cursiv::GrammarSpec {
                  assign<&ast::PropertyAttr::keyword>(NameText))> {};
 
   struct PropertyDeclarationBody
-      : rule<kw<"@property"> +
+      : rule<(lit<"@"> + kw<"property">) +
              option(
                  lit<"("> +
                  some(append<&ast::PropertyDecl::attrs>(ref<PropertyAttribute>),
@@ -1018,10 +1036,10 @@ struct Objc : cursiv::GrammarSpec {
                     assign<&ast::SynthesizeItem::backing>(NameText))> {};
 
   struct PropertyImplementationBody
-      : rule<((kw<"@synthesize"> +
+      : rule<(((lit<"@"> + kw<"synthesize">) +
                some(append<&ast::PropertyImpl::items>(ref<SynthesizeItem>),
                     lit<",">)) |
-              (flag<&ast::PropertyImpl::dynamic>(kw<"@dynamic">) +
+              (flag<&ast::PropertyImpl::dynamic>((lit<"@"> + kw<"dynamic">)) +
                some(append<&ast::PropertyImpl::items>(ref<SynthesizeItem>),
                     lit<",">))) +
              lit<";">> {};
@@ -1044,7 +1062,7 @@ struct Objc : cursiv::GrammarSpec {
             many(AttributeSpecifierExpr<&ast::ClassInterface::attributes>) +
             option(flag<&ast::ClassInterface::ibDesignable>(
                 K_ib_designable)) +
-            kw<"@interface"> +
+            (lit<"@"> + kw<"interface">) +
             assign<&ast::ClassInterface::className>(ref<GenericTypeSpecifier>) +
             option(lit<":"> + assign<&ast::ClassInterface::superclassName>(
                                   ref<IDENTIFIER>)) +
@@ -1053,12 +1071,12 @@ struct Objc : cursiv::GrammarSpec {
                  lit<">">) +
             option(
                 assign<&ast::ClassInterface::ivars>(ref<InstanceVariables>)) +
-            option(some(InterfaceMemberOrSemi<&ast::ClassInterface::members>)) +
-            kw<"@end">> {};
+            many(InterfaceMemberOrSemi<&ast::ClassInterface::members>) +
+            (lit<"@"> + kw<"end">)> {};
 
   struct CategoryInterface
       : rule<many(AttributeSpecifierExpr<&ast::CategoryInterface::attributes>) +
-             kw<"@interface"> +
+             (lit<"@"> + kw<"interface">) +
              assign<&ast::CategoryInterface::className>(
                  ref<GenericTypeSpecifier>) +
              lit<"("> +
@@ -1073,9 +1091,9 @@ struct Objc : cursiv::GrammarSpec {
                     lit<">">) +
              option(assign<&ast::CategoryInterface::ivars>(
                  ref<InstanceVariables>)) +
-             option(some(
-                 InterfaceMemberOrSemi<&ast::CategoryInterface::members>)) +
-             kw<"@end">> {};
+             many(
+                 InterfaceMemberOrSemi<&ast::CategoryInterface::members>) +
+             (lit<"@"> + kw<"end">)> {};
 
   struct ClassImplementationMember
       : rule<ref<FunctionDefinition> |
@@ -1093,37 +1111,37 @@ struct Objc : cursiv::GrammarSpec {
       : rule<
             many(
                 AttributeSpecifierExpr<&ast::ClassImplementation::attributes>) +
-            kw<"@implementation"> +
+            (lit<"@"> + kw<"implementation">) +
             assign<&ast::ClassImplementation::className>(
                 ref<GenericTypeSpecifier>) +
             option(lit<":"> + assign<&ast::ClassImplementation::superclassName>(
                                   ref<IDENTIFIER>)) +
             option(assign<&ast::ClassImplementation::ivars>(
                 ref<InstanceVariables>)) +
-            option(some(ImplementationMemberOrSemi<
-                        &ast::ClassImplementation::members>)) +
-            kw<"@end">> {};
+            many(ImplementationMemberOrSemi<
+                        &ast::ClassImplementation::members>) +
+            (lit<"@"> + kw<"end">)> {};
 
   struct CategoryImplementation
       : rule<many(AttributeSpecifierExpr<
                   &ast::CategoryImplementation::attributes>) +
-             kw<"@implementation"> +
+             (lit<"@"> + kw<"implementation">) +
              assign<&ast::CategoryImplementation::className>(
                  ref<GenericTypeSpecifier>) +
              lit<"("> +
              assign<&ast::CategoryImplementation::categoryName>(
                  ref<IDENTIFIER>) +
              lit<")"> +
-             option(some(ImplementationMemberOrSemi<
-                         &ast::CategoryImplementation::members>)) +
-             kw<"@end">> {};
+             many(ImplementationMemberOrSemi<
+                         &ast::CategoryImplementation::members>) +
+             (lit<"@"> + kw<"end">)> {};
 
   struct ProtocolSection
       : rule<create<ast::ProtocolSection>(
-                 assign<&ast::ProtocolSection::modifier>(kw<"@required">) +
+                 assign<&ast::ProtocolSection::modifier>((lit<"@"> + kw<"required">)) +
                  many(InterfaceMemberOrSemi<&ast::ProtocolSection::members>)) |
              create<ast::ProtocolSection>(
-                 assign<&ast::ProtocolSection::modifier>(kw<"@optional">) +
+                 assign<&ast::ProtocolSection::modifier>((lit<"@"> + kw<"optional">)) +
                  many(InterfaceMemberOrSemi<&ast::ProtocolSection::members>))> {
   };
 
@@ -1134,7 +1152,7 @@ struct Objc : cursiv::GrammarSpec {
   struct ProtocolDeclaration
       : rule<many(AttributeSpecifierExpr<&ast::ProtocolDecl::attributes>) +
              option(assign<&ast::ProtocolDecl::macro>(ref<Macro>)) +
-             kw<"@protocol"> +
+             (lit<"@"> + kw<"protocol">) +
              option(assign<&ast::ProtocolDecl::variance>(K_covariant |
                                                          K_contravariant)) +
              assign<&ast::ProtocolDecl::name>(NameText) +
@@ -1146,29 +1164,29 @@ struct Objc : cursiv::GrammarSpec {
              option(append<&ast::ProtocolDecl::sections>(
                  ref<LeadingProtocolSection>)) +
              many(append<&ast::ProtocolDecl::sections>(ref<ProtocolSection>)) +
-             kw<"@end">> {};
+             (lit<"@"> + kw<"end">)> {};
 
   struct ProtocolDeclarationList
-      : rule<kw<"@protocol"> +
+      : rule<(lit<"@"> + kw<"protocol">) +
              some(
                  append<&ast::ProtocolForwardDecl::protocols>(ref<ProtocolRef>),
                  lit<",">) +
              lit<";">> {};
 
   struct ClassDeclarationList
-      : rule<kw<"@class"> +
+      : rule<(lit<"@"> + kw<"class">) +
              some(append<&ast::ClassForwardDecl::classes>(
                       ref<GenericTypeSpecifier>),
                   lit<",">) +
              lit<";">> {};
 
   struct ImportDeclaration
-      : rule<lit<"@import"> +
+      : rule<(lit<"@"> + kw<"import">) +
              some(append<&ast::ImportDecl::path>(ref<IDENTIFIER>), lit<".">) +
              lit<";">> {};
 
   struct CompatibilityAliasDeclaration
-      : rule<kw<"@compatibility_alias"> +
+      : rule<(lit<"@"> + kw<"compatibility_alias">) +
              assign<&ast::CompatibilityAlias::name>(NameText) +
              assign<&ast::CompatibilityAlias::original>(NameText) + lit<";">> {
   };
@@ -1194,7 +1212,7 @@ struct Objc : cursiv::GrammarSpec {
                   lit<";">)> {};
 
   using entry = TranslationUnit;
-  using ignore = list<WS, DIRECTIVE>;
+  using ignored = list<WS, DIRECTIVE>;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

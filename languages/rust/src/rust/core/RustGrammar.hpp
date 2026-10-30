@@ -30,11 +30,25 @@ struct Rust : cursiv::GrammarSpec {
       : terminal<lit<"#!"> + !(ShebangTrivia + lit<"[">) +
                  many(cr<R"(^\n)">)> {};
 
+  static constexpr auto ReservedKeyword =
+      kw<"as"> | kw<"break"> | kw<"const"> | kw<"continue"> | kw<"crate"> |
+      kw<"else"> | kw<"enum"> | kw<"extern"> | kw<"false"> | kw<"fn"> |
+      kw<"for"> | kw<"if"> | kw<"impl"> | kw<"in"> | kw<"let"> | kw<"loop"> |
+      kw<"match"> | kw<"mod"> | kw<"move"> | kw<"mut"> | kw<"pub"> |
+      kw<"ref"> | kw<"return"> | kw<"self"> | kw<"Self"> | kw<"static"> |
+      kw<"struct"> | kw<"super"> | kw<"trait"> | kw<"true"> | kw<"type"> |
+      kw<"unsafe"> | kw<"use"> | kw<"where"> | kw<"while"> | kw<"async"> |
+      kw<"await"> | kw<"dyn"> | kw<"abstract"> | kw<"become"> | kw<"box"> |
+      kw<"do"> | kw<"final"> | kw<"macro"> | kw<"override"> | kw<"priv"> |
+      kw<"typeof"> | kw<"unsized"> | kw<"virtual"> | kw<"yield"> | kw<"try"> |
+      kw<"gen">;
+  static constexpr auto ReservedRaw = lit<"r#"> +
+      (kw<"crate"> | kw<"self"> | kw<"Self"> | kw<"super"> | kw<"_">);
   static constexpr auto IdentBody =
       (uc::XID_Start + many(uc::XID_Continue)) |
       (lit<"_"> + some(uc::XID_Continue));
-  struct NON_KEYWORD_IDENTIFIER : terminal<IdentBody> {};
-  struct RAW_IDENTIFIER : terminal<lit<"r#"> + IdentBody> {};
+  struct NON_KEYWORD_IDENTIFIER : terminal<!ReservedKeyword + !ReservedRaw + IdentBody> {};
+  struct RAW_IDENTIFIER : terminal<!ReservedRaw + lit<"r#"> + IdentBody> {};
   // `macro_rules` is a weak keyword: spelled once, read both as itself and
   // as a plain identifier -- what follows decides.
   static constexpr auto Identifier =
@@ -108,44 +122,18 @@ struct Rust : cursiv::GrammarSpec {
   // Punctuation. Lt/Gt stay single-char, guarded against `=`: nested
   // generics close on two single `>`, so `<<`/`>>` are never their own
   // token -- shift is a hand-rolled pair below (ShlOp/ShrOp).
-  struct LT : terminal<lit<"<", !cr<"=">>, value<ast::Operator::lt>> {};
-  struct GT : terminal<lit<">", !cr<"=">>, value<ast::Operator::gt>> {};
-  struct LE : terminal<lit<"<=">, value<ast::Operator::le>> {};
-  struct GE : terminal<lit<">=">, value<ast::Operator::ge>> {};
-  struct EQEQ : terminal<lit<"==">, value<ast::Operator::eq>> {};
-  struct NE : terminal<lit<"!=">, value<ast::Operator::ne>> {};
-  struct STAR : terminal<lit<"*", !cr<"=">>, value<ast::Operator::multiply>> {
-  };
-  struct SLASH
-      : terminal<lit<"/", !cr<"=/*">>, value<ast::Operator::divide>> {};
-  struct PERCENT
-      : terminal<lit<"%", !cr<"=">>, value<ast::Operator::remainder>> {};
-  struct PLUS : terminal<lit<"+", !cr<"=">>, value<ast::Operator::add>> {};
-  struct MINUS
-      : terminal<lit<"-", !cr<"=>">>, value<ast::Operator::subtract>> {};
-  struct AND : terminal<lit<"&", !cr<"&=">>, value<ast::Operator::bit_and>> {
-  };
-  struct CARET : terminal<lit<"^", !cr<"=">>, value<ast::Operator::bit_xor>> {
-  };
-  struct OR : terminal<lit<"|", !cr<"|=">>, value<ast::Operator::bit_or>> {};
-  struct ANDAND : terminal<lit<"&&">, value<ast::Operator::and_and>> {};
-  struct OROR : terminal<lit<"||">, value<ast::Operator::or_or>> {};
-  struct EQ : terminal<lit<"=", !cr<"=>">>, value<ast::Operator::assign>> {};
-  struct PLUSEQ : terminal<lit<"+=">, value<ast::Operator::add_assign>> {};
-  struct MINUSEQ : terminal<lit<"-=">, value<ast::Operator::sub_assign>> {};
-  struct STAREQ : terminal<lit<"*=">, value<ast::Operator::mul_assign>> {};
-  struct SLASHEQ : terminal<lit<"/=">, value<ast::Operator::div_assign>> {};
-  struct PERCENTEQ : terminal<lit<"%=">, value<ast::Operator::rem_assign>> {};
-  struct CARETEQ : terminal<lit<"^=">, value<ast::Operator::bitxor_assign>> {
-  };
-  struct ANDEQ : terminal<lit<"&=">, value<ast::Operator::bitand_assign>> {};
-  struct OREQ : terminal<lit<"|=">, value<ast::Operator::bitor_assign>> {};
-  struct SHLEQ : terminal<lit<"<<=">, value<ast::Operator::shl_assign>> {};
-  struct SHREQ : terminal<lit<">>=">, value<ast::Operator::shr_assign>> {};
-  // Two adjacent Lt/Gt: grammar context (expression vs. generic argument
-  // list) tells shift and closing generics apart, no adjacency check needed.
-  struct ShlOp : rule<ref<LT> + ref<LT>, value<ast::Operator::shl>> {};
-  struct ShrOp : rule<ref<GT> + ref<GT>, value<ast::Operator::shr>> {};
+  struct LT : terminal<as<ast::Operator::lt>(lit<"<", !cr<"=">>)> {};
+  struct GT : terminal<as<ast::Operator::gt>(lit<">", !cr<"=">>)> {};
+  struct STAR : terminal<as<ast::Operator::multiply>(lit<"*", !cr<"=">>)> {};
+  struct MINUS : terminal<as<ast::Operator::subtract>(lit<"-", !cr<"=>">>)> {};
+  struct AND : terminal<as<ast::Operator::bit_and>(lit<"&", !cr<"&=">>)> {};
+  struct ANDAND : terminal<as<ast::Operator::and_and>(lit<"&&">)> {};
+  struct OROR : terminal<as<ast::Operator::or_or>(lit<"||">)> {};
+  struct EQ : terminal<as<ast::Operator::assign>(lit<"=", !cr<"=>">>)> {};
+  // Shift punctuation is adjacent; generic closing > tokens remain separate
+  // grammar reads and can still have whitespace between them.
+  struct ShlOp : rule<as<ast::Operator::shl>(ref<LT> + gap::none + ref<LT>)> {};
+  struct ShrOp : rule<as<ast::Operator::shr>(ref<GT> + gap::none + ref<GT>)> {};
 
   struct DOT : terminal<lit<".", !cr<".">>> {};
   struct DOTDOT : terminal<lit<"..", !cr<".=">>> {};
@@ -160,25 +148,14 @@ struct Rust : cursiv::GrammarSpec {
   // continuation char, so it always outlengths a bare `_` where it applies.
   struct UNDERSCORE : terminal<lit<"_">> {};
 
-  static constexpr auto AnyKeyword =
-      kw<"as"> | kw<"break"> | kw<"const"> | kw<"continue"> | kw<"crate"> |
-      kw<"else"> | kw<"enum"> | kw<"extern"> | kw<"false"> | kw<"fn"> |
-      kw<"for"> | kw<"if"> | kw<"impl"> | kw<"in"> | kw<"let"> | kw<"loop"> |
-      kw<"match"> | kw<"mod"> | kw<"move"> | kw<"mut"> | kw<"pub"> |
-      kw<"ref"> | kw<"return"> | kw<"self"> | kw<"Self"> | kw<"static"> |
-      kw<"struct"> | kw<"super"> | kw<"trait"> | kw<"true"> | kw<"type"> |
-      kw<"unsafe"> | kw<"use"> | kw<"where"> | kw<"while"> | kw<"async"> |
-      kw<"await"> | kw<"dyn"> | kw<"abstract"> | kw<"become"> | kw<"box"> |
-      kw<"do"> | kw<"final"> | kw<"macro"> | kw<"override"> | kw<"priv"> |
-      kw<"typeof"> | kw<"unsized"> | kw<"virtual"> | kw<"yield"> | kw<"try"> |
-      kw<"union">;
+  static constexpr auto AnyKeyword = ReservedKeyword | kw<"union">;
   static constexpr auto AnyPunct =
-      ref<LT> | ref<GT> | ref<LE> | ref<GE> | ref<EQEQ> | ref<NE> |
-      ref<STAR> | ref<SLASH> | ref<PERCENT> | ref<PLUS> | ref<MINUS> |
-      ref<AND> | ref<CARET> | ref<OR> | ref<ANDAND> | ref<OROR> | ref<EQ> |
-      ref<PLUSEQ> | ref<MINUSEQ> | ref<STAREQ> | ref<SLASHEQ> |
-      ref<PERCENTEQ> | ref<CARETEQ> | ref<ANDEQ> | ref<OREQ> | ref<SHLEQ> |
-      ref<SHREQ> | ref<DOT> | ref<DOTDOT> | ref<DOTDOTDOT> | ref<DOTDOTEQ> |
+      ref<LT> | ref<GT> | as<ast::Operator::le>(lit<"<=">) | as<ast::Operator::ge>(lit<">=">) | as<ast::Operator::eq>(lit<"==">) | as<ast::Operator::ne>(lit<"!=">) |
+      ref<STAR> | as<ast::Operator::divide>(lit<"/", !cr<"=/*">>) | as<ast::Operator::remainder>(lit<"%", !cr<"=">>) | as<ast::Operator::add>(lit<"+", !cr<"=">>) | ref<MINUS> |
+      ref<AND> | as<ast::Operator::bit_xor>(lit<"^", !cr<"=">>) | as<ast::Operator::bit_or>(lit<"|", !cr<"|=">>) | ref<ANDAND> | ref<OROR> | ref<EQ> |
+      as<ast::Operator::add_assign>(lit<"+=">) | as<ast::Operator::sub_assign>(lit<"-=">) | as<ast::Operator::mul_assign>(lit<"*=">) | as<ast::Operator::div_assign>(lit<"/=">) |
+      as<ast::Operator::rem_assign>(lit<"%=">) | as<ast::Operator::bitxor_assign>(lit<"^=">) | as<ast::Operator::bitand_assign>(lit<"&=">) | as<ast::Operator::bitor_assign>(lit<"|=">) | as<ast::Operator::shl_assign>(lit<"<<=">) |
+      as<ast::Operator::shr_assign>(lit<">>=">) | ref<DOT> | ref<DOTDOT> | ref<DOTDOTDOT> | ref<DOTDOTEQ> |
       lit<","> | lit<";"> | lit<":"> | ref<PATHSEP> | ref<RARROW> |
       ref<FATARROW> | ref<QUESTIONMARK> | ref<ATSIGN> | lit<"#"> |
       lit<"!", !cr<"=">> | ref<UNDERSCORE>;
@@ -195,7 +172,7 @@ struct Rust : cursiv::GrammarSpec {
   static constexpr auto raw_macro_token = [](std::string_view text) {
     return text;
   };
-  struct MacroTokenRule : rule<MacroToken, text_conv<raw_macro_token>> {};
+  struct MacroTokenRule : rule<as<raw_macro_token>(MacroToken)> {};
   struct TokenTree;
   struct DelimTokenTree
       : rule<create<ast::TokenTree>(
@@ -215,16 +192,16 @@ struct Rust : cursiv::GrammarSpec {
   // Forward declarations: the grammar is heavily mutually recursive.
   struct Expression;
   struct ExpressionWithBlock;
-  struct BlockExprRule;
+  struct BlockExpr;
   struct Statement;
-  struct IfExprRule;
-  struct IfLetExprRule;
-  struct TypeRule;
-  struct TypeNoBoundsRule;
-  struct PatternRule;
-  struct PatternNoTopAltRule;
-  struct LiteralExprRule;
-  struct ItemRule;
+  struct IfExpr;
+  struct IfLetExpr;
+  struct Type;
+  struct TypeNoBounds;
+  struct Pattern;
+  struct PatternNoTopAlt;
+  struct LiteralExpr;
+  struct Item;
 
   static constexpr auto Lifetime =
       ref<LIFETIME_OR_LABEL> | lit<"'static"> | lit<"'_">;
@@ -234,7 +211,7 @@ struct Rust : cursiv::GrammarSpec {
       : rule<assign<&ast::PathSegment::name>(
             Identifier | kw<"super"> | kw<"self"> | kw<"crate"> |
             lit<"$crate">)> {};
-  struct SimplePathRule
+  struct SimplePath
       : rule<option(flag<&ast::Path::leadingSep>(ref<PATHSEP>)) +
              append<&ast::Path::segments>(ref<SimplePathSegment>) +
              many(ref<PATHSEP> +
@@ -244,22 +221,22 @@ struct Rust : cursiv::GrammarSpec {
       Identifier | kw<"super"> | kw<"self"> | kw<"Self"> | kw<"crate"> |
       lit<"$crate">;
 
-  struct GenericArgRule;
-  struct GenericArgsRule
+  struct GenericArg;
+  struct GenericArgs
       : rule<create<ast::GenericArgs>(
             lit<"<"> +
-            option(append<&ast::GenericArgs::args>(ref<GenericArgRule>) +
+            option(append<&ast::GenericArgs::args>(ref<GenericArg>) +
                    many(lit<","> +
-                        append<&ast::GenericArgs::args>(ref<GenericArgRule>)) +
+                        append<&ast::GenericArgs::args>(ref<GenericArg>)) +
                    option(lit<",">)) +
             ref<GT>)> {};
 
   struct PathExprSegment
       : rule<assign<&ast::PathSegment::name>(PathIdentSegmentName) +
              option(ref<PATHSEP> +
-                    assign<&ast::PathSegment::args>(ref<GenericArgsRule>))> {
+                    assign<&ast::PathSegment::args>(ref<GenericArgs>))> {
   };
-  struct PathInExpressionRule
+  struct PathInExpression
       : rule<option(flag<&ast::Path::leadingSep>(ref<PATHSEP>)) +
              append<&ast::Path::segments>(ref<PathExprSegment>) +
              many(ref<PATHSEP> +
@@ -271,52 +248,55 @@ struct Rust : cursiv::GrammarSpec {
   struct TypePathSegment
       : rule<assign<&ast::PathSegment::name>(PathIdentSegmentName) +
              option(ref<PATHSEP>) +
-             option(assign<&ast::PathSegment::args>(ref<GenericArgsRule>) |
+             option(assign<&ast::PathSegment::args>(ref<GenericArgs>) |
                     (lit<"("> +
                      option(append<&ast::PathSegment::fnSugarParams>(
-                                ref<TypeRule>) +
+                                ref<Type>) +
                             many(lit<","> +
                                  append<&ast::PathSegment::fnSugarParams>(
-                                     ref<TypeRule>)) +
+                                     ref<Type>)) +
                             option(lit<",">)) +
                      lit<")"> +
                      option(ref<RARROW> +
                             assign<&ast::PathSegment::fnSugarReturn>(
-                                ref<TypeRule>))))> {};
-  struct TypePathRule
+                                ref<Type>))))> {};
+  struct TypePath
       : rule<option(flag<&ast::Path::leadingSep>(ref<PATHSEP>)) +
              append<&ast::Path::segments>(ref<TypePathSegment>) +
              many(ref<PATHSEP> +
                   append<&ast::Path::segments>(ref<TypePathSegment>))> {};
 
-  struct QualifiedPathInExpressionRule
-      : rule<lit<"<"> + assign<&ast::Path::qualifierType>(ref<TypeRule>) +
+  struct QualifiedPathInExpression
+      : rule<lit<"<"> + assign<&ast::Path::qualifierType>(ref<Type>) +
              option(kw<"as"> +
-                    assign<&ast::Path::qualifierTrait>(ref<TypePathRule>)) +
+                    assign<&ast::Path::qualifierTrait>(ref<TypePath>)) +
              ref<GT> +
              some(ref<PATHSEP> +
                   append<&ast::Path::segments>(ref<PathExprSegment>))> {};
-  struct QualifiedPathInTypeRule
-      : rule<lit<"<"> + assign<&ast::Path::qualifierType>(ref<TypeRule>) +
+  struct QualifiedPathInType
+      : rule<lit<"<"> + assign<&ast::Path::qualifierType>(ref<Type>) +
              option(kw<"as"> +
-                    assign<&ast::Path::qualifierTrait>(ref<TypePathRule>)) +
+                    assign<&ast::Path::qualifierTrait>(ref<TypePath>)) +
              ref<GT> +
              some(ref<PATHSEP> +
                   append<&ast::Path::segments>(ref<TypePathSegment>))> {};
 
-  struct GenericArgRule
+  // rustc starts an unambiguous const argument at a block, literal or minus.
+  // A bare path such as N is syntactically a type argument until resolution.
+  struct GenericConstExpr
+      : rule<ref<BlockExpr> | ref<LiteralExpr> |
+             create<ast::UnaryExpr>(assign<&ast::UnaryExpr::op>(lit<"-">) +
+                 assign<&ast::UnaryExpr::operand>(ref<LiteralExpr>))> {};
+  struct GenericArg
       : rule<create<ast::BindingArg>(
                  assign<&ast::BindingArg::name>(Identifier) + ref<EQ> +
-                 assign<&ast::BindingArg::type>(ref<TypeRule>))  //
-             | create<ast::LifetimeArg>(
-                   assign<&ast::LifetimeArg::name>(Lifetime))  //
-             | create<ast::ConstArg>(
-                   assign<&ast::ConstArg::value>(ref<Expression>))  //
-             | create<ast::TypeArg>(
-                   assign<&ast::TypeArg::type>(ref<TypeRule>))> {};
+                 assign<&ast::BindingArg::type>(ref<Type>)) |
+             create<ast::LifetimeArg>(assign<&ast::LifetimeArg::name>(Lifetime)) |
+             create<ast::ConstArg>(assign<&ast::ConstArg::value>(ref<GenericConstExpr>)) |
+             create<ast::TypeArg>(assign<&ast::TypeArg::type>(ref<Type>))> {};
 
   // Attributes and visibility. `literalArg` is text: the `= literal` form
-  // reads the literal as bare terminals, not `ref<LiteralExprRule>`, which
+  // reads the literal as bare terminals, not `ref<LiteralExpr>`, which
   // builds a node.
   static constexpr auto AttrLiteral =
       kw<"true"> | kw<"false"> | ref<CHAR_LIT> | ref<STRING_LIT> |
@@ -326,7 +306,7 @@ struct Rust : cursiv::GrammarSpec {
   struct OuterAttribute
       : rule<create<ast::Attribute>(
             lit<"#"> + lit<"["> +
-            assign<&ast::Attribute::path>(ref<SimplePathRule>) +
+            assign<&ast::Attribute::path>(ref<SimplePath>) +
             option(
                 assign<&ast::Attribute::tokens>(ref<DelimTokenTree>) |
                 (ref<EQ> + assign<&ast::Attribute::literalArg>(AttrLiteral))) +
@@ -334,13 +314,13 @@ struct Rust : cursiv::GrammarSpec {
   struct InnerAttribute
       : rule<create<ast::Attribute>(
             lit<"#"> + lit<"!"> + lit<"["> +
-            assign<&ast::Attribute::path>(ref<SimplePathRule>) +
+            assign<&ast::Attribute::path>(ref<SimplePath>) +
             option(
                 assign<&ast::Attribute::tokens>(ref<DelimTokenTree>) |
                 (ref<EQ> + assign<&ast::Attribute::literalArg>(AttrLiteral))) +
             lit<"]">)> {};
 
-  struct VisibilityRule
+  struct Visibility
       : rule<kw<"pub"> +
              option(lit<"("> +
                     (assign<&ast::Visibility::kind>(kw<"crate"> |
@@ -348,23 +328,23 @@ struct Rust : cursiv::GrammarSpec {
                                                      kw<"super">) |
                      (assign<&ast::Visibility::kind>(kw<"in">) +
                       assign<&ast::Visibility::inPath>(
-                          ref<SimplePathRule>))) +
+                          ref<SimplePath>))) +
                     lit<")">)> {};
 
   // Trait bounds sit before generic params/where clauses, which reuse them.
-  struct GenericParamsRule;
-  struct TraitBoundRule
+  struct GenericParams;
+  struct TraitBound
       : rule<create<ast::TraitBound>(
             (lit<"("> +
              option(flag<&ast::TraitBound::maybe>(lit<"?">)) +
              option(kw<"for"> + assign<&ast::TraitBound::forLifetimes>(
-                                     ref<GenericParamsRule>)) +
-             assign<&ast::TraitBound::path>(ref<TypePathRule>) + lit<")">)  //
+                                     ref<GenericParams>)) +
+             assign<&ast::TraitBound::path>(ref<TypePath>) + lit<")">)  //
             | (option(flag<&ast::TraitBound::maybe>(lit<"?">)) +
                option(kw<"for"> + assign<&ast::TraitBound::forLifetimes>(
-                                       ref<GenericParamsRule>)) +
-               assign<&ast::TraitBound::path>(ref<TypePathRule>)))> {};
-  static constexpr auto TraitBoundOrLifetime = ref<TraitBoundRule> | Lifetime;
+                                       ref<GenericParams>)) +
+               assign<&ast::TraitBound::path>(ref<TypePath>)))> {};
+  static constexpr auto TraitBoundOrLifetime = ref<TraitBound> | Lifetime;
 
   // Generic parameters and where clauses. `genericParam`'s own leading
   // outerAttribute* also covers each leaf's per-alternative one.
@@ -380,146 +360,154 @@ struct Rust : cursiv::GrammarSpec {
              option(append<&ast::TypeParam::bounds>(TraitBoundOrLifetime) +
                     many(lit<"+"> + append<&ast::TypeParam::bounds>(
                                         TraitBoundOrLifetime)))) +
-      option(ref<EQ> + assign<&ast::TypeParam::defaultType>(ref<TypeRule>));
+      option(ref<EQ> + assign<&ast::TypeParam::defaultType>(ref<Type>));
   static constexpr auto ConstParamBody =
       kw<"const"> + assign<&ast::ConstParam::name>(Identifier) + lit<":"> +
-      assign<&ast::ConstParam::type>(ref<TypeRule>) +
+      assign<&ast::ConstParam::type>(ref<Type>) +
       option(ref<EQ> + assign<&ast::ConstParam::defaultValue>(ref<Expression>));
-  struct GenericParamRule
+  struct GenericParam
       : rule<many(append<&ast::GenericParam::attrs>(ref<OuterAttribute>)) +
              (create<ast::LifetimeParam>(LifetimeParamBody) |
               create<ast::TypeParam>(TypeParamBody) |
               create<ast::ConstParam>(ConstParamBody))> {};
-  struct GenericParamsRule
+  struct GenericParams
       : rule<create<ast::GenericParams>(
             lit<"<"> +
             option(append<&ast::GenericParams::params>(
-                       ref<GenericParamRule>) +
+                       ref<GenericParam>) +
                    many(lit<","> + append<&ast::GenericParams::params>(
-                                       ref<GenericParamRule>)) +
+                                       ref<GenericParam>)) +
                    option(lit<",">)) +
             ref<GT>)> {};
 
-  struct LifetimeWhereItemRule
+  struct LifetimeWhereItem
       : rule<assign<&ast::LifetimeWhereItem::lifetime>(Lifetime) + lit<":"> +
              option(append<&ast::LifetimeWhereItem::bounds>(Lifetime) +
                     many(lit<"+"> + append<&ast::LifetimeWhereItem::bounds>(
                                         Lifetime)))> {};
-  struct TypeBoundWhereItemRule
+  struct TypeBoundWhereItem
       : rule<option(kw<"for"> +
                     assign<&ast::TypeBoundWhereItem::forLifetimes>(
-                        ref<GenericParamsRule>)) +
-             assign<&ast::TypeBoundWhereItem::type>(ref<TypeRule>) +
+                        ref<GenericParams>)) +
+             assign<&ast::TypeBoundWhereItem::type>(ref<Type>) +
              lit<":"> +
              option(append<&ast::TypeBoundWhereItem::bounds>(
                         TraitBoundOrLifetime) +
                     many(lit<"+"> +
                          append<&ast::TypeBoundWhereItem::bounds>(
                              TraitBoundOrLifetime)))> {};
-  struct WhereClauseItemRule
-      : rule<ref<TypeBoundWhereItemRule> | ref<LifetimeWhereItemRule>> {};
-  struct WhereClauseRule
+  struct WhereClauseItem
+      : rule<ref<TypeBoundWhereItem> | ref<LifetimeWhereItem>> {};
+  struct WhereClause
       : rule<create<ast::WhereClause>(
             kw<"where"> +
-            many(append<&ast::WhereClause::items>(ref<WhereClauseItemRule>) +
+            many(append<&ast::WhereClause::items>(ref<WhereClauseItem>) +
                  lit<",">) +
             option(append<&ast::WhereClause::items>(
-                ref<WhereClauseItemRule>)))> {};
+                ref<WhereClauseItem>)))> {};
 
   // Types.
   struct ArrayOrSliceTy
       : rule<create<ast::ArrayTy>(
-                 lit<"["> + assign<&ast::ArrayTy::element>(ref<TypeRule>) +
+                 lit<"["> + assign<&ast::ArrayTy::element>(ref<Type>) +
                  lit<";"> + assign<&ast::ArrayTy::size>(ref<Expression>) +
                  lit<"]">)  //
              | create<ast::SliceTy>(
-                   lit<"["> + assign<&ast::SliceTy::element>(ref<TypeRule>) +
+                   lit<"["> + assign<&ast::SliceTy::element>(ref<Type>) +
                    lit<"]">)> {};
-  struct BareFnTyRule
+  struct BareFnParam
+      : rule<create<ast::BareFnParam>(
+            many(append<&ast::BareFnParam::attrs>(ref<OuterAttribute>)) +
+            option(assign<&ast::BareFnParam::name>(Identifier | ref<UNDERSCORE>) + lit<":">) +
+            assign<&ast::BareFnParam::type>(ref<Type>))> {};
+  struct BareFnTy
       : rule<create<ast::BareFnTy>(
             option(kw<"for"> + assign<&ast::BareFnTy::forLifetimes>(
-                                    ref<GenericParamsRule>)) +
+                                    ref<GenericParams>)) +
             option(flag<&ast::BareFnTy::isUnsafe>(kw<"unsafe">)) +
             option(flag<&ast::BareFnTy::isExtern>(kw<"extern">) +
                    option(assign<&ast::BareFnTy::abi>(ref<STRING_LIT>))) +
             kw<"fn"> + lit<"("> +
             option(
-                (option((Identifier | ref<UNDERSCORE>) + lit<":">) +
-                 append<&ast::BareFnTy::params>(ref<TypeRule>)) +
-                many(lit<","> +
-                     option((Identifier | ref<UNDERSCORE>) + lit<":">) +
-                     append<&ast::BareFnTy::params>(ref<TypeRule>)) +
+                append<&ast::BareFnTy::params>(ref<BareFnParam>) +
+                many(lit<","> + append<&ast::BareFnTy::params>(ref<BareFnParam>)) +
                 option(lit<","> +
                        option(flag<&ast::BareFnTy::variadic>(
                            ref<DOTDOTDOT>)))) +
             lit<")"> +
             option(ref<RARROW> + assign<&ast::BareFnTy::returnType>(
-                                      ref<TypeNoBoundsRule>)))> {};
-  struct ImplTraitTyRule
+                                      ref<TypeNoBounds>)))> {};
+  struct ImplTraitTy
       : rule<create<ast::ImplTraitTy>(
             kw<"impl"> +
             append<&ast::ImplTraitTy::bounds>(TraitBoundOrLifetime) +
             many(lit<"+"> +
                  append<&ast::ImplTraitTy::bounds>(TraitBoundOrLifetime)) +
             option(lit<"+">))> {};
-  struct ImplTraitTyOneBoundRule
+  struct ImplTraitTyOneBound
       : rule<create<ast::ImplTraitTy>(
             kw<"impl"> +
-            append<&ast::ImplTraitTy::bounds>(ref<TraitBoundRule>))> {};
-  struct TraitObjectTyRule
+            append<&ast::ImplTraitTy::bounds>(ref<TraitBound>))> {};
+  static constexpr auto TraitObjectRest =
+      many(lit<"+"> + append<&ast::TraitObjectTy::bounds>(TraitBoundOrLifetime)) +
+      option(lit<"+">);
+  struct TraitObjectTy
       : rule<create<ast::TraitObjectTy>(
-            option(flag<&ast::TraitObjectTy::isDyn>(kw<"dyn">)) +
-            append<&ast::TraitObjectTy::bounds>(TraitBoundOrLifetime) +
-            many(lit<"+"> + append<&ast::TraitObjectTy::bounds>(
-                                 TraitBoundOrLifetime)) +
-            option(lit<"+">))> {};
-  struct TraitObjectTyOneBoundRule
+             (flag<&ast::TraitObjectTy::isDyn>(kw<"dyn">) +
+              append<&ast::TraitObjectTy::bounds>(TraitBoundOrLifetime) + TraitObjectRest) |
+             (append<&ast::TraitObjectTy::bounds>(TraitBoundOrLifetime) + lit<"+"> +
+              option(append<&ast::TraitObjectTy::bounds>(TraitBoundOrLifetime) + TraitObjectRest)) |
+             (append<&ast::TraitObjectTy::bounds>(
+                  &(kw<"for"> | lit<"?">) + ref<TraitBound>) + !lit<"+">))> {};
+  struct TraitObjectTyOneBound
       : rule<create<ast::TraitObjectTy>(
-            option(flag<&ast::TraitObjectTy::isDyn>(kw<"dyn">)) +
-            append<&ast::TraitObjectTy::bounds>(ref<TraitBoundRule>))> {};
+             (flag<&ast::TraitObjectTy::isDyn>(kw<"dyn">) +
+              append<&ast::TraitObjectTy::bounds>(ref<TraitBound>)) |
+             append<&ast::TraitObjectTy::bounds>(
+                  &(kw<"for"> | lit<"?">) + ref<TraitBound>))> {};
 
-  struct TypeNoBoundsRule
+  struct TypeNoBounds
       : rule<create<ast::ParenTy>(lit<"("> +
-                                  assign<&ast::ParenTy::inner>(ref<TypeRule>) +
+                                  assign<&ast::ParenTy::inner>(ref<Type>) +
                                   lit<")">)    //
-             | ref<ImplTraitTyOneBoundRule>    //
-             | ref<TraitObjectTyOneBoundRule>  //
+             | ref<ImplTraitTyOneBound>    //
+             | ref<TraitObjectTyOneBound>  //
              | create<ast::PathTy>(
-                   assign<&ast::PathTy::path>(ref<QualifiedPathInTypeRule>))  //
+                   assign<&ast::PathTy::path>(ref<QualifiedPathInType>))  //
              | create<ast::PathTy>(
-                   assign<&ast::PathTy::path>(ref<TypePathRule>))  //
+                   assign<&ast::PathTy::path>(ref<TypePath>))  //
              |
              create<ast::TupleTy>(
                  lit<"("> +
-                 option(append<&ast::TupleTy::elements>(ref<TypeRule>) +
+                 option(append<&ast::TupleTy::elements>(ref<Type>) +
                         lit<","> +
-                        option(append<&ast::TupleTy::elements>(ref<TypeRule>) +
+                        option(append<&ast::TupleTy::elements>(ref<Type>) +
                                many(lit<","> + append<&ast::TupleTy::elements>(
-                                                   ref<TypeRule>)) +
+                                                   ref<Type>)) +
                                option(lit<",">))) +
                  lit<")">)                     //
              | create<ast::NeverTy>(lit<"!">)  //
              | create<ast::RawPtrTy>(
                    ref<STAR> +
                    (kw<"const"> | flag<&ast::RawPtrTy::isMut>(kw<"mut">)) +
-                   assign<&ast::RawPtrTy::inner>(ref<TypeNoBoundsRule>))  //
+                   assign<&ast::RawPtrTy::inner>(ref<TypeNoBounds>))  //
              | create<ast::RefTy>(
                    ref<AND> + option(assign<&ast::RefTy::lifetime>(Lifetime)) +
                    option(flag<&ast::RefTy::isMut>(kw<"mut">)) +
-                   assign<&ast::RefTy::inner>(ref<TypeNoBoundsRule>))  //
+                   assign<&ast::RefTy::inner>(ref<TypeNoBounds>))  //
              | ref<ArrayOrSliceTy>                                     //
              | create<ast::InferredTy>(ref<UNDERSCORE>)                //
-             | ref<BareFnTyRule>                                       //
+             | ref<BareFnTy>                                       //
              | create<ast::MacroTy>(
-                   assign<&ast::MacroTy::path>(ref<SimplePathRule>) + lit<"!"> +
+                   assign<&ast::MacroTy::path>(ref<SimplePath>) + lit<"!"> +
                    assign<&ast::MacroTy::tokens>(ref<DelimTokenTree>))> {};
 
-  struct TypeRule
-      : rule<ref<ImplTraitTyRule> | ref<TraitObjectTyRule> |
-             ref<TypeNoBoundsRule>> {};
+  struct Type
+      : rule<ref<ImplTraitTy> | ref<TraitObjectTy> |
+             ref<TypeNoBounds>> {};
 
   // Patterns.
-  struct RangePatBoundRule
+  struct RangePatBound
       : rule<create<ast::RangePatBound>(
                  option(flag<&ast::RangePatBound::negative>(lit<"-">)) +
                  assign<&ast::RangePatBound::text>(
@@ -527,9 +515,9 @@ struct Rust : cursiv::GrammarSpec {
                      ref<FLOAT_LIT>))  //
              | create<ast::RangePatBound>(
                    assign<&ast::RangePatBound::path>(
-                       ref<PathInExpressionRule> |
-                       ref<QualifiedPathInExpressionRule>))> {};
-  struct LiteralPatRule
+                       ref<PathInExpression> |
+                       ref<QualifiedPathInExpression>))> {};
+  struct LiteralPat
       : rule<create<ast::LiteralPat>(
             option(flag<&ast::LiteralPat::negative>(lit<"-">)) +
             assign<&ast::LiteralPat::text>(
@@ -538,134 +526,136 @@ struct Rust : cursiv::GrammarSpec {
                 ref<BYTE_STRING_LIT> | ref<RAW_BYTE_STRING_LIT> |
                 ref<C_STRING_LIT> | ref<RAW_C_STRING_LIT> |
                 ref<INTEGER_LIT> | ref<FLOAT_LIT>))> {};
-  struct IdentPatRule
+  struct IdentPat
       : rule<create<ast::IdentPat>(
             option(flag<&ast::IdentPat::isRef>(kw<"ref">)) +
             option(flag<&ast::IdentPat::isMut>(kw<"mut">)) +
             assign<&ast::IdentPat::name>(Identifier) +
             option(ref<ATSIGN> + assign<&ast::IdentPat::subPattern>(
-                                      ref<PatternNoTopAltRule>)))> {};
-  struct StructPatFieldRule
+                                      ref<PatternNoTopAlt>)))> {};
+  struct StructPatField
       : rule<many(append<&ast::StructPatField::attrs>(ref<OuterAttribute>)) +
              ((assign<&ast::StructPatField::name>(ref<INTEGER_LIT>) +
                lit<":"> +
-               assign<&ast::StructPatField::pattern>(ref<PatternRule>))  //
+               assign<&ast::StructPatField::pattern>(ref<Pattern>))  //
               | (assign<&ast::StructPatField::name>(Identifier) + lit<":"> +
-                 assign<&ast::StructPatField::pattern>(ref<PatternRule>))  //
+                 assign<&ast::StructPatField::pattern>(ref<Pattern>))  //
               | (option(flag<&ast::StructPatField::isRef>(kw<"ref">)) +
                  option(flag<&ast::StructPatField::isMut>(kw<"mut">)) +
                  assign<&ast::StructPatField::name>(Identifier)))> {};
-  struct StructPatRule
+  struct StructPat
       : rule<create<ast::StructPat>(
-            assign<&ast::StructPat::path>(ref<PathInExpressionRule>) +
+            assign<&ast::StructPat::path>(ref<PathInExpression>) +
             lit<"{"> +
-            option((append<&ast::StructPat::fields>(ref<StructPatFieldRule>) +
+            option((append<&ast::StructPat::fields>(ref<StructPatField>) +
                     many(lit<","> + append<&ast::StructPat::fields>(
-                                         ref<StructPatFieldRule>)) +
+                                         ref<StructPatField>)) +
                     option(lit<","> +
                            option(flag<&ast::StructPat::hasRest>(
                                ref<DOTDOT>))))  //
                    | flag<&ast::StructPat::hasRest>(ref<DOTDOT>)) +
             lit<"}">)> {};
-  struct TupleStructPatRule
+  struct TupleStructPat
       : rule<create<ast::TupleStructPat>(
-            assign<&ast::TupleStructPat::path>(ref<PathInExpressionRule>) +
+            assign<&ast::TupleStructPat::path>(ref<PathInExpression>) +
             lit<"("> +
-            option(append<&ast::TupleStructPat::elements>(ref<PatternRule>) +
+            option(append<&ast::TupleStructPat::elements>(ref<Pattern>) +
                    many(lit<","> + append<&ast::TupleStructPat::elements>(
-                                       ref<PatternRule>)) +
+                                       ref<Pattern>)) +
                    option(lit<",">)) +
             lit<")">)> {};
-  struct TuplePatRule
+  struct TuplePat
       : rule<create<ast::TuplePat>(
             lit<"("> +
-            option(append<&ast::TuplePat::elements>(ref<PatternRule>) +
+            option(append<&ast::TuplePat::elements>(ref<Pattern>) +
                    lit<","> +
-                   option(append<&ast::TuplePat::elements>(ref<PatternRule>) +
+                   option(append<&ast::TuplePat::elements>(ref<Pattern>) +
                           many(lit<","> + append<&ast::TuplePat::elements>(
-                                              ref<PatternRule>)) +
+                                              ref<Pattern>)) +
                           option(lit<",">))) +
             lit<")">)> {};
-  struct SlicePatRule
+  struct SlicePat
       : rule<create<ast::SlicePat>(
             lit<"["> +
-            option(append<&ast::SlicePat::elements>(ref<PatternRule>) +
+            option(append<&ast::SlicePat::elements>(ref<Pattern>) +
                    many(lit<","> + append<&ast::SlicePat::elements>(
-                                        ref<PatternRule>)) +
+                                        ref<Pattern>)) +
                    option(lit<",">)) +
             lit<"]">)> {};
 
-  struct RangePatRule
+  struct RangePat
       : rule<create<ast::RangePat>(
                  flag<&ast::RangePat::inclusive>(ref<DOTDOTEQ>) +
-                 assign<&ast::RangePat::end>(ref<RangePatBoundRule>))  //
+                 assign<&ast::RangePat::end>(ref<RangePatBound>))  //
              | create<ast::RangePat>(
-                   assign<&ast::RangePat::start>(ref<RangePatBoundRule>) +
+                   assign<&ast::RangePat::start>(ref<RangePatBound>) +
                    ((flag<&ast::RangePat::inclusive>(ref<DOTDOTEQ>) +
-                     assign<&ast::RangePat::end>(ref<RangePatBoundRule>))  //
+                     assign<&ast::RangePat::end>(ref<RangePatBound>))  //
                     | (flag<&ast::RangePat::obsolete>(ref<DOTDOTDOT>) +
-                       assign<&ast::RangePat::end>(ref<RangePatBoundRule>))  //
-                    | ref<DOTDOT>))> {};
+                       assign<&ast::RangePat::end>(ref<RangePatBound>))  //
+                    | (ref<DOTDOT> + option(assign<&ast::RangePat::end>(ref<RangePatBound>))))) |
+             create<ast::RangePat>(ref<DOTDOT> +
+                   assign<&ast::RangePat::end>(ref<RangePatBound>))> {};
 
-  struct PatternWithoutRangeRule
+  struct PatternWithoutRange
       : rule<
-            ref<LiteralPatRule>                          //
+            ref<LiteralPat>                          //
             | create<ast::WildcardPat>(ref<UNDERSCORE>)  //
             | create<ast::RestPat>(ref<DOTDOT>)          //
             | create<ast::RefPat>(
                   flag<&ast::RefPat::doubleRef>(ref<ANDAND>) +
                   option(flag<&ast::RefPat::isMut>(kw<"mut">)) +
-                  assign<&ast::RefPat::inner>(ref<PatternWithoutRangeRule>))  //
+                  assign<&ast::RefPat::inner>(ref<PatternWithoutRange>))  //
             | create<ast::RefPat>(
                   ref<AND> + option(flag<&ast::RefPat::isMut>(kw<"mut">)) +
-                  assign<&ast::RefPat::inner>(ref<PatternWithoutRangeRule>))  //
-            | ref<StructPatRule>                                              //
-            | ref<TupleStructPatRule>                                         //
-            | ref<TuplePatRule>                                               //
+                  assign<&ast::RefPat::inner>(ref<PatternWithoutRange>))  //
+            | ref<StructPat>                                              //
+            | ref<TupleStructPat>                                         //
+            | ref<TuplePat>                                               //
             | create<ast::GroupedPat>(
-                  lit<"("> + assign<&ast::GroupedPat::inner>(ref<PatternRule>) +
+                  lit<"("> + assign<&ast::GroupedPat::inner>(ref<Pattern>) +
                   lit<")">)      //
-            | ref<SlicePatRule>  //
+            | ref<SlicePat>  //
             | create<ast::MacroPat>(
-                  assign<&ast::MacroPat::path>(ref<SimplePathRule>) + lit<"!"> +
+                  assign<&ast::MacroPat::path>(ref<SimplePath>) + lit<"!"> +
                   assign<&ast::MacroPat::tokens>(ref<DelimTokenTree>))  //
+            | ref<IdentPat>
             | create<ast::PathPat>(assign<&ast::PathPat::path>(
-                  ref<QualifiedPathInExpressionRule>))  //
+                  ref<QualifiedPathInExpression>))  //
             | create<ast::PathPat>(
-                  assign<&ast::PathPat::path>(ref<PathInExpressionRule>))  //
-            | ref<IdentPatRule>> {};
+                  assign<&ast::PathPat::path>(ref<PathInExpression>))> {};
 
-  struct PatternNoTopAltRule
-      : rule<ref<RangePatRule> | ref<PatternWithoutRangeRule>> {};
+  struct PatternNoTopAlt
+      : rule<ref<RangePat> | ref<PatternWithoutRange>> {};
 
-  struct PatternRule
+  struct Pattern
       : rule<option(lit<"|">) +
              (create<ast::OrPat>(
-                  append<&ast::OrPat::alternatives>(ref<PatternNoTopAltRule>) +
+                  append<&ast::OrPat::alternatives>(ref<PatternNoTopAlt>) +
                   some(lit<"|"> + append<&ast::OrPat::alternatives>(
-                                       ref<PatternNoTopAltRule>)))  //
-              | ref<PatternNoTopAltRule>)> {};
+                                       ref<PatternNoTopAlt>)))  //
+              | ref<PatternNoTopAlt>)> {};
 
   // Expressions.
-  struct LiteralExprRule
+  struct LiteralExpr
       : rule<create<ast::LiteralExpr>(assign<&ast::LiteralExpr::text>(
             kw<"true"> | kw<"false"> | ref<CHAR_LIT> | ref<STRING_LIT> |
             ref<RAW_STRING_LIT> | ref<BYTE_LIT> | ref<BYTE_STRING_LIT> |
             ref<RAW_BYTE_STRING_LIT> | ref<INTEGER_LIT> |
             ref<C_STRING_LIT> | ref<RAW_C_STRING_LIT> |
             ref<FLOAT_LIT>))> {};
-  struct PathExprRule
+  struct PathExpr
       : rule<create<ast::PathExpr>(assign<&ast::PathExpr::path>(
-                 ref<QualifiedPathInExpressionRule>))  //
+                 ref<QualifiedPathInExpression>))  //
              | create<ast::PathExpr>(
-                   assign<&ast::PathExpr::path>(ref<PathInExpressionRule>))> {
+                   assign<&ast::PathExpr::path>(ref<PathInExpression>))> {
   };
-  struct GroupedExprRule
+  struct GroupedExpr
       : rule<create<ast::GroupedExpr>(
             lit<"("> +
             many(append<&ast::GroupedExpr::innerAttrs>(ref<InnerAttribute>)) +
             assign<&ast::GroupedExpr::inner>(ref<Expression>) + lit<")">)> {};
-  struct ArrayExprRule
+  struct ArrayExpr
       : rule<create<ast::ArrayExpr>(
                  lit<"["> +
                  many(append<&ast::ArrayExpr::innerAttrs>(
@@ -683,7 +673,7 @@ struct Rust : cursiv::GrammarSpec {
                                               ref<Expression>)) +
                           option(lit<",">)) +
                    lit<"]">)> {};
-  struct TupleExprRule
+  struct TupleExpr
       : rule<create<ast::TupleExpr>(
             lit<"("> +
             many(append<&ast::TupleExpr::innerAttrs>(ref<InnerAttribute>)) +
@@ -694,7 +684,7 @@ struct Rust : cursiv::GrammarSpec {
                                               ref<Expression>)) +
                           option(lit<",">))) +
             lit<")">)> {};
-  struct StructExprFieldRule
+  struct StructExprField
       : rule<many(append<&ast::StructExprField::attrs>(ref<OuterAttribute>)) +
              ((assign<&ast::StructExprField::name>(ref<INTEGER_LIT>) +
                lit<":"> +
@@ -702,76 +692,66 @@ struct Rust : cursiv::GrammarSpec {
               | (assign<&ast::StructExprField::name>(Identifier) + lit<":"> +
                  assign<&ast::StructExprField::value>(ref<Expression>))  //
               | assign<&ast::StructExprField::name>(Identifier))> {};
-  struct StructExprRule
+  struct StructExpr
       : rule<create<ast::StructExpr>(
-                 assign<&ast::StructExpr::path>(ref<PathInExpressionRule>) +
+                 assign<&ast::StructExpr::path>(ref<PathInExpression>) +
                  lit<"{"> +
                  many(append<&ast::StructExpr::innerAttrs>(
                      ref<InnerAttribute>)) +
                  option((append<&ast::StructExpr::fields>(
-                             ref<StructExprFieldRule>) +
+                             ref<StructExprField>) +
                          many(lit<","> +
                               append<&ast::StructExpr::fields>(
-                                  ref<StructExprFieldRule>)) +
+                                  ref<StructExprField>)) +
                          option(lit<","> +
                                 option(ref<DOTDOT> +
                                        assign<&ast::StructExpr::base>(
                                            ref<Expression>))))  //
                         | (ref<DOTDOT> + assign<&ast::StructExpr::base>(
                                              ref<Expression>))) +
-                 lit<"}">)  //
-             | create<ast::StructExpr>(
-                   assign<&ast::StructExpr::path>(ref<PathInExpressionRule>) +
-                   flag<&ast::StructExpr::isTuple>(lit<"(">) +
-                   option(append<&ast::StructExpr::tupleArgs>(
-                              ref<Expression>) +
-                          many(lit<","> + append<&ast::StructExpr::tupleArgs>(
-                                              ref<Expression>)) +
-                          option(lit<",">)) +
-                   lit<")">)> {};
-  struct ClosureParamRule
+                 lit<"}">)> {};
+  struct ClosureParam
       : rule<many(append<&ast::ClosureParam::attrs>(ref<OuterAttribute>)) +
-             assign<&ast::ClosureParam::pattern>(ref<PatternNoTopAltRule>) +
+             assign<&ast::ClosureParam::pattern>(ref<PatternNoTopAlt>) +
              option(lit<":"> +
-                    assign<&ast::ClosureParam::type>(ref<TypeRule>))> {};
-  struct ClosureExprRule
+                    assign<&ast::ClosureParam::type>(ref<Type>))> {};
+  struct ClosureExpr
       : rule<create<ast::ClosureExpr>(
             option(flag<&ast::ClosureExpr::isAsync>(kw<"async">)) +
             option(flag<&ast::ClosureExpr::isMove>(kw<"move">)) +
             (ref<OROR> |
              (lit<"|"> +
               option(
-                  append<&ast::ClosureExpr::params>(ref<ClosureParamRule>) +
+                  append<&ast::ClosureExpr::params>(ref<ClosureParam>) +
                   many(lit<","> + append<&ast::ClosureExpr::params>(
-                                      ref<ClosureParamRule>)) +
+                                      ref<ClosureParam>)) +
                   option(lit<",">)) +
               lit<"|">)) +
             ((ref<RARROW> +
-              assign<&ast::ClosureExpr::returnType>(ref<TypeNoBoundsRule>) +
-              assign<&ast::ClosureExpr::body>(ref<BlockExprRule>))  //
+              assign<&ast::ClosureExpr::returnType>(ref<TypeNoBounds>) +
+              assign<&ast::ClosureExpr::body>(ref<BlockExpr>))  //
              | assign<&ast::ClosureExpr::body>(ref<Expression>)))> {};
 
   struct PrimaryExpr
-      : rule<ref<LiteralExprRule>  //
+      : rule<ref<LiteralExpr>  //
              | create<ast::AttrExpr>(
                    some(append<&ast::AttrExpr::attrs>(ref<OuterAttribute>)) +
                    assign<&ast::AttrExpr::value>(ref<Expression>))  //
-             | ref<ClosureExprRule>                                 //
-             | ref<StructExprRule>                                  //
-             | ref<GroupedExprRule>                                 //
-             | ref<ArrayExprRule>                                   //
-             | ref<TupleExprRule>                                   //
+             | ref<ClosureExpr>                                 //
+             | ref<StructExpr>                                  //
+             | ref<GroupedExpr>                                 //
+             | ref<ArrayExpr>                                   //
+             | ref<TupleExpr>                                   //
              | ref<ExpressionWithBlock>                             //
              |
              create<ast::MacroExpr>(
-                 assign<&ast::MacroExpr::path>(ref<SimplePathRule>) + lit<"!"> +
+                 assign<&ast::MacroExpr::path>(ref<SimplePath>) + lit<"!"> +
                  assign<&ast::MacroExpr::tokens>(ref<DelimTokenTree>))  //
              |
              create<ast::ContinueExpr>(
                  kw<"continue"> +
                  option(assign<&ast::ContinueExpr::label>(
-                     ref<LIFETIME_OR_LABEL>)) +
-                 option(assign<&ast::ContinueExpr::value>(ref<Expression>)))  //
+                     ref<LIFETIME_OR_LABEL>)))  //
              | create<ast::BreakExpr>(
                    kw<"break"> +
                    option(
@@ -780,7 +760,7 @@ struct Rust : cursiv::GrammarSpec {
              | create<ast::ReturnExpr>(
                    kw<"return"> +
                    option(assign<&ast::ReturnExpr::value>(ref<Expression>)))  //
-             | ref<PathExprRule>> {};
+             | ref<PathExpr>> {};
 
   struct PostfixExpr
       : rule<ref<PrimaryExpr> +
@@ -790,7 +770,7 @@ struct Rust : cursiv::GrammarSpec {
                      assign<&ast::MethodCallExpr::method>(Identifier) +
                      option(ref<PATHSEP> +
                             assign<&ast::MethodCallExpr::genericArgs>(
-                                ref<GenericArgsRule>)) +
+                                ref<GenericArgs>)) +
                      lit<"("> +
                      option(append<&ast::MethodCallExpr::args>(
                                 ref<Expression>) +
@@ -822,11 +802,15 @@ struct Rust : cursiv::GrammarSpec {
   struct UnaryExpr
       : rule<create<ast::BorrowExpr>(
                  flag<&ast::BorrowExpr::doubleAmp>(ref<ANDAND>) +
-                 option(flag<&ast::BorrowExpr::isMut>(kw<"mut">)) +
+                 option((flag<&ast::BorrowExpr::isRaw>(kw<"raw">) +
+                         (flag<&ast::BorrowExpr::isMut>(kw<"mut">) | kw<"const">)) |
+                        flag<&ast::BorrowExpr::isMut>(kw<"mut">)) +
                  assign<&ast::BorrowExpr::operand>(ref<UnaryExpr>))  //
              | create<ast::BorrowExpr>(
                    ref<AND> +
-                   option(flag<&ast::BorrowExpr::isMut>(kw<"mut">)) +
+                   option((flag<&ast::BorrowExpr::isRaw>(kw<"raw">) +
+                           (flag<&ast::BorrowExpr::isMut>(kw<"mut">) | kw<"const">)) |
+                          flag<&ast::BorrowExpr::isMut>(kw<"mut">)) +
                    assign<&ast::BorrowExpr::operand>(ref<UnaryExpr>))  //
              | create<ast::DerefExpr>(
                    ref<STAR> +
@@ -841,13 +825,12 @@ struct Rust : cursiv::GrammarSpec {
       : rule<ref<UnaryExpr> +
              many(nest<ast::CastExpr, &ast::CastExpr::operand>(
                  kw<"as"> +
-                 assign<&ast::CastExpr::type>(ref<TypeNoBoundsRule>)))> {};
+                 assign<&ast::CastExpr::type>(ref<TypeNoBounds>)))> {};
 
   struct ArithExpr
-      : infix<CastExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<STAR> | ref<SLASH> | ref<PERCENT>) >>
-               left(ref<PLUS> | ref<MINUS>))> {};
+      : infix<CastExpr, ast::BinaryExpr,
+              levels(left(ref<STAR> | as<ast::Operator::divide>(lit<"/", !cr<"=/*">>) | as<ast::Operator::remainder>(lit<"%", !cr<"=">>)),
+                     left(as<ast::Operator::add>(lit<"+", !cr<"=">>) | ref<MINUS>))> {};
 
   struct ShiftExpr
       : rule<ref<ArithExpr> +
@@ -856,22 +839,19 @@ struct Rust : cursiv::GrammarSpec {
                  assign<&ast::BinaryExpr::right>(ref<ArithExpr>)))> {};
 
   struct BitwiseExpr
-      : infix<ShiftExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<AND>) >> left(ref<CARET>) >> left(ref<OR>))> {};
+      : infix<ShiftExpr, ast::BinaryExpr,
+              levels(left(ref<AND>), left(as<ast::Operator::bit_xor>(lit<"^", !cr<"=">>)), left(as<ast::Operator::bit_or>(lit<"|", !cr<"|=">>)))> {};
 
   struct ComparisonExpr
-      : infix<BitwiseExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              left(ref<EQEQ> | ref<NE> | ref<LT> | ref<GT> | ref<LE> |
-                   ref<GE>)> {};
+      : infix<BitwiseExpr, ast::BinaryExpr,
+              left(as<ast::Operator::eq>(lit<"==">) | as<ast::Operator::ne>(lit<"!=">) | ref<LT> | ref<GT> | as<ast::Operator::le>(lit<"<=">) |
+                   as<ast::Operator::ge>(lit<">=">))> {};
 
   struct LogicalOrExpr
-      : infix<ComparisonExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<ANDAND>) >> left(ref<OROR>))> {};
+      : infix<ComparisonExpr, ast::BinaryExpr,
+              levels(left(ref<ANDAND>), left(ref<OROR>))> {};
 
-  struct RangeExprRule
+  struct RangeExpr
       : rule<create<ast::RangeExpr>(
                  flag<&ast::RangeExpr::inclusive>(ref<DOTDOTEQ>) +
                  assign<&ast::RangeExpr::end>(ref<LogicalOrExpr>))  //
@@ -887,13 +867,12 @@ struct Rust : cursiv::GrammarSpec {
              | ref<LogicalOrExpr>> {};
 
   struct Expression
-      : infix<RangeExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              right(ref<EQ> | ref<PLUSEQ> | ref<MINUSEQ> | ref<STAREQ> |
-                    ref<SLASHEQ> | ref<PERCENTEQ> | ref<ANDEQ> | ref<OREQ> |
-                    ref<CARETEQ> | ref<SHLEQ> | ref<SHREQ>)> {};
+      : infix<RangeExpr, ast::BinaryExpr,
+              right(ref<EQ> | as<ast::Operator::add_assign>(lit<"+=">) | as<ast::Operator::sub_assign>(lit<"-=">) | as<ast::Operator::mul_assign>(lit<"*=">) |
+                    as<ast::Operator::div_assign>(lit<"/=">) | as<ast::Operator::rem_assign>(lit<"%=">) | as<ast::Operator::bitand_assign>(lit<"&=">) | as<ast::Operator::bitor_assign>(lit<"|=">) |
+                    as<ast::Operator::bitxor_assign>(lit<"^=">) | as<ast::Operator::shl_assign>(lit<"<<=">) | as<ast::Operator::shr_assign>(lit<">>=">))> {};
 
-  struct BlockExprRule
+  struct BlockExpr
       : rule<create<ast::BlockExpr>(
             lit<"{"> +
             many(append<&ast::BlockExpr::innerAttrs>(ref<InnerAttribute>)) +
@@ -901,82 +880,85 @@ struct Rust : cursiv::GrammarSpec {
                  lit<";">) +
             option(assign<&ast::BlockExpr::tailExpr>(ref<Expression>)) +
             lit<"}">)> {};
-  struct AsyncBlockExprRule
+  struct AsyncBlockExpr
       : rule<create<ast::AsyncBlockExpr>(
             kw<"async">
             + option(flag<&ast::AsyncBlockExpr::isMove>(kw<"move">)) +
-            assign<&ast::AsyncBlockExpr::body>(ref<BlockExprRule>))> {};
-  struct UnsafeBlockExprRule
+            assign<&ast::AsyncBlockExpr::body>(ref<BlockExpr>))> {};
+  struct UnsafeBlockExpr
       : rule<create<ast::UnsafeBlockExpr>(
             kw<"unsafe">
-            + assign<&ast::UnsafeBlockExpr::body>(ref<BlockExprRule>))> {};
+            + assign<&ast::UnsafeBlockExpr::body>(ref<BlockExpr>))> {};
 
-  struct InfiniteLoopExprRule
+  struct InfiniteLoopExpr
       : rule<create<ast::InfiniteLoopExpr>(
             option(assign<&ast::InfiniteLoopExpr::label>(
                        ref<LIFETIME_OR_LABEL>) +
                    lit<":">) +
             kw<"loop"> +
-            assign<&ast::InfiniteLoopExpr::body>(ref<BlockExprRule>))> {};
-  struct WhileLetLoopExprRule
+            assign<&ast::InfiniteLoopExpr::body>(ref<BlockExpr>))> {};
+  struct WhileLetLoopExpr
       : rule<create<ast::WhileLetLoopExpr>(
             option(assign<&ast::WhileLetLoopExpr::label>(
                        ref<LIFETIME_OR_LABEL>) +
                    lit<":">) +
             kw<"while"> + kw<"let"> +
-            assign<&ast::WhileLetLoopExpr::pattern>(ref<PatternRule>) +
+            assign<&ast::WhileLetLoopExpr::pattern>(ref<Pattern>) +
             ref<EQ> +
             assign<&ast::WhileLetLoopExpr::value>(ref<Expression>) +
-            assign<&ast::WhileLetLoopExpr::body>(ref<BlockExprRule>))> {};
-  struct WhileLoopExprRule
+            assign<&ast::WhileLetLoopExpr::body>(ref<BlockExpr>))> {};
+  struct WhileLoopExpr
       : rule<create<ast::WhileLoopExpr>(
             option(assign<&ast::WhileLoopExpr::label>(
                        ref<LIFETIME_OR_LABEL>) +
                    lit<":">) +
             kw<"while"> + assign<&ast::WhileLoopExpr::cond>(ref<Expression>) +
-            assign<&ast::WhileLoopExpr::body>(ref<BlockExprRule>))> {};
-  struct ForLoopExprRule
+            assign<&ast::WhileLoopExpr::body>(ref<BlockExpr>))> {};
+  struct ForLoopExpr
       : rule<create<ast::ForLoopExpr>(
             option(assign<&ast::ForLoopExpr::label>(ref<LIFETIME_OR_LABEL>) +
                    lit<":">) +
-            kw<"for"> + assign<&ast::ForLoopExpr::pattern>(ref<PatternRule>) +
+            kw<"for"> + assign<&ast::ForLoopExpr::pattern>(ref<Pattern>) +
             kw<"in"> + assign<&ast::ForLoopExpr::iter>(ref<Expression>) +
-            assign<&ast::ForLoopExpr::body>(ref<BlockExprRule>))> {};
+            assign<&ast::ForLoopExpr::body>(ref<BlockExpr>))> {};
   struct LoopExprDispatch
-      : rule<ref<WhileLetLoopExprRule> | ref<WhileLoopExprRule> |
-             ref<ForLoopExprRule> | ref<InfiniteLoopExprRule>> {};
+      : rule<ref<WhileLetLoopExpr> | ref<WhileLoopExpr> |
+             ref<ForLoopExpr> | ref<InfiniteLoopExpr>> {};
 
-  struct IfExprRule
+  struct IfExpr
       : rule<create<ast::IfExpr>(
             kw<"if"> + assign<&ast::IfExpr::cond>(ref<Expression>) +
-            assign<&ast::IfExpr::thenBranch>(ref<BlockExprRule>) +
+            assign<&ast::IfExpr::thenBranch>(ref<BlockExpr>) +
             option(commit(kw<"else">, assign<&ast::IfExpr::elseBranch>(
-                         ref<BlockExprRule> | ref<IfExprRule> |
-                         ref<IfLetExprRule>))))> {};
-  struct IfLetExprRule
+                         ref<BlockExpr> | ref<IfExpr> |
+                         ref<IfLetExpr>))))> {};
+  struct IfLetExpr
       : rule<create<ast::IfLetExpr>(
             kw<"if"> + kw<"let"> +
-            assign<&ast::IfLetExpr::pattern>(ref<PatternRule>) + ref<EQ> +
+            assign<&ast::IfLetExpr::pattern>(ref<Pattern>) + ref<EQ> +
             assign<&ast::IfLetExpr::value>(ref<Expression>) +
-            assign<&ast::IfLetExpr::thenBranch>(ref<BlockExprRule>) +
+            assign<&ast::IfLetExpr::thenBranch>(ref<BlockExpr>) +
             option(commit(kw<"else">, assign<&ast::IfLetExpr::elseBranch>(
-                         ref<BlockExprRule> | ref<IfExprRule> |
-                         ref<IfLetExprRule>))))> {};
+                         ref<BlockExpr> | ref<IfExpr> |
+                         ref<IfLetExpr>))))> {};
 
-  struct MatchArmBodyRule
-      : rule<many(append<&ast::MatchArm::attrs>(ref<OuterAttribute>)) +
-             assign<&ast::MatchArm::pattern>(ref<PatternRule>) +
-             option(kw<"if"> + assign<&ast::MatchArm::guard>(ref<Expression>)) +
-             ref<FATARROW> + assign<&ast::MatchArm::body>(ref<Expression>)> {
-  };
-  struct MatchExprRule
+  static constexpr auto MatchArmPrefix =
+      many(append<&ast::MatchArm::attrs>(ref<OuterAttribute>)) +
+      assign<&ast::MatchArm::pattern>(ref<Pattern>) +
+      option(kw<"if"> + assign<&ast::MatchArm::guard>(ref<Expression>)) + ref<FATARROW>;
+  struct MatchArmBody
+      : rule<create<ast::MatchArm>(MatchArmPrefix +
+             ((assign<&ast::MatchArm::body>(ref<ExpressionWithBlock>) + option(lit<",">)) |
+              (assign<&ast::MatchArm::body>(ref<Expression>) + lit<",">)))> {};
+  struct LastMatchArm
+      : rule<create<ast::MatchArm>(MatchArmPrefix +
+             assign<&ast::MatchArm::body>(ref<Expression>))> {};
+  struct MatchExpr
       : rule<create<ast::MatchExpr>(
-            kw<"match"> + assign<&ast::MatchExpr::subject>(ref<Expression>) +
-            lit<"{"> +
+            kw<"match"> + assign<&ast::MatchExpr::subject>(ref<Expression>) + lit<"{"> +
             many(append<&ast::MatchExpr::innerAttrs>(ref<InnerAttribute>)) +
-            many(append<&ast::MatchExpr::arms>(ref<MatchArmBodyRule>) +
-                 option(lit<",">)) +
-            lit<"}">)> {};
+            many(append<&ast::MatchExpr::arms>(ref<MatchArmBody>)) +
+            option(append<&ast::MatchExpr::arms>(ref<LastMatchArm>)) + lit<"}">)> {};
 
   // `#[attr] if cond {} ` at statement level needs the block-shaped
   // reading (no mandatory trailing `;`): the general `AttrExpr` in Primary
@@ -986,23 +968,23 @@ struct Rust : cursiv::GrammarSpec {
             some(append<&ast::AttrExpr::attrs>(ref<OuterAttribute>)) +
             assign<&ast::AttrExpr::value>(ref<ExpressionWithBlock>))> {};
   struct ExpressionWithBlock
-      : rule<ref<BlockExprRule> | ref<AsyncBlockExprRule> |
-             ref<UnsafeBlockExprRule> | ref<LoopExprDispatch> |
-             ref<IfLetExprRule> | ref<IfExprRule> | ref<MatchExprRule> |
+      : rule<ref<BlockExpr> | ref<AsyncBlockExpr> |
+             ref<UnsafeBlockExpr> | ref<LoopExprDispatch> |
+             ref<IfLetExpr> | ref<IfExpr> | ref<MatchExpr> |
              ref<AttrExpressionWithBlock>> {};
 
   // Statements.
-  struct LetStatementRule
+  struct LetStatement
       : rule<create<ast::LetStmt>(
             many(append<&ast::LetStmt::attrs>(ref<OuterAttribute>)) +
             kw<"let"> +
-            assign<&ast::LetStmt::pattern>(ref<PatternNoTopAltRule>) +
-            option(lit<":"> + assign<&ast::LetStmt::type>(ref<TypeRule>)) +
+            assign<&ast::LetStmt::pattern>(ref<PatternNoTopAlt>) +
+            option(lit<":"> + assign<&ast::LetStmt::type>(ref<Type>)) +
             option(ref<EQ> + assign<&ast::LetStmt::value>(ref<Expression>) +
                    option(kw<"else"> + assign<&ast::LetStmt::elseBranch>(
-                                           ref<BlockExprRule>))) +
+                                           ref<BlockExpr>))) +
             lit<";">)> {};
-  struct ExpressionStatementRule
+  struct ExpressionStatement
       : rule<create<ast::ExprStmt>(
                  assign<&ast::ExprStmt::value>(ref<Expression>) + lit<";">)  //
              | create<ast::ExprStmt>(
@@ -1010,14 +992,14 @@ struct Rust : cursiv::GrammarSpec {
                    option(lit<";">))> {};
 
   struct Statement
-      : rule<ref<ItemRule> | ref<LetStatementRule> |
-             ref<ExpressionStatementRule>> {};
+      : rule<ref<Item> | ref<LetStatement> |
+             ref<ExpressionStatement>> {};
 
   // Items.
   static constexpr auto ItemAttrs =
       many(append<&ast::Item::attrs>(ref<OuterAttribute>));
 
-  struct SelfParamRule
+  struct SelfParam
       : rule<many(append<&ast::FnParam::attrs>(ref<OuterAttribute>)) +
              ((option(flag<&ast::FnParam::selfByRef>(ref<AND>) +
                       option(assign<&ast::FnParam::selfLifetime>(Lifetime))) +
@@ -1025,282 +1007,282 @@ struct Rust : cursiv::GrammarSpec {
                flag<&ast::FnParam::isSelf>(kw<"self">))  //
               | (option(flag<&ast::FnParam::isMut>(kw<"mut">)) +
                  flag<&ast::FnParam::isSelf>(kw<"self">) + lit<":"> +
-                 assign<&ast::FnParam::selfType>(ref<TypeRule>)))> {};
-  struct FunctionParamRule
+                 assign<&ast::FnParam::selfType>(ref<Type>)))> {};
+  struct FunctionParam
       : rule<many(append<&ast::FnParam::attrs>(ref<OuterAttribute>)) +
-             ((assign<&ast::FnParam::pattern>(ref<PatternRule>) + lit<":"> +
-               (assign<&ast::FnParam::type>(ref<TypeRule>) |
+             ((assign<&ast::FnParam::pattern>(ref<Pattern>) + lit<":"> +
+               (assign<&ast::FnParam::type>(ref<Type>) |
                 flag<&ast::FnParam::variadic>(ref<DOTDOTDOT>)))  //
               | flag<&ast::FnParam::variadic>(ref<DOTDOTDOT>)  //
-              | assign<&ast::FnParam::type>(ref<TypeRule>))> {};
-  struct FunctionRule
+              | assign<&ast::FnParam::type>(ref<Type>))> {};
+  struct Function
       : rule<create<ast::Function>(
-            ItemAttrs + option(assign<&ast::Function::vis>(ref<VisibilityRule>)) +
+            ItemAttrs + option(assign<&ast::Function::vis>(ref<Visibility>)) +
             option(flag<&ast::Function::isConst>(kw<"const">)) +
             option(flag<&ast::Function::isAsync>(kw<"async">)) +
             option(flag<&ast::Function::isUnsafe>(kw<"unsafe">)) +
             option(flag<&ast::Function::isExtern>(kw<"extern">) +
                    option(assign<&ast::Function::abi>(ref<STRING_LIT>))) +
             kw<"fn"> + assign<&ast::Function::name>(Identifier) +
-            option(assign<&ast::Function::generics>(ref<GenericParamsRule>)) +
+            option(assign<&ast::Function::generics>(ref<GenericParams>)) +
             lit<"("> +
-            option((append<&ast::Function::params>(ref<SelfParamRule>) +
+            option((append<&ast::Function::params>(ref<SelfParam>) +
                     option(lit<",">))  //
                    | (option(append<&ast::Function::params>(
-                                 ref<SelfParamRule>) +
+                                 ref<SelfParam>) +
                              lit<",">) +
-                      append<&ast::Function::params>(ref<FunctionParamRule>) +
+                      append<&ast::Function::params>(ref<FunctionParam>) +
                       many(lit<","> + append<&ast::Function::params>(
-                                          ref<FunctionParamRule>)) +
+                                          ref<FunctionParam>)) +
                       option(lit<",">))) +
             lit<")"> +
             option(ref<RARROW> +
-                   assign<&ast::Function::returnType>(ref<TypeRule>)) +
-            option(assign<&ast::Function::whereClause>(ref<WhereClauseRule>)) +
-            (assign<&ast::Function::body>(ref<BlockExprRule>) |
+                   assign<&ast::Function::returnType>(ref<Type>)) +
+            option(assign<&ast::Function::whereClause>(ref<WhereClause>)) +
+            (assign<&ast::Function::body>(ref<BlockExpr>) |
              lit<";">))> {};
 
-  struct TypeAliasRule
+  struct TypeAlias
       : rule<create<ast::TypeAlias>(
             ItemAttrs +
-            option(assign<&ast::TypeAlias::vis>(ref<VisibilityRule>)) +
+            option(assign<&ast::TypeAlias::vis>(ref<Visibility>)) +
             kw<"type"> + assign<&ast::TypeAlias::name>(Identifier) +
-            option(assign<&ast::TypeAlias::generics>(ref<GenericParamsRule>)) +
+            option(assign<&ast::TypeAlias::generics>(ref<GenericParams>)) +
             option(assign<&ast::TypeAlias::whereClause>(
-                ref<WhereClauseRule>)) +
-            option(ref<EQ> + assign<&ast::TypeAlias::type>(ref<TypeRule>)) +
+                ref<WhereClause>)) +
+            option(ref<EQ> + assign<&ast::TypeAlias::type>(ref<Type>)) +
             lit<";">)> {};
 
-  struct StructFieldRule
+  struct StructField
       : rule<many(append<&ast::StructField::attrs>(ref<OuterAttribute>)) +
-             option(assign<&ast::StructField::vis>(ref<VisibilityRule>)) +
+             option(assign<&ast::StructField::vis>(ref<Visibility>)) +
              assign<&ast::StructField::name>(Identifier) + lit<":"> +
-             assign<&ast::StructField::type>(ref<TypeRule>)> {};
-  struct TupleFieldRule
+             assign<&ast::StructField::type>(ref<Type>)> {};
+  struct TupleField
       : rule<many(append<&ast::TupleField::attrs>(ref<OuterAttribute>)) +
-             option(assign<&ast::TupleField::vis>(ref<VisibilityRule>)) +
-             assign<&ast::TupleField::type>(ref<TypeRule>)> {};
-  struct StructRule
+             option(assign<&ast::TupleField::vis>(ref<Visibility>)) +
+             assign<&ast::TupleField::type>(ref<Type>)> {};
+  struct Struct
       : rule<create<ast::Struct>(
                  ItemAttrs +
-                 option(assign<&ast::Struct::vis>(ref<VisibilityRule>)) +
+                 option(assign<&ast::Struct::vis>(ref<Visibility>)) +
                  kw<"struct"> + assign<&ast::Struct::name>(Identifier) +
                  option(assign<&ast::Struct::generics>(
-                     ref<GenericParamsRule>)) +
+                     ref<GenericParams>)) +
                  option(assign<&ast::Struct::whereClause>(
-                     ref<WhereClauseRule>)) +
+                     ref<WhereClause>)) +
                  ((lit<"{"> +
-                   option(append<&ast::Struct::fields>(ref<StructFieldRule>) +
+                   option(append<&ast::Struct::fields>(ref<StructField>) +
                           many(lit<","> + append<&ast::Struct::fields>(
-                                              ref<StructFieldRule>)) +
+                                              ref<StructField>)) +
                           option(lit<",">)) +
                    lit<"}">)  //
                   | lit<";">))  //
              | create<ast::Struct>(
                    ItemAttrs +
-                   option(assign<&ast::Struct::vis>(ref<VisibilityRule>)) +
+                   option(assign<&ast::Struct::vis>(ref<Visibility>)) +
                    kw<"struct"> + assign<&ast::Struct::name>(Identifier) +
                    option(assign<&ast::Struct::generics>(
-                       ref<GenericParamsRule>)) +
+                       ref<GenericParams>)) +
                    flag<&ast::Struct::isTuple>(lit<"(">) +
                    option(append<&ast::Struct::tupleFields>(
-                              ref<TupleFieldRule>) +
+                              ref<TupleField>) +
                           many(lit<","> + append<&ast::Struct::tupleFields>(
-                                              ref<TupleFieldRule>)) +
+                                              ref<TupleField>)) +
                           option(lit<",">)) +
                    lit<")"> +
                    option(assign<&ast::Struct::whereClause>(
-                       ref<WhereClauseRule>)) +
+                       ref<WhereClause>)) +
                    lit<";">)> {};
 
-  struct EnumVariantRule
+  struct EnumVariant
       : rule<many(append<&ast::EnumVariant::attrs>(ref<OuterAttribute>)) +
-             option(assign<&ast::EnumVariant::vis>(ref<VisibilityRule>)) +
+             option(assign<&ast::EnumVariant::vis>(ref<Visibility>)) +
              assign<&ast::EnumVariant::name>(Identifier) +
              option(
                  (flag<&ast::EnumVariant::isTuple>(lit<"(">) +
                   option(append<&ast::EnumVariant::tupleFields>(
-                             ref<TupleFieldRule>) +
+                             ref<TupleField>) +
                          many(lit<","> + append<&ast::EnumVariant::tupleFields>(
-                                             ref<TupleFieldRule>)) +
+                                             ref<TupleField>)) +
                          option(lit<",">)) +
                   lit<")">)  //
                  | (flag<&ast::EnumVariant::isStruct>(lit<"{">) +
                     option(append<&ast::EnumVariant::structFields>(
-                               ref<StructFieldRule>) +
+                               ref<StructField>) +
                            many(lit<","> +
                                 append<&ast::EnumVariant::structFields>(
-                                    ref<StructFieldRule>)) +
+                                    ref<StructField>)) +
                            option(lit<",">)) +
                     lit<"}">)  //
                  | (ref<EQ> + assign<&ast::EnumVariant::discriminant>(
                                   ref<Expression>)))> {};
-  struct EnumRule
+  struct Enum
       : rule<create<ast::Enum>(
-            ItemAttrs + option(assign<&ast::Enum::vis>(ref<VisibilityRule>)) +
+            ItemAttrs + option(assign<&ast::Enum::vis>(ref<Visibility>)) +
             kw<"enum"> + assign<&ast::Enum::name>(Identifier) +
-            option(assign<&ast::Enum::generics>(ref<GenericParamsRule>)) +
-            option(assign<&ast::Enum::whereClause>(ref<WhereClauseRule>)) +
+            option(assign<&ast::Enum::generics>(ref<GenericParams>)) +
+            option(assign<&ast::Enum::whereClause>(ref<WhereClause>)) +
             lit<"{"> +
-            option(append<&ast::Enum::variants>(ref<EnumVariantRule>) +
+            option(append<&ast::Enum::variants>(ref<EnumVariant>) +
                    many(lit<","> + append<&ast::Enum::variants>(
-                                       ref<EnumVariantRule>)) +
+                                       ref<EnumVariant>)) +
                    option(lit<",">)) +
             lit<"}">)> {};
 
-  struct UnionRule
+  struct Union
       : rule<create<ast::Union>(
-            ItemAttrs + option(assign<&ast::Union::vis>(ref<VisibilityRule>)) +
+            ItemAttrs + option(assign<&ast::Union::vis>(ref<Visibility>)) +
             kw<"union"> + assign<&ast::Union::name>(Identifier) +
-            option(assign<&ast::Union::generics>(ref<GenericParamsRule>)) +
-            option(assign<&ast::Union::whereClause>(ref<WhereClauseRule>)) +
+            option(assign<&ast::Union::generics>(ref<GenericParams>)) +
+            option(assign<&ast::Union::whereClause>(ref<WhereClause>)) +
             lit<"{"> +
-            append<&ast::Union::fields>(ref<StructFieldRule>) +
+            append<&ast::Union::fields>(ref<StructField>) +
             many(lit<","> +
-                 append<&ast::Union::fields>(ref<StructFieldRule>)) +
+                 append<&ast::Union::fields>(ref<StructField>)) +
             option(lit<",">) + lit<"}">)> {};
 
-  struct ConstItemRule
+  struct ConstItem
       : rule<create<ast::ConstItem>(
             ItemAttrs +
-            option(assign<&ast::ConstItem::vis>(ref<VisibilityRule>)) +
+            option(assign<&ast::ConstItem::vis>(ref<Visibility>)) +
             kw<"const"> +
             (assign<&ast::ConstItem::name>(Identifier) | ref<UNDERSCORE>) +
-            lit<":"> + assign<&ast::ConstItem::type>(ref<TypeRule>) +
+            lit<":"> + assign<&ast::ConstItem::type>(ref<Type>) +
             option(ref<EQ> +
                    assign<&ast::ConstItem::value>(ref<Expression>)) +
             lit<";">)> {};
-  struct StaticItemRule
+  struct StaticItem
       : rule<create<ast::StaticItem>(
             ItemAttrs +
-            option(assign<&ast::StaticItem::vis>(ref<VisibilityRule>)) +
+            option(assign<&ast::StaticItem::vis>(ref<Visibility>)) +
             kw<"static"> +
             option(flag<&ast::StaticItem::isMut>(kw<"mut">)) +
             assign<&ast::StaticItem::name>(Identifier) + lit<":"> +
-            assign<&ast::StaticItem::type>(ref<TypeRule>) +
+            assign<&ast::StaticItem::type>(ref<Type>) +
             option(ref<EQ> +
                    assign<&ast::StaticItem::value>(ref<Expression>)) +
             lit<";">)> {};
 
-  struct MacroItemRule
+  template <auto Member>
+  static constexpr auto MacroItemTokens =
+      (&lit<"{"> + assign<Member>(ref<DelimTokenTree>) + option(lit<";">)) |
+      (!lit<"{"> + assign<Member>(ref<DelimTokenTree>) + lit<";">);
+  struct MacroItem
       : rule<create<ast::MacroStmt>(
-            ItemAttrs + assign<&ast::MacroStmt::path>(ref<SimplePathRule>) +
-            lit<"!"> + assign<&ast::MacroStmt::tokens>(ref<DelimTokenTree>) +
-            option(lit<";">))> {};
+            ItemAttrs + assign<&ast::MacroStmt::path>(ref<SimplePath>) +
+            lit<"!"> + MacroItemTokens<&ast::MacroStmt::tokens>)> {};
 
-  static constexpr auto AssociatedItem = ref<TypeAliasRule> |
-                                         ref<ConstItemRule> |
-                                         ref<FunctionRule> | ref<MacroItemRule>;
+  static constexpr auto AssociatedItem = ref<TypeAlias> |
+                                         ref<ConstItem> |
+                                         ref<Function> | ref<MacroItem>;
 
   struct TraitRule
       : rule<create<ast::Trait>(
-            ItemAttrs + option(assign<&ast::Trait::vis>(ref<VisibilityRule>)) +
+            ItemAttrs + option(assign<&ast::Trait::vis>(ref<Visibility>)) +
             option(flag<&ast::Trait::isUnsafe>(kw<"unsafe">)) +
             kw<"trait"> + assign<&ast::Trait::name>(Identifier) +
-            option(assign<&ast::Trait::generics>(ref<GenericParamsRule>)) +
+            option(assign<&ast::Trait::generics>(ref<GenericParams>)) +
             option(lit<":"> +
                    option(append<&ast::Trait::supertraits>(
                               TraitBoundOrLifetime) +
                           many(lit<"+"> + append<&ast::Trait::supertraits>(
                                               TraitBoundOrLifetime)) +
                           option(lit<"+">))) +
-            option(assign<&ast::Trait::whereClause>(ref<WhereClauseRule>)) +
+            option(assign<&ast::Trait::whereClause>(ref<WhereClause>)) +
             lit<"{"> +
             many(append<&ast::Trait::innerAttrs>(ref<InnerAttribute>)) +
             many(append<&ast::Trait::items>(AssociatedItem)) + lit<"}">)> {};
 
-  struct ImplRule
+  struct Impl
       : rule<create<ast::Impl>(
             ItemAttrs +
             option(flag<&ast::Impl::isUnsafe>(kw<"unsafe">)) +
             kw<"impl"> +
-            option(assign<&ast::Impl::generics>(ref<GenericParamsRule>)) +
+            option(assign<&ast::Impl::generics>(ref<GenericParams>)) +
             ((option(flag<&ast::Impl::isNegative>(lit<"!">)) +
-              assign<&ast::Impl::traitRef>(ref<TypePathRule>) + kw<"for"> +
-              assign<&ast::Impl::type>(ref<TypeRule>))  //
-             | assign<&ast::Impl::type>(ref<TypeRule>)) +
-            option(assign<&ast::Impl::whereClause>(ref<WhereClauseRule>)) +
+              assign<&ast::Impl::traitRef>(ref<TypePath>) + kw<"for"> +
+              assign<&ast::Impl::type>(ref<Type>))  //
+             | assign<&ast::Impl::type>(ref<Type>)) +
+            option(assign<&ast::Impl::whereClause>(ref<WhereClause>)) +
             lit<"{"> +
             many(append<&ast::Impl::innerAttrs>(ref<InnerAttribute>)) +
             many(append<&ast::Impl::items>(AssociatedItem)) + lit<"}">)> {};
 
-  struct ExternBlockRule
+  struct ExternBlock
       : rule<create<ast::ExternBlock>(
             ItemAttrs +
-            option(assign<&ast::ExternBlock::vis>(ref<VisibilityRule>)) +
+            option(assign<&ast::ExternBlock::vis>(ref<Visibility>)) +
             option(flag<&ast::ExternBlock::isUnsafe>(kw<"unsafe">)) +
             kw<"extern"> +
             option(assign<&ast::ExternBlock::abi>(ref<STRING_LIT>)) +
             lit<"{"> +
             many(append<&ast::ExternBlock::innerAttrs>(ref<InnerAttribute>)) +
             many(append<&ast::ExternBlock::items>(
-                ref<StaticItemRule> | ref<FunctionRule> |
-                ref<MacroItemRule>)) +
+                ref<StaticItem> | ref<Function> |
+                ref<MacroItem>)) +
             lit<"}">)> {};
 
-  struct ModuleItemRule
+  struct ModuleItem
       : rule<create<ast::Module>(
-            ItemAttrs + option(assign<&ast::Module::vis>(ref<VisibilityRule>)) +
+            ItemAttrs + option(assign<&ast::Module::vis>(ref<Visibility>)) +
             option(flag<&ast::Module::isUnsafe>(kw<"unsafe">)) +
             kw<"mod"> + assign<&ast::Module::name>(Identifier) +
             (lit<";">  //
              | (flag<&ast::Module::isInline>(lit<"{">) +
                 many(append<&ast::Module::innerAttrs>(ref<InnerAttribute>)) +
-                many(append<&ast::Module::items>(ref<ItemRule>)) +
+                many(append<&ast::Module::items>(ref<Item>)) +
                 lit<"}">)))> {};
 
-  struct ExternCrateRule
+  struct ExternCrate
       : rule<create<ast::ExternCrate>(
             ItemAttrs +
-            option(assign<&ast::ExternCrate::vis>(ref<VisibilityRule>)) +
+            option(assign<&ast::ExternCrate::vis>(ref<Visibility>)) +
             kw<"extern"> + kw<"crate"> +
             assign<&ast::ExternCrate::name>(Identifier | kw<"self">) +
             option(kw<"as"> + assign<&ast::ExternCrate::asName>(
                                    Identifier | ref<UNDERSCORE>)) +
             lit<";">)> {};
 
-  struct UseTreeRule
+  struct UseTree;
+  static constexpr auto UseGroup =
+      flag<&ast::UseTree::isGlob>(ref<STAR>) |
+      (lit<"{"> + option(some(append<&ast::UseTree::nested>(ref<UseTree>), lit<",">) +
+       option(lit<",">)) + lit<"}">);
+  struct UseTree
       : rule<create<ast::UseTree>(
-            option(assign<&ast::UseTree::path>(ref<SimplePathRule>)) +
-            ((option(ref<PATHSEP>) +
-              (flag<&ast::UseTree::isGlob>(ref<STAR>)  //
-               | (lit<"{"> +
-                  option(append<&ast::UseTree::nested>(ref<UseTreeRule>) +
-                         many(lit<","> + append<&ast::UseTree::nested>(
-                                             ref<UseTreeRule>)) +
-                         option(lit<",">)) +
-                  lit<"}">)))  //
-             | option(kw<"as"> + assign<&ast::UseTree::asName>(
-                                      Identifier | ref<UNDERSCORE>))))> {};
-  struct UseDeclRule
+             (assign<&ast::UseTree::path>(ref<SimplePath>) +
+              ((ref<PATHSEP> + UseGroup) |
+               option(kw<"as"> + assign<&ast::UseTree::asName>(Identifier | ref<UNDERSCORE>)))) |
+             (option(flag<&ast::UseTree::leadingSep>(ref<PATHSEP>)) + UseGroup))> {};
+  struct UseDecl
       : rule<create<ast::UseDecl>(
-            ItemAttrs + option(assign<&ast::UseDecl::vis>(ref<VisibilityRule>)) +
-            kw<"use"> + assign<&ast::UseDecl::tree>(ref<UseTreeRule>) +
+            ItemAttrs + option(assign<&ast::UseDecl::vis>(ref<Visibility>)) +
+            kw<"use"> + assign<&ast::UseDecl::tree>(ref<UseTree>) +
             lit<";">)> {};
 
-  struct MacroRulesDefRule
+  struct MacroRulesDef
       : rule<create<ast::MacroRulesDef>(
             ItemAttrs + kw<"macro_rules"> + lit<"!"> +
             assign<&ast::MacroRulesDef::name>(Identifier) +
-            assign<&ast::MacroRulesDef::tokens>(ref<DelimTokenTree>) +
-            option(lit<";">))> {};
+            MacroItemTokens<&ast::MacroRulesDef::tokens>)> {};
 
-  struct ItemRule
-      : rule<ref<ModuleItemRule> | ref<ExternCrateRule> | ref<UseDeclRule> |
-             ref<FunctionRule> | ref<TypeAliasRule> | ref<StructRule> |
-             ref<EnumRule> | ref<UnionRule> | ref<ConstItemRule> |
-             ref<StaticItemRule> | ref<TraitRule> | ref<ImplRule> |
-             ref<ExternBlockRule> | ref<MacroRulesDefRule> |
-             ref<MacroItemRule>> {};
+  struct Item
+      : rule<ref<ModuleItem> | ref<ExternCrate> | ref<UseDecl> |
+             ref<Function> | ref<TypeAlias> | ref<Struct> |
+             ref<Enum> | ref<Union> | ref<ConstItem> |
+             ref<StaticItem> | ref<TraitRule> | ref<Impl> |
+             ref<ExternBlock> | ref<MacroRulesDef> |
+             ref<MacroItem>> {};
 
-  struct CrateRule
+  struct Crate
       : rule<create<ast::Crate>(
             option(lit<"\xEF\xBB\xBF">) + option(ref<SHEBANG>) +
             many(append<&ast::Crate::innerAttrs>(ref<InnerAttribute>)) +
-            many(append<&ast::Crate::items>(ref<ItemRule>)))> {};
+            many(append<&ast::Crate::items>(ref<Item>)))> {};
 
-  using entry = CrateRule;
-  using ignore = WS;
+  using entry = Crate;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT, INNER_LINE_DOC,
                        OUTER_LINE_DOC>;
   static constexpr auto word_boundary = uc::XID_Continue;

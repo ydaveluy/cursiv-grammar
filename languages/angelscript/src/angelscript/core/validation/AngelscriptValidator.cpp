@@ -7,8 +7,8 @@
 
 namespace angelscript {
 
-// No check yet: the grammar accepts everything the language does, so there
-// is nothing here for a validator to narrow.
+// Host-registered types, overload resolution and engine configuration are
+// outside this syntax port. No semantic checks are registered here.
 void register_validation_checks(AngelscriptCoreServices& services) {
   services.validator =
       std::make_unique<const AngelscriptValidator>(services);

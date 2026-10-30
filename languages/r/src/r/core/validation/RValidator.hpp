@@ -1,5 +1,5 @@
 // The checks of this language: what the grammar accepts but the language
-// does not. None yet -- nothing here needs a check beyond parsing.
+// does not: source-context restrictions and literal/parameter checks.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +11,11 @@ namespace r {
 class RValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkFunction(const ast::FunctionDef&, cursiv::ValidationAcceptor&) const;
+  void checkBinary(const ast::BinaryExpr&, cursiv::ValidationAcceptor&) const;
+  void checkPlaceholder(const ast::Placeholder&, cursiv::ValidationAcceptor&) const;
+  void checkAssignment(const ast::AssignExpr&, cursiv::ValidationAcceptor&) const;
+  void checkIf(const ast::IfExpr&, cursiv::ValidationAcceptor&) const;
 };
 
 struct RCoreServices;

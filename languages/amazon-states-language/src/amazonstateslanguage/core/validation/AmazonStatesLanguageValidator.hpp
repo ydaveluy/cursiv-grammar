@@ -12,6 +12,8 @@ class AmazonStatesLanguageValidator final : public cursiv::DefaultCoreService {
   using cursiv::DefaultCoreService::DefaultCoreService;
   template <class T>
   void checkMembers(const T &, cursiv::ValidationAcceptor &) const;
+  void checkProgram(const ast::Program&, cursiv::ValidationAcceptor&) const;
+  void checkState(const ast::State&, cursiv::ValidationAcceptor&) const;
 };
 
 struct AmazonStatesLanguageCoreServices;

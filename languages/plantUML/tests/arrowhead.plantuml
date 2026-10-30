@@ -1,4 +1,4 @@
-' A relation may be an arrowhead alone, with no body symbol.
+' Invalid: an arrow head alone is not a native relation.
 @startuml
 Left < Right
 @enduml

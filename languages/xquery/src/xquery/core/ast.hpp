@@ -24,6 +24,8 @@ struct DecimalLiteral : cursiv::Extends<Expr> {
   boolean isDouble;
 };
 
+struct BooleanLiteral : cursiv::Extends<Expr> { boolean value; };
+
 struct StringLiteral : cursiv::Extends<Expr> {
   string_view value;
 };
@@ -75,7 +77,12 @@ struct ItemType : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   vector<string_view> names;      // node-type nameTestUnion; enum's string values
   vector<SequenceType*> params;   // typed array element type; typed map value type
-  vector<ItemType*> itemParams;   // typed map key type; function params; choice branches
+  vector<ItemType*> itemParams;   // map key, document node test, choice branches
+  vector<Param*> functionParams; // named or unnamed typed function parameters
+  string_view typeName;         // element/attribute type, separate from name union
+  bool wildcard = false;        // explicit function(*), record(*) or jnode(*)
+  bool nillable = false;        // element(..., type?)
+  bool rootSelector = false;    // jnode(())
   vector<FieldDecl*> fields;      // typed record fields
   SequenceType* returnType = nullptr;
   vector<Annotation*> annotations;
@@ -324,8 +331,7 @@ struct PositionalVar : cursiv::Extends<cursiv::AstNode> {
 };
 
 // `isMember`/`isEntry` name which of forItemBinding / forMemberBinding /
-// forEntryBinding matched; the bracket kind of a let destructuring
-// (sequence/array/map) is not separately kept.
+// forEntryBinding matched. LetBinding.destructuring preserves its bracket kind.
 struct ForBinding : cursiv::Extends<cursiv::AstNode> {
   bool isMember = false;
   bool isEntry = false;
@@ -542,7 +548,7 @@ struct TransformExpr : cursiv::Extends<Expr> {
 
 struct Annotation : cursiv::Extends<cursiv::AstNode> {
   string_view name;
-  vector<string_view> args;
+  vector<Expr*> args;
 };
 
 struct Param : cursiv::Extends<cursiv::AstNode> {
@@ -552,6 +558,7 @@ struct Param : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct FieldDecl : cursiv::Extends<cursiv::AstNode> {
+  bool isStatic = false;
   string_view name;
   SequenceType* type = nullptr;
   Expr* def = nullptr;
@@ -663,6 +670,7 @@ struct MainModule : cursiv::Extends<cursiv::AstNode> {
 
 struct Module : cursiv::Extends<cursiv::AstNode> {
   string_view version;
+  string_view encoding;
   LibraryModule* library = nullptr;
   MainModule* main = nullptr;
 };

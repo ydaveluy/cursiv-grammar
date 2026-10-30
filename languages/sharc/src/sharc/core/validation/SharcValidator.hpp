@@ -1,5 +1,5 @@
-// The checks of this language: none yet -- nothing here needs a check beyond
-// parsing.
+// No semantic checks are registered yet. Native encoding, symbol and
+// section constraints require a separate semantic pass.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

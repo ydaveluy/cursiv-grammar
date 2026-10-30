@@ -56,6 +56,13 @@ inline void dice_regressions(const dice::DiceCoreServices &services) {
           multiply->op == ast::Operator::multiply);
     CHECK(negative && negative->negative && negative->value == "2");
   }
+  {
+    const auto parsed = services.parser->parse(" 2 D 6 + 3 ");
+    const auto* add = cursiv::ast_cast<ast::BinaryNotation>(parsed.value);
+    const auto* roll = add ? cursiv::ast_cast<ast::DiceRoll>(add->left) : nullptr;
+    CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
+    CHECK(add && add->op == ast::Operator::add && roll && roll->count == "2" && roll->sides == "6");
+  }
   cursiv::Document document(
       cursiv::TextDocument::create("memory:dice", "dice", 0, "1d6/0000"));
   document.language = &services;

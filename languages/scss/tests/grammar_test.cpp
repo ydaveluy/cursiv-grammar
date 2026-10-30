@@ -1,3 +1,5 @@
+#include "native_followup.hpp"
+#include "extend_cases.hpp"
 #include <cstdio>
 
 #include "cursiv/core/parser/Parser.hpp"
@@ -38,6 +40,66 @@ static int audit_regression() {
   const auto language = cursiv::create_language<scss::ScssCoreServices,
                                                 scss::ScssSharedCoreServices,
                                                 scss::install_core_module>();
+  // Keyword-shaped pseudo names must retain the selector AST, including
+  // when another pseudo follows. A successful nested-property parse would
+  // silently lose the selector even without a recovery diagnostic.
+  const struct {
+    const char* text;
+    std::string_view firstName;
+    std::size_t pseudos;
+  } selectorCases[] = {
+      {"a:not([href]):not([class]) {}", "not", 2},
+      {"a:not([href]) { &, &:hover { color: inherit; } }", "not", 1},
+      {"a:from:to {}", "from", 2},
+      {"a:calc(1):hover {}", "calc", 2},
+      {"a:true:hover {}", "true", 2}};
+  for (const auto& c : selectorCases) {
+    const auto r = language.language.parser->parse(c.text);
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
+        !is<scss::ast::Stylesheet>(r.value))
+      return 1;
+    const auto* sheet = static_cast<const scss::ast::Stylesheet*>(r.value);
+    if (sheet->statements.size() != 1 ||
+        !is<scss::ast::Ruleset>(sheet->statements[0]))
+      return 1;
+    const auto* rule =
+        static_cast<const scss::ast::Ruleset*>(sheet->statements[0]);
+    if (rule->selectors == nullptr ||
+        rule->selectors->selectors.size() != 1 ||
+        rule->selectors->selectors[0]->sequences.size() != 1)
+      return 1;
+    const auto* sequence = rule->selectors->selectors[0]->sequences[0];
+    if (sequence->items.size() != c.pseudos ||
+        !is<scss::ast::PseudoSelector>(sequence->items[0]))
+      return 1;
+    const auto* pseudo =
+        static_cast<const scss::ast::PseudoSelector*>(sequence->items[0]);
+    if (pseudo->name != c.firstName) return 1;
+  }
+  {
+    const auto r = language.language.parser->parse(
+        ".a { margin: auto { bottom: 10px; } "
+        "transition: { property: font-size; } }");
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
+        !is<scss::ast::Stylesheet>(r.value))
+      return 1;
+    const auto* sheet = static_cast<const scss::ast::Stylesheet*>(r.value);
+    if (sheet->statements.size() != 1 ||
+        !is<scss::ast::Ruleset>(sheet->statements[0]))
+      return 1;
+    const auto* rule =
+        static_cast<const scss::ast::Ruleset*>(sheet->statements[0]);
+    if (rule->body == nullptr || rule->body->statements.size() != 2)
+      return 1;
+    for (const auto* statement : rule->body->statements) {
+      if (!is<scss::ast::PropertyDeclaration>(statement)) return 1;
+      const auto* property =
+          static_cast<const scss::ast::PropertyDeclaration*>(statement);
+      if (property->nestedBlock == nullptr ||
+          property->nestedBlock->statements.size() != 1)
+        return 1;
+    }
+  }
   {
     const auto r = language.language.parser->parse(
         "@for $i from $start + 1 through 5 { .x { width: $i; } }");
@@ -74,6 +136,9 @@ int main() {
       scss::ScssCoreServices, scss::ScssSharedCoreServices,
       scss::install_core_module>();
 
+  if (!native_followup::run(language)) return 1;
+  if (!scss_extend_cases::run(*language.language.parser)) return 1;
+
   int failures = 0;
   int count = 0;
   const fs::path root = fs::path(CURSIV_EXAMPLE_DIR) / "example";
@@ -93,6 +158,9 @@ int main() {
 
     const cursiv::ParseResult result = language.language.parser->parse(text);
     if (result.cst().recovered()) {
+      for (const auto &diagnostic : result.diagnostics)
+        std::fprintf(stderr, "scss parse diagnostic at byte %u..%u (kind %u)\n",
+                     diagnostic.begin, diagnostic.end, unsigned(diagnostic.kind));
       failures += fail(entry.path(), "the document does not parse clean");
       continue;
     }
@@ -148,7 +216,7 @@ int main() {
     } else if (static_cast<const scss::ast::HexColorLit*>(black->value)
                    ->text != "#000") {
       failures += fail(path, "$black's hex color is not #000");
-    } else if (black->prio != scss::ast::Prio::default_) {
+    } else if (!black->isDefault) {
       failures += fail(path, "$black does not carry !default");
     }
 

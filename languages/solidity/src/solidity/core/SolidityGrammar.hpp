@@ -95,46 +95,72 @@ struct Solidity : cursiv::GrammarSpec {
       lit<"%"> | lit<"*"> | lit<"-"> | lit<"=="> | lit<">="> | lit<">"> |
       lit<"<="> | lit<"<"> | lit<"!=">;
 
+  // Stable 0.8.30 Token.h keywords; experimental-only words remain names.
+  static constexpr auto ReservedIdentifier =
+      kw<"delete"> | kw<"abstract"> | kw<"anonymous"> | kw<"as"> | kw<"assembly"> |
+      kw<"break"> | kw<"catch"> | kw<"constant"> | kw<"constructor"> | kw<"continue"> |
+      kw<"contract"> | kw<"do"> | kw<"else"> | kw<"enum"> | kw<"emit"> |
+      kw<"event"> | kw<"external"> | kw<"fallback"> | kw<"for"> | kw<"function"> |
+      kw<"hex"> | kw<"if"> | kw<"indexed"> | kw<"interface"> | kw<"internal"> |
+      kw<"immutable"> | kw<"import"> | kw<"is"> | kw<"library"> | kw<"mapping"> |
+      kw<"memory"> | kw<"modifier"> | kw<"new"> | kw<"override"> | kw<"payable"> |
+      kw<"public"> | kw<"pragma"> | kw<"private"> | kw<"pure"> | kw<"receive"> |
+      kw<"return"> | kw<"returns"> | kw<"storage"> | kw<"calldata"> | kw<"struct"> |
+      kw<"throw"> | kw<"try"> | kw<"type"> | kw<"unchecked"> | kw<"unicode"> |
+      kw<"using"> | kw<"view"> | kw<"virtual"> | kw<"while"> | kw<"wei"> |
+      kw<"gwei"> | kw<"ether"> | kw<"seconds"> | kw<"minutes"> | kw<"hours"> |
+      kw<"days"> | kw<"weeks"> | kw<"years"> | kw<"int"> | kw<"uint"> |
+      kw<"bytes"> | kw<"string"> | kw<"address"> | kw<"bool"> | kw<"fixed"> |
+      kw<"ufixed"> | kw<"true"> | kw<"false"> | kw<"after"> | kw<"alias"> |
+      kw<"apply"> | kw<"auto"> | kw<"byte"> | kw<"case"> | kw<"copyof"> |
+      kw<"default"> | kw<"define"> | kw<"final"> | kw<"implements"> | kw<"in"> |
+      kw<"inline"> | kw<"let"> | kw<"macro"> | kw<"match"> | kw<"mutable"> |
+      kw<"null"> | kw<"of"> | kw<"partial"> | kw<"promise"> | kw<"reference"> |
+      kw<"relocatable"> | kw<"sealed"> | kw<"sizeof"> | kw<"static"> | kw<"supports"> |
+      kw<"switch"> | kw<"typedef"> | kw<"typeof"> | kw<"var"> |
+      ref<INTEGER_TYPE> | ref<FIXED_BYTES_TYPE> | ref<FIXED_TYPE>;
+  struct SOLIDITY_ID : terminal<!ReservedIdentifier + ref<ID>> {};
+
   // `from`, `error`, `revert`, `global` and `transient` are keywords where
   // the grammar spells them and plain names everywhere else -- one terminal
   // for the spelling, admitted here too.
   struct Identifier
-      : rule<ref<ID> | kw<"from"> | kw<"error"> | kw<"revert"> | kw<"global"> |
+      : rule<ref<SOLIDITY_ID> | kw<"from"> | kw<"error"> | kw<"revert"> | kw<"global"> |
              kw<"transient"> | kw<"layout"> | kw<"at">> {};
 
   struct IdentifierPath
       : rule<ref<Identifier> + many(lit<"."> + ref<Identifier>)> {};
 
   struct Expression;
-  struct TypeNameRule;
+  struct TypeName;
   struct Statement;
   struct Block;
   struct YulStatement;
   struct YulBlock;
   struct YulExpression;
-  struct ElementaryTypeRule;
-  struct TupleExprRule;
-  struct InlineArrayExprRule;
-  struct NumberLitRule;
-  struct BoolLitRule;
-  struct StringLitRule;
-  struct HexStringLitRule;
-  struct UnicodeStringLitRule;
-  struct UncheckedBlockRule;
+  struct ElementaryType;
+  struct TupleExpr;
+  struct InlineArrayExpr;
+  struct NumberLit;
+  struct BoolLit;
+  struct StringLit;
+  struct HexStringLit;
+  struct UnicodeStringLit;
+  struct UncheckedBlock;
 
   // A pragma's payload is any run of bytes that is not `;`, scanned raw:
   // solc parses only a subset of it, so this grammar does not either.
   struct PRAGMA_BODY : terminal<some(cr<"^;">)> {};
 
-  struct PragmaDirectiveRule
+  struct PragmaDirective
       : rule<create<ast::PragmaDirective>(
             kw<"pragma"> +
             assign<&ast::PragmaDirective::text>(ref<PRAGMA_BODY>) + lit<";">)> {
   };
 
-  struct PathRule : rule<ref<STRING_LIT>> {};
+  struct Path : rule<ref<STRING_LIT>> {};
 
-  struct ImportAliasRule
+  struct ImportAlias
       : rule<create<ast::ImportAlias>(
             assign<&ast::ImportAlias::symbol>(ref<Identifier>) +
             option(kw<"as"> +
@@ -145,30 +171,30 @@ struct Solidity : cursiv::GrammarSpec {
   // resolving one of its own.
   static constexpr auto SymbolAliasesExpr =
       lit<"{"> +
-      some(append<&ast::ImportDirective::symbols>(ref<ImportAliasRule>),
+      some(append<&ast::ImportDirective::symbols>(ref<ImportAlias>),
            lit<",">) +
       lit<"}">;
 
   struct ImportDirectiveRule
       : rule<create<ast::ImportDirective>(
             kw<"import"> +
-            ((assign<&ast::ImportDirective::path>(ref<PathRule>) +
+            ((assign<&ast::ImportDirective::path>(ref<Path>) +
               option(kw<"as"> + assign<&ast::ImportDirective::unitAlias>(
                                     ref<Identifier>))) |
              (SymbolAliasesExpr + kw<"from"> +
-              assign<&ast::ImportDirective::path>(ref<PathRule>)) |
+              assign<&ast::ImportDirective::path>(ref<Path>)) |
              (flag<&ast::ImportDirective::isStar>(lit<"*">) + kw<"as"> +
               assign<&ast::ImportDirective::unitAlias>(ref<Identifier>) +
               kw<"from"> +
-              assign<&ast::ImportDirective::path>(ref<PathRule>))) +
+              assign<&ast::ImportDirective::path>(ref<Path>))) +
             lit<";">)> {};
 
-  struct NamedArgumentRule
+  struct NamedArgument
       : rule<create<ast::NamedArgument>(
             assign<&ast::NamedArgument::name>(ref<Identifier>) + lit<":"> +
             assign<&ast::NamedArgument::value>(ref<Expression>))> {};
 
-  struct CallArgumentsRule
+  struct CallArguments
       : rule<create<ast::CallArguments>(
             lit<"("> +
             (option(
@@ -176,26 +202,26 @@ struct Solidity : cursiv::GrammarSpec {
                       lit<",">)) |
              (lit<"{"> +
               option(some(
-                  append<&ast::CallArguments::named>(ref<NamedArgumentRule>),
+                  append<&ast::CallArguments::named>(ref<NamedArgument>),
                   lit<",">)) +
               lit<"}">)) +
             lit<")">)> {};
 
-  struct InheritanceSpecifierRule
+  struct InheritanceSpecifier
       : rule<create<ast::InheritanceSpecifier>(
             assign<&ast::InheritanceSpecifier::name>(ref<IdentifierPath>) +
             option(assign<&ast::InheritanceSpecifier::arguments>(
-                ref<CallArgumentsRule>)))> {};
+                ref<CallArguments>)))> {};
 
   struct ContractBodyElement;
 
-  struct StorageLayoutSpecifierRule
+  struct StorageLayoutSpecifier
       : rule<create<ast::StorageLayoutSpecifier>(
             kw<"layout"> + kw<"at"> +
             assign<&ast::StorageLayoutSpecifier::baseSlot>(ref<Expression>))> {
   };
 
-  struct ContractDefinitionRule
+  struct ContractDefinition
       : rule<create<ast::ContractDefinition>(
             option(flag<&ast::ContractDefinition::isAbstract>(
                 kw<"abstract">)) +
@@ -203,29 +229,29 @@ struct Solidity : cursiv::GrammarSpec {
             assign<&ast::ContractDefinition::name>(ref<Identifier>) +
             many((kw<"is"> +
                   some(append<&ast::ContractDefinition::baseContracts>(
-                           ref<InheritanceSpecifierRule>),
+                           ref<InheritanceSpecifier>),
                        lit<",">)) |
                  append<&ast::ContractDefinition::storageLayouts>(
-                     ref<StorageLayoutSpecifierRule>)) +
+                     ref<StorageLayoutSpecifier>)) +
             lit<"{"> +
             many(append<&ast::ContractDefinition::body>(
                 ref<ContractBodyElement>)) +
             lit<"}">)> {};
 
-  struct InterfaceDefinitionRule
+  struct InterfaceDefinition
       : rule<create<ast::InterfaceDefinition>(
             kw<"interface"> +
             assign<&ast::InterfaceDefinition::name>(ref<Identifier>) +
             option(kw<"is"> +
                    some(append<&ast::InterfaceDefinition::baseContracts>(
-                            ref<InheritanceSpecifierRule>),
+                            ref<InheritanceSpecifier>),
                         lit<",">)) +
             lit<"{"> +
             many(append<&ast::InterfaceDefinition::body>(
                 ref<ContractBodyElement>)) +
             lit<"}">)> {};
 
-  struct LibraryDefinitionRule
+  struct LibraryDefinition
       : rule<create<ast::LibraryDefinition>(
             kw<"library"> +
             assign<&ast::LibraryDefinition::name>(ref<Identifier>) + lit<"{"> +
@@ -235,17 +261,17 @@ struct Solidity : cursiv::GrammarSpec {
 
   struct ParameterDecl
       : rule<create<ast::Parameter>(
-            assign<&ast::Parameter::type>(ref<TypeNameRule>) +
+            assign<&ast::Parameter::type>(ref<TypeName>) +
             option(assign<&ast::Parameter::location>(DataLocationWord)) +
             option(assign<&ast::Parameter::name>(ref<Identifier>)))> {};
 
-  struct ModifierInvocationRule
+  struct ModifierInvocation
       : rule<create<ast::ModifierInvocation>(
             assign<&ast::ModifierInvocation::name>(ref<IdentifierPath>) +
             option(assign<&ast::ModifierInvocation::arguments>(
-                ref<CallArgumentsRule>)))> {};
+                ref<CallArguments>)))> {};
 
-  struct OverrideSpecifierRule
+  struct OverrideSpecifier
       : rule<create<ast::OverrideSpecifier>(
             kw<"override"> + option(lit<"("> +
                                     some(append<&ast::OverrideSpecifier::bases>(
@@ -253,7 +279,7 @@ struct Solidity : cursiv::GrammarSpec {
                                          lit<",">) +
                                     lit<")">))> {};
 
-  struct ConstructorDefinitionRule
+  struct ConstructorDefinition
       : rule<create<ast::ConstructorDefinition>(
             kw<"constructor"> + lit<"("> +
             option(some(append<&ast::ConstructorDefinition::parameters>(
@@ -261,12 +287,12 @@ struct Solidity : cursiv::GrammarSpec {
                         lit<",">)) +
             lit<")"> +
             many(append<&ast::ConstructorDefinition::modifiers>(
-                     ref<ModifierInvocationRule>) |
+                     ref<ModifierInvocation>) |
                  append<&ast::ConstructorDefinition::modifiers>(
                      kw<"payable"> | kw<"internal"> | kw<"public">)) +
             assign<&ast::ConstructorDefinition::body>(ref<Block>))> {};
 
-  struct FunctionDefinitionRule
+  struct FunctionDefinition
       : rule<create<ast::FunctionDefinition>(
             kw<"function"> +
             assign<&ast::FunctionDefinition::name>(
@@ -280,10 +306,10 @@ struct Solidity : cursiv::GrammarSpec {
                  append<&ast::FunctionDefinition::modifiers>(
                      StateMutabilityWord) |
                  append<&ast::FunctionDefinition::modifiers>(
-                     ref<ModifierInvocationRule>) |
+                     ref<ModifierInvocation>) |
                  append<&ast::FunctionDefinition::modifiers>(kw<"virtual">) |
                  append<&ast::FunctionDefinition::modifiers>(
-                     ref<OverrideSpecifierRule>)) +
+                     ref<OverrideSpecifier>)) +
             option(kw<"returns"> + lit<"("> +
                    some(append<&ast::FunctionDefinition::returnParameters>(
                             ref<ParameterDecl>),
@@ -292,7 +318,7 @@ struct Solidity : cursiv::GrammarSpec {
             (lit<";"> | assign<&ast::FunctionDefinition::body>(ref<Block>)))> {
   };
 
-  struct ModifierDefinitionRule
+  struct ModifierDefinition
       : rule<create<ast::ModifierDefinition>(
             kw<"modifier"> +
             assign<&ast::ModifierDefinition::name>(ref<Identifier>) +
@@ -304,11 +330,11 @@ struct Solidity : cursiv::GrammarSpec {
                 lit<")">)) +
             many(append<&ast::ModifierDefinition::modifiers>(kw<"virtual">) |
                  append<&ast::ModifierDefinition::modifiers>(
-                     ref<OverrideSpecifierRule>)) +
+                     ref<OverrideSpecifier>)) +
             (lit<";"> | assign<&ast::ModifierDefinition::body>(ref<Block>)))> {
   };
 
-  struct FallbackFunctionDefinitionRule
+  struct FallbackFunctionDefinition
       : rule<create<ast::FallbackFunctionDefinition>(
             kw<"fallback"> + lit<"("> +
             option(some(append<&ast::FallbackFunctionDefinition::parameters>(
@@ -320,11 +346,11 @@ struct Solidity : cursiv::GrammarSpec {
                  append<&ast::FallbackFunctionDefinition::modifiers>(
                      StateMutabilityWord) |
                  append<&ast::FallbackFunctionDefinition::modifiers>(
-                     ref<ModifierInvocationRule>) |
+                     ref<ModifierInvocation>) |
                  append<&ast::FallbackFunctionDefinition::modifiers>(
                      kw<"virtual">) |
                  append<&ast::FallbackFunctionDefinition::modifiers>(
-                     ref<OverrideSpecifierRule>)) +
+                     ref<OverrideSpecifier>)) +
             option(
                 kw<"returns"> + lit<"("> +
                 some(append<&ast::FallbackFunctionDefinition::returnParameters>(
@@ -334,7 +360,7 @@ struct Solidity : cursiv::GrammarSpec {
             (lit<";"> |
              assign<&ast::FallbackFunctionDefinition::body>(ref<Block>)))> {};
 
-  struct ReceiveFunctionDefinitionRule
+  struct ReceiveFunctionDefinition
       : rule<create<ast::ReceiveFunctionDefinition>(
             kw<"receive"> + lit<"("> + lit<")"> +
             many(append<&ast::ReceiveFunctionDefinition::modifiers>(
@@ -342,28 +368,28 @@ struct Solidity : cursiv::GrammarSpec {
                  append<&ast::ReceiveFunctionDefinition::modifiers>(
                      kw<"payable">) |
                  append<&ast::ReceiveFunctionDefinition::modifiers>(
-                     ref<ModifierInvocationRule>) |
+                     ref<ModifierInvocation>) |
                  append<&ast::ReceiveFunctionDefinition::modifiers>(
                      kw<"virtual">) |
                  append<&ast::ReceiveFunctionDefinition::modifiers>(
-                     ref<OverrideSpecifierRule>)) +
+                     ref<OverrideSpecifier>)) +
             (lit<";"> |
              assign<&ast::ReceiveFunctionDefinition::body>(ref<Block>)))> {};
 
-  struct StructMemberRule
+  struct StructMember
       : rule<create<ast::StructMember>(
-            assign<&ast::StructMember::type>(ref<TypeNameRule>) +
+            assign<&ast::StructMember::type>(ref<TypeName>) +
             assign<&ast::StructMember::name>(ref<Identifier>) + lit<";">)> {};
 
-  struct StructDefinitionRule
+  struct StructDefinition
       : rule<create<ast::StructDefinition>(
             kw<"struct"> +
             assign<&ast::StructDefinition::name>(ref<Identifier>) + lit<"{"> +
             some(append<&ast::StructDefinition::members>(
-                ref<StructMemberRule>)) +
+                ref<StructMember>)) +
             lit<"}">)> {};
 
-  struct EnumDefinitionRule
+  struct EnumDefinition
       : rule<create<ast::EnumDefinition>(
             kw<"enum"> + assign<&ast::EnumDefinition::name>(ref<Identifier>) +
             lit<"{"> +
@@ -371,33 +397,33 @@ struct Solidity : cursiv::GrammarSpec {
                  lit<",">) +
             lit<"}">)> {};
 
-  struct UserDefinedValueTypeDefinitionRule
+  struct UserDefinedValueTypeDefinition
       : rule<create<ast::UserDefinedValueTypeDefinition>(
             kw<"type"> +
             assign<&ast::UserDefinedValueTypeDefinition::name>(
                 ref<Identifier>) +
             kw<"is"> +
             assign<&ast::UserDefinedValueTypeDefinition::underlying>(
-                ref<TypeNameRule>) +
+                ref<TypeName>) +
             lit<";">)> {};
 
-  struct StateVariableDeclarationRule
+  struct StateVariableDeclaration
       : rule<create<ast::StateVariableDeclaration>(
-            assign<&ast::StateVariableDeclaration::type>(ref<TypeNameRule>) +
+            assign<&ast::StateVariableDeclaration::type>(ref<TypeName>) +
             many(append<&ast::StateVariableDeclaration::modifiers>(
                      kw<"public"> | kw<"private"> | kw<"internal"> |
                      kw<"constant"> | kw<"immutable"> | kw<"transient">) |
                  append<&ast::StateVariableDeclaration::modifiers>(
-                     ref<OverrideSpecifierRule>)) +
+                     ref<OverrideSpecifier>)) +
             assign<&ast::StateVariableDeclaration::name>(ref<Identifier>) +
             option(lit<"="> +
                    assign<&ast::StateVariableDeclaration::initialValue>(
                        ref<Expression>)) +
             lit<";">)> {};
 
-  struct ConstantVariableDeclarationRule
+  struct ConstantVariableDeclaration
       : rule<create<ast::ConstantVariableDeclaration>(
-            assign<&ast::ConstantVariableDeclaration::type>(ref<TypeNameRule>) +
+            assign<&ast::ConstantVariableDeclaration::type>(ref<TypeName>) +
             kw<"constant"> +
             assign<&ast::ConstantVariableDeclaration::name>(ref<Identifier>) +
             option(lit<"="> +
@@ -405,81 +431,81 @@ struct Solidity : cursiv::GrammarSpec {
                        ref<Expression>)) +
             lit<";">)> {};
 
-  struct EventParameterRule
+  struct EventParameter
       : rule<create<ast::EventParameter>(
-            assign<&ast::EventParameter::type>(ref<TypeNameRule>) +
+            assign<&ast::EventParameter::type>(ref<TypeName>) +
             option(flag<&ast::EventParameter::indexed>(kw<"indexed">)) +
             option(assign<&ast::EventParameter::name>(ref<Identifier>)))> {};
 
-  struct EventDefinitionRule
+  struct EventDefinition
       : rule<create<ast::EventDefinition>(
             kw<"event"> + assign<&ast::EventDefinition::name>(ref<Identifier>) +
             lit<"("> +
             option(some(append<&ast::EventDefinition::parameters>(
-                            ref<EventParameterRule>),
+                            ref<EventParameter>),
                         lit<",">)) +
             lit<")"> +
             option(flag<&ast::EventDefinition::isAnonymous>(
                 kw<"anonymous">)) +
             lit<";">)> {};
 
-  struct ErrorParameterRule
+  struct ErrorParameter
       : rule<create<ast::ErrorParameter>(
-            assign<&ast::ErrorParameter::type>(ref<TypeNameRule>) +
+            assign<&ast::ErrorParameter::type>(ref<TypeName>) +
             option(assign<&ast::ErrorParameter::name>(ref<Identifier>)))> {};
 
-  struct ErrorDefinitionRule
+  struct ErrorDefinition
       : rule<create<ast::ErrorDefinition>(
             kw<"error"> + assign<&ast::ErrorDefinition::name>(ref<Identifier>) +
             lit<"("> +
             option(some(append<&ast::ErrorDefinition::parameters>(
-                            ref<ErrorParameterRule>),
+                            ref<ErrorParameter>),
                         lit<",">)) +
             lit<")"> + lit<";">)> {};
 
-  struct UsingAliasRule
+  struct UsingAlias
       : rule<create<ast::UsingAlias>(
             assign<&ast::UsingAlias::path>(ref<IdentifierPath>) +
             option(kw<"as"> +
                    assign<&ast::UsingAlias::op>(UserDefinableOperatorWord)))> {
   };
 
-  struct UsingDirectiveRule
+  struct UsingDirective
       : rule<create<ast::UsingDirective>(
             kw<"using"> +
             (assign<&ast::UsingDirective::libraryPath>(ref<IdentifierPath>) |
              (lit<"{"> +
-              some(append<&ast::UsingDirective::aliases>(ref<UsingAliasRule>),
+              some(append<&ast::UsingDirective::aliases>(ref<UsingAlias>),
                    lit<",">) +
               lit<"}">)) +
             kw<"for"> +
             (flag<&ast::UsingDirective::forAny>(lit<"*">) |
-             assign<&ast::UsingDirective::forType>(ref<TypeNameRule>)) +
+             assign<&ast::UsingDirective::forType>(ref<TypeName>)) +
             option(flag<&ast::UsingDirective::isGlobal>(kw<"global">)) +
             lit<";">)> {};
 
-  struct ElementaryTypeRule
+  struct ElementaryType
       : rule<create<ast::ElementaryType>(
             assign<&ast::ElementaryType::text>(ElementaryTypeWord) +
             option(assign<&ast::ElementaryType::mutability>(
                 StateMutabilityWord)))> {};
 
-  struct MappingKeyTypeRule
-      : rule<ref<ElementaryTypeRule> |
+  struct MappingKeyType
+      : rule<ref<ElementaryType> |
              create<ast::NamedType>(
                  assign<&ast::NamedType::path>(ref<IdentifierPath>))> {};
 
-  struct MappingTypeRule
+  struct MappingType
       : rule<create<ast::MappingType>(
             kw<"mapping"> + lit<"("> +
-            assign<&ast::MappingType::keyType>(ref<MappingKeyTypeRule>) +
+            assign<&ast::MappingType::keyType>(ref<MappingKeyType>) +
             option(assign<&ast::MappingType::keyName>(ref<Identifier>)) +
             lit<"=>"> +
-            assign<&ast::MappingType::valueType>(ref<TypeNameRule>) +
+            assign<&ast::MappingType::valueType>(ref<TypeName>) +
             option(assign<&ast::MappingType::valueName>(ref<Identifier>)) +
             lit<")">)> {};
 
-  struct FunctionTypeRule
+  struct FunctionType
       : rule<create<ast::FunctionType>(
             kw<"function"> + lit<"("> +
             option(
@@ -495,9 +521,9 @@ struct Solidity : cursiv::GrammarSpec {
                         lit<",">) +
                    lit<")">))> {};
 
-  struct TypeNameRule
-      : rule<(ref<FunctionTypeRule> | ref<MappingTypeRule> |
-              ref<ElementaryTypeRule> |
+  struct TypeName
+      : rule<(ref<FunctionType> | ref<MappingType> |
+              ref<ElementaryType> |
               create<ast::NamedType>(
                   assign<&ast::NamedType::path>(ref<IdentifierPath>))) +
              many(nest<ast::ArrayType, &ast::ArrayType::base>(
@@ -511,23 +537,23 @@ struct Solidity : cursiv::GrammarSpec {
 
   struct PrimaryExpr
       : rule<create<ast::NewExpr>(
-                 kw<"new"> + assign<&ast::NewExpr::type>(ref<TypeNameRule>)) |
+                 kw<"new"> + assign<&ast::NewExpr::type>(ref<TypeName>)) |
              create<ast::PayableConversionExpr>(
                  kw<"payable"> + assign<&ast::PayableConversionExpr::args>(
-                                     ref<CallArgumentsRule>)) |
+                                     ref<CallArguments>)) |
              create<ast::MetaTypeExpr>(
                  kw<"type"> + lit<"("> +
-                 assign<&ast::MetaTypeExpr::type>(ref<TypeNameRule>) +
+                 assign<&ast::MetaTypeExpr::type>(ref<TypeName>) +
                  lit<")">) |
-             ref<TupleExprRule> | ref<InlineArrayExprRule> |
-             ref<NumberLitRule> | ref<BoolLitRule> | ref<StringLitRule> |
-             ref<HexStringLitRule> | ref<UnicodeStringLitRule> |
+             ref<TupleExpr> | ref<InlineArrayExpr> |
+             ref<NumberLit> | ref<BoolLit> | ref<StringLit> |
+             ref<HexStringLit> | ref<UnicodeStringLit> |
              create<ast::ElementaryTypeExpr>(
                  assign<&ast::ElementaryTypeExpr::text>(ElementaryTypeWord)) |
              create<ast::IdentifierExpr>(
                  assign<&ast::IdentifierExpr::name>(ref<Identifier>))> {};
 
-  struct TupleExprRule
+  struct TupleExpr
       : rule<create<ast::TupleExpr>(
             lit<"("> +
             append<&ast::TupleExpr::elements>(ref<Expression> |
@@ -536,32 +562,32 @@ struct Solidity : cursiv::GrammarSpec {
                                 ref<Expression> | create<ast::EmptyExpr>)) +
             lit<")">)> {};
 
-  struct InlineArrayExprRule
+  struct InlineArrayExpr
       : rule<create<ast::InlineArrayExpr>(
             lit<"["> +
             many(append<&ast::InlineArrayExpr::elements>(ref<Expression>),
                  lit<",">) +
             lit<"]">)> {};
 
-  struct NumberLitRule
+  struct NumberLit
       : rule<create<ast::NumberLit>(
             assign<&ast::NumberLit::text>(ref<DECIMAL_NUMBER> |
                                           ref<HEX_NUMBER>) +
             option(assign<&ast::NumberLit::unit>(SubDenominationWord)))> {};
 
-  struct BoolLitRule
+  struct BoolLit
       : rule<create<ast::BoolLit>(flag<&ast::BoolLit::value>(kw<"true">) |
                                   kw<"false">)> {};
 
-  struct StringLitRule
+  struct StringLit
       : rule<create<ast::StringLit>(
             some(append<&ast::StringLit::pieces>(ref<STRING_LIT>)))> {};
 
-  struct HexStringLitRule
+  struct HexStringLit
       : rule<create<ast::HexStringLit>(
             some(append<&ast::HexStringLit::pieces>(ref<HEX_STRING>)))> {};
 
-  struct UnicodeStringLitRule
+  struct UnicodeStringLit
       : rule<create<ast::UnicodeStringLit>(some(
             append<&ast::UnicodeStringLit::pieces>(ref<UNICODE_STRING_LIT>)))> {
   };
@@ -589,11 +615,11 @@ struct Solidity : cursiv::GrammarSpec {
                       &ast::FunctionCallOptionsExpr::callee>(
                      lit<"{"> +
                      option(some(append<&ast::FunctionCallOptionsExpr::options>(
-                                     ref<NamedArgumentRule>),
+                                     ref<NamedArgument>),
                                  lit<",">)) +
                      lit<"}">) |
                  nest<ast::CallExpr, &ast::CallExpr::callee>(
-                     assign<&ast::CallExpr::args>(ref<CallArgumentsRule>)) |
+                     assign<&ast::CallExpr::args>(ref<CallArguments>)) |
                  nest<ast::PostfixExpr, &ast::PostfixExpr::operand>(
                      assign<&ast::PostfixExpr::op>(lit<"++"> | lit<"--">)))> {};
 
@@ -617,19 +643,18 @@ struct Solidity : cursiv::GrammarSpec {
   static constexpr auto OpAnd = lit<"&&">;
   static constexpr auto OpOr = lit<"||">;
 
-  struct BinaryExpr : infix<UnaryExpr, &ast::BinaryExpr::left,
-                            &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                            (right(OpExp) >>       //
-                             left(OpMulDivMod) >>  //
-                             left(OpAddSub) >>     //
-                             left(OpShift) >>      //
-                             left(OpBitAnd) >>     //
-                             left(OpBitXor) >>     //
-                             left(OpBitOr) >>      //
-                             left(OpCompare) >>    //
-                             left(OpEquality) >>   //
-                             left(OpAnd) >>        //
-                             left(OpOr))> {};
+  struct BinaryExpr : infix<UnaryExpr, ast::BinaryExpr,
+                            levels(right(OpExp),       //
+                                   left(OpMulDivMod),  //
+                                   left(OpAddSub),     //
+                                   left(OpShift),      //
+                                   left(OpBitAnd),     //
+                                   left(OpBitXor),     //
+                                   left(OpBitOr),      //
+                                   left(OpCompare),    //
+                                   left(OpEquality),   //
+                                   left(OpAnd),        //
+                                   left(OpOr))> {};
 
   struct ConditionalExpr
       : rule<ref<BinaryExpr> +
@@ -650,15 +675,15 @@ struct Solidity : cursiv::GrammarSpec {
 
   // Statements.
 
-  struct VariableDeclarationRule
+  struct VariableDeclaration
       : rule<create<ast::VariableDeclaration>(
-            assign<&ast::VariableDeclaration::type>(ref<TypeNameRule>) +
+            assign<&ast::VariableDeclaration::type>(ref<TypeName>) +
             option(
                 assign<&ast::VariableDeclaration::location>(DataLocationWord)) +
             assign<&ast::VariableDeclaration::name>(ref<Identifier>))> {};
 
   struct VariableDeclarationSlot
-      : rule<ref<VariableDeclarationRule> | create<ast::VariableDeclaration>> {
+      : rule<ref<VariableDeclaration> | create<ast::VariableDeclaration>> {
   };
   static constexpr auto VariableDeclarationTupleExpr =
       lit<"("> +
@@ -668,10 +693,10 @@ struct Solidity : cursiv::GrammarSpec {
                           ref<VariableDeclarationSlot>)) +
       lit<")">;
 
-  struct VariableDeclarationStatementRule
+  struct VariableDeclarationStatement
       : rule<create<ast::VariableDeclarationStatement>(
             ((assign<&ast::VariableDeclarationStatement::single>(
-                  ref<VariableDeclarationRule>) +
+                  ref<VariableDeclaration>) +
               option(lit<"="> +
                      assign<&ast::VariableDeclarationStatement::initialValue>(
                          ref<Expression>))) |
@@ -682,34 +707,34 @@ struct Solidity : cursiv::GrammarSpec {
                   ref<Expression>))) +
             lit<";">)> {};
 
-  struct ExpressionStatementRule
+  struct ExpressionStatement
       : rule<create<ast::ExpressionStatement>(
             assign<&ast::ExpressionStatement::value>(ref<Expression>) +
             lit<";">)> {};
 
   static constexpr auto SimpleStatement =
-      ref<VariableDeclarationStatementRule> | ref<ExpressionStatementRule>;
+      ref<VariableDeclarationStatement> | ref<ExpressionStatement>;
 
   struct Block
       : rule<create<ast::Block>(
             lit<"{"> +
             many(append<&ast::Block::statements>(ref<Statement>) |
-                 append<&ast::Block::statements>(ref<UncheckedBlockRule>)) +
+                 append<&ast::Block::statements>(ref<UncheckedBlock>)) +
             lit<"}">)> {};
 
-  struct UncheckedBlockRule
+  struct UncheckedBlock
       : rule<create<ast::UncheckedBlock>(
             kw<"unchecked"> + assign<&ast::UncheckedBlock::body>(ref<Block>))> {
   };
 
-  struct IfStatementRule
+  struct IfStatement
       : rule<create<ast::IfStmt>(
             kw<"if"> + lit<"("> + assign<&ast::IfStmt::cond>(ref<Expression>) +
             lit<")"> + assign<&ast::IfStmt::thenBranch>(ref<Statement>) +
             option(kw<"else"> +
                    assign<&ast::IfStmt::elseBranch>(ref<Statement>)))> {};
 
-  struct ForStatementRule
+  struct ForStatement
       : rule<create<ast::ForStmt>(
             kw<"for"> + lit<"("> +
             (assign<&ast::ForStmt::init>(SimpleStatement) | lit<";">)+(
@@ -717,26 +742,26 @@ struct Solidity : cursiv::GrammarSpec {
                 lit<";">)+option(assign<&ast::ForStmt::post>(ref<Expression>)) +
             lit<")"> + assign<&ast::ForStmt::body>(ref<Statement>))> {};
 
-  struct WhileStatementRule
+  struct WhileStatement
       : rule<create<ast::WhileStmt>(
             kw<"while"> + lit<"("> +
             assign<&ast::WhileStmt::cond>(ref<Expression>) + lit<")"> +
             assign<&ast::WhileStmt::body>(ref<Statement>))> {};
 
-  struct DoWhileStatementRule
+  struct DoWhileStatement
       : rule<create<ast::DoWhileStmt>(
             kw<"do"> + assign<&ast::DoWhileStmt::body>(ref<Statement>) +
             kw<"while"> + lit<"("> +
             assign<&ast::DoWhileStmt::cond>(ref<Expression>) + lit<")"> +
             lit<";">)> {};
 
-  struct ContinueStatementRule
+  struct ContinueStatement
       : rule<create<ast::ContinueStmt> + kw<"continue"> + lit<";">> {};
 
-  struct BreakStatementRule
+  struct BreakStatement
       : rule<create<ast::BreakStmt> + kw<"break"> + lit<";">> {};
 
-  struct CatchClauseRule
+  struct CatchClause
       : rule<create<ast::CatchClause>(
             kw<"catch"> +
             option(flag<&ast::CatchClause::hasParameters>(
@@ -748,7 +773,7 @@ struct Solidity : cursiv::GrammarSpec {
                 lit<")">)) +
             assign<&ast::CatchClause::body>(ref<Block>))> {};
 
-  struct TryStatementRule
+  struct TryStatement
       : rule<create<ast::TryStmt>(
             kw<"try"> + assign<&ast::TryStmt::value>(ref<Expression>) +
             option(kw<"returns"> + lit<"("> +
@@ -757,25 +782,27 @@ struct Solidity : cursiv::GrammarSpec {
                         lit<",">) +
                    lit<")">) +
             assign<&ast::TryStmt::body>(ref<Block>) +
-            some(append<&ast::TryStmt::catchClauses>(ref<CatchClauseRule>)))> {
+            some(append<&ast::TryStmt::catchClauses>(ref<CatchClause>)))> {
   };
 
-  struct ReturnStatementRule
+  struct ThrowStatement : rule<create<ast::ThrowStmt> + kw<"throw"> + lit<";">> {};
+
+  struct ReturnStatement
       : rule<create<ast::ReturnStmt>(
             kw<"return"> +
             option(assign<&ast::ReturnStmt::value>(ref<Expression>)) +
             lit<";">)> {};
 
-  struct EmitStatementRule
+  struct EmitStatement
       : rule<create<ast::EmitStmt>(
             kw<"emit"> + assign<&ast::EmitStmt::event>(ref<Expression>) +
-            assign<&ast::EmitStmt::args>(ref<CallArgumentsRule>) + lit<";">)> {
+            assign<&ast::EmitStmt::args>(ref<CallArguments>) + lit<";">)> {
   };
 
-  struct RevertStatementRule
+  struct RevertStatement
       : rule<create<ast::RevertStmt>(
             kw<"revert"> + assign<&ast::RevertStmt::error>(ref<Expression>) +
-            assign<&ast::RevertStmt::args>(ref<CallArgumentsRule>) +
+            assign<&ast::RevertStmt::args>(ref<CallArguments>) +
             lit<";">)> {};
 
   static constexpr auto AssemblyFlagsExpr =
@@ -783,7 +810,7 @@ struct Solidity : cursiv::GrammarSpec {
       some(append<&ast::AssemblyStmt::flags>(ref<STRING_LIT>), lit<",">) +
       lit<")">;
 
-  struct AssemblyStatementRule
+  struct AssemblyStatement
       : rule<create<ast::AssemblyStmt>(
             kw<"assembly"> +
             option(assign<&ast::AssemblyStmt::dialect>(ref<STRING_LIT>)) +
@@ -792,43 +819,48 @@ struct Solidity : cursiv::GrammarSpec {
             lit<"}">)> {};
 
   struct Statement : rule<ref<Block>                               //
-                          | ref<VariableDeclarationStatementRule>  //
-                          | ref<ExpressionStatementRule>           //
-                          | ref<IfStatementRule>                   //
-                          | ref<ForStatementRule>                  //
-                          | ref<WhileStatementRule>                //
-                          | ref<DoWhileStatementRule>              //
-                          | ref<ContinueStatementRule>             //
-                          | ref<BreakStatementRule>                //
-                          | ref<TryStatementRule>                  //
-                          | ref<ReturnStatementRule>               //
-                          | ref<EmitStatementRule>                 //
-                          | ref<RevertStatementRule>               //
-                          | ref<AssemblyStatementRule>> {};
+                          | ref<VariableDeclarationStatement>  //
+                          | ref<ExpressionStatement>           //
+                          | ref<IfStatement>                   //
+                          | ref<ForStatement>                  //
+                          | ref<WhileStatement>                //
+                          | ref<DoWhileStatement>              //
+                          | ref<ContinueStatement>             //
+                          | ref<BreakStatement>                //
+                          | ref<TryStatement>                  //
+                          | ref<ThrowStatement>
+                          | ref<ReturnStatement>               //
+                          | ref<EmitStatement>                 //
+                          | ref<RevertStatement>               //
+                          | ref<AssemblyStatement>> {};
 
   struct ContractBodyElement
-      : rule<ref<ConstructorDefinitionRule>             //
-             | ref<FunctionDefinitionRule>              //
-             | ref<ModifierDefinitionRule>              //
-             | ref<FallbackFunctionDefinitionRule>      //
-             | ref<ReceiveFunctionDefinitionRule>       //
-             | ref<StructDefinitionRule>                //
-             | ref<EnumDefinitionRule>                  //
-             | ref<UserDefinedValueTypeDefinitionRule>  //
-             | ref<StateVariableDeclarationRule>        //
-             | ref<EventDefinitionRule>                 //
-             | ref<ErrorDefinitionRule>                 //
-             | ref<UsingDirectiveRule>> {};
+      : rule<ref<ConstructorDefinition>             //
+             | ref<FunctionDefinition>              //
+             | ref<ModifierDefinition>              //
+             | ref<FallbackFunctionDefinition>      //
+             | ref<ReceiveFunctionDefinition>       //
+             | ref<StructDefinition>                //
+             | ref<EnumDefinition>                  //
+             | ref<UserDefinedValueTypeDefinition>  //
+             | ref<StateVariableDeclaration>        //
+             | ref<EventDefinition>                 //
+             | ref<ErrorDefinition>                 //
+             | ref<UsingDirective>> {};
 
   // Yul (inline assembly).
 
   struct YUL_DECIMAL : terminal<lit<"0"> | (cr<"1-9"> + many(cr<"0-9">))> {};
   struct YUL_HEX_NUMBER : terminal<lit<"0x"> + some(HexChar)> {};
 
-  static constexpr auto YulIdentifierWord =
-      kw<"break"> | kw<"case"> | kw<"continue"> | kw<"default"> | kw<"false"> |
-      kw<"for"> | kw<"function"> | kw<"if"> | kw<"leave"> | kw<"let"> |
-      kw<"switch"> | kw<"true"> | kw<"hex"> | ref<ID>;
+  static constexpr auto YulReserved =
+      (lit<"break"> | lit<"case"> | lit<"continue"> | lit<"default"> | lit<"false"> |
+       lit<"for"> | lit<"function"> | lit<"if"> | lit<"leave"> | lit<"let"> |
+       lit<"switch"> | lit<"true"> | lit<"hex">) + !(word_boundary | cr<".">);
+  // The native Yul scanner includes periods in one identifier token.
+  struct YUL_ID : terminal<!YulReserved + cr<"a-zA-Z_$"> +
+                           many(word_boundary | cr<".">)> {};
+  static constexpr auto YulIdentifierWord = ref<YUL_ID>;
 
   static constexpr auto YulBuiltinWord =
       kw<"stop"> | kw<"add"> | kw<"sub"> | kw<"mul"> | kw<"div"> | kw<"sdiv"> |
@@ -850,16 +882,15 @@ struct Solidity : cursiv::GrammarSpec {
       kw<"coinbase"> | kw<"timestamp"> | kw<"number"> | kw<"difficulty"> |
       kw<"prevrandao"> | kw<"gaslimit"> | kw<"basefee"> | kw<"blobbasefee">;
 
-  struct YulPathRule
-      : rule<(YulIdentifierWord) +
-             many(lit<"."> + (YulIdentifierWord | YulBuiltinWord))> {};
+  struct YulPath
+      : rule<ref<YUL_ID>> {};
 
-  struct YulLiteralRule
+  struct YulLiteral
       : rule<create<ast::YulLiteral>(assign<&ast::YulLiteral::text>(
             ref<YUL_DECIMAL> | ref<STRING_LIT> | ref<YUL_HEX_NUMBER> |
             kw<"true"> | kw<"false"> | ref<HEX_STRING>))> {};
 
-  struct YulFunctionCallRule
+  struct YulFunctionCall
       : rule<create<ast::YulFunctionCall>(
             assign<&ast::YulFunctionCall::name>(YulIdentifierWord |
                                                 YulBuiltinWord) +
@@ -869,9 +900,9 @@ struct Solidity : cursiv::GrammarSpec {
             lit<")">)> {};
 
   struct YulExpression
-      : rule<create<ast::YulPathExpr>(
-                 assign<&ast::YulPathExpr::path>(ref<YulPathRule>)) |
-             ref<YulFunctionCallRule> | ref<YulLiteralRule>> {};
+      : rule<ref<YulLiteral> | ref<YulFunctionCall> |
+             create<ast::YulPathExpr>(
+                 assign<&ast::YulPathExpr::path>(ref<YulPath>))> {};
 
   struct YulBlock
       : rule<create<ast::YulBlock>(
@@ -879,100 +910,100 @@ struct Solidity : cursiv::GrammarSpec {
             many(append<&ast::YulBlock::statements>(ref<YulStatement>)) +
             lit<"}">)> {};
 
-  struct YulVariableDeclarationRule
+  struct YulVariableDeclaration
       : rule<create<ast::YulVariableDeclaration>(
             kw<"let"> +
-            some(append<&ast::YulVariableDeclaration::variables>(ref<ID>),
+            some(append<&ast::YulVariableDeclaration::variables>(ref<YUL_ID>),
                  lit<",">) +
             option(lit<":="> + assign<&ast::YulVariableDeclaration::value>(
                                    ref<YulExpression>)))> {};
 
-  struct YulAssignmentRule
+  struct YulAssignment
       : rule<create<ast::YulAssignment>(
-            some(append<&ast::YulAssignment::targets>(ref<YulPathRule>),
+            some(append<&ast::YulAssignment::targets>(ref<YulPath>),
                  lit<",">) +
             option(lit<":="> +
                    assign<&ast::YulAssignment::value>(ref<YulExpression>)))> {};
 
-  struct YulIfStatementRule
+  struct YulIfStatement
       : rule<create<ast::YulIfStmt>(
             kw<"if"> + assign<&ast::YulIfStmt::cond>(ref<YulExpression>) +
             assign<&ast::YulIfStmt::body>(ref<YulBlock>))> {};
 
-  struct YulForStatementRule
+  struct YulForStatement
       : rule<create<ast::YulForStmt>(
             kw<"for"> + assign<&ast::YulForStmt::init>(ref<YulBlock>) +
             assign<&ast::YulForStmt::cond>(ref<YulExpression>) +
             assign<&ast::YulForStmt::post>(ref<YulBlock>) +
             assign<&ast::YulForStmt::body>(ref<YulBlock>))> {};
 
-  struct YulSwitchCaseRule
+  struct YulSwitchCase
       : rule<create<ast::YulSwitchCase>(
             kw<"case"> +
-            assign<&ast::YulSwitchCase::value>(ref<YulLiteralRule>) +
+            assign<&ast::YulSwitchCase::value>(ref<YulLiteral>) +
             assign<&ast::YulSwitchCase::body>(ref<YulBlock>))> {};
 
-  struct YulSwitchStatementRule
+  struct YulSwitchStatement
       : rule<create<ast::YulSwitchStmt>(
             kw<"switch"> +
             assign<&ast::YulSwitchStmt::value>(ref<YulExpression>) +
-            ((some(append<&ast::YulSwitchStmt::cases>(ref<YulSwitchCaseRule>)) +
+            ((some(append<&ast::YulSwitchStmt::cases>(ref<YulSwitchCase>)) +
               option(kw<"default"> +
                      assign<&ast::YulSwitchStmt::defaultBody>(ref<YulBlock>))) |
              (kw<"default"> +
               assign<&ast::YulSwitchStmt::defaultBody>(ref<YulBlock>))))> {};
 
-  struct YulFunctionDefinitionRule
+  struct YulFunctionDefinition
       : rule<create<ast::YulFunctionDefinition>(
             kw<"function"> +
-            assign<&ast::YulFunctionDefinition::name>(ref<ID>) + lit<"("> +
+            assign<&ast::YulFunctionDefinition::name>(ref<YUL_ID>) + lit<"("> +
             option(
-                append<&ast::YulFunctionDefinition::parameters>(ref<ID>) +
+                append<&ast::YulFunctionDefinition::parameters>(ref<YUL_ID>) +
                 many(lit<","> + append<&ast::YulFunctionDefinition::parameters>(
-                                    ref<ID>))) +
+                                    ref<YUL_ID>))) +
             lit<")"> +
             option(
                 lit<"->"> +
-                append<&ast::YulFunctionDefinition::returnParameters>(ref<ID>) +
+                append<&ast::YulFunctionDefinition::returnParameters>(ref<YUL_ID>) +
                 many(lit<","> +
                      append<&ast::YulFunctionDefinition::returnParameters>(
-                         ref<ID>))) +
+                         ref<YUL_ID>))) +
             assign<&ast::YulFunctionDefinition::body>(ref<YulBlock>))> {};
 
   struct YulStatement
       : rule<ref<YulBlock>                      //
-             | ref<YulVariableDeclarationRule>  //
-             | ref<YulAssignmentRule>           //
-             | ref<YulIfStatementRule>          //
-             | ref<YulForStatementRule>         //
-             | ref<YulSwitchStatementRule>      //
-             | ref<YulFunctionDefinitionRule>   //
+             | ref<YulVariableDeclaration>  //
+             | ref<YulAssignment>           //
+             | ref<YulIfStatement>          //
+             | ref<YulForStatement>         //
+             | ref<YulSwitchStatement>      //
+             | ref<YulFunctionDefinition>   //
              |
              create<ast::YulKeywordStmt>(assign<&ast::YulKeywordStmt::keyword>(
                  kw<"leave"> | kw<"break"> | kw<"continue">))  //
-             | ref<YulFunctionCallRule>> {};
+             | ref<YulFunctionCall>> {};
 
-  struct SourceUnitRule
+  struct SourceUnit
       : rule<create<ast::SourceUnit>(
-            many(append<&ast::SourceUnit::items>(ref<PragmaDirectiveRule>) |
+            many(append<&ast::SourceUnit::items>(ref<PragmaDirective>) |
                  append<&ast::SourceUnit::items>(ref<ImportDirectiveRule>) |
-                 append<&ast::SourceUnit::items>(ref<UsingDirectiveRule>) |
-                 append<&ast::SourceUnit::items>(ref<ContractDefinitionRule>) |
-                 append<&ast::SourceUnit::items>(ref<InterfaceDefinitionRule>) |
-                 append<&ast::SourceUnit::items>(ref<LibraryDefinitionRule>) |
-                 append<&ast::SourceUnit::items>(ref<FunctionDefinitionRule>) |
+                 append<&ast::SourceUnit::items>(ref<UsingDirective>) |
+                 append<&ast::SourceUnit::items>(ref<ContractDefinition>) |
+                 append<&ast::SourceUnit::items>(ref<InterfaceDefinition>) |
+                 append<&ast::SourceUnit::items>(ref<LibraryDefinition>) |
+                 append<&ast::SourceUnit::items>(ref<FunctionDefinition>) |
                  append<&ast::SourceUnit::items>(
-                     ref<ConstantVariableDeclarationRule>) |
-                 append<&ast::SourceUnit::items>(ref<StructDefinitionRule>) |
-                 append<&ast::SourceUnit::items>(ref<EnumDefinitionRule>) |
+                     ref<ConstantVariableDeclaration>) |
+                 append<&ast::SourceUnit::items>(ref<StructDefinition>) |
+                 append<&ast::SourceUnit::items>(ref<EnumDefinition>) |
                  append<&ast::SourceUnit::items>(
-                     ref<UserDefinedValueTypeDefinitionRule>) |
-                 append<&ast::SourceUnit::items>(ref<ErrorDefinitionRule>) |
-                 append<&ast::SourceUnit::items>(ref<EventDefinitionRule>)))> {
+                     ref<UserDefinedValueTypeDefinition>) |
+                 append<&ast::SourceUnit::items>(ref<ErrorDefinition>) |
+                 append<&ast::SourceUnit::items>(ref<EventDefinition>)))> {
   };
 
-  using entry = SourceUnitRule;
-  using ignore = WS;
+  using entry = SourceUnit;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

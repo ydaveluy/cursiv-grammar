@@ -77,6 +77,9 @@ enum class BinOp : std::uint8_t {
   notEqual,
   logicalAnd,
   logicalOr,
+  member,
+  notMember,
+  implies,
 };
 struct BinaryExpr : cursiv::Extends<Expr> {
   Expr* left;
@@ -172,6 +175,11 @@ struct CallStmt : cursiv::Extends<Stmt> {
 struct AssertStmt : cursiv::Extends<Stmt> {
   Expr* cond;
 };
+struct ReturnStmt : cursiv::Extends<Stmt> {};
+struct BeginStmt : cursiv::Extends<Stmt> {
+  vector<Item*> body;
+};
+
 struct ResultStmt : cursiv::Extends<Stmt> {
   Expr* value;
 };

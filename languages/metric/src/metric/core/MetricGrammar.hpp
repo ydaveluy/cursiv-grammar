@@ -19,38 +19,31 @@ struct Metric : cursiv::GrammarSpec {
   // Bare: the matched spelling is an enumerator name of whichever member it
   // is assigned to, so no converter is declared here.
   struct PrefixLetter
-      : terminal<lit<"Q"> | lit<"R"> | lit<"Y"> | lit<"Z"> | lit<"E"> |
-                     lit<"P"> | lit<"G"> | lit<"M"> | lit<"k"> | lit<"h"> |
-                     lit<"da"> | lit<"d"> | lit<"c"> | lit<"n"> | lit<"p"> |
-                     lit<"f"> | lit<"a"> | lit<"z"> | lit<"y"> | lit<"r"> |
-                     lit<"q">,
-                 ast::Prefix> {};
+      : terminal<as<ast::Prefix>(
+            lit<"Q"> | lit<"R"> | lit<"Y"> | lit<"Z"> | lit<"E"> | lit<"P"> |
+            lit<"G"> | lit<"M"> | lit<"k"> | lit<"h"> | lit<"da"> | lit<"d"> |
+            lit<"c"> | lit<"n"> | lit<"p"> | lit<"f"> | lit<"a"> | lit<"z"> |
+            lit<"y"> | lit<"r"> | lit<"q">)> {};
   // Not a legal identifier, so its enumerator is named and matched by hand.
   struct PREFIX_MICRO
-      : terminal<lit<"µ"> | lit<"μ"> | lit<"u">, value<ast::Prefix::micro>> {};
+      : terminal<as<ast::Prefix::micro>(lit<"µ"> | lit<"μ"> | lit<"u">)> {};
 
   struct UnitWord
-      : terminal<lit<"g"> | lit<"s"> | lit<"A"> | lit<"K"> | lit<"mol"> |
-                     lit<"cd"> | lit<"rad"> | lit<"Hz"> | lit<"sr"> | lit<"N"> |
-                     lit<"Pa"> | lit<"J"> | lit<"W"> | lit<"C"> | lit<"V"> |
-                     lit<"F"> | lit<"S"> | lit<"Wb"> | lit<"H"> | lit<"lm"> |
-                     lit<"lx"> | lit<"Bq"> | lit<"Gy"> | lit<"Sv"> | lit<"kat">,
-                 ast::Unit> {};
-  struct UNIT_OHM : terminal<lit<"Ω">, value<ast::Unit::ohm>> {};
-  struct UNIT_DEGC : terminal<lit<"°C"> | lit<"˚C">, value<ast::Unit::degC>> {};
-
-  struct UNIT_ONE : terminal<lit<"1">, value<ast::Unit::dimensionless>> {};
-
-  struct MUL : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIV : terminal<lit<"/">, value<ast::Operator::divide>> {};
+      : terminal<as<ast::Unit>(
+            lit<"g"> | lit<"s"> | lit<"A"> | lit<"K"> | lit<"mol"> | lit<"cd"> |
+            lit<"rad"> | lit<"Hz"> | lit<"sr"> | lit<"N"> | lit<"Pa"> |
+            lit<"J"> | lit<"W"> | lit<"C"> | lit<"V"> | lit<"F"> | lit<"S"> |
+            lit<"Wb"> | lit<"H"> | lit<"lm"> | lit<"lx"> | lit<"Bq"> |
+            lit<"Gy"> | lit<"Sv"> | lit<"kat">)> {};
+  struct UNIT_DEGC : terminal<as<ast::Unit::degC>(lit<"°C"> | lit<"˚C">)> {};
 
   static constexpr auto PrefixTerm = ref<PrefixLetter> | ref<PREFIX_MICRO> |
                                      ref<METRE_OR_MILLI> | ref<TESLA_OR_TERA>;
-  static constexpr auto UnitTerm = ref<UnitWord> | ref<UNIT_OHM> |
+  static constexpr auto UnitTerm = ref<UnitWord> | as<ast::Unit::ohm>(lit<"Ω"> | lit<"Ω">) |
                                    ref<UNIT_DEGC> | ref<METRE_OR_MILLI> |
-                                   ref<TESLA_OR_TERA> | ref<UNIT_ONE>;
+                                   ref<TESLA_OR_TERA> | as<ast::Unit::dimensionless>(kw<"1">);
 
-  struct Measure : rule<option(assign<&ast::Measure::prefix>(PrefixTerm)) +
+  struct Measure : rule<option(assign<&ast::Measure::prefix>(PrefixTerm) + gap::none) +
                         assign<&ast::Measure::unit>(UnitTerm)> {};
 
   struct Uom;
@@ -60,11 +53,12 @@ struct Metric : cursiv::GrammarSpec {
              option(nest<ast::PowerUom, &ast::PowerUom::base>(
                  (lit<"^"> |
                   lit<"**">)+assign<&ast::PowerUom::exponent>(ref<INTE>)))> {};
-  struct Uom : infix<Power, &ast::BinaryUom::left, &ast::BinaryUom::op,
-                     &ast::BinaryUom::right, left(ref<MUL> | ref<DIV>)> {};
+  struct Uom : infix<Power, ast::BinaryUom,
+                     left(as<ast::Operator::multiply>(lit<"*"> | lit<"·">) |
+                          as<ast::Operator::divide>(lit<"/">))> {};
 
   using entry = Uom;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 } // namespace metric

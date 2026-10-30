@@ -54,6 +54,31 @@ int main() {
   auto language = cursiv::create_language<prolog::PrologCoreServices,
                                           prolog::PrologSharedCoreServices,
                                           prolog::install_core_module>();
+  {
+    const std::string source="f(1_ /* outer ' /* inner */ outer */ 2,0x1_ % line\n f,16'f_ /* gap */ f). tag{[]:1,'[]':2}.";
+    cursiv::Document document(cursiv::TextDocument::create("file:///native.pl","prolog",0,source));
+    document.language=&language.language;
+    document.parseResult=language.language.parser->parse(source);
+    auto* p=document.parseResult.value_as<a::PText>();
+    auto* call=p&&p->items.size()==2?cursiv::ast_cast<a::CompoundTerm>(p->items[0]->term):nullptr;
+    auto* dict=p&&p->items.size()==2?cursiv::ast_cast<a::DictTerm>(p->items[1]->term):nullptr;
+    check(document.parseSucceeded()&&!document.parseRecovered()&&document.parseResult.diagnostics.empty()&&
+        call&&call->args.size()==3&&dict&&dict->entries.size()==2,"native grouped-comment integers and nil dict key parse");
+    if(call&&call->args.size()==3) {
+      const char* expected[]={"12","31","255"};
+      for(unsigned i=0;i<3;++i) {
+        auto* n=cursiv::ast_cast<a::IntegerTerm>(call->args[i]);
+        check(n&&n->value==expected[i],"grouped numeric comments do not corrupt integer AST value");
+      }
+    }
+    if(dict&&dict->entries.size()==2)
+      check(cursiv::ast_cast<a::NilTerm>(dict->entries[0]->key)&&
+          cursiv::ast_cast<a::AtomTerm>(dict->entries[1]->key),"nil and quoted atom remain distinct dict keys");
+    if(document.parseResult.value)document.parseResult.value->parent=&document;
+    std::vector<cursiv::Diagnostic> diagnostics;
+    language.language.documentValidator->validateDocument(document,diagnostics);
+    check(diagnostics.empty(),"native nil and grouped numeric comments need no diagnostic");
+  }
   for (auto path : {CURSIV_EXAMPLE1, CURSIV_CONSTRUCTS}) {
     auto source = read(path);
     auto result = language.language.parser->parse(source);
@@ -326,6 +351,24 @@ int main() {
                                                           diagnostics);
     check(diagnostics.empty(), fixture.name);
   }
+  for(const auto source:{"{}{}.","!{a:1}.",";{a:1}.","|{a:1}."}) {
+    cursiv::Document document(cursiv::TextDocument::create("file:///dict-tag.pl","prolog",0,source));
+    document.language=&language.language;
+    document.parseResult=language.language.parser->parse(source);
+    if(document.parseResult.value)document.parseResult.value->parent=&document;
+    std::vector<cursiv::Diagnostic> diagnostics;
+    language.language.documentValidator->validateDocument(document,diagnostics);
+    check(!diagnostics.empty(),"native-invalid unquoted dict tag needs a diagnostic");
+  }
+  for(const auto source:{"'{}'{a:1}.","'!'{a:1}.","+{a:1}.","table{a:1}.","1_/*r'*/2r3_/*quote'*/4."}) {
+    cursiv::Document document(cursiv::TextDocument::create("file:///dict-tag.pl","prolog",0,source));
+    document.language=&language.language;
+    document.parseResult=language.language.parser->parse(source);
+    if(document.parseResult.value)document.parseResult.value->parent=&document;
+    std::vector<cursiv::Diagnostic> diagnostics;
+    language.language.documentValidator->validateDocument(document,diagnostics);
+    check(document.parseSucceeded()&&!document.parseRecovered()&&diagnostics.empty(),"native quoted/graphic/keyword dict tags remain valid");
+  }
   struct InvalidCase {
     const char *source;
     const char *code;
@@ -344,6 +387,7 @@ int main() {
       {"f([a|b|c]).", "prolog.list-tail"},
       {"f([a|b;c,d]).", "prolog.list-tail"},
       {"tag{a:1,a:2}.", "prolog.dict-key"},
+      {"tag{[]:1,[]:2}.", "prolog.dict-key"},
       {"tag{X:1}.", "prolog.dict-key"},
       {"f (a).", "prolog.functor-gap"},
       {"f(1e309).", "prolog.float-range"},

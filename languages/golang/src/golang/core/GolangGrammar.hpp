@@ -1,10 +1,49 @@
 // The golang language: its grammar.
 #pragma once
 
+#include <charconv>
+#include <cstdint>
+#include <string_view>
+
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "golang/core/ast.hpp"
 
 namespace golang {
+
+inline constexpr auto checked_literal = [](std::string_view text)
+    -> cursiv::ConversionResult<std::string_view> {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (text.size() < 2 || (text.front() != '\'' && text.front() != '"') ||
+      text.back() != text.front())
+    return Result::err("Incomplete rune or string literal.");
+  for (std::size_t i = 1; i + 1 < text.size(); ++i) {
+    if (text[i] != '\\') continue;
+    if (i + 1 >= text.size() - 1)
+      return Result::err("Incomplete literal escape.");
+    const char escape = text[++i];
+    if (escape == 'u' || escape == 'U') {
+      const std::size_t count = escape == 'u' ? 4 : 8;
+      // A recovery fragment need not contain the terminal's complete escape.
+      if (count > text.size() - i - 2)
+        return Result::err("Incomplete Unicode escape.");
+      std::uint32_t value = 0;
+      const auto converted = std::from_chars(text.data() + i + 1,
+                                             text.data() + i + 1 + count,
+                                             value, 16);
+      if (converted.ec != std::errc{} ||
+          converted.ptr != text.data() + i + 1 + count || value > 0x10ffff ||
+          (value >= 0xd800 && value <= 0xdfff))
+        return cursiv::ConversionResult<std::string_view>::err(
+            "Unicode escapes must encode a Unicode scalar value.");
+      i += count;
+    } else if (escape == 'x' || (escape >= '0' && escape <= '3')) {
+      if (i + 2 >= text.size() - 1)
+        return Result::err("Incomplete byte escape.");
+      i += 2;
+    }
+  }
+  return cursiv::ConversionResult<std::string_view>::ok(text);
+};
 
 struct Golang : cursiv::GrammarSpec {
   // -- Trivia ---- a newline is ordinary trivia everywhere; automatic
@@ -14,7 +53,14 @@ struct Golang : cursiv::GrammarSpec {
   struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\n)">)> {};
   struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
-  struct ID : terminal<(uc::L | cr<"_">) + many(uc::L | uc::Nd | cr<"_">)> {};
+  static constexpr auto ReservedWords =
+      kw<"break"> | kw<"default"> | kw<"func"> | kw<"interface"> | kw<"select"> |
+      kw<"case"> | kw<"defer"> | kw<"go"> | kw<"map"> | kw<"struct"> |
+      kw<"chan"> | kw<"else"> | kw<"goto"> | kw<"package"> | kw<"switch"> |
+      kw<"const"> | kw<"fallthrough"> | kw<"if"> | kw<"range"> | kw<"type"> |
+      kw<"continue"> | kw<"for"> | kw<"import"> | kw<"return"> | kw<"var">;
+  struct ID : terminal<!ReservedWords + (uc::L | cr<"_">) +
+                       many(uc::L | uc::Nd | cr<"_">)> {};
 
   // -- Literals ----
   static constexpr auto Digits = many(option(lit<"_">) + cr<"0-9">);
@@ -54,32 +100,34 @@ struct Golang : cursiv::GrammarSpec {
   static constexpr auto EscapedValue =
       lit<"\\"> +
       ((lit<"u"> + repeat<4>(cr<"0-9a-fA-F">)) |
-       (lit<"U"> + repeat<8>(cr<"0-9a-fA-F">)) | cr<R"(abfnrtv\\'")">  //
-       | repeat<3>(cr<"0-7">) | (lit<"x"> + repeat<2>(cr<"0-9a-fA-F">)));
+       (lit<"U"> + repeat<8>(cr<"0-9a-fA-F">)) | cr<R"(abfnrtv\\)">  //
+       | (cr<"0-3"> + repeat<2>(cr<"0-7">)) |
+       (lit<"x"> + repeat<2>(cr<"0-9a-fA-F">)));
 
   struct RUNE_LIT
-      : terminal<lit<"'"> + (EscapedValue | ~cr<R"(\n')">) +
-                 lit<"'">> {};
+      : terminal<as<checked_literal>(
+            lit<"'"> + (EscapedValue | lit<"\\'"> | cr<R"(^\n'\\)">) +
+            lit<"'">)> {};
 
   struct RAW_STRING : terminal<lit<"`"> + many(cr<"^`">) + lit<"`">> {};
   struct INTERPRETED_STRING
-      : terminal<lit<"\""> + many(EscapedValue | cr<R"(^"\\\n)">) + lit<"\"">> {
+      : terminal<as<checked_literal>(lit<"\""> +
+          many(EscapedValue | lit<"\\\""> | cr<R"(^"\\\n)">) + lit<"\"">)> {
   };
 
   // -- Forward declarations of the mutually-recursive rules ----
   struct Type_;
   struct Expression;
   struct Statement;
-  struct BlockRule;
+  struct Block;
 
   // -- Shared list helpers ----
   template <auto Ptr>
   static constexpr auto IdentListInto =
-      append<Ptr>(ref<ID>) + many(lit<","> + append<Ptr>(ref<ID>));
-  template <auto Ptr>
+      some(append<Ptr>(ref<ID>), lit<",">);
+  template <auto Ptr, class Expr = Expression>
   static constexpr auto ExprListInto =
-      append<Ptr>(ref<Expression>) +
-      many(lit<","> + append<Ptr>(ref<Expression>));
+      some(append<Ptr>(ref<Expr>), lit<",">);
 
   // Go inserts a semicolon after a line's final identifier, literal,
   // break/continue/fallthrough/return, `++`, `--`, `)`, `]` or `}` --
@@ -100,7 +148,7 @@ struct Golang : cursiv::GrammarSpec {
   static constexpr auto SameLine = !LineBreak;
   static constexpr auto HeaderSemi = lit<";"> | LineBreak;
 
-  struct EmptyStmtRule : rule<create<ast::EmptyStmt>(lit<";">)> {};
+  struct EmptyStmt : rule<create<ast::EmptyStmt>(lit<";">)> {};
 
   template <auto Ptr>
   static constexpr auto StatementsInto =
@@ -111,8 +159,7 @@ struct Golang : cursiv::GrammarSpec {
   // ======================================================================
 
   static constexpr auto TypeArgsBody =
-      option(lit<"["> + append<&ast::NamedType::typeArgs>(ref<Type_>) +
-             many(lit<","> + append<&ast::NamedType::typeArgs>(ref<Type_>)) +
+      option(lit<"["> + some(append<&ast::NamedType::typeArgs>(ref<Type_>), lit<",">) +
              option(lit<",">) + lit<"]">);
 
   struct QualifiedOrNamedType
@@ -122,7 +169,7 @@ struct Golang : cursiv::GrammarSpec {
              | create<ast::NamedType>(
                    assign<&ast::NamedType::name>(ref<ID>) + TypeArgsBody)> {};
 
-  struct PointerTypeRule
+  struct PointerType
       : rule<create<ast::PointerType>(
             lit<"*"> + assign<&ast::PointerType::base>(ref<Type_>))> {};
 
@@ -134,14 +181,14 @@ struct Golang : cursiv::GrammarSpec {
                    lit<"["> + lit<"]"> +
                    assign<&ast::SliceType::elem>(ref<Type_>))> {};
 
-  struct MapTypeRule
+  struct MapType
       : rule<create<ast::MapType>(
             kw<"map"> + lit<"["> + assign<&ast::MapType::key>(ref<Type_>) +
             lit<"]"> + assign<&ast::MapType::elem>(ref<Type_>))> {};
 
   // `chan<-` is tried before bare `chan`, so `<-` binds to the leftmost
   // `chan` -- the language spec's own tie-break for `chan<- chan T`.
-  struct ChannelTypeRule
+  struct ChannelType
       : rule<create<ast::ChannelType>(
                  kw<"chan"> +
                  flag<&ast::ChannelType::sendOnly>(lit<"<-">) +
@@ -154,7 +201,7 @@ struct Golang : cursiv::GrammarSpec {
                    kw<"chan"> +
                    assign<&ast::ChannelType::elem>(ref<Type_>))> {};
 
-  struct ParamDeclRule
+  struct ParamDecl
       : rule<create<ast::Param>(
                  IdentListInto<&ast::Param::names> +
                  option(flag<&ast::Param::variadic>(lit<"...">)) +
@@ -166,51 +213,48 @@ struct Golang : cursiv::GrammarSpec {
   template <auto Ptr>
   static constexpr auto ParamsInto =
       lit<"("> +
-      option(append<Ptr>(ref<ParamDeclRule>) +
-             many(lit<","> + append<Ptr>(ref<ParamDeclRule>)) +
+      option(some(append<Ptr>(ref<ParamDecl>), lit<",">) +
              option(lit<",">)) +
       lit<")">;
 
-  struct UnnamedResultRule
+  struct UnnamedResult
       : rule<create<ast::Param>(assign<&ast::Param::type>(ref<Type_>))> {};
 
-  struct SignatureRule
+  struct Signature
       : rule<create<ast::Signature>(
             ParamsInto<&ast::Signature::params> +
             option(SameLine +
                    (ParamsInto<&ast::Signature::results>  //
-                    | append<&ast::Signature::results>(ref<UnnamedResultRule>))))> {
+                    | append<&ast::Signature::results>(ref<UnnamedResult>))))> {
   };
 
-  struct FuncTypeRule
+  struct FuncType
       : rule<create<ast::FuncType>(
-            kw<"func"> + assign<&ast::FuncType::sig>(ref<SignatureRule>))> {};
+            kw<"func"> + assign<&ast::FuncType::sig>(ref<Signature>))> {};
 
-  struct MethodSpecRule
+  struct MethodSpec
       : rule<create<ast::MethodSpec>(
             assign<&ast::MethodSpec::name>(ref<ID>) +
-            assign<&ast::MethodSpec::sig>(ref<SignatureRule>))> {};
+            assign<&ast::MethodSpec::sig>(ref<Signature>))> {};
 
-  struct TypeTermRule
+  struct TypeTerm
       : rule<create<ast::TypeTerm>(
             option(flag<&ast::TypeTerm::underlying>(lit<"~">)) +
             assign<&ast::TypeTerm::type>(ref<Type_>))> {};
 
-  struct TypeElementRule
+  struct TypeElement
       : rule<create<ast::TypeElement>(
-            append<&ast::TypeElement::terms>(ref<TypeTermRule>) +
-            many(lit<"|"> +
-                 append<&ast::TypeElement::terms>(ref<TypeTermRule>)))> {};
+            some(append<&ast::TypeElement::terms>(ref<TypeTerm>), lit<"|">))> {};
 
-  struct InterfaceTypeRule
+  struct InterfaceType
       : rule<create<ast::InterfaceType>(
             kw<"interface"> + lit<"{"> +
-            many((append<&ast::InterfaceType::methods>(ref<MethodSpecRule>)  //
-                  | append<&ast::InterfaceType::embeds>(ref<TypeElementRule>)) +
+            many((append<&ast::InterfaceType::methods>(ref<MethodSpec>)  //
+                  | append<&ast::InterfaceType::embeds>(ref<TypeElement>)) +
                  Eos) +
             lit<"}">)> {};
 
-  struct FieldDeclRule
+  struct FieldDecl
       : rule<create<ast::FieldDecl>(
                  IdentListInto<&ast::FieldDecl::names> + SameLine +
                  assign<&ast::FieldDecl::type>(ref<Type_>) +
@@ -224,39 +268,38 @@ struct Golang : cursiv::GrammarSpec {
                    option(assign<&ast::FieldDecl::tag>(
                        ref<RAW_STRING> | ref<INTERPRETED_STRING>)))> {};
 
-  struct StructTypeRule
+  struct StructType
       : rule<create<ast::StructType>(
             kw<"struct"> + lit<"{"> +
-            many(append<&ast::StructType::fields>(ref<FieldDeclRule>) + Eos) +
+            many(append<&ast::StructType::fields>(ref<FieldDecl>) + Eos) +
             lit<"}">)> {};
 
   struct Type_
       : rule<ref<QualifiedOrNamedType>  //
-             | ref<PointerTypeRule>     //
+             | ref<PointerType>     //
              | ref<ArrayOrSliceType>    //
-             | ref<StructTypeRule>      //
-             | ref<FuncTypeRule>        //
-             | ref<InterfaceTypeRule>   //
-             | ref<MapTypeRule>         //
-             | ref<ChannelTypeRule>     //
+             | ref<StructType>      //
+             | ref<FuncType>        //
+             | ref<InterfaceType>   //
+             | ref<MapType>         //
+             | ref<ChannelType>     //
              | (lit<"("> + ref<Type_> + lit<")">)> {};
 
-  struct TypeParamRule
+  struct TypeParam
       : rule<create<ast::TypeParam>(
             IdentListInto<&ast::TypeParam::names> +
-            assign<&ast::TypeParam::constraint>(ref<TypeElementRule>))> {};
+            assign<&ast::TypeParam::constraint>(ref<TypeElement>))> {};
 
   template <auto Ptr>
   static constexpr auto TypeParamsInto =
-      option(lit<"["> + append<Ptr>(ref<TypeParamRule>) +
-             many(lit<","> + append<Ptr>(ref<TypeParamRule>)) +
+      option(lit<"["> + some(append<Ptr>(ref<TypeParam>), lit<",">) +
              option(lit<",">) + lit<"]">);
 
   // ======================================================================
   // Expressions
   // ======================================================================
 
-  struct BasicLitRule
+  struct BasicLit
       : rule<create<ast::ImaginaryLit>(
                    assign<&ast::ImaginaryLit::text>(ref<IMAGINARY_LIT>))  //
              | create<ast::IntLit>(
@@ -268,98 +311,104 @@ struct Golang : cursiv::GrammarSpec {
              | create<ast::FloatLit>(
                    assign<&ast::FloatLit::text>(ref<FLOAT_LIT>))> {};
 
-  struct IdentExprRule
+  struct IdentExpr
       : rule<create<ast::Ident>(assign<&ast::Ident::name>(ref<ID>))> {};
 
-  struct FuncLitRule
+  struct FuncLit
       : rule<create<ast::FuncLit>(
-            kw<"func"> + assign<&ast::FuncLit::sig>(ref<SignatureRule>) +
-            assign<&ast::FuncLit::body>(ref<BlockRule>))> {};
+            kw<"func"> + assign<&ast::FuncLit::sig>(ref<Signature>) +
+            assign<&ast::FuncLit::body>(ref<Block>))> {};
 
-  struct LiteralValueRule;
+  struct LiteralValue;
 
-  struct KeyedElementRule
+  struct KeyedElement
       : rule<create<ast::KeyedElement>(
             option(assign<&ast::KeyedElement::key>(
-                       ref<Expression> | ref<LiteralValueRule>) +
+                       ref<Expression> | ref<LiteralValue>) +
                    lit<":">) +
             assign<&ast::KeyedElement::value>(ref<Expression> |
-                                              ref<LiteralValueRule>))> {};
+                                              ref<LiteralValue>))> {};
 
-  struct LiteralValueRule
+  struct LiteralValue
       : rule<create<ast::LiteralValue>(
             lit<"{"> +
-            option(append<&ast::LiteralValue::elements>(ref<KeyedElementRule>) +
+            option(append<&ast::LiteralValue::elements>(ref<KeyedElement>) +
                    many(lit<","> + append<&ast::LiteralValue::elements>(
-                                       ref<KeyedElementRule>)) +
+                                       ref<KeyedElement>)) +
                    option(lit<",">)) +
             lit<"}">)> {};
 
   // A type literal's own head, for a composite literal: like `Type_` but
   // without the parenthesised form (never useful as a literal's type) and
   // with the array form's ellipsis-length alternative.
-  struct LiteralTypeRule
-      : rule<ref<StructTypeRule>  //
-             | create<ast::ArrayType>(
-                   lit<"["> +
-                   flag<&ast::ArrayType::ellipsisLen>(lit<"...">) +
-                   lit<"]"> + assign<&ast::ArrayType::elem>(ref<Type_>))  //
-             | ref<ArrayOrSliceType>  //
-             | ref<MapTypeRule>       //
-             | ref<QualifiedOrNamedType>> {};
+  static constexpr auto AnonymousLiteralType =
+      ref<StructType> |
+      create<ast::ArrayType>(
+          lit<"["> + flag<&ast::ArrayType::ellipsisLen>(lit<"...">) +
+          lit<"]"> + assign<&ast::ArrayType::elem>(ref<Type_>)) |
+      ref<ArrayOrSliceType> | ref<MapType>;
 
-  struct CompositeLitRule
+  struct LiteralType
+      : rule<AnonymousLiteralType | ref<QualifiedOrNamedType>> {};
+
+  struct CompositeLit
       : rule<create<ast::CompositeLit>(
-            assign<&ast::CompositeLit::type>(ref<LiteralTypeRule>) +
-            assign<&ast::CompositeLit::value>(ref<LiteralValueRule>))> {};
+            assign<&ast::CompositeLit::type>(ref<LiteralType>) +
+            assign<&ast::CompositeLit::value>(ref<LiteralValue>))> {};
 
-  struct ParenExprRule
+  // A named type followed by { starts the control statement's block at
+  // header depth zero (Go1.24 Composite literals; parser.go exprLev < 0).
+  // Nested (), [], call arguments, literal values and function bodies use
+  // the ordinary expression rules, so named composites remain valid there.
+  struct HeaderCompositeLit
+      : rule<create<ast::CompositeLit>(
+            assign<&ast::CompositeLit::type>(AnonymousLiteralType) +
+            assign<&ast::CompositeLit::value>(ref<LiteralValue>))> {};
+
+  struct ParenExpr
       : rule<create<ast::ParenExpr>(
             lit<"("> + assign<&ast::ParenExpr::inner>(ref<Expression>) +
             lit<")">)> {};
 
-  struct MethodExprRule
+  struct MethodExpr
       : rule<create<ast::MethodExpr>(
             assign<&ast::MethodExpr::type>(
-                ref<ArrayOrSliceType> | ref<StructTypeRule> | ref<FuncTypeRule> |
-                ref<InterfaceTypeRule> | ref<MapTypeRule> | ref<ChannelTypeRule>) +
+                ref<ArrayOrSliceType> | ref<StructType> | ref<FuncType> |
+                ref<InterfaceType> | ref<MapType> | ref<ChannelType>) +
             lit<"."> + assign<&ast::MethodExpr::method>(ref<ID>))> {};
 
-  struct OperandRule
-      : rule<ref<BasicLitRule>        //
-             | ref<CompositeLitRule>  //
-             | ref<FuncLitRule>       //
-             | ref<MethodExprRule>    //
-             | ref<ParenExprRule>     //
-             | ref<IdentExprRule>> {};
+  static constexpr auto NonCompositeOperand =
+      ref<BasicLit> | ref<FuncLit> | ref<MethodExpr> |
+      ref<ParenExpr> | ref<IdentExpr>;
+  struct Operand : rule<ref<CompositeLit> | NonCompositeOperand> {};
+  struct HeaderOperand : rule<ref<HeaderCompositeLit> | NonCompositeOperand> {};
 
   // `T(x)`: a conversion, only reachable for a type literal or a
   // parenthesised type -- a plain named type is already a call once
-  // `OperandRule` reads it.
-  struct ConversionRule
+  // `Operand` reads it.
+  struct Conversion
       : rule<create<ast::ConversionExpr>(
             assign<&ast::ConversionExpr::type>(
-                ref<PointerTypeRule> | ref<ArrayOrSliceType> |
-                ref<StructTypeRule> | ref<FuncTypeRule> |
-                ref<InterfaceTypeRule> | ref<MapTypeRule> |
-                ref<ChannelTypeRule> | (lit<"("> + ref<Type_> + lit<")">)) +
+                ref<PointerType> | ref<ArrayOrSliceType> |
+                ref<StructType> | ref<FuncType> |
+                ref<InterfaceType> | ref<MapType> |
+                ref<ChannelType> | (lit<"("> + ref<Type_> + lit<")">)) +
             lit<"("> + assign<&ast::ConversionExpr::operand>(ref<Expression>) +
             option(lit<",">) + lit<")">)> {};
 
   // Go's parser represents types as expressions in call/type-argument
   // lists. Keep our distinct Type hierarchy behind an explicit wrapper;
   // names and pointer expressions keep their existing expression reading.
-  struct TypeExprRule
+  struct TypeExpr
       : rule<create<ast::TypeExpr>(assign<&ast::TypeExpr::type>(ref<Type_>))> {};
 
-  struct ArgumentRule : rule<ref<Expression> | ref<TypeExprRule>> {};
+  struct Argument : rule<ref<Expression> | ref<TypeExpr>> {};
 
   static constexpr auto PrimaryExprTail =
       nest<ast::SelectorExpr, &ast::SelectorExpr::operand>(
           lit<"."> + assign<&ast::SelectorExpr::field>(ref<ID>)) |
       nest<ast::IndexExpr, &ast::IndexExpr::operand>(
-          lit<"["> + append<&ast::IndexExpr::indices>(ref<ArgumentRule>) +
-          many(lit<","> + append<&ast::IndexExpr::indices>(ref<ArgumentRule>)) +
+          lit<"["> + some(append<&ast::IndexExpr::indices>(ref<Argument>), lit<",">) +
           option(lit<",">) +
           lit<"]">) |
       nest<ast::SliceExpr, &ast::SliceExpr::operand>(
@@ -372,23 +421,28 @@ struct Golang : cursiv::GrammarSpec {
           lit<")">) |
       nest<ast::CallExpr, &ast::CallExpr::callee>(
           lit<"("> +
-          option(append<&ast::CallExpr::args>(ref<ArgumentRule>) +
-                 many(lit<","> + append<&ast::CallExpr::args>(ref<ArgumentRule>)) +
+          option(some(append<&ast::CallExpr::args>(ref<Argument>), lit<",">) +
                  option(flag<&ast::CallExpr::ellipsis>(lit<"...">)) +
                  option(lit<",">)) +
           lit<")">);
 
-  struct PrimaryExprRule
-      : rule<(ref<OperandRule> | ref<ConversionRule>) +
-             many(SameLine + PrimaryExprTail)> {};
+  template <class OperandRule>
+  static constexpr auto PrimaryBody =
+      (ref<OperandRule> | ref<Conversion>) + many(SameLine + PrimaryExprTail);
+  struct PrimaryExpr : rule<PrimaryBody<Operand>> {};
+  struct HeaderPrimaryExpr : rule<PrimaryBody<HeaderOperand>> {};
 
-  struct UnaryExprRule
-      : rule<create<ast::UnaryExpr>(
+  struct UnaryExpr;
+  struct HeaderUnaryExpr;
+  template <class Self, class Primary>
+  static constexpr auto UnaryBody =
+      create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-"> | lit<"!"> |
                                              lit<"^"> | lit<"&"> | lit<"*"> |
                                              lit<"<-">) +
-                 assign<&ast::UnaryExpr::operand>(ref<UnaryExprRule>))  //
-             | ref<PrimaryExprRule>> {};
+                 assign<&ast::UnaryExpr::operand>(ref<Self>)) | ref<Primary>;
+  struct UnaryExpr : rule<UnaryBody<UnaryExpr, PrimaryExpr>> {};
+  struct HeaderUnaryExpr : rule<UnaryBody<HeaderUnaryExpr, HeaderPrimaryExpr>> {};
 
   struct MulOp : rule<SameLine + (lit<"*"> | lit<"/"> | lit<"%"> |
                                   lit<"<<"> | lit<">>"> | lit<"&^"> | lit<"&">)> {};
@@ -398,13 +452,13 @@ struct Golang : cursiv::GrammarSpec {
   struct AndOp : rule<SameLine + lit<"&&">> {};
   struct OrOp : rule<SameLine + lit<"||">> {};
 
-  struct BinaryExprRule
-      : infix<UnaryExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<MulOp>) >> left(ref<AddOp>) >> left(ref<CompareOp>) >>
-               left(ref<AndOp>) >> left(ref<OrOp>))> {};
+  static constexpr auto BinaryLevels =
+      levels(left(ref<MulOp>), left(ref<AddOp>), left(ref<CompareOp>),
+             left(ref<AndOp>), left(ref<OrOp>));
+  struct BinaryExpr : infix<UnaryExpr, ast::BinaryExpr, BinaryLevels> {};
+  struct HeaderExpression : infix<HeaderUnaryExpr, ast::BinaryExpr, BinaryLevels> {};
 
-  struct Expression : rule<ref<BinaryExprRule>> {};
+  struct Expression : rule<ref<BinaryExpr>> {};
 
   // ======================================================================
   // Statements
@@ -414,96 +468,99 @@ struct Golang : cursiv::GrammarSpec {
       lit<"+="> | lit<"-="> | lit<"|="> | lit<"^="> | lit<"*="> | lit<"/="> |
       lit<"%="> | lit<"<<="> | lit<">>="> | lit<"&^="> | lit<"&="> | lit<"=">;
 
-  struct SimpleStmt
-      : rule<create<ast::SendStmt>(
-                 assign<&ast::SendStmt::channel>(ref<Expression>) + SameLine + lit<"<-"> +
-                 assign<&ast::SendStmt::value>(ref<Expression>))  //
+  template <class Expr>
+  static constexpr auto SimpleStmtBody =
+      create<ast::SendStmt>(
+                 assign<&ast::SendStmt::channel>(ref<Expr>) + SameLine + lit<"<-"> +
+                 assign<&ast::SendStmt::value>(ref<Expr>))  //
              | create<ast::IncDecStmt>(
-                   assign<&ast::IncDecStmt::operand>(ref<Expression>) +
+                   assign<&ast::IncDecStmt::operand>(ref<Expr>) +
                    assign<&ast::IncDecStmt::op>(lit<"++"> | lit<"--">))  //
              | create<ast::ShortVarDecl>(
                    IdentListInto<&ast::ShortVarDecl::names> + lit<":="> +
-                   ExprListInto<&ast::ShortVarDecl::values>)  //
+                   ExprListInto<&ast::ShortVarDecl::values, Expr>)  //
              | create<ast::AssignStmt>(
-                   ExprListInto<&ast::AssignStmt::lhs> +
+                   ExprListInto<&ast::AssignStmt::lhs, Expr> +
                    assign<&ast::AssignStmt::op>(AssignOp) +
-                   ExprListInto<&ast::AssignStmt::rhs>)  //
+                   ExprListInto<&ast::AssignStmt::rhs, Expr>)  //
              | create<ast::ExprStmt>(
-                   assign<&ast::ExprStmt::value>(ref<Expression>))> {};
+                   assign<&ast::ExprStmt::value>(ref<Expr>));
+  struct SimpleStmt : rule<SimpleStmtBody<Expression>> {};
+  struct HeaderSimpleStmt : rule<SimpleStmtBody<HeaderExpression>> {};
 
-  struct BlockRule
+  struct Block
       : rule<create<ast::Block>(
             lit<"{"> + StatementsInto<&ast::Block::stmts> +
             lit<"}">)> {};
 
-  struct LabeledStmtRule
+  struct LabeledStmt
       : rule<create<ast::LabeledStmt>(
             assign<&ast::LabeledStmt::label>(ref<ID>) + lit<":"> +
             option(assign<&ast::LabeledStmt::stmt>(ref<Statement>)))> {};
 
-  struct ReturnStmtRule
+  struct ReturnStmt
       : rule<create<ast::ReturnStmt>(
             kw<"return"> +
             option(SameLine + ExprListInto<&ast::ReturnStmt::values>))> {};
 
-  struct BreakStmtRule
+  struct BreakStmt
       : rule<create<ast::BreakStmt>(
             kw<"break"> +
             option(SameLine + assign<&ast::BreakStmt::label>(ref<ID>)))> {};
 
-  struct ContinueStmtRule
+  struct ContinueStmt
       : rule<create<ast::ContinueStmt>(
             kw<"continue"> +
             option(SameLine + assign<&ast::ContinueStmt::label>(ref<ID>)))> {};
 
-  struct GotoStmtRule
+  struct GotoStmt
       : rule<create<ast::GotoStmt>(
             kw<"goto"> + assign<&ast::GotoStmt::label>(ref<ID>))> {};
 
-  struct FallthroughStmtRule
+  struct FallthroughStmt
       : rule<create<ast::FallthroughStmt>(kw<"fallthrough">)> {};
 
-  struct GoStmtRule
+  struct GoStmt
       : rule<create<ast::GoStmt>(
             kw<"go"> + assign<&ast::GoStmt::call>(ref<Expression>))> {};
 
-  struct DeferStmtRule
+  struct DeferStmt
       : rule<create<ast::DeferStmt>(
             kw<"defer"> + assign<&ast::DeferStmt::call>(ref<Expression>))> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<create<ast::IfStmt>(
             kw<"if"> +
-            ((option(assign<&ast::IfStmt::init>(ref<SimpleStmt>)) + HeaderSemi +
-              assign<&ast::IfStmt::cond>(ref<Expression>))  //
-             | assign<&ast::IfStmt::cond>(ref<Expression>)) +
-            assign<&ast::IfStmt::then_>(ref<BlockRule>) +
-            option(commit(SameLine + kw<"else">, assign<&ast::IfStmt::else_>(ref<IfStmtRule> |
-                                                 ref<BlockRule>))))> {};
+            ((option(assign<&ast::IfStmt::init>(ref<HeaderSimpleStmt>)) + HeaderSemi +
+              assign<&ast::IfStmt::cond>(ref<HeaderExpression>))  //
+             | assign<&ast::IfStmt::cond>(ref<HeaderExpression>)) +
+            assign<&ast::IfStmt::then_>(ref<Block>) +
+            option(commit(SameLine + kw<"else">, assign<&ast::IfStmt::else_>(ref<IfStmt> |
+                                                 ref<Block>))))> {};
 
   static constexpr auto ForClauseBody =
-      option(assign<&ast::ForStmt::init>(ref<SimpleStmt>)) + HeaderSemi +
-      option(assign<&ast::ForStmt::cond>(ref<Expression>)) + HeaderSemi +
-      option(assign<&ast::ForStmt::post>(ref<SimpleStmt>));
+      option(assign<&ast::ForStmt::init>(ref<HeaderSimpleStmt>)) + HeaderSemi +
+      option(assign<&ast::ForStmt::cond>(ref<HeaderExpression>)) + HeaderSemi +
+      option(assign<&ast::ForStmt::post>(ref<HeaderSimpleStmt>));
 
   static constexpr auto RangeClauseBody =
-      option((ExprListInto<&ast::RangeStmt::lhs> + lit<"=">)  //
+      option((ExprListInto<&ast::RangeStmt::lhs, HeaderExpression> + lit<"=">)  //
              | (IdentListInto<&ast::RangeStmt::declNames> + lit<":=">)) +
-      kw<"range"> + assign<&ast::RangeStmt::range>(ref<Expression>);
+      kw<"range"> + assign<&ast::RangeStmt::range>(ref<HeaderExpression>);
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<create<ast::RangeStmt>(
                  kw<"for"> + RangeClauseBody +
-                 assign<&ast::RangeStmt::body>(ref<BlockRule>))  //
+                 assign<&ast::RangeStmt::body>(ref<Block>))  //
              | create<ast::ForStmt>(
                    kw<"for"> + ForClauseBody +
-                   assign<&ast::ForStmt::body>(ref<BlockRule>))  //
+                   assign<&ast::ForStmt::body>(ref<Block>))  //
              | create<ast::ForStmt>(
                    kw<"for"> +
-                   option(assign<&ast::ForStmt::cond>(ref<Expression>)) +
-                   assign<&ast::ForStmt::body>(ref<BlockRule>))> {};
+                   option(assign<&ast::ForStmt::cond>(ref<HeaderExpression>)) +
+                   assign<&ast::ForStmt::body>(ref<Block>))> {};
 
-  struct ExprCaseClauseRule
+  struct ExprCaseClause
       : rule<create<ast::ExprCaseClause>(
                  kw<"case"> + ExprListInto<&ast::ExprCaseClause::values> +
                  lit<":"> +
@@ -515,14 +572,13 @@ struct Golang : cursiv::GrammarSpec {
 
   static constexpr auto TypeSwitchGuardBody =
       option(assign<&ast::TypeSwitchStmt::bindName>(ref<ID>) + lit<":=">) +
-      assign<&ast::TypeSwitchStmt::subject>(ref<Expression>) + lit<"."> +
+      assign<&ast::TypeSwitchStmt::subject>(ref<HeaderExpression>) + lit<"."> +
       lit<"("> + kw<"type"> + lit<")">;
 
-  struct TypeCaseClauseRule
+  struct TypeCaseClause
       : rule<create<ast::TypeCaseClause>(
                  kw<"case"> +
-                 append<&ast::TypeCaseClause::types>(ref<Type_>) +
-                 many(lit<","> + append<&ast::TypeCaseClause::types>(ref<Type_>)) +
+                 some(append<&ast::TypeCaseClause::types>(ref<Type_>), lit<",">) +
                  lit<":"> +
                  StatementsInto<&ast::TypeCaseClause::body>)  //
              | create<ast::TypeCaseClause>(
@@ -530,45 +586,45 @@ struct Golang : cursiv::GrammarSpec {
                    lit<":"> +
                    StatementsInto<&ast::TypeCaseClause::body>)> {};
 
-  struct SwitchStmtRule
+  struct SwitchStmt
       : rule<create<ast::TypeSwitchStmt>(
                  kw<"switch"> +
-                 ((option(assign<&ast::TypeSwitchStmt::init>(ref<SimpleStmt>)) +
+                 ((option(assign<&ast::TypeSwitchStmt::init>(ref<HeaderSimpleStmt>)) +
                    HeaderSemi + TypeSwitchGuardBody)  //
                   | TypeSwitchGuardBody) +
                  lit<"{"> +
                  many(append<&ast::TypeSwitchStmt::cases>(
-                     ref<TypeCaseClauseRule>)) +
+                     ref<TypeCaseClause>)) +
                  lit<"}">)  //
              | create<ast::ExprSwitchStmt>(
                    kw<"switch"> +
                    option((option(assign<&ast::ExprSwitchStmt::init>(
-                               ref<SimpleStmt>)) +
+                               ref<HeaderSimpleStmt>)) +
                            HeaderSemi +
                            option(assign<&ast::ExprSwitchStmt::tag>(
-                               ref<Expression>)))  //
-                          | assign<&ast::ExprSwitchStmt::tag>(ref<Expression>)) +
+                               ref<HeaderExpression>)))  //
+                          | assign<&ast::ExprSwitchStmt::tag>(ref<HeaderExpression>)) +
                    lit<"{"> +
                    many(append<&ast::ExprSwitchStmt::cases>(
-                       ref<ExprCaseClauseRule>)) +
+                       ref<ExprCaseClause>)) +
                    lit<"}">)> {};
 
-  struct SendStmtOnlyRule
+  struct SendStmtOnly
       : rule<create<ast::SendStmt>(
             assign<&ast::SendStmt::channel>(ref<Expression>) + lit<"<-"> +
             assign<&ast::SendStmt::value>(ref<Expression>))> {};
 
-  struct RecvStmtRule
+  struct RecvStmt
       : rule<create<ast::RecvStmt>(
             option((ExprListInto<&ast::RecvStmt::lhs> + lit<"=">)  //
                    | (IdentListInto<&ast::RecvStmt::declNames> + lit<":=">)) +
             assign<&ast::RecvStmt::value>(ref<Expression>))> {};
 
-  struct CommClauseRule
+  struct CommClause
       : rule<create<ast::CommClause>(
                  kw<"case"> +
-                 assign<&ast::CommClause::comm>(ref<SendStmtOnlyRule> |
-                                                ref<RecvStmtRule>) +
+                 assign<&ast::CommClause::comm>(ref<SendStmtOnly> |
+                                                ref<RecvStmt>) +
                  lit<":"> +
                  StatementsInto<&ast::CommClause::body>)  //
              | create<ast::CommClause>(
@@ -576,31 +632,31 @@ struct Golang : cursiv::GrammarSpec {
                    lit<":"> +
                    StatementsInto<&ast::CommClause::body>)> {};
 
-  struct SelectStmtRule
+  struct SelectStmt
       : rule<create<ast::SelectStmt>(
             kw<"select"> + lit<"{"> +
-            many(append<&ast::SelectStmt::cases>(ref<CommClauseRule>)) +
+            many(append<&ast::SelectStmt::cases>(ref<CommClause>)) +
             lit<"}">)> {};
 
   // ======================================================================
   // Declarations
   // ======================================================================
 
-  struct ConstSpecRule
+  struct ConstSpec
       : rule<create<ast::ConstSpec>(
             IdentListInto<&ast::ConstSpec::names> +
             option(SameLine + option(assign<&ast::ConstSpec::type>(ref<Type_>)) +
                    lit<"="> + ExprListInto<&ast::ConstSpec::values>))> {};
 
-  struct ConstDeclRule
+  struct ConstDecl
       : rule<create<ast::ConstDecl>(
             kw<"const"> +
-            (append<&ast::ConstDecl::specs>(ref<ConstSpecRule>)  //
+            (append<&ast::ConstDecl::specs>(ref<ConstSpec>)  //
              | (lit<"("> +
-                many(append<&ast::ConstDecl::specs>(ref<ConstSpecRule>) + Eos) +
+                many(append<&ast::ConstDecl::specs>(ref<ConstSpec>) + Eos) +
                 lit<")">)))> {};
 
-  struct TypeSpecRule
+  struct TypeSpec
       : rule<create<ast::TypeSpec>(
             assign<&ast::TypeSpec::name>(ref<ID>) +
             TypeParamsInto<&ast::TypeSpec::typeParams> +
@@ -608,52 +664,52 @@ struct Golang : cursiv::GrammarSpec {
               assign<&ast::TypeSpec::type>(ref<Type_>))  //
              | assign<&ast::TypeSpec::type>(ref<Type_>)))> {};
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<create<ast::TypeDecl>(
             kw<"type"> +
-            (append<&ast::TypeDecl::specs>(ref<TypeSpecRule>)  //
+            (append<&ast::TypeDecl::specs>(ref<TypeSpec>)  //
              | (lit<"("> +
-                many(append<&ast::TypeDecl::specs>(ref<TypeSpecRule>) + Eos) +
+                many(append<&ast::TypeDecl::specs>(ref<TypeSpec>) + Eos) +
                 lit<")">)))> {};
 
-  struct VarSpecRule
+  struct VarSpec
       : rule<create<ast::VarSpec>(
             IdentListInto<&ast::VarSpec::names> +
             ((assign<&ast::VarSpec::type>(ref<Type_>) +
               option(lit<"="> + ExprListInto<&ast::VarSpec::values>))  //
              | (lit<"="> + ExprListInto<&ast::VarSpec::values>)))> {};
 
-  struct VarDeclRule
+  struct VarDecl
       : rule<create<ast::VarDecl>(
             kw<"var"> +
-            (append<&ast::VarDecl::specs>(ref<VarSpecRule>)  //
+            (append<&ast::VarDecl::specs>(ref<VarSpec>)  //
              | (lit<"("> +
-                many(append<&ast::VarDecl::specs>(ref<VarSpecRule>) + Eos) +
+                many(append<&ast::VarDecl::specs>(ref<VarSpec>) + Eos) +
                 lit<")">)))> {};
 
-  struct DeclarationRule
-      : rule<ref<ConstDeclRule> | ref<TypeDeclRule> | ref<VarDeclRule>> {};
+  struct Declaration
+      : rule<ref<ConstDecl> | ref<TypeDecl> | ref<VarDecl>> {};
 
   struct NonEmptyStmt
-      : rule<ref<DeclarationRule>        //
-             | ref<GoStmtRule>           //
-             | ref<ReturnStmtRule>       //
-             | ref<BreakStmtRule>        //
-             | ref<ContinueStmtRule>     //
-             | ref<GotoStmtRule>         //
-             | ref<FallthroughStmtRule>  //
-             | ref<DeferStmtRule>        //
-             | ref<IfStmtRule>           //
-             | ref<SwitchStmtRule>       //
-             | ref<SelectStmtRule>       //
-             | ref<ForStmtRule>          //
-             | ref<BlockRule>            //
+      : rule<ref<Declaration>        //
+             | ref<GoStmt>           //
+             | ref<ReturnStmt>       //
+             | ref<BreakStmt>        //
+             | ref<ContinueStmt>     //
+             | ref<GotoStmt>         //
+             | ref<FallthroughStmt>  //
+             | ref<DeferStmt>        //
+             | ref<IfStmt>           //
+             | ref<SwitchStmt>       //
+             | ref<SelectStmt>       //
+             | ref<ForStmt>          //
+             | ref<Block>            //
              | ref<SimpleStmt>> {};
 
   // Each statement consumes its own terminator. In particular, a label's
   // explicit empty statement owns one ';', rather than needing a second.
   struct Statement
-      : rule<ref<EmptyStmtRule> | ref<LabeledStmtRule> |
+      : rule<ref<EmptyStmt> | ref<LabeledStmt> |
              (ref<NonEmptyStmt> + Eos)> {};
 
   // ======================================================================
@@ -662,24 +718,24 @@ struct Golang : cursiv::GrammarSpec {
 
   static constexpr auto ReceiverBody =
       lit<"("> +
-      option(append<&ast::MethodDecl::receiver>(ref<ParamDeclRule>)) +
+      option(append<&ast::MethodDecl::receiver>(ref<ParamDecl>)) +
       lit<")">;
 
-  struct FunctionDeclRule
+  struct FunctionDecl
       : rule<create<ast::FuncDecl>(
             kw<"func"> + assign<&ast::FuncDecl::name>(ref<ID>) +
             TypeParamsInto<&ast::FuncDecl::typeParams> +
-            assign<&ast::FuncDecl::sig>(ref<SignatureRule>) +
-            option(assign<&ast::FuncDecl::body>(ref<BlockRule>)))> {};
+            assign<&ast::FuncDecl::sig>(ref<Signature>) +
+            option(assign<&ast::FuncDecl::body>(ref<Block>)))> {};
 
-  struct MethodDeclRule
+  struct MethodDecl
       : rule<create<ast::MethodDecl>(
             kw<"func"> + ReceiverBody +
             assign<&ast::MethodDecl::name>(ref<ID>) +
-            assign<&ast::MethodDecl::sig>(ref<SignatureRule>) +
-            option(assign<&ast::MethodDecl::body>(ref<BlockRule>)))> {};
+            assign<&ast::MethodDecl::sig>(ref<Signature>) +
+            option(assign<&ast::MethodDecl::body>(ref<Block>)))> {};
 
-  struct ImportSpecRule
+  struct ImportSpec
       : rule<create<ast::ImportSpec>(
             (flag<&ast::ImportSpec::dotImport>(lit<".">)  //
              | option(assign<&ast::ImportSpec::alias>(ref<ID>))) +
@@ -688,23 +744,23 @@ struct Golang : cursiv::GrammarSpec {
 
   static constexpr auto ImportDeclBody =
       kw<"import"> +
-      (append<&ast::SourceFile::imports>(ref<ImportSpecRule>)  //
+      (append<&ast::SourceFile::imports>(ref<ImportSpec>)  //
        | (lit<"("> +
-          many(append<&ast::SourceFile::imports>(ref<ImportSpecRule>) + Eos) +
+          many(append<&ast::SourceFile::imports>(ref<ImportSpec>) + Eos) +
           lit<")">));
 
-  struct SourceFileRule
+  struct SourceFile
       : rule<create<ast::SourceFile>(
             option(lit<"\xEF\xBB\xBF">) + kw<"package"> +
             assign<&ast::SourceFile::packageName>(ref<ID>) +
             Eos + many(ImportDeclBody + Eos) +
             many(append<&ast::SourceFile::decls>(
-                     ref<FunctionDeclRule> | ref<MethodDeclRule> |
-                     ref<DeclarationRule>) +
+                     ref<FunctionDecl> | ref<MethodDecl> |
+                     ref<Declaration>) +
                  Eos))> {};
 
-  using entry = SourceFileRule;
-  using ignore = WS;
+  using entry = SourceFile;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
   static constexpr auto word_boundary = uc::L | uc::Nd | cr<"_">;
 };

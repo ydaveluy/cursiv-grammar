@@ -16,7 +16,6 @@ inline constexpr auto unheredoc = [](std::string_view t) -> std::string_view {
   if (end > 0 && t[end] == '\n' && t[end - 1] == '\r') --end;
   return end < begin ? std::string_view{} : t.substr(begin, end - begin);
 };
-using Unheredoc = cursiv::text_conv<unheredoc>;
 
 struct Php : cursiv::GrammarSpec {
   static constexpr auto word_boundary = cr<R"(a-zA-Z0-9_\u{80}-\u{10FFFF})">;
@@ -60,8 +59,6 @@ struct Php : cursiv::GrammarSpec {
                   option(EXP)) |
                  (LNUM + EXP))> {};
 
-  struct TRUE_LIT : terminal<ikw<"true">, value<true>> {};
-  struct FALSE_LIT : terminal<ikw<"false">, value<false>> {};
 
   struct SINGLE_STRING
       : terminal<option(cr<"bB">) + lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\\\)">) + lit<"'">> {
@@ -84,16 +81,15 @@ struct Php : cursiv::GrammarSpec {
       through(&HeredocNewline, HeredocClose);
 
   struct HEREDOC_BODY
-      : terminal<HeredocOpen + mark<HeredocTag>(HeredocId) + HeredocBody,
-                 Unheredoc> {};
+      : terminal<as<unheredoc>(HeredocOpen + mark<HeredocTag>(HeredocId) +
+                               HeredocBody)> {};
   struct HEREDOC_BODY_QUOTED
-      : terminal<HeredocOpen + lit<"\""> + mark<HeredocTag>(HeredocId) +
-                     lit<"\""> + HeredocBody,
-                 Unheredoc> {};
-  struct NOWDOC_BODY
-      : terminal<HeredocOpen + lit<"'"> + mark<HeredocTag>(HeredocId) +
-                     lit<"'"> + HeredocBody,
-                 Unheredoc> {};
+      : terminal<as<unheredoc>(HeredocOpen + lit<"\""> +
+                               mark<HeredocTag>(HeredocId) + lit<"\""> +
+                               HeredocBody)> {};
+  struct NOWDOC_BODY : terminal<as<unheredoc>(HeredocOpen + lit<"'"> +
+                                              mark<HeredocTag>(HeredocId) +
+                                              lit<"'"> + HeredocBody)> {};
 
   struct PHP_OPEN
       : terminal<lit<"<?"> + cr<"pP"> + cr<"hH"> + cr<"pP"> +
@@ -103,72 +99,72 @@ struct Php : cursiv::GrammarSpec {
   static constexpr auto SEMI =
       implied(lit<";">, &ref<PHP_CLOSE> | eof);
 
-  struct NameRule
+  struct Name
       : rule<(flag<&ast::Name::nsRelative>(ikw<"namespace"> + lit<"\\">) |
               option(flag<&ast::Name::rooted>(lit<"\\">))) +
              some(append<&ast::Name::parts>(ref<ID>), lit<"\\">)> {};
 
-  struct TypeRefRule;
+  struct TypeRef;
 
-  struct PrimitiveTypeRefRule
+  struct PrimitiveTypeRef
       : rule<create<ast::PrimitiveTypeRef>(assign<&ast::PrimitiveTypeRef::keyword>(
             ikw<"bool"> | ikw<"int"> | ikw<"float"> | ikw<"string"> | ikw<"object"> |
             ikw<"array"> | ikw<"callable"> | ikw<"iterable"> | ikw<"mixed"> |
             ikw<"void"> | ikw<"never"> | ikw<"null"> | ikw<"true"> | ikw<"false">))> {};
 
   static constexpr auto GenericArgs =
-      lit<"<:"> + some(append<&ast::NamedTypeRef::genericArgs>(ref<TypeRefRule>), lit<",">) +
+      lit<"<:"> + some(append<&ast::NamedTypeRef::genericArgs>(ref<TypeRef>), lit<",">) +
       lit<":>">;
 
-  struct SingleTypeRefRule
-      : rule<create<ast::StaticTypeRef>(ikw<"static">) | ref<PrimitiveTypeRefRule> |
-             create<ast::NamedTypeRef>(assign<&ast::NamedTypeRef::name>(ref<NameRule>) +
+  struct SingleTypeRef
+      : rule<create<ast::StaticTypeRef>(ikw<"static">) | ref<PrimitiveTypeRef> |
+             create<ast::NamedTypeRef>(assign<&ast::NamedTypeRef::name>(ref<Name>) +
                                        option(GenericArgs))> {};
 
-  struct TypeAtomRule
+  struct TypeAtom
       : rule<create<ast::NullableTypeRef>(lit<"?"> +
-                 assign<&ast::NullableTypeRef::type>(ref<SingleTypeRefRule>)) |
-             (lit<"("> + ref<TypeRefRule> + lit<")">) |
-             ref<SingleTypeRefRule>> {};
+                 assign<&ast::NullableTypeRef::type>(ref<SingleTypeRef>)) |
+             (lit<"("> + ref<TypeRef> + lit<")">) |
+             ref<SingleTypeRef>> {};
 
   static constexpr auto TypeAmp = lit<"&", !(many(ref<WS> | ref<ML_COMMENT> |
       ref<SL_COMMENT>) + (lit<"$"> | lit<"...">))>;
 
-  struct IntersectionTypeRefRule
+  struct IntersectionTypeRef
       : rule<create<ast::IntersectionTypeRef>(
-                 append<&ast::IntersectionTypeRef::options>(ref<TypeAtomRule>) +
+                 append<&ast::IntersectionTypeRef::options>(ref<TypeAtom>) +
                  TypeAmp +
-                 some(append<&ast::IntersectionTypeRef::options>(ref<TypeAtomRule>), TypeAmp)) |
-             ref<TypeAtomRule>> {};
+                 some(append<&ast::IntersectionTypeRef::options>(ref<TypeAtom>), TypeAmp)) |
+             ref<TypeAtom>> {};
 
-  struct TypeRefRule
+  struct TypeRef
       : rule<create<ast::UnionTypeRef>(
-                 append<&ast::UnionTypeRef::options>(ref<IntersectionTypeRefRule>) + lit<"|"> +
-                 some(append<&ast::UnionTypeRef::options>(ref<IntersectionTypeRefRule>), lit<"|">)) |
-             ref<IntersectionTypeRefRule>> {};
+                 append<&ast::UnionTypeRef::options>(ref<IntersectionTypeRef>) + lit<"|"> +
+                 some(append<&ast::UnionTypeRef::options>(ref<IntersectionTypeRef>), lit<"|">)) |
+             ref<IntersectionTypeRef>> {};
 
-  struct ArgRule;
+  struct Arg;
 
-  struct AttributeRule
-      : rule<assign<&ast::Attribute::name>(ref<NameRule>) +
-             option(lit<"("> + many(append<&ast::Attribute::args>(ref<ArgRule>), lit<",">) +
-                    option(lit<",">) + lit<")">)> {};
+  struct Attribute
+      : rule<assign<&ast::Attribute::name>(ref<Name>) +
+             option(lit<"("> + option(some(append<&ast::Attribute::args>(ref<Arg>), lit<",">) +
+                           option(lit<",">)) + lit<")">)> {};
 
-  struct AttributeGroupRule
+  struct AttributeGroup
       : rule<lit<"#["> +
              option(assign<&ast::AttributeGroup::target>(ref<ID>) + lit<":">) +
-             some(append<&ast::AttributeGroup::items>(ref<AttributeRule>), lit<",">) +
+             some(append<&ast::AttributeGroup::items>(ref<Attribute>), lit<",">) +
              option(lit<",">) + lit<"]">> {};
 
   struct Expression;
   struct ChainExpr;
-  struct ClosureRule;
-  struct MatchExprRule;
-  struct NewExprRule;
-  struct ArrayExprRule;
-  struct BlockStmtRule;
-  struct YieldExprRule;
-  struct ClassMemberRule;
+  struct Closure;
+  struct MatchExpr;
+  struct NewExpr;
+  struct ArrayExpr;
+  struct BlockStmt;
+  struct YieldExpr;
+  struct ClassMember;
 
   static constexpr auto FieldNameExpr =
       create<ast::Ident>(assign<&ast::Ident::name>(ref<ID>)) |
@@ -180,7 +176,7 @@ struct Php : cursiv::GrammarSpec {
              create<ast::IntLit>(assign<&ast::IntLit::text>(ref<SIMPLE_INT>)) |
              create<ast::StringLit>(assign<&ast::StringLit::text>(ref<ID>))> {};
 
-  struct PlainVariableRule
+  struct PlainVariable
       : rule<create<ast::Var>(assign<&ast::Var::name>(ref<VARNAME>))> {};
 
   static constexpr auto SimplePostfixStart =
@@ -189,7 +185,7 @@ struct Php : cursiv::GrammarSpec {
 
   struct SimpleVarInterp
       : rule<create<ast::Var>(assign<&ast::Var::name>(ref<SIMPLE_PLAIN_VAR>)) |
-             (ref<PlainVariableRule> +
+             (ref<PlainVariable> +
               (nest<ast::IndexExpr, &ast::IndexExpr::base>(
                    lit<"["> + assign<&ast::IndexExpr::index>(ref<SimpleIndexKey>) + lit<"]">) |
                nest<ast::MemberExpr, &ast::MemberExpr::object>(
@@ -208,7 +204,7 @@ struct Php : cursiv::GrammarSpec {
 
   struct CurlyInterp
       : rule<&(lit<"{", &lit<"$">> | lit<"${">) +
-             skip(ignored<WS>, hide<SL_COMMENT, ML_COMMENT>,
+             skip(ignore<WS>, hide<SL_COMMENT, ML_COMMENT>,
                  (lit<"{", &lit<"$">> + ref<Expression> + lit<"}">) |
                  ref<LegacyVarInterp> |
                  create<ast::Var>(lit<"${", !LegacyNameStart> +
@@ -220,15 +216,15 @@ struct Php : cursiv::GrammarSpec {
       append<&ast::InterpString::pieces>(ref<SimpleVarInterp>) |
       append<&ast::InterpString::pieces>(ref<CurlyInterp>);
 
-  struct DoubleQuotedRule
+  struct DoubleQuoted
       : rule<create<ast::InterpString>(tight((lit<"b\""> | lit<"B\""> | lit<"\"">) + many(StringPiece) + lit<"\"">))> {};
 
-  struct StringRule
+  struct String
       : rule<create<ast::StringLit>(assign<&ast::StringLit::text>(
                  ref<SINGLE_STRING> | ref<HEREDOC_BODY> | ref<HEREDOC_BODY_QUOTED> |
                  ref<NOWDOC_BODY>))> {};
 
-  struct ArgRule
+  struct Arg
       : rule<(option(assign<&ast::Arg::name>(ref<ID>) + lit<":">) +
               ((flag<&ast::Arg::spread>(lit<"...">) +
                 option(assign<&ast::Arg::value>(ref<Expression>))) |
@@ -238,26 +234,26 @@ struct Php : cursiv::GrammarSpec {
 
   template <auto Ptr>
   static constexpr auto ArgsInto = lit<"("> +
-      many(append<Ptr>(ref<ArgRule>), lit<",">) + option(lit<",">) + lit<")">;
+      option(some(append<Ptr>(ref<Arg>), lit<",">) + option(lit<",">)) + lit<")">;
   static constexpr auto CallArgs = ArgsInto<&ast::CallExpr::args>;
 
-  struct VariableBaseRule
-      : rule<ref<PlainVariableRule> |
+  struct VariableBase
+      : rule<ref<PlainVariable> |
              create<ast::Var>(lit<"${"> + assign<&ast::Var::nameExpr>(ref<Expression>) + lit<"}">) |
-             create<ast::Var>(lit<"$"> + assign<&ast::Var::nameExpr>(ref<VariableBaseRule>))> {};
+             create<ast::Var>(lit<"$"> + assign<&ast::Var::nameExpr>(ref<VariableBase>))> {};
 
-  struct KeyedVariableRule
-      : rule<ref<VariableBaseRule> +
+  struct KeyedVariable
+      : rule<ref<VariableBase> +
              many(nest<ast::IndexExpr, &ast::IndexExpr::base>(
                       lit<"["> + option(assign<&ast::IndexExpr::index>(ref<Expression>)) + lit<"]">) |
                   nest<ast::IndexExpr, &ast::IndexExpr::base>(
                       lit<"{"> + assign<&ast::IndexExpr::index>(ref<Expression>) + lit<"}">))> {};
 
   struct ChainOrigin
-      : rule<ref<KeyedVariableRule> | ref<ArrayExprRule> | ref<DoubleQuotedRule> |
+      : rule<ref<KeyedVariable> | ref<ArrayExpr> | ref<DoubleQuoted> |
              create<ast::NameExpr>(flag<&ast::NameExpr::isStatic>(ikw<"static">)) |
-             create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<NameRule>)) |
-             (lit<"("> + ref<Expression> + lit<")">) | ref<NewExprRule> |
+             create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<Name>)) |
+             (lit<"("> + ref<Expression> + lit<")">) | ref<NewExpr> |
              create<ast::StringLit>(assign<&ast::StringLit::text>(ref<SINGLE_STRING>))> {};
 
   struct ChainExpr
@@ -293,10 +289,10 @@ struct Php : cursiv::GrammarSpec {
           ref<HEX_LIT> | ref<BINARY_LIT> | ref<OCTAL_LIT> | ref<DECIMAL_LIT>));
 
   struct ScalarExpr
-      : rule<create<ast::BoolLit>(assign<&ast::BoolLit::value>(ref<TRUE_LIT> | ref<FALSE_LIT>)) |
-             create<ast::NullLit>(ikw<"null">) | NumberLit | ref<StringRule>> {};
+      : rule<create<ast::BoolLit>(assign<&ast::BoolLit::value>(as<true>(ikw<"true">) | as<false>(ikw<"false">))) |
+             create<ast::NullLit>(ikw<"null">) | NumberLit | ref<String>> {};
 
-  struct ArrayItemRule
+  struct ArrayItem
       : rule<(flag<&ast::ArrayItem::byRef>(lit<"&">) +
               assign<&ast::ArrayItem::value>(ref<ChainExpr>)) |
              (assign<&ast::ArrayItem::key>(ref<Expression>) + lit<"=>"> +
@@ -307,21 +303,21 @@ struct Php : cursiv::GrammarSpec {
               assign<&ast::ArrayItem::value>(ref<Expression>))> {};
 
   static constexpr auto ArrayItems =
-      many(append<&ast::ArrayExpr::items>(ref<ArrayItemRule>), lit<",">) + option(lit<",">);
+      option(some(append<&ast::ArrayExpr::items>(ref<ArrayItem>), lit<",">) + option(lit<",">));
 
-  struct ArrayExprRule
+  struct ArrayExpr
       : rule<create<ast::ArrayExpr>((ikw<"array"> + lit<"("> + ArrayItems + lit<")">) |
                                     (lit<"["> + ArrayItems + lit<"]">))> {};
 
-  struct ParamRule;
+  struct Param;
 
   template <auto Ptr>
   static constexpr auto ClosureParams = lit<"("> +
-      many(append<Ptr>(ref<ParamRule>), lit<",">) + option(lit<",">) + lit<")">;
+      option(some(append<Ptr>(ref<Param>), lit<",">) + option(lit<",">)) + lit<")">;
 
-  struct ClosureRule
+  struct Closure
       : rule<create<ast::Closure>(
-            many(append<&ast::Closure::attributes>(ref<AttributeGroupRule>)) +
+            many(append<&ast::Closure::attributes>(ref<AttributeGroup>)) +
             option(flag<&ast::Closure::isStatic>(ikw<"static">)) +
             ((ikw<"function"> + option(flag<&ast::Closure::byRef>(lit<"&">)) +
               ClosureParams<&ast::Closure::params> +
@@ -330,14 +326,14 @@ struct Php : cursiv::GrammarSpec {
                          option(flag<&ast::Var::byRef>(lit<"&">)) +
                          assign<&ast::Var::name>(ref<VARNAME>))), lit<",">) +
                      option(lit<",">) + lit<")">) +
-              option(lit<":"> + assign<&ast::Closure::returnType>(ref<TypeRefRule>)) +
-              assign<&ast::Closure::body>(ref<BlockStmtRule>)) |
+              option(lit<":"> + assign<&ast::Closure::returnType>(ref<TypeRef>)) +
+              assign<&ast::Closure::body>(ref<BlockStmt>)) |
              (ikw<"fn"> + option(flag<&ast::Closure::byRef>(lit<"&">)) +
               ClosureParams<&ast::Closure::params> +
-              option(lit<":"> + assign<&ast::Closure::returnType>(ref<TypeRefRule>)) +
+              option(lit<":"> + assign<&ast::Closure::returnType>(ref<TypeRef>)) +
               lit<"=>"> + assign<&ast::Closure::arrowBody>(ref<Expression>))))> {};
 
-  struct MatchExprRule
+  struct MatchExpr
       : rule<create<ast::MatchExpr>(
             ikw<"match"> + lit<"("> + assign<&ast::MatchExpr::subject>(ref<Expression>) + lit<")"> +
             lit<"{"> +
@@ -348,38 +344,38 @@ struct Php : cursiv::GrammarSpec {
                  lit<",">) +
             option(lit<",">) + lit<"}">)> {};
 
-  struct ListPatternRule;
+  struct ListPattern;
 
   static constexpr auto ListItemBody =
       option(assign<&ast::ArrayItem::key>(ref<Expression>) + lit<"=>">) +
       ((flag<&ast::ArrayItem::byRef>(lit<"&">) +
         assign<&ast::ArrayItem::value>(ref<ChainExpr>)) |
-       assign<&ast::ArrayItem::value>(ref<ListPatternRule> | ref<ChainExpr>));
+       assign<&ast::ArrayItem::value>(ref<ListPattern> | ref<ChainExpr>));
 
-  struct ListItemRule : rule<ListItemBody> {};
-  struct ListSlotRule : rule<create<ast::ArrayItem>(option(ListItemBody))> {};
+  struct ListItem : rule<ListItemBody> {};
+  struct ListSlot : rule<create<ast::ArrayItem>(option(ListItemBody))> {};
 
   static constexpr auto ListItems =
-      many(append<&ast::ArrayExpr::items>(ref<ListSlotRule>) + lit<",">) +
-      option(append<&ast::ArrayExpr::items>(ref<ListItemRule>));
+      many(append<&ast::ArrayExpr::items>(ref<ListSlot>) + lit<",">) +
+      option(append<&ast::ArrayExpr::items>(ref<ListItem>));
 
-  struct ListPatternRule
+  struct ListPattern
       : rule<create<ast::ArrayExpr>((ikw<"list"> + lit<"("> + ListItems + lit<")">) |
                                     (lit<"["> + ListItems + lit<"]">))> {};
 
-  struct AnonClassTailRule
+  struct AnonClassTail
       : rule<create<ast::ClassDecl>(
-            option(ikw<"extends"> + assign<&ast::ClassDecl::extendsName>(ref<NameRule>)) +
+            option(ikw<"extends"> + assign<&ast::ClassDecl::extendsName>(ref<Name>)) +
             option(ikw<"implements"> +
-                   some(append<&ast::ClassDecl::implementsList>(ref<NameRule>), lit<",">)) +
-            lit<"{"> + many(append<&ast::ClassDecl::members>(ref<ClassMemberRule>)) + lit<"}">)> {
+                   some(append<&ast::ClassDecl::implementsList>(ref<Name>), lit<",">)) +
+            lit<"{"> + many(append<&ast::ClassDecl::members>(ref<ClassMember>)) + lit<"}">)> {
   };
 
   static constexpr auto NewArgs = ArgsInto<&ast::NewExpr::args>;
 
-  struct NewTargetRule
-      : rule<(ref<KeyedVariableRule> |
-              create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<NameRule>)) |
+  struct NewTarget
+      : rule<(ref<KeyedVariable> |
+              create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<Name>)) |
               (lit<"("> + ref<Expression> + lit<")">)) +
              many(nest<ast::MemberExpr, &ast::MemberExpr::object>(
                       lit<"->"> + assign<&ast::MemberExpr::member>(FieldNameExpr)) |
@@ -388,31 +384,49 @@ struct Php : cursiv::GrammarSpec {
                   nest<ast::IndexExpr, &ast::IndexExpr::base>(
                       lit<"["> + assign<&ast::IndexExpr::index>(ref<Expression>) + lit<"]">))> {};
 
-  struct NewExprRule
+  struct NewExpr
       : rule<create<ast::NewExpr>(
             ikw<"new"> +
             ((flag<&ast::NewExpr::isStatic>(ikw<"static">) + option(NewArgs)) |
-             (ikw<"class"> + option(NewArgs) +
-              assign<&ast::NewExpr::anonClass>(ref<AnonClassTailRule>)) |
-             (assign<&ast::NewExpr::target>(ref<NewTargetRule>) + option(NewArgs))))> {};
+             (many(append<&ast::NewExpr::anonymousAttributes>(ref<AttributeGroup>)) +
+              many(append<&ast::NewExpr::anonymousModifiers>(ikw<"readonly"> | ikw<"final"> | ikw<"abstract">)) +
+              ikw<"class"> + option(NewArgs) +
+              assign<&ast::NewExpr::anonClass>(ref<AnonClassTail>)) |
+             (assign<&ast::NewExpr::target>(ref<NewTarget>) + option(NewArgs))))> {};
 
   struct UnaryLevel;
   struct AssignLevel;
+  struct Assignable;
+  struct Assignment;
+
+  // Distinguish the native PHP8.5 function form through productions:
+  // a first plain expression needs a comma; named/spread arguments do not.
+  static constexpr auto CloneSpecialArg = create<ast::Arg>(
+      (assign<&ast::Arg::name>(ref<ID>) + lit<":"> + assign<&ast::Arg::value>(ref<Expression>)) |
+      (flag<&ast::Arg::spread>(lit<"...">) + assign<&ast::Arg::value>(ref<Expression>)));
+  struct CloneFunction : rule<create<ast::CloneExpr>(ikw<"clone"> +
+      flag<&ast::CloneExpr::callSyntax>(lit<"(">) +
+      (lit<")"> |
+       (append<&ast::CloneExpr::args>(CloneSpecialArg) +
+        many(lit<","> + append<&ast::CloneExpr::args>(ref<Arg>)) + option(lit<",">) + lit<")">) |
+       (append<&ast::CloneExpr::args>(create<ast::Arg>(assign<&ast::Arg::value>(ref<Expression>))) + lit<","> +
+        option(some(append<&ast::CloneExpr::args>(ref<Arg>), lit<",">) + option(lit<",">)) + lit<")">) |
+       (append<&ast::CloneExpr::args>(create<ast::Arg>(flag<&ast::Arg::spread>(lit<"...">))) + lit<")">)))> {};
 
   struct AtomLevel
-      : rule<create<ast::CloneExpr>(ikw<"clone"> + assign<&ast::CloneExpr::operand>(ref<AtomLevel>)) |
+      : rule<ref<CloneFunction> | create<ast::CloneExpr>(ikw<"clone"> + assign<&ast::CloneExpr::operand>(ref<AtomLevel>)) |
              create<ast::PrintExpr>(ikw<"print"> + assign<&ast::PrintExpr::operand>(ref<AssignLevel>)) |
              create<ast::IncludeExpr>(
                  assign<&ast::IncludeExpr::keyword>(ikw<"include_once"> | ikw<"include"> |
                                                     ikw<"require_once"> | ikw<"require">) +
                  assign<&ast::IncludeExpr::operand>(ref<Expression>)) |
              create<ast::ThrowExpr>(ikw<"throw"> + assign<&ast::ThrowExpr::operand>(ref<Expression>)) |
-             ref<ClosureRule> | ref<MatchExprRule> |
+             ref<Closure> | ref<MatchExpr> |
              create<ast::IncDecExpr>(assign<&ast::IncDecExpr::operand>(ref<ChainExpr>) +
                                      assign<&ast::IncDecExpr::op>(lit<"++"> | lit<"--">)) |
              ref<ChainExpr> | ref<ScalarExpr> |
              create<ast::StringLit>(assign<&ast::StringLit::text>(ref<BACKQUOTE_STRING>)) |
-             ref<YieldExprRule> |
+             ref<YieldExpr> |
              create<ast::IssetExpr>(ikw<"isset"> + lit<"("> +
                                     some(append<&ast::IssetExpr::args>(ref<ChainExpr>), lit<",">) +
                                     lit<")">) |
@@ -453,50 +467,55 @@ struct Php : cursiv::GrammarSpec {
              ref<InstanceofLevel>> {};
 
   struct BinaryLevel
-      : infix<NotLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"*"> | lit<"/"> | lit<"%">) >>
-               left(lit<"+"> | lit<"-">) >> left(lit<"<<"> | lit<">>">) >>
-               left(lit<".">) >> left(lit<"|>">) >>
-               left(lit<"<="> | lit<">="> | lit<"<"> | lit<">">) >>
-               left(lit<"==="> | lit<"!=="> | lit<"=="> | lit<"<>"> |
-                    lit<"!="> | lit<"<=>">) >>
-               left(lit<"&", !cr<"&=">>) >> left(lit<"^">) >>
-               left(lit<"|", !cr<"|=">>) >> left(lit<"&&">) >>
-               left(lit<"||">))> {};
+      : infix<NotLevel, ast::BinaryExpr,
+              levels(left(lit<"*"> | lit<"/"> | lit<"%">),
+                     left(lit<"+"> | lit<"-">), left(lit<"<<"> | lit<">>">),
+                     left(lit<".">), left(lit<"|>">),
+                     nonassoc(lit<"<="> | lit<">="> | lit<"<"> | lit<">">),
+                     nonassoc(lit<"==="> | lit<"!=="> | lit<"=="> | lit<"<>"> |
+                          lit<"!="> | lit<"<=>">),
+                     left(lit<"&", !cr<"&=">>), left(lit<"^">),
+                     left(lit<"|", !cr<"|=">>), left(lit<"&&">),
+                     left(lit<"||">))> {};
 
   struct CoalesceLevel
-      : infix<BinaryLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, right(lit<"??">)> {};
-  struct ConditionalLevel
-      : rule<ref<CoalesceLevel> +
-             option(nest<ast::ConditionalExpr, &ast::ConditionalExpr::cond>(
-                 lit<"?"> + option(assign<&ast::ConditionalExpr::thenValue>(ref<Expression>)) +
-                 lit<":"> + assign<&ast::ConditionalExpr::elseValue>(ref<ConditionalLevel>)))> {};
-
-  struct AssignableRule : rule<ref<ListPatternRule> | ref<ChainExpr>> {};
-
+      : infix<BinaryLevel, ast::BinaryExpr, right(lit<"??">)> {};
   static constexpr auto AssignOp =
       lit<"+="> | lit<"-="> | lit<"*="> | lit<"**="> | lit<"/="> | lit<".="> | lit<"%="> |
       lit<"&="> | lit<"|="> | lit<"^="> | lit<"<<="> | lit<">>="> | lit<"?" "?="> |
       lit<"=", !cr<"=>">>;
 
-  struct AssignLevel
+  struct ConditionalElse : rule<ref<Assignment> | ref<CoalesceLevel>> {};
+  // Full ternaries are non-associative in PHP8. Short ?: chains remain
+  // left-associative; parentheses are supplied by ChainOrigin.
+  struct ShortConditional : rule<ref<CoalesceLevel> |
+      create<ast::ConditionalExpr>(assign<&ast::ConditionalExpr::cond>(ref<ShortConditional>) +
+          lit<"?"> + lit<":"> + assign<&ast::ConditionalExpr::elseValue>(ref<ConditionalElse>))> {};
+  struct ConditionalLevel : rule<
+      create<ast::ConditionalExpr>(assign<&ast::ConditionalExpr::cond>(ref<CoalesceLevel>) +
+          lit<"?"> + assign<&ast::ConditionalExpr::thenValue>(ref<Expression>) + lit<":"> +
+          assign<&ast::ConditionalExpr::elseValue>(ref<ConditionalElse>)) |
+      ref<ShortConditional>> {};
+
+  struct Assignable : rule<ref<ListPattern> | ref<ChainExpr>> {};
+
+  struct Assignment
       : rule<create<ast::AssignExpr>(
-                 assign<&ast::AssignExpr::target>(ref<AssignableRule>) +
-                 lit<"="> + flag<&ast::AssignExpr::byRef>(lit<"&">) +
+                 assign<&ast::AssignExpr::target>(ref<Assignable>) +
+                 assign<&ast::AssignExpr::op>(lit<"=">) + flag<&ast::AssignExpr::byRef>(lit<"&">) +
                  assign<&ast::AssignExpr::value>(ref<ChainExpr>))  //
              | create<ast::AssignExpr>(
-                   assign<&ast::AssignExpr::target>(ref<AssignableRule>) +
+                   assign<&ast::AssignExpr::target>(ref<Assignable>) +
                    assign<&ast::AssignExpr::op>(AssignOp) +
                    assign<&ast::AssignExpr::value>(ref<AssignLevel>))  //
-             | ref<ConditionalLevel>> {};
+             > {};
+  struct AssignLevel : rule<ref<Assignment> | ref<ConditionalLevel>> {};
 
   struct Expression
-      : infix<AssignLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-              (left(ikw<"and">) >> left(ikw<"xor">) >> left(ikw<"or">))> {};
+      : infix<AssignLevel, ast::BinaryExpr,
+              levels(left(ikw<"and">), left(ikw<"xor">), left(ikw<"or">))> {};
 
-  struct YieldExprRule
+  struct YieldExpr
       : rule<create<ast::YieldExpr>(
             ikw<"yield"> + option(
                 (flag<&ast::YieldExpr::from>(ikw<"from">) +
@@ -512,189 +531,190 @@ struct Php : cursiv::GrammarSpec {
                  ikw<"abstract"> | ikw<"final"> | ikw<"readonly">> {};
   static constexpr auto MemberModifier = ref<MEMBER_MODIFIER>;
 
-  struct PropertyHookRule;
+  struct PropertyHook;
 
-  struct ParamRule
+  struct Param
       : rule<create<ast::Param>(
-            many(append<&ast::Param::attributes>(ref<AttributeGroupRule>)) +
+            many(append<&ast::Param::attributes>(ref<AttributeGroup>)) +
             many(append<&ast::Param::modifiers>(MemberModifier)) +
-            option(assign<&ast::Param::type>(ref<TypeRefRule>)) +
+            option(assign<&ast::Param::type>(ref<TypeRef>)) +
             option(flag<&ast::Param::byRef>(lit<"&">)) +
             option(flag<&ast::Param::variadic>(lit<"...">)) +
             assign<&ast::Param::name>(create<ast::Var>(assign<&ast::Var::name>(ref<VARNAME>))) +
             option(lit<"="> + assign<&ast::Param::defaultValue>(ref<Expression>)) +
-            option(lit<"{"> + many(append<&ast::Param::hooks>(ref<PropertyHookRule>)) + lit<"}">))> {};
+            option(lit<"{"> + some(append<&ast::Param::hooks>(ref<PropertyHook>)) + lit<"}">))> {};
 
   static constexpr auto ParamList =
-      many(append<&ast::FunctionDecl::params>(ref<ParamRule>), lit<",">) + option(lit<",">);
+      option(some(append<&ast::FunctionDecl::params>(ref<Param>), lit<",">) + option(lit<",">));
 
   static constexpr auto ReturnTypeTail =
-      option(lit<":"> + assign<&ast::FunctionDecl::returnType>(ref<TypeRefRule>));
+      option(lit<":"> + assign<&ast::FunctionDecl::returnType>(ref<TypeRef>));
 
-  struct InnerStatementRule;
+  struct InnerStatement;
 
-  struct GenericArgsBareRule
+  struct GenericArgsBare
       : rule<lit<"<:"> + many(cr<"^:"> | lit<":", !lit<">">>) + lit<":>">> {};
 
-  struct IdentifierRule : rule<ref<ID>> {};
+  struct Identifier : rule<ref<ID>> {};
 
   static constexpr auto FunctionHead =
       ikw<"function"> + option(flag<&ast::FunctionDecl::byRef>(lit<"&">)) +
-      assign<&ast::FunctionDecl::name>(ref<IdentifierRule>) +
-      option(ref<GenericArgsBareRule>) + lit<"("> + ParamList + lit<")"> + ReturnTypeTail;
+      assign<&ast::FunctionDecl::name>(ref<Identifier>) +
+      option(ref<GenericArgsBare>) + lit<"("> + ParamList + lit<")"> + ReturnTypeTail;
 
-  struct FunctionDeclRule
+  struct FunctionDecl
       : rule<create<ast::FunctionDecl>(
-            many(append<&ast::FunctionDecl::attributes>(ref<AttributeGroupRule>)) +
-            FunctionHead + assign<&ast::FunctionDecl::body>(ref<BlockStmtRule>))> {};
+            many(append<&ast::FunctionDecl::attributes>(ref<AttributeGroup>)) +
+            FunctionHead + assign<&ast::FunctionDecl::body>(ref<BlockStmt>))> {};
 
-  struct FunctionDeclOrProtoRule
+  struct FunctionDeclOrProto
       : rule<create<ast::FunctionDecl>(FunctionHead +
-            (assign<&ast::FunctionDecl::body>(ref<BlockStmtRule>) | SEMI))> {};
+            (assign<&ast::FunctionDecl::body>(ref<BlockStmt>) | SEMI))> {};
 
-  struct ClassDeclRule;
+  struct ClassDecl;
 
   static constexpr auto ClassHeaderTail =
       assign<&ast::ClassDecl::kind>(ikw<"class"> | ikw<"trait">) +
-      assign<&ast::ClassDecl::name>(ref<IdentifierRule>) + option(ref<GenericArgsBareRule>) +
-      option(ikw<"extends"> + assign<&ast::ClassDecl::extendsName>(ref<NameRule>)) +
+      assign<&ast::ClassDecl::name>(ref<Identifier>) + option(ref<GenericArgsBare>) +
+      option(ikw<"extends"> + assign<&ast::ClassDecl::extendsName>(ref<Name>)) +
       option(ikw<"implements"> +
-             some(append<&ast::ClassDecl::implementsList>(ref<NameRule>), lit<",">));
+             some(append<&ast::ClassDecl::implementsList>(ref<Name>), lit<",">));
 
   static constexpr auto InterfaceHeaderTail =
       assign<&ast::ClassDecl::kind>(ikw<"interface">) +
-      assign<&ast::ClassDecl::name>(ref<IdentifierRule>) + option(ref<GenericArgsBareRule>) +
-      option(ikw<"extends"> + some(append<&ast::ClassDecl::extendsList>(ref<NameRule>), lit<",">));
+      assign<&ast::ClassDecl::name>(ref<Identifier>) + option(ref<GenericArgsBare>) +
+      option(ikw<"extends"> + some(append<&ast::ClassDecl::extendsList>(ref<Name>), lit<",">));
 
-  struct ClassDeclRule
+  struct ClassDecl
       : rule<create<ast::ClassDecl>(
-            many(append<&ast::ClassDecl::attributes>(ref<AttributeGroupRule>)) +
+            many(append<&ast::ClassDecl::attributes>(ref<AttributeGroup>)) +
             option(flag<&ast::ClassDecl::isPrivate>(ikw<"private">)) +
             many(append<&ast::ClassDecl::modifiers>(ikw<"abstract"> | ikw<"final"> | ikw<"readonly">)) +
             option(flag<&ast::ClassDecl::isPartial>(ikw<"partial">)) +
             (ClassHeaderTail | InterfaceHeaderTail) + lit<"{"> +
-            many(append<&ast::ClassDecl::members>(ref<ClassMemberRule>)) + lit<"}">)> {};
+            many(append<&ast::ClassDecl::members>(ref<ClassMember>)) + lit<"}">)> {};
 
-  struct ClassConstRule
-      : rule<create<ast::ClassConst>(assign<&ast::ClassConst::name>(ref<IdentifierRule>) +
+  struct ClassConst
+      : rule<create<ast::ClassConst>(assign<&ast::ClassConst::name>(ref<Identifier>) +
                                      lit<"="> + assign<&ast::ClassConst::value>(ref<Expression>))> {
   };
 
-  struct PropertyHookRule
+  struct PropertyHook
       : rule<create<ast::PropertyHook>(
-            many(append<&ast::PropertyHook::attributes>(ref<AttributeGroupRule>)) +
+            many(append<&ast::PropertyHook::attributes>(ref<AttributeGroup>)) +
             many(append<&ast::PropertyHook::modifiers>(MemberModifier)) +
             option(flag<&ast::PropertyHook::byRef>(lit<"&">)) +
             assign<&ast::PropertyHook::name>(ref<ID>) +
             option(ClosureParams<&ast::PropertyHook::params>) +
             ((lit<"=>"> + assign<&ast::PropertyHook::expression>(ref<Expression>) + SEMI) |
-             assign<&ast::PropertyHook::body>(ref<BlockStmtRule>) | SEMI))> {};
+             assign<&ast::PropertyHook::body>(ref<BlockStmt>) | SEMI))> {};
 
-  struct PropertyDeclRule
-      : rule<create<ast::PropertyDecl>(
-            assign<&ast::PropertyDecl::name>(create<ast::Var>(assign<&ast::Var::name>(ref<VARNAME>))) +
-            option(lit<"="> + assign<&ast::PropertyDecl::defaultValue>(ref<Expression>)) +
-            option(lit<"{"> + many(append<&ast::PropertyDecl::hooks>(ref<PropertyHookRule>)) + lit<"}">))> {};
+  static constexpr auto PropertyHead =
+      assign<&ast::PropertyDecl::name>(create<ast::Var>(assign<&ast::Var::name>(ref<VARNAME>))) +
+      option(lit<"="> + assign<&ast::PropertyDecl::defaultValue>(ref<Expression>));
+  struct PropertyDecl : rule<create<ast::PropertyDecl>(PropertyHead)> {};
+  struct HookedProperty : rule<create<ast::PropertyDecl>(PropertyHead + lit<"{"> +
+      some(append<&ast::PropertyDecl::hooks>(ref<PropertyHook>)) + lit<"}">)> {};
 
-  struct TraitPrecedenceRule
+  struct TraitPrecedence
       : rule<create<ast::TraitPrecedence>(
-            assign<&ast::TraitPrecedence::traitName>(ref<NameRule>) + lit<"::"> +
-            assign<&ast::TraitPrecedence::methodName>(ref<IdentifierRule>) + ikw<"insteadof"> +
-            some(append<&ast::TraitPrecedence::insteadOf>(ref<NameRule>), lit<",">) + SEMI)> {};
+            assign<&ast::TraitPrecedence::traitName>(ref<Name>) + lit<"::"> +
+            assign<&ast::TraitPrecedence::methodName>(ref<Identifier>) + ikw<"insteadof"> +
+            some(append<&ast::TraitPrecedence::insteadOf>(ref<Name>), lit<",">) + SEMI)> {};
 
-  struct TraitAliasRule
+  struct TraitAlias
       : rule<create<ast::TraitAlias>(
-            option(assign<&ast::TraitAlias::traitName>(ref<NameRule>) + lit<"::">) +
-            assign<&ast::TraitAlias::methodName>(ref<IdentifierRule>) + ikw<"as"> +
+            option(assign<&ast::TraitAlias::traitName>(ref<Name>) + lit<"::">) +
+            assign<&ast::TraitAlias::methodName>(ref<Identifier>) + ikw<"as"> +
             option(assign<&ast::TraitAlias::asModifier>(MemberModifier)) +
-            option(assign<&ast::TraitAlias::asName>(ref<IdentifierRule>)) + SEMI)> {};
+            option(assign<&ast::TraitAlias::asName>(ref<Identifier>)) + SEMI)> {};
 
-  struct UseTraitMemberRule
+  struct UseTraitMember
       : rule<create<ast::UseTraitMember>(
-            ikw<"use"> + some(append<&ast::UseTraitMember::traits>(ref<NameRule>), lit<",">) +
+            ikw<"use"> + some(append<&ast::UseTraitMember::traits>(ref<Name>), lit<",">) +
             (SEMI | (lit<"{"> +
-                     many(append<&ast::UseTraitMember::precedences>(ref<TraitPrecedenceRule>) |
-                          append<&ast::UseTraitMember::aliases>(ref<TraitAliasRule>)) +
+                     many(append<&ast::UseTraitMember::precedences>(ref<TraitPrecedence>) |
+                          append<&ast::UseTraitMember::aliases>(ref<TraitAlias>)) +
                      lit<"}">)))> {};
 
-  struct MethodMemberRule
+  struct MethodMember
       : rule<create<ast::MethodMember>(
-            many(append<&ast::MethodMember::attributes>(ref<AttributeGroupRule>)) +
+            many(append<&ast::MethodMember::attributes>(ref<AttributeGroup>)) +
             many(append<&ast::MethodMember::modifiers>(MemberModifier)) +
-            assign<&ast::MethodMember::function>(ref<FunctionDeclOrProtoRule>))> {};
+            assign<&ast::MethodMember::function>(ref<FunctionDeclOrProto>))> {};
 
-  struct ClassMemberRule
+  struct ClassMember
       : rule<create<ast::ConstMember>(
-                 many(append<&ast::ConstMember::attributes>(ref<AttributeGroupRule>)) +
+                 many(append<&ast::ConstMember::attributes>(ref<AttributeGroup>)) +
                  many(append<&ast::ConstMember::modifiers>(MemberModifier)) + ikw<"const"> +
-                 option(assign<&ast::ConstMember::type>(ref<TypeRefRule>)) +
-                 some(append<&ast::ConstMember::consts>(ref<ClassConstRule>), lit<",">) + SEMI)  //
+                 option(assign<&ast::ConstMember::type>(ref<TypeRef>)) +
+                 some(append<&ast::ConstMember::consts>(ref<ClassConst>), lit<",">) + SEMI)  //
              | create<ast::PropertyMember>(
-                   many(append<&ast::PropertyMember::attributes>(ref<AttributeGroupRule>)) +
+                   many(append<&ast::PropertyMember::attributes>(ref<AttributeGroup>)) +
                    ((some(append<&ast::PropertyMember::modifiers>(MemberModifier)) +
-                     option(assign<&ast::PropertyMember::type>(ref<TypeRefRule>))) |
+                     option(assign<&ast::PropertyMember::type>(ref<TypeRef>))) |
                     append<&ast::PropertyMember::modifiers>(ikw<"var">)) +
-                   some(append<&ast::PropertyMember::props>(ref<PropertyDeclRule>), lit<",">) +
-                   option(SEMI))  //
-             | ref<MethodMemberRule> | ref<UseTraitMemberRule>> {};
+                   ((some(append<&ast::PropertyMember::props>(ref<PropertyDecl>), lit<",">) + SEMI) |
+                    append<&ast::PropertyMember::props>(ref<HookedProperty>)))  //
+             | ref<MethodMember> | ref<UseTraitMember>> {};
 
-  struct EnumCaseRule
-      : rule<create<ast::EnumCase>(many(append<&ast::EnumCase::attributes>(ref<AttributeGroupRule>)) +
-                                   ikw<"case"> + assign<&ast::EnumCase::name>(ref<IdentifierRule>) +
+  struct EnumCase
+      : rule<create<ast::EnumCase>(many(append<&ast::EnumCase::attributes>(ref<AttributeGroup>)) +
+                                   ikw<"case"> + assign<&ast::EnumCase::name>(ref<Identifier>) +
                                    option(lit<"="> + assign<&ast::EnumCase::value>(ref<Expression>)) +
                                    SEMI)> {};
 
-  struct EnumDeclRule
+  struct EnumDecl
       : rule<create<ast::EnumDecl>(
-            many(append<&ast::EnumDecl::attributes>(ref<AttributeGroupRule>)) +
-            ikw<"enum"> + assign<&ast::EnumDecl::name>(ref<IdentifierRule>) +
+            many(append<&ast::EnumDecl::attributes>(ref<AttributeGroup>)) +
+            ikw<"enum"> + assign<&ast::EnumDecl::name>(ref<Identifier>) +
             option(lit<":"> + assign<&ast::EnumDecl::backingType>(ikw<"int"> | ikw<"string">)) +
             option(ikw<"implements"> +
-                   some(append<&ast::EnumDecl::implementsList>(ref<NameRule>), lit<",">)) +
+                   some(append<&ast::EnumDecl::implementsList>(ref<Name>), lit<",">)) +
             lit<"{"> +
-            many(append<&ast::EnumDecl::cases>(ref<EnumCaseRule>) |
-                 append<&ast::EnumDecl::members>(ref<ClassMemberRule>)) +
+            many(append<&ast::EnumDecl::cases>(ref<EnumCase>) |
+                 append<&ast::EnumDecl::members>(ref<ClassMember>)) +
             lit<"}">)> {};
 
-  struct UseGroupInnerRule
+  struct UseGroupInner
       : rule<create<ast::UseItem>(option(assign<&ast::UseItem::kind>(ikw<"function"> | ikw<"const">)) +
-                                  assign<&ast::UseItem::name>(ref<NameRule>) +
-                                  option(ikw<"as"> + assign<&ast::UseItem::alias>(ref<IdentifierRule>)))> {
+                                  assign<&ast::UseItem::name>(ref<Name>) +
+                                  option(ikw<"as"> + assign<&ast::UseItem::alias>(ref<Identifier>)))> {
   };
 
-  struct UseEntryRule
-      : rule<create<ast::UseItem>(assign<&ast::UseItem::name>(ref<NameRule>) + lit<"\\"> +
+  struct UseEntry
+      : rule<create<ast::UseItem>(assign<&ast::UseItem::name>(ref<Name>) + lit<"\\"> +
                                   lit<"{"> +
-                                  some(append<&ast::UseItem::group>(ref<UseGroupInnerRule>), lit<",">) +
+                                  some(append<&ast::UseItem::group>(ref<UseGroupInner>), lit<",">) +
                                   option(lit<",">) + lit<"}">)  //
-             | create<ast::UseItem>(assign<&ast::UseItem::name>(ref<NameRule>) +
-                                    option(ikw<"as"> + assign<&ast::UseItem::alias>(ref<IdentifierRule>)))> {
+             | create<ast::UseItem>(assign<&ast::UseItem::name>(ref<Name>) +
+                                    option(ikw<"as"> + assign<&ast::UseItem::alias>(ref<Identifier>)))> {
   };
 
-  struct UseDeclRule
+  struct UseDecl
       : rule<create<ast::UseDecl>(
             ikw<"use"> + option(assign<&ast::UseDecl::kind>(ikw<"function"> | ikw<"const">)) +
-            some(append<&ast::UseDecl::items>(ref<UseEntryRule>), lit<",">) + SEMI)> {};
+            some(append<&ast::UseDecl::items>(ref<UseEntry>), lit<",">) + SEMI)> {};
 
-  struct TopLevelItemRule;
+  struct TopLevelItem;
 
-  struct NamespaceDeclRule
+  struct NamespaceDecl
       : rule<create<ast::NamespaceDecl>(
             ikw<"namespace"> +
-            ((option(assign<&ast::NamespaceDecl::name>(ref<NameRule>)) +
+            ((option(assign<&ast::NamespaceDecl::name>(ref<Name>)) +
               flag<&ast::NamespaceDecl::braced>(lit<"{">) +
-              many(append<&ast::NamespaceDecl::items>(ref<TopLevelItemRule>)) + lit<"}">)  //
-             | (assign<&ast::NamespaceDecl::name>(ref<NameRule>) + SEMI)))> {};
+              many(append<&ast::NamespaceDecl::items>(ref<TopLevelItem>)) + lit<"}">)  //
+             | (assign<&ast::NamespaceDecl::name>(ref<Name>) + SEMI)))> {};
 
-  struct ImportDeclRule
+  struct ImportDecl
       : rule<create<ast::ImportDecl>(ikw<"import"> + ikw<"namespace"> +
-                                     assign<&ast::ImportDecl::name>(ref<NameRule>) + SEMI)> {};
+                                     assign<&ast::ImportDecl::name>(ref<Name>) + SEMI)> {};
 
-  struct GlobalConstDeclRule
+  struct GlobalConstDecl
       : rule<create<ast::GlobalConstDecl>(
-            many(append<&ast::GlobalConstDecl::attributes>(ref<AttributeGroupRule>)) +
+            many(append<&ast::GlobalConstDecl::attributes>(ref<AttributeGroup>)) +
             ikw<"const"> +
-            some(append<&ast::GlobalConstDecl::consts>(ref<ClassConstRule>), lit<",">) + SEMI)> {};
+            some(append<&ast::GlobalConstDecl::consts>(ref<ClassConst>), lit<",">) + SEMI)> {};
 
   inline static constexpr auto bridge_text = [](std::string_view text) {
     const std::size_t n = text.size() - text.rfind("<?");
@@ -705,12 +725,10 @@ struct Php : cursiv::GrammarSpec {
   static constexpr auto BridgeBody =
       lit<"?>"> + many(lit<"<", !lit<"?">> | cr<"^<">);
   struct HTML_BRIDGE
-      : terminal<BridgeBody + (ref<PHP_OPEN> | lit<"<?">),
-                 text_conv<bridge_text>> {};
-  struct HTML_ECHO_BRIDGE
-      : terminal<BridgeBody + lit<"<?=">,
-                 text_conv<bridge_text>> {};
-  struct HtmlBridgeRule
+      : terminal<as<bridge_text>(BridgeBody + (ref<PHP_OPEN> | lit<"<?">))> {};
+  struct HTML_ECHO_BRIDGE : terminal<as<bridge_text>(BridgeBody + lit<"<?=">)> {
+  };
+  struct HtmlBridge
       : rule<create<ast::InlineHtmlStmt>(
                  assign<&ast::InlineHtmlStmt::text>(ref<HTML_BRIDGE>)) |
              create<ast::BlockStmt>(
@@ -719,85 +737,85 @@ struct Php : cursiv::GrammarSpec {
                  append<&ast::BlockStmt::items>(create<ast::EchoStmt>(
                      some(append<&ast::EchoStmt::values>(ref<Expression>), lit<",">) + SEMI)))> {};
 
-  struct StatementRule;
+  struct Statement;
 
-  struct BlockStmtRule
+  struct BlockStmt
       : rule<create<ast::BlockStmt>(lit<"{"> +
-                                    many(append<&ast::BlockStmt::items>(ref<InnerStatementRule>)) +
+                                    many(append<&ast::BlockStmt::items>(ref<InnerStatement>)) +
                                     lit<"}">)> {};
 
   static constexpr auto AltBody =
-      create<ast::BlockStmt>(many(append<&ast::BlockStmt::items>(ref<InnerStatementRule>)));
+      create<ast::BlockStmt>(many(append<&ast::BlockStmt::items>(ref<InnerStatement>)));
 
-  struct ElseChainRule
+  struct ElseChain
       : rule<create<ast::IfStmt>(
                  ikw<"elseif"> + lit<"("> + assign<&ast::IfStmt::cond>(ref<Expression>) + lit<")"> +
-                 assign<&ast::IfStmt::thenBranch>(ref<StatementRule>) +
-                 option(assign<&ast::IfStmt::elseBranch>(ref<ElseChainRule>)))  //
-             | (ikw<"else"> + ref<StatementRule>)> {};
+                 assign<&ast::IfStmt::thenBranch>(ref<Statement>) +
+                 option(assign<&ast::IfStmt::elseBranch>(ref<ElseChain>)))  //
+             | (ikw<"else"> + ref<Statement>)> {};
 
-  struct ElseColonChainRule
+  struct ElseColonChain
       : rule<create<ast::IfStmt>(
                  ikw<"elseif"> + lit<"("> + assign<&ast::IfStmt::cond>(ref<Expression>) + lit<")"> +
                  lit<":"> + assign<&ast::IfStmt::thenBranch>(AltBody) +
-                 option(assign<&ast::IfStmt::elseBranch>(ref<ElseColonChainRule>)))  //
+                 option(assign<&ast::IfStmt::elseBranch>(ref<ElseColonChain>)))  //
              | (ikw<"else"> + lit<":"> + AltBody)> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<create<ast::IfStmt>(ikw<"if"> + lit<"("> + assign<&ast::IfStmt::cond>(ref<Expression>) +
-                                 lit<")"> + assign<&ast::IfStmt::thenBranch>(ref<StatementRule>) +
-                                 option(assign<&ast::IfStmt::elseBranch>(ref<ElseChainRule>)))  //
+                                 lit<")"> + assign<&ast::IfStmt::thenBranch>(ref<Statement>) +
+                                 option(assign<&ast::IfStmt::elseBranch>(ref<ElseChain>)))  //
              | create<ast::IfStmt>(ikw<"if"> + lit<"("> + assign<&ast::IfStmt::cond>(ref<Expression>) +
                                    lit<")"> + lit<":"> + assign<&ast::IfStmt::thenBranch>(AltBody) +
-                                   option(assign<&ast::IfStmt::elseBranch>(ref<ElseColonChainRule>)) +
+                                   option(assign<&ast::IfStmt::elseBranch>(ref<ElseColonChain>)) +
                                    ikw<"endif"> + SEMI)> {};
 
-  struct WhileStmtRule
+  struct WhileStmt
       : rule<create<ast::WhileStmt>(
             ikw<"while"> + lit<"("> + assign<&ast::WhileStmt::cond>(ref<Expression>) + lit<")"> +
-            (assign<&ast::WhileStmt::body>(ref<StatementRule>)  //
+            (assign<&ast::WhileStmt::body>(ref<Statement>)  //
              | (lit<":"> + assign<&ast::WhileStmt::body>(AltBody) + ikw<"endwhile"> + SEMI)))> {};
 
-  struct DoWhileStmtRule
-      : rule<create<ast::DoWhileStmt>(ikw<"do"> + assign<&ast::DoWhileStmt::body>(ref<StatementRule>) +
+  struct DoWhileStmt
+      : rule<create<ast::DoWhileStmt>(ikw<"do"> + assign<&ast::DoWhileStmt::body>(ref<Statement>) +
                                       ikw<"while"> + lit<"("> +
                                       assign<&ast::DoWhileStmt::cond>(ref<Expression>) + lit<")"> +
                                       SEMI)> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<create<ast::ForStmt>(
             ikw<"for"> + lit<"("> +
             many(append<&ast::ForStmt::init>(ref<Expression>), lit<",">) + SEMI +
             many(append<&ast::ForStmt::cond>(ref<Expression>), lit<",">) + SEMI +
             many(append<&ast::ForStmt::update>(ref<Expression>), lit<",">) + lit<")"> +
-            (assign<&ast::ForStmt::body>(ref<StatementRule>)  //
+            (assign<&ast::ForStmt::body>(ref<Statement>)  //
              | (lit<":"> + assign<&ast::ForStmt::body>(AltBody) + ikw<"endfor"> + SEMI)))> {};
 
-  struct CaseArmRule
+  struct CaseArm
       : rule<create<ast::CaseArm>(
             ((ikw<"case"> + assign<&ast::CaseArm::value>(ref<Expression>)) | ikw<"default">) +
             (lit<":"> | SEMI) +
-            many(append<&ast::CaseArm::body>(ref<InnerStatementRule>)))> {};
+            many(append<&ast::CaseArm::body>(ref<InnerStatement>)))> {};
 
-  struct SwitchStmtRule
+  struct SwitchStmt
       : rule<create<ast::SwitchStmt>(
             ikw<"switch"> + lit<"("> + assign<&ast::SwitchStmt::value>(ref<Expression>) + lit<")"> +
-            ((lit<"{"> + option(SEMI) + many(append<&ast::SwitchStmt::cases>(ref<CaseArmRule>)) +
+            ((lit<"{"> + option(SEMI) + many(append<&ast::SwitchStmt::cases>(ref<CaseArm>)) +
               lit<"}">)  //
-             | (lit<":"> + option(SEMI) + many(append<&ast::SwitchStmt::cases>(ref<CaseArmRule>)) +
+             | (lit<":"> + option(SEMI) + many(append<&ast::SwitchStmt::cases>(ref<CaseArm>)) +
                 ikw<"endswitch"> + SEMI)))> {};
 
-  struct BreakStmtRule
+  struct BreakStmt
       : rule<create<ast::BreakStmt>(ikw<"break"> + option(assign<&ast::BreakStmt::level>(ref<Expression>)) +
                                     SEMI)> {};
-  struct ContinueStmtRule
+  struct ContinueStmt
       : rule<create<ast::ContinueStmt>(
             ikw<"continue"> + option(assign<&ast::ContinueStmt::level>(ref<Expression>)) + SEMI)> {};
-  struct ReturnStmtRule
+  struct ReturnStmt
       : rule<create<ast::ReturnStmt>(
             ikw<"return"> + option(assign<&ast::ReturnStmt::value>(ref<Expression>)) + SEMI)> {};
 
-  struct GlobalStmtRule
+  struct GlobalStmt
       : rule<create<ast::GlobalStmt>(
             ikw<"global"> +
             some(append<&ast::GlobalStmt::vars>(
@@ -807,97 +825,97 @@ struct Php : cursiv::GrammarSpec {
                  lit<",">) +
             SEMI)> {};
 
-  struct StaticVarStmtRule
+  struct StaticVarStmt
       : rule<create<ast::StaticVarStmt>(
-            ikw<"static"> + some(append<&ast::StaticVarStmt::vars>(ref<PropertyDeclRule>), lit<",">) +
+            ikw<"static"> + some(append<&ast::StaticVarStmt::vars>(ref<PropertyDecl>), lit<",">) +
             SEMI)> {};
 
-  struct EchoStmtRule
+  struct EchoStmt
       : rule<create<ast::EchoStmt>(
             ikw<"echo"> + some(append<&ast::EchoStmt::values>(ref<Expression>), lit<",">) + SEMI)> {};
 
-  struct ExprStmtRule
+  struct ExprStmt
       : rule<create<ast::ExprStmt>(assign<&ast::ExprStmt::value>(ref<Expression>) + SEMI)> {};
 
-  struct UnsetStmtRule
+  struct UnsetStmt
       : rule<create<ast::UnsetStmt>(ikw<"unset"> + lit<"("> +
                                     some(append<&ast::UnsetStmt::targets>(ref<ChainExpr>), lit<",">) +
                                     lit<")"> + SEMI)> {};
 
-  struct ForeachStmtRule
+  struct ForeachStmt
       : rule<create<ast::ForeachStmt>(
             ikw<"foreach"> + lit<"("> + assign<&ast::ForeachStmt::source>(ref<Expression>) +
-            ikw<"as"> + option(assign<&ast::ForeachStmt::key>(ref<AssignableRule>) + lit<"=>">) +
+            ikw<"as"> + option(assign<&ast::ForeachStmt::key>(ref<Assignable>) + lit<"=>">) +
             option(flag<&ast::ForeachStmt::valueByRef>(lit<"&">)) +
-            assign<&ast::ForeachStmt::value>(ref<AssignableRule>) + lit<")"> +
-            (assign<&ast::ForeachStmt::body>(ref<StatementRule>)  //
+            assign<&ast::ForeachStmt::value>(ref<Assignable>) + lit<")"> +
+            (assign<&ast::ForeachStmt::body>(ref<Statement>)  //
              | (lit<":"> + assign<&ast::ForeachStmt::body>(AltBody) + ikw<"endforeach"> + SEMI)))> {
   };
 
-  struct CatchClauseRule
+  struct CatchClause
       : rule<create<ast::CatchClause>(
-            ikw<"catch"> + lit<"("> + some(append<&ast::CatchClause::types>(ref<NameRule>), lit<"|">) +
+            ikw<"catch"> + lit<"("> + some(append<&ast::CatchClause::types>(ref<Name>), lit<"|">) +
             option(assign<&ast::CatchClause::var>(
                 create<ast::Var>(assign<&ast::Var::name>(ref<VARNAME>)))) +
-            lit<")"> + assign<&ast::CatchClause::body>(ref<BlockStmtRule>))> {};
+            lit<")"> + assign<&ast::CatchClause::body>(ref<BlockStmt>))> {};
 
-  struct TryStmtRule
+  struct TryStmt
       : rule<create<ast::TryStmt>(
-            ikw<"try"> + assign<&ast::TryStmt::body>(ref<BlockStmtRule>) +
-            ((some(append<&ast::TryStmt::catches>(ref<CatchClauseRule>)) +
-              option(ikw<"finally"> + assign<&ast::TryStmt::finallyBody>(ref<BlockStmtRule>)))  //
-             | (ikw<"finally"> + assign<&ast::TryStmt::finallyBody>(ref<BlockStmtRule>))))> {};
+            ikw<"try"> + assign<&ast::TryStmt::body>(ref<BlockStmt>) +
+            ((some(append<&ast::TryStmt::catches>(ref<CatchClause>)) +
+              option(ikw<"finally"> + assign<&ast::TryStmt::finallyBody>(ref<BlockStmt>)))  //
+             | (ikw<"finally"> + assign<&ast::TryStmt::finallyBody>(ref<BlockStmt>))))> {};
 
-  struct ThrowStmtRule
+  struct ThrowStmt
       : rule<create<ast::ExprStmt>(
             assign<&ast::ExprStmt::value>(create<ast::ThrowExpr>(
                 ikw<"throw"> + assign<&ast::ThrowExpr::operand>(ref<Expression>))) +
             SEMI)> {};
 
-  struct GotoStmtRule
-      : rule<create<ast::GotoStmt>(ikw<"goto"> + assign<&ast::GotoStmt::target>(ref<IdentifierRule>) +
+  struct GotoStmt
+      : rule<create<ast::GotoStmt>(ikw<"goto"> + assign<&ast::GotoStmt::target>(ref<Identifier>) +
                                    SEMI)> {};
 
-  struct DirectiveRule
+  struct Directive
       : rule<create<ast::Directive>(
             assign<&ast::Directive::name>(ikw<"ticks"> | ikw<"encoding"> | ikw<"strict_types">) +
             lit<"="> + assign<&ast::Directive::value>(ref<Expression>))> {};
 
-  struct DeclareStmtRule
+  struct DeclareStmt
       : rule<create<ast::DeclareStmt>(
             ikw<"declare"> + lit<"("> +
-            some(append<&ast::DeclareStmt::directives>(ref<DirectiveRule>), lit<",">) + lit<")"> +
-            (assign<&ast::DeclareStmt::body>(ref<StatementRule>)  //
+            some(append<&ast::DeclareStmt::directives>(ref<Directive>), lit<",">) + lit<")"> +
+            (assign<&ast::DeclareStmt::body>(ref<Statement>)  //
              | (lit<":"> + assign<&ast::DeclareStmt::body>(AltBody) + ikw<"enddeclare"> + SEMI)  //
              | SEMI))> {};
 
-  struct LabelStmtRule
-      : rule<create<ast::LabelStmt>(assign<&ast::LabelStmt::name>(ref<IdentifierRule>) + lit<":">)> {
+  struct LabelStmt
+      : rule<create<ast::LabelStmt>(assign<&ast::LabelStmt::name>(ref<Identifier>) + lit<":">)> {
   };
 
-  struct EmptyStmtRule : rule<create<ast::EmptyStmt>(lit<";">)> {};
+  struct EmptyStmt : rule<create<ast::EmptyStmt>(lit<";">)> {};
 
-  struct StatementRule
-      : rule<ref<HtmlBridgeRule> | ref<BlockStmtRule> | ref<IfStmtRule> |
-             ref<WhileStmtRule> | ref<DoWhileStmtRule> | ref<ForStmtRule> |
-             ref<SwitchStmtRule> | ref<BreakStmtRule> | ref<ContinueStmtRule> |
-             ref<ReturnStmtRule> | ref<GlobalStmtRule> |
-             ref<StaticVarStmtRule> | ref<EchoStmtRule> | ref<UnsetStmtRule> |
-             ref<ForeachStmtRule> | ref<TryStmtRule> | ref<ThrowStmtRule> |
-             ref<GotoStmtRule> | ref<DeclareStmtRule> | ref<EmptyStmtRule> |
-             ref<LabelStmtRule> |
-             ref<ExprStmtRule>> {};
+  struct Statement
+      : rule<ref<HtmlBridge> | ref<BlockStmt> | ref<IfStmt> |
+             ref<WhileStmt> | ref<DoWhileStmt> | ref<ForStmt> |
+             ref<SwitchStmt> | ref<BreakStmt> | ref<ContinueStmt> |
+             ref<ReturnStmt> | ref<GlobalStmt> |
+             ref<StaticVarStmt> | ref<EchoStmt> | ref<UnsetStmt> |
+             ref<ForeachStmt> | ref<TryStmt> | ref<ThrowStmt> |
+             ref<GotoStmt> | ref<DeclareStmt> | ref<EmptyStmt> |
+             ref<LabelStmt> |
+             ref<ExprStmt>> {};
 
-  struct InnerStatementRule
-      : rule<ref<StatementRule> | ref<FunctionDeclRule> | ref<ClassDeclRule>> {};
+  struct InnerStatement
+      : rule<ref<Statement> | ref<FunctionDecl> | ref<ClassDecl>> {};
 
-  struct TopLevelItemRule
-      : rule<ref<ImportDeclRule> | ref<UseDeclRule> | ref<NamespaceDeclRule> |
-             ref<FunctionDeclRule> | ref<ClassDeclRule> | ref<GlobalConstDeclRule> |
-             ref<EnumDeclRule> | ref<StatementRule>> {};
+  struct TopLevelItem
+      : rule<ref<ImportDecl> | ref<UseDecl> | ref<NamespaceDecl> |
+             ref<FunctionDecl> | ref<ClassDecl> | ref<GlobalConstDecl> |
+             ref<EnumDecl> | ref<Statement>> {};
 
   static constexpr auto PhpItems =
-      many(append<&ast::PhpBlock::items>(ref<TopLevelItemRule>));
+      many(append<&ast::PhpBlock::items>(ref<TopLevelItem>));
   static constexpr auto PhpClose = ref<PHP_CLOSE>;
   static constexpr auto PhpOpen = ref<PHP_OPEN> | lit<"<?">;
   static constexpr auto PhpContent =
@@ -905,22 +923,22 @@ struct Php : cursiv::GrammarSpec {
        append<&ast::PhpBlock::items>(create<ast::EchoStmt>(
            some(append<&ast::EchoStmt::values>(ref<Expression>), lit<",">) + SEMI)))) + PhpItems;
 
-  struct PhpBlockRule
+  struct PhpBlock
       : rule<create<ast::PhpBlock>(
                  &(PhpOpen | lit<"<?=">) +
-                 skip(ignored<WS>, hide<SL_COMMENT, ML_COMMENT>, PhpContent + (PhpClose | eof)))> {};
+                 skip(ignore<WS>, hide<SL_COMMENT, ML_COMMENT>, PhpContent + (PhpClose | eof)))> {};
 
-  struct HtmlChunkRule
+  struct HtmlChunk
       : rule<create<ast::InlineHtmlStmt>(
             assign<&ast::InlineHtmlStmt::text>(ref<HTML_TEXT> | ref<XML_DECL>))> {};
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document>(
             option(assign<&ast::Document::shebang>(ref<SHEBANG>)) +
-            many(append<&ast::Document::items>(ref<HtmlChunkRule> | ref<PhpBlockRule>)))> {};
+            many(append<&ast::Document::items>(ref<HtmlChunk> | ref<PhpBlock>)))> {};
 
-  using entry = DocumentRule;
-  using ignore = list<>;
+  using entry = Document;
+  using ignored = list<>;
   using hidden = list<>;
 };
 

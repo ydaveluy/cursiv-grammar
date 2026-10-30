@@ -23,16 +23,9 @@ struct Tinyc : cursiv::GrammarSpec {
   struct Term : rule<ref<Identifier> | ref<IntegerLiteral> | ref<ParenExpr>> {};
 
   static constexpr auto OpAdd = lit<"+"> | lit<"-">;
-  struct Sum : infix<Term, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-                     &ast::BinaryExpr::right, left(OpAdd)> {};
+  struct Sum : infix<Term, ast::BinaryExpr, left(OpAdd)> {};
 
-  // `sum_ '<' sum_`: one comparison at most, so a plain infix table (which
-  // would chain) does not fit -- the second operand is an option, not a
-  // repetition.
-  struct Test
-      : rule<ref<Sum> + option(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                            assign<&ast::BinaryExpr::op>(lit<"<">) +
-                            assign<&ast::BinaryExpr::right>(ref<Sum>)))> {};
+  struct Test : infix<Sum, ast::BinaryExpr, nonassoc(lit<"<">)> {};
 
   struct Expr : rule<create<ast::Assign>(
                          assign<&ast::Assign::target>(ref<Identifier>) +
@@ -73,7 +66,7 @@ struct Tinyc : cursiv::GrammarSpec {
              many(append<&ast::Program::statements>(ref<Statement>))> {};
 
   using entry = Program;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 } // namespace tinyc

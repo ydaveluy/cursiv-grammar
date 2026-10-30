@@ -31,19 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Bitcoin Miniscript expressions with key, locktime, hash, combinator and wrapper fragments. The parser builds syntax trees without script compilation.
+
 ```
 or_d(pk(A),and_v(v:pkh(B),older(144)))
 ```
-
-A Miniscript expression: a small function-call language over the fragments
-and wrappers of [BIP 379](https://github.com/bitcoin/bips/blob/master/bip-0379.md).
-`pk`/`pkh`/`pk_k`/`pk_h` take a key; `older`/`after` a locktime; `sha256`/
-`hash256`/`hash160`/`ripemd160` a hash; `and_v`/`and_b`/`and_n`/`or_b`/`or_c`/
-`or_d`/`or_i` two sub-expressions; `andor` three; `thresh` a threshold and a
-comma-separated list; `multi`/`multi_a` a threshold and a key list. A run of
-`acdtvjnlsu` letters followed by `:` wraps the expression that follows. Key
-expressions are opaque tokens — a concrete BIP 380 key, or a symbolic name
-such as `A` — validating their shape is left to a downstream analyzer.
 
 ## The command line
 

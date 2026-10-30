@@ -31,12 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-A [DIF](https://en.wikipedia.org/wiki/Data_Interchange_Format) document is a
-fixed four-line header — `TABLE`, `VECTORS`, `TUPLES`, `DATA`, each followed
-by a `NUM,NUM` pair and a quoted label — then one or more data items, each a
-`NUM,NUM` pair followed by `BOT` (begins a tuple), `EOD` (ends the data
-section), a quoted string, or `V` (a numeric value, carried in the pair's
-second number):
+A DIF file contains ordered header topics followed by data tuples. BOT starts a tuple, EOD ends data, and numeric/string items retain their values.
 
 ```
 TABLE
@@ -59,8 +54,6 @@ BOT
 -1,0
 EOD
 ```
-
-See `example/example1.dif` and `example/example2.dif` for full documents.
 
 ## The command line
 

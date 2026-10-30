@@ -31,9 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-An Arden Syntax Medical Logic Module (`.mlm`): four categories --
-`maintenance`, `library`, `knowledge`, `resources` -- each a run of
-`slot: value;;` pairs, closed by `end:`.
+An Arden Syntax Medical Logic Module consists of maintenance, library, knowledge and resources categories. Slots carry metadata or statement trees.
 
 ```
 maintenance:
@@ -70,10 +68,6 @@ default: en;;
 language: en;;
 end:
 ```
-
-The four categories are named nodes (`ast::Mlm::maintenance` and friends);
-`data`/`logic`/`action` hold statement trees built from the same shared
-assignment, `if`/`for`/`while`/`switch` shapes.
 
 ## The command line
 

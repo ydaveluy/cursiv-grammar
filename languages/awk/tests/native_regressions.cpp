@@ -228,9 +228,64 @@ int main() {
     const auto* text = first<ast::StringLit>(international);
     check(text && text->international && text->text=="\"hello\"","international string flag and spelling");
   }
+
+  {
+    const auto result = parser.parse("{ print $i++, ++$i, $++i, $i^2, $+i^2 }");
+    const auto* output = first<ast::PrintStmt>(result);
+    const auto* post = output && output->args.size() == 5
+        ? as<ast::PostfixUpdateExpr>(output->args[0]) : nullptr;
+    const auto* pre = output && output->args.size() == 5
+        ? as<ast::PrefixUpdateExpr>(output->args[1]) : nullptr;
+    const auto* indexed = output && output->args.size() == 5
+        ? as<ast::FieldExpr>(output->args[2]) : nullptr;
+    check(result.accepted && !result.cst().recovered() && post &&
+          as<ast::FieldExpr>(post->target) && pre && as<ast::FieldExpr>(pre->target) &&
+          indexed && as<ast::PrefixUpdateExpr>(indexed->index),
+          "native field updates preserve field-versus-index binding");
+    const auto* power = output && output->args.size() == 5
+        ? as<ast::BinaryExpr>(output->args[3]) : nullptr;
+    const auto* unary_field = output && output->args.size() == 5
+        ? as<ast::FieldExpr>(output->args[4]) : nullptr;
+    const auto* unary = unary_field ? as<ast::UnaryExpr>(unary_field->index) : nullptr;
+    check(power && power->op == ast::BinOp::Pow && as<ast::FieldExpr>(power->left) &&
+          unary && as<ast::BinaryExpr>(unary->operand) &&
+          as<ast::BinaryExpr>(unary->operand)->op == ast::BinOp::Pow,
+          "field precedence and unary field operands follow gawk5.4.1");
+  }
+  for (const char* expression : {"12 / /a/", "/a/ / 2"}) {
+    const auto result = parser.parse("BEGIN { print " + std::string(expression) + " }");
+    const auto* output = first<ast::PrintStmt>(result);
+    const auto* div = output && output->args.size() == 1
+        ? as<ast::BinaryExpr>(output->args[0]) : nullptr;
+    check(result.accepted && !result.cst().recovered() && div &&
+          div->op == ast::BinOp::Div &&
+          (as<ast::RegexLit>(div->left) || as<ast::RegexLit>(div->right)),
+          "a slash divides while its regex operand retains a RegexLit");
+  }
+  {
+    const auto result = parser.parse("BEGIN { print 12/3 \"x\" 8/2 }");
+    const auto* output = first<ast::PrintStmt>(result);
+    const auto* outer = output && output->args.size() == 1
+        ? as<ast::ConcatExpr>(output->args[0]) : nullptr;
+    const auto* left = outer ? as<ast::ConcatExpr>(outer->left) : nullptr;
+    const auto* a = left ? as<ast::BinaryExpr>(left->left) : nullptr;
+    const auto* b = outer ? as<ast::BinaryExpr>(outer->right) : nullptr;
+    check(outer && left && a && a->op == ast::BinOp::Div && b &&
+          b->op == ast::BinOp::Div, "implicit concat keeps two division subtrees");
+  }
+  for (const char* invalid : {"BEGIN { print \"x\" /a/ }",
+                             "BEGIN { r=@ /a/ }",
+                             "BEGIN { print 1 > a ? b : c }",
+                             "BEGIN { print 1 > x=\"file\" }"}) {
+    const auto result = parser.parse(invalid);
+    check(!result.accepted || result.cst().recovered() || !result.diagnostics.empty(),
+          "native-invalid slash, typed-prefix or redirection syntax refused");
+  }
   struct Invalid { const char* text; const char* code; unsigned count; };
   const Invalid invalid[] = {
     {"BEGIN","awk.action",1},
+    {"BEGIN { print @/a/ }","awk.typed-regexp-context",1},
+    {"BEGIN { print \"x\" @/a/ }","awk.typed-regexp-context",1},
     {"BEGIN { print sqrt() }","awk.builtin-arity",1},
     {"BEGIN { 1=2 }","awk.assignment-target",1},
     {"BEGIN { delete $0 }","awk.delete",1},

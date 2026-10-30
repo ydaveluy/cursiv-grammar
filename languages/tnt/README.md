@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Typographical Number Theory formulas with arithmetic terms, quantifiers and logical connectives. This parser does not verify proofs.
+
 ```
 Aa:Ab:(a + b) = (b + a)
 ```
-
-A [TNT](http://en.wikipedia.org/wiki/Typographical_Number_Theory) formula:
-`0` is zero, `S` a successor (`SS0` is two), a lowercase letter `a`-`e` a
-variable (`a''` a distinct one, `Sb` its successor), `A`/`E` a universal or
-existential quantifier over a variable, `~` negation, and `+`/`*` the two
-operations — all inside one equation, `expression '=' expression`.
 
 ## The command line
 

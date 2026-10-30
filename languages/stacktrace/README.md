@@ -31,18 +31,14 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Java stack traces with exception headers, frames, causes and suppressed exceptions.
+
 ```
 java.lang.IllegalStateException: invalid state reached during startup
 	at com.example.app.Bootstrap.init(Bootstrap.java:88)
 	at com.example.app.Bootstrap.start_all(Bootstrap.java:41)
 	at com.example.app.Main.main(Main.java:12)
 ```
-
-A document is one exception: a header line naming the class (and, after a
-`:`, its message), the frames it was thrown through, and — recursively — the
-exception it was `Caused by:`, if any. `example/nested.stacktrace` shows a
-two-level cause chain, `... N more` frames, a native and an unknown-source
-frame, and a constructor (`<init>`) frame.
 
 ## The command line
 

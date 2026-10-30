@@ -32,31 +32,32 @@ struct Dif : cursiv::GrammarSpec {
   struct NL : terminal<lit<"\r\n"> | cr<R"(\r\n)">> {};
   struct TYPE : terminal<option(cr<"+-">) + some(d)> {};
   struct TOPIC : terminal<cr<"A-Za-z"> + many(cr<"A-Za-z0-9_">)> {};
-  struct LINE : terminal<some(cr<R"(^\r\n)">), text_conv<trim>> {};
-  struct STATUS : terminal<!lit<"\""> + some(cr<R"(^\r\n)">), text_conv<trim>> {};
-  struct STRING : terminal<lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">,
-                           text_conv<unquote>> {};
+  struct LINE : terminal<as<trim>(some(cr<R"(^\r\n)">))> {};
+  struct STATUS : terminal<as<trim>(!lit<"\""> + some(cr<R"(^\r\n)">))> {};
+  struct STRING
+      : terminal<as<unquote>(lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) +
+                             lit<"\"">)> {};
 
-  struct PairRule : rule<assign<&ast::Pair::first>(ref<TYPE>) + lit<","> +
+  struct Pair : rule<assign<&ast::Pair::first>(ref<TYPE>) + lit<","> +
                          option(assign<&ast::Pair::second>(ref<LINE>))> {};
 
-  struct SectionRule : rule<assign<&ast::Section::topic>(ref<TOPIC>) + ref<NL> +
-                            assign<&ast::Section::id>(ref<PairRule>) + ref<NL> +
+  struct Section : rule<assign<&ast::Section::topic>(ref<TOPIC>) + ref<NL> +
+                            assign<&ast::Section::id>(ref<Pair>) + ref<NL> +
                             assign<&ast::Section::label>(ref<STRING>) + (ref<NL> | eof)> {};
 
-  struct HeaderRule : rule<create<ast::Header> +
-      many(append<&ast::Header::sections>(ref<SectionRule>) + many(ref<NL>))> {};
+  struct Header : rule<create<ast::Header> +
+      many(append<&ast::Header::sections>(ref<Section>) + many(ref<NL>))> {};
 
-  struct DatumRule : rule<assign<&ast::Datum::id>(ref<PairRule>) + ref<NL> +
+  struct Datum : rule<assign<&ast::Datum::id>(ref<Pair>) + ref<NL> +
       (flag<&ast::Datum::quoted>(assign<&ast::Datum::value>(ref<STRING>)) |
        assign<&ast::Datum::value>(ref<STATUS>)) + (ref<NL> | eof)> {};
 
-  struct DocumentRule : rule<create<ast::Document> + many(ref<NL>) +
-      assign<&ast::Document::header>(ref<HeaderRule>) +
-      many(append<&ast::Document::items>(ref<DatumRule>) + many(ref<NL>))> {};
+  struct Document : rule<create<ast::Document> + many(ref<NL>) +
+      assign<&ast::Document::header>(ref<Header>) +
+      many(append<&ast::Document::items>(ref<Datum>) + many(ref<NL>))> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
 };
 
 }  // namespace dif

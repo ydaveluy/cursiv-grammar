@@ -5,6 +5,9 @@
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "cursiv/test/Check.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/core/services/CoreLanguage.hpp"
+#include "sexpression/core/CoreServices.hpp"
 #include "sexpression/core/ast.hpp"
 #include "sexpression/generated/Sexpression/Module.hpp"
 
@@ -32,6 +35,16 @@ void examples() {
   CHECK(seen >= 3);
 }
 void datums() {
+  for (const char* newline : {"\n", "\r", "\r\n", "\u0085", "\u2028", "\u2029"}) {
+    const auto result = engine().parse(std::string("a;comment") + newline + "b");
+    const auto* root = result.value_as<ast::Sexpr>();
+    CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
+    CHECK(root && root->items.size() == 2);
+    if (root && root->items.size() == 2) {
+      const auto* second = cursiv::ast_cast<ast::Atom>(root->items[1]);
+      CHECK(second && second->text == "b");
+    }
+  }
   {
     const std::string source =
         "#lang htdp/bsl\n[define café 1] {+ café .5} '[] '( )";
@@ -196,6 +209,31 @@ void infix_list() {
   const auto *head = list ? cursiv::ast_cast<ast::Atom>(list->tail) : nullptr;
   CHECK(head && head->text == "+");
 }
+void reader_constraints() {
+  auto language = cursiv::create_language<sexpression::SexpressionCoreServices,
+                                         sexpression::SexpressionSharedCoreServices,
+                                         sexpression::install_core_module>();
+  for (const auto* source : {"(a]", "[a)", "{a]", "(. a)",
+                              "(#;ignored . a)", "(a . + .)",
+                              "#(a . b)", "#s(a . b)", "#0(1)", "#01(1 2)"}) {
+    const auto parsed = language.language.parser->parse(source);
+    CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
+    const auto validation = cursiv::test::validationHelper(language.language, source);
+    CHECK(validation.diagnostics.size() == 1);
+    if (validation.diagnostics.size() == 1)
+      CHECK(validation.diagnostics[0].severity == cursiv::DiagnosticSeverity::Error);
+  }
+  for (const auto* source : {"[a {b}]", "(a . b)", "(a . + . b)",
+                              "#(a b)", "#s(a . + . b)", "#hash((a . b))",
+                              "#0()", "#02(1)", "#fl2(1.0)", "#fx2(1 2)"}) {
+    const auto validation = cursiv::test::validationHelper(language.language, source);
+    CHECK(validation.diagnostics.empty());
+  }
+  for (const auto* source : {"#t|name|", "#false\\name", "#<<\nbody\n\n"}) {
+    const auto parsed = engine().parse(source);
+    CHECK(!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty());
+  }
+}
 } // namespace
 int main() {
   examples();
@@ -204,5 +242,6 @@ int main() {
   additional_atoms();
   infix_list();
   here_string();
+  reader_constraints();
   return cursiv::test::report("sexpression_grammar_test");
 }

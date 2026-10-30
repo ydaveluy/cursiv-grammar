@@ -65,6 +65,32 @@ int main() {
     ++parsed;
   }
 
+  {
+    const auto result = language.language.parser->parse("<a>::=[{(x|<b>)}]|\n<b>::=y");
+    const auto* doc = result.value_as<ebnf::ast::Document>();
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !doc || doc->rules.size() != 2 || doc->rules[0]->lhs->name != "a" ||
+        doc->rules[0]->alternatives.size() != 2 ||
+        !doc->rules[0]->alternatives[1]->elements.empty())
+      return fail("native-dialect", "one-letter names or empty alternative were lost");
+    const auto* alt = doc->rules[0]->alternatives[0];
+    const auto* opt = alt->elements.size() == 1
+        ? cursiv::ast_cast<ebnf::ast::Optional>(alt->elements[0]) : nullptr;
+    const auto* repeated = opt && opt->alternatives.size() == 1 &&
+        opt->alternatives[0]->elements.size() == 1
+        ? cursiv::ast_cast<ebnf::ast::ZeroOrMore>(opt->alternatives[0]->elements[0]) : nullptr;
+    const auto* some = repeated && repeated->alternatives.size() == 1 &&
+        repeated->alternatives[0]->elements.size() == 1
+        ? cursiv::ast_cast<ebnf::ast::OneOrMore>(repeated->alternatives[0]->elements[0]) : nullptr;
+    if (!some || some->alternatives.size() != 2 ||
+        some->alternatives[0]->elements.size() != 1 || some->alternatives[1]->elements.size() != 1)
+      return fail("native-dialect", "optional/zero/one repetition nesting changed");
+    const auto* literal = cursiv::ast_cast<ebnf::ast::Text>(some->alternatives[0]->elements[0]);
+    const auto* reference = cursiv::ast_cast<ebnf::ast::Id>(some->alternatives[1]->elements[0]);
+    if (!literal || literal->value != "x" || !reference || reference->name != "b")
+      return fail("native-dialect", "terminal/reference values changed");
+  }
+
   if (parsed == 0) return fail(CURSIV_EXAMPLE_DIR, "no example found");
   if (failures > 0) return 1;
 

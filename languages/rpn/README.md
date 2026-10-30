@@ -31,16 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Reverse Polish notation expressions.
+
 ```
 2 2 * 3 3 * +
 ```
-
-A [reverse Polish notation](https://en.wikipedia.org/wiki/Reverse_Polish_notation)
-expression: an operand, then a run of operands and operators applied left to
-right against a stack — here, `2*2 + 3*3`. An operand is a number (plain,
-decimal, or with an `e`/`E` exponent) or a variable name, optionally signed
-(`-x`, `- -5`); an operator is `^ + - * /` or one of the unary functions
-`cos sin tan acos asin atan log ln`.
 
 ## The command line
 

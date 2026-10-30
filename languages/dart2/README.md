@@ -30,6 +30,13 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 Generated files live under `build/src/generated-src/`; do not edit them.
 
+The syntax is based on the [Dart 2.10 specification](https://dart.dev/resources/language/spec/versions/DartLangSpec-v2.10.pdf),
+with selected later Dart 2 features such as null safety, enhanced enums,
+super parameters and [interleaved named arguments (2.17)](https://github.com/dart-lang/language/blob/main/accepted/2.17/named-arguments-anywhere/feature-specification.md).
+This is a syntax port, not a complete Dart analyzer: type checking,
+contextual keyword restrictions and language-version gates are not implemented.
+String pieces preserve their source escapes and interpolation nodes.
+
 ## The sample
 
 ```dart

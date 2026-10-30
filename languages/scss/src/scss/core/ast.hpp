@@ -60,6 +60,8 @@ struct BooleanLit : cursiv::Extends<ComponentValue> {
   boolean value;
 };
 
+struct NullLit : cursiv::Extends<ComponentValue> {};
+
 // Also covers a bare measurement unit used as a value (`$x: px`) and a
 // vendor-prefixed name (`-webkit-transform`): both are ordinary identifier
 // spellings once lexed per state.
@@ -123,6 +125,7 @@ enum class Op : std::uint8_t {
   not_equal,
   and_,
   or_,
+  modulo,
 };
 
 struct BinaryExpr : cursiv::Extends<ComponentValue> {
@@ -236,6 +239,7 @@ struct Parameter : cursiv::Extends<cursiv::AstNode> {
 };
 
 enum class ImportKind : std::uint8_t { import_, require, use, forward };
+enum class ForwardVisibility : std::uint8_t { all, show, hide };
 
 struct MediaQuery;
 
@@ -247,13 +251,18 @@ struct ImportDeclaration : cursiv::Extends<Statement> {
   vector<MediaQuery*> media;  // `@import "a" screen`
   boolean hasAs;
   boolean asModule;  // `as *`
-  string_view asName;
+  string_view asName;  // @use namespace, or @forward prefix without `*`
+  ForwardVisibility forwardVisibility = ForwardVisibility::all;
+  vector<string_view> forwardedNames;
+  vector<string_view> forwardedVariables;  // names without `$`
   vector<Parameter*> withArgs;
   boolean hasWith;
 };
 
 struct VariableDeclaration : cursiv::Extends<Statement> {
   boolean negative;
+  boolean isDefault;
+  boolean isGlobal;
   string_view nsPrefix;
   string_view name;
   boolean isCustomProperty;
@@ -402,17 +411,19 @@ struct Ruleset : cursiv::Extends<Statement> {
 };
 
 struct ExtendDeclaration : cursiv::Extends<Statement> {
+  boolean isOptional;
   boolean isPlaceholder;  // leading `%`
   boolean hasParentRefPrefix;
   vector<ComponentValue*> targets;
+  SelectorGroup* targetGroup = nullptr;  // selector-list fallback; targets stays legacy-first
 };
 
 struct WarnDeclaration : cursiv::Extends<Statement> {
-  string_view message;
+  ComponentValue* message = nullptr;
 };
 
 struct ErrorDeclaration : cursiv::Extends<Statement> {
-  string_view message;
+  ComponentValue* message = nullptr;
 };
 
 // Any `@name value? { ... }` or `@name value?;` the grammar has no

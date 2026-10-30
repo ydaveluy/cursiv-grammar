@@ -247,7 +247,7 @@ struct ConditionalStmt : cursiv::Extends<Item> {
 };
 
 struct LiteralStmt : cursiv::Extends<Item> {
-  vector<string_view> strings;
+  string_view text;  // exact pass-through source between LITERAL; and END_LITERAL
 };
 
 struct ReadStmt : cursiv::Extends<Item> {

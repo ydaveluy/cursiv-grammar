@@ -41,11 +41,9 @@ public class GenericConstructor {
 }
 ```
 
-A Java 21 subset: packages, imports, classes/interfaces/enums/records,
-annotations, generics, the full statement and expression grammar (lambdas,
-method references, pattern matching, switch expressions), and modules
-(`module-info.java`). No symbol table: names are held as text, not resolved
-cross references, so there is nothing to rename or go to the definition of.
+A Java 21 subset covering declarations, expressions, statements, patterns and
+modules. Unicode escapes are translated before parsing; the CST retains original
+source spans and the AST keeps source-oriented names and literal spellings.
 
 ## The command line
 

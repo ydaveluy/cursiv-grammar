@@ -72,7 +72,7 @@ struct RelationalPred : cursiv::Extends<Expr> {
 // `N [in nbhd] target`: how many neighbours matching `target` sit in a
 // neighbourhood -- named, inline, or the rule's default.
 struct AdjacencyPred : cursiv::Extends<Expr> {
-  uint32 count;
+  string_view count;
   Neighbourhood* inlineNbhd;    // '(' ... ')' written in place, else null
   reference<NbhdDefn> nbhdRef;  // a named neighbourhood, else unresolved
   Referent* target;
@@ -107,6 +107,8 @@ struct Model : cursiv::Extends<cursiv::AstNode> {
   vector<ClassDefn*> classes;
   vector<NbhdDefn*> nbhds;
   boolean beginTerminated;  // the document closed on `begin`, not `.`
+  // Exact remainder after `begin`, including its separating newline.
+  string_view initialConfiguration;
 };
 
 }  // namespace alpaca::ast

@@ -1,6 +1,7 @@
 # protobuf
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+Parses proto2/proto3 declarations, including groups and extension ranges.
 
 ## Build
 
@@ -41,9 +42,7 @@ message SearchRequest {
 }
 ```
 
-`syntax = "proto3";` opens every document; a `message` is a record type, and
-each field's number (never its declaration order) is what the wire format
-uses to identify it.
+The example declares a greeting service using Protocol Buffers.
 
 ## The command line
 

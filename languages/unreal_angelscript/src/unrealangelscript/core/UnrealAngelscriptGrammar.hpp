@@ -1,6 +1,4 @@
-// The unrealangelscript language: its grammar, adapted from a C++14 grammar
-// for Unreal's Angelscript dialect. A few inherited rules are unreachable
-// from `script` and so carry nothing here.
+// A syntax subset of Hazelight Unreal AngelScript.
 #pragma once
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
@@ -22,7 +20,8 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
                   many(cr<R"(^\r\n)">))> {};
 
   static constexpr auto IDBODY = cr<"a-zA-Z_"> + many(w);
-  struct ID : terminal<IDBODY> {};
+  struct IdentifierToken : terminal<IDBODY> {};
+  struct ID;
 
   // A generic's `>` never takes the first byte of `>=`: `a<b>=c` compares.
   static constexpr auto Lt = lit<"<">;
@@ -31,32 +30,28 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
 
   // -- Literals ----
   static constexpr auto HEXDIGIT = cr<"0-9a-fA-F">;
-  static constexpr auto DECRUN = many(option(lit<"'">) + d);
-  static constexpr auto INTSUFFIX =
-      (cr<"uU"> + option(lit<"ll"> | lit<"LL"> | cr<"lL">)) |
-      ((lit<"ll"> | lit<"LL"> | cr<"lL">) + option(cr<"uU">));
-  static constexpr auto INTBODY =
-      (cr<"1-9"> + DECRUN) |
-      ((lit<"0x"> | lit<"0X">) + HEXDIGIT + many(option(lit<"'">) + HEXDIGIT)) |
-      ((lit<"0b"> | lit<"0B">) + cr<"01"> + many(option(lit<"'">) + cr<"01">)) |
-      (lit<"0"> + many(option(lit<"'">) + cr<"0-7">));
-  struct INT_LIT : terminal<INTBODY + option(INTSUFFIX)> {};
-
-  static constexpr auto DIGITSEQ = d + many(option(lit<"'">) + d);
+  struct INT_LIT : terminal<
+      (lit<"0"> + cr<"xX"> + some(HEXDIGIT)) |
+      (lit<"0"> + cr<"bB"> + some(cr<"01">)) |
+      (lit<"0"> + cr<"oO"> + some(cr<"0-7">)) |
+      (lit<"0"> + cr<"dD"> + some(d)) | some(d)> {};
+  static constexpr auto DIGITSEQ = some(d);
   static constexpr auto FRACT =
       (option(DIGITSEQ) + lit<"."> + DIGITSEQ) | (DIGITSEQ + lit<".">);
   static constexpr auto EXP = cr<"eE"> + option(cr<"+-">) + DIGITSEQ;
   static constexpr auto FLOATBODY = (FRACT + option(EXP)) | (DIGITSEQ + EXP);
-  struct FLOAT_LIT : terminal<FLOATBODY + option(cr<"flFL">)> {};
+  struct FLOAT_LIT : terminal<FLOATBODY + option(cr<"fF">)> {};
 
   static constexpr auto ESCAPE =
-      lit<"\\"> + (cr<R"('"?\\\\abfnrtv)">                             //
+      lit<"\\"> + ((lit<"u"> + repeat<4>(HEXDIGIT)) |
+                   (lit<"U"> + repeat<8>(HEXDIGIT)) |
+                   cr<R"('"?\\\\abfnrtv)">                             //
                    | (lit<"\r"> + option(lit<"\n">))                 //
                    | lit<"\n">                                       //
                    | (cr<"0-7"> + option(cr<"0-7">) + option(cr<"0-7">))  //
                    | (lit<"x"> + some(HEXDIGIT)));
 
-  static constexpr auto CHARBODY = option(cr<"uUL">) + lit<"'"> +
+  static constexpr auto CHARBODY = lit<"'"> +
                                     some(ESCAPE | (!cr<R"('\\\r\n)"> + any)) +
                                     lit<"'">;
   struct CHAR_LIT : terminal<CHARBODY> {};
@@ -64,54 +59,39 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
   static constexpr auto STRINGBODY =
       through(lit<"\"\"\"">, lit<"\"\"\"">) |
       (option(lit<"n"> | lit<"f">) + lit<"\""> +
-       many(ESCAPE | (!cr<R"("\\)"> + any)) + lit<"\"">);
+       many(ESCAPE | (!cr<R"("\\\r\n)"> + any)) + lit<"\"">);
   struct STRING_LIT : terminal<STRINGBODY> {};
-
-  // A user-defined literal's suffix is legal syntax, but AngelScript has no
-  // such feature, so it is never used in practice.
-  struct USER_LIT
-      : terminal<(INTBODY | FLOATBODY | CHARBODY | STRINGBODY) + IDBODY> {};
-
-  // `catch`, `export` and `short` are reserved words with no grammar role:
-  // spelled here as ordinary identifiers, not unusable reservations.
 
   static constexpr auto BuiltinTypeWord =
       kw<"int8"> | kw<"int16"> | kw<"int32"> | kw<"int64"> | kw<"int"> |
       kw<"uint8"> | kw<"uint16"> | kw<"uint32"> | kw<"uint64"> | kw<"uint"> |
-      kw<"float"> | kw<"double"> | kw<"bool"> | kw<"void"> | kw<"auto">;
+      kw<"float32"> | kw<"float64"> | kw<"float"> | kw<"double"> | kw<"bool"> | kw<"void"> | kw<"auto">;
+
+  static constexpr auto Reserved = BuiltinTypeWord |
+      kw<"and"> | kw<"break"> | kw<"case"> | kw<"cast"> | kw<"catch"> |
+      kw<"class"> | kw<"const"> | kw<"continue"> | kw<"default"> | kw<"do"> |
+      kw<"else"> | kw<"enum"> | kw<"false"> | kw<"for"> | kw<"foreach"> |
+      kw<"funcdef"> | kw<"if"> | kw<"import"> | kw<"in"> | kw<"inout"> |
+      kw<"interface"> | kw<"is"> | kw<"mixin"> | kw<"namespace"> | kw<"not"> |
+      kw<"null"> | kw<"or"> | kw<"out"> | kw<"private"> | kw<"protected"> |
+      kw<"return"> | kw<"switch"> | kw<"true"> | kw<"try"> | kw<"typedef"> |
+      kw<"using"> | kw<"while"> | kw<"xor"> | kw<"nullptr"> | kw<"delegate"> | kw<"event">;
+  struct ID : rule<as<std::string_view>(!Reserved + ref<IdentifierToken>)> {};
 
   static constexpr auto AccessWord = kw<"private"> | kw<"protected"> | kw<"public">;
   static constexpr auto PostSpecWord = kw<"override"> | kw<"final"> | kw<"property">;
 
   static constexpr auto XorTok = lit<"^^"> | lit<"^">;
   // A two-byte operator built from two guarded single tokens (so a nested
-  // generic's `>>` still closes as two `>`): an infix operator slot needs a
-  // named data rule for a sequence, not a bare composed expr.
-  struct ShiftOpRule : rule<(Lt + Lt) | (Gt + Gt)> {};
+  // generic's `>>` still closes as two `>`). Its bytes must be adjacent.
+  struct ShiftOp : rule<(Lt + gap::none + Lt) | (Gt + gap::none + Gt)> {};
   static constexpr auto AssignOp = AssignLit | lit<"*="> | lit<"/="> |
                                     lit<"%="> | lit<"+="> | lit<"-="> |
                                     lit<">>="> | lit<"<<="> | lit<"&="> |
                                     lit<"^="> | lit<"|=">;
 
-  // Every overloadable spelling, or none for a bare `operator` -- `/=` is
-  // not one of them.
-  static constexpr auto TheOperatorText = option(
-      lit<"+"> | lit<"-"> | lit<"*"> | lit<"/"> | lit<"%"> | XorTok |
-      lit<"&"> | lit<"|"> | lit<"~"> | lit<"!"> | AssignLit | lit<">="> |
-      lit<"+="> | lit<"-="> | lit<"*="> | lit<"%="> | lit<"^="> | lit<"&="> |
-      lit<"|="> | (Lt + Lt) | (Gt + Gt) | lit<">>="> | lit<"<<="> |
-      lit<"=="> | lit<"!="> | lit<"<="> | lit<"&&"> | lit<"||"> | lit<"++"> |
-      lit<"--"> | lit<","> | Gt | Lt | (lit<"("> + lit<")">) |
-      (lit<"["> + lit<"]">));
-
-  // A name: an identifier, `operator<spelling>`, a literal-operator-id, or a
-  // destructor spelling -- captured whole, no separate node per kind.
-  static constexpr auto UnqualifiedIdText =
-      ref<ID>                                          //
-      | (kw<"operator"> + TheOperatorText)              //
-      | (kw<"operator"> + (ref<STRING_LIT> + ref<ID>))  //
-      | (kw<"operator"> + ref<USER_LIT>)                //
-      | (lit<"~"> + ref<ID>);
+  // Operator overloads use ordinary opAdd/opAssign methods in AngelScript.
+  static constexpr auto UnqualifiedIdText = ref<ID> | (lit<"~"> + ref<ID>);
 
   // A nested-name-specifier's text, e.g. `NS::Sub::`. A leading `decltype`
   // scope is not accepted.
@@ -121,10 +101,10 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
   // `assign<>`/`append<>` read text off a SINGLE part (a ref, an
   // alternation of single parts) -- a multi-part sequence needs a rule of
   // its own before it can be named as one, hence these two wrappers.
-  struct QualifiedNameRule
+  struct QualifiedName
       : rule<option(NestedNameSpecifierText) + ref<ID>> {};
 
-  struct IdTextRule
+  struct IdText
       : rule<option(NestedNameSpecifierText) + UnqualifiedIdText> {};
 
   // -- Forward declarations: the grammar is mutually recursive top to bottom.
@@ -134,9 +114,8 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
   struct SimpleTypeSpecifier;
   struct ClassSpecifier;
   struct EnumSpecifier;
-  struct ElaboratedTypeSpecRule;
-  struct DecltypeSpecRule;
-  struct AsGenericRule;
+  struct ElaboratedTypeSpec;
+  struct AsGeneric;
   struct Declarator;
   struct Params;
   struct Param;
@@ -156,55 +135,45 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
 
   // -- Annotations ----
 
-  struct AnnotationRule
+  struct Annotation
       : rule<create<ast::Annotation>(
             assign<&ast::Annotation::name>(ref<ID>) +
             option(AssignLit +
                    assign<&ast::Annotation::value>(ref<Expression>)))> {};
 
-  struct UTypeRule
-      : rule<create<ast::UType>(
-            assign<&ast::UType::keyword>(kw<"UCLASS"> | kw<"USTRUCT">) +
-            lit<"("> +
-            option(some(append<&ast::UType::annotations>(ref<AnnotationRule>),
-                        lit<",">)) +
-            lit<")">)> {};
+  static constexpr auto TypeAnnotationBody = lit<"("> +
+      option(some(append<&ast::UType::annotations>(ref<Annotation>), lit<",">)) + lit<")">;
+  struct UType : rule<assign<&ast::UType::keyword>(kw<"UCLASS"> | kw<"USTRUCT">) + TypeAnnotationBody> {};
+  struct UEnum : rule<assign<&ast::UType::keyword>(kw<"UENUM">) + TypeAnnotationBody> {};
 
-  struct UPropertyRule
+  struct UProperty
       : rule<create<ast::UPropertyAnno>(
             kw<"UPROPERTY"> + lit<"("> +
             option(some(append<&ast::UPropertyAnno::annotations>(
-                            ref<AnnotationRule>),
+                            ref<Annotation>),
                         lit<",">)) +
             lit<")">)> {};
 
-  struct UFunctionRule
+  struct UFunction
       : rule<create<ast::UFunctionAnno>(
             kw<"UFUNCTION"> + lit<"("> +
             option(some(append<&ast::UFunctionAnno::annotations>(
-                            ref<AnnotationRule>),
+                            ref<Annotation>),
                         lit<",">)) +
             lit<")">)> {};
 
   // -- Types ----
 
-  struct BuiltinTypeSpecRule
+  struct BuiltinTypeSpec
       : rule<create<ast::BuiltinTypeSpec>(
             assign<&ast::BuiltinTypeSpec::keyword>(BuiltinTypeWord))> {};
 
-  struct NamedTypeSpecRule
+  struct NamedTypeSpec
       : rule<create<ast::NamedTypeSpec>(
             assign<&ast::NamedTypeSpec::name>(
-                ref<QualifiedNameRule>))> {};
+                ref<QualifiedName>))> {};
 
-  struct DecltypeSpecRule
-      : rule<create<ast::DecltypeSpec>(
-            lit<"("> +
-            (assign<&ast::DecltypeSpec::expr>(ref<Expression>)  //
-             | flag<&ast::DecltypeSpec::isAuto>(kw<"auto">)) +
-            lit<")">)> {};
-
-  struct AsGenericRule
+  struct AsGeneric
       : rule<create<ast::GenericTypeSpec>(
             assign<&ast::GenericTypeSpec::name>(ref<ID>) + Lt +
             some(append<&ast::GenericTypeSpec::args>(ref<Specifiers>),
@@ -212,61 +181,37 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
             Gt)> {};
 
   struct SimpleTypeSpecifier
-      : rule<ref<AsGenericRule>          //
-             | ref<BuiltinTypeSpecRule>  //
-             | ref<DecltypeSpecRule>     //
-             | ref<NamedTypeSpecRule>> {};
+      : rule<ref<AsGeneric>          //
+             | ref<BuiltinTypeSpec>  //
+             | ref<NamedTypeSpec>> {};
 
-  // The scope alone, with no trailing name at all, is legal here
-  // (`struct NS::;`).
-  struct OptionalQualifiedNameRule
-      : rule<option(NestedNameSpecifierText) + option(ref<ID>)> {};
-
-  struct ElaboratedTypeSpecRule
+  struct ElaboratedTypeSpec
       : rule<create<ast::ElaboratedTypeSpec>(
             assign<&ast::ElaboratedTypeSpec::keyword>(kw<"class"> |
                                                        kw<"struct">) +
             assign<&ast::ElaboratedTypeSpec::name>(
-                ref<OptionalQualifiedNameRule>))  //
+                ref<QualifiedName>))  //
              | create<ast::ElaboratedTypeSpec>(
                    assign<&ast::ElaboratedTypeSpec::keyword>(kw<"enum">) +
                    assign<&ast::ElaboratedTypeSpec::name>(
-                       ref<QualifiedNameRule>))> {};
+                       ref<QualifiedName>))> {};
 
-  static constexpr auto BaseTypeTail =
-      assign<&ast::BaseSpecifier::declType>(ref<DecltypeSpecRule>) |
-      assign<&ast::BaseSpecifier::name>(ref<QualifiedNameRule>);
-
-  struct BaseSpecifierRule
-      : rule<BaseTypeTail |
-             (flag<&ast::BaseSpecifier::isVirtual>(kw<"virtual">) +
-              option(assign<&ast::BaseSpecifier::access>(AccessWord)) +
-              BaseTypeTail) |
-             (assign<&ast::BaseSpecifier::access>(AccessWord) +
-              option(flag<&ast::BaseSpecifier::isVirtual>(
-                  kw<"virtual">)) +
-              BaseTypeTail)> {};
+  struct BaseSpecifier : rule<assign<&ast::BaseSpecifier::name>(ref<QualifiedName>)> {};
 
   struct ClassSpecifier
       : rule<create<ast::ClassDef>(
-            option(assign<&ast::ClassDef::utype>(ref<UTypeRule>)) +
+            option(assign<&ast::ClassDef::utype>(ref<UType>)) +
             assign<&ast::ClassDef::keyword>(kw<"class"> | kw<"struct">) +
-            option(assign<&ast::ClassDef::name>(
-                       ref<QualifiedNameRule>) +
-                   option(flag<&ast::ClassDef::isFinal>(kw<"final">))) +
+            assign<&ast::ClassDef::name>(ref<QualifiedName>) +
+            option(flag<&ast::ClassDef::isFinal>(kw<"final">)) +
             option(lit<":"> +
-                   some(append<&ast::ClassDef::bases>(ref<BaseSpecifierRule>),
+                   some(append<&ast::ClassDef::bases>(ref<BaseSpecifier>),
                         lit<",">)) +
             lit<"{"> +
-            option(some(
-                append<&ast::ClassDef::members>(
-                    ref<MemberDeclaration> |
-                    create<ast::AccessLabel>(
-                        assign<&ast::AccessLabel::access>(AccessWord) +
-                        lit<":">)))) +
+            many(append<&ast::ClassDef::members>(ref<MemberDeclaration>)) +
             lit<"}">)> {};
 
-  struct EnumeratorRule
+  struct Enumerator
       : rule<create<ast::Enumerator>(
             assign<&ast::Enumerator::name>(ref<ID>) +
             option(AssignLit + assign<&ast::Enumerator::value>(
@@ -274,41 +219,35 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
 
   struct EnumSpecifier
       : rule<create<ast::EnumDef>(
-            kw<"enum"> +
-            option(assign<&ast::EnumDef::name>(
-                ref<QualifiedNameRule>)) +
+            option(assign<&ast::EnumDef::utype>(ref<UEnum>)) + kw<"enum"> +
+            assign<&ast::EnumDef::name>(ref<QualifiedName>) +
             option(lit<":"> + assign<&ast::EnumDef::base>(ref<Specifiers>)) +
             lit<"{"> +
-            option(some(append<&ast::EnumDef::enumerators>(ref<EnumeratorRule>),
+            option(some(append<&ast::EnumDef::enumerators>(ref<Enumerator>),
                         lit<",">) +
                    option(lit<",">)) +
             lit<"}">)> {};
 
-  struct OpaqueEnumDeclRule
+  struct OpaqueEnumDecl
       : rule<create<ast::EnumForwardDecl>(
             kw<"enum"> + assign<&ast::EnumForwardDecl::name>(ref<ID>) +
             option(lit<":"> +
                    assign<&ast::EnumForwardDecl::base>(ref<Specifiers>)) +
             lit<";">)> {};
 
-  struct Specifiers
-      : rule<some(append<&ast::Specifiers::parts>(
-            create<ast::QualifierSpec>(assign<&ast::QualifierSpec::keyword>(
-                kw<"const"> | lit<"&"> | kw<"out"> | kw<"virtual">))  //
-            | ref<SimpleTypeSpecifier>                                //
-            | ref<ElaboratedTypeSpecRule>                             //
-            | ref<ClassSpecifier>                                     //
-            | ref<EnumSpecifier>))> {};
+  static constexpr auto Qualifier = append<&ast::Specifiers::parts>(
+      create<ast::QualifierSpec>(assign<&ast::QualifierSpec::keyword>(
+          kw<"const"> | lit<"&"> | kw<"in"> | kw<"out"> | kw<"inout">)));
+  struct Specifiers : rule<many(Qualifier) +
+      append<&ast::Specifiers::parts>(ref<SimpleTypeSpecifier>) +
+      many(Qualifier)> {};
+  struct DefinitionSpecifiers : rule<append<&ast::Specifiers::parts>(ref<ClassSpecifier> | ref<EnumSpecifier>)> {};
+  struct TypeDefinition : rule<assign<&ast::VarDecl::specifiers>(ref<DefinitionSpecifiers>) + option(lit<";">)> {};
 
   // -- Initializers ----
 
-  struct BracedInitList
-      : rule<create<ast::ListInit>(
-            (lit<"{"> | lit<"[">) +
-            option(some(append<&ast::ListInit::items>(ref<InitializerClause>),
-                        lit<",">) +
-                   option(lit<",">)) +
-            (lit<"}"> | lit<"]">))> {};
+  struct BracedInitList : rule<create<ast::ListInit>(lit<"{"> +
+      option(some(append<&ast::ListInit::items>(ref<InitializerClause>), lit<",">) + option(lit<",">)) + lit<"}">)> {};
 
   struct InitializerClause
       : rule<create<ast::ExprInit>(
@@ -330,14 +269,12 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
       : rule<lit<"("> +
              option(some(append<&ast::Params::params>(ref<Param>), lit<",">)) +
              lit<")"> +
-             option(flag<&ast::Params::isConst>(kw<"const">)) +
-             option(assign<&ast::Params::refQualifier>(lit<"&&"> |
-                                                        lit<"&">))> {};
+             option(flag<&ast::Params::isConst>(kw<"const">))> {};
 
   // Only the mandatory final parameter list is kept: no function-pointer-
   // style or array-before-params prefix before it.
   struct Declarator
-      : rule<assign<&ast::Declarator::name>(ref<IdTextRule>) +
+      : rule<assign<&ast::Declarator::name>(ref<IdText>) +
              assign<&ast::Declarator::params>(ref<Params>)> {};
 
   struct InitDeclarator
@@ -356,10 +293,8 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
                               PostSpecWord))  //
                      | assign<&ast::MemberDeclarator::init>(
                            ref<BraceOrEqualInitializer>)))  //
-             | (option(assign<&ast::MemberDeclarator::name>(ref<ID>)) +
-                lit<":"> + assign<&ast::MemberDeclarator::bitWidth>(
-                               ref<ConditionalExpression>))  //
-             | assign<&ast::MemberDeclarator::name>(ref<ID>)> {};
+             | (assign<&ast::MemberDeclarator::name>(ref<ID>) +
+                option(assign<&ast::MemberDeclarator::init>(ref<BraceOrEqualInitializer>)))> {};
 
   // -- Expressions ----
 
@@ -369,22 +304,19 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
                    assign<&ast::FloatLit::text>(ref<FLOAT_LIT>))  //
              | create<ast::CharLit>(
                    assign<&ast::CharLit::text>(ref<CHAR_LIT>))  //
-             | create<ast::StringLit>(
-                   assign<&ast::StringLit::text>(ref<STRING_LIT>))  //
              | create<ast::BoolLit>(kw<"false">)                    //
              | create<ast::BoolLit>(
                    flag<&ast::BoolLit::value>(kw<"true">))  //
-             | create<ast::UserLit>(
-                   assign<&ast::UserLit::text>(ref<USER_LIT>))  //
              | create<ast::NullLit>(kw<"nullptr">)> {};
 
-  struct LiteralSeqRule
-      : rule<some(append<&ast::LiteralSeq::items>(ref<LiteralItem>))> {};
+  struct LiteralSeq
+      : rule<some(append<&ast::LiteralSeq::items>(create<ast::StringLit>(assign<&ast::StringLit::text>(ref<STRING_LIT>)))) |
+             append<&ast::LiteralSeq::items>(ref<LiteralItem>)> {};
 
-  struct IdExprRule
-      : rule<create<ast::IdExpr>(assign<&ast::IdExpr::name>(ref<IdTextRule>))> {};
+  struct IdExpr
+      : rule<create<ast::IdExpr>(assign<&ast::IdExpr::name>(ref<IdText>))> {};
 
-  struct AssertExprRule
+  struct AssertExpr
       : rule<create<ast::AssertExpr>(
             assign<&ast::AssertExpr::kind>(kw<"ensure"> | kw<"ensureAlways"> |
                                            kw<"check">) +
@@ -396,61 +328,32 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
   // The type is restricted to builtin types: a generic or plain-name target
   // is already reachable via CallExpr / a declaration's own initializer,
   // avoiding the classic `a<b>(c)` generics-vs-comparison ambiguity.
-  struct ConstructExprRule
+  struct ConstructExpr
       : rule<create<ast::ConstructExpr>(
-            assign<&ast::ConstructExpr::type>(ref<BuiltinTypeSpecRule> |
-                                              ref<AsGenericRule>) +
+            assign<&ast::ConstructExpr::type>(ref<BuiltinTypeSpec> |
+                                              ref<AsGeneric>) +
             ((lit<"("> +
               option(some(append<&ast::ConstructExpr::args>(ref<InitializerClause>),
                           lit<",">)) +
               lit<")">)  //
              | assign<&ast::ConstructExpr::list>(ref<BracedInitList>)))> {};
 
-  struct CastExprRule
+  struct CastExpr
       : rule<create<ast::CastExpr>(
             kw<"Cast"> + Lt + assign<&ast::CastExpr::type>(ref<Specifiers>) +
             Gt + lit<"("> +
             assign<&ast::CastExpr::operand>(ref<Expression>) + lit<")">)> {};
 
-  struct LambdaCaptureRule
-      : rule<create<ast::LambdaCapture>(
-                 flag<&ast::LambdaCapture::isThis>(kw<"this">))  //
-             | create<ast::LambdaCapture>(
-                   option(flag<&ast::LambdaCapture::byRef>(lit<"&">)) +
-                   assign<&ast::LambdaCapture::name>(ref<ID>) +
-                   option(assign<&ast::LambdaCapture::init>(
-                       ref<BraceOrEqualInitializer>)))> {};
-
-  struct LambdaExprRule
-      : rule<create<ast::LambdaExpr>(
-            lit<"["> +
-            option((assign<&ast::LambdaExpr::captureDefault>(
-                        lit<"&"> | AssignLit) +
-                    option(lit<","> +
-                           some(append<&ast::LambdaExpr::captures>(
-                                    ref<LambdaCaptureRule>),
-                                lit<",">)))  //
-                   | some(append<&ast::LambdaExpr::captures>(
-                              ref<LambdaCaptureRule>),
-                          lit<",">)) +
-            lit<"]"> +
-            option(lit<"("> +
-                   option(some(append<&ast::LambdaExpr::params>(ref<Param>),
-                               lit<",">)) +
-                   lit<")">) +
-            assign<&ast::LambdaExpr::body>(ref<CompoundStatement>))> {};
-
   struct PrimaryExpression
-      : rule<ref<LiteralSeqRule>       //
-             | ref<AssertExprRule>     //
-             | ref<CastExprRule>       //
-             | ref<ConstructExprRule>  //
+      : rule<ref<LiteralSeq>       //
+             | ref<AssertExpr>     //
+             | ref<CastExpr>       //
+             | ref<ConstructExpr>  //
              | create<ast::ThisExpr>(kw<"this">)               //
              | create<ast::ParenExpr>(
                    lit<"("> + assign<&ast::ParenExpr::inner>(ref<Expression>) +
                    lit<")">)   //
-             | ref<LambdaExprRule>  //
-             | ref<IdExprRule>> {};
+             | ref<IdExpr>> {};
 
   struct PostfixExpression
       : rule<ref<PrimaryExpression> +
@@ -468,20 +371,18 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
                         lit<")">)  //
                   | nest<ast::MemberExpr, &ast::MemberExpr::object>(
                         lit<"."> +
-                        assign<&ast::MemberExpr::field>(ref<IdTextRule>))  //
+                        assign<&ast::MemberExpr::field>(ref<IdText>))  //
                   | nest<ast::PostfixOpExpr, &ast::PostfixOpExpr::operand>(
                         assign<&ast::PostfixOpExpr::op>(lit<"++"> |
                                                          lit<"--">)))> {};
 
-  // `|` is a valid unary prefix operator here too, alongside
-  // address-of/deref/sign/not.
+  // Object references use ordinary values; C++ pointer prefixes are absent.
   struct UnaryExpression
       : rule<create<ast::PrefixExpr>(
                  assign<&ast::PrefixExpr::op>(lit<"++"> | lit<"--">) +
                  assign<&ast::PrefixExpr::operand>(ref<UnaryExpression>))  //
              | create<ast::PrefixExpr>(
-                   assign<&ast::PrefixExpr::op>(lit<"|"> | lit<"*"> |
-                                                 lit<"&"> | lit<"+"> |
+                   assign<&ast::PrefixExpr::op>(lit<"+"> |
                                                  lit<"~"> | lit<"-"> |
                                                  lit<"!">) +
                    assign<&ast::PrefixExpr::operand>(ref<UnaryExpression>))  //
@@ -500,29 +401,20 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
   // infix table can only give a token one step, so the shift level is its
   // own table, nested as the primary of the level above it (as the csharp
   // port does for the same reason).
-  struct MulAddLevel
-      : infix<UnaryExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, (left(OpMul) >> left(OpAdd))> {};
+  struct MulAddLevel : infix<UnaryExpression, ast::BinaryExpr,
+                             levels(left(OpMul), left(OpAdd))> {};
 
-  // A precedence table can only give one token one step, even across
-  // separate tables -- so the shift level, whose tokens double as the
-  // relational level's, is hand-rolled here instead of nested infix<>s.
-  struct ShiftLadder
-      : rule<ref<MulAddLevel> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(ref<ShiftOpRule>) +
-                 assign<&ast::BinaryExpr::right>(ref<MulAddLevel>)))> {};
+  struct ShiftLadder : infix<MulAddLevel, ast::BinaryExpr, left(ref<ShiftOp>)> {};
 
   struct BinaryLadder
-      : infix<ShiftLadder, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"&">) >>   //
-               left(BitXor) >>     //
-               left(lit<"|">) >>   //
-               left(OpRel) >>      //
-               left(OpEq) >>       //
-               left(lit<"&&">) >>  //
-               left(lit<"||">))> {};
+      : infix<ShiftLadder, ast::BinaryExpr,
+              levels(left(lit<"&">),   //
+                     left(BitXor),     //
+                     left(lit<"|">),   //
+                     left(OpRel),      //
+                     left(OpEq),       //
+                     left(lit<"&&">),  //
+                     left(lit<"||">))> {};
 
   struct ConditionalExpression
       : rule<create<ast::CondExpr>(
@@ -539,20 +431,10 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
                  assign<&ast::AssignExpr::value>(ref<InitializerClause>))  //
              | ref<ConditionalExpression>> {};
 
-  struct Expression
-      : infix<AssignmentExpression, &ast::BinaryExpr::left,
-              &ast::BinaryExpr::op, &ast::BinaryExpr::right, left(lit<",">)> {
-  };
+  struct Expression : rule<ref<AssignmentExpression>> {};
+  struct ForStep : infix<AssignmentExpression, ast::BinaryExpr, left(lit<",">)> {};
 
-  struct ConditionRule
-      : rule<ref<Expression>  //
-             | create<ast::CondDecl>(
-                   assign<&ast::CondDecl::specifiers>(ref<Specifiers>) +
-                   assign<&ast::CondDecl::declarator>(ref<Declarator>) +
-                   ((AssignLit + assign<&ast::CondDecl::init>(
-                                     ref<InitializerClause>))  //
-                    | assign<&ast::CondDecl::list>(
-                          ref<BracedInitList>)))> {};
+  struct Condition : rule<ref<Expression>> {};
 
   // -- Statements ----
 
@@ -565,23 +447,23 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
              option(some(append<&ast::CompoundStmt::items>(ref<Statement>))) +
              lit<"}">> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<kw<"if"> + lit<"("> +
-             assign<&ast::IfStmt::cond>(ref<ConditionRule>) + lit<")"> +
+             assign<&ast::IfStmt::cond>(ref<Condition>) + lit<")"> +
              assign<&ast::IfStmt::thenBranch>(ref<Statement>) +
              option(commit(kw<"else">, assign<&ast::IfStmt::elseBranch>(ref<Statement>)))> {};
 
-  struct SwitchStmtRule
+  struct SwitchStmt
       : rule<kw<"switch"> + lit<"("> +
-             assign<&ast::SwitchStmt::value>(ref<ConditionRule>) + lit<")"> +
+             assign<&ast::SwitchStmt::value>(ref<Condition>) + lit<")"> +
              assign<&ast::SwitchStmt::body>(ref<Statement>)> {};
 
-  struct WhileStmtRule
+  struct WhileStmt
       : rule<kw<"while"> + lit<"("> +
-             assign<&ast::WhileStmt::cond>(ref<ConditionRule>) + lit<")"> +
+             assign<&ast::WhileStmt::cond>(ref<Condition>) + lit<")"> +
              assign<&ast::WhileStmt::body>(ref<Statement>)> {};
 
-  struct DoStmtRule
+  struct DoStmt
       : rule<kw<"do"> + assign<&ast::DoStmt::body>(ref<Statement>) +
              kw<"while"> + lit<"("> +
              assign<&ast::DoStmt::cond>(ref<Expression>) + lit<")"> +
@@ -592,26 +474,22 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
   // dropped here in favor of ExprStmt, which parses the same tokens and
   // would otherwise fork the engine on every expression statement in a
   // document.
-  struct DeclStmtRule
-      : rule<create<ast::VarDecl>(
-            assign<&ast::VarDecl::specifiers>(ref<Specifiers>) +
-            option(some(append<&ast::VarDecl::declarators>(ref<InitDeclarator>),
-                        lit<",">)) +
-            lit<";">)> {};
+  struct DeclStmt : rule<assign<&ast::VarDecl::specifiers>(ref<Specifiers>) +
+      some(append<&ast::VarDecl::declarators>(ref<InitDeclarator>), lit<",">) + lit<";">> {};
 
-  struct ForRangeDeclRule
+  struct ForRangeDecl
       : rule<create<ast::ForRangeDecl>(
             assign<&ast::ForRangeDecl::specifiers>(ref<Specifiers>) +
             assign<&ast::ForRangeDecl::name>(ref<ID>))> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<kw<"for"> + lit<"("> +
              ((assign<&ast::ForStmt::init>(ref<ExprStmtRule> |
-                                            ref<DeclStmtRule>) +
+                                            ref<DeclStmt>) +
                option(assign<&ast::ForStmt::cond>(ref<Expression>)) +
                lit<";"> +
-               option(assign<&ast::ForStmt::step>(ref<Expression>)))  //
-              | (assign<&ast::ForStmt::rangeDecl>(ref<ForRangeDeclRule>) +
+               option(assign<&ast::ForStmt::step>(ref<ForStep>)))  //
+              | (assign<&ast::ForStmt::rangeDecl>(ref<ForRangeDecl>) +
                  lit<":"> + assign<&ast::ForStmt::rangeInit>(
                                 ref<InitializerClause>))) +
              lit<")"> + assign<&ast::ForStmt::body>(ref<Statement>)> {};
@@ -625,43 +503,37 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
                           | assign<&ast::ReturnStmt::list>(
                                 ref<BracedInitList>)) +
                    lit<";">)  //
-             | create<ast::GotoStmt>(kw<"goto"> +
-                                     assign<&ast::GotoStmt::target>(ref<ID>) +
-                                     lit<";">)> {};
+> {};
 
   struct LabeledStatement
-      : rule<create<ast::Label>(assign<&ast::Label::name>(ref<ID>) +
-                                lit<":"> +
-                                assign<&ast::Label::body>(ref<Statement>))  //
-             | create<ast::CaseLabel>(
+      : rule<create<ast::CaseLabel>(
                    kw<"case"> +
                    assign<&ast::CaseLabel::value>(ref<ConditionalExpression>) +
                    lit<":"> +
-                   assign<&ast::CaseLabel::body>(ref<Statement>))  //
+                   option(assign<&ast::CaseLabel::body>(ref<Statement>)))  //
              | create<ast::DefaultLabel>(
                    kw<"default"> + lit<":"> +
-                   assign<&ast::DefaultLabel::body>(ref<Statement>))> {};
+                   option(assign<&ast::DefaultLabel::body>(ref<Statement>)))> {};
 
   struct Statement
       : rule<ref<LabeledStatement>  //
-             | ref<DeclStmtRule>    //
+             | ref<DeclStmt>    //
              | ref<ExprStmtRule>    //
              | ref<CompoundStatement>  //
-             | ref<IfStmtRule>      //
-             | ref<SwitchStmtRule>  //
-             | ref<WhileStmtRule>   //
-             | ref<DoStmtRule>      //
-             | ref<ForStmtRule>     //
+             | ref<IfStmt>      //
+             | ref<SwitchStmt>  //
+             | ref<WhileStmt>   //
+             | ref<DoStmt>      //
+             | ref<ForStmt>     //
              | ref<JumpStatement>> {};
 
   // -- Declarations ----
 
-  struct EmptyDeclRule : rule<create<ast::EmptyDecl>(lit<";">)> {};
+  struct EmptyDecl : rule<create<ast::EmptyDecl>(lit<";">)> {};
 
-  struct ModuleImportRule
+  struct ModuleImport
       : rule<create<ast::ModuleImport>(
-                 kw<"import"> + append<&ast::ModuleImport::path>(ref<ID>) +
-                 many(lit<"."> + append<&ast::ModuleImport::path>(ref<ID>)) +
+                 kw<"import"> + some(append<&ast::ModuleImport::path>(ref<ID>), lit<".">) +
                  lit<";">)  //
              | create<ast::ImportFunction>(
                    kw<"import"> +
@@ -674,43 +546,26 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
                    assign<&ast::ImportFunction::from>(ref<STRING_LIT>) +
                    lit<";">)> {};
 
-  struct NamespaceDefRule
+  struct NamespaceDef
       : rule<create<ast::NamespaceDef>(
             kw<"namespace"> +
-            option(assign<&ast::NamespaceDef::name>(ref<ID>)) + lit<"{"> +
+            assign<&ast::NamespaceDef::name>(ref<QualifiedName>) + lit<"{"> +
             option(some(append<&ast::NamespaceDef::items>(ref<Declaration>))) +
             lit<"}">)> {};
 
-  struct NamespaceAliasDefRule
-      : rule<create<ast::NamespaceAlias>(
-            kw<"namespace"> + assign<&ast::NamespaceAlias::name>(ref<ID>) +
-            AssignLit +
-            assign<&ast::NamespaceAlias::target>(
-                ref<QualifiedNameRule>) +
-            lit<";">)> {};
-
-  struct AliasDeclRule
-      : rule<create<ast::AliasDecl>(
-            assign<&ast::AliasDecl::name>(ref<ID>) + AssignLit +
-            assign<&ast::AliasDecl::type>(ref<Specifiers>) + lit<";">)> {};
-
-  struct SimpleDeclaration
-      : rule<create<ast::VarDecl>(
-            option(assign<&ast::VarDecl::specifiers>(ref<Specifiers>)) +
-            option(some(append<&ast::VarDecl::declarators>(ref<InitDeclarator>),
-                        lit<",">)  //
-                   | assign<&ast::VarDecl::expr>(ref<AssignmentExpression>)) +
-            lit<";">)> {};
+  struct SimpleDeclaration : rule<assign<&ast::VarDecl::specifiers>(ref<Specifiers>) +
+      some(append<&ast::VarDecl::declarators>(ref<InitDeclarator>), lit<",">) + lit<";">> {};
+  struct ForwardSpecifiers : rule<append<&ast::Specifiers::parts>(ref<ElaboratedTypeSpec>)> {};
+  struct ForwardClass : rule<assign<&ast::VarDecl::specifiers>(ref<ForwardSpecifiers>) + lit<";">> {};
 
   // `enum Name;` is AngelScript's forward declaration, which has no
   // elaborated type specifier: it must win over `SimpleDeclaration`.
   struct BlockDeclaration
-      : rule<ref<OpaqueEnumDeclRule> | ref<SimpleDeclaration> |
-             ref<NamespaceAliasDefRule> | ref<AliasDeclRule>> {};
+      : rule<ref<OpaqueEnumDecl> | ref<ForwardClass> | ref<SimpleDeclaration>> {};
 
   struct FunctionDef
       : rule<create<ast::FunctionDef>(
-            option(assign<&ast::FunctionDef::ufunction>(ref<UFunctionRule>)) +
+            option(assign<&ast::FunctionDef::ufunction>(ref<UFunction>)) +
             option(assign<&ast::FunctionDef::access>(AccessWord)) +
             option(flag<&ast::FunctionDef::isMixin>(kw<"mixin">)) +
             option(assign<&ast::FunctionDef::specifiers>(ref<Specifiers>)) +
@@ -718,37 +573,33 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
             option(some(append<&ast::FunctionDef::postSpecifiers>(
                 PostSpecWord))) +
             (assign<&ast::FunctionDef::body>(ref<CompoundStatement>)  //
-             | (flag<&ast::FunctionDef::isDefaulted>(
-                    AssignLit + kw<"default">) +
-                lit<";">)  //
              | lit<";">))> {};
 
-  struct PropertyDef
-      : rule<create<ast::PropertyDef>(
-            option(assign<&ast::PropertyDef::uproperty>(ref<UPropertyRule>)) +
-            option(assign<&ast::PropertyDef::access>(AccessWord)) +
-            option(flag<&ast::PropertyDef::isDefault>(kw<"default">)) +
-            option(assign<&ast::PropertyDef::specifiers>(ref<Specifiers>)) +
-            option(some(append<&ast::PropertyDef::declarators>(
-                            ref<MemberDeclarator>),
-                        lit<",">)  //
-                   | assign<&ast::PropertyDef::expr>(
-                         ref<AssignmentExpression>)) +
-            lit<";">)> {};
+  struct PropertyDef : rule<create<ast::PropertyDef>(
+      option(assign<&ast::PropertyDef::uproperty>(ref<UProperty>)) +
+      option(assign<&ast::PropertyDef::access>(AccessWord)) +
+      option(flag<&ast::PropertyDef::isDefault>(kw<"default">)) +
+      option(assign<&ast::PropertyDef::specifiers>(ref<Specifiers>)) +
+      (some(append<&ast::PropertyDef::declarators>(ref<MemberDeclarator>), lit<",">) |
+       assign<&ast::PropertyDef::expr>(ref<AssignmentExpression>)) + lit<";">)> {};
 
   struct MemberDeclaration
-      : rule<ref<PropertyDef> | ref<FunctionDef> | ref<AliasDeclRule> |
-             ref<EmptyDeclRule>> {};
+      : rule<ref<PropertyDef> | ref<FunctionDef> |
+             ref<EmptyDecl>> {};
+
+  struct DelegateDecl : rule<create<ast::DelegateDecl>((flag<&ast::DelegateDecl::isEvent>(kw<"event">) | kw<"delegate">) +
+      assign<&ast::DelegateDecl::result>(ref<Specifiers>) +
+      assign<&ast::DelegateDecl::declarator>(ref<Declarator>) + lit<";">)> {};
 
   struct Declaration
-      : rule<ref<ModuleImportRule> | ref<BlockDeclaration> | ref<FunctionDef> |
-             ref<NamespaceDefRule> | ref<EmptyDeclRule>> {};
+      : rule<ref<DelegateDecl> | ref<ModuleImport> | ref<TypeDefinition> | ref<BlockDeclaration> | ref<FunctionDef> |
+             ref<NamespaceDef> | ref<EmptyDecl>> {};
 
-  struct ScriptRule
+  struct Script
       : rule<option(some(append<&ast::Script::items>(ref<Declaration>)))> {};
 
-  using entry = ScriptRule;
-  using ignore = WS;
+  using entry = Script;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT, PP_LINE>;
 };
 

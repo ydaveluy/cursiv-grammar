@@ -55,11 +55,15 @@ struct Atom : cursiv::Extends<Sentence> {
   vector<Term*> args;
 };
 
-// `(term (cl-roleset (name term)))`: the rarer, role-based atomic sentence.
-struct RolesetAtom : cursiv::Extends<Sentence> {
-  Term* subject;
+struct RoleBinding : cursiv::Extends<cursiv::AstNode> {
   Term* role;
   Term* filler;
+};
+
+// `(term (roleset: (name term)...))`, including an empty role set.
+struct RolesetAtom : cursiv::Extends<Sentence> {
+  Term* subject;
+  vector<RoleBinding*> roles;
 };
 
 enum class BoolOp : std::uint8_t { And, Or, If, Iff, Not };
@@ -117,7 +121,7 @@ struct Imports : cursiv::Extends<Phrase> {
 
 struct CommentedPhrase : cursiv::Extends<Phrase> {
   string_view comment;
-  std::variant<std::monostate, NamedText*, Phrase*> body;  // the optional cltext
+  vector<CltextItem> items;  // the complete commented text, possibly empty
 };
 
 struct Module : cursiv::Extends<Phrase> {

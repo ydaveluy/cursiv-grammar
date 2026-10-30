@@ -2,12 +2,15 @@
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "xsmp/core/ast.hpp"
+#include "xsmp/core/LiteralConversions.hpp"
 
 namespace xsmp {
 
 struct Xsmp : cursiv::GrammarSpec {
   // terminal ID: /[_a-zA-Z]\w*/;
-  struct ID : terminal<(cr<"_a-zA-Z"> + many(w))> {};
+  static constexpr auto ReservedName = kw<"false"> | kw<"float"> | kw<"nullptr"> | kw<"private"> |
+      kw<"protected"> | kw<"public"> | kw<"true"> | kw<"using"> | kw<"void">;
+  struct ID : terminal<!ReservedName + cr<"_a-zA-Z"> + many(w)> {};
 
   static constexpr auto HEXDIGIT = cr<"0-9a-fA-F">;
 
@@ -75,7 +78,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // hidden terminal WS:         /\s+/;
   // hidden terminal ML_COMMENT: /\/\*[\s\S]*?\*\//;
   // hidden terminal SL_COMMENT: /\/\/[^\n\r]*/;
-  struct WS : terminal<some(s)> {};
+  struct WS : terminal<some(cr<R"(\t-\r \u{00A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}\u{FEFF})">)> {};
   struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
   struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
@@ -98,80 +101,55 @@ struct Xsmp : cursiv::GrammarSpec {
 
   // OpOr returns OpBinary:
   // '||';
-  struct LOGICAL_OR : terminal<lit<"||">, value<ast::OpBinary::logical_or>> {};
-  static constexpr auto OpOr = ref<LOGICAL_OR>;
+  static constexpr auto OpOr = as<ast::OpBinary::logical_or>(lit<"||">);
 
   // OpAnd returns OpBinary:
   // '&&';
-  struct LOGICAL_AND : terminal<lit<"&&">, value<ast::OpBinary::logical_and>> {};
-  static constexpr auto OpAnd = ref<LOGICAL_AND>;
+  static constexpr auto OpAnd = as<ast::OpBinary::logical_and>(lit<"&&">);
 
   // OpBitwiseOr returns OpBinary:
   // '|';
-  struct BITWISE_OR : terminal<lit<"|">, value<ast::OpBinary::bitwise_or>> {};
-  static constexpr auto OpBitwiseOr = ref<BITWISE_OR>;
+  static constexpr auto OpBitwiseOr = as<ast::OpBinary::bitwise_or>(lit<"|">);
 
   // OpBitwiseXor returns OpBinary:
   // '^';
-  struct BITWISE_XOR : terminal<lit<"^">, value<ast::OpBinary::bitwise_xor>> {};
-  static constexpr auto OpBitwiseXor = ref<BITWISE_XOR>;
+  static constexpr auto OpBitwiseXor = as<ast::OpBinary::bitwise_xor>(lit<"^">);
 
   // OpBitwiseAnd returns OpBinary:
   // '&';
-  struct BITWISE_AND : terminal<lit<"&">, value<ast::OpBinary::bitwise_and>> {};
-  static constexpr auto OpBitwiseAnd = ref<BITWISE_AND>;
+  static constexpr auto OpBitwiseAnd = as<ast::OpBinary::bitwise_and>(lit<"&">);
 
   // OpEquality returns OpBinary:
   // '==' | '!=';
-  struct EQUAL : terminal<lit<"==">, value<ast::OpBinary::equal>> {};
-  struct NOT_EQUAL
-      : terminal<lit<"!=">, value<ast::OpBinary::not_equal>> {};
-  static constexpr auto OpEquality = ref<EQUAL> | ref<NOT_EQUAL>;
+  static constexpr auto OpEquality = as<ast::OpBinary::equal>(lit<"==">) | as<ast::OpBinary::not_equal>(lit<"!=">);
 
   // OpCompare returns OpBinary:
   // '>=' | '<=' | '>' | '<';
-  struct GREATER_EQUAL
-      : terminal<lit<">=">, value<ast::OpBinary::greater_equal>> {};
-  struct LESS_EQUAL
-      : terminal<lit<"<=">, value<ast::OpBinary::less_equal>> {};
-  struct GREATER : terminal<lit<">">, value<ast::OpBinary::greater>> {};
-  struct LESS : terminal<lit<"<">, value<ast::OpBinary::less>> {};
   static constexpr auto OpCompare =
-      ref<GREATER_EQUAL> | ref<LESS_EQUAL> | ref<GREATER> | ref<LESS>;
+      as<ast::OpBinary::greater_equal>(lit<">=">) | as<ast::OpBinary::less_equal>(lit<"<=">) | as<ast::OpBinary::greater>(lit<">">) | as<ast::OpBinary::less>(lit<"<">);
 
   // OpBitwise returns OpBinary:
   // '<<' | '>>';
-  struct SHIFT_LEFT
-      : terminal<lit<"<<">, value<ast::OpBinary::shift_left>> {};
-  struct SHIFT_RIGHT
-      : terminal<lit<">>">, value<ast::OpBinary::shift_right>> {};
-  static constexpr auto OpBitwise = ref<SHIFT_LEFT> | ref<SHIFT_RIGHT>;
+  static constexpr auto OpBitwise = as<ast::OpBinary::shift_left>(lit<"<<">) | as<ast::OpBinary::shift_right>(lit<">>">);
 
   // OpAdd returns OpBinary:
   // '+' | '-';
-  struct ADD : terminal<lit<"+">, value<ast::OpBinary::add>> {};
-  struct SUBTRACT
-      : terminal<lit<"-">, value<ast::OpBinary::subtract>> {};
-  static constexpr auto OpAdd = ref<ADD> | ref<SUBTRACT>;
+  static constexpr auto OpAdd = as<ast::OpBinary::add>(lit<"+">) | as<ast::OpBinary::subtract>(lit<"-">);
 
   // OpMulti returns OpBinary:
   // '*' | '/' | '%';
-  struct MULTIPLY
-      : terminal<lit<"*">, value<ast::OpBinary::multiply>> {};
-  struct DIVIDE : terminal<lit<"/">, value<ast::OpBinary::divide>> {};
-  struct MODULO : terminal<lit<"%">, value<ast::OpBinary::modulo>> {};
-  static constexpr auto OpMulti = ref<MULTIPLY> | ref<DIVIDE> | ref<MODULO>;
+  static constexpr auto OpMulti = as<ast::OpBinary::multiply>(lit<"*">) | as<ast::OpBinary::divide>(lit<"/">) | as<ast::OpBinary::modulo>(lit<"%">);
 
   // Expression returns Expression:
   // OrExpression;
-  struct Expression : infix<UnaryOperation, &ast::BinaryOperation::leftOperand,
-                            &ast::BinaryOperation::feature,
-                            &ast::BinaryOperation::rightOperand,
-                            (left(OpMulti) >> left(OpAdd) >> left(OpBitwise) >>
-                             left(OpCompare) >> left(OpEquality) >>
-                             left(OpBitwiseAnd) >> left(OpBitwiseXor) >>
-                             left(OpBitwiseOr) >> left(OpAnd) >> left(OpOr))> {
-  };
+  struct Expression
+      : infix<
+            UnaryOperation, ast::BinaryOperation,
+            levels(left(OpMulti), left(OpAdd), left(OpBitwise), left(OpCompare),
+                   left(OpEquality), left(OpBitwiseAnd), left(OpBitwiseXor),
+                   left(OpBitwiseOr), left(OpAnd), left(OpOr)),
+            &ast::BinaryOperation::leftOperand, &ast::BinaryOperation::feature,
+            &ast::BinaryOperation::rightOperand> {};
 
   // OpUnary returns OpUnary:
   // "!" | "-" | "+" | "~";
@@ -241,7 +219,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // IntegerLiteral returns IntegerLiteral:
   // {IntegerLiteral} text=INTEGER_LITERAL;
   struct IntegerLiteral
-      : rule<assign<&ast::IntegerLiteral::text>(ref<INTEGER_LITERAL>)> {};
+      : rule<assign<&ast::IntegerLiteral::text>(as<integer_value>(ref<INTEGER_LITERAL>))> {};
 
   // FloatingLiteral returns FloatingLiteral:
   // {FloatingLiteral} text=FLOATING_LITERAL;
@@ -251,22 +229,22 @@ struct Xsmp : cursiv::GrammarSpec {
   // StringLiteral returns Expression:
   // {StringLiteral} value+=STRING+;
   struct StringLiteral
-      : rule<some(append<&ast::StringLiteral::value>(ref<STRING>))> {};
+      : rule<some(append<&ast::StringLiteral::value>(as<quoted_value>(ref<STRING>)))> {};
 
   // CharacterLiteral returns Expression:
   // {CharacterLiteral} value=CHAR;
   struct CharacterLiteral
-      : rule<assign<&ast::CharacterLiteral::value>(ref<CHAR>)> {};
+      : rule<assign<&ast::CharacterLiteral::value>(as<quoted_value>(ref<CHAR>))> {};
 
   // BuiltInConstant returns Expression:
   // {BuiltInConstant} '$' name=ID;
   struct BuiltInConstant
-      : rule<lit<"$"> + assign<&ast::BuiltInConstant::name>(ref<ID>)> {};
+      : rule<lit<"$"> + assign<&ast::BuiltInConstant::name>(as<builtin_name>(ref<ID>))> {};
 
   // BuiltInFunction returns Expression:
   // {BuiltInFunction} '$' name=ID '(' argument=Expression? ')';
   struct BuiltInFunction
-      : rule<lit<"$"> + assign<&ast::BuiltInFunction::name>(ref<ID>) +
+      : rule<lit<"$"> + assign<&ast::BuiltInFunction::name>(as<builtin_name>(ref<ID>)) +
              lit<"("> +
              option(assign<&ast::BuiltInFunction::argument>(ref<Expression>)) +
              lit<")">> {};
@@ -362,6 +340,13 @@ struct Xsmp : cursiv::GrammarSpec {
              assign<&ast::NamedElementWithMultiplicity::multiplicity>(
                  ref<Multiplicity> | ref<ShortMultiplicity>));
 
+  // Shared declaration prefixes write the current node; no extra AST rule.
+  static constexpr auto Attributes = many(append<&ast::NamedElement::attributes>(ref<Attribute>));
+  static constexpr auto VisibilityPrefix = Attributes + many(append<&ast::VisibilityElement::modifiers>(VisibilityModifiers));
+  static constexpr auto ClassPrefix = Attributes + many(append<&ast::VisibilityElement::modifiers>(ClassModifiers));
+  static constexpr auto PropertyPrefix = Attributes + many(append<&ast::VisibilityElement::modifiers>(PropertyModifiers));
+  static constexpr auto FieldPrefix = Attributes + many(append<&ast::VisibilityElement::modifiers>(FieldModifiers));
+
   // Structure returns Structure:
   // attributes+=Attribute*
   // modifiers+=VisibilityModifiers*
@@ -369,8 +354,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // '{' elements+=(Constant|Field)* '}';
   struct Structure
       : rule<create<ast::Structure> +
-             (many(append<&ast::Structure::attributes>(ref<Attribute>)) +
-              many(append<&ast::Structure::modifiers>(VisibilityModifiers)) +
+             (VisibilityPrefix +
               kw<"struct"> + assign<&ast::Structure::name>(ref<ID>) + kw<"{"> +
               many(append<&ast::Structure::elements>(ref<Constant> |
                                                      ref<Field>)) +
@@ -382,11 +366,10 @@ struct Xsmp : cursiv::GrammarSpec {
   // 'class' name=ValidID ('extends' base=[Class:QualifiedName])?
   // '{' elements+=(Constant|Field|Property|Operation|Association)* '}';
   struct Class : rule<create<ast::Class> +
-                      (many(append<&ast::Class::attributes>(ref<Attribute>)) +
-                       many(append<&ast::Class::modifiers>(ClassModifiers)) +
+                      (ClassPrefix +
                        kw<"class"> + assign<&ast::Class::name>(ref<ID>) +
                        option(kw<"extends"> +
-                              assign<&ast::Class::base>(ref<QualifiedName>)) +
+                              assign<xref<&ast::Class::base, ast::Class>>(ref<QualifiedName>)) +
                        kw<"{"> +
                        many(append<&ast::Class::elements>(
                            ref<Constant> | ref<Field> | ref<Property> |
@@ -400,11 +383,10 @@ struct Xsmp : cursiv::GrammarSpec {
   // '{' elements+=(Constant|Field|Property|Operation|Association)* '}';
   struct Exception
       : rule<create<ast::Exception> +
-             (many(append<&ast::Exception::attributes>(ref<Attribute>)) +
-              many(append<&ast::Exception::modifiers>(ClassModifiers)) +
+             (ClassPrefix +
               kw<"exception"> + assign<&ast::Exception::name>(ref<ID>) +
               option(kw<"extends"> +
-                     assign<&ast::Exception::base>(ref<QualifiedName>)) +
+                     assign<xref<&ast::Exception::base, ast::Class>>(ref<QualifiedName>)) +
               kw<"{"> +
               many(append<&ast::Exception::elements>(
                   ref<Constant> | ref<Field> | ref<Property> | ref<Operation> |
@@ -419,11 +401,10 @@ struct Xsmp : cursiv::GrammarSpec {
   // base+=[Interface:QualifiedName])*)?
   // '{' elements+=(Constant|Property|Operation)* '}';
   struct Interface
-      : rule<(many(append<&ast::Interface::attributes>(ref<Attribute>)) +
-              many(append<&ast::Interface::modifiers>(VisibilityModifiers)) +
+      : rule<(VisibilityPrefix +
               kw<"interface"> + assign<&ast::Interface::name>(ref<ID>) +
               option(kw<"extends"> +
-                     some(append<&ast::Interface::base>(ref<QualifiedName>),
+                     some(append<xref<&ast::Interface::base, ast::Interface>>(ref<QualifiedName>),
                           kw<",">)) +
               kw<"{"> +
               many(append<&ast::Interface::elements>(
@@ -440,13 +421,12 @@ struct Xsmp : cursiv::GrammarSpec {
   // Reference|EntryPoint|EventSink|EventSource)* '}';
   struct Model
       : rule<create<ast::Model> +
-             (many(append<&ast::Model::attributes>(ref<Attribute>)) +
-              many(append<&ast::Model::modifiers>(ClassModifiers)) +
+             (ClassPrefix +
               kw<"model"> + assign<&ast::Model::name>(ref<ID>) +
               option(kw<"extends"> +
-                     assign<&ast::Model::base>(ref<QualifiedName>)) +
+                     assign<xref<&ast::Model::base, ast::Component>>(ref<QualifiedName>)) +
               option(kw<"implements"> +
-                     some(append<&ast::Model::interface_>(ref<QualifiedName>),
+                     some(append<xref<&ast::Model::interface_, ast::Interface>>(ref<QualifiedName>),
                           kw<",">)) +
               kw<"{"> +
               many(append<&ast::Model::elements>(
@@ -459,13 +439,12 @@ struct Xsmp : cursiv::GrammarSpec {
   // ... identical to Model except the 'service' keyword ...
   struct Service
       : rule<create<ast::Service> +
-             (many(append<&ast::Service::attributes>(ref<Attribute>)) +
-              many(append<&ast::Service::modifiers>(ClassModifiers)) +
+             (ClassPrefix +
               kw<"service"> + assign<&ast::Service::name>(ref<ID>) +
               option(kw<"extends"> +
-                     assign<&ast::Service::base>(ref<QualifiedName>)) +
+                     assign<xref<&ast::Service::base, ast::Component>>(ref<QualifiedName>)) +
               option(kw<"implements"> +
-                     some(append<&ast::Service::interface_>(ref<QualifiedName>),
+                     some(append<xref<&ast::Service::interface_, ast::Interface>>(ref<QualifiedName>),
                           kw<",">)) +
               kw<"{"> +
               many(append<&ast::Service::elements>(
@@ -480,10 +459,9 @@ struct Xsmp : cursiv::GrammarSpec {
   // 'array' name=ValidID '=' itemType=[ValueType:QualifiedName] '['
   // size=Expression? ']';
   struct ArrayType
-      : rule<(many(append<&ast::ArrayType::attributes>(ref<Attribute>)) +
-              many(append<&ast::ArrayType::modifiers>(VisibilityModifiers)) +
+      : rule<(VisibilityPrefix +
               kw<"array"> + assign<&ast::ArrayType::name>(ref<ID>) + kw<"="> +
-              assign<&ast::ArrayType::itemType>(ref<QualifiedName>) + kw<"["> +
+              assign<xref<&ast::ArrayType::itemType, ast::ValueType>>(ref<QualifiedName>) + kw<"["> +
               option(assign<&ast::ArrayType::size>(ref<Expression>)) +
               kw<"]">)> {};
 
@@ -493,10 +471,9 @@ struct Xsmp : cursiv::GrammarSpec {
   // 'using' name=ValidID '=' type=[ValueType:QualifiedName] '*';
   struct ValueReference
       : rule<(
-            many(append<&ast::ValueReference::attributes>(ref<Attribute>)) +
-            many(append<&ast::ValueReference::modifiers>(VisibilityModifiers)) +
+            VisibilityPrefix +
             kw<"using"> + assign<&ast::ValueReference::name>(ref<ID>) +
-            kw<"="> + assign<&ast::ValueReference::type>(ref<QualifiedName>) +
+            kw<"="> + assign<xref<&ast::ValueReference::type, ast::ValueType>>(ref<QualifiedName>) +
             kw<"*">)> {};
 
   // Integer returns Integer:
@@ -506,11 +483,10 @@ struct Xsmp : cursiv::GrammarSpec {
   // primitiveType=[PrimitiveType:QualifiedName])?
   // ('in' (minimum=Expression | '*') '...' (maximum=Expression | '*'))?;
   struct Integer
-      : rule<(many(append<&ast::Integer::attributes>(ref<Attribute>)) +
-              many(append<&ast::Integer::modifiers>(VisibilityModifiers)) +
+      : rule<(VisibilityPrefix +
               kw<"integer"> + assign<&ast::Integer::name>(ref<ID>) +
               option(kw<"extends"> +
-                     assign<&ast::Integer::primitiveType>(ref<QualifiedName>)) +
+                     assign<xref<&ast::Integer::primitiveType, ast::PrimitiveType>>(ref<QualifiedName>)) +
               option(kw<"in"> +
                      (assign<&ast::Integer::minimum>(ref<Expression>) |
                       kw<"*">)+kw<"..."> +
@@ -525,11 +501,10 @@ struct Xsmp : cursiv::GrammarSpec {
   // ('in' (minimum=Expression | '*') range=RangeKind (maximum=Expression |
   // '*'))?;
   struct Float
-      : rule<(many(append<&ast::Float::attributes>(ref<Attribute>)) +
-              many(append<&ast::Float::modifiers>(VisibilityModifiers)) +
+      : rule<(VisibilityPrefix +
               kw<"float"> + assign<&ast::Float::name>(ref<ID>) +
               option(kw<"extends"> +
-                     assign<&ast::Float::primitiveType>(ref<QualifiedName>)) +
+                     assign<xref<&ast::Float::primitiveType, ast::PrimitiveType>>(ref<QualifiedName>)) +
               option(kw<"in"> +
                      (assign<&ast::Float::minimum>(ref<Expression>) |
                       kw<"*">)+assign<&ast::Float::range>(RangeKind) +
@@ -541,11 +516,10 @@ struct Xsmp : cursiv::GrammarSpec {
   // modifiers+=VisibilityModifiers*
   // 'event' name=ValidID ('extends' eventArgs=[SimpleType:QualifiedName])?;
   struct EventType
-      : rule<(many(append<&ast::EventType::attributes>(ref<Attribute>)) +
-              many(append<&ast::EventType::modifiers>(VisibilityModifiers)) +
+      : rule<(VisibilityPrefix +
               kw<"event"> + assign<&ast::EventType::name>(ref<ID>) +
               option(kw<"extends"> +
-                     assign<&ast::EventType::eventArgs>(ref<QualifiedName>)))> {
+                     assign<xref<&ast::EventType::eventArgs, ast::SimpleType>>(ref<QualifiedName>)))> {
   };
 
   // StringType returns StringType:
@@ -553,8 +527,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // modifiers+=VisibilityModifiers*
   // 'string' name=ValidID '[' length=Expression? ']';
   struct StringType
-      : rule<(many(append<&ast::StringType::attributes>(ref<Attribute>)) +
-              many(append<&ast::StringType::modifiers>(VisibilityModifiers)) +
+      : rule<(VisibilityPrefix +
               kw<"string"> + assign<&ast::StringType::name>(ref<ID>) + kw<"["> +
               option(assign<&ast::StringType::length>(ref<Expression>)) +
               kw<"]">)> {};
@@ -564,9 +537,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // name=ValidID;
   struct PrimitiveType
       : rule<create<ast::PrimitiveType> +
-             (many(append<&ast::PrimitiveType::attributes>(ref<Attribute>)) +
-              many(
-                  append<&ast::PrimitiveType::modifiers>(VisibilityModifiers)) +
+             (VisibilityPrefix +
               kw<"primitive"> + assign<&ast::PrimitiveType::name>(ref<ID>))> {};
 
   // NativeType returns NativeType:
@@ -574,8 +545,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // name=ValidID;
   struct NativeType
       : rule<create<ast::NativeType> +
-             (many(append<&ast::NativeType::attributes>(ref<Attribute>)) +
-              many(append<&ast::NativeType::modifiers>(VisibilityModifiers)) +
+             (VisibilityPrefix +
               kw<"native"> + assign<&ast::NativeType::name>(ref<ID>))> {};
 
   // AttributeType returns AttributeType:
@@ -585,10 +555,9 @@ struct Xsmp : cursiv::GrammarSpec {
   // default=Expression)?;
   struct AttributeType
       : rule<(
-            many(append<&ast::AttributeType::attributes>(ref<Attribute>)) +
-            many(append<&ast::AttributeType::modifiers>(VisibilityModifiers)) +
+            VisibilityPrefix +
             kw<"attribute"> +
-            assign<&ast::AttributeType::type>(ref<QualifiedName>) +
+            assign<xref<&ast::AttributeType::type, ast::ValueType>>(ref<QualifiedName>) +
             assign<&ast::AttributeType::name>(ref<ID>) +
             option(kw<"="> +
                    assign<&ast::AttributeType::default_>(ref<Expression>)))> {};
@@ -602,8 +571,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // '{' (literal+=EnumerationLiteral (',' literal+=EnumerationLiteral)*
   // ','?)? '}';
   struct Enumeration
-      : rule<(many(append<&ast::Enumeration::attributes>(ref<Attribute>)) +
-              many(append<&ast::Enumeration::modifiers>(VisibilityModifiers)) +
+      : rule<(VisibilityPrefix +
               kw<"enum"> + assign<&ast::Enumeration::name>(ref<ID>) + kw<"{"> +
               option(some(append<&ast::Enumeration::literal>(
                               ref<EnumerationLiteral>),
@@ -615,7 +583,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // attributes+=Attribute* name=ValidID '=' value=Expression;
   struct EnumerationLiteral
       : rule<(
-            many(append<&ast::EnumerationLiteral::attributes>(ref<Attribute>)) +
+            Attributes +
             assign<&ast::EnumerationLiteral::name>(ref<ID>) + kw<"="> +
             assign<&ast::EnumerationLiteral::value>(ref<Expression>))> {};
 
@@ -637,9 +605,8 @@ struct Xsmp : cursiv::GrammarSpec {
   // value=Expression )?;
   struct Constant
       : rule<(
-            many(append<&ast::Constant::attributes>(ref<Attribute>)) +
-            many(append<&ast::Constant::modifiers>(VisibilityModifiers)) +
-            kw<"constant"> + assign<&ast::Constant::type>(ref<QualifiedName>) +
+            VisibilityPrefix +
+            kw<"constant"> + assign<xref<&ast::Constant::type, ast::SimpleType>>(ref<QualifiedName>) +
             assign<&ast::Constant::name>(ref<ID>) +
             option(kw<"="> + assign<&ast::Constant::value>(ref<Expression>)))> {
   };
@@ -650,9 +617,8 @@ struct Xsmp : cursiv::GrammarSpec {
   // 'field' type=[LanguageType:QualifiedName] name=ValidID ('='
   // default=Expression)?;
   struct Field
-      : rule<(many(append<&ast::Field::attributes>(ref<Attribute>)) +
-              many(append<&ast::Field::modifiers>(FieldModifiers)) +
-              kw<"field"> + assign<&ast::Field::type>(ref<QualifiedName>) +
+      : rule<(FieldPrefix +
+              kw<"field"> + assign<xref<&ast::Field::type, ast::LanguageType>>(ref<QualifiedName>) +
               assign<&ast::Field::name>(ref<ID>) +
               option(kw<"="> +
                      assign<&ast::Field::default_>(ref<Expression>)))> {};
@@ -667,16 +633,15 @@ struct Xsmp : cursiv::GrammarSpec {
   // setRaises+=[Exception:QualifiedName] )*)?
   // ('->' attachedField=[Field:QualifiedName])?;
   struct Property
-      : rule<(many(append<&ast::Property::attributes>(ref<Attribute>)) +
-              many(append<&ast::Property::modifiers>(PropertyModifiers)) +
+      : rule<(PropertyPrefix +
               kw<"property"> +
-              assign<&ast::Property::type>(ref<QualifiedName>) +
+              assign<xref<&ast::Property::type, ast::ValueType>>(ref<QualifiedName>) +
               assign<&ast::Property::name>(ref<ID>) +
               option(kw<"get"> + kw<"throws"> +
-                     some(append<&ast::Property::getRaises>(ref<QualifiedName>),
+                     some(append<xref<&ast::Property::getRaises, ast::Exception>>(ref<QualifiedName>),
                           kw<",">)) +
               option(kw<"set"> + kw<"throws"> +
-                     some(append<&ast::Property::setRaises>(ref<QualifiedName>),
+                     some(append<xref<&ast::Property::setRaises, ast::Exception>>(ref<QualifiedName>),
                           kw<",">)) +
               option(kw<"->"> + assign<&ast::Property::attachedField>(
                                     ref<QualifiedName>)))> {};
@@ -691,15 +656,14 @@ struct Xsmp : cursiv::GrammarSpec {
   // raisedException+=[Exception:QualifiedName])*)?;
   struct Operation
       : rule<(
-            many(append<&ast::Operation::attributes>(ref<Attribute>)) +
-            many(append<&ast::Operation::modifiers>(VisibilityModifiers)) +
+            VisibilityPrefix +
             kw<"def"> +
             (kw<"void"> |
              assign<&ast::Operation::returnParameter>(ref<ReturnParameter>)) +
             assign<&ast::Operation::name>(ref<ID>) + kw<"("> +
             many(append<&ast::Operation::parameter>(ref<Parameter>), kw<",">) +
             kw<")"> +
-            option(kw<"throws"> + some(append<&ast::Operation::raisedException>(
+            option(kw<"throws"> + some(append<xref<&ast::Operation::raisedException, ast::Exception>>(
                                            ref<QualifiedName>),
                                        kw<",">)))> {};
 
@@ -708,7 +672,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // type=[LanguageType:QualifiedName];
   struct ReturnParameter
       : rule<(many(append<&ast::ReturnParameter::attributes>(ref<Attribute>)) +
-              assign<&ast::ReturnParameter::type>(ref<QualifiedName>) +
+              assign<xref<&ast::ReturnParameter::type, ast::LanguageType>>(ref<QualifiedName>) +
               option(assign<&ast::ReturnParameter::name>(ref<ID>)))> {};
 
   // Parameter returns Parameter:
@@ -717,9 +681,9 @@ struct Xsmp : cursiv::GrammarSpec {
   // name=ValidID ('=' default=Expression)?;
   struct Parameter
       : rule<(
-            many(append<&ast::Parameter::attributes>(ref<Attribute>)) +
+            Attributes +
             option(assign<&ast::Parameter::direction>(ParameterDirectionKind)) +
-            assign<&ast::Parameter::type>(ref<QualifiedName>) +
+            assign<xref<&ast::Parameter::type, ast::LanguageType>>(ref<QualifiedName>) +
             assign<&ast::Parameter::name>(ref<ID>) +
             option(kw<"="> +
                    assign<&ast::Parameter::default_>(ref<Expression>)))> {};
@@ -729,10 +693,9 @@ struct Xsmp : cursiv::GrammarSpec {
   // modifiers+=VisibilityModifiers*
   // 'association' type=[LanguageType:QualifiedName] name=ValidID;
   struct Association
-      : rule<(many(append<&ast::Association::attributes>(ref<Attribute>)) +
-              many(append<&ast::Association::modifiers>(VisibilityModifiers)) +
+      : rule<(VisibilityPrefix +
               kw<"association"> +
-              assign<&ast::Association::type>(ref<QualifiedName>) +
+              assign<xref<&ast::Association::type, ast::LanguageType>>(ref<QualifiedName>) +
               assign<&ast::Association::name>(ref<ID>))> {};
 
   // Container returns Container:
@@ -741,11 +704,11 @@ struct Xsmp : cursiv::GrammarSpec {
   // name=ValidID
   // ('=' defaultComponent=[Component:QualifiedName])?;
   struct Container
-      : rule<(many(append<&ast::Container::attributes>(ref<Attribute>)) +
+      : rule<(Attributes +
               kw<"container"> +
               assign<&ast::Container::type>(ref<QualifiedName>) +
               MultiplicityDeclaration + assign<&ast::Container::name>(ref<ID>) +
-              option(kw<"="> + assign<&ast::Container::defaultComponent>(
+              option(kw<"="> + assign<xref<&ast::Container::defaultComponent, ast::Component>>(
                                    ref<QualifiedName>)))> {};
 
   // Reference returns Reference:
@@ -753,7 +716,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // 'reference' interface=[ReferenceType:QualifiedName]
   // MultiplicityDeclaration name=ValidID;
   struct Reference
-      : rule<(many(append<&ast::Reference::attributes>(ref<Attribute>)) +
+      : rule<(Attributes +
               kw<"reference"> +
               assign<&ast::Reference::interface_>(ref<QualifiedName>) +
               MultiplicityDeclaration +
@@ -764,7 +727,7 @@ struct Xsmp : cursiv::GrammarSpec {
   // 'entrypoint' name=ValidID ('{' ('in' input+=[Field:QualifiedName] |
   // 'out' output+=[Field:QualifiedName])*'}')?;
   struct EntryPoint
-      : rule<(many(append<&ast::EntryPoint::attributes>(ref<Attribute>)) +
+      : rule<(Attributes +
               kw<"entrypoint"> + assign<&ast::EntryPoint::name>(ref<ID>) +
               option(kw<"{"> +
                      many((kw<"in"> + append<&ast::EntryPoint::input>(
@@ -777,32 +740,28 @@ struct Xsmp : cursiv::GrammarSpec {
   // attributes+=Attribute*
   // 'eventsink' type=[EventType:QualifiedName] name=ValidID;
   struct EventSink
-      : rule<(many(append<&ast::EventSink::attributes>(ref<Attribute>)) +
+      : rule<(Attributes +
               kw<"eventsink"> +
-              assign<&ast::EventSink::type>(ref<QualifiedName>) +
+              assign<xref<&ast::EventSink::type, ast::EventType>>(ref<QualifiedName>) +
               assign<&ast::EventSink::name>(ref<ID>))> {};
 
   // EventSource returns EventSource:
   // attributes+=Attribute*
   // 'eventsource' type=[EventType:QualifiedName] name=ValidID;
   struct EventSource
-      : rule<(many(append<&ast::EventSource::attributes>(ref<Attribute>)) +
+      : rule<(Attributes +
               kw<"eventsource"> +
-              assign<&ast::EventSource::type>(ref<QualifiedName>) +
+              assign<xref<&ast::EventSource::type, ast::EventType>>(ref<QualifiedName>) +
               assign<&ast::EventSource::name>(ref<ID>))> {};
 
   // Attribute returns Attribute:
   // '@'type=[AttributeType:QualifiedName] ('(' value=Expression? ')')?;
-  // The type is optional where the reference makes it mandatory: a state that
-  // admits nothing but an identifier lexes the next keyword as one, so `@`
-  // alone in an editor would name the declaration that follows it as its
-  // type. Absent, it is a matter for validation, not for the reading.
+  // Bare @ remains an editor form; argument parentheses belong to a typed
+  // attribute, as in the native catalogue grammar.
   struct Attribute
       : rule<(kw<"@"> +
-              option(assign<&ast::Attribute::type>(ref<QualifiedName>)) +
-              option(kw<"("> +
-                     option(assign<&ast::Attribute::value>(ref<Expression>)) +
-                     kw<")">))> {};
+              option(assign<xref<&ast::Attribute::type, ast::AttributeType>>(ref<QualifiedName>) +
+                     option(kw<"("> + option(assign<&ast::Attribute::value>(ref<Expression>)) + kw<")">)))> {};
 
   // entry Catalogue returns Catalogue:
   // attributes+=Attribute* 'catalogue' name=ValidID elements+=Namespace*;
@@ -817,7 +776,7 @@ struct Xsmp : cursiv::GrammarSpec {
   struct NestedNamespace;
 
   struct Namespace
-      : rule<(many(append<&ast::Namespace::attributes>(ref<Attribute>)) +
+      : rule<(Attributes +
               kw<"namespace"> + assign<&ast::Namespace::name>(ref<ID>) +
               ((kw<"::"> +
                 append<&ast::Namespace::elements>(ref<NestedNamespace>)) |
@@ -827,7 +786,7 @@ struct Xsmp : cursiv::GrammarSpec {
                 kw<"}">)))> {};
 
   struct NestedNamespace
-      : rule<(many(append<&ast::Namespace::attributes>(ref<Attribute>)) +
+      : rule<(Attributes +
               assign<&ast::Namespace::name>(ref<ID>) +
               ((kw<"::"> +
                 append<&ast::Namespace::elements>(ref<NestedNamespace>)) |
@@ -837,12 +796,12 @@ struct Xsmp : cursiv::GrammarSpec {
                 kw<"}">)))> {};
 
   struct Catalogue
-      : rule<(many(append<&ast::Catalogue::attributes>(ref<Attribute>)) +
+      : rule<(Attributes +
               kw<"catalogue"> + assign<&ast::Catalogue::name>(ref<ID>) +
               many(append<&ast::Catalogue::elements>(ref<Namespace>)))> {};
 
   using entry = Catalogue;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<ML_COMMENT, SL_COMMENT>;
 };
 

@@ -1,5 +1,5 @@
-// The checks of this language: none yet -- nothing here needs a check
-// beyond parsing.
+// Scope, database-dependent names and execution constraints are not yet
+// validated by this port.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

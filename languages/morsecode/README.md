@@ -31,12 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Morse-code text, preserving letters, digits and separators.
+
 ```
 ... --- ...
 ```
-
-A message is one or more letters separated by a single space; each letter is
-a fixed run of `.` and `-`. `SOS` decodes to the letters `s`, `o`, `s`.
 
 ## The command line
 

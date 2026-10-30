@@ -1,6 +1,9 @@
+#include "native_followup.hpp"
+#include "resource_cases.hpp"
 #include "assertion_precedence.hpp"
 #include "audit_regressions.hpp"
 #include "lexical_cases.hpp"
+#include "template_converter_cases.hpp"
 // The smoke test of the language: parse every file under example/, the way a
 // workspace would build one.
 
@@ -46,7 +49,10 @@ int main() {
       typescript::TypeScriptCoreServices, typescript::TypeScriptSharedCoreServices,
       typescript::install_core_module>();
 
+  if (!typescript_native_followup::run(*language.language.parser)) return 1;
+  if (!typescript_resources::run(language.language)) return 1;
   if (!typescript_lexical_cases(*language.language.parser)) return 1;
+  if (!typescript_template_converter_cases::run(*language.language.parser)) return 1;
   if (!assertion_precedence::run(language.language)) return 1;
 
   for (const fs::path& path : files) {

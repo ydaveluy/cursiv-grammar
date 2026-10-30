@@ -16,11 +16,12 @@ struct TypeRef : cursiv::Extends<cursiv::AstNode> {
   boolean pointer;
 };
 
-enum class AssignOp : std::uint8_t { set, add, sub, mul, div };
+enum class AssignOp : std::uint8_t { set, add, sub, mul, div, mod, band, bxor, bor, lsh, rsh };
 
 struct DclItem : cursiv::Extends<cursiv::AstNode> {
   optional<AssignOp> initOp;
   string_view name;
+  boolean isArray;
   TypeRef* keyType;
   Expr* init;
 };
@@ -72,6 +73,8 @@ struct Preds : cursiv::Extends<cursiv::AstNode> {
 };
 
 // Statements
+
+struct EmptyStmt : cursiv::Extends<Stmt> {};
 
 struct Block : cursiv::Extends<Stmt> {
   vector<Stmt*> statements;

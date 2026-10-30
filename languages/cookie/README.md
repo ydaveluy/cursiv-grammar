@@ -31,14 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+HTTP `Cookie` and `Set-Cookie` field bodies, following RFC 6265.
+
 ```
 LSID=DQAAEaem_vYg; Path=/accounts; Expires=Wed, 13 Jan 2021 22:23:01 GMT; Secure; HttpOnly
 ```
-
-An HTTP `Cookie`/`Set-Cookie` header value: semicolon-separated
-attribute/value pairs. A value is either bare (letters, digits, `- / _ : ,`
-and space, read to the next `;`) or a double-quoted string, and an attribute
-may carry no value at all (`Secure`, `HttpOnly`).
 
 ## The command line
 

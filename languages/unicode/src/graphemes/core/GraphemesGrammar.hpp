@@ -26,9 +26,9 @@ struct Graphemes : cursiv::GrammarSpec {
   struct CLUSTER : terminal<lit<"\r\n"> | control |
       (many(properties::Prepend) + (hangul | regional | pictographic | conjunct | nonControl) +
       many(trailing))> {};
-  struct GraphemeClusterRule : rule<assign<&ast::GraphemeCluster::text>(ref<CLUSTER>)> {};
-  struct DocRule : rule<create<ast::Document> +
-      many(append<&ast::Document::clusters>(ref<GraphemeClusterRule>))> {};
-  using entry = DocRule;
+  struct GraphemeCluster : rule<assign<&ast::GraphemeCluster::text>(ref<CLUSTER>)> {};
+  struct Doc : rule<create<ast::Document> +
+      many(append<&ast::Document::clusters>(ref<GraphemeCluster>))> {};
+  using entry = Doc;
 };
 }  // namespace graphemes

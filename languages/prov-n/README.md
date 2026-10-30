@@ -31,9 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-PROV-N is the W3C provenance notation: a document is a flat log of typed
-relations between entities, activities and agents, each named by a qualified
-name and dated with an optional timestamp.
+[PROV-N](https://www.w3.org/TR/2013/REC-prov-n-20130430/) is the W3C provenance notation (2013 recommendation).
 
 ```
 document
@@ -46,11 +44,6 @@ document
   wasAssociatedWith(ex:a1, ex:ag1, -)
 endDocument
 ```
-
-Every relation may carry its own identifier (`id; ...`) before its arguments,
-and a `[attribute=value, ...]` tail; a `-` stands for an argument left
-unspecified. `entity`, `activity` and `agent` declare a thing; the other
-relations connect things already declared, by name.
 
 ## The command line
 

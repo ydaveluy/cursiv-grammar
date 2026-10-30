@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <utility>
 
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 
@@ -150,6 +151,31 @@ static int audit_regression() {
       cursiv::create_language<rfc822::Rfc822CoreServices,
                               rfc822::Rfc822SharedCoreServices,
                               rfc822::install_core_module>();
+  for (const auto& [text, value] : {
+           std::pair<std::string_view, std::string_view>{"\"a\r\n b\"@example.org", "a b"},
+           {"\"a\r\n\t b\"@example.org", "a\t b"},
+           {"\"a\\\r\n b\"@example.org", "a\r\nb"}}) {
+    const auto parsed = language.language.parser->parse(text);
+    const auto* mailbox = parsed.value_as<rfc822::ast::BareMailbox>();
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !mailbox || !mailbox->addr || !localPartIs(*mailbox->addr, {value})) return 1;
+  }
+  {
+    const auto parsed = language.language.parser->parse("a@[one\r\n two]");
+    const auto* mailbox = parsed.value_as<rfc822::ast::BareMailbox>();
+    const auto* domain = mailbox && mailbox->addr && mailbox->addr->domain.size() == 1
+        ? cursiv::ast_cast<rfc822::ast::DomainLiteral>(mailbox->addr->domain[0]) : nullptr;
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !domain || domain->text != "one two") return 1;
+  }
+  for (const auto* text : {"Friends: ,a@example.org,,b@example.net,;",
+                            "Friends: ,,,;", "Friends: a@example.org,;",
+                            "Name<,@one,,@two,:a@example.org>"}) {
+    const auto parsed = language.language.parser->parse(text);
+    const auto checked = cursiv::test::validationHelper(language.language, text);
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !checked.diagnostics.empty()) return 1;
+  }
   for (const std::string_view text : {
            R"(a(one\)two)@example.com)",
            R"(a(one\(two)@example.com)",

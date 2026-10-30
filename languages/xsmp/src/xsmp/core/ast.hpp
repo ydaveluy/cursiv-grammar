@@ -131,11 +131,7 @@ struct UnaryOperation : cursiv::Extends<Expression> {
 // interface NamedElementReference extends Expression { value:
 // @ConstantOrEnumerationLiteral }
 struct NamedElementReference : cursiv::Extends<Expression> {
-  // Wide on purpose: a `[Filter:QualifiedName]` comment records a bracket
-  // filter's abstract target set rather than narrowing the reference itself,
-  // so a future linker is never stricter than the grammar.
-  reference<NamedElement>
-      value;  // [ConstantOrEnumerationLiteral:QualifiedName]
+  reference<Constant, EnumerationLiteral> value;
 };
 
 // interface ParenthesizedExpression extends Expression { expr?: Expression }
@@ -170,15 +166,14 @@ struct FloatingLiteral : cursiv::Extends<Expression> {
 
 // interface StringLiteral extends Expression { value: string[] }
 // A list because the grammar writes `value+=STRING+` (adjacent string
-// literals concatenate, C-style). NOTE: entries are the raw spellings, quotes
-// and escapes included -- this language ships no decoder.
+// literals concatenate, C-style). Each entry is decoded; source spelling stays in CST.
 struct StringLiteral : cursiv::Extends<Expression> {
   vector<string_view> value;
 };
 
 // interface CharacterLiteral extends Expression { value: string }
 struct CharacterLiteral : cursiv::Extends<Expression> {
-  string_view value;  // raw, as StringLiteral::value
+  string_view value;  // decoded as StringLiteral::value
 };
 
 // interface BuiltInConstant extends Expression { name: string }
@@ -422,7 +417,7 @@ struct NamedElementWithMultiplicity : cursiv::Extends<NamedElement> {
 // interface Container extends NamedElementWithMultiplicity, Resolvable {
 //     ^type: @Type; defaultComponent?: @Type }
 struct Container : cursiv::Extends<NamedElementWithMultiplicity> {
-  reference<Type> type;              // [ReferenceType:QualifiedName]
+  reference<Interface, Component> type;  // [ReferenceType:QualifiedName]
   reference<Type> defaultComponent;  // [Component:QualifiedName]
 };
 
@@ -430,7 +425,7 @@ struct Container : cursiv::Extends<NamedElementWithMultiplicity> {
 //     ^interface: @Type }
 // NOTE: `interface` -> `interface_`, as on Component.
 struct Reference : cursiv::Extends<NamedElementWithMultiplicity> {
-  reference<Type> interface_;  // [ReferenceType:QualifiedName]
+  reference<Interface, Component> interface_;  // [ReferenceType:QualifiedName]
 };
 
 // interface EntryPoint extends NamedElement, Resolvable {

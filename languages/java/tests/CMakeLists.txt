@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every example parses clean, and the tree holds a
 # compilation unit.
 add_executable(java_grammar_test grammar_test.cpp)
-target_link_libraries(java_grammar_test PRIVATE javaCore)
+target_link_libraries(java_grammar_test PRIVATE javaCore cursiv::test)
 target_compile_definitions(java_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

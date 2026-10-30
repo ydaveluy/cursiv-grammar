@@ -94,7 +94,7 @@ struct Cayenne : cursiv::GrammarSpec {
                      ref<ConidAt> | ref<Spine>> {};
 
   using entry = Expr;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 }  // namespace cayenne

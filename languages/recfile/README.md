@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+GNU Recutils text records, with named fields, continuations and comments.
+
 ```
 %rec: Texts
 %type: Year int
@@ -39,11 +41,6 @@ Author: Doug McIlroy
 Year: 1964
 Note: The Origin of Unix Pipes
 ```
-
-A `%key: value` line is a descriptor — metadata about the records that
-follow, such as `%rec` naming the record set. Any other `key: value` line is
-a field. A value may continue onto the next physical line when that line
-opens with `+`.
 
 ## The command line
 

@@ -1,3 +1,4 @@
+#include "native_followup.hpp"
 #include "audit_regressions.hpp"
 #include "modern_cases.hpp"
 // The grammar itself: every document in example/ parses clean (one is
@@ -36,6 +37,7 @@ int main() {
       zig::ZigCoreServices, zig::ZigSharedCoreServices,
       zig::install_core_module>();
   if (!zig_audit::modern_cases(language.language)) return 1;
+  if (!zig_native_followup::run(language.language)) return 1;
 
   // decls.zig, control.zig and misc.zig live beside this test, not in the
   // corpus; invalid.zig is deliberately broken and read separately below.

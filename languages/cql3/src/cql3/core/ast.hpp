@@ -30,6 +30,9 @@ struct FloatLit : cursiv::Extends<Expr> {
   string_view value;  // Exact decimal/exponent spelling, without rounding.
 };
 // Quotes stripped and doubled apostrophes collapsed; backslashes are ordinary.
+struct DurationLit : cursiv::Extends<Expr> {
+  string_view value;
+};
 struct StringLit : cursiv::Extends<Expr> {
   string_view value;
 };
@@ -49,6 +52,7 @@ struct ColumnRef : cursiv::Extends<Expr> {
   string_view name;
 };
 struct FuncCall : cursiv::Extends<Expr> {
+  string_view keyspace;
   string_view name;
   boolean star;      // NAME(*)
   boolean uuidCall;   // the UUID() built-in, spelled without a name token
@@ -71,9 +75,17 @@ struct TupleLit : cursiv::Extends<Expr> {
   vector<Expr*> items;
 };
 
+struct UdtEntry : cursiv::Extends<cursiv::AstNode> {
+  string_view field;
+  Expr* value;
+};
+struct UdtLit : cursiv::Extends<Expr> {
+  vector<UdtEntry*> fields;
+};
+
 // ---- relations (WHERE clauses) -----------------------------------------
 
-enum class CompareOp : std::uint8_t { eq, lt, gt, lte, gte };
+enum class CompareOp : std::uint8_t { eq, lt, gt, lte, gte, neq, like };
 
 struct Relation : cursiv::Extends<cursiv::AstNode> {};
 
@@ -82,6 +94,7 @@ struct CompareRelation : cursiv::Extends<Relation> {
   string_view column;
   CompareOp op;
   Expr* rhs;
+  Expr* index;
 };
 struct FuncCompareRelation : cursiv::Extends<Relation> {
   FuncCall* call;
@@ -90,6 +103,7 @@ struct FuncCompareRelation : cursiv::Extends<Relation> {
 };
 struct InRelation : cursiv::Extends<Relation> {
   string_view column;
+  BindMarker* marker;
   vector<Expr*> values;
 };
 struct TupleInRelation : cursiv::Extends<Relation> {
@@ -116,6 +130,7 @@ struct RenamePair : cursiv::Extends<cursiv::AstNode> {
 
 struct ColumnType : cursiv::Extends<cursiv::AstNode> {
   string_view name;
+  bool quoted;  // quoted user types differ from native collection/type names
   vector<ColumnType*> params;  // Recursive type parameters, including numeric
                                // vector dimensions.
 };
@@ -250,7 +265,7 @@ struct ColumnNotNull : cursiv::Extends<cursiv::AstNode> {
   string_view column;
 };
 
-enum class IndexSpecKind : std::uint8_t { column, keys, entries, full };
+enum class IndexSpecKind : std::uint8_t { column, keys, entries, full, values };
 struct IndexColumnSpec : cursiv::Extends<cursiv::AstNode> {
   IndexSpecKind kind;
   string_view name;
@@ -275,11 +290,12 @@ struct AlterColumnMask : cursiv::Extends<cursiv::AstNode> {
 
 // CQL's 6 symmetric arithmetic assignment forms (`col = col2 + n`,
 // `col = {1,2} + col2`, ...) collapse to one shape: the bare-name operand and
-// the delta, regardless of which side of the operator wrote which.
+// the delta and the operand order (needed for list prepend/append).
 enum class ArithOp : std::uint8_t { plus, minus };
 struct CounterOp : cursiv::Extends<cursiv::AstNode> {
   string_view nameOperand;
   ArithOp op;
+  bool deltaFirst;  // list prepend differs from append
   Expr* deltaOperand;  // IntLit, SetLit, MapLit or ListLit
 };
 struct Assignment : cursiv::Extends<cursiv::AstNode> {
@@ -369,7 +385,7 @@ struct CreateAggregate : cursiv::Extends<Statement> {
   boolean ifNotExists;
   string_view keyspace;
   string_view name;
-  ColumnType* argType;
+  vector<ColumnType*> argTypes;
   string_view sfunc;
   ColumnType* stype;
   string_view finalfunc;
@@ -390,10 +406,13 @@ struct CreateFunction : cursiv::Extends<Statement> {
 
 struct CreateIndex : cursiv::Extends<Statement> {
   boolean ifNotExists;
+  boolean custom;
   string_view indexName;
   string_view keyspace;
   string_view table;
-  IndexColumnSpec* spec;
+  vector<IndexColumnSpec*> specs;
+  string_view usingClass;
+  TableOptions* options;
 };
 
 struct CreateKeyspace : cursiv::Extends<Statement> {
@@ -435,6 +454,8 @@ struct CreateTrigger : cursiv::Extends<Statement> {
   boolean ifNotExists;
   string_view keyspace;
   string_view name;
+  string_view onKeyspace;
+  string_view onTable;
   string_view usingClass;
 };
 
@@ -530,7 +551,9 @@ struct Select : cursiv::Extends<Statement> {
   string_view fromKeyspace;
   string_view fromTable;
   vector<Relation*> where;
-  OrderSpec* orderBy;  // null when absent
+  vector<string_view> groupBy;
+  vector<OrderSpec*> orderBy;
+  Expr* perPartitionLimit;
   Expr* limit;
   boolean allowFiltering;
 };

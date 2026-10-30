@@ -25,14 +25,12 @@ inline constexpr auto undouble_dq = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<undouble_dq>;
 
 inline constexpr auto label_name = [](std::string_view t,
                                       std::pmr::memory_resource*) {
   return t.substr(0, t.front() == '[' ? t.find(']') + 1
                                       : t.find_first_of(" \t:"));
 };
-using LabelName = cursiv::text_conv<label_name>;
 
 struct Vb6 : cursiv::GrammarSpec {
   // -- Trivia -----------------------------------------------------------
@@ -127,12 +125,11 @@ struct Vb6 : cursiv::GrammarSpec {
 
   // A name and its `:` in one token, so a label never forks with a call: an
   // `IDENTIFIER`, never `Randomize` (MS-VBAL 5.4.1.1).
-  struct LABEL
-      : terminal<!ikw<"RANDOMIZE"> +
+  struct LABEL : terminal<as<label_name>(
+                     !ikw<"RANDOMIZE"> +
                      ((LetterClass + many(LetterOrDigitClass)) |
                       (lit<"["> + many(cr<R"(^\r\n])">) + lit<"]">)) +
-                     many(cr<R"( \t)">) + lit<":", !cr<"=">>,
-                 LabelName> {};
+                     many(cr<R"( \t)">) + lit<":", !cr<"=">>)> {};
 
   // The words a rule spells that stay plain names: spelled once, so a state
   // reading a name accepts the keyword's token as text.
@@ -153,16 +150,13 @@ struct Vb6 : cursiv::GrammarSpec {
       ikw<"SAVESETTING"> | ikw<"SENDKEYS"> | ikw<"SETATTR"> | ikw<"TIME"> |
       ikw<"UNLOAD">;
 
-  // A bracketed name spells anything a plain identifier cannot (a reserved
-  // word, a space): whitespace between the words is ordinary trivia here,
-  // so `[Some Ident]` -- common in database-bound VB6 -- reads as one name.
-  struct BracketedNameRule
-      : rule<lit<"["> +
-             some(ref<ID> | SoftKeyword | StatementWord | ReservedWord) +
-             lit<"]">> {};
+  // Keep the complete foreign-name token, including internal spaces and
+  // punctuation; a data-rule token join would lose those spaces.
+  struct BracketedName
+      : terminal<lit<"["> + some(cr<R"(^\r\n])">) + lit<"]">> {};
 
   static constexpr auto NameText =
-      ref<ID> | SoftKeyword | StatementWord | ref<BracketedNameRule>;
+      ref<ID> | SoftKeyword | StatementWord | ref<BracketedName>;
 
   // A name after `.` or `!`: any word (MS-VBAL `unrestricted-name`).
   static constexpr auto UnrestrictedNameText = NameText | ReservedWord;
@@ -173,7 +167,7 @@ struct Vb6 : cursiv::GrammarSpec {
 
   // `Date` and `Input` open their own statements too.
   static constexpr auto StmtNameText =
-      ref<ID> | SoftKeyword | ref<BracketedNameRule> | ReservedName |
+      ref<ID> | SoftKeyword | ref<BracketedName> | ReservedName |
       ikw<"EMPTY">;
 
   static constexpr auto TypeSuffix = cr<"&@$!#%">;
@@ -190,7 +184,7 @@ struct Vb6 : cursiv::GrammarSpec {
   static constexpr auto StringBody =
       lit<"\""> + many(lit<"\"\""> | cr<R"(^"\r\n)">) + lit<"\"">;
 
-  struct STRINGLITERAL : terminal<StringBody, Unquoted> {};
+  struct STRINGLITERAL : terminal<as<undouble_dq>(StringBody)> {};
 
   // MS-VBAL 3.3.3: a date, a time or both, so `Close #1, #2` holds two file
   // numbers.
@@ -224,19 +218,23 @@ struct Vb6 : cursiv::GrammarSpec {
   struct OCTALLITERAL
       : terminal<lit<"&"> + cr<"Oo"> + some(cr<"0-7">) + option(lit<"&">)> {};
 
-  static constexpr auto NumSuffix = cr<"#&!@">;
+  static constexpr auto NumSuffix = cr<"%&">;
 
-  static constexpr auto Exponent = cr<"Ee"> + option(cr<"+-">) + some(d);
+  static constexpr auto Exponent = cr<"EeDd"> + option(cr<"+-">) + some(d);
   struct INTEGERLITERAL : terminal<some(d) + option(NumSuffix)> {};
-  struct DOUBLELITERAL : terminal<((((some(d) + lit<".", !lit<".">> + many(d)) | (lit<"."> + some(d))) + option(Exponent)) | (some(d) + Exponent)) + option(NumSuffix)> {};
+  struct DOUBLELITERAL
+      : terminal<(((((some(d) + lit<".", !lit<".">> + many(d)) |
+                     (lit<"."> + some(d))) + option(Exponent)) |
+                   (some(d) + Exponent)) + option(cr<"!#@">)) |
+                 (some(d) + cr<"!#@">)> {};
 
-  // Digits, or a single letter with nothing else glued to it: a run of two
-  // or more letters would collide with the conditional-compilation
-  // directives (`#If`, `#ElseIf`, `#Else`, `#End If`) at the same length --
-  // `#I` alone is a common file number (`Print #I, ...`), but a run of two
-  // or more letters is refused so `#If` stays free for the directive.
+  // File statements accept ordinary named handles. Keep conditional-
+  // compilation heads outside this terminal even when both are reachable.
+  static constexpr auto FileDirective = lit<"#"> +
+      (ikw<"IF"> | ikw<"ELSEIF"> | ikw<"ELSE"> | ikw<"END"> | ikw<"CONST">);
   struct FILENUMBER
-      : terminal<lit<"#"> + (some(d) | (cr<"A-Za-z"> + !w))> {};
+      : terminal<!FileDirective + lit<"#"> +
+                 (some(d) | (LetterClass + many(LetterOrDigitClass)))> {};
 
   // A control property value's trailing offset into the form's binary
   // resource file (`.frx`): `ItemData = "SomeForm.frx":0000`.
@@ -305,17 +303,20 @@ struct Vb6 : cursiv::GrammarSpec {
                         assign<&ast::Arg::value>(ref<Expression>));
 
   static constexpr auto ArgSep = lit<","> | lit<";">;
+  static constexpr auto SeparatedArgBody = create<ast::Arg>(
+      assign<&ast::Arg::separatorBefore>(ArgSep) + option(ArgModifier) +
+      option(assign<&ast::Arg::value>(ref<Expression>)));
 
   template <auto Member>
   static constexpr auto ParenArgsInto =
       (lit<"("> + lit<")">) |
       (lit<"("> + append<Member>(ArgSlotBody) +
-       many(ArgSep + append<Member>(ArgSlotBody)) + lit<")">);
+       many(append<Member>(SeparatedArgBody)) + lit<")">);
 
   template <auto Member>
   static constexpr auto BareArgsInto =
       append<Member>(ArgSlotNonBlank) +
-      many(ArgSep + append<Member>(ArgSlotBody));
+      many(append<Member>(SeparatedArgBody));
 
   // A chain of `.`/`!`/`(...)` following either a name (`LExpression`) or a
   // bare `.field`/`!field` (`WithExpr`): both feed the same continuation, so
@@ -340,7 +341,7 @@ struct Vb6 : cursiv::GrammarSpec {
   // VB6 restricts a `For`/`For Each` loop's own variable to a bare name
   // with, at most, a trailing dictionary access -- no member chain, no
   // call.
-  struct LoopVarRule
+  struct LoopVar
       : rule<ref<Literal> |
              (create<ast::NameExpr>(
                   assign<&ast::NameExpr::name>(NameText) +
@@ -421,10 +422,9 @@ struct Vb6 : cursiv::GrammarSpec {
   // Multiplicative `*`/`/`, integer division `\` and `Mod` are three
   // distinct tiers, tightest to loosest in that order, not one.
   struct ExprArith
-      : infix<UnaryPM, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMul) >> left(OpIntDiv) >> left(OpModText) >>
-               left(OpAdd) >> left(OpConcat) >> left(OpComp))> {};
+      : infix<UnaryPM, ast::BinaryExpr,
+              levels(left(OpMul), left(OpIntDiv), left(OpModText),
+                     left(OpAdd), left(OpConcat), left(OpComp))> {};
 
   // `Not` binds looser than comparison but tighter than `And`: `Not a = b`
   // reads as `Not (a = b)`.
@@ -441,21 +441,20 @@ struct Vb6 : cursiv::GrammarSpec {
   static constexpr auto OpImp = ikw<"IMP">;
 
   struct Expression
-      : infix<NotExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpAnd) >> left(OpOr) >> left(OpXor) >> left(OpEqv) >>
-               left(OpImp))> {};
+      : infix<NotExpr, ast::BinaryExpr,
+              levels(left(OpAnd), left(OpOr), left(OpXor), left(OpEqv),
+                     left(OpImp))> {};
 
   // -- Shared list helpers ----------------------------------------------
 
-  struct ArrayBoundRule
+  struct ArrayBound
       : rule<option(assign<&ast::ArrayBound::lower>(ref<Expression>) +
                     ikw<"TO">) +
              assign<&ast::ArrayBound::upper>(ref<Expression>)> {};
 
   template <auto Member>
   static constexpr auto ArrayDimTail =
-      option(some(append<Member>(ref<ArrayBoundRule>), lit<",">)) + lit<")">;
+      option(some(append<Member>(ref<ArrayBound>), lit<",">)) + lit<")">;
 
   template <auto Member>
   static constexpr auto ArrayDimInto = lit<"("> + ArrayDimTail<Member>;
@@ -464,7 +463,7 @@ struct Vb6 : cursiv::GrammarSpec {
   static constexpr auto FlaggedArrayDimInto =
       flag<Flag>(lit<"(">) + ArrayDimTail<Member>;
 
-  struct ParamRule
+  struct Param
       : rule<create<ast::Param>(
                  option(flag<&ast::Param::optionalP>(ikw<"OPTIONAL">)) +
                  option(flag<&ast::Param::byVal>(ikw<"BYVAL">) |
@@ -482,14 +481,14 @@ struct Vb6 : cursiv::GrammarSpec {
 
   template <auto Member>
   static constexpr auto ParamListInto =
-      lit<"("> + option(some(append<Member>(ref<ParamRule>), lit<",">)) +
+      lit<"("> + option(some(append<Member>(ref<Param>), lit<",">)) +
       lit<")">;
 
   struct StatementRule;
 
   struct LabelRule
       : rule<create<ast::LabelStmt>(
-             assign<&ast::LabelStmt::name>(ref<LABEL>))> {};
+             assign<&ast::LabelStmt::name>(ref<LABEL> | ref<INTEGERLITERAL>))> {};
 
   // A label opens a line, right behind its line break (MS-VBAL 5.4.1.1).
   template <auto Member>
@@ -520,7 +519,7 @@ struct Vb6 : cursiv::GrammarSpec {
   static constexpr auto ConstVisibility =
       ikw<"PRIVATE"> | ikw<"PUBLIC"> | ikw<"GLOBAL">;
 
-  struct VarDeclItemRule
+  struct VarDeclItem
       : rule<create<ast::VarDeclItem>(
                  assign<&ast::VarDeclItem::name>(NameText) +
                  option(assign<&ast::VarDeclItem::typeChar>(TypeSuffix)) +
@@ -532,16 +531,16 @@ struct Vb6 : cursiv::GrammarSpec {
                         assign<&ast::VarDeclItem::asType>(
                             ref<TypeExpression>)))> {};
 
-  struct VarDeclRule
+  struct VarDecl
       : rule<create<ast::VarDecl>(
                  assign<&ast::VarDecl::scope>(ikw<"DIM"> | ikw<"STATIC"> |
                                                ProcVisibility) +
                  option(flag<&ast::VarDecl::withEvents>(
                      ikw<"WITHEVENTS">)) +
-                 some(append<&ast::VarDecl::items>(ref<VarDeclItemRule>),
+                 some(append<&ast::VarDecl::items>(ref<VarDeclItem>),
                       lit<",">))> {};
 
-  struct ConstDeclItemRule
+  struct ConstDeclItem
       : rule<create<ast::ConstDeclItem>(
                  assign<&ast::ConstDeclItem::name>(NameText) +
                  option(assign<&ast::ConstDeclItem::typeChar>(TypeSuffix)) +
@@ -550,30 +549,30 @@ struct Vb6 : cursiv::GrammarSpec {
                  lit<"="> +
                  assign<&ast::ConstDeclItem::value>(ref<Expression>))> {};
 
-  struct ConstDeclRule
+  struct ConstDecl
       : rule<create<ast::ConstDecl>(
                  option(assign<&ast::ConstDecl::scope>(ConstVisibility)) +
                  ikw<"CONST"> +
-                 some(append<&ast::ConstDecl::items>(ref<ConstDeclItemRule>),
+                 some(append<&ast::ConstDecl::items>(ref<ConstDeclItem>),
                       lit<",">))> {};
 
-  struct LetterSpecRule
+  struct LetterSpec
       : rule<create<ast::LetterSpec>(
                  assign<&ast::LetterSpec::from>(NameText) +
                  option(lit<"-"> +
                         assign<&ast::LetterSpec::to>(NameText)))> {};
 
-  struct DefDirectiveRule
+  struct DefDirective
       : rule<create<ast::DefDirective>(
                  assign<&ast::DefDirective::type>(
                      ikw<"DEFBOOL"> | ikw<"DEFBYTE"> | ikw<"DEFINT"> |
                      ikw<"DEFLNG"> | ikw<"DEFCUR"> | ikw<"DEFSNG"> |
                      ikw<"DEFDBL"> | ikw<"DEFDEC"> | ikw<"DEFDATE"> |
                      ikw<"DEFSTR"> | ikw<"DEFOBJ"> | ikw<"DEFVAR">) +
-                 some(append<&ast::DefDirective::letters>(ref<LetterSpecRule>),
+                 some(append<&ast::DefDirective::letters>(ref<LetterSpec>),
                       lit<",">))> {};
 
-  struct UdtMemberRule
+  struct UdtMember
       : rule<create<ast::UdtMember>(
                  assign<&ast::UdtMember::name>(UnrestrictedNameText) +
                  option(FlaggedArrayDimInto<&ast::UdtMember::isArray,
@@ -582,30 +581,30 @@ struct Vb6 : cursiv::GrammarSpec {
                         assign<&ast::UdtMember::asType>(
                             ref<TypeExpression>)))> {};
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<create<ast::TypeDecl>(
                  option(assign<&ast::TypeDecl::scope>(TypeEnumVisibility)) +
                  ikw<"TYPE"> + assign<&ast::TypeDecl::name>(NameText) +
                  many(Eos + append<&ast::TypeDecl::members>(
-                                ref<UdtMemberRule>)) +
+                                ref<UdtMember>)) +
                  Eos + ikw<"END"> + ikw<"TYPE">)> {};
 
-  struct EnumMemberRule
+  struct EnumMember
       : rule<create<ast::EnumMember>(
                  assign<&ast::EnumMember::name>(NameText) +
                  option(lit<"="> +
                         assign<&ast::EnumMember::value>(ref<Expression>)))> {
   };
 
-  struct EnumDeclRule
+  struct EnumDecl
       : rule<create<ast::EnumDecl>(
                  option(assign<&ast::EnumDecl::scope>(TypeEnumVisibility)) +
                  ikw<"ENUM"> + assign<&ast::EnumDecl::name>(NameText) +
                  many(Eos + append<&ast::EnumDecl::members>(
-                                ref<EnumMemberRule>)) +
+                                ref<EnumMember>)) +
                  Eos + ikw<"END"> + ikw<"ENUM">)> {};
 
-  struct DeclareDeclRule
+  struct DeclareDecl
       : rule<create<ast::DeclareDecl>(
                  option(assign<&ast::DeclareDecl::scope>(ProcVisibility)) +
                  ikw<"DECLARE"> +
@@ -627,19 +626,19 @@ struct Vb6 : cursiv::GrammarSpec {
                                              ref<STRINGLITERAL>)) +
                    option(ParamListInto<&ast::DeclareDecl::params>))))> {};
 
-  struct EventDeclRule
+  struct EventDecl
       : rule<create<ast::EventDecl>(
                  option(assign<&ast::EventDecl::scope>(ProcVisibility)) +
                  ikw<"EVENT"> + assign<&ast::EventDecl::name>(NameText) +
                  ParamListInto<&ast::EventDecl::params>)> {};
 
-  struct ImplementsDeclRule
+  struct ImplementsDecl
       : rule<create<ast::ImplementsDecl>(
                  ikw<"IMPLEMENTS"> +
                  assign<&ast::ImplementsDecl::typeName>(
                      ref<TypeNameText>))> {};
 
-  struct OptionStmtRule
+  struct OptionStmt
       : rule<create<ast::OptionStmt>(
                  ikw<"OPTION"> + assign<&ast::OptionStmt::kind>(
                                      ikw<"BASE">) +
@@ -656,13 +655,11 @@ struct Vb6 : cursiv::GrammarSpec {
                  ikw<"OPTION"> + ikw<"PRIVATE"> +
                  assign<&ast::OptionStmt::kind>(ikw<"MODULE">))> {};
 
-  struct AttributeRule
+  struct Attribute
       : rule<create<ast::Attribute>(
                  ikw<"ATTRIBUTE"> +
                  assign<&ast::Attribute::target>(CallTarget) + lit<"="> +
-                 append<&ast::Attribute::values>(ref<Literal>) +
-                 many(lit<","> +
-                      append<&ast::Attribute::values>(ref<Literal>)))> {};
+                 some(append<&ast::Attribute::values>(ref<Literal>), lit<",">))> {};
 
   // -- Statements -----------------------------------------------------------
 
@@ -742,7 +739,7 @@ struct Vb6 : cursiv::GrammarSpec {
 
   struct ForStmt
       : rule<create<ast::ForStmt>(
-                 ikw<"FOR"> + assign<&ast::ForStmt::var>(ref<LoopVarRule>) +
+                 ikw<"FOR"> + assign<&ast::ForStmt::var>(ref<LoopVar>) +
                  LoopVarTail + lit<"="> +
                  assign<&ast::ForStmt::from>(ref<Expression>) + ikw<"TO"> +
                  assign<&ast::ForStmt::to>(ref<Expression>) +
@@ -756,7 +753,7 @@ struct Vb6 : cursiv::GrammarSpec {
   struct ForEachStmt
       : rule<create<ast::ForEachStmt>(
                  ikw<"FOR"> + ikw<"EACH"> +
-                 assign<&ast::ForEachStmt::var>(ref<LoopVarRule>) +
+                 assign<&ast::ForEachStmt::var>(ref<LoopVar>) +
                  LoopVarTail + ikw<"IN"> +
                  assign<&ast::ForEachStmt::collection>(ref<Expression>) +
                  BodyInto<&ast::ForEachStmt::body> +
@@ -772,7 +769,7 @@ struct Vb6 : cursiv::GrammarSpec {
 
   // -- If -------------------------------------------------------------------
 
-  struct ElseIfClauseRule
+  struct ElseIfClause
       : rule<create<ast::ElseIfClause>(
                  ikw<"ELSEIF"> +
                  assign<&ast::ElseIfClause::cond>(ref<Expression>) +
@@ -783,7 +780,7 @@ struct Vb6 : cursiv::GrammarSpec {
       : rule<create<ast::IfStmt>(
                  ikw<"IF"> + assign<&ast::IfStmt::cond>(ref<Expression>) +
                  ikw<"THEN"> + BodyInto<&ast::IfStmt::thenBody> +
-                 many(append<&ast::IfStmt::elseIfs>(ref<ElseIfClauseRule>)) +
+                 many(append<&ast::IfStmt::elseIfs>(ref<ElseIfClause>)) +
                  option(flag<&ast::IfStmt::hasElse>(ikw<"ELSE">) +
                         BodyInto<&ast::IfStmt::elseBody>) +
                  ikw<"END"> + ikw<"IF">)> {};
@@ -808,7 +805,7 @@ struct Vb6 : cursiv::GrammarSpec {
 
   // -- Select Case ------------------------------------------------------
 
-  struct RangeClauseRule
+  struct RangeClause
       : rule<create<ast::RangeClause>(
                  option(ikw<"IS">) +
                  assign<&ast::RangeClause::compareOp>(OpComp) +
@@ -820,11 +817,11 @@ struct Vb6 : cursiv::GrammarSpec {
              create<ast::RangeClause>(
                  assign<&ast::RangeClause::value>(ref<Expression>))> {};
 
-  struct CaseClauseRule
+  struct CaseClause
       : rule<create<ast::CaseClause>(
                  ikw<"CASE"> +
                  (flag<&ast::CaseClause::isElse>(ikw<"ELSE">) |
-                  some(append<&ast::CaseClause::ranges>(ref<RangeClauseRule>),
+                  some(append<&ast::CaseClause::ranges>(ref<RangeClause>),
                        lit<",">)) +
                  BodyInto<&ast::CaseClause::body>)> {};
 
@@ -834,7 +831,7 @@ struct Vb6 : cursiv::GrammarSpec {
                  assign<&ast::SelectCaseStmt::selector>(ref<Expression>) +
                  Eos +
                  many(append<&ast::SelectCaseStmt::cases>(
-                     ref<CaseClauseRule>)) +
+                     ref<CaseClause>)) +
                  ikw<"END"> + ikw<"SELECT">)> {};
 
   struct StopStmt : rule<create<ast::StopStmt> + ikw<"STOP">> {};
@@ -903,7 +900,7 @@ struct Vb6 : cursiv::GrammarSpec {
       : rule<create<ast::ResumeStmt>(
                  ikw<"RESUME"> +
                  option(flag<&ast::ResumeStmt::next>(ikw<"NEXT">) |
-                        assign<&ast::ResumeStmt::label>(NameText)))> {};
+                        assign<&ast::ResumeStmt::label>(LabelText)))> {};
 
   struct ErrorStmt
       : rule<create<ast::ErrorStmt>(
@@ -912,18 +909,19 @@ struct Vb6 : cursiv::GrammarSpec {
 
   // -- Array / file statements ---------------------------------------------
 
-  struct ReDimItemRule
+  struct ReDimItem
       : rule<create<ast::ReDimItem>(
                  assign<&ast::ReDimItem::target>(CallTarget) +
                  option(assign<&ast::ReDimItem::typeChar>(TypeSuffix)) +
-                 ArrayDimInto<&ast::ReDimItem::bounds>)> {};
+                 ArrayDimInto<&ast::ReDimItem::bounds> +
+                 option(ikw<"AS"> + assign<&ast::ReDimItem::asType>(ref<TypeExpression>)))> {};
 
   struct ReDimStmt
       : rule<create<ast::ReDimStmt>(
                  ikw<"REDIM"> +
                  option(flag<&ast::ReDimStmt::preserve>(
                      ikw<"PRESERVE">)) +
-                 some(append<&ast::ReDimStmt::items>(ref<ReDimItemRule>),
+                 some(append<&ast::ReDimStmt::items>(ref<ReDimItem>),
                       lit<",">))> {};
 
   struct EraseStmt
@@ -932,25 +930,25 @@ struct Vb6 : cursiv::GrammarSpec {
                  some(append<&ast::EraseStmt::targets>(ref<Expression>),
                       lit<",">))> {};
 
-  struct AccessKindRule
+  struct AccessKind
       : rule<(ikw<"READ"> + ikw<"WRITE">) | ikw<"READ"> | ikw<"WRITE">> {};
 
-  struct LockKindRule
+  struct LockKind
       : rule<ikw<"SHARED"> | (ikw<"LOCK"> + ikw<"READ"> + ikw<"WRITE">) |
              (ikw<"LOCK"> + ikw<"READ">) | (ikw<"LOCK"> + ikw<"WRITE">)> {};
 
   struct OpenStmt
       : rule<create<ast::OpenStmt>(
                  ikw<"OPEN"> + assign<&ast::OpenStmt::path>(ref<Expression>) +
-                 ikw<"FOR"> +
-                 assign<&ast::OpenStmt::mode>(ikw<"APPEND"> | ikw<"BINARY"> |
-                                               ikw<"INPUT"> | ikw<"OUTPUT"> |
-                                               ikw<"RANDOM">) +
+                 option(ikw<"FOR"> +
+                        assign<&ast::OpenStmt::mode>(ikw<"APPEND"> | ikw<"BINARY"> |
+                                                    ikw<"INPUT"> | ikw<"OUTPUT"> |
+                                                    ikw<"RANDOM">)) +
                  option(ikw<"ACCESS"> +
                         assign<&ast::OpenStmt::access>(
-                            ref<AccessKindRule>)) +
+                            ref<AccessKind>)) +
                  option(assign<&ast::OpenStmt::lockKind>(
-                     ref<LockKindRule>)) +
+                     ref<LockKind>)) +
                  ikw<"AS"> +
                  assign<&ast::OpenStmt::fileNumber>(ref<Expression>) +
                  option(ikw<"LEN"> + lit<"="> +
@@ -1185,7 +1183,7 @@ struct Vb6 : cursiv::GrammarSpec {
 
   // -- Conditional compilation ------------------------------------------
 
-  struct MacroElseIfClauseRule
+  struct MacroElseIfClause
       : rule<create<ast::ElseIfClause>(
                  lit<"#"> + ikw<"ELSEIF"> +
                  assign<&ast::ElseIfClause::cond>(ref<Expression>) +
@@ -1197,7 +1195,7 @@ struct Vb6 : cursiv::GrammarSpec {
                  assign<&ast::MacroIfStmt::ifCond>(ref<Expression>) +
                  ikw<"THEN"> + BodyInto<&ast::MacroIfStmt::ifBody> +
                  many(append<&ast::MacroIfStmt::elseIfs>(
-                     ref<MacroElseIfClauseRule>)) +
+                     ref<MacroElseIfClause>)) +
                  option(lit<"#"> +
                         flag<&ast::MacroIfStmt::hasElse>(
                             ikw<"ELSE">) +
@@ -1258,13 +1256,13 @@ struct Vb6 : cursiv::GrammarSpec {
   // Module-only forms (`Function`/`Sub`/`Property`/`Declare`/`Enum`/`Type`/
   // `Event`, `Option ...`) belong only at module level in VB6, and
   // everything else only inside a procedure body; here one shared
-  // vocabulary covers both, which over-accepts (e.g. a nested `Sub` inside
-  // another `Sub`'s body) but never refuses a valid document.
+  // vocabulary covers both; module/procedure context restrictions are not
+  // enforced here (for example, nested `Sub` declarations are accepted).
   struct StatementRule
-      : rule<ref<AttributeRule> | ref<OptionStmtRule> |
-             ref<DefDirectiveRule> | ref<VarDeclRule> | ref<ConstDeclRule> |
-             ref<TypeDeclRule> | ref<EnumDeclRule> | ref<DeclareDeclRule> |
-             ref<EventDeclRule> | ref<ImplementsDeclRule> | ref<Procedure> |
+      : rule<ref<Attribute> | ref<OptionStmt> |
+             ref<DefDirective> | ref<VarDecl> | ref<ConstDecl> |
+             ref<TypeDecl> | ref<EnumDecl> | ref<DeclareDecl> |
+             ref<EventDecl> | ref<ImplementsDecl> | ref<Procedure> |
              ref<MacroIfStmt> |
              ref<AppActivateStmt> | ref<BeepStmt> | ref<ChDirStmt> |
              ref<ChDriveStmt> | ref<CloseStmt> | ref<DateStmt> |
@@ -1289,7 +1287,7 @@ struct Vb6 : cursiv::GrammarSpec {
 
   // -- Header / design-time configuration -----------------------------------
 
-  struct ObjectAssignRule
+  struct ObjectAssign
       : rule<create<ast::ObjectAssign>(
                  assign<&ast::ObjectAssign::value>(ref<STRINGLITERAL>) +
                  option(lit<";"> + assign<&ast::ObjectAssign::value2>(
@@ -1303,27 +1301,27 @@ struct Vb6 : cursiv::GrammarSpec {
        ref<STRINGLITERAL> | ikw<"TRUE"> | ikw<"FALSE"> | ikw<"NOTHING"> |
        ikw<"NULL">);
 
-  struct ConfigLiteralRule : rule<ConfigValueText> {};
+  struct ConfigLiteral : rule<ConfigValueText> {};
 
-  struct ModuleConfigElementRule
+  struct ModuleConfigElement
       : rule<create<ast::ConfigEntry>(
                  assign<&ast::ConfigEntry::target>(
                      create<ast::NameExpr>(
                          assign<&ast::NameExpr::name>(NameText))) +
                  lit<"="> +
-                 assign<&ast::ConfigEntry::value>(ref<ConfigLiteralRule>))> {};
+                 assign<&ast::ConfigEntry::value>(ref<ConfigLiteral>))> {};
 
-  struct ModuleConfigRule
+  struct ModuleConfig
       : rule<create<ast::BeginBlock>(
                  ikw<"BEGIN"> +
                  some(Eos + append<&ast::BeginBlock::entries>(
-                                ref<ModuleConfigElementRule>)) +
+                                ref<ModuleConfigElement>)) +
                  Eos + ikw<"END">)> {};
 
   // A design-time property value: `$"text":offset`, `{Ident}`, `^Ident`, or
   // a plain literal -- a bare `rule<>` with no directives, so it deduces to
   // the text it matched.
-  struct PropertyValueRule
+  struct PropertyValue
       : rule<option(lit<"$">) +
              (ConfigValueText | (lit<"{"> + NameText + lit<"}">) |
               (lit<"^"> + NameText)) +
@@ -1336,25 +1334,25 @@ struct Vb6 : cursiv::GrammarSpec {
 
   struct ConfigTarget : rule<ref<ConfigAtom> + PostfixChain> {};
 
-  struct ControlBlockRule;
-  struct BeginPropertyBlockRule;
+  struct ControlBlock;
+  struct BeginPropertyBlock;
 
   static constexpr auto ConfigBlockElement =
       append<&ast::BeginBlock::entries>(
           create<ast::ConfigEntry>(
               assign<&ast::ConfigEntry::target>(ref<ConfigTarget>) + lit<"="> +
-              assign<&ast::ConfigEntry::value>(ref<PropertyValueRule>))) |
-      append<&ast::BeginBlock::children>(ref<ControlBlockRule>) |
-      append<&ast::BeginBlock::children>(ref<BeginPropertyBlockRule>);
+              assign<&ast::ConfigEntry::value>(ref<PropertyValue>))) |
+      append<&ast::BeginBlock::children>(ref<ControlBlock>) |
+      append<&ast::BeginBlock::children>(ref<BeginPropertyBlock>);
 
-  struct ControlBlockRule
+  struct ControlBlock
       : rule<create<ast::BeginBlock>(
                  ikw<"BEGIN"> +
                  assign<&ast::BeginBlock::controlType>(ref<TypeNameText>) +
                  assign<&ast::BeginBlock::name>(NameText) +
                  some(Eos + ConfigBlockElement) + Eos + ikw<"END">)> {};
 
-  struct BeginPropertyBlockRule
+  struct BeginPropertyBlock
       : rule<create<ast::BeginBlock>(
                  flag<&ast::BeginBlock::isProperty>(
                      ikw<"BEGINPROPERTY">) +
@@ -1378,19 +1376,19 @@ struct Vb6 : cursiv::GrammarSpec {
                             ikw<"CLASS">)) +
                         BlankLines) +
                  many(ikw<"OBJECT"> + lit<"="> +
-                      append<&ast::Module::objects>(ref<ObjectAssignRule>) +
+                      append<&ast::Module::objects>(ref<ObjectAssign>) +
                       BlankLines) +
                  option(assign<&ast::Module::controls>(
-                            ref<ControlBlockRule>) +
+                            ref<ControlBlock>) +
                         BlankLines) +
-                 option(assign<&ast::Module::config>(ref<ModuleConfigRule>) +
+                 option(assign<&ast::Module::config>(ref<ModuleConfig>) +
                         BlankLines) +
                  many(append<&ast::Module::body>(ref<StatementRule>),
                       SepInto<&ast::Module::body>) +
                  option(SepInto<&ast::Module::body>) + BlankLines)> {};
 
   using entry = ModuleRule;
-  using ignore = list<WS, LINE_CONTINUATION>;
+  using ignored = list<WS, LINE_CONTINUATION>;
   using hidden = list<COMMENT, REMCOMMENT>;
 };
 

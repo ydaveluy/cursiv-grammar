@@ -31,14 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Canadian postal-code syntax, with validation of letter positions and separators.
+
 ```
 T3H 3V2
 ```
-
-A [Canadian postal code](https://en.wikipedia.org/wiki/Postal_codes_in_Canada):
-letter, digit, letter, then digit, letter, digit — the forward sortation area
-and the local delivery unit. Whitespace is trivia everywhere in the document,
-so `T3H3V2` and `T3H 3V2` read the same.
 
 ## The command line
 

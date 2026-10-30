@@ -47,6 +47,41 @@ int main() {
       asn::AsnCoreServices, asn::AsnSharedCoreServices,
       asn::install_core_module>();
 
+  // X.680 (02/2021), clauses 12 and 19: signed values remain integers,
+  // quote doubling is literal text, and comments/bit-string whitespace
+  // must not swallow the assignment that follows them.
+  {
+    const auto result = language.language.parser->parse(R"asn(
+M DEFINITIONS ::= BEGIN
+-- inline comment -- n INTEGER ::= -1
+/* outer /* inner */ done */ T ::= INTEGER { zero(0), negative(-1) }
+s UTF8String ::= "a""b\c"
+bits BIT STRING ::= '10
+01'B
+hex OCTET STRING ::= 'AF 09'H
+END
+)asn");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("native lexical forms do not parse clean");
+    const auto* modules = as<ast::Modules>(result.value);
+    if (modules == nullptr || modules->modules.size() != 1)
+      return fail("native lexical forms built no module");
+    const auto& module = *modules->modules[0];
+    const auto* n = as<ast::ValueAssignment>(find(module, "n"));
+    const auto* integer = n ? as<ast::IntegerValue>(n->value) : nullptr;
+    const auto* text = as<ast::ValueAssignment>(find(module, "s"));
+    const auto* string = text ? as<ast::StringValue>(text->value) : nullptr;
+    const auto* t = as<ast::TypeAssignment>(find(module, "T"));
+    const auto* type = t ? as<ast::IntegerType>(t->type) : nullptr;
+    if (module.assignments.size() != 5 || integer == nullptr ||
+        integer->text != "-1" || string == nullptr ||
+        string->text != R"asn("a""b\c")asn" || type == nullptr ||
+        type->namedNumbers.size() != 2 ||
+        type->namedNumbers[1]->value != "-1")
+      return fail("native lexical forms lost their AST classification/text");
+  }
+
   // Regression: inspect the semantic payload, not only clean acceptance.
   {
     const auto result = language.language.parser->parse(

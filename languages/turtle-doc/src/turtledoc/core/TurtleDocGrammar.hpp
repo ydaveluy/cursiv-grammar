@@ -82,23 +82,18 @@ inline constexpr auto string_text = [](std::string_view text,
       text.size() >= 6 && text[0] == text[1] && text[1] == text[2] ? 3 : 1;
   return decode(text.substr(quotes, text.size() - 2 * quotes), memory, true);
 };
-using IriText = cursiv::text_conv<iri_text>;
-using StringText = cursiv::text_conv<string_text>;
 
 // PNAME_NS text ends in ':'; the prefix is everything before it.
 inline constexpr auto strip_colon = [](std::string_view t) {
   return t.substr(0, t.size() - 1);
 };
-using StripColon = cursiv::text_conv<strip_colon>;
 
 // LANGTAG text opens on '@'.
 inline constexpr auto strip_at = [](std::string_view t) { return t.substr(1); };
-using StripAt = cursiv::text_conv<strip_at>;
 
 inline constexpr auto blank_label = [](std::string_view t) {
   return t.size() >= 2 && t[0] == '_' ? t.substr(2) : std::string_view{};
 };
-using BlankLabel = cursiv::text_conv<blank_label>;
 
 struct TurtleDoc : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n\f)">)> {};
@@ -135,11 +130,11 @@ struct TurtleDoc : cursiv::GrammarSpec {
   static constexpr auto blank_node_label =
       lit<"_:"> +
       (pn_chars_u | cr<"0-9">)+option(many(pn_chars | lit<".">) + pn_chars);
-  struct BLANK_NODE : terminal<blank_node_label, BlankLabel> {};
+  struct BLANK_NODE : terminal<as<blank_label>(blank_node_label)> {};
 
-  struct LANGTAG : terminal<lit<"@"> + some(cr<"a-zA-Z">) +
-                                many(lit<"-"> + some(cr<"a-zA-Z0-9">)),
-                            StripAt> {};
+  struct LANGTAG
+      : terminal<as<strip_at>(lit<"@"> + some(cr<"a-zA-Z">) +
+                              many(lit<"-"> + some(cr<"a-zA-Z0-9">)))> {};
 
   static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   static constexpr auto integer_body = option(cr<"+-">) + some(d);
@@ -154,127 +149,127 @@ struct TurtleDoc : cursiv::GrammarSpec {
 
   static constexpr auto dquote_short =
       lit<"\""> + many(echar | uchar | cr<R"(^"\\\r\n)">) + lit<"\"">;
-  struct STRING_QUOTE : terminal<dquote_short, StringText> {};
+  struct STRING_QUOTE : terminal<as<string_text>(dquote_short)> {};
 
   static constexpr auto squote_short =
-      lit<"'"> + many(echar | uchar | lit<"\""> | cr<R"(^'\\\r\n)">) + lit<"'">;
-  struct STRING_SINGLE_QUOTE : terminal<squote_short, StringText> {};
+      lit<"'"> + many(echar | uchar | cr<R"(^'\\\r\n)">) + lit<"'">;
+  struct STRING_SINGLE_QUOTE : terminal<as<string_text>(squote_short)> {};
 
   static constexpr auto long_single_inner =
       option(lit<"''"> | lit<"'">) +
-      (echar | uchar | lit<"\""> | cr<R"(^'\\)">);
+      (echar | uchar | cr<R"(^'\\)">);
   struct STRING_LONG_SINGLE_QUOTE
-      : terminal<lit<"'''"> + many(long_single_inner) + lit<"'''">,
-                 StringText> {};
+      : terminal<as<string_text>(lit<"'''"> + many(long_single_inner) +
+                                 lit<"'''">)> {};
 
   static constexpr auto long_double_inner =
       option(lit<"\"\""> | lit<"\"">) +
-      (echar | uchar | lit<"'"> | cr<R"(^"\\)">);
+      (echar | uchar | cr<R"(^"\\)">);
   struct STRING_LONG_QUOTE
-      : terminal<lit<"\"\"\""> + many(long_double_inner) + lit<"\"\"\"">,
-                 StringText> {};
+      : terminal<as<string_text>(lit<"\"\"\""> + many(long_double_inner) +
+                                 lit<"\"\"\"">)> {};
 
   static constexpr auto iriref_body =
       lit<"<"> + many(uchar | cr<R"(^\x00- <>"{}|`\\^)">) + lit<">">;
-  struct IRIREF : terminal<iriref_body, IriText> {};
+  struct IRIREF : terminal<as<iri_text>(iriref_body)> {};
 
   // Only PN_CHARS/underscore/digits may abut a keyword: '.', ':' and '#'
   // stay outside so a term like `ex:a` or `a.` still lexes as intended.
   static constexpr auto word_boundary = pn_chars;
 
-  struct IsARule;
-  struct IriRefRule;
-  struct PrefixedTermRule;
-  struct BlankNodeRule;
-  struct CollectionRule;
-  struct BlankNodePropertyListRule;
-  struct RdfLiteralRule;
-  struct NumberLitRule;
-  struct BoolLitRule;
+  struct IsA;
+  struct IriRef;
+  struct PrefixedTerm;
+  struct BlankNode;
+  struct Collection;
+  struct BlankNodePropertyList;
+  struct RdfLiteral;
+  struct NumberLit;
+  struct BoolLit;
 
-  static constexpr auto IriTerm = ref<IriRefRule> | ref<PrefixedTermRule>;
+  static constexpr auto IriTerm = ref<IriRef> | ref<PrefixedTerm>;
   static constexpr auto SubjectTerm =
-      IriTerm | ref<BlankNodeRule> | ref<CollectionRule>;
-  static constexpr auto VerbTerm = IriTerm | ref<IsARule>;
+      IriTerm | ref<BlankNode> | ref<Collection>;
+  static constexpr auto VerbTerm = IriTerm | ref<IsA>;
   static constexpr auto ObjectTerm =
-      IriTerm | ref<BlankNodeRule> | ref<CollectionRule> |
-      ref<BlankNodePropertyListRule> | ref<RdfLiteralRule> |
-      ref<NumberLitRule> | ref<BoolLitRule>;
+      IriTerm | ref<BlankNode> | ref<Collection> |
+      ref<BlankNodePropertyList> | ref<RdfLiteral> |
+      ref<NumberLit> | ref<BoolLit>;
 
-  struct PrefixNameRule : rule<ref<PNAME_NS>, StripColon> {};
-  struct IriRefRule : rule<assign<&ast::IriRef::value>(ref<IRIREF>)> {};
-  struct PrefixedTermRule : rule<assign<&ast::PrefixedTerm::value>(
+  struct PrefixName : rule<as<strip_colon>(ref<PNAME_NS>)> {};
+  struct IriRef : rule<assign<&ast::IriRef::value>(ref<IRIREF>)> {};
+  struct PrefixedTerm : rule<assign<&ast::PrefixedTerm::value>(
                                 ref<PrefixedName> | ref<PNAME_NS>)> {};
-  struct BlankNodeRule : rule<assign<&ast::BlankNode::label>(ref<BLANK_NODE>) |
+  struct BlankNode : rule<assign<&ast::BlankNode::label>(ref<BLANK_NODE>) |
                               (create<ast::BlankNode> + lit<"["> + lit<"]">)> {
   };
-  struct IsARule : rule<create<ast::RdfType> + kw<"a">> {};
+  struct IsA : rule<create<ast::RdfType> + kw<"a">> {};
 
-  struct CollectionRule
+  struct Collection
       : rule<lit<"("> + many(append<&ast::Collection::items>(ObjectTerm)) +
              lit<")">> {};
 
-  struct RdfLiteralRule
+  struct RdfLiteral
       : rule<assign<&ast::RdfLiteral::value>(
                  ref<STRING_LONG_SINGLE_QUOTE> | ref<STRING_LONG_QUOTE> |
                  ref<STRING_SINGLE_QUOTE> | ref<STRING_QUOTE>) +
              option(
                  assign<&ast::RdfLiteral::lang>(ref<LANGTAG>) |
                  (lit<"^^"> + assign<&ast::RdfLiteral::datatype>(IriTerm)))> {};
-  struct NumberLitRule
+  struct NumberLit
       : rule<assign<&ast::NumberLit::text>(ref<NUMERIC_LITERAL>)> {};
-  struct BoolLitRule
+  struct BoolLit
       : rule<create<ast::BoolLit> +
              (flag<&ast::BoolLit::value>(ikw<"true">) | ikw<"false">)> {};
 
-  struct PredicateObjectRule
+  struct PredicateObject
       : rule<assign<&ast::PredicateObject::predicate>(VerbTerm) +
              some(append<&ast::PredicateObject::objects>(ObjectTerm),
                   lit<",">)> {};
 
-  struct PredicateObjectListRule
+  struct PredicateObjectList
       : rule<append<&ast::PredicateObjectList::items>(
-                 ref<PredicateObjectRule>) +
+                 ref<PredicateObject>) +
              many(lit<";"> + option(append<&ast::PredicateObjectList::items>(
-                                 ref<PredicateObjectRule>)))> {};
+                                 ref<PredicateObject>)))> {};
 
-  struct BlankNodePropertyListRule
+  struct BlankNodePropertyList
       : rule<lit<"["> +
              assign<&ast::BlankNodePropertyList::properties>(
-                 ref<PredicateObjectListRule>) +
+                 ref<PredicateObjectList>) +
              lit<"]">> {};
 
-  struct TriplesRule : rule<assign<&ast::Triples::subject>(
-                                SubjectTerm | ref<BlankNodePropertyListRule>) +
+  struct Triples : rule<assign<&ast::Triples::subject>(
+                                SubjectTerm | ref<BlankNodePropertyList>) +
                             option(assign<&ast::Triples::properties>(
-                                ref<PredicateObjectListRule>))> {};
+                                ref<PredicateObjectList>))> {};
 
-  struct PrefixIDRule
+  struct PrefixID
       : rule<ikw<"@prefix"> +
-             assign<&ast::PrefixDecl::prefix>(ref<PrefixNameRule>) +
+             assign<&ast::PrefixDecl::prefix>(ref<PrefixName>) +
              assign<&ast::PrefixDecl::iri>(ref<IRIREF>) + lit<".">> {};
-  struct BaseRule : rule<ikw<"@base"> +
+  struct Base : rule<ikw<"@base"> +
                          assign<&ast::BaseDecl::iri>(ref<IRIREF>) + lit<".">> {
   };
-  struct SparqlPrefixRule
+  struct SparqlPrefix
       : rule<ikw<"PREFIX"> +
-             assign<&ast::SparqlPrefixDecl::prefix>(ref<PrefixNameRule>) +
+             assign<&ast::SparqlPrefixDecl::prefix>(ref<PrefixName>) +
              assign<&ast::SparqlPrefixDecl::iri>(ref<IRIREF>)> {};
-  struct SparqlBaseRule
+  struct SparqlBase
       : rule<ikw<"BASE"> + assign<&ast::SparqlBaseDecl::iri>(ref<IRIREF>)> {};
 
-  struct DirectiveRule : rule<ref<PrefixIDRule> | ref<BaseRule> |
-                              ref<SparqlPrefixRule> | ref<SparqlBaseRule>> {};
+  struct Directive : rule<ref<PrefixID> | ref<Base> |
+                              ref<SparqlPrefix> | ref<SparqlBase>> {};
 
-  struct StatementRule
-      : rule<ref<DirectiveRule> | (ref<TriplesRule> + lit<".">)> {};
+  struct Statement
+      : rule<ref<Directive> | (ref<Triples> + lit<".">)> {};
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document> +
-             many(append<&ast::Document::statements>(ref<StatementRule>))> {};
+             many(append<&ast::Document::statements>(ref<Statement>))> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<LC>;
 };
 

@@ -25,10 +25,10 @@ struct IntegerLiteral : cursiv::Extends<Expr> {
   std::int64_t value;
 };
 
-// AMP marks an indirect reference (`&name`); subscript is empty for a plain
-// name, else the array/table keys, themselves plain names, never expressions.
+// `&name` denotes a keyword. Subscripts in this subset retain plain names;
+// native indirect references use `$` and are a separate expression family.
 struct Subject : cursiv::Extends<Expr> {
-  bool indirect = false;
+  bool keyword = false;
   string_view name;
   vector<string_view> subscript;
 };
@@ -78,6 +78,7 @@ struct Transfer : cursiv::Extends<cursiv::AstNode> {
   string_view mode;
   bool toEnd = false;
   string_view label;
+  Transfer* next = nullptr;  // the other conditional branch, in source order
 };
 
 struct Line : cursiv::Extends<cursiv::AstNode> {};
@@ -86,6 +87,7 @@ struct Statement : cursiv::Extends<Line> {
   string_view label;
   Subject* subject = nullptr;
   Expr* pattern = nullptr;
+  boolean hasReplacement = false;
   vector<Expr*> replacement;
   Transfer* transfer = nullptr;
 };

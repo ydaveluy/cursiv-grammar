@@ -33,6 +33,15 @@ void StringtemplateValidator::checkMapping(
       (map.stages.empty() || map.stages[0]->targets.size() != 1))
     accept.error(map, "A zipped mapping needs one initial template.",
                  "stringtemplate.zip-target");
+  for (std::size_t i = 0; i < map.stages.size(); ++i) {
+    const std::size_t expected = i == 0 ? map.sources.size() : 1;
+    for (const auto* target : map.stages[i]->targets)
+      if (const auto* anonymous = cursiv::ast_cast<ast::SubTemplateExpr>(target);
+          anonymous && anonymous->params.size() != expected)
+        accept.error(*anonymous,
+                     "An anonymous mapping template needs one parameter per input.",
+                     "stringtemplate.map-arity");
+  }
 }
 
 void StringtemplateValidator::checkStage(

@@ -24,6 +24,10 @@ struct NegateExpression : cursiv::Extends<Expression> {
   Expression* operand;
 };
 
+struct PositiveExpression : cursiv::Extends<Expression> {
+  Expression* operand;
+};
+
 struct NotExpression : cursiv::Extends<Expression> {
   Expression* operand;
 };

@@ -31,8 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[Graphviz DOT](https://graphviz.org/doc/info/lang.html), the graph
-description language:
+Graphviz DOT describes graphs, nodes, edges, attributes and nested subgraphs. HTML labels and ordinary string labels remain distinct in the AST.
 
 ```dot
 strict digraph Demo {
@@ -48,10 +47,6 @@ strict digraph Demo {
     }
 }
 ```
-
-A graph is a header (`strict`? and `graph`/`digraph`) and a brace-delimited
-body of statements: nodes, edges, attribute assignments (`graph`/`node`/`edge`
-`[...]`), plain assignments (`rankdir=LR`), and subgraphs, which nest.
 
 ## The command line
 

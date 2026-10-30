@@ -10,6 +10,8 @@ namespace csharp {
 class CSharpValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkRawLiteral(const ast::LiteralExpr& literal,
+                       cursiv::ValidationAcceptor& accept) const;
 };
 
 struct CSharpCoreServices;

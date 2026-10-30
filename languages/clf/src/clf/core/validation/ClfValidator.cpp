@@ -26,10 +26,6 @@ int number(std::string_view value) {
 }
 bool integer(std::string_view value) {
   if (value == "-") return true;
-  if (value.starts_with('-')) {
-    value.remove_prefix(1);
-    if (value.starts_with('0')) return false;
-  }
   return digits(value) && (value.size() == 1 || value.front() != '0');
 }
 bool date(std::string_view text) {
@@ -60,7 +56,7 @@ bool timezone(std::string_view text) {
     return false;
   const int hour = number(text.substr(1, 2)),
             minute = number(text.substr(3, 2));
-  return hour >= 0 && minute >= 0 && hour * 60 + minute < 24 * 60;
+  return hour >= 0 && hour < 24 && minute >= 0 && minute < 60;
 }
 }  // namespace
 

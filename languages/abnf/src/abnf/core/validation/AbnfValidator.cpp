@@ -64,6 +64,23 @@ void separators(const Nodes& nodes, bool slash, cursiv::ValidationAcceptor& a) {
 void AbnfValidator::checkRule(const ast::Rule& n, cursiv::ValidationAcceptor& a) const {
   if (n.name.find('_') != std::string_view::npos)
     a.error(n, "A rule name can contain letters, digits and hyphens.").property<&ast::Rule::name>();
+  // The grammar retains permissively parsed rules; RFC 5234 still requires
+  // each definition to start on a new line.
+  const auto* rules = cursiv::ast_cast<ast::Rulelist>(n.parent);
+  const auto* document = n.getDocument();
+  if (!rules || !document) return;
+  const auto source = document->textDocument().getText();
+  for (std::size_t i = 1; i < rules->rules.size(); ++i) {
+    if (rules->rules[i] != &n) continue;
+    const auto previous = a.spanOf(*rules->rules[i - 1]);
+    const auto current = a.spanOf(n);
+    if (previous.end <= current.begin && current.begin <= source.size() &&
+        source.substr(previous.end, current.begin - previous.end)
+                .find_first_of("\r\n") == std::string_view::npos)
+      a.error(n, "Start each rule definition on a new line.")
+          .property<&ast::Rule::name>();
+    break;
+  }
 }
 void AbnfValidator::checkReference(const ast::RuleRef& n, cursiv::ValidationAcceptor& a) const {
   if (n.name.find('_') != std::string_view::npos)

@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every document under example/ parses, and the tree
 # holds what it declares.
 add_executable(promql_grammar_test grammar_test.cpp)
-target_link_libraries(promql_grammar_test PRIVATE promqlCore)
+target_link_libraries(promql_grammar_test PRIVATE promqlCore cursiv::test)
 target_compile_definitions(promql_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

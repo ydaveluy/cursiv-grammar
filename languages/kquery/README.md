@@ -31,8 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-KLEE's KQuery: an S-expression format for constraint queries over bitvector
-arrays -- array declarations, then query commands.
+KLEE's KQuery syntax describes symbolic arrays, bit-vector expressions and constraint queries.
 
 ```
 array sample_pse[4] : w32 -> w8 = symbolic
@@ -41,12 +40,6 @@ array sample_pse[4] : w32 -> w8 = symbolic
         (Ule 6434 N0)]
        false)
 ```
-
-`array` declares a symbolic or initialized bitvector array; a query command
-is a list of constraints, a query expression, and optional eval lists. `N0:`
-labels a subexpression so a later `N0` can refer back to it -- the only
-naming in the language, and it needs no linker: a label reads back as the
-same expression class as a bare reference, both plain text on the AST.
 
 ## The command line
 

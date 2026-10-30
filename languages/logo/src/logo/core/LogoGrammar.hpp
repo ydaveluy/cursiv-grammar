@@ -9,12 +9,10 @@ namespace logo {
 inline constexpr auto drop_quote = [](std::string_view t) {
   return t.substr(1);
 };
-using Unquoted = cursiv::text_conv<drop_quote>;
 
 inline constexpr auto drop_brackets = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unbracketed = cursiv::text_conv<drop_brackets>;
 
 struct Logo : cursiv::GrammarSpec {
   struct WS : terminal<cr<R"( \t)">> {};
@@ -22,35 +20,31 @@ struct Logo : cursiv::GrammarSpec {
   struct COMMENT : terminal<lit<";"> + many(cr<R"(^\r\n)">)> {};
 
   static constexpr auto name_body = cr<"a-zA-Z"> + many(w);
-  struct STRING : terminal<name_body> {};
-  struct STRINGLITERAL : terminal<lit<"\""> + name_body, Unquoted> {};
-  struct NUMBER : terminal<some(d), std::int64_t> {};
+  static constexpr auto reserved = kw<"repeat"> | kw<"fd"> | kw<"forward"> |
+      kw<"bk"> | kw<"backward"> | kw<"rt"> | kw<"right"> | kw<"lt"> | kw<"left"> |
+      kw<"cs"> | kw<"clearscreen"> | kw<"pu"> | kw<"penup"> | kw<"pd"> | kw<"pendown"> |
+      kw<"ht"> | kw<"hideturtle"> | kw<"st"> | kw<"showturtle"> | kw<"home"> |
+      kw<"label"> | kw<"stop"> | kw<"setxy"> | kw<"make"> | kw<"if"> | kw<"for"> |
+      kw<"print"> | kw<"random"> | kw<"to"> | kw<"end">;
+  struct STRING : terminal<!reserved + name_body> {};
+  struct STRINGLITERAL : terminal<as<drop_quote>(lit<"\""> + name_body)> {};
+  struct NUMBER : terminal<some(d)> {};
 
   struct QuotedString
-      : terminal<lit<"["> +
-                 many(ref<QuotedString> | (!lit<"["> + !lit<"]"> + any)) +
-                 lit<"]">, Unbracketed> {};
-
-  struct PLUS : terminal<lit<"+">, value<ast::Sign::plus>> {};
-  struct MINUS : terminal<lit<"-">, value<ast::Sign::minus>> {};
-  struct ADD : terminal<lit<"+">, value<ast::Op::add>> {};
-  struct SUBTRACT : terminal<lit<"-">, value<ast::Op::subtract>> {};
-  struct MULTIPLY : terminal<lit<"*">, value<ast::Op::multiply>> {};
-  struct DIVIDE : terminal<lit<"/">, value<ast::Op::divide>> {};
-  struct LESS : terminal<lit<"<">, value<ast::CompareOp::less>> {};
-  struct GREATER : terminal<lit<">">, value<ast::CompareOp::greater>> {};
-  struct EQUAL : terminal<lit<"=">, value<ast::CompareOp::equal>> {};
+      : terminal<as<drop_brackets>(
+            lit<"["> + many(ref<QuotedString> | (ref<COMMENT> + !cr<R"(^\r\n)">) |
+                some(cr<R"( \t\r\n)">) | (lit<"\""> + name_body) |
+                name_body | some(d) | cr<"+*/:<>=,-">) + lit<"]">)> {};
 
   struct Expression;
-  struct CmdRule;
-  struct LineRule;
+  struct Cmd;
+  struct Line;
 
   // `random` is the only function, so it is inlined here rather than kept
   // as its own pass-through node.
-  struct AtomRule
-      : rule<create<ast::NumberLiteral>(
-                 assign<&ast::NumberLiteral::value>(ref<NUMBER>))  //
-             | create<ast::Deref>(lit<":"> +
+  struct Number : rule<assign<&ast::NumberLiteral::value>(ref<NUMBER>)> {};
+  struct Atom
+      : rule<ref<Number> | create<ast::Deref>(lit<":"> +
                                    assign<&ast::Deref::name>(ref<STRING>))  //
              | create<ast::RandomCall>(
                    kw<"random"> +
@@ -59,27 +53,26 @@ struct Logo : cursiv::GrammarSpec {
   // A sign-less atom forwards through with no wrapper node.
   struct SignExpression
       : rule<create<ast::SignExpression>(
-                 some(append<&ast::SignExpression::signs>(ref<PLUS> |
-                                                           ref<MINUS>)) +
-                 assign<&ast::SignExpression::operand>(ref<AtomRule>))  //
-             | ref<AtomRule>> {};
+                 some(append<&ast::SignExpression::signs>(as<ast::Sign::plus>(lit<"+">) |
+                                                           as<ast::Sign::minus>(lit<"-">))) +
+                 assign<&ast::SignExpression::operand>(ref<Atom>))  //
+             | ref<Atom>> {};
 
   // Ordinary arithmetic precedence: multiply/divide tighter than add/subtract.
   struct Expression
-      : infix<SignExpression, &ast::BinaryExpression::left,
-              &ast::BinaryExpression::op, &ast::BinaryExpression::right,
-              (left(ref<MULTIPLY> | ref<DIVIDE>) >>
-               left(ref<ADD> | ref<SUBTRACT>))> {};
+      : infix<SignExpression, ast::BinaryExpression,
+              levels(left(as<ast::Op::multiply>(lit<"*">) | as<ast::Op::divide>(lit<"/">)),
+                     left(as<ast::Op::add>(lit<"+">) | as<ast::Op::subtract>(lit<"-">)))> {};
 
   // A bare deref is dropped as its own alternative: it already parses as an
-  // expression (SignExpression -> AtomRule), so it would only fork the parse.
+  // expression (SignExpression -> Atom), so it would only fork the parse.
   static constexpr auto value = ref<STRINGLITERAL> | ref<Expression>;
 
-  struct CmdRule
+  struct Cmd
       : rule<create<ast::RepeatCmd>(
                  kw<"repeat"> +
-                 assign<&ast::RepeatCmd::count>(ref<Expression>) + lit<"["> +
-                 some(append<&ast::RepeatCmd::body>(ref<CmdRule>)) +
+                 assign<&ast::RepeatCmd::count>(ref<Number>) + lit<"["> +
+                 some(append<&ast::RepeatCmd::body>(ref<Cmd>)) +
                  lit<"]">)  //
              | create<ast::ForwardCmd>(
                    (kw<"fd"> | kw<"forward">) +
@@ -113,10 +106,10 @@ struct Logo : cursiv::GrammarSpec {
                        ref<Expression>)))  //
              | create<ast::IfCmd>(
                    kw<"if"> + assign<&ast::IfCmd::left>(ref<Expression>) +
-                   assign<&ast::IfCmd::op>(ref<LESS> | ref<GREATER> |
-                                            ref<EQUAL>) +
+                   assign<&ast::IfCmd::op>(as<ast::CompareOp::less>(lit<"<">) | as<ast::CompareOp::greater>(lit<">">) |
+                                            as<ast::CompareOp::equal>(lit<"=">)) +
                    assign<&ast::IfCmd::right>(ref<Expression>) + lit<"["> +
-                   some(append<&ast::IfCmd::body>(ref<CmdRule>)) +
+                   some(append<&ast::IfCmd::body>(ref<Cmd>)) +
                    lit<"]">)  //
              | create<ast::StopCmd>(kw<"stop">)  //
              | create<ast::ForCmd>(
@@ -126,7 +119,7 @@ struct Logo : cursiv::GrammarSpec {
                    assign<&ast::ForCmd::to>(ref<Expression>) +
                    assign<&ast::ForCmd::step>(ref<Expression>) + lit<"]"> +
                    lit<"["> +
-                   some(append<&ast::ForCmd::body>(ref<CmdRule>)) +
+                   some(append<&ast::ForCmd::body>(ref<Cmd>)) +
                    lit<"]">)> {};
 
   // A comma-joined run of `:name`s, itself repeated (space-separated) any
@@ -137,18 +130,18 @@ struct Logo : cursiv::GrammarSpec {
       append<&ast::ProcedureDeclaration::params>(ref<STRING>);
   static constexpr auto param_group = one_param + many(lit<","> + one_param);
 
-  struct ProcedureDeclarationRule
+  struct ProcedureDeclaration
       : rule<kw<"to"> +
              assign<&ast::ProcedureDeclaration::name>(ref<STRING>) +
              many(param_group) + option(ref<EOL>) +
              some(option(append<&ast::ProcedureDeclaration::body>(
-                      ref<LineRule>)) +
+                      ref<Line>)) +
                   ref<EOL>) +
              kw<"end">> {};
 
-  struct LineRule
+  struct Line
       : rule<create<ast::CommandLine>(
-                 some(append<&ast::CommandLine::commands>(ref<CmdRule>)) +
+                 some(append<&ast::CommandLine::commands>(ref<Cmd>)) +
                  option(assign<&ast::CommandLine::comment>(ref<COMMENT>)))  //
              | create<ast::CommentLine>(
                    assign<&ast::CommentLine::text>(ref<COMMENT>))  //
@@ -157,16 +150,16 @@ struct Logo : cursiv::GrammarSpec {
                    assign<&ast::PrintLine::value>(
                        value | ref<QuotedString>) +
                    option(assign<&ast::PrintLine::comment>(ref<COMMENT>)))  //
-             | ref<ProcedureDeclarationRule>> {};
+             | ref<ProcedureDeclaration>> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program>(
-                 some(option(append<&ast::Program::lines>(ref<LineRule>)) +
+                 some(option(append<&ast::Program::lines>(ref<Line>)) +
                       ref<EOL>) +
-                 option(append<&ast::Program::lines>(ref<LineRule>)))> {};
+                 option(append<&ast::Program::lines>(ref<Line>)))> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
 };
 
 }  // namespace logo

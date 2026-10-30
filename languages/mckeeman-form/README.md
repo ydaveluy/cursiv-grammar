@@ -31,11 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[McKeeman form](https://www.crockford.com/mckeeman.html) is Bill McKeeman's
-notation for grammars: significant whitespace, minimal metacharacters. A rule
-is a name, then one or more four-space-indented alternatives; an item in one
-is another rule's name, a quoted codepoint or codepoint range (`'a' . 'z'`,
-minus what a trailing `- '_'` excludes), or a quoted string.
+McKeeman form describes grammars using significant indentation, rule references and character literals.
 
 ```
 digit
@@ -45,10 +41,6 @@ digits
     digit
     digit digits
 ```
-
-`digit` and `digits` are rule names — `digits`' second alternative refers back
-to both, a cross reference the linker resolves, which is what makes
-go-to-definition and "unresolved name" diagnostics work at all.
 
 ## The command line
 

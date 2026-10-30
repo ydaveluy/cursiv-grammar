@@ -1,5 +1,4 @@
-// The checks of this language. None yet: nothing here needs a check beyond
-// parsing.
+// Selected structural checks retained independently of environment resolution.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,8 @@ namespace pf {
 class PfValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkFile(const ast::File&, cursiv::ValidationAcceptor&) const;
+  void checkOption(const ast::Option&, cursiv::ValidationAcceptor&) const;
 };
 
 struct PfCoreServices;

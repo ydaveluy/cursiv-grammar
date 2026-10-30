@@ -39,6 +39,23 @@ int main() {
       gml::GmlCoreServices, gml::GmlSharedCoreServices,
       gml::install_core_module>();
 
+  {
+    const std::string source = "graph [\rtext \"alpha\r beta\r gamma\"\r]\r";
+    const auto result = language.language.parser->parse(source);
+    const auto* root = result.value_as<gml::ast::List>();
+    const auto* nested = root && root->entries.size() == 1 ?
+        std::get_if<gml::ast::List*>(&root->entries[0]->value) : nullptr;
+    const auto* text = nested && (*nested)->entries.size() == 1 ?
+        std::get_if<std::string_view>(&(*nested)->entries[0]->value) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !text || *text != "alpha beta gamma") return 1;
+    for (const auto source : {"graph [ value -NAN ]", "graph [ value +NAN ]"}) {
+      const auto invalid = language.language.parser->parse(source);
+      if (invalid.accepted && !invalid.cst().recovered() && invalid.diagnostics.empty())
+        return 1;
+    }
+  }
+
   const std::string source = R"GML(# graph data
 graph [
   sample_value 1.E+12

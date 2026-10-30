@@ -1,7 +1,7 @@
 // The informix language: its grammar. Informix 4GL: a screen-oriented
 // procedural language with embedded SQL. Keywords are case-insensitive;
-// identifiers are ASCII lowercase, digits and underscore. `;` and EOL are
-// always optional trivia, never a mandatory statement separator.
+// identifiers are ASCII letters, digits and underscore. EOL is trivia;
+// semicolons terminate statements and retain PRINT newline suppression.
 #pragma once
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
@@ -10,31 +10,40 @@
 namespace informix {
 
 inline constexpr auto unquote =
-    [](std::string_view t, std::pmr::memory_resource*) {
-      return t.substr(1, t.size() - 2);
+    [](std::string_view t, std::pmr::memory_resource* memory) {
+      t = t.substr(1, t.size() - 2);
+      if (t.find('\\') == t.npos) return t;
+      const auto room = cursiv::text_room(memory, t.size());
+      std::size_t length = 0;
+      for (std::size_t i = 0; i < t.size(); ++i) {
+        if (t[i] == '\\' && i + 1 < t.size()) ++i;
+        room[length++] = t[i];
+      }
+      return std::string_view(room.data(), length);
     };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Informix : cursiv::GrammarSpec {
   // ---------------------------------------------------------------- Lexer
 
-  struct WS : terminal<some(cr<R"( \t\r\n;)">)> {};
+  struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
+  struct SEMIS : terminal<some(lit<";">)> {};
   struct SL_COMMENT : terminal<lit<"#"> + many(cr<R"(^\r\n)">)> {};
-  struct SL_COMMENT2 : terminal<lit<"--"> + many(cr<R"(^\r\n)">)> {};
+  struct SL_COMMENT2 : terminal<lit<"--", !cr<"@">> + many(cr<R"(^\r\n)">)> {};
+  struct BLOCK_COMMENT : terminal<through(lit<"{">, lit<"}">)> {};
+  struct CLASSIC_LINE : terminal<lit<"--@">> {};
 
   struct ID : terminal<cr<"A-Za-z_"> + many(cr<"A-Za-z_0-9">)> {};
 
   struct UINT : terminal<some(d)> {};
   struct NUMBER
-      : terminal<((some(d) + option(lit<"."> + many(d))) |
-                  (lit<"."> + some(d))) +
-                     option(cr<"eE"> + option(cr<"+-">) + some(d)),
-                 double> {};
+      : terminal<as<double>(
+            ((some(d) + option(lit<"."> + many(d))) | (lit<"."> + some(d))) +
+            option(cr<"eE"> + option(cr<"+-">) + some(d)))> {};
 
   struct STRING_DQ
-      : terminal<lit<"\""> + many(cr<R"(^"\\)">) + lit<"\"">, Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">)> {};
   struct STRING_SQ
-      : terminal<lit<"'"> + many(cr<R"(^'\\)">) + lit<"'">, Unquoted> {};
+      : terminal<as<unquote>(lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\)">) + lit<"'">)> {};
 
   // ----------------------------------------------------------- Soft words
 
@@ -59,54 +68,38 @@ struct Informix : cursiv::GrammarSpec {
       ikw<"DAY"> | ikw<"YEAR"> | ikw<"MONTH"> | ikw<"EXTEND"> |
       ikw<"INFIELD"> | ikw<"PREPARE"> | ikw<"DECODE"> | ikw<"NVL"> |
       ikw<"COLUMN"> | ikw<"SUM"> | ikw<"AVG"> | ikw<"MIN"> | ikw<"MAX"> |
-      ikw<"MOD"> | ikw<"DATE">;
+      ikw<"MOD"> | ikw<"DATE"> | ikw<"ORD">;
   static constexpr auto FuncName = Name | FuncKeyword;
 
   // -------------------------------------------------------------- Operators
 
-  struct OP_MUL : terminal<lit<"*">, value<ast::Op::multiply>> {};
-  struct OP_DIV : terminal<lit<"/">, value<ast::Op::divide>> {};
-  struct OP_INTDIV : terminal<ikw<"DIV">, value<ast::Op::int_div>> {};
-  struct OP_MOD : terminal<ikw<"MOD">, value<ast::Op::mod>> {};
-  struct OP_ADD : terminal<lit<"+">, value<ast::Op::add>> {};
-  struct OP_SUB : terminal<lit<"-">, value<ast::Op::subtract>> {};
-  struct OP_CONCAT : terminal<lit<"||">, value<ast::Op::concat>> {};
-  struct OP_NE
-      : terminal<lit<"<>"> | lit<"!="> | lit<"^=">, value<ast::Op::ne>> {};
-  struct OP_LE : terminal<lit<"<=">, value<ast::Op::le>> {};
-  struct OP_GE : terminal<lit<">=">, value<ast::Op::ge>> {};
-  struct OP_EQ : terminal<lit<"=">, value<ast::Op::eq>> {};
-  struct OP_LT : terminal<lit<"<">, value<ast::Op::lt>> {};
-  struct OP_GT : terminal<lit<">">, value<ast::Op::gt>> {};
-  struct OP_AND : terminal<ikw<"AND">, value<ast::Op::logical_and>> {};
-  struct OP_OR : terminal<ikw<"OR">, value<ast::Op::logical_or>> {};
+  struct OP_NE : terminal<as<ast::Op::ne>(lit<"<>"> | lit<"!="> | lit<"^=">)> {
+  };
 
   static constexpr auto OpMul =
-      ref<OP_MUL> | ref<OP_DIV> | ref<OP_INTDIV> | ref<OP_MOD>;
-  static constexpr auto OpAdd = ref<OP_ADD> | ref<OP_SUB>;
-  static constexpr auto OpConcat = ref<OP_CONCAT>;
-  static constexpr auto OpCompare = ref<OP_NE> | ref<OP_LE> | ref<OP_GE> |
-                                    ref<OP_EQ> | ref<OP_LT> | ref<OP_GT>;
-  static constexpr auto OpAnd = ref<OP_AND>;
-  static constexpr auto OpOr = ref<OP_OR>;
+      as<ast::Op::multiply>(lit<"*">) | as<ast::Op::divide>(lit<"/">) | as<ast::Op::int_div>(ikw<"DIV">);
+  static constexpr auto OpAdd = as<ast::Op::add>(lit<"+">) | as<ast::Op::subtract>(lit<"-">);
+  static constexpr auto OpConcat = as<ast::Op::concat>(lit<"||">);
+  static constexpr auto OpCompare = ref<OP_NE> | as<ast::Op::le>(lit<"<=">) | as<ast::Op::ge>(lit<">=">) |
+                                    as<ast::Op::eq>(lit<"=="> | lit<"=">) | as<ast::Op::lt>(lit<"<">) | as<ast::Op::gt>(lit<">">);
+  static constexpr auto OpAnd = as<ast::Op::logical_and>(ikw<"AND">);
+  static constexpr auto OpOr = as<ast::Op::logical_or>(ikw<"OR">);
 
-  struct CmpNe : rule<ref<OP_NE>, value<ast::CompareOp::ne>> {};
-  struct CmpLe : rule<ref<OP_LE>, value<ast::CompareOp::le>> {};
-  struct CmpGe : rule<ref<OP_GE>, value<ast::CompareOp::ge>> {};
-  struct CmpEq : rule<ref<OP_EQ>, value<ast::CompareOp::eq>> {};
-  struct CmpLt : rule<ref<OP_LT>, value<ast::CompareOp::lt>> {};
-  struct CmpGt : rule<ref<OP_GT>, value<ast::CompareOp::gt>> {};
+  struct CmpGe : rule<as<ast::CompareOp::ge>(lit<">=">)> {};
+  struct CmpGt : rule<as<ast::CompareOp::gt>(lit<">">)> {};
 
   // ------------------------------------------------------------------ Expr
 
   struct Expression;
   struct Unary;
   struct ArithConcat;
+  struct LikeExpression;
   struct Postfix;
   struct Atom;
   struct ComponentRef;
   struct Primary;
   struct FuncCall;
+  struct TemporalExprR;
   struct SelectStmt;
   struct UnionArm;
   struct FromItem;
@@ -192,23 +185,34 @@ struct Informix : cursiv::GrammarSpec {
                      | ref<NumberLitR>                        //
                      | ref<StringLitR>                        //
                      | ref<StarExprR>                         //
+                     | ref<TemporalExprR>                     //
                      | ref<FuncCall>                          //
                      | ref<SubqueryExprR>                     //
                      | ref<TupleExprR>                        //
                      | ref<ComponentRef>> {};
 
-  struct UnitYear : rule<ikw<"YEAR">, value<ast::TimeUnit::year>> {};
-  struct UnitMonth : rule<ikw<"MONTH">, value<ast::TimeUnit::month>> {};
-  struct UnitDay : rule<ikw<"DAY">, value<ast::TimeUnit::day>> {};
-  struct UnitHour : rule<ikw<"HOUR">, value<ast::TimeUnit::hour>> {};
-  struct UnitMinute : rule<ikw<"MINUTE">, value<ast::TimeUnit::minute>> {};
-  struct UnitSecond : rule<ikw<"SECOND">, value<ast::TimeUnit::second>> {};
-  struct UnitFraction
-      : rule<ikw<"FRACTION">, value<ast::TimeUnit::fraction>> {};
-  static constexpr auto AnyUnit = ref<UnitYear> | ref<UnitMonth> |
-                                  ref<UnitDay> | ref<UnitHour> |
-                                  ref<UnitMinute> | ref<UnitSecond> |
-                                  ref<UnitFraction>;
+  static constexpr auto AnyUnit = as<ast::TimeUnit::year>(ikw<"YEAR">) | as<ast::TimeUnit::month>(ikw<"MONTH">) |
+                                  as<ast::TimeUnit::day>(ikw<"DAY">) | as<ast::TimeUnit::hour>(ikw<"HOUR">) |
+                                  as<ast::TimeUnit::minute>(ikw<"MINUTE">) | as<ast::TimeUnit::second>(ikw<"SECOND">) |
+                                  as<ast::TimeUnit::fraction>(ikw<"FRACTION">);
+
+  template<class T> static constexpr auto FromUnit =
+      assign<&T::from>(AnyUnit) + option(lit<"("> +
+          assign<&T::fromPrecision>(ref<UINT>) + lit<")">);
+  template<class T> static constexpr auto ToUnit =
+      assign<&T::to>(AnyUnit) + option(lit<"("> +
+          assign<&T::toPrecision>(ref<UINT>) + lit<")">);
+  static constexpr auto TemporalChar = cr<R"(0-9:.+ \t\r\n-)">;
+  struct TEMPORAL_BODY : terminal<lit<"("> + many(TemporalChar) + d +
+      many(TemporalChar) + lit<")">> {};
+  struct TemporalExprR : rule<create<ast::TemporalExpr>(
+      ((assign<&ast::TemporalExpr::kind>(
+            as<ast::TemporalKind::datetime_literal>(ikw<"DATETIME">) |
+            as<ast::TemporalKind::interval_literal>(ikw<"INTERVAL">)) +
+        assign<&ast::TemporalExpr::payload>(ref<TEMPORAL_BODY>) +
+        FromUnit<ast::TemporalExpr> + ikw<"TO"> + ToUnit<ast::TemporalExpr>) |
+       (assign<&ast::TemporalExpr::kind>(as<ast::TemporalKind::current>(ikw<"CURRENT">)) +
+        option(FromUnit<ast::TemporalExpr> + ikw<"TO"> + ToUnit<ast::TemporalExpr>))))> {};
 
   struct UnitsAtom
       : rule<ref<Atom> +
@@ -225,65 +229,73 @@ struct Informix : cursiv::GrammarSpec {
 
   struct QuantifiedExprR
       : rule<create<ast::QuantifiedExpr>(
-                 assign<&ast::QuantifiedExpr::left>(ref<ArithConcat>) +
-                 assign<&ast::QuantifiedExpr::op>(
-                     ref<CmpNe> | ref<CmpLe> | ref<CmpGe> | ref<CmpEq> |
-                     ref<CmpLt> | ref<CmpGt>) +
-                 option(flag<&ast::QuantifiedExpr::all>(ikw<"ALL">) |
-                        flag<&ast::QuantifiedExpr::any>(ikw<"ANY">)) +
-                 lit<"("> +
-                 assign<&ast::QuantifiedExpr::subquery>(ref<SelectStmt>) +
-                 lit<")">)> {};
+            assign<&ast::QuantifiedExpr::left>(ref<LikeExpression>) +
+            assign<&ast::QuantifiedExpr::op>(
+                as<ast::CompareOp::ne>(ref<OP_NE>) |
+                as<ast::CompareOp::le>(lit<"<=">) | ref<CmpGe> |
+                as<ast::CompareOp::eq>(lit<"=="> | lit<"=">) |
+                as<ast::CompareOp::lt>(lit<"<">) | ref<CmpGt>) +
+            option(flag<&ast::QuantifiedExpr::all>(ikw<"ALL">) |
+                   flag<&ast::QuantifiedExpr::any>(ikw<"ANY">) |
+                   flag<&ast::QuantifiedExpr::some>(ikw<"SOME">)) +
+            lit<"("> + assign<&ast::QuantifiedExpr::subquery>(ref<SelectStmt>) +
+            lit<")">)> {};
 
   struct Unary
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"-"> | lit<"+"> |
-                                             ikw<"NOT">) +
+                 assign<&ast::UnaryExpr::op>(lit<"-"> | lit<"+">) +
                  assign<&ast::UnaryExpr::operand>(ref<Unary>)) |
              ref<UnitsAtom>> {};
 
+  static constexpr auto OpPower = as<ast::Op::power>(lit<"**">) |
+                                  as<ast::Op::mod>(ikw<"MOD">);
   struct ArithConcat
-      : infix<Unary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMul) >>      //
-               left(OpAdd) >>      //
-               left(OpConcat))> {};
+      : infix<Unary, ast::BinaryExpr,
+              levels(left(OpPower), left(OpMul), left(OpAdd), left(OpConcat))> {};
 
-  // Comparisons, LIKE/MATCHES, BETWEEN, IS NULL, EXISTS and the quantified
-  // subquery forms all sit at one tier, above the arithmetic ladder: each
-  // takes the full arithmetic/concatenation expression as its operand, not
-  // a bare atom (`a + b BETWEEN c AND d` is `(a + b) BETWEEN c AND d`).
-  struct Postfix
-      : rule<create<ast::IsNullExpr>(
-                 assign<&ast::IsNullExpr::operand>(ref<ArithConcat>) +
-                 ikw<"IS"> +
-                 option(flag<&ast::IsNullExpr::negated>(ikw<"NOT">)) +
-                 ikw<"NULL">) |
-             create<ast::BetweenExpr>(
-                 assign<&ast::BetweenExpr::operand>(ref<ArithConcat>) +
-                 option(flag<&ast::BetweenExpr::negated>(ikw<"NOT">)) +
-                 ikw<"BETWEEN"> +
-                 assign<&ast::BetweenExpr::low>(ref<ArithConcat>) +
-                 ikw<"AND"> +
-                 assign<&ast::BetweenExpr::high>(ref<ArithConcat>)) |
-             create<ast::LikeExpr>(
-                 assign<&ast::LikeExpr::operand>(ref<ArithConcat>) +
-                 option(flag<&ast::LikeExpr::negated>(ikw<"NOT">)) +
-                 (ikw<"LIKE"> |
-                  flag<&ast::LikeExpr::matches>(ikw<"MATCHES">)) +
-                 assign<&ast::LikeExpr::pattern>(ref<ArithConcat>)) |
-             create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<ArithConcat>) +
-                 assign<&ast::BinaryExpr::op>(OpCompare) +
-                 assign<&ast::BinaryExpr::right>(ref<ArithConcat>)) |
-             ref<ExistsExprR>       //
-             | ref<QuantifiedExprR>  //
-             | ref<ArithConcat>> {};
+  struct LikeExpression : rule<ref<ArithConcat> + option(
+      nest<ast::LikeExpr, &ast::LikeExpr::operand>(
+          option(flag<&ast::LikeExpr::negated>(ikw<"NOT">)) +
+          (ikw<"LIKE"> | flag<&ast::LikeExpr::matches>(ikw<"MATCHES">)) +
+          assign<&ast::LikeExpr::pattern>(ref<LikeExpression>) +
+          option(ikw<"ESCAPE"> + assign<&ast::LikeExpr::escape>(ref<StringLitR>))))> {};
 
-  struct Expression
-      : infix<Postfix, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpAnd) >> left(OpOr))> {};
+  struct ComparisonBase : rule<ref<QuantifiedExprR> | ref<ExistsExprR> | ref<LikeExpression>> {};
+  struct Comparison : infix<ComparisonBase, ast::BinaryExpr, left(OpCompare)> {};
+  struct Membership : rule<ref<Comparison> + option(
+      nest<ast::InExpr, &ast::InExpr::operand>(
+          option(flag<&ast::InExpr::negated>(ikw<"NOT">)) + ikw<"IN"> + lit<"("> +
+          (assign<&ast::InExpr::subquery>(ref<SelectStmt>) |
+           some(append<&ast::InExpr::values>(ref<Expression>), lit<",">)) + lit<")">))> {};
+  struct BetweenExpression : rule<ref<Membership> + many(
+      nest<ast::BetweenExpr, &ast::BetweenExpr::operand>(
+          option(flag<&ast::BetweenExpr::negated>(ikw<"NOT">)) + ikw<"BETWEEN"> +
+          assign<&ast::BetweenExpr::low>(ref<Membership>) + ikw<"AND"> +
+          assign<&ast::BetweenExpr::high>(ref<Membership>)))> {};
+  struct Postfix : rule<ref<BetweenExpression> + many(
+      nest<ast::IsNullExpr, &ast::IsNullExpr::operand>(
+          ikw<"IS"> + option(flag<&ast::IsNullExpr::negated>(ikw<"NOT">)) + ikw<"NULL">))> {};
+  struct LogicalNot : rule<ref<Postfix> |
+      create<ast::UnaryExpr>(assign<&ast::UnaryExpr::op>(ikw<"NOT">) +
+                            assign<&ast::UnaryExpr::operand>(ref<LogicalNot>))> {};
+  struct LogicalExpression : infix<LogicalNot, ast::BinaryExpr,
+      levels(left(OpAnd), left(OpOr))> {};
+
+  static constexpr auto LineNumber = ref<SignedNumber> | ref<ComponentRef>;
+  static constexpr auto PrefixFormat =
+      (as<ast::FormatOperator::ascii>(ikw<"ASCII">) |
+       as<ast::FormatOperator::column>(ikw<"COLUMN">) |
+       as<ast::FormatOperator::ord>(ikw<"ORD">)) + !lit<"(">;
+  struct Expression : rule<
+      create<ast::FormatExpr>(assign<&ast::FormatExpr::op>(PrefixFormat) +
+                             assign<&ast::FormatExpr::operand>(ref<Expression>)) |
+      (ref<LogicalExpression> + many(nest<ast::FormatExpr, &ast::FormatExpr::operand>(
+          assign<&ast::FormatExpr::op>(as<ast::FormatOperator::clipped>(ikw<"CLIPPED">) |
+              as<ast::FormatOperator::spaces>(ikw<"SPACE"> | ikw<"SPACES">)) |
+          (assign<&ast::FormatExpr::op>(as<ast::FormatOperator::wordwrap>(ikw<"WORDWRAP">)) +
+           option(ikw<"RIGHT"> + ikw<"MARGIN"> + assign<&ast::FormatExpr::rightMargin>(LineNumber))) |
+          (assign<&ast::FormatExpr::op>(as<ast::FormatOperator::using_>(ikw<"USING">)) +
+           assign<&ast::FormatExpr::format>(ref<Expression>)))) )> {};
 
   static constexpr auto ActualParam = ref<StarExprR> | ref<Expression>;
 
@@ -309,7 +321,7 @@ struct Informix : cursiv::GrammarSpec {
   struct NumberType
       : rule<assign<&ast::ScalarType::keyword>(
                  ikw<"BIGINT"> | ikw<"INTEGER"> | ikw<"INT"> |
-                 ikw<"SMALLINT"> | ikw<"SMALLFLOAT">) |
+                 ikw<"SMALLINT"> | ikw<"SMALLFLOAT"> | ikw<"REAL">) |
              (assign<&ast::ScalarType::keyword>(
                   ikw<"DECIMAL"> | ikw<"DEC"> | ikw<"NUMERIC"> |
                   ikw<"MONEY">) +
@@ -320,15 +332,8 @@ struct Informix : cursiv::GrammarSpec {
                      assign<&ast::ScalarType::size1>(ref<UINT>) +
                      lit<")">))> {};
 
-  static constexpr auto FromUnitExpr =
-      assign<&ast::DateTimeType::from>(AnyUnit) +
-      option(lit<"("> +
-             assign<&ast::DateTimeType::fromPrecision>(ref<UINT>) +
-             lit<")">);
-  static constexpr auto ToUnitExpr =
-      assign<&ast::DateTimeType::to>(AnyUnit) +
-      option(lit<"("> + assign<&ast::DateTimeType::toPrecision>(ref<UINT>) +
-             lit<")">);
+  static constexpr auto FromUnitExpr = FromUnit<ast::DateTimeType>;
+  static constexpr auto ToUnitExpr = ToUnit<ast::DateTimeType>;
 
   struct TimeType
       : rule<create<ast::DateTimeType>(
@@ -344,19 +349,19 @@ struct Informix : cursiv::GrammarSpec {
       : rule<assign<&ast::ScalarType::keyword>(ikw<"TEXT"> |
                                                ikw<"BYTE">)> {};
 
+  struct QualifiedTypeName : rule<Name + many(lit<"."> + Name)> {};
   struct IndirectType
-      : rule<ikw<"LIKE"> + assign<&ast::LikeType::table>(Name) + lit<"."> +
+      : rule<ikw<"LIKE"> + assign<&ast::LikeType::table>(ref<QualifiedTypeName>) + lit<"."> +
              assign<&ast::LikeType::column>(Name)> {};
 
   struct ArrayDimsR
       : rule<create<ast::ArrayDims>(
-                 lit<"["> + append<&ast::ArrayDims::sizes>(ref<UINT>) +
-                 many(lit<","> + append<&ast::ArrayDims::sizes>(ref<UINT>)) +
+                 lit<"["> + some(append<&ast::ArrayDims::sizes>(ref<UINT>), lit<",">) +
                  lit<"]">)> {};
 
   struct RecordType
       : rule<ikw<"RECORD"> + ikw<"LIKE"> +
-             assign<&ast::RecordType::likeTable>(Name) + lit<"."> +
+             assign<&ast::RecordType::likeTable>(ref<QualifiedTypeName>) + lit<"."> +
              lit<"*">> {};
 
   struct RecordTypeBody
@@ -397,9 +402,7 @@ struct Informix : cursiv::GrammarSpec {
   struct TypeDeclR
       : rule<create<ast::TypeDecl>(
                  ikw<"DEFINE"> +
-                 append<&ast::TypeDecl::groups>(ref<VarGroup>) +
-                 many(lit<","> +
-                      append<&ast::TypeDecl::groups>(ref<VarGroup>)))> {};
+                 some(append<&ast::TypeDecl::groups>(ref<VarGroup>), lit<",">)) + many(ref<SEMIS>)> {};
 
   // -------------------------------------------------------------- Statement
 
@@ -407,9 +410,7 @@ struct Informix : cursiv::GrammarSpec {
       : rule<create<ast::LetStmt>(
                  ikw<"LET"> +
                  assign<&ast::LetStmt::target>(ref<ComponentRef>) +
-                 lit<"="> + append<&ast::LetStmt::values>(ref<Expression>) +
-                 many(lit<","> +
-                      append<&ast::LetStmt::values>(ref<Expression>)))> {};
+                 lit<"="> + some(append<&ast::LetStmt::values>(ref<Expression>), lit<",">))> {};
 
   struct CallStmtR
       : rule<create<ast::CallStmt>(
@@ -449,22 +450,10 @@ struct Informix : cursiv::GrammarSpec {
                  ikw<"SLEEP"> +
                  assign<&ast::SleepStmt::seconds>(ref<Expression>))> {};
 
-  struct BkForeach
-      : rule<ikw<"FOREACH">, value<ast::BlockKind::foreach_>> {};
-  struct BkFor : rule<ikw<"FOR">, value<ast::BlockKind::for_>> {};
-  struct BkCase : rule<ikw<"CASE">, value<ast::BlockKind::case_>> {};
-  struct BkConstruct
-      : rule<ikw<"CONSTRUCT">, value<ast::BlockKind::construct>> {};
-  struct BkDisplay : rule<ikw<"DISPLAY">, value<ast::BlockKind::display>> {};
-  struct BkInput : rule<ikw<"INPUT">, value<ast::BlockKind::input>> {};
-  struct BkMenu : rule<ikw<"MENU">, value<ast::BlockKind::menu>> {};
-  struct BkReport : rule<ikw<"REPORT">, value<ast::BlockKind::report>> {};
-  struct BkWhile : rule<ikw<"WHILE">, value<ast::BlockKind::while_>> {};
-  struct BkProgram : rule<ikw<"PROGRAM">, value<ast::BlockKind::program>> {};
   static constexpr auto BlockKindWord =
-      ref<BkForeach> | ref<BkFor> | ref<BkCase> | ref<BkConstruct> |
-      ref<BkDisplay> | ref<BkInput> | ref<BkMenu> | ref<BkReport> |
-      ref<BkWhile>;
+      as<ast::BlockKind::foreach_>(ikw<"FOREACH">) | as<ast::BlockKind::for_>(ikw<"FOR">) | as<ast::BlockKind::case_>(ikw<"CASE">) | as<ast::BlockKind::construct>(ikw<"CONSTRUCT">) |
+      as<ast::BlockKind::display>(ikw<"DISPLAY">) | as<ast::BlockKind::input>(ikw<"INPUT">) | as<ast::BlockKind::menu>(ikw<"MENU">) | as<ast::BlockKind::report>(ikw<"REPORT">) |
+      as<ast::BlockKind::while_>(ikw<"WHILE">);
 
   struct ExitStmtR
       : rule<create<ast::ExitStmt>(
@@ -472,7 +461,7 @@ struct Informix : cursiv::GrammarSpec {
                  assign<&ast::ExitStmt::kind>(BlockKindWord)) |
              create<ast::ExitStmt>(
                  ikw<"EXIT"> +
-                 assign<&ast::ExitStmt::kind>(ref<BkProgram>) +
+                 assign<&ast::ExitStmt::kind>(as<ast::BlockKind::program>(ikw<"PROGRAM">)) +
                  option((lit<"("> +
                          assign<&ast::ExitStmt::programCode>(
                              ref<Expression>) +
@@ -592,9 +581,7 @@ struct Informix : cursiv::GrammarSpec {
   struct LocateStmtR
       : rule<create<ast::LocateStmt>(
                  ikw<"LOCATE"> +
-                 append<&ast::LocateStmt::vars>(ref<ComponentRef>) +
-                 many(lit<","> +
-                      append<&ast::LocateStmt::vars>(ref<ComponentRef>)) +
+                 some(append<&ast::LocateStmt::vars>(ref<ComponentRef>), lit<",">) +
                  ikw<"IN"> +
                  (flag<&ast::LocateStmt::inMemory>(ikw<"MEMORY">) |
                   (ikw<"FILE"> +
@@ -627,9 +614,7 @@ struct Informix : cursiv::GrammarSpec {
   struct ValidateStmtR
       : rule<create<ast::ValidateStmt>(
                  ikw<"VALIDATE"> +
-                 append<&ast::ValidateStmt::vars>(ref<ComponentRef>) +
-                 many(lit<","> +
-                      append<&ast::ValidateStmt::vars>(ref<ComponentRef>)) +
+                 some(append<&ast::ValidateStmt::vars>(ref<ComponentRef>), lit<",">) +
                  ikw<"LIKE"> +
                  append<&ast::ValidateStmt::likeExprs>(ref<Expression>) +
                  many(lit<","> + append<&ast::ValidateStmt::likeExprs>(
@@ -654,9 +639,7 @@ struct Informix : cursiv::GrammarSpec {
   struct KeyEventR
       : rule<create<ast::KeyEvent>(
                  ikw<"ON"> + ikw<"KEY"> + lit<"("> +
-                 append<&ast::KeyEvent::keys>(ref<Expression>) +
-                 many(lit<","> +
-                      append<&ast::KeyEvent::keys>(ref<Expression>)) +
+                 some(append<&ast::KeyEvent::keys>(ref<Expression>), lit<",">) +
                  lit<")"> +
                  many(append<&ast::KeyEvent::body>(ref<Statement>)))> {};
 
@@ -698,75 +681,33 @@ struct Informix : cursiv::GrammarSpec {
                      ref<KeyEventR>)) +
                  option(ikw<"END"> + ikw<"DISPLAY">))> {};
 
-  struct EvBeforeInput
-      : rule<ikw<"BEFORE"> + ikw<"INPUT">,
-             value<ast::FieldEventKind::beforeInput>> {};
-  struct EvAfterInput
-      : rule<ikw<"AFTER"> + ikw<"INPUT">,
-             value<ast::FieldEventKind::afterInput>> {};
-  struct EvBeforeRow
-      : rule<ikw<"BEFORE"> + ikw<"ROW">,
-             value<ast::FieldEventKind::beforeRow>> {};
-  struct EvAfterRow
-      : rule<ikw<"AFTER"> + ikw<"ROW">,
-             value<ast::FieldEventKind::afterRow>> {};
-  struct EvBeforeInsert
-      : rule<ikw<"BEFORE"> + ikw<"INSERT">,
-             value<ast::FieldEventKind::beforeInsert>> {};
-  struct EvAfterInsert
-      : rule<ikw<"AFTER"> + ikw<"INSERT">,
-             value<ast::FieldEventKind::afterInsert>> {};
-  struct EvBeforeDelete
-      : rule<ikw<"BEFORE"> + ikw<"DELETE">,
-             value<ast::FieldEventKind::beforeDelete>> {};
-  struct EvAfterDelete
-      : rule<ikw<"AFTER"> + ikw<"DELETE">,
-             value<ast::FieldEventKind::afterDelete>> {};
-  struct EvBeforeConstruct
-      : rule<ikw<"BEFORE"> + ikw<"CONSTRUCT">,
-             value<ast::FieldEventKind::beforeConstruct>> {};
-  struct EvAfterConstruct
-      : rule<ikw<"AFTER"> + ikw<"CONSTRUCT">,
-             value<ast::FieldEventKind::afterConstruct>> {};
-  struct EvBeforeField
-      : rule<ikw<"BEFORE"> + ikw<"FIELD">,
-             value<ast::FieldEventKind::beforeField>> {};
-  struct EvAfterField
-      : rule<ikw<"AFTER"> + ikw<"FIELD">,
-             value<ast::FieldEventKind::afterField>> {};
-  struct EvOnKey
-      : rule<ikw<"ON"> + ikw<"KEY">, value<ast::FieldEventKind::onKey>> {};
 
   struct FieldEventMoment
       : rule<create<ast::FieldEvent>(
                  assign<&ast::FieldEvent::kind>(
-                     ref<EvBeforeInput> | ref<EvAfterInput> |
-                     ref<EvBeforeRow> | ref<EvAfterRow> |
-                     ref<EvBeforeInsert> | ref<EvAfterInsert> |
-                     ref<EvBeforeDelete> | ref<EvAfterDelete>) +
+                     as<ast::FieldEventKind::beforeInput>(ikw<"BEFORE"> + ikw<"INPUT">) | as<ast::FieldEventKind::afterInput>(ikw<"AFTER"> + ikw<"INPUT">) |
+                     as<ast::FieldEventKind::beforeRow>(ikw<"BEFORE"> + ikw<"ROW">) | as<ast::FieldEventKind::afterRow>(ikw<"AFTER"> + ikw<"ROW">) |
+                     as<ast::FieldEventKind::beforeInsert>(ikw<"BEFORE"> + ikw<"INSERT">) | as<ast::FieldEventKind::afterInsert>(ikw<"AFTER"> + ikw<"INSERT">) |
+                     as<ast::FieldEventKind::beforeDelete>(ikw<"BEFORE"> + ikw<"DELETE">) | as<ast::FieldEventKind::afterDelete>(ikw<"AFTER"> + ikw<"DELETE">)) +
                  many(append<&ast::FieldEvent::body>(ref<Statement>)))> {};
 
   struct FieldEventConstructMoment
       : rule<create<ast::FieldEvent>(
-                 assign<&ast::FieldEvent::kind>(ref<EvBeforeConstruct> |
-                                                ref<EvAfterConstruct>) +
+                 assign<&ast::FieldEvent::kind>(as<ast::FieldEventKind::beforeConstruct>(ikw<"BEFORE"> + ikw<"CONSTRUCT">) |
+                                                as<ast::FieldEventKind::afterConstruct>(ikw<"AFTER"> + ikw<"CONSTRUCT">)) +
                  many(append<&ast::FieldEvent::body>(ref<Statement>)))> {};
 
   struct FieldEventField
       : rule<create<ast::FieldEvent>(
-                 assign<&ast::FieldEvent::kind>(ref<EvBeforeField> |
-                                                ref<EvAfterField>) +
-                 append<&ast::FieldEvent::fields>(ref<Expression>) +
-                 many(lit<","> +
-                      append<&ast::FieldEvent::fields>(ref<Expression>)) +
+                 assign<&ast::FieldEvent::kind>(as<ast::FieldEventKind::beforeField>(ikw<"BEFORE"> + ikw<"FIELD">) |
+                                                as<ast::FieldEventKind::afterField>(ikw<"AFTER"> + ikw<"FIELD">)) +
+                 some(append<&ast::FieldEvent::fields>(ref<Expression>), lit<",">) +
                  many(append<&ast::FieldEvent::body>(ref<Statement>)))> {};
 
   struct FieldEventKey
       : rule<create<ast::FieldEvent>(
-                 assign<&ast::FieldEvent::kind>(ref<EvOnKey>) + lit<"("> +
-                 append<&ast::FieldEvent::keys>(ref<Expression>) +
-                 many(lit<","> +
-                      append<&ast::FieldEvent::keys>(ref<Expression>)) +
+                 assign<&ast::FieldEvent::kind>(as<ast::FieldEventKind::onKey>(ikw<"ON"> + ikw<"KEY">)) + lit<"("> +
+                 some(append<&ast::FieldEvent::keys>(ref<Expression>), lit<",">) +
                  lit<")"> +
                  many(append<&ast::FieldEvent::body>(ref<Statement>)))> {};
 
@@ -867,20 +808,19 @@ struct Informix : cursiv::GrammarSpec {
   struct MenuEventBefore
       : rule<create<ast::MenuEvent>(
                  flag<&ast::MenuEvent::beforeMenu>(ikw<"BEFORE"> +
-                                                        ikw<"MENU">))> {};
+                                                        ikw<"MENU">) +
+                 many(append<&ast::MenuEvent::body>(ref<Statement>)))> {};
 
+  static constexpr auto MenuOptionText =
+      assign<&ast::MenuEvent::optionName>(ref<Expression>) +
+      option(assign<&ast::MenuEvent::description>(ref<Expression>)) +
+      option(ikw<"HELP"> + assign<&ast::MenuEvent::help>(ref<SignedNumber>));
   struct MenuEventCommand
       : rule<create<ast::MenuEvent>(
                  ikw<"COMMAND"> +
-                 option(ikw<"KEY"> + lit<"("> +
-                        append<&ast::MenuEvent::keys>(ref<Expression>) +
-                        many(lit<","> + append<&ast::MenuEvent::keys>(
-                                            ref<Expression>)) +
-                        lit<")">) +
-                 assign<&ast::MenuEvent::description>(ref<Expression>) +
-                 option(assign<&ast::MenuEvent::command>(ref<Expression>)) +
-                 option(ikw<"HELP"> +
-                        assign<&ast::MenuEvent::help>(ref<SignedNumber>)) +
+                 ((ikw<"KEY"> + lit<"("> +
+                   some(append<&ast::MenuEvent::keys>(ref<Expression>), lit<",">) +
+                   lit<")"> + option(MenuOptionText)) | MenuOptionText) +
                  many(append<&ast::MenuEvent::body>(ref<Statement>)))> {};
 
   struct MenuStmtR
@@ -891,14 +831,11 @@ struct Informix : cursiv::GrammarSpec {
                      ref<MenuEventBefore> | ref<MenuEventCommand>)) +
                  ikw<"END"> + ikw<"MENU">)> {};
 
-  struct MoNext : rule<ikw<"NEXT">, value<ast::MenuOptionAction::next>> {};
-  struct MoShow : rule<ikw<"SHOW">, value<ast::MenuOptionAction::show>> {};
-  struct MoHide : rule<ikw<"HIDE">, value<ast::MenuOptionAction::hide>> {};
 
   struct MenuOptionStmtR
       : rule<create<ast::MenuOptionStmt>(
                  assign<&ast::MenuOptionStmt::action>(
-                     ref<MoNext> | ref<MoShow> | ref<MoHide>) +
+                     as<ast::MenuOptionAction::next>(ikw<"NEXT">) | as<ast::MenuOptionAction::show>(ikw<"SHOW">) | as<ast::MenuOptionAction::hide>(ikw<"HIDE">)) +
                  ikw<"OPTION"> +
                  (flag<&ast::MenuOptionStmt::all>(ikw<"ALL">) |
                   append<&ast::MenuOptionStmt::options>(ref<Expression>)) +
@@ -908,27 +845,21 @@ struct Informix : cursiv::GrammarSpec {
   struct ErrorStmtR
       : rule<create<ast::ErrorStmt>(
                  ikw<"ERROR"> +
-                 append<&ast::ErrorStmt::items>(ref<Expression>) +
-                 many(lit<","> +
-                      append<&ast::ErrorStmt::items>(ref<Expression>)) +
+                 some(append<&ast::ErrorStmt::items>(ref<Expression>), lit<",">) +
                  option(assign<&ast::ErrorStmt::attributes>(
                      ref<AttributeListR>)))> {};
 
   struct MessageStmtR
       : rule<create<ast::MessageStmt>(
                  ikw<"MESSAGE"> +
-                 append<&ast::MessageStmt::items>(ref<Expression>) +
-                 many(lit<","> +
-                      append<&ast::MessageStmt::items>(ref<Expression>)) +
+                 some(append<&ast::MessageStmt::items>(ref<Expression>), lit<",">) +
                  option(assign<&ast::MessageStmt::attributes>(
                      ref<AttributeListR>)))> {};
 
   struct PromptStmtR
       : rule<create<ast::PromptStmt>(
                  ikw<"PROMPT"> +
-                 append<&ast::PromptStmt::items>(ref<Expression>) +
-                 many(lit<","> +
-                      append<&ast::PromptStmt::items>(ref<Expression>)) +
+                 some(append<&ast::PromptStmt::items>(ref<Expression>), lit<",">) +
                  option(assign<&ast::PromptStmt::attributes>(
                      ref<AttributeListR>)) +
                  ikw<"FOR"> +
@@ -942,88 +873,35 @@ struct Informix : cursiv::GrammarSpec {
                             ref<KeyEventR>)) +
                         ikw<"END"> + ikw<"PROMPT">))> {};
 
-  struct OptKindMessage
-      : rule<ikw<"MESSAGE">, value<ast::OptionKind::messageLine>> {};
-  struct OptKindPrompt
-      : rule<ikw<"PROMPT">, value<ast::OptionKind::promptLine>> {};
-  struct OptKindMenu
-      : rule<ikw<"MENU">, value<ast::OptionKind::menuLine>> {};
-  struct OptKindComment
-      : rule<ikw<"COMMENT">, value<ast::OptionKind::commentLine>> {};
-  struct OptKindError
-      : rule<ikw<"ERROR">, value<ast::OptionKind::errorLine>> {};
-  struct OptKindForm
-      : rule<ikw<"FORM">, value<ast::OptionKind::formLine>> {};
 
   struct OptionItemLine
       : rule<create<ast::OptionItem>(
                  assign<&ast::OptionItem::kind>(
-                     ref<OptKindMessage> | ref<OptKindPrompt> |
-                     ref<OptKindMenu> | ref<OptKindComment> |
-                     ref<OptKindError> | ref<OptKindForm>) +
+                     as<ast::OptionKind::messageLine>(ikw<"MESSAGE">) | as<ast::OptionKind::promptLine>(ikw<"PROMPT">) |
+                     as<ast::OptionKind::menuLine>(ikw<"MENU">) | as<ast::OptionKind::commentLine>(ikw<"COMMENT">) |
+                     as<ast::OptionKind::errorLine>(ikw<"ERROR">) | as<ast::OptionKind::formLine>(ikw<"FORM">)) +
                  ikw<"LINE"> +
                  assign<&ast::OptionItem::value>(ref<Expression>))> {};
 
-  struct OptKindInputAttr
-      : rule<ikw<"INPUT">, value<ast::OptionKind::inputAttr>> {};
-  struct OptKindDisplayAttr
-      : rule<ikw<"DISPLAY">, value<ast::OptionKind::displayAttr>> {};
 
   struct OptionItemAttrs
       : rule<create<ast::OptionItem>(
-                 assign<&ast::OptionItem::kind>(ref<OptKindInputAttr> |
-                                                ref<OptKindDisplayAttr>) +
+                 assign<&ast::OptionItem::kind>(as<ast::OptionKind::inputAttr>(ikw<"INPUT">) |
+                                                as<ast::OptionKind::displayAttr>(ikw<"DISPLAY">)) +
                  assign<&ast::OptionItem::attributes>(
                      ref<AttributeListR>))> {};
 
-  struct OptKindInputWrap
-      : rule<ikw<"INPUT"> + ikw<"WRAP">,
-             value<ast::OptionKind::inputWrap>> {};
-  struct OptKindInputNoWrap
-      : rule<ikw<"INPUT"> + ikw<"NO"> + ikw<"WRAP">,
-             value<ast::OptionKind::inputNoWrap>> {};
-  struct OptKindInsertKey
-      : rule<ikw<"INSERT"> + ikw<"KEY">,
-             value<ast::OptionKind::insertKey>> {};
-  struct OptKindDeleteKey
-      : rule<ikw<"DELETE"> + ikw<"KEY">,
-             value<ast::OptionKind::deleteKey>> {};
-  struct OptKindNextKey
-      : rule<ikw<"NEXT"> + ikw<"KEY">, value<ast::OptionKind::nextKey>> {};
-  struct OptKindPreviousKey
-      : rule<ikw<"PREVIOUS"> + ikw<"KEY">,
-             value<ast::OptionKind::previousKey>> {};
-  struct OptKindAcceptKey
-      : rule<ikw<"ACCEPT"> + ikw<"KEY">,
-             value<ast::OptionKind::acceptKey>> {};
-  struct OptKindHelpFile
-      : rule<ikw<"HELP"> + ikw<"FILE">, value<ast::OptionKind::helpFile>> {
-  };
-  struct OptKindHelpKey
-      : rule<ikw<"HELP"> + ikw<"KEY">, value<ast::OptionKind::helpKey>> {};
-  struct OptKindSqlIntOn
-      : rule<ikw<"SQL"> + ikw<"INTERRUPT"> + ikw<"ON">,
-             value<ast::OptionKind::sqlInterruptOn>> {};
-  struct OptKindSqlIntOff
-      : rule<ikw<"SQL"> + ikw<"INTERRUPT"> + ikw<"OFF">,
-             value<ast::OptionKind::sqlInterruptOff>> {};
-  struct OptKindFieldOrderC
-      : rule<ikw<"FIELD"> + ikw<"ORDER"> + ikw<"CONSTRAINED">,
-             value<ast::OptionKind::fieldOrderConstrained>> {};
-  struct OptKindFieldOrderU
-      : rule<ikw<"FIELD"> + ikw<"ORDER"> + ikw<"UNCONSTRAINED">,
-             value<ast::OptionKind::fieldOrderUnconstrained>> {};
 
   struct OptionItemKeyword
       : rule<create<ast::OptionItem>(
                  assign<&ast::OptionItem::kind>(
-                     ref<OptKindInputWrap> | ref<OptKindInputNoWrap> |
-                     ref<OptKindInsertKey> | ref<OptKindDeleteKey> |
-                     ref<OptKindNextKey> | ref<OptKindPreviousKey> |
-                     ref<OptKindAcceptKey> | ref<OptKindHelpFile> |
-                     ref<OptKindHelpKey> | ref<OptKindSqlIntOn> |
-                     ref<OptKindSqlIntOff> | ref<OptKindFieldOrderC> |
-                     ref<OptKindFieldOrderU>) +
+                     as<ast::OptionKind::inputWrap>(ikw<"INPUT"> + ikw<"WRAP">) | as<ast::OptionKind::inputNoWrap>(ikw<"INPUT"> + ikw<"NO"> + ikw<"WRAP">) |
+                     as<ast::OptionKind::insertKey>(ikw<"INSERT"> + ikw<"KEY">) | as<ast::OptionKind::deleteKey>(ikw<"DELETE"> + ikw<"KEY">) |
+                     as<ast::OptionKind::nextKey>(ikw<"NEXT"> + ikw<"KEY">) | as<ast::OptionKind::previousKey>(ikw<"PREVIOUS"> + ikw<"KEY">) |
+                     as<ast::OptionKind::acceptKey>(ikw<"ACCEPT"> + ikw<"KEY">) | as<ast::OptionKind::helpFile>(ikw<"HELP"> + ikw<"FILE">) |
+                     as<ast::OptionKind::helpKey>(ikw<"HELP"> + ikw<"KEY">) | as<ast::OptionKind::sqlInterruptOn>(ikw<"SQL"> + ikw<"INTERRUPT"> + ikw<"ON">) |
+                     as<ast::OptionKind::sqlInterruptOff>(ikw<"SQL"> + ikw<"INTERRUPT"> + ikw<"OFF">) | as<ast::OptionKind::fieldOrderConstrained>(ikw<"FIELD"> + ikw<"ORDER"> + ikw<"CONSTRAINED">) |
+                     as<ast::OptionKind::fieldOrderUnconstrained>(ikw<"FIELD"> + ikw<"ORDER"> + ikw<"UNCONSTRAINED">)) +
                  option(assign<&ast::OptionItem::value>(ref<Expression>)))> {
   };
 
@@ -1038,21 +916,14 @@ struct Informix : cursiv::GrammarSpec {
                  many(lit<","> +
                       append<&ast::OptionsStmt::items>(OptionItemR)))> {};
 
-  struct ClearKindForm
-      : rule<ikw<"FORM">, value<ast::ClearTarget::form>> {};
-  struct ClearKindWindow
-      : rule<ikw<"WINDOW">, value<ast::ClearTarget::window>> {};
-  struct ClearKindScreen
-      : rule<option(ikw<"WINDOW">) + ikw<"SCREEN">,
-             value<ast::ClearTarget::screen>> {};
 
   struct ClearStmtR
       : rule<create<ast::ClearStmt>(
                  ikw<"CLEAR"> +
-                 (assign<&ast::ClearStmt::target>(ref<ClearKindForm>) |
-                  (assign<&ast::ClearStmt::target>(ref<ClearKindWindow>) +
+                 (assign<&ast::ClearStmt::target>(as<ast::ClearTarget::form>(ikw<"FORM">)) |
+                  (assign<&ast::ClearStmt::target>(as<ast::ClearTarget::window>(ikw<"WINDOW">)) +
                    assign<&ast::ClearStmt::windowName>(Name)) |
-                  assign<&ast::ClearStmt::target>(ref<ClearKindScreen>) |
+                  assign<&ast::ClearStmt::target>(as<ast::ClearTarget::screen>(option(ikw<"WINDOW">) + ikw<"SCREEN">)) |
                   (append<&ast::ClearStmt::fields>(ref<Expression>) +
                    many(lit<","> + append<&ast::ClearStmt::fields>(
                                         ref<Expression>)))))> {};
@@ -1087,33 +958,26 @@ struct Informix : cursiv::GrammarSpec {
                  ikw<"FROM"> +
                  assign<&ast::OpenFormStmt::from>(ref<Expression>))> {};
 
-  struct WinKindPrompt
-      : rule<ikw<"PROMPT">, value<ast::WindowClauseKind::promptLine>> {};
-  struct WinKindForm
-      : rule<ikw<"FORM">, value<ast::WindowClauseKind::formLine>> {};
-  struct WinKindMenu
-      : rule<ikw<"MENU">, value<ast::WindowClauseKind::menuLine>> {};
-  struct WinKindMessage
-      : rule<ikw<"MESSAGE">, value<ast::WindowClauseKind::messageLine>> {};
-  struct WinKindComment
-      : rule<ikw<"COMMENT">, value<ast::WindowClauseKind::commentLine>> {};
 
   static constexpr auto LinePos =
-      assign<&ast::WindowAttrClause::line>(ref<SignedNumber>) |
-      (ikw<"FIRST"> + option(lit<"+"> + SignedNumberText)) |
-      (ikw<"LAST"> + option(lit<"-"> + SignedNumberText));
+      (assign<&ast::WindowAttrClause::position>(as<ast::WindowLinePosition::first>(ikw<"FIRST">)) +
+       option(lit<"+"> + assign<&ast::WindowAttrClause::offset>(LineNumber))) |
+      (assign<&ast::WindowAttrClause::position>(as<ast::WindowLinePosition::last>(ikw<"LAST">)) +
+       option(lit<"-"> + assign<&ast::WindowAttrClause::offset>(LineNumber))) |
+      (!(ikw<"FIRST"> | ikw<"LAST">) + assign<&ast::WindowAttrClause::line>(LineNumber));
 
   struct WindowLineClause
       : rule<create<ast::WindowAttrClause>(
                  assign<&ast::WindowAttrClause::kind>(
-                     ref<WinKindPrompt> | ref<WinKindForm> |
-                     ref<WinKindMenu> | ref<WinKindMessage>) +
+                     as<ast::WindowClauseKind::promptLine>(ikw<"PROMPT">) | as<ast::WindowClauseKind::formLine>(ikw<"FORM">) |
+                     as<ast::WindowClauseKind::menuLine>(ikw<"MENU">) | as<ast::WindowClauseKind::messageLine>(ikw<"MESSAGE">)) +
                  ikw<"LINE"> + LinePos)> {};
 
   struct WindowCommentClause
       : rule<create<ast::WindowAttrClause>(
-                 assign<&ast::WindowAttrClause::kind>(ref<WinKindComment>) +
-                 ikw<"LINE"> + (LinePos | ikw<"OFF">))> {};
+                 assign<&ast::WindowAttrClause::kind>(as<ast::WindowClauseKind::commentLine>(ikw<"COMMENT">)) +
+                 ikw<"LINE"> + (LinePos |
+                     assign<&ast::WindowAttrClause::position>(as<ast::WindowLinePosition::off>(ikw<"OFF">))))> {};
 
   struct OpenWindowStmtR
       : rule<create<ast::OpenWindowStmt>(
@@ -1148,9 +1012,7 @@ struct Informix : cursiv::GrammarSpec {
   struct ScrollStmtR
       : rule<create<ast::ScrollStmt>(
                  ikw<"SCROLL"> +
-                 append<&ast::ScrollStmt::fields>(ref<Expression>) +
-                 many(lit<","> +
-                      append<&ast::ScrollStmt::fields>(ref<Expression>)) +
+                 some(append<&ast::ScrollStmt::fields>(ref<Expression>), lit<",">) +
                  (flag<&ast::ScrollStmt::up>(ikw<"UP">) |
                   ikw<"DOWN">) +
                  option(ikw<"BY"> +
@@ -1161,10 +1023,9 @@ struct Informix : cursiv::GrammarSpec {
 
   struct TableRefR
       : rule<create<ast::TableRef>(
-                 option((assign<&ast::TableRef::qualifier>(Name) +
-                         option(lit<"@"> + Name) + lit<":">) |
-                        assign<&ast::TableRef::qualifier>(
-                            ref<STRING_DQ> | ref<STRING_SQ>)) +
+                 option(assign<&ast::TableRef::qualifier>(Name) +
+                        option(lit<"@"> + assign<&ast::TableRef::server>(Name)) + lit<":">) +
+                 option(assign<&ast::TableRef::owner>(Name | ref<STRING_DQ> | ref<STRING_SQ>) + lit<".">) +
                  assign<&ast::TableRef::name>(Name))> {};
 
   struct ColumnDefR
@@ -1174,7 +1035,7 @@ struct Informix : cursiv::GrammarSpec {
                   ((flag<&ast::ColumnDef::isByte>(ikw<"BYTE">) |
                     flag<&ast::ColumnDef::isText>(ikw<"TEXT">)) +
                    option(ikw<"IN"> +
-                          (ikw<"TABLE"> |
+                          (flag<&ast::ColumnDef::inTable>(ikw<"TABLE">) |
                            assign<&ast::ColumnDef::storeIn>(Name))))) +
                  option(flag<&ast::ColumnDef::notNull>(
                      ikw<"NOT"> + ikw<"NULL">)))> {};
@@ -1182,10 +1043,7 @@ struct Informix : cursiv::GrammarSpec {
   struct UniqueConstraintR
       : rule<create<ast::UniqueConstraint>(
                  ikw<"UNIQUE"> + lit<"("> +
-                 option(append<&ast::UniqueConstraint::columns>(Name) +
-                        many(lit<","> +
-                             append<&ast::UniqueConstraint::columns>(
-                                 Name))) +
+                 some(append<&ast::UniqueConstraint::columns>(Name), lit<",">) +
                  lit<")"> +
                  option(ikw<"CONSTRAINT"> +
                         assign<&ast::UniqueConstraint::constraintName>(
@@ -1290,9 +1148,7 @@ struct Informix : cursiv::GrammarSpec {
                  option(flag<&ast::SelectStmt::all>(ikw<"ALL">) |
                         flag<&ast::SelectStmt::distinct>(
                             ikw<"DISTINCT"> | ikw<"UNIQUE">)) +
-                 append<&ast::SelectStmt::items>(ref<SelectItemR>) +
-                 many(lit<","> +
-                      append<&ast::SelectStmt::items>(ref<SelectItemR>)) +
+                 some(append<&ast::SelectStmt::items>(ref<SelectItemR>), lit<",">) +
                  option(ikw<"INTO"> +
                         append<&ast::SelectStmt::intoVars>(
                             ref<ComponentRef>) +
@@ -1300,9 +1156,7 @@ struct Informix : cursiv::GrammarSpec {
                              append<&ast::SelectStmt::intoVars>(
                                  ref<ComponentRef>))) +
                  ikw<"FROM"> +
-                 append<&ast::SelectStmt::from>(ref<FromItemR>) +
-                 many(lit<","> +
-                      append<&ast::SelectStmt::from>(ref<FromItemR>)) +
+                 some(append<&ast::SelectStmt::from>(ref<FromItemR>), lit<",">) +
                  option(ikw<"WHERE"> +
                         assign<&ast::SelectStmt::where>(ref<Expression>)) +
                  option(ikw<"GROUP"> + ikw<"BY"> +
@@ -1413,18 +1267,6 @@ struct Informix : cursiv::GrammarSpec {
                             ref<ComponentRef> | ref<StringLitR>)) +
                  assign<&ast::UnloadStmt::select>(ref<SelectStmt>))> {};
 
-  struct FetchNext : rule<ikw<"NEXT">, value<ast::FetchKind::next>> {};
-  struct FetchPrevPrior
-      : rule<ikw<"PREVIOUS"> | ikw<"PRIOR">,
-             value<ast::FetchKind::previous>> {};
-  struct FetchFirst : rule<ikw<"FIRST">, value<ast::FetchKind::first>> {};
-  struct FetchLast : rule<ikw<"LAST">, value<ast::FetchKind::last>> {};
-  struct FetchCurrent
-      : rule<ikw<"CURRENT">, value<ast::FetchKind::current>> {};
-  struct FetchRelKind
-      : rule<ikw<"RELATIVE">, value<ast::FetchKind::relative>> {};
-  struct FetchAbsKind
-      : rule<ikw<"ABSOLUTE">, value<ast::FetchKind::absolute>> {};
 
   struct DeclareCursorStmtR
       : rule<create<ast::DeclareCursorStmt>(
@@ -1459,14 +1301,14 @@ struct Informix : cursiv::GrammarSpec {
   struct FetchStmtR
       : rule<create<ast::FetchStmt>(
                  ikw<"FETCH"> +
-                 option((assign<&ast::FetchStmt::kind>(ref<FetchRelKind> |
-                                                       ref<FetchAbsKind>) +
+                 option((assign<&ast::FetchStmt::kind>(as<ast::FetchKind::relative>(ikw<"RELATIVE">) |
+                                                       as<ast::FetchKind::absolute>(ikw<"ABSOLUTE">)) +
                          assign<&ast::FetchStmt::offset>(
                              ref<Expression>)) |
                         assign<&ast::FetchStmt::kind>(
-                            ref<FetchNext> | ref<FetchPrevPrior> |
-                            ref<FetchFirst> | ref<FetchLast> |
-                            ref<FetchCurrent>)) +
+                            as<ast::FetchKind::next>(ikw<"NEXT">) | as<ast::FetchKind::previous>(ikw<"PREVIOUS"> | ikw<"PRIOR">) |
+                            as<ast::FetchKind::first>(ikw<"FIRST">) | as<ast::FetchKind::last>(ikw<"LAST">) |
+                            as<ast::FetchKind::current>(ikw<"CURRENT">))) +
                  assign<&ast::FetchStmt::cursorName>(Name) +
                  option(ikw<"INTO"> +
                         append<&ast::FetchStmt::intoVars>(
@@ -1533,7 +1375,7 @@ struct Informix : cursiv::GrammarSpec {
       : rule<create<ast::SetLockModeStmt>(
                  ikw<"SET"> + ikw<"LOCK"> + ikw<"MODE"> + ikw<"TO"> +
                  (flag<&ast::SetLockModeStmt::wait>(
-                      ikw<"WAIT"> + option(ikw<"SECONDS">)) |
+                      ikw<"WAIT">) + option(assign<&ast::SetLockModeStmt::seconds>(ref<Expression>)) |
                   (ikw<"NOT"> + ikw<"WAIT">)))> {};
 
   struct SetExplainStmtR
@@ -1542,25 +1384,13 @@ struct Informix : cursiv::GrammarSpec {
                  (flag<&ast::SetExplainStmt::on>(ikw<"ON">) |
                   ikw<"OFF">))> {};
 
-  struct IsoCursorStab
-      : rule<ikw<"CURSOR"> + ikw<"STABILITY">,
-             value<ast::IsolationLevel::cursorStability>> {};
-  struct IsoDirty
-      : rule<ikw<"DIRTY"> + ikw<"READ">,
-             value<ast::IsolationLevel::dirtyRead>> {};
-  struct IsoCommitted
-      : rule<ikw<"COMMITTED"> + ikw<"READ">,
-             value<ast::IsolationLevel::committedRead>> {};
-  struct IsoRepeatable
-      : rule<ikw<"REPEATABLE"> + ikw<"READ">,
-             value<ast::IsolationLevel::repeatableRead>> {};
 
   struct SetIsolationStmtR
       : rule<create<ast::SetIsolationStmt>(
                  ikw<"SET"> + ikw<"ISOLATION"> + ikw<"TO"> +
                  assign<&ast::SetIsolationStmt::level>(
-                     ref<IsoCursorStab> | ref<IsoDirty> |
-                     ref<IsoCommitted> | ref<IsoRepeatable>))> {};
+                     as<ast::IsolationLevel::cursorStability>(ikw<"CURSOR"> + ikw<"STABILITY">) | as<ast::IsolationLevel::dirtyRead>(ikw<"DIRTY"> + ikw<"READ">) |
+                     as<ast::IsolationLevel::committedRead>(ikw<"COMMITTED"> + ikw<"READ">) | as<ast::IsolationLevel::repeatableRead>(ikw<"REPEATABLE"> + ikw<"READ">)))> {};
 
   struct SetLogStmtR
       : rule<create<ast::SetLogStmt>(
@@ -1582,82 +1412,42 @@ struct Informix : cursiv::GrammarSpec {
       : rule<create<ast::CloseDatabaseStmt> + ikw<"CLOSE"> +
              ikw<"DATABASE">> {};
 
-  struct TxnBegin : rule<ikw<"BEGIN"> + ikw<"WORK">, value<ast::TxnKind::begin>> {};
-  struct TxnCommit
-      : rule<ikw<"COMMIT"> + ikw<"WORK">, value<ast::TxnKind::commit>> {};
-  struct TxnRollback
-      : rule<ikw<"ROLLBACK"> + ikw<"WORK">,
-             value<ast::TxnKind::rollback>> {};
 
   struct TxnStmtR
       : rule<create<ast::TxnStmt>(
                  assign<&ast::TxnStmt::kind>(
-                     ref<TxnBegin> | ref<TxnCommit> | ref<TxnRollback>))> {
+                     as<ast::TxnKind::begin>(ikw<"BEGIN"> + ikw<"WORK">) | as<ast::TxnKind::commit>(ikw<"COMMIT"> + ikw<"WORK">) | as<ast::TxnKind::rollback>(ikw<"ROLLBACK"> + ikw<"WORK">)))> {
   };
 
-  struct WhenNotFound
-      : rule<ikw<"NOT"> + ikw<"FOUND">,
-             value<ast::WheneverCondition::notFound>> {};
-  struct WhenSqlError
-      : rule<option(ikw<"ANY">) + (ikw<"SQLERROR"> | ikw<"ERROR">),
-             value<ast::WheneverCondition::sqlError>> {};
-  struct WhenSqlWarning
-      : rule<ikw<"SQLWARNING"> | ikw<"WARNING">,
-             value<ast::WheneverCondition::sqlWarning>> {};
 
-  struct FlowContinue
-      : rule<ikw<"CONTINUE">, value<ast::WheneverAction::continue_>> {};
-  struct FlowStop : rule<ikw<"STOP">, value<ast::WheneverAction::stop>> {};
-  struct FlowCall : rule<ikw<"CALL">, value<ast::WheneverAction::call>> {};
-  struct FlowGoto
-      : rule<(ikw<"GO"> + ikw<"TO">) | ikw<"GOTO">,
-             value<ast::WheneverAction::goto_>> {};
 
   struct WheneverStmtR
       : rule<create<ast::WheneverStmt>(
                  ikw<"WHENEVER"> +
                  assign<&ast::WheneverStmt::condition>(
-                     ref<WhenNotFound> | ref<WhenSqlError> |
-                     ref<WhenSqlWarning>) +
-                 ((assign<&ast::WheneverStmt::action>(ref<FlowContinue> |
-                                                      ref<FlowStop>)) |
-                  (assign<&ast::WheneverStmt::action>(ref<FlowCall>) +
+                     as<ast::WheneverCondition::notFound>(ikw<"NOT"> + ikw<"FOUND">) | as<ast::WheneverCondition::sqlError>(option(ikw<"ANY">) + (ikw<"SQLERROR"> | ikw<"ERROR">)) |
+                     as<ast::WheneverCondition::sqlWarning>(ikw<"SQLWARNING"> | ikw<"WARNING">)) +
+                 ((assign<&ast::WheneverStmt::action>(as<ast::WheneverAction::continue_>(ikw<"CONTINUE">) |
+                                                      as<ast::WheneverAction::stop>(ikw<"STOP">))) |
+                  (assign<&ast::WheneverStmt::action>(as<ast::WheneverAction::call>(ikw<"CALL">)) +
                    assign<&ast::WheneverStmt::target>(Name)) |
-                  (assign<&ast::WheneverStmt::action>(ref<FlowGoto>) +
+                  (assign<&ast::WheneverStmt::action>(as<ast::WheneverAction::goto_>((ikw<"GO"> + ikw<"TO">) | ikw<"GOTO">)) +
                    option(lit<":">) +
                    assign<&ast::WheneverStmt::target>(Name))))> {};
 
   // ---------------------------------------------------------------- Report
 
-  struct RcMarginL
-      : rule<ikw<"LEFT"> + ikw<"MARGIN">,
-             value<ast::ReportClauseKind::leftMargin>> {};
-  struct RcMarginR
-      : rule<ikw<"RIGHT"> + ikw<"MARGIN">,
-             value<ast::ReportClauseKind::rightMargin>> {};
-  struct RcMarginT
-      : rule<ikw<"TOP"> + ikw<"MARGIN">,
-             value<ast::ReportClauseKind::topMargin>> {};
-  struct RcMarginB
-      : rule<ikw<"BOTTOM"> + ikw<"MARGIN">,
-             value<ast::ReportClauseKind::bottomMargin>> {};
-  struct RcPageLen
-      : rule<ikw<"PAGE"> + ikw<"LENGTH">,
-             value<ast::ReportClauseKind::pageLength>> {};
-  struct RcTopOfPage
-      : rule<ikw<"TOP"> + ikw<"OF"> + ikw<"PAGE">,
-             value<ast::ReportClauseKind::topOfPage>> {};
 
   struct ReportClauseMargin
       : rule<create<ast::ReportClause>(
                  assign<&ast::ReportClause::kind>(
-                     ref<RcMarginL> | ref<RcMarginR> | ref<RcMarginT> |
-                     ref<RcMarginB> | ref<RcPageLen>) +
+                     as<ast::ReportClauseKind::leftMargin>(ikw<"LEFT"> + ikw<"MARGIN">) | as<ast::ReportClauseKind::rightMargin>(ikw<"RIGHT"> + ikw<"MARGIN">) | as<ast::ReportClauseKind::topMargin>(ikw<"TOP"> + ikw<"MARGIN">) |
+                     as<ast::ReportClauseKind::bottomMargin>(ikw<"BOTTOM"> + ikw<"MARGIN">) | as<ast::ReportClauseKind::pageLength>(ikw<"PAGE"> + ikw<"LENGTH">)) +
                  assign<&ast::ReportClause::value>(ref<SignedNumber>))> {};
 
   struct ReportClauseTopOfPage
       : rule<create<ast::ReportClause>(
-                 assign<&ast::ReportClause::kind>(ref<RcTopOfPage>) +
+                 assign<&ast::ReportClause::kind>(as<ast::ReportClauseKind::topOfPage>(ikw<"TOP"> + ikw<"OF"> + ikw<"PAGE">)) +
                  assign<&ast::ReportClause::value>(ref<StringLitR>))> {};
 
   static constexpr auto ReportClauseR = ref<ReportClauseMargin> |
@@ -1723,13 +1513,8 @@ struct Informix : cursiv::GrammarSpec {
       : rule<create<ast::PrintItem>(
                  flag<&ast::PrintItem::isText>(ikw<"TEXT">) +
                  assign<&ast::PrintItem::value>(ref<ComponentRef>))> {};
-  struct PrintItemExpr
-      : rule<create<ast::PrintItem>(
-                 assign<&ast::PrintItem::value>(ref<Expression>) +
-                 option(ikw<"SPACE"> | ikw<"SPACES">) +
-                 option(ikw<"WORDWRAP"> +
-                        option(ikw<"RIGHT"> + ikw<"MARGIN"> +
-                               SignedNumberText)))> {};
+  struct PrintItemExpr : rule<create<ast::PrintItem>(
+      assign<&ast::PrintItem::value>(ref<Expression>))> {};
 
   static constexpr auto PrintItemR =
       ref<PrintItemColumn> | ref<PrintItemPageno> | ref<PrintItemLineno> |
@@ -1742,7 +1527,7 @@ struct Informix : cursiv::GrammarSpec {
                          many(lit<","> + append<&ast::PrintStmt::items>(
                                              PrintItemR))) |
                   (ikw<"FILE"> +
-                   assign<&ast::PrintStmt::file>(ref<StringLitR>))))> {};
+                   assign<&ast::PrintStmt::file>(ref<StringLitR>))) + option(flag<&ast::PrintStmt::suppressNewline>(some(ref<SEMIS>))))> {};
 
   struct SkipStmtR
       : rule<create<ast::SkipStmt>(
@@ -1765,36 +1550,21 @@ struct Informix : cursiv::GrammarSpec {
                                  ref<Expression>))) +
                  lit<")">)> {};
 
-  struct RsPageHeader
-      : rule<option(ikw<"FIRST">) + ikw<"PAGE"> + ikw<"HEADER">,
-             value<ast::FormatSectionKind::pageHeader>> {};
-  struct RsPageTrailer
-      : rule<ikw<"PAGE"> + ikw<"TRAILER">,
-             value<ast::FormatSectionKind::pageTrailer>> {};
-  struct RsEveryRow
-      : rule<ikw<"ON"> + ikw<"EVERY"> + ikw<"ROW">,
-             value<ast::FormatSectionKind::everyRow>> {};
-  struct RsLastRow
-      : rule<ikw<"ON"> + ikw<"LAST"> + ikw<"ROW">,
-             value<ast::FormatSectionKind::lastRow>> {};
-  struct RsBeforeGroup
-      : rule<ikw<"BEFORE"> + ikw<"GROUP"> + ikw<"OF">,
-             value<ast::FormatSectionKind::beforeGroup>> {};
-  struct RsAfterGroup
-      : rule<ikw<"AFTER"> + ikw<"GROUP"> + ikw<"OF">,
-             value<ast::FormatSectionKind::afterGroup>> {};
 
-  struct FormatSectionR
-      : rule<create<ast::FormatSection>(
-                 (assign<&ast::FormatSection::kind>(
-                      ref<RsPageHeader> | ref<RsPageTrailer> |
-                      ref<RsEveryRow> | ref<RsLastRow>) |
-                  (assign<&ast::FormatSection::kind>(ref<RsBeforeGroup> |
-                                                     ref<RsAfterGroup>) +
-                   assign<&ast::FormatSection::groupVar>(
-                       ref<ComponentRef>))) +
-                 many(append<&ast::FormatSection::body>(ref<Statement>)))> {
-  };
+  static constexpr auto FormatSectionHeader =
+      assign<&ast::FormatSection::kind>(
+          as<ast::FormatSectionKind::pageHeader>(ikw<"PAGE"> + ikw<"HEADER">) |
+          as<ast::FormatSectionKind::pageTrailer>(ikw<"PAGE"> + ikw<"TRAILER">) |
+          as<ast::FormatSectionKind::everyRow>(ikw<"ON"> + ikw<"EVERY"> + ikw<"ROW">) |
+          as<ast::FormatSectionKind::lastRow>(ikw<"ON"> + ikw<"LAST"> + ikw<"ROW">)) |
+      (flag<&ast::FormatSection::firstPage>(ikw<"FIRST">) +
+       assign<&ast::FormatSection::kind>(as<ast::FormatSectionKind::pageHeader>(ikw<"PAGE"> + ikw<"HEADER">))) |
+      (assign<&ast::FormatSection::kind>(
+           as<ast::FormatSectionKind::beforeGroup>(ikw<"BEFORE"> + ikw<"GROUP"> + ikw<"OF">) |
+           as<ast::FormatSectionKind::afterGroup>(ikw<"AFTER"> + ikw<"GROUP"> + ikw<"OF">)) +
+       assign<&ast::FormatSection::groupVar>(ref<ComponentRef>));
+  struct FormatSectionR : rule<create<ast::FormatSection>(FormatSectionHeader +
+      many(append<&ast::FormatSection::body>(ref<Statement>)))> {};
 
   struct FormatReportR
       : rule<create<ast::FormatReport>(
@@ -1806,7 +1576,7 @@ struct Informix : cursiv::GrammarSpec {
 
   // -------------------------------------------------------------- Program
 
-  struct UnlabelledStatement
+  struct NonPrintStatement
       : rule<ref<LetStmtR>                    //
              | ref<CallStmtR>                  //
              | ref<CreateTableStmtR>            //
@@ -1861,7 +1631,6 @@ struct Informix : cursiv::GrammarSpec {
              | ref<FinishReportStmtR>                                                              //
              | ref<PauseStmtR>                                                                      //
              | ref<NeedStmtR>                                                                        //
-             | ref<PrintStmtR>                                                                        //
              | ref<SkipStmtR>                                                                          //
              | ref<OutputToReportStmtR>                                                                 //
              | ref<ClearStmtR>                                                                           //
@@ -1885,11 +1654,13 @@ struct Informix : cursiv::GrammarSpec {
              | ref<MenuOptionStmtR>                                                                                        //
              | ref<NextFieldStmtR>> {};
 
+  struct UnlabelledStatement : rule<ref<PrintStmtR> |
+      (ref<NonPrintStatement> + many(ref<SEMIS>))> {};
+
   struct Statement
       : rule<create<ast::LabeledStmt>(
-                 assign<&ast::LabeledStmt::label>(Name) + lit<":"> +
-                 assign<&ast::LabeledStmt::inner>(
-                     ref<UnlabelledStatement>)) |
+                 option(ikw<"LABEL">) + assign<&ast::LabeledStmt::label>(Name) + lit<":"> +
+                 assign<&ast::LabeledStmt::inner>(ref<Statement>)) |
              ref<UnlabelledStatement>> {};
 
   struct FunctionDefR
@@ -1904,7 +1675,7 @@ struct Informix : cursiv::GrammarSpec {
                         lit<")">) +
                  many(append<&ast::FunctionDef::types>(ref<TypeDeclR>)) +
                  many(append<&ast::FunctionDef::body>(ref<Statement>)) +
-                 ikw<"END"> + ikw<"FUNCTION">)> {};
+                 ikw<"END"> + ikw<"FUNCTION">) + many(ref<SEMIS>)> {};
 
   struct OutputReportR
       : rule<create<ast::OutputReport>(
@@ -1943,7 +1714,7 @@ struct Informix : cursiv::GrammarSpec {
                                             ref<ComponentRef>))) +
                  option(assign<&ast::ReportDef::format>(
                      ref<FormatReportR>)) +
-                 ikw<"END"> + ikw<"REPORT">)> {};
+                 ikw<"END"> + ikw<"REPORT">) + many(ref<SEMIS>)> {};
 
   struct GlobalsDeclR
       : rule<create<ast::GlobalsDecl>(
@@ -1951,28 +1722,29 @@ struct Informix : cursiv::GrammarSpec {
                  (assign<&ast::GlobalsDecl::fromFile>(
                       ref<STRING_DQ> | ref<STRING_SQ>) |
                   (many(append<&ast::GlobalsDecl::types>(ref<TypeDeclR>)) +
-                   ikw<"END"> + ikw<"GLOBALS">)))> {};
+                   ikw<"END"> + ikw<"GLOBALS">))) + many(ref<SEMIS>)> {};
 
   struct MainBlockR
       : rule<create<ast::MainBlock>(
                  ikw<"MAIN"> +
                  many(append<&ast::MainBlock::types>(ref<TypeDeclR>)) +
                  many(append<&ast::MainBlock::body>(ref<Statement>)) +
-                 ikw<"END"> + ikw<"MAIN">)> {};
+                 ikw<"END"> + ikw<"MAIN">) + many(ref<SEMIS>)> {};
 
   struct ProgramR
-      : rule<create<ast::Program>(
+      : rule<create<ast::Program>(many(ref<SEMIS>) +
                  option(assign<&ast::Program::database>(
-                     ref<DatabaseDeclR>)) +
+                     ref<DatabaseDeclR>) + many(ref<SEMIS>)) +
                  option(assign<&ast::Program::globals>(
                      ref<GlobalsDeclR>)) +
                  many(append<&ast::Program::types>(ref<TypeDeclR>)) +
-                 assign<&ast::Program::main>(ref<MainBlockR>) +
+                 many(append<&ast::Program::definitions>(ref<FunctionDefR> | ref<ReportDefR>)) +
+                 option(assign<&ast::Program::main>(ref<MainBlockR>)) +
                  many(append<&ast::Program::definitions>(
                      ref<FunctionDefR> | ref<ReportDefR>)))> {};
 
   using entry = ProgramR;
-  using ignore = list<WS, SL_COMMENT, SL_COMMENT2>;
+  using ignored = list<WS, SL_COMMENT, SL_COMMENT2, BLOCK_COMMENT, CLASSIC_LINE>;
 };
 
 }  // namespace informix

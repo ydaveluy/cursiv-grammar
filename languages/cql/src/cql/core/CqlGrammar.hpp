@@ -10,10 +10,20 @@
 namespace cql {
 
 inline constexpr auto unquote = [](std::string_view t,
-                                   std::pmr::memory_resource*) {
-  return t.substr(1, t.size() - 2);
+                                   std::pmr::memory_resource* memory) {
+  const auto body = t.substr(1, t.size() - 2);
+  if (body.find("\\\"") == body.npos) return body;
+  const auto room = cursiv::text_room(memory, body.size());
+  std::size_t size = 0;
+  for (std::size_t i = 0; i < body.size(); ++i) {
+    if (body[i] == '\\' && i + 1 < body.size()) {
+      if (body[i + 1] != '"') room[size++] = '\\';
+      ++i;
+    }
+    room[size++] = body[i];
+  }
+  return std::string_view(room.data(), size);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Cql : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -30,7 +40,9 @@ struct Cql : cursiv::GrammarSpec {
 
   struct CHARSTRING1 : terminal<some(cr<R"(^ \t\r\n()=<>/")">)> {};
   struct CHARSTRING2
-      : terminal<through(lit<"\"">, lit<"\"">), Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> +
+                             many((lit<"\\"> + any) | cr<R"(^"\\)">) +
+                             lit<"\"">)> {};
 
   struct COMPARITOR_SYMBOL
       : terminal<lit<">="> | lit<"<="> | lit<"<>"> | lit<"=="> | lit<"="> |
@@ -77,11 +89,11 @@ struct Cql : cursiv::GrammarSpec {
             many(append<&ast::SortIndex::modifiers>(ref<Modifier>)))> {};
 
   struct ScopedClause;
-  struct CqlQueryRule;
+  struct CqlQuery;
 
   struct SearchClause
       : rule<create<ast::GroupClause>(
-                 lit<"("> + assign<&ast::GroupClause::query>(ref<CqlQueryRule>) +
+                 lit<"("> + assign<&ast::GroupClause::query>(ref<CqlQuery>) +
                  lit<")">) |
              create<ast::SearchClause>(
                  assign<&ast::SearchClause::index>(ref<Term>) +
@@ -99,7 +111,7 @@ struct Cql : cursiv::GrammarSpec {
                  assign<&ast::BooleanExpr::right>(ref<SearchClause>)) |
              ref<SearchClause>> {};
 
-  struct CqlQueryRule
+  struct CqlQuery
       : rule<create<ast::CqlQuery>(
             many(append<&ast::CqlQuery::prefixes>(ref<PrefixAssignment>)) +
             assign<&ast::CqlQuery::clause>(ref<ScopedClause>))> {};
@@ -112,7 +124,7 @@ struct Cql : cursiv::GrammarSpec {
                    some(append<&ast::Cql::sortSpec>(ref<SortIndex>))))> {};
 
   using entry = SortedQuery;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 }  // namespace cql

@@ -39,6 +39,7 @@ struct CallExpr : cursiv::Extends<Expr> {
 };
 
 struct IntLit : cursiv::Extends<Expr> {
+  boolean character; // octal C literal has native type CHAR
   int64 value;
 };
 
@@ -159,6 +160,7 @@ struct EnumType : cursiv::Extends<TypeNode> {
 };
 
 struct SubrangeType : cursiv::Extends<TypeNode> {
+  string_view base; // optional PIM4 base identifier before [low..high]
   Expr* low;
   Expr* high;
 };

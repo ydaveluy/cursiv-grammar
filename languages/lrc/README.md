@@ -31,17 +31,13 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+LRC lyric files combine metadata and timestamped text. A line may carry multiple timestamps.
+
 ```
 [00:12.00]Line 1 lyrics
 [00:17.20]Line 2 lyrics
 [00:21.10]Line 3 lyrics
 ```
-
-An [LRC](https://en.wikipedia.org/wiki/LRC_(file_format)) file is a sequence
-of timestamped lyric lines. `Document.lines` holds one `Line` per
-`[mm:ss.hh]text`: `minutes`, `seconds` and `hundredths` are read as separate
-numbers, and `text` is everything up to the end of the line — brackets
-included, since nothing after the first `]` opens a new timestamp.
 
 ## The command line
 

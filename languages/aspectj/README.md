@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+AspectJ extends Java with aspects, pointcuts, advice, inter-type declarations and declare forms. Names remain source text in the AST.
+
 ```java
 package com.example;
 
@@ -47,17 +49,6 @@ public aspect LoggingAspect {
     }
 }
 ```
-
-Java plus the aspect constructs: aspects and their per-clauses, pointcut
-declarations and every primitive pointcut designator, advice
-(before/after/around, returning/throwing), inter-type declarations, `declare`
-forms, and the annotation-style forms (`@Aspect`, `@Before("...")`,
-`@Pointcut("...")`...) that decorate an ordinary Java class or method. No
-symbol table: names are held as text, not resolved cross references, so
-there is nothing to rename or go to the definition of.
-
-There is no upstream example corpus for this grammar: `example/` is empty, and
-the sample documents live under `tests/`.
 
 ## The command line
 

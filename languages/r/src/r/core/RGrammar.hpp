@@ -3,6 +3,7 @@
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "r/core/ast.hpp"
+#include "r/core/LiteralText.hpp"
 
 namespace r {
 
@@ -10,9 +11,14 @@ struct R : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\f\r\n)">)> {};
   struct SL_COMMENT : terminal<lit<"#"> + many(cr<R"(^\r\n)">)> {};
 
-  static constexpr auto LETTER = uc::L;
-  static constexpr auto word_boundary = LETTER | d | cr<"_.">;
-  struct ID : terminal<(LETTER | (lit<"."> + !d)) +
+  static constexpr auto LETTER = uc::L | uc::Nl;
+  static constexpr auto word_boundary = LETTER | uc::Nd | cr<"_.">;
+  static constexpr auto reserved = kw<"if"> | kw<"else"> | kw<"repeat"> |
+      kw<"while"> | kw<"function"> | kw<"for"> | kw<"in"> | kw<"next"> |
+      kw<"break"> | kw<"TRUE"> | kw<"FALSE"> | kw<"NULL"> | kw<"Inf"> |
+      kw<"NaN"> | kw<"NA"> | kw<"NA_integer_"> | kw<"NA_real_"> |
+      kw<"NA_complex_"> | kw<"NA_character_">;
+  struct ID : terminal<!reserved + (LETTER | (lit<"."> + !d)) +
                        many(LETTER | uc::Nd | cr<"_.">)> {};
 
   static constexpr auto HEXDIGIT = cr<"0-9a-fA-F">;
@@ -30,17 +36,13 @@ struct R : cursiv::GrammarSpec {
   struct COMPLEX_LIT : terminal<(HEXADECIMAL | DECIMAL) + lit<"i">> {};
 
   static constexpr auto ESC = lit<"\\"> + any;
-  inline static constexpr auto unquote = [](std::string_view t) {
-    return t.substr(1, t.size() - 2);
-  };
-  using Unquoted = text_conv<unquote>;
   struct BACKTICK_ID
-      : terminal<lit<"`"> + many(ESC | (!cr<R"(\\`)"> + any)) + lit<"`">,
-                 Unquoted> {};
+      : terminal<as<unquote>(lit<"`"> + some(ESC | (!cr<R"(\\`)"> + any)) +
+                             lit<"`">)> {};
   struct STRING_LIT
-      : terminal<(lit<"\""> + many(ESC | (!cr<R"(\\")"> + any)) + lit<"\"">) |
-                     (lit<"'"> + many(ESC | (!cr<R"(\\')"> + any)) + lit<"'">),
-                 Unquoted> {};
+      : terminal<as<unquote>(
+            (lit<"\""> + many(ESC | (!cr<R"(\\")"> + any)) + lit<"\"">) |
+            (lit<"'"> + many(ESC | (!cr<R"(\\')"> + any)) + lit<"'">))> {};
 
   struct RawDashes {};
   template <auto Quote, auto Open, auto Close>
@@ -53,15 +55,15 @@ struct R : cursiv::GrammarSpec {
     return t.substr(fence, t.size() - 2 * fence + 1);
   };
   struct RAW_STRING
-      : terminal<cr<"rR"> + (RawString<lit<"\"">, lit<"(">, lit<")">> |
-                             RawString<lit<"\"">, lit<"[">, lit<"]">> |
-                             RawString<lit<"\"">, lit<"{">, lit<"}">> |
-                             RawString<lit<"\"">, lit<"|">, lit<"|">> |
-                             RawString<lit<"'">, lit<"(">, lit<")">> |
-                             RawString<lit<"'">, lit<"[">, lit<"]">> |
-                             RawString<lit<"'">, lit<"{">, lit<"}">> |
-                             RawString<lit<"'">, lit<"|">, lit<"|">>),
-                 text_conv<rawBody>> {};
+      : terminal<as<rawBody>(cr<"rR"> +
+                             (RawString<lit<"\"">, lit<"(">, lit<")">> |
+                              RawString<lit<"\"">, lit<"[">, lit<"]">> |
+                              RawString<lit<"\"">, lit<"{">, lit<"}">> |
+                              RawString<lit<"\"">, lit<"|">, lit<"|">> |
+                              RawString<lit<"'">, lit<"(">, lit<")">> |
+                              RawString<lit<"'">, lit<"[">, lit<"]">> |
+                              RawString<lit<"'">, lit<"{">, lit<"}">> |
+                              RawString<lit<"'">, lit<"|">, lit<"|">>))> {};
 
   struct USER_OP : terminal<lit<"%"> + many(cr<R"(^%\r\n)">) + lit<"%">> {};
 
@@ -82,7 +84,7 @@ struct R : cursiv::GrammarSpec {
   static constexpr auto TildeOp = lit<"~">;
   static constexpr auto RightAssignOp = lit<"->>"> | lit<"->">;
   static constexpr auto LeftAssignOp = lit<"<<-"> | lit<"<-"> | lit<":=">;
-  static constexpr auto EqAssignOp = lit<"=">;
+  static constexpr auto EqAssignOp = lit<"=", !lit<"=">>;
   static constexpr auto PipeOp = ref<USER_OP> | lit<"|>">;
 
   // A statement ends at an explicit `;`, or, if the next token cannot
@@ -101,7 +103,7 @@ struct R : cursiv::GrammarSpec {
       return token;
   };
 
-  struct ParenExprRule
+  struct ParenExpr
       : rule<create<ast::ParenExpr>(
             lit<"("> + assign<&ast::ParenExpr::inner>(ref<Expr<false>>) +
             lit<")">)> {};
@@ -113,34 +115,34 @@ struct R : cursiv::GrammarSpec {
                          lit<"}">)> {};
 
   template <bool Lines>
-  struct IfExprRule
+  struct IfExpr
       : rule<create<ast::IfExpr>(
             kw<"if"> + lit<"("> + assign<&ast::IfExpr::cond>(ref<Expr<false>>) +
             lit<")"> + assign<&ast::IfExpr::thenBranch>(ref<Expr<Lines>>) +
             option(commit(kw<"else">, assign<&ast::IfExpr::elseBranch>(ref<Expr<Lines>>))))> {};
 
   template <bool Lines>
-  struct ForExprRule
+  struct ForExpr
       : rule<create<ast::ForExpr>(
-            kw<"for"> + lit<"("> + assign<&ast::ForExpr::var>(ref<ID>) +
+            kw<"for"> + lit<"("> + assign<&ast::ForExpr::var>(ref<ID> | ref<BACKTICK_ID>) +
             kw<"in"> + assign<&ast::ForExpr::seq>(ref<Expr<false>>) + lit<")"> +
             assign<&ast::ForExpr::body>(ref<Expr<Lines>>))> {};
 
   template <bool Lines>
-  struct WhileExprRule
+  struct WhileExpr
       : rule<create<ast::WhileExpr>(
             kw<"while"> + lit<"("> +
             assign<&ast::WhileExpr::cond>(ref<Expr<false>>) + lit<")"> +
             assign<&ast::WhileExpr::body>(ref<Expr<Lines>>))> {};
 
   template <bool Lines>
-  struct RepeatExprRule
+  struct RepeatExpr
       : rule<create<ast::RepeatExpr>(
             kw<"repeat"> + assign<&ast::RepeatExpr::body>(ref<Expr<Lines>>))> {
   };
 
   template <bool Lines>
-  struct HelpExprRule
+  struct HelpExpr
       : rule<create<ast::HelpExpr>(
             lit<"?"> + assign<&ast::HelpExpr::operand>(ref<Expr<Lines>>))> {};
 
@@ -154,50 +156,49 @@ struct R : cursiv::GrammarSpec {
   struct FunctionDefExpr
       : rule<create<ast::FunctionDef>(
             (kw<"function"> | lit<"\\">)+lit<"("> +
-            option(
-                some(append<&ast::FunctionDef::params>(ref<Param>), lit<",">)) +
+            many(append<&ast::FunctionDef::params>(ref<Param>), lit<",">) +
             lit<")"> + assign<&ast::FunctionDef::body>(ref<Expr<Lines>>))> {};
 
-  struct NextExprRule : rule<create<ast::NextStmt>(kw<"next">)> {};
-  struct BreakExprRule : rule<create<ast::BreakStmt>(kw<"break">)> {};
+  struct NextExpr : rule<create<ast::NextStmt>(kw<"next">)> {};
+  struct BreakExpr : rule<create<ast::BreakStmt>(kw<"break">)> {};
 
-  struct IdentExprRule
+  struct IdentExpr
       : rule<assign<&ast::Ident::name>(ref<ID>) |
              flag<&ast::Ident::quoted>(
                  assign<&ast::Ident::name>(ref<BACKTICK_ID>))> {};
-  struct StringExprRule
+  struct StringExpr
       : rule<assign<&ast::StringLit::text>(ref<STRING_LIT>) |
              flag<&ast::StringLit::raw>(
                  assign<&ast::StringLit::text>(ref<RAW_STRING>))> {};
-  struct HexExprRule : rule<assign<&ast::HexLit::text>(ref<HEX_LIT>)> {};
-  struct IntExprRule : rule<assign<&ast::IntLit::text>(ref<INT_LIT>)> {};
-  struct FloatExprRule : rule<assign<&ast::FloatLit::text>(ref<FLOAT_LIT>)> {};
-  struct ComplexExprRule
+  struct HexExpr : rule<assign<&ast::HexLit::text>(ref<HEX_LIT>)> {};
+  struct IntExpr : rule<assign<&ast::IntLit::text>(ref<INT_LIT>)> {};
+  struct FloatExpr : rule<assign<&ast::FloatLit::text>(ref<FLOAT_LIT>)> {};
+  struct ComplexExpr
       : rule<assign<&ast::ComplexLit::text>(ref<COMPLEX_LIT>)> {};
 
-  struct NullExprRule : rule<create<ast::NullLit>(kw<"NULL">)> {};
-  struct NaExprRule : rule<assign<&ast::NaLit::text>(
+  struct NullExpr : rule<create<ast::NullLit>(kw<"NULL">)> {};
+  struct NaExpr : rule<assign<&ast::NaLit::text>(
                           kw<"NA"> | kw<"NA_integer_"> | kw<"NA_real_"> |
                           kw<"NA_character_"> | kw<"NA_complex_">)> {};
-  struct PlaceholderRule : rule<create<ast::Placeholder>(lit<"_">)> {};
-  struct InfExprRule : rule<create<ast::InfLit>(kw<"Inf">)> {};
-  struct NanExprRule : rule<create<ast::NanLit>(kw<"NaN">)> {};
-  struct TrueExprRule : rule<create<ast::TrueLit>(kw<"TRUE">)> {};
-  struct FalseExprRule : rule<create<ast::FalseLit>(kw<"FALSE">)> {};
+  struct Placeholder : rule<create<ast::Placeholder>(lit<"_">)> {};
+  struct InfExpr : rule<create<ast::InfLit>(kw<"Inf">)> {};
+  struct NanExpr : rule<create<ast::NanLit>(kw<"NaN">)> {};
+  struct TrueExpr : rule<create<ast::TrueLit>(kw<"TRUE">)> {};
+  struct FalseExpr : rule<create<ast::FalseLit>(kw<"FALSE">)> {};
 
   template <bool Lines>
   struct Primary
-      : rule<ref<ParenExprRule> | ref<BlockExpr> | ref<IfExprRule<Lines>>  //
-             | ref<ForExprRule<Lines>> | ref<WhileExprRule<Lines>> |
-             ref<RepeatExprRule<Lines>>                                //
-             | ref<HelpExprRule<Lines>> | ref<FunctionDefExpr<Lines>>  //
-             | ref<NextExprRule> | ref<BreakExprRule>                  //
-             | ref<StringExprRule> | ref<PlaceholderRule> | ref<HexExprRule> |
-             ref<ComplexExprRule>                     //
-             | ref<FloatExprRule> | ref<IntExprRule>  //
-             | ref<NullExprRule> | ref<NaExprRule> | ref<InfExprRule> |
-             ref<NanExprRule> | ref<TrueExprRule> | ref<FalseExprRule>  //
-             | ref<IdentExprRule>> {};
+      : rule<ref<ParenExpr> | ref<BlockExpr> | ref<IfExpr<Lines>>  //
+             | ref<ForExpr<Lines>> | ref<WhileExpr<Lines>> |
+             ref<RepeatExpr<Lines>>                                //
+             | ref<HelpExpr<Lines>> | ref<FunctionDefExpr<Lines>>  //
+             | ref<NextExpr> | ref<BreakExpr>                  //
+             | ref<StringExpr> | ref<Placeholder> | ref<HexExpr> |
+             ref<ComplexExpr>                     //
+             | ref<FloatExpr> | ref<IntExpr>  //
+             | ref<NullExpr> | ref<NaExpr> | ref<InfExpr> |
+             ref<NanExpr> | ref<TrueExpr> | ref<FalseExpr>  //
+             | ref<IdentExpr>> {};
 
   static constexpr auto ArgForms =
       (assign<&ast::Arg::name>(kw<"..."> | kw<"."> | ref<ID> |
@@ -224,8 +225,8 @@ struct R : cursiv::GrammarSpec {
              many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
                       Continue<Lines>(assign<&ast::BinaryExpr::op>(
                           NamespaceOp | ComponentOp)) +
-                      assign<&ast::BinaryExpr::right>(ref<IdentExprRule> |
-                                                      ref<StringExprRule>)) |
+                      assign<&ast::BinaryExpr::right>(ref<IdentExpr> |
+                                                      ref<StringExpr>)) |
                   nest<ast::IndexExpr, &ast::IndexExpr::object>(
                       Continue<Lines>(
                           flag<&ast::IndexExpr::listAccess>(lit<"[[">)) +
@@ -258,14 +259,14 @@ struct R : cursiv::GrammarSpec {
              | ref<Power<Lines>>> {};
 
   template <bool Lines>
-  struct ComparisonLevel : infix<UnarySign<Lines>, &ast::BinaryExpr::left,
-                                 &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                                 (left(ref<InfixOp<Lines, RangeOp>>) >>
-                                  left(ref<InfixOp<Lines, lit<"=>">>>) >>
-                                  left(ref<InfixOp<Lines, PipeOp>>) >>
-                                  left(ref<InfixOp<Lines, MulDivOp>>) >>
-                                  left(ref<InfixOp<Lines, AddSubOp>>) >>
-                                  left(ref<InfixOp<Lines, ComparisonOp>>))> {};
+  struct ComparisonLevel
+      : infix<UnarySign<Lines>, ast::BinaryExpr,
+              levels(left(ref<InfixOp<Lines, RangeOp>>),
+                     left(ref<InfixOp<Lines, lit<"=>">>>),
+                     left(ref<InfixOp<Lines, PipeOp>>),
+                     left(ref<InfixOp<Lines, MulDivOp>>),
+                     left(ref<InfixOp<Lines, AddSubOp>>),
+                     nonassoc(ref<InfixOp<Lines, ComparisonOp>>))> {};
 
   template <bool Lines>
   struct UnaryNot
@@ -275,10 +276,9 @@ struct R : cursiv::GrammarSpec {
              | ref<ComparisonLevel<Lines>>> {};
 
   template <bool Lines>
-  struct OrLevel : infix<UnaryNot<Lines>, &ast::BinaryExpr::left,
-                         &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                         (left(ref<InfixOp<Lines, AndOp>>) >>
-                          left(ref<InfixOp<Lines, OrOp>>))> {};
+  struct OrLevel : infix<UnaryNot<Lines>, ast::BinaryExpr,
+                         levels(left(ref<InfixOp<Lines, AndOp>>),
+                                left(ref<InfixOp<Lines, OrOp>>))> {};
 
   template <bool Lines>
   struct UnaryFormula
@@ -288,21 +288,20 @@ struct R : cursiv::GrammarSpec {
              | ref<OrLevel<Lines>>> {};
 
   template <bool Lines>
-  struct FormulaLevel
-      : infix<UnaryFormula<Lines>, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<InfixOp<Lines, TildeOp>>)> {};
+  struct FormulaLevel : infix<UnaryFormula<Lines>, ast::BinaryExpr,
+                              left(ref<InfixOp<Lines, TildeOp>>)> {};
 
   template <bool Lines>
-  struct Assignment : infix<FormulaLevel<Lines>, &ast::AssignExpr::target,
-                            &ast::AssignExpr::op, &ast::AssignExpr::value,
-                            (left(ref<InfixOp<Lines, RightAssignOp>>) >>
-                             right(ref<InfixOp<Lines, LeftAssignOp>>) >>
-                             right(ref<InfixOp<Lines, EqAssignOp>>))> {};
+  struct Assignment : infix<FormulaLevel<Lines>, ast::AssignExpr,
+                            levels(left(ref<InfixOp<Lines, RightAssignOp>>),
+                                   right(ref<InfixOp<Lines, LeftAssignOp>>),
+                                   right(ref<InfixOp<Lines, EqAssignOp>>)),
+                            &ast::AssignExpr::target, &ast::AssignExpr::op,
+                            &ast::AssignExpr::value> {};
 
   template <bool Lines>
-  struct Expr
-      : infix<Assignment<Lines>, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<InfixOp<Lines, lit<"?">>>)> {};
+  struct Expr : infix<Assignment<Lines>, ast::BinaryExpr,
+                      left(ref<InfixOp<Lines, lit<"?">>>)> {};
 
   struct Program
       : rule<create<ast::Program>(
@@ -310,7 +309,7 @@ struct R : cursiv::GrammarSpec {
                                   Eos + many(lit<";">)))> {};
 
   using entry = Program;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<SL_COMMENT>;
 };
 

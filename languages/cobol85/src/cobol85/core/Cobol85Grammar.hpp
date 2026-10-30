@@ -27,7 +27,6 @@ inline constexpr auto unquoteCobol = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<unquoteCobol>;
 
 // A multi-word phrase (`GREATER THAN OR EQUAL TO`, `WITH TEST AFTER`) has no
 // single terminal to `assign<>` from; wrapping it in a rule with this
@@ -35,7 +34,6 @@ using Unquoted = cursiv::text_conv<unquoteCobol>;
 inline constexpr auto rawSpan = [](std::string_view t, std::pmr::memory_resource*) {
   return t;
 };
-using RawSpan = cursiv::text_conv<rawSpan>;
 
 struct Cobol85 : cursiv::GrammarSpec {
   // Identifiers carry internal hyphens (WORKING-STORAGE-COUNTER is one
@@ -185,10 +183,10 @@ struct Cobol85 : cursiv::GrammarSpec {
   struct IDENT : terminal<!Reserved + some(cr<"0-9a-zA-Z">) +
                           many(some(cr<"-_">) + some(cr<"0-9a-zA-Z">))> {};
 
-  struct STRINGLIT
+  struct RAW_STRINGLIT
       : terminal<(lit<"\""> + many(lit<"\"\""> | cr<R"(^"\r\n)">) + lit<"\"">) |
-                     (lit<"'"> + many(lit<"''"> | cr<R"(^'\r\n)">) + lit<"'">),
-                 Unquoted> {};
+                 (lit<"'"> + many(lit<"''"> | cr<R"(^'\r\n)">) + lit<"'">)> {};
+  struct STRINGLIT : rule<as<unquoteCobol>(ref<RAW_STRINGLIT>)> {};
   struct HEXLIT : terminal<cr<"Xx"> + ((lit<"\""> + some(cr<"0-9A-F">) + lit<"\"">) |
                                        (lit<"'"> + some(cr<"0-9A-F">) + lit<"'">))> {};
   struct NULLLIT
@@ -230,16 +228,16 @@ struct Cobol85 : cursiv::GrammarSpec {
   struct SignedBasis;
   struct AllWord;
   struct AllOperand;
-  struct IdentifierRule;
+  struct Identifier;
   struct QualifierStep;
   struct SubscriptList;
   struct RefMod;
-  struct FunctionCallRule;
-  struct SpecialRegisterRule;
+  struct FunctionCall;
+  struct SpecialRegister;
   struct IdentifierOrRegister;
   struct SimpleLit;
   struct CicsLit;
-  struct LiteralRule;
+  struct Literal;
   struct ConditionRule;
   struct AndCondition;
   struct CombinableCondition;
@@ -252,11 +250,11 @@ struct Cobol85 : cursiv::GrammarSpec {
 
   struct Statement;
   struct AcceptStatement;
-  struct AddStatementRule;
-  struct SubtractStatementRule;
-  struct MultiplyStatementRule;
-  struct DivideStatementRule;
-  struct ComputeStatementRule;
+  struct AddStatement;
+  struct SubtractStatement;
+  struct MultiplyStatement;
+  struct DivideStatement;
+  struct ComputeStatement;
   struct AlterStatement;
   struct CallStatement;
   struct CancelStatement;
@@ -296,12 +294,12 @@ struct Cobol85 : cursiv::GrammarSpec {
   struct StringStatement;
   struct TerminateStatement;
   struct UnstringStatement;
-  struct UseStatementRule;
+  struct UseStatement;
   struct WriteStatement;
   struct Paragraph;
-  struct ProcedureSectionRule;
-  struct DeclarativeRule;
-  struct ProcedureDivisionRule;
+  struct ProcedureSection;
+  struct Declarative;
+  struct ProcedureDivision;
 
   struct DataDescriptionEntry;
   struct FileDescriptionEntry;
@@ -311,11 +309,11 @@ struct Cobol85 : cursiv::GrammarSpec {
   struct CommunicationDescriptionEntry;
   struct LibraryDescriptionEntry;
   struct DataBaseSectionEntry;
-  struct DataDivisionRule;
-  struct IdentificationDivisionRule;
+  struct DataDivision;
+  struct IdentificationDivision;
 
-  struct ProgramUnitRule;
-  struct CompilationUnitRule;
+  struct ProgramUnit;
+  struct CompilationUnit;
 
   // =========================== operands ===========================
 
@@ -324,7 +322,7 @@ struct Cobol85 : cursiv::GrammarSpec {
       : rule<create<ast::ArithOperand> +
              assign<&ast::ArithOperand::value>(ref<AllWord>)> {};
 
-  struct IdentifierRule
+  struct Identifier
       : rule<create<ast::Identifier> +
              assign<&ast::Identifier::name>(ref<CobolWord>) +
              many((ikw<"OF"> | ikw<"IN">) + append<&ast::Identifier::qualifiers>(ref<CobolWord>)) +
@@ -335,7 +333,7 @@ struct Cobol85 : cursiv::GrammarSpec {
              option(lit<"("> + assign<&ast::Identifier::refModStart>(ref<ArithExpr>) + lit<":"> +
                     option(assign<&ast::Identifier::refModLength>(ref<ArithExpr>)) + lit<")">)> {};
 
-  struct FunctionCallRule
+  struct FunctionCall
       : rule<create<ast::FunctionCall> + ikw<"FUNCTION">+
              assign<&ast::FunctionCall::name>(
                  ikw<"INTEGER"> | ikw<"LENGTH"> | ikw<"RANDOM"> | ikw<"SUM"> |
@@ -345,12 +343,12 @@ struct Cobol85 : cursiv::GrammarSpec {
              option(lit<"("> + assign<&ast::FunctionCall::refModStart>(ref<ArithExpr>) + lit<":"> +
                     option(assign<&ast::FunctionCall::refModLength>(ref<ArithExpr>)) + lit<")">)> {};
 
-  struct SpecialRegisterRule
+  struct SpecialRegister
       : rule<create<ast::SpecialRegister> +
              ((assign<&ast::SpecialRegister::kind>(ikw<"ADDRESS">) + ikw<"OF"> +
-               assign<&ast::SpecialRegister::operand>(ref<IdentifierRule>)) |
+               assign<&ast::SpecialRegister::operand>(ref<Identifier>)) |
               (assign<&ast::SpecialRegister::kind>(ikw<"LENGTH">) + option(ikw<"OF">) +
-               assign<&ast::SpecialRegister::operand>(ref<IdentifierRule>)) |
+               assign<&ast::SpecialRegister::operand>(ref<Identifier>)) |
               assign<&ast::SpecialRegister::kind>(
                   ikw<"DATE"> | ikw<"DAY-OF-WEEK"> | ikw<"DAY"> | ikw<"DEBUG-CONTENTS"> |
                   ikw<"DEBUG-ITEM"> | ikw<"DEBUG-LINE"> | ikw<"DEBUG-NAME"> |
@@ -362,7 +360,7 @@ struct Cobol85 : cursiv::GrammarSpec {
                   ikw<"TALLY"> | ikw<"TIME"> | ikw<"WHEN-COMPILED">))> {};
 
   struct IdentifierOrRegister
-      : rule<ref<FunctionCallRule> | ref<SpecialRegisterRule> | ref<IdentifierRule>> {};
+      : rule<ref<FunctionCall> | ref<SpecialRegister> | ref<Identifier>> {};
 
   struct TrueWord : rule<create<ast::Literal> + assign<&ast::Literal::text>(ikw<"TRUE">)> {};
   struct FalseWord : rule<create<ast::Literal> + assign<&ast::Literal::text>(ikw<"FALSE">)> {};
@@ -378,7 +376,7 @@ struct Cobol85 : cursiv::GrammarSpec {
       ref<NUMLIT> | ref<INTLIT>;
 
   struct SimpleLit
-      : rule<create<ast::Literal> + option(ikw<"ALL">) +
+      : rule<create<ast::Literal> + option(flag<&ast::Literal::all>(ikw<"ALL">)) +
              assign<&ast::Literal::text>(SimpleLitValue)> {};
 
   struct CicsLit
@@ -386,7 +384,7 @@ struct Cobol85 : cursiv::GrammarSpec {
              assign<&ast::Literal::text>(ikw<"DFHRESP"> | ikw<"DFHVALUE">) +
              (lit<"("> + CicsLitArgument + lit<")">)> {};
 
-  struct LiteralRule : rule<ref<SimpleLit> | ref<CicsLit>> {};
+  struct Literal : rule<ref<SimpleLit> | ref<CicsLit>> {};
   static constexpr auto LiteralText =
       (option(ikw<"ALL">) + SimpleLitValue) |
       ((ikw<"DFHRESP"> | ikw<"DFHVALUE">) + lit<"("> + CicsLitArgument + lit<")">);
@@ -394,7 +392,7 @@ struct Cobol85 : cursiv::GrammarSpec {
   struct Basis
       : rule<(lit<"("> + ref<ArithExpr> + lit<")">) |
              (create<ast::ArithOperand> +
-              assign<&ast::ArithOperand::value>(ref<IdentifierOrRegister> | ref<LiteralRule>))> {};
+              assign<&ast::ArithOperand::value>(ref<IdentifierOrRegister> | ref<Literal>))> {};
 
   struct SignedBasis
       : rule<(create<ast::ArithUnary> +
@@ -403,34 +401,36 @@ struct Cobol85 : cursiv::GrammarSpec {
              ref<Basis>> {};
 
   struct ArithExpr
-      : infix<SignedBasis, &ast::ArithBinary::left, &ast::ArithBinary::op,
-              &ast::ArithBinary::right,
-              (left(lit<"**">) >> left(lit<"*"> | lit<"/">) >>
-               left(lit<"+"> | lit<"-">))> {};
+      : infix<SignedBasis, ast::ArithBinary,
+              levels(left(lit<"**">), left(lit<"*"> | lit<"/">),
+                     left(lit<"+"> | lit<"-">))> {};
 
   // ---- conditions ----
 
   // A relational operator is a multi-word phrase (`GREATER THAN OR EQUAL
   // TO`) as often as a symbol: `assign<>` needs one part with a value, so
-  // the whole phrase is a rule of its own, read as raw text by RawSpan.
+  // the whole phrase is a rule of its own, read as raw text by rawSpan.
   struct RelSignOrOp
-      : rule<ikw<"POSITIVE"> | ikw<"NEGATIVE"> | ikw<"ZERO"> |
-                 (ikw<"GREATER">+ option(ikw<"THAN">) + ikw<"OR">+ ikw<"EQUAL">+
-                  option(ikw<"TO">)) |
-                 lit<">="> |
-                 (ikw<"LESS">+ option(ikw<"THAN">) + ikw<"OR">+ ikw<"EQUAL">+ option(ikw<"TO">)) |
-                 lit<"<="> | (ikw<"GREATER">+ option(ikw<"THAN">)) | lit<">"> |
-                 (ikw<"LESS">+ option(ikw<"THAN">)) | lit<"<"> |
-                 (ikw<"EQUAL">+ option(ikw<"TO">)) | lit<"="> | lit<"<>">,
-             RawSpan> {};
+      : rule<as<rawSpan>(ikw<"POSITIVE"> | ikw<"NEGATIVE"> | ikw<"ZERO"> |
+                         (ikw<"GREATER"> + option(ikw<"THAN">) + ikw<"OR"> +
+                          ikw<"EQUAL"> + option(ikw<"TO">)) |
+                         lit<">="> |
+                         (ikw<"LESS"> + option(ikw<"THAN">) + ikw<"OR"> +
+                          ikw<"EQUAL"> + option(ikw<"TO">)) |
+                         lit<"<="> | (ikw<"GREATER"> + option(ikw<"THAN">)) |
+                         lit<">"> | (ikw<"LESS"> + option(ikw<"THAN">)) |
+                         lit<"<"> | (ikw<"EQUAL"> + option(ikw<"TO">)) |
+                         lit<"="> | lit<"<>">)> {};
   struct RelOp
-      : rule<(ikw<"GREATER">+ option(ikw<"THAN">) + ikw<"OR">+ ikw<"EQUAL">+ option(ikw<"TO">)) |
-                 lit<">="> |
-                 (ikw<"LESS">+ option(ikw<"THAN">) + ikw<"OR">+ ikw<"EQUAL">+ option(ikw<"TO">)) |
-                 lit<"<="> | (ikw<"GREATER">+ option(ikw<"THAN">)) | lit<">"> |
-                 (ikw<"LESS">+ option(ikw<"THAN">)) | lit<"<"> |
-                 (ikw<"EQUAL">+ option(ikw<"TO">)) | lit<"="> | lit<"<>">,
-             RawSpan> {};
+      : rule<as<rawSpan>((ikw<"GREATER"> + option(ikw<"THAN">) + ikw<"OR"> +
+                          ikw<"EQUAL"> + option(ikw<"TO">)) |
+                         lit<">="> |
+                         (ikw<"LESS"> + option(ikw<"THAN">) + ikw<"OR"> +
+                          ikw<"EQUAL"> + option(ikw<"TO">)) |
+                         lit<"<="> | (ikw<"GREATER"> + option(ikw<"THAN">)) |
+                         lit<">"> | (ikw<"LESS"> + option(ikw<"THAN">)) |
+                         lit<"<"> | (ikw<"EQUAL"> + option(ikw<"TO">)) |
+                         lit<"="> | lit<"<>">)> {};
 
   // One AND-run inside a parenthesized abbreviated combined relation: the
   // element right after an OR (or the whole list, if it opens on one),
@@ -472,7 +472,7 @@ struct Cobol85 : cursiv::GrammarSpec {
 
   struct ClassCond
       : rule<create<ast::ClassCond> +
-             assign<&ast::ClassCond::subject>(ref<IdentifierRule>) + option(ikw<"IS">) +
+             assign<&ast::ClassCond::subject>(ref<Identifier>) + option(ikw<"IS">) +
              option(flag<&ast::ClassCond::negated>(ikw<"NOT">)) +
              assign<&ast::ClassCond::className>(
                  ikw<"NUMERIC"> | ikw<"ALPHABETIC-LOWER"> | ikw<"ALPHABETIC-UPPER"> |
@@ -480,7 +480,7 @@ struct Cobol85 : cursiv::GrammarSpec {
 
   struct CondNameRef
       : rule<create<ast::CondNameRef> +
-             assign<&ast::CondNameRef::name>(ref<IdentifierRule>)> {};
+             assign<&ast::CondNameRef::name>(ref<Identifier>)> {};
 
   struct SimpleCondition
       : rule<(lit<"("> + ref<ConditionRule> + lit<")">) | ref<RelationCond> |
@@ -521,16 +521,19 @@ struct Cobol85 : cursiv::GrammarSpec {
   // =========================== data division ===========================
 
   struct UsageWord
-      : rule<(ikw<"BINARY">+ option(ikw<"TRUNCATED"> | ikw<"EXTENDED">)) | ikw<"BIT"> |
-                 ikw<"COMP-1"> | ikw<"COMP-2"> | ikw<"COMP-3"> | ikw<"COMP-4"> | ikw<"COMP-5"> |
-                 ikw<"COMP"> | ikw<"COMPUTATIONAL-1"> | ikw<"COMPUTATIONAL-2"> |
-                 ikw<"COMPUTATIONAL-3"> | ikw<"COMPUTATIONAL-4"> | ikw<"COMPUTATIONAL-5"> |
-                 ikw<"COMPUTATIONAL"> | ikw<"CONTROL-POINT"> | ikw<"DATE"> | ikw<"DISPLAY-1"> |
-                 ikw<"DISPLAY"> | ikw<"DOUBLE"> | ikw<"EVENT"> | ikw<"FUNCTION-POINTER"> |
-                 ikw<"INDEX"> | ikw<"KANJI"> | ikw<"LOCK"> | ikw<"NATIONAL"> |
-                 ikw<"PACKED-DECIMAL"> | ikw<"POINTER"> | ikw<"PROCEDURE-POINTER"> | ikw<"REAL"> |
-                 ikw<"TASK">,
-             RawSpan> {};
+      : rule<as<rawSpan>(
+            (ikw<"BINARY"> + option(ikw<"TRUNCATED"> | ikw<"EXTENDED">)) |
+            ikw<"BIT"> | ikw<"COMP-1"> | ikw<"COMP-2"> | ikw<"COMP-3"> |
+            ikw<"COMP-4"> | ikw<"COMP-5"> | ikw<"COMP"> |
+            ikw<"COMPUTATIONAL-1"> | ikw<"COMPUTATIONAL-2"> |
+            ikw<"COMPUTATIONAL-3"> | ikw<"COMPUTATIONAL-4"> |
+            ikw<"COMPUTATIONAL-5"> | ikw<"COMPUTATIONAL"> |
+            ikw<"CONTROL-POINT"> | ikw<"DATE"> | ikw<"DISPLAY-1"> |
+            ikw<"DISPLAY"> | ikw<"DOUBLE"> | ikw<"EVENT"> |
+            ikw<"FUNCTION-POINTER"> | ikw<"INDEX"> | ikw<"KANJI"> |
+            ikw<"LOCK"> | ikw<"NATIONAL"> | ikw<"PACKED-DECIMAL"> |
+            ikw<"POINTER"> | ikw<"PROCEDURE-POINTER"> | ikw<"REAL"> |
+            ikw<"TASK">)> {};
 
   // Every clause of the three formats, inlined into one alternation: a
   // separate rule per clause would each deduce ast::DataItem as its own
@@ -541,6 +544,29 @@ struct Cobol85 : cursiv::GrammarSpec {
   // more alternatives here rather than a separate production the parser
   // must commit to before reading the name. This over-accepts (e.g. a
   // 66-level with a PICTURE too) but never rejects a valid entry.
+  // VALUE items retain literal quotes and both range endpoints. A parts
+  // converter inserts canonical spaces: ordinary data-rule text joins tokens
+  // without trivia and therefore cannot preserve "1 THRU 9" by itself.
+  static constexpr auto DataValueAtom =
+      ref<RAW_STRINGLIT> | ref<HEXLIT> | ref<NULLLIT> | ref<DBCSLIT> |
+      ikw<"HIGH-VALUES"> | ikw<"HIGH-VALUE"> | ikw<"LOW-VALUES"> | ikw<"LOW-VALUE"> |
+      ikw<"NULLS"> | ikw<"NULL"> | ikw<"QUOTES"> | ikw<"QUOTE"> |
+      ikw<"SPACES"> | ikw<"SPACE"> | ikw<"ZEROES"> | ikw<"ZEROS"> | ikw<"ZERO"> |
+      ref<NUMLIT> | ref<INTLIT> | ikw<"TRUE"> | ikw<"FALSE"> | ref<CobolWord>;
+  struct DataValueItem : rule<as<[](std::span<const std::string_view> parts,
+                                  std::pmr::memory_resource* mem) {
+    std::size_t size = parts.empty() ? 0 : parts.size() - 1;
+    for (const auto part : parts) size += part.size();
+    const auto room = cursiv::text_room(mem, size);
+    std::size_t n = 0;
+    for (std::size_t i = 0; i < parts.size(); ++i) {
+      if (i) room[n++] = ' ';
+      for (const char c : parts[i]) room[n++] = c;
+    }
+    return std::string_view(room.data(), n);
+  }>(option(ikw<"ALL">) + DataValueAtom +
+     option((ikw<"THROUGH"> | ikw<"THRU">) + DataValueAtom))> {};
+
   struct DataOccursSort : rule<((ikw<"ASCENDING"> | ikw<"DESCENDING">) + option(ikw<"KEY">) +
                                option(ikw<"IS">) + some(ref<CobolWord>))> {};
 
@@ -561,16 +587,7 @@ struct Cobol85 : cursiv::GrammarSpec {
              (option(ikw<"USAGE">+ option(ikw<"IS">)) +
               append<&ast::DataItem::usages>(ref<UsageWord>)) |
              (((ikw<"VALUE">+ option(ikw<"IS">)) | (ikw<"VALUES">+ option(ikw<"ARE">))) +
-              some(append<&ast::DataItem::values>(
-                       ref<STRINGLIT> | ref<HEXLIT> | ref<NULLLIT> | ref<DBCSLIT> |
-                       ikw<"HIGH-VALUES"> | ikw<"HIGH-VALUE"> | ikw<"LOW-VALUES"> |
-                       ikw<"LOW-VALUE"> | ikw<"NULLS"> | ikw<"NULL"> | ikw<"QUOTES"> |
-                       ikw<"QUOTE"> | ikw<"SPACES"> | ikw<"SPACE"> | ikw<"ZEROES"> |
-                       ikw<"ZEROS"> | ikw<"ZERO"> | ref<NUMLIT> | ref<INTLIT> | ikw<"TRUE"> |
-                       ikw<"FALSE"> | ref<CobolWord>) +
-                   option((ikw<"THROUGH"> | ikw<"THRU">) +
-                          (ref<STRINGLIT> | ref<NUMLIT> | ref<INTLIT> | ref<CobolWord>)),
-                   lit<",">)) |
+              some(append<&ast::DataItem::values>(ref<DataValueItem>), lit<",">)) |
              (ikw<"OCCURS">+ append<&ast::DataItem::occursMin>(ref<INTLIT>) +
               option(ikw<"TO">+ append<&ast::DataItem::occursMax>(ref<INTLIT>)) +
               option(ikw<"TIMES">) +
@@ -702,15 +719,16 @@ struct Cobol85 : cursiv::GrammarSpec {
              ref<DOT_FS>> {};
 
   struct ReportGroupTypeWord
-      : rule<ikw<"TYPE">+ option(ikw<"IS">) +
-                 ((ikw<"REPORT">+ ikw<"HEADING">) | ikw<"RH"> | (ikw<"PAGE">+ ikw<"HEADING">) |
-                  ikw<"PH"> |
-                  (((ikw<"CONTROL">+ ikw<"HEADING">) | ikw<"CH">) + (ikw<"FINAL"> | ref<CobolWord>)) |
-                  ikw<"DETAIL"> | ikw<"DE"> |
-                  (((ikw<"CONTROL">+ ikw<"FOOTING">) | ikw<"CF">) + (ikw<"FINAL"> | ref<CobolWord>)) |
-                  (ikw<"PAGE">+ ikw<"FOOTING">) | ikw<"PF"> | (ikw<"REPORT">+ ikw<"FOOTING">) |
-                  ikw<"RF">),
-             RawSpan> {};
+      : rule<as<rawSpan>(ikw<"TYPE"> + option(ikw<"IS">) +
+                         ((ikw<"REPORT"> + ikw<"HEADING">) | ikw<"RH"> |
+                          (ikw<"PAGE"> + ikw<"HEADING">) | ikw<"PH"> |
+                          (((ikw<"CONTROL"> + ikw<"HEADING">) |
+                            ikw<"CH">)+(ikw<"FINAL"> | ref<CobolWord>)) |
+                          ikw<"DETAIL"> | ikw<"DE"> |
+                          (((ikw<"CONTROL"> + ikw<"FOOTING">) |
+                            ikw<"CF">)+(ikw<"FINAL"> | ref<CobolWord>)) |
+                          (ikw<"PAGE"> + ikw<"FOOTING">) | ikw<"PF"> |
+                          (ikw<"REPORT"> + ikw<"FOOTING">) | ikw<"RF">))> {};
 
   struct ReportGroupDescriptionEntry
       : rule<create<ast::ReportGroupItem> +
@@ -790,7 +808,7 @@ struct Cobol85 : cursiv::GrammarSpec {
   // full (every construct they accept) but write nothing to the tree: this
   // port's tools care about the files a program declares, not device or
   // collating configuration. Values inside are read as raw terminals rather
-  // than through LiteralRule/ConditionRule, which build nodes nothing holds.
+  // than through Literal/ConditionRule, which build nodes nothing holds.
   static constexpr auto SpecialNameLit = ref<STRINGLIT> | ref<HEXLIT> | ref<NULLLIT> |
                                          ref<DBCSLIT> | ref<NUMLIT> | ref<INTLIT> | ref<CobolWord>;
 
@@ -917,8 +935,8 @@ struct Cobol85 : cursiv::GrammarSpec {
       (Second + FileControlClauses + option(First + FileControlClauses));
 
   // ASSIGN, ORGANIZATION and ACCESS once each, in any order among the others.
-  struct FileControlEntryRule
-      : rule<create<ast::FileControlEntry> + ikw<"SELECT">+ option(ikw<"OPTIONAL">) +
+  struct FileControlEntry
+      : rule<create<ast::FileControlEntry> + ikw<"SELECT">+ option(flag<&ast::FileControlEntry::optional_>(ikw<"OPTIONAL">)) +
              assign<&ast::FileControlEntry::fileName>(ref<CobolWord>) + FileControlClauses +
              option((FileAssignClause + FileControlClauses +
                      option(FileControlEitherOrder<FileOrganizationClause, FileAccessClause>)) |
@@ -927,14 +945,14 @@ struct Cobol85 : cursiv::GrammarSpec {
                     (FileAccessClause + FileControlClauses +
                      option(FileControlEitherOrder<FileAssignClause, FileOrganizationClause>)))> {};
 
-  struct EnvironmentDivisionRule
+  struct EnvironmentDivision
       : rule<create<ast::EnvironmentDivision> + ikw<"ENVIRONMENT">+ ikw<"DIVISION">+ ref<DOT_FS> +
              many(ref<ConfigurationSection> |
                   (ikw<"INPUT-OUTPUT">+ ikw<"SECTION">+ ref<DOT_FS> +
                    option(ikw<"FILE-CONTROL">+
                           many(option(ref<DOT_FS>) +
                                append<&ast::EnvironmentDivision::files>(
-                                   ref<FileControlEntryRule>) +
+                                   ref<FileControlEntry>) +
                                ref<DOT_FS>) +
                           option(ref<DOT_FS>)) +
                    many(ref<IOControlParagraph>)))> {};
@@ -942,8 +960,8 @@ struct Cobol85 : cursiv::GrammarSpec {
   // =========================== procedure division ===========================
 
   struct Statement
-      : rule<ref<AcceptStatement> | ref<AddStatementRule> | ref<SubtractStatementRule> |
-             ref<MultiplyStatementRule> | ref<DivideStatementRule> | ref<ComputeStatementRule> |
+      : rule<ref<AcceptStatement> | ref<AddStatement> | ref<SubtractStatement> |
+             ref<MultiplyStatement> | ref<DivideStatement> | ref<ComputeStatement> |
              ref<AlterStatement> | ref<CallStatement> | ref<CancelStatement> |
              ref<CloseStatement> | ref<ContinueStatement> | ref<DeleteStatement> |
              ref<EnableDisableStatement> | ref<DisplayStatement> | ref<EntryStatement> |
@@ -962,16 +980,19 @@ struct Cobol85 : cursiv::GrammarSpec {
   // accept
 
   struct AcceptFromWord
-      : rule<(ikw<"DATE">+ option(ikw<"YYYYMMDD">)) | (ikw<"DAY">+ option(ikw<"YYYYDDD">)) |
-                 ikw<"DAY-OF-WEEK"> | ikw<"TIME"> | ikw<"TIMER"> |
-                 (ikw<"TODAYS-DATE">+ option(ikw<"MMDDYYYY">)) | ikw<"TODAYS-NAME"> | ikw<"YEAR"> |
-                 ikw<"YYYYMMDD"> | ikw<"YYYYDDD"> | (ikw<"ESCAPE">+ ikw<"KEY">) | ref<CobolWord>,
-             RawSpan> {};
-  struct AcceptCountWord : rule<option(ikw<"MESSAGE">) + ikw<"COUNT">, RawSpan> {};
+      : rule<as<rawSpan>((ikw<"DATE"> + option(ikw<"YYYYMMDD">)) |
+                         (ikw<"DAY"> + option(ikw<"YYYYDDD">)) |
+                         ikw<"DAY-OF-WEEK"> | ikw<"TIME"> | ikw<"TIMER"> |
+                         (ikw<"TODAYS-DATE"> + option(ikw<"MMDDYYYY">)) |
+                         ikw<"TODAYS-NAME"> | ikw<"YEAR"> | ikw<"YYYYMMDD"> |
+                         ikw<"YYYYDDD"> | (ikw<"ESCAPE"> + ikw<"KEY">) |
+                         ref<CobolWord>)> {};
+  struct AcceptCountWord
+      : rule<as<rawSpan>(option(ikw<"MESSAGE">) + ikw<"COUNT">)> {};
 
   struct AcceptStatement
       : rule<create<ast::AcceptStatement> + ikw<"ACCEPT">+
-             assign<&ast::AcceptStatement::target>(ref<IdentifierRule>) +
+             assign<&ast::AcceptStatement::target>(ref<Identifier>) +
              option((ikw<"FROM">+ assign<&ast::AcceptStatement::source>(ref<AcceptFromWord>)) |
                     assign<&ast::AcceptStatement::source>(ref<AcceptCountWord>)) +
              option(option(ikw<"ON">) + ikw<"EXCEPTION">+
@@ -984,19 +1005,19 @@ struct Cobol85 : cursiv::GrammarSpec {
 
   struct RoundedOperand
       : rule<create<ast::RoundedTarget> +
-             assign<&ast::RoundedTarget::target>(ref<IdentifierRule>) +
+             assign<&ast::RoundedTarget::target>(ref<Identifier>) +
              option(flag<&ast::RoundedTarget::rounded>(ikw<"ROUNDED">))> {};
 
-  struct CorrespondingOperand : rule<ref<IdentifierRule>> {};
+  struct CorrespondingOperand : rule<ref<Identifier>> {};
 
-  struct AddStatementRule
+  struct AddStatement
       : rule<create<ast::ArithStatement> + assign<&ast::ArithStatement::verb>(ikw<"ADD">) +
              ((assign<&ast::ArithStatement::form>(ikw<"CORRESPONDING"> | ikw<"CORR">) +
                append<&ast::ArithStatement::operands>(ref<CorrespondingOperand>) + ikw<"TO">+
                some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>))) |
-              (some(append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<LiteralRule>)) +
+              (some(append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<Literal>)) +
                ((assign<&ast::ArithStatement::form>(ikw<"TO">) + some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>))) |
-                (option(ikw<"TO">+ some(append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<LiteralRule>))) +
+                (option(ikw<"TO">+ some(append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<Literal>))) +
                  assign<&ast::ArithStatement::form>(ikw<"GIVING">) + some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>)))))) +
              option(option(ikw<"ON">) + ikw<"SIZE">+ ikw<"ERROR">+
                     many(append<&ast::ArithStatement::onSizeError>(ref<Statement>))) +
@@ -1004,13 +1025,13 @@ struct Cobol85 : cursiv::GrammarSpec {
                     many(append<&ast::ArithStatement::notOnSizeError>(ref<Statement>))) +
              option(ikw<"END-ADD">)> {};
 
-  struct SubtractStatementRule
+  struct SubtractStatement
       : rule<create<ast::ArithStatement> + assign<&ast::ArithStatement::verb>(ikw<"SUBTRACT">) +
              ((assign<&ast::ArithStatement::form>(ikw<"CORRESPONDING"> | ikw<"CORR">) +
                append<&ast::ArithStatement::operands>(ref<CorrespondingOperand>) + ikw<"FROM">+
                append<&ast::ArithStatement::targets>(ref<RoundedOperand>)) |
-              (some(append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<LiteralRule>)) + ikw<"FROM">+
-               ((append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<LiteralRule>) + assign<&ast::ArithStatement::form>(ikw<"GIVING">) +
+              (some(append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<Literal>)) + ikw<"FROM">+
+               ((append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<Literal>) + assign<&ast::ArithStatement::form>(ikw<"GIVING">) +
                  some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>))) |
                 some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>))))) +
              option(option(ikw<"ON">) + ikw<"SIZE">+ ikw<"ERROR">+
@@ -1019,10 +1040,10 @@ struct Cobol85 : cursiv::GrammarSpec {
                     many(append<&ast::ArithStatement::notOnSizeError>(ref<Statement>))) +
              option(ikw<"END-SUBTRACT">)> {};
 
-  struct MultiplyStatementRule
+  struct MultiplyStatement
       : rule<create<ast::ArithStatement> + assign<&ast::ArithStatement::verb>(ikw<"MULTIPLY">) +
-             append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<LiteralRule>) + ikw<"BY">+
-             ((append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<LiteralRule>) + assign<&ast::ArithStatement::form>(ikw<"GIVING">) +
+             append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<Literal>) + ikw<"BY">+
+             ((append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<Literal>) + assign<&ast::ArithStatement::form>(ikw<"GIVING">) +
                some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>))) |
               some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>))) +
              option(option(ikw<"ON">) + ikw<"SIZE">+ ikw<"ERROR">+
@@ -1031,22 +1052,22 @@ struct Cobol85 : cursiv::GrammarSpec {
                     many(append<&ast::ArithStatement::notOnSizeError>(ref<Statement>))) +
              option(ikw<"END-MULTIPLY">)> {};
 
-  struct DivideStatementRule
+  struct DivideStatement
       : rule<create<ast::ArithStatement> + assign<&ast::ArithStatement::verb>(ikw<"DIVIDE">) +
-             append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<LiteralRule>) +
+             append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<Literal>) +
              ((assign<&ast::ArithStatement::form>(ikw<"INTO">) +
-               ((append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<LiteralRule>) + ikw<"GIVING">+ some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>))) |
+               ((append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<Literal>) + ikw<"GIVING">+ some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>))) |
                 some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>)))) |
-              (assign<&ast::ArithStatement::form>(ikw<"BY">) + append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<LiteralRule>) +
+              (assign<&ast::ArithStatement::form>(ikw<"BY">) + append<&ast::ArithStatement::operands>(ref<IdentifierOrRegister> | ref<Literal>) +
                option(ikw<"GIVING">+ some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>))))) +
-             option(ikw<"REMAINDER">+ assign<&ast::ArithStatement::remainder>(ref<IdentifierRule>)) +
+             option(ikw<"REMAINDER">+ assign<&ast::ArithStatement::remainder>(ref<Identifier>)) +
              option(option(ikw<"ON">) + ikw<"SIZE">+ ikw<"ERROR">+
                     many(append<&ast::ArithStatement::onSizeError>(ref<Statement>))) +
              option(ikw<"NOT">+ option(ikw<"ON">) + ikw<"SIZE">+ ikw<"ERROR">+
                     many(append<&ast::ArithStatement::notOnSizeError>(ref<Statement>))) +
              option(ikw<"END-DIVIDE">)> {};
 
-  struct ComputeStatementRule
+  struct ComputeStatement
       : rule<create<ast::ArithStatement> + assign<&ast::ArithStatement::verb>(ikw<"COMPUTE">) +
              some(append<&ast::ArithStatement::targets>(ref<RoundedOperand>)) + (lit<"="> | ikw<"EQUAL">) +
              assign<&ast::ArithStatement::computeExpr>(ref<ArithExpr>) +
@@ -1067,7 +1088,7 @@ struct Cobol85 : cursiv::GrammarSpec {
   // call
 
   template <ast::CallMode M>
-  struct PassingMode : rule<cursiv::Epsilon{}, value<M>> {};
+  struct PassingMode : rule<as<M>(cursiv::Epsilon{})> {};
   struct CallAddress : rule<ikw<"ADDRESS"> + ikw<"OF">> {};
   struct CallLength : rule<ikw<"LENGTH"> + option(ikw<"OF">)> {};
   static constexpr auto ArgumentModifier =
@@ -1077,7 +1098,7 @@ struct Cobol85 : cursiv::GrammarSpec {
   static constexpr auto CallArgumentBody =
       flag<&ast::CallArgument::omitted>(ikw<"OMITTED">) |
       (option(assign<&ast::CallArgument::modifier>(ArgumentModifier)) +
-       assign<&ast::CallArgument::value>(ref<IdentifierOrRegister> | ref<LiteralRule>));
+       assign<&ast::CallArgument::value>(ref<IdentifierOrRegister> | ref<Literal>));
   template <ast::CallMode M>
   struct CallArgumentOf
       : rule<create<ast::CallArgument> +
@@ -1095,11 +1116,11 @@ struct Cobol85 : cursiv::GrammarSpec {
            ref<CallArgumentOf<ast::CallMode::content>>)));
   struct CallStatement
       : rule<create<ast::CallStatement> + ikw<"CALL">+
-             assign<&ast::CallStatement::program>(ref<IdentifierOrRegister> | ref<LiteralRule>) +
+             assign<&ast::CallStatement::program>(ref<IdentifierOrRegister> | ref<Literal>) +
              option(ikw<"USING">+ (CallByReferenceRun | CallUsingPhrase) +
                     many(CallUsingPhrase)) +
              option((ikw<"GIVING"> | ikw<"RETURNING">) +
-                    assign<&ast::CallStatement::giving>(ref<IdentifierRule>)) +
+                    assign<&ast::CallStatement::giving>(ref<Identifier>)) +
              option(option(ikw<"ON">) + ikw<"OVERFLOW">+
                     many(append<&ast::CallStatement::onOverflow>(ref<Statement>))) +
              option(option(ikw<"ON">) + ikw<"EXCEPTION">+
@@ -1112,7 +1133,7 @@ struct Cobol85 : cursiv::GrammarSpec {
 
   struct CancelStatement
       : rule<create<ast::CancelStatement> + ikw<"CANCEL">+
-             some(append<&ast::CancelStatement::targets>(ref<IdentifierOrRegister> | ref<LiteralRule>) +
+             some(append<&ast::CancelStatement::targets>(ref<IdentifierOrRegister> | ref<Literal>) +
                   option(ikw<"BYTITLE"> | ikw<"BYFUNCTION">))> {};
 
   // close
@@ -1145,22 +1166,22 @@ struct Cobol85 : cursiv::GrammarSpec {
   // enable / disable
 
   struct EnableDirectionWord
-      : rule<(ikw<"INPUT">+ option(ikw<"TERMINAL">)) | (ikw<"I-O">+ ikw<"TERMINAL">) | ikw<"OUTPUT">,
-             RawSpan> {};
+      : rule<as<rawSpan>((ikw<"INPUT"> + option(ikw<"TERMINAL">)) |
+                         (ikw<"I-O"> + ikw<"TERMINAL">) | ikw<"OUTPUT">)> {};
 
   struct DisableStatement
       : rule<create<ast::EnableDisableStatement> + ikw<"DISABLE">+
              assign<&ast::EnableDisableStatement::direction>(ref<EnableDirectionWord>) +
              assign<&ast::EnableDisableStatement::cdName>(ref<CobolWord>) + option(ikw<"WITH">) +
              ikw<"KEY">+
-             assign<&ast::EnableDisableStatement::key>(ref<IdentifierOrRegister> | ref<LiteralRule>)> {};
+             assign<&ast::EnableDisableStatement::key>(ref<IdentifierOrRegister> | ref<Literal>)> {};
   struct EnableStatement
       : rule<create<ast::EnableDisableStatement> +
              flag<&ast::EnableDisableStatement::enable>(ikw<"ENABLE">) +
              assign<&ast::EnableDisableStatement::direction>(ref<EnableDirectionWord>) +
              assign<&ast::EnableDisableStatement::cdName>(ref<CobolWord>) + option(ikw<"WITH">) +
              ikw<"KEY">+
-             assign<&ast::EnableDisableStatement::key>(ref<IdentifierOrRegister> | ref<LiteralRule>)> {};
+             assign<&ast::EnableDisableStatement::key>(ref<IdentifierOrRegister> | ref<Literal>)> {};
   struct EnableDisableStatement : rule<ref<EnableStatement> | ref<DisableStatement>> {};
 
   // display
@@ -1168,9 +1189,9 @@ struct Cobol85 : cursiv::GrammarSpec {
   struct DisplayStatement
       : rule<create<ast::DisplayStatement> + ikw<"DISPLAY">+
              some(append<&ast::DisplayStatement::operands>(ref<IdentifierOrRegister> |
-                                                            ref<LiteralRule>)) +
+                                                            ref<Literal>)) +
              option(ikw<"AT">+
-                    assign<&ast::DisplayStatement::at>(ref<IdentifierOrRegister> | ref<LiteralRule>)) +
+                    assign<&ast::DisplayStatement::at>(ref<IdentifierOrRegister> | ref<Literal>)) +
              option(ikw<"UPON">+ assign<&ast::DisplayStatement::upon>(ref<CobolWord>)) +
              option(option(ikw<"WITH">) + ikw<"NO">+
                     flag<&ast::DisplayStatement::noAdvancing>(ikw<"ADVANCING">))> {};
@@ -1180,19 +1201,23 @@ struct Cobol85 : cursiv::GrammarSpec {
   struct EntryStatement
       : rule<create<ast::EntryStatement> + ikw<"ENTRY">+
              assign<&ast::EntryStatement::literalText>(ref<STRINGLIT>) +
-             option(ikw<"USING">+ some(append<&ast::EntryStatement::using_>(ref<IdentifierRule>)))> {};
+             option(ikw<"USING">+ some(append<&ast::EntryStatement::using_>(ref<Identifier>)))> {};
 
   // evaluate
 
   struct EvalSubjectValue
-      : rule<create<ast::EvaluateSubject> + assign<&ast::EvaluateSubject::value>(ref<ArithExpr>)> {};
+      : rule<create<ast::EvaluateSubject> +
+             (assign<&ast::EvaluateSubject::value>(ref<ArithExpr>) |
+              assign<&ast::EvaluateSubject::cond>(ref<ConditionRule>))> {};
   struct EvalValueOne
       : rule<create<ast::EvaluateValue> +
              (flag<&ast::EvaluateValue::any>(ikw<"ANY">) |
+              assign<&ast::EvaluateValue::boolLiteral>(ikw<"TRUE"> | ikw<"FALSE">) |
               (option(flag<&ast::EvaluateValue::negated>(ikw<"NOT">)) +
                assign<&ast::EvaluateValue::value>(ref<ArithExpr>) +
                option((ikw<"THROUGH"> | ikw<"THRU">) +
-                      assign<&ast::EvaluateValue::through>(ref<ArithExpr>))))> {};
+                      assign<&ast::EvaluateValue::through>(ref<ArithExpr>))) |
+              assign<&ast::EvaluateValue::cond>(ref<ConditionRule>))> {};
   struct EvalWhen
       : rule<create<ast::EvaluateWhen> + ikw<"WHEN">+
              append<&ast::EvaluateWhen::values>(ref<EvalValueOne>) +
@@ -1234,7 +1259,7 @@ struct Cobol85 : cursiv::GrammarSpec {
       : rule<create<ast::ExhibitStatement> + ikw<"EXHIBIT">+
              option(flag<&ast::ExhibitStatement::named>(ikw<"NAMED">)) +
              option(flag<&ast::ExhibitStatement::changed>(ikw<"CHANGED">)) +
-             some(append<&ast::ExhibitStatement::operands>(ref<IdentifierOrRegister> | ref<LiteralRule>))> {};
+             some(append<&ast::ExhibitStatement::operands>(ref<IdentifierOrRegister> | ref<Literal>))> {};
 
   // exit
 
@@ -1246,7 +1271,7 @@ struct Cobol85 : cursiv::GrammarSpec {
 
   struct GenerateStatement
       : rule<create<ast::GenerateStatement> + ikw<"GENERATE">+
-             assign<&ast::GenerateStatement::reportName>(ref<IdentifierRule>)> {};
+             assign<&ast::GenerateStatement::reportName>(ref<Identifier>)> {};
 
   // goback
 
@@ -1259,7 +1284,7 @@ struct Cobol85 : cursiv::GrammarSpec {
              (flag<&ast::GoToStatement::moreLabels>(ikw<"MORE-LABELS">) |
               (some(append<&ast::GoToStatement::targets>(ref<CobolWord>)) +
                option(ikw<"DEPENDING">+ option(ikw<"ON">) +
-                      assign<&ast::GoToStatement::dependingOn>(ref<IdentifierRule>))))> {};
+                      assign<&ast::GoToStatement::dependingOn>(ref<Identifier>))))> {};
 
   // if
 
@@ -1283,10 +1308,10 @@ struct Cobol85 : cursiv::GrammarSpec {
                  ikw<"NATIONAL"> | ikw<"NUMERIC-EDITED"> | ikw<"NUMERIC"> | ikw<"DBCS"> |
                  ikw<"EGCS">) +
              option(ikw<"DATA">) + ikw<"BY">+
-             assign<&ast::InitializeReplacing::value>(ref<IdentifierOrRegister> | ref<LiteralRule>)> {};
+             assign<&ast::InitializeReplacing::value>(ref<IdentifierOrRegister> | ref<Literal>)> {};
   struct InitializeStatement
       : rule<create<ast::InitializeStatement> + ikw<"INITIALIZE">+
-             some(append<&ast::InitializeStatement::targets>(ref<IdentifierRule>)) +
+             some(append<&ast::InitializeStatement::targets>(ref<Identifier>)) +
              option(ikw<"REPLACING">+
                     some(append<&ast::InitializeStatement::replacing>(ref<InitReplaceOne>)))> {};
 
@@ -1294,13 +1319,13 @@ struct Cobol85 : cursiv::GrammarSpec {
 
   struct InitiateStatement
       : rule<create<ast::InitiateStatement> + ikw<"INITIATE">+
-             some(append<&ast::InitiateStatement::reports>(ref<IdentifierRule>))> {};
+             some(append<&ast::InitiateStatement::reports>(ref<Identifier>))> {};
 
   // inspect
 
   struct InspectCharPattern;
   struct InspectCharReplacement;
-  struct InspectOperand : rule<ref<IdentifierOrRegister> | ref<LiteralRule>> {};
+  struct InspectOperand : rule<ref<IdentifierOrRegister> | ref<Literal>> {};
   struct InspectBeforeAfterOne
       : rule<assign<&ast::InspectBoundary::kind>(ikw<"BEFORE"> | ikw<"AFTER">) +
              option(flag<&ast::InspectBoundary::initial>(ikw<"INITIAL">)) +
@@ -1352,7 +1377,7 @@ struct Cobol85 : cursiv::GrammarSpec {
                  ref<InspectBeforeAfterOne>))> {};
   struct InspectStatement
       : rule<create<ast::InspectStatement> + ikw<"INSPECT"> +
-             assign<&ast::InspectStatement::target>(ref<IdentifierRule>) +
+             assign<&ast::InspectStatement::target>(ref<Identifier>) +
              ((InspectTallying + option(InspectReplacing)) | InspectReplacing |
               flag<&ast::InspectStatement::converting>(
                   assign<&ast::InspectStatement::conversion>(
@@ -1387,9 +1412,9 @@ struct Cobol85 : cursiv::GrammarSpec {
       : rule<create<ast::MoveStatement> + ikw<"MOVE">+
              option(flag<&ast::MoveStatement::all>(ikw<"ALL">)) +
              ((flag<&ast::MoveStatement::corresponding>(ikw<"CORRESPONDING"> | ikw<"CORR">) +
-               assign<&ast::MoveStatement::from>(ref<IdentifierRule>)) |
-              assign<&ast::MoveStatement::from>(ref<IdentifierOrRegister> | ref<LiteralRule>)) +
-             ikw<"TO">+ some(append<&ast::MoveStatement::to>(ref<IdentifierRule>))> {};
+               assign<&ast::MoveStatement::from>(ref<Identifier>)) |
+              assign<&ast::MoveStatement::from>(ref<IdentifierOrRegister> | ref<Literal>)) +
+             ikw<"TO">+ some(append<&ast::MoveStatement::to>(ref<Identifier>))> {};
 
   // open
 
@@ -1416,7 +1441,7 @@ struct Cobol85 : cursiv::GrammarSpec {
 
   struct PerformVaryingOne
       : rule<create<ast::PerformVarying> +
-             assign<&ast::PerformVarying::index>(ref<IdentifierOrRegister> | ref<LiteralRule>) +
+             assign<&ast::PerformVarying::index>(ref<IdentifierOrRegister> | ref<Literal>) +
              ikw<"FROM">+ assign<&ast::PerformVarying::from>(ref<ArithExpr>) + ikw<"BY">+
              assign<&ast::PerformVarying::by>(ref<ArithExpr>) + ikw<"UNTIL">+
              assign<&ast::PerformVarying::until>(ref<ConditionRule>)> {};
@@ -1458,7 +1483,7 @@ struct Cobol85 : cursiv::GrammarSpec {
       : rule<create<ast::ReadStatement> + ikw<"READ">+
              assign<&ast::ReadStatement::fileName>(ref<CobolWord>) +
              option(flag<&ast::ReadStatement::next>(ikw<"NEXT">)) + option(ikw<"RECORD">) +
-             option(ikw<"INTO">+ assign<&ast::ReadStatement::into>(ref<IdentifierRule>)) +
+             option(ikw<"INTO">+ assign<&ast::ReadStatement::into>(ref<Identifier>)) +
              option((option(ikw<"WITH">) + (((ikw<"KEPT"> | ikw<"NO">) + ikw<"LOCK">) |
                                                 ikw<"WAIT">))) +
              option(ikw<"KEY">+ option(ikw<"IS">) + assign<&ast::ReadStatement::key>(ref<CobolWord>)) +
@@ -1503,14 +1528,14 @@ struct Cobol85 : cursiv::GrammarSpec {
   struct ReleaseStatement
       : rule<create<ast::ReleaseStatement> + ikw<"RELEASE">+
              assign<&ast::ReleaseStatement::recordName>(ref<CobolWord>) +
-             option(ikw<"FROM">+ assign<&ast::ReleaseStatement::from>(ref<IdentifierRule>))> {};
+             option(ikw<"FROM">+ assign<&ast::ReleaseStatement::from>(ref<Identifier>))> {};
 
   // return
 
   struct ReturnStatement
       : rule<create<ast::ReturnStatement> + ikw<"RETURN">+
              assign<&ast::ReturnStatement::fileName>(ref<CobolWord>) + option(ikw<"RECORD">) +
-             option(ikw<"INTO">+ assign<&ast::ReturnStatement::into>(ref<IdentifierRule>)) +
+             option(ikw<"INTO">+ assign<&ast::ReturnStatement::into>(ref<Identifier>)) +
              option(ikw<"AT">) + ikw<"END">+
              many(append<&ast::ReturnStatement::atEnd>(ref<Statement>)) +
              option(ikw<"NOT">+ option(ikw<"AT">) + ikw<"END">+
@@ -1522,7 +1547,7 @@ struct Cobol85 : cursiv::GrammarSpec {
   struct RewriteStatement
       : rule<create<ast::RewriteStatement> + ikw<"REWRITE">+
              assign<&ast::RewriteStatement::recordName>(ref<CobolWord>) +
-             option(ikw<"FROM">+ assign<&ast::RewriteStatement::from>(ref<IdentifierRule>)) +
+             option(ikw<"FROM">+ assign<&ast::RewriteStatement::from>(ref<Identifier>)) +
              option(ikw<"INVALID">+ option(ikw<"KEY">) +
                     many(append<&ast::RewriteStatement::invalidKey>(ref<Statement>))) +
              option(ikw<"NOT">+ ikw<"INVALID">+ option(ikw<"KEY">) +
@@ -1540,7 +1565,7 @@ struct Cobol85 : cursiv::GrammarSpec {
       : rule<create<ast::SearchStatement> + ikw<"SEARCH">+
              option(flag<&ast::SearchStatement::all>(ikw<"ALL">)) +
              assign<&ast::SearchStatement::tableName>(ref<CobolWord>) +
-             option(ikw<"VARYING">+ assign<&ast::SearchStatement::varying>(ref<IdentifierRule>)) +
+             option(ikw<"VARYING">+ assign<&ast::SearchStatement::varying>(ref<Identifier>)) +
              option(option(ikw<"AT">) + ikw<"END">+
                     many(append<&ast::SearchStatement::atEnd>(ref<Statement>))) +
              some(append<&ast::SearchStatement::whens>(ref<SearchWhenOne>)) +
@@ -1564,18 +1589,20 @@ struct Cobol85 : cursiv::GrammarSpec {
 
   // set
 
-  struct SetUpDownOp : rule<(ikw<"UP">+ ikw<"BY">) | (ikw<"DOWN">+ ikw<"BY">), RawSpan> {};
+  struct SetUpDownOp
+      : rule<as<rawSpan>((ikw<"UP"> + ikw<"BY">) | (ikw<"DOWN"> + ikw<"BY">))> {
+  };
 
   struct SetStatement
       : rule<create<ast::SetStatement> + ikw<"SET">+
-             some(append<&ast::SetStatement::targets>(ref<IdentifierRule>)) +
+             some(append<&ast::SetStatement::targets>(ref<Identifier>)) +
              ((assign<&ast::SetStatement::op>(ikw<"TO">) +
                some(append<&ast::SetStatement::values>(
                    (create<ast::Literal> + assign<&ast::Literal::text>(ikw<"ON"> | ikw<"OFF">)) |
-                   (ikw<"ENTRY">+ (ref<IdentifierOrRegister> | ref<LiteralRule>)) |
-                   ref<IdentifierOrRegister> | ref<LiteralRule>))) |
+                   (ikw<"ENTRY">+ (ref<IdentifierOrRegister> | ref<Literal>)) |
+                   ref<IdentifierOrRegister> | ref<Literal>))) |
               (assign<&ast::SetStatement::op>(ref<SetUpDownOp>) +
-                  append<&ast::SetStatement::values>(ref<IdentifierOrRegister> | ref<LiteralRule>)))> {};
+                  append<&ast::SetStatement::values>(ref<IdentifierOrRegister> | ref<Literal>)))> {};
 
   // sort
 
@@ -1608,12 +1635,13 @@ struct Cobol85 : cursiv::GrammarSpec {
   // start
 
   struct StartKeyOp
-      : rule<(ikw<"GREATER">+ option(ikw<"THAN">) + ikw<"OR">+ ikw<"EQUAL">+ option(ikw<"TO">)) |
-                 lit<">="> |
-                 (ikw<"NOT">+ ((ikw<"LESS">+ option(ikw<"THAN">)) | lit<"<">)) |
-                 (ikw<"GREATER">+ option(ikw<"THAN">)) | lit<">"> |
-                 (ikw<"EQUAL">+ option(ikw<"TO">)) | lit<"=">,
-             RawSpan> {};
+      : rule<as<rawSpan>(
+            (ikw<"GREATER"> + option(ikw<"THAN">) + ikw<"OR"> + ikw<"EQUAL"> +
+             option(ikw<"TO">)) |
+            lit<">="> |
+            (ikw<"NOT"> + ((ikw<"LESS"> + option(ikw<"THAN">)) | lit<"<">)) |
+            (ikw<"GREATER"> + option(ikw<"THAN">)) | lit<">"> |
+            (ikw<"EQUAL"> + option(ikw<"TO">)) | lit<"=">)> {};
 
   struct StartStatement
       : rule<create<ast::StartStatement> + ikw<"START">+
@@ -1632,25 +1660,25 @@ struct Cobol85 : cursiv::GrammarSpec {
   struct StopStatement
       : rule<create<ast::StopStatement> + ikw<"STOP">+
              (flag<&ast::StopStatement::run>(ikw<"RUN">) |
-              assign<&ast::StopStatement::value>(ref<LiteralRule>))> {};
+              assign<&ast::StopStatement::value>(ref<Literal>))> {};
 
   // string
 
-  struct StringSendItemRule
+  struct StringSendItem
       : rule<create<ast::StringSendItem> +
              some(append<&ast::StringSendItem::operands>(ref<IdentifierOrRegister> |
-                                                          ref<LiteralRule>)) +
+                                                          ref<Literal>)) +
              ((ikw<"DELIMITED">+ option(ikw<"BY">) +
                assign<&ast::StringSendItem::delimitedBy>(ikw<"SIZE"> | ref<CobolWord> |
                                                           ref<STRINGLIT>)) |
               (ikw<"FOR">+
-               assign<&ast::StringSendItem::forPhrase>(ref<IdentifierOrRegister> | ref<LiteralRule>)))> {};
+               assign<&ast::StringSendItem::forPhrase>(ref<IdentifierOrRegister> | ref<Literal>)))> {};
   struct StringStatement
       : rule<create<ast::StringStatement> + ikw<"STRING">+
-             some(append<&ast::StringStatement::sending>(ref<StringSendItemRule>)) + ikw<"INTO">+
-             assign<&ast::StringStatement::into>(ref<IdentifierRule>) +
+             some(append<&ast::StringStatement::sending>(ref<StringSendItem>)) + ikw<"INTO">+
+             assign<&ast::StringStatement::into>(ref<Identifier>) +
              option(option(ikw<"WITH">) + ikw<"POINTER">+
-                    assign<&ast::StringStatement::pointer>(ref<IdentifierRule>)) +
+                    assign<&ast::StringStatement::pointer>(ref<Identifier>)) +
              option(option(ikw<"ON">) + ikw<"OVERFLOW">+
                     many(append<&ast::StringStatement::onOverflow>(ref<Statement>))) +
              option(ikw<"NOT">+ option(ikw<"ON">) + ikw<"OVERFLOW">+
@@ -1661,30 +1689,30 @@ struct Cobol85 : cursiv::GrammarSpec {
 
   struct TerminateStatement
       : rule<create<ast::TerminateStatement> + ikw<"TERMINATE">+
-             assign<&ast::TerminateStatement::reportName>(ref<IdentifierRule>)> {};
+             assign<&ast::TerminateStatement::reportName>(ref<Identifier>)> {};
 
   // unstring
 
   struct UnstringIntoOne
-      : rule<create<ast::UnstringInto> + assign<&ast::UnstringInto::target>(ref<IdentifierRule>) +
+      : rule<create<ast::UnstringInto> + assign<&ast::UnstringInto::target>(ref<Identifier>) +
              option(ikw<"DELIMITER">+ option(ikw<"IN">) +
-                    assign<&ast::UnstringInto::delimiterIn>(ref<IdentifierRule>)) +
+                    assign<&ast::UnstringInto::delimiterIn>(ref<Identifier>)) +
              option(ikw<"COUNT">+ option(ikw<"IN">) +
-                    assign<&ast::UnstringInto::countIn>(ref<IdentifierRule>))> {};
+                    assign<&ast::UnstringInto::countIn>(ref<Identifier>))> {};
   struct UnstringStatement
       : rule<create<ast::UnstringStatement> + ikw<"UNSTRING">+
-             assign<&ast::UnstringStatement::sending>(ref<IdentifierRule>) +
+             assign<&ast::UnstringStatement::sending>(ref<Identifier>) +
              option(ikw<"DELIMITED">+ option(ikw<"BY">) + option(ikw<"ALL">) +
                     append<&ast::UnstringStatement::delimiters>(ref<IdentifierOrRegister> |
-                                                                ref<LiteralRule>) +
+                                                                ref<Literal>) +
                     many(ikw<"OR">+ option(ikw<"ALL">) +
                          append<&ast::UnstringStatement::delimiters>(ref<IdentifierOrRegister> |
-                                                                     ref<LiteralRule>))) +
+                                                                     ref<Literal>))) +
              ikw<"INTO">+ some(append<&ast::UnstringStatement::into>(ref<UnstringIntoOne>)) +
              option(option(ikw<"WITH">) + ikw<"POINTER">+
-                    assign<&ast::UnstringStatement::pointer>(ref<IdentifierRule>)) +
+                    assign<&ast::UnstringStatement::pointer>(ref<Identifier>)) +
              option(ikw<"TALLYING">+ option(ikw<"IN">) +
-                    assign<&ast::UnstringStatement::tallying>(ref<IdentifierRule>)) +
+                    assign<&ast::UnstringStatement::tallying>(ref<Identifier>)) +
              option(option(ikw<"ON">) + ikw<"OVERFLOW">+
                     many(append<&ast::UnstringStatement::onOverflow>(ref<Statement>))) +
              option(ikw<"NOT">+ option(ikw<"ON">) + ikw<"OVERFLOW">+
@@ -1694,33 +1722,36 @@ struct Cobol85 : cursiv::GrammarSpec {
   // use (declaratives only, not a general statement)
 
   struct UseWord
-      : rule<(option(ikw<"GLOBAL">) + ikw<"AFTER">+ option(ikw<"STANDARD">) +
-                  (ikw<"EXCEPTION"> | ikw<"ERROR">) + ikw<"PROCEDURE">+ option(ikw<"ON">) +
-                  (ikw<"INPUT"> | ikw<"OUTPUT"> | ikw<"I-O"> | ikw<"EXTEND"> |
-                   some(ref<CobolWord>))) |
-                 (option(ikw<"FOR">) + ikw<"DEBUGGING">+ option(ikw<"ON">) +
-                  some((ikw<"ALL">+ ikw<"PROCEDURES">) |
-                       (ikw<"ALL">+ option(ikw<"REFERENCES">) + option(ikw<"OF">) +
-                        ref<CobolWord>) |
-                       ref<CobolWord>)),
-             RawSpan> {};
+      : rule<as<rawSpan>(
+            (option(ikw<"GLOBAL">) + ikw<"AFTER"> + option(ikw<"STANDARD">) +
+             (ikw<"EXCEPTION"> | ikw<"ERROR">)+ikw<"PROCEDURE"> +
+             option(ikw<"ON">) +
+             (ikw<"INPUT"> | ikw<"OUTPUT"> | ikw<"I-O"> | ikw<"EXTEND"> |
+              some(ref<CobolWord>))) |
+            (option(ikw<"FOR">) + ikw<"DEBUGGING"> + option(ikw<"ON">) +
+             some((ikw<"ALL"> + ikw<"PROCEDURES">) |
+                  (ikw<"ALL"> + option(ikw<"REFERENCES">) + option(ikw<"OF">) +
+                   ref<CobolWord>) |
+                  ref<CobolWord>)))> {};
 
-  struct UseStatementRule
+  struct UseStatement
       : rule<create<ast::UseStatement> + ikw<"USE">+
              assign<&ast::UseStatement::text>(ref<UseWord>)> {};
 
   // write
 
   struct AdvancingWord
-      : rule<ikw<"PAGE"> | (ref<CobolWord> + option(ikw<"LINE"> | ikw<"LINES">)) |
-                 ((ref<NUMLIT> | ref<INTLIT>) + option(ikw<"LINE"> | ikw<"LINES">)),
-             RawSpan> {};
+      : rule<as<rawSpan>(
+            ikw<"PAGE"> |
+            (ref<CobolWord> + option(ikw<"LINE"> | ikw<"LINES">)) |
+            ((ref<NUMLIT> | ref<INTLIT>)+option(ikw<"LINE"> | ikw<"LINES">)))> {
+  };
 
   struct WriteStatement
       : rule<create<ast::WriteStatement> + ikw<"WRITE">+
              assign<&ast::WriteStatement::recordName>(ref<CobolWord>) +
              option(ikw<"FROM">+
-                    assign<&ast::WriteStatement::from>(ref<IdentifierOrRegister> | ref<LiteralRule>)) +
+                    assign<&ast::WriteStatement::from>(ref<IdentifierOrRegister> | ref<Literal>)) +
              option((ikw<"BEFORE"> | ikw<"AFTER">) + option(ikw<"ADVANCING">) +
                     assign<&ast::WriteStatement::advancing>(ref<AdvancingWord>)) +
              option(ikw<"AT">) +
@@ -1741,35 +1772,35 @@ struct Cobol85 : cursiv::GrammarSpec {
              ref<DOT_FS> +
              many(append<&ast::Paragraph::statements>(ref<Statement>) | (ref<DOT_FS>))> {};
 
-  struct ProcedureSectionRule
+  struct ProcedureSection
       : rule<create<ast::ProcedureSection> +
              assign<&ast::ProcedureSection::name>(ref<CobolWord> | ref<INTLIT>) + ikw<"SECTION">+
              option(ref<INTLIT>) + ref<DOT_FS> +
              many(append<&ast::ProcedureSection::paragraphs>(ref<Paragraph>))> {};
 
-  struct DeclarativeRule
+  struct Declarative
       : rule<create<ast::Declarative> +
              assign<&ast::Declarative::sectionName>(ref<CobolWord> | ref<INTLIT>) + ikw<"SECTION">+
              option(ref<INTLIT>) + ref<DOT_FS> +
-             assign<&ast::Declarative::use>(ref<UseStatementRule>) + ref<DOT_FS> +
+             assign<&ast::Declarative::use>(ref<UseStatement>) + ref<DOT_FS> +
              many(append<&ast::Declarative::paragraphs>(ref<Paragraph>))> {};
 
-  struct ProcedureDivisionRule
+  struct ProcedureDivision
       : rule<create<ast::ProcedureDivision> + ikw<"PROCEDURE">+ ikw<"DIVISION">+
              option((ikw<"USING"> | ikw<"CHAINING">) +
                     some((option(option(ikw<"BY">) + ikw<"REFERENCE">) +
                           (ikw<"ANY"> |
                            (option(ikw<"OPTIONAL">) +
-                            append<&ast::ProcedureDivision::using_>(ref<IdentifierRule>)))) |
+                            append<&ast::ProcedureDivision::using_>(ref<Identifier>)))) |
                          (ikw<"BY">+ ikw<"VALUE">+
                           (ikw<"ANY"> |
-                           append<&ast::ProcedureDivision::using_>(ref<IdentifierRule>) |
+                           append<&ast::ProcedureDivision::using_>(ref<Identifier>) |
                            LiteralText)))) +
              option((ikw<"GIVING"> | ikw<"RETURNING">) +
                     assign<&ast::ProcedureDivision::giving>(ref<CobolWord>)) +
              ref<DOT_FS> +
              option(ikw<"DECLARATIVES">+ ref<DOT_FS> +
-                    some(append<&ast::ProcedureDivision::declaratives>(ref<DeclarativeRule>)) +
+                    some(append<&ast::ProcedureDivision::declaratives>(ref<Declarative>)) +
                     ikw<"END">+ ikw<"DECLARATIVES">+ ref<DOT_FS>) +
              // paragraphs: sentence* paragraph* -- a leading run of sentences
              // with no paragraph name is a program's normal, common shape
@@ -1778,7 +1809,7 @@ struct Cobol85 : cursiv::GrammarSpec {
              many(append<&ast::ProcedureDivision::statements>(ref<Statement>) |
                   (ref<DOT_FS>)) +
              many(append<&ast::ProcedureDivision::paragraphs>(ref<Paragraph>)) +
-             many(append<&ast::ProcedureDivision::sections>(ref<ProcedureSectionRule>))> {};
+             many(append<&ast::ProcedureDivision::sections>(ref<ProcedureSection>))> {};
 
   // ---- identification division, data division assembly, program ----
 
@@ -1787,11 +1818,11 @@ struct Cobol85 : cursiv::GrammarSpec {
                   ikw<"DATE-COMPILED"> | ikw<"SECURITY"> | ikw<"REMARKS">) +
                  ref<DOT_FS> + many(ref<COMMENTENTRYLINE>)))> {};
 
-  // Each section is inlined into the one DataDivisionRule that creates
+  // Each section is inlined into the one DataDivision that creates
   // ast::DataDivision: a per-section rule whose only job is `append<>` into
   // that same class would deduce ast::DataDivision as its own head too,
   // clashing with the outer create<>.
-  struct DataDivisionRule
+  struct DataDivision
       : rule<create<ast::DataDivision> + ikw<"DATA">+ ikw<"DIVISION">+ ref<DOT_FS> +
              many((ikw<"FILE">+ ikw<"SECTION">+ ref<DOT_FS> +
                    many(append<&ast::DataDivision::files>(ref<FileDescriptionEntry>))) |
@@ -1815,7 +1846,7 @@ struct Cobol85 : cursiv::GrammarSpec {
                   (ikw<"PROGRAM-LIBRARY">+ ikw<"SECTION">+ ref<DOT_FS> +
                    many(append<&ast::DataDivision::libraries>(ref<LibraryDescriptionEntry>))))> {};
 
-  struct ProgramUnitRule
+  struct ProgramUnit
       : rule<create<ast::ProgramUnit> +
              (ikw<"IDENTIFICATION"> | ikw<"ID">)+ikw<"DIVISION"> + ref<DOT_FS> +
              ikw<"PROGRAM-ID"> + ref<DOT_FS> +
@@ -1825,20 +1856,20 @@ struct Cobol85 : cursiv::GrammarSpec {
                                          ikw<"RECURSIVE">)+option(ikw<"PROGRAM">)) +
              option(ref<DOT_FS>) + many(ref<COMMENTENTRYLINE>) + many(ref<IdBodySkip>) +
              option(
-                 assign<&ast::ProgramUnit::environment>(ref<EnvironmentDivisionRule>)) +
-             option(assign<&ast::ProgramUnit::data>(ref<DataDivisionRule>)) +
-             option(assign<&ast::ProgramUnit::procedure>(ref<ProcedureDivisionRule>)) +
-             many(append<&ast::ProgramUnit::nested>(ref<ProgramUnitRule>)) +
+                 assign<&ast::ProgramUnit::environment>(ref<EnvironmentDivision>)) +
+             option(assign<&ast::ProgramUnit::data>(ref<DataDivision>)) +
+             option(assign<&ast::ProgramUnit::procedure>(ref<ProcedureDivision>)) +
+             many(append<&ast::ProgramUnit::nested>(ref<ProgramUnit>)) +
              option(ikw<"END"> + flag<&ast::ProgramUnit::hasEndProgram>(ikw<"PROGRAM">) +
                     assign<&ast::ProgramUnit::endName>(ref<STRINGLIT> | ref<CobolWord>) +
                     ref<DOT_FS>)> {};
 
-  struct CompilationUnitRule
+  struct CompilationUnit
       : rule<create<ast::CompilationUnit> +
-             some(append<&ast::CompilationUnit::programs>(ref<ProgramUnitRule>))> {};
+             some(append<&ast::CompilationUnit::programs>(ref<ProgramUnit>))> {};
 
-  using entry = CompilationUnitRule;
-  using ignore = list<WS, NEWLINE>;
+  using entry = CompilationUnit;
+  using ignored = list<WS, NEWLINE>;
   using hidden = list<LINE_COMMENT>;
 };
 

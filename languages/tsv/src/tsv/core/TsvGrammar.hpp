@@ -25,33 +25,32 @@ inline constexpr auto undouble = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Undoubled = cursiv::text_conv<undouble>;
 
 struct Tsv : cursiv::GrammarSpec {
-  struct EOL : terminal<lit<"\r\n"> | cr<R"(\r\n)">> {};
+  struct EOL : terminal<eol> {};
 
   // TAB is excluded so a longest-match lexer does not run an unquoted field
   // through the separator into the next one.
   struct TEXT : terminal<!lit<"\""> + some(cr<R"(^\t\n\r)">)> {};
   struct STRING
-      : terminal<lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">,
-                 Undoubled> {};
+      : terminal<as<undouble>(lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) +
+                              lit<"\"">)> {};
 
   // A data rule keeps an empty field as one scalar value, including fields
   // before, between and after separators.
-  struct FieldRule : rule<option(ref<TEXT> | ref<STRING>)> {};
+  struct Field : rule<option(ref<TEXT> | ref<STRING>)> {};
 
-  struct RowRule
-      : rule<some(append<&ast::Row::fields>(ref<FieldRule>), lit<"\t">)> {};
+  struct Row
+      : rule<some(append<&ast::Row::fields>(ref<Field>), lit<"\t">)> {};
 
-  struct DocRule
+  struct Doc
       : rule<create<ast::Document> +
-             option(!eof + assign<&ast::Document::header>(ref<RowRule>) +
+             option(!eof + assign<&ast::Document::header>(ref<Row>) +
                     many(ref<EOL> + !eof +
-                         append<&ast::Document::rows>(ref<RowRule>)) +
+                         append<&ast::Document::rows>(ref<Row>)) +
                     option(ref<EOL>))> {};
 
-  using entry = DocRule;
+  using entry = Doc;
 };
 
 } // namespace tsv

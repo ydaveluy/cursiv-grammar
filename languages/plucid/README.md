@@ -31,20 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-A plucid document is a single expression -- [Lucid](https://en.wikipedia.org/wiki/Lucid_(programming_language))'s
-dataflow language, filtered to the subset its reference grammar defines:
-
 ```
 if x eq 0 then error else 1 / x fi
 ```
 
-`error` and `eod` are the language's two sentinel values; `filter`, `substr`,
-`length` and `arg` are built-in unary/ternary forms; `if`/`case`/`cond` are
-its three branching expressions. `example/` holds three documents, each a
-`[% ... %]` list packing many small expressions into the one the grammar
-allows at the top: `arithmetic.plu` (numbers and numeric operators),
-`text.plu` (quoted words, strings, lists) and `flow.plu` (control forms,
-the remaining operators, calls).
+A pLucid program is one dataflow expression.
 
 ## The command line
 

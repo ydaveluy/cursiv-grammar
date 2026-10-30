@@ -7,11 +7,11 @@
 namespace infosapient {
 
 struct Infosapient : cursiv::GrammarSpec {
-  // Rule words are space-separated (`if foo is extremely 5.0;`).
+  // The 2001 white paper uses `is`/`are`; `s` is a legacy port spelling.
   struct WS : terminal<some(s)> {};
 
   struct IDENTIFIER : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9">)> {};
-  struct FP_LITERAL : terminal<many(d) + lit<"."> + many(d), double> {};
+  struct FP_LITERAL : terminal<as<double>(many(d) + lit<"."> + many(d))> {};
 
   static constexpr auto hedge_conv = [](std::string_view t) {
     if (t == "about")
@@ -63,22 +63,21 @@ struct Infosapient : cursiv::GrammarSpec {
     return ast::Hedge::in_vicinity_of;
   };
   struct HEDGE
-      : terminal<kw<"about"> | kw<"above"> | kw<"after"> | kw<"around"> |
-                     kw<"before"> | kw<"below"> | kw<"closeTo"> |
-                     kw<"definitely"> | kw<"extremely"> | kw<"generally"> |
-                     kw<"mostly"> | kw<"must"> | kw<"near"> | kw<"negative"> |
-                     kw<"negatively"> | kw<"not"> | kw<"positive"> |
-                     kw<"positively"> | kw<"roughly"> | kw<"should"> |
-                     kw<"slightly"> | kw<"somewhat"> | kw<"very"> |
-                     kw<"inVicinityOf">,
-                 cursiv::text_conv<hedge_conv>> {};
+      : terminal<as<hedge_conv>(
+            kw<"about"> | kw<"above"> | kw<"after"> | kw<"around"> |
+            kw<"before"> | kw<"below"> | kw<"closeTo"> | kw<"definitely"> |
+            kw<"extremely"> | kw<"generally"> | kw<"mostly"> | kw<"must"> |
+            kw<"near"> | kw<"negative"> | kw<"negatively"> | kw<"not"> |
+            kw<"positive"> | kw<"positively"> | kw<"roughly"> | kw<"should"> |
+            kw<"slightly"> | kw<"somewhat"> | kw<"very"> |
+            kw<"inVicinityOf">)> {};
 
   static constexpr auto restriction_conv = [](std::string_view t) {
     return t == "increased" ? ast::Restriction::increased
                             : ast::Restriction::decreased;
   };
-  struct RESTRICTION : terminal<kw<"increased"> | kw<"decreased">,
-                                cursiv::text_conv<restriction_conv>> {};
+  struct RESTRICTION
+      : terminal<as<restriction_conv>(kw<"increased"> | kw<"decreased">)> {};
 
   static constexpr auto operator_conv = [](std::string_view t) {
     if (t == "and")
@@ -108,56 +107,54 @@ struct Infosapient : cursiv::GrammarSpec {
     return ast::LogicalOperator::yager_or;
   };
   struct LOGICAL_OP
-      : terminal<kw<"and"> | kw<"boundedAnd"> | kw<"cosineNot"> |
-                     kw<"meanAnd"> | kw<"meanOr"> | kw<"or"> |
-                     kw<"productAnd"> | kw<"productOr"> | kw<"sugenoNot"> |
-                     kw<"thresholdNot"> | kw<"yagerAnd"> | kw<"yagerNot"> |
-                     kw<"yagerOr">,
-                 cursiv::text_conv<operator_conv>> {};
+      : terminal<as<operator_conv>(
+            kw<"and"> | kw<"boundedAnd"> | kw<"cosineNot"> | kw<"meanAnd"> |
+            kw<"meanOr"> | kw<"or"> | kw<"productAnd"> | kw<"productOr"> |
+            kw<"sugenoNot"> | kw<"thresholdNot"> | kw<"yagerAnd"> |
+            kw<"yagerNot"> | kw<"yagerOr">)> {};
 
-  struct AttribClauseRule;
-  struct OperandRule;
+  struct AttribClause;
+  struct Operand;
   struct ClauseChain;
-  struct ClauseRule;
+  struct Clause;
 
-  struct AttribClauseRule
+  struct AttribClause
       : rule<create<ast::AttribClause>(
             assign<&ast::AttribClause::subject>(ref<IDENTIFIER>) +
             (flag<&ast::AttribClause::plural>(kw<"are">) |
-             kw<"s">)+many(append<&ast::AttribClause::hedges>(ref<HEDGE>)) +
+             (kw<"is"> | kw<"s">))+many(append<&ast::AttribClause::hedges>(ref<HEDGE>)) +
             (assign<&ast::AttribClause::value>(ref<FP_LITERAL>) |
              assign<&ast::AttribClause::value>(ref<IDENTIFIER>) |
              assign<&ast::AttribClause::value>(ref<RESTRICTION>)))> {};
 
   // Parens build no node: the rule adopts what its body produced.
-  struct OperandRule
-      : rule<(lit<"("> + ref<ClauseRule> + lit<")">) | ref<AttribClauseRule>> {
+  struct Operand
+      : rule<(lit<"("> + ref<Clause> + lit<")">) | ref<AttribClause>> {
   };
 
   // One flat, left-associative level: every fuzzy operator ties operands at
   // the same precedence, so the ladder has no second level to order against.
   struct ClauseChain
-      : infix<OperandRule, &ast::LogicalExpr::left, &ast::LogicalExpr::op,
-              &ast::LogicalExpr::right, left(ref<LOGICAL_OP>)> {};
+      : infix<Operand, ast::LogicalExpr, left(ref<LOGICAL_OP>)> {};
 
-  struct ClauseRule : rule<ref<ClauseChain>> {};
+  struct Clause : rule<ref<ClauseChain>> {};
 
-  struct ConsequentRule
+  struct Consequent
       : rule<create<ast::Consequent>(
             kw<"then"> +
-            assign<&ast::Consequent::thenClause>(ref<AttribClauseRule>) +
+            assign<&ast::Consequent::thenClause>(ref<AttribClause>) +
             option(kw<"else"> + assign<&ast::Consequent::elseClause>(
-                                    ref<AttribClauseRule>)))> {};
+                                    ref<AttribClause>)))> {};
 
   struct ConditionalRule
       : rule<create<ast::ConditionalRule>(
             assign<&ast::ConditionalRule::name>(ref<IDENTIFIER>) + kw<"if"> +
-            assign<&ast::ConditionalRule::premise>(ref<ClauseRule>) +
-            assign<&ast::ConditionalRule::consequent>(ref<ConsequentRule>) +
+            assign<&ast::ConditionalRule::premise>(ref<Clause>) +
+            assign<&ast::ConditionalRule::consequent>(ref<Consequent>) +
             lit<";">)> {};
 
   using entry = ConditionalRule;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 } // namespace infosapient

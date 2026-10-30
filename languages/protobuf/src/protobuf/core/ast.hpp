@@ -1,4 +1,4 @@
-// The protobuf (proto3) language: its AST. One node per grammar shape; a
+// Protobuf proto2/proto3 declarations: one node per grammar shape; a
 // scalar field type and a named (message/enum) type share one text slot,
 // since nothing short of a symbol table tells them apart.
 #pragma once
@@ -29,6 +29,7 @@ struct NumberLiteral : cursiv::Extends<cursiv::AstNode> {
   boolean floating;
 };
 struct ExtendDef;
+struct Group;
 
 using ConstantValue =
     std::variant<std::monostate, NumberLiteral *, bool, std::string_view,
@@ -67,7 +68,7 @@ struct FieldOption : cursiv::Extends<cursiv::AstNode> {
   ConstantValue value;
 };
 
-enum class FieldLabel : std::uint8_t { optional_, repeated_ };
+enum class FieldLabel : std::uint8_t { optional_, repeated_, required_ };
 
 struct Field : cursiv::Extends<cursiv::AstNode> {
   optional<FieldLabel> label;
@@ -88,6 +89,7 @@ struct OneofField : cursiv::Extends<cursiv::AstNode> {
 struct Oneof : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   vector<OneofField *> fields;
+  vector<Group *> groups;
   vector<OptionDecl *> options;
 };
 
@@ -108,6 +110,12 @@ struct ReservedRange : cursiv::Extends<cursiv::AstNode> {
 struct Reserved : cursiv::Extends<cursiv::AstNode> {
   vector<ReservedRange *> ranges; // "reserved 2, 9 to 11;"
   vector<string_view> fieldNames; // "reserved \"foo\", \"bar\";"
+};
+
+// Options apply to every range in this source declaration.
+struct Extensions : cursiv::Extends<cursiv::AstNode> {
+  vector<ReservedRange *> ranges;
+  vector<FieldOption *> options;
 };
 
 struct EnumField : cursiv::Extends<cursiv::AstNode> {
@@ -133,11 +141,22 @@ struct MessageDef : cursiv::Extends<cursiv::AstNode> {
   vector<Oneof *> oneofs;
   vector<MapField *> mapFields;
   vector<Reserved *> reserved;
+  vector<Group *> groups;
+  vector<Extensions *> extensions;
+};
+
+// name is the original group/type name; protoc's field name is its ASCII
+// lowercase spelling. The inherited members are the group's message body.
+struct Group : cursiv::Extends<MessageDef> {
+  optional<FieldLabel> label;
+  string_view number;
+  vector<FieldOption *> fieldOptions;
 };
 
 struct ExtendDef : cursiv::Extends<cursiv::AstNode> {
   string_view target; // messageType, dotted, optional leading dot
   vector<Field *> fields;
+  vector<Group *> groups;
 };
 
 struct Rpc : cursiv::Extends<cursiv::AstNode> {
@@ -156,7 +175,7 @@ struct ServiceDef : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct Document : cursiv::Extends<cursiv::AstNode> {
-  string_view syntax;
+  string_view syntax = "proto2"; // protoc's default when no header is written
   vector<Import *> imports;
   vector<Package *> packages; // the grammar allows more than one
   vector<OptionDecl *> options;

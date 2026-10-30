@@ -11,28 +11,24 @@ struct Ltl : cursiv::GrammarSpec {
   struct ATOMIC : terminal<cr<"a-z"> + many(cr<"a-zA-Z0-9_">)> {};
 
   struct NOT
-      : terminal<lit<"⌐"> | lit<"!"> | lit<"¬">, value<ast::UnaryOp::negate>> {
+      : terminal<as<ast::UnaryOp::negate>(lit<"⌐"> | lit<"!"> | lit<"¬">)> {};
+  struct GLOBALLY : terminal<as<ast::UnaryOp::globally>(lit<"G"> | lit<"[]">)> {
   };
-  struct GLOBALLY
-      : terminal<lit<"G"> | lit<"[]">, value<ast::UnaryOp::globally>> {};
-  struct FINALLY
-      : terminal<lit<"F"> | lit<"<>">, value<ast::UnaryOp::finally>> {};
-  struct NEXT : terminal<lit<"X">, value<ast::UnaryOp::next>> {};
+  struct FINALLY : terminal<as<ast::UnaryOp::finally>(lit<"F"> | lit<"<>">)> {};
 
-  struct AND : terminal<lit<"∧"> | lit<"&&"> | lit<"/\\">,
-                        value<ast::BinaryOp::land>> {};
+  struct AND
+      : terminal<as<ast::BinaryOp::land>(lit<"∧"> | lit<"&&"> | lit<"/\\">)> {};
   struct OR
-      : terminal<lit<"∨"> | lit<"||"> | lit<"\\/">, value<ast::BinaryOp::lor>> {
-  };
-  struct ARROW : terminal<lit<"→"> | lit<"->">, value<ast::BinaryOp::implies>> {
-  };
-  struct UNTIL : terminal<lit<"U">, value<ast::BinaryOp::until>> {};
-  struct WEAK : terminal<lit<"W">, value<ast::BinaryOp::weak>> {};
-  struct RELEASE
-      : terminal<lit<"R"> | lit<"V">, value<ast::BinaryOp::release>> {};
+      : terminal<as<ast::BinaryOp::lor>(lit<"∨"> | lit<"||"> | lit<"\\/">)> {};
+  struct ARROW : terminal<as<ast::BinaryOp::implies>(lit<"→"> | lit<"->">)> {};
+  struct UNTIL : terminal<as<ast::BinaryOp::until>(lit<"U">)> {};
+  struct WEAK : terminal<as<ast::BinaryOp::weak>(lit<"W">)> {};
+  struct RELEASE : terminal<as<ast::BinaryOp::release>(lit<"R"> | lit<"V">)> {};
+
+  struct STRONG_RELEASE : terminal<as<ast::BinaryOp::strong_release>(lit<"M">)> {};
 
   struct EQUIV
-      : terminal<lit<"↔"> | lit<"<->">, value<ast::BinaryOp::equivalent>> {};
+      : terminal<as<ast::BinaryOp::equivalent>(lit<"↔"> | lit<"<->">)> {};
 
   struct Proposition;
 
@@ -49,18 +45,17 @@ struct Ltl : cursiv::GrammarSpec {
   struct Unary
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(ref<NOT> | ref<GLOBALLY> |
-                                             ref<FINALLY> | ref<NEXT>) +
+                                             ref<FINALLY> | as<ast::UnaryOp::next>(lit<"X">)) +
                  assign<&ast::UnaryExpr::operand>(ref<Unary>)) |
              ref<Atom>> {};
 
   struct Proposition
-      : infix<Unary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<UNTIL> | ref<WEAK> | ref<RELEASE>) >>
-               left(ref<AND> | ref<OR> | ref<ARROW> | ref<EQUIV>))> {};
+      : infix<Unary, ast::BinaryExpr,
+              levels(left(ref<UNTIL> | ref<WEAK> | ref<RELEASE> | ref<STRONG_RELEASE>),
+                     left(ref<AND>), left(ref<OR>), right(ref<ARROW>), left(ref<EQUIV>))> {};
 
   using entry = Proposition;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 } // namespace ltl

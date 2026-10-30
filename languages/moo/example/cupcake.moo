@@ -5,8 +5,7 @@
 @create $feature called "Cupcake Feature"
 
 @describe "Cupcake Feature" as "A feature object for giving cupcakes to players.."
-@set "Cupcake Feature".help_msg to {"A feature object for giving cupcakes to players.", "Use cupc*ake <player> to give a cupcake to someone.", "Use cupc*ake everyone to give cupcakes to everyone in the room.
-"}
+@set "Cupcake Feature".help_msg to {"A feature object for giving cupcakes to players.", "Use cupc*ake <player> to give a cupcake to someone.", "Use cupc*ake everyone to give cupcakes to everyone in the room."}
 
 @property "Cupcake Feature".bases {"angel cake", "angel food cake", "carrot cake", "cheesecake", "chiffon cake", "chocolate cake", "coffee cake", "cucumber cake", "layer cake", "marble cake", "muffin", "pound cake", "pumpkin bread", "red velvet cake", "spice cake", "sponge cake", "wedding cake"} rc
 

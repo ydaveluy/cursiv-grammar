@@ -14,16 +14,16 @@ struct Fen : cursiv::GrammarSpec {
   struct PIECE : terminal<cr<"A-Za-z">> {};
   struct PROMOTION : terminal<some(lit<"~">)> {};
 
-  struct PieceRule
+  struct Piece
       : rule<assign<&ast::PieceSquare::piece>(ref<PIECE>) +
              option(assign<&ast::PieceSquare::promotion>(ref<PROMOTION>))> {};
-  struct RankRule : rule<some(append<&ast::Rank::squares>(ref<PieceRule>) |
+  struct Rank : rule<some(append<&ast::Rank::squares>(ref<Piece>) |
                               append<&ast::Rank::squares>(ref<NUMBER>))> {};
-  struct PlacementRule
-      : rule<some(append<&ast::Placement::ranks>(ref<RankRule>), lit<"/">)> {};
+  struct Placement
+      : rule<some(append<&ast::Placement::ranks>(ref<Rank>), lit<"/">)> {};
   struct FenRule
       : rule<create<ast::Fen>(
-            option(ref<WS>) + assign<&ast::Fen::placement>(ref<PlacementRule>) +
+            option(ref<WS>) + assign<&ast::Fen::placement>(ref<Placement>) +
             option(
                 ref<WS> + assign<&ast::Fen::color>(ref<FIELD>) +
                 option(

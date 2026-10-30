@@ -38,7 +38,6 @@ inline constexpr auto unquote =
       }
       return std::string_view(room.data(), n);
     };
-using Unquoted = cursiv::text_conv<unquote>;
 
 inline constexpr auto parse_hex = [](std::string_view t) -> cursiv::ConversionResult<std::int64_t> {
   const bool neg = !t.empty() && t.front() == '-';
@@ -52,7 +51,6 @@ inline constexpr auto parse_hex = [](std::string_view t) -> cursiv::ConversionRe
   const auto n = neg && v == sign ? std::numeric_limits<std::int64_t>::min() : neg ? -static_cast<std::int64_t>(v) : static_cast<std::int64_t>(v);
   return cursiv::ConversionResult<std::int64_t>::ok(n);
 };
-using Int64Hex = cursiv::text_conv<parse_hex>;
 
 struct Thrift : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -62,60 +60,52 @@ struct Thrift : cursiv::GrammarSpec {
   struct ID : terminal<cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9._">)> {};
 
   static constexpr auto escape = lit<"\\"> + cr<R"(rnt"'\\)">;
-  struct LITERAL
-      : terminal<(lit<"\""> + many(escape | cr<R"(^"\\)">) + lit<"\"">) |
-                     (lit<"'"> + many(escape | cr<R"(^'\\)">) + lit<"'">),
-                 Unquoted> {};
+  struct LITERAL : terminal<as<unquote>(
+                       (lit<"\""> + many(escape | cr<R"(^"\\)">) + lit<"\"">) |
+                       (lit<"'"> + many(escape | cr<R"(^'\\)">) + lit<"'">))> {
+  };
 
-  struct INTEGER : terminal<option(cr<"+-">) + some(d), std::int64_t> {};
+  struct INTEGER : terminal<as<std::int64_t>(option(cr<"+-">) + some(d))> {};
   struct HEX_INTEGER
-      : terminal<option(cr<"+-">) + (lit<"0x"> | lit<"0X">) + some(cr<"0-9a-fA-F">),
-                 Int64Hex> {};
+      : terminal<as<parse_hex>(option(cr<"+-">) +
+                               (lit<"0x"> | lit<"0X">)+some(cr<"0-9a-fA-F">))> {
+  };
   struct DOUBLE
-      : terminal<option(cr<"+-">) +
-                     ((some(d) + option(lit<"."> + some(d))) |
-                      (lit<"."> + some(d))) +
-                     option(cr<"eE"> + option(cr<"+-">) + some(d)),
-                 double> {};
+      : terminal<as<double>(
+            option(cr<"+-">) +
+            ((some(d) + option(lit<"."> + some(d))) | (lit<"."> + some(d))) +
+            option(cr<"eE"> + option(cr<"+-">) + some(d)))> {};
 
-  struct TRUE_INTEGER : terminal<kw<"true">, value<std::int64_t{1}>> {};
-  struct FALSE_INTEGER : terminal<kw<"false">, value<std::int64_t{0}>> {};
   static constexpr auto integer_value =
-      ref<INTEGER> | ref<HEX_INTEGER> | ref<TRUE_INTEGER> | ref<FALSE_INTEGER>;
+      ref<INTEGER> | ref<HEX_INTEGER> | as<std::int64_t{1}>(kw<"true">) | as<std::int64_t{0}>(kw<"false">);
 
   struct BASE_TYPE
       : terminal<kw<"bool"> | kw<"byte"> | kw<"i8"> | kw<"uuid"> | kw<"i16"> | kw<"i32"> |
                  kw<"i64"> | kw<"double"> | kw<"string"> | kw<"binary">> {};
 
-  struct REQUIRED_KW : terminal<kw<"required">, value<ast::FieldReq::required_>> {};
-  struct OPTIONAL_KW : terminal<kw<"optional">, value<ast::FieldReq::optional_>> {};
-  static constexpr auto field_req = ref<REQUIRED_KW> | ref<OPTIONAL_KW>;
+  static constexpr auto field_req = as<ast::FieldReq::required_>(kw<"required">) | as<ast::FieldReq::optional_>(kw<"optional">);
 
-  struct StructKw : terminal<kw<"struct">, value<ast::StructKind::struct_>> {};
-  struct UnionKw : terminal<kw<"union">, value<ast::StructKind::union_>> {};
-  struct ExceptionKw
-      : terminal<kw<"exception">, value<ast::StructKind::exception>> {};
 
-  struct TypeAnnotationRule;
-  struct BaseTypeRule;
-  struct NamedTypeRule;
-  struct MapTypeRule;
-  struct SetTypeRule;
-  struct ListTypeRule;
-  struct FieldRule;
-  struct ConstRefRule;
-  struct ConstListRule;
-  struct ConstMapRule;
+  struct TypeAnnotation;
+  struct BaseType;
+  struct NamedType;
+  struct MapType;
+  struct SetType;
+  struct ListType;
+  struct Field;
+  struct ConstRef;
+  struct ConstList;
+  struct ConstMap;
 
   static constexpr auto list_separator = lit<","> | lit<";">;
 
   static constexpr auto const_value =
-      integer_value | ref<DOUBLE> | ref<LITERAL> | ref<ConstRefRule> |
-      ref<ConstListRule> | ref<ConstMapRule>;
+      integer_value | ref<DOUBLE> | ref<LITERAL> | ref<ConstRef> |
+      ref<ConstList> | ref<ConstMap>;
 
   static constexpr auto annotation_value = integer_value | ref<LITERAL>;
 
-  struct TypeAnnotationRule
+  struct TypeAnnotation
       : rule<assign<&ast::TypeAnnotation::name>(ref<ID>) +
                  option(lit<"="> +
                         assign<&ast::TypeAnnotation::value>(annotation_value)) +
@@ -123,148 +113,148 @@ struct Thrift : cursiv::GrammarSpec {
 
   template <auto Member>
   static constexpr auto AnnotationsInto =
-      option(lit<"("> + many(append<Member>(ref<TypeAnnotationRule>)) + lit<")">);
+      option(lit<"("> + many(append<Member>(ref<TypeAnnotation>)) + lit<")">);
 
-  struct FieldTypeRule
-      : rule<ref<BaseTypeRule> | ref<NamedTypeRule> | ref<MapTypeRule> |
-             ref<SetTypeRule> | ref<ListTypeRule>> {};
+  struct FieldType
+      : rule<ref<BaseType> | ref<NamedType> | ref<MapType> |
+             ref<SetType> | ref<ListType>> {};
 
-  struct BaseTypeRule
+  struct BaseType
       : rule<assign<&ast::BaseType::keyword>(ref<BASE_TYPE>) +
              AnnotationsInto<&ast::BaseType::annotations>> {};
 
-  struct NamedTypeRule : rule<assign<&ast::NamedType::name>(ref<ID>)> {};
+  struct NamedType : rule<assign<&ast::NamedType::name>(ref<ID>)> {};
 
-  struct MapTypeRule
+  struct MapType
       : rule<create<ast::MapType> + kw<"map"> +
              option(kw<"cpp_type"> +
                     assign<&ast::MapType::cppType>(ref<LITERAL>)) +
-             lit<"<"> + assign<&ast::MapType::key>(ref<FieldTypeRule>) +
-             lit<","> + assign<&ast::MapType::value>(ref<FieldTypeRule>) +
+             lit<"<"> + assign<&ast::MapType::key>(ref<FieldType>) +
+             lit<","> + assign<&ast::MapType::value>(ref<FieldType>) +
              lit<">"> + AnnotationsInto<&ast::MapType::annotations>> {};
 
-  struct SetTypeRule
+  struct SetType
       : rule<create<ast::SetType> + kw<"set"> +
              option(kw<"cpp_type"> +
                     assign<&ast::SetType::cppType>(ref<LITERAL>)) +
-             lit<"<"> + assign<&ast::SetType::element>(ref<FieldTypeRule>) +
+             lit<"<"> + assign<&ast::SetType::element>(ref<FieldType>) +
              lit<">"> + AnnotationsInto<&ast::SetType::annotations>> {};
 
-  struct ListTypeRule
+  struct ListType
       : rule<create<ast::ListType> + kw<"list"> +
              option(kw<"cpp_type"> +
                     append<&ast::ListType::cppTypes>(ref<LITERAL>)) + lit<"<"> +
-             assign<&ast::ListType::element>(ref<FieldTypeRule>) + lit<">"> +
+             assign<&ast::ListType::element>(ref<FieldType>) + lit<">"> +
              option(kw<"cpp_type"> +
                     append<&ast::ListType::cppTypes>(ref<LITERAL>)) +
              AnnotationsInto<&ast::ListType::annotations>> {};
 
-  struct VoidTypeRule : rule<create<ast::VoidType> + kw<"void">> {};
-  static constexpr auto function_type = ref<FieldTypeRule> | ref<VoidTypeRule>;
+  struct VoidType : rule<create<ast::VoidType> + kw<"void">> {};
+  static constexpr auto function_type = ref<FieldType> | ref<VoidType>;
 
-  struct FieldRule
+  struct Field
       : rule<option(assign<&ast::Field::id>(integer_value) + lit<":">) +
              option(assign<&ast::Field::req>(field_req)) +
-             assign<&ast::Field::type>(ref<FieldTypeRule>) +
+             assign<&ast::Field::type>(ref<FieldType>) +
              option(flag<&ast::Field::isReference>(lit<"&">)) +
              assign<&ast::Field::name>(ref<ID>) +
              option(lit<"="> + assign<&ast::Field::value>(const_value)) +
              option(flag<&ast::Field::xsdOptional>(kw<"xsd_optional">)) +
              option(flag<&ast::Field::xsdNillable>(kw<"xsd_nillable">)) +
              option(kw<"xsd_attrs"> + lit<"{"> +
-                    many(append<&ast::Field::xsdAttrs>(ref<FieldRule>)) +
+                    many(append<&ast::Field::xsdAttrs>(ref<Field>)) +
                     lit<"}">) +
              AnnotationsInto<&ast::Field::annotations> +
              option(list_separator)> {};
 
-  struct ConstRefRule : rule<assign<&ast::ConstRef::name>(ref<ID>)> {};
+  struct ConstRef : rule<assign<&ast::ConstRef::name>(ref<ID>)> {};
 
-  struct ConstListRule
+  struct ConstList
       : rule<create<ast::ConstList> + lit<"["> +
              many(append<&ast::ConstList::items>(const_value) +
                   option(list_separator)) +
              lit<"]">> {};
 
-  struct ConstMapEntryRule
+  struct ConstMapEntry
       : rule<assign<&ast::ConstMapEntry::key>(const_value) + lit<":"> +
              assign<&ast::ConstMapEntry::value>(const_value) +
              option(list_separator)> {};
 
-  struct ConstMapRule
+  struct ConstMap
       : rule<create<ast::ConstMap> + lit<"{"> +
-             many(append<&ast::ConstMap::entries>(ref<ConstMapEntryRule>)) +
+             many(append<&ast::ConstMap::entries>(ref<ConstMapEntry>)) +
              lit<"}">> {};
 
-  struct ConstDefRule
-      : rule<kw<"const"> + assign<&ast::ConstDef::type>(ref<FieldTypeRule>) +
+  struct ConstDef
+      : rule<kw<"const"> + assign<&ast::ConstDef::type>(ref<FieldType>) +
              assign<&ast::ConstDef::name>(ref<ID>) +
-             option(lit<"="> + assign<&ast::ConstDef::value>(const_value)) +
+             lit<"="> + assign<&ast::ConstDef::value>(const_value) +
              option(list_separator)> {};
 
-  struct TypedefRule
+  struct Typedef
       : rule<kw<"typedef"> +
-             assign<&ast::TypedefDef::type>(ref<FieldTypeRule>) +
+             assign<&ast::TypedefDef::type>(ref<FieldType>) +
              assign<&ast::TypedefDef::name>(ref<ID>) +
              AnnotationsInto<&ast::TypedefDef::annotations> +
              option(list_separator)> {};
 
-  struct EnumFieldRule
+  struct EnumField
       : rule<assign<&ast::EnumField::name>(ref<ID>) +
              option(lit<"="> +
                     assign<&ast::EnumField::value>(integer_value)) +
              AnnotationsInto<&ast::EnumField::annotations> +
              option(list_separator)> {};
 
-  struct EnumDefRule
+  struct EnumDef
       : rule<kw<"enum"> + assign<&ast::EnumDef::name>(ref<ID>) + lit<"{"> +
-             many(append<&ast::EnumDef::fields>(ref<EnumFieldRule>)) +
+             many(append<&ast::EnumDef::fields>(ref<EnumField>)) +
              lit<"}"> + AnnotationsInto<&ast::EnumDef::annotations>> {};
 
-  struct SenumDefRule
+  struct SenumDef
       : rule<kw<"senum"> + assign<&ast::SenumDef::name>(ref<ID>) + lit<"{"> +
              many(append<&ast::SenumDef::values>(ref<LITERAL>) +
                   option(list_separator)) +
              lit<"}"> + AnnotationsInto<&ast::SenumDef::annotations>> {};
 
-  struct StructLikeRule
+  struct StructLike
       : rule<assign<&ast::StructDef::kind>(
-                 ref<StructKw> | ref<UnionKw> | ref<ExceptionKw>) +
+                 as<ast::StructKind::struct_>(kw<"struct">) | as<ast::StructKind::union_>(kw<"union">) | as<ast::StructKind::exception>(kw<"exception">)) +
                  assign<&ast::StructDef::name>(ref<ID>) +
                  option(flag<&ast::StructDef::xsdAll>(kw<"xsd_all">)) +
                  lit<"{"> +
-                 many(append<&ast::StructDef::fields>(ref<FieldRule>)) +
+                 many(append<&ast::StructDef::fields>(ref<Field>)) +
                  lit<"}"> + AnnotationsInto<&ast::StructDef::annotations>> {};
 
-  struct FunctionRule
+  struct Function
       : rule<option(flag<&ast::Function::oneway>(kw<"oneway"> |
                                                         kw<"async">)) +
                  assign<&ast::Function::returnType>(function_type) +
                  assign<&ast::Function::name>(ref<ID>) + lit<"("> +
-                 many(append<&ast::Function::params>(ref<FieldRule>)) +
+                 many(append<&ast::Function::params>(ref<Field>)) +
                  lit<")"> +
                  option(kw<"throws"> + lit<"("> +
-                        many(append<&ast::Function::throws>(ref<FieldRule>)) +
+                        many(append<&ast::Function::throws>(ref<Field>)) +
                         lit<")">) +
                  AnnotationsInto<&ast::Function::annotations> +
                  option(list_separator)> {};
 
-  struct ServiceDefRule
+  struct ServiceDef
       : rule<kw<"service"> + assign<&ast::ServiceDef::name>(ref<ID>) +
              option(kw<"extends"> +
                     assign<&ast::ServiceDef::extends_>(ref<ID>)) +
              lit<"{"> +
-             many(append<&ast::ServiceDef::functions>(ref<FunctionRule>)) +
+             many(append<&ast::ServiceDef::functions>(ref<Function>)) +
              lit<"}"> + AnnotationsInto<&ast::ServiceDef::annotations>> {};
 
-  struct DefinitionRule
-      : rule<ref<ConstDefRule> | ref<TypedefRule> | ref<EnumDefRule> |
-             ref<SenumDefRule> | ref<StructLikeRule> | ref<ServiceDefRule>> {
+  struct Definition
+      : rule<ref<ConstDef> | ref<Typedef> | ref<EnumDef> |
+             ref<SenumDef> | ref<StructLike> | ref<ServiceDef>> {
   };
 
-  struct IncludeRule
+  struct Include
       : rule<kw<"include"> + assign<&ast::Include::path>(ref<LITERAL>)> {};
 
-  struct CppIncludeRule
+  struct CppInclude
       : rule<kw<"cpp_include"> +
              assign<&ast::CppInclude::path>(ref<LITERAL>)> {};
 
@@ -272,7 +262,7 @@ struct Thrift : cursiv::GrammarSpec {
   struct CPP_NAMESPACE_KW : terminal<kw<"cpp_namespace">> {};
   struct PHP_NAMESPACE_KW : terminal<kw<"php_namespace">> {};
 
-  struct NamespaceRule
+  struct Namespace
       : rule<(kw<"namespace"> +
                   assign<&ast::NamespaceDecl::scope>(ref<STAR> | ref<ID>) +
                   assign<&ast::NamespaceDecl::value>(ref<ID> | ref<LITERAL>) +
@@ -282,17 +272,17 @@ struct Thrift : cursiv::GrammarSpec {
                  (assign<&ast::NamespaceDecl::scope>(ref<PHP_NAMESPACE_KW>) +
                   assign<&ast::NamespaceDecl::value>(ref<ID>))> {};
 
-  struct HeaderRule
-      : rule<ref<IncludeRule> | ref<NamespaceRule> | ref<CppIncludeRule>> {};
+  struct Header
+      : rule<ref<Include> | ref<Namespace> | ref<CppInclude>> {};
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document> +
-             many(append<&ast::Document::headers>(ref<HeaderRule>)) +
-             many(append<&ast::Document::definitions>(ref<DefinitionRule>))> {
+             many(append<&ast::Document::headers>(ref<Header>)) +
+             many(append<&ast::Document::definitions>(ref<Definition>))> {
   };
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

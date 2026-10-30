@@ -1,5 +1,5 @@
 // The kotlin language: its grammar. Newlines: a bare newline is trivia
-// (`NL_TRIVIA`, in `ignore`); `NEWLINE` is the same byte and is the token a
+// (`NL_TRIVIA`, in `ignored`); `NEWLINE` is the same byte and is the token a
 // state reads explicitly -- a statement ends on it (`Semi`/`Anysemi`), and it
 // is blind (a join, not a token) inside `(`/`[` via
 // `indent_open`/`indent_close`/`indent_newline`, the same mechanism an
@@ -21,7 +21,6 @@ namespace kotlin {
 inline constexpr auto strip_first = [](std::string_view t) {
   return t.substr(1);
 };
-using StripFirst = cursiv::text_conv<strip_first>;
 
 inline constexpr auto strip_return_at = [](std::string_view t) {
   return t.substr(7);
@@ -32,12 +31,8 @@ inline constexpr auto strip_continue_at = [](std::string_view t) {
 inline constexpr auto strip_break_at = [](std::string_view t) {
   return t.substr(6);
 };
-using StripReturnAt = cursiv::text_conv<strip_return_at>;
-using StripContinueAt = cursiv::text_conv<strip_continue_at>;
-using StripBreakAt = cursiv::text_conv<strip_break_at>;
 
 inline constexpr auto elvis_text = [] { return std::string_view("?:"); };
-using ElvisConv = cursiv::text_conv<elvis_text>;
 
 struct Kotlin : cursiv::GrammarSpec {
   // TRIVIA
@@ -68,7 +63,7 @@ struct Kotlin : cursiv::GrammarSpec {
   // rule with a fixed converter, rather than `NLs + lit<>` spliced in place.
   // `&&`/`||` stay plain: giving both a leading NLs makes them both open on
   // NEWLINE within the same precedence table, which the table refuses.
-  struct ElvisOp : rule<NLs + lit<"?:">, ElvisConv> {};
+  struct ElvisOp : rule<as<elvis_text>(NLs + lit<"?:">)> {};
 
   // NUMBERS
   // =======
@@ -80,7 +75,7 @@ struct Kotlin : cursiv::GrammarSpec {
   // The first character must be a real digit -- `1._foo()` (a member access
   // starting with `_`) would otherwise lex as `1.` `_` `foo()`, a malformed
   // float literal `1._` swallowing the `_` a real identifier needed.
-  static constexpr auto Digits = uc::Nd + many(uc::Nd | lit<"_">);
+  static constexpr auto Digits = d + many(d | lit<"_">);
   static constexpr auto ExponentPart = cr<"eE"> + option(cr<"+-">) + Digits;
   // A terminal's body reaches the lexer only through literals, ranges,
   // sequences, choices and repetitions -- never a `ref<>` to another
@@ -105,7 +100,7 @@ struct Kotlin : cursiv::GrammarSpec {
       lit<"\\u"> + repeat<4>(cr<"0-9a-fA-F">);
   static constexpr auto SimpleEscape = lit<"\\"> + cr<R"(tbrn'"\\$)">;
   struct CharacterLiteral
-      : terminal<lit<"'"> + (UnicodeEscape | SimpleEscape | any) +
+      : terminal<lit<"'"> + (UnicodeEscape | SimpleEscape | cr<R"(^'\\\r\n)">) +
                  lit<"'">> {};
 
   // NAMES
@@ -113,18 +108,19 @@ struct Kotlin : cursiv::GrammarSpec {
 
   static constexpr auto IdentifierBody =
       ((Letter | lit<"_">) + many(Letter | lit<"_"> | uc::Nd)) |
-      (lit<"`"> + some(cr<"^`">) + lit<"`">);
-  struct Identifier : terminal<IdentifierBody> {};
-  struct LabelReference : terminal<lit<"@"> + IdentifierBody> {};
-  struct LabelDefinition : terminal<IdentifierBody + lit<"@">> {};
+      (lit<"`"> + some(cr<R"(^`\r\n)">) + lit<"`">);
+  static constexpr auto HardKeywords = kw<"as"> | kw<"break"> | kw<"class"> | kw<"continue"> | kw<"do"> | kw<"else"> | kw<"false"> | kw<"for"> | kw<"fun"> | kw<"if"> | kw<"in"> | kw<"interface"> | kw<"is"> | kw<"null"> | kw<"object"> | kw<"package"> | kw<"return"> | kw<"super"> | kw<"this"> | kw<"throw"> | kw<"true"> | kw<"try"> | kw<"typealias"> | kw<"typeof"> | kw<"val"> | kw<"var"> | kw<"when"> | kw<"while">;
+  struct Identifier : terminal<!HardKeywords + IdentifierBody> {};
+  struct LabelReference : terminal<lit<"@"> + !HardKeywords + IdentifierBody> {};
+  struct LabelDefinition : terminal<!HardKeywords + IdentifierBody + lit<"@">> {};
   struct FieldIdentifier : terminal<lit<"$"> + IdentifierBody> {};
 
   struct ReturnAtLabel
-      : terminal<lit<"return@"> + IdentifierBody, StripReturnAt> {};
+      : terminal<as<strip_return_at>(lit<"return@"> + !HardKeywords + IdentifierBody)> {};
   struct ContinueAtLabel
-      : terminal<lit<"continue@"> + IdentifierBody, StripContinueAt> {};
+      : terminal<as<strip_continue_at>(lit<"continue@"> + !HardKeywords + IdentifierBody)> {};
   struct BreakAtLabel
-      : terminal<lit<"break@"> + IdentifierBody, StripBreakAt> {};
+      : terminal<as<strip_break_at>(lit<"break@"> + !HardKeywords + IdentifierBody)> {};
 
   static constexpr auto word_boundary = Letter | uc::Nd | cr<"_">;
   struct NOT_IS : terminal<lit<"!is", !word_boundary>> {};
@@ -133,16 +129,16 @@ struct Kotlin : cursiv::GrammarSpec {
   // KEYWORDS referenced from more than one place: a modifier or a use-site
   // target needs a stable name so `SimpleIdentifier` (or, for a target, its
   // group form) can offer the same spelling a modifier list reads.
-  struct ALL_SITE : terminal<kw<"@all">, StripFirst> {};
-  struct FILE_SITE : terminal<kw<"@file">, StripFirst> {};
-  struct FIELD_SITE : terminal<kw<"@field">, StripFirst> {};
-  struct PROPERTY_SITE : terminal<kw<"@property">, StripFirst> {};
-  struct GET_SITE : terminal<kw<"@get">, StripFirst> {};
-  struct SET_SITE : terminal<kw<"@set">, StripFirst> {};
-  struct RECEIVER_SITE : terminal<kw<"@receiver">, StripFirst> {};
-  struct PARAM_SITE : terminal<kw<"@param">, StripFirst> {};
-  struct SETPARAM_SITE : terminal<kw<"@setparam">, StripFirst> {};
-  struct DELEGATE_SITE : terminal<kw<"@delegate">, StripFirst> {};
+  struct ALL_SITE : terminal<as<strip_first>(kw<"@all">)> {};
+  struct FILE_SITE : terminal<as<strip_first>(kw<"@file">)> {};
+  struct FIELD_SITE : terminal<as<strip_first>(kw<"@field">)> {};
+  struct PROPERTY_SITE : terminal<as<strip_first>(kw<"@property">)> {};
+  struct GET_SITE : terminal<as<strip_first>(kw<"@get">)> {};
+  struct SET_SITE : terminal<as<strip_first>(kw<"@set">)> {};
+  struct RECEIVER_SITE : terminal<as<strip_first>(kw<"@receiver">)> {};
+  struct PARAM_SITE : terminal<as<strip_first>(kw<"@param">)> {};
+  struct SETPARAM_SITE : terminal<as<strip_first>(kw<"@setparam">)> {};
+  struct DELEGATE_SITE : terminal<as<strip_first>(kw<"@delegate">)> {};
   static constexpr auto SiteTarget =
       ref<ALL_SITE> | ref<FIELD_SITE> | ref<FILE_SITE> | ref<PROPERTY_SITE> |
       ref<GET_SITE> | ref<SET_SITE> | ref<RECEIVER_SITE> | ref<PARAM_SITE> |
@@ -208,8 +204,8 @@ struct Kotlin : cursiv::GrammarSpec {
   // FORWARD DECLARATIONS
   // ====================
 
-  struct TypeRule;
-  struct TypeProjectionRule;
+  struct Type;
+  struct TypeProjection;
   struct Annotation;
   struct Argument;
   struct Param;
@@ -219,17 +215,17 @@ struct Kotlin : cursiv::GrammarSpec {
   struct AtomicExpr;
   struct AtomicExprNoIdent;
   struct CallableReferenceExpr;
-  struct FunctionLiteralRule;
+  struct FunctionLiteral;
   struct Block;
-  struct ClassDeclarationRule;
-  struct FunctionDeclarationRule;
-  struct ObjectDeclarationRule;
-  struct CompanionObjectRule;
-  struct PropertyDeclarationRule;
-  struct TypeAliasRule;
-  struct SecondaryConstructorRule;
-  struct InitBlockRule;
-  struct ClassMemberRule;
+  struct ClassDeclaration;
+  struct FunctionDeclaration;
+  struct ObjectDeclaration;
+  struct CompanionObject;
+  struct PropertyDeclaration;
+  struct TypeAlias;
+  struct SecondaryConstructor;
+  struct InitBlock;
+  struct ClassMember;
 
   // NAMES / ANNOTATIONS
   // ===================
@@ -250,8 +246,8 @@ struct Kotlin : cursiv::GrammarSpec {
       : rule<ref<SimpleIdentifier> + many(lit<"."> + ref<SimpleIdentifier>)> {
   };
   struct AtDottedName
-      : rule<ref<LabelReference> + many(lit<"."> + ref<SimpleIdentifier>),
-             StripFirst> {};
+      : rule<as<strip_first>(ref<LabelReference> +
+                             many(lit<"."> + ref<SimpleIdentifier>))> {};
 
   struct Argument
       : rule<create<ast::Argument>(
@@ -274,20 +270,19 @@ struct Kotlin : cursiv::GrammarSpec {
   // alone.
   template <auto TypeArgsPtr, auto ArgsPtr, auto LambdasPtr>
   static constexpr auto call_arguments_body =
-      (lit<"<"> + append<TypeArgsPtr>(ref<TypeProjectionRule>) +
-       many(lit<","> + append<TypeArgsPtr>(ref<TypeProjectionRule>)) +
+      (lit<"<"> + some(append<TypeArgsPtr>(ref<TypeProjection>), lit<",">) +
        option(lit<",">) + lit<">"> + option(value_arguments<ArgsPtr>) +
-       many(append<LambdasPtr>(ref<FunctionLiteralRule>))) |
+       many(append<LambdasPtr>(ref<FunctionLiteral>))) |
       (value_arguments<ArgsPtr> +
-       many(append<LambdasPtr>(ref<FunctionLiteralRule>)));
+       many(append<LambdasPtr>(ref<FunctionLiteral>)));
   template <auto TypeArgsPtr, auto ArgsPtr, auto LambdasPtr>
   static constexpr auto call_suffix_body =
       call_arguments_body<TypeArgsPtr, ArgsPtr, LambdasPtr> |
-      some(append<LambdasPtr>(ref<FunctionLiteralRule>));
+      some(append<LambdasPtr>(ref<FunctionLiteral>));
 
   static constexpr auto AnnotationTypeArguments =
       lit<"<"> +
-      some(append<&ast::Annotation::typeArguments>(ref<TypeProjectionRule>),
+      some(append<&ast::Annotation::typeArguments>(ref<TypeProjection>),
            lit<",">) +
       option(lit<",">) + lit<">">;
 
@@ -335,38 +330,37 @@ struct Kotlin : cursiv::GrammarSpec {
   // TYPES
   // =====
 
-  struct TypeProjectionRule
+  struct TypeProjection
       : rule<create<ast::TypeProjection>(
             flag<&ast::TypeProjection::isStar>(lit<"*">) |
             (option(assign<&ast::TypeProjection::variance>(ref<IN> |
                                                              ref<OUT>)) +
-             assign<&ast::TypeProjection::type>(ref<TypeRule>)))> {};
+             assign<&ast::TypeProjection::type>(ref<Type>)))> {};
 
-  struct TypeSegmentRule
+  struct TypeSegment
       : rule<create<ast::TypeSegment>(
             assign<&ast::TypeSegment::name>(ref<SimpleIdentifier>) +
             option(lit<"<"> +
                    many(append<&ast::TypeSegment::typeArguments>(
-                            ref<TypeProjectionRule>),
+                            ref<TypeProjection>),
                         lit<",">) +
                    option(lit<",">) + lit<">">))> {};
 
   static constexpr auto user_type_body =
-      append<&ast::UserType::segments>(ref<TypeSegmentRule>) +
-      many(lit<"."> + append<&ast::UserType::segments>(ref<TypeSegmentRule>));
-  struct UserTypeRule : rule<create<ast::UserType>(user_type_body)> {};
+      some(append<&ast::UserType::segments>(ref<TypeSegment>), lit<".">);
+  struct UserType : rule<create<ast::UserType>(user_type_body)> {};
 
   struct FunctionTypeParam
       : rule<create<ast::Param>(
             (assign<&ast::Param::name>(ref<SimpleIdentifier>) + lit<":"> +
-             assign<&ast::Param::type>(ref<TypeRule>)) |
-            assign<&ast::Param::type>(ref<TypeRule>))> {};
+             assign<&ast::Param::type>(ref<Type>)) |
+            assign<&ast::Param::type>(ref<Type>))> {};
 
   struct FunctionTypeReceiver
-      : rule<(ref<UserTypeRule> +
+      : rule<(ref<UserType> +
               option(nest<ast::NullableType, &ast::NullableType::base>(
                   some(lit<"?">)))) |
-             (lit<"("> + ref<TypeRule> + lit<")">)> {};
+             (lit<"("> + ref<Type> + lit<")">)> {};
 
   static constexpr auto function_type_body =
       option(context_parameters<&ast::FunctionType::contextParameters>) +
@@ -376,7 +370,7 @@ struct Kotlin : cursiv::GrammarSpec {
       many(append<&ast::FunctionType::parameters>(ref<FunctionTypeParam>),
            lit<",">) +
       option(lit<",">) + lit<")"> + NLs + lit<"->"> + NLs +
-      assign<&ast::FunctionType::returnType>(ref<TypeRule>);
+      assign<&ast::FunctionType::returnType>(ref<Type>);
 
   static constexpr auto type_modifier =
       annotation_modifier<&ast::Type::annotations> |
@@ -384,25 +378,22 @@ struct Kotlin : cursiv::GrammarSpec {
   static constexpr auto nullable_suffix = option(
       nest<ast::NullableType, &ast::NullableType::base>(some(lit<"?">)));
 
-  struct TypeRule
+  struct Type
       : rule<((many(type_modifier) +
                (create<ast::FunctionType>(function_type_body) |
                 ((create<ast::UserType>(user_type_body) |
                   create<ast::DynamicType>(kw<"dynamic">)) +
                  nullable_suffix))) |
-              (lit<"("> + ref<TypeRule> + lit<")"> + nullable_suffix) |
+              (lit<"("> + ref<Type> + lit<")"> + nullable_suffix) |
               (some(type_modifier) +
                create<ast::ParenthesizedType>(
                    lit<"("> +
-                   assign<&ast::ParenthesizedType::type>(ref<TypeRule>) +
+                   assign<&ast::ParenthesizedType::type>(ref<Type>) +
                    lit<")">) +
                nullable_suffix)) +
              many(nest<ast::IntersectionType, &ast::IntersectionType::left>(
                       lit<"&"> +
-                      assign<&ast::IntersectionType::right>(ref<TypeRule>)) |
-                  nest<ast::UnionType, &ast::UnionType::left>(
-                      lit<"|"> +
-                      assign<&ast::UnionType::right>(ref<TypeRule>)))> {};
+                      assign<&ast::IntersectionType::right>(ref<Type>)))> {};
 
   // PARAMETERS / DECLARATORS
   // ========================
@@ -411,77 +402,75 @@ struct Kotlin : cursiv::GrammarSpec {
       : rule<create<ast::Param>(
             modifiers<&ast::Param::modifiers, &ast::Param::annotations> +
             assign<&ast::Param::name>(ref<SimpleIdentifier>) + lit<":"> +
-            assign<&ast::Param::type>(ref<TypeRule>) +
+            assign<&ast::Param::type>(ref<Type>) +
             option(lit<"="> +
                    assign<&ast::Param::defaultValue>(ref<Expression>)))> {};
 
   struct ContextParam
       : rule<ref<Param> |
-             create<ast::Param>(assign<&ast::Param::type>(ref<TypeRule>))> {};
+             create<ast::Param>(assign<&ast::Param::type>(ref<Type>))> {};
 
   struct SetterParam
       : rule<create<ast::Param>(
             modifiers<&ast::Param::modifiers, &ast::Param::annotations> +
             assign<&ast::Param::name>(ref<SimpleIdentifier>) +
             option(lit<":"> +
-                   assign<&ast::Param::type>(ref<TypeRule>)))> {};
+                   assign<&ast::Param::type>(ref<Type>)))> {};
 
-  struct ClassParamRule
+  struct ClassParam
       : rule<create<ast::ClassParam>(
             modifiers<&ast::ClassParam::modifiers,
                       &ast::ClassParam::annotations> +
             option(assign<&ast::ClassParam::valOrVar>(ref<VAL> | ref<VAR>)) +
             assign<&ast::ClassParam::name>(ref<SimpleIdentifier>) +
-            lit<":"> + assign<&ast::ClassParam::type>(ref<TypeRule>) +
+            lit<":"> + assign<&ast::ClassParam::type>(ref<Type>) +
             option(lit<"="> + assign<&ast::ClassParam::defaultValue>(
                                    ref<Expression>)))> {};
 
-  struct VariableDeclaratorRule
+  struct VariableDeclarator
       : rule<create<ast::VariableDeclarator>(
             assign<&ast::VariableDeclarator::name>(ref<SimpleIdentifier>) +
             option(lit<":"> +
-                   assign<&ast::VariableDeclarator::type>(ref<TypeRule>)))> {
+                   assign<&ast::VariableDeclarator::type>(ref<Type>)))> {
   };
 
-  struct TypeParamRule
+  struct TypeParam
       : rule<create<ast::TypeParam>(
             modifiers<&ast::TypeParam::modifiers,
                       &ast::TypeParam::annotations> +
             (flag<&ast::TypeParam::isStar>(lit<"*">) |
              assign<&ast::TypeParam::name>(ref<SimpleIdentifier>)) +
             option(lit<":"> +
-                   assign<&ast::TypeParam::bound>(ref<TypeRule>)))> {};
+                   assign<&ast::TypeParam::bound>(ref<Type>)))> {};
 
   template <auto Ptr>
   static constexpr auto type_parameters =
-      lit<"<"> + append<Ptr>(ref<TypeParamRule>) +
-      many(lit<","> + append<Ptr>(ref<TypeParamRule>)) + option(lit<",">) +
+      lit<"<"> + some(append<Ptr>(ref<TypeParam>), lit<",">) + option(lit<",">) +
       lit<">">;
 
-  struct TypeConstraintRule
+  struct TypeConstraint
       : rule<create<ast::TypeConstraint>(
             many(append<&ast::TypeConstraint::annotations>(ref<Annotation>)) +
             assign<&ast::TypeConstraint::name>(ref<SimpleIdentifier>) +
             lit<":"> +
-            assign<&ast::TypeConstraint::bound>(ref<TypeRule>))> {};
+            assign<&ast::TypeConstraint::bound>(ref<Type>))> {};
 
   template <auto Ptr>
   static constexpr auto type_constraints =
-      ref<WHERE> + append<Ptr>(ref<TypeConstraintRule>) +
-      many(lit<","> + append<Ptr>(ref<TypeConstraintRule>));
+      ref<WHERE> + some(append<Ptr>(ref<TypeConstraint>), lit<",">);
 
-  struct LambdaParamRule
+  struct LambdaParam
       : rule<create<ast::LambdaParam>(
             (append<&ast::LambdaParam::declarators>(
-                 ref<VariableDeclaratorRule>) |
+                 ref<VariableDeclarator>) |
              (lit<"("> +
               append<&ast::LambdaParam::declarators>(
-                  ref<VariableDeclaratorRule>) +
+                  ref<VariableDeclarator>) +
               many(lit<","> + append<&ast::LambdaParam::declarators>(
-                                   ref<VariableDeclaratorRule>)) +
+                                   ref<VariableDeclarator>)) +
               lit<")">)) +
             option(lit<":"> +
-                   assign<&ast::LambdaParam::type>(ref<TypeRule>)))> {};
+                   assign<&ast::LambdaParam::type>(ref<Type>)))> {};
 
   // SUPERTYPES
   // ==========
@@ -489,46 +478,43 @@ struct Kotlin : cursiv::GrammarSpec {
   struct SuperTypeSpecifier
       : rule<create<ast::SuperTypeDelegate>(
                  many(append<&ast::SuperType::annotations>(ref<Annotation>)) +
-                 assign<&ast::SuperTypeDelegate::type>(ref<UserTypeRule>) +
+                 assign<&ast::SuperTypeDelegate::type>(ref<UserType>) +
                  ref<BY> + assign<&ast::SuperTypeDelegate::delegate>(
                                ref<Expression>)) |
             create<ast::SuperTypeCall>(
                 many(append<&ast::SuperType::annotations>(ref<Annotation>)) +
-                assign<&ast::SuperTypeCall::type>(ref<UserTypeRule>) +
+                assign<&ast::SuperTypeCall::type>(ref<UserType>) +
                 call_suffix_body<&ast::SuperTypeCall::typeArguments,
                                  &ast::SuperTypeCall::arguments,
                                  &ast::SuperTypeCall::trailingLambdas>) |
             create<ast::SuperTypeEntry>(
                 many(append<&ast::SuperType::annotations>(ref<Annotation>)) +
-                assign<&ast::SuperTypeEntry::type>(ref<UserTypeRule>))> {};
+                assign<&ast::SuperTypeEntry::type>(ref<UserType>))> {};
 
   template <auto Ptr>
   static constexpr auto super_types =
-      lit<":"> + append<Ptr>(ref<SuperTypeSpecifier>) +
-      many(lit<","> + append<Ptr>(ref<SuperTypeSpecifier>));
+      lit<":"> + some(append<Ptr>(ref<SuperTypeSpecifier>), lit<",">);
 
   // STRING LITERALS
   // ===============
 
   struct LineStrExprStart : terminal<lit<"${">> {};
-  struct StrRef : terminal<lit<"$"> + IdentifierBody, StripFirst> {};
+  struct StrRef : terminal<as<strip_first>(lit<"$"> + IdentifierBody)> {};
   struct StrThis : terminal<kw<"$this">> {};
   struct StrDollar : terminal<lit<"$">> {};
-  struct StrText : terminal<some(cr<R"(^\\"$)">)> {};
+  struct StrText : terminal<some(cr<R"(^\\"$\r\n)">)> {};
   struct LineStrEscape : terminal<UnicodeEscape | SimpleEscape> {};
   struct MultiLineStrText : terminal<some(cr<R"(^"$)">)> {};
-  // A run of one or two quotes is content; three open the closer -- the
-  // guard rejects a third, so it cannot sit inside `MultiLineStrText`'s own
-  // repetition (the token graph refuses a guard there) and is instead its
-  // own repeatable terminal.
+  // A run of one or two quotes is content; three open the closer. Keep the
+  // guarded quote run separate from the ordinary multiline text token.
   struct MultiLineQuotes
       : terminal<lit<"\""> + option(lit<"\"">) + !lit<"\"">> {};
 
   inline static constexpr auto drop_closing_quotes = [](std::string_view text) {
     return text.substr(0, text.size() - 3);
   };
-  struct MultiLineClose : terminal<repeat<3, cursiv::kUnbounded>(lit<"\"">),
-                                   text_conv<drop_closing_quotes>> {};
+  struct MultiLineClose : terminal<as<drop_closing_quotes>(
+                              repeat<3, cursiv::kUnbounded>(lit<"\"">))> {};
 
   static constexpr auto StringReferencePart =
       append<&ast::StringLiteral::parts>(
@@ -538,11 +524,12 @@ struct Kotlin : cursiv::GrammarSpec {
 
   static constexpr auto StringExprPart =
       append<&ast::StringLiteral::parts>(create<ast::StringPart>(
-          ref<LineStrExprStart> +
-          assign<&ast::StringPart::expr>(ref<Expression>) + lit<"}">));
+          skip(ignore<WS, NL_TRIVIA>, hide<DelimitedComment, LineComment>,
+               ref<LineStrExprStart> +
+               assign<&ast::StringPart::expr>(ref<Expression>) + lit<"}">)));
 
-  struct StringLiteralRule
-      : rule<create<ast::StringLiteral>(
+  struct StringLiteral
+      : rule<create<ast::StringLiteral>(tight(
             (flag<&ast::StringLiteral::multiline>(lit<"\"\"\"">) +
              many(append<&ast::StringLiteral::parts>(create<ast::StringPart>(
                       assign<&ast::StringPart::text>(ref<MultiLineStrText> |
@@ -557,46 +544,46 @@ struct Kotlin : cursiv::GrammarSpec {
                      create<ast::StringPart>(assign<&ast::StringPart::text>(
                          ref<StrText> | ref<LineStrEscape> | ref<StrDollar>))) |
                  StringReferencePart | StringExprPart) +
-             lit<"\"">))> {};
+             lit<"\"">)))> {};
 
   // EXPRESSIONS
   // ===========
 
-  struct IfExprRule;
-  struct WhenExprRule;
-  struct TryExprRule;
-  struct ObjectLiteralRule;
-  struct CollectionLiteralRule;
-  struct ForExprRule;
-  struct WhileExprRule;
-  struct DoWhileExprRule;
+  struct IfExpr;
+  struct WhenExpr;
+  struct TryExpr;
+  struct ObjectLiteral;
+  struct CollectionLiteral;
+  struct ForExpr;
+  struct WhileExpr;
+  struct DoWhileExpr;
 
-  struct ThisExprRule
+  struct ThisExpr
       : rule<create<ast::ThisExpr>(
             kw<"this"> +
             option(assign<&ast::ThisExpr::label>(ref<LabelReference>)))> {};
-  struct SuperExprRule
+  struct SuperExpr
       : rule<create<ast::SuperExpr>(
             kw<"super"> +
             option(lit<"<"> +
-                   assign<&ast::SuperExpr::targetType>(ref<TypeRule>) +
+                   assign<&ast::SuperExpr::targetType>(ref<Type>) +
                    lit<">">) +
             option(assign<&ast::SuperExpr::label>(ref<LabelReference>)))> {};
 
-  struct ThrowExprRule
+  struct ThrowExpr
       : rule<create<ast::ThrowExpr>(
             kw<"throw"> +
             assign<&ast::ThrowExpr::value>(ref<Expression>))> {};
-  struct ReturnExprRule
+  struct ReturnExpr
       : rule<create<ast::ReturnExpr>(
             (kw<"return"> |
              assign<&ast::ReturnExpr::label>(ref<ReturnAtLabel>)) +
             option(assign<&ast::ReturnExpr::value>(ref<Expression>)))> {};
-  struct BreakExprRule
+  struct BreakExpr
       : rule<create<ast::BreakExpr>(
             kw<"break"> |
             assign<&ast::BreakExpr::label>(ref<BreakAtLabel>))> {};
-  struct ContinueExprRule
+  struct ContinueExpr
       : rule<create<ast::ContinueExpr>(
             kw<"continue"> |
             assign<&ast::ContinueExpr::label>(ref<ContinueAtLabel>))> {};
@@ -609,17 +596,17 @@ struct Kotlin : cursiv::GrammarSpec {
   // it in here too would make a plain `a.b` genuinely ambiguous between the
   // two.
   struct AtomicExprNoIdent
-      : rule<(lit<"("> + ref<Expression> + lit<")">) | ref<StringLiteralRule> |
+      : rule<(lit<"("> + ref<Expression> + lit<")">) | ref<StringLiteral> |
              create<ast::Literal>(assign<&ast::Literal::text>(
                  ref<BooleanLiteral> | ref<CharacterLiteral> | ref<HexLiteral> |
                  ref<BinLiteral> | ref<DoubleLiteral> | ref<FloatLiteral> |
                  ref<IntegerLiteral> | ref<NullLiteral>)) |
-             ref<FunctionLiteralRule> | ref<ThisExprRule> | ref<SuperExprRule> |
-             ref<IfExprRule> | ref<WhenExprRule> | ref<TryExprRule> |
-             ref<ObjectLiteralRule> | ref<ThrowExprRule> | ref<ReturnExprRule> |
-             ref<ContinueExprRule> | ref<BreakExprRule> | ref<ForExprRule> |
-             ref<WhileExprRule> | ref<DoWhileExprRule> |
-             ref<CollectionLiteralRule> |
+             ref<FunctionLiteral> | ref<ThisExpr> | ref<SuperExpr> |
+             ref<IfExpr> | ref<WhenExpr> | ref<TryExpr> |
+             ref<ObjectLiteral> | ref<ThrowExpr> | ref<ReturnExpr> |
+             ref<ContinueExpr> | ref<BreakExpr> | ref<ForExpr> |
+             ref<WhileExpr> | ref<DoWhileExpr> |
+             ref<CollectionLiteral> |
              create<ast::Ident>(
                  flag<&ast::Ident::hasValPrefix>(ref<VAL>) +
                  assign<&ast::Ident::name>(ref<SimpleIdentifier>))> {};
@@ -632,7 +619,7 @@ struct Kotlin : cursiv::GrammarSpec {
   struct CallableReferenceExpr
       : rule<create<ast::CallableReferenceExpr>(
             (option(assign<&ast::CallableReferenceExpr::receiverType>(
-                        ref<UserTypeRule>) +
+                        ref<UserType>) +
                     many(lit<"?">)) +
              (flag<&ast::CallableReferenceExpr::safe>(lit<"?::">) |
               lit<"::">) +
@@ -651,7 +638,7 @@ struct Kotlin : cursiv::GrammarSpec {
   static constexpr auto LambdasCall =
       nest<ast::CallExpr, &ast::CallExpr::callee>(
           some(append<&ast::CallExpr::trailingLambdas>(
-              ref<FunctionLiteralRule>)));
+              ref<FunctionLiteral>)));
 
   // Lambdas alone never make a call after another call: it takes them itself.
   struct PostfixUnaryExpr
@@ -665,7 +652,7 @@ struct Kotlin : cursiv::GrammarSpec {
                        append<&ast::IndexExpr::indices>(ref<Expression>) +
                        many(lit<","> + append<&ast::IndexExpr::indices>(
                                             ref<Expression>)) +
-                       lit<"]">) |
+                       option(lit<",">) + lit<"]">) |
                    nest<ast::MemberExpr, &ast::MemberExpr::object>(
                        NLs +
                        (flag<&ast::MemberExpr::safe>(lit<"?"> + lit<".">) |
@@ -694,21 +681,20 @@ struct Kotlin : cursiv::GrammarSpec {
             ref<PostfixUnaryExpr>> {};
 
   // typeRHS(as/as?/:) sits outside the infix table: its right side is a
-  // `TypeRule`, not another expression, so it cannot share `BinaryExpr`'s
+  // `Type`, not another expression, so it cannot share `BinaryExpr`'s
   // uniform left/right member pair the way every other level does.
   struct TypeOpChain
       : rule<ref<PrefixUnaryExpr> +
             many(nest<ast::CastExpr, &ast::CastExpr::operand>(
                 NLs + assign<&ast::CastExpr::op>(ref<AS> | lit<"as?"> |
                                                   lit<":">) +
-                assign<&ast::CastExpr::type>(ref<TypeRule>)))> {};
+                assign<&ast::CastExpr::type>(ref<Type>)))> {};
 
   struct ElvisChain
-      : infix<TypeOpChain, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"*"> | lit<"/"> | lit<"%">) >>
-               left(lit<"+"> | lit<"-">) >> left(lit<"..<"> | lit<"..">) >>
-               left(ref<SimpleIdentifier>) >> left(ref<ElvisOp>))> {};
+      : infix<TypeOpChain, ast::BinaryExpr,
+              levels(left(lit<"*"> | lit<"/"> | lit<"%">),
+                     left(lit<"+"> | lit<"-">), left(lit<"..<"> | lit<"..">),
+                     left(ref<SimpleIdentifier>), left(ref<ElvisOp>))> {};
 
   struct NamedInfixExpr
       : rule<ref<ElvisChain> +
@@ -719,14 +705,13 @@ struct Kotlin : cursiv::GrammarSpec {
                 nest<ast::TypeTestExpr, &ast::TypeTestExpr::operand>(
                     (flag<&ast::TypeTestExpr::negated>(ref<NOT_IS>) |
                      ref<IS>) +
-                    assign<&ast::TypeTestExpr::type>(ref<TypeRule>)))> {};
+                    assign<&ast::TypeTestExpr::type>(ref<Type>)))> {};
 
   // comparison > equality
   struct ComparisonChain
-      : infix<NamedInfixExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-             &ast::BinaryExpr::right,
-             (left(lit<"<="> | lit<">="> | lit<"<"> | lit<">">) >>
-              left(lit<"!=="> | lit<"!="> | lit<"==="> | lit<"==">))> {};
+      : infix<NamedInfixExpr, ast::BinaryExpr,
+             levels(left(lit<"<="> | lit<">="> | lit<"<"> | lit<">">),
+                    left(lit<"!=="> | lit<"!="> | lit<"==="> | lit<"==">))> {};
 
   // `&&` and `||` both need a leading-NLs tolerance (`NL* CONJ`/`NL* DISJ`
   // in the source); an `infix<>` table refuses two operators that both open
@@ -747,8 +732,7 @@ struct Kotlin : cursiv::GrammarSpec {
 
   // comparison > equality > && > || > assignment
   struct Expression
-      : infix<DisjChain, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-             &ast::BinaryExpr::right,
+      : infix<DisjChain, ast::BinaryExpr,
              right(lit<"+="> | lit<"-="> | lit<"*="> | lit<"/="> |
                    lit<"%="> | lit<"=">)> {};
 
@@ -762,13 +746,11 @@ struct Kotlin : cursiv::GrammarSpec {
             create<ast::TypeTestExpr>(
                 (flag<&ast::TypeTestExpr::negated>(ref<NOT_IS>) |
                  ref<IS>) +
-                assign<&ast::TypeTestExpr::type>(ref<TypeRule>))> {};
+                assign<&ast::TypeTestExpr::type>(ref<Type>))> {};
 
   struct WhenEntryRule
       : rule<create<ast::WhenEntry>(
-            (append<&ast::WhenEntry::conditions>(ref<WhenConditionExpr>) +
-             many(lit<","> +
-                  append<&ast::WhenEntry::conditions>(ref<WhenConditionExpr>)) +
+            (some(append<&ast::WhenEntry::conditions>(ref<WhenConditionExpr>), lit<",">) +
              option(kw<"if"> +
                     assign<&ast::WhenEntry::guard>(ref<Expression>)) +
              lit<"->"> + assign<&ast::WhenEntry::body>(ControlBody) +
@@ -778,19 +760,19 @@ struct Kotlin : cursiv::GrammarSpec {
                     assign<&ast::WhenEntry::guard>(ref<Expression>)) +
              lit<"->"> + assign<&ast::WhenEntry::body>(ControlBody)))> {};
 
-  struct WhenExprRule
+  struct WhenExpr
       : rule<create<ast::WhenExpr>(
             kw<"when"> +
             option(lit<"("> +
                    (assign<&ast::WhenExpr::subjectDeclaration>(
-                        ref<PropertyDeclarationRule>) |
+                        ref<PropertyDeclaration>) |
                     assign<&ast::WhenExpr::subject>(ref<Expression>)) +
                    lit<")">) +
             lit<"{"> +
             many(append<&ast::WhenExpr::entries>(ref<WhenEntryRule>)) +
             lit<"}">)> {};
 
-  struct IfExprRule
+  struct IfExpr
       : rule<create<ast::IfExpr>(
             kw<"if"> + lit<"("> + assign<&ast::IfExpr::cond>(ref<Expression>) +
             lit<")"> + option(assign<&ast::IfExpr::thenBranch>(ControlBody)) +
@@ -798,58 +780,58 @@ struct Kotlin : cursiv::GrammarSpec {
             option(commit(kw<"else">, option(assign<&ast::IfExpr::elseBranch>(ControlBody)))))> {
   };
 
-  struct CatchClauseRule
+  struct CatchClause
       : rule<create<ast::CatchClause>(
             ref<CATCH> + lit<"("> +
             many(append<&ast::CatchClause::annotations>(ref<Annotation>)) +
             assign<&ast::CatchClause::name>(ref<SimpleIdentifier>) +
-            lit<":"> + assign<&ast::CatchClause::type>(ref<UserTypeRule>) +
-            lit<")"> + assign<&ast::CatchClause::body>(ref<Block>))> {};
+            lit<":"> + assign<&ast::CatchClause::type>(ref<Type>) +
+            option(lit<",">) + lit<")"> + assign<&ast::CatchClause::body>(ref<Block>))> {};
 
-  struct TryExprRule
+  struct TryExpr
       : rule<create<ast::TryExpr>(
             kw<"try"> + assign<&ast::TryExpr::tryBlock>(ref<Block>) +
-            many(append<&ast::TryExpr::catches>(ref<CatchClauseRule>)) +
-            option(ref<FINALLY> +
-                   assign<&ast::TryExpr::finallyBlock>(ref<Block>)))> {};
+            ((some(append<&ast::TryExpr::catches>(ref<CatchClause>)) +
+              option(ref<FINALLY> + assign<&ast::TryExpr::finallyBlock>(ref<Block>))) |
+             (ref<FINALLY> + assign<&ast::TryExpr::finallyBlock>(ref<Block>))))> {};
 
-  struct ObjectLiteralRule
+  struct ObjectLiteral
       : rule<create<ast::ObjectLiteral>(
             kw<"object"> +
             option(super_types<&ast::ObjectLiteral::superTypes>) +
             option(lit<"{"> +
                    many(append<&ast::ObjectLiteral::members>(
-                       ref<ClassMemberRule>)) +
+                       ref<ClassMember>)) +
                    lit<"}">))> {};
 
-  struct CollectionLiteralRule
+  struct CollectionLiteral
       : rule<create<ast::CollectionLiteral>(
             lit<"["> +
             option(append<&ast::CollectionLiteral::items>(ref<Expression>) +
                    many(lit<","> + append<&ast::CollectionLiteral::items>(
-                                        ref<Expression>))) +
+                                        ref<Expression>)) + option(lit<",">)) +
             lit<"]">)> {};
 
-  struct ForExprRule
+  struct ForExpr
       : rule<create<ast::ForExpr>(
             kw<"for"> + lit<"("> +
             many(annotation_modifier<&ast::ForExpr::annotations>) +
-            (append<&ast::ForExpr::declarators>(ref<VariableDeclaratorRule>) |
+            (append<&ast::ForExpr::declarators>(ref<VariableDeclarator>) |
              (lit<"("> +
-              append<&ast::ForExpr::declarators>(ref<VariableDeclaratorRule>) +
+              append<&ast::ForExpr::declarators>(ref<VariableDeclarator>) +
               many(lit<","> + append<&ast::ForExpr::declarators>(
-                                  ref<VariableDeclaratorRule>)) +
+                                  ref<VariableDeclarator>)) +
               lit<")">)) +
             ref<IN> + assign<&ast::ForExpr::iterable>(ref<Expression>) +
             lit<")"> + option(assign<&ast::ForExpr::body>(ControlBody)))> {};
 
-  struct WhileExprRule
+  struct WhileExpr
       : rule<create<ast::WhileExpr>(
             kw<"while"> + lit<"("> +
             assign<&ast::WhileExpr::cond>(ref<Expression>) + lit<")"> +
             option(assign<&ast::WhileExpr::body>(ControlBody)))> {};
 
-  struct DoWhileExprRule
+  struct DoWhileExpr
       : rule<create<ast::DoWhileExpr>(
             kw<"do"> + option(assign<&ast::DoWhileExpr::body>(ControlBody)) +
             kw<"while"> + lit<"("> +
@@ -862,15 +844,16 @@ struct Kotlin : cursiv::GrammarSpec {
   // propertyDeclaration | typeAlias);` -- the label prefix is real Kotlin
   // syntax (unused, but not refused) on any of the four, at statement level
   // only (`topLevelObject` has no such prefix).
-  struct LocalDeclaration
-      : rule<many(ref<LabelDefinition>) +
-            (ref<ClassDeclarationRule> | ref<FunctionDeclarationRule> |
-             ref<PropertyDeclarationRule> | ref<TypeAliasRule>)> {};
+  static constexpr auto LocalDeclarationBody = ref<ClassDeclaration> | ref<FunctionDeclaration> |
+      ref<PropertyDeclaration> | ref<TypeAlias>;
+  struct LocalDeclaration : rule<
+      create<ast::LabeledDeclaration>(some(append<&ast::LabeledDeclaration::labels>(ref<LabelDefinition>)) +
+          assign<&ast::LabeledDeclaration::declaration>(LocalDeclarationBody)) | LocalDeclarationBody> {};
 
   static constexpr auto StatementItem =
-      ref<LocalDeclaration> | ref<ObjectDeclarationRule> |
-      ref<CompanionObjectRule> | ref<SecondaryConstructorRule> |
-      ref<InitBlockRule> | ref<Expression>;
+      ref<LocalDeclaration> | ref<ObjectDeclaration> |
+      ref<CompanionObject> | ref<SecondaryConstructor> |
+      ref<InitBlock> | ref<Expression>;
 
   template <auto Ptr>
   static constexpr auto statements_into =
@@ -882,30 +865,28 @@ struct Kotlin : cursiv::GrammarSpec {
                                 statements_into<&ast::Block::statements> +
                                 lit<"}">)> {};
 
-  struct FunctionLiteralRule
+  struct FunctionLiteral
       : rule<create<ast::FunctionLiteral>(
             many(annotation_modifier<&ast::FunctionLiteral::annotations>) +
             lit<"{"> +
-            option(many(append<&ast::FunctionLiteral::parameters>(
-                            ref<LambdaParamRule>),
-                        lit<",">) +
-                   lit<"->">) +
+            option((some(append<&ast::FunctionLiteral::parameters>(ref<LambdaParam>), lit<",">) +
+                    option(lit<",">) + lit<"->">) | lit<"->">) +
             statements_into<&ast::FunctionLiteral::body> + lit<"}">)> {};
 
   // DECLARATIONS
   // ============
 
-  struct PrimaryConstructorRule
+  struct PrimaryConstructor
       : rule<create<ast::PrimaryConstructor>(
             modifiers<&ast::PrimaryConstructor::modifiers,
                       &ast::PrimaryConstructor::annotations> +
             option(ref<CONSTRUCTOR>) + lit<"("> +
             many(append<&ast::PrimaryConstructor::params>(
-                     ref<ClassParamRule>),
+                     ref<ClassParam>),
                  lit<",">) +
             option(lit<",">) + lit<")">)> {};
 
-  struct SecondaryConstructorRule
+  struct SecondaryConstructor
       : rule<create<ast::SecondaryConstructor>(
             modifiers<&ast::SecondaryConstructor::modifiers,
                       &ast::SecondaryConstructor::annotations> +
@@ -919,25 +900,25 @@ struct Kotlin : cursiv::GrammarSpec {
                    value_arguments<&ast::SecondaryConstructor::delegationArgs>) +
             option(assign<&ast::SecondaryConstructor::body>(ref<Block>)))> {};
 
-  struct EnumEntryRule
+  struct EnumEntry
       : rule<create<ast::EnumEntry>(
             many(append<&ast::EnumEntry::annotations>(ref<Annotation>)) +
             assign<&ast::EnumEntry::name>(ref<SimpleIdentifier>) +
             option(value_arguments<&ast::EnumEntry::arguments>) +
             option(lit<"{"> +
-                   many(append<&ast::EnumEntry::body>(ref<ClassMemberRule>)) +
+                   many(append<&ast::EnumEntry::body>(ref<ClassMember>)) +
                    lit<"}">) +
             option(lit<",">))> {};
 
-  struct InitBlockRule
+  struct InitBlock
       : rule<create<ast::InitBlock>(
             ref<INIT> + assign<&ast::InitBlock::body>(ref<Block>))> {};
 
-  struct ClassMemberRule
-      : rule<(ref<ClassDeclarationRule> | ref<FunctionDeclarationRule> |
-             ref<ObjectDeclarationRule> | ref<CompanionObjectRule> |
-             ref<PropertyDeclarationRule> | ref<InitBlockRule> |
-             ref<SecondaryConstructorRule> | ref<TypeAliasRule>) +
+  struct ClassMember
+      : rule<(ref<ClassDeclaration> | ref<FunctionDeclaration> |
+             ref<ObjectDeclaration> | ref<CompanionObject> |
+             ref<PropertyDeclaration> | ref<InitBlock> |
+             ref<SecondaryConstructor> | ref<TypeAlias>) +
             many(Anysemi)> {};
 
   static constexpr auto class_modifiers =
@@ -950,45 +931,45 @@ struct Kotlin : cursiv::GrammarSpec {
       assign<&ast::ClassDecl::name>(ref<SimpleIdentifier>) + NLs +
       option(type_parameters<&ast::ClassDecl::typeParameters> + NLs) +
       option(assign<&ast::ClassDecl::primaryCtor>(
-                 ref<PrimaryConstructorRule>) +
+                 ref<PrimaryConstructor>) +
              NLs) +
       option(super_types<&ast::ClassDecl::superTypes> + NLs) +
       option(type_constraints<&ast::ClassDecl::typeConstraints> + NLs);
   static constexpr auto class_members =
-      many(append<&ast::ClassDecl::members>(ref<ClassMemberRule>));
+      many(append<&ast::ClassDecl::members>(ref<ClassMember>));
 
   // Entries exist only in an enum class, and its members only past a `;`.
   // The enum arm comes first: it names `enumEntries` before `members`, the
   // order the reflection visits them in.
-  struct ClassDeclarationRule
+  struct ClassDeclaration
       : rule<create<ast::ClassDecl>(
             class_modifiers +
             ((append<&ast::ClassDecl::modifiers>(ref<ENUM>) +
               class_modifiers + class_head +
               option(lit<"{"> +
                      many(append<&ast::ClassDecl::enumEntries>(
-                         ref<EnumEntryRule>)) +
+                         ref<EnumEntry>)) +
                      option(lit<";"> + class_members) + lit<"}">)) |
              (class_head +
               option(lit<"{"> + option(lit<";">) + class_members +
                      lit<"}">))))> {};
 
-  struct ObjectDeclarationRule
+  struct ObjectDeclaration
       : rule<create<ast::ObjectDecl>(
             modifiers<&ast::ObjectDecl::modifiers,
                       &ast::ObjectDecl::annotations> +
             kw<"object"> + assign<&ast::ObjectDecl::name>(ref<SimpleIdentifier>) +
             NLs +
             option(assign<&ast::ObjectDecl::primaryCtor>(
-                       ref<PrimaryConstructorRule>) +
+                       ref<PrimaryConstructor>) +
                    NLs) +
             option(super_types<&ast::ObjectDecl::superTypes> + NLs) +
             option(lit<"{"> +
                    many(append<&ast::ObjectDecl::members>(
-                       ref<ClassMemberRule>)) +
+                       ref<ClassMember>)) +
                    lit<"}">))> {};
 
-  struct CompanionObjectRule
+  struct CompanionObject
       : rule<create<ast::CompanionObjectDecl>(
             modifiers<&ast::CompanionObjectDecl::modifiers,
                       &ast::CompanionObjectDecl::annotations> +
@@ -1002,18 +983,18 @@ struct Kotlin : cursiv::GrammarSpec {
             option(super_types<&ast::CompanionObjectDecl::superTypes> + NLs) +
             option(lit<"{"> +
                    many(append<&ast::CompanionObjectDecl::members>(
-                       ref<ClassMemberRule>)) +
+                       ref<ClassMember>)) +
                    lit<"}">))> {};
 
   // Its own rule so the extension-receiver's trailing `?` -- ordinarily
   // optional at the very end of a `type` -- has a reduction boundary before
   // the mandatory `.` that follows it here.
   struct ReceiverType
-      : rule<ref<TypeRule> +
+      : rule<ref<Type> +
             option(nest<ast::NullableType, &ast::NullableType::base>(
                 some(lit<"?">)))> {};
 
-  struct FunctionDeclarationRule
+  struct FunctionDeclaration
       : rule<create<ast::FunctionDecl>(
             contextual_modifiers<&ast::FunctionDecl::modifiers,
                                  &ast::FunctionDecl::annotations,
@@ -1029,41 +1010,39 @@ struct Kotlin : cursiv::GrammarSpec {
                  lit<",">) +
             option(lit<",">) + lit<")"> + NLs +
             option(lit<":"> +
-                   assign<&ast::FunctionDecl::returnType>(ref<TypeRule>) +
+                   assign<&ast::FunctionDecl::returnType>(ref<Type>) +
                    NLs) +
             option(type_constraints<&ast::FunctionDecl::typeConstraints> +
                    NLs) +
             option(assign<&ast::FunctionDecl::body>(
                 ref<Block> | (lit<"="> + ref<Expression>))))> {};
 
-  struct GetterRule
+  struct Getter
       : rule<create<ast::Getter>(
             modifiers<&ast::Getter::modifiers, &ast::Getter::annotations> +
             ref<GETTER> +
             option(lit<"("> + lit<")"> +
                    option(lit<":"> +
-                          assign<&ast::Getter::returnType>(ref<TypeRule>)) +
+                          assign<&ast::Getter::returnType>(ref<Type>)) +
                    assign<&ast::Getter::body>(
                        ref<Block> | (lit<"="> + ref<Expression>))))> {};
 
-  struct SetterRule
+  struct Setter
       : rule<create<ast::Setter>(
             modifiers<&ast::Setter::modifiers, &ast::Setter::annotations> +
             ref<SETTER> +
             option(lit<"("> + assign<&ast::Setter::param>(ref<SetterParam>) +
-                   lit<")"> +
+                   option(lit<",">) + lit<")"> +
+                   option(lit<":"> + assign<&ast::Setter::returnType>(ref<Type>)) +
                    assign<&ast::Setter::body>(
                        ref<Block> | (lit<"="> + ref<Expression>))))> {};
 
-  struct ExplicitBackingFieldRule
-      : rule<create<ast::ExplicitBackingField>(
-            ref<FIELD> + lit<":"> +
-            assign<&ast::ExplicitBackingField::type>(ref<TypeRule>) +
-            lit<"="> +
-            assign<&ast::ExplicitBackingField::initializer>(
-                ref<Expression>))> {};
+  struct ExplicitBackingField : rule<create<ast::ExplicitBackingField>(
+      modifiers<&ast::ExplicitBackingField::modifiers, &ast::ExplicitBackingField::annotations> +
+      ref<FIELD> + option(lit<":"> + assign<&ast::ExplicitBackingField::type>(ref<Type>)) +
+      option(lit<"="> + assign<&ast::ExplicitBackingField::initializer>(ref<Expression>)))> {};
 
-  struct PropertyDeclarationRule
+  struct PropertyDeclaration
       : rule<create<ast::PropertyDecl>(
             contextual_modifiers<&ast::PropertyDecl::modifiers,
                                  &ast::PropertyDecl::annotations,
@@ -1074,12 +1053,12 @@ struct Kotlin : cursiv::GrammarSpec {
                    lit<".">) +
             ((lit<"("> +
                  append<&ast::PropertyDecl::declarators>(
-                     ref<VariableDeclaratorRule>) +
+                     ref<VariableDeclarator>) +
                  many(lit<","> + append<&ast::PropertyDecl::declarators>(
-                                     ref<VariableDeclaratorRule>)) +
+                                     ref<VariableDeclarator>)) +
                  lit<")">) |
              append<&ast::PropertyDecl::declarators>(
-                 ref<VariableDeclaratorRule>)) +
+                 ref<VariableDeclarator>)) +
             NLs +
             option(type_constraints<&ast::PropertyDecl::typeConstraints> +
                    NLs) +
@@ -1087,34 +1066,29 @@ struct Kotlin : cursiv::GrammarSpec {
                     lit<"=">)+assign<&ast::PropertyDecl::
                                          initializer>(ref<Expression>) +
                    NLs) +
-            option((assign<&ast::PropertyDecl::getter>(ref<GetterRule>) +
-                    option(Semi + assign<&ast::PropertyDecl::setter>(
-                                      ref<SetterRule>))) |
-                   (assign<&ast::PropertyDecl::setter>(ref<SetterRule>) +
-                    option(Semi + assign<&ast::PropertyDecl::getter>(
-                                      ref<GetterRule>))) |
-                   assign<&ast::PropertyDecl::backingField>(
-                       ref<ExplicitBackingFieldRule>)))> {};
+            unordered(option(assign<&ast::PropertyDecl::getter>(ref<Getter>) + option(Semi)),
+                      option(assign<&ast::PropertyDecl::setter>(ref<Setter>) + option(Semi)),
+                      option(assign<&ast::PropertyDecl::backingField>(ref<ExplicitBackingField>) + option(Semi))))> {};
 
-  struct TypeAliasRule
+  struct TypeAlias
       : rule<create<ast::TypeAliasDecl>(
             modifiers<&ast::TypeAliasDecl::modifiers,
                       &ast::TypeAliasDecl::annotations> +
-            lit<"typealias"> +
+            kw<"typealias"> +
             assign<&ast::TypeAliasDecl::name>(ref<SimpleIdentifier>) +
             option(type_parameters<&ast::TypeAliasDecl::typeParameters>) +
             lit<"="> +
-            assign<&ast::TypeAliasDecl::type>(ref<TypeRule>))> {};
+            assign<&ast::TypeAliasDecl::type>(ref<Type>))> {};
 
   static constexpr auto TopLevelObject =
-      ref<ClassDeclarationRule> | ref<ObjectDeclarationRule> |
-      ref<FunctionDeclarationRule> | ref<PropertyDeclarationRule> |
-      ref<TypeAliasRule>;
+      ref<ClassDeclaration> | ref<ObjectDeclaration> |
+      ref<FunctionDeclaration> | ref<PropertyDeclaration> |
+      ref<TypeAlias>;
 
   // FILE
   // ====
 
-  struct ImportHeaderRule
+  struct ImportHeader
       : rule<create<ast::ImportHeader>(
             ref<IMPORT> + assign<&ast::ImportHeader::path>(ref<DottedName>) +
             option((lit<"."> +
@@ -1123,7 +1097,7 @@ struct Kotlin : cursiv::GrammarSpec {
                                    ref<SimpleIdentifier>))) +
             option(Semi))> {};
 
-  struct KotlinFileRule
+  struct KotlinFile
       : rule<create<ast::KotlinFile>(
             many(ref<NEWLINE>) +
             many(ref<FILE_SITE> + lit<":"> +
@@ -1135,18 +1109,18 @@ struct Kotlin : cursiv::GrammarSpec {
                  option(Semi)) +
             option(many(append<&ast::KotlinFile::fileAnnotations>(ref<Annotation>) |
                         AllModifierKw) +
-                   lit<"package"> +
+                   kw<"package"> +
                    assign<&ast::KotlinFile::packageName>(ref<DottedName>) +
                    option(Semi)) +
-            many(append<&ast::KotlinFile::imports>(ref<ImportHeaderRule>)) +
+            many(append<&ast::KotlinFile::imports>(ref<ImportHeader>)) +
             many(Anysemi) +
             option(some(append<&ast::KotlinFile::members>(
                             TopLevelObject | ref<Expression>),
                         some(Anysemi)) +
                    many(Anysemi)))> {};
 
-  using entry = KotlinFileRule;
-  using ignore = list<WS, NL_TRIVIA>;
+  using entry = KotlinFile;
+  using ignored = list<WS, NL_TRIVIA>;
   using hidden = list<ShebangLine, LineComment, DelimitedComment>;
   static constexpr auto indent_open = lit<"("> | lit<"[">;
   static constexpr auto indent_close = lit<")"> | lit<"]">;

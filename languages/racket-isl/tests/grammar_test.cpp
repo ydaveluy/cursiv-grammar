@@ -7,6 +7,8 @@
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "cursiv/core/workspace/Document.hpp"
 #include "cursiv/test/Check.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 #include "racketisl/core/CoreServices.hpp"
 #include "racketisl/core/ast.hpp"
 #include "racketisl/generated/RacketIsl/Module.hpp"
@@ -209,8 +211,74 @@ void additional_atoms() {
   const auto *complex = cursiv::ast_cast<ast::Atom>(root->forms[8]);
   CHECK(complex && complex->text == "1+inf.0i");
 }
+void character_boundaries() {
+  const std::string source =
+      "#\\unknown #\\uabcdx #\\U0001F6001 #\\1234 #\\a1 #\\SPACE1";
+  const auto result = engine().parse(source);
+  CHECK(result.accepted && !result.cst().recovered());
+  const auto *root = result.value_as<ast::Program>();
+  CHECK(root && root->forms.size() == 12);
+  if (!root || root->forms.size() != 12)
+    return;
+  const char *characters[] = {"#\\u",   "#\\uabcd", "#\\U0001F600",
+                              "#\\123", "#\\a",     "#\\SPACE"};
+  const char *atoms[] = {"nknown", "x", "1", "4", "1", "1"};
+  for (std::size_t i = 0; i < 6; ++i) {
+    const auto *character =
+        cursiv::ast_cast<ast::Character>(root->forms[2 * i]);
+    const auto *atom = cursiv::ast_cast<ast::Atom>(root->forms[2 * i + 1]);
+    CHECK(character && character->text == characters[i] &&
+          character->parent == root);
+    CHECK(atom && atom->text == atoms[i] && atom->parent == root);
+  }
+}
+void native_reader_rejections() {
+  auto language = cursiv::create_language<racketisl::RacketIslCoreServices,
+      racketisl::RacketIslSharedCoreServices, racketisl::install_core_module>();
+  {
+    const auto parsed = engine().parse("#lang htdp/isl (define x 1)");
+    const auto *program = parsed.value_as<ast::Program>();
+    CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() &&
+          program && program->forms.size() == 2);
+    if (program && program->forms.size() == 2) {
+      const auto *header = cursiv::ast_cast<ast::Directive>(program->forms[0]);
+      const auto *form = cursiv::ast_cast<ast::List>(program->forms[1]);
+      CHECK(header && header->text == "#lang htdp/isl");
+      CHECK(form && form->items.size() == 3);
+    }
+  }
+  for (const auto *source : {"#lang htdp/isl(define x 1)", "#lang  htdp/isl", "#!x\n1", "#!\tbin\n1"}) {
+    const auto parsed = engine().parse(source);
+    CHECK(!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty());
+  }
+  for (const auto *source : {"\"\\q\"", "\"\\x\"", "\"\\uD800\"", "\"\\U00110000\"",
+       "#\"\\u0041\"", "#\"λ\"", "#xG", "#e", "#x", "#iabc", "#d1e", "#e+INF.0",
+       "1/0", "#e1/0", "#fx(1)", "#fl(1.0)", "#hash((a 1))", "(a . b)", "#0#", "#0=(a)"})
+    CHECK(!cursiv::test::validationHelper(language.language, source).diagnostics.empty());
+  for (const auto *source : {"\"\\x41\"", "\"\\u1\"", "\"\\uD83D\\uDE00\"", "#\"é\"", "#\"\\377\"",
+       "#e#x10", "#xA#", "#hash((a . 1))", "#2(1)"})
+    CHECK(cursiv::test::validationHelper(language.language, source).diagnostics.empty());
+}
+void line_comment_boundaries() {
+  for (const std::string_view ending : {"\n", "\r", "\r\n", "\xc2\x85", "\xe2\x80\xa8", "\xe2\x80\xa9"}) {
+    const std::string source = "a ; hidden" + std::string(ending) + "b";
+    const auto result = engine().parse(source);
+    const auto *root = result.value_as<ast::Program>();
+    const bool endsComment = ending == "\n" || ending == "\r\n";
+    CHECK(result.accepted && !result.cst().recovered() &&
+          result.diagnostics.empty() && root &&
+          root->forms.size() == (endsComment ? 2 : 1));
+    if (root && endsComment && root->forms.size() == 2) {
+      const auto *last = cursiv::ast_cast<ast::Atom>(root->forms[1]);
+      CHECK(last && last->text == "b" && last->parent == root);
+    }
+  }
+}
 } // namespace
 int main() {
+  character_boundaries();
+  native_reader_rejections();
+  line_comment_boundaries();
   examples();
   datums();
   numeric_kinds();

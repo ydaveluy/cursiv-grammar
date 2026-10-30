@@ -17,28 +17,29 @@ struct Ctl : cursiv::GrammarSpec {
 
   // Compact AXp and EFp retain their temporal meaning.
   struct ATOMIC : terminal<!((quantifier + modality) | modality) + cr<"a-zA-Z_"> + many(word_boundary)> {};
-  struct QUOTED : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) +
-                           lit<"\"">, text_conv<quoted_name>> {};
+  struct QUOTED : terminal<as<quoted_name>(
+                      lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) +
+                      lit<"\"">)> {};
 
-  struct UNTIL : terminal<lit<"U">, value<ast::TemporalRelation::until>> {};
-  struct RELEASE : terminal<lit<"R">, value<ast::TemporalRelation::release>> {};
-  struct GLOBALLY : terminal<lit<"G">, value<ast::TemporalModality::globally>> {};
-  struct FINALLY : terminal<lit<"F">, value<ast::TemporalModality::finally>> {};
-  struct NEXT : terminal<lit<"X">, value<ast::TemporalModality::next>> {};
-  struct ALL : terminal<lit<"A">, value<ast::PathQuantifier::inevitable>> {};
-  struct EXISTS : terminal<lit<"E">, value<ast::PathQuantifier::exists>> {};
-  struct IFF : terminal<lit<"⇔">, value<ast::BinaryOp::biconditional>> {};
-  struct IMPLIES : terminal<lit<"⇒"> | lit<"-->">, value<ast::BinaryOp::implication>> {};
-  struct AND : terminal<lit<"∧"> | lit<"&"> | kw<"and">, value<ast::BinaryOp::conjunction>> {};
-  struct OR : terminal<lit<"∨"> | lit<"|"> | kw<"or">, value<ast::BinaryOp::disjunction>> {};
+  struct EXISTS : terminal<as<ast::PathQuantifier::exists>(lit<"E">)> {};
+  struct IFF : terminal<as<ast::BinaryOp::biconditional>(lit<"⇔">)> {};
+  struct IMPLIES
+      : terminal<as<ast::BinaryOp::implication>(lit<"⇒"> | lit<"-->">)> {};
+  struct AND : terminal<as<ast::BinaryOp::conjunction>(lit<"∧"> | lit<"&"> |
+                                                       kw<"and">)> {};
+  struct OR : terminal<as<ast::BinaryOp::disjunction>(lit<"∨"> | lit<"|"> |
+                                                      kw<"or">)> {};
 
   struct Primary;
-  struct Boolean : infix<Primary, &ast::BinaryProp::left, &ast::BinaryProp::op,
-      &ast::BinaryProp::right, (left(ref<AND>) >> left(ref<OR>) >>
-      left(ref<IMPLIES>) >> left(ref<IFF>))> {};
-  struct Proposition : infix<Boolean, &ast::BinaryTemporal::left,
-      &ast::BinaryTemporal::relation, &ast::BinaryTemporal::right,
-      left(ref<UNTIL> | ref<RELEASE>)> {};
+  struct Boolean : infix<Primary, ast::BinaryProp,
+                         levels(left(ref<AND>), left(ref<OR>),
+                                left(ref<IMPLIES>), left(ref<IFF>))> {};
+  struct Proposition
+      : infix<Boolean, ast::BinaryTemporal,
+              left(as<ast::TemporalRelation::until>(lit<"U">) |
+                   as<ast::TemporalRelation::release>(lit<"R">)),
+              &ast::BinaryTemporal::left, &ast::BinaryTemporal::relation,
+              &ast::BinaryTemporal::right> {};
 
   struct Primary : rule<
       create<ast::Top>(lit<"⊤"> | kw<"true">) |
@@ -46,10 +47,10 @@ struct Ctl : cursiv::GrammarSpec {
       create<ast::AtomicProp>(assign<&ast::AtomicProp::name>(ref<ATOMIC>) |
           flag<&ast::AtomicProp::quoted>(assign<&ast::AtomicProp::name>(ref<QUOTED>))) |
       create<ast::Quantified>(
-          assign<&ast::Quantified::quantifier>(ref<ALL> | ref<EXISTS>) +
+          assign<&ast::Quantified::quantifier>(as<ast::PathQuantifier::inevitable>(lit<"A">) | ref<EXISTS>) +
           assign<&ast::Quantified::path>(ref<Primary>)) |
       create<ast::UnaryTemporal>(
-          assign<&ast::UnaryTemporal::modality>(ref<NEXT> | ref<FINALLY> | ref<GLOBALLY>) +
+          assign<&ast::UnaryTemporal::modality>(as<ast::TemporalModality::next>(lit<"X">) | as<ast::TemporalModality::finally>(lit<"F">) | as<ast::TemporalModality::globally>(lit<"G">)) +
           assign<&ast::UnaryTemporal::operand>(ref<Primary>)) |
       create<ast::Grouped>(
           (lit<"("> + assign<&ast::Grouped::inner>(ref<Proposition>) + lit<")">) |
@@ -59,7 +60,7 @@ struct Ctl : cursiv::GrammarSpec {
       create<ast::Missing>> {};
 
   using entry = Proposition;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 }  // namespace ctl

@@ -86,10 +86,17 @@ void Gff3Validator::checkFeature(const ast::Feature &feature,
     accept
         .error(feature, "Feature phase must be 0, 1, 2, or '.'.", "gff3.phase")
         .property<&ast::Feature::phase>();
+  else if ((feature.type == "CDS" || feature.type == "SO:0000316") &&
+           feature.phase == ".")
+    accept.error(feature, "A CDS feature requires phase 0, 1 or 2.",
+                 "gff3.cds-phase").property<&ast::Feature::phase>();
 }
 
 void Gff3Validator::checkAttribute(const ast::Attribute &attribute,
                                    cursiv::ValidationAcceptor &accept) const {
+  if (!attribute_value(attribute.key))
+    accept.error(attribute, "A percent escape needs two hexadecimal digits.",
+                 "gff3.escape").property<&ast::Attribute::key>();
   if (!attribute.hasEquals)
     accept.error(attribute, "A GFF3 attribute needs '=' and a value.",
                  "gff3.attribute");
@@ -102,10 +109,10 @@ void Gff3Validator::checkAttribute(const ast::Attribute &attribute,
           .error(attribute, "A percent escape needs two hexadecimal digits.",
                  "gff3.escape")
           .property<&ast::Attribute::values>();
-    if (value.find('=') != value.npos)
+    if (value.find_first_of("=&") != value.npos)
       accept
           .error(attribute,
-                 "An '=' inside an attribute value must be percent-encoded.",
+                 "An '=' or '&' inside an attribute value must be percent-encoded.",
                  "gff3.attribute-value")
           .property<&ast::Attribute::values>();
   }

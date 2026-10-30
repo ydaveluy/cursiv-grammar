@@ -16,7 +16,10 @@ struct Expr : cursiv::Extends<cursiv::AstNode> {};
 // A declared type: modifiers (nomask, private, protected, public, static,
 // varargs), an optional builtin keyword or `class Name`. Either may be
 // absent -- an untyped declaration defaults to `mixed`.
+struct SimpleType;
 struct TypeSpec : cursiv::Extends<cursiv::AstNode> {
+  boolean arrayKeyword;
+  SimpleType* typeArgument;
   vector<string_view> modifiers;
   string_view baseType;
   string_view className;
@@ -26,6 +29,9 @@ struct TypeSpec : cursiv::Extends<cursiv::AstNode> {
 // the star sits here, not on the declared name, because one `basic_type`
 // may be shared by several names each choosing their own array-ness.
 struct SimpleType : cursiv::Extends<cursiv::AstNode> {
+  boolean arrayKeyword;
+  boolean byReference;
+  SimpleType* typeArgument;
   string_view baseType;
   string_view className;
   boolean isArray;
@@ -35,6 +41,7 @@ struct VarName : cursiv::Extends<cursiv::AstNode> {
   boolean isArray;
   string_view name;
   Expr* init;
+  string_view initOp;
 };
 
 struct VarDecl : cursiv::Extends<Item> {
@@ -45,6 +52,7 @@ struct VarDecl : cursiv::Extends<Item> {
 struct Param : cursiv::Extends<cursiv::AstNode> {
   SimpleType* type;  // null: an untyped (mixed) parameter
   string_view name;  // empty: an unnamed parameter
+  Expr* defaultValue;
 };
 
 // Shared by a declared function and an inline function value: a parameter
@@ -103,6 +111,13 @@ struct StringLit : cursiv::Extends<Expr> {
   vector<string_view> pieces;
 };
 
+struct TemplatePart : cursiv::Extends<cursiv::AstNode> {
+  string_view text;
+  Expr* expression;
+};
+struct TemplateString : cursiv::Extends<Expr> { vector<TemplatePart*> parts; };
+struct StringConcat : cursiv::Extends<Expr> { Expr* left; Expr* right; };
+
 struct ParamRefExpr : cursiv::Extends<Expr> {  // `$1`, `$2`...
   string_view text;
 };
@@ -135,7 +150,9 @@ struct CallExpr : cursiv::Extends<Expr> {
   ArgList* args;
 };
 
-struct MemberExpr : cursiv::Extends<Expr> {  // `object->field`
+struct MemberExpr : cursiv::Extends<Expr> {
+  boolean optional;
+  boolean dot;  // `object.field`; false for `object->field`
   Expr* object;
   string_view field;
 };
@@ -158,18 +175,19 @@ struct NewClassExpr : cursiv::Extends<Expr> {  // `new(class Name, f: v, ...)`
 
 struct IndexExpr : cursiv::Extends<Expr> {
   Expr* array;
+  boolean optional;
   boolean fromEnd;  // a leading `<` on the index
   Expr* index;
 };
 
-// `a[lo..hi]`, `a[lo..]`, `a[lo..<hi]`; only the low bound may itself read
-// from the end (`a[<lo..hi]`) -- the grammar gives the high bound no such
-// marker of its own.
+// Both endpoints may use `<` for a reverse index from the end.
 struct SliceExpr : cursiv::Extends<Expr> {
   Expr* array;
   boolean lowFromEnd;
   Expr* low;
-  boolean exclusive;  // `..<` rather than `..`
+  boolean highFromEnd;
+  boolean exclusive; // legacy alias for highFromEnd, not an exclusive bound
+  // Source `<` marks a reverse index from the end.
   Expr* high;         // null: open-ended (`a[lo..]`)
 };
 
@@ -208,7 +226,9 @@ struct AssignExpr : cursiv::Extends<Expr> {
   Expr* value;
 };
 
-struct ClosureExpr : cursiv::Extends<Expr> {  // `(: expr :)`
+struct ClosureExpr : cursiv::Extends<Expr> {
+  Expr* callee;
+  ArgList* arguments;  // `(: efun::name, bound, args :)`
   Expr* body;
 };
 
@@ -234,6 +254,8 @@ struct FuncLitExpr : cursiv::Extends<Expr> {  // an inline function value
 struct CatchExpr : cursiv::Extends<Expr> {
   std::variant<CompoundStmt*, Expr*> body;
 };
+
+struct AcatchExpr : cursiv::Extends<Expr> { std::variant<CompoundStmt*, Expr*> body; };
 
 struct TimeExpr : cursiv::Extends<Expr> {
   std::variant<CompoundStmt*, Expr*> body;
@@ -283,6 +305,7 @@ struct DoWhileStmt : cursiv::Extends<Stmt> {
 struct ForStmt : cursiv::Extends<Stmt> {
   Expr* initExpr;        // the plain-expression form of the init clause
   Param* initVar;        // ...or a typed declarator
+  string_view initVarOp;
   Expr* initVarValue;    // its mandatory initialiser, paired with initVar
   Expr* cond;
   Expr* step;
@@ -296,8 +319,9 @@ struct ForeachStmt : cursiv::Extends<Stmt> {
 };
 
 struct CaseStmt : cursiv::Extends<Stmt> {
+  boolean range;
   Expr* low;
-  Expr* high;  // set only for a `case a..b:` range
+  Expr* high;  // null for an open high bound
 };
 
 struct DefaultStmt : cursiv::Extends<Stmt> {};

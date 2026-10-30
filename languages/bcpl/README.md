@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+BCPL source with section imports, simultaneous declarations, procedures and expressions.
+
 ```
 GET "libhdr"
 
@@ -41,11 +43,6 @@ LET start() = VALOF
 
 AND factorial(n) = n=0 -> 1, n*factorial(n-1)
 ```
-
-`GET` names a section to bring in — a directive, not a resolved reference: no
-symbol table follows it. `LET ... AND ...` binds `start` and `factorial`
-simultaneously, so each may call the other. `n=0 -> 1, n*factorial(n-1)` is
-BCPL's conditional expression: `cond -> then, else`.
 
 ## The command line
 

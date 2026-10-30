@@ -5,7 +5,6 @@ namespace star {
 inline constexpr std::string_view heading_name(std::string_view text) {
   return text.substr(5);
 }
-using HeadingName = cursiv::text_conv<heading_name>;
 struct Star : cursiv::GrammarSpec {
   static constexpr auto eol =
       lit<"\r\n"> | lit<"\n"> | (lit<"\r"> + !lit<"\n">);
@@ -15,10 +14,10 @@ struct Star : cursiv::GrammarSpec {
   static constexpr auto quoteEnd = boundary | &cr<"[]{}:,">;
   struct WS : terminal<some(cr<" \t\v\f"> | (eol + !lit<";">))> {};
   struct COMMENT : terminal<lit<"#"> + many(cr<"^\r\n">)> {};
-  struct DATA
-      : terminal<cursiv::Lit<"data_", true>{} + many(nonspace), HeadingName> {};
-  struct SAVE
-      : terminal<cursiv::Lit<"save_", true>{} + some(nonspace), HeadingName> {};
+  struct DATA : terminal<as<heading_name>(cursiv::Lit<"data_", true>{} +
+                                          many(nonspace))> {};
+  struct SAVE : terminal<as<heading_name>(cursiv::Lit<"save_", true>{} +
+                                          some(nonspace))> {};
   struct SAVE_END : terminal<cursiv::Lit<"save_", true>{} + boundary> {};
   struct LOOP : terminal<cursiv::Lit<"loop_", true>{} + boundary> {};
   struct STOP : terminal<cursiv::Lit<"stop_", true>{} + boundary> {};
@@ -41,77 +40,77 @@ struct Star : cursiv::GrammarSpec {
   struct LITERAL : terminal<bareStart + some(cr<"^ \t\r\n\v\f[]{}">)> {};
   struct ATOM
       : terminal<bareStart + !lit<","> + some(cr<"^ \t\r\n\v\f[]{},">)> {};
-  struct StringRule : rule<create<ast::StringLit>(assign<&ast::StringLit::raw>(
+  struct String : rule<create<ast::StringLit>(assign<&ast::StringLit::raw>(
                           ref<TRIPLE1> | ref<TRIPLE2> | ref<STRING1> |
                           ref<STRING2> | ref<TEXT>))> {};
-  struct LiteralRule
+  struct Literal
       : rule<create<ast::Literal>(assign<&ast::Literal::text>(ref<LITERAL>))> {
   };
-  struct ValueRule;
-  struct DelimitedValueRule;
-  struct AtomRule
+  struct Value;
+  struct DelimitedValue;
+  struct Atom
       : rule<create<ast::Literal>(assign<&ast::Literal::text>(ref<ATOM>))> {};
-  struct LoopRule;
-  struct ListRule
+  struct Loop;
+  struct List
       : rule<create<ast::List>(
             lit<"["> +
-            many(append<&ast::List::values>(ref<DelimitedValueRule>) +
+            many(append<&ast::List::values>(ref<DelimitedValue>) +
                  option(lit<",">)) +
             lit<"]">)> {};
-  struct TableEntryRule
+  struct TableEntry
       : rule<create<ast::TableEntry>(
-            assign<&ast::TableEntry::key>(ref<StringRule>) + lit<":"> +
-            option(assign<&ast::TableEntry::value>(ref<DelimitedValueRule>)))> {
+            assign<&ast::TableEntry::key>(ref<String>) + lit<":"> +
+            option(assign<&ast::TableEntry::value>(ref<DelimitedValue>)))> {
   };
-  struct TableRule
+  struct Table
       : rule<create<ast::Table>(
             lit<"{"> +
-            many(append<&ast::Table::entries>(ref<TableEntryRule>) +
+            many(append<&ast::Table::entries>(ref<TableEntry>) +
                  option(lit<",">)) +
             lit<"}">)> {};
-  struct DelimitedValueRule
-      : rule<ref<StringRule> | ref<AtomRule> | ref<ListRule> | ref<TableRule>> {
+  struct DelimitedValue
+      : rule<ref<String> | ref<Atom> | ref<List> | ref<Table>> {
   };
-  struct ScalarRule : rule<ref<StringRule> | ref<LiteralRule> | ref<ListRule> |
-                           ref<TableRule>> {};
-  struct StopRule : rule<create<ast::Stop>(ref<STOP>)> {};
-  struct NestedHeaderRule;
+  struct Scalar : rule<ref<String> | ref<Literal> | ref<List> |
+                           ref<Table>> {};
+  struct Stop : rule<create<ast::Stop>(ref<STOP>)> {};
+  struct NestedHeader;
   static constexpr auto headerBody =
       ref<LOOP> + many(append<&ast::LoopHeader::items>(ref<DATANAME> |
-                                                       ref<NestedHeaderRule>));
-  struct LoopHeaderRule : rule<create<ast::LoopHeader>(headerBody)> {};
-  struct NestedHeaderRule
+                                                       ref<NestedHeader>));
+  struct LoopHeader : rule<create<ast::LoopHeader>(headerBody)> {};
+  struct NestedHeader
       : rule<create<ast::LoopHeader>(
             headerBody +
             option(flag<&ast::LoopHeader::closed>(ref<STOP>)))> {};
-  struct LoopRule
-      : rule<create<ast::Loop>(assign<&ast::Loop::header>(ref<LoopHeaderRule>) +
+  struct Loop
+      : rule<create<ast::Loop>(assign<&ast::Loop::header>(ref<LoopHeader>) +
                                many(append<&ast::Loop::values>(
-                                   ref<ScalarRule> | ref<StopRule>)))> {};
-  struct ValueRule : rule<ref<ScalarRule> | ref<LoopRule>> {};
-  struct KeyValRule
+                                   ref<Scalar> | ref<Stop>)))> {};
+  struct Value : rule<ref<Scalar> | ref<Loop>> {};
+  struct KeyVal
       : rule<create<ast::KeyVal>(
             assign<&ast::KeyVal::name>(ref<DATANAME>) +
-            option(assign<&ast::KeyVal::value>(ref<ValueRule>)))> {};
-  struct SaveFrameRule;
+            option(assign<&ast::KeyVal::value>(ref<Value>)))> {};
+  struct SaveFrame;
   static constexpr auto element =
-      ref<KeyValRule> | ref<SaveFrameRule> | ref<LoopRule>;
-  struct SaveFrameRule
+      ref<KeyVal> | ref<SaveFrame> | ref<Loop>;
+  struct SaveFrame
       : rule<create<ast::SaveFrame>(
             assign<&ast::SaveFrame::name>(ref<SAVE>) +
             many(append<&ast::Content::elements>(element)) +
             option(flag<&ast::SaveFrame::closed>(ref<SAVE_END>)))> {};
-  struct DataBlockRule : rule<create<ast::DataBlock>(
+  struct DataBlock : rule<create<ast::DataBlock>(
                              assign<&ast::DataBlock::name>(ref<DATA>) +
                              many(append<&ast::Content::elements>(element)))> {
   };
-  struct GlobalRule
+  struct Global
       : rule<create<ast::Global>(
             ref<GLOBAL> + many(append<&ast::Content::elements>(element)))> {};
-  struct DocRule : rule<create<ast::Doc>(many(append<&ast::Doc::blocks>(
-                            ref<DataBlockRule> | ref<GlobalRule>))) +
+  struct Doc : rule<create<ast::Doc>(many(append<&ast::Doc::blocks>(
+                            ref<DataBlock> | ref<Global>))) +
                         eof> {};
-  using entry = DocRule;
-  using ignore = list<WS, COMMENT>;
+  using entry = Doc;
+  using ignored = list<WS, COMMENT>;
 };
 } // namespace star

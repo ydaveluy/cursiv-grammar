@@ -42,6 +42,10 @@ struct CommentLine : cursiv::Extends<cursiv::AstNode> {
   string_view text;
 };
 
+struct SourceInclude : cursiv::Extends<cursiv::AstNode> {
+  string_view path;
+};
+
 struct BlankLine : cursiv::Extends<cursiv::AstNode> {
   string_view label;
 };
@@ -75,7 +79,7 @@ struct AssignmentLine : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct Document : cursiv::Extends<cursiv::AstNode> {
-  vector<std::variant<CommentLine*, BlankLine*, InstructionLine*, EraseLine*,
+  vector<std::variant<CommentLine*, SourceInclude*, BlankLine*, InstructionLine*, EraseLine*,
                        AssignmentLine*>>
       lines;
 };

@@ -31,9 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-AGC assembly source for the Apollo Guidance Computer (Apollo 4, Solarium
-055). Whitespace is not trivia here: it is the separator between a line's
-label, opcode and operand fields, so the grammar reads it explicitly.
+AGC assembly listings for the Apollo Guidance Computer (Apollo 4, Solarium
+055). Whitespace separates each line’s label, opcode and operand fields.
 
 ```
 BEGINNER	TC	BANKCALL
@@ -41,10 +40,6 @@ CADRMODE	CADR	IMUREENT
 
 STARTDT1	DEC	200
 ```
-
-A label starts a line at column 0; an opcode and its operands are indented.
-`example/` contains `.agc` documents from real Apollo flight software
-listings.
 
 ## The command line
 

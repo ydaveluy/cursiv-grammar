@@ -8,6 +8,7 @@
 #include <span>
 #include <string>
 
+#include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/services/Diagnostic.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
@@ -182,6 +183,45 @@ void field_values_of_unary(const World& world) {
   }
 }
 
+void native_manual_cases(const World& world) {
+  const auto result = world.language.language.parser->parse(
+      "START ;label comment\na to b ;This stores a in b\n* 5 + 3 to a\n");
+  CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
+  const auto* program = result.value_as<ast::Program>();
+  CHECK(program && program->items.size() == 5);
+  if (!program || program->items.size() != 5) return;
+  const auto* label = as<ast::Label>(program->items[0]);
+  const auto* comment1 = as<ast::Comment>(program->items[1]);
+  const auto* comment2 = as<ast::Comment>(program->items[3]);
+  CHECK(label && label->name == "START");
+  CHECK(comment1 && comment1->text == ";label comment");
+  CHECK(comment2 && comment2->text == ";This stores a in b");
+  const auto* store = as<ast::ToStatement>(program->items[4]);
+  const auto* chain = store ? as<ast::BinaryExpr>(store->value) : nullptr;
+  const auto* unary = chain ? as<ast::UnaryExpr>(chain->left) : nullptr;
+  const auto* three = chain ? as<ast::NumberLit>(chain->right) : nullptr;
+  CHECK(chain && chain->op == ast::Operation::add && unary &&
+        unary->op == ast::Operation::multiply && three && three->value == 3);
+}
+
+void native_constraints(const World& world) {
+  const auto build = [&](const std::string& text) {
+    auto doc = world.language.shared->documentFactory->fromString(
+        text, "file:///native-limits/" + std::to_string(world.opened++) + ".robotwars");
+    world.language.shared->documents->addDocument(doc);
+    cursiv::Document* one = doc.get();
+    world.language.shared->documentBuilder->build(std::span<cursiv::Document* const>(&one, 1));
+    return doc;
+  };
+  const auto valid = build("-1024 to speedx\n+1024 to speedy\n");
+  CHECK(valid->diagnostics.empty() && !valid->parseResult.cst().recovered());
+  for (const std::string source : {"1025 TO A\n", "-1025 TO A\n", "AIM\n", "TO\n",
+                                   "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456\n"}) {
+    const auto invalid = build(source);
+    CHECK(!invalid->diagnostics.empty());
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -190,6 +230,8 @@ int main() {
   every_example_builds_clean(world);
   field_values_of_bottom(world);
   field_values_of_unary(world);
+  native_manual_cases(world);
+  native_constraints(world);
 
   return cursiv::test::report("robotwars_grammar_test");
 }

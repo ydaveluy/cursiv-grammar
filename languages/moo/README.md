@@ -44,6 +44,11 @@ property chain (`player`), then the verb it is asked to run. There is no
 cross reference here — object and property names are free text, resolved at
 run time by the MOO server this AST would feed, not by this port's linker.
 
+Expressions follow [LambdaMOO's precedence table](https://github.com/wrog/lambdamoo/blob/master/parser.y):
+`^` associates right, unary `!` binds before arithmetic, and `&&`/`||` share
+one level and associate left. Strings decode backslash escapes; real
+literals include `325.`, `.0325e+4` and `3.25e2`.
+
 ## The command line
 
 ```bash

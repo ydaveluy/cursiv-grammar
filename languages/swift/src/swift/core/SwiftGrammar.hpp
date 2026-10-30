@@ -1,15 +1,50 @@
-// The swift language: its grammar (Swift 5). Binary operators keep a flat,
-// unassociated chain -- Swift operator precedence is a runtime table (user
-// `precedencegroup`s), not something a static grammar can climb.
+// Swift 5.4 core with selected later syntax. Binary operators stay flat;
+// declarations of operators and precedence groups require semantic resolution.
 #pragma once
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "swift/core/ast.hpp"
+#include "cursiv/core/text/scalar_at.hpp"
 
 namespace swift {
 
-inline constexpr auto identifier_text = [](std::string_view text) {
-  return text.starts_with('`') ? text.substr(1, text.size() - 2) : text;
+// Swift 6.2 raw-identifier exclusions (SE-0451 and the native lexer).
+inline constexpr bool raw_operator_start(char32_t c) {
+  if (c < 0x80) return std::string_view("/=-+*%<>!&|^~.?").find(static_cast<char>(c)) != std::string_view::npos;
+  return (c >= 0xA1 && c <= 0xA7) || c == 0xA9 || c == 0xAB || c == 0xAC || c == 0xAE ||
+      c == 0xB0 || c == 0xB1 || c == 0xB6 || c == 0xBB || c == 0xBF || c == 0xD7 || c == 0xF7 ||
+      c == 0x2016 || c == 0x2017 || (c >= 0x2020 && c <= 0x2027) ||
+      (c >= 0x2030 && c <= 0x203E) || (c >= 0x2041 && c <= 0x2053) ||
+      (c >= 0x2055 && c <= 0x205E) || (c >= 0x2190 && c <= 0x23FF) ||
+      (c >= 0x2500 && c <= 0x2775) || (c >= 0x2794 && c <= 0x2BFF) ||
+      (c >= 0x2E00 && c <= 0x2E7F) || (c >= 0x3001 && c <= 0x3003) ||
+      (c >= 0x3008 && c <= 0x3030);
+}
+inline constexpr bool raw_operator_continue(char32_t c) {
+  return raw_operator_start(c) || (c >= 0x300 && c <= 0x36F) ||
+      (c >= 0x1DC0 && c <= 0x1DFF) || (c >= 0x20D0 && c <= 0x20FF) ||
+      (c >= 0xFE00 && c <= 0xFE0F) || (c >= 0xFE20 && c <= 0xFE2F) ||
+      (c >= 0xE0100 && c <= 0xE01EF);
+}
+inline constexpr auto identifier_text = [](std::string_view text)
+    -> cursiv::ConversionResult<std::string_view> {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (!text.starts_with('`')) return Result::ok(text);
+  text = text.substr(1, text.size() - 2);
+  bool all_space = true, all_operator = true;
+  for (std::size_t i = 0; i < text.size();) {
+    std::size_t width = 0;
+    const auto c = cursiv::scalar_at(text.data() + i, text.size() - i, width);
+    if (!width || c < 0x20 || c == 0x7F || c == '`' || c == '\\' ||
+        c == 0x85 || c == 0xA0 || c == 0x1680 || (c >= 0x2000 && c <= 0x200A) ||
+        c == 0x2028 || c == 0x2029 || c == 0x202F || c == 0x205F || c == 0x3000)
+      return Result::err("Forbidden character in a raw identifier");
+    all_space &= c == 0x20 || c == 0x200E || c == 0x200F;
+    all_operator &= i == 0 ? raw_operator_start(c) : raw_operator_continue(c);
+    i += width;
+  }
+  if (all_space || all_operator) return Result::err("A raw identifier cannot be entirely whitespace or an operator");
+  return Result::ok(text);
 };
 
 struct Swift : cursiv::GrammarSpec {
@@ -25,12 +60,12 @@ struct Swift : cursiv::GrammarSpec {
       "\U000D0000-\U000DFFFD\U000E0000-\U000EFFFD">;
   static constexpr auto IdentifierHead =
       !cr<"0-9$\u0300-\u036F\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F\uFEFF"> + IdentifierChar;
-  static constexpr auto word_boundary = cr<R"(a-zA-Z0-9_$\u{80}-\u{10FFFF})">;
+  static constexpr auto word_boundary = IdentifierChar;
   static constexpr auto eos = implied(lit<";">, gap::line | &lit<"}"> | eof);
 
   // -- Trivia -------------------------------------------------------------
 
-  struct WS : terminal<some(cr<R"( \n\r\t\v\f)">)> {};
+  struct WS : terminal<some(cr<R"( \n\r\t\v\f\x00)">)> {};
   struct HASHBANG : terminal<lit<"#!"> + many(cr<R"(^\r\n)">)> {};
   struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
   struct ML_COMMENT
@@ -97,18 +132,18 @@ struct Swift : cursiv::GrammarSpec {
       kw<"async"> | kw<"reasync"> | kw<"await"> | kw<"actor"> | kw<"any"> |
       kw<"each"> | kw<"copy"> | kw<"consume"> | kw<"borrowing"> | kw<"consuming"> |
       kw<"isolated"> | kw<"nonisolated"> | kw<"distributed"> | kw<"sending">;
-  struct Identifier : rule<ref<ID> | ReservedReferenceKeyword |
-                           ContextualKeyword | EscapedIdentifier | lit<"_">,
-                           text_conv<identifier_text>> {};
+  struct Identifier : rule<as<identifier_text>(
+                          ref<ID> | ReservedReferenceKeyword |
+                          ContextualKeyword | EscapedIdentifier | lit<"_">)> {};
 
   // Reference names exclude only reserved declaration/statement heads.
   // Argument labels, members and declaration names still use Identifier.
   struct ReferenceID : terminal<!ReservedReferenceKeyword +
                                 ((IdentifierHead + many(IdentifierChar)) |
                                  (lit<"$"> + some(IdentifierChar)))> {};
-  struct ReferenceIdentifier : rule<ref<ReferenceID> | ContextualKeyword |
-                                    EscapedIdentifier | lit<"_">,
-                                    text_conv<identifier_text>> {};
+  struct ReferenceIdentifier
+      : rule<as<identifier_text>(ref<ReferenceID> | ContextualKeyword |
+                                 EscapedIdentifier | lit<"_">)> {};
 
   // -- Literals -------------------------------------------------------
 
@@ -133,7 +168,7 @@ struct Swift : cursiv::GrammarSpec {
   static constexpr auto EscapeSeq = lit<"\\"> + many(lit<"#">);
   static constexpr auto EscapedChar = EscapeSeq + cr<R"(^(\r\n)">;
   static constexpr auto EscapedNewline =
-      EscapeSeq + many(cr<R"( \t)">) + (lit<"\r\n"> | cr<R"(\r\n)">);
+      EscapeSeq + many(cr<R"( \t)">) + (eol);
 
   struct StringOpen : terminal<lit<"\"">> {};
   struct StringClose : terminal<lit<"\"">> {};
@@ -151,9 +186,15 @@ struct Swift : cursiv::GrammarSpec {
   struct RawSingleHashes {};
   struct RawMultiHashes {};
   struct RawMultiString
-      : terminal<through(mark<RawMultiHashes>(some(lit<"#">)) + lit<"\"\"\"">, lit<"\"\"\""> + same<RawMultiHashes>)> {};
+      : terminal<mark<RawMultiHashes>(some(lit<"#">)) + lit<"\"\"\""> +
+          many((lit<"\\"> + same<RawMultiHashes> + any) |
+               (!(lit<"\"\"\""> + same<RawMultiHashes>) + any)) +
+          lit<"\"\"\""> + same<RawMultiHashes>> {};
   struct RawSingleString
-      : terminal<through(mark<RawSingleHashes>(some(lit<"#">)) + lit<"\"">, lit<"\""> + same<RawSingleHashes>)> {};
+      : terminal<mark<RawSingleHashes>(some(lit<"#">)) + lit<"\""> +
+          many((lit<"\\"> + same<RawSingleHashes> + cr<R"(^\r\n)">) |
+               (!(lit<"\""> + same<RawSingleHashes>) + cr<R"(^\r\n)">)) +
+          lit<"\""> + same<RawSingleHashes>> {};
   struct RegexHashes {};
   struct RAW_REGEX
       : terminal<through(mark<RegexHashes>(some(lit<"#">)) + lit<"/">, lit<"/"> + same<RegexHashes>)> {};
@@ -206,41 +247,29 @@ struct Swift : cursiv::GrammarSpec {
   // -- Attributes -----------------------------------------------------
 
   struct BalancedTokens;
-  // Terminals only, never a rule that independently creates: mixing one in
-  // (as `ref<StringLiteral>` would) gives the branch two heads.
+  struct StringLiteral;
   struct BalancedToken
       : rule<create<ast::Opaque>(
-                lit<"("> + option(append<&ast::Opaque::children>(ref<BalancedTokens>)) +
-                lit<")">) |
+                 assign<&ast::Opaque::text>(lit<"(">) +
+                 option(append<&ast::Opaque::children>(ref<BalancedTokens>)) + lit<")">) |
              create<ast::Opaque>(
-                 lit<"["> +
-                 option(append<&ast::Opaque::children>(ref<BalancedTokens>)) +
-                 lit<"]">) |
+                 assign<&ast::Opaque::text>(lit<"[">) +
+                 option(append<&ast::Opaque::children>(ref<BalancedTokens>)) + lit<"]">) |
              create<ast::Opaque>(
-                 lit<"{"> +
-                 option(append<&ast::Opaque::children>(ref<BalancedTokens>)) +
-                 lit<"}">) |
-             (create<ast::Opaque> + ref<Identifier>) |
-             (create<ast::Opaque> + ref<Keyword>) |
-             (create<ast::Opaque> + ref<INT_LIT>) |
-             (create<ast::Opaque> + ref<FLOAT_LIT>) |
-             (create<ast::Opaque> + ref<StringOpen> + many(ref<QuotedText>) +
-              ref<StringClose>) |
-             (create<ast::Opaque> + ref<MultiStringOpen> +
-              many(ref<MultiQuotedText>) + ref<MultiStringClose>) |
-             (create<ast::Opaque> + (ref<RawMultiString> | ref<RawSingleString>)) |
-             (create<ast::Opaque> + ref<OPERATOR>) |
-             (create<ast::Opaque> + lit<",">) | (create<ast::Opaque> + lit<":">) |
-             (create<ast::Opaque> + lit<";">) | (create<ast::Opaque> + lit<"@">) |
-             (create<ast::Opaque> + lit<"#">)> {};
+                 assign<&ast::Opaque::text>(lit<"{">) +
+                 option(append<&ast::Opaque::children>(ref<BalancedTokens>)) + lit<"}">) |
+             create<ast::Opaque>(assign<&ast::Opaque::literal>(ref<StringLiteral>)) |
+             create<ast::Opaque>(assign<&ast::Opaque::text>(
+                 ref<Identifier> | ref<Keyword> | ref<INT_LIT> | ref<FLOAT_LIT> |
+                 ref<OPERATOR> | lit<"="> | lit<"<"> | lit<">"> | lit<"."> | lit<"/"> | lit<"\\"> |
+                 lit<","> | lit<":"> | lit<";"> | lit<"@"> | lit<"#">))> {};
   struct BalancedTokens
       : rule<create<ast::Opaque>(
             some(append<&ast::Opaque::children>(ref<BalancedToken>)))> {};
 
   struct Attribute_
       : rule<create<ast::Attribute>(
-            lit<"@"> + append<&ast::Attribute::nameParts>(ref<Identifier>) +
-            many(lit<"."> + append<&ast::Attribute::nameParts>(ref<Identifier>)) +
+            lit<"@"> + some(append<&ast::Attribute::nameParts>(ref<Identifier>), lit<".">) +
             option(flag<&ast::Attribute::hasArguments>(lit<"(">) +
                    option(assign<&ast::Attribute::rawArgs>(ref<BalancedTokens>)) +
                    lit<")">))> {};
@@ -270,12 +299,11 @@ struct Swift : cursiv::GrammarSpec {
 
   // -- Types ----------------------------------------------------------
 
-  struct TYPE_HEAD
-      : terminal<!(kw<"Any"> | kw<"Self">) + (IdentifierWord | EscapedWord),
-                 text_conv<identifier_text>> {};
+  struct TYPE_HEAD : terminal<as<identifier_text>(!(kw<"Any"> | kw<"Self">)+(
+                         IdentifierWord | EscapedWord))> {};
   struct TYPE_MEMBER
-      : terminal<!(kw<"Type"> | kw<"Protocol">) + (IdentifierWord | EscapedWord),
-                 text_conv<identifier_text>> {};
+      : terminal<as<identifier_text>(
+            !(kw<"Type"> | kw<"Protocol">)+(IdentifierWord | EscapedWord))> {};
   template <class Name>
   static constexpr auto TypeNameComponent =
       assign<&ast::NamedType::name>(ref<Name>) +
@@ -454,7 +482,7 @@ struct Swift : cursiv::GrammarSpec {
 
   static constexpr auto StringInterpolation = create<ast::StringPart>(
       flag<&ast::StringPart::interpolation>(ref<InterpOpen>) +
-      skip(ignored<WS>, hide<SL_COMMENT, ML_COMMENT>,
+      skip(ignore<WS>, hide<SL_COMMENT, ML_COMMENT>,
            option(some(append<&ast::StringPart::arguments>(ref<Argument>), lit<",">)) + lit<")">));
   struct StringLiteral
       : rule<create<ast::StringLit>(
@@ -597,9 +625,7 @@ struct Swift : cursiv::GrammarSpec {
   struct KeyPathExpr
       : rule<create<ast::KeyPathExpr>(
             lit<"\\"> + option(assign<&ast::KeyPathExpr::root>(TypeAtom)) + lit<"."> +
-            append<&ast::KeyPathExpr::components>(ref<KeyPathComponent>) +
-            many(lit<"."> +
-                 append<&ast::KeyPathExpr::components>(ref<KeyPathComponent>)))> {};
+            some(append<&ast::KeyPathExpr::components>(ref<KeyPathComponent>), lit<".">))> {};
 
   struct SelectorExpr
       : rule<create<ast::SelectorExpr>(
@@ -836,8 +862,7 @@ struct Swift : cursiv::GrammarSpec {
   struct SwitchCase
       : rule<create<ast::SwitchCase>(
             many(append<&ast::SwitchCase::attributes>(ref<Attribute_>)) +
-            ((kw<"case"> + append<&ast::SwitchCase::items>(ref<CaseItem>) +
-              many(lit<","> + append<&ast::SwitchCase::items>(ref<CaseItem>)) +
+            ((kw<"case"> + some(append<&ast::SwitchCase::items>(ref<CaseItem>), lit<",">) +
               lit<":">)  //
              | (flag<&ast::SwitchCase::isDefault>(kw<"default">) + lit<":">)) +
             some(append<&ast::SwitchCase::body>(ref<Statement>)))> {};
@@ -845,7 +870,7 @@ struct Swift : cursiv::GrammarSpec {
   struct IfConfigSwitchCase
       : rule<create<ast::IfConfigStmt>(
             append<&ast::IfConfigStmt::branches>(create<ast::IfConfigBranch>(
-                (kw<"#if"> | kw<"#elseif">) +
+                kw<"#if"> +
                 assign<&ast::IfConfigBranch::condition>(ref<CompilationCondition>) +
                 many(append<&ast::IfConfigBranch::body>(ref<SwitchCaseOrConfig>)))) +
             many(append<&ast::IfConfigStmt::branches>(create<ast::IfConfigBranch>(
@@ -1139,8 +1164,6 @@ struct Swift : cursiv::GrammarSpec {
 
   struct EnumCaseElement
       : rule<create<ast::EnumCaseElement>(
-                kw<"some"> + assign<&ast::EnumCaseElement::opaqueBase>(ref<Type>)) |
-             create<ast::EnumCaseElement>(
                  assign<&ast::EnumCaseElement::name>(ref<Identifier>) +
                  option(assign<&ast::EnumCaseElement::associatedValue>(
                             ref<EnumCaseParameterClause>) |
@@ -1160,9 +1183,7 @@ struct Swift : cursiv::GrammarSpec {
             kw<"enum"> + assign<&ast::EnumDecl::name>(ref<Identifier>) +
             option(assign<&ast::EnumDecl::generics>(ref<GenericParamClause>)) +
             option(lit<":"> +
-                   append<&ast::EnumDecl::inheritance>(ref<TypeIdentifier>) +
-                   many(lit<","> +
-                        append<&ast::EnumDecl::inheritance>(ref<TypeIdentifier>))) +
+                   some(append<&ast::EnumDecl::inheritance>(ref<TypeIdentifier>), lit<",">)) +
             option(kw<"where"> +
                    some(append<&ast::EnumDecl::whereClause>(ref<Requirement>),
                         lit<",">)) +
@@ -1178,9 +1199,7 @@ struct Swift : cursiv::GrammarSpec {
             kw<"struct"> + assign<&ast::StructDecl::name>(ref<Identifier>) +
             option(assign<&ast::StructDecl::generics>(ref<GenericParamClause>)) +
             option(lit<":"> +
-                   append<&ast::StructDecl::inheritance>(ref<TypeIdentifier>) +
-                   many(lit<","> +
-                        append<&ast::StructDecl::inheritance>(ref<TypeIdentifier>))) +
+                   some(append<&ast::StructDecl::inheritance>(ref<TypeIdentifier>), lit<",">)) +
             option(kw<"where"> +
                    some(append<&ast::StructDecl::whereClause>(ref<Requirement>),
                         lit<",">)) +
@@ -1196,9 +1215,7 @@ struct Swift : cursiv::GrammarSpec {
             kw<"class"> + assign<&ast::ClassDecl::name>(ref<Identifier>) +
             option(assign<&ast::ClassDecl::generics>(ref<GenericParamClause>)) +
             option(lit<":"> +
-                   append<&ast::ClassDecl::inheritance>(ref<TypeIdentifier>) +
-                   many(lit<","> +
-                        append<&ast::ClassDecl::inheritance>(ref<TypeIdentifier>))) +
+                   some(append<&ast::ClassDecl::inheritance>(ref<TypeIdentifier>), lit<",">)) +
             option(kw<"where"> +
                    some(append<&ast::ClassDecl::whereClause>(ref<Requirement>),
                         lit<",">)) +
@@ -1356,7 +1373,7 @@ struct Swift : cursiv::GrammarSpec {
   };
 
   using entry = File;
-  using ignore = list<WS>;
+  using ignored = list<WS>;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

@@ -248,6 +248,109 @@ void state_keys_written_twice_keep_both() {
        "twice: both retrier max_attempts");
 }
 
+void json_values_and_escaped_names_read_back() {
+  const auto r = engine().parse(
+      R"({"St\u0061rtAt":"S","States":{"S":{"T\u0079pe":"Pass",)"
+      R"("Result":[null,"null","\u00E9","\uD83D\uDE00","line\nend"],"End":true}}})");
+  check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
+        "JSON escapes parse clean");
+  const auto* program = r.value_as<ast::Program>();
+  check(program && only(program->start_at, "S"), "escaped StartAt key");
+  const auto* state = find(program, "S");
+  check(state && only(state->types, "Pass"), "escaped Type key");
+  if (!state || state->results.size() != 1) return;
+  const auto* value = std::get_if<ast::Value*>(&state->results[0]);
+  const auto* array = value ? as<ast::Array>(*value) : nullptr;
+  check(array && array->items.size() == 5, "JSON array retained");
+  if (!array || array->items.size() != 5) return;
+  check(std::holds_alternative<std::monostate>(array->items[0]),
+        "JSON null has its own value type");
+  constexpr std::string_view expected[] = {"null", "é", "😀", "line\nend"};
+  for (std::size_t i = 0; i < 4; ++i) {
+    const auto* text = std::get_if<std::string_view>(&array->items[i + 1]);
+    check(text && *text == expected[i], "decoded JSON string value");
+  }
+
+  for (const char* source : {
+           R"({"States":{"S":{"Type":"Pass","Result":["key":1],"End":true}}})",
+           R"({"States":{"S":{"Type":"Pass","Parameters":{"x":["key":1]},"End":true}}})"}) {
+    const auto invalid = engine().parse(source);
+    check(!invalid.accepted || invalid.cst().recovered() ||
+              !invalid.diagnostics.empty(),
+          "a JSON binding is not an array value");
+  }
+}
+
+void native_jsonata_fields_read_back() {
+  const auto r = engine().parse(
+      R"({"QueryLanguage":"JSONata","StartAt":"Choose","States":{)"
+      R"("Choose":{"Type":"Choice","Assign":{"fallback":true},"Choices":[)"
+      R"({"Condition":"{% $states.input.ok %}","Assign":{"picked":1},)"
+      R"("Output":{"picked":true},"Next":"Work"}]},)"
+      R"("Work":{"Type":"Task","Arguments":{"x":"{% $picked %}"},)"
+      R"("Credentials":{"RoleArn":"arn:aws:iam::123:role/test"},)"
+      R"("Resource":"arn:aws:lambda:test","Output":null,"End":true}}})");
+  check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
+        "JSONata state machine parses clean");
+  const auto* program = r.value_as<ast::Program>();
+  check(program && only(program->query_languages, "JSONata"),
+        "top-level QueryLanguage retained");
+  const auto* choose = find(program, "Choose");
+  check(choose && choose->assignments.size() == 1 && choose->choices.size() == 1,
+        "choice assignments and rules retained");
+  if (choose && choose->choices.size() == 1) {
+    const auto* rule = as<ast::JsonataChoiceRule>(choose->choices[0]);
+    check(rule && rule->conditions.size() == 1 &&
+              std::get<std::string_view>(rule->conditions[0]) ==
+                  "{% $states.input.ok %}" &&
+              rule->assignments.size() == 1 && rule->outputs.size() == 1,
+          "JSONata choice retains condition, assignment and output");
+  }
+  const auto* work = find(program, "Work");
+  check(work && work->arguments.size() == 1 && work->credentials.size() == 1 &&
+            work->outputs.size() == 1 &&
+            std::holds_alternative<std::monostate>(work->outputs[0]),
+        "Task arguments, credentials and null output retained");
+
+  const auto map = engine().parse(
+      R"({"QueryLanguage":"JSONata","StartAt":"M","States":{"M":{)"
+      R"("Type":"Map","Items":[1,2],"MaxConcurrency":"{% 2 %}",)"
+      R"("ItemBatcher":{"MaxItemsPerBatch":2},"ToleratedFailurePercentage":1.5,)"
+      R"("ItemSelector":"{% $states.context.Map.Item.Value %}",)"
+      R"("ItemReader":{"Resource":"arn:aws:states:::s3:getObject",)"
+      R"("Arguments":{"Bucket":"bucket","Key":"input.json"},)"
+      R"("ReaderConfig":{"InputType":"JSON","MaxItems":"{% 100 %}"}},)"
+      R"("ItemProcessor":{"ProcessorConfig":{"Mode":"DISTRIBUTED",)"
+      R"("ExecutionType":"EXPRESS"},"StartAt":"D","States":{)"
+      R"("D":{"Type":"Succeed"}}},"ResultWriter":{)"
+      R"("Resource":"arn:aws:states:::s3:putObject",)"
+      R"("Arguments":{"Bucket":"bucket","Prefix":"out"}},)"
+      R"("Label":"batch","End":true}}})");
+  check(map.accepted && !map.cst().recovered() && map.diagnostics.empty(),
+        "Map options parse clean");
+  const auto* state = find(map.value_as<ast::Program>(), "M");
+  check(state && state->map_options.size() == 5 &&
+            state->map_options[0]->key == "Items" &&
+            state->map_options[4]->key == "Label",
+        "Map option names, values and order retained");
+  check(state && state->numeric_expressions.size() == 1 &&
+            state->numeric_expressions[0]->key == "MaxConcurrency" &&
+            std::get<std::string_view>(state->numeric_expressions[0]->value) ==
+                "{% 2 %}" && state->item_selector_values.size() == 1,
+        "JSONata numeric and item-selector expressions retained");
+  if (state && state->item_readers.size() == 1) {
+    const auto* reader = state->item_readers[0];
+    check(reader->arguments.size() == 1 && reader->reader_config.size() == 1 &&
+              reader->reader_config[0]->extensions.size() == 1 &&
+              reader->reader_config[0]->extensions[0]->key == "MaxItems",
+          "ItemReader arguments and expression-valued MaxItems retained");
+  }
+  if (state && state->item_processors.size() == 1 &&
+      state->item_processors[0]->processor_config.size() == 1)
+    check(only(state->item_processors[0]->processor_config[0]->execution_type,
+               "EXPRESS"), "ProcessorConfig EXPRESS retained");
+}
+
 }  // namespace
 
 int main() {
@@ -282,6 +385,27 @@ int main() {
   choice_state_composite_reads_back();
   uncommon_fields_example_parses_clean_and_reads_back();
   state_keys_written_twice_keep_both();
+  json_values_and_escaped_names_read_back();
+  native_jsonata_fields_read_back();
+  {
+    const auto language = cursiv::create_language<
+        amazonstateslanguage::AmazonStatesLanguageCoreServices,
+        amazonstateslanguage::AmazonStatesLanguageSharedCoreServices,
+        amazonstateslanguage::install_core_module>();
+    for (const char* source : {
+             R"({"States":{"S":{"Type":"Succeed"}}})",
+             R"({"StartAt":"missing","States":{"S":{"Type":"Succeed"}}})",
+             R"({"StartAt":"S","States":{"S":{"Type":"Succeed"},"S":{"Type":"Succeed"}}})",
+             R"({"StartAt":"S","States":{"S":{"Comment":"missing Type"}}})"}) {
+      const auto result = cursiv::test::validationHelper(language.language, source);
+      check(!result.diagnostics.empty(), "native state-machine constraint");
+    }
+    const auto escaped_duplicate = cursiv::test::validationHelper(
+        language.language,
+        R"({"StartAt":"S","Comment":"a","Comm\u0065nt":"b","States":{"S":{"Type":"Succeed"}}})");
+    check(escaped_duplicate.diagnostics.size() == 1,
+          "JSON-equivalent member names are duplicates");
+  }
   if (failures != 0) {
     std::fprintf(stderr, "amazonstateslanguage: %d check(s) failed\n",
                 failures);

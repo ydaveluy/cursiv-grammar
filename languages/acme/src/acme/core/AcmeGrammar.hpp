@@ -13,7 +13,6 @@ namespace acme {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Acme : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
@@ -26,99 +25,103 @@ struct Acme : cursiv::GrammarSpec {
 
   static constexpr auto word_boundary = cr<"a-zA-Z0-9_-">;
 
-  struct INTEGER_LITERAL : terminal<some(d), std::int64_t> {};
+  struct INTEGER_LITERAL : terminal<as<std::int64_t>(some(d))> {};
+  static constexpr auto FloatBody =
+      some(d) + lit<"."> + some(d) +
+      option(cr<"eE"> + option(cr<"+-">) + some(d));
   struct FLOATING_POINT_LITERAL
-      : terminal<some(d) + lit<"."> + some(d), double> {};
+      : terminal<as<double>(FloatBody)> {};
   // Only `acmePropertyValueDeclaration` reads a signed float; folding the
   // sign into the terminal keeps the converter correct (json's NUMBER does
   // the same for its own leading `-`).
   struct SIGNED_FLOAT
-      : terminal<many(cr<"+-">) + some(d) + lit<"."> + some(d), double> {};
+      : terminal<as<double>(option(cr<"+-">) + FloatBody)> {};
   struct STRING_LITERAL
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
-  struct BOOL_LITERAL : terminal<ikw<"true"> | ikw<"false">, bool> {};
+      : terminal<as<unquote>(lit<"\""> + many(cr<R"(^")">) + lit<"\"">)> {};
+  struct BOOL_LITERAL : terminal<as<bool>(ikw<"true"> | ikw<"false">)> {};
 
   static constexpr auto FileSep = cr<".:+/$%-"> | lit<"\\\\"> | lit<"\\">;
-  struct FilenameRule
+  struct Filename
       : rule<option(cr<"$%">) + ref<IDENTIFIER> +
              many(some(FileSep) + ref<IDENTIFIER>)> {};
 
   static constexpr auto ImportTargetE =
-      ref<STRING_LITERAL> | ref<FilenameRule>;
+      ref<STRING_LITERAL> | ref<Filename>;
 
-  struct ImportRule
+  struct Import
       : rule<ikw<"import"> + assign<&ast::Import::target>(ImportTargetE) +
              lit<";">> {};
 
   // A qualified reference is a name, optionally dotted once (Family.Type);
   // a few sites below accept unlimited dot depth instead, matching
-  // InstanceRefRule's shape, where that reads easier.
-  struct QRefRule
+  // InstanceRef's shape, where that reads easier.
+  struct QRef
       : rule<ref<IDENTIFIER> + option(lit<"."> + ref<IDENTIFIER>)> {};
-  struct InstanceRefRule : rule<some(ref<IDENTIFIER>, lit<".">)> {};
+  struct InstanceRef : rule<some(ref<IDENTIFIER>, lit<".">)> {};
 
-  static constexpr auto FamilyRefE = ref<QRefRule>;
-  static constexpr auto TypeRefNameE = ref<QRefRule>;
-  static constexpr auto InstTypeRefE = ref<QRefRule>;
+  static constexpr auto FamilyRefE = ref<QRef>;
+  static constexpr auto TypeRefNameE = ref<QRef>;
+  static constexpr auto InstTypeRefE = ref<QRef>;
 
   // ---- property / design-rule type structure -----------------------------
 
-  struct PropTypeFieldRule;
-  struct PropTypeRecordRule;
-  struct PropTypeSetRule;
-  struct PropTypeSequenceRule;
-  struct PropTypeEnumRule;
-  struct PropTypeRefNameRule;
-  struct PropTypeRefKwRule;
+  struct PropTypeField;
+  struct PropTypeRecord;
+  struct PropTypeSet;
+  struct PropTypeSequence;
+  struct PropTypeEnum;
+  struct PropTypeRefName;
+  struct PropTypeRefKw;
   struct PropTypeSimpleWordRule;
 
   static constexpr auto PropTypeE =
-      ref<PropTypeSimpleWordRule> | ref<PropTypeRecordRule> |
-      ref<PropTypeSetRule> | ref<PropTypeSequenceRule> |
-      ref<PropTypeEnumRule> | ref<PropTypeRefNameRule>;
+      ref<PropTypeSimpleWordRule> | ref<PropTypeRecord> |
+      ref<PropTypeSet> | ref<PropTypeSequence> |
+      ref<PropTypeEnum> | ref<PropTypeRefName>;
 
   // `acmeTypeRef`: broader than a property type -- adds the bare meta-kind
   // keywords (`type`, `component`, ...) design rules read, e.g. `set {type}`
   // in `mustBeOfType`.
-  static constexpr auto TypeRefE = ref<PropTypeRefKwRule> | PropTypeE;
+  static constexpr auto TypeRefE = ref<PropTypeRefKw> | PropTypeE;
 
   struct PropTypeSimpleWord
       : rule<ikw<"any"> | ikw<"int"> | ikw<"integer"> | ikw<"float"> |
-             ikw<"double"> | ikw<"string"> | ikw<"true"> | ikw<"false">> {};
+             ikw<"double"> | ikw<"string"> | ikw<"boolean"> |
+             ikw<"true"> | ikw<"false">> {};
   struct PropTypeSimpleWordRule
       : rule<assign<&ast::PropTypeSimple::kind>(ref<PropTypeSimpleWord>)> {};
 
-  struct PropTypeRefNameRule
+  struct PropTypeRefName
       : rule<assign<&ast::PropTypeRef::name>(TypeRefNameE)> {};
 
   struct AcmeTypeRefWord
       : rule<ikw<"system"> | ikw<"component"> | ikw<"group"> |
              ikw<"connector"> | ikw<"port"> | ikw<"role"> | ikw<"property"> |
              ikw<"element"> | ikw<"type"> | ikw<"representation">> {};
-  struct PropTypeRefKwRule
+  struct PropTypeRefKw
       : rule<assign<&ast::PropTypeSimple::kind>(ref<AcmeTypeRefWord>)> {};
 
-  struct PropTypeFieldRule
+  struct PropTypeField
       : rule<assign<&ast::PropTypeField::name>(ref<IDENTIFIER>) + lit<":"> +
              assign<&ast::PropTypeField::type>(TypeRefE) + lit<";">> {};
 
-  struct PropTypeRecordRule
+  struct PropTypeRecord
       : rule<ikw<"record"> + lit<"["> +
              many(append<&ast::PropTypeRecord::fields>(
-                 ref<PropTypeFieldRule>)) +
+                 ref<PropTypeField>)) +
              lit<"]">> {};
 
-  struct PropTypeSetRule
+  struct PropTypeSet
       : rule<ikw<"set"> + lit<"{"> +
              option(assign<&ast::PropTypeSet::element>(TypeRefE)) +
              lit<"}">> {};
 
-  struct PropTypeSequenceRule
+  struct PropTypeSequence
       : rule<(ikw<"sequence"> | ikw<"seq">) + lit<"<"> +
              option(assign<&ast::PropTypeSequence::element>(TypeRefE)) +
              lit<">">> {};
 
-  struct PropTypeEnumRule
+  struct PropTypeEnum
       : rule<ikw<"enum"> + lit<"{"> +
              some(append<&ast::PropTypeEnum::values>(ref<IDENTIFIER>),
                   lit<",">) +
@@ -126,111 +129,93 @@ struct Acme : cursiv::GrammarSpec {
 
   // ---- property values -----------------------------------------------
 
-  struct PropSetRule;
-  struct PropSeqRule;
-  struct PropRecordRule;
+  struct PropSet;
+  struct PropSeq;
+  struct PropRecord;
 
   static constexpr auto PropValueE =
       ref<INTEGER_LITERAL> | ref<SIGNED_FLOAT> | ref<STRING_LITERAL> |
-      ref<BOOL_LITERAL> | ref<PropSetRule> | ref<PropRecordRule> |
-      ref<PropSeqRule> | ref<IDENTIFIER>;
+      ref<BOOL_LITERAL> | ref<PropSet> | ref<PropRecord> |
+      ref<PropSeq> | ref<IDENTIFIER>;
 
-  struct PropSetRule
+  struct PropSet
       : rule<lit<"{"> +
              option(some(append<&ast::PropSet::items>(PropValueE),
                          lit<",">)) +
              lit<"}">> {};
 
-  struct PropSeqRule
+  struct PropSeq
       : rule<lit<"<"> +
              option(some(append<&ast::PropSeq::items>(PropValueE),
                          lit<",">)) +
              lit<">">> {};
 
-  struct PropRecordEntryRule
+  struct PropRecordEntry
       : rule<assign<&ast::PropRecordEntry::name>(ref<IDENTIFIER>) +
              option(lit<":"> +
                     assign<&ast::PropRecordEntry::type>(TypeRefE)) +
              lit<"="> +
              assign<&ast::PropRecordEntry::value>(PropValueE)> {};
 
-  struct PropRecordRule
+  struct PropRecord
       : rule<lit<"["> +
              option(some(append<&ast::PropRecord::entries>(
-                             ref<PropRecordEntryRule>),
+                             ref<PropRecordEntry>),
                          lit<";">) +
                     option(lit<";">)) +
              lit<"]">> {};
 
   // ---- design-rule expression language --------------------------------
 
-  struct DesignRuleExprRule;
-  struct ArithExprRule;
-  struct NegateExprRule;
-  struct NegativeExprRule;
-  struct PrimitiveRule;
-  struct ReferenceRule;
-  struct QuantifiedRule;
-  struct SetExprRule;
-  struct PathExprRule;
-  struct SequenceExprRule;
-  struct LiteralSetRule;
-  struct LiteralSeqRule;
-  struct LiteralRecordRule;
-  struct SetConstructorRule;
-  struct VarDeclRule;
-  struct DRPathStepRule;
+  struct DesignRuleExpr;
+  struct ArithExpr;
+  struct NegateExpr;
+  struct NegativeExpr;
+  struct Primitive;
+  struct Reference;
+  struct Quantified;
+  struct SetExpr;
+  struct PathExpr;
+  struct SequenceExpr;
+  struct LiteralSet;
+  struct LiteralSeq;
+  struct LiteralRecord;
+  struct SetConstructor;
+  struct VarDecl;
+  struct DRPathStep;
 
-  struct OpMul : terminal<lit<"*">, value<ast::DROp::mul>> {};
-  struct OpDiv : terminal<lit<"/">, value<ast::DROp::div>> {};
-  struct OpRem : terminal<lit<"%">, value<ast::DROp::rem>> {};
-  struct OpPow : terminal<ikw<"power">, value<ast::DROp::pow>> {};
-  struct OpAdd : terminal<lit<"+">, value<ast::DROp::add>> {};
-  struct OpSub : terminal<lit<"-">, value<ast::DROp::sub>> {};
-  struct OpEq : terminal<lit<"==">, value<ast::DROp::eq>> {};
-  struct OpNe : terminal<lit<"!=">, value<ast::DROp::ne>> {};
-  struct OpLe : terminal<lit<"<=">, value<ast::DROp::le>> {};
-  struct OpGe : terminal<lit<">=">, value<ast::DROp::ge>> {};
-  struct OpLt : terminal<lit<"<">, value<ast::DROp::lt>> {};
-  struct OpGt : terminal<lit<">">, value<ast::DROp::gt>> {};
-  struct OpAnd : terminal<ikw<"and">, value<ast::DROp::logical_and>> {};
-  struct OpIff : terminal<lit<"<->">, value<ast::DROp::iff>> {};
-  struct OpImplies : terminal<lit<"->">, value<ast::DROp::implies>> {};
-  struct OpOr : terminal<ikw<"or">, value<ast::DROp::logical_or>> {};
 
   static constexpr auto OpMulLevel =
-      ref<OpMul> | ref<OpDiv> | ref<OpRem> | ref<OpPow>;
-  static constexpr auto OpAddLevel = ref<OpAdd> | ref<OpSub>;
+      as<ast::DROp::mul>(lit<"*">) | as<ast::DROp::div>(lit<"/">) | as<ast::DROp::rem>(lit<"%">) | as<ast::DROp::pow>(ikw<"power">);
+  static constexpr auto OpAddLevel = as<ast::DROp::add>(lit<"+">) | as<ast::DROp::sub>(lit<"-">);
   static constexpr auto OpRelLevel =
-      ref<OpLe> | ref<OpGe> | ref<OpLt> | ref<OpGt>;
-  static constexpr auto OpEqLevel = ref<OpEq> | ref<OpNe>;
+      as<ast::DROp::le>(lit<"<=">) | as<ast::DROp::ge>(lit<">=">) | as<ast::DROp::lt>(lit<"<">) | as<ast::DROp::gt>(lit<">">);
+  static constexpr auto OpEqLevel = as<ast::DROp::eq>(lit<"==">) | as<ast::DROp::ne>(lit<"!=">);
 
-  struct NegativeExprRule
+  struct NegativeExpr
       : rule<(lit<"-"> +
-              assign<&ast::DRNeg::operand>(ref<NegativeExprRule>)) |
-             ref<PrimitiveRule>> {};
+              assign<&ast::DRNeg::operand>(ref<NegativeExpr>)) |
+             ref<Primitive>> {};
 
-  struct ArithExprRule
-      : infix<NegativeExprRule, &ast::DRBinary::left, &ast::DRBinary::op,
-              &ast::DRBinary::right,
-              (left(OpMulLevel) >> left(OpAddLevel) >> left(OpRelLevel) >>
-               left(OpEqLevel))> {};
+  struct ArithExpr
+      : infix<NegativeExpr, ast::DRBinary,
+              levels(left(OpMulLevel), left(OpAddLevel), left(OpRelLevel),
+                     left(OpEqLevel))> {};
 
-  struct NegateExprRule
+  struct NegateExpr
       : rule<(lit<"!"> +
-              assign<&ast::DRNot::operand>(ref<NegateExprRule>)) |
-             ref<ArithExprRule>> {};
+              assign<&ast::DRNot::operand>(ref<NegateExpr>)) |
+             ref<ArithExpr>> {};
 
-  static constexpr auto OpAndLevel = ref<OpAnd>;
-  static constexpr auto OpIffLevel = ref<OpIff>;
-  static constexpr auto OpImpliesLevel = ref<OpImplies>;
-  static constexpr auto OpOrLevel = ref<OpOr>;
+  static constexpr auto OpAndLevel = as<ast::DROp::logical_and>(ikw<"and">);
+  static constexpr auto OpIffLevel = as<ast::DROp::iff>(lit<"<->">);
+  static constexpr auto OpImpliesLevel = as<ast::DROp::implies>(lit<"->">);
+  static constexpr auto OpOrLevel = as<ast::DROp::logical_or>(ikw<"or">);
 
-  struct DesignRuleExprRule
-      : infix<NegateExprRule, &ast::DRBinary::left, &ast::DRBinary::op,
-              &ast::DRBinary::right,
-              (left(OpAndLevel) >> left(OpIffLevel) >> left(OpImpliesLevel) >>
-               left(OpOrLevel))> {};
+  struct DesignRuleExpr
+      : infix<NegateExpr, ast::DRBinary,
+              levels(left(OpAndLevel), left(OpIffLevel), left(OpImpliesLevel),
+                     left(OpOrLevel))> {};
 
   struct SetRefWord
       : rule<ikw<"type"> | ikw<"components"> | ikw<"connectors"> |
@@ -245,126 +230,126 @@ struct Acme : cursiv::GrammarSpec {
              ikw<"double"> | ikw<"string"> | ikw<"enum"> | ikw<"set"> |
              ikw<"sequence"> | ikw<"seq"> | ikw<"record">> {};
 
-  struct LiteralConstRule
+  struct LiteralConst
       : rule<assign<&ast::DRLiteral::value>(
                  ref<INTEGER_LITERAL> | ref<SIGNED_FLOAT> |
                  ref<STRING_LITERAL> | ref<BOOL_LITERAL> |
                  ref<MetaTypeWord>)> {};
 
-  struct ActualParamsRule
+  struct ActualParams
       : rule<lit<"("> +
-             option(some(append<&ast::DRArgs::args>(ref<DesignRuleExprRule>),
+             option(some(append<&ast::DRArgs::args>(ref<DesignRuleExpr>),
                          lit<",">)) +
              lit<")">> {};
 
-  struct ReferenceRule
+  struct Reference
       : rule<assign<&ast::DRRef::name>(ref<IDENTIFIER>) +
              many(lit<"."> +
                   append<&ast::DRRef::path>(ref<IDENTIFIER> |
                                             ref<SetRefWord>)) +
-             option(assign<&ast::DRRef::callArgs>(ref<ActualParamsRule>))> {
+             option(assign<&ast::DRRef::callArgs>(ref<ActualParams>))> {
   };
 
-  static constexpr auto InClauseE = ref<SetExprRule> | ref<ReferenceRule>;
+  static constexpr auto InClauseE = ref<SetExpr> | ref<Reference>;
 
-  struct VarDeclRule
+  struct VarDecl
       : rule<option(flag<&ast::DRVarDecl::distinct>(ikw<"distinct">)) +
              some(append<&ast::DRVarDecl::names>(ref<IDENTIFIER>), lit<",">) +
              option((lit<":"> | lit<":!">) +
                     assign<&ast::DRVarDecl::type>(TypeRefE)) +
              ikw<"in"> + assign<&ast::DRVarDecl::in>(InClauseE)> {};
 
-  struct QuantifiedRule
+  struct Quantified
       : rule<((flag<&ast::DRQuantified::exists>(ikw<"exists">) +
                option(flag<&ast::DRQuantified::unique>(
                    ikw<"unique">))) |
               ikw<"forall">) +
-             some(append<&ast::DRQuantified::vars>(ref<VarDeclRule>),
+             some(append<&ast::DRQuantified::vars>(ref<VarDecl>),
                   lit<",">) +
              lit<"|"> +
-             assign<&ast::DRQuantified::body>(ref<DesignRuleExprRule>)> {};
+             assign<&ast::DRQuantified::body>(ref<DesignRuleExpr>)> {};
 
-  struct LiteralSetRule
+  struct LiteralSet
       : rule<lit<"{"> +
              option(some(append<&ast::DRLiteralSet::items>(
-                             ref<LiteralConstRule> | ref<ReferenceRule>),
+                             ref<LiteralConst> | ref<Reference>),
                          lit<",">)) +
              lit<"}">> {};
 
-  struct LiteralSeqRule
+  struct LiteralSeq
       : rule<lit<"<"> +
              option(some(append<&ast::DRLiteralSeq::items>(
-                             ref<LiteralConstRule> | ref<ReferenceRule>),
+                             ref<LiteralConst> | ref<Reference>),
                          lit<",">)) +
              lit<">">> {};
 
-  struct LiteralRecordEntryRule
+  struct LiteralRecordEntry
       : rule<assign<&ast::DRRecordEntry::name>(ref<IDENTIFIER>) +
              option(lit<":"> + assign<&ast::DRRecordEntry::type>(TypeRefE)) +
              lit<"="> +
-             assign<&ast::DRRecordEntry::value>(ref<LiteralConstRule>)> {};
+             assign<&ast::DRRecordEntry::value>(ref<LiteralConst>)> {};
 
-  struct LiteralRecordRule
+  struct LiteralRecord
       : rule<lit<"["> +
              option(some(append<&ast::DRLiteralRecord::entries>(
-                             ref<LiteralRecordEntryRule>),
+                             ref<LiteralRecordEntry>),
                          lit<";">) +
                     option(lit<";">)) +
              lit<"]">> {};
 
-  struct CollectVarRule
+  struct CollectVar
       : rule<append<&ast::DRVarDecl::names>(ref<IDENTIFIER>) + lit<":"> +
              assign<&ast::DRVarDecl::type>(TypeRefE) + ikw<"in"> +
              assign<&ast::DRVarDecl::in>(InClauseE)> {};
 
-  struct SetConstructorRule
+  struct SetConstructor
       : rule<option(lit<"{">) +
              ((ikw<"select"> +
-               assign<&ast::DRSetBuilder::var>(ref<VarDeclRule>)) |
+               assign<&ast::DRSetBuilder::var>(ref<VarDecl>)) |
               (flag<&ast::DRSetBuilder::isCollect>(ikw<"collect">) +
-               assign<&ast::DRSetBuilder::var>(ref<CollectVarRule>))) +
+               assign<&ast::DRSetBuilder::var>(ref<CollectVar>))) +
              lit<"|"> +
-             assign<&ast::DRSetBuilder::body>(ref<DesignRuleExprRule>) +
+             assign<&ast::DRSetBuilder::body>(ref<DesignRuleExpr>) +
              option(lit<"}">)> {};
 
-  struct DRPathStepRule
+  struct DRPathStep
       : rule<(option(flag<&ast::DRPathStep::ellipsis>(lit<"...">)) +
-              assign<&ast::DRPathStep::ref>(ref<ReferenceRule>)) |
+              assign<&ast::DRPathStep::ref>(ref<Reference>)) |
              (assign<&ast::DRPathStep::setKeyword>(ref<SetRefWord>) +
               option((lit<":"> | lit<":!">) +
                      assign<&ast::DRPathStep::type>(TypeRefE)) +
               option(lit<"["> +
                      assign<&ast::DRPathStep::filter>(
-                         ref<DesignRuleExprRule>) +
+                         ref<DesignRuleExpr>) +
                      lit<"]">))> {};
 
-  struct PathExprRule
-      : rule<lit<"/"> + assign<&ast::DRPath::head>(ref<ReferenceRule>) +
+  struct PathExpr
+      : rule<lit<"/"> + assign<&ast::DRPath::head>(ref<Reference>) +
              option((lit<":"> | lit<":!">) +
                     assign<&ast::DRPath::type>(TypeRefE)) +
              option(lit<"["> +
-                    assign<&ast::DRPath::filter>(ref<DesignRuleExprRule>) +
+                    assign<&ast::DRPath::filter>(ref<DesignRuleExpr>) +
                     lit<"]">) +
              many(lit<"/"> +
-                  append<&ast::DRPath::steps>(ref<DRPathStepRule>))> {};
+                  append<&ast::DRPath::steps>(ref<DRPathStep>))> {};
 
-  struct SequenceExprRule
-      : rule<lit<"<"> + assign<&ast::DRSequenceExpr::path>(ref<PathExprRule>) +
+  struct SequenceExpr
+      : rule<lit<"<"> + assign<&ast::DRSequenceExpr::path>(ref<PathExpr>) +
              lit<">">> {};
 
-  struct SetExprRule
-      : rule<ref<LiteralSetRule> | ref<SetConstructorRule> |
-             ref<PathExprRule>> {};
+  struct SetExpr
+      : rule<ref<LiteralSet> | ref<SetConstructor> |
+             ref<PathExpr>> {};
 
-  struct PrimitiveRule
-      : rule<(lit<"("> + ref<DesignRuleExprRule> + lit<")">) |
-             ref<LiteralConstRule> | ref<QuantifiedRule> |
-             ref<LiteralRecordRule> | ref<SequenceExprRule> |
-             ref<LiteralSeqRule> | ref<SetExprRule> | ref<ReferenceRule>> {};
+  struct Primitive
+      : rule<(lit<"("> + ref<DesignRuleExpr> + lit<")">) |
+             ref<LiteralConst> | ref<Quantified> |
+             ref<LiteralRecord> | ref<SequenceExpr> |
+             ref<LiteralSeq> | ref<SetExpr> | ref<Reference>> {};
 
   // ---- property block `<< ... >>` and property declarations -----------
 
-  struct PropertyBlockEntryRule
+  struct PropertyBlockEntry
       : rule<assign<&ast::PropertyBlockEntry::name>(ref<IDENTIFIER>) +
              option(lit<":"> +
                     assign<&ast::PropertyBlockEntry::type>(TypeRefE)) +
@@ -376,7 +361,7 @@ struct Acme : cursiv::GrammarSpec {
                   assign<&ast::PropertyBlockEntry::value>(PropValueE))) +
              lit<";">> {};
 
-  struct PropertyDeclRule
+  struct PropertyDecl
       : rule<ikw<"property"> +
              assign<&ast::PropertyDecl::name>(ref<IDENTIFIER>) +
              option(lit<":"> + assign<&ast::PropertyDecl::type>(TypeRefE)) +
@@ -387,13 +372,13 @@ struct Acme : cursiv::GrammarSpec {
                      assign<&ast::PropertyDecl::value>(PropValueE))) +
              option(lit<"<<"> +
                     some(append<&ast::PropertyDecl::annotations>(
-                        ref<PropertyBlockEntryRule>)) +
+                        ref<PropertyBlockEntry>)) +
                     lit<">>">) +
              lit<";">> {};
 
   // ---- design rules & analyses -----------------------------------------
 
-  struct DesignRuleDeclRule
+  struct DesignRuleDecl
       : rule<option(ikw<"design">) +
              option(ikw<"rule"> +
                     assign<&ast::DesignRuleDecl::name>(ref<IDENTIFIER>) +
@@ -402,32 +387,32 @@ struct Acme : cursiv::GrammarSpec {
                          ikw<"heuristic">) |
                      ikw<"invariant">) +
                     assign<&ast::DesignRuleDecl::expr>(
-                        ref<DesignRuleExprRule>)) +
+                        ref<DesignRuleExpr>)) +
              option(lit<"<<"> +
                     some(append<&ast::DesignRuleDecl::annotations>(
-                        ref<PropertyBlockEntryRule>)) +
+                        ref<PropertyBlockEntry>)) +
                     lit<">>">) +
              lit<";">> {};
 
-  struct FormalParamRule
+  struct FormalParam
       : rule<assign<&ast::FormalParam::name>(ref<IDENTIFIER>) + lit<":"> +
              assign<&ast::FormalParam::type>(TypeRefE)> {};
 
-  struct DesignAnalysisDeclRule
+  struct DesignAnalysisDecl
       : rule<(option(ikw<"design">) + ikw<"analysis"> +
               assign<&ast::DesignAnalysisDecl::name>(ref<IDENTIFIER>) +
               lit<"("> +
               option(some(append<&ast::DesignAnalysisDecl::params>(
-                              ref<FormalParamRule>),
+                              ref<FormalParam>),
                           lit<",">)) +
               lit<")"> + lit<":"> +
               assign<&ast::DesignAnalysisDecl::returnType>(TypeRefE) +
               lit<"="> +
               assign<&ast::DesignAnalysisDecl::body>(
-                  ref<DesignRuleExprRule>) +
+                  ref<DesignRuleExpr>) +
               option(lit<"<<"> +
                      some(append<&ast::DesignAnalysisDecl::annotations>(
-                         ref<PropertyBlockEntryRule>)) +
+                         ref<PropertyBlockEntry>)) +
                      lit<">>">) +
               lit<";">) |
              (flag<&ast::DesignAnalysisDecl::isExternal>(
@@ -436,65 +421,65 @@ struct Acme : cursiv::GrammarSpec {
               assign<&ast::DesignAnalysisDecl::name>(ref<IDENTIFIER>) +
               lit<"("> +
               option(some(append<&ast::DesignAnalysisDecl::params>(
-                              ref<FormalParamRule>),
+                              ref<FormalParam>),
                           lit<",">)) +
               lit<")"> + lit<":"> +
               assign<&ast::DesignAnalysisDecl::returnType>(TypeRefE) +
               lit<"="> +
               assign<&ast::DesignAnalysisDecl::externalCode>(
-                  ref<STRING_LITERAL> | ref<InstanceRefRule>) +
+                  ref<STRING_LITERAL> | ref<InstanceRef>) +
               lit<";">)> {};
 
   // ---- structural declarations ------------------------------------------
 
-  struct RepresentationDeclRule;
-  struct PropertyTypeDeclRule;
-  struct PortTypeDeclRule;
-  struct RoleTypeDeclRule;
-  struct ComponentTypeDeclRule;
-  struct ConnectorTypeDeclRule;
-  struct ElementTypeDeclRule;
-  struct GroupTypeDeclRule;
-  struct PortDeclRule;
-  struct RoleDeclRule;
-  struct ComponentDeclRule;
-  struct ConnectorDeclRule;
-  struct GroupDeclRule;
-  struct MembersBlockRule;
-  struct AttachmentDeclRule;
-  struct SystemDeclRule;
+  struct RepresentationDecl;
+  struct PropertyTypeDecl;
+  struct PortTypeDecl;
+  struct RoleTypeDecl;
+  struct ComponentTypeDecl;
+  struct ConnectorTypeDecl;
+  struct ElementTypeDecl;
+  struct GroupTypeDecl;
+  struct PortDecl;
+  struct RoleDecl;
+  struct ComponentDecl;
+  struct ConnectorDecl;
+  struct GroupDecl;
+  struct MembersBlock;
+  struct AttachmentDecl;
+  struct SystemDecl;
 
   static constexpr auto SystemMemberE =
-      ref<PropertyDeclRule> | ref<ComponentDeclRule> |
-      ref<ConnectorDeclRule> | ref<AttachmentDeclRule> | ref<GroupDeclRule> |
-      ref<DesignRuleDeclRule>;
-  static constexpr auto PortRoleMemberE = ref<PropertyDeclRule> |
-                                          ref<DesignRuleDeclRule> |
-                                          ref<RepresentationDeclRule>;
+      ref<PropertyDecl> | ref<ComponentDecl> |
+      ref<ConnectorDecl> | ref<AttachmentDecl> | ref<GroupDecl> |
+      ref<RepresentationDecl> | ref<DesignRuleDecl>;
+  static constexpr auto PortRoleMemberE = ref<PropertyDecl> |
+                                          ref<DesignRuleDecl> |
+                                          ref<RepresentationDecl>;
   static constexpr auto ComponentMemberE =
-      ref<PropertyDeclRule> | ref<PortDeclRule> | ref<DesignRuleDeclRule> |
-      ref<RepresentationDeclRule>;
+      ref<PropertyDecl> | ref<PortDecl> | ref<DesignRuleDecl> |
+      ref<RepresentationDecl>;
   static constexpr auto ConnectorMemberE =
-      ref<PropertyDeclRule> | ref<RoleDeclRule> | ref<DesignRuleDeclRule> |
-      ref<RepresentationDeclRule>;
+      ref<PropertyDecl> | ref<RoleDecl> | ref<DesignRuleDecl> |
+      ref<RepresentationDecl>;
   static constexpr auto ElementMemberE =
-      ref<PropertyDeclRule> | ref<DesignRuleDeclRule>;
-  static constexpr auto GroupMemberE = ref<MembersBlockRule> |
-                                       ref<PropertyDeclRule> |
-                                       ref<DesignRuleDeclRule>;
+      ref<PropertyDecl> | ref<DesignRuleDecl>;
+  static constexpr auto GroupMemberE = ref<MembersBlock> |
+                                       ref<PropertyDecl> |
+                                       ref<DesignRuleDecl>;
   static constexpr auto FamilyMemberE =
-      ref<PortTypeDeclRule> | ref<RoleTypeDeclRule> |
-      ref<ComponentTypeDeclRule> | ref<ConnectorTypeDeclRule> |
-      ref<ElementTypeDeclRule> | ref<PropertyTypeDeclRule> |
-      ref<GroupTypeDeclRule> | ref<DesignAnalysisDeclRule> |
-      ref<DesignRuleDeclRule> | ref<PortDeclRule> | ref<RoleDeclRule> |
-      ref<ComponentDeclRule> | ref<ConnectorDeclRule> |
-      ref<PropertyDeclRule> | ref<GroupDeclRule> | ref<AttachmentDeclRule>;
+      ref<PortTypeDecl> | ref<RoleTypeDecl> |
+      ref<ComponentTypeDecl> | ref<ConnectorTypeDecl> |
+      ref<ElementTypeDecl> | ref<PropertyTypeDecl> |
+      ref<GroupTypeDecl> | ref<DesignAnalysisDecl> |
+      ref<DesignRuleDecl> | ref<PortDecl> | ref<RoleDecl> |
+      ref<ComponentDecl> | ref<ConnectorDecl> |
+      ref<PropertyDecl> | ref<GroupDecl> | ref<AttachmentDecl>;
 
   template <auto Field>
   static constexpr auto TypeModifiers = many(append<Field>(ikw<"public"> | ikw<"private"> | ikw<"final"> | ikw<"abstract">));
 
-  struct PropertyTypeDeclRule
+  struct PropertyTypeDecl
       : rule<ikw<"property"> + ikw<"type"> +
              assign<&ast::PropertyTypeDecl::name>(ref<IDENTIFIER>) +
              (lit<";"> |
@@ -502,7 +487,7 @@ struct Acme : cursiv::GrammarSpec {
                assign<&ast::PropertyTypeDecl::type>(PropTypeE) + lit<";">))> {
   };
 
-  struct PortTypeDeclRule
+  struct PortTypeDecl
       : rule<TypeModifiers<&ast::PortTypeDecl::modifiers> + ikw<"port"> + ikw<"type"> +
              assign<&ast::PortTypeDecl::name>(ref<IDENTIFIER>) +
              (lit<";"> |
@@ -518,7 +503,7 @@ struct Acme : cursiv::GrammarSpec {
                      PortRoleMemberE)) +
                  lit<"}"> + option(lit<";">)))))> {};
 
-  struct RoleTypeDeclRule
+  struct RoleTypeDecl
       : rule<TypeModifiers<&ast::RoleTypeDecl::modifiers> + ikw<"role"> + ikw<"type"> +
              assign<&ast::RoleTypeDecl::name>(ref<IDENTIFIER>) +
              (lit<";"> |
@@ -534,7 +519,7 @@ struct Acme : cursiv::GrammarSpec {
                      PortRoleMemberE)) +
                  lit<"}"> + option(lit<";">)))))> {};
 
-  struct ComponentTypeDeclRule
+  struct ComponentTypeDecl
       : rule<TypeModifiers<&ast::ComponentTypeDecl::modifiers> + ikw<"component"> + ikw<"type"> +
              assign<&ast::ComponentTypeDecl::name>(ref<IDENTIFIER>) +
              (lit<";"> |
@@ -551,7 +536,7 @@ struct Acme : cursiv::GrammarSpec {
                      ComponentMemberE)) +
                  lit<"}"> + option(lit<";">)))))> {};
 
-  struct ConnectorTypeDeclRule
+  struct ConnectorTypeDecl
       : rule<TypeModifiers<&ast::ConnectorTypeDecl::modifiers> + ikw<"connector"> + ikw<"type"> +
              assign<&ast::ConnectorTypeDecl::name>(ref<IDENTIFIER>) +
              (lit<";"> |
@@ -568,7 +553,7 @@ struct Acme : cursiv::GrammarSpec {
                      ConnectorMemberE)) +
                  lit<"}"> + option(lit<";">)))))> {};
 
-  struct ElementTypeDeclRule
+  struct ElementTypeDecl
       : rule<TypeModifiers<&ast::ElementTypeDecl::modifiers> + ikw<"element"> + ikw<"type"> +
              assign<&ast::ElementTypeDecl::name>(ref<IDENTIFIER>) +
              (lit<";"> |
@@ -585,7 +570,7 @@ struct Acme : cursiv::GrammarSpec {
                      ElementMemberE)) +
                  lit<"}"> + option(lit<";">)))))> {};
 
-  struct GroupTypeDeclRule
+  struct GroupTypeDecl
       : rule<TypeModifiers<&ast::GroupTypeDecl::modifiers> + ikw<"group"> + ikw<"type"> +
              assign<&ast::GroupTypeDecl::name>(ref<IDENTIFIER>) +
              (lit<";"> |
@@ -600,7 +585,7 @@ struct Acme : cursiv::GrammarSpec {
                  many(append<&ast::GroupTypeDecl::members>(GroupMemberE)) +
                  lit<"}"> + option(lit<";">)))))> {};
 
-  struct PortDeclRule
+  struct PortDecl
       : rule<ikw<"port"> + assign<&ast::PortDecl::name>(ref<IDENTIFIER>) +
              option(lit<":"> +
                     some(append<&ast::PortDecl::types>(TypeRefNameE),
@@ -618,7 +603,7 @@ struct Acme : cursiv::GrammarSpec {
                    many(append<&ast::PortDecl::members>(PortRoleMemberE)) +
                    lit<"}"> + option(lit<";">)))))))> {};
 
-  struct RoleDeclRule
+  struct RoleDecl
       : rule<ikw<"role"> + assign<&ast::RoleDecl::name>(ref<IDENTIFIER>) +
              option(lit<":"> +
                     some(append<&ast::RoleDecl::types>(TypeRefNameE),
@@ -636,7 +621,7 @@ struct Acme : cursiv::GrammarSpec {
                    many(append<&ast::RoleDecl::members>(PortRoleMemberE)) +
                    lit<"}"> + option(lit<";">)))))))> {};
 
-  struct ComponentDeclRule
+  struct ComponentDecl
       : rule<ikw<"component"> +
              assign<&ast::ComponentDecl::name>(ref<IDENTIFIER>) +
              option(lit<":"> +
@@ -657,7 +642,7 @@ struct Acme : cursiv::GrammarSpec {
                        ComponentMemberE)) +
                    lit<"}"> + option(lit<";">)))))))> {};
 
-  struct ConnectorDeclRule
+  struct ConnectorDecl
       : rule<ikw<"connector"> +
              assign<&ast::ConnectorDecl::name>(ref<IDENTIFIER>) +
              option(lit<":"> +
@@ -678,14 +663,14 @@ struct Acme : cursiv::GrammarSpec {
                        ConnectorMemberE)) +
                    lit<"}"> + option(lit<";">)))))))> {};
 
-  struct MembersBlockRule
+  struct MembersBlock
       : rule<ikw<"members"> + lit<"{"> +
              option(some(append<&ast::MembersBlock::refs>(
-                             ref<InstanceRefRule>),
+                             ref<InstanceRef>),
                          lit<",">)) +
              lit<"}"> + option(lit<";">)> {};
 
-  struct GroupDeclRule
+  struct GroupDecl
       : rule<ikw<"group"> + assign<&ast::GroupDecl::name>(ref<IDENTIFIER>) +
              option(lit<":"> +
                     some(append<&ast::GroupDecl::types>(TypeRefNameE),
@@ -703,40 +688,40 @@ struct Acme : cursiv::GrammarSpec {
                    many(append<&ast::GroupDecl::members>(GroupMemberE)) +
                    lit<"}"> + option(lit<";">)))))))> {};
 
-  struct AttachmentDeclRule
+  struct AttachmentDecl
       : rule<ikw<"attachment"> +
-             assign<&ast::AttachmentDecl::from>(ref<InstanceRefRule>) +
+             assign<&ast::AttachmentDecl::from>(ref<InstanceRef>) +
              ikw<"to"> +
-             assign<&ast::AttachmentDecl::to>(ref<InstanceRefRule>) +
+             assign<&ast::AttachmentDecl::to>(ref<InstanceRef>) +
              lit<";">> {};
 
-  struct BindingDeclRule
-      : rule<assign<&ast::BindingDecl::from>(ref<InstanceRefRule>) +
+  struct BindingDecl
+      : rule<assign<&ast::BindingDecl::from>(ref<InstanceRef>) +
              ikw<"to"> +
-             assign<&ast::BindingDecl::to>(ref<InstanceRefRule>) +
+             assign<&ast::BindingDecl::to>(ref<InstanceRef>) +
              option(lit<"{"> +
                     assign<&ast::BindingDecl::property>(
-                        ref<PropertyDeclRule>) +
+                        ref<PropertyDecl>) +
                     lit<"<<"> +
                     some(append<&ast::BindingDecl::block>(
-                        ref<PropertyBlockEntryRule>)) +
+                        ref<PropertyBlockEntry>)) +
                     lit<">>"> + lit<"}">) +
              lit<";">> {};
 
-  struct RepresentationDeclRule
+  struct RepresentationDecl
       : rule<ikw<"representation"> +
              option(assign<&ast::RepresentationDecl::label>(
                         ref<IDENTIFIER>) +
                     lit<"=">) +
              lit<"{"> +
-             assign<&ast::RepresentationDecl::system>(ref<SystemDeclRule>) +
+             assign<&ast::RepresentationDecl::system>(ref<SystemDecl>) +
              option(ikw<"bindings"> + lit<"{"> +
                     many(append<&ast::RepresentationDecl::bindings>(
-                        ref<BindingDeclRule>)) +
+                        ref<BindingDecl>)) +
                     lit<"}"> + option(lit<";">)) +
              lit<"}"> + option(lit<";">)> {};
 
-  struct SystemDeclRule
+  struct SystemDecl
       : rule<ikw<"system"> +
              assign<&ast::SystemDecl::name>(ref<IDENTIFIER>) +
              option(lit<":"> +
@@ -756,7 +741,7 @@ struct Acme : cursiv::GrammarSpec {
                    many(append<&ast::SystemDecl::members>(SystemMemberE)) +
                    lit<"}"> + option(lit<";">)))))))> {};
 
-  struct FamilyDeclRule
+  struct FamilyDecl
       : rule<((flag<&ast::FamilyDecl::isStyle>(ikw<"style">)) |
               ikw<"family">) +
              assign<&ast::FamilyDecl::name>(ref<IDENTIFIER>) +
@@ -772,17 +757,17 @@ struct Acme : cursiv::GrammarSpec {
                  many(append<&ast::FamilyDecl::members>(FamilyMemberE)) +
                  lit<"}"> + option(lit<";">)))))> {};
 
-  struct DesignDeclRule : rule<create<ast::DesignDecl> + ikw<"design"> +
+  struct DesignDecl : rule<create<ast::DesignDecl> + ikw<"design"> +
                                lit<";">> {};
 
-  struct CompUnitRule
-      : rule<many(append<&ast::CompUnit::imports>(ref<ImportRule>)) +
+  struct CompUnit
+      : rule<many(append<&ast::CompUnit::imports>(ref<Import>)) +
              some(append<&ast::CompUnit::decls>(
-                 ref<SystemDeclRule> | ref<FamilyDeclRule> |
-                 ref<DesignDeclRule>))> {};
+                 ref<SystemDecl> | ref<FamilyDecl> |
+                 ref<DesignDecl>))> {};
 
-  using entry = CompUnitRule;
-  using ignore = WS;
+  using entry = CompUnit;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 

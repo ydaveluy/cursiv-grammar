@@ -5,6 +5,8 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "php/core/CoreServices.hpp"
 #include "php/core/ast.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 #include "port_audit_cases.hpp"
 // The smoke test of the language: parse every file under example/, the way a
 // workspace would build one.
@@ -178,6 +180,41 @@ int main() {
   const auto language = cursiv::create_language<
       php::PhpCoreServices, php::PhpSharedCoreServices,
       php::install_core_module>();
+  for (const auto source : {"<?php $a?:$b?:$c;", "<?php $a?$b:($c?$d:$e);",
+      "<?php $a?$b?$c:$d:$e;", "<?php $a?1:$b=2;", "<?php $a<$b && $b<$c;",
+      "<?php class C {public string $x {get => 'x';}}",
+      "<?php $x=new #[A] readonly class {};", "<?php clone($o,['p'=>1]);"}) {
+    const auto r=language.language.parser->parse(source);
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty())return fail(std::string("native form rejected: ")+source);
+  }
+  for (const auto source : {"<?php $a<$b<$c;", "<?php $a==$b==$c;", "<?php $a<=>$b==$c;", "<?php $a?$b:$c?$d:$e;",
+      "<?php $a?:$b?$c:$d;", "<?php f(,);", "<?php function f(,){}", "<?php $a=[,];",
+      "<?php class C {public int $x}", "<?php class C {public string $x {get => 'x';};}",
+      "<?php class C {public string $x {get => 'x';},$y;}"}) {
+    const auto r=language.language.parser->parse(source);
+    if(r.accepted&&!r.cst().recovered()&&r.diagnostics.empty())return fail(std::string("native-invalid form accepted: ")+source);
+  }
+  for(const auto source:{"<?php function if(){}", "<?php class if{}", "<?php enum if{}"}) {
+    const auto r=cursiv::test::validationHelper(language.language,source);
+    if(r.diagnostics.empty())return fail("reserved declaration name needs a runtime diagnostic");
+  }
+  for(const auto source:{"<?php class C {function if(){} const match=1;}", "<?php function readonly(){}"}) {
+    const auto r=cursiv::test::validationHelper(language.language,source);
+    if(!r.diagnostics.empty())return fail("native member/contextual function name rejected");
+  }
+  {
+    const auto r=language.language.parser->parse("<?php $a=&$b;$x=new #[A] readonly class {};clone($o,['p'=>1]);$a?:$b?:$c;");
+    bool reference=false, anonymous=false, clone=false, shortChain=false;
+    for(const auto* node:r.nodes){
+      if(const auto* n=cursiv::ast_cast<php::ast::AssignExpr>(node))reference|=n->byRef&&n->op=="=";
+      if(const auto* n=cursiv::ast_cast<php::ast::NewExpr>(node))anonymous|=n->anonClass&&n->anonymousAttributes.size()==1&&n->anonymousModifiers.size()==1&&n->anonymousModifiers[0]=="readonly";
+      if(const auto* n=cursiv::ast_cast<php::ast::CloneExpr>(node))clone|=n->callSyntax&&n->args.size()==2&&n->args[0]->value&&n->args[1]->value;
+      if(const auto* n=cursiv::ast_cast<php::ast::ConditionalExpr>(node))shortChain|=!n->thenValue&&cursiv::ast_cast<php::ast::ConditionalExpr>(n->cond);
+    }
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!reference||!anonymous||!clone||!shortChain)
+      return fail("native reference/anonymous/clone/short-conditional AST lost");
+  }
+
 
   if (!port_audit_cases::run(*language.language.parser))
     return fail("port audit regression");
@@ -247,9 +284,10 @@ int main() {
       return b != nullptr && b->op == op ? b : nullptr;
     };
 
-    // `$a <=> $b == $c` is `($a <=> $b) == $c`: `<=>` is a peer of `==`.
+    // Equality and spaceship share a NON-associative native level.
+    // Their nested AST is valid only with explicit grouping.
     {
-      const auto* const eq = binary(value_of("$a <=> $b == $c;"), "==");
+      const auto* const eq = binary(value_of("($a <=> $b) == $c;"), "==");
       if (eq == nullptr || binary(eq->left, "<=>") == nullptr)
         return fail("precedence: `<=>` is not a peer of `==`");
     }

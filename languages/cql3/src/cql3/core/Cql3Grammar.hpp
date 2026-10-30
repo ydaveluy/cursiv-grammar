@@ -15,7 +15,14 @@ namespace cql3 {
 // bytes.
 inline constexpr auto unquote_cql = [](std::string_view t,
                                        std::pmr::memory_resource* mem) {
-  if (t.size() < 2 || (t[0] != '"' && t[0] != '\'')) return t;
+  if (t.size() < 2 || (t[0] != '"' && t[0] != '\'')) {
+    if (t.find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ") == std::string_view::npos)
+      return t;
+    auto room = cursiv::text_room(mem, t.size());
+    for (std::size_t i = 0; i < t.size(); ++i)
+      room[i] = t[i] >= 'A' && t[i] <= 'Z' ? t[i] + ('a' - 'A') : t[i];
+    return std::string_view(room.data(), t.size());
+  }
   const char quote = t[0];
   const auto body = t.substr(1, t.size() - 2);
   auto room = cursiv::text_room(mem, body.size());
@@ -26,8 +33,6 @@ inline constexpr auto unquote_cql = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Ident = cursiv::text_conv<unquote_cql>;
-using Unescaped = cursiv::text_conv<unquote_cql>;
 
 struct Cql3 : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
@@ -35,27 +40,19 @@ struct Cql3 : cursiv::GrammarSpec {
   // A MySQL-style `/*!...*/` special comment and a plain `/*...*/` comment
   // share the same span whenever both apply: one terminal covers both.
   struct BLOCK_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
-  // `eof` has no token graph inside a terminal body. The first three
-  // alternatives are safe with the newline made optional:
-  // `many(cr<R"(^\r\n)">)` already consumed every byte up to the next newline
-  // or true end of input, so nothing else can follow. The bare `--` alternative
-  // has no such run in front of it, so its newline stays mandatory; a `--` at
-  // true end of file with nothing after it lexes as MINUSMINUS instead, which
-  // `Root` already tolerates.
   struct LINE_COMMENT
-      : terminal<(lit<"-- "> + many(cr<R"(^\r\n)">) + option(eol)) |
-                     (lit<"#"> + many(cr<R"(^\r\n)">) + option(eol)) |
-                     (lit<"//"> + many(cr<R"(^\r\n)">) + option(eol)) |
-                     (lit<"--"> + eol)> {};
+      : terminal<(lit<"--"> | lit<"#"> | lit<"//">) +
+                 many(cr<R"(^\r\n)">)> {};
 
-  struct ID
-      : terminal<(cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9_$">)) |
-                     (lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">),
-                 Ident> {};
+  struct UNQUOTED_ID : terminal<as<unquote_cql>(
+      cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9_$">))> {};
+  struct QUOTED_ID : terminal<as<unquote_cql>(
+      lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">)> {};
+  struct ID : rule<ref<UNQUOTED_ID> | ref<QUOTED_ID>> {};
 
   struct STRING_LITERAL
-      : terminal<lit<"'"> + many(lit<"''"> | cr<R"(^')">) + lit<"'">,
-                 Unescaped> {};
+      : terminal<as<unquote_cql>(lit<"'"> + many(lit<"''"> | cr<R"(^')">) +
+                                 lit<"'">)> {};
 
   struct CODE_BLOCK : terminal<through(lit<"$$">, lit<"$$">)> {};
 
@@ -69,14 +66,41 @@ struct Cql3 : cursiv::GrammarSpec {
   struct HEXADECIMAL_LITERAL
       : terminal<(cr<"xX"> + lit<"'"> + some(repeat<2>(cr<"0-9A-Fa-f">)) +
                      lit<"'">) |
-                     (lit<"0"> + cr<"xX"> + some(cr<"0-9A-Fa-f">))> {};
+                     (lit<"0"> + cr<"xX"> + many(cr<"0-9A-Fa-f">))> {};
 
   static constexpr auto Hex4 = repeat<4>(cr<"0-9A-Fa-f">);
   struct UUID_LIT : terminal<Hex4 + Hex4 + lit<"-"> + Hex4 + lit<"-"> + Hex4 +
                                  lit<"-"> + Hex4 + lit<"-"> + Hex4 + Hex4 +
                                  Hex4> {};
 
-  struct MINUSMINUS : terminal<lit<"--">> {};
+  struct SPECIAL_FLOAT
+      : terminal<option(cr<"+-">) + (ikw<"NaN"> | ikw<"Infinity">)> {};
+  static constexpr auto duration_unit =
+      (cr<"mM"> + cr<"oO">) | (cr<"mM"> + cr<"sS">) |
+      (cr<"uUµnN"> + cr<"sS">) |
+      cr<"yYwWdDhHmMsS">;
+  static constexpr auto duration_number = some(d);
+  static constexpr auto iso_time =
+      lit<"T"> + ((duration_number + lit<"H"> +
+                    option(duration_number + lit<"M">) +
+                    option(duration_number + lit<"S">)) |
+                   (duration_number + lit<"M"> +
+                    option(duration_number + lit<"S">)) |
+                   (duration_number + lit<"S">));
+  static constexpr auto iso_period =
+      (duration_number + lit<"Y"> + option(duration_number + lit<"M">) +
+       option(duration_number + lit<"D">)) |
+      (duration_number + lit<"M"> + option(duration_number + lit<"D">)) |
+      (duration_number + lit<"D">);
+  struct DURATION_LITERAL
+      : terminal<option(lit<"-">) +
+                 (some(duration_number + duration_unit) |
+                  (lit<"P"> +
+                   ((repeat<4>(d) + lit<"-"> + repeat<2>(d) + lit<"-"> +
+                     repeat<2>(d) + lit<"T"> + repeat<2>(d) + lit<":"> +
+                     repeat<2>(d) + lit<":"> + repeat<2>(d)) |
+                    (duration_number + lit<"W">) | iso_time |
+                    (iso_period + option(iso_time)))))> {};
 
   // ---- values -----------------------------------------------------------
 
@@ -89,8 +113,10 @@ struct Cql3 : cursiv::GrammarSpec {
 
   struct IntLit : rule<assign<&ast::IntLit::value>(ref<DECIMAL_LITERAL>)> {};
 
-  struct FloatLit : rule<assign<&ast::FloatLit::value>(ref<FLOAT_LITERAL>)> {
+  struct FloatLit : rule<assign<&ast::FloatLit::value>(ref<FLOAT_LITERAL> | ref<SPECIAL_FLOAT>)> {
   };
+
+  struct DurationLit : rule<assign<&ast::DurationLit::value>(ref<DURATION_LITERAL>)> {};
 
   struct StringLit
       : rule<assign<&ast::StringLit::value>(ref<STRING_LITERAL>)> {};
@@ -110,7 +136,7 @@ struct Cql3 : cursiv::GrammarSpec {
             (lit<"?">) |
             (lit<":"> + assign<&ast::BindMarker::name>(ref<ID>)))> {};
   struct Constant : rule<ref<BindMarker> | ref<UuidLit> | ref<StringLit> |
-                         ref<IntLit> | ref<FloatLit> | ref<HexLit> |
+                         ref<IntLit> | ref<FloatLit> | ref<DurationLit> | ref<HexLit> |
                          ref<BoolLit> | ref<CodeBlockLit> | ref<NullLit>> {};
 
   struct FuncCall;
@@ -119,6 +145,7 @@ struct Cql3 : cursiv::GrammarSpec {
   struct ListLit;
   struct TupleLit;
   struct Expression;
+  struct UdtLit;
 
   struct ColumnRef : rule<assign<&ast::ColumnRef::name>(ref<ID>)> {};
 
@@ -127,7 +154,8 @@ struct Cql3 : cursiv::GrammarSpec {
   struct FuncCall
       : rule<(flag<&ast::FuncCall::uuidCall>(ikw<"UUID">) + lit<"("> +
                  lit<")">) |
-                 (assign<&ast::FuncCall::name>(ref<ID>) + lit<"("> +
+                 (option(assign<&ast::FuncCall::keyspace>(ref<ID>) + lit<".">) +
+                  assign<&ast::FuncCall::name>(ref<ID>) + lit<"("> +
                      option(flag<&ast::FuncCall::star>(lit<"*">) |
                             some(append<&ast::FuncCall::args>(Arg),
                                  lit<",">)) +
@@ -152,9 +180,16 @@ struct Cql3 : cursiv::GrammarSpec {
                          lit<",">)) +
              lit<"]">> {};
 
+  struct UdtEntry
+      : rule<assign<&ast::UdtEntry::field>(ref<ID>) + lit<":"> +
+             assign<&ast::UdtEntry::value>(ref<Expression>)> {};
+  struct UdtLit
+      : rule<lit<"{"> + some(append<&ast::UdtLit::fields>(ref<UdtEntry>), lit<",">) +
+             lit<"}">> {};
+
   // What an UPDATE assignment's right-hand side and INSERT's VALUES(...) hold.
   struct Expression : rule<ref<Constant> | ref<FuncCall> | ref<MapLit> |
-                           ref<SetLit> | ref<ListLit> | ref<TupleLit>> {};
+                           ref<SetLit> | ref<ListLit> | ref<TupleLit> | ref<UdtLit>> {};
 
   struct TupleLit
       : rule<lit<"("> +
@@ -164,20 +199,17 @@ struct Cql3 : cursiv::GrammarSpec {
 
   // ---- relations (WHERE clauses) -----------------------------------------
 
-  struct OpEq : rule<lit<"=">, value<ast::CompareOp::eq>> {};
-  struct OpLt : rule<lit<"<">, value<ast::CompareOp::lt>> {};
-  struct OpGt : rule<lit<">">, value<ast::CompareOp::gt>> {};
-  struct OpLte : rule<lit<"<=">, value<ast::CompareOp::lte>> {};
-  struct OpGte : rule<lit<">=">, value<ast::CompareOp::gte>> {};
   static constexpr auto CompareOpAlt =
-      ref<OpLte> | ref<OpGte> | ref<OpEq> | ref<OpLt> | ref<OpGt>;
+      as<ast::CompareOp::neq>(lit<"!=">) | as<ast::CompareOp::like>(ikw<"LIKE">) | as<ast::CompareOp::lte>(lit<"<=">) | as<ast::CompareOp::gte>(lit<">=">) | as<ast::CompareOp::eq>(lit<"=">) | as<ast::CompareOp::lt>(lit<"<">) | as<ast::CompareOp::gt>(lit<">">);
 
   struct CompareRelation
       : rule<(assign<&ast::CompareRelation::qualifier>(ref<ID>) + lit<"."> +
               assign<&ast::CompareRelation::column>(ref<ID>) +
+              option(lit<"["> + assign<&ast::CompareRelation::index>(ref<Expression>) + lit<"]">) +
               assign<&ast::CompareRelation::op>(CompareOpAlt) +
               assign<&ast::CompareRelation::rhs>(ref<Expression>)) |
              (assign<&ast::CompareRelation::column>(ref<ID>) +
+              option(lit<"["> + assign<&ast::CompareRelation::index>(ref<Expression>) + lit<"]">) +
               assign<&ast::CompareRelation::op>(CompareOpAlt) +
               assign<&ast::CompareRelation::rhs>(ref<Expression>))> {};
 
@@ -188,9 +220,10 @@ struct Cql3 : cursiv::GrammarSpec {
 
   struct InRelation
       : rule<assign<&ast::InRelation::column>(ref<ID>) + ikw<"IN"> +
-             lit<"("> +
-             option(some(append<&ast::InRelation::values>(Arg), lit<",">)) +
-             lit<")">> {};
+             (assign<&ast::InRelation::marker>(ref<BindMarker>) |
+              (lit<"("> +
+               option(some(append<&ast::InRelation::values>(Arg), lit<",">)) +
+               lit<")">))> {};
 
   struct TupleInRelation
       : rule<lit<"("> +
@@ -224,13 +257,9 @@ struct Cql3 : cursiv::GrammarSpec {
 
   // ---- shared DDL/DML pieces ----------------------------------------------
 
-  struct BoolTrue : rule<ikw<"TRUE">, value<true>> {};
-  struct BoolFalse : rule<ikw<"FALSE">, value<false>> {};
-  static constexpr auto BooleanValue = ref<BoolTrue> | ref<BoolFalse>;
+  static constexpr auto BooleanValue = as<true>(ikw<"TRUE">) | as<false>(ikw<"FALSE">);
 
-  struct OrderDesc : rule<ikw<"DESC">, value<true>> {};
-  struct OrderAsc : rule<ikw<"ASC">, value<false>> {};
-  static constexpr auto OrderDirection = ref<OrderDesc> | ref<OrderAsc>;
+  static constexpr auto OrderDirection = as<true>(ikw<"DESC">) | as<false>(ikw<"ASC">);
 
   struct RenamePair
       : rule<assign<&ast::RenamePair::from>(ref<ID>) + ikw<"TO"> +
@@ -239,7 +268,7 @@ struct Cql3 : cursiv::GrammarSpec {
   // Each built-in type keyword is soft, spelled once alongside ID: also a
   // plain name wherever no type is expected.
   static constexpr auto DataTypeNameAlt =
-      ref<ID> | ikw<"TIMESTAMP"> | ikw<"SET"> | ikw<"ASCII"> | ikw<"BIGINT"> |
+      ref<UNQUOTED_ID> | ikw<"TIMESTAMP"> | ikw<"SET"> | ikw<"ASCII"> | ikw<"BIGINT"> |
       ikw<"BLOB"> | ikw<"BOOLEAN"> | ikw<"COUNTER"> | ikw<"DATE"> |
       ikw<"DECIMAL"> | ikw<"DOUBLE"> | ikw<"FLOAT"> | ikw<"FROZEN"> |
       ikw<"INET"> | ikw<"INT"> | ikw<"LIST"> | ikw<"MAP"> | ikw<"SMALLINT"> |
@@ -248,8 +277,10 @@ struct Cql3 : cursiv::GrammarSpec {
       ikw<"VECTOR">;
 
   struct ColumnType
-      : rule<assign<&ast::ColumnType::name>(DataTypeNameAlt |
-                                            ref<DECIMAL_LITERAL>) +
+      : rule<(flag<&ast::ColumnType::quoted>(
+                  assign<&ast::ColumnType::name>(ref<QUOTED_ID>)) |
+              assign<&ast::ColumnType::name>(DataTypeNameAlt |
+                                             ref<DECIMAL_LITERAL>)) +
              option(lit<"<"> +
                     many(append<&ast::ColumnType::params>(ref<ColumnType>),
                          lit<",">) +
@@ -289,16 +320,10 @@ struct Cql3 : cursiv::GrammarSpec {
   struct PrimaryKey
       : rule<ikw<"PRIMARY"> + ikw<"KEY"> + lit<"("> +
              ((lit<"("> +
-               some(append<&ast::PrimaryKey::partitionColumns>(ref<ID>),
-                    lit<",">) +
-               lit<")"> + lit<","> +
-               some(append<&ast::PrimaryKey::clusteringColumns>(ref<ID>),
-                    lit<",">)) |
-              (append<&ast::PrimaryKey::partitionColumns>(ref<ID>) +
-               lit<","> +
-               some(append<&ast::PrimaryKey::clusteringColumns>(ref<ID>),
-                    lit<",">)) |
+               some(append<&ast::PrimaryKey::partitionColumns>(ref<ID>), lit<",">) +
+               lit<")">) |
               append<&ast::PrimaryKey::partitionColumns>(ref<ID>)) +
+             many(lit<","> + append<&ast::PrimaryKey::clusteringColumns>(ref<ID>)) +
              lit<")">> {};
 
   struct ClusterColumn
@@ -312,7 +337,7 @@ struct Cql3 : cursiv::GrammarSpec {
                   lit<",">) +
              lit<")">> {};
 
-  static constexpr auto NumOrStr = ref<StringLit> | ref<IntLit> | ref<FloatLit>;
+  static constexpr auto NumOrStr = ref<Constant>;
 
   struct OptionEntry
       : rule<assign<&ast::OptionEntry::key>(ref<STRING_LITERAL>) + lit<":"> +
@@ -320,7 +345,7 @@ struct Cql3 : cursiv::GrammarSpec {
 
   template <auto Member>
   static constexpr auto HashInto =
-      lit<"{"> + some(append<Member>(ref<OptionEntry>), lit<",">) + lit<"}">;
+      lit<"{"> + many(append<Member>(ref<OptionEntry>), lit<",">) + lit<"}">;
 
   struct TableOptionItem
       : rule<assign<&ast::TableOption::name>(ref<ID>) + lit<"="> +
@@ -337,13 +362,10 @@ struct Cql3 : cursiv::GrammarSpec {
       : rule<create<ast::TableOptions> + TableOptionAtom +
              many(ikw<"AND"> + TableOptionAtom)> {};
 
-  struct BatchLogged : rule<ikw<"LOGGED">, value<ast::BatchKind::logged>> {};
-  struct BatchUnlogged
-      : rule<ikw<"UNLOGGED">, value<ast::BatchKind::unlogged>> {};
 
   struct Batch : rule<create<ast::Batch> + ikw<"BEGIN"> +
-                      option(assign<&ast::Batch::kind>(ref<BatchLogged> |
-                                                       ref<BatchUnlogged>)) +
+                      option(assign<&ast::Batch::kind>(as<ast::BatchKind::logged>(ikw<"LOGGED">) |
+                                                       as<ast::BatchKind::unlogged>(ikw<"UNLOGGED">))) +
                       ikw<"BATCH"> +
                       option(ikw<"USING"> + ikw<"TIMESTAMP"> +
                              assign<&ast::Batch::timestamp>(ref<Expression>))> {
@@ -367,61 +389,25 @@ struct Cql3 : cursiv::GrammarSpec {
 
   // ---- CREATE AGGREGATE's INITCOND ----------------------------------------
 
-  struct InitCondDefinition;
-
   struct InitCondValue
-      : rule<assign<&ast::InitCondValue::value>(ref<Constant>)> {};
-  struct InitCondList
-      : rule<lit<"("> +
-                 some(append<&ast::InitCondList::items>(ref<Constant>),
-                      lit<",">) +
-                 lit<")">> {};
-  struct InitCondHashEntry
-      : rule<assign<&ast::InitCondHashEntry::key>(ref<ID>) + lit<":"> +
-             assign<&ast::InitCondHashEntry::value>(
-                 ref<InitCondDefinition>)> {};
-  struct InitCondHash
-      : rule<lit<"{"> +
-                 some(append<&ast::InitCondHash::entries>(
-                          ref<InitCondHashEntry>),
-                      lit<",">) +
-                 lit<"}">> {};
-  struct InitCondNestedList
-      : rule<lit<"("> +
-                 append<&ast::InitCondNestedList::items>(ref<InitCondList>) +
-                 many(lit<","> +
-                      (append<&ast::InitCondNestedList::items>(
-                           ref<InitCondValue>) |
-                       append<&ast::InitCondNestedList::items>(
-                           ref<InitCondList>))) +
-                 lit<")">> {};
-  struct InitCondDefinition
-      : rule<ref<InitCondValue> | ref<InitCondNestedList> |
-             ref<InitCondList> | ref<InitCondHash>> {};
+      : rule<assign<&ast::InitCondValue::value>(ref<Expression>)> {};
+  struct InitCondDefinition : rule<ref<InitCondValue>> {};
 
   // ---- roles ---------------------------------------------------------------
 
-  struct RoleOptPasswordKind
-      : rule<ikw<"PASSWORD">, value<ast::RoleOptionKind::password>> {};
-  struct RoleOptLoginKind
-      : rule<ikw<"LOGIN">, value<ast::RoleOptionKind::login>> {};
-  struct RoleOptSuperuserKind
-      : rule<ikw<"SUPERUSER">, value<ast::RoleOptionKind::superuser>> {};
-  struct RoleOptOptionsKind
-      : rule<ikw<"OPTIONS">, value<ast::RoleOptionKind::options>> {};
 
   struct RoleOption
       : rule<create<ast::RoleOption> +
-             ((assign<&ast::RoleOption::kind>(ref<RoleOptPasswordKind>) +
+             ((assign<&ast::RoleOption::kind>(as<ast::RoleOptionKind::password>(ikw<"PASSWORD">)) +
                lit<"="> +
                assign<&ast::RoleOption::stringValue>(ref<STRING_LITERAL>)) |
-              (assign<&ast::RoleOption::kind>(ref<RoleOptLoginKind>) +
+              (assign<&ast::RoleOption::kind>(as<ast::RoleOptionKind::login>(ikw<"LOGIN">)) +
                lit<"="> +
                assign<&ast::RoleOption::boolValue>(BooleanValue)) |
-              (assign<&ast::RoleOption::kind>(ref<RoleOptSuperuserKind>) +
+              (assign<&ast::RoleOption::kind>(as<ast::RoleOptionKind::superuser>(ikw<"SUPERUSER">)) +
                lit<"="> +
                assign<&ast::RoleOption::boolValue>(BooleanValue)) |
-              (assign<&ast::RoleOption::kind>(ref<RoleOptOptionsKind>) +
+              (assign<&ast::RoleOption::kind>(as<ast::RoleOptionKind::options>(ikw<"OPTIONS">)) +
                lit<"="> + HashInto<&ast::RoleOption::hash>))> {};
 
   struct RoleWith
@@ -431,59 +417,27 @@ struct Cql3 : cursiv::GrammarSpec {
 
   // ---- permissions -----------------------------------------------------
 
-  struct PrivAllPermissions
-      : rule<ikw<"ALL"> + ikw<"PERMISSIONS">, value<ast::Privilege::allPermissions>> {
-  };
-  struct PrivAll : rule<ikw<"ALL">, value<ast::Privilege::all>> {};
-  struct PrivAlter : rule<ikw<"ALTER">, value<ast::Privilege::alter>> {};
-  struct PrivAuthorize
-      : rule<ikw<"AUTHORIZE">, value<ast::Privilege::authorize>> {};
-  struct PrivDescribe
-      : rule<ikw<"DESCRIBE">, value<ast::Privilege::describe>> {};
-  struct PrivExecute
-      : rule<ikw<"EXECUTE">, value<ast::Privilege::execute>> {};
-  struct PrivCreate : rule<ikw<"CREATE">, value<ast::Privilege::create>> {};
-  struct PrivDrop : rule<ikw<"DROP">, value<ast::Privilege::drop>> {};
-  struct PrivModify : rule<ikw<"MODIFY">, value<ast::Privilege::modify>> {};
-  struct PrivSelect : rule<ikw<"SELECT">, value<ast::Privilege::select>> {};
 
   static constexpr auto PrivilegeAlt =
-      ref<PrivAllPermissions> | ref<PrivAll> | ref<PrivAlter> |
-      ref<PrivAuthorize> | ref<PrivDescribe> | ref<PrivExecute> |
-      ref<PrivCreate> | ref<PrivDrop> | ref<PrivModify> | ref<PrivSelect>;
+      as<ast::Privilege::allPermissions>(ikw<"ALL"> + ikw<"PERMISSIONS">) | as<ast::Privilege::all>(ikw<"ALL">) | as<ast::Privilege::alter>(ikw<"ALTER">) |
+      as<ast::Privilege::authorize>(ikw<"AUTHORIZE">) | as<ast::Privilege::describe>(ikw<"DESCRIBE">) | as<ast::Privilege::execute>(ikw<"EXECUTE">) |
+      as<ast::Privilege::create>(ikw<"CREATE">) | as<ast::Privilege::drop>(ikw<"DROP">) | as<ast::Privilege::modify>(ikw<"MODIFY">) | as<ast::Privilege::select>(ikw<"SELECT">);
 
-  struct ResourceAllFunctionsInKsKind
-      : rule<ikw<"ALL"> + ikw<"FUNCTIONS">,
-             value<ast::ResourceKind::allFunctionsInKeyspace>> {};
-  struct ResourceAllFunctionsKind
-      : rule<ikw<"ALL"> + ikw<"FUNCTIONS">, value<ast::ResourceKind::allFunctions>> {
-  };
-  struct ResourceFunctionKind
-      : rule<ikw<"FUNCTION">, value<ast::ResourceKind::function>> {};
-  struct ResourceAllKeyspacesKind
-      : rule<ikw<"ALL"> + ikw<"KEYSPACES">, value<ast::ResourceKind::allKeyspaces>> {
-  };
-  struct ResourceKeyspaceKind
-      : rule<ikw<"KEYSPACE">, value<ast::ResourceKind::keyspace>> {};
-  struct ResourceAllRolesKind
-      : rule<ikw<"ALL"> + ikw<"ROLES">, value<ast::ResourceKind::allRoles>> {};
-  struct ResourceRoleKind
-      : rule<ikw<"ROLE">, value<ast::ResourceKind::role>> {};
 
   struct Resource
       : rule<create<ast::Resource> +
-             ((assign<&ast::Resource::kind>(ref<ResourceAllFunctionsInKsKind>) +
+             ((assign<&ast::Resource::kind>(as<ast::ResourceKind::allFunctionsInKeyspace>(ikw<"ALL"> + ikw<"FUNCTIONS">)) +
                ikw<"IN"> + ikw<"KEYSPACE"> +
                assign<&ast::Resource::keyspace>(ref<ID>)) |
-              assign<&ast::Resource::kind>(ref<ResourceAllFunctionsKind>) |
-              (assign<&ast::Resource::kind>(ref<ResourceFunctionKind>) +
+              assign<&ast::Resource::kind>(as<ast::ResourceKind::allFunctions>(ikw<"ALL"> + ikw<"FUNCTIONS">)) |
+              (assign<&ast::Resource::kind>(as<ast::ResourceKind::function>(ikw<"FUNCTION">)) +
                option(assign<&ast::Resource::keyspace>(ref<ID>) + lit<".">) +
                assign<&ast::Resource::name>(ref<ID>)) |
-              assign<&ast::Resource::kind>(ref<ResourceAllKeyspacesKind>) |
-              (assign<&ast::Resource::kind>(ref<ResourceKeyspaceKind>) +
+              assign<&ast::Resource::kind>(as<ast::ResourceKind::allKeyspaces>(ikw<"ALL"> + ikw<"KEYSPACES">)) |
+              (assign<&ast::Resource::kind>(as<ast::ResourceKind::keyspace>(ikw<"KEYSPACE">)) +
                assign<&ast::Resource::name>(ref<ID>)) |
-              assign<&ast::Resource::kind>(ref<ResourceAllRolesKind>) |
-              (assign<&ast::Resource::kind>(ref<ResourceRoleKind>) +
+              assign<&ast::Resource::kind>(as<ast::ResourceKind::allRoles>(ikw<"ALL"> + ikw<"ROLES">)) |
+              (assign<&ast::Resource::kind>(as<ast::ResourceKind::role>(ikw<"ROLE">)) +
                assign<&ast::Resource::name>(ref<ID>)) |
               (option(ikw<"TABLE">) +
                option(assign<&ast::Resource::keyspace>(ref<ID>) + lit<".">) +
@@ -495,16 +449,12 @@ struct Cql3 : cursiv::GrammarSpec {
       : rule<assign<&ast::ColumnNotNull::column>(ref<ID>) + ikw<"IS"> +
              ikw<"NOT"> + ikw<"NULL">> {};
 
-  struct IndexKeysKind : rule<ikw<"KEYS">, value<ast::IndexSpecKind::keys>> {};
-  struct IndexEntriesKind
-      : rule<ikw<"ENTRIES">, value<ast::IndexSpecKind::entries>> {};
-  struct IndexFullKind : rule<ikw<"FULL">, value<ast::IndexSpecKind::full>> {};
 
   struct IndexColumnSpec
       : rule<create<ast::IndexColumnSpec> +
              ((assign<&ast::IndexColumnSpec::kind>(
-                   ref<IndexKeysKind> | ref<IndexEntriesKind> |
-                   ref<IndexFullKind>) +
+                   as<ast::IndexSpecKind::values>(ikw<"VALUES">) | as<ast::IndexSpecKind::keys>(ikw<"KEYS">) | as<ast::IndexSpecKind::entries>(ikw<"ENTRIES">) |
+                   as<ast::IndexSpecKind::full>(ikw<"FULL">)) +
                lit<"("> +
                assign<&ast::IndexColumnSpec::name>(ref<ID>) + lit<")">) |
               assign<&ast::IndexColumnSpec::name>(ref<ID>))> {};
@@ -522,18 +472,17 @@ struct Cql3 : cursiv::GrammarSpec {
               flag<&ast::AlterColumnMask::dropMasked>(
                   ikw<"DROP"> + ikw<"MASKED">))> {};
 
-  struct OpPlus : rule<lit<"+">, value<ast::ArithOp::plus>> {};
-  struct OpMinus : rule<lit<"-">, value<ast::ArithOp::minus>> {};
-  static constexpr auto ArithOpAlt = ref<OpPlus> | ref<OpMinus>;
+  static constexpr auto ArithOpAlt = as<ast::ArithOp::plus>(lit<"+">) | as<ast::ArithOp::minus>(lit<"-">);
 
   struct CounterOp
       : rule<create<ast::CounterOp> +
              ((assign<&ast::CounterOp::nameOperand>(ref<ID>) +
                assign<&ast::CounterOp::op>(ArithOpAlt) +
                assign<&ast::CounterOp::deltaOperand>(
-                   ref<IntLit> | ref<SetLit> | ref<MapLit> | ref<ListLit>)) |
-              (assign<&ast::CounterOp::deltaOperand>(
-                   ref<SetLit> | ref<MapLit> | ref<ListLit>) +
+                   ref<Expression>)) |
+              (flag<&ast::CounterOp::deltaFirst>(
+                   assign<&ast::CounterOp::deltaOperand>(
+                   ref<SetLit> | ref<MapLit> | ref<ListLit>)) +
                assign<&ast::CounterOp::op>(ArithOpAlt) +
                assign<&ast::CounterOp::nameOperand>(ref<ID>)))> {};
 
@@ -643,10 +592,8 @@ struct Cql3 : cursiv::GrammarSpec {
                some(append<&ast::AlterType::renameMembers>(ref<RenamePair>),
                     ikw<"AND">)))> {};
 
-  struct AlterUserSuper : rule<ikw<"SUPERUSER">, value<true>> {};
-  struct AlterUserNosuper : rule<ikw<"NOSUPERUSER">, value<false>> {};
   static constexpr auto SuperUserFlag =
-      ref<AlterUserSuper> | ref<AlterUserNosuper>;
+      as<true>(ikw<"SUPERUSER">) | as<false>(ikw<"NOSUPERUSER">);
 
   struct AlterUser
       : rule<create<ast::AlterUser> + ikw<"ALTER"> + ikw<"USER"> +
@@ -668,15 +615,15 @@ struct Cql3 : cursiv::GrammarSpec {
              option(assign<&ast::CreateAggregate::keyspace>(ref<ID>) +
                     lit<".">) +
              assign<&ast::CreateAggregate::name>(ref<ID>) + lit<"("> +
-             assign<&ast::CreateAggregate::argType>(ref<ColumnType>) +
+             option(some(append<&ast::CreateAggregate::argTypes>(ref<ColumnType>), lit<",">)) +
              lit<")"> + ikw<"SFUNC"> +
              assign<&ast::CreateAggregate::sfunc>(ref<ID>) + ikw<"STYPE"> +
              assign<&ast::CreateAggregate::stype>(ref<ColumnType>) +
-             ikw<"FINALFUNC"> +
-             assign<&ast::CreateAggregate::finalfunc>(ref<ID>) +
-             ikw<"INITCOND"> +
-             assign<&ast::CreateAggregate::initcond>(
-                 ref<InitCondDefinition>)> {};
+             option(ikw<"FINALFUNC"> +
+                    assign<&ast::CreateAggregate::finalfunc>(ref<ID>)) +
+             option(ikw<"INITCOND"> +
+                    assign<&ast::CreateAggregate::initcond>(
+                        ref<InitCondDefinition>))> {};
 
   struct CreateFunction
       : rule<create<ast::CreateFunction> + ikw<"CREATE"> +
@@ -702,7 +649,8 @@ struct Cql3 : cursiv::GrammarSpec {
                                                  ref<STRING_LITERAL>)> {};
 
   struct CreateIndex
-      : rule<create<ast::CreateIndex> + ikw<"CREATE"> + ikw<"INDEX"> +
+      : rule<create<ast::CreateIndex> + ikw<"CREATE"> +
+             option(flag<&ast::CreateIndex::custom>(ikw<"CUSTOM">)) + ikw<"INDEX"> +
              option(flag<&ast::CreateIndex::ifNotExists>(
                  ikw<"IF"> + ikw<"NOT"> + ikw<"EXISTS">)) +
              option(assign<&ast::CreateIndex::indexName>(ref<ID> |
@@ -710,8 +658,10 @@ struct Cql3 : cursiv::GrammarSpec {
              ikw<"ON"> +
              option(assign<&ast::CreateIndex::keyspace>(ref<ID>) + lit<".">) +
              assign<&ast::CreateIndex::table>(ref<ID>) + lit<"("> +
-             assign<&ast::CreateIndex::spec>(ref<IndexColumnSpec>) +
-             lit<")">> {};
+             option(some(append<&ast::CreateIndex::specs>(ref<IndexColumnSpec>), lit<",">)) +
+             lit<")"> +
+             option(ikw<"USING"> + assign<&ast::CreateIndex::usingClass>(ref<STRING_LITERAL>)) +
+             option(ikw<"WITH"> + assign<&ast::CreateIndex::options>(ref<TableOptions>))> {};
 
   struct CreateKeyspace
       : rule<create<ast::CreateKeyspace> + ikw<"CREATE"> + ikw<"KEYSPACE"> +
@@ -786,7 +736,11 @@ struct Cql3 : cursiv::GrammarSpec {
                  ikw<"IF"> + ikw<"NOT"> + ikw<"EXISTS">)) +
              option(assign<&ast::CreateTrigger::keyspace>(ref<ID>) +
                     lit<".">) +
-             assign<&ast::CreateTrigger::name>(ref<ID>) + ikw<"USING"> +
+             assign<&ast::CreateTrigger::name>(ref<ID>) +
+             option(ikw<"ON"> +
+                    option(assign<&ast::CreateTrigger::onKeyspace>(ref<ID>) + lit<".">) +
+                    assign<&ast::CreateTrigger::onTable>(ref<ID>)) +
+             ikw<"USING"> +
              assign<&ast::CreateTrigger::usingClass>(ref<STRING_LITERAL>)> {
   };
 
@@ -827,27 +781,13 @@ struct Cql3 : cursiv::GrammarSpec {
                   some(append<&ast::Delete::ifConditions>(ref<IfCondition>),
                        ikw<"AND">)))> {};
 
-  struct DropAggregateKind
-      : rule<ikw<"AGGREGATE">, value<ast::DropKind::aggregate>> {};
-  struct DropFunctionKind
-      : rule<ikw<"FUNCTION">, value<ast::DropKind::function>> {};
-  struct DropIndexKind : rule<ikw<"INDEX">, value<ast::DropKind::index>> {};
-  struct DropTableKind : rule<ikw<"TABLE">, value<ast::DropKind::table>> {};
-  struct DropTypeKind : rule<ikw<"TYPE">, value<ast::DropKind::type>> {};
-  struct DropMaterializedViewKind
-      : rule<ikw<"MATERIALIZED"> + ikw<"VIEW">,
-             value<ast::DropKind::materializedView>> {};
-  struct DropKeyspaceKind
-      : rule<ikw<"KEYSPACE">, value<ast::DropKind::keyspace>> {};
-  struct DropRoleKind : rule<ikw<"ROLE">, value<ast::DropKind::role>> {};
-  struct DropUserKind : rule<ikw<"USER">, value<ast::DropKind::user>> {};
 
   static constexpr auto DropQualifiedKind =
-      ref<DropTypeKind> | ref<DropMaterializedViewKind> |
-      ref<DropAggregateKind> | ref<DropFunctionKind> | ref<DropTableKind> |
-      ref<DropIndexKind>;
+      as<ast::DropKind::type>(ikw<"TYPE">) | as<ast::DropKind::materializedView>(ikw<"MATERIALIZED"> + ikw<"VIEW">) |
+      as<ast::DropKind::aggregate>(ikw<"AGGREGATE">) | as<ast::DropKind::function>(ikw<"FUNCTION">) | as<ast::DropKind::table>(ikw<"TABLE">) |
+      as<ast::DropKind::index>(ikw<"INDEX">);
   static constexpr auto DropBareKind =
-      ref<DropKeyspaceKind> | ref<DropRoleKind> | ref<DropUserKind>;
+      as<ast::DropKind::keyspace>(ikw<"KEYSPACE">) | as<ast::DropKind::role>(ikw<"ROLE">) | as<ast::DropKind::user>(ikw<"USER">);
 
   struct Drop
       : rule<create<ast::Drop> + ikw<"DROP"> +
@@ -916,8 +856,8 @@ struct Cql3 : cursiv::GrammarSpec {
 
   struct Select
       : rule<create<ast::Select> + ikw<"SELECT"> +
-             option(flag<&ast::Select::distinct>(ikw<"DISTINCT">)) +
              option(flag<&ast::Select::json>(ikw<"JSON">)) +
+             option(flag<&ast::Select::distinct>(ikw<"DISTINCT">)) +
              (flag<&ast::Select::star>(lit<"*">) |
               some(append<&ast::Select::elements>(ref<SelectElement>),
                    lit<",">)) +
@@ -927,8 +867,12 @@ struct Cql3 : cursiv::GrammarSpec {
              option(
                  ikw<"WHERE"> +
                  some(append<&ast::Select::where>(ref<Relation>), ikw<"AND">)) +
+             option(ikw<"GROUP"> + ikw<"BY"> +
+                    some(append<&ast::Select::groupBy>(ref<ID>), lit<",">)) +
              option(ikw<"ORDER"> + ikw<"BY"> +
-                    assign<&ast::Select::orderBy>(ref<OrderSpec>)) +
+                    some(append<&ast::Select::orderBy>(ref<OrderSpec>), lit<",">)) +
+             option(ikw<"PER"> + ikw<"PARTITION"> + ikw<"LIMIT"> +
+                    assign<&ast::Select::perPartitionLimit>(ref<Expression>)) +
              option(ikw<"LIMIT"> +
                     assign<&ast::Select::limit>(ref<Expression>)) +
              option(flag<&ast::Select::allowFiltering>(
@@ -968,23 +912,15 @@ struct Cql3 : cursiv::GrammarSpec {
       ref<Grant> | ref<Insert> | ref<ListPermissions> | ref<ListRoles> |
       ref<Revoke> | ref<Select> | ref<Truncate> | ref<Update> | ref<Use>;
 
-  // Statements separated by `;`, extra bare `;` tolerated anywhere, the very
-  // last `;` optional, and a stray `--` (MINUSMINUS, only ever reached when
-  // it is NOT immediately followed by a line break or EOF -- otherwise
-  // LINE_COMMENT's longer match wins it) tolerated before any `;` and at the
-  // very end.
-  static constexpr auto MaybeDashes = option(ref<MINUSMINUS>);
-
+  // Statements have semicolon boundaries; only the final one may omit it.
   struct Root
-      : rule<create<ast::Root> + many(MaybeDashes + lit<";">) +
-             many(append<&ast::Root::statements>(CqlAlt) + MaybeDashes +
-                  lit<";"> + many(MaybeDashes + lit<";">)) +
-             option(append<&ast::Root::statements>(CqlAlt) +
-                    option(MaybeDashes + lit<";">)) +
-             MaybeDashes> {};
+      : rule<create<ast::Root> + many(lit<";">) +
+             many(append<&ast::Root::statements>(CqlAlt) +
+                  lit<";"> + many(lit<";">)) +
+             option(append<&ast::Root::statements>(CqlAlt))> {};
 
   using entry = Root;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 

@@ -38,6 +38,7 @@ struct TypeSetItem : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct TypeSet : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
   vector<TypeSetItem*> items;
 };
 
@@ -55,6 +56,7 @@ struct Restriction : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   vector<OperDecl*> hasOps;
   TypeSet* inTypeSet = nullptr;
+  string_view inName;
 };
 
 struct Exception : cursiv::Extends<cursiv::AstNode> {
@@ -78,14 +80,17 @@ enum class Builtin : std::uint8_t {
   string_,
   any_,
   rep_,
-  cvt_
+  cvt_,
+  type_
 };
 
 struct BuiltinTypeSpec : cursiv::Extends<TypeSpec> {
   Builtin kind;
 };
 
-struct ArrayTypeSpec : cursiv::Extends<TypeSpec> {};
+struct ArrayTypeSpec : cursiv::Extends<TypeSpec> {
+  TypeSpec* element = nullptr;
+};
 
 struct SequenceTypeSpec : cursiv::Extends<TypeSpec> {
   TypeSpec* element = nullptr;
@@ -169,6 +174,10 @@ struct IntLit : cursiv::Extends<Expression> {
 
 struct RealLit : cursiv::Extends<Expression> {
   double value = 0.0;
+};
+
+struct CharLit : cursiv::Extends<Expression> {
+  string_view value;
 };
 
 struct StringLit : cursiv::Extends<Expression> {
@@ -334,6 +343,7 @@ struct ExitStmt : cursiv::Extends<Statement> {
 };
 
 struct BreakStmt : cursiv::Extends<Statement> {};
+struct ContinueStmt : cursiv::Extends<Statement> {};
 
 struct BeginStmt : cursiv::Extends<Statement> {
   Body* body = nullptr;

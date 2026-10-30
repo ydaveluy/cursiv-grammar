@@ -31,21 +31,14 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-Well-Known Text for geometries, ISO/IEC 13249-3 (SQL/MM) and the OGC Simple
-Features extensions both included:
+Well-known text geometries, including nested collections and coordinate sequences.
 
 ```
 POINT ZM (1 1 5 60)
 LINESTRING EMPTY
-GEOMETRYCOLLECTION (POINT (1 1), LINESTRING (1 1, 2 2, 3 3))
+GEOMETRYCOLLECTION (POINT (1 1), LINESTRING (1 1, 2 2))
 COMPOUNDCURVE ((0 0, 100 0), CLOTHOID (0, 0.005, 80))
 ```
-
-`Z`/`M`/`ZM` mark a coordinate's extra ordinates; `EMPTY` stands for a
-geometry (or, nested one level down, a member of one) with no coordinates at
-all. `CLOTHOID` inside a `COMPOUNDCURVE` is the JTS `(startKappa, endKappa,
-length)` extension; the same keyword also spells the ISO placement-based
-form documented in `example/`.
 
 ## The command line
 

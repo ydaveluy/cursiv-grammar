@@ -10,6 +10,17 @@
 namespace audit_regressions {
 inline bool run() {
   auto parser = stacktrace::generated::Stacktrace::create_parser();
+  for (const auto* origin : {"space loader//", "space loader/mod.name@1.0/"}) {
+    const std::string source = std::string("java.lang.RuntimeException: message\n\tat ") +
+        origin + "demo.Main.run(Main.java:9)\n";
+    const auto result = parser->parse(source);
+    const auto* root = result.value_as<stacktrace::ast::StackTrace>();
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !root || root->frames.size() != 1) return false;
+    const auto* frame = std::get_if<stacktrace::ast::AtLine*>(&root->frames[0]);
+    if (!frame || (*frame)->origin != origin || (*frame)->className != "demo.Main" ||
+        (*frame)->method != "run" || (*frame)->line != 9) return false;
+  }
   struct Case {
     const char* file;
     const char* thread;

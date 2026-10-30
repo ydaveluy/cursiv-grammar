@@ -29,7 +29,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 Generated files live under `build/src/generated-src/`; do not edit them.
 
+This library parses Alloy 4.2 models.
+
 ## The sample
+
+An Alloy model combines signature declarations with relational formulas,
+facts, predicates and commands that check properties.
 
 ```
 sig FSObject { parent: lone Dir }
@@ -44,15 +49,6 @@ one sig Root extends Dir { } { no parent }
 assert acyclic { no d: Dir | d in d.^contents }
 check acyclic for 5
 ```
-
-A model is a sequence of signature, fact, predicate, function, assertion and
-command declarations; `sig`, `fact` and `assert` bodies hold relational-logic
-expressions, built from quantifiers (`all`, `no`, `some`, `lone`, `one`,
-`sum`), the relational operators (`.`, `->`, `&`, `+`, `-`, `++`, `<:`, `:>`,
-box join `r[x]`) and the usual comparisons and connectives. Names are plain
-text: nothing in this port resolves a sig or field reference across the
-document, since an Alloy name may equally point at a signature declared in
-another, unopened module.
 
 ## The command line
 

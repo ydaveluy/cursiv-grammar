@@ -18,6 +18,9 @@ struct FloatLit : cursiv::Extends<Term> {
 struct StringLit : cursiv::Extends<Term> {
   string_view value;
 };
+struct CharacterLit : cursiv::Extends<Term> {
+  string_view value;
+};
 struct VarRef : cursiv::Extends<Term> {
   string_view name;
 };
@@ -82,6 +85,9 @@ struct PatInt : cursiv::Extends<Pat> {
 struct PatString : cursiv::Extends<Pat> {
   string_view value;
 };
+struct PatCharacter : cursiv::Extends<Pat> {
+  string_view value;
+};
 struct PatTuple : cursiv::Extends<Pat> {
   vector<Pat*> items;
 };
@@ -139,7 +145,7 @@ struct TypeSection : cursiv::Extends<Type> {
   Type* leftOperand;
   Type* rightOperand;
 };
-// `tyname '(' (tylhs | tylhssection) ')'`, the head of a `tylhs1`.
+// Native tyname or a parenthesized lhs/section, the head of a tylhs1.
 struct TyLhsPrimary : cursiv::Extends<cursiv::AstNode> {
   string_view tyname;
   Type* inner;
@@ -149,8 +155,8 @@ struct TyLhs1 : cursiv::Extends<Type> {
   vector<string_view> tyvars;
 };
 
-// `var_ '(' (var_ prefix | infix) ')'`: the name of an operator's type
-// signature. `param` is empty for the bare-infix branch.
+// A plain variable or parenthesized variable/operator name. The legacy
+// param field holds a parenthesized variable; op holds an operator.
 struct Name : cursiv::Extends<cursiv::AstNode> {
   string_view var;
   string_view param;

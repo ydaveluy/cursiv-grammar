@@ -31,11 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-An iCalendar (RFC 5545) document: a VCALENDAR wrapping one or more
-components, each a flat list of `NAME[;PARAM=VALUE...]:VALUE` content
-lines. A line that continues onto the next starts it with a single space or
-tab -- "folding" -- which the grammar removes on the wire, so a folded value
-reads as one unbroken span.
+An RFC 5545 iCalendar document contains nested components and content lines. Folded lines are unfolded; property values remain raw text.
 
 ```
 BEGIN:VCALENDAR
@@ -49,11 +45,6 @@ SUMMARY:Networld+Interop Conference
 END:VEVENT
 END:VCALENDAR
 ```
-
-`DTSTART`'s value is validated as a date or date-time, `SUMMARY`'s as text;
-an unrecognised name (`X-WR-CALNAME`, a vendor extension) still parses, its
-value read as a raw span. See `example/example1.ics` (the upstream corpus) and `tests/coverage.ics`
-(every component kind, folding, lists and periods) for more.
 
 ## The command line
 

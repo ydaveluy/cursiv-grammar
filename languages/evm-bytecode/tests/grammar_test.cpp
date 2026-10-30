@@ -76,6 +76,26 @@ int main() {
       return 1;
   }
 
+  {
+    const auto language = cursiv::create_language<
+        evmbytecode::EvmBytecodeCoreServices, evmbytecode::EvmBytecodeSharedCoreServices,
+        evmbytecode::install_core_module>();
+    for (const char* source : {"RJUMP 0x0000", "RJUMPI 0xffff", "DATALOADN 0x0010",
+                               "CALLF 0x0001", "JUMPF 0x0001", "EOFCREATE 0x00",
+                               "RETURNCODE 0x01", "RETURNCONTRACT 0x01",
+                               "RJUMPV 0x000000", "RJUMPV 0x010000ffff"}) {
+      const auto checked = cursiv::test::validationHelper(language.language, source);
+      if (!checked.diagnostics.empty()) return fail("valid proposal immediate rejected");
+    }
+    for (const char* source : {"RJUMP", "RJUMP 0x00", "RJUMPI 0x000000",
+                               "DATALOADN 0x00", "CALLF 0x00", "JUMPF",
+                               "EOFCREATE 0x0000", "RETURNCODE", "RJUMPV 0x00",
+                               "RJUMPV 0x010000", "RJUMPV 0x0000000000"}) {
+      const auto checked = cursiv::test::validationHelper(language.language, source);
+      if (checked.diagnostics.empty()) return fail("malformed proposal immediate accepted");
+    }
+  }
+
   namespace fs = std::filesystem;
 
   const auto language =

@@ -31,22 +31,13 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+XML 1.0 source trees with elements, attributes, text, CDATA and lexical DOCTYPE declarations. Entity spellings are retained; DTDs are not expanded.
+
 ```xml
 <?xml version="1.0"?>
-<catalog>
-   <book id="bk101">
-      <author>Gambardella, Matthew</author>
-      <title>XML Developer's Guide</title>
-   </book>
-</catalog>
+<!DOCTYPE note [<!ENTITY author "Ada">]>
+<note from="&author;">Hello <b>world</b>!</note>
 ```
-
-A document is an optional declaration (its own node, holding the
-`<?xml ...?>` attributes) and a root element. An element is a name, its
-attributes, and mixed content — text, entity and character references, CDATA
-sections, and nested elements. Comments and processing instructions parse
-but are not part of the tree; a mismatched closing tag is a validation
-error, not a parse failure.
 
 ## The command line
 

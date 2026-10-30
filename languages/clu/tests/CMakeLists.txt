@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every example parses clean into a Module.
 add_executable(clu_grammar_test grammar_test.cpp)
-target_link_libraries(clu_grammar_test PRIVATE cluCore)
+target_link_libraries(clu_grammar_test PRIVATE cluCore cursiv::test)
 target_compile_definitions(clu_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

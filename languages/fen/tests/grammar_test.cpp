@@ -49,6 +49,18 @@ int main() {
       return 1;
   }
 
+  {
+    const auto language = cursiv::create_language<fen::FenCoreServices,
+        fen::FenSharedCoreServices, fen::install_core_module>();
+    const auto parsed = language.language.parser->parse("8/8/8/8/8/8/8/8 w - - +0 -0");
+    const auto* value = parsed.value_as<fen::ast::Fen>();
+    const auto checked = cursiv::test::validationHelper(language.language,
+        "8/8/8/8/8/8/8/8 w - - +0 -0");
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !value || value->halfmoveClock != "+0" || value->fullmoveClock != "-0" ||
+        !checked.diagnostics.empty()) return 1;
+  }
+
   std::vector<std::filesystem::path> examples;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
     for (const auto& entry : std::filesystem::directory_iterator(dir))

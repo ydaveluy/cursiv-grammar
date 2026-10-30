@@ -19,30 +19,33 @@ inline constexpr auto strip_ends = [](std::string_view text,
   }
   return std::string_view(room.data(), size);
 };
-using StripEnds = cursiv::text_conv<strip_ends>;
 
 struct Mdx : cursiv::GrammarSpec {
   static constexpr auto word_boundary = cr<"a-zA-Z0-9_$">;
 
   struct WS : terminal<some(s)> {};
+  struct LINE_COMMENT : terminal<(lit<"//"> | lit<"--">) + many(cr<R"(^\r\n)">)> {};
+  struct BLOCK_COMMENT : terminal<lit<"/*"> + many(ref<BLOCK_COMMENT> | (!(lit<"*/"> | lit<"/*">) + any)) + lit<"*/">> {};
 
   static constexpr auto id_body = cr<"a-zA-Z_$"> + many(cr<"a-zA-Z0-9_$">);
-  struct ID : terminal<id_body> {};
+  static constexpr auto reserved = ikw<"AS"> | ikw<"CASE"> | ikw<"CELL"> | ikw<"CELL_ORDINAL"> | ikw<"ELSE"> | ikw<"EMPTY"> | ikw<"END"> | ikw<"FORMATTED_VALUE"> | ikw<"FROM"> | ikw<"MEMBER"> | ikw<"NON"> | ikw<"ON"> | ikw<"SELECT"> | ikw<"SET"> | ikw<"THEN"> | ikw<"VALUE"> | ikw<"WHEN"> | ikw<"WHERE"> | ikw<"WITH"> | ikw<"CREATE"> | ikw<"GLOBAL"> | ikw<"SESSION"> | ikw<"AND"> | ikw<"OR"> | ikw<"XOR"> | ikw<"NOT"> | ikw<"IS">;
+  struct ID : terminal<!reserved + id_body> {};
 
   struct QUOTED_ID
-      : terminal<lit<"["> + many(lit<"]]"> | cr<"^]\r\n">) + lit<"]">,
-                 StripEnds> {};
+      : terminal<as<strip_ends>(lit<"["> + many(lit<"]]"> | cr<"^]\r\n">) +
+                                lit<"]">)> {};
 
   // NUMBER handles the optional decimal part itself: a separate
   // `digit+ '.' digit*` terminal alongside it would never be reachable
   // from any parser rule, so a decimal literal would fail to parse.
   struct AXIS_NUMBER : terminal<some(d)> {};
-  struct NUMBER : terminal<some(d) + option(lit<"."> + many(d)), double> {};
+  struct NUMBER : terminal<as<double>(((some(d) + option(lit<"."> + many(d))) | (lit<"."> + some(d))) +
+      option(cr<"eE"> + option(cr<"+-">) + some(d)))> {};
 
   struct STRING
-      : terminal<(lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">) |
-                     (lit<"'"> + many(lit<"''"> | cr<"^'">) + lit<"'">),
-                 StripEnds> {};
+      : terminal<as<strip_ends>(
+            (lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">) |
+            (lit<"'"> + many(lit<"''"> | cr<"^'">) + lit<"'">))> {};
 
   struct QUOTE : terminal<lit<"'">> {};
 
@@ -53,30 +56,16 @@ struct Mdx : cursiv::GrammarSpec {
   struct LBRACE : terminal<lit<"{">> {};
   struct RBRACE : terminal<lit<"}">> {};
 
-  struct CONCAT : terminal<lit<"||">, value<ast::BinaryOp::concat>> {};
-  struct ASTERISK : terminal<lit<"*">, value<ast::BinaryOp::multiply>> {};
-  struct SOLIDUS : terminal<lit<"/">, value<ast::BinaryOp::divide>> {};
+  struct EQ : terminal<as<ast::BinaryOp::eq>(lit<"=">)> {};
 
-  struct EQ : terminal<lit<"=">, value<ast::BinaryOp::eq>> {};
-  struct NE : terminal<lit<"<>">, value<ast::BinaryOp::ne>> {};
-  struct LE : terminal<lit<"<=">, value<ast::BinaryOp::le>> {};
-  struct GE : terminal<lit<">=">, value<ast::BinaryOp::ge>> {};
-  struct LT : terminal<lit<"<">, value<ast::BinaryOp::lt>> {};
-  struct GT : terminal<lit<">">, value<ast::BinaryOp::gt>> {};
-  struct COLON : terminal<lit<":">, value<ast::BinaryOp::range>> {};
-
-  struct XOR : terminal<ikw<"XOR">, value<ast::BinaryOp::logical_xor>> {};
-  struct OR : terminal<ikw<"OR">, value<ast::BinaryOp::logical_or>> {};
-  struct AND : terminal<ikw<"AND">, value<ast::BinaryOp::logical_and>> {};
-  struct NOT : terminal<ikw<"NOT">, value<ast::UnaryOp::logical_not>> {};
+  struct XOR : terminal<as<ast::BinaryOp::logical_xor>(ikw<"XOR">)> {};
+  struct OR : terminal<as<ast::BinaryOp::logical_or>(ikw<"OR">)> {};
+  struct AND : terminal<as<ast::BinaryOp::logical_and>(ikw<"AND">)> {};
+  struct NOT : terminal<as<ast::UnaryOp::logical_not>(ikw<"NOT">)> {};
 
   // `+`/`-` carry a different constant as a binary operator (term2) than
   // as the unary sign (factor): two data rules over the same literal,
   // never a terminal converted two ways.
-  struct PlusOp : rule<lit<"+">, value<ast::BinaryOp::add>> {};
-  struct MinusOp : rule<lit<"-">, value<ast::BinaryOp::subtract>> {};
-  struct UnaryPlusOp : rule<lit<"+">, value<ast::UnaryOp::plus>> {};
-  struct UnaryMinusOp : rule<lit<"-">, value<ast::UnaryOp::minus>> {};
 
   struct AS : terminal<ikw<"AS">> {};
   struct CASE : terminal<ikw<"CASE">> {};
@@ -100,38 +89,39 @@ struct Mdx : cursiv::GrammarSpec {
   struct WHERE : terminal<ikw<"WHERE">> {};
   struct WITH : terminal<ikw<"WITH">> {};
 
-  // `CREATE`, `GLOBAL`, `SESSION` and `;` are dead lexer rules in the
-  // reference that still reserve those spellings. Left unspelled: those
-  // words are ordinary names here.
+  // This entry parses SELECT queries; DDL keywords remain reserved.
 
   // A name that is a keyword only where nothing else can be: `DIMENSION`
   // and `PROPERTIES` are also ordinary identifiers, spelled once and read
   // both ways by the parser state that allows it.
   static constexpr auto identifier_text =
       ref<DIMENSION> | ref<PROPERTIES> | ref<ID> | ref<QUOTED_ID>;
-  struct KeyPartRule
+  static constexpr auto member_word_text = ref<DIMENSION> | ref<PROPERTIES> | ref<ID> | ref<VALUE> | ref<FORMATTED_VALUE> | ref<CELL_ORDINAL>;
+  static constexpr auto member_text = member_word_text | ref<QUOTED_ID>;
+  struct KeyPart
       : rule<lit<"&"> + (flag<&ast::KeyPart::quoted>(assign<&ast::KeyPart::name>(ref<QUOTED_ID>)) |
                          assign<&ast::KeyPart::name>(ref<ID>))> {};
-  struct KeyIdentifierRule
-      : rule<some(append<&ast::KeyIdentifier::parts>(ref<KeyPartRule>))> {};
+  struct KeyIdentifier
+      : rule<some(append<&ast::KeyIdentifier::parts>(ref<KeyPart>))> {};
 
-  struct NameRule
+  struct Name
       : rule<some(append<&ast::Name::parts>(identifier_text), ref<DOT>)> {};
 
   struct Expression;
   struct ValueExpression;
   struct ValueExpressionPrimary;
+  struct SelectStatementRule;
 
-  struct WhenClauseRule
+  struct WhenClause
       : rule<ref<WHEN> + assign<&ast::WhenClause::when>(ref<ValueExpression>) +
              ref<THEN> + assign<&ast::WhenClause::then>(ref<ValueExpression>)> {
   };
 
-  struct CaseExprRule
+  struct CaseExpr
       : rule<create<ast::CaseExpr>(
             ref<CASE> +
             option(assign<&ast::CaseExpr::operand>(ref<ValueExpression>)) +
-            many(append<&ast::CaseExpr::whens>(ref<WhenClauseRule>)) +
+            some(append<&ast::CaseExpr::whens>(ref<WhenClause>)) +
             option(ref<ELSE> +
                    assign<&ast::CaseExpr::elseValue>(ref<ValueExpression>)) +
             ref<END>)> {};
@@ -153,12 +143,12 @@ struct Mdx : cursiv::GrammarSpec {
                    option(some(append<&ast::SetExpr::items>(ref<Expression>),
                                ref<COMMA>)) +
                    ref<RBRACE>)   //
-             | ref<CaseExprRule>  //
+             | ref<CaseExpr>  //
              | create<ast::StringLiteral>(
                    assign<&ast::StringLiteral::text>(ref<STRING>))  //
              | create<ast::NumberLiteral>(
                    assign<&ast::NumberLiteral::value>(ref<NUMBER>))  //
-             | ref<KeyIdentifierRule> |
+             | ref<KeyIdentifier> |
              create<ast::Identifier>(
                  flag<&ast::Identifier::quoted>(assign<&ast::Identifier::name>(ref<QUOTED_ID>)) |
                  assign<&ast::Identifier::name>(ref<DIMENSION> |
@@ -170,13 +160,13 @@ struct Mdx : cursiv::GrammarSpec {
                       ref<DOT> +
                       (flag<&ast::MemberAccess::quoted>(assign<&ast::MemberAccess::name>(ref<QUOTED_ID>)) |
                        assign<&ast::MemberAccess::name>(
-                           ref<DIMENSION> | ref<PROPERTIES> | ref<ID>))) |
+                           member_word_text))) |
                   nest<ast::KeyAccess, &ast::KeyAccess::object>(
                       ref<DOT> + some(append<&ast::KeyAccess::parts>(
-                                     ref<KeyPartRule>)))  //
+                                     ref<KeyPart>)))  //
                   | nest<ast::MethodCall, &ast::MethodCall::object>(
                         ref<DOT> +
-                        assign<&ast::MethodCall::name>(identifier_text) +
+                        assign<&ast::MethodCall::name>(member_text) +
                         ref<LPAREN> +
                         option(some(
                             append<&ast::MethodCall::args>(ref<Expression>),
@@ -185,129 +175,92 @@ struct Mdx : cursiv::GrammarSpec {
 
   // factor: MINUS value_expression_primary | PLUS value_expression_primary
   //       | value_expression_primary -- the sign applies once, not stacked.
-  struct FactorRule : rule<create<ast::UnaryExpr>(
-                               assign<&ast::UnaryExpr::op>(ref<UnaryMinusOp>) +
+  struct Factor : rule<create<ast::UnaryExpr>(
+                               assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::minus>(lit<"-">)) +
                                assign<&ast::UnaryExpr::operand>(
                                    ref<ValueExpressionPrimary>))  //
                            | create<ast::UnaryExpr>(
-                                 assign<&ast::UnaryExpr::op>(ref<UnaryPlusOp>) +
+                                 assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::plus>(lit<"+">)) +
                                  assign<&ast::UnaryExpr::operand>(
                                      ref<ValueExpressionPrimary>))  //
                            | ref<ValueExpressionPrimary>> {};
 
-  // Microsoft's operator precedence table (highest to lowest): `*`,`/`,
-  // then `+`,`-`,`||`, then the comparisons -- tightest to loosest here too.
-  struct Term3Rule : infix<FactorRule, &ast::BinaryExpr::left,
-                           &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                           (left(ref<SOLIDUS> | ref<ASTERISK>) >>
-                            left(ref<CONCAT> | ref<PlusOp> | ref<MinusOp>) >>
-                            left(ref<EQ> | ref<NE> | ref<LT> | ref<GT> |
-                                 ref<LE> | ref<GE>))> {};
+  // One native precedence table serves every expression slot, including CASE.
+  struct Expression : infix<Factor, ast::BinaryExpr,
+      levels(left(as<ast::BinaryOp::is_>(ikw<"IS">)),
+             left(as<ast::BinaryOp::range>(lit<":">)),
+             left(as<ast::BinaryOp::power>(lit<"^">)),
+             left(as<ast::BinaryOp::divide>(lit<"/">) | as<ast::BinaryOp::multiply>(lit<"*">)),
+             left(as<ast::BinaryOp::concat>(lit<"||">) | as<ast::BinaryOp::add>(lit<"+">) | as<ast::BinaryOp::subtract>(lit<"-">)),
+             left(ref<EQ> | as<ast::BinaryOp::ne>(lit<"<>">) | as<ast::BinaryOp::lt>(lit<"<">) | as<ast::BinaryOp::gt>(lit<">">) | as<ast::BinaryOp::le>(lit<"<=">) | as<ast::BinaryOp::ge>(lit<">=">)),
+             prefix<ast::UnaryExpr>(ref<NOT>), left(ref<AND>), left(ref<XOR>), left(ref<OR>))> {};
+  struct ValueExpression : rule<ref<Expression>> {};
 
-  // term4: NOT term4 | term3 -- stacks, unlike the unary sign above.
-  struct Term4Rule
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<NOT>) +
-                 assign<&ast::UnaryExpr::operand>(ref<Term4Rule>))  //
-             | ref<Term3Rule>> {};
-
-  // Microsoft's table: AND, then XOR, then OR, each its own level.
-  struct ValueExpression
-      : infix<Term4Rule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<AND>) >> left(ref<XOR>) >> left(ref<OR>))> {};
-
-  // `:` (a range of members) ranks tighter than `*`/`/` on Microsoft's
-  // table, so it sits beside the unary sign, not around the whole ladder.
-  struct RangeRule
-      : infix<FactorRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<COLON>)> {};
-
-  // Term3Rule/Term4Rule above, rebuilt on RangeRule instead of FactorRule:
-  // `:` then reaches everywhere Expression does except a CASE branch,
-  // which reads ValueExpression -- built on Term4Rule, not this pair --
-  // instead.
-  struct RangeTerm3Rule
-      : infix<RangeRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<SOLIDUS> | ref<ASTERISK>) >>
-               left(ref<CONCAT> | ref<PlusOp> | ref<MinusOp>) >>
-               left(ref<EQ> | ref<NE> | ref<LT> | ref<GT> | ref<LE> |
-                    ref<GE>))> {};
-
-  struct RangeTerm4Rule
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<NOT>) +
-                 assign<&ast::UnaryExpr::operand>(ref<RangeTerm4Rule>))  //
-             | ref<RangeTerm3Rule>> {};
-
-  struct Expression
-      : infix<RangeTerm4Rule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<AND>) >> left(ref<XOR>) >> left(ref<OR>))> {};
-
-  struct SetSpecRule
+  struct SetSpec
       : rule<create<ast::SetFormula>(
-            ref<SET> + assign<&ast::SetFormula::name>(ref<NameRule>) + ref<AS> +
+            ref<SET> + assign<&ast::SetFormula::name>(ref<Name>) + ref<AS> +
             ((ref<QUOTE> + assign<&ast::SetFormula::expr>(ref<Expression>) +
               ref<QUOTE>)  //
              | assign<&ast::SetFormula::expr>(ref<Expression>)))> {};
 
-  struct MemberPropertyDefRule
+  struct MemberPropertyDef
       : rule<create<ast::MemberProperty>(
             assign<&ast::MemberProperty::name>(identifier_text) + ref<EQ> +
             assign<&ast::MemberProperty::value>(ref<ValueExpression>))> {};
 
-  struct MemberSpecRule
+  struct MemberSpec
       : rule<create<ast::MemberFormula>(
-            ref<MEMBER> + assign<&ast::MemberFormula::name>(ref<NameRule>) +
+            ref<MEMBER> + assign<&ast::MemberFormula::name>(ref<Name>) +
             ref<AS> +
             ((ref<QUOTE> +
               assign<&ast::MemberFormula::expr>(ref<ValueExpression>) +
               ref<QUOTE>)  //
              | assign<&ast::MemberFormula::expr>(ref<ValueExpression>)) +
-            ref<COMMA> +
-            option(some(append<&ast::MemberFormula::properties>(
-                            ref<MemberPropertyDefRule>),
-                        ref<COMMA>)))> {};
+            option(ref<COMMA> + some(append<&ast::MemberFormula::properties>(
+                            ref<MemberPropertyDef>), ref<COMMA>)))> {};
 
   // Writes into the caller's node (AxisSpec/SelectStatement): spliced as a
   // plain expression, not its own rule<>, or the generator sees two heads.
   static constexpr auto dim_props =
       option(ref<DIMENSION>) + ref<PROPERTIES> +
-      some(append<&ast::AxisSpec::dimProps>(ref<NameRule>), ref<COMMA>);
+      some(append<&ast::AxisSpec::dimProps>(ref<Name>), ref<COMMA>);
 
   struct AxisSpecRule
       : rule<create<ast::AxisSpec>(
             option(flag<&ast::AxisSpec::nonEmpty>(ref<NON>) + ref<EMPTY>) +
             assign<&ast::AxisSpec::expr>(ref<Expression>) + option(dim_props) +
             ref<ON> +
-            assign<&ast::AxisSpec::axisName>(ref<ID> | ref<AXIS_NUMBER>))> {};
+            ((flag<&ast::AxisSpec::axisFunction>(ikw<"AXIS">) + ref<LPAREN> +
+              assign<&ast::AxisSpec::axisName>(ref<AXIS_NUMBER>) + ref<RPAREN>) |
+             assign<&ast::AxisSpec::axisName>(ref<ID> | ref<AXIS_NUMBER>)))> {};
 
-  struct CellPropertyRule
+  struct CellProperty
       : rule<create<ast::CellProperty>(assign<&ast::CellProperty::name>(
             ref<CELL_ORDINAL> | ref<VALUE> | ref<FORMATTED_VALUE> |
             identifier_text))> {};
 
   static constexpr auto cell_props =
       option(ref<CELL>) + ref<PROPERTIES> +
-      some(append<&ast::SelectStatement::cellProps>(ref<CellPropertyRule>),
+      some(append<&ast::SelectStatement::cellProps>(ref<CellProperty>),
            ref<COMMA>);
 
   struct SelectStatementRule
       : rule<create<ast::SelectStatement>(
             option(ref<WITH> + some(append<&ast::SelectStatement::formulas>(
-                                   ref<MemberSpecRule> | ref<SetSpecRule>))) +
+                                   ref<MemberSpec> | ref<SetSpec>))) +
             ref<SELECT> +
-            option(some(append<&ast::SelectStatement::axes>(ref<AxisSpecRule>),
-                        ref<COMMA>)) +
-            ref<FROM> + assign<&ast::SelectStatement::cube>(ref<NameRule>) +
+            (flag<&ast::SelectStatement::all>(lit<"*">) | option(some(append<&ast::SelectStatement::axes>(ref<AxisSpecRule>),
+                        ref<COMMA>))) +
+            ref<FROM> + ((ref<LPAREN> + assign<&ast::SelectStatement::subquery>(ref<SelectStatementRule>) + ref<RPAREN>) |
+                        assign<&ast::SelectStatement::cube>(ref<Name>)) +
             option(ref<WHERE> +
                    assign<&ast::SelectStatement::slicer>(ref<Expression>)) +
             option(cell_props))> {};
 
-  using entry = SelectStatementRule;
-  using ignore = WS;
+  struct Query : rule<ref<SelectStatementRule> + option(lit<";">)> {};
+  using entry = Query;
+  using ignored = WS;
+  using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 
 }  // namespace mdx

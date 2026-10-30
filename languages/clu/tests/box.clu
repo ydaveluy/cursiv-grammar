@@ -1,8 +1,7 @@
-box = cluster t: type is make, get
-    where t has equal[]: proctype(t, t) returns (bool)
+box = cluster [t: type] is make, get
+    where t has equal: proctype(t, t) returns (bool)
     rep = record[val: t]
 
-    routine
 
     make = proc (v: t) returns (cvt)
         return(rep${val: v})

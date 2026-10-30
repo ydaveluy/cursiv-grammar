@@ -148,7 +148,8 @@ void PrologValidator::checkTerm(const ast::Term &node,
                      "prolog.float-range");
     }
   } else if (auto n = cursiv::ast_cast<ast::RationalTerm>(&node)) {
-    auto denominator = integerText(n->text.substr(n->text.find('r') + 1));
+    const auto source=numberSource(n->text);
+    auto denominator = integerText(std::string_view(source).substr(source.find('r') + 1));
     if (!denominator.valid || denominator.value == "0")
       accept.error(node, "A rational denominator must be a non-zero integer",
                    "prolog.rational");
@@ -176,6 +177,8 @@ void PrologValidator::checkTerm(const ast::Term &node,
         key = "a" + std::string(atom->value);
       else if (auto integer = cursiv::ast_cast<ast::IntegerTerm>(entry->key))
         key = "i" + std::string(integer->value);
+      else if (cursiv::ast_cast<ast::NilTerm>(entry->key))
+        key = "n"; // SWI's [] value is distinct from the quoted atom '[]'.
       else {
         accept.error(*entry->key, "A dict key must be an atom or integer",
                      "prolog.dict-key");
@@ -186,6 +189,12 @@ void PrologValidator::checkTerm(const ast::Term &node,
     }
     if (!n->tag)
       return;
+    if(const auto* tag=cursiv::ast_cast<ast::AtomTerm>(n->tag);
+       tag&&oneOf(tag->value,{"{}","!",";","|"})) {
+      const auto spelling=raw(*tag,"value",accept);
+      if(!spelling.empty()&&!spelling.starts_with('\''))
+        accept.error(*tag,"This dict tag must be quoted.","prolog.dict-tag");
+    }
     auto *document = node.getDocument();
     auto span = accept.spanOf(*n->tag);
     if (document && span.end < document->textDocument().getText().size() &&

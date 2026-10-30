@@ -147,6 +147,25 @@ int main() {
   const ast::Form* k3 = find(&covRoot, "(k3KeywordLevel");
   if (k3 == nullptr) return fail("coverage.edf: no k3KeywordLevel");
 
+  const ast::Form* version = find(&root, "(edifVersion");
+  if (!version || version->args.size() != 3 ||
+      !std::holds_alternative<double>(version->args[0]) ||
+      !std::holds_alternative<double>(version->args[1]) ||
+      !std::holds_alternative<double>(version->args[2]) ||
+      std::get<double>(version->args[0]) != 3 || std::get<double>(version->args[1]) != 0 ||
+      std::get<double>(version->args[2]) != 0)
+    return fail("source catalog version arguments changed");
+  const ast::Form* string = find(prop, "(string");
+  if (!string || string->args.size() != 1 || as_text(string->args[0]) != "hello there")
+    return fail("typed string property lost its argument");
+  for (const char* inserted : {"(and)", "(unknownNativeForm)"}) {
+    auto invalid = corpusText;
+    invalid.insert(invalid.find_last_of(')'), inserted);
+    const auto parsed = language.language.parser->parse(invalid);
+    if (parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty())
+      return fail("catalog accepted an unknown or misplaced form at the edif root");
+  }
+
   std::puts("edif300: the corpus and coverage documents parse");
   return 0;
 }

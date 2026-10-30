@@ -8,12 +8,12 @@ namespace rfc1035 {
 struct Rfc1035 : cursiv::GrammarSpec {
   struct LabelByte
       : terminal<(lit<"\\"> + option(any)) | (!(lit<"."> | lit<"\\">) + any)> {};
-  struct Label : rule<many(ref<LabelByte>), std::string_view> {};
-  struct DomainRule
+  struct Label : rule<as<std::string_view>(many(ref<LabelByte>))> {};
+  struct Domain
       : rule<create<ast::Domain>(
             some(append<&ast::Domain::labels>(ref<Label>), lit<".">))> {};
 
-  using entry = DomainRule;
+  using entry = Domain;
 };
 
 }  // namespace rfc1035

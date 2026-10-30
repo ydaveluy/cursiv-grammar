@@ -102,8 +102,8 @@ struct ClassLit : cursiv::Extends<Expr> {
   TypeRef* type;
 };
 
-// A SOQL/SOSL query, `[SELECT ...]`: kept as one opaque leaf, a balanced
-// `[`/`]` span with no parse inside it.
+// A SOQL/SOSL query, `[SELECT ...]` or `[FIND ...]`: one opaque leaf.
+// Quote-delimited ] is retained; embedded Apex bind arrays are not parsed.
 struct SoqlExpr : cursiv::Extends<Expr> {
   string_view text;
 };
@@ -218,14 +218,22 @@ struct AssignExpr : cursiv::Extends<Expr> {
 // expression, not only a statement.
 struct DmlExpr : cursiv::Extends<Expr> {
   string_view op;
+  string_view mode;  // `user` / `system` spelling after `as`, or empty
   Expr* value;
 };
 
 // `upsert x;`, `upsert x field;`: at most one field expression, the only
 // shape the language actually uses.
 struct UpsertExpr : cursiv::Extends<Expr> {
+  string_view mode;
   Expr* value;
   Expr* field;
+};
+
+struct MergeExpr : cursiv::Extends<Expr> {
+  string_view mode;
+  Expr* master;
+  Expr* duplicates;
 };
 
 // -- Initializers, declarators, parameters ----
@@ -309,6 +317,19 @@ struct ForEachStmt : cursiv::Extends<Stmt> {
   uint8 extraDims;
   Expr* iterable;
   Stmt* body;
+};
+
+struct SwitchWhen : cursiv::Extends<cursiv::AstNode> {
+  boolean isElse;
+  TypeRef* type;  // an sObject type binding, otherwise null
+  string_view name;
+  vector<Expr*> values;
+  Block* body;
+};
+
+struct SwitchStmt : cursiv::Extends<Stmt> {
+  Expr* value;
+  vector<SwitchWhen*> cases;
 };
 
 // `System.runAs(user) { ... }`.

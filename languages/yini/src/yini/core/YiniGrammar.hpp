@@ -7,8 +7,8 @@ namespace yini {
 
 struct Yini : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t)">)> {};
-  struct NL : terminal<lit<"\r\n"> | cr<R"(\r\n)">> {};
-  struct BLOCK_COMMENT : terminal<lit<"/*"> + many(!lit<"*/"> + any) + lit<"*/">> {};
+  struct NL : terminal<eol> {};
+  struct BLOCK_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
   struct SHEBANG : terminal<lit<"#!"> + many(cr<R"(^\r\n)">)> {};
   struct INLINE_COMMENT : terminal<(lit<"//"> | lit<"#">) + many(cr<R"(^\r\n)">)> {};
   struct LINE_COMMENT : terminal<(lit<";"> | lit<"--">) + many(cr<R"(^\r\n)">)> {};
@@ -17,7 +17,9 @@ struct Yini : cursiv::GrammarSpec {
   static constexpr auto word_boundary = cr<"a-zA-Z0-9_">;
   struct TAG : terminal<lit<"@"> + some(cr<"a-zA-Z_">)> {};
   struct END : terminal<ikw<"/END">> {};
-  struct MARKER : terminal<some(cr<"§<>€_0-9^">)> {};
+  struct MARKER
+      : terminal<(cr<"§<>€^"> + some(d) + &cr<" \t">) |
+                 (some(cr<"§<>€_^">) + !d)> {};
 
   static constexpr auto digits = d + many(option(lit<"_">) + d);
   static constexpr auto fraction = lit<"."> + digits;
@@ -29,17 +31,17 @@ struct Yini : cursiv::GrammarSpec {
       ((lit<"0z"> | lit<"0Z">) + some(cr<"0-9aAbBxXeE_">));
   struct NUMBER : terminal<option(cr<"+-">) + (based |
       (((digits + option(fraction)) | fraction) + option(exponent)))> {};
-  struct BOOLEAN : terminal<ikw<"true"> | ikw<"on"> | ikw<"yes"> |
-      ikw<"false"> | ikw<"off"> | ikw<"no">,
-      text_conv<[](std::string_view text) { return text.front() == 't' || text.front() == 'T' ||
-          text.front() == 'y' || text.front() == 'Y' || (text.size() == 2 &&
-          (text.back() == 'n' || text.back() == 'N')); }>> {};
-  struct NULL_LIT : terminal<ikw<"null">, value<std::monostate{}>> {};
+  struct BOOLEAN : terminal<as<[](std::string_view text) {
+    return text.front() == 't' || text.front() == 'T' || text.front() == 'y' ||
+           text.front() == 'Y' ||
+           (text.size() == 2 && (text.back() == 'n' || text.back() == 'N'));
+  }>(ikw<"true"> | ikw<"on"> | ikw<"yes"> | ikw<"false"> | ikw<"off"> |
+                   ikw<"no">)> {};
 
   static constexpr auto escaped = lit<"\\"> + any;
   static constexpr auto triple = lit<"\"\"\"">;
   static constexpr auto raw =
-      (triple + many(!triple + any) + triple) |
+      through(triple, triple) |
       (lit<"'"> + many(cr<R"(^'\r\n)">) + lit<"'">) |
       (lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">);
   static constexpr auto classic =
@@ -51,10 +53,10 @@ struct Yini : cursiv::GrammarSpec {
                     (lit<"\""> + many(cr<R"(^")">) + lit<"\"">)))> {};
 
   static constexpr auto gap = many(ref<NL> | ref<INLINE_COMMENT>);
-  static constexpr auto line_end = option(ref<INLINE_COMMENT>) + (some(ref<NL>) | !any);
+  static constexpr auto line_end = option(ref<INLINE_COMMENT>) + (some(ref<NL>) | eof);
   struct String : rule<assign<&ast::String::literal>(ref<STRING>)> {};
   struct Number : rule<assign<&ast::Number::literal>(ref<NUMBER>)> {};
-  static constexpr auto scalar = ref<String> | ref<Number> | ref<BOOLEAN> | ref<NULL_LIT>;
+  static constexpr auto scalar = ref<String> | ref<Number> | ref<BOOLEAN> | as<std::monostate{}>(ikw<"null">);
   struct Concat : rule<assign<&ast::Concat::first>(ref<String>) +
       some(lit<"+"> + gap + append<&ast::Concat::rest>(scalar))> {};
   struct List;
@@ -89,7 +91,7 @@ struct Yini : cursiv::GrammarSpec {
       ref<NL> | ref<INLINE_COMMENT>)> {};
 
   using entry = Document;
-  using ignore = list<WS, BLOCK_COMMENT>;
+  using ignored = list<WS, BLOCK_COMMENT>;
 };
 
 }  // namespace yini

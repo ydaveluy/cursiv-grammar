@@ -13,7 +13,6 @@ namespace focal {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 inline constexpr auto run_length = [](std::string_view t) {
   return static_cast<std::int64_t>(t.size());
@@ -22,24 +21,14 @@ inline constexpr auto run_length = [](std::string_view t) {
 inline constexpr auto bang_run = [](std::string_view t) {
   return ast::BangRun{run_length(t)};
 };
-using BangConv = cursiv::text_conv<bang_run>;
 
 inline constexpr auto hash_run = [](std::string_view t) {
   return ast::HashRun{run_length(t)};
 };
-using HashConv = cursiv::text_conv<hash_run>;
 
 inline constexpr auto plusmin_op = [](std::string_view t) {
   return t == "+" ? ast::Operator::add : ast::Operator::subtract;
 };
-using PlusMinConv = cursiv::text_conv<plusmin_op>;
-
-inline constexpr auto mulop_op = [](std::string_view t) {
-  if (t == "*") return ast::Operator::multiply;
-  if (t == "/") return ast::Operator::divide;
-  return ast::Operator::power;
-};
-using MulOpConv = cursiv::text_conv<mulop_op>;
 
 // The mantissa's parts read separately (a sign may sit before or after the
 // dot), so the value is assembled by hand rather than handed to strtod.
@@ -76,183 +65,215 @@ inline constexpr auto number_value = [](std::string_view t) {
     }
     value += whole_sign * frac_sign * frac / div;
   }
-  if (i < t.size() && t[i] == 'e') {
+  if (i < t.size() && (t[i] == 'e' || t[i] == 'E')) {
     ++i;
     const double exp_sign = read_sign();
     value *= std::pow(10.0, exp_sign * read_digits());
   }
   return value;
 };
-using NumberConv = cursiv::text_conv<number_value>;
 
 struct Focal : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \r\n\t)">)> {};
+  struct WS : terminal<some(cr<R"( \t)">)> {};
+  struct EOL : terminal<eol> {};
 
   static constexpr auto sign = option(cr<"+-">);
   static constexpr auto digits = some(d);
   static constexpr auto mantissa =
       (sign + digits + option(lit<"."> + option(sign + digits))) |
       (lit<"."> + sign + digits);
-  struct NUMBER : terminal<mantissa + option(lit<"e"> + sign + digits),
-                           NumberConv> {};
+  struct NUMBER : terminal<as<number_value>(
+                      mantissa + option(cr<"eE"> + sign + digits))> {};
 
-  struct PLUSMIN : terminal<cr<"+-">, PlusMinConv> {};
-  struct MULOP : terminal<cr<"*/^">, MulOpConv> {};
+  struct PLUSMIN : terminal<as<plusmin_op>(cr<"+-">)> {};
+  struct POWER : terminal<as<ast::Operator::power>(lit<"^">)> {};
+  struct MULTIPLY : terminal<as<ast::Operator::multiply>(lit<"*">)> {};
+  struct DIVIDE : terminal<as<ast::Operator::divide>(lit<"/">)> {};
 
-  struct BANG : terminal<some(lit<"!">), BangConv> {};
-  struct HASH : terminal<some(lit<"#">), HashConv> {};
+  struct BANG : terminal<as<bang_run>(some(lit<"!">))> {};
+  struct HASH : terminal<as<hash_run>(some(lit<"#">))> {};
 
   // Declared before VARIABLE so a builtin name wins the lexical tie at
   // `name(expr)`.
   struct BUILTIN
-      : terminal<kw<"fsin"> | kw<"fcos"> | kw<"fexp"> | kw<"flog"> |
-                 kw<"fatn"> | kw<"fsqt"> | kw<"fabs"> | kw<"fsgn"> |
-                 kw<"fitr"> | kw<"fran">> {};
+      : terminal<ikw<"fsin"> | ikw<"fcos"> | ikw<"fexp"> | ikw<"flog"> |
+                 ikw<"fatn"> | ikw<"fsqt"> | ikw<"fabs"> | ikw<"fsgn"> |
+                 ikw<"fitr">> {};
+  struct RANDOM_BUILTIN : terminal<ikw<"fran">> {};
 
   struct VARIABLE : terminal<cr<"A-Za-z"> + many(cr<"A-Za-z0-9">)> {};
 
-  struct INTEGER : terminal<some(d), std::int64_t> {};
+  struct INTEGER : terminal<as<std::int64_t>(some(d))> {};
 
-  struct STRING_LITERAL : terminal<through(lit<"\"">, lit<"\"">), Unquoted> {};
+  struct STRING_LITERAL : terminal<as<unquote>(through(lit<"\"">, lit<"\"">))> {
+  };
 
-  struct COMMENT : terminal<lit<"COMMENT"> + many(cr<R"(^\r\n)">)> {};
+  struct COMMENT : terminal<lit<"C"> + many(cr<R"(^\r\n)">)> {};
 
-  struct TermRule;
-  struct ExpressionRule
-      : infix<TermRule, &ast::BinaryExpression::left,
-              &ast::BinaryExpression::op, &ast::BinaryExpression::right,
-              (left(ref<MULOP>) >> left(ref<PLUSMIN>))> {};
+  struct Term;
+  struct Expression
+      : infix<Term, ast::BinaryExpression,
+              // DEC FOCAL 1969 gives multiplication priority over division:
+              // X/2*Y means X/(2*Y), manual section 2.4.
+              levels(left(ref<POWER>), left(ref<MULTIPLY>),
+                     left(ref<DIVIDE>), left(ref<PLUSMIN>))> {};
 
-  struct TermRule
+  struct Term
       : rule<create<ast::GroupedExpression>(
                  lit<"("> +
                  assign<&ast::GroupedExpression::expression>(
-                     ref<ExpressionRule>) +
+                     ref<Expression>) +
                  lit<")">) |
              create<ast::GroupedExpression>(
                  lit<"["> +
                  assign<&ast::GroupedExpression::expression>(
-                     ref<ExpressionRule>) +
+                     ref<Expression>) +
                  lit<"]">) |
              create<ast::GroupedExpression>(
                  lit<"<"> +
                  assign<&ast::GroupedExpression::expression>(
-                     ref<ExpressionRule>) +
+                     ref<Expression>) +
                  lit<">">) |
              create<ast::NumberLiteral>(
                  assign<&ast::NumberLiteral::value>(ref<NUMBER>)) |
              create<ast::BuiltinCall>(
                  assign<&ast::BuiltinCall::name>(ref<BUILTIN>) + lit<"("> +
-                 assign<&ast::BuiltinCall::arg>(ref<ExpressionRule>) +
+                 assign<&ast::BuiltinCall::arg>(ref<Expression>) +
                  lit<")">) |
+             create<ast::BuiltinCall>(
+                 assign<&ast::BuiltinCall::name>(ref<RANDOM_BUILTIN>) + lit<"("> +
+                 option(assign<&ast::BuiltinCall::arg>(ref<Expression>)) + lit<")">) |
              create<ast::IndexedVariable>(
                  assign<&ast::IndexedVariable::name>(ref<VARIABLE>) +
                  lit<"("> +
-                 assign<&ast::IndexedVariable::index>(ref<ExpressionRule>) +
+                 assign<&ast::IndexedVariable::index>(ref<Expression>) +
                  lit<")">) |
              create<ast::VariableRef>(
                  assign<&ast::VariableRef::name>(ref<VARIABLE>))> {};
 
-  struct LineNumberRule
+  struct LineNumber
       : rule<create<ast::LineNumber> +
              assign<&ast::LineNumber::group>(ref<INTEGER>) + lit<"."> +
              assign<&ast::LineNumber::line>(ref<INTEGER>)> {};
 
-  struct CommandRule;
+  struct Command;
 
-  struct AskPairRule
+  struct AskPair
       : rule<create<ast::AskPair> +
-             assign<&ast::AskPair::prompt>(ref<STRING_LITERAL>) + lit<","> +
+             option(assign<&ast::AskPair::prompt>(ref<STRING_LITERAL>) + lit<",">) +
              some(append<&ast::AskPair::variables>(ref<VARIABLE>), lit<",">)> {
   };
 
-  struct AskRule
+  struct Ask
       : rule<create<ast::AskCommand> + (kw<"ASK"> | kw<"A">) +
-             some(append<&ast::AskCommand::pairs>(ref<AskPairRule>),
-                  lit<",">)> {};
+             some(append<&ast::AskCommand::pairs>(ref<AskPair>),
+                  lit<",">) +
+             option(lit<";"> + assign<&ast::AskCommand::next>(ref<Command>))> {};
 
-  struct DoRule
+  struct Do
       : rule<create<ast::DoCommand> + (kw<"DO"> | kw<"D">) +
-             (flag<&ast::DoCommand::all>(kw<"all">) |
-              assign<&ast::DoCommand::target>(ref<LineNumberRule>) |
-              assign<&ast::DoCommand::group>(ref<INTEGER>))> {};
+             option(flag<&ast::DoCommand::all>(ikw<"all">) |
+              assign<&ast::DoCommand::target>(ref<LineNumber>) |
+              assign<&ast::DoCommand::group>(ref<INTEGER>)) +
+             option(lit<";"> + assign<&ast::DoCommand::next>(ref<Command>))> {};
 
-  struct ForRule
+  struct For
       : rule<create<ast::ForCommand> + (kw<"FOR"> | kw<"F">) +
              assign<&ast::ForCommand::variable>(ref<VARIABLE>) + lit<"="> +
-             assign<&ast::ForCommand::from>(ref<ExpressionRule>) + lit<","> +
-             assign<&ast::ForCommand::to>(ref<ExpressionRule>) +
+             assign<&ast::ForCommand::from>(ref<Expression>) +
              option(lit<","> +
-                    assign<&ast::ForCommand::step>(ref<ExpressionRule>)) +
+                    ((assign<&ast::ForCommand::step>(ref<Expression>) +
+                      lit<","> + assign<&ast::ForCommand::to>(ref<Expression>)) |
+                     assign<&ast::ForCommand::to>(ref<Expression>))) +
              lit<";"> +
-             assign<&ast::ForCommand::body>(ref<CommandRule>)> {};
+             assign<&ast::ForCommand::body>(ref<Command>)> {};
 
-  struct QuitRule : rule<create<ast::QuitCommand> + kw<"QUIT">> {};
+  struct Quit : rule<create<ast::QuitCommand> + (kw<"QUIT"> | kw<"Q">) +
+                    option(lit<";"> + assign<&ast::QuitCommand::next>(ref<Command>))> {};
 
-  struct SetRule
+  struct Set
       : rule<create<ast::SetCommand> + (kw<"SET"> | kw<"S">) +
-             assign<&ast::SetCommand::variable>(ref<VARIABLE>) + lit<"="> +
-             assign<&ast::SetCommand::value>(ref<ExpressionRule>) +
+             assign<&ast::SetCommand::variable>(ref<VARIABLE>) +
+             option(lit<"("> + assign<&ast::SetCommand::index>(ref<Expression>) + lit<")">) + lit<"="> +
+             assign<&ast::SetCommand::value>(ref<Expression>) +
              option(lit<";"> +
-                    assign<&ast::SetCommand::next>(ref<CommandRule>))> {};
+                    assign<&ast::SetCommand::next>(ref<Command>))> {};
 
-  struct GotoRule
-      : rule<create<ast::GotoCommand> + (kw<"GOTO"> | kw<"G">) +
-             option(assign<&ast::GotoCommand::target>(ref<LineNumberRule>))> {
+  struct Goto
+      : rule<create<ast::GotoCommand> + (kw<"GOTO"> | kw<"G"> | kw<"GO">) +
+             option(assign<&ast::GotoCommand::target>(ref<LineNumber>)) +
+             option(lit<";"> + assign<&ast::GotoCommand::next>(ref<Command>))> {
   };
 
-  struct IfRule
-      : rule<create<ast::IfCommand> + kw<"IF"> +
-             assign<&ast::IfCommand::condition>(ref<ExpressionRule>) +
-             assign<&ast::IfCommand::negative>(ref<LineNumberRule>) +
-             lit<","> +
-             assign<&ast::IfCommand::zero>(ref<LineNumberRule>) + lit<","> +
-             assign<&ast::IfCommand::positive>(ref<LineNumberRule>) +
+  struct If
+      : rule<create<ast::IfCommand> + (kw<"IF"> | kw<"I">) +
+             assign<&ast::IfCommand::condition>(ref<Expression>) +
+             assign<&ast::IfCommand::negative>(ref<LineNumber>) +
+             option(lit<","> + assign<&ast::IfCommand::zero>(ref<LineNumber>) +
+                    option(lit<","> +
+                           assign<&ast::IfCommand::positive>(ref<LineNumber>))) +
              option(lit<";"> +
-                    assign<&ast::IfCommand::next>(ref<CommandRule>))> {};
+                    assign<&ast::IfCommand::next>(ref<Command>))> {};
 
-  struct FormatSpecRule
-      : rule<create<ast::FormatSpec> + lit<"%"> +
-             assign<&ast::FormatSpec::width>(ref<INTEGER>) + lit<"."> +
-             assign<&ast::FormatSpec::decimals>(ref<INTEGER>)> {};
+  // Literal/terminal guards inspect adjacent bytes. A rule predicate would
+  // see the whole NUMBER token (5.2 or .2), and allow the format to close early.
+  struct FORMAT_WIDTH
+      : terminal<as<std::int64_t>(some(d) + !cr<"0-9.">)> {};
+  struct FormatSpec
+      : rule<create<ast::FormatSpec>(
+            (lit<"%"> + flag<&ast::FormatSpec::hasWidth>(
+                             assign<&ast::FormatSpec::width>(ref<INTEGER>)) +
+             flag<&ast::FormatSpec::hasDecimals>(lit<".">) +
+             assign<&ast::FormatSpec::decimals>(ref<INTEGER>)) |
+            (lit<"%"> + flag<&ast::FormatSpec::hasWidth>(
+                             assign<&ast::FormatSpec::width>(ref<FORMAT_WIDTH>))) |
+            lit<"%", !d>)> {};
 
-  static constexpr auto type_item = ref<ExpressionRule> | ref<BANG> |
+  struct DumpVariables : rule<create<ast::DumpVariables>(lit<"$">)> {};
+
+  static constexpr auto type_item = ref<Expression> | ref<BANG> |
                                     ref<HASH> | ref<STRING_LITERAL> |
-                                    ref<FormatSpecRule>;
+                                    ref<FormatSpec> | ref<DumpVariables>;
 
-  struct TypeRule
+  struct Type
       : rule<create<ast::TypeCommand> + (kw<"TYPE"> | kw<"T">) +
-             some(append<&ast::TypeCommand::items>(type_item), lit<",">) +
+             append<&ast::TypeCommand::items>(type_item) +
+             many(option(lit<",">) + append<&ast::TypeCommand::items>(type_item)) +
              option(lit<";"> +
-                    assign<&ast::TypeCommand::next>(ref<CommandRule>))> {};
+                    assign<&ast::TypeCommand::next>(ref<Command>))> {};
 
-  struct ReturnRule : rule<create<ast::ReturnCommand> + kw<"RETURN">> {};
+  struct Return : rule<create<ast::ReturnCommand> + (kw<"RETURN"> | kw<"R">) +
+                      option(lit<";"> + assign<&ast::ReturnCommand::next>(ref<Command>))> {};
 
-  struct WriteRule
-      : rule<create<ast::WriteCommand> + kw<"WRITE"> +
-             option(assign<&ast::WriteCommand::target>(ref<LineNumberRule>) |
-                    assign<&ast::WriteCommand::group>(ref<INTEGER>))> {};
+  struct Write
+      : rule<create<ast::WriteCommand> + (kw<"WRITE"> | kw<"W">) +
+             option(flag<&ast::WriteCommand::all>(ikw<"all">) |
+                    assign<&ast::WriteCommand::target>(ref<LineNumber>) |
+                    assign<&ast::WriteCommand::group>(ref<INTEGER>)) +
+             option(lit<";"> + assign<&ast::WriteCommand::next>(ref<Command>))> {};
 
-  struct CommentRule
+  struct Comment
       : rule<create<ast::CommentCommand> +
              assign<&ast::CommentCommand::text>(ref<COMMENT>)> {};
 
-  struct CommandRule
-      : rule<ref<AskRule> | ref<DoRule> | ref<ForRule> | ref<SetRule> |
-             ref<QuitRule> | ref<GotoRule> | ref<IfRule> | ref<TypeRule> |
-             ref<ReturnRule> | ref<WriteRule> | ref<CommentRule>> {};
+  struct Command
+      : rule<ref<Ask> | ref<Do> | ref<For> | ref<Set> |
+             ref<Quit> | ref<Goto> | ref<If> | ref<Type> |
+             ref<Return> | ref<Write> | ref<Comment>> {};
 
-  struct StatementRule
+  struct Statement
       : rule<create<ast::Statement> +
-             assign<&ast::Statement::number>(ref<LineNumberRule>) +
-             assign<&ast::Statement::command>(ref<CommandRule>)> {};
+             assign<&ast::Statement::number>(ref<LineNumber>) +
+             assign<&ast::Statement::command>(ref<Command>)> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program> +
-             some(append<&ast::Program::statements>(ref<StatementRule>))> {};
+             many(ref<EOL>) +
+             some(append<&ast::Program::statements>(ref<Statement>), some(ref<EOL>)) +
+             many(ref<EOL>)> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
 };
 
 }  // namespace focal

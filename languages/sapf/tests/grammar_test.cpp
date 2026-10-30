@@ -1,3 +1,4 @@
+#include "native_regressions.hpp"
 // The grammar's smoke test: every document under example/ parses clean (no
 // repair) and builds a File root.
 
@@ -33,6 +34,8 @@ int main() {
   const auto language = cursiv::create_language<
       sapf::SapfCoreServices, sapf::SapfSharedCoreServices,
       sapf::install_core_module>();
+
+  if (!sapf_native_regressions(language)) return 1;
 
   for (const char* const path : kExamples) {
     std::ifstream file(path);

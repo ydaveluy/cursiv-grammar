@@ -52,7 +52,8 @@ implementation
 }
 ```
 
-nesC ([TinyOS](https://github.com/tinyos)) wires components (`module`s and
+The port models a shell of nesC1.3 textual syntax
+([TinyOS](https://github.com/tinyos)) and wires components (`module`s and
 `configuration`s) through the interfaces they `use` and `provide`; a
 `configuration`'s `implementation` lists `components` and wires them with
 `->`/`<-`. A module's body is event/task/command declarations and ordinary

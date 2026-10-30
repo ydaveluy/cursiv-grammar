@@ -12,7 +12,7 @@ struct Morsecode : cursiv::GrammarSpec {
   struct SPACE : terminal<lit<" ">> {};
 
   template <cursiv::str Pattern, std::uint8_t Character>
-  using Symbol = terminal<lit<Pattern>, value<Character>>;
+  using Symbol = terminal<as<Character>(lit<Pattern>)>;
 
   static constexpr auto LetterValue =
       ref<Symbol<".-", 'a'>> | ref<Symbol<"-...", 'b'>> |
@@ -48,14 +48,16 @@ struct Morsecode : cursiv::GrammarSpec {
       ref<Symbol<"----", 0xAA>> | ref<Symbol<"--..-", 0xAE>> |
       ref<Symbol<"...-.-", '<'>> | ref<Symbol<"-...-.-", '>'>> |
       ref<Symbol<"...-.", '!'>> | ref<Symbol<".-...", '&'>> |
-      ref<Symbol<"-.-.-", '^'>> | ref<Symbol<".-.-..", '~'>>;
+      ref<Symbol<"-.-.-", '^'>> | ref<Symbol<".-.-..", '~'>> |
+      // The ITU error signal is an erasure; the byte AST uses backspace.
+      ref<Symbol<"........", '\b'>>;
 
   struct MorsecodeRule
       : rule<append<&ast::Message::letters>(LetterValue) +
              many(ref<SPACE> + append<&ast::Message::letters>(LetterValue))> {};
 
   using entry = MorsecodeRule;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 }  // namespace morsecode

@@ -12,14 +12,31 @@
 namespace caql {
 
 inline constexpr auto unescape_string =
-    [](std::string_view t, std::pmr::memory_resource* mem) -> std::string_view {
-  const std::string_view body = t.substr(1, t.size() - 2);
-  if (body.find('\\') == std::string_view::npos) return body;
+    [](std::string_view t, std::pmr::memory_resource* mem)
+        -> cursiv::ConversionResult<std::string_view> {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  const bool percent = t.front() == 'p';
+  const auto start = percent ? 2u : 1u;
+  const std::string_view body = t.substr(start, t.size() - start - 1);
+  if (body.find(percent ? '%' : '\\') == std::string_view::npos)
+    return Result::ok(body);
   const std::span<char> room = cursiv::text_room(mem, body.size());
+  const auto hex = [](char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+  };
   std::size_t n = 0;
   for (std::size_t i = 0; i < body.size(); ++i) {
     char c = body[i];
-    if (c == '\\' && i + 1 < body.size()) {
+    if (percent && c == '%') {
+      if (i + 2 >= body.size() || hex(body[i + 1]) < 0 ||
+          hex(body[i + 2]) < 0)
+        return Result::err("Expected two hex digits after % in a CAQL string.");
+      c = static_cast<char>(hex(body[i + 1]) * 16 + hex(body[i + 2]));
+      i += 2;
+    } else if (!percent && c == '\\' && i + 1 < body.size()) {
       ++i;
       switch (body[i]) {
         case 'n': c = '\n'; break;
@@ -30,29 +47,27 @@ inline constexpr auto unescape_string =
     }
     room[n++] = c;
   }
-  return std::string_view(room.data(), n);
+  return Result::ok(std::string_view(room.data(), n));
 };
-using Unescaped = cursiv::text_conv<unescape_string>;
 
 struct Caql : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"(\r\t\n )">)> {};
 
-  // NAME is lowercase-only and carries a colon, so a keyword's guard must
-  // extend across both or it fires inside a longer name (`and:foo`).
-  static constexpr auto word_boundary = cr<"a-z0-9_:">;
+  static constexpr auto word_boundary = cr<"a-zA-Z0-9_:">;
 
-  struct NAME : terminal<cr<"a-z_:"> + many(cr<"a-z0-9_:">)> {};
+  struct NAME : terminal<cr<"a-zA-Z_:"> + many(cr<"a-zA-Z0-9_:">)> {};
 
   static constexpr auto NumeralBody = some(d) + option(lit<"."> + some(d));
   struct NUMBER
-      : terminal<NumeralBody + option(lit<"e"> + option(cr<"-+">) + NumeralBody),
-                 double> {};
+      : terminal<as<double>(NumeralBody + option(lit<"e"> + option(cr<"-+">) +
+                                                 NumeralBody))> {};
 
   struct STRING
-      : terminal<(lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\)">) + lit<"'">) |
-                     (lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) +
-                      lit<"\"">),
-                 Unescaped> {};
+      : terminal<as<unescape_string>(
+            option(lit<"p">) +
+            ((lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\)">) + lit<"'">) |
+            (lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) +
+             lit<"\"">)))> {};
 
   static constexpr auto HexDigit = cr<"0-9a-fA-F">;
   struct UUID
@@ -61,21 +76,22 @@ struct Caql : cursiv::GrammarSpec {
                      repeat<4>(HexDigit) + lit<"-"> + repeat<12>(HexDigit)> {
   };
 
-  struct DURATION : terminal<some(d) + cr<"smhdwy">> {};
+  static constexpr auto DurationUnit =
+      lit<"seconds"> | lit<"second"> | lit<"sec"> | lit<"s"> |
+      lit<"minutes"> | lit<"minute"> | lit<"min"> | cr<"mM"> |
+      lit<"hours"> | lit<"hour"> | lit<"hr"> | lit<"h"> |
+      lit<"days"> | lit<"day"> | lit<"d"> |
+      lit<"weeks"> | lit<"week"> | lit<"wk"> | lit<"w">;
+  static constexpr auto DurationPart =
+      option(cr<"+-">) + NumeralBody + DurationUnit;
+  struct DURATION
+      : terminal<DurationPart +
+                 many(many(cr<R"( \t)">) + DurationPart)> {};
+  struct CONSTANT : terminal<kw<"VIEW_PERIOD"> | kw<"VIEW_RANGE">> {};
+  struct DIRECTIVE
+      : terminal<lit<"#"> + some(cr<R"(^\r\n)">) + (eol | eof)> {};
 
-  struct ADD : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct SUB : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct MULT : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIV : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct MOD : terminal<lit<"%">, value<ast::Operator::modulo>> {};
-  struct POW : terminal<lit<"^">, value<ast::Operator::pow>> {};
 
-  struct DEQ : terminal<lit<"==">, value<ast::Operator::deq>> {};
-  struct NE : terminal<lit<"!=">, value<ast::Operator::ne>> {};
-  struct GT : terminal<lit<">">, value<ast::Operator::gt>> {};
-  struct LT : terminal<lit<"<">, value<ast::Operator::lt>> {};
-  struct GE : terminal<lit<">=">, value<ast::Operator::ge>> {};
-  struct LE : terminal<lit<"<=">, value<ast::Operator::le>> {};
 
   // Plain text (no operator value): each is also a legal name, so it is
   // spelled once and referenced from both positions.
@@ -90,15 +106,7 @@ struct Caql : cursiv::GrammarSpec {
   struct GROUP_RIGHT : terminal<kw<"group_right">> {};
   struct OFFSET : terminal<kw<"offset">> {};
   struct BOOL : terminal<kw<"bool">> {};
-
-  // `[a-z_:][a-z0-9_:]*` already excludes `=`, so no word-boundary guard
-  // is needed to keep this out of a name.
-  struct LIMIT : terminal<lit<"limit=">> {};
-
-  struct AndOp : rule<ref<AND>, value<ast::Operator::logical_and>> {};
-  struct UnlessOp : rule<ref<UNLESS>, value<ast::Operator::logical_unless>> {
-  };
-  struct OrOp : rule<ref<OR>, value<ast::Operator::logical_or>> {};
+  struct NOT : terminal<kw<"not">> {};
 
   struct Expression;
 
@@ -106,19 +114,23 @@ struct Caql : cursiv::GrammarSpec {
   struct Name
       : rule<ref<NAME> | ref<AND> | ref<OR> | ref<UNLESS> | ref<BY> |
              ref<WITHOUT> | ref<ON> | ref<IGNORING> | ref<GROUP_LEFT> |
-             ref<GROUP_RIGHT> | ref<OFFSET> | ref<BOOL>> {};
+             ref<GROUP_RIGHT> | ref<OFFSET> | ref<BOOL> | ref<NOT>> {};
 
-  struct NumberLitRule
+  struct NumberLit
       : rule<create<ast::NumberLit>(
             assign<&ast::NumberLit::value>(ref<NUMBER>))> {};
-  struct StringLitRule
+  struct StringLit
       : rule<create<ast::StringLit>(
             assign<&ast::StringLit::value>(ref<STRING>))> {};
-  struct UuidLitRule
+  struct UuidLit
       : rule<create<ast::UuidLit>(assign<&ast::UuidLit::value>(ref<UUID>))> {
   };
+  struct DurationLit
+      : rule<assign<&ast::DurationLit::text>(ref<DURATION>)> {};
+  struct ConstantLit
+      : rule<assign<&ast::ConstantLit::name>(ref<CONSTANT>)> {};
 
-  struct GroupingRule
+  struct Grouping
       : rule<create<ast::Grouping>(
             (flag<&ast::Grouping::ignoring>(ref<IGNORING>) | ref<ON>) +
             lit<"("> +
@@ -132,48 +144,58 @@ struct Caql : cursiv::GrammarSpec {
                             lit<",">) +
                        lit<")">))))> {};
 
-  struct BraceExprRule
+  struct BraceExpr
       : rule<create<ast::BraceExpr>(
             assign<&ast::BraceExpr::name>(ref<Name>) + lit<"{"> +
             some(append<&ast::BraceExpr::operands>(ref<Expression>),
                  lit<",">) +
             lit<"}">)> {};
 
-  struct CallArgFirstRule
-      : rule<create<ast::CallArg>(assign<&ast::CallArg::value>(
-            ref<NumberLitRule> | ref<StringLitRule> | ref<UuidLitRule>))> {};
-  struct CallArgRule
+  struct CallArg
       : rule<create<ast::CallArg>(
-            option(flag<&ast::CallArg::limit>(ref<LIMIT>)) +
-            assign<&ast::CallArg::value>(
-                ref<NumberLitRule> | ref<StringLitRule> |
-                ref<UuidLitRule>))> {};
+            option((flag<&ast::CallArg::limit>(
+                        assign<&ast::CallArg::name>(kw<"limit">)) |
+                    assign<&ast::CallArg::name>(ref<Name>)) + lit<"=">) +
+            assign<&ast::CallArg::value>(ref<Expression>))> {};
 
-  struct CallExprRule
+  template <auto Args, auto Sources>
+  static constexpr auto CallBody =
+      (lit<"("> + many(append<Args>(ref<CallArg>), lit<",">) + lit<")"> +
+       option(lit<"{"> +
+              many(append<Sources>(ref<Expression>), lit<",">) + lit<"}">)) |
+      (lit<"{"> + many(append<Sources>(ref<Expression>), lit<",">) + lit<"}">);
+
+  struct CallExpr
       : rule<create<ast::CallExpr>(
-            assign<&ast::CallExpr::name>(ref<Name>) + lit<"("> +
-            append<&ast::CallExpr::args>(ref<CallArgFirstRule>) +
-            many(lit<","> +
-                 append<&ast::CallExpr::args>(ref<CallArgRule>)) +
-            lit<")">)> {};
+            assign<&ast::CallExpr::name>(ref<Name>) +
+            CallBody<&ast::CallExpr::args, &ast::CallExpr::sources>)> {};
 
   struct Atom
-      : rule<ref<BraceExprRule>  //
-             | ref<CallExprRule>  //
-             | ref<NumberLitRule>  //
-             | ref<StringLitRule>  //
-             | ref<UuidLitRule>  //
+      : rule<ref<BraceExpr>  //
+             | ref<CallExpr>  //
+             | ref<NumberLit>  //
+             | ref<DurationLit>
+             | ref<ConstantLit>
+             | ref<StringLit>  //
+             | ref<UuidLit>  //
              | (lit<"("> + ref<Expression> + lit<")">)> {};
+
+  struct HighNot
+      : rule<create<ast::UnaryExpr>(
+                 assign<&ast::UnaryExpr::op>(
+                     as<ast::Operator::logical_not>(lit<"!">)) +
+                 assign<&ast::UnaryExpr::operand>(ref<HighNot>)) |
+             ref<Atom>> {};
 
   // Right-associative, tightest: `a^b^c` is `a^(b^c)`.
   struct PowExpr
       : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<Atom>) +
-                 assign<&ast::BinaryExpr::op>(ref<POW>) +
+                 assign<&ast::BinaryExpr::left>(ref<HighNot>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::pow>(lit<"^">)) +
                  option(
-                     assign<&ast::BinaryExpr::matching>(ref<GroupingRule>)) +
+                     assign<&ast::BinaryExpr::matching>(ref<Grouping>)) +
                  assign<&ast::BinaryExpr::right>(ref<PowExpr>))  //
-             | ref<Atom>> {};
+             | ref<HighNot>> {};
 
   // A subquery range chains: `expr[1h:5m][1d:1h]` applies the second range
   // to the first's own result.
@@ -188,77 +210,82 @@ struct Caql : cursiv::GrammarSpec {
                         assign<&ast::Subquery::offset>(ref<DURATION>))))> {};
 
   // Prefix, binds tighter than `*`/`/`/`%` and looser than `^`.
-  struct UnaryExprRule
+  struct UnaryExpr
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<ADD> | ref<SUB>) +
-                 assign<&ast::UnaryExpr::operand>(ref<UnaryExprRule>))  //
+                 assign<&ast::UnaryExpr::op>(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">)) +
+                 assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
              | ref<Subqueried>> {};
 
   struct MultExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<MultExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<MULT> | ref<DIV> |
-                                              ref<MOD>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">) |
+                                              as<ast::Operator::modulo>(lit<"%">)) +
                  option(
-                     assign<&ast::BinaryExpr::matching>(ref<GroupingRule>)) +
-                 assign<&ast::BinaryExpr::right>(ref<UnaryExprRule>))  //
-             | ref<UnaryExprRule>> {};
+                     assign<&ast::BinaryExpr::matching>(ref<Grouping>)) +
+                 assign<&ast::BinaryExpr::right>(ref<UnaryExpr>))  //
+             | ref<UnaryExpr>> {};
 
   struct AddExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<AddExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<ADD> | ref<SUB>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">)) +
                  option(
-                     assign<&ast::BinaryExpr::matching>(ref<GroupingRule>)) +
+                     assign<&ast::BinaryExpr::matching>(ref<Grouping>)) +
                  assign<&ast::BinaryExpr::right>(ref<MultExpr>))  //
              | ref<MultExpr>> {};
 
   struct CompareExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<CompareExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<DEQ> | ref<NE> | ref<GT> |
-                                              ref<LT> | ref<GE> | ref<LE>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::deq>(lit<"==">) | as<ast::Operator::ne>(lit<"!=">) | as<ast::Operator::gt>(lit<">">) |
+                                              as<ast::Operator::lt>(lit<"<">) | as<ast::Operator::ge>(lit<">=">) | as<ast::Operator::le>(lit<"<=">)) +
                  option(flag<&ast::BinaryExpr::boolMod>(ref<BOOL>)) +
                  option(
-                     assign<&ast::BinaryExpr::matching>(ref<GroupingRule>)) +
+                     assign<&ast::BinaryExpr::matching>(ref<Grouping>)) +
                  assign<&ast::BinaryExpr::right>(ref<AddExpr>))  //
              | ref<AddExpr>> {};
 
   struct AndUnlessExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<AndUnlessExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<AndOp> | ref<UnlessOp>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::logical_and>(ref<AND>) | as<ast::Operator::logical_unless>(ref<UNLESS>)) +
                  option(
-                     assign<&ast::BinaryExpr::matching>(ref<GroupingRule>)) +
+                     assign<&ast::BinaryExpr::matching>(ref<Grouping>)) +
                  assign<&ast::BinaryExpr::right>(ref<CompareExpr>))  //
              | ref<CompareExpr>> {};
 
   struct OrExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<OrExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<OrOp>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::logical_or>(ref<OR>)) +
                  option(
-                     assign<&ast::BinaryExpr::matching>(ref<GroupingRule>)) +
+                     assign<&ast::BinaryExpr::matching>(ref<Grouping>)) +
                  assign<&ast::BinaryExpr::right>(ref<AndUnlessExpr>))  //
              | ref<AndUnlessExpr>> {};
+
+  struct LowNot
+      : rule<create<ast::UnaryExpr>(
+                 assign<&ast::UnaryExpr::op>(
+                     as<ast::Operator::logical_not>(ref<NOT>)) +
+                 assign<&ast::UnaryExpr::operand>(ref<LowNot>)) |
+             ref<OrExpr>> {};
 
   // Loosest: the `| name(args)` metrics-aggregation pipe, chainable.
   struct Expression
       : rule<create<ast::PipeExpr>(
                  assign<&ast::PipeExpr::operand>(ref<Expression>) +
                  lit<"|"> + assign<&ast::PipeExpr::name>(ref<Name>) +
-                 lit<"("> +
-                 many(append<&ast::PipeExpr::args>(ref<Expression>),
-                      lit<",">) +
-                 lit<")">)  //
-             | ref<OrExpr>> {};
+                 CallBody<&ast::PipeExpr::args, &ast::PipeExpr::sources>)  //
+             | ref<LowNot>> {};
 
-  struct QueryRule
+  struct Query
       : rule<create<ast::Query>(
+            many(append<&ast::Query::directives>(ref<DIRECTIVE>)) +
             assign<&ast::Query::expression>(ref<Expression>))> {};
 
-  using entry = QueryRule;
-  using ignore = WS;
+  using entry = Query;
+  using ignored = WS;
 };
 
 }  // namespace caql

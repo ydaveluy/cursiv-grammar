@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Cap'n Proto schemas contain structs, interfaces, enums, unions, groups and constants.
+
 ```
 @0x9eb32e19f86ee174;
 
@@ -66,10 +68,6 @@ struct AddressBook {
   people @0 :List(Person);
 }
 ```
-
-The Cap'n Proto schema language: structs, interfaces, enums, unions, groups,
-generics and const declarations. The parsed schema is represented by a
-`Document`.
 
 ## The command line
 

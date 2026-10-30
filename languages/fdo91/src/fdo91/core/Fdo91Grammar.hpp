@@ -31,7 +31,6 @@ inline constexpr auto unquote = [](std::string_view text,
   }
   return std::string_view(room.data(), size);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Fdo91 : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -47,43 +46,43 @@ struct Fdo91 : cursiv::GrammarSpec {
   struct HEX
       : terminal<(option(lit<"-">) + d + many(cr<"0-9a-fA-F">) + cr<"xX">) |
                  (cr<"a-fA-F"> + many(cr<"0-9a-fA-F">) + lit<"x">)> {};
-  struct STRING
-      : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) + lit<"\"">,
-                 Unquoted> {};
+  struct STRING : terminal<as<unquote>(
+                      lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) +
+                      lit<"\"">)> {};
 
-  struct IdentRule : rule<assign<&ast::Ident::text>(ref<ID>)> {};
-  struct NumberRule : rule<assign<&ast::Number::text>(ref<NUMBER>)> {};
-  struct HexRule : rule<assign<&ast::Hex::text>(ref<HEX>)> {};
-  struct GidRule : rule<assign<&ast::Gid::text>(ref<GID>)> {};
+  struct Ident : rule<assign<&ast::Ident::text>(ref<ID>)> {};
+  struct Number : rule<assign<&ast::Number::text>(ref<NUMBER>)> {};
+  struct Hex : rule<assign<&ast::Hex::text>(ref<HEX>)> {};
+  struct Gid : rule<assign<&ast::Gid::text>(ref<GID>)> {};
 
-  struct AtomRule;
-  struct AtomGroupRule
-      : rule<some(append<&ast::AtomGroup::atoms>(ref<AtomRule>))> {};
-  struct NestedGroupRule
-      : rule<lit<"<"> + many(append<&ast::AtomGroup::atoms>(ref<AtomRule>)) +
+  struct Atom;
+  struct AtomGroup
+      : rule<some(append<&ast::AtomGroup::atoms>(ref<Atom>))> {};
+  struct NestedGroup
+      : rule<lit<"<"> + many(append<&ast::AtomGroup::atoms>(ref<Atom>)) +
              lit<">">> {};
 
   static constexpr auto literal =
-      ref<IdentRule> | ref<NumberRule> | ref<STRING> | ref<GidRule> | ref<HexRule>;
-  struct PipedRule
+      ref<Ident> | ref<Number> | ref<STRING> | ref<Gid> | ref<Hex>;
+  struct Piped
       : rule<append<&ast::Piped::parts>(literal) +
              some(lit<"|"> + append<&ast::Piped::parts>(literal))> {};
   static constexpr auto arg =
-      ref<PipedRule> | literal | ref<NestedGroupRule> | ref<AtomGroupRule>;
+      ref<Piped> | literal | ref<NestedGroup> | ref<AtomGroup>;
   static constexpr auto arguments =
       flag<&ast::Atom::bracketed>(lit<"<">) +
       option(some(append<&ast::Atom::args>(arg), lit<",">)) + lit<">">;
   static constexpr auto command = assign<&ast::Atom::command>(ref<ID>);
 
-  struct AtomRule
+  struct Atom
       : rule<(flag<&ast::Atom::atomPrefix>(lit<"atom$">) + command +
               option(arguments | some(append<&ast::Atom::args>(literal)))) |
              (command + option(arguments))> {};
 
-  struct DocRule : rule<many(append<&ast::Doc::atoms>(ref<AtomRule>))> {};
+  struct Doc : rule<many(append<&ast::Doc::atoms>(ref<Atom>))> {};
 
-  using entry = DocRule;
-  using ignore = list<WS, COMMENT>;
+  using entry = Doc;
+  using ignored = list<WS, COMMENT>;
 };
 
 }  // namespace fdo91

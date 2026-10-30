@@ -31,20 +31,10 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[WLN](https://en.wikipedia.org/wiki/Wiswesser_line_notation) writes a
-molecule as a line of single-character symbols, each one an atom, a bond or
-a ring feature:
+Wiswesser Line Notation as a source syntax tree, with selected structural checks rather than full chemical interpretation.
 
 ```
-QVYZ1R
-```
-
-Phenylalanine: `Q` hydroxyl, `V` carbonyl, `Y` a branching carbon, `Z` amino,
-`1` a chain of one carbon, `R` a benzene ring. Several such groups, separated
-by one space, describe a mixture:
-
-```
-1H Q1
+WLN: QVYZ1R	Phenylalanine
 ```
 
 ## The command line

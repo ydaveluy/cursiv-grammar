@@ -34,12 +34,18 @@ struct Term : cursiv::Extends<Expr> {
 struct Query;
 struct GroupingExpr : cursiv::Extends<Expr> {
   Query *query = nullptr;
+  string_view minimumShouldMatch;
   vector<Suffix *> suffixes;
+};
+struct IntervalExpr : cursiv::Extends<Expr> {
+  string_view function;
+  vector<Expr*> arguments;
 };
 struct Clause : cursiv::Extends<cursiv::AstNode> {
   Conjunction conjunction = Conjunction::none;
   Modifier modifier = Modifier::none;
   string_view field;
+  string_view fieldOperator;
   Expr *value = nullptr;
 };
 struct Query : cursiv::Extends<cursiv::AstNode> {

@@ -27,32 +27,30 @@ struct Capnproto : cursiv::GrammarSpec {
       lit<"\\"> + (cr<R"(abfnrtv'"\\?)"> |
                    (lit<"x"> + repeat<2, 2>(cr<"0-9a-fA-F">)) |
                    repeat<1, 3>(cr<"0-7">));
-  struct TEXT : terminal<lit<"\""> + many(Escape | cr<R"(^"\\\n)">) + lit<"\"">,
-                         cursiv::text_conv<decode_text>> {};
-  struct LINE_TEXT : terminal<lit<"`"> + many(cr<R"(^\r\n)">),
-                              cursiv::text_conv<decode_text>> {};
+  struct TEXT : terminal<as<decode_text>(
+                    lit<"\""> + many(Escape | cr<R"(^"\\\n)">) + lit<"\"">)> {};
+  struct LINE_TEXT
+      : terminal<as<decode_text>(lit<"`"> + many(cr<R"(^\r\n)">))> {};
   struct INTEGER : terminal<(lit<"0x"> + some(cr<"0-9a-fA-F">)) | some(d)> {};
   struct FLOAT
       : terminal<some(d) + ((lit<"."> + many(d) +
                              option(cr<"eE"> + option(cr<"+-">) + some(d))) |
                             (cr<"eE"> + option(cr<"+-">) + some(d)))> {};
   struct BYTES
-      : terminal<lit<"0x\""> + many(s) +
-                     many(repeat<2, 2>(cr<"0-9a-fA-F">) + many(s)) + lit<"\"">,
-                 cursiv::text_conv<decode_bytes>> {};
+      : terminal<as<decode_bytes>(
+            lit<"0x\""> + many(s) +
+            many(repeat<2, 2>(cr<"0-9a-fA-F">) + many(s)) + lit<"\"">)> {};
   struct Expression;
-  struct DeclRule;
-  struct AnnotationRule;
-  struct TupleFieldRule
+  struct Decl;
+  struct Annotation;
+  struct TupleField
       : rule<create<ast::ConstFieldAssign>(
             option(assign<&ast::ConstFieldAssign::name>(Name) + lit<"=">) +
             assign<&ast::ConstFieldAssign::value>(ref<Expression>))> {};
   static constexpr auto TupleFields = option(
-      some(append<&ast::ConstStruct::fields>(ref<TupleFieldRule>), lit<",">) +
+      some(append<&ast::ConstStruct::fields>(ref<TupleField>), lit<",">) +
       option(lit<",">));
-  struct TextValue
-      : rule<some(ref<TEXT> | ref<LINE_TEXT>), cursiv::parts_conv<join_text>> {
-  };
+  struct TextValue : rule<as<join_text>(some(ref<TEXT> | ref<LINE_TEXT>))> {};
   struct NameRule : rule<create<ast::NameExpr>(
                         option(flag<&ast::NameExpr::absolute>(lit<".">)) +
                         assign<&ast::NameExpr::name>(Name))> {};
@@ -88,27 +86,27 @@ struct Capnproto : cursiv::GrammarSpec {
       nest<ast::ApplicationExpr, &ast::ApplicationExpr::function>(
           lit<"("> +
           option(
-              some(append<&ast::ApplicationExpr::params>(ref<TupleFieldRule>),
+              some(append<&ast::ApplicationExpr::params>(ref<TupleField>),
                    lit<",">) +
               option(lit<",">)) +
           lit<")">);
   struct Expression : rule<ref<BaseExpr> + many(Suffix)> {};
-  struct IdRule
+  struct Id
       : rule<create<ast::Id>(lit<"@"> + assign<&ast::Id::text>(ref<INTEGER>))> {
   };
-  struct AnnotationRule
+  struct Annotation
       : rule<create<ast::AnnotationReference>(
             lit<"$"> +
             assign<&ast::AnnotationReference::expression>(ref<Expression>))> {};
   static constexpr auto Annotations =
-      many(append<&ast::Declaration::annotations>(ref<AnnotationRule>));
+      many(append<&ast::Declaration::annotations>(ref<Annotation>));
   static constexpr auto Head =
       assign<&ast::Declaration::name>(Name) +
-      option(assign<&ast::Declaration::id>(ref<IdRule>));
+      option(assign<&ast::Declaration::id>(ref<Id>));
   static constexpr auto Body =
-      lit<"{"> + many(append<&ast::Declaration::content>(ref<DeclRule>)) +
+      lit<"{"> + many(append<&ast::Declaration::content>(ref<Decl>)) +
       lit<"}">;
-  struct StructRule
+  struct Struct
       : rule<create<ast::StructDef>(
             ref<STRUCT> + Head +
             option(lit<"("> +
@@ -117,7 +115,7 @@ struct Capnproto : cursiv::GrammarSpec {
                           option(lit<",">)) +
                    lit<")">) +
             Annotations + Body)> {};
-  struct InterfaceRule
+  struct Interface
       : rule<create<ast::InterfaceDef>(
             ref<INTERFACE> + Head +
             option(lit<"("> +
@@ -132,9 +130,9 @@ struct Capnproto : cursiv::GrammarSpec {
                           option(lit<",">)) +
                    lit<")">) +
             Annotations + Body)> {};
-  struct EnumRule
+  struct Enum
       : rule<create<ast::EnumDef>(ref<ENUM> + Head + Annotations + Body)> {};
-  struct AnnotationDefRule
+  struct AnnotationDef
       : rule<create<ast::AnnotationDef>(
             ref<ANNOTATION> + Head + lit<"("> +
             option(some(append<&ast::AnnotationDef::targets>(Name | lit<"*">),
@@ -143,55 +141,55 @@ struct Capnproto : cursiv::GrammarSpec {
             lit<")"> + lit<":"> +
             assign<&ast::AnnotationDef::valueType>(ref<Expression>) +
             Annotations + lit<";">)> {};
-  struct ConstRule
+  struct Const
       : rule<create<ast::ConstDef>(
             ref<CONST> + Head + lit<":"> +
             assign<&ast::ConstDef::type>(ref<Expression>) + lit<"="> +
             assign<&ast::ConstDef::value>(ref<Expression>) + Annotations +
             lit<";">)> {};
-  struct UsingRule
+  struct Using
       : rule<create<ast::UsingAlias>(
             ref<USING> +
             option(assign<&ast::UsingAlias::name>(Name) + lit<"=">) +
             assign<&ast::UsingAlias::target>(ref<Expression>) + lit<";">)> {};
-  struct FieldRule
+  struct Field
       : rule<create<ast::FieldDef>(
             Head + lit<":"> + assign<&ast::FieldDef::type>(ref<Expression>) +
             option(lit<"="> +
                    assign<&ast::FieldDef::defaultValue>(ref<Expression>)) +
             Annotations + lit<";">)> {};
-  struct EnumerantRule
+  struct Enumerant
       : rule<create<ast::EnumContent>(Head + Annotations + lit<";">)> {};
-  struct GroupRule : rule<create<ast::GroupDef>(
+  struct Group : rule<create<ast::GroupDef>(
                          assign<&ast::GroupDef::name>(Name) + lit<":"> +
                          ref<GROUP> + Annotations + Body)> {};
-  struct UnionRule
+  struct Union
       : rule<create<ast::UnionDef>(
             (option(
                  assign<&ast::UnionDef::name>(Name) +
-                 option(assign<&ast::UnionDef::id>(ref<IdRule>) +
+                 option(assign<&ast::UnionDef::id>(ref<Id>) +
                         option(flag<&ast::UnionDef::legacy>(lit<"!">))) +
                  lit<":">) +
              ref<UNION>)+Annotations +
             Body)> {};
-  struct ParamRule
+  struct Param
       : rule<create<ast::Param>(
             assign<&ast::Param::name>(Name) + lit<":"> +
             assign<&ast::Param::type>(ref<Expression>) +
             option(lit<"="> +
                    assign<&ast::Param::defaultValue>(ref<Expression>)) +
-            many(append<&ast::Param::annotations>(ref<AnnotationRule>)))> {};
-  struct ParamListRule
+            many(append<&ast::Param::annotations>(ref<Annotation>)))> {};
+  struct ParamList
       : rule<create<ast::ParamList>(
             (lit<"("> +
-             option(some(append<&ast::ParamList::params>(ref<ParamRule>),
+             option(some(append<&ast::ParamList::params>(ref<Param>),
                          lit<",">) +
                     option(lit<",">)) +
              lit<")">) |
             flag<&ast::ParamList::stream>(ref<STREAM>) |
             (!(lit<"("> | ref<STREAM>)+assign<&ast::ParamList::type>(
                 ref<Expression>)))> {};
-  struct FunctionRule
+  struct Function
       : rule<create<ast::FunctionDef>(
             Head +
             option(lit<"["> +
@@ -199,25 +197,25 @@ struct Capnproto : cursiv::GrammarSpec {
                                lit<",">) +
                           option(lit<",">)) +
                    lit<"]">) +
-            assign<&ast::FunctionDef::params>(ref<ParamListRule>) +
+            assign<&ast::FunctionDef::params>(ref<ParamList>) +
             option(lit<"->"> +
-                   assign<&ast::FunctionDef::results>(ref<ParamListRule>)) +
+                   assign<&ast::FunctionDef::results>(ref<ParamList>)) +
             Annotations + lit<";">)> {};
-  struct DeclRule
-      : rule<ref<StructRule> | ref<InterfaceRule> | ref<EnumRule> |
-             ref<AnnotationDefRule> | ref<ConstRule> | ref<UsingRule> |
-             ref<GroupRule> | ref<UnionRule> | ref<FieldRule> |
-             ref<EnumerantRule> | ref<FunctionRule> |
-             create<ast::FileId>(assign<&ast::FileId::value>(ref<IdRule>) +
+  struct Decl
+      : rule<ref<Struct> | ref<Interface> | ref<Enum> |
+             ref<AnnotationDef> | ref<Const> | ref<Using> |
+             ref<Group> | ref<Union> | ref<Field> |
+             ref<Enumerant> | ref<Function> |
+             create<ast::FileId>(assign<&ast::FileId::value>(ref<Id>) +
                                  lit<";">) |
              create<ast::AnnotationStmt>(
-                 assign<&ast::AnnotationStmt::annotation>(ref<AnnotationRule>) +
+                 assign<&ast::AnnotationStmt::annotation>(ref<Annotation>) +
                  lit<";">)> {};
-  struct DocumentRule : rule<create<ast::Document>(many(
-                            append<&ast::Document::content>(ref<DeclRule>)))> {
+  struct Document : rule<create<ast::Document>(many(
+                            append<&ast::Document::content>(ref<Decl>)))> {
   };
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 }  // namespace capnproto

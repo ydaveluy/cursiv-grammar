@@ -39,10 +39,9 @@ begin
 end.
 ```
 
-ISO-flavoured Pascal: programs and units, declarations
+Procedural Pascal: programs and units, declarations
 (`const`/`type`/`var`/`label`/`uses`), procedures and functions (nested, `var`
-parameters), the structured statements, and every type form, variant records
-and procedural types included. `example/` contains programs such as
+parameters), the structured statements, and selected types, including variant records and procedural types. `example/` contains programs such as
 `helloworld.pas`, `schedule.pas`, `variants.pas` and `altsyntax.pas`.
 
 ## The command line

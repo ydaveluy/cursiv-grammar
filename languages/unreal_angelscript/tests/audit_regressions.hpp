@@ -37,6 +37,22 @@ inline bool run() {
   auto *type = c ? as<ast::GenericTypeSpec>(c->type) : nullptr;
   check(type && type->name == "TArray" && type->args.size() == 1,
         "generic constructor type and argument retained");
+  for (const char* source : {
+           "void Test() { int x = a >> b; }",
+           "void Test() { int x = a << b; }",
+           "void Test() { TArray<TArray<int32>> Values; int x = a < b >> c; }"}) {
+    const auto shift = parser->parse(source);
+    check(shift.accepted && !shift.cst().recovered() && shift.diagnostics.empty(),
+          "adjacent shift operators coexist with nested generic closers");
+  }
+  for (const char* source : {
+           "void Test() { int x = a > > b; }",
+           "void Test() { int x = a < < b; }",
+           "void Test() { int x = a >/*gap*/> b; }"}) {
+    const auto shift = parser->parse(source);
+    check(!shift.accepted || shift.cst().recovered() || !shift.diagnostics.empty(),
+          "spaces and comments cannot split a shift operator");
+  }
   return ok;
 }
 } // namespace audit_regressions

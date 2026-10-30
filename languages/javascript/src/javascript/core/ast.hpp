@@ -23,8 +23,7 @@ struct Ident : cursiv::Extends<Expr> {
 struct ThisExpr : cursiv::Extends<Expr> {};
 struct SuperExpr : cursiv::Extends<Expr> {};
 
-// `new.<word>` accepts any identifier after the dot (real code only ever
-// writes "target"), kept as spelled rather than assumed.
+// The literal property word is retained for source tooling.
 struct NewTargetExpr : cursiv::Extends<Expr> {
   Expr *property;
 };
@@ -57,7 +56,9 @@ struct RegexLit : cursiv::Extends<Expr> {
   string_view text; // slashes and flags included
 };
 
-// Untagged when `tag` is null. `quasis.size() == expressions.size() + 1`.
+// Untagged when `tag` is null. Quasis preserve escape spelling and normalize
+// physical CR/CRLF to LF, as the ECMAScript raw template value does.
+// `quasis.size() == expressions.size() + 1`.
 struct TemplateLit : cursiv::Extends<Expr> {
   Expr *tag;
   vector<string_view> quasis;

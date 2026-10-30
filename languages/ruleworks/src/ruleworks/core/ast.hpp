@@ -35,6 +35,11 @@ struct Variable : cursiv::Extends<Value> {
   string_view name;
 };
 
+// SQL quoted variables preserve their distinct native binding/quoting mode.
+struct QuotedVariable : cursiv::Extends<Value> {
+  string_view name;
+};
+
 // A built-in function, a user function call, or an rclass/index_num/db_spec
 // wrapped form -- all `NAME arg*`, so one node covers them.
 struct Call : cursiv::Extends<Value> {
@@ -99,7 +104,7 @@ struct LhsTerm : cursiv::Extends<cursiv::AstNode> {
 struct CeForm : cursiv::Extends<cursiv::AstNode> {
   string_view className;
   vector<LhsTerm*> terms;
-  boolean openEnded;
+  boolean openEnded; // retained for compatibility; clean CEs always close with )
 };
 
 struct Ce : cursiv::Extends<cursiv::AstNode> {
@@ -153,6 +158,7 @@ struct ParamDecl : cursiv::Extends<cursiv::AstNode> {
   Value* arrayLength = nullptr;
   boolean compound;
   string_view type;
+  string_view domainClass; // INSTANCE OF class in method parameters/results
   string_view mechanism;
 };
 

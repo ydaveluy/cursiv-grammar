@@ -22,10 +22,16 @@ struct Eiffel : cursiv::GrammarSpec {
       (lit<"%"> + many(cr<R"( \t)">) + lit<"\n"> + many(cr<R"( \t)">) + lit<"%">);
   struct BASIC_STRING
       : terminal<lit<"\""> + many(STR_ESCAPE | (!cr<R"("\n)"> + any)) + lit<"\"">> {};
-  // Over-accepts a verbatim string with no interior newline: a rare
-  // multi-line-only spelling, widened with no semantic loss.
+  struct VerbatimTag {};
+  // Delimiter labels must match exactly (ECMA-367 8.29.15). Literal text
+  // remains raw; `same` also prevents an unrelated ]" ending the token.
+  static constexpr auto VerbatimLabel = cr<R"(^"\r\n \t[{)">;
+  static constexpr auto VerbatimLine = many(cr<R"( \t)">) + (lit<"\r\n"> | lit<"\n">);
   struct VERBATIM_STRING
-      : terminal<through(lit<"\"[">, lit<"]\"">) | through(lit<"\"{">, lit<"}\"">)> {};
+      : terminal<through(lit<"\""> + mark<VerbatimTag>(many(VerbatimLabel)) + lit<"["> + VerbatimLine,
+                         lit<"]"> + same<VerbatimTag> + lit<"\"">) |
+                 through(lit<"\""> + mark<VerbatimTag>(many(VerbatimLabel)) + lit<"{"> + VerbatimLine,
+                         lit<"}"> + same<VerbatimTag> + lit<"\"">)> {};
 
   struct CHAR_CONST
       : terminal<lit<"'"> +
@@ -85,9 +91,9 @@ struct Eiffel : cursiv::GrammarSpec {
   struct Expression;
   struct Type;
   struct Postfix;
-  struct InstructionRule;
+  struct Instruction;
 
-  struct EntityDeclGroupRule
+  struct EntityDeclGroup
       : rule<create<ast::EntityDeclGroup>(
                  append<&ast::EntityDeclGroup::names>(ref<NAME>) +
                  many(lit<","> + append<&ast::EntityDeclGroup::names>(ref<NAME>)) +
@@ -98,9 +104,9 @@ struct Eiffel : cursiv::GrammarSpec {
                                                  ikw<"separate"> | ikw<"expanded">)) +
              (create<ast::TupleType>(
                   ikw<"tuple"> + lit<"["> +
-                  option(append<&ast::TupleType::params>(ref<EntityDeclGroupRule>) +
+                  option(append<&ast::TupleType::params>(ref<EntityDeclGroup>) +
                          many(many(lit<";">) +
-                              append<&ast::TupleType::params>(ref<EntityDeclGroupRule>))) +
+                              append<&ast::TupleType::params>(ref<EntityDeclGroup>))) +
                   lit<"]">)  //
               | create<ast::AnchoredType>(
                     option(assign<&ast::AnchoredType::attachment>(lit<"?"> | lit<"!">)) +
@@ -113,21 +119,21 @@ struct Eiffel : cursiv::GrammarSpec {
                            many(lit<","> + append<&ast::ClassType::generics>(ref<Type>)) +
                            lit<"]">)))> {};
 
-  struct ManifestValueRule
+  struct ManifestValue
       : rule<ikw<"true"> | ikw<"false"> | ref<CHAR_CONST> |
              (option(lit<"+"> | lit<"-">) + ref<REAL>) |
              (option(lit<"+"> | lit<"-">) + ref<INTEGER>) | ref<BASIC_STRING> |
              ref<VERBATIM_STRING>> {};
 
-  struct ManifestStringRule : rule<ref<BASIC_STRING> | ref<VERBATIM_STRING>> {};
+  struct ManifestString : rule<ref<BASIC_STRING> | ref<VERBATIM_STRING>> {};
 
-  struct ManifestConstantRule
+  struct ManifestConstant
       : rule<create<ast::ManifestConstant>(
                  option(lit<"{"> + assign<&ast::ManifestConstant::type>(ref<Type>) +
                         lit<"}">) +
-                 assign<&ast::ManifestConstant::text>(ref<ManifestValueRule>))> {};
+                 assign<&ast::ManifestConstant::text>(ref<ManifestValue>))> {};
 
-  struct ManifestTypeOnlyRule
+  struct ManifestTypeOnly
       : rule<create<ast::ManifestConstant>(
                  lit<"{"> + assign<&ast::ManifestConstant::type>(ref<Type>) + lit<"}">)> {
   };
@@ -135,9 +141,9 @@ struct Eiffel : cursiv::GrammarSpec {
   // ---- Expressions ----
 
   struct Compound;
-  struct RoutineBodyRule;
+  struct RoutineBody;
 
-  struct NonObjectCallRule
+  struct NonObjectCall
       : rule<create<ast::NonObjectCallExpr>(
                  lit<"{"> + assign<&ast::NonObjectCallExpr::type>(ref<Type>) + lit<"}"> +
                  lit<"."> + assign<&ast::NonObjectCallExpr::member>(ref<NAME>) +
@@ -147,7 +153,7 @@ struct Eiffel : cursiv::GrammarSpec {
                                     append<&ast::NonObjectCallExpr::args>(ref<Expression>))) +
                         lit<")">))> {};
 
-  struct PrecursorRule
+  struct Precursor
       : rule<create<ast::Precursor>(
                  ikw<"precursor"> +
                  option(lit<"{"> + assign<&ast::Precursor::parentClass>(ref<NAME>) +
@@ -157,37 +163,37 @@ struct Eiffel : cursiv::GrammarSpec {
                                many(lit<","> + append<&ast::Precursor::args>(ref<Expression>))) +
                         lit<")">))> {};
 
-  struct AgentActualRule
+  struct AgentActual
       : rule<create<ast::AgentActual>(assign<&ast::AgentActual::value>(ref<Expression>))  //
              | create<ast::AgentActual>(
                    option(lit<"{"> +
                           assign<&ast::AgentActual::placeholderType>(ref<Type>) + lit<"}">) +
                    flag<&ast::AgentActual::placeholder>(lit<"?">))> {};
 
-  struct AgentRule
+  struct Agent
       : rule<create<ast::Agent>(
                  ikw<"agent"> +
                  option(assign<&ast::Agent::target>(ref<Expression>) + lit<".">) +
                  option(assign<&ast::Agent::member>(ref<NAME>)) +
                  option(lit<"("> +
-                        option(append<&ast::Agent::inlineParams>(ref<EntityDeclGroupRule>) +
+                        option(append<&ast::Agent::inlineParams>(ref<EntityDeclGroup>) +
                                many(many(lit<";">) +
-                                    append<&ast::Agent::inlineParams>(ref<EntityDeclGroupRule>))) +
+                                    append<&ast::Agent::inlineParams>(ref<EntityDeclGroup>))) +
                         lit<")">) +
                  option(lit<":"> + assign<&ast::Agent::inlineType>(ref<Type>)) +
-                 option(assign<&ast::Agent::inlineBody>(ref<RoutineBodyRule>)) +
+                 option(assign<&ast::Agent::inlineBody>(ref<RoutineBody>)) +
                  option(flag<&ast::Agent::called>(lit<"(">) +
-                        option(append<&ast::Agent::args>(ref<AgentActualRule>) +
-                               many(lit<","> + append<&ast::Agent::args>(ref<AgentActualRule>))) +
+                        option(append<&ast::Agent::args>(ref<AgentActual>) +
+                               many(lit<","> + append<&ast::Agent::args>(ref<AgentActual>))) +
                         lit<")">))> {};
 
-  struct ObjectTestRule
+  struct ObjectTest
       : rule<create<ast::ObjectTest>(
                  lit<"{"> + assign<&ast::ObjectTest::name>(ref<NAME>) + lit<":"> +
                  assign<&ast::ObjectTest::type>(ref<Type>) + lit<"}"> +
                  assign<&ast::ObjectTest::value>(ref<Expression>))> {};
 
-  struct CondBranchRule
+  struct CondBranch
       : rule<create<ast::CondBranch>(assign<&ast::CondBranch::cond>(ref<Expression>) +
                                      ikw<"then"> +
                                      assign<&ast::CondBranch::value>(ref<Expression>))> {};
@@ -225,7 +231,7 @@ struct Eiffel : cursiv::GrammarSpec {
                    ikw<"once"> +
                    option(lit<"{"> + assign<&ast::OnceExpr::type>(ref<Type>) + lit<"}">) +
                    assign<&ast::OnceExpr::value>(ref<Expression>))  //
-             | create<ast::PrecursorExpr>(assign<&ast::PrecursorExpr::value>(ref<PrecursorRule>))  //
+             | create<ast::PrecursorExpr>(assign<&ast::PrecursorExpr::value>(ref<Precursor>))  //
              | create<ast::CreationExpr>(
                    ikw<"create"> + lit<"{"> + assign<&ast::CreationExpr::type>(ref<Type>) +
                    lit<"}"> +
@@ -236,13 +242,13 @@ struct Eiffel : cursiv::GrammarSpec {
                                              append<&ast::CreationExpr::args>(ref<Expression>))) +
                                  lit<")">)))  //
              | create<ast::ConditionalExpr>(
-                   ikw<"if"> + append<&ast::ConditionalExpr::branches>(ref<CondBranchRule>) +
+                   ikw<"if"> + append<&ast::ConditionalExpr::branches>(ref<CondBranch>) +
                    many(ikw<"elseif"> +
-                        append<&ast::ConditionalExpr::branches>(ref<CondBranchRule>)) +
+                        append<&ast::ConditionalExpr::branches>(ref<CondBranch>)) +
                    ikw<"else"> + assign<&ast::ConditionalExpr::elseValue>(ref<Expression>) +
                    ikw<"end">)  //
-             | ref<NonObjectCallRule>  //
-             | ref<ManifestConstantRule>  //
+             | ref<NonObjectCall>  //
+             | ref<ManifestConstant>  //
              | create<ast::ManifestArray>(
                    option(lit<"{"> + assign<&ast::ManifestArray::type>(ref<Type>) + lit<"}">) +
                    lit<"<<"> +
@@ -254,10 +260,10 @@ struct Eiffel : cursiv::GrammarSpec {
                    option(append<&ast::ManifestTuple::items>(ref<Expression>) +
                           many(lit<","> + append<&ast::ManifestTuple::items>(ref<Expression>))) +
                    lit<"]">)  //
-             | ref<AgentRule>  //
-             | ref<ObjectTestRule>  //
+             | ref<Agent>  //
+             | ref<ObjectTest>  //
              | create<ast::OnceStringExpr>(
-                   ikw<"once"> + assign<&ast::OnceStringExpr::text>(ref<ManifestStringRule>))  //
+                   ikw<"once"> + assign<&ast::OnceStringExpr::text>(ref<ManifestString>))  //
              | create<ast::AddressExpr>(
                    lit<"$"> + assign<&ast::AddressExpr::operand>(ref<Postfix>))  //
              | create<ast::NameExpr>(
@@ -294,11 +300,11 @@ struct Eiffel : cursiv::GrammarSpec {
   struct OrElseOp : rule<ikw<"or"> + ikw<"else">> {};
 
   struct AddSubLevel
-      : infix<Unary, &ast::BinaryExpr::left, &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-              (left(ref<FREE_OP>) >>                                        //
-               right(lit<"^">) >>                                          //
-               left(lit<"*"> | lit<"/"> | lit<"//"> | lit<"\\\\">) >>      //
-               left(lit<"+"> | lit<"-">))> {};
+      : infix<Unary, ast::BinaryExpr,
+              levels(left(ref<FREE_OP>),                                   //
+                     right(lit<"^">),                                      //
+                     left(lit<"*"> | lit<"/"> | lit<"//"> | lit<"\\\\">),  //
+                     left(lit<"+"> | lit<"-">))> {};
 
   struct IntervalLevel
       : rule<create<ast::IntervalExpr>(
@@ -307,21 +313,20 @@ struct Eiffel : cursiv::GrammarSpec {
              | ref<AddSubLevel>> {};
 
   struct RelLevel
-      : infix<IntervalLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
+      : infix<IntervalLevel, ast::BinaryExpr,
               left(lit<"="> | lit<"/="> | lit<"~"> | lit<"/~"> | lit<"<="> | lit<">="> |
                    lit<"<"> | lit<">">)> {};
 
   struct AndLevel
-      : infix<RelLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op, &ast::BinaryExpr::right,
+      : infix<RelLevel, ast::BinaryExpr,
               left(ikw<"and"> | ref<AndThenOp>)> {};
 
   struct OrLevel
-      : infix<AndLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op, &ast::BinaryExpr::right,
+      : infix<AndLevel, ast::BinaryExpr,
               left(ikw<"or"> | ref<OrElseOp> | ikw<"xor">)> {};
 
   struct ImpliesLevel
-      : infix<OrLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op, &ast::BinaryExpr::right,
+      : infix<OrLevel, ast::BinaryExpr,
               left(ikw<"implies">)> {};
 
   struct Expression : rule<ref<ImpliesLevel>> {};
@@ -330,33 +335,39 @@ struct Eiffel : cursiv::GrammarSpec {
 
   struct Compound
       : rule<create<ast::Compound> + many(lit<";">) +
-             many(append<&ast::Compound::items>(ref<InstructionRule>) +
+             many(append<&ast::Compound::items>(ref<Instruction>) +
                   many(lit<";">))> {};
 
-  struct AssertionClauseRule
+  struct AssertionClause
       : rule<(option(assign<&ast::AssertionClause::tag>(ref<NAME>) + lit<":">) +
               (assign<&ast::AssertionClause::condition>(ref<Expression>) |
                flag<&ast::AssertionClause::isClassMark>(ikw<"class">)))  //
              | (assign<&ast::AssertionClause::tag>(ref<NAME>) + lit<":">)> {};
 
-  struct AssertionRule
+  struct Assertion
       : rule<create<ast::Assertion> + many(lit<";">) +
-             many(append<&ast::Assertion::clauses>(ref<AssertionClauseRule>) +
+             many(append<&ast::Assertion::clauses>(ref<AssertionClause>) +
                   many(lit<";">))> {};
 
-  struct AssignmentRule
+  struct Assignment
       : rule<create<ast::Assignment>(assign<&ast::Assignment::target>(ref<Expression>) +
                                      lit<":="> +
                                      assign<&ast::Assignment::value>(ref<Expression>))> {};
 
-  struct CreationInstructionRule
+  // ECMA-367 8.20.11: the target is a Variable; the following creation
+  // procedure is captured by CreationInstruction itself.
+  struct CreationTarget
+      : rule<create<ast::ResultExpr>(ikw<"result">) |
+             create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<NAME>))> {};
+
+  struct CreationInstruction
       : rule<create<ast::CreationInstruction>(
                  ikw<"create"> +
                  option(lit<"<"> + assign<&ast::CreationInstruction::passiveRegionClass>(ref<NAME>) +
                         lit<">">) +
                  option(lit<"{"> + assign<&ast::CreationInstruction::type>(ref<Type>) +
                         lit<"}">) +
-                 assign<&ast::CreationInstruction::target>(ref<Expression>) +
+                 assign<&ast::CreationInstruction::target>(ref<CreationTarget>) +
                  option(lit<"."> + assign<&ast::CreationInstruction::member>(ref<NAME>) +
                         option(flag<&ast::CreationInstruction::called>(lit<"(">) +
                                option(append<&ast::CreationInstruction::args>(ref<Expression>) +
@@ -364,208 +375,208 @@ struct Eiffel : cursiv::GrammarSpec {
                                                           ref<Expression>))) +
                                lit<")">)))> {};
 
-  struct IfBranchRule
+  struct IfBranch
       : rule<create<ast::IfBranch>(assign<&ast::IfBranch::cond>(ref<Expression>) +
                                    ikw<"then"> +
                                    assign<&ast::IfBranch::body>(ref<Compound>))> {};
 
-  struct ConditionalRule
+  struct Conditional
       : rule<create<ast::IfInstruction>(
-                 ikw<"if"> + append<&ast::IfInstruction::branches>(ref<IfBranchRule>) +
-                 many(ikw<"elseif"> + append<&ast::IfInstruction::branches>(ref<IfBranchRule>)) +
+                 ikw<"if"> + append<&ast::IfInstruction::branches>(ref<IfBranch>) +
+                 many(ikw<"elseif"> + append<&ast::IfInstruction::branches>(ref<IfBranch>)) +
                  option(ikw<"else"> + assign<&ast::IfInstruction::elseBody>(ref<Compound>)) +
                  ikw<"end">)> {};
 
-  struct ChoiceAtomRule
-      : rule<ref<ManifestConstantRule> | ref<ManifestTypeOnlyRule> | ref<NonObjectCallRule> |
+  struct ChoiceAtom
+      : rule<ref<ManifestConstant> | ref<ManifestTypeOnly> | ref<NonObjectCall> |
              create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<NAME>))> {};
 
-  struct ChoiceRule
+  struct Choice
       : rule<create<ast::Choice>(
-                 assign<&ast::Choice::low>(ref<ChoiceAtomRule>) +
-                 option(lit<".."> + assign<&ast::Choice::high>(ref<ChoiceAtomRule>)))> {};
+                 assign<&ast::Choice::low>(ref<ChoiceAtom>) +
+                 option(lit<".."> + assign<&ast::Choice::high>(ref<ChoiceAtom>)))> {};
 
-  struct WhenBranchRule
+  struct WhenBranch
       : rule<create<ast::WhenBranch>(
-                 ikw<"when"> + append<&ast::WhenBranch::choices>(ref<ChoiceRule>) +
-                 many(lit<","> + append<&ast::WhenBranch::choices>(ref<ChoiceRule>)) +
+                 ikw<"when"> + append<&ast::WhenBranch::choices>(ref<Choice>) +
+                 many(lit<","> + append<&ast::WhenBranch::choices>(ref<Choice>)) +
                  ikw<"then"> + assign<&ast::WhenBranch::body>(ref<Compound>))> {};
 
-  struct MultiBranchRule
+  struct MultiBranch
       : rule<create<ast::InspectInstruction>(
                  ikw<"inspect"> + assign<&ast::InspectInstruction::subject>(ref<Expression>) +
-                 many(append<&ast::InspectInstruction::branches>(ref<WhenBranchRule>)) +
+                 many(append<&ast::InspectInstruction::branches>(ref<WhenBranch>)) +
                  option(ikw<"else"> +
                         assign<&ast::InspectInstruction::elseBody>(ref<Compound>)) +
                  ikw<"end">)> {};
 
-  struct LoopRule
+  struct Loop
       : rule<create<ast::LoopInstruction>(
                  option(ikw<"across"> + assign<&ast::LoopInstruction::acrossSource>(ref<Expression>) +
                         ikw<"as"> + assign<&ast::LoopInstruction::acrossVar>(ref<NAME>)) +
                  option(ikw<"from"> + assign<&ast::LoopInstruction::initBody>(ref<Compound>)) +
                  option(ikw<"invariant"> +
-                        assign<&ast::LoopInstruction::invariant>(ref<AssertionRule>)) +
-                 option(ikw<"variant"> + option(ref<NAME> + lit<":">) +
+                        assign<&ast::LoopInstruction::invariant>(ref<Assertion>)) +
+                 option(ikw<"variant"> + option(assign<&ast::LoopInstruction::variantBeforeTag>(ref<NAME>) + lit<":">) +
                         assign<&ast::LoopInstruction::variantBefore>(ref<Expression>)) +
                  option(ikw<"until"> + assign<&ast::LoopInstruction::untilCond>(ref<Expression>)) +
                  ((ikw<"loop"> + assign<&ast::LoopInstruction::loopBody>(ref<Compound>))  //
                   | (ikw<"all"> + assign<&ast::LoopInstruction::allCond>(ref<Expression>))  //
                   | (ikw<"some"> + assign<&ast::LoopInstruction::someCond>(ref<Expression>))) +
-                 option(ikw<"variant"> + option(ref<NAME> + lit<":">) +
+                 option(ikw<"variant"> + option(assign<&ast::LoopInstruction::variantAfterTag>(ref<NAME>) + lit<":">) +
                         assign<&ast::LoopInstruction::variantAfter>(ref<Expression>)) +
                  ikw<"end">)> {};
 
-  struct DebugRule
+  struct Debug
       : rule<create<ast::DebugInstruction>(
                  ikw<"debug"> +
                  option(lit<"("> +
-                        append<&ast::DebugInstruction::keys>(ref<ManifestStringRule>) +
+                        append<&ast::DebugInstruction::keys>(ref<ManifestString>) +
                         many(lit<","> +
-                             append<&ast::DebugInstruction::keys>(ref<ManifestStringRule>)) +
+                             append<&ast::DebugInstruction::keys>(ref<ManifestString>)) +
                         lit<")">) +
                  assign<&ast::DebugInstruction::body>(ref<Compound>) + ikw<"end">)> {};
 
   struct NotesRule;
 
-  struct CheckRule
+  struct Check
       : rule<create<ast::CheckInstruction>(
-                 ikw<"check"> + assign<&ast::CheckInstruction::assertion>(ref<AssertionRule>) +
+                 ikw<"check"> + assign<&ast::CheckInstruction::assertion>(ref<Assertion>) +
                  option(assign<&ast::CheckInstruction::notes>(ref<NotesRule>)) + ikw<"end">)> {};
 
-  struct ConditionalCheckRule
+  struct ConditionalCheck
       : rule<create<ast::ConditionalCheckInstruction>(
                  ikw<"check"> +
-                 assign<&ast::ConditionalCheckInstruction::assertion>(ref<AssertionRule>) +
+                 assign<&ast::ConditionalCheckInstruction::assertion>(ref<Assertion>) +
                  ikw<"then"> +
                  assign<&ast::ConditionalCheckInstruction::body>(ref<Compound>) +
                  ikw<"end">)> {};
 
-  struct RetryRule : rule<create<ast::RetryInstruction>(ikw<"retry">)> {};
+  struct Retry : rule<create<ast::RetryInstruction>(ikw<"retry">)> {};
 
-  struct InlineSeparateArgRule
+  struct InlineSeparateArg
       : rule<create<ast::InlineSeparateArg>(
                  assign<&ast::InlineSeparateArg::value>(ref<Expression>) + ikw<"as"> +
                  assign<&ast::InlineSeparateArg::name>(ref<NAME>))> {};
 
-  struct InlineSeparateRule
+  struct InlineSeparate
       : rule<create<ast::InlineSeparateInstruction>(
                  ikw<"separate"> +
-                 append<&ast::InlineSeparateInstruction::args>(ref<InlineSeparateArgRule>) +
+                 append<&ast::InlineSeparateInstruction::args>(ref<InlineSeparateArg>) +
                  many(lit<","> +
-                      append<&ast::InlineSeparateInstruction::args>(ref<InlineSeparateArgRule>)) +
+                      append<&ast::InlineSeparateInstruction::args>(ref<InlineSeparateArg>)) +
                  ikw<"do"> + assign<&ast::InlineSeparateInstruction::body>(ref<Compound>) +
                  ikw<"end">)> {};
 
-  struct IteratorRule
+  struct Iterator
       : rule<create<ast::IteratorInstruction>(
                  lit<"⟳"> + assign<&ast::IteratorInstruction::name>(ref<NAME>) + lit<":"> +
                  assign<&ast::IteratorInstruction::source>(ref<Expression>) + lit<"¦"> +
                  assign<&ast::IteratorInstruction::body>(ref<Compound>) + lit<"⟲">)> {};
 
-  struct InstructionRule
-      : rule<ref<CreationInstructionRule>       //
-             | ref<ConditionalRule>             //
-             | ref<MultiBranchRule>              //
-             | ref<LoopRule>                     //
-             | ref<DebugRule>                    //
-             | ref<PrecursorRule>                //
-             | ref<ConditionalCheckRule>         //
-             | ref<CheckRule>                    //
-             | ref<RetryRule>                    //
-             | ref<InlineSeparateRule>           //
-             | ref<IteratorRule>                 //
-             | ref<AssignmentRule>               //
+  struct Instruction
+      : rule<ref<CreationInstruction>       //
+             | ref<Conditional>             //
+             | ref<MultiBranch>              //
+             | ref<Loop>                     //
+             | ref<Debug>                    //
+             | ref<Precursor>                //
+             | ref<ConditionalCheck>         //
+             | ref<Check>                    //
+             | ref<Retry>                    //
+             | ref<InlineSeparate>           //
+             | ref<Iterator>                 //
+             | ref<Assignment>               //
              | create<ast::ExprInstruction>(assign<&ast::ExprInstruction::value>(ref<Expression>))> {
   };
 
   // ---- Notes ----
 
-  struct NoteItemRule
+  struct NoteItem
       : rule<ref<NAME> | ref<BASIC_STRING> | ref<VERBATIM_STRING> | ref<CHAR_CONST> |
              ref<INTEGER> | ref<REAL> | ikw<"true"> | ikw<"false">> {};
 
-  struct NoteEntryRule
+  struct NoteEntry
       : rule<create<ast::NoteEntry>(
                  assign<&ast::NoteEntry::name>(ref<NAME>) + lit<":"> +
-                 append<&ast::NoteEntry::values>(ref<NoteItemRule>) +
-                 many(lit<","> + append<&ast::NoteEntry::values>(ref<NoteItemRule>)) +
+                 append<&ast::NoteEntry::values>(ref<NoteItem>) +
+                 many(lit<","> + append<&ast::NoteEntry::values>(ref<NoteItem>)) +
                  option(lit<",">))> {};
 
   struct NotesRule
       : rule<create<ast::Notes> + ikw<"note"> +
-             many(append<&ast::Notes::entries>(ref<NoteEntryRule>) + many(lit<";">))> {};
+             many(append<&ast::Notes::entries>(ref<NoteEntry>) + many(lit<";">))> {};
 
   // ---- Feature declarations ----
 
-  struct AliasRule
+  struct Alias
       : rule<create<ast::Alias>(
-                 ikw<"alias"> + assign<&ast::Alias::text>(ref<ManifestStringRule>) +
+                 ikw<"alias"> + assign<&ast::Alias::text>(ref<ManifestString>) +
                  option(flag<&ast::Alias::convert>(ikw<"convert">)))> {};
 
-  struct NewFeatureNameRule
+  struct NewFeatureName
       : rule<create<ast::NewFeatureName>(
                  option(flag<&ast::NewFeatureName::frozen>(ikw<"frozen">)) +
                  assign<&ast::NewFeatureName::name>(ref<NAME>) +
-                 many(append<&ast::NewFeatureName::aliases>(ref<AliasRule>)))> {};
+                 many(append<&ast::NewFeatureName::aliases>(ref<Alias>)))> {};
 
-  struct RoutineBodyRule
+  struct RoutineBody
       : rule<create<ast::RoutineBody>(
                  option(ikw<"require"> + option(flag<&ast::RoutineBody::requireElse>(ikw<"else">)) +
-                        assign<&ast::RoutineBody::precondition>(ref<AssertionRule>)) +
+                        assign<&ast::RoutineBody::precondition>(ref<Assertion>)) +
                  option(ikw<"local"> +
-                        option(append<&ast::RoutineBody::locals>(ref<EntityDeclGroupRule>) +
+                        option(append<&ast::RoutineBody::locals>(ref<EntityDeclGroup>) +
                                many(many(lit<";">) +
-                                    append<&ast::RoutineBody::locals>(ref<EntityDeclGroupRule>)))) +
+                                    append<&ast::RoutineBody::locals>(ref<EntityDeclGroup>)))) +
                  ((assign<&ast::RoutineBody::kind>(ikw<"deferred">))  //
                   | (assign<&ast::RoutineBody::kind>(ikw<"do">) +
                      assign<&ast::RoutineBody::body>(ref<Compound>))  //
                   | (assign<&ast::RoutineBody::kind>(ikw<"once">) +
                      option(lit<"("> +
-                            append<&ast::RoutineBody::onceKeys>(ref<ManifestStringRule>) +
+                            append<&ast::RoutineBody::onceKeys>(ref<ManifestString>) +
                             many(lit<","> +
-                                 append<&ast::RoutineBody::onceKeys>(ref<ManifestStringRule>)) +
+                                 append<&ast::RoutineBody::onceKeys>(ref<ManifestString>)) +
                             lit<")">) +
                      assign<&ast::RoutineBody::body>(ref<Compound>))  //
                   | (assign<&ast::RoutineBody::kind>(ikw<"external">) +
-                     assign<&ast::RoutineBody::externalLanguage>(ref<ManifestStringRule>) +
+                     assign<&ast::RoutineBody::externalLanguage>(ref<ManifestString>) +
                      option(ikw<"alias"> + assign<&ast::RoutineBody::externalAliasName>(
-                                               ref<ManifestStringRule>)))  //
+                                               ref<ManifestString>)))  //
                   | (assign<&ast::RoutineBody::kind>(ikw<"attribute">) +
                      assign<&ast::RoutineBody::body>(ref<Compound>))) +
                  option(ikw<"ensure"> + option(flag<&ast::RoutineBody::ensureThen>(ikw<"then">)) +
-                        assign<&ast::RoutineBody::postcondition>(ref<AssertionRule>) +
+                        assign<&ast::RoutineBody::postcondition>(ref<Assertion>) +
                         option(ikw<"only"> +
                                append<&ast::RoutineBody::postOnly>(ref<NAME>) +
                                many(lit<","> + append<&ast::RoutineBody::postOnly>(ref<NAME>)))) +
                  option(ikw<"rescue"> + assign<&ast::RoutineBody::rescueBody>(ref<Compound>)) +
                  ikw<"end">)> {};
 
-  struct FeatureValueRule
+  struct FeatureValue
       : rule<create<ast::FeatureValue>(
                  option(lit<"="> +
-                        assign<&ast::FeatureValue::explicitValue>(ref<ManifestValueRule>)) +
+                        assign<&ast::FeatureValue::explicitValue>(ref<ManifestValue>)) +
                  option(ikw<"obsolete"> +
-                        assign<&ast::FeatureValue::obsoleteMessage>(ref<ManifestStringRule>)) +
-                 option(assign<&ast::FeatureValue::body>(ref<RoutineBodyRule>)) +
+                        assign<&ast::FeatureValue::obsoleteMessage>(ref<ManifestString>)) +
+                 option(assign<&ast::FeatureValue::body>(ref<RoutineBody>)) +
                  option(lit<"="> + flag<&ast::FeatureValue::unique>(ikw<"unique">)))> {};
 
-  struct FeatureDeclarationRule
+  struct FeatureDeclaration
       : rule<create<ast::FeatureDeclaration>(
-                 append<&ast::FeatureDeclaration::names>(ref<NewFeatureNameRule>) +
-                 many(lit<","> + append<&ast::FeatureDeclaration::names>(ref<NewFeatureNameRule>)) +
+                 append<&ast::FeatureDeclaration::names>(ref<NewFeatureName>) +
+                 many(lit<","> + append<&ast::FeatureDeclaration::names>(ref<NewFeatureName>)) +
                  option(lit<"("> +
-                        option(append<&ast::FeatureDeclaration::args>(ref<EntityDeclGroupRule>) +
+                        option(append<&ast::FeatureDeclaration::args>(ref<EntityDeclGroup>) +
                                many(many(lit<";">) + append<&ast::FeatureDeclaration::args>(
-                                                          ref<EntityDeclGroupRule>))) +
+                                                          ref<EntityDeclGroup>))) +
                         lit<")">) +
                  option(lit<":"> + assign<&ast::FeatureDeclaration::type>(ref<Type>) +
                         option(ikw<"assign"> +
                                assign<&ast::FeatureDeclaration::assignerName>(ref<NAME>))) +
                  option(assign<&ast::FeatureDeclaration::notes>(ref<NotesRule>)) +
-                 assign<&ast::FeatureDeclaration::value>(ref<FeatureValueRule>))> {};
+                 assign<&ast::FeatureDeclaration::value>(ref<FeatureValue>))> {};
 
-  struct FeatureClauseRule
+  struct FeatureClause
       : rule<create<ast::FeatureClause>(
                  ikw<"feature"> +
                  option(lit<"{"> +
@@ -573,18 +584,18 @@ struct Eiffel : cursiv::GrammarSpec {
                                many(lit<","> + append<&ast::FeatureClause::clients>(ref<NAME>))) +
                         lit<"}">) +
                  many(lit<";">) +
-                 many(append<&ast::FeatureClause::features>(ref<FeatureDeclarationRule>) +
+                 many(append<&ast::FeatureClause::features>(ref<FeatureDeclaration>) +
                       many(lit<";">)))> {};
 
   // ---- Inheritance ----
 
-  struct RenamePairRule
+  struct RenamePair
       : rule<create<ast::RenamePair>(
                  assign<&ast::RenamePair::from>(ref<NAME>) + ikw<"as"> +
                  assign<&ast::RenamePair::to>(ref<NAME>) +
-                 many(append<&ast::RenamePair::toAliases>(ref<AliasRule>)))> {};
+                 many(append<&ast::RenamePair::toAliases>(ref<Alias>)))> {};
 
-  struct ExportItemRule
+  struct ExportItem
       : rule<create<ast::ExportItem>(
                  lit<"{"> +
                  option(append<&ast::ExportItem::clients>(ref<NAME>) +
@@ -595,7 +606,7 @@ struct Eiffel : cursiv::GrammarSpec {
                            many(lit<","> +
                                 append<&ast::ExportItem::features>(ref<NAME>)))))> {};
 
-  struct ParentRule
+  struct Parent
       : rule<create<ast::Parent>(
                  assign<&ast::Parent::type>(ref<Type>) +
                  option(many(
@@ -607,12 +618,12 @@ struct Eiffel : cursiv::GrammarSpec {
                                many(lit<","> +
                                     append<&ast::Parent::redefineNames>(ref<NAME>)))  //
                             | (ikw<"rename"> +
-                               append<&ast::Parent::renames>(ref<RenamePairRule>) +
+                               append<&ast::Parent::renames>(ref<RenamePair>) +
                                many(lit<","> +
-                                    append<&ast::Parent::renames>(ref<RenamePairRule>)))  //
+                                    append<&ast::Parent::renames>(ref<RenamePair>)))  //
                             | (ikw<"export"> +
-                               append<&ast::Parent::exports>(ref<ExportItemRule>) +
-                               many(lit<";"> + append<&ast::Parent::exports>(ref<ExportItemRule>)) +
+                               append<&ast::Parent::exports>(ref<ExportItem>) +
+                               many(lit<";"> + append<&ast::Parent::exports>(ref<ExportItem>)) +
                                many(lit<";">))  //
                             | (ikw<"select"> +
                                append<&ast::Parent::selectNames>(ref<NAME>) +
@@ -620,16 +631,16 @@ struct Eiffel : cursiv::GrammarSpec {
                                     append<&ast::Parent::selectNames>(ref<NAME>)))) +
                         ikw<"end">))> {};
 
-  struct InheritClauseRule
+  struct InheritClause
       : rule<create<ast::InheritClause>(
                  ikw<"inherit"> +
                  option(lit<"{"> + assign<&ast::InheritClause::nonConformanceClass>(ref<NAME>) +
                         lit<"}">) +
-                 append<&ast::InheritClause::parents>(ref<ParentRule>) +
-                 many(many(lit<";">) + append<&ast::InheritClause::parents>(ref<ParentRule>)) +
+                 append<&ast::InheritClause::parents>(ref<Parent>) +
+                 many(many(lit<";">) + append<&ast::InheritClause::parents>(ref<Parent>)) +
                  many(lit<";">))> {};
 
-  struct CreationClauseRule
+  struct CreationClause
       : rule<create<ast::CreationClause>(
                  ikw<"create"> +
                  option(lit<"{"> +
@@ -641,7 +652,7 @@ struct Eiffel : cursiv::GrammarSpec {
                         many(lit<","> + append<&ast::CreationClause::procedures>(ref<NAME>))))> {
   };
 
-  struct ConverterItemRule
+  struct ConverterItem
       : rule<create<ast::Converter>(
                  assign<&ast::Converter::name>(ref<NAME>) +
                  ((lit<"("> + lit<"{"> +
@@ -653,22 +664,24 @@ struct Eiffel : cursiv::GrammarSpec {
                             many(lit<","> + append<&ast::Converter::types>(ref<Type>))) +
                      lit<"}">)))> {};
 
-  struct FormalGenericRule
+  struct GenericConstraint
+      : rule<create<ast::GenericConstraint>(
+                 assign<&ast::GenericConstraint::type>(ref<Type>) +
+                 option(ikw<"rename"> +
+                        append<&ast::GenericConstraint::renames>(ref<RenamePair>) +
+                        many(lit<","> + append<&ast::GenericConstraint::renames>(ref<RenamePair>)) +
+                        ikw<"end">))> {};
+
+  struct FormalGeneric
       : rule<create<ast::FormalGeneric>(
                  many(append<&ast::FormalGeneric::modifiers>(ikw<"frozen"> | ikw<"reference">)) +
                  option(flag<&ast::FormalGeneric::question>(lit<"?">)) +
                  assign<&ast::FormalGeneric::name>(ref<NAME>) +
                  option(lit<"->"> +
-                        ((append<&ast::FormalGeneric::constraints>(ref<Type>) +
-                          option(append<&ast::FormalGeneric::constraintRenames>(ref<RenamePairRule>) +
-                                 many(lit<","> +
-                                      append<&ast::FormalGeneric::constraintRenames>(
-                                          ref<RenamePairRule>)) +
-                                 ikw<"end">))  //
-                         | (lit<"{"> +
-                            append<&ast::FormalGeneric::constraints>(ref<Type>) +
-                            many(lit<","> + append<&ast::FormalGeneric::constraints>(ref<Type>)) +
-                            lit<"}">)) +
+                        (append<&ast::FormalGeneric::constraints>(ref<GenericConstraint>) |
+                         (lit<"{"> + append<&ast::FormalGeneric::constraints>(ref<GenericConstraint>) +
+                          many(lit<","> + append<&ast::FormalGeneric::constraints>(ref<GenericConstraint>)) +
+                          lit<"}">)) +
                         option(ikw<"create"> +
                                append<&ast::FormalGeneric::creators>(ref<NAME>) +
                                many(lit<","> + append<&ast::FormalGeneric::creators>(ref<NAME>)) +
@@ -679,36 +692,36 @@ struct Eiffel : cursiv::GrammarSpec {
 
   // ---- Class ----
 
-  struct ClassDeclRule
+  struct ClassDecl
       : rule<create<ast::ClassDecl> +
              option(assign<&ast::ClassDecl::notesTop>(ref<NotesRule>)) +
              many(append<&ast::ClassDecl::headerMarks>(PlainHeaderMark) |
                   (append<&ast::ClassDecl::headerMarks>(ikw<"once">) +
                    option(lit<"("> +
-                          append<&ast::ClassDecl::onceKeys>(ref<ManifestStringRule>) +
+                          append<&ast::ClassDecl::onceKeys>(ref<ManifestString>) +
                           many(lit<","> +
-                               append<&ast::ClassDecl::onceKeys>(ref<ManifestStringRule>)) +
+                               append<&ast::ClassDecl::onceKeys>(ref<ManifestString>)) +
                           lit<")">))) +
              ikw<"class"> + assign<&ast::ClassDecl::name>(ref<NAME>) +
              option(lit<"["> +
-                    append<&ast::ClassDecl::generics>(ref<FormalGenericRule>) +
-                    many(lit<","> + append<&ast::ClassDecl::generics>(ref<FormalGenericRule>)) +
+                    append<&ast::ClassDecl::generics>(ref<FormalGeneric>) +
+                    many(lit<","> + append<&ast::ClassDecl::generics>(ref<FormalGeneric>)) +
                     lit<"]">) +
              option(ikw<"obsolete"> +
-                    assign<&ast::ClassDecl::obsoleteMessage>(ref<ManifestStringRule>)) +
-             option(some(append<&ast::ClassDecl::inheritance>(ref<InheritClauseRule>))) +
-             option(some(append<&ast::ClassDecl::creators>(ref<CreationClauseRule>))) +
+                    assign<&ast::ClassDecl::obsoleteMessage>(ref<ManifestString>)) +
+             option(some(append<&ast::ClassDecl::inheritance>(ref<InheritClause>))) +
+             option(some(append<&ast::ClassDecl::creators>(ref<CreationClause>))) +
              option(ikw<"convert"> +
-                    append<&ast::ClassDecl::converters>(ref<ConverterItemRule>) +
-                    many(lit<","> + append<&ast::ClassDecl::converters>(ref<ConverterItemRule>))) +
-             option(some(append<&ast::ClassDecl::features>(ref<FeatureClauseRule>))) +
+                    append<&ast::ClassDecl::converters>(ref<ConverterItem>) +
+                    many(lit<","> + append<&ast::ClassDecl::converters>(ref<ConverterItem>))) +
+             option(some(append<&ast::ClassDecl::features>(ref<FeatureClause>))) +
              option(assign<&ast::ClassDecl::notesMid>(ref<NotesRule>)) +
-             option(ikw<"invariant"> + assign<&ast::ClassDecl::invariant>(ref<AssertionRule>) +
+             option(ikw<"invariant"> + assign<&ast::ClassDecl::invariant>(ref<Assertion>) +
                     option(assign<&ast::ClassDecl::notesBottom>(ref<NotesRule>))) +
              ikw<"end">> {};
 
-  using entry = ClassDeclRule;
-  using ignore = WS;
+  using entry = ClassDecl;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

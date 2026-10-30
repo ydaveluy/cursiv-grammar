@@ -1,3 +1,4 @@
+#include "native_regressions.hpp"
 // The sdl grammar end to end: every document under `example/` parses clean
 // (`recovered()` false, no diagnostic), builds a `Program`, and one document's
 // AST is read back field by field so a converter that silently mis-values a
@@ -33,6 +34,8 @@ int main() {
   const auto language = cursiv::create_language<
       sdl::SdlCoreServices, sdl::SdlSharedCoreServices,
       sdl::install_core_module>();
+  if (!sdl_native_regressions(language)) return 1;
+
 
   const fs::path exampleDir = fs::path(CURSIV_EXAMPLE_DIR) / "example";
   int parsed = 0;
@@ -138,8 +141,8 @@ int main() {
           CHECK(c.languages.size() == 2);
         } else if (item->type == &cursiv::ast_type_tag<ast::LiteralStmt>) {
           sawLiteral = true;
-          CHECK(static_cast<const ast::LiteralStmt*>(item)->strings.size() ==
-                2);
+          CHECK(static_cast<const ast::LiteralStmt*>(item)->text ==
+                "\n\"raw line one\"\n\"raw line two\"\n");
         } else if (item->type == &cursiv::ast_type_tag<ast::ConstantStmt>) {
           const auto& c = *static_cast<const ast::ConstantStmt*>(item);
           for (const ast::ConstantPhrase* phrase : c.phrases) {

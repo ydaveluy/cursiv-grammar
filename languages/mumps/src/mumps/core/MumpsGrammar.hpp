@@ -21,7 +21,6 @@ inline constexpr auto unquote = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Mumps : cursiv::GrammarSpec {
   struct TAB : terminal<lit<"\t">> {};
@@ -29,74 +28,65 @@ struct Mumps : cursiv::GrammarSpec {
   struct NEWLINE : terminal<some(cr<R"(\r\n)">)> {};
   struct COMMENT : terminal<lit<";"> + many(cr<R"(^\r\n)">)> {};
 
-  struct ID : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9">)> {};
+  // M command words end before a space/postcondition or line end. Keep
+  // this byte guard in a terminal: contextual words like i are also native
+  // variable names, and an unguarded keyword would win the lexical tie in i=.
+  template <cursiv::str Name>
+  struct CommandWord
+      : terminal<ikw<Name> + &(cr<R"( :;\r\n)"> | eof)> {};
 
-  static constexpr auto stringBody = many(lit<"\"\""> | cr<R"(^")">);
-  struct STRING : terminal<lit<"\""> + stringBody + lit<"\"">, Unquoted> {};
+  struct ID : terminal<cr<"a-zA-Z%"> + many(cr<"a-zA-Z0-9">)> {};
+  struct LABEL : terminal<ref<ID> | some(d)> {};
+  struct ROUTINE_NAME
+      : terminal<(cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9">)) | some(d)> {};
+  struct PERCENT_ROUTINE_NAME
+      : terminal<as<[](std::string_view text) { return text.substr(1); }>(
+            lit<"%"> + many(cr<"a-zA-Z0-9">))> {};
 
-  struct NUMBER
-      : terminal<(some(d) + option(lit<"."> + many(d))) | (lit<"."> + some(d)),
-                 double> {};
+  static constexpr auto stringBody = many(lit<"\"\""> | cr<R"(^"\r\n)">);
+  struct STRING : terminal<as<unquote>(lit<"\""> + stringBody + lit<"\"">)> {};
 
-  struct AddOp
-      : rule<many(ref<SPACE>) + lit<"+">, value<ast::Operator::add>> {};
-  struct SubtractOp
-      : rule<many(ref<SPACE>) + lit<"-">, value<ast::Operator::subtract>> {};
-  struct MultiplyOp
-      : rule<many(ref<SPACE>) + lit<"*">, value<ast::Operator::multiply>> {};
-  struct DivideOp
-      : rule<many(ref<SPACE>) + lit<"/">, value<ast::Operator::divide>> {};
-  struct IntDivideOp
-      : rule<many(ref<SPACE>) + lit<"\\">,
-             value<ast::Operator::intdivide>> {};
-  struct ModuloOp
-      : rule<many(ref<SPACE>) + lit<"#">, value<ast::Operator::modulo>> {};
-  struct ExponentOp
-      : rule<many(ref<SPACE>) + lit<"**">, value<ast::Operator::exponent>> {};
+  struct NUMBER : terminal<as<double>((some(d) + option(lit<"."> + many(d))) |
+                                      (lit<"."> + some(d)))> {};
+
   // String concatenation: central to the language, and reached from no
   // parser rule in the source expression grammar, so it is added here on
   // the same footing as the arithmetic operators around it.
-  struct ConcatOp
-      : rule<many(ref<SPACE>) + lit<"_">, value<ast::Operator::concat>> {};
 
-  struct GtOp : rule<lit<">">, value<ast::Operator::gt>> {};
-  struct LtOp : rule<lit<"<">, value<ast::Operator::lt>> {};
-  struct NgtOp : rule<lit<"'>">, value<ast::Operator::ngt>> {};
-  struct NltOp : rule<lit<"'<">, value<ast::Operator::nlt>> {};
-  struct EqOp : rule<lit<"=">, value<ast::Operator::eq>> {};
 
-  struct TermRule;
-  struct ExpressionRule;
-  struct VariableRule;
-  struct FunctionCallRule;
-  struct ConditionRule;
-  struct ArgRule;
-  struct CommandRule;
+  struct Term;
+  struct Expression;
+  struct Variable;
+  struct FunctionCall;
+  struct Condition;
+  struct Arg;
+  struct Command;
+  struct IfCommand;
 
   // A subscript list, in the same shape a function call already takes.
   // Without one, no local or global array is spellable at all -- the
   // defining data structure of the language.
-  struct VariableRule
+  struct Variable
       : rule<create<ast::Variable> +
              many(flag<&ast::Variable::global>(lit<"^">) |
                   flag<&ast::Variable::extrinsic>(lit<"&">)) +
              assign<&ast::Variable::name>(ref<ID>) +
              option(lit<"("> +
-                    some(append<&ast::Variable::subscripts>(ref<ArgRule>),
+                    some(append<&ast::Variable::subscripts>(ref<Arg>),
                          lit<",">) +
                     lit<")">)> {};
 
   // A function argument admits a string literal exactly where a command's
   // argument list does ($extract(x,"a","b")): both read the same element.
-  struct FunctionCallRule
+  struct FunctionCall
       : rule<create<ast::FunctionCall> + lit<"$"> +
              assign<&ast::FunctionCall::name>(ref<ID>) +
              option(lit<"("> +
-                    some(append<&ast::FunctionCall::args>(ref<ArgRule>),
+                    some(append<&ast::FunctionCall::args>(ref<Arg>),
                          lit<",">) +
                     lit<")">)> {};
 
-  struct TermRule : rule<ref<VariableRule> | ref<FunctionCallRule> |
+  struct Term : rule<ref<Variable> | ref<FunctionCall> |
                          create<ast::StringArg>(
                              assign<&ast::StringArg::value>(ref<STRING>)) |
                          create<ast::NumberLiteral>(
@@ -104,184 +94,215 @@ struct Mumps : cursiv::GrammarSpec {
                          create<ast::GroupedExpression>(
                              lit<"("> +
                              assign<&ast::GroupedExpression::expression>(
-                                 ref<ExpressionRule>) +
+                                 ref<Expression>) +
                              lit<")">)> {};
 
-  struct UnaryTermRule
+  struct UnaryTerm
       : rule<create<ast::UnaryExpression>(
                  assign<&ast::UnaryExpression::op>(lit<"+"> | lit<"-"> |
                                                    lit<"'"> | lit<"@">) +
-                 assign<&ast::UnaryExpression::operand>(ref<UnaryTermRule>)) |
-             ref<TermRule>> {};
+                 assign<&ast::UnaryExpression::operand>(ref<UnaryTerm>)) |
+             ref<Term>> {};
 
   // No precedence step: every operator stands on the one level MUMPS itself
   // evaluates, strictly left to right.
-  struct ExpressionRule
-      : infix<UnaryTermRule, &ast::BinaryExpression::left,
-              &ast::BinaryExpression::op, &ast::BinaryExpression::right,
-              left(ref<AddOp> | ref<SubtractOp> | ref<MultiplyOp> |
-                   ref<DivideOp> | ref<IntDivideOp> | ref<ModuloOp> |
-                   ref<ExponentOp> | ref<ConcatOp> | ref<NgtOp> | ref<NltOp> |
-                   ref<LtOp> | ref<GtOp> | ref<EqOp>)> {};
+  struct Expression
+      : infix<UnaryTerm, ast::BinaryExpression,
+              left(as<ast::Operator::add>(many(ref<SPACE>) + lit<"+">) |
+                   as<ast::Operator::subtract>(many(ref<SPACE>) + lit<"-">) |
+                   as<ast::Operator::multiply>(many(ref<SPACE>) + lit<"*">) |
+                   as<ast::Operator::divide>(many(ref<SPACE>) + lit<"/">) |
+                   as<ast::Operator::intdivide>(many(ref<SPACE>) + lit<"\\">) |
+                   as<ast::Operator::modulo>(many(ref<SPACE>) + lit<"#">) |
+                   as<ast::Operator::exponent>(many(ref<SPACE>) + lit<"**">) |
+                   as<ast::Operator::concat>(many(ref<SPACE>) + lit<"_">) |
+                   as<ast::Operator::ngt>(lit<"'>">) |
+                   as<ast::Operator::nlt>(lit<"'<">) |
+                   as<ast::Operator::neq>(lit<"'=">) |
+                   as<ast::Operator::lt>(lit<"<">) |
+                   as<ast::Operator::gt>(lit<">">) |
+                   as<ast::Operator::eq>(lit<"=">) |
+                   as<ast::Operator::contains>(lit<"[">) |
+                   as<ast::Operator::notContains>(lit<"'[">) |
+                   as<ast::Operator::follows>(lit<"]">) |
+                   as<ast::Operator::notFollows>(lit<"']">) |
+                   as<ast::Operator::sortsAfter>(lit<"]]">) |
+                   as<ast::Operator::notSortsAfter>(lit<"']]">) |
+                   as<ast::Operator::and_>(lit<"&">) |
+                   as<ast::Operator::nand>(lit<"'&">) |
+                   as<ast::Operator::or_>(lit<"!">) |
+                   as<ast::Operator::nor>(lit<"'!">))> {};
 
-  struct ConditionRule : rule<ref<ExpressionRule>> {};
+  struct Condition : rule<ref<Expression>> {};
 
-  struct ArgRule : rule<ref<ExpressionRule> | create<ast::BangArg>(lit<"!">)> {
+  struct Arg : rule<ref<Expression> | create<ast::BangArg>(lit<"!">)> {
   };
 
-  struct AssignmentRule
+  struct Assignment
       : rule<create<ast::Assignment> +
              option(option(lit<"(">) +
-                    append<&ast::Assignment::targets>(ref<ArgRule>) +
+                    append<&ast::Assignment::targets>(ref<Arg>) +
                     many(many(ref<SPACE>) + lit<","> +
-                         append<&ast::Assignment::targets>(ref<ArgRule>)) +
+                         append<&ast::Assignment::targets>(ref<Arg>)) +
                     option(lit<")">)) +
              many(ref<SPACE>) + lit<"="> + many(ref<SPACE>) +
-             assign<&ast::Assignment::value>(ref<ArgRule>)> {};
+             assign<&ast::Assignment::value>(ref<Arg>)> {};
 
-  struct MergePairRule
+  struct MergePair
       : rule<create<ast::Assignment> +
-             append<&ast::Assignment::targets>(ref<TermRule>) + lit<"="> +
-             assign<&ast::Assignment::value>(ref<TermRule>)> {};
+             append<&ast::Assignment::targets>(ref<Term>) + lit<"="> +
+             assign<&ast::Assignment::value>(ref<Term>)> {};
 
   struct BreakCommand
       : rule<create<ast::BreakCommand> +
-             (ikw<"BREAK"> | ikw<"B">)+option(
+             (ref<CommandWord<"BREAK">> | ref<CommandWord<"B">>)+option(
                  lit<":"> + assign<&ast::BreakCommand::postcondition>(
-                                ref<ConditionRule>))> {};
+                                ref<Condition>))> {};
 
+  struct DoTarget
+      : rule<(option(ref<LABEL>) + lit<"^"> + ref<ID>) | ref<LABEL>> {};
   struct DoCommand
       : rule<create<ast::DoCommand> +
-             (ikw<"DO"> | ikw<"D">)+option(
-                 lit<":"> +
-                 assign<&ast::DoCommand::postcondition>(ref<ConditionRule>)) +
-             some(ref<SPACE>) + assign<&ast::DoCommand::name>(ref<ID>) +
-             option(
-                 lit<"("> +
-                 option(some(append<&ast::DoCommand::params>(ref<VariableRule>),
-                             lit<",">)) +
-                 lit<")">)> {};
+             (ref<CommandWord<"DO">> | ref<CommandWord<"D">>) +
+             option(lit<":"> + assign<&ast::DoCommand::postcondition>(
+                                     ref<Condition>)) +
+             option(ref<SPACE> + !ref<SPACE> +
+                    assign<&ast::DoCommand::name>(ref<DoTarget>) +
+                    option(lit<"("> +
+                           many(append<&ast::DoCommand::params>(ref<Arg>),
+                                lit<",">) +
+                           lit<")">))> {};
 
   // FOR parameters are start[:increment[:limit]], with any number of
   // comma-separated ranges. An argumentless FOR keeps an empty parameter list.
-  struct ForParameterRule
+  struct ForParameter
       : rule<create<ast::ForParameter>(
-            assign<&ast::ForParameter::start>(ref<ExpressionRule>) +
+            assign<&ast::ForParameter::start>(ref<Expression>) +
             option(lit<":"> +
-                   assign<&ast::ForParameter::step>(ref<ExpressionRule>) +
+                   assign<&ast::ForParameter::step>(ref<Expression>) +
                    option(lit<":"> + assign<&ast::ForParameter::end>(
-                                         ref<ExpressionRule>))))> {};
+                                         ref<Expression>))))> {};
   struct ForCommand
       : rule<create<ast::ForCommand>(
-            (ikw<"FOR"> | ikw<"F">)+some(ref<SPACE>) +
-            option(
-                assign<&ast::ForCommand::variable>(ref<TermRule>) + lit<"="> +
-                some(
-                    append<&ast::ForCommand::parameters>(ref<ForParameterRule>),
-                    lit<",">)) +
+            (ref<CommandWord<"FOR">> | ref<CommandWord<"F">>) + ref<SPACE> +
+            // Commands must not be viable at a control-variable position:
+            // otherwise the keyword i steals the variable in FOR i=... .
+            ((assign<&ast::ForCommand::variable>(ref<Term>) + lit<"="> +
+              some(append<&ast::ForCommand::parameters>(ref<ForParameter>),
+                   lit<",">)) |
+             some(ref<SPACE>) | &(ref<NEWLINE> | eof)) +
             many(ref<SPACE>) +
-            many(append<&ast::ForCommand::commands>(ref<CommandRule>) +
+            many(append<&ast::ForCommand::commands>(ref<Command>) +
                  many(ref<SPACE>)) +
             option(lit<":"> +
-                   assign<&ast::ForCommand::condition>(ref<ConditionRule>)))> {
+                   assign<&ast::ForCommand::condition>(ref<Condition>)))> {
   };
 
   struct HaltCommand
       : rule<create<ast::HaltCommand> +
-             (ikw<"HALT"> | ikw<"H">)+option(
+             (ref<CommandWord<"HALT">> | ref<CommandWord<"H">>)+option(
                  lit<":"> + assign<&ast::HaltCommand::postcondition>(
-                                ref<ConditionRule>))> {};
+                                ref<Condition>))> {};
 
   struct HangCommand
       : rule<create<ast::HangCommand> +
-             (ikw<"HANG"> | ikw<"H">)+option(
+             (ref<CommandWord<"HANG">> | ref<CommandWord<"H">>)+option(
                  lit<":"> +
-                 assign<&ast::HangCommand::postcondition>(ref<ConditionRule>)) +
+                 assign<&ast::HangCommand::postcondition>(ref<Condition>)) +
              some(ref<SPACE>) +
-             assign<&ast::HangCommand::duration>(ref<TermRule>)> {};
+             assign<&ast::HangCommand::duration>(ref<Expression>)> {};
 
   struct IfCommand
-      : rule<create<ast::IfCommand> + (ikw<"IF"> | ikw<"I">)+some(ref<SPACE>) +
-             assign<&ast::IfCommand::condition>(ref<ConditionRule>) +
-             many(ref<SPACE>) +
-             assign<&ast::IfCommand::command>(ref<CommandRule>)> {};
+      : rule<create<ast::IfCommand> + (ref<CommandWord<"IF">> | ref<CommandWord<"I">>) +
+             option((ref<SPACE> + ref<SPACE> + many(ref<SPACE>) +
+                     option(assign<&ast::IfCommand::command>(ref<Command>))) |
+                    (ref<SPACE> +
+                     assign<&ast::IfCommand::condition>(ref<Condition>) +
+                     many(lit<","> + append<&ast::IfCommand::moreConditions>(
+                                         ref<Condition>)) +
+                     option(some(ref<SPACE>) +
+                            assign<&ast::IfCommand::command>(ref<Command>))))> {};
 
   struct KillCommand
-      : rule<create<ast::KillCommand> +
-             (ikw<"KILL"> | ikw<"K">)+option(
-                 lit<":"> +
-                 assign<&ast::KillCommand::postcondition>(ref<ConditionRule>)) +
-             some(ref<SPACE>) + append<&ast::KillCommand::args>(ref<ArgRule>) +
-             many(many(ref<SPACE>) + lit<","> +
-                  append<&ast::KillCommand::args>(ref<ArgRule>))> {};
+      : rule<create<ast::KillCommand> + (ref<CommandWord<"KILL">> | ref<CommandWord<"K">>) +
+             option(lit<":"> + assign<&ast::KillCommand::postcondition>(
+                                     ref<Condition>)) +
+             option(ref<SPACE> + !ref<SPACE> +
+                    ((flag<&ast::KillCommand::exclusive>(lit<"(">) +
+                      some(append<&ast::KillCommand::args>(ref<Variable>),
+                           lit<",">) + lit<")">) |
+                     some(append<&ast::KillCommand::args>(ref<Arg>),
+                          many(ref<SPACE>) + lit<",">)))> {};
 
   struct MergeCommand
       : rule<create<ast::MergeCommand> +
-             (ikw<"MERGE"> | ikw<"M">)+option(
+             (ref<CommandWord<"MERGE">> | ref<CommandWord<"M">>)+option(
                  lit<":"> + assign<&ast::MergeCommand::postcondition>(
-                                ref<ConditionRule>)) +
+                                ref<Condition>)) +
              some(ref<SPACE>) +
-             append<&ast::MergeCommand::pairs>(ref<MergePairRule>) +
+             append<&ast::MergeCommand::pairs>(ref<MergePair>) +
              many(lit<","> +
-                  append<&ast::MergeCommand::pairs>(ref<MergePairRule>))> {};
+                  append<&ast::MergeCommand::pairs>(ref<MergePair>))> {};
 
   struct NewCommand
-      : rule<create<ast::NewCommand> +
-             (ikw<"NEW"> | ikw<"N">)+option(
-                 lit<":"> +
-                 assign<&ast::NewCommand::postcondition>(ref<ConditionRule>)) +
-             some(ref<SPACE>) + append<&ast::NewCommand::args>(ref<ArgRule>) +
-             many(many(ref<SPACE>) + lit<","> +
-                  append<&ast::NewCommand::args>(ref<ArgRule>))> {};
+      : rule<create<ast::NewCommand> + (ref<CommandWord<"NEW">> | ref<CommandWord<"N">>) +
+             option(lit<":"> + assign<&ast::NewCommand::postcondition>(
+                                     ref<Condition>)) +
+             option(ref<SPACE> + !ref<SPACE> +
+                    ((flag<&ast::NewCommand::exclusive>(lit<"(">) +
+                      some(append<&ast::NewCommand::args>(ref<Variable>),
+                           lit<",">) + lit<")">) |
+                     some(append<&ast::NewCommand::args>(ref<Arg>),
+                          many(ref<SPACE>) + lit<",">)))> {};
 
   struct QuitCommand
       : rule<create<ast::QuitCommand> +
-             (ikw<"QUIT"> | ikw<"Q">)+option(
+             (ref<CommandWord<"QUIT">> | ref<CommandWord<"Q">>)+option(
                  lit<":"> +
-                 assign<&ast::QuitCommand::postcondition>(ref<ConditionRule>)) +
+                 assign<&ast::QuitCommand::postcondition>(ref<Condition>)) +
              option(some(ref<SPACE>) +
-                    assign<&ast::QuitCommand::value>(ref<TermRule>))> {};
+                    assign<&ast::QuitCommand::value>(ref<Expression>))> {};
 
   struct ReadCommand
       : rule<create<ast::ReadCommand> +
-             (ikw<"READ"> | ikw<"R">)+option(
+             (ref<CommandWord<"READ">> | ref<CommandWord<"R">>)+option(
                  lit<":"> +
-                 assign<&ast::ReadCommand::postcondition>(ref<ConditionRule>)) +
-             some(ref<SPACE>) + append<&ast::ReadCommand::args>(ref<ArgRule>) +
+                 assign<&ast::ReadCommand::postcondition>(ref<Condition>)) +
+             some(ref<SPACE>) + append<&ast::ReadCommand::args>(ref<Arg>) +
              many(many(ref<SPACE>) + lit<","> +
-                  append<&ast::ReadCommand::args>(ref<ArgRule>))> {};
+                  append<&ast::ReadCommand::args>(ref<Arg>))> {};
 
   struct SetCommand
       : rule<create<ast::SetCommand> +
-             (ikw<"SET"> | ikw<"S">)+option(
+             (ref<CommandWord<"SET">> | ref<CommandWord<"S">>)+option(
                  lit<":"> +
-                 assign<&ast::SetCommand::postcondition>(ref<ConditionRule>)) +
+                 assign<&ast::SetCommand::postcondition>(ref<Condition>)) +
              some(ref<SPACE>) +
-             append<&ast::SetCommand::assigns>(ref<AssignmentRule>) +
+             append<&ast::SetCommand::assigns>(ref<Assignment>) +
              many(lit<","> +
-                  append<&ast::SetCommand::assigns>(ref<AssignmentRule>))> {};
+                  append<&ast::SetCommand::assigns>(ref<Assignment>))> {};
 
   struct ViewCommand
       : rule<create<ast::ViewCommand> +
-             (ikw<"VIEW"> | ikw<"V">)+option(
+             (ref<CommandWord<"VIEW">> | ref<CommandWord<"V">>)+option(
                  lit<":"> +
-                 assign<&ast::ViewCommand::postcondition>(ref<ConditionRule>)) +
+                 assign<&ast::ViewCommand::postcondition>(ref<Condition>)) +
              some(ref<SPACE>) + assign<&ast::ViewCommand::name>(ref<ID>)> {};
 
   struct WriteCommand
       : rule<create<ast::WriteCommand> +
-             (ikw<"WRITE"> | ikw<"W">)+option(
+             (ref<CommandWord<"WRITE">> | ref<CommandWord<"W">>)+option(
                  lit<":"> + assign<&ast::WriteCommand::postcondition>(
-                                ref<ConditionRule>)) +
-             some(ref<SPACE>) + append<&ast::WriteCommand::args>(ref<ArgRule>) +
+                                ref<Condition>)) +
+             some(ref<SPACE>) + append<&ast::WriteCommand::args>(ref<Arg>) +
              many(many(ref<SPACE>) + lit<","> +
-                  append<&ast::WriteCommand::args>(ref<ArgRule>))> {};
+                  append<&ast::WriteCommand::args>(ref<Arg>))> {};
 
   struct XecuteCommand
       : rule<create<ast::XecuteCommand> +
-             (ikw<"XECUTE"> | ikw<"X">)+option(
+             (ref<CommandWord<"XECUTE">> | ref<CommandWord<"X">>)+option(
                  lit<":"> + assign<&ast::XecuteCommand::postcondition>(
-                                ref<ConditionRule>)) +
+                                ref<Condition>)) +
              some(ref<SPACE>) +
              assign<&ast::XecuteCommand::code>(ref<STRING>)> {};
 
@@ -289,17 +310,17 @@ struct Mumps : cursiv::GrammarSpec {
       : terminal<some((lit<"\""> + stringBody + lit<"\"">) |
                       cr<R"(^ \r\n")">)> {};
 
-  static constexpr auto noArgumentCommand = (ikw<"ELSE"> | ikw<"E">) |
-                                            (ikw<"TCOMMIT"> | ikw<"TC">) |
-                                            (ikw<"TRESTART"> | ikw<"TRE">);
+  static constexpr auto noArgumentCommand = (ref<CommandWord<"ELSE">> | ref<CommandWord<"E">>) |
+                                            (ref<CommandWord<"TCOMMIT">> | ref<CommandWord<"TC">>) |
+                                            (ref<CommandWord<"TRESTART">> | ref<CommandWord<"TRE">>);
   static constexpr auto argumentCommand =
-      (ikw<"CLOSE"> | ikw<"C">) | (ikw<"GOTO"> | ikw<"G">) |
-      (ikw<"JOB"> | ikw<"J">) | (ikw<"LOCK"> | ikw<"L">) |
-      (ikw<"OPEN"> | ikw<"O">) | (ikw<"TROLLBACK"> | ikw<"TRO">) |
-      (ikw<"TSTART"> | ikw<"TS">) | (ikw<"USE"> | ikw<"U">);
+      (ref<CommandWord<"CLOSE">> | ref<CommandWord<"C">>) | (ref<CommandWord<"GOTO">> | ref<CommandWord<"G">>) |
+      (ref<CommandWord<"JOB">> | ref<CommandWord<"J">>) | (ref<CommandWord<"LOCK">> | ref<CommandWord<"L">>) |
+      (ref<CommandWord<"OPEN">> | ref<CommandWord<"O">>) | (ref<CommandWord<"TROLLBACK">> | ref<CommandWord<"TRO">>) |
+      (ref<CommandWord<"TSTART">> | ref<CommandWord<"TS">>) | (ref<CommandWord<"USE">> | ref<CommandWord<"U">>);
   static constexpr auto otherPostcondition = option(
-      lit<":"> + assign<&ast::OtherCommand::postcondition>(ref<ConditionRule>));
-  struct OtherCommandRule
+      lit<":"> + assign<&ast::OtherCommand::postcondition>(ref<Condition>));
+  struct OtherCommand
       : rule<create<ast::OtherCommand>(
             (assign<&ast::OtherCommand::keyword>(noArgumentCommand) +
              otherPostcondition) |
@@ -308,59 +329,64 @@ struct Mumps : cursiv::GrammarSpec {
              option(some(ref<SPACE>) + assign<&ast::OtherCommand::argumentText>(
                                            ref<COMMAND_ARGUMENTS>))))> {};
 
-  struct CommandRule
+  struct Command
       : rule<ref<SetCommand> | ref<ForCommand> | ref<WriteCommand> |
              ref<ReadCommand> | ref<QuitCommand> | ref<HaltCommand> |
              ref<HangCommand> | ref<NewCommand> | ref<BreakCommand> |
              ref<DoCommand> | ref<KillCommand> | ref<ViewCommand> |
-             ref<MergeCommand> | ref<XecuteCommand> | ref<OtherCommandRule>> {
+             ref<MergeCommand> | ref<XecuteCommand> | ref<IfCommand> | ref<OtherCommand>> {
   };
 
-  struct SubprocRule
+  struct Subproc
       : rule<create<ast::Subproc> + assign<&ast::Subproc::name>(ref<ID>) +
              option(lit<"("> +
-                    option(some(append<&ast::Subproc::params>(ref<VariableRule>),
-                                lit<",">)) +
+                    many(append<&ast::Subproc::params>(ref<Variable>),
+                                lit<",">) +
                     lit<")">) +
              some(many(ref<SPACE>) +
-                  append<&ast::Subproc::commands>(ref<CommandRule>))> {};
+                  append<&ast::Subproc::commands>(ref<Command>))> {};
 
-  // A nested block's dotted prefix is directly followed by the command in
-  // the source rule, with no space admitted between -- so a block body
-  // written the way every dotted MUMPS example writes it (a space after
-  // the dots, `. WRITE x`) would not parse. Nesting under IF/FOR/DO is
-  // otherwise unreachable, so that trailing space is made optional here,
-  // the same way the label branch already requires one after the name.
-  struct CodeLineRule
+  static constexpr auto countLevels = [](std::string_view text) {
+    std::uint64_t count = 0;
+    for (const auto c : text) if (c == '.') ++count;
+    return count;
+  };
+  struct LEVEL
+      : terminal<as<countLevels>(lit<"."> + many(cr<". ">))> {};
+
+  struct CodeLine
       : rule<create<ast::CodeLine> +
-             ((assign<&ast::CodeLine::label>(ref<ID>) + some(ref<SPACE>)) |
-              (some(ref<SPACE>) + some(lit<".">) + many(ref<SPACE>)) |
+             ((assign<&ast::CodeLine::label>(ref<LABEL>) +
+               option(lit<"("> +
+                      many(append<&ast::CodeLine::params>(ref<Variable>),
+                           lit<",">) + lit<")">) + some(ref<SPACE>)) |
               some(ref<SPACE>)) +
-             option(some(append<&ast::CodeLine::commands>(ref<CommandRule>),
+             option(assign<&ast::CodeLine::level>(ref<LEVEL>)) +
+             option(some(append<&ast::CodeLine::commands>(ref<Command>),
                          some(ref<SPACE>)) |
-                    append<&ast::CodeLine::commands>(ref<IfCommand>) |
-                    append<&ast::CodeLine::commands>(ref<SubprocRule>)) +
+                    append<&ast::CodeLine::commands>(ref<Subproc>)) +
              many(ref<SPACE>) + ref<NEWLINE>> {};
 
-  struct RoutineDeclRule
+  struct RoutineDecl
       : rule<create<ast::RoutineDecl> +
-             option(flag<&ast::RoutineDecl::percent>(lit<"%">)) +
-             assign<&ast::RoutineDecl::name>(ref<ID>) +
+             (flag<&ast::RoutineDecl::percent>(
+                  assign<&ast::RoutineDecl::name>(ref<PERCENT_ROUTINE_NAME>)) |
+              assign<&ast::RoutineDecl::name>(ref<ROUTINE_NAME>)) +
              option(lit<"("> +
-                    option(some(append<&ast::RoutineDecl::params>(ref<VariableRule>),
-                                lit<",">)) +
+                    many(append<&ast::RoutineDecl::params>(ref<Variable>),
+                                lit<",">) +
                     lit<")">) +
              many(ref<SPACE>) + ref<NEWLINE>> {};
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document> +
-             some(append<&ast::Document::lines>(ref<CodeLineRule>) |
-                  append<&ast::Document::lines>(ref<RoutineDeclRule>) |
+             some(append<&ast::Document::lines>(ref<CodeLine>) |
+                  append<&ast::Document::lines>(ref<RoutineDecl>) |
                   tight(ref<NEWLINE>)) +
              many(ref<SPACE>) + option(ref<NEWLINE>)> {};
 
-  using entry = DocumentRule;
-  using ignore = TAB;
+  using entry = Document;
+  using ignored = TAB;
   using hidden = list<COMMENT>;
 };
 

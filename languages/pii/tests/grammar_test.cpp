@@ -30,6 +30,55 @@ int main() {
 
   int total = 0;
   int failures = 0;
+  struct Case {
+    const char* source;
+    const char* identifier;
+    const char* year;
+    const char* item;
+    const char* check;
+  };
+  // Publisher XML examples exercise source forms the teaching grammar missed.
+  for (const Case& test : {
+           Case{"S0012365X15000898", "0012365X", "15", "00089", "8"},
+           Case{"S0168-583X(16)91021-8", "0168583X", "16", "91021", "8"},
+           Case{"S9999-9994(03)X7607-2", "99999994", "03", "X7607", "2"},
+           Case{"S0092-8674(03)00309-X", "00928674", "03", "00309", "X"},
+           Case{"B978-0-323-01679-7.10003-8", "9780323016797", "", "10003", "8"},
+           Case{"B0-323-01679-0/10027-7", "0323016790", "", "10027", "7"},
+           Case{"B0-8044-2957-X/00001-0", "080442957X", "", "00001", "0"}}) {
+    const auto result = language.language.parser->parse(test.source);
+    const auto* doc = result.value_as<pii::ast::Doc>();
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !doc || !doc->id ||
+        doc->item != test.item || doc->check != test.check ||
+        result.cst().text() != test.source) {
+      failures += fail(test.source, "native identifier was lost or rejected");
+      continue;
+    }
+    if (test.source[0] == 'S') {
+      if (doc->id->type != &cursiv::ast_type_tag<pii::ast::Issn>) {
+        failures += fail(test.source, "wrong journal identifier type");
+        continue;
+      }
+      const auto& id = *static_cast<const pii::ast::Issn*>(doc->id);
+      if (id.digits != test.identifier || id.year != test.year)
+        failures += fail(test.source, "wrong ISSN/year capture");
+    } else {
+      if (doc->id->type != &cursiv::ast_type_tag<pii::ast::Isbn> ||
+          static_cast<const pii::ast::Isbn*>(doc->id)->digits != test.identifier)
+        failures += fail(test.source, "wrong ISBN capture");
+    }
+    if (doc->parent || doc->id->parent != doc || result.nodes.size() != 2)
+      failures += fail(test.source, "wrong identifier ownership");
+  }
+  for (const char* source : {"S001236AX15000898", "S0012365x15000898",
+                             "S99999994031X6072", "B978032301679X100038",
+                             "B0323016790/10027"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() &&
+        result.diagnostics.empty())
+      failures += fail(source, "malformed identifier parsed cleanly");
+  }
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
   for (const std::filesystem::directory_entry& entry :
        std::filesystem::directory_iterator(dir)) {

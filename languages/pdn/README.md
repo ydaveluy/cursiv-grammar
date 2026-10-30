@@ -44,7 +44,7 @@ game of draughts (checkers): a set of `[Tag "value"]` pairs, then the moves.
 ```
 
 A move is a square-to-square slide (`19-15`) or a jump (`10x19`); the game
-ends in a result (`1-0`, `0-1`, `1/2-1/2`) or `*` for one still open.
+can end in a result (`1-0`, `0-1`, `1/2-1/2`) or `*` for one still open.
 
 ## The command line
 

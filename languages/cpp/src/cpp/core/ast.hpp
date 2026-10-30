@@ -104,6 +104,7 @@ struct ThisExpr : cursiv::Extends<Expr> {};
 // One entry of a lambda-introducer's capture-list: `x`, `&x`, `this`,
 // `*this`, or an init-capture `x = expr`.
 struct Capture : cursiv::Extends<cursiv::AstNode> {
+  boolean pack;
   boolean byRef;
   boolean isThis;      // `this` or `*this`
   string_view name;    // empty for `this`/`*this`
@@ -231,6 +232,10 @@ struct ThrowExpr : cursiv::Extends<Expr> {
 
 // `{ a, b, c }`: a brace-init-list. Extends Expr, since C++ accepts one
 // wherever an initializer or an argument may stand (`return {1, 2};`).
+struct PackExpansionExpr : cursiv::Extends<Expr> {
+  Expr* pattern;
+};
+
 struct BracedInitList : cursiv::Extends<Expr> {
   vector<Expr*> items;
 };
@@ -358,6 +363,7 @@ struct Specifiers : cursiv::Extends<cursiv::AstNode> {
 // A type as written in an expression or a cast: the operand of `sizeof`,
 // `alignof`, a named cast, `new`, or a template argument.
 struct TypeId : cursiv::Extends<cursiv::AstNode> {
+  boolean packExpansion;  // ellipsis on a type argument or exception type
   Specifiers* specifiers;
   Declarator* declarator;  // abstract; null when bare
 };
@@ -527,6 +533,7 @@ struct DefaultLabel : cursiv::Extends<Stmt> {
 // One member-initializer of a constructor's initializer list:
 // `Base(args)`/`member{args}`.
 struct MemInit : cursiv::Extends<cursiv::AstNode> {
+  boolean pack;
   cursiv::AstNode* target;  // Name* or a decltype TypeSpec*
   vector<Expr*> args;
   boolean braced;

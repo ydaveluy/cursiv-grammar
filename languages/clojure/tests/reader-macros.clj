@@ -1,5 +1,5 @@
 ; numbers, keywords and characters
-[42 -7 3.14 -1.5e10 0x1F 0b101 100N 5L]
+[42 -7 3.14 -1.5e10 0x1F 2r101 100N 5]
 [:foo ::bar nil true false]
 [\a \newline \u0041]
 
@@ -17,7 +17,7 @@
 @foo
 ^String foo
 
-; var-quote, host-expr, discard, dispatch, regex
+; var-quote, tagged literal, discard, dispatch, regex
 #'foo
 #+foo bar
 #_foo bar

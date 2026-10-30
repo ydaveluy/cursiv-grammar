@@ -9,7 +9,6 @@ namespace gedcom {
 inline constexpr auto strip_at = [](std::string_view text) {
   return text.substr(1, text.size() - 2);
 };
-using StrippedAt = cursiv::text_conv<strip_at>;
 
 struct Gedcom : cursiv::GrammarSpec {
   static constexpr auto tag_character = cr<"a-zA-Z_0-9"> | lit<"-">;
@@ -21,12 +20,12 @@ struct Gedcom : cursiv::GrammarSpec {
   struct EOL : terminal<some(cr<R"(\r\n)">)> {};
   struct LEVEL : terminal<some(d) + &tag_head> {};
   struct TAG : terminal<some(tag_character)> {};
-  struct POINTER : terminal<pointer, StrippedAt> {};
+  struct POINTER : terminal<as<strip_at>(pointer)> {};
   struct VALUE : terminal<some(cr<R"(^\r\n)">)> {};
 
-  struct LineRule
+  struct Line
       : rule<create<ast::Line>(
-            option(ref<LEADING>) + assign<&ast::Line::level>(ref<LEVEL>) +
+            assign<&ast::Line::level>(ref<LEVEL>) +
             option(ref<SPACE>) +
             option(assign<&ast::Line::name>(ref<POINTER>) +
                    option(ref<SPACE>)) +
@@ -35,12 +34,14 @@ struct Gedcom : cursiv::GrammarSpec {
                    option(assign<&ast::Line::value>(ref<VALUE>))) +
             (ref<EOL> | eof))> {};
 
-  struct DocRule
+  struct Doc
       : rule<create<ast::Document>(
             option(flag<&ast::Document::bom>(lit<"\xEF\xBB\xBF">)) +
-            some(append<&ast::Document::lines>(ref<LineRule>)))> {};
+            many(ref<LEADING> | ref<EOL>) +
+            some(append<&ast::Document::lines>(ref<Line>) +
+                 many(ref<LEADING> | ref<EOL>)))> {};
 
-  using entry = DocRule;
+  using entry = Doc;
 };
 
 } // namespace gedcom

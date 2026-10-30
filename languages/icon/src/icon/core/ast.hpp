@@ -9,6 +9,15 @@ namespace icon::ast {
 struct Declaration : cursiv::Extends<cursiv::AstNode> {};
 struct Expression : cursiv::Extends<cursiv::AstNode> {};
 
+struct InvocableItem : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  string_view arity;
+};
+struct InvocableDeclaration : cursiv::Extends<Declaration> {
+  vector<InvocableItem*> items;
+};
+struct NullExpr : cursiv::Extends<Expression> {};
+
 struct LinkDeclaration : cursiv::Extends<Declaration> {
   vector<string_view> files;
 };
@@ -142,12 +151,16 @@ struct StringLit : cursiv::Extends<Expression> {
   string_view text;
 };
 
+struct CsetLit : cursiv::Extends<Expression> {
+  string_view text;
+};
+
 struct IntLit : cursiv::Extends<Expression> {
-  int64 value;
+  string_view text;
 };
 
 struct RealLit : cursiv::Extends<Expression> {
-  float64 value;
+  string_view text;
 };
 
 struct FieldAccess : cursiv::Extends<Expression> {

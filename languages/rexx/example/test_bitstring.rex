@@ -20,22 +20,22 @@ binary_good18 = '1111 1111'b
 binary_good19 = '1 1111 1111'b
 binary_good20 = '11 1111 1111'b
 
-/* A bunch of cases that are not binary strings, because there are blanks in wrong places. */
-binary_bad1 = '0 1 0 1'b
-binary_bad2 = "1 0 1 0"B
-binary_bad3 = "10 10"b
-binary_bad4 = '10 10'B
-binary_bad5 = "0 101"b
-binary_bad6 = '0 101'B
-binary_bad7 = '1 1'b
-binary_bad8 = '1 11'b
-binary_bad9 = '11 11'b
-binary_bad10 = '1111 1'b
-binary_bad11 = '111 111'b
-binary_bad12 = '1111 111'b
-binary_bad13 = '11 1111 11'b
-binary_bad14 = '11 1111 111'b
-binary_bad15 = '1 1111 1111 1'b
+/* Blank concatenations. The original malformed binary-string attempts are regression negatives. */
+binary_bad1 = '0 1 0 1' b
+binary_bad2 = "1 0 1 0" B
+binary_bad3 = "10 10" b
+binary_bad4 = '10 10' B
+binary_bad5 = "0 101" b
+binary_bad6 = '0 101' B
+binary_bad7 = '1 1' b
+binary_bad8 = '1 11' b
+binary_bad9 = '11 11' b
+binary_bad10 = '1111 1' b
+binary_bad11 = '111 111' b
+binary_bad12 = '1111 111' b
+binary_bad13 = '11 1111 11' b
+binary_bad14 = '11 1111 111' b
+binary_bad15 = '1 1111 1111 1' b
 
 hex_good1 = '1'x
 hex_good2 = "1"x
@@ -47,12 +47,12 @@ hex_good7 = 'deaf'X
 hex_good8 = "DEAF"X
 hex_good9 = 'de af'x
 
-/* A bunch of cases that are not hex strings, because there are blanks in wrong places. */
-hex_bad1  = ' de af'x
-hex_bad2  = "de af "X
-hex_bad3  = "d e af"x
-hex_bad4  = 'de a f'X
-hex_bad5  = "hi mom!"x	/* Not a hex string - invalid characters */
+/* Blank concatenations. The original malformed hex-string attempts are regression negatives. */
+hex_bad1  = ' de af' x
+hex_bad2  = "de af " X
+hex_bad3  = "d e af" x
+hex_bad4  = 'de a f' X
+hex_bad5  = "hi mom!" x	/* Not a hex string - invalid characters */
 
 str_good1 = 'hi mom!'
 str_good2 = "bye mom!"

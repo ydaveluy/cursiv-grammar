@@ -24,8 +24,18 @@ struct Pascal : cursiv::GrammarSpec {
   static constexpr auto identifier_text = [](std::string_view text) {
     return text.starts_with('&') ? text.substr(1) : text;
   };
-  struct IDENT : terminal<option(lit<"&">) + cr<"A-Za-z_"> + many(w),
-                          text_conv<identifier_text>> {};
+  // Core reserved words in the retained FPC profile; directives remain identifiers.
+  static constexpr auto Reserved =
+      ikw<"and"> | ikw<"array"> | ikw<"asm"> | ikw<"begin"> | ikw<"case"> |
+      ikw<"const"> | ikw<"div"> | ikw<"do"> | ikw<"downto"> | ikw<"else"> |
+      ikw<"end"> | ikw<"file"> | ikw<"for"> | ikw<"function"> | ikw<"goto"> |
+      ikw<"if"> | ikw<"in"> | ikw<"label"> | ikw<"mod"> | ikw<"nil"> |
+      ikw<"not"> | ikw<"of"> | ikw<"or"> | ikw<"packed"> | ikw<"procedure"> |
+      ikw<"program"> | ikw<"record"> | ikw<"repeat"> | ikw<"set"> | ikw<"shl"> |
+      ikw<"shr"> | ikw<"then"> | ikw<"to"> | ikw<"type"> | ikw<"until"> |
+      ikw<"var"> | ikw<"while"> | ikw<"with"> | ikw<"xor">;
+  struct IDENT : terminal<as<identifier_text>(
+      !Reserved + option(lit<"&">) + cr<"A-Za-z_"> + many(w))> {};
   struct NUM_INT : terminal<(lit<"$"> + some(cr<"0-9a-fA-F">)) |
                             (lit<"%"> + some(cr<"01">)) |
                             (lit<"&"> + some(cr<"0-7">)) | some(d)> {};
@@ -51,223 +61,220 @@ struct Pascal : cursiv::GrammarSpec {
     }
     return std::string_view(room.data(), n);
   };
-  struct PATH_STRING : terminal<QUOTED, text_conv<unquote>> {};
+  struct PATH_STRING : terminal<as<unquote>(QUOTED)> {};
 
-  struct ExpressionRule;
-  struct FactorRule;
-  struct PowerRule;
-  struct PostfixRule;
-  struct ActualArgRule;
-  struct SetElementRule;
-  struct StatementRule;
-  struct UnlabelledStatementRule;
-  struct CompoundStmtRule;
-  struct TypeRule;
-  struct SimpleTypeRule;
-  struct NamedTypeRule;
-  struct ParamRule;
-  struct ProcTypeRule;
-  struct VariantPartRule;
-  struct RecordFieldRule;
-  struct ProcDeclRule;
-  struct FuncDeclRule;
-  struct InterfaceProcRule;
-  struct InterfaceFuncRule;
-  struct BlockRule;
+  struct Expression;
+  struct Factor;
+  struct Power;
+  struct Postfix;
+  struct ActualArg;
+  struct SetElement;
+  struct Statement;
+  struct UnlabelledStatement;
+  struct CompoundStmt;
+  struct Type;
+  struct SimpleType;
+  struct NamedType;
+  struct Param;
+  struct ProcType;
+  struct VariantPart;
+  struct RecordField;
+  struct ProcDecl;
+  struct FuncDecl;
+  struct InterfaceProc;
+  struct InterfaceFunc;
+  struct Block;
 
-  struct NumberLitRule
+  struct NumberLit
       : rule<assign<&ast::NumberLit::spelling>(ref<NUM_REAL> | ref<NUM_INT>)> {
   };
-  struct StringLitRule
+  struct StringLit
       : rule<assign<&ast::StringLit::spelling>(ref<STRING_LITERAL>)> {};
-  struct NameExprRule : rule<assign<&ast::NameExpr::name>(ref<IDENT>)> {};
-  struct NilLitRule : rule<create<ast::NilLit> + ikw<"nil">> {};
-  struct ActualArgRule
-      : rule<assign<&ast::ActualArg::value>(ref<ExpressionRule>) +
+  struct NameExpr : rule<assign<&ast::NameExpr::name>(ref<IDENT>)> {};
+  struct NilLit : rule<create<ast::NilLit> + ikw<"nil">> {};
+  struct ActualArg
+      : rule<assign<&ast::ActualArg::value>(ref<Expression>) +
              many(lit<":"> +
-                  append<&ast::ActualArg::widths>(ref<ExpressionRule>))> {};
-  struct SetElementRule
-      : rule<assign<&ast::SetElement::low>(ref<ExpressionRule>) +
+                  append<&ast::ActualArg::widths>(ref<Expression>))> {};
+  struct SetElement
+      : rule<assign<&ast::SetElement::low>(ref<Expression>) +
              option(lit<".."> +
-                    assign<&ast::SetElement::high>(ref<ExpressionRule>))> {};
-  struct SetLitRule
-      : rule<(lit<"["> | lit<"(.">)+option(
-                 some(append<&ast::SetLit::elements>(ref<SetElementRule>),
-                      lit<",">)) +
+                    assign<&ast::SetElement::high>(ref<Expression>))> {};
+  struct SetLit
+      : rule<(lit<"["> | lit<"(.">)+many(append<&ast::SetLit::elements>(ref<SetElement>),
+                      lit<",">) +
              (lit<"]"> | lit<".)">)> {};
-  struct PostfixRule
-      : rule<(ref<NameExprRule> | ref<NumberLitRule> | ref<StringLitRule> |
-              ref<NilLitRule> | ref<SetLitRule> |
-              (lit<"("> + ref<ExpressionRule> + lit<")">)) +
+  struct Postfix
+      : rule<(ref<NameExpr> | ref<NumberLit> | ref<StringLit> |
+              ref<NilLit> | ref<SetLit> |
+              (lit<"("> + ref<Expression> + lit<")">)) +
              many(nest<ast::CallExpr, &ast::CallExpr::callee>(
                       lit<"("> +
-                      option(
-                          some(append<&ast::CallExpr::args>(ref<ActualArgRule>),
-                               lit<",">)) +
+                      many(append<&ast::CallExpr::args>(ref<ActualArg>),
+                               lit<",">) +
                       lit<")">) |
                   nest<ast::IndexExpr, &ast::IndexExpr::array>(
                       (lit<"["> | lit<"(.">)+some(
-                          append<&ast::IndexExpr::indices>(ref<ExpressionRule>),
+                          append<&ast::IndexExpr::indices>(ref<Expression>),
                           lit<",">) +
                       (lit<"]"> | lit<".)">)) |
                   nest<ast::FieldExpr, &ast::FieldExpr::object>(
                       lit<"."> + assign<&ast::FieldExpr::field>(ref<IDENT>)) |
                   nest<ast::DerefExpr, &ast::DerefExpr::operand>(lit<"^">))> {};
-  struct FactorRule
+  struct Factor
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
-                 assign<&ast::UnaryExpr::operand>(ref<PowerRule>)) |
+                 assign<&ast::UnaryExpr::op>(lit<"-">) +
+                 assign<&ast::UnaryExpr::operand>(ref<Power>)) |
              create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ikw<"not"> | lit<"@">) +
-                 assign<&ast::UnaryExpr::operand>(ref<FactorRule>)) |
-             ref<PostfixRule>> {};
-  struct PowerRule
-      : infix<FactorRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(lit<"**">)> {};
+                 assign<&ast::UnaryExpr::op>(lit<"+"> | ikw<"not"> | lit<"@">) +
+                 assign<&ast::UnaryExpr::operand>(ref<Factor>)) |
+             ref<Postfix>> {};
+  struct Power
+      : infix<Factor, ast::BinaryExpr, left(lit<"**">)> {};
   static constexpr auto MulOp = lit<"*"> | lit<"/"> | ikw<"div"> | ikw<"mod"> |
                                 ikw<"and"> | ikw<"shl"> | ikw<"shr"> |
                                 ikw<"as"> | ikw<"is"> | lit<"><">;
   static constexpr auto AddOp = lit<"+"> | lit<"-"> | ikw<"or"> | ikw<"xor">;
   static constexpr auto RelOp = lit<"<>"> | lit<"<="> | lit<">="> | lit<"="> |
                                 lit<"<"> | lit<">"> | ikw<"in">;
-  struct ExpressionRule : infix<PowerRule, &ast::BinaryExpr::left,
-                                &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                                (left(MulOp) >> left(AddOp) >> left(RelOp))> {};
+  struct Expression : infix<Power, ast::BinaryExpr,
+                                levels(left(MulOp), left(AddOp), left(RelOp))> {
+  };
 
-  struct CompoundStmtRule
+  struct CompoundStmt
       : rule<ikw<"begin"> +
-             some(append<&ast::CompoundStmt::statements>(ref<StatementRule>),
+             some(append<&ast::CompoundStmt::statements>(ref<Statement>),
                   lit<";">) +
              ikw<"end">> {};
-  struct SimpleStatementRule
+  struct SimpleStatement
       : rule<create<ast::AssignStmt>(
-                 assign<&ast::AssignStmt::target>(ref<ExpressionRule>) +
+                 assign<&ast::AssignStmt::target>(ref<Expression>) +
                  lit<":="> +
-                 assign<&ast::AssignStmt::value>(ref<ExpressionRule>)) |
+                 assign<&ast::AssignStmt::value>(ref<Expression>)) |
              create<ast::ExprStmt>(
-                 assign<&ast::ExprStmt::value>(ref<ExpressionRule>))> {};
-  struct IfStmtRule
-      : rule<ikw<"if"> + assign<&ast::IfStmt::cond>(ref<ExpressionRule>) +
+                 assign<&ast::ExprStmt::value>(ref<Expression>))> {};
+  struct IfStmt
+      : rule<ikw<"if"> + assign<&ast::IfStmt::cond>(ref<Expression>) +
              ikw<"then"> +
-             assign<&ast::IfStmt::thenBranch>(ref<StatementRule>) +
-             option(commit(ikw<"else">, assign<&ast::IfStmt::elseBranch>(ref<StatementRule>)))> {};
-  struct CaseArmRule
-      : rule<some(append<&ast::CaseArm::labels>(ref<SetElementRule>),
+             assign<&ast::IfStmt::thenBranch>(ref<Statement>) +
+             option(commit(ikw<"else">, assign<&ast::IfStmt::elseBranch>(ref<Statement>)))> {};
+  struct CaseArm
+      : rule<some(append<&ast::CaseArm::labels>(ref<SetElement>),
                   lit<",">) +
-             lit<":"> + assign<&ast::CaseArm::body>(ref<StatementRule>)> {};
-  struct CaseStmtRule
-      : rule<ikw<"case"> + assign<&ast::CaseStmt::value>(ref<ExpressionRule>) +
+             lit<":"> + assign<&ast::CaseArm::body>(ref<Statement>)> {};
+  struct CaseStmt
+      : rule<ikw<"case"> + assign<&ast::CaseStmt::value>(ref<Expression>) +
              ikw<"of"> +
-             option(some(append<&ast::CaseStmt::arms>(ref<CaseArmRule>),
-                         lit<";">)) +
+             many(append<&ast::CaseStmt::arms>(ref<CaseArm>),
+                         lit<";">) +
              option(lit<";">) +
              option(ikw<"else"> +
-                    some(append<&ast::CaseStmt::elseBody>(ref<StatementRule>),
+                    some(append<&ast::CaseStmt::elseBody>(ref<Statement>),
                          lit<";">)) +
              ikw<"end">> {};
-  struct WhileStmtRule
-      : rule<ikw<"while"> + assign<&ast::WhileStmt::cond>(ref<ExpressionRule>) +
-             ikw<"do"> + assign<&ast::WhileStmt::body>(ref<StatementRule>)> {};
-  struct RepeatStmtRule
+  struct WhileStmt
+      : rule<ikw<"while"> + assign<&ast::WhileStmt::cond>(ref<Expression>) +
+             ikw<"do"> + assign<&ast::WhileStmt::body>(ref<Statement>)> {};
+  struct RepeatStmt
       : rule<ikw<"repeat"> +
-             some(append<&ast::RepeatStmt::body>(ref<StatementRule>),
+             some(append<&ast::RepeatStmt::body>(ref<Statement>),
                   lit<";">) +
              ikw<"until"> +
-             assign<&ast::RepeatStmt::cond>(ref<ExpressionRule>)> {};
-  struct ForStmtRule
+             assign<&ast::RepeatStmt::cond>(ref<Expression>)> {};
+  struct ForStmt
       : rule<ikw<"for"> + assign<&ast::ForStmt::variable>(ref<IDENT>) +
-             ((lit<":="> + assign<&ast::ForStmt::from>(ref<ExpressionRule>) +
+             ((lit<":="> + assign<&ast::ForStmt::from>(ref<Expression>) +
                (flag<&ast::ForStmt::downto>(ikw<"downto">) |
-                ikw<"to">)+assign<&ast::ForStmt::to>(ref<ExpressionRule>)) |
+                ikw<"to">)+assign<&ast::ForStmt::to>(ref<Expression>)) |
               (ikw<"in"> +
-               assign<&ast::ForStmt::iterable>(ref<ExpressionRule>))) +
-             ikw<"do"> + assign<&ast::ForStmt::body>(ref<StatementRule>)> {};
-  struct WithStmtRule
+               assign<&ast::ForStmt::iterable>(ref<Expression>))) +
+             ikw<"do"> + assign<&ast::ForStmt::body>(ref<Statement>)> {};
+  struct WithStmt
       : rule<ikw<"with"> +
-             some(append<&ast::WithStmt::records>(ref<ExpressionRule>),
+             some(append<&ast::WithStmt::records>(ref<Expression>),
                   lit<",">) +
-             ikw<"do"> + assign<&ast::WithStmt::body>(ref<StatementRule>)> {};
-  struct GotoStmtRule : rule<ikw<"goto"> + assign<&ast::GotoStmt::target>(
+             ikw<"do"> + assign<&ast::WithStmt::body>(ref<Statement>)> {};
+  struct GotoStmt : rule<ikw<"goto"> + assign<&ast::GotoStmt::target>(
                                                ref<NUM_INT> | ref<IDENT>)> {};
-  struct UnlabelledStatementRule
-      : rule<ref<CompoundStmtRule> | ref<IfStmtRule> | ref<CaseStmtRule> |
-             ref<WhileStmtRule> | ref<RepeatStmtRule> | ref<ForStmtRule> |
-             ref<WithStmtRule> | ref<GotoStmtRule> | ref<SimpleStatementRule> |
+  struct UnlabelledStatement
+      : rule<ref<CompoundStmt> | ref<IfStmt> | ref<CaseStmt> |
+             ref<WhileStmt> | ref<RepeatStmt> | ref<ForStmt> |
+             ref<WithStmt> | ref<GotoStmt> | ref<SimpleStatement> |
              create<ast::EmptyStmt>> {};
-  struct StatementRule
+  struct Statement
       : rule<create<ast::LabeledStmt>(
                  assign<&ast::LabeledStmt::label>(ref<NUM_INT> | ref<IDENT>) +
                  lit<":"> +
                  assign<&ast::LabeledStmt::body>(
-                     ref<UnlabelledStatementRule>)) |
-             ref<UnlabelledStatementRule>> {};
+                     ref<UnlabelledStatement>)) |
+             ref<UnlabelledStatement>> {};
 
-  struct NamedTypeRule
+  struct NamedType
       : rule<some(append<&ast::NamedType::names>(ref<IDENT>), lit<".">)> {};
-  struct EnumTypeRule
+  struct EnumType
       : rule<lit<"("> +
              some(append<&ast::EnumType::values>(ref<IDENT>), lit<",">) +
              lit<")">> {};
-  struct SubrangeTypeRule
-      : rule<assign<&ast::SubrangeType::low>(ref<ExpressionRule>) + lit<".."> +
-             assign<&ast::SubrangeType::high>(ref<ExpressionRule>)> {};
-  struct StringTypeRule
+  struct SubrangeType
+      : rule<assign<&ast::SubrangeType::low>(ref<Expression>) + lit<".."> +
+             assign<&ast::SubrangeType::high>(ref<Expression>)> {};
+  struct StringType
       : rule<ikw<"string"> +
              option(lit<"["> +
-                    assign<&ast::StringType::size>(ref<ExpressionRule>) +
+                    assign<&ast::StringType::size>(ref<Expression>) +
                     lit<"]">)> {};
-  struct SimpleTypeRule : rule<ref<SubrangeTypeRule> | ref<EnumTypeRule> |
-                               ref<StringTypeRule> | ref<NamedTypeRule>> {};
-  struct ArrayTypeRule
+  struct SimpleType : rule<ref<SubrangeType> | ref<EnumType> |
+                               ref<StringType> | ref<NamedType>> {};
+  struct ArrayType
       : rule<option(flag<&ast::ArrayType::packed>(ikw<"packed">)) +
              ikw<"array"> +
              option((lit<"["> | lit<"(.">)+some(
-                        append<&ast::ArrayType::indices>(ref<SimpleTypeRule>),
+                        append<&ast::ArrayType::indices>(ref<SimpleType>),
                         lit<",">) +
                     (lit<"]"> | lit<".)">)) +
-             ikw<"of"> + assign<&ast::ArrayType::component>(ref<TypeRule>)> {};
-  struct RecordFieldRule
+             ikw<"of"> + assign<&ast::ArrayType::component>(ref<Type>)> {};
+  struct RecordField
       : rule<some(append<&ast::RecordField::names>(ref<IDENT>), lit<",">) +
-             lit<":"> + assign<&ast::RecordField::type>(ref<TypeRule>)> {};
+             lit<":"> + assign<&ast::RecordField::type>(ref<Type>)> {};
   template <auto Fields, auto Variant>
   static constexpr auto FieldsAndVariant =
-      option(some(append<Fields>(ref<RecordFieldRule>), lit<";">) +
+      option(some(append<Fields>(ref<RecordField>), lit<";">) +
              option(lit<";">)) +
-      option(assign<Variant>(ref<VariantPartRule>) + option(lit<";">));
-  struct VariantCaseRule
-      : rule<some(append<&ast::VariantCase::labels>(ref<SetElementRule>),
+      option(assign<Variant>(ref<VariantPart>) + option(lit<";">));
+  struct VariantCase
+      : rule<some(append<&ast::VariantCase::labels>(ref<SetElement>),
                   lit<",">) +
              lit<":"> + lit<"("> +
              FieldsAndVariant<&ast::VariantCase::fields,
                               &ast::VariantCase::variant> +
              lit<")">> {};
-  struct VariantPartRule
+  struct VariantPart
       : rule<ikw<"case"> +
              option(assign<&ast::VariantPart::tagName>(ref<IDENT>) + lit<":">) +
-             assign<&ast::VariantPart::tagType>(ref<NamedTypeRule>) +
+             assign<&ast::VariantPart::tagType>(ref<NamedType>) +
              ikw<"of"> +
-             some(append<&ast::VariantPart::cases>(ref<VariantCaseRule>),
+             some(append<&ast::VariantPart::cases>(ref<VariantCase>),
                   lit<";">)> {};
-  struct RecordTypeRule
+  struct RecordType
       : rule<option(flag<&ast::RecordType::packed>(ikw<"packed">)) +
              ikw<"record"> +
              FieldsAndVariant<&ast::RecordType::fields,
                               &ast::RecordType::variant> +
              ikw<"end">> {};
-  struct SetTypeRule
+  struct SetType
       : rule<option(flag<&ast::SetType::packed>(ikw<"packed">)) +
              ikw<"set"> + ikw<"of"> +
-             assign<&ast::SetType::base>(ref<SimpleTypeRule>)> {};
-  struct FileTypeRule
+             assign<&ast::SetType::base>(ref<SimpleType>)> {};
+  struct FileType
       : rule<option(flag<&ast::FileType::packed>(ikw<"packed">)) +
              ikw<"file"> +
              option(ikw<"of"> +
-                    assign<&ast::FileType::component>(ref<TypeRule>))> {};
-  struct PointerTypeRule
-      : rule<lit<"^"> + assign<&ast::PointerType::target>(ref<TypeRule>)> {};
+                    assign<&ast::FileType::component>(ref<Type>))> {};
+  struct PointerType
+      : rule<lit<"^"> + assign<&ast::PointerType::target>(ref<Type>)> {};
   template <auto Member>
   static constexpr auto Params =
-      option(lit<"("> + option(some(append<Member>(ref<ParamRule>), lit<";">)) +
+      option(lit<"("> + many(append<Member>(ref<Param>), lit<";">) +
              lit<")">);
   template <class T>
   static constexpr auto ProcHead =
@@ -275,12 +282,12 @@ struct Pascal : cursiv::GrammarSpec {
   template <class T>
   static constexpr auto FuncHead =
       ikw<"function"> + assign<&T::name>(ref<IDENT>) + Params<&T::params> +
-      lit<":"> + assign<&T::resultType>(ref<TypeRule>);
-  struct ProcTypeRule
+      lit<":"> + assign<&T::resultType>(ref<Type>);
+  struct ProcType
       : rule<(ikw<"procedure"> + Params<&ast::ProcType::params>) |
              (ikw<"function"> + Params<&ast::ProcType::params> + lit<":"> +
-              assign<&ast::ProcType::result>(ref<TypeRule>))> {};
-  struct ParamRule
+              assign<&ast::ProcType::result>(ref<Type>))> {};
+  struct Param
       : rule<create<ast::Param>(ikw<"procedure"> +
                                 append<&ast::Param::names>(ref<IDENT>) +
                                 assign<&ast::Param::type>(create<ast::ProcType>(
@@ -289,44 +296,44 @@ struct Pascal : cursiv::GrammarSpec {
                  ikw<"function"> + append<&ast::Param::names>(ref<IDENT>) +
                  assign<&ast::Param::type>(create<ast::ProcType>(
                      Params<&ast::ProcType::params> + lit<":"> +
-                     assign<&ast::ProcType::result>(ref<TypeRule>)))) |
+                     assign<&ast::ProcType::result>(ref<Type>)))) |
              create<ast::Param>(
                  option(assign<&ast::Param::kind>(ikw<"var"> | ikw<"const"> |
                                                   ikw<"out"> |
                                                   ikw<"constref">)) +
                  some(append<&ast::Param::names>(ref<IDENT>), lit<",">) +
-                 option(lit<":"> + assign<&ast::Param::type>(ref<TypeRule>)) +
+                 option(lit<":"> + assign<&ast::Param::type>(ref<Type>)) +
                  option(lit<"="> + assign<&ast::Param::defaultValue>(
-                                       ref<ExpressionRule>)))> {};
-  struct TypeRule
-      : rule<ref<SimpleTypeRule> | ref<RecordTypeRule> | ref<ArrayTypeRule> |
-             ref<SetTypeRule> | ref<FileTypeRule> | ref<PointerTypeRule> |
-             ref<ProcTypeRule>> {};
+                                       ref<Expression>)))> {};
+  struct Type
+      : rule<ref<SimpleType> | ref<RecordType> | ref<ArrayType> |
+             ref<SetType> | ref<FileType> | ref<PointerType> |
+             ref<ProcType>> {};
 
-  struct ConstDeclRule
+  struct ConstDecl
       : rule<assign<&ast::ConstDecl::name>(ref<IDENT>) +
-             option(lit<":"> + assign<&ast::ConstDecl::type>(ref<TypeRule>)) +
-             lit<"="> + assign<&ast::ConstDecl::value>(ref<ExpressionRule>)> {};
-  struct TypeDeclRule
+             option(lit<":"> + assign<&ast::ConstDecl::type>(ref<Type>)) +
+             lit<"="> + assign<&ast::ConstDecl::value>(ref<Expression>)> {};
+  struct TypeDecl
       : rule<assign<&ast::TypeDecl::name>(ref<IDENT>) + lit<"="> +
-             assign<&ast::TypeDecl::type>(ref<TypeRule>)> {};
-  struct VarDeclRule
+             assign<&ast::TypeDecl::type>(ref<Type>)> {};
+  struct VarDecl
       : rule<some(append<&ast::VarDecl::names>(ref<IDENT>), lit<",">) +
-             lit<":"> + assign<&ast::VarDecl::type>(ref<TypeRule>) +
+             lit<":"> + assign<&ast::VarDecl::type>(ref<Type>) +
              option(lit<"="> +
-                    assign<&ast::VarDecl::value>(ref<ExpressionRule>))> {};
-  struct LabelDeclRule
+                    assign<&ast::VarDecl::value>(ref<Expression>))> {};
+  struct LabelDecl
       : rule<ikw<"label"> +
              some(append<&ast::LabelDecl::labels>(ref<NUM_INT> | ref<IDENT>),
                   lit<",">) +
              lit<";">> {};
-  struct UsesItemRule
+  struct UsesItem
       : rule<some(append<&ast::UsesItem::name>(ref<IDENT>), lit<".">) +
              option(ikw<"in"> +
                     assign<&ast::UsesItem::sourcePath>(ref<PATH_STRING>))> {};
-  struct UsesDeclRule
+  struct UsesDecl
       : rule<ikw<"uses"> +
-             some(append<&ast::UsesDecl::units>(ref<UsesItemRule>), lit<",">) +
+             some(append<&ast::UsesDecl::units>(ref<UsesItem>), lit<",">) +
              lit<";">> {};
   static constexpr auto RoutineDirective =
       ikw<"cdecl"> | ikw<"stdcall"> | ikw<"pascal"> | ikw<"register"> |
@@ -334,36 +341,36 @@ struct Pascal : cursiv::GrammarSpec {
   template <class T>
   static constexpr auto Directives =
       many(append<&T::directives>(RoutineDirective) + lit<";">);
-  struct ProcDeclRule
+  struct ProcDecl
       : rule<ProcHead<ast::ProcDecl> + lit<";"> + Directives<ast::ProcDecl> +
-             ((assign<&ast::ProcDecl::body>(ref<BlockRule>) + lit<";">) |
+             ((assign<&ast::ProcDecl::body>(ref<Block>) + lit<";">) |
               (append<&ast::ProcDecl::directives>(ikw<"forward"> |
                                                   ikw<"external">) +
                lit<";">))> {};
-  struct FuncDeclRule
+  struct FuncDecl
       : rule<FuncHead<ast::FuncDecl> + lit<";"> + Directives<ast::FuncDecl> +
-             ((assign<&ast::FuncDecl::body>(ref<BlockRule>) + lit<";">) |
+             ((assign<&ast::FuncDecl::body>(ref<Block>) + lit<";">) |
               (append<&ast::FuncDecl::directives>(ikw<"forward"> |
                                                   ikw<"external">) +
                lit<";">))> {};
-  struct InterfaceProcRule
+  struct InterfaceProc
       : rule<ProcHead<ast::ProcDecl> + lit<";"> + Directives<ast::ProcDecl>> {};
-  struct InterfaceFuncRule
+  struct InterfaceFunc
       : rule<FuncHead<ast::FuncDecl> + lit<";"> + Directives<ast::FuncDecl>> {};
   template <auto Member>
   static constexpr auto Declarations = many(
-      append<Member>(ref<LabelDeclRule> | ref<UsesDeclRule>) |
-      (ikw<"const"> + some(append<Member>(ref<ConstDeclRule>) + lit<";">)) |
-      (ikw<"type"> + some(append<Member>(ref<TypeDeclRule>) + lit<";">)) |
-      (ikw<"var"> + some(append<Member>(ref<VarDeclRule>) + lit<";">)));
+      append<Member>(ref<LabelDecl> | ref<UsesDecl>) |
+      (ikw<"const"> + some(append<Member>(ref<ConstDecl>) + lit<";">)) |
+      (ikw<"type"> + some(append<Member>(ref<TypeDecl>) + lit<";">)) |
+      (ikw<"var"> + some(append<Member>(ref<VarDecl>) + lit<";">)));
   template <auto Member>
   static constexpr auto BodyDeclarations =
       many(Declarations<Member> +
-           append<Member>(ref<ProcDeclRule> | ref<FuncDeclRule>)) +
+           append<Member>(ref<ProcDecl> | ref<FuncDecl>)) +
       Declarations<Member>;
-  struct BlockRule : rule<BodyDeclarations<&ast::Block::decls> +
-                          assign<&ast::Block::body>(ref<CompoundStmtRule>)> {};
-  struct ProgramRule
+  struct Block : rule<BodyDeclarations<&ast::Block::decls> +
+                          assign<&ast::Block::body>(ref<CompoundStmt>)> {};
+  struct Program
       : rule<option((ikw<"program"> |
                      flag<&ast::Program::library>(ikw<"library">)) +
                     assign<&ast::Program::name>(ref<IDENT>) +
@@ -372,30 +379,30 @@ struct Pascal : cursiv::GrammarSpec {
                                 lit<",">) +
                            lit<")">) +
                     lit<";">) +
-             assign<&ast::Program::block>(ref<BlockRule>) + lit<".">> {};
-  struct UnitRule
+             assign<&ast::Program::block>(ref<Block>) + lit<".">> {};
+  struct Unit
       : rule<ikw<"unit"> +
              some(append<&ast::Unit::name>(ref<IDENT>), lit<".">) + lit<";"> +
              ikw<"interface"> +
              many(Declarations<&ast::Unit::interfaceDecls> +
-                  append<&ast::Unit::interfaceDecls>(ref<InterfaceProcRule> |
-                                                     ref<InterfaceFuncRule>)) +
+                  append<&ast::Unit::interfaceDecls>(ref<InterfaceProc> |
+                                                     ref<InterfaceFunc>)) +
              Declarations<&ast::Unit::interfaceDecls> + ikw<"implementation"> +
              BodyDeclarations<&ast::Unit::implementationDecls> +
              ((ikw<"begin"> +
-               some(append<&ast::Unit::initialization>(ref<StatementRule>),
+               some(append<&ast::Unit::initialization>(ref<Statement>),
                     lit<";">)) |
               (option(
                    ikw<"initialization"> +
-                   some(append<&ast::Unit::initialization>(ref<StatementRule>),
+                   some(append<&ast::Unit::initialization>(ref<Statement>),
                         lit<";">)) +
                option(ikw<"finalization"> +
-                      some(append<&ast::Unit::finalization>(ref<StatementRule>),
+                      some(append<&ast::Unit::finalization>(ref<Statement>),
                            lit<";">)))) +
              ikw<"end"> + lit<".">> {};
-  struct SourceFileRule : rule<ref<UnitRule> | ref<ProgramRule>> {};
-  using entry = SourceFileRule;
-  using ignore = WS;
+  struct SourceFile : rule<ref<Unit> | ref<Program>> {};
+  using entry = SourceFile;
+  using ignored = WS;
   using hidden = list<COMMENT_STAR, COMMENT_CURLY, COMMENT_LINE>;
 };
 

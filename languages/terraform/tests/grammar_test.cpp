@@ -16,6 +16,7 @@
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "terraform/core/CoreServices.hpp"
 #include "terraform/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -45,6 +46,7 @@ int main() {
   const auto language = cursiv::create_language<
       terraform::TerraformCoreServices, terraform::TerraformSharedCoreServices,
       terraform::install_core_module>();
+  if (!terraform_native_followup::run(language)) return failMsg("native syntax/AST followup failed");
 
   int failures = 0;
   int count = 0;

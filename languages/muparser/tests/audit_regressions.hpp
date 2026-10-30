@@ -67,7 +67,17 @@ inline void muparser_regressions() {
       CHECK(empty && empty->name == "custom0" && empty->args.empty());
     }
   }
-  for (const auto source : {"sin(1,2)", "atan2(1)", "min()", "1+x=3"}) {
+  {
+    cursiv::Document document(
+        cursiv::TextDocument::create("memory:rnd", "muparser", 0, "rnd()"));
+    document.language = &services;
+    document.parseResult = services.parser->parse("rnd()");
+    std::vector<cursiv::Diagnostic> diagnostics;
+    services.documentValidator->validateDocument(document, diagnostics);
+    CHECK(document.parseResult.accepted &&
+          !document.parseResult.cst().recovered() && diagnostics.empty());
+  }
+  for (const auto source : {"sin(1,2)", "atan2(1)", "min()", "rnd(1)", "1+x=3"}) {
     cursiv::Document document(
         cursiv::TextDocument::create("memory:muparser", "muparser", 0, source));
     document.language = &services;

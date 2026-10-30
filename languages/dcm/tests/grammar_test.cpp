@@ -63,6 +63,51 @@ int main() {
     }
   }
 
+  // Native DCM 2.x matrix syntax and numeric spellings. A dot is a comment
+  // marker only at the beginning of a line, never inside a WERT line.
+  {
+    const std::string source =
+        "* initial comment\nKONSERVIERUNG_FORMAT\t 2.0\n"
+        "FESTWERTEBLOCK matrix 03 @ +2\n"
+        "WERT .5 +1 012\n. comment between rows\n"
+        "WERT -2 1e20 123456789012345678901234567890\nEND";
+    const auto result = language.language.parser->parse(source);
+    const auto* doc = cursiv::ast_cast<dcm::ast::Document>(result.value);
+    const auto* block = doc && doc->items.size() == 1
+                            ? cursiv::ast_cast<dcm::ast::Kennwerteblock>(doc->items[0])
+                            : nullptr;
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !block || block->count != 3 ||
+        !block->countY || *block->countY != 2 || block->blocks.size() != 2 ||
+        block->blocks[0]->numbers.size() != 3 ||
+        block->blocks[0]->numbers[0] != .5 ||
+        block->blocks[0]->numbers[1] != 1 ||
+        block->blocks[0]->numbers[2] != 12 ||
+        block->blocks[1]->numbers.size() != 3 ||
+        block->blocks[1]->numbers[2] <= 1e29)
+      failures += fail("native-matrix", "matrix dimensions or values were lost");
+  }
+  {
+    const auto result = language.language.parser->parse(
+        "KONSERVIERUNG_FORMAT 2.0\n"
+        "FESTKENNLINIE curve 2\nWERT 1 2\nEND\n"
+        "GRUPPENKENNFELD map 2 2\n*SSTX external_distribution\n"
+        "WERT 1 2\nWERT 3 4\nEND\n! final comment");
+    const auto* doc = cursiv::ast_cast<dcm::ast::Document>(result.value);
+    const auto* curve = doc && doc->items.size() == 2
+                            ? cursiv::ast_cast<dcm::ast::Kennlinie>(doc->items[0])
+                            : nullptr;
+    const auto* map = doc && doc->items.size() == 2
+                          ? cursiv::ast_cast<dcm::ast::Kennfeld>(doc->items[1])
+                          : nullptr;
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !curve || !map ||
+        curve->kind != dcm::ast::CurveKind::Fixed || !curve->supportX.empty() ||
+        map->kind != dcm::ast::CurveKind::Group || map->rows.size() != 1 ||
+        map->rows[0]->y || map->rows[0]->rows.size() != 2)
+      failures += fail("native-fixed", "native fixed/group rows were lost");
+  }
+
   if (count == 0) {
     std::fprintf(stderr, "dcm: no .dcm file found under tests/\n");
     return 1;

@@ -31,27 +31,13 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+TOML 1.0 documents with decoded values, tables and arrays of tables. Validation checks keys, namespaces and literal constraints.
+
 ```toml
-title = "TOML Example"
-
 [owner]
-name = "Tom Preston-Werner"
-dob = 1979-05-27T07:32:00-08:00
-
-[database]
-ports = [ 8001, 8001, 8002 ]
-enabled = true
-
-[servers.alpha]
-ip = "10.0.0.1"
+name = "Tom"
+values = [1, true, "mixed"]
 ```
-
-A document is a sequence of tables: entries written before any `[header]`
-belong to the implicit root table, and each `[key]`/`[[key]]` opens a new run
-of entries that lasts until the next header. Values reach every TOML kind --
-strings (plain, multi-line, literal), integers in four bases, floats
-(`inf`/`nan` included), booleans, the four date/time shapes, arrays and
-inline tables.
 
 ## The command line
 

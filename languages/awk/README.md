@@ -29,6 +29,8 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 Generated files live under `build/src/generated-src/`; do not edit them.
 
+This library parses GNU Awk 5.4 syntax, including namespaces, indirect calls and typed regexp constants.
+
 ## The sample
 
 ```awk

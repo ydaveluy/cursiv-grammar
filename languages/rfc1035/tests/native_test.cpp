@@ -16,6 +16,19 @@
 int main() {
   const auto language = cursiv::create_language<rfc1035::Rfc1035CoreServices,
       rfc1035::Rfc1035SharedCoreServices, rfc1035::install_core_module>();
+  for (const bool absolute : {false, true}) {
+    const std::string prefix = std::string(63, 'a') + "." + std::string(63, 'b') +
+        "." + std::string(63, 'c') + ".";
+    for (const std::size_t finalSize : {61u, 62u}) {
+      const std::string source = prefix + std::string(finalSize, 'd') +
+          (absolute ? "." : "");
+      const auto result = language.language.parser->parse(source);
+      const auto validation = cursiv::test::validationHelper(language.language, source);
+      if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+          validation.diagnostics.size() != (finalSize == 62 ? 1u : 0u)) return 1;
+      if (finalSize == 62 && validation.diagnostics[0].code != "rfc1035.name-length") return 1;
+    }
+  }
   unsigned native = 0;
   for (const auto& c : nativeCases) {
     const auto fail = [&](const char* what) {

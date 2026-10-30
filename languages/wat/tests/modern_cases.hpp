@@ -27,6 +27,8 @@ template <class Language> bool modern_cases(const Language &language) {
     bool validated;
   };
   constexpr Case valid[] = {
+      {"utf8-name", R"WT((module (func (export "\c3\a9") (export "a\00b")) (data "\ff")))WT", true},
+      {"unicode-underscores", R"WT((module (data "\u{1_0000}\u{1__0000}\u{10_ffff}")))WT", true},
       {"empty", R"WT()WT", true},
       {"module", R"WT((module))WT", true},
       {"headerless",
@@ -316,6 +318,13 @@ template <class Language> bool modern_cases(const Language &language) {
     return v && *v == value;
   };
   {
+    auto r = parse("unicode-underscores");
+    auto data = cursiv::ast_cast<a::Data>(field(r, 0));
+    check(data && data->strings.size() == 1 &&
+              data->strings[0] == "\xf0\x90\x80\x80\xf0\x90\x80\x80\xf4\x8f\xbf\xbf",
+          "Unicode escapes with native internal underscores decode exactly");
+  }
+  {
     auto r = parse("decoded");
     auto memory = cursiv::ast_cast<a::Memory>(field(r, 0));
     auto data = cursiv::ast_cast<a::Data>(field(r, 1));
@@ -543,10 +552,30 @@ template <class Language> bool modern_cases(const Language &language) {
     check(f && f->params.size() == 1 && f->params[0]->valueType == "(ref$t)",
           "typed function reference is retained in its parameter type");
   }
+  for (const unsigned code : {0U, 9U, 13U, 31U, 127U}) {
+    const std::string source = "(module (data \"a" + std::string(1, char(code)) + "b\"))";
+    const auto errors = diagnostics(source);
+    check(errors.size() == 1 && errors[0].code &&
+              errors[0].code->isString() && errors[0].code->string() == "wat.string",
+          "unescaped string controls receive a native lexical diagnostic");
+  }
+  for (const std::string source : {std::string(";;\x80\n(module)"),
+                                    std::string("(module (; \xc3 ;))"), std::string("(module (data \"\xc3\"))"),
+                                    std::string("(module (data \"[\xed\xa0\x80]\"))")}) {
+    const auto result = parser.parse(source);
+    check(!result.accepted || result.cst().recovered() || !result.diagnostics.empty(),
+          "raw malformed UTF-8 cannot become a WAT string character");
+  }
   struct Invalid {
     std::string_view source, code, selected;
   };
   constexpr Invalid invalid[] = {
+      {R"((module (func (export "\ff"))))", "wat.name-utf8", R"("\ff")"},
+      {R"((module (import "\ff" "f" (func))))", "wat.name-utf8", R"("\ff")"},
+      {R"((module (func (export "\c0\af"))))", "wat.name-utf8", R"("\c0\af")"},
+      {R"((module (data "\u{_10000}")))", "wat.string", R"(\u{_10000})"},
+      {R"((module (data "\u{10000_}")))", "wat.string", R"(\u{10000_})"},
+      {R"((module (data "\u{d800}")))", "wat.string", R"(\u{d800})"},
       {"(module (func block $a end $b))", "wat.end-label", "$b"},
       {"(module (func if $a else $b end $a))", "wat.else-label", "$b"},
       {"(module (memory 1) (func i32.const 0 i32.load align=3 drop))",

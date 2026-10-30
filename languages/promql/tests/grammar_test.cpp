@@ -21,6 +21,8 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "promql/generated/Promql/Module.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 namespace {
 
@@ -50,6 +52,41 @@ static int audit_regression() {
       cursiv::create_language<promql::PromqlCoreServices,
                               promql::PromqlSharedCoreServices,
                               promql::install_core_module>();
+  for(const auto source:{
+      "up{,}", "{,}", "up{1=\"x\"}", "sum by(1)(up)", "sum by(,)(up)", "up+on(,)up",
+      "sum by(a)(up) without(b)", "on", "ignoring", "group_left", "group_right", "bool", "atan2", "1__0", "1_", "0x__1", "0xff_", "1._0", "up[1M]",
+      "\"a\nb\"", "\"\\q\"", "\"\\777\"", "\"\\uD800\"", "'a\\\"b'",
+      "http_requests_total @ timestamp(metric_name{label=\"value\"})"}) {
+    const auto r=language.language.parser->parse(source);
+    if(r.accepted&&!r.cst().recovered()&&r.diagnostics.empty()) {
+      std::fprintf(stderr,"promql: native-invalid lexical/list form accepted: %s\n",source);return 1;
+    }
+  }
+  for(const auto source:{
+      "{}", "{job=\"\"}", "{job=~\".*\"}", "up{a:b=\"x\"}", "up{\"name\"}",
+      "up + bool up", "up and on(job) group_left(foo) up", "1==1", "1+on(job)up",
+      "up[0s]", "up[-5m]", "up[1m1h]", "up[1m1m]", "up[500y]", "up[5m:0s]",
+      "1[5m:]", "up @ NaN", "up @ Inf", "up offset 1m @ 1 offset 2m",
+      "unknown(up)", "RATE(up[5m])", "sum(1)", "rate(up)", "rate()", "1+up[5m]", "\"a\"+\"b\"",
+      "up[5m/0]", "up+on(a)group_left(a)up"})
+    if(cursiv::test::validationHelper(language.language,source).diagnostics.empty()) {
+      std::fprintf(stderr,"promql: native-invalid semantic form needs a diagnostic: %s\n",source);return 1;
+    }
+  for(const auto source:{
+      "up{job=\"x\",}", "up{\"a:b\"=\"x\"}", "{job!=\"\"}", "{\"metric name\"}",
+      "1==bool 1", "rate(up[5m])", "up[5.5]", "up[+5m]", "up[STEP()]", "up[RANGE()]",
+      "up offset 0s", "up offset -1m", "up[5m-5m]", "0s", "1 </ 2", "1e-999", "0x_FF",
+      "by", "offset", "fill", "range", "up + fill", "sum by(on)(up)", "up{on=\"x\"}",
+      "sum by()(up)", "up+on()up", "sum by(a:b)(up)", "`raw\ntext`"})
+    if(!cursiv::test::validationHelper(language.language,source).diagnostics.empty()) {
+      std::fprintf(stderr,"promql: native-valid control diagnosed: %s\n",source);return 1;
+    }
+  {
+    const auto r=language.language.parser->parse("1e-999");
+    const auto* p=r.value_as<promql::ast::Query>();
+    const auto* n=p?cursiv::ast_cast<promql::ast::NumberLit>(p->expression):nullptr;
+    if(!n||n->value!=0||!r.diagnostics.empty())return 1;
+  }
   {
     const auto r = language.language.parser->parse("foo @ 123 + bar");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
@@ -104,9 +141,6 @@ static int audit_regression() {
   {
     auto doc = language.shared->documentFactory->fromString(
         "foo @ timestamp(bar)", "file:///audit.promql");
-    if (!doc->parseResult.accepted || doc->parseResult.cst().recovered() ||
-        !doc->parseResult.diagnostics.empty())
-      return 1;
     std::vector<cursiv::Diagnostic> diagnostics;
     language.language.documentValidator->validateDocument(*doc, diagnostics);
     if (diagnostics.empty()) return 1;
@@ -143,6 +177,16 @@ int main() {
   for (const fs::path& doc : docs) {
     const std::string text = read_file(doc);
     const cursiv::ParseResult result = engine().parse(text);
+    // This historical example is native-invalid: @ accepts a numeric
+    // timestamp or start()/end(), never an arbitrary function expression.
+    // Keep the original input as a negative regression rather than asking
+    // the grammar to repair it into a different query.
+    if (doc.filename() == "at_modifier_expression.promql") {
+      if (result.accepted && !result.cst().recovered() &&
+          result.diagnostics.empty())
+        return fail(doc.string() + ": native-invalid @ expression accepted");
+      continue;
+    }
     if (!result.accepted)
       return fail(doc.string() + ": the parse was refused");
     if (result.cst().recovered())

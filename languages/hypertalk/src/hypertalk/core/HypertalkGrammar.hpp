@@ -38,15 +38,14 @@ inline constexpr auto ordinal_of = [](std::string_view t) -> ast::Ordinal {
   if (ci_eq(t, "any")) return O::Any;
   return O::Mid;  // "mid" or "middle"
 };
-using OrdinalConv = cursiv::text_conv<ordinal_of>;
 
 inline constexpr auto length_of = [](std::string_view t) -> ast::Length {
   using L = ast::Length;
   if (ci_eq(t, "short")) return L::Short;
-  if (ci_eq(t, "english") || ci_eq(t, "long")) return L::English;
+  if (ci_eq(t, "english")) return L::English;
+  if (ci_eq(t, "long")) return L::Long;
   return L::Abbreviated;  // "abbreviated" / "abbrev" / "abbr"
 };
-using LengthConv = cursiv::text_conv<length_of>;
 
 inline constexpr auto chunk_kind_of = [](std::string_view t) -> ast::ChunkKind {
   using K = ast::ChunkKind;
@@ -56,7 +55,6 @@ inline constexpr auto chunk_kind_of = [](std::string_view t) -> ast::ChunkKind {
   if (c0 == 'l' || c0 == 'L') return K::Line;
   return K::Character;
 };
-using ChunkKindConv = cursiv::text_conv<chunk_kind_of>;
 
 // The words `constant`, `modifierKey`, `mouseState`, `knownType` and
 // `findType` denote -- distinguished by full comparison since a few share a
@@ -64,6 +62,8 @@ using ChunkKindConv = cursiv::text_conv<chunk_kind_of>;
 inline constexpr auto named_lit_of = [](std::string_view t) -> ast::NamedLitKind {
   using K = ast::NamedLitKind;
   if (ci_eq(t, "empty")) return K::Empty;
+  if (ci_eq(t, "true")) return K::True;
+  if (ci_eq(t, "false")) return K::False;
   if (ci_eq(t, "pi")) return K::Pi;
   if (ci_eq(t, "quote")) return K::Quote;
   if (ci_eq(t, "return")) return K::ReturnChar;
@@ -100,16 +100,14 @@ inline constexpr auto named_lit_of = [](std::string_view t) -> ast::NamedLitKind
   if (ci_eq(t, "string")) return K::FindString;
   return K::LogicalType;  // "logical" / "boolean" / "bool"
 };
-using NamedLitConv = cursiv::text_conv<named_lit_of>;
 
 inline constexpr auto unquote_ht = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using UnquotedHT = cursiv::text_conv<unquote_ht>;
 
 struct Hypertalk : cursiv::GrammarSpec {
   static constexpr auto WsBody = some(cr<R"( \t)">);
-  static constexpr auto CommentBody = lit<"--"> + many(cr<R"(^\r\n|)">);
+  static constexpr auto CommentBody = lit<"--"> + many(cr<R"(^\r\n)">);
   struct WS : terminal<WsBody> {};
   struct COMMENT : terminal<CommentBody> {};
   // `('|' | '¬') ws? comment? ws? newline`, entirely elided: a
@@ -121,12 +119,12 @@ struct Hypertalk : cursiv::GrammarSpec {
 
   struct ID : terminal<cr<"a-zA-Z"> + many(w)> {};
 
-  struct STRING_LITERAL
-      : terminal<lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">, UnquotedHT> {};
+  struct STRING_LITERAL : terminal<as<unquote_ht>(
+                              lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">)> {
+  };
   struct NUMBER_LITERAL
-      : terminal<(some(d) + option(lit<"."> + option(some(d)))) |
-                     (lit<"."> + some(d)),
-                 double> {};
+      : terminal<as<double>((some(d) + option(lit<"."> + option(some(d)))) |
+                            (lit<"."> + some(d)))> {};
 
   static constexpr auto Of = ikw<"of"> | ikw<"from"> | ikw<"in">;
   static constexpr auto CardKw = ikw<"card"> | ikw<"cd">;
@@ -167,8 +165,8 @@ struct Hypertalk : cursiv::GrammarSpec {
   struct FunctionCall;
   struct BuiltinFunc;
   struct Property;
-  struct MenuRule;
-  struct MenuItemRule;
+  struct Menu;
+  struct MenuItem;
   struct Part;
   struct CardPart;
   struct BkgndPart;
@@ -180,56 +178,52 @@ struct Hypertalk : cursiv::GrammarSpec {
   struct Statement;
 
   struct OrdinalWord
-      : rule<ikw<"first"> | ikw<"second"> | ikw<"third"> | ikw<"fourth"> |
-                 ikw<"fifth"> | ikw<"sixth"> | ikw<"seventh"> |
-                 ikw<"eighth"> | ikw<"ninth"> | ikw<"tenth"> | ikw<"mid"> |
-                 ikw<"middle"> | ikw<"last"> | ikw<"any">,
-             OrdinalConv> {};
+      : rule<as<ordinal_of>(ikw<"first"> | ikw<"second"> | ikw<"third"> |
+                            ikw<"fourth"> | ikw<"fifth"> | ikw<"sixth"> |
+                            ikw<"seventh"> | ikw<"eighth"> | ikw<"ninth"> |
+                            ikw<"tenth"> | ikw<"mid"> | ikw<"middle"> |
+                            ikw<"last"> | ikw<"any">)> {};
 
   struct LengthWord
-      : rule<ikw<"english"> | ikw<"long"> | ikw<"abbreviated"> |
-                 ikw<"abbrev"> | ikw<"abbr"> | ikw<"short">,
-             LengthConv> {};
+      : rule<as<length_of>(ikw<"english"> | ikw<"long"> | ikw<"abbreviated"> |
+                           ikw<"abbrev"> | ikw<"abbr"> | ikw<"short">)> {};
 
-  struct ChunkKindWord : rule<CharacterKw | WordKw | ItemKw | LineKw,
-                              ChunkKindConv> {};
+  struct ChunkKindWord
+      : rule<as<chunk_kind_of>(CharacterKw | WordKw | ItemKw | LineKw)> {};
 
   struct NamedLitWord
-      : rule<ikw<"empty"> | ikw<"pi"> | ikw<"quote"> | ikw<"return"> |
-                 ikw<"space"> | ikw<"tab"> | ikw<"formfeed"> |
-                 ikw<"linefeed"> | ikw<"comma"> | ikw<"colon"> |
-                 ikw<"zero"> | ikw<"one"> | ikw<"two"> | ikw<"three"> |
-                 ikw<"four"> | ikw<"five"> | ikw<"six"> | ikw<"seven"> |
-                 ikw<"eight"> | ikw<"nine"> | ikw<"ten"> |
-                 ikw<"commandkey"> | ikw<"cmdkey"> | ikw<"optionkey"> |
-                 ikw<"shiftkey"> | ikw<"up"> | ikw<"down"> |
-                 ikw<"number"> | ikw<"integer"> | ikw<"point"> |
-                 ikw<"rect"> | ikw<"rectangle"> | ikw<"date"> |
-                 ikw<"logical"> | ikw<"boolean"> | ikw<"bool"> |
-                 ikw<"word"> | ikw<"chars"> | ikw<"whole"> | ikw<"string">,
-             NamedLitConv> {};
+      : rule<as<named_lit_of>(
+            ikw<"empty"> | ikw<"true"> | ikw<"false"> | ikw<"pi"> | ikw<"quote"> | ikw<"return"> |
+            ikw<"space"> | ikw<"tab"> | ikw<"formfeed"> | ikw<"linefeed"> |
+            ikw<"comma"> | ikw<"colon"> | ikw<"zero"> | ikw<"one"> |
+            ikw<"two"> | ikw<"three"> | ikw<"four"> | ikw<"five"> | ikw<"six"> |
+            ikw<"seven"> | ikw<"eight"> | ikw<"nine"> | ikw<"ten"> |
+            ikw<"commandkey"> | ikw<"cmdkey"> | ikw<"optionkey"> |
+            ikw<"shiftkey"> | ikw<"up"> | ikw<"down"> | ikw<"number"> |
+            ikw<"integer"> | ikw<"point"> | ikw<"rect"> | ikw<"rectangle"> |
+            ikw<"date"> | ikw<"logical"> | ikw<"boolean"> | ikw<"bool"> |
+            ikw<"word"> | ikw<"chars"> | ikw<"whole"> | ikw<"string">)> {};
 
   struct HandlerName : rule<ref<ID> | CommandNameKw> {};
 
   // ---- Literals ---------------------------------------------------------
 
-  struct NamedLitRule
+  struct NamedLit
       : rule<create<ast::NamedLit>(
             assign<&ast::NamedLit::kind>(ref<NamedLitWord>))> {};
-  struct FindFormWord
-      : rule<ikw<"word"> | ikw<"chars"> | ikw<"whole"> | ikw<"string">,
-             NamedLitConv> {};
-  struct FindFormRule
+  struct FindFormWord : rule<as<named_lit_of>(ikw<"word"> | ikw<"chars"> |
+                                              ikw<"whole"> | ikw<"string">)> {};
+  struct FindForm
       : rule<create<ast::NamedLit>(
             assign<&ast::NamedLit::kind>(ref<FindFormWord>))> {};
-  struct StringLitRule
+  struct StringLit
       : rule<create<ast::StringLit>(
             assign<&ast::StringLit::value>(ref<STRING_LITERAL>))> {};
-  struct NumberLitRule
+  struct NumberLit
       : rule<create<ast::NumberLit>(
             assign<&ast::NumberLit::value>(ref<NUMBER_LITERAL>))> {};
   static constexpr auto LiteralExpr =
-      ref<StringLitRule> | ref<NumberLitRule> | ref<NamedLitRule>;
+      ref<StringLit> | ref<NumberLit> | ref<NamedLit>;
 
   // ---- Chunk expressions --------------------------------------------
 
@@ -262,34 +256,27 @@ struct Hypertalk : cursiv::GrammarSpec {
             option(Of + assign<&ast::PropertyRef::ofTarget>(ref<Factor>)))> {
   };
 
-  struct MenuRule
+  struct Menu
       : rule<create<ast::MenuRef>(
             (ikw<"menu"> + assign<&ast::MenuRef::nameExpr>(ref<Factor>))  //
             | (option(ikw<"the">) +
                assign<&ast::MenuRef::ordinal>(ref<OrdinalWord>) +
                ikw<"menu">))> {};
 
-  struct MenuItemRule
+  struct MenuItem
       : rule<create<ast::MenuItemRef>(
             (ikw<"menuitem"> +
              assign<&ast::MenuItemRef::nameExpr>(ref<Factor>) + Of +
-             assign<&ast::MenuItemRef::menu>(ref<MenuRule>))  //
+             assign<&ast::MenuItemRef::menu>(ref<Menu>))  //
             | (option(ikw<"the">) +
                assign<&ast::MenuItemRef::ordinal>(ref<OrdinalWord>) +
                ikw<"menuitem"> + Of +
-               assign<&ast::MenuItemRef::menu>(ref<MenuRule>)))> {};
+               assign<&ast::MenuItemRef::menu>(ref<Menu>)))> {};
 
   // ---- Parts ----------------------------------------------------------
 
-  struct PositionNext
-      : rule<option(ikw<"the">) + ikw<"next">, value<ast::Position::Next>> {};
-  struct PositionPrev
-      : rule<option(ikw<"the">) + (ikw<"prev"> | ikw<"previous">),
-             value<ast::Position::Prev>> {};
-  struct PositionThis
-      : rule<ikw<"this">, value<ast::Position::This>> {};
   static constexpr auto PositionRef =
-      ref<PositionNext> | ref<PositionPrev> | ref<PositionThis>;
+      as<ast::Position::Next>(option(ikw<"the">) + ikw<"next">) | as<ast::Position::Prev>(option(ikw<"the">) + (ikw<"prev"> | ikw<"previous">)) | as<ast::Position::This>(ikw<"this">);
 
   struct StackPart
       : rule<create<ast::StackPartRef>(
@@ -410,145 +397,41 @@ struct Hypertalk : cursiv::GrammarSpec {
                                         ikw<"selection">)  //
             | create<ast::TargetRef>(ikw<"target">)  //
             | ref<Property>                          //
-            | ref<MenuRule>                           //
-            | ref<MenuItemRule>                        //
+            | ref<Menu>                           //
+            | ref<MenuItem>                        //
             | ref<Part>> {};
 
   // ---- Factor, unary, and the operator ladder ------------------------
 
-  struct ToolText : rule<ikw<"text">, value<ast::ToolKind::Text>> {};
-  struct ToolSelect : rule<ikw<"select">, value<ast::ToolKind::Select>> {};
-  struct ToolField : rule<FieldKw, value<ast::ToolKind::Field>> {};
-  struct ToolButton : rule<ButtonKw, value<ast::ToolKind::Button>> {};
-  struct ToolLine : rule<ikw<"line">, value<ast::ToolKind::Line>> {};
-  struct ToolPolygon
-      : rule<option(ikw<"reg"> | ikw<"regular">) +
-                 (ikw<"poly"> | ikw<"polygon">),
-             value<ast::ToolKind::Polygon>> {};
-  struct ToolRect
-      : rule<option(ikw<"round">) + (ikw<"rect"> | ikw<"rectangle">),
-             value<ast::ToolKind::Rect>> {};
-  struct ToolSpray
-      : rule<ikw<"spray"> + option(ikw<"can">), value<ast::ToolKind::Spray>> {
-  };
 
-  struct ToolExprRule
+  struct ToolExpr
       : rule<create<ast::ToolExpr>(
             assign<&ast::ToolExpr::kind>(
-                ref<ToolPolygon> | ref<ToolRect> | ref<ToolSpray> |
-                ref<ToolText> | ref<ToolSelect> | ref<ToolField> |
-                ref<ToolButton> | ref<ToolLine>)  //
+                as<ast::ToolKind::Polygon>(option(ikw<"reg"> | ikw<"regular">) + (ikw<"poly"> | ikw<"polygon">)) | as<ast::ToolKind::Rect>(option(ikw<"round">) + (ikw<"rect"> | ikw<"rectangle">)) | as<ast::ToolKind::Spray>(ikw<"spray"> + option(ikw<"can">)) |
+                as<ast::ToolKind::Text>(ikw<"text">) | as<ast::ToolKind::Select>(ikw<"select">) | as<ast::ToolKind::Field>(FieldKw) |
+                as<ast::ToolKind::Button>(ButtonKw) | as<ast::ToolKind::Line>(ikw<"line">))  //
             | assign<&ast::ToolExpr::expr>(ref<Expression>))> {};
 
-  struct EffDissolve : rule<ikw<"dissolve">, value<ast::EffectKind::Dissolve>> {};
-  struct EffBarnDoorOpen
-      : rule<ikw<"barn"> + ikw<"door"> + ikw<"open">,
-             value<ast::EffectKind::BarnDoorOpen>> {};
-  struct EffBarnDoorClose
-      : rule<ikw<"barn"> + ikw<"door"> + ikw<"close">,
-             value<ast::EffectKind::BarnDoorClose>> {};
-  struct EffCheckerboard
-      : rule<ikw<"checkerboard">, value<ast::EffectKind::Checkerboard>> {};
-  struct EffIrisOpen
-      : rule<ikw<"iris"> + ikw<"open">, value<ast::EffectKind::IrisOpen>> {};
-  struct EffIrisClose
-      : rule<ikw<"iris"> + ikw<"close">, value<ast::EffectKind::IrisClose>> {
-  };
-  struct EffPlain : rule<ikw<"plain">, value<ast::EffectKind::Plain>> {};
-  struct EffPushUp
-      : rule<ikw<"push"> + ikw<"up">, value<ast::EffectKind::PushUp>> {};
-  struct EffPushDown
-      : rule<ikw<"push"> + ikw<"down">, value<ast::EffectKind::PushDown>> {};
-  struct EffPushLeft
-      : rule<ikw<"push"> + ikw<"left">, value<ast::EffectKind::PushLeft>> {};
-  struct EffPushRight
-      : rule<ikw<"push"> + ikw<"right">, value<ast::EffectKind::PushRight>> {
-  };
-  struct EffScrollDown
-      : rule<ikw<"scroll"> + ikw<"down">, value<ast::EffectKind::ScrollDown>> {
-  };
-  struct EffScrollUp
-      : rule<ikw<"scroll"> + ikw<"up">, value<ast::EffectKind::ScrollUp>> {};
-  struct EffScrollLeft
-      : rule<ikw<"scroll"> + ikw<"left">, value<ast::EffectKind::ScrollLeft>> {
-  };
-  struct EffScrollRight
-      : rule<ikw<"scroll"> + ikw<"right">,
-             value<ast::EffectKind::ScrollRight>> {};
-  struct EffShrinkToTop
-      : rule<ikw<"shrink"> + ikw<"to"> + ikw<"top">,
-             value<ast::EffectKind::ShrinkToTop>> {};
-  struct EffShrinkToCenter
-      : rule<ikw<"shrink"> + ikw<"to"> + ikw<"center">,
-             value<ast::EffectKind::ShrinkToCenter>> {};
-  struct EffShrinkToBottom
-      : rule<ikw<"shrink"> + ikw<"to"> + ikw<"bottom">,
-             value<ast::EffectKind::ShrinkToBottom>> {};
-  struct EffStretchFromTop
-      : rule<ikw<"stretch"> + ikw<"from"> + ikw<"top">,
-             value<ast::EffectKind::StretchFromTop>> {};
-  struct EffStretchFromCenter
-      : rule<ikw<"stretch"> + ikw<"from"> + ikw<"center">,
-             value<ast::EffectKind::StretchFromCenter>> {};
-  struct EffStretchFromBottom
-      : rule<ikw<"stretch"> + ikw<"from"> + ikw<"bottom">,
-             value<ast::EffectKind::StretchFromBottom>> {};
-  struct EffVenetianBlinds
-      : rule<ikw<"venetian"> + ikw<"blinds">,
-             value<ast::EffectKind::VenetianBlinds>> {};
-  struct EffWipeUp
-      : rule<ikw<"wipe"> + ikw<"up">, value<ast::EffectKind::WipeUp>> {};
-  struct EffWipeDown
-      : rule<ikw<"wipe"> + ikw<"down">, value<ast::EffectKind::WipeDown>> {};
-  struct EffWipeLeft
-      : rule<ikw<"wipe"> + ikw<"left">, value<ast::EffectKind::WipeLeft>> {};
-  struct EffWipeRight
-      : rule<ikw<"wipe"> + ikw<"right">, value<ast::EffectKind::WipeRight>> {
-  };
-  struct EffZoomIn
-      : rule<ikw<"zoom"> + ikw<"in">, value<ast::EffectKind::ZoomIn>> {};
-  struct EffZoomOut
-      : rule<ikw<"zoom"> + ikw<"out">, value<ast::EffectKind::ZoomOut>> {};
-  struct EffZoomOpen
-      : rule<ikw<"zoom"> + ikw<"open">, value<ast::EffectKind::ZoomOpen>> {};
-  struct EffZoomClose
-      : rule<ikw<"zoom"> + ikw<"close">, value<ast::EffectKind::ZoomClose>> {
-  };
   static constexpr auto EffectWord =
-      ref<EffBarnDoorOpen> | ref<EffBarnDoorClose> | ref<EffDissolve> |
-      ref<EffCheckerboard> | ref<EffIrisOpen> | ref<EffIrisClose> |
-      ref<EffPlain> | ref<EffPushUp> | ref<EffPushDown> | ref<EffPushLeft> |
-      ref<EffPushRight> | ref<EffScrollDown> | ref<EffScrollUp> |
-      ref<EffScrollLeft> | ref<EffScrollRight> | ref<EffShrinkToTop> |
-      ref<EffShrinkToCenter> | ref<EffShrinkToBottom> |
-      ref<EffStretchFromTop> | ref<EffStretchFromCenter> |
-      ref<EffStretchFromBottom> | ref<EffVenetianBlinds> | ref<EffWipeUp> |
-      ref<EffWipeDown> | ref<EffWipeLeft> | ref<EffWipeRight> |
-      ref<EffZoomIn> | ref<EffZoomOut> | ref<EffZoomOpen> | ref<EffZoomClose>;
+      as<ast::EffectKind::BarnDoorOpen>(ikw<"barn"> + ikw<"door"> + ikw<"open">) | as<ast::EffectKind::BarnDoorClose>(ikw<"barn"> + ikw<"door"> + ikw<"close">) | as<ast::EffectKind::Dissolve>(ikw<"dissolve">) |
+      as<ast::EffectKind::Checkerboard>(ikw<"checkerboard">) | as<ast::EffectKind::IrisOpen>(ikw<"iris"> + ikw<"open">) | as<ast::EffectKind::IrisClose>(ikw<"iris"> + ikw<"close">) |
+      as<ast::EffectKind::Plain>(ikw<"plain">) | as<ast::EffectKind::PushUp>(ikw<"push"> + ikw<"up">) | as<ast::EffectKind::PushDown>(ikw<"push"> + ikw<"down">) | as<ast::EffectKind::PushLeft>(ikw<"push"> + ikw<"left">) |
+      as<ast::EffectKind::PushRight>(ikw<"push"> + ikw<"right">) | as<ast::EffectKind::ScrollDown>(ikw<"scroll"> + ikw<"down">) | as<ast::EffectKind::ScrollUp>(ikw<"scroll"> + ikw<"up">) |
+      as<ast::EffectKind::ScrollLeft>(ikw<"scroll"> + ikw<"left">) | as<ast::EffectKind::ScrollRight>(ikw<"scroll"> + ikw<"right">) | as<ast::EffectKind::ShrinkToTop>(ikw<"shrink"> + ikw<"to"> + ikw<"top">) |
+      as<ast::EffectKind::ShrinkToCenter>(ikw<"shrink"> + ikw<"to"> + ikw<"center">) | as<ast::EffectKind::ShrinkToBottom>(ikw<"shrink"> + ikw<"to"> + ikw<"bottom">) |
+      as<ast::EffectKind::StretchFromTop>(ikw<"stretch"> + ikw<"from"> + ikw<"top">) | as<ast::EffectKind::StretchFromCenter>(ikw<"stretch"> + ikw<"from"> + ikw<"center">) |
+      as<ast::EffectKind::StretchFromBottom>(ikw<"stretch"> + ikw<"from"> + ikw<"bottom">) | as<ast::EffectKind::VenetianBlinds>(ikw<"venetian"> + ikw<"blinds">) | as<ast::EffectKind::WipeUp>(ikw<"wipe"> + ikw<"up">) |
+      as<ast::EffectKind::WipeDown>(ikw<"wipe"> + ikw<"down">) | as<ast::EffectKind::WipeLeft>(ikw<"wipe"> + ikw<"left">) | as<ast::EffectKind::WipeRight>(ikw<"wipe"> + ikw<"right">) |
+      as<ast::EffectKind::ZoomIn>(ikw<"zoom"> + ikw<"in">) | as<ast::EffectKind::ZoomOut>(ikw<"zoom"> + ikw<"out">) | as<ast::EffectKind::ZoomOpen>(ikw<"zoom"> + ikw<"open">) | as<ast::EffectKind::ZoomClose>(ikw<"zoom"> + ikw<"close">);
 
-  struct SpeedVeryFast
-      : rule<ikw<"very"> + ikw<"fast">, value<ast::SpeedKind::VeryFast>> {};
-  struct SpeedVerySlow
-      : rule<ikw<"very"> + (ikw<"slow"> | ikw<"slowly">),
-             value<ast::SpeedKind::VerySlow>> {};
-  struct SpeedFast : rule<ikw<"fast">, value<ast::SpeedKind::Fast>> {};
-  struct SpeedSlow
-      : rule<ikw<"slow"> | ikw<"slowly">, value<ast::SpeedKind::Slow>> {};
-  static constexpr auto SpeedWord = ref<SpeedVeryFast> | ref<SpeedVerySlow> |
-                                    ref<SpeedFast> | ref<SpeedSlow>;
+  static constexpr auto SpeedWord = as<ast::SpeedKind::VeryFast>(ikw<"very"> + ikw<"fast">) | as<ast::SpeedKind::VerySlow>(ikw<"very"> + (ikw<"slow"> | ikw<"slowly">)) |
+                                    as<ast::SpeedKind::Fast>(ikw<"fast">) | as<ast::SpeedKind::Slow>(ikw<"slow"> | ikw<"slowly">);
 
-  struct ImgBlack : rule<ikw<"black">, value<ast::ImageKind::Black>> {};
-  struct ImgCard : rule<CardKw, value<ast::ImageKind::Card>> {};
-  struct ImgGray
-      : rule<ikw<"gray"> | ikw<"grey">, value<ast::ImageKind::Gray>> {};
-  struct ImgInverse
-      : rule<ikw<"inverse">, value<ast::ImageKind::Inverse>> {};
-  struct ImgWhite : rule<ikw<"white">, value<ast::ImageKind::White>> {};
-  static constexpr auto ImageWord = ref<ImgBlack> | ref<ImgCard> |
-                                    ref<ImgGray> | ref<ImgInverse> |
-                                    ref<ImgWhite>;
+  static constexpr auto ImageWord = as<ast::ImageKind::Black>(ikw<"black">) | as<ast::ImageKind::Card>(CardKw) |
+                                    as<ast::ImageKind::Gray>(ikw<"gray"> | ikw<"grey">) | as<ast::ImageKind::Inverse>(ikw<"inverse">) |
+                                    as<ast::ImageKind::White>(ikw<"white">);
 
-  struct EffectExprRule
+  struct EffectExpr
       : rule<create<ast::EffectExpr>(
             option(ikw<"effect">) +
             assign<&ast::EffectExpr::effect>(EffectWord) +
@@ -561,6 +444,7 @@ struct Hypertalk : cursiv::GrammarSpec {
       ikw<"cmdkey"> | ikw<"shiftkey"> | ikw<"optionkey"> | ikw<"ticks"> |
       SecondsKw | (ref<LengthWord> + ikw<"time">) |
       (ref<LengthWord> + ikw<"date">) | ikw<"mouseclick"> | ikw<"tool"> |
+      ikw<"date"> | ikw<"time"> |
       (ikw<"number"> + ikw<"of"> + option(CardKw) + ikw<"parts">) |
       (ikw<"number"> + ikw<"of"> + BackgroundKw + ikw<"parts">) |
       (ikw<"number"> + ikw<"of"> + option(CardKw) + ButtonKw) |
@@ -611,6 +495,8 @@ struct Hypertalk : cursiv::GrammarSpec {
       : rule<create<ast::FuncCall>(
             (ikw<"the"> +
              assign<&ast::FuncCall::name>(ref<ZeroArgFunc>))  //
+            | (assign<&ast::FuncCall::name>(ikw<"date"> | ikw<"time">) +
+               lit<"("> + lit<")">) //
             | (option(ikw<"the">) +
                assign<&ast::FuncCall::name>(ref<SingleArgOfFunc>) + Of +
                assign<&ast::FuncCall::ofTarget>(ref<Factor>))  //
@@ -634,7 +520,7 @@ struct Hypertalk : cursiv::GrammarSpec {
   struct ChunkFreeFactor
       : rule<LiteralExpr                                //
             | (lit<"("> + ref<Expression> + lit<")">)  //
-            | ref<EffectExprRule>                        //
+            | ref<EffectExpr>                        //
             | ref<FunctionCall>                           //
             | ref<ContainerBase>> {};
 
@@ -644,41 +530,17 @@ struct Hypertalk : cursiv::GrammarSpec {
                  assign<&ast::ChunkExpr::target>(ref<ChunkFreeFactor>))  //
             | ref<ChunkFreeFactor>> {};
 
-  struct OpNot : rule<ikw<"not">, value<ast::UnOp::LogicalNot>> {};
-  struct OpNeg : rule<lit<"-">, value<ast::UnOp::Negate>> {};
-  struct OpThereIsA
-      : rule<ikw<"there"> + ikw<"is"> + (ikw<"a"> | ikw<"an">),
-             value<ast::UnOp::ThereIsA>> {};
-  struct OpThereIsNot
-      : rule<ikw<"there"> + ikw<"is"> +
-                 (ikw<"no"> | (ikw<"not"> + (ikw<"a"> | ikw<"an">))),
-             value<ast::UnOp::ThereIsNot>> {};
 
   struct UnaryExpr
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(
-                     ref<OpThereIsNot> | ref<OpThereIsA> | ref<OpNot> |
-                     ref<OpNeg>) +
+                     as<ast::UnOp::ThereIsNot>(ikw<"there"> + ikw<"is"> + (ikw<"no"> | (ikw<"not"> + (ikw<"a"> | ikw<"an">)))) | as<ast::UnOp::ThereIsA>(ikw<"there"> + ikw<"is"> + (ikw<"a"> | ikw<"an">)) | as<ast::UnOp::LogicalNot>(ikw<"not">) |
+                     as<ast::UnOp::Negate>(lit<"-">)) +
                  assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
             | ref<Factor>> {};
 
-  struct OpExp : terminal<lit<"^">, value<ast::BinOp::Exponent>> {};
-  struct OpMul : terminal<lit<"*">, value<ast::BinOp::Multiply>> {};
-  struct OpDiv : terminal<lit<"/">, value<ast::BinOp::Divide>> {};
-  struct OpMod : rule<ikw<"mod">, value<ast::BinOp::Modulo>> {};
-  struct OpDivWord : rule<ikw<"div">, value<ast::BinOp::IntegerDivide>> {};
-  struct OpAdd : terminal<lit<"+">, value<ast::BinOp::Add>> {};
-  struct OpSub : terminal<lit<"-">, value<ast::BinOp::Subtract>> {};
-  struct OpConcatSp : terminal<lit<"&&">, value<ast::BinOp::ConcatSpace>> {};
-  struct OpConcat : terminal<lit<"&">, value<ast::BinOp::Concat>> {};
-
-  struct OpGe
-      : terminal<lit<">="> | lit<"≥">, value<ast::BinOp::GreaterEq>> {};
-  struct OpLe
-      : terminal<lit<"<="> | lit<"≤">, value<ast::BinOp::LessEq>> {};
-  struct OpLt : terminal<lit<"<">, value<ast::BinOp::Less>> {};
-  struct OpGt : terminal<lit<">">, value<ast::BinOp::Greater>> {};
-  struct OpContains : rule<ikw<"contains">, value<ast::BinOp::Contains>> {};
+  struct OpGe : terminal<as<ast::BinOp::GreaterEq>(lit<">="> | lit<"≥">)> {};
+  struct OpLe : terminal<as<ast::BinOp::LessEq>(lit<"<="> | lit<"≤">)> {};
 
   // `is`/`is not` open both the relational family below (is a/an, is
   // within, is in) and the equality family below that (is, is not); an
@@ -687,51 +549,27 @@ struct Hypertalk : cursiv::GrammarSpec {
   struct IsRelWord : terminal<ikw<"is">> {};
   struct IsEqWord : terminal<ikw<"is">> {};
 
-  struct OpIsNotIn
-      : rule<ref<IsRelWord> + ikw<"not"> + ikw<"in">,
-             value<ast::BinOp::IsNotIn>> {};
-  struct OpIsIn
-      : rule<ref<IsRelWord> + ikw<"in">, value<ast::BinOp::IsIn>> {};
-  struct OpIsNotWithin
-      : rule<ref<IsRelWord> + ikw<"not"> + ikw<"within">,
-             value<ast::BinOp::IsNotWithin>> {};
-  struct OpIsWithin
-      : rule<ref<IsRelWord> + ikw<"within">, value<ast::BinOp::IsWithin>> {};
-  struct OpIsNotA
-      : rule<ref<IsRelWord> + ikw<"not"> + (ikw<"a"> | ikw<"an">),
-             value<ast::BinOp::IsNotA>> {};
-  struct OpIsA
-      : rule<ref<IsRelWord> + (ikw<"a"> | ikw<"an">),
-             value<ast::BinOp::IsA>> {};
-  struct OpIsNotEqual
-      : rule<ref<IsEqWord> + ikw<"not">, value<ast::BinOp::IsNotEqual>> {};
-  struct OpIsEqual : rule<ref<IsEqWord>, value<ast::BinOp::IsEqual>> {};
-
-  struct OpEqual : terminal<lit<"=">, value<ast::BinOp::Equal>> {};
-  struct OpNotEqual
-      : terminal<lit<"<>"> | lit<"≠">, value<ast::BinOp::NotEqual>> {};
-
-  struct OpAnd : rule<ikw<"and">, value<ast::BinOp::LogicalAnd>> {};
-  struct OpOr : rule<ikw<"or">, value<ast::BinOp::LogicalOr>> {};
+  struct OpNotEqual : terminal<as<ast::BinOp::NotEqual>(lit<"<>"> | lit<"≠">)> {
+  };
 
   static constexpr auto RelOps =
-      ref<OpIsNotWithin> | ref<OpIsWithin> | ref<OpIsNotIn> | ref<OpIsIn> |
-      ref<OpIsNotA> | ref<OpIsA> | ref<OpGe> | ref<OpLe> | ref<OpLt> |
-      ref<OpGt> | ref<OpContains>;
-  static constexpr auto EqOps = ref<OpEqual> | ref<OpNotEqual> |
-                                ref<OpIsNotEqual> | ref<OpIsEqual>;
+      as<ast::BinOp::IsNotWithin>(ref<IsRelWord> + ikw<"not"> + ikw<"within">) | as<ast::BinOp::IsWithin>(ref<IsRelWord> + ikw<"within">) | as<ast::BinOp::IsNotIn>(ref<IsRelWord> + ikw<"not"> + ikw<"in">) | as<ast::BinOp::IsIn>(ref<IsRelWord> + ikw<"in">) |
+      as<ast::BinOp::IsNotA>(ref<IsRelWord> + ikw<"not"> + (ikw<"a"> | ikw<"an">)) | as<ast::BinOp::IsA>(ref<IsRelWord> + (ikw<"a"> | ikw<"an">)) | ref<OpGe> | ref<OpLe> | as<ast::BinOp::Less>(lit<"<">) |
+      as<ast::BinOp::Greater>(lit<">">) | as<ast::BinOp::Contains>(ikw<"contains">);
+  static constexpr auto EqOps = as<ast::BinOp::Equal>(lit<"=">) | ref<OpNotEqual> |
+                                as<ast::BinOp::IsNotEqual>(ref<IsEqWord> + ikw<"not">) | as<ast::BinOp::IsEqual>(ref<IsEqWord>);
 
   struct Expression
-      : infix<UnaryExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<OpExp>) >>  //
-               left(ref<OpMul> | ref<OpDiv> | ref<OpMod> | ref<OpDivWord>) >>
-               left(ref<OpAdd> | ref<OpSub>) >>          //
-               left(ref<OpConcatSp> | ref<OpConcat>) >>  //
-               left(RelOps) >>                            //
-               left(EqOps) >>                             //
-               left(ref<OpAnd>) >>                        //
-               left(ref<OpOr>))> {};
+      : infix<UnaryExpr, ast::BinaryExpr,
+              levels(left(as<ast::BinOp::Exponent>(lit<"^">)),                       //
+                     left(as<ast::BinOp::Multiply>(lit<"*">) | as<ast::BinOp::Divide>(lit<"/">) | as<ast::BinOp::Modulo>(ikw<"mod">) |
+                          as<ast::BinOp::IntegerDivide>(ikw<"div">)),                   //
+                     left(as<ast::BinOp::Add>(lit<"+">) | as<ast::BinOp::Subtract>(lit<"-">)),          //
+                     left(as<ast::BinOp::ConcatSpace>(lit<"&&">) | as<ast::BinOp::Concat>(lit<"&">)),  //
+                     left(RelOps),                           //
+                     left(EqOps),                            //
+                     left(as<ast::BinOp::LogicalAnd>(ikw<"and">)),                       //
+                     left(as<ast::BinOp::LogicalOr>(ikw<"or">)))> {};
 
   // ---- Statement-level helpers ---------------------------------------
 
@@ -805,18 +643,24 @@ struct Hypertalk : cursiv::GrammarSpec {
 
   // ---- Commands -------------------------------------------------------
 
-  struct VerbDelete : rule<ikw<"delete">, value<ast::CmdVerb::Delete>> {};
-  struct VerbDial : rule<ikw<"dial">, value<ast::CmdVerb::Dial>> {};
-  struct VerbDomenu : rule<ikw<"domenu">, value<ast::CmdVerb::Domenu>> {};
-  struct VerbDo : rule<ikw<"do">, value<ast::CmdVerb::Do>> {};
-  struct VerbGet : rule<ikw<"get">, value<ast::CmdVerb::Get>> {};
-  struct VerbVisual : rule<ikw<"visual">, value<ast::CmdVerb::Visual>> {};
   struct SimpleExprCmd
       : rule<create<ast::SimpleExprCmd>(
-            assign<&ast::SimpleExprCmd::verb>(
-                ref<VerbDelete> | ref<VerbDial> | ref<VerbDomenu> |
-                ref<VerbDo> | ref<VerbGet> | ref<VerbVisual>) +
-            assign<&ast::SimpleExprCmd::operand>(ref<Expression>))> {};
+          (assign<&ast::SimpleExprCmd::verb>(
+               as<ast::CmdVerb::Delete>(ikw<"delete">) |
+               as<ast::CmdVerb::Get>(ikw<"get">) | as<ast::CmdVerb::Visual>(ikw<"visual">)) +
+           assign<&ast::SimpleExprCmd::operand>(ref<Expression>)) |
+          (assign<&ast::SimpleExprCmd::verb>(as<ast::CmdVerb::Do>(ikw<"do">)) +
+           assign<&ast::SimpleExprCmd::operand>(ref<Expression>) +
+           option(ikw<"as"> + assign<&ast::SimpleExprCmd::language>(ref<Expression>))) |
+          (assign<&ast::SimpleExprCmd::verb>(as<ast::CmdVerb::Dial>(ikw<"dial">)) +
+           assign<&ast::SimpleExprCmd::operand>(ref<Expression>) +
+           option(ikw<"with"> + flag<&ast::SimpleExprCmd::withModem>(ikw<"modem">) +
+                  option(assign<&ast::SimpleExprCmd::modemCommands>(ref<Expression>)))) |
+          (assign<&ast::SimpleExprCmd::verb>(as<ast::CmdVerb::Domenu>(ikw<"domenu">)) +
+           assign<&ast::SimpleExprCmd::operand>(ref<Expression>) +
+           option(lit<","> + assign<&ast::SimpleExprCmd::menuName>(ref<Expression>)) +
+           option(flag<&ast::SimpleExprCmd::withoutDialog>(ikw<"without"> + ikw<"dialog">)) +
+           option(ikw<"with"> + some(append<&ast::SimpleExprCmd::withKeys>(ref<Expression>), lit<",">))))> {};
 
   struct AddSubCmd
       : rule<create<ast::AddSubCmd>(
@@ -844,28 +688,34 @@ struct Hypertalk : cursiv::GrammarSpec {
             | (ikw<"disable"> +
                assign<&ast::EnableCmd::target>(ref<Expression>)))> {};
 
+  static constexpr auto LockTarget =
+      as<ast::LockTarget::Screen>(ikw<"screen">) |
+      as<ast::LockTarget::Messages>(ikw<"messages">) |
+      as<ast::LockTarget::Recent>(ikw<"recent">) |
+      as<ast::LockTarget::ErrorDialogs>(ikw<"error"> + ikw<"dialogs">);
   struct ScreenLockCmd
       : rule<create<ast::ScreenLockCmd>(
-            (flag<&ast::ScreenLockCmd::lock>(ikw<"lock">) +
-             ikw<"screen">)  //
-            | (ikw<"unlock"> + ikw<"screen"> +
-               option(ikw<"with"> + ikw<"visual"> +
-                      assign<&ast::ScreenLockCmd::visualEffect>(
-                          ref<Expression>))))> {};
+            (flag<&ast::ScreenLockCmd::lock>(ikw<"lock">) | ikw<"unlock">) +
+            assign<&ast::ScreenLockCmd::target>(LockTarget) +
+            option(ikw<"with"> + option(ikw<"visual">) +
+                   assign<&ast::ScreenLockCmd::visualEffect>(ref<Expression>)))> {};
 
   struct AnswerCmd
-      : rule<create<ast::AnswerCmd>(
-            ikw<"answer"> + assign<&ast::AnswerCmd::prompt>(ref<Expression>) +
-            option(ikw<"with"> +
-                   append<&ast::AnswerCmd::buttons>(ref<Factor>) +
-                   option(ikw<"or"> +
-                          append<&ast::AnswerCmd::buttons>(ref<Factor>) +
-                          option(ikw<"or"> + append<&ast::AnswerCmd::buttons>(
-                                                  ref<Factor>)))))> {};
+      : rule<create<ast::AnswerCmd>(ikw<"answer"> +
+          (((flag<&ast::AnswerCmd::file>(ikw<"file">) |
+             flag<&ast::AnswerCmd::program>(ikw<"program">)) +
+            assign<&ast::AnswerCmd::prompt>(ref<Expression>) +
+            option(ikw<"of"> + ikw<"type"> + assign<&ast::AnswerCmd::type>(ref<Expression>))) |
+           (assign<&ast::AnswerCmd::prompt>(ref<Expression>) +
+            option(ikw<"with"> + append<&ast::AnswerCmd::buttons>(ref<Factor>) +
+                   option(ikw<"or"> + append<&ast::AnswerCmd::buttons>(ref<Factor>) +
+                          option(ikw<"or"> + append<&ast::AnswerCmd::buttons>(ref<Factor>)))))))> {};
 
   struct AskCmd
       : rule<create<ast::AskCmd>(
-            ikw<"ask"> + option(flag<&ast::AskCmd::file>(ikw<"file">)) +
+            ikw<"ask"> + option(flag<&ast::AskCmd::file>(ikw<"file">) |
+                (flag<&ast::AskCmd::password>(ikw<"password">) +
+                 option(flag<&ast::AskCmd::clear>(ikw<"clear">)))) +
             assign<&ast::AskCmd::prompt>(ref<Expression>) +
             option(ikw<"with"> +
                    assign<&ast::AskCmd::defaultAnswer>(ref<Expression>)))> {};
@@ -878,10 +728,10 @@ struct Hypertalk : cursiv::GrammarSpec {
   struct ChooseCmd
       : rule<create<ast::ChooseCmd>(
             ikw<"choose"> +
-            ((assign<&ast::ChooseCmd::tool>(ref<ToolExprRule>) +
+            ((assign<&ast::ChooseCmd::tool>(ref<ToolExpr>) +
               option(ikw<"tool">))  //
              | (ikw<"tool"> +
-                assign<&ast::ChooseCmd::tool>(ref<ToolExprRule>))))> {};
+                assign<&ast::ChooseCmd::tool>(ref<ToolExpr>))))> {};
 
   struct ClickCmd
       : rule<create<ast::ClickCmd>(
@@ -896,31 +746,26 @@ struct Hypertalk : cursiv::GrammarSpec {
             ikw<"close"> + ikw<"file"> +
             assign<&ast::CloseFileCmd::file>(ref<Expression>))> {};
 
-  struct ConvSeconds : rule<SecondsKw, value<ast::ConversionKind::Seconds>> {};
-  struct ConvDateItems
-      : rule<ikw<"dateitems">, value<ast::ConversionKind::DateItems>> {};
-  struct ConvDate : rule<ikw<"date">, value<ast::ConversionKind::Date>> {};
-  struct ConvTime : rule<ikw<"time">, value<ast::ConversionKind::Time>> {};
-  struct ConversionFormatRule
+  struct ConversionFormat
       : rule<create<ast::ConversionFormat>(
-            assign<&ast::ConversionFormat::kind>(ref<ConvSeconds> |
-                                                 ref<ConvDateItems>)  //
+            assign<&ast::ConversionFormat::kind>(as<ast::ConversionKind::Seconds>(SecondsKw) |
+                                                 as<ast::ConversionKind::DateItems>(ikw<"dateitems">))  //
             | (option(assign<&ast::ConversionFormat::length>(ref<LengthWord>)) +
-               assign<&ast::ConversionFormat::kind>(ref<ConvDate> |
-                                                    ref<ConvTime>)))> {};
-  struct ConvertibleRule
+               assign<&ast::ConversionFormat::kind>(as<ast::ConversionKind::Date>(ikw<"date">) |
+                                                    as<ast::ConversionKind::Time>(ikw<"time">))))> {};
+  struct Convertible
       : rule<create<ast::Convertible>(
-            append<&ast::Convertible::formats>(ref<ConversionFormatRule>) +
+            append<&ast::Convertible::formats>(ref<ConversionFormat>) +
             option(ikw<"and"> + append<&ast::Convertible::formats>(
-                                     ref<ConversionFormatRule>)))> {};
+                                     ref<ConversionFormat>)))> {};
 
   struct ConvertCmd
       : rule<create<ast::ConvertCmd>(
             ikw<"convert"> + assign<&ast::ConvertCmd::target>(ref<Expression>) +
             option(ikw<"from"> +
-                   assign<&ast::ConvertCmd::fromFormat>(ref<ConvertibleRule>)) +
+                   assign<&ast::ConvertCmd::fromFormat>(ref<Convertible>)) +
             ikw<"to"> +
-            assign<&ast::ConvertCmd::toFormat>(ref<ConvertibleRule>))> {};
+            assign<&ast::ConvertCmd::toFormat>(ref<Convertible>))> {};
 
   struct CreateMenuCmd
       : rule<create<ast::CreateMenuCmd>(
@@ -958,7 +803,7 @@ struct Hypertalk : cursiv::GrammarSpec {
   struct FindCmd
       : rule<create<ast::FindCmd>(
             ikw<"find"> +
-            option(assign<&ast::FindCmd::style>(ref<FindFormRule>)) +
+            option(assign<&ast::FindCmd::style>(ref<FindForm>)) +
             option(flag<&ast::FindCmd::international>(
                 ikw<"international">)) +
             assign<&ast::FindCmd::what>(ref<Expression>) +
@@ -972,16 +817,11 @@ struct Hypertalk : cursiv::GrammarSpec {
                            ikw<"marked">) +
                        CardsKw))))> {};
 
-  struct RemoteNewWindowNoDialog
-      : rule<ikw<"in"> + ikw<"a"> + ikw<"new"> + ikw<"window"> +
-                 ikw<"without"> + ikw<"dialog">,
-             value<ast::RemoteNav::NewWindowNoDialog>> {};
-  struct RemoteNewWindow
-      : rule<ikw<"in"> + ikw<"a"> + ikw<"new"> + ikw<"window">,
-             value<ast::RemoteNav::NewWindow>> {};
-  struct RemoteNoDialog
-      : rule<ikw<"without"> + ikw<"dialog">,
-             value<ast::RemoteNav::NoDialog>> {};
+
+  struct GoDestination
+      : rule<ref<Expression> |
+             create<ast::CardPartRef>(assign<&ast::CardPartRef::ordinal>(ref<OrdinalWord>)) |
+             create<ast::CardPartRef>(assign<&ast::CardPartRef::position>(PositionRef))> {};
 
   struct GoCmd
       : rule<create<ast::GoCmd>(
@@ -990,12 +830,12 @@ struct Hypertalk : cursiv::GrammarSpec {
               option(ikw<"with"> + ikw<"visual"> +
                      assign<&ast::GoCmd::visualEffect>(ref<Expression>)))  //
              | (option(ikw<"to">) +
-                assign<&ast::GoCmd::destination>(ref<Expression>) +
+                assign<&ast::GoCmd::destination>(ref<GoDestination>) +
                 ((ikw<"with"> + ikw<"visual"> +
                   assign<&ast::GoCmd::visualEffect>(ref<Expression>))  //
                  | option(assign<&ast::GoCmd::remoteOpt>(
-                       ref<RemoteNewWindowNoDialog> | ref<RemoteNewWindow> |
-                       ref<RemoteNoDialog>))))))> {};
+                       as<ast::RemoteNav::NewWindowNoDialog>(ikw<"in"> + ikw<"a"> + ikw<"new"> + ikw<"window"> + ikw<"without"> + ikw<"dialog">) | as<ast::RemoteNav::NewWindow>(ikw<"in"> + ikw<"a"> + ikw<"new"> + ikw<"window">) |
+                       as<ast::RemoteNav::NoDialog>(ikw<"without"> + ikw<"dialog">)))))))> {};
 
   struct ImportPaintCmd
       : rule<create<ast::ImportPaintCmd>(
@@ -1014,7 +854,7 @@ struct Hypertalk : cursiv::GrammarSpec {
       : rule<create<ast::PassCmd>(
             ikw<"pass"> + assign<&ast::PassCmd::name>(ref<HandlerName>))> {};
 
-  struct MusicExprRule
+  struct MusicExpr
       : rule<create<ast::MusicExpr>(
             assign<&ast::MusicExpr::voice>(ref<Expression>) +
             option(ikw<"tempo"> +
@@ -1024,74 +864,64 @@ struct Hypertalk : cursiv::GrammarSpec {
   struct PlayCmd
       : rule<create<ast::PlayCmd>(
             ikw<"play"> +
-            assign<&ast::PlayCmd::music>(ref<MusicExprRule>))> {};
+            assign<&ast::PlayCmd::music>(ref<MusicExpr>))> {};
 
   struct PopCardCmd
-      : rule<create<ast::PopCardCmd>(ikw<"pop"> + CardKw)> {};
+      : rule<create<ast::PopCardCmd>(ikw<"pop"> + CardKw +
+             option(assign<&ast::PopCardCmd::prep>(
+                        as<ast::Preposition::Into>(ikw<"into">) |
+                        as<ast::Preposition::Before>(ikw<"before">) |
+                        as<ast::Preposition::After>(ikw<"after">)) +
+                    assign<&ast::PopCardCmd::target>(ref<Expression>)))> {};
 
   struct PushCmd
       : rule<create<ast::PushCmd>(
-            ikw<"push"> + (flag<&ast::PushCmd::card>(CardKw)  //
+            ikw<"push"> + (flag<&ast::PushCmd::card>(CardKw) + &(ref<NEWLINE> | eof) //
                           | assign<&ast::PushCmd::value>(ref<Expression>)))> {
   };
 
-  struct PrepBefore : rule<ikw<"before">, value<ast::Preposition::Before>> {};
-  struct PrepAfter : rule<ikw<"after">, value<ast::Preposition::After>> {};
-  struct PrepInto : rule<ikw<"into">, value<ast::Preposition::Into>> {};
   struct PutCmd
       : rule<create<ast::PutCmd>(
             ikw<"put"> +
             some(append<&ast::PutCmd::values>(ref<Expression>), lit<",">) +
-            option(assign<&ast::PutCmd::prep>(ref<PrepBefore> | ref<PrepAfter> |
-                                              ref<PrepInto>) +
+            option(assign<&ast::PutCmd::prep>(as<ast::Preposition::Before>(ikw<"before">) | as<ast::Preposition::After>(ikw<"after">) |
+                                              as<ast::Preposition::Into>(ikw<"into">)) +
                    assign<&ast::PutCmd::target>(ref<Expression>)))> {};
 
   struct ReadFileCmd
       : rule<create<ast::ReadFileCmd>(
             ikw<"read"> + ikw<"from"> + ikw<"file"> +
             assign<&ast::ReadFileCmd::file>(ref<Expression>) +
-            option(
-                (ikw<"until"> +
-                 assign<&ast::ReadFileCmd::untilExpr>(ref<Expression>))  //
-                | (ikw<"at"> +
-                   assign<&ast::ReadFileCmd::atExpr>(ref<Expression>) +
-                   ikw<"for"> +
-                   assign<&ast::ReadFileCmd::forExpr>(ref<Expression>))  //
-                | (ikw<"for"> +
-                   assign<&ast::ReadFileCmd::forExpr>(ref<Expression>))))> {};
+            option(ikw<"at"> +
+                   assign<&ast::ReadFileCmd::atExpr>(ref<Expression>)) +
+            option((ikw<"until"> +
+                    assign<&ast::ReadFileCmd::untilExpr>(ref<Expression>)) |
+                   (ikw<"for"> +
+                    assign<&ast::ReadFileCmd::forExpr>(ref<Expression>))))> {};
 
   struct ResetCmd
       : rule<create<ast::ResetCmd>(
             ikw<"reset"> +
             ((option(ikw<"the">) + ikw<"menubar">)  //
-             | flag<&ast::ResetCmd::paint>(ikw<"paint">)))> {};
+             | flag<&ast::ResetCmd::paint>(ikw<"paint">) |
+             flag<&ast::ResetCmd::printing>(ikw<"printing">)))> {};
 
-  struct PosBefore
-      : rule<ikw<"before">, value<ast::BeforeAfterKind::Before>> {};
-  struct PosAfter : rule<ikw<"after">, value<ast::BeforeAfterKind::After>> {};
   struct SelectCmd
       : rule<create<ast::SelectCmd>(
             ikw<"select"> +
             (flag<&ast::SelectCmd::empty>(ikw<"empty">)  //
-             | (option(assign<&ast::SelectCmd::pos>(ref<PosBefore> |
-                                                    ref<PosAfter>)) +
+             | (option(assign<&ast::SelectCmd::pos>(as<ast::BeforeAfterKind::Before>(ikw<"before">) |
+                                                    as<ast::BeforeAfterKind::After>(ikw<"after">))) +
                 ((flag<&ast::SelectCmd::text>(ikw<"text">) + Of +
                   assign<&ast::SelectCmd::target>(ref<Expression>))  //
                  | assign<&ast::SelectCmd::target>(ref<Expression>)))))> {};
 
-  struct PVPlain : rule<ikw<"plain">, value<ast::PropValueKw::Plain>> {};
-  struct PVMenu : rule<ikw<"menu">, value<ast::PropValueKw::Menu>> {};
-  struct PVBottom : rule<ikw<"bottom">, value<ast::PropValueKw::Bottom>> {};
-  struct PVLeft : rule<ikw<"left">, value<ast::PropValueKw::Left>> {};
-  struct PVRight : rule<ikw<"right">, value<ast::PropValueKw::Right>> {};
-  struct PVTop : rule<ikw<"top">, value<ast::PropValueKw::Top>> {};
-  struct PVCenter : rule<ikw<"center">, value<ast::PropValueKw::Center>> {};
-  struct PropertyValueRule
+  struct PropertyValue
       : rule<create<ast::PropertyValue>(
-            assign<&ast::PropertyValue::kw>(ref<PVPlain> | ref<PVMenu> |
-                                            ref<PVBottom> | ref<PVLeft> |
-                                            ref<PVRight> | ref<PVTop> |
-                                            ref<PVCenter>)  //
+            assign<&ast::PropertyValue::kw>(as<ast::PropValueKw::Plain>(ikw<"plain">) | as<ast::PropValueKw::Menu>(ikw<"menu">) |
+                                            as<ast::PropValueKw::Bottom>(ikw<"bottom">) | as<ast::PropValueKw::Left>(ikw<"left">) |
+                                            as<ast::PropValueKw::Right>(ikw<"right">) | as<ast::PropValueKw::Top>(ikw<"top">) |
+                                            as<ast::PropValueKw::Center>(ikw<"center">))  //
             | some(append<&ast::PropertyValue::exprs>(ref<Expression>),
                    lit<",">))> {};
 
@@ -1099,13 +929,13 @@ struct Hypertalk : cursiv::GrammarSpec {
       : rule<create<ast::SetCmd>(
             ikw<"set"> + assign<&ast::SetCmd::property>(ref<Property>) +
             ikw<"to"> +
-            assign<&ast::SetCmd::value>(ref<PropertyValueRule>))> {};
+            assign<&ast::SetCmd::value>(ref<PropertyValue>))> {};
 
   struct SendCmd
       : rule<create<ast::SendCmd>(
             ikw<"send"> +
             some(append<&ast::SendCmd::message>(ref<Expression>), lit<",">) +
-            ikw<"to"> + assign<&ast::SendCmd::target>(ref<Expression>))> {};
+            option(ikw<"to"> + assign<&ast::SendCmd::target>(ref<Expression>)))> {};
 
   static constexpr auto PictureKw = ikw<"picture"> | ikw<"pict">;
 
@@ -1113,31 +943,24 @@ struct Hypertalk : cursiv::GrammarSpec {
       : rule<create<ast::ShowHideCmd>(
             (flag<&ast::ShowHideCmd::show>(ikw<"show">) |
              ikw<"hide">) +
-            (flag<&ast::ShowHideCmd::titlebar>(ikw<"titlebar">)  //
+            ((flag<&ast::ShowHideCmd::allCards>(ikw<"all">) + CardsKw) |
+             (flag<&ast::ShowHideCmd::markedCards>(ikw<"marked">) + CardsKw) |
+             (assign<&ast::ShowHideCmd::cardCount>(ref<Expression>) + CardsKw) |
+             flag<&ast::ShowHideCmd::titlebar>(ikw<"titlebar">)  //
              | (flag<&ast::ShowHideCmd::card>(CardKw) +
                 flag<&ast::ShowHideCmd::picture>(PictureKw))  //
              | (flag<&ast::ShowHideCmd::background>(BackgroundKw) +
                 flag<&ast::ShowHideCmd::picture>(PictureKw))  //
              | (flag<&ast::ShowHideCmd::picture>(PictureKw) + Of +
                 assign<&ast::ShowHideCmd::target>(ref<Expression>))  //
-             | assign<&ast::ShowHideCmd::target>(ref<Expression>)))> {};
+             | assign<&ast::ShowHideCmd::target>(ref<Expression>)) +
+            option(ikw<"at"> + some(append<&ast::ShowHideCmd::at>(ref<Expression>), lit<",">)))> {};
 
-  struct SortAsc : rule<ikw<"ascending">, value<ast::Ordering::Ascending>> {};
-  struct SortDesc
-      : rule<ikw<"descending">, value<ast::Ordering::Descending>> {};
-  struct StyleText : rule<ikw<"text">, value<ast::SortStyleKind::Text>> {};
-  struct StyleNumeric
-      : rule<ikw<"numeric">, value<ast::SortStyleKind::Numeric>> {};
-  struct StyleIntl
-      : rule<ikw<"international">, value<ast::SortStyleKind::International>> {
-  };
-  struct StyleDatetime
-      : rule<ikw<"datetime">, value<ast::SortStyleKind::Datetime>> {};
   static constexpr auto SortDirOpt =
-      option(assign<&ast::SortCmd::direction>(ref<SortAsc> | ref<SortDesc>));
+      option(assign<&ast::SortCmd::direction>(as<ast::Ordering::Ascending>(ikw<"ascending">) | as<ast::Ordering::Descending>(ikw<"descending">)));
   static constexpr auto SortStyleOpt =
-      option(assign<&ast::SortCmd::style>(ref<StyleText> | ref<StyleNumeric> |
-                                          ref<StyleIntl> | ref<StyleDatetime>));
+      option(assign<&ast::SortCmd::style>(as<ast::SortStyleKind::Text>(ikw<"text">) | as<ast::SortStyleKind::Numeric>(ikw<"numeric">) |
+                                          as<ast::SortStyleKind::International>(ikw<"international">) | as<ast::SortStyleKind::Datetime>(ikw<"datetime">)));
 
   struct SortCmd
       : rule<create<ast::SortCmd>(
@@ -1165,18 +988,13 @@ struct Hypertalk : cursiv::GrammarSpec {
                 SortStyleOpt + ikw<"by"> +
                 assign<&ast::SortCmd::byExpr>(ref<Expression>))))> {};
 
-  struct GenderMale : rule<ikw<"male">, value<ast::Gender::Male>> {};
-  struct GenderFemale : rule<ikw<"female">, value<ast::Gender::Female>> {};
-  struct GenderNeuter : rule<ikw<"neuter">, value<ast::Gender::Neuter>> {};
-  struct GenderRobotic
-      : rule<ikw<"robotic">, value<ast::Gender::Robotic>> {};
   struct SpeakCmd
       : rule<create<ast::SpeakCmd>(
             ikw<"speak"> + assign<&ast::SpeakCmd::text>(ref<Expression>) +
             option(ikw<"with"> +
                    ((assign<&ast::SpeakCmd::gender>(
-                         ref<GenderMale> | ref<GenderFemale> |
-                         ref<GenderNeuter> | ref<GenderRobotic>) +
+                         as<ast::Gender::Male>(ikw<"male">) | as<ast::Gender::Female>(ikw<"female">) |
+                         as<ast::Gender::Neuter>(ikw<"neuter">) | as<ast::Gender::Robotic>(ikw<"robotic">)) +
                      ikw<"voice">)  //
                     | (ikw<"voice"> + assign<&ast::SpeakCmd::voiceExpr>(
                                           ref<Expression>)))))> {};
@@ -1188,10 +1006,6 @@ struct Hypertalk : cursiv::GrammarSpec {
                    flag<&ast::TypeCmd::withCommandKey>(
                        ikw<"commandkey"> | ikw<"cmdkey">)))> {};
 
-  struct UnitTicks
-      : rule<ikw<"ticks"> | ikw<"tick">, value<ast::TimeUnitKind::Ticks>> {};
-  struct UnitSeconds
-      : rule<SecondsKw, value<ast::TimeUnitKind::Seconds>> {};
   struct WaitCmd
       : rule<create<ast::WaitCmd>(
             ikw<"wait"> +
@@ -1200,8 +1014,8 @@ struct Hypertalk : cursiv::GrammarSpec {
                 assign<&ast::WaitCmd::cond>(ref<Expression>))  //
              | (option(ikw<"for">) +
                 assign<&ast::WaitCmd::amount>(ref<Expression>) +
-                assign<&ast::WaitCmd::unit>(ref<UnitTicks> |
-                                            ref<UnitSeconds>))))> {};
+                option(assign<&ast::WaitCmd::unit>(as<ast::TimeUnitKind::Ticks>(ikw<"ticks"> | ikw<"tick">) |
+                                            as<ast::TimeUnitKind::Seconds>(SecondsKw))))))> {};
 
   struct WriteFileCmd
       : rule<create<ast::WriteFileCmd>(
@@ -1263,25 +1077,25 @@ struct Hypertalk : cursiv::GrammarSpec {
             | create<ast::ExprStmt>(
                   assign<&ast::ExprStmt::value>(ref<Expression>))> {};
 
-  struct HandlerRule
+  struct Handler
       : rule<create<ast::Handler>(
             ikw<"on"> + assign<&ast::Handler::name>(ref<HandlerName>) +
             option(ParamList<&ast::Handler::params>) + some(ref<NEWLINE>) +
             option(StatementListBody<&ast::Handler::body>) + ikw<"end"> +
             assign<&ast::Handler::endName>(ref<HandlerName>))> {};
 
-  struct FunctionRule
+  struct Function
       : rule<create<ast::Function>(
             ikw<"function"> + assign<&ast::Function::name>(ref<ID>) +
             option(ParamList<&ast::Function::params>) + some(ref<NEWLINE>) +
             option(StatementListBody<&ast::Function::body>) + ikw<"end"> +
             assign<&ast::Function::endName>(ref<ID>))> {};
 
-  struct TopItemRule
+  struct TopItem
       : rule<create<ast::TopItem>(
-            assign<&ast::TopItem::handler>(ref<HandlerRule>))  //
+            assign<&ast::TopItem::handler>(ref<Handler>))  //
             | create<ast::TopItem>(
-                  assign<&ast::TopItem::function>(ref<FunctionRule>))  //
+                  assign<&ast::TopItem::function>(ref<Function>))  //
             | create<ast::TopItem>(
                   assign<&ast::TopItem::statement>(ref<Statement>))> {};
 
@@ -1291,11 +1105,11 @@ struct Hypertalk : cursiv::GrammarSpec {
   struct Document
       : rule<create<ast::Document>(
             many(ref<NEWLINE>) +
-            many(append<&ast::Document::items>(ref<TopItemRule>) +
+            many(append<&ast::Document::items>(ref<TopItem>) +
                  many(ref<NEWLINE>)))> {};
 
   using entry = Document;
-  using ignore = list<WS, BREAK>;
+  using ignored = list<WS, BREAK>;
   using hidden = list<COMMENT>;
 };
 

@@ -1,4 +1,5 @@
 #include "audit_regressions.hpp"
+#include "native_followup_cases.hpp"
 // The grammar itself: every file of the upstream corpus parses clean, and a
 // few field values are read back out of the tree -- a converter that
 // silently misreads a value passes every structural check but not this one.
@@ -53,23 +54,12 @@ int main() {
   const auto language = cursiv::create_language<
       velocity::VelocityCoreServices, velocity::VelocitySharedCoreServices,
       velocity::install_core_module>();
-
-  // `if_directive.vm` and `macro_directive.vm`: an engine defect, not a
-  // grammar bug -- a directive that carries a Block body, repeated as
-  // siblings (not nested), makes the parse time grow exponentially in the
-  // sibling count, independent of the expression inside each one. These
-  // documents are excluded here so ctest does not hang.
-  const std::array<std::string_view, 2> kSkipped = {"if_directive.vm",
-                                                      "macro_directive.vm"};
+  if (!velocity_followup::run(language)) return 1;
 
   std::vector<std::filesystem::path> paths;
   for (const auto& entry :
        std::filesystem::directory_iterator(CURSIV_EXAMPLE_DIR))
-    if (entry.is_regular_file()) {
-      const std::string name = entry.path().filename().string();
-      if (std::find(kSkipped.begin(), kSkipped.end(), name) == kSkipped.end())
-        paths.push_back(entry.path());
-    }
+    if (entry.is_regular_file()) paths.push_back(entry.path());
   std::sort(paths.begin(), paths.end());
   if (paths.empty()) return fail("the example directory is empty");
 
@@ -93,8 +83,14 @@ int main() {
 
     results.push_back(language.language.parser->parse(text));
     const cursiv::ParseResult& result = results.back();
-    if (result.cst().recovered())
+    if (result.cst().recovered()) {
+      for (const auto& diagnostic : result.diagnostics)
+        std::fprintf(stderr, "velocity corpus: kind=%u element=%u bytes=%u..%u context=[%.*s]\n",
+                     unsigned(diagnostic.kind), unsigned(diagnostic.element), unsigned(diagnostic.begin), unsigned(diagnostic.end),
+                     int(std::min<std::size_t>(70, text.size() - std::min<std::size_t>(diagnostic.begin, text.size()))),
+                     text.data() + std::min<std::size_t>(diagnostic.begin, text.size()));
       return fail(path.string() + " does not parse clean");
+    }
     if (!result.diagnostics.empty())
       return fail(path.string() + " raised a diagnostic");
 

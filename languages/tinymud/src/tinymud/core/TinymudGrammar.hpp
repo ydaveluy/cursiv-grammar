@@ -3,250 +3,281 @@
 #pragma once
 
 #include <cstdint>
+#include <charconv>
+#include <memory_resource>
+#include <string_view>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "tinymud/core/ast.hpp"
 
 namespace tinymud {
 
+inline constexpr auto normalized = [](std::string_view text, std::pmr::memory_resource* memory) {
+  const auto space = [](char c) { return c == ' ' || c == '\t' || c == '\v' || c == '\f'; };
+  while (!text.empty() && space(text[0])) text.remove_prefix(1);
+  while (!text.empty() && space(text.back())) text.remove_suffix(1);
+  bool changed = false;
+  for (std::size_t i = 0; i < text.size(); ++i)
+    changed |= space(text[i]) && (text[i] != ' ' || (i && space(text[i - 1])));
+  if (!changed) return text;
+  const auto room = cursiv::text_room(memory, text.size());
+  std::size_t size = 0;
+  for (const char c : text) {
+    if (space(c)) { if (size && room[size - 1] != ' ') room[size++] = ' '; }
+    else room[size++] = c;
+  }
+  return std::string_view(room.data(), size);
+};
+inline constexpr auto dbref = [](std::string_view text) -> cursiv::ConversionResult<std::int64_t> {
+  if (text.starts_with('#')) text.remove_prefix(1);
+  if (text.empty()) return cursiv::ConversionResult<std::int64_t>::err("Expected an object reference number");
+  std::int64_t value = 0;
+  const auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+  if (r.ec != std::errc{} || r.ptr != text.data() + text.size())
+    return cursiv::ConversionResult<std::int64_t>::err("Object reference is outside signed 64-bit range");
+  return cursiv::ConversionResult<std::int64_t>::ok(value);
+};
+
+
 struct Tinymud : cursiv::GrammarSpec {
   struct WS : terminal<cr<R"( \t)">> {};
 
-  // The continuation class includes a space: a name, description or message
-  // is everything up to the next '=', ';' or line end, spaces included.
-  struct STRING : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9_. %,'">)> {};
-  struct NUMBER : terminal<some(d), std::int64_t> {};
+  // First arguments, free remainders and exit aliases have distinct delimiters.
+  static constexpr auto ArgGap = gap::has(cr<R"( \t)">);
+  struct STRING : terminal<as<normalized>(cr<R"(^= \t\v\f\r\n)"> + many(cr<R"(^=\r\n)">))> {};
+  struct TAIL : terminal<as<normalized>(cr<R"(^ \t\v\f\r\n)"> + many(cr<R"(^\r\n)">))> {};
+  struct ALIAS : terminal<as<normalized>(cr<R"(^;= \t\v\f\r\n)"> + many(cr<R"(^;=\r\n)">))> {};
+  struct FLAG_NAME : terminal<some(cr<"a-zA-Z_">)> {};
+  struct NUMBER : terminal<as<std::int64_t>(some(d))> {};
   struct EOL : terminal<option(lit<"\r">) + lit<"\n">> {};
 
-  struct CommandRule;
+  struct DBREF : terminal<as<dbref>(option(lit<"#">) + option(lit<"-">) + some(d))> {};
+  struct TargetName : rule<!ref<DBREF> + ref<STRING>> {};
+  struct Command;
+  struct Action;
+  struct Instruction;
 
-  struct BootCommandRule
-      : rule<kw<"@boot"> + assign<&ast::BootCommand::player>(ref<STRING>)> {};
+  struct BootCommand
+      : rule<ikw<"@boot"> + ArgGap + assign<&ast::BootCommand::player>(ref<STRING>)> {};
 
-  struct ChownCommandRule
-      : rule<kw<"@chown"> + assign<&ast::ChownCommand::object>(ref<STRING>) +
+  struct ChownCommand
+      : rule<ikw<"@chown"> + ArgGap + assign<&ast::ChownCommand::object>(ref<STRING>) +
              lit<"="> + assign<&ast::ChownCommand::player>(ref<STRING>)> {};
 
-  struct CreateCommandRule
-      : rule<kw<"@create"> + assign<&ast::CreateCommand::name>(ref<STRING>) +
+  struct CreateCommand
+      : rule<ikw<"@create"> + ArgGap + assign<&ast::CreateCommand::name>(ref<STRING>) +
              option(lit<"="> +
                     assign<&ast::CreateCommand::cost>(ref<NUMBER>))> {};
 
-  struct DescribeCommandRule
-      : rule<(kw<"@describe"> | kw<"@desc">) +
+  struct DescribeCommand
+      : rule<(ikw<"@describe"> | ikw<"@desc">) + ArgGap +
              assign<&ast::DescribeCommand::object>(ref<STRING>) +
              option(lit<"="> +
-                    assign<&ast::DescribeCommand::description>(
-                        ref<STRING>))> {};
+                    option(assign<&ast::DescribeCommand::description>(ref<TAIL>)))> {};
 
-  struct DigCommandRule
-      : rule<kw<"@dig"> + assign<&ast::DigCommand::name>(ref<STRING>)> {};
+  struct DigCommand
+      : rule<ikw<"@dig"> + ArgGap + assign<&ast::DigCommand::name>(ref<STRING>)> {};
 
-  struct DumpCommandRule
-      : rule<create<ast::DumpCommand> + kw<"@dump">> {};
+  struct DumpCommand
+      : rule<create<ast::DumpCommand> + ikw<"@dump">> {};
 
-  struct FailCommandRule
-      : rule<kw<"@fail"> + assign<&ast::FailCommand::name>(ref<STRING>) +
+  struct FailCommand
+      : rule<kw<"@fail"> + ArgGap + assign<&ast::FailCommand::name>(ref<STRING>) +
              option(lit<"="> +
-                    assign<&ast::FailCommand::message>(ref<STRING>))> {};
+                    option(assign<&ast::FailCommand::message>(ref<TAIL>)))> {};
 
-  struct FindCommandRule
+  struct FindCommand
       : rule<kw<"@find"> +
-             option(assign<&ast::FindCommand::name>(ref<STRING>))> {};
+             option(ArgGap + assign<&ast::FindCommand::name>(ref<STRING>))> {};
 
-  struct ForceCommandRule
-      : rule<kw<"@force"> + assign<&ast::ForceCommand::player>(ref<STRING>) +
+  struct ForceCommand
+      : rule<kw<"@force"> + ArgGap + assign<&ast::ForceCommand::player>(ref<STRING>) +
              lit<"="> +
-             assign<&ast::ForceCommand::command>(ref<CommandRule>)> {};
+             assign<&ast::ForceCommand::command>(ref<Instruction>)> {};
 
-  struct LinkCommandRule
-      : rule<kw<"@link"> + assign<&ast::LinkCommand::object>(ref<STRING>) +
+  struct LinkCommand
+      : rule<ikw<"@link"> + ArgGap + assign<&ast::LinkCommand::object>(ref<STRING>) +
              lit<"="> +
-             assign<&ast::LinkCommand::target>(ref<NUMBER> |
-                                               ref<STRING>)> {};
+             assign<&ast::LinkCommand::target>(ref<DBREF> | ref<TargetName>)> {};
 
-  struct LockCommandRule
-      : rule<kw<"@lock"> + assign<&ast::LockCommand::object>(ref<STRING>) +
-             lit<"="> + assign<&ast::LockCommand::key>(ref<STRING>)> {};
+  struct LockCommand
+      : rule<ikw<"@lock"> + ArgGap + assign<&ast::LockCommand::object>(ref<STRING>) +
+             lit<"="> + assign<&ast::LockCommand::key>(ref<TAIL>)> {};
 
-  struct NameCommandRule
-      : rule<kw<"@name"> + assign<&ast::NameCommand::object>(ref<STRING>) +
-             lit<"="> + assign<&ast::NameCommand::name>(ref<STRING>) +
-             option(assign<&ast::NameCommand::password>(ref<STRING>))> {};
+  struct NameCommand : rule<ikw<"@name"> + ArgGap + assign<&ast::NameCommand::object>(ref<STRING>) +
+      lit<"="> + assign<&ast::NameCommand::name>(ref<TAIL>)> {};
 
-  struct NewPasswordCommandRule
-      : rule<kw<"@newpassword"> +
+  struct NewPasswordCommand
+      : rule<kw<"@newpassword"> + ArgGap +
              assign<&ast::NewPasswordCommand::player>(ref<STRING>) +
-             option(lit<"="> + assign<&ast::NewPasswordCommand::password>(
-                                    ref<STRING>))> {};
+             option(lit<"="> + option(assign<&ast::NewPasswordCommand::password>(ref<TAIL>)))> {};
 
-  struct OfailCommandRule
-      : rule<kw<"@ofail"> + assign<&ast::OfailCommand::object>(ref<STRING>) +
+  struct OfailCommand
+      : rule<ikw<"@ofail"> + ArgGap + assign<&ast::OfailCommand::object>(ref<STRING>) +
              option(lit<"="> +
-                    assign<&ast::OfailCommand::message>(ref<STRING>))> {};
+                    option(assign<&ast::OfailCommand::message>(ref<TAIL>)))> {};
 
-  struct OpenCommandRule
-      : rule<kw<"@open"> +
-             some(append<&ast::OpenCommand::directions>(ref<STRING>),
+  struct OpenCommand
+      : rule<ikw<"@open"> + ArgGap +
+             some(append<&ast::OpenCommand::directions>(ref<ALIAS>),
                   lit<";">) +
              option(lit<"="> +
-                    assign<&ast::OpenCommand::number>(ref<NUMBER>))> {};
+                    (assign<&ast::OpenCommand::number>(ref<DBREF>) | assign<&ast::OpenCommand::destination>(ref<TargetName>)))> {};
 
-  struct OsuccessCommandRule
-      : rule<(kw<"@osuccess"> | kw<"@osucc">) +
+  struct OsuccessCommand
+      : rule<(ikw<"@osuccess"> | ikw<"@osucc">) + ArgGap +
              assign<&ast::OsuccessCommand::object>(ref<STRING>) +
              option(lit<"="> +
-                    assign<&ast::OsuccessCommand::message>(ref<STRING>))> {};
+                    option(assign<&ast::OsuccessCommand::message>(ref<TAIL>)))> {};
 
-  struct PasswordCommandRule
-      : rule<kw<"@password"> +
+  struct PasswordCommand
+      : rule<ikw<"@password"> + ArgGap +
              assign<&ast::PasswordCommand::oldPassword>(ref<STRING>) +
              lit<"="> +
-             assign<&ast::PasswordCommand::newPassword>(ref<STRING>)> {};
+             assign<&ast::PasswordCommand::newPassword>(ref<TAIL>)> {};
 
-  struct PcreateCommandRule
-      : rule<kw<"@pcreate"> +
-             assign<&ast::PcreateCommand::name>(ref<STRING>)> {};
+  struct PcreateCommand
+      : rule<ikw<"@pcreate"> + ArgGap +
+             assign<&ast::PcreateCommand::name>(ref<STRING>) + option(lit<"="> + assign<&ast::PcreateCommand::password>(ref<TAIL>))> {};
 
-  struct SetCommandRule
-      : rule<kw<"@set"> + assign<&ast::SetCommand::object>(ref<STRING>) +
+  struct SetCommand
+      : rule<ikw<"@set"> + ArgGap + assign<&ast::SetCommand::object>(ref<STRING>) +
              lit<"="> +
-             option(flag<&ast::SetCommand::negate>(lit<"!">)) +
-             assign<&ast::SetCommand::flag>(ref<NUMBER>)> {};
+             option(flag<&ast::SetCommand::negate>(some(lit<"!">))) +
+             (assign<&ast::SetCommand::flagName>(ref<FLAG_NAME>) | assign<&ast::SetCommand::flag>(ref<NUMBER>))> {};
 
-  struct ShutdownCommandRule
+  struct ShutdownCommand
       : rule<create<ast::ShutdownCommand> + kw<"@shutdown">> {};
 
-  struct StatsCommandRule
-      : rule<kw<"@stats"> +
-             assign<&ast::StatsCommand::player>(ref<STRING>)> {};
+  struct StatsCommand
+      : rule<ikw<"@stats"> +
+             option(ArgGap + assign<&ast::StatsCommand::player>(ref<STRING>))> {};
 
-  struct SuccessCommandRule
-      : rule<(kw<"@success"> | kw<"@succ">) +
+  struct SuccessCommand
+      : rule<(ikw<"@success"> | ikw<"@succ">) + ArgGap +
              assign<&ast::SuccessCommand::object>(ref<STRING>) +
              option(lit<"="> +
-                    assign<&ast::SuccessCommand::message>(ref<STRING>))> {};
+                    option(assign<&ast::SuccessCommand::message>(ref<TAIL>)))> {};
 
-  struct TeleportCommandRule
-      : rule<kw<"@teleport"> +
+  struct TeleportCommand
+      : rule<ikw<"@teleport"> + ArgGap +
              option(assign<&ast::TeleportCommand::object>(ref<STRING>) +
                     lit<"=">) +
              assign<&ast::TeleportCommand::room>(ref<STRING>)> {};
 
-  struct ToadCommandRule
-      : rule<kw<"@toad"> + assign<&ast::ToadCommand::player>(ref<STRING>)> {};
+  struct ToadCommand
+      : rule<ikw<"@toad"> + ArgGap + assign<&ast::ToadCommand::player>(ref<STRING>) + option(lit<"="> + assign<&ast::ToadCommand::name>(ref<TAIL>))> {};
 
-  struct UnlinkCommandRule
-      : rule<kw<"@unlink"> +
+  struct UnlinkCommand
+      : rule<ikw<"@unlink"> + ArgGap +
              assign<&ast::UnlinkCommand::direction>(ref<STRING>)> {};
 
-  struct UnlockCommandRule
-      : rule<kw<"@unlock"> +
+  struct UnlockCommand
+      : rule<ikw<"@unlock"> + ArgGap +
              assign<&ast::UnlockCommand::object>(ref<STRING>)> {};
 
-  struct WallCommandRule
-      : rule<kw<"@wall"> + assign<&ast::WallCommand::message>(ref<STRING>)> {
+  struct WallCommand
+      : rule<kw<"@wall"> + ArgGap + assign<&ast::WallCommand::message>(ref<TAIL>)> {
   };
 
-  struct CommandRule
-      : rule<ref<BootCommandRule> | ref<ChownCommandRule> |
-             ref<CreateCommandRule> | ref<DescribeCommandRule> |
-             ref<DigCommandRule> | ref<DumpCommandRule> |
-             ref<FailCommandRule> | ref<FindCommandRule> |
-             ref<ForceCommandRule> | ref<LinkCommandRule> |
-             ref<LockCommandRule> | ref<NameCommandRule> |
-             ref<NewPasswordCommandRule> | ref<OfailCommandRule> |
-             ref<OpenCommandRule> | ref<OsuccessCommandRule> |
-             ref<PasswordCommandRule> | ref<PcreateCommandRule> |
-             ref<SetCommandRule> | ref<ShutdownCommandRule> |
-             ref<StatsCommandRule> | ref<SuccessCommandRule> |
-             ref<TeleportCommandRule> | ref<ToadCommandRule> |
-             ref<UnlinkCommandRule> | ref<UnlockCommandRule> |
-             ref<WallCommandRule>> {};
+  struct Command
+      : rule<ref<BootCommand> | ref<ChownCommand> |
+             ref<CreateCommand> | ref<DescribeCommand> |
+             ref<DigCommand> | ref<DumpCommand> |
+             ref<FailCommand> | ref<FindCommand> |
+             ref<ForceCommand> | ref<LinkCommand> |
+             ref<LockCommand> | ref<NameCommand> |
+             ref<NewPasswordCommand> | ref<OfailCommand> |
+             ref<OpenCommand> | ref<OsuccessCommand> |
+             ref<PasswordCommand> | ref<PcreateCommand> |
+             ref<SetCommand> | ref<ShutdownCommand> |
+             ref<StatsCommand> | ref<SuccessCommand> |
+             ref<TeleportCommand> | ref<ToadCommand> |
+             ref<UnlinkCommand> | ref<UnlockCommand> |
+             ref<WallCommand>> {};
 
-  struct DropActionRule
-      : rule<(kw<"drop"> | kw<"throw">) +
+  struct DropAction
+      : rule<(ikw<"drop"> | ikw<"throw">) + ArgGap +
              assign<&ast::DropAction::object>(ref<STRING>)> {};
 
-  struct ExamineActionRule
-      : rule<kw<"examine"> +
+  struct ExamineAction
+      : rule<ikw<"examine"> + ArgGap +
              assign<&ast::ExamineAction::object>(ref<STRING>)> {};
 
-  struct GetActionRule
-      : rule<(kw<"get"> | kw<"take">) +
+  struct GetAction
+      : rule<(ikw<"get"> | ikw<"take">) + ArgGap +
              assign<&ast::GetAction::object>(ref<STRING>)> {};
 
-  struct GiveActionRule
-      : rule<kw<"give"> + assign<&ast::GiveAction::player>(ref<STRING>) +
+  struct GiveAction
+      : rule<ikw<"give"> + ArgGap + assign<&ast::GiveAction::player>(ref<STRING>) +
              lit<"="> + assign<&ast::GiveAction::pennies>(ref<NUMBER>)> {};
 
-  struct GotoActionRule
-      : rule<(kw<"go"> | kw<"goto"> | kw<"move">) +
+  struct GotoAction
+      : rule<(ikw<"go"> | ikw<"goto"> | ikw<"move">) + ArgGap +
              assign<&ast::GotoAction::direction>(ref<STRING>)> {};
 
-  struct GripeActionRule
-      : rule<kw<"gripe"> +
-             assign<&ast::GripeAction::message>(ref<STRING>)> {};
+  struct GripeAction
+      : rule<ikw<"gripe"> + ArgGap +
+             assign<&ast::GripeAction::message>(ref<TAIL>)> {};
 
-  struct HelpActionRule : rule<create<ast::HelpAction> + kw<"help">> {};
+  struct HelpAction : rule<create<ast::HelpAction> + ikw<"help">> {};
 
-  struct InventoryActionRule
+  struct InventoryAction
       : rule<create<ast::InventoryAction> +
-             (kw<"inventory"> | kw<"inv">)> {};
+             (ikw<"inventory"> | ikw<"inv">)> {};
 
-  struct KillActionRule
-      : rule<kw<"kill"> + assign<&ast::KillAction::player>(ref<STRING>) +
-             lit<"="> + assign<&ast::KillAction::cost>(ref<NUMBER>)> {};
+  struct KillAction
+      : rule<ikw<"kill"> + ArgGap + assign<&ast::KillAction::player>(ref<STRING>) +
+             option(flag<&ast::KillAction::hasCost>(lit<"=">) + assign<&ast::KillAction::cost>(ref<NUMBER>))> {};
 
-  struct LookActionRule
-      : rule<(kw<"look"> | kw<"read">) +
-             assign<&ast::LookAction::object>(ref<STRING>)> {};
+  struct LookAction
+      : rule<(ikw<"look"> | ikw<"read">) +
+             option(ArgGap + assign<&ast::LookAction::object>(ref<STRING>))> {};
 
-  struct NewsActionRule : rule<create<ast::NewsAction> + kw<"news">> {};
+  struct NewsAction : rule<create<ast::NewsAction> + ikw<"news">> {};
 
-  struct PageActionRule
-      : rule<kw<"page"> + assign<&ast::PageAction::player>(ref<STRING>) +
-             lit<"="> + assign<&ast::PageAction::message>(ref<STRING>)> {};
+  struct PageAction
+      : rule<ikw<"page"> + ArgGap + assign<&ast::PageAction::player>(ref<STRING>) +
+             option(lit<"="> + option(assign<&ast::PageAction::message>(ref<TAIL>)))> {};
 
-  struct QuitActionRule : rule<create<ast::QuitAction> + kw<"quit">> {};
+  struct QuitAction : rule<create<ast::QuitAction> + ikw<"quit">> {};
 
-  struct RobActionRule
-      : rule<kw<"rob"> + assign<&ast::RobAction::player>(ref<STRING>)> {};
+  struct RobAction
+      : rule<ikw<"rob"> + ArgGap + assign<&ast::RobAction::player>(ref<STRING>)> {};
 
-  struct SayActionRule
-      : rule<kw<"say"> + assign<&ast::SayAction::message>(ref<STRING>)> {};
+  struct SayAction
+      : rule<ikw<"say"> + ArgGap + assign<&ast::SayAction::message>(ref<TAIL>)> {};
 
-  struct ScoreActionRule : rule<create<ast::ScoreAction> + kw<"score">> {};
+  struct ScoreAction : rule<create<ast::ScoreAction> + ikw<"score">> {};
 
-  struct WhisperActionRule
-      : rule<kw<"whisper"> +
+  struct WhisperAction
+      : rule<ikw<"whisper"> + ArgGap +
              assign<&ast::WhisperAction::player>(ref<STRING>) + lit<"="> +
-             assign<&ast::WhisperAction::message>(ref<STRING>)> {};
+             assign<&ast::WhisperAction::message>(ref<TAIL>)> {};
 
-  struct WhoActionRule
-      : rule<kw<"who"> +
-             option(assign<&ast::WhoAction::player>(ref<STRING>))> {};
+  struct WhoAction
+      : rule<ikw<"who"> +
+             option(ArgGap + assign<&ast::WhoAction::player>(ref<STRING>))> {};
 
-  struct ActionRule
-      : rule<ref<DropActionRule> | ref<ExamineActionRule> |
-             ref<GetActionRule> | ref<GiveActionRule> | ref<GotoActionRule> |
-             ref<GripeActionRule> | ref<HelpActionRule> |
-             ref<InventoryActionRule> | ref<KillActionRule> |
-             ref<LookActionRule> | ref<NewsActionRule> | ref<PageActionRule> |
-             ref<QuitActionRule> | ref<RobActionRule> | ref<SayActionRule> |
-             ref<ScoreActionRule> | ref<WhisperActionRule> |
-             ref<WhoActionRule>> {};
+  struct Action
+      : rule<ref<DropAction> | ref<ExamineAction> |
+             ref<GetAction> | ref<GiveAction> | ref<GotoAction> |
+             ref<GripeAction> | ref<HelpAction> |
+             ref<InventoryAction> | ref<KillAction> |
+             ref<LookAction> | ref<NewsAction> | ref<PageAction> |
+             ref<QuitAction> | ref<RobAction> | ref<SayAction> |
+             ref<ScoreAction> | ref<WhisperAction> |
+             ref<WhoAction>> {};
 
-  struct LineRule
-      : rule<(ref<CommandRule> | ref<ActionRule>) + ref<EOL>> {};
+  struct Instruction : rule<ref<Command> | ref<Action>> {};
+  struct Line : rule<ref<Instruction> + ref<EOL>> {};
 
-  struct SessionRule
+  struct Session
       : rule<create<ast::Session> +
-             some(append<&ast::Session::lines>(ref<LineRule>)) +
-             many(ref<EOL>)> {};
+             many(ref<EOL> | append<&ast::Session::lines>(ref<Line>))> {};
 
-  using entry = SessionRule;
-  using ignore = WS;
+  using entry = Session;
+  using ignored = WS;
 };
 
 }  // namespace tinymud

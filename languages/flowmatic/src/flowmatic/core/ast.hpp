@@ -11,8 +11,8 @@ namespace flowmatic::ast {
 
 struct Statement : cursiv::Extends<cursiv::AstNode> {};
 
-// A '(' name ')' pair read for INPUT/OUTPUT: a data file and the letter its
-// statements address it by.
+// An INPUT/OUTPUT filename and file-designator token (e.g. FILE-A).
+// The source spelling is kept rather than resolving the designator to A.
 struct FileBinding : cursiv::Extends<cursiv::AstNode> {
   string_view filename;
   string_view fileletter;
@@ -124,6 +124,7 @@ struct Line : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct Program : cursiv::Extends<cursiv::AstNode> {
+  boolean hasEnd;
   vector<Line *> lines;
 };
 

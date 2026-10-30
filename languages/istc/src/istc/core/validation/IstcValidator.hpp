@@ -1,5 +1,4 @@
-// The checks of this language: what the grammar accepts but the language
-// does not. None yet: nothing here needs a check beyond parsing.
+// Semantic checks over the textual ISTC components.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,9 @@ namespace istc {
 class IstcValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+
+  void checkCode(const ast::Istc& code,
+                 cursiv::ValidationAcceptor& accept) const;
 };
 
 struct IstcCoreServices;

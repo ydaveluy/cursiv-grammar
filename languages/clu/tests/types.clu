@@ -8,9 +8,9 @@ type_showcase = proc ()
     g: any
     h: rep
     i: cvt
-    j: array
-    k: sequence
-    l: sequence int
+    j: array[int]
+    k: sequence[int]
+    l: sequence[int]
     m: record[x: int, y: int]
     n: struct[x: int, y: int]
     o: oneof[a: int, b: string]

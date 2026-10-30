@@ -31,17 +31,12 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-RDF 1.1 Turtle, but `PREFIX`/`BASE`/`@prefix`/`@base`/`true`/`false` match in
-any case, and the dialect defines no comment token at all:
+An independent RDF 1.1 Turtle parser, preserving declarations and triples in source order.
 
 ```turtle
-@PreFix ex: <http://example.org/> .
-ex:Alice a ex:Person ;
-  ex:name "Alice"@en ;
-  ex:knows ( ex:Bob [ ex:name "Carol" ] ) .
+@prefix ex: <http://example.org/> .
+ex:Alice a ex:Person ; ex:name "Alice"@en . # a comment
 ```
-
-Sample documents live under `tests/`; `example/` is empty.
 
 ## The command line
 

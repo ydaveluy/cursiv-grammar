@@ -31,6 +31,20 @@ static int audit_regression() {
       cursiv::create_language<metric::MetricCoreServices,
                               metric::MetricSharedCoreServices,
                               metric::install_core_module>();
+  for (const auto *source : {"k m", "m s", "µ m", "da\nm"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return 1;
+  }
+  {
+    const auto result = language.language.parser->parse(" km / s ");
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return 1;
+    const auto *ratio = result.value_as<metric::ast::BinaryUom>();
+    const auto *unit = ratio ? cursiv::ast_cast<metric::ast::Measure>(ratio->left) : nullptr;
+    if (!unit || unit->prefix != metric::ast::Prefix::k || unit->unit != metric::ast::Unit::m)
+      return 1;
+  }
   {
     const auto r = language.language.parser->parse("s^-2");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||

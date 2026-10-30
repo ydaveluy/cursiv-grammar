@@ -31,20 +31,12 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-`lark` parses [Lark](https://github.com/lark-parser/lark)'s own grammar
-format: the `.lark` files that describe a rule- and token-based grammar,
-templates included.
+Lark grammar files define rules, terminals, templates and parser directives.
 
 ```
 start: r
 r.-1: "a"
 ```
-
-A rule declares its priority with `.N` (negative allowed), a token with the
-same syntax; `%import`, `%ignore`, `%declare` and `%override` are the four
-statement forms, and `name{a, b}: ...` a template. See `example/` for the
-project's own self-describing grammar (`lark.lark`) and a real-world one
-(`python3.lark`).
 
 ## The command line
 

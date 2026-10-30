@@ -303,6 +303,7 @@ struct AlignSpec : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct Specifiers : cursiv::Extends<cursiv::AstNode> {
+  boolean inferred;  // C23 auto without an explicit type specifier
   vector<string_view> qualifiers;  // static, extern, const, volatile, inline...
   vector<AlignSpec*> aligns;
   vector<TypeSpec*> types;
@@ -324,6 +325,7 @@ struct Suffix : cursiv::Extends<cursiv::AstNode> {};
 struct ArraySuffix : cursiv::Extends<Suffix> {
   vector<string_view> qualifiers;  // `int a[const 5]`, a parameter's own array
   boolean isStatic;                // `int a[static 5]`: at least this many
+  boolean isStar;                  // `int a[*]`: complete variable-size type
   Expr* size;                      // absent in `int a[]`
 };
 
@@ -368,6 +370,8 @@ struct IndexDesignator : cursiv::Extends<Designator> {
 
 // `.a[2].b = v` -- several designators, one initialiser.
 struct DesignatedInit : cursiv::Extends<Initializer> {
+  boolean obsoleteColon;
+  boolean omittedEquals;
   vector<Designator*> designators;
   Initializer* value;
 };
@@ -376,6 +380,7 @@ struct DesignatedInit : cursiv::Extends<Initializer> {
 // `InitDeclarator` setting declarator+init and `MemberDeclarator`
 // declarator+bitWidth -- the latter alone for an anonymous bit field.
 struct InitDeclarator : cursiv::Extends<cursiv::AstNode> {
+  vector<string_view> assemblerNameParts;  // GNU asm label/register string pieces
   Declarator* declarator;
   Initializer* init;
   Expr* bitWidth;

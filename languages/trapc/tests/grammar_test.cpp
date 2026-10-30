@@ -1,4 +1,5 @@
 #include "audit_regressions.hpp"
+#include "native_followup_cases.hpp"
 // The smoke test of the language: parse every file under example/ (the
 // upstream corpus) and tests/ (constructs the corpus does not reach), the
 // way a workspace would, and check the tree.
@@ -31,6 +32,7 @@ int main() {
   const auto language = cursiv::create_language<
       trapc::TrapcCoreServices, trapc::TrapcSharedCoreServices,
       trapc::install_core_module>();
+  if (!trapc_followup::run(language)) return 1;
 
   std::vector<std::filesystem::path> examples;
   for (const auto& entry :

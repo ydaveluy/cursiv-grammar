@@ -1,6 +1,9 @@
 #include "pcre/core/validation/PcreValidator.hpp"
 
 #include <memory>
+#include <iterator>
+
+#include "cursiv/core/grammar/unicode/UnicodeRanges.hpp"
 #include <optional>
 #include <string_view>
 
@@ -11,7 +14,8 @@ namespace pcre {
 namespace {
 bool inClass(const cursiv::AstNode &node) {
   for (auto parent = node.parent; parent; parent = parent->parent)
-    if (cursiv::ast_cast<ast::CharacterClass>(parent))
+    if (cursiv::ast_cast<ast::CharacterClass>(parent) ||
+        cursiv::ast_cast<ast::ExtendedCharacterClass>(parent))
       return true;
   return false;
 }
@@ -132,7 +136,8 @@ void PcreValidator::checkLiteral(const ast::Literal &node,
   else if ((text[1] >= 'A' && text[1] <= 'Z') ||
            (text[1] >= 'a' && text[1] <= 'z'))
     invalid =
-        std::string_view("abefnrt").find(text[1]) == std::string_view::npos;
+        std::string_view("abefnrt").find(text[1]) == std::string_view::npos &&
+        !(inClass(node) && (text[1] == 'g' || text[1] == 'k'));
   if (invalid)
     accept
         .error(node,
@@ -181,6 +186,17 @@ void PcreValidator::checkPosix(const ast::PosixCharacterClass &node,
     accept.error(node, "A POSIX class belongs inside a character class",
                  "pcre.posix-context");
 }
+namespace {
+bool startsWithDigit(std::string_view text) {
+  if (text.empty()) return false;
+  const auto lead = static_cast<unsigned char>(text.front());
+  const std::size_t length = lead < 0x80 ? 1 : lead < 0xe0 ? 2 : lead < 0xf0 ? 3 : 4;
+  const auto first = character(text.substr(0, length));
+  return first && cursiv::unicode::within(cursiv::unicode::kNd,
+                                         std::size(cursiv::unicode::kNd), *first);
+}
+} // namespace
+
 void PcreValidator::checkGroup(const ast::Group &node,
                                cursiv::ValidationAcceptor &accept) const {
   if (node.kind != ast::GroupKind::named_angle &&
@@ -188,7 +204,7 @@ void PcreValidator::checkGroup(const ast::Group &node,
       node.kind != ast::GroupKind::named_python)
     return;
   if (node.name.empty() || node.name.size() > 128 ||
-      (node.name[0] >= '0' && node.name[0] <= '9'))
+      startsWithDigit(node.name))
     accept
         .error(node,
                "A group name must start with a letter or '_' and contain at "

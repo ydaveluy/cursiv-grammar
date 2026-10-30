@@ -10,27 +10,38 @@
 namespace java {
 
 struct Java : cursiv::GrammarSpec {
-  // A "java letter": ASCII letters, `$`, `_`, and every scalar past ASCII.
-  // One code-point class, not a BMP class plus a surrogate-pair one: a lone
-  // surrogate cannot occur in well-formed UTF-8.
-  static constexpr auto JavaLetter = cr<"a-zA-Z$_"> | cr<R"(-􏿿)">;
+  // Character.isJavaIdentifierStart/Part categories (JLS 3.8).
+  static constexpr auto JavaLetter = uc::L | uc::Nl | uc::Sc | uc::Pc;
   static constexpr auto JavaLetterOrDigit =
-      cr<"a-zA-Z0-9$_"> | cr<R"(-􏿿)">;
-  static constexpr auto word_boundary = cr<R"(a-zA-Z0-9_$\u{80}-\u{10FFFF})">;
+      JavaLetter | uc::Mn | uc::Mc | uc::Nd | uc::Cf |
+      cr<R"(\x00-\x08\x0e-\x1b\x7f-\x9f)">;
+  static constexpr auto word_boundary = JavaLetterOrDigit;
+  static constexpr auto ReservedKeyword =
+      kw<"abstract"> | kw<"assert"> | kw<"boolean"> | kw<"break"> | kw<"byte"> |
+      kw<"case"> | kw<"catch"> | kw<"char"> | kw<"class"> | kw<"const"> |
+      kw<"continue"> | kw<"default"> | kw<"do"> | kw<"double"> | kw<"else"> |
+      kw<"enum"> | kw<"extends"> | kw<"final"> | kw<"finally"> | kw<"float"> |
+      kw<"for"> | kw<"goto"> | kw<"if"> | kw<"implements"> | kw<"import"> |
+      kw<"instanceof"> | kw<"int"> | kw<"interface"> | kw<"long"> | kw<"native"> |
+      kw<"new"> | kw<"package"> | kw<"private"> | kw<"protected"> | kw<"public"> |
+      kw<"return"> | kw<"short"> | kw<"static"> | kw<"strictfp"> | kw<"super"> |
+      kw<"switch"> | kw<"synchronized"> | kw<"this"> | kw<"throw"> | kw<"throws"> |
+      kw<"transient"> | kw<"try"> | kw<"void"> | kw<"volatile"> | kw<"while"> |
+      kw<"_"> | kw<"true"> | kw<"false"> | kw<"null">;
 
   struct WS : terminal<some(cr<R"( \t\r\n\f)">)> {};
   struct LINE_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
   struct COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
-  struct ID : terminal<JavaLetter + many(JavaLetterOrDigit)> {};
+  struct ID : terminal<!ReservedKeyword + JavaLetter + many(JavaLetterOrDigit)> {};
 
   static constexpr auto Digits = d + option(many(d | lit<"_">) + d);
   static constexpr auto ExponentPart = cr<"eE"> + option(cr<"+-">) + Digits;
   static constexpr auto HexDigit = cr<"0-9a-fA-F">;
   static constexpr auto HexDigits =
       HexDigit + option(many(HexDigit | lit<"_">) + HexDigit);
-  // Unicode escapes are translated by the language's UnicodeParser before
-  // lexing. An isolated UTF-16 surrogate keeps a lossless escaped spelling,
+  // Unicode escapes are translated by the language's translator
+  // (`translate_unicode_escapes`) before lexing. An isolated UTF-16 surrogate keeps a lossless escaped spelling,
   // because the engine reads UTF-8 scalars. No other Unicode escape is lexical.
   static constexpr auto EscapeSeq =
       lit<"\\"> + (cr<R"(bstnfr"'\\)"> |
@@ -63,14 +74,15 @@ struct Java : cursiv::GrammarSpec {
                  cr<"pP"> + option(cr<"+-">) + Digits + option(cr<"fFdD">)> {};
   struct BOOL_LITERAL : terminal<kw<"true"> | kw<"false">> {};
   struct CHAR_LITERAL
-      : terminal<lit<"'"> + (EscapeSeq | (!cr<R"('\\\r\n)"> + any)) +
+      : terminal<lit<"'"> +
+                 (EscapeSeq | cr<R"(\x00-\x09\x0b-\x0c\x0e-\x26\x28-\x5b\x5d-\uffff)">) +
                  lit<"'">> {};
   struct STRING_LITERAL
       : terminal<lit<"\""> + many(EscapeSeq | (!cr<R"("\\\r\n)"> + any)) +
                  lit<"\"">> {};
   struct TEXT_BLOCK
       : terminal<lit<"\"\"\""> + many(cr<R"( \t\f)">) + eol +
-                 many((lit<"\\"> + (eol | any)) |
+                 many(EscapeSeq | (lit<"\\"> + eol) |
                       (!lit<"\"\"\""> + cr<R"(^\\)">)) +
                  lit<"\"\"\"">> {};
 
@@ -151,7 +163,7 @@ struct Java : cursiv::GrammarSpec {
   struct CaseOrDefaultLabel;
   struct SwitchGroup;
   struct SwitchOutcome;
-  struct SwitchLabeledRule;
+  struct SwitchLabeled;
   struct SwitchExpression;
   struct SwitchExprStatement;
   struct FieldDeclaration;
@@ -187,11 +199,15 @@ struct Java : cursiv::GrammarSpec {
              kw<"var">> {};
 
   struct TypeIdentifier
-      : rule<ref<ID> | kw<"module"> | kw<"open"> | kw<"requires"> |
+      : rule<!(kw<"permits"> | kw<"record"> | kw<"sealed"> | kw<"var"> | kw<"yield">) +
+             (ref<ID> | kw<"module"> | kw<"open"> | kw<"requires"> |
              kw<"exports"> | kw<"opens"> | kw<"to"> | kw<"uses"> |
-             kw<"provides"> | kw<"with"> | kw<"transitive"> | kw<"sealed">> {};
+             kw<"provides"> | kw<"when"> | kw<"with"> | kw<"transitive">)> {};
 
   struct QualifiedName : rule<some(ref<Identifier>, lit<".">)> {};
+  // Package-name segments may use a contextual type-restricted word.
+  struct ClassTypeIdentifier : rule<ref<TypeIdentifier> |
+      (ref<Identifier> + &lit<".">)> {};
 
   // -- annotations ----
 
@@ -247,13 +263,13 @@ struct Java : cursiv::GrammarSpec {
       : rule<create<ast::ClassTypeRef>(
                  many(append<&ast::ClassTypeRef::annotations>(
                      ref<AnnotationUse>)) +
-                 assign<&ast::ClassTypeRef::name>(ref<TypeIdentifier>) +
+                 assign<&ast::ClassTypeRef::name>(ref<ClassTypeIdentifier>) +
                  option(ClassTypeArgsBody)) +
              many(nest<ast::ClassTypeRef, &ast::ClassTypeRef::qualifier>(
                  lit<"."> +
                  many(append<&ast::ClassTypeRef::annotations>(
                      ref<AnnotationUse>)) +
-                 assign<&ast::ClassTypeRef::name>(ref<TypeIdentifier>) +
+                 assign<&ast::ClassTypeRef::name>(ref<ClassTypeIdentifier>) +
                  option(ClassTypeArgsBody)))> {};
 
   struct TypeType : rule<(ref<ClassType> | ref<PrimitiveType>)+many(
@@ -283,13 +299,13 @@ struct Java : cursiv::GrammarSpec {
   struct TypeParameter
       : rule<create<ast::TypeParam>(
             many(append<&ast::TypeParam::annotations>(ref<AnnotationUse>)) +
-            assign<&ast::TypeParam::name>(ref<Identifier>) +
+            assign<&ast::TypeParam::name>(ref<TypeIdentifier>) +
             option(kw<"extends"> +
-                   append<&ast::TypeParam::bounds>(ref<TypeType>) +
-                   many(lit<"&"> +
-                        append<&ast::TypeParam::bounds>(ref<TypeType>))))> {};
+                   some(append<&ast::TypeParam::bounds>(ref<TypeType>), lit<"&">)))> {};
 
   // -- patterns (instanceof, switch) ----
+  struct PatternBinding : rule<create<ast::VarDeclarator>(
+      assign<&ast::VarDeclarator::name>(ref<Identifier>))> {};
 
   struct Pattern
       : rule<create<ast::RecordPattern>(
@@ -301,12 +317,11 @@ struct Java : cursiv::GrammarSpec {
                  many(append<&ast::TypePattern::modifiers>(kw<"final">) |
                       append<&ast::TypePattern::annotations>(
                           ref<AnnotationUse>)) +
-                 assign<&ast::TypePattern::type>(ref<TypeType>) +
+                 (flag<&ast::TypePattern::isVar>(kw<"var">) |
+                  assign<&ast::TypePattern::type>(ref<TypeType>)) +
                  many(append<&ast::TypePattern::annotations>(
                      ref<AnnotationUse>)) +
-                 some(append<&ast::TypePattern::declarators>(
-                          ref<VariableDeclarator>),
-                      lit<",">))> {};
+                 append<&ast::TypePattern::declarators>(ref<PatternBinding>))> {};
 
   // -- literals ----
 
@@ -495,9 +510,8 @@ struct Java : cursiv::GrammarSpec {
              ref<PostfixExpr>> {};
 
   struct RelationalAndBelow
-      : infix<CastExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMul) >> left(OpAdd) >> left(OpShift) >> left(OpRel))> {};
+      : infix<CastExpr, ast::BinaryExpr,
+              levels(left(OpMul), left(OpAdd), left(OpShift), left(OpRel))> {};
 
   struct InstanceOfExpr
       : rule<create<ast::InstanceOfExpr>(
@@ -508,10 +522,9 @@ struct Java : cursiv::GrammarSpec {
              ref<RelationalAndBelow>> {};
 
   struct EqualityAndAbove
-      : infix<InstanceOfExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpEq) >> left(OpBitAnd) >> left(OpBitXor) >>
-               left(OpBitOr) >> left(OpLogAnd) >> left(OpLogOr))> {};
+      : infix<InstanceOfExpr, ast::BinaryExpr,
+              levels(left(OpEq), left(OpBitAnd), left(OpBitXor), left(OpBitOr),
+                     left(OpLogAnd), left(OpLogOr))> {};
 
   struct TernaryExpr
       : rule<create<ast::TernaryExpr>(
@@ -531,10 +544,15 @@ struct Java : cursiv::GrammarSpec {
 
   struct TypedLambdaParam
       : rule<create<ast::LambdaParam>(
-            many(append<&ast::LambdaParam::modifiers>(kw<"final">)) +
-            (flag<&ast::LambdaParam::isVar>(kw<"var">) |
-             assign<&ast::LambdaParam::type>(ref<TypeType>)) +
-            assign<&ast::LambdaParam::name>(ref<Identifier>))> {};
+            many(append<&ast::LambdaParam::modifiers>(kw<"final">) |
+                 append<&ast::LambdaParam::annotations>(ref<AnnotationUse>)) +
+            ((flag<&ast::LambdaParam::isVar>(kw<"var">) +
+              assign<&ast::LambdaParam::name>(ref<Identifier>)) |
+             (assign<&ast::LambdaParam::type>(ref<TypeType>) +
+              option(many(append<&ast::LambdaParam::varargsAnnotations>(ref<AnnotationUse>)) +
+                     flag<&ast::LambdaParam::varargs>(lit<"...">)) +
+              assign<&ast::LambdaParam::name>(ref<Identifier>) +
+              many(append<&ast::LambdaParam::extraDims>(ref<EmptyArrayDimension>)))))> {};
   struct BareLambdaParam
       : rule<create<ast::LambdaParam>(
             assign<&ast::LambdaParam::name>(ref<Identifier>))> {};
@@ -670,7 +688,8 @@ struct Java : cursiv::GrammarSpec {
   struct ForEachStatement
       : rule<create<ast::ForEachStmt>(
             kw<"for"> + lit<"("> +
-            many(append<&ast::ForEachStmt::modifiers>(kw<"final">)) +
+            many(append<&ast::ForEachStmt::modifiers>(kw<"final">) |
+                 append<&ast::ForEachStmt::annotations>(ref<AnnotationUse>)) +
             (flag<&ast::ForEachStmt::isVar>(kw<"var">) |
              assign<&ast::ForEachStmt::type>(ref<TypeType>)) +
             assign<&ast::ForEachStmt::name>(ref<Identifier>) +
@@ -701,7 +720,7 @@ struct Java : cursiv::GrammarSpec {
              lit<"}">) |
             many(append<&ast::Block::items>(ref<BlockItem>)))> {};
 
-  struct SwitchLabeledRule
+  struct SwitchLabeled
       : rule<create<ast::ExprCaseRule>(
                  kw<"case"> +
                  some(append<&ast::ExprCaseRule::values>(ref<Expression>),
@@ -731,7 +750,7 @@ struct Java : cursiv::GrammarSpec {
             kw<"switch"> + lit<"("> +
             assign<&ast::SwitchExpr::value>(ref<Expression>) + lit<")"> +
             lit<"{"> +
-            many(append<&ast::SwitchExpr::rules>(ref<SwitchLabeledRule>)) +
+            many(append<&ast::SwitchExpr::rules>(ref<SwitchLabeled>)) +
             lit<"}">)> {};
 
   struct SwitchExprStatement
@@ -870,7 +889,8 @@ struct Java : cursiv::GrammarSpec {
 
   struct CompactConstructorDeclaration
       : rule<create<ast::CompactConstructorDecl>(
-            many(append<&ast::CompactConstructorDecl::modifiers>(ModifierKw)) +
+            many(append<&ast::CompactConstructorDecl::modifiers>(ModifierKw) |
+                 append<&ast::CompactConstructorDecl::annotations>(ref<AnnotationUse>)) +
             assign<&ast::CompactConstructorDecl::name>(ref<Identifier>) +
             assign<&ast::CompactConstructorDecl::body>(ref<Block>))> {};
 
@@ -893,7 +913,7 @@ struct Java : cursiv::GrammarSpec {
       : rule<create<ast::ClassDecl>(
             many(append<&ast::ClassDecl::annotations>(ref<AnnotationUse>) |
                  append<&ast::ClassDecl::modifiers>(ModifierKw)) +
-            kw<"class"> + assign<&ast::ClassDecl::name>(ref<Identifier>) +
+            kw<"class"> + assign<&ast::ClassDecl::name>(ref<TypeIdentifier>) +
             option(lit<"<"> +
                    some(append<&ast::ClassDecl::typeParams>(ref<TypeParameter>),
                         lit<",">) +
@@ -916,7 +936,7 @@ struct Java : cursiv::GrammarSpec {
             many(append<&ast::InterfaceDecl::annotations>(ref<AnnotationUse>) |
                  append<&ast::InterfaceDecl::modifiers>(ModifierKw)) +
             kw<"interface"> +
-            assign<&ast::InterfaceDecl::name>(ref<Identifier>) +
+            assign<&ast::InterfaceDecl::name>(ref<TypeIdentifier>) +
             option(lit<"<"> +
                    some(append<&ast::InterfaceDecl::typeParams>(
                             ref<TypeParameter>),
@@ -953,7 +973,7 @@ struct Java : cursiv::GrammarSpec {
       : rule<create<ast::EnumDecl>(
             many(append<&ast::EnumDecl::annotations>(ref<AnnotationUse>) |
                  append<&ast::EnumDecl::modifiers>(ModifierKw)) +
-            kw<"enum"> + assign<&ast::EnumDecl::name>(ref<Identifier>) +
+            kw<"enum"> + assign<&ast::EnumDecl::name>(ref<TypeIdentifier>) +
             option(kw<"implements"> +
                    some(append<&ast::EnumDecl::interfaces>(ref<ClassType>),
                         lit<",">)) +
@@ -980,7 +1000,7 @@ struct Java : cursiv::GrammarSpec {
       : rule<create<ast::RecordDecl>(
             many(append<&ast::RecordDecl::annotations>(ref<AnnotationUse>) |
                  append<&ast::RecordDecl::modifiers>(ModifierKw)) +
-            kw<"record"> + assign<&ast::RecordDecl::name>(ref<Identifier>) +
+            kw<"record"> + assign<&ast::RecordDecl::name>(ref<TypeIdentifier>) +
             option(
                 lit<"<"> +
                 some(append<&ast::RecordDecl::typeParams>(ref<TypeParameter>),
@@ -1028,7 +1048,7 @@ struct Java : cursiv::GrammarSpec {
                      ref<AnnotationUse>) |
                  append<&ast::AnnotationTypeDecl::modifiers>(ModifierKw)) +
             lit<"@"> + kw<"interface"> +
-            assign<&ast::AnnotationTypeDecl::name>(ref<Identifier>) + lit<"{"> +
+            assign<&ast::AnnotationTypeDecl::name>(ref<TypeIdentifier>) + lit<"{"> +
             many(append<&ast::AnnotationTypeDecl::members>(
                      ref<AnnotationTypeElementDeclaration>) |
                  lit<";">) +
@@ -1119,7 +1139,7 @@ struct Java : cursiv::GrammarSpec {
       : rule<ref<OrdinaryCompilationUnit> | ref<ModularCompilationUnit>> {};
 
   using entry = CompilationUnit;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, COMMENT>;
 };
 

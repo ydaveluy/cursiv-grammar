@@ -10,7 +10,7 @@ namespace action::ast {
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
 
 // Raw numeric or character text: Action! numbers are decimal, `$`-prefixed
-// hex, or a bare character constant, and their meaning depends on context, so
+// hex, or an apostrophe-prefixed character, and their meaning depends on context, so
 // the spelling is kept rather than folded to one representation.
 struct NumberLiteral : cursiv::Extends<Expr> {
   string_view text;
@@ -56,7 +56,8 @@ struct StrLiteral : cursiv::Extends<Expr> {
   string_view text;
 };
 
-enum class ArithOp : std::uint8_t { add, sub, mul, div, mod, lsh, rsh, bxor };
+enum class ArithOp : std::uint8_t { add, sub, mul, div, mod, lsh, rsh, bxor,
+                                  band, bor };
 
 struct BinaryExpr : cursiv::Extends<Expr> {
   Expr* left = nullptr;

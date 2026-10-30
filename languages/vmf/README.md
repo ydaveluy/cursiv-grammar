@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Valve Map Format key/value documents with nested blocks, repeated keys and quoted strings.
+
 ```
 versioninfo
 {
@@ -47,12 +49,6 @@ world
 	}
 }
 ```
-
-A [Valve Map File](https://developer.valvesoftware.com/wiki/KeyValues) is a
-tree of key/value pairs: a key's payload is either one bare or quoted string,
-or a nested `{...}` block of more pairs — a key repeats instead of holding
-several values, which is how `solid`, `side` and `entity` occur many times
-at one level.
 
 ## The command line
 

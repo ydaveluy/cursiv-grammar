@@ -14,12 +14,12 @@ struct Type : cursiv::Extends<cursiv::AstNode> {};
 
 struct Program : cursiv::Extends<cursiv::AstNode> {
   string_view name;
+  vector<string_view> additionalImplementations;
   vector<Item*> decls;
 };
 
-// `names : type [= init] ;`. Reused for a module's data/function members and
-// an adt's function-pointer members, which real Limbo gives no initializer,
-// but lose nothing by accepting one here.
+// `names : type [= init] ;`. Module initializers receive a runtime error;
+// ADT data/function members use AdtField without an initializer.
 struct VarDecl : cursiv::Extends<Item> {
   vector<string_view> names;
   Type* type;
@@ -31,9 +31,14 @@ struct ConDecl : cursiv::Extends<Item> {
   Expr* value;
 };
 
+struct ExceptionDecl : cursiv::Extends<Item> {
+  vector<string_view> names;
+  vector<Type*> parameters;
+};
 struct ImportDecl : cursiv::Extends<Item> {
   vector<string_view> names;
-  string_view moduleName;
+  string_view moduleName; // legacy simple name; use moduleExpression
+  Expr* moduleExpression;
 };
 
 struct TypeDecl : cursiv::Extends<Item> {
@@ -45,6 +50,12 @@ struct IncludeDecl : cursiv::Extends<Item> {
   string_view path;
 };
 
+struct TopAssignment : cursiv::Extends<Item> {
+  Expr* target;
+  string_view op;
+  Expr* value;
+};
+// Legacy flat top-level assignment classes; new parses use TopAssignment.
 struct ShortVarDecl : cursiv::Extends<Item> {
   vector<string_view> names;
   Expr* value;
@@ -60,8 +71,7 @@ struct TupleShortVarDecl : cursiv::Extends<Item> {
   Expr* value;
 };
 
-// An adt field declared `cyclicopt` requires the keyword, not an optional
-// one, so it is kept apart from the plain `VarDecl` shape.
+// ADT data/function fields retain the optional cyclic modifier.
 struct AdtField : cursiv::Extends<Item> {
   boolean cyclic;
   vector<string_view> names;
@@ -77,13 +87,28 @@ struct PickDecl : cursiv::Extends<Item> {
   vector<PickTagArm*> arms;
 };
 
+struct GenericParameters : cursiv::Extends<cursiv::AstNode> {
+  vector<string_view> names;
+};
+struct ConstraintArm : cursiv::Extends<cursiv::AstNode> {
+  vector<string_view> names;
+  vector<AdtField*> fields;
+};
+struct RaiseSpec : cursiv::Extends<cursiv::AstNode> {
+  boolean parenthesized;
+  vector<Expr*> exceptions;
+};
 struct ModuleDecl : cursiv::Extends<Item> {
   string_view name;
+  vector<string_view> additionalNames;
   vector<Item*> members;
 };
 
 struct AdtDecl : cursiv::Extends<Item> {
   string_view name;
+  vector<string_view> additionalNames;
+  GenericParameters* parameters;
+  vector<ConstraintArm*> constraints;
   vector<Item*> members;
 };
 
@@ -91,7 +116,9 @@ struct Signature;
 
 struct FunctionDef : cursiv::Extends<Item> {
   vector<string_view> nameParts;
+  vector<GenericParameters*> typeParameters;
   Signature* signature;
+  RaiseSpec* raises;
   vector<Item*> body;
 };
 
@@ -103,13 +130,15 @@ struct FormalArg : cursiv::Extends<cursiv::AstNode> {
   Type* type;
   boolean isSelf;
   boolean refopt;
-  string_view selfType;
+  string_view selfType; // legacy simple name; see selfTypeExpression
+  Type* selfTypeExpression;
   boolean isWildcard;
 };
 
 struct Signature : cursiv::Extends<cursiv::AstNode> {
   vector<FormalArg*> params;
   Type* result;
+  vector<ConstraintArm*> constraints;
 };
 
 struct PrimType : cursiv::Extends<Type> {
@@ -123,8 +152,20 @@ struct NamedType : cursiv::Extends<Type> {
   string_view id2;
 };
 
+struct AppliedType : cursiv::Extends<Type> {
+  Type* base;
+  vector<Type*> arguments;
+};
+struct MemberType : cursiv::Extends<Type> {
+  Type* base;
+  string_view separator;
+  string_view member;
+};
+struct CyclicType : cursiv::Extends<Type> {
+  Type* base;
+};
 struct RefType : cursiv::Extends<Type> {
-  NamedType* target;
+  Type* target;
 };
 
 struct TupleType : cursiv::Extends<Type> {
@@ -143,8 +184,13 @@ struct ChanOfType : cursiv::Extends<Type> {
   Type* element;
 };
 
+struct FixedType : cursiv::Extends<Type> {
+  vector<Expr*> parameters;
+};
 struct FnType : cursiv::Extends<Type> {
+  GenericParameters* parameters;
   Signature* signature;
+  RaiseSpec* raises;
 };
 
 struct Ident : cursiv::Extends<Expr> {
@@ -185,6 +231,12 @@ struct CallExpr : cursiv::Extends<Expr> {
 };
 
 // `a[i]`, `a[i:]` and `a[i:j]`: one class, `isSlice` set by the `:`.
+struct TypeExpr : cursiv::Extends<Expr> {
+  Type* type;
+};
+struct ExportSequence : cursiv::Extends<Expr> {
+  vector<Expr*> values;
+};
 struct IndexExpr : cursiv::Extends<Expr> {
   Expr* array;
   Expr* index;
@@ -208,6 +260,7 @@ struct CastExpr : cursiv::Extends<Expr> {
 };
 
 struct InitElem;
+struct Qualifier;
 
 // `array [size] of T`, or `array [size?] of { a, b, ... }`: one class,
 // `hasInit` set by the brace form.
@@ -221,6 +274,7 @@ struct ArrayExpr : cursiv::Extends<Expr> {
 // `a`, or `k => a`, or `* => a`: `b` null means `a` is the value alone;
 // `b` set means `a` is the key and `b` the value.
 struct InitElem : cursiv::Extends<cursiv::AstNode> {
+  vector<Qualifier*> keys;
   Expr* a;
   Expr* b;
   boolean wildcardKey;
@@ -231,6 +285,7 @@ struct ListLit : cursiv::Extends<Expr> {
 };
 
 struct ChanOfExpr : cursiv::Extends<Expr> {
+  Expr* size;
   Type* elemType;
 };
 
@@ -247,6 +302,7 @@ struct AssignExpr : cursiv::Extends<Expr> {
 };
 
 struct SendExpr : cursiv::Extends<Expr> {
+  boolean equals;
   Expr* target;
   Expr* value;
 };
@@ -277,18 +333,21 @@ struct IfStmt : cursiv::Extends<Item> {
 
 struct WhileStmt : cursiv::Extends<Item> {
   string_view label;
+  vector<string_view> additionalLabels;
   Expr* cond;
   Item* body;
 };
 
 struct DoWhileStmt : cursiv::Extends<Item> {
   string_view label;
+  vector<string_view> additionalLabels;
   Item* body;
   Expr* cond;
 };
 
 struct ForStmt : cursiv::Extends<Item> {
   string_view label;
+  vector<string_view> additionalLabels;
   Expr* init;
   Expr* cond;
   Expr* post;
@@ -309,12 +368,14 @@ struct CaseArm : cursiv::Extends<cursiv::AstNode> {
 
 struct CaseStmt : cursiv::Extends<Item> {
   string_view label;
+  vector<string_view> additionalLabels;
   Expr* value;
   vector<CaseArm*> arms;
 };
 
 struct AltStmt : cursiv::Extends<Item> {
   string_view label;
+  vector<string_view> additionalLabels;
   vector<CaseArm*> arms;
 };
 
@@ -330,11 +391,20 @@ struct PickArm : cursiv::Extends<cursiv::AstNode> {
 
 struct PickStmt : cursiv::Extends<Item> {
   string_view label;
+  vector<string_view> additionalLabels;
   string_view varName;
   Expr* value;
   vector<PickArm*> arms;
 };
 
+struct TryStmt : cursiv::Extends<Item> {
+  Block* body;
+  string_view variable;
+  vector<CaseArm*> handlers;
+};
+struct RaiseStmt : cursiv::Extends<Item> {
+  Expr* value;
+};
 struct BreakStmt : cursiv::Extends<Item> {
   string_view label;
 };
@@ -348,7 +418,8 @@ struct ReturnStmt : cursiv::Extends<Item> {
 };
 
 struct SpawnStmt : cursiv::Extends<Item> {
-  Expr* callee;
+  Expr* expression;
+  Expr* callee; // legacy split representation; see expression
   vector<Expr*> args;
 };
 

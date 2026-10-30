@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Karel programs control a robot through movement commands, conditions and structured statements.
+
 ```
 BEGINNING-OF-PROGRAM
 
@@ -50,14 +52,6 @@ BEGINNING-OF-PROGRAM
 
 END-OF-PROGRAM
 ```
-
-[Karel](https://en.wikipedia.org/wiki/Karel_(programming_language)) programs
-drive a robot through fixed verbs (`MOVE`, `TURNLEFT`, `PICKBEEPER`,
-`PUTBEEPER`, `TURNOFF`) and conditions (`FRONT-IS-CLEAR`,
-`NEXT-TO-A-BEEPER`, ...), sequenced with `ITERATE`/`TIMES`, `WHILE`/`DO` and
-`IF`/`THEN`/`ELSE`. `DEFINE name AS statement` names a subroutine; a call is
-a bare word (`turnright`, `turnoff` above) -- the grammar has no symbol
-table, so a call is never checked against what was DEFINEd.
 
 ## The command line
 

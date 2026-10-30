@@ -31,17 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-Grapheme-cluster breaking (UAX #29 / UTS #51): a `.graphemes` document is
-raw Unicode text, cut into the "user-perceived characters" a text editor's
-arrow keys would step over one at a time.
+Extended grapheme clusters for Unicode 17.0 (UAX #29 revision 47), using generated Unicode properties.
 
 ```
 👮‍♀️🖖🏽🇨🇨
 ```
-
-is three clusters — a ZWJ sequence (base + gender), a skin-toned wave, a
-flag — never the nine or so code points a codepoint-by-codepoint reading
-would see.
 
 ## The command line
 

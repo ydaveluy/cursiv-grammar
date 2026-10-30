@@ -58,13 +58,9 @@ void MatchedBraces() :
 }
 ```
 
-An options block, a `PARSER_BEGIN`/`PARSER_END` pair naming a real Java
-compilation unit, then productions: a BNF production's body (`Input`,
-`MatchedBraces`) is Java-flavoured expansions — literals, references to
-other productions, `[...]` for optional, `(...)* ` for repetition — and the
-action code inside `{ ... }` is real, structurally parsed Java (or, with
-`CPPCODE`, the C++-generation extension's own pointer/template/`const`
-syntax), not an opaque block.
+A JavaCC 7 grammar file contains options, a parser compilation unit and
+productions. Expansions, regular expressions and embedded code have AST nodes;
+JJTree node descriptors and selected C++ generation forms are also recognized.
 
 ## The command line
 

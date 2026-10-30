@@ -49,6 +49,48 @@ int main() {
       aspectj::AspectjCoreServices, aspectj::AspectjSharedCoreServices,
       aspectj::install_core_module>();
 
+  // Java conditional expressions also admit an unparenthesized lambda
+  // after the colon (JLS 21, 15.25).
+  {
+    const auto result = language.language.parser->parse(
+        "class A { UnaryOperator<Integer> choose(boolean flag) { "
+        "return flag ? x -> x + 1 : x -> x - 1; } }");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("conditional lambda branches do not parse clean");
+    const ast::TernaryExpr* conditional = nullptr;
+    for (const auto* node : result.nodes)
+      if (const auto* c = as<ast::TernaryExpr>(node)) conditional = c;
+    if (conditional == nullptr ||
+        as<ast::LambdaExpr>(conditional->thenValue) == nullptr ||
+        as<ast::LambdaExpr>(conditional->elseValue) == nullptr)
+      return fail("conditional lambda branches lost their AST");
+  }
+
+  // The native ModifiersPattern accepts Java modifiers, including these
+  // four absent from the former copied keyword subset.
+  {
+    const auto result = language.language.parser->parse(
+        "aspect A { "
+        "pointcut a(): execution(abstract * *(..)); "
+        "pointcut b(): execution(native * *(..)); "
+        "pointcut c(): execution(strictfp * *(..)); "
+        "pointcut d(): get(!volatile * *); }");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("native modifier patterns do not parse clean");
+    bool abstract = false, native = false, strictfp = false, volatile_ = false;
+    for (const auto* node : result.nodes)
+      if (const auto* modifier = as<ast::ModifierPatternClause>(node)) {
+        abstract |= modifier->modifier == "abstract" && !modifier->negated;
+        native |= modifier->modifier == "native" && !modifier->negated;
+        strictfp |= modifier->modifier == "strictfp" && !modifier->negated;
+        volatile_ |= modifier->modifier == "volatile" && modifier->negated;
+      }
+    if (!abstract || !native || !strictfp || !volatile_)
+      return fail("native modifier patterns lost their modifier AST");
+  }
+
   // Regression: inspect the semantic payload, not only clean acceptance.
   {
     const auto result = language.language.parser->parse(

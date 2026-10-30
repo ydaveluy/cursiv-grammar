@@ -13,17 +13,17 @@ struct Ply : cursiv::GrammarSpec {
                                many(horizontal) + option(ref<EOL>)> {};
   struct COMMENT : terminal<kw<"comment">> {};
   struct OBJ_INFO : terminal<kw<"obj_info">> {};
-  struct FormatRule
+  struct Format
       : rule<create<ast::Format> + lit<"format"> + ref<WS> +
              assign<&ast::Format::encoding>(ref<WORD>) + ref<WS> +
              assign<&ast::Format::version>(ref<WORD>) +
              option(assign<&ast::Format::extra>(ref<TEXT>)) + ref<EOL>> {};
-  struct ElementRule
+  struct Element
       : rule<create<ast::Element> + lit<"element"> + ref<WS> +
              assign<&ast::Element::name>(ref<WORD>) + ref<WS> +
              assign<&ast::Element::count>(ref<WORD>) +
              option(assign<&ast::Element::extra>(ref<TEXT>)) + ref<EOL>> {};
-  struct PropertyRule
+  struct Property
       : rule<create<ast::Property> + lit<"property"> + ref<WS> +
              ((flag<&ast::Property::list>(kw<"list">) + ref<WS> +
                assign<&ast::Property::countType>(ref<WORD>) + ref<WS> +
@@ -32,23 +32,23 @@ struct Ply : cursiv::GrammarSpec {
               (assign<&ast::Property::type>(ref<WORD>) + ref<WS> +
                assign<&ast::Property::name>(ref<WORD>))) +
              option(assign<&ast::Property::extra>(ref<TEXT>)) + ref<EOL>> {};
-  struct NoteRule
+  struct Note
       : rule<create<ast::Note> +
              assign<&ast::Note::kind>(ref<COMMENT> | ref<OBJ_INFO>) +
              option(assign<&ast::Note::text>(ref<TEXT>)) + ref<EOL>> {};
-  struct UnknownRule
+  struct Unknown
       : rule<create<ast::Unknown> + assign<&ast::Unknown::keyword>(ref<WORD>) +
              option(assign<&ast::Unknown::text>(ref<TEXT>)) + ref<EOL>> {};
-  struct BlankRule : rule<create<ast::Unknown> + ref<EOL>> {};
-  struct HeaderRule
-      : rule<option(ref<WS>) + (ref<FormatRule> | ref<ElementRule> |
-                                ref<PropertyRule> | ref<NoteRule> |
-                                ref<UnknownRule> | ref<BlankRule>)> {};
-  struct DocumentRule
+  struct Blank : rule<create<ast::Unknown> + ref<EOL>> {};
+  struct Header
+      : rule<option(ref<WS>) + (ref<Format> | ref<Element> |
+                                ref<Property> | ref<Note> |
+                                ref<Unknown> | ref<Blank>)> {};
+  struct Document
       : rule<create<ast::Document> + assign<&ast::Document::magic>(ref<TEXT>) +
-             ref<EOL> + many(append<&ast::Document::header>(ref<HeaderRule>)) +
+             ref<EOL> + many(append<&ast::Document::header>(ref<Header>)) +
              assign<&ast::Document::endHeader>(ref<END_HEADER>) +
              option(assign<&ast::Document::body>(ref<BODY>)) + eof> {};
-  using entry = DocumentRule;
+  using entry = Document;
 };
 } // namespace ply

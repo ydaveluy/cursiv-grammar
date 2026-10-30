@@ -1,10 +1,11 @@
 // The smoke test of the language: no upstream corpus ships with plucid,
-// so the documents under tests/ are the whole evidence the
-// port is faithful. Each is read back, not just parsed clean.
+// so the documents under tests/ exercise represented syntax and AST values.
+// Native comparison evidence and coverage limits live in the audit report.
 
 #include <cstdio>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <string>
 #include <variant>
 #include <vector>
@@ -55,6 +56,58 @@ int main() {
   const auto language = cursiv::create_language<
       plucid::PlucidCoreServices, plucid::PlucidSharedCoreServices,
       plucid::install_core_module>();
+  for(const auto source:{"~5", "a ^ b", "'plain string'", "filter(a,b,c)", "substr(x,y,z)",
+      "if p then a elseif q then b elseif r then c else d fi", "case x of 1:2; default:3; end",
+      "x where // comment\n x=1; end"}) {
+    const auto r=language.language.parser->parse(source);
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty())return fail("source-backed native form rejected");
+  }
+  for(const auto source:{"filter a,b,c", "substr x,y,z", "x where if=1; end", "if p then a elseif q then b endif"}) {
+    const auto r=language.language.parser->parse(source);
+    if(r.accepted&&!r.cst().recovered()&&r.diagnostics.empty())return fail("native-invalid keyword/transcription form accepted");
+  }
+
+  {
+    const auto r=language.language.parser->parse(
+        "[% ~5, 'text', filter(a,b,c), substr(x,y,z), "
+        "if p then a elseif q then b elseif r then c else d fi %]");
+    const auto* p=r.value_as<ast::Program>();
+    const auto* list=p?as<ast::ListExpr>(p->expression):nullptr;
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!list||list->items.size()!=5)
+      return fail("native forms built no complete list");
+    const auto* number=as<ast::IntegerLit>(list->items[0]);
+    const auto* text=as<ast::StringLit>(list->items[1]);
+    const auto* filter=as<ast::FilterExpr>(list->items[2]);
+    const auto* substr=as<ast::SubstrExpr>(list->items[3]);
+    const auto* conditional=as<ast::IfExpr>(list->items[4]);
+    const auto* first=conditional?as<ast::ElseifTail>(conditional->tail):nullptr;
+    const auto* second=first?as<ast::ElseifTail>(first->tail):nullptr;
+    const auto* last=second?as<ast::ElseTail>(second->tail):nullptr;
+    const auto* result=last?as<ast::Identifier>(last->value):nullptr;
+    if(!number||number->value!=-5||!text||text->value!="text"||
+       !filter||filter->args.size()!=3||!substr||substr->args.size()!=3||
+       !result||result->name!="d")
+      return fail("native literals, argument lists or recursive elseif AST was lost");
+  }
+
+  {
+    for (const std::string source : {std::string("9223372036854775808"), std::string("˜9223372036854775809"),
+                                     std::string(400, '9') + ".0"}) {
+      const auto result = language.language.parser->parse(source);
+      if (!result.accepted || result.cst().recovered() ||
+          result.diagnostics.size() != 1 ||
+          result.diagnostics[0].kind != cursiv::DiagnosticKind::conversion_error)
+        return fail("out-of-range literal must report a conversion error");
+    }
+    const std::string source = "˜9223372036854775808";
+    const auto result = language.language.parser->parse(source);
+    const auto *program = result.value_as<ast::Program>();
+    const auto *integer = program ? cursiv::ast_cast<ast::IntegerLit>(program->expression) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !integer || integer->value != std::numeric_limits<std::int64_t>::min())
+      return fail("minimum signed integer must remain representable");
+  }
+
 
   std::vector<cursiv::ParseResult> results;
   for (const std::string& t : texts)
@@ -147,18 +200,18 @@ int main() {
       return fail("flow.plu: wrong item count");
 
     ast::IfExpr* const ifElse = as<ast::IfExpr>(root->items[0]);
-    ast::ElseTail* const* const elseTail =
-        ifElse != nullptr ? std::get_if<ast::ElseTail*>(&ifElse->tail)
+    ast::ElseTail* const elseTail =
+        ifElse != nullptr ? as<ast::ElseTail>(ifElse->tail)
                           : nullptr;
-    if (ifElse == nullptr || elseTail == nullptr || *elseTail == nullptr)
+    if (ifElse == nullptr || elseTail == nullptr)
       return fail("flow.plu: if/then/else/fi");
 
     ast::IfExpr* const ifElseif = as<ast::IfExpr>(root->items[1]);
-    ast::ElseifTail* const* const elseifTail =
-        ifElseif != nullptr ? std::get_if<ast::ElseifTail*>(&ifElseif->tail)
+    ast::ElseifTail* const elseifTail =
+        ifElseif != nullptr ? as<ast::ElseifTail>(ifElseif->tail)
                             : nullptr;
-    if (ifElseif == nullptr || elseifTail == nullptr || *elseifTail == nullptr)
-      return fail("flow.plu: if/then/elseif/then/endif");
+    if (ifElseif == nullptr || elseifTail == nullptr)
+      return fail("flow.plu: if/then/elseif/then/else/fi");
 
     ast::CaseExpr* const caseExpr = as<ast::CaseExpr>(root->items[2]);
     if (caseExpr == nullptr || caseExpr->cases.size() != 2 ||

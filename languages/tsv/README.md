@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Tab-separated records, preserving empty fields and row order.
+
 ```
 name	city	note
 Alice	Springfield	Loves tea
@@ -38,12 +40,6 @@ Alice	Springfield	Loves tea
 Bob	"Cape, Town"	"Says ""hi"" often"
 Cara	""	No city on file
 ```
-
-The first row is the header; every row after it is a data row, in the same
-columns. A field is bare text up to the next tab, or a `"..."` string when it
-must hold a tab, a comma or a newline — doubling the quote (`""`) escapes
-one. A blank line between rows is just more of the line ending, not a row of
-its own.
 
 ## The command line
 

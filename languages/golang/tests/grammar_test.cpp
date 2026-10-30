@@ -14,9 +14,11 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "golang/core/CoreServices.hpp"
+#include "golang/core/GolangGrammar.hpp"
 #include "golang/core/ast.hpp"
 #include "audit_regressions.hpp"
 #include "port_audit_cases.hpp"
+#include "header_regressions.hpp"
 
 namespace {
 
@@ -46,6 +48,10 @@ T* as(golang::ast::Item* item) {
 }  // namespace
 
 int main() {
+  for (std::string_view text : {"", "\"", R"("\")", R"("\u")",
+                                R"("\u123")", R"('\U0001')", R"('\x0')"})
+    if (golang::checked_literal(text))
+      fail("incomplete rune/string conversion unexpectedly succeeded");
   {
     const auto audit_language = cursiv::create_language<
       golang::GolangCoreServices, golang::GolangSharedCoreServices,
@@ -62,6 +68,8 @@ int main() {
       golang::install_core_module>();
   if (!audit_regressions::run(*language.language.parser) ||
       !port_audit_cases::run(*language.language.parser)) return 1;
+  if (!go_header_regressions::run(*language.language.parser))
+    fail("header regressions failed");
 
   int total = 0;
   for (const auto& entry :
@@ -78,9 +86,11 @@ int main() {
       continue;
     }
 
-    if (!result.diagnostics.empty())
+    if (!result.diagnostics.empty()) {
+      go_header_regressions::diagnostics(name, text, result);
       fail(name + ": unexpected diagnostics (" +
            std::to_string(result.diagnostics.size()) + ")");
+    }
     if (result.cst().recovered()) fail(name + ": the document did not parse clean");
     if (result.value == nullptr ||
         result.value->type != &cursiv::ast_type_tag<golang::ast::SourceFile>)
@@ -101,9 +111,11 @@ int main() {
     const std::string text = read_file(entry.path());
     const cursiv::ParseResult result = language.language.parser->parse(text);
     const std::string name = entry.path().filename().string();
-    if (!result.diagnostics.empty())
+    if (!result.diagnostics.empty()) {
+      go_header_regressions::diagnostics(name, text, result);
       fail(name + ": unexpected diagnostics (" +
            std::to_string(result.diagnostics.size()) + ")");
+    }
     if (result.cst().recovered()) fail(name + ": the document did not parse clean");
     if (result.value == nullptr ||
         result.value->type != &cursiv::ast_type_tag<golang::ast::SourceFile>)

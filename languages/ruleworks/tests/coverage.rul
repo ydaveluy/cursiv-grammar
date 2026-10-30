@@ -112,8 +112,8 @@
     (sql-detach)
     (quit $failure))
 
-(rule open-ended-rule
-    (base ^id <id> -->
+(rule closed-rule
+    (base ^id <id>)
     (widget ^count <id>)
   -->
     (write <id> (crlf)))

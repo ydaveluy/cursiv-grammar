@@ -31,8 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-CLIF (Common Logic Interchange Format, ISO/IEC 24707) is an s-expression
-syntax for first-order logic texts:
+CLIF is an s-expression syntax for Common Logic texts, with modules and
+first-order sentences. This port is based on ISO/IEC 24707:2007, Annex A.
 
 ```
 (cl-module ring (cl-imports http://colore.oor.net/ringoids/ring.clif))
@@ -41,11 +41,6 @@ syntax for first-order logic texts:
         (if     (magma x)
                 (not (ring x))))
 ```
-
-A document is a sequence of modules, named texts (`cl-text`) and bare
-sentences. A sentence is an equation, a predication, a boolean combination
-(`and`/`or`/`if`/`iff`/`not`), a quantified sentence (`forall`/`exists` over
-a list of bound names), or a commented sentence (`cl-comment`).
 
 ## The command line
 

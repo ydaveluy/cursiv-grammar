@@ -1,5 +1,4 @@
-// The checks of this language: what the grammar accepts but the language does
-// not. None yet -- every program the grammar accepts is valid.
+// PMMN restricts counter identifiers to the range 0..2,000,000,000.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,8 @@ namespace pmmn {
 class PmmnValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkInc(const ast::Inc&, cursiv::ValidationAcceptor&) const;
+  void checkTest(const ast::Test&, cursiv::ValidationAcceptor&) const;
 };
 
 struct PmmnCoreServices;

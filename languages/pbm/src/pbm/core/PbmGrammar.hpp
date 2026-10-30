@@ -14,10 +14,8 @@ struct Pbm : cursiv::GrammarSpec {
   struct RASTER : terminal<some(byte)> {};
   struct TRAILING : terminal<!(lit<"P"> + cr<"0-9">)+!cr<R"(01 \t\r\n\f\v)"> +
                              !ref<COMMENT> + some(byte)> {};
-  struct BIT
-      : terminal<cr<"01">,
-                 text_conv<[](std::string_view text) { return text == "1"; }>> {
-  };
+  struct BIT : terminal<as<[](std::string_view text) { return text == "1"; }>(
+                   cr<"01">)> {};
   static constexpr auto gap = many(ref<SPACE> | ref<COMMENT>);
   static constexpr auto header = gap + assign<&ast::Image::width>(ref<NUMBER>) +
                                  ref<SEPARATOR> + gap +
@@ -29,12 +27,12 @@ struct Pbm : cursiv::GrammarSpec {
   struct BinaryImage
       : rule<assign<&ast::Image::magic>(ref<BINARY> | ref<OTHER_MAGIC>) +
              header + option(assign<&ast::Image::raster>(ref<RASTER>))> {};
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document> +
              many(append<&ast::Document::images>(ref<PlainImage> |
                                                  ref<BinaryImage>) +
                   option(ref<FRAME_SPACE>)) +
              option(assign<&ast::Document::trailing>(ref<TRAILING>))> {};
-  using entry = DocumentRule;
+  using entry = Document;
 };
 }  // namespace pbm

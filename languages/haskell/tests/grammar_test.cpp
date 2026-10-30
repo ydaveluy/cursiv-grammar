@@ -14,6 +14,7 @@
 #include "haskell/core/CoreServices.hpp"
 #include "haskell/core/ast.hpp"
 #include "port_audit_cases.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -38,7 +39,8 @@ int main() {
   {
     const auto language = cursiv::create_language<haskell::HaskellCoreServices,
         haskell::HaskellSharedCoreServices, haskell::install_core_module>();
-    if (!port_audit_cases::run(*language.language.parser)) return 1;
+    if (!port_audit_cases::run(*language.language.parser) ||
+        !haskell_native_followup::run(*language.language.parser)) return 1;
   }
   {
     const auto audit_language =

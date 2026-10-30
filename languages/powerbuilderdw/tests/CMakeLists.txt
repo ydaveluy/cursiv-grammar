@@ -4,7 +4,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
 endif()
 
 add_executable(powerbuilderdw_grammar_test grammar_test.cpp)
-target_link_libraries(powerbuilderdw_grammar_test PRIVATE powerbuilderdwCore)
+target_link_libraries(powerbuilderdw_grammar_test PRIVATE powerbuilderdwCore cursiv::test)
 target_compile_definitions(powerbuilderdw_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

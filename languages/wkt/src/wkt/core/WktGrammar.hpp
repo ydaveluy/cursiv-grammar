@@ -13,7 +13,6 @@ namespace wkt {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 // SPIRAL_TYPE_NAME's leading trivia is already gone by the time the token
 // starts; only a trailing run before the closing `,`/`)` needs trimming.
@@ -23,22 +22,21 @@ inline constexpr auto trim_trailing_ws = [](std::string_view t) {
     t.remove_suffix(1);
   return t;
 };
-using Trimmed = cursiv::text_conv<trim_trailing_ws>;
 
 struct Wkt : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
 
   struct DECIMAL
-      : terminal<option(cr<"+-">) + ((some(d) + option(lit<"."> + many(d))) |
-                                      (lit<"."> + some(d))) +
-                     option(cr<"eE"> + option(cr<"+-">) + some(d)),
-                 double> {};
+      : terminal<as<double>(
+            option(cr<"+-">) +
+            ((some(d) + option(lit<"."> + many(d))) | (lit<"."> + some(d))) +
+            option(cr<"eE"> + option(cr<"+-">) + some(d)))> {};
   inline static constexpr auto special_value = [](std::string_view text) {
     return *ordinate_value(text);
   };
   struct SPECIAL_NUMBER
-      : terminal<option(cr<"+-">) + (ikw<"NAN"> | ikw<"INF"> | ikw<"INFINITY">),
-                 text_conv<special_value>> {};
+      : terminal<as<special_value>(
+            option(cr<"+-">) + (ikw<"NAN"> | ikw<"INF"> | ikw<"INFINITY">))> {};
   static constexpr auto Ordinate = ref<DECIMAL> | ref<SPECIAL_NUMBER>;
   struct NUMBER : terminal<some(cr<R"(^ \t\r\n(),)">)> {};
 
@@ -47,81 +45,77 @@ struct Wkt : cursiv::GrammarSpec {
       &(option(ikw<"ZM"> | ikw<"Z"> | ikw<"M">) + !w);
 
   struct EMPTY_ : terminal<ikw<"EMPTY">> {};
-  struct ZM_ : terminal<ikw<"ZM">, value<ast::Dim::zm>> {};
-  struct Z_ : terminal<ikw<"Z">, value<ast::Dim::z>> {};
-  struct M_ : terminal<ikw<"M">, value<ast::Dim::m>> {};
-  static constexpr auto DimSpec = ref<ZM_> | ref<Z_> | ref<M_>;
+  struct Z_ : terminal<as<ast::Dim::z>(ikw<"Z">)> {};
+  static constexpr auto DimSpec = as<ast::Dim::zm>(ikw<"ZM">) | ref<Z_> | as<ast::Dim::m>(ikw<"M">);
   static constexpr auto DimClause = option(assign<&ast::Geometry::dim>(DimSpec));
 
   struct QUOTED_LETTERS
-      : terminal<lit<"\""> + some(cr<"a-zA-Z0-9()_.' -">) + lit<"\"">,
-                 Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> + some(cr<"a-zA-Z0-9()_.' -">) +
+                             lit<"\"">)> {};
 
   // Every geometry-producing rule is forward declared once, up front, so the
   // choices below (a curve member nesting COMPOUNDCURVE, a surface member
   // nesting COMPOUNDSURFACE, GEOMETRYCOLLECTION nesting `geometry` itself)
   // can name each other regardless of definition order.
-  struct PointGeometryRule;
-  struct LineStringGeometryRule;
-  struct LinearRingGeometryRule;
-  struct CircularStringGeometryRule;
-  struct CircleGeometryRule;
-  struct GeodesicStringGeometryRule;
-  struct EllipticalCurveGeometryRule;
-  struct NurbsCurveGeometryRule;
-  struct ClothoidGeometryRule;
-  struct SpiralCurveGeometryRule;
-  struct CompoundCurveGeometryRule;
-  struct PolygonGeometryRule;
-  struct TriangleGeometryRule;
-  struct CurvePolygonGeometryRule;
-  struct PolyhedralSurfaceGeometryRule;
-  struct TinGeometryRule;
-  struct CompoundSurfaceGeometryRule;
-  struct BrepSolidGeometryRule;
-  struct MultiPointGeometryRule;
-  struct MultiLineStringGeometryRule;
-  struct MultiPolygonGeometryRule;
-  struct MultiCurveGeometryRule;
-  struct MultiSurfaceGeometryRule;
-  struct GeometryCollectionRule;
+  struct PointGeometry;
+  struct LineStringGeometry;
+  struct LinearRingGeometry;
+  struct CircularStringGeometry;
+  struct CircleGeometry;
+  struct GeodesicStringGeometry;
+  struct EllipticalCurveGeometry;
+  struct NurbsCurveGeometry;
+  struct ClothoidGeometry;
+  struct SpiralCurveGeometry;
+  struct CompoundCurveGeometry;
+  struct PolygonGeometry;
+  struct TriangleGeometry;
+  struct CurvePolygonGeometry;
+  struct PolyhedralSurfaceGeometry;
+  struct TinGeometry;
+  struct CompoundSurfaceGeometry;
+  struct BrepSolidGeometry;
+  struct MultiPointGeometry;
+  struct MultiLineStringGeometry;
+  struct MultiPolygonGeometry;
+  struct MultiCurveGeometry;
+  struct MultiSurfaceGeometry;
+  struct GeometryCollection;
 
-  struct PointRule
+  struct Point
       : rule<create<ast::Point> +
              many(append<&ast::Point::ordinates>(ref<NUMBER>))> {};
-
-  struct VectorTupleRule : rule<ref<PointRule>> {};
 
   // A bare "(p, p, ...)" run, used wherever the standard has no keyword of
   // its own: a polygon ring, a multi-line-string's member, a bare curve
   // segment. Zero points means the run came from EMPTY.
   static constexpr auto PointListBodyText =
       (lit<"("> +
-       some(append<&ast::PointList::points>(ref<PointRule>), lit<",">) +
+       some(append<&ast::PointList::points>(ref<Point>), lit<",">) +
        lit<")">) |
       ref<EMPTY_>;
-  struct PointListRule : rule<create<ast::PointList> +
+  struct PointList : rule<create<ast::PointList> +
                               option(assign<&ast::PointList::dim>(DimSpec)) +
                               PointListBodyText> {};
-  struct PlainPointListRule : rule<create<ast::PointList> + PointListBodyText> {
+  struct PlainPointList : rule<create<ast::PointList> + PointListBodyText> {
   };
 
   static constexpr auto BarePolygonBody =
       (lit<"("> +
-       some(append<&ast::BarePolygon::rings>(ref<PointListRule>), lit<",">) +
+       some(append<&ast::BarePolygon::rings>(ref<PointList>), lit<",">) +
        lit<")">) |
       ref<EMPTY_>;
-  struct BarePolygonRule
+  struct BarePolygon
       : rule<create<ast::BarePolygon> +
              option(assign<&ast::BarePolygon::dim>(DimSpec)) +
              BarePolygonBody> {};
-  struct PlainPolygonRule : rule<create<ast::BarePolygon> + BarePolygonBody> {};
+  struct PlainPolygon : rule<create<ast::BarePolygon> + BarePolygonBody> {};
 
-  struct MultiPointItemRule
+  struct MultiPointItem
       : rule<create<ast::MultiPointItem> +
              option(assign<&ast::MultiPointItem::dim>(DimSpec)) +
-             (assign<&ast::MultiPointItem::value>(ref<PointRule>) |
-              (lit<"("> + assign<&ast::MultiPointItem::value>(ref<PointRule>) +
+             (assign<&ast::MultiPointItem::value>(ref<Point>) |
+              (lit<"("> + assign<&ast::MultiPointItem::value>(ref<Point>) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
@@ -131,54 +125,50 @@ struct Wkt : cursiv::GrammarSpec {
   struct VECTOR_ : terminal<ikw<"VECTOR">> {};
   struct REFERENCELOCATION_ : terminal<ikw<"REFERENCELOCATION">> {};
 
-  struct LocationRule
+  struct Location
       : rule<create<ast::Location> + ref<LOCATION_> +
              option(flag<&ast::Location::hasZ>(ref<Z_>)) +
-             ((lit<"("> + assign<&ast::Location::value>(ref<PointRule>) +
+             ((lit<"("> + assign<&ast::Location::value>(ref<Point>) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct VectorEntryRule
+  struct VectorEntry
       : rule<create<ast::Vector> + ref<VECTOR_> +
              option(flag<&ast::Vector::hasZ>(ref<Z_>)) +
-             ((lit<"("> + assign<&ast::Vector::value>(ref<VectorTupleRule>) +
+             ((lit<"("> + assign<&ast::Vector::value>(ref<Point>) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct ReferenceDirectionsRule
+  struct ReferenceDirections
       : rule<create<ast::ReferenceDirections> + ref<REFERENCEDIRECTIONS_> +
              ((lit<"("> +
                some(append<&ast::ReferenceDirections::vectors>(
-                        ref<VectorEntryRule>),
+                        ref<VectorEntry>),
                     lit<",">) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct AffinePlacementRule
+  struct AffinePlacement
       : rule<create<ast::AffinePlacement> + ref<AFFINEPLACEMENT_> +
              option(flag<&ast::AffinePlacement::hasZ>(ref<Z_>)) +
              ((lit<"("> +
-               assign<&ast::AffinePlacement::location>(ref<LocationRule>) +
+               assign<&ast::AffinePlacement::location>(ref<Location>) +
                lit<","> +
                assign<&ast::AffinePlacement::directions>(
-                   ref<ReferenceDirectionsRule>) +
+                   ref<ReferenceDirections>) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct ReferenceLocationRule
+  struct ReferenceLocation
       : rule<create<ast::ReferenceLocation> + ref<REFERENCELOCATION_> +
              assign<&ast::ReferenceLocation::placement>(
-                 ref<AffinePlacementRule>)> {};
+                 ref<AffinePlacement>)> {};
 
-  struct DEGREES_ : terminal<ikw<"DEGREES">, value<ast::AngleUnit::degrees>> {};
-  struct GRADIANS_
-      : terminal<ikw<"GRADIANS">, value<ast::AngleUnit::gradians>> {};
-  struct RADIANS_ : terminal<ikw<"RADIANS">, value<ast::AngleUnit::radians>> {};
 
-  struct AngleRule
+  struct Angle
       : rule<create<ast::Angle> +
-             assign<&ast::Angle::unit>(ref<DEGREES_> | ref<GRADIANS_> |
-                                       ref<RADIANS_>) +
+             assign<&ast::Angle::unit>(as<ast::AngleUnit::degrees>(ikw<"DEGREES">) | as<ast::AngleUnit::gradians>(ikw<"GRADIANS">) |
+                                       as<ast::AngleUnit::radians>(ikw<"RADIANS">)) +
              lit<"("> + assign<&ast::Angle::value>(ref<DECIMAL>) + lit<")">> {
   };
 
@@ -210,83 +200,83 @@ struct Wkt : cursiv::GrammarSpec {
   struct BREPSOLID : terminal<GeometryKeyword<"BREPSOLID">> {};
   struct TIN : terminal<GeometryKeyword<"TIN">> {};
 
-  struct PointGeometryRule
+  struct PointGeometry
       : rule<create<ast::PointGeom> + ref<POINT> + DimClause +
-             ((lit<"("> + assign<&ast::PointGeom::value>(ref<PointRule>) +
+             ((lit<"("> + assign<&ast::PointGeom::value>(ref<Point>) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
   static constexpr auto PointListBody =
       (lit<"("> +
-       some(append<&ast::PointListGeometry::points>(ref<PointRule>), lit<",">) +
+       some(append<&ast::PointListGeometry::points>(ref<Point>), lit<",">) +
        lit<")">) |
       ref<EMPTY_>;
 
-  struct LineStringGeometryRule
+  struct LineStringGeometry
       : rule<create<ast::LineStringGeom> + ref<LINESTRING> + DimClause +
              PointListBody> {};
-  struct LinearRingGeometryRule
+  struct LinearRingGeometry
       : rule<create<ast::LinearRingGeom> + ref<LINEARRING> + DimClause +
              PointListBody> {};
-  struct CircularStringGeometryRule
+  struct CircularStringGeometry
       : rule<create<ast::CircularStringGeom> + ref<CIRCULARSTRING> +
              DimClause + PointListBody> {};
-  struct CircleGeometryRule
+  struct CircleGeometry
       : rule<create<ast::CircleGeom> + ref<CIRCLE> + DimClause +
              PointListBody> {};
-  struct GeodesicStringGeometryRule
+  struct GeodesicStringGeometry
       : rule<create<ast::GeodesicStringGeom> + ref<GEODESICSTRING> +
              DimClause + PointListBody> {};
 
-  struct PolygonGeometryRule
+  struct PolygonGeometry
       : rule<create<ast::PolygonGeom> + ref<POLYGON> + DimClause +
              ((lit<"("> +
-               some(append<&ast::PolygonGeom::rings>(ref<PointListRule>),
+               some(append<&ast::PolygonGeom::rings>(ref<PointList>),
                     lit<",">) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
   static constexpr auto TriangleBody =
-      (lit<"("> + append<&ast::TriangleGeom::corners>(ref<PointRule>) +
-       lit<","> + append<&ast::TriangleGeom::corners>(ref<PointRule>) +
-       lit<","> + append<&ast::TriangleGeom::corners>(ref<PointRule>) +
+      (lit<"("> + append<&ast::TriangleGeom::corners>(ref<Point>) +
+       lit<","> + append<&ast::TriangleGeom::corners>(ref<Point>) +
+       lit<","> + append<&ast::TriangleGeom::corners>(ref<Point>) +
        lit<")">) |
       (lit<"("> +
-       some(append<&ast::TriangleGeom::rings>(ref<PointListRule>), lit<",">) +
+       some(append<&ast::TriangleGeom::rings>(ref<PointList>), lit<",">) +
        lit<")">) |
       ref<EMPTY_>;
 
-  struct TriangleGeometryRule
+  struct TriangleGeometry
       : rule<create<ast::TriangleGeom> + ref<TRIANGLE> + DimClause +
              TriangleBody> {};
-  // A TIN's PATCHES list: the same body as TriangleGeometryRule, no
+  // A TIN's PATCHES list: the same body as TriangleGeometry, no
   // TRIANGLE keyword.
-  struct BareTriangleRule : rule<create<ast::TriangleGeom> + TriangleBody> {};
+  struct BareTriangle : rule<create<ast::TriangleGeom> + TriangleBody> {};
 
-  struct MultiPointGeometryRule
+  struct MultiPointGeometry
       : rule<create<ast::MultiPointGeom> + ref<MULTIPOINT> + DimClause +
              ((lit<"("> +
                some(append<&ast::MultiPointGeom::items>(
-                        ref<MultiPointItemRule>),
+                        ref<MultiPointItem>),
                     lit<",">) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct MultiLineStringGeometryRule
+  struct MultiLineStringGeometry
       : rule<create<ast::MultiLineStringGeom> + ref<MULTILINESTRING> +
              DimClause +
              ((lit<"("> +
                some(append<&ast::MultiLineStringGeom::lines>(
-                        ref<PointListRule>),
+                        ref<PointList>),
                     lit<",">) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct MultiPolygonGeometryRule
+  struct MultiPolygonGeometry
       : rule<create<ast::MultiPolygonGeom> + ref<MULTIPOLYGON> + DimClause +
              ((lit<"("> +
                some(append<&ast::MultiPolygonGeom::polygons>(
-                        ref<BarePolygonRule>),
+                        ref<BarePolygon>),
                     lit<",">) +
                lit<")">) |
               ref<EMPTY_>)> {};
@@ -296,12 +286,12 @@ struct Wkt : cursiv::GrammarSpec {
   struct STARTANGLE_ : terminal<ikw<"STARTANGLE">> {};
   struct ENDANGLE_ : terminal<ikw<"ENDANGLE">> {};
 
-  struct EllipticalCurveGeometryRule
+  struct EllipticalCurveGeometry
       : rule<create<ast::EllipticalCurveGeom> + ref<ELLIPTICALCURVE> +
              DimClause +
              ((lit<"("> +
                assign<&ast::EllipticalCurveGeom::referenceLocation>(
-                   ref<ReferenceLocationRule>) +
+                   ref<ReferenceLocation>) +
                lit<","> + ref<UAXISLENGTH_> +
                (assign<&ast::EllipticalCurveGeom::uAxisLength>(ref<DECIMAL>) |
                 ref<EMPTY_>) +
@@ -309,9 +299,9 @@ struct Wkt : cursiv::GrammarSpec {
                (assign<&ast::EllipticalCurveGeom::vAxisLength>(ref<DECIMAL>) |
                 ref<EMPTY_>) +
                lit<","> + ref<STARTANGLE_> +
-               assign<&ast::EllipticalCurveGeom::startAngle>(ref<AngleRule>) +
+               assign<&ast::EllipticalCurveGeom::startAngle>(ref<Angle>) +
                lit<","> + ref<ENDANGLE_> +
-               assign<&ast::EllipticalCurveGeom::endAngle>(ref<AngleRule>) +
+               assign<&ast::EllipticalCurveGeom::endAngle>(ref<Angle>) +
                option(lit<","> + ref<STARTM_> +
                       assign<&ast::EllipticalCurveGeom::startM>(ref<DECIMAL>) +
                       lit<","> + ref<ENDM_> +
@@ -329,31 +319,31 @@ struct Wkt : cursiv::GrammarSpec {
   struct VALUE_ : terminal<ikw<"VALUE">> {};
   struct MULTIPLICITY_ : terminal<ikw<"MULTIPLICITY">> {};
 
-  struct WeightedPointRule
+  struct WeightedPoint
       : rule<create<ast::WeightedPoint> + ref<WEIGHTEDPOINT_> +
              option(flag<&ast::WeightedPoint::hasZ>(ref<Z_>)) +
-             ((lit<"("> + assign<&ast::WeightedPoint::value>(ref<PointRule>) +
+             ((lit<"("> + assign<&ast::WeightedPoint::value>(ref<Point>) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct NurbsPointRule
+  struct NurbsPoint
       : rule<create<ast::NurbsPoint> + ref<NURBSPOINT_> +
              ((lit<"("> +
-               assign<&ast::NurbsPoint::point>(ref<WeightedPointRule>) +
+               assign<&ast::NurbsPoint::point>(ref<WeightedPoint>) +
                lit<","> + ref<WEIGHT_> +
                assign<&ast::NurbsPoint::weight>(ref<DECIMAL>) + lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct ControlPointsRule
+  struct ControlPoints
       : rule<create<ast::ControlPoints> + ref<CONTROLPOINTS_> +
              option(flag<&ast::ControlPoints::hasZ>(ref<Z_>)) +
              ((lit<"("> +
-               some(append<&ast::ControlPoints::points>(ref<NurbsPointRule>),
+               some(append<&ast::ControlPoints::points>(ref<NurbsPoint>),
                     lit<",">) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct KnotRule
+  struct Knot
       : rule<create<ast::Knot> + ref<KNOT_> +
              ((lit<"("> + ref<VALUE_> +
                assign<&ast::Knot::value>(ref<DECIMAL>) + lit<","> +
@@ -361,21 +351,21 @@ struct Wkt : cursiv::GrammarSpec {
                assign<&ast::Knot::multiplicity>(ref<DECIMAL>) + lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct KnotsRule
+  struct Knots
       : rule<create<ast::Knots> + ref<KNOTS_> +
              ((lit<"("> +
-               some(append<&ast::Knots::knots>(ref<KnotRule>), lit<",">) +
+               some(append<&ast::Knots::knots>(ref<Knot>), lit<",">) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct NurbsCurveGeometryRule
+  struct NurbsCurveGeometry
       : rule<create<ast::NurbsCurveGeom> + ref<NURBSCURVE> + DimClause +
              ((lit<"("> + ref<DEGREE_> +
                assign<&ast::NurbsCurveGeom::degree>(ref<DECIMAL>) + lit<","> +
                assign<&ast::NurbsCurveGeom::controlPoints>(
-                   ref<ControlPointsRule>) +
+                   ref<ControlPoints>) +
                lit<","> +
-               assign<&ast::NurbsCurveGeom::knots>(ref<KnotsRule>) +
+               assign<&ast::NurbsCurveGeom::knots>(ref<Knots>) +
                option(lit<","> + ref<STARTM_> +
                       assign<&ast::NurbsCurveGeom::startM>(ref<DECIMAL>) +
                       lit<","> + ref<ENDM_> +
@@ -390,11 +380,11 @@ struct Wkt : cursiv::GrammarSpec {
   // ISO/IEC 13249-3 5.1.67's placement-based form, and a (startKappa,
   // endKappa, length) form nested inside a COMPOUNDCURVE: told apart by
   // the token after `(`.
-  struct ClothoidGeometryRule
+  struct ClothoidGeometry
       : rule<create<ast::ClothoidGeom> + ref<CLOTHOID> + DimClause +
              ((lit<"("> +
                assign<&ast::ClothoidGeom::referenceLocation>(
-                   ref<ReferenceLocationRule>) +
+                   ref<ReferenceLocation>) +
                lit<","> + ref<SCALEFACTOR_> +
                (assign<&ast::ClothoidGeom::scaleFactor>(ref<DECIMAL>) |
                 ref<EMPTY_>) +
@@ -423,14 +413,14 @@ struct Wkt : cursiv::GrammarSpec {
   // Legal only where SPIRALTYPE's value is expected, so per-state lexing
   // alone keeps it from colliding with the geometry keyword vocabulary --
   // no lexer mode needed. Trimmed of trailing trivia in its converter.
-  struct SPIRAL_TYPE_NAME
-      : terminal<cr<R"(^,() \t\r\n)"> + many(cr<"^,()">), Trimmed> {};
+  struct SPIRAL_TYPE_NAME : terminal<as<trim_trailing_ws>(cr<R"(^,() \t\r\n)"> +
+                                                          many(cr<"^,()">))> {};
 
-  struct SpiralCurveGeometryRule
+  struct SpiralCurveGeometry
       : rule<create<ast::SpiralCurveGeom> + ref<SPIRALCURVE> + DimClause +
              ((lit<"("> +
                assign<&ast::SpiralCurveGeom::referenceLocation>(
-                   ref<ReferenceLocationRule>) +
+                   ref<ReferenceLocation>) +
                lit<","> + ref<LENGTH_> +
                (assign<&ast::SpiralCurveGeom::length>(ref<DECIMAL>) |
                 ref<EMPTY_>) +
@@ -453,14 +443,14 @@ struct Wkt : cursiv::GrammarSpec {
   // A compound curve's member, and a curve polygon's ring: the same set
   // of shapes either way.
   static constexpr auto CurveMemberChoice =
-      ref<PlainPointListRule> | ref<LineStringGeometryRule> |
-      ref<LinearRingGeometryRule> | ref<CircularStringGeometryRule> |
-      ref<CircleGeometryRule> | ref<GeodesicStringGeometryRule> |
-      ref<EllipticalCurveGeometryRule> | ref<NurbsCurveGeometryRule> |
-      ref<ClothoidGeometryRule> | ref<SpiralCurveGeometryRule> |
-      ref<CompoundCurveGeometryRule>;
+      ref<PlainPointList> | ref<LineStringGeometry> |
+      ref<LinearRingGeometry> | ref<CircularStringGeometry> |
+      ref<CircleGeometry> | ref<GeodesicStringGeometry> |
+      ref<EllipticalCurveGeometry> | ref<NurbsCurveGeometry> |
+      ref<ClothoidGeometry> | ref<SpiralCurveGeometry> |
+      ref<CompoundCurveGeometry>;
 
-  struct CompoundCurveGeometryRule
+  struct CompoundCurveGeometry
       : rule<create<ast::CompoundCurveGeom> + ref<COMPOUNDCURVE> + DimClause +
              ((lit<"("> +
                some(append<&ast::CompoundCurveGeom::members>(
@@ -469,7 +459,7 @@ struct Wkt : cursiv::GrammarSpec {
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct CurvePolygonGeometryRule
+  struct CurvePolygonGeometry
       : rule<create<ast::CurvePolygonGeom> + ref<CURVEPOLYGON> + DimClause +
              ((lit<"("> +
                some(append<&ast::CurvePolygonGeom::members>(
@@ -478,7 +468,7 @@ struct Wkt : cursiv::GrammarSpec {
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct MultiCurveGeometryRule
+  struct MultiCurveGeometry
       : rule<create<ast::MultiCurveGeom> + ref<MULTICURVE> + DimClause +
              ((lit<"("> +
                some(append<&ast::MultiCurveGeom::members>(CurveMemberChoice),
@@ -491,72 +481,50 @@ struct Wkt : cursiv::GrammarSpec {
   struct MAXSIDELENGTH_ : terminal<ikw<"MAXSIDELENGTH">> {};
   struct ID_ : terminal<ikw<"ID">> {};
   struct TAG_ : terminal<ikw<"TAG">> {};
-  struct POINTS_ : terminal<ikw<"POINTS">, value<ast::TinElementKind::points>> {
-  };
-  struct GROUPSPOT_
-      : terminal<ikw<"GROUPSPOT">, value<ast::TinElementKind::groupSpot>> {};
-  struct BOUNDARY_
-      : terminal<ikw<"BOUNDARY">, value<ast::TinElementKind::boundary>> {};
-  struct BREAKLINE_
-      : terminal<ikw<"BREAKLINE">, value<ast::TinElementKind::breakline>> {};
-  struct SOFTBREAK_
-      : terminal<ikw<"SOFTBREAK">, value<ast::TinElementKind::softbreak>> {};
-  struct CONTROLCONTOUR_
-      : terminal<ikw<"CONTROLCONTOUR">,
-                 value<ast::TinElementKind::controlContour>> {};
-  struct BREAKVOID_
-      : terminal<ikw<"BREAKVOID">, value<ast::TinElementKind::breakVoid>> {};
-  struct DRAPEVOID_
-      : terminal<ikw<"DRAPEVOID">, value<ast::TinElementKind::drapeVoid>> {};
-  struct VOID_
-      : terminal<ikw<"VOID">, value<ast::TinElementKind::voidElement>> {};
-  struct HOLE_ : terminal<ikw<"HOLE">, value<ast::TinElementKind::hole>> {};
-  struct STOPLINE_
-      : terminal<ikw<"STOPLINE">, value<ast::TinElementKind::stopline>> {};
 
   static constexpr auto ElementLabelText =
       option(ref<ID_> + assign<&ast::TinElement::id>(ref<DECIMAL>)) +
       option(ref<TAG_> + assign<&ast::TinElement::tag>(ref<QUOTED_LETTERS>));
 
   static constexpr auto PatchChoice =
-      ref<PolygonGeometryRule> | ref<TriangleGeometryRule>;
+      ref<PolygonGeometry> | ref<TriangleGeometry>;
 
-  struct TinElementTypeTextRule
+  struct TinElementTypeText
       : rule<create<ast::TinElement> +
-             ((assign<&ast::TinElement::kind>(ref<POINTS_>) +
+             ((assign<&ast::TinElement::kind>(as<ast::TinElementKind::points>(ikw<"POINTS">)) +
                ElementLabelText +
-               assign<&ast::TinElement::payload>(ref<MultiPointGeometryRule>)) |
-              (assign<&ast::TinElement::kind>(ref<GROUPSPOT_>) +
+               assign<&ast::TinElement::payload>(ref<MultiPointGeometry>)) |
+              (assign<&ast::TinElement::kind>(as<ast::TinElementKind::groupSpot>(ikw<"GROUPSPOT">)) +
                ElementLabelText +
-               assign<&ast::TinElement::payload>(ref<MultiPointGeometryRule>)) |
-              (assign<&ast::TinElement::kind>(ref<BOUNDARY_>) +
-               ElementLabelText +
-               assign<&ast::TinElement::payload>(PatchChoice)) |
-              (assign<&ast::TinElement::kind>(ref<BREAKLINE_>) +
-               ElementLabelText +
-               assign<&ast::TinElement::payload>(ref<LineStringGeometryRule>)) |
-              (assign<&ast::TinElement::kind>(ref<SOFTBREAK_>) +
-               ElementLabelText +
-               assign<&ast::TinElement::payload>(ref<LineStringGeometryRule>)) |
-              (assign<&ast::TinElement::kind>(ref<CONTROLCONTOUR_>) +
-               ElementLabelText +
-               assign<&ast::TinElement::payload>(ref<LineStringGeometryRule>)) |
-              (assign<&ast::TinElement::kind>(ref<BREAKVOID_>) +
+               assign<&ast::TinElement::payload>(ref<MultiPointGeometry>)) |
+              (assign<&ast::TinElement::kind>(as<ast::TinElementKind::boundary>(ikw<"BOUNDARY">)) +
                ElementLabelText +
                assign<&ast::TinElement::payload>(PatchChoice)) |
-              (assign<&ast::TinElement::kind>(ref<DRAPEVOID_>) +
+              (assign<&ast::TinElement::kind>(as<ast::TinElementKind::breakline>(ikw<"BREAKLINE">)) +
+               ElementLabelText +
+               assign<&ast::TinElement::payload>(ref<LineStringGeometry>)) |
+              (assign<&ast::TinElement::kind>(as<ast::TinElementKind::softbreak>(ikw<"SOFTBREAK">)) +
+               ElementLabelText +
+               assign<&ast::TinElement::payload>(ref<LineStringGeometry>)) |
+              (assign<&ast::TinElement::kind>(as<ast::TinElementKind::controlContour>(ikw<"CONTROLCONTOUR">)) +
+               ElementLabelText +
+               assign<&ast::TinElement::payload>(ref<LineStringGeometry>)) |
+              (assign<&ast::TinElement::kind>(as<ast::TinElementKind::breakVoid>(ikw<"BREAKVOID">)) +
                ElementLabelText +
                assign<&ast::TinElement::payload>(PatchChoice)) |
-              (assign<&ast::TinElement::kind>(ref<VOID_>) + ElementLabelText +
+              (assign<&ast::TinElement::kind>(as<ast::TinElementKind::drapeVoid>(ikw<"DRAPEVOID">)) +
+               ElementLabelText +
                assign<&ast::TinElement::payload>(PatchChoice)) |
-              (assign<&ast::TinElement::kind>(ref<HOLE_>) + ElementLabelText +
+              (assign<&ast::TinElement::kind>(as<ast::TinElementKind::voidElement>(ikw<"VOID">)) + ElementLabelText +
                assign<&ast::TinElement::payload>(PatchChoice)) |
-              (assign<&ast::TinElement::kind>(ref<STOPLINE_>) +
+              (assign<&ast::TinElement::kind>(as<ast::TinElementKind::hole>(ikw<"HOLE">)) + ElementLabelText +
+               assign<&ast::TinElement::payload>(PatchChoice)) |
+              (assign<&ast::TinElement::kind>(as<ast::TinElementKind::stopline>(ikw<"STOPLINE">)) +
                ElementLabelText +
                assign<&ast::TinElement::payload>(
-                   ref<LineStringGeometryRule>)))> {};
+                   ref<LineStringGeometry>)))> {};
 
-  struct PolyhedralSurfaceGeometryRule
+  struct PolyhedralSurfaceGeometry
       : rule<create<ast::PolyhedralSurfaceGeom> + ref<POLYHEDRALSURFACE> +
              DimClause +
              ((lit<"("> + ref<PATCHES_> + lit<"("> +
@@ -565,39 +533,39 @@ struct Wkt : cursiv::GrammarSpec {
                lit<")"> + lit<")">) |
               (lit<"("> +
                some(append<&ast::PolyhedralSurfaceGeom::polygons>(
-                        ref<BarePolygonRule>),
+                        ref<BarePolygon>),
                     lit<",">) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct TinGeometryRule
+  struct TinGeometry
       : rule<create<ast::TinGeom> + ref<TIN> + DimClause +
              ((lit<"("> + ref<PATCHES_> + lit<"("> +
                some(append<&ast::TinGeom::patchTriangles>(
-                        ref<BareTriangleRule>),
+                        ref<BareTriangle>),
                     lit<",">) +
                lit<")"> +
                option(ref<ELEMENTS_> + lit<"("> +
                       some(append<&ast::TinGeom::elements>(
-                               ref<TinElementTypeTextRule>),
+                               ref<TinElementTypeText>),
                            lit<",">) +
                       lit<")">) +
                option(ref<MAXSIDELENGTH_> +
                       assign<&ast::TinGeom::maxSideLength>(ref<DECIMAL>)) +
                lit<")">) |
               (lit<"("> +
-               some(append<&ast::TinGeom::polygons>(ref<BarePolygonRule>),
+               some(append<&ast::TinGeom::polygons>(ref<BarePolygon>),
                     lit<",">) +
                lit<")">) |
               ref<EMPTY_>)> {};
 
   // A compound surface's, or a multi-surface's, member.
   static constexpr auto SurfaceMemberChoice =
-      ref<PlainPolygonRule> | ref<PolygonGeometryRule> | ref<CurvePolygonGeometryRule> |
-      ref<TriangleGeometryRule> | ref<PolyhedralSurfaceGeometryRule> |
-      ref<TinGeometryRule> | ref<CompoundSurfaceGeometryRule>;
+      ref<PlainPolygon> | ref<PolygonGeometry> | ref<CurvePolygonGeometry> |
+      ref<TriangleGeometry> | ref<PolyhedralSurfaceGeometry> |
+      ref<TinGeometry> | ref<CompoundSurfaceGeometry>;
 
-  struct CompoundSurfaceGeometryRule
+  struct CompoundSurfaceGeometry
       : rule<create<ast::CompoundSurfaceGeom> + ref<COMPOUNDSURFACE> +
              DimClause +
              ((lit<"("> +
@@ -607,7 +575,7 @@ struct Wkt : cursiv::GrammarSpec {
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct MultiSurfaceGeometryRule
+  struct MultiSurfaceGeometry
       : rule<create<ast::MultiSurfaceGeom> + ref<MULTISURFACE> + DimClause +
              ((lit<"("> +
                some(append<&ast::MultiSurfaceGeom::members>(
@@ -617,10 +585,10 @@ struct Wkt : cursiv::GrammarSpec {
               ref<EMPTY_>)> {};
 
   static constexpr auto ShellChoice =
-      ref<PolyhedralSurfaceGeometryRule> | ref<CompoundSurfaceGeometryRule>;
+      ref<PolyhedralSurfaceGeometry> | ref<CompoundSurfaceGeometry>;
 
   // The standard mandates a Z dimension for this type.
-  struct BrepSolidGeometryRule
+  struct BrepSolidGeometry
       : rule<create<ast::BrepSolidGeom> + ref<BREPSOLID> +
              assign<&ast::Geometry::dim>(ref<Z_>) +
              ((lit<"("> +
@@ -632,20 +600,20 @@ struct Wkt : cursiv::GrammarSpec {
   // The alternatives are grouped as ISO/IEC 13249-3:2016, 5.1.67 groups
   // them: point, curve, surface, solid, then collection.
   static constexpr auto GeometryChoice =
-      ref<PointGeometryRule> | ref<LineStringGeometryRule> |
-      ref<LinearRingGeometryRule> | ref<CircularStringGeometryRule> |
-      ref<CircleGeometryRule> | ref<GeodesicStringGeometryRule> |
-      ref<EllipticalCurveGeometryRule> | ref<NurbsCurveGeometryRule> |
-      ref<ClothoidGeometryRule> | ref<SpiralCurveGeometryRule> |
-      ref<CompoundCurveGeometryRule> | ref<PolygonGeometryRule> |
-      ref<TriangleGeometryRule> | ref<CurvePolygonGeometryRule> |
-      ref<PolyhedralSurfaceGeometryRule> | ref<TinGeometryRule> |
-      ref<CompoundSurfaceGeometryRule> | ref<BrepSolidGeometryRule> |
-      ref<MultiPointGeometryRule> | ref<MultiLineStringGeometryRule> |
-      ref<MultiPolygonGeometryRule> | ref<MultiCurveGeometryRule> |
-      ref<MultiSurfaceGeometryRule> | ref<GeometryCollectionRule>;
+      ref<PointGeometry> | ref<LineStringGeometry> |
+      ref<LinearRingGeometry> | ref<CircularStringGeometry> |
+      ref<CircleGeometry> | ref<GeodesicStringGeometry> |
+      ref<EllipticalCurveGeometry> | ref<NurbsCurveGeometry> |
+      ref<ClothoidGeometry> | ref<SpiralCurveGeometry> |
+      ref<CompoundCurveGeometry> | ref<PolygonGeometry> |
+      ref<TriangleGeometry> | ref<CurvePolygonGeometry> |
+      ref<PolyhedralSurfaceGeometry> | ref<TinGeometry> |
+      ref<CompoundSurfaceGeometry> | ref<BrepSolidGeometry> |
+      ref<MultiPointGeometry> | ref<MultiLineStringGeometry> |
+      ref<MultiPolygonGeometry> | ref<MultiCurveGeometry> |
+      ref<MultiSurfaceGeometry> | ref<GeometryCollection>;
 
-  struct GeometryCollectionRule
+  struct GeometryCollection
       : rule<create<ast::GeometryCollectionGeom> + ref<GEOMETRYCOLLECTION> +
              DimClause +
              ((lit<"("> +
@@ -655,12 +623,12 @@ struct Wkt : cursiv::GrammarSpec {
                lit<")">) |
               ref<EMPTY_>)> {};
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document> +
              many(append<&ast::Document::geometries>(GeometryChoice))> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
 };
 
 }  // namespace wkt

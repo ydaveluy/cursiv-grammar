@@ -17,8 +17,8 @@ inline double sapf_parse_number(std::string_view text) {
   const std::size_t n = text.size();
   auto mantissa = [&]() -> double {
     bool negative = false;
-    if (pos < n && text[pos] == '-') {
-      negative = true;
+    if (pos < n && (text[pos] == '-' || text[pos] == '+')) {
+      negative = text[pos] == '-';
       ++pos;
     }
     double whole = 0.0;
@@ -39,7 +39,7 @@ inline double sapf_parse_number(std::string_view text) {
     return negative ? -whole : whole;
   };
   double value = mantissa();
-  if (pos < n && text[pos] == 'e') {
+  if (pos < n && (text[pos] == 'e' || text[pos] == 'E')) {
     ++pos;
     value *= std::pow(10.0, mantissa());
   } else if (pos < n && text[pos] == '/') {
@@ -48,7 +48,6 @@ inline double sapf_parse_number(std::string_view text) {
   }
   return value;
 }
-using NumberConv = cursiv::text_conv<sapf_parse_number>;
 
 inline constexpr auto sapf_suffix_of =
     [](std::string_view t) -> sapf::ast::Suffix {
@@ -60,7 +59,6 @@ inline constexpr auto sapf_suffix_of =
   if (t == "m") return sapf::ast::Suffix::m;
   return sapf::ast::Suffix::u;
 };
-using SuffixConv = cursiv::text_conv<sapf_suffix_of>;
 
 inline constexpr auto sapf_word_prefix_of =
     [](std::string_view t) -> sapf::ast::WordPrefix {
@@ -75,12 +73,10 @@ inline constexpr auto sapf_word_prefix_of =
       return sapf::ast::WordPrefix::dot;
   }
 };
-using WordPrefixConv = cursiv::text_conv<sapf_word_prefix_of>;
 
 inline constexpr auto sapf_unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<sapf_unquote>;
 
 namespace sapf {
 
@@ -88,94 +84,90 @@ struct Sapf : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct COMMENT : terminal<lit<";"> + many(cr<R"(^\r\n)">)> {};
 
-  struct LITERAL : terminal<some(cr<"a-zA-Z_">)> {};
-  struct STRING : terminal<through(lit<"\"">, lit<"\"">), Unquoted> {};
+  struct LITERAL : terminal<cr<"a-zA-Z_"> + many(cr<"a-zA-Z_0-9">)> {};
+  struct STRING : terminal<as<sapf_unquote>(through(lit<"\"">, lit<"\"">))> {};
 
   static constexpr auto digits = some(d);
   static constexpr auto mantissa = (digits + lit<"."> + digits) |
                                     (digits + lit<".">) |
                                     (lit<"."> + digits) | digits;
-  static constexpr auto signedMantissa = option(lit<"-">) + mantissa;
-  struct NUMBER
-      : terminal<signedMantissa + option((lit<"e"> + signedMantissa) |
-                                         (lit<"/"> + signedMantissa)),
-                 NumberConv> {};
+  static constexpr auto signedMantissa = option(cr<"+-">) + mantissa;
+  struct NUMBER : terminal<as<sapf_parse_number>(
+                      signedMantissa + option((cr<"eE"> + option(cr<"+-">) + digits) |
+                                              (lit<"/"> + signedMantissa)))> {};
   struct SUFFIX
-      : terminal<lit<"pi"> | lit<"M"> | lit<"k"> | lit<"h"> | lit<"c"> |
-                     lit<"m"> | lit<"u">,
-                 SuffixConv> {};
+      : terminal<as<sapf_suffix_of>(lit<"pi"> | lit<"M"> | lit<"k"> | lit<"h"> |
+                                    lit<"c"> | lit<"m"> | lit<"u">)> {};
 
-  struct WORD_PREFIX
-      : terminal<lit<"`"> | lit<"'"> | lit<","> | lit<".">, WordPrefixConv> {
-  };
+  struct WORD_PREFIX : terminal<as<sapf_word_prefix_of>(
+                           lit<"`"> | lit<"'"> | lit<","> | lit<".">)> {};
 
-  struct PLUS : terminal<lit<"+">, value<ast::OpKind::add>> {};
-  struct MINUS : terminal<lit<"-">, value<ast::OpKind::subtract>> {};
-  struct TIMES : terminal<lit<"*">, value<ast::OpKind::multiply>> {};
-  struct DIV : terminal<lit<"/">, value<ast::OpKind::divide>> {};
+  struct Item;
 
-  struct ItemRule;
-
-  struct OperatorRule
+  struct Operator
       : rule<create<ast::Operator>(assign<&ast::Operator::kind>(
-            ref<PLUS> | ref<MINUS> | ref<TIMES> | ref<DIV>))> {};
+            as<ast::OpKind::add>(lit<"+">) | as<ast::OpKind::subtract>(lit<"-">) | as<ast::OpKind::multiply>(lit<"*">) | as<ast::OpKind::divide>(lit<"/">)))> {};
 
-  struct NumberRule
+  struct Number
       : rule<create<ast::NumberLiteral>(
             assign<&ast::NumberLiteral::value>(ref<NUMBER>) +
             option(gap::none +
                    assign<&ast::NumberLiteral::suffix>(ref<SUFFIX>)))> {};
 
-  struct WordRule
+  struct String
+      : rule<create<ast::StringLiteral>(
+            assign<&ast::StringLiteral::value>(ref<STRING>))> {};
+
+  struct Word
       : rule<create<ast::Word>(
             option(assign<&ast::Word::prefix>(ref<WORD_PREFIX>)) +
             assign<&ast::Word::name>(ref<LITERAL>))> {};
 
-  struct GroupRule
+  struct Group
       : rule<create<ast::Group>(
-            lit<"("> + some(append<&ast::Group::items>(ref<ItemRule>)) +
+            lit<"("> + many(append<&ast::Group::items>(ref<Item>)) +
             lit<")">)> {};
 
-  struct ListRule
+  struct List
       : rule<create<ast::ListLiteral>(
             option(flag<&ast::ListLiteral::hashPrefix>(lit<"#">)) +
             lit<"["> +
-            some(append<&ast::ListLiteral::items>(ref<ItemRule>)) +
+            many(append<&ast::ListLiteral::items>(ref<Item>)) +
             lit<"]">)> {};
 
-  struct KeyRule
+  struct Key
       : rule<create<ast::Key>(lit<":"> +
                               assign<&ast::Key::name>(ref<LITERAL>))> {};
 
-  struct FormRule
+  struct Form
       : rule<create<ast::FormLiteral>(
             lit<"{"> +
-            some(append<&ast::FormLiteral::items>(ref<KeyRule> |
-                                                  ref<ItemRule>)) +
+            many(append<&ast::FormLiteral::items>(ref<Key> |
+                                                  ref<Item>)) +
             lit<"}"> +
             option(lit<"="> +
-                   assign<&ast::FormLiteral::name>(ref<WordRule>)))> {};
+                   assign<&ast::FormLiteral::name>(ref<Word>)))> {};
 
-  struct FunctionRule
+  struct Function
       : rule<create<ast::FunctionLiteral>(
             lit<"\\"> +
             many(append<&ast::FunctionLiteral::params>(ref<LITERAL>)) +
             option(assign<&ast::FunctionLiteral::doc>(ref<STRING>)) +
-            assign<&ast::FunctionLiteral::body>(ref<ListRule>) +
+            assign<&ast::FunctionLiteral::body>(ref<List>) +
             option(lit<"="> +
-                   assign<&ast::FunctionLiteral::name>(ref<WordRule>)))> {};
+                   assign<&ast::FunctionLiteral::name>(ref<Word>)))> {};
 
-  struct ItemRule
-      : rule<ref<OperatorRule> | ref<NumberRule> | ref<WordRule> |
-             ref<GroupRule> | ref<ListRule> | ref<FormRule> |
-             ref<FunctionRule>> {};
+  struct Item
+      : rule<ref<Operator> | ref<Number> | ref<String> | ref<Word> |
+             ref<Group> | ref<List> | ref<Form> |
+             ref<Function>> {};
 
-  struct FileRule
+  struct File
       : rule<create<ast::File> +
-             many(append<&ast::File::items>(ref<ItemRule>))> {};
+             many(append<&ast::File::items>(ref<Item>))> {};
 
-  using entry = FileRule;
-  using ignore = list<WS, COMMENT>;
+  using entry = File;
+  using ignored = list<WS, COMMENT>;
 };
 
 }  // namespace sapf

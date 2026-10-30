@@ -8,10 +8,7 @@ namespace propcalc {
 struct Propcalc : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
   struct VARIABLE : terminal<some(cr<"a-uw-zA-Z">)> {};
-  struct AND : terminal<lit<"^">, value<ast::Connective::conjunction>> {};
-  struct OR : terminal<lit<"v">, value<ast::Connective::disjunction>> {};
-  struct IMPLIES : terminal<lit<"->">, value<ast::Connective::implication>> {};
-  struct EQUIV : terminal<lit<"<->">, value<ast::Connective::equivalence>> {};
+  struct AND : terminal<as<ast::Connective::conjunction>(lit<"^">)> {};
 
   struct Expression;
 
@@ -22,15 +19,18 @@ struct Propcalc : cursiv::GrammarSpec {
           many(append<&ast::VariableRef::extraNames>(ref<VARIABLE>))) |
       create<ast::VariableRef>> {};
 
-  struct Expression : infix<Atom, &ast::Binary::left, &ast::Binary::op,
-      &ast::Binary::right, (left(ref<AND>) >> left(ref<OR>) >>
-                           left(ref<IMPLIES>) >> left(ref<EQUIV>))> {};
+  struct Expression
+      : infix<Atom, ast::Binary,
+              levels(left(ref<AND>),
+                     left(as<ast::Connective::disjunction>(lit<"v">)),
+                     left(as<ast::Connective::implication>(lit<"->">)),
+                     left(as<ast::Connective::equivalence>(lit<"<->">)))> {};
 
-  struct PropositionRule : rule<assign<&ast::Proposition::premises>(ref<Expression>) +
+  struct Proposition : rule<assign<&ast::Proposition::premises>(ref<Expression>) +
       lit<"|-"> + assign<&ast::Proposition::conclusion>(ref<Expression>)> {};
 
-  using entry = PropositionRule;
-  using ignore = WS;
+  using entry = Proposition;
+  using ignored = WS;
 };
 
 }  // namespace propcalc

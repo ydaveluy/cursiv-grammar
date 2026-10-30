@@ -123,7 +123,7 @@ void probes() {
         "catalogue c namespace N { struct S { field B f = true } }");
   probe("f06+bool-false", true,
         "catalogue c namespace N { struct S { field B f = false } }");
-  // References bind name and id and stay Unresolved -- there is no linker.
+  // References stay unresolved in this parser-only lane.
   probe("r01+dangling", true,
         "catalogue c namespace N { struct S { field Nowhere.At.All f } }");
   probe(
@@ -201,7 +201,7 @@ struct Values {
     return k;
   }
 
-  // The scope walk a linker would do, done here because no linker ships: a
+  // A scope walk over the raw tree, separate from the linking lane: a
   // dotted name against the document's own containment. It is what turns a
   // written reference into a checkable claim -- `Smp.Duration` is not twelve
   // characters, it is the primitive declared on line 2084 of the corpus.
@@ -260,7 +260,7 @@ struct Values {
     const cursiv::ParseResult r = engine().parse(src);
     VCHECK(clean(r));
     VCHECK(static_cast<bool>(r));
-    VCHECK(r.diagnostics.empty());  // no converter runs in this grammar
+    VCHECK(r.diagnostics.empty());  // conversions preserve native AST values
     ast::Catalogue* cat = r.value_as<ast::Catalogue>();
     VCHECK(cat != nullptr);
     if (cat == nullptr) return;
@@ -348,7 +348,7 @@ struct Values {
     VCHECK(refs_named(r, "value") == 9);
 
     // 2. Cross references: the name as written, and what it names, checked
-    // by walking the document since there is no linker -- which is also what
+    // by walking this parser-only document -- which is also what
     // proves the join: `Smp.Publication.IType` is one name of three parts,
     // landing on the interface of line 724 after three steps.
     VCHECK(cat->name == "ecss_smp_smp");
@@ -561,7 +561,7 @@ struct Values {
     VCHECK(eventId != nullptr && eventId->minimum == nullptr &&
            eventId->maximum == nullptr);
 
-    // Strings arrive raw, quotes included, one entry per adjacent literal --
+    // Strings are decoded, one entry per adjacent literal --
     // and no literal in this corpus is adjacent to another, so every `value`
     // has exactly one entry. `= "Smp::Exception"` (line 28) and
     // `= "LinkRegistry"` (line 913).
@@ -569,14 +569,14 @@ struct Values {
            as<ast::StringLiteral>(getRaises->default_) != nullptr &&
            as<ast::StringLiteral>(getRaises->default_)->value.size() == 1 &&
            as<ast::StringLiteral>(getRaises->default_)->value[0] ==
-               "\"Smp::Exception\"");
+               "Smp::Exception");
     ast::Constant* linkReg = as<ast::Constant>(
         lookup(cat, "Smp.Services.ILinkRegistry.SMP_LinkRegistry"));
     VCHECK(linkReg != nullptr &&
            as<ast::StringLiteral>(linkReg->value) != nullptr &&
            as<ast::StringLiteral>(linkReg->value)->value.size() == 1 &&
            as<ast::StringLiteral>(linkReg->value)->value[0] ==
-               "\"LinkRegistry\"");
+               "LinkRegistry");
 
     // `?=` writes a bool, not text: `= true` on line 57, and the `false`
     // defaults of `Publish` (line 765). Both spellings, both directions.

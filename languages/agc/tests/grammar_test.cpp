@@ -66,10 +66,8 @@ void every_example_parses_clean() {
   CHECK(seen == 14);  // 13 corpus documents + scratch.agc
 }
 
-template <class T>
-const T* line_as(const std::variant<ast::CommentLine*, ast::BlankLine*,
-                                    ast::InstructionLine*, ast::EraseLine*,
-                                    ast::AssignmentLine*>& line) {
+template <class T, class... Nodes>
+const T* line_as(const std::variant<Nodes...>& line) {
   const T* const* p = std::get_if<T*>(&line);
   return p != nullptr ? *p : nullptr;
 }
@@ -87,12 +85,8 @@ void field_values_of_one_document() {
   CHECK(doc != nullptr);
   if (doc == nullptr) return;
 
-  // An instruction can span many physical lines by design: a continuation
-  // operand line is syntactically identical to a fresh, label-less
-  // instruction, so an unlabeled run (INHINT, CS TIME1, AD STARTDT1, ...)
-  // reads as further arguments of the instruction that opened it, not as
-  // instructions of their own -- until the next LABEL breaks the chain. A
-  // labelled instruction is therefore what stays checkable line by line.
+  // A known opcode starts an instruction on its own physical line.
+  // Operand-only continuation rows remain attached to their instruction.
   int comments = 0;
   int blanks = 0;
   const ast::InstructionLine* bank = nullptr;
@@ -150,9 +144,7 @@ void field_values_of_one_document() {
       CHECK(beginner->arguments[0]->expressions.size() == 1);
   }
 
-  // EXITLOC2 opens on its own operand row ("OCT 00105 # ..."), then keeps
-  // absorbing the unlabeled lines after it (see above), so only its first
-  // row is pinned.
+  // EXITLOC2 opens on its own operand row ("OCT 00105 # ...").
   CHECK(exitloc2 != nullptr);
   if (exitloc2 != nullptr) {
     CHECK(exitloc2->opcode == "OCT");
@@ -172,16 +164,41 @@ void blank_row_ends_the_instruction() {
   const ast::Document* const doc = r.value_as<ast::Document>();
   CHECK(doc != nullptr);
   if (doc == nullptr) return;
-  CHECK(doc->lines.size() == 3);
-  if (doc->lines.size() != 3) return;
+  CHECK(doc->lines.size() == 4);
+  if (doc->lines.size() != 4) return;
   const ast::InstructionLine* const first =
       line_as<ast::InstructionLine>(doc->lines[0]);
   CHECK(first != nullptr && first->label == "L1" &&
-        first->arguments.size() == 2);
-  CHECK(line_as<ast::BlankLine>(doc->lines[1]) != nullptr);
+        first->arguments.size() == 1);
+  const auto* second = line_as<ast::InstructionLine>(doc->lines[1]);
+  CHECK(second != nullptr && second->opcode == "CAF");
+  CHECK(line_as<ast::BlankLine>(doc->lines[2]) != nullptr);
   const ast::InstructionLine* const last =
-      line_as<ast::InstructionLine>(doc->lines[2]);
+      line_as<ast::InstructionLine>(doc->lines[3]);
   CHECK(last != nullptr && last->label == "L2");
+}
+
+void native_source_lines() {
+  const auto result = build("$CONSTANTS.agc\n\tECADR\tFOO#comment\n"
+                            "\t2CADR\tBAR\n\tTC\tFOO");
+  CHECK(result.accepted && !result.cst().recovered() &&
+        result.diagnostics.empty());
+  const auto* doc = result.value_as<ast::Document>();
+  CHECK(doc != nullptr && doc->lines.size() == 4);
+  if (!doc || doc->lines.size() != 4) return;
+  const auto* include = line_as<ast::SourceInclude>(doc->lines[0]);
+  CHECK(include && include->path == "CONSTANTS.agc");
+  const auto* first = line_as<ast::InstructionLine>(doc->lines[1]);
+  CHECK(first && first->opcode == "ECADR" && first->arguments.size() == 1);
+  if (first && first->arguments.size() == 1)
+    CHECK(first->arguments[0]->comment == "#comment");
+  const auto* second = line_as<ast::InstructionLine>(doc->lines[2]);
+  CHECK(second && second->opcode == "2CADR");
+  const auto* last = line_as<ast::InstructionLine>(doc->lines[3]);
+  CHECK(last && last->opcode == "TC");
+  const auto empty = build("");
+  CHECK(empty.accepted && !empty.cst().recovered() &&
+        empty.diagnostics.empty());
 }
 
 }  // namespace
@@ -190,5 +207,6 @@ int main() {
   every_example_parses_clean();
   field_values_of_one_document();
   blank_row_ends_the_instruction();
+  native_source_lines();
   return cursiv::test::report("agc_grammar_test");
 }

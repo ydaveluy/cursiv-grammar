@@ -11,8 +11,7 @@ struct LlvmIr : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"(\x00 \t\n\r)">)> {};
   struct COMMENT : terminal<lit<";"> + many(cr<R"(^\r\n)">)> {};
 
-  struct BLOCK_COMMENT
-      : terminal<lit<"/*"> + many(!lit<"*/"> + any) + lit<"*/">> {};
+  struct BLOCK_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
   // ---- Lexer fragments and terminals ----
   static constexpr auto AsciiLetter = cr<"A-Za-z">;
@@ -50,10 +49,9 @@ struct LlvmIr : cursiv::GrammarSpec {
   struct LABEL_IDENT : terminal<(some(LetterCls | d) + lit<":">) |
                                 (QuotedStringBody + lit<":">)> {};
   struct SUMMARY_ID : terminal<lit<"^"> + IdBody> {};
-  struct FIELD_NAME : terminal<(NameBody | QuotedStringBody) + lit<":">,
-                               text_conv<[](std::string_view t) {
-                                 return t.substr(0, t.size() - 1);
-                               }>> {};
+  struct FIELD_NAME : terminal<as<[](std::string_view t) {
+    return t.substr(0, t.size() - 1);
+  }>((NameBody | QuotedStringBody) + lit<":">)> {};
   struct ATTR_GROUP_ID : terminal<lit<"#"> + IdBody> {};
   struct COMDAT_NAME : terminal<lit<"$"> + (NameBody | QuotedStringBody)> {};
   struct METADATA_NAME : terminal<lit<"!"> + EscapeNameBody> {};
@@ -74,36 +72,36 @@ struct LlvmIr : cursiv::GrammarSpec {
 
   // ---- Forward declarations: every rule referenced before its own
   // definition. `ref<R>` only needs R named, never complete. ----
-  struct TypeRule;
-  struct ParamsRule;
-  struct TypedValueRule;
-  struct BareValueRule;
-  struct GepIndexRule;
-  struct ConstantRule;
-  struct ValueRule;
-  struct InlineAsmRule;
-  struct CallingConvRule;
-  struct StructConstRule;
-  struct ArrayConstRule;
-  struct VectorConstRule;
-  struct MdStringRule;
-  struct MdRefRule;
-  struct AttrEntryRule;
-  struct MdTupleRule;
-  struct DiArgListRule;
-  struct MdListRule;
-  struct DiFlagsRule;
-  struct SpFlagsRule;
-  struct NamedFieldRule;
-  struct SpecializedMdNodeRule;
-  struct MdAttachmentRule;
-  struct LabelRule;
-  struct CallArgRule;
-  struct OperandBundleRule;
-  struct BasicBlockRule;
-  struct UseListOrderRule;
-  struct FuncHeaderRule;
-  struct FuncBodyRule;
+  struct Type;
+  struct Params;
+  struct TypedValue;
+  struct BareValue;
+  struct GepIndex;
+  struct Constant;
+  struct Value;
+  struct InlineAsm;
+  struct CallingConv;
+  struct StructConst;
+  struct ArrayConst;
+  struct VectorConst;
+  struct MdString;
+  struct MdRef;
+  struct AttrEntry;
+  struct MdTuple;
+  struct DiArgList;
+  struct MdList;
+  struct DiFlags;
+  struct SpFlags;
+  struct NamedField;
+  struct SpecializedMdNode;
+  struct MdAttachment;
+  struct Label;
+  struct CallArg;
+  struct OperandBundle;
+  struct BasicBlock;
+  struct UseListOrder;
+  struct FuncHeader;
+  struct FuncBody;
 
   // ================= Attributes =================
   // Every param/return/func attribute and every section/partition/comdat/
@@ -184,10 +182,10 @@ struct LlvmIr : cursiv::GrammarSpec {
                  lit<")">)> {};
   struct ByRefAttr
       : rule<assign<&ast::Attr::name>(kw<"byref">) + lit<"("> +
-             assign<&ast::Attr::typeArg>(ref<TypeRule>) + lit<")">> {};
+             assign<&ast::Attr::typeArg>(ref<Type>) + lit<")">> {};
   struct ByvalAttr
       : rule<assign<&ast::Attr::name>(kw<"byval">) +
-             option(lit<"("> + assign<&ast::Attr::typeArg>(ref<TypeRule>) +
+             option(lit<"("> + assign<&ast::Attr::typeArg>(ref<Type>) +
                     lit<")">)> {};
   struct DereferenceableAttr
       : rule<assign<&ast::Attr::name>(kw<"dereferenceable"> |
@@ -195,16 +193,16 @@ struct LlvmIr : cursiv::GrammarSpec {
              lit<"("> + assign<&ast::Attr::intArg>(ref<INT_LIT>) + lit<")">> {};
   struct ElementTypeAttr
       : rule<assign<&ast::Attr::name>(kw<"elementtype">) + lit<"("> +
-             assign<&ast::Attr::typeArg>(ref<TypeRule>) + lit<")">> {};
+             assign<&ast::Attr::typeArg>(ref<Type>) + lit<")">> {};
   struct InAllocaAttr
       : rule<assign<&ast::Attr::name>(kw<"inalloca">) + lit<"("> +
-             assign<&ast::Attr::typeArg>(ref<TypeRule>) + lit<")">> {};
+             assign<&ast::Attr::typeArg>(ref<Type>) + lit<")">> {};
   struct PreallocatedAttr
       : rule<assign<&ast::Attr::name>(kw<"preallocated">) + lit<"("> +
-             assign<&ast::Attr::typeArg>(ref<TypeRule>) + lit<")">> {};
+             assign<&ast::Attr::typeArg>(ref<Type>) + lit<")">> {};
   struct StructRetAttr
       : rule<assign<&ast::Attr::name>(kw<"sret">) + lit<"("> +
-             assign<&ast::Attr::typeArg>(ref<TypeRule>) + lit<")">> {};
+             assign<&ast::Attr::typeArg>(ref<Type>) + lit<")">> {};
   struct SectionAttr : rule<assign<&ast::Attr::name>(kw<"section">) +
                             assign<&ast::Attr::stringArg>(ref<STRING_LIT>)> {};
   struct PartitionAttr : rule<assign<&ast::Attr::name>(kw<"partition">) +
@@ -217,22 +215,22 @@ struct LlvmIr : cursiv::GrammarSpec {
   struct GcAttr : rule<assign<&ast::Attr::name>(kw<"gc">) +
                        assign<&ast::Attr::stringArg>(ref<STRING_LIT>)> {};
   struct PrefixAttr : rule<assign<&ast::Attr::name>(kw<"prefix">) +
-                           assign<&ast::Attr::valueArg>(ref<TypedValueRule>)> {
+                           assign<&ast::Attr::valueArg>(ref<TypedValue>)> {
   };
   struct PrologueAttr
       : rule<assign<&ast::Attr::name>(kw<"prologue">) +
-             assign<&ast::Attr::valueArg>(ref<TypedValueRule>)> {};
+             assign<&ast::Attr::valueArg>(ref<TypedValue>)> {};
   struct PersonalityAttr
       : rule<assign<&ast::Attr::name>(kw<"personality">) +
-             assign<&ast::Attr::valueArg>(ref<TypedValueRule>)> {};
+             assign<&ast::Attr::valueArg>(ref<TypedValue>)> {};
   // sanitizerKind's remaining word (globalField only, to keep BareAttrWord
   // free of a duplicate already-listed spelling)
   struct SanitizeMemtagAttr
       : rule<assign<&ast::Attr::name>(kw<"sanitize_memtag">)> {};
 
-  struct AttrEntryRule
+  struct AttrEntry
       : rule<(flag<&ast::AttrEntry::grouped>(lit<"(">) +
-              many(append<&ast::AttrEntry::entries>(ref<AttrEntryRule>),
+              many(append<&ast::AttrEntry::entries>(ref<AttrEntry>),
                    lit<",">) +
               lit<")">) |
              (option(assign<&ast::AttrEntry::name>(ref<WORD>) + lit<":">) +
@@ -243,11 +241,11 @@ struct LlvmIr : cursiv::GrammarSpec {
                                       kw<"nofpclass"> | kw<"initializes"> |
                                       kw<"denormal_fpenv">) +
              lit<"("> +
-             many(append<&ast::Attr::entries>(ref<AttrEntryRule>), lit<",">) +
+             many(append<&ast::Attr::entries>(ref<AttrEntry>), lit<",">) +
              lit<")">> {};
   struct RangeAttr
       : rule<assign<&ast::Attr::name>(kw<"range">) + lit<"("> +
-             assign<&ast::Attr::typeArg>(ref<TypeRule>) +
+             assign<&ast::Attr::typeArg>(ref<Type>) +
              assign<&ast::Attr::intArg>(ref<INT_LIT>) + lit<","> +
              assign<&ast::Attr::intArg2>(ref<INT_LIT>) + lit<")">> {};
   struct DeadOnReturnAttr
@@ -281,51 +279,51 @@ struct LlvmIr : cursiv::GrammarSpec {
       kw<"half"> | kw<"bfloat"> | kw<"float"> | kw<"double"> | kw<"x86_fp80"> |
       kw<"fp128"> | kw<"ppc_fp128">;
 
-  struct ByteTypeRule : rule<assign<&ast::ByteType::text>(ref<BYTE_TYPE>)> {};
-  struct TargetTypeRule
+  struct ByteType : rule<assign<&ast::ByteType::text>(ref<BYTE_TYPE>)> {};
+  struct TargetType
       : rule<kw<"target"> + lit<"("> +
              assign<&ast::TargetType::name>(ref<STRING_LIT>) +
              many(lit<","> + append<&ast::TargetType::parameters>(
-                                 ref<TypeRule> | ref<INT_LIT>)) +
+                                 ref<Type> | ref<INT_LIT>)) +
              lit<")">> {};
-  struct IntTypeRule : rule<assign<&ast::IntType::text>(ref<INT_TYPE>)> {};
-  struct OpaquePointerTypeRule
+  struct IntType : rule<assign<&ast::IntType::text>(ref<INT_TYPE>)> {};
+  struct OpaquePointerType
       : rule<kw<"ptr"> +
              option(kw<"addrspace"> + lit<"("> +
                     assign<&ast::PointerType::addrSpace>(ref<INT_LIT>) +
                     lit<")">)> {};
-  struct VectorTypeRule
+  struct VectorType
       : rule<(lit<"<"> + assign<&ast::VectorType::length>(ref<INT_LIT>) +
-              kw<"x"> + assign<&ast::VectorType::element>(ref<TypeRule>) +
+              kw<"x"> + assign<&ast::VectorType::element>(ref<Type>) +
               lit<">">)  //
              | (lit<"<"> + flag<&ast::VectorType::scalable>(kw<"vscale">) +
                 kw<"x"> + assign<&ast::VectorType::length>(ref<INT_LIT>) +
-                kw<"x"> + assign<&ast::VectorType::element>(ref<TypeRule>) +
+                kw<"x"> + assign<&ast::VectorType::element>(ref<Type>) +
                 lit<">">)> {};
-  struct ArrayTypeRule
+  struct ArrayType
       : rule<lit<"["> + assign<&ast::ArrayType::length>(ref<INT_LIT>) +
-             kw<"x"> + assign<&ast::ArrayType::element>(ref<TypeRule>) +
+             kw<"x"> + assign<&ast::ArrayType::element>(ref<Type>) +
              lit<"]">> {};
-  struct StructTypeRule
+  struct StructType
       : rule<(lit<"{"> +
-              many(append<&ast::StructType::members>(ref<TypeRule>), lit<",">) +
+              many(append<&ast::StructType::members>(ref<Type>), lit<",">) +
               lit<"}">)  //
              |
              (flag<&ast::StructType::packed>(lit<"<">) + lit<"{"> +
-              many(append<&ast::StructType::members>(ref<TypeRule>), lit<",">) +
+              many(append<&ast::StructType::members>(ref<Type>), lit<",">) +
               lit<"}"> + lit<">">)> {};
 
   struct TypeBase
       : rule<create<ast::VoidType>(kw<"void">)                             //
              | create<ast::OpaqueType>(kw<"opaque">)                       //
-             | ref<ByteTypeRule> | ref<TargetTypeRule> | ref<IntTypeRule>  //
+             | ref<ByteType> | ref<TargetType> | ref<IntType>  //
              | create<ast::FloatType>(
                    assign<&ast::FloatType::keyword>(FloatKindWord))  //
-             | ref<OpaquePointerTypeRule>                            //
-             | ref<VectorTypeRule>                                   //
+             | ref<OpaquePointerType>                            //
+             | ref<VectorType>                                   //
              | create<ast::LabelType>(kw<"label">)                   //
-             | ref<ArrayTypeRule>                                    //
-             | ref<StructTypeRule>                                   //
+             | ref<ArrayType>                                    //
+             | ref<StructType>                                   //
              | create<ast::NamedType>(
                    assign<&ast::NamedType::name>(ref<LOCAL_IDENT>))  //
              | create<ast::AmxType>(kw<"x86_amx">) |
@@ -333,7 +331,7 @@ struct LlvmIr : cursiv::GrammarSpec {
              | create<ast::TokenType>(kw<"token">)  //
              | create<ast::MetadataType>(kw<"metadata">)> {};
 
-  struct TypeRule
+  struct Type
       : rule<ref<TypeBase> +
              many(
                  nest<ast::PointerType, &ast::PointerType::pointee>(
@@ -343,32 +341,32 @@ struct LlvmIr : cursiv::GrammarSpec {
                      lit<"*">)  //
                  | nest<ast::FunctionType, &ast::FunctionType::returnType>(
                        lit<"("> +
-                       assign<&ast::FunctionType::params>(ref<ParamsRule>) +
+                       assign<&ast::FunctionType::params>(ref<Params>) +
                        lit<")">))> {};
 
-  struct ParamRule : rule<assign<&ast::Param::type>(ref<TypeRule>) +
+  struct Param : rule<assign<&ast::Param::type>(ref<Type>) +
                           many(append<&ast::Param::attrs>(ParamAttribute)) +
                           option(assign<&ast::Param::name>(ref<LOCAL_IDENT>))> {
   };
-  struct ParamsRule
+  struct Params
       : rule<flag<&ast::Params::variadic>(lit<"...">)  //
-             | (some(append<&ast::Params::params>(ref<ParamRule>), lit<",">) +
+             | (some(append<&ast::Params::params>(ref<Param>), lit<",">) +
                 option(lit<","> +
                        flag<&ast::Params::variadic>(lit<"...">)))  //
              | create<ast::Params>> {};
 
   // ================= Values and constants =================
-  struct TypedValueRule
-      : rule<assign<&ast::TypedValue::type>(ref<TypeRule>) +
-             assign<&ast::TypedValue::value>(ref<ValueRule>)> {};
-  struct GepIndexRule
+  struct TypedValue
+      : rule<assign<&ast::TypedValue::type>(ref<Type>) +
+             assign<&ast::TypedValue::value>(ref<Value>)> {};
+  struct GepIndex
       : rule<option(flag<&ast::TypedValue::inRange>(kw<"inrange">)) +
-             assign<&ast::TypedValue::type>(ref<TypeRule>) +
-             assign<&ast::TypedValue::value>(ref<ConstantRule>)> {};
-  struct BareValueRule : rule<assign<&ast::TypedValue::value>(ref<ValueRule>)> {
+             assign<&ast::TypedValue::type>(ref<Type>) +
+             assign<&ast::TypedValue::value>(ref<Constant>)> {};
+  struct BareValue : rule<assign<&ast::TypedValue::value>(ref<Value>)> {
   };
 
-  struct InlineAsmRule
+  struct InlineAsm
       : rule<kw<"asm"> +
              option(flag<&ast::InlineAsm::sideEffect>(kw<"sideeffect">)) +
              option(flag<&ast::InlineAsm::alignStack>(kw<"alignstack">)) +
@@ -391,46 +389,46 @@ struct LlvmIr : cursiv::GrammarSpec {
   template <cursiv::str Kw>
   struct ConstBin2
       : rule<assign<&ast::ConstantExpr::op>(kw<Kw>) + lit<"("> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<","> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<")">> {};
   template <cursiv::str Kw>
   struct ConstBin2Ovf
       : rule<assign<&ast::ConstantExpr::op>(kw<Kw>) +
              many(append<&ast::ConstantExpr::flags>(OverflowFlagWord)) +
              lit<"("> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<","> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<")">> {};
   template <cursiv::str Kw>
   struct ConstBin2Exact
       : rule<assign<&ast::ConstantExpr::op>(kw<Kw>) +
              option(append<&ast::ConstantExpr::flags>(kw<"exact">)) + lit<"("> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<","> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<")">> {};
   template <cursiv::str Kw>
   struct ConstBin3
       : rule<assign<&ast::ConstantExpr::op>(kw<Kw>) + lit<"("> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<","> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<","> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<")">> {};
   template <cursiv::str Kw>
   struct ConstConv
       : rule<assign<&ast::ConstantExpr::op>(kw<Kw>) + lit<"("> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
-             kw<"to"> + assign<&ast::ConstantExpr::destType>(ref<TypeRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
+             kw<"to"> + assign<&ast::ConstantExpr::destType>(ref<Type>) +
              lit<")">> {};
 
   struct ConstFNeg
       : rule<assign<&ast::ConstantExpr::op>(kw<"fneg">) + lit<"("> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<")">> {};
   struct ConstGetElementPtr
       : rule<assign<&ast::ConstantExpr::op>(kw<"getelementptr">) +
@@ -440,34 +438,34 @@ struct LlvmIr : cursiv::GrammarSpec {
                     lit<","> +
                     assign<&ast::ConstantExpr::inRangeEnd>(ref<INT_LIT>) +
                     lit<")">) +
-             lit<"("> + assign<&ast::ConstantExpr::gepType>(ref<TypeRule>) +
+             lit<"("> + assign<&ast::ConstantExpr::gepType>(ref<Type>) +
              lit<","> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              many(lit<","> +
-                  append<&ast::ConstantExpr::operands>(ref<GepIndexRule>)) +
+                  append<&ast::ConstantExpr::operands>(ref<GepIndex>)) +
              lit<")">> {};
   struct ConstICmp
       : rule<assign<&ast::ConstantExpr::op>(kw<"icmp">) +
              assign<&ast::ConstantExpr::predicate>(IPredWord) + lit<"("> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<","> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<")">> {};
   struct ConstFCmp
       : rule<assign<&ast::ConstantExpr::op>(kw<"fcmp">) +
              assign<&ast::ConstantExpr::predicate>(FPredWord) + lit<"("> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<","> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<")">> {};
 
   struct ConstSplat
       : rule<assign<&ast::ConstantExpr::op>(kw<"splat">) + lit<"("> +
-             append<&ast::ConstantExpr::operands>(ref<TypedValueRule>) +
+             append<&ast::ConstantExpr::operands>(ref<TypedValue>) +
              lit<")">> {};
   struct ConstPtrAuth
       : rule<assign<&ast::ConstantExpr::op>(kw<"ptrauth">) + lit<"("> +
-             many(append<&ast::ConstantExpr::operands>(ref<TypedValueRule>),
+             many(append<&ast::ConstantExpr::operands>(ref<TypedValue>),
                   lit<",">) +
              lit<")">> {};
   static constexpr auto ConstantExprAlt =
@@ -487,28 +485,28 @@ struct LlvmIr : cursiv::GrammarSpec {
       ref<ConstConv<"bitcast">> | ref<ConstConv<"addrspacecast">> |
       ref<ConstICmp> | ref<ConstFCmp> | ref<ConstBin3<"select">>;
 
-  struct StructConstRule
+  struct StructConst
       : rule<(lit<"{"> +
-              many(append<&ast::StructConst::members>(ref<TypedValueRule>),
+              many(append<&ast::StructConst::members>(ref<TypedValue>),
                    lit<",">) +
               lit<"}">)  //
              | (flag<&ast::StructConst::packed>(lit<"<">) + lit<"{"> +
-                many(append<&ast::StructConst::members>(ref<TypedValueRule>),
+                many(append<&ast::StructConst::members>(ref<TypedValue>),
                      lit<",">) +
                 lit<"}"> + lit<">">)> {};
-  struct ArrayConstRule
+  struct ArrayConst
       : rule<(kw<"c"> + assign<&ast::ArrayConst::cString>(ref<STRING_LIT>))  //
              | (lit<"["> +
-                many(append<&ast::ArrayConst::elements>(ref<TypedValueRule>),
+                many(append<&ast::ArrayConst::elements>(ref<TypedValue>),
                      lit<",">) +
                 lit<"]">)> {};
-  struct VectorConstRule
+  struct VectorConst
       : rule<lit<"<"> +
-             many(append<&ast::VectorConst::elements>(ref<TypedValueRule>),
+             many(append<&ast::VectorConst::elements>(ref<TypedValue>),
                   lit<",">) +
              lit<">">> {};
 
-  struct ConstantRule
+  struct Constant
       : rule<create<ast::BoolConst>(
                  assign<&ast::BoolConst::value>(kw<"true"> | kw<"false">))  //
              | create<ast::IntConst>(
@@ -519,9 +517,9 @@ struct LlvmIr : cursiv::GrammarSpec {
                    assign<&ast::KeywordConst::keyword>(kw<"null">))  //
              | create<ast::KeywordConst>(
                    assign<&ast::KeywordConst::keyword>(kw<"none">))  //
-             | ref<StructConstRule>                                  //
-             | ref<ArrayConstRule>                                   //
-             | ref<VectorConstRule>                                  //
+             | ref<StructConst>                                  //
+             | ref<ArrayConst>                                   //
+             | ref<VectorConst>                                  //
              | create<ast::KeywordConst>(assign<&ast::KeywordConst::keyword>(
                    kw<"zeroinitializer">))  //
              | create<ast::Ident>(
@@ -546,13 +544,13 @@ struct LlvmIr : cursiv::GrammarSpec {
                    assign<&ast::NoCfiConst::target>(ref<GLOBAL_IDENT>))  //
              | ConstantExprAlt> {};
 
-  struct ValueRule
-      : rule<ref<ConstantRule>  //
+  struct Value
+      : rule<ref<Constant>  //
              |
              create<ast::Ident>(assign<&ast::Ident::name>(ref<LOCAL_IDENT>))  //
-             | ref<InlineAsmRule>> {};
+             | ref<InlineAsm>> {};
 
-  struct CallingConvRule
+  struct CallingConv
       : rule<(assign<&ast::CallingConv::keyword>(kw<"riscv_vls_cc">) +
               option(lit<"("> +
                      assign<&ast::CallingConv::intArg>(ref<INT_LIT>) +
@@ -590,57 +588,57 @@ struct LlvmIr : cursiv::GrammarSpec {
   // Every `!DIXxx(...)` node is a kind plus `name: value` fields; every field
   // value is one of a handful of shapes. See ast::NamedField / ast.hpp.
   static constexpr auto NamedFieldValue =
-      ref<TypedValueRule> | ref<MdStringRule> | ref<MdTupleRule> |
-      ref<MdRefRule> | ref<DiArgListRule> | ref<SpecializedMdNodeRule> |
-      ref<STRING_LIT> | ref<INT_LIT> | ref<WORD> | ref<DiFlagsRule> |
-      ref<SpFlagsRule> | ref<MdListRule>;
+      ref<TypedValue> | ref<MdString> | ref<MdTuple> |
+      ref<MdRef> | ref<DiArgList> | ref<SpecializedMdNode> |
+      ref<STRING_LIT> | ref<INT_LIT> | ref<WORD> | ref<DiFlags> |
+      ref<SpFlags> | ref<MdList>;
 
-  struct MdRefRule : rule<assign<&ast::MdRef::id>(ref<METADATA_ID>)> {};
-  struct MdStringRule
+  struct MdRef : rule<assign<&ast::MdRef::id>(ref<METADATA_ID>)> {};
+  struct MdString
       : rule<lit<"!"> + assign<&ast::MdString::text>(ref<STRING_LIT>)> {};
-  struct DiArgListRule
+  struct DiArgList
       : rule<lit<"!DIArgList"> + lit<"("> +
-             many(append<&ast::DiArgList::args>(ref<TypedValueRule>),
+             many(append<&ast::DiArgList::args>(ref<TypedValue>),
                   lit<",">) +
              lit<")">> {};
-  struct MdTupleRule
+  struct MdTuple
       : rule<lit<"!"> + lit<"{"> +
              many(append<&ast::MdTuple::elements>(NamedFieldValue), lit<",">) +
              lit<"}">> {};
-  struct MdListRule
+  struct MdList
       : rule<lit<"{"> +
              many(append<&ast::MdList::items>(NamedFieldValue), lit<",">) +
              lit<"}">> {};
-  struct DiFlagsRule
+  struct DiFlags
       : rule<some(append<&ast::MdList::items>(ref<DI_FLAG>), lit<"|">)> {};
-  struct SpFlagsRule
+  struct SpFlags
       : rule<some(append<&ast::MdList::items>(ref<INT_LIT> | ref<DISP_FLAG>),
                   lit<"|">)> {};
-  struct NamedFieldRule
+  struct NamedField
       : rule<assign<&ast::NamedField::name>(ref<FIELD_NAME>) +
              assign<&ast::NamedField::value>(NamedFieldValue)> {};
 
-  struct SpecializedMdNodeRule
+  struct SpecializedMdNode
       : rule<assign<&ast::SpecializedMdNode::kind>(ref<METADATA_NAME>) +
              lit<"("> +
-             many(append<&ast::SpecializedMdNode::fields>(ref<NamedFieldRule>) |
+             many(append<&ast::SpecializedMdNode::fields>(ref<NamedField>) |
                       append<&ast::SpecializedMdNode::positional>(ref<INT_LIT> |
                                                                   ref<WORD>),
                   lit<",">) +
              lit<")">> {};
 
   static constexpr auto MdNode =
-      ref<MdTupleRule> | ref<MdRefRule> | ref<SpecializedMdNodeRule>;
-  struct MdAttachmentRule
+      ref<MdTuple> | ref<MdRef> | ref<SpecializedMdNode>;
+  struct MdAttachment
       : rule<assign<&ast::MdAttachment::name>(ref<METADATA_NAME>) +
              assign<&ast::MdAttachment::node>(MdNode)> {};
 
   template <auto Member>
   static constexpr auto MdAttachments =
-      many(lit<","> + append<Member>(ref<MdAttachmentRule>));
+      many(lit<","> + append<Member>(ref<MdAttachment>));
 
   // ================= Instructions and terminators =================
-  struct LabelRule
+  struct Label
       : rule<kw<"label"> + assign<&ast::Label::name>(ref<LOCAL_IDENT>)> {};
 
   static constexpr auto FastMathFlagWord =
@@ -667,10 +665,10 @@ struct LlvmIr : cursiv::GrammarSpec {
       many(lit<","> + kw<"addrspace"> + lit<"("> +
            append<Member>(ref<INT_LIT>) + lit<")">);
 
-  struct CallArgRule
-      : rule<(!kw<"metadata"> + assign<&ast::CallArg::type>(ref<TypeRule>) +
+  struct CallArg
+      : rule<(!kw<"metadata"> + assign<&ast::CallArg::type>(ref<Type>) +
               many(append<&ast::CallArg::attrs>(ParamAttribute)) +
-              assign<&ast::CallArg::value>(ref<ValueRule>))  //
+              assign<&ast::CallArg::value>(ref<Value>))  //
              | (flag<&ast::CallArg::isMetadata>(kw<"metadata">) +
                 assign<&ast::CallArg::metadata>(NamedFieldValue))> {};
 
@@ -678,92 +676,92 @@ struct LlvmIr : cursiv::GrammarSpec {
   static constexpr auto InstBin2Ovf =
       assign<&ast::GenericInst::op>(kw<Kw>) +
       many(append<&ast::GenericInst::flags>(OverflowFlagWord)) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<BareValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<BareValue>);
   template <cursiv::str Kw>
   static constexpr auto InstBin2Fmf =
       assign<&ast::GenericInst::op>(kw<Kw>) +
       many(append<&ast::GenericInst::flags>(FastMathFlagWord)) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<BareValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<BareValue>);
   template <cursiv::str Kw>
   static constexpr auto InstBin2Exact =
       assign<&ast::GenericInst::op>(kw<Kw>) +
       option(append<&ast::GenericInst::flags>(kw<"exact">)) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<BareValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<BareValue>);
   template <cursiv::str Kw>
   static constexpr auto InstBin2Plain =
       assign<&ast::GenericInst::op>(kw<Kw>) +
       option(append<&ast::GenericInst::flags>(kw<"disjoint">)) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<BareValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<BareValue>);
   template <cursiv::str Kw>
   static constexpr auto InstBin2Typed =
       assign<&ast::GenericInst::op>(kw<Kw>) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<TypedValue>);
   template <cursiv::str Kw>
   static constexpr auto InstBin3Typed =
       assign<&ast::GenericInst::op>(kw<Kw>) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<TypedValue>);
   template <cursiv::str Kw>
   static constexpr auto InstConv =
       assign<&ast::GenericInst::op>(kw<Kw>) +
       many(append<&ast::GenericInst::flags>(FastMathFlagWord |
                                             OverflowFlagWord | kw<"nneg">)) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + kw<"to"> +
-      assign<&ast::GenericInst::type>(ref<TypeRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + kw<"to"> +
+      assign<&ast::GenericInst::type>(ref<Type>);
 
   static constexpr auto InstFNeg =
       assign<&ast::GenericInst::op>(kw<"fneg">) +
       many(append<&ast::GenericInst::flags>(FastMathFlagWord)) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>);
   static constexpr auto InstExtractValue =
       assign<&ast::GenericInst::op>(kw<"extractvalue">) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) +
+      append<&ast::GenericInst::operands>(ref<TypedValue>) +
       some(lit<","> + append<&ast::GenericInst::indices>(ref<INT_LIT>));
   static constexpr auto InstInsertValue =
       assign<&ast::GenericInst::op>(kw<"insertvalue">) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) +
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<TypedValue>) +
       some(lit<","> + append<&ast::GenericInst::indices>(ref<INT_LIT>));
   static constexpr auto InstAlloca =
       assign<&ast::GenericInst::op>(kw<"alloca">) +
       option(append<&ast::GenericInst::flags>(kw<"inalloca">)) +
       option(append<&ast::GenericInst::flags>(kw<"swifterror">)) +
-      assign<&ast::GenericInst::type>(ref<TypeRule>) +
+      assign<&ast::GenericInst::type>(ref<Type>) +
       option(lit<","> +
-             append<&ast::GenericInst::operands>(ref<TypedValueRule>)) +
+             append<&ast::GenericInst::operands>(ref<TypedValue>)) +
       Alignments<&ast::GenericInst::align> +
       AddressSpaces<&ast::GenericInst::addrSpace>;
   static constexpr auto InstLoad =
       (assign<&ast::GenericInst::op>(kw<"load">) +
        option(append<&ast::GenericInst::flags>(kw<"volatile">)) +
-       assign<&ast::GenericInst::type>(ref<TypeRule>) + lit<","> +
-       append<&ast::GenericInst::operands>(ref<TypedValueRule>) +
+       assign<&ast::GenericInst::type>(ref<Type>) + lit<","> +
+       append<&ast::GenericInst::operands>(ref<TypedValue>) +
        Alignments<&ast::GenericInst::align>)  //
       | (assign<&ast::GenericInst::op>(kw<"load">) +
          append<&ast::GenericInst::flags>(kw<"atomic">) +
          option(append<&ast::GenericInst::flags>(kw<"volatile">)) +
-         assign<&ast::GenericInst::type>(ref<TypeRule>) + lit<","> +
-         append<&ast::GenericInst::operands>(ref<TypedValueRule>) +
+         assign<&ast::GenericInst::type>(ref<Type>) + lit<","> +
+         append<&ast::GenericInst::operands>(ref<TypedValue>) +
          SyncScopeOpt<&ast::GenericInst::syncScope> +
          append<&ast::GenericInst::orderings>(AtomicOrderingWord) +
          Alignments<&ast::GenericInst::align>);
   static constexpr auto InstStore =
       (assign<&ast::GenericInst::op>(kw<"store">) +
        option(append<&ast::GenericInst::flags>(kw<"volatile">)) +
-       append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-       append<&ast::GenericInst::operands>(ref<TypedValueRule>) +
+       append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+       append<&ast::GenericInst::operands>(ref<TypedValue>) +
        Alignments<&ast::GenericInst::align>)  //
       | (assign<&ast::GenericInst::op>(kw<"store">) +
          append<&ast::GenericInst::flags>(kw<"atomic">) +
          option(append<&ast::GenericInst::flags>(kw<"volatile">)) +
-         append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-         append<&ast::GenericInst::operands>(ref<TypedValueRule>) +
+         append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+         append<&ast::GenericInst::operands>(ref<TypedValue>) +
          SyncScopeOpt<&ast::GenericInst::syncScope> +
          append<&ast::GenericInst::orderings>(AtomicOrderingWord) +
          Alignments<&ast::GenericInst::align>);
@@ -775,9 +773,9 @@ struct LlvmIr : cursiv::GrammarSpec {
       assign<&ast::GenericInst::op>(kw<"cmpxchg">) +
       option(append<&ast::GenericInst::flags>(kw<"weak">)) +
       option(append<&ast::GenericInst::flags>(kw<"volatile">)) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) +
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<TypedValue>) +
       SyncScopeOpt<&ast::GenericInst::syncScope> +
       append<&ast::GenericInst::orderings>(AtomicOrderingWord) +
       append<&ast::GenericInst::orderings>(AtomicOrderingWord) +
@@ -787,59 +785,58 @@ struct LlvmIr : cursiv::GrammarSpec {
       option(append<&ast::GenericInst::flags>(kw<"volatile">)) +
       option(append<&ast::GenericInst::flags>(kw<"elementwise">)) +
       assign<&ast::GenericInst::predicate>(AtomicOpWord) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) +
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<TypedValue>) +
       SyncScopeOpt<&ast::GenericInst::syncScope> +
       append<&ast::GenericInst::orderings>(AtomicOrderingWord) +
       Alignments<&ast::GenericInst::align>;
   static constexpr auto InstGetElementPtr =
       assign<&ast::GenericInst::op>(kw<"getelementptr">) +
       many(append<&ast::GenericInst::flags>(GepFlagWord)) +
-      assign<&ast::GenericInst::type>(ref<TypeRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) +
-      many(lit<","> + append<&ast::GenericInst::operands>(ref<TypedValueRule>));
+      assign<&ast::GenericInst::type>(ref<Type>) + lit<","> +
+      some(append<&ast::GenericInst::operands>(ref<TypedValue>), lit<",">);
   static constexpr auto InstICmp =
       assign<&ast::GenericInst::op>(kw<"icmp">) +
       option(append<&ast::GenericInst::flags>(kw<"samesign">)) +
       assign<&ast::GenericInst::predicate>(IPredWord) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<BareValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<BareValue>);
   static constexpr auto InstFCmp =
       assign<&ast::GenericInst::op>(kw<"fcmp">) +
       many(append<&ast::GenericInst::flags>(FastMathFlagWord)) +
       assign<&ast::GenericInst::predicate>(FPredWord) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<BareValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<BareValue>);
   static constexpr auto InstSelect =
       assign<&ast::GenericInst::op>(kw<"select">) +
       many(append<&ast::GenericInst::flags>(FastMathFlagWord)) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      append<&ast::GenericInst::operands>(ref<TypedValue>);
   static constexpr auto InstFreeze =
       assign<&ast::GenericInst::op>(kw<"freeze">) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>);
   static constexpr auto InstVaArg =
       assign<&ast::GenericInst::op>(kw<"va_arg">) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>) + lit<","> +
-      assign<&ast::GenericInst::type>(ref<TypeRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>) + lit<","> +
+      assign<&ast::GenericInst::type>(ref<Type>);
   static constexpr auto InstLandingPad =
       assign<&ast::GenericInst::op>(kw<"landingpad">) +
-      assign<&ast::GenericInst::type>(ref<TypeRule>) +
+      assign<&ast::GenericInst::type>(ref<Type>) +
       option(append<&ast::GenericInst::flags>(kw<"cleanup">)) +
       many(append<&ast::GenericInst::clauseTypes>(kw<"catch"> | kw<"filter">) +
-           append<&ast::GenericInst::operands>(ref<TypedValueRule>));
+           append<&ast::GenericInst::operands>(ref<TypedValue>));
   static constexpr auto InstCatchPad =
       assign<&ast::GenericInst::op>(kw<"catchpad">) + kw<"within"> +
       assign<&ast::GenericInst::withinToken>(ref<LOCAL_IDENT>) + lit<"["> +
-      many(append<&ast::GenericInst::exceptionArgs>(ref<CallArgRule>),
+      many(append<&ast::GenericInst::exceptionArgs>(ref<CallArg>),
            lit<",">) +
       lit<"]">;
   static constexpr auto InstCleanupPad =
       assign<&ast::GenericInst::op>(kw<"cleanuppad">) + kw<"within"> +
       assign<&ast::GenericInst::withinToken>(kw<"none"> | ref<LOCAL_IDENT>) +
       lit<"["> +
-      many(append<&ast::GenericInst::exceptionArgs>(ref<CallArgRule>),
+      many(append<&ast::GenericInst::exceptionArgs>(ref<CallArg>),
            lit<",">) +
       lit<"]">;
 
@@ -861,28 +858,29 @@ struct LlvmIr : cursiv::GrammarSpec {
       InstSelect | InstFreeze | InstVaArg | InstLandingPad | InstCatchPad |
       InstCleanupPad;
 
-  struct PhiIncomingRule
-      : rule<lit<"["> + assign<&ast::PhiIncoming::value>(ref<ValueRule>) +
+  struct PhiIncoming
+      : rule<lit<"["> + assign<&ast::PhiIncoming::value>(ref<Value>) +
              lit<","> + assign<&ast::PhiIncoming::block>(ref<LOCAL_IDENT>) +
              lit<"]">> {};
   static constexpr auto PhiInstBody =
       kw<"phi"> + many(append<&ast::PhiInst::fastMathFlags>(FastMathFlagWord)) +
-      assign<&ast::PhiInst::type>(ref<TypeRule>) +
-      many(append<&ast::PhiInst::incomings>(ref<PhiIncomingRule>), lit<",">);
+      assign<&ast::PhiInst::type>(ref<Type>) +
+      many(append<&ast::PhiInst::incomings>(ref<PhiIncoming>), lit<",">);
 
-  struct OperandBundleRule
+  struct OperandBundle
       : rule<assign<&ast::OperandBundle::tag>(ref<STRING_LIT>) + lit<"("> +
-             many(append<&ast::OperandBundle::args>(ref<TypedValueRule>),
+             many(append<&ast::OperandBundle::args>(ref<TypedValue>),
                   lit<",">) +
              lit<")">> {};
 
   template <auto Member>
   static constexpr auto ArgList =
-      option(lit<"..."> | (some(append<Member>(ref<CallArgRule>), lit<",">) +
-                           option(lit<","> + lit<"...">)));
+      option(flag<&ast::CallInst::forwardsVarargs>(lit<"...">) |
+             (some(append<Member>(ref<CallArg>), lit<",">) +
+              option(lit<","> + flag<&ast::CallInst::forwardsVarargs>(lit<"...">))));
   template <auto Member>
   static constexpr auto Bundles =
-      option(lit<"["> + some(append<Member>(ref<OperandBundleRule>), lit<",">) +
+      option(lit<"["> + some(append<Member>(ref<OperandBundle>), lit<",">) +
              lit<"]">);
 
   static constexpr auto CallInstBody =
@@ -890,12 +888,12 @@ struct LlvmIr : cursiv::GrammarSpec {
                                               kw<"tail">)) +
       assign<&ast::CallInst::kind>(kw<"call">) +
       many(append<&ast::CallInst::fastMathFlags>(FastMathFlagWord)) +
-      option(assign<&ast::CallInst::callingConv>(ref<CallingConvRule>)) +
+      option(assign<&ast::CallInst::callingConv>(ref<CallingConv>)) +
       many(append<&ast::CallInst::returnAttrs>(ReturnAttribute)) +
       option(kw<"addrspace"> + lit<"("> +
              assign<&ast::CallInst::addrSpace>(ref<INT_LIT>) + lit<")">) +
-      assign<&ast::CallInst::type>(ref<TypeRule>) +
-      assign<&ast::CallInst::callee>(ref<ValueRule>) + lit<"("> +
+      assign<&ast::CallInst::type>(ref<Type>) +
+      assign<&ast::CallInst::callee>(ref<Value>) + lit<"("> +
       ArgList<&ast::CallInst::args> + lit<")"> +
       many(append<&ast::CallInst::funcAttrs>(FuncAttribute)) +
       Bundles<&ast::CallInst::bundles>;
@@ -903,47 +901,47 @@ struct LlvmIr : cursiv::GrammarSpec {
   // ---- Terminators ----
   static constexpr auto RetInstBody =
       kw<"ret"> +
-      (kw<"void"> | assign<&ast::RetInst::value>(ref<TypedValueRule>));
+      (kw<"void"> | assign<&ast::RetInst::value>(ref<TypedValue>));
   static constexpr auto BrInstBody =
-      kw<"br"> + assign<&ast::BrInst::target>(ref<LabelRule>);
+      kw<"br"> + assign<&ast::BrInst::target>(ref<Label>);
   static constexpr auto CondBrInstBody =
-      kw<"br"> + assign<&ast::CondBrInst::cond>(ref<TypedValueRule>) +
-      lit<","> + assign<&ast::CondBrInst::thenLabel>(ref<LabelRule>) +
-      lit<","> + assign<&ast::CondBrInst::elseLabel>(ref<LabelRule>);
-  struct SwitchCaseRule
-      : rule<assign<&ast::SwitchCase::value>(ref<TypedValueRule>) + lit<","> +
-             assign<&ast::SwitchCase::target>(ref<LabelRule>)> {};
+      kw<"br"> + assign<&ast::CondBrInst::cond>(ref<TypedValue>) +
+      lit<","> + assign<&ast::CondBrInst::thenLabel>(ref<Label>) +
+      lit<","> + assign<&ast::CondBrInst::elseLabel>(ref<Label>);
+  struct SwitchCase
+      : rule<assign<&ast::SwitchCase::value>(ref<TypedValue>) + lit<","> +
+             assign<&ast::SwitchCase::target>(ref<Label>)> {};
   static constexpr auto SwitchInstBody =
-      kw<"switch"> + assign<&ast::SwitchInst::value>(ref<TypedValueRule>) +
-      lit<","> + assign<&ast::SwitchInst::defaultLabel>(ref<LabelRule>) +
-      lit<"["> + many(append<&ast::SwitchInst::cases>(ref<SwitchCaseRule>)) +
+      kw<"switch"> + assign<&ast::SwitchInst::value>(ref<TypedValue>) +
+      lit<","> + assign<&ast::SwitchInst::defaultLabel>(ref<Label>) +
+      lit<"["> + many(append<&ast::SwitchInst::cases>(ref<SwitchCase>)) +
       lit<"]">;
   static constexpr auto IndirectBrInstBody =
       kw<"indirectbr"> +
-      assign<&ast::IndirectBrInst::address>(ref<TypedValueRule>) + lit<","> +
+      assign<&ast::IndirectBrInst::address>(ref<TypedValue>) + lit<","> +
       lit<"["> +
-      many(append<&ast::IndirectBrInst::targets>(ref<LabelRule>), lit<",">) +
+      many(append<&ast::IndirectBrInst::targets>(ref<Label>), lit<",">) +
       lit<"]">;
   static constexpr auto ResumeInstBody =
       assign<&ast::GenericInst::op>(kw<"resume">) +
-      append<&ast::GenericInst::operands>(ref<TypedValueRule>);
+      append<&ast::GenericInst::operands>(ref<TypedValue>);
 
   static constexpr auto UnwindTarget =
       flag<&ast::GenericInst::toCaller>(kw<"to"> + kw<"caller">)  //
-      | append<&ast::GenericInst::labels>(ref<LabelRule>);
+      | append<&ast::GenericInst::labels>(ref<Label>);
 
   static constexpr auto CatchRetInstBody =
       assign<&ast::GenericInst::op>(kw<"catchret">) + kw<"from"> +
-      append<&ast::GenericInst::operands>(ref<BareValueRule>) + kw<"to"> +
-      append<&ast::GenericInst::labels>(ref<LabelRule>);
+      append<&ast::GenericInst::operands>(ref<BareValue>) + kw<"to"> +
+      append<&ast::GenericInst::labels>(ref<Label>);
   static constexpr auto CleanupRetInstBody =
       assign<&ast::GenericInst::op>(kw<"cleanupret">) + kw<"from"> +
-      append<&ast::GenericInst::operands>(ref<BareValueRule>) + kw<"unwind"> +
+      append<&ast::GenericInst::operands>(ref<BareValue>) + kw<"unwind"> +
       UnwindTarget;
   static constexpr auto UnreachableInstBody =
       assign<&ast::GenericInst::op>(kw<"unreachable">);
   static constexpr auto Handlers =
-      some(append<&ast::GenericInst::labels>(ref<LabelRule>), lit<",">);
+      some(append<&ast::GenericInst::labels>(ref<Label>), lit<",">);
   static constexpr auto CatchSwitchInstBody =
       assign<&ast::GenericInst::op>(kw<"catchswitch">) + kw<"within"> +
       assign<&ast::GenericInst::withinToken>(kw<"none"> | ref<LOCAL_IDENT>) +
@@ -951,41 +949,39 @@ struct LlvmIr : cursiv::GrammarSpec {
 
   static constexpr auto InvokeInstBody =
       assign<&ast::CallInst::kind>(kw<"invoke">) +
-      option(assign<&ast::CallInst::callingConv>(ref<CallingConvRule>)) +
+      option(assign<&ast::CallInst::callingConv>(ref<CallingConv>)) +
       many(append<&ast::CallInst::returnAttrs>(ReturnAttribute)) +
       option(kw<"addrspace"> + lit<"("> +
              assign<&ast::CallInst::addrSpace>(ref<INT_LIT>) + lit<")">) +
-      assign<&ast::CallInst::type>(ref<TypeRule>) +
-      assign<&ast::CallInst::callee>(ref<ValueRule>) + lit<"("> +
+      assign<&ast::CallInst::type>(ref<Type>) +
+      assign<&ast::CallInst::callee>(ref<Value>) + lit<"("> +
       ArgList<&ast::CallInst::args> + lit<")"> +
       many(append<&ast::CallInst::funcAttrs>(FuncAttribute)) +
       Bundles<&ast::CallInst::bundles> + kw<"to"> +
-      assign<&ast::CallInst::toLabel>(ref<LabelRule>) + kw<"unwind"> +
-      assign<&ast::CallInst::unwindLabel>(ref<LabelRule>);
+      assign<&ast::CallInst::toLabel>(ref<Label>) + kw<"unwind"> +
+      assign<&ast::CallInst::unwindLabel>(ref<Label>);
   static constexpr auto CallBrInstBody =
       assign<&ast::CallInst::kind>(kw<"callbr">) +
-      option(assign<&ast::CallInst::callingConv>(ref<CallingConvRule>)) +
+      option(assign<&ast::CallInst::callingConv>(ref<CallingConv>)) +
       many(append<&ast::CallInst::returnAttrs>(ReturnAttribute)) +
       option(kw<"addrspace"> + lit<"("> +
              assign<&ast::CallInst::addrSpace>(ref<INT_LIT>) + lit<")">) +
-      assign<&ast::CallInst::type>(ref<TypeRule>) +
-      assign<&ast::CallInst::callee>(ref<ValueRule>) + lit<"("> +
+      assign<&ast::CallInst::type>(ref<Type>) +
+      assign<&ast::CallInst::callee>(ref<Value>) + lit<"("> +
       ArgList<&ast::CallInst::args> + lit<")"> +
       many(append<&ast::CallInst::funcAttrs>(FuncAttribute)) +
       Bundles<&ast::CallInst::bundles> + kw<"to"> +
-      assign<&ast::CallInst::toLabel>(ref<LabelRule>) + lit<"["> +
-      option(append<&ast::CallInst::indirectLabels>(ref<LabelRule>) +
-             many(lit<","> +
-                  append<&ast::CallInst::indirectLabels>(ref<LabelRule>))) +
+      assign<&ast::CallInst::toLabel>(ref<Label>) + lit<"["> +
+      option(some(append<&ast::CallInst::indirectLabels>(ref<Label>), lit<",">)) +
       lit<"]">;
 
-  struct DebugRecordRule
+  struct DebugRecord
       : rule<assign<&ast::DebugRecord::kind>(ref<DEBUG_RECORD>) + lit<"("> +
              many(append<&ast::DebugRecord::args>(NamedFieldValue), lit<",">) +
              lit<")">> {};
-  struct InstructionRule
+  struct Instruction
       : rule<many(append<&ast::Instruction::debugRecords>(
-                 ref<DebugRecordRule>)) +
+                 ref<DebugRecord>)) +
              option(assign<&ast::Instruction::result>(ref<LOCAL_IDENT>) +
                     lit<"=">) +
              (create<ast::GenericInst>(ValueInstructionAlt) |
@@ -993,9 +989,9 @@ struct LlvmIr : cursiv::GrammarSpec {
               create<ast::CallInst>(CallInstBody) |
               create<ast::GenericInst>(InstStore | InstFence)) +
              MdAttachments<&ast::Instruction::metadata>> {};
-  struct TerminatorRule
+  struct Terminator
       : rule<many(append<&ast::Instruction::debugRecords>(
-                 ref<DebugRecordRule>)) +
+                 ref<DebugRecord>)) +
              option(assign<&ast::Instruction::result>(ref<LOCAL_IDENT>) +
                     lit<"=">) +
              (create<ast::GenericInst>(CatchSwitchInstBody) |
@@ -1012,19 +1008,19 @@ struct LlvmIr : cursiv::GrammarSpec {
               create<ast::GenericInst>(UnreachableInstBody)) +
              MdAttachments<&ast::Instruction::metadata>> {};
 
-  struct BasicBlockRule
+  struct BasicBlock
       : rule<option(assign<&ast::BasicBlock::label>(ref<LABEL_IDENT>)) +
              many(
-                 append<&ast::BasicBlock::instructions>(ref<InstructionRule>)) +
-             assign<&ast::BasicBlock::terminator>(ref<TerminatorRule>)> {};
+                 append<&ast::BasicBlock::instructions>(ref<Instruction>)) +
+             assign<&ast::BasicBlock::terminator>(ref<Terminator>)> {};
 
-  struct UseListOrderRule
+  struct UseListOrder
       : rule<kw<"uselistorder"> +
-             assign<&ast::UseListOrder::value>(ref<TypedValueRule>) + lit<","> +
+             assign<&ast::UseListOrder::value>(ref<TypedValue>) + lit<","> +
              lit<"{"> +
              some(append<&ast::UseListOrder::order>(ref<INT_LIT>), lit<",">) +
              lit<"}">> {};
-  struct UseListOrderBBRule
+  struct UseListOrderBB
       : rule<kw<"uselistorder_bb"> +
              assign<&ast::UseListOrderBB::func>(ref<GLOBAL_IDENT>) + lit<","> +
              assign<&ast::UseListOrderBB::block>(ref<LOCAL_IDENT>) + lit<","> +
@@ -1032,11 +1028,11 @@ struct LlvmIr : cursiv::GrammarSpec {
              some(append<&ast::UseListOrderBB::order>(ref<INT_LIT>), lit<",">) +
              lit<"}">> {};
 
-  struct FuncBodyRule
+  struct FuncBody
       : rule<lit<"{"> +
-             some(append<&ast::FuncBody::blocks>(ref<BasicBlockRule>)) +
+             some(append<&ast::FuncBody::blocks>(ref<BasicBlock>)) +
              many(
-                 append<&ast::FuncBody::useListOrders>(ref<UseListOrderRule>)) +
+                 append<&ast::FuncBody::useListOrders>(ref<UseListOrder>)) +
              lit<"}">> {};
 
   // ================= Top level =================
@@ -1062,35 +1058,35 @@ struct LlvmIr : cursiv::GrammarSpec {
       option(flag<FlagMember>(kw<"thread_local">) +
              option(lit<"("> + assign<ModelMember>(TlsModelWord) + lit<")">));
 
-  struct SourceFilenameRule
+  struct SourceFilename
       : rule<kw<"source_filename"> + lit<"="> +
              assign<&ast::SourceFilename::text>(ref<STRING_LIT>)> {};
-  struct TargetDefRule
+  struct TargetDef
       : rule<(kw<"target"> + assign<&ast::TargetDef::kind>(kw<"datalayout">) +
               lit<"="> + assign<&ast::TargetDef::text>(ref<STRING_LIT>))  //
              | (kw<"target"> + assign<&ast::TargetDef::kind>(kw<"triple">) +
                 lit<"="> + assign<&ast::TargetDef::text>(ref<STRING_LIT>))> {};
-  struct AsmPropertyRule
+  struct AsmProperty
       : rule<assign<&ast::AsmProperty::name>(ref<FIELD_NAME>) +
              assign<&ast::AsmProperty::value>(ref<STRING_LIT>)> {};
-  struct ModuleAsmRule
+  struct ModuleAsm
       : rule<kw<"module"> + kw<"asm"> +
              option(
                  lit<"("> +
-                 many(append<&ast::ModuleAsm::properties>(ref<AsmPropertyRule>),
+                 many(append<&ast::ModuleAsm::properties>(ref<AsmProperty>),
                       lit<",">) +
                  lit<")">) +
              some(append<&ast::ModuleAsm::lines>(ref<STRING_LIT>))> {};
-  struct TypeDefRule
+  struct TypeDef
       : rule<assign<&ast::TypeDef::name>(ref<LOCAL_IDENT>) + lit<"="> +
-             kw<"type"> + assign<&ast::TypeDef::type>(ref<TypeRule>)> {};
-  struct ComdatDefRule : rule<assign<&ast::ComdatDef::name>(ref<COMDAT_NAME>) +
+             kw<"type"> + assign<&ast::TypeDef::type>(ref<Type>)> {};
+  struct ComdatDef : rule<assign<&ast::ComdatDef::name>(ref<COMDAT_NAME>) +
                               lit<"="> + kw<"comdat"> +
                               assign<&ast::ComdatDef::kind>(
                                   kw<"any"> | kw<"exactmatch"> | kw<"largest"> |
                                   kw<"nodeduplicate"> | kw<"samesize">)> {};
 
-  struct GlobalVarDeclRule
+  struct GlobalVarDecl
       : rule<assign<&ast::GlobalVar::name>(ref<GLOBAL_IDENT>) + lit<"="> +
              assign<&ast::GlobalVar::linkage>(ExternalLinkageWord) +
              option(assign<&ast::GlobalVar::preemption>(PreemptionWord)) +
@@ -1106,11 +1102,11 @@ struct LlvmIr : cursiv::GrammarSpec {
              option(flag<&ast::GlobalVar::externallyInitialized>(
                  kw<"externally_initialized">)) +
              assign<&ast::GlobalVar::immutable>(kw<"constant"> | kw<"global">) +
-             assign<&ast::GlobalVar::type>(ref<TypeRule>) +
+             assign<&ast::GlobalVar::type>(ref<Type>) +
              many(lit<","> + append<&ast::GlobalVar::fields>(GlobalField)) +
              MdAttachments<&ast::GlobalVar::metadata> +
              many(append<&ast::GlobalVar::funcAttrs>(FuncAttribute))> {};
-  struct GlobalVarDefRule
+  struct GlobalVarDef
       : rule<assign<&ast::GlobalVar::name>(ref<GLOBAL_IDENT>) + lit<"="> +
              option(assign<&ast::GlobalVar::linkage>(InternalLinkageWord)) +
              option(assign<&ast::GlobalVar::preemption>(PreemptionWord)) +
@@ -1126,13 +1122,13 @@ struct LlvmIr : cursiv::GrammarSpec {
              option(flag<&ast::GlobalVar::externallyInitialized>(
                  kw<"externally_initialized">)) +
              assign<&ast::GlobalVar::immutable>(kw<"constant"> | kw<"global">) +
-             assign<&ast::GlobalVar::type>(ref<TypeRule>) +
-             assign<&ast::GlobalVar::initializer>(ref<ConstantRule>) +
+             assign<&ast::GlobalVar::type>(ref<Type>) +
+             assign<&ast::GlobalVar::initializer>(ref<Constant>) +
              many(lit<","> + append<&ast::GlobalVar::fields>(GlobalField)) +
              MdAttachments<&ast::GlobalVar::metadata> +
              many(append<&ast::GlobalVar::funcAttrs>(FuncAttribute))> {};
 
-  struct IndirectSymbolRule
+  struct IndirectSymbol
       : rule<assign<&ast::IndirectSymbol::name>(ref<GLOBAL_IDENT>) + lit<"="> +
              option(assign<&ast::IndirectSymbol::linkage>(LinkageWord)) +
              option(assign<&ast::IndirectSymbol::preemption>(PreemptionWord)) +
@@ -1144,88 +1140,88 @@ struct LlvmIr : cursiv::GrammarSpec {
              option(
                  assign<&ast::IndirectSymbol::unnamedAddr>(UnnamedAddrWord)) +
              assign<&ast::IndirectSymbol::kind>(kw<"alias"> | kw<"ifunc">) +
-             assign<&ast::IndirectSymbol::type>(ref<TypeRule>) + lit<","> +
-             assign<&ast::IndirectSymbol::target>(ref<TypedValueRule> |
+             assign<&ast::IndirectSymbol::type>(ref<Type>) + lit<","> +
+             assign<&ast::IndirectSymbol::target>(ref<TypedValue> |
                                                   ConstantExprAlt) +
              many(lit<","> + kw<"partition"> +
                   append<&ast::IndirectSymbol::partitions>(ref<STRING_LIT>)) +
              MdAttachments<&ast::IndirectSymbol::metadata>> {};
 
-  struct FuncHeaderRule
+  struct FuncHeader
       : rule<option(assign<&ast::FuncHeader::linkage>(LinkageWord)) +
              option(assign<&ast::FuncHeader::preemption>(PreemptionWord)) +
              option(assign<&ast::FuncHeader::visibility>(VisibilityWord)) +
              option(assign<&ast::FuncHeader::dllStorageClass>(
                  DllStorageClassWord)) +
              option(
-                 assign<&ast::FuncHeader::callingConv>(ref<CallingConvRule>)) +
+                 assign<&ast::FuncHeader::callingConv>(ref<CallingConv>)) +
              many(append<&ast::FuncHeader::returnAttrs>(ReturnAttribute)) +
-             assign<&ast::FuncHeader::returnType>(ref<TypeRule>) +
+             assign<&ast::FuncHeader::returnType>(ref<Type>) +
              assign<&ast::FuncHeader::name>(ref<GLOBAL_IDENT>) + lit<"("> +
-             assign<&ast::FuncHeader::params>(ref<ParamsRule>) + lit<")"> +
+             assign<&ast::FuncHeader::params>(ref<Params>) + lit<")"> +
              option(assign<&ast::FuncHeader::unnamedAddr>(UnnamedAddrWord)) +
              option(kw<"addrspace"> + lit<"("> +
                     assign<&ast::FuncHeader::addrSpace>(ref<INT_LIT>) +
                     lit<")">) +
              many(append<&ast::FuncHeader::fields>(FuncHdrField))> {};
 
-  struct FuncDeclRule
+  struct FuncDecl
       : rule<kw<"declare"> +
-             many(append<&ast::FuncDecl::metadata>(ref<MdAttachmentRule>)) +
-             assign<&ast::FuncDecl::header>(ref<FuncHeaderRule>)> {};
-  struct FuncDefRule
-      : rule<kw<"define"> + assign<&ast::FuncDef::header>(ref<FuncHeaderRule>) +
-             many(append<&ast::FuncDef::metadata>(ref<MdAttachmentRule>)) +
-             assign<&ast::FuncDef::body>(ref<FuncBodyRule>)> {};
+             many(append<&ast::FuncDecl::metadata>(ref<MdAttachment>)) +
+             assign<&ast::FuncDecl::header>(ref<FuncHeader>)> {};
+  struct FuncDef
+      : rule<kw<"define"> + assign<&ast::FuncDef::header>(ref<FuncHeader>) +
+             many(append<&ast::FuncDef::metadata>(ref<MdAttachment>)) +
+             assign<&ast::FuncDef::body>(ref<FuncBody>)> {};
 
-  struct AttrGroupDefRule
+  struct AttrGroupDef
       : rule<kw<"attributes"> +
              assign<&ast::AttrGroupDef::id>(ref<ATTR_GROUP_ID>) + lit<"="> +
              lit<"{"> + many(append<&ast::AttrGroupDef::attrs>(FuncAttribute)) +
              lit<"}">> {};
 
-  struct NamedMetadataDefRule
+  struct NamedMetadataDef
       : rule<assign<&ast::NamedMetadataDef::name>(ref<METADATA_NAME>) +
              lit<"="> + lit<"!"> + lit<"{"> +
              many(append<&ast::NamedMetadataDef::nodes>(MdNode), lit<",">) +
              lit<"}">> {};
-  struct MetadataDefRule
+  struct MetadataDef
       : rule<assign<&ast::MetadataDef::id>(ref<METADATA_ID>) + lit<"="> +
              option(flag<&ast::MetadataDef::distinct>(kw<"distinct">)) +
-             assign<&ast::MetadataDef::value>(ref<MdTupleRule> |
-                                              ref<SpecializedMdNodeRule>)> {};
+             assign<&ast::MetadataDef::value>(ref<MdTuple> |
+                                              ref<SpecializedMdNode>)> {};
 
-  struct SummaryValueRule;
-  struct SummaryFieldRule
+  struct SummaryValue;
+  struct SummaryField
       : rule<assign<&ast::SummaryField::name>(ref<WORD>) + lit<":"> +
-             assign<&ast::SummaryField::value>(ref<SummaryValueRule>)> {};
-  struct SummaryValueRule
+             assign<&ast::SummaryField::value>(ref<SummaryValue>)> {};
+  struct SummaryValue
       : rule<create<ast::SummaryValue> +
              ((flag<&ast::SummaryValue::grouped>(lit<"(">) +
-               many(append<&ast::SummaryValue::elements>(ref<SummaryFieldRule> |
-                                                         ref<SummaryValueRule>),
+               many(append<&ast::SummaryValue::elements>(ref<SummaryField> |
+                                                         ref<SummaryValue>),
                     lit<",">) +
                lit<")">) |
               some(append<&ast::SummaryValue::atoms>(
                   ref<WORD> | ref<INT_LIT> | ref<STRING_LIT> | ref<SUMMARY_ID> |
                   ref<GLOBAL_IDENT> | ref<LOCAL_IDENT>)))> {};
-  struct SummaryEntryRule
+  struct SummaryEntry
       : rule<assign<&ast::SummaryEntry::id>(ref<SUMMARY_ID>) + lit<"="> +
-             assign<&ast::SummaryEntry::definition>(ref<SummaryFieldRule>)> {};
+             assign<&ast::SummaryEntry::definition>(ref<SummaryField>)> {};
   static constexpr auto TopLevelEntityAlt =
-      ref<SummaryEntryRule> | ref<SourceFilenameRule> | ref<TargetDefRule> |
-      ref<ModuleAsmRule> | ref<TypeDefRule> | ref<ComdatDefRule> |
-      ref<GlobalVarDeclRule> | ref<GlobalVarDefRule> | ref<IndirectSymbolRule> |
-      ref<FuncDeclRule> | ref<FuncDefRule> | ref<AttrGroupDefRule> |
-      ref<NamedMetadataDefRule> | ref<MetadataDefRule> | ref<UseListOrderRule> |
-      ref<UseListOrderBBRule>;
+      ref<SummaryEntry> | ref<SourceFilename> | ref<TargetDef> |
+      ref<ModuleAsm> | ref<TypeDef> | ref<ComdatDef> |
+      ref<GlobalVarDecl> | ref<GlobalVarDef> | ref<IndirectSymbol> |
+      ref<FuncDecl> | ref<FuncDef> | ref<AttrGroupDef> |
+      ref<NamedMetadataDef> | ref<MetadataDef> | ref<UseListOrder> |
+      ref<UseListOrderBB>;
 
-  struct ModuleRule
+  struct Module
       : rule<create<ast::Module> +
              many(append<&ast::Module::entities>(TopLevelEntityAlt))> {};
 
-  using entry = ModuleRule;
-  using ignore = WS;
+  using entry = Module;
+  using ignored = WS;
   using hidden = list<COMMENT, BLOCK_COMMENT>;
 };
 

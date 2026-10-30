@@ -20,6 +20,29 @@ inline void dgs_regressions() {
                               graphstreamdgs::GraphstreamDgsSharedCoreServices,
                               graphstreamdgs::install_core_module>();
   const auto& services = language.language;
+  for (const auto source : {
+           "DGS004\nh\nan n value:1e3\n", "DGS004\nh\nan n value:12x\n",
+           "DGS004\nh\nan n value:-word\n", "DGS004\nh\nst Infinityf\n",
+           "DGS004\nh\nst NaNd\n"}) {
+    const auto result = services.parser->parse(source);
+    CHECK(!result.accepted || result.cst().recovered() || !result.diagnostics.empty());
+  }
+  {
+    const std::string source = "DGS004\nh\nan n text:.5 plus:+12 real:-.5\nst +Infinity\n";
+    const auto result = services.parser->parse(source);
+    const auto* root = result.value_as<ast::Document>();
+    const auto* add = root && root->events.size() == 2 ? cursiv::ast_cast<ast::AddNode>(root->events[0]) : nullptr;
+    CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
+    CHECK(add && add->attributes.size() == 3);
+    if (add && add->attributes.size() == 3 &&
+        add->attributes[0]->values.size() == 1 && add->attributes[1]->values.size() == 1 &&
+        add->attributes[2]->values.size() == 1) {
+      const auto* dot = std::get_if<std::string_view>(&add->attributes[0]->values[0]);
+      const auto* plus = std::get_if<std::string_view>(&add->attributes[1]->values[0]);
+      const auto* real = std::get_if<double>(&add->attributes[2]->values[0]);
+      CHECK(dot && *dot == ".5" && plus && *plus == "+12" && real && *real == -.5);
+    }
+  }
   {
     const std::string source =
         "DGS004\n  raw 00 header  \nAN 001 bool:TRUE quoted:\"true\" num:001 "

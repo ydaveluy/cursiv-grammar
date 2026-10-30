@@ -31,18 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-CTL — [Computation Tree Logic](https://en.wikipedia.org/wiki/Computation_tree_logic)
-— is one formula per document: an atomic proposition, the path quantifiers
-`A`/`E` paired with a temporal modality `X`/`F`/`G` or an `U`ntil bracket, the
-connectives `∧ ∨ ⇒ ⇔`, `⌐` for negation, and `⊤`/`⊥` for top and bottom.
+Computation Tree Logic formulas combine atomic propositions, Boolean operators and quantified temporal modalities.
 
 ```
 EF (EG p ⇒ AF r)
 ```
-
-Read outside in: `EF X` — some path eventually reaches a state where `X`
-holds; `X` is `EG p ⇒ AF r` — if some path can sustain `p` forever from there,
-then `r` inevitably holds, eventually, on every path.
 
 ## The command line
 

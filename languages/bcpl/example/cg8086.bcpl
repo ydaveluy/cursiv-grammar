@@ -2546,7 +2546,7 @@ AND cgname(op,n) BE
  /*3032>*/
  /*<8086
    LET ASTAR, ASPACE = '**', '*S'
- /*8086>*/
+ 8086>*/
     putbyte(v, 0, op=s_entry->7, 17)
     FOR i = 1 TO 9 DO putbyte(v,i+8,getbyte(datvec,i)) // DATE
     FOR i=1 TO n DO
@@ -2734,7 +2734,7 @@ LET outputsection() BE
 /*3032>*/
 /*<8086
       MWRITEWORDS(STV, (STVP+1)>>1)
-/*8086>*/
+8086>*/
        IF r>0 DO               // OUTPUT RELOCB BLOCK
        { objword(t_relocb)
           objword(r)
@@ -2755,7 +2755,7 @@ AND MWRITEWORDS(V, N) BE
     V!I := ((V!I)<<8) | ((V!I)>>8)
   WRITEWORDS(V, N)
 }
- /*8086>*/
+ 8086>*/
  
 //*<3032
 AND askii(c) = c
@@ -2783,7 +2783,7 @@ AND objword(w) BE
  
 /*<8086
 AND OBJWORD(W) BE WRITEWORDS(@W, 1)
-/*8086>*/
+8086>*/
  
  
  

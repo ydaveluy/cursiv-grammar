@@ -278,6 +278,7 @@ struct ThrowExpr : cursiv::Extends<Expr> {
 
 // `type identifier`, e.g. `out int x` (Source: 12.19).
 struct DeclarationExpr : cursiv::Extends<Expr> {
+  boolean scoped = false;
   Type* typeRef;
   string_view name;
 };
@@ -304,6 +305,7 @@ struct LambdaExpr : cursiv::Extends<Expr> {
 };
 
 struct AnonymousMethodExpr : cursiv::Extends<Expr> {
+  boolean isStatic = false;
   boolean isAsync = false;
   boolean hasParamList = false;
   vector<Param*> params;
@@ -334,6 +336,10 @@ struct QueryExpr : cursiv::Extends<Expr> {
   vector<QueryClause*> clauses;
 };
 
+struct DeconstructionExpr : cursiv::Extends<Expr> {
+  Designation* designation;
+};
+
 struct AssignExpr : cursiv::Extends<Expr> {
   Expr* target;
   string_view op;
@@ -344,6 +350,7 @@ struct AssignExpr : cursiv::Extends<Expr> {
 // `{ }`-initializers: an object initializer's members, or (reused for
 // collection/array/stackalloc initializers) a flat expression list.
 struct ObjectInitMember : cursiv::Extends<cursiv::AstNode> {
+  boolean isRef = false;
   string_view name;
   vector<Argument*> indexArgs;
   Expr* value;
@@ -417,9 +424,11 @@ struct DefaultExpr : cursiv::Extends<Expr> {
   Type* typeRef;
 };
 
-// `nameof(...)`: the named entity kept as the raw text it spans.
+// `nameof(...)`: simple/unbound names retain text; a closed generic or
+// alias-qualified entity retains its structured expression in target.
 struct NameofExpr : cursiv::Extends<Expr> {
   string_view text;
+  Expr* target;
 };
 
 struct StackallocExpr : cursiv::Extends<Expr> {
@@ -451,6 +460,7 @@ struct LabeledStmt : cursiv::Extends<Stmt> {
 };
 
 struct LocalVarDeclStmt : cursiv::Extends<Stmt> {
+  boolean scoped = false;
   boolean isVar = false;
   string_view refKind;
   Type* typeRef;
@@ -463,6 +473,7 @@ struct LocalConstDeclStmt : cursiv::Extends<Stmt> {
 };
 
 struct LocalFunctionDeclStmt : cursiv::Extends<Stmt> {
+  vector<Attribute*> attributes;
   vector<string_view> modifiers;
   string_view refKind;
   Type* returnType;
@@ -530,6 +541,8 @@ struct ForStmt : cursiv::Extends<Stmt> {
 };
 
 struct ForeachStmt : cursiv::Extends<Stmt> {
+  boolean scoped = false;
+  Expr* deconstructExpression;
   boolean isAwait = false;
   string_view refKind;
   boolean isVar = false;
@@ -613,6 +626,7 @@ struct Member : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct FieldDecl : cursiv::Extends<Member> {
+  string_view refKind;
   Type* typeRef;
   vector<Declarator*> declarators;
 };
@@ -633,6 +647,7 @@ struct Accessor : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct PropertyDecl : cursiv::Extends<Member> {
+  boolean isRefBody = false;
   string_view refKind;
   Type* typeRef;
   string_view name;
@@ -643,6 +658,7 @@ struct PropertyDecl : cursiv::Extends<Member> {
 };
 
 struct IndexerDecl : cursiv::Extends<Member> {
+  boolean isRefBody = false;
   string_view refKind;
   Type* typeRef;
   Type* explicitInterface;

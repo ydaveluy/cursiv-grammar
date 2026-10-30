@@ -41,7 +41,8 @@ omitted, meaning one — `d6` and `1d6` are the same roll); `+ - * /` combine
 rolls and plain numbers, `*` and `/` binding tighter than `+` and `-`;
 parentheses group. A leading sign belongs to the term it starts, not to a
 separate unary operator, so two can stand side by side: `1--1` is `1 - (-1)`.
-A literal space is refused everywhere — only tab, CR and LF separate tokens.
+Space, tab, CR and LF separate tokens. Literal space is an extension of the
+archived source lexer, which skipped only tab/CR/LF.
 
 ## The command line
 

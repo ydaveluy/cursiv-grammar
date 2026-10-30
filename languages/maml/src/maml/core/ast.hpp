@@ -4,6 +4,7 @@
 #pragma once
 
 #include <string_view>
+#include <cstdint>
 #include <variant>
 
 #include "cursiv/core/syntax-tree/AstNode.hpp"
@@ -14,7 +15,7 @@ struct Value : cursiv::Extends<cursiv::AstNode> {};
 
 struct Member;
 
-using Val = std::variant<std::monostate, bool, double, std::string_view, Value*>;
+using Val = std::variant<std::monostate, bool, std::int64_t, double, std::string_view, Value*>;
 
 struct Object : cursiv::Extends<Value> {
   vector<Member*> members;

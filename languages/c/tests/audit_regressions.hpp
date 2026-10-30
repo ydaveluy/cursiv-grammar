@@ -145,6 +145,40 @@ inline bool run() {
               declaration->declarators[0]->declarator->name == "value",
           "qualifiers may separate builtin type specifiers");
   }
+  {
+    const auto result = parser->parse(
+        "int a<:3:>; void proto(int a<:*:>); "
+        "int choose(int x) <% return __builtin_choose_expr(1+1,x+2,(int)0); %>");
+    const auto* unit = as<ast::TranslationUnit>(result.value);
+    const auto* prototype = unit && unit->items.size() == 3
+                                ? as<ast::Declaration>(unit->items[1]) : nullptr;
+    const auto* function = unit && unit->items.size() == 3
+                               ? as<ast::FunctionDef>(unit->items[2]) : nullptr;
+    const auto* suffix = prototype && prototype->declarators.size() == 1 &&
+                                 prototype->declarators[0]->declarator->suffixes.size() == 1
+                             ? as<ast::FunctionSuffix>(prototype->declarators[0]->declarator->suffixes[0])
+                             : nullptr;
+    const auto* array = suffix && suffix->params.size() == 1 &&
+                               suffix->params[0]->declarator &&
+                               suffix->params[0]->declarator->suffixes.size() == 1
+                           ? as<ast::ArraySuffix>(suffix->params[0]->declarator->suffixes[0])
+                           : nullptr;
+    const auto* statement = function && function->body && function->body->items.size() == 1
+                               ? as<ast::ReturnStmt>(function->body->items[0]) : nullptr;
+    const auto* builtin = statement ? as<ast::BuiltinExpr>(statement->value) : nullptr;
+    check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
+              array && array->isStar && !array->size && builtin && builtin->args.size() == 3 &&
+              as<ast::BinaryExpr>(builtin->args[0]) &&
+              as<ast::BinaryExpr>(builtin->args[1]) && as<ast::CastExpr>(builtin->args[2]),
+          "digraphs, starred array type and GNU expression operands retain their AST");
+  }
+  for (const auto source : {
+           "void f(void) { switch(0) { case 0: default: } }",
+           "typedef int T; void f(void) { label: T x; switch(0) { case 0: T y; default: } }"}) {
+    const auto result = parser->parse(source);
+    check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
+          "C23 case/default and typedef-adjacent labels may stand before declarations or block end");
+  }
   return ok;
 }
 } // namespace audit_regressions

@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Classic Quake1 MAP text: entities contain properties and brushes, with three points and five texture-alignment values per plane.
+
 ```
 {
 "classname" "info_player_start"
@@ -41,12 +43,6 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 }
 }
 ```
-
-A [Quake map](https://quakewiki.org/wiki/Quake_Map_Format) is a list of
-entities. Each entity is a `"key" "value"` string pair list (its properties)
-followed by zero or more brushes — the convex solids that carve its geometry.
-A brush is one or more planes: three points, a texture name, then the
-texture's alignment numbers.
 
 ## The command line
 

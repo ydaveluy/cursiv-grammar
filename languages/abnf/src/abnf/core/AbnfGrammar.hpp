@@ -18,33 +18,33 @@ struct Abnf : cursiv::GrammarSpec {
                  many(cr<".-"> + some(cr<"0-9a-fA-F">))> {};
   struct ProseValue : terminal<lit<"<"> + many(cr<"^>">) + lit<">">> {};
 
-  struct ElementRule;
-  struct RepetitionRule
+  struct Element;
+  struct Repetition
       : rule<option((option(assign<&ast::Repetition::min>(ref<INT>)) +
                      flag<&ast::Repetition::hasStar>(lit<"*">) +
                      option(assign<&ast::Repetition::max>(ref<INT>))) |
                     assign<&ast::Repetition::exact>(ref<INT>)) +
-             assign<&ast::Repetition::element>(ref<ElementRule>)> {};
-  struct ConcatenationRule
-      : rule<some(append<&ast::Concatenation::repetitions>(ref<RepetitionRule>))> {};
-  struct AlternationRule
-      : rule<some(append<&ast::Alternation::concatenations>(ref<ConcatenationRule>),
+             assign<&ast::Repetition::element>(ref<Element>)> {};
+  struct Concatenation
+      : rule<some(append<&ast::Concatenation::repetitions>(ref<Repetition>))> {};
+  struct Alternation
+      : rule<some(append<&ast::Alternation::concatenations>(ref<Concatenation>),
                   lit<"/">)> {};
-  struct ElementRule
+  struct Element
       : rule<assign<&ast::RuleRef::name>(ref<ID>) |
-             (lit<"("> + assign<&ast::Group::alt>(ref<AlternationRule>) + lit<")">) |
-             (lit<"["> + assign<&ast::OptionElem::alt>(ref<AlternationRule>) + lit<"]">) |
+             (lit<"("> + assign<&ast::Group::alt>(ref<Alternation>) + lit<")">) |
+             (lit<"["> + assign<&ast::OptionElem::alt>(ref<Alternation>) + lit<"]">) |
              assign<&ast::CharVal::text>(ref<STRING>) |
              assign<&ast::NumVal::text>(ref<NumberValue>) |
              assign<&ast::ProseVal::text>(ref<ProseValue>)> {};
-  struct RuleRule
+  struct Rule
       : rule<assign<&ast::Rule::name>(ref<ID>) +
              (flag<&ast::Rule::incremental>(lit<"=/">) | lit<"=">) +
-             assign<&ast::Rule::elements>(ref<AlternationRule>)> {};
-  struct RulelistRule : rule<many(append<&ast::Rulelist::rules>(ref<RuleRule>))> {};
+             assign<&ast::Rule::elements>(ref<Alternation>)> {};
+  struct Rulelist : rule<many(append<&ast::Rulelist::rules>(ref<Rule>))> {};
 
-  using entry = RulelistRule;
-  using ignore = WS;
+  using entry = Rulelist;
+  using ignored = WS;
   using hidden = COMMENT;
 };
 

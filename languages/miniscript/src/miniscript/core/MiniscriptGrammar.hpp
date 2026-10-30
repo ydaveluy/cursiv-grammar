@@ -8,220 +8,128 @@ namespace miniscript {
 inline constexpr auto strip_colon = [](std::string_view t) {
   return t.substr(0, t.size() - 1);
 };
-using Wrappers = cursiv::text_conv<strip_colon>;
 
 struct Miniscript : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
 
-  // Every keyword also names an opaque key (reservedKeyWord): each is a
-  // plain text terminal, referenced both as a tag below and directly as a
-  // key spelling.
-  struct PK : terminal<kw<"pk">> {};
-  struct PKH : terminal<kw<"pkh">> {};
-  struct PK_K : terminal<kw<"pk_k">> {};
-  struct PK_H : terminal<kw<"pk_h">> {};
-  struct OLDER : terminal<kw<"older">> {};
-  struct AFTER : terminal<kw<"after">> {};
-  struct SHA256 : terminal<kw<"sha256">> {};
-  struct HASH256 : terminal<kw<"hash256">> {};
-  struct HASH160 : terminal<kw<"hash160">> {};
-  struct RIPEMD160 : terminal<kw<"ripemd160">> {};
-  struct MULTI : terminal<kw<"multi">> {};
-  struct MULTI_A : terminal<kw<"multi_a">> {};
-  struct AND_V : terminal<kw<"and_v">> {};
-  struct AND_B : terminal<kw<"and_b">> {};
-  struct AND_N : terminal<kw<"and_n">> {};
-  struct OR_B : terminal<kw<"or_b">> {};
-  struct OR_C : terminal<kw<"or_c">> {};
-  struct OR_D : terminal<kw<"or_d">> {};
-  struct OR_I : terminal<kw<"or_i">> {};
-  struct ANDOR : terminal<kw<"andor">> {};
-  struct THRESH : terminal<kw<"thresh">> {};
-
-  struct PkTag : rule<ref<PK>, value<ast::KeyOp::pk>> {};
-  struct PkhTag : rule<ref<PKH>, value<ast::KeyOp::pkh>> {};
-  struct PkKTag : rule<ref<PK_K>, value<ast::KeyOp::pk_k>> {};
-  struct PkHTag : rule<ref<PK_H>, value<ast::KeyOp::pk_h>> {};
-
-  struct OlderTag : rule<ref<OLDER>, value<ast::TimeOp::older>> {};
-  struct AfterTag : rule<ref<AFTER>, value<ast::TimeOp::after>> {};
-
-  struct Sha256Tag : rule<ref<SHA256>, value<ast::HashOp::sha256>> {};
-  struct Hash256Tag : rule<ref<HASH256>, value<ast::HashOp::hash256>> {};
-  struct Hash160Tag : rule<ref<HASH160>, value<ast::HashOp::hash160>> {};
-  struct Ripemd160Tag
-      : rule<ref<RIPEMD160>, value<ast::HashOp::ripemd160>> {};
-
-  struct AndVTag : rule<ref<AND_V>, value<ast::BinOp::and_v>> {};
-  struct AndBTag : rule<ref<AND_B>, value<ast::BinOp::and_b>> {};
-  struct AndNTag : rule<ref<AND_N>, value<ast::BinOp::and_n>> {};
-  struct OrBTag : rule<ref<OR_B>, value<ast::BinOp::or_b>> {};
-  struct OrCTag : rule<ref<OR_C>, value<ast::BinOp::or_c>> {};
-  struct OrDTag : rule<ref<OR_D>, value<ast::BinOp::or_d>> {};
-  struct OrITag : rule<ref<OR_I>, value<ast::BinOp::or_i>> {};
-
-  // Fixed-width hex/decimal payloads. HEX32_BYTES/HEX20_BYTES are hex; an
-  // argument that happens to be all-digits lexes as DIGITS_64/DIGITS_40
-  // instead, so every rule that reads a hash or a key admits both kinds.
+  struct INTEGER : terminal<some(d)> {};
   static constexpr auto hex = cr<"0-9a-fA-F">;
-  static constexpr auto digit = cr<"0-9">;
-  static constexpr auto non_zero_digit = cr<"1-9">;
+  struct HASH32 : terminal<repeat<64>(hex)> {};
+  struct HASH20 : terminal<repeat<40>(hex)> {};
 
-  struct COMPRESSED_PUBLIC_KEY
-      : terminal<(lit<"02"> | lit<"03">) + repeat<64>(hex)> {};
-  struct HEX32_BYTES : terminal<repeat<64>(hex)> {};
-  struct HEX20_BYTES : terminal<repeat<40>(hex)> {};
-  struct DIGITS_64
-      : terminal<non_zero_digit + repeat<63>(digit)> {};
-  struct DIGITS_40
-      : terminal<non_zero_digit + repeat<39>(digit)> {};
-  struct ZERO : terminal<lit<"0">> {};
-  struct ONE : terminal<lit<"1">> {};
-  struct POSITIVE_INTEGER
-      : terminal<(cr<"2-9"> + many(digit)) | (lit<"1"> + some(digit))> {};
-
-  // Opaque key text: hex keys, xpubs with origins and derivation paths,
-  // symbolic names -- validating a BIP-380 shape is left downstream.
+  // Keys remain opaque, including descriptor origins and derivation paths.
+  // Keywords are contextual, so pk(pk) needs no duplicate keyword grammar.
   struct KEY : terminal<some(cr<"A-Za-z0-9_./*'[]<>;-">)> {};
-
   struct WRAPPER_SEQUENCE
-      : terminal<some(cr<"acdtvjnlsu">) + lit<":">, Wrappers> {};
+      : terminal<as<strip_colon>(some(cr<"acdtvjnlsu">) + lit<":">)> {};
 
-  struct ReservedKeyWordRule
-      : rule<ref<PK> | ref<PKH> | ref<PK_K> | ref<PK_H> | ref<OLDER> |
-             ref<AFTER> | ref<SHA256> | ref<HASH256> | ref<HASH160> |
-             ref<RIPEMD160> | ref<MULTI> | ref<MULTI_A> | ref<AND_V> |
-             ref<AND_B> | ref<AND_N> | ref<OR_B> | ref<OR_C> | ref<OR_D> |
-             ref<OR_I> | ref<ANDOR> | ref<THRESH>> {};
+  struct Expression;
+  struct BaseExpression;
 
-  struct KeyRule
-      : rule<ref<COMPRESSED_PUBLIC_KEY> | ref<HEX32_BYTES> |
-             ref<HEX20_BYTES> | ref<DIGITS_64> | ref<DIGITS_40> | ref<KEY> |
-             ref<ZERO> | ref<ONE> | ref<POSITIVE_INTEGER> |
-             ref<ReservedKeyWordRule>> {};
-
-  // DIGITS_64/DIGITS_40 double as ordinary (very large) decimal integers.
-  struct PositiveIntegerRule
-      : rule<ref<ONE> | ref<DIGITS_64> | ref<DIGITS_40> |
-             ref<POSITIVE_INTEGER>> {};
-
-  struct Hash32Rule : rule<ref<HEX32_BYTES> | ref<DIGITS_64>> {};
-  struct Hash20Rule : rule<ref<HEX20_BYTES> | ref<DIGITS_40>> {};
-
-  struct ExpressionRule;
-  struct BaseExpressionRule;
-
-  struct ConstantRule
+  struct Constant
       : rule<create<ast::Constant>(
-                 assign<&ast::Constant::value>(ref<ZERO> | ref<ONE>))> {};
+                 assign<&ast::Constant::value>(lit<"0"> | lit<"1">))> {};
 
-  struct KeyExpressionRule
+  struct KeyExpression
       : rule<create<ast::KeyExpression>(
-                 assign<&ast::KeyExpression::op>(ref<PkTag> | ref<PkhTag> |
-                                                  ref<PkKTag> | ref<PkHTag>) +
+                 assign<&ast::KeyExpression::op>(as<ast::KeyOp::pk>(kw<"pk">) | as<ast::KeyOp::pkh>(kw<"pkh">) |
+                                                  as<ast::KeyOp::pk_k>(kw<"pk_k">) | as<ast::KeyOp::pk_h>(kw<"pk_h">)) +
                  lit<"("> +
-                 assign<&ast::KeyExpression::key>(ref<KeyRule>) +
+                 assign<&ast::KeyExpression::key>(ref<KEY>) +
                  lit<")">)> {};
 
-  struct TimeExpressionRule
+  struct TimeExpression
       : rule<create<ast::TimeExpression>(
-                 assign<&ast::TimeExpression::op>(ref<OlderTag> |
-                                                   ref<AfterTag>) +
+                 assign<&ast::TimeExpression::op>(as<ast::TimeOp::older>(kw<"older">) |
+                                                   as<ast::TimeOp::after>(kw<"after">)) +
                  lit<"("> +
-                 assign<&ast::TimeExpression::value>(ref<PositiveIntegerRule>) +
+                 assign<&ast::TimeExpression::value>(ref<INTEGER>) +
                  lit<")">)> {};
 
-  struct HashExpressionRule
+  struct HashExpression
       : rule<create<ast::HashExpression>(
-                 (assign<&ast::HashExpression::op>(ref<Sha256Tag>) +
+                 (assign<&ast::HashExpression::op>(as<ast::HashOp::sha256>(kw<"sha256">)) +
                   lit<"("> +
-                  assign<&ast::HashExpression::hash>(ref<Hash32Rule>) +
+                  assign<&ast::HashExpression::hash>(ref<HASH32>) +
                   lit<")">) |
-                 (assign<&ast::HashExpression::op>(ref<Hash256Tag>) +
+                 (assign<&ast::HashExpression::op>(as<ast::HashOp::hash256>(kw<"hash256">)) +
                   lit<"("> +
-                  assign<&ast::HashExpression::hash>(ref<Hash32Rule>) +
+                  assign<&ast::HashExpression::hash>(ref<HASH32>) +
                   lit<")">) |
-                 (assign<&ast::HashExpression::op>(ref<Hash160Tag>) +
+                 (assign<&ast::HashExpression::op>(as<ast::HashOp::hash160>(kw<"hash160">)) +
                   lit<"("> +
-                  assign<&ast::HashExpression::hash>(ref<Hash20Rule>) +
+                  assign<&ast::HashExpression::hash>(ref<HASH20>) +
                   lit<")">) |
-                 (assign<&ast::HashExpression::op>(ref<Ripemd160Tag>) +
+                 (assign<&ast::HashExpression::op>(as<ast::HashOp::ripemd160>(kw<"ripemd160">)) +
                   lit<"("> +
-                  assign<&ast::HashExpression::hash>(ref<Hash20Rule>) +
+                  assign<&ast::HashExpression::hash>(ref<HASH20>) +
                   lit<")">))> {};
 
   // Key cardinality is checked after parsing; both forms preserve every key.
-  struct MultisigExpressionRule
+  struct MultisigExpression
       : rule<create<ast::MultisigExpression>(
-            (ref<MULTI> + lit<"("> +
-             assign<&ast::MultisigExpression::threshold>(
-                 ref<PositiveIntegerRule>) +
-             lit<","> + append<&ast::MultisigExpression::keys>(ref<KeyRule>) +
-             many(lit<","> +
-                  append<&ast::MultisigExpression::keys>(ref<KeyRule>)) +
-             lit<")">) |
-            (flag<&ast::MultisigExpression::isMultiA>(ref<MULTI_A>) +
+            (kw<"multi"> | flag<&ast::MultisigExpression::isMultiA>(kw<"multi_a">)) +
              lit<"("> +
              assign<&ast::MultisigExpression::threshold>(
-                 ref<PositiveIntegerRule>) +
+                 ref<INTEGER>) +
              lit<","> +
-             some(append<&ast::MultisigExpression::keys>(ref<KeyRule>),
+             some(append<&ast::MultisigExpression::keys>(ref<KEY>),
                   lit<",">) +
-             lit<")">))> {};
+             lit<")">)> {};
 
-  struct BinaryExpressionRule
+  struct BinaryExpression
       : rule<create<ast::BinaryExpression>(
                  assign<&ast::BinaryExpression::op>(
-                     ref<AndVTag> | ref<AndBTag> | ref<AndNTag> |
-                     ref<OrBTag> | ref<OrCTag> | ref<OrDTag> | ref<OrITag>) +
+                     as<ast::BinOp::and_v>(kw<"and_v">) | as<ast::BinOp::and_b>(kw<"and_b">) | as<ast::BinOp::and_n>(kw<"and_n">) |
+                     as<ast::BinOp::or_b>(kw<"or_b">) | as<ast::BinOp::or_c>(kw<"or_c">) | as<ast::BinOp::or_d>(kw<"or_d">) | as<ast::BinOp::or_i>(kw<"or_i">)) +
                  lit<"("> +
-                 assign<&ast::BinaryExpression::left>(ref<ExpressionRule>) +
+                 assign<&ast::BinaryExpression::left>(ref<Expression>) +
                  lit<","> +
-                 assign<&ast::BinaryExpression::right>(ref<ExpressionRule>) +
+                 assign<&ast::BinaryExpression::right>(ref<Expression>) +
                  lit<")">)> {};
 
-  struct TernaryExpressionRule
+  struct TernaryExpression
       : rule<create<ast::TernaryExpression>(
-                 ref<ANDOR> + lit<"("> +
-                 assign<&ast::TernaryExpression::a>(ref<ExpressionRule>) +
+                 kw<"andor"> + lit<"("> +
+                 assign<&ast::TernaryExpression::a>(ref<Expression>) +
                  lit<","> +
-                 assign<&ast::TernaryExpression::b>(ref<ExpressionRule>) +
+                 assign<&ast::TernaryExpression::b>(ref<Expression>) +
                  lit<","> +
-                 assign<&ast::TernaryExpression::c>(ref<ExpressionRule>) +
+                 assign<&ast::TernaryExpression::c>(ref<Expression>) +
                  lit<")">)> {};
 
-  struct ThresholdExpressionRule
+  struct ThresholdExpression
       : rule<create<ast::ThresholdExpression>(
-                 ref<THRESH> + lit<"("> +
+                 kw<"thresh"> + lit<"("> +
                  assign<&ast::ThresholdExpression::threshold>(
-                     ref<PositiveIntegerRule>) +
+                     ref<INTEGER>) +
                  lit<","> +
                  some(append<&ast::ThresholdExpression::expressions>(
-                          ref<ExpressionRule>),
+                          ref<Expression>),
                       lit<",">) +
                  lit<")">)> {};
 
-  struct BaseExpressionRule
-      : rule<ref<ConstantRule> | ref<KeyExpressionRule> |
-             ref<TimeExpressionRule> | ref<HashExpressionRule> |
-             ref<MultisigExpressionRule> | ref<BinaryExpressionRule> |
-             ref<TernaryExpressionRule> | ref<ThresholdExpressionRule>> {};
+  struct BaseExpression
+      : rule<ref<Constant> | ref<KeyExpression> |
+             ref<TimeExpression> | ref<HashExpression> |
+             ref<MultisigExpression> | ref<BinaryExpression> |
+             ref<TernaryExpression> | ref<ThresholdExpression>> {};
 
-  struct WrappedExpressionRule
+  struct WrappedExpression
       : rule<create<ast::WrappedExpression>(
                  assign<&ast::WrappedExpression::wrappers>(
                      ref<WRAPPER_SEQUENCE>) +
                  assign<&ast::WrappedExpression::inner>(
-                     ref<BaseExpressionRule>))> {};
+                     ref<BaseExpression>))> {};
 
-  struct ExpressionRule
-      : rule<ref<WrappedExpressionRule> | ref<BaseExpressionRule>> {};
+  struct Expression
+      : rule<ref<WrappedExpression> | ref<BaseExpression>> {};
 
-  struct DocumentRule
-      : rule<assign<&ast::Document::expression>(ref<ExpressionRule>)> {};
+  struct Document
+      : rule<assign<&ast::Document::expression>(ref<Expression>)> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
 };
 
 }  // namespace miniscript

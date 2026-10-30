@@ -29,6 +29,14 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 Generated files live under `build/src/generated-src/`; do not edit them.
 
+The port covers the plain textual ASCII format and legacy ToolBus `:type`
+and `?` annotations described by the CWI ATerm library. Function names and
+numbers keep raw spelling; `core/Value.hpp` supplies the C-style quoted-name
+interpretation. Binary/blob formats and shared TAF abbreviations are outside
+the scope. The CWI C and Java readers have different numeric and escaping
+behavior (Java also adds long integers); this port's signed32-bit integer
+validation and C-style escaping do not claim Java reader equivalence.
+
 ## The sample
 
 ```

@@ -31,6 +31,10 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Alef is Plan 9’s concurrent C-family language, described by Phil Winterbottom
+in 1995. Parenthesized type lists declare tuples whose values can be unpacked
+by a matching pattern.
+
 ```
 (int, byte*, byte)
 func()
@@ -47,11 +51,6 @@ main()
     (a, str, c) = func();
 }
 ```
-
-Alef is Plan 9's concurrent C-family language: a function's type comes before
-its name as in C, and a parenthesised type list like `(int, byte*, byte)`
-declares a tuple, whose values a matching tuple pattern on the left of `=`
-unpacks.
 
 ## The command line
 

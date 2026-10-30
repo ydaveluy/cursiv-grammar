@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Metamath databases contain scoped declarations, assertions and compressed or uncompressed proofs.
+
 ```
 $c 0 + = -> ( ) term wff |- $.
 $v t r s P Q $.
@@ -44,14 +46,6 @@ wim $a wff ( P -> Q ) $.
 ax-1 $a |- ( P -> ( Q -> P ) ) $.
 thm1 $p |- ( P -> ( Q -> P ) ) $= ax-1 $.
 ```
-
-A database is a flat sequence of `$c`/`$v` declarations, hypotheses (`$f`,
-`$e`), assertions (`$a`, `$p`), grouped by `${ $}` blocks that scope
-variables and hypotheses, and nothing else — Metamath has no expression
-syntax of its own: everything after a keyword up to the closing `$.` is a
-bare sequence of symbols. A `$p` statement carries a proof, either a list of
-labels (and `?` for an unknown step) or a compressed run of capital letters
-between parentheses.
 
 ## The command line
 

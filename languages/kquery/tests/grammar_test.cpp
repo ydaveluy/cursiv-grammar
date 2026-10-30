@@ -240,6 +240,39 @@ void operator_fixture() {
   CHECK(msb != nullptr && msb->op == "ReadMSB");
 }
 
+void native_klee_forms() {
+  const auto r = build(
+      "array const-array[] : w32 -> w8 = [1_0 20]\n"
+      "(query [(Eq (Not false) true) (Eq (Add true false) true)] false "
+      "[(Concat w24 (w8 1) (w8 2) (w8 3)) (Concat w8 (w8 1)) "
+      "(Extract 0 (w8 1)) (ZExt (w1 1)) (Select true false true)] [const-array])");
+  const auto* doc = r.value_as<ast::Document>();
+  const auto* array = doc && doc->units.size() == 2 ? as<ast::ArrayDecl>(doc->units[0]) : nullptr;
+  const auto* query = doc && doc->units.size() == 2 ? as<ast::QueryCommand>(doc->units[1]) : nullptr;
+  CHECK(array && array->name == "const-array" && array->size.empty() &&
+        array->values.size() == 2 && array->values[0]->text == "1_0");
+  CHECK(query && query->constraints.size() == 2 && query->evalExprs.size() == 5);
+  if (!query || query->evalExprs.size() != 5 || query->constraints.size() != 2) return;
+  const auto* first = as<ast::BinaryExpr>(query->constraints[0]);
+  const auto* negation = first ? as<ast::UnaryExpr>(first->left) : nullptr;
+  CHECK(negation && negation->op == "Not" && negation->width.empty());
+  const auto* three = as<ast::ConcatExpr>(query->evalExprs[0]);
+  const auto* one = as<ast::ConcatExpr>(query->evalExprs[1]);
+  CHECK(three && three->width == "w24" && three->operands.size() == 3);
+  CHECK(one && one->width == "w8" && one->operands.size() == 1);
+  const auto* extract = as<ast::ExtractExpr>(query->evalExprs[2]);
+  CHECK(extract && extract->width.empty() && extract->offset->text == "0");
+  const auto* extension = as<ast::UnaryExpr>(query->evalExprs[3]);
+  CHECK(extension && extension->op == "ZExt" && extension->width.empty());
+  const auto* select = as<ast::SelectExpr>(query->evalExprs[4]);
+  CHECK(select && select->width.empty() && select->whenTrue && select->whenFalse);
+  for (const auto text : {"(query [] (Not [w8] 0))", "(query [] (Read w8 0))",
+                          "(query [(Eq w8 9)] false)", "(query [1abc] false)",
+                          "array true[1] : w32 -> w8 = symbolic",
+                          "array w8[1] : w32 -> w8 = symbolic"})
+    CHECK(!accepts(text));
+}
+
 }  // namespace
 
 int main() {
@@ -249,5 +282,6 @@ int main() {
   update_chain();
   corpus();
   operator_fixture();
+  native_klee_forms();
   return cursiv::test::report("kquery_grammar_test");
 }

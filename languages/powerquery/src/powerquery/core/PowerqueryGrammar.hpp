@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <memory_resource>
+#include <limits>
 #include <span>
 #include <string_view>
 
@@ -99,18 +100,15 @@ inline constexpr auto unquote_text =
     [](std::string_view t, std::pmr::memory_resource* mem) {
       return strip_and_undouble(t, 1, mem);
     };
-using TextValue = cursiv::text_conv<unquote_text>;
 inline constexpr auto unquote_hash =
     [](std::string_view t, std::pmr::memory_resource* mem) {
       return strip_and_undouble(t, 2, mem);
     };
-using HashValue = cursiv::text_conv<unquote_hash>;
 // A verbatim literal uses #!"..." and the same text escaping as a text literal.
 inline constexpr auto unquote_verbatim = [](std::string_view t,
                                             std::pmr::memory_resource* mem) {
   return strip_and_undouble(t, 3, mem);
 };
-using VerbatimValue = cursiv::text_conv<unquote_verbatim>;
 // Identifiers are the same span raw, unless they took the `#"..."` form.
 inline constexpr auto identifier_text =
     [](std::string_view t, std::pmr::memory_resource* mem) -> std::string_view {
@@ -118,7 +116,6 @@ inline constexpr auto identifier_text =
     return strip_and_undouble(t, 2, mem);
   return t;
 };
-using IdentifierValue = cursiv::text_conv<identifier_text>;
 
 inline constexpr auto hex_number = [](std::string_view t) {
   double v = 0;
@@ -129,18 +126,17 @@ inline constexpr auto hex_number = [](std::string_view t) {
   }
   return v;
 };
-using HexValue = cursiv::text_conv<hex_number>;
 
 struct Powerquery : cursiv::GrammarSpec {
   // Trivia: whitespace and both comment forms are discarded outright, so
   // nothing here is `hidden`.
   struct WS : terminal<some(cr<R"(\t\v\f \r\n)"> | uc::Zs | cr<"  ">)> {
   };
-  struct LineComment : terminal<lit<"//"> + many(cr<R"(^\n)">)> {};
+  struct LineComment : terminal<lit<"//"> + many(cr<R"(^\r\n\u0085\u2028\u2029)">)> {};
   struct BlockComment : terminal<through(lit<"/*">, lit<"*/">)> {};
 
   static constexpr auto word_boundary =
-      uc::L | uc::Nd | uc::Pc | uc::Mn | uc::Mc | uc::Cf | cr<"_">;
+      uc::L | uc::Nl | uc::Nd | uc::Pc | uc::Mn | uc::Mc | uc::Cf | cr<"_">;
 
   static constexpr auto HexDigit = cr<"0-9a-fA-F">;
   // Text and quoted identifiers share #(hex), #(cr,lf), #(tab) and #(#).
@@ -150,45 +146,49 @@ struct Powerquery : cursiv::GrammarSpec {
                lit<"tab"> | lit<"#">,
            lit<",">) +
       lit<")">;
-  static constexpr auto TextChars = many(CharEscape | lit<"\"\""> | cr<R"(^")">);
+  static constexpr auto TextChars = many(CharEscape | lit<"\"\""> | (!lit<"#("> + cr<R"(^")">));
 
-  struct STRING : terminal<lit<"\""> + TextChars + lit<"\"">, TextValue> {};
+  struct STRING
+      : terminal<as<unquote_text>(lit<"\""> + TextChars + lit<"\"">)> {};
   struct VERBATIM
-      : terminal<lit<"#!\""> + TextChars + lit<"\"">, VerbatimValue> {};
+      : terminal<as<unquote_verbatim>(lit<"#!\""> + TextChars + lit<"\"">)> {};
 
-  static constexpr auto IdStart = uc::L | cr<"_">;
+  static constexpr auto IdStart = uc::L | uc::Nl | cr<"_">;
   static constexpr auto IdPart =
-      uc::L | uc::Nd | uc::Pc | uc::Mn | uc::Mc | uc::Cf | cr<"_">;
+      uc::L | uc::Nl | uc::Nd | uc::Pc | uc::Mn | uc::Mc | uc::Cf | cr<"_">;
   static constexpr auto IdSegment = IdStart + many(IdPart);
-  struct ID
-      : terminal<some(IdSegment, lit<".">) |
-                     (lit<"#\""> + TextChars + lit<"\"">),
-                 IdentifierValue> {};
+  static constexpr auto reserved = kw<"and"> | kw<"as"> | kw<"each"> | kw<"else"> |
+      kw<"error"> | kw<"false"> | kw<"if"> | kw<"in"> | kw<"is"> | kw<"let"> |
+      kw<"meta"> | kw<"not"> | kw<"null"> | kw<"or"> | kw<"otherwise"> |
+      kw<"section"> | kw<"shared"> | kw<"then"> | kw<"true"> | kw<"try"> | kw<"type">;
+  static constexpr auto available_segment = !reserved + IdSegment;
+  struct ID : terminal<as<identifier_text>(some(available_segment,lit<".">) |
+      (lit<"#\""> + TextChars + lit<"\"">))> {};
+  // Generalized field names admit keywords, a leading digit, and U+0020
+  // spaces. A type field's leading optional is its modifier.
+  static constexpr auto generalized_part = option(some(uc::Nd)) + some(IdSegment,lit<".">);
+  static constexpr auto generalized_name = some(generalized_part,some(lit<" ">));
+  struct GENERALIZED : terminal<generalized_name> {};
+  struct SPEC_GENERALIZED : terminal<!kw<"optional"> + generalized_name> {};
+  struct QUOTED_ID : terminal<as<identifier_text>(lit<"#\""> + TextChars + lit<"\"">)> {};
+  struct FieldName : rule<ref<GENERALIZED> | ref<QUOTED_ID>> {};
+  struct TypeFieldName : rule<ref<SPEC_GENERALIZED> | ref<QUOTED_ID>> {};
+  struct HASH_NAME : terminal<kw<"#binary"> | kw<"#date"> | kw<"#datetime"> | kw<"#datetimezone"> |
+      kw<"#duration"> | kw<"#sections"> | kw<"#shared"> | kw<"#table"> | kw<"#time">> {};
+  struct SPECIAL_NUMBER : terminal<as<[](std::string_view t) {
+    return t=="#nan" ? std::numeric_limits<double>::quiet_NaN() : std::numeric_limits<double>::infinity();
+  }>(kw<"#infinity"> | kw<"#nan">)> {};
 
   static constexpr auto Digits = some(d);
   static constexpr auto Exp = cr<"eE"> + option(cr<"+-">) + Digits;
   struct NUMBER
-      : terminal<(Digits + lit<"."> + Digits + option(Exp)) |
-                     (lit<"."> + Digits + option(Exp)) |
-                     (Digits + option(Exp)),
-                 double> {};
-  struct HEXNUMBER : terminal<lit<"0x"> + some(HexDigit), HexValue> {};
+      : terminal<as<double>((Digits + lit<"."> + Digits + option(Exp)) |
+                            (lit<"."> + Digits + option(Exp)) |
+                            (Digits + option(Exp)))> {};
+  struct HEXNUMBER : terminal<as<hex_number>((lit<"0x"> | lit<"0X">) + some(HexDigit))> {};
 
   // Operators, each denoting its own constant rather than its spelling.
-  struct META : terminal<ikw<"meta">, value<ast::Op::meta>> {};
-  struct STAR : terminal<lit<"*">, value<ast::Op::multiply>> {};
-  struct SLASH : terminal<lit<"/">, value<ast::Op::divide>> {};
-  struct PLUS : terminal<lit<"+">, value<ast::Op::add>> {};
-  struct MINUS : terminal<lit<"-">, value<ast::Op::subtract>> {};
-  struct AMP : terminal<lit<"&">, value<ast::Op::concat>> {};
-  struct LEQ : terminal<lit<"<=">, value<ast::Op::less_equal>> {};
-  struct GEQ : terminal<lit<">=">, value<ast::Op::greater_equal>> {};
-  struct LE : terminal<lit<"<">, value<ast::Op::less>> {};
-  struct GE : terminal<lit<">">, value<ast::Op::greater>> {};
-  struct NEQ : terminal<lit<"<>">, value<ast::Op::not_equal>> {};
-  struct EQUALS : terminal<lit<"=">, value<ast::Op::equal>> {};
-  struct AND : terminal<ikw<"and">, value<ast::Op::logical_and>> {};
-  struct OR : terminal<ikw<"or">, value<ast::Op::logical_or>> {};
+  struct AND : terminal<kw<"and">> {};
 
   // ANY, ANYNONNULL, ..., TEXT, TYPE: longest spelling first so `anynonnull`
   // and `datetimezone` never lex as their shorter prefixes. `TABLE` and
@@ -196,178 +196,177 @@ struct Powerquery : cursiv::GrammarSpec {
   // table type and a function type also open on those same words: one
   // spelling for both readings, so the parser (not the lexer) picks the
   // production. `FUNCTION` is spelled `function`.
-  struct TABLE_KW : terminal<ikw<"table">> {};
-  struct FUNCTION_KW : terminal<ikw<"function">> {};
+  struct TABLE_KW : terminal<kw<"table">> {};
+  struct FUNCTION_KW : terminal<kw<"function">> {};
   struct PRIMITIVE_KW
-      : terminal<ikw<"anynonnull"> | ikw<"any"> | ikw<"datetimezone"> |
-                     ikw<"datetime"> | ikw<"date"> | ikw<"duration"> |
-                     ikw<"binary"> | ikw<"list"> | ikw<"logical"> |
-                     ikw<"none"> | ikw<"number"> | ikw<"record"> |
-                     ikw<"text"> | ikw<"type">> {};
+      : terminal<kw<"anynonnull"> | kw<"any"> | kw<"datetimezone"> |
+                     kw<"datetime"> | kw<"date"> | kw<"duration"> |
+                     kw<"binary"> | kw<"list"> | kw<"logical"> |
+                     kw<"none"> | kw<"number"> | kw<"record"> |
+                     kw<"text"> | kw<"type">> {};
 
   struct Expression;
 
-  struct LogicalLitRule
+  struct LogicalLit
       : rule<create<ast::LogicalLit>(
-            flag<&ast::LogicalLit::value>(ikw<"true">) | ikw<"false">)> {
+            flag<&ast::LogicalLit::value>(kw<"true">) | kw<"false">)> {
   };
-  struct NumberLitRule
-      : rule<assign<&ast::NumberLit::value>(ref<HEXNUMBER> | ref<NUMBER>)> {};
-  struct TextLitRule : rule<assign<&ast::TextLit::value>(ref<STRING>)> {};
-  struct NullLitRule : rule<create<ast::NullLit>(ikw<"null">)> {};
-  struct VerbatimLitRule
+  struct NumberLit
+      : rule<assign<&ast::NumberLit::value>(ref<HEXNUMBER> | ref<NUMBER> | ref<SPECIAL_NUMBER>)> {};
+  struct TextLit : rule<assign<&ast::TextLit::value>(ref<STRING>)> {};
+  struct NullLit : rule<create<ast::NullLit>(kw<"null">)> {};
+  struct VerbatimLit
       : rule<assign<&ast::VerbatimLit::value>(ref<VERBATIM>)> {};
   struct LiteralAtom
-      : rule<ref<LogicalLitRule> | ref<NumberLitRule> | ref<TextLitRule> |
-                 ref<NullLitRule> | ref<VerbatimLitRule>> {};
+      : rule<ref<LogicalLit> | ref<NumberLit> | ref<TextLit> |
+                 ref<NullLit> | ref<VerbatimLit>> {};
 
   static constexpr auto PrimitiveTypeBody =
       assign<&ast::PrimitiveTypeNode::name>(
-          ref<PRIMITIVE_KW> | ref<TABLE_KW> | ref<FUNCTION_KW>) |
-      assign<&ast::PrimitiveTypeNode::literal>(ref<LiteralAtom>);
-  struct PrimitiveTypeRule
+          ref<PRIMITIVE_KW> | ref<TABLE_KW> | ref<FUNCTION_KW> | kw<"null">);
+  struct PrimitiveType
       : rule<create<ast::PrimitiveTypeNode>(PrimitiveTypeBody)> {};
   struct NullablePrimitiveType
       : rule<create<ast::PrimitiveTypeNode>(
             option(flag<&ast::PrimitiveTypeNode::nullable>(
-                ikw<"nullable">)) +
+                kw<"nullable">)) +
             PrimitiveTypeBody)> {};
 
   struct PrimaryType;
   struct TypeExpr;
+  struct PostfixExpr;
 
-  struct FieldSpecRule
+  struct FieldSpec
       : rule<create<ast::FieldSpec>(
-            option(flag<&ast::FieldSpec::optional>(ikw<"optional">)) +
-            assign<&ast::FieldSpec::name>(ref<ID>) +
+            option(flag<&ast::FieldSpec::optional>(kw<"optional">)) +
+            assign<&ast::FieldSpec::name>(ref<TypeFieldName>) +
             option(lit<"="> + assign<&ast::FieldSpec::type>(ref<TypeExpr>)))> {
   };
 
-  struct RecordTypeRule
+  struct RecordType
       : rule<create<ast::RecordTypeNode>(
             lit<"["> +
             option(flag<&ast::RecordTypeNode::open>(lit<"...">) |
                        (some(append<&ast::RecordTypeNode::fields>(
-                                 ref<FieldSpecRule>),
+                                 ref<FieldSpec>),
                              lit<",">) +
                         option(lit<","> +
                                flag<&ast::RecordTypeNode::open>(
                                    lit<"...">)))) +
             lit<"]">)> {};
 
-  struct ListTypeRule
+  struct ListType
       : rule<create<ast::ListTypeNode>(
             lit<"{"> + assign<&ast::ListTypeNode::itemType>(ref<TypeExpr>) +
             lit<"}">)> {};
 
-  struct ParamSpecRule
+  struct ParamSpec
       : rule<create<ast::ParamSpec>(
-            option(flag<&ast::ParamSpec::optional>(ikw<"optional">)) +
-            assign<&ast::ParamSpec::name>(ref<ID>) + ikw<"as"> +
-            assign<&ast::ParamSpec::type>(ref<NullablePrimitiveType>))> {};
+            option(flag<&ast::ParamSpec::optional>(kw<"optional">)) +
+            assign<&ast::ParamSpec::name>(ref<ID>) + kw<"as"> +
+            assign<&ast::ParamSpec::type>(ref<TypeExpr>))> {};
   static constexpr auto ParamSpecListBody = some(
-      append<&ast::FunctionTypeNode::params>(ref<ParamSpecRule>), lit<",">);
-  // `function` and `(` need exactly one space between them to open a
-  // function type; cursiv's trivia already runs between the two, so this
-  // accepts any gap there instead (over-acceptance, price nil).
-  struct FunctionTypeRule
+      append<&ast::FunctionTypeNode::params>(ref<ParamSpec>), lit<",">);
+  // `function (` is printed with one space in the specification of a
+  // function type in the printed grammar. The native parser also accepts
+  // adjacent parentheses and other trivia here.
+  struct FunctionType
       : rule<create<ast::FunctionTypeNode>(
             ref<FUNCTION_KW> + lit<"("> + option(ParamSpecListBody) +
-            lit<")"> + ikw<"as"> +
+            lit<")"> + kw<"as"> +
             assign<&ast::FunctionTypeNode::returnType>(
-                ref<NullablePrimitiveType>))> {};
+                ref<TypeExpr>))> {};
 
-  struct TableTypeRule
+  struct TableType
       : rule<create<ast::TableTypeNode>(
             ref<TABLE_KW> + lit<"["> +
-            some(append<&ast::TableTypeNode::rows>(ref<FieldSpecRule>),
+            many(append<&ast::TableTypeNode::rows>(ref<FieldSpec>),
                  lit<",">) +
             lit<"]">)> {};
 
-  struct NullableTypeRule
+  struct NullableType
       : rule<create<ast::NullableTypeNode>(
-            ikw<"nullable"> +
+            kw<"nullable"> +
             assign<&ast::NullableTypeNode::inner>(ref<TypeExpr>))> {};
 
   struct PrimaryType
-      : rule<ref<PrimitiveTypeRule> | ref<RecordTypeRule> | ref<ListTypeRule> |
-                 ref<FunctionTypeRule> | ref<TableTypeRule> |
-                 ref<NullableTypeRule>> {};
+      : rule<ref<PrimitiveType> | ref<RecordType> | ref<ListType> |
+                 ref<FunctionType> | ref<TableType> |
+                 ref<NullableType>> {};
 
-  struct ComputedTypeRule
-      : rule<create<ast::ComputedTypeNode>(
-            lit<"("> + assign<&ast::ComputedTypeNode::expr>(ref<Expression>) +
-            lit<")">)> {};
+  struct ComputedType : rule<create<ast::ComputedTypeNode>(
+      !(ref<PRIMITIVE_KW> | ref<TABLE_KW> | ref<FUNCTION_KW> | kw<"nullable"> | kw<"null"> | lit<"["> | lit<"{">) +
+      assign<&ast::ComputedTypeNode::expr>(ref<PostfixExpr>))> {};
+  struct TypeExpr : rule<ref<PrimaryType> | ref<ComputedType>> {};
 
-  struct TypeExpr : rule<ref<ComputedTypeRule> | ref<PrimaryType>> {};
-
-  struct NameExprRule
+  struct NameExpr
       : rule<create<ast::NameExpr>(
-            option(flag<&ast::NameExpr::inclusive>(lit<"@">)) +
-            assign<&ast::NameExpr::name>(ref<ID>))> {};
+            (option(flag<&ast::NameExpr::inclusive>(lit<"@">)) +
+             assign<&ast::NameExpr::name>(ref<ID>)) |
+            assign<&ast::NameExpr::name>(ref<HASH_NAME>))> {};
 
-  struct SectionAccessRule
+  struct SectionAccess
       : rule<create<ast::SectionAccessExpr>(
             assign<&ast::SectionAccessExpr::section>(ref<ID>) + lit<"!"> +
             assign<&ast::SectionAccessExpr::member>(ref<ID>))> {};
 
-  struct NotImplementedRule
+  struct NotImplemented
       : rule<create<ast::NotImplementedExpr>(lit<"...">)> {};
 
-  struct ListItemRule
+  struct ListItem
       : rule<create<ast::ListItem>(
             assign<&ast::ListItem::from>(ref<Expression>) +
             option(lit<".."> +
                    assign<&ast::ListItem::to>(ref<Expression>)))> {};
-  struct ListExprRule
+  struct ListExpr
       : rule<create<ast::ListExpr>(
             lit<"{"> +
-            option(some(append<&ast::ListExpr::items>(ref<ListItemRule>),
-                        lit<",">)) +
+            many(append<&ast::ListExpr::items>(ref<ListItem>),
+                        lit<",">) +
             lit<"}">)> {};
 
-  struct FieldRule
+  struct Field
       : rule<create<ast::Field>(
-            assign<&ast::Field::name>(ref<ID>) + lit<"="> +
+            assign<&ast::Field::name>(ref<FieldName>) + lit<"="> +
             assign<&ast::Field::value>(ref<Expression>))> {};
-  struct RecordExprRule
+  struct RecordExpr
       : rule<create<ast::RecordExpr>(
             lit<"["> +
-            option(some(append<&ast::RecordExpr::fields>(ref<FieldRule>),
-                        lit<",">)) +
+            many(append<&ast::RecordExpr::fields>(ref<Field>),
+                        lit<",">) +
             lit<"]">)> {};
 
-  struct ImplicitFieldRule
+  struct ImplicitField
       : rule<create<ast::FieldAccess>(
-            lit<"["> + assign<&ast::FieldAccess::field>(ref<ID>) + lit<"]"> +
+            lit<"["> + assign<&ast::FieldAccess::field>(ref<FieldName>) + lit<"]"> +
             option(flag<&ast::FieldAccess::optional>(lit<"?">)))> {};
-  struct ImplicitProjectionRule
+  struct ImplicitProjection
       : rule<create<ast::Projection>(
             lit<"["> +
-            some(lit<"["> + append<&ast::Projection::fields>(ref<ID>) +
+            some(lit<"["> + append<&ast::Projection::fields>(ref<FieldName>) +
                      lit<"]">,
                  lit<",">) +
             lit<"]"> +
             option(flag<&ast::Projection::optional>(lit<"?">)))> {};
 
   struct Atom
-      : rule<ref<LiteralAtom> | ref<ListExprRule> | ref<RecordExprRule> |
-                 ref<SectionAccessRule> | ref<NameExprRule> |
+      : rule<ref<LiteralAtom> | ref<ListExpr> | ref<RecordExpr> |
+                 ref<SectionAccess> | ref<NameExpr> |
                  (lit<"("> + ref<Expression> + lit<")">) |
-                 ref<ImplicitProjectionRule> | ref<ImplicitFieldRule> |
-                 ref<NotImplementedRule>> {};
+                 ref<ImplicitProjection> | ref<ImplicitField> |
+                 ref<NotImplemented>> {};
 
   struct PostfixExpr
       : rule<ref<Atom> +
              many(nest<ast::FieldAccess, &ast::FieldAccess::target>(
                       lit<"["> +
-                      assign<&ast::FieldAccess::field>(ref<ID>) + lit<"]"> +
+                      assign<&ast::FieldAccess::field>(ref<FieldName>) + lit<"]"> +
                       option(flag<&ast::FieldAccess::optional>(
                           lit<"?">)))  //
                   | nest<ast::Projection, &ast::Projection::target>(
                         lit<"["> +
                         some(lit<"["> +
-                                 append<&ast::Projection::fields>(ref<ID>) +
+                                 append<&ast::Projection::fields>(ref<FieldName>) +
                                  lit<"]">,
                              lit<",">) +
                         lit<"]"> +
@@ -381,17 +380,17 @@ struct Powerquery : cursiv::GrammarSpec {
                             lit<"?">)))  //
                   | nest<ast::Invoke, &ast::Invoke::callee>(
                         lit<"("> +
-                        option(some(
+                        many(
                             append<&ast::Invoke::args>(ref<Expression>),
-                            lit<",">)) +
+                            lit<",">) +
                         lit<")">))> {};
 
-  struct TypeValueRule
+  struct TypeValue
       : rule<create<ast::TypeValueExpr>(
-            ikw<"type"> +
+            kw<"type"> +
             assign<&ast::TypeValueExpr::type>(ref<PrimaryType>))> {};
 
-  struct TypeExpression : rule<ref<TypeValueRule> | ref<PostfixExpr>> {};
+  struct TypeExpression : rule<ref<TypeValue> | ref<PostfixExpr>> {};
 
   struct UnaryExpr
       : rule<create<ast::UnaryExpr>(
@@ -401,149 +400,152 @@ struct Powerquery : cursiv::GrammarSpec {
                    assign<&ast::UnaryExpr::op>(lit<"-">) +
                    assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
              | create<ast::UnaryExpr>(
-                   assign<&ast::UnaryExpr::op>(ikw<"not">) +
+                   assign<&ast::UnaryExpr::op>(kw<"not">) +
                    assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
              | ref<TypeExpression>> {};
 
-  static constexpr auto OpMeta = ref<META>;
-  static constexpr auto OpMul = ref<STAR> | ref<SLASH>;
-  static constexpr auto OpAdd = ref<PLUS> | ref<MINUS> | ref<AMP>;
+  static constexpr auto OpMeta = as<ast::Op::meta>(kw<"meta">);
+  static constexpr auto OpMul = as<ast::Op::multiply>(lit<"*">) | as<ast::Op::divide>(lit<"/">);
+  static constexpr auto OpAdd = as<ast::Op::add>(lit<"+">) | as<ast::Op::subtract>(lit<"-">) | as<ast::Op::concat>(lit<"&">);
   static constexpr auto OpRel =
-      ref<LEQ> | ref<GEQ> | ref<LE> | ref<GE>;
-  static constexpr auto OpEq = ref<NEQ> | ref<EQUALS>;
-  static constexpr auto OpAnd = ref<AND>;
-  static constexpr auto OpOr = ref<OR>;
+      as<ast::Op::less_equal>(lit<"<=">) | as<ast::Op::greater_equal>(lit<">=">) | as<ast::Op::less>(lit<"<">) | as<ast::Op::greater>(lit<">">);
+  static constexpr auto OpEq = as<ast::Op::not_equal>(lit<"<>">) | as<ast::Op::equal>(lit<"=">);
+  static constexpr auto OpAnd = as<ast::Op::logical_and>(ref<AND>);
+  static constexpr auto OpOr = as<ast::Op::logical_or>(kw<"or">);
 
   // The M language specification's relational- and equality-expression
-  // productions right-recurse; arithmetic and metadata stay left.
+  // productions right-recurse; arithmetic associates left, and metadata
+  // permits a single unparenthesized operation.
   struct TightExpr
-      : infix<UnaryExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMeta) >>  //
-               left(OpMul) >>  //
-               left(OpAdd) >>  //
-               right(OpRel) >>  //
-               right(OpEq))> {};
+      : infix<UnaryExpr, ast::BinaryExpr,
+              levels(nonassoc(OpMeta),  //
+                     left(OpMul),  //
+                     left(OpAdd),  //
+                     right(OpRel),  //
+                     right(OpEq))> {};
 
   struct AsExpr
       : rule<ref<TightExpr> +
              many(nest<ast::AsExpr, &ast::AsExpr::operand>(
-                 ikw<"as"> +
+                 kw<"as"> +
                  assign<&ast::AsExpr::type>(ref<NullablePrimitiveType>)))> {};
   struct IsExpr
       : rule<ref<AsExpr> +
              many(nest<ast::IsExpr, &ast::IsExpr::operand>(
-                 ikw<"is"> +
+                 kw<"is"> +
                  assign<&ast::IsExpr::type>(ref<NullablePrimitiveType>)))> {};
 
   struct LogicalExpr
-      : infix<IsExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, (right(OpAnd) >> right(OpOr))> {};
+      : infix<IsExpr, ast::BinaryExpr, levels(right(OpAnd), right(OpOr))> {};
+  struct CoalescingExpr : infix<LogicalExpr, ast::BinaryExpr, right(as<ast::Op::coalesce>(lit<"??">))> {};
 
-  struct ParamRule
+  struct Param
       : rule<create<ast::Param>(
-            option(flag<&ast::Param::optional>(ikw<"optional">)) +
+            option(flag<&ast::Param::optional>(kw<"optional">)) +
             assign<&ast::Param::name>(ref<ID>) +
-            option(ikw<"as"> +
+            option(kw<"as"> +
                    assign<&ast::Param::type>(ref<NullablePrimitiveType>)))> {};
   static constexpr auto ParamListBody =
-      some(append<&ast::FunctionExpr::params>(ref<ParamRule>), lit<",">);
-  struct FunctionExprRule
+      some(append<&ast::FunctionExpr::params>(ref<Param>), lit<",">);
+  struct FunctionExpr
       : rule<create<ast::FunctionExpr>(
             lit<"("> + option(ParamListBody) + lit<")"> +
-            option(ikw<"as"> + assign<&ast::FunctionExpr::returnType>(
+            option(kw<"as"> + assign<&ast::FunctionExpr::returnType>(
                                     ref<NullablePrimitiveType>)) +
             lit<"=>"> + assign<&ast::FunctionExpr::body>(ref<Expression>))> {
   };
 
-  struct EachExprRule
+  struct EachExpr
       : rule<create<ast::EachExpr>(
-            ikw<"each"> + assign<&ast::EachExpr::body>(ref<Expression>))> {};
+            kw<"each"> + assign<&ast::EachExpr::body>(ref<Expression>))> {};
 
-  struct VariableRule
+  struct Variable
       : rule<create<ast::Variable>(
             assign<&ast::Variable::name>(ref<ID>) + lit<"="> +
             assign<&ast::Variable::value>(ref<Expression>))> {};
-  struct LetExprRule
+  struct LetExpr
       : rule<create<ast::LetExpr>(
-            ikw<"let"> +
-            some(append<&ast::LetExpr::variables>(ref<VariableRule>),
+            kw<"let"> +
+            some(append<&ast::LetExpr::variables>(ref<Variable>),
                  lit<",">) +
-            ikw<"in"> + assign<&ast::LetExpr::body>(ref<Expression>))> {};
+            kw<"in"> + assign<&ast::LetExpr::body>(ref<Expression>))> {};
 
-  struct IfExprRule
+  struct IfExpr
       : rule<create<ast::IfExpr>(
-            ikw<"if"> + assign<&ast::IfExpr::condition>(ref<Expression>) +
-            ikw<"then"> +
-            assign<&ast::IfExpr::thenExpr>(ref<Expression>) + ikw<"else"> +
+            kw<"if"> + assign<&ast::IfExpr::condition>(ref<Expression>) +
+            kw<"then"> +
+            assign<&ast::IfExpr::thenExpr>(ref<Expression>) + kw<"else"> +
             assign<&ast::IfExpr::elseExpr>(ref<Expression>))> {};
 
-  struct ErrorExprRule
+  struct ErrorExpr
       : rule<create<ast::ErrorExpr>(
-            ikw<"error"> + assign<&ast::ErrorExpr::value>(ref<Expression>))> {
+            kw<"error"> + assign<&ast::ErrorExpr::value>(ref<Expression>))> {
   };
 
-  struct TryExprRule
+  struct CatchFunction : rule<create<ast::FunctionExpr>(lit<"("> +
+      option(append<&ast::FunctionExpr::params>(create<ast::Param>(assign<&ast::Param::name>(ref<ID>)))) +
+      lit<")"> + lit<"=>"> + assign<&ast::FunctionExpr::body>(ref<Expression>))> {};
+  struct TryExpr
       : rule<create<ast::TryExpr>(
-            ikw<"try"> +
+            kw<"try"> +
             assign<&ast::TryExpr::protectedExpr>(ref<Expression>) +
-            option(ikw<"otherwise"> +
-                   assign<&ast::TryExpr::otherwiseExpr>(ref<Expression>)))> {
+            option((kw<"otherwise"> + assign<&ast::TryExpr::otherwiseExpr>(ref<Expression>)) |
+                   (kw<"catch"> + assign<&ast::TryExpr::catchFunction>(ref<CatchFunction>))))> {
   };
 
   struct Expression
-      : rule<ref<LogicalExpr> | ref<EachExprRule> | ref<FunctionExprRule> |
-                 ref<LetExprRule> | ref<IfExprRule> | ref<ErrorExprRule> |
-                 ref<TryExprRule>> {};
+      : rule<ref<CoalescingExpr> | ref<EachExpr> | ref<FunctionExpr> |
+                 ref<LetExpr> | ref<IfExpr> | ref<ErrorExpr> |
+                 ref<TryExpr>> {};
 
   // Literal-only mirror of record/list expressions, for a section or
   // member's attribute value.
-  struct AnyLiteralRule;
-  struct RecordLiteralRule
+  struct AnyLiteral;
+  struct RecordLiteral
       : rule<create<ast::RecordExpr>(
             lit<"["> +
-            option(some(append<&ast::RecordExpr::fields>(
+            many(append<&ast::RecordExpr::fields>(
                             create<ast::Field>(
-                                assign<&ast::Field::name>(ref<ID>) +
+                                assign<&ast::Field::name>(ref<FieldName>) +
                                 lit<"="> +
                                 assign<&ast::Field::value>(
-                                    ref<AnyLiteralRule>))),
-                        lit<",">)) +
+                                    ref<AnyLiteral>))),
+                        lit<",">) +
             lit<"]">)> {};
-  struct ListLiteralRule
+  struct ListLiteral
       : rule<create<ast::ListExpr>(
             lit<"{"> +
-            option(some(
+            many(
                 append<&ast::ListExpr::items>(create<ast::ListItem>(
-                    assign<&ast::ListItem::from>(ref<AnyLiteralRule>))),
-                lit<",">)) +
+                    assign<&ast::ListItem::from>(ref<AnyLiteral>))),
+                lit<",">) +
             lit<"}">)> {};
-  struct AnyLiteralRule
-      : rule<ref<RecordLiteralRule> | ref<ListLiteralRule> |
-                 ref<LiteralAtom>> {};
+  struct AnyLiteral
+      : rule<ref<RecordLiteral> | ref<ListLiteral> |
+                 ref<LogicalLit> | ref<NumberLit> | ref<TextLit> | ref<NullLit>> {};
 
-  struct SectionMemberRule
+  struct SectionMember
       : rule<create<ast::SectionMember>(
             option(assign<&ast::SectionMember::attributes>(
-                ref<RecordLiteralRule>)) +
-            option(flag<&ast::SectionMember::shared>(ikw<"shared">)) +
+                ref<RecordLiteral>)) +
+            option(flag<&ast::SectionMember::shared>(kw<"shared">)) +
             assign<&ast::SectionMember::name>(ref<ID>) + lit<"="> +
             assign<&ast::SectionMember::value>(ref<Expression>) + lit<";">)> {
   };
 
-  struct SectionRule
+  struct Section
       : rule<create<ast::Section>(
-            option(assign<&ast::Section::attributes>(ref<RecordLiteralRule>)) +
-            ikw<"section"> + assign<&ast::Section::name>(ref<ID>) + lit<";"> +
-            many(append<&ast::Section::members>(ref<SectionMemberRule>)))> {};
+            option(assign<&ast::Section::attributes>(ref<RecordLiteral>)) +
+            kw<"section"> + assign<&ast::Section::name>(ref<ID>) + lit<";"> +
+            many(append<&ast::Section::members>(ref<SectionMember>)))> {};
 
-  struct DocRule
+  struct Doc
       : rule<create<ast::Doc>(
-            assign<&ast::Doc::section>(ref<SectionRule>) |
+            assign<&ast::Doc::section>(ref<Section>) |
             assign<&ast::Doc::expr>(ref<Expression>))> {};
 
-  using entry = DocRule;
-  using ignore = list<WS, LineComment, BlockComment>;
+  using entry = Doc;
+  using ignored = list<WS, LineComment, BlockComment>;
 };
 
 }  // namespace powerquery

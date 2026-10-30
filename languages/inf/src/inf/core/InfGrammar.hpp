@@ -8,14 +8,20 @@ namespace inf {
 inline constexpr auto section_name = [](std::string_view text) {
   return text.substr(1);
 };
-using SectionName = cursiv::text_conv<section_name>;
 
 struct Inf : cursiv::GrammarSpec {
   static constexpr auto Space =
-      cr<R"( \t\v\f\r)"
+      cr<R"( \t\v\f)"
              "\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000">;
-  static constexpr auto Newline = lit<"\n">;
-  static constexpr auto RestOfLine = cr<R"(^\n\x00\x1a)">;
+  static constexpr auto Newline = lit<"\r\n"> | lit<"\r"> | lit<"\n">;
+  // Input is decoded UTF-8. Intersect valid scalars with the text alphabet
+  // by complementing their exclusions; raw invalid-byte paths otherwise
+  // meet both a UTF-8 refusal and the EOF refusal of Continuation.
+  static constexpr auto TextChar = ~(
+      cr<R"(,=;"%[ \t\v\f\r\n\x00\x1a)"
+         "\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"> |
+      ~cr<R"(\x00-\u{10ffff})">);
+  static constexpr auto RestOfLine = TextChar | Space | cr<R"(,=;"%[)"> | lit<"\ufeff">;
   struct WS : terminal<some(Space)> {};
   struct COMMENT : terminal<lit<";"> + many(RestOfLine)> {};
   struct EOL : terminal<Newline> {};
@@ -24,27 +30,27 @@ struct Inf : cursiv::GrammarSpec {
   static constexpr auto Continuation = lit<"\\"> + many(lit<"\\"> | Space) +
                                        option(lit<";"> + many(RestOfLine)) +
                                        (Newline | eof);
-  static constexpr auto QuotedBody = lit<"\"\""> | cr<R"(^"\n\x00\x1a)">;
+  static constexpr auto QuotedBody = lit<"\"\""> | TextChar | Space |
+      cr<R"(,=;%[)"> | lit<"\ufeff">;
   static constexpr auto Quoted = lit<"\""> + many(QuotedBody) + lit<"\"">;
   static constexpr auto IncompleteQuoted = lit<"\""> + many(QuotedBody);
-  static constexpr auto FirstChar = cr<R"(^,=;"\n\x00\x1a)">;
-  static constexpr auto ValueChar = cr<R"(^,;"\n\x00\x1a)">;
-  static constexpr auto FirstHeadChar =
-      cr<R"(^,=;"[ \t\v\f\r\n\x00\x1a)"
-             "\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000">;
-  static constexpr auto FirstHead = Continuation | Quoted | FirstHeadChar;
-  static constexpr auto FirstPart = Continuation | Quoted | FirstChar;
-  static constexpr auto ValuePart = Continuation | Quoted | ValueChar;
+  static constexpr auto FirstChar = TextChar | Space | cr<"%["> | lit<"\ufeff">;
+  static constexpr auto ValueChar = FirstChar | lit<"=">;
+  static constexpr auto FirstHeadChar = TextChar | lit<"%"> | lit<"\ufeff">;
+  // A semicolon inside a string-key token is not a comment delimiter.
+  static constexpr auto StringToken =
+      lit<"%"> + many(TextChar | Space | cr<R"(,=;"[)"> | lit<"\ufeff">) + lit<"%">;
+  static constexpr auto FirstHead = Continuation | Quoted | StringToken | FirstHeadChar;
+  static constexpr auto FirstPart = Continuation | Quoted | StringToken | FirstChar;
+  static constexpr auto ValuePart = Continuation | Quoted | StringToken | ValueChar;
   struct FIRST
       : terminal<(FirstHead + many(FirstPart) + option(IncompleteQuoted)) |
                  IncompleteQuoted> {};
   struct VALUE : terminal<(some(ValuePart) + option(IncompleteQuoted)) |
                           IncompleteQuoted> {};
 
-  static constexpr auto InitialChar = cr<
-      R"(^,=;"[ \t\v\f\r\n\x00\x1a)"
-      "\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff">;
-  struct INITIAL : terminal<((Continuation | Quoted | InitialChar) +
+  static constexpr auto InitialChar = TextChar | lit<"%">;
+  struct INITIAL : terminal<((Continuation | Quoted | StringToken | InitialChar) +
                              many(FirstPart) + option(IncompleteQuoted)) |
                             IncompleteQuoted> {};
   template <class First>
@@ -59,11 +65,10 @@ struct Inf : cursiv::GrammarSpec {
   };
 
   static constexpr auto Fields =
-      append<&ast::Line::fields>(ref<ValueItem>) +
-      many(lit<","> + append<&ast::Line::fields>(ref<ValueItem>));
+      some(append<&ast::Line::fields>(ref<ValueItem>), lit<",">);
   static constexpr auto line_end = some(ref<EOL>) | &ref<STOP> | eof;
   template <class First>
-  struct LineRule
+  struct Line
       : rule<((assign<&ast::Line::key>(ref<KeyItem<First>>) + lit<"="> +
                Fields) |
               (append<&ast::Line::fields>(ref<FirstItem<First>>) +
@@ -73,23 +78,23 @@ struct Inf : cursiv::GrammarSpec {
              line_end> {};
 
   struct HEADER_OPEN
-      : terminal<lit<"["> + many(cr<R"(^]\n\x00\x1a)">), SectionName> {};
+      : terminal<as<section_name>(lit<"["> + many(cr<R"(^]\r\n\x00\x1a)">))> {};
   struct HEADER_CLOSE : terminal<lit<"]"> + many(RestOfLine)> {};
-  struct SectionRule
+  struct Section
       : rule<assign<&ast::Section::name>(ref<HEADER_OPEN>) +
              assign<&ast::Section::closing>(ref<HEADER_CLOSE>) + line_end +
-             many(append<&ast::Section::lines>(ref<LineRule<FIRST>>))> {};
+             many(append<&ast::Section::lines>(ref<Line<FIRST>>))> {};
 
-  struct DocRule
+  struct Doc
       : rule<create<ast::Document> +
              option(flag<&ast::Document::has_bom>(lit<"﻿">)) +
              many(ref<EOL>) +
-             many(append<&ast::Document::preamble>(ref<LineRule<INITIAL>>)) +
-             many(append<&ast::Document::sections>(ref<SectionRule>)) +
+             many(append<&ast::Document::preamble>(ref<Line<INITIAL>>)) +
+             many(append<&ast::Document::sections>(ref<Section>)) +
              option(assign<&ast::Document::trailer>(ref<STOP>))> {};
 
-  using entry = DocRule;
-  using ignore = WS;
+  using entry = Doc;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

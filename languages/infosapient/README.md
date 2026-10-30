@@ -31,27 +31,18 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[Infosapient](http://info-sapient.sourceforge.net/White_Paper/BusinessProcessRules.pdf)
-is a fuzzy business-rule language: one named rule, an `if` premise of
-attribute clauses joined by fuzzy operators, and a `then`/`else` consequent.
+Infosapient describes a named fuzzy business rule using if/then/else clauses, hedges and fuzzy operators. The port models the syntax in the author’s revision 1.3 white paper (2001-02-13).
 
 ```
 OverheatAlarm
 if
-    temperature s very high and pressure are low
+    temperature is very high and pressure are low
 then
-    alarm s must 0.9
+    alarm is must 0.9
 else
-    alarm s slightly 0.1
+    alarm is slightly 0.1
 ;
 ```
-
-An attribute clause reads `subject 's'|'are' [hedges] value`: a subject
-(`temperature`), the copula `s` or `are`, zero or more linguistic hedges
-(`very`, `must`, `slightly`, ...), and a value -- a number, another
-attribute's name, or `increased`/`decreased`. Clauses join with a fuzzy
-operator (`and`, `or`, `boundedAnd`, `yagerNot`, ...), and both the whole
-premise and an individual clause may be parenthesized.
 
 ## The command line
 

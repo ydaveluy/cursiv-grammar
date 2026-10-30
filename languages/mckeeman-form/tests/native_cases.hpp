@@ -509,9 +509,7 @@ inline int checkNativeCases(const auto& language) {
     visit(visit, *result.value);
     if (!parents || seen.size() != result.nodes.size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
-    bool found = false;
-    for (const auto& d : validation.diagnostics) found |= d.code && d.code->isString() && d.code->string() == "mckeemanform.codepoint";
-    if (!found) return 1;
+    if (!validation.diagnostics.empty()) return 1;
   }
   {
     const std::string source = "root\n    'z' . 'a'\n";

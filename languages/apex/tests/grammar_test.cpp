@@ -57,6 +57,95 @@ int main() {
       apex::ApexCoreServices, apex::ApexSharedCoreServices, apex::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
 
+  {
+    const auto result = language.language.parser->parse("class C { Integer value = 8 >> 1 >> 1 < 5; }");
+    const apex::ast::BinaryExpr* comparison = nullptr;
+    for (const auto* node : result.nodes)
+      if (const auto* binary = cursiv::ast_cast<apex::ast::BinaryExpr>(node);
+          binary && binary->op == "<") comparison = binary;
+    const auto* shift = comparison
+        ? cursiv::ast_cast<apex::ast::BinaryExpr>(comparison->left) : nullptr;
+    const auto* left = shift ? cursiv::ast_cast<apex::ast::BinaryExpr>(shift->left) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !shift || shift->op != ">>" || !left || left->op != ">>")
+      return fail("shift associativity or precedence changed");
+  }
+  for (const char* op : {">>", ">>>", "<<"}) {
+    const std::string source = std::string("class C { Integer value = 8 ") + op + " 1; }";
+    const auto result = parser.parse(source);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("adjacent shift operator was rejected");
+  }
+  for (const char* op : {"> >", ">/* gap */>", ">> >", "< <"}) {
+    const std::string source = std::string("class C { Integer value = 8 ") + op + " 1; }";
+    const auto result = parser.parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("separated angle brackets were accepted as a shift");
+  }
+
+  // Salesforce's native class syntax: exact equality, both query starters,
+  // switch values/type bindings and DML access modes preserve their AST data.
+  {
+    const std::string source = R"(
+class NativeForms {
+  void f(Object input) {
+    Boolean same = left === right;
+    Object q = [SELECT Id FROM Account WHERE Name = 'square]quote\'x'];
+    Object s = [FIND 'square]text' IN ALL FIELDS RETURNING Account(Id)];
+    switch on input {
+      when 1, 2 { System.debug('number'); }
+      when Account account { System.debug(account.Id); }
+      when else { }
+    }
+    insert as USER accounts;
+    upsert as system accounts Account.External__c;
+    merge master duplicate;
+    Database.merge(master, duplicate);
+  }
+}
+)";
+    const auto result = parser.parse(source);
+    unsigned queries = 0, exact = 0, switches = 0, modes = 0, merges = 0;
+    for (const auto* node : result.nodes) {
+      if (const auto* q = cursiv::ast_cast<apex::ast::SoqlExpr>(node)) {
+        if (q->text.find("square]") == std::string_view::npos || q->text.back() != ']')
+          return fail("query closed inside a quoted string");
+        ++queries;
+      }
+      if (const auto* e = cursiv::ast_cast<apex::ast::BinaryExpr>(node); e && e->op == "===") ++exact;
+      if (const auto* sw = cursiv::ast_cast<apex::ast::SwitchStmt>(node)) {
+        if (sw->cases.size() != 3 || sw->cases[0]->values.size() != 2 ||
+            !sw->cases[1]->type || sw->cases[1]->name != "account" ||
+            !sw->cases[2]->isElse || !sw->cases[2]->body)
+          return fail("switch alternatives or sObject binding lost");
+        ++switches;
+      }
+      if (const auto* d = cursiv::ast_cast<apex::ast::DmlExpr>(node)) {
+        if (d->op != "insert" || d->mode != "USER" || !d->value)
+          return fail("DML access mode lost");
+        ++modes;
+      }
+      if (const auto* u = cursiv::ast_cast<apex::ast::UpsertExpr>(node)) {
+        if (u->mode != "system" || !u->value || !u->field)
+          return fail("upsert access mode or field lost");
+        ++modes;
+      }
+      if (const auto* m = cursiv::ast_cast<apex::ast::MergeExpr>(node)) {
+        if (!m->master || !m->duplicates || !m->mode.empty()) return fail("merge operands lost");
+        ++merges;
+      }
+    }
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        queries != 2 || exact != 1 || switches != 1 || modes != 2 || merges != 1)
+      return fail("native Apex class forms rejected");
+  }
+  for (const char* source : {"class C { Object f = x ? .field; }",
+                             "class C { String f = 'line\nline'; }"}) {
+    const auto result = parser.parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("split safe-navigation operator or single-line string accepted");
+  }
+
   int count = 0;
   for (const auto& entry : std::filesystem::directory_iterator(CURSIV_EXAMPLE_DIR)) {
     if (!entry.is_regular_file() || entry.path().extension() != ".cls") continue;

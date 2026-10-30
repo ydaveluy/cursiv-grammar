@@ -9,6 +9,12 @@ bool reserved(std::string_view text) {
   return text == "AND" || text == "OR" || text == "NOT" || text == "&&" ||
          text == "||";
 }
+bool integer_parameter(std::string_view text) {
+  if (text.empty() || text.find_first_not_of("0123456789") != text.npos) return false;
+  const auto first = text.find_first_not_of('0');
+  text = first == text.npos ? std::string_view{} : text.substr(first);
+  return text.size() < 10 || (text.size() == 10 && text <= "2147483647");
+}
 void suffixes(const auto &all, bool fuzzyAllowed, bool validateDistance,
               cursiv::ValidationAcceptor &accept) {
   bool boost = false, fuzzy = false;
@@ -25,6 +31,11 @@ void suffixes(const auto &all, bool fuzzyAllowed, bool validateDistance,
           .code("lucene.duplicate-suffix");
     seen = true;
     const auto value = suffix_number(suffix->raw.substr(1));
+    if (!isBoost && boost)
+      accept.error(*suffix, "A fuzzy/slop suffix precedes the boost.", "lucene.suffix-order");
+    if (!isBoost && fuzzyAllowed && !validateDistance &&
+        !integer_parameter(suffix->raw.substr(1)))
+      accept.error(*suffix, "Phrase slop needs a nonnegative int32 parameter.", "lucene.phrase-slop");
     if (isBoost) {
       if (!value || !std::isfinite(*value) || *value < 0)
         accept
@@ -103,12 +114,32 @@ void LuceneValidator::checkBound(const ast::RangeBound &n,
 void LuceneValidator::checkTerm(const ast::Term &n,
                                 cursiv::ValidationAcceptor &a) const {
   const auto *word = cursiv::ast_cast<ast::WordTerm>(n.primary);
-  suffixes(n.suffixes, !cursiv::ast_cast<ast::RangeTerm>(n.primary),
-           word && !has_wildcard(word->raw), a);
+  suffixes(n.suffixes, word || cursiv::ast_cast<ast::QuotedTerm>(n.primary),
+           word != nullptr, a);
 }
 void LuceneValidator::checkGroup(const ast::GroupingExpr &n,
                                  cursiv::ValidationAcceptor &a) const {
   suffixes(n.suffixes, false, false, a);
+  if (!n.minimumShouldMatch.empty() && !integer_parameter(n.minimumShouldMatch))
+    a.error(n, "Minimum-should-match needs a nonnegative int32 parameter.", "lucene.minimum-should-match")
+        .property<&ast::GroupingExpr::minimumShouldMatch>();
+}
+void LuceneValidator::checkInterval(const ast::IntervalExpr& n,
+                                   cursiv::ValidationAcceptor& a) const {
+  const auto check = [&](std::size_t index) {
+    if (index >= n.arguments.size()) return;
+    const auto* word = cursiv::ast_cast<ast::WordTerm>(n.arguments[index]);
+    if (word && !integer_parameter(word->raw))
+      a.error(*word, "An interval numeric parameter needs a nonnegative int32.", "lucene.interval-parameter")
+          .property<&ast::WordTerm::raw>();
+  };
+  const auto f = n.function;
+  if (f == "atleast" || f == "atLeast" || f == "maxwidth" || f == "maxWidth" ||
+      f == "maxgaps" || f == "maxGaps") check(0);
+  else if (f == "within" || f == "notwithin" || f == "notWithin") check(1);
+  else if (f == "extend") { check(1); check(2); }
+  else if (f == "wildcard") check(1);
+  else if (f == "fuzzyterm" || f == "fuzzyTerm") { check(1); check(2); }
 }
 void register_validation_checks(LuceneCoreServices &services) {
   using V = LuceneValidator;
@@ -117,7 +148,7 @@ void register_validation_checks(LuceneCoreServices &services) {
 #define CHECK(name)                                                            \
   cursiv::ValidationRegistry::makeValidationCheck<&V::name>(*services.validator)
       CHECK(checkQuery), CHECK(checkClause), CHECK(checkWord),
-      CHECK(checkQuoted), CHECK(checkBound), CHECK(checkTerm), CHECK(checkGroup)
+      CHECK(checkQuoted), CHECK(checkBound), CHECK(checkTerm), CHECK(checkGroup), CHECK(checkInterval)
 #undef CHECK
   });
 }

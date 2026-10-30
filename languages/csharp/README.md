@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+C# syntax based on C# 8, with selected later features including records and collection expressions.
+
 ```csharp
 using System;
 
@@ -39,13 +41,6 @@ var greeter = (string name) => $"Hello, {name}!";
 foreach (var name in new[] { "Alice", "Bob" })
     Console.WriteLine(greeter(name));
 ```
-
-A C# 8 subset covering the whole spec grammar: namespaces, classes, structs,
-interfaces, enums, delegates, generics, attributes, the full statement and
-expression grammar (patterns, switch expressions, LINQ query syntax,
-interpolated strings, local functions, tuples, nullable and pointer types).
-No symbol table: names are held as text, not resolved cross references, so
-there is nothing to rename or go to the definition of.
 
 ## The command line
 

@@ -8,32 +8,35 @@ namespace pii {
 
 struct Pii : cursiv::GrammarSpec {
   struct DIGIT : terminal<d> {};
+  struct CHECK : terminal<cr<"0-9X">> {};
 
-  // '(', ')' and '-' are free-standing separators, not brackets, so any run
-  // of them and whitespace is trivia.
-  struct Trivia : terminal<some(cr<R"( \t\r\n()-)">)> {};
+  // Accept compact identifiers and the publisher's journal/book separators.
+  struct Trivia : terminal<some(cr<R"( \t\r\n()./-)">)> {};
 
   struct Digits2 : rule<repeat<2>(ref<DIGIT>)> {};
-  struct Digits5 : rule<repeat<5>(ref<DIGIT>)> {};
-  struct Digits8 : rule<repeat<8>(ref<DIGIT>)> {};
-  struct Digits10 : rule<repeat<10>(ref<DIGIT>)> {};
+  struct IssnNumber : rule<repeat<7>(ref<DIGIT>) + ref<CHECK>> {};
+  struct IsbnNumber
+      : rule<repeat<13>(ref<DIGIT>) |
+             (repeat<9>(ref<DIGIT>) + ref<CHECK>)> {};
+  struct ItemNumber
+      : rule<ref<CHECK> + repeat<4>(ref<DIGIT>)> {};
 
-  struct IssnRule
-      : rule<lit<"S"> + assign<&ast::Issn::digits>(ref<Digits8>) +
+  struct Issn
+      : rule<lit<"S"> + assign<&ast::Issn::digits>(ref<IssnNumber>) +
              assign<&ast::Issn::year>(ref<Digits2>)> {};
 
-  struct IsbnRule
-      : rule<lit<"B"> + assign<&ast::Isbn::digits>(ref<Digits10>)> {};
+  struct Isbn
+      : rule<lit<"B"> + assign<&ast::Isbn::digits>(ref<IsbnNumber>)> {};
 
-  static constexpr auto identifier = ref<IssnRule> | ref<IsbnRule>;
+  static constexpr auto identifier = ref<Issn> | ref<Isbn>;
 
-  struct DocRule
+  struct Doc
       : rule<assign<&ast::Doc::id>(identifier) +
-             assign<&ast::Doc::item>(ref<Digits5>) +
-             assign<&ast::Doc::check>(ref<DIGIT> | lit<"X">)> {};
+             assign<&ast::Doc::item>(ref<ItemNumber>) +
+             assign<&ast::Doc::check>(ref<CHECK>)> {};
 
-  using entry = DocRule;
-  using ignore = Trivia;
+  using entry = Doc;
+  using ignored = Trivia;
 };
 
 }  // namespace pii

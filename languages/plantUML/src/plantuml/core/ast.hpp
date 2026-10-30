@@ -25,12 +25,16 @@ struct ClassDecl : cursiv::Extends<Element> {
   boolean is_interface;
   string_view name;
   string_view stereotype;  // empty when absent
-  string_view extends;     // empty when absent
+  string_view kind;       // abstract/interface use their flags above
+  string_view displayName;
+  vector<string_view> extends;
+  vector<string_view> implements;
   BodyBlock* body;         // nullptr when absent
 };
 
 struct EnumDecl : cursiv::Extends<Element> {
   string_view name;
+  string_view displayName;
   string_view stereotype;  // empty when absent
   BodyBlock* body;         // nullptr when absent
 };
@@ -51,7 +55,18 @@ struct AssociativeClass : cursiv::Extends<Element> {
   string_view left;
   string_view right;
   string_view target;
+  string_view op;
+  boolean targetFirst;
   string_view name;  // text after ':', empty when absent
+};
+
+struct NoteDecl : cursiv::Extends<Element> {
+  string_view position;
+  string_view target;
+  string_view name;
+  boolean onLink;
+  string_view color;
+  string_view text;  // multiline form retains its newline and end-note delimiter
 };
 
 struct Document : cursiv::Extends<cursiv::AstNode> {

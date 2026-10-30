@@ -103,6 +103,63 @@ inline bool run() {
       check(false, "runtime validation receives a compilation unit");
     check(errors == 1, "runtime validator reports semantic constraints");
   }
+
+  {
+    const std::string source =
+        "IDENTIFICATION DIVISION.\nPROGRAM-ID. NativeProbe.\n"
+        "ENVIRONMENT DIVISION.\nINPUT-OUTPUT SECTION.\nFILE-CONTROL.\n"
+        "SELECT OPTIONAL INPUT-FILE ASSIGN TO \"file.dat\".\n"
+        "DATA DIVISION.\nWORKING-STORAGE SECTION.\n"
+        "01 WS-A PIC 9.\n88 SMALL-SET VALUE 1 THRU 9.\n"
+        "01 WS-B PIC 9.\n01 WS-TEXT PIC X(3).\n"
+        "88 LETTERS VALUE \"A\" THROUGH \"Z\".\n"
+        "01 FILL-CHARS PIC X(3) VALUE ALL \"A\".\n"
+        "PROCEDURE DIVISION.\n"
+        "EVALUATE TRUE\n"
+        " WHEN WS-A > 0 AND WS-A < 10 CONTINUE\n"
+        " WHEN OTHER CONTINUE\nEND-EVALUATE\n"
+        "EVALUATE WS-A > WS-B WHEN FALSE CONTINUE END-EVALUATE\n"
+        "IF WS-TEXT = ALL \"A\" CONTINUE END-IF\nSTOP RUN.\n";
+    const auto native = parser->parse(source);
+    check(native.accepted && !native.cst().recovered() && native.diagnostics.empty(),
+          "conditional EVALUATE subjects and selectors parse");
+    const auto* unit = native.value_as<ast::CompilationUnit>();
+    const auto* program = unit && unit->programs.size() == 1 ? unit->programs[0] : nullptr;
+    const auto* proc = program ? program->procedure : nullptr;
+    const auto* first = proc && proc->statements.size() == 4
+        ? cursiv::ast_cast<ast::EvaluateStatement>(proc->statements[0]) : nullptr;
+    const auto* second = proc && proc->statements.size() == 4
+        ? cursiv::ast_cast<ast::EvaluateStatement>(proc->statements[1]) : nullptr;
+    check(first && first->whenPhrases.size() == 1 &&
+              first->whenPhrases[0]->whens.size() == 1 &&
+              first->whenPhrases[0]->whens[0]->values.size() == 1 &&
+              first->whenPhrases[0]->whens[0]->values[0]->cond &&
+              first->hasWhenOther && first->whenOther.size() == 1,
+          "conditional selector and WHEN OTHER retain their trees");
+    check(second && second->subjects.size() == 1 && second->subjects[0]->cond &&
+              second->whenPhrases.size() == 1 &&
+              second->whenPhrases[0]->whens[0]->values[0]->boolLiteral == "FALSE",
+          "conditional subject and boolean selector retain their trees");
+    check(program && program->environment && program->environment->files.size() == 1 &&
+              program->environment->files[0]->optional_,
+          "SELECT OPTIONAL flag is retained");
+    bool range = false, all = false, quotedRange = false, repeatedValue = false;
+    for (const auto* node : native.nodes) {
+      if (const auto* item = cursiv::ast_cast<ast::DataItem>(node)) {
+        range |= item->level == "88" && item->values.size() == 1 &&
+                 item->values[0] == "1 THRU 9";
+        quotedRange |= item->name == "LETTERS" && item->values.size() == 1 &&
+                       item->values[0] == "\"A\" THROUGH \"Z\"";
+        repeatedValue |= item->name == "FILL-CHARS" && item->values.size() == 1 &&
+                         item->values[0] == "ALL \"A\"";
+      }
+      if (const auto* literal = cursiv::ast_cast<ast::Literal>(node))
+        all |= literal->all && literal->text == "A";
+    }
+    check(range, "VALUE range retains both endpoints with canonical spacing");
+    check(quotedRange && repeatedValue, "VALUE quotes/ranges and ALL data value are retained");
+    check(all, "ALL expression literal marker is retained");
+  }
   return ok;
 }
 } // namespace audit_regressions

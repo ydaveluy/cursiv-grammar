@@ -191,6 +191,85 @@ static int audit_regression() {
     language.language.documentValidator->validateDocument(*doc, diagnostics);
     if (diagnostics.empty()) return 1;
   }
+  {
+    const auto r = language.language.parser->parse(
+        "--without a space\nCREATE TABLE MixedCase (A int, B int, PRIMARY KEY ((A,B))) WITH cdc=true;"
+        "INSERT INTO t (k,u,f,d,b) VALUES (1,{Field: 'x'},-Infinity,1h30m,0x);"
+        "SELECT * FROM t WHERE k IN :keys AND labels['x'] != 'y' "
+        "GROUP BY a,b ORDER BY a DESC,b ASC PER PARTITION LIMIT ? LIMIT 10;"
+        "CREATE TRIGGER tr ON ks.tbl USING 'example.Trigger';"
+        "CREATE AGGREGATE agg(int,text) SFUNC state STYPE int;"
+        "UPDATE t SET a=[1]+a,b=b+[2],c=c+? WHERE k=1;"
+        "SELECT Ks.Fn(a) FROM t; --final");
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty())
+      return fail("native-followup", "native statement forms need repair");
+    const auto* doc = r.value_as<cql3::ast::Root>();
+    if (!doc || doc->statements.size() != 7) return 1;
+    const auto* table = cursiv::ast_cast<cql3::ast::CreateTable>(doc->statements[0]);
+    const auto* insert = cursiv::ast_cast<cql3::ast::Insert>(doc->statements[1]);
+    const auto* select = cursiv::ast_cast<cql3::ast::Select>(doc->statements[2]);
+    const auto* trigger = cursiv::ast_cast<cql3::ast::CreateTrigger>(doc->statements[3]);
+    const auto* aggregate = cursiv::ast_cast<cql3::ast::CreateAggregate>(doc->statements[4]);
+    const auto* update = cursiv::ast_cast<cql3::ast::Update>(doc->statements[5]);
+    const auto* call_select = cursiv::ast_cast<cql3::ast::Select>(doc->statements[6]);
+    if (!table || table->table != "mixedcase" || !table->primaryKey ||
+        table->primaryKey->partitionColumns.size() != 2 ||
+        !table->primaryKey->clusteringColumns.empty() || !insert ||
+        insert->values.size() != 5 || !select || select->groupBy.size() != 2 ||
+        select->orderBy.size() != 2 || !select->orderBy[0]->descending ||
+        !*select->orderBy[0]->descending || !select->orderBy[1]->descending ||
+        *select->orderBy[1]->descending ||
+        !cursiv::ast_cast<cql3::ast::BindMarker>(select->perPartitionLimit) ||
+        select->where.size() != 2 || !trigger || trigger->onKeyspace != "ks" ||
+        trigger->onTable != "tbl" || !aggregate || aggregate->argTypes.size() != 2 ||
+        !aggregate->finalfunc.empty() || aggregate->initcond || !update ||
+        update->assignments.size() != 3 ||
+        !update->assignments[0]->counterOp ||
+        !update->assignments[0]->counterOp->deltaFirst ||
+        !update->assignments[1]->counterOp ||
+        update->assignments[1]->counterOp->deltaFirst ||
+        !update->assignments[2]->counterOp ||
+        !cursiv::ast_cast<cql3::ast::BindMarker>(update->assignments[2]->counterOp->deltaOperand) ||
+        !call_select || call_select->elements.size() != 1 ||
+        !call_select->elements[0]->call ||
+        call_select->elements[0]->call->keyspace != "ks" ||
+        call_select->elements[0]->call->name != "fn") return 1;
+    const auto* udt = cursiv::ast_cast<cql3::ast::UdtLit>(insert->values[1]);
+    const auto* duration = cursiv::ast_cast<cql3::ast::DurationLit>(insert->values[3]);
+    const auto* in = cursiv::ast_cast<cql3::ast::InRelation>(select->where[0]);
+    const auto* compare = cursiv::ast_cast<cql3::ast::CompareRelation>(select->where[1]);
+    if (!udt || udt->fields.size() != 1 || udt->fields[0]->field != "field" ||
+        !duration || duration->value != "1h30m" || !in || !in->marker ||
+        in->marker->name != "keys" || !compare || !compare->index ||
+        compare->op != cql3::ast::CompareOp::neq) return 1;
+  }
+  for (const std::string source : {
+           "CREATE AGGREGATE empty() SFUNC state STYPE int INITCOND 0;",
+           "INSERT INTO t (d) VALUES (P1Y2M3DT4H5M6S);",
+           "INSERT INTO t (d) VALUES (-P0001-02-03T04:05:06);",
+           "INSERT INTO t (f) VALUES (NaN);",
+           "SELECT JSON DISTINCT k FROM t;",
+           "CREATE CUSTOM INDEX i ON t (a,VALUES(b)) USING 'example.Index' WITH OPTIONS={};"}) {
+    const auto r = language.language.parser->parse(source);
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty())
+      return fail("native-followup", "native literal/aggregate needs repair");
+  }
+  {
+    auto document = language.shared->documentFactory->fromString(
+        "CREATE TYPE \"list\" (x int); CREATE TABLE t (k int PRIMARY KEY, "
+        "v frozen<\"list\">);", "file:///quoted-type.cql3");
+    if (!document->parseResult.accepted || document->parseResult.cst().recovered() ||
+        !document->parseResult.diagnostics.empty()) return 1;
+    std::vector<cursiv::Diagnostic> diagnostics;
+    language.language.documentValidator->validateDocument(*document, diagnostics);
+    const auto* root = document->parseResult.value_as<cql3::ast::Root>();
+    const auto* table = root && root->statements.size() == 2
+                            ? cursiv::ast_cast<cql3::ast::CreateTable>(root->statements[1])
+                            : nullptr;
+    if (!diagnostics.empty() || !table || table->columns.size() != 2 ||
+        table->columns[1]->type->params.size() != 1 ||
+        !table->columns[1]->type->params[0]->quoted) return 1;
+  }
   return 0;
 }
 

@@ -20,7 +20,8 @@ inline int morse_table_regressions(const cursiv::CoreServices& services) {
                          {"-.--. -.--.- -..-. -...-", {'(', ')', '/', '='}},
                          {"..-- .-.- ---.", {0xDC, 0xC4, 0xD6}},
                          {"...-.- -...-.- ...-. .-... -.-.- .-.-..",
-                          {'<', '>', '!', '&', '^', '~'}}}) {
+                          {'<', '>', '!', '&', '^', '~'}},
+                         {". ........ ..-..", {'e', '\b', 0xC9}}}) {
     const auto result = services.parser->parse(c.source);
     const auto* message =
         cursiv::ast_cast<morsecode::ast::Message>(result.value);

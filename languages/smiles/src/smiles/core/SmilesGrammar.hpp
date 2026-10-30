@@ -30,14 +30,12 @@ inline constexpr auto bond_kind = [](std::string_view t) -> ast::Bond {
       return ast::Bond::Single;
   }
 };
-using BondConv = cursiv::text_conv<bond_kind>;
 
 struct Smiles : cursiv::GrammarSpec {
   struct BOND
-      : terminal<lit<"-"> | lit<"="> | lit<"#"> | lit<"$"> | lit<":"> |
-                     lit<"/"> | lit<"\\"> | lit<"\\\\"> | lit<"->"> | lit<"<-"> | lit<"~">,
-                 BondConv> {};
-  struct DOT : terminal<lit<".">, value<ast::Bond::Dot>> {};
+      : terminal<as<bond_kind>(lit<"-"> | lit<"="> | lit<"#"> | lit<"$"> |
+                               lit<":"> | lit<"/"> | lit<"\\"> | lit<"\\\\"> |
+                               lit<"->"> | lit<"<-"> | lit<"~">)> {};
 
   struct OrganicAtomSymbol
       : terminal<lit<"B"> | lit<"C"> | lit<"N"> | lit<"O"> | lit<"S"> |
@@ -63,7 +61,7 @@ struct Smiles : cursiv::GrammarSpec {
   struct RINGNUM : terminal<d | (lit<"%"> + d + d) |
                            (lit<"%("> + some(d) + lit<")">)> {};
 
-  struct AtomRule
+  struct Atom
       : rule<assign<&ast::Atom::symbol>(ref<OrganicAtomSymbol>) |
              (flag<&ast::Atom::bracket>(lit<"[">) +
               option(assign<&ast::Atom::isotope>(ref<NUMBER>)) +
@@ -74,35 +72,35 @@ struct Smiles : cursiv::GrammarSpec {
               option(lit<":"> + assign<&ast::Atom::atomClass>(ref<NUMBER>)) +
               lit<"]">)> {};
 
-  struct RingBondRule
+  struct RingBond
       : rule<option(assign<&ast::RingBond::bond>(ref<BOND>)) +
              assign<&ast::RingBond::number>(ref<RINGNUM>)> {};
 
-  struct ChainRule;
+  struct Chain;
 
-  struct BranchRule
+  struct Branch
       : rule<lit<"("> +
-             option(assign<&ast::Branch::bond>(ref<BOND> | ref<DOT>)) +
-             assign<&ast::Branch::chain>(ref<ChainRule>) + lit<")">> {};
+             option(assign<&ast::Branch::bond>(ref<BOND> | as<ast::Bond::Dot>(lit<".">))) +
+             assign<&ast::Branch::chain>(ref<Chain>) + lit<")">> {};
 
-  struct BranchedAtomRule
-      : rule<assign<&ast::BranchedAtom::atom>(ref<AtomRule>) +
+  struct BranchedAtom
+      : rule<assign<&ast::BranchedAtom::atom>(ref<Atom>) +
              many(append<&ast::BranchedAtom::suffixes>(
-                 ref<RingBondRule> | ref<BranchRule>))> {};
+                 ref<RingBond> | ref<Branch>))> {};
 
-  struct ChainLinkRule
-      : rule<option(assign<&ast::ChainLink::bond>(ref<BOND> | ref<DOT>)) +
-             assign<&ast::ChainLink::atom>(ref<BranchedAtomRule>)> {};
+  struct ChainLink
+      : rule<option(assign<&ast::ChainLink::bond>(ref<BOND> | as<ast::Bond::Dot>(lit<".">))) +
+             assign<&ast::ChainLink::atom>(ref<BranchedAtom>)> {};
 
-  struct ChainRule
-      : rule<assign<&ast::Chain::first>(ref<BranchedAtomRule>) +
-             many(append<&ast::Chain::rest>(ref<ChainLinkRule>))> {};
+  struct Chain
+      : rule<assign<&ast::Chain::first>(ref<BranchedAtom>) +
+             many(append<&ast::Chain::rest>(ref<ChainLink>))> {};
 
   struct TERMINATOR : terminal<some(cr<R"( \t\r\n)">)> {};
 
   struct SmilesRule
       : rule<create<ast::Smiles> + option(ref<TERMINATOR>) +
-             option(assign<&ast::Smiles::chain>(ref<ChainRule>) +
+             option(assign<&ast::Smiles::chain>(ref<Chain>) +
                     option(flag<&ast::Smiles::hasTerminator>(ref<TERMINATOR>)))> {
   };
 

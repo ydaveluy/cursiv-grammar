@@ -11,6 +11,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "joss/core/CoreServices.hpp"
 #include "joss/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -31,6 +32,8 @@ int main() {
   const auto language = cursiv::create_language<
       joss::JossCoreServices, joss::JossSharedCoreServices,
       joss::install_core_module>();
+
+  if (!joss_native_followup::run(language)) return 1;
 
   const char* const docs[] = {
       CURSIV_TEST_DIR "/statements.joss",   //

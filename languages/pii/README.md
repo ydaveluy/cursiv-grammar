@@ -31,15 +31,18 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Publisher Item Identifiers for journals and books, with ISSN or ISBN components.
+
 ```
 S0960-9822(11)01319-4
 ```
 
-A [Publisher Item Identifier](https://en.wikipedia.org/wiki/Publisher_Item_Identifier):
-`S` then a compacted 8-digit ISSN (or `B` then a 10-digit ISBN), a 2-digit
-year, a 5-digit item number and a check character — a digit, or `X`. `-`,
-`(`, `)` and whitespace are all interchangeable separators, ignorable
-anywhere between two digits.
+```
+S0012365X15000898
+S9999-9994(03)X7607-2
+B978-0-323-01679-7.10003-8
+B0-323-01679-0/10027-7
+```
 
 ## The command line
 

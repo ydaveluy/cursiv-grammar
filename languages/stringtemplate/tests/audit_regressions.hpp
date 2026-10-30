@@ -28,6 +28,31 @@ inline bool run() {
             as<ast::Text>(t->elements[2]) &&
             as<ast::Text>(t->elements[2])->value == " world\n",
         "literal whitespace retained");
+  {
+    const auto result = parser->parse("<\\n><\\t><\\ ><\\u0041><\"a\nb\"><true><false>");
+    check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
+          "ST4 escapes, multiline strings and boolean literals");
+    const auto* root = as<ast::Template>(result.value);
+    check(root && root->elements.size() == 7, "all native escape and value nodes retained");
+    if (root && root->elements.size() == 7) {
+      const char* expected[] = {"\n", "\t", " ", "A"};
+      for (std::size_t i = 0; i < 4; ++i) {
+        const auto* text = as<ast::Text>(root->elements[i]);
+        check(text && text->value == expected[i], "ST4 escaped text value");
+      }
+      const auto* tag = as<ast::ExprTag>(root->elements[4]);
+      const auto* map = tag ? as<ast::MapExpr>(tag->value) : nullptr;
+      const auto* string = map && map->sources.size() == 1
+          ? as<ast::StringExpr>(map->sources[0]) : nullptr;
+      check(string && string->value == "a\nb", "native multiline string preserves its newline");
+    }
+  }
+  for (const auto source : {"<\\u41>", "<\\u>", "<\\b>", "<\\r>",
+                            "<\\z>", "<é>", "<if>", "<super>"}) {
+    const auto result = parser->parse(source);
+    check(!result.accepted || result.cst().recovered() || !result.diagnostics.empty(),
+          "ST4 rejects invalid escapes, non-ASCII IDs and isolated control keywords");
+  }
   return ok;
 }
 } // namespace audit_regressions

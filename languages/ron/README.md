@@ -31,24 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[RON](https://github.com/ron-rs/ron) (Rusty Object Notation) is a data format
-close to JSON, with an optional leading type name on any value, single- and
-double-quoted scalars, and trailing commas everywhere a list can end:
-
-```
-GameConfig( // optional struct name
-    window_size: (800, 600),
-    fullscreen: false,
-    key_bindings: {
-        "up": Up,
-        "down": Down,
-    },
-)
-```
-
-`GameConfig` is a classname naming the struct that follows; `(800, 600)` is a
-tuple; `Up` and `Down` are bare identifiers, RON's unit values (an enum
-variant or a unit struct with no fields).
+RON 0.12.2 values, including records, maps, attributes and ranges. The AST retains numeric spellings without typed Serde deserialization.
 
 ## The command line
 

@@ -13,8 +13,8 @@ namespace z::ast {
 
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
 
-// Unknown operator bindings are resolved against operator-template paragraphs at
-// runtime.
+// Custom operator sequences retain source order. The port does not yet resolve
+// their binding/precedence against operator-template declarations.
 struct OperatorStep : cursiv::Extends<cursiv::AstNode> {
   string_view op;
   Expr* operand;
@@ -228,11 +228,12 @@ struct Conjecture : cursiv::Extends<Item> {
   Expr* value = nullptr;
 };
 
-// An operator template declaration, available for runtime binding and precedence
-// resolution of OperatorSequence nodes.
+// An operator template declaration. Its data is retained for a future semantic
+// resolution of OperatorSequence nodes; no resolver is installed.
 struct OperatorTemplate : cursiv::Extends<Item> {
   string_view category;  // "relation", "function", "generic"
   string_view text;      // the parenthesized name pattern, verbatim
+  string_view precedence;  // original Unicode decimal spelling, no fixed-width limit
   bool hasPrec = false;
   bool rightAssoc = false;
 };

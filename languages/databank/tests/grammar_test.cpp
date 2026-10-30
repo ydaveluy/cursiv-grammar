@@ -51,6 +51,25 @@ int main() {
     }
   }
 
+  for (const std::string source : {"-12\n2020.01\n2020.03\n1\nNA\n-2.5e1",
+                                   "0\r\n1\r\n+1.0\r\n"}) {
+    const auto result = language.language.parser->parse(source);
+    const auto* series = cursiv::ast_cast<databank::ast::Series>(result.value);
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !series)
+      return fail("native row layout did not parse clean");
+    if (series->datatype &&
+        (series->samples.size() != 3 ||
+         !std::holds_alternative<std::monostate>(series->samples[1]) ||
+         std::get<double>(series->samples[2]) != -25))
+      return fail("native row values were not preserved");
+  }
+  {
+    const auto result = language.language.parser->parse("0\n1\n1 2\n");
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("two observations on one line must not form two valid rows");
+  }
+
   if (count == 0) return fail("no examples found");
   std::printf("databank: %d examples parse\n", count);
   return 0;

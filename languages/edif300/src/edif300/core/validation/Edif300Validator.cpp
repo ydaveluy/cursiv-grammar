@@ -7,7 +7,7 @@
 
 namespace edif300 {
 
-// No checks registered: the grammar alone decides what a document means.
+// Syntax-only port: EXPRESS information-model checks are not registered.
 void register_validation_checks(Edif300CoreServices& services) {
   using V = Edif300Validator;
   services.validator = std::make_unique<const V>(services);

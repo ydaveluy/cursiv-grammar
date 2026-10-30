@@ -1,5 +1,4 @@
-// The checks of this language: none yet -- nothing here needs a check
-// beyond parsing.
+// This syntax subset does not register semantic validation checks.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

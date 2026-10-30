@@ -31,16 +31,15 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+RFC 822 address lists with mailboxes, display names, route addresses, groups and comments.
+
 ```
 very.common@example.com
 ```
 
-An address is a mailbox — a plain `localpart@domain`, or a phrase naming a
-route-addressed one, `"Some Name"<@relay:user@domain>` — or a named group of
-mailboxes, `Friends:Alice<a@x.com>Bob<b@x.com>;`. A local part or a domain
-splits on `.` into words; a word is either an unquoted run of text or a
-`'single-quoted'` one; a domain segment is a plain name or a bracketed
-`[domain-literal]`.
+```
+Friends: Alice<a@x.com>, Bob<b@x.com>;
+```
 
 ## The command line
 

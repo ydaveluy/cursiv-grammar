@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every document in example/ parses, clean.
 add_executable(alloy_grammar_test grammar_test.cpp)
-target_link_libraries(alloy_grammar_test PRIVATE alloyCore)
+target_link_libraries(alloy_grammar_test PRIVATE alloyCore cursiv::test)
 target_compile_definitions(alloy_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

@@ -1,5 +1,4 @@
-// The checks of this language. None yet: nothing here needs a check beyond
-// parsing.
+// Numeric constraints which depend on a token's declared radix.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,7 @@ namespace clojure {
 class ClojureValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkRadix(const ast::RadixLit&, cursiv::ValidationAcceptor&) const;
 };
 
 struct ClojureCoreServices;

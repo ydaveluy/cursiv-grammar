@@ -13,19 +13,16 @@ inline std::size_t space_size(std::string_view text, std::size_t at) {
   if (at >= text.size()) return 0;
   const std::size_t width = cursiv::utf8_width(text[at]);
   static constexpr std::string_view spaces =
-      "\t\v\f\r \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005"
+      "\t\v\f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005"
       "\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000";
   return spaces.find(text.substr(at, width)) == std::string_view::npos ? 0
                                                                        : width;
 }
 
 inline std::string decode_value(const ast::Item& item, const cursiv::Cst& cst) {
-  auto text = item.raw;
+  const auto text = item.raw;
   const auto source = cst.text();
   const auto tail = cst[item.cstNodeId].end;
-  if (!text.empty() && text.back() == '\r' && tail < source.size() &&
-      source[tail] == '\n')
-    text.remove_suffix(1);
   std::string result, pending;
   bool quoted = false;
   bool leading = true;
@@ -62,15 +59,17 @@ inline std::string decode_value(const ast::Item& item, const cursiv::Cst& cst) {
           break;
       }
       if (end < text.size() && text[end] == ';')
-        while (end < text.size() && text[end] != '\n') ++end;
+        while (end < text.size() && text[end] != '\n' && text[end] != '\r') ++end;
       const bool atEof = tail == source.size() ||
                          (tail < source.size() &&
                           (source[tail] == '\0' || source[tail] == '\x1a'));
-      if ((end < text.size() && text[end] == '\n') ||
+      if ((end < text.size() && (text[end] == '\n' || text[end] == '\r')) ||
           (end == text.size() && atEof)) {
         pending.clear();
         leading = true;
         i = end < text.size() ? end + 1 : end;
+        if (end < text.size() && text[end] == '\r' &&
+            i < text.size() && text[i] == '\n') ++i;
         while (const auto width = space_size(text, i)) i += width;
         continue;
       }

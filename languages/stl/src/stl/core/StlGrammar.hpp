@@ -28,7 +28,7 @@ struct Stl : cursiv::GrammarSpec {
                              option(lit<"("> + many(cr<"A-Za-z0-9_">) +
                                     lit<")">)) |
                             infinity)> {};
-  struct EOL : terminal<lit<"\r\n"> | lit<"\n"> | lit<"\r">> {};
+  struct EOL : terminal<eol> {};
   inline static constexpr auto opening_name = [](std::string_view text) {
     return trim_name(text.substr(5));
   };
@@ -36,30 +36,30 @@ struct Stl : cursiv::GrammarSpec {
     return trim_name(text.substr(8));
   };
   struct SOLID_LINE
-      : terminal<ref<SOLID> + many(cr<R"(^\r\n)">) + option(ref<EOL>),
-                 text_conv<opening_name>> {};
+      : terminal<as<opening_name>(ref<SOLID> + many(cr<R"(^\r\n)">) +
+                                  option(ref<EOL>))> {};
   struct ENDSOLID_LINE
-      : terminal<ref<ENDSOLID> + many(cr<R"(^\r\n)">) + option(ref<EOL>),
-                 text_conv<closing_name>> {};
-  struct TripleRule : rule<assign<&ast::Triple::i>(ref<NUMBER>) +
+      : terminal<as<closing_name>(ref<ENDSOLID> + many(cr<R"(^\r\n)">) +
+                                  option(ref<EOL>))> {};
+  struct Triple : rule<assign<&ast::Triple::i>(ref<NUMBER>) +
                            assign<&ast::Triple::j>(ref<NUMBER>) +
                            assign<&ast::Triple::k>(ref<NUMBER>)> {};
-  struct VertexRule : rule<ref<VERTEX> + ref<TripleRule>> {};
-  struct FacetRule : rule<ref<FACET> +
+  struct Vertex : rule<ref<VERTEX> + ref<Triple>> {};
+  struct Facet : rule<ref<FACET> +
                           option(ref<NORMAL> +
-                                 assign<&ast::Facet::normal>(ref<TripleRule>)) +
+                                 assign<&ast::Facet::normal>(ref<Triple>)) +
                           ref<OUTER> + ref<LOOP> +
-                          many(append<&ast::Facet::vertices>(ref<VertexRule>)) +
+                          many(append<&ast::Facet::vertices>(ref<Vertex>)) +
                           ref<ENDLOOP> + ref<ENDFACET>> {};
-  struct SolidRule
+  struct Solid
       : rule<assign<&ast::Solid::name>(ref<SOLID_LINE>) +
-             many(append<&ast::Solid::facets>(ref<FacetRule>)) +
+             many(append<&ast::Solid::facets>(ref<Facet>)) +
              option(flag<&ast::Solid::hasEnd>(
                  assign<&ast::Solid::endName>(ref<ENDSOLID_LINE>)))> {};
-  struct DocRule : rule<create<ast::Document> +
-                        many(append<&ast::Document::solids>(ref<SolidRule>))> {
+  struct Doc : rule<create<ast::Document> +
+                        many(append<&ast::Document::solids>(ref<Solid>))> {
   };
-  using entry = DocRule;
-  using ignore = WS;
+  using entry = Doc;
+  using ignored = WS;
 };
 } // namespace stl

@@ -1,5 +1,5 @@
-// The checks of this language. None yet: the grammar accepts what the
-// language accepts, with nothing left for a validator to police.
+// This numbered-program subset has no runtime or DEC line/format range,
+// variable-name truncation, branch resolution or power-domain validation.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

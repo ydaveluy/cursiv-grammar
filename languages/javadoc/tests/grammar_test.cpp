@@ -12,6 +12,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "javadoc/core/CoreServices.hpp"
 #include "javadoc/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -26,6 +27,8 @@ int main() {
   const auto language = cursiv::create_language<
       javadoc::JavadocCoreServices, javadoc::JavadocSharedCoreServices,
       javadoc::install_core_module>();
+
+  if (!javadoc_native_followup::run(language)) return 1;
 
   int checked = 0;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

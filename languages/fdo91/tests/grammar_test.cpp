@@ -30,6 +30,18 @@ int main() {
       fdo91::Fdo91SharedCoreServices,
       fdo91::install_core_module>();
 
+  {
+    const auto parsed = language.language.parser->parse("atom$de_set_data_type 1");
+    const auto* doc = parsed.value_as<fdo91::ast::Doc>();
+    const auto* atom = doc && doc->atoms.size() == 1 ? doc->atoms[0] : nullptr;
+    const auto* value = atom && atom->args.size() == 1
+        ? std::get_if<fdo91::ast::Number*>(&atom->args[0]) : nullptr;
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !atom || atom->command != "de_set_data_type" || !atom->atomPrefix || atom->bracketed ||
+        !value || !*value || (*value)->text != "1")
+      return fail("January 1994 AOL manual atom example lost its source data");
+  }
+
   if (!native_regressions::run(language.language, *language.shared)) return 1;
 
   int count = 0;

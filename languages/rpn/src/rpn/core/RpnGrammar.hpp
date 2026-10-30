@@ -52,42 +52,35 @@ inline constexpr auto parse_scientific = [](std::string_view text) {
   const double exponent = decimal_value(text.substr(e + 1));
   return mantissa == 0 ? mantissa : mantissa * std::pow(10.0, exponent);
 };
-using Scientific = cursiv::text_conv<parse_scientific>;
 
 struct Rpn : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \r\n\t)">)> {};
 
-  struct SCIENTIFIC_NUMBER
-      : terminal<some(d) + option(lit<"."> + some(d)) +
-                     option(cr<"eE"> + option(cr<"+-">) + some(d) +
-                            option(lit<"."> + some(d))),
-                 Scientific> {};
+  struct SCIENTIFIC_NUMBER : terminal<as<parse_scientific>(
+                                 some(d) + option(lit<"."> + some(d)) +
+                                 option(cr<"eE"> + option(cr<"+-">) + some(d) +
+                                        option(lit<"."> + some(d))))> {};
 
   struct VARIABLE : terminal<cr<"a-zA-Z_"> + many(w)> {};
 
   // Each operator denotes its own constant; `signs` below reuses the same
   // terminals (and the same enumerators) for the unary +/- prefix, since
   // `+`/`-` is one token read in two rules, never two tokens for one glyph.
-  struct POW : terminal<lit<"^">, value<ast::Operator::pow>> {};
-  struct PLUS : terminal<lit<"+">, value<ast::Operator::plus>> {};
-  struct MINUS : terminal<lit<"-">, value<ast::Operator::minus>> {};
-  struct TIMES : terminal<lit<"*">, value<ast::Operator::times>> {};
-  struct DIV : terminal<lit<"/">, value<ast::Operator::div>> {};
-  static constexpr auto oper = ref<POW> | ref<PLUS> | ref<MINUS> | ref<TIMES> | ref<DIV>;
+  static constexpr auto oper = as<ast::Operator::pow>(lit<"^">) | as<ast::Operator::plus>(lit<"+">) | as<ast::Operator::minus>(lit<"-">) | as<ast::Operator::times>(lit<"*">) | as<ast::Operator::div>(lit<"/">);
 
-  struct SignedAtomRule
-      : rule<many(append<&ast::SignedAtom::signs>(ref<PLUS> | ref<MINUS>)) +
+  struct SignedAtom
+      : rule<many(append<&ast::SignedAtom::signs>(as<ast::Operator::plus>(lit<"+">) | as<ast::Operator::minus>(lit<"-">))) +
              assign<&ast::SignedAtom::value>(ref<SCIENTIFIC_NUMBER> |
                                              ref<VARIABLE>)> {};
 
-  static constexpr auto term = ref<SignedAtomRule> | oper;
+  static constexpr auto term = ref<SignedAtom> | oper;
 
-  struct ExpressionRule
-      : rule<append<&ast::Expression::items>(ref<SignedAtomRule>) +
+  struct Expression
+      : rule<append<&ast::Expression::items>(ref<SignedAtom>) +
              many(append<&ast::Expression::items>(term))> {};
 
-  using entry = ExpressionRule;
-  using ignore = WS;
+  using entry = Expression;
+  using ignored = WS;
 };
 
 }  // namespace rpn

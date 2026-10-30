@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: what this language takes, and what it refuses.
 add_executable(refal_grammar_test grammar_test.cpp)
-target_link_libraries(refal_grammar_test PRIVATE refalCore)
+target_link_libraries(refal_grammar_test PRIVATE refalCore cursiv::test)
 target_compile_definitions(refal_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

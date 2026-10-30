@@ -42,8 +42,9 @@ struct Vmf : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
   struct QUOTEDSTRING
-      : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">,
-                 cursiv::text_conv<unquote>> {};
+      : terminal<as<unquote>(
+            lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">)> {
+  };
   struct STRING : terminal<cr<R"(^"{} \t\r\n)" "\xEF\xBB\xBF"> +
                            many(cr<R"(^"{} \t\r\n)">)> {};
   static constexpr auto key =
@@ -52,15 +53,15 @@ struct Vmf : cursiv::GrammarSpec {
   static constexpr auto value =
       flag<&ast::KeyValue::valueQuoted>(assign<&ast::KeyValue::value>(ref<QUOTEDSTRING>)) |
       assign<&ast::KeyValue::value>(ref<STRING>);
-  struct KeyValueRule
+  struct KeyValue
       : rule<key +
              (value |
-              (lit<"{"> + many(append<&ast::KeyValue::children>(ref<KeyValueRule>)) + lit<"}">))> {};
-  struct DocumentRule
+              (lit<"{"> + many(append<&ast::KeyValue::children>(ref<KeyValue>)) + lit<"}">))> {};
+  struct Document
       : rule<create<ast::Document> + option(lit<"\xEF\xBB\xBF">) +
-             many(append<&ast::Document::entries>(ref<KeyValueRule>))> {};
-  using entry = DocumentRule;
-  using ignore = WS;
+             many(append<&ast::Document::entries>(ref<KeyValue>))> {};
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

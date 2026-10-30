@@ -18,6 +18,7 @@ enum class NamedLitKind : std::uint8_t {
   MouseUp, MouseDown,
   NumberType, IntegerType, PointType, RectType, DateType, LogicalType,
   FindWord, FindChars, FindWhole, FindString,
+  True, False,
 };
 
 struct NumberLit : cursiv::Extends<Expr> {
@@ -43,7 +44,7 @@ struct NameRef : cursiv::Extends<Expr> {
 struct SelectionRef : cursiv::Extends<Expr> {};
 struct TargetRef : cursiv::Extends<Expr> {};
 
-enum class Length : std::uint8_t { English, Abbreviated, Short };
+enum class Length : std::uint8_t { English, Abbreviated, Short, Long };
 
 // `the [length] propertyName [of factor]` -- `ofTarget` null is the global
 // form.
@@ -265,6 +266,12 @@ enum class CmdVerb : std::uint8_t { Delete, Dial, Domenu, Do, Get, Visual };
 struct SimpleExprCmd : cursiv::Extends<Stmt> {
   CmdVerb verb;
   Expr* operand;
+  Expr* language;
+  boolean withModem;
+  Expr* modemCommands;
+  Expr* menuName;
+  boolean withoutDialog;
+  vector<Expr*> withKeys;
 };
 
 struct AddSubCmd : cursiv::Extends<Stmt> {
@@ -284,18 +291,25 @@ struct EnableCmd : cursiv::Extends<Stmt> {
   Expr* target;
 };
 
+enum class LockTarget : std::uint8_t { Screen, Messages, Recent, ErrorDialogs };
 struct ScreenLockCmd : cursiv::Extends<Stmt> {
+  LockTarget target;
   boolean lock;  // false: unlock
   Expr* visualEffect;
 };
 
 struct AnswerCmd : cursiv::Extends<Stmt> {
   Expr* prompt;
+  boolean file;
+  boolean program;
+  Expr* type;
   vector<Expr*> buttons;  // 0-3, via optional `with ... or ... or ...`
 };
 
 struct AskCmd : cursiv::Extends<Stmt> {
   boolean file;
+  boolean password;
+  boolean clear;
   Expr* prompt;
   Expr* defaultAnswer;
 };
@@ -382,14 +396,16 @@ struct PlayCmd : cursiv::Extends<Stmt> {
   MusicExpr* music;
 };
 
-struct PopCardCmd : cursiv::Extends<Stmt> {};
+enum class Preposition : std::uint8_t { Before, After, Into };
+struct PopCardCmd : cursiv::Extends<Stmt> {
+  optional<Preposition> prep;
+  Expr* target;
+};
 
 struct PushCmd : cursiv::Extends<Stmt> {
   boolean card;  // false: `push expression`
   Expr* value;
 };
-
-enum class Preposition : std::uint8_t { Before, After, Into };
 
 struct PutCmd : cursiv::Extends<Stmt> {
   vector<Expr*> values;
@@ -405,6 +421,7 @@ struct ReadFileCmd : cursiv::Extends<Stmt> {
 };
 
 struct ResetCmd : cursiv::Extends<Stmt> {
+  boolean printing;
   boolean paint;  // false: menubar
 };
 
@@ -438,6 +455,10 @@ struct SendCmd : cursiv::Extends<Stmt> {
 // a `target` (the `picture of` form), or a bare `target` with `picture`
 // unset.
 struct ShowHideCmd : cursiv::Extends<Stmt> {
+  boolean allCards;
+  boolean markedCards;
+  Expr* cardCount;
+  vector<Expr*> at;
   boolean show;  // false: hide
   boolean titlebar;
   boolean picture;

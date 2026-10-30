@@ -31,14 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A small Logo dialect based on the 2013 grammar, with turtle commands, procedures, expressions and repeat blocks.
+
 ```
 repeat 3 [fd 60 rt 120]
 ```
-
-`repeat` runs a bracketed block of commands a number of times; `fd`/`rt`
-move and turn a turtle. `make "name value` sets a variable, `:name` reads
-it, and `to name :param ... end` declares a procedure. See `example/` for
-more.
 
 ## The command line
 

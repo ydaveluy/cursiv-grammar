@@ -249,8 +249,7 @@ struct TypeofType : cursiv::Extends<TypeSpec> {
 
 struct Declaration;
 
-// `struct S {...}`, TrapC's only tag kind: `union` stays a reserved word but
-// no rule builds one, so there is no keyword field to carry it.
+// `struct S {...}` is the supported tag kind; no rule builds a union.
 struct TagType : cursiv::Extends<TypeSpec> {
   vector<string_view> attributes;
   string_view name;  // empty for an anonymous struct
@@ -260,8 +259,7 @@ struct TagType : cursiv::Extends<TypeSpec> {
 
 struct Enumerator;
 
-// `enum Color int { ... }`: a fixed underlying type, spelled with no `:`
-// before the type -- unlike real C23.
+// `enum Color : int { ... }`: an optional fixed underlying type.
 struct EnumType : cursiv::Extends<TypeSpec> {
   vector<string_view> attributes;
   string_view name;

@@ -11,6 +11,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "icon/core/CoreServices.hpp"
 #include "icon/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -48,6 +49,8 @@ int main() {
       icon::IconCoreServices,
       icon::IconSharedCoreServices,
       icon::install_core_module>();
+
+  if (!icon_native_followup::run(language.language)) return 1;
 
   for (const Doc& doc : kDocs) {
     std::ifstream file(doc.path);

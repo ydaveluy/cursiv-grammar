@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+KUKA KRL source follows the 2010–2011 grammar profile, including routines, motion statements and structured values.
+
 ```
 DEF example()
 DECL INT i
@@ -48,10 +50,6 @@ cpos = {POS: X 250,Y -200,Z 1300,A 0,B 90,C 0}
 ENDIF
 END
 ```
-
-KRL, the KUKA Robot Language: keywords are case-insensitive, a newline ends
-a statement, and a struct literal like `{AXIS: A1 0, ...}` is how a robot
-position or joint set is written inline.
 
 ## The command line
 

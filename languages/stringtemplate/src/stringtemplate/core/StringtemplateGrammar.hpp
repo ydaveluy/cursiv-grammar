@@ -82,7 +82,7 @@ inline constexpr auto escapeValue = [](std::string_view text,
 };
 
 struct Stringtemplate : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \t\r\n\f)">)> {};
+  struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct TMPL_COMMENT : terminal<through(lit<"<!">, lit<"!>">)> {};
   struct LINE_BREAK
       : terminal<lit<"<\\\\>"> + many(cr<R"( \t)">) + option(lit<"\r">) +
@@ -96,37 +96,28 @@ struct Stringtemplate : cursiv::GrammarSpec {
       return cr<R"(^<\\)">;
   }();
   template <bool Nested>
-  struct TEXT : terminal<some((lit<"\\"> + option(any)) | textChar<Nested>),
-                         text_conv<textValue>> {};
+  struct TEXT : terminal<as<textValue>(
+                    some((lit<"\\"> + option(any)) | textChar<Nested>))> {};
   struct PIPE : terminal<lit<"|"> + option(cr<R"( \t\r\n)">)> {};
 
-  // `<\n>`, `<\t>`, `<\\>`, `<\uXXXX>`: an escape wrapped in the delimiters,
-  // folded into the same "literal span" family as TEXT.
-  struct ESCAPE_TEXT
-      : terminal<lit<"<\\"> +
-                     (cr<R"(btnfr"'\\)"> |
-                      (lit<"u"> + repeat<0, 4>(cr<"0-9a-fA-F">)) | any) +
-                     lit<">">,
-                 text_conv<escapeValue>> {};
+  // Escapes outside an expression are exactly n, t, space and four hex digits.
+  // The separate LINE_BREAK terminal handles <\\\\> followed by a newline.
+  struct ESCAPE_TEXT : terminal<as<escapeValue>(
+                           lit<"<\\"> +
+                           (cr<R"(nt )"> | (lit<"u"> + repeat<4>(cr<"0-9a-fA-F">))) +
+                           lit<">">)> {};
 
-  // The clause words are never a name inside `<...>`: `<else>` would read as
-  // a name expression. A subtemplate parameter takes any (`{if|x}`).
-  static constexpr auto Reserved = kw<"elseif"> | kw<"else"> | kw<"endif">;
-  static constexpr auto IdBody = some(uc::XID_Continue | cr<"_-">);
+  static constexpr auto Reserved = kw<"if"> | kw<"elseif"> | kw<"else"> |
+      kw<"endif"> | kw<"super"> | kw<"true"> | kw<"false">;
+  static constexpr auto IdBody = some(cr<"a-zA-Z0-9_-">);
   struct ID : terminal<!Reserved + IdBody> {};
+  // Native subtemplate parameters are scanned directly as IDs, even keywords.
   struct PARAM_ID : terminal<IdBody> {};
 
-  static constexpr auto strEsc =
-      lit<"\\"> +
-      (cr<R"(btnfr"'\\)"> | (lit<"u"> + repeat<0, 4>(cr<"0-9a-fA-F">)) | any);
   struct STRING
-      : terminal<lit<"\""> + many(strEsc | cr<R"(^"\r\n\\)">) + lit<"\"">,
-                 text_conv<stringValue>> {};
-
-  struct AND_OP
-      : rule<option(ref<WS>) + (lit<"&&">), value<ast::BoolOp::logical_and>> {};
-  struct OR_OP
-      : rule<option(ref<WS>) + (lit<"||">), value<ast::BoolOp::logical_or>> {};
+      : terminal<as<stringValue>(lit<"\""> +
+                                 many((lit<"\\"> + any) | cr<R"(^"\\)">) +
+                                 lit<"\"">)> {};
 
   struct MapExpr;
   struct NoCommaExpr;
@@ -144,12 +135,12 @@ struct Stringtemplate : cursiv::GrammarSpec {
   struct Conditional;
   struct ArgList;
   struct Arg;
-  template <bool Nested> struct ElementRule;
+  template <bool Nested> struct Element;
   struct ExprTag;
-  template <bool Nested> struct IfBranchRule;
+  template <bool Nested> struct IfBranch;
   template <bool Nested> struct IfStat;
   template <bool Nested> struct Region;
-  struct OptionRule;
+  struct Option;
 
   // One argument: positional, named (`x=expr`), or the varargs marker
   // `...`, all one repeated element -- a strict superset that also allows
@@ -186,7 +177,7 @@ struct Stringtemplate : cursiv::GrammarSpec {
                        append<&ast::SubTemplateExpr::params>(ref<PARAM_ID>)),
                       (SP + lit<",">)) +
                  (SP + ref<PIPE>)) | (SP + ref<BARE_OPEN>)) +
-             many(append<&ast::SubTemplateExpr::body>(ref<ElementRule<true>>)) +
+             many(append<&ast::SubTemplateExpr::body>(ref<Element<true>>)) +
              lit<"}">> {};
 
   struct DynamicCallExpr
@@ -249,9 +240,8 @@ struct Stringtemplate : cursiv::GrammarSpec {
                  (SP + lit<"!">)+assign<&ast::NotExpr::operand>(ref<NotCond>)) |
              ref<MemberExpr>> {};
 
-  struct Conditional : infix<NotCond, &ast::BoolBinExpr::left,
-                             &ast::BoolBinExpr::op, &ast::BoolBinExpr::right,
-                             (left(ref<AND_OP>) >> left(ref<OR_OP>))> {};
+  struct Conditional : infix<NotCond, ast::BoolBinExpr,
+                             levels(left(as<ast::BoolOp::logical_and>(option(ref<WS>) + (lit<"&&">))), left(as<ast::BoolOp::logical_or>(option(ref<WS>) + (lit<"||">))))> {};
 
   // A colon stage's targets: over-accepts `MemberExpr` in general (a call,
   // a subtemplate or a dynamic call are already reachable through it)
@@ -273,34 +263,34 @@ struct Stringtemplate : cursiv::GrammarSpec {
              many(SP + lit<":"> +
                   append<&ast::MapExpr::stages>(ref<SingleMapStage>))> {};
 
-  struct OptionRule : rule<(SP + assign<&ast::Option::name>(ref<ID>)) +
+  struct Option : rule<(SP + assign<&ast::Option::name>(ref<ID>)) +
                            option((SP + lit<"=">)+assign<&ast::Option::value>(
                                ref<NoCommaExpr>))> {};
 
   struct ExprTag : rule<create<ast::ExprTag>(
                        lit<"<"> + assign<&ast::ExprTag::value>(ref<MapExpr>) +
                        option((SP + lit<";">)+some(
-                           append<&ast::ExprTag::options>(ref<OptionRule>),
+                           append<&ast::ExprTag::options>(ref<Option>),
                            (SP + lit<",">))) +
                        (SP + lit<">">))> {};
 
   template <bool Nested>
-  struct IfBranchRule
+  struct IfBranch
       : rule<(SP + lit<"(">)+assign<&ast::IfBranch::cond>(ref<Conditional>) +
              (SP + lit<")">)+(SP + lit<">">)+many(
-                 append<&ast::IfBranch::body>(ref<ElementRule<Nested>>))> {};
+                 append<&ast::IfBranch::body>(ref<Element<Nested>>))> {};
 
   template <bool Nested>
   struct IfStat
       : rule<create<ast::IfStat>(
             lit<"<"> +
             (SP + kw<"if">)+append<&ast::IfStat::branches>(
-                ref<IfBranchRule<Nested>>) +
+                ref<IfBranch<Nested>>) +
             many(lit<"<"> + (SP + kw<"elseif">)+append<&ast::IfStat::branches>(
-                                ref<IfBranchRule<Nested>>)) +
+                                ref<IfBranch<Nested>>)) +
             option(lit<"<"> + flag<&ast::IfStat::hasElse>((SP + kw<"else">)) +
                    (SP + lit<">">)+many(append<&ast::IfStat::elseBody>(
-                       ref<ElementRule<Nested>>))) +
+                       ref<Element<Nested>>))) +
             lit<"<"> + (SP + kw<"endif">)+(SP + lit<">">))> {};
 
   template <bool Nested>
@@ -309,23 +299,23 @@ struct Stringtemplate : cursiv::GrammarSpec {
             lit<"<"> +
             (SP + lit<"@">)+(SP + assign<&ast::Region::name>(ref<ID>)) +
             (SP + lit<">">)+many(
-                append<&ast::Region::elements>(ref<ElementRule<Nested>>)) +
+                append<&ast::Region::elements>(ref<Element<Nested>>)) +
             lit<"<"> + (SP + lit<"@end">)+(SP + lit<">">))> {};
 
   template <bool Nested>
-  struct ElementRule
+  struct Element
       : rule<assign<&ast::Text::value>(ref<TEXT<Nested>>) |
              assign<&ast::Text::value>(ref<ESCAPE_TEXT>) | ref<ExprTag> |
              ref<IfStat<Nested>> | ref<Region<Nested>>> {};
 
   struct Template
       : rule<create<ast::Template>(
-            many(append<&ast::Template::elements>(ref<ElementRule<false>>)))> {
+            many(append<&ast::Template::elements>(ref<Element<false>>)))> {
   };
 
-  static constexpr auto word_boundary = uc::XID_Continue | cr<"_-">;
+  static constexpr auto word_boundary = cr<"a-zA-Z0-9_-">;
   using entry = Template;
-  using ignore = list<>;
+  using ignored = list<>;
   using hidden = list<TMPL_COMMENT, LINE_BREAK>;
 };
 

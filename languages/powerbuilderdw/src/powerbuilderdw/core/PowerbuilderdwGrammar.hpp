@@ -1,10 +1,7 @@
 // The powerbuilderdw language: its grammar. PowerBuilder DataWindow export
-// files are all-uppercase by convention: keywords match in any case, but
-// identifiers only ever spell A-Z, so word_boundary and identifier
-// characters stay ASCII-uppercase.
+// files retain native mixed-case identifiers and property names.
 #pragma once
 
-#include <charconv>
 #include <cstddef>
 #include <memory_resource>
 #include <span>
@@ -15,71 +12,56 @@
 
 namespace powerbuilderdw {
 
-inline constexpr auto parse_number = [](std::string_view t) -> double {
+inline constexpr auto parse_number = [](std::string_view t) {
   if (!t.empty()) {
     const char c = t.back();
     if (c == 'D' || c == 'd' || c == 'F' || c == 'f') t.remove_suffix(1);
   }
-  double v = 0.0;
-  std::from_chars(t.data(), t.data() + t.size(), v);
-  return v;
+  return cursiv::default_convert<double>(t);
 };
-using NumberValue = cursiv::text_conv<parse_number>;
 
 inline constexpr auto true_value = [] { return true; };
 inline constexpr auto false_value = [] { return false; };
-using TrueValue = cursiv::text_conv<true_value>;
-using FalseValue = cursiv::text_conv<false_value>;
 
-// `~~` doubles a literal tilde, `~"` escapes an embedded quote -- the escape
-// PowerBuilder needs to let RETRIEVE= carry a whole PBSELECT string.
-inline constexpr auto unescape_dquoted = [](std::string_view t,
+// PowerScript tilde escapes are shared by both quote styles. Numeric escapes
+// in the ASCII range have a portable value; extended code-page bytes remain
+// spelled as entered rather than being assigned a guessed Unicode character.
+inline constexpr auto unescape_string = [](std::string_view t,
                                             std::pmr::memory_resource* mem) {
   const std::string_view body = t.substr(1, t.size() - 2);
-  if (body.find('~') == std::string_view::npos) return body;
+  if (body.find_first_of("~") == std::string_view::npos) return body;
   const std::span<char> room = cursiv::text_room(mem, body.size());
   std::size_t n = 0;
   for (std::size_t i = 0; i < body.size(); ++i) {
-    if (body[i] == '~' && i + 1 < body.size() &&
-        (body[i + 1] == '~' || body[i + 1] == '"')) {
-      room[n++] = body[i + 1];
-      ++i;
-    } else {
-      room[n++] = body[i];
+    if (body[i] != '~' || i + 1 == body.size()) { room[n++]=body[i]; continue; }
+    const char c=body[i+1];
+    char decoded{};
+    bool known=true;
+    switch(c) {
+      case '~': case '"': case '\'': decoded=c; break;
+      case 'n': decoded='\n'; break; case 'r': decoded='\r'; break;
+      case 't': decoded='\t'; break; case 'v': decoded='\v'; break;
+      case 'f': decoded='\f'; break; case 'b': decoded='\b'; break;
+      default: known=false;
     }
+    if(known) { room[n++]=decoded; ++i; continue; }
+    const unsigned base=c=='h'?16:c=='o'?8:10;
+    const std::size_t begin=i+(base==10?1:2), count=base==16?2:3;
+    unsigned value=0; bool digits=begin+count<=body.size();
+    for(std::size_t j=begin;digits&&j<begin+count;++j) {
+      const char d=body[j];
+      const unsigned digit=d>='0'&&d<='9'?unsigned(d-'0'):
+          d>='a'&&d<='f'?unsigned(d-'a'+10):d>='A'&&d<='F'?unsigned(d-'A'+10):99;
+      if(digit>=base) digits=false; else value=value*base+digit;
+    }
+    if(digits&&value<128) { room[n++]=static_cast<char>(value); i=begin+count-1; }
+    else room[n++]=body[i];
   }
   return std::string_view(room.data(), n);
 };
-using DQuotedValue = cursiv::text_conv<unescape_dquoted>;
-
-inline constexpr auto unescape_quoted = [](std::string_view t,
-                                           std::pmr::memory_resource* mem) {
-  const std::string_view body = t.substr(1, t.size() - 2);
-  if (body.find('~') == std::string_view::npos) return body;
-  const std::span<char> room = cursiv::text_room(mem, body.size());
-  std::size_t n = 0;
-  for (std::size_t i = 0; i < body.size(); ++i) {
-    if (body[i] == '~' && i + 1 < body.size() && body[i + 1] == '\'') {
-      room[n++] = '\'';
-      ++i;
-    } else {
-      room[n++] = body[i];
-    }
-  }
-  return std::string_view(room.data(), n);
-};
-using QuotedValue = cursiv::text_conv<unescape_quoted>;
-
-// `ARGUMENTS=((...))` is captured as one opaque lexeme, up to the first
-// `))`, rather than parsed; this converter keeps only the run between the
-// double parens.
-inline constexpr auto strip_args = [](std::string_view t) {
-  return t.substr(12, t.size() - 14);
-};
-using ArgsValue = cursiv::text_conv<strip_args>;
 
 struct Powerbuilderdw : cursiv::GrammarSpec {
-  static constexpr auto word_boundary = cr<"A-Z0-9$#%_-">;
+  static constexpr auto word_boundary = cr<"A-Za-z0-9$#%_-">;
 
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct LINE_CONTINUATION
@@ -87,50 +69,38 @@ struct Powerbuilderdw : cursiv::GrammarSpec {
   struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
   struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
-  static constexpr auto IdCont = cr<"A-Z0-9$#%_-">;
-  struct ID : terminal<cr<"A-Z"> + many(IdCont)> {};
-  struct ENUM : terminal<cr<"A-Z"> + many(IdCont) + lit<"!">> {};
+  static constexpr auto IdCont = cr<"A-Za-z0-9$#%_-">;
+  struct ID : terminal<cr<"A-Za-z_"> + many(IdCont)> {};
+  struct ENUM : terminal<cr<"A-Za-z_"> + many(IdCont) + lit<"!">> {};
 
-  static constexpr auto NumCore = (some(d) + lit<"."> + some(d)) |
+  static constexpr auto NumCore = (some(d) + lit<"."> + many(d)) |
                                   (lit<"."> + some(d)) | some(d);
-  struct NUMBER
-      : terminal<NumCore +
-                     option(cr<"Ee"> + option(cr<"+-">) + some(d)) +
-                     option(cr<"DFdf">),
-                 NumberValue> {};
+  struct NUMBER : terminal<NumCore + option(cr<"Ee"> + option(cr<"+-">) + some(d)) +
+                      option(cr<"DFdf">)> {};
+  struct ConvertedNumber : rule<as<parse_number>(ref<NUMBER>)> {};
 
   struct DATE : terminal<repeat<4>(d) + lit<"-"> + repeat<2>(d) + lit<"-"> +
                          repeat<2>(d)> {};
   struct TIME : terminal<repeat<2>(d) + lit<":"> + repeat<2>(d) + lit<":"> +
                          repeat<2>(d) +
-                         option(lit<":"> + repeat<6>(d))> {};
+                         option(lit<"."> + repeat<6>(d))> {};
 
-  struct EXPORT_HEADER
-      : terminal<lit<"$"> + cr<"A-Z"> + many(cr<"A-Z0-9#%_-">) + lit<"$"> +
-                     some(cr<"A-Z0-9. _">) + cr<R"(^\r\n)">> {};
+  struct EXPORT_HEADER : terminal<lit<"$"> + cr<"A-Za-z"> + many(cr<"A-Za-z0-9#%_-">) +
+      lit<"$"> + many(cr<R"(^\r\n)">)> {};
+  struct DQUOTED_STRING : terminal<as<unescape_string>(lit<"\""> +
+      many((lit<"~"> + any) | cr<R"(^"~)">) + lit<"\"">)> {};
+  struct QUOTED_STRING : terminal<as<unescape_string>(lit<"'"> +
+      many((lit<"~"> + any) | cr<"^'~">) + lit<"'">)> {};
 
-  struct DQUOTED_STRING
-      : terminal<lit<"\""> +
-                     many(lit<"~~"> | lit<"~\""> | cr<R"(^")">) + lit<"\"">,
-                 DQuotedValue> {};
-  struct QUOTED_STRING
-      : terminal<lit<"'"> + many(lit<"~'"> | cr<"^'">) + lit<"'">,
-                 QuotedValue> {};
-
-  struct TRUE_KW : terminal<ikw<"TRUE">, TrueValue> {};
-  struct FALSE_KW : terminal<ikw<"FALSE">, FalseValue> {};
-
-  // `ARGUMENTS=((` then everything up to the closing `))`: one lexeme, a
-  // literal opener the parser cannot see inside of.
-  struct ArgsLit
-      : terminal<through(ikw<"ARGUMENTS"> + lit<"=((">, lit<"))">), ArgsValue> {};
+  struct TRUE_KW : terminal<as<true_value>(ikw<"TRUE">)> {};
+  struct FALSE_KW : terminal<as<false_value>(ikw<"FALSE">)> {};
 
   static constexpr auto DataTypeKw =
       ikw<"ANY"> | ikw<"BLOB"> | ikw<"BOOLEAN"> | ikw<"BYTE"> |
       ikw<"CHARACTER"> | ikw<"CHAR"> | ikw<"DATE"> | ikw<"DATETIME"> |
       ikw<"DECIMAL"> | ikw<"DEC"> | ikw<"DOUBLE"> | ikw<"INTEGER"> |
       ikw<"INT"> | ikw<"LONG"> | ikw<"LONGLONG"> | ikw<"REAL"> |
-      ikw<"STRING"> | ikw<"TIME"> | ikw<"UNSIGNEDINTEGER"> | ikw<"UINT"> |
+      ikw<"STRING"> | ikw<"TIME"> | ikw<"NUMBER"> | ikw<"UNSIGNEDINTEGER"> | ikw<"UINT"> |
       ikw<"UNSIGNEDLONG"> | ikw<"ULONG"> | ikw<"WINDOW">;
 
   // `x::name` may end on any of these words -- IdentifierNameEx admits the
@@ -156,7 +126,8 @@ struct Powerbuilderdw : cursiv::GrammarSpec {
       : rule<AttrNameHead + option(ref<NUMBER>) +
              many(lit<"."> + AttrNameTail)> {};
 
-  struct SignedNumber : rule<option(lit<"-">) + ref<NUMBER>, NumberValue> {};
+  struct SignedNumber : rule<create<ast::NumberValue>(assign<&ast::NumberValue::text>(
+      option(lit<"+"> | lit<"-">) + ref<NUMBER>))> {};
 
   struct SignedNumberText
       : rule<option(lit<"+"> | lit<"-">) + ref<NUMBER>> {};
@@ -166,137 +137,135 @@ struct Powerbuilderdw : cursiv::GrammarSpec {
              option(ikw<"TO"> +
                     assign<&ast::ArrayBound::to>(ref<SignedNumberText>))> {};
 
-  struct ArrayDeclRule
+  struct ArrayDecl
       : rule<create<ast::ArrayDecl> +
              (lit<"[]"> |
               (lit<"["> +
-               option(some(append<&ast::ArrayDecl::bounds>(ref<ArrayBound>),
-                          lit<",">)) +
+               many(append<&ast::ArrayDecl::bounds>(ref<ArrayBound>),
+                          lit<",">) +
                lit<"]">))> {};
 
-  struct TypeSpecRule
+  struct TypeSpec
       : rule<create<ast::TypeSpec>(
             assign<&ast::TypeSpec::name>(DataTypeKw) +
-            option(lit<"("> + assign<&ast::TypeSpec::size>(ref<NUMBER>) +
+            option(lit<"("> + assign<&ast::TypeSpec::size>(ref<ConvertedNumber>) +
                    lit<")">))> {};
 
-  struct ExpressionRule;
-  struct ArgumentRule
+  struct Expression;
+  struct Argument
       : rule<create<ast::Argument>(
             option(flag<&ast::Argument::byRef>(ikw<"REF">)) +
-            assign<&ast::Argument::value>(ref<ExpressionRule>))> {};
+            assign<&ast::Argument::value>(ref<Expression>))> {};
 
-  struct ExpressionRule
+  struct Expression
       : rule<create<ast::CloseCall>(
                  (ikw<"CLOSE"> + lit<"("> +
-                  some(append<&ast::CloseCall::args>(ref<ArgumentRule>),
+                  some(append<&ast::CloseCall::args>(ref<Argument>),
                        lit<",">) +
                   lit<")">) |
                  flag<&ast::CloseCall::isHalt>(ikw<"HALT"> +
                                                     ikw<"CLOSE">)) |
              create<ast::BraceExpr>(lit<"{">)> {};
 
-  struct FuncCallRule
+  struct FuncCall
       : rule<create<ast::FuncCall>(
             assign<&ast::FuncCall::name>(ref<Identifier> | ikw<"DESCRIBE">) +
             lit<"("> +
-            option(some(append<&ast::FuncCall::args>(ref<ArgumentRule>),
-                       lit<",">)) +
+            many(append<&ast::FuncCall::args>(ref<Argument>),
+                       lit<",">) +
             lit<")">)> {};
 
-  struct ValueGroupRule
+  struct ValueGroup
       : rule<create<ast::ValueGroup>(
             lit<"("> +
-            append<&ast::ValueGroup::items>(ref<ExpressionRule> |
+            append<&ast::ValueGroup::items>(ref<Expression> |
                                             DataTypeKw) +
             option(lit<","> +
-                   append<&ast::ValueGroup::items>(ref<ExpressionRule> |
+                   append<&ast::ValueGroup::items>(ref<Expression> |
                                                    DataTypeKw)) +
             lit<")">)> {};
 
-  struct NestedValueRule
+  struct NestedValue
       : rule<create<ast::NestedValue>(
             lit<"("> +
-            append<&ast::NestedValue::groups>(ref<ValueGroupRule>) +
+            append<&ast::NestedValue::groups>(ref<ValueGroup>) +
             many(lit<","> +
-                append<&ast::NestedValue::groups>(ref<ValueGroupRule>)) +
+                append<&ast::NestedValue::groups>(ref<ValueGroup>)) +
             lit<")">)> {};
 
   static constexpr auto AttrValueExpr =
-      ref<FuncCallRule> | ref<Identifier> | ref<SignedNumber> |
+      ref<FuncCall> | ref<Identifier> | ref<SignedNumber> |
       ref<TRUE_KW> | ref<FALSE_KW> | ref<ENUM> | ref<DQUOTED_STRING> |
       ref<QUOTED_STRING> | ref<DATE> | ref<TIME> | ikw<"TYPE"> |
       ikw<"TO"> | ikw<"FROM"> | ikw<"REF"> | ikw<"NULL"> | ikw<"OPEN"> |
-      ref<NestedValueRule> | ref<TypeSpecRule>;
+      ref<NestedValue> | ref<TypeSpec>;
 
-  struct AttrRule;
-  struct AttrRule
+  struct Attr;
+  struct Attr
       : rule<(create<ast::LiteralAttr>(assign<&ast::LiteralAttr::value>(
-                  ikw<"NULL"> | ref<NUMBER> | ref<DQUOTED_STRING> |
+                  ikw<"NULL"> | ref<SignedNumber> | ref<DQUOTED_STRING> |
                   ref<DATE> | ref<TIME>)) |
              create<ast::NestedAttr>(
                  assign<&ast::NestedAttr::key>(ref<AttrName>) + lit<"="> +
                  lit<"("> +
-                 some(append<&ast::NestedAttr::items>(ref<AttrRule>)) +
+                 some(append<&ast::NestedAttr::items>(ref<Attr>)) +
                  lit<")">) |
              create<ast::SimpleAttr>(
                  assign<&ast::SimpleAttr::key>(ref<AttrName>) + lit<"="> +
                  assign<&ast::SimpleAttr::value>(AttrValueExpr) +
                  option(assign<&ast::SimpleAttr::array>(
-                     ref<ArrayDeclRule>)))) +
+                     ref<ArrayDecl>)))) +
              option(lit<",">)> {};
 
-  struct ColumnTypeAttrRule
+  struct ColumnTypeAttr
       : rule<create<ast::ColumnTypeAttr>(
             ikw<"COLUMN"> + lit<"="> + lit<"("> + ikw<"TYPE"> + lit<"="> +
-            assign<&ast::ColumnTypeAttr::dataType>(DataTypeKw) + lit<"("> +
-            assign<&ast::ColumnTypeAttr::size>(ref<NUMBER>) + lit<")"> +
-            some(append<&ast::ColumnTypeAttr::attrs>(ref<AttrRule>)) +
+            assign<&ast::ColumnTypeAttr::dataType>(DataTypeKw) + option(lit<"("> +
+            assign<&ast::ColumnTypeAttr::size>(ref<ConvertedNumber>) + lit<")">) +
+            some(append<&ast::ColumnTypeAttr::attrs>(ref<Attr>)) +
             lit<")">)> {};
 
-  struct RetrieveAttrRule
-      : rule<create<ast::RetrieveAttr>(
-            ikw<"RETRIEVE"> + lit<"="> +
-            assign<&ast::RetrieveAttr::retrieveText>(ref<DQUOTED_STRING>) +
-            option(assign<&ast::RetrieveAttr::argsText>(ref<ArgsLit>)) +
-            option(ikw<"SORT"> + lit<"="> +
-                   assign<&ast::RetrieveAttr::sortText>(
-                       ref<DQUOTED_STRING>)))> {};
+  struct RetrieveAttr : rule<create<ast::RetrieveAttr>(ikw<"RETRIEVE"> + lit<"="> +
+      assign<&ast::RetrieveAttr::retrieveText>(ref<DQUOTED_STRING>))> {};
+  struct RetrievalArgument : rule<create<ast::RetrievalArgument>(lit<"("> +
+      assign<&ast::RetrievalArgument::name>(ref<DQUOTED_STRING> | ref<QUOTED_STRING> | ref<Identifier>) + lit<","> +
+      assign<&ast::RetrievalArgument::type>(DataTypeKw | ikw<"NUMBER">) +
+      option(flag<&ast::RetrievalArgument::list>(ikw<"LIST">)) + lit<")">)> {};
+  struct RetrievalArguments : rule<create<ast::RetrievalArguments>(ikw<"ARGUMENTS"> + lit<"="> + lit<"("> +
+      some(append<&ast::RetrievalArguments::items>(ref<RetrievalArgument>),lit<",">) + lit<")">)> {};
+  struct TableValueAttr : rule<create<ast::TableValueAttr>(
+      !(ikw<"COLUMN"> | ikw<"RETRIEVE"> | ikw<"ARGUMENTS">) + assign<&ast::TableValueAttr::attr>(ref<Attr>))> {};
+  struct TableProperty : rule<create<ast::TableProperty>(ikw<"TABLE"> + lit<"("> +
+      some(append<&ast::TableProperty::items>(ref<ColumnTypeAttr> | ref<RetrieveAttr> |
+          ref<RetrievalArguments> | ref<TableValueAttr>)) + lit<")">)> {};
 
-  struct TablePropertyRule
-      : rule<create<ast::TableProperty>(
-            ikw<"TABLE"> + lit<"("> +
-            some(append<&ast::TableProperty::items>(
-                ref<ColumnTypeAttrRule> | ref<RetrieveAttrRule>)) +
-            lit<")">)> {};
-
-  struct ColumnPropertyRule
+  struct ColumnProperty
       : rule<create<ast::ColumnProperty>(
             ikw<"COLUMN"> + lit<"("> +
-            many(append<&ast::ColumnProperty::attrs>(ref<AttrRule>)) +
+            many(append<&ast::ColumnProperty::attrs>(ref<Attr>)) +
             lit<")">)> {};
 
-  struct AttrPropertyRule
+  struct AttrProperty
       : rule<create<ast::AttrProperty>(
             assign<&ast::AttrProperty::name>(ref<AttrName>) + lit<"("> +
-            many(append<&ast::AttrProperty::attrs>(ref<AttrRule>)) +
+            many(append<&ast::AttrProperty::attrs>(ref<Attr>)) +
             lit<")">)> {};
 
-  struct PropertyRule
-      : rule<ref<TablePropertyRule> | ref<ColumnPropertyRule> |
-             ref<AttrPropertyRule>> {};
+  struct Property
+      : rule<ref<TableProperty> | ref<ColumnProperty> |
+             ref<AttrProperty>> {};
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document>(
             many(append<&ast::Document::headerLines>(ref<EXPORT_HEADER>)) +
             option(ikw<"RELEASE"> +
-                   assign<&ast::Document::release>(ref<NUMBER>) +
+                   assign<&ast::Document::release>(ref<ConvertedNumber>) +
                    lit<";">) +
-            some(append<&ast::Document::properties>(ref<PropertyRule>)))> {
+            some(append<&ast::Document::properties>(ref<Property>)))> {
   };
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT, LINE_CONTINUATION>;
 };
 

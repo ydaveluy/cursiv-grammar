@@ -51,58 +51,51 @@ struct Prolog : cursiv::GrammarSpec {
                                  many(lit<Quote> + lit<Quote> | Escape |
                                       (!lit<Quote> + !lit<"\\"> + any)) +
                                  lit<Quote>;
-  struct QUOTED_ATOM : terminal<Quoted<"'">, text_conv<atomValue>> {};
-  struct STRING : terminal<Quoted<"\"">, text_conv<stringValue>> {};
-  struct CODES : terminal<Quoted<"`">, text_conv<stringValue>> {};
+  struct QUOTED_ATOM : terminal<as<atomValue>(Quoted<"'">)> {};
+  struct STRING : terminal<as<stringValue>(Quoted<"\"">)> {};
+  struct CODES : terminal<as<stringValue>(Quoted<"`">)> {};
   struct NIL
-      : terminal<lit<"["> +
-                     many(Layout | ref<LINE_COMMENT> | ref<BLOCK_COMMENT>) +
-                     lit<"]">,
-                 text_conv<[](std::string_view) {
-                   return std::string_view("[]");
-                 }>> {};
+      : terminal<as<[](std::string_view) { return std::string_view("[]"); }>(
+            lit<"["> + many(Layout | ref<LINE_COMMENT> | ref<BLOCK_COMMENT>) +
+            lit<"]">)> {};
   struct EMPTY_BRACES
-      : terminal<lit<"{"> +
-                     many(Layout | ref<LINE_COMMENT> | ref<BLOCK_COMMENT>) +
-                     lit<"}">,
-                 text_conv<[](std::string_view) {
-                   return std::string_view("{}");
-                 }>> {};
+      : terminal<as<[](std::string_view) { return std::string_view("{}"); }>(
+            lit<"{"> + many(Layout | ref<LINE_COMMENT> | ref<BLOCK_COMMENT>) +
+            lit<"}">)> {};
 
   static constexpr auto Decimals = some(uc::Nd);
+  static constexpr auto NumberLayout = many(Layout | ref<LINE_COMMENT> | ref<BLOCK_COMMENT>);
   static constexpr auto Grouped =
-      Decimals + many(((lit<"_"> + many(Layout)) | lit<" ">)+Decimals);
+      Decimals + many(((lit<"_"> + NumberLayout) | lit<" ">)+Decimals);
   static constexpr auto BaseDigits =
       some(cr<"0-9A-Za-z">) +
-      many(lit<"_"> + many(Layout) + some(cr<"0-9A-Za-z">));
+      many(lit<"_"> + NumberLayout + some(cr<"0-9A-Za-z">));
   static constexpr auto Character = lit<"0'"> + (Escape | lit<"''"> | any);
   static constexpr auto UnsignedInteger =
       Character | (lit<"0"> + cr<"box"> + BaseDigits) |
       (some(d) + lit<"'"> + BaseDigits) | Grouped;
   static constexpr auto SignedInteger =
       (lit<"-"> + &d + UnsignedInteger) | UnsignedInteger;
-  struct INTEGER : terminal<SignedInteger, text_conv<integerValue>> {};
+  struct INTEGER : terminal<as<integerValue>(SignedInteger)> {};
   static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + Decimals;
   static constexpr auto FloatBody =
       (Decimals + lit<"."> + Decimals + option(Exponent)) |
       (Decimals + Exponent) |
       (Decimals + lit<"."> + Decimals + (lit<"Inf"> | lit<"NaN">));
-  struct FLOAT : terminal<((lit<"-"> + &d + FloatBody) | FloatBody),
-                          text_conv<floatValue>> {};
+  struct FLOAT
+      : terminal<as<floatValue>(((lit<"-"> + &d + FloatBody) | FloatBody))> {};
   struct RATIONAL
       : terminal<((lit<"-"> + &d + Grouped) | Grouped) + lit<"r"> + Grouped> {};
-  struct QUASI_CONTENT
-      : terminal<lit<"||"> + many(!lit<"|}"> + any) + lit<"|}">,
-                 text_conv<[](std::string_view t) {
-                   return t.substr(2, t.size() - 4);
-                 }>> {};
+  struct QUASI_CONTENT : terminal<as<[](std::string_view t) {
+    return t.substr(2, t.size() - 4);
+  }>(through(lit<"||">, lit<"|}">))> {};
 
   struct Term;
   struct ArgTerm;
   struct ListArgTerm;
   struct Primary;
   struct PowerTerm;
-  struct DictEntryRule;
+  struct DictEntry;
   static constexpr auto PrefixGraphic =
       ref<GraphicOp<"-">> | ref<GraphicOp<"+">> | ref<GraphicOp<"\\">> |
       ref<GraphicOp<"\\+">> | ref<GraphicOp<":-">> | ref<GraphicOp<"?-">> |
@@ -118,19 +111,19 @@ struct Prolog : cursiv::GrammarSpec {
   static constexpr auto Atom = ref<NAME> | ref<GRAPHIC> | ref<QUOTED_ATOM> |
                                ref<EMPTY_BRACES> | lit<"!"> | lit<";"> |
                                lit<"|"> | PrefixGraphic | PrefixWord;
-  struct AtomTermRule : rule<assign<&ast::AtomTerm::value>(Atom)> {};
-  struct VariableRule : rule<assign<&ast::VariableTerm::name>(ref<VARIABLE>)> {
+  struct AtomTerm : rule<assign<&ast::AtomTerm::value>(Atom)> {};
+  struct Variable : rule<assign<&ast::VariableTerm::name>(ref<VARIABLE>)> {
   };
-  struct DictRule
-      : rule<assign<&ast::DictTerm::tag>(ref<AtomTermRule> |
-                                         ref<VariableRule>) +
+  struct Dict
+      : rule<assign<&ast::DictTerm::tag>(ref<AtomTerm> |
+                                         ref<Variable>) +
              lit<"{"> +
-             many(append<&ast::DictTerm::entries>(ref<DictEntryRule>),
+             many(append<&ast::DictTerm::entries>(ref<DictEntry>),
                   lit<",">) +
              lit<"}">> {};
   struct Primary
       : rule<
-            ref<DictRule> | ref<VariableRule> |
+            ref<Dict> | ref<Variable> |
             create<ast::BracedTerm>(lit<"("> +
                                     assign<&ast::BracedTerm::inner>(ref<Term>) +
                                     lit<")">) |
@@ -162,15 +155,14 @@ struct Prolog : cursiv::GrammarSpec {
             create<ast::CurlyTerm>(lit<"{"> +
                                    assign<&ast::CurlyTerm::inner>(ref<Term>) +
                                    lit<"}">) |
-            ref<AtomTermRule>> {};
+            ref<AtomTerm>> {};
   // SWI's priority-1 fx operator binds before dot and power.
   struct DollarTerm
       : rule<create<ast::UnaryTerm>(
                  assign<&ast::UnaryTerm::op>(ref<GraphicOp<"$">>) + NotFunctor +
                  assign<&ast::UnaryTerm::operand>(ref<Primary>)) |
              ref<Primary>> {};
-  struct DotTerm : infix<DollarTerm, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-                         &ast::BinaryTerm::right, left(ref<DOT_OP>)> {};
+  struct DotTerm : infix<DollarTerm, ast::BinaryTerm, left(ref<DOT_OP>)> {};
   struct PowerTerm
       : rule<create<ast::UnaryTerm>(
                  assign<&ast::UnaryTerm::op>(ref<GraphicOp<"-">> |
@@ -185,24 +177,20 @@ struct Prolog : cursiv::GrammarSpec {
                  assign<&ast::BinaryTerm::right>(ref<PowerTerm>)) |
              ref<DotTerm>> {};
   struct MulTerm
-      : infix<PowerTerm, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-              &ast::BinaryTerm::right,
+      : infix<PowerTerm, ast::BinaryTerm,
               left(ref<GraphicOp<R"(*)">> | ref<GraphicOp<R"(/)">> |
                    ref<GraphicOp<R"(//)">> | ref<WordOp<R"(div)">> |
                    ref<WordOp<R"(rdiv)">> | ref<WordOp<R"(rem)">> |
                    ref<WordOp<R"(mod)">> | ref<GraphicOp<R"(<<)">> |
                    ref<GraphicOp<R"(>>)">> | ref<WordOp<R"(xor)">>)> {};
   struct AddTerm
-      : infix<MulTerm, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-              &ast::BinaryTerm::right,
+      : infix<MulTerm, ast::BinaryTerm,
               left(ref<GraphicOp<R"(+)">> | ref<GraphicOp<R"(-)">> |
                    ref<GraphicOp<R"(/\)">> | ref<GraphicOp<R"(\/)">>)> {};
   struct ColonTerm
-      : infix<AddTerm, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-              &ast::BinaryTerm::right, right(ref<GraphicOp<R"(:)">>)> {};
+      : infix<AddTerm, ast::BinaryTerm, right(ref<GraphicOp<R"(:)">>)> {};
   struct CompareTerm
-      : infix<ColonTerm, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-              &ast::BinaryTerm::right,
+      : infix<ColonTerm, ast::BinaryTerm,
               left(ref<GraphicOp<R"(=)">> | ref<GraphicOp<R"(\=)">> |
                    ref<GraphicOp<R"(==)">> | ref<GraphicOp<R"(\==)">> |
                    ref<GraphicOp<R"(@<)">> | ref<GraphicOp<R"(@=<)">> |
@@ -215,34 +203,29 @@ struct Prolog : cursiv::GrammarSpec {
                    ref<GraphicOp<R"(>:<)">> | ref<GraphicOp<R"(:<)">> |
                    ref<WordOp<R"(as)">>)> {};
   struct AssignTerm
-      : infix<CompareTerm, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-              &ast::BinaryTerm::right, left(ref<GraphicOp<R"(:=)">>)> {};
+      : infix<CompareTerm, ast::BinaryTerm, left(ref<GraphicOp<R"(:=)">>)> {};
   struct NegatedTerm : rule<create<ast::UnaryTerm>(
                             assign<&ast::UnaryTerm::op>(ref<GraphicOp<"\\+">>) +
                             NotFunctor +
                             assign<&ast::UnaryTerm::operand>(ref<NegatedTerm>)) |
                         ref<AssignTerm>> {};
-  struct DictEntryRule
+  struct DictEntry
       : rule<assign<&ast::DictEntry::key>(ref<Primary>) + lit<":"> +
              assign<&ast::DictEntry::value>(ref<ArgTerm>)> {};
   struct CommaTerm
-      : infix<NegatedTerm, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-              &ast::BinaryTerm::right, right(lit<",">)> {};
+      : infix<NegatedTerm, ast::BinaryTerm, right(lit<",">)> {};
   // Inside a compound or dict, comma separates arguments rather than acting
   // as an operator. A list item also leaves bar to the list's tail syntax.
   template <bool UseComma, bool UseBar>
   struct Expression {
     using Commas = std::conditional_t<UseComma, CommaTerm, NegatedTerm>;
     struct ArrowTerm
-        : infix<Commas, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-                &ast::BinaryTerm::right,
+        : infix<Commas, ast::BinaryTerm,
                 right(ref<GraphicOp<R"(->)">> | ref<GraphicOp<R"(*->)">>)> {};
     struct SemicolonTerm
-        : infix<ArrowTerm, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-                &ast::BinaryTerm::right, right(lit<";">)> {};
+        : infix<ArrowTerm, ast::BinaryTerm, right(lit<";">)> {};
     struct BarTerm
-        : infix<SemicolonTerm, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-                &ast::BinaryTerm::right, right(lit<"|">)> {};
+        : infix<SemicolonTerm, ast::BinaryTerm, right(lit<"|">)> {};
     using Bars = std::conditional_t<UseBar, BarTerm, SemicolonTerm>;
     struct DirectiveTerm
         : rule<create<ast::UnaryTerm>(
@@ -251,8 +234,7 @@ struct Prolog : cursiv::GrammarSpec {
                    assign<&ast::UnaryTerm::operand>(ref<DirectiveTerm>)) |
                ref<Bars>> {};
     struct RuleTerm
-        : infix<DirectiveTerm, &ast::BinaryTerm::left, &ast::BinaryTerm::op,
-                &ast::BinaryTerm::right,
+        : infix<DirectiveTerm, ast::BinaryTerm,
                 left(ref<GraphicOp<R"(:-)">> | ref<GraphicOp<R"(-->)">> |
                      ref<GraphicOp<R"(=>)">>)> {};
     struct Term : rule<create<ast::UnaryTerm>(
@@ -270,7 +252,7 @@ struct Prolog : cursiv::GrammarSpec {
       : rule<create<ast::PText> + many(append<&ast::PText::items>(ref<Item>))> {
   };
   using entry = PText;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 } // namespace prolog

@@ -65,6 +65,25 @@ struct PosixCharacterClass : cursiv::Extends<Node> {
   string_view name;
 };
 
+struct ExtendedCharacterClass : cursiv::Extends<Node> {
+  Node *expression = nullptr;
+};
+
+struct ClassSetBinary : cursiv::Extends<Node> {
+  Node *left = nullptr;
+  string_view op;
+  Node *right = nullptr;
+};
+
+struct ClassSetUnary : cursiv::Extends<Node> {
+  string_view op;
+  Node *operand = nullptr;
+};
+
+struct ClassSetGroup : cursiv::Extends<Node> {
+  Node *expression = nullptr;
+};
+
 struct Anchor : cursiv::Extends<Node> {
   string_view text;
 };

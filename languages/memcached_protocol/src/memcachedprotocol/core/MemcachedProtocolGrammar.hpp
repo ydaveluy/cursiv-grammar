@@ -12,19 +12,16 @@ struct MemcachedProtocol : cursiv::GrammarSpec {
   struct WS : terminal<some(lit<" ">)> {};
   struct EOL : terminal<option(lit<"\r">) + lit<"\n">> {};
 
-  struct KEY : terminal<some(cr<R"(^ \r\n\x00)">)> {};
+  static constexpr auto keyCharacter = cr<R"(^ \r\n\x00)">;
+  static constexpr auto word_boundary = keyCharacter;
+  struct KEY : terminal<some(keyCharacter)> {};
+  // A numeric field occupies a complete space-delimited native token. The
+  // runtime checks conversion and keeps invalid fields editable in the AST.
+  struct INTEGER : terminal<!kw<"noreply"> + some(keyCharacter)> {};
 
-  struct INTEGER : terminal<option(cr<"+-">) + some(d)> {};
-
-  struct SET : terminal<kw<"set">, value<ast::StorageOp::set>> {};
-  struct ADD : terminal<kw<"add">, value<ast::StorageOp::add>> {};
-  struct REPLACE : terminal<kw<"replace">, value<ast::StorageOp::replace>> {};
-  struct APPEND : terminal<kw<"append">, value<ast::StorageOp::append>> {};
-  struct PREPEND : terminal<kw<"prepend">, value<ast::StorageOp::prepend>> {};
-  struct CAS : terminal<kw<"cas">, value<ast::StorageOp::cas>> {};
 
   static constexpr auto storageName =
-      ref<SET> | ref<ADD> | ref<REPLACE> | ref<APPEND> | ref<PREPEND>;
+      as<ast::StorageOp::set>(kw<"set">) | as<ast::StorageOp::add>(kw<"add">) | as<ast::StorageOp::replace>(kw<"replace">) | as<ast::StorageOp::append>(kw<"append">) | as<ast::StorageOp::prepend>(kw<"prepend">);
 
   static constexpr auto noreply =
       option(flag<&ast::StorageCommand::noreply>(kw<"noreply">));
@@ -35,7 +32,7 @@ struct MemcachedProtocol : cursiv::GrammarSpec {
                assign<&ast::StorageCommand::flags>(ref<INTEGER>) +
                assign<&ast::StorageCommand::exptime>(ref<INTEGER>) +
                assign<&ast::StorageCommand::bytes>(ref<INTEGER>)) |
-              (assign<&ast::StorageCommand::op>(ref<CAS>) +
+              (assign<&ast::StorageCommand::op>(as<ast::StorageOp::cas>(kw<"cas">)) +
                assign<&ast::StorageCommand::key>(ref<KEY>) +
                assign<&ast::StorageCommand::flags>(ref<INTEGER>) +
                assign<&ast::StorageCommand::exptime>(ref<INTEGER>) +
@@ -92,16 +89,24 @@ struct MemcachedProtocol : cursiv::GrammarSpec {
              option(assign<&ast::FlushCommand::delay>(ref<INTEGER>)) +
              option(flag<&ast::FlushCommand::noreply>(kw<"noreply">))> {};
 
-  struct VersionCommand : rule<create<ast::VersionCommand>(kw<"version">)> {};
+  struct VersionCommand : rule<create<ast::VersionCommand>(kw<"version"> +
+      many(append<&ast::VersionCommand::arguments>(ref<KEY>)))> {};
 
   struct VerbosityCommand
       : rule<kw<"verbosity"> +
              assign<&ast::VerbosityCommand::level>(ref<INTEGER>) +
              option(flag<&ast::VerbosityCommand::noreply>(kw<"noreply">))> {};
 
-  struct QuitCommand : rule<create<ast::QuitCommand>(kw<"quit">)> {};
+  struct QuitCommand : rule<create<ast::QuitCommand>(kw<"quit"> +
+      many(append<&ast::QuitCommand::arguments>(ref<KEY>)))> {};
 
-  struct Command : rule<ref<TouchCommand> | ref<MetaCommand> | ref<StorageCommand>      //
+  struct AdministrationCommand : rule<
+      assign<&ast::AdministrationCommand::operation>(kw<"slabs"> | kw<"lru_crawler"> |
+          kw<"lru"> | kw<"watch"> | kw<"shutdown"> | kw<"cache_memlimit"> |
+          kw<"extstore"> | kw<"refresh_certs">) +
+      many(append<&ast::AdministrationCommand::arguments>(ref<KEY>))> {};
+
+  struct Command : rule<ref<AdministrationCommand> | ref<TouchCommand> | ref<MetaCommand> | ref<StorageCommand>      //
                         | ref<RetrievalCommand>  //
                         | ref<DeleteCommand>     //
                         | ref<IncrementCommand>  //
@@ -118,7 +123,7 @@ struct MemcachedProtocol : cursiv::GrammarSpec {
                   (some(ref<EOL>) | eof))> {};
 
   using entry = CommandLine;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 } // namespace memcachedprotocol

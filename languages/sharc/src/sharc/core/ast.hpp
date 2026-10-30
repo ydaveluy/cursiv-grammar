@@ -40,6 +40,10 @@ struct UnaryMinus : cursiv::Extends<ValueExpr> {
   ValueExpr* operand;
 };
 
+struct BitNot : cursiv::Extends<ValueExpr> {
+  ValueExpr* operand;
+};
+
 enum class Operator : std::uint8_t {
   add,
   subtract,
@@ -48,6 +52,9 @@ enum class Operator : std::uint8_t {
   modulo,
   bit_or,
   bit_xor,
+  bit_and,
+  shift_left,
+  shift_right,
 };
 
 struct BinaryExpr : cursiv::Extends<ValueExpr> {
@@ -87,7 +94,8 @@ struct Directive : cursiv::Extends<StmtAtom> {
 };
 
 // Instruction bodies: registers and opcodes have no cross-references or
-// nested structure worth naming, so the matched text is the payload.
+// nested structure here. Payloads join original tokens with spaces; exact
+// whitespace and comments remain in the CST.
 struct Compute : cursiv::Extends<StmtAtom> {
   string_view raw;
 };

@@ -1,3 +1,4 @@
+#include "native_followup.hpp"
 #include "modern_cases.hpp"
 #include "audit_regressions.hpp"
 // The smoke test of the language: every document in `example/` parses
@@ -41,6 +42,7 @@ int main() {
       verilog::VerilogCoreServices, verilog::VerilogSharedCoreServices,
       verilog::install_core_module>();
   if (!verilog_audit::modern_cases(language)) return 1;
+  if (!verilog_native_followup::run(*language.language.parser)) return 1;
 
   for (const char* const path : kSamples) {
     std::ifstream file(path);

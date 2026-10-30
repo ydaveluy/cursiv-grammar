@@ -19,13 +19,22 @@ void TuringValidator::checkSubprogramEndNameMatches(
         .property<&ast::SubprogramDecl::endName>();
 }
 
+void TuringValidator::checkCaseLabels(const ast::CaseStmt& statement,
+                                       cursiv::ValidationAcceptor& accept) const {
+  for (std::size_t i = 0; i < statement.labels.size(); ++i)
+    if (statement.labels[i]->values.empty() && i + 1 != statement.labels.size())
+      accept.error(*statement.labels[i], "The default label must be last.");
+}
+
 void register_validation_checks(TuringCoreServices& services) {
   using V = TuringValidator;
   services.validator = std::make_unique<const V>(services);
   const V& validator = *services.validator;
   services.validationRegistry->registerChecks(
       {cursiv::ValidationRegistry::makeValidationCheck<
-          &V::checkSubprogramEndNameMatches>(validator)});
+          &V::checkSubprogramEndNameMatches>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<
+           &V::checkCaseLabels>(validator)});
 }
 
 }  // namespace turing

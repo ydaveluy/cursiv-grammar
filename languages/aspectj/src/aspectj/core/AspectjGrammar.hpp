@@ -24,8 +24,8 @@ struct Aspectj : cursiv::GrammarSpec {
       if (c == '[') ++n;
     return n;
   };
-  struct ExtraDims : rule<some(lit<"["> + lit<"]">), text_conv<CountBrackets>> {};
-  struct ArrayDims : rule<many(lit<"["> + lit<"]">), text_conv<CountBrackets>> {};
+  struct ExtraDims : rule<as<CountBrackets>(some(lit<"["> + lit<"]">))> {};
+  struct ArrayDims : rule<as<CountBrackets>(many(lit<"["> + lit<"]">))> {};
 
   struct WS : terminal<some(cr<R"( \t\r\n\f)">)> {};
   struct LINE_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
@@ -160,7 +160,7 @@ struct Aspectj : cursiv::GrammarSpec {
   struct CaseOrDefaultLabel;
   struct SwitchGroup;
   struct SwitchOutcome;
-  struct SwitchLabeledRule;
+  struct SwitchLabeled;
   struct SwitchExpression;
   struct SwitchExprStatement;
   struct FieldDeclaration;
@@ -497,7 +497,7 @@ struct Aspectj : cursiv::GrammarSpec {
                   nest<ast::PostfixExpr, &ast::PostfixExpr::operand>(
                       assign<&ast::PostfixExpr::op>(lit<"++"> | lit<"--">)))> {};
 
-  struct ArrayDimensionRule
+  struct ArrayDimension
       : rule<lit<"["> +
              option(assign<&ast::ArrayDimension::value>(ref<Expression>)) +
              lit<"]">> {};
@@ -517,7 +517,7 @@ struct Aspectj : cursiv::GrammarSpec {
                         lit<"}">)) |
              create<ast::NewArrayExpr>(
                  assign<&ast::NewArrayExpr::elementType>(ref<CreatedName>) +
-                 some(append<&ast::NewArrayExpr::dimensions>(ref<ArrayDimensionRule>)) +
+                 some(append<&ast::NewArrayExpr::dimensions>(ref<ArrayDimension>)) +
                  option(assign<&ast::NewArrayExpr::init>(ref<ArrayInitializer>)))> {};
 
   struct CastExpr
@@ -535,8 +535,8 @@ struct Aspectj : cursiv::GrammarSpec {
              ref<PostfixExpr>> {};
 
   struct RelationalAndBelow
-      : infix<CastExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-              (left(OpMul) >> left(OpAdd) >> left(OpShift) >> left(OpRel))> {};
+      : infix<CastExpr, ast::BinaryExpr,
+              levels(left(OpMul), left(OpAdd), left(OpShift), left(OpRel))> {};
 
   struct InstanceOfExpr
       : rule<create<ast::InstanceOfExpr>(
@@ -547,16 +547,15 @@ struct Aspectj : cursiv::GrammarSpec {
              ref<RelationalAndBelow>> {};
 
   struct EqualityAndAbove
-      : infix<InstanceOfExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpEq) >> left(OpBitAnd) >> left(OpBitXor) >> left(OpBitOr) >>
-               left(OpLogAnd) >> left(OpLogOr))> {};
+      : infix<InstanceOfExpr, ast::BinaryExpr,
+              levels(left(OpEq), left(OpBitAnd), left(OpBitXor), left(OpBitOr),
+                     left(OpLogAnd), left(OpLogOr))> {};
 
   struct TernaryExpr
       : rule<create<ast::TernaryExpr>(
                  assign<&ast::TernaryExpr::cond>(ref<EqualityAndAbove>) + lit<"?"> +
                  assign<&ast::TernaryExpr::thenValue>(ref<Expression>) + lit<":"> +
-                 assign<&ast::TernaryExpr::elseValue>(ref<TernaryExpr>)) |
+                 assign<&ast::TernaryExpr::elseValue>(ref<TernaryExpr> | ref<LambdaExpr>)) |
              ref<EqualityAndAbove>> {};
 
   struct AssignmentExpr
@@ -720,7 +719,7 @@ struct Aspectj : cursiv::GrammarSpec {
                  (lit<"{"> + many(append<&ast::Block::items>(ref<BlockItem>)) + lit<"}">) |
                  many(append<&ast::Block::items>(ref<BlockItem>)))> {};
 
-  struct SwitchLabeledRule
+  struct SwitchLabeled
       : rule<create<ast::ExprCaseRule>(
                  kw<"case"> +
                  some(append<&ast::ExprCaseRule::values>(ref<Expression>), lit<",">) +
@@ -744,7 +743,7 @@ struct Aspectj : cursiv::GrammarSpec {
       : rule<create<ast::SwitchExpr>(
                  kw<"switch"> + lit<"("> + assign<&ast::SwitchExpr::value>(ref<Expression>) +
                  lit<")"> + lit<"{"> +
-                 many(append<&ast::SwitchExpr::rules>(ref<SwitchLabeledRule>)) + lit<"}">)> {};
+                 many(append<&ast::SwitchExpr::rules>(ref<SwitchLabeled>)) + lit<"}">)> {};
 
   struct SwitchExprStatement
       : rule<create<ast::ExprStmt>(assign<&ast::ExprStmt::value>(ref<SwitchExpression>) +
@@ -1201,15 +1200,13 @@ struct Aspectj : cursiv::GrammarSpec {
              (lit<"("> + ref<TypePattern> + lit<")">)> {};
 
   struct TypePattern
-      : infix<TypePatternUnary, &ast::BinaryTypePattern::left, &ast::BinaryTypePattern::op,
-              &ast::BinaryTypePattern::right, (left(lit<"&&">) >> left(lit<"||">))> {};
+      : infix<TypePatternUnary, ast::BinaryTypePattern,
+              levels(left(lit<"&&">), left(lit<"||">))> {};
 
   struct ModifierPatternClause
       : rule<create<ast::ModifierPatternClause>(
                  option(flag<&ast::ModifierPatternClause::negated>(lit<"!">)) +
-                 assign<&ast::ModifierPatternClause::modifier>(
-                     kw<"public"> | kw<"private"> | kw<"protected"> | kw<"static"> |
-                     kw<"transient"> | kw<"synchronized"> | kw<"final">))> {};
+                 assign<&ast::ModifierPatternClause::modifier>(ModifierKw))> {};
 
   struct SimpleNamePattern : rule<some(ref<ID> | lit<"*">)> {};
 
@@ -1347,8 +1344,8 @@ struct Aspectj : cursiv::GrammarSpec {
              (lit<"("> + ref<PointcutExpr> + lit<")">)> {};
 
   struct PointcutExpr
-      : infix<PointcutUnary, &ast::BinaryPointcut::left, &ast::BinaryPointcut::op,
-              &ast::BinaryPointcut::right, (left(lit<"&&">) >> left(lit<"||">))> {};
+      : infix<PointcutUnary, ast::BinaryPointcut,
+              levels(left(lit<"&&">), left(lit<"||">))> {};
 
   // -- top level ----
 
@@ -1414,7 +1411,7 @@ struct Aspectj : cursiv::GrammarSpec {
       : rule<ref<OrdinaryCompilationUnit> | ref<ModularCompilationUnit>> {};
 
   using entry = CompilationUnit;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, COMMENT>;
 };
 

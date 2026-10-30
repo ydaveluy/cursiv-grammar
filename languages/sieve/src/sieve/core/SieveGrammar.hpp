@@ -21,41 +21,41 @@ struct Sieve : cursiv::GrammarSpec {
                  many(!(lit<"."> + line_end) + many(cr<R"(^\n)">) + lit<"\n">) +
                  lit<"."> + line_end> {};
   struct NUMBER : terminal<some(d) + option(cr<"KMGkmg">)> {};
-  struct StringRule
+  struct String
       : rule<assign<&ast::String::raw>(ref<QUOTEDSTRING> | ref<MULTILINE>)> {};
-  struct NumberRule : rule<assign<&ast::Number::text>(ref<NUMBER>)> {};
-  struct TagRule : rule<assign<&ast::Tag::text>(ref<TAG>)> {};
-  struct StringListRule
+  struct Number : rule<assign<&ast::Number::text>(ref<NUMBER>)> {};
+  struct Tag : rule<assign<&ast::Tag::text>(ref<TAG>)> {};
+  struct StringList
       : rule<lit<"["> +
-             many(append<&ast::StringList::strings>(ref<StringRule>),
+             many(append<&ast::StringList::strings>(ref<String>),
                   lit<",">) +
              lit<"]">> {};
-  struct TestRule;
+  struct Test;
   static constexpr auto argument =
-      ref<StringListRule> | ref<StringRule> | ref<NumberRule> | ref<TagRule>;
+      ref<StringList> | ref<String> | ref<Number> | ref<Tag>;
   static constexpr auto trailing_tests =
-      append<&ast::Arguments::tests>(ref<TestRule>) |
+      append<&ast::Arguments::tests>(ref<Test>) |
       flag<&ast::Arguments::test_list>(
           lit<"("> +
-          many(append<&ast::Arguments::tests>(ref<TestRule>), lit<",">) +
+          many(append<&ast::Arguments::tests>(ref<Test>), lit<",">) +
           lit<")">);
-  struct ArgumentsRule : rule<create<ast::Arguments> +
+  struct Arguments : rule<create<ast::Arguments> +
                               many(append<&ast::Arguments::items>(argument)) +
                               option(trailing_tests)> {};
-  struct TestRule : rule<assign<&ast::Test::name>(ref<IDENTIFIER>) +
-                         assign<&ast::Test::arguments>(ref<ArgumentsRule>)> {};
-  struct CommandRule
+  struct Test : rule<assign<&ast::Test::name>(ref<IDENTIFIER>) +
+                         assign<&ast::Test::arguments>(ref<Arguments>)> {};
+  struct Command
       : rule<assign<&ast::Command::name>(ref<IDENTIFIER>) +
-             assign<&ast::Command::arguments>(ref<ArgumentsRule>) +
+             assign<&ast::Command::arguments>(ref<Arguments>) +
              (lit<";"> |
               flag<&ast::Command::has_block>(
                   lit<"{"> +
-                  many(append<&ast::Command::body>(ref<CommandRule>)) +
+                  many(append<&ast::Command::body>(ref<Command>)) +
                   lit<"}">))> {};
-  struct ScriptRule
+  struct Script
       : rule<create<ast::Script> +
-             many(append<&ast::Script::commands>(ref<CommandRule>))> {};
-  using entry = ScriptRule;
-  using ignore = list<WS, LINECOMMENT, BLOCKCOMMENT>;
+             many(append<&ast::Script::commands>(ref<Command>))> {};
+  using entry = Script;
+  using ignored = list<WS, LINECOMMENT, BLOCKCOMMENT>;
 };
 } // namespace sieve

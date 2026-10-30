@@ -6,6 +6,19 @@
 
 namespace action {
 
+inline std::string_view string_value(std::string_view text,
+                                     std::pmr::memory_resource* memory) {
+  const auto inner = text.substr(1, text.size() - 2);
+  if (inner.find('"') == inner.npos) return inner;
+  const auto room = cursiv::text_room(memory, inner.size());
+  std::size_t size = 0;
+  for (std::size_t i = 0; i < inner.size(); ++i) {
+    room[size++] = inner[i];
+    if (inner[i] == '"') ++i;
+  }
+  return {room.data(), size};
+}
+
 struct Action : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct COMMENT : terminal<lit<";"> + many(cr<R"(^\r\n)">)> {};
@@ -14,16 +27,14 @@ struct Action : cursiv::GrammarSpec {
 
   static constexpr auto hex_num = some(lit<"$">) + some(cr<"0-9A-F">);
   static constexpr auto dec_num = some(cr<"0-9">);
-  // A bare character constant is one alnum, but a single letter always
-  // lexes as an identifier (ID is declared first, same length): ported as
-  // digits only, the one spelling a character constant actually reaches.
-  struct NUMCONST : terminal<hex_num | dec_num> {};
+  // A character constant is an apostrophe followed by one character;
+  // it retains its spelling like the decimal and hexadecimal forms.
+  struct NUMCONST
+      : terminal<hex_num | dec_num | (lit<"'"> + cr<R"(^\r\n)">)> {};
 
   struct STRCONST
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">,
-                 cursiv::text_conv<[](std::string_view t) {
-                   return t.substr(1, t.size() - 2);
-                 }>> {};
+      : terminal<as<string_value>(
+            lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">)> {};
 
   struct CARET : terminal<lit<"^">> {};
   struct MUL : terminal<lit<"*">> {};
@@ -33,49 +44,27 @@ struct Action : cursiv::GrammarSpec {
 
   // Each spelling of the additive and multiplicative operators is its own
   // terminal, combined at the infix table below.
-  struct ADD_OP : terminal<lit<"+">, value<ast::ArithOp::add>> {};
-  struct SUB_OP : terminal<lit<"-">, value<ast::ArithOp::sub>> {};
-  struct MUL_OP : terminal<lit<"*">, value<ast::ArithOp::mul>> {};
-  struct DIV_OP : terminal<lit<"/">, value<ast::ArithOp::div>> {};
-  struct MOD_OP : terminal<kw<"MOD">, value<ast::ArithOp::mod>> {};
-  struct LSH_OP : terminal<kw<"LSH">, value<ast::ArithOp::lsh>> {};
-  struct RSH_OP : terminal<kw<"RSH">, value<ast::ArithOp::rsh>> {};
 
   // A single comparison, never chained -- so a plain choice, not an infix
   // table. `<`/`>` are refused just before `=`/`>` so the two-byte spellings
   // win. `!` is not one of these -- it spells XOR (BXOR_OP below).
-  struct EQ_OP : terminal<lit<"=">, value<ast::RelOp::eq>> {};
-  struct NE_OP
-      : terminal<lit<"<>"> | lit<"#">, value<ast::RelOp::not_equal>> {};
-  struct LE_OP : terminal<lit<"<=">, value<ast::RelOp::le>> {};
-  struct LT_OP
-      : terminal<lit<"<", !(lit<"="> | lit<">">)>, value<ast::RelOp::lt>> {};
-  struct GE_OP : terminal<lit<">=">, value<ast::RelOp::ge>> {};
-  struct GT_OP : terminal<lit<">">, value<ast::RelOp::gt>> {};
-  static constexpr auto rel_op = ref<EQ_OP> | ref<NE_OP> | ref<LE_OP> |
-                                  ref<LT_OP> | ref<GE_OP> | ref<GT_OP>;
+  struct NE_OP : terminal<as<ast::RelOp::not_equal>(lit<"<>"> | lit<"#">)> {};
+  static constexpr auto rel_op = as<ast::RelOp::eq>(lit<"=">) | ref<NE_OP> | as<ast::RelOp::le>(lit<"<=">) |
+                                  as<ast::RelOp::lt>(lit<"<", !(lit<"="> | lit<">">)>) | as<ast::RelOp::ge>(lit<">=">) | as<ast::RelOp::gt>(lit<">">);
 
   // The boolean chain over comparisons.
-  struct AND_OP : terminal<kw<"AND">, value<ast::BoolOp::and_>> {};
-  struct OR_OP : terminal<kw<"OR">, value<ast::BoolOp::or_>> {};
-  struct AMP_OP : terminal<lit<"&">, value<ast::BoolOp::amp>> {};
-  struct PCT_OP : terminal<lit<"%">, value<ast::BoolOp::pct>> {};
 
   // XOR/`!`: a bitwise arithmetic operator (ArithExpr's loosest tier), never
   // a comparison and never one of the special relational operators above.
-  struct BXOR_OP
-      : terminal<kw<"XOR"> | lit<"!">, value<ast::ArithOp::bxor>> {};
+  struct BXOR_OP : terminal<as<ast::ArithOp::bxor>(kw<"XOR"> | lit<"!">)> {};
 
   // Assignment operators: plain `=`, and the increment/decrement forms.
-  struct SET_OP : terminal<lit<"=">, value<ast::AssignOp::set>> {};
-  struct INC_OP : terminal<lit<"==+">, value<ast::AssignOp::inc>> {};
-  struct DEC_OP : terminal<lit<"==-">, value<ast::AssignOp::dec>> {};
 
   struct ArithExpr;
   struct MemReference;
   struct MemContents;
-  struct StmtRule;
-  struct DoLoopRule;
+  struct Stmt;
+  struct DoLoop;
 
   struct Primary
       : rule<create<ast::NumberLiteral>(
@@ -90,32 +79,33 @@ struct Action : cursiv::GrammarSpec {
                    assign<&ast::UnaryMinus::operand>(ref<Primary>))> {};
 
   struct ArithExpr
-      : infix<Primary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<MUL_OP> | ref<DIV_OP> | ref<MOD_OP> | ref<LSH_OP> |
-                    ref<RSH_OP>) >>
-               left(ref<ADD_OP> | ref<SUB_OP>) >>
-               left(ref<BXOR_OP>))> {};
+      : infix<Primary, ast::BinaryExpr,
+              levels(left(as<ast::ArithOp::mul>(lit<"*">) | as<ast::ArithOp::div>(lit<"/">) | as<ast::ArithOp::mod>(kw<"MOD">) |
+                          as<ast::ArithOp::lsh>(kw<"LSH">) | as<ast::ArithOp::rsh>(kw<"RSH">)),
+                     left(as<ast::ArithOp::add>(lit<"+">) | as<ast::ArithOp::sub>(lit<"-">)),
+                     left(as<ast::ArithOp::band>(lit<"&"> | kw<"AND">)),
+                     left(as<ast::ArithOp::bor>(lit<"%"> | kw<"OR">)),
+                     left(ref<BXOR_OP>))> {};
 
-  struct FundRefRule
+  struct FundRef
       : rule<create<ast::FundRef>(assign<&ast::FundRef::name>(ref<ID>))> {};
-  struct ArrRefRule
+  struct ArrRef
       : rule<create<ast::ArrRef>(
             assign<&ast::ArrRef::name>(ref<ID>) + lit<"("> +
             assign<&ast::ArrRef::index>(ref<ArithExpr>) + lit<")">)> {};
-  struct PtrRefRule
+  struct PtrRef
       : rule<create<ast::PtrRef>(assign<&ast::PtrRef::name>(ref<ID>) +
                                  lit<"^">)> {};
-  struct RecRefRule
+  struct RecRef
       : rule<create<ast::RecRef>(assign<&ast::RecRef::name>(ref<ID>) +
                                  lit<"."> +
                                  assign<&ast::RecRef::field>(ref<ID>))> {};
 
   struct MemContents
-      : rule<ref<RecRefRule>    //
-             | ref<ArrRefRule>  //
-             | ref<PtrRefRule>  //
-             | ref<FundRefRule>> {};
+      : rule<ref<RecRef>    //
+             | ref<ArrRef>  //
+             | ref<PtrRef>  //
+             | ref<FundRef>> {};
 
   struct MemReference
       : rule<ref<MemContents> |
@@ -125,16 +115,15 @@ struct Action : cursiv::GrammarSpec {
   // A condition is a boolean chain over comparisons, or -- when no
   // comparison is spelled at all -- a bare arithmetic expression read as
   // truthy.
-  struct CompareRule
+  struct Compare
       : rule<create<ast::Compare>(
             assign<&ast::Compare::left>(ref<ArithExpr>) +
             assign<&ast::Compare::op>(rel_op) +
             assign<&ast::Compare::right>(ref<ArithExpr>))> {};
 
   struct BoolChainExpr
-      : infix<CompareRule, &ast::BoolChain::left, &ast::BoolChain::op,
-              &ast::BoolChain::right,
-              left(ref<AND_OP> | ref<OR_OP> | ref<AMP_OP> | ref<PCT_OP>)> {};
+      : infix<Compare, ast::BoolChain,
+              left(as<ast::BoolOp::and_>(kw<"AND">) | as<ast::BoolOp::or_>(kw<"OR">) | as<ast::BoolOp::amp>(lit<"&">) | as<ast::BoolOp::pct>(lit<"%">))> {};
 
   struct CondExpr
       : rule<ref<BoolChainExpr>  //
@@ -145,237 +134,237 @@ struct Action : cursiv::GrammarSpec {
   // constant addresses, initializer lists and code-block bytes are all this
   // one shape, so they share this one AST node -- a lone number already
   // serves as both an address and a one-item value list.
-  struct RawValuesRule
+  struct RawValues
       : rule<some(append<&ast::RawValues::items>(
             ref<ID> | ref<NUMCONST> | ref<CARET> | ref<MUL>))> {};
 
-  struct VarIdentRule
+  struct VarIdent
       : rule<create<ast::VarIdent>(
             assign<&ast::VarIdent::name>(ref<ID>) +
             option(lit<"="> +
-                   assign<&ast::VarIdent::init>(ref<RawValuesRule>)))> {};
+                   assign<&ast::VarIdent::init>(ref<RawValues>)))> {};
 
-  struct FundDeclRule
+  struct FundDecl
       : rule<create<ast::FundDecl>(
             assign<&ast::FundDecl::fundtype>(ref<FundType>) +
-            some(append<&ast::FundDecl::idents>(ref<VarIdentRule>),
+            some(append<&ast::FundDecl::idents>(ref<VarIdent>),
                  lit<",">))> {};
 
-  struct PtrIdentRule
+  struct PtrIdent
       : rule<create<ast::PtrIdent>(
             assign<&ast::PtrIdent::name>(ref<ID>) +
             option(lit<"="> +
-                   assign<&ast::PtrIdent::init>(ref<RawValuesRule>)))> {};
+                   assign<&ast::PtrIdent::init>(ref<RawValues>)))> {};
 
-  struct PointerDeclRule
+  struct PointerDecl
       : rule<create<ast::PointerDecl>(
             assign<&ast::PointerDecl::ptrtype>(ref<FundType> | ref<ID>) +
             kw<"POINTER"> +
-            some(append<&ast::PointerDecl::idents>(ref<PtrIdentRule>),
+            some(append<&ast::PointerDecl::idents>(ref<PtrIdent>),
                  lit<",">))> {};
 
-  struct ArrIdentRule
+  struct ArrIdent
       : rule<create<ast::ArrIdent>(
             assign<&ast::ArrIdent::name>(ref<ID>) +
             option(lit<"("> + assign<&ast::ArrIdent::dim>(ref<ArithExpr>) +
                    lit<")">) +
             option(lit<"="> +
-                   (assign<&ast::ArrIdent::init>(ref<RawValuesRule>) |
+                   (assign<&ast::ArrIdent::init>(ref<RawValues>) |
                     assign<&ast::ArrIdent::str>(ref<STRCONST>))))> {};
 
-  struct ArrayDeclRule
+  struct ArrayDecl
       : rule<create<ast::ArrayDecl>(
             assign<&ast::ArrayDecl::fundtype>(ref<FundType>) +
             kw<"ARRAY"> +
-            some(append<&ast::ArrayDecl::idents>(ref<ArrIdentRule>),
+            some(append<&ast::ArrayDecl::idents>(ref<ArrIdent>),
                  lit<",">))> {};
 
-  struct RecIdentRule
+  struct RecIdent
       : rule<create<ast::RecIdent>(
             assign<&ast::RecIdent::name>(ref<ID>) +
             option(lit<"="> +
-                   assign<&ast::RecIdent::address>(ref<RawValuesRule>)))> {};
+                   assign<&ast::RecIdent::address>(ref<RawValues>)))> {};
 
-  struct RecordDeclRule
+  struct RecordDecl
       : rule<create<ast::RecordDecl>(
             assign<&ast::RecordDecl::type_name>(ref<ID>) +
-            some(append<&ast::RecordDecl::idents>(ref<RecIdentRule>),
+            some(append<&ast::RecordDecl::idents>(ref<RecIdent>),
                  lit<",">))> {};
 
   struct VarDeclEntry
-      : rule<ref<FundDeclRule>     //
-             | ref<PointerDeclRule>  //
-             | ref<ArrayDeclRule>    //
-             | ref<RecordDeclRule>> {};
+      : rule<ref<FundDecl>     //
+             | ref<PointerDecl>  //
+             | ref<ArrayDecl>    //
+             | ref<RecordDecl>> {};
 
-  struct DefEntryRule
+  struct DefEntry
       : rule<create<ast::DefineEntry>(
             assign<&ast::DefineEntry::name>(ref<ID>) + lit<"="> +
             assign<&ast::DefineEntry::value>(ref<STRCONST>))> {};
 
-  struct DefineDeclRule
+  struct DefineDecl
       : rule<create<ast::DefineDecl>(
             kw<"DEFINE"> +
-            some(append<&ast::DefineDecl::defs>(ref<DefEntryRule>),
+            some(append<&ast::DefineDecl::defs>(ref<DefEntry>),
                  lit<",">))> {};
 
-  struct FieldDeclRule
+  struct FieldDecl
       : rule<create<ast::FieldDecl>(
             assign<&ast::FieldDecl::fundtype>(ref<FundType>) +
-            some(append<&ast::FieldDecl::idents>(ref<VarIdentRule>),
+            some(append<&ast::FieldDecl::idents>(ref<VarIdent>),
                  lit<",">))> {};
 
-  struct TypeRecordRule
+  struct TypeRecord
       : rule<create<ast::TypeRecord>(
             assign<&ast::TypeRecord::name>(ref<ID>) + lit<"="> +
-            some(append<&ast::TypeRecord::fields>(ref<FieldDeclRule>)))> {};
+            some(append<&ast::TypeRecord::fields>(ref<FieldDecl>)))> {};
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<create<ast::TypeDecl>(
             kw<"TYPE"> +
-            some(append<&ast::TypeDecl::records>(ref<TypeRecordRule>)))> {};
+            some(append<&ast::TypeDecl::records>(ref<TypeRecord>)))> {};
 
   struct SystemDecl
-      : rule<ref<DefineDeclRule>  //
-             | ref<TypeDeclRule>  //
+      : rule<ref<DefineDecl>  //
+             | ref<TypeDecl>  //
              | ref<VarDeclEntry>> {};
 
-  struct ParamRule
+  struct Param
       : rule<create<ast::StrLiteral>(
                  assign<&ast::StrLiteral::text>(ref<STRCONST>))  //
              | ref<ArithExpr>> {};
 
-  struct RoutineCallRule
+  struct RoutineCall
       : rule<create<ast::RoutineCallStmt>(
             assign<&ast::RoutineCallStmt::name>(ref<ID>) + lit<"("> +
-            many(append<&ast::RoutineCallStmt::args>(ref<ParamRule>),
+            many(append<&ast::RoutineCallStmt::args>(ref<Param>),
                         lit<",">) +
             lit<")">)> {};
 
-  struct AssignStmtRule
+  struct AssignStmt
       : rule<create<ast::AssignStmt>(
             assign<&ast::AssignStmt::target>(ref<MemContents>) +
-            assign<&ast::AssignStmt::op>(ref<SET_OP> | ref<INC_OP> |
-                                         ref<DEC_OP>) +
+            assign<&ast::AssignStmt::op>(as<ast::AssignOp::set>(lit<"=">) | as<ast::AssignOp::inc>(lit<"==+">) |
+                                         as<ast::AssignOp::dec>(lit<"==-">)) +
             assign<&ast::AssignStmt::value>(ref<ArithExpr>))> {};
 
-  struct ExitStmtRule
+  struct ExitStmt
       : rule<create<ast::ExitStmt> + kw<"EXIT">> {};
 
-  struct ElseIfRule
+  struct ElseIf
       : rule<create<ast::ElseIf>(
             kw<"ELSEIF"> + assign<&ast::ElseIf::cond>(ref<CondExpr>) +
-            kw<"THEN"> + many(append<&ast::ElseIf::body>(ref<StmtRule>)))> {};
+            kw<"THEN"> + many(append<&ast::ElseIf::body>(ref<Stmt>)))> {};
 
-  struct ElseBranchRule
+  struct ElseBranch
       : rule<create<ast::ElseBranch>(
-            kw<"ELSE"> + many(append<&ast::ElseBranch::body>(ref<StmtRule>)))> {};
+            kw<"ELSE"> + many(append<&ast::ElseBranch::body>(ref<Stmt>)))> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<create<ast::IfStmt>(
             kw<"IF"> + assign<&ast::IfStmt::cond>(ref<CondExpr>) +
             kw<"THEN"> +
-            many(append<&ast::IfStmt::body>(ref<StmtRule>)) +
-            many(append<&ast::IfStmt::elseifs>(ref<ElseIfRule>)) +
-            option(assign<&ast::IfStmt::else_branch>(ref<ElseBranchRule>)) +
+            many(append<&ast::IfStmt::body>(ref<Stmt>)) +
+            many(append<&ast::IfStmt::elseifs>(ref<ElseIf>)) +
+            option(assign<&ast::IfStmt::else_branch>(ref<ElseBranch>)) +
             kw<"FI">)> {};
 
-  struct DoLoopRule
+  struct DoLoop
       : rule<create<ast::DoLoop>(
-            kw<"DO"> + many(append<&ast::DoLoop::body>(ref<StmtRule>)) +
+            kw<"DO"> + many(append<&ast::DoLoop::body>(ref<Stmt>)) +
             option(kw<"UNTIL"> +
                    assign<&ast::DoLoop::until_cond>(ref<CondExpr>)) +
             kw<"OD">)> {};
 
-  struct DoLoopStmtRule
+  struct DoLoopStmt
       : rule<create<ast::DoLoopStmt>(
-            assign<&ast::DoLoopStmt::loop>(ref<DoLoopRule>))> {};
+            assign<&ast::DoLoopStmt::loop>(ref<DoLoop>))> {};
 
-  struct WhileLoopRule
+  struct WhileLoop
       : rule<create<ast::WhileLoop>(
             kw<"WHILE"> + assign<&ast::WhileLoop::cond>(ref<CondExpr>) +
-            assign<&ast::WhileLoop::body>(ref<DoLoopRule>))> {};
+            assign<&ast::WhileLoop::body>(ref<DoLoop>))> {};
 
-  struct ForLoopRule
+  struct ForLoop
       : rule<create<ast::ForLoop>(
             kw<"FOR"> + assign<&ast::ForLoop::var>(ref<ID>) + lit<"="> +
             assign<&ast::ForLoop::start>(ref<ArithExpr>) + kw<"TO"> +
             assign<&ast::ForLoop::finish>(ref<ArithExpr>) +
             option(kw<"STEP"> +
                    assign<&ast::ForLoop::step>(ref<ArithExpr>)) +
-            assign<&ast::ForLoop::body>(ref<DoLoopRule>))> {};
+            assign<&ast::ForLoop::body>(ref<DoLoop>))> {};
 
   // Bracketed -- `[value value ...]` -- never a bare run, which would
   // collide with the arithmetic expression it can follow (`a=2+3*4` read as
   // `a=2+3` then a stray `*4`).
-  struct CodeBlockRule
+  struct CodeBlock
       : rule<create<ast::CodeBlock>(
             lit<"["> +
-            assign<&ast::CodeBlock::values>(ref<RawValuesRule>) +
+            assign<&ast::CodeBlock::values>(ref<RawValues>) +
             lit<"]">)> {};
 
-  struct StmtRule
-      : rule<ref<AssignStmtRule>   //
-             | ref<ExitStmtRule>   //
-             | ref<RoutineCallRule>  //
-             | ref<IfStmtRule>       //
-             | ref<DoLoopStmtRule>   //
-             | ref<WhileLoopRule>    //
-             | ref<ForLoopRule>      //
-             | ref<CodeBlockRule>> {};
+  struct Stmt
+      : rule<ref<AssignStmt>   //
+             | ref<ExitStmt>   //
+             | ref<RoutineCall>  //
+             | ref<IfStmt>       //
+             | ref<DoLoopStmt>   //
+             | ref<WhileLoop>    //
+             | ref<ForLoop>      //
+             | ref<CodeBlock>> {};
 
-  struct ProcRoutineRule
+  struct ProcRoutine
       : rule<create<ast::ProcRoutine>(
             kw<"PROC"> + assign<&ast::ProcRoutine::name>(ref<ID>) +
             option(lit<"="> +
-                   assign<&ast::ProcRoutine::addr>(ref<RawValuesRule>)) +
+                   assign<&ast::ProcRoutine::addr>(ref<RawValues>)) +
             lit<"("> +
             many(append<&ast::ProcRoutine::params>(ref<VarDeclEntry>)) +
             lit<")"> +
             many(append<&ast::ProcRoutine::decls>(ref<SystemDecl>)) +
-            many(append<&ast::ProcRoutine::body>(ref<StmtRule>)) +
+            many(append<&ast::ProcRoutine::body>(ref<Stmt>)) +
             option(kw<"RETURN">))> {};
 
-  struct FuncRoutineRule
+  struct FuncRoutine
       : rule<create<ast::FuncRoutine>(
             assign<&ast::FuncRoutine::fundtype>(ref<FundType>) +
             kw<"FUNC"> + assign<&ast::FuncRoutine::name>(ref<ID>) +
             option(lit<"."> +
-                   assign<&ast::FuncRoutine::addr>(ref<RawValuesRule>)) +
+                   assign<&ast::FuncRoutine::addr>(ref<RawValues>)) +
             lit<"("> +
             many(
                 append<&ast::FuncRoutine::params>(ref<VarDeclEntry>)) +
             lit<")"> +
             many(append<&ast::FuncRoutine::decls>(ref<SystemDecl>)) +
-            many(append<&ast::FuncRoutine::body>(ref<StmtRule>)) +
+            many(append<&ast::FuncRoutine::body>(ref<Stmt>)) +
             option(kw<"RETURN"> + lit<"("> +
                    assign<&ast::FuncRoutine::return_expr>(ref<ArithExpr>) +
                    lit<")">))> {};
 
-  struct RoutineRule
-      : rule<ref<ProcRoutineRule> | ref<FuncRoutineRule>> {};
+  struct Routine
+      : rule<ref<ProcRoutine> | ref<FuncRoutine>> {};
 
-  struct ProgModuleRule
+  struct ProgModule
       : rule<create<ast::ProgModule>(
             many(append<&ast::ProgModule::decls>(ref<SystemDecl>)) +
-            some(append<&ast::ProgModule::routines>(ref<RoutineRule>)))> {};
+            some(append<&ast::ProgModule::routines>(ref<Routine>)))> {};
 
-  struct DeclaredModuleRule
+  struct DeclaredModule
       : rule<create<ast::ProgModule>(
             some(append<&ast::ProgModule::decls>(ref<SystemDecl>)) +
-            some(append<&ast::ProgModule::routines>(ref<RoutineRule>)))> {};
+            some(append<&ast::ProgModule::routines>(ref<Routine>)))> {};
 
-  struct FileRule
+  struct File
       : rule<create<ast::File> +
              option(option(kw<"MODULE">) +
-                    append<&ast::File::modules>(ref<ProgModuleRule>) +
+                    append<&ast::File::modules>(ref<ProgModule>) +
                     many((kw<"MODULE"> +
-                          append<&ast::File::modules>(ref<ProgModuleRule>)) |
+                          append<&ast::File::modules>(ref<ProgModule>)) |
                          append<&ast::File::modules>(
-                             ref<DeclaredModuleRule>)))> {};
+                             ref<DeclaredModule>)))> {};
 
-  using entry = FileRule;
-  using ignore = WS;
+  using entry = File;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

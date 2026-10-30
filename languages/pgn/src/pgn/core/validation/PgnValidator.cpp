@@ -13,8 +13,7 @@ void PgnValidator::checkGame(const ast::Game& n,
       if (t->value != "*" && t->value != "1-0" && t->value != "0-1" &&
           t->value != "1/2-1/2")
         a.error(*t, "unknown game result").property<&ast::TagPair::value>();
-      else if (n.terminated && n.result != ast::Result::unknown &&
-               t->value != "*" && t->value != result_value(n.result))
+      else if (n.terminated && t->value != result_value(n.result))
         a.error(*t, "the Result tag disagrees with the movetext result")
             .property<&ast::TagPair::value>();
     }

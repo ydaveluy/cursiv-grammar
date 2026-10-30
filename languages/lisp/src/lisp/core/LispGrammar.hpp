@@ -26,11 +26,11 @@ struct Lisp : cursiv::GrammarSpec {
                                      (lit<"."> + some(d))) +
                                     option(exponent)))) |
                            (lit<"#"> + option(some(d)) + cr<"bBoOxXrR"> + sign +
-                            some(cr<"0-9A-Za-z/+-">))> {};
+                            some(symbol_piece))> {};
   struct STRING
       : terminal<lit<"\""> + many(escaped | cr<R"(^"\\)">) + lit<"\"">> {};
   struct CHARACTER : terminal<lit<"#\\"> + any + many(~delimiter)> {};
-  struct BIT_VECTOR : terminal<lit<"#"> + many(d) + lit<"*"> + many(cr<"01">)> {
+  struct BIT_VECTOR : terminal<lit<"#"> + many(d) + lit<"*"> + many(~delimiter)> {
   };
   struct GRAPH_REF : terminal<lit<"#"> + some(d) + lit<"#">> {};
   struct PREFIX
@@ -39,34 +39,34 @@ struct Lisp : cursiv::GrammarSpec {
                  (lit<"#"> + some(d) + lit<"=">)> {};
   struct CONDITIONAL : terminal<lit<"#+"> | lit<"#-">> {};
   struct OPEN : terminal<option(lit<"#"> + many(d)) + lit<"(">> {};
-  struct NumberRule : rule<assign<&ast::Number::text>(ref<NUMBER>)> {};
-  struct SymbolRule : rule<assign<&ast::Symbol::text>(ref<SYMBOL>)> {};
-  struct StringRule : rule<assign<&ast::String::text>(ref<STRING>)> {};
-  struct CharacterRule : rule<assign<&ast::Character::text>(ref<CHARACTER>)> {};
-  struct BitVectorRule : rule<assign<&ast::BitVector::text>(ref<BIT_VECTOR>)> {
+  struct Number : rule<assign<&ast::Number::text>(ref<NUMBER>)> {};
+  struct Symbol : rule<assign<&ast::Symbol::text>(ref<SYMBOL>)> {};
+  struct String : rule<assign<&ast::String::text>(ref<STRING>)> {};
+  struct Character : rule<assign<&ast::Character::text>(ref<CHARACTER>)> {};
+  struct BitVector : rule<assign<&ast::BitVector::text>(ref<BIT_VECTOR>)> {
   };
-  struct GraphRefRule : rule<assign<&ast::GraphRef::text>(ref<GRAPH_REF>)> {};
-  struct ListRule;
-  struct PrefixRule;
-  struct ConditionalRule;
+  struct GraphRef : rule<assign<&ast::GraphRef::text>(ref<GRAPH_REF>)> {};
+  struct List;
+  struct Prefix;
+  struct Conditional;
   static constexpr auto sexpr =
-      ref<NumberRule> | ref<StringRule> | ref<CharacterRule> |
-      ref<BitVectorRule> | ref<GraphRefRule> | ref<ListRule> | ref<PrefixRule> |
-      ref<ConditionalRule> | ref<SymbolRule>;
-  struct ListRule
+      ref<Number> | ref<String> | ref<Character> |
+      ref<BitVector> | ref<GraphRef> | ref<List> | ref<Prefix> |
+      ref<Conditional> | ref<Symbol>;
+  struct List
       : rule<assign<&ast::List::opener>(ref<OPEN>) +
              many(append<&ast::List::items>(sexpr)) +
              option(lit<"."> + assign<&ast::List::tail>(sexpr)) + lit<")">> {};
-  struct PrefixRule : rule<assign<&ast::Prefix::marker>(ref<PREFIX>) +
+  struct Prefix : rule<assign<&ast::Prefix::marker>(ref<PREFIX>) +
                            assign<&ast::Prefix::value>(sexpr)> {};
-  struct ConditionalRule
+  struct Conditional
       : rule<assign<&ast::Conditional::marker>(ref<CONDITIONAL>) +
              assign<&ast::Conditional::feature>(sexpr) +
              assign<&ast::Conditional::value>(sexpr)> {};
-  struct DocRule
+  struct Doc
       : rule<create<ast::Doc> + many(append<&ast::Doc::expressions>(sexpr))> {};
-  using entry = DocRule;
-  using ignore = WS;
+  using entry = Doc;
+  using ignored = WS;
   using hidden = list<COMMENT, BLOCK_COMMENT>;
 };
 } // namespace lisp

@@ -1,5 +1,6 @@
-head	1.1;
+head;
 access;
 symbols;
+locks;
 desc
 @Minimal admin section: only the fields the grammar requires, no deltas.@

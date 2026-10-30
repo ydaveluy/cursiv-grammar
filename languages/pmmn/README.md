@@ -37,10 +37,7 @@ while (dec(1)) {
 }
 ```
 
-A [Portable Minsky Machine Notation](https://esolangs.org/wiki/Portable_Minsky_Machine_Notation)
-program is a sequence of commands over numbered counters. `inc(n)` increments
-counter `n`; `dec(n)` tests counter `n` -- standalone, or as the condition of
-an `if`, `if`/`else` or `while` guarding a `{ }` block.
+A Portable Minsky Machine Notation program manipulates numbered counters.
 
 ## The command line
 

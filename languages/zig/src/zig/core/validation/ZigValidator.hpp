@@ -1,5 +1,4 @@
-// The checks of this language: what the grammar accepts but the language
-// does not. One here -- a fact no single field can see on its own.
+// Checks that combine AST fields or validate numeric spelling.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -16,6 +15,8 @@ class ZigValidator final : public cursiv::DefaultCoreService {
                                   cursiv::ValidationAcceptor& accept) const;
   void checkFieldOrder(const ast::ContainerMembers& members,
                        cursiv::ValidationAcceptor& accept) const;
+  void checkModifier(const ast::TypeModifier& modifier,
+                     cursiv::ValidationAcceptor& accept) const;
   void checkNumber(const ast::NumberLiteral& number,
                    cursiv::ValidationAcceptor& accept) const;
 };

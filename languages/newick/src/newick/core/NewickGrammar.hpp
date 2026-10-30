@@ -10,7 +10,7 @@ namespace newick {
 struct Newick : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct COMMENT
-      : terminal<lit<"["> + many(ref<COMMENT> | (!lit<"["> + !lit<"]"> + any)) +
+      : terminal<lit<"["> + many(ref<COMMENT> | cr<"^[]">) +
                  lit<"]">> {};
 
   inline static constexpr auto decode_label =
@@ -40,26 +40,25 @@ struct Newick : cursiv::GrammarSpec {
         }
         return std::string_view(room.data(), size);
       };
-  struct Label
-      : terminal<(cr<R"(^()[],:; \t\r\n')"> +
-                  many(cr<R"(^()[],:; \t\r\n)"> | ref<COMMENT>)) |
-                     (lit<"'"> + many(lit<"''"> | cr<"^'">) + lit<"'">),
-                 text_conv<decode_label>> {};
+  struct Label : terminal<as<decode_label>(
+                     (cr<R"(^()[],:; \t\r\n')"> +
+                      many(cr<R"(^()[],:; \t\r\n)"> | ref<COMMENT>)) |
+                     (lit<"'"> + many(lit<"''"> | cr<"^'">) + lit<"'">))> {};
 
   static constexpr auto name =
       flag<&ast::Clade::hasName>(assign<&ast::Clade::name>(ref<Label>));
   static constexpr auto length =
       lit<":"> + assign<&ast::Clade::length>(ref<Label>);
-  struct CladeRule
+  struct Clade
       : rule<create<ast::Clade> +
              option(
                  lit<"("> +
-                 some(append<&ast::Clade::children>(ref<CladeRule>), lit<",">) +
+                 some(append<&ast::Clade::children>(ref<Clade>), lit<",">) +
                  lit<")">) +
              ((option(name) + option(length)) | (length + name))> {};
-  struct TreeRule : rule<ref<CladeRule> + lit<";">> {};
-  using entry = TreeRule;
-  using ignore = WS;
+  struct Tree : rule<ref<Clade> + lit<";">> {};
+  using entry = Tree;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 }  // namespace newick

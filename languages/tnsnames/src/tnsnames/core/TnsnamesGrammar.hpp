@@ -13,14 +13,12 @@ namespace tnsnames {
 inline constexpr auto strip_quotes = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<strip_quotes>;
 
 inline constexpr auto strip_trailing_newline = [](std::string_view t) {
   const auto begin = t.find_first_not_of(" \t\r\n");
   const auto end = t.find_last_not_of(" \t\r\n");
   return begin == t.npos ? std::string_view{} : t.substr(begin, end - begin + 1);
 };
-using Unnewlined = cursiv::text_conv<strip_trailing_newline>;
 
 inline constexpr auto duration_seconds = [](std::string_view text)
     -> cursiv::ConversionResult<double> {
@@ -48,7 +46,8 @@ struct Tnsnames : cursiv::GrammarSpec {
   struct ID : terminal<(cr<"A-Za-z0-9_$"> | uc::L) +
                        many(cr<"A-Za-z0-9_$.-"> | uc::L)> {};
   struct INT : terminal<some(d)> {};
-  struct QUOTED_INT : terminal<lit<"\""> + some(d) + lit<"\"">, Unquoted> {};
+  struct QUOTED_INT
+      : terminal<as<strip_quotes>(lit<"\""> + some(d) + lit<"\"">)> {};
   struct IntegerValue : rule<ref<INT> | ref<QUOTED_INT>> {};
   static constexpr auto DurationText = some(d) + option(lit<"."> + some(d)) +
       option((cr<"mM"> + cr<"sS">) |
@@ -58,13 +57,15 @@ struct Tnsnames : cursiv::GrammarSpec {
   struct QUOTED_DURATION
       : terminal<lit<"\""> + DurationText + lit<"\"">> {};
   struct DurationValue
-      : rule<ref<DURATION> | ref<QUOTED_DURATION>, text_conv<duration_seconds>> {};
+      : rule<as<duration_seconds>(ref<DURATION> | ref<QUOTED_DURATION>)> {};
 
-  struct DQ_STRING : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
-  struct ISQ_STRING : terminal<lit<"'"> + many(cr<"^'">) + lit<"'">, Unquoted> {};
-  struct IUQ_STRING
-      : terminal<cr<R"(^"'=\r\n# \t)"> +
-                 many(cr<R"(^"'=\r\n#)">), Unnewlined> {};
+  struct DQ_STRING
+      : terminal<as<strip_quotes>(lit<"\""> + many(cr<R"(^")">) + lit<"\"">)> {
+  };
+  struct ISQ_STRING
+      : terminal<as<strip_quotes>(lit<"'"> + many(cr<"^'">) + lit<"'">)> {};
+  struct IUQ_STRING : terminal<as<strip_trailing_newline>(
+                          cr<R"(^"'=\r\n# \t)"> + many(cr<R"(^"'=\r\n#)">))> {};
 
   // Descriptor values retain punctuation (including IPv6 colons); only
   // double quotes delimit a quoted descriptor value in the native reader.
@@ -75,16 +76,14 @@ struct Tnsnames : cursiv::GrammarSpec {
   // spaced this rule reassembles the same text (examples/ini's DottedKey).
   struct DottedName : rule<some(ref<ID>, lit<".">)> {};
 
-  struct SessionKw : terminal<ikw<"SESSION">, value<ast::FailoverType::session>> {};
-  struct SelectKw : terminal<ikw<"SELECT">, value<ast::FailoverType::select_>> {};
-  struct NoneKw : terminal<ikw<"NONE">, value<ast::FailoverType::none>> {};
-  struct BasicKw : terminal<ikw<"BASIC">, value<ast::FailoverMethod::basic>> {};
-  struct PreconnectKw
-      : terminal<ikw<"PRECONNECT">, value<ast::FailoverMethod::preconnect>> {};
-  struct DedicatedKw
-      : terminal<ikw<"DEDICATED">, value<ast::ServerType::dedicated>> {};
-  struct SharedKw : terminal<ikw<"SHARED">, value<ast::ServerType::shared_>> {};
-  struct PooledKw : terminal<ikw<"POOLED">, value<ast::ServerType::pooled>> {};
+
+  static constexpr auto ASendBufParam =
+      lit<"("> + ikw<"SEND_BUF_SIZE"> + lit<"="> +
+      append<&ast::Protocol::sendBufs>(ref<IntegerValue>) + lit<")">;
+  static constexpr auto ARecvBufParam =
+      lit<"("> + ikw<"RECV_BUF_SIZE"> + lit<"="> +
+      append<&ast::Protocol::recvBufs>(ref<IntegerValue>) + lit<")">;
+  static constexpr auto AParams = many(ASendBufParam | ARecvBufParam);
 
   static constexpr auto TcpHostParam =
       lit<"("> + ikw<"HOST"> + lit<"="> +
@@ -95,17 +94,17 @@ struct Tnsnames : cursiv::GrammarSpec {
   static constexpr auto TcpProtocolMarker =
       lit<"("> + ikw<"PROTOCOL"> + lit<"="> +
       (ikw<"TCP"> | flag<&ast::TcpProtocol::secure>(ikw<"TCPS">)) + lit<")">;
-  struct TcpProtocolRule
+  struct TcpProtocol
       : rule<create<ast::TcpProtocol> +
-             some(TcpHostParam | TcpPortParam | TcpProtocolMarker)> {};
+             AParams + some((TcpHostParam | TcpPortParam | TcpProtocolMarker) + AParams)> {};
 
   static constexpr auto IpcKeyParam =
       lit<"("> + ikw<"KEY"> + lit<"="> +
       append<&ast::IpcProtocol::keys>(ref<ScalarValue>) + lit<")">;
   static constexpr auto IpcProtocolMarker =
       lit<"("> + ikw<"PROTOCOL"> + lit<"="> + ikw<"IPC"> + lit<")">;
-  struct IpcProtocolRule
-      : rule<create<ast::IpcProtocol> + some(IpcKeyParam | IpcProtocolMarker)> {
+  struct IpcProtocol
+      : rule<create<ast::IpcProtocol> + AParams + some((IpcKeyParam | IpcProtocolMarker) + AParams)> {
   };
 
   static constexpr auto SpxServiceParam =
@@ -113,8 +112,8 @@ struct Tnsnames : cursiv::GrammarSpec {
       append<&ast::SpxProtocol::services>(ref<ScalarValue>) + lit<")">;
   static constexpr auto SpxProtocolMarker =
       lit<"("> + ikw<"PROTOCOL"> + lit<"="> + ikw<"SPX"> + lit<")">;
-  struct SpxProtocolRule
-      : rule<create<ast::SpxProtocol> + some(SpxServiceParam | SpxProtocolMarker)> {
+  struct SpxProtocol
+      : rule<create<ast::SpxProtocol> + AParams + some((SpxServiceParam | SpxProtocolMarker) + AParams)> {
   };
 
   static constexpr auto NmpServerParam =
@@ -125,9 +124,9 @@ struct Tnsnames : cursiv::GrammarSpec {
       append<&ast::NmpProtocol::pipes>(ref<ScalarValue>) + lit<")">;
   static constexpr auto NmpProtocolMarker =
       lit<"("> + ikw<"PROTOCOL"> + lit<"="> + ikw<"NMP"> + lit<")">;
-  struct NmpProtocolRule
+  struct NmpProtocol
       : rule<create<ast::NmpProtocol> +
-             some(NmpServerParam | NmpPipeParam | NmpProtocolMarker)> {};
+             AParams + some((NmpServerParam | NmpPipeParam | NmpProtocolMarker) + AParams)> {};
 
   static constexpr auto BeqProgramParam =
       lit<"("> + ikw<"PROGRAM"> + lit<"="> +
@@ -149,27 +148,18 @@ struct Tnsnames : cursiv::GrammarSpec {
       some(BeqLocalParam |
            flag<&ast::BeqProtocol::argsHasAddress>(BeqAddressMarker)) +
       lit<")"> + lit<"'"> + lit<")">;
-  struct BeqProtocolRule
+  struct BeqProtocol
       : rule<create<ast::BeqProtocol> +
-             some(BeqProgramParam | BeqArgv0Param | BeqArgsParam |
-                  BeqProtocolMarker)> {};
+             AParams + some((BeqProgramParam | BeqArgv0Param | BeqArgsParam |
+                  BeqProtocolMarker) + AParams)> {};
 
   static constexpr auto ProtocolInfo =
-      ref<TcpProtocolRule> | ref<IpcProtocolRule> | ref<SpxProtocolRule> |
-      ref<NmpProtocolRule> | ref<BeqProtocolRule>;
+      ref<TcpProtocol> | ref<IpcProtocol> | ref<SpxProtocol> |
+      ref<NmpProtocol> | ref<BeqProtocol>;
 
-  static constexpr auto ASendBufParam =
-      lit<"("> + ikw<"SEND_BUF_SIZE"> + lit<"="> +
-      append<&ast::Address::sendBufs>(ref<IntegerValue>) + lit<")">;
-  static constexpr auto ARecvBufParam =
-      lit<"("> + ikw<"RECV_BUF_SIZE"> + lit<"="> +
-      append<&ast::Address::recvBufs>(ref<IntegerValue>) + lit<")">;
-  static constexpr auto AParams = many(ASendBufParam | ARecvBufParam);
-
-  struct AddressRule
+  struct Address
       : rule<lit<"("> + ikw<"ADDRESS"> + lit<"="> +
-             assign<&ast::Address::protocol>(ProtocolInfo) + AParams +
-             lit<")">> {};
+             assign<&ast::Address::protocol>(ProtocolInfo) + lit<")">> {};
 
   static constexpr auto AlFailoverParam =
       lit<"("> + ikw<"FAILOVER"> + lit<"="> +
@@ -191,22 +181,22 @@ struct Tnsnames : cursiv::GrammarSpec {
   static constexpr auto AlParams =
       many(AlFailoverParam | AlLoadBalanceParam | AlSourceRouteParam);
 
-  struct AddressListRule
+  struct AddressList
       : rule<lit<"("> + ikw<"ADDRESS_LIST"> + lit<"="> + AlParams +
-             some(append<&ast::AddressList::addresses>(ref<AddressRule>)) +
+             some(append<&ast::AddressList::addresses>(ref<Address>)) +
              AlParams + lit<")">> {};
 
   static constexpr auto FoTypeParam =
       lit<"("> + ikw<"TYPE"> + lit<"="> +
-      append<&ast::FailoverMode::types>(ref<SessionKw> | ref<SelectKw> |
-                                        ref<NoneKw>) +
+      append<&ast::FailoverMode::types>(as<ast::FailoverType::session>(ikw<"SESSION">) | as<ast::FailoverType::select_>(ikw<"SELECT">) |
+                                        as<ast::FailoverType::none>(ikw<"NONE">)) +
       lit<")">;
   static constexpr auto FoBackupParam =
       lit<"("> + ikw<"BACKUP"> + lit<"="> +
       append<&ast::FailoverMode::backups>(ref<ScalarValue>) + lit<")">;
   static constexpr auto FoMethodParam =
       lit<"("> + ikw<"METHOD"> + lit<"="> +
-      append<&ast::FailoverMode::methods>(ref<BasicKw> | ref<PreconnectKw>) +
+      append<&ast::FailoverMode::methods>(as<ast::FailoverMethod::basic>(ikw<"BASIC">) | as<ast::FailoverMethod::preconnect>(ikw<"PRECONNECT">)) +
       lit<")">;
   static constexpr auto FoRetriesParam =
       lit<"("> + ikw<"RETRIES"> + lit<"="> +
@@ -214,7 +204,7 @@ struct Tnsnames : cursiv::GrammarSpec {
   static constexpr auto FoDelayParam =
       lit<"("> + ikw<"DELAY"> + lit<"="> +
       append<&ast::FailoverMode::delays>(ref<IntegerValue>) + lit<")">;
-  struct FailoverModeRule
+  struct FailoverMode
       : rule<some(FoTypeParam | FoBackupParam | FoMethodParam |
                   FoRetriesParam | FoDelayParam)> {};
 
@@ -233,7 +223,7 @@ struct Tnsnames : cursiv::GrammarSpec {
       append<&ast::ConnectData::instanceNames>(ref<ScalarValue>) + lit<")">;
   static constexpr auto CdFailoverModeParam =
       lit<"("> + ikw<"FAILOVER_MODE"> + lit<"="> +
-      append<&ast::ConnectData::failoverModes>(ref<FailoverModeRule>) +
+      append<&ast::ConnectData::failoverModes>(ref<FailoverMode>) +
       lit<")">;
   static constexpr auto CdGlobalNameParam =
       lit<"("> + ikw<"GLOBAL_NAME"> + lit<"="> +
@@ -246,13 +236,13 @@ struct Tnsnames : cursiv::GrammarSpec {
       append<&ast::ConnectData::rdbDatabases>(ref<RdbDatabaseValue>) + lit<")">;
   static constexpr auto CdServerParam =
       lit<"("> + ikw<"SERVER"> + lit<"="> +
-      append<&ast::ConnectData::servers>(ref<DedicatedKw> | ref<SharedKw> |
-                                         ref<PooledKw>) +
+      append<&ast::ConnectData::servers>(as<ast::ServerType::dedicated>(ikw<"DEDICATED">) | as<ast::ServerType::shared_>(ikw<"SHARED">) |
+                                         as<ast::ServerType::pooled>(ikw<"POOLED">)) +
       lit<")">;
   static constexpr auto CdUrParam =
       lit<"("> + ikw<"UR"> + lit<"="> + flag<&ast::ConnectData::ur>(ikw<"A">) +
       lit<")">;
-  struct ConnectDataRule
+  struct ConnectData
       : rule<lit<"("> + ikw<"CONNECT_DATA"> + lit<"="> +
              many(CdServiceNameParam | CdSidParam | CdInstanceNameParam |
                   CdFailoverModeParam | CdGlobalNameParam | CdHsParam |
@@ -314,17 +304,17 @@ struct Tnsnames : cursiv::GrammarSpec {
            DRetryCountParam | DRetryDelayParam | DTctParam);
 
   static constexpr auto DescriptionAddresses =
-      assign<&ast::Description::addressList>(ref<AddressListRule>) |
-      some(append<&ast::Description::addresses>(ref<AddressRule>));
+      assign<&ast::Description::addressList>(ref<AddressList>) |
+      some(append<&ast::Description::addresses>(ref<Address>));
 
   // CONNECT_DATA may precede or follow the addresses, and listener
   // descriptions may carry the same description parameters without it.
-  struct DescriptionRule
+  struct Description
       : rule<lit<"("> + ikw<"DESCRIPTION"> + lit<"="> + DParams +
-             ((assign<&ast::Description::connectData>(ref<ConnectDataRule>) +
+             ((assign<&ast::Description::connectData>(ref<ConnectData>) +
                DParams + DescriptionAddresses) |
               (DescriptionAddresses + DParams +
-               option(assign<&ast::Description::connectData>(ref<ConnectDataRule>)))) +
+               option(assign<&ast::Description::connectData>(ref<ConnectData>)))) +
              DParams + lit<")">> {};
 
   static constexpr auto DlFailoverParam =
@@ -347,37 +337,37 @@ struct Tnsnames : cursiv::GrammarSpec {
   static constexpr auto DlParams =
       many(DlFailoverParam | DlLoadBalanceParam | DlSourceRouteParam);
 
-  struct DescriptionListRule
+  struct DescriptionList
       : rule<lit<"("> + ikw<"DESCRIPTION_LIST"> + lit<"="> + DlParams +
              some(append<&ast::DescriptionList::descriptions>(
-                 ref<DescriptionRule>)) +
+                 ref<Description>)) +
              DlParams + lit<")">> {};
 
-  struct IfileRule
+  struct Ifile
       : rule<ikw<"IFILE"> + lit<"="> +
              assign<&ast::Ifile::path>(ref<DQ_STRING> | ref<ISQ_STRING> |
                                        ref<IUQ_STRING>)> {};
 
-  struct TnsEntryRule
+  struct TnsEntry
       : rule<some(append<&ast::Entry::aliases>(ref<DottedName>), lit<",">) +
              lit<"="> +
-             (assign<&ast::Entry::descriptionList>(ref<DescriptionListRule>) |
-              assign<&ast::Entry::description>(ref<DescriptionRule>))> {};
+             (assign<&ast::Entry::descriptionList>(ref<DescriptionList>) |
+              assign<&ast::Entry::description>(ref<Description>))> {};
 
-  struct LsnrEntryRule
+  struct LsnrEntry
       : rule<append<&ast::Entry::aliases>(ref<DottedName>) + lit<"="> +
-             (assign<&ast::Entry::description>(ref<DescriptionRule>) |
-              assign<&ast::Entry::addressList>(ref<AddressListRule>) |
-              some(append<&ast::Entry::addresses>(ref<AddressRule>)))> {};
+             (assign<&ast::Entry::description>(ref<Description>) |
+              assign<&ast::Entry::addressList>(ref<AddressList>) |
+              some(append<&ast::Entry::addresses>(ref<Address>)))> {};
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document> +
-             many(append<&ast::Document::items>(ref<TnsEntryRule>) |
-                  append<&ast::Document::items>(ref<IfileRule>) |
-                  append<&ast::Document::items>(ref<LsnrEntryRule>))> {};
+             many(append<&ast::Document::items>(ref<TnsEntry>) |
+                  append<&ast::Document::items>(ref<Ifile>) |
+                  append<&ast::Document::items>(ref<LsnrEntry>))> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

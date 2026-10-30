@@ -209,6 +209,25 @@ inline std::string decimalText(std::string_view text) {
   }
   return out;
 }
+// Only numeric group layout is passed here, after character-code literals
+// have been handled. Quotes and r inside comments are not radix markers.
+inline std::string numberSource(std::string_view text) {
+  std::string out;
+  for(std::size_t i=0;i<text.size();) {
+    if(text.substr(i,2)=="/*") {
+      unsigned depth=1;i+=2;
+      while(i<text.size()&&depth) {
+        if(text.substr(i,2)=="/*") {++depth;i+=2;}
+        else if(text.substr(i,2)=="*/") {--depth;i+=2;}
+        else ++i;
+      }
+    } else if(text[i]=='%') {
+      const auto end=text.find_first_of("\r\n",i);
+      i=end==text.npos?text.size():end;
+    } else out+=text[i++];
+  }
+  return out;
+}
 inline Decoded integerText(std::string_view text) {
   bool negative = text.starts_with("-");
   if (negative)
@@ -221,6 +240,8 @@ inline Decoded integerText(std::string_view text) {
     decoded.value = (negative && c ? "-" : "") + std::to_string(c);
     return decoded;
   }
+  const auto source=numberSource(text);
+  text=source;
   unsigned base = 10;
   if (text.starts_with("0b") || text.starts_with("0o") ||
       text.starts_with("0x")) {

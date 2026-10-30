@@ -45,7 +45,7 @@ struct Iso8601 : cursiv::GrammarSpec {
   static constexpr auto ZonedTimeBody =
       LocalTimeBody + option(assign<&ast::TimeValue::zone>(
                           create<ast::TimeZoneValue>(TimeZoneBody)));
-  struct TimeRule
+  struct Time
       : rule<create<ast::TimeValue>(option(ref<TMark>) + ZonedTimeBody)> {};
 
   static constexpr auto CalendarBody =
@@ -70,30 +70,33 @@ struct Iso8601 : cursiv::GrammarSpec {
       CalendarBody | OrdinalBody | WeekBody | YearMonthBody |
       assign<&ast::DateValue::year>(YearNum) |
       assign<&ast::DateValue::century>(ref<SInt2p>);
-  struct DateRule : rule<create<ast::DateValue>(DateBody)> {};
+  struct Date : rule<create<ast::DateValue>(DateBody)> {};
   static constexpr auto DateTimeBody =
       assign<&ast::DateTimeValue::date>(create<ast::DateValue>(DateBody)) +
       ref<TMark> +
       assign<&ast::DateTimeValue::time>(create<ast::TimeValue>(ZonedTimeBody));
-  struct DateTimeRule : rule<create<ast::DateTimeValue>(DateTimeBody)> {};
+  struct DateTime : rule<create<ast::DateTimeValue>(DateTimeBody)> {};
 
   static constexpr auto ConciseDateBody =
       (assign<&ast::DateValue::month>(ref<Int2>) + option(lit<"-">) +
        assign<&ast::DateValue::day>(ref<Int2>)) |
       assign<&ast::DateValue::day>(ref<Int2>);
   static constexpr auto EndDateBody =
-      CalendarBody | OrdinalBody | WeekBody | YearMonthBody | ConciseDateBody;
+      CalendarBody | OrdinalBody | WeekBody | YearMonthBody | ConciseDateBody |
+      assign<&ast::DateValue::ordinalDay>(ref<Int3>) |
+      (ref<WMark> + assign<&ast::DateValue::week>(ref<Int2>) +
+       option(option(lit<"-">) + assign<&ast::DateValue::weekDay>(ref<Digit>)));
   static constexpr auto EndDateTimeBody =
       assign<&ast::DateTimeValue::date>(create<ast::DateValue>(EndDateBody)) +
       ref<TMark> +
       assign<&ast::DateTimeValue::time>(create<ast::TimeValue>(ZonedTimeBody));
-  struct StartPointRule
+  struct StartPoint
       : rule<create<ast::Point>(assign<&ast::Point::value>(
-            ref<DateTimeRule> | ref<DateRule> | ref<TimeRule>))> {};
-  struct EndPointRule
+            ref<DateTime> | ref<Date> | ref<Time>))> {};
+  struct EndPoint
       : rule<create<ast::Point>(assign<&ast::Point::value>(
             create<ast::DateTimeValue>(EndDateTimeBody) |
-            create<ast::DateValue>(EndDateBody) | ref<TimeRule>))> {};
+            create<ast::DateValue>(EndDateBody) | ref<Time>))> {};
 
   static constexpr auto DurationPartsBody =
       option(assign<&ast::DurationParts::years>(ref<Dec>) + ref<YMark>) +
@@ -105,29 +108,45 @@ struct Iso8601 : cursiv::GrammarSpec {
           option(assign<&ast::DurationParts::hours>(ref<Dec>) + ref<HMark>) +
           option(assign<&ast::DurationParts::minutes>(ref<Dec>) + ref<MMark>) +
           option(assign<&ast::DurationParts::seconds>(ref<Dec>) + ref<SMark>));
-  struct IntervalRule
+  struct Interval
       : rule<ref<PMark> + assign<&ast::Interval::value>(
                               create<ast::DurationParts>(DurationPartsBody) |
-                              ref<StartPointRule> | ref<EndPointRule>)> {};
-  struct DurationRangeRule
-      : rule<(assign<&ast::DurationRange::start>(ref<StartPointRule>) +
+                              ref<StartPoint> | ref<EndPoint>)> {};
+  template<auto Body> static constexpr auto DatePoint =
+      create<ast::Point>(assign<&ast::Point::value>(create<ast::DateValue>(Body)));
+  static constexpr auto YearEndRangeShape =
+      YearNum + lit<"/"> + YearNum + option(ref<Newline>) + eof;
+  static constexpr auto MonthEndRangeShape =
+      YearNum + lit<"-"> + ref<Int2> + lit<"/"> + ref<Int2> +
+      option(ref<Newline>) + eof;
+  struct DurationRange
+      : rule<(&YearEndRangeShape +
+              assign<&ast::DurationRange::start>(DatePoint<assign<&ast::DateValue::year>(YearNum)>) +
               lit<"/"> +
-              assign<&ast::DurationRange::stop>(ref<IntervalRule> |
-                                                ref<EndPointRule>)) |
-             (assign<&ast::DurationRange::start>(ref<IntervalRule>) + lit<"/"> +
-              assign<&ast::DurationRange::stop>(ref<StartPointRule>))> {};
+              assign<&ast::DurationRange::stop>(DatePoint<assign<&ast::DateValue::year>(YearNum)>)) |
+             (&MonthEndRangeShape +
+              assign<&ast::DurationRange::start>(DatePoint<YearMonthBody>) +
+              lit<"/"> +
+              assign<&ast::DurationRange::stop>(DatePoint<assign<&ast::DateValue::month>(ref<Int2>)>)) |
+             (!(YearEndRangeShape | MonthEndRangeShape) +
+              ((assign<&ast::DurationRange::start>(ref<StartPoint>) +
+              lit<"/"> +
+              assign<&ast::DurationRange::stop>(ref<Interval> |
+                                                ref<EndPoint>)) |
+             (assign<&ast::DurationRange::start>(ref<Interval>) + lit<"/"> +
+              assign<&ast::DurationRange::stop>(ref<StartPoint>))))> {};
   static constexpr auto DurationBody =
-      assign<&ast::Duration::value>(ref<DurationRangeRule> | ref<IntervalRule>);
-  struct DurationRule : rule<DurationBody> {};
-  struct RecurringRule
+      assign<&ast::Duration::value>(ref<DurationRange> | ref<Interval>);
+  struct Duration : rule<DurationBody> {};
+  struct Recurring
       : rule<ref<RMark> + option(assign<&ast::Recurring::count>(ref<Int_>)) +
              lit<"/"> +
              assign<&ast::Recurring::body>(
                  create<ast::Duration>(DurationBody))> {};
-  struct IsoRule : rule<create<ast::Document>(assign<&ast::Document::value>(
-                            ref<DateTimeRule> | ref<DateRule> | ref<TimeRule> |
-                            ref<DurationRule> | ref<RecurringRule>)) +
+  struct Iso : rule<create<ast::Document>(assign<&ast::Document::value>(
+                            ref<DateTime> | ref<Date> | ref<Time> |
+                            ref<Duration> | ref<Recurring>)) +
                         option(ref<Newline>) + eof> {};
-  using entry = IsoRule;
+  using entry = Iso;
 };
 } // namespace iso8601

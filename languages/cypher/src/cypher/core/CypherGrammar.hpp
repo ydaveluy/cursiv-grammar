@@ -64,11 +64,9 @@ inline constexpr auto strip_ticks = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Ticked = cursiv::text_conv<strip_ticks>;
 
-// Decodes `\b \t \n \f \r \" \' \\`, a 1-3 digit octal escape and `\u+HHHH`
-// (one or more `u`, then four hex digits); the surrounding quote is stripped
-// first.
+// Decode native Unicode escapes, including UTF-16 pairs and UTF-32, while
+// retaining the port's historical octal/repeated-u extensions.
 inline constexpr auto unquote = [](std::string_view t,
                                    std::pmr::memory_resource* mem) {
   const std::string_view body = t.substr(1, t.size() - 2);
@@ -113,15 +111,28 @@ inline constexpr auto unquote = [](std::string_view t,
       case '"': room[n++] = '"'; break;
       case '\'': room[n++] = '\''; break;
       case '\\': room[n++] = '\\'; break;
-      case 'u': {
+      case 'u':
+      case 'U': {
         std::size_t j = i + 1;
-        while (j < body.size() && body[j] == 'u') ++j;
-        if (j + 4 <= body.size()) {
+        if (e == 'u')
+          while (j < body.size() && body[j] == 'u') ++j;
+        const std::size_t digits = e == 'U' ? 8 : 4;
+        if (j + digits <= body.size()) {
           unsigned cp = 0;
-          for (std::size_t k = 0; k < 4; ++k)
+          for (std::size_t k = 0; k < digits; ++k)
             cp = (cp << 4) | static_cast<unsigned>(hexVal(body[j + k]));
+          i = j + digits - 1;
+          if (e == 'u' && cp >= 0xd800 && cp <= 0xdbff &&
+              i + 6 < body.size() && body[i + 1] == '\\' && body[i + 2] == 'u') {
+            unsigned low = 0;
+            for (std::size_t k = 0; k < 4; ++k)
+              low = (low << 4) | static_cast<unsigned>(hexVal(body[i + 3 + k]));
+            if (low >= 0xdc00 && low <= 0xdfff) {
+              cp = 0x10000 + ((cp - 0xd800) << 10) + low - 0xdc00;
+              i += 6;
+            }
+          }
           putUtf8(cp);
-          i = j + 3;
         }
         break;
       }
@@ -141,30 +152,37 @@ inline constexpr auto unquote = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Cypher : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \t\r\n\f)">)> {};
+  struct WS : terminal<some(cr<R"( \t\n\v\f\r\x1c-\x1f\u00a0\u1680\u180e\u2000-\u200a\u2028\u2029\u202f\u205f\u3000)">)> {};
   struct COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
   struct LINE_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
 
-  static constexpr auto word_boundary =
-      cr<"a-zA-Z0-9_$"> | uc::XID_Continue;
+  // ID_Start/ID_Continue are their Unicode category definitions plus the
+  // Other_ID_* characters; openCypher also permits connector starts and
+  // currency symbols after the first character.
+  static constexpr auto IdentifierStart =
+      uc::L | uc::Nl | cr<R"(\u1885\u1886\u2118\u212e\u309b\u309c)">;
+  static constexpr auto IdentifierPart =
+      IdentifierStart | uc::Mn | uc::Mc | uc::Nd | uc::Pc |
+      cr<R"(\u00b7\u0387\u1369-\u1371\u19da\u200c\u200d\u30fb\uff65)"> | uc::Sc;
+  static constexpr auto word_boundary = IdentifierPart;
 
-  struct ID : terminal<(cr<"a-zA-Z_"> | uc::XID_Start) +
-                       many(cr<"a-zA-Z0-9_"> | uc::XID_Continue)> {};
+  struct ID : terminal<(IdentifierStart | uc::Pc) + many(IdentifierPart)> {};
 
-  struct ESC_LITERAL
-      : terminal<lit<"`"> + many(lit<"``"> | cr<"^`">) + lit<"`">, Ticked> {};
+  struct ESC_LITERAL : terminal<as<strip_ticks>(
+                           lit<"`"> + many(lit<"``"> | cr<"^`">) + lit<"`">)> {
+  };
   // A `\` swallows the next byte whatever it is: the exact escape shape
   // (octal run, `\u+HHHH`) is decoded by the converter, not the lexer.
   struct STRING_LITERAL
-      : terminal<lit<"\""> +
-                     many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) + lit<"\"">,
-                 Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> +
+                             many((lit<"\\"> + any) | cr<R"(^"\\)">) +
+                             lit<"\"">)> {};
   struct CHAR_LITERAL
-      : terminal<lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\\r\n)">) + lit<"'">,
-                 Unquoted> {};
+      : terminal<as<unquote>(lit<"'"> +
+                             many((lit<"\\"> + any) | cr<R"(^'\\)">) +
+                             lit<"'">)> {};
 
   static constexpr auto Digit = cr<"0-9">;
   static constexpr auto Digits = Digit + option(many(cr<"0-9_">) + Digit);
@@ -210,18 +228,17 @@ struct Cypher : cursiv::GrammarSpec {
   struct WITH : terminal<ikw<"WITH">> {};
   struct UNION : terminal<ikw<"UNION">> {};
   struct UNWIND : terminal<ikw<"UNWIND">> {};
-  struct AND : terminal<ikw<"AND">, value<ast::Operator::logical_and>> {};
+  struct AND : terminal<as<ast::Operator::logical_and>(ikw<"AND">)> {};
   struct AS : terminal<ikw<"AS">> {};
-  struct CONTAINS
-      : terminal<ikw<"CONTAINS">, value<ast::Operator::contains>> {};
+  struct CONTAINS : terminal<as<ast::Operator::contains>(ikw<"CONTAINS">)> {};
   struct DISTINCT : terminal<ikw<"DISTINCT">> {};
   struct ENDS : terminal<ikw<"ENDS">> {};
-  struct IN : terminal<ikw<"IN">, value<ast::Operator::in_>> {};
+  struct IN : terminal<as<ast::Operator::in_>(ikw<"IN">)> {};
   struct IS : terminal<ikw<"IS">> {};
   struct NOT : terminal<ikw<"NOT">> {};
-  struct OR : terminal<ikw<"OR">, value<ast::Operator::logical_or>> {};
+  struct OR : terminal<as<ast::Operator::logical_or>(ikw<"OR">)> {};
   struct STARTS : terminal<ikw<"STARTS">> {};
-  struct XOR : terminal<ikw<"XOR">, value<ast::Operator::logical_xor>> {};
+  struct XOR : terminal<as<ast::Operator::logical_xor>(ikw<"XOR">)> {};
   struct FALSE : terminal<ikw<"FALSE">> {};
   struct TRUE : terminal<ikw<"TRUE">> {};
   struct NULL_KW : terminal<ikw<"NULL">> {};
@@ -237,10 +254,6 @@ struct Cypher : cursiv::GrammarSpec {
   struct YIELD : terminal<ikw<"YIELD">> {};
   struct CALL : terminal<ikw<"CALL">> {};
 
-  struct STARTS_WITH
-      : rule<ref<STARTS> + ref<WITH>, value<ast::Operator::starts_with>> {};
-  struct ENDS_WITH
-      : rule<ref<ENDS> + ref<WITH>, value<ast::Operator::ends_with>> {};
 
   static constexpr auto ReservedOnly =
       ikw<"CONSTRAINT"> | ikw<"DO"> | ikw<"FOR"> | ikw<"REQUIRE"> |
@@ -265,7 +278,8 @@ struct Cypher : cursiv::GrammarSpec {
   struct Symbol : rule<ref<ESC_LITERAL> | ref<ID> | ref<COUNT> | ref<ANY> |
                        ref<NONE> | ref<SINGLE> | ref<END>> {};
 
-  struct Name : rule<ref<Symbol> | ReservedWord> {};
+  // A name is the text it spells, though some reserved words convert.
+  struct Name : rule<as<std::string_view>(ref<Symbol> | ReservedWord)> {};
 
   template <auto Member>
   static constexpr auto NodeLabelsBody =
@@ -275,7 +289,6 @@ struct Cypher : cursiv::GrammarSpec {
   struct ArithExpr;
   struct Atom;
   struct PropertyExpression;
-  struct PropertyOrLabelExpression;
   struct AtomicExpression;
   struct UnaryAddSubExpression;
   struct RelationshipsChainPattern;
@@ -350,18 +363,25 @@ struct Cypher : cursiv::GrammarSpec {
                  assign<&ast::RelationshipDetail::properties>(ref<Properties>)) +
              lit<"]">> {};
 
+  // ASCII arrows/dashes also occur as expression literals. Spell them as
+  // literals here too: at equal length literals win over character classes.
+  static constexpr auto LeftArrow = lit<"<"> | cr<R"(\u27e8\u3008\ufe64\uff1c)">;
+  static constexpr auto RightArrow = lit<">"> | cr<R"(\u27e9\u3009\ufe65\uff1e)">;
+  static constexpr auto Dash =
+      lit<"-"> | cr<R"(\u00ad\u2010-\u2015\u2212\ufe58\ufe63\uff0d)">;
+
   struct RelationshipPattern
       : rule<create<ast::RelationshipPattern>(
                  option(flag<&ast::RelationshipPattern::pointsLeft>(
-                     lit<"<">)) +
-                 lit<"-"> +
+                     LeftArrow)) +
+                 Dash +
                  option(
                      assign<&ast::RelationshipPattern::detail>(
                          ref<RelationDetail>)) +
-                 lit<"-"> +
+                 Dash +
                  option(
                      flag<&ast::RelationshipPattern::pointsRight>(
-                         lit<">">)))> {};
+                         RightArrow)))> {};
 
   struct RelChainStep
       : rule<assign<&ast::RelChainStep::rel>(ref<RelationshipPattern>) +
@@ -508,20 +528,15 @@ struct Cypher : cursiv::GrammarSpec {
              | ref<NameRef>             //
              | ref<SubqueryExist>> {};
 
-  struct PropertyExpression
-      : rule<ref<Atom> +
-             many(nest<ast::PropertyExpr, &ast::PropertyExpr::object>(
-                 lit<"."> +
-                 assign<&ast::PropertyExpr::property>(ref<Name>)))> {};
-
-  struct PropertyOrLabelExpression
-      : rule<ref<PropertyExpression> +
-             option(nest<ast::HasLabelsExpr, &ast::HasLabelsExpr::operand>(
-                 NodeLabelsBody<&ast::HasLabelsExpr::labels>))> {};
+  static constexpr auto PropertyStep =
+      nest<ast::PropertyExpr, &ast::PropertyExpr::object>(
+          lit<"."> + assign<&ast::PropertyExpr::property>(ref<Name>));
+  struct PropertyExpression : rule<ref<Atom> + some(PropertyStep)> {};
 
   struct AtomicExpression
-      : rule<ref<PropertyOrLabelExpression> +
-             many(nest<ast::SliceExpr, &ast::SliceExpr::object>(
+      : rule<ref<Atom> +
+             many(PropertyStep |
+                  nest<ast::SliceExpr, &ast::SliceExpr::object>(
                       lit<"["> +
                       option(assign<&ast::SliceExpr::from_>(ref<Expression>)) +
                       lit<".."> +
@@ -530,7 +545,9 @@ struct Cypher : cursiv::GrammarSpec {
                   | nest<ast::IndexExpr, &ast::IndexExpr::object>(
                         lit<"["> +
                         assign<&ast::IndexExpr::index>(ref<Expression>) +
-                        lit<"]">))> {};
+                        lit<"]">)) +
+             option(nest<ast::HasLabelsExpr, &ast::HasLabelsExpr::operand>(
+                 NodeLabelsBody<&ast::HasLabelsExpr::labels>))> {};
 
   struct UnaryAddSubExpression
       : rule<create<ast::UnaryExpr>(
@@ -538,31 +555,22 @@ struct Cypher : cursiv::GrammarSpec {
                  assign<&ast::UnaryExpr::operand>(ref<AtomicExpression>))  //
              | ref<AtomicExpression>> {};
 
-  struct MULTIPLY : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIVIDE : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct MODULO : terminal<lit<"%">, value<ast::Operator::modulo>> {};
-  struct ADD_OP : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct SUBTRACT : terminal<lit<"-">, value<ast::Operator::subtract>> {};
 
-  struct POWER : terminal<lit<"^">, value<ast::Operator::power>> {};
-  static constexpr auto CaretOp = ref<POWER>;
+  static constexpr auto CaretOp = as<ast::Operator::power>(lit<"^">);
   static constexpr auto MulDivModOp =
-      ref<MULTIPLY> | ref<DIVIDE> | ref<MODULO>;
-  static constexpr auto AddSubOp = ref<ADD_OP> | ref<SUBTRACT>;
+      as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">) | as<ast::Operator::modulo>(lit<"%">);
+  static constexpr auto AddSubOp = as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">);
 
   struct ArithExpr
-      : infix<UnaryAddSubExpression, &ast::BinaryExpr::left,
-              &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-              (right(CaretOp) >> left(MulDivModOp) >> left(AddSubOp))> {};
+      : infix<UnaryAddSubExpression, ast::BinaryExpr,
+              levels(right(CaretOp), left(MulDivModOp), left(AddSubOp))> {};
 
-  struct REGEX_MATCH : terminal<lit<"=~">, value<ast::Operator::regex_match>> {
-  };
   static constexpr auto StringPrefixOp =
-      ref<STARTS_WITH> | ref<ENDS_WITH> | ref<CONTAINS> | ref<REGEX_MATCH>;
+      as<ast::Operator::starts_with>(ref<STARTS> + ref<WITH>) | as<ast::Operator::ends_with>(ref<ENDS> + ref<WITH>) | ref<CONTAINS> | as<ast::Operator::regex_match>(lit<"=~">);
 
   struct StringListNullExpression
       : rule<ref<ArithExpr> +
-             option(
+             many(
                  nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
                      assign<&ast::BinaryExpr::op>(StringPrefixOp) +
                      assign<&ast::BinaryExpr::right>(ref<ArithExpr>))  //
@@ -575,17 +583,10 @@ struct Cypher : cursiv::GrammarSpec {
                            ref<NOT>)) +
                        ref<NULL_KW>))> {};
 
-  struct EQUAL : terminal<lit<"=">, value<ast::Operator::equal>> {};
-  struct LESS_EQUAL : terminal<lit<"<=">, value<ast::Operator::less_equal>> {};
-  struct GREATER_EQUAL
-      : terminal<lit<">=">, value<ast::Operator::greater_equal>> {};
-  struct NOT_EQUAL : terminal<lit<"<>">, value<ast::Operator::not_equal>> {};
-  struct LESS : terminal<lit<"<">, value<ast::Operator::less>> {};
-  struct GREATER : terminal<lit<">">, value<ast::Operator::greater>> {};
 
-  static constexpr auto ComparisonOp = ref<EQUAL> | ref<LESS_EQUAL> |
-                                       ref<GREATER_EQUAL> | ref<NOT_EQUAL> |
-                                       ref<LESS> | ref<GREATER>;
+  static constexpr auto ComparisonOp = as<ast::Operator::equal>(lit<"=">) | as<ast::Operator::less_equal>(lit<"<=">) |
+                                       as<ast::Operator::greater_equal>(lit<">=">) | as<ast::Operator::not_equal>(lit<"<>">) |
+                                       as<ast::Operator::less>(lit<"<">) | as<ast::Operator::greater>(lit<">">);
 
   // Preserve the chain as written: a < b < c compares adjacent operands.
   // GroupExpr distinguishes it from (a < b) < c.
@@ -605,16 +606,13 @@ struct Cypher : cursiv::GrammarSpec {
              | ref<ComparisonExpression>> {};
 
   struct AndExpression
-      : infix<NotExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<AND>)> {};
+      : infix<NotExpression, ast::BinaryExpr, left(ref<AND>)> {};
 
   struct XorExpression
-      : infix<AndExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<XOR>)> {};
+      : infix<AndExpression, ast::BinaryExpr, left(ref<XOR>)> {};
 
   struct Expression
-      : infix<XorExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OR>)> {};
+      : infix<XorExpression, ast::BinaryExpr, left(ref<OR>)> {};
 
   // reading / updating clauses
 
@@ -809,7 +807,7 @@ struct Cypher : cursiv::GrammarSpec {
              option(lit<";">)> {};
 
   using entry = Script;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<COMMENT, LINE_COMMENT>;
 };
 

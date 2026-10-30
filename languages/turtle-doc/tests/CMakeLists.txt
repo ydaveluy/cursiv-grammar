@@ -6,7 +6,7 @@ endif()
 # The upstream corpus for this variant is empty: both documents here are
 # written for this port, under tests/ (never example/).
 add_executable(turtledoc_grammar_test grammar_test.cpp)
-target_link_libraries(turtledoc_grammar_test PRIVATE turtledocCore)
+target_link_libraries(turtledoc_grammar_test PRIVATE turtledocCore cursiv::test)
 target_compile_definitions(turtledoc_grammar_test PRIVATE
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 add_test(NAME turtledoc_grammar_test COMMAND turtledoc_grammar_test)

@@ -63,6 +63,11 @@ std::string_view itemName(const ast::Item& n) {
 void VhdlValidator::checkItem(const ast::Item& node,cursiv::ValidationAcceptor& accept) const {
   const auto name=itemName(node);
   identifier(name,node,accept);
+  if (const auto* body=cursiv::ast_cast<ast::SubprogramBody>(&node);
+      body && body->spec && !body->endKind.empty() &&
+      !equal(body->endKind,body->spec->kind))
+    accept.error(*body,"The closing subprogram kind must match its declaration","vhdl.subprogram-end")
+        .property<&ast::SubprogramBody::endKind>();
   if (!node.endName.empty() && !equal(name,node.endName))
     accept.error(node,"The closing name must match the opening name","vhdl.closing-name")
         .property<&ast::Item::endName>();
@@ -77,7 +82,12 @@ void VhdlValidator::checkConcurrent(const ast::ConcStmt& node,cursiv::Validation
   std::string_view label;
   if (auto x=cursiv::ast_cast<ast::SignalAssign>(&node); x && (x->force || x->release))
     accept.error(node,"Force and release assignments must be sequential statements","vhdl.concurrent-force");
-  if (auto x=cursiv::ast_cast<ast::ProcessStmt>(&node)) label=x->label;
+  if (auto x=cursiv::ast_cast<ast::ProcessStmt>(&node)) {
+    label=x->label;
+    if (x->endPostponed && !x->postponed)
+      accept.error(*x,"Only a postponed process may end with postponed","vhdl.process-end")
+          .property<&ast::ProcessStmt::endPostponed>();
+  }
   if (auto x=cursiv::ast_cast<ast::BlockStmt>(&node)) label=x->label;
   if (auto x=cursiv::ast_cast<ast::GenerateStmt>(&node)) {
     label=x->label;
@@ -90,7 +100,12 @@ void VhdlValidator::checkConcurrent(const ast::ConcStmt& node,cursiv::Validation
 void VhdlValidator::checkSequential(const ast::SeqStmt& node,cursiv::ValidationAcceptor& accept) const {
   std::string_view label;
   if (auto x=cursiv::ast_cast<ast::IfStmt>(&node)) label=x->label;
-  if (auto x=cursiv::ast_cast<ast::CaseStmt>(&node)) label=x->label;
+  if (auto x=cursiv::ast_cast<ast::CaseStmt>(&node)) {
+    label=x->label;
+    if (x->questioned != x->endQuestioned)
+      accept.error(*x,"The opening and closing case matching markers must agree","vhdl.case-matching")
+          .property<&ast::CaseStmt::endQuestioned>();
+  }
   if (auto x=cursiv::ast_cast<ast::LoopStmt>(&node)) label=x->label;
   if (!node.endLabel.empty() && !equal(label,node.endLabel))
     accept.error(node,"The closing label must match the opening label","vhdl.closing-label")
@@ -143,7 +158,12 @@ void VhdlValidator::checkLiteral(const ast::Literal& node,cursiv::ValidationAcce
     if (!exp.empty() && (exp.front()=='+' || exp.front()=='-')) exp.remove_prefix(1);
     bool bad=exp.empty();
     for (char c:exp) bad |= c<'0' || c>'9';
-    if (bad) accept.error(node,"A literal exponent must be an integer","vhdl.literal-exponent");
+    const bool negativeInteger = exponent+1<raw.size() && raw[exponent+1]=='-' &&
+        raw.substr(0,exponent).find('.')==std::string::npos;
+    if (bad || negativeInteger)
+      accept.error(node,negativeInteger ? "An integer literal cannot have a negative exponent"
+                                        : "A literal exponent must be an integer",
+                   "vhdl.literal-exponent");
   }
 }
 void VhdlValidator::checkIdentifier(const ast::Ident& node,cursiv::ValidationAcceptor& accept) const {

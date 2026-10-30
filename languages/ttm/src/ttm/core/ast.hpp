@@ -1,29 +1,25 @@
-// The ttm language: its AST. A call is active (`#<...>`) or neutral
-// (`##<...>`); an argument is a nested call or plain text, the `<...>`
-// wrapping a nested call is pure grouping and keeps no node of its own.
+// Default-delimiter TTM source. Text keeps escapes and angle quoting verbatim.
 #pragma once
 
 #include <string_view>
 #include <variant>
-
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 
 namespace ttm::ast {
-
 struct Call;
+struct Argument;
+using Part = std::variant<Call *, std::string_view>;
 
-using Arg = std::variant<Call*, std::string_view>;
-
-struct Call : cursiv::Extends<cursiv::AstNode> {
-  string_view name;
-  vector<Arg> args;
+struct Argument : cursiv::Extends<cursiv::AstNode> {
+  vector<Part> parts;
 };
-
+struct Call : cursiv::Extends<cursiv::AstNode> {
+  Argument *name = nullptr;
+  vector<Argument *> args;
+};
 struct Active : cursiv::Extends<Call> {};
 struct Neutral : cursiv::Extends<Call> {};
-
 struct Program : cursiv::Extends<cursiv::AstNode> {
-  vector<Call*> calls;
+  vector<Part> parts;
 };
-
-}  // namespace ttm::ast
+} // namespace ttm::ast

@@ -31,11 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-A S.W.I.F.T. FIN message: five numbered blocks, braces delimited, each
+A structural S.W.I.F.T. FIN message parser: five numbered blocks, braces delimited, each
 optional but block 1. Block 4, the text block, holds the actual message
 fields (`:20:reference`, `:23G:instruction`, ...), one per line, continuation
 lines allowed; blocks 3 and 5 (and block 4 itself, in its other form) are
-flat `{key:value}` maps.
+`{key:value}` maps whose values retain nested source text.
 
 ```
 {1:F01ASDFQQQQAXXX0103027010}{2:O9502015150713ASDFQQQQAXXX91266335941507132015N}{3:{108:55094429070-07-G}}{4:

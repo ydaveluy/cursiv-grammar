@@ -1,14 +1,16 @@
-// The checks of this language: none -- a chord chart has no reference to
-// resolve and no fact the grammar leaves for a validator to state.
+// Numeric meter limits from the author tutorial.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
+#include "cursiv/core/validation/ValidationAcceptor.hpp"
+#include "jam/core/ast.hpp"
 
 namespace jam {
 
 class JamValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkMeter(const ast::Meter&, cursiv::ValidationAcceptor&) const;
 };
 
 struct JamCoreServices;

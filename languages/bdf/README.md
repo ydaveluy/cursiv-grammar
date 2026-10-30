@@ -32,6 +32,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Adobe BDF 2.1/2.2 font files describe metrics, properties and glyph bitmaps.
+
 ```
 STARTFONT 2.1
 FONT -gnu-unifont-medium-r-normal--16-160-75-75-c-80-iso10646-1
@@ -53,10 +55,6 @@ BITMAP
 ENDCHAR
 ENDFONT
 ```
-
-A font is a flat sequence of keyword-led declarations: metrics
-(`SIZE`, `FONTBOUNDINGBOX`), a block of named properties, and one block per
-character, its bitmap a run of hex rows.
 
 ## The command line
 

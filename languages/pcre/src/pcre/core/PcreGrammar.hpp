@@ -1,5 +1,6 @@
 #pragma once
 
+#include <charconv>
 #include <cstdint>
 #include <memory_resource>
 #include <string_view>
@@ -10,55 +11,75 @@
 namespace pcre {
 
 inline constexpr auto comment_text = [](std::string_view text) {
-  return text.substr(3, text.size() - 4);
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (text.size() < 4 || !text.starts_with("(?#") || text.back() != ')')
+    return Result::err("Incomplete pattern comment.");
+  const auto body = text.substr(3, text.size() - 4);
+  if (body.find(')') != body.npos)
+    return Result::err("A pattern comment ends at its first closing parenthesis.");
+  return Result::ok(body);
 };
 inline constexpr auto callout_text =
-    [](std::string_view text,
-       std::pmr::memory_resource *memory) -> std::string_view {
-  if (text.size() == 2)
-    return text.substr(1, 0);
-  auto *data =
-      static_cast<char *>(memory->allocate(text.size() - 2, alignof(char)));
+    [](std::string_view text, std::pmr::memory_resource *memory) {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (text.size() < 2)
+    return Result::err("Incomplete callout string.");
+  const char open = text.front();
+  const char close = open == '{' ? '}' : open;
+  if (std::string_view("'\"`^%#${").find(open) == std::string_view::npos || text.back() != close)
+    return Result::err("Invalid callout string delimiters.");
+  const auto body = text.substr(1, text.size() - 2);
+  for (std::size_t i = 0; i < body.size(); ++i)
+    if (body[i] == close && (++i == body.size() || body[i] != close))
+      return Result::err("A callout string delimiter must be doubled inside its text.");
+  if (body.empty())
+    return Result::ok(body);
+  const auto room = cursiv::text_room(memory, body.size());
   std::size_t size = 0;
-  for (std::size_t i = 1; i + 1 < text.size(); ++i) {
-    data[size++] = text[i];
-    if (text[i] == text.back() && i + 2 < text.size() &&
-        text[i + 1] == text.back())
+  for (std::size_t i = 0; i < body.size(); ++i) {
+    room[size++] = body[i];
+    if (body[i] == close)
       ++i;
   }
-  return {data, size};
+  return Result::ok({room.data(), size});
 };
 inline constexpr auto backref_number = [](std::string_view text) {
+  using Result = cursiv::ConversionResult<std::int64_t>;
+  if (text.size() < 2 || text.front() != '\\' || text[1] < '1' || text[1] > '9')
+    return Result::err("A backreference needs a backslash and a positive decimal number.");
   std::int64_t value = 0;
-  for (char c : text.substr(1)) {
-    if (value > (INT64_MAX - (c - '0')) / 10)
-      return INT64_MAX;
-    value = value * 10 + c - '0';
-  }
-  return value;
+  const auto digits = text.substr(1);
+  const auto parsed = std::from_chars(digits.data(), digits.data() + digits.size(), value);
+  if (parsed.ec != std::errc{} || parsed.ptr != digits.data() + digits.size())
+    return Result::err("Invalid or out-of-range decimal backreference.");
+  return Result::ok(value);
+};
+
+inline constexpr auto class_set_operator = [](std::string_view text) {
+  return text.substr(0, 1);
 };
 
 struct Pcre : cursiv::GrammarSpec {
   struct Alternation;
-  struct AtomRule;
-  struct GroupRule;
-  struct CharacterClassRule;
+  struct Atom;
+  struct Group;
+  struct CharacterClass;
 
   static constexpr auto Digit = cr<"0-9">;
   static constexpr auto Hex = cr<"0-9a-fA-F">;
   static constexpr auto Space = many(cr<" \t">);
   static constexpr auto Name = some(uc::L | uc::Nd | lit<"_">);
   struct NameTerm : terminal<Name> {};
-  struct DigitsTerm : terminal<some(Digit), std::int64_t> {};
+  struct DigitsTerm : terminal<as<std::int64_t>(some(Digit))> {};
   struct FlagTerm : terminal<some(cr<"aimnrsxJUDPTSW">)> {};
 
-  struct CommentTerm : terminal<lit<"(?#"> + many(cr<"^)">) + lit<")">,
-                                text_conv<comment_text>> {};
-  struct CommentRule : rule<assign<&ast::Comment::text>(ref<CommentTerm>)> {};
+  struct CommentTerm
+      : terminal<as<comment_text>(lit<"(?#"> + many(cr<"^)">) + lit<")">)> {};
+  struct Comment : rule<assign<&ast::Comment::text>(ref<CommentTerm>)> {};
   struct QuoteBoundaryTerm : terminal<lit<"\\Q\\E"> | lit<"\\E">> {};
-  struct QuoteBoundaryRule
+  struct QuoteBoundary
       : rule<assign<&ast::QuoteBoundary::text>(ref<QuoteBoundaryTerm>)> {};
-  static constexpr auto Annotation = ref<CommentRule> | ref<QuoteBoundaryRule>;
+  static constexpr auto Annotation = ref<Comment> | ref<QuoteBoundary>;
 
   static constexpr auto Code = lit<"{"> + many(cr<"^}">) + lit<"}">;
   static constexpr auto CharacterEscape =
@@ -70,11 +91,11 @@ struct Pcre : cursiv::GrammarSpec {
                  (CharacterEscape | cr<"^1-9QECdDhHNRsSvVwWXbBAzZGK">)> {};
   struct PlainCharTerm : terminal<cr<R"(^\\.^$()[?*+{|)">> {};
   struct AmbiguousNumberTerm : terminal<lit<"\\"> + cr<"1-7"> + some(Digit)> {};
-  struct AmbiguousNumberRule
+  struct AmbiguousNumber
       : rule<assign<&ast::NumericEscape::text>(ref<AmbiguousNumberTerm>)> {};
   struct BareBackrefTerm
-      : terminal<lit<"\\"> + ((cr<"1-7"> + !Digit) | (cr<"89"> + many(Digit))),
-                 text_conv<backref_number>> {};
+      : terminal<as<backref_number>(
+            lit<"\\"> + ((cr<"1-7"> + !Digit) | (cr<"89"> + many(Digit))))> {};
 
   static constexpr auto CountShape =
       lit<"{"> + Space +
@@ -108,11 +129,11 @@ struct Pcre : cursiv::GrammarSpec {
   static constexpr auto PosixTail = some(cr<"a-zA-Z_">) + lit<":]">;
   struct PosixOpenTerm : terminal<lit<"[:"> + &PosixTail> {};
   struct PosixNegOpenTerm : terminal<lit<"[:^"> + &PosixTail> {};
-  struct ClassLiteralRule
+  struct ClassLiteral
       : rule<assign<&ast::Literal::text>(
             ref<ClassEscapeTerm> | ref<ClassPlainTerm> | ref<ClassDashTerm> |
             lit<"[">)> {};
-  struct PosixCharacterClassRule
+  struct PosixCharacterClass
       : rule<create<ast::PosixCharacterClass> +
              (flag<&ast::PosixCharacterClass::negate>(ref<PosixNegOpenTerm>) |
               ref<PosixOpenTerm>) +
@@ -121,9 +142,9 @@ struct Pcre : cursiv::GrammarSpec {
   static constexpr auto ClassRangeTail =
       option(nest<ast::CharacterClassRange, &ast::CharacterClassRange::from>(
           lit<"-"> +
-          assign<&ast::CharacterClassRange::to>(ref<ClassLiteralRule>)));
-  struct ClassAtomRule : rule<(ref<ClassLiteralRule> + ClassRangeTail) |
-                              ref<ClassType> | ref<PosixCharacterClassRule>> {};
+          assign<&ast::CharacterClassRange::to>(ref<ClassLiteral>)));
+  struct ClassAtom : rule<(ref<ClassLiteral> + ClassRangeTail) |
+                              ref<ClassType> | ref<PosixCharacterClass>> {};
   struct BracketLiteral : rule<assign<&ast::Literal::text>(lit<"]">)> {};
   struct BracketAtom : rule<ref<BracketLiteral> + ClassRangeTail> {};
   struct QuotedCharTerm : terminal<any> {};
@@ -135,32 +156,86 @@ struct Pcre : cursiv::GrammarSpec {
                                                               !QuoteStop)) +
                      append<&ast::CharacterClass::atoms>(ref<QuotedClassEnd>)) |
                     QuoteStop);
-  struct CharacterClassRule
+  struct CharacterClass
       : rule<create<ast::CharacterClass> + lit<"["> +
              option(flag<&ast::CharacterClass::negate>(lit<"^">)) +
              option(append<&ast::CharacterClass::atoms>(ref<BracketAtom>)) +
              many(ClassQuoted | lit<"\\E"> |
-                  append<&ast::CharacterClass::atoms>(ref<ClassAtomRule>)) +
+                  append<&ast::CharacterClass::atoms>(ref<ClassAtom>)) +
              lit<"]">> {};
 
-  struct PossessiveTag
-      : rule<lit<"+">, value<ast::QuantifierMode::possessive>> {};
-  struct LazyTag : rule<lit<"?">, value<ast::QuantifierMode::lazy>> {};
+  // Perl (?[...]) has intrinsic /xx inside this one class. A nested ordinary
+  // class still quotes characters with \Q...\E, including spaces and tabs.
+  struct ExtendedSpaceTerm : terminal<some(cr<" \t">)> {};
+  static constexpr auto ExtendedPadding =
+      many(ref<ExtendedSpaceTerm> | lit<"\\E"> | lit<"\\Q\\E">);
+  struct ExtendedClassPlainTerm : terminal<cr<R"(^\\\]\[ \t-)">> {};
+  struct ExtendedClassLiteral
+      : rule<assign<&ast::Literal::text>(
+            ref<ClassEscapeTerm> | ref<ExtendedClassPlainTerm> |
+            ref<ClassDashTerm> | lit<"[">)> {};
+  static constexpr auto ExtendedClassRangeTail =
+      option(nest<ast::CharacterClassRange, &ast::CharacterClassRange::from>(
+          ExtendedPadding + lit<"-"> + ExtendedPadding +
+          assign<&ast::CharacterClassRange::to>(ref<ExtendedClassLiteral>)));
+  struct ExtendedClassAtom
+      : rule<(ref<ExtendedClassLiteral> + ExtendedClassRangeTail) |
+             ref<ClassType> | ref<PosixCharacterClass>> {};
+  struct ExtendedBracketAtom
+      : rule<ref<BracketLiteral> + ExtendedClassRangeTail> {};
+  struct ExtendedQuotedClassEnd
+      : rule<ref<QuotedChar> + QuoteStop + ExtendedClassRangeTail> {};
+  static constexpr auto ExtendedClassQuoted =
+      lit<"\\Q"> +
+      ((many(append<&ast::CharacterClass::atoms>(ref<QuotedChar> + !QuoteStop)) +
+        append<&ast::CharacterClass::atoms>(ref<ExtendedQuotedClassEnd>)) |
+       QuoteStop);
+  struct ExtendedOrdinaryClass
+      : rule<create<ast::CharacterClass> + lit<"["> +
+             ExtendedPadding +
+             option(flag<&ast::CharacterClass::negate>(lit<"^">) +
+                    ExtendedPadding) +
+             option(append<&ast::CharacterClass::atoms>(
+                        ref<ExtendedBracketAtom>) + ExtendedPadding) +
+             many((ExtendedClassQuoted |
+                   append<&ast::CharacterClass::atoms>(ref<ExtendedClassAtom>)) +
+                  ExtendedPadding) + lit<"]">> {};
+
+  struct ClassSetExpression;
+  struct ExtendedEscape
+      : rule<assign<&ast::Literal::text>(ref<ClassEscapeTerm>)> {};
+  struct ClassSetPrimary
+      : rule<(ref<ExtendedEscape> | ref<ClassType> | ref<PosixCharacterClass> |
+             ref<ExtendedOrdinaryClass> |
+             create<ast::ClassSetGroup>(
+                 lit<"("> + ExtendedPadding +
+                 assign<&ast::ClassSetGroup::expression>(
+                     ref<ClassSetExpression>) + lit<")">)) + ExtendedPadding> {};
+  struct ClassSetExpression
+      : infix<ClassSetPrimary, ast::ClassSetBinary,
+              levels(prefix<ast::ClassSetUnary>(
+                         as<class_set_operator>(lit<"!"> + ExtendedPadding)),
+                     left(as<class_set_operator>(lit<"&"> + ExtendedPadding)),
+                     left(as<class_set_operator>(
+                         (lit<"+"> | lit<"|"> | lit<"-"> | lit<"^">) +
+                         ExtendedPadding)))> {};
+  struct ExtendedCharacterClass
+      : rule<create<ast::ExtendedCharacterClass> + lit<"(?["> +
+             ExtendedPadding +
+             assign<&ast::ExtendedCharacterClass::expression>(
+                 ref<ClassSetExpression>) + lit<"])">> {};
+
   static constexpr auto Annotations =
       many(append<&ast::Quantified::annotations>(Annotation));
   static constexpr auto QuantifierSuffix =
       option(Annotations +
-             assign<&ast::Quantified::mode>(ref<PossessiveTag> | ref<LazyTag>));
-  struct OptionalTag : rule<lit<"?">, value<ast::QuantifierKind::optional>> {};
-  struct StarTag : rule<lit<"*">, value<ast::QuantifierKind::star>> {};
-  struct PlusTag : rule<lit<"+">, value<ast::QuantifierKind::plus>> {};
-  struct RangeTag : rule<lit<"{">, value<ast::QuantifierKind::range>> {};
+             assign<&ast::Quantified::mode>(as<ast::QuantifierMode::possessive>(lit<"+">) | as<ast::QuantifierMode::lazy>(lit<"?">)));
   static constexpr auto QuantifierBody =
       Annotations +
-      ((assign<&ast::Quantified::kind>(ref<OptionalTag> | ref<StarTag> |
-                                       ref<PlusTag>) +
+      ((assign<&ast::Quantified::kind>(as<ast::QuantifierKind::optional>(lit<"?">) | as<ast::QuantifierKind::star>(lit<"*">) |
+                                       as<ast::QuantifierKind::plus>(lit<"+">)) +
         QuantifierSuffix) |
-       (assign<&ast::Quantified::kind>(ref<RangeTag>) + Space +
+       (assign<&ast::Quantified::kind>(as<ast::QuantifierKind::range>(lit<"{">)) + Space +
         ((assign<&ast::Quantified::from>(ref<DigitsTerm>) + Space +
           option(flag<&ast::Quantified::hasComma>(lit<",">) + Space +
                  option(assign<&ast::Quantified::to>(ref<DigitsTerm>)) +
@@ -170,7 +245,7 @@ struct Pcre : cursiv::GrammarSpec {
         lit<"}"> + QuantifierSuffix));
   static constexpr auto Quantifier =
       option(nest<ast::Quantified, &ast::Quantified::operand>(QuantifierBody));
-  struct ElementRule : rule<ref<AtomRule> + Quantifier> {};
+  struct Element : rule<ref<Atom> + Quantifier> {};
   struct QuotedEnd : rule<ref<QuotedChar> + QuoteStop + Quantifier> {};
   static constexpr auto Quoted =
       lit<"\\Q"> +
@@ -179,67 +254,37 @@ struct Pcre : cursiv::GrammarSpec {
        QuoteStop);
   struct Sequence : rule<create<ast::Sequence> +
                          many(Quoted | append<&ast::Sequence::items>(
-                                           ref<ElementRule> | Annotation))> {};
+                                           ref<Element> | Annotation))> {};
   struct Alternation : rule<create<ast::Alternation> +
                             append<&ast::Alternation::branches>(ref<Sequence>) +
                             many(lit<"|"> + append<&ast::Alternation::branches>(
                                                 ref<Sequence>))> {};
 
-  struct LookbehindTag : rule<lit<"<=">, value<ast::GroupKind::lookbehind>> {};
-  struct NegLookbehindTag
-      : rule<lit<"<!">, value<ast::GroupKind::neg_lookbehind>> {};
-  struct NonAtomicBehindTag
-      : rule<lit<"<*">, value<ast::GroupKind::non_atomic_lookbehind>> {};
-  struct AngleTag : rule<lit<"<">, value<ast::GroupKind::named_angle>> {};
-  struct QuoteTag : rule<lit<"'">, value<ast::GroupKind::named_quote>> {};
-  struct PythonTag : rule<lit<"P<">, value<ast::GroupKind::named_python>> {};
-  struct AheadTag : rule<lit<"=">, value<ast::GroupKind::lookahead>> {};
-  struct NegativeTag : rule<lit<"!">, value<ast::GroupKind::neg_lookahead>> {};
-  struct NonAtomicAheadTag
-      : rule<lit<"*">, value<ast::GroupKind::non_atomic_lookahead>> {};
-  struct AtomicTag : rule<lit<">">, value<ast::GroupKind::atomic>> {};
-  struct AltTag : rule<lit<"|">, value<ast::GroupKind::alt_group>> {};
-  struct NoCaptureTag : rule<lit<":">, value<ast::GroupKind::non_capturing>> {};
-  struct LongAhead : rule<lit<"pla:"> | lit<"positive_lookahead:">,
-                          value<ast::GroupKind::lookahead>> {};
-  struct LongBehind : rule<lit<"plb:"> | lit<"positive_lookbehind:">,
-                           value<ast::GroupKind::lookbehind>> {};
-  struct LongNegativeAhead : rule<lit<"nla:"> | lit<"negative_lookahead:">,
-                                  value<ast::GroupKind::neg_lookahead>> {};
-  struct LongNegativeBehind : rule<lit<"nlb:"> | lit<"negative_lookbehind:">,
-                                   value<ast::GroupKind::neg_lookbehind>> {};
-  struct LongNonAtomicAhead
-      : rule<lit<"napla:"> | lit<"non_atomic_positive_lookahead:">,
-             value<ast::GroupKind::non_atomic_lookahead>> {};
-  struct LongNonAtomicBehind
-      : rule<lit<"naplb:"> | lit<"non_atomic_positive_lookbehind:">,
-             value<ast::GroupKind::non_atomic_lookbehind>> {};
-  struct LongAtomic : rule<lit<"atomic:">, value<ast::GroupKind::atomic>> {};
-  struct GroupRule
+  struct Group
       : rule<create<ast::Group> +
              ((lit<"(?"> +
-               (assign<&ast::Group::kind>(ref<LookbehindTag> |
-                                          ref<NegLookbehindTag> |
-                                          ref<NonAtomicBehindTag>) |
-                (assign<&ast::Group::kind>(ref<AngleTag>) +
+               (assign<&ast::Group::kind>(as<ast::GroupKind::lookbehind>(lit<"<=">) |
+                                          as<ast::GroupKind::neg_lookbehind>(lit<"<!">) |
+                                          as<ast::GroupKind::non_atomic_lookbehind>(lit<"<*">)) |
+                (assign<&ast::Group::kind>(as<ast::GroupKind::named_angle>(lit<"<">)) +
                  assign<&ast::Group::name>(ref<NameTerm>) + lit<">">) |
-                (assign<&ast::Group::kind>(ref<QuoteTag>) +
+                (assign<&ast::Group::kind>(as<ast::GroupKind::named_quote>(lit<"'">)) +
                  assign<&ast::Group::name>(ref<NameTerm>) + lit<"'">) |
-                (assign<&ast::Group::kind>(ref<PythonTag>) +
+                (assign<&ast::Group::kind>(as<ast::GroupKind::named_python>(lit<"P<">)) +
                  assign<&ast::Group::name>(ref<NameTerm>) + lit<">">) |
-                assign<&ast::Group::kind>(ref<AheadTag> | ref<NegativeTag> |
-                                          ref<NonAtomicAheadTag> |
-                                          ref<AtomicTag> | ref<AltTag>) |
+                assign<&ast::Group::kind>(as<ast::GroupKind::lookahead>(lit<"=">) | as<ast::GroupKind::neg_lookahead>(lit<"!">) |
+                                          as<ast::GroupKind::non_atomic_lookahead>(lit<"*">) |
+                                          as<ast::GroupKind::atomic>(lit<">">) | as<ast::GroupKind::alt_group>(lit<"|">)) |
                 (option(flag<&ast::Group::resetFlags>(lit<"^">)) +
                  option(assign<&ast::Group::onFlags>(ref<FlagTerm>)) +
                  option(lit<"-"> +
                         option(assign<&ast::Group::offFlags>(ref<FlagTerm>))) +
-                 assign<&ast::Group::kind>(ref<NoCaptureTag>)))) |
+                 assign<&ast::Group::kind>(as<ast::GroupKind::non_capturing>(lit<":">))))) |
               (lit<"(*"> +
                assign<&ast::Group::kind>(
-                   ref<LongAhead> | ref<LongBehind> | ref<LongNegativeAhead> |
-                   ref<LongNegativeBehind> | ref<LongNonAtomicAhead> |
-                   ref<LongNonAtomicBehind> | ref<LongAtomic>)) |
+                   as<ast::GroupKind::lookahead>(lit<"pla:"> | lit<"positive_lookahead:">) | as<ast::GroupKind::lookbehind>(lit<"plb:"> | lit<"positive_lookbehind:">) | as<ast::GroupKind::neg_lookahead>(lit<"nla:"> | lit<"negative_lookahead:">) |
+                   as<ast::GroupKind::neg_lookbehind>(lit<"nlb:"> | lit<"negative_lookbehind:">) | as<ast::GroupKind::non_atomic_lookahead>(lit<"napla:"> | lit<"non_atomic_positive_lookahead:">) |
+                   as<ast::GroupKind::non_atomic_lookbehind>(lit<"naplb:"> | lit<"non_atomic_positive_lookbehind:">) | as<ast::GroupKind::atomic>(lit<"atomic:">))) |
               lit<"(">)+assign<&ast::Group::body>(ref<Alternation>) +
              lit<")">> {};
 
@@ -252,15 +297,15 @@ struct Pcre : cursiv::GrammarSpec {
                 option(assign<&ast::Backreference::sign>(lit<"-"> | lit<"+">)) +
                 assign<&ast::Backreference::number>(ref<DigitsTerm>) + Space +
                 lit<"}">) |
-               (lit<"{"> + assign<&ast::Backreference::name>(ref<NameTerm>) +
-                lit<"}">))) |
+               (lit<"{"> + Space + assign<&ast::Backreference::name>(ref<NameTerm>) +
+                Space + lit<"}">))) |
              (lit<"\\k"> +
               ((lit<"<"> + assign<&ast::Backreference::name>(ref<NameTerm>) +
                 lit<">">) |
                (lit<"'"> + assign<&ast::Backreference::name>(ref<NameTerm>) +
                 lit<"'">) |
-               (lit<"{"> + assign<&ast::Backreference::name>(ref<NameTerm>) +
-                lit<"}">))) |
+               (lit<"{"> + Space + assign<&ast::Backreference::name>(ref<NameTerm>) +
+                Space + lit<"}">))) |
              (lit<"(?P="> + assign<&ast::Backreference::name>(ref<NameTerm>) +
               lit<")">)> {};
   static constexpr auto SignedRef =
@@ -277,18 +322,16 @@ struct Pcre : cursiv::GrammarSpec {
               lit<")">) |
              (lit<"\\g"> +
               ((lit<"<"> +
-                assign<&ast::SubroutineReference::name>(ref<NameTerm>) +
+                (SignedRef | assign<&ast::SubroutineReference::name>(ref<NameTerm>)) +
                 lit<">">) |
                (lit<"'"> +
-                assign<&ast::SubroutineReference::name>(ref<NameTerm>) +
-                lit<"'">) |
-               (lit<"<"> + SignedRef + lit<">">) |
-               (lit<"'"> + SignedRef + lit<"'">)))> {};
-  struct CalloutRule;
+                (SignedRef | assign<&ast::SubroutineReference::name>(ref<NameTerm>)) +
+                lit<"'">)))> {};
+  struct Callout;
   struct ConditionTerm
       : terminal<(option(cr<"+-">) + some(Digit)) |
                  (lit<"<"> + Name + lit<">">) | (lit<"'"> + Name + lit<"'">) |
-                 (lit<"R"> + option(some(Digit))) | (lit<"R&"> + Name) | Name> {
+                 (lit<"R"> + many(Digit)) | (lit<"R&"> + Name) | Name> {
   };
   struct ConditionalPattern
       : rule<create<ast::ConditionalPattern> + lit<"(?"> +
@@ -296,8 +339,8 @@ struct Pcre : cursiv::GrammarSpec {
                assign<&ast::ConditionalPattern::conditionText>(
                    ref<ConditionTerm>) +
                lit<")">) |
-              assign<&ast::ConditionalPattern::conditionNode>(ref<CalloutRule> |
-                                                              ref<GroupRule>)) +
+              assign<&ast::ConditionalPattern::conditionNode>(ref<Callout> |
+                                                              ref<Group>)) +
              assign<&ast::ConditionalPattern::thenBranch>(ref<Sequence>) +
              option(lit<"|"> + assign<&ast::ConditionalPattern::elseBranch>(
                                    ref<Sequence>)) +
@@ -313,23 +356,23 @@ struct Pcre : cursiv::GrammarSpec {
       lit<"BSR_ANYCRLF"> | lit<"BSR_UNICODE"> | lit<"NOTEMPTY"> |
       lit<"NOTEMPTY_ATSTART">;
   struct StarOptionTerm : terminal<StarOptions> {};
-  struct FlagOptionRule
-      : rule<(lit<"^"> + option(ref<FlagTerm>)) |
-                 (ref<FlagTerm> + option(lit<"-"> + option(ref<FlagTerm>))) |
-                 (lit<"-"> + option(ref<FlagTerm>)),
-             std::string_view> {};
-  struct OptionSettingRule
+  struct FlagOption
+      : rule<as<std::string_view>(
+            (lit<"^"> + option(ref<FlagTerm>)) |
+            (ref<FlagTerm> + option(lit<"-"> + option(ref<FlagTerm>))) |
+            (lit<"-"> + option(ref<FlagTerm>)))> {};
+  struct OptionSetting
       : rule<create<ast::OptionSetting> +
              ((lit<"(*"> +
                assign<&ast::OptionSetting::text>(ref<StarOptionTerm>)) |
               (lit<"(?"> +
-               assign<&ast::OptionSetting::text>(ref<FlagOptionRule>))) +
+               assign<&ast::OptionSetting::text>(ref<FlagOption>))) +
              lit<")">> {};
   struct VerbTerm
       : terminal<lit<"ACCEPT"> | lit<"F"> | lit<"FAIL"> | lit<"MARK"> |
                  lit<"COMMIT"> | lit<"PRUNE"> | lit<"SKIP"> | lit<"THEN">> {};
   struct VerbTextTerm : terminal<some(cr<"^)">)> {};
-  struct BacktrackingControlRule
+  struct BacktrackingControl
       : rule<create<ast::BacktrackingControl> + lit<"(*"> +
              option(assign<&ast::BacktrackingControl::verb>(ref<VerbTerm>)) +
              option(flag<&ast::BacktrackingControl::hasName>(lit<":">) +
@@ -339,9 +382,9 @@ struct Pcre : cursiv::GrammarSpec {
 
   template <auto Open, auto Close>
   struct CalloutText
-      : terminal<Open + many((Close + Close) | (!Close + any)) + Close,
-                 text_conv<callout_text>> {};
-  struct CalloutRule
+      : terminal<as<callout_text>(
+            Open + many((Close + Close) | (!Close + any)) + Close)> {};
+  struct Callout
       : rule<create<ast::Callout> + lit<"(?C"> +
              option(assign<&ast::Callout::number>(ref<DigitsTerm>) |
                     flag<&ast::Callout::stringArgument>(
@@ -356,12 +399,13 @@ struct Pcre : cursiv::GrammarSpec {
                             ref<CalloutText<lit<"{">, lit<"}">>>))) +
              lit<")">> {};
 
-  struct AtomRule
-      : rule<ref<OptionSettingRule> | ref<BacktrackingControlRule> |
-             ref<CalloutRule> | ref<GroupRule> | ref<Backreference> |
-             ref<AmbiguousNumberRule> | ref<SubroutineReference> |
+  struct Atom
+      : rule<ref<OptionSetting> | ref<BacktrackingControl> |
+             ref<Callout> | ref<Group> | ref<Backreference> |
+             ref<AmbiguousNumber> | ref<SubroutineReference> |
              ref<ConditionalPattern> | ref<CharacterType> |
-             ref<CharacterClassRule> | ref<Anchor> | ref<MatchPointReset> | ref<LiteralAtom>> {};
+             ref<ExtendedCharacterClass> | ref<CharacterClass> |
+             ref<Anchor> | ref<MatchPointReset> | ref<LiteralAtom>> {};
   struct PcreRule : rule<create<ast::Pcre> +
                          assign<&ast::Pcre::pattern>(ref<Alternation>)> {};
   using entry = PcreRule;

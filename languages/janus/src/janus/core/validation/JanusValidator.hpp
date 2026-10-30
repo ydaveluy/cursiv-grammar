@@ -1,5 +1,5 @@
-// The checks of this language: what the grammar accepts but the language
-// does not. None yet -- the grammar's shape already carries what matters.
+// Hook for runtime checks. Name use, bounds and reversibility are not yet
+// validated here; syntax alone does not establish reversible execution.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

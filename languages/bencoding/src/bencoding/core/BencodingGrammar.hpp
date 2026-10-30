@@ -9,25 +9,25 @@ struct Bencoding : cursiv::GrammarSpec {
   struct ContentByte
       : terminal<lit<"i"> | lit<"l"> | lit<"d"> | lit<"e"> | some(d) | byte> {};
   struct StringContent : rule<many(ref<ContentByte>)> {};
-  struct StringRule
+  struct String
       : rule<assign<&ast::ByteString::length>(ref<DIGITS>) + lit<":"> +
              assign<&ast::ByteString::value>(ref<StringContent>)> {};
-  struct IntegerRule
+  struct Integer
       : rule<lit<"i"> + assign<&ast::Integer::text>(ref<INTEGER_TEXT>) +
              lit<"e">> {};
-  struct ListRule;
-  struct DictRule;
+  struct List;
+  struct Dict;
   static constexpr auto value =
-      ref<IntegerRule> | ref<StringRule> | ref<ListRule> | ref<DictRule>;
-  struct EntryRule : rule<assign<&ast::Entry::key>(ref<StringRule>) +
+      ref<Integer> | ref<String> | ref<List> | ref<Dict>;
+  struct Entry : rule<assign<&ast::Entry::key>(ref<String>) +
                           assign<&ast::Entry::value>(value)> {};
-  struct ListRule
+  struct List
       : rule<lit<"l"> + many(append<&ast::List::items>(value)) + lit<"e">> {};
-  struct DictRule
-      : rule<lit<"d"> + many(append<&ast::Dict::entries>(ref<EntryRule>)) +
+  struct Dict
+      : rule<lit<"d"> + many(append<&ast::Dict::entries>(ref<Entry>)) +
              lit<"e">> {};
-  struct DocumentRule : rule<create<ast::Document> +
+  struct Document : rule<create<ast::Document> +
                              many(append<&ast::Document::values>(value))> {};
-  using entry = DocumentRule;
+  using entry = Document;
 };
 } // namespace bencoding

@@ -129,7 +129,7 @@ struct LikeExpr : cursiv::Extends<Expr> {
   boolean negated;
   Expr* operand;
   Expr* pattern;
-  CharLit* escape;
+  Expr* escape; // Single-character literal or character-valued parameter.
 };
 struct InExpr : cursiv::Extends<Expr> {
   boolean negated;

@@ -5,13 +5,9 @@
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "refal/core/ast.hpp"
+#include "refal/core/StringValue.hpp"
 
 namespace refal {
-
-inline constexpr auto unquote = [](std::string_view t) {
-  return t.substr(1, t.size() - 2);
-};
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Refal : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \r\n\t)">)> {};
@@ -23,13 +19,12 @@ struct Refal : cursiv::GrammarSpec {
   struct IDENT : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9_-">)> {};
   struct DIGITS : terminal<some(d)> {};
 
-  struct STRING
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
-  struct STRING2 : terminal<lit<"'"> + many(cr<"^'">) + lit<"'">, Unquoted> {};
-
-  struct CHAR : terminal<lit<"\\'"> | lit<"\\\""> | lit<"\\\\"> |
-                         lit<"\\n"> | lit<"\\r"> | lit<"\\t"> |
-                         (lit<"\\x"> + repeat<2>(d))> {};
+  static constexpr auto escape = lit<"\\"> +
+      (cr<R"(\\'"nrt()<>)"> | (lit<"x"> + repeat<2>(cr<"0-9a-fA-F">)));
+  struct STRING : terminal<as<decode_string>(
+      lit<"\""> + many(escape | cr<R"(^"\\\r\n)">) + lit<"\"">)> {};
+  struct STRING2 : terminal<as<decode_string>(
+      lit<"'"> + many(escape | cr<R"(^'\\\r\n)">) + lit<"'">)> {};
 
   struct Identifier : rule<ref<IDENT> | ref<STRING>> {};
   struct Index : rule<ref<Identifier> | ref<DIGITS>> {};
@@ -37,69 +32,86 @@ struct Refal : cursiv::GrammarSpec {
   // The letter and the dot are one token: `s`/`t`/`e` alone, or as the first
   // letters of a longer word, still lex as IDENT (longest match), so a
   // symbol named `s` needs no guard of its own.
-  struct SVAR : terminal<lit<"s"> + lit<".">, value<ast::VarKind::s>> {};
-  struct TVAR : terminal<lit<"t"> + lit<".">, value<ast::VarKind::t>> {};
-  struct EVAR : terminal<lit<"e"> + lit<".">, value<ast::VarKind::e>> {};
+  struct SVAR : terminal<as<ast::VarKind::s>(lit<"s"> + lit<".">)> {};
+  struct TVAR : terminal<as<ast::VarKind::t>(lit<"t"> + lit<".">)> {};
+  struct EVAR : terminal<as<ast::VarKind::e>(lit<"e"> + lit<".">)> {};
 
   struct EXTERNAL_KW
-      : terminal<lit<"$EXTERNAL"> | lit<"$EXTERN"> | lit<"$EXTRN">> {};
+      : terminal<(lit<"$EXTERNAL"> | lit<"$EXTERN"> | lit<"$EXTRN">) + !cr<"a-zA-Z0-9_-">> {};
 
-  struct SymbolRule;
-  struct VariableRule;
-  struct CallRule;
-  static constexpr auto term = ref<SymbolRule> | ref<VariableRule> | ref<CallRule>;
+  struct Symbol;
+  struct Variable;
+  struct Call;
+  struct Group;
+  struct PatternGroup;
+  static constexpr auto term =
+      ref<Symbol> | ref<Variable> | ref<Group> | ref<Call>;
+  static constexpr auto patternTerm =
+      ref<Symbol> | ref<Variable> | ref<PatternGroup>;
 
-  // A symbol derives STRING twice, directly and through Identifier:
-  // one choice, same accepted texts.
-  struct SymbolRule
-      : rule<assign<&ast::Symbol::text>(ref<Identifier> | ref<DIGITS> |
-                                        ref<STRING2> | ref<CHAR>)> {};
+  struct Symbol : rule<
+      assign<&ast::Symbol::text>(ref<Identifier>) |
+      create<ast::NumberSymbol>(assign<&ast::Symbol::text>(ref<DIGITS>)) |
+      create<ast::Characters>(assign<&ast::Symbol::text>(ref<STRING2>))> {};
+  struct Group : rule<create<ast::Group>(lit<"("> +
+      many(append<&ast::Group::body>(term)) + lit<")">)> {};
+  struct PatternGroup : rule<create<ast::Group>(lit<"("> +
+      many(append<&ast::Group::body>(patternTerm)) + lit<")">)> {};
 
-  struct VariableRule
+  struct Variable
       : rule<assign<&ast::Variable::kind>(ref<SVAR> | ref<TVAR> | ref<EVAR>) +
-             assign<&ast::Variable::index>(ref<Index>)> {};
+             gap::none + assign<&ast::Variable::index>(ref<Index>)> {};
 
-  struct CallRule
-      : rule<lit<"<"> + many(append<&ast::Call::body>(term)) + lit<">">> {};
+  // Absorb an arithmetic activation name with '<', before '*' can open
+  // a line comment. body[0] remains the function symbol for existing users.
+  struct OPERATOR_CALL : terminal<as<[](std::string_view t) {
+      return t.substr(1);
+    }>(lit<"<"> + cr<"+*/-">)> {};
+  struct OperatorName : rule<assign<&ast::Symbol::text>(ref<OPERATOR_CALL>)> {};
+  struct FunctionName : rule<assign<&ast::Symbol::text>(ref<Identifier>)> {};
+  struct Call : rule<
+      (append<&ast::Call::body>(ref<OperatorName>) |
+       (lit<"<"> + gap::none + append<&ast::Call::body>(ref<FunctionName>))) +
+      many(append<&ast::Call::body>(term)) + lit<">">> {};
 
-  struct ConditionRule
+  struct Condition
       : rule<lit<","> + many(append<&ast::Condition::arg>(term)) + lit<":"> +
-             many(append<&ast::Condition::pattern>(term))> {};
+             many(append<&ast::Condition::pattern>(patternTerm))> {};
 
-  struct SentenceRule;
-  struct BlockEndingRule
+  struct Sentence;
+  struct BlockEnding
       : rule<many(append<&ast::BlockEnding::arg>(term)) + lit<":"> +
              lit<"{"> +
-             some(append<&ast::BlockEnding::sentences>(ref<SentenceRule>),
+             some(append<&ast::BlockEnding::sentences>(ref<Sentence>),
                   lit<";">) +
              option(lit<";">) + lit<"}">> {};
 
-  struct SentenceRule
-      : rule<many(append<&ast::Sentence::pattern>(term)) +
-             many(append<&ast::Sentence::conditions>(ref<ConditionRule>)) +
+  struct Sentence
+      : rule<many(append<&ast::Sentence::pattern>(patternTerm)) +
+             many(append<&ast::Sentence::conditions>(ref<Condition>)) +
              ((lit<"="> + many(append<&ast::Sentence::result>(term))) |
               (lit<","> +
-               assign<&ast::Sentence::ending>(ref<BlockEndingRule>)))> {};
+               assign<&ast::Sentence::ending>(ref<BlockEnding>)))> {};
 
-  struct FunctionDefRule
-      : rule<option(flag<&ast::FunctionDef::entry>(lit<"$ENTRY">)) +
+  struct FunctionDef
+      : rule<option(flag<&ast::FunctionDef::entry>(lit<"$ENTRY", !cr<"a-zA-Z0-9_-">>)) +
              assign<&ast::FunctionDef::name>(ref<Identifier>) + lit<"{"> +
-             some(append<&ast::FunctionDef::sentences>(ref<SentenceRule>),
+             some(append<&ast::FunctionDef::sentences>(ref<Sentence>),
                   lit<";">) +
              option(lit<";">) + lit<"}">> {};
 
-  struct ExternalDeclRule
+  struct ExternalDecl
       : rule<assign<&ast::ExternalDecl::keyword>(ref<EXTERNAL_KW>) +
              some(append<&ast::ExternalDecl::names>(ref<Identifier>),
                   lit<",">)> {};
 
-  static constexpr auto item = (ref<FunctionDefRule> + option(lit<";">)) |
-                               (ref<ExternalDeclRule> + lit<";">);
+  static constexpr auto item = (ref<FunctionDef> + option(lit<";">)) |
+                               (ref<ExternalDecl> + lit<";">);
 
-  struct ProgramRule : rule<some(append<&ast::Program::items>(item))> {};
+  struct Program : rule<some(append<&ast::Program::items>(item))> {};
 
-  using entry = ProgramRule;
-  using ignore = list<WS, LINE_COMMENT, BLOCK_COMMENT>;
+  using entry = Program;
+  using ignored = list<WS, LINE_COMMENT, BLOCK_COMMENT>;
 };
 
 }  // namespace refal

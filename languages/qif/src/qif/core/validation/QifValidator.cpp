@@ -27,7 +27,8 @@ void QifValidator::checkRecords(const ast::Document &document,
     if (!record->terminated)
       accept.error(*record, "A QIF record must end with ^.", "qif.record-end");
     const bool transaction = header == "Type:Bank" || header == "Type:Cash" ||
-                             header == "Type:Ccard" || header == "Type:Oth A" ||
+                             header == "Type:CCard" || header == "Type:Ccard" ||
+                             header == "Type:Oth A" ||
                              header == "Type:Oth L" ||
                              header == "Type:Invoice" ||
                              header == "Type:Memorized";

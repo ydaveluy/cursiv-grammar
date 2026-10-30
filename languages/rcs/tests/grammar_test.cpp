@@ -44,6 +44,10 @@ static int audit_regression() {
         r.value == nullptr)
       return 1;
   }
+  {
+    const auto r = language.language.parser->parse("head; access; symbols; desc @@");
+    if (r.accepted && !r.cst().recovered() && r.diagnostics.empty()) return 1;
+  }
   return 0;
 }
 

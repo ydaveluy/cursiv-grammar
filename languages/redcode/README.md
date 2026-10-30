@@ -31,16 +31,12 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+ICWS94-style numeric Redcode, retaining the historical DJZ source extension.
+
 ```
 ; imp
 MOV 0 , 1
 ```
-
-ICWS94-flavoured Redcode, numeric addressing only: an instruction is an
-opcode, an optional `.modifier`, one operand and an optional second one, each
-operand an optional addressing symbol (`# $ @ < >`) before a signed number. A
-line is either that or a standalone `;` comment; the reference grammar has no
-label, so every jump and offset is relative.
 
 ## The command line
 

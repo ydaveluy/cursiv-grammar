@@ -74,7 +74,8 @@ struct Whole {
       const cursiv::Scan s = cursiv::lr_match_text<A>(c.src, c.len, mode, p);
       if (s.term == cursiv::kInvalidSymbol || s.end == p)
         return cursiv::Token{p, p, cursiv::kInvalidSymbol};
-      if (!cursiv::lr_is_trivia<A>(s.term) && !cursiv::lr_joins<A>(c, s.term))
+      if (!cursiv::lr_is_trivia<A>(s.term) &&
+          !cursiv::lr_joins<A>(w.indent.depth, s.term))
         return cursiv::Token{p, s.end, s.term};
       if (A.cfg.terms[s.term].recorded)
         c.pending.push_back(cursiv::Token{p, s.end, s.term});

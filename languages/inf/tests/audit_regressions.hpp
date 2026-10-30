@@ -100,5 +100,29 @@ inline void run() {
       }
     CHECK(found);
   }
+  for (const std::string ending : {std::string("\r\n"), std::string("\r"), std::string("\n")}) {
+    const std::string source = "[Native]" + ending +
+        "key=first\\ ; folded comment" + ending + "  second" + ending +
+        "token=%str;key%,tail ; comment" + ending + "next=last" + ending;
+    const auto result = language.language.parser->parse(source);
+    const auto* doc = result.value_as<inf::ast::Document>();
+    CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
+          doc && doc->sections.size() == 1 && doc->sections[0]->lines.size() == 3);
+    if (doc && doc->sections.size() == 1 && doc->sections[0]->lines.size() == 3) {
+      const auto& lines = doc->sections[0]->lines;
+      CHECK(lines[0]->fields.size() == 1 &&
+            inf::decode_value(*lines[0]->fields[0], result.cst()) == "firstsecond");
+      CHECK(lines[1]->fields.size() == 2 && lines[1]->fields[0]->raw == "%str;key%" &&
+            inf::decode_value(*lines[1]->fields[0], result.cst()) == "%str;key%");
+      CHECK(lines[2]->key && lines[2]->key->raw == "next" &&
+            lines[2]->fields.size() == 1 && lines[2]->fields[0]->raw == "last");
+    }
+  }
+  {
+    const std::string invalidUtf8 = "[Native]\nkey=\xc3\n";
+    const auto parsed = language.language.parser->parse(invalidUtf8);
+    CHECK(!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty());
+  }
+
 }
 }  // namespace audit_regressions

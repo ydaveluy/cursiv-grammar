@@ -36,12 +36,12 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 ```
 
 A document is one version: a `major.minor.patch` core, an optional
-`-`-introduced pre-release run, an optional `+`-introduced build run. Beyond
-the [semver 2.0](https://semver.org/) core, this grammar recognizes common
-pre-release "tags" (`alpha`, `beta`, `rc`, `snapshot`, `dev`, ...) as their
-own AST node, so `1.2.3-rc2` and `1.2.3-beta23` carry a comparable `Tag`
-rather than opaque text. `example/` contains sample versions;
-`all-tags.semver` exercises every tag and its alternate spellings.
+`-`-introduced pre-release list, and an optional `+`-introduced build list.
+The [SemVer 2.0](https://semver.org/) core components and dot-separated
+identifiers stay as text, preserving integers of any size. Names such as
+`rc2` and `beta23` are ordinary identifiers. Validation rejects leading
+zeroes in core numbers and numeric pre-release identifiers; build identifiers
+may contain them. `example/` contains sample versions.
 
 ## The command line
 

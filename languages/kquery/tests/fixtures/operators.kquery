@@ -1,6 +1,6 @@
 array data[4] : w32 -> w8 = symbolic
 
-(query [(Eq false (Not [w8] (Read w8 0 data)))
+(query [(Eq false (Not w8 (Read w8 0 data)))
         (Eq false (Shl w8 (Read w8 0 data) (Read w8 1 data)))
         (Eq false (LShr w8 (Read w8 0 data) (Read w8 1 data)))
         (Eq false (AShr w8 (Read w8 0 data) (Read w8 1 data)))

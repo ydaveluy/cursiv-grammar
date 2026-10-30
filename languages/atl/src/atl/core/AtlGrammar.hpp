@@ -51,7 +51,6 @@ inline constexpr auto unescape = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unescaped = cursiv::text_conv<unescape>;
 
 // FLOAT carries an optional f/F/d/D suffix the value itself does not need.
 inline constexpr auto parse_float = [](std::string_view t) {
@@ -61,10 +60,12 @@ inline constexpr auto parse_float = [](std::string_view t) {
       t.remove_suffix(1);
   }
   double v = 0.0;
-  std::from_chars(t.data(), t.data() + t.size(), v);
-  return v;
+  const auto [end, error] = std::from_chars(t.data(), t.data() + t.size(), v);
+  using Result = cursiv::ConversionResult<double>;
+  if (error != std::errc{} || end != t.data() + t.size())
+    return Result::err("Real literal is outside the double range.");
+  return Result::ok(v);
 };
-using FloatConv = cursiv::text_conv<parse_float>;
 
 struct Atl : cursiv::GrammarSpec {
   // Past the default word class so a keyword's boundary guard also refuses
@@ -80,57 +81,53 @@ struct Atl : cursiv::GrammarSpec {
   struct ID : terminal<cr<"a-zA-Z_$"> + many(cr<"a-zA-Z0-9_$">)> {};
 
   static constexpr auto Escape = lit<"\\"> + cr<R"(btnfr"'\\)">;
-  struct STRING
-      : terminal<(lit<"\""> + many(Escape | cr<R"(^"\\)">) + lit<"\"">)  //
-                     | (lit<"'"> + many(Escape | cr<R"(^'\\)">) + lit<"'">),
-                 Unescaped> {};
+  struct STRING : terminal<as<unescape>(
+                      (lit<"\""> + many(Escape | cr<R"(^"\\)">) + lit<"\"">)  //
+                      | (lit<"'"> + many(Escape | cr<R"(^'\\)">) + lit<"'">))> {
+  };
   static constexpr auto NameTok = ref<STRING> | ref<ID>;
 
-  // '0', or a nonzero digit followed by more digits -- a leading zero
-  // belongs only to FLOAT.
-  struct INTEGER
-      : terminal<lit<"0"> | (cr<"1-9"> + many(d)), std::int64_t> {};
+  // ATL's INT token is one or more decimal digits, including leading zeroes.
+  struct INTEGER : terminal<as<std::int64_t>(some(d))> {};
 
   static constexpr auto FDigits = some(d);
   static constexpr auto FExp = cr<"eE"> + option(cr<"+-">) + FDigits;
   static constexpr auto FSuffix = cr<"fFdD">;
-  struct FLOAT
-      : terminal<(FDigits + lit<"."> + option(FDigits) + option(FExp) +
-                  option(FSuffix))  //
-                     | (lit<"."> + FDigits + option(FExp) +
-                        option(FSuffix))                             //
-                     | (FDigits + FExp + option(FSuffix))            //
-                     | (FDigits + FSuffix),
-                 FloatConv> {};
+  struct FLOAT : terminal<as<parse_float>(
+                     (FDigits + lit<"."> + option(FDigits) + option(FExp) +
+                      option(FSuffix))                                        //
+                     | (lit<"."> + FDigits + option(FExp) + option(FSuffix))  //
+                     | (FDigits + FExp + option(FSuffix))                     //
+                     | (FDigits + FSuffix))> {};
 
   struct Expression;
-  struct BinaryExprRule;
+  struct BinaryExpr;
   struct Unary;
   struct Navigation;
   struct Primary;
-  struct IfExprRule;
-  struct LetExprRule;
+  struct IfExpr;
+  struct LetExpr;
   struct OclTypeRule;
-  struct VarDeclRule;
-  struct TuplePartRule;
-  struct MapEntryRule;
-  struct TupleTypeAttrRule;
-  struct ParameterRule;
-  struct InPatternElemRule;
-  struct InPatternRule;
-  struct BindingRule;
-  struct OutPatternElemRule;
-  struct OutPatternRule;
-  struct StatementRule;
-  struct ActionBlockRule;
-  struct HelperRule;
-  struct MatchedRuleRule;
-  struct CalledRuleRule;
-  struct ModuleElementRule;
+  struct VarDecl;
+  struct TuplePart;
+  struct MapEntry;
+  struct TupleTypeAttr;
+  struct Parameter;
+  struct InPatternElem;
+  struct InPattern;
+  struct Binding;
+  struct OutPatternElem;
+  struct OutPattern;
+  struct Statement;
+  struct ActionBlock;
+  struct Helper;
+  struct MatchedRule;
+  struct CalledRule;
+  struct ModuleElement;
 
   // --- types (oclType) ---
 
-  struct TupleTypeAttrRule
+  struct TupleTypeAttr
       : rule<create<ast::TupleAttr> + assign<&ast::TupleAttr::name>(ref<ID>) +
              lit<":"> +
              assign<&ast::TupleAttr::type>(ref<OclTypeRule>)> {};
@@ -144,7 +141,7 @@ struct Atl : cursiv::GrammarSpec {
              | create<ast::TupleTypeRef>(
                    kw<"TupleType"> + lit<"("> +
                    many(append<&ast::TupleTypeRef::attrs>(
-                            ref<TupleTypeAttrRule>),
+                            ref<TupleTypeAttr>),
                         lit<",">) +
                    lit<")">)  //
              | create<ast::MapTypeRef>(
@@ -166,7 +163,7 @@ struct Atl : cursiv::GrammarSpec {
 
   // --- expressions ---
 
-  struct IfExprRule
+  struct IfExpr
       : rule<create<ast::IfExpr>(
             kw<"if"> + assign<&ast::IfExpr::cond>(ref<Expression>) +
             kw<"then"> + assign<&ast::IfExpr::thenExpr>(ref<Expression>) +
@@ -174,24 +171,24 @@ struct Atl : cursiv::GrammarSpec {
             kw<"endif">)> {};
 
   // Shared by `let`, a rule's `using` block and a tuple part; only the type
-  // annotation's optionality differs (VarDeclRule requires it).
-  struct VarDeclRule
+  // annotation's optionality differs (VarDecl requires it).
+  struct VarDecl
       : rule<create<ast::VarDecl> + assign<&ast::VarDecl::name>(ref<ID>) +
              lit<":"> + assign<&ast::VarDecl::type>(ref<OclTypeRule>) +
              lit<"="> + assign<&ast::VarDecl::value>(ref<Expression>)> {};
 
-  struct TuplePartRule
+  struct TuplePart
       : rule<create<ast::VarDecl> + assign<&ast::VarDecl::name>(ref<ID>) +
              option(lit<":"> +
                     assign<&ast::VarDecl::type>(ref<OclTypeRule>)) +
              lit<"="> + assign<&ast::VarDecl::value>(ref<Expression>)> {};
 
-  struct LetExprRule
+  struct LetExpr
       : rule<create<ast::LetExpr>(
-            kw<"let"> + assign<&ast::LetExpr::binding>(ref<VarDeclRule>) +
+            kw<"let"> + assign<&ast::LetExpr::binding>(ref<VarDecl>) +
             kw<"in"> + assign<&ast::LetExpr::body>(ref<Expression>))> {};
 
-  struct MapEntryRule
+  struct MapEntry
       : rule<create<ast::MapEntry> + lit<"("> +
              assign<&ast::MapEntry::key>(ref<Expression>) + lit<","> +
              assign<&ast::MapEntry::value>(ref<Expression>) + lit<")">> {};
@@ -206,7 +203,7 @@ struct Atl : cursiv::GrammarSpec {
                    assign<&ast::IntLit::value>(ref<INTEGER>))  //
              | create<ast::StringLit>(
                    assign<&ast::StringLit::value>(ref<STRING>))  //
-             | ref<IfExprRule>                                   //
+             | ref<IfExpr>                                   //
              | create<ast::SuperExpr>(kw<"super">)                //
              | create<ast::EnumLit>(lit<"#"> +
                                     assign<&ast::EnumLit::name>(ref<ID>))  //
@@ -220,12 +217,12 @@ struct Atl : cursiv::GrammarSpec {
                    lit<"}">)  //
              | create<ast::MapLit>(
                    kw<"Map"> + lit<"{"> +
-                   many(append<&ast::MapLit::entries>(ref<MapEntryRule>),
+                   many(append<&ast::MapLit::entries>(ref<MapEntry>),
                         lit<",">) +
                    lit<"}">)  //
              | create<ast::TupleLit>(
                    kw<"Tuple"> + lit<"{"> +
-                   many(append<&ast::TupleLit::parts>(ref<TuplePartRule>),
+                   many(append<&ast::TupleLit::parts>(ref<TuplePart>),
                         lit<",">) +
                    lit<"}">)             //
              | ref<OclTypeRule>          //
@@ -249,7 +246,7 @@ struct Atl : cursiv::GrammarSpec {
                         some(append<&ast::IterateCall::iterators>(ref<ID>),
                              lit<",">) +
                         lit<";"> +
-                        assign<&ast::IterateCall::accum>(ref<VarDeclRule>) +
+                        assign<&ast::IterateCall::accum>(ref<VarDecl>) +
                         lit<"|"> +
                         assign<&ast::IterateCall::body>(ref<Expression>) +
                         lit<")">)  //
@@ -273,47 +270,46 @@ struct Atl : cursiv::GrammarSpec {
                  assign<&ast::UnaryExpr::operand>(ref<Navigation>))  //
              | ref<Navigation>> {};
 
-  // Eight precedence levels, tightest to loosest: relational binds tighter
-  // than equality, and "and" binds tighter than "or" tighter than "xor"
-  // tighter than "implies" (OCL 2.4 Sec. 7.4.8).
-  struct BinaryExprRule
-      : infix<Unary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"*"> | lit<"/"> | kw<"div"> | kw<"mod">) >>
-               left(lit<"+"> | lit<"-">) >>
-               left(lit<"<="> | lit<">="> | lit<"<"> | lit<">">) >>
-               left(lit<"<>"> | lit<"=">) >> left(kw<"and">) >>
-               left(kw<"or">) >> left(kw<"xor">) >> left(kw<"implies">))> {};
+  // ATL's TCS grammar groups every comparison at one priority and every
+  // boolean operator at the next. These are ATL priorities, not the
+  // distinct boolean/comparison levels in standalone OMG OCL.
+  struct BinaryExpr
+      : infix<Unary, ast::BinaryExpr,
+              levels(left(lit<"*"> | lit<"/"> | kw<"div"> | kw<"mod">),
+                     left(lit<"+"> | lit<"-">),
+                     left(lit<"<="> | lit<">="> | lit<"<"> | lit<">"> |
+                          lit<"<>"> | lit<"=">),
+                     left(kw<"and"> | kw<"or"> | kw<"xor"> | kw<"implies">))> {};
 
-  struct Expression : rule<ref<LetExprRule> | ref<BinaryExprRule>> {};
+  struct Expression : rule<ref<LetExpr> | ref<BinaryExpr>> {};
 
   // --- module elements ---
 
-  struct ParameterRule
+  struct Parameter
       : rule<create<ast::Parameter> +
              assign<&ast::Parameter::name>(ref<ID>) + lit<":"> +
              assign<&ast::Parameter::type>(ref<OclTypeRule>)> {};
 
-  struct OperationRule
+  struct Operation
       : rule<create<ast::Operation> + assign<&ast::Operation::name>(ref<ID>) +
              lit<"("> +
-             many(append<&ast::Operation::params>(ref<ParameterRule>),
+             many(append<&ast::Operation::params>(ref<Parameter>),
                   lit<",">) +
              lit<")"> + lit<":"> +
              assign<&ast::Operation::returnType>(ref<OclTypeRule>) +
              lit<"="> +
              assign<&ast::Operation::body>(ref<Expression>)> {};
 
-  struct HelperRule
+  struct Helper
       : rule<create<ast::Helper> + kw<"helper"> +
              option(kw<"context"> +
                     assign<&ast::Helper::context>(ref<OclTypeRule>)) +
              kw<"def"> + lit<":"> +
-             assign<&ast::Helper::feature>(ref<OperationRule> |
-                                           ref<VarDeclRule>) +
+             assign<&ast::Helper::feature>(ref<Operation> |
+                                           ref<VarDecl>) +
              lit<";">> {};
 
-  struct InPatternElemRule
+  struct InPatternElem
       : rule<create<ast::InPatternElem> +
              assign<&ast::InPatternElem::name>(ref<ID>) + lit<":"> +
              assign<&ast::InPatternElem::type>(ref<OclTypeRule>) +
@@ -321,19 +317,20 @@ struct Atl : cursiv::GrammarSpec {
                     some(append<&ast::InPatternElem::inModels>(ref<ID>),
                          lit<",">))> {};
 
-  struct InPatternRule
+  struct InPattern
       : rule<create<ast::InPattern> + kw<"from"> +
-             some(append<&ast::InPattern::elements>(ref<InPatternElemRule>),
+             some(append<&ast::InPattern::elements>(ref<InPatternElem>),
                   lit<",">) +
              option(lit<"("> +
                     assign<&ast::InPattern::filter>(ref<Expression>) +
                     lit<")">)> {};
 
-  struct BindingRule
+  struct Binding
       : rule<create<ast::Binding> + assign<&ast::Binding::name>(ref<ID>) +
-             lit<"<-"> + assign<&ast::Binding::value>(ref<Expression>)> {};
+             (flag<&ast::Binding::isAssignment>(lit<"<:=">) | lit<"<-">) +
+             assign<&ast::Binding::value>(ref<Expression>)> {};
 
-  struct OutPatternElemRule
+  struct OutPatternElem
       : rule<create<ast::OutPatternElem> +
              assign<&ast::OutPatternElem::name>(ref<ID>) + lit<":"> +
              ((flag<&ast::OutPatternElem::isForEach>(kw<"distinct">) +
@@ -349,57 +346,58 @@ struct Atl : cursiv::GrammarSpec {
                     assign<&ast::OutPatternElem::mapsTo>(ref<ID>)) +
              option(lit<"("> +
                     many(append<&ast::OutPatternElem::bindings>(
-                             ref<BindingRule>),
+                             ref<Binding>),
                          lit<",">) +
                     lit<")">)> {};
 
-  struct OutPatternRule
+  struct OutPattern
       : rule<create<ast::OutPattern> + kw<"to"> +
-             some(append<&ast::OutPattern::elements>(ref<OutPatternElemRule>),
+             some(append<&ast::OutPattern::elements>(ref<OutPatternElem>),
                   lit<",">)> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<create<ast::IfStmt> + kw<"if"> + lit<"("> +
              assign<&ast::IfStmt::cond>(ref<Expression>) + lit<")"> +
              ((lit<"{"> +
-               many(append<&ast::IfStmt::thenStmts>(ref<StatementRule>)) +
+               many(append<&ast::IfStmt::thenStmts>(ref<Statement>)) +
                lit<"}">)  //
-              | append<&ast::IfStmt::thenStmts>(ref<StatementRule>)) +
+              | append<&ast::IfStmt::thenStmts>(ref<Statement>)) +
              option(
-                 kw<"else"> +
+                 flag<&ast::IfStmt::hasElse>(kw<"else">) +
                  ((lit<"{"> +
                    many(
-                       append<&ast::IfStmt::elseStmts>(ref<StatementRule>)) +
+                       append<&ast::IfStmt::elseStmts>(ref<Statement>)) +
                    lit<"}">)  //
-                  | append<&ast::IfStmt::elseStmts>(ref<StatementRule>)))> {};
+                  | append<&ast::IfStmt::elseStmts>(ref<Statement>)))> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<create<ast::ForStmt> + kw<"for"> + lit<"("> +
              assign<&ast::ForStmt::iterVar>(ref<ID>) + kw<"in"> +
              assign<&ast::ForStmt::source>(ref<Expression>) + lit<")"> +
              lit<"{"> +
-             many(append<&ast::ForStmt::body>(ref<StatementRule>)) +
+             many(append<&ast::ForStmt::body>(ref<Statement>)) +
              lit<"}">> {};
 
-  struct BindStmtRule
+  struct BindStmt
       : rule<create<ast::BindStmt>(
-            assign<&ast::BindStmt::target>(ref<Expression>) + lit<"<-"> +
+            assign<&ast::BindStmt::target>(ref<Expression>) +
+            (flag<&ast::BindStmt::isAssignment>(lit<"<:=">) | lit<"<-">) +
             assign<&ast::BindStmt::value>(ref<Expression>) + lit<";">)> {};
 
-  struct ExprStmtRule
+  struct ExprStmt
       : rule<create<ast::ExprStmt>(
             assign<&ast::ExprStmt::value>(ref<Expression>) + lit<";">)> {};
 
-  struct StatementRule
-      : rule<ref<IfStmtRule> | ref<ForStmtRule> | ref<BindStmtRule> |
-             ref<ExprStmtRule>> {};
+  struct Statement
+      : rule<ref<IfStmt> | ref<ForStmt> | ref<BindStmt> |
+             ref<ExprStmt>> {};
 
-  struct ActionBlockRule
+  struct ActionBlock
       : rule<create<ast::ActionBlock> + kw<"do"> + lit<"{"> +
-             many(append<&ast::ActionBlock::statements>(ref<StatementRule>)) +
+             many(append<&ast::ActionBlock::statements>(ref<Statement>)) +
              lit<"}">> {};
 
-  struct MatchedRuleRule
+  struct MatchedRule
       : rule<create<ast::MatchedRule> +
             many(
                    flag<&ast::MatchedRule::isUnique>(
@@ -417,19 +415,19 @@ struct Atl : cursiv::GrammarSpec {
              option(kw<"extends"> +
                     assign<&ast::MatchedRule::extendsRule>(ref<ID>)) +
              lit<"{"> +
-             assign<&ast::MatchedRule::inPattern>(ref<InPatternRule>) +
+             assign<&ast::MatchedRule::inPattern>(ref<InPattern>) +
              option(kw<"using"> + lit<"{"> +
                     many(append<&ast::MatchedRule::variables>(
-                             ref<VarDeclRule>) +
+                             ref<VarDecl>) +
                          lit<";">) +
                     lit<"}">) +
              option(
-                 assign<&ast::MatchedRule::outPattern>(ref<OutPatternRule>)) +
+                 assign<&ast::MatchedRule::outPattern>(ref<OutPattern>)) +
              option(
-                 assign<&ast::MatchedRule::action>(ref<ActionBlockRule>)) +
+                 assign<&ast::MatchedRule::action>(ref<ActionBlock>)) +
              lit<"}">> {};
 
-  struct CalledRuleRule
+  struct CalledRule
       : rule<create<ast::CalledRule> +
              option(flag<&ast::CalledRule::isEntrypoint>(
                  kw<"entrypoint">)) +
@@ -437,61 +435,61 @@ struct Atl : cursiv::GrammarSpec {
                  flag<&ast::CalledRule::isEndpoint>(kw<"endpoint">)) +
              kw<"rule"> + assign<&ast::CalledRule::name>(ref<ID>) +
              lit<"("> +
-             many(append<&ast::CalledRule::params>(ref<ParameterRule>),
+             many(append<&ast::CalledRule::params>(ref<Parameter>),
                   lit<",">) +
              lit<")"> + lit<"{"> +
              option(kw<"using"> + lit<"{"> +
                     many(append<&ast::CalledRule::variables>(
-                             ref<VarDeclRule>) +
+                             ref<VarDecl>) +
                          lit<";">) +
                     lit<"}">) +
              option(
-                 assign<&ast::CalledRule::outPattern>(ref<OutPatternRule>)) +
+                 assign<&ast::CalledRule::outPattern>(ref<OutPattern>)) +
              option(
-                 assign<&ast::CalledRule::action>(ref<ActionBlockRule>)) +
+                 assign<&ast::CalledRule::action>(ref<ActionBlock>)) +
              lit<"}">> {};
 
-  struct ModuleElementRule
-      : rule<ref<HelperRule> | ref<MatchedRuleRule> | ref<CalledRuleRule>> {};
+  struct ModuleElement
+      : rule<ref<Helper> | ref<MatchedRule> | ref<CalledRule>> {};
 
-  struct OclModelRule
+  struct OclModel
       : rule<create<ast::OclModel> + assign<&ast::OclModel::alias>(ref<ID>) +
              lit<":"> +
              assign<&ast::OclModel::modelName>(ref<ID>)> {};
 
-  struct ModuleRule
+  struct Module
       : rule<create<ast::Module> + kw<"module"> +
              assign<&ast::Module::name>(NameTok) + lit<";"> + kw<"create"> +
-             some(append<&ast::Module::targetModels>(ref<OclModelRule>),
+             some(append<&ast::Module::targetModels>(ref<OclModel>),
                   lit<",">) +
              assign<&ast::Module::mode>(kw<"refining"> | kw<"from">) +
-             some(append<&ast::Module::sourceModels>(ref<OclModelRule>),
+             some(append<&ast::Module::sourceModels>(ref<OclModel>),
                   lit<",">) +
              lit<";"> +
              many(kw<"uses"> +
-                  append<&ast::Module::uses>(ref<STRING>) + lit<";">) +
-             many(append<&ast::Module::elements>(ref<ModuleElementRule>))> {
+                  append<&ast::Module::uses>(NameTok) + lit<";">) +
+             many(append<&ast::Module::elements>(ref<ModuleElement>))> {
   };
 
-  struct LibraryRule
+  struct Library
       : rule<create<ast::Library> + kw<"library"> +
              assign<&ast::Library::name>(NameTok) + lit<";"> +
              many(kw<"uses"> +
-                  append<&ast::Library::uses>(ref<STRING>) + lit<";">) +
-             many(append<&ast::Library::helpers>(ref<HelperRule>))> {};
+                  append<&ast::Library::uses>(NameTok) + lit<";">) +
+             many(append<&ast::Library::helpers>(ref<Helper>))> {};
 
-  struct QueryRule
+  struct Query
       : rule<create<ast::Query> + kw<"query"> +
              assign<&ast::Query::name>(NameTok) + lit<"="> +
              assign<&ast::Query::body>(ref<Expression>) + lit<";"> +
              many(kw<"uses"> +
-                  append<&ast::Query::uses>(ref<STRING>) + lit<";">) +
-             many(append<&ast::Query::helpers>(ref<HelperRule>))> {};
+                  append<&ast::Query::uses>(NameTok) + lit<";">) +
+             many(append<&ast::Query::helpers>(ref<Helper>))> {};
 
-  struct Unit : rule<ref<ModuleRule> | ref<LibraryRule> | ref<QueryRule>> {};
+  struct Unit : rule<ref<Module> | ref<Library> | ref<Query>> {};
 
   using entry = Unit;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<ML_COMMENT, LINE_COMMENT>;
 };
 

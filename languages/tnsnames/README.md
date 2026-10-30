@@ -31,8 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-An Oracle `tnsnames.ora`: aliases mapped to a connect descriptor or a
-listener address, keywords case-insensitive, `#` comments.
+Oracle Net aliases and balanced connection descriptors, with address lists and protocol parameters. Include paths are represented without loading files.
 
 ```
 LSNR_WILMA =
@@ -44,11 +43,6 @@ orcl =
     (CONNECT_DATA = (SERVICE_NAME = orcl.example.com))
   )
 ```
-
-The first entry is a listener: a bare address, no `CONNECT_DATA`. The second
-is a service: the same `DESCRIPTION` shape, but `CONNECT_DATA` is what tells
-them apart -- both build the same AST class, `connectData` null on the
-former.
 
 ## The command line
 

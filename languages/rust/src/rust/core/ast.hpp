@@ -144,13 +144,17 @@ struct SliceTy : cursiv::Extends<Ty> {
   Ty* element;
 };
 struct InferredTy : cursiv::Extends<Ty> {};
+struct BareFnParam : cursiv::Extends<cursiv::AstNode> {
+  vector<Attribute*> attrs;
+  optional<string_view> name;
+  Ty* type;
+};
 struct BareFnTy : cursiv::Extends<Ty> {
   GenericParams* forLifetimes;
   boolean isUnsafe;
   boolean isExtern;
   string_view abi;
-  vector<Ty*> params;
-  vector<string_view> paramNames;  // empty entry where a parameter is unnamed
+  vector<BareFnParam*> params;  // empty entry where a parameter is unnamed
   boolean variadic;
   Ty* returnType;
 };
@@ -280,6 +284,7 @@ struct BorrowExpr : cursiv::Extends<Expr> {
   boolean doubleAmp;
   boolean isMut;
   Expr* operand;
+  boolean isRaw; // &raw const / &raw mut, distinct from a reference borrow
 };
 struct DerefExpr : cursiv::Extends<Expr> {
   Expr* operand;
@@ -319,7 +324,7 @@ struct RangeExpr : cursiv::Extends<Expr> {
 
 struct ContinueExpr : cursiv::Extends<Expr> {
   string_view label;
-  Expr* value;
+  Expr* value; // legacy field, always null: continue has no value operand
 };
 struct BreakExpr : cursiv::Extends<Expr> {
   string_view label;
@@ -351,6 +356,7 @@ struct StructExprField : cursiv::Extends<cursiv::AstNode> {
 };
 // Serves both a struct literal and an enum-variant literal: the two are
 // syntactically identical, resolved against the same path either way.
+// Brace constructors; tuple constructors and function calls use CallExpr.
 struct StructExpr : cursiv::Extends<Expr> {
   Path* path;
   vector<Attribute*> innerAttrs;
@@ -609,6 +615,7 @@ struct ExternCrate : cursiv::Extends<Item> {
 
 struct UseTree : cursiv::Extends<cursiv::AstNode> {
   Path* path;
+  boolean leadingSep; // absolute root on pathless ::* / ::{...} imports
   boolean isGlob;
   vector<UseTree*> nested;
   string_view asName;

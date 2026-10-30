@@ -12,14 +12,14 @@ namespace alloy {
 struct Alloy : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"(\u0000-\u0020)">)> {};
   struct SL_COMMENT : terminal<(lit<"//"> | lit<"--">)+many(cr<R"(^\r\n)">)> {};
-  struct ML_COMMENT : terminal<lit<"/*"> + many(!lit<"*/"> + any) + lit<"*/">> {
-  };
+  struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
   static constexpr auto IdentifierStart =
       uc::L | uc::Nl | uc::Sc | uc::Pc | cr<"\u1885\u1886\u30FB\uFF65">;
   static constexpr auto IdentifierPart = IdentifierStart | uc::Nd | uc::Mn |
                                          uc::Mc | uc::Cf | cr<"\u1369-\u1371"> |
                                          cr<R"('"\u007F-\u009F)">;
+  static constexpr auto word_boundary = IdentifierPart;
   static constexpr auto Reserved =
       (lit<"abstract"> | lit<"all"> | lit<"and"> | lit<"as"> | lit<"assert"> |
        lit<"but"> | lit<"check"> | lit<"disj"> | lit<"disjoint"> | lit<"else"> |
@@ -31,7 +31,7 @@ struct Alloy : cursiv::GrammarSpec {
        lit<"run"> | lit<"seq"> | lit<"set"> | lit<"sig"> | lit<"some"> |
        lit<"String"> | lit<"sum"> | lit<"this"> | lit<"univ">)+!IdentifierPart;
   struct ID : terminal<!Reserved + IdentifierStart + many(IdentifierPart)> {};
-  struct NUMBER : terminal<some(cr<"0-9">), std::int64_t> {};
+  struct NUMBER : terminal<as<std::int64_t>(some(cr<"0-9">))> {};
   struct STRING : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) +
                            lit<"\"">> {};
   inline static constexpr auto string_name =
@@ -50,119 +50,58 @@ struct Alloy : cursiv::GrammarSpec {
         }
         return std::string_view(value, size);
       };
-  struct QuotedName : terminal<ref<STRING>, text_conv<string_name>> {};
+  // Quoted paragraph names pass through the native string lexer too;
+  // their raw token is otherwise absent from the semantic AST validator.
+  static constexpr auto NameEscape = lit<"\\"> + cr<R"(n'"\\)">;
+  struct QuotedName : terminal<as<string_name>(
+      lit<"\""> + some(NameEscape | cr<R"(^"\\\r\n)">) + lit<"\"">)> {};
   struct QualName : rule<option(lit<"this/"> | lit<"seq/">) + ref<ID> +
                          many(lit<"/"> + ref<ID>)> {};
   struct SigName : rule<ref<QualName> | kw<"Int"> | kw<"String"> | kw<"univ"> |
-                        kw<"none"> | lit<"seq/Int">> {};
+                        kw<"none"> | kw<"seq/Int">> {};
 
-  struct OpNot : rule<lit<"!"> | kw<"not">, value<ast::UnaryOp::not_>> {};
-  struct OpNo : rule<kw<"no">, value<ast::UnaryOp::no>> {};
-  struct OpLone : rule<kw<"lone">, value<ast::UnaryOp::lone>> {};
-  struct OpSome : rule<kw<"some">, value<ast::UnaryOp::some>> {};
-  struct OpOne : rule<kw<"one">, value<ast::UnaryOp::one>> {};
-  struct OpSetU : rule<kw<"set">, value<ast::UnaryOp::set>> {};
-  struct OpCard : rule<lit<"#">, value<ast::UnaryOp::card>> {};
-  struct OpTranspose : rule<lit<"~">, value<ast::UnaryOp::transpose>> {};
-  struct OpRClosure : rule<lit<"*">, value<ast::UnaryOp::rclosure>> {};
-  struct OpClosure : rule<lit<"^">, value<ast::UnaryOp::closure>> {};
-
-  struct OpOr : rule<lit<"||"> | kw<"or">, value<ast::BinOp::or_>> {};
-  struct OpAnd : rule<lit<"&&"> | kw<"and">, value<ast::BinOp::and_>> {};
-  struct OpIff : rule<lit<"<=>"> | kw<"iff">, value<ast::BinOp::iff>> {};
-  struct OpIntersect : rule<lit<"&">, value<ast::BinOp::intersect>> {};
-  struct OpOverride : rule<lit<"++">, value<ast::BinOp::override_>> {};
-  struct OpAdd : rule<lit<"+">, value<ast::BinOp::add>> {};
-  struct OpSubtract : rule<lit<"-">, value<ast::BinOp::subtract>> {};
-  struct OpDomainRestrict
-      : rule<lit<"<:">, value<ast::BinOp::domain_restrict>> {};
-  struct OpRangeRestrict : rule<lit<":>">, value<ast::BinOp::range_restrict>> {
-  };
-  struct OpJoin : rule<lit<"."> | lit<"::">, value<ast::BinOp::join>> {};
-
-  struct OpInteger : rule<kw<"sum"> | kw<"int">, value<ast::UnaryOp::integer>> {
-  };
-  struct OpSequence : rule<kw<"seq">, value<ast::UnaryOp::sequence>> {};
-  struct OpIntegerAdd : rule<lit<"fun/add">, value<ast::BinOp::integer_add>> {};
-  struct OpIntegerSubtract
-      : rule<lit<"fun/sub">, value<ast::BinOp::integer_subtract>> {};
-  struct OpMultiply : rule<lit<"fun/mul">, value<ast::BinOp::multiply>> {};
-  struct OpDivide : rule<lit<"fun/div">, value<ast::BinOp::divide>> {};
-  struct OpRemainder : rule<lit<"fun/rem">, value<ast::BinOp::remainder>> {};
-  struct OpShiftLeft : rule<lit<"<<">, value<ast::BinOp::shift_left>> {};
-  struct OpShiftRight : rule<lit<">>>">, value<ast::BinOp::shift_right>> {};
-  struct OpShiftArithmetic
-      : rule<lit<">>">, value<ast::BinOp::shift_arithmetic>> {};
-
-  struct CmpEq : rule<lit<"=">, value<ast::CompareOp::eq>> {};
-  struct CmpNotEq
-      : rule<(lit<"!"> | kw<"not">)+lit<"=">, value<ast::CompareOp::neq>> {};
-  struct CmpLt : rule<lit<"<">, value<ast::CompareOp::lt>> {};
-  struct CmpNotLt
-      : rule<(lit<"!"> | kw<"not">)+lit<"<">, value<ast::CompareOp::not_lt>> {};
-  struct CmpGt : rule<lit<">">, value<ast::CompareOp::gt>> {};
   struct CmpNotGt
-      : rule<(lit<"!"> | kw<"not">)+lit<">">, value<ast::CompareOp::not_gt>> {};
-  struct CmpLe : rule<(lit<"=<"> | lit<"<=">), value<ast::CompareOp::le>> {};
-  struct CmpNotLe : rule<(lit<"!"> | kw<"not">)+(lit<"=<"> | lit<"<=">),
-                         value<ast::CompareOp::not_le>> {};
-  struct CmpGe : rule<lit<">=">, value<ast::CompareOp::ge>> {};
+      : rule<as<ast::CompareOp::not_gt>((lit<"!"> | kw<"not">)+lit<">">)> {};
   struct CmpNotGe
-      : rule<(lit<"!"> | kw<"not">)+lit<">=">, value<ast::CompareOp::not_ge>> {
-  };
-  struct CmpIn : rule<kw<"in">, value<ast::CompareOp::in>> {};
-  struct CmpNotIn
-      : rule<(lit<"!"> | kw<"not">)+kw<"in">, value<ast::CompareOp::not_in>> {};
-  static constexpr auto CompareOp = ref<CmpNotEq> | ref<CmpEq> | ref<CmpNotLt> |
-                                    ref<CmpLt> | ref<CmpNotGt> | ref<CmpGt> |
-                                    ref<CmpNotLe> | ref<CmpLe> | ref<CmpNotGe> |
-                                    ref<CmpGe> | ref<CmpNotIn> | ref<CmpIn>;
+      : rule<as<ast::CompareOp::not_ge>((lit<"!"> | kw<"not">)+lit<">=">)> {};
+  static constexpr auto CompareOp = as<ast::CompareOp::neq>((lit<"!"> | kw<"not">)+lit<"=">) | as<ast::CompareOp::eq>(lit<"=">) | as<ast::CompareOp::not_lt>((lit<"!"> | kw<"not">)+lit<"<">) |
+                                    as<ast::CompareOp::lt>(lit<"<">) | ref<CmpNotGt> | as<ast::CompareOp::gt>(lit<">">) |
+                                    as<ast::CompareOp::not_le>((lit<"!"> | kw<"not">)+(lit<"=<"> | lit<"<=">)) | as<ast::CompareOp::le>((lit<"=<"> | lit<"<=">)) | ref<CmpNotGe> |
+                                    as<ast::CompareOp::ge>(lit<">=">) | as<ast::CompareOp::not_in>((lit<"!"> | kw<"not">)+kw<"in">) | as<ast::CompareOp::in>(kw<"in">);
 
-  struct MultLone : rule<kw<"lone">, value<ast::Mult::lone>> {};
-  struct MultSome : rule<kw<"some">, value<ast::Mult::some>> {};
-  struct MultOne : rule<kw<"one">, value<ast::Mult::one>> {};
-  struct MultSet : rule<kw<"set">, value<ast::Mult::set>> {};
-  static constexpr auto Mult = ref<MultLone> | ref<MultSome> | ref<MultOne>;
+  static constexpr auto Mult = as<ast::Mult::lone>(kw<"lone">) | as<ast::Mult::some>(kw<"some">) | as<ast::Mult::one>(kw<"one">);
   static constexpr auto MultOrSet =
-      ref<MultLone> | ref<MultSome> | ref<MultOne> | ref<MultSet>;
+      as<ast::Mult::lone>(kw<"lone">) | as<ast::Mult::some>(kw<"some">) | as<ast::Mult::one>(kw<"one">) | as<ast::Mult::set>(kw<"set">);
 
-  struct QuantAll : rule<kw<"all">, value<ast::Quantifier::all>> {};
-  struct QuantNo : rule<kw<"no">, value<ast::Quantifier::no>> {};
-  struct QuantSum : rule<kw<"sum">, value<ast::Quantifier::sum>> {};
-  struct QuantLone : rule<kw<"lone">, value<ast::Quantifier::lone>> {};
-  struct QuantSome : rule<kw<"some">, value<ast::Quantifier::some>> {};
-  struct QuantOne : rule<kw<"one">, value<ast::Quantifier::one>> {};
-  static constexpr auto Quant = ref<QuantAll> | ref<QuantNo> | ref<QuantSum> |
-                                ref<QuantLone> | ref<QuantSome> | ref<QuantOne>;
+  static constexpr auto Quant = as<ast::Quantifier::all>(kw<"all">) | as<ast::Quantifier::no>(kw<"no">) | as<ast::Quantifier::sum>(kw<"sum">) |
+                                as<ast::Quantifier::lone>(kw<"lone">) | as<ast::Quantifier::some>(kw<"some">) | as<ast::Quantifier::one>(kw<"one">);
 
-  struct KindRun : rule<kw<"run">, value<ast::CmdKind::run>> {};
-  struct KindCheck : rule<kw<"check">, value<ast::CmdKind::check>> {};
 
-  struct ExprRule;
-  struct IffRule;
-  struct ImpliesRule;
-  struct AndRule;
-  struct GeneralNegRule;
-  struct CompareExprRule;
-  struct QuantPrefixRule;
-  struct AddSubRule;
-  struct CardinalityRule;
-  struct MultiplyRule;
-  struct ShiftRule;
-  struct RangeRule;
-  struct IntersectOverrideRule;
-  struct ArrowExprRule;
-  struct RestrictRule;
-  struct BoxJoinRule;
-  struct UnaryTightRule;
-  struct PrimaryExprRule;
-  struct DeclRule;
-  struct ComprehensionDeclRule;
-  struct LetDeclRule;
-  struct BlockRule;
-  struct BlockOrBarRule;
+  struct Expr;
+  struct Iff;
+  struct Implies;
+  struct And;
+  struct GeneralNeg;
+  struct CompareExpr;
+  struct QuantPrefix;
+  struct AddSub;
+  struct Cardinality;
+  struct Multiply;
+  struct Shift;
+  struct Range;
+  struct IntersectOverride;
+  struct ArrowExpr;
+  struct Restrict;
+  struct BoxJoin;
+  struct UnaryTight;
+  struct PrimaryExpr;
+  struct Decl;
+  struct ComprehensionDecl;
+  struct LetDecl;
+  struct Block;
+  struct BlockOrBar;
 
-  struct DeclNamesRule
+  struct DeclNames
       : rule<create<ast::Decl> +
              option(flag<&ast::Decl::private_>(kw<"private">)) +
              option(flag<&ast::Decl::namesDisjoint>(kw<"disj"> |
@@ -170,27 +109,27 @@ struct Alloy : cursiv::GrammarSpec {
              some(append<&ast::Decl::names>(ref<ID>), lit<",">)> {};
   static constexpr auto DeclType =
       option(flag<&ast::Decl::typeDisjoint>(kw<"disj"> | kw<"disjoint">)) +
-      assign<&ast::Decl::type>(ref<ExprRule>);
-  struct DeclRule
-      : rule<ref<DeclNamesRule> +
+      assign<&ast::Decl::type>(ref<Expr>);
+  struct Decl
+      : rule<ref<DeclNames> +
              (lit<":"> | flag<&ast::Decl::defined>(lit<"=">)) + DeclType> {
   };
-  struct ComprehensionDeclRule
-      : rule<ref<DeclNamesRule> + lit<":"> + DeclType> {};
+  struct ComprehensionDecl
+      : rule<ref<DeclNames> + lit<":"> + DeclType> {};
 
-  struct LetDeclRule
+  struct LetDecl
       : rule<create<ast::LetDecl> + assign<&ast::LetDecl::name>(ref<ID>) +
-             lit<"="> + assign<&ast::LetDecl::value>(ref<ExprRule>)> {};
+             lit<"="> + assign<&ast::LetDecl::value>(ref<Expr>)> {};
 
-  struct BlockRule
+  struct Block
       : rule<create<ast::Block> + lit<"{"> +
-             many(append<&ast::Block::exprs>(ref<ExprRule>)) + lit<"}">> {};
-  struct BlockOrBarRule
-      : rule<ref<BlockRule> |
+             many(append<&ast::Block::exprs>(ref<Expr>)) + lit<"}">> {};
+  struct BlockOrBar
+      : rule<ref<Block> |
              create<ast::Block>(lit<"|"> +
-                                append<&ast::Block::exprs>(ref<ExprRule>))> {};
+                                append<&ast::Block::exprs>(ref<Expr>))> {};
 
-  struct PrimaryExprRule
+  struct PrimaryExpr
       : rule<create<ast::NumberExpr>(
                  option(flag<&ast::NumberExpr::negative>(lit<"-">)) +
                  assign<&ast::NumberExpr::value>(ref<NUMBER>)) |
@@ -204,119 +143,110 @@ struct Alloy : cursiv::GrammarSpec {
              create<ast::ThisExpr>(kw<"this">) |
              create<ast::LetExpr>(
                  kw<"let"> +
-                 some(append<&ast::LetExpr::decls>(ref<LetDeclRule>),
+                 some(append<&ast::LetExpr::decls>(ref<LetDecl>),
                       lit<",">) +
-                 assign<&ast::LetExpr::body>(ref<BlockOrBarRule>)) |
+                 assign<&ast::LetExpr::body>(ref<BlockOrBar>)) |
              create<ast::QuantExpr>(
                  assign<&ast::QuantExpr::quant>(Quant) +
-                 some(append<&ast::QuantExpr::decls>(ref<DeclRule>), lit<",">) +
-                 assign<&ast::QuantExpr::body>(ref<BlockOrBarRule>)) |
+                 some(append<&ast::QuantExpr::decls>(ref<Decl>), lit<",">) +
+                 assign<&ast::QuantExpr::body>(ref<BlockOrBar>)) |
              create<ast::SetComprExpr>(
                  lit<"{"> +
                  some(append<&ast::SetComprExpr::decls>(
-                          ref<ComprehensionDeclRule>),
+                          ref<ComprehensionDecl>),
                       lit<",">) +
-                 option(assign<&ast::SetComprExpr::body>(ref<BlockOrBarRule>)) +
+                 option(assign<&ast::SetComprExpr::body>(ref<BlockOrBar>)) +
                  lit<"}">) |
-             (lit<"("> + ref<ExprRule> + lit<")">) | ref<BlockRule> |
+             (lit<"("> + ref<Expr> + lit<")">) | ref<Block> |
              create<ast::NameExpr>(assign<&ast::NameExpr::name>(
                  ref<SigName> | kw<"disj"> | kw<"disjoint"> |
-                 lit<"pred/totalOrder"> | lit<"fun/min"> | lit<"fun/max"> |
-                 lit<"fun/next"> | kw<"int"> | kw<"sum">))> {};
-  struct UnaryTightRule
+                 kw<"pred/totalOrder"> | kw<"fun/min"> | kw<"fun/max"> |
+                 kw<"fun/next"> | kw<"int"> | kw<"sum">))> {};
+  struct UnaryTight
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<OpTranspose> |
-                                             ref<OpRClosure> | ref<OpClosure>) +
-                 assign<&ast::UnaryExpr::operand>(ref<UnaryTightRule>)) |
-             ref<PrimaryExprRule>> {};
+                 assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::transpose>(lit<"~">) |
+                                             as<ast::UnaryOp::rclosure>(lit<"*">) | as<ast::UnaryOp::closure>(lit<"^">)) +
+                 assign<&ast::UnaryExpr::operand>(ref<UnaryTight>)) |
+             ref<PrimaryExpr>> {};
 
-  struct BoxJoinRule
-      : rule<ref<UnaryTightRule> +
+  struct BoxJoin
+      : rule<ref<UnaryTight> +
              many(nest<ast::UnaryExpr, &ast::UnaryExpr::operand>(
                       (lit<"."> |
-                       lit<"::">)+assign<&ast::UnaryExpr::op>(ref<OpInteger>)) |
+                       lit<"::">)+assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::integer>(kw<"sum"> | kw<"int">))) |
                   nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                      assign<&ast::BinaryExpr::op>(ref<OpJoin>) +
-                      assign<&ast::BinaryExpr::right>(ref<UnaryTightRule>)) |
+                      assign<&ast::BinaryExpr::op>(as<ast::BinOp::join>(lit<"."> | lit<"::">)) +
+                      assign<&ast::BinaryExpr::right>(ref<UnaryTight>)) |
                   nest<ast::BoxJoinExpr, &ast::BoxJoinExpr::callee>(
                       lit<"["> +
-                      many(append<&ast::BoxJoinExpr::args>(ref<ExprRule>),
+                      many(append<&ast::BoxJoinExpr::args>(ref<Expr>),
                            lit<",">) +
                       lit<"]">))> {};
 
-  struct RangeRule
-      : infix<BoxJoinRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpRangeRestrict>)> {};
-  struct RestrictRule
-      : infix<RangeRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpDomainRestrict>)> {};
+  struct Range : infix<BoxJoin, ast::BinaryExpr,
+                       left(as<ast::BinOp::range_restrict>(lit<":>">))> {};
+  struct Restrict : infix<Range, ast::BinaryExpr,
+                          left(as<ast::BinOp::domain_restrict>(lit<"<:">))> {};
 
-  struct ArrowExprRule
-      : rule<ref<RestrictRule> +
+  struct ArrowExpr
+      : rule<ref<Restrict> +
              option(nest<ast::ArrowExpr, &ast::ArrowExpr::left>(
                  option(assign<&ast::ArrowExpr::leftMult>(MultOrSet)) +
                  lit<"->"> +
                  option(assign<&ast::ArrowExpr::rightMult>(MultOrSet)) +
-                 assign<&ast::ArrowExpr::right>(ref<ArrowExprRule>)))> {};
+                 assign<&ast::ArrowExpr::right>(ref<ArrowExpr>)))> {};
 
-  struct IntersectOverrideRule
-      : infix<ArrowExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<OpIntersect>) >> left(ref<OpOverride>))> {};
-  struct CardinalityRule
+  struct IntersectOverride
+      : infix<ArrowExpr, ast::BinaryExpr,
+              levels(left(as<ast::BinOp::intersect>(lit<"&">)), left(as<ast::BinOp::override_>(lit<"++">)))> {};
+  struct Cardinality
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<OpCard> | ref<OpInteger>) +
-                 assign<&ast::UnaryExpr::operand>(ref<CardinalityRule>)) |
-             ref<IntersectOverrideRule>> {};
+                 assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::card>(lit<"#">) | as<ast::UnaryOp::integer>(kw<"sum"> | kw<"int">)) +
+                 assign<&ast::UnaryExpr::operand>(ref<Cardinality>)) |
+             ref<IntersectOverride>> {};
 
-  struct MultiplyRule
-      : infix<CardinalityRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              left(ref<OpMultiply> | ref<OpDivide> | ref<OpRemainder>)> {};
-  struct AddSubRule : infix<MultiplyRule, &ast::BinaryExpr::left,
-                            &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                            left(ref<OpAdd> | ref<OpSubtract> |
-                                 ref<OpIntegerAdd> | ref<OpIntegerSubtract>)> {
+  struct Multiply
+      : infix<Cardinality, ast::BinaryExpr,
+              left(as<ast::BinOp::multiply>(kw<"fun/mul">) | as<ast::BinOp::divide>(kw<"fun/div">) | as<ast::BinOp::remainder>(kw<"fun/rem">))> {};
+  struct AddSub : infix<Multiply, ast::BinaryExpr,
+                            left(as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::subtract>(lit<"-">) |
+                                 as<ast::BinOp::integer_add>(kw<"fun/add">) | as<ast::BinOp::integer_subtract>(kw<"fun/sub">))> {
   };
-  struct ShiftRule : infix<AddSubRule, &ast::BinaryExpr::left,
-                           &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                           left(ref<OpShiftLeft> | ref<OpShiftRight> |
-                                ref<OpShiftArithmetic>)> {};
-  struct QuantPrefixRule
+  struct Shift : infix<AddSub, ast::BinaryExpr,
+                           left(as<ast::BinOp::shift_left>(lit<"<<">) | as<ast::BinOp::shift_right>(lit<">>>">) |
+                                as<ast::BinOp::shift_arithmetic>(lit<">>">))> {};
+  struct QuantPrefix
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<OpNo> | ref<OpLone> |
-                                             ref<OpSome> | ref<OpOne> |
-                                             ref<OpSetU> | ref<OpSequence>) +
-                 assign<&ast::UnaryExpr::operand>(ref<QuantPrefixRule>)) |
-             ref<ShiftRule>> {};
+                 assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::no>(kw<"no">) | as<ast::UnaryOp::lone>(kw<"lone">) |
+                                             as<ast::UnaryOp::some>(kw<"some">) | as<ast::UnaryOp::one>(kw<"one">) |
+                                             as<ast::UnaryOp::set>(kw<"set">) | as<ast::UnaryOp::sequence>(kw<"seq">)) +
+                 assign<&ast::UnaryExpr::operand>(ref<QuantPrefix>)) |
+             ref<Shift>> {};
 
-  struct CompareExprRule
-      : infix<QuantPrefixRule, &ast::CompareExpr::left, &ast::CompareExpr::op,
-              &ast::CompareExpr::right, left(CompareOp)> {};
-  struct GeneralNegRule
+  struct CompareExpr
+      : infix<QuantPrefix, ast::CompareExpr, left(CompareOp)> {};
+  struct GeneralNeg
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<OpNot>) +
-                 assign<&ast::UnaryExpr::operand>(ref<GeneralNegRule>)) |
-             ref<CompareExprRule>> {};
+                 assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::not_>(lit<"!"> | kw<"not">)) +
+                 assign<&ast::UnaryExpr::operand>(ref<GeneralNeg>)) |
+             ref<CompareExpr>> {};
 
-  struct AndRule
-      : infix<GeneralNegRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpAnd>)> {};
-  struct ImpliesRule
-      : rule<ref<AndRule> +
+  struct And : infix<GeneralNeg, ast::BinaryExpr,
+                     left(as<ast::BinOp::and_>(lit<"&&"> | kw<"and">))> {};
+  struct Implies
+      : rule<ref<And> +
              option(nest<ast::IfExpr, &ast::IfExpr::cond>(
                  (lit<"=>"> |
-                  kw<"implies">)+assign<&ast::IfExpr::then>(ref<ImpliesRule>) +
+                  kw<"implies">)+assign<&ast::IfExpr::then>(ref<Implies>) +
                  option(kw<"else"> +
-                        assign<&ast::IfExpr::else_>(ref<ImpliesRule>))))> {};
+                        assign<&ast::IfExpr::else_>(ref<Implies>))))> {};
 
-  struct IffRule
-      : infix<ImpliesRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpIff>)> {};
-  struct ExprRule : infix<IffRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-                          &ast::BinaryExpr::right, left(ref<OpOr>)> {};
+  struct Iff : infix<Implies, ast::BinaryExpr,
+                     left(as<ast::BinOp::iff>(lit<"<=>"> | kw<"iff">))> {};
+  struct Expr : infix<Iff, ast::BinaryExpr,
+                      left(as<ast::BinOp::or_>(lit<"||"> | kw<"or">))> {};
 
-  struct SigExtRule
+  struct SigExt
       : rule<create<ast::SigExtends>(
                  kw<"extends"> +
                  assign<&ast::SigExtends::target>(ref<SigName>)) |
@@ -325,34 +255,27 @@ struct Alloy : cursiv::GrammarSpec {
                  some(append<&ast::SigIn::targets>(ref<SigName>), lit<"+">))> {
   };
 
-  struct QualAbstract
-      : rule<kw<"abstract">, value<ast::SigQualifier::abstract_>> {};
-  struct QualLone : rule<kw<"lone">, value<ast::SigQualifier::lone>> {};
-  struct QualOne : rule<kw<"one">, value<ast::SigQualifier::one>> {};
-  struct QualSome : rule<kw<"some">, value<ast::SigQualifier::some>> {};
-  struct QualPrivate : rule<kw<"private">, value<ast::SigQualifier::private_>> {
-  };
-  struct SigDeclRule
+  struct SigDecl
       : rule<create<ast::SigDecl>(
             many(append<&ast::SigDecl::qualifiers>(
-                ref<QualAbstract> | ref<QualLone> | ref<QualOne> |
-                ref<QualSome> | ref<QualPrivate>)) +
+                as<ast::SigQualifier::abstract_>(kw<"abstract">) | as<ast::SigQualifier::lone>(kw<"lone">) | as<ast::SigQualifier::one>(kw<"one">) |
+                as<ast::SigQualifier::some>(kw<"some">) | as<ast::SigQualifier::private_>(kw<"private">))) +
             kw<"sig"> + some(append<&ast::SigDecl::names>(ref<ID>), lit<",">) +
-            option(assign<&ast::SigDecl::ext>(ref<SigExtRule>)) + lit<"{"> +
+            option(assign<&ast::SigDecl::ext>(ref<SigExt>)) + lit<"{"> +
             many(lit<",">) +
-            option(append<&ast::SigDecl::decls>(ref<DeclRule>) +
+            option(append<&ast::SigDecl::decls>(ref<Decl>) +
                    many(lit<","> +
-                        option(append<&ast::SigDecl::decls>(ref<DeclRule>)))) +
-            lit<"}"> + option(assign<&ast::SigDecl::facts>(ref<BlockRule>)))> {
+                        option(append<&ast::SigDecl::decls>(ref<Decl>)))) +
+            lit<"}"> + option(assign<&ast::SigDecl::facts>(ref<Block>)))> {
   };
 
-  struct FactDeclRule
+  struct FactDecl
       : rule<create<ast::FactDecl>(
             kw<"fact"> +
             option(assign<&ast::FactDecl::name>(ref<ID> | ref<QuotedName>)) +
-            assign<&ast::FactDecl::body>(ref<BlockRule>))> {};
+            assign<&ast::FactDecl::body>(ref<Block>))> {};
 
-  struct PredDeclRule
+  struct PredDecl
       : rule<create<ast::PredDecl>(
             option(flag<&ast::PredDecl::private_>(kw<"private">)) +
             kw<"pred"> +
@@ -360,43 +283,43 @@ struct Alloy : cursiv::GrammarSpec {
             assign<&ast::PredDecl::name>(ref<ID>) +
             option(
                 (lit<"("> + many(lit<",">) +
-                 option(append<&ast::PredDecl::params>(ref<DeclRule>) +
+                 option(append<&ast::PredDecl::params>(ref<Decl>) +
                         many(lit<","> + option(append<&ast::PredDecl::params>(
-                                            ref<DeclRule>)))) +
+                                            ref<Decl>)))) +
                  lit<")">) |
                 (lit<"["> + many(lit<",">) +
-                 option(append<&ast::PredDecl::params>(ref<DeclRule>) +
+                 option(append<&ast::PredDecl::params>(ref<Decl>) +
                         many(lit<","> + option(append<&ast::PredDecl::params>(
-                                            ref<DeclRule>)))) +
+                                            ref<Decl>)))) +
                  lit<"]">)) +
-            assign<&ast::PredDecl::body>(ref<BlockRule>))> {};
+            assign<&ast::PredDecl::body>(ref<Block>))> {};
 
-  struct FunDeclRule
+  struct FunDecl
       : rule<create<ast::FunDecl>(
             option(flag<&ast::FunDecl::private_>(kw<"private">)) +
             kw<"fun"> +
             option(assign<&ast::FunDecl::qualifier>(ref<SigName>) + lit<".">) +
             assign<&ast::FunDecl::name>(ref<ID>) +
             option((lit<"("> + many(lit<",">) +
-                    option(append<&ast::FunDecl::params>(ref<DeclRule>) +
+                    option(append<&ast::FunDecl::params>(ref<Decl>) +
                            many(lit<","> + option(append<&ast::FunDecl::params>(
-                                               ref<DeclRule>)))) +
+                                               ref<Decl>)))) +
                     lit<")">) |
                    (lit<"["> + many(lit<",">) +
-                    option(append<&ast::FunDecl::params>(ref<DeclRule>) +
+                    option(append<&ast::FunDecl::params>(ref<Decl>) +
                            many(lit<","> + option(append<&ast::FunDecl::params>(
-                                               ref<DeclRule>)))) +
+                                               ref<Decl>)))) +
                     lit<"]">)) +
-            lit<":"> + assign<&ast::FunDecl::returnType>(ref<ExprRule>) +
-            assign<&ast::FunDecl::body>(ref<BlockRule>))> {};
+            lit<":"> + assign<&ast::FunDecl::returnType>(ref<Expr>) +
+            assign<&ast::FunDecl::body>(ref<Block>))> {};
 
-  struct AssertDeclRule
+  struct AssertDecl
       : rule<create<ast::AssertDecl>(
             kw<"assert"> +
             option(assign<&ast::AssertDecl::name>(ref<ID> | ref<QuotedName>)) +
-            assign<&ast::AssertDecl::body>(ref<BlockRule>))> {};
+            assign<&ast::AssertDecl::body>(ref<Block>))> {};
 
-  struct TypeScopeRule
+  struct TypeScope
       : rule<create<ast::TypeScope>(
             option(flag<&ast::TypeScope::exactly_>(kw<"exactly">)) +
             assign<&ast::TypeScope::count>(ref<NUMBER>) +
@@ -405,33 +328,33 @@ struct Alloy : cursiv::GrammarSpec {
             assign<&ast::TypeScope::type>(ref<SigName> | kw<"int"> |
                                           kw<"seq">))> {};
 
-  struct ScopeRule
+  struct Scope
       : rule<create<ast::Scope>(
             kw<"for"> +
-            (some(append<&ast::Scope::typescopes>(ref<TypeScopeRule>),
+            (some(append<&ast::Scope::typescopes>(ref<TypeScope>),
                   lit<",">) |
              (assign<&ast::Scope::overall>(ref<NUMBER>) +
                  option(kw<"but"> + some(append<&ast::Scope::typescopes>(
-                                             ref<TypeScopeRule>),
+                                             ref<TypeScope>),
                                          lit<",">)))))> {};
 
-  struct CmdDeclRule
+  struct CmdDecl
       : rule<create<ast::CmdDecl>(
             option(assign<&ast::CmdDecl::name>(ref<ID>) + lit<":">) +
-            option(assign<&ast::CmdDecl::kind>(ref<KindRun> | ref<KindCheck>)) +
-            assign<&ast::CmdDecl::target>(ref<QualName> | ref<BlockRule>) +
-            option(assign<&ast::CmdDecl::scope>(ref<ScopeRule>)) +
+            option(assign<&ast::CmdDecl::kind>(as<ast::CmdKind::run>(kw<"run">) | as<ast::CmdKind::check>(kw<"check">))) +
+            assign<&ast::CmdDecl::target>(ref<QualName> | ref<Block>) +
+            option(assign<&ast::CmdDecl::scope>(ref<Scope>)) +
             option(kw<"expect"> + assign<&ast::CmdDecl::expects>(ref<NUMBER>)) +
             option(lit<"=>"> +
-                   assign<&ast::CmdDecl::next>(ref<CmdDeclRule>)))> {};
+                   assign<&ast::CmdDecl::next>(ref<CmdDecl>)))> {};
 
-  struct EnumDeclRule
+  struct EnumDecl
       : rule<create<ast::EnumDecl> +
              option(flag<&ast::EnumDecl::private_>(kw<"private">)) +
              kw<"enum"> + assign<&ast::EnumDecl::name>(ref<ID>) + lit<"{"> +
              many(append<&ast::EnumDecl::members>(ref<ID>), lit<",">) +
              lit<"}">> {};
-  struct MacroDeclRule
+  struct MacroDecl
       : rule<create<ast::MacroDecl> +
              option(flag<&ast::MacroDecl::private_>(kw<"private">)) +
              kw<"let"> + assign<&ast::MacroDecl::name>(ref<ID>) +
@@ -442,15 +365,15 @@ struct Alloy : cursiv::GrammarSpec {
                  (lit<"["> +
                      many(append<&ast::MacroDecl::params>(ref<ID>), lit<",">) +
                      lit<"]">)) +
-             assign<&ast::MacroDecl::body>(ref<BlockRule> |
-                                           (lit<"="> + ref<ExprRule>))> {};
+             assign<&ast::MacroDecl::body>(ref<Block> |
+                                           (lit<"="> + ref<Expr>))> {};
 
-  struct ParagraphRule
-      : rule<ref<SigDeclRule> | ref<FactDeclRule> | ref<PredDeclRule> |
-             ref<FunDeclRule> | ref<AssertDeclRule> | ref<EnumDeclRule> |
-             ref<MacroDeclRule> | ref<CmdDeclRule>> {};
+  struct Paragraph
+      : rule<ref<SigDecl> | ref<FactDecl> | ref<PredDecl> |
+             ref<FunDecl> | ref<AssertDecl> | ref<EnumDecl> |
+             ref<MacroDecl> | ref<CmdDecl>> {};
 
-  struct ImportRule
+  struct Import
       : rule<create<ast::Import>(
             option(flag<&ast::Import::private_>(kw<"private">)) +
             kw<"open"> +
@@ -460,26 +383,26 @@ struct Alloy : cursiv::GrammarSpec {
                    lit<"]">) +
             option(kw<"as"> + assign<&ast::Import::alias>(ref<ID>)))> {};
 
-  struct ModuleParamRule
+  struct ModuleParam
       : rule<create<ast::ModuleParam> +
              option(flag<&ast::ModuleParam::exactly_>(kw<"exactly">)) +
              assign<&ast::ModuleParam::name>(ref<QualName>)> {};
-  struct ModuleDeclRule
+  struct ModuleDecl
       : rule<create<ast::ModuleDecl>(
             kw<"module"> + assign<&ast::ModuleDecl::path>(ref<QualName>) +
             option(lit<"["> +
-                   many(append<&ast::ModuleDecl::names>(ref<ModuleParamRule>),
+                   many(append<&ast::ModuleDecl::names>(ref<ModuleParam>),
                         lit<",">) +
                    lit<"]">))> {};
 
-  struct AlloyModuleRule
+  struct AlloyModule
       : rule<create<ast::Module> +
-             option(assign<&ast::Module::moduleDecl>(ref<ModuleDeclRule>)) +
-             many(append<&ast::Module::imports>(ref<ImportRule>) |
-                  append<&ast::Module::paragraphs>(ref<ParagraphRule>))> {};
+             option(assign<&ast::Module::moduleDecl>(ref<ModuleDecl>)) +
+             many(append<&ast::Module::imports>(ref<Import>) |
+                  append<&ast::Module::paragraphs>(ref<Paragraph>))> {};
 
-  using entry = AlloyModuleRule;
-  using ignore = list<WS, SL_COMMENT, ML_COMMENT>;
+  using entry = AlloyModule;
+  using ignored = list<WS, SL_COMMENT, ML_COMMENT>;
 };
 
 } // namespace alloy

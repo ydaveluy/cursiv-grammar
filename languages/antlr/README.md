@@ -31,8 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-`antlr` parses `.g4` files — the ANTLR v4 meta-grammar itself, lexer, parser
-or combined:
+ANTLR grammar files with parser and lexer rules, options, modes and actions.
 
 ```antlr
 grammar Smoke;
@@ -53,15 +52,6 @@ ID: [a-zA-Z_][a-zA-Z_0-9]*;
 INT: [0-9]+;
 WS: [ \t\r\n]+ -> skip;
 ```
-
-A grammar declaration, a mix of parser and lexer rules, labeled alternatives
-(`# AssignStat`), an operator ladder written directly in EBNF, character
-sets, and a lexer command (`-> skip`) — every one of them parses into the
-`ast::Grammar` tree: `ast::ParserRule`/`ast::LexerRule` nodes holding
-`ast::Alt`s of `ast::Element`s (a name reference, a literal, a nested block,
-an inline action, a labeled sub-element), each carrying its own `?`/`*`/`+`
-suffix. No names are resolved across `import`s or `tokenVocab`: a `.g4` file
-is read on its own, as ANTLR's own tool reads a single grammar unit.
 
 ## The command line
 

@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+LISA programs declare typed variables, then use assignments and structured statements.
+
 ```
 declare{
  dfa my_dfa;
@@ -43,12 +45,6 @@ program{
  print(my_dfa);
 }
 ```
-
-LISA declares its variables up front, typed `int`, `dfa`, `nfa`, `regex`,
-`bool` or `string`; the program block then reads and reassigns them. A
-variable is a cross reference the linker resolves against its declaration,
-which is what makes rename, go-to-definition and "unresolved name"
-diagnostics work at all.
 
 ## The command line
 

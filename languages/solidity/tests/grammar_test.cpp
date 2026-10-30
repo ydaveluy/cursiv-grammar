@@ -1,3 +1,4 @@
+#include "native_followup.hpp"
 #include "audit_regressions.hpp"
 #include "code_audit.hpp"
 // The smoke test of the language: parse every file under example/, the way
@@ -32,7 +33,7 @@ std::string read_file(const std::filesystem::path& path) {
 }  // namespace
 
 int main() {
-  if (!audit_regressions::run()) return 1;
+  if (!native_followup::run() || !audit_regressions::run()) return 1;
   if (!code_audit::run()) return 1;
   namespace fs = std::filesystem;
   std::vector<fs::path> files;

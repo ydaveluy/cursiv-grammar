@@ -26,28 +26,27 @@ inline constexpr auto undouble = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Undoubled = cursiv::text_conv<undouble>;
 
 struct Csv : cursiv::GrammarSpec {
   struct EOL : terminal<lit<"\r\n"> | cr<R"(\r\n)">> {};
   struct TEXT : terminal<!lit<"\""> + some(cr<R"(^,\n\r)">)> {};
 
   struct STRING
-      : terminal<lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">,
-                 Undoubled> {};
+      : terminal<as<undouble>(lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) +
+                              lit<"\"">)> {};
 
-  struct FieldRule : rule<assign<&ast::Field::text>(ref<TEXT> | ref<STRING>) |
+  struct Field : rule<assign<&ast::Field::text>(ref<TEXT> | ref<STRING>) |
                           create<ast::Field>> {};
 
-  struct RowRule
-      : rule<some(append<&ast::Row::fields>(ref<FieldRule>), lit<",">)> {};
+  struct Row
+      : rule<some(append<&ast::Row::fields>(ref<Field>), lit<",">)> {};
 
-  struct DocRule : rule<create<ast::Doc> +
-                        many(append<&ast::Doc::rows>(ref<RowRule>) + ref<EOL>) +
-                        option(!eof + append<&ast::Doc::rows>(ref<RowRule>))> {
+  struct Doc : rule<create<ast::Doc> +
+                        many(append<&ast::Doc::rows>(ref<Row>) + ref<EOL>) +
+                        option(!eof + append<&ast::Doc::rows>(ref<Row>))> {
   };
 
-  using entry = DocRule;
+  using entry = Doc;
 };
 
 } // namespace csv

@@ -18,13 +18,12 @@ struct Sici : cursiv::GrammarSpec {
   struct VERSION : terminal<some(d)> {};
   struct CHECK : terminal<cr<"0-9A-Za-z#">> {};
 
-  struct Issn : rule<ref<DIGIT> + ref<DIGIT> + ref<DIGIT> + ref<DIGIT> +
-                     lit<"-"> + ref<DIGIT> + ref<DIGIT> + ref<DIGIT> +
-                     (ref<DIGIT> | lit<"X"> | lit<"x">)> {};
+  struct Issn : rule<repeat<4>(ref<DIGIT>) + lit<"-"> +
+                     repeat<3>(ref<DIGIT>) + cr<"0-9Xx">> {};
   struct ChronologyRun : rule<some(ref<DIGIT> | lit<"/">)> {};
   struct Mfi : rule<repeat<2>(ref<LETTER>)> {};
 
-  struct EnumerationRule
+  struct Enumeration
       : rule<(assign<&ast::Enumeration::volume>(ref<ENUM_PART>) +
                  option(lit<":"> +
                         assign<&ast::Enumeration::issue>(ref<ENUM_PART>)) +
@@ -38,7 +37,7 @@ struct Sici : cursiv::GrammarSpec {
       : rule<assign<&ast::Item::issn>(ref<Issn>) + lit<"("> +
              option(assign<&ast::Item::chronology>(ref<ChronologyRun>)) +
              lit<")"> +
-             option(assign<&ast::Item::enumeration>(ref<EnumerationRule>))> {};
+             option(assign<&ast::Item::enumeration>(ref<Enumeration>))> {};
 
   struct ContributionRule
       : rule<create<ast::Contribution> + lit<"<"> +
@@ -50,7 +49,7 @@ struct Sici : cursiv::GrammarSpec {
                                ref<LOCAL_NUMBER>)))) +
              lit<">">> {};
 
-  struct ControlRule
+  struct Control
       : rule<assign<&ast::Control::csi>(ref<DIGIT>) + lit<"."> +
              assign<&ast::Control::dpi>(ref<DIGIT>) + lit<"."> +
              assign<&ast::Control::mfi>(ref<Mfi>) + lit<";"> +
@@ -60,10 +59,10 @@ struct Sici : cursiv::GrammarSpec {
   struct SiciRule
       : rule<assign<&ast::Sici::item>(ref<ItemRule>) +
              assign<&ast::Sici::contribution>(ref<ContributionRule>) +
-             many(append<&ast::Sici::controls>(ref<ControlRule>))> {};
+             many(append<&ast::Sici::controls>(ref<Control>))> {};
 
   using entry = SiciRule;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 }  // namespace sici

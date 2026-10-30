@@ -14,8 +14,7 @@ class RestructuredtextValidator final : public cursiv::DefaultCoreService {
 
   void checkLiteralNotEmpty(const ast::Literal& literal,
                             cursiv::ValidationAcceptor& accept) const;
-  void checkHyperlinkHasUrl(const ast::Hyperlink& hyperlink,
-                            cursiv::ValidationAcceptor& accept) const;
+
 };
 
 struct RestructuredtextCoreServices;

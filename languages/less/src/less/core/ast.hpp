@@ -13,7 +13,7 @@ namespace less::ast {
 
 enum class MathOp : std::uint8_t { times, plus, div, minus, mod };
 enum class CompareOp : std::uint8_t { eq, lt, gt, ge, le };
-enum class AttribRelate : std::uint8_t { equals, includes, dashmatch };
+enum class AttribRelate : std::uint8_t { equals, includes, dashmatch, prefix, suffix, substring };
 enum class SelectorPrefix : std::uint8_t { child, sibling, general_sibling };
 enum class ImportOption : std::uint8_t {
   reference,
@@ -22,6 +22,7 @@ enum class ImportOption : std::uint8_t {
   css,
   once,
   multiple,
+  optional_,
 };
 
 // `@{name}`: one interpolated piece of an otherwise-literal name.
@@ -47,6 +48,8 @@ struct VariableName : cursiv::Extends<cursiv::AstNode> {
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
 
 struct CommandStatement;
+struct ValueList;
+struct Block;
 struct ParenExpr : cursiv::Extends<Expr> {
   CommandStatement *value;
 };
@@ -77,11 +80,22 @@ struct IdentValue : cursiv::Extends<Expr> {
 struct FuncCall : cursiv::Extends<Expr> {
   Name *name = nullptr;
   vector<CommandStatement *> args;
+  vector<ValueList *> argumentGroups;
 };
 
 struct VarValue : cursiv::Extends<Expr> {
   VariableName *name = nullptr;
   boolean important;
+};
+
+// These values occur only in call arguments and named parameter defaults.
+struct DetachedRuleset : cursiv::Extends<Expr> {
+  Block *body = nullptr;
+};
+
+struct NamedArgument : cursiv::Extends<Expr> {
+  VariableName *name = nullptr;
+  ValueList *value = nullptr;
 };
 
 // One multiplicative term: a juxtaposed run of values, with the `*`/`/`/`%`
@@ -128,6 +142,7 @@ struct Attrib : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   optional<AttribRelate> relate;
   string_view value;
+  string_view modifier;
 };
 
 // The selector family: one class per `element` alternative, so a tool can
@@ -148,11 +163,24 @@ struct IdElement : cursiv::Extends<Element> {
 struct ParentRefElement : cursiv::Extends<Element> {};
 struct WildcardElement : cursiv::Extends<Element> {};
 
+struct ValueList;
+struct Selectors;
 struct Pseudo : cursiv::Extends<Element> {
+  boolean hasArguments;
+  ValueList* argumentValues;
+  Selectors* argumentSelectors;
   boolean isClass; // `::` rather than `:`
   string_view name;
+  optional<string_view> arguments; // legacy; see structured argument fields
 };
 
+struct ExtendTarget : cursiv::Extends<cursiv::AstNode> {
+  Selector* selector;
+  string_view option;
+};
+struct ExtendElement : cursiv::Extends<Element> {
+  vector<ExtendTarget*> targets;
+};
 struct Negation : cursiv::Extends<Element> {
   vector<Selector *> alternatives;
 };
@@ -161,6 +189,7 @@ struct Selector : cursiv::Extends<cursiv::AstNode> {
   vector<Element *> elements;
   vector<Attrib *> attribs;
   Pseudo *trailingPseudo = nullptr;
+  Condition *guard = nullptr;
 };
 
 struct Selectors : cursiv::Extends<cursiv::AstNode> {
@@ -181,7 +210,8 @@ struct AtRule : cursiv::Extends<Statement> {
 struct Import : cursiv::Extends<Statement> {
   vector<ImportOption> options;
   string_view url;
-  vector<string_view> mediaTypes;
+  vector<string_view> mediaTypes; // legacy simple-list projection; see mediaQuery
+  string_view mediaQuery;
 };
 
 struct VariableDecl : cursiv::Extends<Statement> {
@@ -197,6 +227,7 @@ struct Property : cursiv::Extends<cursiv::AstNode> {
 struct MixinRef : cursiv::Extends<cursiv::AstNode> {
   Selector *target = nullptr;
   vector<CommandStatement *> args;
+  vector<ValueList*> argumentGroups;
   boolean important;
 };
 
@@ -206,6 +237,19 @@ struct Block : cursiv::Extends<cursiv::AstNode> {
   vector<std::variant<Property *, Statement *, MixinRef *>> items;
 };
 
+struct DetachedRulesetDecl : cursiv::Extends<Statement> {
+  VariableName* name;
+  Block* body;
+};
+struct DetachedCall : cursiv::Extends<Statement> {
+  VariableName* target;
+};
+struct MixinCallStatement : cursiv::Extends<Statement> {
+  MixinRef* call;
+};
+struct ExtendStatement : cursiv::Extends<Statement> {
+  ExtendElement* extension;
+};
 struct Ruleset : cursiv::Extends<Statement> {
   Selectors *selectors = nullptr;
   Block *body = nullptr;
@@ -213,7 +257,7 @@ struct Ruleset : cursiv::Extends<Statement> {
 
 struct MixinDef : cursiv::Extends<Statement> {
   Selectors *selectors = nullptr;
-  vector<std::variant<VariableName *, VariableDecl *>> params;
+  vector<std::variant<VariableName *, VariableDecl *, CommandStatement*>> params;
   boolean variadic;
   vector<Condition *> guard;
   Block *body = nullptr;

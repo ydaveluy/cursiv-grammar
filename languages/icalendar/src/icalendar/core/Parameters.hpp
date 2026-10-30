@@ -55,23 +55,20 @@ inline void replace_all(std::string& text, std::string_view from,
 }
 
 inline std::vector<std::string> parameter_values(std::string_view raw) {
-  std::string text(raw);
-  replace_all(text, "%", "%25");
-  replace_all(text, "\\,", "%2C");
-  replace_all(text, "\\:", "%3A");
-  replace_all(text, "\\;", "%3B");
-  replace_all(text, "\\\\", "%5C");
   std::vector<std::string> result;
   bool quoted = false;
   std::size_t begin = 0;
-  for (std::size_t i = 0; i <= text.size(); ++i) {
-    if (i < text.size() && text[i] == '"') quoted = !quoted;
-    if (i < text.size() && (text[i] != ',' || quoted)) continue;
-    auto part = std::string_view(text).substr(begin, i - begin);
-    if (part.size() >= 2 && part.front() == '"' && part.back() == '"') {
-      while (!part.empty() && part.front() == '"') part.remove_prefix(1);
-      while (!part.empty() && part.back() == '"') part.remove_suffix(1);
+  for (std::size_t i = 0; i <= raw.size(); ++i) {
+    if (i < raw.size() && raw[i] == '"') quoted = !quoted;
+    if (i < raw.size() && !quoted && raw[i] == '\\' && i + 1 < raw.size() &&
+        (raw[i + 1] == ',' || raw[i + 1] == ':' || raw[i + 1] == ';' || raw[i + 1] == '\\')) {
+      ++i; // legacy unquoted separator escape
+      continue;
     }
+    if (i < raw.size() && (raw[i] != ',' || quoted)) continue;
+    auto part = raw.substr(begin, i - begin);
+    const bool isQuoted = part.size() >= 2 && part.front() == '"' && part.back() == '"';
+    if (isQuoted) { part.remove_prefix(1); part.remove_suffix(1); }
     std::string value;
     for (std::size_t j = 0; j < part.size(); ++j) {
       if (part[j] == '^' && j + 1 < part.size()) {
@@ -82,13 +79,13 @@ inline std::vector<std::string> parameter_values(std::string_view raw) {
           continue;
         }
       }
-      value += part[j];
+      // RFC5545 quoted parameters have no backslash escape mechanism.
+      // Keep the port's unquoted legacy extension separate from RFC6868.
+      if (!isQuoted && part[j] == '\\' && j + 1 < part.size() &&
+          (part[j + 1] == ',' || part[j + 1] == ':' || part[j + 1] == ';' || part[j + 1] == '\\'))
+        value += part[++j];
+      else value += part[j];
     }
-    replace_all(value, "%2C", ",");
-    replace_all(value, "%3A", ":");
-    replace_all(value, "%3B", ";");
-    replace_all(value, "%5C", "\\");
-    replace_all(value, "%25", "%");
     result.push_back(std::move(value));
     begin = i + 1;
   }

@@ -12,9 +12,9 @@
 namespace flatbuffers {
 
 inline constexpr auto unquote =
-    [](std::string_view t, std::pmr::memory_resource* mem) -> std::string_view {
+    [](std::string_view t, std::pmr::memory_resource* mem) {
+  using Result = cursiv::ConversionResult<std::string_view>;
   t = t.substr(1, t.size() - 2);
-  if (t.find('\\') == std::string_view::npos) return t;
   const auto room = cursiv::text_room(mem, t.size());
   std::size_t n = 0;
   const auto hex = [](std::string_view digits) {
@@ -42,6 +42,8 @@ inline constexpr auto unquote =
           i += 6;
         }
       }
+      if (cp >= 0xd800 && cp <= 0xdfff)
+        return Result::err("Unicode escape requires a paired surrogate.");
       if (cp < 0x80) room[n++] = static_cast<char>(cp);
       else {
         if (cp >= 0x10000) room[n++] = static_cast<char>(0xf0 | (cp >> 18));
@@ -62,9 +64,27 @@ inline constexpr auto unquote =
       }
     }
   }
-  return std::string_view(room.data(), n);
+  // Native Parser::Next rejects invalid decoded UTF-8 by default, including
+  // byte escapes that do not form a valid sequence.
+  for (std::size_t i = 0; i < n;) {
+    const auto first = static_cast<unsigned char>(room[i++]);
+    if (first < 0x80) continue;
+    unsigned more = first >= 0xf0 && first <= 0xf4 ? 3 :
+                    first >= 0xe0 && first <= 0xef ? 2 :
+                    first >= 0xc2 && first <= 0xdf ? 1 : 4;
+    if (more == 4 || i + more > n) return Result::err("String is not valid UTF-8.");
+    char32_t cp = first & ((1u << (6 - more)) - 1);
+    for (unsigned k = 0; k < more; ++k) {
+      const auto next = static_cast<unsigned char>(room[i++]);
+      if ((next & 0xc0) != 0x80) return Result::err("String is not valid UTF-8.");
+      cp = (cp << 6) | (next & 63);
+    }
+    if ((more == 1 && cp < 0x80) || (more == 2 && cp < 0x800) ||
+        (more == 3 && cp < 0x10000) || cp > 0x10ffff ||
+        (cp >= 0xd800 && cp <= 0xdfff)) return Result::err("String is not valid UTF-8.");
+  }
+  return Result::ok(std::string_view(room.data(), n));
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Flatbuffers : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -129,169 +149,169 @@ struct Flatbuffers : cursiv::GrammarSpec {
       kw<"INF"> | kw<"INFINITY"> | kw<"NAN">;
   struct FLOAT_CONSTANT : terminal<option(cr<"+-">) + FloatLit> {};
 
-  static constexpr auto SimpleEscape = lit<"\\"> + cr<R"("'?bfnrtv\\/)">;
+  static constexpr auto SimpleEscape = lit<"\\"> + cr<R"("'bfnrt\\/)">;
   static constexpr auto HexEscape = lit<"\\x"> + repeat<2>(cr<"0-9a-fA-F">);
   static constexpr auto UnicodeEscape = lit<"\\u"> + repeat<4>(cr<"0-9a-fA-F">);
   static constexpr auto StringEscape = SimpleEscape | HexEscape | UnicodeEscape;
   struct STRING_CONSTANT
-      : terminal<(lit<"\""> + many(StringEscape | cr<R"(^"\\\r\n)">) + lit<"\"">) |
-                 (lit<"'"> + many(StringEscape | cr<R"(^'\\\r\n)">) + lit<"'">),
-                 Unquoted> {};
+      : terminal<as<unquote>(
+            (lit<"\""> + many(StringEscape | cr<R"(^"\\\x00-\x1f)">) + lit<"\"">) |
+            (lit<"'"> + many(StringEscape | cr<R"(^'\\\x00-\x1f)">) + lit<"'">))> {};
 
   static constexpr auto IntegerConst =
       ref<INTEGER_CONSTANT> | ref<HEX_INTEGER_CONSTANT>;
 
-  struct ScalarFunctionRule;
-  struct NsIdentRule;
+  struct ScalarFunction;
+  struct NsIdent;
   static constexpr auto scalar =
-      IntegerConst | ref<FLOAT_CONSTANT> | ref<ScalarFunctionRule> |
-      ref<NsIdentRule>;
+      IntegerConst | ref<FLOAT_CONSTANT> | ref<ScalarFunction> |
+      ref<NsIdent>;
 
   static constexpr auto single_value = scalar | ref<STRING_CONSTANT>;
 
-  struct ScalarFunctionRule
+  struct ScalarFunction
       : rule<option(cr<"+-">) + Identifier + lit<"("> +
              many(single_value, lit<",">) + lit<")">> {};
 
-  struct MetadataItemRule
+  struct MetadataItem
       : rule<assign<&ast::Metadata::name>(Identifier | ref<STRING_CONSTANT>) +
              option(lit<":"> +
                     assign<&ast::Metadata::value>(single_value))> {};
 
   template <auto Member>
   static constexpr auto MetadataInto =
-      option(lit<"("> + some(append<Member>(ref<MetadataItemRule>), lit<",">) +
+      option(lit<"("> + some(append<Member>(ref<MetadataItem>), lit<",">) +
              lit<")">);
 
-  struct TypeRule;
-  struct NsIdentRule : rule<some(Identifier, lit<".">)> {};
+  struct Type;
+  struct NsIdent : rule<some(Identifier, lit<".">)> {};
 
-  struct TypeRule
-      : rule<(lit<"["> + assign<&ast::Type::element>(ref<TypeRule>) +
+  struct Type
+      : rule<(lit<"["> + assign<&ast::Type::element>(ref<Type>) +
               option(lit<":"> + assign<&ast::Type::length>(IntegerConst)) +
               lit<"]">) |
-             assign<&ast::Type::name>(BaseType | ref<NsIdentRule>)> {};
+             assign<&ast::Type::name>(BaseType | ref<NsIdent>)> {};
 
-  struct FieldRule
+  struct Field
       : rule<assign<&ast::Field::name>(Identifier) + lit<":"> +
-             assign<&ast::Field::type>(ref<TypeRule>) +
+             assign<&ast::Field::type>(ref<Type>) +
              option(lit<"="> +
                     assign<&ast::Field::defaultValue>(single_value)) +
              MetadataInto<&ast::Field::metadata> +
              lit<";">> {};
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<(flag<&ast::TypeDecl::isStruct>(ref<STRUCT>) | ref<TABLE>) +
              assign<&ast::TypeDecl::name>(Identifier) +
              MetadataInto<&ast::TypeDecl::metadata> +
-             lit<"{"> + many(append<&ast::TypeDecl::fields>(ref<FieldRule>)) +
+             lit<"{"> + many(append<&ast::TypeDecl::fields>(ref<Field>)) +
              lit<"}">> {};
 
-  struct EnumValRule
-      : rule<assign<&ast::EnumVal::name>(ref<NsIdentRule>) +
+  struct EnumVal
+      : rule<assign<&ast::EnumVal::name>(ref<NsIdent>) +
              option(lit<"="> +
                     assign<&ast::EnumVal::value>(IntegerConst)) +
              MetadataInto<&ast::EnumVal::metadata>> {};
 
-  struct EnumDeclRule
+  struct EnumDecl
       : rule<ref<ENUM> + assign<&ast::EnumDecl::name>(Identifier) +
-             option(lit<":"> + assign<&ast::EnumDecl::baseType>(ref<TypeRule>)) +
+             lit<":"> + assign<&ast::EnumDecl::baseType>(ref<Type>) +
              MetadataInto<&ast::EnumDecl::metadata> +
              lit<"{"> +
-             many(append<&ast::EnumDecl::values>(ref<EnumValRule>), lit<",">) +
+             many(append<&ast::EnumDecl::values>(ref<EnumVal>), lit<",">) +
              option(lit<",">) + lit<"}">> {};
 
-  struct UnionValRule
-      : rule<assign<&ast::UnionVal::name>(ref<NsIdentRule>) +
+  struct UnionVal
+      : rule<assign<&ast::UnionVal::name>(ref<NsIdent>) +
              option(lit<":"> +
-                    assign<&ast::UnionVal::type>(ref<NsIdentRule>)) +
+                    assign<&ast::UnionVal::type>(ref<NsIdent>)) +
              option(lit<"="> +
                     assign<&ast::UnionVal::value>(IntegerConst)) +
              MetadataInto<&ast::UnionVal::metadata>> {};
 
-  struct UnionDeclRule
+  struct UnionDecl
       : rule<ref<UNION> + assign<&ast::UnionDecl::name>(Identifier) +
-             option(lit<":"> + assign<&ast::UnionDecl::baseType>(ref<TypeRule>)) +
+             option(lit<":"> + assign<&ast::UnionDecl::baseType>(ref<Type>)) +
              MetadataInto<&ast::UnionDecl::metadata> +
              lit<"{"> +
-             many(append<&ast::UnionDecl::values>(ref<UnionValRule>),
+             many(append<&ast::UnionDecl::values>(ref<UnionVal>),
                   lit<",">) +
              option(lit<",">) + lit<"}">> {};
 
-  struct RpcMethodRule
+  struct RpcMethod
       : rule<assign<&ast::RpcMethod::name>(Identifier) + lit<"("> +
-             assign<&ast::RpcMethod::argType>(ref<NsIdentRule>) + lit<")"> +
-             lit<":"> + assign<&ast::RpcMethod::returnType>(ref<NsIdentRule>) +
+             assign<&ast::RpcMethod::argType>(ref<NsIdent>) + lit<")"> +
+             lit<":"> + assign<&ast::RpcMethod::returnType>(ref<NsIdent>) +
              MetadataInto<&ast::RpcMethod::metadata> +
              lit<";">> {};
 
-  struct RpcDeclRule
+  struct RpcDecl
       : rule<ref<RPC_SERVICE> + assign<&ast::RpcDecl::name>(Identifier) +
              MetadataInto<&ast::RpcDecl::metadata> +
              lit<"{"> +
-             some(append<&ast::RpcDecl::methods>(ref<RpcMethodRule>)) +
+             some(append<&ast::RpcDecl::methods>(ref<RpcMethod>)) +
              lit<"}">> {};
 
-  struct NamespaceDeclRule
+  struct NamespaceDecl
       : rule<ref<NAMESPACE> +
-             option(assign<&ast::Namespace::path>(ref<NsIdentRule>)) + lit<";">> {};
+             option(assign<&ast::Namespace::path>(ref<NsIdent>)) + lit<";">> {};
 
-  struct AttributeDeclRule
+  struct AttributeDecl
       : rule<ref<ATTRIBUTE> +
              assign<&ast::Attribute::name>(ref<STRING_CONSTANT> | Identifier) +
              lit<";">> {};
 
-  struct RootDeclRule
-      : rule<ref<ROOT_TYPE> + assign<&ast::Root::name>(ref<NsIdentRule>) +
+  struct RootDecl
+      : rule<ref<ROOT_TYPE> + assign<&ast::Root::name>(ref<NsIdent>) +
              lit<";">> {};
 
-  struct FileExtensionDeclRule
+  struct FileExtensionDecl
       : rule<ref<FILE_EXTENSION> +
              assign<&ast::FileExtension::ext>(ref<STRING_CONSTANT>) +
              lit<";">> {};
 
-  struct FileIdentifierDeclRule
+  struct FileIdentifierDecl
       : rule<ref<FILE_IDENTIFIER> +
              assign<&ast::FileIdentifier::id>(ref<STRING_CONSTANT>) +
              lit<";">> {};
 
-  struct IncludeRule
+  struct Include
       : rule<(flag<&ast::Include::isNative>(ref<NATIVE_INCLUDE>) |
               ref<INCLUDE>) +
              assign<&ast::Include::path>(ref<STRING_CONSTANT>) + lit<";">> {};
 
-  struct KeyValueRule;
-  struct ObjectRule;
-  struct ArrayRule;
-  static constexpr auto value = single_value | ref<ObjectRule> | ref<ArrayRule>;
+  struct KeyValue;
+  struct Object;
+  struct Array;
+  static constexpr auto value = single_value | ref<Object> | ref<Array>;
 
-  struct KeyValueRule
+  struct KeyValue
       : rule<assign<&ast::KeyValue::name>(Identifier | ref<STRING_CONSTANT>) + lit<":"> +
              assign<&ast::KeyValue::value>(value)> {};
 
-  struct ObjectRule
+  struct Object
       : rule<lit<"{"> +
-             many(append<&ast::Object::members>(ref<KeyValueRule>), lit<",">) +
+             many(append<&ast::Object::members>(ref<KeyValue>), lit<",">) +
              option(lit<",">) + lit<"}">> {};
 
-  struct ArrayRule
+  struct Array
       : rule<lit<"["> +
              many(append<&ast::ArrayVal::items>(value), lit<",">) +
              option(lit<",">) + lit<"]">> {};
 
-  struct SchemaRule
+  struct Schema
       : rule<create<ast::Schema> +
-             many(append<&ast::Schema::includes>(ref<IncludeRule>)) +
+             many(append<&ast::Schema::includes>(ref<Include>)) +
              many(append<&ast::Schema::declarations>(
-                 ref<NamespaceDeclRule> | ref<TypeDeclRule> |
-                 ref<EnumDeclRule> | ref<UnionDeclRule> | ref<RootDeclRule> |
-                 ref<FileExtensionDeclRule> | ref<FileIdentifierDeclRule> |
-                 ref<AttributeDeclRule> | ref<RpcDeclRule> |
-                 ref<ObjectRule>))> {};
+                 ref<NamespaceDecl> | ref<TypeDecl> |
+                 ref<EnumDecl> | ref<UnionDecl> | ref<RootDecl> |
+                 ref<FileExtensionDecl> | ref<FileIdentifierDecl> |
+                 ref<AttributeDecl> | ref<RpcDecl> |
+                 ref<Object>))> {};
 
-  using entry = SchemaRule;
+  using entry = Schema;
   struct BOM : terminal<lit<"\xEF\xBB\xBF">> {};
-  using ignore = list<WS, BOM>;
+  using ignored = list<WS, BOM>;
   using hidden = list<COMMENT, BLOCK_COMMENT>;
 };
 

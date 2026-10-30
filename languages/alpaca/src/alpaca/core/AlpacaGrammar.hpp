@@ -11,7 +11,6 @@ namespace alpaca {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Alpaca : cursiv::GrammarSpec {
   // A keyword and a name end at the same byte: `_` ends neither.
@@ -23,7 +22,7 @@ struct Alpaca : cursiv::GrammarSpec {
   // The display glyph of a state: `" "`, `"*"`. Quotes off; the source
   // never doubles or escapes a quote inside one.
   struct QUOTED_STRING
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> + many(cr<R"(^")">) + lit<"\"">)> {};
 
   // The four compass symbols v, <, >, ^ -- named directly rather than by
   // negating everything else, which would swallow almost every byte,
@@ -31,9 +30,12 @@ struct Alpaca : cursiv::GrammarSpec {
   // it would negate here too.
   struct ARROWCHAIN : terminal<some(cr<"v<>^">)> {};
 
-  struct NATNUM : terminal<some(d), std::uint32_t> {};
+  struct NATNUM : terminal<some(d)> {};
+  struct INITIAL_CONFIGURATION : terminal<some(any)> {};
 
-  struct Name : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9">)> {};
+  // ALPACA 1.1 reserves a leading lowercase `v` for an arrow chain.
+  struct Name
+      : terminal<!lit<"v"> + cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9">)> {};
 
   struct Neighbourhood
       : rule<lit<"("> +
@@ -57,15 +59,10 @@ struct Alpaca : cursiv::GrammarSpec {
   // class.
   struct Referent : rule<ref<StateRef> | ref<ClassRef>> {};
 
-  struct TRUE_KW : terminal<kw<"true">, value<ast::BoolKind::literal_true>> {
-  };
-  struct FALSE_KW
-      : terminal<kw<"false">, value<ast::BoolKind::literal_false>> {};
-  struct GUESS_KW : terminal<kw<"guess">, value<ast::BoolKind::guess>> {};
 
   struct BoolPrimitive
       : rule<create<ast::BoolLit>(assign<&ast::BoolLit::kind>(
-            ref<TRUE_KW> | ref<FALSE_KW> | ref<GUESS_KW>))> {};
+            as<ast::BoolKind::literal_true>(kw<"true">) | as<ast::BoolKind::literal_false>(kw<"false">) | as<ast::BoolKind::guess>(kw<"guess">)))> {};
 
   // The trailing `=` is optional and, either way, denotes equality -- `a b`
   // and `a = b` read the same, so accepting `a = is C` too costs nothing
@@ -88,14 +85,11 @@ struct Alpaca : cursiv::GrammarSpec {
   struct Term;
   struct Expression;
 
-  struct AND : terminal<kw<"and">, value<ast::LogicOp::logical_and>> {};
-  struct OR : terminal<kw<"or">, value<ast::LogicOp::logical_or>> {};
-  struct XOR : terminal<kw<"xor">, value<ast::LogicOp::logical_xor>> {};
-  static constexpr auto OpLogic = ref<AND> | ref<OR> | ref<XOR>;
+  struct AND : terminal<as<ast::LogicOp::logical_and>(kw<"and">)> {};
+  static constexpr auto OpLogic = ref<AND> | as<ast::LogicOp::logical_or>(kw<"or">) | as<ast::LogicOp::logical_xor>(kw<"xor">);
 
   struct Expression
-      : infix<Term, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(OpLogic)> {};
+      : infix<Term, ast::BinaryExpr, left(OpLogic)> {};
 
   struct Term
       : rule<create<ast::NotExpr>(kw<"not"> +
@@ -115,14 +109,14 @@ struct Alpaca : cursiv::GrammarSpec {
       : rule<kw<"state"> + assign<&ast::StateDefn::name>(ref<Name>) +
              option(assign<&ast::StateDefn::display>(ref<QUOTED_STRING>)) +
              many(append<&ast::StateDefn::isA>(ref<ClassRef>)) +
-             option(some(append<&ast::StateDefn::rules>(ref<TransitionRule>),
-                         lit<",">))> {};
+             many(append<&ast::StateDefn::rules>(ref<TransitionRule>),
+                  lit<",">)> {};
 
   struct ClassDefn
       : rule<kw<"class"> + assign<&ast::ClassDefn::name>(ref<Name>) +
              many(append<&ast::ClassDefn::isA>(ref<ClassRef>)) +
-             option(some(append<&ast::ClassDefn::rules>(ref<TransitionRule>),
-                         lit<",">))> {};
+             many(append<&ast::ClassDefn::rules>(ref<TransitionRule>),
+                  lit<",">)> {};
 
   struct NbhdDefn
       : rule<kw<"neighbourhood"> + assign<&ast::NbhdDefn::name>(ref<Name>) +
@@ -134,11 +128,13 @@ struct Alpaca : cursiv::GrammarSpec {
                    append<&ast::Model::classes>(ref<ClassDefn>) |
                    append<&ast::Model::nbhds>(ref<NbhdDefn>)),
                   lit<";">) +
-             (flag<&ast::Model::beginTerminated>(kw<"begin">) |
+             ((flag<&ast::Model::beginTerminated>(kw<"begin">) +
+               option(assign<&ast::Model::initialConfiguration>(
+                   ref<INITIAL_CONFIGURATION>))) |
               lit<".">)> {};
 
   using entry = Model;
-  using ignore = list<WS, COMMENT>;
+  using ignored = list<WS, COMMENT>;
 };
 
 }  // namespace alpaca

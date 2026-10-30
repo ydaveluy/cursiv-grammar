@@ -4,8 +4,8 @@
 #pragma once
 
 #include <charconv>
-#include <cmath>
 #include <cstddef>
+#include <string>
 #include <string_view>
 
 #include "algol60/core/ast.hpp"
@@ -18,25 +18,28 @@ namespace algol60 {
 // ("2.5106") reads one decimal, the mark undistinguished from more digits --
 // the report's own ambiguity once "10" loses its raised typography.
 inline constexpr auto unsigned_number = [](std::string_view t) {
+  // Normalize the report's raised-ten notation before the checked conversion.
+  // Converting the mantissa and power separately can overflow even when their
+  // product is representable (for example .0110+310 == 1e308).
+  std::string normalized;
   for (std::size_t i = 0; i + 2 < t.size(); ++i) {
     if (t[i] != '1' || t[i + 1] != '0') continue;
-    const bool unicodeMinus = t.substr(i + 2).starts_with("–");
-    if (t[i + 2] != '+' && t[i + 2] != '-' && !unicodeMinus) continue;
-    const std::size_t signSize = unicodeMinus ? 3 : 1;
-    double mantissa = 0, exp_digits = 0;
-    const auto [p1, e1] = std::from_chars(t.data(), t.data() + i, mantissa);
-    const auto [p2, e2] = std::from_chars(t.data() + i + 2 + signSize,
-                                          t.data() + t.size(), exp_digits);
-    if (e1 != std::errc{} || p1 != t.data() + i) continue;
-    if (e2 != std::errc{} || p2 != t.data() + t.size()) continue;
-    const double sign = (t[i + 2] == '-' || unicodeMinus) ? -1.0 : 1.0;
-    return mantissa * std::pow(10.0, sign * exp_digits);
+    const bool unicode_minus = t.substr(i + 2).starts_with("–");
+    if (t[i + 2] != '+' && t[i + 2] != '-' && !unicode_minus) continue;
+    normalized.assign(t.substr(0, i));
+    normalized += 'e';
+    normalized += (t[i + 2] == '-' || unicode_minus) ? '-' : '+';
+    normalized += t.substr(i + 2 + (unicode_minus ? 3 : 1));
+    t = normalized;
+    break;
   }
-  double v = 0;
-  std::from_chars(t.data(), t.data() + t.size(), v);
-  return v;
+  double value = 0;
+  const auto [end, error] = std::from_chars(t.data(), t.data() + t.size(), value);
+  using Result = cursiv::ConversionResult<double>;
+  if (error != std::errc{} || end != t.data() + t.size())
+    return Result::err("Number literal is outside the double range.");
+  return Result::ok(value);
 };
-using UnsignedNumberValue = cursiv::text_conv<unsigned_number>;
 
 struct Algol60 : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -50,9 +53,9 @@ struct Algol60 : cursiv::GrammarSpec {
   // Unsigned_number: an integer, a fraction, or both, with an optional
   // exponent introduced by the digits `10` (the report's raised "ten").
   struct UnsignedNumber
-      : terminal<((Digits + option(lit<"."> + Digits)) | (lit<"."> + Digits)) +
-                     option(lit<"10"> + option(ExpSign) + Digits),
-                 UnsignedNumberValue> {};
+      : terminal<as<unsigned_number>(
+            ((Digits + option(lit<"."> + Digits)) | (lit<"."> + Digits)) +
+            option(lit<"10"> + option(ExpSign) + Digits))> {};
 
   // (Letter|Digit)+, narrowed to require one letter somewhere: a bare digit
   // run is a number, not a name. A digit-then-letter spelling like `1e` (an
@@ -79,32 +82,21 @@ struct Algol60 : cursiv::GrammarSpec {
   static constexpr auto TypeTok =
       ikw<"real"> | ikw<"integer"> | ikw<"boolean">;
 
-  struct TrueKw : terminal<ikw<"true">, value<true>> {};
-  struct FalseKw : terminal<ikw<"false">, value<false>> {};
+  struct ExpOp : terminal<as<ast::BinOp::power>(lit<"↑"> | lit<"^">)> {};
+  struct MulOp : terminal<as<ast::BinOp::mul>(lit<"×"> | lit<"*">)> {};
+  struct DivOp : terminal<as<ast::BinOp::div>(lit<"/">) |
+                          as<ast::BinOp::intdiv>(lit<"÷">)> {};
+  struct SubOp : terminal<as<ast::BinOp::sub>(lit<"-"> | lit<"–">)> {};
 
-  struct ExpOp : terminal<lit<"↑"> | lit<"^">, value<ast::BinOp::power>> {};
-  struct MulOp : terminal<lit<"×"> | lit<"*">, value<ast::BinOp::mul>> {};
-  struct DivOp : terminal<lit<"/"> | lit<"÷">, value<ast::BinOp::div>> {};
-  struct AddOp : terminal<lit<"+">, value<ast::BinOp::add>> {};
-  struct SubOp
-      : terminal<lit<"-"> | lit<"–">, value<ast::BinOp::sub>> {};
+  struct LeOp : terminal<as<ast::BinOp::le>(lit<"<="> | lit<"≤">)> {};
+  struct NeOp : terminal<as<ast::BinOp::ne>(lit<"≠"> | lit<"!=">)> {};
+  struct GeOp : terminal<as<ast::BinOp::ge>(lit<">="> | lit<"≥">)> {};
 
-  struct LtOp : terminal<lit<"<">, value<ast::BinOp::lt>> {};
-  struct LeOp : terminal<lit<"<="> | lit<"≤">, value<ast::BinOp::le>> {};
-  struct EqOp : terminal<lit<"=">, value<ast::BinOp::eq>> {};
-  struct NeOp : terminal<lit<"≠"> | lit<"!=">, value<ast::BinOp::ne>> {};
-  struct GtOp : terminal<lit<">">, value<ast::BinOp::gt>> {};
-  struct GeOp : terminal<lit<">="> | lit<"≥">, value<ast::BinOp::ge>> {};
+  struct UMinusOp : terminal<as<ast::UnOp::minus>(lit<"-"> | lit<"–">)> {};
 
-  struct UPlusOp : terminal<lit<"+">, value<ast::UnOp::plus>> {};
-  struct UMinusOp
-      : terminal<lit<"-"> | lit<"–">, value<ast::UnOp::minus>> {};
-
-  struct NotOp : terminal<lit<"¬"> | lit<"!">, value<ast::UnOp::lnot>> {};
-  struct AndOp : terminal<lit<"⋀"> | lit<"&">, value<ast::BinOp::land>> {};
-  struct OrOp : terminal<lit<"⋁"> | lit<"|">, value<ast::BinOp::lor>> {};
-  struct ImpliesOp : terminal<lit<"⊃">, value<ast::BinOp::implies>> {};
-  struct EquivOp : terminal<lit<"≡">, value<ast::BinOp::equiv>> {};
+  struct NotOp : terminal<as<ast::UnOp::lnot>(lit<"¬"> | lit<"!">)> {};
+  struct AndOp : terminal<as<ast::BinOp::land>(lit<"⋀"> | lit<"&">)> {};
+  struct OrOp : terminal<as<ast::BinOp::lor>(lit<"⋁"> | lit<"|">)> {};
 
   // `go`, a gap of any width (blank or newline), then `to` -- the report's
   // own spelling of the keyword. Spelled by hand, not `ikw<> + ikw<>`: the
@@ -146,8 +138,7 @@ struct Algol60 : cursiv::GrammarSpec {
                    assign<&ast::NameRef::name>(ref<Identifier>))  //
              | (lit<"("> + ref<ArithExpr> + lit<")">)> {};
 
-  struct Factor : infix<PrimaryExpr, &ast::BinaryExpr::left,
-                        &ast::BinaryExpr::op, &ast::BinaryExpr::right,
+  struct Factor : infix<PrimaryExpr, ast::BinaryExpr,
                         left(ref<ExpOp>)> {};
 
   // The operand of `+`/`-`: an optional sign wrapped around a Factor. A
@@ -155,15 +146,14 @@ struct Algol60 : cursiv::GrammarSpec {
   // over-accepts `2*-3` beside the report's own `2*(-3)` -- harmless.
   struct Term
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<UPlusOp> | ref<UMinusOp>) +
+                 assign<&ast::UnaryExpr::op>(as<ast::UnOp::plus>(lit<"+">) | ref<UMinusOp>) +
                  assign<&ast::UnaryExpr::operand>(ref<Factor>))  //
              | ref<Factor>> {};
 
   struct SimpleArith
-      : infix<Term, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<MulOp> | ref<DivOp>) >> left(ref<AddOp> | ref<SubOp>))> {
-  };
+      : infix<Term, ast::BinaryExpr,
+              levels(left(ref<MulOp> | ref<DivOp>),
+                     left(as<ast::BinOp::add>(lit<"+">) | ref<SubOp>))> {};
 
   struct ArithExpr
       : rule<create<ast::IfExpr>(
@@ -174,19 +164,19 @@ struct Algol60 : cursiv::GrammarSpec {
                  assign<&ast::IfExpr::else_branch>(ref<ArithExpr>))  //
              | ref<SimpleArith>> {};
 
-  struct RelationRule
+  struct Relation
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<SimpleArith>) +
-                 assign<&ast::BinaryExpr::op>(ref<LtOp> | ref<LeOp> |
-                                              ref<EqOp> | ref<NeOp> |
-                                              ref<GtOp> | ref<GeOp>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::BinOp::lt>(lit<"<">) | ref<LeOp> |
+                                              as<ast::BinOp::eq>(lit<"=">) | ref<NeOp> |
+                                              as<ast::BinOp::gt>(lit<">">) | ref<GeOp>) +
                  assign<&ast::BinaryExpr::right>(ref<SimpleArith>))> {};
 
   struct BoolPrimaryExpr
       : rule<create<ast::LogicalLiteral>(
-                 assign<&ast::LogicalLiteral::value>(ref<TrueKw> |
-                                                     ref<FalseKw>))  //
-             | ref<RelationRule>  //
+                 assign<&ast::LogicalLiteral::value>(as<true>(ikw<"true">) |
+                                                     as<false>(ikw<"false">)))  //
+             | ref<Relation>  //
              | create<ast::IndexExpr>(
                    assign<&ast::IndexExpr::name>(ref<Identifier>) + lit<"["> +
                    some(append<&ast::IndexExpr::indices>(ref<ArithExpr>),
@@ -210,10 +200,9 @@ struct Algol60 : cursiv::GrammarSpec {
              | ref<BoolPrimaryExpr>> {};
 
   struct SimpleBool
-      : infix<BoolSecondary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<AndOp>) >> left(ref<OrOp>) >> left(ref<ImpliesOp>) >>
-               left(ref<EquivOp>))> {};
+      : infix<BoolSecondary, ast::BinaryExpr,
+              levels(left(ref<AndOp>), left(ref<OrOp>), left(as<ast::BinOp::implies>(lit<"⊃">)),
+                     left(as<ast::BinOp::equiv>(lit<"≡">)))> {};
 
   struct BoolExpr
       : rule<create<ast::IfExpr>(
@@ -301,15 +290,15 @@ struct Algol60 : cursiv::GrammarSpec {
                           ref<ForStepUntilItem> | ref<ForWhileItem> |
                           ref<ForSimpleItem>),
                       lit<",">) +
-                 ikw<"do"> + assign<&ast::ForStmt::body>(ref<Statement>))> {};
+                 ikw<"do"> + option(assign<&ast::ForStmt::body>(ref<Statement>)))> {};
 
   struct IfStatement
       : rule<create<ast::IfStmt>(
                  ikw<"if"> + assign<&ast::IfStmt::cond>(ref<BoolExpr>) +
                  ikw<"then"> +
-                 assign<&ast::IfStmt::then_branch>(ref<Statement>) +
-                 option(ikw<"else"> +
-                        assign<&ast::IfStmt::else_branch>(ref<Statement>)))> {
+                 option(assign<&ast::IfStmt::then_branch>(ref<Statement>)) +
+                 option(flag<&ast::IfStmt::hasElse>(ikw<"else">) +
+                        option(assign<&ast::IfStmt::else_branch>(ref<Statement>))))> {
   };
 
   // The `unlabelled_*` core statement kinds, unified: assignment, goto, a
@@ -337,37 +326,37 @@ struct Algol60 : cursiv::GrammarSpec {
   static constexpr auto LocalOrOwn =
       option(flag<&ast::TypeDecl::own_>(ikw<"own">));
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<create<ast::TypeDecl>(
                  LocalOrOwn +
                  assign<&ast::TypeDecl::type_name>(TypeTok) +
                  some(append<&ast::TypeDecl::names>(ref<Identifier>),
                       lit<",">))> {};
 
-  struct BoundPairRule
+  struct BoundPair
       : rule<create<ast::BoundPair>(
                  assign<&ast::BoundPair::lower>(ref<ArithExpr>) + lit<":"> +
                  assign<&ast::BoundPair::upper>(ref<ArithExpr>))> {};
 
-  struct ArraySegmentRule
+  struct ArraySegment
       : rule<create<ast::ArraySegment>(
                  some(append<&ast::ArraySegment::names>(ref<Identifier>),
                       lit<",">) +
                  lit<"["> +
                  some(append<&ast::ArraySegment::bounds>(
-                          ref<BoundPairRule>),
+                          ref<BoundPair>),
                       lit<",">) +
                  lit<"]">)> {};
 
-  struct ArrayDeclRule
+  struct ArrayDecl
       : rule<create<ast::ArrayDecl>(
                  option(flag<&ast::ArrayDecl::own_>(ikw<"own">)) +
                  option(assign<&ast::ArrayDecl::type_name>(TypeTok)) +
                  ikw<"array"> +
-                 some(append<&ast::ArrayDecl::segments>(ref<ArraySegmentRule>),
+                 some(append<&ast::ArrayDecl::segments>(ref<ArraySegment>),
                       lit<",">))> {};
 
-  struct SwitchDeclRule
+  struct SwitchDecl
       : rule<create<ast::SwitchDecl>(
                  ikw<"switch"> +
                  assign<&ast::SwitchDecl::name>(ref<Identifier>) +
@@ -375,7 +364,7 @@ struct Algol60 : cursiv::GrammarSpec {
                  some(append<&ast::SwitchDecl::items>(ref<DesigExpr>),
                       lit<",">))> {};
 
-  struct SpecifierRule
+  struct Specifier
       : rule<create<ast::Specifier>(
                  assign<&ast::Specifier::kind>(ikw<"string">)  //
                  | (option(assign<&ast::Specifier::type_name>(TypeTok)) +
@@ -400,21 +389,21 @@ struct Algol60 : cursiv::GrammarSpec {
              some(append<&ast::ProcDecl::value_params>(ref<Identifier>),
                   lit<",">) +
              lit<";">) +
-      many(append<&ast::ProcDecl::specs>(ref<SpecifierRule>) + lit<";">);
+      many(append<&ast::ProcDecl::specs>(ref<Specifier>) + lit<";">);
 
   // procedure_body: a statement, or `code` -- unspecified, non-Algol text.
   // No corpus document needs `code`.
-  struct ProcDeclRule
+  struct ProcDecl
       : rule<create<ast::ProcDecl>(
                  option(assign<&ast::ProcDecl::type_name>(TypeTok)) +
                  ikw<"procedure"> + ProcHeading +
-                 assign<&ast::ProcDecl::body>(ref<Statement>))> {};
+                 option(assign<&ast::ProcDecl::body>(ref<Statement>)))> {};
 
-  struct DeclarationRule
-      : rule<ref<ProcDeclRule>    //
-             | ref<ArrayDeclRule> //
-             | ref<SwitchDeclRule>//
-             | ref<TypeDeclRule>> {};
+  struct Declaration
+      : rule<ref<ProcDecl>    //
+             | ref<ArrayDecl> //
+             | ref<SwitchDecl>//
+             | ref<TypeDecl>> {};
 
   // The optional close-tag after `end` -- `end name;`, echoing the block's
   // own label or procedure name. Stops on its own: `;`/`end`/`else` never
@@ -424,25 +413,22 @@ struct Algol60 : cursiv::GrammarSpec {
 
   // block / compound_statement, unified: an optional `begin decl;...;`
   // head, then a `;`-separated statement list, closed by `end`.
-  struct Block
-      : rule<create<ast::Block>(
-                 ikw<"begin"> +
-                 option(some(append<&ast::Block::decls>(ref<DeclarationRule>),
-                             lit<";">) +
-                        lit<";">) +
-                 some(append<&ast::Block::statements>(ref<StatementEntry>),
-                      lit<";">) +
-                 // The statement right before `end` may be empty and
-                 // unlabelled -- a bare trailing `;`, not itself a list item.
-                 option(lit<";">) +
-                 ikw<"end"> + EndCloseTag)> {};
+  static constexpr auto BlockBody =
+      ikw<"begin"> +
+      option(some(append<&ast::Block::decls>(ref<Declaration>), lit<";">) + lit<";">) +
+      option(append<&ast::Block::statements>(ref<StatementEntry>)) +
+      many(lit<";"> + option(append<&ast::Block::statements>(ref<StatementEntry>))) +
+      ikw<"end"> + EndCloseTag;
 
-  struct ProgramRule
-      : rule<many((ref<Identifier> | ref<UnsignedInteger>) + lit<":">) +
-             ref<Block>> {};
+  struct Block : rule<create<ast::Block> + BlockBody> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  struct Program
+      : rule<create<ast::Block> +
+             many(append<&ast::Block::labels>(ref<Identifier> | ref<UnsignedInteger>) +
+                  lit<":">) + BlockBody> {};
+
+  using entry = Program;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

@@ -27,6 +27,28 @@ int main() {
       alpaca::AlpacaCoreServices, alpaca::AlpacaSharedCoreServices,
       alpaca::install_core_module>();
 
+  // ALPACA 1.1's initial configuration is the entire remainder, and a
+  // lowercase v denotes a relative state, including when used alone.
+  {
+    const auto result = language.language.parser->parse(
+        "state Dead \" \" to v when 4294967296 Dead; "
+        "state Alive \"*\" begin\n *\n**\n");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("<native configuration>", "did not parse cleanly");
+    const auto* model = result.value_as<alpaca::ast::Model>();
+    if (!model || model->states.size() != 2 || !model->beginTerminated ||
+        model->initialConfiguration != "\n *\n**\n" ||
+        model->states[0]->rules.size() != 1)
+      return fail("<native configuration>", "configuration was lost");
+    const auto* rule = model->states[0]->rules[0];
+    const auto* target = cursiv::ast_cast<alpaca::ast::ArrowStateRef>(rule->target);
+    const auto* guard = cursiv::ast_cast<alpaca::ast::AdjacencyPred>(rule->guard);
+    if (!target || target->chain != "v" || !guard ||
+        guard->count != "4294967296")
+      return fail("<native configuration>", "state or count was changed");
+  }
+
   int seen = 0;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
   for (const std::filesystem::directory_entry& entry :

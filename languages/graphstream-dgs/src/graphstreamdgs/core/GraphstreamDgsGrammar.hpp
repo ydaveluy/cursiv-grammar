@@ -34,7 +34,6 @@ inline constexpr auto unquote = [](std::string_view text,
   }
   return std::string_view(output, size);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 inline constexpr auto parse_real = [](std::string_view text,
                                       std::pmr::memory_resource* resource)
@@ -47,12 +46,16 @@ inline constexpr auto parse_real = [](std::string_view text,
     text.remove_suffix(1);
   if (text.empty())
     return cursiv::ConversionResult<double>::err("Expected a number.");
-  if (text.back() == 'f' || text.back() == 'F' || text.back() == 'd' ||
-      text.back() == 'D')
+  const bool suffix = text.back() == 'f' || text.back() == 'F' ||
+                      text.back() == 'd' || text.back() == 'D';
+  if (suffix)
     text.remove_suffix(1);
   std::string_view unsignedText = text;
   if (unsignedText.starts_with('+') || unsignedText.starts_with('-'))
     unsignedText.remove_prefix(1);
+  if (suffix && (unsignedText == "NaN" || unsignedText == "Infinity"))
+    return cursiv::ConversionResult<double>::err(
+        "NaN and Infinity do not take a numeric suffix.");
   if ((unsignedText.starts_with("0x") || unsignedText.starts_with("0X")) &&
       unsignedText.find_first_of("pP") == std::string_view::npos)
     return cursiv::ConversionResult<double>::err(
@@ -68,7 +71,6 @@ inline constexpr auto parse_real = [](std::string_view text,
     return cursiv::ConversionResult<double>::err("Invalid number.");
   return cursiv::ConversionResult<double>::ok(value);
 };
-using RealConv = cursiv::text_conv<parse_real>;
 
 inline constexpr auto parse_color = [](std::string_view t) -> std::uint32_t {
   t.remove_prefix(1);  // drop '#'
@@ -82,7 +84,6 @@ inline constexpr auto parse_color = [](std::string_view t) -> std::uint32_t {
   if (t.size() == 6) v = (v << 8) | 0xFFu;
   return v;
 };
-using ColorConv = cursiv::text_conv<parse_color>;
 
 struct GraphstreamDgs : cursiv::GrammarSpec {
   static constexpr auto id_char = uc::Lu | uc::Ll | uc::Nd | cr<"+_.-">;
@@ -110,31 +111,30 @@ struct GraphstreamDgs : cursiv::GrammarSpec {
   static constexpr auto true_body = cr<"tT"> + cr<"rR"> + cr<"uU"> + cr<"eE">;
   static constexpr auto false_body =
       cr<"fF"> + cr<"aA"> + cr<"lL"> + cr<"sSſ"> + cr<"eE">;
-  struct INT : terminal<integer + !id_char, std::int64_t> {};
+  struct INT : terminal<as<std::int64_t>(integer + !id_char)> {};
   static constexpr auto real_value = !lit<"."> + real;
-  struct REAL : terminal<real_value + !id_char, RealConv> {};
-  struct TRUE : terminal<true_body + !id_char, value<true>> {};
-  struct FALSE : terminal<false_body + !id_char, value<false>> {};
+  struct REAL : terminal<as<parse_real>(real_value + !id_char)> {};
+  struct TRUE : terminal<as<true>(true_body + !id_char)> {};
+  struct FALSE : terminal<as<false>(false_body + !id_char)> {};
   static constexpr auto dq =
       lit<"\""> + many(cr<R"(^"\\)"> | (some(lit<"\\">) + cr<R"(^\\)">)) +
       lit<"\"">;
   static constexpr auto sq =
       lit<"'"> + many(cr<R"(^'\\)"> | (some(lit<"\\">) + cr<R"(^\\)">)) +
       lit<"'">;
-  struct STRING : terminal<dq | sq, Unquoted> {};
+  struct STRING : terminal<as<unquote>(dq | sq)> {};
   struct ID : terminal<some(id_char)> {};
   struct UNSIGNED_ID : terminal<!(cr<"+-">)+some(id_char)> {};
   struct WORD_VALUE
-      : terminal<!((integer | real_value | true_body | false_body) + !id_char) +
+      // The native parser treats every ASCII digit/- initial word as a
+      // number, so malformed 1e3/12x/-word cannot fall back to text.
+      : terminal<!cr<"0-9-"> +
+                 !((true_body | false_body) + !id_char) +
                  some(id_char)> {};
-  struct STEP_VALUE : terminal<dq | sq | some(id_char), RealConv> {};
+  struct STEP_VALUE : terminal<as<parse_real>(dq | sq | some(id_char))> {};
   static constexpr auto hexbyte = repeat<2>(hex);
-  struct COLOR
-      : terminal<lit<"#"> + repeat<3>(hexbyte) + option(hexbyte), ColorConv> {};
-  struct PlusOp : terminal<lit<"+">, value<ast::AttrOp::Add>> {};
-  struct MinusOp : terminal<lit<"-">, value<ast::AttrOp::Remove>> {};
-  struct LeftAngle : terminal<lit<"<">, value<ast::Direction::Backward>> {};
-  struct RightAngle : terminal<lit<">">, value<ast::Direction::Forward>> {};
+  struct COLOR : terminal<as<parse_color>(lit<"#"> + repeat<3>(hexbyte) +
+                                          option(hexbyte))> {};
   struct AN : terminal<cr<"aA"> + cr<"nN">> {};
   struct CN : terminal<cr<"cC"> + cr<"nN">> {};
   struct DN : terminal<cr<"dD"> + cr<"nN">> {};
@@ -146,78 +146,78 @@ struct GraphstreamDgs : cursiv::GrammarSpec {
   struct CL : terminal<cr<"cC"> + cr<"lL">> {};
 
   static constexpr auto identifier_body = ref<STRING> | ref<ID>;
-  static constexpr auto direction_body = ref<LeftAngle> | ref<RightAngle>;
-  struct ArrayRule;
-  struct MapRule;
+  static constexpr auto direction_body = as<ast::Direction::Backward>(lit<"<">) | as<ast::Direction::Forward>(lit<">">);
+  struct Array;
+  struct Map;
   static constexpr auto value_body =
       ref<INT> | ref<REAL> | ref<TRUE> | ref<FALSE> | ref<COLOR> |
-      ref<ArrayRule> | ref<MapRule> | ref<STRING> | ref<WORD_VALUE>;
-  struct ArrayRule
+      ref<Array> | ref<Map> | ref<STRING> | ref<WORD_VALUE>;
+  struct Array
       : rule<lit<"{"> + many(append<&ast::Array::items>(value_body), lit<",">) +
              lit<"}">> {};
-  struct MappingRule
+  struct Mapping
       : rule<assign<&ast::Mapping::key>(identifier_body) +
              option((lit<"="> |
                      lit<":">)+assign<&ast::Mapping::value>(value_body))> {};
-  struct MapRule
+  struct Map
       : rule<lit<"["> +
-             many(append<&ast::Map::entries>(ref<MappingRule>), lit<",">) +
+             many(append<&ast::Map::entries>(ref<Mapping>), lit<",">) +
              option(lit<",">) + lit<"]">> {};
-  struct AttributeRule
-      : rule<((assign<&ast::Attribute::op>(ref<PlusOp> | ref<MinusOp>) +
+  struct Attribute
+      : rule<((assign<&ast::Attribute::op>(as<ast::AttrOp::Add>(lit<"+">) | as<ast::AttrOp::Remove>(lit<"-">)) +
                assign<&ast::Attribute::name>(identifier_body)) |
               assign<&ast::Attribute::name>(ref<STRING> | ref<UNSIGNED_ID>)) +
              option((lit<"="> | lit<":">)+some(
                  append<&ast::Attribute::values>(value_body), lit<",">))> {};
 
-  struct AddNodeRule
+  struct AddNode
       : rule<ref<AN> + assign<&ast::AddNode::id>(identifier_body) +
-             many(append<&ast::AddNode::attributes>(ref<AttributeRule>))> {};
+             many(append<&ast::AddNode::attributes>(ref<Attribute>))> {};
 
-  struct ChangeNodeRule
+  struct ChangeNode
       : rule<ref<CN> + assign<&ast::ChangeNode::id>(identifier_body) +
-             many(append<&ast::ChangeNode::attributes>(ref<AttributeRule>))> {};
+             many(append<&ast::ChangeNode::attributes>(ref<Attribute>))> {};
 
-  struct DelNodeRule
+  struct DelNode
       : rule<ref<DN> + assign<&ast::DelNode::id>(identifier_body)> {};
 
-  struct AddEdgeRule
+  struct AddEdge
       : rule<ref<AE> + assign<&ast::AddEdge::id>(identifier_body) +
              assign<&ast::AddEdge::source>(identifier_body) +
              option(assign<&ast::AddEdge::direction>(direction_body)) +
              assign<&ast::AddEdge::target>(identifier_body) +
-             many(append<&ast::AddEdge::attributes>(ref<AttributeRule>))> {};
+             many(append<&ast::AddEdge::attributes>(ref<Attribute>))> {};
 
-  struct ChangeEdgeRule
+  struct ChangeEdge
       : rule<ref<CE> + assign<&ast::ChangeEdge::id>(identifier_body) +
-             many(append<&ast::ChangeEdge::attributes>(ref<AttributeRule>))> {};
+             many(append<&ast::ChangeEdge::attributes>(ref<Attribute>))> {};
 
-  struct DelEdgeRule
+  struct DelEdge
       : rule<ref<DE> + assign<&ast::DelEdge::id>(identifier_body)> {};
 
-  struct ChangeGraphRule
+  struct ChangeGraph
       : rule<ref<CG> +
-             many(append<&ast::ChangeGraph::attributes>(ref<AttributeRule>))> {
+             many(append<&ast::ChangeGraph::attributes>(ref<Attribute>))> {
   };
 
-  struct StepRule : rule<ref<ST> + assign<&ast::Step::time>(ref<STEP_VALUE>)> {
+  struct Step : rule<ref<ST> + assign<&ast::Step::time>(ref<STEP_VALUE>)> {
   };
 
-  struct ClearRule : rule<create<ast::Clear> + ref<CL>> {};
+  struct Clear : rule<create<ast::Clear> + ref<CL>> {};
 
-  struct EventRule
-      : rule<(ref<AddNodeRule> | ref<ChangeNodeRule> | ref<DelNodeRule> |
-              ref<AddEdgeRule> | ref<ChangeEdgeRule> | ref<DelEdgeRule> |
-              ref<ChangeGraphRule> | ref<StepRule> |
-              ref<ClearRule>)+(ref<COMMENT> | ref<EOL> | eof)> {};
-  struct DocumentRule
+  struct Event
+      : rule<(ref<AddNode> | ref<ChangeNode> | ref<DelNode> |
+              ref<AddEdge> | ref<ChangeEdge> | ref<DelEdge> |
+              ref<ChangeGraph> | ref<Step> |
+              ref<Clear>)+(ref<COMMENT> | ref<EOL> | eof)> {};
+  struct Document
       : rule<assign<&ast::Document::magic>(ref<MAGIC>) + ref<EOL> +
              tight(assign<&ast::Document::header>(ref<HeaderValue>) +
                       (ref<EOL> | eof)) +
-             many(append<&ast::Document::events>(ref<EventRule>) |
+             many(append<&ast::Document::events>(ref<Event>) |
                   ref<COMMENT> | ref<EOL>)> {};
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
 };
 
 }  // namespace graphstreamdgs

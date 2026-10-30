@@ -250,6 +250,9 @@ struct TyCon : cursiv::Extends<Type> {
   string_view qualifier;
   string_view name;
 };
+struct TyVisibleArg : cursiv::Extends<Type> {
+  Type *type = nullptr; // the explicit @ marker at the type/kind level
+};
 struct TyApp : cursiv::Extends<Type> {
   vector<Type *> atoms;
 };
@@ -351,6 +354,7 @@ struct DataDecl : cursiv::Extends<Decl> {
   bool isFamily = false;
   bool isInstance = false;
   bool isGadt = false;
+  optional<string_view> ctype; // raw CTYPE pragma
   optional<Type *> context;
   Type *header = nullptr;
   optional<Type *> kindSig;
@@ -429,6 +433,7 @@ struct PatternSynonymDecl : cursiv::Extends<Decl> {
 // SPECIALISE/SPECIALISE_INLINE/MINIMAL/COMPLETE ... #-}`.
 struct PragmaDecl : cursiv::Extends<Decl> {
   string_view kind;
+  string_view body; // raw text following the keyword, including the closing #-}
 };
 
 struct LanguagePragmaDecl : cursiv::Extends<Decl> {

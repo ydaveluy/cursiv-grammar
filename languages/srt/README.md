@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+SubRip subtitles with numbered cues, timestamps and multiline text. Common reader extensions are accepted.
+
 ```
 1
 00:02:07,000 --> 00:02:08,100
@@ -40,11 +42,6 @@ Ik ben er.
 00:02:12,200 --> 00:02:14,100
 Ja, ik ben er.
 ```
-
-A [SubRip](https://en.wikipedia.org/wiki/SubRip) file is a sequence of
-numbered blocks: an index, a `start --> end` timestamp range
-(`hh:mm:ss,mmm`), and one or more lines of caption text, separated by a
-blank line.
 
 ## The command line
 

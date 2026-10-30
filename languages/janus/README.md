@@ -31,16 +31,16 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[Janus](https://en.wikipedia.org/wiki/Janus_(time-reversible_computing_programming_language))
-is Christopher Bennett's reversible imperative language: every statement has
-an inverse, so a program runs backwards as easily as forwards.
+Janus is the reversible imperative language created by Christopher Lutz and Howard Derby. This port follows the explicit syntax in their 1986 description and preserves CALL/UNCALL, inverse updates and control-flow assertions.
 
 ```
 n acc history[9]
 
 PROCEDURE double
   READ n
-  n += n
+  acc += n
+  n += acc
+  acc -= n/2
   WRITE n
 
 PROCEDURE main
@@ -48,11 +48,6 @@ PROCEDURE main
   UNCALL double
   ...
 ```
-
-`CALL`/`UNCALL` run a procedure forwards or in reverse; `+=`/`-=` and `<=>`
-mutate in place (their own inverses); `:` swaps two variables; `FROM ...
-DO ... LOOP ... UNTIL` and `IF ... THEN ... ELSE ... FI` carry the assertions
-reversibility needs at both ends.
 
 ## The command line
 

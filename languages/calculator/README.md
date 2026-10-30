@@ -31,18 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+An equation contains arithmetic expressions on both sides of a relational operator.
+
 ```
 A = pi*r^2
 ```
-
-A calculator document is one equation: an expression, a relational operator
-(`=`, `>`, `<`), and another expression. An expression is the usual
-arithmetic ladder (`^` tightest, then `*`/`/`, then `+`/`-`, with left
-associativity and a `+`/`-` prefix chain on atoms), over numbers, variables,
-the constants `pi`, `e`, `i`, parenthesized groups, and calls to `cos`,
-`sin`, `tan`, `acos`, `asin`, `atan`, `log`, `ln` and `sqrt` — with any
-number of comma-separated arguments, since the grammar does not fix an
-arity.
 
 ## The command line
 

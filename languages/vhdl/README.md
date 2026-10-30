@@ -53,9 +53,9 @@ package body add_pkg is
 end add_pkg;
 ```
 
-VHDL is case-insensitive throughout (`ENTITY`, `Entity` and `entity` are the
-same keyword) and its comments are `--` to end of line or `/* ... */`
-(VHDL-2008). `example/` contains package, entity, architecture, configuration
+VHDL-2008 keywords and basic identifiers are case-insensitive; extended
+identifiers between backslashes preserve case. Comments run from `--` to
+end of line, or use `/* ... */`. `example/` contains package, entity, architecture, configuration
 and context declarations, generate statements and protected types.
 `coverage.vhd` demonstrates additional constructs: block statements,
 force/release, guarded signals, package and subprogram instantiation, and

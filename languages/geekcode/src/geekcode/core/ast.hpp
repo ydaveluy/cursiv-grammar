@@ -35,6 +35,7 @@ using Kind = std::variant<std::string_view, Shape*, Unix*>;
 struct Tuple : cursiv::Extends<cursiv::AstNode> {
   boolean refused;
   Kind kind;
+  string_view exactAge;  // decimal age after category a; empty for a rating
   vector<Modifier> modifiers;
 };
 struct File : cursiv::Extends<cursiv::AstNode> {

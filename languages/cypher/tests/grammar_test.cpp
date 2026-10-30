@@ -246,9 +246,68 @@ int main() {
   const auto language = cursiv::create_language<
       cypher::CypherCoreServices, cypher::CypherSharedCoreServices,
       cypher::install_core_module>();
+  {
+    const std::string source = R"cypher(MATCH (a€)−−〉(b)
+SET a€ = {name: 'x'}
+RETURN [{items: [{name: 'x'}]}][0].items[0].name,
+       '\U0001F600', '\uD83D\uDE00', 'line
+text', 'a' IN ['a'] IS NOT NULL
+)cypher";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return 1;
+    bool selector = false, arrow = false, identifier = false, multiline = false,
+         predicateChain = false, setVariable = false;
+    std::size_t emoji = 0;
+    for (const auto* node : result.nodes) {
+      if (const auto* property = cursiv::ast_cast<cypher::ast::PropertyExpr>(node))
+        selector |= property->property == "name" &&
+                    cursiv::ast_cast<cypher::ast::IndexExpr>(property->object);
+      if (const auto* relation = cursiv::ast_cast<cypher::ast::RelationshipPattern>(node))
+        arrow |= relation->pointsRight && !relation->pointsLeft;
+      if (const auto* pattern = cursiv::ast_cast<cypher::ast::NodePattern>(node))
+        identifier |= pattern->variable == "a€";
+      if (const auto* set = cursiv::ast_cast<cypher::ast::SetVariable>(node))
+        setVariable |= set->symbol == "a€" &&
+                       cursiv::ast_cast<cypher::ast::MapLit>(set->value);
+      if (const auto* text = cursiv::ast_cast<cypher::ast::StringLit>(node)) {
+        emoji += text->value == "\xf0\x9f\x98\x80";
+        multiline |= text->value == "line\ntext";
+      }
+      if (const auto* isNull = cursiv::ast_cast<cypher::ast::IsNullExpr>(node)) {
+        const auto* in = cursiv::ast_cast<cypher::ast::BinaryExpr>(isNull->operand);
+        predicateChain |= isNull->negated && in &&
+                          in->op == cypher::ast::Operator::in_;
+      }
+    }
+    if (!selector || !arrow || !identifier || !multiline || !predicateChain ||
+        !setVariable || emoji != 2)
+      return 1;
+  }
   const auto parse = [&](std::string_view text) {
     return language.language.parser->parse(text);
   };
+  // ASCII arrows share literal tokens with comparisons in expression
+  // states. They must retain their pattern role in comprehensions too.
+  for (const std::string_view source : {
+           "RETURN [(a)-->()WHERE a:Label|55 + a.prop]",
+           "RETURN [p = (a)-->()WHERE a:Label|55 + a.prop]",
+           "RETURN [p = (a)-->(b) WHERE b.age > 0 | p]",
+           "RETURN [(a)-->() | a]",
+           "RETURN [(a)-->() WHERE true | a]",
+           "RETURN [(a)-->() WHERE a:Label | a]",
+           "RETURN [(a)<--(b) | b]",
+           "RETURN [(a)⟨‐‐(b) | b]"}) {
+    const auto result = parse(source);
+    const cypher::ast::PatternComprehensionExpr* comprehension = nullptr;
+    for (const auto* node : result.nodes)
+      if (const auto* value = cursiv::ast_cast<cypher::ast::PatternComprehensionExpr>(node))
+        comprehension = value;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !comprehension || !comprehension->pattern || !comprehension->projection ||
+        bool(comprehension->where_) != (source.find("WHERE") != std::string_view::npos))
+      return fail("<pattern-comprehension>", "pattern, filter or projection was repaired/lost");
+  }
 
   const fs::path dir = CURSIV_EXAMPLE_DIR;
   int failures = 0;

@@ -1,3 +1,4 @@
+#include "native_followup.hpp"
 #include "modern_cases.hpp"
 #include "audit_regressions.hpp"
 // The smoke test of the language: parse every document under example/ and
@@ -43,6 +44,7 @@ int main() {
       vhdl::VhdlCoreServices, vhdl::VhdlSharedCoreServices,
       vhdl::install_core_module>();
   if (!vhdl_audit::modern_cases(language)) return 1;
+  if (!vhdl_native_followup::run(language)) return 1;
 
   auto checkSample = [&](const std::string& path) -> int {
     std::ifstream file(path);

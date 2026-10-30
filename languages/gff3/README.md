@@ -38,7 +38,7 @@ NC_001792.2	RefSeq	region	1	1758	.	+	.	ID=id0;gbkey=Src;genome=genomic
 NC_001792.2	RefSeq	gene	55	993	.	+	.	ID=gene0;Name=V1;Parent=id0
 ```
 
-A document is a fixed version header, then a line at a time: a `#` comment
+A document is a line at a time: a `#` comment
 kept verbatim, or a tab-separated feature with nine columns and a `;`-list of
 `key=value` attributes. Every field is text — GFF3 spells a missing value as
 a literal `.`, so `start`, `end`, `score`, `strand` and `phase` stay

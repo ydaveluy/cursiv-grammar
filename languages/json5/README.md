@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+JSON5 adds comments, unquoted keys, trailing commas and additional string and number forms to JSON.
+
 ```json5
 {
   // comments
@@ -43,11 +45,6 @@ Generated files live under `build/src/generated-src/`; do not edit them.
   "backwardsCompatible": "with JSON",
 }
 ```
-
-[JSON5](https://json5.org/) is a superset of JSON with JavaScript comments,
-single-quoted and multi-line strings, unquoted object keys, trailing commas,
-and signed/hex/leading- or trailing-dot numbers, including `Infinity` and
-`NaN`.
 
 ## The command line
 

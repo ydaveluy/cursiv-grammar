@@ -9,15 +9,31 @@
 namespace limbo {
 
 struct Limbo : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \r\n\t)">)> {};
+  struct WS : terminal<some(s)> {};
   struct COMMENT : terminal<lit<"#"> + many(cr<R"(^\r\n)">)> {};
-
-  struct ID : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9_">)> {};
-
-  struct INT : terminal<option((some(d) + lit<"r">) | lit<"R">) + some(d)> {};
-  struct REAL : terminal<some(d) + lit<"."> + option(cr<"eE">) +
-                         some(cr<"0-9a-zA-Z">)> {};
-  struct STRING : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">> {};
+  static constexpr auto identifierHead = cr<"a-zA-Z_\u00a1-\U0010ffff">;
+  static constexpr auto word_boundary = identifierHead | d;
+  static constexpr auto reserved = kw<"adt"> | kw<"alt"> | kw<"array"> | kw<"big"> |
+      kw<"break"> | kw<"byte"> | kw<"case"> | kw<"chan"> | kw<"con"> | kw<"continue"> |
+      kw<"cyclic"> | kw<"do"> | kw<"dynamic"> | kw<"else"> | kw<"exception"> | kw<"exit"> |
+      kw<"fixed"> | kw<"fn"> | kw<"for"> | kw<"hd"> | kw<"if"> | kw<"implement"> |
+      kw<"import"> | kw<"include"> | kw<"int"> | kw<"len"> | kw<"list"> | kw<"load"> |
+      kw<"module"> | kw<"nil"> | kw<"of"> | kw<"or"> | kw<"pick"> | kw<"raise"> |
+      kw<"raises"> | kw<"real"> | kw<"ref"> | kw<"return"> | kw<"self"> | kw<"spawn"> |
+      kw<"string"> | kw<"tagof"> | kw<"tl"> | kw<"to"> | kw<"type"> | kw<"while">;
+  struct ID : terminal<!reserved + identifierHead + many(word_boundary)> {};
+  static constexpr auto basedDigits = cr<"0-9A-Za-z_">;
+  struct INT : terminal<(some(d) + cr<"rR"> + some(basedDigits)) | some(d)> {};
+  static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
+  struct REAL : terminal<
+      (some(d) + cr<"rR"> + many(basedDigits) + lit<"."> + many(basedDigits)) |
+      ((some(d) + lit<"."> + many(d) | lit<"."> + some(d)) + option(exponent)) |
+      (some(d) + exponent)> {};
+  static constexpr auto escape = lit<"\\"> +
+      (cr<R"(\\'"abtnvfr0)"> | (lit<"u"> + repeat<4>(cr<"0-9A-Fa-f">)));
+  struct CHAR : terminal<lit<"'"> + (escape | cr<R"(^'\\)">) + lit<"'">> {};
+  struct STRING : terminal<(lit<"\""> + many(escape | cr<R"(^"\\\n)">) + lit<"\"">) |
+                           through(lit<"`">, lit<"`">)> {};
 
   static constexpr auto Assign = lit<"=">;
   static constexpr auto Colon = lit<":">;
@@ -31,6 +47,7 @@ struct Limbo : cursiv::GrammarSpec {
   struct Term;
   struct Type;
   struct DataType;
+  struct FixedType;
   struct NamedType;
   struct Signature;
   struct FormalArg;
@@ -39,14 +56,23 @@ struct Limbo : cursiv::GrammarSpec {
   struct TypeDecl;
   struct AdtDecl;
   struct AdtField;
+  struct GenericParameters;
+  struct ConstraintArm;
+  struct RaiseSpec;
+  struct Qualifier;
+  struct Export;
+  struct ExportSequence;
+  struct TypeArgument;
 
   template <auto Ptr>
   static constexpr auto IdentifierListFor =
-      append<Ptr>(ref<ID>) + many(lit<","> + append<Ptr>(ref<ID>));
+      some(append<Ptr>(ref<ID>), lit<",">);
   template <auto Ptr>
   static constexpr auto ExpressionListFor =
-      append<Ptr>(ref<Expression>) + many(lit<","> + append<Ptr>(ref<Expression>));
+      some(append<Ptr>(ref<Expression>), lit<",">);
   static constexpr auto NilOrD = ref<ID> | kw<"nil">;
+  template <auto First, auto Rest> static constexpr auto LabelFor = option(
+      assign<First>(ref<ID>) + many(lit<","> + append<Rest>(ref<ID>)) + Colon);
 
   // -- Types ----
 
@@ -60,51 +86,61 @@ struct Limbo : cursiv::GrammarSpec {
   struct NamedType
       : rule<create<ast::NamedType>(
             assign<&ast::NamedType::id1>(ref<ID>) +
-            option(lit<"->"> + assign<&ast::NamedType::id2>(ref<ID>)))> {};
+            option(lit<"->"> + assign<&ast::NamedType::id2>(ref<ID>)) +
+            many(nest<ast::AppliedType, &ast::AppliedType::base>(lit<"["> +
+                     some(append<&ast::AppliedType::arguments>(ref<TypeArgument>), lit<",">) + lit<"]">) |
+                 nest<ast::MemberType, &ast::MemberType::base>(
+                     assign<&ast::MemberType::separator>(lit<"."> | lit<"->">) +
+                     assign<&ast::MemberType::member>(ref<ID>))))> {};
 
   struct RefType
       : rule<create<ast::RefType>(kw<"ref"> +
-                                  assign<&ast::RefType::target>(ref<NamedType>))> {
+                                  assign<&ast::RefType::target>(ref<Type>))> {
   };
 
   struct TupleType
       : rule<create<ast::TupleType>(
-            lit<"("> + append<&ast::TupleType::elements>(ref<DataType>) +
-            many(lit<","> + append<&ast::TupleType::elements>(ref<DataType>)) +
+            lit<"("> + some(append<&ast::TupleType::elements>(ref<Type>), lit<",">) +
             lit<")">)> {};
 
   struct ArrayOfType
       : rule<create<ast::ArrayOfType>(
             kw<"array"> + kw<"of"> +
-            assign<&ast::ArrayOfType::element>(ref<DataType>))> {};
+            assign<&ast::ArrayOfType::element>(ref<Type>))> {};
 
   struct ListOfType
       : rule<create<ast::ListOfType>(
             kw<"list"> + kw<"of"> +
-            assign<&ast::ListOfType::element>(ref<DataType>))> {};
+            assign<&ast::ListOfType::element>(ref<Type>))> {};
 
   struct ChanOfType
       : rule<create<ast::ChanOfType>(
             kw<"chan"> + kw<"of"> +
-            assign<&ast::ChanOfType::element>(ref<DataType>))> {};
+            assign<&ast::ChanOfType::element>(ref<Type>))> {};
 
   struct DataType
       : rule<ref<PrimType> | ref<TupleType> | ref<ArrayOfType> |
-            ref<ListOfType> | ref<ChanOfType> | ref<RefType> | ref<NamedType>> {
+            ref<ListOfType> | ref<ChanOfType> | ref<RefType> | ref<NamedType> | ref<FixedType>> {
   };
 
-  struct FnType
-      : rule<create<ast::FnType>(kw<"fn"> +
-                                 assign<&ast::FnType::signature>(ref<Signature>))> {
-  };
+  struct TypeArgument : rule<create<ast::CyclicType>(kw<"cyclic"> +
+      assign<&ast::CyclicType::base>(ref<Type>)) | ref<Type>> {};
+  struct FnType : rule<create<ast::FnType>(kw<"fn"> +
+      option(assign<&ast::FnType::parameters>(ref<GenericParameters>)) +
+      assign<&ast::FnType::signature>(ref<Signature>) +
+      option(assign<&ast::FnType::raises>(ref<RaiseSpec>)))> {};
 
   struct Type : rule<ref<DataType> | ref<FnType>> {};
 
-  // A cast-typed lead excludes `chan of T`, ambiguous with the value form
-  // of the same spelling.
-  struct CastLeadType
-      : rule<ref<PrimType> | ref<TupleType> | ref<ArrayOfType> |
-            ref<ListOfType> | ref<RefType> | ref<NamedType> | ref<FnType>> {};
+  struct FixedType : rule<create<ast::FixedType>(kw<"fixed"> + lit<"("> +
+      append<&ast::FixedType::parameters>(ref<Expression>) +
+      option(lit<","> + append<&ast::FixedType::parameters>(ref<Expression>)) + lit<")">)> {};
+  struct CastNamedType : rule<assign<&ast::NamedType::id1>(ref<ID>) +
+      !(lit<"+"> | lit<"-"> | lit<"*"> | lit<"<-"> | lit<"++"> | lit<"--"> | lit<"(">)> {};
+  struct CastArrayType : rule<kw<"array"> + kw<"of"> +
+      assign<&ast::ArrayOfType::element>(ref<PrimType>)> {};
+  struct CastLeadType : rule<ref<PrimType> | ref<CastNamedType> |
+                             ref<CastArrayType> | ref<FixedType>> {};
 
   struct FormalArg
       : rule<create<ast::FormalArg>(
@@ -117,21 +153,34 @@ struct Limbo : cursiv::GrammarSpec {
                     | (flag<&ast::FormalArg::isSelf>(kw<"self">) +
                        option(flag<&ast::FormalArg::refopt>(
                            kw<"ref">)) +
-                       assign<&ast::FormalArg::selfType>(ref<ID>))))> {};
+                       assign<&ast::FormalArg::selfTypeExpression>(ref<NamedType>))))> {};
+
+  struct GenericParameters : rule<lit<"["> +
+      IdentifierListFor<&ast::GenericParameters::names> + lit<"]">> {};
+  struct ConstraintArm : rule<IdentifierListFor<&ast::ConstraintArm::names> + lit<"=>"> +
+      many(append<&ast::ConstraintArm::fields>(ref<AdtField>))> {};
+  template <auto Ptr> static constexpr auto ConstraintsFor =
+      kw<"for"> + lit<"{"> + some(append<Ptr>(ref<ConstraintArm>)) + lit<"}">;
 
   struct Signature
       : rule<create<ast::Signature>(
             lit<"("> +
-            option(append<&ast::Signature::params>(ref<FormalArg>) +
-                   many(lit<","> +
-                        append<&ast::Signature::params>(ref<FormalArg>))) +
+            option(some(append<&ast::Signature::params>(ref<FormalArg>), lit<",">)) +
             lit<")"> +
-            option(Colon + assign<&ast::Signature::result>(ref<Type>)))> {};
+            option(Colon + assign<&ast::Signature::result>(ref<Type>)) +
+            option(ConstraintsFor<&ast::Signature::constraints>))> {};
 
   // -- Expressions ----
 
   struct Identifier : rule<assign<&ast::Ident::name>(ref<ID>)> {};
-  struct IntLiteral : rule<assign<&ast::IntLit::text>(ref<INT>)> {};
+  struct RaiseTarget : rule<ref<Identifier> | create<ast::NilExpr>(kw<"nil">) |
+      create<ast::ParenExpr>(lit<"("> +
+          some(append<&ast::ParenExpr::items>(ref<RaiseTarget>), lit<",">) + lit<")">)> {};
+  struct RaiseSpec : rule<kw<"raises"> +
+      ((flag<&ast::RaiseSpec::parenthesized>(lit<"(">) +
+        some(append<&ast::RaiseSpec::exceptions>(ref<RaiseTarget>), lit<",">) + lit<")">) |
+       append<&ast::RaiseSpec::exceptions>(ref<Identifier> | create<ast::NilExpr>(kw<"nil">)))> {};
+  struct IntLiteral : rule<assign<&ast::IntLit::text>(ref<INT> | ref<CHAR>)> {};
   struct RealLiteral : rule<assign<&ast::RealLit::text>(ref<REAL>)> {};
   struct StrLiteral : rule<assign<&ast::StringLit::text>(ref<STRING>)> {};
 
@@ -152,14 +201,24 @@ struct Limbo : cursiv::GrammarSpec {
                        lit<")">)  //
                  | nest<ast::IndexExpr, &ast::IndexExpr::array>(
                        lit<"["> +
-                       assign<&ast::IndexExpr::index>(ref<Expression>) +
-                       option(flag<&ast::IndexExpr::isSlice>(lit<":">) +
-                              option(assign<&ast::IndexExpr::high>(
-                                  ref<Expression>))) +
+                       ((flag<&ast::IndexExpr::isSlice>(lit<":">) +
+                         option(assign<&ast::IndexExpr::high>(ref<Expression>))) |
+                        (assign<&ast::IndexExpr::index>(ref<Expression>) +
+                         flag<&ast::IndexExpr::isSlice>(lit<":">) +
+                         option(assign<&ast::IndexExpr::high>(ref<Expression>))) |
+                        assign<&ast::IndexExpr::index>(ref<ExportSequence> | ref<Export>)) +
                        lit<"]">)  //
                  | nest<ast::PostfixExpr, &ast::PostfixExpr::operand>(
                        assign<&ast::PostfixExpr::op>(lit<"++"> |
                                                      lit<"--">)))> {};
+
+  struct ExportType : rule<create<ast::TypeExpr>(assign<&ast::TypeExpr::type>(
+      ref<PrimType> | ref<ArrayOfType> | ref<ListOfType> |
+      create<ast::CyclicType>(kw<"cyclic"> + assign<&ast::CyclicType::base>(ref<Type>))))> {};
+  struct Export : rule<ref<Expression> | ref<ExportType>> {};
+  struct ExportSequence : rule<create<ast::ExportSequence>(
+      append<&ast::ExportSequence::values>(ref<Export>) +
+      some(lit<","> + append<&ast::ExportSequence::values>(ref<Export>)))> {};
 
   static constexpr auto MonadicOp =
       lit<"++"> | lit<"--"> | lit<"+"> | lit<"-"> | lit<"!"> | lit<"~"> |
@@ -173,7 +232,10 @@ struct Limbo : cursiv::GrammarSpec {
              | create<ast::InitElem>(
                    assign<&ast::InitElem::a>(ref<Expression>) +
                    option(lit<"=>"> +
-                          assign<&ast::InitElem::b>(ref<Expression>)))> {};
+                          assign<&ast::InitElem::b>(ref<Expression>))) |
+             create<ast::InitElem>(append<&ast::InitElem::keys>(ref<Qualifier>) +
+                 many(kw<"or"> + append<&ast::InitElem::keys>(ref<Qualifier>)) +
+                 lit<"=>"> + assign<&ast::InitElem::b>(ref<Expression>))> {};
 
   struct CastExpr
       : rule<create<ast::CastExpr>(
@@ -189,18 +251,16 @@ struct Limbo : cursiv::GrammarSpec {
                    kw<"array"> + lit<"["> +
                    option(assign<&ast::ArrayExpr::size>(ref<Expression>)) +
                    lit<"]"> + kw<"of"> +
-                   (assign<&ast::ArrayExpr::elemType>(ref<DataType>)  //
+                   (assign<&ast::ArrayExpr::elemType>(ref<Type>)  //
                     | (flag<&ast::ArrayExpr::hasInit>(lit<"{">) +
-                       append<&ast::ArrayExpr::elements>(ref<InitElem>) +
-                       many(lit<","> +
-                            append<&ast::ArrayExpr::elements>(ref<InitElem>)) +
-                       lit<"}">)))  //
+                       some(append<&ast::ArrayExpr::elements>(ref<InitElem>), lit<",">) +
+                       option(lit<",">) + lit<"}">)))  //
              | create<ast::ListLit>(
                    kw<"list"> + kw<"of"> + lit<"{"> +
-                   ExpressionListFor<&ast::ListLit::elements> + lit<"}">)  //
+                   ExpressionListFor<&ast::ListLit::elements> + option(lit<",">) + lit<"}">)  //
              | create<ast::ChanOfExpr>(
-                   kw<"chan"> + kw<"of"> +
-                   assign<&ast::ChanOfExpr::elemType>(ref<DataType>))  //
+                   kw<"chan"> + option(lit<"["> + assign<&ast::ChanOfExpr::size>(ref<Expression>) + lit<"]">) +
+                   kw<"of"> + assign<&ast::ChanOfExpr::elemType>(ref<Type>))  //
              | ref<CastExpr>> {};
 
   static constexpr auto OpMul = lit<"*"> | lit<"/"> | lit<"%">;
@@ -215,17 +275,18 @@ struct Limbo : cursiv::GrammarSpec {
   static constexpr auto OpLogOr = lit<"||">;
   static constexpr auto OpCons = lit<"::">;
 
+  struct SendExpression : rule<create<ast::SendExpr>(
+      assign<&ast::SendExpr::target>(ref<MonadicExpr>) + lit<"<-"> +
+      assign<&ast::SendExpr::value>(ref<SendExpression>)) | ref<MonadicExpr>> {};
   struct BinaryLadder
-      : infix<MonadicExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMul) >> left(OpAdd) >> left(OpShift) >> left(OpRel) >>
-               left(OpEq) >> left(OpBitAnd) >> left(OpBitXor) >>
-               left(OpBitOr) >> right(OpCons) >> left(OpLogAnd) >>
-               left(OpLogOr))> {};
+      : infix<SendExpression, ast::BinaryExpr,
+              levels(right(lit<"**">), left(OpMul), left(OpAdd), left(OpShift), left(OpRel),
+                     left(OpEq), left(OpBitAnd), left(OpBitXor), left(OpBitOr),
+                     right(OpCons), left(OpLogAnd), left(OpLogOr))> {};
 
   static constexpr auto AssignOp =
       lit<"<<="> | lit<">>="> | lit<"+="> | lit<"-="> | lit<"*="> |
-      lit<"/="> | lit<"%="> | lit<"&="> | lit<"^="> | lit<"|="> | Assign;
+      lit<"**="> | lit<"/="> | lit<"%="> | lit<"&="> | lit<"^="> | lit<"|="> | Assign;
 
   struct Expression
       : rule<create<ast::AssignExpr>(
@@ -234,7 +295,7 @@ struct Limbo : cursiv::GrammarSpec {
                  assign<&ast::AssignExpr::value>(ref<Expression>))  //
              | create<ast::SendExpr>(
                    assign<&ast::SendExpr::target>(ref<MonadicExpr>) +
-                   lit<"<-"> + Assign +
+                   lit<"<-"> + flag<&ast::SendExpr::equals>(Assign) +
                    assign<&ast::SendExpr::value>(ref<Expression>))  //
              | create<ast::DeclareExpr>(
                    assign<&ast::DeclareExpr::target>(ref<MonadicExpr>) +
@@ -260,11 +321,15 @@ struct Limbo : cursiv::GrammarSpec {
             IdentifierListFor<&ast::ConDecl::names> + Colon + kw<"con"> +
             assign<&ast::ConDecl::value>(ref<Expression>) + lit<";">)> {};
 
+  struct ExceptionDecl : rule<IdentifierListFor<&ast::ExceptionDecl::names> +
+      Colon + kw<"exception"> + option(lit<"("> +
+          some(append<&ast::ExceptionDecl::parameters>(ref<Type>), lit<",">) + lit<")">) + lit<";">> {};
+
   struct ImportDecl
       : rule<create<ast::ImportDecl>(
             IdentifierListFor<&ast::ImportDecl::names> + Colon +
             kw<"import"> +
-            assign<&ast::ImportDecl::moduleName>(ref<ID>) + lit<";">)> {};
+            assign<&ast::ImportDecl::moduleExpression>(ref<Expression>) + lit<";">)> {};
 
   struct TypeDecl
       : rule<create<ast::TypeDecl>(
@@ -277,32 +342,18 @@ struct Limbo : cursiv::GrammarSpec {
             lit<";">)> {};
 
   struct Declaration
-      : rule<ref<VarDecl> | ref<ConDecl> | ref<ImportDecl> | ref<TypeDecl> |
+      : rule<ref<ExceptionDecl> | ref<VarDecl> | ref<ConDecl> | ref<ImportDecl> | ref<TypeDecl> |
             ref<IncludeDecl>> {};
 
-  struct ShortVarDecl
-      : rule<create<ast::ShortVarDecl>(
-            IdentifierListFor<&ast::ShortVarDecl::names> + lit<":="> +
-            assign<&ast::ShortVarDecl::value>(ref<Expression>) + lit<";">)> {
-  };
-
-  struct AssignDecl
-      : rule<create<ast::AssignDecl>(
-            IdentifierListFor<&ast::AssignDecl::names> + Assign +
-            assign<&ast::AssignDecl::value>(ref<Expression>) + lit<";">)> {};
-
-  struct TupleShortVarDecl
-      : rule<create<ast::TupleShortVarDecl>(
-            lit<"("> + IdentifierListFor<&ast::TupleShortVarDecl::names> +
-            lit<")"> + lit<":="> +
-            assign<&ast::TupleShortVarDecl::value>(ref<Expression>) +
-            lit<";">)> {};
+  struct TopAssignment : rule<assign<&ast::TopAssignment::target>(ref<RaiseTarget>) +
+      assign<&ast::TopAssignment::op>(lit<":="> | Assign) +
+      assign<&ast::TopAssignment::value>(ref<Expression>) + lit<";">> {};
 
   struct AdtField
       : rule<create<ast::AdtField>(
             IdentifierListFor<&ast::AdtField::names> + Colon +
             option(flag<&ast::AdtField::cyclic>(kw<"cyclic">)) +
-            assign<&ast::AdtField::type>(ref<DataType>) +
+            assign<&ast::AdtField::type>(ref<Type>) +
             lit<";">)> {};
 
   struct PickTagArm
@@ -315,24 +366,27 @@ struct Limbo : cursiv::GrammarSpec {
   struct PickDecl
       : rule<create<ast::PickDecl>(
             kw<"pick"> + lit<"{"> +
-            some(append<&ast::PickDecl::arms>(ref<PickTagArm>)) + lit<"}"> +
-            lit<";">)> {};
+            some(append<&ast::PickDecl::arms>(ref<PickTagArm>)) + lit<"}">)> {};
 
   struct AdtMember
-      : rule<ref<AdtField> | ref<ConDecl> | ref<VarDecl> | ref<PickDecl>> {};
+      : rule<ref<AdtField> | ref<ConDecl> | ref<PickDecl>> {};
 
-  struct AdtDecl
-      : rule<create<ast::AdtDecl>(
-            assign<&ast::AdtDecl::name>(ref<ID>) + Colon + kw<"adt"> +
-            lit<"{"> + many(append<&ast::AdtDecl::members>(ref<AdtMember>)) +
-            lit<"}"> + lit<";">)> {};
+  static constexpr auto AdtBody = lit<"{"> +
+      many(append<&ast::AdtDecl::members>(ref<AdtMember>)) + lit<"}">;
+  struct AdtDecl : rule<create<ast::AdtDecl>(
+      assign<&ast::AdtDecl::name>(ref<ID>) +
+      many(lit<","> + append<&ast::AdtDecl::additionalNames>(ref<ID>)) + Colon + kw<"adt"> +
+      option(assign<&ast::AdtDecl::parameters>(ref<GenericParameters>)) +
+      ((ConstraintsFor<&ast::AdtDecl::constraints> + AdtBody) |
+       (AdtBody + option(ConstraintsFor<&ast::AdtDecl::constraints>))) + lit<";">)> {};
 
   struct ModMember
-      : rule<ref<VarDecl> | ref<ConDecl> | ref<TypeDecl> | ref<AdtDecl>> {};
+      : rule<ref<ExceptionDecl> | ref<VarDecl> | ref<ConDecl> | ref<TypeDecl> | ref<AdtDecl>> {};
 
   struct ModuleDecl
       : rule<create<ast::ModuleDecl>(
-            assign<&ast::ModuleDecl::name>(ref<ID>) + Colon + kw<"module"> +
+            assign<&ast::ModuleDecl::name>(ref<ID>) +
+            many(lit<","> + append<&ast::ModuleDecl::additionalNames>(ref<ID>)) + Colon + kw<"module"> +
             lit<"{"> +
             many(append<&ast::ModuleDecl::members>(ref<ModMember>)) +
             lit<"}"> + lit<";">)> {};
@@ -357,14 +411,14 @@ struct Limbo : cursiv::GrammarSpec {
 
   struct WhileStmt
       : rule<create<ast::WhileStmt>(
-            option(assign<&ast::WhileStmt::label>(ref<ID>) + Colon) +
+            LabelFor<&ast::WhileStmt::label, &ast::WhileStmt::additionalLabels> +
             kw<"while"> + lit<"("> +
             option(assign<&ast::WhileStmt::cond>(ref<Expression>)) +
             lit<")"> + assign<&ast::WhileStmt::body>(ref<Statement>))> {};
 
   struct DoWhileStmt
       : rule<create<ast::DoWhileStmt>(
-            option(assign<&ast::DoWhileStmt::label>(ref<ID>) + Colon) +
+            LabelFor<&ast::DoWhileStmt::label, &ast::DoWhileStmt::additionalLabels> +
             kw<"do"> + assign<&ast::DoWhileStmt::body>(ref<Statement>) +
             kw<"while"> + lit<"("> +
             option(assign<&ast::DoWhileStmt::cond>(ref<Expression>)) +
@@ -372,7 +426,7 @@ struct Limbo : cursiv::GrammarSpec {
 
   struct ForStmt
       : rule<create<ast::ForStmt>(
-            option(assign<&ast::ForStmt::label>(ref<ID>) + Colon) +
+            LabelFor<&ast::ForStmt::label, &ast::ForStmt::additionalLabels> +
             kw<"for"> + lit<"("> +
             option(assign<&ast::ForStmt::init>(ref<Expression>)) + lit<";"> +
             option(assign<&ast::ForStmt::cond>(ref<Expression>)) + lit<";"> +
@@ -395,18 +449,18 @@ struct Limbo : cursiv::GrammarSpec {
 
   struct CaseStmt
       : rule<create<ast::CaseStmt>(
-            option(assign<&ast::CaseStmt::label>(ref<ID>) + Colon) +
+            LabelFor<&ast::CaseStmt::label, &ast::CaseStmt::additionalLabels> +
             kw<"case"> + assign<&ast::CaseStmt::value>(ref<Expression>) +
             lit<"{"> + some(append<&ast::CaseStmt::arms>(ref<CaseArm>)) +
             lit<"}">)> {};
 
   struct AltStmt
       : rule<create<ast::AltStmt>(
-            option(assign<&ast::AltStmt::label>(ref<ID>) + Colon) +
+            LabelFor<&ast::AltStmt::label, &ast::AltStmt::additionalLabels> +
             kw<"alt"> + lit<"{"> +
             some(append<&ast::AltStmt::arms>(ref<CaseArm>)) + lit<"}">)> {};
 
-  struct PickQualRule
+  struct PickQual
       : rule<create<ast::PickQual>(
                  flag<&ast::PickQual::wildcard>(lit<"*">))  //
              | create<ast::PickQual>(assign<&ast::PickQual::tag>(ref<ID>))> {
@@ -414,17 +468,23 @@ struct Limbo : cursiv::GrammarSpec {
 
   struct PickArm
       : rule<create<ast::PickArm>(
-            append<&ast::PickArm::tags>(ref<PickQualRule>) +
-            many(kw<"or"> + append<&ast::PickArm::tags>(ref<PickQualRule>)) +
+            append<&ast::PickArm::tags>(ref<PickQual>) +
+            many(kw<"or"> + append<&ast::PickArm::tags>(ref<PickQual>)) +
             lit<"=>"> + many(append<&ast::PickArm::body>(ref<Item>)))> {};
 
   struct PickStmt
       : rule<create<ast::PickStmt>(
-            option(assign<&ast::PickStmt::label>(ref<ID>) + Colon) +
+            LabelFor<&ast::PickStmt::label, &ast::PickStmt::additionalLabels> +
             kw<"pick"> + assign<&ast::PickStmt::varName>(ref<ID>) +
             lit<":="> + assign<&ast::PickStmt::value>(ref<Expression>) +
             lit<"{"> + some(append<&ast::PickStmt::arms>(ref<PickArm>)) +
             lit<"}">)> {};
+
+  struct TryStmt : rule<assign<&ast::TryStmt::body>(ref<Block>) + kw<"exception"> +
+      option(assign<&ast::TryStmt::variable>(ref<ID>)) + lit<"{"> +
+      some(append<&ast::TryStmt::handlers>(ref<CaseArm>)) + lit<"}">> {};
+  struct RaiseStmt : rule<create<ast::RaiseStmt>(kw<"raise"> +
+      option(assign<&ast::RaiseStmt::value>(ref<Expression>)) + lit<";">)> {};
 
   struct BreakStmt
       : rule<create<ast::BreakStmt>(
@@ -443,16 +503,13 @@ struct Limbo : cursiv::GrammarSpec {
                                ref<Expression>)) +
             lit<";">)> {};
 
-  struct SpawnStmt
-      : rule<create<ast::SpawnStmt>(
-            kw<"spawn"> + assign<&ast::SpawnStmt::callee>(ref<Term>) +
-            lit<"("> + option(ExpressionListFor<&ast::SpawnStmt::args>) +
-            lit<")"> + lit<";">)> {};
+  struct SpawnStmt : rule<create<ast::SpawnStmt>(kw<"spawn"> +
+      assign<&ast::SpawnStmt::expression>(ref<Expression>) + lit<";">)> {};
 
   struct ExitStmt : rule<create<ast::ExitStmt>(kw<"exit"> + lit<";">)> {};
 
   struct Statement
-      : rule<ref<Block> | ref<IfStmt> | ref<WhileStmt> | ref<DoWhileStmt> |
+      : rule<ref<TryStmt> | ref<RaiseStmt> | ref<Block> | ref<IfStmt> | ref<WhileStmt> | ref<DoWhileStmt> |
             ref<ForStmt> | ref<CaseStmt> | ref<AltStmt> | ref<PickStmt> |
             ref<BreakStmt> | ref<ContinueStmt> | ref<ReturnStmt> |
             ref<SpawnStmt> | ref<ExitStmt> | ref<ExprStmt>> {};
@@ -463,23 +520,23 @@ struct Limbo : cursiv::GrammarSpec {
 
   struct FunctionDef
       : rule<create<ast::FunctionDef>(
-            append<&ast::FunctionDef::nameParts>(ref<ID>) +
-            many(lit<"."> + append<&ast::FunctionDef::nameParts>(ref<ID>)) +
-            assign<&ast::FunctionDef::signature>(ref<Signature>) + lit<"{"> +
+            some(append<&ast::FunctionDef::nameParts>(ref<ID>) +
+                 option(append<&ast::FunctionDef::typeParameters>(ref<GenericParameters>)), lit<".">) +
+            assign<&ast::FunctionDef::signature>(ref<Signature>) +
+            option(assign<&ast::FunctionDef::raises>(ref<RaiseSpec>)) + lit<"{"> +
             many(append<&ast::FunctionDef::body>(ref<Item>)) + lit<"}">)> {};
 
   struct TopDecl
-      : rule<ref<Declaration> | ref<ShortVarDecl> | ref<AssignDecl> |
-            ref<TupleShortVarDecl> | ref<ModuleDecl> | ref<FunctionDef> |
+      : rule<ref<Declaration> | ref<TopAssignment> | ref<ModuleDecl> | ref<FunctionDef> |
             ref<AdtDecl>> {};
 
   struct Program
       : rule<create<ast::Program>(
-            kw<"implement"> + assign<&ast::Program::name>(ref<ID>) +
-            lit<";"> + some(append<&ast::Program::decls>(ref<TopDecl>)))> {};
+            option(kw<"implement"> + assign<&ast::Program::name>(ref<ID>) +
+                   many(lit<","> + append<&ast::Program::additionalImplementations>(ref<ID>)) + lit<";">) + some(append<&ast::Program::decls>(ref<TopDecl>)))> {};
 
   using entry = Program;
-  using ignore = list<WS, COMMENT>;
+  using ignored = list<WS, COMMENT>;
 };
 
 }  // namespace limbo

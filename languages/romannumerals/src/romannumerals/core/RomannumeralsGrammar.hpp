@@ -9,11 +9,11 @@ struct Romannumerals : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
   struct LETTERS : terminal<some(cr<"IVXLCDMNivxlcdmn">)> {};
 
-  struct RomanNumeralRule
+  struct RomanNumeral
       : rule<assign<&ast::RomanNumeral::text>(ref<LETTERS>)> {};
 
-  using entry = RomanNumeralRule;
-  using ignore = WS;
+  using entry = RomanNumeral;
+  using ignored = WS;
 };
 
 }  // namespace romannumerals

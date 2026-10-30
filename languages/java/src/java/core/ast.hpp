@@ -87,12 +87,12 @@ struct TypeParam : cursiv::Extends<cursiv::AstNode> {
 
 struct Pattern : cursiv::Extends<cursiv::AstNode> {};
 
-// Real Java binds exactly one, uninitialized, name; `declarators` stays a
-// list because the multi-declarator production is reused here.
+// One uninitialized binding; vector shape retained for AST compatibility.
 struct TypePattern : cursiv::Extends<Pattern> {
   vector<string_view> modifiers;
   vector<Annotation *> annotations;
   TypeRef *type;
+  boolean isVar; // An inferred record-pattern component.
   vector<VarDeclarator *> declarators;
 };
 
@@ -232,9 +232,13 @@ struct AssignExpr : cursiv::Extends<Expr> {
 
 struct LambdaParam : cursiv::Extends<cursiv::AstNode> {
   vector<string_view> modifiers;
+  vector<Annotation*> annotations;
   TypeRef *type; // null: inferred (bare name, or explicit `var`)
   boolean isVar;
   string_view name;
+  boolean varargs;
+  vector<Annotation*> varargsAnnotations;
+  vector<ArrayDimension*> extraDims;
 };
 
 struct LambdaExpr : cursiv::Extends<Expr> {
@@ -476,6 +480,7 @@ struct ForStmt : cursiv::Extends<Stmt> {
 
 struct ForEachStmt : cursiv::Extends<Stmt> {
   vector<string_view> modifiers;
+  vector<Annotation*> annotations;
   TypeRef *type; // null when `var`
   boolean isVar;
   string_view name;

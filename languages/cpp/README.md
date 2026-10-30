@@ -31,10 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-C++14 syntax: declarations, classes, templates, lambdas and exceptions. There
-is no symbol table, so a name is syntactic and the classic ambiguities (a
-declaration against an expression, a functional-style cast against a call)
-resolve by ordered choice rather than by knowing what a name denotes.
+C++14 syntax, including declarations, classes, templates, lambdas and exceptions.
 
 ```cpp
 class Circle : public Shape {

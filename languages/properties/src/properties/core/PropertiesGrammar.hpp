@@ -29,42 +29,42 @@ struct Properties : cursiv::GrammarSpec {
   static constexpr auto esc =
       lit<"\\"> + ((eol + many(horizontal)) | any | eof);
 
-  struct KEY : terminal<!(many(continued) + cr<"!#">)+!(some(continued) + eol) +
-                            !(some(continued) + some(horizontal) + eof) +
-                            some(esc | cr<R"(^ :=\t\f\r\n\\)">),
-                        text_conv<decode>> {};
-  struct VALUE : terminal<some(esc | cr<R"(^\r\n\\)">), text_conv<decode>> {};
+  struct KEY : terminal<as<decode>(
+                   !(many(continued) + cr<"!#">)+!(some(continued) + eol) +
+                   !(some(continued) + some(horizontal) + eof) +
+                   some(esc | cr<R"(^ :=\t\f\r\n\\)">))> {};
+  struct VALUE : terminal<as<decode>(some(esc | cr<R"(^\r\n\\)">))> {};
   struct Delimiter : terminal<cr<":="> + option(ref<HWS>)> {};
   struct Separator
       : terminal<(ref<HWS> + option(ref<Delimiter>)) | ref<Delimiter>> {};
 
   static constexpr auto row_end = ref<NEWLINE> | eof;
 
-  struct CommentRule
+  struct Comment
       : rule<option(ref<HWS>) + assign<&ast::Comment::text>(ref<COMMENT>) +
              row_end> {};
 
-  struct EmptyKeyRule : rule<&ref<Delimiter>> {};
-  struct ValueRule : rule<option(ref<VALUE>)> {};
+  struct EmptyKey : rule<&ref<Delimiter>> {};
+  struct Value : rule<option(ref<VALUE>)> {};
 
-  struct EntryRule
+  struct Entry
       : rule<option(ref<HWS>) +
              ((assign<&ast::Entry::key>(ref<KEY>) +
                option(ref<Separator> +
-                      assign<&ast::Entry::value>(ref<ValueRule>))) |
-              (assign<&ast::Entry::key>(ref<EmptyKeyRule>) + ref<Delimiter> +
-               assign<&ast::Entry::value>(ref<ValueRule>))) +
+                      assign<&ast::Entry::value>(ref<Value>))) |
+              (assign<&ast::Entry::key>(ref<EmptyKey>) + ref<Delimiter> +
+               assign<&ast::Entry::value>(ref<Value>))) +
              row_end> {};
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document> +
-             many(append<&ast::Document::rows>(ref<EntryRule> |
-                                               ref<CommentRule>) |
+             many(append<&ast::Document::rows>(ref<Entry> |
+                                               ref<Comment>) |
                   (option(ref<HWS>) + !ref<KEY> + option(ref<CONTINUED>) +
                    ref<NEWLINE>) |
                   (option(ref<HWS>) + !ref<KEY> + ref<CONTINUED> + eof)) +
              option(ref<HWS>)> {};
 
-  using entry = DocumentRule;
+  using entry = Document;
 };
 
 } // namespace properties

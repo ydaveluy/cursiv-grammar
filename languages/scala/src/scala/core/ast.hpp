@@ -201,7 +201,7 @@ struct Binding : cursiv::Extends<cursiv::AstNode> {
 // appends one node of this per group instead.
 struct ArgList : cursiv::Extends<cursiv::AstNode> {
   vector<Expr*> args;
-  boolean varargsSplice;
+  boolean varargsSplice;  // Legacy slot; repeated arguments are AscribeExpr.
 };
 
 // `type` is `Type*`, not `NamedType*`: an annotation's type shares the
@@ -264,7 +264,7 @@ struct TypeApplyExpr : cursiv::Extends<Expr> {
 struct CallExpr : cursiv::Extends<Expr> {
   Expr* callee;
   vector<Expr*> args;
-  boolean varargsSplice;
+  boolean varargsSplice;  // Legacy slot; repeated arguments are AscribeExpr.
 };
 
 struct PrefixOpExpr : cursiv::Extends<Expr> {

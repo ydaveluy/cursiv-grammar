@@ -25,9 +25,13 @@ struct Haskell : cursiv::GrammarSpec {
   // indented blocks and inline blocks expressed below. It does not yet model
   // every Haskell layout continuation; that remains a limitation of this port.
 
-  struct WS : terminal<some(cr<R"( \t)">)> {};
+  static constexpr auto horizontalWhite =
+      cr<R"( \t\v\u0085)"> | uc::Zs | uc::Zl | uc::Zp;
+  static constexpr auto newline = eol | lit<"\f">;
+  static constexpr auto whitechar = horizontalWhite | newline;
+  struct WS : terminal<some(horizontalWhite)> {};
   static constexpr auto comment_body =
-      lit<"--"> + many(lit<"-">) + !symbolChar + many(cr<R"(^\r\n)">);
+      lit<"--"> + many(lit<"-">) + !symbolChar + many(cr<R"(^\r\n\f)">);
   struct NestedComment
       : terminal<lit<"{-"> +
                  many(ref<NestedComment> | (!lit<"{-"> + !lit<"-}"> + any)) +
@@ -37,10 +41,10 @@ struct Haskell : cursiv::GrammarSpec {
   // A line with nothing but whitespace and comments does not end a logical
   // line: folded into NEWLINE, as python's port does. The indentation is read
   // where NEWLINE ends, so a comment line at any column decides nothing.
-  static constexpr auto blank_line = many(cr<R"( \t)">) +
-                                     many(block_comment + many(cr<R"( \t)">)) +
-                                     option(comment_body) + eol;
-  struct NEWLINE : terminal<eol + many(blank_line)> {};
+  static constexpr auto blank_line = many(horizontalWhite) +
+                                     many(block_comment + many(horizontalWhite)) +
+                                     option(comment_body) + newline;
+  struct NEWLINE : terminal<newline + many(blank_line)> {};
   struct SL_COMMENT : terminal<comment_body> {};
   struct ML_COMMENT : terminal<block_comment> {};
 
@@ -155,24 +159,40 @@ struct Haskell : cursiv::GrammarSpec {
                   ((lit<"."> + hexadecimal + option(binExponent)) |
                    binExponent))> {};
 
-  static constexpr auto charEscape =
-      lit<"\\"> + ((lit<"x"> + some(cr<"0-9a-fA-F">)) |
-                   (lit<"o"> + some(cr<"0-7">)) | some(d) | (lit<"^"> + any) |
-                   some(cr<"A-Z0-9">) | any);
-  struct CHAR_TOK : terminal<lit<"'"> + (charEscape | cr<R"(^'\\)">)+lit<"'">> {
-  };
+  static constexpr auto charEscapeBody =
+      cr<R"(abfnrtv\\"')"> |
+      (lit<"x"> + some(cr<"0-9a-fA-F">)) |
+      (lit<"o"> + some(cr<"0-7">)) | some(d) |
+      (lit<"^"> + (cr<"A-Z@_"> | lit<"["> | lit<"\\"> | lit<"]"> | lit<"^">)) |
+      lit<"NUL"> | lit<"SOH"> | lit<"STX"> | lit<"ETX"> | lit<"EOT"> |
+      lit<"ENQ"> | lit<"ACK"> | lit<"BEL"> | lit<"BS"> | lit<"HT"> |
+      lit<"LF"> | lit<"VT"> | lit<"FF"> | lit<"CR"> | lit<"SO"> |
+      lit<"SI"> | lit<"DLE"> | lit<"DC1"> | lit<"DC2"> | lit<"DC3"> |
+      lit<"DC4"> | lit<"NAK"> | lit<"SYN"> | lit<"ETB"> | lit<"CAN"> |
+      lit<"EM"> | lit<"SUB"> | lit<"ESC"> | lit<"FS"> | lit<"GS"> |
+      lit<"RS"> | lit<"US"> | lit<"SP"> | lit<"DEL">;
+  static constexpr auto charEscape = lit<"\\"> + charEscapeBody;
+  // Literal whitespace is restricted to an ordinary space. A string gap
+  // consumes both backslashes and one or more white characters as one token.
+  static constexpr auto literalChar =
+      !horizontalWhite + cr<R"(^\x00-\x1f\x7f-\x9f\\)"> | lit<" ">;
+  struct CHAR_TOK
+      : terminal<lit<"'"> + (charEscape | (!lit<"'"> + literalChar)) + lit<"'">> {};
   struct STRING_TOK
-      : terminal<lit<"\""> + many(charEscape | cr<R"(^"\\)">) + lit<"\"">> {};
+      : terminal<lit<"\""> +
+                 many(charEscape | (lit<"\\"> + lit<"&">) |
+                      (lit<"\\"> + some(whitechar) + lit<"\\">) |
+                      (!lit<"\""> + literalChar)) + lit<"\"">> {};
 
-  struct IntLitRule : rule<create<ast::IntLit>(assign<&ast::IntLit::text>(
+  struct IntLit : rule<create<ast::IntLit>(assign<&ast::IntLit::text>(
                           ref<HEX_TOK> | ref<OCTAL_TOK> | ref<BINARY_TOK> |
                           ref<DECIMAL_TOK>))> {};
-  struct FloatLitRule : rule<create<ast::FloatLit>(
+  struct FloatLit : rule<create<ast::FloatLit>(
                             assign<&ast::FloatLit::text>(ref<FLOAT_TOK>))> {};
-  struct CharLitRule
+  struct CharLit
       : rule<create<ast::CharLit>(assign<&ast::CharLit::text>(ref<CHAR_TOK>))> {
   };
-  struct StringLitRule : rule<create<ast::StringLit>(
+  struct StringLit : rule<create<ast::StringLit>(
                              assign<&ast::StringLit::text>(ref<STRING_TOK>))> {
   };
 
@@ -199,7 +219,7 @@ struct Haskell : cursiv::GrammarSpec {
   struct Decl_;
   struct DoStmt_;
   struct CaseAlt_;
-  struct TypeEqnRule;
+  struct TypeEqn;
 
   template <auto BodyPtr, auto Item>
   static constexpr auto genericBlock =
@@ -261,7 +281,7 @@ struct Haskell : cursiv::GrammarSpec {
             assign<&ast::TyCon::name>(ref<VARID_TOK> | ref<CONID_TOK>) +
             lit<"`">)> {};
 
-  struct TyBndrRule
+  struct TyBndr
       : rule<create<ast::TyBndr>(assign<&ast::TyBndr::name>(ref<VarIdTerm>)) //
              |
              create<ast::TyBndr>(
@@ -271,6 +291,10 @@ struct Haskell : cursiv::GrammarSpec {
                    lit<"{"> + assign<&ast::TyBndr::name>(ref<VarIdTerm>) +
                    option(DCOLON + assign<&ast::TyBndr::kind>(ref<Type_>)) +
                    lit<"}">)> {};
+
+  struct BuiltinTypeName
+      : rule<(lit<"["> + lit<"]">) |
+             (lit<"("> + option(RARROW | some(lit<",">)) + lit<")">)> {};
 
   struct AType
       : rule<create<ast::TyBang>(assign<&ast::TyBang::marker>(TILDE) +
@@ -305,7 +329,7 @@ struct Haskell : cursiv::GrammarSpec {
              | ref<TyConExpr>                                           //
              | ref<TyVarExpr>                                           //
              | create<ast::TyCon>(assign<&ast::TyCon::name>(lit<"*">))  //
-             | create<ast::TyCon>(assign<&ast::TyCon::name>(lit<"()">)) //
+             | create<ast::TyCon>(assign<&ast::TyCon::name>(ref<BuiltinTypeName>)) //
              // An explicit-kind binder in a header's own argument list, e.g.
              // `type family F (a :: k) ...`.
              | create<ast::TyKindSig>(
@@ -319,7 +343,8 @@ struct Haskell : cursiv::GrammarSpec {
                    lit<")">)> {};
 
   struct TypeAtomOrOp
-      : rule<ref<AType> | (ATSIGN + ref<AType>) | ref<TyOpExpr>> {};
+      : rule<ref<AType> | create<ast::TyVisibleArg>(ATSIGN +
+                   assign<&ast::TyVisibleArg::type>(ref<AType>)) | ref<TyOpExpr>> {};
 
   struct BType
       : rule<create<ast::TyApp>(
@@ -334,8 +359,8 @@ struct Haskell : cursiv::GrammarSpec {
 
   struct CType
       : rule<create<ast::TyForall>(
-                 kw<"forall"> + append<&ast::TyForall::vars>(ref<TyBndrRule>) +
-                 many(append<&ast::TyForall::vars>(ref<TyBndrRule>)) +
+                 kw<"forall"> + append<&ast::TyForall::vars>(ref<TyBndr>) +
+                 many(append<&ast::TyForall::vars>(ref<TyBndr>)) +
                  (lit<"."> | RARROW) +
                  assign<&ast::TyForall::body>(ref<CType>)) //
              | create<ast::TyContext>(
@@ -355,7 +380,7 @@ struct Haskell : cursiv::GrammarSpec {
   // the same shape -- `Pat` and `Apat` below are `Exp`/`Aexp1` under
   // another name.
 
-  struct FieldBindRule
+  struct FieldBind
       : rule<create<ast::FieldBind>(
                  flag<&ast::FieldBind::isWildcard>(DOTDOT)) //
              | create<ast::FieldBind>(
@@ -364,7 +389,7 @@ struct Haskell : cursiv::GrammarSpec {
                    option(EQSIGN + assign<&ast::FieldBind::value>(ref<Exp>)))> {
   };
 
-  struct CompQualRule
+  struct CompQual
       : rule<create<ast::CompQual>(
                  kw<"then"> + kw<"group"> + kw<"by"> +
                  assign<&ast::CompQual::byExpr>(ref<Exp>) + kw<"using"> +
@@ -388,10 +413,9 @@ struct Haskell : cursiv::GrammarSpec {
 
   template <auto GuardsPtr>
   static constexpr auto guardListImpl =
-      append<GuardsPtr>(ref<CompQualRule>) +
-      many(lit<","> + append<GuardsPtr>(ref<CompQualRule>));
+      some(append<GuardsPtr>(ref<CompQual>), lit<",">);
 
-  struct GuardedExprRule
+  struct GuardedExpr
       : rule<PIPE + guardListImpl<&ast::GuardedExpr::guards> + RARROW +
              assign<&ast::GuardedExpr::value>(ref<Exp>)> {};
 
@@ -399,7 +423,7 @@ struct Haskell : cursiv::GrammarSpec {
       : rule<create<ast::CaseAlt>(
             assign<&ast::CaseAlt::pattern>(ref<Pat>) +
             ((RARROW + assign<&ast::CaseAlt::body>(ref<Exp>)) //
-             | some(append<&ast::CaseAlt::guards>(ref<GuardedExprRule>))) +
+             | some(append<&ast::CaseAlt::guards>(ref<GuardedExpr>))) +
             option(kw<"where"> + declBlock<&ast::CaseAlt::whereDecls>))> {};
 
   struct DoStmt_
@@ -413,11 +437,11 @@ struct Haskell : cursiv::GrammarSpec {
              | create<ast::DoStmt>(assign<&ast::DoStmt::value>(ref<Exp>))> {};
 
   struct QuasiName
-      : terminal<lit<"["> + option(some(conidBody + lit<".">)) + smallChar +
-                     many(idTail) + many(lit<"#">) + &cr<"|">,
-                 text_conv<quasi_name>> {};
-  struct QuasiPayload
-      : terminal<through(lit<"|">, lit<"|]">), text_conv<quasi_body>> {};
+      : terminal<as<quasi_name>(lit<"["> + option(some(conidBody + lit<".">)) +
+                                smallChar + many(idTail) + many(lit<"#">) +
+                                &cr<"|">)> {};
+  struct QuasiPayload : terminal<as<quasi_body>(through(lit<"|">, lit<"|]">))> {
+  };
 
   static constexpr auto closingNameChar =
       smallChar | largeChar | uc::Nd | uc::Nl | uc::No | uc::Lm | lit<"'">;
@@ -436,10 +460,10 @@ struct Haskell : cursiv::GrammarSpec {
                                 assign<&ast::AsPat::pattern>(ref<Aexp>)) //
              | ref<VarExpr>                                              //
              | ref<ConExpr>                                              //
-             | ref<FloatLitRule>                                         //
-             | ref<IntLitRule>                                           //
-             | ref<CharLitRule>                                          //
-             | ref<StringLitRule>                                        //
+             | ref<FloatLit>                                         //
+             | ref<IntLit>                                           //
+             | ref<CharLit>                                          //
+             | ref<StringLit>                                        //
              | create<ast::WildcardPat>(lit<"_">)                        //
              | create<ast::LazyPat>(
                    TILDE + assign<&ast::LazyPat::pattern>(ref<Aexp>)) //
@@ -461,7 +485,7 @@ struct Haskell : cursiv::GrammarSpec {
                    kw<"else"> + assign<&ast::IfExpr::elseBranch>(ref<Exp>)) //
              | create<ast::MultiIfExpr>(
                    kw<"if"> + option(lit<"{">) +
-                   some(append<&ast::MultiIfExpr::arms>(ref<GuardedExprRule>)) +
+                   some(append<&ast::MultiIfExpr::arms>(ref<GuardedExpr>)) +
                    option(lit<"}">)) //
              | create<ast::CaseExpr>(
                    kw<"case"> + assign<&ast::CaseExpr::scrutinee>(ref<Exp>) +
@@ -483,15 +507,13 @@ struct Haskell : cursiv::GrammarSpec {
                    lit<"#)">) //
              | create<ast::LeftSection>(
                    lit<"("> +
-                   assign<&ast::LeftSection::op>(ref<GeneralVarSym> |
-                                                 QConSymBody) +
+                   assign<&ast::LeftSection::op>(Qop) +
                    assign<&ast::LeftSection::operand>(ref<InfixExp>) +
                    lit<")">) //
              |
              create<ast::RightSection>(
                  lit<"("> + assign<&ast::RightSection::operand>(ref<InfixExp>) +
-                 assign<&ast::RightSection::op>(ref<GeneralVarSym> |
-                                                QConSymBody) +
+                 assign<&ast::RightSection::op>(Qop) +
                  lit<")">)                                //
              | ref<ParenVarOp>                            //
              | ref<ParenConOp>                            //
@@ -510,8 +532,7 @@ struct Haskell : cursiv::GrammarSpec {
                    DOTDOT + option(assign<&ast::ArithSeqExpr::to>(ref<Exp>)) +
                    lit<"]">) //
              | create<ast::ListExpr>(
-                   lit<"["> + append<&ast::ListExpr::items>(ref<Exp>) +
-                   many(lit<","> + append<&ast::ListExpr::items>(ref<Exp>)) +
+                   lit<"["> + some(append<&ast::ListExpr::items>(ref<Exp>), lit<",">) +
                    lit<"]">) //
              | create<ast::Splice>(flag<&ast::Splice::isTyped>(lit<"$$">) +
                                    assign<&ast::Splice::value>(ref<Aexp>)) //
@@ -540,9 +561,9 @@ struct Haskell : cursiv::GrammarSpec {
       : rule<ref<Aexp> +
              many(nest<ast::RecordExpr, &ast::RecordExpr::base>(
                  lit<"{"> +
-                 option(append<&ast::RecordExpr::fields>(ref<FieldBindRule>) +
+                 option(append<&ast::RecordExpr::fields>(ref<FieldBind>) +
                         many(lit<","> + append<&ast::RecordExpr::fields>(
-                                            ref<FieldBindRule>))) +
+                                            ref<FieldBind>))) +
                  lit<"}">))> {};
 
   struct Fexp : rule<ref<Aexp1> +
@@ -589,7 +610,7 @@ struct Haskell : cursiv::GrammarSpec {
   struct PlainRhs : rule<create<ast::GuardedRhs>(
                         EQSIGN + assign<&ast::GuardedRhs::value>(ref<Exp>))> {};
 
-  struct ValueDeclRule
+  struct ValueDecl
       : rule<create<ast::ValueDecl>(
             assign<&ast::ValueDecl::lhs>(ref<InfixExp>) +
             option(DCOLON + assign<&ast::ValueDecl::resultSig>(ref<CType>)) +
@@ -597,13 +618,12 @@ struct Haskell : cursiv::GrammarSpec {
              | some(append<&ast::ValueDecl::rhs>(ref<GuardedRhsOne>))) +
             option(kw<"where"> + declBlock<&ast::ValueDecl::whereDecls>))> {};
 
-  struct TypeSigDeclRule
+  struct TypeSigDecl
       : rule<create<ast::TypeSigDecl>(
-            append<&ast::TypeSigDecl::names>(ref<InfixExp>) +
-            many(lit<","> + append<&ast::TypeSigDecl::names>(ref<InfixExp>)) +
+            some(append<&ast::TypeSigDecl::names>(ref<InfixExp>), lit<",">) +
             DCOLON + assign<&ast::TypeSigDecl::type>(ref<CType>))> {};
 
-  struct FixityDeclRule
+  struct FixityDecl
       : rule<create<ast::FixityDecl>(
             assign<&ast::FixityDecl::assoc>(kw<"infixl"> | kw<"infixr"> |
                                             kw<"infix">) +
@@ -611,7 +631,7 @@ struct Haskell : cursiv::GrammarSpec {
             append<&ast::FixityDecl::ops>(Qop) +
             many(lit<","> + append<&ast::FixityDecl::ops>(Qop)))> {};
 
-  struct PatSynDeclRule
+  struct PatSynDecl
       : rule<create<ast::PatternSynonymDecl>(
             kw<"pattern"> +
             assign<&ast::PatternSynonymDecl::lhs>(ref<InfixExp>) +
@@ -625,44 +645,46 @@ struct Haskell : cursiv::GrammarSpec {
   template <auto Kw>
   static constexpr auto genericPragmaBody =
       create<ast::PragmaDecl>(lit<"{-#"> + assign<&ast::PragmaDecl::kind>(Kw) +
-                              tight(ref<PragmaTail>));
+                              assign<&ast::PragmaDecl::body>(tight(ref<PragmaTail>)));
 
   // A long extension list commonly wraps -- unlike other decls, the
   // pragma's own braces make a further physical line unambiguous.
-  struct LanguagePragmaRule
+  struct LanguagePragma
       : rule<create<ast::LanguagePragmaDecl>(
-            lit<"{-#"> + kw<"LANGUAGE"> +
+            lit<"{-#"> + ikw<"LANGUAGE"> +
             append<&ast::LanguagePragmaDecl::extensions>(ref<CONID_TOK>) +
             many(many(ref<NEWLINE>) + lit<","> + many(ref<NEWLINE>) +
                  append<&ast::LanguagePragmaDecl::extensions>(ref<CONID_TOK>)) +
             many(ref<NEWLINE>) + lit<"#-}">)> {};
 
-  struct OptionsPragmaRule
-      : rule<genericPragmaBody<kw<"OPTIONS_GHC"> | kw<"OPTIONS">>> {};
-  struct DeprecatedPragmaRule : rule<genericPragmaBody<kw<"DEPRECATED">>> {};
-  struct WarningPragmaRule : rule<genericPragmaBody<kw<"WARNING">>> {};
-  struct RulesPragmaRule : rule<genericPragmaBody<kw<"RULES">>> {};
-  struct AnnPragmaRule : rule<genericPragmaBody<kw<"ANN">>> {};
-  struct InlinePragmaRule
-      : rule<genericPragmaBody<kw<"INLINE"> | kw<"NOINLINE">>> {};
-  struct SpecialisePragmaRule
-      : rule<genericPragmaBody<kw<"SPECIALISE_INLINE"> | kw<"SPECIALISE">>> {};
-  struct SccPragmaRule : rule<genericPragmaBody<kw<"SCC">>> {};
-  struct MinimalPragmaRule : rule<genericPragmaBody<kw<"MINIMAL">>> {};
-  struct CompletePragmaRule : rule<genericPragmaBody<kw<"COMPLETE">>> {};
-  struct CapiCtypeRule : rule<lit<"{-#"> + kw<"CTYPE"> + ref<STRING_TOK> +
+  struct UnknownPragma
+      : rule<genericPragmaBody<ref<VARID_TOK> | ref<CONID_TOK>>> {};
+
+  struct OptionsPragma
+      : rule<genericPragmaBody<ikw<"OPTIONS_GHC"> | ikw<"OPTIONS">>> {};
+  struct DeprecatedPragma : rule<genericPragmaBody<ikw<"DEPRECATED">>> {};
+  struct WarningPragma : rule<genericPragmaBody<ikw<"WARNING">>> {};
+  struct RulesPragma : rule<genericPragmaBody<ikw<"RULES">>> {};
+  struct AnnPragma : rule<genericPragmaBody<ikw<"ANN">>> {};
+  struct InlinePragma
+      : rule<genericPragmaBody<ikw<"INLINE"> | ikw<"NOINLINE">>> {};
+  struct SpecialisePragma
+      : rule<genericPragmaBody<ikw<"SPECIALISE_INLINE"> | ikw<"SPECIALISE">>> {};
+  struct SccPragma : rule<genericPragmaBody<ikw<"SCC">>> {};
+  struct MinimalPragma : rule<genericPragmaBody<ikw<"MINIMAL">>> {};
+  struct CompletePragma : rule<genericPragmaBody<ikw<"COMPLETE">>> {};
+  struct CapiCtype : rule<lit<"{-#"> + ikw<"CTYPE"> + ref<STRING_TOK> +
                               option(ref<STRING_TOK>) + lit<"#-}">> {};
 
   // DATA / NEWTYPE / GADT
   // ======================
 
-  struct FieldDeclRule
+  struct FieldDecl
       : rule<create<ast::FieldDecl>(
-            append<&ast::FieldDecl::names>(ref<VarIdTerm>) +
-            many(lit<","> + append<&ast::FieldDecl::names>(ref<VarIdTerm>)) +
+            some(append<&ast::FieldDecl::names>(ref<VarIdTerm>), lit<",">) +
             DCOLON + assign<&ast::FieldDecl::type>(ref<CType>))> {};
 
-  struct ConstructorDeclRule
+  struct ConstructorDecl
       : rule<create<ast::ConstructorDecl>(
                  append<&ast::ConstructorDecl::gadtNames>(ref<CONID_TOK>) +
                  many(lit<","> + append<&ast::ConstructorDecl::gadtNames>(
@@ -672,34 +694,32 @@ struct Haskell : cursiv::GrammarSpec {
              | create<ast::ConstructorDecl>(
                    option(kw<"forall"> +
                           some(append<&ast::ConstructorDecl::forallVars>(
-                              ref<TyBndrRule>)) +
+                              ref<TyBndr>)) +
                           lit<".">) +
                    option(assign<&ast::ConstructorDecl::context>(ref<BType>) +
                           DARROW) +
                    assign<&ast::ConstructorDecl::type>(ref<BType>) +
                    option(lit<"{"> +
                           option(append<&ast::ConstructorDecl::fields>(
-                                     ref<FieldDeclRule>) +
+                                     ref<FieldDecl>) +
                                  many(lit<","> +
                                       append<&ast::ConstructorDecl::fields>(
-                                          ref<FieldDeclRule>))) +
+                                          ref<FieldDecl>))) +
                           lit<"}">))> {};
 
-  struct DerivingClauseRule
+  struct DerivingClause
       : rule<create<ast::DerivingClause>(
             kw<"deriving"> +
             option(assign<&ast::DerivingClause::strategy>(
                 kw<"stock"> | kw<"anyclass"> | kw<"newtype">)) +
             ((lit<"("> +
-              option(append<&ast::DerivingClause::types>(ref<CType>) +
-                     many(lit<","> +
-                          append<&ast::DerivingClause::types>(ref<CType>))) +
+              option(some(append<&ast::DerivingClause::types>(ref<CType>), lit<",">)) +
               lit<")">) //
              | append<&ast::DerivingClause::types>(ref<CType>)) +
             option(kw<"via"> +
                    assign<&ast::DerivingClause::viaType>(ref<CType>)))> {};
 
-  struct DataDeclRule
+  struct DataDecl
       : rule<
             create<ast::DataDecl>(
                 kw<"data"> + flag<&ast::DataDecl::isFamily>(kw<"family">) +
@@ -710,37 +730,37 @@ struct Haskell : cursiv::GrammarSpec {
                 (kw<"data"> |
                  flag<&ast::DataDecl::isNewtype>(kw<"newtype">)) +
                 option(flag<&ast::DataDecl::isInstance>(kw<"instance">)) +
-                option(tight(ref<CapiCtypeRule>)) +
+                option(assign<&ast::DataDecl::ctype>(tight(ref<CapiCtype>))) +
                 option(assign<&ast::DataDecl::context>(ref<BType>) + DARROW) +
                 assign<&ast::DataDecl::header>(ref<BType>) +
                 ((EQSIGN +
                   append<&ast::DataDecl::constructors>(
-                      ref<ConstructorDeclRule>) +
+                      ref<ConstructorDecl>) +
                   many(PIPE + append<&ast::DataDecl::constructors>(
-                                  ref<ConstructorDeclRule>))) //
+                                  ref<ConstructorDecl>))) //
                  |
                  (option(DCOLON + assign<&ast::DataDecl::kindSig>(ref<CType>)) +
                   option(flag<&ast::DataDecl::isGadt>(kw<"where">) +
                          genericBlock<&ast::DataDecl::constructors,
-                                      ref<ConstructorDeclRule>>))) +
+                                      ref<ConstructorDecl>>))) +
                 many(append<&ast::DataDecl::derivings>(
-                    ref<DerivingClauseRule>)))> {};
+                    ref<DerivingClause>)))> {};
 
   // TYPE SYNONYMS / FAMILIES
   // ========================
 
-  struct TypeEqnRule : rule<create<ast::TypeDecl>(
+  struct TypeEqn : rule<create<ast::TypeDecl>(
                            assign<&ast::TypeDecl::header>(ref<BType>) + EQSIGN +
                            assign<&ast::TypeDecl::rhs>(ref<CType>))> {};
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<create<ast::TypeDecl>(
                  kw<"type"> +
                  flag<&ast::TypeDecl::isFamily>(kw<"family">) +
                  assign<&ast::TypeDecl::header>(ref<BType>) +
                  option(DCOLON + assign<&ast::TypeDecl::kindSig>(ref<CType>)) +
                  option(kw<"where"> + genericBlock<&ast::TypeDecl::familyEqns,
-                                                   ref<TypeEqnRule>>)) //
+                                                   ref<TypeEqn>>)) //
              | create<ast::TypeDecl>(
                    kw<"type"> +
                    flag<&ast::TypeDecl::isInstance>(kw<"instance">) +
@@ -750,39 +770,37 @@ struct Haskell : cursiv::GrammarSpec {
                    kw<"type"> + assign<&ast::TypeDecl::header>(ref<BType>) +
                    EQSIGN + assign<&ast::TypeDecl::rhs>(ref<CType>))> {};
 
-  struct StandaloneKindSigRule
+  struct StandaloneKindSig
       : rule<create<ast::StandaloneKindSigDecl>(
             kw<"type"> +
-            append<&ast::StandaloneKindSigDecl::names>(ref<InfixExp>) +
-            many(lit<","> +
-                 append<&ast::StandaloneKindSigDecl::names>(ref<InfixExp>)) +
+            some(append<&ast::StandaloneKindSigDecl::names>(ref<InfixExp>), lit<",">) +
             DCOLON + assign<&ast::StandaloneKindSigDecl::kind>(ref<CType>))> {};
 
-  struct RoleDeclRule
+  struct RoleDecl
       : rule<create<ast::RoleDecl>(
             kw<"type"> + kw<"role"> +
-            assign<&ast::RoleDecl::header>(ref<BType>) +
+            assign<&ast::RoleDecl::header>(ref<TyConExpr>) +
             many(append<&ast::RoleDecl::roles>(ref<VarIdTerm> | lit<"_">)))> {};
 
   // CLASS / INSTANCE
   // ================
 
-  struct FunDepRule
+  struct FunDep
       : rule<create<ast::FunDep>(
             many(append<&ast::FunDep::from>(ref<VarIdTerm>)) + RARROW +
             many(append<&ast::FunDep::to>(ref<VarIdTerm>)))> {};
 
-  struct ClassDeclRule
+  struct ClassDecl
       : rule<create<ast::ClassDecl>(
             kw<"class"> +
             option(assign<&ast::ClassDecl::context>(ref<BType>) + DARROW) +
             assign<&ast::ClassDecl::header>(ref<BType>) +
             option(PIPE +
-                   some(append<&ast::ClassDecl::dependencies>(ref<FunDepRule>),
+                   some(append<&ast::ClassDecl::dependencies>(ref<FunDep>),
                         lit<",">)) +
             option(kw<"where"> + declBlock<&ast::ClassDecl::body>))> {};
 
-  struct InstanceDeclRule
+  struct InstanceDecl
       : rule<create<ast::InstanceDecl>(
             kw<"instance"> +
             option(lit<"{-#"> +
@@ -794,7 +812,7 @@ struct Haskell : cursiv::GrammarSpec {
             assign<&ast::InstanceDecl::head>(ref<CType>) +
             option(kw<"where"> + declBlock<&ast::InstanceDecl::body>))> {};
 
-  struct StandaloneDerivingRule
+  struct StandaloneDeriving
       : rule<create<ast::StandaloneDerivingDecl>(
             kw<"deriving"> +
             option(assign<&ast::StandaloneDerivingDecl::strategy>(
@@ -804,12 +822,11 @@ struct Haskell : cursiv::GrammarSpec {
                    DARROW) +
             assign<&ast::StandaloneDerivingDecl::type>(ref<CType>))> {};
 
-  struct DefaultDeclRule
+  struct DefaultDecl
       : rule<create<ast::DefaultDecl>(
             kw<"default"> + lit<"("> +
             option(
-                append<&ast::DefaultDecl::types>(ref<CType>) +
-                many(lit<","> + append<&ast::DefaultDecl::types>(ref<CType>))) +
+                some(append<&ast::DefaultDecl::types>(ref<CType>), lit<",">)) +
             lit<")">)> {};
 
   static constexpr auto CallConv = ref<CcallKw> | ref<StdcallKw> |
@@ -817,7 +834,7 @@ struct Haskell : cursiv::GrammarSpec {
   static constexpr auto Safety =
       ref<UnsafeKw> | ref<SafeKw> | ref<InterruptibleKw>;
 
-  struct ForeignDeclRule
+  struct ForeignDecl
       : rule<
             create<ast::ForeignDecl>(
                 kw<"foreign"> +
@@ -837,37 +854,38 @@ struct Haskell : cursiv::GrammarSpec {
 
   // A NESTED declaration: everything a `where`/`let`/class/instance body
   // may hold. Top-level declarations (below) add module-only forms.
-  struct Decl_ : rule<ref<TypeSigDeclRule>        //
-                      | ref<FixityDeclRule>       //
-                      | ref<PatSynDeclRule>       //
-                      | ref<LanguagePragmaRule>   //
-                      | ref<OptionsPragmaRule>    //
-                      | ref<InlinePragmaRule>     //
-                      | ref<SpecialisePragmaRule> //
-                      | ref<SccPragmaRule>        //
-                      | ref<MinimalPragmaRule>    //
-                      | ref<CompletePragmaRule>   //
-                      | ref<ValueDeclRule>> {};
+  struct Decl_ : rule<ref<TypeSigDecl>        //
+                      | ref<FixityDecl>       //
+                      | ref<PatSynDecl>       //
+                      | ref<LanguagePragma>   //
+                      | ref<OptionsPragma>    //
+                      | ref<InlinePragma>     //
+                      | ref<SpecialisePragma> //
+                      | ref<SccPragma>        //
+                      | ref<MinimalPragma>    //
+                      | ref<CompletePragma>   //
+                      | ref<UnknownPragma>
+                      | ref<ValueDecl>> {};
 
-  struct TopDecl_ : rule<ref<ClassDeclRule>            //
-                         | ref<StandaloneKindSigRule>  //
-                         | ref<DataDeclRule>           //
-                         | ref<TypeDeclRule>           //
-                         | ref<InstanceDeclRule>       //
-                         | ref<StandaloneDerivingRule> //
-                         | ref<RoleDeclRule>           //
-                         | ref<DefaultDeclRule>        //
-                         | ref<ForeignDeclRule>        //
-                         | ref<DeprecatedPragmaRule>   //
-                         | ref<WarningPragmaRule>      //
-                         | ref<RulesPragmaRule>        //
-                         | ref<AnnPragmaRule>          //
+  struct TopDecl_ : rule<ref<ClassDecl>            //
+                         | ref<StandaloneKindSig>  //
+                         | ref<DataDecl>           //
+                         | ref<TypeDecl>           //
+                         | ref<InstanceDecl>       //
+                         | ref<StandaloneDeriving> //
+                         | ref<RoleDecl>           //
+                         | ref<DefaultDecl>        //
+                         | ref<ForeignDecl>        //
+                         | ref<DeprecatedPragma>   //
+                         | ref<WarningPragma>      //
+                         | ref<RulesPragma>        //
+                         | ref<AnnPragma>          //
                          | ref<Decl_>> {};
 
   // IMPORTS / EXPORTS / MODULE
   // ==========================
 
-  struct ImportItemRule
+  struct ImportItem
       : rule<create<ast::ImportItem>(
             assign<&ast::ImportItem::name>(ref<VarIdTerm> | ref<CONID_TOK> |
                                            ref<ParenOpName>) +
@@ -881,7 +899,7 @@ struct Haskell : cursiv::GrammarSpec {
                                       ref<VarIdTerm> | ref<CONID_TOK>))) +
                       lit<")">)))> {};
 
-  struct ImportDeclRule
+  struct ImportDecl
       : rule<create<ast::ImportDecl>(
             kw<"import"> +
             option(flag<&ast::ImportDecl::source>(
@@ -895,19 +913,23 @@ struct Haskell : cursiv::GrammarSpec {
                    assign<&ast::ImportDecl::asName>(ref<MODID_TOK>)) +
             option(option(flag<&ast::ImportDecl::hiding>(ref<HidingKw>)) +
                    flag<&ast::ImportDecl::hasSpec>(lit<"(">) +
-                   option(append<&ast::ImportDecl::items>(ref<ImportItemRule>) +
+                   option(append<&ast::ImportDecl::items>(ref<ImportItem>) +
                           many(lit<","> + append<&ast::ImportDecl::items>(
-                                              ref<ImportItemRule>))) +
+                                              ref<ImportItem>))) +
                    option(lit<",">) + lit<")">))> {};
 
-  struct ExportItemRule
+  struct ExportName
+      : rule<(option(ref<QUAL_TOK>) + (ref<VarIdTerm> | ref<CONID_TOK>)) |
+             (lit<"("> + option(ref<QUAL_TOK>) +
+              (ref<GeneralVarSym> | QConSymBody) + lit<")">)> {};
+
+  struct ExportItem
       : rule<create<ast::ExportItem>(
                  flag<&ast::ExportItem::isModule>(kw<"module">) +
                  assign<&ast::ExportItem::name>(ref<MODID_TOK>)) //
              |
              create<ast::ExportItem>(
-                 assign<&ast::ExportItem::name>(
-                     ref<VarIdTerm> | ref<CONID_TOK> | ref<ParenOpName>) +
+                 assign<&ast::ExportItem::name>(ref<ExportName>) +
                  option((lit<"("> +
                          flag<&ast::ExportItem::wildcard>(DOTDOT) +
                          lit<")">) //
@@ -922,8 +944,7 @@ struct Haskell : cursiv::GrammarSpec {
   static constexpr auto ModuleExports =
       flag<&ast::Module::hasExports>(lit<"(">) +
       option(
-          append<&ast::Module::exports>(ref<ExportItemRule>) +
-          many(lit<","> + append<&ast::Module::exports>(ref<ExportItemRule>))) +
+          some(append<&ast::Module::exports>(ref<ExportItem>), lit<",">)) +
       option(lit<",">) + lit<")">;
 
   // A leading comment or blank run before the first pragma/decl: nothing
@@ -937,25 +958,25 @@ struct Haskell : cursiv::GrammarSpec {
       gap::is(lit<"{-"> + many(any) + lit<"-}"> + many(cr<R"( \t)">));
 
   static constexpr auto ModuleItem =
-      append<&ast::Module::imports>(ref<ImportDeclRule>) |
+      append<&ast::Module::imports>(ref<ImportDecl>) |
       append<&ast::Module::decls>(ref<TopDecl_>);
   static constexpr auto ModuleItems =
       many(lit<";">) + option(ModuleItem + many(DeclSep + ModuleItem) +
                               many(lit<";">) + many(ref<NEWLINE>));
 
-  struct ModuleRule
+  struct Module
       : rule<create<ast::Module>(
             option(ref<LeadingTrivia>) +
-            many(append<&ast::Module::pragmas>(ref<LanguagePragmaRule> |
-                                               ref<OptionsPragmaRule>) +
+            many(append<&ast::Module::pragmas>(ref<LanguagePragma> |
+                                               ref<OptionsPragma> | ref<UnknownPragma>) +
                  many(lit<";">) + many(ref<NEWLINE>)) +
             option(kw<"module"> + assign<&ast::Module::name>(ref<MODID_TOK>) +
                    option(ModuleExports) + kw<"where"> + many(ref<NEWLINE>)) +
             ((lit<"{"> + ModuleItems + lit<"}"> + many(ref<NEWLINE>)) |
              (indent + ModuleItems + dedent) | ModuleItems))> {};
 
-  using entry = ModuleRule;
-  using ignore = WS;
+  using entry = Module;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
   static constexpr auto word_boundary = cr<R"(a-zA-Z0-9_'#\u{80}-\u{10FFFF})">;
 };

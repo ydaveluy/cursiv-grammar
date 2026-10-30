@@ -5,6 +5,7 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "native_regressions.hpp"
 #include "resume_regressions.hpp"
+#include "native_followup.hpp"
 #include "objc/core/CoreServices.hpp"
 #include "objc/core/ast.hpp"
 // The smoke test of the language: parse every file under example/, the way a
@@ -72,8 +73,9 @@ int main() {
                                                 objc::ObjcSharedCoreServices,
                                                 objc::install_core_module>();
 
-  if (!objc_native::run(language.language)) return 1;
-  if (!objc_resume::run(language.language)) return 1;
+  if (!objc_native::run(language.language)) return fail("native helper failed");
+  if (!objc_resume::run(language.language)) return fail("resume helper failed");
+  if (!objc_followup::run(language.language)) return fail("follow-up helper failed");
 
   for (const fs::path& path : files) {
     std::ifstream file(path);

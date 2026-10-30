@@ -31,24 +31,12 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-This is a "switching" BNF grammar: it parses several popular BNF styles (but
-not EBNF) rather than one fixed dialect. `example/` contains sample grammars,
-including `arrow-forms.bnf` for additional operator spellings. `wiki-bnf.bnf`
-is representative:
+A BNF reader supporting several common rule and alternative spellings. The examples illustrate the supported styles.
 
 ```
  <rule>           ::= <opt-whitespace> "<" <rule-name> ">" <opt-whitespace> "::=" <opt-whitespace> <expression> <line-end>
  <expression>     ::= <list> | <list> <opt-whitespace> "|" <opt-whitespace> <expression>
 ```
-
-A document is a `Grammar`, a list of `Production`s; each has a `name` and a
-list of `Alternative`s, empty when the right-hand side is absent (as in
-`<empty> ::=`). An `Alternative` is a list of `Element`s: `nonterminal` is
-set when one names another production (bracketed or bare), and clear when
-it is literal text -- a quoted string, or one unquoted character, since most
-BNF dialects leave their terminals unquoted (`ics/digits.bnf`:
-`<digit> ::= 0|1|2|...`). Four spellings of "is defined as" (`::=`, `:≡`,
-`-->`, `→`) and three of "or" (`|`, `o̅r̅`, `∣`) all read the same way.
 
 ## The command line
 

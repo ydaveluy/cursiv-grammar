@@ -15,6 +15,7 @@ struct Ident : cursiv::Extends<Expr> {
   string_view name;
 };
 
+struct GlobalExpr : cursiv::Extends<Expr> {};
 struct ThisExpr : cursiv::Extends<Expr> {};
 struct SuperExpr : cursiv::Extends<Expr> {};
 struct NullLit : cursiv::Extends<Expr> {};
@@ -52,6 +53,7 @@ struct ParenExpr : cursiv::Extends<Expr> {
 };
 
 struct Param : cursiv::Extends<cursiv::AstNode> {
+  string_view typeName;
   Ident *name; // null for a bare `*` rest parameter
   Expr *defaultValue;
   boolean rest;
@@ -60,6 +62,7 @@ struct Param : cursiv::Extends<cursiv::AstNode> {
 struct Block;
 
 struct FunctionExpr : cursiv::Extends<Expr> {
+  string_view returnType;
   vector<Param *> params;
   Block *body;
 };
@@ -73,6 +76,7 @@ struct ArrayLit : cursiv::Extends<Expr> {
 };
 
 struct Prop : cursiv::Extends<cursiv::AstNode> {
+  boolean identifierKey; // colon spelling denotes a literal bare-name key
   Expr *key;
   Expr *value;
 };
@@ -115,6 +119,8 @@ struct CallExpr : cursiv::Extends<Expr> {
 // `#x`: the byte/character code of a one-character string, or of a variant
 // read as a number; real scripts across this corpus write
 // it consistently as a tight prefix operator -- ported as one.
+struct CharFromCodeExpr : cursiv::Extends<Expr> { Expr* operand; };
+
 struct CharCodeExpr : cursiv::Extends<Expr> {
   Expr *operand;
 };
@@ -194,6 +200,7 @@ struct Block : cursiv::Extends<Stmt> {
 };
 
 struct Declarator : cursiv::Extends<cursiv::AstNode> {
+  string_view typeName;
   Ident *id;
   Expr *init;
 };
@@ -253,6 +260,7 @@ struct SwitchCase : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct SwitchStmt : cursiv::Extends<Stmt> {
+  vector<Stmt*> leading;
   vector<Expr *> discriminant;
   vector<SwitchCase *> cases;
 };
@@ -263,24 +271,27 @@ struct ThrowStmt : cursiv::Extends<Stmt> {
 
 struct CatchClause : cursiv::Extends<cursiv::AstNode> {
   Ident *param; // null: catch with no binding
-  Block *body;
+  Stmt *body;
 };
 
 // `catch` is mandatory; TJS has no `finally`.
 struct TryStmt : cursiv::Extends<Stmt> {
-  Block *block;
+  Block *block; // legacy: new parses retain body for any statement
+  Stmt* body;
   CatchClause *handler;
 };
 
 struct DebuggerStmt : cursiv::Extends<Stmt> {};
 
 struct FunctionDecl : cursiv::Extends<Stmt> {
+  string_view returnType;
   string_view name;
   vector<Param *> params;
   Block *body;
 };
 
 struct Accessor : cursiv::Extends<cursiv::AstNode> {
+  string_view returnType;
   boolean isGetter;
   boolean isSetter;
   Param *param; // setter only

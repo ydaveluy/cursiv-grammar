@@ -1,5 +1,5 @@
-// The checks of this language: none yet -- nothing here needs a check
-// beyond parsing.
+// No semantic checks are registered yet. Syntax acceptance does not establish
+// GQL type, name/scope, graph/schema or optional-feature conformance.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

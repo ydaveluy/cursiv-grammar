@@ -56,7 +56,7 @@ struct BindParam : cursiv::Extends<Expression> {
 };
 
 struct NumberLit : cursiv::Extends<Expression> {
-  double value;
+  string_view value;  // exact native integer/decimal lexeme, without binary rounding
 };
 
 struct BoolLit : cursiv::Extends<Expression> {
@@ -130,6 +130,7 @@ struct Call : cursiv::Extends<Expression> {
   string_view name;
   vector<Argument*> args;
   boolean hasParens;
+  string_view ancestorMethod;  // named ancestor target after name::
 };
 
 // `.field` with no call: the trailing member-access shape of a postfix
@@ -259,7 +260,10 @@ struct FunctionForwardDecl : cursiv::Extends<Stmt> {
   string_view name;
   vector<Parameter*> params;
   boolean varargs;
-  string_view aliasText;  // the LIBRARY/ALIAS/RPCFUNC/THROWS clause, as written; empty if none
+  string_view libraryName;
+  string_view aliasText;
+  string_view throwsName;
+  boolean isRpc;
 };
 
 struct FunctionsForwardDecl : cursiv::Extends<Stmt> {
@@ -501,6 +505,7 @@ struct FetchStmt : cursiv::Extends<Stmt> {
   Path* cursor;               // the `variable_name INTO bind_param` form
   BindParam* into;
   boolean usingDescriptorForm;  // the `identifier USING DESCRIPTOR? identifier` form
+  boolean usingDescriptor;
   Path* usingIdent;
   Path* usingTarget;
 };

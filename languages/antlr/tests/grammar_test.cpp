@@ -58,6 +58,25 @@ B : 'b';
   if (!antlr_audit::modern_cases(language))
     return 1;
 
+  // The official ANTLR 4.13.2 tool accepts tokens {} but requires a name
+  // in channels {}. Neither block accepts a trailing comma.
+  for (const char* text : {
+           "lexer grammar T; channels {} A:'a';",
+           "grammar T; tokens { A, } r:A;",
+           "lexer grammar T; channels { C, } A:'a';"}) {
+    const auto result = language.language.parser->parse(text);
+    if (result.accepted && !result.cst().recovered() &&
+        result.diagnostics.empty())
+      return fail("empty name block or trailing comma accepted");
+  }
+  {
+    const auto result = language.language.parser->parse(
+        "grammar T; tokens {} r:'x';");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("native empty tokens block rejected");
+  }
+
   const std::filesystem::path dir = CURSIV_EXAMPLE_DIR;
   int checked = 0;
   for (const auto &entry : std::filesystem::directory_iterator(dir)) {

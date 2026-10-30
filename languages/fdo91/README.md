@@ -2,6 +2,19 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+The target is the textual atom notation of historical FDO91 examples, not the
+binary FDO wire protocol. The primary reference available for this review was
+[AOL's FDO91 Manual, volume 2, chapter 15](https://mail.koin.org/files/aol.aim/aol/fdo/manuals/de.pdf),
+January 1994. It establishes `atom$` names and command-specific operands, but
+is not the complete lexical/compiler specification; the full manual archive
+was inaccessible. No exact compiler edition is pinned by this corpus.
+
+Nested atoms, global IDs and raw numeric/hex spellings are represented; strings
+are partially decoded. The port's signed-64 range and piped-argument checks are
+local policies, not verified universal native constraints. Command signatures,
+protocol data types, escape semantics and complete compiler acceptance remain
+unverified. No original AOL compiler or runtime was executed.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`

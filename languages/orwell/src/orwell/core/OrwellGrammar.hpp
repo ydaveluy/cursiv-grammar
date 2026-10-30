@@ -10,38 +10,63 @@
 
 namespace orwell {
 
-inline constexpr auto unquote = [](std::string_view t,
-                                   std::pmr::memory_resource*) {
-  return t.substr(1, t.size() - 2);
+// Orwell6.00 pp.30–31: decimal (not octal) escapes, and any other
+// backslash character denotes itself.
+inline constexpr auto unquote = [](std::string_view text,
+                                   std::pmr::memory_resource* mem) {
+  const auto body = text.substr(1, text.size() - 2);
+  if (body.find('\\') == body.npos) return body;
+  const auto room = cursiv::text_room(mem, body.size());
+  std::size_t n = 0;
+  for (std::size_t i = 0; i < body.size(); ++i) {
+    if (body[i] != '\\') { room[n++] = body[i]; continue; }
+    const char c = body[++i];
+    if (c >= '0' && c <= '9') {
+      unsigned value = static_cast<unsigned>(c - '0');
+      for (unsigned k = 1; k < 3 && i + 1 < body.size() &&
+                           body[i + 1] >= '0' && body[i + 1] <= '9'; ++k)
+        value = value * 10 + static_cast<unsigned>(body[++i] - '0');
+      room[n++] = static_cast<char>(value);
+    } else {
+      switch (c) {
+        case 'n': room[n++] = '\n'; break;
+        case 't': room[n++] = '\t'; break;
+        case 'f': room[n++] = '\f'; break;
+        case 'r': room[n++] = '\r'; break;
+        case 'b': room[n++] = '\b'; break;
+        default: room[n++] = c; break;
+      }
+    }
+  }
+  return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Orwell : cursiv::GrammarSpec {
-  // The operator alphabet, spelled once and shared by OP, the ID tail and
-  // the maximal-munch guards below.
+  // Operator alphabet and native identifier tail are distinct.
   static constexpr auto Sym = cr<R"(+*=<>~&\\/^:#!.;|?@`$%{}-)">;
-  static constexpr auto IdTail = cr<R"(a-zA-Z0-9'_+*=<>~&\\/^:#!.;|?@`$%{}-)">;
+  static constexpr auto IdTail = cr<"a-zA-Z0-9'_">;
   static constexpr auto word_boundary = IdTail;
 
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
 
-  // ID absorbs operator symbols past its first letter: an identifier
-  // written flush against an operator (`x+`, no space) reads as one ID
-  // token, not ID then OP.
-  struct ID : terminal<cr<"a-zA-Z"> + many(IdTail)> {};
+  static constexpr auto Reserved = kw<"if"> | kw<"otherwise"> | kw<"where">;
+  struct ID : terminal<!Reserved + cr<"a-zA-Z"> + many(IdTail)> {};
 
-  struct INTEGER : terminal<some(d), std::int64_t> {};
-  // The exponent sign is an em dash, not a hyphen: `1.0e—3`, never
-  // `1.0e-3`.
-  struct FLOAT : terminal<some(d) + lit<"."> + some(d) +
-                               option(lit<"e"> + option(lit<"—">) + some(d)),
-                           double> {};
+  struct INTEGER : terminal<as<std::int64_t>(some(d))> {};
+  // The manual typesets a minus; source uses the ordinary ASCII hyphen.
+  struct FLOAT
+      : terminal<as<double>(some(d) + lit<"."> + some(d) +
+                            option(lit<"e"> + option(lit<"-">) + some(d)))> {};
+  static constexpr auto Escape = lit<"\\"> +
+      (repeat<1, 3>(d) | cr<"^0-9">);
   struct STRING
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> + many(Escape | cr<R"(^"\\)">) + lit<"\"">)> {};
+  struct CHARACTER
+      : terminal<as<unquote>(lit<"'"> + (Escape | cr<R"(^'\\)">) + lit<"'">)> {};
 
   // One byte, so `assoc DIGIT` reads a lone precedence digit; cursiv reads
   // it here because only DIGIT is legal in this position.
-  struct DIGIT : terminal<d, std::int8_t> {};
+  struct DIGIT : terminal<as<std::int8_t>(d)> {};
 
   struct OP : terminal<some(Sym) | (lit<"$"> + cr<"a-zA-Z"> + many(IdTail))> {
   };
@@ -58,7 +83,7 @@ struct Orwell : cursiv::GrammarSpec {
   // The reference's punctuation is never an operator: its literal tokens
   // win a tie against OP. Read as one, the `=` of an equation lets the next
   // equation run on inside a pattern or a term, to the end of input.
-  struct OpRule : rule<!(Eq | ConEq | DColon | Assign | Semi | Bar | LArrow |
+  struct Op : rule<!(Eq | ConEq | DColon | Assign | Semi | Bar | LArrow |
                          DotDot) +
                        ref<OP>> {};
 
@@ -68,347 +93,350 @@ struct Orwell : cursiv::GrammarSpec {
   // other prefix operator, including a longer one starting with `%`, is
   // unaffected. Its own rule, not a bare expression: a guard spliced ahead
   // of `ref<OP>` in an `assign<>` produces no value on its own.
-  struct PatPrefixOpRule : rule<!lit<"%", !Sym> + ref<OpRule>> {};
+  // Equality is an expression operator as well as an equation delimiter.
+  struct TermOp : rule<Assign | ref<Op>> {};
+  struct PatPrefixOp : rule<!lit<"%", !Sym> + ref<Op>> {};
 
-  struct TermRule;
-  struct Term1Rule;
-  struct Term2Rule;
-  struct PrimaryRule;
-  struct PrimaryNameRule;
-  struct SectionRule;
-  struct ListRule;
+  struct Term;
+  struct Term1;
+  struct Term2;
+  struct Primary;
+  struct PrimaryName;
+  struct Section;
+  struct List;
 
-  struct PatRule;
-  struct Pat1Rule;
-  struct Pat2Rule;
-  struct PatPrimaryRule;
-  struct PatPrimaryNameRule;
-  struct PatSectionRule;
+  struct Pat;
+  struct Pat1;
+  struct Pat2;
+  struct PatPrimary;
+  struct PatPrimaryName;
+  struct PatSection;
 
-  struct TypeRule;
-  struct TyTerm1Rule;
-  struct TyTerm2Rule;
-  struct TyPrimaryRule;
-  struct TyPrimaryNameRule;
-  struct TySectionRule;
-  struct TyLhsRule;
+  struct Type;
+  struct TyTerm1;
+  struct TyTerm2;
+  struct TyPrimary;
+  struct TyPrimaryName;
+  struct TySection;
+  struct TyLhs;
   struct TyLhs1Rule;
-  struct TyLhsPrimaryRule;
-  struct TyLhsSectionRule;
+  struct TyLhsPrimary;
+  struct TyLhsSection;
 
   struct DefRule;
-  struct DeclRule;
-  struct LastDeclRule;
+  struct Decl;
+  struct LastDecl;
 
   // ---- terms -------------------------------------------------------------
 
-  struct ListFormRule
+  struct ListForm
       : rule<create<ast::ListTerm>(
             lit<"["> +
-            option(some(append<&ast::ListTerm::items>(ref<TermRule>),
-                        lit<",">)) +
+            many(append<&ast::ListTerm::items>(ref<Term>),
+                        lit<",">) +
             lit<"]">)> {};
 
-  struct UptoRule
+  struct Upto
       : rule<create<ast::ListRange>(
-            lit<"["> + assign<&ast::ListRange::from>(ref<TermRule>) +
-            option(lit<","> + assign<&ast::ListRange::step>(ref<TermRule>)) +
-            DotDot + option(assign<&ast::ListRange::to>(ref<TermRule>)) +
+            lit<"["> + assign<&ast::ListRange::from>(ref<Term>) +
+            option(lit<","> + assign<&ast::ListRange::step>(ref<Term>)) +
+            DotDot + option(assign<&ast::ListRange::to>(ref<Term>)) +
             lit<"]">)> {};
 
-  struct GuardQualifierRule
+  struct GuardQualifier
       : rule<create<ast::GuardQualifier>(
-            assign<&ast::GuardQualifier::condition>(ref<TermRule>))> {};
-  struct GeneratorQualifierRule
+            assign<&ast::GuardQualifier::condition>(ref<Term>))> {};
+  struct GeneratorQualifier
       : rule<create<ast::GeneratorQualifier>(
-            assign<&ast::GeneratorQualifier::pat>(ref<PatRule>) + LArrow +
-            assign<&ast::GeneratorQualifier::source>(ref<TermRule>))> {};
-  struct QualifierRule
-      : rule<ref<GeneratorQualifierRule> | ref<GuardQualifierRule>> {};
+            assign<&ast::GeneratorQualifier::pat>(ref<Pat>) + LArrow +
+            assign<&ast::GeneratorQualifier::source>(ref<Term>))> {};
+  struct Qualifier
+      : rule<ref<GeneratorQualifier> | ref<GuardQualifier>> {};
 
-  struct CompRule
+  struct Comp
       : rule<create<ast::ListComp>(
-            lit<"["> + assign<&ast::ListComp::head>(ref<TermRule>) + Bar +
-            option(some(append<&ast::ListComp::qualifiers>(ref<QualifierRule>),
-                        Semi)) +
+            lit<"["> + assign<&ast::ListComp::head>(ref<Term>) + Bar +
+            many(append<&ast::ListComp::qualifiers>(ref<Qualifier>),
+                        Semi) +
             lit<"]">)> {};
 
-  struct ListRule : rule<ref<ListFormRule> | ref<UptoRule> | ref<CompRule>> {
+  struct List : rule<ref<ListForm> | ref<Upto> | ref<Comp>> {
   };
 
-  struct FloatLitRule
+  struct FloatLit
       : rule<create<ast::FloatLit>(
             assign<&ast::FloatLit::value>(ref<FLOAT>))> {};
-  struct IntLitRule
+  struct IntLit
       : rule<create<ast::IntLit>(assign<&ast::IntLit::value>(ref<INTEGER>))> {
   };
-  struct StringLitRule
+  struct StringLit
       : rule<create<ast::StringLit>(
             assign<&ast::StringLit::value>(ref<STRING>))> {};
 
-  struct FLiteralRule
-      : rule<ref<FloatLitRule> | ref<IntLitRule> | ref<StringLitRule>> {};
+  struct CharacterLit
+      : rule<assign<&ast::CharacterLit::value>(ref<CHARACTER>)> {};
+  struct FLiteral
+      : rule<ref<FloatLit> | ref<IntLit> | ref<StringLit> | ref<CharacterLit>> {};
 
-  struct VarRefRule
+  struct VarRef
       : rule<create<ast::VarRef>(assign<&ast::VarRef::name>(ref<ID>))> {};
 
-  struct SectionRule
+  struct Section
       : rule<create<ast::Section>(
-                 assign<&ast::Section::op>(ref<OpRule>) +
-                 option(assign<&ast::Section::rightOperand>(ref<Term1Rule>)))  //
+                 assign<&ast::Section::op>(ref<Op>) +
+                 option(assign<&ast::Section::rightOperand>(ref<Term1>)))  //
              | create<ast::Section>(
-                   assign<&ast::Section::leftOperand>(ref<Term1Rule>) +
-                   assign<&ast::Section::op>(ref<OpRule>))> {};
+                   assign<&ast::Section::leftOperand>(ref<Term1>) +
+                   assign<&ast::Section::op>(ref<Op>))> {};
 
-  struct PrimaryNameRule
-      : rule<ref<VarRefRule> |
-             (lit<"("> + (ref<TermRule> | ref<SectionRule>) + lit<")">)> {};
+  struct PrimaryName
+      : rule<ref<VarRef> |
+             (lit<"("> + (ref<Term> | ref<Section>) + lit<")">)> {};
 
-  struct PrimaryRule
-      : rule<ref<PrimaryNameRule> | ref<FLiteralRule> |
+  struct Primary
+      : rule<ref<PrimaryName> | ref<FLiteral> |
              (lit<"("> + create<ast::TupleTerm>(
-                              append<&ast::TupleTerm::items>(ref<TermRule>) +
+                              append<&ast::TupleTerm::items>(ref<Term>) +
                               lit<","> +
-                              some(append<&ast::TupleTerm::items>(ref<TermRule>),
+                              some(append<&ast::TupleTerm::items>(ref<Term>),
                                    lit<",">)) +
               lit<")">) |
-             ref<ListRule>> {};
+             ref<List>> {};
 
-  struct Term2Rule
+  struct Term2
       : rule<create<ast::Apply>(
-                 assign<&ast::Apply::fn>(ref<PrimaryRule>) +
-                 some(append<&ast::Apply::args>(ref<PrimaryRule>)))  //
-             | ref<PrimaryRule>> {};
+                 assign<&ast::Apply::fn>(ref<Primary>) +
+                 some(!gap::line + append<&ast::Apply::args>(ref<Primary>)))  //
+             | ref<Primary>> {};
 
-  struct Term1Rule
+  struct Term1
       : rule<create<ast::PrefixTerm>(
-                 assign<&ast::PrefixTerm::op>(ref<OpRule>) +
-                 assign<&ast::PrefixTerm::operand>(ref<Term1Rule>))  //
-             | ref<Term2Rule>> {};
+                 assign<&ast::PrefixTerm::op>(ref<Op>) +
+                 assign<&ast::PrefixTerm::operand>(ref<Term1>))  //
+             | ref<Term2>> {};
 
-  struct TermRule
+  struct Term
       : rule<create<ast::BinaryTerm>(
-                 assign<&ast::BinaryTerm::left>(ref<Term1Rule>) +
-                 assign<&ast::BinaryTerm::op>(ref<OpRule>) +
-                 assign<&ast::BinaryTerm::right>(ref<TermRule>))  //
-             | ref<Term1Rule>> {};
+                 assign<&ast::BinaryTerm::left>(ref<Term1>) +
+                 !gap::line + assign<&ast::BinaryTerm::op>(ref<TermOp>) +
+                 assign<&ast::BinaryTerm::right>(ref<Term>))  //
+             | ref<Term1>> {};
 
   // ---- patterns -----------------------------------------------------------
 
-  struct PatIntRule
+  struct PatInt
       : rule<create<ast::PatInt>(assign<&ast::PatInt::value>(ref<INTEGER>))> {
   };
-  struct PatStringRule
+  struct PatString
       : rule<create<ast::PatString>(
             assign<&ast::PatString::value>(ref<STRING>))> {};
-  struct PatLiteralRule : rule<ref<PatIntRule> | ref<PatStringRule>> {};
+  struct PatCharacter
+      : rule<assign<&ast::PatCharacter::value>(ref<CHARACTER>)> {};
+  struct PatLiteral : rule<ref<PatInt> | ref<PatString> | ref<PatCharacter>> {};
 
-  struct PatVarRule
+  struct PatVar
       : rule<create<ast::PatVar>(assign<&ast::PatVar::name>(ref<ID>))> {};
 
-  struct PatSectionRule
+  struct PatSection
       : rule<create<ast::PatSection>(
-                 assign<&ast::PatSection::op>(ref<OpRule>) +
-                 option(assign<&ast::PatSection::rightOperand>(ref<Pat1Rule>)))  //
+                 assign<&ast::PatSection::op>(ref<Op>) +
+                 option(assign<&ast::PatSection::rightOperand>(ref<Pat1>)))  //
              | create<ast::PatSection>(
-                   assign<&ast::PatSection::leftOperand>(ref<Pat1Rule>) +
-                   assign<&ast::PatSection::op>(ref<OpRule>))> {};
+                   assign<&ast::PatSection::leftOperand>(ref<Pat1>) +
+                   assign<&ast::PatSection::op>(ref<Op>))> {};
 
-  struct PatPrimaryNameRule
-      : rule<ref<PatVarRule> |
-             (lit<"("> + (ref<PatRule> | ref<PatSectionRule>) + lit<")">)> {};
+  struct PatPrimaryName
+      : rule<ref<PatVar> |
+             (lit<"("> + (ref<Pat> | ref<PatSection>) + lit<")">)> {};
 
-  struct PatPrimaryRule
-      : rule<ref<PatPrimaryNameRule> | ref<PatLiteralRule> |
+  struct PatPrimary
+      : rule<ref<PatPrimaryName> | ref<PatLiteral> |
              (lit<"("> +
               create<ast::PatTuple>(
-                  append<&ast::PatTuple::items>(ref<PatRule>) + lit<","> +
-                  some(append<&ast::PatTuple::items>(ref<PatRule>), lit<",">)) +
+                  append<&ast::PatTuple::items>(ref<Pat>) + lit<","> +
+                  some(append<&ast::PatTuple::items>(ref<Pat>), lit<",">)) +
               lit<")">) |
              (lit<"["> +
               create<ast::PatList>(
-                  option(some(append<&ast::PatList::items>(ref<PatRule>),
-                              lit<",">))) +
+                  many(append<&ast::PatList::items>(ref<Pat>),
+                              lit<",">)) +
               lit<"]">)> {};
 
-  struct Pat2Rule
+  struct Pat2
       : rule<create<ast::PatApply>(
-                 assign<&ast::PatApply::ctor>(ref<PatPrimaryRule>) +
-                 some(append<&ast::PatApply::args>(ref<PatPrimaryRule>)))  //
-             | ref<PatPrimaryRule>> {};
+                 assign<&ast::PatApply::ctor>(ref<PatPrimary>) +
+                 some(!gap::line + append<&ast::PatApply::args>(ref<PatPrimary>)))  //
+             | ref<PatPrimary>> {};
 
-  struct Pat1Rule
+  struct Pat1
       : rule<create<ast::PatPrefix>(
-                 assign<&ast::PatPrefix::op>(ref<PatPrefixOpRule>) +
-                 assign<&ast::PatPrefix::operand>(ref<Pat1Rule>))  //
-             | ref<Pat2Rule>> {};
+                 assign<&ast::PatPrefix::op>(ref<PatPrefixOp>) +
+                 assign<&ast::PatPrefix::operand>(ref<Pat1>))  //
+             | ref<Pat2>> {};
 
-  struct PatRule
+  struct Pat
       : rule<create<ast::PatBinary>(
-                 assign<&ast::PatBinary::left>(ref<Pat1Rule>) +
-                 assign<&ast::PatBinary::op>(ref<OpRule>) +
-                 assign<&ast::PatBinary::right>(ref<PatRule>))  //
-             | ref<Pat1Rule>> {};
+                 assign<&ast::PatBinary::left>(ref<Pat1>) +
+                 assign<&ast::PatBinary::op>(ref<Op>) +
+                 assign<&ast::PatBinary::right>(ref<Pat>))  //
+             | ref<Pat1>> {};
 
   // ---- types ---------------------------------------------------------------
 
-  struct TypeNameRule
+  struct TypeName
       : rule<create<ast::TypeName>(assign<&ast::TypeName::name>(ref<ID>))> {
   };
 
-  struct TypeListRule
+  struct TypeList
       : rule<lit<"["> +
              create<ast::TypeList>(
-                 assign<&ast::TypeList::element>(ref<TypeRule>)) +
+                 assign<&ast::TypeList::element>(ref<Type>)) +
              lit<"]">> {};
 
-  struct TySectionRule
+  struct TySection
       : rule<create<ast::TypeSection>(
-                 assign<&ast::TypeSection::op>(ref<OpRule>) +
+                 assign<&ast::TypeSection::op>(ref<Op>) +
                  option(assign<&ast::TypeSection::rightOperand>(
-                     ref<TyTerm1Rule>)))  //
+                     ref<TyTerm1>)))  //
              | create<ast::TypeSection>(
-                   assign<&ast::TypeSection::leftOperand>(ref<TyTerm1Rule>) +
-                   assign<&ast::TypeSection::op>(ref<OpRule>))> {};
+                   assign<&ast::TypeSection::leftOperand>(ref<TyTerm1>) +
+                   assign<&ast::TypeSection::op>(ref<Op>))> {};
 
-  struct TyPrimaryNameRule
-      : rule<ref<TypeNameRule> |
-             (lit<"("> + (ref<TypeRule> | ref<TySectionRule>) + lit<")">)> {};
+  struct TyPrimaryName
+      : rule<ref<TypeName> |
+             (lit<"("> + (ref<Type> | ref<TySection>) + lit<")">)> {};
 
-  struct TyPrimaryRule
-      : rule<ref<TyPrimaryNameRule> |
+  struct TyPrimary
+      : rule<ref<TyPrimaryName> |
              (lit<"("> +
               create<ast::TypeTuple>(
-                  append<&ast::TypeTuple::items>(ref<TypeRule>) + lit<","> +
-                  some(append<&ast::TypeTuple::items>(ref<TypeRule>),
+                  append<&ast::TypeTuple::items>(ref<Type>) + lit<","> +
+                  some(append<&ast::TypeTuple::items>(ref<Type>),
                        lit<",">)) +
               lit<")">) |
-             ref<TypeListRule>> {};
+             ref<TypeList>> {};
 
-  struct TyTerm2Rule
+  struct TyTerm2
       : rule<create<ast::TypeApply>(
-                 assign<&ast::TypeApply::head>(ref<TyPrimaryRule>) +
-                 some(append<&ast::TypeApply::args>(ref<TyPrimaryRule>)))  //
-             | ref<TyPrimaryRule>> {};
+                 assign<&ast::TypeApply::head>(ref<TyPrimary>) +
+                 some(!gap::line + append<&ast::TypeApply::args>(ref<TyPrimary>)))  //
+             | ref<TyPrimary>> {};
 
-  struct TyTerm1Rule
+  struct TyTerm1
       : rule<create<ast::TypePrefix>(
-                 assign<&ast::TypePrefix::op>(ref<OpRule>) +
-                 assign<&ast::TypePrefix::operand>(ref<TyTerm1Rule>))  //
-             | ref<TyTerm2Rule>> {};
+                 assign<&ast::TypePrefix::op>(ref<Op>) +
+                 assign<&ast::TypePrefix::operand>(ref<TyTerm1>))  //
+             | ref<TyTerm2>> {};
 
-  struct TypeRule
+  struct Type
       : rule<create<ast::TypeBinary>(
-                 assign<&ast::TypeBinary::left>(ref<TyTerm1Rule>) +
-                 assign<&ast::TypeBinary::op>(ref<OpRule>) +
-                 assign<&ast::TypeBinary::right>(ref<TypeRule>))  //
-             | ref<TyTerm1Rule>> {};
+                 assign<&ast::TypeBinary::left>(ref<TyTerm1>) +
+                 assign<&ast::TypeBinary::op>(ref<Op>) +
+                 assign<&ast::TypeBinary::right>(ref<Type>))  //
+             | ref<TyTerm1>> {};
 
   // `tylhs` reuses the type node family: `tyvar infix tyvar` and
   // `prefix tyvar` are a TypeBinary/TypePrefix of two TypeNames, and
   // `tylhs1` is a TyLhs1.
-  struct TyLhsSectionRule
-      : rule<create<ast::TypeSection>(assign<&ast::TypeSection::op>(ref<OpRule>))  //
+  struct TyLhsSection
+      : rule<create<ast::TypeSection>(assign<&ast::TypeSection::op>(ref<Op>))  //
              | create<ast::TypeSection>(
-                   assign<&ast::TypeSection::op>(ref<OpRule>) +
-                   assign<&ast::TypeSection::rightOperand>(ref<TypeNameRule>))  //
+                   assign<&ast::TypeSection::op>(ref<Op>) +
+                   assign<&ast::TypeSection::rightOperand>(ref<TypeName>))  //
              | create<ast::TypeSection>(
-                   assign<&ast::TypeSection::leftOperand>(ref<TypeNameRule>) +
-                   assign<&ast::TypeSection::op>(ref<OpRule>))> {};
+                   assign<&ast::TypeSection::leftOperand>(ref<TypeName>) +
+                   assign<&ast::TypeSection::op>(ref<Op>))> {};
 
-  struct TyLhsPrimaryRule
+  struct TyLhsPrimary
       : rule<create<ast::TyLhsPrimary>(
-            assign<&ast::TyLhsPrimary::tyname>(ref<ID>) + lit<"("> +
-            assign<&ast::TyLhsPrimary::inner>(ref<TyLhsRule> |
-                                               ref<TyLhsSectionRule>) +
-            lit<")">)> {};
+            assign<&ast::TyLhsPrimary::tyname>(ref<ID>) |
+            (lit<"("> + assign<&ast::TyLhsPrimary::inner>(
+                            ref<TyLhs> | ref<TyLhsSection>) + lit<")">))> {};
 
   struct TyLhs1Rule
       : rule<create<ast::TyLhs1>(
-            assign<&ast::TyLhs1::primary>(ref<TyLhsPrimaryRule>) +
-            many(append<&ast::TyLhs1::tyvars>(ref<ID>)))> {};
+            assign<&ast::TyLhs1::primary>(ref<TyLhsPrimary>) +
+            many(!gap::line + append<&ast::TyLhs1::tyvars>(ref<ID>)))> {};
 
-  struct TyLhsRule
+  struct TyLhs
       : rule<create<ast::TypeBinary>(
-                 assign<&ast::TypeBinary::left>(ref<TypeNameRule>) +
-                 assign<&ast::TypeBinary::op>(ref<OpRule>) +
-                 assign<&ast::TypeBinary::right>(ref<TypeNameRule>))  //
+                 assign<&ast::TypeBinary::left>(ref<TypeName>) +
+                 assign<&ast::TypeBinary::op>(ref<Op>) +
+                 assign<&ast::TypeBinary::right>(ref<TypeName>))  //
              | create<ast::TypePrefix>(
-                   assign<&ast::TypePrefix::op>(ref<OpRule>) +
-                   assign<&ast::TypePrefix::operand>(ref<TypeNameRule>))  //
+                   assign<&ast::TypePrefix::op>(ref<Op>) +
+                   assign<&ast::TypePrefix::operand>(ref<TypeName>))  //
              | ref<TyLhs1Rule>> {};
 
   // ---- declarations ---------------------------------------------------------
 
-  struct SynDeclRule
-      : rule<create<ast::SynDecl>(assign<&ast::SynDecl::lhs>(ref<TyLhsRule>) +
+  struct SynDecl
+      : rule<create<ast::SynDecl>(assign<&ast::SynDecl::lhs>(ref<TyLhs>) +
                                   Eq +
-                                  assign<&ast::SynDecl::rhs>(ref<TypeRule>))> {
+                                  assign<&ast::SynDecl::rhs>(ref<Type>))> {
   };
 
-  struct ConApplyRule
+  struct ConApply
       : rule<create<ast::ConApply>(
             assign<&ast::ConApply::con>(ref<ID>) +
-            many(append<&ast::ConApply::args>(ref<TyPrimaryRule>)))> {};
-  struct ConBinaryRule
+            many(!gap::line + append<&ast::ConApply::args>(ref<TyPrimary>)))> {};
+  struct ConBinary
       : rule<create<ast::ConBinary>(
-            assign<&ast::ConBinary::left>(ref<TyPrimaryRule>) +
-            assign<&ast::ConBinary::op>(ref<OpRule>) +
-            assign<&ast::ConBinary::right>(ref<TyPrimaryRule>))> {};
-  struct ConPrefixRule
+            assign<&ast::ConBinary::left>(ref<TyPrimary>) +
+            assign<&ast::ConBinary::op>(ref<Op>) +
+            assign<&ast::ConBinary::right>(ref<TyPrimary>))> {};
+  struct ConPrefix
       : rule<create<ast::ConPrefix>(
-            assign<&ast::ConPrefix::op>(ref<OpRule>) +
-            assign<&ast::ConPrefix::operand>(ref<TyPrimaryRule>))> {};
-  struct ConstructRule
-      : rule<ref<ConApplyRule> | ref<ConBinaryRule> | ref<ConPrefixRule>> {};
+            assign<&ast::ConPrefix::op>(ref<Op>) +
+            assign<&ast::ConPrefix::operand>(ref<TyPrimary>))> {};
+  struct Construct
+      : rule<ref<ConApply> | ref<ConBinary> | ref<ConPrefix>> {};
 
-  struct ConDeclRule
+  struct ConDecl
       : rule<create<ast::ConDecl>(
-            assign<&ast::ConDecl::lhs>(ref<TyLhsRule>) + ConEq +
-            some(append<&ast::ConDecl::constructs>(ref<ConstructRule>),
+            assign<&ast::ConDecl::lhs>(ref<TyLhs>) + ConEq +
+            some(append<&ast::ConDecl::constructs>(ref<Construct>),
                  Bar))> {};
 
-  struct NameRule
+  struct Name
       : rule<create<ast::Name>(
-            assign<&ast::Name::var>(ref<ID>) + lit<"("> +
-            ((assign<&ast::Name::param>(ref<ID>) +
-              assign<&ast::Name::op>(ref<OpRule>))  //
-             | assign<&ast::Name::op>(ref<OpRule>)) +
-            lit<")">)> {};
+            assign<&ast::Name::var>(ref<ID>) |
+            (lit<"("> + (assign<&ast::Name::param>(ref<ID>) |
+                          assign<&ast::Name::op>(ref<TermOp>)) + lit<")">))> {};
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<create<ast::TypeDecl>(
-            append<&ast::TypeDecl::names>(ref<NameRule>) +
-            many(lit<","> + append<&ast::TypeDecl::names>(ref<NameRule>)) +
-            DColon + assign<&ast::TypeDecl::type>(ref<TypeRule>))> {};
+            append<&ast::TypeDecl::names>(ref<Name>) +
+            many(lit<","> + append<&ast::TypeDecl::names>(ref<Name>)) +
+            DColon + assign<&ast::TypeDecl::type>(ref<Type>))> {};
 
-  struct AssocRule
+  struct Assoc
       : rule<kw<"%left"> | kw<"%right"> | kw<"%non"> | kw<"%leftcon"> |
              kw<"%rightcon"> | kw<"%noncon">> {};
 
   static constexpr auto OpKind =
-      (assign<&ast::OpDecl::kind>(ref<AssocRule>) +
+      (assign<&ast::OpDecl::kind>(ref<Assoc>) +
        assign<&ast::OpDecl::precedence>(ref<DIGIT>))  //
       | assign<&ast::OpDecl::kind>(kw<"%prefix">)      //
       | assign<&ast::OpDecl::kind>(kw<"%prefixcon">);
 
-  struct OpDeclRule
+  struct OpDecl
       : rule<create<ast::OpDecl>(
-            OpKind + some(append<&ast::OpDecl::ops>(ref<OpRule>)))> {};
+            OpKind + some(append<&ast::OpDecl::ops>(ref<Op>)))> {};
 
   // ---- equations -------------------------------------------------------------
 
-  struct IfPartRule
+  struct IfPart
       : rule<create<ast::GuardedResult>(
-            assign<&ast::GuardedResult::result>(ref<TermRule>) + lit<","> +
+            assign<&ast::GuardedResult::result>(ref<Term>) + lit<","> +
             kw<"if"> +
-            assign<&ast::GuardedResult::condition>(ref<TermRule>))> {};
+            assign<&ast::GuardedResult::condition>(ref<Term>))> {};
 
-  struct ConditionalRule
+  struct Conditional
       : rule<create<ast::Rhs>(
-            append<&ast::Rhs::guards>(ref<IfPartRule>) +
-            many(Assign + append<&ast::Rhs::guards>(ref<IfPartRule>)) +
-            option(Assign + assign<&ast::Rhs::otherwise>(ref<TermRule>) +
+            append<&ast::Rhs::guards>(ref<IfPart>) +
+            many(Assign + append<&ast::Rhs::guards>(ref<IfPart>)) +
+            option(Assign + assign<&ast::Rhs::otherwise>(ref<Term>) +
                    lit<","> + kw<"otherwise">))> {};
 
   // A `where` block has no end marker: the reference's greedy `def_+` gives
@@ -417,22 +445,22 @@ struct Orwell : cursiv::GrammarSpec {
   // own. Read any other way, each enclosing block is a reading of its own to
   // the end of input.
   template <auto Into>
-  static constexpr auto Decls = many(append<Into>(ref<DeclRule>)) +
-                                append<Into>(ref<LastDeclRule>);
+  static constexpr auto Decls = many(append<Into>(ref<Decl>)) +
+                                append<Into>(ref<LastDecl>);
 
   static constexpr auto RhsBody =
-      create<ast::Rhs>(assign<&ast::Rhs::simple>(ref<TermRule>)) |
-      ref<ConditionalRule>;
+      create<ast::Rhs>(assign<&ast::Rhs::simple>(ref<Term>)) |
+      ref<Conditional>;
 
   struct RhsRule : rule<RhsBody> {};
   // The block writes into the node the choice above already created (see
   // the "helper that targets the enclosing node" pitfall).
-  struct OpenRhsRule
+  struct OpenRhs
       : rule<RhsBody + kw<"where"> + Decls<&ast::Rhs::whereDecls>> {};
 
   template <class Rhs>
-  struct ClauseRule
-      : rule<create<ast::DefClause>(assign<&ast::DefClause::pat>(ref<PatRule>) +
+  struct Clause
+      : rule<create<ast::DefClause>(assign<&ast::DefClause::pat>(ref<Pat>) +
                                     Assign +
                                     assign<&ast::DefClause::rhs>(ref<Rhs>))> {};
 
@@ -440,35 +468,35 @@ struct Orwell : cursiv::GrammarSpec {
   // clause indistinguishable from a fresh top-level Def by any amount of
   // lookahead (both read `pat = rhs`).
   template <class Rhs>
-  struct DefClauseRule
+  struct DefClause
       : rule<flag<&ast::DefClause::hasElse>(kw<"%else">) +
-             create<ast::DefClause>(assign<&ast::DefClause::pat>(ref<PatRule>) +
+             create<ast::DefClause>(assign<&ast::DefClause::pat>(ref<Pat>) +
                                      Assign +
                                      assign<&ast::DefClause::rhs>(ref<Rhs>))> {
   };
 
   static constexpr auto Clauses =
-      append<&ast::Def::clauses>(ref<ClauseRule<RhsRule>>) +
-      many(append<&ast::Def::clauses>(ref<DefClauseRule<RhsRule>>));
+      append<&ast::Def::clauses>(ref<Clause<RhsRule>>) +
+      many(append<&ast::Def::clauses>(ref<DefClause<RhsRule>>));
 
   struct DefRule : rule<create<ast::Def>(Clauses)> {};
   // Its last clause opens a block.
-  struct OpenDefRule
+  struct OpenDef
       : rule<create<ast::Def>(
-            append<&ast::Def::clauses>(ref<ClauseRule<OpenRhsRule>>) |
+            append<&ast::Def::clauses>(ref<Clause<OpenRhs>>) |
             (Clauses +
-             append<&ast::Def::clauses>(ref<DefClauseRule<OpenRhsRule>>)))> {};
+             append<&ast::Def::clauses>(ref<DefClause<OpenRhs>>)))> {};
 
-  struct DeclRule
-      : rule<ref<SynDeclRule> | ref<ConDeclRule> | ref<TypeDeclRule> |
-             ref<OpDeclRule> | ref<DefRule>> {};
-  struct LastDeclRule : rule<ref<DeclRule> | ref<OpenDefRule>> {};
+  struct Decl
+      : rule<ref<SynDecl> | ref<ConDecl> | ref<TypeDecl> |
+             ref<OpDecl> | ref<DefRule>> {};
+  struct LastDecl : rule<ref<Decl> | ref<OpenDef>> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program>(Decls<&ast::Program::decls>)> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
 };
 
 }  // namespace orwell

@@ -11,7 +11,9 @@ namespace teal::ast {
 struct Stat : cursiv::Extends<cursiv::AstNode> {};
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
 struct Type : cursiv::Extends<cursiv::AstNode> {};
-struct NewType : cursiv::Extends<cursiv::AstNode> {};
+struct NewType : cursiv::Extends<cursiv::AstNode> {
+  boolean legacy = false;
+};
 
 struct Block : cursiv::Extends<cursiv::AstNode> {
   vector<Stat*> statements;
@@ -171,6 +173,10 @@ struct NamedNewType : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   NewType* value;
 };
+struct AliasNewType : cursiv::Extends<NewType> {
+  TypeArgs* typeParams = nullptr;
+  Type* type = nullptr;
+};
 struct RecordNewType : cursiv::Extends<NewType> {
   TypeArgs* typeParams;  // null when absent
   Type* arrayPart;       // `{ typ }`, or null
@@ -255,7 +261,7 @@ struct AttribName : cursiv::Extends<cursiv::AstNode> {
 };
 struct LocalAttrAssignStat : cursiv::Extends<Stat> {
   vector<AttribName*> vars;
-  vector<Type*> types;   // `: typelist`, 0-2 entries
+  vector<Type*> types;   // `: typelist`, zero or more entries
   vector<Expr*> values;  // `= explist`, or empty
 };
 struct LocalNewTypeStat : cursiv::Extends<Stat> {
@@ -264,11 +270,11 @@ struct LocalNewTypeStat : cursiv::Extends<Stat> {
 };
 struct GlobalAttrStat : cursiv::Extends<Stat> {
   vector<AttribName*> vars;
-  vector<Type*> types;  // `: typelist`, required, 1-2 entries
+  vector<Type*> types;  // `: typelist`, required, one or more entries
 };
 struct GlobalAttrAssignStat : cursiv::Extends<Stat> {
   vector<AttribName*> vars;
-  vector<Type*> types;   // `: typelist`, 0-2 entries
+  vector<Type*> types;   // `: typelist`, zero or more entries
   vector<Expr*> values;  // `= explist`
 };
 struct GlobalAssignStat : cursiv::Extends<Stat> {

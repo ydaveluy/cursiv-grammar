@@ -10,6 +10,8 @@ namespace lpc {
 class LpcValidator final : public cursiv::DefaultCoreService {
 public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkPrefix(const ast::PrefixExpr&, cursiv::ValidationAcceptor&) const;
+  void checkAcatch(const ast::AcatchExpr&, cursiv::ValidationAcceptor&) const;
   void checkCase(const ast::CaseStmt &, cursiv::ValidationAcceptor &) const;
 };
 

@@ -10,6 +10,7 @@ class SwiftValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
   void checkString(const ast::StringLit&, cursiv::ValidationAcceptor&) const;
+  void checkRawString(const ast::RawStringLit&, cursiv::ValidationAcceptor&) const;
   void checkPrefix(const ast::PrefixExpr&, cursiv::ValidationAcceptor&) const;
   void checkAccessor(const ast::Accessor&, cursiv::ValidationAcceptor&) const;
   void checkCondition(const ast::Condition&, cursiv::ValidationAcceptor&) const;

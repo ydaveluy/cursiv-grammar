@@ -37,7 +37,7 @@ INT (LOG (X)^10,X);
 
 A [MuMath](https://en.wikipedia.org/wiki/MuMATH) program is a sequence of
 function definitions, assignments and calls, each ended by `;` or `$`.
-Identifiers are uppercase words, optionally starting with `@`, `{` or `#`;
+Identifiers are case-sensitive words, optionally starting with `@`, `{` or `#`;
 `FUNCTION`/`ENDFUN`, `LOOP`/`ENDLOOP`, `BLOCK`/`ENDBLOCK` and `WHEN`/`EXIT`
 delimit function bodies and their nested control constructs.
 

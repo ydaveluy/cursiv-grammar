@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Python 3.14 statement and expression syntax, with indentation-based suites.
+
 ```python
 def describe(point):
     match point:
@@ -41,12 +43,6 @@ def describe(point):
         case _:
             return "elsewhere"
 ```
-
-Python 3.14's full statement and expression grammar: `def`/`class`,
-`if`/`while`/`for`/`with`/`try`, `match`/`case` with the full pattern grammar,
-comprehensions, f-strings and t-strings, PEP 695 type parameters. Suites are
-indentation-delimited (`indent`/`dedent`) or, where the reference grammar
-itself allows it, written on the same line as their header (`if x: y = 1`).
 
 ## The command line
 

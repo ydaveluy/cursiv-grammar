@@ -16,11 +16,11 @@ Classify {
 }
 
 Backslash {
-  \n = <Prout 'newline symbol'>;
-  \x41 = <Prout 'hex escape'>;
-  \' = <Prout 'quote escape'>;
+  '\n' = <Prout 'newline symbol'>;
+  '\x41' = <Prout 'hex escape'>;
+  '\'' = <Prout 'quote escape'>;
 }
 
-"Weird Name" {
+"QuotedName" {
   = True;
 }

@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every sample parses, and each tree holds a DoiUri root.
 add_executable(doiurl_grammar_test grammar_test.cpp)
-target_link_libraries(doiurl_grammar_test PRIVATE doiurlCore)
+target_link_libraries(doiurl_grammar_test PRIVATE doiurlCore cursiv::test)
 target_compile_definitions(doiurl_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

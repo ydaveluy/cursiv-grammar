@@ -25,6 +25,9 @@ struct GroupedExpr : cursiv::Extends<Expr> {
 // One writer name, one payload: a discriminant, a parameter, a generic
 // formal object, all share this shape.
 struct Param : cursiv::Extends<cursiv::AstNode> {
+  boolean nullExclusion;
+  boolean reverse_;
+  boolean isOf;
   vector<string_view> names;
   boolean aliased_;
   boolean constant_;
@@ -138,6 +141,8 @@ struct DiscriminantConstraint : cursiv::Extends<Expr> {
 // Every access-type shape collapses into one: a plain access-to-object
 // mark, or an access-to-subprogram profile.
 struct AccessDef : cursiv::Extends<Expr> {
+  boolean all_;
+  boolean returnNullExclusion;
   boolean nullExclusion;
   boolean constant_;
   boolean protected_;
@@ -314,10 +319,12 @@ struct PrivateExtensionDef : cursiv::Extends<Expr> {
 // A generic formal type's own definition, for the shapes with no payload
 // beyond a box (`range <>`, `mod <>`, `digits <>`, `delta <>`, `(<>)`).
 struct FormalTypeDef : cursiv::Extends<Expr> {
+  boolean decimalFixed;
   string_view kind;
 };
 
 struct FormalDerivedDef : cursiv::Extends<Expr> {
+  boolean synchronized_;
   boolean abstract_;
   boolean limited_;
   Expr* base;
@@ -326,6 +333,7 @@ struct FormalDerivedDef : cursiv::Extends<Expr> {
 };
 
 struct TypeDecl : cursiv::Extends<Decl> {
+  boolean unknownDiscriminants;
   vector<Aspect *> aspects;
   string_view name;
   Params* discriminants;
@@ -339,6 +347,7 @@ struct TypeDecl : cursiv::Extends<Decl> {
 // -- Declarations ---------------------------------------------------------
 
 struct ObjectDecl : cursiv::Extends<Decl> {
+  boolean nullExclusion;
   vector<Aspect *> aspects;
   vector<string_view> names;
   string_view mode;  // formal object declarations only
@@ -354,6 +363,7 @@ struct ExceptionDecl : cursiv::Extends<Decl> {
 };
 
 struct RenameDecl : cursiv::Extends<Decl> {
+  boolean nullExclusion;
   vector<Aspect *> aspects;
   string_view name;
   Expr* type;   // object/exception renaming's type mark or access definition
@@ -365,6 +375,7 @@ struct RenameDecl : cursiv::Extends<Decl> {
 };
 
 struct SubprogramSpec : cursiv::Extends<Expr> {
+  boolean returnNullExclusion;
   boolean isFunction;
   boolean overriding_;
   boolean notOverriding;
@@ -423,6 +434,7 @@ struct GenericFormalSubprogram : cursiv::Extends<Decl> {
 };
 
 struct GenericFormalPackage : cursiv::Extends<Decl> {
+  boolean othersBox;
   vector<Aspect *> aspects;
   string_view name;
   string_view instantiated;
@@ -480,6 +492,7 @@ struct EntryDecl : cursiv::Extends<Decl> {
 };
 
 struct EntryBody : cursiv::Extends<Decl> {
+  string_view endName;
   string_view name;
   Param* index;
   Params* params;
@@ -489,6 +502,7 @@ struct EntryBody : cursiv::Extends<Decl> {
 };
 
 struct TaskSpec : cursiv::Extends<Decl> {
+  string_view endName;
   vector<Aspect *> aspects;
   string_view name;
   boolean isType;
@@ -508,6 +522,7 @@ struct TaskBody : cursiv::Extends<Decl> {
 };
 
 struct ProtectedSpec : cursiv::Extends<Decl> {
+  string_view endName;
   vector<Aspect *> aspects;
   string_view name;
   boolean isType;
@@ -518,6 +533,7 @@ struct ProtectedSpec : cursiv::Extends<Decl> {
 };
 
 struct ProtectedBody : cursiv::Extends<Decl> {
+  string_view endName;
   vector<Aspect *> aspects;
   string_view name;
   vector<Decl*> items;
@@ -566,7 +582,7 @@ struct NullStmt : cursiv::Extends<Stmt> {};
 
 struct LabeledStmt : cursiv::Extends<Stmt> {
   vector<string_view> labels;
-  Stmt* inner;
+  Stmt* inner;  // null for labels at the end of a statement sequence
 };
 
 struct AssignStmt : cursiv::Extends<Stmt> {
@@ -609,6 +625,7 @@ struct LoopStmt : cursiv::Extends<Stmt> {
 };
 
 struct BlockStmt : cursiv::Extends<Stmt> {
+  string_view endName;
   string_view label;
   vector<Decl*> decls;
   StmtSeq* body;
@@ -657,6 +674,7 @@ struct RaiseStmt : cursiv::Extends<Stmt> {
 };
 
 struct AcceptStmt : cursiv::Extends<Stmt> {
+  string_view endName;
   string_view name;
   Expr* index;
   Params* params;

@@ -30,6 +30,44 @@ inline bool run() {
             as<ast::CharLiteral>(d->statements[1])->value == "z",
         "decoded string and character AST");
 
+  {
+    auto result = parser->parse("|| 1e3. -2.5e-2. 16rFF. #(true nil self super). 1 | 2. {1. 2.}. #{'a' -> 1.}");
+    check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
+          "Amber numeric exponents, pipe selector, empty temps and trailing array periods");
+    auto* sequence = as<ast::Sequence>(result.value);
+    check(sequence && sequence->temps.empty() && sequence->statements.size() == 7,
+          "native forms retain all seven expression nodes");
+    if (sequence && sequence->statements.size() == 7) {
+      auto* exponent = as<ast::NumberLiteral>(sequence->statements[0]);
+      auto* negative = as<ast::NumberLiteral>(sequence->statements[1]);
+      auto* hexadecimal = as<ast::NumberLiteral>(sequence->statements[2]);
+      auto* literal = as<ast::LiteralArray>(sequence->statements[3]);
+      auto* send = as<ast::MessageSend>(sequence->statements[4]);
+      auto* array = as<ast::DynamicArray>(sequence->statements[5]);
+      auto* dictionary = as<ast::DynamicDictionary>(sequence->statements[6]);
+      check(exponent && exponent->value == 1000.0 && negative &&
+                negative->value == -0.025 && hexadecimal && hexadecimal->value == 255.0,
+            "numeric converters preserve exponent signs and radix values");
+      check(literal && literal->items.size() == 4 &&
+                as<ast::PseudoVariable>(literal->items[0]) &&
+                as<ast::PseudoVariable>(literal->items[1]) &&
+                as<ast::SymbolLiteral>(literal->items[2]) &&
+                as<ast::SymbolLiteral>(literal->items[2])->name == "self" &&
+                as<ast::SymbolLiteral>(literal->items[3]) &&
+                as<ast::SymbolLiteral>(literal->items[3])->name == "super",
+            "literal array constants and receiver names have different AST kinds");
+      check(send && send->selectorParts.size() == 1 && send->selectorParts[0] == "|" &&
+                send->args.size() == 1 && array && array->items.size() == 2 &&
+                dictionary && dictionary->items.size() == 1,
+            "pipe message and array/dictionary contents retained");
+    }
+  }
+
+  for (const auto source : {"[:x]", "[:x :y]"}) {
+    const auto result = parser->parse(source);
+    check(!result.accepted || result.cst().recovered() || !result.diagnostics.empty(),
+          "Amber rejects unterminated block parameters");
+  }
   return ok;
 }
 } // namespace audit_regressions

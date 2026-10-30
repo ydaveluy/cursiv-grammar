@@ -1,6 +1,4 @@
-// The checks of this language: what the grammar accepts but the language does
-// not. edn has no such rule -- it is a data notation, not a program -- so
-// the pair stays here for the language container to wire up, empty.
+// Reader constraints that are not expressed by the structural grammar.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -12,6 +10,9 @@ namespace edn {
 class EdnValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkCharacter(const ast::Character&, cursiv::ValidationAcceptor&) const;
+  void checkMap(const ast::Map&, cursiv::ValidationAcceptor&) const;
+  void checkSet(const ast::Set&, cursiv::ValidationAcceptor&) const;
 };
 
 struct EdnCoreServices;

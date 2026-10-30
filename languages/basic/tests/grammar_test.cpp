@@ -77,6 +77,18 @@ int main() {
       basic::BasicCoreServices, basic::BasicSharedCoreServices,
       basic::install_core_module>();
 
+  // jvmBASIC relationalExpression permits one comparison. Parentheses
+  // start a fresh expression, while an unparenthesized chain is invalid.
+  {
+    const auto good =
+        language.language.parser->parse("10 PRINT (1 < 2) < 3\n");
+    if (!good.accepted || good.cst().recovered() || !good.diagnostics.empty())
+      return fail("<native comparison>", "parenthesized comparisons failed");
+    const auto bad = language.language.parser->parse("10 PRINT 1 < 2 < 3\n");
+    if (bad.accepted && !bad.cst().recovered() && bad.diagnostics.empty())
+      return fail("<native comparison>", "comparison chain has no diagnostic");
+  }
+
   // Regression: inspect the semantic payload, not only clean acceptance.
   {
     const auto result = language.language.parser->parse("10 PRINT 1,,2;\n");

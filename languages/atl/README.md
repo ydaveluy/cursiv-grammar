@@ -2,6 +2,8 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+ATL describes model transformations, libraries and OCL queries using the classic Eclipse textual syntax.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`

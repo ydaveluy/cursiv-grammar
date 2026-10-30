@@ -6,7 +6,6 @@
 namespace elixir {
 
 inline constexpr auto dropFirst = [](std::string_view t) { return t.substr(1); };
-using DropFirst = cursiv::text_conv<dropFirst>;
 
 struct Elixir : cursiv::GrammarSpec {
   struct COMMENT : terminal<lit<"#"> + many(cr<R"(^\r\n)">)> {};
@@ -34,6 +33,7 @@ struct Elixir : cursiv::GrammarSpec {
   static constexpr auto EscapeSeq = lit<"\\"> + any;
 
   static constexpr auto AtomOperatorTok =
+      lit<"<<>>"> | lit<"%{}"> | lit<"%"> | lit<"{}"> | lit<"..//"> | lit<"~~~"> |
       lit<"**"> | lit<"^^^"> | lit<"..."> | lit<"@"> | lit<"."> | lit<"!"> | lit<"^"> | lit<"---"> | lit<"*"> |
       lit<"/"> | lit<"+"> | lit<"-"> | lit<"++"> | lit<"--"> | lit<"+++"> |
       lit<".."> | lit<"<>"> | lit<"|>"> | lit<"<<<"> | lit<">>>"> |
@@ -43,14 +43,23 @@ struct Elixir : cursiv::GrammarSpec {
       lit<"&&&"> | lit<"||"> | lit<"|||"> | lit<"="> | lit<"&"> | lit<"|"> |
       lit<"::"> | lit<"<-"> | lit<"->"> | lit<"\\\\">;
 
-  struct ATOM
-      : terminal<lit<":"> + (((uc::L | cr<"_">) + many(uc::L | uc::Nl | uc::Mn | uc::Mc | uc::Nd | uc::Pc | cr<"_0-9@">) +
-                                  option(cr<"!?">)) |
-                              AtomOperatorTok),
-                 DropFirst> {};
+  struct ATOM : terminal<as<dropFirst>(
+                    lit<":"> +
+                    (((uc::L | cr<"_">)+many(uc::L | uc::Nl | uc::Mn | uc::Mc |
+                                             uc::Nd | uc::Pc | cr<"_0-9@">) +
+                      option(cr<"!?">)) |
+                     AtomOperatorTok))> {};
 
-  struct CODEPOINT : terminal<lit<"?"> +
-      ((lit<"\\"> + any) | (!lit<"\\"> + any)), DropFirst> {};
+  // The native tokenizer recognizes an operator keyword only together with
+  // its colon. A standalone `%{}`/`{}` literal here would steal empty maps
+  // and tuples from the ordinary expression lexer.
+  struct OPERATOR_KEYWORD : terminal<as<[](std::string_view text) {
+      return text.substr(0, text.size() - 1);
+    }>(AtomOperatorTok + lit<":", &cr<" \t\r\n">>)> {};
+
+  struct CODEPOINT : terminal<as<dropFirst>(
+                         lit<"?"> + ((lit<"\\"> + any) | (!lit<"\\"> + any)))> {
+  };
 
   struct HEXADECIMAL
       : terminal<lit<"0x"> + some(cr<"0-9a-fA-F">) +
@@ -75,23 +84,25 @@ struct Elixir : cursiv::GrammarSpec {
 
   struct Expression;
   struct NoDoExpression;
-  struct BlockRule;
-  struct ClauseBlockRule;
+  struct Block;
+  struct ClauseBlock;
   struct InfixHigh;
   struct Membership;
-  struct SectionRule;
+  struct Section;
   struct ClauseBody;
   struct AmpWrapExpr;
   struct InfixLow1;
   struct UnaryOpExpr;
   struct PostfixExpr;
   struct NamedPrimary;
+  struct AtExpr;
   static constexpr auto Reserved = ref<TRUE> | ref<FALSE> | ref<NIL> | ref<WHEN> |
       ref<AND> | ref<OR> | ref<NOT> | ref<IN> | ref<FN> | ref<DO> | ref<END> |
       ref<CATCH> | ref<RESCUE> | ref<AFTER> | ref<ELSE>;
-  struct VariableName : rule<!Reserved + ref<VARIABLE>, text_conv<[](std::string_view s) { return s; }>> {};
+  struct VariableName : rule<as<[](std::string_view s) { return s; }>(
+                            !Reserved + ref<VARIABLE>)> {};
   static constexpr auto KeywordNameTok = ref<VARIABLE> | Reserved;
-  struct VarRefRule : rule<assign<&ast::VarRef::name>(ref<VariableName>)> {};
+  struct VarRef : rule<assign<&ast::VarRef::name>(ref<VariableName>)> {};
   static constexpr auto AnyOperatorTok =
       lit<"**"> | lit<"^^^"> | lit<"..."> | lit<"+"> | lit<"-"> | lit<"!"> | lit<"^"> | ref<NOT> | lit<"~~~"> |
       lit<"*"> | lit<"/"> | lit<"++"> | lit<"--"> | lit<"+++"> | lit<"---"> |
@@ -100,53 +111,53 @@ struct Elixir : cursiv::GrammarSpec {
       lit<"!=="> | lit<"&&"> | lit<"&&&"> | ref<AND> | lit<"||"> |
       lit<"|||"> | ref<OR> | lit<"<<<"> | lit<">>>"> | lit<"<<~"> |
       lit<"~>>"> | lit<"<~"> | lit<"~>"> | lit<"<~>"> | lit<"<|>">;
-  struct OperatorLitRule
+  struct OperatorLit
       : rule<assign<&ast::OperatorLit::text>(AnyOperatorTok)> {};
 
-  struct BoolRule
+  struct Bool
       : rule<create<ast::BoolLit> +
              (flag<&ast::BoolLit::value>(ref<TRUE>) | ref<FALSE>)> {};
-  struct NilRule : rule<create<ast::NilLit> + ref<NIL>> {};
-  struct AliasRule : rule<assign<&ast::AliasLit::name>(ref<ALIAS>)> {};
+  struct Nil : rule<create<ast::NilLit> + ref<NIL>> {};
+  struct Alias : rule<assign<&ast::AliasLit::name>(ref<ALIAS>)> {};
 
-  struct IntegerLitRule
+  struct IntegerLit
       : rule<assign<&ast::IntegerLit::text>(ref<INTEGER>)> {};
-  struct HexLitRule : rule<assign<&ast::HexLit::text>(ref<HEXADECIMAL>)> {};
-  struct OctalLitRule : rule<assign<&ast::OctalLit::text>(ref<OCTAL>)> {};
-  struct BinLitRule : rule<assign<&ast::BinLit::text>(ref<BINARY>)> {};
-  struct FloatLitRule : rule<assign<&ast::FloatLit::text>(ref<FLOAT>)> {};
+  struct HexLit : rule<assign<&ast::HexLit::text>(ref<HEXADECIMAL>)> {};
+  struct OctalLit : rule<assign<&ast::OctalLit::text>(ref<OCTAL>)> {};
+  struct BinLit : rule<assign<&ast::BinLit::text>(ref<BINARY>)> {};
+  struct FloatLit : rule<assign<&ast::FloatLit::text>(ref<FLOAT>)> {};
 
   struct CAPTURE_INDEX : terminal<lit<"&", &d>> {};
   struct CAPTURE_OP : terminal<lit<"&", !d>> {};
-  struct CaptureIntRule
+  struct CaptureInt
       : rule<create<ast::AmpExpr>(ref<CAPTURE_INDEX> +
-                 assign<&ast::AmpExpr::operand>(ref<IntegerLitRule> |
-                     ref<HexLitRule> | ref<OctalLitRule> | ref<BinLitRule>))> {};
+                 assign<&ast::AmpExpr::operand>(ref<IntegerLit> |
+                     ref<HexLit> | ref<OctalLit> | ref<BinLit>))> {};
 
   // The string is raw; only an interpolation restores normal trivia.
   template<auto Texts, auto Holes, class Fragment, cursiv::str Delimiter>
-  static constexpr auto LiteralBody = tight(skip(ignored<SPACES>, hide<COMMENT>, lit<Delimiter>) + append<Texts>(ref<Fragment>) +
-      many(ref<INTERP_OPEN> + skip(ignored<SPACES>, hide<COMMENT>,
-                append<Holes>(ref<BlockRule>) + lit<"}">) +
+  static constexpr auto LiteralBody = tight(skip(ignore<SPACES>, hide<COMMENT>, lit<Delimiter>) + append<Texts>(ref<Fragment>) +
+      many(ref<INTERP_OPEN> + skip(ignore<SPACES>, hide<COMMENT>,
+                append<Holes>(ref<Block>) + lit<"}">) +
            append<Texts>(ref<Fragment>)) + lit<Delimiter>);
   struct StrText : terminal<some((lit<"\\"> + any) | lit<"#", !lit<"{">> | cr<R"(^"\\#)">)> {};
   struct StrFragment : rule<option(ref<StrText>)> {};
-  struct StringLitRule : rule<create<ast::StringLit>(LiteralBody<&ast::StringLit::texts, &ast::StringLit::holes, StrFragment, "\"">)> {};
+  struct StringLit : rule<create<ast::StringLit>(LiteralBody<&ast::StringLit::texts, &ast::StringLit::holes, StrFragment, "\"">)> {};
   using MultiStrText = StrText;
   struct MultiStrQuotes : terminal<lit<"\"\""> | lit<"\"">> {};
   struct MultiStrFragment : rule<many(ref<MultiStrText> | ref<MultiStrQuotes>)> {};
-  struct MultiStringLitRule : rule<create<ast::MultiStringLit>(LiteralBody<&ast::MultiStringLit::texts, &ast::MultiStringLit::holes, MultiStrFragment, "\"\"\"">)> {};
+  struct MultiStringLit : rule<create<ast::MultiStringLit>(LiteralBody<&ast::MultiStringLit::texts, &ast::MultiStringLit::holes, MultiStrFragment, "\"\"\"">)> {};
   struct CharsText : terminal<some((lit<"\\"> + any) | lit<"#", !lit<"{">> | cr<R"(^'\\#)">)> {};
   struct CharsFragment : rule<option(ref<CharsText>)> {};
-  struct CharlistLitRule : rule<create<ast::CharlistLit>(LiteralBody<&ast::CharlistLit::texts, &ast::CharlistLit::holes, CharsFragment, "'">)> {};
+  struct CharlistLit : rule<create<ast::CharlistLit>(LiteralBody<&ast::CharlistLit::texts, &ast::CharlistLit::holes, CharsFragment, "'">)> {};
   using MultiCharsText = CharsText;
   struct MultiCharsQuotes : terminal<lit<"''"> | lit<"'">> {};
   struct MultiCharsFragment : rule<many(ref<MultiCharsText> | ref<MultiCharsQuotes>)> {};
-  struct MultiCharlistLitRule : rule<create<ast::MultiCharlistLit>(LiteralBody<&ast::MultiCharlistLit::texts, &ast::MultiCharlistLit::holes, MultiCharsFragment, "'''">)> {};
-  struct QuotedAtomRule : rule<create<ast::QuotedAtomLit>(lit<":"> + tight((LiteralBody<&ast::QuotedAtomLit::texts, &ast::QuotedAtomLit::holes, StrFragment, "\""> |
+  struct MultiCharlistLit : rule<create<ast::MultiCharlistLit>(LiteralBody<&ast::MultiCharlistLit::texts, &ast::MultiCharlistLit::holes, MultiCharsFragment, "'''">)> {};
+  struct QuotedAtom : rule<create<ast::QuotedAtomLit>(lit<":"> + tight((LiteralBody<&ast::QuotedAtomLit::texts, &ast::QuotedAtomLit::holes, StrFragment, "\""> |
        LiteralBody<&ast::QuotedAtomLit::texts, &ast::QuotedAtomLit::holes, CharsFragment, "'">)))> {};
-  struct AtomLitRule : rule<assign<&ast::AtomLit::text>(ref<ATOM>)> {};
-  struct CodepointLitRule
+  struct AtomLit : rule<assign<&ast::AtomLit::text>(ref<ATOM>)> {};
+  struct CodepointLit
       : rule<assign<&ast::CodepointLit::text>(ref<CODEPOINT>)> {};
   template<cursiv::str Close> struct SigilText : terminal<some(
       (lit<"\\"> + any) | lit<"#", !lit<"{">> | ~(cr<Close> | cr<R"(\\#)">))> {};
@@ -162,13 +173,15 @@ struct Elixir : cursiv::GrammarSpec {
       std::conditional_t<Close[0] == '"', MultiStrFragment, MultiCharsFragment>, SigilFragment<Close>>;
   template<cursiv::str Close> using UpperSigilFragment = std::conditional_t<Close.size() == 3,
       std::conditional_t<Close[0] == '"', RawMultiStrFragment, RawMultiCharsFragment>, RawSigilFragment<Close>>;
-  template<cursiv::str Close> struct SigilEnd : terminal<lit<Close> + many(cr<"a-zA-Z0-9">),
-      text_conv<[](std::string_view s) { return s.substr(Close.size()); }>> {};
+  template <cursiv::str Close>
+  struct SigilEnd
+      : terminal<as<[](std::string_view s) { return s.substr(Close.size()); }>(
+            lit<Close> + many(cr<"a-zA-Z0-9">))> {};
   template<cursiv::str Open, cursiv::str Close> static constexpr auto SigilBody =
       assign<&ast::SigilLit::delimiter>(lit<Open>) +
       append<&ast::SigilLit::texts>(ref<LowerSigilFragment<Close>>) +
-      many(ref<INTERP_OPEN> + skip(ignored<SPACES>, hide<COMMENT>,
-          append<&ast::SigilLit::holes>(ref<BlockRule>) + lit<"}">) +
+      many(ref<INTERP_OPEN> + skip(ignore<SPACES>, hide<COMMENT>,
+          append<&ast::SigilLit::holes>(ref<Block>) + lit<"}">) +
           append<&ast::SigilLit::texts>(ref<LowerSigilFragment<Close>>)) +
       assign<&ast::SigilLit::modifiers>(ref<SigilEnd<Close>>);
   template<cursiv::str Open, cursiv::str Close> static constexpr auto RawSigilBody =
@@ -177,7 +190,7 @@ struct Elixir : cursiv::GrammarSpec {
       assign<&ast::SigilLit::modifiers>(ref<SigilEnd<Close>>);
   struct SigilNameLower : terminal<cr<"a-z">> {};
   struct SigilNameUpper : terminal<cr<"A-Z"> + many(cr<"A-Z0-9">)> {};
-  struct SigilLitRule : rule<create<ast::SigilLit>(lit<"~"> + tight(((assign<&ast::SigilLit::name>(ref<SigilNameLower>) +
+  struct SigilLit : rule<create<ast::SigilLit>(lit<"~"> + tight(((assign<&ast::SigilLit::name>(ref<SigilNameLower>) +
         (SigilBody<"/", "/"> | SigilBody<"|", "|"> | SigilBody<"(", ")"> |
          SigilBody<"[", "]"> | SigilBody<"{", "}"> | SigilBody<"<", ">"> |
          SigilBody<"\"", "\""> | SigilBody<"'", "'"> |
@@ -188,41 +201,41 @@ struct Elixir : cursiv::GrammarSpec {
          RawSigilBody<"\"", "\""> | RawSigilBody<"'", "'"> |
          RawSigilBody<"\"\"\"", "\"\"\""> | RawSigilBody<"'''", "'''">)))))> {};
 
-  struct NullaryOperatorRule : rule<assign<&ast::OperatorLit::text>(lit<"..."> | lit<"..">)> {};
-  struct QuotedKeyRule : rule<create<ast::QuotedAtomLit>(
+  struct NullaryOperator : rule<assign<&ast::OperatorLit::text>(lit<"..."> | lit<"..">)> {};
+  struct QuotedKey : rule<create<ast::QuotedAtomLit>(
       LiteralBody<&ast::QuotedAtomLit::texts, &ast::QuotedAtomLit::holes, StrFragment, "\""> |
       LiteralBody<&ast::QuotedAtomLit::texts, &ast::QuotedAtomLit::holes, CharsFragment, "'">)> {};
   template<class Value> struct KeywordOption : rule<create<ast::OptionEntry>(
-      (assign<&ast::OptionEntry::key>(KeywordNameTok | AtomOperatorTok) |
-       assign<&ast::OptionEntry::quotedKey>(ref<QuotedKeyRule>)) + gap::none +
-      lit<":"> + NLs + assign<&ast::OptionEntry::value>(ref<Value>))> {};
+      (((assign<&ast::OptionEntry::key>(KeywordNameTok) |
+         assign<&ast::OptionEntry::quotedKey>(ref<QuotedKey>)) + gap::none + lit<":">) |
+       assign<&ast::OptionEntry::key>(ref<OPERATOR_KEYWORD>)) + NLs +
+      assign<&ast::OptionEntry::value>(ref<Value>))> {};
   using KeywordOptionRule = KeywordOption<Expression>;
   using NoDoKeywordOptionRule = KeywordOption<NoDoExpression>;
   static constexpr auto ListItem = append<&ast::ListExpr::keywords>(ref<KeywordOptionRule>) |
                                   append<&ast::ListExpr::items>(ref<AmpWrapExpr>);
-  struct ListRule : rule<create<ast::ListExpr>(lit<"["> + NLs +
+  struct List : rule<create<ast::ListExpr>(lit<"["> + NLs +
       option(some(ListItem, Comma) + option(lit<"|"> + NLs + assign<&ast::ListExpr::tail>(ref<AmpWrapExpr>)) + option(Comma) + NLs) + lit<"]">)> {};
-  struct TupleRule : rule<create<ast::TupleExpr>(lit<"{"> + NLs +
+  struct Tuple : rule<create<ast::TupleExpr>(lit<"{"> + NLs +
       option(some(append<&ast::TupleExpr::items>(ref<Expression>), Comma) + option(Comma) + NLs) + lit<"}">)> {};
-  struct MapEntryRule : rule<assign<&ast::MapEntry::key>(ref<Expression>) + lit<"=>"> + NLs +
+  struct MapEntry : rule<assign<&ast::MapEntry::key>(ref<Expression>) + lit<"=>"> + NLs +
       assign<&ast::MapEntry::value>(ref<Expression>)> {};
   static constexpr auto MapItem = append<&ast::MapExpr::keywords>(ref<KeywordOptionRule>) |
-                                 append<&ast::MapExpr::entries>(ref<MapEntryRule>);
-  struct MapRule : rule<create<ast::MapExpr>(lit<"%"> +
+                                 append<&ast::MapExpr::entries>(ref<MapEntry>);
+  struct Map : rule<create<ast::MapExpr>(lit<"%"> +
       option(!lit<"{"> + assign<&ast::MapExpr::structType>(ref<UnaryOpExpr>)) + lit<"{"> + NLs +
       option(assign<&ast::MapExpr::base>(ref<AmpWrapExpr>) + lit<"|"> + NLs) +
       option(some(MapItem, Comma) + option(lit<",">) + NLs) + lit<"}">)> {};
-  struct BitstringRule : rule<create<ast::BitstringExpr>(lit<"<<"> + NLs +
+  struct Bitstring : rule<create<ast::BitstringExpr>(lit<"<<"> + NLs +
       option(some(append<&ast::BitstringExpr::items>(ref<Expression>), Comma) + option(Comma) + NLs) + lit<">>">)> {};
-  struct IndexArgRule : rule<create<ast::ListExpr>(some(append<&ast::ListExpr::keywords>(ref<KeywordOptionRule>), Comma) + option(Comma))> {};
-  struct NestedExprRule : rule<lit<"("> + NLs + assign<&ast::NestedExpr::inner>(ref<Expression> | ref<ClauseBlockRule>) + NLs + lit<")">> {};
-  struct AtExprRule : rule<create<ast::AtExpr>(lit<"@"> + NLs + assign<&ast::AtExpr::operand>(ref<UnaryOpExpr>))> {};
-  struct DoBlockRule : rule<create<ast::DoBlock>(ref<DO> +
-      assign<&ast::DoBlock::body>(ref<ClauseBlockRule>) +
-      many(append<&ast::DoBlock::sections>(ref<SectionRule>)) + ref<END>)> {};
-  struct SectionRule : rule<create<ast::BlockSection>(
+  struct IndexArg : rule<create<ast::ListExpr>(some(append<&ast::ListExpr::keywords>(ref<KeywordOptionRule>), Comma) + option(Comma))> {};
+  struct NestedExpr : rule<lit<"("> + NLs + assign<&ast::NestedExpr::inner>(ref<Expression> | ref<ClauseBlock>) + NLs + lit<")">> {};
+  struct DoBlock : rule<create<ast::DoBlock>(ref<DO> +
+      assign<&ast::DoBlock::body>(ref<ClauseBlock>) +
+      many(append<&ast::DoBlock::sections>(ref<Section>)) + ref<END>)> {};
+  struct Section : rule<create<ast::BlockSection>(
       assign<&ast::BlockSection::kind>(ref<AFTER> | ref<RESCUE> | ref<CATCH> | ref<ELSE>) +
-      assign<&ast::BlockSection::body>(ref<ClauseBlockRule>))> {};
+      assign<&ast::BlockSection::body>(ref<ClauseBlock>))> {};
   template<class T> static constexpr auto Params =
       some(append<&T::params>(ref<AmpWrapExpr>), Comma);
   template<class T> struct Clause : rule<create<T>(
@@ -233,34 +246,40 @@ struct Elixir : cursiv::GrammarSpec {
       option(some(append<&ast::Block::body>(ref<Expression>) + !(lit<"->"> | lit<",">), Eoe)))> {};
   static constexpr auto ExpressionBlock = option(Eoe) +
       option(some(append<&ast::Block::body>(ref<Expression>), Eoe) + option(Eoe));
-  struct BlockRule : rule<create<ast::Block>(ExpressionBlock)> {};
-  struct ClauseBlockRule : rule<create<ast::Block>(option(Eoe) +
+  struct Block : rule<create<ast::Block>(ExpressionBlock)> {};
+  struct ClauseBlock : rule<create<ast::Block>(option(Eoe) +
       option(some(append<&ast::Block::body>(ref<Clause<ast::ClauseExpr>> | ref<Expression>), Eoe) + option(Eoe)))> {};
-  struct AnonFnRule : rule<ref<FN> + NLs +
+  struct AnonFn : rule<ref<FN> + NLs +
       some(append<&ast::AnonFn::clauses>(ref<Clause<ast::AnonFnClause>>), Eoe) + option(Eoe) + ref<END>> {};
   static constexpr auto DotNameTok = KeywordNameTok;
-  struct DotNameRule : rule<assign<&ast::VarRef::name>(DotNameTok)> {};
-  struct DotMember : rule<ref<DotNameRule> | ref<AliasRule> | ref<OperatorLitRule> |
-      ref<AtomLitRule> | ref<StringLitRule> | ref<TupleRule>> {};
-  struct Primary : rule<ref<AnonFnRule> | ref<NestedExprRule> | ref<AtExprRule> |
-      ref<ListRule> | ref<TupleRule> | ref<MapRule> | ref<BoolRule> | ref<BitstringRule> |
-      ref<NamedPrimary> | ref<QuotedAtomRule> | ref<AtomLitRule> | ref<CaptureIntRule> | ref<IntegerLitRule> | ref<HexLitRule> |
-      ref<OctalLitRule> | ref<BinLitRule> | ref<FloatLitRule> | ref<SigilLitRule> |
-      ref<StringLitRule> | ref<MultiStringLitRule> | ref<CharlistLitRule> | ref<MultiCharlistLitRule> |
-      ref<AliasRule> | ref<CodepointLitRule> | ref<NilRule> | ref<NullaryOperatorRule>> {};
+  struct DotName : rule<assign<&ast::VarRef::name>(DotNameTok)> {};
+  struct DotMember : rule<ref<DotName> | ref<Alias> | ref<OperatorLit> |
+      ref<AtomLit> | ref<StringLit> | ref<Tuple>> {};
+  struct Primary : rule<ref<AnonFn> | ref<NestedExpr> | ref<AtExpr> |
+      ref<List> | ref<Tuple> | ref<Map> | ref<Bool> | ref<Bitstring> |
+      ref<NamedPrimary> | ref<QuotedAtom> | ref<AtomLit> | ref<CaptureInt> | ref<IntegerLit> | ref<HexLit> |
+      ref<OctalLit> | ref<BinLit> | ref<FloatLit> | ref<SigilLit> |
+      ref<StringLit> | ref<MultiStringLit> | ref<CharlistLit> | ref<MultiCharlistLit> |
+      ref<Alias> | ref<CodepointLit> | ref<Nil> | ref<NullaryOperator>> {};
   static constexpr auto CallArgItem = append<&ast::CallExpr::options>(ref<KeywordOptionRule>) |
                                      append<&ast::CallExpr::args>(ref<Expression>);
   static constexpr auto NoDoArgItem = append<&ast::CallExpr::options>(ref<NoDoKeywordOptionRule>) |
                                      append<&ast::CallExpr::args>(ref<NoDoExpression>);
   static constexpr auto ParenArgs = NLs + option(some(CallArgItem, Comma) + option(Comma) + NLs);
+  // Native @ precedence (320) is above dot/access (310). Keep the
+  // attribute's own call, then let PostfixExpr apply .member or [index].
+  struct AtExpr : rule<create<ast::AtExpr>(lit<"@"> + NLs +
+      assign<&ast::AtExpr::operand>(ref<Primary> + option(
+          nest<ast::CallExpr, &ast::CallExpr::callee>(
+              gap::none + lit<"("> + ParenArgs + lit<")">))))> {};
   static constexpr auto NoParenArgs = !gap::none + !lit<"("> + !lit<".."> +
       ((!(lit<"+"> | lit<"-">)) | &(lit<"+", !s> | lit<"-", !s>)) +
       flag<&ast::CallExpr::noParens>(some(NoDoArgItem, Comma));
-  struct NamedPrimary : rule<ref<VarRefRule> + option(
+  struct NamedPrimary : rule<ref<VarRef> + option(
       nest<ast::CallExpr, &ast::CallExpr::callee>(NoParenArgs))> {};
   struct PostfixExpr : rule<ref<Primary> + many(
       nest<ast::IndexExpr, &ast::IndexExpr::target>(gap::none + lit<"["> + NLs +
-          assign<&ast::IndexExpr::index>(ref<IndexArgRule> | ref<Expression>) + option(Comma) + NLs + lit<"]">) |
+          assign<&ast::IndexExpr::index>(ref<IndexArg> | ref<Expression>) + option(Comma) + NLs + lit<"]">) |
       nest<ast::CallExpr, &ast::CallExpr::callee>(
           option(flag<&ast::CallExpr::dotCall>(lit<".">)) + gap::none + lit<"("> + ParenArgs + lit<")">) |
       (nest<ast::DotExpr, &ast::DotExpr::target>(lit<"."> + NLs + assign<&ast::DotExpr::member>(ref<DotMember>)) +
@@ -268,97 +287,54 @@ struct Elixir : cursiv::GrammarSpec {
   struct UnaryOpExpr : rule<create<ast::UnaryExpr>(
       assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-"> | lit<"!"> | lit<"^"> | ref<NOT> | lit<"~~~">) +
       NLs + assign<&ast::UnaryExpr::operand>(ref<UnaryOpExpr>)) | ref<PostfixExpr>> {};
-  struct MUL_OP : rule<lit<"*"> + NLs, value<ast::Operator::multiply>> {};
-  struct DIV_OP : rule<lit<"/"> + NLs, value<ast::Operator::divide>> {};
-  struct ADD_OP : rule<lit<"+"> + NLs, value<ast::Operator::add>> {};
-  struct SUB_OP : rule<lit<"-"> + NLs, value<ast::Operator::subtract>> {};
-  struct CONCAT_OP : rule<lit<"++"> + NLs, value<ast::Operator::concat>> {};
-  struct LISTSUB_OP : rule<lit<"--"> + NLs, value<ast::Operator::list_sub>> {};
-  struct CONCAT3_OP : rule<lit<"+++"> + NLs, value<ast::Operator::concat3>> {};
-  struct LISTSUB3_OP
-      : rule<lit<"---"> + NLs, value<ast::Operator::list_sub3>> {};
-  struct RANGE_OP : rule<lit<".."> + NLs, value<ast::Operator::range>> {};
-  struct DIAMOND_OP : rule<lit<"<>"> + NLs, value<ast::Operator::diamond>> {};
-  struct IN_OP : rule<ref<IN> + NLs, value<ast::Operator::in_>> {};
-  struct NOTIN_OP : rule<ref<NOT> + ref<IN> + NLs, value<ast::Operator::not_in>> {};
-  struct PIPEOP_OP : rule<lit<"|>"> + NLs, value<ast::Operator::pipe_op>> {};
-  struct LTLTTILDE_OP
-      : rule<lit<"<<~"> + NLs, value<ast::Operator::ltlt_tilde>> {};
-  struct TILDEGTGT_OP
-      : rule<lit<"~>>"> + NLs, value<ast::Operator::tilde_gtgt>> {};
-  struct LTTILDE_OP : rule<lit<"<~"> + NLs, value<ast::Operator::lt_tilde>> {};
-  struct TILDEGT_OP : rule<lit<"~>"> + NLs, value<ast::Operator::tilde_gt>> {};
-  struct LTTILDEGT_OP
-      : rule<lit<"<~>"> + NLs, value<ast::Operator::lt_tilde_gt>> {};
-  struct LTPIPEGT_OP
-      : rule<lit<"<|>"> + NLs, value<ast::Operator::lt_pipe_gt>> {};
-  struct LT3_OP : rule<lit<"<<<"> + NLs, value<ast::Operator::lt3>> {};
-  struct GT3_OP : rule<lit<">>>"> + NLs, value<ast::Operator::gt3>> {};
-  struct LESSEQ_OP : rule<lit<"<="> + NLs, value<ast::Operator::less_eq>> {};
-  struct GREATEREQ_OP
-      : rule<lit<">="> + NLs, value<ast::Operator::greater_eq>> {};
-  struct LESS_OP : rule<lit<"<"> + NLs, value<ast::Operator::less>> {};
-  struct GREATER_OP : rule<lit<">"> + NLs, value<ast::Operator::greater>> {};
-  struct STRICTEQ_OP
-      : rule<lit<"==="> + NLs, value<ast::Operator::strict_equal>> {};
-  struct STRICTNEQ_OP
-      : rule<lit<"!=="> + NLs, value<ast::Operator::strict_not_equal>> {};
-  struct EQUAL_OP : rule<lit<"=="> + NLs, value<ast::Operator::equal>> {};
-  struct NOTEQUAL_OP : rule<lit<"!="> + NLs, value<ast::Operator::not_equal>> {};
-  struct MATCH_OP : rule<lit<"=~"> + NLs, value<ast::Operator::match_op>> {};
-  struct ANDANDAND_OP
-      : rule<lit<"&&&"> + NLs, value<ast::Operator::and_and_and>> {};
-  struct ANDAND_OP : rule<lit<"&&"> + NLs, value<ast::Operator::and_and>> {};
-  struct ANDKW_OP : rule<ref<AND> + NLs, value<ast::Operator::and_kw>> {};
-  struct ORORPOR_OP : rule<lit<"|||"> + NLs, value<ast::Operator::or_or_or>> {};
-  struct OROR_OP : rule<lit<"||"> + NLs, value<ast::Operator::or_or>> {};
-  struct ORKW_OP : rule<ref<OR> + NLs, value<ast::Operator::or_kw>> {};
-  struct PATTERNMATCH_OP
-      : rule<lit<"="> + NLs, value<ast::Operator::pattern_match>> {};
+  struct PIPEOP_OP : rule<as<ast::Operator::pipe_op>(lit<"|>"> + NLs)> {};
+  struct TILDEGTGT_OP : rule<as<ast::Operator::tilde_gtgt>(lit<"~>>"> + NLs)> {
+  };
+  struct TILDEGT_OP : rule<as<ast::Operator::tilde_gt>(lit<"~>"> + NLs)> {};
+  struct GT3_OP : rule<as<ast::Operator::gt3>(lit<">>>"> + NLs)> {};
+  struct GREATEREQ_OP : rule<as<ast::Operator::greater_eq>(lit<">="> + NLs)> {};
+  struct GREATER_OP : rule<as<ast::Operator::greater>(lit<">"> + NLs)> {};
 
-  struct POWER_OP : rule<lit<"**"> + NLs, value<ast::Operator::power>> {};
-  struct STEP_OP : rule<lit<"//"> + NLs, value<ast::Operator::range_step>> {};
-  struct XOR_OP : rule<lit<"^^^"> + NLs, value<ast::Operator::xor_>> {};
   struct InfixHigh
-      : infix<UnaryOpExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<POWER_OP>) >> left(ref<MUL_OP> | ref<DIV_OP>) >>
-               left(ref<ADD_OP> | ref<SUB_OP>) >>
-               right(ref<CONCAT3_OP> | ref<LISTSUB3_OP> | ref<CONCAT_OP> |
-                     ref<LISTSUB_OP> | ref<RANGE_OP> | ref<DIAMOND_OP>) >>
-               right(ref<STEP_OP>) >> left(ref<XOR_OP>))> {};
+      : infix<UnaryOpExpr, ast::BinaryExpr,
+              levels(left(as<ast::Operator::power>(lit<"**"> + NLs)), left(as<ast::Operator::multiply>(lit<"*"> + NLs) | as<ast::Operator::divide>(lit<"/"> + NLs)),
+                     left(as<ast::Operator::add>(lit<"+"> + NLs) | as<ast::Operator::subtract>(lit<"-"> + NLs)),
+                     right(as<ast::Operator::concat3>(lit<"+++"> + NLs) | as<ast::Operator::list_sub3>(lit<"---"> + NLs) | as<ast::Operator::concat>(lit<"++"> + NLs) |
+                           as<ast::Operator::list_sub>(lit<"--"> + NLs) | as<ast::Operator::range>(lit<".."> + NLs) | as<ast::Operator::diamond>(lit<"<>"> + NLs)),
+                     right(as<ast::Operator::range_step>(lit<"//"> + NLs)), left(as<ast::Operator::xor_>(lit<"^^^"> + NLs)))> {};
   struct MembershipTail : rule<ref<UnaryOpExpr> + some(
       nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-          assign<&ast::BinaryExpr::op>(ref<IN_OP>) +
+          assign<&ast::BinaryExpr::op>(as<ast::Operator::in_>(ref<IN> + NLs)) +
           assign<&ast::BinaryExpr::right>(ref<InfixHigh>))) + !ref<IN>> {};
   struct NegatedMembership : rule<create<ast::UnaryExpr>(
       assign<&ast::UnaryExpr::op>(ref<NOT> | lit<"!">) + NLs +
       assign<&ast::UnaryExpr::operand>(ref<MembershipTail>))> {};
   struct MembershipBase : rule<ref<NegatedMembership> | ref<InfixHigh>> {};
-  struct Membership : infix<MembershipBase, &ast::BinaryExpr::left,
-      &ast::BinaryExpr::op, &ast::BinaryExpr::right, left(ref<NOTIN_OP> | ref<IN_OP>)> {};
-  struct InfixMid : infix<Membership, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-      &ast::BinaryExpr::right, (
-               left(ref<PIPEOP_OP> | ref<LT3_OP> | ref<GT3_OP> |
-                    ref<LTLTTILDE_OP> | ref<TILDEGTGT_OP> | ref<LTTILDEGT_OP> |
-                    ref<LTTILDE_OP> | ref<TILDEGT_OP> | ref<LTPIPEGT_OP>) >>
-               left(ref<LESSEQ_OP> | ref<GREATEREQ_OP> | ref<LESS_OP> |
-                    ref<GREATER_OP>) >>
-               left(ref<STRICTEQ_OP> | ref<STRICTNEQ_OP> | ref<EQUAL_OP> |
-                    ref<NOTEQUAL_OP> | ref<MATCH_OP>) >>
-               left(ref<ANDANDAND_OP> | ref<ANDAND_OP> | ref<ANDKW_OP>) >>
-               left(ref<ORORPOR_OP> | ref<OROR_OP> | ref<ORKW_OP>))> {};
+  struct Membership
+      : infix<MembershipBase, ast::BinaryExpr,
+              left(as<ast::Operator::not_in>(ref<NOT> + ref<IN> + NLs) |
+                   as<ast::Operator::in_>(ref<IN> + NLs))> {};
+  struct InfixMid : infix<Membership, ast::BinaryExpr, levels(
+               left(ref<PIPEOP_OP> | as<ast::Operator::lt3>(lit<"<<<"> + NLs) | ref<GT3_OP> |
+                    as<ast::Operator::ltlt_tilde>(lit<"<<~"> + NLs) | ref<TILDEGTGT_OP> | as<ast::Operator::lt_tilde_gt>(lit<"<~>"> + NLs) |
+                    as<ast::Operator::lt_tilde>(lit<"<~"> + NLs) | ref<TILDEGT_OP> | as<ast::Operator::lt_pipe_gt>(lit<"<|>"> + NLs)),
+               left(as<ast::Operator::less_eq>(lit<"<="> + NLs) | ref<GREATEREQ_OP> | as<ast::Operator::less>(lit<"<"> + NLs) |
+                    ref<GREATER_OP>),
+               left(as<ast::Operator::strict_equal>(lit<"==="> + NLs) | as<ast::Operator::strict_not_equal>(lit<"!=="> + NLs) | as<ast::Operator::equal>(lit<"=="> + NLs) |
+                    as<ast::Operator::not_equal>(lit<"!="> + NLs) | as<ast::Operator::match_op>(lit<"=~"> + NLs)),
+               left(as<ast::Operator::and_and_and>(lit<"&&&"> + NLs) | as<ast::Operator::and_and>(lit<"&&"> + NLs) | as<ast::Operator::and_kw>(ref<AND> + NLs)),
+               left(as<ast::Operator::or_or_or>(lit<"|||"> + NLs) | as<ast::Operator::or_or>(lit<"||"> + NLs) | as<ast::Operator::or_kw>(ref<OR> + NLs)))> {};
 
   struct MatchExpr
       : rule<ref<InfixMid> +
              option(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(ref<PATTERNMATCH_OP>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::pattern_match>(lit<"="> + NLs)) +
                  assign<&ast::BinaryExpr::right>(ref<AmpWrapExpr>)))> {};
 
   struct CapturedOperatorArity : rule<create<ast::BinaryExpr>(
-      assign<&ast::BinaryExpr::left>(ref<OperatorLitRule>) +
-      assign<&ast::BinaryExpr::op>(ref<DIV_OP>) +
-      assign<&ast::BinaryExpr::right>(ref<IntegerLitRule>))> {};
+      assign<&ast::BinaryExpr::left>(ref<OperatorLit>) +
+      assign<&ast::BinaryExpr::op>(as<ast::Operator::divide>(lit<"/"> + NLs)) +
+      assign<&ast::BinaryExpr::right>(ref<IntegerLit>))> {};
 
   struct AmpWrapExpr
       : rule<create<ast::AmpExpr>(
@@ -366,28 +342,20 @@ struct Elixir : cursiv::GrammarSpec {
                  assign<&ast::AmpExpr::operand>(ref<CapturedOperatorArity> | ref<AmpWrapExpr>))
              | ref<MatchExpr>> {};
 
-  struct PREPEND_OP : rule<lit<"|"> + NLs, value<ast::Operator::prepend>> {};
-  struct TYPE_OP : rule<lit<"::"> + NLs, value<ast::Operator::type_op>> {};
-  struct WHEN_OP : rule<ref<WHEN> + NLs, value<ast::Operator::when_op>> {};
-  struct DEFAULTVALUE_OP
-      : rule<lit<"\\\\"> + NLs, value<ast::Operator::default_value>> {};
-  struct LARROW_OP : rule<lit<"<-"> + NLs, value<ast::Operator::larrow>> {};
 
   struct InfixLow1
-      : infix<AmpWrapExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (right(ref<PREPEND_OP>) >> right(ref<TYPE_OP>) >>
-               right(ref<WHEN_OP>))> {};
+      : infix<AmpWrapExpr, ast::BinaryExpr,
+              levels(right(as<ast::Operator::prepend>(lit<"|"> + NLs)), right(as<ast::Operator::type_op>(lit<"::"> + NLs)),
+                     right(as<ast::Operator::when_op>(ref<WHEN> + NLs)))> {};
 
   struct NoDoExpression
-      : infix<InfixLow1, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              left(ref<LARROW_OP> | ref<DEFAULTVALUE_OP>)> {};
+      : infix<InfixLow1, ast::BinaryExpr,
+              left(as<ast::Operator::larrow>(lit<"<-"> + NLs) | as<ast::Operator::default_value>(lit<"\\\\"> + NLs))> {};
 
   struct Expression : rule<ref<NoDoExpression> + option(
-      nest<ast::BlockCallExpr, &ast::BlockCallExpr::callee>(assign<&ast::BlockCallExpr::block>(ref<DoBlockRule>)))> {};
-  using entry = BlockRule;
-  using ignore = SPACES;
+      nest<ast::BlockCallExpr, &ast::BlockCallExpr::callee>(assign<&ast::BlockCallExpr::block>(ref<DoBlock>)))> {};
+  using entry = Block;
+  using ignored = SPACES;
   using hidden = COMMENT;
 };
 }  // namespace elixir

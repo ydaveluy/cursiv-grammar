@@ -43,7 +43,7 @@ void string(const cursiv::AstNode& node, std::string_view property,
   if (text.empty() || text[0] != '"') return;
   for (std::size_t i = 1; i + 1 < text.size(); ++i) {
     auto start = i;
-    bool invalid = text[i] == '\n';
+    bool invalid = static_cast<unsigned char>(text[i]) < 0x20 || text[i] == '\x7f';
     if (text[i] == '\\') {
       if (++i + 1 >= text.size())
         invalid = true;
@@ -56,19 +56,8 @@ void string(const cursiv::AstNode& node, std::string_view property,
         continue;
       } else if (text[i] == 'u' && i + 1 < text.size() && text[i + 1] == '{') {
         auto end = text.find('}', i + 2);
-        std::uint32_t scalar = 0;
-        bool valid = end != text.npos && end > i + 2;
-        if (valid)
-          for (auto j = i + 2; j < end; ++j) {
-            int digit = hexDigit(text[j]);
-            if (digit < 0 || scalar > 0x10ffff / 16) {
-              valid = false;
-              break;
-            }
-            scalar = scalar * 16 + digit;
-          }
-        invalid = !valid || scalar > 0x10ffff ||
-                  (scalar >= 0xd800 && scalar <= 0xdfff);
+        invalid = end == text.npos ||
+                  !unicodeScalar(text.substr(i + 2, end - i - 2));
         if (end != text.npos) i = end;
       } else
         invalid = true;
@@ -83,6 +72,36 @@ void strings(const auto& node, std::string_view property, const auto& values,
              cursiv::ValidationAcceptor& accept) {
   for (std::size_t i = 0; i < values.size(); ++i)
     string(node, property, i, accept);
+}
+bool validUtf8(std::string_view text) {
+  for (std::size_t i = 0; i < text.size();) {
+    const auto lead = static_cast<unsigned char>(text[i]);
+    if (lead < 0x80) { ++i; continue; }
+    const unsigned width = lead >= 0xc2 && lead <= 0xdf ? 2 :
+                           lead >= 0xe0 && lead <= 0xef ? 3 :
+                           lead >= 0xf0 && lead <= 0xf4 ? 4 : 0;
+    if (!width || width > text.size() - i) return false;
+    for (unsigned j = 1; j < width; ++j)
+      if ((static_cast<unsigned char>(text[i + j]) & 0xc0) != 0x80) return false;
+    const auto next = static_cast<unsigned char>(text[i + 1]);
+    if ((lead == 0xe0 && next < 0xa0) || (lead == 0xed && next >= 0xa0) ||
+        (lead == 0xf0 && next < 0x90) || (lead == 0xf4 && next >= 0x90)) return false;
+    i += width;
+  }
+  return true;
+}
+void name(const cursiv::AstNode& node, std::string_view property,
+          std::string_view value, std::size_t index,
+          cursiv::ValidationAcceptor& accept) {
+  string(node, property, index, accept);
+  if (!validUtf8(value))
+    accept.error(node, "A text name must decode to valid UTF-8", "wat.name-utf8")
+        .range(accept.featureSpan(node, property, index).value_or(accept.spanOf(node)));
+}
+void names(const auto& node, std::string_view property, const auto& values,
+           cursiv::ValidationAcceptor& accept) {
+  for (std::size_t i = 0; i < values.size(); ++i)
+    name(node, property, values[i], i, accept);
 }
 void limits(const auto& node, cursiv::ValidationAcceptor& accept) {
   auto lo = node.min ? natural(*node.min) : std::nullopt,
@@ -221,7 +240,7 @@ void WatValidator::checkType(const ast::TypeDef& node,
 void WatValidator::checkMemory(const ast::Memory& node,
                                cursiv::ValidationAcceptor& accept) const {
   limits(node, accept);
-  strings(node, "exports", node.exports, accept);
+  names(node, "exports", node.exports, accept);
   strings(node, "inlineData", node.inlineData, accept);
   if (node.pageSize) {
     auto value = natural(*node.pageSize);
@@ -235,25 +254,25 @@ void WatValidator::checkMemory(const ast::Memory& node,
 void WatValidator::checkTable(const ast::Table& node,
                               cursiv::ValidationAcceptor& accept) const {
   limits(node, accept);
-  strings(node, "exports", node.exports, accept);
+  names(node, "exports", node.exports, accept);
 }
 void WatValidator::checkImport(const ast::Import& node,
                                cursiv::ValidationAcceptor& accept) const {
   limits(node, accept);
-  string(node, "module_", 0, accept);
-  string(node, "name", 0, accept);
+  name(node, "module_", node.module_, 0, accept);
+  name(node, "name", node.name, 0, accept);
 }
 void WatValidator::checkExport(const ast::Export& node,
                                cursiv::ValidationAcceptor& accept) const {
-  string(node, "name", 0, accept);
+  name(node, "name", node.name, 0, accept);
 }
 void WatValidator::checkFunction(const ast::FunctionDecl& node,
                                  cursiv::ValidationAcceptor& accept) const {
-  strings(node, "exports", node.exports, accept);
+  names(node, "exports", node.exports, accept);
 }
 void WatValidator::checkGlobal(const ast::Global& node,
                                cursiv::ValidationAcceptor& accept) const {
-  strings(node, "exports", node.exports, accept);
+  names(node, "exports", node.exports, accept);
 }
 void WatValidator::checkData(const ast::Data& node,
                              cursiv::ValidationAcceptor& accept) const {
@@ -265,15 +284,15 @@ void WatValidator::checkBinary(const ast::BinQuoteModule& node,
 }
 void WatValidator::checkAction(const ast::Action& node,
                                cursiv::ValidationAcceptor& accept) const {
-  string(node, "name", 0, accept);
+  name(node, "name", node.name, 0, accept);
 }
 void WatValidator::checkAssertion(const ast::Assertion& node,
                                   cursiv::ValidationAcceptor& accept) const {
-  string(node, "message", 0, accept);
+  if (node.message) name(node, "message", *node.message, 0, accept);
 }
 void WatValidator::checkRegister(const ast::Register& node,
                                  cursiv::ValidationAcceptor& accept) const {
-  string(node, "name", 0, accept);
+  name(node, "name", node.name, 0, accept);
 }
 void register_validation_checks(WatCoreServices& services) {
   services.validator = std::make_unique<const WatValidator>(services);

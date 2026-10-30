@@ -55,6 +55,33 @@ void corpus() {
 
 int main() {
   {
+    const auto result = engine().parse(
+        "Native if temperature is very 5.0 and humidity are decreased "
+        "then alarm is must 0.9 else alarm is slightly 0.1;");
+    const auto* rule = result.value_as<ast::ConditionalRule>();
+    const auto* premise = rule ? cursiv::ast_cast<ast::LogicalExpr>(rule->premise) : nullptr;
+    const auto* left = premise ? cursiv::ast_cast<ast::AttribClause>(premise->left) : nullptr;
+    const auto* right = premise ? cursiv::ast_cast<ast::AttribClause>(premise->right) : nullptr;
+    CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
+    CHECK(rule && rule->name == "Native" && premise &&
+          premise->op == ast::LogicalOperator::and_ && left && right);
+    CHECK(left && left->subject == "temperature" && !left->plural &&
+          left->hedges.size() == 1 && left->hedges[0] == ast::Hedge::very &&
+          std::get_if<double>(&left->value) && std::get<double>(left->value) == 5.0);
+    CHECK(right && right->plural && std::get_if<ast::Restriction>(&right->value) &&
+          std::get<ast::Restriction>(right->value) == ast::Restriction::decreased);
+    const auto* consequent = rule ? rule->consequent : nullptr;
+    CHECK(consequent && consequent->thenClause && consequent->elseClause &&
+          consequent->thenClause->hedges.size() == 1 &&
+          consequent->thenClause->hedges[0] == ast::Hedge::must &&
+          consequent->elseClause->hedges.size() == 1 &&
+          consequent->elseClause->hedges[0] == ast::Hedge::slightly &&
+          consequent->thenClause->parent == consequent &&
+          consequent->elseClause->parent == consequent &&
+          premise && left && right && premise->parent == rule &&
+          left->parent == premise && right->parent == premise);
+  }
+  {
     const auto result =
         engine().parse("R if a s x and (b s y or c s z) then d s v;");
     CHECK(result.accepted && !result.cst().recovered() &&

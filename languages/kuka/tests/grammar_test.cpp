@@ -15,6 +15,8 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "kuka/core/CoreServices.hpp"
 #include "kuka/core/ast.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 namespace {
 
@@ -58,6 +60,23 @@ int main() {
       kuka::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
 
+  {
+    const auto r = parser.parse("DEF p()\nx=TRUE\ny=false\nFOR i=1 TO 2\n\nx=1\nENDFOR\nEND\n");
+    unsigned booleans = 0;
+    for (const auto* n : r.nodes) booleans += cursiv::ast_cast<kuka::ast::BoolLit>(n) != nullptr;
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || booleans != 2)
+      return fail("native boolean identity or blank for-body line lost");
+  }
+  for (const auto source : {"DEF IF()\nEND\n", "DEF p()\nDECL INT TRUE\nEND\n"}) {
+    const auto r = parser.parse(source);
+    if (r.accepted && !r.cst().recovered() && r.diagnostics.empty()) return fail("native keyword used as an identifier");
+  }
+  {
+    const auto r = parser.parse("DEF p()\nx=9999999999999999999999999999999999999999999999\nEND\n");
+    if (r.diagnostics.empty()) return fail("integer converter must diagnose overflow without signed UB");
+    const auto v = cursiv::test::validationHelper(language.language, "DEF p(Name,name)\nEND\n");
+    if (v.diagnostics.size() < 2) return fail("case-insensitive duplicate parameter names need diagnostics");
+  }
   int count = 0;
   for (const auto& entry :
        std::filesystem::directory_iterator(CURSIV_EXAMPLE_DIR)) {

@@ -27,6 +27,10 @@ struct Projection {
       out << "null";
       return;
     }
+    if (cursiv::ast_cast<NullArg>(p)) {
+      out << "{\"kind\":\"null\"}";
+      return;
+    }
     if (auto *c = cursiv::ast_cast<FuncCall>(p)) {
       constexpr std::string_view names[] = {
           "Format",         "StringToJson",  "JsonToString", "Array",

@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Textual LLVM IR modules contain globals, functions, instructions, constants and metadata.
+
 ```llvm
 target triple = "x86_64-pc-linux-gnu"
 
@@ -45,12 +47,6 @@ entry:
   ret i32 0
 }
 ```
-
-A module is a flat list of top-level entities — globals, function
-declarations and definitions, type and metadata definitions — and every
-instruction, constant expression and debug-info node is `keyword operand...`:
-no operator precedence, so names and identifiers (`%local`, `@global`,
-`!metadata`) are the only cross-references this port carries as plain text.
 
 ## The command line
 

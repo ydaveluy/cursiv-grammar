@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Racket 8.18 / HtDP Beginning Student Language source reader.
+
 ```racket
 #lang htdp/bsl
 
@@ -42,13 +44,6 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 (check-expect (fahrenheit->celsius 212) 100)
 (check-expect (fahrenheit->celsius -40) -40)
 ```
-
-Racket's Beginning Student Language: definitions, `check-expect` test
-cases and `require` are top-level forms, and an expression is s-expression
-syntax throughout — no infix, no indentation. `example/constructs.rkt`
-carries what this sample does not: `define-struct`, a lambda-named
-function, `cond`/`if`/`and`/`or`, every literal kind, every `check-`
-form and every `require` form.
 
 ## The command line
 

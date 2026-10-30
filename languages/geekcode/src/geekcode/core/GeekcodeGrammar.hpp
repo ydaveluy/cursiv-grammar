@@ -14,6 +14,7 @@ struct Geekcode : cursiv::GrammarSpec {
   struct GCODE : terminal<lit<"G"> + some(cr<"A-Z!">) +
                           many(lit<"/"> + some(cr<"A-Z!">))> {};
   struct VERSION : terminal<some(cr<"0-9.">)> {};
+  struct AGE : terminal<some(d)> {};
   struct SIZING : terminal<some(cr<"+*-">) | lit<"%"> | lit<"pu"> | lit<"x">> {};
   struct CATEGORY : terminal<
       lit<"d"> | lit<"a"> | lit<"H"> | lit<"C"> | lit<"P"> | lit<"E"> |
@@ -24,43 +25,42 @@ struct Geekcode : cursiv::GrammarSpec {
       lit<"x"> | lit<"L"> | lit<"g"> | lit<"p"> | lit<"au"> | lit<"w"> |
       lit<"v"> | lit<"3"> | lit<"j"> | lit<"G"> | lit<"B"> | lit<"u"> |
       lit<"f"> | lit<"n">> {};
-  struct UNIX_VARIANTS : terminal<lit<"U"> + many(cr<"ABCHILOSUVX*">),
-                                  cursiv::text_conv<unix_variants>> {};
+  struct UNIX_VARIANTS
+      : terminal<as<unix_variants>(lit<"U"> + many(cr<"ABCHILOSUVX*">))> {};
 
-  struct NOTRIGID : terminal<lit<"@">, value<ast::Qualifier::not_rigid>> {};
-  struct WANNABE : terminal<lit<">">, value<ast::Qualifier::wannabe>> {};
-  struct FORLIVING : terminal<lit<"$">, value<ast::Qualifier::for_living>> {};
-  struct NOKNOWLEDGE : terminal<lit<"?">, value<ast::Qualifier::no_knowledge>> {};
-  struct REFUSED : terminal<lit<"!">, value<ast::Qualifier::refused>> {};
+  struct NOTRIGID : terminal<as<ast::Qualifier::not_rigid>(lit<"@">)> {};
+  struct NOKNOWLEDGE : terminal<as<ast::Qualifier::no_knowledge>(lit<"?">)> {};
 
-  struct CrossoverRule : rule<create<ast::Crossover>(
+  struct Crossover : rule<create<ast::Crossover>(
       lit<"("> + option(gap::none + assign<&ast::Crossover::run>(ref<SIZING>)) +
       gap::none + lit<")">)> {};
-  static constexpr auto Modifier = ref<SIZING> | ref<CrossoverRule> |
-      ref<NOTRIGID> | ref<WANNABE> | ref<FORLIVING> | ref<NOKNOWLEDGE> | ref<REFUSED>;
+  static constexpr auto Modifier = ref<SIZING> | ref<Crossover> |
+      ref<NOTRIGID> | as<ast::Qualifier::wannabe>(lit<">">) | as<ast::Qualifier::for_living>(lit<"$">) | ref<NOKNOWLEDGE> | as<ast::Qualifier::refused>(lit<"!">);
 
-  struct UnixRule : rule<create<ast::Unix>(
+  struct Unix : rule<create<ast::Unix>(
       assign<&ast::Unix::variants>(ref<UNIX_VARIANTS>))> {};
   static constexpr auto ShapeModifiers =
       many(gap::none + append<&ast::ShapeSegment::modifiers>(Modifier));
   struct FirstShapeSegment : rule<create<ast::ShapeSegment>(lit<"s"> + ShapeModifiers)> {};
   struct NextShapeSegment : rule<create<ast::ShapeSegment>(lit<":"> + ShapeModifiers)> {};
-  struct ShapeRule : rule<create<ast::Shape>(
+  struct Shape : rule<create<ast::Shape>(
       append<&ast::Shape::segments>(ref<FirstShapeSegment>) +
       many(gap::none + append<&ast::Shape::segments>(ref<NextShapeSegment>)))> {};
-  struct TupleRule : rule<create<ast::Tuple>(
+  struct Tuple : rule<create<ast::Tuple>(
       option(flag<&ast::Tuple::refused>(lit<"!">) + gap::none) +
-      assign<&ast::Tuple::kind>(ref<CATEGORY> | ref<ShapeRule> | ref<UnixRule>) +
+      ((assign<&ast::Tuple::kind>(lit<"a">) + gap::none +
+        assign<&ast::Tuple::exactAge>(ref<AGE>)) |
+       assign<&ast::Tuple::kind>(ref<CATEGORY> | ref<Shape> | ref<Unix>)) +
       many(gap::none + append<&ast::Tuple::modifiers>(Modifier)))> {};
-  struct FileRule : rule<create<ast::File>(
+  struct File : rule<create<ast::File>(
       option(lit<"-----BEGIN GEEK CODE BLOCK-----"> +
              option(lit<"Version:"> + assign<&ast::File::version>(ref<VERSION>))) +
       assign<&ast::File::header>(ref<GCODE>) +
-      many(append<&ast::File::tuples>(ref<TupleRule>)) +
+      many(append<&ast::File::tuples>(ref<Tuple>)) +
       option(lit<"------END GEEK CODE BLOCK------">))> {};
 
-  using entry = FileRule;
-  using ignore = WS;
+  using entry = File;
+  using ignored = WS;
 };
 
 }  // namespace geekcode

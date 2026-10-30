@@ -9,30 +9,30 @@
 namespace lambda {
 
 struct Lambda : cursiv::GrammarSpec {
-  struct WS : terminal<some(s)> {};
+  struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
 
   struct VARIABLE : terminal<cr<"a-z"> + many(cr<"a-zA-Z0-9">)> {};
 
-  struct ExpressionRule;
-  struct FunctionRule;
-  struct ApplicationRule;
+  struct Expression;
+  struct Function;
+  struct Application;
 
-  struct ExpressionRule
+  struct Expression
       : rule<create<ast::Variable>(
                  assign<&ast::Variable::name>(ref<VARIABLE>)) |
-             ref<FunctionRule> | ref<ApplicationRule>> {};
+             ref<Function> | ref<Application>> {};
 
-  struct FunctionRule
+  struct Function
       : rule<lit<"λ"> + assign<&ast::Function::param>(ref<VARIABLE>) +
-             lit<"."> + assign<&ast::Function::body>(ref<ExpressionRule>)> {};
+             lit<"."> + assign<&ast::Function::body>(ref<Expression>)> {};
 
-  struct ApplicationRule
-      : rule<lit<"("> + assign<&ast::Application::func>(ref<ExpressionRule>) +
-             assign<&ast::Application::arg>(ref<ExpressionRule>) +
+  struct Application
+      : rule<lit<"("> + assign<&ast::Application::func>(ref<Expression>) +
+             assign<&ast::Application::arg>(ref<Expression>) +
              lit<")">> {};
 
-  using entry = ExpressionRule;
-  using ignore = WS;
+  using entry = Expression;
+  using ignored = WS;
 };
 
 }  // namespace lambda

@@ -143,6 +143,23 @@ inline bool run() {
                (*cdata)->parent == cdata_doc;
   }
   check(cdata_ok, "CDATA extension retains document-level raw text and parent");
+  auto source_result = parser->parse("<div title='&amp;\r\nx'> \r\n&amp;<br> </div>");
+  const auto* source_doc = source_result.value_as<html::ast::Document>();
+  bool source_ok = source_result.accepted && !source_result.cst().recovered() &&
+                   source_result.diagnostics.empty() && source_doc && source_doc->content.size() == 1;
+  if (source_ok) {
+    auto* const* div = std::get_if<html::ast::Element*>(&source_doc->content[0]);
+    source_ok = div && *div && (*div)->attributes.size() == 1 &&
+                (*div)->attributes[0]->value == "&amp;\nx" && (*div)->content.size() == 3;
+    if (source_ok) {
+      auto* const* first = std::get_if<html::ast::Text*>(&(*div)->content[0]);
+      auto* const* last = std::get_if<html::ast::Text*>(&(*div)->content[2]);
+      source_ok = first && *first && (*first)->text == " \n&amp;" &&
+                  last && *last && (*last)->text == " ";
+    }
+  }
+  check(source_ok, "source AST keeps references and whitespace while normalizing CRLF");
+
   raw("<ScRiPt>" + std::string(100000, 'x') + "</SCRIPT >", true);
   return ok;
 }

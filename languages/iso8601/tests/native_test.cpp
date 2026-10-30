@@ -1,5 +1,6 @@
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
+#include "native_followup_cases.hpp"
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstReflection.hpp"
@@ -18,6 +19,7 @@ int main() {
       cursiv::create_language<iso8601::Iso8601CoreServices,
                               iso8601::Iso8601SharedCoreServices,
                               iso8601::install_core_module>();
+  if (!iso8601_native_followup::run(language)) return 1;
   unsigned equal = 0, policies = 0;
   for (const auto &c : nativeCases) {
     auto fail = [&](const char *message) {

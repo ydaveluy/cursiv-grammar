@@ -11,7 +11,6 @@ namespace squirrel {
 inline constexpr auto unquote_string = [](std::string_view t) {
   return t.front() == '@' ? t.substr(2, t.size() - 3) : t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote_string>;
 
 struct Squirrel : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\f)">)> {};
@@ -23,9 +22,13 @@ struct Squirrel : cursiv::GrammarSpec {
 
   struct IDENT : terminal<cr<"a-zA-Z_"> + many(w)> {};
 
-  static constexpr auto IntBody = (lit<"0"> + cr<"1-7"> + many(cr<"0-7">))  //
-                                   | (lit<"0x"> + some(cr<"0-9a-fA-F">))    //
-                                   | (lit<"'"> + cr<"a-zA-Z"> + lit<"'">)   //
+  static constexpr auto Hex = cr<"0-9a-fA-F">;
+  static constexpr auto Escape = lit<"\\"> +
+      (cr<R"(tabnrvf0\\"')"> | (lit<"x"> + repeat<1, 2>(Hex)) |
+       (lit<"u"> + repeat<1, 4>(Hex)) | (lit<"U"> + repeat<1, 8>(Hex)));
+  static constexpr auto IntBody = (lit<"0"> + some(cr<"0-7">))  //
+                                   | (lit<"0"> + cr<"xX"> + some(Hex))    //
+                                   | (lit<"'"> + (Escape | cr<R"(^'\\\r\n)">) + lit<"'">) //
                                    | lit<"0">                              //
                                    | (cr<"1-9"> + many(d));
   struct INT : terminal<IntBody> {};
@@ -34,27 +37,26 @@ struct Squirrel : cursiv::GrammarSpec {
 
   static constexpr auto FloatExp = cr<"eE"> + option(cr<"+-">) + some(d);
   static constexpr auto FloatBody =
-      (((some(d) + lit<"."> + many(d)) | (many(d) + lit<"."> + some(d))) +
-       option(FloatExp))               //
+      ((some(d) + lit<"."> + many(d)) + option(FloatExp))               //
       | (some(d) + FloatExp);
   struct FLOAT : terminal<FloatBody> {};
   struct SIGNED_FLOAT : terminal<option(lit<"-">) + FloatBody> {};
 
-  static constexpr auto Escape = lit<"\\"> + any;
   struct STRING
-      : terminal<(lit<"@\""> + many(cr<R"(^")"> | lit<"\"\"">) + lit<"\"">)  //
-                 | (lit<"\""> + many(Escape | cr<R"(^"\r\n)">) + lit<"\"">),
-                 Unquoted> {};
+      : terminal<as<unquote_string>(
+            lit<"\""> + many(Escape | cr<R"(^"\\\r\n)">) + lit<"\"">)> {};
+  struct VERBATIM_STRING
+      : terminal<as<unquote_string>(
+            lit<"@\""> + many(cr<R"(^")"> | lit<"\"\"">) + lit<"\"">)> {};
 
-  struct BOOLK : terminal<kw<"true"> | kw<"false">, bool> {};
+  struct BOOLK : terminal<as<bool>(kw<"true"> | kw<"false">)> {};
 
   static constexpr auto MulOp = lit<"*"> | lit<"/"> | lit<"%">;
   static constexpr auto AddOp = lit<"+"> | lit<"-">;
   static constexpr auto ShiftOp = lit<"<<"> | lit<">>>"> | lit<">>">;
   static constexpr auto RelOp =
-      lit<"<="> | lit<">="> | lit<"<"> | lit<">"> | kw<"instanceof">;
+      lit<"<="> | lit<">="> | lit<"<"> | lit<">"> | kw<"instanceof"> | kw<"in">;
   static constexpr auto EqOp = lit<"=="> | lit<"!="> | lit<"<=>">;
-  static constexpr auto AndInOp = lit<"&&"> | kw<"in">;
   static constexpr auto AssignOp = lit<"<-"> | lit<"*="> | lit<"/="> |
                                     lit<"%="> | lit<"+="> | lit<"-="> |
                                     lit<"=", !cr<"=">>;
@@ -69,27 +71,31 @@ struct Squirrel : cursiv::GrammarSpec {
   // Forward declarations: the expression and statement grammars are
   // mutually recursive.
   struct Expression;
-  struct AssignExprRule;
+  struct AssignExpr;
   struct Statement;
   struct StatementOrEmpty;
-  struct ClassMemberRule;
-  struct FunctionDeclRule;
+  struct ClassMember;
+  struct FunctionDecl;
 
   // ---- literals and names ----
+
+  struct StringExpr
+      : rule<create<ast::StringLit>(
+            flag<&ast::StringLit::verbatim>(assign<&ast::StringLit::value>(ref<VERBATIM_STRING>)) |
+            assign<&ast::StringLit::value>(ref<STRING>))> {};
 
   struct LiteralExpr
       : rule<create<ast::IntLit>(assign<&ast::IntLit::text>(ref<INT>))  //
              | create<ast::FloatLit>(
                    assign<&ast::FloatLit::text>(ref<FLOAT>))  //
-             | create<ast::StringLit>(
-                   assign<&ast::StringLit::value>(ref<STRING>))  //
+             | ref<StringExpr>  //
              | create<ast::BoolLit>(
                    assign<&ast::BoolLit::value>(ref<BOOLK>))  //
              | create<ast::NullLit>(kw<"null">)> {};
 
   // Optional leading `-`: reachable only from a `const`/`enum` value. In an
   // ordinary expression a leading `-` is always claimed first by the unary
-  // operator (`UnaryExprRule`), so the two spellings never compete for the
+  // operator (`UnaryExpr`), so the two spellings never compete for the
   // same input; folding the sign into a wider terminal here keeps that
   // true instead of introducing a real conflict.
   struct ConstLiteral
@@ -97,8 +103,7 @@ struct Squirrel : cursiv::GrammarSpec {
                  assign<&ast::IntLit::text>(ref<SIGNED_INT>))  //
              | create<ast::FloatLit>(
                    assign<&ast::FloatLit::text>(ref<SIGNED_FLOAT>))  //
-             | create<ast::StringLit>(
-                   assign<&ast::StringLit::value>(ref<STRING>))  //
+             | ref<StringExpr>  //
              | create<ast::BoolLit>(
                    assign<&ast::BoolLit::value>(ref<BOOLK>))  //
              | create<ast::NullLit>(kw<"null">)> {};
@@ -109,23 +114,26 @@ struct Squirrel : cursiv::GrammarSpec {
 
   // ---- compound expressions ----
 
-  struct ArrayExprRule
+  struct ArrayExpr
       : rule<lit<"["> +
-             many(append<&ast::ArrayExpr::items>(ref<AssignExprRule>), lit<",">) +
-             option(lit<",">) + many(ref<NL>) + lit<"]">> {};
+             many(append<&ast::ArrayExpr::items>(ref<AssignExpr>) + option(lit<",">)) + many(ref<NL>) + lit<"]">> {};
 
-  struct BracketKeyRule : rule<lit<"["> + ref<Expression> + many(ref<NL>) + lit<"]">> {
+  struct BracketKey : rule<lit<"["> + ref<Expression> + many(ref<NL>) + lit<"]">> {
   };
 
-  struct KeyValueRule
-      : rule<assign<&ast::KeyValue::key>(ref<IDENT> | ref<BracketKeyRule>) +
+  struct KeyValue
+      : rule<assign<&ast::KeyValue::key>(ref<IDENT> | ref<BracketKey>) +
              lit<"="> +
-             assign<&ast::KeyValue::value>(ref<AssignExprRule>)> {};
+             assign<&ast::KeyValue::value>(ref<AssignExpr>)> {};
 
-  struct TableExprRule
+  struct JsonKeyValue
+      : rule<create<ast::KeyValue>(assign<&ast::KeyValue::key>(ref<StringExpr>) +
+             lit<":"> + assign<&ast::KeyValue::value>(ref<AssignExpr>))> {};
+
+  struct TableExpr
       : rule<lit<"{"> + many(lit<","> | ref<NL>) +
-             many(append<&ast::TableExpr::items>(ref<KeyValueRule> |
-                                                 ref<FunctionDeclRule>) +
+             many(append<&ast::TableExpr::items>(ref<KeyValue> | ref<JsonKeyValue> |
+                                                 ref<FunctionDecl>) +
                   many(lit<","> | ref<NL>)) +
              lit<"}">> {};
 
@@ -134,218 +142,217 @@ struct Squirrel : cursiv::GrammarSpec {
   // apart needs lookahead past the `=` that a shared prefix does not give
   // an LR table; this over-accepts a default before a plain parameter,
   // which no example reaches.
-  struct ParamRule : rule<many(ref<NL>) + assign<&ast::Param::name>(ref<IDENT>) +
+  struct Param : rule<many(ref<NL>) + assign<&ast::Param::name>(ref<IDENT>) +
                           option(lit<"="> + assign<&ast::Param::defaultValue>(
-                                                ref<AssignExprRule>))> {};
+                                                ref<AssignExpr>))> {};
 
-  struct FunctionExprRule
-      : rule<kw<"function"> + lit<"("> +
-             option((some(append<&ast::FunctionExpr::params>(ref<ParamRule>),
+  struct FunctionExpr
+      : rule<kw<"function"> +
+             option(lit<"["> + assign<&ast::FunctionExpr::environment>(ref<AssignExpr>) + many(ref<NL>) + lit<"]">) +
+             lit<"("> +
+             option((some(append<&ast::FunctionExpr::params>(ref<Param>),
                          lit<",">) +
                         option(lit<","> +
-                               flag<&ast::FunctionExpr::variadic>(lit<"...">)))  //
+                               option(flag<&ast::FunctionExpr::variadic>(lit<"...">))))  //
                     | flag<&ast::FunctionExpr::variadic>(lit<"...">)) +
              many(ref<NL>) + lit<")"> + many(ref<NL>) +
              assign<&ast::FunctionExpr::body>(ref<StatementOrEmpty>)> {};
 
-  struct LambdaExprRule
-      : rule<lit<"@"> + lit<"("> +
-             option((some(append<&ast::LambdaExpr::params>(ref<ParamRule>),
+  struct LambdaExpr
+      : rule<lit<"@"> +
+             option(lit<"["> + assign<&ast::LambdaExpr::environment>(ref<AssignExpr>) + many(ref<NL>) + lit<"]">) +
+             lit<"("> +
+             option((some(append<&ast::LambdaExpr::params>(ref<Param>),
                          lit<",">) +
                         option(lit<","> +
-                               flag<&ast::LambdaExpr::variadic>(lit<"...">)))  //
+                               option(flag<&ast::LambdaExpr::variadic>(lit<"...">))))  //
                     | flag<&ast::LambdaExpr::variadic>(lit<"...">)) +
              many(ref<NL>) + lit<")"> +
-             assign<&ast::LambdaExpr::body>(ref<AssignExprRule>)> {};
+             assign<&ast::LambdaExpr::body>(ref<AssignExpr>)> {};
 
-  struct ClassExprRule
+  struct ClassExpr
       : rule<kw<"class"> +
              option(kw<"extends"> +
-                    append<&ast::ClassExpr::base>(ref<IDENT>) +
-                    many(lit<"."> + append<&ast::ClassExpr::base>(ref<IDENT>))) +
+                    some(append<&ast::ClassExpr::base>(ref<IDENT>), lit<".">)) +
              lit<"{"> + many(ref<NL>) +
-             many(append<&ast::ClassExpr::members>(ref<ClassMemberRule>) +
+             many(append<&ast::ClassExpr::members>(ref<ClassMember>) +
                   many(lit<";"> | ref<NL>)) +
              lit<"}">> {};
 
-  struct PrimaryExprRule
+  struct PrimaryExpr
       : rule<ref<LiteralExpr>                                           //
              | (lit<"("> + ref<Expression> + many(ref<NL>) + lit<")">)  //
-             | ref<ClassExprRule>                                       //
-             | ref<TableExprRule>                                       //
-             | ref<ArrayExprRule>                                       //
-             | ref<FunctionExprRule>                                    //
-             | ref<LambdaExprRule>                                      //
+             | ref<ClassExpr>                                       //
+             | ref<TableExpr>                                       //
+             | ref<ArrayExpr>                                       //
+             | ref<FunctionExpr>                                    //
+             | ref<LambdaExpr>                                      //
              | ref<IdentExpr>> {};
 
-  struct PostfixExprRule
-      : rule<ref<PrimaryExprRule> +
+  struct PostfixExpr
+      : rule<ref<PrimaryExpr> +
              many(nest<ast::MemberExpr, &ast::MemberExpr::object>(
                       lit<"."> + assign<&ast::MemberExpr::field>(ref<IDENT> |
                                                                  kw<"constructor">))  //
                   | nest<ast::CallExpr, &ast::CallExpr::callee>(
                         lit<"("> +
-                        many(append<&ast::CallExpr::args>(ref<AssignExprRule>),
+                        many(append<&ast::CallExpr::args>(ref<AssignExpr>),
                              lit<",">) +
                         many(ref<NL>) + lit<")">)  //
                   | nest<ast::IndexExpr, &ast::IndexExpr::object>(
-                        lit<"["> + assign<&ast::IndexExpr::index>(ref<AssignExprRule>) +
+                        lit<"["> + assign<&ast::IndexExpr::index>(ref<AssignExpr>) +
                         many(ref<NL>) + lit<"]">)  //
                   | nest<ast::PostfixOpExpr, &ast::PostfixOpExpr::operand>(
                         assign<&ast::PostfixOpExpr::op>(lit<"++"> | lit<"--">)))> {};
 
-  struct UnaryExprRule;
-  struct UnaryExprRule
+  struct UnaryExpr;
+  struct UnaryExpr
       : rule<many(ref<NL>) +
              (create<ast::PrefixExpr>(
                   assign<&ast::PrefixExpr::op>(UnaryOp | UnaryAction) +
-                  assign<&ast::PrefixExpr::operand>(ref<UnaryExprRule>))  //
+                  assign<&ast::PrefixExpr::operand>(ref<UnaryExpr>))  //
               | create<ast::PrefixExpr>(
                     assign<&ast::PrefixExpr::op>(lit<"++"> | lit<"--">) +
-                    assign<&ast::PrefixExpr::operand>(ref<PostfixExprRule>))  //
-              | ref<PostfixExprRule>)> {};
+                    assign<&ast::PrefixExpr::operand>(ref<PostfixExpr>))  //
+              | ref<PostfixExpr>)> {};
 
   struct Ladder
-      : infix<UnaryExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(MulOp) >>      //
-               left(AddOp) >>      //
-               left(ShiftOp) >>    //
-               left(RelOp) >>      //
-               left(EqOp) >>       //
-               left(lit<"&">) >>   //
-               left(lit<"^">) >>   //
-               left(lit<"|">) >>   //
-               left(AndInOp) >>    //
-               left(lit<"||">))> {};
+      : infix<UnaryExpr, ast::BinaryExpr,
+              levels(left(MulOp),     //
+                     left(AddOp),     //
+                     left(ShiftOp),   //
+                     left(RelOp),     //
+                     left(EqOp),      //
+                     left(lit<"&">),  //
+                     left(lit<"^">),  //
+                     left(lit<"|">),  //
+                     right(lit<"&&">),   //
+                     right(lit<"||">))> {};
 
-  struct TernaryExprRule;
-  struct TernaryExprRule
-      : rule<create<ast::CondExpr>(
-                 assign<&ast::CondExpr::cond>(ref<Ladder>) + lit<"?"> +
-                 assign<&ast::CondExpr::thenValue>(ref<Expression>) +
-                 lit<":"> +
-                 assign<&ast::CondExpr::elseValue>(ref<TernaryExprRule>))  //
-             | ref<Ladder>> {};
-
-  struct AssignExprRule
+  // Native Expression chooses one assignment or conditional suffix after
+  // the logical ladder; both conditional arms recurse at the same level.
+  struct AssignExpr
       : rule<create<ast::AssignExpr>(
-                 assign<&ast::AssignExpr::target>(ref<TernaryExprRule>) +
+                 assign<&ast::AssignExpr::target>(ref<Ladder>) +
                  assign<&ast::AssignExpr::op>(AssignOp) +
-                 assign<&ast::AssignExpr::value>(ref<AssignExprRule>))  //
-             | ref<TernaryExprRule>> {};
+                 assign<&ast::AssignExpr::value>(ref<AssignExpr>)) |
+             create<ast::CondExpr>(
+                 assign<&ast::CondExpr::cond>(ref<Ladder>) + lit<"?"> +
+                 assign<&ast::CondExpr::thenValue>(ref<AssignExpr>) + lit<":"> +
+                 assign<&ast::CondExpr::elseValue>(ref<AssignExpr>)) |
+             ref<Ladder>> {};
 
   struct Expression
-      : infix<AssignExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(lit<",">)> {};
+      : infix<AssignExpr, ast::BinaryExpr, left(lit<",">)> {};
 
   // ---- statements ----
 
   struct StatementOrEmpty
       : rule<ref<Statement> | create<ast::EmptyStmt>(lit<";">)> {};
 
-  struct BlockStmtRule
+  struct BlockStmt
       : rule<lit<"{"> + LeadingSeps +
              many(append<&ast::BlockStmt::body>(ref<Statement>) +
                   StatementSep) +
              lit<"}">> {};
 
-  struct ExprStmtRule
+  struct ExprStmt
       : rule<create<ast::ExprStmt>(
                  assign<&ast::ExprStmt::value>(ref<Expression>))> {};
 
-  struct ConstDeclRule
+  struct ConstDecl
       : rule<kw<"const"> + assign<&ast::ConstDecl::name>(ref<IDENT>) +
              lit<"="> +
              assign<&ast::ConstDecl::value>(ref<ConstLiteral>)> {};
 
-  struct EnumItemRule
+  struct EnumItem
       : rule<assign<&ast::EnumItem::name>(ref<IDENT>) +
              option(lit<"="> +
                     assign<&ast::EnumItem::value>(ref<ConstLiteral>))> {};
 
-  struct EnumDeclRule
+  struct EnumDecl
       : rule<kw<"enum"> + assign<&ast::EnumDecl::name>(ref<IDENT>) +
              lit<"{"> +
-             option(some(append<&ast::EnumDecl::items>(ref<EnumItemRule>),
+             option(some(append<&ast::EnumDecl::items>(ref<EnumItem>),
                          lit<",">) +
                     option(lit<",">)) +
              lit<"}">> {};
 
-  struct VarItemRule
+  struct VarItem
       : rule<assign<&ast::VarItem::name>(ref<IDENT>) +
              option(lit<"="> +
-                    assign<&ast::VarItem::init>(ref<AssignExprRule>))> {};
+                    assign<&ast::VarItem::init>(ref<AssignExpr>))> {};
 
-  struct VarDeclarationListRule
+  struct VarDeclarationList
       : rule<create<ast::LocalVarDecl> +
-             some(append<&ast::LocalVarDecl::vars>(ref<VarItemRule>),
+             some(append<&ast::LocalVarDecl::vars>(ref<VarItem>),
                   lit<",">)> {};
 
   struct LocalDeclaration
       : rule<kw<"local"> +
-             (ref<VarDeclarationListRule>  //
+             (ref<VarDeclarationList>  //
               | create<ast::LocalFunctionDecl>(
                     assign<&ast::LocalFunctionDecl::func>(
-                        ref<FunctionDeclRule>)))> {};
+                        ref<FunctionDecl>)))> {};
 
-  struct FunctionDeclRule
+  struct FunctionDecl
       : rule<kw<"function"> +
              append<&ast::FunctionDecl::path>(ref<IDENT>) +
              many(lit<"::"> + append<&ast::FunctionDecl::path>(
                                    ref<IDENT> | kw<"constructor">)) +
+             option(lit<"["> + assign<&ast::FunctionDecl::environment>(ref<AssignExpr>) + many(ref<NL>) + lit<"]">) +
              lit<"("> +
-             option((some(append<&ast::FunctionDecl::params>(ref<ParamRule>),
+             option((some(append<&ast::FunctionDecl::params>(ref<Param>),
                           lit<",">) +
-                     option(lit<","> + flag<&ast::FunctionDecl::variadic>(
-                                           lit<"...">)))  //
+                     option(lit<","> + option(flag<&ast::FunctionDecl::variadic>(
+                                           lit<"...">))))  //
                     | flag<&ast::FunctionDecl::variadic>(lit<"...">)) +
-             lit<")"> + many(ref<NL>) +
+             many(ref<NL>) + lit<")"> + many(ref<NL>) +
              assign<&ast::FunctionDecl::body>(ref<StatementOrEmpty>)> {};
 
-  struct ConstructorDeclRule
-      : rule<kw<"constructor"> + lit<"("> +
+  struct ConstructorDecl
+      : rule<kw<"constructor"> +
+             option(lit<"["> + assign<&ast::ConstructorDecl::environment>(ref<AssignExpr>) + many(ref<NL>) + lit<"]">) +
+             lit<"("> +
              option(
-                 (some(append<&ast::ConstructorDecl::params>(ref<ParamRule>),
+                 (some(append<&ast::ConstructorDecl::params>(ref<Param>),
                        lit<",">) +
-                  option(lit<","> + flag<&ast::ConstructorDecl::variadic>(
-                                        lit<"...">)))  //
+                  option(lit<","> + option(flag<&ast::ConstructorDecl::variadic>(
+                                        lit<"...">))))  //
                  | flag<&ast::ConstructorDecl::variadic>(lit<"...">)) +
-             lit<")"> + many(ref<NL>) +
+             many(ref<NL>) + lit<")"> + many(ref<NL>) +
              assign<&ast::ConstructorDecl::body>(ref<StatementOrEmpty>)> {};
 
-  struct ClassMemberRule
+  struct ClassMember
       : rule<option(lit<"</"> + many(lit<","> | ref<NL>) +
-                    many(append<&ast::ClassMember::attrs>(ref<KeyValueRule>) +
+                    many(append<&ast::ClassMember::attrs>(ref<KeyValue>) +
                          many(lit<","> | ref<NL>)) +
                     lit<"/>"> + many(ref<NL>)) +
              option(flag<&ast::ClassMember::isStatic>(kw<"static">)) +
-             assign<&ast::ClassMember::member>(ref<ConstructorDeclRule>  //
-                                               | ref<KeyValueRule>       //
-                                               | ref<FunctionDeclRule>)> {};
+             assign<&ast::ClassMember::member>(ref<ConstructorDecl>  //
+                                               | ref<KeyValue>       //
+                                               | ref<FunctionDecl>)> {};
 
-  struct ClassDeclRule
-      : rule<kw<"class"> + append<&ast::ClassDecl::name>(ref<IDENT>) +
-             many(lit<"."> + append<&ast::ClassDecl::name>(ref<IDENT>)) +
+  struct ClassDecl
+      : rule<kw<"class"> + some(append<&ast::ClassDecl::name>(ref<IDENT>), lit<".">) +
              option(kw<"extends"> +
-                    append<&ast::ClassDecl::base>(ref<IDENT>) +
-                    many(lit<"."> + append<&ast::ClassDecl::base>(ref<IDENT>))) +
+                    some(append<&ast::ClassDecl::base>(ref<IDENT>), lit<".">)) +
              lit<"{"> + many(ref<NL>) +
-             many(append<&ast::ClassDecl::members>(ref<ClassMemberRule>) +
+             many(append<&ast::ClassDecl::members>(ref<ClassMember>) +
                   many(lit<";"> | ref<NL>)) +
              lit<"}">> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<kw<"for"> + lit<"("> +
              option(assign<&ast::ForStmt::init>(ref<LocalDeclaration> |
-                                                ref<ExprStmtRule>)) +
+                                                ref<ExprStmt>)) +
              lit<";"> +
              option(assign<&ast::ForStmt::cond>(ref<Expression>)) + lit<";"> +
              option(assign<&ast::ForStmt::step>(ref<Expression>)) +
              lit<")"> + many(ref<NL>) +
              assign<&ast::ForStmt::body>(ref<StatementOrEmpty>)> {};
 
-  struct ForeachStmtRule
+  struct ForeachStmt
       : rule<kw<"foreach"> + lit<"("> +
              option(assign<&ast::ForeachStmt::indexName>(ref<IDENT>) +
                     lit<",">) +
@@ -354,19 +361,19 @@ struct Squirrel : cursiv::GrammarSpec {
              lit<")"> + many(ref<NL>) +
              assign<&ast::ForeachStmt::body>(ref<StatementOrEmpty>)> {};
 
-  struct WhileStmtRule
+  struct WhileStmt
       : rule<kw<"while"> + lit<"("> +
              assign<&ast::WhileStmt::cond>(ref<Expression>) + lit<")"> +
              many(ref<NL>) +
              assign<&ast::WhileStmt::body>(ref<StatementOrEmpty>)> {};
 
-  struct DoWhileStmtRule
+  struct DoWhileStmt
       : rule<kw<"do"> + many(ref<NL>) +
              assign<&ast::DoWhileStmt::body>(ref<StatementOrEmpty>) +
-             kw<"while"> + lit<"("> +
+             many(ref<NL>) + kw<"while"> + lit<"("> +
              assign<&ast::DoWhileStmt::cond>(ref<Expression>) + lit<")">> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<kw<"if"> + lit<"("> +
              assign<&ast::IfStmt::cond>(ref<Expression>) + lit<")"> +
              many(ref<NL>) +
@@ -374,75 +381,75 @@ struct Squirrel : cursiv::GrammarSpec {
              option(commit(option(lit<";">) + many(ref<NL>) + kw<"else">, many(ref<NL>) + assign<&ast::IfStmt::elseBranch>(
                           ref<StatementOrEmpty>)))> {};
 
-  struct SwitchCaseRule
+  struct SwitchCase
       : rule<kw<"case"> + assign<&ast::SwitchCase::value>(ref<Expression>) +
              lit<":"> + LeadingSeps +
              many(append<&ast::SwitchCase::body>(ref<Statement>) +
                   StatementSep)> {};
 
-  struct DefaultCaseRule
+  struct DefaultCase
       : rule<kw<"default"> + lit<":"> + LeadingSeps +
              many(append<&ast::DefaultCase::body>(ref<Statement>) +
                   StatementSep)> {};
 
-  struct SwitchStmtRule
+  struct SwitchStmt
       : rule<kw<"switch"> + lit<"("> +
              assign<&ast::SwitchStmt::value>(ref<Expression>) + lit<")"> +
              many(ref<NL>) + lit<"{"> + many(ref<NL>) +
-             many(append<&ast::SwitchStmt::cases>(ref<SwitchCaseRule>)) +
+             many(append<&ast::SwitchStmt::cases>(ref<SwitchCase>)) +
              option(assign<&ast::SwitchStmt::defaultCase>(
-                 ref<DefaultCaseRule>)) +
+                 ref<DefaultCase>)) +
              lit<"}">> {};
 
-  struct TryStmtRule
-      : rule<kw<"try"> + assign<&ast::TryStmt::body>(ref<StatementOrEmpty>) +
-             kw<"catch"> + lit<"("> +
-             assign<&ast::TryStmt::catchName>(ref<IDENT>) + lit<")"> +
-             assign<&ast::TryStmt::catchBody>(ref<StatementOrEmpty>)> {};
+  struct TryStmt
+      : rule<kw<"try"> + many(ref<NL>) + assign<&ast::TryStmt::body>(ref<StatementOrEmpty>) +
+             many(ref<NL>) + kw<"catch"> + lit<"("> + many(ref<NL>) +
+             assign<&ast::TryStmt::catchName>(ref<IDENT>) + many(ref<NL>) + lit<")"> +
+             many(ref<NL>) + assign<&ast::TryStmt::catchBody>(ref<StatementOrEmpty>)> {};
 
-  struct ReturnStmtRule
+  struct ReturnStmt
       : rule<kw<"return"> +
-             option(assign<&ast::ReturnStmt::value>(ref<Expression>))> {};
+             option(!ref<NL> + assign<&ast::ReturnStmt::value>(ref<Expression>))> {};
 
-  struct BreakStmtRule : rule<create<ast::BreakStmt>(kw<"break">)> {};
-  struct ContinueStmtRule : rule<create<ast::ContinueStmt>(kw<"continue">)> {};
+  struct BreakStmt : rule<create<ast::BreakStmt>(kw<"break">)> {};
+  struct ContinueStmt : rule<create<ast::ContinueStmt>(kw<"continue">)> {};
 
-  struct YieldStmtRule
+  struct YieldStmt
       : rule<kw<"yield"> +
-             assign<&ast::YieldStmt::value>(ref<Expression>)> {};
+             option(!ref<NL> + assign<&ast::YieldStmt::value>(ref<Expression>))> {};
 
-  struct ThrowStmtRule
+  struct ThrowStmt
       : rule<kw<"throw"> +
              assign<&ast::ThrowStmt::value>(ref<Expression>)> {};
 
   struct Statement
-      : rule<ref<BlockStmtRule>       //
-             | ref<ConstDeclRule>     //
-             | ref<EnumDeclRule>      //
+      : rule<ref<BlockStmt>       //
+             | ref<ConstDecl>     //
+             | ref<EnumDecl>      //
              | ref<LocalDeclaration>  //
-             | ref<FunctionDeclRule>  //
-             | ref<ClassDeclRule>     //
-             | ref<ForStmtRule>       //
-             | ref<ForeachStmtRule>   //
-             | ref<WhileStmtRule>     //
-             | ref<DoWhileStmtRule>   //
-             | ref<IfStmtRule>        //
-             | ref<SwitchStmtRule>    //
-             | ref<TryStmtRule>       //
-             | ref<ReturnStmtRule>    //
-             | ref<BreakStmtRule>     //
-             | ref<ContinueStmtRule>  //
-             | ref<YieldStmtRule>     //
-             | ref<ThrowStmtRule>     //
-             | ref<ExprStmtRule>> {};
+             | ref<FunctionDecl>  //
+             | ref<ClassDecl>     //
+             | ref<ForStmt>       //
+             | ref<ForeachStmt>   //
+             | ref<WhileStmt>     //
+             | ref<DoWhileStmt>   //
+             | ref<IfStmt>        //
+             | ref<SwitchStmt>    //
+             | ref<TryStmt>       //
+             | ref<ReturnStmt>    //
+             | ref<BreakStmt>     //
+             | ref<ContinueStmt>  //
+             | ref<YieldStmt>     //
+             | ref<ThrowStmt>     //
+             | ref<ExprStmt>> {};
 
-  struct ChunkRule
+  struct Chunk
       : rule<create<ast::Chunk> + LeadingSeps +
              many(append<&ast::Chunk::body>(ref<Statement>) +
                   StatementSep)> {};
 
-  using entry = ChunkRule;
-  using ignore = list<WS, SL_COMMENT, ML_COMMENT>;
+  using entry = Chunk;
+  using ignored = list<WS, SL_COMMENT, ML_COMMENT>;
 };
 
 }  // namespace squirrel

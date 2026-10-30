@@ -50,6 +50,18 @@ int main() {
           root->type != &cursiv::ast_type_tag<xsdregex::ast::RegExp>)
         return fail(entry.path().string() + ": did not build a RegExp");
     }
+  for (const std::string text : {std::string("\xc3", 1), std::string("\x80", 1),
+      std::string("\xc0\xaf", 2), std::string("\xed\xa0\x80", 3),
+      std::string("[\xc3]", 3), std::string("\xf4\x90\x80\x80", 4)}) {
+    const auto result = language.language.parser->parse(text);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("malformed UTF-8 accepted as a literal character");
+  }
+  for (const auto text : {"é", "😀", "[😀-🙏]"}) {
+    const auto result = language.language.parser->parse(text);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("valid Unicode scalar rejected");
+  }
   if (seen == 0) return fail("no example found");
 
   std::printf("xsdregex: %d examples parse\n", seen);

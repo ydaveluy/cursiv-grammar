@@ -31,13 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+One document is one absolute IRI according to RFC 3987, with scheme, authority, path, query and fragment components. Percent escapes retain their written spelling.
+
 ```
 http://www.example.org/D%FCrst
 ```
-
-One document is one IRI (RFC 3987): a scheme, an optional `//`-introduced
-authority (userinfo, host, port), a path, and an optional query and
-fragment. No whitespace is legal inside one, so a document is a single line.
 
 ## The command line
 

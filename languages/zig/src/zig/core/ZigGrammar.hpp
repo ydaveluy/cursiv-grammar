@@ -2,16 +2,16 @@
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "zig/core/ast.hpp"
+#include "zig/core/Literal.hpp"
 
 namespace zig {
 
 inline constexpr auto rawText = [](cursiv::Parts parts) -> std::string_view {
-  if (parts.empty()) return {};
+  if (parts.empty() || parts.front().empty() || parts.back().empty()) return {};
   const auto first = parts.front();
   const auto last = parts.back();
   return {first.data(), static_cast<std::size_t>(last.data() + last.size() - first.data())};
 };
-using RawText = cursiv::parts_conv<rawText>;
 
 struct Zig : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -25,16 +25,18 @@ struct Zig : cursiv::GrammarSpec {
   struct ContainerDocComment
       : terminal<lit<"//!"> + many(cr<R"(^\r\n)">)> {};
 
-  struct DocComments : rule<some(ref<DocComment>),
-                            RawText> {};
+  struct DocComments : rule<as<rawText>(some(ref<DocComment>))> {};
   struct ContainerDocComments
-      : rule<some(ref<ContainerDocComment>),
-             RawText> {};
+      : rule<as<rawText>(some(ref<ContainerDocComment>))> {};
 
   static constexpr auto Letter = cr<"a-zA-Z_">;
   static constexpr auto LetterOrDigit = cr<"a-zA-Z0-9_">;
+  static constexpr auto Escape =
+      lit<"\\"> + (cr<"nrt"> | lit<"\\"> | lit<"\""> | lit<"'"> |
+                    (lit<"x"> + repeat<2>(cr<"0-9a-fA-F">)) |
+                    (lit<"u{"> + some(cr<"0-9a-fA-F">) + lit<"}">));
   static constexpr auto QuotedBody =
-      lit<"\""> + many(cr<R"(^\\"\n)"> | (lit<"\\"> + any)) + lit<"\"">;
+      lit<"\""> + many(cr<R"(^\\"\x00-\x1f\x7f)"> | Escape) + lit<"\"">;
   static constexpr auto Reserved =
       kw<"addrspace"> | kw<"align"> | kw<"allowzero"> | kw<"and"> |
       kw<"anyframe"> | kw<"anytype"> | kw<"asm"> | kw<"break"> |
@@ -49,20 +51,21 @@ struct Zig : cursiv::GrammarSpec {
       kw<"try"> | kw<"union"> | kw<"unreachable"> | kw<"var"> |
       kw<"volatile"> | kw<"while">;
   struct IdentifierToken
-      : terminal<(Letter + many(LetterOrDigit)) | (lit<"@"> + QuotedBody)> {};
-  struct ID : rule<!Reserved + ref<IdentifierToken>,
-                   RawText> {};
+      : terminal<as<checkedLiteral<false,true>>(
+            (Letter + many(LetterOrDigit)) | (lit<"@"> + QuotedBody))> {};
+  struct ID : rule<as<rawText>(!Reserved + ref<IdentifierToken>)> {};
   static constexpr auto word_boundary = LetterOrDigit;
 
-  static constexpr auto LineString = lit<"\\\\"> + many(cr<R"(^\n)">);
-  struct QuotedString : terminal<QuotedBody> {};
+  static constexpr auto LineString =
+      lit<"\\\\"> + many(cr<R"(^\x00-\x1f\x7f)">) +
+      option(lit<"\r", &lit<"\n">>) + &(lit<"\n"> | eof);
+  struct QuotedString : terminal<as<checkedLiteral<>>(QuotedBody)> {};
   struct LineStringLiteral : terminal<LineString> {};
   struct STRINGLITERAL
-      : rule<ref<QuotedString> | some(ref<LineStringLiteral>),
-             RawText> {};
+      : rule<as<rawText>(ref<QuotedString> | some(ref<LineStringLiteral>))> {};
   struct CHARLITERAL
-      : terminal<lit<"'"> + some(cr<R"(^\\'\n)"> | (lit<"\\"> + any)) +
-                 lit<"'">> {};
+      : terminal<as<checkedLiteral<true>>(
+            lit<"'"> + (cr<R"(^\\'\x00-\x1f\x7f)"> | Escape) + lit<"'">)> {};
   static constexpr auto NumberChars = cr<"a-zA-Z0-9_">;
   static constexpr auto SignedExponent = cr<"eEpP"> + cr<"+-">;
   static constexpr auto FloatTail = many(NumberChars | SignedExponent);
@@ -79,11 +82,11 @@ struct Zig : cursiv::GrammarSpec {
   struct ContainerDeclaration;
   struct ContainerField;
   struct FnProto;
-  struct ParamDeclRule;
+  struct ParamDecl;
   struct VarDeclProto;
   struct Block;
   struct Statement;
-  struct VarDeclExprStmtRule;
+  struct VarDeclExprStmt;
   struct Expr;
   struct AssignExpr;
   struct SimpleAssignExpr;
@@ -97,11 +100,11 @@ struct Zig : cursiv::GrammarSpec {
   struct BitwiseChain;
   struct IfExpr;
   struct IfTypeExpr;
-  struct IfPrefixRule;
+  struct IfPrefix;
   struct LoopExpr;
-  struct ForPrefixRule;
-  struct WhilePrefixRule;
-  struct SwitchExprRule;
+  struct ForPrefix;
+  struct WhilePrefix;
+  struct SwitchExpr;
   struct InitList;
   struct FieldInit;
   struct ContainerDecl;
@@ -126,12 +129,12 @@ struct Zig : cursiv::GrammarSpec {
   // An infix operator hands over text; catch's optional `|payload|` gives it
   // structure, so it needs a data rule (a converter, not a node) rather than
   // a plain literal union.
-  struct CatchOpRule
-      : rule<kw<"catch"> + option(lit<"|"> + ref<ID> + lit<"|">),
-             RawText> {};
+  struct CatchOp
+      : rule<as<rawText>(kw<"catch"> + option(lit<"|"> + ref<ID> + lit<"|">))> {
+  };
   static constexpr auto BitwiseOp = lit<"&", !cr<"=">> | lit<"^", !cr<"=">> |
                                     lit<"|", !cr<"|=">> | kw<"orelse"> |
-                                    ref<CatchOpRule>;
+                                    ref<CatchOp>;
 
   static constexpr auto BitShiftOp =
       lit<"<<|"> | lit<"<<", !cr<"|=">> | lit<">>", !cr<"=">>;
@@ -150,14 +153,14 @@ struct Zig : cursiv::GrammarSpec {
 
   // --- payloads, prefixes shared across statement/expr/type positions ---
 
-  struct IfPrefixRule
+  struct IfPrefix
       : rule<kw<"if"> + lit<"("> +
              assign<&ast::IfPrefix::cond>(ref<Expr>) + lit<")"> +
              option(lit<"|"> +
                     option(flag<&ast::IfPrefix::payloadPtr>(lit<"*">)) +
                     assign<&ast::IfPrefix::payload>(ref<ID>) + lit<"|">)> {};
 
-  struct WhilePrefixRule
+  struct WhilePrefix
       : rule<kw<"while"> + lit<"("> +
              assign<&ast::WhilePrefix::cond>(ref<Expr>) + lit<")"> +
              option(lit<"|"> +
@@ -169,59 +172,55 @@ struct Zig : cursiv::GrammarSpec {
                         ref<AssignExpr>) +
                     lit<")">)> {};
 
-  struct ForItemRule
+  struct ForItem
       : rule<create<ast::ForItem>(
             assign<&ast::ForItem::value>(ref<Expr>) +
             option(flag<&ast::ForItem::isRange>(lit<"..">) +
                    option(assign<&ast::ForItem::rangeEnd>(ref<Expr>))))> {};
 
-  struct PtrListItemRule
+  struct PtrListItem
       : rule<create<ast::PtrListItem>(
             option(flag<&ast::PtrListItem::ptr>(lit<"*">)) +
             assign<&ast::PtrListItem::name>(ref<ID>))> {};
 
-  struct ForPrefixRule
+  struct ForPrefix
       : rule<kw<"for"> + lit<"("> +
-             append<&ast::ForPrefix::items>(ref<ForItemRule>) +
-             many(lit<","> +
-                  append<&ast::ForPrefix::items>(ref<ForItemRule>)) +
+             some(append<&ast::ForPrefix::items>(ref<ForItem>), lit<",">) +
              option(lit<",">) + lit<")"> + lit<"|"> +
-             append<&ast::ForPrefix::payload>(ref<PtrListItemRule>) +
-             many(lit<","> +
-                  append<&ast::ForPrefix::payload>(ref<PtrListItemRule>)) +
+             some(append<&ast::ForPrefix::payload>(ref<PtrListItem>), lit<",">) +
              option(lit<",">) + lit<"|">> {};
 
   // --- switch ---------------------------------------------------------
 
-  struct SwitchItemRule
+  struct SwitchItem
       : rule<create<ast::SwitchItem>(
             assign<&ast::SwitchItem::value>(ref<Expr>) +
             option(flag<&ast::SwitchItem::isRange>(lit<"...">) +
                    assign<&ast::SwitchItem::rangeEnd>(ref<Expr>)))> {};
 
-  struct SwitchProngRule
+  struct SwitchProng
       : rule<create<ast::SwitchProng>(
             option(flag<&ast::SwitchProng::inlineProng>(
                 kw<"inline">)) +
-            ((append<&ast::SwitchProng::items>(ref<SwitchItemRule>) +
+            ((append<&ast::SwitchProng::items>(ref<SwitchItem>) +
               many(lit<","> + append<&ast::SwitchProng::items>(
-                                   ref<SwitchItemRule>)) +
+                                   ref<SwitchItem>)) +
               option(lit<",">)) |
              flag<&ast::SwitchProng::isElse>(kw<"else">)) +
             lit<"=>"> +
             option(lit<"|"> +
-                   append<&ast::SwitchProng::payload>(ref<PtrListItemRule>) +
+                   append<&ast::SwitchProng::payload>(ref<PtrListItem>) +
                    option(lit<","> + append<&ast::SwitchProng::payload>(
-                                          ref<PtrListItemRule>)) +
+                                          ref<PtrListItem>)) +
                    lit<"|">) +
             assign<&ast::SwitchProng::value>(ref<SimpleAssignExpr>))> {};
 
   static constexpr auto SwitchExprBody =
       kw<"switch"> + lit<"("> + assign<&ast::SwitchExpr::value>(ref<Expr>) +
       lit<")"> + lit<"{"> +
-      many(append<&ast::SwitchExpr::prongs>(ref<SwitchProngRule>) + lit<",">) +
-      option(append<&ast::SwitchExpr::prongs>(ref<SwitchProngRule>)) + lit<"}">;
-  struct SwitchExprRule : rule<SwitchExprBody> {};
+      many(append<&ast::SwitchExpr::prongs>(ref<SwitchProng>) + lit<",">) +
+      option(append<&ast::SwitchExpr::prongs>(ref<SwitchProng>)) + lit<"}">;
+  struct SwitchExpr : rule<SwitchExprBody> {};
 
   // --- blocks and statements -------------------------------------------
 
@@ -250,11 +249,11 @@ struct Zig : cursiv::GrammarSpec {
 
   static constexpr auto LoopStmtBody =
       option(flag<&ast::Loop::inlineLoop>(kw<"inline">)) +
-      ((assign<&ast::Loop::forPrefix>(ref<ForPrefixRule>) +
+      ((assign<&ast::Loop::forPrefix>(ref<ForPrefix>) +
         ((assign<&ast::Loop::thenBranch>(ref<LabeledBlock>) + ForBlockTail)  //
          |
          (assign<&ast::Loop::thenBranch>(ref<AssignExpr>) + ForAssignTail)))  //
-       | (assign<&ast::Loop::whilePrefix>(ref<WhilePrefixRule>) +
+       | (assign<&ast::Loop::whilePrefix>(ref<WhilePrefix>) +
           ((assign<&ast::Loop::thenBranch>(ref<LabeledBlock>) +
             WhileBlockTail)  //
            | (assign<&ast::Loop::thenBranch>(ref<AssignExpr>) +
@@ -274,7 +273,7 @@ struct Zig : cursiv::GrammarSpec {
 
   struct IfStmt
       : rule<create<ast::IfExpr>(
-            assign<&ast::IfExpr::prefix>(ref<IfPrefixRule>) +
+            assign<&ast::IfExpr::prefix>(ref<IfPrefix>) +
             ((assign<&ast::IfExpr::thenBranch>(ref<LabeledBlock>) +
               option(kw<"else"> +
                      option(lit<"|"> +
@@ -289,16 +288,16 @@ struct Zig : cursiv::GrammarSpec {
                        lit<"|">) +
                 assign<&ast::IfExpr::elseBranch>(ref<Statement>))))))> {};
 
-  struct ComptimeStmtRule
+  struct ComptimeStmt
       : rule<create<ast::ComptimeStmt>(
             kw<"comptime"> +
             (assign<&ast::ComptimeStmt::body>(ref<LabeledBlock>) |
-             assign<&ast::ComptimeStmt::body>(ref<VarDeclExprStmtRule>)))> {};
+             assign<&ast::ComptimeStmt::body>(ref<VarDeclExprStmt>)))> {};
 
   struct BlockExprStatement
       : rule<ref<LabeledBlock> | (ref<AssignExpr> + lit<";">)> {};
 
-  struct VarDeclExprStmtRule
+  struct VarDeclExprStmt
       : rule<create<ast::VarDeclExprStmt>(
             (append<&ast::VarDeclExprStmt::lhs>(ref<VarDeclProto>) +
              many(lit<","> +
@@ -332,14 +331,14 @@ struct Zig : cursiv::GrammarSpec {
                           assign<&ast::ErrdeferStmt::payload>(ref<ID>) +
                           lit<"|">) +
                    assign<&ast::ErrdeferStmt::body>(ref<BlockExprStatement>))  //
-             | ref<ComptimeStmtRule>                                          //
+             | ref<ComptimeStmt>                                          //
              | ref<IfStmt>                                                    //
              | ref<LabeledStatement>                                          //
              // The spec's choice is ordered: a statement opening on one of
              // these words is that statement form, never an expression.
              | (!(kw<"comptime"> | kw<"nosuspend"> | kw<"if"> | kw<"while"> |
                   kw<"for"> | kw<"inline"> | kw<"switch"> | lit<"{">) +
-                ref<VarDeclExprStmtRule>)> {};
+                ref<VarDeclExprStmt>)> {};
 
   // --- expression ladder -------------------------------------------------
 
@@ -350,10 +349,9 @@ struct Zig : cursiv::GrammarSpec {
              | ref<PrimaryExpr>> {};
 
   struct BitwiseChain
-      : infix<PrefixExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(MultiplyOp) >> left(AdditionOp) >> left(BitShiftOp) >>
-               left(BitwiseOp))> {};
+      : infix<PrefixExpr, ast::BinaryExpr,
+              levels(left(MultiplyOp), left(AdditionOp), left(BitShiftOp),
+                     left(BitwiseOp))> {};
 
   struct CompareExpr
       : rule<create<ast::BinaryExpr>(
@@ -363,9 +361,8 @@ struct Zig : cursiv::GrammarSpec {
              | ref<BitwiseChain>> {};
 
   struct Expr
-      : infix<CompareExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(kw<"and">) >> left(kw<"or">))> {};
+      : infix<CompareExpr, ast::BinaryExpr,
+              levels(left(kw<"and">), left(kw<"or">))> {};
 
   struct AssignExpr
       : rule<create<ast::AssignExpr>(
@@ -387,7 +384,7 @@ struct Zig : cursiv::GrammarSpec {
 
   // --- primary_expr: control flow and blocks ------------------------
 
-  struct AsmOutputItemRule
+  struct AsmOutputItem
       : rule<create<ast::AsmOutputItem>(
             lit<"["> + assign<&ast::AsmOutputItem::symbol>(ref<ID>) +
             lit<"]"> +
@@ -398,7 +395,7 @@ struct Zig : cursiv::GrammarSpec {
              | assign<&ast::AsmOutputItem::name>(ref<ID>)) +
             lit<")">)> {};
 
-  struct AsmInputItemRule
+  struct AsmInputItem
       : rule<create<ast::AsmInputItem>(
             lit<"["> + assign<&ast::AsmInputItem::symbol>(ref<ID>) +
             lit<"]"> +
@@ -413,16 +410,16 @@ struct Zig : cursiv::GrammarSpec {
             lit<"("> + assign<&ast::AsmExpr::code>(ref<Expr>) +
             option(lit<":"> +
                    many(append<&ast::AsmExpr::outputs>(
-                            ref<AsmOutputItemRule>) +
+                            ref<AsmOutputItem>) +
                         lit<",">) +
                    option(append<&ast::AsmExpr::outputs>(
-                       ref<AsmOutputItemRule>)) +
+                       ref<AsmOutputItem>)) +
                    option(lit<":"> +
                           many(append<&ast::AsmExpr::inputs>(
-                                   ref<AsmInputItemRule>) +
+                                   ref<AsmInputItem>) +
                                lit<",">) +
                           option(append<&ast::AsmExpr::inputs>(
-                              ref<AsmInputItemRule>)) +
+                              ref<AsmInputItem>)) +
                           option(lit<":"> +
                                  assign<&ast::AsmExpr::clobbers>(
                                      ref<Expr>)))) +
@@ -430,7 +427,7 @@ struct Zig : cursiv::GrammarSpec {
 
   struct IfExprRule
       : rule<create<ast::IfExpr>(
-            assign<&ast::IfExpr::prefix>(ref<IfPrefixRule>) +
+            assign<&ast::IfExpr::prefix>(ref<IfPrefix>) +
             assign<&ast::IfExpr::thenBranch>(ref<Expr>) +
             option(kw<"else"> +
                    option(lit<"|"> +
@@ -439,12 +436,12 @@ struct Zig : cursiv::GrammarSpec {
                    assign<&ast::IfExpr::elseBranch>(ref<Expr>)))> {};
 
   static constexpr auto ForExprBody = create<ast::Loop>(
-      assign<&ast::Loop::forPrefix>(ref<ForPrefixRule>) +
+      assign<&ast::Loop::forPrefix>(ref<ForPrefix>) +
       assign<&ast::Loop::thenBranch>(ref<Expr>) +
       option(kw<"else"> + assign<&ast::Loop::elseBranch>(ref<Expr>)));
 
   static constexpr auto WhileExprBody = create<ast::Loop>(
-      assign<&ast::Loop::whilePrefix>(ref<WhilePrefixRule>) +
+      assign<&ast::Loop::whilePrefix>(ref<WhilePrefix>) +
       assign<&ast::Loop::thenBranch>(ref<Expr>) +
       option(kw<"else"> +
              option(lit<"|"> + assign<&ast::Loop::elsePayload>(ref<ID>) +
@@ -470,9 +467,7 @@ struct Zig : cursiv::GrammarSpec {
                      many(lit<","> + append<&ast::InitList::fields>(
                                           ref<FieldInit>)) +
                      option(lit<",">))  //
-                    | (append<&ast::InitList::values>(ref<Expr>) +
-                       many(lit<","> +
-                            append<&ast::InitList::values>(ref<Expr>)) +
+                    | (some(append<&ast::InitList::values>(ref<Expr>), lit<",">) +
                        option(lit<",">))) +
              lit<"}">> {};
 
@@ -513,7 +508,7 @@ struct Zig : cursiv::GrammarSpec {
 
   // --- type_expr chain (also every value's ultimate primary) -----------
 
-  struct IdentifierListItemRule
+  struct IdentifierListItem
       : rule<create<ast::IdentifierListItem>(
             option(assign<&ast::IdentifierListItem::docComment>(
                 ref<DocComments>)) +
@@ -523,10 +518,10 @@ struct Zig : cursiv::GrammarSpec {
       : rule<create<ast::ErrorSetDecl>(
             kw<"error"> + lit<"{"> +
             many(append<&ast::ErrorSetDecl::errors>(
-                     ref<IdentifierListItemRule>) +
+                     ref<IdentifierListItem>) +
                  lit<",">) +
             option(append<&ast::ErrorSetDecl::errors>(
-                ref<IdentifierListItemRule>)) +
+                ref<IdentifierListItem>)) +
             lit<"}">)> {};
 
   struct NamedContainerMembers;
@@ -553,7 +548,7 @@ struct Zig : cursiv::GrammarSpec {
              (NamedKind + lit<"{"> +
               assign<&ast::ContainerDecl::body>(ref<NamedContainerMembers>) + lit<"}">)))> {};
 
-  struct GroupedExprRule
+  struct GroupedExpr
       : rule<create<ast::GroupedExpr>(
             lit<"("> + assign<&ast::GroupedExpr::value>(ref<Expr>) +
             lit<")">)> {};
@@ -564,12 +559,12 @@ struct Zig : cursiv::GrammarSpec {
                 SwitchExprBody)> {};
 
   static constexpr auto ForTypeExprBody = create<ast::Loop>(
-      assign<&ast::Loop::forPrefix>(ref<ForPrefixRule>) +
+      assign<&ast::Loop::forPrefix>(ref<ForPrefix>) +
       assign<&ast::Loop::thenBranch>(ref<TypeExpr>) +
       option(kw<"else"> + assign<&ast::Loop::elseBranch>(ref<TypeExpr>)));
 
   static constexpr auto WhileTypeExprBody = create<ast::Loop>(
-      assign<&ast::Loop::whilePrefix>(ref<WhilePrefixRule>) +
+      assign<&ast::Loop::whilePrefix>(ref<WhilePrefix>) +
       assign<&ast::Loop::thenBranch>(ref<TypeExpr>) +
       option(kw<"else"> +
              option(lit<"|"> + assign<&ast::Loop::elsePayload>(ref<ID>) +
@@ -586,7 +581,7 @@ struct Zig : cursiv::GrammarSpec {
 
   struct IfTypeExpr
       : rule<create<ast::IfExpr>(
-            assign<&ast::IfExpr::prefix>(ref<IfPrefixRule>) +
+            assign<&ast::IfExpr::prefix>(ref<IfPrefix>) +
             assign<&ast::IfExpr::thenBranch>(ref<TypeExpr>) +
             option(kw<"else"> +
                    option(lit<"|"> +
@@ -598,9 +593,9 @@ struct Zig : cursiv::GrammarSpec {
       : rule<create<ast::FnProto>(
             kw<"fn"> + option(assign<&ast::FnProto::name>(ref<ID>)) +
             lit<"("> +
-            many(append<&ast::FnProto::params>(ref<ParamDeclRule>) +
+            many(append<&ast::FnProto::params>(ref<ParamDecl>) +
                  lit<",">) +
-            option(append<&ast::FnProto::params>(ref<ParamDeclRule>)) +
+            option(append<&ast::FnProto::params>(ref<ParamDecl>)) +
             lit<")"> +
             option(kw<"align"> + lit<"("> +
                    assign<&ast::FnProto::alignExpr>(ref<Expr>) + lit<")">) +
@@ -618,19 +613,15 @@ struct Zig : cursiv::GrammarSpec {
 
   // The modifier is possessive, as the spec's `?` is: `comptime u8` is a
   // comptime parameter, never a comptime type.
-  struct ParamDeclRule
+  struct ParamDecl
       : rule<create<ast::ParamDecl>(
-                 option(assign<&ast::ParamDecl::docComment>(
-                     ref<DocComments>)) +
-                 option(flag<&ast::ParamDecl::noalias>(
-                              kw<"noalias">) |
-                          flag<&ast::ParamDecl::comptime>(
-                              kw<"comptime">)) +
-                 option(assign<&ast::ParamDecl::name>(ref<ID>) + lit<":">) +
-                 (flag<&ast::ParamDecl::anytype>(kw<"anytype">)  //
-                  | assign<&ast::ParamDecl::type>(ref<TypeExpr>)))  //
-             | create<ast::ParamDecl>(
-                   flag<&ast::ParamDecl::variadic>(lit<"...">))> {};
+            option(assign<&ast::ParamDecl::docComment>(ref<DocComments>)) +
+            (flag<&ast::ParamDecl::variadic>(lit<"...">) |
+             (option(flag<&ast::ParamDecl::noalias>(kw<"noalias">) |
+                     flag<&ast::ParamDecl::comptime>(kw<"comptime">)) +
+              option(assign<&ast::ParamDecl::name>(ref<ID>) + lit<":">) +
+              (flag<&ast::ParamDecl::anytype>(kw<"anytype">) |
+               assign<&ast::ParamDecl::type>(ref<TypeExpr>)))))> {};
 
   struct PrimaryTypeExpr
       : rule<create<ast::BuiltinCall>(
@@ -648,7 +639,7 @@ struct Zig : cursiv::GrammarSpec {
              | (lit<"."> + ref<InitList>)                               //
              | ref<ErrorSetDecl>                                        //
              | ref<FnProto>                                         //
-             | ref<GroupedExprRule>                                 //
+             | ref<GroupedExpr>                                 //
              | ref<LabeledTypeExpr>                                 //
              | create<ast::Identifier>(
                    assign<&ast::Identifier::name>(ref<ID>))  //
@@ -704,7 +695,7 @@ struct Zig : cursiv::GrammarSpec {
 
   // Shared by slice and many-ptr type modifiers: plain align, no bit range
   // (only a pointer type's align takes a bit range).
-  struct TypeModifierRule
+  struct TypeModifier
       : rule<create<ast::TypeModifier>(
             assign<&ast::TypeModifier::kind>(kw<"const"> | kw<"volatile"> |
                                              kw<"allowzero">))  //
@@ -717,8 +708,8 @@ struct Zig : cursiv::GrammarSpec {
                   assign<&ast::TypeModifier::arg>(ref<Expr>) +
                   lit<")">)> {};
 
-  struct PtrTypeModifierRule
-      : rule<ref<TypeModifierRule>  //
+  struct PtrTypeModifier
+      : rule<ref<TypeModifier>  //
              | create<ast::TypeModifier>(
                    assign<&ast::TypeModifier::kind>(kw<"align">) + lit<"("> +
                    assign<&ast::TypeModifier::arg>(ref<Expr>) + lit<":"> +
@@ -743,7 +734,7 @@ struct Zig : cursiv::GrammarSpec {
                                  ref<Expr>))) +
                    lit<"]"> +
                    many(append<&ast::ManyPtrType::modifiers>(
-                       ref<TypeModifierRule>)) +
+                       ref<TypeModifier>)) +
                    assign<&ast::ManyPtrType::base>(ref<TypeExpr>))  //
              | create<ast::SliceType>(
                    lit<"["> +
@@ -751,7 +742,7 @@ struct Zig : cursiv::GrammarSpec {
                           assign<&ast::SliceType::sentinel>(ref<Expr>)) +
                    lit<"]"> +
                    many(append<&ast::SliceType::modifiers>(
-                       ref<TypeModifierRule>)) +
+                       ref<TypeModifier>)) +
                    assign<&ast::SliceType::base>(ref<TypeExpr>))  //
              | create<ast::ArrayType>(
                    lit<"["> + assign<&ast::ArrayType::size>(ref<Expr>) +
@@ -762,7 +753,7 @@ struct Zig : cursiv::GrammarSpec {
              | create<ast::PtrType>(
                    lit<"*"> +
                    many(append<&ast::PtrType::modifiers>(
-                       ref<PtrTypeModifierRule>)) +
+                       ref<PtrTypeModifier>)) +
                    assign<&ast::PtrType::base>(ref<TypeExpr>))  //
              | ref<ErrorUnionExpr>> {};
 
@@ -776,14 +767,14 @@ struct Zig : cursiv::GrammarSpec {
 
   // --- container level ---------------------------------------------------
 
-  struct TestDeclRule
+  struct TestDecl
       : rule<create<ast::TestDecl>(
             kw<"test"> +
             option(assign<&ast::TestDecl::name>(ref<STRINGLITERAL> |
                                                 ref<ID>)) +
             assign<&ast::TestDecl::body>(ref<Block>))> {};
 
-  struct ComptimeDeclRule
+  struct ComptimeDecl
       : rule<create<ast::ComptimeDecl>(
             kw<"comptime"> +
             assign<&ast::ComptimeDecl::body>(ref<Block>))> {};
@@ -804,7 +795,7 @@ struct Zig : cursiv::GrammarSpec {
                    assign<&ast::VarDeclProto::linkSectionExpr>(ref<Expr>) +
                    lit<")">)> {};
 
-  struct GlobalVarDeclRule
+  struct GlobalVarDecl
       : rule<create<ast::GlobalVarDecl>(
             assign<&ast::GlobalVarDecl::proto>(ref<VarDeclProto>) +
             option(Assign +
@@ -829,11 +820,11 @@ struct Zig : cursiv::GrammarSpec {
                  (assign<&ast::Decl::modifier>(kw<"extern">) +
                   option(assign<&ast::Decl::externLib>(ref<STRINGLITERAL>)))) +
           option(flag<&ast::Decl::threadlocal>(kw<"threadlocal">)) +
-          assign<&ast::Decl::varDecl>(ref<GlobalVarDeclRule>));
+          assign<&ast::Decl::varDecl>(ref<GlobalVarDecl>));
 
   struct ContainerDeclaration
-      : rule<ref<TestDeclRule>     //
-             | ref<ComptimeDeclRule>  //
+      : rule<ref<TestDecl>     //
+             | ref<ComptimeDecl>  //
              | (option(assign<&ast::Decl::docComment>(ref<DocComments>)) +
                 option(flag<&ast::Decl::pub>(kw<"pub">)) +
                 DeclBody)> {};
@@ -852,7 +843,7 @@ struct Zig : cursiv::GrammarSpec {
             option(Assign +
                    assign<&ast::ContainerField::value>(ref<Expr>)))> {};
 
-  struct NamedContainerFieldRule
+  struct NamedContainerField
       : rule<create<ast::ContainerField>(
             option(assign<&ast::ContainerField::docComment>(ref<DocComments>)) +
             option(flag<&ast::ContainerField::comptime>(kw<"comptime">)) +
@@ -872,10 +863,10 @@ struct Zig : cursiv::GrammarSpec {
             option(append<&ast::ContainerMembers::members>(ref<Field>)))> {};
 
   struct ContainerMembers : Members<ContainerFieldRule> {};
-  struct NamedContainerMembers : Members<NamedContainerFieldRule> {};
+  struct NamedContainerMembers : Members<NamedContainerField> {};
 
   using entry = ContainerMembers;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<LineComment>;
 };
 

@@ -95,6 +95,10 @@ struct KotlinFile;
 struct Node : cursiv::Extends<cursiv::AstNode> {};
 
 struct Declaration : cursiv::Extends<Node> {};
+struct LabeledDeclaration : cursiv::Extends<Declaration> {
+  vector<string_view> labels;
+  Declaration* declaration;
+};
 
 // Every expression kind's family. The builder's node-family check runs
 // against this base, so any expression fits any `Expr*` slot.
@@ -321,6 +325,7 @@ struct Getter : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct Setter : cursiv::Extends<cursiv::AstNode> {
+  Type* returnType;
   vector<string_view> modifiers;
   vector<Annotation*> annotations;
   Param* param;
@@ -328,6 +333,8 @@ struct Setter : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct ExplicitBackingField : cursiv::Extends<cursiv::AstNode> {
+  vector<string_view> modifiers;
+  vector<Annotation*> annotations;
   Type* type;
   Expr* initializer;
 };

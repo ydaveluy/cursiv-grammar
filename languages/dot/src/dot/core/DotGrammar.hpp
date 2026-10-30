@@ -10,7 +10,6 @@ namespace dot {
 inline constexpr auto unquote = [](std::string_view text) {
   return text.substr(1, text.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 inline constexpr auto quoted = [](std::string_view text,
                                     std::pmr::memory_resource* memory) {
@@ -59,61 +58,64 @@ struct Dot : cursiv::GrammarSpec {
       : terminal<option(lit<"-">) +
                  ((lit<"."> + some(d)) | (some(d) + option(lit<"."> + many(d))))> {};
   struct STRING
-      : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">,
-                 text_conv<quoted>> {};
+      : terminal<as<quoted>(
+            lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">)> {
+  };
   struct HTML_STRING
-      : terminal<lit<"<"> + many(ref<HTML_STRING> | cr<"^<>">) + lit<">">,
-                 Unquoted> {};
+      : terminal<as<unquote>(lit<"<"> + many(ref<HTML_STRING> | cr<"^<>">) +
+                             lit<">">)> {};
   static constexpr auto quotedPart = ref<STRING> | ref<HTML_STRING>;
-  struct QuotedId : rule<quotedPart + many(lit<"+"> + quotedPart),
-                         parts_conv<concatenate>> {};
+  struct QuotedId
+      : rule<as<concatenate>(quotedPart + many(lit<"+"> + quotedPart))> {};
   static constexpr auto Id = ref<ID> | ref<QuotedId> | ref<NUMBER>;
 
-  struct ArrowOp : terminal<lit<"->">, value<ast::EdgeOp::directed>> {};
-  struct DashOp : terminal<lit<"--">, value<ast::EdgeOp::undirected>> {};
-  struct GraphAttrKw : terminal<ikw<"graph">, value<ast::AttrTarget::graphAttr>> {};
-  struct NodeAttrKw : terminal<ikw<"node">, value<ast::AttrTarget::nodeAttr>> {};
-  struct EdgeAttrKw : terminal<ikw<"edge">, value<ast::AttrTarget::edgeAttr>> {};
+  // Graphviz treats a standalone HTML value differently from an ordinary
+  // string with the same text. Concatenation produces an ordinary string.
+  template <auto Value, auto Html>
+  static constexpr auto AttributeValue =
+      flag<Html>(assign<Value>(ref<HTML_STRING>)) | assign<Value>(Id);
 
-  struct StmtRule;
-  struct AttrPairRule
+  struct Stmt;
+  struct AttrPair
       : rule<assign<&ast::AttrPair::name>(Id) +
-             option(lit<"="> + assign<&ast::AttrPair::value>(Id)) +
+             option(lit<"="> + AttributeValue<&ast::AttrPair::value,
+                                             &ast::AttrPair::valueIsHtml>) +
              option(lit<";"> | lit<",">)> {};
-  struct AttrListRule
-      : rule<some(lit<"["> + many(append<&ast::AttrList::pairs>(ref<AttrPairRule>)) + lit<"]">)> {};
-  struct NodeIdRule
+  struct AttrList
+      : rule<some(lit<"["> + many(append<&ast::AttrList::pairs>(ref<AttrPair>)) + lit<"]">)> {};
+  struct NodeId
       : rule<assign<&ast::NodeId::id>(Id) +
              option(lit<":"> + assign<&ast::NodeId::portName>(Id) +
                     option(lit<":"> + assign<&ast::NodeId::compass>(Id)))> {};
-  struct NodeGroupRule
-      : rule<some(append<&ast::NodeGroup::nodes>(ref<NodeIdRule>), lit<",">)> {};
-  struct SubgraphRule;
-  static constexpr auto Endpoint = ref<NodeGroupRule> | ref<SubgraphRule>;
-  struct CompoundStmtRule
+  struct NodeGroup
+      : rule<some(append<&ast::NodeGroup::nodes>(ref<NodeId>), lit<",">)> {};
+  struct Subgraph;
+  static constexpr auto Endpoint = ref<NodeGroup> | ref<Subgraph>;
+  struct CompoundStmt
       : rule<append<&ast::CompoundStmt::endpoints>(Endpoint) +
-             many(append<&ast::CompoundStmt::ops>(ref<ArrowOp> | ref<DashOp>) +
+             many(append<&ast::CompoundStmt::ops>(as<ast::EdgeOp::directed>(lit<"->">) | as<ast::EdgeOp::undirected>(lit<"--">)) +
                   append<&ast::CompoundStmt::endpoints>(Endpoint)) +
-             option(assign<&ast::CompoundStmt::attrs>(ref<AttrListRule>))> {};
-  struct AttrStmtRule
-      : rule<assign<&ast::AttrStmt::target>(ref<GraphAttrKw> | ref<NodeAttrKw> | ref<EdgeAttrKw>) +
+             option(assign<&ast::CompoundStmt::attrs>(ref<AttrList>))> {};
+  struct AttrStmt
+      : rule<assign<&ast::AttrStmt::target>(as<ast::AttrTarget::graphAttr>(ikw<"graph">) | as<ast::AttrTarget::nodeAttr>(ikw<"node">) | as<ast::AttrTarget::edgeAttr>(ikw<"edge">)) +
              option(assign<&ast::AttrStmt::macroName>(Id) + lit<"=">) +
-             assign<&ast::AttrStmt::attrs>(ref<AttrListRule>)> {};
-  struct AssignStmtRule
+             assign<&ast::AttrStmt::attrs>(ref<AttrList>)> {};
+  struct AssignStmt
       : rule<assign<&ast::AssignStmt::name>(Id) + lit<"="> +
-             assign<&ast::AssignStmt::value>(Id)> {};
-  struct SubgraphRule
+             AttributeValue<&ast::AssignStmt::value,
+                            &ast::AssignStmt::valueIsHtml>> {};
+  struct Subgraph
       : rule<option(ikw<"subgraph"> + option(assign<&ast::Subgraph::id>(Id))) +
-             lit<"{"> + many(append<&ast::Subgraph::statements>(ref<StmtRule>) + option(lit<";">)) + lit<"}">> {};
-  struct StmtRule : rule<ref<AttrStmtRule> | ref<AssignStmtRule> | ref<CompoundStmtRule>> {};
-  struct GraphRule
+             lit<"{"> + many(append<&ast::Subgraph::statements>(ref<Stmt>) + option(lit<";">)) + lit<"}">> {};
+  struct Stmt : rule<ref<AttrStmt> | ref<AssignStmt> | ref<CompoundStmt>> {};
+  struct Graph
       : rule<option(flag<&ast::Graph::strict_>(ikw<"strict">)) +
              (flag<&ast::Graph::directed>(ikw<"digraph">) | ikw<"graph">) +
              option(assign<&ast::Graph::id>(Id)) + lit<"{"> +
-             many(append<&ast::Graph::statements>(ref<StmtRule>) + option(lit<";">)) + lit<"}">> {};
+             many(append<&ast::Graph::statements>(ref<Stmt>) + option(lit<";">)) + lit<"}">> {};
 
-  using entry = GraphRule;
-  using ignore = list<WS, ML_COMMENT, SL_COMMENT, PREPROC, BOM>;
+  using entry = Graph;
+  using ignored = list<WS, ML_COMMENT, SL_COMMENT, PREPROC, BOM>;
 };
 
 }  // namespace dot

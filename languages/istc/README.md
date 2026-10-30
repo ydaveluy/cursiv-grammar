@@ -31,14 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+An ISTC display identifier has an ISTC prefix and agency/year/work/check groups. ISO 21047:2009 separators are optional, and validation checks the year and checksum.
+
 ```
 ISTC A02-2009-000004BE-A
 ```
-
-An [ISTC](https://en.wikipedia.org/wiki/International_Standard_Text_Code)
-number: the `ISTC` keyword, then four hyphen- or space-separated groups —
-registration agency (3), year (4), work (8), check character (1) — each a run
-of hex digits (`0-9`, `A-F`).
 
 ## The command line
 

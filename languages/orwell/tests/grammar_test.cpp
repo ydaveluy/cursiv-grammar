@@ -87,10 +87,10 @@ void corpus() {
     ast::IntLit* const result =
         guard != nullptr ? as<ast::IntLit>(guard->result) : nullptr;
     CHECK(result != nullptr && result->value == 1);
-    // `n=0`, spelled with no space, is ONE ID token, not a comparison.
-    ast::VarRef* const cond =
-        guard != nullptr ? as<ast::VarRef>(guard->condition) : nullptr;
-    CHECK(cond != nullptr && cond->name == "n=0");
+    const auto* cond = guard ? as<ast::BinaryTerm>(guard->condition) : nullptr;
+    CHECK(cond && cond->op == "=" && as<ast::VarRef>(cond->left) &&
+          as<ast::VarRef>(cond->left)->name == "n" &&
+          as<ast::IntLit>(cond->right) && as<ast::IntLit>(cond->right)->value == 0);
   }
 
   // example3: `roots a b c = [(-b+r)/(2*a),(-b-r)/(2*a)], if d>0`
@@ -111,11 +111,10 @@ void corpus() {
             ? as<ast::ListTerm>(rhs->guards[0]->result)
             : nullptr;
     CHECK(list != nullptr && list->items.size() == 2);
-    // `d>0`, tight, is likewise one ID token: see the note in example2 above.
-    ast::VarRef* const cond = rhs != nullptr && !rhs->guards.empty()
-                                   ? as<ast::VarRef>(rhs->guards[0]->condition)
-                                   : nullptr;
-    CHECK(cond != nullptr && cond->name == "d>0");
+    const auto* cond = rhs && !rhs->guards.empty()
+        ? as<ast::BinaryTerm>(rhs->guards[0]->condition) : nullptr;
+    CHECK(cond && cond->op == ">" && as<ast::VarRef>(cond->left) &&
+          as<ast::VarRef>(cond->left)->name == "d");
     ast::BinaryTerm* const elem0 =
         list != nullptr && !list->items.empty()
             ? as<ast::BinaryTerm>(list->items[0])
@@ -129,6 +128,42 @@ void corpus() {
 // constructor patterns, a `where` clause, a guarded multi-branch equation,
 // a `%else` multi-clause equation, a list comprehension, a range, operator
 // sections, and float/string literals, one small document each.
+void native_manual_cases() {
+  const std::string source = R"OW(
+Int == num
+Wrap a == [a]
+f, (+) :: num
+f x=x+1
+small=1.0e-3
+char='a'
+text="A\065\n"
+)OW";
+  const auto r = engine().parse(source);
+  auto* program = r.value_as<ast::Program>();
+  CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty() &&
+        program && program->decls.size() == 7);
+  if (!program || program->decls.size() != 7) return;
+  auto* first = as<ast::SynDecl>(program->decls[0]);
+  auto* lhs = first ? as<ast::TyLhs1>(first->lhs) : nullptr;
+  CHECK(lhs && lhs->primary && lhs->primary->tyname == "Int" &&
+        lhs->tyvars.empty());
+  auto* signature = as<ast::TypeDecl>(program->decls[2]);
+  CHECK(signature && signature->names.size() == 2 &&
+        signature->names[0]->var == "f" && signature->names[1]->op == "+");
+  const auto value = [&](std::size_t index) -> ast::Term* {
+    auto* def = as<ast::Def>(program->decls[index]);
+    return def && def->clauses.size() == 1 ? def->clauses[0]->rhs->simple : nullptr;
+  };
+  auto* binary = as<ast::BinaryTerm>(value(3));
+  auto* number = as<ast::FloatLit>(value(4));
+  auto* character = as<ast::CharacterLit>(value(5));
+  auto* text = as<ast::StringLit>(value(6));
+  CHECK(binary && binary->op == "+" && as<ast::VarRef>(binary->left) &&
+        as<ast::VarRef>(binary->left)->name == "x");
+  CHECK(number && number->value == 0.001 && character && character->value == "a");
+  CHECK(text && text->value == "AA\n");
+}
+
 void own_coverage() {
   const std::string dir = std::string(CURSIV_TEST_DIR) + "/";
   for (const char* name : {"types.orwell", "fixity.orwell", "patterns.orwell",
@@ -163,5 +198,6 @@ void own_coverage() {
 int main() {
   corpus();
   own_coverage();
+  native_manual_cases();
   return cursiv::test::report("orwell_grammar_test");
 }

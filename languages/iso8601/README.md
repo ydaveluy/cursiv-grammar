@@ -31,14 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+The port models ISO 8601:2004 dates, times, datetimes, durations and intervals. A bare two-digit 15 is an hour and four-digit 1527 is a year; prefix a time with T to disambiguate.
+
 ```
 1985-04-12T23:20:00
 ```
-
-A date, a time, a datetime, a duration (`P1Y2M15DT12H`) or a recurring
-interval (`R2/P1Y6M`) — the grammar tries them in that order, which is what
-makes a bare `15` read as an hour rather than a century. `example/` contains
-ISO 8601 inputs.
 
 ## The command line
 

@@ -14,13 +14,20 @@ class JavaScriptValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
 
-  // `let`, `static`, `implements`... as a binding or a reference in strict
-  // code. A property name is any word and is left alone.
-  void checkStrictName(const ast::Ident& ident,
-                       cursiv::ValidationAcceptor& accept) const;
   // `0755` in strict code.
   void checkLegacyOctal(const ast::NumberLit& lit,
                         cursiv::ValidationAcceptor& accept) const;
+  void checkNames(const ast::Program&, cursiv::ValidationAcceptor&) const;
+  void checkString(const ast::StringLit&, cursiv::ValidationAcceptor&) const;
+  void checkTemplate(const ast::TemplateLit&, cursiv::ValidationAcceptor&) const;
+  void checkRegex(const ast::RegexLit&, cursiv::ValidationAcceptor&) const;
+  void checkFunction(const ast::FunctionDecl&, cursiv::ValidationAcceptor&) const;
+  void checkFunctionExpr(const ast::FunctionExpr&, cursiv::ValidationAcceptor&) const;
+  void checkArrow(const ast::ArrowFunctionExpr&, cursiv::ValidationAcceptor&) const;
+  void checkProperty(const ast::Prop&, cursiv::ValidationAcceptor&) const;
+  void checkMember(const ast::ClassMember&, cursiv::ValidationAcceptor&) const;
+  void checkWith(const ast::WithStmt&, cursiv::ValidationAcceptor&) const;
+  void checkNewTarget(const ast::NewTargetExpr&, cursiv::ValidationAcceptor&) const;
 };
 
 struct JavaScriptCoreServices;

@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every file of example/ parses, and each builds a Sexpr.
 add_executable(sexpression_grammar_test grammar_test.cpp)
-target_link_libraries(sexpression_grammar_test PRIVATE sexpressionCore)
+target_link_libraries(sexpression_grammar_test PRIVATE sexpressionCore cursiv::test)
 target_compile_definitions(sexpression_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

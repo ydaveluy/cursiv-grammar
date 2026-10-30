@@ -88,6 +88,63 @@ int main() {
 
   int status = 0;
 
+  for (const auto source : {"void f(){return;}", "string x=\"a\\\"b\" \"c\";",
+                             "float x=1e3; float y=.5;", "int x='a';", "int x='ab';", R"PK(int x='\x41';int y='\u0041';)PK",
+                             "void f(){import Stdio;constant x=1;}",
+                             "public final int f(){return 1;}", "class C {int x;}",
+                             "int|string x; function(int:int) f; int(0..255) n;",
+                             "void f(){int x,y;foreach(({1,2}),int v){x=v;}}",
+                             "void f(){foreach(([\"a\":1]);string k;int v){}}",
+                             "array x=({1,2});array y=x[..1];array z=x[0..];"}) {
+    parse_clean(language.language, source, source, status);
+  }
+  if (status) return status;
+  for (const auto source : {"int if;", "int final;", "class C;", "int f(){return 1}",
+                             "void f(){array a;int x;foreach(a:x){}}"}) {
+    const auto r=language.language.parser->parse(source);
+    if (r.accepted && !r.cst().recovered() && r.diagnostics.empty())
+      return fail(std::string("native-invalid form accepted: ")+source);
+  }
+  {
+    const auto r=language.language.parser->parse(R"PIKE(
+public final int f(){int x,y;foreach(({1,2}),int v){x=v;}return x;}
+function(int:int) g;
+int|string u;
+int(0..255) n;
+class Box(int initial) {int value=initial;}
+string text="a\"b" "c";
+int codepoint='a';
+array xs=({1,2});array ys=xs[..1];
+)PIKE");
+    bool modifiers=false, local=false, each=false, cls=false, type=false;
+    bool range=false, strings=false, character=false, slice=false;
+    for(const auto* node:r.nodes){
+      if(const auto* n=cursiv::ast_cast<pike::ast::FunctionDefinition>(node))
+        modifiers|=n->modifiers.size()==2 && n->modifiers[0]==pike::ast::Modifier::Public && n->modifiers[1]==pike::ast::Modifier::Final;
+      if(const auto* n=cursiv::ast_cast<pike::ast::LocalDeclaration>(node))
+        if(const auto* v=cursiv::ast_cast<pike::ast::Variables>(n->declaration))local|=v->names.size()==2;
+      if(const auto* n=cursiv::ast_cast<pike::ast::Foreach>(node))each|=cursiv::ast_cast<pike::ast::DeclLValue>(n->variable)!=nullptr;
+      if(const auto* n=cursiv::ast_cast<pike::ast::ClassDef>(node))cls|=n->name=="Box"&&n->body&&n->body->definitions.size()==1&&n->hasConstructorParams&&n->constructorParams.size()==1&&n->constructorParams[0]->name=="initial";
+      if(const auto* n=cursiv::ast_cast<pike::ast::FunctionType>(node))type|=n->returnType&&n->params.size()==1;
+      if(const auto* n=cursiv::ast_cast<pike::ast::SimpleType>(node))range|=n->hasRange&&n->lower=="0"&&n->upper=="255";
+      if(const auto* n=cursiv::ast_cast<pike::ast::StringLit>(node))strings|=n->pieces.size()==2;
+      character|=cursiv::ast_cast<pike::ast::CharLit>(node)!=nullptr;
+      if(const auto* n=cursiv::ast_cast<pike::ast::IndexExpr>(node))slice|=n->range&&!n->index&&n->rangeEnd;
+    }
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!modifiers||!local||!each||!cls||!type||!range||!strings||!character||!slice)
+      return fail("source-backed native AST capture lost");
+  }
+
+  {
+    const auto r=language.language.parser->parse("int f(int a,int b){if(a)if(b)return 1;else return 2;return 0;}");
+    const auto* p=r.value_as<pike::ast::Program>();
+    const auto* fn=p&&!p->definitions.empty()?cursiv::ast_cast<pike::ast::FunctionDefinition>(p->definitions[0]):nullptr;
+    const auto* outer=fn&&fn->body&&!fn->body->statements.empty()?cursiv::ast_cast<pike::ast::If>(fn->body->statements[0]):nullptr;
+    const auto* inner=outer?cursiv::ast_cast<pike::ast::If>(outer->then):nullptr;
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!outer||outer->else_||!inner||!inner->else_)
+      return fail("else must belong to the nearest if");
+  }
+
   // Every document of the corpus, whatever its name: none of it may need
   // repair or leave a diagnostic behind.
   std::vector<std::string> texts;
@@ -121,11 +178,9 @@ int main() {
     if (static_cast<const pike::ast::SimpleType*>(fn.returnType)->kind !=
         pike::ast::SimpleTypeKind::Int)
       return fail("example1.pike: expected `int`");
-    // `return_stmt` has no `;` of its own (see ast.hpp): the source's
-    // `return 0;` is a `Return` PLUS a separate `EmptyStatement` for the
-    // trailing `;`, three statements in all.
-    if (fn.body->statements.size() != 3)
-      return fail("example1.pike: expected three statements");
+    // The return owns its semicolon, so no spurious EmptyStatement follows.
+    if (fn.body->statements.size() != 2)
+      return fail("example1.pike: expected two statements");
     const pike::ast::Statement* const second = fn.body->statements[1];
     if (second->type != &cursiv::ast_type_tag<pike::ast::Return>)
       return fail("example1.pike: expected a return statement");

@@ -12,6 +12,8 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "powerbuilderdw/core/CoreServices.hpp"
 #include "powerbuilderdw/core/ast.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 namespace {
 
@@ -62,6 +64,12 @@ int main() {
       powerbuilderdw::PowerbuilderdwSharedCoreServices,
       powerbuilderdw::install_core_module>();
 
+  for (const std::string_view number : {"1e999", "1e-999"}) {
+    const std::string source = "DATAWINDOW(UNITS=" + std::string(number) + ")";
+    const auto result = cursiv::test::validationHelper(language.language,source);
+    if(result.diagnostics.empty())return fail("out-of-range literal needs a diagnostic");
+  }
+
   const char* const samples[] = {
       CURSIV_EXAMPLE_DIR "/d_example_detail_events.srd",
       CURSIV_TEST_DIR "/header_and_types.srd",
@@ -97,14 +105,14 @@ int main() {
       doc.properties[1]);
   if (table->type != &cursiv::ast_type_tag<powerbuilderdw::ast::TableProperty>)
     return fail("header_and_types: second property is not TABLE(...)");
-  if (table->items.size() != 3)
+  if (table->items.size() != 5)
     return fail("header_and_types: TABLE(...) item count");
 
   const auto* const col0 =
       static_cast<const powerbuilderdw::ast::ColumnTypeAttr*>(table->items[0]);
   if (col0->type != &cursiv::ast_type_tag<powerbuilderdw::ast::ColumnTypeAttr>)
     return fail("header_and_types: first table item is not COLUMN=(TYPE=...)");
-  if (col0->dataType != "CHAR" || col0->size != 30.0)
+  if (col0->dataType != "CHAR" || !col0->size || *col0->size != 30.0)
     return fail("header_and_types: COLUMN=(TYPE=CHAR(30)...) misread");
 
   const auto* const col1 =
@@ -125,8 +133,42 @@ int main() {
     return fail("header_and_types: third table item is not RETRIEVE=...");
   if (retrieve->retrieveText.find("\"X\"") == std::string_view::npos)
     return fail("header_and_types: RETRIEVE= tilde-escape not unescaped");
-  if (retrieve->argsText != "\"ID\", INTEGER),(\"NAME\", STRING")
-    return fail("header_and_types: ARGUMENTS= blob misread");
+  const auto* args=cursiv::ast_cast<powerbuilderdw::ast::RetrievalArguments>(table->items[3]);
+  if(!args||args->items.size()!=2||args->items[0]->name!="ID"||args->items[0]->type!="INTEGER"||args->items[1]->name!="NAME")
+    return fail("header_and_types: structured ARGUMENTS lost");
+
+  {
+    const std::string source=read_file(CURSIV_TEST_DIR "/vendor-external.srd");
+    const auto r=language.language.parser->parse(source);
+    const auto* p=r.value_as<powerbuilderdw::ast::Document>();
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!p||p->headerLines.size()!=1||!p->release||*p->release!=19)
+      return fail("official mixed-case release19 DataWindow export rejected");
+  }
+  {
+    const auto r=language.language.parser->parse(
+      "$PBExportHeader$d_test.srd\n"
+      "datawindow(units=0) table(arguments = ((\"arg_name\", string list),(\"id\", number)) "
+      "column=(type=decimal(10) name=id) retrieve=\"select id\" update=\"t\") "
+      "data(9007199254740993,12345678901234.5678901234,-1,) text(text='~~' name=next) ");
+    const auto* p=r.value_as<powerbuilderdw::ast::Document>();
+    const auto* table=p&&p->properties.size()==4?cursiv::ast_cast<powerbuilderdw::ast::TableProperty>(p->properties[1]):nullptr;
+    const auto* data=p&&p->properties.size()==4?cursiv::ast_cast<powerbuilderdw::ast::AttrProperty>(p->properties[2]):nullptr;
+    const auto* text=p&&p->properties.size()==4?cursiv::ast_cast<powerbuilderdw::ast::AttrProperty>(p->properties[3]):nullptr;
+    const auto* args=table&&table->items.size()==4?cursiv::ast_cast<powerbuilderdw::ast::RetrievalArguments>(table->items[0]):nullptr;
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!args||args->items.size()!=2||
+       args->items[0]->name!="arg_name"||!args->items[0]->list||args->items[1]->type!="number"||
+       !data||data->attrs.size()!=3||!text||text->attrs.size()!=2)
+      return fail("native argument/table/data/string form rejected or AST lost");
+    const auto* attribute=cursiv::ast_cast<powerbuilderdw::ast::SimpleAttr>(text->attrs[0]);
+    const auto* value=attribute?std::get_if<std::string_view>(&attribute->value):nullptr;
+    if(!value||*value!="~")return fail("single-quoted tilde escape parity or value lost");
+    const char* numbers[]={"9007199254740993","12345678901234.5678901234","-1"};
+    for(std::size_t i=0;i<3;++i) {
+      const auto* a=cursiv::ast_cast<powerbuilderdw::ast::LiteralAttr>(data->attrs[i]);
+      const auto* n=a?std::get_if<powerbuilderdw::ast::NumberValue*>(&a->value):nullptr;
+      if(!n||!*n||(*n)->text!=numbers[i])return fail("DataWindow numeric lexeme rounded or lost");
+    }
+  }
 
   std::puts("powerbuilderdw: the samples parse");
   return 0;

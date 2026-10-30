@@ -27,6 +27,33 @@ int main() {
   const auto language = cursiv::create_language<
       p::PCoreServices, p::PSharedCoreServices, p::install_core_module>();
 
+  {
+    const auto result = language.language.parser->parse("R(λ(R))λ");
+    const auto* root = result.value_as<p::ast::Prog>();
+    const auto* first = root && root->symbols.size() == 3
+                            ? cursiv::ast_cast<p::ast::Atom>(root->symbols[0]) : nullptr;
+    const auto* group = root && root->symbols.size() == 3
+                            ? cursiv::ast_cast<p::ast::Iterate>(root->symbols[1]) : nullptr;
+    const auto* lambda = group && group->symbols.size() == 2
+                            ? cursiv::ast_cast<p::ast::Atom>(group->symbols[0]) : nullptr;
+    const auto* inner = group && group->symbols.size() == 2
+                            ? cursiv::ast_cast<p::ast::Iterate>(group->symbols[1]) : nullptr;
+    const auto* nested = inner && inner->symbols.size() == 1
+                            ? cursiv::ast_cast<p::ast::Atom>(inner->symbols[0]) : nullptr;
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !first || first->kind != p::ast::AtomKind::r ||
+        !lambda || lambda->kind != p::ast::AtomKind::l ||
+        !nested || nested->kind != p::ast::AtomKind::r ||
+        first->parent != root || group->parent != root ||
+        lambda->parent != group || inner->parent != group || nested->parent != inner)
+      return fail("AST", "atom values, nesting, order or parents differ");
+  }
+  for (const auto* invalid : {"", "()", "(R", "R)", "L", "r"}) {
+    const auto result = language.language.parser->parse(invalid);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail(invalid, "outside the retained p.g4 text profile");
+  }
+
   int total = 0;
   int failures = 0;
   for (const std::filesystem::directory_entry& entry :

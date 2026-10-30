@@ -54,6 +54,30 @@ int main() {
       return fail(name, "the parse built no document");
   }
 
+  for (const std::string source : {"{{{\n}}}", "{{{ \t\r\n}}} \t\r\n",
+                                   "{{{ \t\n}}}"}) {
+    const auto result = language.language.parser->parse(source);
+    const auto* doc = cursiv::ast_cast<creole::ast::Document>(result.value);
+    const auto* block = doc && doc->blocks.size() == 1
+                            ? cursiv::ast_cast<creole::ast::Preformatted>(doc->blocks[0])
+                            : nullptr;
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !block || !block->text.empty())
+      return fail("native-empty-block", "empty nowiki block was lost");
+  }
+  {
+    const auto result = language.language.parser->parse(
+        "{{{\n}}}suffix\n }}}\nfinal\n}}}");
+    const auto* doc = cursiv::ast_cast<creole::ast::Document>(result.value);
+    const auto* block = doc && doc->blocks.size() == 1
+                            ? cursiv::ast_cast<creole::ast::Preformatted>(doc->blocks[0])
+                            : nullptr;
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !block ||
+        block->text != "}}}suffix\n }}}\nfinal")
+      return fail("native-block-close", "a partial closer truncated the block");
+  }
+
   std::puts("creole: every sample parses");
   return 0;
 }

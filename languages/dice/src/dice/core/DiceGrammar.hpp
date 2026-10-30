@@ -13,10 +13,8 @@ struct Dice : cursiv::GrammarSpec {
   struct NUMBER : terminal<some(d)> {};
   struct DSEP : terminal<cr<"dD">> {};
 
-  struct ADD : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct SUBTRACT : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct MULTIPLY : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIVIDE : terminal<lit<"/">, value<ast::Operator::divide>> {};
+  struct ADD : terminal<as<ast::Operator::add>(lit<"+">)> {};
+  struct SUBTRACT : terminal<as<ast::Operator::subtract>(lit<"-">)> {};
 
   struct Notation;
 
@@ -32,13 +30,12 @@ struct Dice : cursiv::GrammarSpec {
                  assign<&ast::NumberLiteral::value>(ref<NUMBER>)) |
              (lit<"("> + ref<Notation> + lit<")">)> {};
 
-  struct Notation : infix<Operand, &ast::BinaryNotation::left,
-                          &ast::BinaryNotation::op, &ast::BinaryNotation::right,
-                          (left(ref<MULTIPLY> | ref<DIVIDE>) >>
-                           left(ref<ADD> | ref<SUBTRACT>))> {};
+  struct Notation : infix<Operand, ast::BinaryNotation,
+                          levels(left(as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">)),
+                                 left(ref<ADD> | ref<SUBTRACT>))> {};
 
   using entry = Notation;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 } // namespace dice

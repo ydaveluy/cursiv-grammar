@@ -319,6 +319,7 @@ b"); endmodule
   validate("module m; reg x; initial force x=1; endmodule","verilog.procedural-value",0);
   validate("module m; wire x=f(1,,3); endmodule","verilog.call-argument",1);
   validate("module m; initial $display(,1); endmodule","verilog.call-argument",0);
+  validate("module m; task t(input a,b,c); ; endtask initial t(1,,3); endmodule","verilog.call-argument",0);
   std::printf("verilog audit: %zu native forms, %u checks\n",std::size(valid),checks);
   return ok;
 }

@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+BibTeX bibliography entries with citation keys and field values, plus string and preamble declarations.
+
 ```
 @article{ding_bloccess_2023,
 	title = {Bloccess: {Enabling} {Fine}-{Grained} {Access} {Control} {Based} on {Blockchain}},
@@ -41,12 +43,6 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 	pages = {1--34},
 }
 ```
-
-An entry opens on one of thirteen kinds (`article`, `book`, `inproceedings`,
-…), case-insensitive and fused to its leading `@` — `@Article` and `@ARTICLE`
-both work, `@ article` does not. Inside, a citekey and one or more
-`key = value,` fields, each value a `{brace}`-delimited or `"quote"`-delimited
-string, or a bare run of digits.
 
 ## The command line
 

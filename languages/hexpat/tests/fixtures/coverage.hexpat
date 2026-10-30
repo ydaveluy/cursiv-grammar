@@ -1,4 +1,4 @@
-using Pair<T> = Two<T>
+using Pair<T> = Two<T>;
 
 struct Header {
     u32 count;

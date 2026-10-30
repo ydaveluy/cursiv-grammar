@@ -31,16 +31,13 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Rows and fields retain their order, including the first row and empty fields. This permissive CSV dialect accepts CR, LF and CRLF record endings and doubled quotes in quoted fields.
+
 ```
 "REVIEW_DATE","AUTHOR","ISBN","DISCOUNTED_PRICE"
 "1985/01/21","Douglas Adams",0345391802,5.95
 "1998/07/15","Timothy ""The Parser"" Campbell",0968411304,18.99
 ```
-
-Every row is stored in `Doc::rows`, including the first row. A consumer may
-interpret that first row as a header; the AST does not separate it from data.
-A field is `TEXT` (anything but a comma, a quote or a line ending), a quoted
-`STRING` (where `""` escapes a literal quote), or empty.
 
 ## The command line
 

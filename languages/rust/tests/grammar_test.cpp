@@ -1,4 +1,5 @@
 
+#include <algorithm>
 #include <cstdio>
 
 #include "cursiv/core/parser/Parser.hpp"
@@ -300,6 +301,128 @@ static int audit_regression() {
   return 0;
 }
 
+int native_identifiers_and_operators(const cursiv::Parser& parser) {
+  for (const auto text : {"fn fn(){}", "fn gen(){}", "fn r#self(){}",
+                          "m!(r#crate);", "m!(r#_);", "m!()", "m![]", "use;", "use ::;", "use {,};",
+                          "fn f(){loop{continue 1;}}",
+                          "fn f(){match x {1=>2 2=>3}}", "fn f(x:u8){let _=match x{4..=>1};}",
+                          "fn f(){let _ = a < < b;}", "fn f(){let _ = a > /*gap*/ > b;}"}) {
+    const auto result = parser.parse(text);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail(text, "reserved identifiers and split shift punctuation must not parse clean");
+  }
+  for (const bool mutable_ : {false, true}) {
+    const std::string text = mutable_ ? "fn f(){let _ = &raw mut value;}" :
+                                       "fn f(){let _ = &raw const value;}";
+    const auto result = parser.parse(text);
+    const auto* borrow = cursiv::ast_cast<rust::ast::BorrowExpr>(initializer(result));
+    if (!borrow || !borrow->isRaw || borrow->isMut != mutable_ || borrow->doubleAmp)
+      return fail(text, "raw borrow AST mode or mutability lost");
+  }
+
+  for (const auto source : {"fn f(){match x {1=>{}, 2=>{}}}",
+                            "fn f(){match x {1=>{} 2=>3}}",
+                            "fn f(){match x {1=>2, 2=>3}}"}) {
+    const auto value = parser.parse(source);
+    if (!value.accepted || value.cst().recovered() || !value.diagnostics.empty())
+      return fail(source, "match arm commas follow block/nonblock native rules");
+  }
+  {
+    const auto result = parser.parse("fn f(){let _ = &&raw const value;}");
+    const auto* borrow = cursiv::ast_cast<rust::ast::BorrowExpr>(initializer(result));
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !borrow || !borrow->doubleAmp || !borrow->isRaw || borrow->isMut)
+      return fail("&&raw const", "double raw borrow spelling and qualifier retained");
+  }
+  {
+    const auto result = parser.parse("use ::*; use *;");
+    const auto* crate = result.value_as<rust::ast::Crate>();
+    const auto* absolute = crate && crate->items.size() == 2
+        ? cursiv::ast_cast<rust::ast::UseDecl>(crate->items[0]) : nullptr;
+    const auto* relative = crate && crate->items.size() == 2
+        ? cursiv::ast_cast<rust::ast::UseDecl>(crate->items[1]) : nullptr;
+    if (!absolute || !relative || !absolute->tree || !relative->tree ||
+        !absolute->tree->leadingSep || relative->tree->leadingSep ||
+        !absolute->tree->isGlob || !relative->tree->isGlob)
+      return fail("use ::*; use *;", "absolute pathless import root is retained");
+  }
+
+  {
+    const auto result = parser.parse("fn f(){let _ = construct::<T,{ N },1,-2>();}");
+    const auto* call = cursiv::ast_cast<rust::ast::CallExpr>(initializer(result));
+    const auto* callee = call ? cursiv::ast_cast<rust::ast::PathExpr>(call->callee) : nullptr;
+    const auto* arguments = callee && callee->path && callee->path->segments.size() == 1
+        ? callee->path->segments[0]->args : nullptr;
+    if (!call || !arguments || arguments->args.size() != 4 ||
+        !cursiv::ast_cast<rust::ast::TypeArg>(arguments->args[0]) ||
+        !cursiv::ast_cast<rust::ast::PathTy>(
+            cursiv::ast_cast<rust::ast::TypeArg>(arguments->args[0])->type) ||
+        !cursiv::ast_cast<rust::ast::ConstArg>(arguments->args[1]) ||
+        !cursiv::ast_cast<rust::ast::ConstArg>(arguments->args[2]) ||
+        !cursiv::ast_cast<rust::ast::ConstArg>(arguments->args[3]))
+      return fail("construct::<T,{ N },1,-2>()", "native call and generic type/const AST classification");
+  }
+
+  {
+    const auto result = parser.parse("type F = fn(first: u8, u16, _: u32);");
+    const auto* root = result.value_as<rust::ast::Crate>();
+    const auto* alias = root && root->items.size() == 1
+        ? cursiv::ast_cast<rust::ast::TypeAlias>(root->items[0]) : nullptr;
+    const auto* function = alias ? cursiv::ast_cast<rust::ast::BareFnTy>(alias->type) : nullptr;
+    if (!function || function->params.size() != 3 || !function->params[0]->name ||
+        *function->params[0]->name != "first" || function->params[1]->name ||
+        !function->params[2]->name || *function->params[2]->name != "_" ||
+        !cursiv::ast_cast<rust::ast::PathTy>(function->params[0]->type) ||
+        !cursiv::ast_cast<rust::ast::PathTy>(function->params[1]->type) ||
+        !cursiv::ast_cast<rust::ast::PathTy>(function->params[2]->type))
+      return fail("type F = fn(first: u8, u16, _: u32);", "function-pointer parameter names and unnamed positions retained");
+  }
+
+  {
+    const auto result = parser.parse("fn f(x:u8){let name=match x {0..4 => 1, ..0 => 2, 4.. => 3};}");
+    const auto* root = result.value_as<rust::ast::Crate>();
+    const auto* function = root && root->items.size() == 1 ?
+        cursiv::ast_cast<rust::ast::Function>(root->items[0]) : nullptr;
+    const auto* statement = function && function->body && function->body->statements.size() == 1 ?
+        cursiv::ast_cast<rust::ast::LetStmt>(function->body->statements[0]) : nullptr;
+    const auto* pattern = statement ? cursiv::ast_cast<rust::ast::IdentPat>(statement->pattern) : nullptr;
+    const auto* match = statement ? cursiv::ast_cast<rust::ast::MatchExpr>(statement->value) : nullptr;
+    const auto* bounded = match && match->arms.size() == 3 ?
+        cursiv::ast_cast<rust::ast::RangePat>(match->arms[0]->pattern) : nullptr;
+    const auto* to = match && match->arms.size() == 3 ?
+        cursiv::ast_cast<rust::ast::RangePat>(match->arms[1]->pattern) : nullptr;
+    const auto* from = match && match->arms.size() == 3 ?
+        cursiv::ast_cast<rust::ast::RangePat>(match->arms[2]->pattern) : nullptr;
+    if (!pattern || pattern->name != "name" || !bounded || bounded->inclusive ||
+        !bounded->start || !bounded->end || bounded->start->text != "0" || bounded->end->text != "4" ||
+        !to || to->start || !to->end || to->end->text != "0" ||
+        !from || !from->start || from->end || from->start->text != "4")
+      return fail("Rust binding and half-open range patterns", "identifier/range AST identity or bounds lost");
+  }
+  {
+    const auto result = parser.parse("fn foo() where for<> for<> T:T{} type T=for<'a> Trait<'a>; type U=?Trait;");
+    const auto* root=result.value_as<rust::ast::Crate>();
+    const auto* f=root&&root->items.size()==3?cursiv::ast_cast<rust::ast::Function>(root->items[0]):nullptr;
+    const auto* bound=f&&f->whereClause&&f->whereClause->items.size()==1?cursiv::ast_cast<rust::ast::TypeBoundWhereItem>(f->whereClause->items[0]):nullptr;
+    const auto* ty=bound?cursiv::ast_cast<rust::ast::TraitObjectTy>(bound->type):nullptr;
+    if(!result.accepted||result.cst().recovered()||!result.diagnostics.empty()||!bound||!bound->forLifetimes||!ty||ty->bounds.size()!=1||ty->isDyn)
+      return fail("higher ranked trait types", "marked single bounds or nested where binders lost");
+  }
+  const std::string text = "fn f(){let _ = a << b >> c;}";
+  const auto result = parser.parse(text);
+  const auto* shift = cursiv::ast_cast<rust::ast::BinaryExpr>(initializer(result));
+  const auto* left = shift ? cursiv::ast_cast<rust::ast::BinaryExpr>(shift->left) : nullptr;
+  if (!shift || shift->op != rust::ast::Operator::shr || !left ||
+      left->op != rust::ast::Operator::shl)
+    return fail(text, "adjacent shifts preserve left-associative AST");
+  for (const auto source : {"fn r#gen(){}", "fn union(){}", "fn f(){let _ = V::<V<u8> >();}", "m!();", "m!{}"}) {
+    const auto value = parser.parse(source);
+    if (!value.accepted || value.cst().recovered() || !value.diagnostics.empty())
+      return fail(source, "raw reserved names, weak keywords and spaced generic closers remain legal");
+  }
+  return 0;
+}
+
 int main() {
   if (audit_regression()) {
     std::fputs("audit regression failed\n", stderr);
@@ -309,6 +432,7 @@ int main() {
       rust::RustCoreServices, rust::RustSharedCoreServices,
       rust::install_core_module>();
 
+  if (native_identifiers_and_operators(*language.language.parser)) return 1;
   if (float_dot_guard(*language.language.parser) != 0) return 1;
   if (comparison_chaining(*language.language.parser) != 0) return 1;
   if (literal_regressions(*language.language.parser) != 0) return 1;
@@ -322,7 +446,16 @@ int main() {
                            std::istreambuf_iterator<char>());
 
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    if (result.cst().recovered()) return fail(path, "the sample does not parse");
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) {
+      for (const auto& diagnostic : result.diagnostics) {
+        const auto begin=std::min(std::size_t(diagnostic.begin),text.size());
+        const auto start=begin>65?begin-65:0;
+        const auto length=std::min(std::size_t(160),text.size()-start);
+        std::fprintf(stderr,"rust diagnostic: kind=%d begin=%zu end=%zu element=%u context=%.*s\n",
+            int(diagnostic.kind),begin,std::size_t(diagnostic.end),unsigned(diagnostic.element),int(length),text.data()+start);
+      }
+      return fail(path, "the sample does not parse clean");
+    }
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr || root->type != &cursiv::ast_type_tag<rust::ast::Crate>)

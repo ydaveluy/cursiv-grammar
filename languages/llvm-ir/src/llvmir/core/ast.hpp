@@ -268,6 +268,7 @@ struct OperandBundle : cursiv::Extends<Node> {
   vector<TypedValue*> args;
 };
 struct CallInst : cursiv::Extends<Instruction> {
+  boolean forwardsVarargs; // trailing ... in a musttail call argument list
   string_view kind;  // call | invoke | callbr
   optional<string_view> tailKind;
   vector<string_view> fastMathFlags;

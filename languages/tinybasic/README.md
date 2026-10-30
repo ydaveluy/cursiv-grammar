@@ -41,6 +41,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 110 PRINT "YOU GUESSED IT IN", C, " TRIES!"
 ```
 
+This port follows the educational `tinybasic.g4` dialect of
 [TinyBASIC](https://en.wikipedia.org/wiki/Tiny_BASIC): each line optionally
 starts with a line number, and holds one statement -- `PRINT`, `IF`, `GOTO`,
 `INPUT`, an assignment (`LET` is itself optional), `GOSUB`/`RETURN`, or one of

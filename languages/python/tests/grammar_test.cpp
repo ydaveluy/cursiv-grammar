@@ -16,6 +16,8 @@
 #include <vector>
 
 #include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 namespace {
 
@@ -40,6 +42,78 @@ static int audit_regression() {
       cursiv::create_language<python::PythonCoreServices,
                               python::PythonSharedCoreServices,
                               python::install_core_module>();
+  for (const auto *source : {
+           "x\n=1\n", "x=1+\n2\n", "x=[,]\n", "x=(a,,)\n", "x=a,,\n",
+           "x=a[b,,]\n", "for a,, in b: pass\n", "try: pass\nexcept A,,: pass\n",
+           "match x:\n case C(,): pass\n", "match x:\n case 1 |: pass\n",
+           "def f(,a): pass\n", "def f(a,/,,b): pass\n", "def f(*): pass\n",
+           "def f(*,**kw): pass\n", "x=lambda ,a:a\n", "def f(if): pass\n",
+           "class True: pass\n", "x=f\"{a!foo}\"\n", "x=f\"{a! r}\"\n",
+           "a:=1\n", "x=f\"a\nb\"\n", "match x:\n case {**_}: pass\n",
+           "try: pass\nexcept A,B as x: pass\n"}) {
+    const auto r = language.language.parser->parse(source);
+    if (r.accepted && !r.cst().recovered() && r.diagnostics.empty()) {
+      std::fprintf(stderr, "python: native-invalid syntax accepted: %s\n", source);
+      return 1;
+    }
+  }
+  for (const auto *source : {
+           "def f(a=1,b): pass\n", "def f(a=1,/,b): pass\n",
+           "def f(a,a): pass\n", "def f(*a=1): pass\n", "def f(**a=1): pass\n",
+           "def f(a: *tuple[int]): pass\n", "x=b\"é\"\n", "x=b\"a\" \"b\"\n",
+           "1=2\n", "f()=2\n", "a,*b,*c=x\n", "a,b+=x\n", "a,b:int=x\n",
+           "del 1\n", "for f() in x: pass\n", "x=[a for 1 in b]\n",
+           "with x as 1: pass\n", "try: pass\nexcept A: pass\nexcept* B: pass\n",
+           "try: pass\nexcept*: pass\n", "try: pass\nexcept: pass\nexcept A: pass\n",
+           "f(a=1,a=2)\n", "*a\n", "x=\"\\x1\"\n", "x=\"\\u123\"\n",
+           "x=\"\\U00110000\"\n", "match x:\n case f\"hi\": pass\n",
+           "match x:\n case t\"hi\": pass\n"})
+    if (cursiv::test::validationHelper(language.language, source).diagnostics.empty()) {
+      std::fprintf(stderr, "python: native-invalid static form undiagnosed: %s\n", source);
+      return 1;
+    }
+  for (const auto *source : {
+           "x=(1\n+2)\n", "x=1+\\\n2\n", "def f(**kw,): pass\n",
+           "x=lambda **kw,:kw\n", "def f(*,a,b=1,**kw,): pass\n",
+           "x=b\"a\" br\"b\"\n", "x=\"\\uD800\"\n", "x=\"\\U0010FFFF\"\n",
+           "x=\"\\q\"\n", "x=f\"{1+\n2}\"\n", "x=[a:=1]\n",
+           "match a:=1:\n case 1: pass\n"})
+    if (!cursiv::test::validationHelper(language.language, source).diagnostics.empty()) {
+      std::fprintf(stderr, "python: native-valid control diagnosed: %s\n", source);
+      return 1;
+    }
+  {
+    const auto r = language.language.parser->parse(
+        "def f(a, /, b=1, *args: *tuple[int, ...], c, d=2, **kw,): pass\n");
+    const auto *m = r.value_as<python::ast::Module>();
+    const auto *f = m && m->body.size() == 1 ? cursiv::ast_cast<python::ast::FunctionDef>(m->body[0]) : nullptr;
+    const auto *p = f ? f->params : nullptr;
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || !p ||
+        p->posonly.size() != 1 || p->posonly[0]->name != "a" || p->args.size() != 1 ||
+        p->args[0]->name != "b" || !p->vararg || p->vararg->name != "args" ||
+        !cursiv::ast_cast<python::ast::StarredExpr>(p->vararg->annotation) ||
+        p->kwonly.size() != 2 || p->kwonly[0]->name != "c" || p->kwonly[1]->name != "d" ||
+        !p->kwarg || p->kwarg->name != "kw") return 1;
+  }
+  {
+    const auto r = language.language.parser->parse("match x:\n case [a,*_]: pass\n");
+    const python::ast::MatchStar *star = nullptr;
+    for (const auto *node : r.nodes)
+      if (const auto *p = cursiv::ast_cast<python::ast::MatchStar>(node)) star = p;
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
+        !star || !star->name.empty()) return 1;
+  }
+  {
+    const auto r = language.language.parser->parse("x=f\"{a:=1}\"\n");
+    const python::ast::ReplField *field = nullptr;
+    for (const auto *node : r.nodes)
+      if (const auto *p = cursiv::ast_cast<python::ast::ReplField>(node)) field = p;
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || !field ||
+        !cursiv::ast_cast<python::ast::Name>(field->value) || field->formatSpec.size() != 1)
+      return 1;
+    const auto *format = std::get_if<std::string_view>(&field->formatSpec[0]);
+    if (!format || *format != "=1") return 1;
+  }
   {
     const auto r = language.language.parser->parse("x = f\"{a=}\"\n");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||

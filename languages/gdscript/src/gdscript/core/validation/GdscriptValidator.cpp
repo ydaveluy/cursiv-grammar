@@ -173,7 +173,9 @@ void GdscriptValidator::checkPath(const ast::NodePathLit& node,
 }
 void GdscriptValidator::checkNumber(const ast::FloatLit& node,
                                     cursiv::ValidationAcceptor& accept) const {
-  if (node.text.ends_with('.') || node.text.find('E') != node.text.npos)
+  const auto final = node.text.find_last_not_of('_');
+  if (final == node.text.npos || node.text[final] < '0' || node.text[final] > '9' ||
+      node.text.find('E') != node.text.npos)
     accept
         .error(node,
                "GDScript 3 floating point literals need a final digit and "
@@ -183,10 +185,22 @@ void GdscriptValidator::checkNumber(const ast::FloatLit& node,
 }
 void GdscriptValidator::checkInteger(const ast::IntLit& node,
                                      cursiv::ValidationAcceptor& accept) const {
-  if (node.text.starts_with("0X") || node.text.starts_with("0B"))
-    accept.error(node, "GDScript 3 base prefixes use lowercase x and b")
+  if (node.text.starts_with("0X") || node.text.starts_with("0B") ||
+      ((node.text.starts_with("0x") || node.text.starts_with("0b")) &&
+       node.text.find_first_not_of('_', 2) == node.text.npos))
+    accept.error(node, "GDScript 3 base literals need lowercase x/b and a digit")
         .template property<&ast::IntLit::text>()
         .code("gdscript.number");
+}
+void GdscriptValidator::checkCast(const ast::CastExpr& node,
+                                 cursiv::ValidationAcceptor& accept) const {
+  if (cursiv::ast_cast<ast::CastExpr>(node.value))
+    accept.error(node, "A cast result cannot be cast again directly")
+        .code("gdscript.chained-cast");
+  if (const auto* assignment = cursiv::ast_cast<ast::AssignStmt>(node.parent);
+      assignment && assignment->target == &node)
+    accept.error(node, "A cast expression is not an assignment target")
+        .code("gdscript.cast-assignment");
 }
 void GdscriptValidator::checkCall(const ast::CallExpr& node,
                                   cursiv::ValidationAcceptor& accept) const {
@@ -223,6 +237,7 @@ void register_validation_checks(GdscriptCoreServices& services) {
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkNumber>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkInteger>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkCall>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkCast>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkBreak>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkContinue>(v)});
 }

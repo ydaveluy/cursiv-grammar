@@ -115,7 +115,7 @@ template <class Parser> bool modern_cases(const Parser &parser) {
         bool found = false;
         for (const auto *value : nodes<StableId>(result))
           found |= value->root == name;
-        for (const auto *value : nodes<BindPattern>(result))
+        for (const auto *value : nodes<VarPattern>(result))
           found |= value->name == name;
         ok &= found;
       }

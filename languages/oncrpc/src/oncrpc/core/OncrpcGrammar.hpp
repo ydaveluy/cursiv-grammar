@@ -13,7 +13,15 @@ struct Oncrpc : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
   struct COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
-  struct ID : terminal<cr<"a-zA-Z_"> + many(w)> {};
+  // rpcsvc-proto1.4.4 scanner symbols; runtime-reserved typedef names are
+  // a separate semantic check and remain available to the parser.
+  static constexpr auto Reserved =
+      kw<"const"> | kw<"union"> | kw<"switch"> | kw<"case"> | kw<"default"> |
+      kw<"struct"> | kw<"typedef"> | kw<"enum"> | kw<"opaque"> | kw<"bool"> |
+      kw<"void"> | kw<"char"> | kw<"int"> | kw<"unsigned"> | kw<"short"> |
+      kw<"long"> | kw<"hyper"> | kw<"float"> | kw<"double"> | kw<"string"> |
+      kw<"program"> | kw<"version">;
+  struct ID : terminal<!Reserved + cr<"a-zA-Z_"> + many(w)> {};
 
   struct NUMBER : terminal<option(cr<"+-">) +
       ((lit<"0"> + cr<"xX"> + some(cr<"0-9a-fA-F">)) | some(d))> {};
@@ -22,94 +30,73 @@ struct Oncrpc : cursiv::GrammarSpec {
   struct CHARACTER : terminal<lit<"'"> + many(escape | cr<R"(^'\\\r\n)">) + lit<"'">> {};
   static constexpr auto ValueExpr = ref<NUMBER> | ref<ID>;
 
-  struct UnsignedIntSpec
-      : rule<kw<"unsigned"> + option(kw<"int">), value<ast::Primitive::unsigned_int>> {
-  };
-  struct IntSpec : rule<kw<"int">, value<ast::Primitive::int_>> {};
-  struct UnsignedHyperSpec
-      : rule<kw<"unsigned"> + kw<"hyper"> + option(kw<"int">),
-             value<ast::Primitive::unsigned_hyper>> {};
-  struct HyperSpec : rule<kw<"hyper"> + option(kw<"int">), value<ast::Primitive::hyper>> {};
-  struct FloatSpec : rule<kw<"float">, value<ast::Primitive::float_>> {};
-  struct DoubleSpec : rule<kw<"double">, value<ast::Primitive::double_>> {};
-  struct QuadrupleSpec
-      : rule<kw<"quadruple">, value<ast::Primitive::quadruple>> {};
-  struct BoolSpec : rule<kw<"bool">, value<ast::Primitive::bool_>> {};
 
-  struct CharSpec : rule<kw<"char">, value<ast::Primitive::char_>> {};
-  struct ShortSpec : rule<kw<"short"> + option(kw<"int">), value<ast::Primitive::short_>> {};
-  struct LongSpec : rule<kw<"long"> + option(kw<"int">), value<ast::Primitive::long_>> {};
-  struct UnsignedCharSpec : rule<kw<"unsigned"> + kw<"char">, value<ast::Primitive::unsigned_char>> {};
-  struct UnsignedShortSpec : rule<kw<"unsigned"> + kw<"short"> + option(kw<"int">), value<ast::Primitive::unsigned_short>> {};
-  struct UnsignedLongSpec : rule<kw<"unsigned"> + kw<"long"> + option(kw<"int">), value<ast::Primitive::unsigned_long>> {};
 
-  struct PrimitiveTypeRule
+  struct PrimitiveType
       : rule<assign<&ast::PrimitiveType::kind>(
-            ref<UnsignedCharSpec> | ref<UnsignedShortSpec> | ref<UnsignedLongSpec> |
-            ref<UnsignedHyperSpec> | ref<UnsignedIntSpec> | ref<IntSpec> |
-            ref<HyperSpec> | ref<CharSpec> | ref<ShortSpec> | ref<LongSpec> | ref<FloatSpec> | ref<DoubleSpec> |
-            ref<QuadrupleSpec> | ref<BoolSpec>)> {};
+            as<ast::Primitive::unsigned_char>(kw<"unsigned"> + kw<"char">) | as<ast::Primitive::unsigned_short>(kw<"unsigned"> + kw<"short"> + option(kw<"int">)) | as<ast::Primitive::unsigned_long>(kw<"unsigned"> + kw<"long"> + option(kw<"int">)) |
+            as<ast::Primitive::unsigned_hyper>(kw<"unsigned"> + kw<"hyper"> + option(kw<"int">)) | as<ast::Primitive::unsigned_int>(kw<"unsigned"> + option(kw<"int">)) | as<ast::Primitive::int_>(kw<"int">) |
+            as<ast::Primitive::hyper>(kw<"hyper"> + option(kw<"int">)) | as<ast::Primitive::char_>(kw<"char">) | as<ast::Primitive::short_>(kw<"short"> + option(kw<"int">)) | as<ast::Primitive::long_>(kw<"long"> + option(kw<"int">)) | as<ast::Primitive::float_>(kw<"float">) | as<ast::Primitive::double_>(kw<"double">) |
+            as<ast::Primitive::quadruple>(kw<"quadruple">) | as<ast::Primitive::bool_>(kw<"bool">))> {};
 
-  struct NamedTypeRule : rule<
+  struct NamedType : rule<
       option(assign<&ast::NamedType::prefix>(kw<"struct"> | kw<"enum"> | kw<"union">)) +
       assign<&ast::NamedType::name>(ref<ID>)> {};
 
-  struct OpaqueTypeRule : rule<create<ast::OpaqueType> + kw<"opaque">> {};
-  struct StringTypeRule : rule<create<ast::StringType> + kw<"string">> {};
+  struct OpaqueType : rule<create<ast::OpaqueType> + kw<"opaque">> {};
+  struct StringType : rule<create<ast::StringType> + kw<"string">> {};
 
-  struct DeclarationRule;
+  struct Declaration;
 
-  struct EnumConstRule
+  struct EnumConst
       : rule<assign<&ast::EnumConst::name>(ref<ID>) +
              option(lit<"="> + assign<&ast::EnumConst::value>(ValueExpr))> {};
 
-  struct EnumBodyRule
+  struct EnumBody
       : rule<lit<"{"> +
-             some(append<&ast::EnumType::consts>(ref<EnumConstRule>),
+             some(append<&ast::EnumType::consts>(ref<EnumConst>),
                   lit<",">) +
              lit<"}">> {};
 
-  struct EnumTypeSpecRule : rule<kw<"enum"> + ref<EnumBodyRule>> {};
+  struct EnumTypeSpec : rule<kw<"enum"> + ref<EnumBody>> {};
 
-  struct StructBodyRule
+  struct StructBody
       : rule<lit<"{"> +
-             some(append<&ast::StructType::members>(ref<DeclarationRule>) +
+             some(append<&ast::StructType::members>(ref<Declaration>) +
                   lit<";">) +
              lit<"}">> {};
 
-  struct StructTypeSpecRule : rule<kw<"struct"> + ref<StructBodyRule>> {};
+  struct StructTypeSpec : rule<kw<"struct"> + ref<StructBody>> {};
 
-  struct CaseLabelRule
+  struct CaseLabel
       : rule<kw<"case"> + assign<&ast::CaseLabel::value>(ValueExpr | ref<CHARACTER>) +
              lit<":">> {};
 
-  struct CaseSpecRule
-      : rule<some(append<&ast::CaseSpec::labels>(ref<CaseLabelRule>)) +
-             assign<&ast::CaseSpec::body>(ref<DeclarationRule>) + lit<";">> {
+  struct CaseSpec
+      : rule<some(append<&ast::CaseSpec::labels>(ref<CaseLabel>)) +
+             assign<&ast::CaseSpec::body>(ref<Declaration>) + lit<";">> {
   };
 
-  struct UnionBodyRule
+  struct UnionBody
       : rule<kw<"switch"> + lit<"("> +
-             assign<&ast::UnionType::discriminant>(ref<DeclarationRule>) +
+             assign<&ast::UnionType::discriminant>(ref<Declaration>) +
              lit<")"> + lit<"{"> +
-             some(append<&ast::UnionType::cases>(ref<CaseSpecRule>)) +
+             some(append<&ast::UnionType::cases>(ref<CaseSpec>)) +
              option(kw<"default"> + lit<":"> +
                     assign<&ast::UnionType::defaultCase>(
-                        ref<DeclarationRule>) +
+                        ref<Declaration>) +
                     lit<";">) +
              lit<"}">> {};
 
-  struct UnionTypeSpecRule : rule<kw<"union"> + ref<UnionBodyRule>> {};
+  struct UnionTypeSpec : rule<kw<"union"> + ref<UnionBody>> {};
 
-  struct TypeSpecifierRule
-      : rule<ref<PrimitiveTypeRule> | ref<EnumTypeSpecRule> |
-             ref<StructTypeSpecRule> | ref<UnionTypeSpecRule> |
-             ref<OpaqueTypeRule> | ref<StringTypeRule> | ref<NamedTypeRule>> {};
+  struct TypeSpecifier
+      : rule<ref<PrimitiveType> | ref<EnumTypeSpec> |
+             ref<StructTypeSpec> | ref<UnionTypeSpec> |
+             ref<OpaqueType> | ref<StringType> | ref<NamedType>> {};
 
-  static constexpr auto ArrayOpen =
-      ref<rule<lit<"[">, value<ast::Bound::fixed>>>;
-  static constexpr auto VarOpen =
-      ref<rule<lit<"<">, value<ast::Bound::variable>>>;
+  static constexpr auto ArrayOpen = ref<rule<as<ast::Bound::fixed>(lit<"[">)>>;
+  static constexpr auto VarOpen = ref<rule<as<ast::Bound::variable>(lit<"<">)>>;
 
   static constexpr auto ArraySuffix =
       (assign<&ast::ValueDecl::bound>(ArrayOpen) +
@@ -117,16 +104,16 @@ struct Oncrpc : cursiv::GrammarSpec {
       (assign<&ast::ValueDecl::bound>(VarOpen) +
        option(assign<&ast::ValueDecl::size>(ValueExpr)) + lit<">">);
 
-  struct VoidDeclRule : rule<create<ast::VoidDecl> + kw<"void">> {};
+  struct VoidDecl : rule<create<ast::VoidDecl> + kw<"void">> {};
 
-  struct ValueDeclRule
-      : rule<assign<&ast::ValueDecl::type>(ref<TypeSpecifierRule>) +
+  struct ValueDecl
+      : rule<assign<&ast::ValueDecl::type>(ref<TypeSpecifier>) +
              option(flag<&ast::ValueDecl::pointer>(lit<"*">)) +
              assign<&ast::ValueDecl::name>(ref<ID>) + option(ArraySuffix)> {};
 
-  struct ArgumentRule : rule<
+  struct Argument : rule<
       create<ast::VoidDecl>(kw<"void"> + option(assign<&ast::VoidDecl::name>(ref<ID>))) |
-      create<ast::ValueDecl>(assign<&ast::ValueDecl::type>(ref<TypeSpecifierRule>) +
+      create<ast::ValueDecl>(assign<&ast::ValueDecl::type>(ref<TypeSpecifier>) +
           option((flag<&ast::ValueDecl::pointer>(lit<"*">) +
                   option(assign<&ast::ValueDecl::name>(ref<ID>))) |
                  (assign<&ast::ValueDecl::name>(ref<ID>) +
@@ -134,66 +121,66 @@ struct Oncrpc : cursiv::GrammarSpec {
                          option(append<&ast::ValueDecl::extraNames>(ref<ID>))))) +
           option(ArraySuffix))> {};
 
-  struct DeclarationRule
-      : rule<ref<VoidDeclRule> | ref<ValueDeclRule>> {};
+  struct Declaration
+      : rule<ref<VoidDecl> | ref<ValueDecl>> {};
 
-  struct TypedefDefRule
+  struct TypedefDef
       : rule<kw<"typedef"> + assign<&ast::TypedefDef::decl>(
-                                  ref<DeclarationRule>) +
+                                  ref<Declaration>) +
              lit<";">> {};
 
-  struct EnumDefRule
+  struct EnumDef
       : rule<kw<"enum"> + assign<&ast::EnumDef::name>(ref<ID>) +
-             assign<&ast::EnumDef::body>(ref<EnumBodyRule>) + lit<";">> {};
+             assign<&ast::EnumDef::body>(ref<EnumBody>) + lit<";">> {};
 
-  struct StructDefRule
+  struct StructDef
       : rule<kw<"struct"> + assign<&ast::StructDef::name>(ref<ID>) +
-             assign<&ast::StructDef::body>(ref<StructBodyRule>) + lit<";">> {
+             assign<&ast::StructDef::body>(ref<StructBody>) + lit<";">> {
   };
 
-  struct UnionDefRule
+  struct UnionDef
       : rule<kw<"union"> + assign<&ast::UnionDef::name>(ref<ID>) +
-             assign<&ast::UnionDef::body>(ref<UnionBodyRule>) + lit<";">> {};
+             assign<&ast::UnionDef::body>(ref<UnionBody>) + lit<";">> {};
 
-  struct ConstantDefRule
+  struct ConstantDef
       : rule<kw<"const"> + assign<&ast::ConstantDef::name>(ref<ID>) +
              lit<"="> + assign<&ast::ConstantDef::value>(ValueExpr | ref<STRING>) +
              lit<";">> {};
 
-  struct DefinitionRule
-      : rule<ref<TypedefDefRule> | ref<EnumDefRule> | ref<StructDefRule> |
-             ref<UnionDefRule> | ref<ConstantDefRule>> {};
+  struct Definition
+      : rule<ref<TypedefDef> | ref<EnumDef> | ref<StructDef> |
+             ref<UnionDef> | ref<ConstantDef>> {};
 
-  struct ProcedureDefRule
+  struct ProcedureDef
       : rule<(assign<&ast::ProcedureDef::returnType>(
-                  ref<TypeSpecifierRule>) |
+                  ref<TypeSpecifier>) |
               kw<"void">) +
              assign<&ast::ProcedureDef::name>(ref<ID>) + lit<"("> +
-             many(append<&ast::ProcedureDef::arguments>(ref<ArgumentRule>), lit<",">) +
+             many(append<&ast::ProcedureDef::arguments>(ref<Argument>), lit<",">) +
              lit<")"> + lit<"="> +
              assign<&ast::ProcedureDef::number>(ValueExpr) + lit<";">> {};
 
-  struct VersionDefRule
+  struct VersionDef
       : rule<kw<"version"> + assign<&ast::VersionDef::name>(ref<ID>) +
              lit<"{"> +
              some(append<&ast::VersionDef::procedures>(
-                 ref<ProcedureDefRule>)) +
+                 ref<ProcedureDef>)) +
              lit<"}"> + lit<"="> +
              assign<&ast::VersionDef::number>(ValueExpr) + lit<";">> {};
 
-  struct ProgramDefRule
+  struct ProgramDef
       : rule<kw<"program"> + assign<&ast::ProgramDef::name>(ref<ID>) +
              lit<"{"> +
-             some(append<&ast::ProgramDef::versions>(ref<VersionDefRule>)) +
+             some(append<&ast::ProgramDef::versions>(ref<VersionDef>)) +
              lit<"}"> + lit<"="> +
              assign<&ast::ProgramDef::number>(ValueExpr) + lit<";">> {};
 
-  struct SpecificationRule
+  struct Specification
       : rule<many(append<&ast::Specification::items>(
-            ref<DefinitionRule> | ref<ProgramDefRule>))> {};
+            ref<Definition> | ref<ProgramDef>))> {};
 
-  using entry = SpecificationRule;
-  using ignore = list<WS, COMMENT>;
+  using entry = Specification;
+  using ignored = list<WS, COMMENT>;
 };
 
 }  // namespace oncrpc

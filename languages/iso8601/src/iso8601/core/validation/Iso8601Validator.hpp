@@ -12,6 +12,10 @@ public:
                  cursiv::ValidationAcceptor &) const;
   void checkDuration(const ast::DurationParts &,
                      cursiv::ValidationAcceptor &) const;
+  void checkDateTime(const ast::DateTimeValue &,
+                     cursiv::ValidationAcceptor &) const;
+  void checkDocument(const ast::Document &,
+                     cursiv::ValidationAcceptor &) const;
 };
 struct Iso8601CoreServices;
 void register_validation_checks(Iso8601CoreServices &);

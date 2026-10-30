@@ -100,10 +100,17 @@ inline int run(const auto &language) {
     if (root)
       visit(visit, *root);
     parents &= seen.size() == result.nodes.size();
+    const auto validation = cursiv::test::validationHelper(language.language, source);
+    const bool expectsArityError = std::string_view(c.file) == "10.st";
+    bool validDiagnostics = validation.diagnostics.empty();
+    if (expectsArityError) {
+      validDiagnostics = false;
+      for (const auto& diagnostic : validation.diagnostics)
+        validDiagnostics |= diagnostic.code && *diagnostic.code == "stringtemplate.map-arity";
+    }
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !parents || text.str() != c.tree ||
-        !cursiv::test::validationHelper(language.language, source)
-             .diagnostics.empty()) {
+        !validDiagnostics) {
       std::fprintf(stderr, "stringtemplate: incorrect native fields %s\n",
                    c.file);
       ++errors;
@@ -114,6 +121,8 @@ inline int run(const auto &language) {
         std::pair{"<f(...,a=x)>", "stringtemplate.argument-forwarding"},
         std::pair{"<x:name>", "stringtemplate.map-target"},
         std::pair{"<x,y:t(),u()>", "stringtemplate.zip-target"},
+        std::pair{"<x:{literal}>", "stringtemplate.map-arity"},
+        std::pair{"<x,y:{one|<one>}>", "stringtemplate.map-arity"},
         std::pair{"<x;unknown=\"x\">", "stringtemplate.option"},
         std::pair{"<x;separator>", "stringtemplate.option-value"}}) {
     const auto result = language.language.parser->parse(c.first);

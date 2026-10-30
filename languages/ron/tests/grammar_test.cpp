@@ -1,3 +1,4 @@
+#include "native_followup.hpp"
 
 #include <cstdio>
 
@@ -100,6 +101,52 @@ static int audit_regression() {
   const auto language =
       cursiv::create_language<ron::RonCoreServices, ron::RonSharedCoreServices,
                               ron::install_core_module>();
+  for (const auto *source : {R"("\u{110000}")", R"("\u{D800}")",
+                             R"("\u{100000000000000000000000000000000}")",
+                             R"("\u{0000000}")", R"("\xE9")", R"("\xC0\x80")",
+                             R"("\b")", R"("\f")"}) {
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() ||
+        result.diagnostics.size() != 1 ||
+        result.diagnostics[0].kind != cursiv::DiagnosticKind::conversion_error)
+      return 1;
+  }
+  {
+    const auto result = language.language.parser->parse(R"(["\xC3\xA9", b"\xFF"])");
+    const auto *doc = result.value_as<ron::ast::Document>();
+    const auto *list = doc && doc->values.size() == 1
+        ? std::get_if<ron::ast::ListV *>(&doc->values[0]->payload) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !list || !*list || (*list)->items.size() != 2)
+      return 1;
+    const auto *text = std::get_if<std::string_view>(&(*list)->items[0]->payload);
+    const auto *bytes = std::get_if<ron::ast::Bytes *>(&(*list)->items[1]->payload);
+    if (!text || *text != "é" || !bytes || !*bytes ||
+        (*bytes)->text != std::string_view("\xff", 1))
+      return 1;
+  }
+  for (const auto *source : {"b'😀'", R"(b'\u{41}')"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return 1;
+  }
+  for (const auto *source : {"", "// no root", "1 2", "1,", "[1,,2]",
+                             "(a:1,,b:2)", "{a:1,,b:2}", "[,]", "{,}", "(,)",
+                             "Named 1", "Named[1]"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return 1;
+  }
+  for (const std::string source : {std::string("\"a\\\n  \tb\""),
+                                    std::string("\"a\\\r\n  \tb\"")}) {
+    const auto result = language.language.parser->parse(source);
+    const auto *doc = result.value_as<ron::ast::Document>();
+    const auto *text = doc && doc->values.size() == 1
+        ? std::get_if<std::string_view>(&doc->values[0]->payload) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !text || *text != "ab")
+      return 1;
+  }
   {
     const auto r = language.language.parser->parse("[]");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
@@ -154,7 +201,8 @@ int main() {
   const auto language =
       cursiv::create_language<ron::RonCoreServices, ron::RonSharedCoreServices,
                               ron::install_core_module>();
-  if (native_shapes(*language.language.parser))
+  if (!native_followup(*language.language.parser) ||
+      native_shapes(*language.language.parser))
     return 1;
 
   int count = 0;

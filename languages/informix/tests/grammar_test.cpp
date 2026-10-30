@@ -12,6 +12,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "informix/core/CoreServices.hpp"
 #include "informix/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -49,6 +50,7 @@ int main() {
   const auto language = cursiv::create_language<
       informix::InformixCoreServices, informix::InformixSharedCoreServices,
       informix::install_core_module>();
+  if (!informix_native_followup::run(language)) return 1;
 
   for (const char* const name : kExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;

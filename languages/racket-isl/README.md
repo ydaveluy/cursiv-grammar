@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Racket 8.18 / HtDP Intermediate Student Language source reader.
+
 ```racket
 #lang htdp/isl
 
@@ -47,12 +49,6 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 (check-expect (contains 1 z) #true)
 (check-expect (contains 4 z) #false)
 ```
-
-Racket's Intermediate Student Language (with lambda): BSL's forms plus
-`lambda`/`λ`, `let`/`let*`/`letrec`/`shared`/`recur`, `local`, `begin`/
-`begin0`, `set!`, `delay`, `time`, and quoted/quasiquoted data -- still
-s-expression syntax throughout, no infix, no indentation.
-`example/constructs.racketisl` carries what this sample does not reach.
 
 ## The command line
 

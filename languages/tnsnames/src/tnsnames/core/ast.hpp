@@ -16,7 +16,10 @@ enum class ServerType : std::uint8_t { dedicated, shared_, pooled };
 enum class FailoverType : std::uint8_t { session, select_, none };
 enum class FailoverMethod : std::uint8_t { basic, preconnect };
 
-struct Protocol : cursiv::Extends<cursiv::AstNode> {};
+struct Protocol : cursiv::Extends<cursiv::AstNode> {
+  vector<uint64> sendBufs;
+  vector<uint64> recvBufs;
+};
 
 struct TcpProtocol : cursiv::Extends<Protocol> {
   boolean secure;  // TCPS; false for TCP.
@@ -48,8 +51,6 @@ struct BeqProtocol : cursiv::Extends<Protocol> {
 
 struct Address : cursiv::Extends<cursiv::AstNode> {
   Protocol* protocol;
-  vector<uint64> sendBufs;
-  vector<uint64> recvBufs;
 };
 
 struct AddressList : cursiv::Extends<cursiv::AstNode> {

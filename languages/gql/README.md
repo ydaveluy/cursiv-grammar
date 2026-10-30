@@ -31,19 +31,14 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-GQL (ISO/IEC 39075) is a SQL-shaped query language over property graphs:
+GQL queries and schema declarations for property graphs, based on
+ISO/IEC 39075:2024. The example matches a graph pattern and returns selected
+properties.
 
 ```
 MATCH (n:Person)-[f:FRIEND_OF]->(m:Person)
 RETURN n.name, f.since, m.name
 ```
-
-`MATCH` binds a graph pattern -- nodes in parens, edges in brackets, labels
-after `:` -- and `RETURN` projects an expression per row, the way a SQL
-`SELECT` does. The port also covers `INSERT`/`SET`/`REMOVE`/`DELETE`,
-`LET`/`FOR`/`FILTER`, composite queries (`UNION`/`EXCEPT`/`INTERSECT`), a
-`SELECT` form, and the catalog DDL (`CREATE`/`DROP SCHEMA`/`GRAPH`/`GRAPH
-TYPE`) and session/transaction commands that frame a program.
 
 ## The command line
 

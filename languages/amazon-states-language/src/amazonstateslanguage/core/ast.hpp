@@ -52,6 +52,8 @@ struct Catcher : cursiv::Extends<cursiv::AstNode> {
   bool result_path_null = false;
   vector<string_view> next;
   vector<string_view> comment;
+  vector<Object*> assignments;
+  vector<Val> outputs;
 };
 
 // The two Choices shapes share this base, so `State::choices` reads both
@@ -60,6 +62,12 @@ struct ChoiceRule : cursiv::Extends<cursiv::AstNode> {
   vector<string_view> members;
   vector<string_view> comment;
   vector<string_view> next;
+  vector<Object*> assignments;
+  vector<Val> outputs;
+};
+
+struct JsonataChoiceRule : cursiv::Extends<ChoiceRule> {
+  vector<Val> conditions;
 };
 
 // `{ "Variable": ..., "<Op>": <value>, "Next": ... }`.
@@ -79,6 +87,7 @@ struct ProcessorConfig : cursiv::Extends<cursiv::AstNode> {
   vector<string_view> members;
   vector<string_view> mode;
   vector<string_view> execution_type;
+  vector<Binding*> extensions;
 };
 
 struct ReaderConfig : cursiv::Extends<cursiv::AstNode> {
@@ -88,6 +97,7 @@ struct ReaderConfig : cursiv::Extends<cursiv::AstNode> {
   vector<string_view> csv_headers;
   vector<int64> max_items;
   vector<string_view> max_items_path;
+  vector<Binding*> extensions;
 };
 
 struct ItemReader : cursiv::Extends<cursiv::AstNode> {
@@ -95,6 +105,7 @@ struct ItemReader : cursiv::Extends<cursiv::AstNode> {
   vector<string_view> resource;
   vector<Object*> parameters;
   vector<ReaderConfig*> reader_config;
+  vector<Val> arguments;
 };
 
 struct State;
@@ -110,6 +121,7 @@ struct Program : cursiv::Extends<cursiv::AstNode> {
   vector<int64> timeout_seconds;
   vector<ProcessorConfig*> processor_config;
   vector<State*> states;
+  vector<string_view> query_languages;
 };
 
 struct State : cursiv::Extends<cursiv::AstNode> {
@@ -151,6 +163,15 @@ struct State : cursiv::Extends<cursiv::AstNode> {
   vector<Retrier*> retry;
   vector<Catcher*> catch_;
   vector<Object*> result_selectors;
+  vector<string_view> query_languages;
+  vector<Object*> assignments;
+  vector<Val> arguments;
+  vector<Val> outputs;
+  vector<Object*> credentials;
+  // Map-specific options retain their names and arbitrary JSON values.
+  vector<Binding*> map_options;
+  vector<Binding*> numeric_expressions;
+  vector<Val> item_selector_values;
 };
 
 }  // namespace amazonstateslanguage::ast

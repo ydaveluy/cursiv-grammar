@@ -31,21 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-```
-(;FF[4]GM[1]SZ[19]ST[2]CA[UTF-8]AP[SGFC:1.17]
-PB[chensicha]BR[14k]HA[2]PW[creedfoxx]WR[13k]KM[0.5]
-AB[pd][dp]C[a comment];W[dd];B[pp]
-(;W[nc])
-(;W[qf]))
-```
+SGF FF[4] game trees with ordered nodes and properties. Values retain source escapes; game-specific rules are outside this parser.
 
-A collection is one or more game trees; a game tree is a sequence of nodes
-(`;` followed by properties) and its variations, nested in parentheses. A
-property is an uppercase identifier followed by one or more bracketed values
-— `AB[pd][dp]` sets up two black stones, `C[...]` attaches a comment. SGF
-(Smart Game Format, FF[4]) is a general record format for board games; this
-grammar accepts the ~70 standard property identifiers and any other run of
-two or more uppercase letters as a private property.
+```
+(;FF[4]GM[1]SZ[19]C[a comment];B[aa](;W[bb])(;W[cc]))
+```
 
 ## The command line
 

@@ -12,6 +12,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "trac/core/CoreServices.hpp"
 #include "trac/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -25,6 +26,10 @@ int main() {
   const auto language = cursiv::create_language<
       trac::TracCoreServices, trac::TracSharedCoreServices,
       trac::install_core_module>();
+  if (!trac_native_followup::run(language)) {
+    std::fprintf(stderr, "trac: native argument protection or ownership mismatch\n");
+    return 1;
+  }
 
   int count = 0;
   int failures = 0;

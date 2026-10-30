@@ -24,7 +24,8 @@ bool offers_at(const cursiv::Parser& engine, const std::string& text,
   engine.nextFeaturesAt(r.cst(), at, at, out);
   const cursiv::Grammar& g = engine.getGrammar();
   for (const cursiv::NextFeature& f : out)
-    if (g.terminalText(f.feature) == want) return true;
+    for (const std::string_view spelling : g.terminalSpellings(f.feature))
+      if (spelling == want) return true;
   return false;
 }
 

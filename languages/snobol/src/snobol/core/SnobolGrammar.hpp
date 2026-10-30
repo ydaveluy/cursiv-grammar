@@ -10,70 +10,35 @@
 namespace snobol {
 
 struct Snobol : cursiv::GrammarSpec {
+  static constexpr auto word_boundary = cr<"0-9a-zA-Z._">;
   struct WS : terminal<some(cr<R"( \t)">)> {};
   struct EOL : terminal<some(cr<R"(\r\n)">)> {};
   struct COMMENT : terminal<lit<"*"> + many(cr<R"(^\r\n)">)> {};
 
-  struct END_KW : terminal<kw<"END">> {};
+  struct END_KW : terminal<ikw<"END">> {};
 
-  struct STRING : terminal<cr<"a-zA-Z"> + many(cr<"0-9a-zA-Z">)> {};
-  struct INTEGER
-      : terminal<option(cr<"+-">) + some(d), std::int64_t> {};
+  struct STRING : terminal<cr<"a-zA-Z"> + many(cr<"0-9a-zA-Z._">)> {};
+  struct INTEGER : terminal<as<std::int64_t>(option(cr<"+-">) + some(d))> {};
 
   inline static constexpr auto unquote = [](std::string_view t) {
     return t.substr(1, t.size() - 2);
   };
-  using Unquoted = cursiv::text_conv<unquote>;
 
   struct STRINGLITERAL1
-      : terminal<lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">, Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">)> {};
   struct STRINGLITERAL2
-      : terminal<lit<"'"> + many(cr<R"(^'\r\n)">) + lit<"'">, Unquoted> {};
+      : terminal<as<unquote>(lit<"'"> + many(cr<R"(^'\r\n)">) + lit<"'">)> {};
 
-  struct TRANSFERPRE : terminal<cr<"fFsS">> {};
+  struct SUCCESS : terminal<cr<"sS">> {};
+  struct FAILURE : terminal<cr<"fF">> {};
 
-  struct PLUS : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct MINUS : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct TIMES : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIVIDE : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct POW : terminal<lit<"^">, value<ast::Operator::pow>> {};
 
-  struct IDENT_KW : terminal<kw<"ident">, value<ast::Builtin::ident>> {};
-  struct DIFFER_KW : terminal<kw<"differ">, value<ast::Builtin::differ>> {};
-  struct EQ_KW : terminal<kw<"eq">, value<ast::Builtin::eq>> {};
-  struct NE_KW : terminal<kw<"ne">, value<ast::Builtin::ne>> {};
-  struct GE_KW : terminal<kw<"ge">, value<ast::Builtin::ge>> {};
-  struct LE_KW : terminal<kw<"le">, value<ast::Builtin::le>> {};
-  struct LT_KW : terminal<kw<"lt">, value<ast::Builtin::lt>> {};
-  struct INTEGER_KW
-      : terminal<kw<"integer">, value<ast::Builtin::integer>> {};
-  struct LGT_KW : terminal<kw<"lgt">, value<ast::Builtin::lgt>> {};
-  struct ATAN_KW : terminal<kw<"atan">, value<ast::Builtin::atan>> {};
-  struct CHOP_KW : terminal<kw<"chop">, value<ast::Builtin::chop>> {};
-  struct COS_KW : terminal<kw<"cos">, value<ast::Builtin::cos>> {};
-  struct EXP_KW : terminal<kw<"exp">, value<ast::Builtin::exp>> {};
-  struct LN_KW : terminal<kw<"ln">, value<ast::Builtin::ln>> {};
-  struct REMDR_KW : terminal<kw<"remdr">, value<ast::Builtin::remdr>> {};
-  struct SIN_KW : terminal<kw<"sin">, value<ast::Builtin::sin>> {};
-  struct TAN_KW : terminal<kw<"tan">, value<ast::Builtin::tan>> {};
-  struct DATE_KW : terminal<kw<"date">, value<ast::Builtin::date>> {};
-  struct DUPL_KW : terminal<kw<"dupl">, value<ast::Builtin::dupl>> {};
-  struct REVERSE_KW
-      : terminal<kw<"reverse">, value<ast::Builtin::reverse>> {};
-  struct REPLACE_KW
-      : terminal<kw<"replace">, value<ast::Builtin::replace>> {};
-  struct SIZE_KW : terminal<kw<"size">, value<ast::Builtin::size>> {};
-  struct TRIM_KW : terminal<kw<"trim">, value<ast::Builtin::trim>> {};
-  struct ARRAY_KW : terminal<kw<"array">, value<ast::Builtin::array_>> {};
-  struct SORT_KW : terminal<kw<"sort">, value<ast::Builtin::sort>> {};
-  struct TABLE_KW : terminal<kw<"table">, value<ast::Builtin::table>> {};
-  struct BREAK_KW : terminal<kw<"break">, value<ast::Builtin::break_>> {};
 
   struct Expression;
 
-  struct SubjectRule
+  struct Subject
       : rule<create<ast::Subject>(
-            option(flag<&ast::Subject::indirect>(lit<"&">)) +
+            option(flag<&ast::Subject::keyword>(lit<"&">)) +
             assign<&ast::Subject::name>(ref<STRING>) +
             option(lit<"["> +
                    some(append<&ast::Subject::subscript>(ref<STRING>),
@@ -85,10 +50,10 @@ struct Snobol : cursiv::GrammarSpec {
             ref<STRINGLITERAL1> | ref<STRINGLITERAL2>))> {};
 
   // Every builtin is `name(arg[, arg[, arg]])`: `fn` is the token, filled by
-  // its own `value<>` converter, and each rule differs only in its argument
+  // its own `as<>` constant, and each rule differs only in its argument
   // count (0, 1, 2 or 3).
-  static constexpr auto BuiltinName = ref<IDENT_KW> | ref<DIFFER_KW> | ref<EQ_KW> | ref<NE_KW> | ref<GE_KW> | ref<LE_KW> | ref<LT_KW> | ref<INTEGER_KW> | ref<LGT_KW> | ref<ATAN_KW> | ref<CHOP_KW> | ref<COS_KW> | ref<EXP_KW> | ref<LN_KW> | ref<REMDR_KW> | ref<SIN_KW> | ref<TAN_KW> | ref<DATE_KW> | ref<DUPL_KW> | ref<REVERSE_KW> | ref<REPLACE_KW> | ref<SIZE_KW> | ref<TRIM_KW> | ref<ARRAY_KW> | ref<SORT_KW> | ref<TABLE_KW> | ref<BREAK_KW>;
-  struct CommandRule : rule<create<ast::FunctionCall>(
+  static constexpr auto BuiltinName = as<ast::Builtin::ident>(ikw<"ident">) | as<ast::Builtin::differ>(ikw<"differ">) | as<ast::Builtin::eq>(ikw<"eq">) | as<ast::Builtin::ne>(ikw<"ne">) | as<ast::Builtin::ge>(ikw<"ge">) | as<ast::Builtin::le>(ikw<"le">) | as<ast::Builtin::lt>(ikw<"lt">) | as<ast::Builtin::integer>(ikw<"integer">) | as<ast::Builtin::lgt>(ikw<"lgt">) | as<ast::Builtin::atan>(ikw<"atan">) | as<ast::Builtin::chop>(ikw<"chop">) | as<ast::Builtin::cos>(ikw<"cos">) | as<ast::Builtin::exp>(ikw<"exp">) | as<ast::Builtin::ln>(ikw<"ln">) | as<ast::Builtin::remdr>(ikw<"remdr">) | as<ast::Builtin::sin>(ikw<"sin">) | as<ast::Builtin::tan>(ikw<"tan">) | as<ast::Builtin::date>(ikw<"date">) | as<ast::Builtin::dupl>(ikw<"dupl">) | as<ast::Builtin::reverse>(ikw<"reverse">) | as<ast::Builtin::replace>(ikw<"replace">) | as<ast::Builtin::size>(ikw<"size">) | as<ast::Builtin::trim>(ikw<"trim">) | as<ast::Builtin::array_>(ikw<"array">) | as<ast::Builtin::sort>(ikw<"sort">) | as<ast::Builtin::table>(ikw<"table">) | as<ast::Builtin::break_>(ikw<"break">);
+  struct Command : rule<create<ast::FunctionCall>(
       assign<&ast::FunctionCall::fn>(BuiltinName) + lit<"("> +
       option(some(append<&ast::FunctionCall::args>(ref<Expression>), lit<",">)) + lit<")">)> {};
 
@@ -96,8 +61,8 @@ struct Snobol : cursiv::GrammarSpec {
       : rule<ref<StringLit>  //
              | create<ast::IntegerLiteral>(
                    assign<&ast::IntegerLiteral::value>(ref<INTEGER>))  //
-             | ref<SubjectRule>                                       //
-             | ref<CommandRule>                                       //
+             | ref<Subject>                                       //
+             | ref<Command>                                       //
              | create<ast::ListExpr>(
                    lit<"["> +
                    some(append<&ast::ListExpr::items>(ref<Expression>),
@@ -105,63 +70,64 @@ struct Snobol : cursiv::GrammarSpec {
                    lit<"]">)  //
              | (lit<"("> + ref<Expression> + lit<")">)> {};
 
-  // Tightest, right-associative (SNOBOL4 gives `**`/`^` the highest
-  // precedence of the arithmetic operators): `a^b^c` is `a^(b^c)`, and
-  // `a^b+c` is `(a^b)+c`, not `a^(b+c)`.
-  struct PowExpr
-      : rule<create<ast::BinaryExpr>(
-            assign<&ast::BinaryExpr::left>(ref<Atom>) +
-            assign<&ast::BinaryExpr::op>(ref<POW>) +
-            assign<&ast::BinaryExpr::right>(ref<PowExpr>))  //
-             | ref<Atom>> {};
-
+  // SNOBOL4 gives multiplication higher precedence than division.
   struct Expression
-      : infix<PowExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<TIMES> | ref<DIVIDE>) >>
-               left(ref<PLUS> | ref<MINUS>))> {};
+      : infix<Atom, ast::BinaryExpr,
+              levels(right(as<ast::Operator::pow>(lit<"^"> | lit<"!"> | lit<"**">)),
+                     left(as<ast::Operator::multiply>(lit<"*">)),
+                     left(as<ast::Operator::divide>(lit<"/">)),
+                     left(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">)))> {};
 
-  struct TransferRule
+  static constexpr auto transferTarget =
+      lit<"("> + (flag<&ast::Transfer::toEnd>(ref<END_KW>) |
+                  assign<&ast::Transfer::label>(ref<STRING>)) + lit<")">;
+  struct SuccessTransfer
       : rule<create<ast::Transfer>(
-            option(option(assign<&ast::Transfer::mode>(ref<TRANSFERPRE>)) +
-                   lit<"("> +
-                   (flag<&ast::Transfer::toEnd>(ref<END_KW>) |
-                    assign<&ast::Transfer::label>(ref<STRING>)) +
-                   lit<")">))> {};
+            assign<&ast::Transfer::mode>(ref<SUCCESS>) + transferTarget)> {};
+  struct FailureTransfer
+      : rule<create<ast::Transfer>(
+            assign<&ast::Transfer::mode>(ref<FAILURE>) + transferTarget)> {};
+  struct Transfer
+      : rule<create<ast::Transfer>(option(
+            (assign<&ast::Transfer::mode>(ref<SUCCESS>) + transferTarget +
+             option(assign<&ast::Transfer::next>(ref<FailureTransfer>))) |
+            (assign<&ast::Transfer::mode>(ref<FAILURE>) + transferTarget +
+             option(assign<&ast::Transfer::next>(ref<SuccessTransfer>))) |
+            transferTarget))> {};
 
   struct StatementLine
       : rule<create<ast::Statement>(
             option(assign<&ast::Statement::label>(ref<STRING>)) +
-            assign<&ast::Statement::subject>(ref<SubjectRule>) +
+            assign<&ast::Statement::subject>(ref<Subject>) +
             option(assign<&ast::Statement::pattern>(ref<StringLit>)) +
-            option(lit<"="> +
-                   some(append<&ast::Statement::replacement>(
+            option(flag<&ast::Statement::hasReplacement>(lit<"=">) +
+                   many(append<&ast::Statement::replacement>(
                        ref<Expression>))) +
             option(lit<":"> +
-                   assign<&ast::Statement::transfer>(ref<TransferRule>)))> {};
+                   assign<&ast::Statement::transfer>(ref<Transfer>)))> {};
 
-  struct GotoLineRule
+  struct GotoLine
       : rule<create<ast::GotoLine>(
-            lit<":"> + assign<&ast::GotoLine::transfer>(ref<TransferRule>))> {
+            lit<":"> + assign<&ast::GotoLine::transfer>(ref<Transfer>))> {
   };
 
-  struct CommentLineRule
+  struct CommentLine
       : rule<create<ast::CommentLine>(
             assign<&ast::CommentLine::text>(ref<COMMENT>))> {};
 
-  struct EndLineRule : rule<create<ast::EndLine> + ref<END_KW>> {};
+  struct EndLine : rule<create<ast::EndLine> + ref<END_KW>> {};
 
-  struct LineRule
-      : rule<ref<StatementLine> | ref<GotoLineRule> | ref<CommentLineRule> |
-             ref<EndLineRule>> {};
+  struct Line
+      : rule<ref<StatementLine> | ref<GotoLine> | ref<CommentLine> |
+             ref<EndLine>> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program> +
-             some(option(append<&ast::Program::lines>(ref<LineRule>)) +
+             some(option(append<&ast::Program::lines>(ref<Line>)) +
                   ref<EOL>)> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
 };
 
 }  // namespace snobol

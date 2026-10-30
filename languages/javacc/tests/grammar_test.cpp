@@ -15,6 +15,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "javacc/core/CoreServices.hpp"
 #include "javacc/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -54,6 +55,8 @@ int main() {
   const auto language = cursiv::create_language<
       javacc::JavaccCoreServices, javacc::JavaccSharedCoreServices,
       javacc::install_core_module>();
+
+  if (!javacc_native_followup::run(language)) return 1;
 
   std::vector<fs::path> docs;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

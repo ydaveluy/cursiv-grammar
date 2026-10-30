@@ -42,7 +42,7 @@ context MyClass::derivedAttribute: Integer
 A document is one or more OCL context specifications: an invariant
 (`context Type inv name?: expression`) or a derived-attribute definition
 (`context Type::attr: type (init: expression)? derive: expression`). The
-expression language is OCL 2.4 -- infix operators, `if`/`then`/`else`,
+expression language is an OCL2.4 subset with UML-RSDS-style extensions: infix operators, `if`/`then`/`else`,
 `let`/`in`, collection literals, and the `->`/`.` operation chains
 (`select`, `collect`, `forAll`, `iterate`...) that give OCL its shape.
 

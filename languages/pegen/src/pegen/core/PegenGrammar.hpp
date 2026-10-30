@@ -12,7 +12,6 @@ namespace pegen {
 inline constexpr auto strip_delimiters = [](std::string_view text) {
   return text.size() >= 2 ? text.substr(1, text.size() - 2) : std::string_view{};
 };
-using TargetText = cursiv::text_conv<strip_delimiters>;
 
 struct Pegen : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\n\r\f)">)> {};
@@ -48,9 +47,16 @@ struct Pegen : cursiv::GrammarSpec {
   struct TargetAtom;
   static constexpr auto target_items =
       many(ref<TargetAtom> | ref<WS> | ref<COMMENT> | ref<CONTINUATION>);
-  struct ACTION : rule<lit<"{"> + tight(target_items + lit<"}">), TargetText> {};
+  static constexpr auto target_trivia =
+      many(ref<WS> | ref<COMMENT> | ref<CONTINUATION>);
+  static constexpr auto target_nonempty =
+      target_trivia + some(ref<TargetAtom> + target_trivia);
+  struct ACTION
+      : rule<as<strip_delimiters>(lit<"{"> + tight(target_nonempty + lit<"}">))> {
+  };
   struct Annotation
-      : rule<lit<"["> + tight(target_items + lit<"]">), TargetText> {};
+      : rule<as<strip_delimiters>(lit<"["> + tight(target_nonempty + lit<"]">))> {
+  };
   struct NestedAction : rule<lit<"{"> + tight(target_items + lit<"}">)> {};
   struct NestedAnnotation : rule<lit<"["> + tight(target_items + lit<"]">)> {};
   struct TargetAtom : rule<ref<NestedAction> | ref<NestedAnnotation> | ref<NAME> | ref<NUMBER> |
@@ -102,14 +108,7 @@ struct Pegen : cursiv::GrammarSpec {
 
   static constexpr auto memoflag = lit<"("> + kw<"memo"> + lit<")">;
 
-  struct CardOpt : rule<lit<"?">, value<ast::Card::optional>> {};
-  struct CardStar : rule<lit<"*">, value<ast::Card::star>> {};
-  struct CardPlus : rule<lit<"+">, value<ast::Card::plus>> {};
-  struct OpenBracket : rule<lit<"[">, value<ast::Card::optional>> {};
-
-  struct KindPos : rule<lit<"&">, value<ast::LookKind::positive>> {};
-  struct KindNeg : rule<lit<"!">, value<ast::LookKind::negative>> {};
-  struct KindCut : rule<lit<"~">, value<ast::LookKind::cut>> {};
+  struct OpenBracket : rule<as<ast::Card::optional>(lit<"[">)> {};
 
   struct Alts;
   struct Item;
@@ -131,10 +130,10 @@ struct Pegen : cursiv::GrammarSpec {
                                lit<"]">) |
              create<ast::Item>(assign<&ast::Item::sep>(ref<Atom>) + lit<"."> +
                                assign<&ast::Item::value>(ref<Atom>) +
-                               assign<&ast::Item::card>(ref<CardPlus>)) |
+                               assign<&ast::Item::card>(as<ast::Card::plus>(lit<"+">))) |
              create<ast::Item>(assign<&ast::Item::value>(ref<Atom>) +
                                option(assign<&ast::Item::card>(
-                                   ref<CardOpt> | ref<CardStar> | ref<CardPlus>)))> {};
+                                   as<ast::Card::optional>(lit<"?">) | as<ast::Card::star>(lit<"*">) | as<ast::Card::plus>(lit<"+">))))> {};
 
   struct Named
       : rule<create<ast::Named>(
@@ -147,9 +146,9 @@ struct Pegen : cursiv::GrammarSpec {
                                  assign<&ast::Forced::value>(ref<Atom>))> {};
 
   struct Lookahead
-      : rule<create<ast::Lookahead>(assign<&ast::Lookahead::kind>(ref<KindPos> | ref<KindNeg>) +
+      : rule<create<ast::Lookahead>(assign<&ast::Lookahead::kind>(as<ast::LookKind::positive>(lit<"&">) | as<ast::LookKind::negative>(lit<"!">)) +
                                     assign<&ast::Lookahead::value>(ref<Atom>)) |
-             create<ast::Lookahead>(assign<&ast::Lookahead::kind>(ref<KindCut>))> {};
+             create<ast::Lookahead>(assign<&ast::Lookahead::kind>(as<ast::LookKind::cut>(lit<"~">)))> {};
 
   struct NamedItem : rule<ref<Named> | ref<Forced> | ref<Lookahead>> {};
 
@@ -181,7 +180,7 @@ struct Pegen : cursiv::GrammarSpec {
                                   some(append<&ast::Grammar::rules>(ref<Rule>)))> {};
 
   using entry = Grammar;
-  using ignore = list<WS, COMMENT, CONTINUATION>;
+  using ignored = list<WS, COMMENT, CONTINUATION>;
 };
 
 }  // namespace pegen

@@ -131,20 +131,9 @@ inline bool run(const less::LessCoreServices& language) {
           "mixed named-parameter delimiters need a diagnostic");
   }
   {
-    const std::string source = "@@x:1;";
-    cursiv::Document document(cursiv::TextDocument::create(
-        "file:///native.less", "less", 0, source));
-    document.language = &language;
-    document.parseResult = language.parser->parse(source);
-    verify(document.parseResult, source);
-    if (document.parseResult.value) document.parseResult.value->parent = &document;
-    std::vector<cursiv::Diagnostic> diagnostics;
-    language.documentValidator->validateDocument(document, diagnostics);
-    check(diagnostics.size() == 1 && diagnostics[0].code &&
-              diagnostics[0].code->isString() &&
-              diagnostics[0].code->string() == "less.indirect-declaration" &&
-              diagnostics[0].range.begin == 0 && diagnostics[0].range.end == 3,
-          "indirect declaration code and name range");
+    const auto result = language.parser->parse("@@x:1;");
+    check(!result.accepted || result.cst().recovered() || !result.diagnostics.empty(),
+          "ordinary indirect declaration is rejected by native syntax");
   }
   for (std::string_view source : {"@name:base;@v:@@name;", ".m(@@x:1){v:1;}"}) {
     const auto result = language.parser->parse(source);

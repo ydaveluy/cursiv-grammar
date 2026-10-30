@@ -13,6 +13,8 @@ class TypeScriptValidator final : public cursiv::DefaultCoreService {
                           cursiv::ValidationAcceptor& accept) const;
   void checkInterfaceMembers(const ast::InterfaceDecl& interface,
                              cursiv::ValidationAcceptor& accept) const;
+  void checkResources(const ast::VarDecl& declaration,
+                      cursiv::ValidationAcceptor& accept) const;
 };
 
 struct TypeScriptCoreServices;

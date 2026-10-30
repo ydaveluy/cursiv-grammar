@@ -13,7 +13,7 @@ struct Tcpheader : cursiv::GrammarSpec {
   struct Dword : rule<ref<Byte> + ref<Byte> + ref<Byte> + ref<Byte>> {};
   struct Options : rule<some(ref<Byte>)> {};
 
-  struct SegmentHeaderRule
+  struct SegmentHeader
       : rule<assign<&ast::SegmentHeader::sourcePort>(ref<Word>) +
              assign<&ast::SegmentHeader::destinationPort>(ref<Word>) +
              assign<&ast::SegmentHeader::sequenceNumber>(ref<Dword>) +
@@ -24,7 +24,7 @@ struct Tcpheader : cursiv::GrammarSpec {
              assign<&ast::SegmentHeader::urgent>(ref<Word>) +
              option(assign<&ast::SegmentHeader::options>(ref<Options>))> {};
 
-  using entry = SegmentHeaderRule;
+  using entry = SegmentHeader;
 };
 
 }  // namespace tcpheader

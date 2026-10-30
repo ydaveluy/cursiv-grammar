@@ -70,6 +70,21 @@ inline void run() {
     const auto *n = s ? cursiv::ast_cast<ast::IntLit>(s->value) : nullptr;
     CHECK(n && n->value == "0000001");
   }
+  {
+    const auto comparison = language.language.parser->parse("a+b<c-d;");
+    CHECK(comparison.accepted && !comparison.cst().recovered() &&
+          comparison.diagnostics.empty());
+    const auto* root = comparison.value_as<ast::Program>();
+    const auto* statement = root && root->statements.size() == 1
+        ? cursiv::ast_cast<ast::ExprStmt>(root->statements[0]) : nullptr;
+    const auto* less = statement ? cursiv::ast_cast<ast::BinaryExpr>(statement->value) : nullptr;
+    const auto* left = less ? cursiv::ast_cast<ast::BinaryExpr>(less->left) : nullptr;
+    const auto* right = less ? cursiv::ast_cast<ast::BinaryExpr>(less->right) : nullptr;
+    CHECK(less && less->op == "<" && left && left->op == "+" &&
+          right && right->op == "-");
+    const auto chain = language.language.parser->parse("a<b<c;");
+    CHECK(!chain.accepted || chain.cst().recovered() || !chain.diagnostics.empty());
+  }
   struct Invalid {
     const char *source;
     const char *code;

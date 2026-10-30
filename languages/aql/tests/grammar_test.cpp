@@ -173,6 +173,7 @@ void graph_traversal() {
   CHECK(q->direction == "OUTBOUND");
   CHECK(q->graph != nullptr);
   CHECK(q->prune != nullptr);
+  CHECK(q->pruneVar == "stop");
   CHECK(q->filters.size() == 1);
   CHECK(q->options != nullptr);
 }
@@ -242,9 +243,16 @@ void operator_precedence() {
     CHECK(as<ast::NotExpr>(t->then_) != nullptr);
   }
   {
-    // Assignment binds tighter than comma, looser than OR.
-    cursiv::ParseResult r = build("RETURN a, b = c || d");
-    ast::BinaryExpr* const comma = as<ast::BinaryExpr>(returned(r));
+    // Commas and assignment form LET lists, not scalar expressions.
+    const std::string text = "LET a = 1, b = c || d RETURN b";
+    cursiv::ParseResult r = build(text);
+    auto* const query = as<ast::SimpleQuery>(r.value);
+    CHECK(query && query->return_ && query->return_->letBefore);
+    if (!query || !query->return_ || !query->return_->letBefore) return;
+    const auto& bindings = query->return_->letBefore->bindings;
+    CHECK(bindings.size() == 1);
+    ast::BinaryExpr* const comma = bindings.empty() ? nullptr :
+                                  as<ast::BinaryExpr>(bindings[0]);
     CHECK(comma != nullptr && comma->op == ast::BinOp::comma);
     ast::BinaryExpr* const assign = comma != nullptr ? as<ast::BinaryExpr>(comma->right) : nullptr;
     CHECK(assign != nullptr && assign->op == ast::BinOp::assign);
@@ -265,6 +273,172 @@ void operator_precedence() {
     CHECK(eq != nullptr && eq->op == ast::BinOp::eq);
     CHECK(eq != nullptr && as<ast::NotExpr>(eq->left) != nullptr);
   }
+}
+
+void list_values(ast::Expr* value, std::vector<ast::Expr*>& result) {
+  auto* binary = as<ast::BinaryExpr>(value);
+  if (binary && binary->op == ast::BinOp::comma) {
+    list_values(binary->left, result);
+    list_values(binary->right, result);
+  } else if (value) {
+    result.push_back(value);
+  }
+}
+
+void native_text_and_numbers() {
+  const std::string source = R"AQL(
+    /* outer /* is ordinary comment content */
+    RETURN ["", '', 'a\'b', "a\"b", "\b\f\n\r\t\/\\", "\u0061\uD83D\uDE00", "\q", "\u0000", 0b101, 0xAf,]
+  )AQL";
+  auto result = build(source);
+  CHECK(!result.cst().recovered() && result.diagnostics.empty());
+  auto* const array = as<ast::ArrayLit>(returned(result));
+  CHECK(array);
+  std::vector<ast::Expr*> values;
+  if (array) list_values(array->value, values);
+  CHECK(values.size() == 10);
+  if (values.size() != 10) return;
+  const std::vector<std::string> expected{
+      "", "", "a'b", "a\"b", "\b\f\n\r\t/\\", "a\xf0\x9f\x98\x80", "q",
+      std::string(1, '\0')};
+  for (std::size_t i = 0; i < expected.size(); ++i) {
+    auto* const text = as<ast::StringLit>(values[i]);
+    CHECK(text && text->value == expected[i]);
+  }
+  auto* const binary = as<ast::NumberLit>(values[8]);
+  auto* const hex = as<ast::NumberLit>(values[9]);
+  CHECK(binary && binary->value == 5);
+  CHECK(hex && hex->value == 175);
+  const std::string lineComment = "RETURN 1 // comment\r still comment\n";
+  const auto commented = build(lineComment);
+  CHECK(!commented.cst().recovered() && commented.diagnostics.empty());
+  const auto overflow = engine().parse("RETURN 0x100000000");
+  CHECK(!overflow.diagnostics.empty());
+}
+
+void native_objects_and_names() {
+  const std::string source = R"AQL(
+    LET $value = 1, short = 2
+    RETURN {first: $value, short, [@_key]: 3, @_name: 4, last: 5,}
+  )AQL";
+  auto result = build(source);
+  CHECK(!result.cst().recovered() && result.diagnostics.empty());
+  auto* const object = as<ast::ObjectLit>(returned(result));
+  CHECK(object && object->pairs.size() == 5);
+  if (object && object->pairs.size() == 5) {
+    CHECK(object->pairs[0]->key == "first" && !object->pairs[0]->shorthand);
+    CHECK(object->pairs[1]->key == "short" && object->pairs[1]->shorthand &&
+          !object->pairs[1]->value);
+    CHECK(as<ast::BindParamRef>(object->pairs[2]->keyExpr));
+    CHECK(as<ast::BindParamRef>(object->pairs[3]->keyExpr));
+    CHECK(object->pairs[4]->key == "last");
+  }
+  const std::string names = R"AQL(FOR d IN `my-coll` RETURN d.´sort´)AQL";
+  auto quoted = build(names);
+  CHECK(!quoted.cst().recovered() && quoted.diagnostics.empty());
+  auto* const dot = as<ast::DotExpr>(returned(quoted));
+  CHECK(dot && dot->field == "sort");
+  const std::string bound = "FOR d IN @@_collection RETURN d.@_field";
+  auto boundResult = build(bound);
+  auto* const boundDot = as<ast::DotExpr>(returned(boundResult));
+  CHECK(boundDot && boundDot->fieldParam &&
+        boundDot->fieldParam->name == "@_field");
+  const std::string call = "RETURN my :: namespace :: fn()";
+  auto function = build(call);
+  auto* const functionNode = as<ast::FuncCall>(returned(function));
+  CHECK(functionNode && functionNode->name == "my::namespace::fn" &&
+        !functionNode->args);
+}
+
+void native_scalar_expressions() {
+  const std::string source = "RETURN [true ? 1 : 2, false ?: 3, 4]";
+  auto result = build(source);
+  CHECK(!result.cst().recovered() && result.diagnostics.empty());
+  auto* const array = as<ast::ArrayLit>(returned(result));
+  std::vector<ast::Expr*> values;
+  if (array) list_values(array->value, values);
+  CHECK(values.size() == 3);
+  if (values.size() == 3) {
+    CHECK(as<ast::TernaryExpr>(values[0]));
+    auto* const elvis = as<ast::TernaryExpr>(values[1]);
+    CHECK(elvis && !elvis->then_ && elvis->else_);
+    CHECK(as<ast::NumberLit>(values[2]));
+  }
+  const std::string membership = "RETURN 1 == 2 IN [2]";
+  auto compare = build(membership);
+  auto* const eq = as<ast::BinaryExpr>(returned(compare));
+  CHECK(eq && eq->op == ast::BinOp::eq);
+  auto* const in = eq ? as<ast::BinaryExpr>(eq->right) : nullptr;
+  CHECK(in && in->op == ast::BinOp::in);
+  for (const std::string invalid : {"RETURN 1, 2", "RETURN a = b",
+                                    "RETURN 'a''b'", "RETURN 01"}) {
+    const auto rejected = engine().parse(invalid);
+    CHECK(!rejected.accepted || rejected.cst().recovered() ||
+          !rejected.diagnostics.empty());
+  }
+  for (const std::string source : {"RETURN [1,2] ALL NOT IN [3]",
+                                   "RETURN [1,2] ANY !IN [3]",
+                                   "RETURN [1,2] AT LEAST(@minimum) == 1"}) {
+    auto comparison = build(source);
+    CHECK(!comparison.cst().recovered() && comparison.diagnostics.empty());
+    auto* const quantified = as<ast::QuantifiedExpr>(returned(comparison));
+    CHECK(quantified);
+    if (quantified && quantified->quant == ast::Quantifier::atLeast)
+      CHECK(as<ast::BindParamRef>(quantified->minimum));
+    else if (quantified)
+      CHECK(quantified->cmp == ast::CmpOp::notIn);
+  }
+}
+
+void native_pipeline_and_writes() {
+  const std::string source =
+      "LET x = 1 FILTER x > 0 SORT x, x + 1 DESC LIMIT @offset, @count RETURN x";
+  auto result = build(source);
+  CHECK(!result.cst().recovered() && result.diagnostics.empty());
+  auto* const query = as<ast::SimpleQuery>(result.value);
+  CHECK(query && query->forOps.size() == 1);
+  if (query && query->forOps.size() == 1) {
+    auto* const pipeline = query->forOps[0];
+    CHECK(!pipeline->forIn);
+    const auto sorts = operations<ast::Sort>(pipeline);
+    const auto limits = operations<ast::Limit>(pipeline);
+    CHECK(sorts.size() == 1 && sorts[0]->terms.size() == 2);
+    CHECK(limits.size() == 1 && as<ast::BindParamRef>(limits[0]->count) &&
+          as<ast::BindParamRef>(limits[0]->second));
+  }
+  const std::string aggregate =
+      "FOR x IN [1,2] COLLECT AGGREGATE a = SUM(x), b = MAX(x) RETURN [a,b]";
+  auto grouped = build(aggregate);
+  CHECK(!grouped.cst().recovered() && grouped.diagnostics.empty());
+  auto* const groupQuery = as<ast::SimpleQuery>(grouped.value);
+  if (groupQuery && groupQuery->forOps.size() == 1) {
+    const auto collects = operations<ast::Collect>(groupQuery->forOps[0]);
+    CHECK(collects.size() == 1 && collects[0]->aggregate &&
+          collects[0]->moreAggregates.size() == 1 &&
+          collects[0]->moreAggregates[0]->name == "b");
+  } else {
+    CHECK(false);
+  }
+  const std::string insert =
+      "LET doc = {a: 1} INSERT doc INTO 'my-coll' RETURN NEW";
+  auto inserted = build(insert);
+  CHECK(!inserted.cst().recovered() && inserted.diagnostics.empty());
+  auto* const write = as<ast::DataModificationQuery>(inserted.value);
+  CHECK(write && write->letBefore && write->insert_ &&
+        as<ast::IdRef>(write->insert_->doc) &&
+        write->insert_->target->name == "my-coll");
+  const std::string update = "UPDATE 'key' WITH @patch INTO @@_collection";
+  auto updated = build(update);
+  CHECK(!updated.cst().recovered() && updated.diagnostics.empty());
+  auto* const updateQuery = as<ast::DataModificationQuery>(updated.value);
+  CHECK(updateQuery && updateQuery->update_ &&
+        as<ast::BindParamRef>(updateQuery->update_->doc));
+  const std::string replace = "REPLACE @doc INTO `my-coll`";
+  auto replaced = build(replace);
+  CHECK(!replaced.cst().recovered() && replaced.diagnostics.empty());
+  auto* const replaceQuery = as<ast::DataModificationQuery>(replaced.value);
+  CHECK(replaceQuery && replaceQuery->replace_ &&
+        as<ast::BindParamRef>(replaceQuery->replace_->doc));
 }
 
 }  // namespace
@@ -296,5 +470,9 @@ int main() {
   quantified_comparison();
   bind_param_collection();
   operator_precedence();
+  native_text_and_numbers();
+  native_objects_and_names();
+  native_scalar_expressions();
+  native_pipeline_and_writes();
   return cursiv::test::report("aql_grammar_test");
 }

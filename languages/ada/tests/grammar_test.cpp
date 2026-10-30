@@ -61,6 +61,123 @@ int main() {
       ada::AdaSharedCoreServices,
       ada::install_core_module>();
 
+  // RM 2.1/2.2: separator spaces and format effectors are Unicode-aware;
+  // every format effector other than HT ends a comment.
+  for (const char* ending : {"\v", "\f", "\xc2\x85", "\xe2\x80\xa8",
+                             "\xe2\x80\xa9"}) {
+    const std::string source =
+        std::string("procedure\xc2\xa0P is begin -- comment") + ending +
+        "null; end P;";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !as<ada::ast::NullStmt>(only_stmt(result)))
+      return fail("(native separators)", "a comment swallowed the next statement");
+  }
+  {
+    const auto result = language.language.parser->parse(
+        "package Payload is "
+        "type Ref is access all Integer; "
+        "type R is abstract tagged null record; "
+        "type Hidden (<>) is abstract tagged limited private; "
+        "procedure P(X : not null Ref); "
+        "function F return not null Ref; "
+        "type Callback is access function return not null Ref; "
+        "generic Ptr : not null Ref; type Money is delta <> digits <>; "
+        "type Plain is delta <>; "
+        "type Sync is synchronized new Root with private; "
+        "with package AllArgs is new G(others => <>); "
+        "package Gen is end Gen; end Payload;");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("(native declarations)", "a native declaration form was refused");
+    bool all = false, abstractRecord = false, privateType = false;
+    bool unknown = false, parameter = false, returnType = false;
+    bool callback = false, formalObject = false, decimal = false;
+    bool ordinary = false, synchronized = false, others = false;
+    for (const auto* node : result.nodes) {
+      if (const auto* value = as<ada::ast::AccessDef>(node)) {
+        all |= value->all_ && value->mark == "Integer";
+        callback |= value->isFunction && value->returnNullExclusion;
+      }
+      if (const auto* value = as<ada::ast::RecordTypeDef>(node))
+        abstractRecord |= value->abstract_ && value->tagged_;
+      if (const auto* value = as<ada::ast::PrivateTypeDef>(node))
+        privateType |= value->abstract_ && value->tagged_ && value->limited_;
+      if (const auto* value = as<ada::ast::TypeDecl>(node))
+        unknown |= value->name == "Hidden" && value->unknownDiscriminants;
+      if (const auto* value = as<ada::ast::Param>(node))
+        parameter |= value->names.size() == 1 && value->names[0] == "X" &&
+                     value->nullExclusion;
+      if (const auto* value = as<ada::ast::SubprogramSpec>(node))
+        returnType |= value->name == "F" && value->returnNullExclusion;
+      if (const auto* value = as<ada::ast::ObjectDecl>(node))
+        formalObject |= value->names.size() == 1 && value->names[0] == "Ptr" &&
+                        value->nullExclusion;
+      if (const auto* value = as<ada::ast::FormalTypeDef>(node)) {
+        decimal |= value->kind == "delta" && value->decimalFixed;
+        ordinary |= value->kind == "delta" && !value->decimalFixed;
+      }
+      if (const auto* value = as<ada::ast::FormalDerivedDef>(node))
+        synchronized |= value->synchronized_;
+      if (const auto* value = as<ada::ast::GenericFormalPackage>(node))
+        others |= value->isBox && value->othersBox;
+    }
+    if (!all || !abstractRecord || !privateType || !unknown || !parameter ||
+        !returnType || !callback || !formalObject || !decimal || !ordinary ||
+        !synchronized || !others)
+      return fail("(native declaration payload)", "an Ada qualifier was lost");
+  }
+  {
+    const auto result = language.language.parser->parse(
+        "procedure Payload is "
+        "task T is entry E; end T; "
+        "task body T is begin accept E do null; end E; end T; "
+        "type Pair is record A, B : Integer; end record; "
+        "protected type Obj is entry E; procedure M; "
+        "function Make return Pair; end Obj; "
+        "protected body Obj is entry E when True is begin null; end E; "
+        "procedure M is null; function Make return Pair is (A => 1, B => 2); "
+        "end Obj; "
+        "begin X := (for all I in reverse 1 .. 2 => I > 0); "
+        "X := (for some I of reverse Container => True); "
+        "L: declare begin null; end L; <<Done>> end Payload;");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("(native statement payload)", "native statements did not parse");
+    bool inReverse = false, ofReverse = false, block = false, accept = false;
+    bool entry = false, task = false, protectedSpec = false, protectedBody = false;
+    bool endLabel = false, nullProcedure = false, expressionFunction = false;
+    for (const auto* node : result.nodes) {
+      if (const auto* value = as<ada::ast::QuantifiedExpr>(node)) {
+        inReverse |= value->var && value->var->reverse_ && !value->var->isOf;
+        ofReverse |= value->var && value->var->reverse_ && value->var->isOf;
+      }
+      if (const auto* value = as<ada::ast::BlockStmt>(node))
+        block |= value->endName == "L";
+      if (const auto* value = as<ada::ast::AcceptStmt>(node))
+        accept |= value->endName == "E";
+      if (const auto* value = as<ada::ast::EntryBody>(node))
+        entry |= value->endName == "E";
+      if (const auto* value = as<ada::ast::TaskSpec>(node))
+        task |= value->endName == "T";
+      if (const auto* value = as<ada::ast::ProtectedSpec>(node))
+        protectedSpec |= value->endName == "Obj";
+      if (const auto* value = as<ada::ast::ProtectedBody>(node))
+        protectedBody |= value->endName == "Obj";
+      if (const auto* value = as<ada::ast::LabeledStmt>(node))
+        endLabel |= value->labels.size() == 1 && value->labels[0] == "Done" &&
+                    value->inner == nullptr;
+      if (const auto* value = as<ada::ast::SubprogramDecl>(node)) {
+        nullProcedure |= value->isNullProc;
+        expressionFunction |= as<ada::ast::Aggregate>(value->exprBody) != nullptr;
+      }
+    }
+    if (!inReverse || !ofReverse || !block || !accept || !entry || !task ||
+        !protectedSpec || !protectedBody || !endLabel || !nullProcedure ||
+        !expressionFunction)
+      return fail("(native statement payload)", "an Ada statement field was lost");
+  }
+
   int failures = 0;
   int checked = 0;
 

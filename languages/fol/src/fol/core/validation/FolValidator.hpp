@@ -1,6 +1,5 @@
-// The checks of this language: what the grammar accepts but the language
-// does not. None yet -- the grammar already carries every constraint FOL
-// documents are subject to.
+// This port recognizes the pedagogical grammars-v4 FOL notation. It does not
+// check symbol arities, bound variables, satisfiability or logical validity.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

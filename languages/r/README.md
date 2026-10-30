@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+R 4.5.1 expression syntax, preserving source operators and literal spellings.
+
 ```r
 readBool <- function() {
   n <- readline(prompt = "Yes or no? (y/n): ")
@@ -40,11 +42,6 @@ readBool <- function() {
   return(ifelse(n == "y" || n == "Y", TRUE, FALSE))
 }
 ```
-
-R has no statement/expression split: an assignment, an `if`, a `for`, a
-function definition and a block are all expressions, and a newline ends a
-statement the same way a `;` does, unless what follows cannot continue it —
-`Program::body` is a flat list of `Expr`.
 
 ## The command line
 

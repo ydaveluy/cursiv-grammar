@@ -78,6 +78,12 @@ inline void run() {
     const auto* b = doc && doc->entries.size() == 2 ? cursiv::ast_cast<a::Member>(doc->entries[1]) : nullptr;
     CHECK(a && a->hasValue && b && !b->hasValue && noErrors(text));
   }
+  for (const char *text : {"^1A\nx=1\n", "^1/* gap */A\nx=1\n"}) {
+    const auto parsed = language.language.parser->parse(text);
+    CHECK(!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty());
+  }
+  for (const char *text : {"^A\nx=1\n", "^1 A\nx=1\n", "^1\tA\nx=1\n"})
+    CHECK(noErrors(text));
   for (const auto& [text, code] : {
       std::pair{R"(value=C"\uD800")" "\n", "yini.string"},
       {R"(value=C"\U00110000")" "\n", "yini.string"},

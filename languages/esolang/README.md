@@ -2,6 +2,8 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+This library parses LOLCODE 1.2 programs and the corpus compatibility spellings shown below.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`
@@ -37,13 +39,7 @@ VISIBLE "Hai world!"
 KTHXBYE
 ```
 
-`HAI` opens a program (with an optional version atom), a `code_block` of
-statements follows, and an optional `KTHXBYE` closes it. `VISIBLE` prints its
-arguments; declarations (`I HAS A x ITZ ...`), loops (`IM IN YR ... WILE ...
-IM OUTTA YR ...`), conditionals (`O RLY? / YA RLY / MEBBE / NO WAI / OIC`) and
-function declarations (`HOW DUZ I ... IF U SAY SO`) round out the language.
-Names (`LABEL`) are read as plain text, not `reference<>`: LOLCODE's scoping
-is dynamic, not something a static linker resolves.
+`HAI` opens a program and `KTHXBYE` closes it. `VISIBLE` prints its arguments; programs can also declare variables, functions, loops and conditionals.
 
 ## The command line
 

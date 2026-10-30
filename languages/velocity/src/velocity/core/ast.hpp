@@ -30,8 +30,7 @@ struct VariableRef : cursiv::Extends<Expr> {
   string_view name;
 };
 
-// `${foo}`, `$!{foo}`: the braced base -- a text atom only, VTL never
-// allows it inside an expression.
+// `${foo}`, `$!{foo}`: the braced base, in text or expressions.
 struct FormalRef : cursiv::Extends<Expr> {
   boolean quiet;
   string_view name;
@@ -55,14 +54,20 @@ struct CallAccess : cursiv::Extends<Expr> {
   vector<Expr*> args;
 };
 
-// A bare word used as a value: an identifier, or one of VTL's soft
-// operator words (`eq`, `true`, `null`, ...) read outside operator
-// position.
+// The name at the beginning of a macro definition.
 struct IdExpr : cursiv::Extends<Expr> {
   string_view name;
 };
 
+struct BoolLit : cursiv::Extends<Expr> {
+  boolean value;
+};
+struct DefaultExpr : cursiv::Extends<Expr> {
+  Expr* reference = nullptr;
+  Expr* fallback = nullptr;
+};
 struct StringLit : cursiv::Extends<Expr> {
+  boolean doubleQuoted;
   string_view value;
 };
 
@@ -132,8 +137,12 @@ struct ForeachDirective : cursiv::Extends<Directive> {
   Block* body = nullptr;
 };
 
-struct BreakDirective : cursiv::Extends<Directive> {};
-struct StopDirective : cursiv::Extends<Directive> {};
+struct BreakDirective : cursiv::Extends<Directive> {
+  Expr* argument = nullptr;
+};
+struct StopDirective : cursiv::Extends<Directive> {
+  Expr* argument = nullptr;
+};
 
 struct MacroDirective : cursiv::Extends<Directive> {
   vector<Expr*> params;

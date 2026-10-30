@@ -27,6 +27,9 @@ struct CatalogRef : cursiv::Extends<cursiv::AstNode> {
   boolean absolute;
   boolean relative;
   boolean home;
+  string_view predefined; // HOME_SCHEMA / CURRENT_SCHEMA / .
+  vector<string_view> parentSteps; // each `..` in a relative directory path
+  CatalogRef *schema; // explicit schema in an object reference
 };
 
 // ---- value types ----------------------------------------------------------
@@ -48,6 +51,8 @@ struct ElementTypeSpec : cursiv::Extends<cursiv::AstNode> {
   string_view closeMark; // the closing bracket -- the pair spells the shape
   string_view sourceAlias;
   string_view destAlias;
+  ElementTypeSpec *sourceType; // anonymous source/destination type fillers
+  ElementTypeSpec *destType;
   boolean directedKind; // an explicit DIRECTED/UNDIRECTED prefix (phrase form)
 };
 
@@ -55,12 +60,14 @@ struct ElementTypeSpec : cursiv::Extends<cursiv::AstNode> {
 // dynamic union -- in one generic shape.
 struct TypeRef : cursiv::Extends<cursiv::AstNode> {
   string_view name;
-  string_view qualifier; // a duration type's YEAR TO MONTH / DAY TO SECOND
+  string_view signedness; // explicit SIGNED/UNSIGNED verbose integer modifier
+  string_view qualifier; // duration YEAR/DAY; temporal DATETIME/TIME/WITH/WITHOUT
   vector<struct Expr *> args;
   vector<TypeRef *> params;
   vector<PropertyTypeField *> fields;
   vector<ElementTypeSpec *> elements; // nested graph type specification
   boolean notNull;
+  boolean graphType; // distinguishes ANY GRAPH from unrestricted ANY VALUE
   boolean postfixList; // `T LIST` rather than `LIST<T>`
 };
 
@@ -134,7 +141,7 @@ struct CallExpr : cursiv::Extends<Expr> {
 };
 
 struct CastExpr : cursiv::Extends<Expr> {
-  Expr *operand; // null when the operand is NULL
+  Expr *operand; // includes a NullLit for a NULL operand
   TypeRef *target;
 };
 
@@ -290,6 +297,7 @@ struct PropertyKV : cursiv::Extends<cursiv::AstNode> {
   Expr *value;
 };
 struct ElementFiller : cursiv::Extends<cursiv::AstNode> {
+  boolean temporary; // TEMP declaration in the currently served edition1 BNF
   string_view variable;
   LabelExpr *labels;
   Expr *where;
@@ -312,7 +320,7 @@ struct EdgePattern : cursiv::Extends<PathPrimary> {
 struct Quantifier : cursiv::Extends<cursiv::AstNode> {
   string_view symbol; // "*" | "+" | "?" | "" (braced form below)
   Expr *min;
-  Expr *max; // both null with symbol set; `{n}` sets min==max
+  Expr *max; // both null with symbol set; `{n}` sets only min
 };
 struct PathFactor : cursiv::Extends<cursiv::AstNode> {
   PathPrimary *primary;
@@ -328,11 +336,11 @@ struct PathPatternExpr : cursiv::Extends<cursiv::AstNode> {
 
 struct PathPrefix : cursiv::Extends<cursiv::AstNode> {
   string_view mode;   // WALK | TRAIL | SIMPLE | ACYCLIC | ""
-  string_view search; // ALL | ANY | "ALL SHORTEST" | "ANY SHORTEST" |
-                      // "COUNTED SHORTEST" | "COUNTED SHORTEST GROUP" | ""
-  Expr *count;        // numberOfPaths / numberOfGroups
+  string_view search; // ALL | ANY | SHORTEST | ""; see shortest/count/group
+  Expr *count;        // unsigned numberOfPaths / numberOfGroups
   string_view pathOrPaths;
   boolean group;
+  boolean shortest; // ANY/ALL SHORTEST versus ANY/ALL
 };
 
 struct ParenPathExpr : cursiv::Extends<PathPrimary> {
@@ -340,6 +348,24 @@ struct ParenPathExpr : cursiv::Extends<PathPrimary> {
   PathPrefix *prefix;
   PathPatternExpr *expr;
   Expr *where;
+};
+// Simplified paths share label leaves/negation/conjunction with label
+// expressions, retaining concatenation, direction, quantification and union.
+struct SimplifiedDirection : cursiv::Extends<LabelExpr> {
+  LabelExpr *operand;
+  string_view openMark;
+  string_view closeMark;
+};
+struct SimplifiedQuantified : cursiv::Extends<LabelExpr> {
+  LabelExpr *operand;
+  Quantifier *quantifier;
+};
+struct SimplifiedConcat : cursiv::Extends<LabelExpr> {
+  vector<LabelExpr *> factors;
+};
+struct SimplifiedAlternative : cursiv::Extends<LabelExpr> {
+  vector<LabelExpr *> terms;
+  string_view op;
 };
 struct SimplifiedPathExpr : cursiv::Extends<PathPrimary> {
   string_view openMark;
@@ -355,7 +381,7 @@ struct PathPattern : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct GraphPattern : cursiv::Extends<cursiv::AstNode> {
-  string_view matchMode; // free text: "REPEATABLE ELEMENT[S|BINDINGS]" etc.
+  string_view matchMode; // REPEATABLE or DIFFERENT; following words are synonyms
   vector<PathPattern *> paths;
   PathPrefix *keep;
   Expr *where;
@@ -415,6 +441,7 @@ struct YieldItem : cursiv::Extends<cursiv::AstNode> {
   string_view alias;
 };
 struct YieldClause : cursiv::Extends<cursiv::AstNode> {
+  boolean noBindings; // graph-pattern YIELD NO BINDINGS
   vector<YieldItem *> items;
 };
 
@@ -438,6 +465,7 @@ struct ResultStmt : cursiv::Extends<cursiv::AstNode> {
   boolean distinct;
   boolean star;
   vector<ReturnItem *> items;
+  boolean grouped; // explicit GROUP BY, including GROUP BY ()
   vector<Expr *> groupBy;
   OrderByPage *page;
 };
@@ -583,6 +611,7 @@ struct SelectStmt : cursiv::Extends<Statement> {
   GraphExpr *fromGraph;        // the nested-query FROM form's leading graph
   struct Procedure *fromQuery; // the nested-query FROM form's body
   Expr *where;
+  boolean grouped; // explicit GROUP BY, including GROUP BY ()
   vector<Expr *> groupBy;
   Expr *having;
   OrderByPage *page;

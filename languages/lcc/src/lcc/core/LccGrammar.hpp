@@ -14,34 +14,33 @@ struct Lcc : cursiv::GrammarSpec {
   struct Year : terminal<repeat<4>(d) + !d> {};
   static constexpr auto SP = some(s);
 
-  struct CutterRule
+  struct Cutter
       : rule<assign<&ast::Cutter::letter>(ref<Letters>) + option(SP) +
              assign<&ast::Cutter::digits>(ref<Digits>)> {};
 
-  static constexpr auto anotherCutter = &ref<CutterLetters> + ref<CutterRule>;
+  static constexpr auto anotherCutter = &ref<CutterLetters> + ref<Cutter>;
   static constexpr auto cuttersGroup = option(lit<".">) + option(SP) +
-      append<&ast::CallNumber::cutters>(ref<CutterRule>) +
+      append<&ast::CallNumber::cutters>(ref<Cutter>) +
       many(option(SP) + append<&ast::CallNumber::cutters>(anotherCutter));
 
-  struct EditionRule
-      : rule<&ref<Year> + ref<Digits> + option(ref<Letters>),
-             std::string_view> {};
-  struct ItemRule
-      : rule<some(ref<Letters> | ref<Digits> | lit<"."> | ref<Punctuation> | SP),
-             std::string_view> {};
+  struct Edition : rule<as<std::string_view>(&ref<Year> + ref<Digits> +
+                                             option(ref<Letters>))> {};
+  struct Item
+      : rule<as<std::string_view>(some(ref<Letters> | ref<Digits> | lit<"."> |
+                                       ref<Punctuation> | SP))> {};
 
-  struct CallNumberRule
+  struct CallNumber
       : rule<option(SP) + assign<&ast::CallNumber::topic>(ref<Letter>) +
              option(assign<&ast::CallNumber::subtopic>(ref<Letters>)) + option(SP) +
              some(append<&ast::CallNumber::subclasses>(ref<Digits>), lit<".">) +
              option(SP) + option(cuttersGroup) +
              option(SP +
-                    ((assign<&ast::CallNumber::date>(ref<EditionRule>) +
-                      option(SP + assign<&ast::CallNumber::item>(ref<ItemRule>))) |
-                     assign<&ast::CallNumber::item>(ref<ItemRule>))) +
+                    ((assign<&ast::CallNumber::date>(ref<Edition>) +
+                      option(SP + assign<&ast::CallNumber::item>(ref<Item>))) |
+                     assign<&ast::CallNumber::item>(ref<Item>))) +
              option(SP)> {};
 
-  using entry = CallNumberRule;
+  using entry = CallNumber;
 };
 
 }  // namespace lcc

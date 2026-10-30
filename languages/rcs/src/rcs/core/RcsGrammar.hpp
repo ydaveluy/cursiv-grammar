@@ -24,7 +24,6 @@ inline constexpr auto unat = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unat = cursiv::text_conv<unat>;
 
 struct Rcs : cursiv::GrammarSpec {
   static constexpr auto snippetChar = cr<"^;: \t\n\r\f\v">;
@@ -34,24 +33,24 @@ struct Rcs : cursiv::GrammarSpec {
   struct OptionalIdent : rule<option(ref<IDENT>)> {};
   struct REVISION : terminal<some(d | lit<".">)> {};
   struct STRING
-      : terminal<lit<"@"> + many(lit<"@@"> | cr<"^@">) + lit<"@">, Unat> {};
+      : terminal<as<unat>(lit<"@"> + many(lit<"@@"> | cr<"^@">) + lit<"@">)> {};
   struct PHRASE_NAME
       : terminal<!cr<"0-9.@;: \t\n\r\f\v"> + some(cr<"^;:@ \t\n\r\f\v">)> {};
   struct WORD : terminal<some(cr<"^;:@ \t\n\r\f\v">)> {};
   struct COLON : terminal<lit<":">> {};
 
-  struct SymbolRule : rule<create<ast::Symbol>(
+  struct Symbol : rule<create<ast::Symbol>(
                           assign<&ast::Symbol::name>(ref<IDENT>) + lit<":"> +
                           assign<&ast::Symbol::revision>(ref<REVISION>))> {};
 
-  struct NewPhraseRule : rule<create<ast::NewPhrase>(
+  struct NewPhrase : rule<create<ast::NewPhrase>(
                              !kw<"desc"> + !kw<"text"> +
                              append<&ast::NewPhrase::words>(ref<PHRASE_NAME>) +
                              many(append<&ast::NewPhrase::words>(
                                  ref<STRING> | ref<WORD> | ref<COLON>)) +
                              lit<";">)> {};
 
-  struct AdminRule
+  struct Admin
       : rule<create<ast::Admin>(
             lit<"head"> + option(assign<&ast::Admin::head>(ref<REVISION>)) +
             lit<";"> +
@@ -60,10 +59,8 @@ struct Rcs : cursiv::GrammarSpec {
                    lit<";">) +
             lit<"access"> + many(append<&ast::Admin::access>(ref<IDENT>)) +
             lit<";"> + lit<"symbols"> +
-            many(append<&ast::Admin::symbols>(ref<SymbolRule>)) + lit<";"> +
-            option(lit<"locks"> +
-                   many(append<&ast::Admin::locks>(ref<SymbolRule>)) +
-                   lit<";">) +
+            many(append<&ast::Admin::symbols>(ref<Symbol>)) + lit<";"> +
+            lit<"locks"> + many(append<&ast::Admin::locks>(ref<Symbol>)) + lit<";"> +
             option(flag<&ast::Admin::strict>(lit<"strict"> + lit<";">)) +
             option(lit<"integrity"> +
                    option(assign<&ast::Admin::integrity>(ref<STRING>)) +
@@ -74,9 +71,9 @@ struct Rcs : cursiv::GrammarSpec {
             option(lit<"expand"> +
                    option(assign<&ast::Admin::expand>(ref<STRING>)) +
                    lit<";">) +
-            many(append<&ast::Admin::newphrases>(ref<NewPhraseRule>)))> {};
+            many(append<&ast::Admin::newphrases>(ref<NewPhrase>)))> {};
 
-  struct DeltaRule
+  struct Delta
       : rule<create<ast::Delta>(
             assign<&ast::Delta::revision>(ref<REVISION>) + lit<"date"> +
             assign<&ast::Delta::date>(ref<REVISION>) + lit<";"> +
@@ -90,25 +87,25 @@ struct Rcs : cursiv::GrammarSpec {
             option(lit<"commitid"> +
                    assign<&ast::Delta::commitid>(ref<OptionalIdent>) +
                    lit<";">) +
-            many(append<&ast::Delta::newphrases>(ref<NewPhraseRule>)))> {};
+            many(append<&ast::Delta::newphrases>(ref<NewPhrase>)))> {};
 
-  struct DeltaTextRule
+  struct DeltaText
       : rule<create<ast::DeltaText>(
             assign<&ast::DeltaText::revision>(ref<REVISION>) + lit<"log"> +
             assign<&ast::DeltaText::log>(ref<STRING>) +
-            many(append<&ast::DeltaText::newphrases>(ref<NewPhraseRule>)) +
+            many(append<&ast::DeltaText::newphrases>(ref<NewPhrase>)) +
             option(flag<&ast::DeltaText::hasText>(
                 lit<"text"> + assign<&ast::DeltaText::text>(ref<STRING>))))> {};
 
-  struct FileRule
+  struct File
       : rule<create<ast::File>(
-            assign<&ast::File::admin>(ref<AdminRule>) +
-            many(append<&ast::File::deltas>(ref<DeltaRule>)) + lit<"desc"> +
+            assign<&ast::File::admin>(ref<Admin>) +
+            many(append<&ast::File::deltas>(ref<Delta>)) + lit<"desc"> +
             assign<&ast::File::desc>(ref<STRING>) +
-            many(append<&ast::File::deltatexts>(ref<DeltaTextRule>)))> {};
+            many(append<&ast::File::deltatexts>(ref<DeltaText>)))> {};
 
-  using entry = FileRule;
-  using ignore = WS;
+  using entry = File;
+  using ignored = WS;
 };
 
 } // namespace rcs

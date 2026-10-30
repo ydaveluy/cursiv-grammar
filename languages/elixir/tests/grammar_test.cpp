@@ -104,7 +104,9 @@ int main() {
       ++expectedInvalid;
       continue;
     }
-    if (unclean) return fail(entry.path(), "the native-confirmed document does not parse clean");
+    if (unclean) {
+      return fail(entry.path(), "the native-confirmed document does not parse clean");
+    }
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr || root->type != &cursiv::ast_type_tag<elixir::ast::Block>)
       return fail(entry.path(), "the parse built no block");

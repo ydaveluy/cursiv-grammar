@@ -15,6 +15,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "gql/core/CoreServices.hpp"
 #include "gql/core/ast.hpp"
+#include "native_regressions.hpp"
 
 namespace {
 
@@ -300,6 +301,8 @@ int main() {
   const auto language =
       cursiv::create_language<gql::GqlCoreServices, gql::GqlSharedCoreServices,
                               gql::install_core_module>();
+
+  if (!gql_native_regressions::run(*language.language.parser)) return 1;
 
   const fs::path dir = CURSIV_EXAMPLE_DIR;
   int failures = 0;

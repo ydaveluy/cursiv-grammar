@@ -21,6 +21,7 @@ struct NamedType : cursiv::Extends<Type> {
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
 
 struct NullLit : cursiv::Extends<Expr> {};
+struct InvalidLit : cursiv::Extends<Expr> {};
 
 struct BoolLit : cursiv::Extends<Expr> {
   boolean value;
@@ -44,6 +45,7 @@ struct EnumLit : cursiv::Extends<Expr> {
 };
 
 struct NameRef : cursiv::Extends<Expr> {
+  boolean isSelf = false;
   string_view name;
 };
 
@@ -90,6 +92,7 @@ struct IdentOptType : cursiv::Extends<cursiv::AstNode> {
 
 struct MemberAccess : cursiv::Extends<Expr> {
   Expr* object;
+  boolean arrow = false;
   string_view name;
 };
 
@@ -105,7 +108,8 @@ struct Call : cursiv::Extends<Expr> {
 
 struct IterateCall : cursiv::Extends<Expr> {
   Expr* object;
-  string_view accumVar;
+  string_view accumVar;  // legacy name: first iterator variable
+  Type* iteratorType = nullptr;
   IdentOptType* accumParam;
   Expr* init;
   Expr* body;

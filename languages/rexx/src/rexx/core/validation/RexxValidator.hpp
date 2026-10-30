@@ -1,5 +1,4 @@
-// The checks of this language: none yet, nothing here needs a check beyond
-// parsing.
+// Contextual checks on assignment symbols and controlled DO clauses.
 #pragma once
 #include "cursiv/core/services/DefaultCoreService.hpp"
 #include "cursiv/core/validation/ValidationAcceptor.hpp"
@@ -10,6 +9,7 @@ namespace rexx {
 class RexxValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkAssignment(const ast::Assignment&, cursiv::ValidationAcceptor&) const;
   void checkDoClauses(const ast::DoStmt&, cursiv::ValidationAcceptor&) const;
 };
 

@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every file under example/ parses clean.
 add_executable(istc_grammar_test grammar_test.cpp)
-target_link_libraries(istc_grammar_test PRIVATE istcCore)
+target_link_libraries(istc_grammar_test PRIVATE istcCore cursiv::test cursiv::lsp)
 target_compile_definitions(istc_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

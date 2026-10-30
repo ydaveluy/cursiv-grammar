@@ -19,10 +19,10 @@ struct Bibtex : cursiv::GrammarSpec {
   struct NUMBER : terminal<some(d)> {};
   struct BRACED : terminal<lit<"{"> + many(ref<BRACED> | cr<"^{}">) +
                             lit<"}">> {};
-  struct BRACED_VALUE : terminal<ref<BRACED>, text_conv<unquote>> {};
-  struct QUOTED : terminal<lit<"\""> + many(ref<BRACED> | cr<R"(^{}")">) +
-                                lit<"\"">,
-                           text_conv<unquote>> {};
+  struct BRACED_VALUE : terminal<as<unquote>(ref<BRACED>)> {};
+  struct QUOTED
+      : terminal<as<unquote>(lit<"\""> + many(ref<BRACED> | cr<R"(^{}")">) +
+                             lit<"\"">)> {};
   struct PAREN_COMMENT
       : terminal<lit<"("> + many(ref<PAREN_COMMENT> | cr<"^()">) + lit<")">> {};
   struct BracedPart
@@ -37,44 +37,44 @@ struct Bibtex : cursiv::GrammarSpec {
   struct MacroPart
       : rule<create<ast::MacroPart>(
             assign<&ast::ValuePart::text>(ref<MACRO_WORD>))> {};
-  struct ValueRule
+  struct Value
       : rule<create<ast::Value> +
              many(append<&ast::Value::parts>(ref<BracedPart> | ref<QuotedPart> |
                                             ref<NumberPart> | ref<MacroPart>),
                   lit<"#">)> {};
-  struct FieldRule : rule<assign<&ast::Field::key>(ref<IDENTIFIER>) + lit<"="> +
-                          assign<&ast::Field::value>(ref<ValueRule>)> {};
+  struct Field : rule<assign<&ast::Field::key>(ref<IDENTIFIER>) + lit<"="> +
+                          assign<&ast::Field::value>(ref<Value>)> {};
   template <auto Open>
   static constexpr auto open = assign<Open>(lit<"{"> | lit<"(">);
   template <auto Close>
   static constexpr auto close = assign<Close>(lit<"}"> | lit<")">);
   template <auto Fields>
   static constexpr auto fields =
-      many(append<Fields>(ref<FieldRule>), lit<",">) + option(lit<",">);
-  struct EntryRule
+      many(append<Fields>(ref<Field>), lit<",">) + option(lit<",">);
+  struct Entry
       : rule<assign<&ast::Entry::type>(ref<IDENTIFIER>) +
              open<&ast::Entry::open> +
              option(assign<&ast::Entry::citekey>(ref<CitationKey>)) +
              option(flag<&ast::Entry::hasKeySeparator>(lit<",">) +
                     fields<&ast::Entry::fields>) + close<&ast::Entry::close>> {};
-  struct StringRule
+  struct String
       : rule<ikw<"string"> + open<&ast::StringDef::open> +
              fields<&ast::StringDef::fields> + close<&ast::StringDef::close>> {};
-  struct PreambleRule
+  struct Preamble
       : rule<ikw<"preamble"> + open<&ast::Preamble::open> +
-             assign<&ast::Preamble::value>(ref<ValueRule>) + option(lit<",">) +
+             assign<&ast::Preamble::value>(ref<Value>) + option(lit<",">) +
              close<&ast::Preamble::close>> {};
-  struct CommentRule
+  struct Comment
       : rule<ikw<"comment"> +
              assign<&ast::Comment::raw>(ref<BRACED> | ref<PAREN_COMMENT>)> {};
-  struct DeclarationRule
-      : rule<lit<"@"> + (ref<StringRule> | ref<PreambleRule> | ref<CommentRule> |
-                         ref<EntryRule>)> {};
-  struct DocumentRule
+  struct Declaration
+      : rule<lit<"@"> + (ref<String> | ref<Preamble> | ref<Comment> |
+                         ref<Entry>)> {};
+  struct Document
       : rule<create<ast::Document> +
-             many(append<&ast::Document::declarations>(ref<DeclarationRule>) |
+             many(append<&ast::Document::declarations>(ref<Declaration>) |
                   ref<JUNK>)> {};
-  using entry = DocumentRule;
-  using ignore = list<WS, LINE_COMMENT>;
+  using entry = Document;
+  using ignored = list<WS, LINE_COMMENT>;
 };
 }  // namespace bibtex

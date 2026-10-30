@@ -450,7 +450,8 @@ struct AnalyzeStmt : cursiv::Extends<Stmt> {
 
 struct AttachStmt : cursiv::Extends<Stmt> {
   Expr* file;
-  string_view schemaName;
+  Expr* schemaExpr;
+  Expr* key;
 };
 
 struct BeginStmt : cursiv::Extends<Stmt> {
@@ -541,7 +542,7 @@ struct DeleteStmt : cursiv::Extends<Stmt> {
 };
 
 struct DetachStmt : cursiv::Extends<Stmt> {
-  string_view schema;
+  Expr* schemaExpr;
 };
 
 struct DropStmt : cursiv::Extends<Stmt> {

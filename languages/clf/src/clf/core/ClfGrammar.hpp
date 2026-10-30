@@ -57,7 +57,6 @@ inline constexpr auto unescape = [](std::string_view text,
   }
   return std::string_view(output, size);
 };
-using Unescaped = cursiv::text_conv<unescape>;
 
 struct Clf : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t)">)> {};
@@ -66,22 +65,22 @@ struct Clf : cursiv::GrammarSpec {
   static constexpr auto escape =
       lit<"\\"> +
       ((lit<"x"> + repeat<2, 2>(cr<"0-9a-fA-F">)) | cr<R"(^x\r\n)">);
-  struct WORD : terminal<some(cr<R"(^"\\ \t\r\n)"> | escape), Unescaped> {};
+  struct WORD : terminal<as<unescape>(some(cr<R"(^"\\ \t\r\n)"> | escape))> {};
   struct WordValue : rule<option(ref<WORD>)> {};
-  struct USER : terminal<(lit<"\"\""> | some(cr<R"(^"\\\r\n)"> | escape)) +
-                             &(lit<" [">),
-                         Unescaped> {};
+  struct USER
+      : terminal<as<unescape>((lit<"\"\""> | some(cr<R"(^"\\\r\n)"> | escape)) +
+                              &(lit<" [">))> {};
   struct UserValue : rule<option(ref<USER>)> {};
   struct LITERAL
-      : terminal<lit<"\""> + many(cr<R"(^"\\\r\n)"> | escape) + lit<"\"">,
-                 Unescaped> {};
+      : terminal<as<unescape>(lit<"\""> + many(cr<R"(^"\\\r\n)"> | escape) +
+                              lit<"\"">)> {};
   struct DATE
       : terminal<some(d) + lit<"/"> + some(cr<"A-Za-z">) + lit<"/"> + some(d)> {
   };
   struct TIME : terminal<some(d) + lit<":"> + some(d) + lit<":"> + some(d)> {};
   struct TZ : terminal<cr<"+-"> + some(d)> {};
 
-  struct LineRule
+  struct Line
       : rule<assign<&ast::Line::host>(ref<WordValue>) + lit<" "> +
              assign<&ast::Line::logname>(ref<WordValue>) + lit<" "> +
              assign<&ast::Line::username>(ref<UserValue>) + lit<" ["> +
@@ -94,12 +93,12 @@ struct Clf : cursiv::GrammarSpec {
              option(lit<" "> + assign<&ast::Line::referer>(ref<LITERAL>) +
                     lit<" "> + assign<&ast::Line::useragent>(ref<LITERAL>))> {};
 
-  static constexpr auto line = append<&ast::Log::lines>(ref<LineRule>);
-  struct LogRule
+  static constexpr auto line = append<&ast::Log::lines>(ref<Line>);
+  struct Log
       : rule<create<ast::Log> + many(option(line | ref<BLANK>) + ref<EOL>) +
              option(line | ref<BLANK>)> {};
 
-  using entry = LogRule;
+  using entry = Log;
 };
 
 }  // namespace clf

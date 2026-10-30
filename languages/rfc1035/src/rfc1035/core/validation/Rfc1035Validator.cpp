@@ -13,7 +13,9 @@ void Rfc1035Validator::checkDomain(
   const auto& labels = domain.labels;
   if (labels.size() == 1 && (labels[0].empty() || labels[0] == "@")) return;
   if (labels.size() == 2 && labels[0].empty() && labels[1].empty()) return;
-  std::size_t encoded = 0;
+  // A relative presentation name also needs the terminating root octet
+  // when encoded against the root origin.
+  std::size_t encoded = labels.empty() || labels.back().empty() ? 0 : 1;
   for (std::size_t i = 0; i < labels.size(); ++i) {
     const auto value = label_value(labels[i]);
     if (!value) {

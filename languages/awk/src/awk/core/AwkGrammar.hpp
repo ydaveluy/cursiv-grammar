@@ -43,7 +43,7 @@ struct Awk : cursiv::GrammarSpec {
                             lit<"/">> {};
   struct ERE : rule<lit<"/"> + tight(ref<ERE_BODY>)> {};
 
-  using ignore = list<WS, ESC_NEWLINE>;
+  using ignored = list<WS, ESC_NEWLINE>;
   using hidden = list<COMMENT>;
 
   static constexpr auto NLOpt = many(ref<NEWLINE>);
@@ -62,28 +62,13 @@ struct Awk : cursiv::GrammarSpec {
       kw<"rshift"> | kw<"strftime"> | kw<"strtonum"> | kw<"systime"> |
       kw<"typeof"> | kw<"xor">);
 
-  struct POW : terminal<lit<"**"> | lit<"^">, value<ast::BinOp::Pow>> {};
-  struct MUL : terminal<lit<"*">, value<ast::BinOp::Mul>> {};
-  struct DIV : terminal<lit<"/">, value<ast::BinOp::Div>> {};
-  struct MOD : terminal<lit<"%">, value<ast::BinOp::Mod>> {};
-  struct ADD : terminal<lit<"+">, value<ast::BinOp::Add>> {};
-  struct SUB : terminal<lit<"-">, value<ast::BinOp::Sub>> {};
-  struct LE : terminal<lit<"<=">, value<ast::BinOp::Le>> {};
-  struct LT : terminal<lit<"<">, value<ast::BinOp::Lt>> {};
-  struct GE : terminal<lit<">=">, value<ast::BinOp::Ge>> {};
-  struct GT : terminal<lit<">">, value<ast::BinOp::Gt>> {};
-  struct EQ : terminal<lit<"==">, value<ast::BinOp::Eq>> {};
-  struct NE : terminal<lit<"!=">, value<ast::BinOp::Ne>> {};
-  struct NOMATCH : terminal<lit<"!~">, value<ast::BinOp::NoMatch>> {};
-  struct MATCH : terminal<lit<"~">, value<ast::BinOp::Match>> {};
-  struct AND_OP : rule<lit<"&&"> + NLOpt, value<ast::BinOp::And>> {};
-  struct OR_OP : rule<lit<"||"> + NLOpt, value<ast::BinOp::Or>> {};
+  struct POW : terminal<as<ast::BinOp::Pow>(lit<"**"> | lit<"^">)> {};
 
-  static constexpr auto OpMul = ref<MUL> | ref<DIV> | ref<MOD>;
-  static constexpr auto OpAdd = ref<ADD> | ref<SUB>;
-  static constexpr auto OpRel = ref<LE> | ref<LT> | ref<GE> | ref<GT> | ref<EQ> | ref<NE>;
-  static constexpr auto PrintOpRel = ref<LE> | ref<LT> | ref<GE> | ref<EQ> | ref<NE>;
-  static constexpr auto OpMatchOnly = ref<NOMATCH> | ref<MATCH>;
+  static constexpr auto OpMul = as<ast::BinOp::Mul>(lit<"*">) | as<ast::BinOp::Div>(lit<"/">) | as<ast::BinOp::Mod>(lit<"%">);
+  static constexpr auto OpAdd = as<ast::BinOp::Add>(lit<"+">) | as<ast::BinOp::Sub>(lit<"-">);
+  static constexpr auto OpRel = as<ast::BinOp::Le>(lit<"<=">) | as<ast::BinOp::Lt>(lit<"<">) | as<ast::BinOp::Ge>(lit<">=">) | as<ast::BinOp::Gt>(lit<">">) | as<ast::BinOp::Eq>(lit<"==">) | as<ast::BinOp::Ne>(lit<"!=">);
+  static constexpr auto PrintOpRel = as<ast::BinOp::Le>(lit<"<=">) | as<ast::BinOp::Lt>(lit<"<">) | as<ast::BinOp::Ge>(lit<">=">) | as<ast::BinOp::Eq>(lit<"==">) | as<ast::BinOp::Ne>(lit<"!=">);
+  static constexpr auto OpMatchOnly = as<ast::BinOp::NoMatch>(lit<"!~">) | as<ast::BinOp::Match>(lit<"~">);
   static constexpr auto AssignOp = lit<"**="> | lit<"^="> | lit<"%="> | lit<"*="> |
                                    lit<"/="> | lit<"+="> | lit<"-="> |
                                    lit<"=">;
@@ -92,6 +77,7 @@ struct Awk : cursiv::GrammarSpec {
   struct PrintExpr;
   struct Lvalue;
   struct Primary;
+  struct Primitive;
   struct FieldOperand;
   struct UnaryLevel;
   struct ConcatLevel;
@@ -148,7 +134,7 @@ struct Awk : cursiv::GrammarSpec {
             lit<")"> + kw<"in"> +
             assign<&ast::MultiInExpr::array>(ref<Lvalue>))> {};
 
-  struct Primary
+  struct Primitive
       : rule<ref<MultiIn>                                                //
             | (lit<"("> + ref<Expr> + lit<")">)                          //
             | create<ast::NumberLit>(
@@ -156,12 +142,12 @@ struct Awk : cursiv::GrammarSpec {
             | create<ast::StringLit>(
                   option(flag<&ast::StringLit::international>(lit<"_">) + gap::none) +
                   assign<&ast::StringLit::text>(ref<STRING>))            //
-            | create<ast::RegexLit>(option(flag<&ast::RegexLit::typed>(lit<"@">)) +
+            | create<ast::RegexLit>(option(flag<&ast::RegexLit::typed>(lit<"@">) + gap::none) +
                   assign<&ast::RegexLit::text>(ref<ERE>))  //
             | ref<SimpleGetline>                                         //
-            | ref<CallExpr>                                              //
-            | ref<PrefixUpdate>                                          //
-            | ref<PostfixUpdate>> {};
+            | ref<CallExpr>> {};
+
+  struct Primary : rule<ref<Primitive> | ref<PrefixUpdate> | ref<PostfixUpdate>> {};
 
   struct PowerLevel : rule<ref<Primary> + option(
       nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
@@ -170,7 +156,8 @@ struct Awk : cursiv::GrammarSpec {
 
   struct FieldOperand : rule<create<ast::UnaryExpr>(
       assign<&ast::UnaryExpr::op>(lit<"!"> | lit<"+"> | lit<"-">) +
-      assign<&ast::UnaryExpr::operand>(ref<UnaryLevel>)) | ref<Primary>> {};
+      assign<&ast::UnaryExpr::operand>(ref<UnaryLevel>)) |
+      ref<Primitive> | ref<PrefixUpdate> | ref<Lvalue>> {};
 
   struct UnaryLevel
       : rule<create<ast::UnaryExpr>(
@@ -179,8 +166,7 @@ struct Awk : cursiv::GrammarSpec {
             | ref<PowerLevel>> {};
 
   struct MulAddLevel
-      : infix<UnaryLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, (left(OpMul) >> left(OpAdd))> {};
+      : infix<UnaryLevel, ast::BinaryExpr, levels(left(OpMul), left(OpAdd))> {};
 
   struct ConcatLevel
       : rule<ref<MulAddLevel> +
@@ -188,20 +174,16 @@ struct Awk : cursiv::GrammarSpec {
                  !lit<"/"> + assign<&ast::ConcatExpr::right>(ref<MulAddLevel>)))> {};
 
   struct RelationalLevel
-      : infix<ConcatLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(OpRel)> {};
+      : infix<ConcatLevel, ast::BinaryExpr, left(OpRel)> {};
 
   struct RelMatchLevel
-      : infix<RelationalLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(OpMatchOnly)> {};
+      : infix<RelationalLevel, ast::BinaryExpr, left(OpMatchOnly)> {};
 
   struct PrintRelationalLevel
-      : infix<ConcatLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(PrintOpRel)> {};
+      : infix<ConcatLevel, ast::BinaryExpr, left(PrintOpRel)> {};
 
   struct MatchOnlyLevel
-      : infix<PrintRelationalLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(OpMatchOnly)> {};
+      : infix<PrintRelationalLevel, ast::BinaryExpr, left(OpMatchOnly)> {};
 
   struct InLevel
       : rule<ref<RelMatchLevel> +
@@ -214,14 +196,12 @@ struct Awk : cursiv::GrammarSpec {
                  kw<"in"> + assign<&ast::InExpr::array>(ref<Lvalue>)))> {};
 
   struct AndOrLevel
-      : infix<InLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<AND_OP>) >> left(ref<OR_OP>))> {};
+      : infix<InLevel, ast::BinaryExpr,
+              levels(left(as<ast::BinOp::And>(lit<"&&"> + NLOpt)), left(as<ast::BinOp::Or>(lit<"||"> + NLOpt)))> {};
 
   struct PAndOrLevel
-      : infix<PInLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<AND_OP>) >> left(ref<OR_OP>))> {};
+      : infix<PInLevel, ast::BinaryExpr,
+              levels(left(as<ast::BinOp::And>(lit<"&&"> + NLOpt)), left(as<ast::BinOp::Or>(lit<"||"> + NLOpt)))> {};
 
   struct PipeGetlineLevel
       : rule<ref<AndOrLevel> + option(nest<ast::GetlineExpr, &ast::GetlineExpr::cmd>(
@@ -247,17 +227,17 @@ struct Awk : cursiv::GrammarSpec {
                   assign<&ast::AssignExpr::op>(AssignOp) +
                   assign<&ast::AssignExpr::value>(ref<PrintExpr>)))> {};
 
-  struct DeleteStmtRule
+  struct DeleteStmt
       : rule<create<ast::DeleteStmt>(
             kw<"delete"> + assign<&ast::DeleteStmt::target>(ref<Lvalue>))> {};
 
-  struct OutputRedirectRule
+  struct OutputRedirect
       : rule<create<ast::OutputRedirect>(
             assign<&ast::OutputRedirect::mode>(lit<">>"> | lit<">"> | lit<"|&"> |
                                                lit<"|">) +
-            assign<&ast::OutputRedirect::target>(ref<Expr>))> {};
+            assign<&ast::OutputRedirect::target>(ref<ConcatLevel>))> {};
 
-  struct PrintStmtRule
+  struct PrintStmt
       : rule<create<ast::PrintStmt>(
             kw<"print"> +
             ((lit<"("> + append<&ast::PrintStmt::args>(ref<Expr>) + lit<","> +
@@ -268,10 +248,10 @@ struct Awk : cursiv::GrammarSpec {
              | option(append<&ast::PrintStmt::args>(ref<PrintExpr>) +
                       many(lit<","> + NLOpt +
                            append<&ast::PrintStmt::args>(ref<PrintExpr>)))) +
-            option(assign<&ast::PrintStmt::redirect>(ref<OutputRedirectRule>)))> {
+            option(assign<&ast::PrintStmt::redirect>(ref<OutputRedirect>)))> {
   };
 
-  struct PrintfStmtRule
+  struct PrintfStmt
       : rule<create<ast::PrintfStmt>(
             kw<"printf"> +
             ((lit<"("> + append<&ast::PrintfStmt::args>(ref<Expr>) +
@@ -283,11 +263,11 @@ struct Awk : cursiv::GrammarSpec {
                 many(lit<","> + NLOpt +
                      append<&ast::PrintfStmt::args>(ref<PrintExpr>)))) +
             option(assign<&ast::PrintfStmt::redirect>(
-                ref<OutputRedirectRule>)))> {};
+                ref<OutputRedirect>)))> {};
 
-  struct SimpleStmt : rule<ref<DeleteStmtRule>  //
-                           | ref<PrintStmtRule>  //
-                           | ref<PrintfStmtRule>  //
+  struct SimpleStmt : rule<ref<DeleteStmt>  //
+                           | ref<PrintStmt>  //
+                           | ref<PrintfStmt>  //
                            | create<ast::ExprStmt>(
                                  assign<&ast::ExprStmt::value>(ref<Expr>))> {
   };
@@ -297,7 +277,7 @@ struct Awk : cursiv::GrammarSpec {
              many(append<&ast::BlockStmt::items>(ref<Stmt>) + option(Terminator)) +
              lit<"}">> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<kw<"if"> + lit<"("> + assign<&ast::IfStmt::cond>(ref<Expr>) +
              lit<")"> + NLOpt +
              assign<&ast::IfStmt::thenBranch>(ref<Stmt>) +
@@ -305,19 +285,19 @@ struct Awk : cursiv::GrammarSpec {
              option(kw<"else"> + NLOpt +
                     assign<&ast::IfStmt::elseBranch>(ref<Stmt>))> {};
 
-  struct WhileStmtRule
+  struct WhileStmt
       : rule<kw<"while"> + lit<"("> +
              assign<&ast::WhileStmt::cond>(ref<Expr>) + lit<")"> +
              NLOpt + assign<&ast::WhileStmt::body>(ref<Stmt>)> {};
 
-  struct DoWhileStmtRule
+  struct DoWhileStmt
       : rule<kw<"do"> + NLOpt +
              assign<&ast::DoWhileStmt::body>(ref<Stmt>) + option(Terminator) +
              kw<"while"> +
              lit<"("> + assign<&ast::DoWhileStmt::cond>(ref<Expr>) +
              lit<")">> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<kw<"for"> + lit<"("> +
              option(assign<&ast::ForStmt::init>(ref<SimpleStmt>)) +
              lit<";"> + NLOpt + option(assign<&ast::ForStmt::cond>(ref<Expr>)) +
@@ -325,29 +305,29 @@ struct Awk : cursiv::GrammarSpec {
              lit<")"> + NLOpt +
              assign<&ast::ForStmt::body>(ref<Stmt>)> {};
 
-  struct ForInStmtRule
+  struct ForInStmt
       : rule<kw<"for"> + lit<"("> + assign<&ast::ForInStmt::var>(ref<ID>) +
              kw<"in"> + assign<&ast::ForInStmt::array>(ref<Lvalue>) + lit<")"> +
              NLOpt + assign<&ast::ForInStmt::body>(ref<Stmt>)> {};
 
-  struct SwitchCaseRule : rule<
+  struct SwitchCase : rule<
       (flag<&ast::SwitchCase::default_>(kw<"default">) |
        (kw<"case"> + assign<&ast::SwitchCase::value>(ref<Expr>))) +
       lit<":"> + NLOpt +
       many(!(kw<"case"> | kw<"default">) +
            append<&ast::SwitchCase::items>(ref<Stmt>) + option(Terminator))> {};
-  struct SwitchStmtRule : rule<kw<"switch"> + lit<"("> +
+  struct SwitchStmt : rule<kw<"switch"> + lit<"("> +
       assign<&ast::SwitchStmt::value>(ref<Expr>) + lit<")"> + NLOpt + lit<"{"> + NLOpt +
-      many(append<&ast::SwitchStmt::cases>(ref<SwitchCaseRule>)) + lit<"}">> {};
+      many(append<&ast::SwitchStmt::cases>(ref<SwitchCase>)) + lit<"}">> {};
 
   struct Stmt : rule<create<ast::EmptyStmt>(lit<";">)                    //
                      | ref<BlockStmt>                                      //
-                     | ref<ForInStmtRule>                                //
-                     | ref<ForStmtRule>                                  //
-                     | ref<IfStmtRule>                                   //
-                     | ref<WhileStmtRule>                                //
-                     | (ref<DoWhileStmtRule> + StmtSep)
-                     | ref<SwitchStmtRule>
+                     | ref<ForInStmt>                                //
+                     | ref<ForStmt>                                  //
+                     | ref<IfStmt>                                   //
+                     | ref<WhileStmt>                                //
+                     | (ref<DoWhileStmt> + StmtSep)
+                     | ref<SwitchStmt>
                      | ((create<ast::BreakStmt>(kw<"break">)                //
                      | create<ast::ContinueStmt>(kw<"continue">)          //
                      | create<ast::NextStmt>(kw<"next">)                  //
@@ -361,7 +341,7 @@ struct Awk : cursiv::GrammarSpec {
                                assign<&ast::ReturnStmt::value>(ref<Expr>)))  //
                      | ref<SimpleStmt>) + StmtSep)> {};
 
-  struct PatternRule
+  struct Pattern
       : rule<create<ast::BeginPattern>(kw<"BEGIN">)  //
             | create<ast::EndPattern>(kw<"END">)     //
             | create<ast::BeginFilePattern>(kw<"BEGINFILE">)
@@ -373,7 +353,7 @@ struct Awk : cursiv::GrammarSpec {
             | create<ast::ExprPattern>(
                   assign<&ast::ExprPattern::value>(ref<Expr>))> {};
 
-  struct ItemRule
+  struct Item
       : rule<create<ast::Directive>(lit<"@"> +
             assign<&ast::Directive::name>(kw<"include"> | kw<"load"> | kw<"namespace"> | kw<"nsinclude">) +
             assign<&ast::Directive::value>(ref<STRING>) + (Terminator | &eof)) |
@@ -386,14 +366,14 @@ struct Awk : cursiv::GrammarSpec {
             lit<")"> + NLOpt +
             assign<&ast::FunctionDef::body>(ref<BlockStmt>))  //
             | create<ast::Rule>(
-                  assign<&ast::Rule::pattern>(ref<PatternRule>) +
+                  assign<&ast::Rule::pattern>(ref<Pattern>) +
                   (assign<&ast::Rule::action>(ref<BlockStmt>) | (Terminator | &eof)))  //
             | create<ast::Rule>(
                   assign<&ast::Rule::action>(ref<BlockStmt>))> {};
 
   struct Program
       : rule<NLOpt +
-             many(append<&ast::Program::items>(ref<ItemRule>) +
+             many(append<&ast::Program::items>(ref<Item>) +
                   option(Terminator))> {};
 
   using entry = Program;

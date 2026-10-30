@@ -31,18 +31,14 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Memcached ASCII request headers cover storage, retrieval, administration and meta commands.
+
 ```
 set greeting 0 0 5
 get greeting
 delete greeting
 quit
 ```
-
-A document is a run of memcached command lines: storage (`set`, `add`,
-`replace`, `append`, `prepend`, `cas`), retrieval (`get`, `gets`), `delete`,
-`incr`, `decr`, `stats`, `flush_all`, `version`, `verbosity`, `quit`. The
-grammar reads the request line only, as the reference `.g4`'s `command_line`
-rule does — not the raw data block a real `set` sends after it.
 
 ## The command line
 

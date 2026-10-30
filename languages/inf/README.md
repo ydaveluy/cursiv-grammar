@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Windows INF documents contain ordered sections and keyed or unkeyed field lists. Empty fields, repeated sections and raw values are retained; input is UTF-8 text.
+
 ```
 [Manufacturer]
 %Provider%=DeviceList,NTamd64
@@ -38,12 +40,6 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 [Device_Install.AddReg]
 HKR,,PortSubClass,,05
 ```
-
-A [Windows INF](https://en.wikipedia.org/wiki/INF_file) document is sections
-of lines. A section opens with a `[name]` header; a line is one or two
-comma-separated lists of values split by `=` — the second list is absent on
-a bare directive line like `HKR,,PortSubClass,,05`, and a comma with
-nothing before the next one (or the line's end) is an elided, empty item.
 
 ## The command line
 

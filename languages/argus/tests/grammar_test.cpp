@@ -35,6 +35,148 @@ int main() {
       argus::ArgusCoreServices, argus::ArgusSharedCoreServices,
       argus::install_core_module>();
 
+  // MIT Argus Reference Manual (1987), sections 6.2 and 9.16: exponent
+  // association and lexical forms missing from the former narrow terminals.
+  {
+    const auto r = language.language.parser->parse(R"arg(
+E = equates
+  Power = 2 ** 3 ** 4
+  A = .0314E+2
+  B = 3.
+  C = 314e-2
+  D = '\''
+  S = "quoted \" text"
+  Octal = \177
+  Hex = \#FF
+end E
+)arg");
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty())
+      return fail("native literal forms do not parse clean");
+    const auto* m = cursiv::ast_cast<argus::ast::Module>(r.value);
+    const auto* eq = m ? cursiv::ast_cast<argus::ast::Equates_>(m->unit) : nullptr;
+    if (eq == nullptr || eq->equates.size() != 8)
+      return fail("native literal forms lost equates");
+    const auto* powerExpr =
+        std::get_if<argus::ast::Expression*>(&eq->equates[0]->value);
+    const auto* power = powerExpr
+                            ? cursiv::ast_cast<argus::ast::BinaryExpr>(*powerExpr)
+                            : nullptr;
+    if (power == nullptr || power->op != argus::ast::Operator::power ||
+        cursiv::ast_cast<argus::ast::BinaryExpr>(power->right) == nullptr ||
+        cursiv::ast_cast<argus::ast::BinaryExpr>(power->left) != nullptr)
+      return fail("native power must associate right");
+    for (std::size_t i = 1; i <= 3; ++i) {
+      const auto* value =
+          std::get_if<argus::ast::Expression*>(&eq->equates[i]->value);
+      if (value == nullptr || cursiv::ast_cast<argus::ast::RealLit>(*value) == nullptr)
+        return fail("native real literals lost their AST classification");
+    }
+    for (std::size_t i = 6; i <= 7; ++i) {
+      const auto* value =
+          std::get_if<argus::ast::Expression*>(&eq->equates[i]->value);
+      if (value == nullptr || cursiv::ast_cast<argus::ast::IntLit>(*value) == nullptr)
+        return fail("native based integers lost their AST classification");
+    }
+    const auto upper = language.language.parser->parse(
+        "_Identity = PROC (_value: INT) RETURNS(INT) "
+        "RETURN _value END _Identity");
+    if (!upper.accepted || upper.cst().recovered() ||
+        !upper.diagnostics.empty())
+      return fail("native keywords are case-insensitive and names may start with underscore");
+    const auto bindings = language.language.parser->parse(
+        "P = proc(xs: sequence[int with {copy: copier}]) end P");
+    if (!bindings.accepted || bindings.cst().recovered() ||
+        !bindings.diagnostics.empty())
+      return fail("native braced operation bindings do not parse clean");
+    bool foundBinding = false;
+    for (const auto* node : bindings.nodes)
+      if (const auto* actual = cursiv::ast_cast<argus::ast::TypeActual>(node))
+        if (actual->bindings.size() == 1 &&
+            actual->bindings[0]->names.size() == 1 &&
+            actual->bindings[0]->names[0] == "copy")
+          foundBinding = true;
+    if (!foundBinding)
+      return fail("native braced operation bindings lost their AST");
+  }
+
+  // Appendix I groups parameters, exception payloads and returned values
+  // with explicit delimiters; preserve their individual members.
+  {
+    const auto r = language.language.parser->parse(R"arg(
+Allowed = {t | t has copy: proctype(t) returns(t)}
+P = proc [t: type](xs: atomic array[int], f: proctype())
+    returns(int, int) signals(oops(int, string))
+  own counter: int := 0
+  a: atomic record[x: int]
+  b: atomic variant[x: int]
+  x: int := f()[1]
+  c: proctype(int) := bind f(1)
+  tagcase value
+    tag a (x: int): return(1, 2)
+  end
+  tagtest value
+    wtag a (x: int): signal oops(1, "text")
+  end
+  tagwait value
+    tag a (x: int): yield(1, 2)
+  end
+  f() except
+    when oops(x: int, y: string): exit done(1, 2)
+    others(e: string): return(0, 0)
+  end
+  return(1, 2)
+end P
+)arg");
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty())
+      return fail("native declaration and statement delimiters failed");
+    bool own = false, index = false, bind = false, formals = false,
+         signals = false, returned = false, signalled = false, yielded = false,
+         exited = false, tag = false, atomicTag = false, handled = false,
+         others = false, typeSet = false;
+    for (const auto* node : r.nodes) {
+      if (const auto* body = cursiv::ast_cast<argus::ast::Body>(node))
+        own |= body->ownVars.size() == 1;
+      index |= cursiv::ast_cast<argus::ast::IndexExpr>(node) != nullptr;
+      if (const auto* closure = cursiv::ast_cast<argus::ast::BindExpr>(node))
+        bind |= closure->args.size() == 1 &&
+                cursiv::ast_cast<argus::ast::Reference>(closure->target) != nullptr;
+      if (const auto* p = cursiv::ast_cast<argus::ast::Procedure>(node)) {
+        formals |= p->parms.size() == 1;
+        signals |= p->signals && p->signals->exceptions.size() == 1 &&
+                   p->signals->exceptions[0]->types.size() == 2;
+      }
+      if (const auto* s = cursiv::ast_cast<argus::ast::ReturnStatement>(node))
+        returned |= s->values.size() == 2;
+      if (const auto* s = cursiv::ast_cast<argus::ast::SignalStatement>(node))
+        signalled |= s->values.size() == 2;
+      if (const auto* s = cursiv::ast_cast<argus::ast::YieldStatement>(node))
+        yielded |= s->values.size() == 2;
+      if (const auto* s = cursiv::ast_cast<argus::ast::ExitStatement>(node))
+        exited |= s->values.size() == 2;
+      if (const auto* t = cursiv::ast_cast<argus::ast::TagArm>(node))
+        tag |= t->declName == "x" && t->declType;
+      if (const auto* t = cursiv::ast_cast<argus::ast::ATagArm>(node))
+        atomicTag |= t->decls.size() == 1;
+      if (const auto* h = cursiv::ast_cast<argus::ast::WhenHandler>(node))
+        handled |= h->decls.size() == 2;
+      if (const auto* h = cursiv::ast_cast<argus::ast::OthersHandler>(node))
+        others |= h->decls.size() == 1;
+      if (const auto* set = cursiv::ast_cast<argus::ast::TypeSet>(node))
+        typeSet |= set->binder == "t" && set->elements.size() == 1;
+    }
+    if (!own || !index || !bind || !formals || !signals || !returned ||
+        !signalled || !yielded || !exited || !tag || !atomicTag || !handled ||
+        !others || !typeSet) {
+      std::fprintf(stderr,
+                   "argus native fields: own=%d index=%d bind=%d formals=%d "
+                   "signals=%d return=%d signal=%d yield=%d exit=%d tag=%d "
+                   "atomicTag=%d when=%d others=%d typeSet=%d\n",
+                   own, index, bind, formals, signals, returned, signalled,
+                   yielded, exited, tag, atomicTag, handled, others, typeSet);
+      return fail("native declaration/statement fields were not preserved");
+    }
+  }
+
   const char* const docs[] = {
       CURSIV_TEST_DIR "/statements.arg",       //
       CURSIV_TEST_DIR "/expressions.arg",      //

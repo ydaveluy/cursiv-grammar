@@ -21,6 +21,31 @@ inline bool run(const cursiv::Parser& parser) {
           "expected a clean parse");
     return cursiv::ast_cast<ast::SourceFile>(r.value);
   };
+  for (const auto source : {
+           "package for\n", "package p\nvar if = 1\n",
+           "package p\ntype struct int\n", "package p\nvar _ = '\\'\n",
+           "package p\nvar _ = '\\\"'\n", "package p\nvar _ = \"\\'\"\n",
+           "package p\nvar _ = '\\400'\n", "package p\nvar _ = \"\\777\"\n",
+           "package p\nvar _ = '\\uD800'\n", "package p\nvar _ = \"\\U00110000\"\n"}) {
+    const auto r = parser.parse(source);
+    check(!r.accepted || r.cst().recovered() || !r.diagnostics.empty(),
+          "reserved keywords and native-invalid rune/string escapes are refused");
+  }
+  {
+    const auto r = parser.parse(R"GO(package p
+var runeValue = '\U0010FFFF'
+var quote = '\''
+var text = "\"\377\u00FF"
+var returnValue = 1
+)GO");
+    const auto* f = file(r);
+    const auto* d = f && f->decls.size() == 4 ?
+        cursiv::ast_cast<ast::VarDecl>(f->decls[2]) : nullptr;
+    const auto* text = d && d->specs.size() == 1 && d->specs[0]->values.size() == 1 ?
+        cursiv::ast_cast<ast::StringLit>(d->specs[0]->values[0]) : nullptr;
+    check(text && text->text == R"GO("\"\377\u00FF")GO",
+          "valid escapes retain raw Go AST spelling; keyword prefixes remain names");
+  }
   {
     const auto r = parser.parse("\xEF\xBB\xBFpackage p\nvar value=1\n");
     const auto* f = file(r);

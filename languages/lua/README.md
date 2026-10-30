@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Lua 5.4 source contains statements, functions, tables and expressions organized into blocks.
+
 ```lua
 function fact(n)
   if n == 0 then
@@ -44,10 +46,6 @@ print("enter a number:")
 a = io.read("*number")
 print(fact(a))
 ```
-
-A chunk is a block of statements, and a block is what a function body, a
-`do`/`while`/`for` body and the document itself all are — one AST class.
-`example/` contains Lua programs, including the Lua 5.4 test suite.
 
 ## The command line
 

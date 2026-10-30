@@ -29,6 +29,14 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 Generated files live under `build/src/generated-src/`; do not edit them.
 
+Structural reference: the Revised Report on ALGOL 60 (1963). The port uses
+an unstropped, case-insensitive spelling of keywords and retains corpus
+extensions for identifiers, quotes and operators. Flattening the report's
+raised-ten exponent notation to ordinary `10` introduces an ambiguity, so
+this is a transliteration with explicit limits rather than an exact hardware
+representation of the report. Native name/type checking and external code
+procedure bodies are not implemented.
+
 ## The sample
 
 ```

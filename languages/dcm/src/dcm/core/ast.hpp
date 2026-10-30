@@ -84,6 +84,7 @@ struct Kennwert : cursiv::Extends<Kenngroesse> {
 struct Kennwerteblock : cursiv::Extends<Kenngroesse> {
   string_view name;
   std::int64_t count;
+  optional<std::int64_t> countY;  // present for a native matrix: x @ y
   KgrInfo* info;
   optional<string_view> unit;
   vector<ValueBlock*> blocks;

@@ -23,6 +23,33 @@ inline bool run() {
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
         "useragent valid syntax regression");
 
+  for (const char* source : {R"(Client/1 (escaped \( and \) delimiters))",
+                             R"(Client (outer (inner) escaped \) end))"}) {
+    const auto comment_result = parser->parse(source);
+    const auto* document = comment_result.value_as<ast::Document>();
+    check(comment_result.accepted && !comment_result.cst().recovered() &&
+              comment_result.diagnostics.empty() && document &&
+              document->products.size() == 1 && document->products[0]->comments.size() == 1,
+          "HTTP quoted pairs do not change recursive comment boundaries");
+  }
+  {
+    const auto multiple = parser->parse("Client/1 (first) (second) Other/2 (third)\n");
+    const auto* document = multiple.value_as<ast::Document>();
+    check(multiple.accepted && !multiple.cst().recovered() &&
+              multiple.diagnostics.empty() && document && document->products.size() == 2 &&
+              document->products[0]->comments.size() == 2 &&
+              document->products[0]->comments[0] == "first" &&
+              document->products[0]->comments[1] == "second" &&
+              document->products[1]->comments.size() == 1,
+          "every product retains its ordered comments");
+  }
+  for (const char* source : {"Client /1", "Client/ 1", "Client(comment)",
+                             "Client (first)(second)", "Client\nOther", "Client (bad\ncomment)"}) {
+    const auto invalid = parser->parse(source);
+    check(!invalid.accepted || invalid.cst().recovered() || !invalid.diagnostics.empty(),
+          "HTTP product/version adjacency and comment whitespace are enforced");
+  }
+
   return ok;
 }
 } // namespace audit_regressions

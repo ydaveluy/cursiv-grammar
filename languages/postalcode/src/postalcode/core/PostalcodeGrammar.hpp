@@ -17,14 +17,14 @@ struct Postalcode : cursiv::GrammarSpec {
   struct ForwardSortationArea : rule<ref<LETTER> + ref<DIGIT> + ref<LETTER>> {};
   struct LocalDeliveryUnit : rule<ref<DIGIT> + ref<LETTER> + ref<DIGIT>> {};
 
-  struct PostalCodeRule : rule<assign<&ast::PostalCode::forwardSortationArea>(
+  struct PostalCode : rule<assign<&ast::PostalCode::forwardSortationArea>(
                                    ref<ForwardSortationArea>) +
                                option(lit<"-">) +
                                assign<&ast::PostalCode::localDeliveryUnit>(
                                    ref<LocalDeliveryUnit>)> {};
 
-  using entry = PostalCodeRule;
-  using ignore = WS;
+  using entry = PostalCode;
+  using ignored = WS;
 };
 
 }  // namespace postalcode

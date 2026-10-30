@@ -33,7 +33,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ```
 Set A=3.
-Set B=A+2*3.
+Set B=A+2·3.
 
 1.1 Set A=5.
 1.2 Type A.
@@ -42,12 +42,9 @@ Set B=A+2*3.
 Type 'hello, world!'.
 ```
 
-A statement is a direct command (`Go.`, `Delete step 1.1.`, `Set A=3.`), an
-indirect one prefixed by the step number it is stored under (`1.1 ...`), a
-`Form n:` header, or a bare assignment (`A=3`, no trailing `.`) -- the only
-kind with no terminator at all, since nothing else in the grammar could
-follow one. The sample lives at `tests/statements.joss`; `example/` is empty
-because the upstream corpus has no files of its own.
+JOSS commands may be direct or stored under a step number. This port models
+core forms from RAND’s 1967 JOSS Primer; `*` is exponentiation and the centered
+dot `·` is multiplication. Stored expressions, forms and commands have AST nodes.
 
 ## The command line
 

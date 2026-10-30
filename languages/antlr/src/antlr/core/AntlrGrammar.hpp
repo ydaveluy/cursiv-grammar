@@ -12,11 +12,9 @@ inline constexpr auto stripOne = [](std::string_view t,
                                     std::pmr::memory_resource *) {
   return t.substr(1, t.size() - 2);
 };
-using Unwrapped = cursiv::text_conv<stripOne>;
 
 inline constexpr auto keepText = [](std::string_view t,
                                     std::pmr::memory_resource *) { return t; };
-using RawText = cursiv::text_conv<keepText>;
 
 template <auto SuffixM, auto GreedyM, class Question, class Star, class Plus>
 constexpr auto ebnfSuffix() {
@@ -87,27 +85,27 @@ struct Antlr : cursiv::GrammarSpec {
                       ref<LINE_COMMENT> | (lit<"\\"> + any) | ref<RawAction> |
                       ref<ActionText> | lit<"/">) +
                  lit<"}">> {};
-  struct ARG_ACTION : terminal<ref<RawArgAction>, Unwrapped> {};
-  struct ACTION : terminal<ref<RawAction>, Unwrapped> {};
+  struct ARG_ACTION : terminal<as<stripOne>(ref<RawArgAction>)> {};
+  struct ACTION : terminal<as<stripOne>(ref<RawAction>)> {};
 
   struct LEXER_CHAR_SET
-      : terminal<lit<"["> + many((lit<"\\"> + any) | cr<R"(^\\])">) + lit<"]">,
-                 Unwrapped> {};
+      : terminal<as<stripOne>(
+            lit<"["> + many((lit<"\\"> + any) | cr<R"(^\\])">) + lit<"]">)> {};
 
-  struct EbnfQuestion : rule<lit<"?">, value<ast::EbnfKind::question>> {};
-  struct EbnfStar : rule<lit<"*">, value<ast::EbnfKind::star>> {};
-  struct EbnfPlus : rule<lit<"+">, value<ast::EbnfKind::plus>> {};
+  struct EbnfQuestion : rule<as<ast::EbnfKind::question>(lit<"?">)> {};
+  struct EbnfStar : rule<as<ast::EbnfKind::star>(lit<"*">)> {};
+  struct EbnfPlus : rule<as<ast::EbnfKind::plus>(lit<"+">)> {};
 
-  struct QualifiedIdText : rule<AnyId + many(lit<"."> + AnyId), RawText> {};
+  struct QualifiedIdText : rule<as<keepText>(AnyId + many(lit<"."> + AnyId))> {
+  };
 
   struct OptionValueText
-      : rule<(AnyId + many(lit<"."> + AnyId)) | ref<STRING_LITERAL> |
-                 ref<RawAction> | ref<INT>,
-             RawText> {};
+      : rule<as<keepText>((AnyId + many(lit<"."> + AnyId)) |
+                          ref<STRING_LITERAL> | ref<RawAction> | ref<INT>)> {};
 
-  struct ElementOptionText : rule<AnyId + many(lit<"."> + AnyId) +
-                                      option(lit<"="> + ref<OptionValueText>),
-                                  RawText> {};
+  struct ElementOptionText
+      : rule<as<keepText>(AnyId + many(lit<"."> + AnyId) +
+                          option(lit<"="> + ref<OptionValueText>))> {};
 
   struct OptionDecl : rule<assign<&ast::Option::name>(AnyId) + lit<"="> +
                            assign<&ast::Option::value>(ref<OptionValueText>)> {
@@ -280,14 +278,12 @@ struct Antlr : cursiv::GrammarSpec {
 
   static constexpr auto TokensClause =
       ref<TOKENS_KW> +
-      option(some(append<&ast::Grammar::tokens>(AnyId), lit<",">) +
-             option(lit<",">)) +
+      many(append<&ast::Grammar::tokens>(AnyId), lit<",">) +
       lit<"}">;
 
   static constexpr auto ChannelsClause =
       ref<CHANNELS_KW> +
-      option(some(append<&ast::Grammar::channels>(AnyId), lit<",">) +
-             option(lit<",">)) +
+      some(append<&ast::Grammar::channels>(AnyId), lit<",">) +
       lit<"}">;
 
   struct GrammarDecl
@@ -307,7 +303,7 @@ struct Antlr : cursiv::GrammarSpec {
             many(append<&ast::Grammar::modes>(ref<ModeDecl>)))> {};
 
   using entry = GrammarDecl;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 

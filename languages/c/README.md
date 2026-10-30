@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+C23 syntax with selected compiler extensions. The examples cover declarations, expressions, statements and preprocessing directives.
+
 ```c
 struct list_el {
    int val;
@@ -53,11 +55,6 @@ void main() {
    ...
 }
 ```
-
-`goto`/labels are the one name this language resolves: a `goto` may jump to a
-label anywhere in its enclosing function, however deeply nested in `{ }` --
-which is what `example/00199.c` and the custom scope computation in
-`src/c/core/references/` are for.
 
 ## The command line
 

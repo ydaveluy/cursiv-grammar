@@ -31,23 +31,16 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-RCS is the file format behind the Revision Control System's `,v` files: an
-admin block, then one delta per revision (its date, author, state and links
-to neighbouring revisions), then the description, then one deltatext per
-revision (its log message and full text).
+RCS archive files: administration data, revision metadata and deltatext sections. Revision reconstruction is outside this parser.
 
 ```
-head	1.1;
+head;
 access;
 symbols;
+locks;
 desc
 @Minimal admin section: only the fields the grammar requires, no deltas.@
 ```
-
-A full file adds `branch`, `locks`, `strict`, `comment`, `expand`, symbolic
-tags (`release-1_0:1.1`) and deltas with `branches`/`next` links — see
-`example/full.rcs`. A value that must hold a literal `@` doubles it
-(`@a @@ b@` reads as `a @ b`), the same escaping SQL uses for `'`.
 
 ## The command line
 

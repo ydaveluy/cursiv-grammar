@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Lists of equations over numeric and variable expressions. This teaching dialect gives leading signs higher precedence than exponentiation.
+
 ```
 x  = (-b + (b^2 -4*a*c)^0.50) / 4*a*c
 ```
-
-A document is a list of equations, `expression relop expression`. An
-expression is `+`, `-`, `*`, `/`, `^` over parenthesized expressions, numbers
-in scientific notation and bare variable names, with a chain of leading
-`+`/`-` signs on each. `relop` is `=`, `>` or `<`. No declarations, no
-comments: the grammar ends there.
 
 ## The command line
 

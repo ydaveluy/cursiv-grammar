@@ -1,6 +1,7 @@
 // The plucid language: its grammar.
 #pragma once
 
+#include <string>
 #include <string_view>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
@@ -10,54 +11,53 @@ namespace plucid {
 
 inline constexpr std::string_view kNegMark = "˜";
 
-inline constexpr auto parse_integer = [](std::string_view t) -> std::int64_t {
+inline constexpr auto parse_integer = [](std::string_view t) {
   bool neg = false;
-  while (t.starts_with(kNegMark)) {
+  while (t.starts_with(kNegMark) || t.starts_with("~")) {
     neg = !neg;
-    t.remove_prefix(kNegMark.size());
+    t.remove_prefix(t.starts_with("~") ? 1 : kNegMark.size());
   }
-  std::int64_t v = 0;
-  for (const char c : t) v = v * 10 + (c - '0');
-  return neg ? -v : v;
+  if (!neg) return cursiv::default_convert<std::int64_t>(t);
+  return cursiv::default_convert<std::int64_t>("-" + std::string(t));
 };
-using IntConv = cursiv::text_conv<parse_integer>;
 
-inline constexpr auto parse_real = [](std::string_view t) -> double {
+inline constexpr auto parse_real = [](std::string_view t) {
   bool neg = false;
-  while (t.starts_with(kNegMark)) {
+  while (t.starts_with(kNegMark) || t.starts_with("~")) {
     neg = !neg;
-    t.remove_prefix(kNegMark.size());
+    t.remove_prefix(t.starts_with("~") ? 1 : kNegMark.size());
   }
-  double v = 0;
-  std::size_t i = 0;
-  for (; i < t.size() && t[i] != '.'; ++i) v = v * 10 + (t[i] - '0');
-  if (i < t.size()) {
-    double scale = 0.1;
-    for (++i; i < t.size(); ++i) {
-      v += (t[i] - '0') * scale;
-      scale *= 0.1;
-    }
-  }
-  return neg ? -v : v;
+  auto result = cursiv::default_convert<double>(t);
+  if (neg && result.value) *result.value = -*result.value;
+  return result;
 };
-using RealConv = cursiv::text_conv<parse_real>;
 
 inline constexpr auto unquote_string =
     [](std::string_view t) -> std::string_view {
-  return t.substr(3, t.size() - 6);
+  return t.starts_with("'") ? t.substr(1, t.size() - 2) : t.substr(3, t.size() - 6);
 };
-using StringConv = cursiv::text_conv<unquote_string>;
 
 struct Plucid : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \r\n\t)">)> {};
+  struct LINE_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
 
   static constexpr auto kLetter = cr<"a-zA-Z">;
   static constexpr auto kAlnum = cr<"a-zA-Z0-9">;
-  static constexpr auto kSign = cr<"+*$&=<>:#ˆ-">;
+  static constexpr auto kSign = cr<"+*$&=<>:#^ˆ-">;
   static constexpr auto kBracket =
       lit<"("> | lit<")"> | lit<"[%"> | lit<"%]"> | lit<"(%"> | lit<"%)">;
 
-  struct ID : terminal<kLetter + many(kAlnum)> {};
+  static constexpr auto reserved = kw<"if"> | kw<"then"> | kw<"else"> | kw<"elseif"> | kw<"fi"> |
+      kw<"case"> | kw<"of"> | kw<"default"> | kw<"where"> | kw<"end"> | kw<"cond"> |
+      kw<"is"> | kw<"current"> | kw<"include"> | kw<"true"> | kw<"false"> |
+      kw<"error"> | kw<"eod"> | kw<"nil"> | kw<"sin"> | kw<"cos"> | kw<"tan"> | kw<"sqrt"> |
+      kw<"abs"> | kw<"log10"> | kw<"log"> | kw<"isnumber"> | kw<"isword"> | kw<"not"> |
+      kw<"mkstring"> | kw<"isstring"> | kw<"mkword"> | kw<"hd"> | kw<"tl"> | kw<"isatom"> |
+      kw<"isnull"> | kw<"islist"> | kw<"first"> | kw<"next"> | kw<"iseod"> | kw<"iserror"> |
+      kw<"filter"> | kw<"substr"> | kw<"length"> | kw<"arg"> | kw<"div"> | kw<"mod"> |
+      kw<"and"> | kw<"or"> | kw<"eq"> | kw<"ne"> | kw<"fby"> | kw<"asa"> | kw<"attime"> |
+      kw<"upon"> | kw<"whenever"> | kw<"wvr">;
+  struct ID : terminal<!reserved + kLetter + many(kAlnum)> {};
 
   // The content of a quoted word, also reused bare as a list element: one
   // identifier-like run, a run of sign characters, one bracket spelling, or
@@ -66,105 +66,51 @@ struct Plucid : cursiv::GrammarSpec {
       : terminal<(kLetter + many(kAlnum)) | some(kSign) | kBracket |
                  lit<"."> | lit<","> | lit<";"> | lit<"\"">> {};
 
-  struct STRING
-      : terminal<through(lit<"‘">, lit<"’">), StringConv> {};
+  struct STRING : terminal<as<unquote_string>(through(lit<"‘">, lit<"’">) | through(lit<"'">, lit<"'">))> {};
 
   // A leading run of `˜` negates once per occurrence; the converter
   // folds the parity into the value instead of building a chain of nodes.
-  struct INTEGER : terminal<many(lit<"˜">) + some(d), IntConv> {};
-  struct REAL
-      : terminal<many(lit<"˜">) + some(d) + lit<"."> + many(d),
-                 RealConv> {};
-
-  struct SIN : terminal<kw<"sin">, value<ast::PrefixOp::sin>> {};
-  struct COS : terminal<kw<"cos">, value<ast::PrefixOp::cos>> {};
-  struct TAN : terminal<kw<"tan">, value<ast::PrefixOp::tan>> {};
-  struct SQRT : terminal<kw<"sqrt">, value<ast::PrefixOp::sqrt>> {};
-  struct ABS : terminal<kw<"abs">, value<ast::PrefixOp::abs>> {};
-  struct LOG10 : terminal<kw<"log10">, value<ast::PrefixOp::log10>> {};
-  struct LOG : terminal<kw<"log">, value<ast::PrefixOp::log>> {};
-  struct ISNUMBER
-      : terminal<kw<"isnumber">, value<ast::PrefixOp::isnumber>> {};
-  struct ISWORD : terminal<kw<"isword">, value<ast::PrefixOp::isword>> {};
-  struct NOT_OP : terminal<kw<"not">, value<ast::PrefixOp::lognot>> {};
-  struct MKSTRING
-      : terminal<kw<"mkstring">, value<ast::PrefixOp::mkstring>> {};
-  struct ISSTRING
-      : terminal<kw<"isstring">, value<ast::PrefixOp::isstring>> {};
-  struct MKWORD : terminal<kw<"mkword">, value<ast::PrefixOp::mkword>> {};
-  struct HD : terminal<kw<"hd">, value<ast::PrefixOp::hd>> {};
-  struct TL : terminal<kw<"tl">, value<ast::PrefixOp::tl>> {};
-  struct ISATOM : terminal<kw<"isatom">, value<ast::PrefixOp::isatom>> {};
-  struct ISNULL : terminal<kw<"isnull">, value<ast::PrefixOp::isnull>> {};
-  struct ISLIST : terminal<kw<"islist">, value<ast::PrefixOp::islist>> {};
-  struct FIRST_OP : terminal<kw<"first">, value<ast::PrefixOp::first>> {};
-  struct NEXT_OP : terminal<kw<"next">, value<ast::PrefixOp::next>> {};
-  struct ISEOD : terminal<kw<"iseod">, value<ast::PrefixOp::iseod>> {};
-  struct ISERROR : terminal<kw<"iserror">, value<ast::PrefixOp::iserror>> {};
+  struct INTEGER : terminal<as<parse_integer>(many(lit<"~"> | lit<"˜">) + some(d))> {};
+  struct REAL : terminal<as<parse_real>(many(lit<"~"> | lit<"˜">) + some(d) + lit<"."> +
+                                        many(d))> {};
 
   static constexpr auto PrefixOpAlt =
-      ref<SIN> | ref<COS> | ref<TAN> | ref<SQRT> | ref<ABS> | ref<LOG10> |
-      ref<LOG> | ref<ISNUMBER> | ref<ISWORD> | ref<MKSTRING> |
-      ref<ISSTRING> | ref<MKWORD> | ref<HD> | ref<TL> | ref<ISATOM> |
-      ref<ISNULL> | ref<ISLIST> | ref<FIRST_OP> | ref<NEXT_OP> | ref<ISEOD> |
-      ref<ISERROR>;
+      as<ast::PrefixOp::sin>(kw<"sin">) | as<ast::PrefixOp::cos>(kw<"cos">) | as<ast::PrefixOp::tan>(kw<"tan">) | as<ast::PrefixOp::sqrt>(kw<"sqrt">) | as<ast::PrefixOp::abs>(kw<"abs">) | as<ast::PrefixOp::log10>(kw<"log10">) |
+      as<ast::PrefixOp::log>(kw<"log">) | as<ast::PrefixOp::isnumber>(kw<"isnumber">) | as<ast::PrefixOp::isword>(kw<"isword">) | as<ast::PrefixOp::mkstring>(kw<"mkstring">) |
+      as<ast::PrefixOp::isstring>(kw<"isstring">) | as<ast::PrefixOp::mkword>(kw<"mkword">) | as<ast::PrefixOp::hd>(kw<"hd">) | as<ast::PrefixOp::tl>(kw<"tl">) | as<ast::PrefixOp::isatom>(kw<"isatom">) |
+      as<ast::PrefixOp::isnull>(kw<"isnull">) | as<ast::PrefixOp::islist>(kw<"islist">) | as<ast::PrefixOp::first>(kw<"first">) | as<ast::PrefixOp::next>(kw<"next">) | as<ast::PrefixOp::iseod>(kw<"iseod">) |
+      as<ast::PrefixOp::iserror>(kw<"iserror">);
 
   // One token per operation, each denoting its own constant: `eq`/`ne`
   // compare numbers, words, strings and lists alike, folded here to one
   // spelling since nothing in the grammar distinguishes their operand type.
-  struct POWER : terminal<lit<"**">, value<ast::InfixOp::power>> {};
-  struct MULTIPLY : terminal<lit<"*">, value<ast::InfixOp::multiply>> {};
-  struct DIVIDE : terminal<lit<"/">, value<ast::InfixOp::divide>> {};
-  struct INT_DIV : terminal<kw<"div">, value<ast::InfixOp::int_div>> {};
-  struct MOD : terminal<kw<"mod">, value<ast::InfixOp::mod>> {};
-  struct ADD : terminal<lit<"+">, value<ast::InfixOp::add>> {};
-  struct SUBTRACT : terminal<lit<"-">, value<ast::InfixOp::subtract>> {};
-  struct LE : terminal<lit<"<=">, value<ast::InfixOp::le>> {};
-  struct GE : terminal<lit<">=">, value<ast::InfixOp::ge>> {};
-  struct LT : terminal<lit<"<">, value<ast::InfixOp::lt>> {};
-  struct GT : terminal<lit<">">, value<ast::InfixOp::gt>> {};
-  struct EQ : terminal<kw<"eq">, value<ast::InfixOp::eq>> {};
-  struct NE : terminal<kw<"ne">, value<ast::InfixOp::ne>> {};
-  struct AND_OP : terminal<kw<"and">, value<ast::InfixOp::logical_and>> {};
-  struct OR_OP : terminal<kw<"or">, value<ast::InfixOp::logical_or>> {};
-  struct CONCAT : terminal<lit<"ˆ">, value<ast::InfixOp::concat>> {};
-  struct LIST_APPEND
-      : terminal<lit<"<>">, value<ast::InfixOp::list_append>> {};
-  struct LIST_CONS : terminal<lit<"::">, value<ast::InfixOp::list_cons>> {};
-  struct FBY : terminal<kw<"fby">, value<ast::InfixOp::fby>> {};
-  struct WHENEVER
-      : terminal<kw<"whenever">, value<ast::InfixOp::whenever>> {};
-  struct WVR : terminal<kw<"wvr">, value<ast::InfixOp::wvr>> {};
-  struct UPON : terminal<kw<"upon">, value<ast::InfixOp::upon>> {};
-  struct ASA : terminal<kw<"asa">, value<ast::InfixOp::asa>> {};
-  struct ATTIME : terminal<kw<"attime">, value<ast::InfixOp::attime>> {};
 
   struct Primary;
   struct Expression;
-  struct ListConstantRule;
+  struct ListConstant;
   struct AppliedExpr;
 
-  struct RealLitRule
+  struct RealLit
       : rule<create<ast::RealLit> +
              assign<&ast::RealLit::value>(ref<REAL>)> {};
-  struct IntegerLitRule
+  struct IntegerLit
       : rule<create<ast::IntegerLit> +
              assign<&ast::IntegerLit::value>(ref<INTEGER>)> {};
-  struct WordLitRule
+  struct WordLit
       : rule<create<ast::WordLit>(lit<"\""> +
                                   assign<&ast::WordLit::value>(
                                       ref<WORD_ATOM>) +
                                   lit<"\"">)> {};
-  struct StringLitRule
+  struct StringLit
       : rule<create<ast::StringLit> +
              assign<&ast::StringLit::value>(ref<STRING>)> {};
 
   // Reused bare (no quotes) as one shape of a list element.
   static constexpr auto ListElementAlt =
-      ref<RealLitRule> | ref<IntegerLitRule> | ref<WORD_ATOM> |
-      ref<StringLitRule> | ref<ListConstantRule>;
+      ref<RealLit> | ref<IntegerLit> | ref<WORD_ATOM> |
+      ref<StringLit> | ref<ListConstant>;
 
-  struct ListConstantRule
+  struct ListConstant
       : rule<(create<ast::NilLit> + kw<"nil">)                        //
              | (create<ast::ListLit> + lit<"[]">)                   //
              | create<ast::ListLit>(
@@ -172,43 +118,43 @@ struct Plucid : cursiv::GrammarSpec {
                    many(append<&ast::ListLit::elements>(ListElementAlt)) +
                    lit<"]">)> {};
 
-  static constexpr auto Constant = ref<RealLitRule> | ref<IntegerLitRule> |
-                                    ref<WordLitRule> | ref<StringLitRule> |
-                                    ref<ListConstantRule>;
+  static constexpr auto Constant = ref<RealLit> | ref<IntegerLit> |
+                                    ref<WordLit> | ref<StringLit> |
+                                    ref<ListConstant>;
 
-  struct IdentifierRule
+  struct Identifier
       : rule<create<ast::Identifier> +
-             assign<&ast::Identifier::name>(ref<ID>)> {};
+             assign<&ast::Identifier::name>(ref<ID> | kw<"true"> | kw<"false">)> {};
 
-  struct PrefixExprRule
+  struct PrefixExpr
       : rule<create<ast::PrefixExpr> +
              assign<&ast::PrefixExpr::op>(PrefixOpAlt) +
              assign<&ast::PrefixExpr::operand>(ref<AppliedExpr>)> {};
 
-  struct FilterExprRule
-      : rule<create<ast::FilterExpr> + kw<"filter"> +
+  struct FilterExpr
+      : rule<create<ast::FilterExpr> + kw<"filter"> + lit<"("> +
              append<&ast::FilterExpr::args>(ref<Expression>) + lit<","> +
              append<&ast::FilterExpr::args>(ref<Expression>) + lit<","> +
-             append<&ast::FilterExpr::args>(ref<Expression>)> {};
+             append<&ast::FilterExpr::args>(ref<Expression>) + lit<")">> {};
 
-  struct SubstrExprRule
-      : rule<create<ast::SubstrExpr> + kw<"substr"> +
+  struct SubstrExpr
+      : rule<create<ast::SubstrExpr> + kw<"substr"> + lit<"("> +
              append<&ast::SubstrExpr::args>(ref<Expression>) + lit<","> +
              append<&ast::SubstrExpr::args>(ref<Expression>) + lit<","> +
-             append<&ast::SubstrExpr::args>(ref<Expression>)> {};
+             append<&ast::SubstrExpr::args>(ref<Expression>) + lit<")">> {};
 
-  struct LengthExprRule
+  struct LengthExpr
       : rule<create<ast::LengthExpr> + kw<"length"> +
              assign<&ast::LengthExpr::operand>(ref<AppliedExpr>)> {};
 
-  struct ArgExprRule
+  struct ArgExpr
       : rule<create<ast::ArgExpr> + kw<"arg"> +
              assign<&ast::ArgExpr::operand>(ref<AppliedExpr>)> {};
 
   // A list-expression's items are a plain comma-separated repetition: an
   // item is always an expression (a nested list included), so no separate
   // item rule is needed.
-  struct ListExprRule
+  struct ListExpr
       : rule<(create<ast::ListExpr> + lit<"[%%]">)  //
              | create<ast::ListExpr>(
                    lit<"[%"> +
@@ -216,43 +162,37 @@ struct Plucid : cursiv::GrammarSpec {
                         lit<",">) +
                    lit<"%]">)> {};
 
-  struct IfExprRule
-      : rule<create<ast::IfExpr> + kw<"if"> +
-             assign<&ast::IfExpr::cond>(ref<Expression>) + kw<"then"> +
-             assign<&ast::IfExpr::then_>(ref<Expression>) +
-             assign<&ast::IfExpr::tail>(
-                 create<ast::ElseTail>(
-                     kw<"else"> +
-                     assign<&ast::ElseTail::value>(ref<Expression>) +
-                     kw<"fi">)  //
-                 | create<ast::ElseifTail>(
-                       kw<"elseif"> +
-                       assign<&ast::ElseifTail::cond>(ref<Expression>) +
-                       kw<"then"> +
-                       assign<&ast::ElseifTail::then_>(ref<Expression>) +
-                       kw<"endif">))> {};
+  struct ConditionalTail : rule<
+      create<ast::ElseTail>(kw<"else"> + assign<&ast::ElseTail::value>(ref<Expression>) + kw<"fi">) |
+      create<ast::ElseifTail>(kw<"elseif"> + assign<&ast::ElseifTail::cond>(ref<Expression>) +
+          kw<"then"> + assign<&ast::ElseifTail::then_>(ref<Expression>) +
+          assign<&ast::ElseifTail::tail>(ref<ConditionalTail>))> {};
+  struct IfExpr : rule<create<ast::IfExpr>(kw<"if"> +
+      assign<&ast::IfExpr::cond>(ref<Expression>) + kw<"then"> +
+      assign<&ast::IfExpr::then_>(ref<Expression>) +
+      assign<&ast::IfExpr::tail>(ref<ConditionalTail>))> {};
 
-  struct CondCaseRule
+  struct CondCase
       : rule<create<ast::CondCase> +
              assign<&ast::CondCase::test>(ref<Expression>) + lit<":"> +
              assign<&ast::CondCase::result>(ref<Expression>) + lit<";">> {};
 
-  struct CaseExprRule
+  struct CaseExpr
       : rule<create<ast::CaseExpr> + kw<"case"> +
              assign<&ast::CaseExpr::subject>(ref<Expression>) + kw<"of"> +
-             many(append<&ast::CaseExpr::cases>(ref<CondCaseRule>)) +
+             many(append<&ast::CaseExpr::cases>(ref<CondCase>)) +
              kw<"default"> + lit<":"> +
-             assign<&ast::CaseExpr::default_>(ref<Expression>) +
+             assign<&ast::CaseExpr::default_>(ref<Expression>) + lit<";"> +
              kw<"end">> {};
 
-  struct CondExprRule
+  struct CondExpr
       : rule<create<ast::CondExpr> + kw<"cond"> +
-             many(append<&ast::CondExpr::cases>(ref<CondCaseRule>)) +
+             many(append<&ast::CondExpr::cases>(ref<CondCase>)) +
              kw<"default"> + lit<":"> +
-             assign<&ast::CondExpr::default_>(ref<Expression>) +
+             assign<&ast::CondExpr::default_>(ref<Expression>) + lit<";"> +
              kw<"end">> {};
 
-  struct FunctionCallRule
+  struct FunctionCall
       : rule<create<ast::FunctionCall> +
              assign<&ast::FunctionCall::name>(ref<ID>) + lit<"("> +
              some(append<&ast::FunctionCall::args>(ref<Expression>),
@@ -264,16 +204,16 @@ struct Plucid : cursiv::GrammarSpec {
   // parenthesized expression -- reachable from every precedence tier below.
   struct Primary
       : rule<Constant                                        //
-             | ref<IdentifierRule>                            //
+             | ref<Identifier>                            //
              | (create<ast::ErrorLit> + kw<"error">)           //
              | (create<ast::EodLit> + kw<"eod">)                //
-             | ref<FilterExprRule>                             //
-             | ref<SubstrExprRule>                             //
-             | ref<ListExprRule>                               //
-             | ref<IfExprRule>                                 //
-             | ref<CaseExprRule>                                //
-             | ref<CondExprRule>                                //
-             | ref<FunctionCallRule>                             //
+             | ref<FilterExpr>                             //
+             | ref<SubstrExpr>                             //
+             | ref<ListExpr>                               //
+             | ref<IfExpr>                                 //
+             | ref<CaseExpr>                                //
+             | ref<CondExpr>                                //
+             | ref<FunctionCall>                             //
              | create<ast::GroupExpr>(
                    lit<"("> +
                    assign<&ast::GroupExpr::inner>(ref<Expression>) +
@@ -282,33 +222,33 @@ struct Plucid : cursiv::GrammarSpec {
   // Tightest tier: the named unary operators plus length/arg, all mutually
   // stackable (`first arg lst`).
   struct AppliedExpr
-      : rule<ref<PrefixExprRule> | ref<LengthExprRule> | ref<ArgExprRule> |
+      : rule<ref<PrefixExpr> | ref<LengthExpr> | ref<ArgExpr> |
             ref<Primary>> {};
 
   struct ConcatExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<AppliedExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<CONCAT>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::InfixOp::concat>(lit<"^"> | lit<"ˆ">)) +
                  assign<&ast::BinaryExpr::right>(ref<ConcatExpr>))  //
              | ref<AppliedExpr>> {};
 
   struct PowExpr
       : rule<ref<ConcatExpr> +
             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(ref<POWER>) +
+                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::power>(lit<"**">)) +
                 assign<&ast::BinaryExpr::right>(ref<ConcatExpr>)))> {};
 
   struct MulExpr
       : rule<ref<PowExpr> +
             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(ref<MULTIPLY> | ref<DIVIDE> |
-                                             ref<INT_DIV> | ref<MOD>) +
+                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::multiply>(lit<"*">) | as<ast::InfixOp::divide>(lit<"/">) |
+                                             as<ast::InfixOp::int_div>(kw<"div">) | as<ast::InfixOp::mod>(kw<"mod">)) +
                 assign<&ast::BinaryExpr::right>(ref<PowExpr>)))> {};
 
   struct AddExpr
       : rule<ref<MulExpr> +
             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(ref<ADD> | ref<SUBTRACT>) +
+                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::add>(lit<"+">) | as<ast::InfixOp::subtract>(lit<"-">)) +
                 assign<&ast::BinaryExpr::right>(ref<MulExpr>)))> {};
 
   // pLucid's associativity table leaves relation unlisted; chained here
@@ -316,40 +256,40 @@ struct Plucid : cursiv::GrammarSpec {
   struct RelExpr
       : rule<ref<AddExpr> +
             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(ref<LE> | ref<GE> | ref<LT> |
-                                             ref<GT> | ref<EQ> | ref<NE>) +
+                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::le>(lit<"<=">) | as<ast::InfixOp::ge>(lit<">=">) | as<ast::InfixOp::lt>(lit<"<">) |
+                                             as<ast::InfixOp::gt>(lit<">">) | as<ast::InfixOp::eq>(kw<"eq">) | as<ast::InfixOp::ne>(kw<"ne">)) +
                 assign<&ast::BinaryExpr::right>(ref<AddExpr>)))> {};
 
   struct NotExpr
       : rule<create<ast::PrefixExpr>(
-                 assign<&ast::PrefixExpr::op>(ref<NOT_OP>) +
+                 assign<&ast::PrefixExpr::op>(as<ast::PrefixOp::lognot>(kw<"not">)) +
                  assign<&ast::PrefixExpr::operand>(ref<RelExpr>))  //
              | ref<RelExpr>> {};
 
   struct AndExpr
       : rule<ref<NotExpr> +
             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(ref<AND_OP>) +
+                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::logical_and>(kw<"and">)) +
                 assign<&ast::BinaryExpr::right>(ref<NotExpr>)))> {};
 
   struct OrExpr
       : rule<ref<AndExpr> +
             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(ref<OR_OP>) +
+                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::logical_or>(kw<"or">)) +
                 assign<&ast::BinaryExpr::right>(ref<AndExpr>)))> {};
 
   struct ConsExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<OrExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<LIST_APPEND> |
-                                              ref<LIST_CONS>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::InfixOp::list_append>(lit<"<>">) |
+                                              as<ast::InfixOp::list_cons>(lit<"::">)) +
                  assign<&ast::BinaryExpr::right>(ref<ConsExpr>))  //
              | ref<OrExpr>> {};
 
   struct FbyExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<ConsExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<FBY>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::InfixOp::fby>(kw<"fby">)) +
                  assign<&ast::BinaryExpr::right>(ref<FbyExpr>))  //
              | ref<ConsExpr>> {};
 
@@ -357,17 +297,17 @@ struct Plucid : cursiv::GrammarSpec {
       : rule<ref<FbyExpr> +
             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
                 assign<&ast::BinaryExpr::op>(
-                    ref<WHENEVER> | ref<WVR> | ref<UPON> | ref<ASA> |
-                    ref<ATTIME>) +
+                    as<ast::InfixOp::whenever>(kw<"whenever">) | as<ast::InfixOp::wvr>(kw<"wvr">) | as<ast::InfixOp::upon>(kw<"upon">) | as<ast::InfixOp::asa>(kw<"asa">) |
+                    as<ast::InfixOp::attime>(kw<"attime">)) +
                 assign<&ast::BinaryExpr::right>(ref<FbyExpr>)))> {};
 
-  struct CurrentDeclRule
+  struct CurrentDecl
       : rule<create<ast::CurrentDecl>(
             assign<&ast::CurrentDecl::name>(ref<ID>) + kw<"is"> +
             kw<"current"> +
             assign<&ast::CurrentDecl::value>(ref<Expression>))> {};
 
-  struct DefinitionRule
+  struct Definition
       : rule<create<ast::Definition>(
             assign<&ast::Definition::name>(ref<ID>) +
             option(lit<"("> +
@@ -383,17 +323,17 @@ struct Plucid : cursiv::GrammarSpec {
       : rule<ref<AsaExpr> +
             many(nest<ast::WhereExpr, &ast::WhereExpr::subject>(
                 kw<"where"> +
-                many(append<&ast::WhereExpr::decls>(ref<CurrentDeclRule>) +
+                many(append<&ast::WhereExpr::decls>(ref<CurrentDecl>) +
                      lit<";">) +
-                many(append<&ast::WhereExpr::definitions>(ref<DefinitionRule>) +
+                many(append<&ast::WhereExpr::definitions>(ref<Definition>) +
                      lit<";">) +
                 kw<"end">))> {};
 
-  struct ProgramRule
+  struct Program
       : rule<assign<&ast::Program::expression>(ref<Expression>)> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = list<WS, LINE_COMMENT>;
 };
 
 }  // namespace plucid

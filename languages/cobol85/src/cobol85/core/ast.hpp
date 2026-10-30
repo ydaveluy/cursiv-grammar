@@ -46,6 +46,7 @@ struct SpecialRegister : cursiv::Extends<Operand> {
 // as written, kept raw since no arithmetic is ever done on it here.
 struct Literal : cursiv::Extends<Operand> {
   string_view text;
+  boolean all;
 };
 
 struct ArithOperand : cursiv::Extends<ArithExpr> {
@@ -121,7 +122,7 @@ struct DataItem : cursiv::Extends<DataEntry> {
   vector<reference<DataItem>> redefines;
   vector<string_view> pictures;     // the PICTURE string as written
   vector<string_view> usages;       // COMP-3, DISPLAY, POINTER... raw spelling
-  vector<string_view> values;       // VALUE/VALUES literal(s), raw text
+  vector<string_view> values;       // VALUE items/ranges, original token spelling with canonical spaces
   vector<string_view> occursMin;    // raw digits; empty when no OCCURS
   vector<string_view> occursMax;    // OCCURS n TO m; empty otherwise
   vector<reference<DataItem>> occursDependingOn;

@@ -31,18 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-A [linear temporal logic](https://en.wikipedia.org/wiki/Linear_temporal_logic)
-formula:
+Linear temporal logic formulas combine atomic propositions with Boolean and temporal operators.
 
 ```
 Fp → Fq
 ```
-
-`F` (finally), `G` (globally) and `X` (next) are prefix; `∧`, `∨` and `→` are
-infix and bind tighter than `U` (until), `W` (weak until) and `R` (release);
-`⌐` negates. An atomic proposition is a run of lowercase letters; `true` and
-`false` are the two constants. See `example/` for one document per operator
-family.
 
 ## The command line
 

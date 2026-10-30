@@ -70,7 +70,8 @@ inline void qif_regressions(const qif::QifCoreServices &services) {
   for (const auto [text, code] :
        {std::pair{"Nname\n^\n", "qif.header"},
         std::pair{"!Type:Bank\nT1", "qif.record-end"},
-        std::pair{"!Type:Bank\nEorphan\n^\n", "qif.split"}}) {
+        std::pair{"!Type:Bank\nEorphan\n^\n", "qif.split"},
+        std::pair{"!Type:CCard\nEorphan\n^\n", "qif.split"}}) {
     cursiv::Document document(
         cursiv::TextDocument::create("memory:qif", "qif", 0, text));
     document.language = &services;
@@ -82,7 +83,14 @@ inline void qif_regressions(const qif::QifCoreServices &services) {
           document.parseResult.diagnostics.empty());
     CHECK(diagnostics.size() == 1 && diagnostics[0].code &&
           *diagnostics[0].code == code);
-    if (diagnostics.size() == 1 && std::string_view(code) == "qif.split")
+    if (diagnostics.size() == 1 && std::string_view(text).starts_with("!Type:Bank") &&
+        std::string_view(code) == "qif.split")
       CHECK(diagnostics[0].range.begin == 11 && diagnostics[0].range.end == 19);
+  }
+  for (const auto *text : {"!Type:Bank\nT1\n^!Type:Cash\nT2\n^\n",
+                           "!Type:Bank\nT1\n^D01/01/26\n^\n"}) {
+    const auto invalid = services.parser->parse(text);
+    CHECK(!invalid.accepted || invalid.cst().recovered() ||
+          !invalid.diagnostics.empty());
   }
 }

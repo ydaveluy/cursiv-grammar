@@ -339,10 +339,12 @@ struct VarBinding : cursiv::Extends<cursiv::AstNode> {
 struct VarSpec;
 
 struct VarDeclStmt : cursiv::Extends<Stmt> {
+  vector<Metadata*> annotations;
   VarSpec* spec;
 };
 
 struct FunctionDeclStmt : cursiv::Extends<Stmt> {
+  vector<Metadata*> annotations;
   Type* returnType;
   string_view name;
   FunctionExpr* function;

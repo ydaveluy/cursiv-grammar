@@ -3,46 +3,33 @@
 #pragma once
 
 #include <cstdint>
+#include <charconv>
+#include <string>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "xquery/core/ast.hpp"
+#include "xquery/core/StringLiteral.hpp"
 
 namespace xquery {
 
-inline constexpr auto unquote_str = [](std::string_view t,
-                                       std::pmr::memory_resource* mem) {
-  const char q = t.front();
-  const std::string_view body = t.substr(1, t.size() - 2);
-  if (body.find(q) == std::string_view::npos) return body;
-  const std::span<char> room = cursiv::text_room(mem, body.size());
-  std::size_t n = 0;
-  for (std::size_t i = 0; i < body.size(); ++i) {
-    room[n++] = body[i];
-    if (body[i] == q) ++i;
-  }
-  return std::string_view(room.data(), n);
+template <int Base, std::size_t Prefix = 2>
+inline constexpr auto radix_integer = [](std::string_view text) {
+  using Result = cursiv::ConversionResult<std::int64_t>;
+  if (text.size() < Prefix) return Result::err("Expected an integer literal.");
+  std::string digits;
+  for (char c : text.substr(Prefix))
+    if (c != '_') digits.push_back(c);
+  std::int64_t value = 0;
+  const auto [end, error] =
+      std::from_chars(digits.data(), digits.data() + digits.size(), value, Base);
+  if (error != std::errc{} || end != digits.data() + digits.size())
+    return Result::err("Integer literal is outside the signed 64-bit range.");
+  return Result::ok(value);
 };
-using UnquoteStr = cursiv::text_conv<unquote_str>;
-
-inline constexpr auto parse_hex = [](std::string_view t) -> std::int64_t {
-  std::int64_t v = 0;
-  std::from_chars(t.data() + 2, t.data() + t.size(), v, 16);
-  return v;
-};
-using ParseHex = cursiv::text_conv<parse_hex>;
-
-inline constexpr auto parse_bin = [](std::string_view t) -> std::int64_t {
-  std::int64_t v = 0;
-  for (std::size_t i = 2; i < t.size(); ++i)
-    if (t[i] != '_') v = v * 2 + (t[i] - '0');
-  return v;
-};
-using ParseBin = cursiv::text_conv<parse_bin>;
 
 inline constexpr auto strip_hash = [](std::string_view t) {
-  return t.substr(1);
+  return t.empty() ? std::string_view{} : t.substr(1);
 };
-using StripHash = cursiv::text_conv<strip_hash>;
 
 struct XQuery : cursiv::GrammarSpec {
   // XQuery's NCName ranges are XML's Name production without the colon,
@@ -59,54 +46,68 @@ struct XQuery : cursiv::GrammarSpec {
   // its prefix.
   static constexpr auto word_boundary = NameContChar;
 
-  struct WS : terminal<some(s)> {};
+  static constexpr auto XmlSpace = cr<R"( \t\r\n)">;
+  static constexpr auto XmlChar = cr<"\t\r\n\x20-\uD7FF\uE000-\uFFFD\U00010000-\U0010FFFF">;
+  static constexpr auto EntityRef = lit<"&lt;"> | lit<"&gt;"> | lit<"&amp;"> | lit<"&quot;"> | lit<"&apos;">;
+  static constexpr auto CharRefBody = (lit<"&#"> + some(d) + lit<";">) |
+      (lit<"&#x"> + some(cr<"a-fA-F0-9">) + lit<";">);
+  static constexpr auto BracedUri = lit<"Q{"> + many(EntityRef | CharRefBody | (!cr<"{}&"> + XmlChar)) + lit<"}">;
+  struct WS : terminal<some(XmlSpace)> {};
   struct COMMENT
       : terminal<lit<"(:"> +
-                 many(ref<COMMENT> | (!lit<"(:"> + !lit<":)"> + any)) +
+                 many(ref<COMMENT> | (!lit<"(:"> + !lit<":)"> + XmlChar)) +
                  lit<":)">> {};
 
   struct NCName : terminal<NameStartChar + many(NameContChar)> {};
   struct QName : terminal<NameStartChar + many(NameContChar) +
                           option(lit<":"> + NameStartChar + many(NameContChar))> {};
-  struct URIQualifiedName
-      : terminal<lit<"Q{"> + many(cr<"^{}">) + lit<"}"> + NameStartChar +
-                many(NameContChar) +
-                option(lit<":"> + NameStartChar + many(NameContChar))> {};
+  static constexpr auto CheckedName = [](std::string_view text) -> cursiv::ConversionResult<std::string_view> {
+    if (!valid_character_references(text)) return cursiv::ConversionResult<std::string_view>::err("Invalid XML character reference.");
+    return cursiv::ConversionResult<std::string_view>::ok(text);
+  };
+  struct URIQualifiedName : terminal<as<CheckedName>(BracedUri + NameStartChar + many(NameContChar) +
+      option(lit<":"> + NameStartChar + many(NameContChar)))> {};
+  struct WildcardName : terminal<as<CheckedName>(
+      (NameStartChar + many(NameContChar) + lit<":*">) |
+      (lit<"*:"> + NameStartChar + many(NameContChar)) | (BracedUri + lit<"*">))> {};
 
-  struct IntegerLiteral : terminal<some(d), std::int64_t> {};
+  template <auto Digit>
+  static constexpr auto digits = Digit + option(many(Digit | lit<"_">) + Digit);
+  struct IntegerLiteral : terminal<as<radix_integer<10, 0>>(digits<d>)> {};
   struct HexIntegerLiteral
-      : terminal<lit<"0x"> + some(cr<"a-fA-F0-9">), ParseHex> {};
+      : terminal<as<radix_integer<16>>(lit<"0x"> + digits<cr<"a-fA-F0-9">>)> {};
   struct BinaryIntegerLiteral
-      : terminal<lit<"0b"> + cr<"01"> + many(cr<"01_">), ParseBin> {};
+      : terminal<as<radix_integer<2>>(lit<"0b"> + digits<cr<"01">>)> {};
   static constexpr auto DecimalBody =
-      (lit<"."> + some(d)) | (some(d) + lit<"."> + many(d));
+      (lit<"."> + digits<d>) | (digits<d> + lit<"."> + option(digits<d>));
   struct DecimalLiteral : terminal<DecimalBody> {};
   struct DoubleLiteral
-      : terminal<((lit<"."> + some(d)) | (some(d) + option(lit<"."> + many(d)))) +
-                 cr<"eE"> + option(cr<"+-">) + some(d)> {};
+      : terminal<((lit<"."> + digits<d>) | (digits<d> + option(lit<"."> + option(digits<d>)))) +
+                 cr<"eE"> + option(cr<"+-">) + digits<d>> {};
 
-  static constexpr auto dq_body = lit<"\"\""> | cr<R"(^")">;
-  static constexpr auto sq_body = lit<"''"> | cr<"^'">;
+  static constexpr auto dq_body = lit<"\"\""> | EntityRef | CharRefBody | (!cr<R"("&)"> + XmlChar);
+  static constexpr auto sq_body = lit<"''"> | EntityRef | CharRefBody | (!cr<"'&"> + XmlChar);
   struct STRING
-      : terminal<(lit<"\""> + many(dq_body) + lit<"\"">) |
-                     (lit<"'"> + many(sq_body) + lit<"'">),
-                 UnquoteStr> {};
+      : terminal<as<unquote_str>((lit<"\""> + many(dq_body) + lit<"\"">) |
+                                 (lit<"'"> + many(sq_body) + lit<"'">))> {};
 
   struct StringTemplate
-      : terminal<lit<"`"> + many(lit<"{{"> | lit<"}}"> | cr<"^`">) + lit<"`">> {
+      : terminal<lit<"`"> + many(lit<"{{"> | lit<"}}"> | (!lit<"`"> + XmlChar)) + lit<"`">> {
   };
   struct StringConstructor
-      : terminal<through(lit<"``[">, lit<"]``">)> {};
+      : terminal<lit<"``["> + many(!lit<"]``"> + XmlChar) + lit<"]``">> {};
 
   struct Pragma
-      : terminal<lit<"(#"> + many(s) + NameStartChar + many(NameContChar) +
+      : terminal<lit<"(#"> + many(XmlSpace) + NameStartChar + many(NameContChar) +
                      option(lit<":"> + NameStartChar + many(NameContChar)) +
-                     option(some(s) + many(cr<"^#"> | (lit<"#"> + !lit<")">))) +
+                     option(some(XmlSpace) + many(!lit<"#)"> + XmlChar)) +
                      lit<"#)">> {};
 
   // ---- names -----------------------------------------------------------
 
-  struct EqNameRule
+  // Keywords can still name nodes/types. Where a constructor/clause is also
+  // viable, explicit alternatives let its keyword token complete as a name.
+  struct EqName
       : rule<ref<QName> | ref<URIQualifiedName> |
              kw<"after"> | kw<"allowing"> | kw<"ancestor"> | kw<"ancestor-or-self"> | kw<"and"> | kw<"array"> |
       kw<"as"> | kw<"ascending"> | kw<"at"> | kw<"attribute"> | kw<"base-uri"> | kw<"before"> |
@@ -135,81 +136,86 @@ struct XQuery : cursiv::GrammarSpec {
       kw<"value"> | kw<"variable"> | kw<"version"> | kw<"when"> | kw<"where"> | kw<"while"> |
       kw<"window"> | kw<"xquery"> | kw<"zero-digit">> {};
 
-  struct VarNameRule : rule<lit<"$"> + ref<EqNameRule>> {};
+  struct VarName : rule<lit<"$"> + ref<EqName>> {};
 
   // Forward declarations: the grammar is mutually recursive top to bottom
   // (expressions reach the primary/postfix layer, which reaches every
   // constructor, which reaches expressions again).
-  struct SequenceTypeRule;
-  struct ItemTypeRule;
-  struct ExprRule;
-  struct ExprSingleRule;
-  struct NumericLiteralRule;
-  struct ParenExprRule;
-  struct FunctionItemExprRule;
-  struct MapConstructorRule;
-  struct ArrayConstructorRule;
-  struct PrimaryExprRule;
-  struct PrologRule;
-  struct QueryListRule;
-  struct DirElemConstructorRule;
-  struct OrExprRule;
-  struct VarNameAndTypeRule;
+  struct SequenceType;
+  struct ItemType;
+  struct Expr;
+  struct ExprSingle;
+  struct NumericLiteral;
+  struct ParenExpr;
+  struct FunctionItemExpr;
+  struct MapConstructor;
+  struct ArrayConstructor;
+  struct PrimaryExpr;
+  struct Prolog;
+  struct QueryList;
+  struct DirElemConstructor;
+  struct OrExpr;
+  struct VarNameAndType;
 
   static constexpr auto Occurrence = lit<"?"> | lit<"*"> | lit<"+">;
 
-  struct FieldDeclRule
-      : rule<assign<&ast::FieldDecl::name>(ref<EqNameRule> | ref<STRING>) +
-             option(kw<"as"> + assign<&ast::FieldDecl::type>(ref<SequenceTypeRule>))> {
-  };
-  struct ExtendedFieldDeclRule
-      : rule<assign<&ast::FieldDecl::name>(ref<EqNameRule> | ref<STRING>) +
-             option(kw<"as"> + assign<&ast::FieldDecl::type>(ref<SequenceTypeRule>)) +
-             option(lit<":="> + assign<&ast::FieldDecl::def>(ref<ExprSingleRule>))> {
-  };
+  static constexpr auto RecordField =
+      assign<&ast::FieldDecl::name>(ref<NCName> | ref<STRING>) +
+      option(kw<"as"> + assign<&ast::FieldDecl::type>(ref<SequenceType>));
+  struct FieldDecl : rule<RecordField> {};
+  struct ExtendedFieldDecl
+      : rule<option(flag<&ast::FieldDecl::isStatic>(kw<"%static">)) +
+             RecordField +
+             option(lit<":="> + assign<&ast::FieldDecl::def>(ref<ExprSingle>))> {};
 
-  static constexpr auto NameTestWord = ref<EqNameRule> | lit<"*">;
+  static constexpr auto NameTestWord = ref<EqName> | ref<WildcardName> | lit<"*">;
+  static constexpr auto NodeTypeNameUnion =
+      append<&ast::ItemType::names>(NameTestWord) +
+      many(lit<"|"> + append<&ast::ItemType::names>(NameTestWord));
 
-  struct XNodeTypeRule
+  struct ElementNodeType
       : rule<create<ast::ItemType>(
-                 assign<&ast::ItemType::name>(kw<"document-node">) + lit<"("> +
-                 option(append<&ast::ItemType::names>(NameTestWord) |
-                        append<&ast::ItemType::names>(ref<STRING>)) +
-                 lit<")">)  //
-             | create<ast::ItemType>(
-                   assign<&ast::ItemType::name>(kw<"element">) + lit<"("> +
-                   option(append<&ast::ItemType::names>(NameTestWord) +
-                          many(lit<"|"> + append<&ast::ItemType::names>(NameTestWord)) +
-                          option(lit<","> +
-                                 append<&ast::ItemType::names>(ref<EqNameRule>) +
-                                 option(lit<"?">))) +
-                   lit<")">)  //
-             | create<ast::ItemType>(
-                   assign<&ast::ItemType::name>(kw<"attribute">) + lit<"("> +
-                   option(append<&ast::ItemType::names>(NameTestWord) +
-                          many(lit<"|"> + append<&ast::ItemType::names>(NameTestWord)) +
-                          option(lit<","> + append<&ast::ItemType::names>(ref<EqNameRule>))) +
-                   lit<")">)  //
-             | create<ast::ItemType>(
-                   assign<&ast::ItemType::name>(kw<"schema-element">) + lit<"("> +
-                   append<&ast::ItemType::names>(ref<EqNameRule>) + lit<")">)  //
-             | create<ast::ItemType>(
-                   assign<&ast::ItemType::name>(kw<"schema-attribute">) + lit<"("> +
-                   append<&ast::ItemType::names>(ref<EqNameRule>) + lit<")">)  //
-             | create<ast::ItemType>(
-                   assign<&ast::ItemType::name>(kw<"processing-instruction">) + lit<"("> +
-                   option(append<&ast::ItemType::names>(ref<QName> | ref<STRING>)) +
-                   lit<")">)  //
-             | create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"comment">) +
-                                     lit<"("> + lit<")">)  //
-             | create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"text">) + lit<"("> +
-                                     lit<")">)  //
-             | create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"namespace-node">) +
-                                     lit<"("> + lit<")">)  //
-             | create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"node">) + lit<"("> +
-                                     lit<")">)> {};
+            assign<&ast::ItemType::name>(kw<"element">) + lit<"("> +
+            option(NodeTypeNameUnion +
+                   option(lit<","> + assign<&ast::ItemType::typeName>(ref<EqName>) +
+                          option(flag<&ast::ItemType::nillable>(lit<"?">)))) +
+            lit<")">)> {};
+  struct AttributeNodeType
+      : rule<create<ast::ItemType>(
+            assign<&ast::ItemType::name>(kw<"attribute">) + lit<"("> +
+            option(NodeTypeNameUnion +
+                   option(lit<","> + assign<&ast::ItemType::typeName>(ref<EqName>))) +
+            lit<")">)> {};
+  struct SchemaElementNodeType
+      : rule<create<ast::ItemType>(
+            assign<&ast::ItemType::name>(kw<"schema-element">) + lit<"("> +
+            append<&ast::ItemType::names>(ref<EqName>) + lit<")">)> {};
+  struct DocumentNodeType
+      : rule<create<ast::ItemType>(
+            assign<&ast::ItemType::name>(kw<"document-node">) + lit<"("> +
+            option(append<&ast::ItemType::itemParams>(ref<ElementNodeType> |
+                                                     ref<SchemaElementNodeType>) |
+                   NodeTypeNameUnion) + lit<")">)> {};
+  struct XNodeType
+      : rule<ref<DocumentNodeType> | ref<ElementNodeType> |
+             ref<AttributeNodeType> | ref<SchemaElementNodeType> |
+             create<ast::ItemType>(
+                 assign<&ast::ItemType::name>(kw<"schema-attribute">) + lit<"("> +
+                 append<&ast::ItemType::names>(ref<EqName>) + lit<")">) |
+             create<ast::ItemType>(
+                 assign<&ast::ItemType::name>(kw<"processing-instruction">) + lit<"("> +
+                 option(append<&ast::ItemType::names>(ref<NCName> | ref<STRING>)) +
+                 lit<")">) |
+             create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"comment">) +
+                                   lit<"("> + lit<")">) |
+             create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"text">) +
+                                   lit<"("> + lit<")">) |
+             create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"namespace-node">) +
+                                   lit<"("> + lit<")">) |
+             create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"node">) +
+                                   lit<"("> + lit<")">)> {};
 
-  struct GNodeTypeRule
+  struct GNodeType
       : rule<create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"gnode">) + lit<"("> +
                                    lit<")">)> {};
 
@@ -219,148 +225,143 @@ struct XQuery : cursiv::GrammarSpec {
   struct RawNumber
       : terminal<option(lit<"-">) + some(d) + option(lit<"."> + many(d)) +
                 option(cr<"eE"> + option(cr<"+-">) + some(d))> {};
-  struct JNodeTypeRule
+  struct JNodeType
       : rule<create<ast::ItemType>(
             assign<&ast::ItemType::name>(kw<"jnode">) + lit<"("> +
-            option((lit<"*"> | JRootSelector | append<&ast::ItemType::names>(ref<QName>) |
+            option((flag<&ast::ItemType::wildcard>(lit<"*">) |
+                    flag<&ast::ItemType::rootSelector>(JRootSelector) |
+                    append<&ast::ItemType::names>(ref<NCName>) |
                     append<&ast::ItemType::names>(ref<STRING> | ref<RawNumber>)) +
                    option(lit<","> +
-                          append<&ast::ItemType::params>(ref<SequenceTypeRule>))) +
+                          append<&ast::ItemType::params>(ref<SequenceType>))) +
             lit<")">)> {};
 
-  struct TypeTestRule
-      : rule<ref<GNodeTypeRule> | ref<XNodeTypeRule> | ref<JNodeTypeRule>> {};
+  struct TypeTest
+      : rule<ref<GNodeType> | ref<XNodeType> | ref<JNodeType>> {};
 
-  struct SelectorRule : rule<NameTestWord> {};
+  struct Selector : rule<NameTestWord> {};
 
-  // A union member: fed both standalone (SimpleNodeTestRule) and repeated
+  // A union member: fed both standalone (SimpleNodeTest) and repeated
   // inside a `(...)` union (NodeTestRule) -- one fragment, not two rules, so
   // both write into the SAME NodeTest node rather than nesting one.
   static constexpr auto SimpleNodeTestMember =
-      append<&ast::NodeTest::types>(ref<TypeTestRule>)  //
-      | append<&ast::NodeTest::names>(ref<SelectorRule>);
+      append<&ast::NodeTest::types>(ref<TypeTest>)  //
+      | append<&ast::NodeTest::names>(ref<Selector>);
 
-  struct SimpleNodeTestRule
+  struct SimpleNodeTest
       : rule<create<ast::NodeTest>(SimpleNodeTestMember)> {};
 
   struct NodeTestRule
       : rule<create<ast::NodeTest>(lit<"("> + SimpleNodeTestMember +
                                    many(lit<"|"> + SimpleNodeTestMember) + lit<")">)  //
-             | ref<SimpleNodeTestRule>  //
+             | ref<SimpleNodeTest>  //
              | create<ast::NodeTest>(
-                   lit<"{"> + option(assign<&ast::NodeTest::dynamic>(ref<ExprRule>)) +
+                   lit<"{"> + option(assign<&ast::NodeTest::dynamic>(ref<Expr>)) +
                    lit<"}">)> {};
 
   static constexpr auto ChoiceItemType =
-      lit<"("> + append<&ast::ItemType::itemParams>(ref<ItemTypeRule>) +
-      many(lit<"|"> + append<&ast::ItemType::itemParams>(ref<ItemTypeRule>)) + lit<")">;
+      lit<"("> + some(append<&ast::ItemType::itemParams>(ref<ItemType>), lit<"|">) + lit<")">;
 
-  struct EnumerationTypeRule
+  struct EnumerationType
       : rule<create<ast::ItemType>(
             assign<&ast::ItemType::name>(kw<"enum">) + lit<"("> +
-            append<&ast::ItemType::names>(ref<STRING>) +
-            many(lit<","> + append<&ast::ItemType::names>(ref<STRING>)) + lit<")">)> {};
+            some(append<&ast::ItemType::names>(ref<STRING>), lit<",">) + lit<")">)> {};
 
-  struct SignedRawNumber : rule<option(lit<"-">) + ref<RawNumber>> {};
-
-  struct AnnotationRule
-      : rule<lit<"%"> + assign<&ast::Annotation::name>(ref<EqNameRule>) +
-             option(lit<"("> +
-                    some(append<&ast::Annotation::args>(
-                             ref<STRING> | ref<SignedRawNumber> | ref<EqNameRule>),
-                         lit<",">) +
-                    lit<")">)> {};
+  struct Literal;
+  struct Constant : rule<ref<Literal> |
+      create<ast::UnaryExpr>(assign<&ast::UnaryExpr::signs>(lit<"-">) + assign<&ast::UnaryExpr::operand>(ref<NumericLiteral>)) |
+      create<ast::BooleanLiteral>((flag<&ast::BooleanLiteral::value>(kw<"true">) | kw<"false">) + lit<"("> + lit<")">)> {};
+  struct Annotation : rule<lit<"%"> + assign<&ast::Annotation::name>(ref<EqName>) +
+      option(lit<"("> + some(append<&ast::Annotation::args>(ref<Constant>), lit<",">) + lit<")">)> {};
 
   static constexpr auto Annotations =
-      many(append<&ast::ItemType::annotations>(ref<AnnotationRule>));
+      many(append<&ast::ItemType::annotations>(ref<Annotation>));
   static constexpr auto FunctionKw = kw<"function"> | kw<"fn">;
 
   struct TypedFunctionParam
-      : rule<option(lit<"$"> + ref<EqNameRule> + kw<"as">) + ref<SequenceTypeRule>> {};
+      : rule<create<ast::Param>(
+            option(lit<"$"> + assign<&ast::Param::name>(ref<EqName>) + kw<"as">) +
+            assign<&ast::Param::type>(ref<SequenceType>))> {};
 
-  struct FunctionTypeRule
+  struct FunctionType
       : rule<Annotations +
              (create<ast::ItemType>(assign<&ast::ItemType::name>(FunctionKw) + lit<"("> +
-                                    lit<"*"> + lit<")">)  //
+                                    flag<&ast::ItemType::wildcard>(lit<"*">) + lit<")">)  //
               | create<ast::ItemType>(
                     assign<&ast::ItemType::name>(FunctionKw) + lit<"("> +
-                    option(append<&ast::ItemType::params>(ref<TypedFunctionParam>) +
-                           many(lit<","> +
-                                append<&ast::ItemType::params>(ref<TypedFunctionParam>))) +
+                    option(some(append<&ast::ItemType::functionParams>(ref<TypedFunctionParam>), lit<",">)) +
                     lit<")"> + kw<"as"> +
-                    assign<&ast::ItemType::returnType>(ref<SequenceTypeRule>)))> {};
+                    assign<&ast::ItemType::returnType>(ref<SequenceType>)))> {};
 
-  struct TypedArrayTypeRule
+  struct TypedArrayType
       : rule<create<ast::ItemType>(
             assign<&ast::ItemType::name>(kw<"array">) + lit<"("> +
-            append<&ast::ItemType::params>(ref<SequenceTypeRule>) + lit<")">)> {};
-  struct ArrayTypeRule
+            append<&ast::ItemType::params>(ref<SequenceType>) + lit<")">)> {};
+  struct ArrayType
       : rule<create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"array">) + lit<"("> +
                                    lit<"*"> + lit<")">)  //
-             | ref<TypedArrayTypeRule>> {};
+             | ref<TypedArrayType>> {};
 
-  struct TypedMapTypeRule
+  struct TypedMapType
       : rule<create<ast::ItemType>(
             assign<&ast::ItemType::name>(kw<"map">) + lit<"("> +
-            append<&ast::ItemType::itemParams>(ref<ItemTypeRule>) + lit<","> +
-            append<&ast::ItemType::params>(ref<SequenceTypeRule>) + lit<")">)> {};
-  struct MapTypeRule
+            append<&ast::ItemType::itemParams>(ref<ItemType>) + lit<","> +
+            append<&ast::ItemType::params>(ref<SequenceType>) + lit<")">)> {};
+  struct MapType
       : rule<create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"map">) + lit<"("> +
                                    lit<"*"> + lit<")">)  //
-             | ref<TypedMapTypeRule>> {};
+             | ref<TypedMapType>> {};
 
-  struct TypedRecordTypeRule
+  struct TypedRecordType
       : rule<create<ast::ItemType>(
             assign<&ast::ItemType::name>(kw<"record">) + lit<"("> +
-            option(append<&ast::ItemType::fields>(ref<FieldDeclRule>) +
-                   many(lit<","> + append<&ast::ItemType::fields>(ref<FieldDeclRule>))) +
+            option(some(append<&ast::ItemType::fields>(ref<FieldDecl>), lit<",">)) +
             lit<")">)> {};
-  struct RecordTypeRule
+  struct RecordType
       : rule<create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"record">) + lit<"("> +
-                                   lit<"*"> + lit<")">)  //
-             | ref<TypedRecordTypeRule>> {};
+                                   flag<&ast::ItemType::wildcard>(lit<"*">) + lit<")">)  //
+             | ref<TypedRecordType>> {};
 
-  struct AnyItemTypeRule
+  struct AnyItemType
       : rule<create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"item">) + lit<"("> +
                                    lit<")">)> {};
 
-  struct RegularItemTypeRule
-      : rule<ref<AnyItemTypeRule> | ref<TypeTestRule> | ref<MapTypeRule> |
-             ref<ArrayTypeRule> | ref<RecordTypeRule> | ref<EnumerationTypeRule>> {};
+  struct RegularItemType
+      : rule<ref<AnyItemType> | ref<TypeTest> | ref<MapType> |
+             ref<ArrayType> | ref<RecordType> | ref<EnumerationType>> {};
 
-  struct TypeNameRule
-      : rule<create<ast::ItemType>(assign<&ast::ItemType::name>(ref<EqNameRule>))> {};
+  struct TypeName
+      : rule<create<ast::ItemType>(assign<&ast::ItemType::name>(ref<EqName>))> {};
 
   struct ChoiceItemTypeRule
       : rule<create<ast::ItemType>(ChoiceItemType)> {};
 
-  struct ItemTypeRule
-      : rule<ref<RegularItemTypeRule> | ref<FunctionTypeRule> | ref<TypeNameRule> |
+  struct ItemType
+      : rule<ref<RegularItemType> | ref<FunctionType> | ref<TypeName> |
              ref<ChoiceItemTypeRule>> {};
 
-  struct SequenceTypeRule
+  struct SequenceType
       : rule<create<ast::SequenceType>(
                  flag<&ast::SequenceType::emptySequence>(kw<"empty-sequence">) +
                  lit<"("> + lit<")">)  //
              | create<ast::SequenceType>(
-                   assign<&ast::SequenceType::itemType>(ref<ItemTypeRule>) +
+                   assign<&ast::SequenceType::itemType>(ref<ItemType>) +
                    option(assign<&ast::SequenceType::occurrence>(Occurrence)))> {
   };
 
   // `|`-separated: a case clause could not otherwise tell
   // two union members apart.
   static constexpr auto SequenceTypeUnion =
-      append<&ast::TypeswitchCase::types>(ref<SequenceTypeRule>) +
-      many(lit<"|"> + append<&ast::TypeswitchCase::types>(ref<SequenceTypeRule>));
+      some(append<&ast::TypeswitchCase::types>(ref<SequenceType>), lit<"|">);
 
-  struct CastTargetRule
-      : rule<ref<TypeNameRule> | ref<ChoiceItemTypeRule> | ref<EnumerationTypeRule> |
-             ref<TypedArrayTypeRule> | ref<TypedMapTypeRule> | ref<TypedRecordTypeRule>> {
+  struct CastTarget
+      : rule<ref<TypeName> | ref<ChoiceItemTypeRule> | ref<EnumerationType> |
+             ref<TypedArrayType> | ref<TypedMapType> | ref<TypedRecordType>> {
   };
 
   // ---- numeric / literal expressions -------------------------------------
 
-  struct NumericLiteralRule
+  struct NumericLiteral
       : rule<create<ast::IntLiteral>(
                  assign<&ast::IntLiteral::value>(ref<IntegerLiteral>))  //
              | create<ast::IntLiteral>(
@@ -372,72 +373,28 @@ struct XQuery : cursiv::GrammarSpec {
              | create<ast::DecimalLiteral>(flag<&ast::DecimalLiteral::isDouble>(
                    assign<&ast::DecimalLiteral::value>(ref<DoubleLiteral>)))> {};
 
-  struct QNameLiteralRule
+  struct QNameLiteral
       : rule<create<ast::QNameLiteral>(lit<"#"> +
-                                       assign<&ast::QNameLiteral::name>(ref<EqNameRule>))> {
+                                       assign<&ast::QNameLiteral::name>(ref<EqName>))> {
   };
 
-  struct LiteralRule
-      : rule<ref<NumericLiteralRule>  //
+  struct Literal
+      : rule<ref<NumericLiteral>  //
              | create<ast::StringLiteral>(assign<&ast::StringLiteral::value>(ref<STRING>))  //
-             | ref<QNameLiteralRule>> {};
+             | ref<QNameLiteral>> {};
 
   // ---- operators ----------------------------------------------------------
 
-  struct OpOr : terminal<kw<"or">, value<ast::BinOp::or_>> {};
-  struct OpAnd : terminal<kw<"and">, value<ast::BinOp::and_>> {};
-  struct OpOtherwise : terminal<kw<"otherwise">, value<ast::BinOp::otherwise_>> {};
-  struct OpConcat : terminal<lit<"||">, value<ast::BinOp::concat>> {};
-  struct OpTo : terminal<kw<"to">, value<ast::BinOp::range>> {};
-  struct OpAdd : terminal<lit<"+">, value<ast::BinOp::add>> {};
-  struct OpSub : terminal<lit<"-">, value<ast::BinOp::sub>> {};
-  struct OpMul : terminal<lit<"*">, value<ast::BinOp::mul>> {};
-  struct OpMulAlt : terminal<lit<"×">, value<ast::BinOp::mul>> {};
-  struct OpDiv : terminal<kw<"div">, value<ast::BinOp::div_>> {};
-  struct OpDivAlt : terminal<lit<"÷">, value<ast::BinOp::div_>> {};
-  struct OpIdiv : terminal<kw<"idiv">, value<ast::BinOp::idiv>> {};
-  struct OpMod : terminal<kw<"mod">, value<ast::BinOp::mod>> {};
-  struct OpUnion : terminal<kw<"union">, value<ast::BinOp::union_>> {};
-  struct OpUnionAlt : terminal<lit<"|">, value<ast::BinOp::union_>> {};
-  struct OpIntersect : terminal<kw<"intersect">, value<ast::BinOp::intersect>> {};
-  struct OpExcept : terminal<kw<"except">, value<ast::BinOp::except>> {};
-  struct OpSimpleMap : terminal<lit<"!">, value<ast::BinOp::simple_map>> {};
-  struct OpRecordPut : terminal<lit<"+:=">, value<ast::BinOp::record_put>> {};
-  struct OpPipeline : terminal<lit<"->">, value<ast::BinOp::pipeline>> {};
-  struct OpChildSlash : terminal<lit<"/">, value<ast::BinOp::path_child>> {};
-  struct OpDescendantSlash : terminal<lit<"//">, value<ast::BinOp::path_descendant>> {};
 
-  struct OpLe : terminal<lit<"<=">, value<ast::BinOp::le>> {};
-  struct OpGe : terminal<lit<">=">, value<ast::BinOp::ge>> {};
-  struct OpNe : terminal<lit<"!=">, value<ast::BinOp::ne>> {};
-  struct OpLt : terminal<lit<"<">, value<ast::BinOp::lt>> {};
-  struct OpGt : terminal<lit<">">, value<ast::BinOp::gt>> {};
-  struct OpEq : terminal<lit<"=">, value<ast::BinOp::eq>> {};
-  struct OpValEq : terminal<kw<"eq">, value<ast::BinOp::value_eq>> {};
-  struct OpValNe : terminal<kw<"ne">, value<ast::BinOp::value_ne>> {};
-  struct OpValLt : terminal<kw<"lt">, value<ast::BinOp::value_lt>> {};
-  struct OpValLe : terminal<kw<"le">, value<ast::BinOp::value_le>> {};
-  struct OpValGt : terminal<kw<"gt">, value<ast::BinOp::value_gt>> {};
-  struct OpValGe : terminal<kw<"ge">, value<ast::BinOp::value_ge>> {};
-  struct OpPrecedesOp : terminal<lit<"<<">, value<ast::BinOp::node_precedes>> {};
-  struct OpPrecedesKw : terminal<kw<"precedes">, value<ast::BinOp::node_precedes>> {};
-  struct OpFollowsOp : terminal<lit<">>">, value<ast::BinOp::node_follows>> {};
-  struct OpFollowsKw : terminal<kw<"follows">, value<ast::BinOp::node_follows>> {};
-  struct OpPrecedesOrIs
-      : terminal<kw<"precedes-or-is">, value<ast::BinOp::node_precedes_or_is>> {};
-  struct OpFollowsOrIs
-      : terminal<kw<"follows-or-is">, value<ast::BinOp::node_follows_or_is>> {};
-  struct OpIs : terminal<kw<"is">, value<ast::BinOp::node_is>> {};
-  struct OpIsNot : terminal<kw<"is-not">, value<ast::BinOp::node_is_not>> {};
 
   static constexpr auto GeneralComp =
-      ref<OpEq> | ref<OpNe> | ref<OpLe> | ref<OpLt> | ref<OpGe> | ref<OpGt>;
-  static constexpr auto ValueComp = ref<OpValEq> | ref<OpValNe> | ref<OpValLt> |
-                                    ref<OpValLe> | ref<OpValGt> | ref<OpValGe>;
-  static constexpr auto NodeComp = ref<OpIs> | ref<OpIsNot> | ref<OpPrecedesOp> |
-                                   ref<OpPrecedesKw> | ref<OpFollowsOp> |
-                                   ref<OpFollowsKw> | ref<OpPrecedesOrIs> |
-                                   ref<OpFollowsOrIs>;
+      as<ast::BinOp::eq>(lit<"=">) | as<ast::BinOp::ne>(lit<"!=">) | as<ast::BinOp::le>(lit<"<=">) | as<ast::BinOp::lt>(lit<"<">) | as<ast::BinOp::ge>(lit<">=">) | as<ast::BinOp::gt>(lit<">">);
+  static constexpr auto ValueComp = as<ast::BinOp::value_eq>(kw<"eq">) | as<ast::BinOp::value_ne>(kw<"ne">) | as<ast::BinOp::value_lt>(kw<"lt">) |
+                                    as<ast::BinOp::value_le>(kw<"le">) | as<ast::BinOp::value_gt>(kw<"gt">) | as<ast::BinOp::value_ge>(kw<"ge">);
+  static constexpr auto NodeComp = as<ast::BinOp::node_is>(kw<"is">) | as<ast::BinOp::node_is_not>(kw<"is-not">) | as<ast::BinOp::node_precedes>(lit<"<<">) |
+                                   as<ast::BinOp::node_precedes>(kw<"precedes">) | as<ast::BinOp::node_follows>(lit<">>">) |
+                                   as<ast::BinOp::node_follows>(kw<"follows">) | as<ast::BinOp::node_precedes_or_is>(kw<"precedes-or-is">) |
+                                   as<ast::BinOp::node_follows_or_is>(kw<"follows-or-is">);
 
   // ---- axis --------------------------------------------------------------
 
@@ -449,54 +406,47 @@ struct XQuery : cursiv::GrammarSpec {
       kw<"preceding-sibling"> | kw<"preceding"> | kw<"self">;
   struct AxisWordRule : rule<AxisWord> {};
 
-  static constexpr auto Predicate = lit<"["> + ref<ExprRule> + lit<"]">;
+  static constexpr auto Predicate = lit<"["> + ref<Expr> + lit<"]">;
 
-  struct AxisStepRule
+  struct AxisStep
       : rule<create<ast::AxisStep>(
             (flag<&ast::AxisStep::isParentShortcut>(lit<"..">)  //
              | (flag<&ast::AxisStep::isAttributeShortcut>(lit<"@">) +
                 assign<&ast::AxisStep::test>(ref<NodeTestRule>))  //
              | (assign<&ast::AxisStep::axis>(ref<AxisWordRule>) + lit<"::"> +
                 assign<&ast::AxisStep::test>(ref<NodeTestRule>))  //
-             | assign<&ast::AxisStep::test>(ref<SimpleNodeTestRule>)) +
-            many(lit<"["> + append<&ast::AxisStep::predicates>(ref<ExprRule>) +
+             | assign<&ast::AxisStep::test>(ref<SimpleNodeTest>)) +
+            many(lit<"["> + append<&ast::AxisStep::predicates>(ref<Expr>) +
                  lit<"]">))> {};
 
   // ---- arguments / calls / postfix ---------------------------------------
 
-  struct ArgumentRule
-      : rule<create<ast::ArgPlaceholder>(lit<"?">) | ref<ExprSingleRule>> {};
+  struct Argument
+      : rule<create<ast::ArgPlaceholder>(lit<"?">) | ref<ExprSingle>> {};
 
-  struct KeywordArgumentRule
+  struct KeywordArgument
       : rule<create<ast::KeywordArg>(
-            assign<&ast::KeywordArg::name>(ref<EqNameRule>) + lit<":="> +
-            assign<&ast::KeywordArg::value>(ref<ArgumentRule>))> {};
+            assign<&ast::KeywordArg::name>(ref<EqName>) + lit<":="> +
+            assign<&ast::KeywordArg::value>(ref<Argument>))> {};
 
-  struct PositionalArgumentListRule
+  struct PositionalArgumentList
       : rule<create<ast::Arguments>(
             lit<"("> +
-            option(append<&ast::Arguments::positional>(ref<ArgumentRule>) +
-                   many(lit<","> + append<&ast::Arguments::positional>(ref<ArgumentRule>))) +
+            option(some(append<&ast::Arguments::positional>(ref<Argument>), lit<",">)) +
             lit<")">)> {};
 
-  struct ArgumentListRule
+  struct ArgumentList
       : rule<create<ast::Arguments>(
             lit<"("> +
-            option((append<&ast::Arguments::positional>(ref<ArgumentRule>) +
-                    many(lit<","> +
-                         append<&ast::Arguments::positional>(ref<ArgumentRule>)) +
+            option((some(append<&ast::Arguments::positional>(ref<Argument>), lit<",">) +
                     option(lit<","> +
-                           append<&ast::Arguments::keyword>(ref<KeywordArgumentRule>) +
-                           many(lit<","> +
-                                append<&ast::Arguments::keyword>(ref<KeywordArgumentRule>))))  //
-                   | (append<&ast::Arguments::keyword>(ref<KeywordArgumentRule>) +
-                      many(lit<","> +
-                           append<&ast::Arguments::keyword>(ref<KeywordArgumentRule>)))) +
+                           some(append<&ast::Arguments::keyword>(ref<KeywordArgument>), lit<",">)))  //
+                   | (some(append<&ast::Arguments::keyword>(ref<KeywordArgument>), lit<",">))) +
             lit<")">)> {};
 
   // A step position reaches both an unprefixed call (`name(args)`, here) and
-  // an abbreviated kind-test step (`element(...)`, AxisStepRule via
-  // SimpleNodeTestRule): the same span would complete two ways for any of
+  // an abbreviated kind-test step (`element(...)`, AxisStep via
+  // SimpleNodeTest): the same span would complete two ways for any of
   // these names. XQuery's own reserved function names keep them disjoint --
   // but only the BARE spelling: `fn:true` is a prefixed QName, not this
   // word, so the guard must fail on `:` too, or `kw<"fn">` alone refuses
@@ -516,593 +466,556 @@ struct XQuery : cursiv::GrammarSpec {
       lit<"schema-attribute", NotReservedTail> |
       lit<"schema-element", NotReservedTail> | lit<"switch", NotReservedTail> |
       lit<"text", NotReservedTail> | lit<"typeswitch", NotReservedTail>;
-  struct NonReservedEqNameRule
-      : rule<!ReservedFunctionName + ref<EqNameRule>> {};
+  struct NonReservedEqName
+      : rule<!ReservedFunctionName + ref<EqName>> {};
 
-  struct FunctionCallRule
+  struct FunctionCall
       : rule<create<ast::CallExpr>(
-            assign<&ast::CallExpr::name>(ref<NonReservedEqNameRule>) +
-            assign<&ast::CallExpr::args>(ref<ArgumentListRule>))> {};
+            assign<&ast::CallExpr::name>(ref<NonReservedEqName>) +
+            assign<&ast::CallExpr::args>(ref<ArgumentList>))> {};
 
-  struct MarkedNCNameRule : rule<lit<"#"> + ref<QName>, StripHash> {};
+  struct MarkedNCName : rule<as<strip_hash>(lit<"#"> + ref<QName>)> {};
 
-  struct VarRefRule
-      : rule<create<ast::VarRef>(lit<"$"> + assign<&ast::VarRef::name>(ref<EqNameRule>))> {
+  struct VarRef
+      : rule<create<ast::VarRef>(lit<"$"> + assign<&ast::VarRef::name>(ref<EqName>))> {
   };
 
-  struct KeySpecifierRule
+  struct KeySpecifier
       : rule<create<ast::Lookup>(assign<&ast::Lookup::key>(ref<QName>))  //
              | create<ast::Lookup>(
                    assign<&ast::Lookup::key>(ref<STRING> | ref<RawNumber>))  //
              | create<ast::Lookup>(assign<&ast::Lookup::key>(lit<".">))  //
              | create<ast::Lookup>(assign<&ast::Lookup::keyExpr>(
-                   ref<VarRefRule> | ref<ParenExprRule>))  //
+                   ref<VarRef> | ref<ParenExpr>))  //
              | create<ast::Lookup>(flag<&ast::Lookup::wildcard>(lit<"*">))> {};
 
-  struct LookupRule : rule<lit<"?"> + ref<KeySpecifierRule>> {};
+  struct Lookup : rule<lit<"?"> + ref<KeySpecifier>> {};
 
-  struct RestrictedDynamicCallRule
+  struct RestrictedDynamicCall
       : rule<create<ast::PostfixExpr>(
             assign<&ast::PostfixExpr::base>(
-                ref<VarRefRule> | ref<ParenExprRule> | ref<FunctionItemExprRule> |
-                ref<MapConstructorRule> | ref<ArrayConstructorRule>) +
-            append<&ast::PostfixExpr::suffixes>(ref<PositionalArgumentListRule>))> {};
+                ref<VarRef> | ref<ParenExpr> | ref<FunctionItemExpr> |
+                ref<MapConstructor> | ref<ArrayConstructor>) +
+            append<&ast::PostfixExpr::suffixes>(ref<PositionalArgumentList>))> {};
 
   static constexpr auto PostfixSuffixAlt =
-      (lit<"["> + append<&ast::PostfixExpr::suffixes>(ref<ExprRule>) + lit<"]">)  //
-      | append<&ast::PostfixExpr::suffixes>(ref<PositionalArgumentListRule>)  //
-      | append<&ast::PostfixExpr::suffixes>(ref<LookupRule>)  //
+      (lit<"["> + append<&ast::PostfixExpr::suffixes>(ref<Expr>) + lit<"]">)  //
+      | append<&ast::PostfixExpr::suffixes>(ref<PositionalArgumentList>)  //
+      | append<&ast::PostfixExpr::suffixes>(ref<Lookup>)  //
       | append<&ast::PostfixExpr::suffixes>(create<ast::MethodCall>(
             lit<"=?>"> + assign<&ast::MethodCall::name>(ref<QName>) +
-            assign<&ast::MethodCall::args>(ref<PositionalArgumentListRule>)));
+            assign<&ast::MethodCall::args>(ref<PositionalArgumentList>)));
 
-  // No suffix: adopt PrimaryExprRule's own node as-is, so a bare literal
+  // No suffix: adopt PrimaryExpr's own node as-is, so a bare literal
   // surfaces as itself and not wrapped in an empty PostfixExpr.
   struct PostfixExprRule
       : rule<create<ast::PostfixExpr>(
-                 assign<&ast::PostfixExpr::base>(ref<PrimaryExprRule>) +
+                 assign<&ast::PostfixExpr::base>(ref<PrimaryExpr>) +
                  some(PostfixSuffixAlt))  //
-             | ref<PrimaryExprRule>> {};
+             | ref<PrimaryExpr>> {};
 
   // ---- constructors -------------------------------------------------------
 
-  struct QNameLiteralTextRule : rule<lit<"#"> + ref<EqNameRule>, StripHash> {};
+  struct QNameLiteralText : rule<as<strip_hash>(lit<"#"> + ref<EqName>)> {};
 
-  struct CompNameRule
+  struct CompName
       : rule<create<ast::CompName>(
-                 assign<&ast::CompName::literal>(ref<QNameLiteralTextRule>))  //
-             | create<ast::CompName>(assign<&ast::CompName::literal>(ref<EqNameRule>))  //
+                 assign<&ast::CompName::literal>(ref<QNameLiteralText>))  //
+             | create<ast::CompName>(assign<&ast::CompName::literal>(ref<EqName>))  //
              | create<ast::CompName>(lit<"{"> +
-                                     assign<&ast::CompName::dynamic>(ref<ExprRule>) +
+                                     assign<&ast::CompName::dynamic>(ref<Expr>) +
                                      lit<"}">)> {};
 
-  struct CompNCNameRule
-      : rule<create<ast::CompName>(assign<&ast::CompName::literal>(ref<MarkedNCNameRule>))  //
+  struct CompNCName
+      : rule<create<ast::CompName>(assign<&ast::CompName::literal>(ref<MarkedNCName>))  //
              | create<ast::CompName>(assign<&ast::CompName::literal>(ref<NCName>))  //
              | create<ast::CompName>(lit<"{"> +
-                                     assign<&ast::CompName::dynamic>(ref<ExprRule>) +
+                                     assign<&ast::CompName::dynamic>(ref<Expr>) +
                                      lit<"}">)> {};
 
   static constexpr auto EnclosedExpr =
-      lit<"{"> + option(assign<&ast::ComputedConstructor::content>(ref<ExprRule>)) + lit<"}">;
+      lit<"{"> + option(assign<&ast::ComputedConstructor::content>(ref<Expr>)) + lit<"}">;
 
-  struct KindDocument : rule<kw<"document">, value<ast::ConstructorKind::document>> {};
-  struct KindElement : rule<kw<"element">, value<ast::ConstructorKind::element>> {};
-  struct KindAttribute : rule<kw<"attribute">, value<ast::ConstructorKind::attribute>> {};
-  struct KindNamespace : rule<kw<"namespace">, value<ast::ConstructorKind::namespace_>> {};
-  struct KindText : rule<kw<"text">, value<ast::ConstructorKind::text>> {};
-  struct KindComment : rule<kw<"comment">, value<ast::ConstructorKind::comment>> {};
-  struct KindPI
-      : rule<kw<"processing-instruction">, value<ast::ConstructorKind::pi>> {};
 
-  struct ComputedConstructorRule
+  struct ComputedConstructor
       : rule<create<ast::ComputedConstructor>(
-                 assign<&ast::ComputedConstructor::kind>(ref<KindDocument>) + EnclosedExpr)  //
+                 assign<&ast::ComputedConstructor::kind>(as<ast::ConstructorKind::document>(kw<"document">)) + EnclosedExpr)  //
              | create<ast::ComputedConstructor>(
-                   assign<&ast::ComputedConstructor::kind>(ref<KindElement>) +
-                   assign<&ast::ComputedConstructor::name>(ref<CompNameRule>) + EnclosedExpr)  //
+                   assign<&ast::ComputedConstructor::kind>(as<ast::ConstructorKind::element>(kw<"element">)) +
+                   assign<&ast::ComputedConstructor::name>(ref<CompName>) + EnclosedExpr)  //
              | create<ast::ComputedConstructor>(
-                   assign<&ast::ComputedConstructor::kind>(ref<KindAttribute>) +
-                   assign<&ast::ComputedConstructor::name>(ref<CompNameRule>) + EnclosedExpr)  //
+                   assign<&ast::ComputedConstructor::kind>(as<ast::ConstructorKind::attribute>(kw<"attribute">)) +
+                   assign<&ast::ComputedConstructor::name>(ref<CompName>) + EnclosedExpr)  //
              | create<ast::ComputedConstructor>(
-                   assign<&ast::ComputedConstructor::kind>(ref<KindNamespace>) +
-                   assign<&ast::ComputedConstructor::name>(ref<CompNCNameRule>) + EnclosedExpr)  //
+                   assign<&ast::ComputedConstructor::kind>(as<ast::ConstructorKind::namespace_>(kw<"namespace">)) +
+                   assign<&ast::ComputedConstructor::name>(ref<CompNCName>) + EnclosedExpr)  //
              | create<ast::ComputedConstructor>(
-                   assign<&ast::ComputedConstructor::kind>(ref<KindText>) + EnclosedExpr)  //
+                   assign<&ast::ComputedConstructor::kind>(as<ast::ConstructorKind::text>(kw<"text">)) + EnclosedExpr)  //
              | create<ast::ComputedConstructor>(
-                   assign<&ast::ComputedConstructor::kind>(ref<KindComment>) + EnclosedExpr)  //
+                   assign<&ast::ComputedConstructor::kind>(as<ast::ConstructorKind::comment>(kw<"comment">)) + EnclosedExpr)  //
              | create<ast::ComputedConstructor>(
-                   assign<&ast::ComputedConstructor::kind>(ref<KindPI>) +
-                   assign<&ast::ComputedConstructor::name>(ref<CompNCNameRule>) +
+                   assign<&ast::ComputedConstructor::kind>(as<ast::ConstructorKind::pi>(kw<"processing-instruction">)) +
+                   assign<&ast::ComputedConstructor::name>(ref<CompNCName>) +
                    EnclosedExpr)> {};
 
   // ---- direct constructors --------------------------------------------
   // The element form of a direct constructor:
   // per-state lexing needs no lexer-mode mechanism for it.
 
-  static constexpr auto EntityRef = lit<"&lt;"> | lit<"&gt;"> | lit<"&amp;"> |
-                                    lit<"&quot;"> | lit<"&apos;">;
-  static constexpr auto CharRefBody =
-      (lit<"&#"> + some(d) + lit<";">) |
-      (lit<"&#x"> + some(cr<"a-fA-F0-9">) + lit<";">);
-
-  struct TagOpen
-      : terminal<lit<"<"> + NameStartChar + many(NameContChar) +
-                option(lit<":"> + NameStartChar + many(NameContChar)),
-                StripHash> {};
+  struct TagOpen : terminal<as<strip_hash>(
+                       lit<"<"> + NameStartChar + many(NameContChar) +
+                       option(lit<":"> + NameStartChar + many(NameContChar)))> {
+  };
   struct AttrTextQuot
-      : terminal<some(lit<"\"\""> | EntityRef | CharRefBody | cr<R"(^"{&<)">)> {};
+      : terminal<some(lit<"\"\""> | lit<"{{"> | lit<"}}"> | EntityRef | CharRefBody | (!cr<R"("{}&<)"> + XmlChar))> {};
   struct AttrTextApos
-      : terminal<some(lit<"''"> | EntityRef | CharRefBody | cr<"^'{&<">)> {};
+      : terminal<some(lit<"''"> | lit<"{{"> | lit<"}}"> | EntityRef | CharRefBody | (!cr<"'{}&<"> + XmlChar))> {};
   struct ElemText
       : terminal<some(lit<"{{"> | lit<"}}"> | EntityRef | CharRefBody |
-                     cr<"^&<{}">)> {};
-  struct CDataSection : terminal<through(lit<"<![CDATA[">, lit<"]]>">)> {};
-  struct DirCommentTerm : terminal<through(lit<"<!--">, lit<"-->">)> {};
-  struct DirPITerm : terminal<through(lit<"<?">, lit<"?>">)> {};
+                     (!cr<"&<{}"> + XmlChar))> {};
+  struct CDataSection : terminal<lit<"<![CDATA["> + many(!lit<"]]>"> + XmlChar) + lit<"]]>">> {};
+  struct DirCommentTerm : terminal<lit<"<!--"> + many(!lit<"--"> + XmlChar) + lit<"-->">> {};
+  struct DirPITerm : terminal<lit<"<?"> + !ikw<"xml"> + NameStartChar + many(NameContChar) +
+      option(some(XmlSpace) + many(!lit<"?>"> + XmlChar)) + lit<"?>">> {};
 
-  // No skip() island: a region only NARROWS, and can never widen back for an
-  // embedded `{expr}`'s own operators, which need the ambient skipper same as
-  // anywhere else. Instead this stays under the ambient `ignore = WS`
-  // everywhere, and a text run wins the whitespace it touches over the
-  // ambient skipper by the longer match (mirrors xml's SEA_WS/TEXT: a
-  // whitespace-only run still loses to trivia on the tie, which is the one
-  // accepted gap).
-  struct DirAttrRule
-      : rule<create<ast::DirAttr>(
-            assign<&ast::DirAttr::name>(ref<QName>) + lit<"="> +
-            ((lit<"\""> +
-              many(append<&ast::DirAttr::value>(ref<AttrTextQuot>) |
-                   (lit<"{"> + append<&ast::DirAttr::value>(ref<ExprRule>) + lit<"}">)) +
-              lit<"\"">)  //
-             | (lit<"'"> +
-                many(append<&ast::DirAttr::value>(ref<AttrTextApos>) |
-                     (lit<"{"> + append<&ast::DirAttr::value>(ref<ExprRule>) +
-                      lit<"}">)) +
-                lit<"'">)))> {};
+  // XML text has no trivia. Tag syntax allows XML whitespace; a braced
+  // expression restores the query's own trivia only between its braces.
+  static constexpr auto AttrStart = assign<&ast::DirAttr::name>(ref<QName>) + lit<"=">;
+  static constexpr auto AttrExpr = skip(ignore<WS>, hide<COMMENT>,
+      lit<"{"> + option(append<&ast::DirAttr::value>(ref<Expr>)) + lit<"}">);
+  struct DirAttr : rule<create<ast::DirAttr>(tight(
+      (skip(ignore<WS>, hide<>, AttrStart + lit<"\"">) +
+       many(append<&ast::DirAttr::value>(ref<AttrTextQuot>) | AttrExpr) + lit<"\"">) |
+      (skip(ignore<WS>, hide<>, AttrStart + lit<"'">) +
+       many(append<&ast::DirAttr::value>(ref<AttrTextApos>) | AttrExpr) + lit<"'">)))> {};
 
+  struct TagClose : terminal<as<[](std::string_view text) {
+      return text.size() < 2 ? std::string_view{} : text.substr(2);
+    }>(lit<"</"> + NameStartChar + many(NameContChar) +
+       option(lit<":"> + NameStartChar + many(NameContChar)))> {};
   static constexpr auto DirContentItem =
-      append<&ast::DirElemConstructor::content>(ref<ElemText>)  //
-      | append<&ast::DirElemConstructor::content>(ref<CDataSection>)  //
-      | append<&ast::DirElemConstructor::content>(ref<DirCommentTerm>)  //
-      | append<&ast::DirElemConstructor::content>(ref<DirPITerm>)  //
-      | append<&ast::DirElemConstructor::content>(ref<DirElemConstructorRule>)  //
-      | (lit<"{"> + append<&ast::DirElemConstructor::content>(ref<ExprRule>) + lit<"}">);
+      append<&ast::DirElemConstructor::content>(ref<ElemText>) |
+      append<&ast::DirElemConstructor::content>(ref<CDataSection>) |
+      append<&ast::DirElemConstructor::content>(ref<DirCommentTerm>) |
+      append<&ast::DirElemConstructor::content>(ref<DirPITerm>) |
+      append<&ast::DirElemConstructor::content>(ref<DirElemConstructor>) |
+      skip(ignore<WS>, hide<COMMENT>, lit<"{"> +
+          option(append<&ast::DirElemConstructor::content>(ref<Expr>)) + lit<"}">);
+  struct DirElemConstructor : rule<create<ast::DirElemConstructor>(
+      skip(ignore<WS>, hide<>, assign<&ast::DirElemConstructor::name>(ref<TagOpen>) +
+          many(gap::has(XmlSpace) + append<&ast::DirElemConstructor::attributes>(ref<DirAttr>)) +
+          (flag<&ast::DirElemConstructor::selfClosing>(lit<"/>">) |
+           tight(lit<">"> + many(DirContentItem) +
+               skip(ignore<WS>, hide<>, assign<&ast::DirElemConstructor::closeName>(ref<TagClose>) + lit<">">)))))> {};
 
-  struct DirElemConstructorRule
-      : rule<create<ast::DirElemConstructor>(
-            assign<&ast::DirElemConstructor::name>(ref<TagOpen>) +
-            many(append<&ast::DirElemConstructor::attributes>(ref<DirAttrRule>)) +
-            (flag<&ast::DirElemConstructor::selfClosing>(lit<"/>">)  //
-             | (lit<">"> + many(DirContentItem) + lit<"</"> +
-                assign<&ast::DirElemConstructor::closeName>(ref<QName>) + lit<">">)))> {
-  };
-
-  struct DirCommentConstructorRule
+  struct DirCommentConstructor
       : rule<create<ast::DirComment>(assign<&ast::DirComment::text>(ref<DirCommentTerm>))> {
   };
-  struct DirPIConstructorRule
+  struct DirPIConstructor
       : rule<create<ast::DirPI>(assign<&ast::DirPI::text>(ref<DirPITerm>))> {};
 
-  struct NodeConstructorRule
-      : rule<ref<DirElemConstructorRule> | ref<DirCommentConstructorRule> |
-             ref<DirPIConstructorRule> | ref<ComputedConstructorRule>> {};
+  struct NodeConstructor
+      : rule<ref<DirElemConstructor> | ref<DirCommentConstructor> |
+             ref<DirPIConstructor> | ref<ComputedConstructor>> {};
 
   // ---- map / array / mode / function-item constructors --------------------
 
-  struct MapEntryRule
+  struct MapEntry
       : rule<create<ast::MapEntry>(
-            assign<&ast::MapEntry::key>(ref<ExprSingleRule>) +
-            option(lit<":"> + assign<&ast::MapEntry::value>(ref<ExprSingleRule>)))> {};
+            assign<&ast::MapEntry::key>(ref<ExprSingle>) +
+            option(lit<":"> + assign<&ast::MapEntry::value>(ref<ExprSingle>)))> {};
 
-  struct MapConstructorRule
+  struct MapConstructor
       : rule<create<ast::MapConstructor>(
             option(kw<"map">) + lit<"{"> +
-            option(append<&ast::MapConstructor::entries>(ref<MapEntryRule>) +
-                   many(lit<","> +
-                        append<&ast::MapConstructor::entries>(ref<MapEntryRule>))) +
+            option(some(append<&ast::MapConstructor::entries>(ref<MapEntry>), lit<",">)) +
             lit<"}">)> {};
 
-  struct ArrayConstructorRule
+  struct ArrayConstructor
       : rule<create<ast::ArrayConstructor>(
                  lit<"["> +
-                 option(append<&ast::ArrayConstructor::items>(ref<ExprSingleRule>) +
+                 option(append<&ast::ArrayConstructor::items>(ref<ExprSingle>) +
                         many(lit<","> + append<&ast::ArrayConstructor::items>(
-                                            ref<ExprSingleRule>))) +
+                                            ref<ExprSingle>))) +
                  lit<"]">)  //
              | create<ast::ArrayConstructor>(
                    flag<&ast::ArrayConstructor::curly>(kw<"array">) + lit<"{"> +
-                   option(assign<&ast::ArrayConstructor::body>(ref<ExprRule>)) +
+                   option(assign<&ast::ArrayConstructor::body>(ref<Expr>)) +
                    lit<"}">)> {};
 
-  struct OrderedExprRule
+  struct OrderedExpr
       : rule<create<ast::ModeExpr>(flag<&ast::ModeExpr::ordered>(kw<"ordered">) +
                                    lit<"{"> +
-                                   option(assign<&ast::ModeExpr::body>(ref<ExprRule>)) +
+                                   option(assign<&ast::ModeExpr::body>(ref<Expr>)) +
                                    lit<"}">)> {};
-  struct UnorderedExprRule
+  struct UnorderedExpr
       : rule<create<ast::ModeExpr>(kw<"unordered"> + lit<"{"> +
-                                   option(assign<&ast::ModeExpr::body>(ref<ExprRule>)) +
+                                   option(assign<&ast::ModeExpr::body>(ref<Expr>)) +
                                    lit<"}">)> {};
 
-  struct ContextItemExprRule : rule<create<ast::ContextItemExpr>(lit<".">)> {};
+  struct ContextItemExpr : rule<create<ast::ContextItemExpr>(lit<".">)> {};
 
-  struct ParenExprRule
+  struct ParenExpr
       : rule<create<ast::ParenExpr>(lit<"("> +
-                                    option(assign<&ast::ParenExpr::body>(ref<ExprRule>)) +
+                                    option(assign<&ast::ParenExpr::body>(ref<Expr>)) +
                                     lit<")">)> {};
 
-  struct NamedFunctionRefRule
+  struct NamedFunctionRef
       : rule<create<ast::NamedFunctionRef>(
-            assign<&ast::NamedFunctionRef::name>(ref<EqNameRule>) + lit<"#"> +
+            assign<&ast::NamedFunctionRef::name>(ref<EqName>) + lit<"#"> +
             assign<&ast::NamedFunctionRef::arity>(ref<IntegerLiteral>))> {};
 
   // A fragment, not a rule<>: it writes into the enclosing InlineFunctionExpr
   // directly, and a rule<> of its own would give that node a second head.
   static constexpr auto FunctionSignature =
       lit<"("> +
-      option(append<&ast::InlineFunctionExpr::params>(ref<VarNameAndTypeRule>) +
-             many(lit<","> +
-                  append<&ast::InlineFunctionExpr::params>(ref<VarNameAndTypeRule>))) +
+      option(some(append<&ast::InlineFunctionExpr::params>(ref<VarNameAndType>), lit<",">)) +
       lit<")"> +
       option(kw<"as"> +
-             assign<&ast::InlineFunctionExpr::returnType>(ref<SequenceTypeRule>));
+             assign<&ast::InlineFunctionExpr::returnType>(ref<SequenceType>));
 
   struct InlineFunctionExprRule
       : rule<create<ast::InlineFunctionExpr>(
-            many(append<&ast::InlineFunctionExpr::annotations>(ref<AnnotationRule>)) +
+            many(append<&ast::InlineFunctionExpr::annotations>(ref<Annotation>)) +
             FunctionKw + option(FunctionSignature) + lit<"{"> +
-            option(assign<&ast::InlineFunctionExpr::body>(ref<ExprRule>)) + lit<"}">)> {
+            option(assign<&ast::InlineFunctionExpr::body>(ref<Expr>)) + lit<"}">)> {
   };
 
-  struct FunctionItemExprRule
-      : rule<ref<NamedFunctionRefRule> | ref<InlineFunctionExprRule>> {};
+  struct FunctionItemExpr
+      : rule<ref<NamedFunctionRef> | ref<InlineFunctionExprRule>> {};
 
-  struct StringTemplateExprRule
+  struct StringTemplateExpr
       : rule<create<ast::StringTemplateExpr>(
             assign<&ast::StringTemplateExpr::raw>(ref<StringTemplate>))> {};
-  struct StringConstructorExprRule
+  struct StringConstructorExpr
       : rule<create<ast::StringConstructorExpr>(
             assign<&ast::StringConstructorExpr::raw>(ref<StringConstructor>))> {};
 
-  struct UnaryLookupRule : rule<ref<LookupRule>> {};
+  struct UnaryLookup : rule<ref<Lookup>> {};
 
-  struct PrimaryExprRule
-      : rule<ref<ArrayConstructorRule>  //
-             | ref<LiteralRule>  //
-             | ref<ContextItemExprRule>  //
-             | ref<FunctionCallRule>  //
-             | ref<FunctionItemExprRule>  //
-             | ref<MapConstructorRule>  //
-             | ref<NodeConstructorRule>  //
-             | ref<OrderedExprRule>  //
-             | ref<ParenExprRule>  //
-             | ref<StringTemplateExprRule>  //
-             | ref<StringConstructorExprRule>  //
-             | ref<UnaryLookupRule>  //
-             | ref<UnorderedExprRule>  //
-             | ref<VarRefRule>> {};
+  struct PrimaryExpr
+      : rule<ref<ArrayConstructor>  //
+             | ref<Literal>  //
+             | ref<ContextItemExpr>  //
+             | ref<FunctionCall>  //
+             | ref<FunctionItemExpr>  //
+             | ref<MapConstructor>  //
+             | ref<NodeConstructor>  //
+             | ref<OrderedExpr>  //
+             | ref<ParenExpr>  //
+             | ref<StringTemplateExpr>  //
+             | ref<StringConstructorExpr>  //
+             | ref<UnaryLookup>  //
+             | ref<UnorderedExpr>  //
+             | ref<VarRef>> {};
 
   // ---- precedence ladder ---------------------------------------------------
 
-  struct ValidateExprRule
+  struct ValidateExpr
       : rule<create<ast::ValidateExpr>(
             kw<"validate"> +
             option(assign<&ast::ValidateExpr::mode>(kw<"lax"> | kw<"strict">) |
-                   (kw<"type"> + assign<&ast::ValidateExpr::typeName>(ref<EqNameRule>))) +
-            lit<"{"> + assign<&ast::ValidateExpr::body>(ref<ExprRule>) + lit<"}">)> {};
+                   (kw<"type"> + assign<&ast::ValidateExpr::typeName>(ref<EqName>))) +
+            lit<"{"> + assign<&ast::ValidateExpr::body>(ref<Expr>) + lit<"}">)> {};
 
-  struct ExtensionExprRule
+  struct ExtensionExpr
       : rule<create<ast::ExtensionExpr>(
             some(append<&ast::ExtensionExpr::pragmas>(ref<Pragma>)) + lit<"{"> +
-            option(assign<&ast::ExtensionExpr::body>(ref<ExprRule>)) + lit<"}">)> {};
+            option(assign<&ast::ExtensionExpr::body>(ref<Expr>)) + lit<"}">)> {};
 
-  struct StepExprRule : rule<ref<PostfixExprRule> | ref<AxisStepRule>> {};
+  struct StepExpr : rule<ref<PostfixExprRule> | ref<AxisStep>> {};
 
-  struct RelativePathExprRule
-      : infix<StepExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              left(ref<OpDescendantSlash> | ref<OpChildSlash>)> {};
+  struct RelativePathExpr
+      : infix<StepExpr, ast::BinaryExpr,
+              left(as<ast::BinOp::path_descendant>(lit<"//">) | as<ast::BinOp::path_child>(lit<"/">))> {};
 
-  struct AbsolutePathExprRule
+  struct AbsolutePathExpr
       : rule<create<ast::AbsolutePathExpr>(
                  flag<&ast::AbsolutePathExpr::doubleSlash>(lit<"//">) +
-                 assign<&ast::AbsolutePathExpr::rest>(ref<RelativePathExprRule>))  //
+                 assign<&ast::AbsolutePathExpr::rest>(ref<RelativePathExpr>))  //
              | create<ast::AbsolutePathExpr>(
                    lit<"/"> + option(assign<&ast::AbsolutePathExpr::rest>(
-                                  ref<RelativePathExprRule>)))> {};
+                                  ref<RelativePathExpr>)))> {};
 
-  struct PathExprRule
-      : rule<ref<AbsolutePathExprRule> | ref<RelativePathExprRule>> {};
+  struct PathExpr
+      : rule<ref<AbsolutePathExpr> | ref<RelativePathExpr>> {};
 
-  struct SimpleMapExprRule
-      : infix<PathExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpSimpleMap>)> {};
+  struct SimpleMapExpr : infix<PathExpr, ast::BinaryExpr,
+                               left(as<ast::BinOp::simple_map>(lit<"!">))> {};
 
-  struct ValueExprRule
-      : rule<ref<ValidateExprRule> | ref<ExtensionExprRule> | ref<SimpleMapExprRule>> {};
+  struct ValueExpr
+      : rule<ref<ValidateExpr> | ref<ExtensionExpr> | ref<SimpleMapExpr>> {};
 
-  struct SignRun : terminal<some(cr<"+-">)> {};
+  struct SignRun : rule<some(lit<"+"> | lit<"-">)> {};
 
-  struct UnaryExprRule
+  struct UnaryExpr
       : rule<create<ast::UnaryExpr>(assign<&ast::UnaryExpr::signs>(ref<SignRun>) +
-                                    assign<&ast::UnaryExpr::operand>(ref<ValueExprRule>))  //
-             | ref<ValueExprRule>> {};
+                                    assign<&ast::UnaryExpr::operand>(ref<ValueExpr>))  //
+             | ref<ValueExpr>> {};
 
-  struct ArrowTargetRule : rule<ref<FunctionCallRule> | ref<RestrictedDynamicCallRule>> {};
+  struct ArrowTarget : rule<ref<FunctionCall> | ref<RestrictedDynamicCall>> {};
 
-  struct ArrowStepRule
+  struct ArrowStep
       : rule<create<ast::ArrowStep>(lit<"=>"> +
-                                    assign<&ast::ArrowStep::target>(ref<ArrowTargetRule>))  //
+                                    assign<&ast::ArrowStep::target>(ref<ArrowTarget>))  //
              | create<ast::ArrowStep>(
                    flag<&ast::ArrowStep::mapping>(lit<"=!>">) +
-                   assign<&ast::ArrowStep::target>(ref<ArrowTargetRule>))> {};
+                   assign<&ast::ArrowStep::target>(ref<ArrowTarget>))> {};
 
-  // No arrow step: adopt UnaryExprRule's own node, not an empty ArrowExpr.
+  // No arrow step: adopt UnaryExpr's own node, not an empty ArrowExpr.
   struct ArrowExprRule
       : rule<create<ast::ArrowExpr>(
-                 assign<&ast::ArrowExpr::base>(ref<UnaryExprRule>) +
-                 some(append<&ast::ArrowExpr::steps>(ref<ArrowStepRule>)))  //
-             | ref<UnaryExprRule>> {};
+                 assign<&ast::ArrowExpr::base>(ref<UnaryExpr>) +
+                 some(append<&ast::ArrowExpr::steps>(ref<ArrowStep>)))  //
+             | ref<UnaryExpr>> {};
 
-  struct PipelineExprRule
-      : infix<ArrowExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpPipeline>)> {};
+  struct PipelineExpr : infix<ArrowExprRule, ast::BinaryExpr,
+                              left(as<ast::BinOp::pipeline>(lit<"->">))> {};
 
-  struct CastExprRule
+  struct CastExpr
       : rule<create<ast::CastExpr>(
-                 assign<&ast::CastExpr::operand>(ref<PipelineExprRule>) + kw<"cast"> +
-                 kw<"as"> + assign<&ast::CastExpr::target>(ref<CastTargetRule>) +
+                 assign<&ast::CastExpr::operand>(ref<PipelineExpr>) + kw<"cast"> +
+                 kw<"as"> + assign<&ast::CastExpr::target>(ref<CastTarget>) +
                  option(assign<&ast::CastExpr::occurrence>(Occurrence)))  //
-             | ref<PipelineExprRule>> {};
+             | ref<PipelineExpr>> {};
 
-  struct CastableExprRule
+  struct CastableExpr
       : rule<create<ast::CastableExpr>(
-                 assign<&ast::CastableExpr::operand>(ref<CastExprRule>) + kw<"castable"> +
-                 kw<"as"> + assign<&ast::CastableExpr::target>(ref<CastTargetRule>) +
+                 assign<&ast::CastableExpr::operand>(ref<CastExpr>) + kw<"castable"> +
+                 kw<"as"> + assign<&ast::CastableExpr::target>(ref<CastTarget>) +
                  option(assign<&ast::CastableExpr::occurrence>(Occurrence)))  //
-             | ref<CastExprRule>> {};
+             | ref<CastExpr>> {};
 
-  struct TreatExprRule
+  struct TreatExpr
       : rule<create<ast::TreatExpr>(
-                 assign<&ast::TreatExpr::operand>(ref<CastableExprRule>) + kw<"treat"> +
-                 kw<"as"> + assign<&ast::TreatExpr::type>(ref<SequenceTypeRule>))  //
-             | ref<CastableExprRule>> {};
+                 assign<&ast::TreatExpr::operand>(ref<CastableExpr>) + kw<"treat"> +
+                 kw<"as"> + assign<&ast::TreatExpr::type>(ref<SequenceType>))  //
+             | ref<CastableExpr>> {};
 
-  struct InstanceOfExprRule
+  struct InstanceOfExpr
       : rule<create<ast::InstanceOfExpr>(
-                 assign<&ast::InstanceOfExpr::operand>(ref<TreatExprRule>) +
+                 assign<&ast::InstanceOfExpr::operand>(ref<TreatExpr>) +
                  kw<"instance"> + kw<"of"> +
-                 assign<&ast::InstanceOfExpr::type>(ref<SequenceTypeRule>))  //
-             | ref<TreatExprRule>> {};
+                 assign<&ast::InstanceOfExpr::type>(ref<SequenceType>))  //
+             | ref<TreatExpr>> {};
 
-  struct RecordPutExprRule
-      : infix<InstanceOfExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpRecordPut>)> {};
+  struct RecordPutExpr : infix<InstanceOfExpr, ast::BinaryExpr,
+                               left(as<ast::BinOp::record_put>(lit<"+:=">))> {};
 
-  struct IntersectExceptExprRule
-      : infix<RecordPutExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpIntersect> | ref<OpExcept>)> {};
+  struct IntersectExceptExpr
+      : infix<RecordPutExpr, ast::BinaryExpr,
+              left(as<ast::BinOp::intersect>(kw<"intersect">) |
+                   as<ast::BinOp::except>(kw<"except">))> {};
 
-  struct UnionExprRule
-      : infix<IntersectExceptExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpUnion> | ref<OpUnionAlt>)> {};
+  struct UnionExpr : infix<IntersectExceptExpr, ast::BinaryExpr,
+                           left(as<ast::BinOp::union_>(kw<"union">) |
+                                as<ast::BinOp::union_>(lit<"|">))> {};
 
-  struct MultiplicativeExprRule
-      : infix<UnionExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              left(ref<OpMul> | ref<OpMulAlt> | ref<OpDiv> | ref<OpDivAlt> | ref<OpIdiv> |
-                   ref<OpMod>)> {};
+  struct MultiplicativeExpr
+      : infix<UnionExpr, ast::BinaryExpr,
+              left(as<ast::BinOp::mul>(lit<"*">) | as<ast::BinOp::mul>(lit<"×">) | as<ast::BinOp::div_>(kw<"div">) | as<ast::BinOp::div_>(lit<"÷">) | as<ast::BinOp::idiv>(kw<"idiv">) |
+                   as<ast::BinOp::mod>(kw<"mod">))> {};
 
-  struct AdditiveExprRule
-      : infix<MultiplicativeExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpAdd> | ref<OpSub>)> {};
+  struct AdditiveExpr : infix<MultiplicativeExpr, ast::BinaryExpr,
+                              left(as<ast::BinOp::add>(lit<"+">) |
+                                   as<ast::BinOp::sub>(lit<"-">))> {};
 
-  struct RangeExprRule
+  struct RangeExpr
       : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<AdditiveExprRule>) +
-                 assign<&ast::BinaryExpr::op>(ref<OpTo>) +
-                 assign<&ast::BinaryExpr::right>(ref<AdditiveExprRule>))  //
-             | ref<AdditiveExprRule>> {};
+                 assign<&ast::BinaryExpr::left>(ref<AdditiveExpr>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::BinOp::range>(kw<"to">)) +
+                 assign<&ast::BinaryExpr::right>(ref<AdditiveExpr>))  //
+             | ref<AdditiveExpr>> {};
 
-  struct StringConcatExprRule
-      : infix<RangeExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpConcat>)> {};
+  struct StringConcatExpr : infix<RangeExpr, ast::BinaryExpr,
+                                  left(as<ast::BinOp::concat>(lit<"||">))> {};
 
-  struct OtherwiseExprRule
-      : infix<StringConcatExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpOtherwise>)> {};
+  struct OtherwiseExpr
+      : infix<StringConcatExpr, ast::BinaryExpr,
+              left(as<ast::BinOp::otherwise_>(kw<"otherwise">))> {};
 
-  struct ComparisonExprRule
+  struct ComparisonExpr
       : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<OtherwiseExprRule>) +
+                 assign<&ast::BinaryExpr::left>(ref<OtherwiseExpr>) +
                  assign<&ast::BinaryExpr::op>(ValueComp | GeneralComp | NodeComp) +
-                 assign<&ast::BinaryExpr::right>(ref<OtherwiseExprRule>))  //
-             | ref<OtherwiseExprRule>> {};
+                 assign<&ast::BinaryExpr::right>(ref<OtherwiseExpr>))  //
+             | ref<OtherwiseExpr>> {};
 
-  struct AndExprRule
-      : infix<ComparisonExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpAnd>)> {};
+  struct AndExpr : infix<ComparisonExpr, ast::BinaryExpr,
+                         left(as<ast::BinOp::and_>(kw<"and">))> {};
 
-  struct OrExprRule
-      : infix<AndExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<OpOr>)> {};
+  struct OrExpr
+      : infix<AndExpr, ast::BinaryExpr, left(as<ast::BinOp::or_>(kw<"or">))> {};
 
   // ---- FLWOR ---------------------------------------------------------------
 
-  struct VarNameAndTypeRule
-      : rule<create<ast::Param>(lit<"$"> + assign<&ast::Param::name>(ref<EqNameRule>) +
+  struct VarNameAndType
+      : rule<create<ast::Param>(lit<"$"> + assign<&ast::Param::name>(ref<EqName>) +
                                 option(kw<"as"> +
-                                       assign<&ast::Param::type>(ref<SequenceTypeRule>)))> {
+                                       assign<&ast::Param::type>(ref<SequenceType>)))> {
   };
 
-  struct ForItemBindingRule
+  struct ForItemBinding
       : rule<create<ast::ForBinding>(
-            assign<&ast::ForBinding::name>(ref<VarNameRule>) +
-            option(kw<"as"> + assign<&ast::ForBinding::type>(ref<SequenceTypeRule>)) +
+            assign<&ast::ForBinding::name>(ref<VarName>) +
+            option(kw<"as"> + assign<&ast::ForBinding::type>(ref<SequenceType>)) +
             option(flag<&ast::ForBinding::allowingEmpty>(kw<"allowing">) +
                    kw<"empty">) +
-            option(kw<"at"> + assign<&ast::ForBinding::posVar>(ref<VarNameRule>)) +
-            kw<"in"> + assign<&ast::ForBinding::source>(ref<ExprSingleRule>))> {};
+            option(kw<"at"> + assign<&ast::ForBinding::posVar>(ref<VarName>)) +
+            kw<"in"> + assign<&ast::ForBinding::source>(ref<ExprSingle>))> {};
 
-  struct ForMemberBindingRule
+  struct ForMemberBinding
       : rule<create<ast::ForBinding>(
             flag<&ast::ForBinding::isMember>(kw<"member">) +
-            assign<&ast::ForBinding::name>(ref<VarNameRule>) +
-            option(kw<"as"> + assign<&ast::ForBinding::type>(ref<SequenceTypeRule>)) +
-            option(kw<"at"> + assign<&ast::ForBinding::posVar>(ref<VarNameRule>)) +
-            kw<"in"> + assign<&ast::ForBinding::source>(ref<ExprSingleRule>))> {};
+            assign<&ast::ForBinding::name>(ref<VarName>) +
+            option(kw<"as"> + assign<&ast::ForBinding::type>(ref<SequenceType>)) +
+            option(kw<"at"> + assign<&ast::ForBinding::posVar>(ref<VarName>)) +
+            kw<"in"> + assign<&ast::ForBinding::source>(ref<ExprSingle>))> {};
 
-  struct ForEntryBindingRule
+  struct ForEntryBinding
       : rule<create<ast::ForBinding>(
                  flag<&ast::ForBinding::isEntry>(kw<"key">) +
-                 assign<&ast::ForBinding::keyName>(ref<VarNameRule>) +
+                 assign<&ast::ForBinding::keyName>(ref<VarName>) +
                  option(kw<"as"> +
-                        assign<&ast::ForBinding::keyType>(ref<SequenceTypeRule>)) +
-                 option(kw<"value"> + assign<&ast::ForBinding::name>(ref<VarNameRule>) +
+                        assign<&ast::ForBinding::keyType>(ref<SequenceType>)) +
+                 option(kw<"value"> + assign<&ast::ForBinding::name>(ref<VarName>) +
                         option(kw<"as"> + assign<&ast::ForBinding::type>(
-                                              ref<SequenceTypeRule>))) +
-                 option(kw<"at"> + assign<&ast::ForBinding::posVar>(ref<VarNameRule>)) +
-                 kw<"in"> + assign<&ast::ForBinding::source>(ref<ExprSingleRule>))  //
+                                              ref<SequenceType>))) +
+                 option(kw<"at"> + assign<&ast::ForBinding::posVar>(ref<VarName>)) +
+                 kw<"in"> + assign<&ast::ForBinding::source>(ref<ExprSingle>))  //
              | create<ast::ForBinding>(
                    flag<&ast::ForBinding::isEntry>(kw<"value">) +
-                   assign<&ast::ForBinding::name>(ref<VarNameRule>) +
+                   assign<&ast::ForBinding::name>(ref<VarName>) +
                    option(kw<"as"> +
-                          assign<&ast::ForBinding::type>(ref<SequenceTypeRule>)) +
-                   option(kw<"at"> + assign<&ast::ForBinding::posVar>(ref<VarNameRule>)) +
-                   kw<"in"> + assign<&ast::ForBinding::source>(ref<ExprSingleRule>))> {
+                          assign<&ast::ForBinding::type>(ref<SequenceType>)) +
+                   option(kw<"at"> + assign<&ast::ForBinding::posVar>(ref<VarName>)) +
+                   kw<"in"> + assign<&ast::ForBinding::source>(ref<ExprSingle>))> {
   };
 
-  struct ForBindingRule
-      : rule<ref<ForItemBindingRule> | ref<ForMemberBindingRule> |
-             ref<ForEntryBindingRule>> {};
+  struct ForBinding
+      : rule<ref<ForItemBinding> | ref<ForMemberBinding> |
+             ref<ForEntryBinding>> {};
 
-  struct ForClauseRule
+  struct ForClause
       : rule<create<ast::ForClause>(
-            kw<"for"> + append<&ast::ForClause::bindings>(ref<ForBindingRule>) +
-            many(lit<","> + append<&ast::ForClause::bindings>(ref<ForBindingRule>)))> {
+            kw<"for"> + some(append<&ast::ForClause::bindings>(ref<ForBinding>), lit<",">))> {
   };
 
-  struct LetValueBindingRule
+  struct LetValueBinding
       : rule<create<ast::LetBinding>(
-            assign<&ast::LetBinding::name>(ref<VarNameRule>) +
-            option(kw<"as"> + assign<&ast::LetBinding::type>(ref<SequenceTypeRule>)) +
-            lit<":="> + assign<&ast::LetBinding::value>(ref<ExprSingleRule>))> {};
+            assign<&ast::LetBinding::name>(ref<VarName>) +
+            option(kw<"as"> + assign<&ast::LetBinding::type>(ref<SequenceType>)) +
+            lit<":="> + assign<&ast::LetBinding::value>(ref<ExprSingle>))> {};
 
-  struct LetSequenceBindingRule
+  struct LetSequenceBinding
       : rule<create<ast::LetBinding>(
             lit<"$"> + assign<&ast::LetBinding::destructuring>(lit<"(">) +
-            append<&ast::LetBinding::names>(ref<VarNameAndTypeRule>) +
-            many(lit<","> + append<&ast::LetBinding::names>(ref<VarNameAndTypeRule>)) +
+            some(append<&ast::LetBinding::names>(ref<VarNameAndType>), lit<",">) +
             lit<")"> +
-            option(kw<"as"> + assign<&ast::LetBinding::type>(ref<SequenceTypeRule>)) +
-            lit<":="> + assign<&ast::LetBinding::value>(ref<ExprSingleRule>))> {};
+            option(kw<"as"> + assign<&ast::LetBinding::type>(ref<SequenceType>)) +
+            lit<":="> + assign<&ast::LetBinding::value>(ref<ExprSingle>))> {};
 
-  struct LetArrayBindingRule
+  struct LetArrayBinding
       : rule<create<ast::LetBinding>(
             lit<"$"> + assign<&ast::LetBinding::destructuring>(lit<"[">) +
-            append<&ast::LetBinding::names>(ref<VarNameAndTypeRule>) +
-            many(lit<","> + append<&ast::LetBinding::names>(ref<VarNameAndTypeRule>)) +
+            some(append<&ast::LetBinding::names>(ref<VarNameAndType>), lit<",">) +
             lit<"]"> +
-            option(kw<"as"> + assign<&ast::LetBinding::type>(ref<SequenceTypeRule>)) +
-            lit<":="> + assign<&ast::LetBinding::value>(ref<ExprSingleRule>))> {};
+            option(kw<"as"> + assign<&ast::LetBinding::type>(ref<SequenceType>)) +
+            lit<":="> + assign<&ast::LetBinding::value>(ref<ExprSingle>))> {};
 
-  struct LetMapBindingRule
+  struct LetMapBinding
       : rule<create<ast::LetBinding>(
             lit<"$"> + assign<&ast::LetBinding::destructuring>(lit<"{">) +
-            append<&ast::LetBinding::names>(ref<VarNameAndTypeRule>) +
-            many(lit<","> + append<&ast::LetBinding::names>(ref<VarNameAndTypeRule>)) +
+            some(append<&ast::LetBinding::names>(ref<VarNameAndType>), lit<",">) +
             lit<"}"> +
-            option(kw<"as"> + assign<&ast::LetBinding::type>(ref<SequenceTypeRule>)) +
-            lit<":="> + assign<&ast::LetBinding::value>(ref<ExprSingleRule>))> {};
+            option(kw<"as"> + assign<&ast::LetBinding::type>(ref<SequenceType>)) +
+            lit<":="> + assign<&ast::LetBinding::value>(ref<ExprSingle>))> {};
 
-  struct LetBindingRule
-      : rule<ref<LetValueBindingRule> | ref<LetSequenceBindingRule> |
-             ref<LetArrayBindingRule> | ref<LetMapBindingRule>> {};
+  struct LetBinding
+      : rule<ref<LetValueBinding> | ref<LetSequenceBinding> |
+             ref<LetArrayBinding> | ref<LetMapBinding>> {};
 
-  struct LetClauseRule
+  struct LetClause
       : rule<create<ast::LetClause>(
-            kw<"let"> + append<&ast::LetClause::bindings>(ref<LetBindingRule>) +
-            many(lit<","> + append<&ast::LetClause::bindings>(ref<LetBindingRule>)))> {
+            kw<"let"> + some(append<&ast::LetClause::bindings>(ref<LetBinding>), lit<",">))> {
   };
 
-  struct WindowVarSpecRule
+  struct WindowVarSpec
       : rule<create<ast::WindowVarSpec>(
-            option(assign<&ast::WindowVarSpec::current>(ref<VarNameRule>)) +
-            option(kw<"at"> + assign<&ast::WindowVarSpec::posVar>(ref<VarNameRule>)) +
+            option(assign<&ast::WindowVarSpec::current>(ref<VarName>)) +
+            option(kw<"at"> + assign<&ast::WindowVarSpec::posVar>(ref<VarName>)) +
             option(kw<"previous"> +
-                   assign<&ast::WindowVarSpec::previous>(ref<VarNameRule>)) +
-            option(kw<"next"> + assign<&ast::WindowVarSpec::next>(ref<VarNameRule>)))> {
+                   assign<&ast::WindowVarSpec::previous>(ref<VarName>)) +
+            option(kw<"next"> + assign<&ast::WindowVarSpec::next>(ref<VarName>)))> {
   };
 
-  struct WindowStartConditionRule
+  struct WindowStartCondition
       : rule<create<ast::WindowCondition>(
-            kw<"start"> + assign<&ast::WindowCondition::vars>(ref<WindowVarSpecRule>) +
+            kw<"start"> + assign<&ast::WindowCondition::vars>(ref<WindowVarSpec>) +
             option(kw<"when"> +
-                   assign<&ast::WindowCondition::when>(ref<ExprSingleRule>)))> {};
+                   assign<&ast::WindowCondition::when>(ref<ExprSingle>)))> {};
 
-  struct WindowEndConditionRule
+  struct WindowEndCondition
       : rule<create<ast::WindowCondition>(
             option(flag<&ast::WindowCondition::only>(kw<"only">)) + kw<"end"> +
-            assign<&ast::WindowCondition::vars>(ref<WindowVarSpecRule>) +
+            assign<&ast::WindowCondition::vars>(ref<WindowVarSpec>) +
             option(kw<"when"> +
-                   assign<&ast::WindowCondition::when>(ref<ExprSingleRule>)))> {};
+                   assign<&ast::WindowCondition::when>(ref<ExprSingle>)))> {};
 
-  struct TumblingWindowClauseRule
+  struct TumblingWindowClause
       : rule<create<ast::WindowClause>(
             kw<"tumbling"> + kw<"window"> +
-            assign<&ast::WindowClause::name>(ref<VarNameRule>) +
-            option(kw<"as"> + assign<&ast::WindowClause::type>(ref<SequenceTypeRule>)) +
-            kw<"in"> + assign<&ast::WindowClause::source>(ref<ExprSingleRule>) +
-            option(assign<&ast::WindowClause::start>(ref<WindowStartConditionRule>)) +
-            option(assign<&ast::WindowClause::end>(ref<WindowEndConditionRule>)))> {};
+            assign<&ast::WindowClause::name>(ref<VarName>) +
+            option(kw<"as"> + assign<&ast::WindowClause::type>(ref<SequenceType>)) +
+            kw<"in"> + assign<&ast::WindowClause::source>(ref<ExprSingle>) +
+            option(assign<&ast::WindowClause::start>(ref<WindowStartCondition>)) +
+            option(assign<&ast::WindowClause::end>(ref<WindowEndCondition>)))> {};
 
-  struct SlidingWindowClauseRule
+  struct SlidingWindowClause
       : rule<create<ast::WindowClause>(
             flag<&ast::WindowClause::sliding>(kw<"sliding">) + kw<"window"> +
-            assign<&ast::WindowClause::name>(ref<VarNameRule>) +
-            option(kw<"as"> + assign<&ast::WindowClause::type>(ref<SequenceTypeRule>)) +
-            kw<"in"> + assign<&ast::WindowClause::source>(ref<ExprSingleRule>) +
-            option(assign<&ast::WindowClause::start>(ref<WindowStartConditionRule>)) +
-            assign<&ast::WindowClause::end>(ref<WindowEndConditionRule>))> {};
+            assign<&ast::WindowClause::name>(ref<VarName>) +
+            option(kw<"as"> + assign<&ast::WindowClause::type>(ref<SequenceType>)) +
+            kw<"in"> + assign<&ast::WindowClause::source>(ref<ExprSingle>) +
+            option(assign<&ast::WindowClause::start>(ref<WindowStartCondition>)) +
+            assign<&ast::WindowClause::end>(ref<WindowEndCondition>))> {};
 
-  struct WindowClauseRule
+  struct WindowClause
       : rule<kw<"for"> +
-             (ref<TumblingWindowClauseRule> | ref<SlidingWindowClauseRule>)> {};
+             (ref<TumblingWindowClause> | ref<SlidingWindowClause>)> {};
 
-  struct WhereClauseRule
+  struct WhereClause
       : rule<create<ast::WhereClause>(kw<"where"> +
-                                      assign<&ast::WhereClause::cond>(ref<ExprSingleRule>))> {
+                                      assign<&ast::WhereClause::cond>(ref<ExprSingle>))> {
   };
-  struct WhileClauseRule
+  struct WhileClause
       : rule<create<ast::WhileClause>(
-            kw<"while"> + assign<&ast::WhileClause::cond>(ref<ExprSingleRule>))> {};
-  struct TraceClauseRule
+            kw<"while"> + assign<&ast::WhileClause::cond>(ref<ExprSingle>))> {};
+  struct TraceClause
       : rule<create<ast::TraceClause>(
-            kw<"trace"> + assign<&ast::TraceClause::value>(ref<ExprSingleRule>))> {};
-  struct CountClauseRule
+            kw<"trace"> + assign<&ast::TraceClause::value>(ref<ExprSingle>))> {};
+  struct CountClause
       : rule<create<ast::CountClause>(
-            kw<"count"> + assign<&ast::CountClause::name>(ref<VarNameRule>))> {};
+            kw<"count"> + assign<&ast::CountClause::name>(ref<VarName>))> {};
 
-  struct GroupingSpecRule
+  struct GroupingSpec
       : rule<create<ast::GroupingSpec>(
-            assign<&ast::GroupingSpec::name>(ref<VarNameRule>) +
+            assign<&ast::GroupingSpec::name>(ref<VarName>) +
             option(option(kw<"as"> +
-                          assign<&ast::GroupingSpec::type>(ref<SequenceTypeRule>)) +
-                   lit<":="> + assign<&ast::GroupingSpec::value>(ref<ExprSingleRule>)) +
+                          assign<&ast::GroupingSpec::type>(ref<SequenceType>)) +
+                   lit<":="> + assign<&ast::GroupingSpec::value>(ref<ExprSingle>)) +
             option(kw<"collation"> +
                    assign<&ast::GroupingSpec::collation>(ref<STRING>)))> {};
 
-  struct GroupByClauseRule
+  struct GroupByClause
       : rule<create<ast::GroupByClause>(
             kw<"group"> + kw<"by"> +
-            append<&ast::GroupByClause::specs>(ref<GroupingSpecRule>) +
-            many(lit<","> + append<&ast::GroupByClause::specs>(ref<GroupingSpecRule>)))> {
+            some(append<&ast::GroupByClause::specs>(ref<GroupingSpec>), lit<",">))> {
   };
 
-  struct OrderSpecRule
+  struct OrderSpec
       : rule<create<ast::OrderSpec>(
-            assign<&ast::OrderSpec::value>(ref<ExprSingleRule>) +
+            assign<&ast::OrderSpec::value>(ref<ExprSingle>) +
             option(assign<&ast::OrderSpec::direction>(kw<"ascending"> | kw<"descending">)) +
             option(kw<"empty"> +
                    (flag<&ast::OrderSpec::emptyGreatest>(kw<"greatest">)  //
@@ -1110,170 +1023,167 @@ struct XQuery : cursiv::GrammarSpec {
             option(kw<"collation"> + assign<&ast::OrderSpec::collation>(ref<STRING>)))> {
   };
 
-  struct OrderByClauseRule
+  struct OrderByClause
       : rule<create<ast::OrderByClause>(
             option(flag<&ast::OrderByClause::stable>(kw<"stable">)) + kw<"order"> +
-            kw<"by"> + append<&ast::OrderByClause::specs>(ref<OrderSpecRule>) +
-            many(lit<","> + append<&ast::OrderByClause::specs>(ref<OrderSpecRule>)))> {};
+            kw<"by"> + some(append<&ast::OrderByClause::specs>(ref<OrderSpec>), lit<",">))> {};
 
   static constexpr auto InitialClause =
-      append<&ast::FlworExpr::clauses>(ref<ForClauseRule>)  //
-      | append<&ast::FlworExpr::clauses>(ref<LetClauseRule>)  //
-      | append<&ast::FlworExpr::clauses>(ref<WindowClauseRule>);
+      append<&ast::FlworExpr::clauses>(ref<ForClause>)  //
+      | append<&ast::FlworExpr::clauses>(ref<LetClause>)  //
+      | append<&ast::FlworExpr::clauses>(ref<WindowClause>);
   static constexpr auto IntermediateClause =
       InitialClause  //
-      | append<&ast::FlworExpr::clauses>(ref<WhereClauseRule>)  //
-      | append<&ast::FlworExpr::clauses>(ref<GroupByClauseRule>)  //
-      | append<&ast::FlworExpr::clauses>(ref<OrderByClauseRule>)  //
-      | append<&ast::FlworExpr::clauses>(ref<CountClauseRule>)  //
-      | append<&ast::FlworExpr::clauses>(ref<WhileClauseRule>)  //
-      | append<&ast::FlworExpr::clauses>(ref<TraceClauseRule>);
+      | append<&ast::FlworExpr::clauses>(ref<WhereClause>)  //
+      | append<&ast::FlworExpr::clauses>(ref<GroupByClause>)  //
+      | append<&ast::FlworExpr::clauses>(ref<OrderByClause>)  //
+      | append<&ast::FlworExpr::clauses>(ref<CountClause>)  //
+      | append<&ast::FlworExpr::clauses>(ref<WhileClause>)  //
+      | append<&ast::FlworExpr::clauses>(ref<TraceClause>);
 
-  struct FlworExprRule
+  struct FlworExpr
       : rule<create<ast::FlworExpr>(
             InitialClause + many(IntermediateClause) + kw<"return"> +
-            assign<&ast::FlworExpr::result>(ref<ExprSingleRule>))> {};
+            assign<&ast::FlworExpr::result>(ref<ExprSingle>))> {};
 
   // ---- quantified / switch / typeswitch / if / try-catch -------------------
 
-  struct QuantifierBindingRule
+  struct QuantifierBinding
       : rule<create<ast::QuantifierBinding>(
-            assign<&ast::QuantifierBinding::name>(ref<VarNameRule>) +
+            assign<&ast::QuantifierBinding::name>(ref<VarName>) +
             option(kw<"as"> +
-                   assign<&ast::QuantifierBinding::type>(ref<SequenceTypeRule>)) +
-            kw<"in"> + assign<&ast::QuantifierBinding::source>(ref<ExprSingleRule>))> {
+                   assign<&ast::QuantifierBinding::type>(ref<SequenceType>)) +
+            kw<"in"> + assign<&ast::QuantifierBinding::source>(ref<ExprSingle>))> {
   };
 
-  struct QuantifiedExprRule
+  struct QuantifiedExpr
       : rule<create<ast::QuantifiedExpr>(
             (kw<"some"> | flag<&ast::QuantifiedExpr::every>(kw<"every">)) +
-            append<&ast::QuantifiedExpr::bindings>(ref<QuantifierBindingRule>) +
-            many(lit<","> +
-                 append<&ast::QuantifiedExpr::bindings>(ref<QuantifierBindingRule>)) +
+            some(append<&ast::QuantifiedExpr::bindings>(ref<QuantifierBinding>), lit<",">) +
             kw<"satisfies"> +
-            assign<&ast::QuantifiedExpr::predicate>(ref<ExprSingleRule>))> {};
+            assign<&ast::QuantifiedExpr::predicate>(ref<ExprSingle>))> {};
 
-  struct SwitchCaseClauseRule
+  struct SwitchCaseClause
       : rule<create<ast::SwitchCaseClause>(
             some(kw<"case"> +
-                 append<&ast::SwitchCaseClause::operands>(ref<ExprRule>)) +
+                 append<&ast::SwitchCaseClause::operands>(ref<Expr>)) +
             kw<"return"> +
-            assign<&ast::SwitchCaseClause::result>(ref<ExprSingleRule>))> {};
+            assign<&ast::SwitchCaseClause::result>(ref<ExprSingle>))> {};
 
   static constexpr auto SwitchCasesBody =
-      some(append<&ast::SwitchExpr::cases>(ref<SwitchCaseClauseRule>)) + kw<"default"> +
-      kw<"return"> + assign<&ast::SwitchExpr::defaultResult>(ref<ExprSingleRule>);
+      some(append<&ast::SwitchExpr::cases>(ref<SwitchCaseClause>)) + kw<"default"> +
+      kw<"return"> + assign<&ast::SwitchExpr::defaultResult>(ref<ExprSingle>);
 
-  struct SwitchExprRule
+  struct SwitchExpr
       : rule<create<ast::SwitchExpr>(
             kw<"switch"> + lit<"("> +
-            option(assign<&ast::SwitchExpr::comparand>(ref<ExprRule>)) + lit<")"> +
+            option(assign<&ast::SwitchExpr::comparand>(ref<Expr>)) + lit<")"> +
             (SwitchCasesBody | (lit<"{"> + SwitchCasesBody + lit<"}">)))> {};
 
-  struct CaseClauseRule
+  struct CaseClause
       : rule<create<ast::TypeswitchCase>(
             kw<"case"> +
-            option(assign<&ast::TypeswitchCase::varName>(ref<VarNameRule>) + kw<"as">) +
+            option(assign<&ast::TypeswitchCase::varName>(ref<VarName>) + kw<"as">) +
             SequenceTypeUnion + kw<"return"> +
-            assign<&ast::TypeswitchCase::result>(ref<ExprSingleRule>))> {};
+            assign<&ast::TypeswitchCase::result>(ref<ExprSingle>))> {};
 
   static constexpr auto TypeswitchCasesBody =
-      some(append<&ast::TypeswitchExpr::cases>(ref<CaseClauseRule>)) + kw<"default"> +
-      option(assign<&ast::TypeswitchExpr::defaultVarName>(ref<VarNameRule>)) +
-      kw<"return"> + assign<&ast::TypeswitchExpr::defaultResult>(ref<ExprSingleRule>);
+      some(append<&ast::TypeswitchExpr::cases>(ref<CaseClause>)) + kw<"default"> +
+      option(assign<&ast::TypeswitchExpr::defaultVarName>(ref<VarName>)) +
+      kw<"return"> + assign<&ast::TypeswitchExpr::defaultResult>(ref<ExprSingle>);
 
-  struct TypeswitchExprRule
+  struct TypeswitchExpr
       : rule<create<ast::TypeswitchExpr>(
             kw<"typeswitch"> + lit<"("> +
-            assign<&ast::TypeswitchExpr::operand>(ref<ExprRule>) + lit<")"> +
+            assign<&ast::TypeswitchExpr::operand>(ref<Expr>) + lit<")"> +
             (TypeswitchCasesBody | (lit<"{"> + TypeswitchCasesBody + lit<"}">)))> {};
 
-  struct IfExprRule
+  struct IfExpr
       : rule<create<ast::IfExpr>(
-            kw<"if"> + lit<"("> + assign<&ast::IfExpr::cond>(ref<ExprRule>) + lit<")"> +
-            ((kw<"then"> + assign<&ast::IfExpr::thenBranch>(ref<ExprSingleRule>) +
-              kw<"else"> + assign<&ast::IfExpr::elseBranch>(ref<ExprSingleRule>))  //
-             | (lit<"{"> + option(assign<&ast::IfExpr::thenBranch>(ref<ExprRule>)) +
-                lit<"}">)))> {};
+            kw<"if"> + lit<"("> + assign<&ast::IfExpr::cond>(ref<Expr>) + lit<")"> +
+            ((kw<"then"> + assign<&ast::IfExpr::thenBranch>(ref<ExprSingle>) +
+              kw<"else"> + assign<&ast::IfExpr::elseBranch>(ref<ExprSingle>))  //
+             | (lit<"{"> + option(assign<&ast::IfExpr::thenBranch>(ref<Expr>)) +
+                lit<"}"> + option(kw<"else"> +
+                  (assign<&ast::IfExpr::elseBranch>(ref<IfExpr>) |
+                   (lit<"{"> + option(assign<&ast::IfExpr::elseBranch>(ref<Expr>)) + lit<"}">))))))> {};
 
-  struct CatchClauseRule
+  struct CatchClause
       : rule<create<ast::CatchClause>(
             kw<"catch"> + append<&ast::CatchClause::tests>(NameTestWord) +
             many(lit<"|"> + append<&ast::CatchClause::tests>(NameTestWord)) + lit<"{"> +
-            option(assign<&ast::CatchClause::body>(ref<ExprRule>)) + lit<"}">)> {};
+            option(assign<&ast::CatchClause::body>(ref<Expr>)) + lit<"}">)> {};
 
-  struct TryCatchExprRule
+  struct TryCatchExpr
       : rule<create<ast::TryCatchExpr>(
             kw<"try"> + lit<"{"> +
-            option(assign<&ast::TryCatchExpr::tryBody>(ref<ExprRule>)) + lit<"}"> +
-            ((some(append<&ast::TryCatchExpr::catches>(ref<CatchClauseRule>)) +
+            option(assign<&ast::TryCatchExpr::tryBody>(ref<Expr>)) + lit<"}"> +
+            ((some(append<&ast::TryCatchExpr::catches>(ref<CatchClause>)) +
               option(kw<"finally"> + lit<"{"> +
-                     option(assign<&ast::TryCatchExpr::finallyBody>(ref<ExprRule>)) +
+                     option(assign<&ast::TryCatchExpr::finallyBody>(ref<Expr>)) +
                      lit<"}">))  //
              | (kw<"finally"> + lit<"{"> +
-                option(assign<&ast::TryCatchExpr::finallyBody>(ref<ExprRule>)) +
+                option(assign<&ast::TryCatchExpr::finallyBody>(ref<Expr>)) +
                 lit<"}">)))> {};
 
   // ---- Update Facility 1.0 --------------------------------------------------
 
-  struct InsertExprRule
+  struct InsertExpr
       : rule<create<ast::InsertExpr>(
             kw<"insert"> + (kw<"node"> | flag<&ast::InsertExpr::nodes>(kw<"nodes">)) +
-            assign<&ast::InsertExpr::source>(ref<ExprSingleRule>) +
+            assign<&ast::InsertExpr::source>(ref<ExprSingle>) +
             ((option(kw<"as"> +
                      assign<&ast::InsertExpr::position>(kw<"first"> | kw<"last">)) +
               assign<&ast::InsertExpr::target>(kw<"into">))  //
              | assign<&ast::InsertExpr::target>(kw<"after">)  //
              | assign<&ast::InsertExpr::target>(kw<"before">)) +
-            assign<&ast::InsertExpr::targetExpr>(ref<ExprSingleRule>))> {};
+            assign<&ast::InsertExpr::targetExpr>(ref<ExprSingle>))> {};
 
-  struct DeleteExprRule
+  struct DeleteExpr
       : rule<create<ast::DeleteExpr>(
             kw<"delete"> + (kw<"node"> | flag<&ast::DeleteExpr::nodes>(kw<"nodes">)) +
-            assign<&ast::DeleteExpr::target>(ref<ExprSingleRule>))> {};
+            assign<&ast::DeleteExpr::target>(ref<ExprSingle>))> {};
 
-  struct ReplaceExprRule
+  struct ReplaceExpr
       : rule<create<ast::ReplaceExpr>(
             kw<"replace"> +
             option(flag<&ast::ReplaceExpr::valueOf>(kw<"value">) + kw<"of">) +
-            kw<"node"> + assign<&ast::ReplaceExpr::target>(ref<ExprSingleRule>) +
-            kw<"with"> + assign<&ast::ReplaceExpr::with>(ref<ExprSingleRule>))> {};
+            kw<"node"> + assign<&ast::ReplaceExpr::target>(ref<ExprSingle>) +
+            kw<"with"> + assign<&ast::ReplaceExpr::with>(ref<ExprSingle>))> {};
 
-  struct RenameExprRule
+  struct RenameExpr
       : rule<create<ast::RenameExpr>(
             kw<"rename"> + kw<"node"> +
-            assign<&ast::RenameExpr::target>(ref<ExprSingleRule>) + kw<"as"> +
-            assign<&ast::RenameExpr::newName>(ref<ExprSingleRule>))> {};
+            assign<&ast::RenameExpr::target>(ref<ExprSingle>) + kw<"as"> +
+            assign<&ast::RenameExpr::newName>(ref<ExprSingle>))> {};
 
-  struct CopyBindingRule
+  struct CopyBinding
       : rule<create<ast::CopyBinding>(
-            lit<"$"> + assign<&ast::CopyBinding::name>(ref<EqNameRule>) + lit<":="> +
-            assign<&ast::CopyBinding::value>(ref<ExprSingleRule>))> {};
+            lit<"$"> + assign<&ast::CopyBinding::name>(ref<EqName>) + lit<":="> +
+            assign<&ast::CopyBinding::value>(ref<ExprSingle>))> {};
 
-  struct TransformExprRule
+  struct TransformExpr
       : rule<create<ast::TransformExpr>(
-            kw<"copy"> + append<&ast::TransformExpr::bindings>(ref<CopyBindingRule>) +
-            many(lit<","> + append<&ast::TransformExpr::bindings>(ref<CopyBindingRule>)) +
-            kw<"modify"> + assign<&ast::TransformExpr::modify>(ref<ExprSingleRule>) +
-            kw<"return"> + assign<&ast::TransformExpr::result>(ref<ExprSingleRule>))> {};
+            kw<"copy"> + some(append<&ast::TransformExpr::bindings>(ref<CopyBinding>), lit<",">) +
+            kw<"modify"> + assign<&ast::TransformExpr::modify>(ref<ExprSingle>) +
+            kw<"return"> + assign<&ast::TransformExpr::result>(ref<ExprSingle>))> {};
 
   // ---- exprSingle / expr ----------------------------------------------------
 
-  struct ExprSingleRule
-      : rule<ref<FlworExprRule> | ref<QuantifiedExprRule> | ref<SwitchExprRule> |
-             ref<TypeswitchExprRule> | ref<IfExprRule> | ref<TryCatchExprRule> |
-             ref<InsertExprRule> | ref<DeleteExprRule> | ref<RenameExprRule> |
-             ref<ReplaceExprRule> | ref<TransformExprRule> | ref<OrExprRule>> {};
+  struct ExprSingle
+      : rule<ref<FlworExpr> | ref<QuantifiedExpr> | ref<SwitchExpr> |
+             ref<TypeswitchExpr> | ref<IfExpr> | ref<TryCatchExpr> |
+             ref<InsertExpr> | ref<DeleteExpr> | ref<RenameExpr> |
+             ref<ReplaceExpr> | ref<TransformExpr> | ref<OrExpr>> {};
 
-  struct ExprRule
+  struct Expr
       : rule<create<ast::SequenceExpr>(
-            append<&ast::SequenceExpr::items>(ref<ExprSingleRule>) +
-            many(lit<","> + append<&ast::SequenceExpr::items>(ref<ExprSingleRule>)))> {
+            some(append<&ast::SequenceExpr::items>(ref<ExprSingle>), lit<",">))> {
   };
 
   // ---- prolog / declarations -------------------------------------------
 
-  struct SetterRule
+  struct Setter
       : rule<create<ast::Setter>(kw<"declare"> + assign<&ast::Setter::kind>(kw<"boundary-space">) +
                                  assign<&ast::Setter::value1>(kw<"preserve"> | kw<"strip">))  //
              | create<ast::Setter>(kw<"declare"> + kw<"default"> +
@@ -1297,37 +1207,37 @@ struct XQuery : cursiv::GrammarSpec {
                    lit<","> +
                    assign<&ast::Setter::value2>(kw<"inherit"> | kw<"no-inherit">))> {};
 
-  struct DfPropertyNameRule
+  struct DfPropertyName
       : rule<kw<"decimal-separator"> | kw<"grouping-separator"> | kw<"infinity"> |
              kw<"minus-sign"> | kw<"NaN"> | kw<"percent"> | kw<"per-mille"> |
              kw<"zero-digit"> | kw<"digit"> | kw<"pattern-separator"> |
              kw<"exponent-separator">> {};
 
-  struct DecimalFormatPropertyRule
+  struct DecimalFormatProperty
       : rule<create<ast::DecimalFormatProperty>(
-            assign<&ast::DecimalFormatProperty::name>(ref<DfPropertyNameRule>) + lit<"="> +
+            assign<&ast::DecimalFormatProperty::name>(ref<DfPropertyName>) + lit<"="> +
             assign<&ast::DecimalFormatProperty::value>(ref<STRING>))> {};
 
-  struct DecimalFormatDeclRule
+  struct DecimalFormatDecl
       : rule<create<ast::DecimalFormatDecl>(
                  kw<"declare"> + kw<"decimal-format"> +
-                 assign<&ast::DecimalFormatDecl::name>(ref<EqNameRule>) +
+                 assign<&ast::DecimalFormatDecl::name>(ref<EqName>) +
                  many(append<&ast::DecimalFormatDecl::properties>(
-                     ref<DecimalFormatPropertyRule>)))  //
+                     ref<DecimalFormatProperty>)))  //
              | create<ast::DecimalFormatDecl>(
                    kw<"declare"> +
                    flag<&ast::DecimalFormatDecl::isDefault>(kw<"default">) +
                    kw<"decimal-format"> +
                    many(append<&ast::DecimalFormatDecl::properties>(
-                       ref<DecimalFormatPropertyRule>)))> {};
+                       ref<DecimalFormatProperty>)))> {};
 
-  struct NamespaceDeclRule
+  struct NamespaceDecl
       : rule<create<ast::NamespaceDecl>(
             kw<"declare"> + kw<"namespace"> +
-            assign<&ast::NamespaceDecl::prefix>(ref<QName>) + lit<"="> +
+            assign<&ast::NamespaceDecl::prefix>(ref<NCName>) + lit<"="> +
             assign<&ast::NamespaceDecl::uri>(ref<STRING>))> {};
 
-  struct DefaultNamespaceDeclRule
+  struct DefaultNamespaceDecl
       : rule<create<ast::DefaultNamespaceDecl>(
             kw<"declare"> +
             option(flag<&ast::DefaultNamespaceDecl::fixed>(kw<"fixed">)) +
@@ -1336,148 +1246,144 @@ struct XQuery : cursiv::GrammarSpec {
              flag<&ast::DefaultNamespaceDecl::isFunction>(kw<"function">)) +
             kw<"namespace"> + assign<&ast::DefaultNamespaceDecl::uri>(ref<STRING>))> {};
 
-  struct SchemaImportRule
+  struct SchemaImport
       : rule<create<ast::SchemaImport>(
             kw<"import"> + kw<"schema"> +
-            option((kw<"namespace"> + assign<&ast::SchemaImport::prefix>(ref<QName>) +
+            option((kw<"namespace"> + assign<&ast::SchemaImport::prefix>(ref<NCName>) +
                     lit<"=">)  //
                    | (option(flag<&ast::SchemaImport::fixed>(kw<"fixed">)) +
                       flag<&ast::SchemaImport::isDefaultElement>(kw<"default">) +
                       kw<"element"> + kw<"namespace">)) +
             assign<&ast::SchemaImport::uri>(ref<STRING>) +
-            option(kw<"at"> + append<&ast::SchemaImport::locations>(ref<STRING>) +
-                   many(lit<","> +
-                        append<&ast::SchemaImport::locations>(ref<STRING>))))> {};
+            option(kw<"at"> + some(append<&ast::SchemaImport::locations>(ref<STRING>), lit<",">)))> {};
 
-  struct ModuleImportRule
+  struct ModuleImport
       : rule<create<ast::ModuleImport>(
             kw<"import"> + kw<"module"> +
-            option(kw<"namespace"> + assign<&ast::ModuleImport::prefix>(ref<QName>) +
+            option(kw<"namespace"> + assign<&ast::ModuleImport::prefix>(ref<NCName>) +
                    lit<"=">) +
             assign<&ast::ModuleImport::uri>(ref<STRING>) +
-            option(kw<"at"> + append<&ast::ModuleImport::locations>(ref<STRING>) +
-                   many(lit<","> +
-                        append<&ast::ModuleImport::locations>(ref<STRING>))))> {};
+            option(kw<"at"> + some(append<&ast::ModuleImport::locations>(ref<STRING>), lit<",">)))> {};
 
-  struct ContextValueDeclRule
+  struct ContextValueDecl
       : rule<create<ast::ContextValueDecl>(
             kw<"declare"> + kw<"context"> +
             ((kw<"value"> +
               option(kw<"as"> +
-                     assign<&ast::ContextValueDecl::type>(ref<SequenceTypeRule>)))  //
+                     assign<&ast::ContextValueDecl::type>(ref<SequenceType>)))  //
              | (flag<&ast::ContextValueDecl::isItem>(kw<"item">) +
                 option(kw<"as"> +
                        assign<&ast::ContextValueDecl::type>(create<ast::SequenceType>(
-                           assign<&ast::SequenceType::itemType>(ref<ItemTypeRule>)))))) +
-            ((lit<":="> + assign<&ast::ContextValueDecl::value>(ref<ExprSingleRule>))  //
+                           assign<&ast::SequenceType::itemType>(ref<ItemType>)))))) +
+            ((lit<":="> + assign<&ast::ContextValueDecl::value>(ref<ExprSingle>))  //
              | (flag<&ast::ContextValueDecl::external>(kw<"external">) +
                 option(lit<":="> +
-                       assign<&ast::ContextValueDecl::value>(ref<ExprSingleRule>)))))> {
+                       assign<&ast::ContextValueDecl::value>(ref<ExprSingle>)))))> {
   };
 
-  struct VarDeclRule
+  struct VarDecl
       : rule<create<ast::VarDecl>(
-            kw<"declare"> + many(append<&ast::VarDecl::annotations>(ref<AnnotationRule>)) +
-            kw<"variable"> + lit<"$"> + assign<&ast::VarDecl::name>(ref<EqNameRule>) +
-            option(kw<"as"> + assign<&ast::VarDecl::type>(ref<SequenceTypeRule>)) +
-            ((lit<":="> + assign<&ast::VarDecl::value>(ref<ExprSingleRule>))  //
+            kw<"declare"> + many(append<&ast::VarDecl::annotations>(ref<Annotation>)) +
+            kw<"variable"> + lit<"$"> + assign<&ast::VarDecl::name>(ref<EqName>) +
+            option(kw<"as"> + assign<&ast::VarDecl::type>(ref<SequenceType>)) +
+            ((lit<":="> + assign<&ast::VarDecl::value>(ref<ExprSingle>))  //
              | (flag<&ast::VarDecl::external>(kw<"external">) +
-                option(lit<":="> + assign<&ast::VarDecl::value>(ref<ExprSingleRule>)))))> {
+                option(lit<":="> + assign<&ast::VarDecl::value>(ref<ExprSingle>)))))> {
   };
 
-  struct ParamWithDefaultRule
+  struct ParamWithDefault
       : rule<create<ast::Param>(
-            lit<"$"> + assign<&ast::Param::name>(ref<EqNameRule>) +
-            option(kw<"as"> + assign<&ast::Param::type>(ref<SequenceTypeRule>)) +
-            option(lit<":="> + assign<&ast::Param::def>(ref<ExprSingleRule>)))> {};
+            lit<"$"> + assign<&ast::Param::name>(ref<EqName>) +
+            option(kw<"as"> + assign<&ast::Param::type>(ref<SequenceType>)) +
+            option(lit<":="> + assign<&ast::Param::def>(ref<ExprSingle>)))> {};
 
-  struct FunctionDeclRule
+  struct FunctionDecl
       : rule<create<ast::FunctionDecl>(
             kw<"declare"> +
-            many(append<&ast::FunctionDecl::annotations>(ref<AnnotationRule>)) +
-            kw<"function"> + assign<&ast::FunctionDecl::name>(ref<EqNameRule>) + lit<"("> +
-            option(append<&ast::FunctionDecl::params>(ref<ParamWithDefaultRule>) +
+            many(append<&ast::FunctionDecl::annotations>(ref<Annotation>)) +
+            kw<"function"> + assign<&ast::FunctionDecl::name>(ref<EqName>) + lit<"("> +
+            option(append<&ast::FunctionDecl::params>(ref<ParamWithDefault>) +
                    many(lit<","> + append<&ast::FunctionDecl::params>(
-                                       ref<ParamWithDefaultRule>))) +
+                                       ref<ParamWithDefault>))) +
             lit<")"> +
-            option(kw<"as"> + assign<&ast::FunctionDecl::returnType>(ref<SequenceTypeRule>)) +
-            ((lit<"{"> + option(assign<&ast::FunctionDecl::body>(ref<ExprRule>)) + lit<"}">)  //
+            option(kw<"as"> + assign<&ast::FunctionDecl::returnType>(ref<SequenceType>)) +
+            ((lit<"{"> + option(assign<&ast::FunctionDecl::body>(ref<Expr>)) + lit<"}">)  //
              | flag<&ast::FunctionDecl::external>(kw<"external">)))> {};
 
-  struct ItemTypeDeclRule
+  struct ItemTypeDecl
       : rule<create<ast::ItemTypeDecl>(
             kw<"declare"> +
-            many(append<&ast::ItemTypeDecl::annotations>(ref<AnnotationRule>)) + kw<"type"> +
-            assign<&ast::ItemTypeDecl::name>(ref<EqNameRule>) + kw<"as"> +
-            assign<&ast::ItemTypeDecl::type>(ref<ItemTypeRule>))> {};
+            many(append<&ast::ItemTypeDecl::annotations>(ref<Annotation>)) + kw<"type"> +
+            assign<&ast::ItemTypeDecl::name>(ref<EqName>) + kw<"as"> +
+            assign<&ast::ItemTypeDecl::type>(ref<ItemType>))> {};
 
-  struct NamedRecordTypeDeclRule
+  struct NamedRecordTypeDecl
       : rule<create<ast::NamedRecordTypeDecl>(
             kw<"declare"> +
-            many(append<&ast::NamedRecordTypeDecl::annotations>(ref<AnnotationRule>)) +
-            kw<"record"> + assign<&ast::NamedRecordTypeDecl::name>(ref<EqNameRule>) +
+            many(append<&ast::NamedRecordTypeDecl::annotations>(ref<Annotation>)) +
+            kw<"record"> + assign<&ast::NamedRecordTypeDecl::name>(ref<EqName>) +
             lit<"("> +
-            option(append<&ast::NamedRecordTypeDecl::fields>(ref<ExtendedFieldDeclRule>) +
+            option(append<&ast::NamedRecordTypeDecl::fields>(ref<ExtendedFieldDecl>) +
                    many(lit<","> + append<&ast::NamedRecordTypeDecl::fields>(
-                                       ref<ExtendedFieldDeclRule>))) +
+                                       ref<ExtendedFieldDecl>))) +
             lit<")">)> {};
 
-  struct OptionDeclRule
+  struct OptionDecl
       : rule<create<ast::OptionDecl>(kw<"declare"> + kw<"option"> +
-                                     assign<&ast::OptionDecl::name>(ref<EqNameRule>) +
+                                     assign<&ast::OptionDecl::name>(ref<EqName>) +
                                      assign<&ast::OptionDecl::value>(ref<STRING>))> {};
 
   static constexpr auto PrologFirstItem =
-      append<&ast::Prolog::items>(ref<DefaultNamespaceDeclRule>)  //
-      | append<&ast::Prolog::items>(ref<SetterRule>)  //
-      | append<&ast::Prolog::items>(ref<DecimalFormatDeclRule>)  //
-      | append<&ast::Prolog::items>(ref<NamespaceDeclRule>)  //
-      | append<&ast::Prolog::items>(ref<SchemaImportRule>)  //
-      | append<&ast::Prolog::items>(ref<ModuleImportRule>);
+      append<&ast::Prolog::items>(ref<DefaultNamespaceDecl>)  //
+      | append<&ast::Prolog::items>(ref<Setter>)  //
+      | append<&ast::Prolog::items>(ref<DecimalFormatDecl>)  //
+      | append<&ast::Prolog::items>(ref<NamespaceDecl>)  //
+      | append<&ast::Prolog::items>(ref<SchemaImport>)  //
+      | append<&ast::Prolog::items>(ref<ModuleImport>);
   static constexpr auto PrologSecondItem =
-      append<&ast::Prolog::items>(ref<ContextValueDeclRule>)  //
-      | append<&ast::Prolog::items>(ref<VarDeclRule>)  //
-      | append<&ast::Prolog::items>(ref<FunctionDeclRule>)  //
-      | append<&ast::Prolog::items>(ref<ItemTypeDeclRule>)  //
-      | append<&ast::Prolog::items>(ref<NamedRecordTypeDeclRule>)  //
-      | append<&ast::Prolog::items>(ref<OptionDeclRule>);
+      append<&ast::Prolog::items>(ref<ContextValueDecl>)  //
+      | append<&ast::Prolog::items>(ref<VarDecl>)  //
+      | append<&ast::Prolog::items>(ref<FunctionDecl>)  //
+      | append<&ast::Prolog::items>(ref<ItemTypeDecl>)  //
+      | append<&ast::Prolog::items>(ref<NamedRecordTypeDecl>)  //
+      | append<&ast::Prolog::items>(ref<OptionDecl>);
 
-  struct PrologRule
+  struct Prolog
       : rule<create<ast::Prolog>(many(PrologFirstItem + lit<";">) +
                                  many(PrologSecondItem + lit<";">))> {};
 
   // ---- module / query list --------------------------------------------
 
-  struct LibraryModuleRule
+  struct LibraryModule
       : rule<create<ast::LibraryModule>(
             kw<"module"> + kw<"namespace"> +
-            assign<&ast::LibraryModule::prefix>(ref<QName>) + lit<"="> +
+            assign<&ast::LibraryModule::prefix>(ref<NCName>) + lit<"="> +
             assign<&ast::LibraryModule::uri>(ref<STRING>) + lit<";"> +
-            assign<&ast::LibraryModule::prolog>(ref<PrologRule>))> {};
+            assign<&ast::LibraryModule::prolog>(ref<Prolog>))> {};
 
-  struct MainModuleRule
+  struct MainModule
       : rule<create<ast::MainModule>(
-            assign<&ast::MainModule::prolog>(ref<PrologRule>) +
-            assign<&ast::MainModule::body>(ref<ExprRule>))> {};
+            assign<&ast::MainModule::prolog>(ref<Prolog>) +
+            assign<&ast::MainModule::body>(ref<Expr>))> {};
 
-  struct ModuleRule
+  struct Module
       : rule<create<ast::Module>(
             option(kw<"xquery"> +
-                   ((kw<"encoding"> + assign<&ast::Module::version>(ref<STRING>))  //
+                   ((kw<"encoding"> + assign<&ast::Module::encoding>(ref<STRING>))  //
                     | (kw<"version"> + assign<&ast::Module::version>(ref<STRING>) +
-                       option(kw<"encoding"> + ref<STRING>))) +
+                       option(kw<"encoding"> + assign<&ast::Module::encoding>(ref<STRING>)))) +
                    lit<";">) +
-            (assign<&ast::Module::library>(ref<LibraryModuleRule>)  //
-             | assign<&ast::Module::main>(ref<MainModuleRule>)))> {};
+            (assign<&ast::Module::library>(ref<LibraryModule>)  //
+             | assign<&ast::Module::main>(ref<MainModule>)))> {};
 
-  struct QueryListRule
+  struct QueryList
       : rule<create<ast::QueryList>(
-            append<&ast::QueryList::modules>(ref<ModuleRule>) +
+            append<&ast::QueryList::modules>(ref<Module>) +
             many((lit<";"> | lit<"%%%">) +
-                 option(append<&ast::QueryList::modules>(ref<ModuleRule>))))> {};
+                 option(append<&ast::QueryList::modules>(ref<Module>))))> {};
 
-  using entry = QueryListRule;
-  using ignore = WS;
+  using entry = QueryList;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

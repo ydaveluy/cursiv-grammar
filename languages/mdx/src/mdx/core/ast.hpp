@@ -83,6 +83,8 @@ struct UnaryExpr : cursiv::Extends<Expr> {
 
 enum class BinaryOp : std::uint8_t {
   range,
+  is_,
+  power,
   logical_xor,
   logical_or,
   logical_and,
@@ -137,6 +139,7 @@ struct MemberFormula : cursiv::Extends<cursiv::AstNode> {
 using Formula = std::variant<MemberFormula*, SetFormula*>;
 
 struct AxisSpec : cursiv::Extends<cursiv::AstNode> {
+  boolean axisFunction;
   boolean nonEmpty;
   Expr* expr;
   vector<Name*> dimProps;
@@ -148,6 +151,8 @@ struct CellProperty : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct SelectStatement : cursiv::Extends<cursiv::AstNode> {
+  boolean all;
+  SelectStatement* subquery;
   vector<Formula> formulas;
   vector<AxisSpec*> axes;
   Name* cube;

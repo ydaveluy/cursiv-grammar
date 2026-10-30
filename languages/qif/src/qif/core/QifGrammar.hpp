@@ -9,28 +9,29 @@ struct Qif : cursiv::GrammarSpec {
   struct EOL : terminal<some(cr<R"(\r\n)">)> {};
   struct TEXT : terminal<some(cr<R"(^\r\n)">)> {};
   struct CODE : terminal<cr<R"(^!^\r\n)">> {};
+  struct RECORD_END : terminal<lit<"^"> + (ref<EOL> | eof)> {};
 
-  struct HeaderRule
+  struct Header
       : rule<lit<"!"> + option(assign<&ast::Header::text>(ref<TEXT>)) +
-             (ref<EOL> | !any)> {};
+             (ref<EOL> | eof)> {};
 
-  struct FieldRule
+  struct Field
       : rule<assign<&ast::Field::code>(ref<CODE>) +
-             option(assign<&ast::Field::text>(ref<TEXT>)) + (ref<EOL> | !any)> {
+             option(assign<&ast::Field::text>(ref<TEXT>)) + (ref<EOL> | eof)> {
   };
 
-  struct RecordRule
+  struct Record
       : rule<create<ast::Record> +
-             ((some(append<&ast::Record::fields>(ref<FieldRule>)) +
-               option(flag<&ast::Record::terminated>(lit<"^">))) |
-              flag<&ast::Record::terminated>(lit<"^">))> {};
+             ((some(append<&ast::Record::fields>(ref<Field>)) +
+               option(flag<&ast::Record::terminated>(ref<RECORD_END>))) |
+              flag<&ast::Record::terminated>(ref<RECORD_END>))> {};
 
-  struct DocumentRule : rule<create<ast::Document> +
+  struct Document : rule<create<ast::Document> +
                              many(append<&ast::Document::entries>(
-                                      ref<HeaderRule> | ref<RecordRule>) |
+                                      ref<Header> | ref<Record>) |
                                   ref<EOL>)> {};
 
-  using entry = DocumentRule;
+  using entry = Document;
 };
 
 } // namespace qif

@@ -1,5 +1,6 @@
-// The checks of this language. None yet: a guitar tab has no naming
-// convention and no cross-reference for a check to judge.
+// The pedagogical guitartab.g4 notation has no added semantic checks here.
+// Physical guitar tuning, rhythmic alignment and fret numbering are outside
+// its mark-only language.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

@@ -59,8 +59,12 @@ struct FloatLit : cursiv::Extends<Expr> {
   string_view text;
 };
 
-// A rune literal and a string literal are both single-quoted and match the
-// same bytes at length one, so one class serves both forms.
+// The quoted source spelling, including raw prefixes and interpolation text.
+struct RuneLit : cursiv::Extends<Expr> { string_view text; };
+struct BoolLit : cursiv::Extends<Expr> { boolean value; };
+struct NoneLit : cursiv::Extends<Expr> {};
+struct NilLit : cursiv::Extends<Expr> {};
+struct RangeExpr : cursiv::Extends<Expr> { Expr* low; Expr* high; };
 struct StringLit : cursiv::Extends<Expr> {
   string_view text;
 };
@@ -94,12 +98,6 @@ struct Block;
 struct FunctionLit : cursiv::Extends<Expr> {
   Signature* signature;
   Block* body;
-};
-
-// `T(x)`: a type conversion.
-struct ConversionExpr : cursiv::Extends<Expr> {
-  Type* type;
-  Expr* value;
 };
 
 // `x.field`. Also stands for a package-qualified name (`pkg.Name`) and a
@@ -172,6 +170,7 @@ struct MapType : cursiv::Extends<Type> {
 // -- Signatures ----
 
 struct Param : cursiv::Extends<cursiv::AstNode> {
+  boolean mut;
   vector<string_view> names;  // empty for an unnamed parameter
   Type* type;
 };
@@ -196,6 +195,7 @@ struct MethodSpec : cursiv::Extends<cursiv::AstNode> {
   vector<Param*> params;
   Result_* result;
   Type* embedded;
+  Type* fieldType;
 };
 
 // -- Declarations ----
@@ -205,7 +205,6 @@ struct ModuleClause : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct ImportSpec : cursiv::Extends<cursiv::AstNode> {
-  boolean dot;             // `import . path`
   optional<string_view> alias;
   string_view path;        // an identifier's or a string literal's raw text
 };
@@ -216,6 +215,7 @@ struct ConstSpec : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct ConstDecl : cursiv::Extends<Item> {
+  boolean isPub;
   vector<ConstSpec*> specs;
 };
 
@@ -234,10 +234,11 @@ struct FieldDecl : cursiv::Extends<cursiv::AstNode> {
   boolean mut;
   vector<string_view> names;
   Type* type;
-  string_view tag;  // an optional trailing string literal
+  Expr* defaultValue;
 };
 
 struct StructDecl : cursiv::Extends<Item> {
+  boolean isPub;
   string_view name;
   vector<FieldDecl*> fields;
 };
@@ -245,7 +246,12 @@ struct StructDecl : cursiv::Extends<Item> {
 // A plain function (`receiver` empty) or a method (`receiver` the parameter
 // list V's grammar allows there) -- one class for both, matching how close
 // the two productions already are.
+struct InterfaceDecl : cursiv::Extends<Item> {
+  boolean isPub;
+  InterfaceType* type;
+};
 struct FunctionDecl : cursiv::Extends<Item> {
+  boolean isPub;
   vector<Param*> receiver;
   string_view name;
   Signature* signature;
@@ -273,31 +279,18 @@ struct ReturnStmt : cursiv::Extends<Stmt> {
   vector<Expr*> values;
 };
 
-struct BreakStmt : cursiv::Extends<Stmt> {};
+struct BreakStmt : cursiv::Extends<Stmt> { string_view label; };
 
-struct ContinueStmt : cursiv::Extends<Stmt> {};
+struct ContinueStmt : cursiv::Extends<Stmt> { string_view label; };
 
 struct Block : cursiv::Extends<Stmt> {
   vector<Item*> stmts;
 };
 
 struct IfStmt : cursiv::Extends<Stmt> {
-  Item* init;  // a simple statement before `;`, or null
   Expr* cond;
   Block* thenBranch;
   Item* elseBranch;  // an IfStmt, a Block, or null
-};
-
-struct CaseClause : cursiv::Extends<cursiv::AstNode> {
-  vector<Expr*> values;  // empty when `isDefault`
-  boolean isDefault;
-  vector<Item*> stmts;
-};
-
-struct SwitchStmt : cursiv::Extends<Stmt> {
-  Item* init;
-  Expr* tag;  // null for a tagless switch
-  vector<CaseClause*> cases;
 };
 
 // `for {}`, `for cond {}`, `for init; cond; post {}` and `for x in y {}` all
@@ -310,9 +303,11 @@ struct ForStmt : cursiv::Extends<Stmt> {
   Expr* cond;
   Item* post;
   vector<Expr*> inTargets;
-  string_view inIterable;
+  Expr* inIterable;
   Block* body;
 };
+
+struct LabelStmt : cursiv::Extends<Stmt> { string_view name; ForStmt* body; };
 
 // -- Document ----
 

@@ -123,6 +123,15 @@ inline void run() {
             : nullptr;
     CHECK(assertion && assertion->name == "\"a\n\"");
   }
+
+  for (const char* source : {R"als(assert "bad\q" {})als",
+                             R"als(fact "bad\t" {})als",
+                             R"als(assert "" {})als",
+                             "assert \"a\nb\" {}"}) {
+    const auto parsed = language.language.parser->parse(source);
+    CHECK(!parsed.accepted || parsed.cst().recovered() ||
+          !parsed.diagnostics.empty());
+  }
   for (std::string_view empty : {"", "module empty", "open util/ordering[A]"}) {
     const auto parsed = language.language.parser->parse(empty);
     CHECK(parsed.accepted && !parsed.cst().recovered() &&

@@ -1,4 +1,6 @@
 #include "audit_regressions.hpp"
+#include "native_followup.hpp"
+#include "native_types.hpp"
 // The smoke test of the language: every corpus document parses clean, the
 // feature document (constructs no corpus file exercises) parses clean too,
 // and module.xq is read back field by field to catch a converter that
@@ -200,8 +202,8 @@ const xquery::ast::Expr* first_body_item(const cursiv::ParseResult& result) {
 }
 
 // A step position reaches both an unprefixed call (`name(args)`) and an
-// abbreviated kind-test step (`element(...)`, AxisStepRule via
-// SimpleNodeTestRule); an ExprSingle position reaches both an unprefixed
+// abbreviated kind-test step (`element(...)`, AxisStep via
+// SimpleNodeTest); an ExprSingle position reaches both an unprefixed
 // call and a keyword-led construct like `if(...)`. Reserved function names
 // must keep the specific reading in both cases, never CallExpr
 // -- but only the bare spelling: a name merely starting with one
@@ -246,6 +248,8 @@ int main() {
   const auto language = cursiv::create_language<
       xquery::XQueryCoreServices, xquery::XQuerySharedCoreServices,
       xquery::install_core_module>();
+
+  if (!xquery_native_types::run(language) || !xquery_native_followup::run(language)) return 1;
 
   for (const char* const name : kExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;

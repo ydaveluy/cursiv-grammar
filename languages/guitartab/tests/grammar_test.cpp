@@ -84,7 +84,7 @@ void ast_shape() {
 }
 
 // The marks of a segment are single-character tokens, so trivia may sit
-// between them -- PositionRule reads a run of marks as a parser-level
+// between them -- Position reads a run of marks as a parser-level
 // repetition, not one lexer run.
 void ast_shape_spaced_marks() {
   const cursiv::ParseResult r = engine().parse("e x - o | --|");

@@ -9,9 +9,13 @@
 #include <string>
 #include <string_view>
 #include <variant>
+#include <vector>
+#include <utility>
 
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/core/validation/DocumentValidator.hpp"
+#include "cursiv/core/workspace/Document.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "edn/core/CoreServices.hpp"
 #include "edn/core/ast.hpp"
@@ -119,12 +123,50 @@ void reader_values(const cursiv::Parser &parser) {
         "namespaced map retains its prefix");
 }
 
+void native_reader_constraints(const edn::EdnCoreServices& services) {
+  const auto& parser = *services.parser;
+  for (const char* source : {"1abc", "1+2", "1.0Mfoo", "\\newlineX", "# foo 1", R"("\c")"}) {
+    const auto result = parser.parse(source);
+    check(!clean(result) || !result.diagnostics.empty(), "reader rejects invalid token boundary or escape");
+  }
+  for (const char* source : {"foo:", "::foo", ":foo::bar", R"("\400")"}) {
+    const auto result = parser.parse(source);
+    check(!result.diagnostics.empty(), "reader reports invalid token or octal value");
+  }
+  {
+    const auto result = parser.parse(R"("\377")");
+    const auto* document = result.value_as<ast::Program>();
+    const auto* value = document && document->values.size() == 1
+        ? std::get_if<std::string_view>(&document->values[0]) : nullptr;
+    check(clean(result) && result.diagnostics.empty() && value && *value == "ÿ",
+          "octal character U+00FF is encoded as UTF-8");
+  }
+  for (const auto& [source, code] : {
+      std::pair{"{:a 1 :a 2}", "edn.duplicate-key"},
+      std::pair{"#:foo{:a 1 :foo/a 2}", "edn.duplicate-key"},
+      std::pair{"#{:a #_ :discard :a}", "edn.duplicate-element"},
+      std::pair{"\\o400", "edn.character"},
+      std::pair{"\\uD800", "edn.character"}}) {
+    cursiv::Document document(cursiv::TextDocument::create("memory:edn", "edn", 0, source));
+    document.language = &services;
+    document.parseResult = parser.parse(source);
+    std::vector<cursiv::Diagnostic> diagnostics;
+    services.documentValidator->validateDocument(document, diagnostics);
+    check(clean(document.parseResult) && document.parseResult.diagnostics.empty(),
+          "reader constraint is checked after structural parsing");
+    check(diagnostics.size() == 1 && diagnostics[0].code &&
+              diagnostics[0].code->isString() && diagnostics[0].code->string() == code,
+          "native reader constraint produces its diagnostic");
+  }
+}
+
 int main() {
   const auto language =
       cursiv::create_language<edn::EdnCoreServices, edn::EdnSharedCoreServices,
                               edn::install_core_module>();
   const cursiv::Parser &parser = *language.language.parser;
   reader_values(parser);
+  native_reader_constraints(language.language);
 
   const fs::path exampleDir = fs::path(CURSIV_EXAMPLE_DIR) / "example";
   bool sawAny = false;

@@ -25,7 +25,7 @@ struct Apex : cursiv::GrammarSpec {
       if (c == '[') ++n;
     return n;
   };
-  struct ExtraDims : rule<some(lit<"["> + lit<"]">), text_conv<CountBrackets>> {};
+  struct ExtraDims : rule<as<CountBrackets>(some(lit<"["> + lit<"]">))> {};
 
   struct WS : terminal<some(cr<R"( \t\r\n\f)">)> {};
   struct LINE_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
@@ -71,29 +71,27 @@ struct Apex : cursiv::GrammarSpec {
   // Real Apex has no character type: a single-quoted literal is always a
   // string, `''` included (zero or more characters).
   struct STRING_LITERAL
-      : terminal<lit<"'"> + many(EscapeSeq | (!cr<R"('\\)"> + any)) + lit<"'">> {};
+      : terminal<lit<"'"> + many(EscapeSeq | cr<R"(^'\\\r\n)">) + lit<"'">> {};
 
-  // SOQL query text, `[SELECT ...]`, one token never parsed inside. The
-  // leading `SELECT` is what keeps it apart from every other `[`: without
-  // it the token swallows an array type's `[]` and the rest of the line.
+  // Inline SOQL/SOSL stays opaque. Quoted query strings can contain a ]
+  // without ending the surrounding query token.
+  static constexpr auto QueryString = lit<"'"> +
+      many(EscapeSeq | cr<R"(^'\\\r\n)">) + lit<"'">;
   struct SOQL_LITERAL
-      : terminal<lit<"["> + many(s) + ikw<"select"> + many(cr<"^]">) +
-                 lit<"]">> {};
+      : terminal<lit<"["> + many(s) + (ikw<"select"> | ikw<"find">) +
+                 many(QueryString | cr<"^]'">) + lit<"]">> {};
 
   // A compound keyword has a canonical semantic spelling; source gaps
   // (including comments) are still present in its CST.
   struct SharingModifier
-      : rule<(ikw<"with"> | ikw<"without"> | ikw<"inherited">)+ikw<"sharing">,
-             cursiv::text_conv<[](std::string_view text) -> std::string_view {
-               auto lower = [](char c) {
-                 return c >= 'A' && c <= 'Z' ? char(c + 'a' - 'A') : c;
-               };
-               if (!text.empty() && lower(text[0]) == 'i')
-                 return "inherited sharing";
-               if (text.size() >= 7 && lower(text[4]) == 'o')
-                 return "without sharing";
-               return "with sharing";
-             }>> {};
+      : rule<as<[](std::string_view text) -> std::string_view {
+        auto lower = [](char c) {
+          return c >= 'A' && c <= 'Z' ? char(c + 'a' - 'A') : c;
+        };
+        if (!text.empty() && lower(text[0]) == 'i') return "inherited sharing";
+        if (text.size() >= 7 && lower(text[4]) == 'o') return "without sharing";
+        return "with sharing";
+      }>((ikw<"with"> | ikw<"without"> | ikw<"inherited">)+ikw<"sharing">)> {};
 
   static constexpr auto ModifierKw =
       ikw<"public"> | ikw<"protected"> | ikw<"private"> | ikw<"static"> | ikw<"abstract"> |
@@ -113,7 +111,7 @@ struct Apex : cursiv::GrammarSpec {
   static constexpr auto OpMul = lit<"*"> | lit<"/"> | lit<"%">;
   static constexpr auto OpAdd = lit<"+"> | lit<"-">;
   static constexpr auto OpRel = lit<"<="> | lit<">="> | Gt | Lt;
-  static constexpr auto OpEq = lit<"=="> | lit<"!="> | lit<"<>">;
+  static constexpr auto OpEq = lit<"==="> | lit<"=="> | lit<"!="> | lit<"<>">;
   static constexpr auto OpBitAnd = lit<"&">;
   static constexpr auto OpBitXor = lit<"^">;
   static constexpr auto OpBitOr = lit<"|">;
@@ -131,7 +129,7 @@ struct Apex : cursiv::GrammarSpec {
   // non-dotted `Set<...>` spelling avoids the clash.
   static constexpr auto MemberName =
       ref<ID> | ikw<"this"> | ikw<"get"> | ikw<"set"> | ikw<"insert"> | ikw<"upsert"> |
-      ikw<"update"> | ikw<"delete"> | ikw<"undelete">;
+      ikw<"update"> | ikw<"delete"> | ikw<"undelete"> | ikw<"merge">;
 
   // -- forward declarations ----
   struct QualifiedName;
@@ -377,7 +375,7 @@ struct Apex : cursiv::GrammarSpec {
                       lit<"("> +
                       many(append<&ast::CallExpr::args>(ref<Expression>), lit<",">) + lit<")">) |
                   nest<ast::MemberExpr, &ast::MemberExpr::object>(
-                      option(flag<&ast::MemberExpr::safe>(lit<"?">)) + lit<"."> +
+                      (flag<&ast::MemberExpr::safe>(lit<"?.">) | lit<".">) +
                       assign<&ast::MemberExpr::field>(MemberName)) |
                   nest<ast::QualifiedNewExpr, &ast::QualifiedNewExpr::outer>(lit<"."> +
                                                                               ikw<"new">) |
@@ -429,22 +427,18 @@ struct Apex : cursiv::GrammarSpec {
              ref<PostfixExpr>> {};
 
   struct AdditiveLevel
-      : infix<CastExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-              (left(OpMul) >> left(OpAdd))> {};
+      : infix<CastExpr, ast::BinaryExpr,
+              levels(left(OpMul), left(OpAdd))> {};
 
-  // `<<`/`>>`/`>>>` open on the same tokens as the relational operators and
-  // generic brackets one level up, so they are hand-rolled from individual
-  // `<`/`>` matches rather than sitting in the infix table -- the same
-  // shape the csharp and unreal_angelscript ports use for their shift level.
-  struct ShiftOp : rule<(Lt + Lt) | (Gt + Gt + Gt) | (Gt + Gt)> {};
+  // Keep generic closers as individual tokens; a shift requires adjacent bytes.
+  struct ShiftOp : rule<(Lt + gap::none + Lt) |
+                        (Gt + gap::none + Gt + gap::none + Gt) |
+                        (Gt + gap::none + Gt)> {};
   struct ShiftLevel
-      : rule<ref<AdditiveLevel> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(ref<ShiftOp>) +
-                 assign<&ast::BinaryExpr::right>(ref<AdditiveLevel>)))> {};
+      : infix<AdditiveLevel, ast::BinaryExpr, left(ref<ShiftOp>)> {};
 
   struct RelationalAndBelow
-      : infix<ShiftLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op, &ast::BinaryExpr::right,
+      : infix<ShiftLevel, ast::BinaryExpr,
               left(OpRel)> {};
 
   struct InstanceOfExpr
@@ -454,10 +448,9 @@ struct Apex : cursiv::GrammarSpec {
              ref<RelationalAndBelow>> {};
 
   struct EqualityAndAbove
-      : infix<InstanceOfExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpEq) >> left(OpBitAnd) >> left(OpBitXor) >> left(OpBitOr) >>
-               left(OpLogAnd) >> left(OpLogOr) >> left(OpNullCoalesce))> {};
+      : infix<InstanceOfExpr, ast::BinaryExpr,
+              levels(left(OpEq), left(OpBitAnd), left(OpBitXor), left(OpBitOr),
+                     left(OpLogAnd), left(OpLogOr), left(OpNullCoalesce))> {};
 
   struct TernaryExpr
       : rule<create<ast::TernaryExpr>(
@@ -564,20 +557,40 @@ struct Apex : cursiv::GrammarSpec {
                  assign<&ast::ForEachStmt::iterable>(ref<Expression>) + lit<")"> +
                  assign<&ast::ForEachStmt::body>(ref<Statement>))> {};
 
-  // `insert x;`/`update x;`/`delete x;`/`undelete x;`, or
-  // `upsert x;`/`upsert x field;`: the second upsert operand is at most one
-  // field expression, the only shape the language actually uses.
+  struct SwitchWhen
+      : rule<create<ast::SwitchWhen>(
+            ikw<"when"> +
+            (flag<&ast::SwitchWhen::isElse>(ikw<"else">) |
+             (assign<&ast::SwitchWhen::type>(ref<TypeNode>) +
+              assign<&ast::SwitchWhen::name>(ref<ID>)) |
+             some(append<&ast::SwitchWhen::values>(ref<Expression>), lit<",">)) +
+            assign<&ast::SwitchWhen::body>(ref<Block>))> {};
+
+  struct SwitchStatement
+      : rule<create<ast::SwitchStmt>(
+            ikw<"switch"> + ikw<"on"> + assign<&ast::SwitchStmt::value>(ref<Expression>) +
+            lit<"{"> + many(append<&ast::SwitchStmt::cases>(ref<SwitchWhen>)) + lit<"}">)> {};
+
+  // Native contextual keywords are ordinary identifiers in other positions.
+  struct DmlAccessMode : terminal<ikw<"user"> | ikw<"system">> {};
+
   struct ApexDbExpr
-      : rule<create<ast::DmlExpr>(assign<&ast::DmlExpr::op>(ikw<"insert"> | ikw<"update"> |
-                                                              ikw<"delete"> | ikw<"undelete">) +
-                                   assign<&ast::DmlExpr::value>(ref<Expression>)) |
+      : rule<create<ast::DmlExpr>(
+                 assign<&ast::DmlExpr::op>(ikw<"insert"> | ikw<"update"> |
+                                          ikw<"delete"> | ikw<"undelete">) +
+                 option(ikw<"as"> + assign<&ast::DmlExpr::mode>(ref<DmlAccessMode>)) +
+                 assign<&ast::DmlExpr::value>(ref<Expression>)) |
              create<ast::UpsertExpr>(ikw<"upsert"> +
-                                      assign<&ast::UpsertExpr::value>(ref<Expression>) +
-                                      option(assign<&ast::UpsertExpr::field>(ref<Expression>)))> {
-  };
+                 option(ikw<"as"> + assign<&ast::UpsertExpr::mode>(ref<DmlAccessMode>)) +
+                 assign<&ast::UpsertExpr::value>(ref<Expression>) +
+                 option(assign<&ast::UpsertExpr::field>(ref<Expression>))) |
+             create<ast::MergeExpr>(ikw<"merge"> +
+                 option(ikw<"as"> + assign<&ast::MergeExpr::mode>(ref<DmlAccessMode>)) +
+                 assign<&ast::MergeExpr::master>(ref<Expression>) +
+                 assign<&ast::MergeExpr::duplicates>(ref<Expression>))> {};
 
   struct Statement
-      : rule<ref<Block> |
+      : rule<ref<Block> | ref<SwitchStatement> |
              create<ast::IfStmt>(
                  ikw<"if"> + lit<"("> + assign<&ast::IfStmt::cond>(ref<Expression>) + lit<")"> +
                  assign<&ast::IfStmt::thenBranch>(ref<Statement>) +
@@ -805,7 +818,7 @@ struct Apex : cursiv::GrammarSpec {
                  many(append<&ast::CompilationUnit::types>(ref<TypeDeclaration>) | lit<";">))> {};
 
   using entry = CompilationUnit;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, COMMENT>;
 };
 

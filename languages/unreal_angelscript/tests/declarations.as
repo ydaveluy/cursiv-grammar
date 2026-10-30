@@ -1,6 +1,6 @@
-// Own test document: imports, namespaces, enums, aliases and classes --
+// Own test document: imports, namespaces, enums and classes --
 // UCLASS/UPROPERTY/UFUNCTION annotations, base classes, access specifiers,
-// bit-fields, operator overloads, mixins and property accessors.
+// opAdd/opAssign methods, mixins and function attributes.
 
 import Engine.Math;
 import Engine.Math.Vector;
@@ -17,7 +17,6 @@ namespace MyGame
 
 	enum EForwardOnly;
 
-	MyBaseAlias = float;
 
 	UCLASS(Abstract)
 	class ABaseThing
@@ -44,40 +43,35 @@ namespace MyGame
 
 		~ABaseThing() { }
 
-		ABaseThing operator=(const ABaseThing &Other)
+		ABaseThing opAssign(const ABaseThing &Other)
 		{
 			Secret = Other.Secret;
 			return this;
 		}
 
-		int32 operator+(int32 Other)
+		int32 opAdd(int32 Other)
 		{
 			return Secret + Other;
 		}
 
-		int32 operator[](int32 Index)
+		int32 opIndex(int32 Index)
 		{
 			return Secret + Index;
 		}
 
-		void operator()()
+		void opCall()
 		{
 			Secret = 0;
 		}
 	};
 
 	UCLASS()
-	class ADerivedThing : public ABaseThing
+	class ADerivedThing : ABaseThing
 	{
-		private:
-		int32 Hidden;
+		private int32 Hidden;
 
-		public:
-		uint8 Flags : 4;
-		uint8 : 4;
+		public uint8 Flags = 0;
 
 		default Hidden = 50;
 	};
 }
-
-namespace MyGameAlias = MyGame;

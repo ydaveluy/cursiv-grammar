@@ -16,18 +16,18 @@ struct Redis : cursiv::GrammarSpec {
       : terminal<((some(unquoted) + option(doubleQuoted | singleQuoted)) |
                   doubleQuoted | singleQuoted) +
                  quoteEnd> {};
-  struct ArgumentRule : rule<assign<&ast::Argument::raw>(ref<WORD>)> {};
-  struct CommandRule
-      : rule<assign<&ast::Command::name>(ref<ArgumentRule>) +
-             many(append<&ast::Command::arguments>(ref<ArgumentRule>))> {};
-  struct RootRule
+  struct Argument : rule<assign<&ast::Argument::raw>(ref<WORD>)> {};
+  struct Command
+      : rule<assign<&ast::Command::name>(ref<Argument>) +
+             many(append<&ast::Command::arguments>(ref<Argument>))> {};
+  struct Root
       : rule<create<ast::Document>(
                  many(ref<NEWLINE>) +
-                 option(some(append<&ast::Document::commands>(ref<CommandRule>),
+                 option(some(append<&ast::Document::commands>(ref<Command>),
                              some(ref<NEWLINE>)) +
                         many(ref<NEWLINE>))) +
              eof> {};
-  using entry = RootRule;
-  using ignore = SPACE;
+  using entry = Root;
+  using ignored = SPACE;
 };
 } // namespace redis

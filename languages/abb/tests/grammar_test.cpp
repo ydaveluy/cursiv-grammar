@@ -5,8 +5,10 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <memory_resource>
 #include <string>
 
+#include "abb/core/AbbGrammar.hpp"
 #include "abb/core/CoreServices.hpp"
 #include "abb/core/ast.hpp"
 #include "cursiv/core/parser/Parser.hpp"
@@ -30,6 +32,55 @@ int main() {
   const auto language =
       cursiv::create_language<abb::AbbCoreServices, abb::AbbSharedCoreServices,
                               abb::install_core_module>();
+
+  // The converter must also reject incomplete recovery fragments safely.
+  {
+    std::pmr::monotonic_buffer_resource memory;
+    for (std::string_view text : {"", "\"", "plain", "\"unterminated",
+                                  "\"\\\"", "\"\\4\"", "\"\\GG\"",
+                                  "\"bad\"quote\""})
+      if (abb::string_value(text, &memory))
+        return fail("incomplete string conversion unexpectedly succeeded");
+    for (std::string_view text : {"", "'", "'x", "x'"})
+      if (abb::unquote(text))
+        return fail("incomplete character conversion unexpectedly succeeded");
+    const auto empty = abb::string_value("\"\"", &memory);
+    if (!empty || !empty.value->empty())
+      return fail("empty string conversion failed");
+  }
+
+  // ABB RAPID kernel, RobotWare 7, section 2.7: quoted delimiters are
+  // doubled and \HH codes denote characters, including non-ASCII values.
+  {
+    const auto result = language.language.parser->parse(
+        R"RAPID(MODULE Strings
+VAR string quote := "Contains a "" character";
+VAR string slash := "Contains a \\ character";
+VAR string codes := "\00\07\41\E9";
+ENDMODULE)RAPID");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("native RAPID strings did not parse cleanly");
+    const auto *module = result.value_as<abb::ast::Module>();
+    const std::string expected[] = {"Contains a \" character",
+                                    "Contains a \\ character",
+                                    std::string("\0\aA\xc3\xa9", 5)};
+    if (!module || module->declarations.size() != 3)
+      return fail("native RAPID strings lost declarations");
+    for (std::size_t i = 0; i < 3; ++i) {
+      const auto &value = module->declarations[i]->value;
+      const auto *text = value ? std::get_if<std::string_view>(&*value) : nullptr;
+      if (!text || *text != expected[i])
+        return fail("native RAPID string has the wrong decoded value");
+    }
+    for (const char *source : {
+             R"RAPID(MODULE M VAR string s := "\n"; ENDMODULE)RAPID",
+             R"RAPID(MODULE M VAR string s := "\4"; ENDMODULE)RAPID"}) {
+      const auto bad = language.language.parser->parse(source);
+      if (bad.accepted && !bad.cst().recovered() && bad.diagnostics.empty())
+        return fail("non-native RAPID escape parsed cleanly");
+    }
+  }
 
   // Regression: inspect the semantic payload, not only clean acceptance.
   {

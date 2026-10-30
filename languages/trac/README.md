@@ -36,9 +36,10 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 ```
 
 [TRAC](https://en.wikipedia.org/wiki/TRAC_(programming_language)) is a
-macro-processing language: a document is a sequence of macro calls. `#(...)`
+macro-processing language. This port follows the small `trac.g4` teaching
+grammar: a document is a sequence of macro calls. `#(...)`
 is an active call, `##(...)` a neutral one; the first argument is the macro's
-name, the rest its arguments — a bare macro, a parenthesized one, or plain
+name, the rest its arguments — a bare macro, a protected macro, or alphabetic
 text. An argument's text may carry embedded spaces ("read string" above is
 the name, one argument), so the AST holds a `string_view` per argument rather
 than a list of words.

@@ -62,6 +62,7 @@ int expect_clean(const Language& language, const char* path, Check check) {
 }  // namespace
 
 #include "native_inline_regressions.hpp"
+#include "native_followup.hpp"
 
 static int audit_regression() {
   const auto language = cursiv::create_language<
@@ -101,6 +102,8 @@ int main() {
       restructuredtext::RestructuredtextCoreServices,
       restructuredtext::RestructuredtextSharedCoreServices,
       restructuredtext::install_core_module>();
+
+  if (const int rc = rst_native_followup(language.language)) return rc;
 
   if (const int rc = expect_clean(
           language.language, CURSIV_SECTIONS_SAMPLE, [](const Document& doc) {
@@ -281,13 +284,12 @@ int main() {
       return fail("indented blocks are misread");
   }
 
-  // A dangling inline-literal opener has nothing to close it: the token
-  // graph refuses a bare backtick, and the parser must repair, not crash.
+  // Docutils preserves a dangling backtick as literal text.
   {
     const std::string broken = "See `code with no closer.\n";
     const cursiv::ParseResult result = language.language.parser->parse(broken);
-    if (!result.cst().recovered())
-      return fail("an unterminated literal should not parse cleanly");
+    if (!result.accepted || result.cst().recovered())
+      return fail("an unmatched backtick should remain literal text");
   }
 
   std::puts("restructuredtext: the samples parse");

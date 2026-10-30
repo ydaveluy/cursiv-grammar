@@ -10,7 +10,6 @@ namespace callable {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Callable : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t)">)> {};
@@ -20,22 +19,22 @@ struct Callable : cursiv::GrammarSpec {
 
   // No escape mechanism: a quote cannot appear inside a string at all.
   struct STRING
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> + many(cr<R"(^")">) + lit<"\"">)> {};
 
-  struct LineRule;
-  static constexpr auto f_arg = ref<LineRule> | ref<STRING>;
+  struct Line;
+  static constexpr auto f_arg = ref<Line> | ref<STRING>;
 
-  struct LineRule
+  struct Line
       : rule<assign<&ast::Call::name>(ref<ID>) + lit<"("> +
              many(append<&ast::Call::args>(f_arg), lit<",">) + lit<")">> {};
 
-  struct ProgramRule
-      : rule<some(append<&ast::Program::lines>(ref<LineRule>),
+  struct Program
+      : rule<some(append<&ast::Program::lines>(ref<Line>),
                   some(ref<EOL>)) +
              many(ref<EOL>)> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
 };
 
 }  // namespace callable

@@ -12,6 +12,7 @@ public:
   void checkQuoted(const ast::QuotedTerm &, cursiv::ValidationAcceptor &) const;
   void checkBound(const ast::RangeBound &, cursiv::ValidationAcceptor &) const;
   void checkTerm(const ast::Term &, cursiv::ValidationAcceptor &) const;
+  void checkInterval(const ast::IntervalExpr &, cursiv::ValidationAcceptor &) const;
   void checkGroup(const ast::GroupingExpr &,
                   cursiv::ValidationAcceptor &) const;
 };

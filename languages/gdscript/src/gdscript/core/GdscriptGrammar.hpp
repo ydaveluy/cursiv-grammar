@@ -1,4 +1,4 @@
-// The gdscript language: its grammar. GDScript 1.x class bodies, statements
+// The gdscript language: its grammar. Godot 3.x/GDScript 1.x class bodies, statements
 // and expressions, with suites delimited by indentation (`indent`/`dedent`).
 #pragma once
 
@@ -36,16 +36,16 @@ struct Gdscript : cursiv::GrammarSpec {
   struct Ident;
   struct STRING;
   struct Literal;
-  struct StringLitRule;
-  struct IntLitRule;
-  struct FloatLitRule;
-  struct NameRule;
+  struct StringLit;
+  struct IntLit;
+  struct FloatLit;
+  struct Name;
   struct Atom;
   struct ArrayDecl;
-  struct KeyValueRule;
+  struct KeyValue;
   struct DictDecl;
   struct GetNode;
-  struct SuperCallRule;
+  struct SuperCall;
   struct Primary;
   struct IsExpr;
   struct SignExpr;
@@ -56,47 +56,47 @@ struct Gdscript : cursiv::GrammarSpec {
   struct TernaryExpr;
   struct Expression;
   struct CastPrimary;
-  struct ClassNameDeclRule;
-  struct PassDeclRule;
+  struct ClassNameDecl;
+  struct PassDecl;
 
   struct Stmt;
-  struct VarDeclStmtRule;
-  struct ElifClauseRule;
-  struct IfStmtRule;
-  struct WhileStmtRule;
-  struct ForStmtRule;
-  struct PatternRule;
-  struct MatchCaseRule;
-  struct MatchStmtRule;
-  struct ContinueStmtRule;
-  struct BreakStmtRule;
-  struct ReturnStmtRule;
-  struct AssignStmtRule;
-  struct ExprStmtRule;
-  struct AssertStmtRule;
-  struct BreakpointStmtRule;
-  struct PassStmtRule;
+  struct VarDeclStmt;
+  struct ElifClause;
+  struct IfStmt;
+  struct WhileStmt;
+  struct ForStmt;
+  struct Pattern;
+  struct MatchCase;
+  struct MatchStmt;
+  struct ContinueStmt;
+  struct BreakStmt;
+  struct ReturnStmt;
+  struct AssignStmt;
+  struct ExprStmt;
+  struct AssertStmt;
+  struct BreakpointStmt;
+  struct PassStmt;
 
-  struct WildcardPatternRule;
-  struct BindingPatternRule;
-  struct ArrayPatternRule;
-  struct DictKeyValuePatternRule;
-  struct DictPatternRule;
+  struct WildcardPattern;
+  struct BindingPattern;
+  struct ArrayPattern;
+  struct DictKeyValuePattern;
+  struct DictPattern;
 
-  struct InheritanceRule;
-  struct ExportDeclRule;
-  struct SetGetRule;
-  struct ClassVarDeclRule;
-  struct ConstDeclRule;
-  struct SignalDeclRule;
-  struct EnumItemRule;
-  struct EnumDeclRule;
-  struct ParamRule;
-  struct MethodDeclRule;
-  struct InnerClassDeclRule;
-  struct ToolDeclRule;
-  struct TopLevelDeclRule;
-  struct ProgramRule;
+  struct Inheritance;
+  struct ExportDecl;
+  struct SetGet;
+  struct ClassVarDecl;
+  struct ConstDecl;
+  struct SignalDecl;
+  struct EnumItem;
+  struct EnumDecl;
+  struct Param;
+  struct MethodDecl;
+  struct InnerClassDecl;
+  struct ToolDecl;
+  struct TopLevelDecl;
+  struct Program;
 
   // A suite is either a single statement on the header's own line -- every
   // statement already ends on its own `stmtEnd` -- or an indented block.
@@ -112,12 +112,12 @@ struct Gdscript : cursiv::GrammarSpec {
   struct IDENTIFIER : terminal<identBody> {};
 
   struct Ident : rule<ref<IDENTIFIER>> {};
-  struct TypeHint : rule<ref<Ident> + many(lit<"."> + ref<Ident>),
-                         text_conv<[](std::string_view t) { return t; }>> {};
-  struct NodePath : rule<(ref<Ident> | ref<STRING>)+many(
-                             lit<"/"> + (ref<Ident> | ref<STRING>)) +
-                             option(lit<"/">),
-                         text_conv<[](std::string_view t) { return t; }>> {};
+  struct TypeHint : rule<as<[](std::string_view t) { return t; }>(
+                        ref<Ident> + many(lit<"."> + ref<Ident>))> {};
+  struct NodePath : rule<as<[](std::string_view t) {
+    return t;
+  }>((ref<Ident> | ref<STRING>)+many(lit<"/"> + (ref<Ident> | ref<STRING>)) +
+                    option(lit<"/">))> {};
 
   // NUMBERS
   // =======
@@ -142,13 +142,13 @@ struct Gdscript : cursiv::GrammarSpec {
   // LITERALS AND ATOMS
   // ===================
 
-  struct StringLitRule : rule<assign<&ast::StringLit::text>(ref<STRING>)> {};
-  struct IntLitRule : rule<assign<&ast::IntLit::text>(ref<INTEGER>)> {};
-  struct FloatLitRule : rule<assign<&ast::FloatLit::text>(ref<FLOAT>)> {};
-  struct NameRule : rule<assign<&ast::Name::id>(ref<Ident>)> {};
+  struct StringLit : rule<assign<&ast::StringLit::text>(ref<STRING>)> {};
+  struct IntLit : rule<assign<&ast::IntLit::text>(ref<INTEGER>)> {};
+  struct FloatLit : rule<assign<&ast::FloatLit::text>(ref<FLOAT>)> {};
+  struct Name : rule<assign<&ast::Name::id>(ref<Ident>)> {};
 
-  struct Literal : rule<ref<StringLitRule> | ref<FloatLitRule> |
-                        ref<IntLitRule> | ref<NameRule>> {};
+  struct Literal : rule<ref<StringLit> | ref<FloatLit> |
+                        ref<IntLit> | ref<Name>> {};
 
   struct ArrayDecl
       : rule<create<ast::ListExpr>(
@@ -158,7 +158,7 @@ struct Gdscript : cursiv::GrammarSpec {
                 option(lit<",">)) +
             lit<"]">)> {};
 
-  struct KeyValueRule
+  struct KeyValue
       : rule<create<ast::DictItem>(
                  assign<&ast::DictItem::key>(ref<Expression>) + lit<":"> +
                  assign<&ast::DictItem::value>(ref<Expression>))  //
@@ -169,7 +169,7 @@ struct Gdscript : cursiv::GrammarSpec {
   struct DictDecl
       : rule<create<ast::DictExpr>(
             lit<"{"> +
-            option(some(append<&ast::DictExpr::items>(ref<KeyValueRule>),
+            option(some(append<&ast::DictExpr::items>(ref<KeyValue>),
                         lit<",">) +
                    option(lit<",">)) +
             lit<"}">)> {};
@@ -179,7 +179,7 @@ struct Gdscript : cursiv::GrammarSpec {
             lit<"$"> + assign<&ast::GetNodeExpr::path>(ref<NodePath>))> {};
 
   // `.method(args)`: calls the parent class's own method of the same name.
-  struct SuperCallRule
+  struct SuperCall
       : rule<create<ast::SuperCall>(
             lit<"."> + assign<&ast::SuperCall::method>(ref<Ident>) + lit<"("> +
             option(some(append<&ast::SuperCall::args>(ref<Expression>),
@@ -199,7 +199,7 @@ struct Gdscript : cursiv::GrammarSpec {
              | ref<DictDecl>                                   //
              | (lit<"("> + ref<Expression> + lit<")">)         //
              | ref<GetNode>                                    //
-             | ref<SuperCallRule>> {};
+             | ref<SuperCall>> {};
 
   // EXPRESSIONS: POSTFIX CHAIN AND PRECEDENCE
   // ============================================
@@ -244,17 +244,17 @@ struct Gdscript : cursiv::GrammarSpec {
   static constexpr auto BitOrOp = lit<"|">;
 
   struct ArithExpr
-      : infix<SignExpr, &ast::BinOp::left, &ast::BinOp::op, &ast::BinOp::right,
-              (left(FactorOp) >> left(PlusOp | MinusOp) >> left(ShiftOp) >>
-               left(BitAndOp) >> left(BitXorOp) >> left(BitOrOp))> {};
+      : infix<SignExpr, ast::BinOp,
+              levels(left(FactorOp), left(PlusOp | MinusOp), left(ShiftOp),
+                     left(BitAndOp), left(BitXorOp), left(BitOrOp))> {};
 
   static constexpr auto CompareOp =
       lit<"<"> | lit<">"> | lit<"<="> | lit<">="> | lit<"=="> | lit<"!=">;
   static constexpr auto InOp = kw<"in">;
 
   struct CompareExpr
-      : infix<ArithExpr, &ast::BinOp::left, &ast::BinOp::op, &ast::BinOp::right,
-              (left(CompareOp) >> left(InOp))> {};
+      : infix<ArithExpr, ast::BinOp,
+              levels(left(CompareOp), left(InOp))> {};
 
   struct LogicNotExpr
       : rule<create<ast::UnaryOp>(
@@ -265,9 +265,8 @@ struct Gdscript : cursiv::GrammarSpec {
   static constexpr auto LogicAndOp = kw<"and"> | lit<"&&">;
   static constexpr auto LogicOrOp = kw<"or"> | lit<"||">;
 
-  struct LogicExpr
-      : infix<LogicNotExpr, &ast::BinOp::left, &ast::BinOp::op,
-              &ast::BinOp::right, (left(LogicAndOp) >> left(LogicOrOp))> {};
+  struct LogicExpr : infix<LogicNotExpr, ast::BinOp,
+                           levels(left(LogicAndOp), left(LogicOrOp))> {};
 
   struct TernaryExpr
       : rule<create<ast::CondExpr>(
@@ -282,44 +281,44 @@ struct Gdscript : cursiv::GrammarSpec {
   // ===========================
 
   // wildcard.
-  struct WildcardPatternRule : rule<create<ast::WildcardPattern>(kw<"_">)> {};
+  struct WildcardPattern : rule<create<ast::WildcardPattern>(kw<"_">)> {};
 
-  struct BindingPatternRule
+  struct BindingPattern
       : rule<create<ast::BindingPattern>(
             kw<"var"> + assign<&ast::BindingPattern::name>(ref<Ident>))> {};
 
-  struct ArrayPatternRule
+  struct ArrayPattern
       : rule<create<ast::ArrayPattern>(
             lit<"["> +
-            option(some(append<&ast::ArrayPattern::items>(ref<PatternRule>),
+            option(some(append<&ast::ArrayPattern::items>(ref<Pattern>),
                         lit<",">) +
                    option(lit<",">)) +
             option(flag<&ast::ArrayPattern::openEnded>(lit<"..">) +
                    option(lit<",">)) +
             lit<"]">)> {};
 
-  struct DictKeyValuePatternRule
+  struct DictKeyValuePattern
       : rule<create<ast::DictKeyValuePattern>(
             assign<&ast::DictKeyValuePattern::key>(ref<Expression>) +
             option(lit<":"> + assign<&ast::DictKeyValuePattern::value>(
-                                  ref<PatternRule>)))> {};
+                                  ref<Pattern>)))> {};
 
-  struct DictPatternRule
+  struct DictPattern
       : rule<create<ast::DictPattern>(
             lit<"{"> +
             option(some(append<&ast::DictPattern::items>(
-                            ref<DictKeyValuePatternRule>),
+                            ref<DictKeyValuePattern>),
                         lit<",">) +
                    option(lit<",">)) +
             option(flag<&ast::DictPattern::openEnded>(lit<"..">) +
                    option(lit<",">)) +
             lit<"}">)> {};
 
-  struct PatternRule
-      : rule<ref<WildcardPatternRule>   //
-             | ref<BindingPatternRule>  //
-             | ref<ArrayPatternRule>    //
-             | ref<DictPatternRule>     //
+  struct Pattern
+      : rule<ref<WildcardPattern>   //
+             | ref<BindingPattern>  //
+             | ref<ArrayPattern>    //
+             | ref<DictPattern>     //
              | create<ast::LiteralPattern>(
                    assign<&ast::LiteralPattern::value>(ref<Expression>))> {};
 
@@ -328,7 +327,7 @@ struct Gdscript : cursiv::GrammarSpec {
 
   static constexpr auto stmtEnd = ref<NEWLINE> | lit<";"> | eof;
 
-  struct VarDeclStmtRule
+  struct VarDeclStmt
       : rule<create<ast::LocalVarDecl>(
             kw<"var"> + assign<&ast::LocalVarDecl::name>(ref<Ident>) +
             ((option(lit<":"> +
@@ -339,49 +338,49 @@ struct Gdscript : cursiv::GrammarSpec {
               assign<&ast::LocalVarDecl::value>(ref<Expression>))) +
             stmtEnd)> {};
 
-  struct ElifClauseRule
+  struct ElifClause
       : rule<create<ast::ElifClause>(
             kw<"elif"> + assign<&ast::ElifClause::test>(ref<Expression>) +
             lit<":"> + stmtOrSuite<&ast::ElifClause::body>)> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<create<ast::IfStmt>(
             kw<"if"> + assign<&ast::IfStmt::test>(ref<Expression>) + lit<":"> +
             stmtOrSuite<&ast::IfStmt::body> +
-            many(append<&ast::IfStmt::elifs>(ref<ElifClauseRule>)) +
+            many(append<&ast::IfStmt::elifs>(ref<ElifClause>)) +
             option(kw<"else"> + lit<":"> +
                    stmtOrSuite<&ast::IfStmt::orelse>))> {};
 
-  struct WhileStmtRule
+  struct WhileStmt
       : rule<create<ast::WhileStmt>(
             kw<"while"> + assign<&ast::WhileStmt::test>(ref<Expression>) +
             lit<":"> + stmtOrSuite<&ast::WhileStmt::body>)> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<create<ast::ForStmt>(
             kw<"for"> + assign<&ast::ForStmt::target>(ref<Ident>) + kw<"in"> +
             assign<&ast::ForStmt::iter>(ref<Expression>) + lit<":"> +
             stmtOrSuite<&ast::ForStmt::body>)> {};
 
-  struct MatchCaseRule
+  struct MatchCase
       : rule<create<ast::MatchCase>(
-            some(append<&ast::MatchCase::patterns>(ref<PatternRule>),
+            some(append<&ast::MatchCase::patterns>(ref<Pattern>),
                  lit<",">) +
             lit<":"> + stmtOrSuite<&ast::MatchCase::body>)> {};
 
   // Given the same `:` every other compound statement has before its suite
-  struct MatchStmtRule
+  struct MatchStmt
       : rule<create<ast::MatchStmt>(
             kw<"match"> + assign<&ast::MatchStmt::subject>(ref<Expression>) +
             lit<":"> + ref<NEWLINE> + indent +
-            some(append<&ast::MatchStmt::cases>(ref<MatchCaseRule>)) +
+            some(append<&ast::MatchStmt::cases>(ref<MatchCase>)) +
             dedent)> {};
 
-  struct ContinueStmtRule
+  struct ContinueStmt
       : rule<create<ast::ContinueStmt>(kw<"continue"> + stmtEnd)> {};
-  struct BreakStmtRule : rule<create<ast::BreakStmt>(kw<"break"> + stmtEnd)> {};
+  struct BreakStmt : rule<create<ast::BreakStmt>(kw<"break"> + stmtEnd)> {};
 
-  struct ReturnStmtRule
+  struct ReturnStmt
       : rule<create<ast::ReturnStmt>(
             kw<"return"> +
             option(assign<&ast::ReturnStmt::value>(ref<Expression>)) +
@@ -391,43 +390,43 @@ struct Gdscript : cursiv::GrammarSpec {
       lit<"="> | lit<"+="> | lit<"-="> | lit<"*="> | lit<"/="> | lit<"%="> |
       lit<"&="> | lit<"|="> | lit<"^="> | lit<"<<="> | lit<">>=">;
 
-  struct AssignStmtRule
+  struct AssignStmt
       : rule<create<ast::AssignStmt>(
             assign<&ast::AssignStmt::target>(ref<Expression>) +
             assign<&ast::AssignStmt::op>(AssignOp) +
             assign<&ast::AssignStmt::value>(ref<Expression>) + stmtEnd)> {};
 
-  struct ExprStmtRule
+  struct ExprStmt
       : rule<assign<&ast::ExprStmt::value>(ref<Expression>) + stmtEnd> {};
 
-  struct AssertStmtRule
+  struct AssertStmt
       : rule<create<ast::AssertStmt>(
             kw<"assert"> + lit<"("> +
             assign<&ast::AssertStmt::test>(ref<Expression>) +
             option(lit<","> + assign<&ast::AssertStmt::msg>(ref<Expression>)) +
             lit<")"> + stmtEnd)> {};
 
-  struct BreakpointStmtRule
+  struct BreakpointStmt
       : rule<create<ast::BreakpointStmt>(kw<"breakpoint"> + stmtEnd)> {};
-  struct PassStmtRule : rule<create<ast::PassStmt>(kw<"pass"> + stmtEnd)> {};
+  struct PassStmt : rule<create<ast::PassStmt>(kw<"pass"> + stmtEnd)> {};
 
   struct Stmt
-      : rule<ref<VarDeclStmtRule> | ref<IfStmtRule> | ref<ForStmtRule> |
-             ref<WhileStmtRule> | ref<MatchStmtRule> | ref<ContinueStmtRule> |
-             ref<BreakStmtRule> | ref<ReturnStmtRule> | ref<AssignStmtRule> |
-             ref<AssertStmtRule> | ref<ExprStmtRule> | ref<BreakpointStmtRule> |
-             ref<PassStmtRule>> {};
+      : rule<ref<VarDeclStmt> | ref<IfStmt> | ref<ForStmt> |
+             ref<WhileStmt> | ref<MatchStmt> | ref<ContinueStmt> |
+             ref<BreakStmt> | ref<ReturnStmt> | ref<AssignStmt> |
+             ref<AssertStmt> | ref<ExprStmt> | ref<BreakpointStmt> |
+             ref<PassStmt>> {};
 
   // TOP-LEVEL DECLARATIONS (class members)
   // ========================================
 
-  struct InheritanceRule
+  struct Inheritance
       : rule<create<ast::Inheritance>(
             kw<"extends"> +
             assign<&ast::Inheritance::base>(ref<Ident> | ref<STRING>) +
             many(lit<"."> + append<&ast::Inheritance::path>(ref<Ident>)))> {};
 
-  struct ExportDeclRule
+  struct ExportDecl
       : rule<create<ast::ExportDecl>(
             kw<"export"> +
             option(lit<"("> +
@@ -436,7 +435,7 @@ struct Gdscript : cursiv::GrammarSpec {
                                               ref<Expression>))) +
                    lit<")">))> {};
 
-  struct SetGetRule
+  struct SetGet
       : rule<create<ast::SetGet>(
             kw<"setget"> + option(assign<&ast::SetGet::setter>(ref<Ident>)) +
             option(lit<","> + assign<&ast::SetGet::getter>(ref<Ident>)))> {};
@@ -445,10 +444,10 @@ struct Gdscript : cursiv::GrammarSpec {
                                   kw<"remotesync"> | kw<"mastersync"> |
                                   kw<"puppetsync"> | kw<"sync"> | kw<"slave">;
 
-  struct ClassVarDeclRule
+  struct ClassVarDecl
       : rule<create<ast::ClassVarDecl>(
             option(
-                assign<&ast::ClassVarDecl::exportDecl>(ref<ExportDeclRule>)) +
+                assign<&ast::ClassVarDecl::exportDecl>(ref<ExportDecl>)) +
             option(flag<&ast::ClassVarDecl::isOnready>(kw<"onready">) |
                    assign<&ast::ClassVarDecl::rpcMode>(RpcMode)) +
             kw<"var"> + assign<&ast::ClassVarDecl::name>(ref<Ident>) +
@@ -458,10 +457,10 @@ struct Gdscript : cursiv::GrammarSpec {
                      assign<&ast::ClassVarDecl::value>(ref<Expression>)))  //
              | (flag<&ast::ClassVarDecl::isInferred>(lit<":=">) +
                 assign<&ast::ClassVarDecl::value>(ref<Expression>))) +
-            option(assign<&ast::ClassVarDecl::setget>(ref<SetGetRule>)) +
+            option(assign<&ast::ClassVarDecl::setget>(ref<SetGet>)) +
             stmtEnd)> {};
 
-  struct ConstDeclRule
+  struct ConstDecl
       : rule<create<ast::ConstDecl>(
             kw<"const"> + assign<&ast::ConstDecl::name>(ref<Ident>) +
             option(
@@ -470,7 +469,7 @@ struct Gdscript : cursiv::GrammarSpec {
             lit<"="> + assign<&ast::ConstDecl::value>(ref<Expression>) +
             stmtEnd)> {};
 
-  struct SignalDeclRule
+  struct SignalDecl
       : rule<create<ast::SignalDecl>(
             kw<"signal"> + assign<&ast::SignalDecl::name>(ref<Ident>) +
             option(lit<"("> +
@@ -480,19 +479,19 @@ struct Gdscript : cursiv::GrammarSpec {
                    lit<")">) +
             stmtEnd)> {};
 
-  struct EnumItemRule : rule<create<ast::EnumItem>(
+  struct EnumItem : rule<create<ast::EnumItem>(
                             assign<&ast::EnumItem::name>(ref<Ident>) +
                             option(lit<"="> + assign<&ast::EnumItem::value>(
                                                   ref<Expression>)))> {};
 
-  struct EnumDeclRule
+  struct EnumDecl
       : rule<create<ast::EnumDecl>(
             kw<"enum"> + option(assign<&ast::EnumDecl::name>(ref<Ident>)) +
             lit<"{"> +
-            many(append<&ast::EnumDecl::items>(ref<EnumItemRule>), lit<",">) +
+            many(append<&ast::EnumDecl::items>(ref<EnumItem>), lit<",">) +
             option(lit<",">) + lit<"}"> + stmtEnd)> {};
 
-  struct ParamRule
+  struct Param
       : rule<create<ast::Param>(
             option(flag<&ast::Param::hasVarKeyword>(kw<"var">)) +
             assign<&ast::Param::name>(ref<Ident>) +
@@ -501,12 +500,12 @@ struct Gdscript : cursiv::GrammarSpec {
             option(lit<"="> +
                    assign<&ast::Param::defaultValue>(ref<Expression>)))> {};
 
-  struct MethodDeclRule
+  struct MethodDecl
       : rule<create<ast::MethodDecl>(
             option(assign<&ast::MethodDecl::rpcMode>(RpcMode)) +
             option(flag<&ast::MethodDecl::isStatic>(kw<"static">)) +
             kw<"func"> + assign<&ast::MethodDecl::name>(ref<Ident>) + lit<"("> +
-            option(some(append<&ast::MethodDecl::params>(ref<ParamRule>),
+            option(some(append<&ast::MethodDecl::params>(ref<Param>),
                         lit<",">) +
                    option(lit<",">)) +
             lit<")"> +
@@ -519,35 +518,35 @@ struct Gdscript : cursiv::GrammarSpec {
                    assign<&ast::MethodDecl::returnType>(ref<TypeHint>)) +
             lit<":"> + stmtOrSuite<&ast::MethodDecl::body>)> {};
 
-  struct InnerClassDeclRule
+  struct InnerClassDecl
       : rule<create<ast::InnerClassDecl>(
             kw<"class"> + assign<&ast::InnerClassDecl::name>(ref<Ident>) +
             option(assign<&ast::InnerClassDecl::headerInherits>(
-                ref<InheritanceRule>)) +
+                ref<Inheritance>)) +
             lit<":"> +
-            (append<&ast::InnerClassDecl::body>(ref<TopLevelDeclRule>) |
+            (append<&ast::InnerClassDecl::body>(ref<TopLevelDecl>) |
              (ref<NEWLINE> + indent +
-              many(append<&ast::InnerClassDecl::body>(ref<TopLevelDeclRule>)) +
+              many(append<&ast::InnerClassDecl::body>(ref<TopLevelDecl>)) +
               dedent)))> {};
-  struct ToolDeclRule
+  struct ToolDecl
       : rule<create<ast::ToolDecl>(kw<"tool"> + option(stmtEnd))> {};
-  struct ClassNameDeclRule
+  struct ClassNameDecl
       : rule<kw<"class_name"> + assign<&ast::ClassNameDecl::name>(ref<Ident>) +
              option(lit<","> + assign<&ast::ClassNameDecl::icon>(ref<STRING>)) +
              option(stmtEnd)> {};
-  struct PassDeclRule : rule<create<ast::PassDecl>(kw<"pass"> + stmtEnd)> {};
-  struct TopLevelDeclRule
-      : rule<(ref<InheritanceRule> + stmtEnd) | ref<ClassNameDeclRule> |
-             ref<ToolDeclRule> | ref<PassDeclRule> | ref<ClassVarDeclRule> |
-             ref<ConstDeclRule> | ref<SignalDeclRule> | ref<EnumDeclRule> |
-             ref<MethodDeclRule> | ref<InnerClassDeclRule>> {};
-  struct ProgramRule
+  struct PassDecl : rule<create<ast::PassDecl>(kw<"pass"> + stmtEnd)> {};
+  struct TopLevelDecl
+      : rule<(ref<Inheritance> + stmtEnd) | ref<ClassNameDecl> |
+             ref<ToolDecl> | ref<PassDecl> | ref<ClassVarDecl> |
+             ref<ConstDecl> | ref<SignalDecl> | ref<EnumDecl> |
+             ref<MethodDecl> | ref<InnerClassDecl>> {};
+  struct Program
       : rule<create<ast::Program>(
             option(lit<"\xef\xbb\xbf">) + option(ref<LeadingTrivia>) +
-            many(append<&ast::Program::body>(ref<TopLevelDeclRule>)))> {};
+            many(append<&ast::Program::body>(ref<TopLevelDecl>)))> {};
 
-  using entry = ProgramRule;
-  using ignore = list<WS, NL_TRIVIA>;
+  using entry = Program;
+  using ignored = list<WS, NL_TRIVIA>;
   using hidden = list<COMMENT>;
 };
 

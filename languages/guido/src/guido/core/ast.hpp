@@ -31,6 +31,13 @@ struct Note : cursiv::Extends<SequenceItem> {
   string_view dots;
 };
 
+struct Tablature : cursiv::Extends<SequenceItem> {
+  string_view string;  // s1 through s6
+  string_view frets;   // decoded colon-delimited fret text
+  Duration* duration = nullptr;
+  string_view dots;
+};
+
 struct ChordMember : cursiv::Extends<cursiv::AstNode> {
   vector<SequenceItem *> items;
 };

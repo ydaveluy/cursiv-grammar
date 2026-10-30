@@ -31,17 +31,13 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-A [Lisp S-expression](http://pldb.info/concepts/s-expressions) is a symbol,
-a number, a string, or a parenthesized list of them:
+Nested S-expressions with atoms and lists.
 
 ```
 (define pi 3.14159)
 (greet "hello, world!")
 (list 1 -2 3.5 "text" sym ())
 ```
-
-A document is zero or more of these at top level. There are no keywords and
-no cross references — the grammar is the whole language.
 
 ## The command line
 

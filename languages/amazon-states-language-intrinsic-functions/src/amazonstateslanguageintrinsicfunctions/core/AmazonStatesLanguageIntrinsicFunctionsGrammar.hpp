@@ -9,17 +9,15 @@
 namespace amazonstateslanguageintrinsicfunctions {
 
 struct AmazonStatesLanguageIntrinsicFunctions : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \t\n)">)> {};
+  struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
 
   struct STRING
-      : terminal<lit<"'"> +
-                     many((lit<"\\"> +
-                           ((lit<"u"> + repeat<4>(cr<"0-9a-fA-F">)) | any)) |
-                          cr<R"(^'\\\x00-\x1f)">) +
-                     lit<"'">,
-                 text_conv<[](std::string_view t) {
-                   return t.substr(1, t.size() - 2);
-                 }>> {};
+      : terminal<as<[](std::string_view t) {
+        return t.substr(1, t.size() - 2);
+      }>(lit<"'"> +
+         many((lit<"\\"> + ((lit<"u"> + repeat<4>(cr<"0-9a-fA-F">)) | any)) |
+              cr<R"(^'\\\x00-\x1f)">) +
+         lit<"'">)> {};
 
   // The leading '-' is spelled inline into EXP and NUMBER too: a run of
   // digits an optional sign may precede, everywhere a sign is read.
@@ -32,92 +30,66 @@ struct AmazonStatesLanguageIntrinsicFunctions : cursiv::GrammarSpec {
   // makes a lexeme strictly longer than INT's, which is what wins it the
   // token -- so the fraction/exponent here is not optional the way the
   // source EXP-less NUMBER reads, or INT would never win any lexeme.
-  struct NUMBER : terminal<int_body + ((lit<"."> + some(d) + option(exp_body)) |
-                                       exp_body),
-                           std::string_view> {};
+  struct NUMBER
+      : terminal<as<std::string_view>(
+            int_body + ((lit<"."> + some(d) + option(exp_body)) | exp_body))> {
+  };
 
-  struct BOOL : terminal<kw<"true"> | kw<"false">, bool> {};
+  struct BOOL : terminal<as<bool>(kw<"true"> | kw<"false">)> {};
 
-  // A `[...]` span in a path: brackets nest, closed by the one that
-  // balances them.
+  // Quoted member names can themselves contain brackets. Their delimiters
+  // must not participate in the surrounding path's bracket balance.
+  static constexpr auto path_quoted =
+      (lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\)">) + lit<"'">) |
+      (lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">);
   struct JSON_PATH_BRACKET
       : terminal<lit<"["> +
-                 many(ref<JSON_PATH_BRACKET> | (!lit<"["> + !lit<"]"> + any)) +
+                 many(path_quoted | ref<JSON_PATH_BRACKET> |
+                      cr<R"(^[]'")">) +
                  lit<"]">> {};
   static constexpr auto json_path_bracket = ref<JSON_PATH_BRACKET>;
   static constexpr auto json_path_body =
-      option(json_path_bracket) +
-      many(lit<"."> + many(cr<"0-9a-zA-Z_">) + option(json_path_bracket));
+      many(json_path_bracket | (lit<"."> + many(cr<"0-9a-zA-Z_">)));
 
   struct JSON_PATH_STRING : terminal<lit<"$"> + json_path_body> {};
   struct CONTEXT_PATH_STRING : terminal<lit<"$$"> + json_path_body> {};
   struct VARIABLE : terminal<lit<"$"> + some(w) + json_path_body> {};
 
-  struct FORMAT : terminal<kw<"Format">, value<ast::Function::format>> {};
-  struct STRING_TO_JSON
-      : terminal<kw<"StringToJson">, value<ast::Function::string_to_json>> {};
-  struct JSON_TO_STRING
-      : terminal<kw<"JsonToString">, value<ast::Function::json_to_string>> {};
-  struct ARRAY_PARTITION
-      : terminal<kw<"ArrayPartition">, value<ast::Function::array_partition>> {
-  };
-  struct ARRAY_CONTAINS
-      : terminal<kw<"ArrayContains">, value<ast::Function::array_contains>> {};
-  struct ARRAY_RANGE
-      : terminal<kw<"ArrayRange">, value<ast::Function::array_range>> {};
-  struct ARRAY_GET_ITEM
-      : terminal<kw<"ArrayGetItem">, value<ast::Function::array_get_item>> {};
-  struct ARRAY_LENGTH
-      : terminal<kw<"ArrayLength">, value<ast::Function::array_length>> {};
-  struct ARRAY_UNIQUE
-      : terminal<kw<"ArrayUnique">, value<ast::Function::array_unique>> {};
-  struct ARRAY : terminal<kw<"Array">, value<ast::Function::array>> {};
-  struct BASE64_ENCODE
-      : terminal<kw<"Base64Encode">, value<ast::Function::base64_encode>> {};
-  struct BASE64_DECODE
-      : terminal<kw<"Base64Decode">, value<ast::Function::base64_decode>> {};
-  struct HASH : terminal<kw<"Hash">, value<ast::Function::hash>> {};
-  struct JSON_MERGE
-      : terminal<kw<"JsonMerge">, value<ast::Function::json_merge>> {};
-  struct MATH_RANDOM
-      : terminal<kw<"MathRandom">, value<ast::Function::math_random>> {};
-  struct MATH_ADD : terminal<kw<"MathAdd">, value<ast::Function::math_add>> {};
-  struct STRING_SPLIT
-      : terminal<kw<"StringSplit">, value<ast::Function::string_split>> {};
-  struct UUID : terminal<kw<"UUID">, value<ast::Function::uuid>> {};
+  struct UUID : terminal<as<ast::Function::uuid>(kw<"UUID">)> {};
 
   static constexpr auto state_fun_name =
-      ref<FORMAT> | ref<STRING_TO_JSON> | ref<JSON_TO_STRING> |
-      ref<ARRAY_PARTITION> | ref<ARRAY_CONTAINS> | ref<ARRAY_RANGE> |
-      ref<ARRAY_GET_ITEM> | ref<ARRAY_LENGTH> | ref<ARRAY_UNIQUE> | ref<ARRAY> |
-      ref<BASE64_ENCODE> | ref<BASE64_DECODE> | ref<HASH> | ref<JSON_MERGE> |
-      ref<MATH_RANDOM> | ref<MATH_ADD> | ref<STRING_SPLIT> | ref<UUID>;
+      as<ast::Function::format>(kw<"Format">) | as<ast::Function::string_to_json>(kw<"StringToJson">) | as<ast::Function::json_to_string>(kw<"JsonToString">) |
+      as<ast::Function::array_partition>(kw<"ArrayPartition">) | as<ast::Function::array_contains>(kw<"ArrayContains">) | as<ast::Function::array_range>(kw<"ArrayRange">) |
+      as<ast::Function::array_get_item>(kw<"ArrayGetItem">) | as<ast::Function::array_length>(kw<"ArrayLength">) | as<ast::Function::array_unique>(kw<"ArrayUnique">) | as<ast::Function::array>(kw<"Array">) |
+      as<ast::Function::base64_encode>(kw<"Base64Encode">) | as<ast::Function::base64_decode>(kw<"Base64Decode">) | as<ast::Function::hash>(kw<"Hash">) | as<ast::Function::json_merge>(kw<"JsonMerge">) |
+      as<ast::Function::math_random>(kw<"MathRandom">) | as<ast::Function::math_add>(kw<"MathAdd">) | as<ast::Function::string_split>(kw<"StringSplit">) | ref<UUID>;
 
-  struct FuncCallRule;
+  struct FuncCall;
 
-  struct FuncArgRule
+  struct FuncArg
       : rule<create<ast::StringArg>(
                  assign<&ast::StringArg::value>(ref<STRING>))             //
              | create<ast::IntArg>(assign<&ast::IntArg::value>(ref<INT>)) //
              | create<ast::FloatArg>(
                    assign<&ast::FloatArg::value>(ref<NUMBER>))               //
              | create<ast::BoolArg>(assign<&ast::BoolArg::value>(ref<BOOL>)) //
+             | create<ast::NullArg>(kw<"null">) //
              | create<ast::ContextPathArg>(assign<&ast::ContextPathArg::path>(
                    ref<CONTEXT_PATH_STRING>)) //
              | create<ast::JsonPathArg>(
                    assign<&ast::JsonPathArg::path>(ref<JSON_PATH_STRING>)) //
              | create<ast::VariableArg>(
                    assign<&ast::VariableArg::expression>(ref<VARIABLE>)) //
-             | ref<FuncCallRule>> {};
+             | ref<FuncCall>> {};
 
-  struct FuncCallRule
+  struct FuncCall
       : rule<kw<"States"> + lit<"."> +
              assign<&ast::FuncCall::function>(state_fun_name) + lit<"("> +
-             many(append<&ast::FuncCall::args>(ref<FuncArgRule>), lit<",">) +
+             many(append<&ast::FuncCall::args>(ref<FuncArg>), lit<",">) +
              lit<")">> {};
 
-  using entry = FuncCallRule;
-  using ignore = WS;
+  using entry = FuncCall;
+  using ignored = WS;
 };
 
 } // namespace amazonstateslanguageintrinsicfunctions

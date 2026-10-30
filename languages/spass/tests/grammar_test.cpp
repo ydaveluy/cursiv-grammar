@@ -60,6 +60,46 @@ int main() {
       return fail((std::string(name) + ": built no Problem").c_str());
   }
 
+  // Fresh SPASS 3.9 controls: underscores, digit-leading/numeric symbols,
+  // native line comments, and the two reserved quantifiers.
+  const auto source = [](std::string_view name, std::string_view term) {
+    return "% comment\n"
+           "begin_problem(test_1).\nlist_of_descriptions.\n"
+           "name({*Test*}).\nauthor({*Audit*}).\nstatus(unknown).\n"
+           "description({*Syntax*}).\nend_of_list.\nlist_of_symbols.\n"
+           "functions[(" + std::string(name) + ",0)].\n"
+           "predicates[(p,1),(somequant,2)].\nend_of_list.\n"
+           "list_of_formulae(axioms).\nformula(" + std::string(term) +
+           ").\nend_of_list.\nend_problem. % EOF comment";
+  };
+  for (const auto name : {"_a", "a_b", "1_a", "123"}) {
+    const auto text = source(name, "p(" + std::string(name) + ")");
+    const auto parsed = language.language.parser->parse(text);
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty())
+      return fail("native symbol/comment control failed");
+    const auto* root = static_cast<const spass::ast::Problem*>(parsed.value);
+    if (!root || (**root->logicalPart->symbols).functions[0]->name != name)
+      return fail("native symbol spelling lost");
+  }
+  for (const auto term : {"nor(p(a),p(a))", "nand(p(a),p(a))", "xor(p(a),p(a))",
+                          "true", "not(p(a))", "implies(p(a),p(a))", "equal(a,a)"}) {
+    const auto text = source("a", term);
+    const auto parsed = language.language.parser->parse(text);
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty())
+      return fail("native connective failed");
+  }
+  for (const auto text : {source("a-b", "p(a-b)"),
+                          source("a", "somequant([X],p(X))"),
+                          source("a", ""), source("forall", "p(forall)"),
+                          source("a", "not"), source("a", "not(p(a),p(a))"),
+                          source("a", "implies(p(a))"),
+                          source("a", "implies(p(a),p(a),p(a))"),
+                          source("a", "equal(a,a,a)")}) {
+    const auto parsed = language.language.parser->parse(text);
+    if (parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty())
+      return fail("invalid native construct accepted cleanly");
+  }
+
   // features.spass covers pred_decl, gen_decl, settings, dnf clauses, the
   // arity sentinel and assoc lists -- none of which the corpus exercises.
   {

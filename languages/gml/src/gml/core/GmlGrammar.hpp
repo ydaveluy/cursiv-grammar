@@ -21,34 +21,34 @@ struct Gml : cursiv::GrammarSpec {
                                     (some(d) + lit<"."> + many(d));
   struct NUMBER : terminal<option(cr<"+-">) +
       ((fraction + option(cr<"eE"> + option(cr<"+-">) + some(d))) |
-       some(d) | lit<"INF"> | lit<"NAN">)> {};
-  struct NumberRule : rule<assign<&ast::Number::literal>(ref<NUMBER>)> {};
+       some(d) | lit<"INF">) | lit<"NAN">> {};
+  struct Number : rule<assign<&ast::Number::literal>(ref<NUMBER>)> {};
 
   struct STRINGLITERAL
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">,
-                 text_conv<decode_string>> {};
+      : terminal<as<decode_string>(lit<"\""> + many(cr<R"(^")">) + lit<"\"">)> {
+  };
 
   // A bare word, on the value side: a run of digits alone lexes as INTEGER
   // instead, so the two never tie on the same text.
   struct WORD : terminal<many(d) + cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_">)> {};
 
-  struct ListRule;
+  struct List;
 
-  static constexpr auto value = ref<NumberRule> | ref<WORD> | ref<ListRule>;
+  static constexpr auto value = ref<Number> | ref<WORD> | ref<List>;
 
-  struct KvRule : rule<assign<&ast::Kv::key>(ref<KEY>) +
+  struct Kv : rule<assign<&ast::Kv::key>(ref<KEY>) +
                        (flag<&ast::Kv::quoted>(
                             assign<&ast::Kv::value>(ref<STRINGLITERAL>)) |
                         assign<&ast::Kv::value>(value))> {};
 
-  struct GraphRule : rule<many(append<&ast::List::entries>(ref<KvRule>))> {};
+  struct Graph : rule<many(append<&ast::List::entries>(ref<Kv>))> {};
 
-  struct ListRule : rule<lit<"["> +
-                         many(append<&ast::List::entries>(ref<KvRule>)) +
+  struct List : rule<lit<"["> +
+                         many(append<&ast::List::entries>(ref<Kv>)) +
                          lit<"]">> {};
 
-  using entry = GraphRule;
-  using ignore = list<WS, COMMENT>;
+  using entry = Graph;
+  using ignored = list<WS, COMMENT>;
 };
 
 }  // namespace gml

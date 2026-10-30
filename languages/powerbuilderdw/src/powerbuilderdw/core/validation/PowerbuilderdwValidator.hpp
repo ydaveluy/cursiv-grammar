@@ -1,5 +1,4 @@
-// The checks of this language. None yet: nothing here needs a check beyond
-// parsing.
+// Literal spelling is preserved; floating range failures are diagnosed.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,7 @@ namespace powerbuilderdw {
 class PowerbuilderdwValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkNumber(const ast::NumberValue&, cursiv::ValidationAcceptor&) const;
 };
 
 struct PowerbuilderdwCoreServices;

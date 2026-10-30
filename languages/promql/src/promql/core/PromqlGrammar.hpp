@@ -2,6 +2,8 @@
 #pragma once
 
 #include <charconv>
+#include <cmath>
+#include <cstdlib>
 #include <cstddef>
 #include <cstdint>
 #include <memory_resource>
@@ -72,7 +74,6 @@ inline constexpr auto unescape_string =
   }
   return std::string_view(room.data(), n);
 };
-using Unescaped = cursiv::text_conv<unescape_string>;
 
 inline constexpr auto number_value = [](std::string_view text) {
   std::string digits;
@@ -89,9 +90,15 @@ inline constexpr auto number_value = [](std::string_view text) {
     if (ec == std::errc{} && end == body.data() + body.size())
       return cursiv::ConversionResult<double>::ok(static_cast<double>(value));
   }
-  return cursiv::default_convert<double>(digits);
+  auto result=cursiv::default_convert<double>(digits);
+  if(result||base==16)return result;
+  // Native strconv accepts floating underflow as zero or a subnormal.
+  char* end=nullptr;
+  const double value=std::strtod(digits.c_str(),&end);
+  if(end==digits.c_str()+digits.size()&&!std::isinf(value))
+    return cursiv::ConversionResult<double>::ok(value);
+  return result;
 };
-using NumberValue = cursiv::text_conv<number_value>;
 
 struct Promql : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"(\r\t\n )">)> {};
@@ -108,50 +115,37 @@ struct Promql : cursiv::GrammarSpec {
   // lexing always resolves that spelling to this wider class: folded into
   // one terminal, same acceptance.
   struct METRIC_NAME
-      : terminal<cr<"a-zA-Z_:"> + many(cr<"a-zA-Z0-9_:">)> {};
+      : terminal<!(ikw<"on"> | ikw<"ignoring"> | ikw<"group_left"> | ikw<"group_right"> | ikw<"bool"> | ikw<"atan2">) +
+          cr<"a-zA-Z_:"> + many(cr<"a-zA-Z0-9_:">)> {};
 
-  static constexpr auto Digits = d + many(d | lit<"_">);
+  static constexpr auto Digits = d + many(option(lit<"_">) + d);
+  static constexpr auto Hex = cr<"0-9a-fA-F">;
+  static constexpr auto HexDigits = option(lit<"_">) + Hex + many(option(lit<"_">) + Hex);
   struct NUMBER : terminal<
-      (lit<"0"> + cr<"xX"> + some(cr<"0-9a-fA-F_">)) |
+      (lit<"0"> + cr<"xX"> + HexDigits) |
       (((Digits + option(lit<"."> + option(Digits))) | (lit<"."> + Digits)) +
        option(cr<"eE"> + option(cr<"+-">) + Digits)) |
       ikw<"inf"> | ikw<"nan">> {};
-  struct NumericValue : rule<ref<NUMBER>, NumberValue> {};
+  struct NumericValue : rule<as<number_value>(ref<NUMBER>)> {};
 
-  struct STRING
-      : terminal<(lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\)">) + lit<"'">) |
-                     (lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">) |
-                     (lit<"`"> + many(cr<"^`">) + lit<"`">), Unescaped> {};
+  static constexpr auto scalar4 = (cr<"0-9a-cA-Ce-fE-F"> + repeat<3>(Hex)) |
+      (cr<"dD"> + cr<"0-7"> + repeat<2>(Hex));
+  static constexpr auto scalar8 = (lit<"0000"> + scalar4) |
+      (lit<"000"> + cr<"1-9a-fA-F"> + repeat<4>(Hex)) | (lit<"0010"> + repeat<4>(Hex));
+  static constexpr auto common_escape = cr<R"(abfnrtv\\)"> |
+      (lit<"x"> + repeat<2>(Hex)) | (lit<"u"> + scalar4) | (lit<"U"> + scalar8) |
+      (cr<"0-3"> + repeat<2>(cr<"0-7">));
+  struct STRING : terminal<as<unescape_string>(
+      (lit<"'"> + many((lit<"\\"> + (common_escape | lit<"'">)) | cr<R"(^'\\\r\n)">) + lit<"'">) |
+      (lit<"\""> + many((lit<"\\"> + (common_escape | lit<"\"">)) | cr<R"(^"\\\r\n)">) + lit<"\"">) |
+      (lit<"`"> + many(cr<"^`">) + lit<"`">))> {};
 
-  // Whether the units run longest-to-shortest is a later check, not a
-  // lexical one -- unenforced here too, same acceptance.
-  struct DURATION
-      : terminal<some(some(d) + ((cr<"mM"> + cr<"sS">) | cr<"smhdwySMHDWY">))> {
-  };
+  struct DURATION : terminal<some(some(d) + (lit<"ms"> | cr<"smhdwy">))> {};
 
   struct SignedAtom;
 
-  struct ADD : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct SUB : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct MULT : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIV : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct MOD : terminal<lit<"%">, value<ast::Operator::modulo>> {};
-  struct POW : terminal<lit<"^">, value<ast::Operator::pow>> {};
-
-  struct EQ : terminal<lit<"=">, value<ast::Operator::eq>> {};
-  struct DEQ : terminal<lit<"==">, value<ast::Operator::deq>> {};
-  struct NE : terminal<lit<"!=">, value<ast::Operator::ne>> {};
-  struct GT : terminal<lit<">">, value<ast::Operator::gt>> {};
-  struct LT : terminal<lit<"<">, value<ast::Operator::lt>> {};
-  struct GE : terminal<lit<">=">, value<ast::Operator::ge>> {};
-  struct LE : terminal<lit<"<=">, value<ast::Operator::le>> {};
-  struct RE : terminal<lit<"=~">, value<ast::Operator::re>> {};
-  struct NRE : terminal<lit<"!~">, value<ast::Operator::nre>> {};
-
-  struct TRIM_UPPER : terminal<lit<"</">, value<ast::Operator::trim_upper>> {};
-  struct TRIM_LOWER : terminal<lit<">/">, value<ast::Operator::trim_lower>> {};
-
-  struct AT : terminal<lit<"@">, value<ast::Operator::at>> {};
+  struct ADD : terminal<as<ast::Operator::add>(lit<"+">)> {};
+  struct SUB : terminal<as<ast::Operator::subtract>(lit<"-">)> {};
 
   // Plain text (no operator value): each is also a legal label name, so it
   // is spelled once and referenced from both positions -- a second terminal
@@ -170,6 +164,18 @@ struct Promql : cursiv::GrammarSpec {
   struct ATAN2 : terminal<ikw<"atan2">> {};
   struct BOOL : terminal<ikw<"bool">> {};
 
+  struct FILL : terminal<ikw<"fill">> {};
+  struct FILL_LEFT : terminal<ikw<"fill_left">> {};
+  struct FILL_RIGHT : terminal<ikw<"fill_right">> {};
+  struct START : terminal<ikw<"start">> {};
+  struct END : terminal<ikw<"end">> {};
+  struct STEP : terminal<ikw<"step">> {};
+  struct RANGE : terminal<ikw<"range">> {};
+  struct MIN_OF : terminal<ikw<"min_of">> {};
+  struct MAX_OF : terminal<ikw<"max_of">> {};
+  struct ANCHORED : terminal<ikw<"anchored">> {};
+  struct SMOOTHED : terminal<ikw<"smoothed">> {};
+
   struct AGGREGATION_OPERATOR
       : terminal<ikw<"sum"> | ikw<"min"> | ikw<"max"> | ikw<"avg"> |
                  ikw<"group"> | ikw<"stddev"> | ikw<"stdvar"> |
@@ -178,70 +184,70 @@ struct Promql : cursiv::GrammarSpec {
 
   // A binary level's operator, carried as a value rather than as the text
   // that spells it: `and`/`AND` are one answer downstream.
-  struct AndOp : rule<ref<AND>, value<ast::Operator::logical_and>> {};
-  struct UnlessOp : rule<ref<UNLESS>, value<ast::Operator::logical_unless>> {
-  };
-  struct OrOp : rule<ref<OR>, value<ast::Operator::logical_or>> {};
-  struct Atan2Op : rule<ref<ATAN2>, value<ast::Operator::atan2>> {};
 
   struct Expression;
-  struct UnaryExprRule;
+  struct UnaryExpr;
 
   struct LabelName
       : rule<ref<METRIC_NAME> | ref<AND> | ref<OR> | ref<UNLESS> | ref<BY> |
              ref<WITHOUT> | ref<ON> | ref<IGNORING> | ref<GROUP_LEFT> |
              ref<GROUP_RIGHT> | ref<OFFSET> | ref<BOOL> |
-             ref<AGGREGATION_OPERATOR> | ref<ATAN2>> {};
+             ref<AGGREGATION_OPERATOR> | ref<ATAN2> | ref<FILL> | ref<FILL_LEFT> | ref<FILL_RIGHT> |
+             ref<START> | ref<END> | ref<STEP> | ref<RANGE> | ref<MIN_OF> | ref<MAX_OF> | ref<ANCHORED> | ref<SMOOTHED>> {};
+  struct MetricIdentifier : rule<ref<METRIC_NAME> | ref<AND> | ref<OR> | ref<UNLESS> | ref<BY> |
+      ref<WITHOUT> | ref<OFFSET> | ref<AGGREGATION_OPERATOR> | ref<FILL> | ref<FILL_LEFT> | ref<FILL_RIGHT> |
+      ref<START> | ref<END> | ref<STEP> | ref<RANGE> | ref<MIN_OF> | ref<MAX_OF> | ref<ANCHORED> | ref<SMOOTHED>> {};
 
-  struct LabelMatcherRule
+  struct LabelMatcher
       : rule<create<ast::LabelMatcher>(
-            assign<&ast::LabelMatcher::name>(ref<LabelName> | ref<STRING> | ref<NUMBER>) +
-            assign<&ast::LabelMatcher::op>(ref<EQ> | ref<NE> | ref<RE> |
-                                           ref<NRE>) +
+            assign<&ast::LabelMatcher::name>(ref<LabelName> | ref<STRING>) +
+            assign<&ast::LabelMatcher::op>(as<ast::Operator::eq>(lit<"=">) | as<ast::Operator::ne>(lit<"!=">) | as<ast::Operator::re>(lit<"=~">) |
+                                           as<ast::Operator::nre>(lit<"!~">)) +
             assign<&ast::LabelMatcher::value>(ref<STRING>))> {};
 
-  struct QuotedMetricRule
+  struct QuotedMetric
       : rule<create<ast::LabelMatcher>(assign<&ast::LabelMatcher::value>(ref<STRING>))> {};
 
-  struct GroupingRule
+  struct Grouping
       : rule<create<ast::Grouping>(
             (flag<&ast::Grouping::ignoring>(ref<IGNORING>) | ref<ON>) +
             lit<"("> +
-            many(append<&ast::Grouping::labels>(ref<LabelName> | ref<STRING> | ref<NUMBER>), lit<",">) +
-            option(lit<",">) +
+            option(some(append<&ast::Grouping::labels>(ref<LabelName> | ref<STRING>), lit<",">) +
+            option(lit<",">)) +
             lit<")"> +
             option(flag<&ast::Grouping::hasSide>(
                 (flag<&ast::Grouping::groupRight>(ref<GROUP_RIGHT>) |
                  ref<GROUP_LEFT>) +
                 option(lit<"("> +
-                       many(append<&ast::Grouping::sideLabels>(
-                                ref<LabelName> | ref<STRING> | ref<NUMBER>),
-                            lit<",">) + option(lit<",">) +
+                       option(some(append<&ast::Grouping::sideLabels>(
+                                ref<LabelName> | ref<STRING>),
+                            lit<",">) + option(lit<",">)) +
                        lit<")">))))> {};
 
   // One home for instantSelector, matrixSelector and offset -- see
   // ast::Selector.
-  struct SelectorRule
+  struct Selector
       : rule<create<ast::Selector>(
-            ((assign<&ast::Selector::metric>(ref<LabelName>) +
+            ((assign<&ast::Selector::metric>(ref<MetricIdentifier>) +
               option(lit<"{"> +
                      option(some(append<&ast::Selector::matchers>(
-                                     ref<LabelMatcherRule> | ref<QuotedMetricRule>),
+                                     ref<LabelMatcher> | ref<QuotedMetric>),
                                  lit<",">) +
                             option(lit<",">)) +
                      lit<"}">)) |
              (lit<"{"> +
-              many(append<&ast::Selector::matchers>(ref<LabelMatcherRule> | ref<QuotedMetricRule>),
+              option(some(append<&ast::Selector::matchers>(ref<LabelMatcher> | ref<QuotedMetric>),
                    lit<",">) +
-              option(lit<",">) + lit<"}">)) +
+              option(lit<",">)) + lit<"}">)) +
             option(lit<"["> + assign<&ast::Selector::range>(ref<Expression>) +
                    lit<"]">) +
             option(ref<OFFSET> +
                    assign<&ast::Selector::offset>(ref<SignedAtom>)))> {};
 
-  struct FunctionCallRule
+  struct FunctionCall
       : rule<create<ast::FunctionCall>(
-            assign<&ast::FunctionCall::name>(ref<METRIC_NAME>) + lit<"("> +
+            assign<&ast::FunctionCall::name>(ref<METRIC_NAME> | ref<START> | ref<END> |
+                ref<STEP> | ref<RANGE> | ref<MIN_OF> | ref<MAX_OF>) + lit<"("> +
             many(append<&ast::FunctionCall::args>(ref<Expression>),
                  lit<",">) +
             lit<")">)> {};
@@ -251,24 +257,25 @@ struct Promql : cursiv::GrammarSpec {
           (flag<&ast::AggregationExpr::without>(ref<WITHOUT>) |
            ref<BY>) +
           lit<"("> +
-          many(append<&ast::AggregationExpr::groupBy>(ref<LabelName> | ref<STRING> | ref<NUMBER>),
-               lit<",">) + option(lit<",">) +
+          option(some(append<&ast::AggregationExpr::groupBy>(ref<LabelName> | ref<STRING>),
+               lit<",">) + option(lit<",">)) +
           lit<")">);
 
-  struct AggregationRule
+  struct Aggregation
       : rule<create<ast::AggregationExpr>(
             assign<&ast::AggregationExpr::op>(ref<AGGREGATION_OPERATOR>) +
-            option(AggregationGrouping) + lit<"("> +
-            many(append<&ast::AggregationExpr::args>(ref<Expression>), lit<",">) +
-            lit<")"> + option(AggregationGrouping))> {};
+            ((AggregationGrouping + lit<"("> +
+              many(append<&ast::AggregationExpr::args>(ref<Expression>),lit<",">) + lit<")">) |
+             (lit<"("> + many(append<&ast::AggregationExpr::args>(ref<Expression>),lit<",">) +
+              lit<")"> + option(AggregationGrouping))))> {};
 
+  struct NumberAtom : rule<create<ast::DurationLit>(assign<&ast::DurationLit::text>(ref<DURATION>)) |
+      create<ast::NumberLit>(assign<&ast::NumberLit::value>(ref<NumericValue>))> {};
   struct Atom
-      : rule<ref<FunctionCallRule>  //
-             | ref<AggregationRule>  //
-             | ref<SelectorRule>  //
-             | create<ast::DurationLit>(assign<&ast::DurationLit::text>(ref<DURATION>))
-             | create<ast::NumberLit>(
-                   assign<&ast::NumberLit::value>(ref<NumericValue>))  //
+      : rule<ref<FunctionCall>  //
+             | ref<Aggregation>  //
+             | ref<Selector>  //
+             | ref<NumberAtom> //
              | create<ast::StringLit>(
                    assign<&ast::StringLit::value>(ref<STRING>))  //
              | (lit<"("> + ref<Expression> + lit<")">)> {};
@@ -279,10 +286,11 @@ struct Promql : cursiv::GrammarSpec {
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(ref<ADD> | ref<SUB>) +
                  assign<&ast::UnaryExpr::operand>(ref<Atom>)) | ref<Atom>> {};
+  struct SignedNumberAtom;
   struct Timestamp : rule<create<ast::TimestampBoundary>(
                               assign<&ast::TimestampBoundary::name>(
-                                  ikw<"start"> | ikw<"end">) +
-                              lit<"("> + lit<")">) | ref<SignedAtom>> {};
+                                  ref<START> | ref<END>) +
+                              lit<"("> + lit<")">) | ref<SignedNumberAtom>> {};
   struct Subqueried
       : rule<ref<Atom> +
              many(nest<ast::Subquery, &ast::Subquery::operand>(
@@ -293,47 +301,50 @@ struct Promql : cursiv::GrammarSpec {
                       option(ref<OFFSET> +
                              assign<&ast::Subquery::offset>(ref<SignedAtom>))) |
                   nest<ast::Timestamped, &ast::Timestamped::operand>(
-                      ref<AT> +
+                      as<ast::Operator::at>(lit<"@">) +
                       assign<&ast::Timestamped::timestamp>(ref<Timestamp>) +
                       option(ref<OFFSET> + assign<&ast::Timestamped::offset>(
                                                ref<SignedAtom>))) |
                   nest<ast::RangeModifier, &ast::RangeModifier::operand>(
-                      assign<&ast::RangeModifier::name>(ikw<"anchored"> | ikw<"smoothed">)))> {};
+                      assign<&ast::RangeModifier::name>(ref<ANCHORED> | ref<SMOOTHED>)))> {};
 
-  struct FillRule
+  struct SignedNumberAtom : rule<create<ast::UnaryExpr>(
+      assign<&ast::UnaryExpr::op>(ref<ADD> | ref<SUB>) +
+      assign<&ast::UnaryExpr::operand>(ref<NumberAtom>)) | ref<NumberAtom>> {};
+  struct Fill
       : rule<assign<&ast::FillModifier::name>(
-                 ikw<"fill"> | ikw<"fill_left"> | ikw<"fill_right">) +
-             lit<"("> + assign<&ast::FillModifier::value>(ref<SignedAtom>) + lit<")">> {};
+                 ref<FILL> | ref<FILL_LEFT> | ref<FILL_RIGHT>) +
+             lit<"("> + assign<&ast::FillModifier::value>(ref<SignedNumberAtom>) + lit<")">> {};
   static constexpr auto BinaryModifiers =
       option(flag<&ast::BinaryExpr::boolMod>(ref<BOOL>)) +
-      option(assign<&ast::BinaryExpr::matching>(ref<GroupingRule>)) +
-      many(append<&ast::BinaryExpr::fills>(ref<FillRule>));
+      option(assign<&ast::BinaryExpr::matching>(ref<Grouping>)) +
+      many(append<&ast::BinaryExpr::fills>(ref<Fill>));
 
   // Right-associative, tighter than unary: `a^b^c` is `a^(b^c)`.
   struct PowExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<Subqueried>) +
-                 assign<&ast::BinaryExpr::op>(ref<POW>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::pow>(lit<"^">)) +
                  BinaryModifiers +
-                 assign<&ast::BinaryExpr::right>(ref<UnaryExprRule>))  //
+                 assign<&ast::BinaryExpr::right>(ref<UnaryExpr>))  //
              | ref<Subqueried>> {};
 
   // Prefix, binds tighter than `*`/`/`/`%` and looser than `^`: `-a^2` is
   // `-(a^2)`, `-a*b` is `(-a)*b`.
-  struct UnaryExprRule
+  struct UnaryExpr
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(ref<ADD> | ref<SUB>) +
-                 assign<&ast::UnaryExpr::operand>(ref<UnaryExprRule>))  //
+                 assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
              | ref<PowExpr>> {};
 
   struct MultExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<MultExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<MULT> | ref<DIV> |
-                                              ref<MOD> | ref<Atan2Op>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">) |
+                                              as<ast::Operator::modulo>(lit<"%">) | as<ast::Operator::atan2>(ref<ATAN2>)) +
                  BinaryModifiers +
-                 assign<&ast::BinaryExpr::right>(ref<UnaryExprRule>))  //
-             | ref<UnaryExprRule>> {};
+                 assign<&ast::BinaryExpr::right>(ref<UnaryExpr>))  //
+             | ref<UnaryExpr>> {};
 
   struct AddExpr
       : rule<create<ast::BinaryExpr>(
@@ -346,8 +357,8 @@ struct Promql : cursiv::GrammarSpec {
   struct CompareExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<CompareExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<DEQ> | ref<NE> | ref<GT> |
-                                              ref<LT> | ref<GE> | ref<LE> | ref<TRIM_UPPER> | ref<TRIM_LOWER>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::deq>(lit<"==">) | as<ast::Operator::ne>(lit<"!=">) | as<ast::Operator::gt>(lit<">">) |
+                                              as<ast::Operator::lt>(lit<"<">) | as<ast::Operator::ge>(lit<">=">) | as<ast::Operator::le>(lit<"<=">) | as<ast::Operator::trim_upper>(lit<"</">) | as<ast::Operator::trim_lower>(lit<">/">)) +
                  BinaryModifiers +
                  assign<&ast::BinaryExpr::right>(ref<AddExpr>))  //
              | ref<AddExpr>> {};
@@ -355,7 +366,7 @@ struct Promql : cursiv::GrammarSpec {
   struct AndUnlessExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<AndUnlessExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<AndOp> | ref<UnlessOp>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::logical_and>(ref<AND>) | as<ast::Operator::logical_unless>(ref<UNLESS>)) +
                  BinaryModifiers +
                  assign<&ast::BinaryExpr::right>(ref<CompareExpr>))  //
              | ref<CompareExpr>> {};
@@ -363,7 +374,7 @@ struct Promql : cursiv::GrammarSpec {
   struct OrExpr
       : rule<create<ast::BinaryExpr>(
                  assign<&ast::BinaryExpr::left>(ref<OrExpr>) +
-                 assign<&ast::BinaryExpr::op>(ref<OrOp>) +
+                 assign<&ast::BinaryExpr::op>(as<ast::Operator::logical_or>(ref<OR>)) +
                  BinaryModifiers +
                  assign<&ast::BinaryExpr::right>(ref<AndUnlessExpr>))  //
              | ref<AndUnlessExpr>> {};
@@ -377,12 +388,12 @@ struct Promql : cursiv::GrammarSpec {
   // `grouping?` on its own.
   struct Expression : rule<ref<OrExpr>> {};
 
-  struct QueryRule
+  struct Query
       : rule<create<ast::Query>(
             assign<&ast::Query::expression>(ref<Expression>))> {};
 
-  using entry = QueryRule;
-  using ignore = WS;
+  using entry = Query;
+  using ignored = WS;
   using hidden = list<SL_COMMENT>;
 };
 

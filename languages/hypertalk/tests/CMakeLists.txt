@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every example parses, and the tree holds a Document.
 add_executable(hypertalk_grammar_test grammar_test.cpp)
-target_link_libraries(hypertalk_grammar_test PRIVATE hypertalkCore)
+target_link_libraries(hypertalk_grammar_test PRIVATE hypertalkCore cursiv::test)
 target_compile_definitions(hypertalk_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example")
 add_test(NAME hypertalk_grammar_test COMMAND hypertalk_grammar_test)

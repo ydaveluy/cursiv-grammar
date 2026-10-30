@@ -19,19 +19,20 @@ void IriValidator::checkAuthority(const ast::Authority& authority,
       address.find('.') == std::string_view::npos)
     return;
   const auto ipv4 = address.substr(address.rfind(':') + 1);
-  unsigned value = 0;
-  for (const char c : ipv4) {
-    if (c == '.')
-      value = 0;
-    else
-      value = value * 10 + static_cast<unsigned>(c - '0');
-    if (value > 255) {
+  for (std::size_t begin = 0; begin < ipv4.size();) {
+    const auto separator = ipv4.find('.', begin);
+    const auto end = separator == std::string_view::npos ? ipv4.size() : separator;
+    const auto octet = ipv4.substr(begin, end - begin);
+    unsigned value = 0;
+    for (const char c : octet) value = value * 10 + static_cast<unsigned>(c - '0');
+    if (value > 255 || (octet.size() > 1 && octet[0] == '0')) {
       accept
-          .error(authority, "An IPv4 octet must be between 0 and 255.",
+          .error(authority, "An IPv4 octet must be between 0 and 255 without leading zeros.",
                  "iri.address")
           .property<&ast::Authority::raw>();
       return;
     }
+    begin = end + 1;
   }
 }
 

@@ -1,6 +1,6 @@
 # vaxscan
 
-A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+VAX SCAN 1.2 source syntax, built with [cursiv](https://github.com/ydaveluy/cursiv).
 
 ## Build
 

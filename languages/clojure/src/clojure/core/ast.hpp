@@ -29,9 +29,6 @@ struct DecimalLit : cursiv::Extends<Form> {
 struct HexLit : cursiv::Extends<Form> {
   string_view text;
 };
-struct BinLit : cursiv::Extends<Form> {
-  string_view text;
-};
 struct BignLit : cursiv::Extends<Form> {
   string_view text;
 };
@@ -124,9 +121,9 @@ struct ConditionalForm : cursiv::Extends<Form> {
   Form *form;
 };
 
-struct HostExprForm : cursiv::Extends<Form> {
-  Form *a;
-  Form *b;
+// Reader evaluation is represented as syntax; the port never evaluates it.
+struct EvalForm : cursiv::Extends<Form> {
+  Form *form;
 };
 
 struct DiscardForm : cursiv::Extends<Form> {

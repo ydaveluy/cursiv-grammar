@@ -1,4 +1,4 @@
-// The protobuf (proto3) language: its grammar. Header, then a mix of
+// Protobuf source declarations: an optional syntax header, then a mix of
 // imports/packages/options/definitions; no lexer modes, no precedence.
 #pragma once
 
@@ -122,13 +122,11 @@ inline constexpr auto unescape_str =
   }
   return std::string_view(room.data(), n);
 };
-using Unescape = cursiv::text_conv<unescape_str>;
 
 inline constexpr auto text_to_label = [](std::string_view t) {
   return t == "optional" ? ast::FieldLabel::optional_
-                         : ast::FieldLabel::repeated_;
+       : t == "required" ? ast::FieldLabel::required_ : ast::FieldLabel::repeated_;
 };
-using LabelConv = cursiv::text_conv<text_to_label>;
 
 inline constexpr auto numberSource =
     [](cursiv::Parts parts) -> std::string_view {
@@ -138,7 +136,6 @@ inline constexpr auto numberSource =
   return {first.data(),
           static_cast<std::size_t>(last.data() + last.size() - first.data())};
 };
-using NumericText = cursiv::parts_conv<numberSource>;
 
 struct Protobuf : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n\f)">)> {};
@@ -157,6 +154,7 @@ struct Protobuf : cursiv::GrammarSpec {
   struct PACKAGE_KW : terminal<kw<"package">> {};
   struct OPTION_KW : terminal<kw<"option">> {};
   struct OPTIONAL_KW : terminal<kw<"optional">> {};
+  struct REQUIRED_KW : terminal<kw<"required">> {};
   struct REPEATED_KW : terminal<kw<"repeated">> {};
   struct ONEOF_KW : terminal<kw<"oneof">> {};
   struct MAP_KW : terminal<kw<"map">> {};
@@ -175,6 +173,8 @@ struct Protobuf : cursiv::GrammarSpec {
   struct DOUBLE_KW : terminal<kw<"double">> {};
   struct FLOAT_KW : terminal<kw<"float">> {};
   struct BYTES_KW : terminal<kw<"bytes">> {};
+  struct GROUP_KW : terminal<kw<"group">> {};
+  struct EXTENSIONS_KW : terminal<kw<"extensions">> {};
   struct RESERVED_KW : terminal<kw<"reserved">> {};
   struct TO_KW : terminal<kw<"to">> {};
   struct MAX_KW : terminal<kw<"max">> {};
@@ -196,8 +196,8 @@ struct Protobuf : cursiv::GrammarSpec {
   static constexpr auto bool_kw = ref<TRUE_KW> | ref<FALSE_KW>;
   static constexpr auto other_kw =
       ref<SYNTAX_KW> | ref<IMPORT_KW> | ref<WEAK_KW> | ref<PUBLIC_KW> |
-      ref<PACKAGE_KW> | ref<OPTION_KW> | ref<OPTIONAL_KW> | ref<REPEATED_KW> |
-      ref<ONEOF_KW> | ref<MAP_KW> | ref<RESERVED_KW> | ref<TO_KW> |
+      ref<PACKAGE_KW> | ref<OPTION_KW> | ref<OPTIONAL_KW> | ref<REQUIRED_KW> | ref<REPEATED_KW> |
+      ref<ONEOF_KW> | ref<MAP_KW> | ref<GROUP_KW> | ref<EXTENSIONS_KW> | ref<RESERVED_KW> | ref<TO_KW> |
       ref<MAX_KW> | ref<ENUM_KW> | ref<MESSAGE_KW> | ref<SERVICE_KW> |
       ref<EXTEND_KW> | ref<RPC_KW> | ref<STREAM_KW> | ref<RETURNS_KW>;
   static constexpr auto ident_kw = scalar_kw | bool_kw | other_kw;
@@ -212,13 +212,14 @@ struct Protobuf : cursiv::GrammarSpec {
   // A bare identifier that names a message or an enum type is one shape in
   // the grammar either way: its head
   // leaves the scalar keywords out, so the choice in type_expr does not fork.
-  struct TypeNameRule
+  struct TypeName
       : rule<(lit<"."> + some(ref<Ident>, lit<".">)) |
              ((ref<ID> | bool_kw | other_kw) + many(lit<"."> + ref<Ident>))> {};
-  struct QualifiedTypeNameRule
+  struct QualifiedTypeName
       : rule<option(lit<".">) + some(ref<Ident>, lit<".">)> {};
 
-  static constexpr auto type_expr = scalar_kw | ref<TypeNameRule>;
+  static constexpr auto type_expr =
+      scalar_kw | (!ref<GROUP_KW> + ref<TypeName>);
 
   static constexpr auto str_escape =
       (lit<"\\"> + cr<"xX"> + cr<"0-9a-fA-F"> + option(cr<"0-9a-fA-F">)) |
@@ -230,92 +231,90 @@ struct Protobuf : cursiv::GrammarSpec {
       : terminal<(lit<"'"> + many(str_escape | cr<R"(^'\\\n)">) + lit<"'">) |
                  (lit<"\""> + many(str_escape | cr<R"(^"\\\n)">) + lit<"\"">)> {
   };
-  struct StringLitRule : rule<some(ref<STR_LIT>), Unescape> {};
+  struct StringLit : rule<as<unescape_str>(some(ref<STR_LIT>))> {};
 
   struct INT_LIT_TXT
       : terminal<(lit<"0"> + cr<"xX"> + some(cr<"0-9a-fA-F">)) |
                  (lit<"0"> + many(cr<"0-7">)) | (cr<"1-9"> + many(d))> {};
-  struct IntLitRule : rule<ref<INT_LIT_TXT>, NumericText> {};
-  struct SignedIntLitRule
-      : rule<option(cr<"+-">) + ref<INT_LIT_TXT>, NumericText> {};
+  struct IntLit : rule<as<numberSource>(ref<INT_LIT_TXT>)> {};
+  struct SignedIntLit
+      : rule<as<numberSource>(option(cr<"+-">) + ref<INT_LIT_TXT>)> {};
 
   static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   struct FLOAT_LIT_TXT
-      : terminal<(some(d) + lit<"."> + option(some(d)) + option(exponent)) |
+      : terminal<(some(d) + lit<"."> + many(d) + option(exponent)) |
                  (some(d) + exponent) |
                  (lit<"."> + some(d) + option(exponent)) | kw<"inf"> |
                  kw<"nan">> {};
-  struct SignedFloatLitRule
-      : rule<option(cr<"+-">) + ref<FLOAT_LIT_TXT>, NumericText> {};
+  struct SignedFloatLit
+      : rule<as<numberSource>(option(cr<"+-">) + ref<FLOAT_LIT_TXT>)> {};
 
-  struct TRUE_BOOL_KW : terminal<kw<"true">, value<true>> {};
-  struct FALSE_BOOL_KW : terminal<kw<"false">, value<false>> {};
-  static constexpr auto bool_lit = ref<TRUE_BOOL_KW> | ref<FALSE_BOOL_KW>;
+  static constexpr auto bool_lit = as<true>(kw<"true">) | as<false>(kw<"false">);
 
   // A constant reads `true` and `false` as the boolean literal; the head of an
   // identifier leaves them out.
   struct ConstIdent
       : rule<(ref<ID> | scalar_kw | other_kw) + many(lit<"."> + ref<Ident>)> {};
-  struct IdentRefRule : rule<create<ast::IdentRef> +
+  struct IdentRef : rule<create<ast::IdentRef> +
                              assign<&ast::IdentRef::name>(ref<ConstIdent>)> {};
 
-  struct MessageFieldValueRule;
-  struct MessageListValueRule;
-  struct MessageValueRule : rule<create<ast::MessageValue> + lit<"{"> +
+  struct MessageFieldValue;
+  struct MessageListValue;
+  struct MessageValue : rule<create<ast::MessageValue> + lit<"{"> +
                                  many(append<&ast::MessageValue::fields>(
-                                          ref<MessageFieldValueRule>) +
+                                          ref<MessageFieldValue>) +
                                       option(cr<",;">)) +
                                  lit<"}">> {};
-  struct MessageAngleValueRule : rule<create<ast::MessageValue> + lit<"<"> +
+  struct MessageAngleValue : rule<create<ast::MessageValue> + lit<"<"> +
                                       many(append<&ast::MessageValue::fields>(
-                                               ref<MessageFieldValueRule>) +
+                                               ref<MessageFieldValue>) +
                                            option(cr<",;">)) +
                                       lit<">">> {};
 
-  struct IntegerConstantRule
+  struct IntegerConstant
       : rule<create<ast::NumberLiteral> +
-             assign<&ast::NumberLiteral::text>(ref<SignedIntLitRule>)> {};
-  struct FloatConstantRule
+             assign<&ast::NumberLiteral::text>(ref<SignedIntLit>)> {};
+  struct FloatConstant
       : rule<create<ast::NumberLiteral> +
              flag<&ast::NumberLiteral::floating>(
-                 assign<&ast::NumberLiteral::text>(ref<SignedFloatLitRule>))> {
+                 assign<&ast::NumberLiteral::text>(ref<SignedFloatLit>))> {
   };
   static constexpr auto constant =
-      ref<IntegerConstantRule> | ref<FloatConstantRule> | bool_lit |
-      ref<StringLitRule> | ref<IdentRefRule> | ref<MessageValueRule> |
-      ref<MessageAngleValueRule> | ref<MessageListValueRule>;
+      ref<IntegerConstant> | ref<FloatConstant> | bool_lit |
+      ref<StringLit> | ref<IdentRef> | ref<MessageValue> |
+      ref<MessageAngleValue> | ref<MessageListValue>;
 
-  struct MessageListValueRule
+  struct MessageListValue
       : rule<create<ast::MessageListValue> + lit<"["> +
              many(append<&ast::MessageListValue::items>(constant), lit<",">) +
              lit<"]">> {};
-  struct MessageFieldNameRule
+  struct MessageFieldName
       : rule<ref<FullIdent> |
-             (lit<"["> + ref<QualifiedTypeNameRule> + lit<"]">)> {};
-  struct MessageFieldValueRule
-      : rule<assign<&ast::MessageFieldValue::name>(ref<MessageFieldNameRule>) +
+             (lit<"["> + ref<QualifiedTypeName> + lit<"]">)> {};
+  struct MessageFieldValue
+      : rule<assign<&ast::MessageFieldValue::name>(ref<MessageFieldName>) +
              option(lit<":">) +
              assign<&ast::MessageFieldValue::value>(constant)> {};
 
-  struct OptionNameRule
+  struct OptionName
       : rule<assign<&ast::OptionName::name>(ref<FullIdent>) |
              (flag<&ast::OptionName::isExtension>(lit<"(">) +
               assign<&ast::OptionName::name>(ref<FullIdent>) + lit<")"> +
               option(lit<"."> +
                      assign<&ast::OptionName::suffix>(ref<FullIdent>)))> {};
 
-  struct OptionDeclRule
+  struct OptionDecl
       : rule<kw<"option"> +
-             assign<&ast::OptionDecl::name>(ref<OptionNameRule>) + lit<"="> +
+             assign<&ast::OptionDecl::name>(ref<OptionName>) + lit<"="> +
              assign<&ast::OptionDecl::value>(constant)> {};
 
-  struct FieldOptionRule
-      : rule<assign<&ast::FieldOption::name>(ref<OptionNameRule>) + lit<"="> +
+  struct FieldOption
+      : rule<assign<&ast::FieldOption::name>(ref<OptionName>) + lit<"="> +
              assign<&ast::FieldOption::value>(constant)> {};
 
   template <auto Member>
   static constexpr auto OptionsInto =
-      lit<"["> + some(append<Member>(ref<FieldOptionRule>), lit<",">) +
+      lit<"["> + some(append<Member>(ref<FieldOption>), lit<",">) +
       lit<"]">;
   static constexpr auto field_options = OptionsInto<&ast::Field::options>;
   static constexpr auto oneof_field_options =
@@ -325,140 +324,174 @@ struct Protobuf : cursiv::GrammarSpec {
   static constexpr auto enum_field_options =
       OptionsInto<&ast::EnumField::options>;
 
-  struct FieldLabelRule : rule<ref<OPTIONAL_KW> | ref<REPEATED_KW>, LabelConv> {
-  };
+  struct FieldLabel
+      : rule<as<text_to_label>(ref<OPTIONAL_KW> | ref<REQUIRED_KW> | ref<REPEATED_KW>)> {};
 
-  struct FieldRule
-      : rule<option(assign<&ast::Field::label>(ref<FieldLabelRule>)) +
-             assign<&ast::Field::type>(type_expr) +
-             assign<&ast::Field::name>(ref<Ident>) + lit<"="> +
-             assign<&ast::Field::number>(ref<IntLitRule>) +
-             option(field_options) + lit<";">> {};
+  static constexpr auto field_label = assign<&ast::Field::label>(ref<FieldLabel>);
+  static constexpr auto field_body =
+      assign<&ast::Field::type>(type_expr) +
+      assign<&ast::Field::name>(ref<Ident>) + lit<"="> +
+      assign<&ast::Field::number>(ref<IntLit>) + option(field_options) + lit<";">;
+  // A label word at the head is consumed as a label, never retried as a type.
+  struct Field : rule<(field_label | !ref<FieldLabel>) + field_body> {};
 
-  struct OneofFieldRule
-      : rule<assign<&ast::OneofField::type>(type_expr) +
+  static constexpr auto message_statement_kw =
+      ref<MESSAGE_KW> | ref<ENUM_KW> | ref<EXTENSIONS_KW> | ref<RESERVED_KW> |
+      ref<EXTEND_KW> | ref<OPTION_KW> | ref<ONEOF_KW>;
+  // These words dispatch message statements only before an unlabelled field.
+  struct MessageField
+      : rule<(field_label | !(ref<FieldLabel> | message_statement_kw)) + field_body> {};
+
+  struct OneofField
+      : rule<!(ref<OPTION_KW> | ref<FieldLabel>) +
+             assign<&ast::OneofField::type>(type_expr) +
              assign<&ast::OneofField::name>(ref<Ident>) + lit<"="> +
-             assign<&ast::OneofField::number>(ref<IntLitRule>) +
+             assign<&ast::OneofField::number>(ref<IntLit>) +
              option(oneof_field_options) + lit<";">> {};
 
-  struct OneofRule
+  struct Group;
+  struct OneofGroup;
+  struct MessageDef;
+
+  struct Oneof
       : rule<create<ast::Oneof> + kw<"oneof"> +
              assign<&ast::Oneof::name>(ref<Ident>) + lit<"{"> +
-             many((append<&ast::Oneof::options>(ref<OptionDeclRule>) + lit<";">) |
-                  append<&ast::Oneof::fields>(ref<OneofFieldRule>) | lit<";">) +
+             many((append<&ast::Oneof::options>(ref<OptionDecl>) + lit<";">) |
+                  append<&ast::Oneof::fields>(ref<OneofField>) |
+                  append<&ast::Oneof::groups>(ref<OneofGroup>) | lit<";">) +
              lit<"}">> {};
 
-  struct MapFieldRule
+  struct MapField
       : rule<kw<"map"> + lit<"<"> +
              assign<&ast::MapField::keyType>(key_type_kw) + lit<","> +
              assign<&ast::MapField::valueType>(type_expr) + lit<">"> +
              assign<&ast::MapField::name>(ref<Ident>) + lit<"="> +
-             assign<&ast::MapField::number>(ref<IntLitRule>) +
+             assign<&ast::MapField::number>(ref<IntLit>) +
              option(map_field_options) + lit<";">> {};
 
-  struct ReservedRangeRule
-      : rule<assign<&ast::ReservedRange::from>(ref<SignedIntLitRule>) +
-             option(kw<"to"> +
-                    (flag<&ast::ReservedRange::toMax>(kw<"max">) |
-                     assign<&ast::ReservedRange::to>(ref<SignedIntLitRule>)))> {
-  };
+  template <auto Integer>
+  static constexpr auto RangeBody =
+      assign<&ast::ReservedRange::from>(Integer) +
+      option(kw<"to"> +
+             (flag<&ast::ReservedRange::toMax>(kw<"max">) |
+              assign<&ast::ReservedRange::to>(Integer)));
 
-  struct ReservedRule
+  struct ReservedRange : rule<RangeBody<ref<SignedIntLit>>> {};
+  struct ExtensionRange : rule<RangeBody<ref<IntLit>>> {};
+  struct Extensions
+      : rule<kw<"extensions"> +
+             some(append<&ast::Extensions::ranges>(ref<ExtensionRange>), lit<",">) +
+             option(OptionsInto<&ast::Extensions::options>) + lit<";">> {};
+
+  struct Reserved
       : rule<create<ast::Reserved> + kw<"reserved"> +
-             (some(append<&ast::Reserved::ranges>(ref<ReservedRangeRule>),
+             (some(append<&ast::Reserved::ranges>(ref<ReservedRange>),
                    lit<",">) |
-              some(append<&ast::Reserved::fieldNames>(ref<StringLitRule>),
+              some(append<&ast::Reserved::fieldNames>(ref<StringLit>),
                    lit<",">)) +
              lit<";">> {};
 
-  struct EnumFieldRule
+  struct EnumField
       : rule<assign<&ast::EnumField::name>(ref<Ident>) + lit<"="> +
-             assign<&ast::EnumField::value>(ref<SignedIntLitRule>) +
+             assign<&ast::EnumField::value>(ref<SignedIntLit>) +
              option(enum_field_options) + lit<";">> {};
 
-  struct EnumDefRule
+  struct EnumDef
       : rule<create<ast::EnumDef> + kw<"enum"> +
              assign<&ast::EnumDef::name>(ref<Ident>) + lit<"{"> +
-             many((append<&ast::EnumDef::options>(ref<OptionDeclRule>) +
+             many((append<&ast::EnumDef::options>(ref<OptionDecl>) +
                       lit<";">) |
-                  append<&ast::EnumDef::fields>(ref<EnumFieldRule>) |
-                  append<&ast::EnumDef::reserved>(ref<ReservedRule>) |
+                  append<&ast::EnumDef::fields>(ref<EnumField>) |
+                  append<&ast::EnumDef::reserved>(ref<Reserved>) |
                   lit<";">) +
              lit<"}">> {};
 
-  struct ExtendDefRule
+  struct ExtendDef
       : rule<create<ast::ExtendDef> + kw<"extend"> +
-             assign<&ast::ExtendDef::target>(ref<QualifiedTypeNameRule>) +
+             assign<&ast::ExtendDef::target>(ref<QualifiedTypeName>) +
              lit<"{"> +
-             many(append<&ast::ExtendDef::fields>(ref<FieldRule>) | lit<";">) +
+             many(append<&ast::ExtendDef::fields>(ref<Field>) |
+                  append<&ast::ExtendDef::groups>(ref<Group>) | lit<";">) +
              lit<"}">> {};
 
-  struct MessageDefRule
+  static constexpr auto message_body =
+      lit<"{"> +
+      many(append<&ast::MessageDef::fields>(ref<MessageField>) |
+           append<&ast::MessageDef::groups>(ref<Group>) |
+           append<&ast::MessageDef::enums>(ref<EnumDef>) |
+           append<&ast::MessageDef::messages>(ref<MessageDef>) |
+           append<&ast::MessageDef::extends_>(ref<ExtendDef>) |
+           (append<&ast::MessageDef::options>(ref<OptionDecl>) + lit<";">) |
+           append<&ast::MessageDef::oneofs>(ref<Oneof>) |
+           append<&ast::MessageDef::mapFields>(ref<MapField>) |
+           append<&ast::MessageDef::reserved>(ref<Reserved>) |
+           append<&ast::MessageDef::extensions>(ref<Extensions>) | lit<";">) +
+      lit<"}">;
+
+  struct MessageDef
       : rule<create<ast::MessageDef> + kw<"message"> +
-             assign<&ast::MessageDef::name>(ref<Ident>) + lit<"{"> +
-             many(append<&ast::MessageDef::fields>(ref<FieldRule>) |
-                  append<&ast::MessageDef::enums>(ref<EnumDefRule>) |
-                  append<&ast::MessageDef::messages>(ref<MessageDefRule>) |
-                  append<&ast::MessageDef::extends_>(ref<ExtendDefRule>) |
-                  (append<&ast::MessageDef::options>(ref<OptionDeclRule>) +
-                      lit<";">) |
-                  append<&ast::MessageDef::oneofs>(ref<OneofRule>) |
-                  append<&ast::MessageDef::mapFields>(ref<MapFieldRule>) |
-                  append<&ast::MessageDef::reserved>(ref<ReservedRule>) |
-                  lit<";">) +
-             lit<"}">> {};
+             assign<&ast::MessageDef::name>(ref<Ident>) + message_body> {};
 
-  struct RpcRule
+  static constexpr auto group_tail =
+      kw<"group"> + assign<&ast::MessageDef::name>(ref<Ident>) + lit<"="> +
+      assign<&ast::Group::number>(ref<IntLit>) +
+      option(OptionsInto<&ast::Group::fieldOptions>) + message_body;
+  struct Group
+      : rule<create<ast::Group> +
+             option(assign<&ast::Group::label>(ref<FieldLabel>)) + group_tail> {};
+  struct OneofGroup : rule<create<ast::Group> + group_tail> {};
+
+  struct Rpc
       : rule<create<ast::Rpc> + kw<"rpc"> +
              assign<&ast::Rpc::name>(ref<Ident>) + lit<"("> +
              option(flag<&ast::Rpc::requestStream>(kw<"stream">)) +
-             assign<&ast::Rpc::requestType>(ref<QualifiedTypeNameRule>) +
+             assign<&ast::Rpc::requestType>(ref<QualifiedTypeName>) +
              lit<")"> + kw<"returns"> + lit<"("> +
              option(flag<&ast::Rpc::responseStream>(kw<"stream">)) +
-             assign<&ast::Rpc::responseType>(ref<QualifiedTypeNameRule>) +
+             assign<&ast::Rpc::responseType>(ref<QualifiedTypeName>) +
              lit<")"> +
              (lit<";"> |
               (lit<"{"> +
-               many((append<&ast::Rpc::options>(ref<OptionDeclRule>) + lit<";">) |
+               many((append<&ast::Rpc::options>(ref<OptionDecl>) + lit<";">) |
                     lit<";">) +
                lit<"}">))> {};
 
-  struct ServiceDefRule
+  struct ServiceDef
       : rule<create<ast::ServiceDef> + kw<"service"> +
              assign<&ast::ServiceDef::name>(ref<Ident>) + lit<"{"> +
-             many((append<&ast::ServiceDef::options>(ref<OptionDeclRule>) +
+             many((append<&ast::ServiceDef::options>(ref<OptionDecl>) +
                       lit<";">) |
-                  append<&ast::ServiceDef::rpcs>(ref<RpcRule>) | lit<";">) +
+                  append<&ast::ServiceDef::rpcs>(ref<Rpc>) | lit<";">) +
              lit<"}">> {};
 
-  struct ImportRule
+  struct Import
       : rule<kw<"import"> +
              option(flag<&ast::Import::isWeak>(kw<"weak">) |
                     flag<&ast::Import::isPublic>(kw<"public">)) +
-             assign<&ast::Import::path>(ref<StringLitRule>) + lit<";">> {};
+             assign<&ast::Import::path>(ref<StringLit>) + lit<";">> {};
 
-  struct PackageRule
+  struct Package
       : rule<kw<"package"> + assign<&ast::Package::name>(ref<FullIdent>) +
              lit<";">> {};
 
   static constexpr auto syntax_stmt =
       kw<"syntax"> + lit<"="> +
-      assign<&ast::Document::syntax>(ref<StringLitRule>) + lit<";">;
+      assign<&ast::Document::syntax>(ref<StringLit>) + lit<";">;
 
-  struct DocumentRule
-      : rule<create<ast::Document> + syntax_stmt +
-             many(append<&ast::Document::imports>(ref<ImportRule>) |
-                  append<&ast::Document::packages>(ref<PackageRule>) |
-                  (append<&ast::Document::options>(ref<OptionDeclRule>) +
+  struct Document
+      : rule<create<ast::Document> + option(syntax_stmt) +
+             many(append<&ast::Document::imports>(ref<Import>) |
+                  append<&ast::Document::packages>(ref<Package>) |
+                  (append<&ast::Document::options>(ref<OptionDecl>) +
                       lit<";">) |
-                  append<&ast::Document::messages>(ref<MessageDefRule>) |
-                  append<&ast::Document::enums>(ref<EnumDefRule>) |
-                  append<&ast::Document::extends_>(ref<ExtendDefRule>) |
-                  append<&ast::Document::services>(ref<ServiceDefRule>) |
+                  append<&ast::Document::messages>(ref<MessageDef>) |
+                  append<&ast::Document::enums>(ref<EnumDef>) |
+                  append<&ast::Document::extends_>(ref<ExtendDef>) |
+                  append<&ast::Document::services>(ref<ServiceDef>) |
                   lit<";">)> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

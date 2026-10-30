@@ -135,6 +135,23 @@ int main() {
   const auto language = cursiv::create_language<
       flatbuffers::FlatbuffersCoreServices, flatbuffers::FlatbuffersSharedCoreServices,
       flatbuffers::install_core_module>();
+  for (const char* source : {R"(attribute "\uD83D";)", R"(attribute "\uDE00";)",
+                             R"(attribute "\uD83Dx";)", R"(attribute "\xFF";)",
+                             R"(attribute "\v";)", R"(attribute "\?";)",
+                             "attribute \"raw\tcontrol\";", "enum Missing { A }"}) {
+    const auto parsed = language.language.parser->parse(source);
+    if (parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty())
+      return fail("invalid native string escape/control or missing enum base accepted");
+  }
+  {
+    const auto parsed = language.language.parser->parse(R"(attribute "\uD83D\uDE00\xC3\xA9";)");
+    const flatbuffers::ast::Attribute* value = nullptr;
+    for (const auto* node : parsed.nodes)
+      if (const auto* a = cursiv::ast_cast<flatbuffers::ast::Attribute>(node)) value = a;
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() || !value || value->name != "😀é")
+      return fail("native paired Unicode/UTF-8 byte escapes lost their value");
+  }
+
   if (schema_regressions(*language.language.parser)) return 1;
 
   for (const fs::path& path : files) {

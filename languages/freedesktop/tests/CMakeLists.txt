@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every document under example/ parses clean.
 add_executable(desktopentry_grammar_test grammar_test.cpp)
-target_link_libraries(desktopentry_grammar_test PRIVATE desktopentryCore)
+target_link_libraries(desktopentry_grammar_test PRIVATE desktopentryCore cursiv::test)
 target_compile_definitions(desktopentry_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

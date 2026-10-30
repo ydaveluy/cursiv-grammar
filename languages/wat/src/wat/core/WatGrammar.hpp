@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory_resource>
+#include <optional>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "wat/core/ast.hpp"
@@ -14,9 +16,26 @@ inline constexpr auto hexDigit = [](char c) {
          : c >= 'A' && c <= 'F' ? c - 'A' + 10
                                 : -1;
 };
+// wast's Unicode string escape permits internal underscores, including
+// repeated ones, but requires hexadecimal digits at both ends.
+inline constexpr std::optional<std::uint32_t> unicodeScalar(std::string_view text) {
+  if (text.empty() || hexDigit(text.front()) < 0 || hexDigit(text.back()) < 0)
+    return {};
+  std::uint32_t value = 0;
+  for (const char c : text) {
+    if (c == '_') continue;
+    const int digit = hexDigit(c);
+    if (digit < 0 || value > 0x10ffff / 16) return {};
+    value = value * 16 + digit;
+  }
+  if (value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)) return {};
+  return value;
+}
+
 inline constexpr auto stringValue =
     [](std::string_view text,
        std::pmr::memory_resource* memory) -> std::string_view {
+  if (text.size() < 2) return {};
   text = text.substr(1, text.size() - 2);
   if (text.find('\\') == text.npos) return text;
   auto* out = static_cast<char*>(memory->allocate(text.size(), alignof(char)));
@@ -37,20 +56,10 @@ inline constexpr auto stringValue =
         c = char(hexDigit(c) * 16 + hexDigit(text[++i]));
       } else if (c == 'u' && i + 1 < text.size() && text[i + 1] == '{') {
         auto end = text.find('}', i + 2);
-        std::uint32_t scalar = 0;
-        bool valid = end != text.npos && end > i + 2;
-        if (valid)
-          for (auto j = i + 2; j < end; ++j) {
-            int digit = hexDigit(text[j]);
-            if (digit < 0 || scalar > 0x10ffff / 16) {
-              valid = false;
-              break;
-            }
-            scalar = scalar * 16 + digit;
-          }
-        valid = valid && scalar <= 0x10ffff &&
-                !(scalar >= 0xd800 && scalar <= 0xdfff);
-        if (valid) {
+        const auto decoded = end == text.npos ? std::nullopt :
+            unicodeScalar(text.substr(i + 2, end - i - 2));
+        if (decoded) {
+          const auto scalar = *decoded;
           i = end;
           if (scalar < 0x80)
             out[size++] = char(scalar);
@@ -79,13 +88,14 @@ inline constexpr auto stringValue =
 };
 
 struct Wat : cursiv::GrammarSpec {
+  static constexpr auto Scalar = cr<R"(\x00-\u{10FFFF})">;
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
 
   struct LINE_COMMENT
-      : terminal<lit<";;"> + many(cr<R"(^\r\n)">) + option(eol)> {};
+      : terminal<lit<";;"> + many(~(cr<R"(\r\n)"> | ~Scalar)) + option(eol)> {};
   struct BLOCK_COMMENT
       : terminal<lit<"(;"> +
-                 many(ref<BLOCK_COMMENT> | (!lit<"(;"> + !lit<";)"> + any)) +
+                 many(ref<BLOCK_COMMENT> | (!lit<"(;"> + !lit<";)"> + Scalar)) +
                  lit<";)">> {};
 
   static constexpr auto Sign = lit<"+"> | lit<"-">;
@@ -110,9 +120,9 @@ struct Wat : cursiv::GrammarSpec {
   struct ALIGN_EQ_NAT : terminal<lit<"align="> + NatBody> {};
 
   struct STRING_
-      : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) +
-                     lit<"\"">,
-                 text_conv<stringValue>> {};
+      : terminal<as<stringValue>(
+            lit<"\""> + many((lit<"\\"> + Scalar) | ~(cr<R"("\\)"> | ~Scalar)) + lit<"\"">)> {
+  };
 
   static constexpr auto Letter = cr<"A-Za-z">;
   static constexpr auto SymbolChar = cr<R"(.+*/\\^~=<>!?@#$%&|:'`-)">;
@@ -135,51 +145,52 @@ struct Wat : cursiv::GrammarSpec {
       kw<"struct"> | kw<"array"> | kw<"none"> | kw<"nofunc"> | kw<"noextern"> |
       kw<"noexn"> | kw<"cont"> | kw<"nocont">;
   struct HeapType
-      : rule<ref<VAR> | ref<NAT> | AbstractHeapType |
-                 (lit<"("> + kw<"shared"> + AbstractHeapType + lit<")">),
-             std::string_view> {};
-  struct RefType : rule<lit<"("> + kw<"ref"> + option(kw<"null">) +
-                            ref<HeapType> + lit<")">,
-                        std::string_view> {};
-  struct ValueType : rule<ref<VALUE_TYPE> | ref<RefType>, std::string_view> {};
+      : rule<as<std::string_view>(
+            ref<VAR> | ref<NAT> | AbstractHeapType |
+            (lit<"("> + kw<"shared"> + AbstractHeapType + lit<")">))> {};
+  struct RefType
+      : rule<as<std::string_view>(lit<"("> + kw<"ref"> + option(kw<"null">) +
+                                  ref<HeapType> + lit<")">)> {};
+  struct ValueType
+      : rule<as<std::string_view>(ref<VALUE_TYPE> | ref<RefType>)> {};
   struct StorageType
-      : rule<kw<"i8"> | kw<"i16"> | ref<ValueType>, std::string_view> {};
+      : rule<as<std::string_view>(kw<"i8"> | kw<"i16"> | ref<ValueType>)> {};
 
   static constexpr auto varExpr = ref<NAT> | ref<VAR>;
   static constexpr auto literalExpr =
       ref<NAT> | ref<INT> | ref<FLOAT> | ref<NAN_EXPECTED>;
 
-  struct InstrRule;
-  struct ExprRule;
-  struct FlatInstrRule;
+  struct Instr;
+  struct Expr;
+  struct FlatInstr;
 
-  struct WconstRule;
-  struct InlineImportRule;
-  struct TypeDefRule;
-  struct RecGroupRule;
-  struct GlobalRule;
-  struct TableRule;
-  struct MemoryRule;
-  struct FuncRule;
-  struct ElemRule;
-  struct DataRule;
-  struct StartRule;
-  struct ImportRule;
-  struct ExportRule;
-  struct ModuleRule;
-  struct BinQuoteModuleRule;
-  struct ActionRule;
-  struct AssertionRule;
-  struct RegisterRule;
-  struct ScriptRule;
-  struct TagRule;
+  struct Wconst;
+  struct InlineImport;
+  struct TypeDef;
+  struct RecGroup;
+  struct Global;
+  struct Table;
+  struct Memory;
+  struct Func;
+  struct Elem;
+  struct Data;
+  struct Start;
+  struct Import;
+  struct Export;
+  struct Module;
+  struct BinQuoteModule;
+  struct Action;
+  struct Assertion;
+  struct Register;
+  struct Script;
+  struct Tag;
 
   static constexpr auto addArg = append<&ast::Instr::args>;
 
-#define WAT_INSTR_LIST(AddFn) many(AddFn(ref<InstrRule>))
+#define WAT_INSTR_LIST(AddFn) many(AddFn(ref<Instr>))
 #define WAT_OFFSET(AddFn)                                         \
   ((lit<"("> + kw<"offset"> + WAT_INSTR_LIST(AddFn) + lit<")">) | \
-   AddFn(ref<ExprRule>))
+   AddFn(ref<Expr>))
 #define WAT_TYPED_CLAUSE(Kw, AddFn)                           \
   (lit<"("> + Kw +                                            \
    (many(AddFn(create<ast::Binding>(                          \
@@ -196,77 +207,77 @@ struct Wat : cursiv::GrammarSpec {
   (assign<ValM>(ref<ValueType>) | (lit<"("> + flag<MutM>(kw<"mut">) + \
                                    assign<ValM>(ref<ValueType>) + lit<")">))
 #define WAT_MODULE_FIELD(AddFn)                                              \
-  AddFn(ref<TypeDefRule> | ref<RecGroupRule> | ref<GlobalRule> |             \
-        ref<TableRule> | ref<MemoryRule> | ref<FuncRule> | ref<ElemRule> |   \
-        ref<DataRule> | ref<StartRule> | ref<ImportRule> | ref<ExportRule> | \
-        ref<TagRule> | ref<AnnotationRule>)
+  AddFn(ref<TypeDef> | ref<RecGroup> | ref<Global> |             \
+        ref<Table> | ref<Memory> | ref<Func> | ref<Elem> |   \
+        ref<Data> | ref<Start> | ref<Import> | ref<Export> | \
+        ref<Tag> | ref<Annotation>)
 
-  struct ClauseRule;
-  struct FlatMarkerRule;
-  struct DelegateRule;
-  struct AnnotationRule;
+  struct Clause;
+  struct FlatMarker;
+  struct Delegate;
+  struct Annotation;
   static constexpr auto ImmediateWord =
       kw<"i8x16"> | kw<"i16x8"> | kw<"i32x4"> | kw<"i64x2"> | kw<"f32x4"> |
       kw<"f64x2"> | AbstractHeapType;
   struct PlainOpcode
-      : rule<!(kw<"block"> | kw<"loop"> | kw<"if"> | kw<"try"> |
-               kw<"try_table"> | kw<"end"> | kw<"else"> | kw<"catch"> |
-               kw<"catch_all"> | kw<"delegate">)+ref<OPCODE>,
-             std::string_view> {};
+      : rule<as<std::string_view>(!(kw<"block"> | kw<"loop"> | kw<"if"> |
+                                    kw<"try"> | kw<"try_table"> | kw<"end"> |
+                                    kw<"else"> | kw<"catch"> | kw<"catch_all"> |
+                                    kw<"delegate">)+ref<OPCODE>)> {};
   static constexpr auto Immediate =
       literalExpr | ref<VAR> | ref<OFFSET_EQ_NAT> | ref<ALIGN_EQ_NAT> |
       ref<STRING_> | ImmediateWord | ref<VALUE_TYPE> | ref<RefType>;
-  struct ClauseRule
+  struct Clause
       : rule<flag<&ast::Instr::folded>(lit<"(">) +
              assign<&ast::Instr::op>(kw<"type"> | kw<"param"> | kw<"result"> |
                                      kw<"memory"> | kw<"table">) +
              many(addArg(Immediate | ref<ValueType>)) + lit<")">> {};
   static constexpr auto PlainInstr = assign<&ast::Instr::op>(ref<PlainOpcode>) +
-                                     many(addArg(Immediate | ref<ClauseRule>));
-  struct FlatMarkerRule
+                                     many(addArg(Immediate | ref<Clause>));
+  struct FlatMarker
       : rule<(assign<&ast::Instr::op>(kw<"else">) +
               option(assign<&ast::Instr::label>(ref<VAR>)) +
-              many(addArg(ref<InstrRule>))) |
+              many(addArg(ref<Instr>))) |
              (assign<&ast::Instr::op>(kw<"catch"> | kw<"catch_all">) +
-              many(addArg(varExpr)) + many(addArg(ref<InstrRule>)))> {};
-  struct DelegateRule
+              many(addArg(varExpr)) + many(addArg(ref<Instr>)))> {};
+  struct Delegate
       : rule<assign<&ast::Instr::op>(kw<"delegate">) + addArg(varExpr)> {};
-  struct FlatInstrRule
+  struct FlatInstr
       : rule<(assign<&ast::Instr::op>(kw<"block"> | kw<"loop"> | kw<"if"> |
                                       kw<"try"> | kw<"try_table">) +
               option(assign<&ast::Instr::label>(ref<VAR>)) +
-              many(addArg(ref<InstrRule>)) + many(addArg(ref<FlatMarkerRule>)) +
+              many(addArg(ref<Instr>)) + many(addArg(ref<FlatMarker>)) +
               ((kw<"end"> + option(assign<&ast::Instr::endLabel>(ref<VAR>))) |
-               addArg(ref<DelegateRule>))) |
+               addArg(ref<Delegate>))) |
              PlainInstr> {};
   struct ExprOpcode
-      : rule<!(kw<"ref"> + !lit<".">)+ref<OPCODE>, std::string_view> {};
-  struct ExprRule
+      : rule<as<std::string_view>(!(kw<"ref"> + !lit<".">)+ref<OPCODE>)> {};
+  struct Expr
       : rule<flag<&ast::Instr::folded>(lit<"(">) +
              ((assign<&ast::Instr::op>(kw<"block"> | kw<"loop"> | kw<"if"> |
                                        kw<"try"> | kw<"try_table">) +
                option(assign<&ast::Instr::label>(ref<VAR>))) |
               assign<&ast::Instr::op>(ref<ExprOpcode>)) +
-             many(addArg(Immediate | ref<InstrRule>)) + lit<")">> {};
+             many(addArg(Immediate | ref<Instr>)) + lit<")">> {};
   struct ANNOTATION : terminal<lit<"@"> + cr<"a-z"> + many(cr<"a-z0-9_.">)> {};
-  struct AnnotationPositionRule
+  struct AnnotationPosition
       : rule<flag<&ast::Instr::folded>(lit<"(">) +
              assign<&ast::Instr::op>(kw<"before"> | kw<"after">) +
              addArg(ref<OPCODE>) + lit<")">> {};
-  struct AnnotationRule
+  struct Annotation
       : rule<flag<&ast::Instr::folded>(lit<"(">) +
              assign<&ast::Instr::op>(ref<ANNOTATION>) +
-             many(addArg(Immediate | ref<AnnotationPositionRule> |
-                         ref<ExprRule>)) +
+             many(addArg(Immediate | ref<AnnotationPosition> |
+                         ref<Expr>)) +
              lit<")">> {};
-  struct InstrRule : rule<ref<ExprRule> | ref<FlatInstrRule>> {};
+  struct Instr : rule<ref<Expr> | ref<FlatInstr>> {};
 
-  struct WconstRule
+  struct Wconst
       : rule<lit<"("> + assign<&ast::Wconst::valueType>(ref<CONST>) +
              some(append<&ast::Wconst::literals>(literalExpr | ImmediateWord)) +
              lit<")">> {};
 
-  struct InlineImportRule
+  struct InlineImport
       : rule<lit<"("> + kw<"import"> +
              assign<&ast::Import::module_>(ref<STRING_>) +
              assign<&ast::Import::name>(ref<STRING_>) + lit<")">> {};
@@ -275,7 +286,7 @@ struct Wat : cursiv::GrammarSpec {
       (lit<"("> + flag<&ast::Binding::mutable_>(kw<"mut">) +
        assign<&ast::Binding::valueType>(ref<StorageType>) + lit<")">) |
       assign<&ast::Binding::valueType>(ref<StorageType>);
-  struct FieldRule
+  struct Field
       : rule<option(assign<&ast::Binding::name>(ref<VAR>)) + FieldValue> {};
   static constexpr auto CompositeType =
       (assign<&ast::TypeDef::kind>(kw<"func">) +
@@ -283,19 +294,18 @@ struct Wat : cursiv::GrammarSpec {
        many(WAT_RESULT_CLAUSE(append<&ast::TypeDef::results>))) |
       (assign<&ast::TypeDef::kind>(kw<"struct">) +
        many((lit<"("> + kw<"field"> +
-             many(append<&ast::TypeDef::fields>(ref<FieldRule>)) + lit<")">) |
-            append<&ast::TypeDef::fields>(ref<FieldRule>))) |
+             many(append<&ast::TypeDef::fields>(ref<Field>)) + lit<")">) |
+            append<&ast::TypeDef::fields>(ref<Field>))) |
       (assign<&ast::TypeDef::kind>(kw<"array">) +
-       many(append<&ast::TypeDef::fields>(ref<FieldRule>)));
+       many(append<&ast::TypeDef::fields>(ref<Field>)));
   static constexpr auto SharedType =
       (flag<&ast::TypeDef::shared>(kw<"shared">) + lit<"("> +
        CompositeType + lit<")">) |
       CompositeType;
-  struct SubHeader : rule<kw<"sub"> + option(kw<"final">),
-                          text_conv<[](std::string_view text) {
-                            return text.ends_with("final");
-                          }>> {};
-  struct TypeDefRule
+  struct SubHeader
+      : rule<as<[](std::string_view text) { return text.ends_with("final"); }>(
+            kw<"sub"> + option(kw<"final">))> {};
+  struct TypeDef
       : rule<lit<"("> + kw<"type"> +
              option(assign<&ast::TypeDef::name>(ref<VAR>)) + lit<"("> +
              ((assign<&ast::TypeDef::final_>(ref<SubHeader>) +
@@ -303,17 +313,17 @@ struct Wat : cursiv::GrammarSpec {
                SharedType + lit<")">) |
               SharedType) +
              lit<")"> + lit<")">> {};
-  struct RecGroupRule
+  struct RecGroup
       : rule<lit<"("> + kw<"rec"> +
-             many(append<&ast::RecGroup::types>(ref<TypeDefRule>)) + lit<")">> {
+             many(append<&ast::RecGroup::types>(ref<TypeDef>)) + lit<")">> {
   };
 
-  struct GlobalRule
+  struct Global
       : rule<lit<"("> + kw<"global"> +
              option(assign<&ast::Global::name>(ref<VAR>)) +
              many(lit<"("> + kw<"export"> +
                   append<&ast::Global::exports>(ref<STRING_>) + lit<")">) +
-             ((assign<&ast::Global::import_>(ref<InlineImportRule>) +
+             ((assign<&ast::Global::import_>(ref<InlineImport>) +
                WAT_GLOBAL_TYPE(&ast::Global::valueType,
                                &ast::Global::mutable_)) |
               (WAT_GLOBAL_TYPE(&ast::Global::valueType,
@@ -333,18 +343,18 @@ struct Wat : cursiv::GrammarSpec {
       option(assign<&ast::Import::max>(ref<NAT>)) +
       option(flag<&ast::Import::shared>(kw<"shared">)) +
       assign<&ast::Import::elemType>(ref<ValueType>);
-  struct TableRule
+  struct Table
       : rule<lit<"("> + kw<"table"> +
              option(assign<&ast::Table::name>(ref<VAR>)) +
              many(lit<"("> + kw<"export"> +
                   append<&ast::Table::exports>(ref<STRING_>) + lit<")">) +
-             ((assign<&ast::Table::import_>(ref<InlineImportRule>) +
+             ((assign<&ast::Table::import_>(ref<InlineImport>) +
                TableLimits) |
               TableLimits |
               (assign<&ast::Table::elemType>(kw<"funcref">) + lit<"("> +
                kw<"elem"> +
                many(append<&ast::Table::inlineElems>(varExpr) |
-                    append<&ast::Table::inlineExprs>(ref<ExprRule>)) +
+                    append<&ast::Table::inlineExprs>(ref<Expr>)) +
                lit<")">)) +
              lit<")">> {};
 
@@ -360,12 +370,12 @@ struct Wat : cursiv::GrammarSpec {
       option(flag<&ast::Import::shared>(kw<"shared">)) +
       option(lit<"("> + kw<"pagesize"> +
              assign<&ast::Import::pageSize>(ref<NAT>) + lit<")">);
-  struct MemoryRule
+  struct Memory
       : rule<lit<"("> + kw<"memory"> +
              option(assign<&ast::Memory::name>(ref<VAR>)) +
              many(lit<"("> + kw<"export"> +
                   append<&ast::Memory::exports>(ref<STRING_>) + lit<")">) +
-             ((assign<&ast::Memory::import_>(ref<InlineImportRule>) +
+             ((assign<&ast::Memory::import_>(ref<InlineImport>) +
                MemoryLimits) |
               MemoryLimits |
               (option(assign<&ast::Memory::indexType>(kw<"i32"> | kw<"i64">)) +
@@ -374,12 +384,12 @@ struct Wat : cursiv::GrammarSpec {
                lit<")">)) +
              lit<")">> {};
 
-  struct FuncRule
+  struct Func
       : rule<create<ast::Func> + lit<"("> + kw<"func"> +
              option(assign<&ast::Func::name>(ref<VAR>)) +
              many(lit<"("> + kw<"export"> +
                   append<&ast::Func::exports>(ref<STRING_>) + lit<")">) +
-             ((assign<&ast::Func::import_>(ref<InlineImportRule>) +
+             ((assign<&ast::Func::import_>(ref<InlineImport>) +
                option(lit<"("> + kw<"type"> +
                       assign<&ast::Func::typeUse>(varExpr) + lit<")">) +
                many(WAT_TYPED_CLAUSE(kw<"param">, append<&ast::Func::params>)) +
@@ -392,7 +402,7 @@ struct Wat : cursiv::GrammarSpec {
                WAT_INSTR_LIST(append<&ast::Func::body>))) +
              lit<")">> {};
 
-  struct ElemRule
+  struct Elem
       : rule<lit<"("> + kw<"elem"> +
              option(assign<&ast::Elem::name>(ref<VAR>)) +
              option(flag<&ast::Elem::declared>(kw<"declare">)) +
@@ -402,9 +412,9 @@ struct Wat : cursiv::GrammarSpec {
              option(WAT_OFFSET(append<&ast::Elem::offset>)) +
              option(assign<&ast::Elem::elemType>(ref<ValueType>) | kw<"func">) +
              many(append<&ast::Elem::funcVars>(varExpr) |
-                  append<&ast::Elem::expressions>(ref<ExprRule>)) +
+                  append<&ast::Elem::expressions>(ref<Expr>)) +
              lit<")">> {};
-  struct DataRule
+  struct Data
       : rule<lit<"("> + kw<"data"> +
              option(assign<&ast::Data::name>(ref<VAR>)) +
              option((lit<"("> + kw<"memory"> +
@@ -412,22 +422,22 @@ struct Wat : cursiv::GrammarSpec {
                     assign<&ast::Data::memVar>(ref<NAT>)) +
              option(WAT_OFFSET(append<&ast::Data::offset>)) +
              many(append<&ast::Data::strings>(ref<STRING_>)) + lit<")">> {};
-  struct TagRule
+  struct Tag
       : rule<create<ast::Tag> + lit<"("> + kw<"tag"> +
              option(assign<&ast::Func::name>(ref<VAR>)) +
              many(lit<"("> + kw<"export"> +
                   append<&ast::Func::exports>(ref<STRING_>) + lit<")">) +
-             option(assign<&ast::Func::import_>(ref<InlineImportRule>)) +
+             option(assign<&ast::Func::import_>(ref<InlineImport>)) +
              option(lit<"("> + kw<"type"> +
                     assign<&ast::Func::typeUse>(varExpr) + lit<")">) +
              many(WAT_TYPED_CLAUSE(kw<"param">, append<&ast::Func::params>)) +
              many(WAT_RESULT_CLAUSE(append<&ast::Func::results>)) + lit<")">> {
   };
 
-  struct StartRule : rule<lit<"("> + kw<"start"> +
+  struct Start : rule<lit<"("> + kw<"start"> +
                           assign<&ast::Start::func>(varExpr) + lit<")">> {};
 
-  struct ImportRule
+  struct Import
       : rule<lit<"("> + kw<"import"> +
              assign<&ast::Import::module_>(ref<STRING_>) +
              assign<&ast::Import::name>(ref<STRING_>) +
@@ -452,7 +462,7 @@ struct Wat : cursiv::GrammarSpec {
                lit<")">)) +
              lit<")">> {};
 
-  struct ExportRule
+  struct Export
       : rule<lit<"("> + kw<"export"> +
              assign<&ast::Export::name>(ref<STRING_>) + lit<"("> +
              (assign<&ast::Export::kind>(kw<"func">) |
@@ -461,13 +471,13 @@ struct Wat : cursiv::GrammarSpec {
               assign<&ast::Export::kind>(kw<"global"> | kw<"tag">)) +
              assign<&ast::Export::var_>(varExpr) + lit<")"> + lit<")">> {};
 
-  struct ModuleRule
+  struct Module
       : rule<lit<"("> + kw<"module"> +
              option(assign<&ast::Module::name>(ref<VAR>)) +
              many(WAT_MODULE_FIELD(append<&ast::Module::fields>)) + lit<")">> {
   };
 
-  struct BinQuoteModuleRule
+  struct BinQuoteModule
       : rule<lit<"("> + kw<"module"> +
              option(assign<&ast::BinQuoteModule::name>(ref<VAR>)) +
              (assign<&ast::BinQuoteModule::kind>(kw<"binary">) |
@@ -475,19 +485,19 @@ struct Wat : cursiv::GrammarSpec {
              many(append<&ast::BinQuoteModule::strings>(ref<STRING_>)) +
              lit<")">> {};
 
-  struct ActionRule
+  struct Action
       : rule<(lit<"("> + assign<&ast::Action::kind>(kw<"invoke">) +
               option(assign<&ast::Action::moduleVar>(ref<VAR>)) +
               assign<&ast::Action::name>(ref<STRING_>) +
-              many(append<&ast::Action::args>(ref<WconstRule>)) + lit<")">) |
+              many(append<&ast::Action::args>(ref<Wconst>)) + lit<")">) |
              (lit<"("> + assign<&ast::Action::kind>(kw<"get">) +
               option(assign<&ast::Action::moduleVar>(ref<VAR>)) +
               assign<&ast::Action::name>(ref<STRING_>) + lit<")">)> {};
 
   static constexpr auto scriptModuleExpr =
-      ref<ModuleRule> | ref<BinQuoteModuleRule>;
+      ref<Module> | ref<BinQuoteModule>;
 
-  struct AssertionRule
+  struct Assertion
       : rule<lit<"("> +
              ((assign<&ast::Assertion::kind>(kw<"assert_malformed"> |
                                              kw<"assert_invalid"> |
@@ -496,33 +506,33 @@ struct Wat : cursiv::GrammarSpec {
                assign<&ast::Assertion::message>(ref<STRING_>)) |
               (assign<&ast::Assertion::kind>(kw<"assert_trap">) +
                (assign<&ast::Assertion::module_>(scriptModuleExpr) |
-                assign<&ast::Assertion::action>(ref<ActionRule>)) +
+                assign<&ast::Assertion::action>(ref<Action>)) +
                assign<&ast::Assertion::message>(ref<STRING_>)) |
               (assign<&ast::Assertion::kind>(kw<"assert_exhaustion">) +
-               assign<&ast::Assertion::action>(ref<ActionRule>) +
+               assign<&ast::Assertion::action>(ref<Action>) +
                assign<&ast::Assertion::message>(ref<STRING_>)) |
               (assign<&ast::Assertion::kind>(kw<"assert_return">) +
-               assign<&ast::Assertion::action>(ref<ActionRule>) +
-               many(append<&ast::Assertion::results>(ref<WconstRule>))) |
+               assign<&ast::Assertion::action>(ref<Action>) +
+               many(append<&ast::Assertion::results>(ref<Wconst>))) |
               (assign<&ast::Assertion::kind>(kw<"assert_exception">) +
-               assign<&ast::Assertion::action>(ref<ActionRule>))) +
+               assign<&ast::Assertion::action>(ref<Action>))) +
              lit<")">> {};
 
-  struct RegisterRule
+  struct Register
       : rule<lit<"("> + kw<"register"> +
              assign<&ast::Register::name>(ref<STRING_>) +
              option(assign<&ast::Register::var_>(ref<VAR>)) + lit<")">> {};
 
-  static constexpr auto cmdExpr = ref<ActionRule> | ref<AssertionRule> |
-                                  ref<ModuleRule> | ref<BinQuoteModuleRule> |
-                                  ref<RegisterRule>;
+  static constexpr auto cmdExpr = ref<Action> | ref<Assertion> |
+                                  ref<Module> | ref<BinQuoteModule> |
+                                  ref<Register>;
 
-  struct ScriptRule
+  struct Script
       : rule<many(append<&ast::Script::cmds>(cmdExpr)) |
              some(WAT_MODULE_FIELD(append<&ast::Script::fields>))> {};
 
-  using entry = ScriptRule;
-  using ignore = WS;
+  using entry = Script;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 
 #undef WAT_INSTR_LIST

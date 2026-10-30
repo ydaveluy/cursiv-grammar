@@ -16,7 +16,8 @@ inline void run() {
       cursiv::create_language<iri::IriCoreServices, iri::IriSharedCoreServices,
                               iri::install_core_module>();
   for (const std::string source :
-       {"x://[1:2:3:4:5:6:000.0.0.1]/?#", "x://[::001.002.003.004]/?#",
+       {"x://[1:2:3:4:5:6:0.0.0.1]/?#", "x://[::1.2.3.4]/?#",
+        "x://[1:2:3:4:5:6:000.0.0.1]/?#", "x://[::001.002.003.004]/?#",
         "x://[::256.0.0.1]/?#"}) {
     cursiv::Document document(
         cursiv::TextDocument::create("memory:iri", "iri", 0, source));
@@ -38,15 +39,16 @@ inline void run() {
     std::vector<cursiv::Diagnostic> diagnostics;
     language.language.documentValidator->validateDocument(document,
                                                           diagnostics);
-    if (source.find("256") == std::string::npos)
+    if (source == "x://[1:2:3:4:5:6:0.0.0.1]/?#" ||
+        source == "x://[::1.2.3.4]/?#")
       CHECK(diagnostics.empty());
     else {
       CHECK(diagnostics.size() == 1);
       if (diagnostics.size() == 1) {
         const auto& d = diagnostics[0];
         CHECK(d.code && d.code->string() == "iri.address");
-        CHECK(source.substr(d.range.begin, d.range.end - d.range.begin) ==
-              "[::256.0.0.1]");
+        CHECK(root && root->authority &&
+              source.substr(d.range.begin, d.range.end - d.range.begin) == root->authority->raw);
       }
     }
   }

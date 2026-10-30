@@ -4,7 +4,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
 endif()
 
 add_executable(informix_grammar_test grammar_test.cpp)
-target_link_libraries(informix_grammar_test PRIVATE informixCore)
+target_link_libraries(informix_grammar_test PRIVATE informixCore cursiv::test)
 target_compile_definitions(informix_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

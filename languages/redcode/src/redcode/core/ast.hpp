@@ -26,6 +26,12 @@ enum class Opcode : std::uint8_t {
   spl,
   org,
   djz,
+  seq,
+  sne,
+  nop,
+  ldp,
+  stp,
+  end,
 };
 
 // `none` is the zero value: absent, an instruction with no `.modifier`.
@@ -39,6 +45,9 @@ enum class Mode : std::uint8_t {
   indirect,
   predecrement,
   postincrement,
+  a_indirect,
+  a_predecrement,
+  a_postincrement,
 };
 
 struct Comment : cursiv::Extends<cursiv::AstNode> {
@@ -47,11 +56,17 @@ struct Comment : cursiv::Extends<cursiv::AstNode> {
 
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
 
-enum class Op : std::uint8_t { add, sub, mul, div, mod };
+enum class Op : std::uint8_t { add, sub, mul, div, mod, eq, ne, lt, le, gt, ge,
+                              logical_and, logical_or, logical_not };
 
 struct Number : cursiv::Extends<Expr> {
   bool negative;
-  std::int32_t magnitude;
+  string_view magnitude;  // exact unsigned digits, without layout
+};
+
+struct Unary : cursiv::Extends<Expr> {
+  Op op;
+  Expr* operand;
 };
 
 struct Paren : cursiv::Extends<Expr> {

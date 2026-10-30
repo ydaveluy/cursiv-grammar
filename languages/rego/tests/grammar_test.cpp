@@ -17,6 +17,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "rego/core/CoreServices.hpp"
 #include "rego/core/ast.hpp"
+#include "native_followup.hpp"
 
 namespace {
 
@@ -61,6 +62,8 @@ int main() {
   const auto language = cursiv::create_language<rego::RegoCoreServices,
                                                 rego::RegoSharedCoreServices,
                                                 rego::install_core_module>();
+
+  if(const int rc=rego_native_followup(language.language)) return rc;
 
   int count = 0;
   for (const fs::directory_entry& entry :

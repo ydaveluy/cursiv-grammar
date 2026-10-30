@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every example parses, and the tree holds a Program.
 add_executable(javascript_grammar_test grammar_test.cpp)
-target_link_libraries(javascript_grammar_test PRIVATE javascriptCore)
+target_link_libraries(javascript_grammar_test PRIVATE javascriptCore cursiv::test)
 target_compile_definitions(javascript_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example")
 add_test(NAME javascript_grammar_test COMMAND javascript_grammar_test)

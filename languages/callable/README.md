@@ -31,20 +31,13 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[Callable](https://esolangs.org/wiki/Callable) is an esolang where every
-statement is a call: a name applied to parenthesised arguments, each either a
-string or another call.
+Callable programs consist of calls with string or nested-call arguments, one statement per line.
 
 ```
 VAR-SET("n", INPUT())
 WHILE-EQ(VAR-GET("n"), "1", PRINT("1"))
 PRINT("0")
 ```
-
-A program is one or more calls, one per line (blank lines allowed between
-them). A call's arguments nest calls and strings freely — there is no other
-value kind, and no operators: control flow, arithmetic and I/O are all just
-named calls, left for an interpreter to give meaning to.
 
 ## The command line
 

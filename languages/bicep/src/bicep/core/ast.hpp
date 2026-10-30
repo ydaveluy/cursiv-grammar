@@ -261,6 +261,25 @@ struct OutputDecl : cursiv::Extends<Stmt> {
   Expr* value;
 };
 
+struct FunctionParameter : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  TypeExpr* type;
+};
+
+struct FunctionDecl : cursiv::Extends<Stmt> {
+  vector<Decorator*> decorators;
+  string_view name;
+  vector<FunctionParameter*> parameters;
+  TypeExpr* returnType;
+  Expr* body;
+};
+
+struct AssertDecl : cursiv::Extends<Stmt> {
+  vector<Decorator*> decorators;
+  string_view name;
+  Expr* value;
+};
+
 struct Program : cursiv::Extends<cursiv::AstNode> {
   vector<Stmt*> body;
 };

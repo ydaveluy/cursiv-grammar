@@ -13,10 +13,17 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "desktopentry/core/CoreServices.hpp"
 #include "desktopentry/core/ast.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 namespace {
 
 int failures = 0;
+
+int fail(const char* message) {
+  std::fprintf(stderr, "desktopentry: %s\n", message);
+  return 1;
+}
 
 void check_file(const cursiv::Parser &parser,
                 const std::filesystem::path &path) {
@@ -80,6 +87,21 @@ int main() {
 
   if (!audit_regressions::run(language.language))
     return 1;
+
+  for (const char* source : {
+           "[Other]\nName=App\n",
+           "[Desktop Entry]\nName=App\n[Desktop Entry]\nName=Other\n",
+           "[Desktop Entry]\nName=App\nName=Other\n",
+           "[Desktop Entry]\nName[fr]=App\nName[fr]=Other\n",
+           "[Desktop Entry]\nBad_Key=value\n",
+           "[Desktop Entry]\nName=App\n[Équipe]\nName=Other\n"}) {
+    if (cursiv::test::validationHelper(language.language, std::string(source)).diagnostics.empty())
+      return fail("Desktop Entry 1.5 structural violation was not diagnosed");
+  }
+  if (!cursiv::test::validationHelper(language.language,
+          "[Desktop Entry]\nName=App\nName[fr]=Appli\n"
+          "[Desktop Action Open]\nName=Open\n").diagnostics.empty())
+    return fail("localized and independent group keys are distinct");
 
   int count = 0;
   for (const char *const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

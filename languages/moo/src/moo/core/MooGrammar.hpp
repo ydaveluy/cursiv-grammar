@@ -1,6 +1,7 @@
 // The moo language: its grammar.
 #pragma once
 
+#include <memory_resource>
 #include <string_view>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
@@ -8,10 +9,18 @@
 
 namespace moo {
 
-inline constexpr auto strip_quotes = [](std::string_view t) {
-  return t.substr(1, t.size() - 2);
+inline constexpr auto strip_quotes = [](std::string_view t,
+                                        std::pmr::memory_resource* mem) {
+  const auto body = t.substr(1, t.size() - 2);
+  if (body.find('\\') == body.npos) return body;
+  auto room = cursiv::text_room(mem, body.size());
+  std::size_t n = 0;
+  for (std::size_t i = 0; i < body.size(); ++i) {
+    if (body[i] == '\\' && i + 1 < body.size()) ++i;
+    room[n++] = body[i];
+  }
+  return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<strip_quotes>;
 
 struct Moo : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -19,147 +28,184 @@ struct Moo : cursiv::GrammarSpec {
   // a program, semicolons terminate statements and never hide later code.
   struct COMMENT : terminal<lit<";"> + some(cr<R"(^\r\n)">)> {};
 
-  struct WORD : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9!_*">)> {};
-  struct SYSNAME
+  // Native1.8 keywords are case-insensitive and cannot name program variables.
+  static constexpr auto Reserved =
+      ikw<"if"> | ikw<"else"> | ikw<"elseif"> | ikw<"endif"> |
+      ikw<"for"> | ikw<"in"> | ikw<"endfor"> | ikw<"fork"> |
+      ikw<"endfork"> | ikw<"return"> | ikw<"while"> | ikw<"endwhile"> |
+      ikw<"try"> | ikw<"except"> | ikw<"finally"> | ikw<"endtry"> |
+      ikw<"ANY"> | ikw<"break"> | ikw<"continue"> | ikw<"E_NONE"> |
+      ikw<"E_TYPE"> | ikw<"E_DIV"> | ikw<"E_PERM"> | ikw<"E_PROPNF"> |
+      ikw<"E_VERBNF"> | ikw<"E_VARNF"> | ikw<"E_INVIND"> | ikw<"E_RECMOVE"> |
+      ikw<"E_MAXREC"> | ikw<"E_RANGE"> | ikw<"E_ARGS"> | ikw<"E_NACC"> |
+      ikw<"E_INVARG"> | ikw<"E_QUOTA"> | ikw<"E_FLOAT">;
+
+  // Program identifiers must not absorb multiplication or logical-not.
+  // Client command patterns retain the imported wildcard spellings separately.
+  struct WORD : terminal<!Reserved + cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_">)> {};
+  struct CLIENT_WORD : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9!_*">)> {};
+  struct CLIENT_SYSNAME
       : terminal<lit<"$"> + option(cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9!_*">))> {};
+  struct SYSNAME
+      : terminal<lit<"$"> + option(cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_">))> {};
   struct STRINGLITERAL
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
+      : terminal<as<strip_quotes>(lit<"\""> +
+                 many((lit<"\\"> + cr<R"(^\r\n)">) | cr<R"(^"\\\r\n)">) +
+                 lit<"\"">)> {
+  };
   struct INTEGER : terminal<some(d)> {};
-  struct REAL : terminal<some(d) + lit<"."> + some(d)> {};
-  struct OBJREF : terminal<lit<"#"> + some(d)> {};
+  static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
+  struct REAL : terminal<(((some(d) + lit<".", !lit<".">> + many(d)) |
+                           (lit<"."> + some(d))) + option(exponent)) |
+                          (some(d) + exponent)> {};
+  struct OBJREF : terminal<lit<"#"> + option(lit<"-">) + some(d)> {};
   struct PERMISSIONS : terminal<some(cr<"rcxd">)> {};
 
-  struct EQ : terminal<lit<"==">, value<ast::Operator::equal>> {};
-  struct NEQ : terminal<lit<"!=">, value<ast::Operator::not_equal>> {};
-  struct GTE : terminal<lit<">=">, value<ast::Operator::greater_equal>> {};
-  struct LTE : terminal<lit<"<=">, value<ast::Operator::less_equal>> {};
-  struct GT : terminal<lit<">">, value<ast::Operator::greater>> {};
-  struct LT : terminal<lit<"<">, value<ast::Operator::less>> {};
-  struct AND : terminal<lit<"&&">, value<ast::Operator::logical_and>> {};
-  struct OR : terminal<lit<"||">, value<ast::Operator::logical_or>> {};
+  struct ERROR_NAME : terminal<ikw<"E_NONE"> | ikw<"E_TYPE"> | ikw<"E_DIV"> | ikw<"E_PERM"> | ikw<"E_PROPNF"> | ikw<"E_VERBNF"> | ikw<"E_VARNF"> | ikw<"E_INVIND"> | ikw<"E_RECMOVE"> | ikw<"E_MAXREC"> | ikw<"E_RANGE"> | ikw<"E_ARGS"> | ikw<"E_NACC"> | ikw<"E_INVARG"> | ikw<"E_QUOTA"> | ikw<"E_FLOAT">> {};
 
-  struct POW : terminal<lit<"^">, value<ast::Operator::power>> {};
-  struct TIMES : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIV : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct MOD : terminal<lit<"%">, value<ast::Operator::modulo>> {};
-  struct PLUSOP : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct MINUSOP : terminal<lit<"-">, value<ast::Operator::subtract>> {};
+  struct AND : terminal<as<ast::Operator::logical_and>(lit<"&&">)> {};
 
-  static constexpr auto Name = ref<WORD> | ref<SYSNAME>;
-  static constexpr auto NameOrString = Name | ref<STRINGLITERAL>;
-  static constexpr auto CompareOps = ref<EQ> | ref<NEQ> | ref<GTE> |
-                                     ref<LTE> | ref<GT> | ref<LT>;
+  struct POW : terminal<as<ast::Operator::power>(lit<"^">)> {};
+
+  static constexpr auto Name = ref<WORD> | ref<SYSNAME> | ikw<"do">;
+  static constexpr auto ClientName = ref<CLIENT_WORD> | ref<CLIENT_SYSNAME>;
+  static constexpr auto ClientNameOrString = ClientName | ref<STRINGLITERAL>;
+  static constexpr auto ClientObject = ClientNameOrString | ref<OBJREF>;
+  static constexpr auto CompareOps = as<ast::Operator::equal>(lit<"==">) | as<ast::Operator::not_equal>(lit<"!=">) | as<ast::Operator::greater_equal>(lit<">=">) |
+                                     as<ast::Operator::less_equal>(lit<"<=">) | as<ast::Operator::greater>(lit<">">) | as<ast::Operator::less>(lit<"<">) | as<ast::Operator::in_>(ikw<"in">);
 
   struct Expression;
   struct SignedAtom;
   struct Atom;
   struct PropertyChain;
+  struct VerbTarget;
   struct Statement;
 
-  // POW tightest, then */%, then binary +/-, all left-associative.
+  // Native LambdaMOO: exponentiation associates right; && and || share
+  // one left-associative level. Unary operators bind tighter than power.
   struct Expression
-      : infix<SignedAtom, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<POW>) >>                            //
-               left(ref<TIMES> | ref<DIV> | ref<MOD>) >>    //
-               left(ref<PLUSOP> | ref<MINUSOP>))> {};
+      : infix<SignedAtom, ast::BinaryExpr,
+              levels(right(ref<POW>),                          //
+                     left(as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">) | as<ast::Operator::modulo>(lit<"%">)),  //
+                     left(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">)),
+                     left(CompareOps),
+                     left(ref<AND> | as<ast::Operator::logical_or>(lit<"||">)))> {};
 
   struct SignedAtom
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
                  assign<&ast::UnaryExpr::operand>(ref<SignedAtom>)) |
+             create<ast::NotExpr>(lit<"!"> +
+                 assign<&ast::NotExpr::operand>(ref<SignedAtom>)) |
              ref<Atom>> {};
 
-  struct StringLitRule : rule<create<ast::StringLit> +
+  struct StringLit : rule<create<ast::StringLit> +
                               assign<&ast::StringLit::value>(
                                   ref<STRINGLITERAL>)> {};
-  struct IntLitRule : rule<create<ast::IntLit> +
+  struct IntLit : rule<create<ast::IntLit> +
                            assign<&ast::IntLit::value>(ref<INTEGER>)> {};
-  struct RealLitRule : rule<create<ast::RealLit> +
+  struct RealLit : rule<create<ast::RealLit> +
                             assign<&ast::RealLit::value>(ref<REAL>)> {};
-  struct ObjRefRule : rule<create<ast::ObjRef> +
+  struct ErrorLit : rule<assign<&ast::ErrorLit::name>(ref<ERROR_NAME>)> {};
+  struct ObjRef : rule<create<ast::ObjRef> +
                            assign<&ast::ObjRef::text>(ref<OBJREF>)> {};
-  struct ListRule
+  struct List
       : rule<create<ast::ListExpr> + lit<"{"> +
-             option(some(append<&ast::ListExpr::items>(ref<Expression>),
-                         lit<",">)) +
+             many(append<&ast::ListExpr::items>(ref<Expression>), lit<",">) +
              lit<"}">> {};
-  struct FuncCallRule
+  struct FuncCall
       : rule<create<ast::FuncCall> + assign<&ast::FuncCall::name>(Name) +
              lit<"("> +
              many(append<&ast::FuncCall::args>(ref<Expression>), lit<",">) +
              lit<")">> {};
-  struct VerbCallRule
+  struct VerbCall
       : rule<create<ast::VerbCall> +
-             assign<&ast::VerbCall::target>(ref<PropertyChain>) + lit<":"> +
+             assign<&ast::VerbCall::target>(ref<VerbTarget>) + lit<":"> +
              assign<&ast::VerbCall::verb>(Name) +
              option(lit<"("> +
-                    option(some(append<&ast::VerbCall::args>(ref<Expression>),
-                                lit<",">)) +
+                    many(append<&ast::VerbCall::args>(ref<Expression>), lit<",">) +
                     lit<")">)> {};
 
   struct Atom
-      : rule<ref<StringLitRule> | ref<FuncCallRule> | ref<VerbCallRule> |
-             ref<PropertyChain> | ref<IntLitRule> | ref<RealLitRule> |
-             ref<ListRule> | ref<ObjRefRule> |
-             (lit<"("> + ref<Expression> + lit<")">) |
-             create<ast::NotExpr>(
-                 lit<"!"> +
-                 assign<&ast::NotExpr::operand>(ref<Expression>))> {};
+      : rule<ref<StringLit> | ref<ErrorLit> | ref<FuncCall> | ref<VerbCall> |
+             ref<PropertyChain> | ref<IntLit> | ref<RealLit> |
+             ref<List> | ref<ObjRef> |
+             (lit<"("> + ref<Expression> + lit<")">)> {};
 
-  // `property_`: a base name/string, then a chain of `.name` or `[expr]`
-  // steps. Each step's directive wraps only the value, per the append<>
-  // pitfall on a vector<variant<...>>.
-  struct PropertyChain
-      : rule<create<ast::Property> + assign<&ast::Property::base>(
-                                         NameOrString) +
-             many((lit<"."> + append<&ast::Property::path>(Name)) |
-                  (lit<"["> +
-                   append<&ast::Property::path>(ref<Expression>) +
-                   lit<"]">))> {};
+  template <auto NameShape>
+  static constexpr auto PropertyStep =
+      (lit<"."> + append<&ast::Property::path>(NameShape)) |
+      (lit<"["> + append<&ast::Property::path>(ref<Expression>) + lit<"]">);
+  template <auto NameShape, bool BareLiteral>
+  static constexpr auto LiteralPropertyTail = [] {
+    if constexpr (BareLiteral) return many(PropertyStep<NameShape>);
+    else return some(PropertyStep<NameShape>);
+  }();
+  template <auto NameShape, bool BareLiteral>
+  static constexpr auto PropertyBody =
+      create<ast::Property> +
+      ((assign<&ast::Property::base>(NameShape) + many(PropertyStep<NameShape>)) |
+       (flag<&ast::Property::stringBase>(assign<&ast::Property::base>(ref<STRINGLITERAL>)) +
+        LiteralPropertyTail<NameShape, BareLiteral>) |
+       (flag<&ast::Property::objectBase>(assign<&ast::Property::base>(ref<OBJREF>)) +
+        LiteralPropertyTail<NameShape, BareLiteral>));
+  struct PropertyChain : rule<PropertyBody<Name, false>> {};
+  struct VerbTarget : rule<PropertyBody<Name, true>> {};
+  struct ClientPropertyChain : rule<PropertyBody<ClientName, true>> {};
 
-  // Comparisons bind tighter than `&&`, `&&` tighter than `||`.
-  struct Comparison
-      : infix<Expression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(CompareOps) >> left(ref<AND>) >> left(ref<OR>))> {};
+  struct Condition : rule<lit<"("> + ref<Expression> + lit<")">> {};
 
-  struct Condition : rule<lit<"("> + ref<Comparison> + lit<")">> {};
-
+  struct ElseIfClause
+      : rule<ikw<"elseif"> + assign<&ast::ElseIfClause::cond>(ref<Condition>) +
+             many(append<&ast::ElseIfClause::body>(ref<Statement>))> {};
   struct IfStmt
-      : rule<create<ast::IfStmt> + kw<"if"> +
+      : rule<create<ast::IfStmt> + ikw<"if"> +
              assign<&ast::IfStmt::cond>(ref<Condition>) +
              many(append<&ast::IfStmt::thenBody>(ref<Statement>)) +
-             option(kw<"elseif"> +
-                    assign<&ast::IfStmt::elifCond>(ref<Condition>) +
-                    many(append<&ast::IfStmt::elifBody>(ref<Statement>))) +
-             option(kw<"else"> +
+             many(append<&ast::IfStmt::elseIfs>(ref<ElseIfClause>)) +
+             option(flag<&ast::IfStmt::hasElse>(ikw<"else">) +
                     many(append<&ast::IfStmt::elseBody>(ref<Statement>))) +
-             kw<"endif"> + option(lit<";">)> {};
+             ikw<"endif"> + option(lit<";">)> {};
 
-  struct WhileStmt : rule<create<ast::WhileStmt> + kw<"while"> +
+  struct WhileStmt : rule<create<ast::WhileStmt> + ikw<"while"> +
+                          option(assign<&ast::WhileStmt::name>(ref<WORD>)) +
                           assign<&ast::WhileStmt::cond>(ref<Condition>) +
                           many(append<&ast::WhileStmt::body>(ref<Statement>)) +
-                          kw<"endwhile"> + option(lit<";">)> {};
+                          ikw<"endwhile"> + option(lit<";">)> {};
 
   struct DoStmt
-      : rule<create<ast::DoStmt> + kw<"do"> +
-             many(append<&ast::DoStmt::body>(ref<Statement>)) + kw<"while"> +
+      : rule<create<ast::DoStmt> + ikw<"do"> +
+             many(append<&ast::DoStmt::body>(ref<Statement>)) + ikw<"while"> +
              assign<&ast::DoStmt::cond>(ref<Condition>)> {};
 
   struct ForStmt
-      : rule<create<ast::ForStmt> + kw<"for"> +
-             assign<&ast::ForStmt::var>(Name) + kw<"in"> +
-             assign<&ast::ForStmt::iterable>(ref<Expression>) +
-             many(append<&ast::ForStmt::body>(ref<Statement>)) + kw<"endfor">> {
+      : rule<create<ast::ForStmt> + ikw<"for"> +
+             assign<&ast::ForStmt::var>(Name) + ikw<"in"> +
+             ((lit<"["> + assign<&ast::ForStmt::from>(ref<Expression>) + lit<".."> +
+               assign<&ast::ForStmt::to>(ref<Expression>) + lit<"]">) |
+              assign<&ast::ForStmt::iterable>(ref<Expression>)) +
+             many(append<&ast::ForStmt::body>(ref<Statement>)) + ikw<"endfor">> {
   };
 
+  struct ExceptClause
+      : rule<ikw<"except"> + option(assign<&ast::ExceptClause::variable>(ref<WORD>)) +
+             lit<"("> +
+             (flag<&ast::ExceptClause::any>(ikw<"ANY">) |
+              some(append<&ast::ExceptClause::codes>(ref<Expression>), lit<",">)) +
+             lit<")"> + many(append<&ast::ExceptClause::body>(ref<Statement>))> {};
   struct TryStmt
-      : rule<create<ast::TryStmt> + kw<"try"> +
-             many(append<&ast::TryStmt::body>(ref<Statement>)) + kw<"except"> +
-             assign<&ast::TryStmt::except>(ref<PropertyChain>) +
-             many(append<&ast::TryStmt::handler>(ref<Statement>)) +
-             kw<"endtry">> {};
+      : rule<create<ast::TryStmt> + ikw<"try"> +
+             many(append<&ast::TryStmt::body>(ref<Statement>)) +
+             (some(append<&ast::TryStmt::clauses>(ref<ExceptClause>)) |
+              (flag<&ast::TryStmt::hasFinally>(ikw<"finally">) +
+               many(append<&ast::TryStmt::cleanup>(ref<Statement>))) |
+              // Keep the imported pedagogical unparenthesized handler form.
+              (ikw<"except"> + assign<&ast::TryStmt::except>(ref<ClientPropertyChain>) +
+               many(append<&ast::TryStmt::handler>(ref<Statement>)))) +
+             ikw<"endtry">> {};
+  struct LoopControlStmt
+      : rule<(flag<&ast::LoopControlStmt::continue_>(ikw<"continue">) | ikw<"break">) +
+             option(assign<&ast::LoopControlStmt::name>(ref<WORD>)) + lit<";">> {};
 
   struct AssignStmt
       : rule<create<ast::AssignStmt> +
@@ -167,113 +213,113 @@ struct Moo : cursiv::GrammarSpec {
              lit<"="> + assign<&ast::AssignStmt::value>(ref<Expression>) +
              lit<";">> {};
 
-  struct ReturnCmdRule
-      : rule<create<ast::ReturnCommand> + kw<"return"> +
+  struct ReturnCmd
+      : rule<create<ast::ReturnCommand> + ikw<"return"> +
              option(assign<&ast::ReturnCommand::value>(ref<Expression>))> {};
 
   struct CommandStmt
       : rule<create<ast::CommandStmt> +
-             assign<&ast::CommandStmt::command>(ref<VerbCallRule> |
-                                                ref<ReturnCmdRule>) +
+             assign<&ast::CommandStmt::command>(ref<VerbCall> |
+                                                ref<ReturnCmd> | ref<FuncCall>) +
              lit<";">> {};
 
   struct Statement
       : rule<ref<IfStmt> | ref<WhileStmt> | ref<DoStmt> | ref<ForStmt> |
-             ref<AssignStmt> | ref<TryStmt> | ref<CommandStmt>> {};
+             ref<AssignStmt> | ref<TryStmt> | ref<LoopControlStmt> | ref<CommandStmt>> {};
 
-  struct ProgramDeclRule
-      : rule<create<ast::ProgramDecl> + lit<"@program"> +
-             assign<&ast::ProgramDecl::object>(NameOrString) + lit<":"> +
-             assign<&ast::ProgramDecl::verb>(Name) +
+  struct ProgramDecl
+      : rule<create<ast::ProgramDecl> + ikw<"@program"> +
+             assign<&ast::ProgramDecl::object>(ClientObject) + lit<":"> +
+             assign<&ast::ProgramDecl::verb>(ClientName) +
              many(append<&ast::ProgramDecl::body>(ref<Statement>)) + lit<".">> {
   };
 
-  struct VerbDeclRule
-      : rule<create<ast::VerbDecl> + lit<"@verb"> +
-             assign<&ast::VerbDecl::object>(NameOrString) + lit<":"> +
-             assign<&ast::VerbDecl::verb>(Name) +
-             some(append<&ast::VerbDecl::args>(Name)) +
+  struct VerbDecl
+      : rule<create<ast::VerbDecl> + ikw<"@verb"> +
+             assign<&ast::VerbDecl::object>(ClientObject) + lit<":"> +
+             assign<&ast::VerbDecl::verb>(ClientName) +
+             some(append<&ast::VerbDecl::args>(ClientName)) +
              option(assign<&ast::VerbDecl::permissions>(ref<PERMISSIONS>))> {
   };
 
-  struct PropertyDeclRule
+  struct PropertyDecl
       : rule<create<ast::PropertyDecl> +
-             (lit<"@property"> | lit<"@prop">) +
-             assign<&ast::PropertyDecl::target>(ref<PropertyChain>) +
+             (ikw<"@property"> | ikw<"@prop">) +
+             assign<&ast::PropertyDecl::target>(ref<ClientPropertyChain>) +
              option(lit<"=">) +
              option(assign<&ast::PropertyDecl::value>(ref<Expression>)) +
              option(assign<&ast::PropertyDecl::permissions>(
                  ref<PERMISSIONS>))> {};
 
-  struct RmPropertyDeclRule
+  struct RmPropertyDecl
       : rule<create<ast::RmPropertyDecl> +
-             (lit<"@rmproperty"> | lit<"@rmprop">) +
-             assign<&ast::RmPropertyDecl::name>(Name)> {};
+             (ikw<"@rmproperty"> | ikw<"@rmprop">) +
+             assign<&ast::RmPropertyDecl::name>(ClientName)> {};
 
-  struct SetPropertyDeclRule
-      : rule<create<ast::SetPropertyDecl> + lit<"@set"> +
-             assign<&ast::SetPropertyDecl::target>(ref<PropertyChain>) +
-             kw<"to"> +
+  struct SetPropertyDecl
+      : rule<create<ast::SetPropertyDecl> + ikw<"@set"> +
+             assign<&ast::SetPropertyDecl::target>(ref<ClientPropertyChain>) +
+             ikw<"to"> +
              assign<&ast::SetPropertyDecl::value>(ref<Expression>)> {};
 
-  struct DisplayPropertyDeclRule
+  struct DisplayPropertyDecl
       : rule<create<ast::DisplayPropertyDecl> +
-             (lit<"@display"> | lit<"@disp">) +
-             assign<&ast::DisplayPropertyDecl::target>(ref<PropertyChain>)> {
+             (ikw<"@display"> | ikw<"@disp">) +
+             assign<&ast::DisplayPropertyDecl::target>(ref<ClientPropertyChain>)> {
   };
 
-  struct KidsDeclRule : rule<create<ast::KidsDecl> + lit<"@kids"> +
-                             assign<&ast::KidsDecl::name>(Name)> {};
+  struct KidsDecl : rule<create<ast::KidsDecl> + ikw<"@kids"> +
+                             assign<&ast::KidsDecl::name>(ClientName)> {};
 
-  struct ParentDeclRule : rule<create<ast::ParentDecl> + lit<"@parent"> +
-                               assign<&ast::ParentDecl::name>(Name)> {};
+  struct ParentDecl : rule<create<ast::ParentDecl> + ikw<"@parent"> +
+                               assign<&ast::ParentDecl::name>(ClientName)> {};
 
-  struct DescribeDeclRule
-      : rule<create<ast::DescribeDecl> + lit<"@describe"> +
-             assign<&ast::DescribeDecl::target>(ref<PropertyChain>) +
-             kw<"as"> +
+  struct DescribeDecl
+      : rule<create<ast::DescribeDecl> + ikw<"@describe"> +
+             assign<&ast::DescribeDecl::target>(ref<ClientPropertyChain>) +
+             ikw<"as"> +
              assign<&ast::DescribeDecl::value>(ref<Expression>)> {};
 
-  struct ContentsDeclRule
-      : rule<create<ast::ContentsDecl> + lit<"@contents"> +
-             assign<&ast::ContentsDecl::name>(Name)> {};
+  struct ContentsDecl
+      : rule<create<ast::ContentsDecl> + ikw<"@contents"> +
+             assign<&ast::ContentsDecl::name>(ClientName)> {};
 
-  struct NoteditDeclRule
-      : rule<create<ast::NoteditDecl> + lit<"@notedit"> +
-             assign<&ast::NoteditDecl::target>(ref<PropertyChain>)> {};
+  struct NoteditDecl
+      : rule<create<ast::NoteditDecl> + ikw<"@notedit"> +
+             assign<&ast::NoteditDecl::target>(ref<ClientPropertyChain>)> {};
 
-  struct CreateDeclRule
-      : rule<create<ast::CreateDecl> + lit<"@create"> +
-             assign<&ast::CreateDecl::parent>(ref<SYSNAME>) + kw<"called"> +
+  struct CreateDecl
+      : rule<create<ast::CreateDecl> + ikw<"@create"> +
+             assign<&ast::CreateDecl::parent>(ref<CLIENT_SYSNAME>) + ikw<"called"> +
              some(append<&ast::CreateDecl::args>(ref<Expression>),
                   lit<",">)> {};
 
-  struct EditDeclRule : rule<create<ast::EditDecl> + lit<"@edit"> +
+  struct EditDecl : rule<create<ast::EditDecl> + ikw<"@edit"> +
                              assign<&ast::EditDecl::target>(
-                                 ref<PropertyChain>)> {};
+                                 ref<ClientPropertyChain>)> {};
 
-  struct AddAliasDeclRule
-      : rule<create<ast::AddAliasDecl> + lit<"@addalias"> +
-             some(append<&ast::AddAliasDecl::names>(Name), lit<",">) +
-             kw<"to"> +
+  struct AddAliasDecl
+      : rule<create<ast::AddAliasDecl> + ikw<"@addalias"> +
+             some(append<&ast::AddAliasDecl::names>(ClientName), lit<",">) +
+             ikw<"to"> +
              assign<&ast::AddAliasDecl::target>(ref<Expression>)> {};
 
-  struct DeclarationRule
-      : rule<ref<ProgramDeclRule> | ref<VerbDeclRule> |
-             ref<PropertyDeclRule> | ref<RmPropertyDeclRule> |
-             ref<SetPropertyDeclRule> | ref<DisplayPropertyDeclRule> |
-             ref<KidsDeclRule> | ref<ParentDeclRule> | ref<DescribeDeclRule> |
-             ref<ContentsDeclRule> | ref<NoteditDeclRule> |
-             ref<CreateDeclRule> | ref<EditDeclRule> |
-             ref<AddAliasDeclRule>> {};
+  struct Declaration
+      : rule<ref<ProgramDecl> | ref<VerbDecl> |
+             ref<PropertyDecl> | ref<RmPropertyDecl> |
+             ref<SetPropertyDecl> | ref<DisplayPropertyDecl> |
+             ref<KidsDecl> | ref<ParentDecl> | ref<DescribeDecl> |
+             ref<ContentsDecl> | ref<NoteditDecl> |
+             ref<CreateDecl> | ref<EditDecl> |
+             ref<AddAliasDecl>> {};
 
-  struct ProgRule
+  struct Prog
       : rule<create<ast::Prog> + many(ref<COMMENT>) +
-             some(append<&ast::Prog::declarations>(ref<DeclarationRule>) +
+             some(append<&ast::Prog::declarations>(ref<Declaration>) +
                   many(ref<COMMENT>))> {};
 
-  using entry = ProgRule;
-  using ignore = WS;
+  using entry = Prog;
+  using ignored = WS;
 };
 
 }  // namespace moo

@@ -38,6 +38,8 @@ struct Iri : cursiv::GrammarSpec {
       IUnreserved | PctEncoded | SubDelims | lit<":">;
   static constexpr auto RegNameChar = IUnreserved | PctEncoded | SubDelims;
 
+  // Shape only; the authority validator enforces <=255 and no leading zero
+  // in an IPv4 tail of IPv6. A plain dotted ihost may instead be a reg-name.
   static constexpr auto DecOctet = repeat<1, 3>(Digit);
   static constexpr auto Ipv4Address = DecOctet + lit<"."> + DecOctet +
                                       lit<"."> + DecOctet + lit<"."> + DecOctet;

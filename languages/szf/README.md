@@ -31,21 +31,12 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-szf is a restricted [SFZ](https://sfzformat.com) instrument definition: a
-document is zero or more `<group>` headers, each holding `key=value` pairs
-and nested `<region>` blocks of their own.
+SFZ text with headers, opcodes, values, macros and include directives. The AST keeps their flat source order.
 
 ```
-<group>
-ampeg_attack=0.04 ampeg_release=0.45
-
-<region> sample=trumpet_pp_c4.wav key=c4
-<region> sample=trumpet_pp_d4.wav key=d4
+<group> ampeg_attack=0.04
+<region> sample=My samples/trumpet.wav key=c4
 ```
-
-A value is either an identifier (`trumpet_pp_c4.wav`, `c#4` — letters, digits,
-`.`, `_`, `/` and `#`) or a number (`0.04`). `example/` contains two sample
-banks.
 
 ## The command line
 

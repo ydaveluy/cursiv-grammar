@@ -35,11 +35,9 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 5901234123457
 ```
 
-A GTIN is read digit by digit, no separators required — hyphens and
-whitespace are trivia, so `590-1234-12345-7` reads the same. `example/`
-holds one document per shape the grammar accepts: an EAN-8, a UPC-A and
-UPC-E, all four EAN-13 forms (generic, ISMN, ISSN, Bookland), an EAN-14, and
-the 2- and 5-digit supplemental codes.
+The source spelling is retained in a single text node. Validation recognizes
+formatted GTIN/UPC and supplement shapes; `example/` supplies representative
+EAN-8, UPC-A/UPC-E, EAN-13/EAN-14 and supplement inputs.
 
 ## The command line
 

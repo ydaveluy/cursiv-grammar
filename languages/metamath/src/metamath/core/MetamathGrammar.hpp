@@ -12,75 +12,75 @@ struct Metamath : cursiv::GrammarSpec {
   struct FILENAME : terminal<some(cr<"!-~">)> {};
   struct PROOF_LABEL : terminal<some(cr<R"(!-#%-'*-9;-<>@-~)">)> {};
 
-  struct IncludeStmtRule
+  struct IncludeStmt
       : rule<lit<"$["> + assign<&ast::IncludeStmt::filename>(ref<FILENAME>) +
              lit<"$]">> {};
 
   static constexpr auto Math = many(
-      append<&ast::MathStatement::math>(ref<IncludeStmtRule> | ref<SYMBOL>));
+      append<&ast::MathStatement::math>(ref<IncludeStmt> | ref<SYMBOL>));
   static constexpr auto Label =
       option(assign<&ast::LabeledStatement::label>(ref<SYMBOL>));
 
-  struct ConstantStmtRule
+  struct ConstantStmt
       : rule<create<ast::ConstantStmt>(lit<"$c"> + Math + lit<"$.">)> {};
-  struct VariableStmtRule
+  struct VariableStmt
       : rule<create<ast::VariableStmt>(lit<"$v"> + Math + lit<"$.">)> {};
-  struct DisjointStmtRule
+  struct DisjointStmt
       : rule<create<ast::DisjointStmt>(lit<"$d"> + Math + lit<"$.">)> {};
-  struct FloatingStmtRule
+  struct FloatingStmt
       : rule<create<ast::FloatingStmt>(Label + lit<"$f"> + Math + lit<"$.">)> {
   };
-  struct EssentialStmtRule
+  struct EssentialStmt
       : rule<create<ast::EssentialStmt>(Label + lit<"$e"> + Math + lit<"$.">)> {
   };
-  struct AxiomStmtRule
+  struct AxiomStmt
       : rule<create<ast::AxiomStmt>(Label + lit<"$a"> + Math + lit<"$.">)> {};
 
-  struct ProofStepRule
+  struct ProofStep
       : rule<((assign<&ast::ProofStep::target>(ref<PROOF_LABEL>) + lit<"="> +
                option(assign<&ast::ProofStep::local>(ref<PROOF_LABEL>) +
                       lit<":">)) |
               (assign<&ast::ProofStep::local>(ref<PROOF_LABEL>) + lit<":">)) +
              assign<&ast::ProofStep::label>(ref<PROOF_LABEL> | lit<"?">)> {};
-  struct UncompressedProofRule
+  struct UncompressedProof
       : rule<create<ast::UncompressedProof> +
              many(append<&ast::UncompressedProof::steps>(
-                 ref<IncludeStmtRule> | ref<ProofStepRule> | ref<PROOF_LABEL> |
+                 ref<IncludeStmt> | ref<ProofStep> | ref<PROOF_LABEL> |
                  lit<"?">))> {};
-  struct CompressedProofRule
+  struct CompressedProof
       : rule<lit<"("> +
-             many(append<&ast::CompressedProof::labels>(ref<IncludeStmtRule> |
+             many(append<&ast::CompressedProof::labels>(ref<IncludeStmt> |
                                                         ref<PROOF_LABEL>)) +
              lit<")"> +
-             many(append<&ast::CompressedProof::blocks>(ref<IncludeStmtRule> |
+             many(append<&ast::CompressedProof::blocks>(ref<IncludeStmt> |
                                                         ref<SYMBOL>))> {};
-  struct ProvableStmtRule
+  struct ProvableStmt
       : rule<create<ast::ProvableStmt>(
             Label + lit<"$p"> + Math + lit<"$="> +
-            assign<&ast::ProvableStmt::proof>(ref<CompressedProofRule> |
-                                              ref<UncompressedProofRule>) +
+            assign<&ast::ProvableStmt::proof>(ref<CompressedProof> |
+                                              ref<UncompressedProof>) +
             lit<"$.">)> {};
 
-  struct DeferredStmtRule
+  struct DeferredStmt
       : rule<create<ast::DeferredStmt>(
             option(append<&ast::MathStatement::math>(ref<SYMBOL>)) +
-            append<&ast::MathStatement::math>(ref<IncludeStmtRule>) + Math +
+            append<&ast::MathStatement::math>(ref<IncludeStmt>) + Math +
             option(lit<"$="> +
                    assign<&ast::DeferredStmt::proof>(
-                       ref<CompressedProofRule> | ref<UncompressedProofRule>)) +
+                       ref<CompressedProof> | ref<UncompressedProof>)) +
             lit<"$.">)> {};
-  struct ScopeOpenRule : rule<create<ast::ScopeOpen>(lit<"${">)> {};
-  struct ScopeCloseRule : rule<create<ast::ScopeClose>(lit<"$}">)> {};
+  struct ScopeOpen : rule<create<ast::ScopeOpen>(lit<"${">)> {};
+  struct ScopeClose : rule<create<ast::ScopeClose>(lit<"$}">)> {};
   static constexpr auto Statement =
-      ref<DeferredStmtRule> | ref<IncludeStmtRule> | ref<ScopeOpenRule> |
-      ref<ScopeCloseRule> | ref<ConstantStmtRule> | ref<VariableStmtRule> |
-      ref<DisjointStmtRule> | ref<FloatingStmtRule> | ref<EssentialStmtRule> |
-      ref<AxiomStmtRule> | ref<ProvableStmtRule>;
-  struct DatabaseRule : rule<create<ast::Database> +
+      ref<DeferredStmt> | ref<IncludeStmt> | ref<ScopeOpen> |
+      ref<ScopeClose> | ref<ConstantStmt> | ref<VariableStmt> |
+      ref<DisjointStmt> | ref<FloatingStmt> | ref<EssentialStmt> |
+      ref<AxiomStmt> | ref<ProvableStmt>;
+  struct Database : rule<create<ast::Database> +
                              many(append<&ast::Database::stmts>(Statement))> {};
 
-  using entry = DatabaseRule;
-  using ignore = WS;
+  using entry = Database;
+  using ignored = WS;
   using hidden = list<BLOCK_COMMENT>;
 };
 

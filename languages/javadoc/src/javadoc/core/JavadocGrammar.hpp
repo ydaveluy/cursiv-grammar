@@ -19,14 +19,25 @@ struct Javadoc : cursiv::GrammarSpec {
                                                   some(lit<"*", !lit<"/">>))> {
   };
 
-  struct Brace;
-  struct RawInlineText : terminal<some(cr<"^{}">)> {};
+  template<bool Wrapped> struct Brace;
+  template<bool Wrapped>
+  static constexpr auto inlineChar = [] {
+    if constexpr (Wrapped)
+      return cr<"^{}*"> | lit<"*", !lit<"/">>;
+    else
+      return cr<"^{}">;
+  }();
+  template<bool Wrapped>
+  struct RawInlineText : terminal<some(inlineChar<Wrapped>)> {};
+  template<bool Wrapped>
   struct Brace
-      : rule<lit<"{"> + many(ref<RawInlineText> | ref<Brace>) + lit<"}">> {};
-  struct InlineContent : rule<many(ref<RawInlineText> | ref<Brace>)> {};
-  struct InlineTagRule
+      : rule<lit<"{"> + many(ref<RawInlineText<Wrapped>> | ref<Brace<Wrapped>>) + lit<"}">> {};
+  template<bool Wrapped>
+  struct InlineContent : rule<many(ref<RawInlineText<Wrapped>> | ref<Brace<Wrapped>>)> {};
+  template<bool Wrapped>
+  struct InlineTag
       : rule<lit<"{@"> + assign<&ast::InlineTag::name>(ref<NAME>) +
-             assign<&ast::InlineTag::content>(ref<InlineContent>) + lit<"}">> {
+             assign<&ast::InlineTag::content>(ref<InlineContent<Wrapped>>) + lit<"}">> {
   };
 
   template <bool Wrapped>
@@ -69,8 +80,8 @@ struct Javadoc : cursiv::GrammarSpec {
         return ref<FirstText<Wrapped>>;
     }();
     return (option(append<Member>(ref<SPACE>)) +
-            append<Member>(ref<InlineTagRule> | first) +
-            many(append<Member>(ref<InlineTagRule> | ref<Text<Wrapped>>)) +
+            append<Member>(ref<InlineTag<Wrapped>> | first) +
+            many(append<Member>(ref<InlineTag<Wrapped>> | ref<Text<Wrapped>>)) +
             lineEnd<Wrapped> + option(append<Member>(newline<Wrapped>))) |
            (option(append<Member>(ref<SPACE>)) +
             append<Member>(newline<Wrapped>)) |
@@ -78,10 +89,10 @@ struct Javadoc : cursiv::GrammarSpec {
   }();
 
   template <bool Wrapped>
-  struct BlockTagRule
+  struct BlockTag
       : rule<option(ref<SPACE>) + lit<"@"> +
              assign<&ast::BlockTag::name>(ref<NAME>) +
-             many(append<&ast::BlockTag::content>(ref<InlineTagRule> |
+             many(append<&ast::BlockTag::content>(ref<InlineTag<Wrapped>> |
                                                   ref<Text<Wrapped>>)) +
              lineEnd<Wrapped> +
              option(append<&ast::BlockTag::content>(newline<Wrapped>)) +
@@ -91,21 +102,21 @@ struct Javadoc : cursiv::GrammarSpec {
       : rule<create<ast::Documentation> +
              flag<&ast::Documentation::wrapped>(ref<START>) +
              many(line<&ast::Documentation::description, true>) +
-             many(append<&ast::Documentation::tags>(ref<BlockTagRule<true>>)) +
+             many(append<&ast::Documentation::tags>(ref<BlockTag<true>>)) +
              ref<END>> {};
   struct BareDocument
       : rule<create<ast::Documentation> +
              option(line<&ast::Documentation::description, false, true> +
                     many(line<&ast::Documentation::description, false>)) +
              many(
-                 append<&ast::Documentation::tags>(ref<BlockTagRule<false>>))> {
+                 append<&ast::Documentation::tags>(ref<BlockTag<false>>))> {
   };
   struct EmptyDocument : rule<create<ast::Documentation> +
                               flag<&ast::Documentation::wrapped>(lit<"/**/">)> {
   };
-  struct DocumentationRule
+  struct Documentation
       : rule<ref<EmptyDocument> | ref<WrappedDocument> | ref<BareDocument>> {};
-  using entry = DocumentationRule;
+  using entry = Documentation;
 };
 
 } // namespace javadoc

@@ -9,6 +9,10 @@ namespace lcc {
 
 void LccValidator::checkClass(const ast::CallNumber& number,
                               cursiv::ValidationAcceptor& accept) const {
+  if (number.subclasses.empty() || number.subclasses[0].size() > 4 ||
+      number.subclasses.size() > 2)
+    accept.error(number, "An LC class number has one to four whole-number digits and at most one decimal part.",
+                 "lcc.class-number").property<&ast::CallNumber::subclasses>();
   if (number.topic.size() + (number.subtopic ? number.subtopic->size() : 0) > 3)
     accept.error(number, "A class has at most three letters.", "lcc.class-letters")
         .property<&ast::CallNumber::subtopic>();

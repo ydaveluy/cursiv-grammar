@@ -4,7 +4,7 @@ Inline markup
 Some *emphasis*, some **strong text**, and an inline `literal`, all in
 the same sentence.
 
-See target_ for the definition, and _target marks it inline.
+See target_ for the definition, and _`target` marks it inline.
 
 A named link: `Python <https://www.python.org/>`_ leads out.
 

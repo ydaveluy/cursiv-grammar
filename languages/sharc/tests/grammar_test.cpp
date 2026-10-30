@@ -45,6 +45,15 @@ cursiv::ParseResult parse_clean(const std::string& text, const char* label) {
   check(r.accepted, label);
   check(!r.cst().recovered(), label);
   check(r.diagnostics.empty(), label);
+  if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) {
+    std::fprintf(stderr, "sharc: source=%s accepted=%d recovered=%d diagnostics=%zu\n",
+                 label, r.accepted, r.cst().recovered(), r.diagnostics.size());
+    for (const auto& diagnostic : r.diagnostics)
+      std::fprintf(stderr, "sharc: kind=%d begin=%u end=%u element=%u message=[%s]\n",
+          static_cast<int>(diagnostic.kind), diagnostic.begin, diagnostic.end,
+          static_cast<unsigned>(diagnostic.element), diagnostic.message.c_str());
+    std::fprintf(stderr, "sharc: full source=[%s]\n", text.c_str());
+  }
   return r;
 }
 

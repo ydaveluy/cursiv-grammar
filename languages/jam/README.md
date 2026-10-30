@@ -31,15 +31,12 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+JAM chord charts contain measures, chords, repeats and meters. In this English-note subset, C/G is a slash bass and C / G contains three beats.
+
 ```
 Dm7 Bm7-5 | E7   A7   | Dm7 /  | Gm7   C7
 F+7 F7    | Bb+7 Bbm7 | F+7 /  | Em7-5 A7
 ```
-
-A chord chart: bar-separated measures of jazz chord shorthand. `Dm7` is a note
-and a quality; `/` repeats the chord before it, `-` is a rest, `=` holds a
-chord, `%` repeats the measure, and `[3/4]` states a meter. `example/`
-contains chord charts.
 
 ## The command line
 

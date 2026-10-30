@@ -74,10 +74,27 @@ void every_opcode_is_covered() {
         ldMem->reg1 == 0);
 }
 
+void jump_register_is_one_token() {
+  const std::string source = "JP V0, ABC";
+  const auto r = engine().parse(source);
+  const auto* program = r.value_as<ast::Program>();
+  CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
+  CHECK(program && program->instructions.size() == 1);
+  if (program && program->instructions.size() == 1)
+    CHECK(program->instructions[0]->op == ast::Op::JpV0Addr &&
+          program->instructions[0]->imm == 0xABC);
+  for (const char* invalid : {"JP V 0, ABC", "JP V\n0, ABC", "JP V1, ABC"}) {
+    const auto invalid_result = engine().parse(invalid);
+    CHECK(!invalid_result.accepted || invalid_result.cst().recovered() ||
+          !invalid_result.diagnostics.empty());
+  }
+}
+
 }  // namespace
 
 int main() {
   every_example_parses_clean();
   every_opcode_is_covered();
+  jump_register_is_one_token();
   return cursiv::test::report("chip8_grammar_test");
 }

@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+DCM 2.x text files describe ECU calibration values, blocks, curves and maps.
+
 ```
 KONSERVIERUNG_FORMAT 2.0
 
@@ -41,13 +43,6 @@ EINHEIT_W "bar"
 WERT 1.25
 END
 ```
-
-A DCM file (Bosch's ECU calibration/conservation format) is line-oriented:
-a `KONSERVIERUNG_FORMAT 2.0` header, an optional module/function/variant
-header, then a body of characteristic values -- scalars (`FESTWERT`),
-blocks, curves (`KENNLINIE`), maps (`KENNFELD`) and support-point
-distributions, each with optional metadata (`LANGNAME`, `DISPLAYNAME`,
-`VAR`, `FUNKTION`).
 
 ## The command line
 

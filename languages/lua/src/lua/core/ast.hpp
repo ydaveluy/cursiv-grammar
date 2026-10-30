@@ -64,6 +64,7 @@ struct NumberExpr : cursiv::Extends<Expr> {
 // runtime value decodes `\n`, `\ddd`, `\xXX`, `\u{...}` itself.
 struct StringExpr : cursiv::Extends<Expr> {
   string_view value;
+  boolean longForm;
 };
 
 struct TableField : cursiv::Extends<cursiv::AstNode> {

@@ -18,7 +18,7 @@ struct Verilog : cursiv::GrammarSpec {
       lit<"end_keywords"> | lit<"define"> | lit<"ifdef"> | lit<"ifndef"> |
       lit<"else"> | lit<"elsif"> | lit<"endif">;
   struct DIRECTIVE_LINE
-      : terminal<lit<"`"> + DirectiveKw +
+      : terminal<lit<"`"> + DirectiveKw + !cr<"a-zA-Z0-9_$"> +
                  many((lit<"\\"> + option(lit<"\r">) + lit<"\n">) |
                       cr<R"(^\r\n)">)> {};
   struct BALANCED_PARENS;
@@ -68,8 +68,8 @@ struct Verilog : cursiv::GrammarSpec {
       : terminal<!(ReservedWord + !cr<"a-zA-Z0-9_$">) +
                  cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_$">)> {};
   struct ESCID
-      : terminal<lit<"\\"> + some(cr<R"(^ \t\b\f\r\n)">),
-                 text_conv<[](std::string_view text) { return text.substr(1); }>> {};
+      : terminal<as<[](std::string_view text) { return text.substr(1); }>(
+            lit<"\\"> + some(cr<R"(^ \t\b\f\r\n)">))> {};
   static constexpr auto ID = ref<SIMPLEID> | ref<ESCID> | ref<MACRO_USAGE>;
 
   struct SYSID
@@ -132,7 +132,7 @@ struct Verilog : cursiv::GrammarSpec {
   struct Statement;
   struct ModuleItem;
   struct ModuleOrGenerateItem;
-  struct GenerateBlockRule;
+  struct GenerateBlock;
   struct GenerateBlockOrNull;
 
   struct HierSeg
@@ -194,7 +194,7 @@ struct Verilog : cursiv::GrammarSpec {
                           ref<Expression>) +
                       lit<"]">))> {};
 
-  struct NumberRule
+  struct Number
       : rule<create<ast::NumberLit>(
                  option(assign<&ast::NumberLit::size>(ref<UNSIGNED_NUMBER>)) +
                  ((assign<&ast::NumberLit::base>(ref<BINARY_BASE>) +
@@ -211,7 +211,7 @@ struct Verilog : cursiv::GrammarSpec {
              create<ast::IntLit>(
                  assign<&ast::IntLit::text>(ref<UNSIGNED_NUMBER>))> {};
 
-  struct StringLitRule
+  struct StringLit
       : rule<assign<&ast::StringLit::text>(ref<STRING>)> {};
 
   struct ConcatOrReplicate
@@ -237,8 +237,8 @@ struct Verilog : cursiv::GrammarSpec {
                  assign<&ast::MinTypMaxExpr::max>(ref<Expression>)) |
              ref<Expression>> {};
 
-  struct Primary : rule<ref<PreprocessorExpr> | ref<NumberRule>                            //
-                        | ref<StringLitRule>                       //
+  struct Primary : rule<ref<PreprocessorExpr> | ref<Number>                            //
+                        | ref<StringLit>                       //
                         | ref<ConcatOrReplicate>                   //
                         | ref<PostfixChain>                        //
                         | (lit<"("> + ref<MinTypMax> + lit<")">)> {
@@ -271,26 +271,24 @@ struct Verilog : cursiv::GrammarSpec {
   static constexpr auto OpLogAnd = ref<LOG_AND>;
   static constexpr auto OpLogOr = lit<"||">;
 
-  template<auto Tokens>
-  struct Op : rule<Tokens + Attrs,
-                   text_conv<[](std::string_view text) {
-                     return text.substr(0, text.find("(*"));
-                   }>> {};
+  template <auto Tokens>
+  struct Op : rule<as<[](std::string_view text) {
+    return text.substr(0, text.find("(*"));
+  }>(Tokens + Attrs)> {};
 
   struct BinaryExpression
-      : infix<Unary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<Op<OpPow>>) >>      //
-               left(ref<Op<OpMul>>) >>     //
-               left(ref<Op<OpAdd>>) >>     //
-               left(ref<Op<OpShift>>) >>   //
-               left(ref<Op<OpRel>>) >>     //
-               left(ref<Op<OpEq>>) >>      //
-               left(ref<Op<OpBitAnd>>) >>  //
-               left(ref<Op<OpBitXor>>) >>  //
-               left(ref<Op<OpBitOr>>) >>   //
-               left(ref<Op<OpLogAnd>>) >>  //
-               left(ref<Op<OpLogOr>>))> {};
+      : infix<Unary, ast::BinaryExpr,
+              levels(left(ref<Op<OpPow>>),     //
+                     left(ref<Op<OpMul>>),     //
+                     left(ref<Op<OpAdd>>),     //
+                     left(ref<Op<OpShift>>),   //
+                     left(ref<Op<OpRel>>),     //
+                     left(ref<Op<OpEq>>),      //
+                     left(ref<Op<OpBitAnd>>),  //
+                     left(ref<Op<OpBitXor>>),  //
+                     left(ref<Op<OpBitOr>>),   //
+                     left(ref<Op<OpLogAnd>>),  //
+                     left(ref<Op<OpLogOr>>))> {};
 
   struct Expression
       : rule<ref<BinaryExpression> +
@@ -525,7 +523,7 @@ struct Verilog : cursiv::GrammarSpec {
                  option(commit(kw<"else">, assign<&ast::IfStmt::elseBranch>(
                                             ref<Statement>))))> {};
 
-  struct CaseItemRule
+  struct CaseItem
       : rule<create<ast::CaseItem>(
                  some(append<&ast::CaseItem::labels>(ref<Expression>),
                       lit<",">) +
@@ -542,7 +540,7 @@ struct Verilog : cursiv::GrammarSpec {
                                               kw<"casex">) +
                  lit<"("> + assign<&ast::CaseStmt::value>(ref<Expression>) +
                  lit<")"> +
-                 some(append<&ast::CaseStmt::items>(ref<CaseItemRule>)) +
+                 some(append<&ast::CaseStmt::items>(ref<CaseItem>)) +
                  kw<"endcase">)> {};
 
   struct ForStmt
@@ -785,7 +783,7 @@ struct Verilog : cursiv::GrammarSpec {
                      ref<ModuleOrGenerateItem>)) +
                  kw<"endgenerate">)> {};
 
-  struct GenerateBlockRule
+  struct GenerateBlock
       : rule<create<ast::GenerateBlock>(
                  kw<"begin"> +
                  option(lit<":"> +
@@ -797,7 +795,7 @@ struct Verilog : cursiv::GrammarSpec {
                  ref<ModuleOrGenerateItem>))> {};
 
   struct GenerateBlockOrNull
-      : rule<ref<GenerateBlockRule> |
+      : rule<ref<GenerateBlock> |
              create<ast::GenerateBlock>(lit<";">)> {};
 
   struct ForGenerate
@@ -809,7 +807,7 @@ struct Verilog : cursiv::GrammarSpec {
                  lit<";"> +
                  assign<&ast::ForGenerate::step>(ref<SimpleAssign>) +
                  lit<")"> +
-                 assign<&ast::ForGenerate::body>(ref<GenerateBlockRule>))> {
+                 assign<&ast::ForGenerate::body>(ref<GenerateBlock>))> {
   };
 
   struct IfGenerate
@@ -821,7 +819,7 @@ struct Verilog : cursiv::GrammarSpec {
                  option(commit(kw<"else">, assign<&ast::IfGenerate::elseBranch>(
                               ref<GenerateBlockOrNull>))))> {};
 
-  struct GenCaseItemRule
+  struct GenCaseItem
       : rule<create<ast::GenCaseItem>(
                  some(append<&ast::GenCaseItem::labels>(ref<Expression>),
                       lit<",">) +
@@ -839,7 +837,7 @@ struct Verilog : cursiv::GrammarSpec {
                  assign<&ast::CaseGenerate::value>(ref<Expression>) +
                  lit<")"> +
                  some(append<&ast::CaseGenerate::items>(
-                     ref<GenCaseItemRule>)) +
+                     ref<GenCaseItem>)) +
                  kw<"endcase">)> {};
 
   // UDP declaration.
@@ -857,7 +855,7 @@ struct Verilog : cursiv::GrammarSpec {
                  (assign<&ast::PortDecl::direction>(kw<"reg">) +
                   append<&ast::PortDecl::items>(ref<VarItem>)))> {};
 
-  struct UdpRowRule
+  struct UdpRow
       : rule<create<ast::UdpRow>(assign<&ast::UdpRow::text>(PreprocessorText)) |
              (create<ast::UdpRow>(
                  some(append<&ast::UdpRow::inputs>(ref<UDP_SYMBOL>)) +
@@ -884,7 +882,7 @@ struct Verilog : cursiv::GrammarSpec {
                         assign<&ast::UdpDecl::initVal>(ref<Expression>) +
                         lit<";">) +
                  kw<"table"> +
-                 some(append<&ast::UdpDecl::rows>(ref<UdpRowRule>)) +
+                 some(append<&ast::UdpDecl::rows>(ref<UdpRow>)) +
                  kw<"endtable"> + kw<"endprimitive">)> {};
 
   // Specify block.
@@ -901,10 +899,10 @@ struct Verilog : cursiv::GrammarSpec {
                  some(append<&ast::PathDecl::inputs>(ref<Expression>),
                       lit<",">) +
                  ((assign<&ast::PathDecl::polarity>(lit<"+"> | lit<"-">) +
-                   (lit<"=>"> | lit<"*>">) +
+                   assign<&ast::PathDecl::pathOp>(lit<"=>"> | lit<"*>">) +
                    some(append<&ast::PathDecl::outputs>(ref<Expression>),
                         lit<",">)) |
-                  ((lit<"=>"> | lit<"*>">) +
+                  (assign<&ast::PathDecl::pathOp>(lit<"=>"> | lit<"*>">) +
                    ((some(append<&ast::PathDecl::outputs>(ref<Expression>),
                           lit<",">)) |
                     (lit<"("> +
@@ -996,7 +994,7 @@ struct Verilog : cursiv::GrammarSpec {
             | ref<SpecifyBlock>                   //
             | (Attrs + ref<SpecParamDecl>)> {};
 
-  struct PortItemRule
+  struct PortItem
       : rule<create<ast::PortItem>(
                  lit<"."> +
                  assign<&ast::PortItem::explicitName>(ID) + lit<"("> +
@@ -1021,7 +1019,7 @@ struct Verilog : cursiv::GrammarSpec {
   static constexpr auto ModulePorts =
       many(PortDirective |
            (append<&ast::ModuleDecl::ports>((Attrs + ref<PortDecl>) |
-                                            ref<PortItemRule>) + option(PortComma)) |
+                                            ref<PortItem>) + option(PortComma)) |
            (append<&ast::ModuleDecl::ports>(create<ast::PortItem>(lit<",">)) +
             TrailingEmptyPort));
 
@@ -1041,10 +1039,10 @@ struct Verilog : cursiv::GrammarSpec {
                  many(append<&ast::ModuleDecl::items>(ref<ModuleItem>)) +
                  kw<"endmodule">)> {};
 
-  struct ConfigPath : rule<ID + many(lit<"."> + ID),
-      text_conv<[](std::string_view text) { return text; }>> {};
+  struct ConfigPath : rule<as<[](std::string_view text) { return text; }>(
+                          ID + many(lit<"."> + ID))> {};
 
-  struct ConfigRuleRule
+  struct ConfigRule
       : rule<create<ast::ConfigRule>(
                  ((assign<&ast::ConfigRule::kind>(kw<"default">)) |
                   (assign<&ast::ConfigRule::kind>(kw<"instance">) +
@@ -1055,7 +1053,7 @@ struct Verilog : cursiv::GrammarSpec {
                    many(append<&ast::ConfigRule::liblist>(ID))) |
                   (kw<"use"> +
                    assign<&ast::ConfigRule::useCell>(ref<ConfigPath>) +
-                   option(lit<":"> + kw<"config">)))) +
+                   option(lit<":"> + flag<&ast::ConfigRule::useConfig>(kw<"config">))))) +
              lit<";">> {};
 
   struct ConfigDecl
@@ -1064,7 +1062,7 @@ struct Verilog : cursiv::GrammarSpec {
                  lit<";"> + kw<"design"> +
                  many(append<&ast::ConfigDecl::designCells>(ref<ConfigPath>)) +
                  lit<";"> +
-                 many(append<&ast::ConfigDecl::rules>(ref<ConfigRuleRule>)) +
+                 many(append<&ast::ConfigDecl::rules>(ref<ConfigRule>)) +
                  kw<"endconfig">)> {};
 
   struct SourceText
@@ -1074,7 +1072,7 @@ struct Verilog : cursiv::GrammarSpec {
                      ref<PreprocessorItem>)))> {};
 
   using entry = SourceText;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

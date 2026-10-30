@@ -67,7 +67,8 @@ inline void pdn_regressions(const pdn::PdnCoreServices &services) {
   }
   for (const auto [text, code] :
        {std::pair{"", "pdn.empty"}, std::pair{"1. 32-28 () *", "pdn.variation"},
-        std::pair{"1. 32-28 1-0 0-1", "pdn.results"}}) {
+        std::pair{"1. 32-28 1-0 0-1", "pdn.results"},
+        std::pair{"1. 32-28 [Event \"second\"] 1. 18-23 *", "pdn.separator"}}) {
     cursiv::Document document(
         cursiv::TextDocument::create("memory:pdn", "pdn", 0, text));
     document.language = &services;

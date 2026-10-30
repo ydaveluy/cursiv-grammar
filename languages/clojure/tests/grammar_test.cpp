@@ -13,6 +13,8 @@
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/core/validation/DocumentValidator.hpp"
+#include "cursiv/core/workspace/Document.hpp"
 
 namespace {
 
@@ -123,6 +125,81 @@ int reader_values(const cursiv::Parser &parser) {
              : fail("namespace map or reader conditional was lost");
 }
 
+int native_reader(const clojure::ClojureCoreServices& services) {
+  namespace ast = clojure::ast;
+  const std::string source =
+      R"clj(#! native hashbang comment
+["\377" "\uD834\uDD1E" %foo %0 #+foo bar #=(+ 1 2) 077 077N 36r1N])clj";
+  const auto parsed = services.parser->parse(source);
+  const auto* file = parsed.value_as<ast::File>();
+  const auto* vector = file && file->forms.size() == 1
+                           ? as<ast::VectorForm>(file->forms[0]) : nullptr;
+  if (!parsed.accepted || parsed.cst().recovered() ||
+      !parsed.diagnostics.empty() || !vector || vector->items.size() != 9)
+    return fail("native reader forms were refused or split");
+  const auto* octal = as<ast::StringLit>(vector->items[0]);
+  const auto* unicode = as<ast::StringLit>(vector->items[1]);
+  const auto* percent = as<ast::Symbol>(vector->items[2]);
+  const auto* zero = as<ast::Symbol>(vector->items[3]);
+  const auto* dispatch = as<ast::DispatchForm>(vector->items[4]);
+  const auto* eval = as<ast::EvalForm>(vector->items[5]);
+  if (!octal || octal->text != "\xc3\xbf" || !unicode ||
+      unicode->text != "\xf0\x9d\x84\x9e" ||
+      !percent || percent->text != "%foo" || !zero || zero->text != "%0" ||
+      !dispatch || !dispatch->tag || dispatch->tag->text != "+foo" ||
+      !as<ast::Symbol>(dispatch->form) ||
+      as<ast::Symbol>(dispatch->form)->text != "bar" ||
+      !eval || !as<ast::ListForm>(eval->form) ||
+      !as<ast::LongLit>(vector->items[6]) ||
+      !as<ast::BignLit>(vector->items[7]) ||
+      !as<ast::RadixLit>(vector->items[8]))
+    return fail("native reader payload was changed");
+  const std::string keyword_source = "[:foo ::bar :person/name]";
+  const auto keywords = services.parser->parse(keyword_source);
+  const auto* keyword_file = keywords.value_as<ast::File>();
+  const auto* keyword_vector = keyword_file && keyword_file->forms.size() == 1
+      ? as<ast::VectorForm>(keyword_file->forms[0]) : nullptr;
+  const auto* resolved = keyword_vector && keyword_vector->items.size() == 3
+      ? as<ast::Keyword>(keyword_vector->items[1]) : nullptr;
+  if (!keywords.accepted || keywords.cst().recovered() || !resolved ||
+      !resolved->macro || resolved->name != "bar")
+    return fail("auto-resolved keyword lost its prefix or name");
+  // Java whitespace preserves NBSP, figure space and narrow NBSP in symbols.
+  const std::string whitespace = "[foo\u00a0bar foo\u2007bar foo\u202fbar foo\x1c" "bar]";
+  const auto spaces = services.parser->parse(whitespace);
+  const auto* spaces_file = spaces.value_as<ast::File>();
+  const auto* words = spaces_file && spaces_file->forms.size() == 1
+                          ? as<ast::VectorForm>(spaces_file->forms[0]) : nullptr;
+  if (!spaces.accepted || spaces.cst().recovered() || !words ||
+      words->items.size() != 5 || !as<ast::Symbol>(words->items[0]) ||
+      as<ast::Symbol>(words->items[0])->text != "foo\u00a0bar")
+    return fail("Java whitespace changed symbol boundaries");
+  for (const char* invalid : {
+           "0b101", "5L", "100n", "09", "42foo", "1Nfoo", "1/0",
+           "02r10", "##Infabc", ":::bar",
+           R"clj(\foobar)clj", R"clj(\o400)clj", R"clj(\uD800)clj",
+           R"clj("\v")clj", R"clj("\x41")clj", R"clj("\400")clj",
+           R"clj("\12x")clj", ": foo", "#: {:a 1}"}) {
+    const auto result = services.parser->parse(invalid);
+    if (result.accepted && !result.cst().recovered() &&
+        result.diagnostics.empty())
+      return fail(std::string("native-invalid reader form accepted: ") + invalid);
+  }
+  for (const char* invalid : {"1r0", "37r0", "2r102", "2r101N"}) {
+    cursiv::Document document(cursiv::TextDocument::create(
+        "memory:clojure-native", "clojure", 0, invalid));
+    document.language = &services;
+    document.parseResult = services.parser->parse(invalid);
+    std::vector<cursiv::Diagnostic> diagnostics;
+    services.documentValidator->validateDocument(document, diagnostics);
+    if (!document.parseResult.accepted ||
+        document.parseResult.cst().recovered() || diagnostics.size() != 1 ||
+        !diagnostics[0].code || *diagnostics[0].code != "clojure.radix")
+      return fail("invalid radix was not diagnosed");
+  }
+  return 0;
+}
+
 } // namespace
 
 int main() {
@@ -130,7 +207,7 @@ int main() {
       cursiv::create_language<clojure::ClojureCoreServices,
                               clojure::ClojureSharedCoreServices,
                               clojure::install_core_module>();
-  if (reader_values(*language.language.parser))
+  if (reader_values(*language.language.parser) || native_reader(language.language))
     return 1;
 
   // Regression: inspect the semantic payload, not only clean acceptance.

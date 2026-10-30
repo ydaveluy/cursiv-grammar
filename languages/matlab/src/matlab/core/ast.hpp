@@ -32,6 +32,8 @@ enum class Operator : std::uint8_t {
   not_equal,
   logical_and,
   logical_or,
+  short_and,
+  short_or,
   range,
 };
 
@@ -41,6 +43,7 @@ struct Ident : cursiv::Extends<Expr> {
 
 struct NumberLit : cursiv::Extends<Expr> {
   float64 value;
+  boolean imaginary;
 };
 
 struct StringLit : cursiv::Extends<Expr> {
@@ -141,6 +144,14 @@ struct ForStmt : cursiv::Extends<Statement> {
 
 struct BreakStmt : cursiv::Extends<Statement> {};
 struct ReturnStmt : cursiv::Extends<Statement> {};
+
+struct ContinueStmt : cursiv::Extends<Statement> {};
+struct FunctionDef : cursiv::Extends<Statement> {
+  string_view name;
+  vector<string_view> outputs;
+  vector<string_view> parameters;
+  vector<Statement*> body;
+};
 
 struct File : cursiv::Extends<cursiv::AstNode> {
   vector<Statement *> statements;

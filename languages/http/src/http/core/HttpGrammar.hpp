@@ -14,7 +14,9 @@ struct Http : cursiv::GrammarSpec {
   static constexpr auto tchar = cr<"0-9A-Za-z!#$%&'*+.^_`|~-">;
 
   // field-vchar: VCHAR (%x21-7E) or obs-text (%x80-FF).
-  static constexpr auto field_vchar = cr<R"(\x21-\x7e\u{80}-\u{10FFFF})">;
+  // Complement ASCII controls so obs-text also admits isolated octets 80-FF,
+  // rather than requiring them to form a valid Unicode scalar.
+  static constexpr auto field_vchar = ~cr<R"(\x00-\x20\x7f)">;
 
   struct SP : terminal<lit<" ">> {};
   struct HTAB : terminal<lit<"\t">> {};
@@ -39,35 +41,35 @@ struct Http : cursiv::GrammarSpec {
 
   static constexpr auto ows = many(ref<SP> | ref<HTAB>);
 
-  struct RequestLineRule
+  struct RequestLine
       : rule<assign<&ast::RequestLine::method>(ref<METHOD>) + ref<SP> +
              assign<&ast::RequestLine::target>(ref<REQUEST_TARGET>) + ref<SP> +
              lit<"HTTP"> + lit<"/"> +
              assign<&ast::RequestLine::version>(ref<VERSION>) + ref<CRLF>> {};
 
-  struct StatusLineRule
+  struct StatusLine
       : rule<lit<"HTTP/"> + assign<&ast::StatusLine::version>(ref<VERSION>) +
              ref<SP> + assign<&ast::StatusLine::status>(ref<STATUS>) +
              option(ref<SP> + option(assign<&ast::StatusLine::reason>(ref<REASON>))) +
              ref<CRLF>> {};
 
-  struct HeaderFieldRule
+  struct HeaderField
       : rule<assign<&ast::HeaderField::name>(ref<FIELD_NAME>) + lit<":"> + ows +
              option(assign<&ast::HeaderField::value>(ref<FIELD_VALUE>) + ows)> {
   };
 
   struct BODY : terminal<some(byte)> {};
 
-  struct MessageRule
+  struct Message
       : rule<create<ast::Message> +
-             (assign<&ast::Message::request_line>(ref<RequestLineRule>) |
-              assign<&ast::Message::status_line>(ref<StatusLineRule>)) +
-             many(append<&ast::Message::headers>(ref<HeaderFieldRule>) +
+             (assign<&ast::Message::request_line>(ref<RequestLine>) |
+              assign<&ast::Message::status_line>(ref<StatusLine>)) +
+             many(append<&ast::Message::headers>(ref<HeaderField>) +
                   ref<CRLF>) +
              option(flag<&ast::Message::headersTerminated>(ref<CRLF>) +
                     option(assign<&ast::Message::body>(ref<BODY>)))> {};
 
-  using entry = MessageRule;
+  using entry = Message;
 };
 
 } // namespace http

@@ -23,6 +23,10 @@ void JavadocValidator::checkInline(const ast::InlineTag &tag,
     accept.error(tag, "This inline tag requires content.")
         .property<&ast::InlineTag::content>()
         .code("javadoc.missing-content");
+  if ((tag.name == "link" || tag.name == "linkplain") && content.empty())
+    accept.warning(tag, "No reference given for this link.")
+        .property<&ast::InlineTag::content>()
+        .code("javadoc.missing-reference");
 }
 
 void JavadocValidator::checkBlock(const ast::BlockTag &tag,

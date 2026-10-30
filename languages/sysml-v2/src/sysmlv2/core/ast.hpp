@@ -11,11 +11,17 @@ namespace sysmlv2::ast {
 
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
 
-// A literal spelled verbatim: boolean, string, integer, real, `*`
+// A literal token spelling (real data rules join significant tokens): boolean,
+// string, integer, real, `*`
 // (infinity), `null`, `()`, or a block comment used as an expression
 // placeholder.
 struct Literal : cursiv::Extends<Expr> {
   string_view text;
+};
+
+struct NamedArgument : cursiv::Extends<Expr> {
+  string_view name;
+  Expr* value;
 };
 
 struct NameRef : cursiv::Extends<Expr> {
@@ -63,6 +69,7 @@ struct Postfix : cursiv::Extends<Expr> {
   string_view name;
   vector<Expr*> args;
   Expr* body = nullptr;
+  string_view functionReference;
 };
 
 // A single specialization/subsetting/typing/redefinition/conjugation edge:
@@ -71,9 +78,12 @@ struct Postfix : cursiv::Extends<Expr> {
 struct Spec : cursiv::Extends<cursiv::AstNode> {
   string_view kind;
   string_view target;
+  boolean isConjugated;
 };
 
 struct Endpoint : cursiv::Extends<cursiv::AstNode> {
+  string_view multiplicity;
+  string_view declaredName;
   boolean isEnd;
   string_view name;
   vector<Spec*> specs;
@@ -96,14 +106,18 @@ struct Element : cursiv::Extends<cursiv::AstNode> {
   string_view name;                   // the identification's name
   vector<Spec*> specs;                 // typing/subsetting/redefinition/...
   string_view multiplicity;            // `[...]`, raw
+  boolean isInitial;                  // := rather than =
+  boolean isDefault;                  // default value
+  boolean isParallel;                 // parallel state body
   Expr* value = nullptr;               // feature value / condition / result
   vector<Endpoint*> connectorEnds;
   vector<ActionClause*> clauses;
   vector<string_view> ends;            // connector/flow/dependency endpoints
-  string_view lang;                    // a doc/rep's locale or language string
-  string_view text;                    // a comment/doc/rep's `/* ... */` body
+  string_view lang;                    // decoded doc/rep locale or language
+  string_view text;                    // processed comment/doc/rep body
   vector<Element*> members;            // body items
   Expr* result = nullptr;              // a body's trailing bare expression
+  Expr* until = nullptr;              // trailing loop condition
   Element* alt = nullptr;              // an `if`'s `else` branch
 };
 

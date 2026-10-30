@@ -14,6 +14,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "hexpat/core/CoreServices.hpp"
 #include "hexpat/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -31,8 +32,11 @@ std::string read_file(const std::filesystem::path& path) {
 const hexpat::ast::Document* parse_document(
     const cursiv::CoreLanguage<hexpat::HexpatCoreServices,
                                hexpat::HexpatSharedCoreServices>& language,
-    const std::string& text, const std::string& label, bool* ok) {
-  const cursiv::ParseResult result = language.language.parser->parse(text);
+    const std::string& text, const std::string& label, bool* ok,
+    std::vector<cursiv::ParseResult>& retained) {
+  // The result owns the AST arena. Readback pointers must not outlive it.
+  retained.push_back(language.language.parser->parse(text));
+  const cursiv::ParseResult& result = retained.back();
   if (result.cst().recovered()) {
     std::fprintf(stderr, "hexpat: %s does not parse clean\n", label.c_str());
     *ok = false;
@@ -61,6 +65,8 @@ int main() {
       hexpat::HexpatCoreServices, hexpat::HexpatSharedCoreServices,
       hexpat::install_core_module>();
 
+  if (!hexpat_native_followup::run(language.language)) return 1;
+
   const std::filesystem::path exampleDir = CURSIV_EXAMPLE_DIR;
   std::vector<std::filesystem::path> files;
   for (const auto& entry : std::filesystem::directory_iterator(exampleDir))
@@ -68,12 +74,13 @@ int main() {
   if (files.empty()) return fail("no example files found");
 
   bool ok = true;
+  std::vector<cursiv::ParseResult> retained;
   const hexpat::ast::Document* dexDoc = nullptr;
   std::string dexText;
   for (const auto& path : files) {
     std::string text = read_file(path);
     const hexpat::ast::Document* doc =
-        parse_document(language, text, path.filename().string(), &ok);
+        parse_document(language, text, path.filename().string(), &ok, retained);
     if (path.filename() == "dex.hexpat") {
       dexText = std::move(text);
       dexDoc = doc;
@@ -87,7 +94,7 @@ int main() {
     const std::filesystem::path coverage =
         std::filesystem::path(CURSIV_TEST_DIR) / "fixtures/coverage.hexpat";
     const std::string text = read_file(coverage);
-    parse_document(language, text, "fixtures/coverage.hexpat", &ok);
+    parse_document(language, text, "fixtures/coverage.hexpat", &ok, retained);
   }
   if (!ok) return 1;
 

@@ -1,4 +1,4 @@
-// The webidl language: its AST. WebIDL (Web IDL, Second Edition draft).
+// The webidl language: its syntax AST.
 // Scoped/interface names are kept as text, never `reference<>`: a name may
 // be declared in another IDL fragment entirely (an included spec, a DOM
 // interface defined elsewhere), so nothing here resolves within one document.

@@ -1,5 +1,5 @@
 // The checks of this language: what the grammar accepts but the language
-// does not. None yet -- tinybasic has no names and no semantic constraints.
+// does not. Runtime line lookup and arithmetic checks are not installed here.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

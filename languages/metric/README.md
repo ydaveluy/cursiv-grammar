@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Metric unit expressions with SI prefixes, integer exponents, products and quotients, such as `kg*m/s^2`.
+
 ```
 kg*m/s^2
 ```
-
-A [metric](https://en.wikipedia.org/wiki/Metric_system) unit-of-measure
-expression: measures — an optional SI prefix, a unit, an optional integer
-exponent (`kg`, `m`, `s^2`) — chained by `*` and `/`. `m` and `T` each name
-both a prefix (milli, tera) and a unit (metre, tesla); what follows decides,
-so `mm` is a millimetre and `TT` a teratesla.
 
 ## The command line
 

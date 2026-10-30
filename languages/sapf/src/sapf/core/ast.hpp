@@ -31,6 +31,11 @@ struct NumberLiteral : cursiv::Extends<Expression> {
   Suffix suffix = Suffix::none;
 };
 
+// The body spelling is retained, as for function documentation strings.
+struct StringLiteral : cursiv::Extends<Expression> {
+  string_view value;
+};
+
 enum class WordPrefix : std::uint8_t { none, backtick, quote, comma, dot };
 
 struct Word : cursiv::Extends<Expression> {

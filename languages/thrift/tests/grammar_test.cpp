@@ -31,6 +31,16 @@ int main() {
       thrift::ThriftCoreServices, thrift::ThriftSharedCoreServices,
       thrift::install_core_module>();
 
+  for (const char *source : {"const i32 missing", "const i32 missing;", "const string missing ="}) {
+    const auto r = language.language.parser->parse(source);
+    if (r.accepted && !r.cst().recovered() && r.diagnostics.empty())
+      return fail("a constant requires an explicit value");
+  }
+  for (const char *source : {"const i32 zero = 0", "const string empty = ''"}) {
+    const auto r = language.language.parser->parse(source);
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty())
+      return fail("explicit zero or empty constant rejected");
+  }
   int count = 0;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR}) {
     for (const fs::directory_entry& entry : fs::directory_iterator(dir)) {

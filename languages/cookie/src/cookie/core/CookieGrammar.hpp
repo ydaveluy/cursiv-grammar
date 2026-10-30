@@ -21,26 +21,25 @@ inline constexpr auto value_text = [](std::string_view text) {
 struct Cookie : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct NAME : terminal<some(cr<R"(^=;" \t\r\n)">)> {};
-  struct VALUE : terminal<lit<"="> + many(cr<R"(^;"\r\n)">),
-                          cursiv::text_conv<value_text>> {};
+  struct VALUE : terminal<as<value_text>(lit<"="> + many(cr<R"(^;"\r\n)">))> {};
   struct QUOTED_VALUE
-      : terminal<lit<"="> + many(cr<R"( \t)">) + lit<"\""> +
-                     many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) + lit<"\"">,
-                 cursiv::text_conv<value_text>> {};
+      : terminal<as<value_text>(lit<"="> + many(cr<R"( \t)">) + lit<"\""> +
+                                many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) +
+                                lit<"\"">)> {};
 
-  struct PairRule
+  struct Pair
       : rule<assign<&ast::Pair::name>(ref<NAME>) +
              option(flag<&ast::Pair::quoted>(
                         assign<&ast::Pair::value>(ref<QUOTED_VALUE>)) |
                     assign<&ast::Pair::value>(ref<VALUE>))> {};
 
-  struct DocRule
+  struct Doc
       : rule<create<ast::Document> +
-             many(append<&ast::Document::pairs>(ref<PairRule>) + option(lit<";">)) +
+             many(append<&ast::Document::pairs>(ref<Pair>) + option(lit<";">)) +
              eof> {};
 
-  using entry = DocRule;
-  using ignore = WS;
+  using entry = Doc;
+  using ignored = WS;
 };
 
 }  // namespace cookie

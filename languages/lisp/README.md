@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Common Lisp reader syntax covers symbols, literals, lists, vectors and reader prefixes.
+
 ```
 (def square (x) (mul x x))
 
@@ -38,11 +40,6 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ((a b) . (c d))
 ```
-
-An s-expression is a symbol (a letter, then any run of letters and digits),
-a parenthesized list of one or more s-expressions, or a dotted pair
-`(x . y)`. A document is one or more top-level s-expressions; `example/`
-holds one file per shape.
 
 ## The command line
 

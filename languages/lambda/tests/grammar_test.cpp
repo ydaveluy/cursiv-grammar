@@ -61,6 +61,14 @@ int main() {
     }
   }
 
+  for (const char* invalid : {"a\v", "a\f", "(a b) extra"}) {
+    const auto result = language.language.parser->parse(invalid);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty()) {
+      std::fprintf(stderr, "lambda: native whitespace or trailing-text restriction lost\n");
+      return 1;
+    }
+  }
+
   if (total == 0) {
     std::fprintf(stderr, "lambda: no example files found\n");
     return 1;

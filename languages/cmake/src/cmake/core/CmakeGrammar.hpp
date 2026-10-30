@@ -34,7 +34,6 @@ inline constexpr auto unquote = [](std::string_view t,
                                     std::pmr::memory_resource* memory) {
   return argument_text(t.substr(1, t.size() - 2), memory, true);
 };
-using Unquote = cursiv::text_conv<unquote>;
 
 inline constexpr auto unbracket = [](std::string_view t,
                                       std::pmr::memory_resource* memory) {
@@ -45,7 +44,6 @@ inline constexpr auto unbracket = [](std::string_view t,
   else if (body.starts_with('\n')) body.remove_prefix(1);
   return argument_text(body, memory);
 };
-using Unbracket = cursiv::text_conv<unbracket>;
 
 struct Cmake : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t)">)> {};
@@ -71,19 +69,19 @@ struct Cmake : cursiv::GrammarSpec {
       lit<"\""> + many(makeVariable | unquotedChar | cr<R"( \t[=)">) + lit<"\"">;
   static constexpr auto legacy = makeVariable | unquotedChar | legacyQuoted;
   struct UNQUOTED
-      : terminal<((makeVariable | unquotedChar | lit<"="> |
-                   (lit<"["> + many(cr<"=">) + legacy)) +
-                  many(legacy | cr<"[=">)) | lit<"[">,
-                 text_conv<[](std::string_view t,
-                              std::pmr::memory_resource* memory) {
-                   return argument_text(t, memory);
-                 }>> {};
+      : terminal<as<[](std::string_view t, std::pmr::memory_resource* memory) {
+        return argument_text(t, memory);
+      }>(((makeVariable | unquotedChar | lit<"="> |
+           (lit<"["> + many(cr<"=">) + legacy)) +
+          many(legacy | cr<"[=">)) |
+         lit<"[">)> {};
 
   struct QUOTED
-      : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">,
-                 Unquote> {};
+      : terminal<as<unquote>(
+            lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">)> {
+  };
 
-  struct BRACKET : terminal<bracketBody, Unbracket> {};
+  struct BRACKET : terminal<as<unbracket>(bracketBody)> {};
 
   struct UnquotedArgument
       : rule<create<ast::UnquotedArgument>(
@@ -116,7 +114,7 @@ struct Cmake : cursiv::GrammarSpec {
                     append<&ast::File::commands>(ref<CommandInvocation>)))> {};
 
   using entry = File;
-  using ignore = list<WS, NEWLINE>;
+  using ignored = list<WS, NEWLINE>;
   using hidden = COMMENT;
 };
 

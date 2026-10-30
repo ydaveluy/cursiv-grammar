@@ -43,8 +43,8 @@ endmodule
 Verilog (IEEE 1364-2005): modules, ports, nets and registers, continuous
 assignment, procedural blocks and statements, gate and switch primitives,
 generate constructs, functions and tasks, UDPs and specify blocks. A
-compiler directive (`` `ifdef ``, `` `define ``, ...) is trivia, as in the
-reference grammar: it is recognized and skipped, never expanded.
+compiler directive (`` `ifdef ``, `` `define ``, ...) is preserved as opaque
+preprocessor text; macros and conditional branches are not expanded.
 `example/` holds the corpus (ZipCPU FPGA cores) plus one file per construct
 the corpus does not exercise (gates, UDPs, specify blocks, configuration
 declarations).

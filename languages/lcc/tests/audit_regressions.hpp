@@ -55,6 +55,8 @@ inline bool run(const lcc::LccCoreServices& services) {
   }
   for (auto test:std::array{
       std::pair{"ABCD123 .A1 2000", "lcc.class-letters"},
+      std::pair{"QA10000 .A1 2020", "lcc.class-number"},
+      std::pair{"QA76.73.4 .A1 2020", "lcc.class-number"},
       std::pair{"QA123 .ABCD1 2000", "lcc.cutter-letters"}}) {
     const std::string source(test.first);
     const auto result=services.parser->parse(source);

@@ -31,10 +31,8 @@ struct Python : cursiv::GrammarSpec {
   static constexpr auto indent_close = lit<")"> | lit<"]"> | lit<"}">;
   using indent_newline = NEWLINE;
 
-  // Implicit line joining: a bare newline is trivia, and NEWLINE -- the same
-  // byte, declared above -- is the token wherever a state expects one: a
-  // statement ends on it, a bracketed expression crosses it.
-  struct NL_TRIVIA : terminal<eol> {};
+  // The indentation runtime suppresses NEWLINE inside indent_open/close.
+  // Outside brackets a physical newline must remain a statement boundary.
 
   // FORWARD DECLARATIONS
   // ====================
@@ -58,17 +56,19 @@ struct Python : cursiv::GrammarSpec {
   struct Atom;
   struct StarredExpr;
   struct StarExpression;
+  struct StarNamedExpression;
   struct StarExpressions;
+  struct StarNamedExpressions;
   struct NamedExpression;
-  struct YieldExprRule;
+  struct YieldExpr;
   struct AnnotatedRhs;
-  struct TupleRule;
+  struct Tuple;
   struct Group;
-  struct ListRule;
+  struct List;
   struct ListComp;
-  struct SetRule;
+  struct Set;
   struct SetComp;
-  struct DictRule;
+  struct Dict;
   struct DictComp;
   struct GenExp;
   struct CompClause;
@@ -83,33 +83,33 @@ struct Python : cursiv::GrammarSpec {
   struct Strings;
   struct SimpleStmt;
   struct CompoundStmt;
-  struct AssignmentRule;
-  struct AugAssignRule;
-  struct AnnAssignRule;
-  struct TypeAliasRule;
-  struct ReturnStmtRule;
-  struct ImportStmtRule;
+  struct Assignment;
+  struct AugAssign;
+  struct AnnAssign;
+  struct TypeAlias;
+  struct ReturnStmt;
+  struct ImportStmt;
   struct DottedName;
-  struct RaiseStmtRule;
-  struct PassStmtRule;
-  struct DelStmtRule;
-  struct AssertStmtRule;
-  struct BreakStmtRule;
-  struct ContinueStmtRule;
-  struct GlobalStmtRule;
-  struct NonlocalStmtRule;
-  struct ExprStmtRule;
+  struct RaiseStmt;
+  struct PassStmt;
+  struct DelStmt;
+  struct AssertStmt;
+  struct BreakStmt;
+  struct ContinueStmt;
+  struct GlobalStmt;
+  struct NonlocalStmt;
+  struct ExprStmt;
   struct ElifChain;
-  struct IfStmtRule;
-  struct WhileStmtRule;
-  struct ForStmtRule;
-  struct WithItemRule;
-  struct WithStmtRule;
+  struct IfStmt;
+  struct WhileStmt;
+  struct ForStmt;
+  struct WithItem;
+  struct WithStmt;
   struct ExprList;
-  struct ExceptHandlerRule;
-  struct TryStmtRule;
-  struct FunctionDefRule;
-  struct ClassDefRule;
+  struct ExceptHandler;
+  struct TryStmt;
+  struct FunctionDef;
+  struct ClassDef;
   struct Pattern;
   struct ClosedPattern;
   struct OrPattern;
@@ -133,8 +133,8 @@ struct Python : cursiv::GrammarSpec {
   struct ComplexNumberPattern;
   struct SignedNumber;
   struct SignedRealNumber;
-  struct CaseBlockRule;
-  struct MatchStmtRule;
+  struct CaseBlock;
+  struct MatchStmt;
 
   // A rule with no directive of its own, `some(BodyPtr, sep)`'d into the
   // caller's own body: a compound statement's same-line suite is a
@@ -169,7 +169,16 @@ struct Python : cursiv::GrammarSpec {
   // NAMES AND KEYWORDS
   // ==================
 
-  struct ID : terminal<(uc::XID_Start | cr<"_">) + many(uc::XID_Continue)> {};
+  static constexpr auto hard_keyword =
+      kw<"False"> | kw<"None"> | kw<"True"> | kw<"and"> | kw<"as"> |
+      kw<"assert"> | kw<"async"> | kw<"await"> | kw<"break"> | kw<"class"> |
+      kw<"continue"> | kw<"def"> | kw<"del"> | kw<"elif"> | kw<"else"> |
+      kw<"except"> | kw<"finally"> | kw<"for"> | kw<"from"> | kw<"global"> |
+      kw<"if"> | kw<"import"> | kw<"in"> | kw<"is"> | kw<"lambda"> |
+      kw<"nonlocal"> | kw<"not"> | kw<"or"> | kw<"pass"> | kw<"raise"> |
+      kw<"return"> | kw<"try"> | kw<"while"> | kw<"with"> | kw<"yield">;
+  struct ID : terminal<!hard_keyword +
+      (uc::XID_Start | cr<"_">) + many(uc::XID_Continue)> {};
 
   // Soft keywords also read here, each its own terminal: the lexer commits
   // to one token identity for a word wherever its keyword spelling is
@@ -188,8 +197,8 @@ struct Python : cursiv::GrammarSpec {
 
   // A capture target in a pattern: any name except the wildcard, which the
   // grammar always reads as WildcardPattern instead.
-  struct NameNotWildcard : rule<ref<ID> | ref<TypeKwTerm> | ref<MatchKwTerm> |
-                                 ref<CaseKwTerm>> {};
+  struct NameNotWildcard : rule<!ref<WildcardKwTerm> +
+      (ref<ID> | ref<TypeKwTerm> | ref<MatchKwTerm> | ref<CaseKwTerm>)> {};
 
   struct Name : rule<assign<&ast::Name::id>(ref<Ident>)> {};
 
@@ -295,6 +304,7 @@ struct Python : cursiv::GrammarSpec {
       lit<"{{"> | lit<"}}"> | i_escape | (!lit<"\"\"\""> + cr<R"(^\\{})">);
   struct RawMidDQ3 : terminal<some(rawDQ3)> {};
   struct MidDQ3 : terminal<some(named_escape | rawDQ3)> {};
+  struct CONVERSION : terminal<cr<"sra">> {};
 
   template <bool Raw>
   static constexpr auto replPart =
@@ -309,7 +319,8 @@ struct Python : cursiv::GrammarSpec {
       : rule<create<ast::ReplField>(
             lit<"{"> + assign<&ast::ReplField::value>(ref<AnnotatedRhs>) +
             option(flag<&ast::ReplField::debug>(lit<"=">)) +
-            option(lit<"!"> + assign<&ast::ReplField::conversion>(ref<Ident>)) +
+            option(tight(lit<"!"> +
+                assign<&ast::ReplField::conversion>(ref<CONVERSION>))) +
             option(lit<":"> +
                    many(append<&ast::ReplField::formatSpec>(replPart<Raw>))) +
             lit<"}">)> {};
@@ -373,9 +384,9 @@ struct Python : cursiv::GrammarSpec {
       | ref<FloatLit>                                                   //
       | ref<ImagLit>                                                    //
       | ref<IntLit>                                                     //
-      | ref<TupleRule> | ref<GenExp> | ref<Group>                        //
-      | ref<ListRule> | ref<ListComp>                                   //
-      | ref<DictRule> | ref<SetRule> | ref<DictComp> | ref<SetComp>     //
+      | ref<Tuple> | ref<GenExp> | ref<Group>                        //
+      | ref<List> | ref<ListComp>                                   //
+      | ref<Dict> | ref<Set> | ref<DictComp> | ref<SetComp>     //
       | create<ast::EllipsisLit>(lit<"...">)> {};
 
   struct Primary : rule<
@@ -425,11 +436,10 @@ struct Python : cursiv::GrammarSpec {
   static constexpr auto BitXorOp = lit<"^">;
   static constexpr auto BitOrOp = lit<"|">;
 
-  struct BitwiseOr : infix<Factor, &ast::BinOp::left, &ast::BinOp::op,
-                           &ast::BinOp::right,
-                           (left(TermOp) >> left(SumOp) >> left(ShiftOp) >>
-                            left(BitAndOp) >> left(BitXorOp) >>
-                            left(BitOrOp))> {};
+  struct BitwiseOr : infix<Factor, ast::BinOp,
+                           levels(left(TermOp), left(SumOp), left(ShiftOp),
+                                  left(BitAndOp), left(BitXorOp),
+                                  left(BitOrOp))> {};
 
   // COMPARISON AND NOT
   // ===================
@@ -461,9 +471,8 @@ struct Python : cursiv::GrammarSpec {
   static constexpr auto AndOp = kw<"and">;
   static constexpr auto OrOp = kw<"or">;
 
-  struct Disjunction : infix<Inversion, &ast::BinOp::left, &ast::BinOp::op,
-                             &ast::BinOp::right,
-                             (left(AndOp) >> left(OrOp))> {};
+  struct Disjunction : infix<Inversion, ast::BinOp,
+                             levels(left(AndOp), left(OrOp))> {};
 
   // TOP-LEVEL EXPRESSION
   // ====================
@@ -489,7 +498,8 @@ struct Python : cursiv::GrammarSpec {
   struct StarredExpr : rule<create<ast::StarredExpr>(
       lit<"*"> + assign<&ast::StarredExpr::value>(ref<Expression>))> {};
 
-  struct StarExpression : rule<ref<StarredExpr> | ref<NamedExpression>> {};
+  struct StarExpression : rule<ref<StarredExpr> | ref<Expression>> {};
+  struct StarNamedExpression : rule<ref<StarredExpr> | ref<NamedExpression>> {};
 
   // A comma list that adopts a single element bare, and wraps a TupleExpr
   // around it the moment a comma is written -- `x = 1` is an int, `x = 1,`
@@ -497,10 +507,16 @@ struct Python : cursiv::GrammarSpec {
   struct StarExpressions : rule<
       create<ast::TupleExpr>(
           append<&ast::TupleExpr::elts>(ref<StarExpression>) + lit<","> +
-          many(append<&ast::TupleExpr::elts>(ref<StarExpression>),
-               lit<",">) +
-          option(lit<",">))  //
+          option(some(append<&ast::TupleExpr::elts>(ref<StarExpression>),
+                      lit<",">) + option(lit<",">)))  //
       | ref<StarExpression>> {};
+
+  struct StarNamedExpressions : rule<
+      create<ast::TupleExpr>(
+          append<&ast::TupleExpr::elts>(ref<StarNamedExpression>) + lit<","> +
+          option(some(append<&ast::TupleExpr::elts>(ref<StarNamedExpression>),
+                      lit<",">) + option(lit<",">)))
+      | ref<StarNamedExpression>> {};
 
   // The target of a `for`: operands below the comparisons, so the `in` that
   // follows it is the clause's own and never a comparison's.
@@ -512,20 +528,20 @@ struct Python : cursiv::GrammarSpec {
   struct TargetList : rule<
       create<ast::TupleExpr>(
           append<&ast::TupleExpr::elts>(ref<StarTarget>) + lit<","> +
-          many(append<&ast::TupleExpr::elts>(ref<StarTarget>), lit<",">) +
-          option(lit<",">))  //
+          option(some(append<&ast::TupleExpr::elts>(ref<StarTarget>), lit<",">) +
+                 option(lit<",">)))  //
       | ref<StarTarget>> {};
 
-  struct YieldExprRule : rule<
+  struct YieldExpr : rule<
       (kw<"yield"> + flag<&ast::YieldExpr::isFrom>(kw<"from">) +
        assign<&ast::YieldExpr::value>(ref<Expression>))  //
       | (kw<"yield"> +
          option(assign<&ast::YieldExpr::value>(ref<StarExpressions>)))> {};
 
-  struct AnnotatedRhs : rule<ref<YieldExprRule> | ref<StarExpressions>> {};
+  struct AnnotatedRhs : rule<ref<YieldExpr> | ref<StarExpressions>> {};
 
-  struct ExprStmtRule : rule<assign<&ast::ExprStmt::value>(
-      ref<YieldExprRule> | ref<StarExpressions>)> {};
+  struct ExprStmt : rule<assign<&ast::ExprStmt::value>(
+      ref<YieldExpr> | ref<StarExpressions>)> {};
 
   // CONTAINERS AND COMPREHENSIONS
   // ==============================
@@ -542,34 +558,33 @@ struct Python : cursiv::GrammarSpec {
       some(append<&ast::GeneratorExp::generators>(ref<CompClause>)) +
       lit<")">> {};
 
-  struct TupleRule : rule<
+  struct Tuple : rule<
       lit<"("> +
-      option(append<&ast::TupleExpr::elts>(ref<StarExpression>) +
+      option(append<&ast::TupleExpr::elts>(ref<StarNamedExpression>) +
              lit<","> +
-             many(append<&ast::TupleExpr::elts>(ref<StarExpression>),
-                  lit<",">) +
-             option(lit<",">)) +
+             option(some(append<&ast::TupleExpr::elts>(ref<StarNamedExpression>),
+                         lit<",">) + option(lit<",">))) +
       lit<")">> {};
 
   // A parenthesized expression: adopts what it wraps, same as examples/c's
   // PrimaryExpression -- no node of its own.
   struct Group : rule<
-      lit<"("> + (ref<YieldExprRule> | ref<NamedExpression>) +
+      lit<"("> + (ref<YieldExpr> | ref<NamedExpression>) +
       lit<")">> {};
 
-  struct ListRule : rule<
+  struct List : rule<
       lit<"["> +
-      many(append<&ast::ListExpr::elts>(ref<StarExpression>), lit<",">) +
-      option(lit<",">) + lit<"]">> {};
+      option(some(append<&ast::ListExpr::elts>(ref<StarNamedExpression>), lit<",">) +
+             option(lit<",">)) + lit<"]">> {};
 
   struct ListComp : rule<
       lit<"["> + assign<&ast::ListComp::elt>(ref<NamedExpression>) +
       some(append<&ast::ListComp::generators>(ref<CompClause>)) +
       lit<"]">> {};
 
-  struct SetRule : rule<
+  struct Set : rule<
       lit<"{"> +
-      some(append<&ast::SetExpr::elts>(ref<StarExpression>), lit<",">) +
+      some(append<&ast::SetExpr::elts>(ref<StarNamedExpression>), lit<",">) +
       option(lit<",">) + lit<"}">> {};
 
   struct SetComp : rule<
@@ -577,16 +592,16 @@ struct Python : cursiv::GrammarSpec {
       some(append<&ast::SetComp::generators>(ref<CompClause>)) +
       lit<"}">> {};
 
-  struct DictItemRule : rule<
+  struct DictItem : rule<
       create<ast::DictItem>(lit<"**"> +
                             assign<&ast::DictItem::value>(ref<BitwiseOr>))  //
       | create<ast::DictItem>(
             assign<&ast::DictItem::key>(ref<Expression>) + lit<":"> +
             assign<&ast::DictItem::value>(ref<Expression>))> {};
 
-  struct DictRule : rule<
+  struct Dict : rule<
       lit<"{"> +
-      option(some(append<&ast::DictExpr::items>(ref<DictItemRule>),
+      option(some(append<&ast::DictExpr::items>(ref<DictItem>),
                   lit<",">) +
              option(lit<",">)) + lit<"}">> {};
 
@@ -611,8 +626,8 @@ struct Python : cursiv::GrammarSpec {
   struct Slices : rule<
       create<ast::TupleExpr>(
           append<&ast::TupleExpr::elts>(ref<SliceItem>) + lit<","> +
-          many(append<&ast::TupleExpr::elts>(ref<SliceItem>), lit<",">) +
-          option(lit<",">))  //
+          option(some(append<&ast::TupleExpr::elts>(ref<SliceItem>), lit<",">) +
+                 option(lit<",">)))  //
       | ref<SliceItem>> {};
 
   // CALL ARGUMENTS
@@ -625,13 +640,12 @@ struct Python : cursiv::GrammarSpec {
                              assign<&ast::Keyword::value>(ref<Expression>))> {
   };
 
-  // PARAMETERS ========== Positional-only params fold into `args` (the `/`
-  // marker is consumed and dropped); everything after a bare `*` is
-  // keyword-only.
+  // Parameter sections keep positional-only, ordinary and keyword-only
+  // arguments separate, including the two variadic parameters.
 
   struct ParamItem : rule<
       assign<&ast::Param::name>(ref<Ident>) +
-      option(lit<":"> + assign<&ast::Param::annotation>(ref<Expression>)) +
+      option(lit<":"> + assign<&ast::Param::annotation>(ref<StarredExpr> | ref<Expression>)) +
       option(lit<"="> + assign<&ast::Param::defaultValue>(ref<Expression>))> {
   };
 
@@ -642,28 +656,30 @@ struct Python : cursiv::GrammarSpec {
       option(lit<"="> + assign<&ast::Param::defaultValue>(ref<Expression>))> {
   };
 
-  // The comma ahead of `*`/`**` is only there when regular params came
-  // first (`many()` above may have matched zero of them) -- `lambda
-  // *args: args` has none, so the comma itself must be optional, not
-  // conditional on a count this shape cannot see. Likewise a trailing comma
-  // after the last kwonly param (a multi-line signature's own style) may or
-  // may not be followed by `**kwarg`, so it is shared between the two
-  // sections rather than owned by the one that happens to follow it.
-  // The posonly section is only present when a `/` actually follows: tried
-  // as its own prefix, given back to `args` when there turns out to be no
-  // `/` (GLR keeps whichever reading completes -- the same fork `Ident`
-  // uses for a soft keyword).
+  // Separators belong to nonempty sections. A bare * requires at least one
+  // keyword-only parameter; a final comma is legal after any complete list.
   template <class Item>
-  static constexpr auto ParamsOf =
-      option(some(append<&ast::Params::posonly>(ref<Item>), lit<",">) +
-             lit<","> + lit<"/">) +
-      option(lit<",">) +
-      many(append<&ast::Params::args>(ref<Item>), lit<",">) +
-      option(option(lit<",">) + lit<"*"> +
-             option(assign<&ast::Params::vararg>(ref<Item>)) +
-             many(lit<","> + append<&ast::Params::kwonly>(ref<Item>))) +
-      option(lit<",">) +
-      option(lit<"**"> + assign<&ast::Params::kwarg>(ref<Item>));
+  static constexpr auto Kwargs = lit<"**"> + assign<&ast::Params::kwarg>(ref<Item>);
+
+  template <class Item>
+  static constexpr auto StarParams =
+      (lit<"*"> + assign<&ast::Params::vararg>(ref<Item>) +
+       many(lit<","> + append<&ast::Params::kwonly>(ref<Item>)) +
+       option(lit<","> + Kwargs<Item>)) |
+      (lit<"*"> + lit<","> +
+       some(append<&ast::Params::kwonly>(ref<Item>), lit<",">) +
+       option(lit<","> + Kwargs<Item>)) | Kwargs<Item>;
+
+  template <class Item>
+  static constexpr auto RegularParams =
+      (some(append<&ast::Params::args>(ref<Item>), lit<",">) +
+       option(lit<","> + StarParams<Item>)) | StarParams<Item>;
+
+  template <class Item>
+  static constexpr auto ParamsOf = option(
+      ((some(append<&ast::Params::posonly>(ref<Item>), lit<",">) +
+        lit<","> + lit<"/"> + option(lit<","> + RegularParams<Item>)) |
+       RegularParams<Item>) + option(lit<",">));
 
   struct Params : rule<create<ast::Params>(ParamsOf<ParamItem>)> {};
   struct LambdaParams : rule<create<ast::Params>(ParamsOf<LambdaParam>)> {};
@@ -692,7 +708,7 @@ struct Python : cursiv::GrammarSpec {
   // SIMPLE STATEMENTS
   // =================
 
-  struct AnnAssignRule : rule<create<ast::AnnAssignStmt>(
+  struct AnnAssign : rule<create<ast::AnnAssignStmt>(
       assign<&ast::AnnAssignStmt::target>(ref<Expression>) + lit<":"> +
       assign<&ast::AnnAssignStmt::annotation>(ref<Expression>) +
       option(lit<"="> +
@@ -704,12 +720,12 @@ struct Python : cursiv::GrammarSpec {
                                 lit<"<<="> | lit<">>="> | lit<"**="> |
                                 lit<"//=">;
 
-  struct AugAssignRule : rule<create<ast::AugAssignStmt>(
+  struct AugAssign : rule<create<ast::AugAssignStmt>(
       assign<&ast::AugAssignStmt::target>(ref<Expression>) +
       assign<&ast::AugAssignStmt::op>(AugOp) +
       assign<&ast::AugAssignStmt::value>(ref<AnnotatedRhs>))> {};
 
-  struct AssignmentRule : rule<create<ast::AssignStmt>(
+  struct Assignment : rule<create<ast::AssignStmt>(
       some(append<&ast::AssignStmt::targets>(ref<StarExpressions>) +
            lit<"=">) +
       assign<&ast::AssignStmt::value>(ref<AnnotatedRhs>))> {};
@@ -718,12 +734,12 @@ struct Python : cursiv::GrammarSpec {
   // only test one class right after the match, not skip spaces to look
   // further ahead, so `type = 5` vs `type X = ...` cannot be told apart
   // lexically.
-  struct TypeAliasRule : rule<create<ast::TypeAliasStmt>(
+  struct TypeAlias : rule<create<ast::TypeAliasStmt>(
       ref<TypeKwTerm> + assign<&ast::TypeAliasStmt::name>(ref<Ident>) +
       option(typeParamsGroup<&ast::TypeAliasStmt::typeParams>) + lit<"="> +
       assign<&ast::TypeAliasStmt::value>(ref<Expression>))> {};
 
-  struct ReturnStmtRule : rule<create<ast::ReturnStmt>(
+  struct ReturnStmt : rule<create<ast::ReturnStmt>(
       kw<"return"> +
       option(assign<&ast::ReturnStmt::value>(ref<StarExpressions>)))> {};
 
@@ -737,14 +753,14 @@ struct Python : cursiv::GrammarSpec {
       assign<&ast::ImportAlias::name>(ref<Ident>) +
       option(kw<"as"> + assign<&ast::ImportAlias::asName>(ref<Ident>))> {};
 
-  struct ImportNameRule : rule<create<ast::ImportStmt>(
+  struct ImportName : rule<create<ast::ImportStmt>(
       kw<"import"> +
       some(append<&ast::ImportStmt::names>(ref<ImportAliasFromDotted>),
            lit<",">))> {};
 
   struct Dots : rule<some(lit<"..."> | lit<".">)> {};
 
-  struct ImportFromRule : rule<create<ast::ImportFromStmt>(
+  struct ImportFrom : rule<create<ast::ImportFromStmt>(
       kw<"from"> +
       ((option(assign<&ast::ImportFromStmt::dots>(ref<Dots>)) +
         assign<&ast::ImportFromStmt::module>(ref<DottedName>))  //
@@ -758,41 +774,41 @@ struct Python : cursiv::GrammarSpec {
        | some(append<&ast::ImportFromStmt::names>(ref<ImportAliasPlain>),
               lit<",">)))> {};
 
-  struct ImportStmtRule : rule<ref<ImportNameRule> | ref<ImportFromRule>> {};
+  struct ImportStmt : rule<ref<ImportName> | ref<ImportFrom>> {};
 
-  struct RaiseStmtRule : rule<create<ast::RaiseStmt>(
+  struct RaiseStmt : rule<create<ast::RaiseStmt>(
       kw<"raise"> +
       option(assign<&ast::RaiseStmt::exc>(ref<Expression>) +
              option(kw<"from"> +
                     assign<&ast::RaiseStmt::cause>(ref<Expression>))))> {};
 
-  struct PassStmtRule : rule<create<ast::PassStmt>(kw<"pass">)> {};
-  struct BreakStmtRule : rule<create<ast::BreakStmt>(kw<"break">)> {};
-  struct ContinueStmtRule : rule<create<ast::ContinueStmt>(kw<"continue">)> {};
+  struct PassStmt : rule<create<ast::PassStmt>(kw<"pass">)> {};
+  struct BreakStmt : rule<create<ast::BreakStmt>(kw<"break">)> {};
+  struct ContinueStmt : rule<create<ast::ContinueStmt>(kw<"continue">)> {};
 
-  struct DelStmtRule : rule<create<ast::DelStmt>(
+  struct DelStmt : rule<create<ast::DelStmt>(
       kw<"del"> +
       some(append<&ast::DelStmt::targets>(ref<StarExpression>), lit<",">) +
       option(lit<",">))> {};
 
-  struct AssertStmtRule : rule<create<ast::AssertStmt>(
+  struct AssertStmt : rule<create<ast::AssertStmt>(
       kw<"assert"> + assign<&ast::AssertStmt::test>(ref<Expression>) +
       option(lit<","> + assign<&ast::AssertStmt::msg>(ref<Expression>)))> {};
 
-  struct GlobalStmtRule : rule<create<ast::GlobalStmt>(
+  struct GlobalStmt : rule<create<ast::GlobalStmt>(
       kw<"global"> +
       some(append<&ast::GlobalStmt::names>(ref<Ident>), lit<",">))> {};
 
-  struct NonlocalStmtRule : rule<create<ast::NonlocalStmt>(
+  struct NonlocalStmt : rule<create<ast::NonlocalStmt>(
       kw<"nonlocal"> +
       some(append<&ast::NonlocalStmt::names>(ref<Ident>), lit<",">))> {};
 
   struct SimpleStmt : rule<
-      ref<AssignmentRule> | ref<AnnAssignRule> | ref<AugAssignRule> |
-      ref<TypeAliasRule> | ref<ExprStmtRule> | ref<ReturnStmtRule> |
-      ref<ImportStmtRule> | ref<RaiseStmtRule> | ref<PassStmtRule> |
-      ref<DelStmtRule> | ref<AssertStmtRule> | ref<BreakStmtRule> |
-      ref<ContinueStmtRule> | ref<GlobalStmtRule> | ref<NonlocalStmtRule>> {};
+      ref<Assignment> | ref<AnnAssign> | ref<AugAssign> |
+      ref<TypeAlias> | ref<ExprStmt> | ref<ReturnStmt> |
+      ref<ImportStmt> | ref<RaiseStmt> | ref<PassStmt> |
+      ref<DelStmt> | ref<AssertStmt> | ref<BreakStmt> |
+      ref<ContinueStmt> | ref<GlobalStmt> | ref<NonlocalStmt>> {};
 
   // COMPOUND STATEMENTS
   // ===================
@@ -805,35 +821,35 @@ struct Python : cursiv::GrammarSpec {
       option(append<&ast::IfStmt::orelse>(ref<ElifChain>) |
              elseBlock<&ast::IfStmt::orelse>)> {};
 
-  struct IfStmtRule : rule<
+  struct IfStmt : rule<
       kw<"if"> + assign<&ast::IfStmt::test>(ref<NamedExpression>) +
       lit<":"> + suite<&ast::IfStmt::body> +
       option(append<&ast::IfStmt::orelse>(ref<ElifChain>) |
              elseBlock<&ast::IfStmt::orelse>)> {};
 
-  struct WhileStmtRule : rule<
+  struct WhileStmt : rule<
       kw<"while"> + assign<&ast::WhileStmt::test>(ref<NamedExpression>) +
       lit<":"> + suite<&ast::WhileStmt::body> +
       option(elseBlock<&ast::WhileStmt::orelse>)> {};
 
-  struct ForStmtRule : rule<
+  struct ForStmt : rule<
       option(flag<&ast::ForStmt::isAsync>(kw<"async">)) + kw<"for"> +
       assign<&ast::ForStmt::target>(ref<TargetList>) + kw<"in"> +
       assign<&ast::ForStmt::iter>(ref<StarExpressions>) + lit<":"> +
       suite<&ast::ForStmt::body> +
       option(elseBlock<&ast::ForStmt::orelse>)> {};
 
-  struct WithItemRule : rule<
+  struct WithItem : rule<
       assign<&ast::WithItem::contextExpr>(ref<Expression>) +
       option(kw<"as"> + assign<&ast::WithItem::optionalVars>(ref<Expression>))> {
   };
 
-  struct WithStmtRule : rule<
+  struct WithStmt : rule<
       option(flag<&ast::WithStmt::isAsync>(kw<"async">)) + kw<"with"> +
       ((lit<"("> +
-        some(append<&ast::WithStmt::items>(ref<WithItemRule>), lit<",">) +
+        some(append<&ast::WithStmt::items>(ref<WithItem>), lit<",">) +
         option(lit<",">) + lit<")">)  //
-       | some(append<&ast::WithStmt::items>(ref<WithItemRule>), lit<",">)) +
+       | some(append<&ast::WithStmt::items>(ref<WithItem>), lit<",">)) +
       lit<":"> + suite<&ast::WithStmt::body>> {};
 
   // `except A, B:` and `except* A, B:` -- an unparenthesized exception list
@@ -842,26 +858,26 @@ struct Python : cursiv::GrammarSpec {
   struct ExprList : rule<
       create<ast::TupleExpr>(
           append<&ast::TupleExpr::elts>(ref<Expression>) + lit<","> +
-          many(append<&ast::TupleExpr::elts>(ref<Expression>), lit<",">) +
-          option(lit<",">))  //
-      | ref<Expression>> {};
+          option(some(append<&ast::TupleExpr::elts>(ref<Expression>), lit<",">) +
+                 option(lit<",">)))> {};
 
-  struct ExceptHandlerRule : rule<
+  struct ExceptHandler : rule<
       kw<"except"> + option(flag<&ast::ExceptHandler::isStar>(lit<"*">)) +
-      option(assign<&ast::ExceptHandler::type>(ref<ExprList>) +
-             option(kw<"as"> + assign<&ast::ExceptHandler::name>(ref<Ident>))) +
+      option((assign<&ast::ExceptHandler::type>(ref<Expression>) +
+              option(kw<"as"> + assign<&ast::ExceptHandler::name>(ref<Ident>))) |
+             assign<&ast::ExceptHandler::type>(ref<ExprList>)) +
       lit<":"> + suite<&ast::ExceptHandler::body>> {};
 
-  struct TryStmtRule : rule<
+  struct TryStmt : rule<
       kw<"try"> + lit<":"> + suite<&ast::TryStmt::body> +
-      ((some(append<&ast::TryStmt::handlers>(ref<ExceptHandlerRule>)) +
+      ((some(append<&ast::TryStmt::handlers>(ref<ExceptHandler>)) +
         option(elseBlock<&ast::TryStmt::orelse>) +
         option(kw<"finally"> + lit<":"> +
                suite<&ast::TryStmt::finalBody>))  //
        | (kw<"finally"> + lit<":"> +
           suite<&ast::TryStmt::finalBody>))> {};
 
-  struct FunctionDefRule : rule<
+  struct FunctionDef : rule<
       many(append<&ast::FunctionDef::decorators>(DecoratorItem)) +
       option(flag<&ast::FunctionDef::isAsync>(kw<"async">)) +
       kw<"def"> + assign<&ast::FunctionDef::name>(ref<Ident>) +
@@ -872,7 +888,7 @@ struct Python : cursiv::GrammarSpec {
       option(lit<"->"> + assign<&ast::FunctionDef::returns>(ref<Expression>)) +
       lit<":"> + suite<&ast::FunctionDef::body>> {};
 
-  struct ClassDefRule : rule<
+  struct ClassDef : rule<
       many(append<&ast::ClassDef::decorators>(DecoratorItem)) + kw<"class"> +
       assign<&ast::ClassDef::name>(ref<Ident>) +
       option(typeParamsGroup<&ast::ClassDef::typeParams>) +
@@ -943,7 +959,8 @@ struct Python : cursiv::GrammarSpec {
 
   // `*name` inside a sequence pattern; `name` may be the wildcard (`*_`).
   struct StarPattern : rule<create<ast::MatchStar>(
-      lit<"*"> + assign<&ast::MatchStar::name>(ref<Ident>))> {};
+      lit<"*"> + (ref<WildcardKwTerm> |
+                 assign<&ast::MatchStar::name>(ref<NameNotWildcard>)))> {};
 
   struct MaybeStarPattern : rule<ref<StarPattern> | ref<Pattern>> {};
 
@@ -995,10 +1012,10 @@ struct Python : cursiv::GrammarSpec {
               option(lit<","> +
                      some(append<&ast::MatchClass::keywords>(
                               ref<KeywordPattern>),
-                          lit<",">)))  //
+                          lit<",">)) + option(lit<",">))  //
              | some(append<&ast::MatchClass::keywords>(ref<KeywordPattern>),
-                    lit<",">)) +
-      option(lit<",">) + lit<")">)> {};
+                    lit<",">) + option(lit<",">)) +
+      lit<")">)> {};
 
   struct ClosedPattern : rule<
       ref<LiteralPattern> | ref<ValuePattern> | ref<ClassPattern> |
@@ -1009,7 +1026,7 @@ struct Python : cursiv::GrammarSpec {
   struct OrPattern : rule<
       create<ast::MatchOr>(
           append<&ast::MatchOr::patterns>(ref<ClosedPattern>) + lit<"|"> +
-          many(append<&ast::MatchOr::patterns>(ref<ClosedPattern>),
+          some(append<&ast::MatchOr::patterns>(ref<ClosedPattern>),
                lit<"|">))  //
       | ref<ClosedPattern>> {};
 
@@ -1037,32 +1054,32 @@ struct Python : cursiv::GrammarSpec {
                  option(lit<",">)))  //
       | ref<Pattern>> {};
 
-  struct CaseBlockRule : rule<create<ast::MatchCase>(
+  struct CaseBlock : rule<create<ast::MatchCase>(
       ref<CaseKwTerm> + assign<&ast::MatchCase::pattern>(ref<PatternsTop>) +
       option(kw<"if"> + assign<&ast::MatchCase::guard>(ref<NamedExpression>)) +
       lit<":"> + suite<&ast::MatchCase::body>)> {};
 
   // `match` always opens an indented block of cases: no same-line form.
-  struct MatchStmtRule : rule<create<ast::MatchStmt>(
-      ref<MatchKwTerm> + assign<&ast::MatchStmt::subject>(ref<StarExpressions>) +
+  struct MatchStmt : rule<create<ast::MatchStmt>(
+      ref<MatchKwTerm> + assign<&ast::MatchStmt::subject>(ref<StarNamedExpressions>) +
       lit<":"> + ref<NEWLINE> + indent +
-      some(append<&ast::MatchStmt::cases>(ref<CaseBlockRule>)) + dedent)> {};
+      some(append<&ast::MatchStmt::cases>(ref<CaseBlock>)) + dedent)> {};
 
   struct CompoundStmt : rule<
-      ref<IfStmtRule> | ref<WhileStmtRule> | ref<ForStmtRule> |
-      ref<WithStmtRule> | ref<TryStmtRule> | ref<FunctionDefRule> |
-      ref<ClassDefRule> | ref<MatchStmtRule>> {};
+      ref<IfStmt> | ref<WhileStmt> | ref<ForStmt> |
+      ref<WithStmt> | ref<TryStmt> | ref<FunctionDef> |
+      ref<ClassDef> | ref<MatchStmt>> {};
 
   // MODULE
   // ======
 
-  struct ModuleRule : rule<create<ast::Module>(
+  struct Module : rule<create<ast::Module>(
       option(ref<LeadingTrivia>) +
       many(append<&ast::Module::body>(ref<CompoundStmt>) |
            sameLineBlock<&ast::Module::body>))> {};
 
-  using entry = ModuleRule;
-  using ignore = list<WS, NL_TRIVIA>;
+  using entry = Module;
+  using ignored = WS;
   static constexpr auto word_boundary = uc::XID_Continue;
   using hidden = list<COMMENT>;
 };

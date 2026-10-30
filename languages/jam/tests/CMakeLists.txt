@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every document under example/ parses clean.
 add_executable(jam_grammar_test grammar_test.cpp)
-target_link_libraries(jam_grammar_test PRIVATE jamCore)
+target_link_libraries(jam_grammar_test PRIVATE jamCore cursiv::test)
 target_compile_definitions(jam_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

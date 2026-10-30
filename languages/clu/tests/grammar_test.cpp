@@ -12,6 +12,8 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "clu/core/CoreServices.hpp"
 #include "clu/core/ast.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 namespace {
 
@@ -125,6 +127,78 @@ int check_equate_bare_name_reading() {
   return 0;
 }
 
+int check_native_shapes() {
+  namespace ast = clu::ast;
+  const auto language = cursiv::create_language<
+      clu::CluCoreServices, clu::CluSharedCoreServices, clu::install_core_module>();
+  const std::string source = R"clu(
+_P = PROC [T: TYPE] (a: ARRAY[T], s: SEQUENCE[INT]);
+  kind: TYPE;
+  c: CHAR := '\101';
+  text: STRING := "a\n\"b";
+  r: REAL := .5E+2;
+  f: ANY := FORCE[INT];
+  ping();
+  WHILE TRUE DO CONTINUE; END;
+  ping() EXCEPT WHEN oops (why: STRING): RETURN; END;
+END _p;
+)clu";
+  const auto result = language.language.parser->parse(source);
+  const auto* module = result.value_as<ast::Module>();
+  const auto* routine = module ? cursiv::ast_cast<ast::Routine>(module->routine) : nullptr;
+  if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+      !routine || routine->parms.size() != 1 || !routine->parms[0]->isTypeParam ||
+      routine->args.size() != 2 || routine->statements.size() != 8)
+    return fail("native-shapes", "native syntax did not build its complete routine");
+  const auto* array = cursiv::ast_cast<ast::ArrayTypeSpec>(routine->args[0]->type);
+  const auto* seq = cursiv::ast_cast<ast::SequenceTypeSpec>(routine->args[1]->type);
+  if (!array || !array->element || !seq || !seq->element)
+    return fail("native-shapes", "array or sequence element type was lost");
+  bool ch = false, str = false, real = false, force = false, zero_call = false,
+       continued = false, handler = false;
+  for (const auto* node : result.nodes) {
+    if (const auto* v = cursiv::ast_cast<ast::CharLit>(node)) ch |= v->value == "A";
+    if (const auto* v = cursiv::ast_cast<ast::StringLit>(node)) str |= v->value == "a\n\"b";
+    if (const auto* v = cursiv::ast_cast<ast::RealLit>(node)) real |= v->value == 50.;
+    if (const auto* v = cursiv::ast_cast<ast::ForceExpr>(node)) force |= v->type != nullptr;
+    if (const auto* v = cursiv::ast_cast<ast::Call>(node)) zero_call |= v->args.empty();
+    continued |= cursiv::ast_cast<ast::ContinueStmt>(node) != nullptr;
+    if (const auto* v = cursiv::ast_cast<ast::WhenHandler>(node))
+      handler |= v->decls.size() == 1 && v->decls[0]->names.size() == 1 &&
+                 v->decls[0]->names[0] == "why";
+  }
+  if (!ch || !str || !real || !force || !zero_call || !continued || !handler)
+    return fail("native-shapes", "native literal, call or handler capture was lost");
+  const auto validation = cursiv::test::validationHelper(language.language, source);
+  if (!validation.diagnostics.empty())
+    return fail("native-shapes", "case-insensitive END name was rejected");
+  const std::string set_source =
+      "S = {t | t has equal: proctype(t, t) returns(bool)}; "
+      "p = proc [u: type]() where u in S; end p;";
+  const auto set_result = language.language.parser->parse(set_source);
+  const auto* set_module = set_result.value_as<ast::Module>();
+  const auto* set_routine = set_module
+      ? cursiv::ast_cast<ast::Routine>(set_module->routine) : nullptr;
+  const auto* set = set_module && set_module->equates.size() == 1
+      ? std::get_if<ast::TypeSet*>(&set_module->equates[0]->value) : nullptr;
+  if (!set_result.accepted || set_result.cst().recovered() ||
+      !set_result.diagnostics.empty() || !set || !*set || (*set)->name != "t" ||
+      (*set)->items.size() != 1 || (*set)->items[0]->name != "t" ||
+      (*set)->items[0]->ops.size() != 1 || !set_routine ||
+      set_routine->where.size() != 1 || set_routine->where[0]->inName != "S")
+    return fail("native-shapes", "type-set binder, operation or named restriction was lost");
+  for (const char* invalid : {
+           "p = proc t: type() end p", "p = proc(a: array) end p",
+           "p = proc(a: sequence int) end p", "p = proc() x: any := force int end p",
+           "p = proc() x: char := 'ab' end p", "p = proc() x: string := \"a\\q\" end p",
+           "p = proc() int: int end p"}) {
+    const auto bad = language.language.parser->parse(invalid);
+    if (bad.accepted && !bad.cst().recovered() && bad.diagnostics.empty())
+      return fail("native-shapes", "old non-native spelling was still accepted");
+  }
+  return 0;
+}
+
 }  // namespace
 
 int main() {
@@ -175,6 +249,7 @@ int main() {
   failures += check_fields(CURSIV_EXAMPLE_DIR);
   failures += check_power_right_assoc();
   failures += check_equate_bare_name_reading();
+  failures += check_native_shapes();
   if (failures > 0) return 1;
 
   std::printf("clu: %d example(s) parse\n", total);

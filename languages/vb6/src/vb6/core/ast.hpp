@@ -32,6 +32,7 @@ struct DictionaryAccessExpr : cursiv::Extends<Expr> {
 };
 
 struct Arg : cursiv::Extends<cursiv::AstNode> {
+  string_view separatorBefore;  // empty for first slot; comma/semicolon otherwise
   boolean byVal;
   boolean byRef;
   boolean paramArray;
@@ -402,6 +403,7 @@ struct ReDimItem : cursiv::Extends<cursiv::AstNode> {
   Expr* target;
   optional<string_view> typeChar;
   vector<ArrayBound*> bounds;
+  TypeRef* asType;
 };
 
 struct ReDimStmt : cursiv::Extends<Item> {

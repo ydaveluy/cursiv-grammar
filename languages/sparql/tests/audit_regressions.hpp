@@ -211,6 +211,34 @@ inline bool run() {
       language.language.validator->checkPrefixesDeclared(*query, accept);
     check(errors == 3, "default prefix must be declared");
   }
+  for (const auto source : {"ASK { <urn:bad iri> <urn:p> <urn:o> }",
+                            "ASK { <urn:s> <urn:p> \"a\"@é }"}) {
+    const auto result = parser->parse(source);
+    check(!result.accepted || result.cst().recovered() || !result.diagnostics.empty(),
+          "SPARQL 1.0 excludes ASCII controls/spaces in IRIs and non-ASCII language tags");
+  }
+  {
+    const auto result = parser->parse("ASK { <urn:s> <urn:p> \"a\"@en-US9 }");
+    check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
+          "SPARQL ASCII language subtags include digits after the first group");
+  }
+  {
+    const auto language = cursiv::create_language<sparql::SparqlCoreServices,
+        sparql::SparqlSharedCoreServices, sparql::install_core_module>();
+    const std::string source = "PREFIX ex: <urn:a:> PREFIX ex: <urn:b:> ASK {}";
+    cursiv::Document document(cursiv::TextDocument::create("memory:duplicate-prefix", "sparql", 0, source));
+    document.parseResult = parser->parse(source);
+    check(document.parseResult.accepted && !document.parseResult.cst().recovered(),
+          "prefix redeclarations remain represented for validation");
+    int duplicates = 0;
+    auto sink = [&](cursiv::Diagnostic&& diagnostic) {
+      if (diagnostic.code && *diagnostic.code == "sparql.prefix.duplicate") ++duplicates;
+    };
+    cursiv::ValidationAcceptor accept(sink, document, source);
+    if (const auto* query = document.parseResult.value_as<ast::Query>())
+      language.language.validator->checkPrefixesDeclared(*query, accept);
+    check(duplicates == 1, "SPARQL 1.0 A.5 forbids redeclaring a prefix");
+  }
   return ok;
 }
 } // namespace audit_regressions

@@ -31,17 +31,12 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-An ITN file is a TomTom itinerary: one line per waypoint, four
-pipe-terminated fields -- longitude, latitude, a free-text description, and
-a flag.
+A TomTom Navigator SDK 3 itinerary has one waypoint per line and four pipe-terminated fields: longitude, latitude, description and flag. Coordinate bounds and the flag mask are checked.
 
 ```
 490843|5237653|Amsterdam Central Station|4|
 496283|5226712|Abcoude Park and Ride|0|
 ```
-
-The description is not quoted: it runs from right after its `|` up to the
-next one, spaces included, so `Abcoude Park and Ride` reads as one field.
 
 ## The command line
 

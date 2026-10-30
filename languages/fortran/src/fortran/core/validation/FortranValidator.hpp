@@ -1,6 +1,5 @@
-// The checks of this language: none. The grammar permits keywords as names
-// and generic I/O and attribute statements; no invariant here needs a
-// semantic pass to catch.
+// No semantic checks are registered yet. Declaration, type, DATA, I/O and
+// construct constraints are outside this permissive syntax importer.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

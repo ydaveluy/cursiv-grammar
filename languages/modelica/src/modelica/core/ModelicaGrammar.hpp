@@ -13,13 +13,28 @@ struct Modelica : cursiv::GrammarSpec {
   struct COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
   struct LINE_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
 
+  // Modelica reserved words remain unavailable in IDENT-only contexts.
+  static constexpr auto Reserved =
+      kw<"algorithm"> | kw<"discrete"> | kw<"false"> | kw<"loop"> | kw<"pure"> |
+      kw<"and"> | kw<"each"> | kw<"final"> | kw<"model"> | kw<"record"> |
+      kw<"annotation"> | kw<"else"> | kw<"flow"> | kw<"not"> | kw<"redeclare"> |
+      kw<"elseif"> | kw<"for"> | kw<"operator"> | kw<"replaceable"> | kw<"block"> |
+      kw<"elsewhen"> | kw<"function"> | kw<"or"> | kw<"return"> | kw<"break"> |
+      kw<"encapsulated"> | kw<"if"> | kw<"outer"> | kw<"stream"> | kw<"class"> |
+      kw<"end"> | kw<"import"> | kw<"output"> | kw<"then"> | kw<"connect"> |
+      kw<"enumeration"> | kw<"impure"> | kw<"package"> | kw<"true"> | kw<"connector"> |
+      kw<"equation"> | kw<"in"> | kw<"parameter"> | kw<"type"> | kw<"constant"> |
+      kw<"expandable"> | kw<"initial"> | kw<"partial"> | kw<"when"> | kw<"constrainedby"> |
+      kw<"extends"> | kw<"inner"> | kw<"protected"> | kw<"while"> | kw<"der"> |
+      kw<"external"> | kw<"input"> | kw<"public"> | kw<"within">;
+
   static constexpr auto QChar =
-      cr<"0-9A-Za-z_!#$%&()*+,./:;<>=?@[]{}|~^-">;
+      cr<R"( 0-9A-Za-z_!#$%&()*+,./:;<>=?@[]{}|~^"-)">;
   static constexpr auto SEscape =
-      lit<"\\"> + (cr<R"(abfnrtv\\"'?)"> | lit<"’">);
+      lit<"\\"> + cr<R"(abfnrtv\\"'?)">;
   struct IDENT
-      : terminal<(cr<"a-zA-Z_"> + many(w)) |
-                 (lit<"'"> + some(QChar | SEscape) + lit<"'">)> {};
+      : terminal<!Reserved + ((cr<"a-zA-Z_"> + many(w)) |
+                             (lit<"'"> + many(QChar | SEscape) + lit<"'">))> {};
 
   static constexpr auto unescape = [](std::string_view t,
                                       std::pmr::memory_resource* mem) {
@@ -46,14 +61,14 @@ struct Modelica : cursiv::GrammarSpec {
     }
     return std::string_view(room.data(), n);
   };
-  using Unescaped = cursiv::text_conv<unescape>;
-  struct STRING
-      : terminal<lit<"\""> + many(SEscape | cr<R"(^"\\)">) + lit<"\"">,
-                 Unescaped> {};
+  struct STRING : terminal<as<unescape>(
+                      lit<"\""> + many(SEscape | cr<R"(^"\\)">) + lit<"\"">)> {
+  };
 
   static constexpr auto UInt = some(d);
   struct UNSIGNED_NUMBER
-      : terminal<UInt + option(lit<"."> + option(UInt)) +
+      : terminal<((UInt + option(lit<"."> + option(UInt))) |
+                  (lit<"."> + UInt)) +
                  option(cr<"eE"> + option(cr<"+-">) + UInt)> {};
 
   static constexpr auto MulOp = lit<"*"> | lit<"/"> | lit<".*"> | lit<"./">;
@@ -84,145 +99,148 @@ struct Modelica : cursiv::GrammarSpec {
         assign<&ast::ClassDef::kind>(kw<"function">)) |
        assign<&ast::ClassDef::kind>(kw<"operator">));
 
-  struct SubscriptRule;
-  struct PrimaryRule;
-  struct FactorRule;
-  struct TermRule;
-  struct SignedTermRule;
-  struct ArithExprRule;
-  struct RelationRule;
-  struct LogicalFactorRule;
-  struct LogicalExprRule;
-  struct SimpleExpressionRule;
-  struct ExpressionRule;
-  struct ExprRowRule;
-  struct NameRule;
-  struct DerOrInitialNameRule;
-  struct CallCalleeRule;
-  struct ComponentReferenceRule;
-  struct RefPartRule;
-  struct FunctionArgumentsRule;
-  struct FunctionArgumentRule;
-  struct NamedArgumentRule;
-  struct ForIndexRule;
-  struct AnnotationRule;
-  struct ClassModRule;
-  struct ArgumentRule;
-  struct ElementModWithFlagsRule;
-  struct ElementReplaceableWithFlagsRule;
-  struct ElementReplaceableRule;
-  struct ElementRedeclareRule;
-  struct ModificationRule;
-  struct ComponentDeclRule;
-  struct ComponentDecl1Rule;
-  struct ComponentClauseRule;
-  struct ComponentClause1Rule;
-  struct ShortClassDefinitionRule;
-  struct ClassDefinitionRule;
-  struct ClassSpecifierRule;
-  struct LongClassSpecRule;
-  struct ShortClassSpecRule;
-  struct EnumLiteralRule;
-  struct DerClassSpecRule;
-  struct ImportClauseRule;
-  struct ExtendsClauseRule;
-  struct ElementRule;
-  struct ElementDeclRule;
-  struct CompositionRule;
-  struct DefaultSectionRule;
-  struct PublicSectionRule;
-  struct ProtectedSectionRule;
-  struct EquationSectionRule;
-  struct AlgorithmSectionRule;
-  struct ExternalCallRule;
-  struct EquationRule;
-  struct IfEquationRule;
-  struct ForEquationRule;
-  struct ConnectEquationRule;
-  struct WhenEquationRule;
-  struct EqBlockRule;
-  struct StatementRule;
-  struct StmtBlockRule;
-  struct IfStmtRule;
-  struct ForStmtRule;
-  struct WhileStmtRule;
-  struct WhenStmtRule;
-  struct WithinClauseRule;
-  struct TopClassDefRule;
-  struct StoredDefinitionRule;
+  struct Subscript;
+  struct Primary;
+  struct Factor;
+  struct Term;
+  struct SignedTerm;
+  struct ArithExpr;
+  struct Relation;
+  struct LogicalFactor;
+  struct LogicalExpr;
+  struct SimpleExpression;
+  struct Expression;
+  struct ExprRow;
+  struct Name;
+  struct SpecialCallCallee;
+  struct CallCallee;
+  struct ComponentReference;
+  struct RefPart;
+  struct FunctionArguments;
+  struct FunctionArgument;
+  struct FunctionPartialApplication;
+  struct NamedArgument;
+  struct ForIndex;
+  struct Annotation;
+  struct ClassMod;
+  struct Argument;
+  struct ElementModWithFlags;
+  struct ElementReplaceableWithFlags;
+  struct ElementReplaceable;
+  struct ElementRedeclare;
+  struct Modification;
+  struct ComponentDecl;
+  struct ComponentDecl1;
+  struct ComponentClause;
+  struct ComponentClause1;
+  struct ShortClassDefinition;
+  struct ClassDefinition;
+  struct ClassSpecifier;
+  struct LongClassSpec;
+  struct ShortClassSpec;
+  struct EnumLiteral;
+  struct DerClassSpec;
+  struct ImportClause;
+  struct ExtendsClause;
+  struct Element;
+  struct ElementDecl;
+  struct Composition;
+  struct DefaultSection;
+  struct PublicSection;
+  struct ProtectedSection;
+  struct EquationSection;
+  struct AlgorithmSection;
+  struct ExternalCall;
+  struct Equation;
+  struct IfEquation;
+  struct ForEquation;
+  struct ConnectEquation;
+  struct WhenEquation;
+  struct EqBlock;
+  struct Statement;
+  struct StmtBlock;
+  struct IfStmt;
+  struct ForStmt;
+  struct WhileStmt;
+  struct WhenStmt;
+  struct WithinClause;
+  struct TopClassDef;
+  struct StoredDefinition;
 
   // -- names and references ----
 
-  struct NameRule
+  struct Name
       : rule<option(flag<&ast::Name::global>(lit<".">)) +
              append<&ast::Name::parts>(ref<IDENT>) +
              many(lit<"."> + append<&ast::Name::parts>(ref<IDENT>))> {};
 
-  struct DerOrInitialNameRule
-      : rule<create<ast::Name> +
-             append<&ast::Name::parts>(kw<"der"> | kw<"initial">)> {};
+  struct SpecialCallCallee
+      : rule<create<ast::ComponentRef> +
+             append<&ast::ComponentRef::parts>(create<ast::RefPart>(
+                 assign<&ast::RefPart::name>(kw<"der"> | kw<"initial"> | kw<"pure">)))> {};
 
-  struct CallCalleeRule
-      : rule<ref<NameRule> | ref<DerOrInitialNameRule>> {};
+  struct CallCallee
+      : rule<ref<ComponentReference> | ref<SpecialCallCallee>> {};
 
-  struct RefPartRule
+  struct RefPart
       : rule<assign<&ast::RefPart::name>(ref<IDENT>) +
              option(lit<"["> +
-                    some(append<&ast::RefPart::subscripts>(ref<SubscriptRule>),
+                    some(append<&ast::RefPart::subscripts>(ref<Subscript>),
                          lit<",">) +
                     lit<"]">)> {};
 
-  struct ComponentReferenceRule
+  struct ComponentReference
       : rule<option(flag<&ast::ComponentRef::global>(lit<".">)) +
-             append<&ast::ComponentRef::parts>(ref<RefPartRule>) +
+             append<&ast::ComponentRef::parts>(ref<RefPart>) +
              many(lit<"."> +
-                  append<&ast::ComponentRef::parts>(ref<RefPartRule>))> {};
+                  append<&ast::ComponentRef::parts>(ref<RefPart>))> {};
 
   // -- expressions ----
 
-  struct SubscriptRule
-      : rule<(create<ast::ColonExpr> + lit<":">) | ref<ExpressionRule>> {};
+  struct Subscript
+      : rule<(create<ast::ColonExpr> + lit<":">) | ref<Expression>> {};
 
-  struct ExprRowRule
-      : rule<some(append<&ast::ExprRow::items>(ref<ExpressionRule>),
+  struct ExprRow
+      : rule<some(append<&ast::ExprRow::items>(ref<Expression>),
                   lit<",">)> {};
 
-  struct NamedArgumentRule
+  struct NamedArgument
       : rule<assign<&ast::NamedArg::name>(ref<IDENT>) + lit<"="> +
-             assign<&ast::NamedArg::value>(ref<FunctionArgumentRule>)> {};
+             assign<&ast::NamedArg::value>(ref<FunctionArgument>)> {};
 
-  struct FunctionArgumentRule
-      : rule<(kw<"function"> + assign<&ast::FunctionRefArg::func>(ref<NameRule>) +
-              lit<"("> +
-              option(some(append<&ast::FunctionRefArg::named>(
-                              ref<NamedArgumentRule>),
-                          lit<",">)) +
-              lit<")">)  //
-             | ref<ExpressionRule>> {};
+  struct FunctionPartialApplication
+      : rule<kw<"function"> + assign<&ast::FunctionRefArg::func>(ref<Name>) +
+             lit<"("> +
+             many(append<&ast::FunctionRefArg::named>(ref<NamedArgument>), lit<",">) +
+             lit<")">> {};
+  struct FunctionArgument : rule<ref<FunctionPartialApplication> | ref<Expression>> {};
 
-  struct ForIndexRule
+  struct ForIndex
       : rule<assign<&ast::ForIndex::name>(ref<IDENT>) +
-             option(kw<"in"> + assign<&ast::ForIndex::range>(ref<ExpressionRule>))> {
+             option(kw<"in"> + assign<&ast::ForIndex::range>(ref<Expression>))> {
   };
 
-  // After the positional run, Modelica's function-call argument list may
-  // either keep adding positional arguments, switch permanently to named
-  // ones past a comma, or close with a `for` comprehension -- never resume
-  // positional once named starts.
-  struct FunctionArgumentsRule
-      : rule<(some(append<&ast::CallArgs::positional>(ref<FunctionArgumentRule>),
-                   lit<",">) +
-              ((lit<","> +
-                some(append<&ast::CallArgs::named>(ref<NamedArgumentRule>),
-                     lit<",">))  //
-               | option(kw<"for"> +
-                        some(append<&ast::CallArgs::forIndices>(
-                                 ref<ForIndexRule>),
-                             lit<",">))))  //
-             | some(append<&ast::CallArgs::named>(ref<NamedArgumentRule>),
-                    lit<",">)> {};
+  // The first expression may head a reduction/comprehension. After a
+  // comma only positional/named arguments continue; partial applications
+  // and named arguments do not open a for-clause.
+  static constexpr auto NonFirstArguments =
+      (some(append<&ast::CallArgs::positional>(ref<FunctionArgument>), lit<",">) +
+       option(lit<","> + some(append<&ast::CallArgs::named>(ref<NamedArgument>), lit<",">))) |
+      some(append<&ast::CallArgs::named>(ref<NamedArgument>), lit<",">);
+  static constexpr auto ArgumentIndices =
+      kw<"for"> + some(append<&ast::CallArgs::forIndices>(ref<ForIndex>), lit<",">);
+  struct FunctionArguments
+      : rule<(append<&ast::CallArgs::positional>(ref<Expression>) +
+              option((lit<","> + NonFirstArguments) | ArgumentIndices)) |
+             (append<&ast::CallArgs::positional>(ref<FunctionPartialApplication>) +
+              option(lit<","> + NonFirstArguments)) |
+             some(append<&ast::CallArgs::named>(ref<NamedArgument>), lit<",">)> {};
+  struct ArrayArguments
+      : rule<append<&ast::CallArgs::positional>(ref<Expression>) +
+             (ArgumentIndices |
+              many(lit<","> + append<&ast::CallArgs::positional>(ref<Expression>)))> {};
 
-  struct PrimaryRule
+  struct Primary
       : rule<create<ast::NumberLit>(
                  assign<&ast::NumberLit::value>(ref<UNSIGNED_NUMBER>))  //
              | create<ast::StringLit>(
@@ -230,600 +248,599 @@ struct Modelica : cursiv::GrammarSpec {
              | (create<ast::BoolLit> +
                 (flag<&ast::BoolLit::value>(kw<"true">) | kw<"false">))  //
              | create<ast::CallExpr>(
-                   assign<&ast::CallExpr::callee>(ref<CallCalleeRule>) +
+                   assign<&ast::CallExpr::callee>(ref<CallCallee>) +
                    lit<"("> +
                    option(assign<&ast::CallExpr::args>(
-                       ref<FunctionArgumentsRule>)) +
+                       ref<FunctionArguments>)) +
                    lit<")">)                //
-             | ref<ComponentReferenceRule>  //
+             | ref<ComponentReference>  //
              | (lit<"("> +
-                append<&ast::TupleExpr::items>(ref<ExpressionRule> |
+                append<&ast::TupleExpr::items>(ref<Expression> |
                                                create<ast::OmittedOutput>) +
                 many(lit<","> +
                      append<&ast::TupleExpr::items>(
-                         ref<ExpressionRule> | create<ast::OmittedOutput>)) +
+                         ref<Expression> | create<ast::OmittedOutput>)) +
                 lit<")">)  //
              |
-             (lit<"["> + append<&ast::MatrixLit::rows>(ref<ExprRowRule>) +
-              many(lit<";"> + append<&ast::MatrixLit::rows>(ref<ExprRowRule>)) +
+             (lit<"["> + append<&ast::MatrixLit::rows>(ref<ExprRow>) +
+              many(lit<";"> + append<&ast::MatrixLit::rows>(ref<ExprRow>)) +
               lit<"]">)  //
              | create<ast::ArrayLit>(
                    lit<"{"> +
-                   assign<&ast::ArrayLit::args>(ref<FunctionArgumentsRule>) +
+                   assign<&ast::ArrayLit::args>(ref<ArrayArguments>) +
                    lit<"}">)  //
              | (create<ast::EndExpr> + kw<"end">)> {};
 
-  struct FactorRule
-      : rule<(assign<&ast::BinaryExpr::left>(ref<PrimaryRule>) +
+  struct Factor
+      : rule<(assign<&ast::BinaryExpr::left>(ref<Primary>) +
               assign<&ast::BinaryExpr::op>(lit<"^"> | lit<".^">) +
-              assign<&ast::BinaryExpr::right>(ref<PrimaryRule>))  //
-             | ref<PrimaryRule>> {};
+              assign<&ast::BinaryExpr::right>(ref<Primary>))  //
+             | ref<Primary>> {};
 
-  struct TermRule
-      : infix<FactorRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, (left(MulOp))> {};
+  struct Term
+      : infix<Factor, ast::BinaryExpr, (left(MulOp))> {};
 
-  // A leading sign belongs only ahead of the whole arithmetic expression in
-  // Modelica; folding it onto every term of the `+`/`-` chain over-accepts
-  // `a + -b`, a harmless widening.
-  struct SignedTermRule
+  // A leading sign precedes the first whole term. Subsequent additive
+  // operands are unsigned terms, as in the native arithmetic-expression.
+  struct SignedTerm
       : rule<(assign<&ast::UnaryExpr::op>(AddOp) +
-              assign<&ast::UnaryExpr::operand>(ref<TermRule>))  //
-             | ref<TermRule>> {};
+              assign<&ast::UnaryExpr::operand>(ref<Term>))  //
+             | ref<Term>> {};
 
-  struct ArithExprRule
-      : infix<SignedTermRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, (left(AddOp))> {};
+  struct ArithExpr
+      : rule<ref<SignedTerm> +
+             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
+                 assign<&ast::BinaryExpr::op>(AddOp) +
+                 assign<&ast::BinaryExpr::right>(ref<Term>)))> {};
 
-  struct RelationRule
-      : rule<(assign<&ast::BinaryExpr::left>(ref<ArithExprRule>) +
+  struct Relation
+      : rule<(assign<&ast::BinaryExpr::left>(ref<ArithExpr>) +
               assign<&ast::BinaryExpr::op>(RelOp) +
-              assign<&ast::BinaryExpr::right>(ref<ArithExprRule>))  //
-             | ref<ArithExprRule>> {};
+              assign<&ast::BinaryExpr::right>(ref<ArithExpr>))  //
+             | ref<ArithExpr>> {};
 
-  struct LogicalFactorRule
+  struct LogicalFactor
       : rule<(assign<&ast::UnaryExpr::op>(kw<"not">) +
-              assign<&ast::UnaryExpr::operand>(ref<RelationRule>))  //
-             | ref<RelationRule>> {};
+              assign<&ast::UnaryExpr::operand>(ref<Relation>))  //
+             | ref<Relation>> {};
 
-  struct LogicalExprRule
-      : infix<LogicalFactorRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(kw<"and">) >> left(kw<"or">))> {};
+  struct LogicalExpr
+      : infix<LogicalFactor, ast::BinaryExpr,
+              levels(left(kw<"and">), left(kw<"or">))> {};
 
-  struct SimpleExpressionRule
-      : rule<(assign<&ast::RangeExpr::start>(ref<LogicalExprRule>) +
-              lit<":"> + assign<&ast::RangeExpr::step>(ref<LogicalExprRule>) +
+  struct SimpleExpression
+      : rule<(assign<&ast::RangeExpr::start>(ref<LogicalExpr>) +
+              lit<":"> + assign<&ast::RangeExpr::step>(ref<LogicalExpr>) +
               lit<":"> +
-              assign<&ast::RangeExpr::stop>(ref<LogicalExprRule>))  //
-             | (assign<&ast::RangeExpr::start>(ref<LogicalExprRule>) +
+              assign<&ast::RangeExpr::stop>(ref<LogicalExpr>))  //
+             | (assign<&ast::RangeExpr::start>(ref<LogicalExpr>) +
                 lit<":"> +
-                assign<&ast::RangeExpr::stop>(ref<LogicalExprRule>))  //
-             | ref<LogicalExprRule>> {};
+                assign<&ast::RangeExpr::stop>(ref<LogicalExpr>))  //
+             | ref<LogicalExpr>> {};
 
-  struct ExpressionRule
-      : rule<(kw<"if"> + append<&ast::IfExpr::conditions>(ref<ExpressionRule>) +
-              kw<"then"> + append<&ast::IfExpr::branches>(ref<ExpressionRule>) +
+  struct Expression
+      : rule<(kw<"if"> + append<&ast::IfExpr::conditions>(ref<Expression>) +
+              kw<"then"> + append<&ast::IfExpr::branches>(ref<Expression>) +
               many(kw<"elseif"> +
-                   append<&ast::IfExpr::conditions>(ref<ExpressionRule>) +
+                   append<&ast::IfExpr::conditions>(ref<Expression>) +
                    kw<"then"> +
-                   append<&ast::IfExpr::branches>(ref<ExpressionRule>)) +
+                   append<&ast::IfExpr::branches>(ref<Expression>)) +
               kw<"else"> +
-              assign<&ast::IfExpr::elseBranch>(ref<ExpressionRule>))  //
-             | ref<SimpleExpressionRule>> {};
+              assign<&ast::IfExpr::elseBranch>(ref<Expression>))  //
+             | ref<SimpleExpression>> {};
 
   // -- modification system ----
 
-  struct AnnotationRule
+  struct Annotation
       : rule<kw<"annotation"> +
-             assign<&ast::Annotation::mod>(ref<ClassModRule>)> {};
+             assign<&ast::Annotation::mod>(ref<ClassMod>)> {};
 
-  struct ClassModRule
+  struct ClassMod
       : rule<lit<"("> +
-             option(some(append<&ast::ClassMod::args>(ref<ArgumentRule>),
-                         lit<",">)) +
+             many(append<&ast::ClassMod::args>(ref<Argument>),
+                         lit<",">) +
              lit<")">> {};
 
-  struct ModificationRule
-      : rule<(assign<&ast::Modification::mod>(ref<ClassModRule>) +
+  struct Modification
+      : rule<(assign<&ast::Modification::mod>(ref<ClassMod>) +
               option(assign<&ast::Modification::assignOp>(lit<"=">) +
-                     assign<&ast::Modification::value>(ref<ExpressionRule>)))  //
+                     assign<&ast::Modification::value>(ref<Expression>)))  //
              | (assign<&ast::Modification::assignOp>(lit<"=">) +
-                assign<&ast::Modification::value>(ref<ExpressionRule>))  //
+                assign<&ast::Modification::value>(ref<Expression>))  //
              | (assign<&ast::Modification::assignOp>(lit<":=">) +
-                assign<&ast::Modification::value>(ref<ExpressionRule>))> {};
+                assign<&ast::Modification::value>(ref<Expression>))> {};
 
-  struct ElementModWithFlagsRule
+  struct ElementModWithFlags
       : rule<option(flag<&ast::ElementMod::each_>(kw<"each">)) +
              option(flag<&ast::ElementMod::final_>(kw<"final">)) +
-             assign<&ast::ElementMod::name>(ref<NameRule>) +
-             option(assign<&ast::ElementMod::mod>(ref<ModificationRule>)) +
-             option(some(append<&ast::ElementMod::docStrings>(ref<STRING>),
-                         lit<"+">))> {};
+             assign<&ast::ElementMod::name>(ref<Name>) +
+             option(assign<&ast::ElementMod::mod>(ref<Modification>)) +
+             many(append<&ast::ElementMod::docStrings>(ref<STRING>),
+                         lit<"+">)> {};
 
-  struct ElementReplaceableRule
+  struct ElementReplaceable
       : rule<kw<"replaceable"> +
              (assign<&ast::ElementReplaceableArg::classDef>(
-                  ref<ShortClassDefinitionRule>)  //
+                  ref<ShortClassDefinition>)  //
               | assign<&ast::ElementReplaceableArg::component>(
-                    ref<ComponentClause1Rule>)) +
+                    ref<ComponentClause1>)) +
              option(kw<"constrainedby"> +
                     assign<&ast::ElementReplaceableArg::constrainingClause>(
-                        ref<NameRule>) +
+                        ref<Name>) +
                     option(assign<&ast::ElementReplaceableArg::constrainingMod>(
-                        ref<ClassModRule>)))> {};
+                        ref<ClassMod>)))> {};
 
-  struct ElementReplaceableWithFlagsRule
+  struct ElementReplaceableWithFlags
       : rule<option(flag<&ast::ElementReplaceableArg::each_>(kw<"each">)) +
              option(flag<&ast::ElementReplaceableArg::final_>(kw<"final">)) +
              kw<"replaceable"> +
              (assign<&ast::ElementReplaceableArg::classDef>(
-                  ref<ShortClassDefinitionRule>)  //
+                  ref<ShortClassDefinition>)  //
               | assign<&ast::ElementReplaceableArg::component>(
-                    ref<ComponentClause1Rule>)) +
+                    ref<ComponentClause1>)) +
              option(kw<"constrainedby"> +
                     assign<&ast::ElementReplaceableArg::constrainingClause>(
-                        ref<NameRule>) +
+                        ref<Name>) +
                     option(assign<&ast::ElementReplaceableArg::constrainingMod>(
-                        ref<ClassModRule>)))> {};
+                        ref<ClassMod>)))> {};
 
-  struct ElementRedeclareRule
+  struct ElementRedeclare
       : rule<kw<"redeclare"> +
              option(flag<&ast::ElementRedeclare::each_>(kw<"each">)) +
              option(flag<&ast::ElementRedeclare::final_>(kw<"final">)) +
              (assign<&ast::ElementRedeclare::classDef>(
-                  ref<ShortClassDefinitionRule>)  //
+                  ref<ShortClassDefinition>)  //
               | assign<&ast::ElementRedeclare::component>(
-                    ref<ComponentClause1Rule>)  //
+                    ref<ComponentClause1>)  //
               | assign<&ast::ElementRedeclare::replaceable_>(
-                    ref<ElementReplaceableRule>))> {};
+                    ref<ElementReplaceable>))> {};
 
-  struct ArgumentRule
-      : rule<ref<ElementModWithFlagsRule> |
-             ref<ElementReplaceableWithFlagsRule> |
-             ref<ElementRedeclareRule>> {};
+  struct Argument
+      : rule<ref<ElementModWithFlags> |
+             ref<ElementReplaceableWithFlags> |
+             ref<ElementRedeclare>> {};
 
   // -- component declarations ----
 
-  struct ComponentDeclRule
+  struct ComponentDecl
       : rule<assign<&ast::ComponentDecl::name>(ref<IDENT>) +
              option(lit<"["> +
                     some(append<&ast::ComponentDecl::subscripts>(
-                             ref<SubscriptRule>),
+                             ref<Subscript>),
                          lit<",">) +
                     lit<"]">) +
-             option(assign<&ast::ComponentDecl::mod>(ref<ModificationRule>)) +
+             option(assign<&ast::ComponentDecl::mod>(ref<Modification>)) +
              option(kw<"if"> +
-                    assign<&ast::ComponentDecl::condition>(ref<ExpressionRule>)) +
-             option(some(append<&ast::ComponentDecl::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::ComponentDecl::annotation>(ref<AnnotationRule>))> {
+                    assign<&ast::ComponentDecl::condition>(ref<Expression>)) +
+             many(append<&ast::ComponentDecl::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::ComponentDecl::annotation>(ref<Annotation>))> {
   };
 
-  struct ComponentDecl1Rule
+  struct ComponentDecl1
       : rule<assign<&ast::ComponentDecl::name>(ref<IDENT>) +
              option(lit<"["> +
                     some(append<&ast::ComponentDecl::subscripts>(
-                             ref<SubscriptRule>),
+                             ref<Subscript>),
                          lit<",">) +
                     lit<"]">) +
-             option(assign<&ast::ComponentDecl::mod>(ref<ModificationRule>)) +
-             option(some(append<&ast::ComponentDecl::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::ComponentDecl::annotation>(ref<AnnotationRule>))> {
+             option(assign<&ast::ComponentDecl::mod>(ref<Modification>)) +
+             many(append<&ast::ComponentDecl::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::ComponentDecl::annotation>(ref<Annotation>))> {
   };
 
-  struct ComponentClauseRule
+  struct ComponentClause
       : rule<option(assign<&ast::ComponentClause::flowStream>(TypePrefixFlow)) +
              option(assign<&ast::ComponentClause::variability>(TypePrefixVar)) +
              option(assign<&ast::ComponentClause::causality>(TypePrefixCaus)) +
-             assign<&ast::ComponentClause::type>(ref<NameRule>) +
+             assign<&ast::ComponentClause::type>(ref<Name>) +
              option(lit<"["> +
                     some(append<&ast::ComponentClause::subscripts>(
-                             ref<SubscriptRule>),
+                             ref<Subscript>),
                          lit<",">) +
                     lit<"]">) +
-             some(append<&ast::ComponentClause::components>(ref<ComponentDeclRule>),
+             some(append<&ast::ComponentClause::components>(ref<ComponentDecl>),
                   lit<",">)> {};
 
-  struct ComponentClause1Rule
+  struct ComponentClause1
       : rule<option(assign<&ast::ComponentClause::flowStream>(TypePrefixFlow)) +
              option(assign<&ast::ComponentClause::variability>(TypePrefixVar)) +
              option(assign<&ast::ComponentClause::causality>(TypePrefixCaus)) +
-             assign<&ast::ComponentClause::type>(ref<NameRule>) +
-             append<&ast::ComponentClause::components>(ref<ComponentDecl1Rule>)> {
+             assign<&ast::ComponentClause::type>(ref<Name>) +
+             append<&ast::ComponentClause::components>(ref<ComponentDecl1>)> {
   };
 
   // -- classes ----
 
-  struct ShortClassDefinitionRule
+  struct ShortClassDefinition
       : rule<ClassPrefixes +
-             assign<&ast::ClassDef::specifier>(ref<ShortClassSpecRule>)> {};
+             assign<&ast::ClassDef::specifier>(ref<ShortClassSpec>)> {};
 
-  struct ClassDefinitionRule
+  struct ClassDefinition
       : rule<option(flag<&ast::ClassDef::encapsulated_>(kw<"encapsulated">)) +
              ClassPrefixes +
-             assign<&ast::ClassDef::specifier>(ref<ClassSpecifierRule>)> {};
+             assign<&ast::ClassDef::specifier>(ref<ClassSpecifier>)> {};
 
-  struct ClassSpecifierRule
-      : rule<ref<LongClassSpecRule> | ref<ShortClassSpecRule> |
-             ref<DerClassSpecRule>> {};
+  struct ClassSpecifier
+      : rule<ref<LongClassSpec> | ref<ShortClassSpec> |
+             ref<DerClassSpec>> {};
 
-  struct LongClassSpecRule
+  struct LongClassSpec
       : rule<(assign<&ast::LongClassSpec::name>(ref<IDENT>) +
-              option(some(append<&ast::LongClassSpec::docStrings>(ref<STRING>),
-                          lit<"+">)) +
-              assign<&ast::LongClassSpec::composition>(ref<CompositionRule>) +
+              many(append<&ast::LongClassSpec::docStrings>(ref<STRING>),
+                          lit<"+">) +
+              assign<&ast::LongClassSpec::composition>(ref<Composition>) +
               kw<"end"> +
               assign<&ast::LongClassSpec::endName>(ref<IDENT>))  //
              | (flag<&ast::LongClassSpec::isExtends>(kw<"extends">) +
                 assign<&ast::LongClassSpec::name>(ref<IDENT>) +
-                option(assign<&ast::LongClassSpec::extendsMod>(ref<ClassModRule>)) +
-                option(some(append<&ast::LongClassSpec::docStrings>(ref<STRING>),
-                            lit<"+">)) +
-                assign<&ast::LongClassSpec::composition>(ref<CompositionRule>) +
+                option(assign<&ast::LongClassSpec::extendsMod>(ref<ClassMod>)) +
+                many(append<&ast::LongClassSpec::docStrings>(ref<STRING>),
+                            lit<"+">) +
+                assign<&ast::LongClassSpec::composition>(ref<Composition>) +
                 kw<"end"> +
                 assign<&ast::LongClassSpec::endName>(ref<IDENT>))> {};
 
-  struct EnumLiteralRule
+  struct EnumLiteral
       : rule<assign<&ast::EnumLiteral::name>(ref<IDENT>) +
-             option(some(append<&ast::EnumLiteral::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::EnumLiteral::annotation>(ref<AnnotationRule>))> {
+             many(append<&ast::EnumLiteral::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::EnumLiteral::annotation>(ref<Annotation>))> {
   };
 
-  struct ShortClassSpecRule
+  struct ShortClassSpec
       : rule<(assign<&ast::ShortClassSpec::name>(ref<IDENT>) + lit<"="> +
               option(assign<&ast::ShortClassSpec::flowStream>(TypePrefixFlow)) +
               option(
                   assign<&ast::ShortClassSpec::variability>(TypePrefixVar)) +
               option(assign<&ast::ShortClassSpec::causality>(TypePrefixCaus)) +
-              assign<&ast::ShortClassSpec::baseType>(ref<NameRule>) +
+              assign<&ast::ShortClassSpec::baseType>(ref<Name>) +
               option(lit<"["> +
                      some(append<&ast::ShortClassSpec::subscripts>(
-                              ref<SubscriptRule>),
+                              ref<Subscript>),
                           lit<",">) +
                      lit<"]">) +
-              option(assign<&ast::ShortClassSpec::mod>(ref<ClassModRule>)) +
-              option(some(append<&ast::ShortClassSpec::docStrings>(ref<STRING>),
-                          lit<"+">)) +
+              option(assign<&ast::ShortClassSpec::mod>(ref<ClassMod>)) +
+              many(append<&ast::ShortClassSpec::docStrings>(ref<STRING>),
+                          lit<"+">) +
               option(
-                  assign<&ast::ShortClassSpec::annotation>(ref<AnnotationRule>)))  //
+                  assign<&ast::ShortClassSpec::annotation>(ref<Annotation>)))  //
              | (assign<&ast::ShortClassSpec::name>(ref<IDENT>) + lit<"="> +
                 flag<&ast::ShortClassSpec::isEnumeration>(
                     kw<"enumeration">) +
                 lit<"("> +
-                (option(some(append<&ast::ShortClassSpec::literals>(
-                                 ref<EnumLiteralRule>),
-                             lit<",">))  //
+                (many(append<&ast::ShortClassSpec::literals>(
+                                 ref<EnumLiteral>),
+                             lit<",">)  //
                  | flag<&ast::ShortClassSpec::enumUnspecified>(lit<":">)) +
                 lit<")"> +
-                option(some(append<&ast::ShortClassSpec::docStrings>(ref<STRING>),
-                            lit<"+">)) +
+                many(append<&ast::ShortClassSpec::docStrings>(ref<STRING>),
+                            lit<"+">) +
                 option(assign<&ast::ShortClassSpec::annotation>(
-                    ref<AnnotationRule>)))> {};
+                    ref<Annotation>)))> {};
 
-  struct DerClassSpecRule
+  struct DerClassSpec
       : rule<assign<&ast::DerClassSpec::name>(ref<IDENT>) + lit<"="> +
              kw<"der"> + lit<"("> +
-             assign<&ast::DerClassSpec::baseType>(ref<NameRule>) + lit<","> +
+             assign<&ast::DerClassSpec::baseType>(ref<Name>) + lit<","> +
              some(append<&ast::DerClassSpec::args>(ref<IDENT>), lit<",">) +
              lit<")"> +
-             option(some(append<&ast::DerClassSpec::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::DerClassSpec::annotation>(ref<AnnotationRule>))> {
+             many(append<&ast::DerClassSpec::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::DerClassSpec::annotation>(ref<Annotation>))> {
   };
 
   // -- elements and composition ----
 
-  struct ImportClauseRule
+  struct ImportClause
       : rule<kw<"import"> +
              ((assign<&ast::ImportClause::alias>(ref<IDENT>) + lit<"="> +
-               assign<&ast::ImportClause::name>(ref<NameRule>))  //
-              | (assign<&ast::ImportClause::name>(ref<NameRule>) +
-                 flag<&ast::ImportClause::wildcard>(lit<".*">))  //
-              | (assign<&ast::ImportClause::name>(ref<NameRule>) + lit<".{"> +
+               assign<&ast::ImportClause::name>(ref<Name>))  //
+              | (assign<&ast::ImportClause::name>(ref<Name>) +
+                 flag<&ast::ImportClause::wildcard>(lit<".*"> | (lit<"."> + lit<"*">)))  //
+              | (assign<&ast::ImportClause::name>(ref<Name>) + lit<"."> + lit<"{"> +
                  some(append<&ast::ImportClause::selective>(ref<IDENT>),
                       lit<",">) +
                  lit<"}">)  //
-              | assign<&ast::ImportClause::name>(ref<NameRule>)) +
-             option(some(append<&ast::ImportClause::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::ImportClause::annotation>(ref<AnnotationRule>))> {
+              | assign<&ast::ImportClause::name>(ref<Name>)) +
+             many(append<&ast::ImportClause::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::ImportClause::annotation>(ref<Annotation>))> {
   };
 
-  struct ExtendsClauseRule
-      : rule<kw<"extends"> + assign<&ast::ExtendsClause::name>(ref<NameRule>) +
-             option(assign<&ast::ExtendsClause::mod>(ref<ClassModRule>)) +
-             option(assign<&ast::ExtendsClause::annotation>(ref<AnnotationRule>))> {
+  struct ExtendsClause
+      : rule<kw<"extends"> + assign<&ast::ExtendsClause::name>(ref<Name>) +
+             option(assign<&ast::ExtendsClause::mod>(ref<ClassMod>)) +
+             option(assign<&ast::ExtendsClause::annotation>(ref<Annotation>))> {
   };
 
-  struct ElementDeclRule
+  struct ElementDecl
       : rule<option(flag<&ast::ElementDecl::redeclare_>(kw<"redeclare">)) +
              option(flag<&ast::ElementDecl::final_>(kw<"final">)) +
              option(flag<&ast::ElementDecl::inner_>(kw<"inner">)) +
              option(flag<&ast::ElementDecl::outer_>(kw<"outer">)) +
-             ((assign<&ast::ElementDecl::classDef>(ref<ClassDefinitionRule>)  //
-               | assign<&ast::ElementDecl::component>(ref<ComponentClauseRule>))  //
+             ((assign<&ast::ElementDecl::classDef>(ref<ClassDefinition>)  //
+               | assign<&ast::ElementDecl::component>(ref<ComponentClause>))  //
               | (flag<&ast::ElementDecl::replaceable_>(kw<"replaceable">) +
-                 (assign<&ast::ElementDecl::classDef>(ref<ClassDefinitionRule>)  //
+                 (assign<&ast::ElementDecl::classDef>(ref<ClassDefinition>)  //
                   | assign<&ast::ElementDecl::component>(
-                        ref<ComponentClauseRule>)) +
+                        ref<ComponentClause>)) +
                  option(kw<"constrainedby"> +
                         assign<&ast::ElementDecl::constrainingClause>(
-                            ref<NameRule>) +
+                            ref<Name>) +
                         option(assign<&ast::ElementDecl::constrainingMod>(
-                            ref<ClassModRule>)) +
-                        option(some(append<&ast::ElementDecl::docStrings>(
+                            ref<ClassMod>)) +
+                        many(append<&ast::ElementDecl::docStrings>(
                                         ref<STRING>),
-                                    lit<"+">)) +
+                                    lit<"+">) +
                         option(assign<&ast::ElementDecl::annotation>(
-                            ref<AnnotationRule>)))))> {};
+                            ref<Annotation>)))))> {};
 
-  struct ElementRule
-      : rule<ref<ImportClauseRule> | ref<ExtendsClauseRule> |
-             ref<ElementDeclRule>> {};
+  struct Element
+      : rule<ref<ImportClause> | ref<ExtendsClause> |
+             ref<ElementDecl>> {};
 
-  struct DefaultSectionRule
-      : rule<many(append<&ast::CompositionSection::elements>(ref<ElementRule>) +
+  struct DefaultSection
+      : rule<many(append<&ast::CompositionSection::elements>(ref<Element>) +
                   lit<";">)> {};
 
-  struct PublicSectionRule
+  struct PublicSection
       : rule<assign<&ast::CompositionSection::kind>(kw<"public">) +
-             many(append<&ast::CompositionSection::elements>(ref<ElementRule>) +
+             many(append<&ast::CompositionSection::elements>(ref<Element>) +
                   lit<";">)> {};
 
-  struct ProtectedSectionRule
+  struct ProtectedSection
       : rule<assign<&ast::CompositionSection::kind>(kw<"protected">) +
-             many(append<&ast::CompositionSection::elements>(ref<ElementRule>) +
+             many(append<&ast::CompositionSection::elements>(ref<Element>) +
                   lit<";">)> {};
 
-  struct EquationSectionRule
+  struct EquationSection
       : rule<option(flag<&ast::CompositionSection::initial_>(kw<"initial">)) +
              assign<&ast::CompositionSection::kind>(kw<"equation">) +
-             many(append<&ast::CompositionSection::equations>(ref<EquationRule>) +
+             many(append<&ast::CompositionSection::equations>(ref<Equation>) +
                   lit<";">)> {};
 
-  struct AlgorithmSectionRule
+  struct AlgorithmSection
       : rule<option(flag<&ast::CompositionSection::initial_>(kw<"initial">)) +
              assign<&ast::CompositionSection::kind>(kw<"algorithm">) +
              many(append<&ast::CompositionSection::statements>(
-                      ref<StatementRule>) +
+                      ref<Statement>) +
                   lit<";">)> {};
 
-  struct ExternalCallRule
+  struct ExternalCall
       : rule<option(assign<&ast::ExternalCall::target>(
-                 ref<ComponentReferenceRule>) +
+                 ref<ComponentReference>) +
                  lit<"=">) +
              assign<&ast::ExternalCall::func>(ref<IDENT>) + lit<"("> +
-             option(some(append<&ast::ExternalCall::args>(ref<ExpressionRule>),
-                         lit<",">)) +
+             many(append<&ast::ExternalCall::args>(ref<Expression>),
+                         lit<",">) +
              lit<")">> {};
 
-  struct CompositionRule
-      : rule<append<&ast::Composition::sections>(ref<DefaultSectionRule>) +
-             many(append<&ast::Composition::sections>(ref<PublicSectionRule>)  //
-                  | append<&ast::Composition::sections>(ref<ProtectedSectionRule>)  //
-                  | append<&ast::Composition::sections>(ref<EquationSectionRule>)  //
+  struct Composition
+      : rule<append<&ast::Composition::sections>(ref<DefaultSection>) +
+             many(append<&ast::Composition::sections>(ref<PublicSection>)  //
+                  | append<&ast::Composition::sections>(ref<ProtectedSection>)  //
+                  | append<&ast::Composition::sections>(ref<EquationSection>)  //
                   | append<&ast::Composition::sections>(
-                        ref<AlgorithmSectionRule>)) +
+                        ref<AlgorithmSection>)) +
              option(flag<&ast::Composition::hasExternal>(kw<"external">) +
                     option(assign<&ast::Composition::externalLang>(ref<STRING>)) +
                     option(assign<&ast::Composition::externalCall>(
-                        ref<ExternalCallRule>)) +
+                        ref<ExternalCall>)) +
                     option(assign<&ast::Composition::externalAnnotation>(
-                        ref<AnnotationRule>)) +
+                        ref<Annotation>)) +
                     lit<";">) +
              option(assign<&ast::Composition::finalAnnotation>(
-                        ref<AnnotationRule>) +
+                        ref<Annotation>) +
                     lit<";">)> {};
 
   // -- equations ----
 
-  struct EqBlockRule
-      : rule<many(append<&ast::EqBlock::equations>(ref<EquationRule>) +
+  struct EqBlock
+      : rule<many(append<&ast::EqBlock::equations>(ref<Equation>) +
                   lit<";">)> {};
 
-  struct IfEquationRule
-      : rule<kw<"if"> + append<&ast::IfEquation::conditions>(ref<ExpressionRule>) +
-             kw<"then"> + append<&ast::IfEquation::branches>(ref<EqBlockRule>) +
+  struct IfEquation
+      : rule<kw<"if"> + append<&ast::IfEquation::conditions>(ref<Expression>) +
+             kw<"then"> + append<&ast::IfEquation::branches>(ref<EqBlock>) +
              many(kw<"elseif"> +
-                  append<&ast::IfEquation::conditions>(ref<ExpressionRule>) +
+                  append<&ast::IfEquation::conditions>(ref<Expression>) +
                   kw<"then"> +
-                  append<&ast::IfEquation::branches>(ref<EqBlockRule>)) +
+                  append<&ast::IfEquation::branches>(ref<EqBlock>)) +
              option(kw<"else"> +
-                    assign<&ast::IfEquation::elseBranch>(ref<EqBlockRule>)) +
+                    assign<&ast::IfEquation::elseBranch>(ref<EqBlock>)) +
              kw<"end"> + kw<"if"> +
-             option(some(append<&ast::IfEquation::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::IfEquation::annotation>(ref<AnnotationRule>))> {
+             many(append<&ast::IfEquation::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::IfEquation::annotation>(ref<Annotation>))> {
   };
 
-  struct ForEquationRule
+  struct ForEquation
       : rule<kw<"for"> +
-             some(append<&ast::ForEquation::indices>(ref<ForIndexRule>),
+             some(append<&ast::ForEquation::indices>(ref<ForIndex>),
                   lit<",">) +
              kw<"loop"> +
-             many(append<&ast::ForEquation::body>(ref<EquationRule>) + lit<";">) +
+             many(append<&ast::ForEquation::body>(ref<Equation>) + lit<";">) +
              kw<"end"> + kw<"for"> +
-             option(some(append<&ast::ForEquation::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::ForEquation::annotation>(ref<AnnotationRule>))> {
+             many(append<&ast::ForEquation::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::ForEquation::annotation>(ref<Annotation>))> {
   };
 
-  struct ConnectEquationRule
+  struct ConnectEquation
       : rule<kw<"connect"> + lit<"("> +
-             assign<&ast::ConnectEquation::a>(ref<ComponentReferenceRule>) +
+             assign<&ast::ConnectEquation::a>(ref<ComponentReference>) +
              lit<","> +
-             assign<&ast::ConnectEquation::b>(ref<ComponentReferenceRule>) +
+             assign<&ast::ConnectEquation::b>(ref<ComponentReference>) +
              lit<")"> +
-             option(some(append<&ast::ConnectEquation::docStrings>(ref<STRING>),
-                         lit<"+">)) +
+             many(append<&ast::ConnectEquation::docStrings>(ref<STRING>),
+                         lit<"+">) +
              option(
-                 assign<&ast::ConnectEquation::annotation>(ref<AnnotationRule>))> {
+                 assign<&ast::ConnectEquation::annotation>(ref<Annotation>))> {
   };
 
-  struct WhenEquationRule
+  struct WhenEquation
       : rule<kw<"when"> +
-             append<&ast::WhenEquation::conditions>(ref<ExpressionRule>) +
-             kw<"then"> + append<&ast::WhenEquation::branches>(ref<EqBlockRule>) +
+             append<&ast::WhenEquation::conditions>(ref<Expression>) +
+             kw<"then"> + append<&ast::WhenEquation::branches>(ref<EqBlock>) +
              many(kw<"elsewhen"> +
-                  append<&ast::WhenEquation::conditions>(ref<ExpressionRule>) +
+                  append<&ast::WhenEquation::conditions>(ref<Expression>) +
                   kw<"then"> +
-                  append<&ast::WhenEquation::branches>(ref<EqBlockRule>)) +
+                  append<&ast::WhenEquation::branches>(ref<EqBlock>)) +
              kw<"end"> + kw<"when"> +
-             option(some(append<&ast::WhenEquation::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::WhenEquation::annotation>(ref<AnnotationRule>))> {
+             many(append<&ast::WhenEquation::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::WhenEquation::annotation>(ref<Annotation>))> {
   };
 
-  struct EquationRule
+  struct Equation
       : rule<create<ast::EqEquality>(
-                 assign<&ast::EqEquality::lhs>(ref<SimpleExpressionRule>) +
-                 lit<"="> + assign<&ast::EqEquality::rhs>(ref<ExpressionRule>) +
-                 option(some(append<&ast::EqEquality::docStrings>(ref<STRING>),
-                             lit<"+">)) +
+                 assign<&ast::EqEquality::lhs>(ref<SimpleExpression>) +
+                 lit<"="> + assign<&ast::EqEquality::rhs>(ref<Expression>) +
+                 many(append<&ast::EqEquality::docStrings>(ref<STRING>),
+                             lit<"+">) +
                  option(assign<&ast::EqEquality::annotation>(
-                     ref<AnnotationRule>)))  //
-             | ref<IfEquationRule>  //
-             | ref<ForEquationRule>  //
-             | ref<ConnectEquationRule>  //
-             | ref<WhenEquationRule>  //
+                     ref<Annotation>)))  //
+             | ref<IfEquation>  //
+             | ref<ForEquation>  //
+             | ref<ConnectEquation>  //
+             | ref<WhenEquation>  //
              | create<ast::CallEquation>(
-                   assign<&ast::CallEquation::callee>(ref<NameRule>) + lit<"("> +
+                   assign<&ast::CallEquation::callee>(ref<ComponentReference>) + lit<"("> +
                    option(assign<&ast::CallEquation::args>(
-                       ref<FunctionArgumentsRule>)) +
+                       ref<FunctionArguments>)) +
                    lit<")"> +
-                   option(some(append<&ast::CallEquation::docStrings>(ref<STRING>),
-                               lit<"+">)) +
+                   many(append<&ast::CallEquation::docStrings>(ref<STRING>),
+                               lit<"+">) +
                    option(assign<&ast::CallEquation::annotation>(
-                       ref<AnnotationRule>)))> {};
+                       ref<Annotation>)))> {};
 
   // -- statements ----
 
-  struct StmtBlockRule
-      : rule<many(append<&ast::StmtBlock::statements>(ref<StatementRule>) +
+  struct StmtBlock
+      : rule<many(append<&ast::StmtBlock::statements>(ref<Statement>) +
                   lit<";">)> {};
 
-  struct IfStmtRule
-      : rule<kw<"if"> + append<&ast::IfStmt::conditions>(ref<ExpressionRule>) +
-             kw<"then"> + append<&ast::IfStmt::branches>(ref<StmtBlockRule>) +
+  struct IfStmt
+      : rule<kw<"if"> + append<&ast::IfStmt::conditions>(ref<Expression>) +
+             kw<"then"> + append<&ast::IfStmt::branches>(ref<StmtBlock>) +
              many(kw<"elseif"> +
-                  append<&ast::IfStmt::conditions>(ref<ExpressionRule>) +
+                  append<&ast::IfStmt::conditions>(ref<Expression>) +
                   kw<"then"> +
-                  append<&ast::IfStmt::branches>(ref<StmtBlockRule>)) +
+                  append<&ast::IfStmt::branches>(ref<StmtBlock>)) +
              option(kw<"else"> +
-                    assign<&ast::IfStmt::elseBranch>(ref<StmtBlockRule>)) +
+                    assign<&ast::IfStmt::elseBranch>(ref<StmtBlock>)) +
              kw<"end"> + kw<"if"> +
-             option(some(append<&ast::IfStmt::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::IfStmt::annotation>(ref<AnnotationRule>))> {};
+             many(append<&ast::IfStmt::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::IfStmt::annotation>(ref<Annotation>))> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<kw<"for"> +
-             some(append<&ast::ForStmt::indices>(ref<ForIndexRule>), lit<",">) +
+             some(append<&ast::ForStmt::indices>(ref<ForIndex>), lit<",">) +
              kw<"loop"> +
-             many(append<&ast::ForStmt::body>(ref<StatementRule>) + lit<";">) +
+             many(append<&ast::ForStmt::body>(ref<Statement>) + lit<";">) +
              kw<"end"> + kw<"for"> +
-             option(some(append<&ast::ForStmt::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::ForStmt::annotation>(ref<AnnotationRule>))> {};
+             many(append<&ast::ForStmt::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::ForStmt::annotation>(ref<Annotation>))> {};
 
-  struct WhileStmtRule
-      : rule<kw<"while"> + assign<&ast::WhileStmt::cond>(ref<ExpressionRule>) +
+  struct WhileStmt
+      : rule<kw<"while"> + assign<&ast::WhileStmt::cond>(ref<Expression>) +
              kw<"loop"> +
-             many(append<&ast::WhileStmt::body>(ref<StatementRule>) + lit<";">) +
+             many(append<&ast::WhileStmt::body>(ref<Statement>) + lit<";">) +
              kw<"end"> + kw<"while"> +
-             option(some(append<&ast::WhileStmt::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::WhileStmt::annotation>(ref<AnnotationRule>))> {};
+             many(append<&ast::WhileStmt::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::WhileStmt::annotation>(ref<Annotation>))> {};
 
-  struct WhenStmtRule
-      : rule<kw<"when"> + append<&ast::WhenStmt::conditions>(ref<ExpressionRule>) +
-             kw<"then"> + append<&ast::WhenStmt::branches>(ref<StmtBlockRule>) +
+  struct WhenStmt
+      : rule<kw<"when"> + append<&ast::WhenStmt::conditions>(ref<Expression>) +
+             kw<"then"> + append<&ast::WhenStmt::branches>(ref<StmtBlock>) +
              many(kw<"elsewhen"> +
-                  append<&ast::WhenStmt::conditions>(ref<ExpressionRule>) +
+                  append<&ast::WhenStmt::conditions>(ref<Expression>) +
                   kw<"then"> +
-                  append<&ast::WhenStmt::branches>(ref<StmtBlockRule>)) +
+                  append<&ast::WhenStmt::branches>(ref<StmtBlock>)) +
              kw<"end"> + kw<"when"> +
-             option(some(append<&ast::WhenStmt::docStrings>(ref<STRING>),
-                         lit<"+">)) +
-             option(assign<&ast::WhenStmt::annotation>(ref<AnnotationRule>))> {};
+             many(append<&ast::WhenStmt::docStrings>(ref<STRING>),
+                         lit<"+">) +
+             option(assign<&ast::WhenStmt::annotation>(ref<Annotation>))> {};
 
-  struct StatementRule
+  struct Statement
       : rule<create<ast::AssignStmt>(
-                 assign<&ast::AssignStmt::target>(ref<ComponentReferenceRule>) +
+                 assign<&ast::AssignStmt::target>(ref<ComponentReference>) +
                  lit<":="> +
-                 assign<&ast::AssignStmt::value>(ref<ExpressionRule>) +
-                 option(some(append<&ast::AssignStmt::docStrings>(ref<STRING>),
-                             lit<"+">)) +
+                 assign<&ast::AssignStmt::value>(ref<Expression>) +
+                 many(append<&ast::AssignStmt::docStrings>(ref<STRING>),
+                             lit<"+">) +
                  option(assign<&ast::AssignStmt::annotation>(
-                     ref<AnnotationRule>)))  //
+                     ref<Annotation>)))  //
              | create<ast::CallStmt>(
-                   assign<&ast::CallStmt::callee>(ref<ComponentReferenceRule>) +
+                   assign<&ast::CallStmt::callee>(ref<ComponentReference>) +
                    lit<"("> +
                    option(assign<&ast::CallStmt::args>(
-                       ref<FunctionArgumentsRule>)) +
+                       ref<FunctionArguments>)) +
                    lit<")"> +
-                   option(some(append<&ast::CallStmt::docStrings>(ref<STRING>),
-                               lit<"+">)) +
+                   many(append<&ast::CallStmt::docStrings>(ref<STRING>),
+                               lit<"+">) +
                    option(assign<&ast::CallStmt::annotation>(
-                       ref<AnnotationRule>)))  //
+                       ref<Annotation>)))  //
              | create<ast::MultiAssignStmt>(
                    lit<"("> +
                    append<&ast::MultiAssignStmt::targets>(
-                       ref<ExpressionRule> | create<ast::OmittedOutput>) +
+                       ref<Expression> | create<ast::OmittedOutput>) +
                    many(lit<","> +
                         append<&ast::MultiAssignStmt::targets>(
-                            ref<ExpressionRule> | create<ast::OmittedOutput>)) +
+                            ref<Expression> | create<ast::OmittedOutput>)) +
                    lit<")"> + lit<":="> +
                    assign<&ast::MultiAssignStmt::callee>(
-                       ref<ComponentReferenceRule>) +
+                       ref<ComponentReference>) +
                    lit<"("> +
                    option(assign<&ast::MultiAssignStmt::args>(
-                       ref<FunctionArgumentsRule>)) +
+                       ref<FunctionArguments>)) +
                    lit<")"> +
-                   option(some(
+                   many(
                        append<&ast::MultiAssignStmt::docStrings>(ref<STRING>),
-                       lit<"+">)) +
+                       lit<"+">) +
                    option(assign<&ast::MultiAssignStmt::annotation>(
-                       ref<AnnotationRule>)))  //
+                       ref<Annotation>)))  //
              | create<ast::BreakStmt>(
                    kw<"break"> +
-                   option(some(append<&ast::BreakStmt::docStrings>(ref<STRING>),
-                               lit<"+">)) +
+                   many(append<&ast::BreakStmt::docStrings>(ref<STRING>),
+                               lit<"+">) +
                    option(assign<&ast::BreakStmt::annotation>(
-                       ref<AnnotationRule>)))  //
+                       ref<Annotation>)))  //
              |
              create<ast::ReturnStmt>(
                  kw<"return"> +
-                 option(some(append<&ast::ReturnStmt::docStrings>(ref<STRING>),
-                             lit<"+">)) +
+                 many(append<&ast::ReturnStmt::docStrings>(ref<STRING>),
+                             lit<"+">) +
                  option(assign<&ast::ReturnStmt::annotation>(
-                     ref<AnnotationRule>)))  //
-             | ref<IfStmtRule>               //
-             | ref<ForStmtRule>              //
-             | ref<WhileStmtRule>            //
-             | ref<WhenStmtRule>> {};
+                     ref<Annotation>)))  //
+             | ref<IfStmt>               //
+             | ref<ForStmt>              //
+             | ref<WhileStmt>            //
+             | ref<WhenStmt>> {};
 
   // -- top level ----
 
-  struct WithinClauseRule
-      : rule<kw<"within"> + option(assign<&ast::WithinClause::name>(ref<NameRule>)) +
+  struct WithinClause
+      : rule<kw<"within"> + option(assign<&ast::WithinClause::name>(ref<Name>)) +
              lit<";">> {};
 
-  struct TopClassDefRule
+  struct TopClassDef
       : rule<option(flag<&ast::TopClassDef::final_>(kw<"final">)) +
-             assign<&ast::TopClassDef::def>(ref<ClassDefinitionRule>) +
+             assign<&ast::TopClassDef::def>(ref<ClassDefinition>) +
              lit<";">> {};
 
-  struct StoredDefinitionRule
-      : rule<many(append<&ast::StoredDefinition::withins>(ref<WithinClauseRule>)) +
-             many(append<&ast::StoredDefinition::classes>(ref<TopClassDefRule>))> {
+  struct StoredDefinition
+      : rule<option(append<&ast::StoredDefinition::withins>(ref<WithinClause>)) +
+             many(append<&ast::StoredDefinition::classes>(ref<TopClassDef>))> {
   };
 
-  using entry = StoredDefinitionRule;
-  using ignore = WS;
+  using entry = StoredDefinition;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, COMMENT>;
 };
 

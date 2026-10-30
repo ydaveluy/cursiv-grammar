@@ -2,6 +2,8 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+Erlang source modules contain attributes and function declarations; this library follows Erlang/OTP 29 syntax.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`
@@ -46,11 +48,7 @@ fac(Num) ->
     F(Num).
 ```
 
-A module is a sequence of attributes and function declarations, each ending
-in `.`. Patterns and expressions share one grammar and one AST here (the
-reference itself reads a `case`/`receive` clause's pattern as a plain
-`expr`), so a name like `F` above is just an expression node wherever it
-appears.
+An Erlang module is a sequence of attributes and function declarations, each ending in `.`.
 
 ## The command line
 

@@ -21,9 +21,8 @@
 
 namespace css3 {
 
-inline constexpr auto unquote = [](std::string_view t,
-                                  std::pmr::memory_resource* mem) {
-  const auto body = t.substr(1, t.size() - 2);
+inline std::string_view decode_css(std::string_view body,
+                                   std::pmr::memory_resource* mem) {
   if (body.find_first_of("\\\r\f\0", 0, 4) == std::string_view::npos)
     return body;
   auto out = cursiv::text_room(mem, body.size() * 3);
@@ -71,13 +70,18 @@ inline constexpr auto unquote = [](std::string_view t,
     } else out[n++] = c;
   }
   return std::string_view(out.data(), n);
+}
+
+inline constexpr auto unquote = [](std::string_view text,
+                                   std::pmr::memory_resource* mem) {
+  return decode_css(text.substr(1, text.size() - 2), mem);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Css3 : cursiv::GrammarSpec {
   // `-` is a legal identifier byte throughout CSS (`font-size`), so the
   // keyword boundary must include it or `kw<"only">` would run into `-only`.
-  static constexpr auto word_boundary = cr<"a-zA-Z0-9_-">;
+  static constexpr auto word_boundary = cr<"a-zA-Z0-9_-"> |
+      cr<R"(\u{80}-\u{10FFFF})"> | cr<R"(\\)">;
 
   struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
   struct SPACE : terminal<some(cr<R"( \t\r\n\f)">)> {};
@@ -105,7 +109,7 @@ struct Css3 : cursiv::GrammarSpec {
   static constexpr auto NumberBody =
       ((some(d) + option(lit<"."> + some(d))) | (lit<"."> + some(d))) +
       option(cr<"eE"> + option(cr<"+-">) + some(d));
-  struct NUMBER : terminal<NumberBody, double> {};
+  struct NUMBER : terminal<as<double>(NumberBody)> {};
   struct PERCENTAGE : terminal<NumberBody + lit<"%">> {};
 
   static constexpr auto UnitSpelling =
@@ -124,20 +128,22 @@ struct Css3 : cursiv::GrammarSpec {
       many((lit<"\\"> + (lit<"\r\n"> | any)) | cr<R"(^"\\\r\n\f)">);
   static constexpr auto StringBody2 =
       many((lit<"\\"> + (lit<"\r\n"> | any)) | cr<R"(^'\\\r\n\f)">);
-  struct STRING
-      : terminal<(lit<"\""> + StringBody1 + lit<"\"">) |
-                     (lit<"'"> + StringBody2 + lit<"'">),
-                 Unquoted> {};
+  struct STRING : terminal<as<unquote>((lit<"\""> + StringBody1 + lit<"\"">) |
+                                       (lit<"'"> + StringBody2 + lit<"'">))> {};
 
-  // Real CSS3 unicode-range syntax (W3C CSS Values): 1-6 hex digits or `?`
-  // wildcards, then an optional `-` and up to 6 more hex digits.
+  template<unsigned HexCount>
+  static constexpr auto WildcardRange = repeat<HexCount>(HexDigit) +
+      repeat<1, 6 - HexCount>(lit<"?">);
+  // Question marks follow the hex prefix; a wildcard range has no `-end`.
   struct UNICODE_RANGE
-      : terminal<cr<"uU"> + lit<"+"> + repeat<1, 6>(HexDigit | lit<"?">) +
-                 option(lit<"-"> + repeat<1, 6>(HexDigit))> {};
+      : terminal<cr<"uU"> + lit<"+"> +
+                 (repeat<1, 6>(lit<"?">) | WildcardRange<1> | WildcardRange<2> |
+                  WildcardRange<3> | WildcardRange<4> | WildcardRange<5> |
+                  (repeat<1, 6>(HexDigit) + option(lit<"-"> + repeat<1, 6>(HexDigit))))> {};
 
   static constexpr auto UrlRawByte =
-      ~cr<R"(\x00- "'-)\x7f)"> | IdentEscape;
-  struct URL_RAW : terminal<some(UrlRawByte)> {};
+      ~cr<R"(\x00- "'-)\\\x7f)"> | IdentEscape;
+  struct URL_RAW : terminal<as<decode_css>(some(UrlRawByte))> {};
 
   struct IMPORTANT
       : terminal<lit<"!"> +
@@ -145,33 +151,26 @@ struct Css3 : cursiv::GrammarSpec {
                  ikw<"important">> {};
 
   static constexpr auto SpaceByte = cr<R"( \t\r\n\f)">;
+  // Comments do not create a descendant combinator or calc whitespace.
+  // Spell the regular comment pattern here because gap conditions cannot
+  // call a terminal or use through().
+  static constexpr auto CommentGap = lit<"/*"> +
+      many(cr<"^*"> | (some(lit<"*">) + cr<"^*/">)) + some(lit<"*">) + lit<"/">;
+  static constexpr auto SelectorTight = gap::is(many(CommentGap));
+  static constexpr auto CssWhitespaceGap = gap::is(
+      many(CommentGap) + some(SpaceByte) + many(SpaceByte | CommentGap));
 
   struct STAR : terminal<lit<"*">> {};
   struct PIPE : terminal<lit<"|">> {};
   struct MINUS : terminal<lit<"-">> {};
   struct PLUS : terminal<lit<"+">> {};
 
-  struct COMBINE_CHILD : terminal<lit<">">, value<ast::Combinator::child>> {};
-  struct COMBINE_ADJ
-      : terminal<lit<"+">, value<ast::Combinator::adjacent_sibling>> {};
-  struct COMBINE_SIB
-      : terminal<lit<"~">, value<ast::Combinator::general_sibling>> {};
+  struct INCLUDES : terminal<as<ast::AttribOp::includes>(lit<"~=">)> {};
+  struct DASHMATCH : terminal<as<ast::AttribOp::dashmatch>(lit<"|=">)> {};
+  static constexpr auto AttribOpAlt = as<ast::AttribOp::prefix>(lit<"^=">) | as<ast::AttribOp::suffix>(lit<"$=">) |
+                                       as<ast::AttribOp::substring>(lit<"*=">) | ref<INCLUDES> |
+                                       ref<DASHMATCH> | as<ast::AttribOp::equals>(lit<"=">);
 
-  struct PREFIX_MATCH : terminal<lit<"^=">, value<ast::AttribOp::prefix>> {};
-  struct SUFFIX_MATCH : terminal<lit<"$=">, value<ast::AttribOp::suffix>> {};
-  struct SUBSTRING_MATCH
-      : terminal<lit<"*=">, value<ast::AttribOp::substring>> {};
-  struct INCLUDES : terminal<lit<"~=">, value<ast::AttribOp::includes>> {};
-  struct DASHMATCH : terminal<lit<"|=">, value<ast::AttribOp::dashmatch>> {};
-  struct ATTR_EQ : terminal<lit<"=">, value<ast::AttribOp::equals>> {};
-  static constexpr auto AttribOpAlt = ref<PREFIX_MATCH> | ref<SUFFIX_MATCH> |
-                                       ref<SUBSTRING_MATCH> | ref<INCLUDES> |
-                                       ref<DASHMATCH> | ref<ATTR_EQ>;
-
-  struct CALC_ADD : terminal<lit<"+">, value<ast::CalcOp::add>> {};
-  struct CALC_SUB : terminal<lit<"-">, value<ast::CalcOp::subtract>> {};
-  struct CALC_MUL : terminal<lit<"*">, value<ast::CalcOp::multiply>> {};
-  struct CALC_DIV : terminal<lit<"/">, value<ast::CalcOp::divide>> {};
 
   struct COLON_TOK : terminal<lit<":">> {};
   // Plain-text twins of INCLUDES/DASHMATCH: those carry an AttribOp
@@ -187,98 +186,98 @@ struct Css3 : cursiv::GrammarSpec {
   // them as keywords in their own states. A rule of its own (not a
   // `static constexpr auto` spliced at each of its many call sites): the
   // alternation would otherwise be recompiled once per site.
-  // `var`/`calc`/`url` are ALSO fixed introducers elsewhere (VarRefRule,
-  // CalcExprRule, UrlRefRule, each `ikw<"...."> + lit<"(">`) -- spelled
+  // `var`/`calc`/`url` are ALSO fixed introducers elsewhere (VarRef,
+  // CalcExpr, UrlRef, each `ikw<"...."> + lit<"(">`) -- spelled
   // once here too, or the state offering both readings would commit to the
   // keyword and never fall back to a plain name when no `(` follows.
-  struct IdentLikeRule
+  struct IdentLike
       : rule<ref<IDENT> | ikw<"only"> | ikw<"not"> | ikw<"and"> | ikw<"or"> |
              ikw<"from"> | ikw<"to"> | ikw<"var"> | ikw<"calc"> |
              ikw<"url">> {};
 
   struct ComponentValueAlt;
+  struct RawBlock;
 
   // Commas, slashes and equals are values too: retaining them preserves
   // font shorthands, function argument boundaries and custom property text.
   struct VALUE_SEP : terminal<lit<","> | lit<"/"> | lit<"=">> {};
 
-  struct NumberLitRule
-      : rule<option(flag<&ast::NumberLit::negative>(ref<MINUS>) |
-                    ref<PLUS>) +
+  struct NumberLit
+      : rule<option((flag<&ast::NumberLit::negative>(ref<MINUS>) |
+                     ref<PLUS>) + gap::none) +
              assign<&ast::NumberLit::magnitude>(ref<NUMBER>)> {};
 
-  struct PercentageLitRule
-      : rule<option(flag<&ast::PercentageLit::negative>(ref<MINUS>) |
-                    ref<PLUS>) +
+  struct PercentageLit
+      : rule<option((flag<&ast::PercentageLit::negative>(ref<MINUS>) |
+                     ref<PLUS>) + gap::none) +
              assign<&ast::PercentageLit::text>(ref<PERCENTAGE>)> {};
 
-  struct DimensionLitRule
-      : rule<option(flag<&ast::DimensionLit::negative>(ref<MINUS>) |
-                    ref<PLUS>) +
+  struct DimensionLit
+      : rule<option((flag<&ast::DimensionLit::negative>(ref<MINUS>) |
+                     ref<PLUS>) + gap::none) +
              assign<&ast::DimensionLit::text>(ref<DIMENSION>)> {};
 
-  struct UnknownDimensionLitRule
-      : rule<option(
+  struct UnknownDimensionLit
+      : rule<option((
                  flag<&ast::UnknownDimensionLit::negative>(ref<MINUS>) |
-                 ref<PLUS>) +
+                 ref<PLUS>) + gap::none) +
              assign<&ast::UnknownDimensionLit::text>(
                  ref<UNKNOWN_DIMENSION>)> {};
 
-  struct StringLitRule
+  struct StringLit
       : rule<assign<&ast::StringLit::value>(ref<STRING>)> {};
 
-  struct IdentValueRule : rule<assign<&ast::IdentValue::name>(ref<IdentLikeRule>)> {};
+  struct IdentValue : rule<assign<&ast::IdentValue::name>(ref<IdentLike>)> {};
 
-  struct UnicodeRangeLitRule
+  struct UnicodeRangeLit
       : rule<assign<&ast::UnicodeRangeLit::text>(ref<UNICODE_RANGE>)> {};
 
-  struct HashRefRule : rule<assign<&ast::HashRef::text>(ref<HASH>)> {};
+  struct HashRef : rule<assign<&ast::HashRef::text>(ref<HASH>)> {};
 
-  struct UrlRefRule
-      : rule<ikw<"url"> + lit<"("> +
-             assign<&ast::UrlRef::value>(ref<STRING> | ref<URL_RAW>) +
+  struct UrlRef
+      : rule<ikw<"url"> + gap::none + lit<"("> +
+             option(assign<&ast::UrlRef::value>(ref<STRING> | ref<URL_RAW>)) +
              lit<")">> {};
 
-  struct VarRefRule
-      : rule<ikw<"var"> + lit<"("> +
-             assign<&ast::VarRef::name>(ref<IdentLikeRule>) +
+  struct VarRef
+      : rule<ikw<"var"> + gap::none + lit<"("> +
+             assign<&ast::VarRef::name>(ref<IdentLike>) +
              option(flag<&ast::VarRef::hasFallback>(lit<",">) +
                     many(append<&ast::VarRef::fallback>(ref<ComponentValueAlt>))) +
              lit<")">> {};
 
-  struct CalcSumRule;
+  struct CalcSum;
 
-  struct CalcParenRule
-      : rule<lit<"("> + assign<&ast::CalcExpr::sum>(ref<CalcSumRule>) +
+  struct CalcParen
+      : rule<lit<"("> + assign<&ast::CalcExpr::sum>(ref<CalcSum>) +
              lit<")">> {};
 
   static constexpr auto CalcValueAlt =
-      ref<DimensionLitRule> | ref<UnknownDimensionLitRule> |
-      ref<PercentageLitRule> | ref<NumberLitRule> | ref<CalcParenRule>;
+      ref<DimensionLit> | ref<UnknownDimensionLit> |
+      ref<PercentageLit> | ref<NumberLit> | ref<CalcParen>;
 
-  struct CalcProductRule
+  struct CalcProduct
       : rule<create<ast::CalcProduct> +
              append<&ast::CalcProduct::factors>(CalcValueAlt) +
              many(
-                 append<&ast::CalcProduct::ops>(ref<CALC_MUL> | ref<CALC_DIV>) +
+                 append<&ast::CalcProduct::ops>(as<ast::CalcOp::multiply>(lit<"*">) | as<ast::CalcOp::divide>(lit<"/">)) +
                  append<&ast::CalcProduct::factors>(CalcValueAlt))> {};
 
   // CSS requires whitespace on both sides of a binary `+`/`-` inside
   // calc() so `2px -3px` (a sign, not a subtraction) stays unambiguous --
-  // a literal Space token would already have been consumed by a preceding
-  // rule's own trivia handling, so `gap::has` reads the raw gap directly
-  // instead.
-  struct CalcSumRule
+  // trivia skipping would otherwise hide it; the gap pattern counts only
+  // whitespace outside comments.
+  struct CalcSum
       : rule<create<ast::CalcSum> +
-             append<&ast::CalcSum::terms>(ref<CalcProductRule>) +
-             many(gap::has(SpaceByte) +
-                  append<&ast::CalcSum::ops>(ref<CALC_ADD> | ref<CALC_SUB>) +
-                  gap::has(SpaceByte) +
-                  append<&ast::CalcSum::terms>(ref<CalcProductRule>))> {};
+             append<&ast::CalcSum::terms>(ref<CalcProduct>) +
+             many(CssWhitespaceGap +
+                  append<&ast::CalcSum::ops>(as<ast::CalcOp::add>(lit<"+">) | as<ast::CalcOp::subtract>(lit<"-">)) +
+                  CssWhitespaceGap +
+                  append<&ast::CalcSum::terms>(ref<CalcProduct>))> {};
 
-  struct CalcExprRule
-      : rule<ikw<"calc"> + lit<"("> +
-             assign<&ast::CalcExpr::sum>(ref<CalcSumRule>) + lit<")">> {};
+  struct CalcExpr
+      : rule<ikw<"calc"> + gap::none + lit<"("> +
+             assign<&ast::CalcExpr::sum>(ref<CalcSum>) + lit<")">> {};
 
   // A function's name and its `(` must be adjacent -- `rgba (0,0,0,.5)`
   // (with a space) is not a function call in CSS, it is a name followed by
@@ -288,14 +287,14 @@ struct Css3 : cursiv::GrammarSpec {
   // color-stop is "color percentage", one comma-separated argument) --
   // Arguments remain an ordered component stream with explicit punctuation,
   // matching Declaration::value.
-  struct FunctionCallRule
-      : rule<assign<&ast::FunctionCall::name>(ref<IdentLikeRule>) + gap::none +
+  struct FunctionCall
+      : rule<assign<&ast::FunctionCall::name>(ref<IdentLike>) + gap::none +
              lit<"("> +
              option(some(append<&ast::FunctionCall::args>(
                              ref<ComponentValueAlt>))) +
              lit<")">> {};
 
-  struct DxImageTransformRule
+  struct DxImageTransform
       : rule<lit<"progid:DXImageTransform.Microsoft."> +
              assign<&ast::FunctionCall::name>(ref<IDENT>) + gap::none +
              lit<"("> +
@@ -304,13 +303,13 @@ struct Css3 : cursiv::GrammarSpec {
                              ref<ComponentValueAlt>))) +
              lit<")">> {};
 
-  struct PunctValueRule
+  struct PunctValue
       : rule<assign<&ast::PunctValue::text>(
             ref<COLON_TOK> | ref<INCLUDES_TXT> | ref<DASHMATCH_TXT> |
             ref<PLUS> | ref<MINUS> | ref<VALUE_SEP> | lit<"."> | lit<">"> |
             lit<"~"> | lit<"|"> | lit<"*"> | lit<"&">)> {};
 
-  struct GroupValueRule
+  struct GroupValue
       : rule<create<ast::GroupValue> +
              ((lit<"("> +
                many(append<&ast::GroupValue::items>(ref<ComponentValueAlt>)) +
@@ -320,13 +319,13 @@ struct Css3 : cursiv::GrammarSpec {
                lit<"]">))> {};
 
   struct ComponentValueAlt
-      : rule<ref<NumberLitRule> | ref<PercentageLitRule> |
-             ref<DimensionLitRule> | ref<UnknownDimensionLitRule> |
-             ref<StringLitRule> | ref<UnicodeRangeLitRule> |
-             ref<UrlRefRule> | ref<VarRefRule> | ref<CalcExprRule> |
-             ref<FunctionCallRule> | ref<DxImageTransformRule> |
-             ref<HashRefRule> | ref<GroupValueRule> | ref<PunctValueRule> |
-             ref<IdentValueRule>> {};
+      : rule<ref<NumberLit> | ref<PercentageLit> |
+             ref<DimensionLit> | ref<UnknownDimensionLit> |
+             ref<StringLit> | ref<UnicodeRangeLit> |
+             ref<UrlRef> | ref<VarRef> | ref<CalcExpr> |
+             ref<FunctionCall> | ref<DxImageTransform> |
+             ref<HashRef> | ref<GroupValue> | ref<RawBlock> | ref<PunctValue> |
+             ref<IdentValue>> {};
 
   // The two readings must be made disjoint AT THE FIRST TOKEN, not left for
   // the engine to referee: an ident-led prelude followed by
@@ -338,29 +337,27 @@ struct Css3 : cursiv::GrammarSpec {
   // `[`, `*`, `|` -- may start this head; a number, a string, a function
   // token, `(` and a handful of bare punctuation cannot start a selector
   // at all, so they carry no such risk.
-  struct HeadPunctValueRule
+  struct HeadPunctValue
       : rule<assign<&ast::PunctValue::text>(
             ref<INCLUDES_TXT> | ref<DASHMATCH_TXT> | ref<PLUS> |
             ref<MINUS>)> {};
 
-  struct ParenGroupHeadRule
+  struct ParenGroupHead
       : rule<create<ast::GroupValue> + lit<"("> +
              many(append<&ast::GroupValue::items>(ref<ComponentValueAlt>)) +
              lit<")">> {};
 
   struct UnknownRulesetHeadAlt
-      : rule<ref<NumberLitRule> | ref<PercentageLitRule> |
-             ref<DimensionLitRule> | ref<UnknownDimensionLitRule> |
-             ref<StringLitRule> | ref<UnicodeRangeLitRule> |
-             ref<UrlRefRule> | ref<VarRefRule> | ref<CalcExprRule> |
-             ref<FunctionCallRule> | ref<DxImageTransformRule> |
-             ref<ParenGroupHeadRule> | ref<HeadPunctValueRule>> {};
+      : rule<ref<NumberLit> | ref<PercentageLit> |
+             ref<DimensionLit> | ref<UnknownDimensionLit> |
+             ref<StringLit> | ref<UnicodeRangeLit> |
+             ref<UrlRef> | ref<VarRef> | ref<CalcExpr> |
+             ref<FunctionCall> | ref<DxImageTransform> |
+             ref<ParenGroupHead> | ref<HeadPunctValue>> {};
 
-  // A colon with a real gap after it can never be a pseudo's (see
-  // PseudoSelectorRule's `gap::none`), so it is unambiguously the
-  // fallback's own bare `:` -- `!gap::none` is the other half of that same
-  // fact, used only here.
-  struct BareColonRule : rule<assign<&ast::PunctValue::text>(ref<COLON_TOK>)> {
+  // Real whitespace after a colon excludes a pseudo; comment-only gaps
+  // still belong to PseudoSelector. Keep the fallback disjoint.
+  struct BareColon : rule<assign<&ast::PunctValue::text>(ref<COLON_TOK>)> {
   };
 
   // Splices into DeclarationRule's own node rather than building its own
@@ -368,7 +365,7 @@ struct Css3 : cursiv::GrammarSpec {
   static constexpr auto PropertyClause =
       (flag<&ast::Declaration::iePrefixStar>(ref<STAR>) +
        assign<&ast::Declaration::property>(ref<IDENT>)) |
-      assign<&ast::Declaration::property>(ref<IdentLikeRule>);
+      assign<&ast::Declaration::property>(ref<IdentLike>);
 
   struct DeclarationRule
       : rule<PropertyClause + lit<":"> +
@@ -376,87 +373,88 @@ struct Css3 : cursiv::GrammarSpec {
              option(flag<&ast::Declaration::important>(
                  ref<IMPORTANT>))> {};
 
-  struct TypeRefRule
-      : rule<option(option(assign<&ast::TypeRef::nsPrefix>(ref<IdentLikeRule>) |
+  struct TypeRef
+      : rule<option(option(assign<&ast::TypeRef::nsPrefix>(ref<IdentLike>) |
                            assign<&ast::TypeRef::nsPrefix>(ref<STAR>)) +
                     flag<&ast::TypeRef::hasNsPrefix>(ref<PIPE>)) +
              (flag<&ast::TypeRef::universal>(ref<STAR>) |
-              assign<&ast::TypeRef::name>(ref<IdentLikeRule>))> {};
+              assign<&ast::TypeRef::name>(ref<IdentLike>))> {};
 
-  struct ClassSelectorRule
-      : rule<lit<"."> + assign<&ast::ClassSelector::name>(ref<IdentLikeRule>)> {};
+  struct ClassSelector
+      : rule<lit<"."> + SelectorTight + assign<&ast::ClassSelector::name>(ref<IdentLike>)> {};
 
-  struct IdSelectorRule
+  struct IdSelector
       : rule<assign<&ast::IdSelector::name>(ref<HASH>)> {};
 
-  struct AttribSelectorRule
+  struct AttribSelector
       : rule<lit<"["> +
              option(option(assign<&ast::AttribSelector::nsPrefix>(
-                                ref<IdentLikeRule>) |
+                                ref<IdentLike>) |
                            assign<&ast::AttribSelector::nsPrefix>(
                                ref<STAR>)) +
                     flag<&ast::AttribSelector::hasNsPrefix>(ref<PIPE>)) +
-             assign<&ast::AttribSelector::name>(ref<IdentLikeRule>) +
+             assign<&ast::AttribSelector::name>(ref<IdentLike>) +
              option(assign<&ast::AttribSelector::op>(AttribOpAlt) +
-                    assign<&ast::AttribSelector::value>(ref<IdentLikeRule> |
+                    assign<&ast::AttribSelector::value>(ref<IdentLike> |
                                                          ref<STRING>) +
-                    option(assign<&ast::AttribSelector::modifier>(ref<IdentLikeRule>))) +
+                    option(assign<&ast::AttribSelector::modifier>(ref<IdentLike>))) +
              lit<"]">> {};
 
   // A pseudo's colon(s) are always adjacent to what follows (CSS has no
   // `Space` token there): `gap::none` makes that a grammar fact rather than
   // an accident of trivia, so a colon WITH a following gap can never be a
-  // pseudo -- see UnknownRulesetRule's `BareColonRule` alternative.
-  struct PseudoSelectorRule
-      : rule<lit<":"> + gap::none +
+  // pseudo -- see UnknownRuleset's `BareColon` alternative.
+  struct PseudoSelector
+      : rule<lit<":"> + SelectorTight +
              option(flag<&ast::PseudoSelector::isElement>(lit<":">) +
-                    gap::none) +
-             ((assign<&ast::PseudoSelector::name>(ref<IdentLikeRule>) + gap::none +
+                    SelectorTight) +
+             ((assign<&ast::PseudoSelector::name>(ref<IdentLike>) + gap::none +
                lit<"("> +
                some(append<&ast::PseudoSelector::args>(
                    ref<ComponentValueAlt>)) +
                lit<")">) |
-              assign<&ast::PseudoSelector::name>(ref<IdentLikeRule>))> {};
+              assign<&ast::PseudoSelector::name>(ref<IdentLike>))> {};
 
   static constexpr auto SelectorQualifier =
       append<&ast::SimpleSelectorSequence::items>(
-          ref<IdSelectorRule> | ref<ClassSelectorRule> |
-          ref<AttribSelectorRule> | ref<PseudoSelectorRule>);
+          ref<IdSelector> | ref<ClassSelector> |
+          ref<AttribSelector> | ref<PseudoSelector>);
 
   // A qualifier right after the type/previous qualifier (`div.foo`, a
   // compound selector) means AND; one after a real gap (`div .foo`) starts
   // a new sequence instead -- `gap::none` is what tells them apart, since
   // ordinary trivia skipping would otherwise make both look identical.
-  struct SimpleSelectorSequenceRule
+  struct SimpleSelectorSequence
       : rule<option(assign<&ast::SimpleSelectorSequence::combinator>(
-                 ref<COMBINE_CHILD> | ref<COMBINE_ADJ> | ref<COMBINE_SIB>)) +
-             ((assign<&ast::SimpleSelectorSequence::type>(ref<TypeRefRule>) +
-               many(gap::none + SelectorQualifier)) |
-              (SelectorQualifier + many(gap::none + SelectorQualifier)))> {};
+                 as<ast::Combinator::child>(lit<">">) | as<ast::Combinator::adjacent_sibling>(lit<"+">) | as<ast::Combinator::general_sibling>(lit<"~">))) +
+             ((assign<&ast::SimpleSelectorSequence::type>(ref<TypeRef>) +
+               many(SelectorTight + SelectorQualifier)) |
+              (SelectorQualifier + many(SelectorTight + SelectorQualifier)))> {};
 
-  struct SelectorRule
+  struct Selector
       : rule<create<ast::Selector> +
-             some(append<&ast::Selector::sequences>(
-                 ref<SimpleSelectorSequenceRule>))> {};
+             append<&ast::Selector::sequences>(ref<SimpleSelectorSequence>) +
+             many((&(lit<">"> | lit<"+"> | lit<"~">) | CssWhitespaceGap) +
+                  append<&ast::Selector::sequences>(ref<SimpleSelectorSequence>))> {};
 
-  struct SelectorGroupRule
+  struct SelectorGroup
       : rule<create<ast::SelectorGroup> +
-             some(append<&ast::SelectorGroup::selectors>(ref<SelectorRule>),
+             some(append<&ast::SelectorGroup::selectors>(ref<Selector>),
                   lit<",">)> {};
 
-  struct RulesetRule
-      : rule<assign<&ast::Ruleset::selectors>(ref<SelectorGroupRule>) +
+  struct Ruleset
+      : rule<assign<&ast::Ruleset::selectors>(ref<SelectorGroup>) +
              lit<"{"> +
              many(append<&ast::Ruleset::declarations>(ref<DeclarationRule>) |
                   lit<";">) +
              lit<"}">> {};
 
-  struct UnknownRulesetRule
+  struct UnknownRuleset
       : rule<option(
                  (append<&ast::UnknownRuleset::prelude>(
                       ref<UnknownRulesetHeadAlt>) |
-                  (append<&ast::UnknownRuleset::prelude>(ref<BareColonRule>) +
-                   !gap::none)) +
+                  (append<&ast::UnknownRuleset::prelude>(ref<BareColon>) +
+                   CssWhitespaceGap)) +
                  many(append<&ast::UnknownRuleset::prelude>(
                      ref<ComponentValueAlt>))) +
              lit<"{"> +
@@ -465,46 +463,59 @@ struct Css3 : cursiv::GrammarSpec {
                   lit<";">) +
              lit<"}">> {};
 
-  struct MediaExpressionRule
-      : rule<lit<"("> + assign<&ast::MediaExpression::feature>(ref<IdentLikeRule>) +
+  struct MediaExpression
+      : rule<lit<"("> + assign<&ast::MediaExpression::feature>(ref<IdentLike>) +
              option(lit<":"> +
                     some(append<&ast::MediaExpression::value>(
                                         ref<ComponentValueAlt>))) +
              lit<")">> {};
 
-  struct MediaQueryRule
+  struct MediaQuery
       : rule<(option(flag<&ast::MediaQuery::isOnly>(ikw<"only">) |
                      flag<&ast::MediaQuery::isNot>(ikw<"not">)) +
-              assign<&ast::MediaQuery::mediaType>(ref<IdentLikeRule>) +
+              assign<&ast::MediaQuery::mediaType>(ref<IdentLike>) +
               many(ikw<"and"> + append<&ast::MediaQuery::expressions>(
-                                     ref<MediaExpressionRule>))) |
-             (append<&ast::MediaQuery::expressions>(ref<MediaExpressionRule>) +
+                                     ref<MediaExpression>))) |
+             (append<&ast::MediaQuery::expressions>(ref<MediaExpression>) +
               many(ikw<"and"> + append<&ast::MediaQuery::expressions>(
-                                     ref<MediaExpressionRule>)))> {};
+                                     ref<MediaExpression>)))> {};
 
-  struct MediaQueryListRule
+  struct MediaQueryList
       : rule<create<ast::MediaQueryList> +
-             some(append<&ast::MediaQueryList::queries>(ref<MediaQueryRule>),
+             some(append<&ast::MediaQueryList::queries>(ref<MediaQuery>),
                   lit<",">)> {};
 
   struct StatementAlt;
 
-  struct AtMediaRule
+  struct AtMedia
       : rule<ikw<"@media"> +
-             option(assign<&ast::AtMedia::queries>(ref<MediaQueryListRule>)) +
+             option(assign<&ast::AtMedia::queries>(ref<MediaQueryList>)) +
              lit<"{"> +
              many(append<&ast::AtMedia::body>(ref<StatementAlt>)) +
              lit<"}">> {};
 
-  struct AtPageRule
+  static constexpr auto PagePseudo = lit<":"> + SelectorTight +
+      append<&ast::PageSelector::pseudos>(ref<IdentLike>);
+  struct PageSelector
+      : rule<(assign<&ast::PageSelector::name>(ref<IdentLike>) +
+              many(SelectorTight + PagePseudo)) |
+             (PagePseudo + many(SelectorTight + PagePseudo))> {};
+
+  struct PageMargin
+      : rule<assign<&ast::PageMargin::name>(ref<AT_KEYWORD>) + lit<"{"> +
+             many(append<&ast::PageMargin::declarations>(ref<DeclarationRule>) |
+                  lit<";">) + lit<"}">> {};
+
+  struct AtPage
       : rule<ikw<"@page"> +
-             option(lit<":"> + assign<&ast::AtPage::pseudo>(ref<IdentLikeRule>)) +
+             option(some(append<&ast::AtPage::selectors>(ref<PageSelector>), lit<",">)) +
              lit<"{"> +
              many(append<&ast::AtPage::declarations>(ref<DeclarationRule>) |
+                  append<&ast::AtPage::margins>(ref<PageMargin>) |
                   lit<";">) +
              lit<"}">> {};
 
-  struct AtFontFaceRule
+  struct AtFontFace
       : rule<ikw<"@font-face"> + lit<"{"> +
              many(
                  append<&ast::AtFontFace::declarations>(ref<DeclarationRule>) |
@@ -514,14 +525,14 @@ struct Css3 : cursiv::GrammarSpec {
   static constexpr auto KeyframeStop =
       ikw<"from"> | ikw<"to"> | ref<PERCENTAGE>;
 
-  struct KeyframeSelectorRule
+  struct KeyframeSelector
       : rule<create<ast::KeyframeSelector> +
              some(append<&ast::KeyframeSelector::stops>(KeyframeStop),
                   lit<",">)> {};
 
-  struct KeyframeBlockRule
+  struct KeyframeBlock
       : rule<assign<&ast::KeyframeBlock::selector>(
-                 ref<KeyframeSelectorRule>) +
+                 ref<KeyframeSelector>) +
              lit<"{"> +
              many(append<&ast::KeyframeBlock::declarations>(
                       ref<DeclarationRule>) |
@@ -532,169 +543,169 @@ struct Css3 : cursiv::GrammarSpec {
       ikw<"@keyframes"> | ikw<"@-moz-keyframes"> | ikw<"@-webkit-keyframes"> |
       ikw<"@-o-keyframes">;
 
-  struct AtKeyframesRule
-      : rule<KeyframesKw + assign<&ast::AtKeyframes::name>(ref<IdentLikeRule>) +
+  struct AtKeyframes
+      : rule<KeyframesKw + assign<&ast::AtKeyframes::name>(ref<IdentLike> | ref<STRING>) +
              lit<"{"> +
-             many(append<&ast::AtKeyframes::blocks>(ref<KeyframeBlockRule>)) +
+             many(append<&ast::AtKeyframes::blocks>(ref<KeyframeBlock>)) +
              lit<"}">> {};
 
   struct SupportsConditionAlt;
 
-  struct SupportsDeclarationRule
+  struct SupportsDeclaration
       : rule<lit<"("> +
              assign<&ast::SupportsDeclaration::declaration>(
                  ref<DeclarationRule>) +
              lit<")">> {};
 
-  struct SupportsGeneralRule
-      : rule<create<ast::SupportsGeneral> + lit<"("> +
-             many(append<&ast::SupportsGeneral::items>(ref<ComponentValueAlt>)) +
-             lit<")">> {};
+  struct SupportsGeneral
+      : rule<create<ast::SupportsGeneral>(
+                 append<&ast::SupportsGeneral::items>(ref<FunctionCall>) |
+                 (lit<"("> +
+                  many(append<&ast::SupportsGeneral::items>(ref<ComponentValueAlt>)) +
+                  lit<")">))> {};
 
-  struct SupportsParenRule
+  struct SupportsParen
       : rule<lit<"("> +
              assign<&ast::SupportsParen::inner>(ref<SupportsConditionAlt>) +
              lit<")">> {};
 
   static constexpr auto SupportsConditionInParens =
-      ref<SupportsParenRule> | ref<SupportsDeclarationRule> |
-      ref<SupportsGeneralRule>;
+      ref<SupportsParen> | ref<SupportsDeclaration> |
+      ref<SupportsGeneral>;
 
-  // `not (...)` needs no gap:: fix: nothing here demands a mandatory Space
-  // that ordinary trivia would already have consumed, so trivia alone
-  // already separates `not` from `(`.
-  struct SupportsNotRule
-      : rule<ikw<"not"> +
-             assign<&ast::SupportsNot::operand>(ref<SupportsConditionAlt>)> {
+  // A comment or whitespace separates an identifier token from `(`;
+  // adjacent `not(` is a function token, hence general-enclosed instead.
+  struct SupportsNot
+      : rule<ikw<"not"> + !gap::none +
+             assign<&ast::SupportsNot::operand>(SupportsConditionInParens)> {
   };
 
-  struct SupportsAndRule
+  struct SupportsAnd
       : rule<create<ast::SupportsAnd> +
              append<&ast::SupportsAnd::operands>(SupportsConditionInParens) +
-             some(ikw<"and"> + append<&ast::SupportsAnd::operands>(
+             some(ikw<"and"> + !gap::none + append<&ast::SupportsAnd::operands>(
                                     SupportsConditionInParens))> {};
 
-  struct SupportsOrRule
+  struct SupportsOr
       : rule<create<ast::SupportsOr> +
              append<&ast::SupportsOr::operands>(SupportsConditionInParens) +
-             some(ikw<"or"> + append<&ast::SupportsOr::operands>(
+             some(ikw<"or"> + !gap::none + append<&ast::SupportsOr::operands>(
                                    SupportsConditionInParens))> {};
 
   struct SupportsConditionAlt
-      : rule<ref<SupportsNotRule> | ref<SupportsAndRule> |
-             ref<SupportsOrRule> | ref<SupportsParenRule> |
-             ref<SupportsDeclarationRule> | ref<SupportsGeneralRule>> {};
+      : rule<ref<SupportsNot> | ref<SupportsAnd> |
+             ref<SupportsOr> | ref<SupportsParen> |
+             ref<SupportsDeclaration> | ref<SupportsGeneral>> {};
 
-  struct AtSupportsRule
+  struct AtSupports
       : rule<ikw<"@supports"> +
              assign<&ast::AtSupports::condition>(ref<SupportsConditionAlt>) +
              lit<"{"> +
              many(append<&ast::AtSupports::body>(ref<StatementAlt>)) +
              lit<"}">> {};
 
-  struct AtViewportRule
+  struct AtViewport
       : rule<ikw<"@viewport"> + lit<"{"> +
              many(
                  append<&ast::AtViewport::declarations>(ref<DeclarationRule>) |
                  lit<";">) +
              lit<"}">> {};
 
-  struct AtCounterStyleRule
+  struct AtCounterStyle
       : rule<ikw<"@counter-style"> +
-             assign<&ast::AtCounterStyle::name>(ref<IdentLikeRule>) + lit<"{"> +
+             assign<&ast::AtCounterStyle::name>(ref<IdentLike>) + lit<"{"> +
              many(append<&ast::AtCounterStyle::declarations>(
                       ref<DeclarationRule>) |
                   lit<";">) +
              lit<"}">> {};
 
-  struct FeatureValueDefRule
-      : rule<assign<&ast::FeatureValueDef::name>(ref<IdentLikeRule>) + lit<":"> +
+  struct FeatureValueDef
+      : rule<assign<&ast::FeatureValueDef::name>(ref<IdentLike>) + lit<":"> +
              some(append<&ast::FeatureValueDef::values>(
-                 ref<NumberLitRule>))> {};
+                 ref<NumberLit>))> {};
 
-  struct FeatureValueBlockRule
+  struct FeatureValueBlock
       : rule<assign<&ast::FeatureValueBlock::type>(ref<AT_KEYWORD>) +
              lit<"{"> +
              many(append<&ast::FeatureValueBlock::defs>(
-                      ref<FeatureValueDefRule>) |
+                      ref<FeatureValueDef>) |
                   lit<";">) +
              lit<"}">> {};
 
-  struct FontFamilyNameRule
+  struct FontFamilyName
       : rule<create<ast::FontFamilyName> +
              (append<&ast::FontFamilyName::words>(ref<STRING>) |
-              some(append<&ast::FontFamilyName::words>(ref<IdentLikeRule>)))> {};
+              some(append<&ast::FontFamilyName::words>(ref<IdentLike>)))> {};
 
-  struct AtFontFeatureValuesRule
+  struct AtFontFeatureValues
       : rule<ikw<"@font-feature-values"> +
              some(append<&ast::AtFontFeatureValues::familyNames>(
-                      ref<FontFamilyNameRule>),
+                      ref<FontFamilyName>),
                   lit<",">) +
              lit<"{"> +
              many(append<&ast::AtFontFeatureValues::blocks>(
-                 ref<FeatureValueBlockRule>)) +
+                 ref<FeatureValueBlock>)) +
              lit<"}">> {};
 
-  struct AtCharsetRule
+  struct AtCharset
       : rule<ikw<"@charset"> + assign<&ast::AtCharset::value>(ref<STRING>) +
              option(lit<";">)> {};
 
   static constexpr auto ImportUrlClause =
       assign<&ast::AtImport::url>(ref<STRING>) |
-      (ikw<"url"> + lit<"("> +
-       assign<&ast::AtImport::url>(ref<STRING> | ref<URL_RAW>) + lit<")">);
+      (ikw<"url"> + gap::none + lit<"("> +
+       option(assign<&ast::AtImport::url>(ref<STRING> | ref<URL_RAW>)) + lit<")">);
 
-  struct AtImportRule
+  struct AtImport
       : rule<ikw<"@import"> + ImportUrlClause +
-             option(assign<&ast::AtImport::media>(ref<MediaQueryListRule>)) +
+             option(assign<&ast::AtImport::media>(ref<MediaQueryList>)) +
              option(lit<";">)> {};
 
   static constexpr auto NamespaceUrlClause =
       assign<&ast::AtNamespace::url>(ref<STRING>) |
-      (ikw<"url"> + lit<"("> +
-       assign<&ast::AtNamespace::url>(ref<STRING> | ref<URL_RAW>) +
+      (ikw<"url"> + gap::none + lit<"("> +
+       option(assign<&ast::AtNamespace::url>(ref<STRING> | ref<URL_RAW>)) +
        lit<")">);
 
-  struct AtNamespaceRule
+  struct AtNamespace
       : rule<ikw<"@namespace"> +
-             option(assign<&ast::AtNamespace::prefix>(ref<IdentLikeRule>)) +
+             option(assign<&ast::AtNamespace::prefix>(ref<IdentLike>)) +
              NamespaceUrlClause + option(lit<";">)> {};
 
   // The rare fallback for content nested inside an unrecognized at-rule or a
   // malformed declaration value -- kept flat
   // rather than as separately ordered runs of declarations, nested
   // statements and bare tokens.
-  struct RawBlockRule
+  struct RawBlock
       : rule<create<ast::RawBlock> + lit<"{"> +
              many(append<&ast::RawBlock::items>(ref<DeclarationRule>) |
                   append<&ast::RawBlock::items>(ref<StatementAlt>) |
                   append<&ast::RawBlock::items>(ref<ComponentValueAlt>) |
-                  append<&ast::RawBlock::items>(ref<RawBlockRule>) |
                   lit<";">) +
              lit<"}">> {};
 
-  struct UnknownAtRuleRule
+  struct UnknownAtRule
       : rule<assign<&ast::UnknownAtRule::name>(ref<AT_KEYWORD>) +
              many(
                  append<&ast::UnknownAtRule::prelude>(ref<ComponentValueAlt>)) +
-             option(assign<&ast::UnknownAtRule::body>(ref<RawBlockRule>)) +
+             option(assign<&ast::UnknownAtRule::body>(ref<RawBlock>)) +
              option(lit<";">)> {};
 
   struct StatementAlt
-      : rule<ref<AtCharsetRule> | ref<AtImportRule> | ref<AtNamespaceRule> |
-             ref<AtMediaRule> | ref<AtPageRule> | ref<AtFontFaceRule> |
-             ref<AtKeyframesRule> | ref<AtSupportsRule> |
-             ref<AtViewportRule> | ref<AtCounterStyleRule> |
-             ref<AtFontFeatureValuesRule> | ref<UnknownAtRuleRule> |
-             ref<RulesetRule> | ref<UnknownRulesetRule>> {};
+      : rule<ref<AtCharset> | ref<AtImport> | ref<AtNamespace> |
+             ref<AtMedia> | ref<AtPage> | ref<AtFontFace> |
+             ref<AtKeyframes> | ref<AtSupports> |
+             ref<AtViewport> | ref<AtCounterStyle> |
+             ref<AtFontFeatureValues> | ref<UnknownAtRule> |
+             ref<Ruleset> | ref<UnknownRuleset>> {};
 
-  struct StylesheetRule
+  struct Stylesheet
       : rule<create<ast::Stylesheet> +
              many(append<&ast::Stylesheet::statements>(ref<StatementAlt>))> {
   };
 
-  using entry = StylesheetRule;
-  using ignore = list<SPACE, CDO, CDC>;
+  using entry = Stylesheet;
+  using ignored = list<SPACE, CDO, CDC>;
   using hidden = list<ML_COMMENT>;
 };
 

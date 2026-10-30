@@ -18,7 +18,7 @@ Shape: adt
 	Circle or Square =>
 		r: cyclic int;
 	Empty =>
-	};
+	}
 };
 
 (a, b) := f();

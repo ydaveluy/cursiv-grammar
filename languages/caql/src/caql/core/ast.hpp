@@ -26,6 +26,7 @@ enum class Operator : std::uint8_t {
   logical_and,
   logical_or,
   logical_unless,
+  logical_not,
 };
 
 struct Expression : cursiv::Extends<cursiv::AstNode> {};
@@ -42,16 +43,25 @@ struct UuidLit : cursiv::Extends<Expression> {
   string_view value;
 };
 
-// One argument of a `name(...)` call: a literal, with the `limit=` marker
-// legal on every argument but the first.
+struct DurationLit : cursiv::Extends<Expression> {
+  string_view text;
+};
+
+struct ConstantLit : cursiv::Extends<Expression> {
+  string_view name;
+};
+
+// Positional or named argument, shared by ordinary calls and pipe calls.
 struct CallArg : cursiv::Extends<cursiv::AstNode> {
-  boolean limit;
+  string_view name;
+  boolean limit;  // convenience flag for the native `limit` argument
   Expression* value;
 };
 
 struct CallExpr : cursiv::Extends<Expression> {
   string_view name;
   vector<CallArg*> args;
+  vector<Expression*> sources;
 };
 
 // `name{ e1, e2, ... }`.
@@ -96,10 +106,12 @@ struct BinaryExpr : cursiv::Extends<Expression> {
 struct PipeExpr : cursiv::Extends<Expression> {
   Expression* operand;
   string_view name;
-  vector<Expression*> args;
+  vector<CallArg*> args;
+  vector<Expression*> sources;
 };
 
 struct Query : cursiv::Extends<cursiv::AstNode> {
+  vector<string_view> directives;
   Expression* expression;
 };
 

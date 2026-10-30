@@ -9,11 +9,6 @@
 
 namespace ocl {
 
-inline constexpr auto strip_last = [](std::string_view t) {
-  return t.substr(0, t.size() - 1);
-};
-using StripLast = cursiv::text_conv<strip_last>;
-
 // STRING1_LITERAL and STRING2_LITERAL share one escape grammar: strip the
 // surrounding quote, then decode \b\t\n\f\r\"\'\\ , octal and \uXXXX.
 inline constexpr auto unescape = [](std::string_view t,
@@ -49,9 +44,11 @@ inline constexpr auto unescape = [](std::string_view t,
       case '\\':
         room[n++] = e;
         break;
-      case 'u': {
+      case 'u':
+      case 'x': {
         unsigned cp = 0;
-        for (int k = 0; k < 4 && i + 1 < body.size(); ++k) {
+        const int digits = e == 'u' ? 4 : 2;
+        for (int k = 0; k < digits && i + 1 < body.size(); ++k) {
           const char h = body[++i];
           cp <<= 4;
           if (h >= '0' && h <= '9')
@@ -86,7 +83,6 @@ inline constexpr auto unescape = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unescaped = cursiv::text_conv<unescape>;
 
 struct Ocl : cursiv::GrammarSpec {
   // ID runs past `$` and `@`, past the default word class: a keyword must
@@ -98,46 +94,65 @@ struct Ocl : cursiv::GrammarSpec {
   struct LINE_COMMENT : terminal<lit<"--"> + many(cr<R"(^\r\n)">)> {};
 
   static constexpr auto IdBody = cr<"a-zA-Z_$"> + many(cr<"a-zA-Z0-9_$@">);
-  struct ID : terminal<IdBody> {};
+  static constexpr auto Reserved =
+      kw<"and"> | kw<"body"> | kw<"context"> | kw<"def"> | kw<"derive"> |
+      kw<"else"> | kw<"endif"> | kw<"endpackage"> | kw<"false"> | kw<"if"> |
+      kw<"implies"> | kw<"in"> | kw<"init"> | kw<"inv"> | kw<"invalid"> |
+      kw<"let"> | kw<"not"> | kw<"null"> | kw<"or"> | kw<"package"> |
+      kw<"post"> | kw<"pre"> | kw<"self"> | kw<"static"> | kw<"then"> |
+      kw<"true"> | kw<"xor">;
+  static constexpr auto identifierValue = [](std::string_view text,
+                                            std::pmr::memory_resource* mem) {
+    return text.starts_with("_'") ? unescape(text.substr(1), mem) : text;
+  };
   struct ENUMERATION_LITERAL : terminal<IdBody + lit<"::"> + IdBody> {};
 
   static constexpr auto Digits = some(d);
-  struct INT : terminal<Digits, std::int64_t> {};
-  struct FLOAT_LITERAL : terminal<Digits + lit<"."> + Digits, double> {};
+  struct INT : terminal<as<std::int64_t>(
+      (lit<"0"> + !d) | (cr<"1-9"> + many(d)))> {};
+  struct FLOAT_LITERAL
+      : terminal<as<double>(Digits +
+            ((lit<"."> + Digits + option(cr<"eE"> + option(cr<"+-">) + Digits)) |
+             (cr<"eE"> + option(cr<"+-">) + Digits)))> {};
 
   static constexpr auto EscapeSequence =
       lit<"\\"> + (cr<R"(btnfr"'\\)"> |
                    (option(option(cr<"0-3">) + cr<"0-7">) + cr<"0-7">) |
-                   (lit<"u"> + repeat<4>(cr<"0-9a-fA-F">)));
+                   ((lit<"u"> + repeat<4>(cr<"0-9a-fA-F">)) |
+                    (lit<"x"> + repeat<2>(cr<"0-9a-fA-F">))));
   struct STRING1_LITERAL
-      : terminal<lit<"\""> + many(EscapeSequence | cr<R"(^"\\\r\n)">) +
-                     lit<"\"">,
-                 Unescaped> {};
+      : terminal<as<unescape>(
+            lit<"\""> + many(EscapeSequence | cr<R"(^"\\\r\n)">) + lit<"\"">)> {
+  };
   struct STRING2_LITERAL
-      : terminal<lit<"'"> + many(EscapeSequence | cr<R"(^'\\\r\n)">) + lit<"'">,
-                 Unescaped> {};
+      : terminal<as<unescape>(
+            lit<"'"> + many(EscapeSequence | cr<R"(^'\\\r\n)">) + lit<"'">)> {};
 
-  struct COLLECTION_OPEN
-      : terminal<lit<"OrderedSet{"> | lit<"Bag{"> | lit<"Set{"> |
-                     lit<"Sequence{"> | lit<"Map{">,
-                 StripLast> {};
+  struct ID : terminal<as<identifierValue>(
+      !Reserved + (IdBody | (lit<"_'"> + many(EscapeSequence | cr<R"(^'\\\r\n)">) + lit<"'">)))> {};
+
+  struct CollectionKind
+      : rule<kw<"OrderedSet"> | kw<"Bag"> | kw<"Set"> |
+             kw<"Sequence"> | kw<"Map">> {};
 
   struct Expression;
-  struct TypeRule;
+  struct ConditionalExpression;
+  struct LetExpression;
+  struct Type;
   struct IdentOptType;
 
-  struct TypeRule
+  struct Type
       : rule<create<ast::ParamType>(
                  assign<&ast::ParamType::keyword>(
                      kw<"Sequence"> | kw<"Set"> | kw<"Bag"> |
                      kw<"OrderedSet"> | kw<"Ref">) +
-                 lit<"("> + append<&ast::ParamType::args>(ref<TypeRule>) +
+                 lit<"("> + append<&ast::ParamType::args>(ref<Type>) +
                  lit<")">)  //
              | create<ast::ParamType>(
                    assign<&ast::ParamType::keyword>(kw<"Map"> |
                                                      kw<"Function">) +
-                   lit<"("> + append<&ast::ParamType::args>(ref<TypeRule>) +
-                   lit<","> + append<&ast::ParamType::args>(ref<TypeRule>) +
+                   lit<"("> + append<&ast::ParamType::args>(ref<Type>) +
+                   lit<","> + append<&ast::ParamType::args>(ref<Type>) +
                    lit<")">)  //
              | create<ast::NamedType>(
                    assign<&ast::NamedType::name>(ref<ID>))> {};
@@ -146,11 +161,15 @@ struct Ocl : cursiv::GrammarSpec {
       : rule<create<ast::IdentOptType> +
              assign<&ast::IdentOptType::name>(ref<ID>) +
              option(lit<":"> +
-                    assign<&ast::IdentOptType::type>(ref<TypeRule>))> {};
+                    assign<&ast::IdentOptType::type>(ref<Type>))> {};
 
   // Literals and names -- the leaves a postfix chain climbs from.
   struct PrimaryFactor
-      : rule<create<ast::NullLit>(kw<"null">)  //
+      : rule<ref<ConditionalExpression> | ref<LetExpression> |
+             create<ast::InvalidLit>(kw<"invalid">) |
+             create<ast::NameRef>(flag<&ast::NameRef::isSelf>(
+                 assign<&ast::NameRef::name>(kw<"self">))) |
+             create<ast::NullLit>(kw<"null">)  //
              | create<ast::BoolLit>(
                    assign<&ast::BoolLit::value>(kw<"true"> | kw<"false">))  //
              | create<ast::IntLit>(assign<&ast::IntLit::value>(ref<INT>))  //
@@ -161,7 +180,7 @@ struct Ocl : cursiv::GrammarSpec {
              | create<ast::EnumLit>(
                    assign<&ast::EnumLit::text>(ref<ENUMERATION_LITERAL>))  //
              | create<ast::SetLiteral>(
-                   assign<&ast::SetLiteral::kind>(ref<COLLECTION_OPEN>) +
+                   assign<&ast::SetLiteral::kind>(ref<CollectionKind>) + lit<"{"> +
                    many(append<&ast::SetLiteral::items>(ref<Expression>),
                         lit<",">) +
                    lit<"}">)  //
@@ -194,6 +213,7 @@ struct Ocl : cursiv::GrammarSpec {
                  | nest<ast::IterateCall, &ast::IterateCall::object>(
                        lit<"->"> + kw<"iterate"> + lit<"("> +
                        assign<&ast::IterateCall::accumVar>(ref<ID>) +
+                       option(lit<":"> + assign<&ast::IterateCall::iteratorType>(ref<Type>)) +
                        lit<";"> +
                        assign<&ast::IterateCall::accumParam>(
                            ref<IdentOptType>) +
@@ -203,7 +223,7 @@ struct Ocl : cursiv::GrammarSpec {
                        assign<&ast::IterateCall::body>(ref<Expression>) +
                        lit<")">)  //
                  | nest<ast::MemberAccess, &ast::MemberAccess::object>(
-                       lit<"."> +
+                       (lit<"."> | flag<&ast::MemberAccess::arrow>(lit<"->">)) +
                        assign<&ast::MemberAccess::name>(ref<ID>))  //
                  | nest<ast::IndexExpr, &ast::IndexExpr::object>(
                        lit<"["> +
@@ -221,17 +241,16 @@ struct Ocl : cursiv::GrammarSpec {
   // additive, relational, equality, `and`, `or`, `xor`, `implies`.
   // `<:`/`/:` sit with relational, `:` with equality.
   struct LogicalExpression
-      : infix<UnaryExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"*"> | lit<"/"> | kw<"mod"> | kw<"div">) >>
-               left(lit<"+"> | lit<"-"> | lit<".."> | lit<"|->">) >>
-               left(lit<"<="> | lit<">="> | lit<"<"> | lit<">"> |
-                    lit<"<:"> | lit<"/:">) >>
-               left(lit<"="> | lit<"<>"> | lit<"/="> | lit<":">) >>
-               left(kw<"and"> | lit<"&">) >>
-               left(kw<"or">) >>
-               left(kw<"xor">) >>
-               left(lit<"=>"> | kw<"implies">))> {};
+      : infix<UnaryExpression, ast::BinaryExpr,
+              levels(left(lit<"*"> | lit<"/"> | kw<"mod"> | kw<"div">),
+                     left(lit<"+"> | lit<"-"> | lit<".."> | lit<"|->">),
+                     left(lit<"<="> | lit<">="> | lit<"<"> | lit<">"> |
+                          lit<"<:"> | lit<"/:">),
+                     left(lit<"="> | lit<"<>"> | lit<"/="> | lit<":">),
+                     left(kw<"and"> | lit<"&">),
+                     left(kw<"or">),
+                     left(kw<"xor">),
+                     left(lit<"=>"> | kw<"implies">))> {};
 
   struct ConditionalExpression
       : rule<kw<"if"> + assign<&ast::IfExpr::cond>(ref<Expression>) +
@@ -239,23 +258,20 @@ struct Ocl : cursiv::GrammarSpec {
              kw<"else"> + assign<&ast::IfExpr::elseExpr>(ref<Expression>) +
              kw<"endif">> {};
 
-  struct LetBindingRule
+  struct LetBinding
       : rule<create<ast::LetBinding> +
              assign<&ast::LetBinding::name>(ref<ID>) +
              option(lit<":"> +
-                    assign<&ast::LetBinding::type>(ref<TypeRule>)) +
+                    assign<&ast::LetBinding::type>(ref<Type>)) +
              lit<"="> + assign<&ast::LetBinding::value>(ref<Expression>)> {};
 
   struct LetExpression
       : rule<kw<"let"> +
-             some(append<&ast::LetExpr::bindings>(ref<LetBindingRule>),
+             some(append<&ast::LetExpr::bindings>(ref<LetBinding>),
                   lit<",">) +
              kw<"in"> + assign<&ast::LetExpr::body>(ref<Expression>)> {};
 
-  struct Expression
-      : rule<ref<ConditionalExpression>  //
-             | ref<LetExpression>        //
-             | ref<LogicalExpression>> {};
+  struct Expression : rule<ref<LogicalExpression>> {};
 
   struct SingleInvariant
       : rule<kw<"context"> +
@@ -268,7 +284,7 @@ struct Ocl : cursiv::GrammarSpec {
              assign<&ast::DerivedAttribute::qualifiedName>(
                  ref<ENUMERATION_LITERAL>) +
              lit<":"> +
-             assign<&ast::DerivedAttribute::type>(ref<TypeRule>) +
+             assign<&ast::DerivedAttribute::type>(ref<Type>) +
              option(lit<"init:"> + assign<&ast::DerivedAttribute::init>(
                                        ref<Expression>)) +
              lit<"derive:"> +
@@ -277,12 +293,12 @@ struct Ocl : cursiv::GrammarSpec {
   struct ContextSpec
       : rule<ref<SingleInvariant> | ref<SingleDerivedAttribute>> {};
 
-  struct ModelRule
+  struct Model
       : rule<create<ast::Model> +
              some(append<&ast::Model::specs>(ref<ContextSpec>))> {};
 
-  using entry = ModelRule;
-  using ignore = WS;
+  using entry = Model;
+  using ignored = WS;
   using hidden = list<ML_COMMENT, LINE_COMMENT>;
 };
 

@@ -83,7 +83,7 @@ void IcalendarValidator::checkComponent(
 
 void IcalendarValidator::checkProperty(
     const ast::Property& p, cursiv::ValidationAcceptor& accept) const {
-  if (!p.hasValueDelimiter && p.params.empty())
+  if (!p.hasValueDelimiter)
     accept.error(p, "A property must have a value delimiter.");
   if (!valid_name(p.name))
     accept.error(p, "Invalid property name.").property<&ast::Property::name>();

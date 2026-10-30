@@ -14,17 +14,22 @@
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "cursiv/test/Check.hpp"
 #include "lua/core/ast.hpp"
+#include "lua/core/CoreServices.hpp"
+#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 #include "lua/generated/Lua/Module.hpp"
 
 namespace {
 
 namespace ast = lua::ast;
 
-const cursiv::Parser& engine() {
-  static const std::unique_ptr<cursiv::Parser> p =
-      lua::generated::Lua::create_parser();
-  return *p;
+const auto& services() {
+  static const auto language = cursiv::create_language<lua::LuaCoreServices,
+      lua::LuaSharedCoreServices, lua::install_core_module>();
+  return language.language;
 }
+const cursiv::Parser& engine() { return *services().parser; }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
@@ -175,11 +180,10 @@ void suffix_chain_nests_left() {
   CHECK(as<ast::NameExpr>(field->object) != nullptr);
 }
 
-// `ID` refuses no keyword: `local end = 1` parses, and refusing it is the
-// validator's job.
 void keywords_may_name() {
-  CHECK(clean("local end = 1\n"));
-  CHECK(clean("t.end = 1\n"));
+  CHECK(!clean("local end = 1\n"));
+  CHECK(!clean("t.end = 1\n"));
+  CHECK(clean("local ending = 1\n"));
 }
 
 void whitespace_and_line_endings() {
@@ -223,6 +227,32 @@ void numeral_forms() {
   }
 }
 
+void native_reader_constraints() {
+  for (const auto source : {"x=1foo()", "x=0x1g()", "x=1..2", "local x<close>=nil"})
+    CHECK(!clean(source));
+  for (const auto source : {R"(x="\q")", R"(x="\256")", R"(x="\xF")",
+                            R"(x="\u{80000000}")", R"(x="\u{}")",
+                            "local x<invalid> = 1", "local a<close>,b<close> = nil,nil",
+                            "break", "while true do local f=function() break end end",
+                            "function f() return ... end"}) {
+    const auto result = parse(source);
+    CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
+    CHECK(!cursiv::test::validationHelper(services(), source).diagnostics.empty());
+  }
+  for (const auto source : {R"(x="\xFF\2559\u{7FFFFFFF}\u{D800}")",
+                            R"(x=[[\q\256\u{FFFFFFFF}]])", "x=1 .. 2",
+                            "local a<close>,b<const> = nil,1", "while true do break end",
+                            "function f(...) return ... end", "return ...", "\ufeffreturn 1"})
+    CHECK(cursiv::test::validationHelper(services(), source).diagnostics.empty());
+  const auto result = parse(R"(x=[[\q]])");
+  const auto* root = result.value_as<ast::Block>();
+  const auto* assignment = root && root->statements.size() == 1
+      ? as<ast::AssignStat>(root->statements[0]) : nullptr;
+  const auto* value = assignment && assignment->values.size() == 1
+      ? as<ast::StringExpr>(assignment->values[0]) : nullptr;
+  CHECK(value && value->longForm && value->value == R"(\q)");
+}
+
 }  // namespace
 
 // A shebang is a token of the entry itself: the block behind it is still the
@@ -251,5 +281,6 @@ int main() {
   keywords_may_name();
   whitespace_and_line_endings();
   numeral_forms();
+  native_reader_constraints();
   return cursiv::test::report("lua_grammar_test");
 }

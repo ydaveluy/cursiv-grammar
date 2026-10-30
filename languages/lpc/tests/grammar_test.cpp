@@ -107,6 +107,48 @@ int main() {
       cursiv::create_language<lpc::LpcCoreServices, lpc::LpcSharedCoreServices,
                               lpc::install_core_module>();
 
+  for (const auto source : {"float f(){return 1_000.5e-2;}", "float f(){return 1._2;}", R"LPC(string f(){return "\q";})LPC", "int f(){return '\\x';}", "int f(int x : (: 1 :)){return x;}", "mixed f(){return (: efun::write, 1 :);}", "mixed f(){return calls[0](1);}", "int f(){switch(1){case 1..:break;case ..0:break;}return 1;}"}) {
+    const auto r = language.language.parser->parse(source);
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) { std::fprintf(stderr, "source: %s\n", source); return fail("source-backed native form rejected"); }
+  }
+  {
+    const auto r = language.language.parser->parse(R"LPC(
+async promise<int> f(promise<int> input) {
+  int array xs = ({1,2});
+  mixed value = map?.item ?? 5;
+  value ??= 6;
+  mixed key = map?.[0];
+  mixed other = map.?[1];
+  string text = `value=${value}` "!";
+  mixed caught = acatch { await input; };
+  mixed slice = xs[<1..<2];
+  for(int i=0;i<1;i++){}
+  return await input;
+}
+)LPC");
+    bool promise = false, array = false, optionalMember = false, optionalIndex = false;
+    bool coalesce = false, interpolation = false, concat = false, reverse = false, initialization = false;
+    for (const auto* n : r.nodes) {
+      if (const auto* t = cursiv::ast_cast<ast::TypeSpec>(n)) { promise |= t->baseType == "promise" && t->typeArgument; array |= t->arrayKeyword; }
+      if (const auto* v = cursiv::ast_cast<ast::MemberExpr>(n)) optionalMember |= v->optional;
+      if (const auto* v = cursiv::ast_cast<ast::IndexExpr>(n)) optionalIndex |= v->optional;
+      if (const auto* v = cursiv::ast_cast<ast::BinaryExpr>(n)) coalesce |= v->op == "??";
+      if (const auto* v = cursiv::ast_cast<ast::TemplatePart>(n)) interpolation |= v->expression != nullptr;
+      concat |= cursiv::ast_cast<ast::StringConcat>(n) != nullptr;
+      if (const auto* v = cursiv::ast_cast<ast::SliceExpr>(n)) reverse |= v->lowFromEnd && v->highFromEnd && v->exclusive;
+      if (const auto* v = cursiv::ast_cast<ast::ForStmt>(n)) initialization |= v->initVar && v->initVarOp == "=";
+    }
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || !promise || !array || !optionalMember || !optionalIndex ||
+        !coalesce || !interpolation || !concat || !reverse || !initialization) return fail("native source-family AST capture lost");
+  }
+  for (const auto source : {"int if;", "mixed f(){return (:);}", "int asm;", "int f(){return '\\8';}", "int f(){return '\\9';}", "int f(){return '';}", "int f(){return '\\u0041';}", "int f(){int return;}", "int f(){return map?.;}", "int f(){return `unterminated;}"}) {
+    const auto r = language.language.parser->parse(source);
+    if (r.accepted && !r.cst().recovered() && r.diagnostics.empty()) return fail("native keyword/malformed extension accepted");
+  }
+  for (const auto source : {"int f(){return await p;}", "mixed f(){return acatch(1);}", "async mixed f(){return catch(await p);}", "async mixed f(){return time_expression(acatch(1));}"}) {
+    const auto r = cursiv::test::validationHelper(language.language, source);
+    if (r.diagnostics.empty()) return fail("native async context needs diagnostic");
+  }
   for (const char *const path : kCleanExamples) {
     const std::string text = read(path);
     if (text.empty())

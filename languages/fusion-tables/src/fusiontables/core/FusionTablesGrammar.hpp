@@ -29,21 +29,23 @@ inline constexpr auto unquote = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 // NUMERIC_LITERAL admits any number of leading `+`/`-` signs; their parity
 // is the sign of the result.
-inline constexpr auto to_number = [](std::string_view t) {
+inline constexpr auto to_number = [](std::string_view t)
+    -> cursiv::ConversionResult<double> {
   bool negative = false;
   while (!t.empty() && (t.front() == '+' || t.front() == '-')) {
     negative ^= t.front() == '-';
     t.remove_prefix(1);
   }
   double v = 0;
-  std::from_chars(t.data(), t.data() + t.size(), v);
-  return negative ? -v : v;
+  const auto parsed = std::from_chars(t.data(), t.data() + t.size(), v);
+  if (parsed.ec != std::errc{} || parsed.ptr != t.data() + t.size())
+    return cursiv::ConversionResult<double>::err(
+        "Numeric literal is outside the supported host range.");
+  return cursiv::ConversionResult<double>::ok(negative ? -v : v);
 };
-using Numeric = cursiv::text_conv<to_number>;
 
 struct FusionTables : cursiv::GrammarSpec {
   // STRING allows a dash, so a keyword's boundary must too -- otherwise
@@ -56,66 +58,34 @@ struct FusionTables : cursiv::GrammarSpec {
   struct MULTILINE_COMMENT : terminal<through(lit<"/*">, lit<"*/"> | eof)> {};
 
   struct NUMERIC_LITERAL
-      : terminal<many(cr<"+-">) + some(cr<"0-9">) +
-                     option(lit<"."> + many(cr<"0-9">)),
-                 Numeric> {};
+      : terminal<as<to_number>(many(cr<"+-">) + some(cr<"0-9">) +
+                               option(lit<"."> + many(cr<"0-9">)))> {};
 
-  // STRING | QUOTED_STRING inlined: a terminal cannot ref<> another one.
+  // Bare and quoted strings share one terminal and one converter.
   // A bareword starting with a digit run must carry a letter, underscore or
   // dash past it: a pure digit run belongs to NUMERIC_LITERAL alone.
   struct STRING_LITERAL
-      : terminal<(cr<"a-zA-Z_-"> + many(cr<"a-zA-Z0-9_-">)) |
-                     (some(cr<"0-9">) + some(cr<"a-zA-Z_-">) +
-                      many(cr<"a-zA-Z0-9_-">)) |
-                     (lit<"'"> + many(lit<"''"> | cr<"^'">) + lit<"'">),
-                 Unquoted> {};
+      : terminal<as<unquote>(
+            (cr<"a-zA-Z_-"> + many(cr<"a-zA-Z0-9_-">)) |
+            (some(cr<"0-9">) + some(cr<"a-zA-Z_-">) + many(cr<"a-zA-Z0-9_-">)) |
+            (lit<"'"> + many(lit<"''"> | cr<"^'">) + lit<"'">))> {};
 
-  struct LTE : terminal<lit<"<=">, value<ast::CompareOp::LessEqual>> {};
-  struct GTE : terminal<lit<">=">, value<ast::CompareOp::GreaterEqual>> {};
-  struct LT_ : terminal<lit<"<">, value<ast::CompareOp::Less>> {};
-  struct GT_ : terminal<lit<">">, value<ast::CompareOp::Greater>> {};
-  struct EQ_ : terminal<lit<"=">, value<ast::CompareOp::Equal>> {};
   static constexpr auto CompareOp_ =
-      ref<LTE> | ref<GTE> | ref<LT_> | ref<GT_> | ref<EQ_>;
+      as<ast::CompareOp::LessEqual>(lit<"<=">) | as<ast::CompareOp::GreaterEqual>(lit<">=">) | as<ast::CompareOp::Less>(lit<"<">) | as<ast::CompareOp::Greater>(lit<">">) | as<ast::CompareOp::Equal>(lit<"=">);
 
-  struct AND : terminal<ikw<"AND">, value<ast::LogicalOp::And>> {};
-  struct OR : terminal<ikw<"OR">, value<ast::LogicalOp::Or>> {};
+  struct AND : terminal<as<ast::LogicalOp::And>(ikw<"AND">)> {};
+  struct OR : terminal<as<ast::LogicalOp::Or>(ikw<"OR">)> {};
   static constexpr auto AndOrOp = ref<AND> | ref<OR>;
 
   // Longest phrase first so a shared prefix ("CONTAINS") always looks past
   // its own extent before the shorter alternative is tried.
-  struct ContainsIgnoringCaseOp
-      : rule<ikw<"CONTAINS"> + ikw<"IGNORING"> + ikw<"CASE">,
-             value<ast::TextOp::ContainsIgnoringCase>> {};
-  struct DoesNotContainOp
-      : rule<ikw<"DOES"> + ikw<"NOT"> + ikw<"CONTAIN">,
-             value<ast::TextOp::DoesNotContain>> {};
-  struct NotEqualToOp
-      : rule<ikw<"NOT"> + ikw<"EQUAL"> + ikw<"TO">,
-             value<ast::TextOp::NotEqualTo>> {};
-  struct StartsWithOp
-      : rule<ikw<"STARTS"> + ikw<"WITH">, value<ast::TextOp::StartsWith>> {};
-  struct EndsWithOp
-      : rule<ikw<"ENDS"> + ikw<"WITH">, value<ast::TextOp::EndsWith>> {};
-  struct ContainsOp
-      : rule<ikw<"CONTAINS">, value<ast::TextOp::Contains>> {};
-  struct LikeOp : rule<ikw<"LIKE">, value<ast::TextOp::Like>> {};
-  struct MatchesOp : rule<ikw<"MATCHES">, value<ast::TextOp::Matches>> {};
   static constexpr auto TextOp_ =
-      ref<ContainsIgnoringCaseOp> | ref<DoesNotContainOp> |
-      ref<NotEqualToOp> | ref<StartsWithOp> | ref<EndsWithOp> |
-      ref<ContainsOp> | ref<LikeOp> | ref<MatchesOp>;
+      as<ast::TextOp::ContainsIgnoringCase>(ikw<"CONTAINS"> + ikw<"IGNORING"> + ikw<"CASE">) | as<ast::TextOp::DoesNotContain>(ikw<"DOES"> + ikw<"NOT"> + ikw<"CONTAIN">) |
+      as<ast::TextOp::NotEqualTo>(ikw<"NOT"> + ikw<"EQUAL"> + ikw<"TO">) | as<ast::TextOp::StartsWith>(ikw<"STARTS"> + ikw<"WITH">) | as<ast::TextOp::EndsWith>(ikw<"ENDS"> + ikw<"WITH">) |
+      as<ast::TextOp::Contains>(ikw<"CONTAINS">) | as<ast::TextOp::Like>(ikw<"LIKE">) | as<ast::TextOp::Matches>(ikw<"MATCHES">);
 
-  struct SumFn : terminal<ikw<"SUM">, value<ast::AggregateFunc::Sum>> {};
-  struct CountFn : terminal<ikw<"COUNT">, value<ast::AggregateFunc::Count>> {};
-  struct AverageFn
-      : terminal<ikw<"AVERAGE">, value<ast::AggregateFunc::Average>> {};
-  struct MaximumFn
-      : terminal<ikw<"MAXIMUM">, value<ast::AggregateFunc::Maximum>> {};
-  struct MinimumFn
-      : terminal<ikw<"MINIMUM">, value<ast::AggregateFunc::Minimum>> {};
-  static constexpr auto AggFn = ref<SumFn> | ref<CountFn> | ref<AverageFn> |
-                                ref<MaximumFn> | ref<MinimumFn>;
+  static constexpr auto AggFn = as<ast::AggregateFunc::Sum>(ikw<"SUM">) | as<ast::AggregateFunc::Count>(ikw<"COUNT">) | as<ast::AggregateFunc::Average>(ikw<"AVERAGE">) |
+                                as<ast::AggregateFunc::Maximum>(ikw<"MAXIMUM">) | as<ast::AggregateFunc::Minimum>(ikw<"MINIMUM">);
 
   struct QualifiedColumnName
       : rule<create<ast::QualifiedColumnName>(
@@ -212,8 +182,7 @@ struct FusionTables : cursiv::GrammarSpec {
 
   // AND/OR glue conditions into a right-leaning chain: Fusion Tables SQL has
   // no parenthesized grouping for WHERE conditions at all.
-  struct Expr : infix<Condition, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-                      &ast::BinaryExpr::right, right(AndOrOp)> {};
+  struct Expr : infix<Condition, ast::BinaryExpr, right(AndOrOp)> {};
 
   struct TableItem
       : rule<create<ast::TableItem>(
@@ -372,7 +341,7 @@ struct FusionTables : cursiv::GrammarSpec {
              many(append<&ast::Document::statements>(ref<SqlStmt>))> {};
 
   using entry = Document;
-  using ignore = WHITESPACE;
+  using ignored = WHITESPACE;
   using hidden = list<SINGLELINE_COMMENT, MULTILINE_COMMENT>;
 };
 

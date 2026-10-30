@@ -1,6 +1,9 @@
 // The arden language: its grammar.
 #pragma once
 
+#include <memory_resource>
+#include <string_view>
+
 #include "arden/core/ast.hpp"
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 
@@ -16,17 +19,41 @@ inline constexpr auto slot_text_value = [](std::string_view t) {
     body.remove_suffix(1);
   return body;
 };
-using SlotTextConv = cursiv::text_conv<slot_text_value>;
 
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
+
+inline constexpr auto string_value =
+    [](std::string_view text, std::pmr::memory_resource* mem) {
+  const auto body = text.substr(1, text.size() - 2);
+  if (body.find_first_of("\"\r\n") == body.npos) return body;
+  auto room = cursiv::text_room(mem, body.size());
+  std::size_t n = 0;
+  const auto whitespace = [](char c) {
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+  };
+  for (std::size_t i = 0; i < body.size();) {
+    const char c = body[i++];
+    if (c == '"') {
+      ++i;  // the terminal has matched a doubled quote
+      room[n++] = '"';
+    } else if (c == '\r' || c == '\n') {
+      while (n != 0 && whitespace(room[n - 1])) --n;
+      std::size_t lineFeeds = c == '\n' ? 1 : 0;
+      while (i < body.size() && whitespace(body[i]))
+        lineFeeds += body[i++] == '\n';
+      room[n++] = lineFeeds > 1 ? '\n' : ' ';
+    } else {
+      room[n++] = c;
+    }
+  }
+  return std::string_view(room.data(), n);
+};
 
 inline constexpr auto unbrace = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unbraced = cursiv::text_conv<unbrace>;
 
 struct Arden : cursiv::GrammarSpec {
   // ---- Trivia ----
@@ -41,14 +68,15 @@ struct Arden : cursiv::GrammarSpec {
 
   static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   struct NUMBER
-      : terminal<(some(d) + option(lit<".", !lit<".">> + many(d)) + option(Exponent)) |
-                     (lit<"."> + some(d) + option(Exponent)),
-                 double> {};
+      : terminal<as<double>((some(d) + option(lit<".", !lit<".">> + many(d)) +
+                             option(Exponent)) |
+                            (lit<"."> + some(d) + option(Exponent)))> {};
 
   struct STRING
-      : terminal<lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">, Unquoted> {};
+      : terminal<as<string_value>(lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) +
+                             lit<"\"">)> {};
   // A raw single-quoted term: no escape, closes on the first `'`.
-  struct TERM : terminal<lit<"'"> + many(cr<"^'">) + lit<"'">, Unquoted> {};
+  struct TERM : terminal<as<unquote>(lit<"'"> + many(cr<"^'">) + lit<"'">)> {};
 
   static constexpr auto Digit2 = d + d;
   struct TIME_OF_DAY
@@ -67,7 +95,8 @@ struct Arden : cursiv::GrammarSpec {
 
   // "title:" then free text then ";;" as one terminal: `through` closes on the
   // first `;;`, so free text may never itself contain that pair.
-  struct SlotText : terminal<through(lit<":">, lit<";;">), SlotTextConv> {};
+  struct SlotText
+      : terminal<as<slot_text_value>(through(lit<":">, lit<";;">))> {};
 
   struct MlmId : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9_.-">)> {};
   struct TwoCharCode
@@ -83,8 +112,8 @@ struct Arden : cursiv::GrammarSpec {
 
   // The `{...}` of a data mapping: raw bytes, `\x` escapes one.
   struct DataMapping
-      : terminal<lit<"{"> + many((lit<"\\"> + any) | cr<"^}">) + lit<"}">, Unbraced> {
-  };
+      : terminal<as<unbrace>(lit<"{"> + many((lit<"\\"> + any) | cr<"^}">) +
+                             lit<"}">)> {};
 
   // ==== Vocabularies (one terminal per keyword-choice family) ====
 
@@ -121,37 +150,34 @@ struct Arden : cursiv::GrammarSpec {
 
   static constexpr auto any_istrue_text = [] { return std::string_view("any istrue"); };
   struct AnyIsTrue
-      : rule<ikw<"any"> + option(ikw<"istrue">), cursiv::text_conv<any_istrue_text>> {};
+      : rule<as<any_istrue_text>(ikw<"any"> + option(ikw<"istrue">))> {};
   static constexpr auto all_aretrue_text =
       [] { return std::string_view("all aretrue"); };
   struct AllAreTrue
-      : rule<ikw<"all"> + option(ikw<"aretrue">), cursiv::text_conv<all_aretrue_text>> {
-  };
+      : rule<as<all_aretrue_text>(ikw<"all"> + option(ikw<"aretrue">))> {};
   static constexpr auto no_istrue_text = [] { return std::string_view("no istrue"); };
   struct NoIsTrue
-      : rule<ikw<"no"> + option(ikw<"istrue">), cursiv::text_conv<no_istrue_text>> {};
+      : rule<as<no_istrue_text>(ikw<"no"> + option(ikw<"istrue">))> {};
   static constexpr auto percent_increase_text =
       [] { return std::string_view("percent increase"); };
   struct PercentIncrease
-      : rule<option(ikw<"percent"> | lit<"%">) + ikw<"increase">,
-             cursiv::text_conv<percent_increase_text>> {};
+      : rule<as<percent_increase_text>(option(ikw<"percent"> | lit<"%">) +
+                                       ikw<"increase">)> {};
   static constexpr auto percent_decrease_text =
       [] { return std::string_view("percent decrease"); };
   struct PercentDecrease
-      : rule<option(ikw<"percent"> | lit<"%">) + ikw<"decrease">,
-             cursiv::text_conv<percent_decrease_text>> {};
+      : rule<as<percent_decrease_text>(option(ikw<"percent"> | lit<"%">) +
+                                       ikw<"decrease">)> {};
   static constexpr auto time_of_day_text = [] { return std::string_view("time of day"); };
-  struct TimeOfDayFn
-      : rule<ikw<"time"> + option(ikw<"of"> + ikw<"day">),
-             cursiv::text_conv<time_of_day_text>> {};
+  struct TimeOfDayFn : rule<as<time_of_day_text>(
+                           ikw<"time"> + option(ikw<"of"> + ikw<"day">))> {};
   static constexpr auto day_of_week_text = [] { return std::string_view("day of week"); };
   struct DayOfWeekFn
-      : rule<ikw<"day"> + ikw<"of"> + ikw<"week">, cursiv::text_conv<day_of_week_text>> {
-  };
+      : rule<as<day_of_week_text>(ikw<"day"> + ikw<"of"> + ikw<"week">)> {};
   static constexpr auto attr_names_text =
       [] { return std::string_view("attribute names"); };
   struct AttrNamesOp
-      : rule<ikw<"attribute"> + ikw<"names">, cursiv::text_conv<attr_names_text>> {};
+      : rule<as<attr_names_text>(ikw<"attribute"> + ikw<"names">)> {};
 
   static constexpr auto OfNoReadFuncOp =
       ref<OfNoReadFuncOpSimple> | ref<AnyIsTrue> | ref<AllAreTrue> | ref<NoIsTrue> |
@@ -160,46 +186,42 @@ struct Arden : cursiv::GrammarSpec {
   // ---- Operator vocabularies for the comparison/function ladders ----
 
   static constexpr auto nearest_text = [] { return std::string_view("nearest"); };
-  struct NearestOp : rule<ikw<"nearest">, cursiv::text_conv<nearest_text>> {};
+  struct NearestOp : rule<as<nearest_text>(ikw<"nearest">)> {};
   static constexpr auto at_least_text = [] { return std::string_view("at least"); };
-  struct AtLeastOp : rule<ikw<"at"> + ikw<"least">, cursiv::text_conv<at_least_text>> {};
+  struct AtLeastOp : rule<as<at_least_text>(ikw<"at"> + ikw<"least">)> {};
   static constexpr auto at_most_text = [] { return std::string_view("at most"); };
-  struct AtMostOp : rule<ikw<"at"> + ikw<"most">, cursiv::text_conv<at_most_text>> {};
+  struct AtMostOp : rule<as<at_most_text>(ikw<"at"> + ikw<"most">)> {};
 
-  struct POWER_OP : terminal<lit<"**">, cursiv::value<ast::BinOp::power>> {};
+  struct POWER_OP : terminal<as<ast::BinOp::power>(lit<"**">)> {};
 
   static constexpr auto truth_value_type_text =
       [] { return std::string_view("truth value"); };
   struct TruthValueTypeOp
-      : rule<ikw<"truth"> + ikw<"value">,
-             cursiv::text_conv<truth_value_type_text>> {};
+      : rule<as<truth_value_type_text>(ikw<"truth"> + ikw<"value">)> {};
 
-  struct BeforeRelOp
-      : terminal<ikw<"before">, cursiv::value<ast::CompareOp::before_rel>> {};
-  struct AfterRelOp : terminal<ikw<"after">, cursiv::value<ast::CompareOp::after_rel>> {};
-  struct FromRelOp : terminal<ikw<"from">, cursiv::value<ast::CompareOp::from_rel>> {};
-
-  struct TcPresent : terminal<ikw<"present">, cursiv::value<ast::TypeCheck::present>> {};
-  struct TcNull : terminal<ikw<"null">, cursiv::value<ast::TypeCheck::is_null>> {};
-  struct TcBoolean : terminal<ikw<"boolean">, cursiv::value<ast::TypeCheck::boolean_>> {};
-  struct TcTruthValue
-      : rule<ikw<"truth"> + ikw<"value">, cursiv::value<ast::TypeCheck::truth_value>> {
+  struct BeforeRelOp : terminal<as<ast::CompareOp::before_rel>(ikw<"before">)> {
   };
-  struct TcNumber : terminal<ikw<"number">, cursiv::value<ast::TypeCheck::number_>> {};
-  struct TcString : terminal<ikw<"string">, cursiv::value<ast::TypeCheck::string_>> {};
-  struct TcTimeOfDay
-      : rule<ikw<"time"> + ikw<"of"> + ikw<"day">,
-             cursiv::value<ast::TypeCheck::time_of_day>> {};
-  struct TcTime : terminal<ikw<"time">, cursiv::value<ast::TypeCheck::time_>> {};
-  struct TcDuration
-      : terminal<ikw<"duration">, cursiv::value<ast::TypeCheck::duration_>> {};
-  struct TcList : terminal<ikw<"list">, cursiv::value<ast::TypeCheck::list_>> {};
-  struct TcObject : terminal<ikw<"object">, cursiv::value<ast::TypeCheck::object_>> {};
-  struct TcFuzzy : terminal<ikw<"fuzzy">, cursiv::value<ast::TypeCheck::fuzzy_>> {};
-  struct TcCrisp : terminal<ikw<"crisp">, cursiv::value<ast::TypeCheck::crisp_>> {};
-  struct TcLinguisticVariable
-      : rule<ikw<"linguistic"> + ikw<"variable">,
-             cursiv::value<ast::TypeCheck::linguistic_variable>> {};
+  struct AfterRelOp : terminal<as<ast::CompareOp::after_rel>(ikw<"after">)> {};
+  struct FromRelOp : terminal<as<ast::CompareOp::from_rel>(ikw<"from">)> {};
+
+  struct TcPresent : terminal<as<ast::TypeCheck::present>(ikw<"present">)> {};
+  struct TcNull : terminal<as<ast::TypeCheck::is_null>(ikw<"null">)> {};
+  struct TcBoolean : terminal<as<ast::TypeCheck::boolean_>(ikw<"boolean">)> {};
+  struct TcTruthValue
+      : rule<as<ast::TypeCheck::truth_value>(ikw<"truth"> + ikw<"value">)> {};
+  struct TcNumber : terminal<as<ast::TypeCheck::number_>(ikw<"number">)> {};
+  struct TcString : terminal<as<ast::TypeCheck::string_>(ikw<"string">)> {};
+  struct TcTimeOfDay : rule<as<ast::TypeCheck::time_of_day>(
+                           ikw<"time"> + ikw<"of"> + ikw<"day">)> {};
+  struct TcTime : terminal<as<ast::TypeCheck::time_>(ikw<"time">)> {};
+  struct TcDuration : terminal<as<ast::TypeCheck::duration_>(ikw<"duration">)> {
+  };
+  struct TcList : terminal<as<ast::TypeCheck::list_>(ikw<"list">)> {};
+  struct TcObject : terminal<as<ast::TypeCheck::object_>(ikw<"object">)> {};
+  struct TcFuzzy : terminal<as<ast::TypeCheck::fuzzy_>(ikw<"fuzzy">)> {};
+  struct TcCrisp : terminal<as<ast::TypeCheck::crisp_>(ikw<"crisp">)> {};
+  struct TcLinguisticVariable : rule<as<ast::TypeCheck::linguistic_variable>(
+                                    ikw<"linguistic"> + ikw<"variable">)> {};
   static constexpr auto TypeCheckOp =
       ref<TcTruthValue> | ref<TcTimeOfDay> | ref<TcLinguisticVariable> |
       ref<TcPresent> | ref<TcNull> | ref<TcBoolean> | ref<TcNumber> | ref<TcString> |
@@ -207,53 +229,49 @@ struct Arden : cursiv::GrammarSpec {
       ref<TcCrisp>;
 
   struct CoLessOrEqual
-      : rule<ikw<"less"> + ikw<"than"> + ikw<"or"> + ikw<"equal">,
-             cursiv::value<ast::CompareOp::less_or_equal>> {};
+      : rule<as<ast::CompareOp::less_or_equal>(ikw<"less"> + ikw<"than"> +
+                                               ikw<"or"> + ikw<"equal">)> {};
   struct CoLessThan
-      : rule<ikw<"less"> + ikw<"than">, cursiv::value<ast::CompareOp::less_than>> {};
+      : rule<as<ast::CompareOp::less_than>(ikw<"less"> + ikw<"than">)> {};
   struct CoGreaterOrEqual
-      : rule<ikw<"greater"> + ikw<"than"> + ikw<"or"> + ikw<"equal">,
-             cursiv::value<ast::CompareOp::greater_or_equal>> {};
+      : rule<as<ast::CompareOp::greater_or_equal>(ikw<"greater"> + ikw<"than"> +
+                                                  ikw<"or"> + ikw<"equal">)> {};
   struct CoGreaterThan
-      : rule<ikw<"greater"> + ikw<"than">,
-             cursiv::value<ast::CompareOp::greater_than>> {};
-  struct CoIn : terminal<ikw<"in">, cursiv::value<ast::CompareOp::in_list>> {};
+      : rule<as<ast::CompareOp::greater_than>(ikw<"greater"> + ikw<"than">)> {};
+  struct CoIn : terminal<as<ast::CompareOp::in_list>(ikw<"in">)> {};
   static constexpr auto BinaryCompOp = ref<CoLessOrEqual> | ref<CoLessThan> |
                                        ref<CoGreaterOrEqual> | ref<CoGreaterThan> |
                                        ref<CoIn>;
 
-  struct ReTo : terminal<ikw<"to">, cursiv::value<ast::RangeEdge::to>> {};
+  struct ReTo : terminal<as<ast::RangeEdge::to>(ikw<"to">)> {};
   struct RePreceding
-      : terminal<ikw<"preceding">, cursiv::value<ast::RangeEdge::preceding>> {};
+      : terminal<as<ast::RangeEdge::preceding>(ikw<"preceding">)> {};
   struct ReFollowing
-      : terminal<ikw<"following">, cursiv::value<ast::RangeEdge::following>> {};
+      : terminal<as<ast::RangeEdge::following>(ikw<"following">)> {};
   struct ReSurrounding
-      : terminal<ikw<"surrounding">, cursiv::value<ast::RangeEdge::surrounding>> {};
+      : terminal<as<ast::RangeEdge::surrounding>(ikw<"surrounding">)> {};
   static constexpr auto RangeEdgeOp =
       ref<ReTo> | ref<RePreceding> | ref<ReFollowing> | ref<ReSurrounding>;
 
-  struct OccEqual : terminal<ikw<"equal">, cursiv::value<ast::CompareOp::occurs_equal>> {
-  };
+  struct OccEqual : terminal<as<ast::CompareOp::occurs_equal>(ikw<"equal">)> {};
   struct OccBefore
-      : terminal<ikw<"before">, cursiv::value<ast::CompareOp::occurs_before>> {};
-  struct OccAfter : terminal<ikw<"after">, cursiv::value<ast::CompareOp::occurs_after>> {
-  };
-  struct OccWithinPast
-      : rule<ikw<"within"> + ikw<"past">,
-             cursiv::value<ast::CompareOp::occurs_within_past>> {};
+      : terminal<as<ast::CompareOp::occurs_before>(ikw<"before">)> {};
+  struct OccAfter : terminal<as<ast::CompareOp::occurs_after>(ikw<"after">)> {};
+  struct OccWithinPast : rule<as<ast::CompareOp::occurs_within_past>(
+                             ikw<"within"> + ikw<"past">)> {};
   struct OccWithinSameDay
-      : rule<ikw<"within"> + ikw<"same"> + ikw<"day"> + ikw<"as">,
-             cursiv::value<ast::CompareOp::occurs_within_sameday>> {};
+      : rule<as<ast::CompareOp::occurs_within_sameday>(
+            ikw<"within"> + ikw<"same"> + ikw<"day"> + ikw<"as">)> {};
   static constexpr auto OccurBinaryOp = ref<OccWithinSameDay> | ref<OccWithinPast> |
                                         ref<OccEqual> | ref<OccBefore> | ref<OccAfter>;
-  struct OccAt : terminal<ikw<"at">, cursiv::value<ast::CompareOp::occurs_at>> {};
+  struct OccAt : terminal<as<ast::CompareOp::occurs_at>(ikw<"at">)> {};
 
-  struct CmpLe : terminal<lit<"<="> | ikw<"le">, cursiv::value<ast::CompareOp::le>> {};
-  struct CmpGe : terminal<lit<">="> | ikw<"ge">, cursiv::value<ast::CompareOp::ge>> {};
-  struct CmpNe : terminal<lit<"<>"> | ikw<"ne">, cursiv::value<ast::CompareOp::ne>> {};
-  struct CmpEq : terminal<lit<"="> | ikw<"eq">, cursiv::value<ast::CompareOp::eq>> {};
-  struct CmpLt : terminal<lit<"<"> | ikw<"lt">, cursiv::value<ast::CompareOp::lt>> {};
-  struct CmpGt : terminal<lit<">"> | ikw<"gt">, cursiv::value<ast::CompareOp::gt>> {};
+  struct CmpLe : terminal<as<ast::CompareOp::le>(lit<"<="> | ikw<"le">)> {};
+  struct CmpGe : terminal<as<ast::CompareOp::ge>(lit<">="> | ikw<"ge">)> {};
+  struct CmpNe : terminal<as<ast::CompareOp::ne>(lit<"<>"> | ikw<"ne">)> {};
+  struct CmpEq : terminal<as<ast::CompareOp::eq>(lit<"="> | ikw<"eq">)> {};
+  struct CmpLt : terminal<as<ast::CompareOp::lt>(lit<"<"> | ikw<"lt">)> {};
+  struct CmpGt : terminal<as<ast::CompareOp::gt>(lit<">"> | ikw<"gt">)> {};
   static constexpr auto SimpleCompOp = ref<CmpLe> | ref<CmpGe> | ref<CmpNe> |
                                        ref<CmpEq> | ref<CmpLt> | ref<CmpGt>;
 
@@ -302,8 +320,8 @@ struct Arden : cursiv::GrammarSpec {
   struct IdentifierOrObjectRef;
   struct ParenExpr;
   struct FuzzySetPhrase;
-  struct NewObjectExprRule;
-  struct CallExprRule;
+  struct NewObjectExpr;
+  struct CallExpr;
 
   struct ParenExpr
       : rule<lit<"("> +
@@ -551,20 +569,18 @@ struct Arden : cursiv::GrammarSpec {
                  //
                  | ref<ExprAtTime>> {};
 
-  struct MUL_OP : terminal<lit<"*">, cursiv::value<ast::BinOp::multiply>> {};
-  struct DIV_OP : terminal<lit<"/">, cursiv::value<ast::BinOp::divide>> {};
-  struct ADD_OP : terminal<lit<"+">, cursiv::value<ast::BinOp::add>> {};
-  struct SUB_OP : terminal<lit<"-">, cursiv::value<ast::BinOp::subtract>> {};
+  struct MUL_OP : terminal<as<ast::BinOp::multiply>(lit<"*">)> {};
+  struct DIV_OP : terminal<as<ast::BinOp::divide>(lit<"/">)> {};
+  struct ADD_OP : terminal<as<ast::BinOp::add>(lit<"+">)> {};
+  struct SUB_OP : terminal<as<ast::BinOp::subtract>(lit<"-">)> {};
 
   // A4 group "... * ... / ... / ...".
   struct ExprMulDiv
-      : infix<ExprPower, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<MUL_OP> | ref<DIV_OP>)> {};
+      : infix<ExprPower, ast::BinaryExpr, left(ref<MUL_OP> | ref<DIV_OP>)> {};
 
   // A4 group "... + ... / ... - ...": binary, tighter than unary +/- below.
   struct ExprAddSub
-      : infix<ExprMulDiv, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<ADD_OP> | ref<SUB_OP>)> {};
+      : infix<ExprMulDiv, ast::BinaryExpr, left(ref<ADD_OP> | ref<SUB_OP>)> {};
 
   // A4 group "+ ... / - ...": unary, looser than binary +/- above -- `-a+b`
   // reads `-(a+b)`, matching HL7's own errata ("... has higher precedence
@@ -613,10 +629,9 @@ struct Arden : cursiv::GrammarSpec {
                  //
                  | ref<ExprLocalizedBare>> {};
 
-  struct CONCAT_OP : terminal<lit<"||">, cursiv::value<ast::BinOp::concat>> {};
+  struct CONCAT_OP : terminal<as<ast::BinOp::concat>(lit<"||">)> {};
   struct FORMATTED_WITH_OP
-      : rule<ikw<"formatted"> + ikw<"with">,
-             cursiv::value<ast::BinOp::formatted_with>> {};
+      : rule<as<ast::BinOp::formatted_with>(ikw<"formatted"> + ikw<"with">)> {};
 
   // A4 group "... formatted with ...": non-associative, one step tighter
   // than `||` below.
@@ -630,8 +645,7 @@ struct Arden : cursiv::GrammarSpec {
 
   // A4 group "... || ...".
   struct ExprConcat
-      : infix<ExprFormatted, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<CONCAT_OP>)> {};
+      : infix<ExprFormatted, ast::BinaryExpr, left(ref<CONCAT_OP>)> {};
 
   // A4 group "... = / <> / < / <= / > / >= ... / is within .../ is before...
   // / occur .../ is in ... / is present / is <type> / is <object-name>":
@@ -718,14 +732,14 @@ struct Arden : cursiv::GrammarSpec {
                  //
                  | ref<ExprComparison>> {};
 
-  struct AND_OP : terminal<ikw<"and">, cursiv::value<ast::BinOp::logical_and>> {};
-  struct OR_OP : terminal<ikw<"or">, cursiv::value<ast::BinOp::logical_or>> {};
+  struct AND_OP : terminal<as<ast::BinOp::logical_and>(ikw<"and">)> {};
+  struct OR_OP : terminal<as<ast::BinOp::logical_or>(ikw<"or">)> {};
 
   // A4 groups "... and ..." / "... or ...": `seqto` no longer sits between
   // this pair and `not` -- it moved to the tight cluster near `as`.
   struct ExprOrAnd
-      : infix<ExprNot, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, (left(ref<AND_OP>) >> left(ref<OR_OP>))> {};
+      : infix<ExprNot, ast::BinaryExpr,
+              levels(left(ref<AND_OP>), left(ref<OR_OP>))> {};
 
   struct ExprWhere
       : rule<create<ast::FuncApply>(
@@ -768,11 +782,10 @@ struct Arden : cursiv::GrammarSpec {
                  //
                  | ref<ExprAddList>> {};
 
-  struct MERGE_OP : terminal<ikw<"merge">, cursiv::value<ast::BinOp::merge>> {};
+  struct MERGE_OP : terminal<as<ast::BinOp::merge>(ikw<"merge">)> {};
 
   struct ExprMerge
-      : infix<ExprSort, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<MERGE_OP>)> {};
+      : infix<ExprSort, ast::BinaryExpr, left(ref<MERGE_OP>)> {};
 
   struct ExprCommaList
       : rule<create<ast::ExprList>(
@@ -796,43 +809,43 @@ struct Arden : cursiv::GrammarSpec {
 
   // ==== Object / call / fuzzy-set phrases ====
 
-  struct ObjectInitElementRule
+  struct ObjectInitElement
       : rule<((assign<&ast::ObjectInitElement::name>(ref<ID>) + lit<":=">) |
               (ikw<"let"> + assign<&ast::ObjectInitElement::name>(ref<ID>) +
                   ikw<"be">)) +
                  assign<&ast::ObjectInitElement::value>(ref<ExprList>)> {};
 
-  struct NewObjectExprRule
+  struct NewObjectExpr
       : rule<create<ast::NewObjectExpr>(
                  ikw<"new"> +
                  assign<&ast::NewObjectExpr::typeName>(ref<ID>) +
                  option(ikw<"with"> +
                         ((lit<"["> +
                           some(append<&ast::NewObjectExpr::fields>(
-                                   ref<ObjectInitElementRule>),
+                                   ref<ObjectInitElement>),
                                lit<",">) +
                           lit<"]">) |
                          (assign<&ast::NewObjectExpr::args>(ref<ExprList>) +
                           option(ikw<"with"> + lit<"["> +
                                  some(append<&ast::NewObjectExpr::fields>(
-                                          ref<ObjectInitElementRule>),
+                                          ref<ObjectInitElement>),
                                       lit<",">) +
                                  lit<"]">)))))> {};
 
-  struct CallExprRule
+  struct CallExpr
       : rule<create<ast::CallExpr>(
                  ikw<"call"> + assign<&ast::CallExpr::name>(ref<ID>) +
                  option(ikw<"with"> + assign<&ast::CallExpr::args>(ref<ExprList>)))> {
   };
 
-  struct FuzzySetPointRule
+  struct FuzzySetPoint
       : rule<lit<"("> + assign<&ast::FuzzySetPoint::x>(ref<ExprNegation>) + lit<","> +
                  assign<&ast::FuzzySetPoint::y>(ref<ExprNegation>) + lit<")">> {};
 
   struct FuzzySetPhrase
       : rule<create<ast::FuzzySetLit>(
                  ikw<"fuzzy"> + ikw<"set"> +
-                 some(append<&ast::FuzzySetLit::points>(ref<FuzzySetPointRule>),
+                 some(append<&ast::FuzzySetLit::points>(ref<FuzzySetPoint>),
                       lit<",">))
                  //
                  | create<ast::FuzzifiedExpr>(
@@ -842,7 +855,7 @@ struct Arden : cursiv::GrammarSpec {
 
   // ==== data-slot read / mapping / object / FHIR forms ====
 
-  struct ReadExprRule
+  struct ReadExpr
       : rule<create<ast::ReadExpr>(
             ikw<"read"> +
             option(ikw<"as"> + assign<&ast::ReadExpr::resultName>(ref<ID>)) +
@@ -862,7 +875,7 @@ struct Arden : cursiv::GrammarSpec {
                 option(ikw<"where"> +
                        assign<&ast::ReadExpr::where>(ref<ExprOrAnd>)))))> {};
 
-  struct MlmRefExprRule
+  struct MlmRefExpr
       : rule<create<ast::MlmRefExpr>(
             ikw<"mlm"> +
             ((assign<&ast::MlmRefExpr::name>(ref<TERM>) +
@@ -870,7 +883,7 @@ struct Arden : cursiv::GrammarSpec {
                      assign<&ast::MlmRefExpr::institution>(ref<STRING>)))
              | flag<&ast::MlmRefExpr::self>(ref<MlmSelf>)))> {};
 
-  struct MappingExprRule
+  struct MappingExpr
       : rule<create<ast::MappingExpr>(
             assign<&ast::MappingExpr::kind>(ikw<"interface"> | ikw<"event"> |
                                             ikw<"message"> | ikw<"destination">) +
@@ -884,7 +897,7 @@ struct Arden : cursiv::GrammarSpec {
                        option(assign<&ast::MappingExpr::mapping>(
                            ref<DataMapping>)))> {};
 
-  struct ObjectDefRule
+  struct ObjectDef
       : rule<create<ast::ObjectDefExpr>(
             (flag<&ast::ObjectDefExpr::linguistic>(ikw<"linguistic"> +
                                                         ikw<"variable">) |
@@ -893,13 +906,13 @@ struct Arden : cursiv::GrammarSpec {
             some(append<&ast::ObjectDefExpr::fields>(ref<ID>), lit<",">) +
             lit<"]">)> {};
 
-  struct FhirObjectRefRule
+  struct FhirObjectRef
       : rule<assign<&ast::FhirObjectRef::name>(ref<ID>) +
             option(lit<"["> +
                    some(append<&ast::FhirObjectRef::vars>(ref<ID>), lit<",">) +
                    lit<"]">)> {};
 
-  struct FhirEqualOp : terminal<ikw<"equal">, cursiv::value<ast::CompareOp::eq>> {};
+  struct FhirEqualOp : terminal<as<ast::CompareOp::eq>(ikw<"equal">)> {};
 
   static constexpr auto FhirCompOp =
       assign<&ast::FhirAccessExpr::op>(SimpleCompOp)
@@ -911,7 +924,7 @@ struct Arden : cursiv::GrammarSpec {
       | (IsKw + flag<&ast::FhirAccessExpr::negated>(ikw<"not">) +
          assign<&ast::FhirAccessExpr::op>(ref<FhirEqualOp>));
 
-  struct FhirAccessExprRule
+  struct FhirAccessExpr
       : rule<create<ast::FhirAccessExpr>(
             flag<&ast::FhirAccessExpr::isFind>(ikw<"find">) +
             assign<&ast::FhirAccessExpr::value>(ref<ExprFactor>) + ikw<"in"> +
@@ -927,8 +940,8 @@ struct Arden : cursiv::GrammarSpec {
   };
 
   static constexpr auto DataIdentAssignValue =
-      ref<ReadExprRule> | ref<MlmRefExprRule> | ref<MappingExprRule> |
-      create<ast::ArgumentExpr>(ikw<"argument">) | ref<ObjectDefRule>;
+      ref<ReadExpr> | ref<MlmRefExpr> | ref<MappingExpr> |
+      create<ast::ArgumentExpr>(ikw<"argument">) | ref<ObjectDef>;
 
   // ==== Shared statement fragments ====
 
@@ -964,8 +977,8 @@ struct Arden : cursiv::GrammarSpec {
   static constexpr auto DataLogicAssign =
       create<ast::AssignStmt>(
           IdentTarget +
-          assign<&ast::AssignStmt::value>(ref<ExprList> | ref<NewObjectExprRule> |
-                                          ref<CallExprRule> | ref<FuzzySetPhrase>))
+          assign<&ast::AssignStmt::value>(ref<ExprList> | ref<NewObjectExpr> |
+                                          ref<CallExpr> | ref<FuzzySetPhrase>))
       | create<ast::AssignStmt>(TimeTarget +
                                 assign<&ast::AssignStmt::value>(ref<ExprList>))
       | create<ast::AssignStmt>(
@@ -986,12 +999,12 @@ struct Arden : cursiv::GrammarSpec {
   static constexpr auto DataDestructureAssign = create<ast::DestructureAssignStmt>(
       DestructureTarget +
       assign<&ast::DestructureAssignStmt::value>(
-          ref<ReadExprRule> | create<ast::ArgumentExpr>(ikw<"argument">) |
-          ref<CallExprRule>));
+          ref<ReadExpr> | create<ast::ArgumentExpr>(ikw<"argument">) |
+          ref<CallExpr>));
 
   static constexpr auto LogicDestructureAssign = create<ast::DestructureAssignStmt>(
       DestructureTarget +
-      assign<&ast::DestructureAssignStmt::value>(ref<CallExprRule>));
+      assign<&ast::DestructureAssignStmt::value>(ref<CallExpr>));
 
   static constexpr auto IdentReadTarget =
       (assign<&ast::IdentReadAssignStmt::target>(ref<ID>) + lit<":=">)
@@ -1003,18 +1016,18 @@ struct Arden : cursiv::GrammarSpec {
       assign<&ast::IdentReadAssignStmt::value>(DataIdentAssignValue));
 
   static constexpr auto FhirTarget =
-      (assign<&ast::FhirAssignStmt::target>(ref<FhirObjectRefRule>) + lit<":=">)
+      (assign<&ast::FhirAssignStmt::target>(ref<FhirObjectRef>) + lit<":=">)
       | (ikw<"let"> +
-         assign<&ast::FhirAssignStmt::target>(ref<FhirObjectRefRule>) +
+         assign<&ast::FhirAssignStmt::target>(ref<FhirObjectRef>) +
          ikw<"be">);
 
   static constexpr auto DataFhirAssign = create<ast::FhirAssignStmt>(
       FhirTarget + ikw<"read"> + ikw<"as"> +
       option(flag<&ast::FhirAssignStmt::latest>(ikw<"latest">)) +
-      assign<&ast::FhirAssignStmt::resource>(ref<FhirObjectRefRule>) +
+      assign<&ast::FhirAssignStmt::resource>(ref<FhirObjectRef>) +
       option(ikw<"where"> +
              some(append<&ast::FhirAssignStmt::conditions>(
-                      ref<FhirAccessExprRule>),
+                      ref<FhirAccessExpr>),
                   ikw<"and">)));
 
   // Control syntax is shared; only the enclosing slot's statement family
@@ -1080,12 +1093,12 @@ struct Arden : cursiv::GrammarSpec {
   // ==== Data statement ====
 
   struct DataStmt;
-  struct DataElseIfRule;
-  struct DataCaseRule;
+  struct DataElseIf;
+  struct DataCase;
 
-  struct DataElseIfRule : rule<ElseIfClauseBody<DataStmt>> {};
+  struct DataElseIf : rule<ElseIfClauseBody<DataStmt>> {};
 
-  struct DataCaseRule : rule<CaseClauseBody<DataStmt>> {};
+  struct DataCase : rule<CaseClauseBody<DataStmt>> {};
 
   struct DataStmt
       : rule<DataLogicAssign
@@ -1096,13 +1109,13 @@ struct Arden : cursiv::GrammarSpec {
              //
              | DataFhirAssign
              //
-             | IfStmtBody<DataStmt, DataElseIfRule>
+             | IfStmtBody<DataStmt, DataElseIf>
              //
              | ForStmtBody<DataStmt>
              //
              | WhileStmtBody<DataStmt>
              //
-             | SwitchStmtBody<DataStmt, DataCaseRule>
+             | SwitchStmtBody<DataStmt, DataCase>
              //
                  | create<ast::BreakStmt>(ikw<"breakloop">)
                  //
@@ -1113,14 +1126,14 @@ struct Arden : cursiv::GrammarSpec {
   // ==== Logic statement ====
 
   struct LogicStmt;
-  struct LogicElseIfRule;
-  struct LogicCaseRule;
+  struct LogicElseIf;
+  struct LogicCase;
 
-  struct LogicElseIfRule
+  struct LogicElseIf
       : rule<ElseIfClauseBody<LogicStmt>> {
   };
 
-  struct LogicCaseRule
+  struct LogicCase
       : rule<CaseClauseBody<LogicStmt>> {};
 
   struct LogicStmt
@@ -1128,13 +1141,13 @@ struct Arden : cursiv::GrammarSpec {
                  //
                  | LogicDestructureAssign
                  //
-                 | IfStmtBody<LogicStmt, LogicElseIfRule>
+                 | IfStmtBody<LogicStmt, LogicElseIf>
              //
              | ForStmtBody<LogicStmt>
              //
              | WhileStmtBody<LogicStmt>
              //
-                 | SwitchStmtBody<LogicStmt, LogicCaseRule>
+                 | SwitchStmtBody<LogicStmt, LogicCase>
              //
                  | create<ast::BreakStmt>(ikw<"breakloop">)
                  //
@@ -1145,14 +1158,14 @@ struct Arden : cursiv::GrammarSpec {
   // ==== Action statement ====
 
   struct ActionStmt;
-  struct ActionElseIfRule;
-  struct ActionCaseRule;
+  struct ActionElseIf;
+  struct ActionCase;
 
-  struct ActionElseIfRule
+  struct ActionElseIf
       : rule<ElseIfClauseBody<ActionStmt>> {
   };
 
-  struct ActionCaseRule
+  struct ActionCase
       : rule<CaseClauseBody<ActionStmt>> {};
 
   struct ActionStmt
@@ -1171,18 +1184,18 @@ struct Arden : cursiv::GrammarSpec {
                  //
                  | create<ast::AssignStmt>(
                        IdentTarget +
-                       assign<&ast::AssignStmt::value>(ref<NewObjectExprRule>))
+                       assign<&ast::AssignStmt::value>(ref<NewObjectExpr>))
                  //
-                 | IfStmtBody<ActionStmt, ActionElseIfRule>
+                 | IfStmtBody<ActionStmt, ActionElseIf>
              //
              | ForStmtBody<ActionStmt>
              //
              | WhileStmtBody<ActionStmt>
              //
-                 | SwitchStmtBody<ActionStmt, ActionCaseRule>
+                 | SwitchStmtBody<ActionStmt, ActionCase>
              //
                  | create<ast::CallStmt>(
-                       assign<&ast::CallStmt::call>(ref<CallExprRule>) +
+                       assign<&ast::CallStmt::call>(ref<CallExpr>) +
                        option(ikw<"delay"> +
                               assign<&ast::CallStmt::delay>(ref<ExprList>)))
                  //
@@ -1199,7 +1212,7 @@ struct Arden : cursiv::GrammarSpec {
 
   // ==== Evoke slot ====
 
-  struct EvokeTimeRule
+  struct EvokeTime
       : rule<create<ast::TimeLit>(
             assign<&ast::TimeLit::text>(ref<ISO_DATE_TIME> | ref<ISO_DATE>))
                  //
@@ -1212,15 +1225,15 @@ struct Arden : cursiv::GrammarSpec {
                        assign<&ast::FuncApply::operand>(create<ast::TimeLit>(
                            assign<&ast::TimeLit::text>(ref<TIME_OF_DAY>))))> {};
 
-  struct EvokeTimeExprRule : rule<ref<EvokeTimeRule> | ref<ExprDurationMatches>> {};
+  struct EvokeTimeExpr : rule<ref<EvokeTime> | ref<ExprDurationMatches>> {};
 
-  struct EvokeTimeOrRule
+  struct EvokeTimeOr
       : rule<create<ast::TimeOr>(
-            append<&ast::TimeOr::times>(ref<EvokeTimeExprRule>) +
-            many(ikw<"or"> + append<&ast::TimeOr::times>(ref<EvokeTimeExprRule>)))> {
+            append<&ast::TimeOr::times>(ref<EvokeTimeExpr>) +
+            many(ikw<"or"> + append<&ast::TimeOr::times>(ref<EvokeTimeExpr>)))> {
   };
 
-  struct SimpleTriggerRule
+  struct SimpleTrigger
       : rule<create<ast::EventTrigger>(
             append<&ast::EventTrigger::events>(ref<ID>) +
             many(ikw<"or"> + append<&ast::EventTrigger::events>(ref<ID>)))
@@ -1232,33 +1245,33 @@ struct Arden : cursiv::GrammarSpec {
                             lit<",">) +
                        lit<")">)> {};
 
-  struct DelayedEventTriggerRule
+  struct DelayedEventTrigger
       : rule<create<ast::DelayedEventTrigger>(
-            assign<&ast::DelayedEventTrigger::delay>(ref<EvokeTimeOrRule>) +
+            assign<&ast::DelayedEventTrigger::delay>(ref<EvokeTimeOr>) +
             ikw<"after"> + ikw<"time"> + option(ikw<"of">) +
             assign<&ast::DelayedEventTrigger::event>(ref<ID>))> {};
 
-  struct ConstantTimeTriggerRule
+  struct ConstantTimeTrigger
       : rule<create<ast::ConstantTimeTrigger>(
-            assign<&ast::ConstantTimeTrigger::times>(ref<EvokeTimeOrRule>))
+            assign<&ast::ConstantTimeTrigger::times>(ref<EvokeTimeOr>))
                  //
                  | create<ast::ConstantTimeTrigger>(
                        assign<&ast::ConstantTimeTrigger::afterDuration>(
                            ref<ExprDurationMatches>) +
                        ikw<"after"> +
                        assign<&ast::ConstantTimeTrigger::afterTime>(
-                           ref<EvokeTimeRule>))> {};
+                           ref<EvokeTime>))> {};
 
-  struct TimeOfEventRule
+  struct TimeOfEvent
       : rule<ikw<"time"> + option(ikw<"of">) +
             assign<&ast::TimeOfEvent::event>(ref<ID>)> {};
 
-  struct EvokeStmtRule
-      : rule<ref<SimpleTriggerRule>
+  struct EvokeStmt
+      : rule<ref<SimpleTrigger>
                  //
-                 | ref<DelayedEventTriggerRule>
+                 | ref<DelayedEventTrigger>
                  //
-                 | ref<ConstantTimeTriggerRule>
+                 | ref<ConstantTimeTrigger>
                  //
                  | create<ast::EveryTrigger>(
                        ikw<"every"> +
@@ -1267,21 +1280,21 @@ struct Arden : cursiv::GrammarSpec {
                        assign<&ast::EveryTrigger::forDuration>(ref<ExprDurationMatches>) +
                        ikw<"starting"> +
                        assign<&ast::EveryTrigger::starting>(
-                           ref<DelayedEventTriggerRule> | ref<TimeOfEventRule> |
-                           ref<ConstantTimeTriggerRule>) +
+                           ref<DelayedEventTrigger> | ref<TimeOfEvent> |
+                           ref<ConstantTimeTrigger>) +
                        option(ikw<"until"> +
                               assign<&ast::EveryTrigger::until>(ref<ExprList>)))> {
   };
 
   // ==== MLM structure ====
 
-  struct MaintenanceRule
+  struct Maintenance
       : rule<create<ast::Maintenance>(
             ikw<"maintenance"> + lit<":"> + ikw<"title"> +
             assign<&ast::Maintenance::title>(ref<SlotText>) +
             (ikw<"mlmname"> | ikw<"filename">) + lit<":"> +
             assign<&ast::Maintenance::mlmName>(ref<MlmId>) + lit<";;"> +
-            ikw<"arden"> + lit<":"> + ikw<"version 3"> + lit<";;"> + ikw<"version"> +
+            ikw<"arden"> + lit<":"> + ikw<"version"> + lit<"3"> + lit<";;"> + ikw<"version"> +
             assign<&ast::Maintenance::version>(ref<SlotText>) +
             ikw<"institution"> +
             assign<&ast::Maintenance::institution>(ref<SlotText>) +
@@ -1294,7 +1307,7 @@ struct Arden : cursiv::GrammarSpec {
             assign<&ast::Maintenance::validation>(ref<ValidationCode>) +
             lit<";;">)> {};
 
-  struct LibraryRule
+  struct Library
       : rule<create<ast::Library>(
             ikw<"library"> + lit<":"> + ikw<"purpose"> +
             assign<&ast::Library::purpose>(ref<SlotText>) + ikw<"explanation"> +
@@ -1305,11 +1318,11 @@ struct Arden : cursiv::GrammarSpec {
             option(ikw<"links"> + assign<&ast::Library::links>(ref<SlotText>)))> {
   };
 
-  struct UrgencyValueRule
+  struct UrgencyValue
       : rule<assign<&ast::NumberLit::value>(ref<NUMBER>) |
             ref<IdentifierOrObjectRef>> {};
 
-  struct KnowledgeRule
+  struct Knowledge
       : rule<create<ast::Knowledge>(
             ikw<"knowledge"> + lit<":"> + ikw<"type"> + lit<":"> +
             assign<&ast::Knowledge::type>(ref<TypeCode>) + lit<";;"> +
@@ -1320,7 +1333,7 @@ struct Arden : cursiv::GrammarSpec {
             option(ikw<"priority"> + lit<":"> +
                    assign<&ast::Knowledge::priority>(ref<NUMBER>) + lit<";;">) +
             ikw<"evoke"> + lit<":"> +
-            many(append<&ast::Knowledge::evokeStatements>(ref<EvokeStmtRule>) +
+            many(append<&ast::Knowledge::evokeStatements>(ref<EvokeStmt>) +
                  lit<";">) +
             option(lit<";">) + lit<";;"> + ikw<"logic"> + lit<":"> +
             many(append<&ast::Knowledge::logicStatements>(ref<LogicStmt>) +
@@ -1330,39 +1343,39 @@ struct Arden : cursiv::GrammarSpec {
                  lit<";">) +
             option(lit<";">) + lit<";;"> +
             option(ikw<"urgency"> + lit<":"> +
-                   assign<&ast::Knowledge::urgency>(ref<UrgencyValueRule>) +
+                   assign<&ast::Knowledge::urgency>(ref<UrgencyValue>) +
                    lit<";;">))> {};
 
-  struct LangMessageRule
+  struct LangMessage
       : rule<assign<&ast::LangMessage::key>(ref<TERM>) + lit<":"> +
             assign<&ast::LangMessage::text>(ref<STRING>)> {};
 
-  struct LanguageSlotRule
+  struct LanguageSlot
       : rule<create<ast::LanguageSlot>(
             ikw<"language"> + lit<":"> +
             assign<&ast::LanguageSlot::code>(ref<TwoCharCode>) +
-            many(append<&ast::LanguageSlot::messages>(ref<LangMessageRule>) +
+            many(append<&ast::LanguageSlot::messages>(ref<LangMessage>) +
                  lit<";">) +
             option(lit<";">) + lit<";;">)> {};
 
-  struct ResourcesRule
+  struct Resources
       : rule<create<ast::Resources>(
             ikw<"resources"> + lit<":"> + ikw<"default"> + lit<":"> +
             assign<&ast::Resources::defaultLanguage>(ref<TwoCharCode>) +
             lit<";;"> +
-            some(append<&ast::Resources::languages>(ref<LanguageSlotRule>)))> {
+            some(append<&ast::Resources::languages>(ref<LanguageSlot>)))> {
   };
 
-  struct MlmRule
+  struct Mlm
       : rule<create<ast::Mlm>(
-            assign<&ast::Mlm::maintenance>(ref<MaintenanceRule>) +
-            assign<&ast::Mlm::library>(ref<LibraryRule>) +
-            assign<&ast::Mlm::knowledge>(ref<KnowledgeRule>) +
-            assign<&ast::Mlm::resources>(ref<ResourcesRule>) + ikw<"end"> +
+            assign<&ast::Mlm::maintenance>(ref<Maintenance>) +
+            assign<&ast::Mlm::library>(ref<Library>) +
+            assign<&ast::Mlm::knowledge>(ref<Knowledge>) +
+            assign<&ast::Mlm::resources>(ref<Resources>) + ikw<"end"> +
             lit<":">)> {};
 
-  using entry = MlmRule;
-  using ignore = list<WS, THE>;
+  using entry = Mlm;
+  using ignored = list<WS, THE>;
   using hidden = list<COMMENT, LINE_COMMENT>;
 };
 

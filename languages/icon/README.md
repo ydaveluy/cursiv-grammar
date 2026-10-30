@@ -37,10 +37,10 @@ write("hello, world")
 end
 ```
 
-A program is one or more declarations: `link`, `global`, `record` and
-`procedure`. A procedure's body is a sequence of expressions, since Icon
+A program is zero or more declarations: `link`, `global`, `record`,
+`invocable` and `procedure`. A procedure's body is a sequence of expressions, since Icon
 makes its control structures (`if`, `while`, `case`, `every`, ...) expressions
-too. See `example/features.icn` for a document exercising the rest of the
+too. See `tests/features.icn` for a document exercising the rest of the
 language — declarations, operator ladder, prefix and postfix forms.
 
 ## The command line

@@ -74,24 +74,23 @@ struct Fortran : cursiv::GrammarSpec {
         }
         return std::string_view(data, size);
       };
-  using ContinuedText = text_conv<continuedText>;
 
   template <cursiv::str Word>
-  struct Keyword : terminal<detail::keywordBody<Word, TOKEN_CONTINUATION>(),
-                            ContinuedText> {};
+  struct Keyword : terminal<as<continuedText>(
+                       detail::keywordBody<Word, TOKEN_CONTINUATION>())> {};
   template <cursiv::str Word>
   static constexpr auto ikw = ref<Keyword<Word>>;
 
   template <cursiv::str Text>
-  struct Symbol : terminal<detail::keywordChars<Text, TOKEN_CONTINUATION>(),
-                           ContinuedText> {};
+  struct Symbol : terminal<as<continuedText>(
+                      detail::keywordChars<Text, TOKEN_CONTINUATION>())> {};
   template <cursiv::str Text>
   static constexpr auto symbol = ref<Symbol<Text>>;
 
   static constexpr auto NameBody =
       cr<"a-zA-Z"> + many(option(TOKEN_CONTINUATION) + cr<"a-zA-Z0-9_">);
   static constexpr auto Digits = d + many(option(TOKEN_CONTINUATION) + d);
-  struct NAME : terminal<NameBody, ContinuedText> {};
+  struct NAME : terminal<as<continuedText>(NameBody)> {};
 
   static constexpr auto EXPON = cr<"eEdDqQ"> + option(TOKEN_CONTINUATION) +
                                 option(cr<"+-">) + option(TOKEN_CONTINUATION) +
@@ -101,19 +100,18 @@ struct Fortran : cursiv::GrammarSpec {
       ikw<"xor."> | ikw<"eor."> | ikw<"lt."> | ikw<"le."> | ikw<"gt."> |
       ikw<"ge."> | ikw<"ne."> | ikw<"eq."> | ikw<"true."> | ikw<"false.">;
 
-  struct ICON : terminal<Digits, ContinuedText> {};
+  struct ICON : terminal<as<continuedText>(Digits)> {};
   // A letter after `1.` is an exponent's or a dot operator's (`1.eq.x`).
-  struct RDCON
-      : terminal<(Digits + option(TOKEN_CONTINUATION) +
-                  lit<".", !(option(TOKEN_CONTINUATION) + cr<"a-zA-Z">)> +
-                  many(option(TOKEN_CONTINUATION) + d) +
-                  option(option(TOKEN_CONTINUATION) + EXPON)) |
+  struct RDCON : terminal<as<continuedText>(
+                     (Digits + option(TOKEN_CONTINUATION) +
+                      lit<".", !(option(TOKEN_CONTINUATION) + cr<"a-zA-Z">)> +
+                      many(option(TOKEN_CONTINUATION) + d) +
+                      option(option(TOKEN_CONTINUATION) + EXPON)) |
                      (Digits + option(TOKEN_CONTINUATION) + lit<"."> +
                       option(TOKEN_CONTINUATION) + EXPON) |
                      (lit<"."> + option(TOKEN_CONTINUATION) + Digits +
                       option(option(TOKEN_CONTINUATION) + EXPON)) |
-                     (Digits + option(TOKEN_CONTINUATION) + EXPON),
-                 ContinuedText> {};
+                     (Digits + option(TOKEN_CONTINUATION) + EXPON))> {};
   struct XCON : terminal<Digits + cr<"xX">> {};
   struct PCON : terminal<option(cr<"+-">) + Digits + cr<"pP">> {};
   struct FCON : terminal<cr<"a-zA-Z"> + option(cr<"a-zA-Z">) +
@@ -143,13 +141,13 @@ struct Fortran : cursiv::GrammarSpec {
         auto joined = continuedText(text, resource);
         return joined.substr(0, joined.size() - 1);
       };
-  struct KIND_PREFIX : terminal<(NameBody | Digits) + lit<"_"> + &cr<R"('")">,
-                                text_conv<kindPrefix>> {};
+  struct KIND_PREFIX : terminal<as<kindPrefix>((NameBody | Digits) + lit<"_"> +
+                                               &cr<R"('")">)> {};
 
   struct DOP
-      : terminal<lit<".", !DotOperatorWord> + cr<"a-zA-Z"> +
-                     many(option(TOKEN_CONTINUATION) + cr<"a-zA-Z">) + lit<".">,
-                 ContinuedText> {};
+      : terminal<as<continuedText>(
+            lit<".", !DotOperatorWord> + cr<"a-zA-Z"> +
+            many(option(TOKEN_CONTINUATION) + cr<"a-zA-Z">) + lit<".">)> {};
 
   struct DOUBLEPRECISION
       : rule<ikw<"doubleprecision"> | (ikw<"double"> + ikw<"precision">)> {};
@@ -172,7 +170,7 @@ struct Fortran : cursiv::GrammarSpec {
   struct Argument;
   struct TypeSpec;
   struct Statement;
-  struct ProgramUnitRule;
+  struct ProgramUnit;
 
   // -- expressions ----
 
@@ -204,7 +202,7 @@ struct Fortran : cursiv::GrammarSpec {
 
   struct StarExpr : rule<create<ast::StarExpr> + lit<"*">> {};
 
-  struct ImpliedDoRule
+  struct ImpliedDo
       : rule<lit<"("> +
              some(append<&ast::ImpliedDo::items>(ref<Expression>), lit<",">) +
              lit<","> + assign<&ast::ImpliedDo::var>(ref<NAME>) + lit<"="> +
@@ -216,7 +214,7 @@ struct Fortran : cursiv::GrammarSpec {
   static constexpr auto ArrayItems =
       option(assign<&ast::ArrayCtor::type>(ref<TypeSpec>) + symbol<"::">) +
       option(some(
-          append<&ast::ArrayCtor::items>(ref<ImpliedDoRule> | ref<Expression>),
+          append<&ast::ArrayCtor::items>(ref<ImpliedDo> | ref<Expression>),
           lit<",">));
   struct ArrayCtor : rule<(symbol<"(/"> + ArrayItems + symbol<"/)">) |
                           (lit<"["> + ArrayItems + lit<"]">)> {};
@@ -287,12 +285,10 @@ struct Fortran : cursiv::GrammarSpec {
                        | ref<PowerMulDiv>> {};
 
   struct AddSubLevel
-      : infix<Signed, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(OpAddSub)> {};
+      : infix<Signed, ast::BinaryExpr, left(OpAddSub)> {};
 
-  struct ConcatRel
-      : infix<AddSubLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, (left(OpConcat) >> left(OpRel))> {};
+  struct ConcatRel : infix<AddSubLevel, ast::BinaryExpr,
+                           levels(left(OpConcat), nonassoc(OpRel))> {};
 
   struct NotLevel
       : rule<create<ast::UnaryExpr>(
@@ -300,12 +296,11 @@ struct Fortran : cursiv::GrammarSpec {
                  assign<&ast::UnaryExpr::operand>(ref<NotLevel>))  //
              | ref<ConcatRel>> {};
 
-  struct Expression : infix<NotLevel, &ast::BinaryExpr::left,
-                            &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                            (left(OpAnd) >>  //
-                             left(OpOr) >>   //
-                             left(OpEqv) >>  //
-                             left(OpDefined))> {};
+  struct Expression : infix<NotLevel, ast::BinaryExpr,
+                            levels(left(OpAnd),  //
+                                   left(OpOr),   //
+                                   left(OpEqv),  //
+                                   left(OpDefined))> {};
 
   // -- shared shapes ----
 
@@ -355,8 +350,9 @@ struct Fortran : cursiv::GrammarSpec {
              option(assign<&ast::Declarator::shape>(ref<ArraySpec>)) +
              option(lit<"*"> +
                     assign<&ast::Declarator::charLength>(ref<Expression>)) +
-             option((symbol<"=>"> | lit<"=">)+assign<&ast::Declarator::init>(
-                 ref<Expression>))> {};
+             option((flag<&ast::Declarator::pointerInit>(symbol<"=>">) |
+                     lit<"=">) +
+                    assign<&ast::Declarator::init>(ref<Expression>))> {};
 
   static constexpr auto AttrKeyword =
       ikw<"allocatable"> | ikw<"pointer"> | ikw<"target"> | ikw<"optional"> |
@@ -364,7 +360,7 @@ struct Fortran : cursiv::GrammarSpec {
       ikw<"private"> | ikw<"public">;
 
   struct AttrDecl
-      : rule<(ikw<"intent"> + lit<"("> +
+      : rule<(assign<&ast::AttrDecl::keyword>(ikw<"intent">) + lit<"("> +
               assign<&ast::AttrDecl::qualifier>(ikw<"inout"> | ikw<"in"> |
                                                 ikw<"out">) +
               lit<")"> + option(symbol<"::">) +
@@ -440,16 +436,43 @@ struct Fortran : cursiv::GrammarSpec {
                        assign<&ast::IntLit::kind>(ref<ICON> | ref<NAME>)))    //
              | assign<&ast::BozLit::text>(ref<BCON> | ref<OCON> | ref<ZCON>)  //
              | ref<StringLit>                                                 //
-             | assign<&ast::NameRef::name>(ref<NAME>)> {};
+             | ref<ComplexLit>                                                //
+             | ref<NameRef>> {};
 
-  struct DataValue
+  struct DataSignedValue
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
                  assign<&ast::UnaryExpr::operand>(ref<DataConstant>))  //
              | ref<DataConstant>> {};
 
+  // R530: retain a repeat factor as syntax, rather than expanding it or
+  // treating the star as an arithmetic operator. Symbol/type constraints
+  // on named constants need a symbol table.
+  struct DataValue
+      : rule<create<ast::DataRepeat>(
+                 (assign<&ast::DataRepeat::count>(create<ast::IntLit>(
+                      assign<&ast::IntLit::text>(ref<ICON>) +
+                      option(lit<"_"> + assign<&ast::IntLit::kind>(
+                                               ref<ICON> | ref<NAME>)))) |
+                  assign<&ast::DataRepeat::count>(ref<NameRef>)) +
+                 lit<"*"> +
+                 assign<&ast::DataRepeat::value>(ref<DataSignedValue>)) |
+             ref<DataSignedValue>> {};
+
+  struct DataImpliedDo;
+  static constexpr auto DataObject = ref<NameRef> | ref<DataImpliedDo>;
+  struct DataImpliedDo
+      : rule<create<ast::ImpliedDo>(
+            lit<"("> + some(append<&ast::ImpliedDo::items>(DataObject),
+                            lit<",">) +
+            lit<","> + assign<&ast::ImpliedDo::var>(ref<NAME>) + lit<"="> +
+            assign<&ast::ImpliedDo::start>(ref<Expression>) + lit<","> +
+            assign<&ast::ImpliedDo::stop>(ref<Expression>) +
+            option(lit<","> + assign<&ast::ImpliedDo::step>(ref<Expression>)) +
+            lit<")">)> {};
+
   struct DataSet
-      : rule<some(append<&ast::DataSet::objects>(ref<NameRef>), lit<",">) +
+      : rule<some(append<&ast::DataSet::objects>(DataObject), lit<",">) +
              lit<"/"> +
              some(append<&ast::DataSet::values>(ref<DataValue>), lit<",">) +
              lit<"/">> {};
@@ -554,7 +577,7 @@ struct Fortran : cursiv::GrammarSpec {
                        lit<")">)  //
                     | (ikw<"assignment"> + lit<"("> + lit<"="> + lit<")">)) +
              many(
-                 append<&ast::InterfaceDecl::procedures>(ref<ProgramUnitRule>) |
+                 append<&ast::InterfaceDecl::procedures>(ref<ProgramUnit>) |
                  append<&ast::InterfaceDecl::procedures>(ref<ModuleProcRef>)) +
              (ikw<"endinterface"> | (ikw<"end"> + option(ikw<"interface">))) +
              option(ref<NAME>)> {};
@@ -587,29 +610,29 @@ struct Fortran : cursiv::GrammarSpec {
 
   // -- executable statements ----
 
-  struct AssignStmtRule
+  struct AssignStmt
       : rule<assign<&ast::AssignStmt::target>(ref<NameRef>) + lit<"="> +
              assign<&ast::AssignStmt::value>(ref<Expression>)> {};
 
-  struct PointerAssignStmtRule
+  struct PointerAssignStmt
       : rule<assign<&ast::PointerAssignStmt::target>(ref<NameRef>) +
              symbol<"=>"> +
              assign<&ast::PointerAssignStmt::value>(ref<Expression>)> {};
 
-  struct LabelAssignStmtRule
+  struct LabelAssignStmt
       : rule<ikw<"assign"> + assign<&ast::LabelAssignStmt::label>(ref<ICON>) +
              ikw<"to"> + assign<&ast::LabelAssignStmt::variable>(ref<NAME>)> {};
 
-  struct GotoStmtRule : rule<(ikw<"goto"> | (ikw<"go"> + ikw<"to">)) +
+  struct GotoStmt : rule<(ikw<"goto"> | (ikw<"go"> + ikw<"to">)) +
                              assign<&ast::GotoStmt::label>(ref<ICON>)> {};
 
-  struct ComputedGotoStmtRule
+  struct ComputedGotoStmt
       : rule<ikw<"goto"> + lit<"("> +
              some(append<&ast::ComputedGotoStmt::labels>(ref<ICON>), lit<",">) +
              lit<")"> + option(lit<",">) +
              assign<&ast::ComputedGotoStmt::selector>(ref<Expression>)> {};
 
-  struct AssignedGotoStmtRule
+  struct AssignedGotoStmt
       : rule<(ikw<"goto"> | (ikw<"go"> + ikw<"to">)) +
              assign<&ast::AssignedGotoStmt::variable>(ref<NAME>) +
              option(lit<",">) +
@@ -618,38 +641,38 @@ struct Fortran : cursiv::GrammarSpec {
                          lit<",">) +
                     lit<")">)> {};
 
-  struct ArithmeticIfStmtRule
+  struct ArithmeticIfStmt
       : rule<ikw<"if"> + lit<"("> +
              assign<&ast::ArithmeticIfStmt::cond>(ref<Expression>) + lit<")"> +
              assign<&ast::ArithmeticIfStmt::negLabel>(ref<ICON>) + lit<","> +
              assign<&ast::ArithmeticIfStmt::zeroLabel>(ref<ICON>) + lit<","> +
              assign<&ast::ArithmeticIfStmt::posLabel>(ref<ICON>)> {};
 
-  struct ReturnStmtRule
+  struct ReturnStmt
       : rule<ikw<"return"> +
              option(assign<&ast::ReturnStmt::value>(ref<Expression>))> {};
 
-  struct StopStmtRule
+  struct StopStmt
       : rule<flag<&ast::StopStmt::isPause>(ikw<"pause">) |
              (ikw<"stop"> +
               option(assign<&ast::StopStmt::code>(ref<ICON> | ref<SCON>)))> {};
 
-  struct ContinueStmtRule : rule<create<ast::ContinueStmt> + ikw<"continue">> {
+  struct ContinueStmt : rule<create<ast::ContinueStmt> + ikw<"continue">> {
   };
 
-  struct CycleStmtRule
+  struct CycleStmt
       : rule<ikw<"cycle"> + option(assign<&ast::CycleStmt::name>(ref<NAME>))> {
   };
 
-  struct ExitStmtRule
+  struct ExitStmt
       : rule<ikw<"exit"> + option(assign<&ast::ExitStmt::name>(ref<NAME>))> {};
 
-  struct NullifyStmtRule
+  struct NullifyStmt
       : rule<ikw<"nullify"> + lit<"("> +
              some(append<&ast::NullifyStmt::items>(ref<Expression>), lit<",">) +
              lit<")">> {};
 
-  struct AllocateStmtRule
+  struct AllocateStmt
       : rule<(flag<&ast::AllocateStmt::isAllocate>(ikw<"allocate">) |
               ikw<"deallocate">)+lit<"("> +
              some(append<&ast::AllocateStmt::items>(ref<Expression>),
@@ -658,7 +681,7 @@ struct Fortran : cursiv::GrammarSpec {
                     assign<&ast::AllocateStmt::stat>(ref<Expression>)) +
              lit<")">> {};
 
-  struct CallStmtRule
+  struct CallStmt
       : rule<ikw<"call"> + assign<&ast::CallStmt::name>(ref<NAME>) +
              option(lit<"("> +
                     option(some(append<&ast::CallStmt::args>(ref<Argument>),
@@ -684,7 +707,7 @@ struct Fortran : cursiv::GrammarSpec {
                         assign<&ast::IoSpec::value>(ref<Expression>))  //
                        | assign<&ast::IoSpec::value>(ref<Expression>)> {};
 
-  struct IoStmtRule
+  struct IoStmt
       : rule<assign<&ast::IoStmt::keyword>(IoStmtKeyword) +
              ((lit<"("> +
                some(append<&ast::IoStmt::specs>(ref<IoSpec>), lit<",">) +
@@ -694,7 +717,7 @@ struct Fortran : cursiv::GrammarSpec {
                     some(append<&ast::IoStmt::items>(ref<Expression>),
                          lit<",">))> {};
 
-  struct BlockIfStmtRule
+  struct BlockIfStmt
       : rule<option(assign<&ast::BlockIfStmt::name>(ref<NAME>) + lit<":">) +
              ikw<"if"> + lit<"("> +
              assign<&ast::BlockIfStmt::cond>(ref<Expression>) + lit<")"> +
@@ -709,12 +732,12 @@ struct Fortran : cursiv::GrammarSpec {
                     many(append<&ast::BlockIfStmt::elseBody>(ref<Statement>))) +
              (ikw<"endif"> | (ikw<"end"> + ikw<"if">)) + option(ref<NAME>)> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<ikw<"if"> + lit<"("> +
              assign<&ast::IfStmt::cond>(ref<Expression>) + lit<")"> +
              assign<&ast::IfStmt::action>(ref<Statement>)> {};
 
-  struct DoStmtRule
+  struct DoStmt
       : rule<option(assign<&ast::DoStmt::name>(ref<NAME>) + lit<":">) +
              ikw<"do"> + option(assign<&ast::DoStmt::endLabel>(ref<ICON>)) +
              option(lit<",">) +
@@ -730,7 +753,7 @@ struct Fortran : cursiv::GrammarSpec {
              (ikw<"enddo"> | (ikw<"end"> + ikw<"do">) |
               ikw<"continue">)+option(ref<NAME>)> {};
 
-  struct CaseClauseRule
+  struct CaseClause
       : rule<ikw<"case"> +
              (flag<&ast::CaseClause::isDefault>(ikw<"default">)  //
               |
@@ -740,16 +763,16 @@ struct Fortran : cursiv::GrammarSpec {
              option(ref<NAME>) +
              many(append<&ast::CaseClause::body>(ref<Statement>))> {};
 
-  struct SelectCaseStmtRule
+  struct SelectCaseStmt
       : rule<option(assign<&ast::SelectCaseStmt::name>(ref<NAME>) + lit<":">) +
              (ikw<"selectcase"> | (ikw<"select"> + ikw<"case">)) + lit<"("> +
              assign<&ast::SelectCaseStmt::selector>(ref<Expression>) +
              lit<")"> +
-             many(append<&ast::SelectCaseStmt::cases>(ref<CaseClauseRule>)) +
+             many(append<&ast::SelectCaseStmt::cases>(ref<CaseClause>)) +
              (ikw<"endselect"> | (ikw<"end"> + ikw<"select">)) +
              option(ref<NAME>)> {};
 
-  struct WhereStmtRule
+  struct WhereStmt
       : rule<append<&ast::WhereStmt::blocks>(create<ast::WhereBlock>(
                  ikw<"where"> + lit<"("> +
                  assign<&ast::WhereBlock::mask>(ref<Expression>) + lit<")"> +
@@ -777,27 +800,27 @@ struct Fortran : cursiv::GrammarSpec {
                                         | ref<EntryDecl>              //
                                         | ref<InterfaceDecl>          //
                                         | ref<DerivedTypeDecl>        //
-                                        | ref<BlockIfStmtRule>        //
-                                        | ref<DoStmtRule>             //
-                                        | ref<SelectCaseStmtRule>     //
-                                        | ref<WhereStmtRule>          //
-                                        | ref<ArithmeticIfStmtRule>   //
-                                        | ref<IfStmtRule>             //
-                                        | ref<ComputedGotoStmtRule>   //
-                                        | ref<AssignedGotoStmtRule>   //
-                                        | ref<GotoStmtRule>           //
-                                        | ref<LabelAssignStmtRule>    //
-                                        | ref<CallStmtRule>           //
-                                        | ref<ReturnStmtRule>         //
-                                        | ref<StopStmtRule>           //
-                                        | ref<CycleStmtRule>          //
-                                        | ref<ExitStmtRule>           //
-                                        | ref<NullifyStmtRule>        //
-                                        | ref<AllocateStmtRule>       //
-                                        | ref<IoStmtRule>             //
-                                        | ref<PointerAssignStmtRule>  //
-                                        | ref<AssignStmtRule>         //
-                                        | ref<ContinueStmtRule>;
+                                        | ref<BlockIfStmt>        //
+                                        | ref<DoStmt>             //
+                                        | ref<SelectCaseStmt>     //
+                                        | ref<WhereStmt>          //
+                                        | ref<ArithmeticIfStmt>   //
+                                        | ref<IfStmt>             //
+                                        | ref<ComputedGotoStmt>   //
+                                        | ref<AssignedGotoStmt>   //
+                                        | ref<GotoStmt>           //
+                                        | ref<LabelAssignStmt>    //
+                                        | ref<CallStmt>           //
+                                        | ref<ReturnStmt>         //
+                                        | ref<StopStmt>           //
+                                        | ref<CycleStmt>          //
+                                        | ref<ExitStmt>           //
+                                        | ref<NullifyStmt>        //
+                                        | ref<AllocateStmt>       //
+                                        | ref<IoStmt>             //
+                                        | ref<PointerAssignStmt>  //
+                                        | ref<AssignStmt>         //
+                                        | ref<ContinueStmt>;
 
   struct Statement
       : rule<ref<FormatDecl> |
@@ -834,7 +857,7 @@ struct Fortran : cursiv::GrammarSpec {
              many(append<&ast::FunctionUnit::body>(LabelledStatement)) +
              option(ikw<"contains"> +
                     some(append<&ast::FunctionUnit::internals>(
-                        ref<ProgramUnitRule>))) +
+                        ref<ProgramUnit>))) +
              (ikw<"end"> | (ikw<"end"> + ikw<"function">) |
               ikw<"endfunction">)+option(ref<NAME>)> {};
 
@@ -852,7 +875,7 @@ struct Fortran : cursiv::GrammarSpec {
              many(append<&ast::SubroutineUnit::body>(LabelledStatement)) +
              option(ikw<"contains"> +
                     some(append<&ast::SubroutineUnit::internals>(
-                        ref<ProgramUnitRule>))) +
+                        ref<ProgramUnit>))) +
              (ikw<"end"> | (ikw<"end"> + ikw<"subroutine">) |
               ikw<"endsubroutine">)+option(ref<NAME>)> {};
 
@@ -869,7 +892,7 @@ struct Fortran : cursiv::GrammarSpec {
              many(append<&ast::ModuleUnit::body>(LabelledStatement)) +
              option(ikw<"contains"> +
                     some(append<&ast::ModuleUnit::subprograms>(
-                        ref<ProgramUnitRule>))) +
+                        ref<ProgramUnit>))) +
              (ikw<"end"> | (ikw<"end"> + ikw<"module">) |
               ikw<"endmodule">)+option(ref<NAME>)> {};
 
@@ -879,22 +902,22 @@ struct Fortran : cursiv::GrammarSpec {
              many(append<&ast::MainProgramUnit::body>(LabelledStatement)) +
              option(ikw<"contains"> +
                     some(append<&ast::MainProgramUnit::internals>(
-                        ref<ProgramUnitRule>))) +
+                        ref<ProgramUnit>))) +
              (ikw<"end"> | (ikw<"end"> + ikw<"program">) |
               ikw<"endprogram">)+option(ref<NAME>)> {};
 
-  struct ProgramUnitRule : rule<ref<FunctionUnit>      //
+  struct ProgramUnit : rule<ref<FunctionUnit>      //
                                 | ref<SubroutineUnit>  //
                                 | ref<BlockDataUnit>   //
                                 | ref<ModuleUnit>      //
                                 | ref<MainProgramUnit>> {};
 
   struct Model : rule<create<ast::Model> +
-                      some(append<&ast::Model::units>(ref<ProgramUnitRule>))> {
+                      some(append<&ast::Model::units>(ref<ProgramUnit>))> {
   };
 
   using entry = Model;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT>;
 };
 

@@ -12,34 +12,34 @@ struct Trac : cursiv::GrammarSpec {
   // embedded spaces ("read string"), so this token is greedy across them.
   struct STRING : terminal<some(cr<"a-zA-Z ">)> {};
 
-  struct ActiveRule;
-  struct NeutralRule;
-  struct MacroRule : rule<ref<ActiveRule> | ref<NeutralRule>> {};
+  struct Active;
+  struct Neutral;
+  struct Macro : rule<ref<Active> | ref<Neutral>> {};
 
-  struct ArgRule
-      : rule<assign<&ast::Arg::value>(ref<MacroRule>) |
-             (lit<"("> + assign<&ast::Arg::value>(ref<MacroRule>) +
+  struct Arg
+      : rule<assign<&ast::Arg::value>(ref<Macro>) |
+             (flag<&ast::Arg::quoted>(lit<"(">) + assign<&ast::Arg::value>(ref<Macro>) +
               lit<")">) |
              assign<&ast::Arg::value>(ref<STRING>)> {};
 
-  struct ActiveRule
+  struct Active
       : rule<lit<"#"> + lit<"("> + assign<&ast::Active::name>(ref<STRING>) +
-             option(lit<","> + some(append<&ast::Active::args>(ref<ArgRule>),
+             option(lit<","> + some(append<&ast::Active::args>(ref<Arg>),
                                     lit<",">)) +
              lit<")">> {};
 
-  struct NeutralRule
+  struct Neutral
       : rule<lit<"##"> + lit<"("> + assign<&ast::Neutral::name>(ref<STRING>) +
              option(lit<","> +
-                    some(append<&ast::Neutral::args>(ref<ArgRule>),
+                    some(append<&ast::Neutral::args>(ref<Arg>),
                          lit<",">)) +
              lit<")">> {};
 
-  struct ProgramRule
-      : rule<many(append<&ast::Program::macros>(ref<MacroRule>))> {};
+  struct Program
+      : rule<many(append<&ast::Program::macros>(ref<Macro>))> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
 };
 
 }  // namespace trac

@@ -199,9 +199,10 @@ struct InPattern : cursiv::Extends<cursiv::AstNode> {
   Expr* filter;  // the guard '(' oclExpression ')', optional
 };
 
-struct Binding : cursiv::Extends<cursiv::AstNode> {  // IDENTIFIER '<-' expr
+struct Binding : cursiv::Extends<cursiv::AstNode> {  // IDENTIFIER ('<-' | '<:=') expr
   string_view name;
   Expr* value;
+  boolean isAssignment = false;
 };
 
 // A plain out-pattern element and a `distinct ... foreach` one: one class,
@@ -231,12 +232,14 @@ struct ExprStmt : cursiv::Extends<Statement> {
 struct BindStmt : cursiv::Extends<Statement> {
   Expr* target;
   Expr* value;
+  boolean isAssignment = false;
 };
 
 struct IfStmt : cursiv::Extends<Statement> {
   Expr* cond;
   vector<Statement*> thenStmts;
   vector<Statement*> elseStmts;
+  boolean hasElse = false;
 };
 
 struct ForStmt : cursiv::Extends<Statement> {

@@ -38,6 +38,9 @@ std::string render(const cursiv::AstNode* n) {
   if (const auto* const neg = as<mumath::ast::NegateExpression>(n);
       neg != nullptr)
     return "(-" + render(neg->operand) + ")";
+  if (const auto* const pos = as<mumath::ast::PositiveExpression>(n);
+      pos != nullptr)
+    return "(+" + render(pos->operand) + ")";
   if (const auto* const not_ = as<mumath::ast::NotExpression>(n);
       not_ != nullptr)
     return "(NOT " + render(not_->operand) + ")";
@@ -66,6 +69,10 @@ bool check_precedence(const auto& language) {
       {"2*3^2", "(2 * (3 ^ 2))"},
       {"2^3^2", "(2 ^ (3 ^ 2))"},
       {"-2^2", "(-(2 ^ 2))"},
+      {"-2*3", "((-2) * 3)"},
+      {"2^-3", "(2 ^ (-3))"},
+      {"2+-3", "(2 + (-3))"},
+      {"+2^2", "(+(2 ^ 2))"},
       {"2+3=5", "((2 + 3) = 5)"},
       {"NOT A=B", "(NOT (A = B))"},
       {"NOT A AND B", "((NOT A) AND B)"},
@@ -166,6 +173,27 @@ int main() {
   if (testDocs == 0) return fail(CURSIV_TEST_DIR, "no test documents");
 
   if (!check_precedence(language)) ++failures;
+  {
+    // Soft Warehouse muSIMP-79, conditional exit and MATCH(EXIT), pp. 6/31.
+    const std::string source =
+        "FUNCTION atoms(x), WHEN ATOM(x), 1 EXIT, atoms(x) ENDFUN& "
+        "LOOP WHEN A, EXIT ENDLOOP$ 2+3;";
+    const auto result = language.language.parser->parse(source);
+    const auto* program = as<mumath::ast::Program>(result.value);
+    const auto* function = program && program->statements.size() == 3
+        ? as<mumath::ast::FunctionDefinition>(program->statements[0]) : nullptr;
+    const auto* when = function && function->body.size() == 2
+        ? as<mumath::ast::When>(function->body[0]) : nullptr;
+    const auto* loop = program && program->statements.size() == 3
+        ? as<mumath::ast::Loop>(program->statements[1]) : nullptr;
+    const auto* emptyExit = loop && loop->body.size() == 1
+        ? as<mumath::ast::When>(loop->body[0]) : nullptr;
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !function || function->name != "atoms" ||
+        !when || when->body.size() != 1 || when->parent != function ||
+        !emptyExit || !emptyExit->body.empty())
+      ++failures;
+  }
 
   if (failures > 0) return 1;
 

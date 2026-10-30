@@ -26,6 +26,9 @@ inline bool run(const cookie::CookieCoreServices& services) {
     Case{"id=\"a\\141b\"; Expires=Wed, 09 Jun 2027 10:18:14 GMT", {{"id","aab"},{"Expires","Wed, 09 Jun 2027 10:18:14 GMT"}}},
     Case{"a!#$%&'`|~:=v[]{}?@/+=", {{"a!#$%&'`|~:","v[]{}?@/+="}}},
     Case{"id=abc; Partitioned", {{"id","abc"},{"Partitioned",std::nullopt}}},
+    Case{"Path=/", {{"Path","/"}}},
+    Case{"Secure=token; HttpOnly", {{"Secure","token"},{"HttpOnly",std::nullopt}}},
+    Case{"SameSite=Lax; Domain=example.com", {{"SameSite","Lax"},{"Domain","example.com"}}},
   };
   for (const auto& test : cases) {
     const std::string source(test.source);
@@ -48,7 +51,7 @@ inline bool run(const cookie::CookieCoreServices& services) {
   for (const auto& test : std::array{
       std::pair{"na/me=1", "cookie.name"},
       std::pair{"id=x; Path", "cookie.value"},
-      std::pair{"Path=/", "cookie.attribute"},
+      std::pair{"Secure", "cookie.attribute"},
       std::pair{R"(id="a\012b")", "cookie.control"}}) {
     const std::string source(test.first);
     const auto result = services.parser->parse(source);

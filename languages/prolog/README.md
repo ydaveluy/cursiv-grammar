@@ -39,10 +39,7 @@ fruit(apples).
 fruit(plums).
 ```
 
-Facts: each is a `clause`, a `term` (here a `compound_term`, a functor
-applied to arguments) closed by `.`. `example/constructs.pl` exercises the
-rest of the language — directives, operators, lists, variables, the three
-quoted forms, nested comments, DCG rules.
+A Prolog source contains terms terminated by full stops.
 
 ## The command line
 

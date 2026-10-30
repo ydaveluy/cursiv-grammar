@@ -41,11 +41,10 @@ bool has_modifier(const ast::VisibilityElement& element,
 bool is_published(cursiv::AstNode& member, cursiv::AstNode* container) {
   const auto* const visible = cursiv::ast_cast<ast::VisibilityElement>(&member);
   if (visible == nullptr) return true;
+  if (has_modifier(*visible, "private") || has_modifier(*visible, "protected")) return false;
   if (has_modifier(*visible, "public")) return true;
-  if (has_modifier(*visible, "private") || has_modifier(*visible, "protected"))
-    return false;
-  return cursiv::ast_cast<ast::Structure>(container) != nullptr ||
-         cursiv::ast_cast<ast::Interface>(container) != nullptr;
+  return container && (container->type == &cursiv::ast_type_tag<ast::Structure> ||
+                       container->type == &cursiv::ast_type_tag<ast::Interface>);
 }
 
 // The member list a container publishes into its own name, whichever of the
@@ -61,10 +60,10 @@ const cursiv::vector<ast::NamedElement*>* members_of(cursiv::AstNode& node) {
 }
 
 // What a type publishes under its own name: an enumeration's literals, and the
-// constants a container makes public. BOTH SCOPES READ THIS LIST, so a name
-// means the same thing inside a document and across the workspace.
+// constants a container exposes. Native local aliases include all constants;
+// workspace exports apply visibility.
 template <class F>
-void each_published_member(ast::NamedElement& type, F&& yield) {
+void each_named_value(ast::NamedElement& type, F&& yield, bool local = false) {
   if (auto* const enumeration = as<ast::Enumeration>(&type)) {
     for (ast::EnumerationLiteral* const literal : enumeration->literal)
       if (literal != nullptr && !literal->name.empty())
@@ -78,7 +77,7 @@ void each_published_member(ast::NamedElement& type, F&& yield) {
     // Only constants travel outside their container: a field is read through
     // the instance that holds it, never by name from another document.
     if (cursiv::ast_cast<ast::Constant>(member) == nullptr) continue;
-    if (!is_published(*member, &type)) continue;
+    if (!local && !is_published(*member, &type)) continue;
     yield(static_cast<cursiv::AstNode&>(*member), member->name);
   }
 }
@@ -93,7 +92,7 @@ void XsmpScopeComputation::exportType(
           type, name, &document))
     exported.push_back(*std::move(description));
 
-  each_published_member(
+  each_named_value(
       type, [&](cursiv::AstNode& member, std::string_view leaf) {
         if (auto description =
                 services.astNodeDescriptionProvider->createDescription(
@@ -163,7 +162,7 @@ std::vector<cursiv::AstNodeDescription> XsmpScopeComputation::qualifyInto(
     } else {
       // ...and a sibling of a type names its members the same way, `Type.Leaf`
       // from here and dotted again by every namespace above.
-      each_published_member(
+      each_named_value(
           *element, [&](cursiv::AstNode& member, std::string_view leaf) {
             auto description =
                 services.astNodeDescriptionProvider->createDescription(
@@ -171,7 +170,7 @@ std::vector<cursiv::AstNodeDescription> XsmpScopeComputation::qualifyInto(
             if (!description) return;
             symbols.add(&ns, *description);
             contributed.push_back(*std::move(description));
-          });
+          }, true);
     }
     if (auto description =
             services.astNodeDescriptionProvider->createDescription(*element, {},

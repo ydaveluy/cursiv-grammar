@@ -52,6 +52,8 @@ int main() {
     {"quoted-adjacency","function(probe)\nendfunction()\nprobe(\"a\"b c\"d\" \"e\"\"f\")\n",{"a","b","c\"d\"","e","f"}},
     {"bracket-close-runs","function(probe)\nendfunction()\nprobe([==[a ]===] b ]] c]==])\n",{"a ]===] b ]] c"}},
     {"crlf","function(probe)\nendfunction()\nprobe([[\r\na\r\nb]] \"x\r\ny\" \"a\\\r\nb\")\n",{"a\nb","x\ny","ab"}},
+    {"bracket-before-parentheses","function(probe)\nendfunction()\nprobe([[a]](b))\n",{"a","(","b",")"}},
+    {"bracket-comment-after-unquoted","function(probe)\nendfunction()\nprobe(a#[[comment]] b)\n",{"a","b"}},
     {"bom","﻿function(probe)\nendfunction()\nprobe(a)\n",{"a"}},
   };
   for (const auto& c : cases) {
@@ -77,6 +79,11 @@ int main() {
     Invalid{"function(probe)\nendfunction()\nprobe(a\\qb \"\\1\")\n","Invalid character escape"},
     Invalid{"function(probe)\nendfunction()\nprobe\n(a)\n","Only spaces"},
     Invalid{"function(probe)\nendfunction()\nprobe(a) probe(b)\n","new line"},
+    Invalid{"function(probe)\nendfunction()\nprobe([[a]]b)\n","Argument not separated"},
+    Invalid{"function(probe)\nendfunction()\nprobe([[a]]\"b\")\n","Argument not separated"},
+    Invalid{"function(probe)\nendfunction()\nprobe(\"a\"[[b]])\n","Argument not separated"},
+    Invalid{"function(probe)\nendfunction()\nprobe((a)[[b]])\n","Argument not separated"},
+    Invalid{"function(probe)\nendfunction()\nprobe(#[[comment]]a)\n","Argument not separated"},
     Invalid{"function(probe)\nendfunction()\nif(TRUE)\nprobe(a)\n","Missing endif"},
   }) {
     const auto parse = language.language.parser->parse(c.text);
@@ -87,5 +94,5 @@ int main() {
       if (diagnostic.message.find(c.message) != std::string::npos) found = true;
     if (!found) { std::fprintf(stderr, "cmake: missing runtime error: %s\n", c.message); return 1; }
   }
-  std::printf("cmake: %zu native argument cases and 5 runtime diagnostics\n", cases.size());
+  std::printf("cmake: %zu native argument cases and 10 runtime diagnostics\n", cases.size());
 }

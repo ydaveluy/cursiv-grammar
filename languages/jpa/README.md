@@ -32,7 +32,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 ## The sample
 
 JPA is JPQL, the Java Persistence Query Language: a SQL-shaped language over
-entities and their fields rather than tables and columns.
+entities and their fields rather than tables and columns. This port models
+the Java Persistence 1.0 query syntax, with generic expression/path AST nodes.
 
 ```
 SELECT o FROM Order o

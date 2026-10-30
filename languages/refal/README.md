@@ -40,13 +40,7 @@ Pal { = True;
      e.1 = False;  }
 ```
 
-A Refal program is definitions: functions (`$ENTRY` marks the one execution
-starts at) and `$EXTERNAL`/`$EXTERN`/`$EXTRN` declarations. A function is
-sentences, each a pattern matched left to right against the call, guard
-conditions (`, arg : pattern`), and either a result expression or a nested
-block (`, arg : { ... }`). A pattern or a result is symbols (words, numbers,
-quoted text, escapes), pattern variables (`s.name` one symbol, `t.name` one
-term, `e.name` any run), and nested calls (`<...>`), evaluated inside out.
+Refal-5 source syntax, with structural expressions, activation calls and typed symbols.
 
 ## The command line
 

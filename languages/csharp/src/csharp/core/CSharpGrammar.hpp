@@ -60,11 +60,7 @@ struct CSharp : cursiv::GrammarSpec {
   // digits (Nd), connectors (Pc) and marks (Mn, Mc, Cf).
   static constexpr auto word_boundary = uc::L | uc::Nl | uc::Mn | uc::Mc |
                                         uc::Nd | uc::Pc | uc::Cf | cr<R"(_\\)">;
-  struct ID
-      : terminal<(option(lit<"@">) + (uc::L | uc::Nl | cr<"_"> | IdEsc) +
-                 many(uc::L | uc::Nl | uc::Mn | uc::Mc | uc::Nd | uc::Pc |
-                      uc::Cf | cr<"_"> | IdEsc)),
-                 text_conv<strip_at>> {};
+
   struct Underscore : terminal<kw<"_">> {};
 
   // A data rule (its own named rule, not spliced inline): `assign<>` needs a
@@ -92,6 +88,11 @@ struct CSharp : cursiv::GrammarSpec {
       kw<"void"> | kw<"volatile"> | kw<"while"> | kw<"__arglist"> |
       kw<"__makeref"> | kw<"__reftype"> | kw<"__refvalue">;
 
+  struct ID : terminal<as<strip_at>(
+                  (!ReservedWord + option(lit<"@">) + (uc::L | uc::Nl | cr<"_"> | IdEsc) +
+                   many(uc::L | uc::Nl | uc::Mn | uc::Mc | uc::Nd | uc::Pc |
+                        uc::Cf | cr<"_"> | IdEsc)))> {};
+
   // A contextual keyword is spelled with `kw<>` at its own syntax position,
   // and admitted here too: where a state reads both, the keyword takes the
   // spelling, so the name side must name it to stay a name.
@@ -104,7 +105,7 @@ struct CSharp : cursiv::GrammarSpec {
       kw<"unmanaged"> | kw<"var"> | kw<"when"> | kw<"where"> | kw<"yield"> |
       kw<"record"> | kw<"init"> | kw<"required"> | kw<"file"> | kw<"global"> |
       kw<"with"> | kw<"and"> | kw<"or"> | kw<"not"> | kw<"scoped"> |
-      kw<"managed">;
+      kw<"managed"> | kw<"allows">;
 
   struct Ident : rule<ref<ID> | ContextualWord> {};
 
@@ -127,7 +128,7 @@ struct CSharp : cursiv::GrammarSpec {
   static constexpr auto Gt = lit<">", !cr<"=">>;
 
   // -- Literals ----
-  static constexpr auto SimpleEsc = lit<"\\"> + cr<R"('"\\0abfnrtv)">;
+  static constexpr auto SimpleEsc = lit<"\\"> + cr<R"('"\\0abefnrtv)">;
   static constexpr auto HexEsc = lit<"\\x"> + cr<"0-9a-fA-F"> +
                                   option(cr<"0-9a-fA-F">) +
                                   option(cr<"0-9a-fA-F">) +
@@ -136,7 +137,10 @@ struct CSharp : cursiv::GrammarSpec {
                                   (lit<"\\U"> + repeat<8>(cr<"0-9a-fA-F">));
   static constexpr auto AnyEsc = UniEsc | HexEsc | SimpleEsc;
 
-  static constexpr auto DecRun = many(cr<"0-9_">);
+  static constexpr auto DecRun = many(many(lit<"_">) + cr<"0-9">);
+  static constexpr auto HexDigit = many(lit<"_">) + cr<"0-9a-fA-F">;
+  static constexpr auto BinaryDigit = many(lit<"_">) + cr<"01">;
+  static constexpr auto Utf8Suffix = lit<"u8"> | lit<"U8">;
   static constexpr auto Exponent =
       cr<"eE"> + option(cr<"+-">) + cr<"0-9"> + DecRun;
   static constexpr auto RealSuffix = cr<"FfDdMm">;
@@ -150,9 +154,9 @@ struct CSharp : cursiv::GrammarSpec {
                   option(Exponent) + option(RealSuffix)) |
                  (lit<"."> + cr<"0-9"> + DecRun + option(Exponent) +
                   option(RealSuffix)) |
-                 (lit<"0"> + cr<"xX"> + some(cr<"0-9a-fA-F_">) +
+                 (lit<"0"> + cr<"xX"> + some(HexDigit) +
                   option(IntSuffix)) |
-                 (lit<"0"> + cr<"bB"> + some(cr<"01_">) + option(IntSuffix)) |
+                 (lit<"0"> + cr<"bB"> + some(BinaryDigit) + option(IntSuffix)) |
                  (cr<"0-9"> + DecRun + Exponent + option(RealSuffix)) |
                  (cr<"0-9"> + DecRun + RealSuffix) |
                  (cr<"0-9"> + DecRun + option(IntSuffix))> {};
@@ -162,13 +166,15 @@ struct CSharp : cursiv::GrammarSpec {
   };
   struct STRING
       : terminal<lit<"\""> + many(AnyEsc | cr<"^\"\\\r\n\u0085\u2028\u2029">) +
-                 lit<"\""> + option(lit<"u8">)> {};
+                 lit<"\""> + option(Utf8Suffix)> {};
   struct RawDelimiter {};
   struct RAW_STRING
       : terminal<through(mark<RawDelimiter>(repeat<3, cursiv::kUnbounded>(
-                      lit<"\"">)), same<RawDelimiter>)+option(lit<"u8">)> {};
+                      lit<"\"">)) + !lit<"\"">,
+                  same<RawDelimiter> + !lit<"\"">)+option(Utf8Suffix)> {};
   struct VERBATIM_STRING
-      : terminal<lit<"@\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">> {};
+      : terminal<lit<"@\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\""> +
+                 option(Utf8Suffix)> {};
 
   // -- Interpolated strings: fused delimiters, like a template literal -- the
   // hole's expression is ordinary grammar, not lexer state.
@@ -177,14 +183,13 @@ struct CSharp : cursiv::GrammarSpec {
   static constexpr auto VerbatimRun =
       many(lit<"{{"> | lit<"}}"> | lit<"\"\""> | cr<R"(^"{})">);
 
-  struct IStrOpen : terminal<lit<"$\""> + RegularRun, text_conv<drop2>> {};
-  struct IStrClose : terminal<lit<"}"> + RegularRun, text_conv<drop1>> {};
-  struct IStrFormat : terminal<lit<":"> + RegularRun, text_conv<drop1>> {};
+  struct IStrOpen : terminal<as<drop2>(lit<"$\""> + RegularRun)> {};
+  struct IStrClose : terminal<as<drop1>(lit<"}"> + RegularRun)> {};
+  struct IStrFormat : terminal<as<drop1>(lit<":"> + RegularRun)> {};
   struct IVStrOpen
-      : terminal<(lit<"$@\""> | lit<"@$\"">) + VerbatimRun,
-                 text_conv<drop3>> {};
-  struct IVStrClose : terminal<lit<"}"> + VerbatimRun, text_conv<drop1>> {};
-  struct IVStrFormat : terminal<lit<":"> + VerbatimRun, text_conv<drop1>> {};
+      : terminal<as<drop3>((lit<"$@\""> | lit<"@$\"">)+VerbatimRun)> {};
+  struct IVStrClose : terminal<as<drop1>(lit<"}"> + VerbatimRun)> {};
+  struct IVStrFormat : terminal<as<drop1>(lit<":"> + VerbatimRun)> {};
 
   struct RegularHole_
       : rule<create<ast::InterpolationHole>(
@@ -355,11 +360,12 @@ struct CSharp : cursiv::GrammarSpec {
             assign<&ast::TypeParam::name>(ref<Ident>))> {};
 
   struct ClassConstraint_ : rule<kw<"class"> + option(lit<"?">)> {};
+  struct RefStructConstraint_ : rule<kw<"allows"> + kw<"ref"> + kw<"struct">> {};
 
   static constexpr auto ConstraintItem =
       append<&ast::TypeParamConstraintClause::keywordConstraints>(
           ref<ClassConstraint_> | kw<"struct"> | kw<"notnull"> |
-          kw<"unmanaged">) |
+          kw<"unmanaged"> | kw<"default"> | ref<RefStructConstraint_>) |
       flag<&ast::TypeParamConstraintClause::hasNew>(kw<"new"> +
                                                           lit<"("> +
                                                           lit<")">) |
@@ -398,7 +404,7 @@ struct CSharp : cursiv::GrammarSpec {
                        ref<Argument_>),
                    lit<",">) +
               lit<"]">)) +
-            lit<"="> +
+            lit<"="> + option(flag<&ast::ObjectInitMember::isRef>(kw<"ref">)) +
             assign<&ast::ObjectInitMember::value>(
                 ref<Expression_> | ref<ArrayInitializerExpr_> |
                 ref<ObjectInitializerExpr_>))> {};
@@ -521,9 +527,8 @@ struct CSharp : cursiv::GrammarSpec {
                  assign<&ast::UnaryPattern::operand>(ref<NegatedPattern_>)) |
              ref<PrimaryPattern_>> {};
 
-  struct Pattern_ : infix<NegatedPattern_, &ast::BinaryPattern::left,
-                          &ast::BinaryPattern::op, &ast::BinaryPattern::right,
-                          (left(kw<"and">) >> left(kw<"or">))> {};
+  struct Pattern_ : infix<NegatedPattern_, ast::BinaryPattern,
+                          levels(left(kw<"and">), left(kw<"or">))> {};
 
   // -- Expressions: primary chain ----
   struct SimpleNameExpr_
@@ -656,12 +661,23 @@ struct CSharp : cursiv::GrammarSpec {
                    assign<&ast::DefaultExpr::typeRef>(ref<TypeNode>) +
                    lit<")">))> {};
 
+  // A closed generic named entity needs its type arguments in the AST.
+  // Keep the existing text representation for simple/unbound names.
+  struct NameofEntityExpr_
+      : rule<(ref<SimpleNameExpr_> | create<ast::ThisExpr>(kw<"this">) |
+              create<ast::BaseExpr>(kw<"base">)) +
+             many(nest<ast::MemberExpr, &ast::MemberExpr::target>(
+                 lit<"."> + assign<&ast::MemberExpr::member>(ref<Ident>) +
+                 option(Lt + some(append<&ast::MemberExpr::typeArguments>(
+                                      ref<TypeNode>), lit<",">) + Gt)))> {};
+
   struct NameofExpr_
       : rule<create<ast::NameofExpr>(
             kw<"nameof"> + lit<"("> +
-            assign<&ast::NameofExpr::text>(
-                ref<DottedNameTail_> | kw<"this"> | kw<"base"> |
-                PredefinedTypeKw) +
+            (assign<&ast::NameofExpr::text>(
+                 ref<DottedNameTail_> | kw<"this"> | kw<"base"> |
+                 PredefinedTypeKw) |
+             assign<&ast::NameofExpr::target>(ref<NameofEntityExpr_>)) +
             lit<")">)> {};
 
   struct StackallocExpr_
@@ -694,7 +710,8 @@ struct CSharp : cursiv::GrammarSpec {
                  lit<")">)> {};
 
   static constexpr auto ImplicitLambdaParam =
-      create<ast::Param>(assign<&ast::Param::name>(ref<Ident>));
+      create<ast::Param>(attributes<&ast::Param::attributes> +
+                         assign<&ast::Param::name>(ref<Ident>));
   static constexpr auto ExplicitLambdaParam = ref<Param_>;
 
   static constexpr auto LambdaSignature =
@@ -720,8 +737,8 @@ struct CSharp : cursiv::GrammarSpec {
 
   struct AnonymousMethodExpr_
       : rule<create<ast::AnonymousMethodExpr>(
-            option(flag<&ast::AnonymousMethodExpr::isAsync>(
-                kw<"async">)) +
+            many(flag<&ast::AnonymousMethodExpr::isAsync>(kw<"async">) |
+                 flag<&ast::AnonymousMethodExpr::isStatic>(kw<"static">)) +
             kw<"delegate"> +
             option(flag<&ast::AnonymousMethodExpr::hasParamList>(
                        lit<"(">) +
@@ -917,24 +934,22 @@ struct CSharp : cursiv::GrammarSpec {
   static constexpr auto OpAdd = lit<"+"> | lit<"-">;
 
   struct AdditiveLevel_
-      : infix<SwitchExpr_, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, (left(OpMul) >> left(OpAdd))> {};
+      : infix<SwitchExpr_, ast::BinaryExpr, levels(left(OpMul), left(OpAdd))> {
+  };
 
-  // `<<`/`>>` open on the same token as the relational operators one level
-  // up: kept out of the infix table below and hand-rolled, like `>>`
-  // splitting into two adjacent `>` for a nested generic close.
-  struct ShiftOp_ : rule<(Lt + Lt) | (Gt + Gt + Gt) | (Gt + Gt)> {};
+  // Keep generic closers as individual tokens while requiring adjacent
+  // characters for shift operators.
+  struct RightShiftOp_
+      : rule<(Gt + gap::none + Gt + gap::none + Gt) |
+             (Gt + gap::none + Gt)> {};
+  struct ShiftOp_ : rule<(Lt + gap::none + Lt) | ref<RightShiftOp_>> {};
   struct ShiftExpr_
-      : rule<ref<AdditiveLevel_> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(ref<ShiftOp_>) +
-                 assign<&ast::BinaryExpr::right>(ref<AdditiveLevel_>)))> {};
+      : infix<AdditiveLevel_, ast::BinaryExpr, left(ref<ShiftOp_>)> {};
 
   static constexpr auto OpRel = lit<"<="> | Gt | lit<">="> | Lt;
 
   struct RelationalAndBelow_
-      : infix<ShiftExpr_, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(OpRel)> {};
+      : infix<ShiftExpr_, ast::BinaryExpr, left(OpRel)> {};
 
   // `is`/`as` read a type or pattern, not another expression, so they sit
   // outside the infix table; the whole thing is itself a relational
@@ -958,10 +973,9 @@ struct CSharp : cursiv::GrammarSpec {
   static constexpr auto OpLogOr = lit<"||">;
 
   struct EqualityAndAbove_
-      : infix<IsAsExpr_, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpEq) >> left(OpBitAnd) >> left(OpBitXor) >>
-               left(OpBitOr) >> left(OpLogAnd) >> left(OpLogOr))> {};
+      : infix<IsAsExpr_, ast::BinaryExpr,
+              levels(left(OpEq), left(OpBitAnd), left(OpBitXor), left(OpBitOr),
+                     left(OpLogAnd), left(OpLogOr))> {};
 
   struct NullCoalesceExpr_
       : rule<create<ast::BinaryExpr>(
@@ -990,6 +1004,7 @@ struct CSharp : cursiv::GrammarSpec {
 
   struct DeclarationExpr_
       : rule<create<ast::DeclarationExpr>(
+            option(flag<&ast::DeclarationExpr::scoped>(kw<"scoped">)) +
             assign<&ast::DeclarationExpr::typeRef>(ref<TypeNode>) +
             assign<&ast::DeclarationExpr::name>(ref<Ident>))> {};
 
@@ -1000,11 +1015,23 @@ struct CSharp : cursiv::GrammarSpec {
   static constexpr auto CompoundAssignOp =
       lit<"+="> | lit<"-="> | lit<"*="> | lit<"/="> | lit<"%="> |
       lit<"&="> | lit<"|="> | lit<"^="> | lit<"<<="> | lit<"?" "?=">;
-  struct RightShiftAssignOp_ : rule<(Gt + Gt + lit<">=">) | (Gt + lit<">=">)> {
-  };
+  struct RightShiftAssignOp_
+      : rule<(Gt + gap::none + Gt + gap::none + lit<">=">) |
+             (Gt + gap::none + lit<">=">)> {};
+
+  struct DeconstructionTarget_
+      : rule<create<ast::DeconstructionExpr>(
+            kw<"var"> + &lit<"("> +
+            assign<&ast::DeconstructionExpr::designation>(ref<Designation_>))> {};
+
+  struct DeconstructingAssignment_
+      : rule<create<ast::AssignExpr>(
+            assign<&ast::AssignExpr::target>(ref<DeconstructionTarget_>) +
+            assign<&ast::AssignExpr::op>(lit<"=">) +
+            assign<&ast::AssignExpr::value>(ref<Expression_>))> {};
 
   struct Expression_
-      : rule<create<ast::AssignExpr>(
+      : rule<ref<DeconstructingAssignment_> | create<ast::AssignExpr>(
             assign<&ast::AssignExpr::target>(ref<NonAssignmentExpr_>) +
             ((assign<&ast::AssignExpr::op>(lit<"=">) +
               option(flag<&ast::AssignExpr::refValue>(kw<"ref">)) +
@@ -1022,6 +1049,7 @@ struct CSharp : cursiv::GrammarSpec {
 
   // Shared with `UsingStmt_`'s resource clause, which is not `;`-terminated.
   static constexpr auto LocalVarDeclBody =
+      option(flag<&ast::LocalVarDeclStmt::scoped>(kw<"scoped">)) +
       option(assign<&ast::LocalVarDeclStmt::refKind>(
           ref<RefKind_>)) +
       VarOrType +
@@ -1046,10 +1074,11 @@ struct CSharp : cursiv::GrammarSpec {
             lit<";">)> {};
 
   static constexpr auto LocalFunctionModifierKw =
-      kw<"static"> | kw<"unsafe"> | kw<"async">;
+      kw<"static"> | kw<"unsafe"> | kw<"async"> | kw<"extern">;
 
   struct LocalFunctionDeclStmt_
       : rule<create<ast::LocalFunctionDeclStmt>(
+            attributes<&ast::LocalFunctionDeclStmt::attributes> +
             many(append<&ast::LocalFunctionDeclStmt::modifiers>(
                 LocalFunctionModifierKw)) +
             option(assign<&ast::LocalFunctionDeclStmt::refKind>(
@@ -1076,7 +1105,7 @@ struct CSharp : cursiv::GrammarSpec {
                   kw<"ref">)) +
               assign<&ast::LocalFunctionDeclStmt::exprBody>(
                   ref<Expression_>) +
-              lit<";">)))> {};
+              lit<";">) | lit<";">))> {};
 
   struct UsingDeclStmt_
       : rule<create<ast::UsingDeclStmt>(
@@ -1171,12 +1200,13 @@ struct CSharp : cursiv::GrammarSpec {
       : rule<create<ast::ForeachStmt>(
             option(flag<&ast::ForeachStmt::isAwait>(kw<"await">)) +
             kw<"foreach"> + lit<"("> +
-            option(assign<&ast::ForeachStmt::refKind>(
-                ref<RefKind_>)) +
-            ((flag<&ast::ForeachStmt::isVar>(kw<"var">)) |
-             assign<&ast::ForeachStmt::typeRef>(ref<TypeNode>)) +
-            (assign<&ast::ForeachStmt::name>(ref<Ident>) |
-             assign<&ast::ForeachStmt::deconstruct>(ref<Designation_>)) +
+            option(flag<&ast::ForeachStmt::scoped>(kw<"scoped">)) +
+            ((option(assign<&ast::ForeachStmt::refKind>(ref<RefKind_>)) +
+              (flag<&ast::ForeachStmt::isVar>(kw<"var">) |
+               assign<&ast::ForeachStmt::typeRef>(ref<TypeNode>)) +
+              (assign<&ast::ForeachStmt::name>(ref<Ident>) |
+               assign<&ast::ForeachStmt::deconstruct>(ref<Designation_>))) |
+             assign<&ast::ForeachStmt::deconstructExpression>(ref<TupleExpr_>)) +
             kw<"in"> +
             assign<&ast::ForeachStmt::collection>(ref<Expression_>) +
             lit<")"> +
@@ -1305,6 +1335,7 @@ struct CSharp : cursiv::GrammarSpec {
       : rule<create<ast::FieldDecl>(
             attributes<&ast::FieldDecl::attributes> +
             many(append<&ast::FieldDecl::modifiers>(ModifierKw)) +
+            option(assign<&ast::FieldDecl::refKind>(ref<RefKind_>)) +
             assign<&ast::FieldDecl::typeRef>(ref<TypeNode>) +
             some(append<&ast::FieldDecl::declarators>(ref<Declarator_>),
                  lit<",">) +
@@ -1346,7 +1377,7 @@ struct CSharp : cursiv::GrammarSpec {
               option(lit<"="> +
                      assign<&ast::PropertyDecl::initializer>(ref<Expression_>) +
                      lit<";">)) |
-             (lit<"=>"> + option(kw<"ref">) +
+             (lit<"=>"> + option(flag<&ast::PropertyDecl::isRefBody>(kw<"ref">)) +
               assign<&ast::PropertyDecl::exprBody>(ref<Expression_>) +
               lit<";">)))> {};
 
@@ -1364,7 +1395,7 @@ struct CSharp : cursiv::GrammarSpec {
             ((lit<"{"> +
               some(append<&ast::IndexerDecl::accessors>(ref<Accessor_>)) +
               lit<"}">) |
-             (lit<"=>"> + option(kw<"ref">) +
+             (lit<"=>"> + option(flag<&ast::IndexerDecl::isRefBody>(kw<"ref">)) +
               assign<&ast::IndexerDecl::exprBody>(ref<Expression_>) +
               lit<";">)))> {};
 
@@ -1412,10 +1443,9 @@ struct CSharp : cursiv::GrammarSpec {
                                                lit<"!"> | lit<"~"> |
                                                lit<"++"> | lit<"--"> |
                                                kw<"true"> | kw<"false">;
-  struct OverloadableRightShift_ : rule<(Gt + Gt + Gt) | (Gt + Gt)> {};
   static constexpr auto OverloadableBinaryOp =
       lit<"+"> | lit<"-"> | lit<"*"> | lit<"/"> | lit<"%"> | lit<"&"> |
-      lit<"|"> | lit<"^"> | lit<"<<"> | ref<OverloadableRightShift_> |
+      lit<"|"> | lit<"^"> | lit<"<<"> | ref<RightShiftOp_> |
       lit<"=="> | lit<"!="> | Gt | Lt | lit<">="> | lit<"<=">;
 
   struct OperatorDecl_
@@ -1587,9 +1617,9 @@ struct CSharp : cursiv::GrammarSpec {
                         lit<",">)) +
             many(append<&ast::InterfaceDecl::constraints>(
                 ref<TypeParamConstraintClause_>)) +
-            lit<"{"> +
-            many(append<&ast::InterfaceDecl::members>(ref<Member_>)) +
-            lit<"}"> + option(lit<";">))> {};
+            ((lit<"{"> +
+              many(append<&ast::InterfaceDecl::members>(ref<Member_>)) +
+              lit<"}"> + option(lit<";">)) | lit<";">))> {};
 
   struct EnumMember_ : rule<create<ast::EnumMember>(
                            attributes<&ast::EnumMember::attributes> +
@@ -1603,11 +1633,10 @@ struct CSharp : cursiv::GrammarSpec {
             many(append<&ast::EnumDecl::modifiers>(ModifierKw)) + kw<"enum"> +
             assign<&ast::EnumDecl::name>(ref<Ident>) +
             option(lit<":"> + assign<&ast::EnumDecl::baseType>(ref<TypeNode>)) +
-            lit<"{"> +
-            option(some(append<&ast::EnumDecl::members>(ref<EnumMember_>),
-                        lit<",">) +
-                   option(lit<",">)) +
-            lit<"}"> + option(lit<";">))> {};
+            ((lit<"{"> +
+              option(some(append<&ast::EnumDecl::members>(ref<EnumMember_>),
+                          lit<",">) + option(lit<",">)) +
+              lit<"}"> + option(lit<";">)) | lit<";">))> {};
 
   struct DelegateDecl_
       : rule<create<ast::DelegateDecl>(
@@ -1687,7 +1716,7 @@ struct CSharp : cursiv::GrammarSpec {
   };
 
   using entry = CompilationUnit_;
-  using ignore = list<WS, DIRECTIVE>;
+  using ignored = list<WS, DIRECTIVE>;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

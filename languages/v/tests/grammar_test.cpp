@@ -1,4 +1,5 @@
 #include "audit_regressions.hpp"
+#include "native_followup_cases.hpp"
 // The smoke test of the language: every document in example/ parses clean
 // (no repair, no diagnostic), and one of them is read back for the values
 // its declarations actually hold -- a converter that silently drops or
@@ -47,6 +48,7 @@ int main() {
   if (!audit_regressions::run()) return 1;
   const auto language = cursiv::create_language<
       v::VCoreServices, v::VSharedCoreServices, v::install_core_module>();
+  if (!v_followup::run(language)) return 1;
 
   std::vector<fs::path> samples;
   // `features.v` lives beside this test, not in the corpus: the one upstream
@@ -93,7 +95,7 @@ int main() {
     return fail("helloworld.v: areas[0] should read 'game'");
 
   const auto* const loop = as<v::ast::ForStmt>(fn->body->stmts[1]);
-  if (loop == nullptr || loop->inIterable != "areas" ||
+  if (loop == nullptr || (!as<v::ast::Ident>(loop->inIterable) || as<v::ast::Ident>(loop->inIterable)->name != "areas") ||
       loop->inTargets.size() != 1)
     return fail("helloworld.v: the for-in loop was not read back");
   const auto* const target = as<v::ast::Ident>(loop->inTargets[0]);

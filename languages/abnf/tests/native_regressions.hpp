@@ -59,7 +59,8 @@ inline bool native_regressions(const auto& services) {
       {"a = \"x\"\"y\"\r\n", "Separate concatenated"},
       {"a = \"x\"\r\n/ \"y\"\r\n", "must be indented"},
       {"a = 2 \"x\"\r\n", "attached"},
-      {"a = 1 *2\"x\"\r\n", "attached"}}) {
+      {"a = 1 *2\"x\"\r\n", "attached"},
+      {"a = \"x\" b = \"y\"\r\n", "new line"}}) {
     const auto r = services.parser->parse(c.text);
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
           "invalid form reaches runtime validation");

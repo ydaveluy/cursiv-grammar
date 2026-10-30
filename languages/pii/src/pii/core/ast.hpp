@@ -10,17 +10,17 @@ namespace pii::ast {
 struct Identifier : cursiv::Extends<cursiv::AstNode> {};
 
 struct Issn : cursiv::Extends<Identifier> {
-  string_view digits;  // the 8 compacted ISSN digits
+  string_view digits;  // 7 digits and an ISSN check character (digit or X)
   string_view year;
 };
 
 struct Isbn : cursiv::Extends<Identifier> {
-  string_view digits;  // the 10 ISBN digits
+  string_view digits;  // compact ISBN-10 (possibly ending in X) or ISBN-13
 };
 
 struct Doc : cursiv::Extends<cursiv::AstNode> {
   Identifier* id;
-  string_view item;   // 5 digits
+  string_view item;   // 5 characters; an issue identifier may begin with X
   string_view check;  // one digit, or 'X'
 };
 

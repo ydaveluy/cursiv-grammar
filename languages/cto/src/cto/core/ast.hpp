@@ -10,10 +10,15 @@
 
 namespace cto::ast {
 
+struct DecoratorIdentifier : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  boolean isArray;
+};
+
 // Namespace scope, so the AstNode vocabulary is out of reach here and the
 // std spelling is the only one.
 using Val = std::variant<std::monostate, bool, std::int64_t, double,
-                         std::string_view>;
+                         std::string_view, DecoratorIdentifier*>;
 
 struct Decorator : cursiv::Extends<cursiv::AstNode> {
   string_view name;
@@ -25,6 +30,7 @@ struct Decorator : cursiv::Extends<cursiv::AstNode> {
 // plus `isReference` tell them apart, `regex`/`rangeMin`/`rangeMax` apply
 // only to the string/numeric kinds the grammar allows them on.
 struct Property : cursiv::Extends<cursiv::AstNode> {
+  vector<Decorator*> decorators;
   string_view typeName;
   boolean isReference;
   boolean isArray;
@@ -32,12 +38,15 @@ struct Property : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   Val defaultValue;
   string_view regex;
+  string_view regexFlags;
   optional<float64> rangeMin;
   optional<float64> rangeMax;
 };
 
 struct EnumConstant : cursiv::Extends<cursiv::AstNode> {
+  vector<Decorator*> decorators;
   string_view name;
+  boolean isOptional;
 };
 
 struct Declaration : cursiv::Extends<cursiv::AstNode> {
@@ -45,12 +54,12 @@ struct Declaration : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct EnumDeclaration : cursiv::Extends<Declaration> {
+  vector<Decorator*> decorators;
   vector<EnumConstant*> constants;
 };
 
-// asset/concept/participant/transaction/event share this shape; a plain
-// declaration (event, and transaction) simply leaves decorators/extends/
-// identifiedBy at their default.
+// The five class kinds share decorators, abstractness, heritage and fields.
+// Concepts leave identifiedBy empty; the grammar controls each kind.
 struct ClassDeclaration : cursiv::Extends<Declaration> {
   vector<Decorator*> decorators;
   boolean isAbstract;
@@ -68,6 +77,7 @@ struct EventDeclaration : cursiv::Extends<ClassDeclaration> {};
 struct Import : cursiv::Extends<cursiv::AstNode> {
   string_view path;
   boolean wildcard;
+  optional<string_view> uri;
 };
 
 struct Model : cursiv::Extends<cursiv::AstNode> {

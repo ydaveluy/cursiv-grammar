@@ -2,9 +2,8 @@
 ' diagram, an interface, a stereotype, EXTENDS, an enum, associative
 ' classes and comments.
 @startuml Constructs
-// a slash-slash comment
-/* a block
-   comment */
+/' a block
+   comment '/
 interface Shape <<abstract>> {
   area() : Real
 }

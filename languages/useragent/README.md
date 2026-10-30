@@ -31,13 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+HTTP User-Agent values with product tokens, optional versions and nested comments.
+
 ```
 Googlebot/2.1 (+http://www.google.com/bot.html)
 ```
-
-A document is one or more products in a row: a name, `/`, a dotted version,
-and an optional `(...)` comment. `example/` contains five real User-Agent
-strings.
 
 ## The command line
 

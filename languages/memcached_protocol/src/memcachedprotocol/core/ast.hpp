@@ -67,14 +67,22 @@ struct FlushCommand : cursiv::Extends<Command> {
   boolean noreply;
 };
 
-struct VersionCommand : cursiv::Extends<Command> {};
+struct VersionCommand : cursiv::Extends<Command> {
+  vector<string_view> arguments;
+};
 
 struct VerbosityCommand : cursiv::Extends<Command> {
   string_view level;
   boolean noreply;
 };
 
-struct QuitCommand : cursiv::Extends<Command> {};
+struct QuitCommand : cursiv::Extends<Command> {
+  vector<string_view> arguments;
+};
+struct AdministrationCommand : cursiv::Extends<Command> {
+  string_view operation;
+  vector<string_view> arguments;
+};
 
 struct CommandLine : cursiv::Extends<cursiv::AstNode> {
   vector<Command*> commands;

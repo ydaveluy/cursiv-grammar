@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <charconv>
 #include <memory>
+#include "racketbsl/core/validation/ReaderChecks.hpp"
 #include <string>
 #include <vector>
 
@@ -39,12 +40,38 @@ void expression(const ast::Datum *datum, cursiv::ValidationAcceptor &accept) {
   expression(list->tail, accept);
 }
 } // namespace
+void RacketBslValidator::checkString(const ast::String &node, cursiv::ValidationAcceptor &accept) const {
+  if (!reader::string(node.text)) accept.error(node, "Invalid reader string escape or byte character.", "racketbsl.reader.string");
+}
+void RacketBslValidator::checkBytes(const ast::Bytes &node, cursiv::ValidationAcceptor &accept) const {
+  if (!reader::string(node.text)) accept.error(node, "Invalid reader string escape or byte character.", "racketbsl.reader.string");
+}
+void RacketBslValidator::checkRegex(const ast::Regex &node, cursiv::ValidationAcceptor &accept) const {
+  if (!reader::string(node.text)) accept.error(node, "Invalid reader string escape or byte character.", "racketbsl.reader.string");
+}
+void RacketBslValidator::checkAtom(const ast::Atom &node, cursiv::ValidationAcceptor &accept) const {
+  if (!reader::number(node.text)) accept.error(node, "Invalid numeric reader spelling.", "racketbsl.reader.number");
+}
 void RacketBslValidator::checkList(const ast::List &list,
                                    cursiv::ValidationAcceptor &accept) const {
   const auto *outer = cursiv::ast_cast<ast::List>(list.parent);
   const bool hashPair = outer && outer->opener.size() >= 5 &&
                         outer->opener.front() == '#' &&
                         (outer->opener[1] == 'h' || outer->opener[1] == 'H');
+  std::string opener(list.opener);
+  for (char &c : opener) if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+  if (opener.starts_with("#fx") || opener.starts_with("#fl"))
+    accept.error(list, "Literal typed vectors are not enabled in syntax reading.", "racketbsl.reader.vector");
+  if (opener.starts_with("#hash"))
+    for (const auto *item : list.items) {
+      if (cursiv::ast_cast<ast::Discard>(item) || cursiv::ast_cast<ast::Directive>(item)) continue;
+      const auto *pair = cursiv::ast_cast<ast::List>(item);
+      std::size_t keys = 0;
+      if (pair) for (const auto *key : pair->items)
+        keys += !cursiv::ast_cast<ast::Discard>(key) && !cursiv::ast_cast<ast::Directive>(key);
+      if (!pair || pair->opener.size() != 1 || keys != 1 || !pair->tail)
+        accept.error(list, "A hash entry needs one key, a dot and one value.", "racketbsl.reader.hash");
+    }
   if (list.tail && !hashPair)
     accept.error(list,
                  "Dotted lists are not enabled in Beginning Student Language.",
@@ -125,7 +152,11 @@ void register_validation_checks(RacketBslCoreServices &services) {
   services.validator = std::make_unique<const V>(services);
   const auto &validator = *services.validator;
   services.validationRegistry->registerChecks(
-      {cursiv::ValidationRegistry::makeValidationCheck<&V::checkList>(
+      {cursiv::ValidationRegistry::makeValidationCheck<&V::checkString>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkBytes>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkRegex>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkAtom>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkList>(
            validator),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkProgram>(
            validator),

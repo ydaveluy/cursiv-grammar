@@ -4,7 +4,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
 endif()
 
 add_executable(tinyosnesc_grammar_test grammar_test.cpp)
-target_link_libraries(tinyosnesc_grammar_test PRIVATE tinyosnescCore)
+target_link_libraries(tinyosnesc_grammar_test PRIVATE tinyosnescCore cursiv::test)
 target_compile_definitions(tinyosnesc_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

@@ -14,6 +14,9 @@
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "refal/core/ast.hpp"
 #include "refal/generated/Refal/Module.hpp"
+#include "refal/core/CoreServices.hpp"
+#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
 
 namespace {
 
@@ -47,9 +50,9 @@ void accepted_texts() {
   CHECK(accepts("F { 42 = True; }"));               // DIGITS
   CHECK(accepts("F { \"a string\" = True; }"));     // STRING
   CHECK(accepts("F { 'a string' = True; }"));       // STRING2
-  CHECK(accepts("F { \\n = True; }"));               // CHAR
-  CHECK(accepts("F { \\x41 = True; }"));             // CHAR, hex form
-  CHECK(accepts("\"Weird Name\" { = True; }"));      // a quoted function name
+  CHECK(accepts("F { '\\n' = True; }"));               // CHAR
+  CHECK(accepts("F { '\\x41' = True; }"));             // CHAR, hex form
+  CHECK(accepts("\"QuotedName\" { = True; }"));      // a quoted function name
   // A bare `s`/`t`/`e` is a plain symbol where no `.` follows -- the same
   // letter that opens a variable, read the other way by what follows it.
   CHECK(accepts("F { s = True; }"));
@@ -162,9 +165,51 @@ void ast_condition_and_block_ending() {
   }
 }
 
+// Refal-5 language definition, sections 1.2-1.4 and syntax summary B.
+void native_followup() {
+  for (const auto source : {
+      "F { (s.1 (e.2)) = (s.1) <G (e.2)>; }",
+      "F { = () (()) <* 3 <+ 1 2>>; }",
+      R"ref(F { = 'a\'b\xAF' "a\"b\n"; })ref"})
+    CHECK(accepts(source));
+  for (const auto source : {
+      "F { <G> = True; }", "F { e.1, e.1 : <G> = True; }",
+      "F { = <>; }", "F { = < G>; }", "F { s. 1 = True; }",
+      R"ref(F { = \n; })ref", R"ref(F { = '\s'; })ref",
+      "F { = 'line\ntransfer'; }"})
+    CHECK(!accepts(source));
+  const auto language=cursiv::create_language<refal::RefalCoreServices,
+      refal::RefalSharedCoreServices,refal::install_core_module>();
+  for (const auto source : {"F { = 4294967295; }", "\"QuotedName\" { = True; }"})
+    CHECK(cursiv::test::validationHelper(language.language,source).diagnostics.empty());
+  for (const auto source : {"F { = 4294967296; }", "\"Not a name\" { = True; }",
+       "$EXTERNAL \"Not a name\";", "F { = <\"Not a name\">; }"})
+    CHECK(!cursiv::test::validationHelper(language.language,source).diagnostics.empty());
+  const std::string source=R"ref(F { = (123 "123" '123' "a\"b" '\xAF'); })ref";
+  const auto r=engine().parse(source);
+  const auto* root=r.value_as<ast::Program>();
+  const auto* f=root&&root->items.size()==1?cursiv::ast_cast<ast::FunctionDef>(root->items[0]):nullptr;
+  const auto* sentence=f&&f->sentences.size()==1?f->sentences[0]:nullptr;
+  const auto* group=sentence&&sentence->result.size()==1?cursiv::ast_cast<ast::Group>(sentence->result[0]):nullptr;
+  CHECK(r.accepted&&!r.cst().recovered()&&r.cst().text()==source&&group&&group->body.size()==5);
+  if(group&&group->body.size()==5) {
+    CHECK(cursiv::ast_cast<ast::NumberSymbol>(group->body[0])!=nullptr);
+    CHECK(cursiv::ast_cast<ast::Symbol>(group->body[1])!=nullptr &&
+          !cursiv::ast_cast<ast::NumberSymbol>(group->body[1]) &&
+          !cursiv::ast_cast<ast::Characters>(group->body[1]));
+    const auto* chars=cursiv::ast_cast<ast::Characters>(group->body[2]);
+    const auto* word=cursiv::ast_cast<ast::Symbol>(group->body[3]);
+    const auto* byte=cursiv::ast_cast<ast::Characters>(group->body[4]);
+    CHECK(chars&&chars->text=="123"&&chars->parent==group);
+    CHECK(word&&word->text=="a\"b");
+    CHECK(byte&&byte->text.size()==1&&static_cast<unsigned char>(byte->text[0])==0xAF);
+  }
+}
+
 }  // namespace
 
 int main() {
+  native_followup();
   accepted_texts();
   refused_texts();
   corpus();

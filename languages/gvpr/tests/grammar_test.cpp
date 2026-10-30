@@ -180,6 +180,47 @@ int main() {
       return fail("arrays: `a[1, 2]` is not one comma index");
   }
 
+  {
+    namespace ast = gvpr::ast;
+    const auto result = language.language.parser->parse(R"gvpr(BEGIN {
+      ; int a[]; int x=7;
+      a["key"]=1;
+      int n=#a;
+      x %= 4; x |= 8; x &= 15; x ^= 3; x <<= 1; x >>= 1;
+      int shifted=1 << 2;
+      string empty=''; string word='hello'; string identity="a\q";
+      if (1); else print("yes");
+      switch (1) {case 1:;}
+      int f(void) {return 1;}
+    })gvpr");
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("native operators/arrays/empty statements: unclean parse");
+    bool array=false, cardinality=false, empty=false, shift=false, void_formals=false;
+    unsigned compounds=0;
+    bool empty_string=false, single_string=false, identity_escape=false;
+    for (const auto* node : result.nodes) {
+      if (const auto* literal=cursiv::ast_cast<ast::StringLit>(node)) {
+        empty_string |= literal->text == "''";
+        single_string |= literal->text == "'hello'";
+        identity_escape |= literal->text == "\"a\\q\"";
+      }
+      if (const auto* declaration=cursiv::ast_cast<ast::DclItem>(node))
+        if (declaration->name=="a") array=declaration->isArray && !declaration->keyType;
+      if (const auto* count=cursiv::ast_cast<ast::Cardinality>(node)) cardinality |= count->name=="a";
+      if (cursiv::ast_cast<ast::EmptyStmt>(node)) empty=true;
+      if (const auto* binary=cursiv::ast_cast<ast::Binary>(node)) shift |= binary->op==ast::BinOp::lsh;
+      if (const auto* function=cursiv::ast_cast<ast::FuncDecl>(node))
+        if (function->name=="f") void_formals=function->formals.empty();
+      if (const auto* assignment=cursiv::ast_cast<ast::Assign>(node))
+        if (assignment->op==ast::AssignOp::mod || assignment->op==ast::AssignOp::band ||
+            assignment->op==ast::AssignOp::bor || assignment->op==ast::AssignOp::bxor ||
+            assignment->op==ast::AssignOp::lsh || assignment->op==ast::AssignOp::rsh) ++compounds;
+    }
+    if (!array || !cardinality || !empty || !shift || !void_formals || compounds!=6 ||
+        !empty_string || !single_string || !identity_escape)
+      return fail("native operators/array distinction/void formals were lost in the AST");
+  }
+
   std::printf("gvpr: %d corpus documents parse clean\n", corpusCount);
   return 0;
 }

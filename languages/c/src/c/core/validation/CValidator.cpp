@@ -60,6 +60,24 @@ void CValidator::checkEnumBase(const ast::EnumType& type,
         .property<&ast::EnumType::underlying>();
 }
 
+void CValidator::checkInference(const ast::Specifiers& node,
+                               cursiv::ValidationAcceptor& accept) const {
+  if (!node.inferred) return;
+  const auto* declaration = cursiv::ast_cast<ast::Declaration>(node.parent);
+  if (!declaration || declaration->declarators.size() != 1) {
+    accept.error(node, "C23 type inference needs one initialized object declaration.",
+                 "c.inference");
+    return;
+  }
+  const auto* item = declaration->declarators[0];
+  const auto* declarator = item ? item->declarator : nullptr;
+  if (!declarator || declarator->name.empty() || declarator->nested ||
+      !declarator->pointers.empty() || !declarator->suffixes.empty() ||
+      !cursiv::ast_cast<ast::ExprInit>(item->init))
+    accept.error(*declaration, "An inferred object needs a plain name and an expression initializer.",
+                 "c.inference");
+}
+
 void register_validation_checks(CCoreServices& services) {
   using V = CValidator;
   services.validator = std::make_unique<const V>(services);
@@ -67,6 +85,8 @@ void register_validation_checks(CCoreServices& services) {
       {cursiv::ValidationRegistry::makeValidationCheck<&V::checkReservedNames>(
           *services.validator),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkEnumBase>(
+          *services.validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkInference>(
           *services.validator)});
 }
 

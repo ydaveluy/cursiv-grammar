@@ -2,6 +2,19 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+The core six fields follow the [1994 PGN/FEN specification, section 16.1](https://www.saremba.de/chessgml/standards/pgn/pgn-complete.htm).
+The parser also admits import extensions comparable to
+[python-chess 1.11.2 Board.set_fen](https://github.com/niklasf/python-chess/blob/v1.11.2/chess/__init__.py):
+omitted trailing fields with defaults, file-based castling letters, promoted
+piece markers, Unicode whitespace and Python-style integer spellings.
+These are not the strict six-field export syntax. Duplicate castling rights
+receive an additional diagnostic even though python-chess accepts them.
+
+Counter fields retain source spelling; native python-chess converts them to
+integers and normalizes fullmove zero to one. The port validates selected
+structural field constraints, without proving a legal/reachable chess position,
+king/pawn counts, legal castling rights or a reachable en passant state.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`

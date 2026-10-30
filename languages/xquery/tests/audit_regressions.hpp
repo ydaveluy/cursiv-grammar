@@ -58,6 +58,32 @@ inline bool run() {
             (*let)->bindings[1]->destructuring == "[" &&
             (*let)->bindings[2]->destructuring == "{",
         "destructuring shapes remain distinct");
+  for (const char* source : {"0x7fff_ffff_ffff_ffff", "0b111_111", "6__3"}) {
+    const auto number_result = parser->parse(source);
+    const auto* number = cursiv::ast_cast<ast::IntLiteral>(body(number_result.value));
+    check(number_result.accepted && !number_result.cst().recovered() &&
+              number_result.diagnostics.empty() && number &&
+              number->value == (source[1] == 'x' ? INT64_MAX : 63),
+          "radix integer conversion preserves the boundary and binary separators");
+  }
+  for (const char* source : {"1_000.2_5", "1_0e+2__0"}) {
+    const auto number_result = parser->parse(source);
+    const auto* number = cursiv::ast_cast<ast::DecimalLiteral>(body(number_result.value));
+    check(number_result.accepted && !number_result.cst().recovered() &&
+              number_result.diagnostics.empty() && number && number->value == source,
+          "XQuery 4.0 digit separators preserve decimal and double spelling");
+  }
+  for (const char* source : {"0x_1", "0x1_", "0b_1", "0b1_", "1_", "1e2_"}) {
+    const auto invalid = parser->parse(source);
+    check(!invalid.accepted || invalid.cst().recovered() || !invalid.diagnostics.empty(),
+          "digit separators must occur between digits");
+  }
+  for (const std::string source : {std::string("0x8000000000000000"),
+                                  std::string("0b1") + std::string(63, '0')}) {
+    const auto overflow = parser->parse(source);
+    check(!overflow.diagnostics.empty(),
+          "radix integer overflow reports a conversion error without wrapping or zero");
+  }
   return ok;
 }
 } // namespace audit_regressions

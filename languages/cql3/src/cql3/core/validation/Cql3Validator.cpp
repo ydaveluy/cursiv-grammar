@@ -11,6 +11,11 @@ namespace cql3 {
 
 void Cql3Validator::checkColumnType(const ast::ColumnType& node,
                                     cursiv::ValidationAcceptor& accept) const {
+  if (node.quoted) {
+    if (!node.params.empty())
+      accept.error(node, "A user type cannot have type parameters.");
+    return;
+  }
   std::string name(node.name);
   for (auto& c : name)
     if (c >= 'A' && c <= 'Z') c += 'a' - 'A';

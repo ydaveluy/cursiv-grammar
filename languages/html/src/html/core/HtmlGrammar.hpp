@@ -45,9 +45,7 @@ inline constexpr auto unquote_attr =
     t = t.substr(1, t.size() - 2);
   return normalized_text(t, memory);
 };
-using AttrValue = cursiv::text_conv<unquote_attr>;
 inline constexpr auto open_name = [](std::string_view text) { return text.substr(1); };
-using OpenName = cursiv::text_conv<open_name>;
 
 struct Html : cursiv::GrammarSpec {
   struct SEA_WS
@@ -109,7 +107,8 @@ struct Html : cursiv::GrammarSpec {
       ikw<"embed"> | ikw<"hr"> | ikw<"img"> | ikw<"input"> |
       ikw<"link"> | ikw<"meta"> | ikw<"param"> | ikw<"source"> |
       ikw<"track"> | ikw<"wbr">;
-  struct VOID_OPEN : terminal<lit<"<"> + void_names + &RawTagBoundary, OpenName> {};
+  struct VOID_OPEN
+      : terminal<as<open_name>(lit<"<"> + void_names + &RawTagBoundary)> {};
   static constexpr auto specialized_name =
       (void_names |
        ikw<"script"> | ikw<"style"> | ikw<"textarea"> | ikw<"title"> |
@@ -120,76 +119,77 @@ struct Html : cursiv::GrammarSpec {
        ikw<"option"> | ikw<"optgroup"> | ikw<"thead"> | ikw<"tbody"> |
        ikw<"tfoot"> | ikw<"tr"> | ikw<"td"> | ikw<"th">) + &RawTagBoundary;
   struct NORMAL_OPEN
-      : terminal<lit<"<"> + !specialized_name + tag_name_start + many(tag_name_cont), OpenName> {};
+      : terminal<as<open_name>(lit<"<"> + !specialized_name + tag_name_start +
+                               many(tag_name_cont))> {};
 
   static constexpr auto text_char = cr<"^<"> | (lit<"<"> + !(cr<"A-Za-z!?/%"> | tag_name_start));
-  struct HTML_TEXT : terminal<some(text_char), text_conv<text_value>> {};
+  struct HTML_TEXT : terminal<as<text_value>(some(text_char))> {};
 
   static constexpr auto dq_string = lit<"\""> + many(cr<R"(^")">) + lit<"\"">;
   static constexpr auto sq_string = lit<"'"> + many(cr<"^'">) + lit<"'">;
   static constexpr auto unquoted_value =
       cr<R"(^ \t\r\n\f>"')"> + many(cr<R"(^ \t\r\n\f>)">);
   struct ATTVALUE_VALUE
-      : terminal<dq_string | sq_string | unquoted_value,
-                 AttrValue> {};
+      : terminal<as<unquote_attr>(dq_string | sq_string | unquoted_value)> {};
 
-  struct AttributeRule
+  struct Attribute
       : rule<assign<&ast::Attribute::name>(ref<ATTRIBUTE_NAME>) + spaces +
              option(ref<TAG_EQUALS> + spaces +
                     assign<&ast::Attribute::value>(ref<ATTVALUE_VALUE>) + spaces)> {};
   static constexpr auto attributes = spaces +
-      many(append<&ast::Element::attributes>(ref<AttributeRule>));
+      many(append<&ast::Element::attributes>(ref<Attribute>));
 
-  struct CommentRule : rule<assign<&ast::Comment::text>(
+  struct Comment : rule<assign<&ast::Comment::text>(
                            ref<HTML_COMMENT> | ref<HTML_CONDITIONAL_COMMENT>)> {
   };
-  struct CDataRule : rule<assign<&ast::CData::text>(ref<CDATA>)> {};
-  struct ScriptletRule : rule<assign<&ast::Scriptlet::text>(ref<SCRIPTLET>)> {};
-  struct ScriptRule
+  struct CData : rule<assign<&ast::CData::text>(ref<CDATA>)> {};
+  struct Scriptlet : rule<assign<&ast::Scriptlet::text>(ref<SCRIPTLET>)> {};
+  struct Script
       : rule<assign<&ast::Script::text>(ref<SCRIPT>)> {};
-  struct StyleRule
+  struct Style
       : rule<assign<&ast::Style::text>(ref<STYLE>)> {};
-  struct TextRule : rule<assign<&ast::Text::text>(ref<HTML_TEXT>)> {};
+  struct Text : rule<assign<&ast::Text::text>(ref<HTML_TEXT>)> {};
 
-  struct ElementRule;
+  struct Element;
   template <cursiv::str Name>
-  struct RawOpen : terminal<lit<"<"> + ikw<Name> + &RawTagBoundary, OpenName> {};
+  struct RawOpen
+      : terminal<as<open_name>(lit<"<"> + ikw<Name> + &RawTagBoundary)> {};
   template <cursiv::str Name>
-  struct RawBody : terminal<some(!(lit<"</"> + ikw<Name> + &RawTagBoundary) + any),
-                            text_conv<raw_text_value<Name>>> {};
+  struct RawBody : terminal<as<raw_text_value<Name>>(some(
+                       !(lit<"</"> + ikw<Name> + &RawTagBoundary) + any))> {};
   template <cursiv::str Name>
-  struct RawTextRule : rule<assign<&ast::Text::text>(ref<RawBody<Name>>)> {};
-  template <cursiv::str Name> struct RawElementRule;
-  template <cursiv::str Name> struct OptionalEndRule;
-  template <cursiv::str Name> struct PreElementRule;
-  struct PlaintextRule;
+  struct RawText : rule<assign<&ast::Text::text>(ref<RawBody<Name>>)> {};
+  template <cursiv::str Name> struct RawElement;
+  template <cursiv::str Name> struct OptionalEnd;
+  template <cursiv::str Name> struct PreElement;
+  struct Plaintext;
 
   static constexpr auto void_open_tag =
       assign<&ast::Element::name>(ref<VOID_OPEN>) +
       attributes;
 
-  struct VoidElementRule
+  struct VoidElement
       : rule<void_open_tag +
              (ref<TAG_CLOSE> |
               flag<&ast::Element::selfClosing>(ref<TAG_SLASH_CLOSE>))> {};
 
-  static constexpr auto content_item = ref<VoidElementRule> | ref<RawElementRule<"textarea">> |
-                                       ref<RawElementRule<"title">> | ref<RawElementRule<"xmp">> |
-                                       ref<RawElementRule<"iframe">> | ref<RawElementRule<"noembed">> |
-                                       ref<RawElementRule<"noframes">> | ref<PlaintextRule> |
-                                       ref<PreElementRule<"pre">> | ref<PreElementRule<"listing">> |
-                                       ref<OptionalEndRule<"html">> | ref<OptionalEndRule<"head">> |
-                                       ref<OptionalEndRule<"body">> |
-                                       ref<OptionalEndRule<"li">> | ref<OptionalEndRule<"p">> |
-                                       ref<OptionalEndRule<"dt">> | ref<OptionalEndRule<"dd">> |
-                                       ref<OptionalEndRule<"rt">> | ref<OptionalEndRule<"rp">> |
-                                       ref<OptionalEndRule<"option">> | ref<OptionalEndRule<"optgroup">> |
-                                       ref<OptionalEndRule<"thead">> | ref<OptionalEndRule<"tbody">> |
-                                       ref<OptionalEndRule<"tfoot">> | ref<OptionalEndRule<"tr">> |
-                                       ref<OptionalEndRule<"td">> | ref<OptionalEndRule<"th">> | ref<ElementRule> |
-                                       ref<ScriptRule> | ref<StyleRule> |
-                                       ref<ScriptletRule> | ref<CDataRule> |
-                                       ref<CommentRule> | ref<TextRule>;
+  static constexpr auto content_item = ref<VoidElement> | ref<RawElement<"textarea">> |
+                                       ref<RawElement<"title">> | ref<RawElement<"xmp">> |
+                                       ref<RawElement<"iframe">> | ref<RawElement<"noembed">> |
+                                       ref<RawElement<"noframes">> | ref<Plaintext> |
+                                       ref<PreElement<"pre">> | ref<PreElement<"listing">> |
+                                       ref<OptionalEnd<"html">> | ref<OptionalEnd<"head">> |
+                                       ref<OptionalEnd<"body">> |
+                                       ref<OptionalEnd<"li">> | ref<OptionalEnd<"p">> |
+                                       ref<OptionalEnd<"dt">> | ref<OptionalEnd<"dd">> |
+                                       ref<OptionalEnd<"rt">> | ref<OptionalEnd<"rp">> |
+                                       ref<OptionalEnd<"option">> | ref<OptionalEnd<"optgroup">> |
+                                       ref<OptionalEnd<"thead">> | ref<OptionalEnd<"tbody">> |
+                                       ref<OptionalEnd<"tfoot">> | ref<OptionalEnd<"tr">> |
+                                       ref<OptionalEnd<"td">> | ref<OptionalEnd<"th">> | ref<Element> |
+                                       ref<Script> | ref<Style> |
+                                       ref<Scriptlet> | ref<CData> |
+                                       ref<Comment> | ref<Text>;
 
   static constexpr auto open_tag_prefix =
       assign<&ast::Element::name>(ref<NORMAL_OPEN>) +
@@ -202,33 +202,33 @@ struct Html : cursiv::GrammarSpec {
   static constexpr auto close_start = ref<TAG_OPEN> + ref<TAG_SLASH>;
   template <cursiv::str Name>
   static constexpr auto matching_close = close_start + ikw<Name> + &RawTagBoundary;
-  struct PreFirstTextValue : rule<ref<HTML_TEXT>, text_conv<pre_text_value>> {};
-  struct PreFirstTextRule : rule<assign<&ast::Text::text>(ref<PreFirstTextValue>)> {};
+  struct PreFirstTextValue : rule<as<pre_text_value>(ref<HTML_TEXT>)> {};
+  struct PreFirstText : rule<assign<&ast::Text::text>(ref<PreFirstTextValue>)> {};
 
   template <cursiv::str Name>
-  struct RawElementRule
+  struct RawElement
       : rule<assign<&ast::Element::name>(ref<RawOpen<Name>>) +
              attributes +
              (flag<&ast::Element::selfClosing>(ref<TAG_SLASH_CLOSE>) |
               (ref<TAG_CLOSE> +
-               option(append<&ast::Element::content>(ref<RawTextRule<Name>>)) +
+               option(append<&ast::Element::content>(ref<RawText<Name>>)) +
                ((&matching_close<Name> + close_tag) | !matching_close<Name>)))> {};
 
   template <cursiv::str Name>
-  struct PreElementRule
+  struct PreElement
       : rule<assign<&ast::Element::name>(ref<RawOpen<Name>>) + attributes +
              (flag<&ast::Element::selfClosing>(ref<TAG_SLASH_CLOSE>) |
               (ref<TAG_CLOSE> +
-               option(append<&ast::Element::content>(ref<PreFirstTextRule>)) +
+               option(append<&ast::Element::content>(ref<PreFirstText>)) +
                many(append<&ast::Element::content>(content_item)) + close_tag))> {};
 
-  struct PLAIN_TEXT : terminal<some(any), text_conv<text_value>> {};
-  struct PlainTextRule : rule<assign<&ast::Text::text>(ref<PLAIN_TEXT>)> {};
-  struct PlaintextRule
+  struct PLAIN_TEXT : terminal<as<text_value>(some(any))> {};
+  struct PlainText : rule<assign<&ast::Text::text>(ref<PLAIN_TEXT>)> {};
+  struct Plaintext
       : rule<assign<&ast::Element::name>(ref<RawOpen<"plaintext">>) +
              attributes +
              (flag<&ast::Element::selfClosing>(ref<TAG_SLASH_CLOSE>) |
-              (ref<TAG_CLOSE> + option(append<&ast::Element::content>(ref<PlainTextRule>))))> {};
+              (ref<TAG_CLOSE> + option(append<&ast::Element::content>(ref<PlainText>))))> {};
 
   template <cursiv::str Name>
   static constexpr auto implied_end_text = [] {
@@ -272,7 +272,7 @@ struct Html : cursiv::GrammarSpec {
   static constexpr auto implied_end = ref<IMPLIED_END<Name>>;
 
   template <cursiv::str Name>
-  struct OptionalEndRule
+  struct OptionalEnd
       : rule<assign<&ast::Element::name>(ref<RawOpen<Name>>) +
              attributes +
              (flag<&ast::Element::selfClosing>(ref<TAG_SLASH_CLOSE>) |
@@ -281,20 +281,20 @@ struct Html : cursiv::GrammarSpec {
                &(implied_end<Name> | close_start | eof) +
                ((&matching_close<Name> + close_tag) | !matching_close<Name>)))> {};
 
-  struct ElementRule
+  struct Element
       : rule<(open_tag_prefix + ref<TAG_CLOSE> +
               many(append<&ast::Element::content>(content_item)) + close_tag) |
              (open_tag_prefix +
               flag<&ast::Element::selfClosing>(ref<TAG_SLASH_CLOSE>))> {};
 
-  struct DocRule
+  struct Doc
       : rule<create<ast::Document> +
              many(append<&ast::Document::xmlDeclarations>(ref<XML>) |
                   append<&ast::Document::doctypes>(ref<DTD>) |
                   append<&ast::Document::content>(content_item))> {};
 
-  using entry = DocRule;
-  using ignore = list<>;
+  using entry = Doc;
+  using ignored = list<>;
 };
 
 } // namespace html

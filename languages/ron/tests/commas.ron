@@ -1,11 +1,11 @@
-// each struct/map item has its own optional trailing comma, distinct from
-// the comma separating it from the next item -- two commas in a row are
-// legal, and a struct's/map's own trailing comma (after its closing
-// bracket) is what lets two top-level values sit side by side
-(a: 1,, b: 2)
-{x: 1,, y: 2}
-(first: 1),
-(second: 2)
-{third: 1},
-{fourth: 2}
-[(a: 1),, (b: 2)]
+// One root value. Each non-empty container may have one trailing comma;
+// adjacent elements have exactly one comma between them.
+[
+    (a: 1, b: 2,),
+    {x: 1, y: 2,},
+    (first: 1),
+    (second: 2),
+    {third: 1},
+    {fourth: 2},
+    [(a: 1), (b: 2),],
+]

@@ -50,12 +50,7 @@ event open;MessageBox ('', 'Hello World')
 end event
 ```
 
-A PowerScript source export: a `type` declaration (here an `application`
-descendant), a global instance, an `on`-block handling the object's own
-`create` event, and an `event`-block handling `open`. `appname` is a plain
-assignment; `MessageBox(...)` is a call with no declaration in sight — names
-resolve dynamically in PowerScript, so this port builds a tree rather than a
-symbol table for them.
+The sample is a PowerScript application source export.
 
 ## The command line
 

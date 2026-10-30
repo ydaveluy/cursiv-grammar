@@ -31,18 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[CaQL](https://docs.circonus.com/caql/reference) is Circonus's metrics
-query language: a vector expression piped through aggregation functions.
+Circonus CaQL queries select metric streams and combine expressions through function pipelines.
 
 ```
 (find("dur2") | stats:sum()) * (find("dur2") | stats:sum()) + 2
 ```
-
-`find(...)` selects a metric stream by name; `| stats:sum()` pipes it
-through an aggregation. Arithmetic, comparison and set operators
-(`+ - * / % ^`, `== != > < >= <=`, `and or unless`) combine expressions,
-each optionally carrying an `on(...)`/`ignoring(...)` vector-matching
-clause, as in PromQL.
 
 ## The command line
 

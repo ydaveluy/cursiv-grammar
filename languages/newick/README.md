@@ -31,17 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[Newick](https://en.wikipedia.org/wiki/Newick_format) writes a phylogenetic
-tree as nested, comma-separated parentheses, terminated by `;`:
+Newick trees with labels, branch lengths and nested comments. Labels retain their source spelling.
 
 ```
 (A:0.1,B:0.2,(C:0.3,D:0.4)E:0.5)F;
 ```
-
-Each node is a *clade*: an optional label, an optional `:` branch length,
-and — between parentheses — its children. A clade with no label and no
-length is still a real, anonymous node, so `(,,(,));` is a tree of five
-unnamed clades.
 
 ## The command line
 

@@ -196,7 +196,13 @@ void LlvmIrValidator::checkInstruction(
             n->orderings.end())
       accept.error(node,
                    "elementwise atomicrmw cannot be sequentially consistent");
+    std::unordered_set<std::string_view> uniqueFlags;
     for (const auto flag : n->flags) {
+      if (one_of(flag, {"nuw", "nsw", "nneg"}) && !uniqueFlags.insert(flag).second)
+        accept.error(node, "Duplicate instruction flag.", "llvmir.duplicate-flag");
+      if (one_of(flag, {"afn", "arcp", "contract", "fast", "ninf", "nnan", "nsz", "reassoc"}) &&
+          !one_of(n->op, {"fneg", "fadd", "fsub", "fmul", "fdiv", "frem", "fcmp", "select", "fptrunc", "fpext", "sitofp", "uitofp"}))
+        accept.error(node, "Fast-math flag is invalid for this opcode.", "llvmir.fast-math");
       if ((flag == "disjoint" && n->op != "or") ||
           (flag == "nneg" && !one_of(n->op, {"zext", "uitofp"})) ||
           (one_of(flag, {"nuw", "nsw"}) &&
@@ -205,6 +211,8 @@ void LlvmIrValidator::checkInstruction(
         accept.error(node, "flag is not valid for this instruction");
     }
   } else if (const auto* n = cursiv::ast_cast<ast::CallInst>(&node)) {
+    if (n->forwardsVarargs && (!n->tailKind || *n->tailKind != "musttail"))
+      accept.error(node, "Only a musttail call may forward variadic arguments.", "llvmir.varargs-forward");
     if (n->result && n->type && cursiv::ast_cast<ast::VoidType>(n->type))
       accept.error(node, "a void call cannot have a result name");
   } else if (node.result && (cursiv::ast_cast<ast::RetInst>(&node) ||

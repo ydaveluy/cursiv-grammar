@@ -31,19 +31,15 @@ inline constexpr auto unbracket = [](std::string_view t) {
   t.remove_suffix(1);
   return trim(t);
 };
-using Unbracketed = cursiv::text_conv<unbracket>;
 
-using HeaderName = cursiv::text_conv<strip_assign>;
 
 inline constexpr auto header_bracket_name = [](std::string_view t) {
   return unbracket(strip_assign(t));
 };
-using HeaderBracketName = cursiv::text_conv<header_bracket_name>;
 
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Bnf : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -52,22 +48,21 @@ struct Bnf : cursiv::GrammarSpec {
   struct ID : terminal<IdBody> {};
 
   static constexpr auto BracketBody = lit<"<"> + some(cr<R"(^>|\r\n)">) + lit<">">;
-  struct BracketRef : terminal<BracketBody, Unbracketed> {};
+  struct BracketRef : terminal<as<unbracket>(BracketBody)> {};
 
   static constexpr auto AssignSpelling =
       lit<"::="> | lit<":≡"> | lit<"-->"> | lit<"→">;
 
   struct IdHeader
-      : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9_-">) +
-                 many(cr<R"( \t)">) + AssignSpelling, HeaderName> {};
-  struct BracketHeader
-      : terminal<lit<"<"> + some(cr<R"(^>\r\n)">) + lit<">"> +
-                 many(cr<R"( \t)">) + AssignSpelling,
-                 HeaderBracketName> {};
+      : terminal<as<strip_assign>(cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9_-">) +
+                                  many(cr<R"( \t)">) + AssignSpelling)> {};
+  struct BracketHeader : terminal<as<header_bracket_name>(
+                             lit<"<"> + some(cr<R"(^>\r\n)">) + lit<">"> +
+                             many(cr<R"( \t)">) + AssignSpelling)> {};
 
-  struct QuotedText : terminal<(lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">) |
-                                   (lit<"'"> + many(cr<R"(^'\r\n)">) + lit<"'">),
-                               Unquoted> {};
+  struct QuotedText
+      : terminal<as<unquote>((lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">) |
+                             (lit<"'"> + many(cr<R"(^'\r\n)">) + lit<"'">))> {};
 
   struct OR : terminal<lit<"|"> | lit<"o‾r‾"> | lit<"∣">> {};
 
@@ -87,12 +82,12 @@ struct Bnf : cursiv::GrammarSpec {
              some(append<&ast::Production::alternatives>(ref<Alternative>),
                   ref<OR>)> {};
 
-  struct GrammarRule
+  struct Grammar
       : rule<create<ast::Grammar> +
              many(append<&ast::Grammar::productions>(ref<Production>))> {};
 
-  using entry = GrammarRule;
-  using ignore = WS;
+  using entry = Grammar;
+  using ignored = WS;
 };
 
 }  // namespace bnf

@@ -12,11 +12,12 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "java/core/CoreServices.hpp"
-#include "java/core/UnicodeParser.hpp"
+#include "java/core/UnicodeEscapes.hpp"
 #include "java/core/ast.hpp"
 #include "java/generated/Java/Module.hpp"
 #include "unicode_input_cases.hpp"
 #include "literal_dimension_cases.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -54,7 +55,8 @@ bool clean(const cursiv::ParseResult &result) {
 
 int unicode_regressions() {
   std::string seen;
-  const auto spy = java::unicode_parser(std::make_unique<InputSpy>(seen));
+  const auto spy = cursiv::translating_parser(std::make_unique<InputSpy>(seen),
+                                              java::translate_unicode_escapes);
   for (const auto &test : unicode_input_cases) {
     const auto result = spy->parse(test.input);
     if (seen != test.output || result.diagnostics.size() != test.diagnostics ||
@@ -244,6 +246,7 @@ int main() {
   const auto language = cursiv::create_language<java::JavaCoreServices,
                                                 java::JavaSharedCoreServices,
                                                 java::install_core_module>();
+  if (!java_native_followup::run(language)) return 1;
 
   if (!java_literal_dimension_cases(*language.language.parser)) return 1;
 

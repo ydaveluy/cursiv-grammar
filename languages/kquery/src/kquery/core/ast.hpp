@@ -39,7 +39,14 @@ struct BinaryExpr : cursiv::Extends<Expr> {
   Expr* right;
 };
 
-// `Not [w] e`, `Neg [w] e`, `ZExt w e`, `SExt w e`: one operand, `op` the
+// The native reader also accepts Concat with one or more than two operands.
+// Binary Concat keeps BinaryExpr for existing clients.
+struct ConcatExpr : cursiv::Extends<Expr> {
+  string_view width;
+  vector<Expr*> operands;
+};
+
+// `Not w? e`, `Neg [w] e`, `ZExt w e`, `SExt w e`: one operand, `op` the
 // keyword. `width` is empty only for `Neg`, whose form allows it.
 struct UnaryExpr : cursiv::Extends<Expr> {
   string_view op;
@@ -61,7 +68,7 @@ struct ExtractExpr : cursiv::Extends<Expr> {
 };
 
 // `(Read|ReadLSB|ReadMSB w index array?)`. `array` is the array version being
-// read, absent when the grammar's own trailing `version` is omitted.
+// read, required for a valid native read, nullable only during recovery.
 struct ReadExpr : cursiv::Extends<Expr> {
   string_view op;
   string_view width;

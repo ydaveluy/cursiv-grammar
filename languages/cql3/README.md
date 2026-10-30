@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Cassandra CQL 5.0 statements for querying data, defining schemas and managing database objects.
+
 ```sql
 CREATE TABLE cycling.race_winners (
    race_name text,
@@ -46,13 +48,6 @@ UPDATE cycling.cyclist_name
 SET comments = 'Rides hard, gets along with others, a real winner'
 WHERE id = fb372533-eb95-4bb4-8685-6ef61e994caa IF EXISTS;
 ```
-
-This is Apache Cassandra's query language: DDL (`CREATE`/`ALTER`/`DROP` for
-tables, keyspaces, types, indexes, materialized views, functions, aggregates,
-roles, users, triggers), DML (`SELECT`, `INSERT`, `UPDATE`, `DELETE`,
-`BATCH`), and the permission statements (`GRANT`, `REVOKE`, `LIST`). The
-grammar holds no scope: names are plain text, not cross references — a query
-routinely names tables and columns declared nowhere in the document.
 
 ## The command line
 

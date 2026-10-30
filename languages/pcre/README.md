@@ -38,7 +38,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 A PCRE pattern, as `pcre.org` describes it: anchors (`^`, `$`, `\b`), a
 character class (`[A-Z0-9._%+-]`), an escaped literal (`\.`), and a
 quantifier (`{2,}`). Every byte is significant — there is no trivia, and a
-space in a pattern is a literal to match, not layout.
+space in a default-mode pattern is a literal to match.
 
 ## The command line
 

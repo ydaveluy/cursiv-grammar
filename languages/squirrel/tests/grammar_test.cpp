@@ -1,3 +1,4 @@
+#include "native_validation.hpp"
 #include "audit_regressions.hpp"
 // The Squirrel grammar end to end: every corpus example parses clean, real
 // field values are read back out of one of them, and a handful of
@@ -158,12 +159,12 @@ void uncovered_constructs() {
     }
   }
   {
-    // Bitwise ops, a short lambda, default params beside a vararg.
+    // Bitwise ops, a short lambda and a native variadic function.
     const cursiv::ParseResult r = parse(kept(
         "local m = (a & b) | (c ^ d) | ~e;\n"
         "local s = a << 2 >> 1 >>> 1;\n"
         "local f = @(x) x + 1;\n"
-        "function g(a, b = 1, ...) { return a + b; }\n"));
+        "function g(a, b, ...) { return a + b; }\n"));
     CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
     ast::Chunk* const root = as<ast::Chunk>(r.value);
     CHECK(root != nullptr && root->body.size() == 4);
@@ -178,7 +179,7 @@ void uncovered_constructs() {
 
       ast::FunctionDecl* const g = as<ast::FunctionDecl>(root->body[3]);
       CHECK(g != nullptr && g->params.size() == 2 && g->variadic);
-      CHECK(g != nullptr && g->params[1]->defaultValue != nullptr);
+      CHECK(g != nullptr && g->params[1]->defaultValue == nullptr);
     }
   }
   {
@@ -242,7 +243,7 @@ void instanceof_precedence() {
 }  // namespace
 
 int main() {
-  if (!audit_regressions::run()) return 1;
+  if (!audit_regressions::run() || !squirrel_native_validation()) return 1;
   every_example_parses_clean();
   ackermann_values();
   class_values();

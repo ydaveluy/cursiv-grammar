@@ -12,6 +12,10 @@ class MiniscriptValidator final : public cursiv::DefaultCoreService {
   using cursiv::DefaultCoreService::DefaultCoreService;
   void checkMultisig(const ast::MultisigExpression&,
                      cursiv::ValidationAcceptor&) const;
+  void checkThreshold(const ast::ThresholdExpression&,
+                      cursiv::ValidationAcceptor&) const;
+  void checkTime(const ast::TimeExpression&,
+                 cursiv::ValidationAcceptor&) const;
 };
 
 struct MiniscriptCoreServices;

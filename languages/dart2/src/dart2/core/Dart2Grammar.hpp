@@ -140,9 +140,8 @@ struct Dart2 : cursiv::GrammarSpec {
   };
   struct DQ3Quotes : terminal<lit<"\"\""> | lit<"\"">> {};
   struct SQ3Quotes : terminal<lit<"''"> | lit<"'">> {};
-  struct InterpolatedName
-      : terminal<lit<"$"> + BareNameStart + many(cr<"a-zA-Z0-9_">),
-                 text_conv<drop_first>> {};
+  struct InterpolatedName : terminal<as<drop_first>(lit<"$"> + BareNameStart +
+                                                    many(cr<"a-zA-Z0-9_">))> {};
   static constexpr auto strip_raw1 = [](std::string_view t) {
     return t.substr(2, t.size() - 3);
   };
@@ -151,13 +150,14 @@ struct Dart2 : cursiv::GrammarSpec {
   };
 
   struct RawDQ3String
-      : terminal<through(lit<"r\"\"\"">, lit<"\"\"\"">), text_conv<strip_raw3>> {};
+      : terminal<as<strip_raw3>(through(lit<"r\"\"\"">, lit<"\"\"\"">))> {};
   struct RawSQ3String
-      : terminal<through(lit<"r'''">, lit<"'''">), text_conv<strip_raw3>> {};
-  struct RawDQString : terminal<lit<"r\""> + many(cr<R"(^"\r\n)">) + lit<"\"">,
-                                text_conv<strip_raw1>> {};
-  struct RawSQString : terminal<lit<"r'"> + many(cr<R"(^'\r\n)">) + lit<"'">,
-                                text_conv<strip_raw1>> {};
+      : terminal<as<strip_raw3>(through(lit<"r'''">, lit<"'''">))> {};
+  struct RawDQString : terminal<as<strip_raw1>(
+                           lit<"r\""> + many(cr<R"(^"\r\n)">) + lit<"\"">)> {};
+  struct RawSQString
+      : terminal<as<strip_raw1>(lit<"r'"> + many(cr<R"(^'\r\n)">) + lit<"'">)> {
+  };
 
   struct Expression;
   struct AssignExpression;
@@ -173,9 +173,9 @@ struct Dart2 : cursiv::GrammarSpec {
   struct BlockStmt;
   struct TypeNotVoid;
   struct Element_;
-  struct ParamListRule;
+  struct ParamList;
 
-  struct Interpolation : rule<skip(ignored<WS>, hide<SL_COMMENT, ML_COMMENT>,
+  struct Interpolation : rule<skip(ignore<WS>, hide<SL_COMMENT, ML_COMMENT>,
                                    lit<"${"> + ref<Expression> + lit<"}">) |
                               create<ast::Ident>(assign<&ast::Ident::name>(
                                   ref<InterpolatedName>))> {};
@@ -237,7 +237,7 @@ struct Dart2 : cursiv::GrammarSpec {
       : rule<assign<&ast::SymbolLit::text>(ref<SymbolToken>)> {};
 
   // -- types ----
-  struct TypeParamRule
+  struct TypeParam
       : rule<assign<&ast::TypeParam::name>(ref<IdentName>) +
              option(ref<K_EXTENDS> +
                     assign<&ast::TypeParam::bound>(ref<TypeNotVoid>))> {};
@@ -247,23 +247,23 @@ struct Dart2 : cursiv::GrammarSpec {
   // wherever it is referenced, on top of the one its caller already builds.
   static constexpr auto TypeParamsOfSeg =
       lit<"<"> +
-      append<&ast::FunctionTypeSeg::typeParameters>(ref<TypeParamRule>) +
+      append<&ast::FunctionTypeSeg::typeParameters>(ref<TypeParam>) +
       many(lit<","> + append<&ast::FunctionTypeSeg::typeParameters>(
-                           ref<TypeParamRule>)) +
+                           ref<TypeParam>)) +
       lit<">">;
   static constexpr auto TypeParamsOfSuffix =
       lit<"<"> +
-      append<&ast::FunctionTypedSuffix::typeParameters>(ref<TypeParamRule>) +
+      append<&ast::FunctionTypedSuffix::typeParameters>(ref<TypeParam>) +
       many(lit<","> + append<&ast::FunctionTypedSuffix::typeParameters>(
-                           ref<TypeParamRule>)) +
+                           ref<TypeParam>)) +
       lit<">">;
 
-  struct ParamTypeRule
+  struct ParamType
       : rule<create<ast::ParamType>(
             assign<&ast::ParamType::type>(ref<Type_>) +
             option(assign<&ast::ParamType::name>(ref<IdentName>)))> {};
 
-  struct NamedParamTypeRule
+  struct NamedParamType
       : rule<create<ast::ParamType>(
             option(flag<&ast::ParamType::required>(ref<K_REQUIRED>)) +
             assign<&ast::ParamType::type>(ref<Type_>) +
@@ -271,40 +271,40 @@ struct Dart2 : cursiv::GrammarSpec {
 
   static constexpr auto OptionalParamTypes =
       (lit<"["> +
-       append<&ast::ParamTypeList::optionalPositional>(ref<ParamTypeRule>) +
+       append<&ast::ParamTypeList::optionalPositional>(ref<ParamType>) +
        many(lit<","> + append<&ast::ParamTypeList::optionalPositional>(
-                            ref<ParamTypeRule>)) +
+                            ref<ParamType>)) +
        option(lit<",">) + lit<"]">) |
-      (lit<"{"> + append<&ast::ParamTypeList::named>(ref<NamedParamTypeRule>) +
+      (lit<"{"> + append<&ast::ParamTypeList::named>(ref<NamedParamType>) +
        many(lit<","> + append<&ast::ParamTypeList::named>(
-                            ref<NamedParamTypeRule>)) +
+                            ref<NamedParamType>)) +
        option(lit<",">) + lit<"}">);
 
-  struct ParamTypeListRule
+  struct ParamTypeList
       : rule<create<ast::ParamTypeList>(
             lit<"("> +
-            option((append<&ast::ParamTypeList::positional>(ref<ParamTypeRule>) +
+            option((append<&ast::ParamTypeList::positional>(ref<ParamType>) +
                     many(lit<","> + append<&ast::ParamTypeList::positional>(
-                                         ref<ParamTypeRule>)) +
+                                         ref<ParamType>)) +
                     option(lit<","> + option(OptionalParamTypes))) |
                    OptionalParamTypes) +
             lit<")">)> {};
 
-  struct FunctionTypeSegRule
+  struct FunctionTypeSeg
       : rule<create<ast::FunctionTypeSeg>(
             ref<K_FUNCTION> + option(TypeParamsOfSeg) +
-            assign<&ast::FunctionTypeSeg::params>(ref<ParamTypeListRule>) +
+            assign<&ast::FunctionTypeSeg::params>(ref<ParamTypeList>) +
             option(flag<&ast::FunctionTypeSeg::nullable>(lit<"?">)))> {};
 
   // The return type ahead of `Function(...)` may itself be `void`, unlike a
   // plain `TypeNotVoid` position.
-  struct FunctionTypeRule
+  struct FunctionType
       : rule<create<ast::FunctionType>(
             option(assign<&ast::FunctionType::returnType>(
                 ref<TypeNotVoid> |
                 create<ast::NamedType>(
                     assign<&ast::NamedType::name>(ref<K_VOID>)))) +
-            some(append<&ast::FunctionType::segments>(ref<FunctionTypeSegRule>)))> {
+            some(append<&ast::FunctionType::segments>(ref<FunctionTypeSeg>)))> {
   };
 
   // `Function` alone, with no parameter list -- the top function type.
@@ -313,7 +313,7 @@ struct Dart2 : cursiv::GrammarSpec {
             assign<&ast::NamedType::name>(ref<K_FUNCTION>) +
             option(flag<&ast::NamedType::nullable>(lit<"?">)))> {};
 
-  struct NamedTypeRule
+  struct NamedType
       : rule<create<ast::NamedType>(
             ((assign<&ast::NamedType::qualifier>(ref<TypeIdentName>) + lit<"."> +
               assign<&ast::NamedType::name>(ref<TypeIdentName>))  //
@@ -328,8 +328,8 @@ struct Dart2 : cursiv::GrammarSpec {
   // The function-type reading is tried first: with no return type and no
   // `Function` ahead it fails immediately and falls through.
   struct TypeNotVoid
-      : rule<ref<FunctionTypeRule> | ref<BareFunctionType> |
-             ref<NamedTypeRule>> {};
+      : rule<ref<FunctionType> | ref<BareFunctionType> |
+             ref<NamedType>> {};
 
   struct Type_
       : rule<create<ast::NamedType>(assign<&ast::NamedType::name>(ref<K_VOID>)) |
@@ -339,7 +339,7 @@ struct Dart2 : cursiv::GrammarSpec {
   struct FunctionTypedSuffix
       : rule<create<ast::FunctionTypedSuffix>(
             option(TypeParamsOfSuffix) +
-            assign<&ast::FunctionTypedSuffix::params>(ref<ParamListRule>) +
+            assign<&ast::FunctionTypedSuffix::params>(ref<ParamList>) +
             option(flag<&ast::FunctionTypedSuffix::nullable>(lit<"?">)))> {
   };
 
@@ -368,7 +368,7 @@ struct Dart2 : cursiv::GrammarSpec {
        many(lit<","> + append<&ast::ParamList::named>(ref<DefaultParam>)) +
        option(lit<",">) + lit<"}">);
 
-  struct ParamListRule
+  struct ParamList
       : rule<create<ast::ParamList>(
             lit<"("> +
             option((append<&ast::ParamList::positional>(ref<DefaultParam>) +
@@ -449,15 +449,15 @@ struct Dart2 : cursiv::GrammarSpec {
             option(ref<K_ELSE> +
                    assign<&ast::IfElement::elseElement>(ref<Element_>)))> {};
 
-  struct ForPartsRule;
+  struct ForParts;
   struct ForElement_
       : rule<create<ast::ForElement>(
             option(flag<&ast::ForElement::isAwait>(ref<K_AWAIT>)) +
             ref<K_FOR> + lit<"("> +
-            assign<&ast::ForElement::parts>(ref<ForPartsRule>) + lit<")"> +
+            assign<&ast::ForElement::parts>(ref<ForParts>) + lit<")"> +
             assign<&ast::ForElement::body>(ref<Element_>))> {};
 
-  struct ConstructorRefRule
+  struct ConstructorRef
       : rule<create<ast::ConstructorRef>(
             ((assign<&ast::ConstructorRef::qualifier>(ref<TypeIdentName>) +
               lit<"."> +
@@ -483,26 +483,20 @@ struct Dart2 : cursiv::GrammarSpec {
   struct Arguments
       : rule<create<ast::ArgumentList>(
             lit<"("> +
-            option(
-                (append<&ast::ArgumentList::items>(ref<NamedArgument>) +
-                 many(lit<","> + append<&ast::ArgumentList::items>(
-                                      ref<NamedArgument>)))  //
-                | (append<&ast::ArgumentList::items>(ref<PositionalArgument>) +
-                   many(lit<","> + append<&ast::ArgumentList::items>(
-                                        ref<PositionalArgument>)) +
-                   many(lit<","> + append<&ast::ArgumentList::items>(
-                                        ref<NamedArgument>)))) +
-            option(lit<",">) + lit<")">)> {};
+            option(some(append<&ast::ArgumentList::items>(
+                            ref<NamedArgument> | ref<PositionalArgument>),
+                        lit<",">) + option(lit<",">)) +
+            lit<")">)> {};
 
   struct NewExpr_
       : rule<create<ast::NewExpr>(
-            ref<K_NEW> + assign<&ast::NewExpr::ctor>(ref<ConstructorRefRule>) +
+            ref<K_NEW> + assign<&ast::NewExpr::ctor>(ref<ConstructorRef>) +
             assign<&ast::NewExpr::args>(ref<Arguments>))> {};
 
   struct ConstObjectExpr_
       : rule<create<ast::NewExpr>(
             flag<&ast::NewExpr::isConst>(ref<K_CONST>) +
-            assign<&ast::NewExpr::ctor>(ref<ConstructorRefRule>) +
+            assign<&ast::NewExpr::ctor>(ref<ConstructorRef>) +
             assign<&ast::NewExpr::args>(ref<Arguments>))> {};
 
   struct ConstructorInvocationExpr_
@@ -525,11 +519,11 @@ struct Dart2 : cursiv::GrammarSpec {
 
   static constexpr auto FormalParameterPart_ =
       option(lit<"<"> +
-             append<&ast::FunctionExpr::typeParameters>(ref<TypeParamRule>) +
+             append<&ast::FunctionExpr::typeParameters>(ref<TypeParam>) +
              many(lit<","> + append<&ast::FunctionExpr::typeParameters>(
-                                  ref<TypeParamRule>)) +
+                                  ref<TypeParam>)) +
              lit<">">) +
-      assign<&ast::FunctionExpr::params>(ref<ParamListRule>);
+      assign<&ast::FunctionExpr::params>(ref<ParamList>);
 
   // The `=>` form is an expression, never an operand: its body reads to the
   // end of the expression.
@@ -613,14 +607,13 @@ struct Dart2 : cursiv::GrammarSpec {
   struct Shr2Op : rule<lit<">"> + lit<">">> {};
 
   struct BitwiseOrLevel
-      : infix<UnaryExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"*", !lit<"=">> | lit<"/", !lit<"=">> |
-                    lit<"~/", !lit<"=">> | lit<"%", !lit<"=">>) >>
-               left(lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>) >>
-               left(ref<Shr3Op> | ref<Shr2Op> | lit<"<<", !lit<"=">>) >>
-               left(lit<"&", !cr<"&=">>) >> left(lit<"^", !lit<"=">>) >>
-               left(lit<"|", !cr<"|=">>))> {};
+      : infix<UnaryExpression, ast::BinaryExpr,
+              levels(left(lit<"*", !lit<"=">> | lit<"/", !lit<"=">> |
+                          lit<"~/", !lit<"=">> | lit<"%", !lit<"=">>),
+                     left(lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>),
+                     left(ref<Shr3Op> | ref<Shr2Op> | lit<"<<", !lit<"=">>),
+                     left(lit<"&", !cr<"&=">>), left(lit<"^", !lit<"=">>),
+                     left(lit<"|", !cr<"|=">>))> {};
 
   struct GeOp : rule<lit<">"> + lit<"=">> {};
 
@@ -652,10 +645,9 @@ struct Dart2 : cursiv::GrammarSpec {
              | ref<RelationalExpression>> {};
 
   struct IfNullOrLower
-      : infix<EqualityExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"&&">) >> left(lit<"||">) >>
-               left(lit<"??", !lit<"=">>))> {};
+      : infix<EqualityExpression, ast::BinaryExpr,
+              levels(left(lit<"&&">), left(lit<"||">),
+                     left(lit<"??", !lit<"=">>))> {};
 
   struct ConditionalExpression
       : rule<create<ast::ConditionalExpr>(
@@ -682,7 +674,10 @@ struct Dart2 : cursiv::GrammarSpec {
                  assign<&ast::AssignExpr::target>(ref<PostfixExpression>) +
                  assign<&ast::AssignExpr::op>(ref<AssignOp_>) +
                  assign<&ast::AssignExpr::value>(ref<AssignExpression>))  //
-             | ref<FunctionExpr_> | ref<ConditionalExpression>> {};
+             | ref<FunctionExpr_> | ref<ConditionalExpression> |
+             create<ast::ThrowExpr>(
+                 ref<K_THROW> +
+                 assign<&ast::ThrowExpr::value>(ref<AssignExpression>))> {};
 
   // A cascade's steps (`..foo`, `[i]`, calls...) hang off an implicit
   // receiver that this AST does not spell out: each step is its own small
@@ -718,10 +713,14 @@ struct Dart2 : cursiv::GrammarSpec {
             option(assign<&ast::CascadeSection::assignment>(
                 create<ast::AssignExpr>(
                     assign<&ast::AssignExpr::op>(ref<AssignOp_>) +
-                    assign<&ast::AssignExpr::value>(ref<Expression>)))))> {};
+                    assign<&ast::AssignExpr::value>(ref<AssignExpression>)))))> {};
 
   struct Expression
-      : rule<ref<AssignExpression> |
+      : rule<create<ast::AssignExpr>(
+                 assign<&ast::AssignExpr::target>(ref<PostfixExpression>) +
+                 assign<&ast::AssignExpr::op>(ref<AssignOp_>) +
+                 assign<&ast::AssignExpr::value>(ref<Expression>)) |
+             ref<AssignExpression> |
              create<ast::CascadeExpr>(
                  assign<&ast::CascadeExpr::target>(ref<ConditionalExpression>) +
                  (flag<&ast::CascadeExpr::nullAware>(lit<"?..">)  //
@@ -734,7 +733,7 @@ struct Dart2 : cursiv::GrammarSpec {
                  assign<&ast::ThrowExpr::value>(ref<Expression>))> {};
 
   // -- statements ----
-  struct LabelRule
+  struct Label
       : rule<assign<&ast::Label::name>(ref<IdentName>) + lit<":">> {};
 
   struct VarBindingInit
@@ -756,6 +755,7 @@ struct Dart2 : cursiv::GrammarSpec {
 
   struct VarDeclStmt_
       : rule<create<ast::VarDeclStmt>(
+            many(append<&ast::VarDeclStmt::annotations>(ref<MetadataItem>)) +
             assign<&ast::VarDeclStmt::spec>(ref<LocalVarSpec_>) + lit<";">)> {};
 
   struct AssertStmt_
@@ -788,7 +788,7 @@ struct Dart2 : cursiv::GrammarSpec {
             ref<K_IN> +
             assign<&ast::ForInParts::iterable>(ref<Expression>))> {};
 
-  struct ForPartsRule : rule<ref<ForInParts_> | ref<ForClassicParts_>> {};
+  struct ForParts : rule<ref<ForInParts_> | ref<ForClassicParts_>> {};
 
   struct BlockStmt
       : rule<create<ast::BlockStmt>(
@@ -798,10 +798,11 @@ struct Dart2 : cursiv::GrammarSpec {
 
   struct FunctionDeclStmt_
       : rule<create<ast::FunctionDeclStmt>(
+            many(append<&ast::FunctionDeclStmt::annotations>(ref<MetadataItem>)) +
             option(assign<&ast::FunctionDeclStmt::returnType>(ref<Type_>)) +
             assign<&ast::FunctionDeclStmt::name>(ref<IdentName>) +
-            assign<&ast::FunctionDeclStmt::function>(ref<FunctionExpr_> |
-                                                     ref<FunctionPrimary_>))> {};
+            assign<&ast::FunctionDeclStmt::function>(
+                (ref<FunctionExpr_> + lit<";">) | ref<FunctionPrimary_>))> {};
 
   struct ExprStmt_
       : rule<create<ast::ExprStmt>(
@@ -812,7 +813,7 @@ struct Dart2 : cursiv::GrammarSpec {
       : rule<create<ast::ForStmt>(
             option(flag<&ast::ForStmt::isAwait>(ref<K_AWAIT>)) +
             ref<K_FOR> + lit<"("> +
-            assign<&ast::ForStmt::parts>(ref<ForPartsRule>) + lit<")"> +
+            assign<&ast::ForStmt::parts>(ref<ForParts>) + lit<")"> +
             assign<&ast::ForStmt::body>(ref<Statement>))> {};
 
   struct WhileStmt_
@@ -830,7 +831,7 @@ struct Dart2 : cursiv::GrammarSpec {
 
   struct SwitchCase_
       : rule<create<ast::SwitchCase>(
-            many(append<&ast::SwitchCase::labels>(ref<LabelRule>)) +
+            many(append<&ast::SwitchCase::labels>(ref<Label>)) +
             ((ref<K_CASE> + assign<&ast::SwitchCase::value>(ref<Expression>) +
               lit<":">)  //
              | (ref<K_DEFAULT> + lit<":">)) +
@@ -913,7 +914,7 @@ struct Dart2 : cursiv::GrammarSpec {
       : rule<ref<VarDeclStmt_> | ref<ExecStatement> | ref<FunctionDeclStmt_>> {};
 
   static constexpr auto Labelled = create<ast::LabelledStmt>(
-      some(append<&ast::LabelledStmt::labels>(ref<LabelRule>)) +
+      some(append<&ast::LabelledStmt::labels>(ref<Label>)) +
       assign<&ast::LabelledStmt::body>(ref<NonLabelledStatement>));
 
   struct Statement : rule<Labelled | ref<NonLabelledStatement>> {};
@@ -922,7 +923,7 @@ struct Dart2 : cursiv::GrammarSpec {
   struct EntryStatement : rule<Labelled | ref<ExecStatement>> {};
 
   // -- directives ----
-  struct CombinatorRule
+  struct Combinator
       : rule<create<ast::Combinator>(
             (flag<&ast::Combinator::isHide>(ref<K_HIDE>) | ref<K_SHOW>) +
             append<&ast::Combinator::names>(ref<IdentName>) +
@@ -951,7 +952,7 @@ struct Dart2 : cursiv::GrammarSpec {
                    ref<K_AS> +
                    assign<&ast::ImportDirective::asName>(ref<IdentName>)) +
             many(append<&ast::ImportDirective::combinators>(
-                ref<CombinatorRule>)) +
+                ref<Combinator>)) +
             lit<";">)> {};
 
   struct ExportDirective_
@@ -962,7 +963,7 @@ struct Dart2 : cursiv::GrammarSpec {
             many(append<&ast::ExportDirective::configurations>(
                 ref<ConfigurationUri_>)) +
             many(append<&ast::ExportDirective::combinators>(
-                ref<CombinatorRule>)) +
+                ref<Combinator>)) +
             lit<";">)> {};
 
   struct PartDirective_
@@ -1035,7 +1036,7 @@ struct Dart2 : cursiv::GrammarSpec {
       option(flag<&ast::ConstructorDecl::isConst>(ref<K_CONST>)) +
       assign<&ast::ConstructorDecl::className>(ref<TypeIdentName>) +
       option(lit<"."> + assign<&ast::ConstructorDecl::name>(ref<IdentName>)) +
-      assign<&ast::ConstructorDecl::params>(ref<ParamListRule>) +
+      assign<&ast::ConstructorDecl::params>(ref<ParamList>) +
       option(lit<":"> +
              (assign<&ast::ConstructorDecl::redirect>(create<ast::Redirection>(
                   ref<K_THIS> +
@@ -1057,19 +1058,16 @@ struct Dart2 : cursiv::GrammarSpec {
       flag<&ast::ConstructorDecl::isFactory>(ref<K_FACTORY>) +
       assign<&ast::ConstructorDecl::className>(ref<TypeIdentName>) +
       option(lit<"."> + assign<&ast::ConstructorDecl::name>(ref<IdentName>)) +
-      assign<&ast::ConstructorDecl::params>(ref<ParamListRule>) +
+      assign<&ast::ConstructorDecl::params>(ref<ParamList>) +
       (lit<";">  //
        | (lit<"="> +
           assign<&ast::ConstructorDecl::factoryRedirect>(
-              ref<ConstructorRefRule>) +
+              ref<ConstructorRef>) +
           lit<";">)  //
        | (lit<"=>"> + assign<&ast::ConstructorDecl::bodyExpr>(ref<Expression>) +
           lit<";">)  //
        | assign<&ast::ConstructorDecl::body>(ref<BlockStmt>)));
 
-  struct GetKw : rule<ref<K_GET>, value<ast::MemberKind::getter>> {};
-  struct SetKw : rule<ref<K_SET>, value<ast::MemberKind::setter>> {};
-  struct OpKw : rule<ref<K_OPERATOR>, value<ast::MemberKind::op>> {};
 
   // Each snippet below writes into the same class its caller creates: a
   // separate `rule<>` here would count as a second, independent head of
@@ -1088,17 +1086,17 @@ struct Dart2 : cursiv::GrammarSpec {
                 | (flag<&ast::MethodDecl::isSync>(ref<K_SYNC>) +
                    flag<&ast::MethodDecl::isGenerator>(lit<"*">))) +
          assign<&ast::MethodDecl::body>(ref<BlockStmt>))  //
-      | lit<";">;
+      | flag<&ast::MethodDecl::isAbstract>(lit<";">);
 
   static constexpr auto GetterSig_ =
       option(assign<&ast::MethodDecl::returnType>(ref<Type_>)) +
-      assign<&ast::MethodDecl::kind>(ref<GetKw>) +
+      assign<&ast::MethodDecl::kind>(as<ast::MemberKind::getter>(ref<K_GET>)) +
       assign<&ast::MethodDecl::name>(ref<IdentName>);
   static constexpr auto SetterSig_ =
       option(assign<&ast::MethodDecl::returnType>(ref<Type_>)) +
-      assign<&ast::MethodDecl::kind>(ref<SetKw>) +
+      assign<&ast::MethodDecl::kind>(as<ast::MemberKind::setter>(ref<K_SET>)) +
       assign<&ast::MethodDecl::name>(ref<IdentName>) +
-      assign<&ast::MethodDecl::params>(ref<ParamListRule>);
+      assign<&ast::MethodDecl::params>(ref<ParamList>);
   // A multi-token spelling (`[]`, `[]=`, `>>`, `>>>`, `>=`) needs its own
   // named rule: fed inline to `assign<>`, the same text crashes the
   // generated parser.
@@ -1107,7 +1105,7 @@ struct Dart2 : cursiv::GrammarSpec {
 
   static constexpr auto OperatorSig_ =
       option(assign<&ast::MethodDecl::returnType>(ref<Type_>)) +
-      assign<&ast::MethodDecl::kind>(ref<OpKw>) +
+      assign<&ast::MethodDecl::kind>(as<ast::MemberKind::op>(ref<K_OPERATOR>)) +
       assign<&ast::MethodDecl::name>(
           lit<"=="> | lit<"~/", !lit<"=">> | lit<"~"> | lit<"*", !lit<"=">> |
           lit<"/", !lit<"=">> | lit<"%", !lit<"=">> | lit<"+", !cr<"+=">> |
@@ -1115,16 +1113,16 @@ struct Dart2 : cursiv::GrammarSpec {
           ref<Shr2Op> | lit<"&", !cr<"&=">> | lit<"^", !lit<"=">> |
           lit<"|", !cr<"|=">> | ref<GeOp> | lit<">"> | lit<"<="> |
           lit<"<", !cr<"<=">> | ref<IndexEqOpTok> | ref<IndexOpTok>) +
-      assign<&ast::MethodDecl::params>(ref<ParamListRule>);
+      assign<&ast::MethodDecl::params>(ref<ParamList>);
   static constexpr auto FunctionSig_ =
       option(assign<&ast::MethodDecl::returnType>(ref<Type_>)) +
       assign<&ast::MethodDecl::name>(ref<IdentName>) +
       option(lit<"<"> +
-             append<&ast::MethodDecl::typeParameters>(ref<TypeParamRule>) +
+             append<&ast::MethodDecl::typeParameters>(ref<TypeParam>) +
              many(lit<","> + append<&ast::MethodDecl::typeParameters>(
-                                  ref<TypeParamRule>)) +
+                                  ref<TypeParam>)) +
              lit<">">) +
-      assign<&ast::MethodDecl::params>(ref<ParamListRule>);
+      assign<&ast::MethodDecl::params>(ref<ParamList>);
 
   static constexpr auto MethodDecl_ = create<ast::MethodDecl>(
       option(flag<&ast::MethodDecl::isExternal>(ref<K_EXTERNAL>)) +
@@ -1139,9 +1137,9 @@ struct Dart2 : cursiv::GrammarSpec {
               MethodDecl_)> {};
 
   static constexpr auto TypeParamsOfClass =
-      lit<"<"> + append<&ast::ClassDecl::typeParameters>(ref<TypeParamRule>) +
+      lit<"<"> + append<&ast::ClassDecl::typeParameters>(ref<TypeParam>) +
       many(lit<","> +
-           append<&ast::ClassDecl::typeParameters>(ref<TypeParamRule>)) +
+           append<&ast::ClassDecl::typeParameters>(ref<TypeParam>)) +
       lit<">">;
 
   static constexpr auto ClassMixins =
@@ -1165,9 +1163,9 @@ struct Dart2 : cursiv::GrammarSpec {
   static constexpr auto MixinDecl_ = create<ast::MixinDecl>(
       ref<K_MIXIN> + assign<&ast::MixinDecl::name>(ref<TypeIdentName>) +
       option(lit<"<"> +
-             append<&ast::MixinDecl::typeParameters>(ref<TypeParamRule>) +
+             append<&ast::MixinDecl::typeParameters>(ref<TypeParam>) +
              many(lit<","> +
-                  append<&ast::MixinDecl::typeParameters>(ref<TypeParamRule>)) +
+                  append<&ast::MixinDecl::typeParameters>(ref<TypeParam>)) +
              lit<">">) +
       option(
           ref<K_ON> + append<&ast::MixinDecl::onTypes>(ref<TypeNotVoid>) +
@@ -1183,9 +1181,9 @@ struct Dart2 : cursiv::GrammarSpec {
       ref<K_EXTENSION> +
       option(assign<&ast::ExtensionDecl::name>(ref<IdentName>)) +
       option(lit<"<"> +
-             append<&ast::ExtensionDecl::typeParameters>(ref<TypeParamRule>) +
+             append<&ast::ExtensionDecl::typeParameters>(ref<TypeParam>) +
              many(lit<","> + append<&ast::ExtensionDecl::typeParameters>(
-                                 ref<TypeParamRule>)) +
+                                 ref<TypeParam>)) +
              lit<">">) +
       ref<K_ON> + assign<&ast::ExtensionDecl::onType>(ref<Type_>) + lit<"{"> +
       many(append<&ast::ExtensionDecl::members>(ref<MemberDecl>)) + lit<"}">);
@@ -1206,9 +1204,9 @@ struct Dart2 : cursiv::GrammarSpec {
   static constexpr auto EnumDecl_ = create<ast::EnumDecl>(
       ref<K_ENUM> + assign<&ast::EnumDecl::name>(ref<IdentName>) +
       option(lit<"<"> +
-             append<&ast::EnumDecl::typeParameters>(ref<TypeParamRule>) +
+             append<&ast::EnumDecl::typeParameters>(ref<TypeParam>) +
              many(lit<","> +
-                  append<&ast::EnumDecl::typeParameters>(ref<TypeParamRule>)) +
+                  append<&ast::EnumDecl::typeParameters>(ref<TypeParam>)) +
              lit<">">) +
       option(
           ref<K_WITH> + append<&ast::EnumDecl::mixins>(ref<TypeNotVoid>) +
@@ -1226,8 +1224,8 @@ struct Dart2 : cursiv::GrammarSpec {
       lit<"}">);
 
   static constexpr auto TypedefTypeParams =
-      lit<"<"> + append<&ast::TypedefDecl::typeParameters>(ref<TypeParamRule>) +
-      many(lit<","> + append<&ast::TypedefDecl::typeParameters>(ref<TypeParamRule>)) +
+      lit<"<"> + append<&ast::TypedefDecl::typeParameters>(ref<TypeParam>) +
+      many(lit<","> + append<&ast::TypedefDecl::typeParameters>(ref<TypeParam>)) +
       lit<">">;
 
   static constexpr auto TypedefDecl_ = create<ast::TypedefDecl>(
@@ -1238,7 +1236,7 @@ struct Dart2 : cursiv::GrammarSpec {
        | (option(assign<&ast::TypedefDecl::functionReturnType>(ref<Type_>)) +
           assign<&ast::TypedefDecl::name>(ref<IdentName>) +
           option(TypedefTypeParams) +
-          assign<&ast::TypedefDecl::functionParams>(ref<ParamListRule>) +
+          assign<&ast::TypedefDecl::functionParams>(ref<ParamList>) +
           lit<";">)));
 
   struct TopLevelVarSpec_
@@ -1249,30 +1247,26 @@ struct Dart2 : cursiv::GrammarSpec {
   static constexpr auto TopLevelVariable_ = create<ast::TopLevelVariable>(
       assign<&ast::TopLevelVariable::spec>(ref<TopLevelVarSpec_>) + lit<";">);
 
-  struct TopLevelGetKw
-      : rule<ref<K_GET>, value<ast::MemberKind::getter>> {};
-  struct TopLevelSetKw
-      : rule<ref<K_SET>, value<ast::MemberKind::setter>> {};
 
   static constexpr auto TopLevelGetterSig_ =
       option(assign<&ast::TopLevelFunction::returnType>(ref<Type_>)) +
-      assign<&ast::TopLevelFunction::kind>(ref<TopLevelGetKw>) +
+      assign<&ast::TopLevelFunction::kind>(as<ast::MemberKind::getter>(ref<K_GET>)) +
       assign<&ast::TopLevelFunction::name>(ref<IdentName>);
   static constexpr auto TopLevelSetterSig_ =
       option(assign<&ast::TopLevelFunction::returnType>(ref<Type_>)) +
-      assign<&ast::TopLevelFunction::kind>(ref<TopLevelSetKw>) +
+      assign<&ast::TopLevelFunction::kind>(as<ast::MemberKind::setter>(ref<K_SET>)) +
       assign<&ast::TopLevelFunction::name>(ref<IdentName>) +
-      assign<&ast::TopLevelFunction::params>(ref<ParamListRule>);
+      assign<&ast::TopLevelFunction::params>(ref<ParamList>);
   static constexpr auto TopLevelFunctionSig_ =
       option(assign<&ast::TopLevelFunction::returnType>(ref<Type_>)) +
       assign<&ast::TopLevelFunction::name>(ref<IdentName>) +
       option(lit<"<"> +
              append<&ast::TopLevelFunction::typeParameters>(
-                 ref<TypeParamRule>) +
+                 ref<TypeParam>) +
              many(lit<","> + append<&ast::TopLevelFunction::typeParameters>(
-                                  ref<TypeParamRule>)) +
+                                  ref<TypeParam>)) +
              lit<">">) +
-      assign<&ast::TopLevelFunction::params>(ref<ParamListRule>);
+      assign<&ast::TopLevelFunction::params>(ref<ParamList>);
 
   static constexpr auto TopLevelFunctionBody_ =
       (option(flag<&ast::TopLevelFunction::isAsync>(ref<K_ASYNC>)) +
@@ -1292,7 +1286,7 @@ struct Dart2 : cursiv::GrammarSpec {
       (lit<";"> | TopLevelFunctionBody_));
 
   // The annotation prefix is spliced here, as in `MemberDecl`.
-  struct TopLevelDeclRule
+  struct TopLevelDecl
       : rule<many(append<&ast::TopLevelDecl::annotations>(ref<MetadataItem>)) +
              (ClassDecl_ | MixinDecl_ | ExtensionDecl_ | EnumDecl_ |
               TypedefDecl_ | TopLevelFunction_ | TopLevelVariable_)> {};
@@ -1302,23 +1296,23 @@ struct Dart2 : cursiv::GrammarSpec {
       many(append<&ast::CompilationUnit::imports>(ref<ImportDirective_>) |
            append<&ast::CompilationUnit::exports>(ref<ExportDirective_>)) +
       many(append<&ast::CompilationUnit::parts>(ref<PartDirective_>)) +
-      many(append<&ast::CompilationUnit::declarations>(ref<TopLevelDeclRule>));
+      many(append<&ast::CompilationUnit::declarations>(ref<TopLevelDecl>));
 
   struct ScriptTag : terminal<lit<"#!"> + many(cr<R"(^\r\n)">)> {};
 
-  struct CompilationUnitRule
+  struct CompilationUnit
       : rule<create<ast::CompilationUnit>(
             option(lit<"\xEF\xBB\xBF">) +
             option(assign<&ast::CompilationUnit::scriptTag>(ref<ScriptTag>)) +
             (LibraryBody |
             (assign<&ast::CompilationUnit::partOf>(ref<PartOfDirective_>) +
              many(append<&ast::CompilationUnit::declarations>(
-                 ref<TopLevelDeclRule>))) |
+                 ref<TopLevelDecl>))) |
             assign<&ast::CompilationUnit::exprEntry>(ref<Expression>) |
             assign<&ast::CompilationUnit::stmtEntry>(ref<EntryStatement>)))> {};
 
-  using entry = CompilationUnitRule;
-  using ignore = WS;
+  using entry = CompilationUnit;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

@@ -21,33 +21,33 @@ struct Sgf : cursiv::GrammarSpec {
       if (c >= 'A' && c <= 'Z') room[size++] = c;
     return std::string_view(room.data(), size);
   };
-  struct IDENTIFIER : terminal<some(cr<"A-Za-z">), text_conv<identifier>> {};
+  struct IDENTIFIER : terminal<as<identifier>(some(cr<"A-Za-z">))> {};
 
   inline static constexpr auto unbracket = [](std::string_view text) {
     return text.substr(1, text.size() - 2);
   };
   struct VALUE
-      : terminal<lit<"["> + many((lit<"\\"> + any) | cr<R"(^\\])">) + lit<"]">,
-                 text_conv<unbracket>> {};
+      : terminal<as<unbracket>(
+            lit<"["> + many((lit<"\\"> + any) | cr<R"(^\\])">) + lit<"]">)> {};
 
-  struct PropertyRule : rule<assign<&ast::Property::id>(ref<IDENTIFIER>) +
+  struct Property : rule<assign<&ast::Property::id>(ref<IDENTIFIER>) +
                              many(append<&ast::Property::values>(ref<VALUE>))> {
   };
 
-  struct NodeRule
+  struct Node
       : rule<lit<";"> +
-             many(append<&ast::Node::properties>(ref<PropertyRule>))> {};
+             many(append<&ast::Node::properties>(ref<Property>))> {};
 
-  struct GameTreeRule
-      : rule<lit<"("> + some(append<&ast::GameTree::nodes>(ref<NodeRule>)) +
-             many(append<&ast::GameTree::children>(ref<GameTreeRule>)) +
+  struct GameTree
+      : rule<lit<"("> + some(append<&ast::GameTree::nodes>(ref<Node>)) +
+             many(append<&ast::GameTree::children>(ref<GameTree>)) +
              lit<")">> {};
 
-  struct CollectionRule
-      : rule<some(append<&ast::Collection::trees>(ref<GameTreeRule>))> {};
+  struct Collection
+      : rule<some(append<&ast::Collection::trees>(ref<GameTree>))> {};
 
-  using entry = CollectionRule;
-  using ignore = WS;
+  using entry = Collection;
+  using ignored = WS;
 };
 
 }  // namespace sgf

@@ -443,6 +443,61 @@ end)
   check(q && q->texts.size() == 2 && q->texts[0] == "x" && q->texts[1].empty() && h && h->body.size() == 1 && number(h->body[0],"1") && number(k->value,"2"), "interpolated keyword key values");
   check(k && k->parent == l && q && q->parent == k && h && h->parent == q && h->body.size() == 1 && h->body[0]->parent == h, "interpolated keyword key parents");
  }
+ // Elixir 1.18.4 tokenizer special atoms and parser @ precedence.
+ for (std::string_view source : {"loop(%{})", "loop({})", "loop(<<>>)",
+                                "Task.start_link(fn -> loop(%{}) end)"}) {
+  const auto r = parser.parse(source);
+  check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
+        "empty containers remain expressions in call arguments");
+  bool empty = false;
+  for (const auto* node : r.nodes) {
+   if (const auto* map = cursiv::ast_cast<ast::MapExpr>(node))
+    empty |= map->entries.empty() && map->keywords.empty() && !map->base && !map->structType;
+   if (const auto* tuple = cursiv::ast_cast<ast::TupleExpr>(node)) empty |= tuple->items.empty();
+   if (const auto* bits = cursiv::ast_cast<ast::BitstringExpr>(node)) empty |= bits->items.empty();
+  }
+  check(empty, "the empty container is preserved in the argument AST");
+ }
+ for (std::string_view spelling : {"<<>>", "%{}", "%", "{}", "..//", "~~~"}) {
+  const std::string source = "f(" + std::string(spelling) + ": 1)";
+  const auto r = parser.parse(source);
+  const auto* call = cursiv::ast_cast<ast::CallExpr>(first(r));
+  check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && call &&
+        call->options.size() == 1 && call->options[0]->key == spelling &&
+        number(call->options[0]->value, "1"),
+        "operator keyword retains its spelling and value without shadowing containers");
+ }
+ for (std::string_view spelling : {"<<>>", "%{}", "%", "{}", "..//", "~~~"}) {
+  const std::string source = ":" + std::string(spelling);
+  const auto r = parser.parse(source);
+  const auto* atom = cursiv::ast_cast<ast::AtomLit>(first(r));
+  check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && atom &&
+        atom->text == spelling, "native special operator atom retains its spelling");
+ }
+ {
+  const auto r = parser.parse("@settings.value");
+  const auto* dot = cursiv::ast_cast<ast::DotExpr>(first(r));
+  const auto* attribute = dot ? cursiv::ast_cast<ast::AtExpr>(dot->target) : nullptr;
+  check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() &&
+        attribute && name(attribute->operand, "settings") && name(dot->member, "value"),
+        "module attribute binds before a following dot");
+ }
+ {
+  const auto r = parser.parse("@settings[:value]");
+  const auto* index = cursiv::ast_cast<ast::IndexExpr>(first(r));
+  const auto* attribute = index ? cursiv::ast_cast<ast::AtExpr>(index->target) : nullptr;
+  check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() &&
+        attribute && name(attribute->operand, "settings"),
+        "access applies to the module attribute value");
+ }
+ {
+  const auto r = parser.parse("@name()");
+  const auto* attribute = cursiv::ast_cast<ast::AtExpr>(first(r));
+  const auto* call = attribute ? cursiv::ast_cast<ast::CallExpr>(attribute->operand) : nullptr;
+  check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() &&
+        call && name(call->callee, "name") && call->args.empty(),
+        "the attribute keeps its own parenthesized call");
+ }
  auto validate = [&](std::string source, std::string_view code, unsigned expected) {
   cursiv::Document d(cursiv::TextDocument::create("file:///audit.ex", "elixir", 0, std::move(source)));
   d.language = &language.language;d.parseResult = parser.parse(d.textDocument().getText());
@@ -457,6 +512,10 @@ end)
  validate("f(foo: 1, 2)", "elixir.keyword-order", 1);
  validate("[foo: 1, 2]", "elixir.keyword-order", 1);
  validate("%{foo: 1, 2 => 3}", "elixir.keyword-order", 1);
+ validate(R"ex("""inline""")ex", "elixir.heredoc-header", 1);
+ validate(R"ex('''inline''')ex", "elixir.heredoc-header", 1);
+ validate(R"ex(~S"""inline""")ex", "elixir.heredoc-header", 1);
+ validate("\"\"\"\nvalid\n\"\"\"", "elixir.heredoc-header", 0);
  std::printf("elixir audit: %zu native forms, %u checks\n", std::size(valid), checks);
  return ok;
 }

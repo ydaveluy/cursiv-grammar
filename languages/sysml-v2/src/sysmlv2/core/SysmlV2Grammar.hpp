@@ -1,4 +1,4 @@
-// The sysmlv2 language: its grammar -- the OMG SysML v2 textual notation.
+// A subset of SysML2.0 and selected KerML textual notation.
 // ~90 definition/usage/relationship keywords share one shape (see
 // ast::Element: a run of prefixes, an optional identification, specs, a
 // value, a body); this grammar is one rule for that shape plus the
@@ -7,38 +7,97 @@
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "sysmlv2/core/ast.hpp"
+#include <memory_resource>
 
 namespace sysmlv2 {
 
+// Decode an atomic unrestricted name, while preserving qualified/feature
+// chains as source spellings (their components need a richer path AST).
+inline constexpr auto decoded_text = [](std::string_view text, std::pmr::memory_resource* memory) {
+  if (text.empty() || (text[0] != '\'' && text[0] != '"')) return text;
+  const char quote = text[0];
+  std::size_t end = 1;
+  for (; end < text.size(); ++end) {
+    if (text[end] == '\\') ++end;
+    else if (text[end] == quote) break;
+  }
+  if (end + 1 != text.size()) return text;
+  text = text.substr(1, text.size() - 2);
+  if (text.find('\\') == std::string_view::npos) return text;
+  const auto room = cursiv::text_room(memory, text.size());
+  std::size_t n = 0;
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    char c = text[i];
+    if (c == '\\' && i + 1 < text.size()) {
+      c = text[++i];
+      switch (c) {
+        case 'b': c = '\b'; break; case 't': c = '\t'; break;
+        case 'n': c = '\n'; break; case 'f': c = '\f'; break;
+        case 'r': c = '\r'; break;
+      }
+    }
+    room[n++] = c;
+  }
+  return std::string_view(room.data(), n);
+};
+
+// KerML1.0 8.2.3.3.2 comment-body processing, shared by doc/comment/rep.
+inline constexpr auto comment_body = [](std::string_view text, std::pmr::memory_resource* memory) {
+  text = text.substr(2, text.size() - 4);
+  std::size_t start = 0;
+  while (start < text.size() && (text[start] == ' ' || text[start] == '\t' || text[start] == '\f')) ++start;
+  bool lineStart = false;
+  if (start < text.size() && (text[start] == '\r' || text[start] == '\n')) {
+    start += text.substr(start).starts_with("\r\n") ? 2 : 1;
+    lineStart = true;
+  }
+  text.remove_prefix(start);
+  const auto room = cursiv::text_room(memory, text.size());
+  std::size_t n = 0;
+  for (std::size_t i = 0; i < text.size();) {
+    if (lineStart) {
+      while (i < text.size() && (text[i] == ' ' || text[i] == '\t' || text[i] == '\f')) ++i;
+      if (i < text.size() && text[i] == '*') ++i;
+      if (i < text.size() && text[i] == ' ') ++i;
+      lineStart = false;
+    }
+    if (i == text.size()) break;
+    const char c = text[i++]; room[n++] = c;
+    if (c == '\r' && i < text.size() && text[i] == '\n') room[n++] = text[i++];
+    lineStart = c == '\r' || c == '\n';
+  }
+  return std::string_view(room.data(), n);
+};
+
 struct SysmlV2 : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
+  struct WS : terminal<some(cr<R"( \t\r\n\f)">)> {};
   // A `//` not immediately followed by `*` -- OMG's `//* ... */`
-  // block-comment-out form belongs to REGULAR_COMMENT, not a line comment.
+  // multiline note is ignored, while /* ... */ is a modeled comment.
   struct SL_COMMENT : terminal<lit<"//", !lit<"*">> + many(cr<R"(^\r\n)">)> {};
+
+  struct ML_NOTE : terminal<through(lit<"//*">, lit<"*/">)> {};
 
   struct IDENTIFIER : terminal<cr<"a-zA-Z_"> + many(w)> {};
   struct STRING
-      : terminal<lit<"'"> + many((lit<"\\"> + any) | cr<R"(^'\\)">) + lit<"'">> {
+      : terminal<lit<"'"> + many((lit<"\\"> + cr<R"(btnfr"'\\)">) | cr<R"(^'\\)">) + lit<"'">> {
   };
   struct DOUBLE_STRING
-      : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) +
+      : terminal<lit<"\""> + many((lit<"\\"> + cr<R"(btnfr"'\\)">) | cr<R"(^"\\)">) +
                  lit<"\"">> {};
   struct INTEGER : terminal<some(d)> {};
-  struct REAL
-      : terminal<(many(d) + lit<"."> + some(d) +
-                  option(cr<"eE"> + option(cr<"+-">) + some(d)))  //
-                 | (some(d) + cr<"eE"> + option(cr<"+-">) + some(d))> {};
+  struct EXPONENTIAL : terminal<some(d) + cr<"eE"> + option(cr<"+-">) + some(d)> {};
+  struct REAL : rule<(option(ref<INTEGER>) + lit<"."> + (ref<INTEGER> | ref<EXPONENTIAL>)) |
+                     ref<EXPONENTIAL>> {};
 
-  // A block comment is a real terminal, not trivia: `comment`, `doc` and
+  // A regular block comment is a real terminal, not trivia: `comment`, `doc` and
   // `rep` elements consume it explicitly, and so may an expression (a
   // comment used as a placeholder).
   struct REGULAR_COMMENT
-      : terminal<through(lit<"/*">, lit<"*/">) | through(lit<"//*">, lit<"*/">)> {};
+      : terminal<through(lit<"/*">, lit<"*/">)> {};
 
-  // Soft keywords: legal names where a state reads names, keywords where it
-  // reads one of these words. `metadata` is added past SysML v2's own
-  // grammar so `x.metadata` parses through the ordinary member-access
-  // postfix instead of needing its own ambiguous rule.
+  // Compatibility name spellings from earlier SysML/KerML examples. Some
+  // (language, locale, crosses, metadata) are reserved by formal SysML2.0;
+  // full reserved-name checking remains outside this generic syntax port.
   static constexpr auto UnreservedKw =
       kw<"type"> | kw<"multiplicity"> | kw<"var"> | kw<"language"> |
       kw<"locale"> | kw<"crosses"> | kw<"step"> | kw<"feature"> |
@@ -62,6 +121,7 @@ struct SysmlV2 : cursiv::GrammarSpec {
   struct OwnedExpression;
   struct BodyItem;
   struct Element;
+  struct Argument;
 
   struct LiteralText
       : rule<kw<"true"> | kw<"false"> | ref<DOUBLE_STRING> | ref<REAL> |
@@ -97,14 +157,14 @@ struct SysmlV2 : cursiv::GrammarSpec {
                    assign<&ast::Postfix::op>(kw<"new">) +
                    assign<&ast::Postfix::name>(ref<Chain>) + lit<"("> +
                    option(some(append<&ast::Postfix::args>(
-                                   ref<OwnedExpression>),
+                                   ref<Argument>),
                                lit<",">)) +
                    lit<")">)  //
              | (lit<"{"> + ref<FunctionBodyPart> + lit<"}">)  //
              | create<ast::Seq>(
                    lit<"("> +
                    some(append<&ast::Seq::items>(ref<OwnedExpression>),
-                        lit<",">) +
+                        lit<",">) + option(lit<",">) +
                    lit<")">)  //
              | create<ast::NameRef>(
                    assign<&ast::NameRef::name>(ref<Chain>))> {};
@@ -115,37 +175,34 @@ struct SysmlV2 : cursiv::GrammarSpec {
                       assign<&ast::Postfix::op>(lit<".">) +
                       assign<&ast::Postfix::name>(ref<QualifiedName>))  //
                   | nest<ast::Postfix, &ast::Postfix::base>(
+                        assign<&ast::Postfix::op>(lit<".">) + lit<"{"> +
+                        assign<&ast::Postfix::body>(ref<FunctionBodyPart>) + lit<"}">)  //
+                  | nest<ast::Postfix, &ast::Postfix::base>(
                         assign<&ast::Postfix::op>(lit<".?">) + lit<"{"> +
                         assign<&ast::Postfix::body>(ref<FunctionBodyPart>) +
                         lit<"}">)  //
                   | nest<ast::Postfix, &ast::Postfix::base>(
                         assign<&ast::Postfix::op>(lit<"->">) +
                         assign<&ast::Postfix::name>(ref<QualifiedName>) +
-                        ((lit<"{"> +
-                          assign<&ast::Postfix::body>(
-                              ref<FunctionBodyPart>) +
-                          lit<"}">) |
-                         (lit<"("> +
-                          option(some(append<&ast::Postfix::args>(
-                                          ref<OwnedExpression>),
-                                      lit<",">)) +
-                          lit<")">)))  //
+                        ((lit<"{"> + assign<&ast::Postfix::body>(ref<FunctionBodyPart>) + lit<"}">) |
+                         (lit<"("> + option(some(append<&ast::Postfix::args>(ref<Argument>), lit<",">)) + lit<")">) |
+                         assign<&ast::Postfix::functionReference>(ref<QualifiedName>)))  //
                   | nest<ast::Postfix, &ast::Postfix::base>(
                         assign<&ast::Postfix::op>(lit<"[">) +
                         option(some(append<&ast::Postfix::args>(
                                         ref<OwnedExpression>),
-                                    lit<",">)) +
+                                    lit<",">) + option(lit<",">)) +
                         lit<"]">)  //
                   | nest<ast::Postfix, &ast::Postfix::base>(
                         assign<&ast::Postfix::op>(lit<"#">) + lit<"("> +
                         option(some(append<&ast::Postfix::args>(
                                         ref<OwnedExpression>),
-                                    lit<",">)) +
+                                    lit<",">) + option(lit<",">)) +
                         lit<")">)  //
                   | nest<ast::Postfix, &ast::Postfix::base>(
                         assign<&ast::Postfix::op>(lit<"(">) +
                         option(some(append<&ast::Postfix::args>(
-                                        ref<OwnedExpression>),
+                                        ref<Argument>),
                                     lit<",">)) +
                         lit<")">))> {};
 
@@ -153,6 +210,10 @@ struct SysmlV2 : cursiv::GrammarSpec {
 
   struct UnaryExpression
       : rule<create<ast::Unary>(
+                 assign<&ast::Unary::op>(kw<"istype"> | kw<"hastype"> | kw<"as">) +
+                 assign<&ast::Unary::operand>(create<ast::NameRef>(
+                     assign<&ast::NameRef::name>(ref<QualifiedName>)))) |
+             create<ast::Unary>(
                  assign<&ast::Unary::op>(OpUnary) +
                  assign<&ast::Unary::operand>(ref<UnaryExpression>))  //
              | create<ast::Unary>(
@@ -170,18 +231,17 @@ struct SysmlV2 : cursiv::GrammarSpec {
   // reference -- over-acceptance), EQ, BITAND, XOR, BITOR,
   // IMPLIES, COALESCE, loosest.
   struct OperatorExpression
-      : infix<UnaryExpression, &ast::Binary::left, &ast::Binary::op,
-              &ast::Binary::right,
-              (right(lit<"**"> | lit<"^">) >>
-               left(lit<"*"> | lit<"/"> | lit<"%">) >>
-               left(lit<"+"> | lit<"-">) >> left(lit<"..">) >>
-               left(lit<"<="> | lit<">="> | lit<"<"> | lit<">">) >>
-               left(kw<"istype"> | kw<"hastype"> | lit<"@@"> | lit<"@"> |
-                    kw<"as"> | kw<"meta">) >>
-               left(lit<"==="> | lit<"!=="> | lit<"=="> | lit<"!=">) >>
-               left(lit<"&"> | kw<"and">) >> left(kw<"xor">) >>
-               left(lit<"|"> | kw<"or">) >> left(kw<"implies">) >>
-               left(lit<"??">))> {};
+      : infix<UnaryExpression, ast::Binary,
+              levels(right(lit<"**"> | lit<"^">),
+                     left(lit<"*"> | lit<"/"> | lit<"%">),
+                     left(lit<"+"> | lit<"-">), left(lit<"..">),
+                     left(lit<"<="> | lit<">="> | lit<"<"> | lit<">">),
+                     left(kw<"istype"> | kw<"hastype"> | lit<"@@"> | lit<"@"> |
+                          kw<"as"> | kw<"meta">),
+                     left(lit<"==="> | lit<"!=="> | lit<"=="> | lit<"!=">),
+                     left(lit<"&"> | kw<"and">), left(kw<"xor">),
+                     left(lit<"|"> | kw<"or">), left(kw<"implies">),
+                     left(lit<"??">))> {};
 
   struct OwnedExpression
       : rule<create<ast::Ternary>(
@@ -192,6 +252,12 @@ struct SysmlV2 : cursiv::GrammarSpec {
                  kw<"else"> +
                  assign<&ast::Ternary::else_>(ref<OwnedExpression>))  //
              | ref<OperatorExpression>> {};
+
+  struct Argument
+      : rule<create<ast::NamedArgument>(
+                 assign<&ast::NamedArgument::name>(ref<QualifiedName>) + lit<"="> +
+                 assign<&ast::NamedArgument::value>(ref<OwnedExpression>)) |
+             ref<OwnedExpression>> {};
 
   // ===== The generic declaration shape =====
 
@@ -261,6 +327,7 @@ struct SysmlV2 : cursiv::GrammarSpec {
                 lit<"=>"> | lit<":"> | kw<"specializes"> | kw<"subsets"> |
                 kw<"references"> | kw<"crosses"> | kw<"redefines"> |
                 kw<"conjugates"> | ref<TypedByKw> | ref<DefinedByKw>) +
+            option(flag<&ast::Spec::isConjugated>(lit<"~">)) +
             assign<&ast::Spec::target>(ref<Chain>))> {};
 
   struct MultiplicityBoundExpr : rule<ref<LiteralText> | ref<Chain>> {};
@@ -273,24 +340,29 @@ struct SysmlV2 : cursiv::GrammarSpec {
   // dotted feature chain respectively; folded into one `name` slot here
   // that accepts a chain everywhere -- over-acceptance.
   static constexpr auto Identification =
-      (lit<"<"> + assign<&ast::Element::shortName>(ref<Name>) + lit<">"> +
-       option(assign<&ast::Element::name>(ref<Chain>)))  //
-      | assign<&ast::Element::name>(ref<Chain>);
+      (lit<"<"> + assign<&ast::Element::shortName>(as<decoded_text>(ref<Name>)) + lit<">"> +
+       option(assign<&ast::Element::name>(as<decoded_text>(ref<Chain>))))  //
+      | assign<&ast::Element::name>(as<decoded_text>(ref<Chain>));
 
   static constexpr auto ValuePart =
-      (lit<":="> | lit<"="> |
-       (kw<"default"> + option(lit<":="> | lit<"=">))) +
+      (flag<&ast::Element::isInitial>(lit<":=">) | lit<"="> |
+       (flag<&ast::Element::isDefault>(kw<"default">) +
+        option(flag<&ast::Element::isInitial>(lit<":=">) | lit<"=">))) +
       assign<&ast::Element::value>(ref<OwnedExpression>);
 
   static constexpr auto ChainCSV =
       some(append<&ast::Element::ends>(ref<Chain>), lit<",">);
-  struct ConnectorEnd : rule<option(flag<&ast::Endpoint::isEnd>(kw<"end">)) +
+  struct ConnectorEnd : rule<option(assign<&ast::Endpoint::multiplicity>(ref<MultiplicityBounds>)) +
+                             option(assign<&ast::Endpoint::declaredName>(as<decoded_text>(ref<Name>)) +
+                                    (lit<"::>"> | kw<"references">)) +
+                             option(flag<&ast::Endpoint::isEnd>(kw<"end">)) +
                              assign<&ast::Endpoint::name>(ref<Chain>) +
                              many(append<&ast::Endpoint::specs>(ref<SpecItem>))> {};
   static constexpr auto ConnectorEnds =
       (append<&ast::Element::connectorEnds>(ref<ConnectorEnd>) + kw<"to"> +
        append<&ast::Element::connectorEnds>(ref<ConnectorEnd>)) |
       (lit<"("> +
+       append<&ast::Element::connectorEnds>(ref<ConnectorEnd>) + lit<","> +
        some(append<&ast::Element::connectorEnds>(ref<ConnectorEnd>), lit<",">) +
        lit<")">);
   static constexpr auto EndsPart =
@@ -338,7 +410,8 @@ struct SysmlV2 : cursiv::GrammarSpec {
                    many(SpecWithContinuations)) +
             many(append<&ast::Element::flags>(kw<"ordered"> | kw<"nonunique">)) +
             option(ValuePart) + option(EndsPart) +
-            many(append<&ast::Element::clauses>(ref<ActionClause>)) + ElementBody)> {};
+            many(append<&ast::Element::clauses>(ref<ActionClause>)) +
+            option(flag<&ast::Element::isParallel>(kw<"parallel">)) + ElementBody)> {};
 
   struct ConnectItem : rule<create<ast::Element>(
                            many(append<&ast::Element::flags>(Flag)) +
@@ -405,7 +478,7 @@ struct SysmlV2 : cursiv::GrammarSpec {
       : rule<create<ast::Element>(
             option((kw<"specialization"> | kw<"conjugation"> |
                     kw<"disjoining"> | kw<"inverting">) +
-                   option(assign<&ast::Element::shortName>(ref<Name>))) +
+                   option(assign<&ast::Element::shortName>(as<decoded_text>(ref<Name>)))) +
             ((assign<&ast::Element::kind>(kw<"subtype">) +
               assign<&ast::Element::name>(ref<Chain>) +
               append<&ast::Element::specs>(ref<SpecItem>))  //
@@ -441,9 +514,9 @@ struct SysmlV2 : cursiv::GrammarSpec {
       : rule<create<ast::Element>(
             many(append<&ast::Element::flags>(VisibilityFlags)) +
             assign<&ast::Element::kind>(kw<"alias">) +
-            option(lit<"<"> + assign<&ast::Element::shortName>(ref<Name>) +
+            option(lit<"<"> + assign<&ast::Element::shortName>(as<decoded_text>(ref<Name>)) +
                    lit<">">) +
-            option(assign<&ast::Element::name>(ref<Name>)) + kw<"for"> +
+            option(assign<&ast::Element::name>(as<decoded_text>(ref<Name>))) + kw<"for"> +
             append<&ast::Element::ends>(ref<Chain>) + ElementBody)> {};
 
   struct DependencyItem
@@ -460,32 +533,29 @@ struct SysmlV2 : cursiv::GrammarSpec {
   struct CommentItem
       : rule<create<ast::Element>(
             option(assign<&ast::Element::kind>(kw<"comment">) +
-                   option(assign<&ast::Element::name>(ref<Name>)) +
-                   About) +
+                   option(Identification) + About) +
             option(kw<"locale"> +
-                   assign<&ast::Element::lang>(ref<DOUBLE_STRING>)) +
-            assign<&ast::Element::text>(ref<REGULAR_COMMENT>))> {};
+                   assign<&ast::Element::lang>(as<decoded_text>(ref<DOUBLE_STRING>))) +
+            assign<&ast::Element::text>(as<comment_body>(ref<REGULAR_COMMENT>)))> {};
 
   struct DocItem
       : rule<create<ast::Element>(
             assign<&ast::Element::kind>(kw<"doc">) +
-            option(assign<&ast::Element::name>(ref<Name>)) +
+            option(Identification) +
             option(kw<"locale"> +
-                   assign<&ast::Element::lang>(ref<DOUBLE_STRING>)) +
-            assign<&ast::Element::text>(ref<REGULAR_COMMENT>))> {};
+                   assign<&ast::Element::lang>(as<decoded_text>(ref<DOUBLE_STRING>))) +
+            assign<&ast::Element::text>(as<comment_body>(ref<REGULAR_COMMENT>)))> {};
 
   struct RepItem
       : rule<create<ast::Element>(
-            assign<&ast::Element::kind>(kw<"rep">) +
-            option(assign<&ast::Element::name>(ref<Name>)) +
-            kw<"language"> +
-            assign<&ast::Element::lang>(ref<DOUBLE_STRING>) +
-            assign<&ast::Element::text>(ref<REGULAR_COMMENT>))> {};
+            option(kw<"rep"> + option(Identification)) +
+            assign<&ast::Element::kind>(as<[](std::string_view) { return std::string_view("rep"); }>(kw<"language">)) +
+            assign<&ast::Element::lang>(as<decoded_text>(ref<DOUBLE_STRING>)) +
+            assign<&ast::Element::text>(as<comment_body>(ref<REGULAR_COMMENT>)))> {};
 
   // `first x;` names an action's initial node; `then y;` a target
-  // succession from the (here implicit) node before it -- both terminated
-  // like any other member, never combined into one statement here (the
-  // combined `first a then b;` form is a documented gap).
+  // succession from the (here implicit) node before it. The combined
+  // `first a then b;` form retains both targets in source order.
   struct FirstItem : rule<create<ast::Element>(
                          assign<&ast::Element::kind>(kw<"first">) +
                          append<&ast::Element::ends>(ref<Chain>) +
@@ -498,8 +568,7 @@ struct SysmlV2 : cursiv::GrammarSpec {
 
   // `if`/`while`/`for` carry a condition (or loop variable) the generic
   // `DeclItem` shape has no slot for, so each gets its own small rule.
-  // `loop` (a condition-less `while`) and a guarded `until` clause are not
-  // ported.
+  // `loop` has no initial condition; both loop forms may have an until clause.
   struct IfItem
       : rule<create<ast::Element>(
             assign<&ast::Element::kind>(kw<"if">) +
@@ -515,15 +584,22 @@ struct SysmlV2 : cursiv::GrammarSpec {
 
   struct WhileItem
       : rule<create<ast::Element>(
-            assign<&ast::Element::kind>(kw<"while">) +
-            assign<&ast::Element::value>(ref<OwnedExpression>) + lit<"{"> +
-            many(append<&ast::Element::members>(ref<BodyItem>)) +
-            lit<"}">)> {};
+            ((assign<&ast::Element::kind>(kw<"while">) +
+              assign<&ast::Element::value>(ref<OwnedExpression>)) |
+             assign<&ast::Element::kind>(kw<"loop">)) + lit<"{"> +
+            many(append<&ast::Element::members>(ref<BodyItem>)) + lit<"}"> +
+            option(kw<"until"> + assign<&ast::Element::until>(ref<OwnedExpression>) + lit<";">))> {};
+
+  struct FilterItem
+      : rule<create<ast::Element>(
+            many(append<&ast::Element::flags>(VisibilityFlags)) +
+            assign<&ast::Element::kind>(kw<"filter">) +
+            assign<&ast::Element::value>(ref<OwnedExpression>) + lit<";">)> {};
 
   struct ForItem
       : rule<create<ast::Element>(
             assign<&ast::Element::kind>(kw<"for">) +
-            assign<&ast::Element::name>(ref<Name>) + kw<"in"> +
+            assign<&ast::Element::name>(as<decoded_text>(ref<Name>)) + kw<"in"> +
             assign<&ast::Element::value>(ref<OwnedExpression>) + lit<"{"> +
             many(append<&ast::Element::members>(ref<BodyItem>)) +
             lit<"}">)> {};
@@ -531,7 +607,7 @@ struct SysmlV2 : cursiv::GrammarSpec {
   struct BodyItem
       : rule<ref<ImportItem> | ref<ExposeItem> | ref<AliasItem> | ref<DependencyItem> |
              ref<DocItem> | ref<RepItem> | ref<CommentItem> | ref<FirstItem> |
-             ref<ThenItem> | ref<IfItem> | ref<WhileItem> | ref<ForItem> |
+             ref<ThenItem> | ref<IfItem> | ref<WhileItem> | ref<ForItem> | ref<FilterItem> |
              ref<LibraryPackageItem> | ref<RelationshipItem> | ref<BindItem> |
              ref<ConnectItem> | ref<DeclItem>> {};
 
@@ -540,8 +616,8 @@ struct SysmlV2 : cursiv::GrammarSpec {
             many(append<&ast::RootNamespace::members>(ref<BodyItem>)))> {};
 
   using entry = RootNamespace;
-  using ignore = WS;
-  using hidden = list<SL_COMMENT>;
+  using ignored = WS;
+  using hidden = list<SL_COMMENT, ML_NOTE>;
 };
 
 }  // namespace sysmlv2

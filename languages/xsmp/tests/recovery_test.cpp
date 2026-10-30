@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -11,7 +12,7 @@
 namespace {
 using namespace cursiv::test;
 
-void run(Lane& lane) {
+void run(Lane& lane, bool typoOnly) {
   lane.lang = "xsmp";
   const std::unique_ptr<cursiv::Parser> engine =
       xsmp::generated::Xsmp::create_parser();
@@ -23,26 +24,26 @@ void run(Lane& lane) {
       broken[at + 4] = '=';
       const auto result = engine->parse(broken);
       CHECK(result.accepted && !result.diagnostics.empty());
+      const auto printDiagnostics = [&] {
+        for (const auto& d : result.diagnostics)
+          std::fprintf(stderr,
+                       "xsmp typo: kind=%u element=%u bytes=%u..%u\n",
+                       static_cast<unsigned>(d.kind),
+                       static_cast<unsigned>(d.element),
+                       static_cast<unsigned>(d.begin),
+                       static_cast<unsigned>(d.end));
+      };
       bool typo = false;
-#if defined(CURSIV_ENGINE_LL)
-      bool stray = false;
-      for (const auto& d : result.diagnostics) {
-        typo = typo || (d.kind == cursiv::DiagnosticKind::replaced &&
-                        d.begin == at && d.end == at + 4);
-        stray = stray || (d.kind == cursiv::DiagnosticKind::deleted &&
-                          d.begin == at + 4 && d.end == at + 5);
-      }
-      CHECK(typo && stray);
-#else
       for (const auto& d : result.diagnostics) {
         typo = typo || (d.kind == cursiv::DiagnosticKind::replaced &&
                         d.begin == at && d.end == at + 5);
       }
       // One substituted character is one typo, including the final byte.
+      if (!(typo && result.diagnostics.size() == 1)) printDiagnostics();
       CHECK(typo && result.diagnostics.size() == 1);
-#endif
     }
   }
+  if (typoOnly) return;
 #if defined(CURSIV_ENGINE_LR)
   // Three misspelt keywords are three re-readings, not two words invented
   // around them.
@@ -57,10 +58,7 @@ void run(Lane& lane) {
     CHECK(result.accepted);
     std::vector<std::string> said;
     for (const auto& d : result.diagnostics)
-      said.push_back(cursiv::repair_message(
-          engine->getGrammar(), d,
-          std::string_view(text).substr(d.begin, d.end - d.begin),
-          d.end >= text.size()));
+      said.push_back(cursiv::repair_message(engine->getGrammar(), d, text));
     CHECK(said == std::vector<std::string>{
                       "Expecting 'public' but found 'pblic'.",
                       "Expecting 'primitive' but found 'pimitive'.",
@@ -80,8 +78,13 @@ void run(Lane& lane) {
 
 int main(int argc, char** argv) {
   cursiv::test::Lane lane;
-  lane.write = argc > 1 && std::string_view(argv[1]) == "--write";
-  run(lane);
-  lane.close();
+  bool typoOnly = false;
+  for (int i = 1; i < argc; ++i) {
+    const std::string_view arg(argv[i]);
+    if (arg == "--write") lane.write = true;
+    if (arg == "--typo-only") typoOnly = true;
+  }
+  run(lane, typoOnly);
+  if (!typoOnly) lane.close();
   return cursiv::test::report("xsmp_recovery_test");
 }

@@ -31,19 +31,13 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+TTM macro text with nested `#<...>` calls, semicolon-separated arguments, balanced quoted text and `@` escapes.
+
 ```
 #<ds;F;abcxxdefyy>
 #<ss;F;xx;yy>
 #<F;11;22>
 ```
-
-[TTM](https://en.wikipedia.org/wiki/TTM_(programming_language)) is a 1960s
-macro processor: a document is a stream of calls. `#<name;arg;arg>` is an
-active call, evaluated where it stands; `##<name;arg;arg>` is neutral, kept
-as data. An argument is a nested call, a call wrapped in `<...>` (still a
-call, the brackets are pure grouping), or text — a run of letters, digits and
-the language's punctuation, or the same wrapped in `<...>` as `<abc>`, both
-read as the same kind of text.
 
 ## The command line
 

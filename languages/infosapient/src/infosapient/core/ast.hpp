@@ -66,11 +66,11 @@ enum class LogicalOperator : std::uint8_t {
 // operator. A grouping's own parentheses build no node of their own.
 struct Operand : cursiv::Extends<cursiv::AstNode> {};
 
-// `subject 's'|'are' [hedges] value` -- an attribute compared, directly or
+// `subject 'is'|'are' [hedges] value` -- an attribute compared, directly or
 // through hedges, to a number, another attribute's name, or a restriction.
 struct AttribClause : cursiv::Extends<Operand> {
   string_view subject;
-  boolean plural;  // true for 'are', false for 's'
+  boolean plural;  // true for 'are', false for 'is' (or legacy 's')
   vector<Hedge> hedges;
   variant<float64, string_view, Restriction> value;
 };

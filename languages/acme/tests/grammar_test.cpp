@@ -113,6 +113,33 @@ int main() {
       acme::AcmeCoreServices, acme::AcmeSharedCoreServices,
       acme::install_core_module>();
   {
+    const auto result = language.language.parser->parse(
+        "System Native = { Property scale : Float = 6.023e23; "
+        "Property enabled : Boolean = true; "
+        "Representation R = { System Inner = {}; }; };");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("CMU native property/representation example did not parse");
+    const auto* unit = result.value_as<acme::ast::CompUnit>();
+    const auto* system = unit && unit->decls.size() == 1
+        ? cursiv::ast_cast<acme::ast::SystemDecl>(unit->decls[0]) : nullptr;
+    if (!system || system->members.size() != 3)
+      return fail("native System members were lost");
+    const auto* scale =
+        cursiv::ast_cast<acme::ast::PropertyDecl>(system->members[0]);
+    const auto* value = scale ? std::get_if<double>(&scale->value) : nullptr;
+    const auto* enabled =
+        cursiv::ast_cast<acme::ast::PropertyDecl>(system->members[1]);
+    const auto* type = enabled
+        ? cursiv::ast_cast<acme::ast::PropTypeSimple>(enabled->type) : nullptr;
+    const auto* representation =
+        cursiv::ast_cast<acme::ast::RepresentationDecl>(system->members[2]);
+    if (!value || *value != 6.023e23 || !type || type->kind != "Boolean" ||
+        !representation || representation->label != "R" ||
+        !representation->system || representation->system->name != "Inner")
+      return fail("native property or representation has the wrong AST");
+  }
+  {
     const auto result = language.language.parser->parse("family F = { final public component type C; }");
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) return 1;
     const acme::ast::ComponentTypeDecl* declaration = nullptr;

@@ -29,6 +29,7 @@ struct FloatLit : cursiv::Extends<Expr> {
 // are not decoded, matching this codebase's json/ini string literals.
 struct StringLit : cursiv::Extends<Expr> {
   string_view value;
+  boolean verbatim = false;
 };
 
 struct BoolLit : cursiv::Extends<Expr> {
@@ -65,12 +66,14 @@ struct Param : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct FunctionExpr : cursiv::Extends<Expr> {
+  Expr* environment = nullptr;
   vector<Param*> params;
   boolean variadic;
   Stmt* body = nullptr;
 };
 
 struct LambdaExpr : cursiv::Extends<Expr> {
+  Expr* environment = nullptr;
   vector<Param*> params;
   boolean variadic;
   Expr* body = nullptr;
@@ -170,6 +173,7 @@ struct LocalVarDecl : cursiv::Extends<Stmt> {
 // `function name(...) {...}`: a statement, a class method, or a table item
 // -- one class for all three, since Squirrel spells them the same way.
 struct FunctionDecl : cursiv::Extends<Stmt> {
+  Expr* environment = nullptr;
   vector<string_view> path;  // `Foo::bar` splits into two segments
   vector<Param*> params;
   boolean variadic;
@@ -185,6 +189,7 @@ struct LocalFunctionDecl : cursiv::Extends<Stmt> {
 struct EmptyStmt : cursiv::Extends<Stmt> {};
 
 struct ConstructorDecl : cursiv::Extends<cursiv::AstNode> {
+  Expr* environment = nullptr;
   vector<Param*> params;
   boolean variadic;
   Stmt* body = nullptr;

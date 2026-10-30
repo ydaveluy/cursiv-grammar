@@ -20,55 +20,56 @@ struct Stellaris : cursiv::GrammarSpec {
       : terminal<!ref<BOM> +
                  ((cr<R"(^ \t\f\v\r\n{}\[\]<>!=#;")"> + many(bareRest)) |
                   lit<"]">)> {};
-  struct BareText : rule<(many(ref<BOM>) + ref<BARE>) | some(ref<BOM>),
-                         std::string_view> {};
+  struct BareText : rule<as<std::string_view>((many(ref<BOM>) + ref<BARE>) |
+                                              some(ref<BOM>))> {};
   struct VARIABLE : terminal<lit<"@["> + many(cr<"^]">) + lit<"]">> {};
   struct STRING
-      : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">,
-                 cursiv::text_conv<unquote>> {};
+      : terminal<as<unquote>(
+            lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">)> {
+  };
   struct Op : terminal<some(cr<"=<>!?">)> {};
 
-  struct ScalarRule
+  struct Scalar
       : rule<flag<&ast::Scalar::quoted>(
                  assign<&ast::Scalar::text>(ref<STRING>)) |
              assign<&ast::Scalar::text>(ref<VARIABLE> | ref<BareText>)> {};
 
-  struct KeyValueRule;
-  struct ImplicitRule;
-  struct GroupRule;
+  struct KeyValue;
+  struct Implicit;
+  struct Group;
 
   static constexpr auto arrayItem =
-      ref<KeyValueRule> | ref<GroupRule> | ref<ScalarRule>;
+      ref<KeyValue> | ref<Group> | ref<Scalar>;
   static constexpr auto arrayItems = many(append<&ast::Group::items>(arrayItem) + gap);
   static constexpr auto groupBody =
       lit<"{"> + gap +
-      option((append<&ast::Group::items>(ref<KeyValueRule>) + gap +
-              many(append<&ast::Group::items>(ref<KeyValueRule> | ref<ImplicitRule>) + gap) +
+      option((append<&ast::Group::items>(ref<KeyValue>) + gap +
+              many(append<&ast::Group::items>(ref<KeyValue> | ref<Implicit>) + gap) +
               arrayItems) |
-             (append<&ast::Group::items>(ref<GroupRule> | ref<ScalarRule>) + gap +
+             (append<&ast::Group::items>(ref<Group> | ref<Scalar>) + gap +
               arrayItems)) +
       (flag<&ast::Group::closed>(lit<"}">) | eof);
 
-  struct GroupRule : rule<groupBody> {};
-  struct HeaderGroupRule
-      : rule<assign<&ast::Group::header>(ref<ScalarRule>) + gap + groupBody> {};
-  struct ValueRule
-      : rule<ref<HeaderGroupRule> | ref<GroupRule> | ref<ScalarRule>> {};
-  struct KeyValueRule
-      : rule<assign<&ast::KeyValue::key>(ref<ScalarRule>) + gap +
+  struct Group : rule<groupBody> {};
+  struct HeaderGroup
+      : rule<assign<&ast::Group::header>(ref<Scalar>) + gap + groupBody> {};
+  struct Value
+      : rule<ref<HeaderGroup> | ref<Group> | ref<Scalar>> {};
+  struct KeyValue
+      : rule<assign<&ast::KeyValue::key>(ref<Scalar>) + gap +
              assign<&ast::KeyValue::op>(ref<Op>) + gap +
-             assign<&ast::KeyValue::value>(ref<ValueRule>)> {};
-  struct ImplicitRule
-      : rule<assign<&ast::KeyValue::key>(ref<ScalarRule>) + gap +
-             assign<&ast::KeyValue::value>(ref<GroupRule>)> {};
+             assign<&ast::KeyValue::value>(ref<Value>)> {};
+  struct Implicit
+      : rule<assign<&ast::KeyValue::key>(ref<Scalar>) + gap +
+             assign<&ast::KeyValue::value>(ref<Group>)> {};
 
-  struct DocRule
+  struct Doc
       : rule<option(flag<&ast::Document::bom>(ref<BOM>)) + gap +
              many(append<&ast::Document::items>(
-                 ref<KeyValueRule> | ref<ImplicitRule> | ref<GroupRule> |
-                 ref<ScalarRule>) + gap)> {};
+                 ref<KeyValue> | ref<Implicit> | ref<Group> |
+                 ref<Scalar>) + gap)> {};
 
-  using entry = DocRule;
+  using entry = Doc;
 };
 
 }  // namespace stellaris

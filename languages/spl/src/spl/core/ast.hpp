@@ -11,7 +11,7 @@ namespace spl::ast {
 
 enum class ArithOp : std::uint8_t { power, multiply, modulo, divide, add, subtract };
 enum class CompareOp : std::uint8_t { eq, ne, gt, lt, ge, le };
-enum class BoolOp : std::uint8_t { and_, or_ };
+enum class BoolOp : std::uint8_t { and_, or_, xor_ };
 
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
 
@@ -19,6 +19,21 @@ struct ArithExpr : cursiv::Extends<Expr> {
   Expr* left;
   ArithOp op;
   Expr* right;
+};
+
+// Boolean values inside evaluation-function arguments share Expr ownership.
+struct ValueComparison : cursiv::Extends<Expr> {
+  Expr* left;
+  CompareOp op;
+  Expr* right;
+};
+struct ValueBoolean : cursiv::Extends<Expr> {
+  Expr* left;
+  BoolOp op;
+  Expr* right;
+};
+struct ValueNegation : cursiv::Extends<Expr> {
+  Expr* operand;
 };
 
 struct FuncCall : cursiv::Extends<Expr> {

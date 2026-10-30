@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every document in example/ parses, clean.
 add_executable(powerbuilder_grammar_test grammar_test.cpp)
-target_link_libraries(powerbuilder_grammar_test PRIVATE powerbuilderCore)
+target_link_libraries(powerbuilder_grammar_test PRIVATE powerbuilderCore cursiv::test)
 target_compile_definitions(powerbuilder_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

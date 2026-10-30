@@ -31,6 +31,9 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A grammar for normalized free-format COBOL text: divisions, data descriptions
+and procedure paragraphs, including selected vendor extensions.
+
 ```cobol
 IDENTIFICATION DIVISION.
 PROGRAM-ID. HelloWorld.
@@ -39,13 +42,6 @@ PROCEDURE DIVISION.
 DISPLAY "Hello World".
 STOP RUN.
 ```
-
-Free-format COBOL 85: four divisions (IDENTIFICATION, ENVIRONMENT, DATA,
-PROCEDURE), a flat list of level-numbered data description entries under
-DATA DIVISION, and paragraphs of statements under PROCEDURE DIVISION. See
-`tests/` for DATA DIVISION clauses (PICTURE, OCCURS, REDEFINES, level 88
-condition names, indexed tables) and common PROCEDURE DIVISION statements
-(arithmetic, IF/EVALUATE, PERFORM, STRING, SEARCH, file I/O).
 
 ## The command line
 

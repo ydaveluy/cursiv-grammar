@@ -73,6 +73,10 @@ inline int run(const auto &language) {
        {{"key", "a€😀"}},
        1,
        false},
+      // Java Reader strings retain isolated UTF-16 code units. Their byte
+      // representation here is WTF-8, rather than a replacement character.
+      {"unpaired_high", "key=\\uD800\n", {{"key", "\xED\xA0\x80"}}, 1, false},
+      {"unpaired_low", "key=\\uDC00\n", {{"key", "\xED\xB0\x80"}}, 1, false},
       {"escaped_unknown", "key=\\q\n", {{"key", "q"}}, 1, false},
       {"unicode_malformed", "key=\\uGGGG\n", {}, 1, true},
       {"unicode_short", "key=\\u12\n", {}, 1, true},

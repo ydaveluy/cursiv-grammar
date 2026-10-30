@@ -73,7 +73,7 @@ lines = ["#pragma once", "", '#include "cursiv/core/grammar/expr.hpp"', "",
          f"// Generated from ICU {version('u_getVersion')} / Unicode {version('u_getUnicodeVersion')} property values."]
 for name, spans in ranges.items():
     spec = "".join(spelling(first) + ("-" + spelling(last) if first != last else "") for first, last in spans)
-    lines.append(f'inline constexpr auto {name} = cursiv::uc::cr<"{spec}">;')
+    lines.append(f'inline constexpr auto {name} = cursiv::cr<"{spec}">;')
 lines.append("}  // namespace graphemes::properties\n")
 output.write_text("\n".join(lines))
 print(output)

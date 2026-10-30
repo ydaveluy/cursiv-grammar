@@ -2,14 +2,118 @@
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "erlang/core/ast.hpp"
+#include <cstdint>
+#include <memory_resource>
 
 namespace erlang {
 
-inline constexpr auto unquoteAtom = [](std::string_view t) {
-  if (t.empty() || t.front() != '\'') return t;
-  return t.substr(1, t.size() - 1 - 1);
+// Atom fields carry semantic names; literal/string/character fields elsewhere
+// deliberately retain raw spelling. Match erl_scan's escape decoding here.
+inline constexpr auto unquoteAtom = [](std::string_view t,
+                                      std::pmr::memory_resource* mem) {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (t.empty()) return Result::err("Incomplete atom.");
+  if (t.front() != '\'') return Result::ok(t);
+  if (t.size() < 2 || t.back() != '\'')
+    return Result::err("Incomplete quoted atom.");
+  t = t.substr(1, t.size() - 2);
+  if (t.find('\\') == t.npos) {
+    if (t.find('\'') != t.npos)
+      return Result::err("An atom quote must be escaped.");
+    return Result::ok(t);
+  }
+  const auto room = cursiv::text_room(mem, t.size());
+  std::size_t n = 0;
+  const auto digit = [](char c) -> int {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+  };
+  for (std::size_t i = 0; i < t.size(); ++i) {
+    if (t[i] != '\\') {
+      if (t[i] == '\'') return Result::err("An atom quote must be escaped.");
+      room[n++] = t[i];
+      continue;
+    }
+    // Recovery may supply a fragment that no longer satisfies Escape.
+    if (i + 1 == t.size()) return Result::err("Incomplete atom escape.");
+    const char c = t[++i];
+    unsigned cp = static_cast<unsigned char>(c);
+    if (c >= '0' && c <= '7') {
+      cp = c - '0';
+      for (unsigned k = 1; k < 3 && i + 1 < t.size() && t[i + 1] >= '0' && t[i + 1] <= '7'; ++k)
+        cp = cp * 8 + t[++i] - '0';
+    } else if (c == 'x') {
+      cp = 0;
+      if (i + 1 < t.size() && t[i + 1] == '{') {
+        i += 2;
+        const auto start = i;
+        for (; i < t.size() && t[i] != '}'; ++i) {
+          const auto value = digit(t[i]);
+          if (value < 0) return Result::err("Invalid hexadecimal atom escape.");
+          if (cp > (0x10ffffu - static_cast<unsigned>(value)) / 16)
+            return Result::err("Atom escape is outside Unicode.");
+          cp = cp * 16 + static_cast<unsigned>(value);
+        }
+        if (i == t.size() || i == start)
+          return Result::err("Incomplete hexadecimal atom escape.");
+      } else {
+        if (i + 2 >= t.size() || digit(t[i + 1]) < 0 || digit(t[i + 2]) < 0)
+          return Result::err("An atom character code needs two hexadecimal digits.");
+        cp = static_cast<unsigned>(digit(t[i + 1]) * 16 + digit(t[i + 2]));
+        i += 2;
+      }
+      if (cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff))
+        return Result::err("Atom escape is not a Unicode scalar.");
+    } else if (c == '^') {
+      if (i + 1 == t.size()) return Result::err("Incomplete control atom escape.");
+      const char control = t[++i];
+      if (control != '?' && !(control >= '@' && control <= '_') &&
+          !(control >= 'a' && control <= 'z'))
+        return Result::err("Invalid control atom escape.");
+      cp = control == '?' ? 127 : control & 31;
+    } else {
+      switch (c) {
+        case 'n': cp = '\n'; break; case 'r': cp = '\r'; break;
+        case 't': cp = '\t'; break; case 'v': cp = '\v'; break;
+        case 'b': cp = '\b'; break; case 'f': cp = '\f'; break;
+        case 'e': cp = 27; break; case 's': cp = ' '; break;
+        case 'd': cp = 127; break;
+        default: room[n++] = c; continue;
+      }
+    }
+    if (cp < 0x80) room[n++] = static_cast<char>(cp);
+    else {
+      if (cp >= 0x10000) room[n++] = static_cast<char>(0xf0 | (cp >> 18));
+      else if (cp >= 0x800) room[n++] = static_cast<char>(0xe0 | (cp >> 12));
+      else room[n++] = static_cast<char>(0xc0 | (cp >> 6));
+      if (cp >= 0x10000) room[n++] = static_cast<char>(0x80 | ((cp >> 12) & 63));
+      if (cp >= 0x800) room[n++] = static_cast<char>(0x80 | ((cp >> 6) & 63));
+      room[n++] = static_cast<char>(0x80 | (cp & 63));
+    }
+  }
+  return Result::ok(std::string_view(room.data(), n));
 };
-using UnquotedAtom = cursiv::text_conv<unquoteAtom>;
+
+inline constexpr auto checkedNumber = [](std::string_view t) {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  const auto hash = t.find('#');
+  if (hash == t.npos) return Result::ok(t);
+  unsigned base = 0;
+  for (const char c : t.substr(0, hash)) if (c != '_') {
+    if (base > 36) return Result::err("Integer base must be from 2 to 36.");
+    base = base * 10 + c - '0';
+  }
+  if (base < 2 || base > 36) return Result::err("Integer base must be from 2 to 36.");
+  const auto exponent = t.find('#', hash + 1);
+  for (const char c : t.substr(hash + 1, exponent == t.npos ? t.npos : exponent - hash - 1)) if (c != '_' && c != '.') {
+    const unsigned value = c >= '0' && c <= '9' ? c - '0' :
+                          c >= 'a' && c <= 'z' ? c - 'a' + 10 : c - 'A' + 10;
+    if (value >= base) return Result::err("Digit is outside the integer base.");
+  }
+  return Result::ok(t);
+};
 
 struct Erlang : cursiv::GrammarSpec {
   static constexpr auto kLower = cr<"a-z"> | cr<"ß-öø-ÿ">;
@@ -23,29 +127,31 @@ struct Erlang : cursiv::GrammarSpec {
 
   struct VAR : terminal<(kUpper | lit<"_">) + many(kIdCont)> {};
 
-  struct ATOM
-      : terminal<(kLower + many(kIdCont)) |
-                     (lit<"'"> +
-                      many((lit<"\\"> + (cr<R"(^\\)"> | lit<"\\">)) |
-                           cr<R"(^\\')">) +
-                      lit<"'">),
-                 UnquotedAtom> {};
-
-  static constexpr auto Digits = some(cr<"0-9"> + option(lit<"_">));
-  static constexpr auto BasedDigits = some(cr<"0-9a-zA-Z"> + option(lit<"_">));
-  static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + Digits;
-
-  struct INTEGER : terminal<Digits + option(lit<"#"> + BasedDigits)> {};
-  struct FLOATT : terminal<
-      (Digits + lit<"."> + Digits + option(Exponent)) |
-      (Digits + lit<"#"> + BasedDigits + lit<"."> + BasedDigits +
-       lit<"#"> + Exponent)> {};
-
   static constexpr auto Escape = lit<"\\"> +
       ((lit<"x{"> + some(cr<"0-9a-fA-F">) + lit<"}">) |
        (lit<"x"> + repeat<2>(cr<"0-9a-fA-F">)) |
-       (lit<"^"> + any) | repeat<1, 3>(cr<"0-7">) | any);
-  struct CHAR : terminal<lit<"$"> + (Escape | any)> {};
+       (lit<"^"> + cr<"?@-_a-z">) | repeat<1, 3>(cr<"0-7">) |
+       (!cr<"x^"> + any));
+
+  static constexpr auto Reserved =
+      kw<"after"> | kw<"begin"> | kw<"case"> | kw<"try"> | kw<"cond"> | kw<"catch"> | kw<"andalso"> | kw<"orelse"> | kw<"end"> | kw<"fun"> | kw<"if"> | kw<"let"> | kw<"of"> | kw<"receive"> | kw<"when"> | kw<"bnot"> | kw<"not"> | kw<"div"> | kw<"rem"> | kw<"band"> | kw<"and"> | kw<"bor"> | kw<"bxor"> | kw<"bsl"> | kw<"bsr"> | kw<"or"> | kw<"xor"> | kw<"maybe"> | kw<"else">;
+
+  struct ATOM
+      : terminal<as<unquoteAtom>(
+            !Reserved + ((kLower + many(kIdCont)) |
+                         (lit<"'"> + many(Escape | cr<R"(^\\')">) + lit<"'">)))> {};
+
+  static constexpr auto Digits = cr<"0-9"> + many(option(lit<"_">) + cr<"0-9">);
+  static constexpr auto BasedDigits = cr<"0-9a-zA-Z"> + many(option(lit<"_">) + cr<"0-9a-zA-Z">);
+  static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + Digits;
+
+  struct INTEGER : terminal<as<checkedNumber>(Digits + option(lit<"#"> + BasedDigits))> {};
+  struct FLOATT : terminal<as<checkedNumber>(
+      (Digits + lit<"."> + Digits + option(Exponent)) |
+      (Digits + lit<"#"> + BasedDigits + lit<"."> + BasedDigits +
+       option(lit<"#"> + Exponent)))> {};
+
+  struct CHAR : terminal<lit<"$"> + (Escape | (!lit<"\\"> + any))> {};
 
   struct QuoteCount {};
   static constexpr auto TripleString =
@@ -80,123 +186,92 @@ struct Erlang : cursiv::GrammarSpec {
       ((option(cr<"bs">) + EscapedSigil) |
        (some(kIdCont) + VerbatimSigil)) + many(kIdCont)> {};
 
-  struct ATTR_NAME
-      : terminal<lit<"-"> + many(ref<WS> | ref<COMMENT>) +
-                 (lit<"spec", !kIdCont> | lit<"callback", !kIdCont>),
-                 cursiv::text_conv<[](std::string_view t) {
-                   return t.substr(t.size() - (t.ends_with("callback") ? 8 : 4));
-                 }>> {};
+  struct ATTR_NAME : terminal<as<[](std::string_view t) {
+    using Result = cursiv::ConversionResult<std::string_view>;
+    if (t.ends_with("callback")) return Result::ok(t.substr(t.size() - 8));
+    if (t.ends_with("spec")) return Result::ok(t.substr(t.size() - 4));
+    return Result::err("Incomplete spec or callback attribute.");
+  }>(lit<"-"> + many(ref<WS> | ref<COMMENT>) +
+                     (lit<"spec", !kIdCont> | lit<"callback", !kIdCont>))> {};
 
-  struct OpMatch : terminal<lit<"=">, value<ast::Operator::match>> {};
-  struct OpSend : terminal<lit<"!">, value<ast::Operator::send>> {};
-  struct OpAndAlso : terminal<kw<"andalso">, value<ast::Operator::andalso_>> {
-  };
-  struct OpOrElse : terminal<kw<"orelse">, value<ast::Operator::orelse_>> {};
-  struct OpExactEq : terminal<lit<"=:=">, value<ast::Operator::exact_eq>> {};
-  struct OpExactNeq : terminal<lit<"=/=">, value<ast::Operator::exact_neq>> {
-  };
-  struct OpLe : terminal<lit<"=<">, value<ast::Operator::le>> {};
-  struct OpGe : terminal<lit<">=">, value<ast::Operator::ge>> {};
-  struct OpEq : terminal<lit<"==">, value<ast::Operator::eq>> {};
-  struct OpNeq : terminal<lit<"/=">, value<ast::Operator::neq>> {};
-  struct OpLt : terminal<lit<"<">, value<ast::Operator::lt>> {};
-  struct OpGt : terminal<lit<">">, value<ast::Operator::gt>> {};
-  struct OpListAppend
-      : terminal<lit<"++">, value<ast::Operator::list_append>> {};
-  struct OpListSubtract
-      : terminal<lit<"--">, value<ast::Operator::list_subtract>> {};
-  struct OpBor : terminal<kw<"bor">, value<ast::Operator::bor_>> {};
-  struct OpBxor : terminal<kw<"bxor">, value<ast::Operator::bxor_>> {};
-  struct OpBsl : terminal<kw<"bsl">, value<ast::Operator::bsl_>> {};
-  struct OpBsr : terminal<kw<"bsr">, value<ast::Operator::bsr_>> {};
-  struct OpOr : terminal<kw<"or">, value<ast::Operator::or_>> {};
-  struct OpXor : terminal<kw<"xor">, value<ast::Operator::xor_>> {};
-  struct OpAdd : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct OpSub : terminal<lit<"-">, value<ast::Operator::sub>> {};
-  struct OpIntDiv : terminal<kw<"div">, value<ast::Operator::int_div>> {};
-  struct OpRem : terminal<kw<"rem">, value<ast::Operator::rem_>> {};
-  struct OpBand : terminal<kw<"band">, value<ast::Operator::band_>> {};
-  struct OpAnd : terminal<kw<"and">, value<ast::Operator::and_>> {};
-  struct OpDivide : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct OpMultiply : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-
-  static constexpr auto OpMult = ref<OpDivide> | ref<OpMultiply> |
-                                 ref<OpIntDiv> | ref<OpRem> | ref<OpBand> |
-                                 ref<OpAnd>;
-  static constexpr auto OpAddLevel = ref<OpAdd> | ref<OpSub> | ref<OpBor> |
-                                     ref<OpBxor> | ref<OpBsl> | ref<OpBsr> |
-                                     ref<OpOr> | ref<OpXor>;
-  static constexpr auto OpListLevel = ref<OpListAppend> | ref<OpListSubtract>;
-  static constexpr auto OpCompareLevel = ref<OpExactEq> | ref<OpExactNeq> |
-                                         ref<OpLe> | ref<OpGe> | ref<OpEq> |
-                                         ref<OpNeq> | ref<OpLt> | ref<OpGt>;
+  static constexpr auto OpMult = as<ast::Operator::divide>(lit<"/">) | as<ast::Operator::multiply>(lit<"*">) |
+                                 as<ast::Operator::int_div>(kw<"div">) | as<ast::Operator::rem_>(kw<"rem">) | as<ast::Operator::band_>(kw<"band">) |
+                                 as<ast::Operator::and_>(kw<"and">);
+  static constexpr auto OpAddLevel = as<ast::Operator::add>(lit<"+">) | as<ast::Operator::sub>(lit<"-">) | as<ast::Operator::bor_>(kw<"bor">) |
+                                     as<ast::Operator::bxor_>(kw<"bxor">) | as<ast::Operator::bsl_>(kw<"bsl">) | as<ast::Operator::bsr_>(kw<"bsr">) |
+                                     as<ast::Operator::or_>(kw<"or">) | as<ast::Operator::xor_>(kw<"xor">);
+  static constexpr auto OpListLevel = as<ast::Operator::list_append>(lit<"++">) | as<ast::Operator::list_subtract>(lit<"--">);
+  static constexpr auto OpCompareLevel = as<ast::Operator::exact_eq>(lit<"=:=">) | as<ast::Operator::exact_neq>(lit<"=/=">) |
+                                         as<ast::Operator::le>(lit<"=<">) | as<ast::Operator::ge>(lit<">=">) | as<ast::Operator::eq>(lit<"==">) |
+                                         as<ast::Operator::neq>(lit<"/=">) | as<ast::Operator::lt>(lit<"<">) | as<ast::Operator::gt>(lit<">">);
   static constexpr auto PrefixOpText =
       lit<"+"> | lit<"-"> | kw<"bnot"> | kw<"not">;
 
-  struct ExprRule;
-  struct UnaryRule;
-  struct PrimaryChainRule;
-  struct ExprMaxRule;
+  struct Expr;
+  struct Unary;
+  struct PrimaryChain;
+  struct ExprMax;
 
-  struct ExprInfixRule
-      : infix<UnaryRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-             &ast::BinaryExpr::right,
-             (left(OpMult) >>          //
-              left(OpAddLevel) >>      //
-              right(OpListLevel) >>    //
-              left(OpCompareLevel) >>  //
-              right(ref<OpAndAlso>) >>  //
-              right(ref<OpOrElse>) >>   //
-              right(ref<OpMatch> | ref<OpSend>))> {};
+  struct ExprInfix
+      : infix<Unary, ast::BinaryExpr,
+             levels(left(OpMult),           //
+                    left(OpAddLevel),       //
+                    right(OpListLevel),     //
+                    nonassoc(OpCompareLevel),   //
+                    right(as<ast::Operator::andalso_>(kw<"andalso">)),  //
+                    right(as<ast::Operator::orelse_>(kw<"orelse">)),   //
+                    right(as<ast::Operator::match>(lit<"=">) | as<ast::Operator::send>(lit<"!">)))> {};
 
-  struct ExprRule : rule<create<ast::CatchExpr>(
-                             kw<"catch"> +
-                             assign<&ast::CatchExpr::operand>(ref<ExprRule>))
-                         | ref<ExprInfixRule>> {};
+  struct Expr : rule<ref<ExprInfix>> {};
 
-  struct UnaryRule
-      : rule<create<ast::UnaryExpr>(
+  // Yecc's lowest-priority catch prefix may start any operator operand.
+  // Calling Expr here lets it absorb the full following expression; a
+  // separate root-only alternative would reject `A = catch B`.
+  struct Unary
+      : rule<create<ast::CatchExpr>(
+                 kw<"catch"> + assign<&ast::CatchExpr::operand>(ref<Expr>)) |
+             create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(PrefixOpText) +
-                 assign<&ast::UnaryExpr::operand>(ref<UnaryRule>))
-             | ref<PrimaryChainRule>> {};
+                 assign<&ast::UnaryExpr::operand>(ref<Unary>)) |
+             ref<PrimaryChain>> {};
 
   static constexpr auto MapFieldBody =
       create<ast::MapField>(
-          assign<&ast::MapField::key>(ref<ExprRule>) +
-          ((lit<"=>"> + assign<&ast::MapField::value>(ref<ExprRule>))
+          assign<&ast::MapField::key>(ref<Expr>) +
+          ((lit<"=>"> + assign<&ast::MapField::value>(ref<Expr>))
            | (lit<":="> +
               flag<&ast::MapField::exact>(
-                  assign<&ast::MapField::value>(ref<ExprRule>)))));
+                  assign<&ast::MapField::value>(ref<Expr>)))));
 
-  struct MapFieldRule : rule<MapFieldBody> {};
+  struct MapField : rule<MapFieldBody> {};
 
   static constexpr auto MapTupleBody =
       lit<"{"> +
-      many(append<&ast::MapExpr::fields>(ref<MapFieldRule>), lit<",">) +
+      many(append<&ast::MapExpr::fields>(ref<MapField>), lit<",">) +
       lit<"}">;
 
-  struct RecordFieldRule
+  struct RecordField
       : rule<create<ast::RecordField>(
                  assign<&ast::RecordField::name>(ref<VAR> | ref<ATOM>) +
                  lit<"="> +
-                 assign<&ast::RecordField::value>(ref<ExprRule>))> {};
+                 assign<&ast::RecordField::value>(ref<Expr>))> {};
 
   static constexpr auto RecordBody =
       assign<&ast::RecordExpr::name>(ref<ATOM>) +
       ((lit<"."> + assign<&ast::RecordExpr::accessField>(ref<ATOM>)) |
        (lit<"{"> +
-        many(append<&ast::RecordExpr::fields>(ref<RecordFieldRule>),
+        many(append<&ast::RecordExpr::fields>(ref<RecordField>),
              lit<",">) +
         lit<"}">));
 
-  struct PrimaryChainRule
-      : rule<(ref<ExprMaxRule> +
+  struct PrimaryChain
+      : rule<(ref<ExprMax> +
               option(nest<ast::ModuleRef, &ast::ModuleRef::module>(
                   lit<":"> +
-                  assign<&ast::ModuleRef::member>(ref<ExprMaxRule>))) +
-              option(nest<ast::Call, &ast::Call::target>(
+                  assign<&ast::ModuleRef::member>(ref<ExprMax>))) +
+              many(nest<ast::Call, &ast::Call::target>(
                   lit<"("> +
-                  many(append<&ast::Call::args>(ref<ExprRule>), lit<",">) +
+                  many(append<&ast::Call::args>(ref<Expr>), lit<",">) +
                   lit<")">)) +
               many(nest<ast::MapExpr, &ast::MapExpr::base>(lit<"#"> +
                                                             MapTupleBody) |
@@ -209,155 +284,156 @@ struct Erlang : cursiv::GrammarSpec {
                      nest<ast::RecordExpr, &ast::RecordExpr::base>(
                          lit<"#"> + RecordBody)))> {};
 
-  struct ListLitRule
+  struct ListLit
       : rule<create<ast::ListLit>(
                  lit<"["> + lit<"]">) |
              create<ast::ListLit>(
                  lit<"["> +
-                 some(append<&ast::ListLit::items>(ref<ExprRule>), lit<",">) +
+                 some(append<&ast::ListLit::items>(ref<Expr>), lit<",">) +
                  option(lit<"|"> +
-                        assign<&ast::ListLit::tail>(ref<ExprRule>)) +
+                        assign<&ast::ListLit::tail>(ref<Expr>)) +
                  lit<"]">)> {};
 
-  struct TupleLitRule
+  struct TupleLit
       : rule<create<ast::TupleLit>(
                  lit<"{"> +
-                 many(append<&ast::TupleLit::items>(ref<ExprRule>), lit<",">) +
+                 many(append<&ast::TupleLit::items>(ref<Expr>), lit<",">) +
                  lit<"}">)> {};
 
   static constexpr auto BitTypeOne =
       ref<ATOM> + option(lit<":"> + ref<INTEGER>);
-  struct BitTypeList : rule<some(BitTypeOne, lit<"-">), std::string_view> {};
+  struct BitTypeList : rule<as<std::string_view>(some(BitTypeOne, lit<"-">))> {
+  };
 
   static constexpr auto BitExprValue =
       (create<ast::UnaryExpr>(
            assign<&ast::UnaryExpr::op>(PrefixOpText) +
-           assign<&ast::UnaryExpr::operand>(ref<ExprMaxRule>))
-       | ref<ExprMaxRule>);
+           assign<&ast::UnaryExpr::operand>(ref<ExprMax>))
+       | ref<ExprMax>);
 
-  struct BinElementRule
+  struct BinElement
       : rule<create<ast::BinElement>(
                  assign<&ast::BinElement::value>(BitExprValue) +
                  option(lit<":"> +
-                        assign<&ast::BinElement::size>(ref<ExprMaxRule>)) +
+                        assign<&ast::BinElement::size>(ref<ExprMax>)) +
                  option(lit<"/"> + assign<&ast::BinElement::bitTypes>(ref<BitTypeList>)))> {};
 
-  struct BinaryLitRule
+  struct BinaryLit
       : rule<create<ast::BinaryLit>(lit<"<<"> + lit<">>">) |
              create<ast::BinaryLit>(
                  lit<"<<"> +
-                 some(append<&ast::BinaryLit::elements>(ref<BinElementRule>),
+                 some(append<&ast::BinaryLit::elements>(ref<BinElement>),
                       lit<",">) +
                  lit<">>">)> {};
 
-  struct LcClauseRule
+  struct LcClause
       : rule<create<ast::LcClause>(
-          assign<&ast::LcClause::left>(ref<ExprRule>) +
-          option(lit<":="> + assign<&ast::LcClause::mapValue>(ref<ExprRule>)) +
+          assign<&ast::LcClause::left>(ref<Expr>) +
+          option(lit<":="> + assign<&ast::LcClause::mapValue>(ref<Expr>)) +
           option(assign<&ast::LcClause::op>(
                      lit<"<:-"> | lit<"<:="> | lit<"<-"> | lit<"<=">) +
-                 assign<&ast::LcClause::right>(ref<ExprRule>)))> {};
+                 assign<&ast::LcClause::right>(ref<Expr>)))> {};
 
-  struct QualifierRule
+  struct Qualifier
       : rule<create<ast::ZipQualifier>(
-          append<&ast::ZipQualifier::generators>(ref<LcClauseRule>) +
-          lit<"&&"> + some(append<&ast::ZipQualifier::generators>(ref<LcClauseRule>), lit<"&&">)) |
-          ref<LcClauseRule>> {};
+          append<&ast::ZipQualifier::generators>(ref<LcClause>) +
+          lit<"&&"> + some(append<&ast::ZipQualifier::generators>(ref<LcClause>), lit<"&&">)) |
+          ref<LcClause>> {};
 
-  struct ListComprRule
+  struct ListCompr
       : rule<create<ast::ListCompr>(
-          lit<"["> + assign<&ast::ListCompr::head>(ref<ExprRule>) + lit<"||"> +
-          some(append<&ast::ListCompr::quals>(ref<QualifierRule>), lit<",">) + lit<"]">)> {};
+          lit<"["> + assign<&ast::ListCompr::head>(ref<Expr>) + lit<"||"> +
+          some(append<&ast::ListCompr::quals>(ref<Qualifier>), lit<",">) + lit<"]">)> {};
 
-  struct BinComprRule
+  struct BinCompr
       : rule<create<ast::BinCompr>(
-          lit<"<<"> + assign<&ast::BinCompr::head>(ref<ExprMaxRule>) + lit<"||"> +
-          some(append<&ast::BinCompr::quals>(ref<QualifierRule>), lit<",">) + lit<">>">)> {};
+          lit<"<<"> + assign<&ast::BinCompr::head>(ref<ExprMax>) + lit<"||"> +
+          some(append<&ast::BinCompr::quals>(ref<Qualifier>), lit<",">) + lit<">>">)> {};
 
-  struct MapComprRule
+  struct MapCompr
       : rule<create<ast::MapCompr>(
-          lit<"#"> + lit<"{"> + assign<&ast::MapCompr::head>(ref<MapFieldRule>) + lit<"||"> +
-          some(append<&ast::MapCompr::quals>(ref<QualifierRule>), lit<",">) + lit<"}">)> {};
+          lit<"#"> + lit<"{"> + assign<&ast::MapCompr::head>(ref<MapField>) + lit<"||"> +
+          some(append<&ast::MapCompr::quals>(ref<Qualifier>), lit<",">) + lit<"}">)> {};
 
-  struct GuardGroupRule
+  struct GuardGroup
       : rule<create<ast::GuardGroup>(
-                 some(append<&ast::GuardGroup::exprs>(ref<ExprRule>),
+                 some(append<&ast::GuardGroup::exprs>(ref<Expr>),
                       lit<",">))> {};
 
-  struct GuardRule
+  struct Guard
       : rule<create<ast::Guard>(
-                 some(append<&ast::Guard::groups>(ref<GuardGroupRule>),
+                 some(append<&ast::Guard::groups>(ref<GuardGroup>),
                       lit<";">))> {};
 
-  struct IfClauseRule
+  struct IfClause
       : rule<create<ast::IfClause>(
-                 assign<&ast::IfClause::guard>(ref<GuardRule>) + lit<"->"> +
-                 some(append<&ast::IfClause::body>(ref<ExprRule>),
+                 assign<&ast::IfClause::guard>(ref<Guard>) + lit<"->"> +
+                 some(append<&ast::IfClause::body>(ref<Expr>),
                       lit<",">))> {};
 
-  struct IfExprRule
+  struct IfExpr
       : rule<create<ast::IfExpr>(
                  kw<"if"> +
-                 some(append<&ast::IfExpr::clauses>(ref<IfClauseRule>),
+                 some(append<&ast::IfExpr::clauses>(ref<IfClause>),
                       lit<";">) +
                  kw<"end">)> {};
 
-  struct CaseClauseRule
+  struct CaseClause
       : rule<create<ast::CaseClause>(
-                 assign<&ast::CaseClause::pattern>(ref<ExprRule>) +
+                 assign<&ast::CaseClause::pattern>(ref<Expr>) +
                  option(kw<"when"> +
-                        assign<&ast::CaseClause::guard>(ref<GuardRule>)) +
+                        assign<&ast::CaseClause::guard>(ref<Guard>)) +
                  lit<"->"> +
-                 some(append<&ast::CaseClause::body>(ref<ExprRule>),
+                 some(append<&ast::CaseClause::body>(ref<Expr>),
                       lit<",">))> {};
 
-  struct MaybeItemRule
+  struct MaybeItem
       : rule<create<ast::MaybeMatch>(
-          assign<&ast::MaybeMatch::left>(ref<ExprRule>) + lit<"?="> +
-          assign<&ast::MaybeMatch::right>(ref<ExprRule>)) | ref<ExprRule>> {};
+          assign<&ast::MaybeMatch::left>(ref<Expr>) + lit<"?="> +
+          assign<&ast::MaybeMatch::right>(ref<Expr>)) | ref<Expr>> {};
 
-  struct MaybeExprRule
+  struct MaybeExpr
       : rule<create<ast::MaybeExpr>(
-          kw<"maybe"> + some(append<&ast::MaybeExpr::body>(ref<MaybeItemRule>), lit<",">) +
+          kw<"maybe"> + some(append<&ast::MaybeExpr::body>(ref<MaybeItem>), lit<",">) +
           option(flag<&ast::MaybeExpr::hasElse>(kw<"else">) +
-              some(append<&ast::MaybeExpr::elseClauses>(ref<CaseClauseRule>), lit<";">)) + kw<"end">)> {};
+              some(append<&ast::MaybeExpr::elseClauses>(ref<CaseClause>), lit<";">)) + kw<"end">)> {};
 
-  struct CaseExprRule
+  struct CaseExpr
       : rule<create<ast::CaseExpr>(
-                 kw<"case"> + assign<&ast::CaseExpr::subject>(ref<ExprRule>) +
+                 kw<"case"> + assign<&ast::CaseExpr::subject>(ref<Expr>) +
                  kw<"of"> +
-                 some(append<&ast::CaseExpr::clauses>(ref<CaseClauseRule>),
+                 some(append<&ast::CaseExpr::clauses>(ref<CaseClause>),
                       lit<";">) +
                  kw<"end">)> {};
 
-  struct ReceiveExprRule
+  struct ReceiveExpr
       : rule<create<ast::ReceiveExpr>(
                  kw<"receive"> +
                  option(some(
-                     append<&ast::ReceiveExpr::clauses>(ref<CaseClauseRule>),
+                     append<&ast::ReceiveExpr::clauses>(ref<CaseClause>),
                      lit<";">)) +
                  option(flag<&ast::ReceiveExpr::hasAfter>(kw<"after">) +
                         assign<&ast::ReceiveExpr::afterTimeout>(
-                            ref<ExprRule>) +
+                            ref<Expr>) +
                         lit<"->"> +
                         some(append<&ast::ReceiveExpr::afterBody>(
-                                 ref<ExprRule>),
+                                 ref<Expr>),
                              lit<",">)) +
                  kw<"end">)> {};
 
-  struct FunClauseRule
+  struct FunClause
       : rule<create<ast::FunClause>(
                  option(assign<&ast::FunClause::name>(ref<VAR>)) + lit<"("> +
-                 many(append<&ast::FunClause::params>(ref<ExprRule>),
+                 many(append<&ast::FunClause::params>(ref<Expr>),
                       lit<",">) +
                  lit<")"> +
                  option(kw<"when"> +
-                        assign<&ast::FunClause::guard>(ref<GuardRule>)) +
+                        assign<&ast::FunClause::guard>(ref<Guard>)) +
                  lit<"->"> +
-                 some(append<&ast::FunClause::body>(ref<ExprRule>),
+                 some(append<&ast::FunClause::body>(ref<Expr>),
                       lit<",">))> {};
 
-  struct FunExprRule
+  struct FunExpr
       : rule<create<ast::FunNameRef>(
                  kw<"fun"> + assign<&ast::FunNameRef::name>(ref<ATOM>) +
                  lit<"/"> +
@@ -372,73 +448,73 @@ struct Erlang : cursiv::GrammarSpec {
                                                     ref<VAR>)) |
              create<ast::FunExpr>(
                  kw<"fun"> +
-                 some(append<&ast::FunExpr::clauses>(ref<FunClauseRule>),
+                 some(append<&ast::FunExpr::clauses>(ref<FunClause>),
                       lit<";">) +
                  kw<"end">)> {};
 
-  struct CatchClauseRule
+  struct CatchClause
       : rule<create<ast::CatchClause>(
                  option(assign<&ast::CatchClause::exClass>(ref<ATOM> |
                                                             ref<VAR>) +
                         lit<":">) +
-                 assign<&ast::CatchClause::pattern>(ref<ExprRule>) +
+                 assign<&ast::CatchClause::pattern>(ref<Expr>) +
                  option(lit<":"> +
                         assign<&ast::CatchClause::stackVar>(ref<VAR>)) +
                  option(kw<"when"> +
-                        assign<&ast::CatchClause::guard>(ref<GuardRule>)) +
+                        assign<&ast::CatchClause::guard>(ref<Guard>)) +
                  lit<"->"> +
-                 some(append<&ast::CatchClause::body>(ref<ExprRule>),
+                 some(append<&ast::CatchClause::body>(ref<Expr>),
                       lit<",">))> {};
 
-  struct TryExprRule
+  struct TryExpr
       : rule<create<ast::TryExpr>(
                  kw<"try"> +
-                 some(append<&ast::TryExpr::body>(ref<ExprRule>), lit<",">) +
+                 some(append<&ast::TryExpr::body>(ref<Expr>), lit<",">) +
                  option(flag<&ast::TryExpr::hasOf>(kw<"of">) +
                         some(append<&ast::TryExpr::ofClauses>(
-                                 ref<CaseClauseRule>),
+                                 ref<CaseClause>),
                              lit<";">)) +
                  ((kw<"catch"> +
                    some(append<&ast::TryExpr::catchClauses>(
-                            ref<CatchClauseRule>),
+                            ref<CatchClause>),
                         lit<";">) +
                    option(flag<&ast::TryExpr::hasAfter>(kw<"after">) +
                           some(append<&ast::TryExpr::afterBody>(
-                                   ref<ExprRule>),
+                                   ref<Expr>),
                                lit<",">))) |
                   (flag<&ast::TryExpr::hasAfter>(kw<"after">) +
-                   some(append<&ast::TryExpr::afterBody>(ref<ExprRule>),
+                   some(append<&ast::TryExpr::afterBody>(ref<Expr>),
                         lit<",">))) +
                  kw<"end">)> {};
 
-  struct ExprMaxRule
+  struct ExprMax
       : rule<assign<&ast::VarRef::name>(ref<VAR>) |
              assign<&ast::CharLit::value>(ref<CHAR>) |
              assign<&ast::IntegerLit::value>(ref<INTEGER>) |
              assign<&ast::FloatLit::value>(ref<FLOATT>) |
              assign<&ast::AtomLit::name>(ref<ATOM>) |
              some(append<&ast::StringLit::parts>(ref<STRING>)) |
-             ref<ListLitRule> | ref<BinaryLitRule> | ref<ListComprRule> |
-             ref<BinComprRule> | ref<MapComprRule> | ref<TupleLitRule> |
-             (lit<"("> + ref<ExprRule> + lit<")">) |
+             ref<ListLit> | ref<BinaryLit> | ref<ListCompr> |
+             ref<BinCompr> | ref<MapCompr> | ref<TupleLit> |
+             (lit<"("> + ref<Expr> + lit<")">) |
              create<ast::BeginEnd>(
                  kw<"begin"> +
-                 some(append<&ast::BeginEnd::body>(ref<ExprRule>), lit<",">) +
+                 some(append<&ast::BeginEnd::body>(ref<Expr>), lit<",">) +
                  kw<"end">) |
-             ref<IfExprRule> | ref<CaseExprRule> | ref<ReceiveExprRule> |
-             ref<FunExprRule> | ref<TryExprRule> | ref<MaybeExprRule> |
+             ref<IfExpr> | ref<CaseExpr> | ref<ReceiveExpr> |
+             ref<FunExpr> | ref<TryExpr> | ref<MaybeExpr> |
              assign<&ast::SigilLit::spelling>(ref<SIGIL>) |
              create<ast::MacroExpr>(
                  (flag<&ast::MacroExpr::stringify>(lit<"??">) | lit<"?">) +
                  assign<&ast::MacroExpr::name>(ref<VAR> | ref<ATOM>))> {};
 
-  struct TypeExprRule;
+  struct TypeExpr;
 
   template <auto Part>
   static constexpr auto TypeLeaf = append<&ast::TypeExpr::parts>(Part);
 
   static constexpr auto NestedType =
-      append<&ast::TypeExpr::parts>(ref<TypeExprRule>);
+      append<&ast::TypeExpr::parts>(ref<TypeExpr>);
 
   static constexpr auto TypeAtom =
       (TypeLeaf<lit<"(">> + NestedType + TypeLeaf<lit<")">>) | TypeLeaf<ref<VAR>> |
@@ -465,7 +541,7 @@ struct Erlang : cursiv::GrammarSpec {
       (TypeLeaf<lit<"<<">> + TypeLeaf<ref<VAR>> + TypeLeaf<lit<":">> + NestedType + TypeLeaf<lit<",">> + TypeLeaf<ref<VAR>> +
        TypeLeaf<lit<":">> + TypeLeaf<ref<VAR>> + TypeLeaf<lit<"*">> + NestedType + TypeLeaf<lit<">>">>) |
       TypeLeaf<ref<INTEGER>> | TypeLeaf<ref<CHAR>> | (TypeLeaf<kw<"fun">> + TypeLeaf<lit<"(">> + TypeLeaf<lit<")">>) |
-      (TypeLeaf<kw<"fun">> + TypeLeaf<lit<"(">> + TypeLeaf<lit<"...">> + TypeLeaf<lit<")">> + TypeLeaf<lit<"->">> +
+      (TypeLeaf<kw<"fun">> + TypeLeaf<lit<"(">> + TypeLeaf<lit<"(">> + TypeLeaf<lit<"...">> + TypeLeaf<lit<")">> + TypeLeaf<lit<"->">> +
        NestedType + TypeLeaf<lit<")">>) |
       (TypeLeaf<kw<"fun">> + TypeLeaf<lit<"(">> +
        ((TypeLeaf<lit<"(">> + option(some(NestedType, TypeLeaf<lit<",">>)) + TypeLeaf<lit<")">> +
@@ -484,28 +560,28 @@ struct Erlang : cursiv::GrammarSpec {
   static constexpr auto TypeUnion =
       TypeRange + many(TypeLeaf<lit<"|">> + TypeRange);
 
-  struct TypeExprRule
+  struct TypeExpr
       : rule<create<ast::TypeExpr>(
             option(TypeLeaf<ref<VAR>> + TypeLeaf<lit<"::">>) + TypeUnion)> {};
 
-  struct TypeGuardRule
+  struct TypeGuard
       : rule<create<ast::TypeExpr>(
                  (TypeLeaf<ref<ATOM>> + TypeLeaf<lit<"(">> + some(NestedType, TypeLeaf<lit<",">>) +
                   TypeLeaf<lit<")">>) |
                  (TypeLeaf<ref<VAR>> + TypeLeaf<lit<"::">> + NestedType))> {};
 
-  struct FunTypeRule
+  struct FunType
       : rule<create<ast::TypeExpr>(
                  TypeLeaf<lit<"(">> + option(some(NestedType, TypeLeaf<lit<",">>)) + TypeLeaf<lit<")">> +
                  TypeLeaf<lit<"->">> + NestedType)> {};
 
   static constexpr auto TypeSigOne =
-      append<&ast::TypeSig::signatures>(ref<FunTypeRule>) +
+      append<&ast::TypeSig::signatures>(ref<FunType>) +
       option(kw<"when"> +
-             some(append<&ast::TypeSig::signatures>(ref<TypeGuardRule>),
+             some(append<&ast::TypeSig::signatures>(ref<TypeGuard>),
                   lit<",">));
 
-  struct TypeSigRule
+  struct TypeSig
       : rule<create<ast::TypeSig>(
                  lit<"("> +
                  ((assign<&ast::TypeSig::module>(ref<ATOM>) + lit<":"> +
@@ -518,67 +594,65 @@ struct Erlang : cursiv::GrammarSpec {
                   assign<&ast::TypeSig::function>(ref<ATOM>)) +
                  some(TypeSigOne, lit<";">))> {};
 
-  struct TypedFieldRule
+  struct TypedField
       : rule<create<ast::TypedField>(
-                 assign<&ast::TypedField::field>(ref<ExprRule>) +
+                 assign<&ast::TypedField::field>(ref<Expr>) +
                  option(lit<"::"> +
-                        assign<&ast::TypedField::type>(ref<TypeExprRule>)))> {
+                        assign<&ast::TypedField::type>(ref<TypeExpr>)))> {
   };
 
-  struct TypedRecordRule
+  struct TypedRecord
       : rule<create<ast::TypedRecord>(
-                 assign<&ast::TypedRecord::head>(ref<ExprRule>) +
+                 assign<&ast::TypedRecord::head>(ref<Expr>) +
                  ((lit<"::"> +
-                   assign<&ast::TypedRecord::type>(ref<TypeExprRule>)) |
+                   assign<&ast::TypedRecord::type>(ref<TypeExpr>)) |
                   (lit<","> + lit<"{"> +
                    many(append<&ast::TypedRecord::fields>(
-                            ref<TypedFieldRule>),
+                            ref<TypedField>),
                         lit<",">) +
                    lit<"}">)))> {};
 
-  struct AttributeRule
+  struct Attribute
       : rule<create<ast::Attribute>(
-                 lit<"-"> + assign<&ast::Attribute::name>(ref<ATOM>) +
-                 option((option(lit<"(">) +
-                   some(append<&ast::Attribute::args>(ref<ExprRule>),
-                        lit<",">) +
-                   option(lit<")">)) |
+                 lit<"-"> + assign<&ast::Attribute::name>(ref<ATOM> | kw<"if"> | kw<"else">) +
+                 option(((lit<"("> + some(append<&ast::Attribute::args>(ref<Expr>), lit<",">) + lit<")">) |
+                   some(append<&ast::Attribute::args>(ref<Expr>), lit<",">)) |
                   assign<&ast::Attribute::typedRecord>(
-                      ref<TypedRecordRule>) |
+                      ref<TypedRecord>) |
                   (lit<"("> +
                    assign<&ast::Attribute::typedRecord>(
-                       ref<TypedRecordRule>) +
+                       ref<TypedRecord>) +
                    lit<")">))) |
              create<ast::Attribute>(
                  assign<&ast::Attribute::name>(ref<ATTR_NAME>) +
-                 assign<&ast::Attribute::spec>(ref<TypeSigRule>))> {};
+                 assign<&ast::Attribute::spec>(ref<TypeSig>))> {};
 
-  struct FunctionClauseRule
+  struct FunctionClause
       : rule<create<ast::FunctionClause>(
                  assign<&ast::FunctionClause::name>(ref<ATOM>) + lit<"("> +
-                 many(append<&ast::FunctionClause::params>(ref<ExprRule>),
+                 many(append<&ast::FunctionClause::params>(ref<Expr>),
                       lit<",">) +
                  lit<")"> +
                  option(kw<"when"> +
-                        assign<&ast::FunctionClause::guard>(ref<GuardRule>)) +
+                        assign<&ast::FunctionClause::guard>(ref<Guard>)) +
                  lit<"->"> +
-                 some(append<&ast::FunctionClause::body>(ref<ExprRule>),
+                 some(append<&ast::FunctionClause::body>(ref<Expr>),
                       lit<",">))> {};
 
-  struct FunctionDeclRule
+  struct FunctionDecl
       : rule<create<ast::FunctionDecl>(
                  some(append<&ast::FunctionDecl::clauses>(
-                          ref<FunctionClauseRule>),
+                          ref<FunctionClause>),
                       lit<";">))> {};
 
-  struct FormsRule
+  struct Forms
       : rule<create<ast::Forms>(many(
-                 append<&ast::Forms::forms>(ref<AttributeRule> |
-                                             ref<FunctionDeclRule>) +
+                 append<&ast::Forms::forms>(ref<Attribute> |
+                                             ref<FunctionDecl>) +
                  lit<".">))> {};
 
-  using entry = FormsRule;
-  using ignore = WS;
+  using entry = Forms;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

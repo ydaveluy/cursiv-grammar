@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A source-oriented HTML tree keeps elements, attributes, text, comments and raw-text blocks. It preserves source structure rather than constructing a browser DOM; character references retain their written spelling.
+
 ```html
 <!DOCTYPE html>
 <html>
@@ -40,15 +42,6 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 </body>
 </html>
 ```
-
-A document is an optional `<?xml ...?>` declaration and `<!...>` doctype
-(each a raw span, unparsed further) followed by a mixed sequence of
-elements, `<script>`/`<style>` blocks (kept whole, body unparsed), scriptlets
-(`<?...?>`, `<%...%>`) and comments. An element is a name, its attributes,
-and the same mixed content, recursively — text, CDATA sections, comments and
-nested elements. Whitespace-only gaps between tags carry no node; text
-touching real content keeps its surrounding whitespace exact. A mismatched
-closing tag parses and is a validation error, not a parse failure.
 
 ## The command line
 

@@ -1,5 +1,6 @@
 #include "audit_regressions.hpp"
 #include "modern_cases.hpp"
+#include "native_followup_cases.hpp"
 // The wren grammar end to end: every corpus example parses clean, real field
 // values are read back out of one of them, and a handful of constructs the
 // corpus does not exercise are covered here with short documents of our own.
@@ -371,6 +372,7 @@ void bare_return() {
 }  // namespace
 
 int main() {
+  if (!wren_followup::run()) return 1;
   if (!wren_audit::modern_cases()) return 1;
   if (!audit_regressions::run()) return 1;
   every_example_parses_clean();

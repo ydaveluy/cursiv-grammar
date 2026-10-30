@@ -17,7 +17,6 @@ inline constexpr auto to_instr = [](std::string_view t) -> ast::Instr {
   if (t == "PUTBEEPER") return put_beeper;
   return turn_off;
 };
-using InstrConv = cursiv::text_conv<to_instr>;
 
 inline constexpr auto to_cond = [](std::string_view t) -> ast::Cond {
   using enum ast::Cond;
@@ -42,7 +41,6 @@ inline constexpr auto to_cond = [](std::string_view t) -> ast::Cond {
   if (t == "FACING-WEST") return facing_west;
   return not_facing_west;
 };
-using CondConv = cursiv::text_conv<to_cond>;
 
 struct Karel : cursiv::GrammarSpec {
   // Identifiers and keywords both run on hyphens ('BEGINNING-OF-PROGRAM',
@@ -52,75 +50,74 @@ struct Karel : cursiv::GrammarSpec {
 
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
 
-  // LETTER (LETTER | DIGIT)*, LETTER: [A-Za-z] | '-'.
-  struct ID : terminal<cr<"A-Za-z-"> + many(cr<"A-Za-z0-9-">)> {};
+  static constexpr auto InstructionWord =
+      kw<"MOVE"> | kw<"TURNLEFT"> | kw<"PICKBEEPER"> | kw<"PUTBEEPER"> | kw<"TURNOFF">;
+  static constexpr auto ConditionWord =
+      kw<"FRONT-IS-CLEAR"> | kw<"FRONT-IS-BLOCKED"> |
+      kw<"LEFT-IS-CLEAR"> | kw<"LEFT-IS-BLOCKED"> | kw<"RIGHT-IS-CLEAR"> |
+      kw<"RIGHT-IS-BLOCKED"> | kw<"BACK-IS-CLEAR"> | kw<"BACK-IS-BLOCKED"> |
+      kw<"NEXT-TO-A-BEEPER"> | kw<"NOT-NEXT-TO-A-BEEPER"> |
+      kw<"ANY-BEEPERS-IN-BEEPER-BAG"> | kw<"NO-BEEPERS-IN-BEEPER-BAG"> |
+      kw<"FACING-NORTH"> | kw<"NOT-FACING-NORTH"> | kw<"FACING-SOUTH"> |
+      kw<"NOT-FACING-SOUTH"> | kw<"FACING-EAST"> | kw<"NOT-FACING-EAST"> |
+      kw<"FACING-WEST"> | kw<"NOT-FACING-WEST">;
+  static constexpr auto ReservedWord = InstructionWord | ConditionWord |
+      kw<"BEGINNING-OF-PROGRAM"> | kw<"BEGINNING-OF-EXECUTION"> |
+      kw<"END-OF-EXECUTION"> | kw<"END-OF-PROGRAM"> | kw<"DEFINE"> | kw<"AS"> |
+      kw<"BEGIN"> | kw<"END"> | kw<"ITERATE"> | kw<"TIMES"> |
+      kw<"WHILE"> | kw<"DO"> | kw<"IF"> | kw<"THEN"> | kw<"ELSE">;
+  struct ID : terminal<!ReservedWord + cr<"A-Za-z-"> + many(cr<"A-Za-z0-9-">)> {};
+  // The defining syntax has no machine-integer bound on an iteration count.
+  struct DIGIT : terminal<d> {};
+  struct NUMBER : rule<some(ref<DIGIT>)> {};
+  struct INSTR : terminal<as<to_instr>(InstructionWord)> {};
+  struct CONDITION : terminal<as<to_cond>(ConditionWord)> {};
 
-  // number: DIGIT+ -- folded into a terminal, no separate parse node.
-  struct NUMBER : terminal<some(d), std::int64_t> {};
-
-  struct INSTR : terminal<kw<"MOVE"> | kw<"TURNLEFT"> | kw<"PICKBEEPER"> |
-                              kw<"PUTBEEPER"> | kw<"TURNOFF">,
-                          InstrConv> {};
-
-  struct CONDITION
-      : terminal<kw<"FRONT-IS-CLEAR"> | kw<"FRONT-IS-BLOCKED"> |
-                     kw<"LEFT-IS-CLEAR"> | kw<"LEFT-IS-BLOCKED"> |
-                     kw<"RIGHT-IS-CLEAR"> | kw<"RIGHT-IS-BLOCKED"> |
-                     kw<"BACK-IS-CLEAR"> | kw<"BACK-IS-BLOCKED"> |
-                     kw<"NEXT-TO-A-BEEPER"> | kw<"NOT-NEXT-TO-A-BEEPER"> |
-                     kw<"ANY-BEEPERS-IN-BEEPER-BAG"> |
-                     kw<"NO-BEEPERS-IN-BEEPER-BAG"> | kw<"FACING-NORTH"> |
-                     kw<"NOT-FACING-NORTH"> | kw<"FACING-SOUTH"> |
-                     kw<"NOT-FACING-SOUTH"> | kw<"FACING-EAST"> |
-                     kw<"NOT-FACING-EAST"> | kw<"FACING-WEST"> |
-                     kw<"NOT-FACING-WEST">,
-                 CondConv> {};
-
-  struct BlockRule;
-  struct IterationRule;
-  struct LoopRule;
-  struct ConditionalRule;
-  struct InstructionRule;
+  struct Block;
+  struct Iteration;
+  struct Loop;
+  struct Conditional;
+  struct Instruction;
 
   static constexpr auto statement =
-      ref<BlockRule> | ref<IterationRule> | ref<LoopRule> |
-      ref<ConditionalRule> | ref<InstructionRule>;
+      ref<Block> | ref<Iteration> | ref<Loop> |
+      ref<Conditional> | ref<Instruction>;
 
-  struct BlockRule
+  struct Block
       : rule<create<ast::Block> + kw<"BEGIN"> +
              many(append<&ast::Block::statements>(statement)) + kw<"END">> {};
 
-  struct IterationRule
+  struct Iteration
       : rule<kw<"ITERATE"> + assign<&ast::Iteration::count>(ref<NUMBER>) +
              kw<"TIMES"> + assign<&ast::Iteration::body>(statement)> {};
 
-  struct LoopRule
+  struct Loop
       : rule<kw<"WHILE"> + assign<&ast::Loop::condition>(ref<CONDITION>) +
              kw<"DO"> + assign<&ast::Loop::body>(statement)> {};
 
-  struct ConditionalRule
+  struct Conditional
       : rule<kw<"IF"> + assign<&ast::Conditional::condition>(ref<CONDITION>) +
              kw<"THEN"> + assign<&ast::Conditional::thenBranch>(statement) +
-             option(kw<"ELSE"> +
-                    assign<&ast::Conditional::elseBranch>(statement))> {};
+             option(commit(kw<"ELSE">,
+                    assign<&ast::Conditional::elseBranch>(statement)))> {};
 
-  struct InstructionRule
+  struct Instruction
       : rule<assign<&ast::Instruction::op>(ref<INSTR> | ref<ID>)> {};
 
-  struct DefinitionRule
+  struct Definition
       : rule<create<ast::Definition> + kw<"DEFINE"> +
              assign<&ast::Definition::name>(ref<ID>) + kw<"AS"> +
              assign<&ast::Definition::body>(statement)> {};
 
   struct KarelRule
       : rule<create<ast::Program> + kw<"BEGINNING-OF-PROGRAM"> +
-             many(append<&ast::Program::definitions>(ref<DefinitionRule>)) +
+             many(append<&ast::Program::definitions>(ref<Definition>)) +
              kw<"BEGINNING-OF-EXECUTION"> +
              many(append<&ast::Program::statements>(statement)) +
              kw<"END-OF-EXECUTION"> + kw<"END-OF-PROGRAM">> {};
 
   using entry = KarelRule;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 }  // namespace karel

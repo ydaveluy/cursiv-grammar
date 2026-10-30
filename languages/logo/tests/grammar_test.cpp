@@ -69,11 +69,9 @@ int main() {
       {"logo_fail_1.logo", false},
       {"logo_fail_2.logo", true},
       {"logo_feature_butfail.logo", false},
-      // The corpus's own `.errors` sibling calls this one a token
-      // recognition error on two raw replacement-character bytes; they are
-      // well-formed UTF-8 (U+FFFD), accepted as raw bytes by QuotedString.
-      // This document therefore parses clean.
-      {"logo_feature_butfail_2.logo", false},
+      // The native lexer rejects the malformed/unsupported text in this
+      // quoted token list; preserve the corpus's error classification.
+      {"logo_feature_butfail_2.logo", true},
   };
 
   std::vector<std::string> texts;
@@ -122,9 +120,31 @@ int main() {
     const auto& bin =
         *as<ast::BinaryExpression>(std::get<ast::Expression*>(line1.value));
     CHECK(bin.op == ast::Op::multiply);
-    CHECK(as<ast::NumberLiteral>(bin.left)->value == 2);
-    CHECK(as<ast::NumberLiteral>(bin.right)->value == 3);
+    CHECK(as<ast::NumberLiteral>(bin.left)->value == "2");
+    CHECK(as<ast::NumberLiteral>(bin.right)->value == "3");
   }
 
+  {
+    const auto result = language.language.parser->parse("fd 123456789012345678901234567890\n");
+    const auto* p = result.value_as<ast::Program>();
+    const auto* line = p && p->lines.size() == 1 ? as<ast::CommandLine>(p->lines[0]) : nullptr;
+    const auto* forward = line && line->commands.size() == 1 ? as<ast::ForwardCmd>(line->commands[0]) : nullptr;
+    const auto* number = forward ? as<ast::NumberLiteral>(forward->distance) : nullptr;
+    CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
+    CHECK(number && number->value == "123456789012345678901234567890");
+  }
+  for (const auto text : {"to repeat\nfd 1\nend\n", "end\n", "print :repeat\n",
+                          "repeat 1+2 [fd 1]\n", "repeat -2 [fd 1]\n",
+                          "print [λ]\n", "print [hi @]\n", "print [; hi ]\n"}) {
+    const auto result = language.language.parser->parse(text);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      std::fprintf(stderr, "unexpected native-negative acceptance: %s", text);
+    CHECK(!result.accepted || result.cst().recovered() || !result.diagnostics.empty());
+  }
+  for (const auto text : {"to repeatMore\nfd 1\nend\n", "repeat 2 [fd 1]\n",
+                          "print [one [two] :three + 2]\n", "print [; hi ]\nword]\n"}) {
+    const auto result = language.language.parser->parse(text);
+    CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
+  }
   return cursiv::test::report("logo_grammar_test");
 }

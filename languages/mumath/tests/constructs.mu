@@ -26,7 +26,7 @@ FUNCTION ADD(X,Y) ,
     A:X+Y,
     LOOP
         A:A+1,
-        WHEN A>10 EXIT, A EXIT
+        WHEN A>10, A EXIT
     ENDLOOP
 ,
 ENDFUN$
@@ -35,7 +35,7 @@ FUNCTION ZERO() ,
     A:0,
 ENDFUN$
 
-% BLOCK/LOOP/WHEN only ever nest inside a function body, never at top level %
+% Nested blocks and functions, with the historical optional trailing commas %
 FUNCTION DEMO() ,
     BLOCK
         A:1,

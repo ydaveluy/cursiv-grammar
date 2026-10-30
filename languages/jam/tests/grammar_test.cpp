@@ -12,6 +12,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "jam/core/CoreServices.hpp"
 #include "jam/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -27,6 +28,7 @@ int main() {
   const auto language = cursiv::create_language<
       jam::JamCoreServices, jam::JamSharedCoreServices,
       jam::install_core_module>();
+  if (!jam_native_followup::run(language)) return 1;
 
   int failures = 0;
   int parsed = 0;

@@ -1,12 +1,4 @@
-# A bracketed attribute list, bare and attached to a node and an edge.
-config: [
-  : "internal note",
-  : 42,
-  : true,
-] {
-  shape: circle
-}
-
-start -> end [ : "connects" ]
-
-[ : "a bare attribute block statement" ]
+# Values use semicolon-separated arrays; attributes use maps.
+config: ["internal note"; 42; true]
+node: {shape: circle}
+start -> end: connects {style.stroke: blue}

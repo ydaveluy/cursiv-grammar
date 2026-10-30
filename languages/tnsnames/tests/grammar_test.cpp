@@ -263,8 +263,8 @@ void params_fields() {
     CHECK(only(d->transportConnectTimeouts, 5));
     CHECK(d->addresses.size() == 1);
     if (!d->addresses.empty()) {
-      CHECK(only(d->addresses[0]->sendBufs, 2048));
-      CHECK(only(d->addresses[0]->recvBufs, 2048));
+      CHECK(only(d->addresses[0]->protocol->sendBufs, 2048));
+      CHECK(only(d->addresses[0]->protocol->recvBufs, 2048));
     }
   }
 
@@ -420,6 +420,20 @@ void corpus() {
 
 
 void native_descriptor_values() {
+  for (const char *params : {"(PROTOCOL=TCP)(HOST=db)(SEND_BUF_SIZE=1024)(PORT=1521)(RECV_BUF_SIZE=2048)",
+                            "(SEND_BUF_SIZE=1024)(HOST=db)(RECV_BUF_SIZE=2048)(PROTOCOL=TCP)(PORT=1521)"}) {
+    const std::string source = std::string("a=(DESCRIPTION=(ADDRESS=") + params +
+        ")(CONNECT_DATA=(SERVICE_NAME=svc)))";
+    const auto r = build(source);
+    const auto *e = entry_at(r, 0);
+    const auto *address = e && e->description && e->description->addresses.size() == 1
+        ? e->description->addresses[0] : nullptr;
+    const auto *protocol = address ? as<ast::TcpProtocol>(address->protocol) : nullptr;
+    CHECK(protocol && only(protocol->hosts, "db") && only(protocol->ports, 1521) &&
+          only(protocol->sendBufs, 1024) && only(protocol->recvBufs, 2048) &&
+          protocol->parent == address);
+  }
+
   // python-oracledb 26.0.1: quoted values, IPv6, aliases, TCPS and duration units.
   const std::string source =
       "_a,$b,àlias=(DESCRIPTION=(RETRY_DELAY=2)"

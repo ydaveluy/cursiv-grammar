@@ -1,3 +1,4 @@
+#include "native_followup.hpp"
 #include "audit_regressions.hpp"
 // The grammar end to end: every document under example/ parses clean (no
 // recovery, no diagnostics, a Module root), and one document's AST is read
@@ -41,10 +42,10 @@ using Language = decltype(cursiv::create_language<
 
 const vba::ast::Module* parse_module(const Language& language,
                                      const fs::path& path,
-                                     cursiv::ParseResult* out) {
-  const std::string text = read_file(path);
+                                     std::string& text, cursiv::ParseResult* out) {
+  text = read_file(path);
   *out = language.language.parser->parse(text);
-  if (out->cst().recovered()) {
+  if (!out->accepted || out->cst().recovered()) {
     fail(path.string() + ": the document does not parse clean");
     return nullptr;
   }
@@ -69,8 +70,9 @@ void corpus(const Language& language) {
     const std::string ext = path.extension().string();
     if (ext != ".bas" && ext != ".cls" && ext != ".frm") continue;
     ++count;
+    std::string text;
     cursiv::ParseResult result;
-    parse_module(language, path, &result);
+    parse_module(language, path, text, &result);
   }
   if (count == 0) fail("no corpus document was found under " + dir.string());
 }
@@ -83,8 +85,9 @@ void own_examples(const Language& language) {
   for (const fs::directory_entry& e : fs::recursive_directory_iterator(dir)) {
     if (!e.is_regular_file()) continue;
     ++count;
+    std::string text;
     cursiv::ParseResult result;
-    parse_module(language, e.path(), &result);
+    parse_module(language, e.path(), text, &result);
   }
   if (count == 0) fail("no own-written document was found under " + dir.string());
 }
@@ -95,8 +98,9 @@ void own_examples(const Language& language) {
 void field_readback(const Language& language) {
   const fs::path path =
       fs::path(CURSIV_EXAMPLE_DIR) / "SQLHelperFunctions.bas";
+  std::string text;
   cursiv::ParseResult result;
-  const vba::ast::Module* const module = parse_module(language, path, &result);
+  const vba::ast::Module* const module = parse_module(language, path, text, &result);
   if (module == nullptr) {
     fail("field_readback: the sample itself failed to parse");
     return;
@@ -432,6 +436,7 @@ int main() {
       vba::VbaCoreServices, vba::VbaSharedCoreServices,
       vba::install_core_module>();
 
+  if (!vba_native_followup::run(*language.language.parser)) return 1;
   corpus(language);
   own_examples(language);
   field_readback(language);

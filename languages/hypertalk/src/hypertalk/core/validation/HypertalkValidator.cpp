@@ -25,6 +25,19 @@ void HypertalkValidator::checkFunctionNameMatches(
         .property<&ast::Function::endName>();
 }
 
+void HypertalkValidator::checkVisualUnlock(const ast::ScreenLockCmd& command,
+                                          cursiv::ValidationAcceptor& accept) const {
+  if (command.visualEffect && (command.lock || command.target != ast::LockTarget::Screen))
+    accept.error(command, "A visual effect applies only to unlock screen.",
+                 "hypertalk.visual-unlock");
+}
+void HypertalkValidator::checkShowCards(const ast::ShowHideCmd& command,
+                                       cursiv::ValidationAcceptor& accept) const {
+  if (!command.show && (command.allCards || command.markedCards || command.cardCount))
+    accept.error(command, "A card display sequence uses show.",
+                 "hypertalk.show-cards");
+}
+
 void register_validation_checks(HypertalkCoreServices& services) {
   using V = HypertalkValidator;
   services.validator = std::make_unique<const V>(services);
@@ -33,7 +46,9 @@ void register_validation_checks(HypertalkCoreServices& services) {
       {cursiv::ValidationRegistry::makeValidationCheck<
            &V::checkHandlerNameMatches>(validator),
        cursiv::ValidationRegistry::makeValidationCheck<
-           &V::checkFunctionNameMatches>(validator)});
+           &V::checkFunctionNameMatches>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkVisualUnlock>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkShowCards>(validator)});
 }
 
 }  // namespace hypertalk

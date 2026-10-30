@@ -13,6 +13,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "hypertalk/core/CoreServices.hpp"
 #include "hypertalk/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -95,6 +96,8 @@ int main() {
   const auto language = cursiv::create_language<
       hypertalk::HypertalkCoreServices, hypertalk::HypertalkSharedCoreServices,
       hypertalk::install_core_module>();
+
+  if (!hypertalk_native_followup::run(language.language)) return 1;
 
   if (const int rc = check_relational_tighter_than_equality(language.language);
       rc != 0)

@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+LDAP search filters with nested boolean expressions and assertions. The historical name also covers the implemented RFC 2254/4515 filter extensions.
+
 ```
 (&(objectClass=Person)(|(sn=Jensen)(cn=Babs J*)))
 ```
-
-An [RFC 1960](https://www.rfc-editor.org/rfc/rfc1960.txt) LDAP search filter:
-`&`/`|`/`!` combine nested filters, and a leaf compares an attribute -- `=`,
-`~=`, `>=`, `<=`, or a substring match with `*` (`attr=*` alone means
-"present"). `example/` contains sample filters, including `operators.rfc1960`
-for comparison operators and substring shapes.
 
 ## The command line
 

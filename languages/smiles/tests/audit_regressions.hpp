@@ -29,7 +29,8 @@ inline bool run() {
 
   const auto language = cursiv::create_language<smiles::SmilesCoreServices,
       smiles::SmilesSharedCoreServices, smiles::install_core_module>();
-  for (const char* symbol : {"Nh", "Mc", "Ts", "Og", "Uut", "b", "si", "te", "#6"}) {
+  for (const char* symbol : {"Nh", "Mc", "Ts", "Og", "Uut", "b", "si", "te", "#6",
+                             "'Rf'", "'Og'"}) {
     const std::string text = "[" + std::string(symbol) + "]";
     auto parsed = parser->parse(text);
     auto* root = as<ast::Smiles>(parsed.value);
@@ -69,6 +70,9 @@ inline bool run() {
   struct Invalid { std::string text; std::string_view code; std::string_view span; };
   for (const auto& item : {
       Invalid{"[Xx]", "smiles.symbol", "Xx"},
+      Invalid{"['C']", "smiles.symbol", "'C'"},
+      Invalid{"['Lr']", "smiles.symbol", "'Lr'"},
+      Invalid{"['Uuo']", "smiles.symbol", "'Uuo'"},
       Invalid{"[65536C]", "smiles.isotope", "65536"},
       Invalid{"[CH256]", "smiles.hcount", "H256"},
       Invalid{"[C+1000]", "smiles.charge", "+1000"},

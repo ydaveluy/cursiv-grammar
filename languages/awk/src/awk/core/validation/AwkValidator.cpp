@@ -135,12 +135,30 @@ void AwkValidator::checkUniqueFunctionNames(
   }
 }
 
+void AwkValidator::checkRegex(const ast::RegexLit& regex,
+                              cursiv::ValidationAcceptor& accept) const {
+  if (!regex.typed) return;
+  const auto* parent = regex.parent;
+  if (const auto* binary = cursiv::ast_cast<ast::BinaryExpr>(parent);
+      binary && binary->right == &regex &&
+      (binary->op == ast::BinOp::Match || binary->op == ast::BinOp::NoMatch))
+    return;
+  if (const auto* assignment = cursiv::ast_cast<ast::AssignExpr>(parent);
+      assignment && assignment->value == &regex) return;
+  if (cursiv::ast_cast<ast::CallExpr>(parent) ||
+      cursiv::ast_cast<ast::ReturnStmt>(parent) ||
+      cursiv::ast_cast<ast::SwitchCase>(parent)) return;
+  accept.error(regex, "A typed regexp constant requires a matching, assignment, call, return or case context.",
+               "awk.typed-regexp-context");
+}
+
 void register_validation_checks(AwkCoreServices& services) {
   using V = AwkValidator;
   services.validator = std::make_unique<const V>(services);
   const V& validator = *services.validator;
   services.validationRegistry->registerChecks(
-      {cursiv::ValidationRegistry::makeValidationCheck<
+      {cursiv::ValidationRegistry::makeValidationCheck<&V::checkRegex>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<
           &V::checkUniqueFunctionNames>(validator),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkAssignment>(validator),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkBuiltin>(validator),

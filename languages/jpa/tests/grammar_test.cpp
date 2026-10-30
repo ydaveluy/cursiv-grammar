@@ -16,6 +16,7 @@
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "jpa/core/CoreServices.hpp"
 #include "jpa/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -49,6 +50,8 @@ int main() {
   const auto language = cursiv::create_language<
       jpa::JpaCoreServices, jpa::JpaSharedCoreServices,
       jpa::install_core_module>();
+
+  if (!jpa_native_followup::run(language)) return 1;
 
   // example1.jpql ("SELECT f FROM Country") has no alias -- JPQL always
   // requires one in a range_variable_declaration. Required

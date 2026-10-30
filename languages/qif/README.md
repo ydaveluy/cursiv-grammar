@@ -31,9 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[QIF](https://en.wikipedia.org/wiki/Quicken_Interchange_Format) is
-line-oriented: each line opens with a field code, and everything to the end
-of the line is that field's content.
+[QIF](https://www.w3.org/2000/10/swap/pim/qif-doc/QIF-doc.htm) stores field values one per line; a line containing `^` ends a record.
 
 ```
 !Type:Bank
@@ -42,12 +40,6 @@ T-379.00
 PCITY OF SPRINGFIELD
 ^
 ```
-
-`!Type:` names the account type for the records that follow; `D`, `T`, `N`,
-`C`, `M`, `P` and `L` are the date, total, check number, cleared state, memo,
-payee and account/category of one transaction; `^` closes the record. A
-field's content is read with no whitespace of its own — a stray space right
-after the code is part of the content, not a separator.
 
 ## The command line
 

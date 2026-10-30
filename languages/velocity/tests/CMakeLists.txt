@@ -10,6 +10,7 @@ target_link_libraries(velocity_grammar_test PRIVATE velocityCore)
 target_compile_definitions(velocity_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example")
 add_test(NAME velocity_grammar_test COMMAND velocity_grammar_test)
+set_tests_properties(velocity_grammar_test PROPERTIES TIMEOUT 45)
 
 # ...and the command line reads one upstream sample.
 if(TARGET velocity_cli)

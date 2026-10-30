@@ -1,4 +1,5 @@
 #include "audit_regressions.hpp"
+#include "native_followup_cases.hpp"
 // The smoke test of the language: every file of `example/` parses clean
 // (no recovery, no diagnostics), and one document's fields hold what it
 // declares.
@@ -35,6 +36,7 @@ int main() {
   if (!audit_regressions::run()) return 1;
   const auto language = cursiv::create_language<
       z::ZCoreServices, z::ZSharedCoreServices, z::install_core_module>();
+  if (!native_followup::run(language.language)) return 1;
 
   std::vector<std::filesystem::path> examples;
   for (const auto& entry :

@@ -13,6 +13,8 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "c/core/CoreServices.hpp"
 #include "c/core/ast.hpp"
+#include "cursiv/core/workspace/DocumentFactory.hpp"
+#include "cursiv/core/validation/DocumentValidator.hpp"
 
 namespace {
 
@@ -109,6 +111,57 @@ int main() {
   if (int rc = want_declaration("void g(void) { T * x = y; }\n",
                                 "T * x = y"))
     return rc;
+
+  for (const std::string source : {"static auto x = 3.5; const auto p = &x;",
+                                   "auto missing;", "auto *pointer = 0;"}) {
+    const bool invalid = source.starts_with("auto");
+    auto document = language.shared->documentFactory->fromString(
+        source, "file:///inference.c");
+    const auto* unit = document->parseResult.value_as<c::ast::TranslationUnit>();
+    const auto* declaration = unit && !unit->items.empty()
+                                  ? cursiv::ast_cast<c::ast::Declaration>(unit->items[0])
+                                  : nullptr;
+    if (!document->parseResult.accepted || document->parseResult.cst().recovered() ||
+        !document->parseResult.diagnostics.empty() || !declaration ||
+        !declaration->specifiers || !declaration->specifiers->inferred ||
+        !declaration->specifiers->types.empty())
+      return fail("C23 inferred declaration lost its AST category");
+    std::vector<cursiv::Diagnostic> diagnostics;
+    language.language.documentValidator->validateDocument(*document, diagnostics);
+    bool inference_error = false;
+    for (const auto& diagnostic : diagnostics)
+      inference_error |= diagnostic.code && *diagnostic.code == "c.inference";
+    if (inference_error != invalid || (!invalid && !diagnostics.empty()))
+      return fail("wrong C23 inference constraints");
+  }
+
+  {
+    const auto result = language.language.parser->parse(
+        "int renamed __asm__(\"native_\" \"name\") = 2; "
+        "int function(int x) asm(\"native_function\"); "
+        "struct Point { int x,y; }; struct Point p = {y: 2, x: 1}; "
+        "int a[3] = {[1] 4, [2] = 5};");
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("native GNU assembler name or obsolete initializer syntax");
+    unsigned labels = 0, colon = 0, omitted = 0;
+    bool pieces = false;
+    for (const auto* node : result.nodes) {
+      if (const auto* item = cursiv::ast_cast<c::ast::InitDeclarator>(node)) {
+        labels += !item->assemblerNameParts.empty();
+        pieces |= item->assemblerNameParts.size() == 2 &&
+                  item->assemblerNameParts[0] == "\"native_\"" &&
+                  item->assemblerNameParts[1] == "\"name\"";
+      }
+      if (const auto* item = cursiv::ast_cast<c::ast::DesignatedInit>(node)) {
+        colon += item->obsoleteColon;
+        omitted += item->omittedEquals;
+        if (item->designators.size() != 1 || !item->value)
+          return fail("GNU initializer designation lost its value");
+      }
+    }
+    if (labels != 2 || !pieces || colon != 2 || omitted != 1)
+      return fail("GNU assembler name or initializer style metadata lost");
+  }
 
   std::printf("c: %d examples parse\n", seen);
   return 0;

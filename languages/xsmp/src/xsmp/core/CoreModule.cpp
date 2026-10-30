@@ -5,6 +5,7 @@
 
 #include "xsmp/core/CoreServices.hpp"
 #include "xsmp/core/XsmpScopeComputation.hpp"
+#include "xsmp/core/XsmpScopeProvider.hpp"
 #include "xsmp/generated/Xsmp/Module.hpp"
 
 namespace xsmp {
@@ -12,6 +13,8 @@ namespace xsmp {
 void install_core_module(XsmpCoreServices& services) {
   xsmp::generated::Xsmp::install_generated_module(services);
   services.scopeComputation = std::make_unique<XsmpScopeComputation>(services);
+  services.scopeProvider = std::make_unique<XsmpScopeProvider>(services);
+  register_validation_checks(services);
 }
 
 }  // namespace xsmp

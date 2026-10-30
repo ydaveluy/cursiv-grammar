@@ -43,6 +43,26 @@ bool command_line(std::string_view gap, bool newline) {
 
 void CmakeValidator::checkArgument(const ast::Argument& argument,
                                    cursiv::ValidationAcceptor& accept) const {
+  // Bracket arguments and bracket comments reset the native lexer's
+  // separation state. Ordinary quoted adjacency is only a native warning.
+  if (!cursiv::ast_cast<ast::CompoundArgument>(&argument)) {
+    if (const auto* document = argument.getDocument();
+        document && argument.cstNodeId != cursiv::kNoNode) {
+      const auto& cst = document->parseResult.cst();
+      const auto begin = cst[argument.cstNodeId].begin;
+      if (begin > 0) {
+        const char previous = cst.text()[begin - 1];
+        const bool separated = previous == ' ' || previous == '\t' ||
+                               previous == '\r' || previous == '\n' ||
+                               previous == '(';
+        if (!separated &&
+            (previous == ']' ||
+             cursiv::ast_cast<ast::BracketArgument>(&argument)))
+          accept.error(argument, "Argument not separated from preceding token by whitespace.",
+                       "cmake.argument-separation");
+      }
+    }
+  }
   std::string_view text;
   if (const auto* value = cursiv::ast_cast<ast::UnquotedArgument>(&argument)) {
     text = value->text;

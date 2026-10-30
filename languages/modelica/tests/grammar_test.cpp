@@ -5,6 +5,7 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "modelica/core/CoreServices.hpp"
 #include "modelica/core/ast.hpp"
+#include "native_regressions.hpp"
 // The grammar end to end: every document under example/ (the corpus) and
 // tests/ (constructs the corpus never reaches) parses clean -- recovered()
 // false, no diagnostics, the right root type -- and a few real field values
@@ -74,6 +75,8 @@ int main() {
   const auto language = cursiv::create_language<
       modelica::ModelicaCoreServices, modelica::ModelicaSharedCoreServices,
       modelica::install_core_module>();
+
+  if (!modelica_native::run(*language.language.parser)) return 1;
 
   std::vector<fs::path> docs;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

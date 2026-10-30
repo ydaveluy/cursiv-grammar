@@ -11,184 +11,227 @@ namespace lolcode {
 inline constexpr auto win_or_fail = [](std::string_view t) {
   return t == "WIN";
 };
-using WinFail = cursiv::text_conv<win_or_fail>;
 
 inline constexpr auto unquote = [](std::string_view t) {
-  return t.substr(1, t.size() - 2);
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (t.size() < 2 || t.front() != '"' || t.back() != '"')
+    return Result::err("A string literal needs opening and closing quotes.");
+  return Result::ok(t.substr(1, t.size() - 2));
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Lolcode : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \r\n)">)> {};
+  struct WS : terminal<some(cr<R"( \t)">)> {};
+  struct SEPARATOR : terminal<eol | lit<",">> {};
+  struct CONTINUATION : terminal<(lit<"..."> | lit<"…">) + many(cr<R"( \t)">) + eol> {};
 
   // An identifier must start with a letter or underscore, so a pure-digit
   // spelling stays disjoint from NUMBER.
   struct LABEL : terminal<cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_">)> {};
 
-  struct NUMBER : terminal<some(cr<"0-9">) |
-                               (many(cr<"0-9">) + lit<"."> + many(cr<"0-9">)),
-                           double> {};
+  static constexpr auto number_body = option(lit<"-">) +
+      ((some(d) + option(lit<"."> + many(d))) | (lit<"."> + some(d)));
+  static constexpr auto bool_body = kw<"WIN"> | kw<"FAIL">;
 
-  struct BOOL : terminal<kw<"WIN"> | kw<"FAIL">, WinFail> {};
+  struct NUMBER : terminal<as<double>(number_body)> {};
+
+  struct BOOL : terminal<as<win_or_fail>(bool_body)> {};
   struct NOOBK : terminal<kw<"NOOB">> {};
 
-  struct STRING
-      : terminal<lit<"\""> + many(lit<"\\\""> | cr<R"(^"\\)">) + lit<"\"">,
-                 Unquoted> {};
+  // LOLCODE uses colon escapes. Keep their source spelling for later
+  // interpolation; a backslash itself is an ordinary string character.
+  static constexpr auto string_body = lit<"\""> +
+      many((lit<":"> + any) | cr<R"(^":)">) + lit<"\"">;
+  struct STRING : terminal<as<unquote>(string_body)> {};
 
   struct LINE_COMMENT : terminal<kw<"BTW"> + many(cr<R"(^\r\n)">)> {};
   struct BLOCK_COMMENT : terminal<through(kw<"OBTW">, lit<"TLDR">)> {};
 
-  // The eleven prefix binary operators share one shape: OP left 'AN' right.
-  struct BOTH_SAEM : terminal<kw<"BOTH SAEM">, value<ast::Op::eq>> {};
-  struct DIFFRINT : terminal<kw<"DIFFRINT">, value<ast::Op::ne>> {};
-  struct BOTH_OF : terminal<kw<"BOTH OF">, value<ast::Op::both>> {};
-  struct EITHER_OF : terminal<kw<"EITHER OF">, value<ast::Op::either>> {};
-  struct BIGGR_OF : terminal<kw<"BIGGR OF">, value<ast::Op::greater>> {};
-  struct SMALLR_OF : terminal<kw<"SMALLR OF">, value<ast::Op::less>> {};
-  struct SUM_OF : terminal<kw<"SUM OF">, value<ast::Op::add>> {};
-  struct DIFF_OF : terminal<kw<"DIFF OF">, value<ast::Op::sub>> {};
-  struct PRODUKT_OF : terminal<kw<"PRODUKT OF">, value<ast::Op::mul>> {};
-  struct QUOSHUNT_OF : terminal<kw<"QUOSHUNT OF">, value<ast::Op::div>> {};
-  struct MOD_OF : terminal<kw<"MOD OF">, value<ast::Op::mod>> {};
+  // Binary operators have two operands and an optional AN separator.
+  struct DIFFRINT : terminal<as<ast::Op::ne>(kw<"DIFFRINT">)> {};
 
   static constexpr auto binOp =
-      ref<BOTH_SAEM> | ref<DIFFRINT> | ref<BOTH_OF> | ref<EITHER_OF> |
-      ref<BIGGR_OF> | ref<SMALLR_OF> | ref<SUM_OF> | ref<DIFF_OF> |
-      ref<PRODUKT_OF> | ref<QUOSHUNT_OF> | ref<MOD_OF>;
+      as<ast::Op::eq>((kw<"BOTH"> + kw<"SAEM">)) | ref<DIFFRINT> | as<ast::Op::both>((kw<"BOTH"> + kw<"OF">)) | as<ast::Op::either>((kw<"EITHER"> + kw<"OF">)) | as<ast::Op::xor_>((kw<"WON"> + kw<"OF">)) |
+      as<ast::Op::greater>((kw<"BIGGR"> + kw<"OF">)) | as<ast::Op::less>((kw<"SMALLR"> + kw<"OF">)) | as<ast::Op::add>((kw<"SUM"> + kw<"OF">)) | as<ast::Op::sub>((kw<"DIFF"> + kw<"OF">)) |
+      as<ast::Op::mul>((kw<"PRODUKT"> + kw<"OF">)) | as<ast::Op::div>((kw<"QUOSHUNT"> + kw<"OF">)) | as<ast::Op::mod>((kw<"MOD"> + kw<"OF">));
 
-  struct BoolLitRule : rule<assign<&ast::BoolLit::value>(ref<BOOL>)> {};
-  struct NoobLitRule : rule<create<ast::NoobLit> + ref<NOOBK>> {};
-  struct NumLitRule : rule<assign<&ast::NumLit::value>(ref<NUMBER>)> {};
-  struct StrLitRule : rule<assign<&ast::StrLit::text>(ref<STRING>)> {};
+  struct BoolLit : rule<assign<&ast::BoolLit::value>(ref<BOOL>)> {};
+  struct NoobLit : rule<create<ast::NoobLit> + ref<NOOBK>> {};
+  struct NumLit : rule<assign<&ast::NumLit::value>(ref<NUMBER>)> {};
+  struct StrLit : rule<assign<&ast::StrLit::text>(ref<STRING>)> {};
 
   static constexpr auto atom =
-      ref<BoolLitRule> | ref<NoobLitRule> | ref<NumLitRule> | ref<StrLitRule>;
+      ref<BoolLit> | ref<NoobLit> | ref<NumLit> | ref<StrLit>;
 
-  struct BinOpRule;
-  struct CastRule;
-  struct AllOfRule;
-  struct AnyOfRule;
-  struct NotRule;
-  struct FuncCallRule;
-  struct ExplicitCallRule;
-  struct VarRefRule;
+  struct BinOp;
+  struct Cast;
+  struct AllOf;
+  struct AnyOf;
+  struct Not;
+  struct FuncCall;
+  struct ExplicitCall;
+  struct VarRef;
+  struct Concat;
 
   // A call's own argument list has no separator between names: were it
   // reachable from a general operand position, a run of names anywhere in
   // an expression could extend into a call ending at any later MKAY?,
   // ambiguous with the shorter reading that stops at one name.
-  // FuncCallRule is therefore reachable only from `statement`, never from
+  // FuncCall is therefore reachable only from `statement`, never from
   // `expression`; a call cannot be an operand or another call's argument.
   static constexpr auto expression =
-      ref<BinOpRule> | ref<CastRule> | ref<AllOfRule> | ref<AnyOfRule> |
-      ref<NotRule> | ref<ExplicitCallRule> | ref<VarRefRule> | atom;
+      ref<BinOp> | ref<Cast> | ref<AllOf> | ref<AnyOf> |
+      ref<Not> | ref<Concat> | ref<ExplicitCall> | ref<VarRef> | atom;
 
-  struct BinOpRule : rule<assign<&ast::BinOp::op>(binOp) +
-                          assign<&ast::BinOp::left>(expression) + kw<"AN"> +
+  struct BinOp : rule<assign<&ast::BinOp::op>(binOp) +
+                          assign<&ast::BinOp::left>(expression) + option(kw<"AN">) +
                           assign<&ast::BinOp::right>(expression)> {};
 
-  struct CastRule
-      : rule<kw<"MAEK"> + assign<&ast::CastExpr::value>(expression) + kw<"A"> +
+  struct Cast
+      : rule<kw<"MAEK"> + assign<&ast::CastExpr::value>(expression) + option(kw<"A">) +
              assign<&ast::CastExpr::targetType>(ref<LABEL>)> {};
 
-  struct AllOfRule
-      : rule<kw<"ALL OF"> +
-             some(append<&ast::AllOf::operands>(expression), kw<"AN">) +
-             kw<"MKAY?">> {};
+  struct AllOf
+      : rule<(kw<"ALL"> + kw<"OF">) +
+             append<&ast::AllOf::operands>(expression) +
+             many(option(kw<"AN">) + append<&ast::AllOf::operands>(expression)) +
+             (kw<"MKAY"> | kw<"MKAY?"> | &ref<SEPARATOR> | &ref<LINE_COMMENT>)> {};
 
-  struct AnyOfRule
-      : rule<kw<"ANY OF"> +
-             some(append<&ast::AnyOf::operands>(expression), kw<"AN">) +
-             kw<"MKAY?">> {};
+  struct AnyOf
+      : rule<(kw<"ANY"> + kw<"OF">) +
+             append<&ast::AnyOf::operands>(expression) +
+             many(option(kw<"AN">) + append<&ast::AnyOf::operands>(expression)) +
+             (kw<"MKAY"> | kw<"MKAY?"> | &ref<SEPARATOR> | &ref<LINE_COMMENT>)> {};
 
-  struct NotRule
+  struct Concat
+      : rule<kw<"SMOOSH"> + append<&ast::ConcatExpr::operands>(expression) +
+             many(option(kw<"AN">) + append<&ast::ConcatExpr::operands>(expression)) +
+             (kw<"MKAY"> | &ref<SEPARATOR> | &ref<LINE_COMMENT>)> {};
+
+  struct Not
       : rule<kw<"NOT"> + assign<&ast::NotExpr::operand>(expression)> {};
 
-  struct ExplicitCallRule
+  struct ExplicitCall
       : rule<create<ast::FuncCall>(
-            kw<"I IZ"> + assign<&ast::FuncCall::callee>(ref<LABEL>) +
+            (kw<"I"> + kw<"IZ">) + assign<&ast::FuncCall::callee>(ref<LABEL>) +
             option(
                 kw<"YR"> + append<&ast::FuncCall::args>(expression) +
-                many(kw<"AN YR"> + append<&ast::FuncCall::args>(expression))) +
+                many((kw<"AN"> + kw<"YR">) + append<&ast::FuncCall::args>(expression))) +
             (kw<"MKAY"> | kw<"MKAY?">))> {};
 
-  struct FuncCallRule
+  struct FuncCall
       : rule<assign<&ast::FuncCall::callee>(ref<LABEL>) +
              some(append<&ast::FuncCall::args>(expression)) + kw<"MKAY?">> {};
 
-  struct VarRefRule : rule<assign<&ast::VarRef::name>(ref<LABEL>)> {};
+  struct VarRef : rule<assign<&ast::VarRef::name>(ref<LABEL>)> {};
 
-  struct CommentRule : rule<assign<&ast::Comment::text>(ref<LINE_COMMENT> |
+  struct Comment : rule<assign<&ast::Comment::text>(ref<LINE_COMMENT> |
                                                         ref<BLOCK_COMMENT>)> {};
 
-  struct StatementRule;
-  static constexpr auto statement = ref<StatementRule>;
+  struct Statement;
+  struct StatementLine;
+  static constexpr auto statement = ref<StatementLine>;
+  static constexpr auto separator = option(ref<LINE_COMMENT>) + some(ref<SEPARATOR>);
 
-  struct LoopRule
-      : rule<kw<"IM IN YR"> + assign<&ast::LoopStmt::label>(ref<LABEL>) +
-             kw<"WILE"> + assign<&ast::LoopStmt::condition>(expression) +
-             some(append<&ast::LoopStmt::body>(statement)) + kw<"IM OUTTA YR"> +
+  // The one label token stays raw: its quotes and numeric spelling matter
+  // to literal identity, independently of the ordinary expression converters.
+  struct CaseLiteral
+      : terminal<bool_body | number_body | string_body> {};
+
+  template <auto Body>
+  static constexpr auto case_body = many(
+      append<Body>(!(kw<"OMG"> | kw<"OMGWTF"> | kw<"OIC">) + statement) |
+      ref<SEPARATOR>);
+
+  struct CaseClause
+      : rule<kw<"OMG"> + assign<&ast::CaseClause::literal>(ref<CaseLiteral>) +
+             separator + case_body<&ast::CaseClause::body>> {};
+
+  struct Switch
+      : rule<kw<"WTF?"> + separator +
+             some(append<&ast::SwitchStmt::cases>(ref<CaseClause>)) +
+             option(flag<&ast::SwitchStmt::hasDefault>(kw<"OMGWTF">) + separator +
+                    case_body<&ast::SwitchStmt::defaultBody>) +
+             kw<"OIC">> {};
+
+  struct Loop
+      : rule<(kw<"IM"> + kw<"IN"> + kw<"YR">) + assign<&ast::LoopStmt::label>(ref<LABEL>) +
+             option(assign<&ast::LoopStmt::operation>(kw<"UPPIN"> | kw<"NERFIN"> | ref<LABEL>) +
+                    kw<"YR"> + assign<&ast::LoopStmt::iterator>(ref<LABEL>)) +
+             option((flag<&ast::LoopStmt::until>(kw<"TIL">) | kw<"WILE">) +
+                    assign<&ast::LoopStmt::condition>(expression)) + separator +
+             many(append<&ast::LoopStmt::body>(statement) | ref<SEPARATOR>) + (kw<"IM"> + kw<"OUTTA"> + kw<"YR">) +
              assign<&ast::LoopStmt::endLabel>(ref<LABEL>)> {};
 
-  struct DeclRule
-      : rule<kw<"I HAS A"> + assign<&ast::Declaration::name>(ref<LABEL>) +
+  struct Decl
+      : rule<(kw<"I"> + kw<"HAS"> + kw<"A">) + assign<&ast::Declaration::name>(ref<LABEL>) +
              option(kw<"ITZ"> + assign<&ast::Declaration::init>(expression))> {
   };
 
-  struct PrintBlockRule
+  struct PrintBlock
       : rule<kw<"VISIBLE"> + many(append<&ast::PrintBlock::items>(expression)) +
+             option(flag<&ast::PrintBlock::suppressNewline>(lit<"!">)) +
              option(kw<"MKAY?">)> {};
 
-  struct MebbeClauseRule;
-  struct NoWaiClauseRule;
+  struct MebbeClause;
+  struct NoWaiClause;
   static constexpr auto elseClause =
-      ref<MebbeClauseRule> | ref<NoWaiClauseRule>;
+      ref<MebbeClause> | ref<NoWaiClause>;
 
-  struct MebbeClauseRule
-      : rule<kw<"MEBBE"> + assign<&ast::MebbeClause::cond>(expression) +
-             some(append<&ast::MebbeClause::body>(statement)) +
+  struct MebbeClause
+      : rule<kw<"MEBBE"> + assign<&ast::MebbeClause::cond>(expression) + separator +
+             many(append<&ast::MebbeClause::body>(statement) | ref<SEPARATOR>) +
              option(assign<&ast::MebbeClause::next>(elseClause))> {};
 
-  struct NoWaiClauseRule
-      : rule<kw<"NO WAI"> + some(append<&ast::NoWaiClause::body>(statement))> {
+  struct NoWaiClause
+      : rule<(kw<"NO"> + kw<"WAI">) + separator + many(append<&ast::NoWaiClause::body>(statement) | ref<SEPARATOR>)> {
   };
 
-  struct IfBlockRule
-      : rule<kw<"O RLY?"> + kw<"YA RLY"> +
-             some(append<&ast::IfBlock::body>(statement)) +
+  struct IfBlock
+      : rule<(kw<"O"> + kw<"RLY?">) + separator + (kw<"YA"> + kw<"RLY">) + separator +
+             many(append<&ast::IfBlock::body>(statement) | ref<SEPARATOR>) +
              option(assign<&ast::IfBlock::elseChain>(elseClause)) + kw<"OIC">> {
   };
 
-  struct InputBlockRule
+  struct InputBlock
       : rule<kw<"GIMMEH"> + assign<&ast::InputBlock::name>(ref<LABEL>)> {};
 
-  struct FuncDeclRule
-      : rule<kw<"HOW DUZ I"> + assign<&ast::FuncDecl::name>(ref<LABEL>) +
+  struct FuncDecl
+      : rule<((kw<"HOW"> + kw<"IZ"> + kw<"I">) | (kw<"HOW"> + kw<"DUZ"> + kw<"I">)) + assign<&ast::FuncDecl::name>(ref<LABEL>) +
              option(kw<"YR"> + append<&ast::FuncDecl::params>(ref<LABEL>) +
-                    many(kw<"AN YR"> +
+                    many((kw<"AN"> + kw<"YR">) +
                          append<&ast::FuncDecl::params>(ref<LABEL>))) +
-             some(append<&ast::FuncDecl::body>(statement)) +
-             kw<"IF U SAY SO">> {};
+             separator + many(append<&ast::FuncDecl::body>(statement) | ref<SEPARATOR>) +
+             (kw<"IF"> + kw<"U"> + kw<"SAY"> + kw<"SO">)> {};
 
-  struct AssignRule
+  struct Assign
       : rule<assign<&ast::Assignment::name>(ref<LABEL>) + kw<"R"> +
              assign<&ast::Assignment::value>(expression)> {};
 
-  struct StatementRule
-      : rule<ref<LoopRule> | ref<DeclRule> | ref<CommentRule> |
-             ref<PrintBlockRule> | ref<IfBlockRule> | ref<InputBlockRule> |
-             ref<FuncDeclRule> | ref<AssignRule> | ref<FuncCallRule> |
+  struct Retype
+      : rule<assign<&ast::RetypeStmt::name>(ref<LABEL>) + (kw<"IS"> + kw<"NOW"> + kw<"A">) +
+             assign<&ast::RetypeStmt::targetType>(ref<LABEL>)> {};
+
+  struct Return
+      : rule<(kw<"FOUND"> + kw<"YR">) + assign<&ast::ReturnStmt::value>(expression)> {};
+
+  struct Break : rule<create<ast::BreakStmt>(kw<"GTFO">)> {};
+
+  struct Statement
+      : rule<ref<Return> | ref<Break> | ref<Retype> | ref<Loop> | ref<Decl> | ref<Comment> |
+             ref<PrintBlock> | ref<IfBlock> | ref<Switch> | ref<InputBlock> |
+             ref<FuncDecl> | ref<Assign> | ref<FuncCall> |
              expression> {};
 
-  // The version after HAI (e.g. "HAI 1.3") is read as an optional atom.
-  struct ProgramRule
-      : rule<kw<"HAI"> + option(assign<&ast::Program::version>(atom)) +
-             some(append<&ast::Program::statements>(statement)) +
-             option(flag<&ast::Program::hasKthxbye>(kw<"KTHXBYE">))> {};
+  struct StatementLine : rule<ref<Statement> + (separator | eof)> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  struct Program
+      : rule<create<ast::Program> + many(ref<SEPARATOR>) + kw<"HAI"> +
+             option(assign<&ast::Program::version>(ref<NumLit>)) + separator +
+             many(append<&ast::Program::statements>(statement) | ref<SEPARATOR>) +
+             flag<&ast::Program::hasKthxbye>(kw<"KTHXBYE">) + many(ref<SEPARATOR>)> {};
+
+  using entry = Program;
+  using ignored = list<WS, CONTINUATION>;
 };
 
 } // namespace lolcode

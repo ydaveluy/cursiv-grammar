@@ -31,25 +31,18 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-A [databank](https://en.wikipedia.org/wiki/Databank_format) document is one
-NBER-style time series: an optional type code, its two date bounds, then its
-readings, one per line, `NA` for a gap:
+An NBER-style databank document describes a time series with date bounds, observations and missing values.
 
 ```
-"c  minimal databank example: type code -4, and scientific notation        "
--4
+"c  minimal databank example: monthly series and scientific notation       "
+-12
 1970.01
-1970.12
+1970.04
 1.5E+03
 2.5e-02
 -3.2E-1
 NA
 ```
-
-A quoted `"c ... "` line is a comment. A leading `-1`, `-4` or `-12` marks a
-dated series and is followed by its two date bounds; without it, the first
-two lines are the bounds of an undated series. Every other line is a sample:
-a number, or `NA`.
 
 ## The command line
 

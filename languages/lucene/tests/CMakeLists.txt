@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every corpus document in example/ parses clean, and a
 # few field values read back what the AST holds.
 add_executable(lucene_grammar_test grammar_test.cpp)
-target_link_libraries(lucene_grammar_test PRIVATE luceneCore)
+target_link_libraries(lucene_grammar_test PRIVATE luceneCore cursiv::test)
 target_compile_definitions(lucene_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

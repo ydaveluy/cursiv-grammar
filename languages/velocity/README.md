@@ -1,6 +1,6 @@
 # velocity
 
-A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+Apache Velocity 2.4.1 templates, built with [cursiv](https://github.com/ydaveluy/cursiv).
 
 ## Build
 

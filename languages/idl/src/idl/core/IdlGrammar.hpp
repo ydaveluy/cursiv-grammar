@@ -1,5 +1,5 @@
-// The idl language: its grammar. OMG CORBA IDL. All keywords are
-// hard-reserved (no soft-keyword position), and
+// The idl language: CORBA-family and selected OMG IDL4.2 building blocks.
+// Full keyword/case collision checks are not implemented;
 // scoped names are kept as text (see ast.hpp): the grammar below never
 // resolves a cross reference, only matches the syntax.
 #pragma once
@@ -16,8 +16,8 @@ struct Idl : cursiv::GrammarSpec {
 
   static constexpr auto word_boundary = cr<"a-zA-Z0-9_$"> | uc::XID_Continue;
 
-  // IDL restricts identifier letters/digits to specific old-Unicode ranges
-  // narrower than `uc::L`/`uc::Nd`, which over-accept.
+  // The inherited lexer keeps Unicode/$ extensions. IDL4.2 specifies ASCII
+  // identifiers; this broader syntax is documented rather than called normative.
   struct ID : terminal<(uc::L | cr<"_$">)+many(uc::L | uc::Nd | cr<"_$">)> {};
 
   struct DEC_LIT
@@ -26,11 +26,11 @@ struct Idl : cursiv::GrammarSpec {
   struct HEX_LIT : terminal<lit<"0"> + cr<"xX"> + some(cr<"0-9a-fA-F">) +
                             option(cr<"lL">)> {};
 
-  static constexpr auto float_suffix = cr<"fFdD">;
+  static constexpr auto float_suffix = cr<"fF">; // legacy float suffix extension
   static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
-  // IDL's fixed-point literal syntax is exactly its floating-point syntax:
-  // the floating reading always wins the tie, so no separate terminal is
-  // ported for it.
+  struct FIXED_LIT
+      : terminal<((some(d) + option(lit<"."> + many(d))) |
+                  (lit<"."> + some(d))) + cr<"dD">> {};
   struct FLOAT_LIT : terminal<(some(d) + lit<"."> + many(d) + option(exponent) +
                                option(float_suffix)) |
                               (lit<"."> + some(d) + option(exponent) +
@@ -38,13 +38,15 @@ struct Idl : cursiv::GrammarSpec {
                               (some(d) + exponent + option(float_suffix)) |
                               (some(d) + option(exponent) + float_suffix)> {};
 
-  static constexpr auto simple_escape = lit<"\\"> + cr<R"(btnfr"'\\\\)">;
+  static constexpr auto simple_escape = lit<"\\"> + cr<R"(abtnvfr?"'\\\\)">;
   static constexpr auto unicode_escape =
-      lit<"\\u"> + repeat<4>(cr<"0-9a-fA-F">);
+      lit<"\\u"> + repeat<1, 4>(cr<"0-9a-fA-F">);
+  static constexpr auto hex_escape =
+      lit<"\\x"> + repeat<1, 2>(cr<"0-9a-fA-F">);
   static constexpr auto octal_escape =
       lit<"\\"> + cr<"0-7"> + option(cr<"0-7"> + option(cr<"0-7">));
   static constexpr auto escape_seq =
-      simple_escape | unicode_escape | octal_escape;
+      simple_escape | unicode_escape | hex_escape | octal_escape;
   static constexpr auto char_body =
       lit<"'"> + (escape_seq | cr<R"(^'\\\\)">)+lit<"'">;
   static constexpr auto string_body =
@@ -53,32 +55,33 @@ struct Idl : cursiv::GrammarSpec {
   struct WCHAR_LIT : terminal<lit<"L"> + char_body> {};
   struct STR_LIT : terminal<string_body> {};
   struct WSTR_LIT : terminal<lit<"L"> + string_body> {};
+  struct StringSpelling : rule<some(ref<STR_LIT>)> {};
 
   // --- forward declarations ----------------------------------------------
-  struct ConstExprRule;
+  struct ConstExpr;
   struct ScopedName;
-  struct BaseTypeSpecRule;
-  struct NamedTypeRefRule;
-  struct SequenceTypeRule;
-  struct SetTypeRule;
-  struct MapTypeRule;
-  struct StringTypeRule;
-  struct WStringTypeRule;
-  struct FixedPtTypeRule;
-  struct StructDeclRule;
-  struct UnionDeclRule;
-  struct EnumDeclRule;
-  struct BitsetDeclRule;
-  struct BitmaskDeclRule;
-  struct DeclaratorRule;
-  struct ExportRule;
-  struct ParamRule;
+  struct BaseTypeSpec;
+  struct NamedTypeRef;
+  struct SequenceType;
+  struct SetType;
+  struct MapType;
+  struct StringType;
+  struct WStringType;
+  struct FixedPtType;
+  struct StructDecl;
+  struct UnionDecl;
+  struct EnumDecl;
+  struct BitsetDecl;
+  struct BitmaskDecl;
+  struct Declarator;
+  struct Export;
+  struct Param;
 
   // Reuse constant expressions for annotation arguments, preserving their AST.
   struct AnnotationArgument
       : rule<option(assign<&ast::AnnotationArgument::name>(ref<ID>) +
                     lit<"=">) +
-             assign<&ast::AnnotationArgument::value>(ref<ConstExprRule>)> {};
+             assign<&ast::AnnotationArgument::value>(ref<ConstExpr>)> {};
   static constexpr auto annotation_appl = create<ast::AnnotationUse>(
       lit<"@"> + assign<&ast::AnnotationUse::name>(ref<ScopedName>) +
       option(
@@ -93,188 +96,161 @@ struct Idl : cursiv::GrammarSpec {
       : rule<option(lit<"::">) + ref<ID> + many(lit<"::"> + ref<ID>)> {};
 
   // --- constant expressions -----------------------------------------------
-  struct ParenExprRule
+  struct ParenExpr
       : rule<create<ast::ParenExpr>(
-            lit<"("> + assign<&ast::ParenExpr::inner>(ref<ConstExprRule>) +
+            lit<"("> + assign<&ast::ParenExpr::inner>(ref<ConstExpr>) +
             lit<")">)> {};
-  struct FloatLitRule : rule<create<ast::FloatLit>(
+  struct FloatLit : rule<create<ast::FloatLit>(
                             assign<&ast::FloatLit::text>(ref<FLOAT_LIT>))> {};
-  struct IntLitRule : rule<create<ast::IntLit>(assign<&ast::IntLit::text>(
+  struct FixedLit : rule<create<ast::FixedLit>(
+                            assign<&ast::FixedLit::text>(ref<FIXED_LIT>))> {};
+  struct IntLit : rule<create<ast::IntLit>(assign<&ast::IntLit::text>(
                           ref<DEC_LIT> | ref<OCT_LIT> | ref<HEX_LIT>))> {};
-  struct WCharLitRule : rule<create<ast::WCharLit>(
+  struct WCharLit : rule<create<ast::WCharLit>(
                             assign<&ast::WCharLit::text>(ref<WCHAR_LIT>))> {};
-  struct CharLitRule
+  struct CharLit
       : rule<create<ast::CharLit>(assign<&ast::CharLit::text>(ref<CHAR_LIT>))> {
   };
-  struct WStringLitRule : rule<create<ast::WStringLit>(
-                              assign<&ast::WStringLit::text>(ref<WSTR_LIT>))> {
+  struct WStringLit : rule<create<ast::WStringLit>(
+                              assign<&ast::WStringLit::text>(ref<WSTR_LIT>) +
+                              many(append<&ast::WStringLit::continuations>(ref<WSTR_LIT>)))> {
   };
-  struct StringLitRule : rule<create<ast::StringLit>(
-                             assign<&ast::StringLit::text>(ref<STR_LIT>))> {};
-  struct BoolLitRule
+  struct StringLit : rule<create<ast::StringLit>(
+                             assign<&ast::StringLit::text>(ref<STR_LIT>) +
+                             many(append<&ast::StringLit::continuations>(ref<STR_LIT>)))> {};
+  struct BoolLit
       : rule<create<ast::BoolLit>(flag<&ast::BoolLit::value>(kw<"TRUE">) |
                                   kw<"FALSE">)> {};
-  struct NameExprRule : rule<create<ast::NameExpr>(
+  struct NameExpr : rule<create<ast::NameExpr>(
                             assign<&ast::NameExpr::name>(ref<ScopedName>))> {};
 
-  struct PrimaryExprRule : rule<ref<ParenExprRule>    //
-                                | ref<FloatLitRule>   //
-                                | ref<IntLitRule>     //
-                                | ref<WCharLitRule>   //
-                                | ref<CharLitRule>    //
-                                | ref<WStringLitRule> //
-                                | ref<StringLitRule>  //
-                                | ref<BoolLitRule>    //
-                                | ref<NameExprRule>> {};
+  struct PrimaryExpr : rule<ref<ParenExpr>    //
+                                | ref<FloatLit>   //
+                                | ref<FixedLit>   //
+                                | ref<IntLit>     //
+                                | ref<WCharLit>   //
+                                | ref<CharLit>    //
+                                | ref<WStringLit> //
+                                | ref<StringLit>  //
+                                | ref<BoolLit>    //
+                                | ref<NameExpr>> {};
 
-  struct UnaryExprRule
+  struct UnaryExpr
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(lit<"-"> | lit<"+"> | lit<"~">) +
-                 assign<&ast::UnaryExpr::operand>(ref<PrimaryExprRule>)) //
-             | ref<PrimaryExprRule>> {};
+                 assign<&ast::UnaryExpr::operand>(ref<PrimaryExpr>)) //
+             | ref<PrimaryExpr>> {};
 
-  struct ConstExprRule : infix<UnaryExprRule, &ast::BinaryExpr::left,
-                               &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                               (left(lit<"*"> | lit<"/"> | lit<"%">) >> //
-                                left(lit<"+"> | lit<"-">) >>            //
-                                left(lit<"<<"> | lit<">>">) >>          //
-                                left(lit<"&">) >>                       //
-                                left(lit<"^">) >>                       //
-                                left(lit<"|">))> {};
+  struct ConstExpr : infix<UnaryExpr, ast::BinaryExpr,
+                               levels(left(lit<"*"> | lit<"/"> | lit<"%">),  //
+                                      left(lit<"+"> | lit<"-">),             //
+                                      left(lit<"<<"> | lit<">>">),           //
+                                      left(lit<"&">),                        //
+                                      left(lit<"^">),                        //
+                                      left(lit<"|">))> {};
 
   // --- base types -----------------------------------------------------------
-  struct KLongDouble
-      : rule<kw<"long"> + kw<"double">, value<ast::BaseType::long_double>> {};
-  struct KFloat : rule<kw<"float">, value<ast::BaseType::float_>> {};
-  struct KDouble : rule<kw<"double">, value<ast::BaseType::double_>> {};
-  struct KLongLong
-      : rule<kw<"long"> + kw<"long">, value<ast::BaseType::long_long>> {};
-  struct KLong : rule<kw<"long">, value<ast::BaseType::long_>> {};
-  struct KInt8 : rule<kw<"int8">, value<ast::BaseType::int8_>> {};
-  struct KInt16 : rule<kw<"int16">, value<ast::BaseType::int16_>> {};
-  struct KInt32 : rule<kw<"int32">, value<ast::BaseType::int32_>> {};
-  struct KInt64 : rule<kw<"int64">, value<ast::BaseType::int64_>> {};
-  struct KULongLong : rule<kw<"unsigned"> + kw<"long"> + kw<"long">,
-                           value<ast::BaseType::ulong_long>> {};
-  struct KULong
-      : rule<kw<"unsigned"> + kw<"long">, value<ast::BaseType::ulong_>> {};
-  struct KUShort
-      : rule<kw<"unsigned"> + kw<"short">, value<ast::BaseType::ushort_>> {};
-  struct KShort : rule<kw<"short">, value<ast::BaseType::short_>> {};
-  struct KUInt8 : rule<kw<"uint8">, value<ast::BaseType::uint8_>> {};
-  struct KUInt16 : rule<kw<"uint16">, value<ast::BaseType::uint16_>> {};
-  struct KUInt32 : rule<kw<"uint32">, value<ast::BaseType::uint32_>> {};
-  struct KUInt64 : rule<kw<"uint64">, value<ast::BaseType::uint64_>> {};
-  struct KChar : rule<kw<"char">, value<ast::BaseType::char_>> {};
-  struct KWChar : rule<kw<"wchar">, value<ast::BaseType::wchar_>> {};
-  struct KBoolean : rule<kw<"boolean">, value<ast::BaseType::boolean_>> {};
-  struct KOctet : rule<kw<"octet">, value<ast::BaseType::octet_>> {};
-  struct KAny : rule<kw<"any">, value<ast::BaseType::any_>> {};
-  struct KObject : rule<kw<"Object">, value<ast::BaseType::object_>> {};
-  struct KValueBase : rule<kw<"ValueBase">, value<ast::BaseType::value_base>> {
-  };
-  struct KFixed : rule<kw<"fixed">, value<ast::BaseType::fixed_>> {};
-  struct KVoid : rule<kw<"void">, value<ast::BaseType::void_>> {};
 
   // Every base-type keyword is accepted at every base-type position (a
   // const's own type excludes `any`/`Object`): a uniform position
   // over-accepts a handful of nonsensical types, never rejects a valid one.
   static constexpr auto base_type_kw =
-      ref<KLongDouble> | ref<KFloat> | ref<KDouble> |          //
-      ref<KLongLong> | ref<KLong> | ref<KInt8> | ref<KInt16> | //
-      ref<KInt32> | ref<KInt64> |                              //
-      ref<KULongLong> | ref<KULong> | ref<KUShort> | ref<KShort> | ref<KUInt8> |
-      ref<KUInt16> | ref<KUInt32> | ref<KUInt64> |               //
-      ref<KChar> | ref<KWChar> | ref<KBoolean> | ref<KOctet> |   //
-      ref<KAny> | ref<KObject> | ref<KValueBase> | ref<KFixed> | //
-      ref<KVoid>;
+      as<ast::BaseType::long_double>(kw<"long"> + kw<"double">) | as<ast::BaseType::float_>(kw<"float">) | as<ast::BaseType::double_>(kw<"double">) |          //
+      as<ast::BaseType::long_long>(kw<"long"> + kw<"long">) | as<ast::BaseType::long_>(kw<"long">) | as<ast::BaseType::int8_>(kw<"int8">) | as<ast::BaseType::int16_>(kw<"int16">) | //
+      as<ast::BaseType::int32_>(kw<"int32">) | as<ast::BaseType::int64_>(kw<"int64">) |                              //
+      as<ast::BaseType::ulong_long>(kw<"unsigned"> + kw<"long"> + kw<"long">) | as<ast::BaseType::ulong_>(kw<"unsigned"> + kw<"long">) | as<ast::BaseType::ushort_>(kw<"unsigned"> + kw<"short">) | as<ast::BaseType::short_>(kw<"short">) | as<ast::BaseType::uint8_>(kw<"uint8">) |
+      as<ast::BaseType::uint16_>(kw<"uint16">) | as<ast::BaseType::uint32_>(kw<"uint32">) | as<ast::BaseType::uint64_>(kw<"uint64">) |               //
+      as<ast::BaseType::char_>(kw<"char">) | as<ast::BaseType::wchar_>(kw<"wchar">) | as<ast::BaseType::boolean_>(kw<"boolean">) | as<ast::BaseType::octet_>(kw<"octet">) |   //
+      as<ast::BaseType::any_>(kw<"any">) | as<ast::BaseType::object_>(kw<"Object">) | as<ast::BaseType::value_base>(kw<"ValueBase">) | as<ast::BaseType::fixed_>(kw<"fixed">) | //
+      as<ast::BaseType::void_>(kw<"void">);
 
-  struct BaseTypeSpecRule
+  struct BaseTypeSpec
       : rule<create<ast::BaseTypeRef>(
             assign<&ast::BaseTypeRef::kind>(base_type_kw))> {};
 
-  struct NamedTypeRefRule
+  struct NamedTypeRef
       : rule<create<ast::NamedTypeRef>(
             assign<&ast::NamedTypeRef::name>(ref<ScopedName>))> {};
 
   // --- template types: sequence/set/map/string/wstring/fixed --------------
   static constexpr auto element_type_spec =
-      ref<BaseTypeSpecRule> | ref<SequenceTypeRule> | ref<SetTypeRule> |
-      ref<MapTypeRule> | ref<StringTypeRule> | ref<WStringTypeRule> |
-      ref<FixedPtTypeRule> | ref<NamedTypeRefRule>;
+      ref<BaseTypeSpec> | ref<SequenceType> | ref<SetType> |
+      ref<MapType> | ref<StringType> | ref<WStringType> |
+      ref<FixedPtType> | ref<NamedTypeRef>;
 
-  struct SequenceTypeRule
+  struct SequenceType
       : rule<create<ast::SequenceTypeRef>(
             kw<"sequence"> + lit<"<"> + annapps +
             assign<&ast::SequenceTypeRef::element>(element_type_spec) +
             option(lit<","> +
-                   assign<&ast::SequenceTypeRef::bound>(ref<ConstExprRule>)) +
+                   assign<&ast::SequenceTypeRef::bound>(ref<ConstExpr>)) +
             lit<">">)> {};
 
-  struct SetTypeRule
+  struct SetType
       : rule<create<ast::SetTypeRef>(
             kw<"set"> + lit<"<"> +
             assign<&ast::SetTypeRef::element>(element_type_spec) +
             option(lit<","> +
-                   assign<&ast::SetTypeRef::bound>(ref<ConstExprRule>)) +
+                   assign<&ast::SetTypeRef::bound>(ref<ConstExpr>)) +
             lit<">">)> {};
 
-  struct MapTypeRule
+  struct MapType
       : rule<create<ast::MapTypeRef>(
             kw<"map"> + lit<"<"> +
             assign<&ast::MapTypeRef::keyType>(element_type_spec) + lit<","> +
             assign<&ast::MapTypeRef::valueType>(element_type_spec) +
             option(lit<","> +
-                   assign<&ast::MapTypeRef::bound>(ref<ConstExprRule>)) +
+                   assign<&ast::MapTypeRef::bound>(ref<ConstExpr>)) +
             lit<">">)> {};
 
-  struct StringTypeRule
+  struct StringType
       : rule<create<ast::StringTypeRef>(
             kw<"string"> +
             option(lit<"<"> +
-                   assign<&ast::StringTypeRef::bound>(ref<ConstExprRule>) +
+                   assign<&ast::StringTypeRef::bound>(ref<ConstExpr>) +
                    lit<">">))> {};
-  struct WStringTypeRule
+  struct WStringType
       : rule<create<ast::WStringTypeRef>(
             kw<"wstring"> +
             option(lit<"<"> +
-                   assign<&ast::WStringTypeRef::bound>(ref<ConstExprRule>) +
+                   assign<&ast::WStringTypeRef::bound>(ref<ConstExpr>) +
                    lit<">">))> {};
-  struct FixedPtTypeRule
+  struct FixedPtType
       : rule<create<ast::FixedPtTypeRef>(
             kw<"fixed"> + lit<"<"> +
-            assign<&ast::FixedPtTypeRef::digits>(ref<ConstExprRule>) +
-            lit<","> + assign<&ast::FixedPtTypeRef::scale>(ref<ConstExprRule>) +
+            assign<&ast::FixedPtTypeRef::digits>(ref<ConstExpr>) +
+            lit<","> + assign<&ast::FixedPtTypeRef::scale>(ref<ConstExpr>) +
             lit<">">)> {};
 
   // simple_type_spec: a base type, a template type, or a named reference.
   static constexpr auto simple_type_spec = element_type_spec;
-  // param_type_spec: base type, string/wstring, or a named reference (no
-  // sequence/set/map/fixed).
-  static constexpr auto param_type_spec =
-      ref<BaseTypeSpecRule> | ref<StringTypeRule> | ref<WStringTypeRule> |
-      ref<NamedTypeRefRule>;
+  static constexpr auto const_type_spec =
+      ref<BaseTypeSpec> | ref<StringType> | ref<WStringType> |
+      ref<NamedTypeRef>;
+  // The Anonymous Types building block permits template types directly in
+  // parameter, return and attribute positions, not just behind typedefs.
+  static constexpr auto param_type_spec = simple_type_spec;
   // constr_type_spec: a fresh struct/union/enum/bitset/bitmask used inline
   // as a type. type_spec = simple_type_spec | constr_type_spec.
   static constexpr auto constr_type_spec =
-      ref<StructDeclRule> | ref<UnionDeclRule> | ref<EnumDeclRule> |
-      ref<BitsetDeclRule> | ref<BitmaskDeclRule>;
+      ref<StructDecl> | ref<UnionDecl> | ref<EnumDecl> |
+      ref<BitsetDecl> | ref<BitmaskDecl>;
   static constexpr auto type_spec = simple_type_spec | constr_type_spec;
 
   // --- declarators and members ---------------------------------------------
-  struct DeclaratorRule
+  struct Declarator
       : rule<annapps +
              create<ast::Declarator>(
                  assign<&ast::Declarator::name>(ref<ID>) +
                  many(lit<"["> +
-                      append<&ast::Declarator::arraySizes>(ref<ConstExprRule>) +
+                      append<&ast::Declarator::arraySizes>(ref<ConstExpr>) +
                       lit<"]">))> {};
 
-  struct MemberRule
+  struct Member
       : rule<annapps +
              create<ast::Member>(
                  assign<&ast::Member::type>(type_spec) +
-                 some(append<&ast::Member::declarators>(ref<DeclaratorRule>),
+                 some(append<&ast::Member::declarators>(ref<Declarator>),
                       lit<",">)) +
              lit<";">> {};
 
@@ -282,77 +258,76 @@ struct Idl : cursiv::GrammarSpec {
   static constexpr auto struct_decl = create<ast::StructDecl>(
       kw<"struct"> + annapps + assign<&ast::StructDecl::name>(ref<ID>) +
       option(lit<":"> + assign<&ast::StructDecl::base>(ref<ScopedName>)) +
-      lit<"{"> + many(append<&ast::StructDecl::members>(ref<MemberRule>)) +
+      lit<"{"> + many(append<&ast::StructDecl::members>(ref<Member>)) +
       lit<"}">);
-  struct StructDeclRule : rule<struct_decl> {};
+  struct StructDecl : rule<struct_decl> {};
 
-  struct CaseLabelRule
+  struct CaseLabel
       : rule<annapps + create<ast::CaseLabel>(
                            (kw<"case"> +
-                            assign<&ast::CaseLabel::value>(ref<ConstExprRule>) +
+                            assign<&ast::CaseLabel::value>(ref<ConstExpr>) +
                             lit<":">) |
                            flag<&ast::CaseLabel::default_>(kw<"default"> +
                                                                 lit<":">))> {};
-  struct ElementSpecRule
+  struct ElementSpec
       : rule<annapps +
              create<ast::ElementSpec>(
                  assign<&ast::ElementSpec::type>(type_spec) +
-                 assign<&ast::ElementSpec::declarator>(ref<DeclaratorRule>))> {
+                 assign<&ast::ElementSpec::declarator>(ref<Declarator>))> {
   };
-  struct CaseStmtRule
+  struct CaseStmt
       : rule<create<ast::CaseStmt>(
-            some(append<&ast::CaseStmt::labels>(ref<CaseLabelRule>)) +
-            assign<&ast::CaseStmt::element>(ref<ElementSpecRule>) + lit<";">)> {
+            some(append<&ast::CaseStmt::labels>(ref<CaseLabel>)) +
+            assign<&ast::CaseStmt::element>(ref<ElementSpec>) + lit<";">)> {
   };
   static constexpr auto switch_type_spec =
-      ref<BaseTypeSpecRule> | ref<EnumDeclRule> | ref<NamedTypeRefRule>;
+      ref<BaseTypeSpec> | ref<EnumDecl> | ref<NamedTypeRef>;
   static constexpr auto union_decl = create<ast::UnionDecl>(
       kw<"union"> + annapps + assign<&ast::UnionDecl::name>(ref<ID>) +
       kw<"switch"> + lit<"("> + annapps +
       assign<&ast::UnionDecl::switchType>(switch_type_spec) + lit<")"> +
-      lit<"{"> + some(append<&ast::UnionDecl::cases>(ref<CaseStmtRule>)) +
+      lit<"{"> + some(append<&ast::UnionDecl::cases>(ref<CaseStmt>)) +
       lit<"}">);
-  struct UnionDeclRule : rule<union_decl> {};
+  struct UnionDecl : rule<union_decl> {};
 
-  struct EnumeratorRule
+  struct Enumerator
       : rule<annapps + create<ast::EnumeratorDecl>(
                            assign<&ast::EnumeratorDecl::name>(ref<ID>))> {};
   static constexpr auto enum_decl = create<ast::EnumDecl>(
       kw<"enum"> + annapps + assign<&ast::EnumDecl::name>(ref<ID>) + lit<"{"> +
-      some(append<&ast::EnumDecl::enumerators>(ref<EnumeratorRule>), lit<",">) +
+      some(append<&ast::EnumDecl::enumerators>(ref<Enumerator>), lit<",">) +
       lit<"}">);
-  struct EnumDeclRule : rule<enum_decl> {};
+  struct EnumDecl : rule<enum_decl> {};
 
-  struct BitfieldSpecRule
+  struct BitfieldSpec
       : rule<create<ast::BitfieldSpec>(
             annapps + kw<"bitfield"> + lit<"<"> +
-            assign<&ast::BitfieldSpec::width>(ref<ConstExprRule>) +
+            assign<&ast::BitfieldSpec::width>(ref<ConstExpr>) +
             option(lit<","> + assign<&ast::BitfieldSpec::type>(base_type_kw)) +
             lit<">"> +
             option(annapps + append<&ast::BitfieldSpec::names>(ref<ID>) +
-                   many(lit<","> + annapps +
+                   many(option(lit<",">) + annapps +
                         append<&ast::BitfieldSpec::names>(ref<ID>))) +
             lit<";">)> {};
   static constexpr auto bitset_decl = create<ast::BitsetDecl>(
       kw<"bitset"> + annapps + assign<&ast::BitsetDecl::name>(ref<ID>) +
       option(lit<":"> + assign<&ast::BitsetDecl::base>(ref<ScopedName>)) +
-      lit<"{"> + some(append<&ast::BitsetDecl::fields>(ref<BitfieldSpecRule>)) +
+      lit<"{"> + many(append<&ast::BitsetDecl::fields>(ref<BitfieldSpec>)) +
       lit<"}">);
-  struct BitsetDeclRule : rule<bitset_decl> {};
+  struct BitsetDecl : rule<bitset_decl> {};
 
   static constexpr auto bitmask_decl = create<ast::BitmaskDecl>(
       kw<"bitmask"> + annapps + assign<&ast::BitmaskDecl::name>(ref<ID>) +
-      lit<"{"> + annapps + append<&ast::BitmaskDecl::values>(ref<ID>) +
-      many(lit<","> + annapps + append<&ast::BitmaskDecl::values>(ref<ID>)) +
+      lit<"{"> + some(append<&ast::BitmaskDecl::values>(ref<Enumerator>), lit<",">) +
       lit<"}">);
-  struct BitmaskDeclRule : rule<bitmask_decl> {};
+  struct BitmaskDecl : rule<bitmask_decl> {};
 
   // --- typedef / native / forward struct-union -----------------------------
   static constexpr auto typedef_decl = create<ast::TypedefDecl>(
       kw<"typedef"> + annapps + assign<&ast::TypedefDecl::type>(type_spec) +
-      some(append<&ast::TypedefDecl::declarators>(ref<DeclaratorRule>),
+      some(append<&ast::TypedefDecl::declarators>(ref<Declarator>),
            lit<",">));
-  struct TypedefDeclRule : rule<typedef_decl> {};
+  struct TypedefDecl : rule<typedef_decl> {};
   static constexpr auto native_decl = create<ast::NativeDecl>(
       kw<"native"> + annapps + assign<&ast::NativeDecl::name>(ref<ID>));
   static constexpr auto struct_forward_decl = create<ast::StructForwardDecl>(
@@ -366,14 +341,14 @@ struct Idl : cursiv::GrammarSpec {
 
   // --- const / exception ----------------------------------------------------
   static constexpr auto const_decl = create<ast::ConstDecl>(
-      kw<"const"> + annapps + assign<&ast::ConstDecl::type>(param_type_spec) +
+      kw<"const"> + annapps + assign<&ast::ConstDecl::type>(const_type_spec) +
       annapps + assign<&ast::ConstDecl::name>(ref<ID>) + lit<"="> +
-      assign<&ast::ConstDecl::value>(ref<ConstExprRule>));
-  struct ConstDeclRule : rule<const_decl> {};
+      assign<&ast::ConstDecl::value>(ref<ConstExpr>));
+  struct ConstDecl : rule<const_decl> {};
 
   static constexpr auto exception_decl = create<ast::ExceptionDecl>(
       kw<"exception"> + annapps + assign<&ast::ExceptionDecl::name>(ref<ID>) +
-      lit<"{"> + many(append<&ast::ExceptionDecl::members>(ref<MemberRule>)) +
+      lit<"{"> + many(append<&ast::ExceptionDecl::members>(ref<Member>)) +
       lit<"}">);
 
   // --- attributes and operations --------------------------------------------
@@ -400,15 +375,12 @@ struct Idl : cursiv::GrammarSpec {
                   lit<")">)) |
           many(lit<","> + annapps + append<&ast::AttrDecl::names>(ref<ID>))));
 
-  struct KParamIn : rule<kw<"in">, value<ast::ParamDir::in_>> {};
-  struct KParamOut : rule<kw<"out">, value<ast::ParamDir::out_>> {};
-  struct KParamInOut : rule<kw<"inout">, value<ast::ParamDir::inout_>> {};
 
-  struct ParamRule
+  struct Param
       : rule<annapps +
              create<ast::Param>(
-                 assign<&ast::Param::dir>(ref<KParamIn> | ref<KParamOut> |
-                                          ref<KParamInOut>) +
+                 assign<&ast::Param::dir>(as<ast::ParamDir::in_>(kw<"in">) | as<ast::ParamDir::out_>(kw<"out">) |
+                                          as<ast::ParamDir::inout_>(kw<"inout">)) +
                  annapps + assign<&ast::Param::type>(param_type_spec) +
                  annapps + assign<&ast::Param::name>(ref<ID>))> {};
 
@@ -416,45 +388,43 @@ struct Idl : cursiv::GrammarSpec {
       option(flag<&ast::OpDecl::oneway_>(kw<"oneway">)) + annapps +
       assign<&ast::OpDecl::returnType>(param_type_spec) + annapps +
       assign<&ast::OpDecl::name>(ref<ID>) + lit<"("> +
-      option(some(append<&ast::OpDecl::params>(ref<ParamRule>), lit<",">)) +
+      option(some(append<&ast::OpDecl::params>(ref<Param>), lit<",">)) +
       lit<")"> +
       option(kw<"raises"> + lit<"("> +
-             append<&ast::OpDecl::raises>(ref<ScopedName>) +
-             many(lit<","> + append<&ast::OpDecl::raises>(ref<ScopedName>)) +
+             some(append<&ast::OpDecl::raises>(ref<ScopedName>), lit<",">) +
              lit<")">) +
       option(kw<"context"> + lit<"("> +
-             append<&ast::OpDecl::context>(ref<STR_LIT>) +
-             many(lit<","> + append<&ast::OpDecl::context>(ref<STR_LIT>)) +
+             some(append<&ast::OpDecl::context>(ref<StringSpelling>), lit<",">) +
              lit<")">));
 
   // --- import / type_id / type_prefix ---------------------------------------
-  struct ImportDeclRule
-      : rule<annapps + kw<"import"> + annapps +
-             create<ast::ImportDecl>(assign<&ast::ImportDecl::imported>(
-                 ref<ScopedName> | ref<STR_LIT>))> {};
+  static constexpr auto import_decl = kw<"import"> + annapps +
+      create<ast::ImportDecl>(assign<&ast::ImportDecl::imported>(
+          ref<ScopedName> | ref<StringSpelling>));
+  struct ImportDecl : rule<annapps + import_decl> {};
   static constexpr auto typeid_decl = create<ast::TypeIdDecl>(
       kw<"typeid"> + annapps +
       assign<&ast::TypeIdDecl::target>(ref<ScopedName>) +
-      assign<&ast::TypeIdDecl::repositoryId>(ref<STR_LIT>));
+      assign<&ast::TypeIdDecl::repositoryId>(ref<StringSpelling>));
   static constexpr auto typeprefix_decl = create<ast::TypePrefixDecl>(
       kw<"typeprefix"> + annapps +
       assign<&ast::TypePrefixDecl::target>(ref<ScopedName>) +
-      assign<&ast::TypePrefixDecl::prefix>(ref<STR_LIT>));
+      assign<&ast::TypePrefixDecl::prefix>(ref<StringSpelling>));
 
   // --- annotation definitions
   // -------------------------------------------------
-  struct AnnotationMemberRule
+  struct AnnotationMember
       : rule<create<ast::AnnotationMember>(
-            assign<&ast::AnnotationMember::type>(param_type_spec) +
+            assign<&ast::AnnotationMember::type>(const_type_spec) +
             assign<&ast::AnnotationMember::name>(ref<ID>) +
             option(kw<"default"> + assign<&ast::AnnotationMember::defaultValue>(
-                                       ref<ConstExprRule>)) +
+                                       ref<ConstExpr>)) +
             lit<";">)> {};
   static constexpr auto annotation_body_item =
-      ref<AnnotationMemberRule>         //
-      | (ref<EnumDeclRule> + lit<";">)  //
-      | (ref<ConstDeclRule> + lit<";">) //
-      | (ref<TypedefDeclRule> + lit<";">);
+      ref<AnnotationMember>         //
+      | (ref<EnumDecl> + lit<";">)  //
+      | (ref<ConstDecl> + lit<";">) //
+      | (ref<TypedefDecl> + lit<";">);
 
   static constexpr auto annotation_decl =
       kw<"@annotation"> +
@@ -487,22 +457,22 @@ struct Idl : cursiv::GrammarSpec {
              append<&ast::InterfaceDecl::bases>(ref<ScopedName>) +
              many(lit<","> + annapps +
                   append<&ast::InterfaceDecl::bases>(ref<ScopedName>))) +
-      lit<"{"> + many(append<&ast::InterfaceDecl::exports>(ref<ExportRule>)) +
+      lit<"{"> + many(append<&ast::InterfaceDecl::exports>(ref<Export>)) +
       lit<"}">);
 
-  struct ExportRule
+  struct Export
       : rule<annapps +
              (attr_decl | op_decl | typeid_decl | typeprefix_decl |
-              exception_decl | type_decl | const_decl) +
+              exception_decl | type_decl | const_decl | import_decl) +
              lit<";">> {};
 
   // --- module
   // ------------------------------------------------------------------
-  struct DefinitionRule;
+  struct Definition;
   static constexpr auto module_decl = create<ast::ModuleDecl>(
       kw<"module"> + annapps + assign<&ast::ModuleDecl::name>(ref<ID>) +
       lit<"{"> +
-      some(append<&ast::ModuleDecl::definitions>(ref<DefinitionRule>)) +
+      some(append<&ast::ModuleDecl::definitions>(ref<Definition>)) +
       lit<"}">);
 
   // --- valuetype
@@ -527,53 +497,45 @@ struct Idl : cursiv::GrammarSpec {
                  many(lit<","> + append<&ast::ValueAbsDecl::valueBases>(
                                      ref<ScopedName>))) +
           option(kw<"supports"> +
-                 append<&ast::ValueAbsDecl::supports_>(ref<ScopedName>) +
-                 many(lit<","> +
-                      append<&ast::ValueAbsDecl::supports_>(ref<ScopedName>))) +
+                 some(append<&ast::ValueAbsDecl::supports_>(ref<ScopedName>), lit<",">)) +
           lit<"{"> +
-          many(append<&ast::ValueAbsDecl::exports>(ref<ExportRule>)) +
+          many(append<&ast::ValueAbsDecl::exports>(ref<Export>)) +
           lit<"}">);
 
-  struct StateMemberRule
+  struct StateMember
       : rule<annapps +
              create<ast::StateMember>(
                  (flag<&ast::StateMember::public_>(kw<"public">) |
                   kw<"private">)+annapps +
                  assign<&ast::StateMember::type>(type_spec) +
                  some(append<&ast::StateMember::declarators>(
-                          ref<DeclaratorRule>),
+                          ref<Declarator>),
                       lit<",">)) +
              lit<";">> {};
 
-  struct InitDeclRule
+  struct InitDecl
       : rule<annapps + kw<"factory"> +
              create<ast::InitDecl>(
                  annapps + assign<&ast::InitDecl::name>(ref<ID>) + lit<"("> +
-                 option(some(append<&ast::InitDecl::params>(ref<ParamRule>),
+                 option(some(append<&ast::InitDecl::params>(ref<Param>),
                              lit<",">)) +
                  lit<")"> +
                  option(kw<"raises"> + lit<"("> +
-                        append<&ast::InitDecl::raises>(ref<ScopedName>) +
-                        many(lit<","> +
-                             append<&ast::InitDecl::raises>(ref<ScopedName>)) +
+                        some(append<&ast::InitDecl::raises>(ref<ScopedName>), lit<",">) +
                         lit<")">)) +
              lit<";">> {};
 
   static constexpr auto value_element =
-      ref<ExportRule> | ref<StateMemberRule> | ref<InitDeclRule>;
+      ref<Export> | ref<StateMember> | ref<InitDecl>;
 
   static constexpr auto value_decl = create<ast::ValueDecl>(
       option(flag<&ast::ValueDecl::custom_>(kw<"custom">)) + kw<"valuetype"> +
       annapps + assign<&ast::ValueDecl::name>(ref<ID>) +
       option(lit<":"> +
              option(flag<&ast::ValueDecl::truncatable_>(kw<"truncatable">)) +
-             append<&ast::ValueDecl::valueBases>(ref<ScopedName>) +
-             many(lit<","> +
-                  append<&ast::ValueDecl::valueBases>(ref<ScopedName>))) +
+             some(append<&ast::ValueDecl::valueBases>(ref<ScopedName>), lit<",">)) +
       option(kw<"supports"> +
-             append<&ast::ValueDecl::supports_>(ref<ScopedName>) +
-             many(lit<","> +
-                  append<&ast::ValueDecl::supports_>(ref<ScopedName>))) +
+             some(append<&ast::ValueDecl::supports_>(ref<ScopedName>), lit<",">)) +
       lit<"{"> + many(append<&ast::ValueDecl::elements>(value_element)) +
       lit<"}">);
 
@@ -594,11 +556,9 @@ struct Idl : cursiv::GrammarSpec {
                  many(lit<","> + append<&ast::EventAbsDecl::valueBases>(
                                      ref<ScopedName>))) +
           option(kw<"supports"> +
-                 append<&ast::EventAbsDecl::supports_>(ref<ScopedName>) +
-                 many(lit<","> +
-                      append<&ast::EventAbsDecl::supports_>(ref<ScopedName>))) +
+                 some(append<&ast::EventAbsDecl::supports_>(ref<ScopedName>), lit<",">)) +
           lit<"{"> +
-          many(append<&ast::EventAbsDecl::exports>(ref<ExportRule>)) +
+          many(append<&ast::EventAbsDecl::exports>(ref<Export>)) +
           lit<"}">);
 
   static constexpr auto event_decl = create<ast::EventDecl>(
@@ -606,13 +566,9 @@ struct Idl : cursiv::GrammarSpec {
       annapps + assign<&ast::EventDecl::name>(ref<ID>) +
       option(lit<":"> +
              option(flag<&ast::EventDecl::truncatable_>(kw<"truncatable">)) +
-             append<&ast::EventDecl::valueBases>(ref<ScopedName>) +
-             many(lit<","> +
-                  append<&ast::EventDecl::valueBases>(ref<ScopedName>))) +
+             some(append<&ast::EventDecl::valueBases>(ref<ScopedName>), lit<",">)) +
       option(kw<"supports"> +
-             append<&ast::EventDecl::supports_>(ref<ScopedName>) +
-             many(lit<","> +
-                  append<&ast::EventDecl::supports_>(ref<ScopedName>))) +
+             some(append<&ast::EventDecl::supports_>(ref<ScopedName>), lit<",">)) +
       lit<"{"> + many(append<&ast::EventDecl::elements>(value_element)) +
       lit<"}">);
 
@@ -641,7 +597,7 @@ struct Idl : cursiv::GrammarSpec {
       assign<&ast::ConsumesDecl::eventType>(ref<ScopedName>) +
       assign<&ast::ConsumesDecl::name>(ref<ID>));
 
-  struct ComponentExportRule
+  struct ComponentExport
       : rule<annapps +
              (provides_decl | uses_decl | emits_decl | publishes_decl |
               consumes_decl | attr_decl) +
@@ -656,20 +612,18 @@ struct Idl : cursiv::GrammarSpec {
       option(lit<":"> + annapps +
              assign<&ast::ComponentDecl::base>(ref<ScopedName>)) +
       option(kw<"supports"> +
-             append<&ast::ComponentDecl::supports_>(ref<ScopedName>) +
-             many(lit<","> +
-                  append<&ast::ComponentDecl::supports_>(ref<ScopedName>))) +
+             some(append<&ast::ComponentDecl::supports_>(ref<ScopedName>), lit<",">)) +
       lit<"{"> +
-      many(append<&ast::ComponentDecl::exports>(ref<ComponentExportRule>)) +
+      many(append<&ast::ComponentDecl::exports>(ref<ComponentExport>)) +
       lit<"}">);
 
   // --- home
   // ----------------------------------------------------------------------
-  struct FactoryDeclRule
+  struct FactoryDecl
       : rule<annapps + kw<"factory"> +
              create<ast::FactoryDecl>(
                  annapps + assign<&ast::FactoryDecl::name>(ref<ID>) + lit<"("> +
-                 option(some(append<&ast::FactoryDecl::params>(ref<ParamRule>),
+                 option(some(append<&ast::FactoryDecl::params>(ref<Param>),
                              lit<",">)) +
                  lit<")"> +
                  option(kw<"raises"> + lit<"("> +
@@ -678,11 +632,11 @@ struct Idl : cursiv::GrammarSpec {
                                             ref<ScopedName>)) +
                         lit<")">)) +
              lit<";">> {};
-  struct FinderDeclRule
+  struct FinderDecl
       : rule<annapps + kw<"finder"> +
              create<ast::FinderDecl>(
                  annapps + assign<&ast::FinderDecl::name>(ref<ID>) + lit<"("> +
-                 option(some(append<&ast::FinderDecl::params>(ref<ParamRule>),
+                 option(some(append<&ast::FinderDecl::params>(ref<Param>),
                              lit<",">)) +
                  lit<")"> +
                  option(kw<"raises"> + lit<"("> +
@@ -693,15 +647,14 @@ struct Idl : cursiv::GrammarSpec {
              lit<";">> {};
 
   static constexpr auto home_export =
-      ref<ExportRule> | ref<FactoryDeclRule> | ref<FinderDeclRule>;
+      ref<Export> | ref<FactoryDecl> | ref<FinderDecl>;
 
   static constexpr auto home_decl = create<ast::HomeDecl>(
       kw<"home"> + annapps + assign<&ast::HomeDecl::name>(ref<ID>) +
       option(lit<":"> + annapps +
              assign<&ast::HomeDecl::base>(ref<ScopedName>)) +
       option(
-          kw<"supports"> + append<&ast::HomeDecl::supports_>(ref<ScopedName>) +
-          many(lit<","> + append<&ast::HomeDecl::supports_>(ref<ScopedName>))) +
+          kw<"supports"> + some(append<&ast::HomeDecl::supports_>(ref<ScopedName>), lit<",">)) +
       kw<"manages"> + assign<&ast::HomeDecl::manages_>(ref<ScopedName>) +
       option(kw<"primarykey"> +
              assign<&ast::HomeDecl::primaryKey>(ref<ScopedName>)) +
@@ -709,25 +662,27 @@ struct Idl : cursiv::GrammarSpec {
 
   // --- top-level definition and specification
   // -------------------------------------
-  struct DefinitionRule
-      : rule<annapps +
+  static constexpr auto definition_body =
              (type_decl | const_decl | exception_decl | interface_decl |
               interface_forward_decl | module_decl | value_decl |
               value_abs_decl | value_box_decl | value_forward_decl |
               typeid_decl | typeprefix_decl | event_decl | event_abs_decl |
               event_forward_decl | component_decl | component_forward_decl |
-              home_decl | annotation_decl | annotation_forward_decl) +
-             lit<";">> {};
+              home_decl | annotation_decl | annotation_forward_decl);
+  struct Definition
+      : rule<annapps + (definition_body | import_decl) + lit<";">> {};
+  struct NonImportDefinition : rule<annapps + definition_body + lit<";">> {};
 
-  struct SpecificationRule
+  struct Specification
       : rule<create<ast::Specification>(
-            many(append<&ast::Specification::imports>(ref<ImportDeclRule>) +
+            !eof +
+            many(append<&ast::Specification::imports>(ref<ImportDecl>) +
                  lit<";">) +
-            some(append<&ast::Specification::definitions>(
-                ref<DefinitionRule>)))> {};
+            option(append<&ast::Specification::definitions>(ref<NonImportDefinition>) +
+                   many(append<&ast::Specification::definitions>(ref<Definition>))))> {};
 
-  using entry = SpecificationRule;
-  using ignore = WS;
+  using entry = Specification;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

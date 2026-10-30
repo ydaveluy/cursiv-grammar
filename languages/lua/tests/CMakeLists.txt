@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every example parses, and a handful of shapes are pinned.
 add_executable(lua_grammar_test grammar_test.cpp)
-target_link_libraries(lua_grammar_test PRIVATE luaCore)
+target_link_libraries(lua_grammar_test PRIVATE luaCore cursiv::test)
 target_compile_definitions(lua_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

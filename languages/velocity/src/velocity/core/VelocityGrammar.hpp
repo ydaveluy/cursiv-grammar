@@ -17,6 +17,7 @@ namespace velocity {
 
 inline constexpr auto unquote_string =
     [](std::string_view t, std::pmr::memory_resource* mem) {
+      if (t.size() < 2) return t;
       const char q = t.front();
       const std::string_view body = t.substr(1, t.size() - 2);
       if (body.find(q) == std::string_view::npos) return body;
@@ -28,14 +29,13 @@ inline constexpr auto unquote_string =
       }
       return std::string_view(room.data(), n);
     };
-using StringConv = cursiv::text_conv<unquote_string>;
 
 inline constexpr auto unescape_block = [](std::string_view t) {
-  return t.substr(3, t.size() - 6);
+  return t.size() < 6 ? t : t.substr(3, t.size() - 6);
 };
-using EscapedBlockConv = cursiv::text_conv<unescape_block>;
 
 struct Velocity : cursiv::GrammarSpec {
+  static constexpr auto word_boundary = cr<"a-zA-Z0-9_">;
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct LINE_COMMENT : terminal<lit<"##"> + many(cr<R"(^\r\n)">)> {};
   struct BLOCK_COMMENT : terminal<through(lit<"#*">, lit<"*#">)> {};
@@ -49,7 +49,7 @@ struct Velocity : cursiv::GrammarSpec {
   struct ESCAPED_CHAR : terminal<lit<"\\"> + any> {};
 
   struct ESCAPED_BLOCK
-      : terminal<through(lit<"#[[">, lit<"]]#">), EscapedBlockConv> {};
+      : terminal<as<unescape_block>(through(lit<"#[[">, lit<"]]#">))> {};
 
   struct DOLLAR : terminal<lit<"$">> {};
   struct DOLLAR_EXCL : terminal<lit<"$"> + many(lit<"\\">) + lit<"!">> {};
@@ -57,54 +57,34 @@ struct Velocity : cursiv::GrammarSpec {
   struct DOLLAR_EXCL_OBRACE
       : terminal<lit<"$"> + many(lit<"\\">) + lit<"!{">> {};
 
-  struct Id : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9_-">)> {};
+  static constexpr auto IdStart = cr<"a-zA-Z_">;
+  struct Id : terminal<IdStart + many(cr<"a-zA-Z0-9_">)> {};
+  struct LiteralDollar : terminal<
+      lit<"$!{", !IdStart> | lit<"${", !IdStart> |
+      lit<"$!", !(IdStart | lit<"{">)> | lit<"$", !(IdStart | cr<"{!">)>> {};
+  struct LiteralHash : terminal<lit<"#"> + !(IdStart | cr<"{@*#">)> {};
 
-  struct STRING
-      : terminal<(lit<"\""> + many(lit<"\"\""> | cr<R"(^"\r\n)">) + lit<"\"">) |
-                     (lit<"'"> + many(lit<"''"> | cr<R"(^'\r\n)">) + lit<"'">),
-                 StringConv> {};
+  struct DOUBLE_STRING : terminal<as<unquote_string>(
+      lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">)> {};
+  struct SINGLE_STRING : terminal<as<unquote_string>(
+      lit<"'"> + many(lit<"''"> | cr<R"(^')">) + lit<"'">)> {};
 
-  struct INTEGER : terminal<some(d), std::int64_t> {};
+
+  struct INTEGER : terminal<as<std::int64_t>(some(d))> {};
 
   static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   struct FLOAT
-      : terminal<(many(d) + lit<"."> + some(d) + option(Exponent)) |
-                     (some(d) + lit<".", !lit<".">> + option(Exponent)) |
-                     (some(d) + Exponent),
-                 double> {};
+      : terminal<as<double>((many(d) + lit<"."> + some(d) + option(Exponent)) |
+                            (some(d) + lit<".", !lit<".">> + option(Exponent)) |
+                            (some(d) + Exponent))> {};
 
   // One token per operation, value-carrying: the infix table names them by
   // what they mean. A relational/logical operator has both a symbol and a
   // word spelling (`==`/`eq`, `&&`/`and`); either lexes the same value.
-  struct MUL : rule<option(ref<WS>) + (lit<"*">), value<ast::Operator::mul>> {};
-  struct DIV : rule<option(ref<WS>) + (lit<"/">), value<ast::Operator::div>> {};
-  struct MOD : rule<option(ref<WS>) + (lit<"%">), value<ast::Operator::mod>> {};
-  struct ADD : rule<option(ref<WS>) + (lit<"+">), value<ast::Operator::add>> {};
-  struct SUB : rule<option(ref<WS>) + (lit<"-">), value<ast::Operator::sub>> {};
-  struct EQ : rule<option(ref<WS>) + (lit<"==">), value<ast::Operator::eq>> {};
-  struct NE : rule<option(ref<WS>) + (lit<"!=">), value<ast::Operator::ne>> {};
-  struct KW_EQ : rule<option(ref<WS>) + (kw<"eq">), value<ast::Operator::eq>> {};
-  struct KW_NE : rule<option(ref<WS>) + (kw<"ne">), value<ast::Operator::ne>> {};
-  struct LE : rule<option(ref<WS>) + (lit<"<=">), value<ast::Operator::le>> {};
-  struct GE : rule<option(ref<WS>) + (lit<">=">), value<ast::Operator::ge>> {};
-  struct LT : rule<option(ref<WS>) + (lit<"<">), value<ast::Operator::lt>> {};
-  struct GT : rule<option(ref<WS>) + (lit<">">), value<ast::Operator::gt>> {};
-  struct KW_LE : rule<option(ref<WS>) + (kw<"le">), value<ast::Operator::le>> {};
-  struct KW_GE : rule<option(ref<WS>) + (kw<"ge">), value<ast::Operator::ge>> {};
-  struct KW_LT : rule<option(ref<WS>) + (kw<"lt">), value<ast::Operator::lt>> {};
-  struct KW_GT : rule<option(ref<WS>) + (kw<"gt">), value<ast::Operator::gt>> {};
-  struct AND : rule<option(ref<WS>) + (lit<"&&">), value<ast::Operator::logical_and>> {
-  };
-  struct OR : rule<option(ref<WS>) + (lit<"||">), value<ast::Operator::logical_or>> {};
-  struct KW_AND
-      : rule<option(ref<WS>) + (kw<"and">), value<ast::Operator::logical_and>> {};
-  struct KW_OR : rule<option(ref<WS>) + (kw<"or">), value<ast::Operator::logical_or>> {
-  };
-  struct RANGE : rule<option(ref<WS>) + (lit<"..">), value<ast::Operator::range>> {};
-
-  struct NOT_OP : rule<option(ref<WS>) + (lit<"!"> | kw<"not">),
-                       value<ast::Operator::logical_not>> {};
-  struct NEG_OP : rule<option(ref<WS>) + (lit<"-">), value<ast::Operator::negate>> {};
+  struct GE : rule<as<ast::Operator::ge>(option(ref<WS>) + (lit<">=">))> {};
+  struct GT : rule<as<ast::Operator::gt>(option(ref<WS>) + (lit<">">))> {};
+  struct AND
+      : rule<as<ast::Operator::logical_and>(option(ref<WS>) + (lit<"&&">))> {};
 
   struct Expression;
 
@@ -117,18 +97,18 @@ struct Velocity : cursiv::GrammarSpec {
   // even a blank line) between them -- without it, a lone `$x.` at the end
   // of a paragraph reaches across the gap and grabs the next paragraph's
   // first word as a property name.
-  static constexpr auto ChainStep =
-      nest<ast::PropertyAccess, &ast::PropertyAccess::object>(
-          gap::none + lit<"."> + gap::none +
-          assign<&ast::PropertyAccess::name>(ref<Id>)) |
-      nest<ast::IndexAccess, &ast::IndexAccess::object>(
-          gap::none + lit<"["> + assign<&ast::IndexAccess::index>(ref<Expression>) +
-          (SP + lit<"]">)) |
+  static constexpr auto Call =
       nest<ast::CallAccess, &ast::CallAccess::object>(
           gap::none + lit<"("> +
-          option(
-              some(append<&ast::CallAccess::args>(ref<Expression>), (SP + lit<",">))) +
-          (SP + lit<")">));
+          option(some(append<&ast::CallAccess::args>(ref<Expression>), SP + lit<",">)) +
+          SP + lit<")">);
+  static constexpr auto ChainStep =
+      (nest<ast::PropertyAccess, &ast::PropertyAccess::object>(
+          gap::none + lit<"."> + gap::none +
+          assign<&ast::PropertyAccess::name>(ref<Id>)) + (Call | !lit<"(">)) |
+      nest<ast::IndexAccess, &ast::IndexAccess::object>(
+          gap::none + lit<"["> + assign<&ast::IndexAccess::index>(ref<Expression>) +
+          SP + lit<"]">);
 
   // The bare base of a reference, no chain: `#foreach` reads exactly this
   // for its loop variable.
@@ -137,72 +117,72 @@ struct Velocity : cursiv::GrammarSpec {
               ref<DOLLAR>) +
              assign<&ast::VariableRef::name>(ref<Id>)> {};
 
-  // A whole reference, chain included -- named so a heterogeneous
-  // `append<>` (Block::atoms) can wrap it alone: wrapping the base+chain
-  // SEQUENCE directly in `append<>` compiles but fails at parse time
-  // ("the AST could not be materialised from this node") on any input that
-  // takes a chain step, matching the documented `append<>`-into-a-
-  // heterogeneous-list trap.
+  // Keep each reference chain in one rule for the heterogeneous text atoms.
   struct VariableRefChain
-      : rule<ref<VariableRefBase> + many(ChainStep)> {};
+      : rule<ref<VariableRefBase> + many(ChainStep) +
+             !((lit<"."> + ref<Id>) | lit<"[">)> {};
 
   struct FormalRefBase
       : rule<(flag<&ast::FormalRef::quiet>(ref<DOLLAR_EXCL_OBRACE>) |
               ref<DOLLAR_OBRACE>) +
              assign<&ast::FormalRef::name>(ref<Id>)> {};
 
-  struct FormalRef : rule<ref<FormalRefBase> + many(ChainStep) + (SP + lit<"}">)> {};
+  struct FormalRef : rule<ref<FormalRefBase> + many(ChainStep) +
+      option(nest<ast::DefaultExpr, &ast::DefaultExpr::reference>(
+          SP + lit<"|"> + assign<&ast::DefaultExpr::fallback>(ref<Expression>))) +
+      SP + lit<"}">> {};
 
-  struct IdExprRule : rule<(SP + assign<&ast::IdExpr::name>(ref<Id>))> {};
-  struct StringLitRule : rule<(SP + assign<&ast::StringLit::value>(ref<STRING>))> {};
-  struct IntLitRule : rule<(SP + assign<&ast::IntLit::value>(ref<INTEGER>))> {};
-  struct FloatLitRule : rule<(SP + assign<&ast::FloatLit::value>(ref<FLOAT>))> {};
+  struct IdExpr : rule<SP + assign<&ast::IdExpr::name>(ref<Id>)> {};
+  struct BoolLit : rule<SP + (flag<&ast::BoolLit::value>(kw<"true">) | kw<"false">)> {};
+  struct StringLit : rule<SP +
+      (flag<&ast::StringLit::doubleQuoted>(assign<&ast::StringLit::value>(ref<DOUBLE_STRING>)) |
+       assign<&ast::StringLit::value>(ref<SINGLE_STRING>))> {};
+  struct IntLit : rule<(SP + assign<&ast::IntLit::value>(ref<INTEGER>))> {};
+  struct FloatLit : rule<(SP + assign<&ast::FloatLit::value>(ref<FLOAT>))> {};
 
-  struct ListLit
-      : rule<create<ast::ListLit> +
-             (SP + lit<"[">)+option(
-                 some(append<&ast::ListLit::items>(ref<Expression>), (SP + lit<",">))) +
-             (SP + lit<"]">)> {};
+  struct RangeBound : rule<(SP + ref<VariableRefChain>) | (SP + ref<FormalRef>) |
+      create<ast::UnaryExpr>(SP + assign<&ast::UnaryExpr::op>(as<ast::Operator::negate>(lit<"-">)) +
+          assign<&ast::UnaryExpr::operand>(ref<IntLit>)) | ref<IntLit>> {};
+  struct RangeValue : rule<create<ast::BinaryExpr>(
+      assign<&ast::BinaryExpr::left>(ref<RangeBound>) +
+      assign<&ast::BinaryExpr::op>(as<ast::Operator::range>(SP + lit<"..">)) +
+      assign<&ast::BinaryExpr::right>(ref<RangeBound>))> {};
+  struct ListLit : rule<create<ast::ListLit> + SP + lit<"["> +
+      option(append<&ast::ListLit::items>(ref<RangeValue>) |
+          some(append<&ast::ListLit::items>(ref<Expression>), SP + lit<",">)) +
+      SP + lit<"]">> {};
 
-  struct MapEntryRule
+  struct MapEntry
       : rule<assign<&ast::MapEntry::key>(ref<Expression>) +
              (SP + lit<":">)+assign<&ast::MapEntry::value>(ref<Expression>)> {};
 
   struct MapLit
       : rule<create<ast::MapLit> +
              (SP + lit<"{">)+option(some(
-                 append<&ast::MapLit::entries>(ref<MapEntryRule>), (SP + lit<",">))) +
+                 append<&ast::MapLit::entries>(ref<MapEntry>), (SP + lit<",">))) +
              (SP + lit<"}">)> {};
 
   struct Primary
       : rule<((SP + lit<"(">)+ref<Expression> + (SP + lit<")">)) | ref<ListLit> |
-             ref<MapLit> | (SP + ref<VariableRefBase>) | ref<StringLitRule> | ref<IntLitRule> |
-             ref<FloatLitRule> | ref<IdExprRule>> {};
+             ref<MapLit> | (SP + ref<VariableRefBase>) | (SP + ref<FormalRef>) |
+             ref<StringLit> | ref<IntLit> | ref<FloatLit> | ref<BoolLit>> {};
 
-  // Unary `!`/`not`/`-`: tighter than every infix level, so it wraps the
-  // primary directly rather than sitting in the infix table. The chained
-  // and bare readings are separate alternatives -- each manages its own
-  // prefix -- rather than one alternative ending in `many(ChainStep)`: a
-  // shared prefix feeding two different built classes fails at parse time
-  // ("the AST could not be materialised from this node") on whichever
-  // input takes the other class.
+  // Unary operations bind more tightly than every infix level.
   struct UnaryExpr
       : rule<create<ast::UnaryExpr>(
-                 (SP + assign<&ast::UnaryExpr::op>(ref<NOT_OP> | ref<NEG_OP>)) +
+                 (SP + assign<&ast::UnaryExpr::op>(as<ast::Operator::logical_not>(option(ref<WS>) + (lit<"!"> | kw<"not">)) | as<ast::Operator::negate>(option(ref<WS>) + (lit<"-">)))) +
                  assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>)) |
              (ref<Primary> + some(ChainStep)) | ref<Primary>> {};
 
-  // Precedence as VTL 2.0 defines it, tightest to loosest; `..` (range) is
-  // loosest.
+  // VTL expression precedence; a range is recognized only inside brackets.
   struct Expression
-      : infix<UnaryExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<MUL> | ref<DIV> | ref<MOD>) >> left(ref<ADD> | ref<SUB>) >>
-               left(ref<LE> | ref<GE> | ref<LT> | ref<GT> | ref<KW_LE> | ref<KW_GE> |
-                    ref<KW_LT> | ref<KW_GT>) >>
-               left(ref<EQ> | ref<NE> | ref<KW_EQ> | ref<KW_NE>) >>
-               left(ref<AND> | ref<KW_AND>) >> left(ref<OR> | ref<KW_OR>) >>
-               left(ref<RANGE>))> {};
+      : infix<UnaryExpr, ast::BinaryExpr,
+              levels(left(as<ast::Operator::mul>(option(ref<WS>) + (lit<"*">)) | as<ast::Operator::div>(option(ref<WS>) + (lit<"/">)) | as<ast::Operator::mod>(option(ref<WS>) + (lit<"%">))),
+                     left(as<ast::Operator::add>(option(ref<WS>) + (lit<"+">)) | as<ast::Operator::sub>(option(ref<WS>) + (lit<"-">))),
+                     left(as<ast::Operator::le>(option(ref<WS>) + (lit<"<=">)) | ref<GE> | as<ast::Operator::lt>(option(ref<WS>) + (lit<"<">)) | ref<GT> | as<ast::Operator::le>(option(ref<WS>) + (kw<"le">)) |
+                          as<ast::Operator::ge>(option(ref<WS>) + (kw<"ge">)) | as<ast::Operator::lt>(option(ref<WS>) + (kw<"lt">)) | as<ast::Operator::gt>(option(ref<WS>) + (kw<"gt">))),
+                     left(as<ast::Operator::eq>(option(ref<WS>) + (lit<"==">)) | as<ast::Operator::ne>(option(ref<WS>) + (lit<"!=">)) | as<ast::Operator::eq>(option(ref<WS>) + (kw<"eq">)) | as<ast::Operator::ne>(option(ref<WS>) + (kw<"ne">))),
+                     left(ref<AND> | as<ast::Operator::logical_and>(option(ref<WS>) + (kw<"and">))), left(as<ast::Operator::logical_or>(option(ref<WS>) + (lit<"||">)) | as<ast::Operator::logical_or>(option(ref<WS>) + (kw<"or">))))> {};
 
   struct BlockRule;
 
@@ -225,74 +205,78 @@ struct Velocity : cursiv::GrammarSpec {
 
   static constexpr auto End = lit<"#"> + KwEnd;
 
-  struct IfBranchRule
+  struct IfBranch
       : rule<lit<"#"> + KwElseif +
              (SP + lit<"(">)+assign<&ast::IfBranch::cond>(ref<Expression>) +
              (SP + lit<")">)+assign<&ast::IfBranch::body>(ref<BlockRule>)> {};
 
-  struct IfDirectiveRule
+  struct IfDirective
       : rule<lit<"#"> + KwIf +
              (SP + lit<"(">)+assign<&ast::IfDirective::cond>(ref<Expression>) +
              (SP + lit<")">)+assign<&ast::IfDirective::thenBlock>(ref<BlockRule>) +
-             many(append<&ast::IfDirective::elseifs>(ref<IfBranchRule>)) +
+             many(append<&ast::IfDirective::elseifs>(ref<IfBranch>)) +
              option(lit<"#"> + KwElse +
                     assign<&ast::IfDirective::elseBlock>(ref<BlockRule>)) +
              End> {};
 
-  struct ForeachDirectiveRule
+  struct ForeachDirective
       : rule<lit<"#"> + KwForeach +
              (SP + lit<"(">) + SP + assign<&ast::ForeachDirective::var>(ref<VariableRefBase>) +
              (SP + kw<"in">)+assign<&ast::ForeachDirective::iterable>(ref<Expression>) +
              (SP + lit<")">)+assign<&ast::ForeachDirective::body>(ref<BlockRule>) +
              End> {};
 
-  struct BreakDirectiveRule
-      : rule<create<ast::BreakDirective> + lit<"#"> + KwBreak> {};
+  template <auto Member>
+  static constexpr auto OptionalArgument =
+      ((SP + lit<"(">) + option(assign<Member>(ref<Expression>)) + SP + lit<")">) |
+      !(SP + lit<"(">);
+  struct BreakDirective : rule<create<ast::BreakDirective> + lit<"#"> + KwBreak +
+      OptionalArgument<&ast::BreakDirective::argument>> {};
+  struct StopDirective : rule<create<ast::StopDirective> + lit<"#"> + KwStop +
+      OptionalArgument<&ast::StopDirective::argument>> {};
 
-  struct StopDirectiveRule
-      : rule<create<ast::StopDirective> + lit<"#"> + KwStop> {};
-
-  struct SetDirectiveRule
+  struct SetDirective
       : rule<lit<"#"> + KwSet +
-             (SP + lit<"(">)+assign<&ast::SetDirective::target>(ref<Expression>) +
+             (SP + lit<"(">) + SP + assign<&ast::SetDirective::target>(ref<VariableRefChain> | ref<FormalRef>) +
              (SP + lit<"=">)+assign<&ast::SetDirective::value>(ref<Expression>) +
              (SP + lit<")">)> {};
 
-  struct MacroDirectiveRule
-      : rule<lit<"#"> + KwMacro +
-             (SP +
-              lit<"(">)+many(append<&ast::MacroDirective::params>(ref<Expression>)) +
-             (SP + lit<")">)+assign<&ast::MacroDirective::body>(ref<BlockRule>) + End> {
-  };
+  struct MacroParameter : rule<(SP + ref<VariableRefChain>) +
+      option(nest<ast::DefaultExpr, &ast::DefaultExpr::reference>(
+          SP + lit<"="> + assign<&ast::DefaultExpr::fallback>(ref<Expression>)))> {};
+  struct MacroDirective : rule<lit<"#"> + KwMacro + SP + lit<"("> +
+      append<&ast::MacroDirective::params>(ref<IdExpr>) +
+      many(option(SP + lit<",">) + append<&ast::MacroDirective::params>(ref<MacroParameter>)) +
+      SP + lit<")"> + assign<&ast::MacroDirective::body>(ref<BlockRule>) + End> {};
 
-  struct ParseDirectiveRule
+  struct ParseDirective
       : rule<lit<"#"> + KwParse +
              (SP + lit<"(">)+assign<&ast::ParseDirective::path>(ref<Expression>) +
              (SP + lit<")">)> {};
 
-  struct DefineDirectiveRule
+  struct DefineDirective
       : rule<lit<"#"> + KwDefine +
              (SP + lit<"(">)+assign<&ast::DefineDirective::target>(ref<Expression>) +
              (SP + lit<")">)+assign<&ast::DefineDirective::body>(ref<BlockRule>) +
              End> {};
 
-  struct IncludeDirectiveRule
+  struct IncludeDirective
       : rule<lit<"#"> + KwInclude +
              (SP + lit<"(">)+some(
                  append<&ast::IncludeDirective::paths>(ref<Expression>),
                  (SP + lit<",">)) +
              (SP + lit<")">)> {};
 
-  struct EvaluateDirectiveRule
+  struct EvaluateDirective
       : rule<lit<"#"> + KwEvaluate +
              (SP + lit<"(">)+assign<&ast::EvaluateDirective::expr>(ref<Expression>) +
              (SP + lit<")">)> {};
 
-  struct MacroCallDirectiveRule
+  struct MacroCallDirective
       : rule<lit<"#"> +
              (SP + lit<"@">)+(SP + assign<&ast::MacroCallDirective::name>(ref<Id>)) +
              (SP +
-              lit<"(">)+many(append<&ast::MacroCallDirective::args>(ref<Expression>)) +
+              lit<"(">)+many(option(SP + lit<",">) + append<&ast::MacroCallDirective::args>(ref<Expression>)) +
              (SP + lit<")">)+assign<&ast::MacroCallDirective::body>(ref<BlockRule>) +
              End> {};
 
@@ -310,38 +294,37 @@ struct Velocity : cursiv::GrammarSpec {
   // Velocity spells a body-taking call `#@d(..)body#end`, so the bodyless
   // form never takes one. `macro_directive.vm` needs exactly this to
   // terminate.
-  struct CustomDirectiveRule
+  struct CustomDirective
       : rule<lit<"#"> + !BuiltinDirectiveName +
              (SP + assign<&ast::CustomDirective::name>(ref<Id>)) +
-             option((SP + lit<"(">)+many(
+             (((SP + lit<"(">) + many(option(SP + lit<",">) +
                         append<&ast::CustomDirective::args>(ref<Expression>)) +
-                    (SP + lit<")">))> {};
+                    SP + lit<")">) | !(SP + lit<"(">))> {};
 
   static constexpr auto DirectiveChoice =
-      ref<SetDirectiveRule> | ref<IfDirectiveRule> |
-      ref<ForeachDirectiveRule> | ref<BreakDirectiveRule> |
-      ref<StopDirectiveRule> | ref<MacroDirectiveRule> |
-      ref<ParseDirectiveRule> | ref<DefineDirectiveRule> |
-      ref<IncludeDirectiveRule> | ref<EvaluateDirectiveRule> |
-      ref<MacroCallDirectiveRule> | ref<CustomDirectiveRule>;
+      ref<SetDirective> | ref<IfDirective> |
+      ref<ForeachDirective> | ref<BreakDirective> |
+      ref<StopDirective> | ref<MacroDirective> |
+      ref<ParseDirective> | ref<DefineDirective> |
+      ref<IncludeDirective> | ref<EvaluateDirective> |
+      ref<MacroCallDirective> | ref<CustomDirective>;
 
   // `.`, `[`, `(` alone (not opening a reference's chain): the same
   // literals `ChainStep` matches, so the lexer never has to choose between
   // two terminals for one byte -- only the parser state does.
-  // The chained and bare readings of a variable are separate alternatives
-  // -- see UnaryExpr for why a shared prefix ending in `many(ChainStep)`
-  // is refused at parse time instead.
   static constexpr auto AtomChoice =
-      append<&ast::Block::atoms>(ref<TEXT> | ref<ESCAPED_CHAR> | ref<ESCAPED_BLOCK> |
-                                 lit<"."> | lit<"["> | lit<"(">) |
       append<&ast::Block::atoms>(ref<FormalRef>) |
       append<&ast::Block::atoms>(ref<VariableRefChain>) |
-      append<&ast::Block::atoms>(DirectiveChoice);
+      append<&ast::Block::atoms>(DirectiveChoice) |
+      append<&ast::Block::atoms>(ref<TEXT> | ref<ESCAPED_CHAR> | ref<ESCAPED_BLOCK> |
+                                 ref<LiteralDollar> | ref<LiteralHash> | lit<"\\", !any> |
+                                 lit<"."> | lit<"["> | lit<"(">);
+
 
   struct BlockRule : rule<many(AtomChoice)> {};
 
   using entry = BlockRule;
-  using ignore = list<>;
+  using ignored = list<>;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 

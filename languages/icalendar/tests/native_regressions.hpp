@@ -65,6 +65,7 @@ inline int native_regressions(const auto& language) {
            {"BEGIN:X\nX-P;X-!BAD=a:v\nEND:X", "Invalid parameter name"},
            {"BEGIN:X\nX-P;P=\"a\x01" "b\":v\nEND:X", "Invalid parameter value"},
            {"BEGIN:X\nX-P\nEND:X", "value delimiter"},
+           {"BEGIN:X\nX-P;P=x\nEND:X", "value delimiter"},
            {"X-P:v", "belong to a component"},
            {"BEGIN:X\nX-P;P=\"\"a\"\":v\nEND:X", "Invalid parameter value"}}) {
     const auto syntax = language.parser->parse(c.text);
@@ -75,5 +76,34 @@ inline int native_regressions(const auto& language) {
   }
   if (cursiv::test::validationHelper(language,
       "BEGIN:X\nATTENDEE;CN=\"A^nB\":mailto:t@x\nEND:X").diagnostics.size()) return 13;
+  // RFC5545 does not use backslash escapes inside quoted parameter values.
+  // The raw parameter and its decoded helper result must retain those bytes.
+  const auto backslashes = language.parser->parse(
+      "BEGIN:X\r\nATTENDEE;CN=\"a\\,b\\\\c\":mailto:t@x\r\nEND:X\r\n");
+  if (!clean(backslashes)) return 17;
+  const auto* slashProperty = cursiv::ast_cast<ast::Document>(backslashes.value)
+      ->components[0]->properties[0];
+  if (slashProperty->params.size() != 1 ||
+      slashProperty->params[0]->rawValue != "\"a\\,b\\\\c\"" ||
+      icalendar::parameter_values(slashProperty->params[0]->rawValue) !=
+          std::vector<std::string>{"a\\,b\\\\c"}) return 18;
+  if (icalendar::parameter_values(R"param("A^nB^^C^'D^N^x",plain\,list,%2C)param") !=
+      std::vector<std::string>{"A\nB^C\"D^N^x", "plain,list", "%2C"})
+    return 19;
+  const auto blank = language.parser->parse(
+      "BEGIN:X\r\nX-P:first\r\n\r\n second\r\nEND:X\r\n");
+  if (!clean(blank)) return 20;
+  const auto* blankComponent = cursiv::ast_cast<ast::Document>(blank.value)->components[0];
+  if (blankComponent->properties.size() != 2 ||
+      blankComponent->properties[0]->value != "first" ||
+      blankComponent->properties[1]->name != "second") return 21;
+  // RFC5545 explicitly requires unfolding before UTF-8 decoding, including
+  // an incorrectly folded multi-octet sequence.
+  const auto utf8Fold = language.parser->parse(
+      "BEGIN:X\r\nX-P:\xC3\r\n \xA9\r\nEND:X\r\n");
+  if (!clean(utf8Fold)) return 22;
+  const auto* utf8Property = cursiv::ast_cast<ast::Document>(utf8Fold.value)
+      ->components[0]->properties[0];
+  if (utf8Property->value != "\xC3\xA9") return 23;
   return 0;
 }

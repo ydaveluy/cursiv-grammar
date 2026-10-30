@@ -2,9 +2,11 @@
 #pragma once
 
 #include <string_view>
+#include <memory_resource>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "javascript/core/ast.hpp"
+#include "javascript/core/IdentifierValue.hpp"
 
 namespace javascript {
 
@@ -13,13 +15,26 @@ namespace javascript {
 // AST.
 template <std::size_t Tail>
 inline constexpr auto drop_ends =
-    [](std::string_view t) { return t.substr(1, t.size() - 1 - Tail); };
+    [](std::string_view t, std::pmr::memory_resource* memory) {
+      const auto body = t.substr(1, t.size() - 1 - Tail);
+      if (body.find('\r') == std::string_view::npos) return body;
+      const auto room = cursiv::text_room(memory, body.size());
+      std::size_t size = 0;
+      for (std::size_t i = 0; i < body.size(); ++i) {
+        if (body[i] == '\r') {
+          room[size++] = '\n';
+          if (i + 1 < body.size() && body[i + 1] == '\n') ++i;
+        } else room[size++] = body[i];
+      }
+      return std::string_view(room.data(), size);
+    };
 
 struct JavaScript : cursiv::GrammarSpec {
   // A LineTerminator in the gap before the token in hand, comments included:
   // the two separators past ASCII count as ECMAScript counts them.
   static constexpr auto LineBreak =
       gap::has(eol | lit<"\xE2\x80\xA8"> | lit<"\xE2\x80\xA9">);
+  static constexpr auto Eos = implied(lit<";">, LineBreak | &lit<"}"> | eof);
   // -- Trivia ----
   static constexpr auto LineTerminator = cr<R"(\r\n\u2028\u2029)">;
   struct WS : terminal<some(cr<R"( \t\v\f\r\n\uFEFF\u2028\u2029)"> | uc::Zs)> {
@@ -27,9 +42,17 @@ struct JavaScript : cursiv::GrammarSpec {
   struct SL_COMMENT : terminal<lit<"//"> + many(~LineTerminator)> {};
   struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
   struct HTML_COMMENT
-      : terminal<(lit<"<!--"> | lit<"-->">)+many(~LineTerminator)> {};
-  struct CDATA_COMMENT : terminal<through(lit<"<![CDATA[">, lit<"]]>">)> {};
+      : terminal<lit<"<!--"> + many(~LineTerminator)> {};
+  struct HTML_CLOSE_INITIAL : terminal<lit<"-->"> + many(~LineTerminator)> {};
+  struct HTML_CLOSE_LINE : terminal<(eol | cr<R"(\u2028\u2029)">) +
+      many(cr<R"( \t\v\f\uFEFF)"> | uc::Zs) + lit<"-->"> + many(~LineTerminator)> {};
   struct HASHBANG : terminal<lit<"#!"> + many(~LineTerminator)> {};
+  // Keep this restricted two-word prefix indivisible. It must not compete
+  // with the identifier statement `async` at an ASI boundary before function.
+  static constexpr auto NoLineComment = lit<"/*"> +
+      many(cr<R"(^*\r\n\u2028\u2029)"> | lit<"*", !lit<"/">>) + lit<"*/">;
+  struct ASYNC_FUNCTION : terminal<kw<"async"> +
+      many(cr<R"( \t\v\f\uFEFF)"> | uc::Zs | NoLineComment) + kw<"function">> {};
 
   static constexpr auto IdEscape =
       lit<"\\u"> + (repeat<4>(cr<"0-9a-fA-F">) |
@@ -41,17 +64,18 @@ struct JavaScript : cursiv::GrammarSpec {
       cr<R"(\u200C\u200D\u00B7\u0387\u1369-\u1371\u19DA\u30FB\uFF65)">;
   static constexpr auto IdChars =
       (IdStart | IdEscape) + many(IdContinue | IdEscape);
-  struct RawId : terminal<IdChars> {};
+  struct RawId : terminal<as<decode_identifier>(IdChars)> {};
 
-  static constexpr auto StrictReserved =
+  static constexpr auto HardReserved =
       kw<"break"> | kw<"do"> | kw<"instanceof"> | kw<"typeof"> | kw<"case"> |
       kw<"else"> | kw<"new"> | kw<"var"> | kw<"catch"> | kw<"finally"> |
       kw<"return"> | kw<"void"> | kw<"continue"> | kw<"for"> | kw<"switch"> |
       kw<"while"> | kw<"debugger"> | kw<"function"> | kw<"this"> | kw<"with"> |
       kw<"default"> | kw<"if"> | kw<"throw"> | kw<"delete"> | kw<"in"> |
       kw<"try"> | kw<"class"> | kw<"enum"> | kw<"extends"> | kw<"super"> |
-      kw<"const"> | kw<"export"> | kw<"import"> | kw<"await"> | kw<"null"> |
+      kw<"const"> | kw<"export"> | kw<"import"> | kw<"null"> |
       kw<"true"> | kw<"false">;
+  static constexpr auto StrictReserved = HardReserved | kw<"await">;
   // Each of these lexes as a plain identifier outside its own construct
   // (`static`/`let`/`implements`/... only in non-strict code, gated on a
   // runtime flag cursiv has no equivalent of): soft keywords, not a gap --
@@ -59,7 +83,7 @@ struct JavaScript : cursiv::GrammarSpec {
   // there too and the parse decides which reading stands. Over-accepts in
   // strict code (semantic-predicate).
   static constexpr auto SoftReserved =
-      kw<"async"> | kw<"as"> | kw<"from"> | kw<"yield"> | kw<"of"> |
+      kw<"async"> | kw<"as"> | kw<"from"> | kw<"yield"> | kw<"of"> | kw<"target"> | kw<"meta"> |
       kw<"static"> | kw<"let"> | kw<"implements"> | kw<"private"> |
       kw<"public"> | kw<"interface"> | kw<"package"> | kw<"protected">;
   static constexpr auto AllKeywords = StrictReserved | SoftReserved;
@@ -73,11 +97,12 @@ struct JavaScript : cursiv::GrammarSpec {
   // reading of the very word that also opens a static block or modifier.
   struct StaticKwTerm : terminal<kw<"static">> {};
 
-  struct PlainId : terminal<IdChars> {};
-  struct Ident : rule<assign<&ast::Ident::name>(ref<PlainId>)> {};
+  struct PlainId : terminal<as<decode_identifier>(!HardReserved + IdChars)> {};
+  struct Ident : rule<assign<&ast::Ident::name>(ref<PlainId> | SoftReserved | kw<"await">)> {};
   // Any word, keywords included: `.foo` and `.#foo` both take one -- `assign`
   // reads one part, so the optional `#` is folded into the terminal itself.
-  struct PrivateOrName : terminal<option(lit<"#">) + IdChars> {};
+  struct PrivateOrName : terminal<as<decode_identifier>(option(lit<"#">) + IdChars)> {};
+  struct PrivateIdentifier : terminal<as<decode_identifier>(lit<"#"> + IdChars)> {};
   // `AllKeywords` stands beside `PrivateOrName` and not only inside it:
   // offered as the sole candidate, a general terminal loses a keyword-shaped
   // word to the specific keyword token at an ambiguous state; offered next
@@ -96,14 +121,16 @@ struct JavaScript : cursiv::GrammarSpec {
   static constexpr auto OctRest = many(option(lit<"_">) + cr<"0-7">);
   static constexpr auto BinRest = many(option(lit<"_">) + cr<"01">);
   static constexpr auto DecInt = lit<"0"> | (cr<"1-9"> + DecRest);
+  static constexpr auto NonOctalDecimal = lit<"0"> + many(cr<"0-7">) + cr<"89"> + many(d);
+  static constexpr auto DecimalInt = DecInt | NonOctalDecimal;
   static constexpr auto Exponent =
       cr<"eE"> + option(cr<"+-">) + cr<"0-9"> + DecRest;
 
   struct NUMBER
-      : terminal<(DecInt + lit<"."> + option(cr<"0-9"> + DecRest) +
+      : terminal<(DecimalInt + lit<"."> + option(cr<"0-9"> + DecRest) +
                   option(Exponent)) |
                  (lit<"."> + cr<"0-9"> + DecRest + option(Exponent)) |
-                 (DecInt + option(Exponent)) |
+                 (DecimalInt + option(Exponent)) |
                  (lit<"0"> + cr<"xX"> + cr<"0-9a-fA-F"> + HexRest) |
                  (lit<"0"> + cr<"oO"> + cr<"0-7"> + OctRest) |
                  (lit<"0"> + cr<"bB"> + cr<"01"> + BinRest) |
@@ -123,13 +150,13 @@ struct JavaScript : cursiv::GrammarSpec {
                  (lit<"'"> + many(EscapeSeq | cr<R"(^'\\\r\n)">) + lit<"'">)> {
   };
 
-  static constexpr auto RegexBackslash = lit<"\\"> + cr<R"(^\r\n)">;
+  static constexpr auto RegexBackslash = lit<"\\"> + ~LineTerminator;
   static constexpr auto RegexClass =
-      lit<"["> + many(RegexBackslash | cr<R"(^\r\n\\])">) + lit<"]">;
+      lit<"["> + many(RegexBackslash | ~(LineTerminator | cr<R"(\\])">)) + lit<"]">;
   struct REGEX
       : terminal<lit<"/"> +
-                 (RegexBackslash | RegexClass | cr<R"(^*\r\n\\/[)">)+many(
-                     RegexBackslash | RegexClass | cr<R"(^\r\n\\/[)">) +
+                 (RegexBackslash | RegexClass | ~(LineTerminator | cr<R"(*\\/[)">))+many(
+                     RegexBackslash | RegexClass | ~(LineTerminator | cr<R"(\\/[)">)) +
                  lit<"/"> + many(cr<"a-zA-Z">)> {};
 
   // Template text, fused to the delimiters around it, as the specification's
@@ -141,14 +168,11 @@ struct JavaScript : cursiv::GrammarSpec {
   // does not (single-byte guard).
   static constexpr auto TplRun =
       many((lit<"\\"> + any) | cr<R"(^`$\\)"> | lit<"$", !cr<"{">>);
-  struct TplNoSub
-      : terminal<lit<"`"> + TplRun + lit<"`">, text_conv<drop_ends<1>>> {};
-  struct TplHead
-      : terminal<lit<"`"> + TplRun + lit<"${">, text_conv<drop_ends<2>>> {};
-  struct TplMiddle
-      : terminal<lit<"}"> + TplRun + lit<"${">, text_conv<drop_ends<2>>> {};
-  struct TplTail
-      : terminal<lit<"}"> + TplRun + lit<"`">, text_conv<drop_ends<1>>> {};
+  struct TplNoSub : terminal<as<drop_ends<1>>(lit<"`"> + TplRun + lit<"`">)> {};
+  struct TplHead : terminal<as<drop_ends<2>>(lit<"`"> + TplRun + lit<"${">)> {};
+  struct TplMiddle : terminal<as<drop_ends<2>>(lit<"}"> + TplRun + lit<"${">)> {
+  };
+  struct TplTail : terminal<as<drop_ends<1>>(lit<"}"> + TplRun + lit<"`">)> {};
 
   struct Expression;
   struct AssignExpr;
@@ -188,19 +212,17 @@ struct JavaScript : cursiv::GrammarSpec {
   // -- Primary expressions ----
   struct ThisExpr_ : rule<create<ast::ThisExpr>(kw<"this">)> {};
   struct SuperExpr_ : rule<create<ast::SuperExpr>(kw<"super">)> {};
-  // `new.<word>` reads any identifier after the dot, so `target` is not
-  // special-cased -- `Ident` already spells every word real code writes
-  // there.
+  // Meta-property names are literal words: escaped spellings are not legal.
   struct NewTargetExpr_
       : rule<create<ast::NewTargetExpr>(
             kw<"new"> + lit<"."> +
-            assign<&ast::NewTargetExpr::property>(ref<Ident>))> {};
+            assign<&ast::NewTargetExpr::property>(create<ast::Ident>(assign<&ast::Ident::name>(kw<"target">))))> {};
   struct ImportMetaExpr_
       : rule<create<ast::ImportMetaExpr>(
             kw<"import"> + lit<"."> +
-            assign<&ast::ImportMetaExpr::property>(ref<Ident>))> {};
+            assign<&ast::ImportMetaExpr::property>(create<ast::Ident>(assign<&ast::Ident::name>(kw<"meta">))))> {};
   struct NullLit_ : rule<create<ast::NullLit>(kw<"null">)> {};
-  struct BOOL_TOK : terminal<kw<"true"> | kw<"false">, bool> {};
+  struct BOOL_TOK : terminal<as<bool>(kw<"true"> | kw<"false">)> {};
   struct BoolLit_ : rule<assign<&ast::BoolLit::value>(ref<BOOL_TOK>)> {};
   struct NumberLit_ : rule<assign<&ast::NumberLit::text>(ref<NUMBER>)> {};
   struct BigIntLit_ : rule<assign<&ast::BigIntLit::text>(ref<BIGINT>)> {};
@@ -326,30 +348,41 @@ struct JavaScript : cursiv::GrammarSpec {
   // Every operator that is a textual prefix of another one defined in a
   // DIFFERENT rule (AssignExpr's `=`, `**=`, ...) carries a guard: maximal
   // munch is automatic within one infix<> table, never across two.
+  struct ShiftExpr
+      : infix<ExponentExpr, ast::BinaryExpr,
+              levels(left(lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> |
+                          lit<"%", !cr<"=">>),
+                     left(lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>),
+                     left(lit<"<<", !cr<"=">> | lit<">>>", !cr<"=">> |
+                          lit<">>", !cr<"=>">>))> {};
+
+  static constexpr auto RelationalOp = lit<"<="> | lit<">="> | lit<"<", !cr<"=<">> |
+      lit<">", !cr<"=>">> | kw<"instanceof"> | kw<"in">;
+  struct PrivateBrandExpr : rule<create<ast::BinaryExpr>(
+      assign<&ast::BinaryExpr::left>(create<ast::Ident>(
+          assign<&ast::Ident::name>(ref<PrivateIdentifier>))) +
+      assign<&ast::BinaryExpr::op>(kw<"in">) +
+      assign<&ast::BinaryExpr::right>(ref<ShiftExpr>))> {};
+  struct RelationalExpr : rule<(ref<PrivateBrandExpr> | ref<ShiftExpr>) +
+      many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
+          assign<&ast::BinaryExpr::op>(RelationalOp) +
+          assign<&ast::BinaryExpr::right>(ref<ShiftExpr>)))> {};
+
   struct BitwiseOrExpr
-      : infix<ExponentExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> |
-                    lit<"%", !cr<"=">>) >>
-               left(lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>) >>
-               left(lit<"<<", !cr<"=">> | lit<">>>", !cr<"=">> |
-                    lit<">>", !cr<"=>">>) >>
-               left(lit<"<="> | lit<">="> | lit<"<", !cr<"=<">> |
-                    lit<">", !cr<"=>">> | kw<"instanceof"> | kw<"in">) >>
-               left(lit<"==="> | lit<"!=="> | lit<"==", !cr<"=">> |
-                    lit<"!=", !cr<"=">>) >>
-               left(lit<"&", !cr<"&=">>) >> //
-               left(lit<"^", !cr<"=">>) >>  //
-               left(lit<"|", !cr<"|=">>))> {};
+      : infix<RelationalExpr, ast::BinaryExpr,
+              levels(left(lit<"==="> | lit<"!=="> | lit<"==", !cr<"=">> |
+                          lit<"!=", !cr<"=">>),
+                     left(lit<"&", !cr<"&=">>),
+                     left(lit<"^", !cr<"=">>),
+                     left(lit<"|", !cr<"|=">>))> {};
 
   // ShortCircuitExpression: `??` never mixes with `&&`/`||` without
   // parentheses in real ECMAScript (a SyntaxError either way round) -- each
   // is its own table over BitwiseOrExpr rather than a further rung of one
   // shared ladder.
   struct LogicalOrExpr
-      : infix<BitwiseOrExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"&&", !cr<"=">>) >> left(lit<"||", !cr<"=">>))> {};
+      : infix<BitwiseOrExpr, ast::BinaryExpr,
+              levels(left(lit<"&&", !cr<"=">>), left(lit<"||", !cr<"=">>))> {};
 
   // At least one `??`: a bare operand is LogicalOrExpr's alone, and an
   // operand two rules read is a cell the parser must decide, once per operand.
@@ -374,22 +407,26 @@ struct JavaScript : cursiv::GrammarSpec {
              | ref<ArrowFunctionExpr_> | ref<YieldExpr_>> {};
 
   struct AssignExpr
-      : infix<ConditionalExpr, &ast::AssignExpr::target, &ast::AssignExpr::op,
-              &ast::AssignExpr::value,
+      : infix<ConditionalExpr, ast::AssignExpr,
               right(lit<"=", !cr<"=>">> | lit<"*="> | lit<"/="> | lit<"%="> |
                     lit<"+="> | lit<"-="> | lit<"<<="> | lit<">>>="> |
                     lit<">>="> | lit<"&="> | lit<"^="> | lit<"|="> |
-                    lit<"**="> | lit<"?" "?="> | lit<"&&="> | lit<"||=">)> {};
+                    lit<"**="> |
+                    lit<"?"
+                        "?="> |
+                    lit<"&&="> | lit<"||=">),
+              &ast::AssignExpr::target, &ast::AssignExpr::op,
+              &ast::AssignExpr::value> {};
 
   struct Expression
-      : infix<AssignExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(lit<",">)> {};
+      : infix<AssignExpr, ast::BinaryExpr, left(lit<",">)> {};
 
   // -- Functions ----
   struct ParamItem
       : rule<create<ast::Param>(
                  flag<&ast::Param::rest>(Spread) +
-                 assign<&ast::Param::pattern>(ref<AssignExpr>)) //
+                 assign<&ast::Param::pattern>(ref<AssignExpr>) +
+                 !lit<",">) // A rest parameter cannot have a following comma.
              | create<ast::Param>(
                    assign<&ast::Param::pattern>(ref<Assignable>) +
                    option(lit<"="> + assign<&ast::Param::defaultValue>(
@@ -402,8 +439,7 @@ struct JavaScript : cursiv::GrammarSpec {
   // continue with the same list.
   template <auto Ptr>
   static constexpr auto ParamTailFor =
-      option(append<Ptr>(ref<ParamItem>) +
-             many(lit<","> + append<Ptr>(ref<ParamItem>)) + option(lit<",">)) +
+      option(some(append<Ptr>(ref<ParamItem>), lit<",">) + option(lit<",">)) +
       lit<")">;
   template <auto Ptr>
   static constexpr auto ParamListFor = lit<"("> + ParamTailFor<Ptr>;
@@ -411,8 +447,7 @@ struct JavaScript : cursiv::GrammarSpec {
 
   struct FunctionExpr_
       : rule<create<ast::FunctionExpr>(
-            option(flag<&ast::FunctionExpr::isAsync>(kw<"async">)) +
-            kw<"function"> +
+            (flag<&ast::FunctionExpr::isAsync>(ref<ASYNC_FUNCTION>) | kw<"function">) +
             option(flag<&ast::FunctionExpr::isGenerator>(lit<"*">)) +
             option(assign<&ast::FunctionExpr::name>(ref<RawId>)) + ParamList +
             assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {};
@@ -431,7 +466,7 @@ struct JavaScript : cursiv::GrammarSpec {
 
   struct ArrowFunctionExpr_
       : rule<create<ast::ArrowFunctionExpr>(
-            option(flag<&ast::ArrowFunctionExpr::isAsync>(kw<"async">)) +
+            option(flag<&ast::ArrowFunctionExpr::isAsync>(kw<"async">) + !LineBreak) +
             ArrowParams + !LineBreak + lit<"=>"> +
             (assign<&ast::ArrowFunctionExpr::block>(
                  ref<FunctionBody>) //
@@ -478,11 +513,11 @@ struct JavaScript : cursiv::GrammarSpec {
             ParamTailFor<&ast::FunctionExpr::params> +
             assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {};
 
-  struct PropertyRule
+  struct Property
       : rule<create<ast::Prop>(
             (PropName + lit<":"> +
              assign<&ast::Prop::value>(ref<AssignExpr>)) //
-            | (option(flag<&ast::Prop::isAsync>(kw<"async">)) +
+            | (option(flag<&ast::Prop::isAsync>(kw<"async">) + !LineBreak) +
                option(flag<&ast::Prop::isGenerator>(lit<"*">)) + PropName +
                flag<&ast::Prop::isMethod>(lit<"(">) +
                assign<&ast::Prop::value>(ref<MethodBodyTail>)) //
@@ -497,9 +532,9 @@ struct JavaScript : cursiv::GrammarSpec {
   struct ObjectLiteral
       : rule<create<ast::ObjectLit>(
             lit<"{"> +
-            option(append<&ast::ObjectLit::properties>(ref<PropertyRule>) +
+            option(append<&ast::ObjectLit::properties>(ref<Property>) +
                    many(lit<","> + append<&ast::ObjectLit::properties>(
-                                       ref<PropertyRule>)) +
+                                       ref<Property>)) +
                    option(lit<",">)) +
             lit<"}">)> {};
 
@@ -513,7 +548,7 @@ struct JavaScript : cursiv::GrammarSpec {
              | (create<ast::Ident>(assign<&ast::Ident::name>(
                     ref<GetKwTerm> | ref<SetKwTerm> | ref<StaticKwTerm> |
                     kw<"async">)) +
-                &(lit<"("> | lit<"="> | lit<";"> | lit<"}">))> {};
+                (&(lit<"("> | lit<"="> | lit<";"> | lit<"}">) | LineBreak))> {};
   static constexpr auto ClassMemberKey =
       (flag<&ast::ClassMember::computed>(lit<"[">) +
        assign<&ast::ClassMember::key>(ref<AssignExpr>) + lit<"]">) //
@@ -530,20 +565,20 @@ struct JavaScript : cursiv::GrammarSpec {
             ParamTailFor<&ast::FunctionExpr::params> +
             assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {};
 
-  struct ClassMemberRule
+  struct ClassMember
       : rule<
             // A static initialisation block: only this alternative can
             // continue with "{" right after (bare) "static", so no lookahead
             // is needed to keep it apart from the modifier below.
             create<ast::ClassMember>(
-                ref<StaticKwTerm> +
+                flag<&ast::ClassMember::isStatic>(ref<StaticKwTerm>) +
                 assign<&ast::ClassMember::staticBlock>(ref<BlockStmt_>)) //
             // A method, getter or setter, optionally static.
             |
             create<ast::ClassMember>(
                 option(flag<&ast::ClassMember::isStatic>(
                     ref<StaticKwTerm> + !lit<"{">)) +
-                ((option(flag<&ast::ClassMember::isAsync>(kw<"async">)) +
+                ((option(flag<&ast::ClassMember::isAsync>(kw<"async">) + !LineBreak) +
                   option(flag<&ast::ClassMember::isGenerator>(lit<"*">)) +
                   ClassMemberKey +
                   flag<&ast::ClassMember::isMethod>(lit<"(">) +
@@ -560,12 +595,12 @@ struct JavaScript : cursiv::GrammarSpec {
                       ref<StaticKwTerm> + !lit<"{">)) +
                   ClassMemberKey +
                   option(lit<"="> +
-                         assign<&ast::ClassMember::value>(ref<AssignExpr>)))> {
+                         assign<&ast::ClassMember::value>(ref<AssignExpr>)) + Eos)> {
   };
 
   static constexpr auto ClassBody =
       lit<"{"> +
-      many(append<&ast::ClassExpr::members>(ref<ClassMemberRule>) | lit<";">) +
+      many(append<&ast::ClassExpr::members>(ref<ClassMember>) | lit<";">) +
       lit<"}">;
 
   struct ClassExpr_
@@ -575,24 +610,23 @@ struct JavaScript : cursiv::GrammarSpec {
                    assign<&ast::ClassExpr::superClass>(ref<UnaryExpr>)) +
             ClassBody)> {};
 
-  struct ClassDeclaration
-      : rule<create<ast::ClassDecl>(
-            kw<"class"> + assign<&ast::ClassDecl::name>(ref<RawId>) +
-            option(kw<"extends"> +
-                   assign<&ast::ClassDecl::superClass>(ref<UnaryExpr>)) +
-            lit<"{"> +
-            many(append<&ast::ClassDecl::members>(ref<ClassMemberRule>) |
-                 lit<";">) +
-            lit<"}">)> {};
+  static constexpr auto ClassDeclarationTail =
+      option(kw<"extends"> + assign<&ast::ClassDecl::superClass>(ref<UnaryExpr>)) +
+      lit<"{"> + many(append<&ast::ClassDecl::members>(ref<ClassMember>) | lit<";">) + lit<"}">;
+  struct ClassDeclaration : rule<create<ast::ClassDecl>(
+      kw<"class"> + assign<&ast::ClassDecl::name>(ref<RawId>) + ClassDeclarationTail)> {};
+  struct DefaultClassDeclaration : rule<create<ast::ClassDecl>(
+      kw<"class"> + option(assign<&ast::ClassDecl::name>(ref<RawId>)) + ClassDeclarationTail)> {};
 
-  struct FunctionDeclaration
-      : rule<create<ast::FunctionDecl>(
-            option(flag<&ast::FunctionDecl::isAsync>(kw<"async">)) +
-            kw<"function"> +
-            option(flag<&ast::FunctionDecl::isGenerator>(lit<"*">)) +
-            assign<&ast::FunctionDecl::name>(ref<RawId>) +
-            ParamListFor<&ast::FunctionDecl::params> +
-            assign<&ast::FunctionDecl::body>(ref<FunctionBody>))> {};
+  static constexpr auto FunctionDeclarationPrefix =
+      (flag<&ast::FunctionDecl::isAsync>(ref<ASYNC_FUNCTION>) | kw<"function">) +
+      option(flag<&ast::FunctionDecl::isGenerator>(lit<"*">));
+  static constexpr auto FunctionDeclarationTail = ParamListFor<&ast::FunctionDecl::params> +
+      assign<&ast::FunctionDecl::body>(ref<FunctionBody>);
+  struct FunctionDeclaration : rule<create<ast::FunctionDecl>(FunctionDeclarationPrefix +
+      assign<&ast::FunctionDecl::name>(ref<RawId>) + FunctionDeclarationTail)> {};
+  struct DefaultFunctionDeclaration : rule<create<ast::FunctionDecl>(FunctionDeclarationPrefix +
+      option(assign<&ast::FunctionDecl::name>(ref<RawId>)) + FunctionDeclarationTail)> {};
 
   // -- Assignable (var/let/const target, parameter, for-in/of target) ----
   struct Assignable
@@ -602,7 +636,7 @@ struct JavaScript : cursiv::GrammarSpec {
   // inserted where the next token is refused behind a line break, before `}`
   // or at the end; the restricted productions (return, break, continue, throw,
   // yield, postfix update, arrow) refuse a line break with `!LineBreak`.
-  static constexpr auto Eos = implied(lit<";">, LineBreak | &lit<"}"> | eof);
+
 
   struct Declarator_ : rule<create<ast::Declarator>(
                            assign<&ast::Declarator::id>(ref<Assignable>) +
@@ -614,9 +648,7 @@ struct JavaScript : cursiv::GrammarSpec {
   struct VarDeclList
       : rule<create<ast::VarDecl>(
             assign<&ast::VarDecl::kind>(VarKind) +
-            append<&ast::VarDecl::declarations>(ref<Declarator_>) +
-            many(lit<","> +
-                 append<&ast::VarDecl::declarations>(ref<Declarator_>)))> {};
+            some(append<&ast::VarDecl::declarations>(ref<Declarator_>), lit<",">))> {};
 
   struct VariableStatement : rule<ref<VarDeclList> + Eos> {};
 
@@ -780,7 +812,7 @@ struct JavaScript : cursiv::GrammarSpec {
   // -- Modules ----
   struct ModuleExportName : rule<ref<RawId> | AllKeywords | ref<STRING>> {};
 
-  struct ImportSpecifierRule
+  struct ImportSpecifier
       : rule<create<ast::ImportSpecifier>(
             assign<&ast::ImportSpecifier::imported>(ref<ModuleExportName>) +
             option(kw<"as"> + assign<&ast::ImportSpecifier::local>(
@@ -788,51 +820,50 @@ struct JavaScript : cursiv::GrammarSpec {
 
   static constexpr auto ImportNamedList =
       lit<"{"> +
-      option(append<&ast::ImportStmt::specifiers>(ref<ImportSpecifierRule>) +
+      option(append<&ast::ImportStmt::specifiers>(ref<ImportSpecifier>) +
              many(lit<","> + append<&ast::ImportStmt::specifiers>(
-                                 ref<ImportSpecifierRule>)) +
+                                 ref<ImportSpecifier>)) +
              option(lit<",">)) +
       lit<"}">;
 
   // The bare default import ("import a from...") folds into this same rule
   // (a plain identifier, no "as") rather than needing one of its own.
-  struct ImportNamespaceRule
+  struct ImportNamespace
       : rule<create<ast::ImportSpecifier>(
             (flag<&ast::ImportSpecifier::isNamespace>(lit<"*">) +
-             option(kw<"as"> +
-                    assign<&ast::ImportSpecifier::local>(ref<RawId>))) //
+             kw<"as"> + assign<&ast::ImportSpecifier::local>(ref<RawId>)) //
             | assign<&ast::ImportSpecifier::local>(ref<RawId>))> {};
 
   // `imported` stays empty: that (with `isNamespace` false) is what marks a
-  // default specifier, the same way ImportNamespaceRule leaves it empty too.
-  struct ImportDefaultRule
+  // default specifier, the same way ImportNamespace leaves it empty too.
+  struct ImportDefault
       : rule<create<ast::ImportSpecifier>(
             assign<&ast::ImportSpecifier::local>(ref<RawId>))> {};
 
-  struct ImportAttributeRule
+  struct ImportAttribute
       : rule<assign<&ast::ImportAttribute::key>(ref<ModuleExportName>) +
              lit<":"> + assign<&ast::ImportAttribute::value>(ref<STRING>)> {};
 
   template <auto Ptr>
   static constexpr auto ImportAttributes =
       option(kw<"with"> + lit<"{"> +
-             many(append<Ptr>(ref<ImportAttributeRule>), lit<",">) +
+             many(append<Ptr>(ref<ImportAttribute>), lit<",">) +
              option(lit<",">) + lit<"}">);
 
   struct ImportStatement
       : rule<create<ast::ImportStmt>(
             kw<"import"> +
             ((option(
-                  append<&ast::ImportStmt::specifiers>(ref<ImportDefaultRule>) +
+                  append<&ast::ImportStmt::specifiers>(ref<ImportDefault>) +
                   lit<",">) +
-              (append<&ast::ImportStmt::specifiers>(ref<ImportNamespaceRule>) //
+              (append<&ast::ImportStmt::specifiers>(ref<ImportNamespace>) //
                | ImportNamedList) +
               kw<"from"> + assign<&ast::ImportStmt::source>(ref<STRING>) +
               ImportAttributes<&ast::ImportStmt::attributes> + Eos) //
              | (assign<&ast::ImportStmt::source>(ref<STRING>) +
                 ImportAttributes<&ast::ImportStmt::attributes> + Eos)))> {};
 
-  struct ExportSpecifierRule
+  struct ExportSpecifier
       : rule<create<ast::ExportSpecifier>(
             assign<&ast::ExportSpecifier::local>(ref<ModuleExportName>) +
             option(kw<"as"> + assign<&ast::ExportSpecifier::exported>(
@@ -840,9 +871,9 @@ struct JavaScript : cursiv::GrammarSpec {
 
   static constexpr auto ExportNamedList =
       lit<"{"> +
-      option(append<&ast::ExportStmt::specifiers>(ref<ExportSpecifierRule>) +
+      option(append<&ast::ExportStmt::specifiers>(ref<ExportSpecifier>) +
              many(lit<","> + append<&ast::ExportStmt::specifiers>(
-                                 ref<ExportSpecifierRule>)) +
+                                 ref<ExportSpecifier>)) +
              option(lit<",">)) +
       lit<"}">;
 
@@ -858,8 +889,8 @@ struct JavaScript : cursiv::GrammarSpec {
       : rule<create<ast::ExportStmt>(
             kw<"export"> +
             ((flag<&ast::ExportStmt::isDefault>(kw<"default">) +
-              (assign<&ast::ExportStmt::declaration>(ref<ExportDeclaration_>) //
-               | (assign<&ast::ExportStmt::defaultExpr>(ref<AssignExpr>) +
+              (assign<&ast::ExportStmt::declaration>(ref<DefaultFunctionDeclaration> | ref<DefaultClassDeclaration>) //
+               | (!kw<"function"> + !kw<"class"> + assign<&ast::ExportStmt::defaultExpr>(ref<AssignExpr>) +
                   Eos))) //
              | (flag<&ast::ExportStmt::isNamespace>(lit<"*">) +
                 option(kw<"as"> + append<&ast::ExportStmt::specifiers>(
@@ -887,13 +918,14 @@ struct JavaScript : cursiv::GrammarSpec {
              ref<ExpressionStatement>> {};
 
   struct Program_ : rule<create<ast::Program>(
-                        option(assign<&ast::Program::hashbang>(ref<HASHBANG>)) +
+                        option(gap::none + assign<&ast::Program::hashbang>(ref<HASHBANG>)) +
+                        many(ref<HTML_CLOSE_INITIAL>) +
                         many(append<&ast::Program::body>(ref<Statement>)))> {};
 
   using entry = Program_;
-  using ignore = WS;
+  using ignored = WS;
   static constexpr auto word_boundary = IdContinue | cr<R"(\\)">;
-  using hidden = list<SL_COMMENT, ML_COMMENT, HTML_COMMENT, CDATA_COMMENT>;
+  using hidden = list<SL_COMMENT, ML_COMMENT, HTML_COMMENT, HTML_CLOSE_LINE>;
 };
 
 } // namespace javascript

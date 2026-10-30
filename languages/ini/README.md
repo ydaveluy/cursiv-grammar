@@ -30,9 +30,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+INI files are read line by line, with sections, comments and key/value entries. IniReader keeps values as strings and preserves duplicate sections and keys in order.
+
 ```ini
 # Both comment markers are recognised.
-; A comment line is a blank line whose comment the skipper hid.
+; Comment lines have their own nodes in the source AST.
 
 title = "cursiv"
 version = 4
@@ -46,14 +48,6 @@ tls = true
 read . timeout . ms = 250
 write.timeout.ms = -250
 ```
-
-Configuration files are read line by line, with sections and key/value entries.
-`IniReader` preserves values as strings; it does not convert them into integer,
-float or boolean alternatives. It trims surrounding whitespace from names but
-preserves internal whitespace, so `a . b` and `a.b` are distinct keys.
-
-`example/config.ini` is one of the documents the grammar test reads;
-`example/broken.ini` is broken on purpose.
 
 ## The command line
 

@@ -8,39 +8,30 @@
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "restructuredtext/core/ast.hpp"
+#include "restructuredtext/core/InlineValue.hpp"
 
 namespace restructuredtext {
 
 inline constexpr auto trim1 = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Trim1 = cursiv::text_conv<trim1>;
 
 inline constexpr auto trim2 = [](std::string_view t) {
   return t.substr(2, t.size() - 4);
 };
-using Trim2 = cursiv::text_conv<trim2>;
 
-// A reference/target's trailing or leading `_` dropped.
+// A simple reference's trailing underscore is dropped.
 inline constexpr auto drop_last = [](std::string_view t) {
   return t.substr(0, t.size() - 1);
 };
-using DropLast = cursiv::text_conv<drop_last>;
-
-inline constexpr auto drop_first = [](std::string_view t) {
-  return t.substr(1);
-};
-using DropFirst = cursiv::text_conv<drop_first>;
 
 // One marker byte: the bullet character, or the run of `=`/`-`/`+`/`^`.
 inline constexpr auto first_byte = [](std::string_view t) { return t.substr(0, 1); };
-using FirstByte = cursiv::text_conv<first_byte>;
 
 // A backtick span's content, its opener, closer and trailing `_` dropped.
 inline constexpr auto trim_hyperlink = [](std::string_view t) {
   return t.substr(1, t.size() - 3);
 };
-using TrimHyperlink = cursiv::text_conv<trim_hyperlink>;
 
 struct Restructuredtext : cursiv::GrammarSpec {
   static constexpr auto line_break = lit<"\r\n"> | lit<"\n">;
@@ -72,15 +63,22 @@ struct Restructuredtext : cursiv::GrammarSpec {
   // longer than any run of text, so a title's underline or overline is never
   // prose. Where the input ends it needs four: three alone there is text.
   // `SectionSep` is the same run of `-=+^` without the line break.
-  struct SectionSep : terminal<runs_of<'-', '=', '+', '^'>, FirstByte> {};
+  struct SectionSep : terminal<as<first_byte>(runs_of<'-', '=', '+', '^'>)> {};
   static constexpr auto adornment4 =
       runs4_of<'!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',',
                '-', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', '\\',
                ']', '^', '_', '`', '{', '|', '}', '~'>;
   struct ADORN
-      : terminal<(adornment + many(cr<R"( \t)">) + line_break) |
-                     (adornment4 + many(cr<R"( \t)">) + eof),
-                 FirstByte> {};
+      : terminal<as<first_byte>((adornment + many(cr<R"( \t)">) + line_break) |
+                                (adornment4 + many(cr<R"( \t)">) + eof))> {};
+  template<char... Cs>
+  static constexpr auto title_runs = ((lit<cursiv::str(kOne<Cs>)> +
+      many(lit<cursiv::str(kOne<Cs>)>)) | ...);
+  struct TITLE_ADORN : terminal<as<first_byte>(
+      title_runs<'!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',',
+                 '-', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', '\\',
+                 ']', '^', '_', '`', '{', '|', '}', '~'> +
+      many(cr<R"( \t)">) + (line_break | eof))> {};
   struct SepRun : terminal<repeat<1, 2>(sepchar)> {};
 
   static constexpr auto word_body = some(cr<"A-Za-z0-9">);
@@ -90,41 +88,46 @@ struct Restructuredtext : cursiv::GrammarSpec {
   // word byte nor a byte another terminal below owns.
   struct PUNCT : terminal<some(cr<R"(^-=+^A-Za-z0-9 \t\r\n*`_)">)> {};
 
+  static constexpr auto reference_name = word_body + many(cr<"-._+:"> + word_body);
   struct REFERENCE
-      : terminal<word_body + lit<"_", !cr<"A-Za-z0-9">>, DropLast> {};
-  struct HYPERLINK_TARGET
-      : terminal<lit<"_"> + word_body, DropFirst> {};
+      : terminal<as<drop_last>(reference_name + lit<"_", !cr<"A-Za-z0-9">>)> {};
+  static constexpr auto escaped = lit<"\\"> + cr<R"(^\r\n)">;
+  struct HYPERLINK_TARGET : terminal<as<inline_text<2,1>>(
+      lit<"_`"> + some(escaped | (!lit<"`"> + any)) + lit<"`">)> {};
+  struct ESCAPED : terminal<as<inline_text<0,0>>(escaped)> {};
+  struct BARE_TICK : terminal<lit<"`">> {};
   struct BARE_US : terminal<lit<"_">> {};
   struct BARE_STAR : terminal<lit<"*">> {};
 
   struct EMPHASIS
-      : terminal<through(lit<"*", !cr<R"( \t\r\n)">>, lit<"*">), Trim1> {};
+      : terminal<as<inline_text<1,1>>(lit<"*", !cr<R"( \t\r\n)">> +
+          some(escaped | (!lit<"*"> + any)) + lit<"*">)> {};
   struct STRONG
-      : terminal<through(lit<"**", !cr<R"( \t\r\n)">>, lit<"**">), Trim2> {};
+      : terminal<as<inline_text<2,2>>(lit<"**", !cr<R"( \t\r\n)">> +
+          some(escaped | (!lit<"**"> + any)) + lit<"**">)> {
+  };
   // Docutils distinguishes double-backtick literals from interpreted text.
   // The first matching closer ends each span; a lone tick remains literal
   // content inside a double-backtick span.
   struct BACKTICK_SPAN
-      : terminal<lit<"``", !cr<R"( \t\r\n)">> +
-                     some(!lit<"``"> + any) + lit<"``">,
-                 Trim2> {};
+      : terminal<as<trim2>(lit<"``", !cr<R"( \t\r\n)">> +
+                           some(!lit<"``"> + any) + lit<"``">)> {};
   struct INTERPRETED_SPAN
-      : terminal<lit<"`", !cr<R"( \t\r\n)">> +
-                     some(!lit<"`"> + any) + lit<"`">,
-                 Trim1> {};
+      : terminal<as<inline_text<1,1>>(lit<"`", !cr<R"( \t\r\n)">> + some(escaped | (!lit<"`"> + any)) +
+                           lit<"`">)> {};
   // The same span with a word-bounded trailing `_`: one byte longer, so the
   // longest match always prefers it over a bare literal when it applies --
   // resolved by the lexer, not by parser lookahead past the closing tick.
   struct HYPERLINK_SPAN
-      : terminal<through(lit<"`">, lit<"`">) + lit<"_", !cr<"A-Za-z0-9">>,
-                 TrimHyperlink> {};
+      : terminal<as<trim_hyperlink>(through(lit<"`">, lit<"`">) +
+                                    lit<"_", !cr<"A-Za-z0-9">>)> {};
 
   // A bare marker byte ties in length with the plain-text terminals that
   // also read it (SepRun, BARE_STAR): measured, the lexer's multi-candidate
   // resolution then favours the plain-text reading and no BulletItem is
   // produced at all. The trailing word-space is required IN THE TERMINAL so
   // longest match, not candidate order, settles it.
-  struct BULLET_MARK : terminal<cr<"-*+"> + cr<R"( \t)">, FirstByte> {};
+  struct BULLET_MARK : terminal<as<first_byte>(cr<"-*+"> + cr<R"( \t)">)> {};
   // An enumerator is followed by whitespace: `1.5` is text.
   struct ENUM_MARK : terminal<some(d) + lit<".", !cr<R"(^ \t\r\n)">>> {};
   struct BLOCK_MARK : terminal<lit<"|"> + cr<R"( \t)">> {};
@@ -138,33 +141,33 @@ struct Restructuredtext : cursiv::GrammarSpec {
   struct INDENT : terminal<indent> {};
   struct DEDENT : terminal<dedent> {};
 
-  struct EmphasisRule
+  struct Emphasis
       : rule<assign<&ast::Emphasis::text>(ref<EMPHASIS>)> {};
-  struct StrongRule : rule<assign<&ast::Strong::text>(ref<STRONG>)> {};
-  struct LiteralRule
+  struct Strong : rule<assign<&ast::Strong::text>(ref<STRONG>)> {};
+  struct Literal
       : rule<assign<&ast::Literal::text>(ref<BACKTICK_SPAN>)> {};
-  struct HyperlinkRule
+  struct Hyperlink
       : rule<assign<&ast::Hyperlink::text>(ref<HYPERLINK_SPAN>)> {};
   // Explicit roles may precede or follow interpreted text. An absent role
   // retains the default interpreted-text meaning, rather than a literal.
   static constexpr auto role_name =
       word_body + many(cr<"-._+:"> + word_body);
-  struct ROLE : terminal<lit<":"> + role_name + lit<":">, Trim1> {};
-  struct InterpretedTextRule
+  struct ROLE : terminal<as<trim1>(lit<":"> + role_name + lit<":">)> {};
+  struct InterpretedText
       : rule<(assign<&ast::InterpretedText::role>(ref<ROLE>) +
               assign<&ast::InterpretedText::text>(ref<INTERPRETED_SPAN>)) |
              (assign<&ast::InterpretedText::text>(ref<INTERPRETED_SPAN>) +
               option(assign<&ast::InterpretedText::role>(ref<ROLE>)))> {};
-  struct ReferenceRule
+  struct Reference
       : rule<assign<&ast::Reference::name>(ref<REFERENCE>)> {};
-  struct HyperlinkTargetRule
+  struct HyperlinkTarget
       : rule<assign<&ast::HyperlinkTarget::name>(ref<HYPERLINK_TARGET>)> {};
 
   static constexpr auto span =
-      ref<HyperlinkRule> | ref<LiteralRule> | ref<InterpretedTextRule> |
-      ref<StrongRule> | ref<EmphasisRule> | ref<ReferenceRule> |
-      ref<HyperlinkTargetRule> | ref<WORD> | ref<PUNCT> | ref<SepRun> |
-      ref<BARE_US> | ref<BARE_STAR>;
+      ref<Hyperlink> | ref<Literal> | ref<InterpretedText> |
+      ref<Strong> | ref<Emphasis> | ref<Reference> |
+      ref<HyperlinkTarget> | ref<WORD> | ref<PUNCT> | ref<SepRun> |
+      ref<ESCAPED> | ref<BARE_US> | ref<BARE_STAR> | ref<BARE_TICK>;
 
   // Named so a guard can ask of the token in hand; also spliced into the
   // first read of a continuation line, so the marker is a live candidate
@@ -188,18 +191,18 @@ struct Restructuredtext : cursiv::GrammarSpec {
 
   // A paragraph joins physical lines at its own indentation until one of
   // them opens a block; the EOLs between joined lines are kept as spans.
-  struct ParagraphRule
+  struct Paragraph
       : rule<text_line<&ast::Paragraph::spans> +
              many(append<&ast::Paragraph::spans>(ref<EOL>) +
                   !block_start_guard +
                   append<&ast::Paragraph::spans>(span | block_start_marker) +
                   many(append<&ast::Paragraph::spans>(span)))> {};
 
-  struct LineBlockLineRule
+  struct LineBlockLine
       : rule<ref<BLOCK_MARK> +
              text_line<&ast::LineBlockLine::spans>> {};
-  struct LineBlockRule
-      : rule<some(append<&ast::LineBlock::lines>(ref<LineBlockLineRule>),
+  struct LineBlock
+      : rule<some(append<&ast::LineBlock::lines>(ref<LineBlockLine>),
                   ref<EOL>)> {};
 
   // A comment's body is the indented block that follows. Its lines at the
@@ -218,58 +221,75 @@ struct Restructuredtext : cursiv::GrammarSpec {
   // right below it. A comment ending the input has no line break.
   struct DIRECTIVE_HEADER
       : terminal<some(cr<"a-zA-Z0-9_-">) + lit<"::"> + many(cr<R"(^\r\n)">)> {};
-  struct DirectiveBodyRule : rule<create<ast::DirectiveBody>(
+  struct DirectiveBody : rule<create<ast::DirectiveBody>(
                                  ref<INDENT> +
                                  many(append<&ast::DirectiveBody::entries>(
                                      ref<REST_OF_LINE> | ref<EOL> | ref<BLANK> |
-                                     ref<DirectiveBodyRule>)) +
+                                     ref<DirectiveBody>)) +
                                  ref<DEDENT>)> {};
-  struct DirectiveRule
+  struct Directive
       : rule<create<ast::Directive>(
             ref<COMMENT_MARK> +
             assign<&ast::Directive::header>(ref<DIRECTIVE_HEADER>) +
             (ref<EOL> | ref<BLANK>)+option(
-                assign<&ast::Directive::body>(ref<DirectiveBodyRule>)))> {};
-  struct LastDirectiveRule
+                assign<&ast::Directive::body>(ref<DirectiveBody>)))> {};
+  struct LastDirective
       : rule<ref<COMMENT_MARK> +
              assign<&ast::Directive::header>(ref<DIRECTIVE_HEADER>)> {};
-  struct CommentRule
+  static constexpr auto target_name_body = lit<"_"> +
+      ((lit<"`"> + some(escaped | (!lit<"`"> + any)) + lit<"`">) |
+       some(escaped | cr<R"(^:\r\n)">)) + lit<":">;
+  struct TARGET_NAME : terminal<as<target_name>(target_name_body)> {};
+  // Exclude target headers in the comment token itself. A parser guard
+  // cannot make a shorter target-label token beat a full comment line.
+  struct COMMENT_TEXT : terminal<!target_name_body +
+      cr<R"(^ \t\r\n)"> + many(cr<R"(^\r\n)">)> {};
+  struct ANONYMOUS_TARGET : terminal<lit<"__:">> {};
+  static constexpr auto target_header = ref<COMMENT_MARK> +
+      (flag<&ast::ExplicitTarget::anonymous>(ref<ANONYMOUS_TARGET>) |
+       assign<&ast::ExplicitTarget::name>(ref<TARGET_NAME>)) +
+      option(assign<&ast::ExplicitTarget::destination>(ref<REST_OF_LINE>));
+  struct ExplicitTarget : rule<create<ast::ExplicitTarget>(target_header +
+      (ref<EOL> | ref<BLANK>) +
+      option(assign<&ast::ExplicitTarget::continuation>(ref<DirectiveBody>)))> {};
+  struct LastExplicitTarget : rule<create<ast::ExplicitTarget>(target_header)> {};
+  struct Comment
       : rule<ref<COMMENT_MARK> +
-             assign<&ast::Comment::firstLine>(ref<REST_OF_LINE>) +
+             assign<&ast::Comment::firstLine>(ref<COMMENT_TEXT>) +
              (ref<EOL> | ref<BLANK>) + option(raw_block)> {};
-  struct LastCommentRule
+  struct LastComment
       : rule<ref<COMMENT_MARK> +
-             assign<&ast::Comment::firstLine>(ref<REST_OF_LINE>)> {};
-  struct MarkCommentRule : rule<create<ast::Comment> + ref<COMMENT_MARK>> {};
-  struct EmptyCommentRule
+             assign<&ast::Comment::firstLine>(ref<COMMENT_TEXT>)> {};
+  struct MarkComment : rule<create<ast::Comment> + ref<COMMENT_MARK>> {};
+  struct EmptyComment
       : rule<create<ast::Comment> + ref<COMMENT_MARK> + ref<EOL> +
              option(raw_block)> {};
-  struct BareCommentRule
+  struct BareComment
       : rule<create<ast::Comment> + ref<BARE_COMMENT> + option(raw_block)> {};
 
-  struct BlockQuoteRule;
-  struct DefinitionItemRule;
+  struct BlockQuote;
+  struct DefinitionItem;
   struct BulletItemRule;
-  struct LastBulletRule;
-  struct EnumItemRule;
-  struct LastEnumRule;
-  struct SectionRule;
+  struct LastBullet;
+  struct EnumItem;
+  struct LastEnum;
+  struct Section;
 
   struct TRANSITION_ADORN
       : terminal<adornment4 + many(cr<R"( \t)">) + (line_break | eof)> {};
-  struct TransitionRule
+  struct Transition
       : rule<create<ast::Transition> + &ref<TRANSITION_ADORN> + ref<ADORN>> {};
 
   // A block quote or a transition opens only after a blank line, and a
   // blank line or the end follows a transition.
   template <auto Body>
   static constexpr auto transition =
-      append<Body>(ref<TransitionRule>) +
+      append<Body>(ref<Transition>) +
       (eof | ((ref<EOL> | ref<BLANK>) +
-              option(append<Body>(ref<BlockQuoteRule>))));
+              option(append<Body>(ref<BlockQuote>))));
   template <auto Body>
   static constexpr auto after_blank =
-      option(append<Body>(ref<BlockQuoteRule>) | transition<Body>);
+      option(append<Body>(ref<BlockQuote>) | transition<Body>);
   template <auto Body>
   static constexpr auto line_end = ref<EOL> | (ref<BLANK> + after_blank<Body>);
   // ...and the blank lines after a block whose last token read its own line
@@ -283,54 +303,54 @@ struct Restructuredtext : cursiv::GrammarSpec {
   // own line break may be followed by a transition.
   template <auto Body>
   static constexpr auto unit =
-      ((append<Body>(ref<BulletItemRule>) | append<Body>(ref<EnumItemRule>) |
-        append<Body>(ref<DirectiveRule> | ref<CommentRule>)) +
+      ((append<Body>(ref<BulletItemRule>) | append<Body>(ref<EnumItem>) |
+        append<Body>(ref<ExplicitTarget> | ref<Directive> | ref<Comment>)) +
        option(transition<Body>)) |
-      (append<Body>(ref<MarkCommentRule>) + ref<BLANK> + after_blank<Body>) |
-      (append<Body>(ref<EmptyCommentRule>) + after_line<Body>) |
-      (append<Body>(ref<BareCommentRule>) + after_line<Body>) |
-      (append<Body>(ref<LineBlockRule>) + line_end<Body>) |
-      append<Body>(ref<DefinitionItemRule>) |
-      (append<Body>(ref<ParagraphRule>) + line_end<Body>);
+      (append<Body>(ref<MarkComment>) + ref<BLANK> + after_blank<Body>) |
+      (append<Body>(ref<EmptyComment>) + after_line<Body>) |
+      (append<Body>(ref<BareComment>) + after_line<Body>) |
+      (append<Body>(ref<LineBlock>) + line_end<Body>) |
+      append<Body>(ref<DefinitionItem>) |
+      (append<Body>(ref<Paragraph>) + line_end<Body>);
   template <auto Body>
   static constexpr auto last =
-      append<Body>(ref<LastBulletRule>) | append<Body>(ref<LastEnumRule>) |
-      append<Body>(ref<LastDirectiveRule> | ref<LastCommentRule>) |
-      append<Body>(ref<MarkCommentRule>) | append<Body>(ref<LineBlockRule>) |
-      append<Body>(ref<ParagraphRule>);
+      append<Body>(ref<LastBullet>) | append<Body>(ref<LastEnum>) |
+      append<Body>(ref<LastExplicitTarget> | ref<LastDirective> | ref<LastComment>) |
+      append<Body>(ref<MarkComment>) | append<Body>(ref<LineBlock>) |
+      append<Body>(ref<Paragraph>);
   template <auto Body>
   static constexpr auto suite =
       ref<INDENT> + ((many(unit<Body>) + last<Body>) | some(unit<Body>)) +
       ref<DEDENT>;
 
-  struct BlockQuoteRule : rule<suite<&ast::BlockQuote::body>> {};
-  struct DefinitionItemRule
+  struct BlockQuote : rule<suite<&ast::BlockQuote::body>> {};
+  struct DefinitionItem
       : rule<text_line<&ast::DefinitionItem::term> + ref<EOL> +
              suite<&ast::DefinitionItem::body>> {};
 
   // An item's first line and its line break, alone or continued by the
   // lines indented below it, which join it whatever they open; the line
   // break ending them is theirs too.
-  struct ItemLineRule
+  struct ItemLine
       : rule<text_line<&ast::Paragraph::spans> + ref<EOL>> {};
   static constexpr auto item_more_line =
       append<&ast::Paragraph::spans>(span | block_start_marker) +
       many(append<&ast::Paragraph::spans>(span));
-  struct ItemTextRule
+  struct ItemText
       : rule<text_line<&ast::Paragraph::spans> +
              append<&ast::Paragraph::spans>(ref<EOL>) + ref<INDENT> +
              item_more_line +
              many(append<&ast::Paragraph::spans>(ref<EOL>) + item_more_line) +
              option(ref<EOL> | ref<BLANK>)> {};
-  struct ItemOnlyRule : rule<text_line<&ast::Paragraph::spans>> {};
+  struct ItemOnly : rule<text_line<&ast::Paragraph::spans>> {};
   // An item's body goes on indented: in the block its continued text opens,
   // past a blank line, or right below a marker alone on its line.
   template <auto Body>
   static constexpr auto item_rest =
-      (append<Body>(ref<ItemTextRule>) + many(unit<Body>) +
+      (append<Body>(ref<ItemText>) + many(unit<Body>) +
        option(last<Body>) + ref<DEDENT>) |
-      append<Body>(ref<ItemLineRule>) |
-      (append<Body>(ref<ItemOnlyRule>) + ref<BLANK> + option(suite<Body>)) |
+      append<Body>(ref<ItemLine>) |
+      (append<Body>(ref<ItemOnly>) + ref<BLANK> + option(suite<Body>)) |
       ((ref<EOL> | ref<BLANK>) + option(suite<Body>));
 
   // A bullet alone on its line lexes as the plain run a paragraph would open
@@ -344,39 +364,39 @@ struct Restructuredtext : cursiv::GrammarSpec {
        assign<&ast::BulletItem::marker>(ref<SepRun> | ref<BARE_STAR>));
   struct BulletItemRule
       : rule<bullet + item_rest<&ast::BulletItem::body>> {};
-  struct LastBulletRule
+  struct LastBullet
       : rule<bullet + option(append<&ast::BulletItem::body>(
-                          ref<ItemOnlyRule>))> {};
-  struct EnumItemRule
+                          ref<ItemOnly>))> {};
+  struct EnumItem
       : rule<assign<&ast::EnumItem::number>(ref<ENUM_MARK>) +
              item_rest<&ast::EnumItem::body>> {};
-  struct LastEnumRule
+  struct LastEnum
       : rule<assign<&ast::EnumItem::number>(ref<ENUM_MARK>) +
-             option(append<&ast::EnumItem::body>(ref<ItemOnlyRule>))> {};
+             option(append<&ast::EnumItem::body>(ref<ItemOnly>))> {};
 
   // Title and underline only: see ast.hpp for how a section's own trailing
   // content is grouped from the flat list this produces. An overlined title
   // may be inset.
-  struct SectionRule
+  struct Section
       : rule<((ref<ADORN> + ref<INDENT> + text_line<&ast::Section::title> +
                ref<EOL> + ref<DEDENT>) |
               (option(ref<ADORN>) + text_line<&ast::Section::title> +
                ref<EOL>)) +
-             assign<&ast::Section::underline>(ref<ADORN> | ref<SectionSep>)> {};
+             assign<&ast::Section::underline>(ref<TITLE_ADORN>)> {};
 
   // The document may open on a block quote or a transition. The section comes
   // before the unit: text over an adornment line that a paragraph could take
   // as prose is a title, whatever the adornment byte.
-  struct DocRule
+  struct Doc
       : rule<create<ast::Document> + option(ref<EOL> | ref<BLANK>) +
-             option(append<&ast::Document::blocks>(ref<BlockQuoteRule>) |
+             option(append<&ast::Document::blocks>(ref<BlockQuote>) |
                     transition<&ast::Document::blocks>) +
-             many((append<&ast::Document::blocks>(ref<SectionRule>) +
+             many((append<&ast::Document::blocks>(ref<Section>) +
                    after_line<&ast::Document::blocks>) |
                   unit<&ast::Document::blocks>) +
              option(last<&ast::Document::blocks>)> {};
 
-  using entry = DocRule;
+  using entry = Doc;
   using hidden = list<SP>;
 };
 

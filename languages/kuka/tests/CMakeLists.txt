@@ -7,7 +7,7 @@ endif()
 # (exercising constructs the one-file corpus never reaches) parse clean too,
 # and real field values read back correctly.
 add_executable(kuka_grammar_test grammar_test.cpp)
-target_link_libraries(kuka_grammar_test PRIVATE kukaCore)
+target_link_libraries(kuka_grammar_test PRIVATE kukaCore cursiv::test)
 target_compile_definitions(kuka_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

@@ -13,7 +13,7 @@ struct Expression : cursiv::Extends<cursiv::AstNode> {};
 
 struct VarDecl : cursiv::Extends<cursiv::AstNode> {
   string_view name;
-  optional<int32> size;
+  optional<int64> size;
 };
 
 struct Procedure : cursiv::Extends<cursiv::AstNode> {
@@ -49,6 +49,7 @@ struct CallStmt : cursiv::Extends<Statement> {
 
 struct ReadStmt : cursiv::Extends<Statement> {
   string_view name;
+  Expression* index;
 };
 
 struct WriteStmt : cursiv::Extends<Statement> {
@@ -89,7 +90,7 @@ struct UnaryExpr : cursiv::Extends<Expression> {
 };
 
 struct ConstantExpr : cursiv::Extends<Expression> {
-  int32 value;
+  int64 value;
 };
 
 enum class BinOp : std::uint8_t {

@@ -31,6 +31,9 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Textual MPS describes optimization models using free-format or fixed-column
+cards. Numeric spellings, including Fortran D exponents, are retained.
+
 ```
 NAME          TESTPROB
 ROWS
@@ -54,12 +57,6 @@ BOUNDS
  UP BND1      YTWO                 1
 ENDATA
 ```
-
-MPS (Mathematical Programming System) is the fixed-vocabulary,
-whitespace-separated format most LP/MIP solvers accept: a NAME card, a ROWS
-section naming each constraint's sense, a COLUMNS section giving each
-variable's coefficients, an RHS section, optional RANGES and BOUNDS
-sections, and ENDATA. Fields are read by content, not by column position.
 
 ## The command line
 

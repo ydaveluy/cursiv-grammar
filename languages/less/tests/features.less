@@ -4,7 +4,7 @@
 // imports with options and media types, and url().
 
 @base: #336699;
-@@indirect-name: base;
+@indirect-name: base;
 @spacing: 4px;
 
 @import (reference, once) "vars.less";
@@ -16,6 +16,7 @@
 
 .panel {
   color: @base;
+  indirect: @@indirect-name;
   margin: @spacing * 2;
   width: 100% - 4px;
   background: darken(@base, 10%);

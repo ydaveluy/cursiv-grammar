@@ -32,7 +32,7 @@ std::optional<std::uint32_t> codepoint(std::string_view text) {
     if (digit < 0) return std::nullopt;
     value = value * 16 + static_cast<unsigned>(digit);
   }
-  if (value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff))
+  if (value > 0x10ffff)
     return std::nullopt;
   return value;
 }
@@ -43,7 +43,7 @@ void MckeemanFormValidator::checkRange(
   const auto from = codepoint(range.from);
   const auto to = range.to ? codepoint(*range.to) : from;
   if (!from || !to)
-    accept.error(range, "Expected a Unicode scalar or hexadecimal code point.",
+    accept.error(range, "Expected a Unicode code point or its hexadecimal notation.",
                  "mckeemanform.codepoint");
   else if (*from > *to)
     accept.error(range, "The end of a range precedes its start.",

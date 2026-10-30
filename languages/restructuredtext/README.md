@@ -35,20 +35,19 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 Title
 =====
 
-A paragraph with *emphasis*, **strong text**, and an inline `literal`.
+A paragraph with *emphasis*, **strong text**, and an inline ``literal``.
 
 * A bullet item.
 - Another bullet item.
 
 1. A numbered item.
 
-See target_ for the definition, and _target marks it inline.
+See target_ for the definition, and _`target` marks it inline.
 
 .. A comment.
 ```
 
-Sample documents live under `tests/` (`sections.rst`, `inline.rst`) instead of
-`example/`.
+A structural reStructuredText parser using Docutils 0.23 as its reference.
 
 ## The command line
 

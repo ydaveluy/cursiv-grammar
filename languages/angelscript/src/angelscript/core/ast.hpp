@@ -274,7 +274,7 @@ struct ImportDecl : cursiv::Extends<Item> {
   boolean returnByRef;
   string_view name;
   ParamList* params;
-  string_view attr;
+  vector<string_view> attr;  // every function attribute, in source order
   string_view source;  // the `from STRING` target
 };
 
@@ -306,7 +306,7 @@ struct FuncdefDecl : cursiv::Extends<Item> {
 struct AccessorDecl : cursiv::Extends<cursiv::AstNode> {
   boolean isSetter;  // false: a getter
   boolean isConst;
-  string_view attr;
+  vector<string_view> attr;  // every function attribute, in source order
   boolean declOnly;
   BlockStmt* body;
 };
@@ -328,7 +328,7 @@ struct FuncDecl : cursiv::Extends<Item> {
   string_view name;
   ParamList* params;
   boolean isConst;
-  string_view attr;
+  vector<string_view> attr;  // every function attribute, in source order
   boolean declOnly;
   BlockStmt* body;
 };

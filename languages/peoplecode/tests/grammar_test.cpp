@@ -13,6 +13,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "cursiv/test/Check.hpp"
+#include "native_followup.hpp"
 #include "peoplecode/core/ast.hpp"
 #include "peoplecode/generated/Peoplecode/Module.hpp"
 
@@ -226,6 +227,7 @@ void precedence() {
 }  // namespace
 
 int main() {
+  peoplecode_followup::run(engine());
   corpus();
   field_values();
   coverage_document();

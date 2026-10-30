@@ -133,6 +133,7 @@ inline constexpr std::array opcode_names{
   std::string_view("RANDOM"),
   std::string_view("RETF"),
   std::string_view("RETURN"),
+  std::string_view("RETURNCODE"),
   std::string_view("RETURNCONTRACT"),
   std::string_view("RETURNDATACOPY"),
   std::string_view("RETURNDATALOAD"),

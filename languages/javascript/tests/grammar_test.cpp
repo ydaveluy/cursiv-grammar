@@ -13,6 +13,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "javascript/core/CoreServices.hpp"
 #include "javascript/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -116,6 +117,8 @@ int main() {
                               javascript::install_core_module>();
   if (modern_syntax(*language.language.parser))
     return 1;
+  if (!javascript_native_followup::run(language))
+    return 1;
 
   for (const fs::path &path : files) {
     std::ifstream file(path);
@@ -125,6 +128,13 @@ int main() {
                            std::istreambuf_iterator<char>());
 
     const cursiv::ParseResult result = language.language.parser->parse(text);
+    // The upstream legacy sample contains an unguarded XML CDATA opener;
+    // V8 rejects it as JavaScript. Keep the source as a negative example.
+    if (path.filename() == "Outdated.js") {
+      if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+        return fail(path.string() + ": unguarded CDATA unexpectedly parses clean");
+      continue;
+    }
     if (result.cst().recovered())
       return fail(path.string() + ": the parse needed repair");
 

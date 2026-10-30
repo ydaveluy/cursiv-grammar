@@ -34,7 +34,7 @@ enum class UnOp { plus, minus, lnot };
 enum class BinOp {
   power, mul, div, add, sub,
   lt, le, eq, ne, gt, ge,
-  land, lor, implies, equiv,
+  land, lor, implies, equiv, intdiv,
 };
 
 struct UnaryExpr : cursiv::Extends<Expr> {
@@ -88,6 +88,7 @@ struct CallStmt : cursiv::Extends<Stmt> {
 };
 
 struct IfStmt : cursiv::Extends<Stmt> {
+  boolean hasElse = false;
   Expr* cond = nullptr;
   Stmt* then_branch = nullptr;
   Stmt* else_branch = nullptr;
@@ -119,6 +120,7 @@ struct ForStmt : cursiv::Extends<Stmt> {
 };
 
 struct Block : cursiv::Extends<Stmt> {
+  vector<string_view> labels;  // labels of the outer program
   vector<Decl*> decls;
   vector<StmtEntry*> statements;
 };

@@ -1,5 +1,5 @@
-// The checks of this language: none yet, beyond what the grammar itself
-// already enforces by shape.
+// No semantic checks are registered: native name/type/loop-scope/error-code
+// and database-dependent command rules need further validation.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

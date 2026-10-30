@@ -29,6 +29,23 @@ int main() {
       mps::install_core_module>();
   if (!audit_regressions::run(language.language, *language.shared)) return 1;
 
+  {
+    const std::string source =
+        "NAME TEST FREE\nOBJSENSE MAX\nROWS\n N COST\n L LIMIT\n"
+        "COLUMNS\n X COST 1D+2 LIMIT 2\nRHS\n LIMIT 4\nENDATA\n";
+    const auto result = language.language.parser->parse(source);
+    const auto* model = result.value_as<mps::ast::Model>();
+    const auto* column = model && model->columns.size() == 1
+                             ? cursiv::ast_cast<mps::ast::ColumnCard>(model->columns[0]) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !model || !model->free || model->name != "TEST" ||
+        model->objectiveSenses.size() != 1 || model->objectiveSenses[0] != "MAX" ||
+        !column || column->entries.size() != 2 || column->entries[0]->value != "1D+2" ||
+        model->rhs.size() != 1 || model->rhs[0]->fields.size() != 2 ||
+        model->rhs[0]->fields[0] != "LIMIT" || model->rhs[0]->fields[1] != "4")
+      return fail("native profile", "FREE, objective sense and raw coefficient/card fields changed");
+  }
+
   const char* const samples[] = {
       CURSIV_EXAMPLE_DIR "/example1.mps",
       CURSIV_EXAMPLE_DIR "/sample1.mps",

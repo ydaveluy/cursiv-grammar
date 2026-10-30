@@ -30,19 +30,24 @@ struct InterfaceRef : cursiv::Extends<cursiv::AstNode> {
   string_view alias;  // after `as`, empty when absent
 };
 
+struct InterfaceMember;
 struct UsesProvides : cursiv::Extends<cursiv::AstNode> {
   boolean isProvides;
   vector<InterfaceRef*> interfaces;
+  vector<InterfaceMember*> members; // Bare command/event declarations.
 };
 
 // A `command`/`event` declaration inside a top-level `interface` block.
 struct InterfaceMember : cursiv::Extends<cursiv::AstNode> {
+  boolean isAsync;
   boolean isEvent;  // false: command
   string_view signature;
 };
 
 struct InterfaceDecl : cursiv::Extends<Component> {
   string_view name;
+  vector<string_view> typeParameters; // Each name and its optional attributes.
+  string_view attributes;
   vector<InterfaceMember*> members;
 };
 
@@ -144,7 +149,7 @@ struct Module : cursiv::Extends<Component> {
   string_view parameters;
   boolean isGeneric;
   string_view name;
-  string_view attribute;  // raw `@attr(...)` text, empty when absent
+  string_view attribute;  // raw attribute sequence, empty when absent
   vector<UsesProvides*> signature;
   vector<Stat*> body;
 };

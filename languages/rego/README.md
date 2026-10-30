@@ -44,10 +44,7 @@ allow {
 }
 ```
 
-A document is a sequence of packages, imports, rules and bare queries. A rule
-head names a value, a partial-set/object key, or nothing at all; each `{...}`
-body is a query of literals, each negatable and modifiable with `with ... as
-...`; `else` chains an alternative body onto the same rule.
+Rego v0/v1 syntax and query fragments, using OPA 1.9.0 as the comparison reference.
 
 ## The command line
 

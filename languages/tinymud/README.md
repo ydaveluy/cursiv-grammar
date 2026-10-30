@@ -38,10 +38,10 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 @ofail me=howls in pain as Igor bites them.
 ```
 
-A TinyMUD document is a transcript: one `@command` or plain-verb action per
-line. `object`, `player`, `name` and free-text fields (a description, a
-message) are all the same `STRING` token, whose class includes a space — a
-multi-word message is one token, not several.
+A document is a transcript of selected TinyMUD1.5.4 commands and actions,
+one per line; blank lines are ignored. Names/references, exit aliases and
+free text use their native delimiters. Argument whitespace is normalized;
+the CST retains the input spelling. Game state and privileges are separate.
 
 ## The command line
 

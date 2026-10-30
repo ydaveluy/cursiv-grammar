@@ -1,11 +1,23 @@
 #include "pddl/core/validation/PddlValidator.hpp"
 
 #include <memory>
+#include <string_view>
 
 #include "cursiv/core/validation/ValidationRegistry.hpp"
 #include "pddl/core/CoreServices.hpp"
 
 namespace pddl {
+namespace {
+bool nondeterministic(std::string_view text) {
+  constexpr std::string_view expected = ":non-deterministic";
+  if (text.size() != expected.size()) return false;
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    const auto c = text[i] >= 'A' && text[i] <= 'Z' ? text[i] + ('a' - 'A') : text[i];
+    if (c != expected[i]) return false;
+  }
+  return true;
+}
+} // namespace
 
 void PddlValidator::checkExpression(
     const ast::Expr& node, cursiv::ValidationAcceptor& accept) const {
@@ -32,7 +44,7 @@ void PddlValidator::checkEffect(
   for (const cursiv::AstNode* parent = node.parent; parent; parent = parent->parent)
     if (const auto* domain = cursiv::ast_cast<ast::Domain>(parent)) {
       for (auto requirement : domain->requirements)
-        if (requirement == ":non-deterministic") return;
+        if (nondeterministic(requirement)) return;
       accept.error(node, "oneof requires :non-deterministic.",
                    "pddl.oneof-requirement")
           .property<&ast::Effect::isOneOf>();

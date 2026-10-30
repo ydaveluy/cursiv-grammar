@@ -317,7 +317,7 @@ struct SetOptionCommand : cursiv::Extends<Command> {
 };
 
 // The document: one of a script, a logic declaration, a theory declaration,
-// or a solver response -- the four forms StartRule admits.
+// or a solver response -- the four forms Start admits.
 struct Doc : cursiv::Extends<cursiv::AstNode> {};
 
 struct Script : cursiv::Extends<Doc> {

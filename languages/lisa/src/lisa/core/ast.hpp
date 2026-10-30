@@ -29,12 +29,16 @@ struct NotExpr : cursiv::Extends<Expression> {
   Expression* operand;
 };
 
-// The chain `variable (exprop expression)*` right-recurses through `value`:
-// a run of pairs is `target op (target op (... value))`.
+struct AssignmentPart : cursiv::Extends<cursiv::AstNode> {
+  string_view op;
+  Expression* value;
+};
+// A source-order assignment chain; the first pair keeps the existing fields.
 struct AssignExpr : cursiv::Extends<Expression> {
   reference<Declaration> target;
   string_view op;
   Expression* value;
+  vector<AssignmentPart*> continuations;
 };
 
 struct GroupedExpr : cursiv::Extends<Expression> {
@@ -42,7 +46,7 @@ struct GroupedExpr : cursiv::Extends<Expression> {
 };
 
 struct IntegerLiteral : cursiv::Extends<Expression> {
-  int64 value;
+  string_view value;
 };
 
 struct BoolLiteral : cursiv::Extends<Expression> {

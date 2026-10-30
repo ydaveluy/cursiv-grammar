@@ -10,114 +10,65 @@ struct Argus : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
   struct COMMENT : terminal<lit<"%"> + many(cr<R"(^\r\n)">)> {};
 
-  struct ID : terminal<cr<"a-zA-Z"> + many(w)> {};
-  struct INT_LITERAL : terminal<some(d)> {};
-  struct REAL_LITERAL : terminal<some(d) + lit<"."> + some(d)> {};
-  struct CHAR_LITERAL : terminal<through(lit<"'">, lit<"'">)> {};
-  struct STRING_LITERAL : terminal<through(lit<"\"">, lit<"\"">)> {};
+  struct ID : terminal<cr<"a-zA-Z_"> + many(w)> {};
+  struct INT_LITERAL
+      : terminal<some(d) | (lit<"\\"> + some(cr<"0-7">)) |
+                 (lit<"\\#"> + some(cr<"0-9a-fA-F">))> {};
+  static constexpr auto Exponent = cr<"eE"> + option(cr<R"(+-)">) + some(d);
+  struct REAL_LITERAL
+      : terminal<(((some(d) + lit<"."> + many(d)) |
+                    (lit<"."> + some(d))) + option(Exponent)) |
+                 (some(d) + Exponent)> {};
+  static constexpr auto Escape =
+      lit<"\\"> +
+      (cr<R"('"\\bBtTnNvVpPrR)"> | repeat<3>(cr<"0-7">) |
+       (lit<"#"> + repeat<2>(cr<"0-9a-fA-F">)) |
+       (cr<"^!&"> + cr<" -~">));
+  struct CHAR_LITERAL
+      : terminal<lit<"'"> + (Escape | cr<R"(^'\\\r\n)">) + lit<"'">> {};
+  struct STRING_LITERAL
+      : terminal<lit<"\""> + many(Escape | cr<R"(^"\\\r\n)">) + lit<"\"">> {};
 
   // Every binary/unary operator token, each denoting its own constant --
   // the ladder below names them, `op` holds what they mean. `−` (U+2212) is
   // the language's spelling for subtraction/negation, with ASCII `-` also
   // accepted.
-  struct OP_POWER : terminal<lit<"**">, value<ast::Operator::power>> {};
-  struct OP_INTDIV : terminal<lit<"//">, value<ast::Operator::intdiv>> {};
-  struct OP_DIV : terminal<lit<"/">, value<ast::Operator::div>> {};
-  struct OP_MUL : terminal<lit<"*">, value<ast::Operator::mul>> {};
-  struct OP_CONCAT : terminal<lit<"||">, value<ast::Operator::concat>> {};
-  struct OP_ADD : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct OP_SUB : terminal<(lit<"-"> | lit<"−">), value<ast::Operator::sub>> {};
-  struct OP_LE : terminal<lit<"<=">, value<ast::Operator::le>> {};
-  struct OP_LT : terminal<lit<"<">, value<ast::Operator::lt>> {};
-  struct OP_EQ : terminal<lit<"=">, value<ast::Operator::eq>> {};
-  struct OP_GE : terminal<lit<">=">, value<ast::Operator::ge>> {};
-  struct OP_GT : terminal<lit<">">, value<ast::Operator::gt>> {};
-  struct OP_ALE : terminal<lit<"~<=">, value<ast::Operator::approx_le>> {};
-  struct OP_ALT : terminal<lit<"~<">, value<ast::Operator::approx_lt>> {};
-  struct OP_AEQ : terminal<lit<"~=">, value<ast::Operator::approx_eq>> {};
-  struct OP_AGE : terminal<lit<"~>=">, value<ast::Operator::approx_ge>> {};
-  struct OP_AGT : terminal<lit<"~>">, value<ast::Operator::approx_gt>> {};
-  struct OP_AND : terminal<lit<"&">, value<ast::Operator::and_>> {};
-  struct OP_CAND : terminal<kw<"cand">, value<ast::Operator::cand>> {};
-  struct OP_OR : terminal<lit<"|">, value<ast::Operator::or_>> {};
-  struct OP_COR : terminal<kw<"cor">, value<ast::Operator::cor>> {};
-  struct OP_NOT : terminal<lit<"~">, value<ast::UnaryOp::not_>> {};
-  struct OP_NEG : terminal<(lit<"-"> | lit<"−">), value<ast::UnaryOp::neg>> {};
-
-  struct KIND_NULL : terminal<kw<"null">, value<ast::SimpleTypeKind::null_>> {};
-  struct KIND_NODE : terminal<kw<"node">, value<ast::SimpleTypeKind::node>> {};
-  struct KIND_BOOL : terminal<kw<"bool">, value<ast::SimpleTypeKind::bool_>> {};
-  struct KIND_INT : terminal<kw<"int">, value<ast::SimpleTypeKind::int_>> {};
-  struct KIND_REAL : terminal<kw<"real">, value<ast::SimpleTypeKind::real>> {};
-  struct KIND_CHAR : terminal<kw<"char">, value<ast::SimpleTypeKind::char_>> {};
-  struct KIND_STRING : terminal<kw<"string">, value<ast::SimpleTypeKind::string>> {};
-  struct KIND_ANY : terminal<kw<"any">, value<ast::SimpleTypeKind::any>> {};
-  struct KIND_IMAGE : terminal<kw<"image">, value<ast::SimpleTypeKind::image>> {};
-  struct KIND_REP : terminal<kw<"rep">, value<ast::SimpleTypeKind::rep>> {};
-  struct KIND_CVT : terminal<kw<"cvt">, value<ast::SimpleTypeKind::cvt>> {};
-
-  struct CTK_SEQUENCE
-      : terminal<kw<"sequence">, value<ast::ContainerTypeKind::sequence>> {};
-  struct CTK_ARRAY : terminal<kw<"array">, value<ast::ContainerTypeKind::array>> {};
-  struct CTK_ATOMIC_ARRAY
-      : terminal<kw<"atomic_array">, value<ast::ContainerTypeKind::atomic_array>> {};
-  struct CTK_MUTEX : terminal<kw<"mutex">, value<ast::ContainerTypeKind::mutex>> {};
-
-  struct FTK_STRUCT : terminal<kw<"struct">, value<ast::FieldedTypeKind::struct_>> {};
-  struct FTK_RECORD : terminal<kw<"record">, value<ast::FieldedTypeKind::record>> {};
-  struct FTK_ATOMIC_RECORD
-      : terminal<kw<"atomic_record">, value<ast::FieldedTypeKind::atomic_record>> {};
-  struct FTK_ONEOF : terminal<kw<"oneof">, value<ast::FieldedTypeKind::oneof>> {};
-  struct FTK_VARIANT : terminal<kw<"variant">, value<ast::FieldedTypeKind::variant>> {};
-  struct FTK_ATOMIC_VARIANT
-      : terminal<kw<"atomic_variant">, value<ast::FieldedTypeKind::atomic_variant>> {};
-
-  struct RTK_PROCTYPE
-      : terminal<kw<"proctype">, value<ast::RoutineTypeKind::proctype>> {};
-  struct RTK_ITERTYPE
-      : terminal<kw<"itertype">, value<ast::RoutineTypeKind::itertype>> {};
-  struct RTK_CREATORTYPE
-      : terminal<kw<"creatortype">, value<ast::RoutineTypeKind::creatortype>> {};
-  struct RTK_HANDLERTYPE
-      : terminal<kw<"handlertype">, value<ast::RoutineTypeKind::handlertype>> {};
-
-  struct ARMTAG_ACTION : terminal<kw<"action">, value<ast::ArmTag::action>> {};
-  struct ARMTAG_TOPACTION
-      : terminal<kw<"topaction">, value<ast::ArmTag::topaction>> {};
-  struct ARMTAG_PROCESS : terminal<kw<"process">, value<ast::ArmTag::process>> {};
+  struct OP_SUB : terminal<as<ast::Operator::sub>((lit<"-"> | lit<"−">))> {};
+  struct OP_NEG : terminal<as<ast::UnaryOp::neg>((lit<"-"> | lit<"−">))> {};
 
   struct Reference;
   struct ActualParm;
   struct TypeActual;
   struct OpBinding;
   struct FieldSpec;
-  struct TypeSpecRule;
-  struct FieldRule;
+  struct TypeSpec;
+  struct Field;
   struct Primary;
+  struct Entity;
   struct PostfixExpr;
   struct Unary;
   struct ExprLadder;
   struct CallAt;
   struct Expression;
-  struct CallRule;
-  struct BindArgRule;
+  struct Call;
+  struct BindArg;
 
-  struct DeclRule;
-  struct ParmRule;
-  struct OperDeclRule;
+  struct Decl;
+  struct Parm;
+  struct OperDecl;
   struct TypeSetElement;
   struct TypeSet;
   struct Restriction;
-  struct WhereRule;
-  struct EquateRule;
-  struct ExceptionRule;
+  struct Where;
+  struct Equate;
+  struct Exception;
   struct ReturnzClause;
   struct YieldsClause;
   struct SignalsClause;
 
-  struct BodyRule;
-  struct OwnVarRule;
-  struct StateDeclRule;
+  struct Body;
+  struct OwnVar;
+  struct StateDecl;
 
   struct Statement;
   struct BaseStatement;
@@ -126,8 +77,8 @@ struct Argus : cursiv::GrammarSpec {
   struct IfBranch;
   struct TagArm;
   struct ATagArm;
-  struct WhenHandlerRule;
-  struct OthersHandlerRule;
+  struct WhenHandler;
+  struct OthersHandler;
 
   struct Equates_;
   struct Procedure;
@@ -136,7 +87,7 @@ struct Argus : cursiv::GrammarSpec {
   struct Handler;
   struct Guardian;
   struct Cluster;
-  struct ModuleRule;
+  struct Module;
 
   // ---- expressions ----------------------------------------------------
 
@@ -150,13 +101,14 @@ struct Argus : cursiv::GrammarSpec {
                    lit<"]">) +
             many(lit<"$"> + append<&ast::Reference::selectors>(ref<ID>)))> {};
 
+  static constexpr auto OpBindings =
+      many(append<&ast::TypeActual::bindings>(ref<OpBinding>), lit<",">);
+
   struct TypeActual
       : rule<create<ast::TypeActual>(
-            assign<&ast::TypeActual::type>(ref<TypeSpecRule>) +
-            option(kw<"with"> +
-                   option(some(
-                       append<&ast::TypeActual::bindings>(ref<OpBinding>),
-                       lit<",">))))> {};
+            assign<&ast::TypeActual::type>(ref<TypeSpec>) +
+            option(ikw<"with"> +
+                   ((lit<"{"> + OpBindings + lit<"}">) | OpBindings)))> {};
 
   struct ActualParm
       : rule<create<ast::ActualParm>(
@@ -175,23 +127,23 @@ struct Argus : cursiv::GrammarSpec {
 
   struct SimpleTypeSpec
       : rule<create<ast::SimpleType>(assign<&ast::SimpleType::kind>(
-            ref<KIND_NULL> | ref<KIND_NODE> | ref<KIND_BOOL> | ref<KIND_INT> |
-            ref<KIND_REAL> | ref<KIND_CHAR> | ref<KIND_STRING> | ref<KIND_ANY> |
-            ref<KIND_IMAGE> | ref<KIND_REP> | ref<KIND_CVT>))> {};
+            as<ast::SimpleTypeKind::null_>(ikw<"null">) | as<ast::SimpleTypeKind::node>(ikw<"node">) | as<ast::SimpleTypeKind::bool_>(ikw<"bool">) | as<ast::SimpleTypeKind::int_>(ikw<"int">) |
+            as<ast::SimpleTypeKind::real>(ikw<"real">) | as<ast::SimpleTypeKind::char_>(ikw<"char">) | as<ast::SimpleTypeKind::string>(ikw<"string">) | as<ast::SimpleTypeKind::any>(ikw<"any">) |
+            as<ast::SimpleTypeKind::image>(ikw<"image">) | as<ast::SimpleTypeKind::rep>(ikw<"rep">) | as<ast::SimpleTypeKind::cvt>(ikw<"cvt">)))> {};
 
   struct ContainerTypeSpec
       : rule<create<ast::ContainerType>(
             assign<&ast::ContainerType::kind>(
-                ref<CTK_SEQUENCE> | ref<CTK_ARRAY> | ref<CTK_ATOMIC_ARRAY> |
-                ref<CTK_MUTEX>) +
+                as<ast::ContainerTypeKind::sequence>(ikw<"sequence">) | as<ast::ContainerTypeKind::array>(ikw<"array">) | as<ast::ContainerTypeKind::atomic_array>(ikw<"atomic_array"> | (ikw<"atomic"> + ikw<"array">)) |
+                as<ast::ContainerTypeKind::mutex>(ikw<"mutex">)) +
             lit<"["> + assign<&ast::ContainerType::element>(ref<TypeActual>) +
             lit<"]">)> {};
 
   struct FieldedTypeSpec
       : rule<create<ast::FieldedType>(
             assign<&ast::FieldedType::kind>(
-                ref<FTK_STRUCT> | ref<FTK_RECORD> | ref<FTK_ATOMIC_RECORD> |
-                ref<FTK_ONEOF> | ref<FTK_VARIANT> | ref<FTK_ATOMIC_VARIANT>) +
+                as<ast::FieldedTypeKind::struct_>(ikw<"struct">) | as<ast::FieldedTypeKind::record>(ikw<"record">) | as<ast::FieldedTypeKind::atomic_record>(ikw<"atomic_record"> | (ikw<"atomic"> + ikw<"record">)) |
+                as<ast::FieldedTypeKind::oneof>(ikw<"oneof">) | as<ast::FieldedTypeKind::variant>(ikw<"variant">) | as<ast::FieldedTypeKind::atomic_variant>(ikw<"atomic_variant"> | (ikw<"atomic"> + ikw<"variant">))) +
             lit<"["> +
             some(append<&ast::FieldedType::fields>(ref<FieldSpec>), lit<",">) +
             lit<"]">)> {};
@@ -199,10 +151,10 @@ struct Argus : cursiv::GrammarSpec {
   struct RoutineTypeSpec
       : rule<create<ast::RoutineType>(
             assign<&ast::RoutineType::kind>(
-                ref<RTK_PROCTYPE> | ref<RTK_ITERTYPE> | ref<RTK_CREATORTYPE> |
-                ref<RTK_HANDLERTYPE>) +
+                as<ast::RoutineTypeKind::proctype>(ikw<"proctype">) | as<ast::RoutineTypeKind::itertype>(ikw<"itertype">) | as<ast::RoutineTypeKind::creatortype>(ikw<"creatortype">) |
+                as<ast::RoutineTypeKind::handlertype>(ikw<"handlertype">)) +
             option(lit<"("> +
-                   some(append<&ast::RoutineType::params>(ref<TypeSpecRule>),
+                   many(append<&ast::RoutineType::params>(ref<TypeSpec>),
                         lit<",">) +
                    lit<")">) +
             option(assign<&ast::RoutineType::returns>(ref<ReturnzClause>)) +
@@ -213,36 +165,37 @@ struct Argus : cursiv::GrammarSpec {
       : rule<create<ast::ReferenceType>(
             assign<&ast::ReferenceType::ref>(ref<Reference>))> {};
 
-  struct TypeSpecRule : rule<ref<SimpleTypeSpec>      //
+  struct TypeSpec : rule<ref<SimpleTypeSpec>      //
                              | ref<ContainerTypeSpec>  //
                              | ref<FieldedTypeSpec>    //
                              | ref<RoutineTypeSpec>    //
                              | ref<ReferenceTypeSpec>> {};
 
-  struct FieldRule
+  struct Field
       : rule<create<ast::Field>(
             some(append<&ast::Field::names>(ref<ID>), lit<",">) + lit<":"> +
             assign<&ast::Field::value>(ref<Expression>))> {};
 
   // The argument list is bracketed here too -- see ast.hpp's comment on
   // `ast::DollarExpr`.
-  struct BindArgRule
+  struct BindArg
       : rule<create<ast::BindArg>(
             flag<&ast::BindArg::star>(lit<"*">) |
             assign<&ast::BindArg::expression>(ref<Expression>))> {};
 
   struct DollarForm
       : rule<create<ast::DollarExpr>(
-            assign<&ast::DollarExpr::type>(ref<TypeSpecRule>) + lit<"$"> +
+            assign<&ast::DollarExpr::type>(ref<TypeSpec>) + lit<"$"> +
             (
                 (assign<&ast::DollarExpr::name>(ref<ID>) +
-                 option(lit<"("> +
-                        some(append<&ast::DollarExpr::actualParms>(
-                                 ref<ActualParm>),
-                             lit<",">) +
-                        lit<")">))  //
+                 option((lit<"["> +
+                         some(append<&ast::DollarExpr::actualParms>(ref<ActualParm>),
+                              lit<",">) + lit<"]">) |
+                        (lit<"("> +
+                         some(append<&ast::DollarExpr::actualParms>(ref<ActualParm>),
+                              lit<",">) + lit<")">)))  //
                 | (lit<"{"> +
-                   many(append<&ast::DollarExpr::fields>(ref<FieldRule>),
+                   many(append<&ast::DollarExpr::fields>(ref<Field>),
                         lit<",">) +
                    lit<"}">)  //
                 | (lit<"["> +
@@ -253,10 +206,10 @@ struct Argus : cursiv::GrammarSpec {
                    lit<"]">)))> {};
 
   struct Primary
-      : rule<(create<ast::NilLit> + kw<"nil">)      //
-             | (create<ast::TrueLit> + kw<"true">)  //
-             | (create<ast::FalseLit> + kw<"false">)  //
-             | (create<ast::SelfLit> + kw<"self">)     //
+      : rule<(create<ast::NilLit> + ikw<"nil">)      //
+             | (create<ast::TrueLit> + ikw<"true">)  //
+             | (create<ast::FalseLit> + ikw<"false">)  //
+             | (create<ast::SelfLit> + ikw<"self">)     //
              | create<ast::IntLit>(assign<&ast::IntLit::value>(ref<INT_LITERAL>))  //
              | create<ast::RealLit>(
                    assign<&ast::RealLit::value>(ref<REAL_LITERAL>))  //
@@ -268,49 +221,59 @@ struct Argus : cursiv::GrammarSpec {
                 create<ast::ParenExpr>(
                     assign<&ast::ParenExpr::inner>(ref<Expression>)) +
                 lit<")">)  //
-             | create<ast::UpExpr>(kw<"up"> + lit<"("> +
+             | create<ast::UpExpr>(ikw<"up"> + lit<"("> +
                                    assign<&ast::UpExpr::operand>(ref<Expression>) +
                                    lit<")">)  //
              | create<ast::DownExpr>(
-                   kw<"down"> + lit<"("> +
+                   ikw<"down"> + lit<"("> +
                    assign<&ast::DownExpr::operand>(ref<Expression>) + lit<")">)  //
              | create<ast::BindExpr>(
-                   kw<"bind"> + assign<&ast::BindExpr::target>(ref<PostfixExpr>) +
-                   option(lit<"("> +
-                          some(append<&ast::BindExpr::args>(ref<BindArgRule>),
-                               lit<",">) +
-                          lit<")">))  //
+                   ikw<"bind"> + assign<&ast::BindExpr::target>(ref<Entity>) +
+                   ((lit<"("> +
+                     many(append<&ast::BindExpr::args>(ref<BindArg>), lit<",">) +
+                     lit<")">) |
+                    !lit<"(">))  // bare bind remains a permissive extension
              | ref<DollarForm>        //
              | ref<Reference>> {};
 
+  static constexpr auto SelectionStep =
+      nest<ast::Selection, &ast::Selection::target>(
+          lit<"."> + assign<&ast::Selection::field>(ref<ID>));
+  static constexpr auto IndexStep =
+      nest<ast::IndexExpr, &ast::IndexExpr::target>(
+          lit<"["> + assign<&ast::IndexExpr::index>(ref<Expression>) + lit<"]">);
+
+  // A bind target is an entity; consuming a call here would turn
+  // `bind f(1)` into a closure over the result of calling f.
+  struct Entity : rule<ref<Primary> + many(SelectionStep | IndexStep)> {};
+
   struct PostfixExpr
-      : rule<ref<Primary> +
-             many(nest<ast::Selection, &ast::Selection::target>(
-                 lit<"."> + assign<&ast::Selection::field>(ref<ID>)) |
-                 nest<ast::Call, &ast::Call::callee>(
+      : rule<ref<Entity> +
+             many(SelectionStep | IndexStep |
+                  nest<ast::Call, &ast::Call::callee>(
                      lit<"("> +
                      many(append<&ast::Call::args>(ref<Expression>), lit<",">) +
                      lit<")">))> {};
 
   struct Unary
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<OP_NOT> | ref<OP_NEG>) +
+                 assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::not_>(lit<"~">) | ref<OP_NEG>) +
                  assign<&ast::UnaryExpr::operand>(ref<Unary>))  //
              | ref<PostfixExpr>> {};
 
   struct ExprLadder
-      : infix<Unary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<OP_POWER>) >>                                      //
-               left(ref<OP_INTDIV> | ref<OP_DIV> | ref<OP_MUL>) >>          //
-               left(ref<OP_ADD> | ref<OP_SUB> | ref<OP_CONCAT>) >>          //
-               left(ref<OP_LE> | ref<OP_LT> | ref<OP_EQ> | ref<OP_GE> |    //
-                    ref<OP_GT> | ref<OP_ALE> | ref<OP_ALT> | ref<OP_AEQ> |  //
-                    ref<OP_AGE> | ref<OP_AGT>) >>                          //
-               left(ref<OP_AND> | ref<OP_CAND>) >>                         //
-               left(ref<OP_OR> | ref<OP_COR>))> {};
+      : infix<Unary, ast::BinaryExpr,
+              levels(right(as<ast::Operator::power>(lit<"**">)),                              //
+                     left(as<ast::Operator::intdiv>(lit<"//">) | as<ast::Operator::div>(lit<"/">) | as<ast::Operator::mul>(lit<"*">)),  //
+                     left(as<ast::Operator::add>(lit<"+">) | ref<OP_SUB> | as<ast::Operator::concat>(lit<"||">)),  //
+                     left(as<ast::Operator::le>(lit<"<=">) | as<ast::Operator::lt>(lit<"<">) | as<ast::Operator::eq>(lit<"=">) |        //
+                          as<ast::Operator::ge>(lit<">=">) | as<ast::Operator::gt>(lit<">">) | as<ast::Operator::approx_le>(lit<"~<=">) |       //
+                          as<ast::Operator::approx_lt>(lit<"~<">) | as<ast::Operator::approx_eq>(lit<"~=">) | as<ast::Operator::approx_ge>(lit<"~>=">) |     //
+                          as<ast::Operator::approx_gt>(lit<"~>">)),                                 //
+                     left(as<ast::Operator::and_>(lit<"&">) | as<ast::Operator::cand>(ikw<"cand">)),                  //
+                     left(as<ast::Operator::or_>(lit<"|">) | as<ast::Operator::cor>(ikw<"cor">)))> {};
 
-  struct CallRule
+  struct Call
       : rule<create<ast::Call>(
             assign<&ast::Call::callee>(ref<PostfixExpr>) + lit<"("> +
             many(append<&ast::Call::args>(ref<Expression>), lit<",">) +
@@ -318,43 +281,53 @@ struct Argus : cursiv::GrammarSpec {
 
   struct CallAt
       : rule<create<ast::CallAtExpr>(
-            assign<&ast::CallAtExpr::call>(ref<CallRule>) + lit<"@"> +
+            assign<&ast::CallAtExpr::call>(ref<Call>) + lit<"@"> +
             assign<&ast::CallAtExpr::collector>(ref<PostfixExpr>))> {};
 
   struct Expression : rule<ref<CallAt> | ref<ExprLadder>> {};
 
   // ---- declarations, restrictions, equates -----------------------------
 
-  struct DeclRule
+  struct Decl
       : rule<create<ast::Decl>(
             some(append<&ast::Decl::names>(ref<ID>), lit<",">) + lit<":"> +
-            assign<&ast::Decl::type>(ref<TypeSpecRule>))> {};
+            assign<&ast::Decl::type>(ref<TypeSpec>))> {};
 
-  struct ParmRule
+  struct Parm
       : rule<create<ast::Parm>(
             some(append<&ast::Parm::names>(ref<ID>), lit<",">) + lit<":"> +
-            (flag<&ast::Parm::isTypeParam>(kw<"type">) |
-             assign<&ast::Parm::type>(ref<TypeSpecRule>)))> {};
+            (flag<&ast::Parm::isTypeParam>(ikw<"type">) |
+             assign<&ast::Parm::type>(ref<TypeSpec>)))> {};
 
-  struct OperDeclRule
+  // Native generator parameters are bracketed. Keep the earlier bare
+  // spelling as a permissive extension, sharing the same captures.
+  template <auto Member>
+  static constexpr auto FormalParms =
+      (lit<"["> + some(append<Member>(ref<Parm>), lit<",">) + lit<"]">) |
+      some(append<Member>(ref<Parm>), lit<",">);
+
+  struct OperDecl
       : rule<create<ast::OperDecl>(
-                 flag<&ast::OperDecl::transmit>(kw<"transmit">))  //
+                 flag<&ast::OperDecl::transmit>(ikw<"transmit">))  //
              | create<ast::OperDecl>(
                    some(append<&ast::OperDecl::names>(ref<ID>), lit<",">) +
-                   lit<":"> + assign<&ast::OperDecl::type>(ref<TypeSpecRule>))> {
+                   lit<":"> + assign<&ast::OperDecl::type>(ref<TypeSpec>))> {
   };
 
   struct TypeSetElement
       : rule<create<ast::TypeSetElement>(
-                 assign<&ast::TypeSetElement::name>(ref<ID>) + kw<"has"> +
-                 some(append<&ast::TypeSetElement::operDecls>(ref<OperDeclRule>),
+                 assign<&ast::TypeSetElement::name>(ref<ID>) + ikw<"has"> +
+                 some(append<&ast::TypeSetElement::operDecls>(ref<OperDecl>),
                       lit<",">) +
-                 many(append<&ast::TypeSetElement::equates>(ref<EquateRule>)))  //
+                 many(append<&ast::TypeSetElement::equates>(ref<Equate>)))  //
              | create<ast::TypeSetElement>(
                    assign<&ast::TypeSetElement::name>(ref<ID>))> {};
 
   struct TypeSet
       : rule<create<ast::TypeSet>(
+                 lit<"{"> + assign<&ast::TypeSet::binder>(ref<ID>) + lit<"|"> +
+                 append<&ast::TypeSet::elements>(ref<TypeSetElement>) + lit<"}">) |
+             create<ast::TypeSet>(
                  many(append<&ast::TypeSet::elements>(ref<TypeSetElement>)))  //
              | create<ast::TypeSet>(
                    assign<&ast::TypeSet::scopedRef>(ref<Reference>) + lit<"$"> +
@@ -362,304 +335,314 @@ struct Argus : cursiv::GrammarSpec {
 
   struct Restriction
       : rule<create<ast::Restriction>(
-                 assign<&ast::Restriction::name>(ref<ID>) + kw<"has"> +
-                 some(append<&ast::Restriction::operDecls>(ref<OperDeclRule>),
+                 assign<&ast::Restriction::name>(ref<ID>) + ikw<"has"> +
+                 some(append<&ast::Restriction::operDecls>(ref<OperDecl>),
                       lit<",">))  //
              | create<ast::Restriction>(
-                   assign<&ast::Restriction::name>(ref<ID>) + kw<"in"> +
+                   assign<&ast::Restriction::name>(ref<ID>) + ikw<"in"> +
                    assign<&ast::Restriction::typeSet>(ref<TypeSet>))> {};
 
-  struct WhereRule
+  struct Where
       : rule<create<ast::Where>(
-            kw<"where"> +
+            ikw<"where"> +
             some(append<&ast::Where::restrictions>(ref<Restriction>), lit<",">))> {
   };
 
-  struct EquateRule
+  struct Equate
       : rule<create<ast::Equate>(
             assign<&ast::Equate::name>(ref<ID>) + lit<"="> +
-            assign<&ast::Equate::value>(ref<Expression> | ref<TypeSpecRule> |
+            assign<&ast::Equate::value>(ref<Expression> | ref<TypeSpec> |
                                         ref<TypeSet>))> {};
 
-  struct ExceptionRule
+  struct Exception
       : rule<create<ast::Exception_>(
             assign<&ast::Exception_::name>(ref<ID>) +
-            option(some(append<&ast::Exception_::types>(ref<TypeSpecRule>),
-                        lit<",">)))> {};
+            option((lit<"("> +
+                    many(append<&ast::Exception_::types>(ref<TypeSpec>), lit<",">) +
+                    lit<")">) |
+                   some(append<&ast::Exception_::types>(ref<TypeSpec>), lit<",">)))> {};
 
   struct ReturnzClause
       : rule<create<ast::Returnz>(
-            kw<"returns"> + lit<"("> +
-            some(append<&ast::Returnz::types>(ref<TypeSpecRule>), lit<",">) +
+            ikw<"returns"> + lit<"("> +
+            some(append<&ast::Returnz::types>(ref<TypeSpec>), lit<",">) +
             lit<")">)> {};
 
   struct YieldsClause
       : rule<create<ast::Yields>(
-            kw<"yields"> + lit<"("> +
-            some(append<&ast::Yields::types>(ref<TypeSpecRule>), lit<",">) +
+            ikw<"yields"> + lit<"("> +
+            some(append<&ast::Yields::types>(ref<TypeSpec>), lit<",">) +
             lit<")">)> {};
 
   struct SignalsClause
       : rule<create<ast::Signals>(
-            kw<"signals"> + lit<"("> +
-            some(append<&ast::Signals::exceptions>(ref<ExceptionRule>), lit<",">) +
+            ikw<"signals"> + lit<"("> +
+            some(append<&ast::Signals::exceptions>(ref<Exception>), lit<",">) +
             lit<")">)> {};
 
   // ---- statements --------------------------------------------------
 
-  struct BodyRule
+  struct Body
       : rule<create<ast::Body>(
-            many(append<&ast::Body::equates>(ref<EquateRule>)) +
+            many(append<&ast::Body::equates>(ref<Equate>)) +
+            many(append<&ast::Body::ownVars>(ref<OwnVar>)) +
             many(append<&ast::Body::statements>(ref<Statement>)))> {};
 
-  struct OwnVarRule
+  struct OwnVar
       : rule<create<ast::OwnVar>(
-            kw<"own"> + some(append<&ast::OwnVar::decls>(ref<DeclRule>), lit<",">) +
+            ikw<"own"> + some(append<&ast::OwnVar::decls>(ref<Decl>), lit<",">) +
             option(lit<":="> +
-                   (assign<&ast::OwnVar::initCall>(ref<CallRule>)  //
+                   (assign<&ast::OwnVar::initCall>(ref<Call>)  //
                     | some(append<&ast::OwnVar::initExprs>(ref<Expression>),
                            lit<",">)) +
                    option(lit<"@"> +
                           assign<&ast::OwnVar::collector>(ref<PostfixExpr>))))> {};
 
-  struct StateDeclRule
+  struct StateDecl
       : rule<create<ast::StateDecl>(
-            option(flag<&ast::StateDecl::stable>(kw<"stable">)) +
-            some(append<&ast::StateDecl::decls>(ref<DeclRule>), lit<",">) +
+            option(flag<&ast::StateDecl::stable>(ikw<"stable">)) +
+            some(append<&ast::StateDecl::decls>(ref<Decl>), lit<",">) +
             option(lit<":="> +
-                   (assign<&ast::StateDecl::initCall>(ref<CallRule>)  //
+                   (assign<&ast::StateDecl::initCall>(ref<Call>)  //
                     | assign<&ast::StateDecl::initExpr>(ref<Expression>))))> {};
 
-  struct DeclStatementRule
+  struct DeclStatement
       : rule<create<ast::DeclStatement>(
-            some(append<&ast::DeclStatement::decls>(ref<DeclRule>), lit<",">) +
+            some(append<&ast::DeclStatement::decls>(ref<Decl>), lit<",">) +
             option(lit<":="> +
-                   (assign<&ast::DeclStatement::initCall>(ref<CallRule>)  //
+                   (assign<&ast::DeclStatement::initCall>(ref<Call>)  //
                     | some(append<&ast::DeclStatement::initExprs>(ref<Expression>),
                            lit<",">)) +
                    option(lit<"@"> +
                           assign<&ast::DeclStatement::collector>(
                               ref<PostfixExpr>))))> {};
 
-  struct AssignStatementRule
+  struct AssignStatement
       : rule<create<ast::AssignStatement>(
             some(append<&ast::AssignStatement::targets>(ref<ID>), lit<",">) +
             lit<":="> +
-            (assign<&ast::AssignStatement::valueCall>(ref<CallRule>)  //
+            (assign<&ast::AssignStatement::valueCall>(ref<Call>)  //
              | some(append<&ast::AssignStatement::values>(ref<Expression>),
                     lit<","> )) +
             option(lit<"@"> +
                    assign<&ast::AssignStatement::collector>(ref<PostfixExpr>)))> {
   };
 
-  struct IndexAssignStatementRule
+  struct IndexAssignStatement
       : rule<create<ast::IndexAssignStatement>(
             assign<&ast::IndexAssignStatement::target>(ref<PostfixExpr>) +
             option(assign<&ast::IndexAssignStatement::index>(ref<Expression>)) +
             lit<":="> +
             assign<&ast::IndexAssignStatement::value>(ref<Expression>))> {};
 
-  struct CallStatementRule
+  struct CallStatement
       : rule<create<ast::CallStatement>(
-            assign<&ast::CallStatement::call>(ref<CallRule>) +
+            assign<&ast::CallStatement::call>(ref<Call>) +
             option(lit<"@"> + assign<&ast::CallStatement::collector>(
                                    ref<PostfixExpr>)))> {};
 
-  struct ForkStatementRule
+  struct ForkStatement
       : rule<create<ast::ForkStatement>(
-            kw<"fork"> + assign<&ast::ForkStatement::call>(ref<CallRule>))> {};
+            ikw<"fork"> + assign<&ast::ForkStatement::call>(ref<Call>))> {};
 
-  struct SeizeStatementRule
+  struct SeizeStatement
       : rule<create<ast::SeizeStatement>(
-            kw<"seize"> + assign<&ast::SeizeStatement::expr>(ref<Expression>) +
-            kw<"do"> + assign<&ast::SeizeStatement::body>(ref<BodyRule>) +
-            kw<"end">)> {};
+            ikw<"seize"> + assign<&ast::SeizeStatement::expr>(ref<Expression>) +
+            ikw<"do"> + assign<&ast::SeizeStatement::body>(ref<Body>) +
+            ikw<"end">)> {};
 
-  struct PauseStatementRule
-      : rule<create<ast::PauseStatement> + kw<"pause">> {};
-  struct TerminateStatementRule
-      : rule<create<ast::TerminateStatement> + kw<"terminate">> {};
+  struct PauseStatement
+      : rule<create<ast::PauseStatement> + ikw<"pause">> {};
+  struct TerminateStatement
+      : rule<create<ast::TerminateStatement> + ikw<"terminate">> {};
 
-  struct EnterStatementRule
+  struct EnterStatement
       : rule<create<ast::EnterStatement>(
-            kw<"enter"> +
-            (flag<&ast::EnterStatement::topAction>(kw<"topaction">)  //
-             | kw<"action">) +
-            assign<&ast::EnterStatement::body>(ref<BodyRule>) + kw<"end">)> {};
+            ikw<"enter"> +
+            (flag<&ast::EnterStatement::topAction>(ikw<"topaction">)  //
+             | ikw<"action">) +
+            assign<&ast::EnterStatement::body>(ref<Body>) + ikw<"end">)> {};
 
   struct ForEachClause
       : rule<create<ast::ForEachClause>(
-            kw<"foreach"> +
-            some(append<&ast::ForEachClause::decls>(ref<DeclRule>), lit<",">) +
-            kw<"in"> + assign<&ast::ForEachClause::call>(ref<CallRule>))> {};
+            ikw<"foreach"> +
+            some(append<&ast::ForEachClause::decls>(ref<Decl>), lit<",">) +
+            ikw<"in"> + assign<&ast::ForEachClause::call>(ref<Call>))> {};
 
   struct CoArm
       : rule<create<ast::CoArm>(
-            assign<&ast::CoArm::tag>(ref<ARMTAG_ACTION> | ref<ARMTAG_TOPACTION> |
-                                     ref<ARMTAG_PROCESS>) +
+            assign<&ast::CoArm::tag>(as<ast::ArmTag::action>(ikw<"action">) | as<ast::ArmTag::topaction>(ikw<"topaction">) |
+                                     as<ast::ArmTag::process>(ikw<"process">)) +
             many(append<&ast::CoArm::foreach_>(ref<ForEachClause>)) +
-            assign<&ast::CoArm::body>(ref<BodyRule>))> {};
+            assign<&ast::CoArm::body>(ref<Body>))> {};
 
-  struct CoenterStatementRule
+  struct CoenterStatement
       : rule<create<ast::CoenterStatement>(
-            kw<"coenter"> +
-            some(append<&ast::CoenterStatement::arms>(ref<CoArm>)) + kw<"end">)> {
+            ikw<"coenter"> +
+            some(append<&ast::CoenterStatement::arms>(ref<CoArm>)) + ikw<"end">)> {
   };
 
-  struct LeaveStatementRule
+  struct LeaveStatement
       : rule<create<ast::LeaveStatement>(
-            option(flag<&ast::LeaveStatement::abort>(kw<"abort">)) +
-            kw<"leave">)> {};
+            option(flag<&ast::LeaveStatement::abort>(ikw<"abort">)) +
+            ikw<"leave">)> {};
 
-  struct WhileStatementRule
+  struct WhileStatement
       : rule<create<ast::WhileStatement>(
-            kw<"while"> + assign<&ast::WhileStatement::cond>(ref<Expression>) +
-            kw<"do"> + assign<&ast::WhileStatement::body>(ref<BodyRule>) +
-            kw<"end">)> {};
+            ikw<"while"> + assign<&ast::WhileStatement::cond>(ref<Expression>) +
+            ikw<"do"> + assign<&ast::WhileStatement::body>(ref<Body>) +
+            ikw<"end">)> {};
 
-  struct ForStatementRule
+  struct ForStatement
       : rule<create<ast::ForStatement>(
-            kw<"for"> +
-            (some(append<&ast::ForStatement::decls>(ref<DeclRule>), lit<",">)  //
+            ikw<"for"> +
+            (some(append<&ast::ForStatement::decls>(ref<Decl>), lit<",">)  //
              | some(append<&ast::ForStatement::names>(ref<ID>), lit<",">)) +
-            kw<"in"> + assign<&ast::ForStatement::call>(ref<CallRule>) +
-            kw<"do"> + assign<&ast::ForStatement::body>(ref<BodyRule>) +
-            kw<"end">)> {};
+            ikw<"in"> + assign<&ast::ForStatement::call>(ref<Call>) +
+            ikw<"do"> + assign<&ast::ForStatement::body>(ref<Body>) +
+            ikw<"end">)> {};
 
   struct IfBranch
       : rule<create<ast::IfBranch>(
-            assign<&ast::IfBranch::cond>(ref<Expression>) + kw<"then"> +
-            assign<&ast::IfBranch::body>(ref<BodyRule>))> {};
+            assign<&ast::IfBranch::cond>(ref<Expression>) + ikw<"then"> +
+            assign<&ast::IfBranch::body>(ref<Body>))> {};
 
-  struct IfStatementRule
+  struct IfStatement
       : rule<create<ast::IfStatement>(
-            kw<"if"> + append<&ast::IfStatement::branches>(ref<IfBranch>) +
-            many(kw<"elseif"> +
+            ikw<"if"> + append<&ast::IfStatement::branches>(ref<IfBranch>) +
+            many(ikw<"elseif"> +
                  append<&ast::IfStatement::branches>(ref<IfBranch>)) +
-            option(kw<"else"> +
-                   assign<&ast::IfStatement::elseBody>(ref<BodyRule>)) +
-            kw<"end">)> {};
+            option(ikw<"else"> +
+                   assign<&ast::IfStatement::elseBody>(ref<Body>)) +
+            ikw<"end">)> {};
+
+  static constexpr auto TagDecl =
+      assign<&ast::TagArm::declName>(ref<ID>) + lit<":"> +
+      assign<&ast::TagArm::declType>(ref<TypeSpec>);
 
   struct TagArm
       : rule<create<ast::TagArm>(
-            kw<"tag"> + some(append<&ast::TagArm::names>(ref<ID>), lit<",">) +
-            option(assign<&ast::TagArm::declName>(ref<ID>) + lit<":"> +
-                   assign<&ast::TagArm::declType>(ref<TypeSpecRule>)) +
-            lit<":"> + assign<&ast::TagArm::body>(ref<BodyRule>))> {};
+            ikw<"tag"> + some(append<&ast::TagArm::names>(ref<ID>), lit<",">) +
+            option((lit<"("> + TagDecl + lit<")">) | TagDecl) +
+            lit<":"> + assign<&ast::TagArm::body>(ref<Body>))> {};
 
-  struct TagcaseStatementRule
+  struct TagcaseStatement
       : rule<create<ast::TagcaseStatement>(
-            kw<"tagcase"> +
+            ikw<"tagcase"> +
             assign<&ast::TagcaseStatement::expr>(ref<Expression>) +
             some(append<&ast::TagcaseStatement::arms>(ref<TagArm>)) +
-            option(kw<"others"> + lit<":"> +
-                   assign<&ast::TagcaseStatement::othersBody>(ref<BodyRule>)) +
-            kw<"end">)> {};
+            option(ikw<"others"> + lit<":"> +
+                   assign<&ast::TagcaseStatement::othersBody>(ref<Body>)) +
+            ikw<"end">)> {};
 
   struct ATagArm
       : rule<create<ast::ATagArm>(
-            (flag<&ast::ATagArm::wtag>(kw<"wtag">) | kw<"tag">) +
+            (flag<&ast::ATagArm::wtag>(ikw<"wtag">) | ikw<"tag">) +
             some(append<&ast::ATagArm::names>(ref<ID>), lit<",">) +
-            many(append<&ast::ATagArm::decls>(ref<DeclRule>)) + lit<":"> +
-            assign<&ast::ATagArm::body>(ref<BodyRule>))> {};
+            ((lit<"("> + many(append<&ast::ATagArm::decls>(ref<Decl>), lit<",">) +
+              lit<")">) | many(append<&ast::ATagArm::decls>(ref<Decl>))) + lit<":"> +
+            assign<&ast::ATagArm::body>(ref<Body>))> {};
 
-  struct TagtestStatementRule
+  struct TagtestStatement
       : rule<create<ast::TagtestStatement>(
-            kw<"tagtest"> +
+            ikw<"tagtest"> +
             assign<&ast::TagtestStatement::expr>(ref<Expression>) +
             some(append<&ast::TagtestStatement::arms>(ref<ATagArm>)) +
-            option(kw<"others"> + lit<":"> +
-                   assign<&ast::TagtestStatement::othersBody>(ref<BodyRule>)) +
-            kw<"end">)> {};
+            option(ikw<"others"> + lit<":"> +
+                   assign<&ast::TagtestStatement::othersBody>(ref<Body>)) +
+            ikw<"end">)> {};
 
-  struct TagwaitStatementRule
+  struct TagwaitStatement
       : rule<create<ast::TagwaitStatement>(
-            kw<"tagwait"> +
+            ikw<"tagwait"> +
             assign<&ast::TagwaitStatement::expr>(ref<Expression>) +
-            some(append<&ast::TagwaitStatement::arms>(ref<ATagArm>)) + kw<"end">)> {
+            some(append<&ast::TagwaitStatement::arms>(ref<ATagArm>)) + ikw<"end">)> {
   };
 
-  struct ReturnStatementRule
+  template <auto Member>
+  static constexpr auto ResultValues =
+      (lit<"("> + many(append<Member>(ref<Expression>), lit<",">) + lit<")">) |
+      some(append<Member>(ref<Expression>), lit<",">);
+
+  struct ReturnStatement
       : rule<create<ast::ReturnStatement>(
-            option(flag<&ast::ReturnStatement::abort>(kw<"abort">)) +
-            kw<"return"> +
-            option(some(append<&ast::ReturnStatement::values>(ref<Expression>),
-                        lit<",">)))> {};
+            option(flag<&ast::ReturnStatement::abort>(ikw<"abort">)) +
+            ikw<"return"> +
+            option(ResultValues<&ast::ReturnStatement::values>))> {};
 
-  struct YieldStatementRule
+  struct YieldStatement
       : rule<create<ast::YieldStatement>(
-            kw<"yield"> +
-            option(some(append<&ast::YieldStatement::values>(ref<Expression>),
-                        lit<",">)))> {};
+            ikw<"yield"> +
+            option(ResultValues<&ast::YieldStatement::values>))> {};
 
-  struct SignalStatementRule
+  struct SignalStatement
       : rule<create<ast::SignalStatement>(
-            option(flag<&ast::SignalStatement::abort>(kw<"abort">)) +
-            kw<"signal"> + assign<&ast::SignalStatement::name>(ref<ID>) +
-            option(some(append<&ast::SignalStatement::values>(ref<Expression>),
-                        lit<",">)))> {};
+            option(flag<&ast::SignalStatement::abort>(ikw<"abort">)) +
+            ikw<"signal"> + assign<&ast::SignalStatement::name>(ref<ID>) +
+            option(ResultValues<&ast::SignalStatement::values>))> {};
 
-  struct ExitStatementRule
+  struct ExitStatement
       : rule<create<ast::ExitStatement>(
-            option(flag<&ast::ExitStatement::abort>(kw<"abort">)) +
-            kw<"exit"> + assign<&ast::ExitStatement::name>(ref<ID>) +
-            option(some(append<&ast::ExitStatement::values>(ref<Expression>),
-                        lit<",">)))> {};
+            option(flag<&ast::ExitStatement::abort>(ikw<"abort">)) +
+            ikw<"exit"> + assign<&ast::ExitStatement::name>(ref<ID>) +
+            option(ResultValues<&ast::ExitStatement::values>))> {};
 
-  struct BreakStatementRule
+  struct BreakStatement
       : rule<create<ast::BreakStatement>(
-            option(flag<&ast::BreakStatement::abort>(kw<"abort">)) +
-            kw<"break">)> {};
+            option(flag<&ast::BreakStatement::abort>(ikw<"abort">)) +
+            ikw<"break">)> {};
 
-  struct ContinueStatementRule
+  struct ContinueStatement
       : rule<create<ast::ContinueStatement>(
-            option(flag<&ast::ContinueStatement::abort>(kw<"abort">)) +
-            kw<"continue">)> {};
+            option(flag<&ast::ContinueStatement::abort>(ikw<"abort">)) +
+            ikw<"continue">)> {};
 
-  struct BeginStatementRule
+  struct BeginStatement
       : rule<create<ast::BeginStatement>(
-            kw<"begin"> + assign<&ast::BeginStatement::body>(ref<BodyRule>) +
-            kw<"end">)> {};
+            ikw<"begin"> + assign<&ast::BeginStatement::body>(ref<Body>) +
+            ikw<"end">)> {};
 
-  struct WhenHandlerRule
+  struct WhenHandler
       : rule<create<ast::WhenHandler>(
-            kw<"when"> +
+            ikw<"when"> +
             some(append<&ast::WhenHandler::names>(ref<ID>), lit<",">) +
-            (many(append<&ast::WhenHandler::decls>(ref<DeclRule>))  //
-             | (lit<"("> + flag<&ast::WhenHandler::star>(lit<"*">) +
-                lit<")">)) +
-            lit<":"> + assign<&ast::WhenHandler::body>(ref<BodyRule>))> {};
+            ((lit<"("> +
+              (flag<&ast::WhenHandler::star>(lit<"*">) |
+               many(append<&ast::WhenHandler::decls>(ref<Decl>), lit<",">)) +
+              lit<")">) | many(append<&ast::WhenHandler::decls>(ref<Decl>))) +
+            lit<":"> + assign<&ast::WhenHandler::body>(ref<Body>))> {};
 
-  struct OthersHandlerRule
+  struct OthersHandler
       : rule<create<ast::OthersHandler>(
-            kw<"others"> +
-            many(append<&ast::OthersHandler::decls>(ref<DeclRule>)) + lit<":"> +
-            assign<&ast::OthersHandler::body>(ref<BodyRule>))> {};
+            ikw<"others"> +
+            ((lit<"("> + many(append<&ast::OthersHandler::decls>(ref<Decl>), lit<",">) +
+              lit<")">) | many(append<&ast::OthersHandler::decls>(ref<Decl>))) + lit<":"> +
+            assign<&ast::OthersHandler::body>(ref<Body>))> {};
 
-  struct BaseStatement : rule<ref<DeclStatementRule>        //
-                              | ref<AssignStatementRule>     //
-                              | ref<IndexAssignStatementRule>  //
-                              | ref<CallStatementRule>         //
-                              | ref<ForkStatementRule>         //
-                              | ref<SeizeStatementRule>        //
-                              | ref<PauseStatementRule>        //
-                              | ref<TerminateStatementRule>    //
-                              | ref<EnterStatementRule>        //
-                              | ref<CoenterStatementRule>      //
-                              | ref<LeaveStatementRule>        //
-                              | ref<WhileStatementRule>        //
-                              | ref<ForStatementRule>          //
-                              | ref<IfStatementRule>           //
-                              | ref<TagcaseStatementRule>      //
-                              | ref<TagtestStatementRule>      //
-                              | ref<TagwaitStatementRule>      //
-                              | ref<ReturnStatementRule>       //
-                              | ref<YieldStatementRule>        //
-                              | ref<SignalStatementRule>       //
-                              | ref<ExitStatementRule>         //
-                              | ref<BreakStatementRule>        //
-                              | ref<ContinueStatementRule>     //
-                              | ref<BeginStatementRule>> {};
+  struct BaseStatement : rule<ref<DeclStatement>        //
+                              | ref<AssignStatement>     //
+                              | ref<IndexAssignStatement>  //
+                              | ref<CallStatement>         //
+                              | ref<ForkStatement>         //
+                              | ref<SeizeStatement>        //
+                              | ref<PauseStatement>        //
+                              | ref<TerminateStatement>    //
+                              | ref<EnterStatement>        //
+                              | ref<CoenterStatement>      //
+                              | ref<LeaveStatement>        //
+                              | ref<WhileStatement>        //
+                              | ref<ForStatement>          //
+                              | ref<IfStatement>           //
+                              | ref<TagcaseStatement>      //
+                              | ref<TagtestStatement>      //
+                              | ref<TagwaitStatement>      //
+                              | ref<ReturnStatement>       //
+                              | ref<YieldStatement>        //
+                              | ref<SignalStatement>       //
+                              | ref<ExitStatement>         //
+                              | ref<BreakStatement>        //
+                              | ref<ContinueStatement>     //
+                              | ref<BeginStatement>> {};
 
   // `resignal` and `except` each wrap a whole prior statement: left
   // recursion, natural on this engine.
@@ -668,75 +651,75 @@ struct Argus : cursiv::GrammarSpec {
              | create<ast::ResignalStatement>(
                    assign<&ast::ResignalStatement::body>(ref<Statement>) +
                    option(flag<&ast::ResignalStatement::abort>(
-                       kw<"abort">)) +
-                   kw<"resignal"> +
+                       ikw<"abort">)) +
+                   ikw<"resignal"> +
                    some(append<&ast::ResignalStatement::names>(ref<ID>),
                         lit<",">))  //
              | create<ast::ExceptStatement>(
                    assign<&ast::ExceptStatement::body>(ref<Statement>) +
-                   kw<"except"> +
+                   ikw<"except"> +
                    many(append<&ast::ExceptStatement::handlers>(
-                       ref<WhenHandlerRule>)) +
+                       ref<WhenHandler>)) +
                    option(assign<&ast::ExceptStatement::others>(
-                       ref<OthersHandlerRule>)) +
-                   kw<"end">)> {};
+                       ref<OthersHandler>)) +
+                   ikw<"end">)> {};
 
   // ---- top-level definitions -------------------------------------------
 
   struct Equates_
       : rule<create<ast::Equates_>(
-            assign<&ast::Equates_::name>(ref<ID>) + lit<"="> + kw<"equates"> +
-            option(some(append<&ast::Equates_::parms>(ref<ParmRule>), lit<",">) +
-                   option(assign<&ast::Equates_::where>(ref<WhereRule>))) +
-            many(append<&ast::Equates_::equates>(ref<EquateRule>)) + kw<"end"> +
+            assign<&ast::Equates_::name>(ref<ID>) + lit<"="> + ikw<"equates"> +
+            option(FormalParms<&ast::Equates_::parms> +
+                   option(assign<&ast::Equates_::where>(ref<Where>))) +
+            many(append<&ast::Equates_::equates>(ref<Equate>)) + ikw<"end"> +
             assign<&ast::Equates_::endName>(ref<ID>))> {};
 
   struct Procedure
       : rule<create<ast::Procedure>(
-            assign<&ast::Procedure::name>(ref<ID>) + lit<"="> + kw<"proc"> +
-            option(some(append<&ast::Procedure::parms>(ref<ParmRule>), lit<",">)) +
+            assign<&ast::Procedure::name>(ref<ID>) + lit<"="> + ikw<"proc"> +
+            option(FormalParms<&ast::Procedure::parms>) +
             lit<"("> +
-            option(some(append<&ast::Procedure::args>(ref<DeclRule>), lit<",">)) +
+            option(some(append<&ast::Procedure::args>(ref<Decl>), lit<",">)) +
             lit<")"> +
             option(assign<&ast::Procedure::returns>(ref<ReturnzClause>)) +
             option(assign<&ast::Procedure::signals>(ref<SignalsClause>)) +
-            option(assign<&ast::Procedure::where>(ref<WhereRule>)) +
-            assign<&ast::Procedure::body>(ref<BodyRule>) + kw<"end"> +
+            option(assign<&ast::Procedure::where>(ref<Where>)) +
+            assign<&ast::Procedure::body>(ref<Body>) + ikw<"end"> +
             assign<&ast::Procedure::endName>(ref<ID>))> {};
 
   struct Iterator
       : rule<create<ast::Iterator>(
-            assign<&ast::Iterator::name>(ref<ID>) + lit<"="> + kw<"iter"> +
-            option(some(append<&ast::Iterator::parms>(ref<ParmRule>), lit<",">)) +
+            assign<&ast::Iterator::name>(ref<ID>) + lit<"="> + ikw<"iter"> +
+            option(FormalParms<&ast::Iterator::parms>) +
             lit<"("> +
-            option(some(append<&ast::Iterator::args>(ref<DeclRule>), lit<",">)) +
+            option(some(append<&ast::Iterator::args>(ref<Decl>), lit<",">)) +
             lit<")"> +
             option(assign<&ast::Iterator::yields>(ref<YieldsClause>)) +
             option(assign<&ast::Iterator::signals>(ref<SignalsClause>)) +
-            option(assign<&ast::Iterator::where>(ref<WhereRule>)) +
-            assign<&ast::Iterator::body>(ref<BodyRule>) + kw<"end"> +
+            option(assign<&ast::Iterator::where>(ref<Where>)) +
+            assign<&ast::Iterator::body>(ref<Body>) + ikw<"end"> +
             assign<&ast::Iterator::endName>(ref<ID>))> {};
 
   struct Creator
       : rule<create<ast::Creator>(
-            assign<&ast::Creator::name>(ref<ID>) + lit<"="> + kw<"creator"> +
+            assign<&ast::Creator::name>(ref<ID>) + lit<"="> + ikw<"creator"> +
             lit<"("> +
-            option(some(append<&ast::Creator::args>(ref<DeclRule>), lit<",">)) +
+            option(some(append<&ast::Creator::args>(ref<Decl>), lit<",">)) +
             lit<")"> +
             option(assign<&ast::Creator::returns>(ref<ReturnzClause>)) +
             option(assign<&ast::Creator::signals>(ref<SignalsClause>)) +
-            assign<&ast::Creator::body>(ref<BodyRule>) + kw<"end"> +
+            assign<&ast::Creator::body>(ref<Body>) + ikw<"end"> +
             assign<&ast::Creator::endName>(ref<ID>))> {};
 
   struct Handler
       : rule<create<ast::Handler>(
-            assign<&ast::Handler::name>(ref<ID>) + lit<"="> + kw<"handler"> +
+            assign<&ast::Handler::name>(ref<ID>) + lit<"="> + ikw<"handler"> +
             lit<"("> +
-            option(some(append<&ast::Handler::args>(ref<DeclRule>), lit<",">)) +
+            option(some(append<&ast::Handler::args>(ref<Decl>), lit<",">)) +
             lit<")"> +
             option(assign<&ast::Handler::returns>(ref<ReturnzClause>)) +
             option(assign<&ast::Handler::signals>(ref<SignalsClause>)) +
-            assign<&ast::Handler::body>(ref<BodyRule>) + kw<"end"> +
+            assign<&ast::Handler::body>(ref<Body>) + ikw<"end"> +
             assign<&ast::Handler::endName>(ref<ID>))> {};
 
   static constexpr auto OperationAlt =
@@ -752,24 +735,24 @@ struct Argus : cursiv::GrammarSpec {
 
   struct Guardian
       : rule<create<ast::Guardian>(
-            assign<&ast::Guardian::name>(ref<ID>) + lit<"="> + kw<"guardian"> +
-            option(some(append<&ast::Guardian::parms>(ref<ParmRule>), lit<",">)) + kw<"is"> +
+            assign<&ast::Guardian::name>(ref<ID>) + lit<"="> + ikw<"guardian"> +
+            option(FormalParms<&ast::Guardian::parms>) + ikw<"is"> +
             some(append<&ast::Guardian::isNames>(ref<ID>), lit<",">) +
-            option(kw<"handles"> +
+            option(ikw<"handles"> +
                    some(append<&ast::Guardian::handlesNames>(ref<ID>),
                         lit<","> )) +
-            option(assign<&ast::Guardian::where>(ref<WhereRule>)) +
-            many(append<&ast::Guardian::equates>(ref<EquateRule>)) +
-            many(append<&ast::Guardian::stateDecls>(ref<StateDeclRule>)) +
-            option(kw<"recover"> +
-                   assign<&ast::Guardian::recoverBody>(ref<BodyRule>) +
-                   kw<"end">) +
-            option(kw<"background"> +
-                   assign<&ast::Guardian::backgroundBody>(ref<BodyRule>) +
-                   kw<"end">) +
+            option(assign<&ast::Guardian::where>(ref<Where>)) +
+            many(append<&ast::Guardian::equates>(ref<Equate>)) +
+            many(append<&ast::Guardian::stateDecls>(ref<StateDecl>)) +
+            option(ikw<"recover"> +
+                   assign<&ast::Guardian::recoverBody>(ref<Body>) +
+                   ikw<"end">) +
+            option(ikw<"background"> +
+                   assign<&ast::Guardian::backgroundBody>(ref<Body>) +
+                   ikw<"end">) +
             many(OperationAlt) +
             assign<&ast::Guardian::creator>(ref<Creator>) + many(OperationAfterAlt) +
-            kw<"end"> + assign<&ast::Guardian::endName>(ref<ID>))> {};
+            ikw<"end"> + assign<&ast::Guardian::endName>(ref<ID>))> {};
 
   static constexpr auto RoutineAlt =
       append<&ast::Cluster::routines>(ref<Procedure>)  //
@@ -777,27 +760,27 @@ struct Argus : cursiv::GrammarSpec {
 
   struct Cluster
       : rule<create<ast::Cluster>(
-            assign<&ast::Cluster::name>(ref<ID>) + lit<"="> + kw<"cluster"> +
-            option(some(append<&ast::Cluster::parms>(ref<ParmRule>), lit<",">)) + kw<"is"> +
+            assign<&ast::Cluster::name>(ref<ID>) + lit<"="> + ikw<"cluster"> +
+            option(FormalParms<&ast::Cluster::parms>) + ikw<"is"> +
             some(append<&ast::Cluster::opIdns>(ref<ID>), lit<",">) +
-            option(assign<&ast::Cluster::where>(ref<WhereRule>)) +
-            many(append<&ast::Cluster::equatesBeforeRep>(ref<EquateRule>)) +
-            kw<"rep"> + lit<"="> +
-            assign<&ast::Cluster::rep>(ref<TypeSpecRule>) +
-            many(append<&ast::Cluster::equatesAfterRep>(ref<EquateRule>)) +
-            many(append<&ast::Cluster::ownVars>(ref<OwnVarRule>)) +
-            some(RoutineAlt) + kw<"end"> +
+            option(assign<&ast::Cluster::where>(ref<Where>)) +
+            many(append<&ast::Cluster::equatesBeforeRep>(ref<Equate>)) +
+            ikw<"rep"> + lit<"="> +
+            assign<&ast::Cluster::rep>(ref<TypeSpec>) +
+            many(append<&ast::Cluster::equatesAfterRep>(ref<Equate>)) +
+            many(append<&ast::Cluster::ownVars>(ref<OwnVar>)) +
+            some(RoutineAlt) + ikw<"end"> +
             assign<&ast::Cluster::endName>(ref<ID>))> {};
 
-  struct ModuleRule
+  struct Module
       : rule<create<ast::Module>(
-            many(append<&ast::Module::equates>(ref<EquateRule>)) +
+            many(append<&ast::Module::equates>(ref<Equate>)) +
             assign<&ast::Module::unit>(ref<Equates_> | ref<Guardian> |
                                        ref<Procedure> | ref<Iterator> |
                                        ref<Cluster>))> {};
 
-  using entry = ModuleRule;
-  using ignore = WS;
+  using entry = Module;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

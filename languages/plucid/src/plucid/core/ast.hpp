@@ -134,19 +134,22 @@ struct ListExpr : cursiv::Extends<Expression> {
   vector<Expression*> items;
 };
 
-struct ElseTail : cursiv::Extends<cursiv::AstNode> {
+struct ConditionalTail : cursiv::Extends<cursiv::AstNode> {};
+
+struct ElseTail : cursiv::Extends<ConditionalTail> {
   Expression* value;
 };
 
-struct ElseifTail : cursiv::Extends<cursiv::AstNode> {
+struct ElseifTail : cursiv::Extends<ConditionalTail> {
   Expression* cond;
   Expression* then_;
+  ConditionalTail* tail;
 };
 
 struct IfExpr : cursiv::Extends<Expression> {
   Expression* cond;
   Expression* then_;
-  variant<ElseTail*, ElseifTail*> tail;
+  ConditionalTail* tail;
 };
 
 struct CondCase : cursiv::Extends<cursiv::AstNode> {

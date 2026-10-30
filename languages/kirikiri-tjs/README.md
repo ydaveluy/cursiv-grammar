@@ -32,6 +32,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+TJS2 scripts contain expressions, statements, classes and properties with getters and setters.
+
 ```tjs
 class Greeter extends Object
 {
@@ -57,10 +59,6 @@ var g = new Greeter("Kirikiri");
 Debug.message(g.sayHello());
 for (var i = 0; i < 3; i++) Debug.message(i);
 ```
-
-A TJS2 script is a flat sequence of statements: `class` bodies are ordinary
-blocks of statements, not a separate member grammar, and `property` adds a
-getter/setter pair beside a name a plain field would otherwise take.
 
 ## The command line
 

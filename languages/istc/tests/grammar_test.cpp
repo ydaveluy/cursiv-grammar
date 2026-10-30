@@ -10,6 +10,9 @@
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/core/workspace/Document.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 #include "istc/core/CoreServices.hpp"
 #include "istc/core/ast.hpp"
 
@@ -26,6 +29,44 @@ int main() {
   const auto language = cursiv::create_language<
       istc::IstcCoreServices, istc::IstcSharedCoreServices,
       istc::install_core_module>();
+
+  // Independent examples from ISO 21047:2009, clauses 4.1 and Annex A.
+  for (const auto source : {"ISTC 0A9-2002-12B4A105-7",
+                            "ISTC 0A9 2002 1223F332 0",
+                            "ISTC 0A920021223F3320",
+                            "ISTC  0A9  2002  1223F332  0",
+                            "ISTC A02-2009-000004BE-A"}) {
+    auto result = cursiv::test::validationHelper(language.language, source);
+    if (!result.document->parseResult.accepted ||
+        result.document->parseResult.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail(source, "valid ISTC rejected");
+    result.dispose();
+  }
+  {
+    const auto result = language.language.parser->parse("ISTC 0A920021223F3320");
+    const auto* code = result.value_as<istc::ast::Istc>();
+    if (!code || code->registration != "0A9" || code->year != "2002" ||
+        code->work != "1223F332" || code->check != "0")
+      return fail("compact ISTC", "adjacent component captures lost");
+  }
+  for (const auto source : {"ISTC 0A9-2002-12B4A105-8",
+                            "ISTC 0A9-20A2-12B4A105-7"}) {
+    auto result = cursiv::test::validationHelper(language.language, source);
+    if (!result.document->parseResult.accepted ||
+        result.document->parseResult.cst().recovered() ||
+        result.diagnostics.empty())
+      return fail(source, "invalid year or check digit was not diagnosed");
+    result.dispose();
+  }
+  for (const auto source : {"ISTC A0\t2-2009-000004BE-A",
+                            "ISTC A02-20\n09-000004BE-A",
+                            "ISTC A02-2009-0000\t04BE-A"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() &&
+        result.diagnostics.empty())
+      return fail(source, "a component must contain adjacent digits");
+  }
 
   int count = 0;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

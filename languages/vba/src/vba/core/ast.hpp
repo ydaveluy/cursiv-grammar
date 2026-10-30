@@ -381,6 +381,7 @@ struct ReDimItem : cursiv::Extends<cursiv::AstNode> {
   Expr* target;
   optional<string_view> typeChar;
   vector<ArrayBound*> bounds;
+  TypeRef* asType;
 };
 
 struct ReDimStmt : cursiv::Extends<Item> {

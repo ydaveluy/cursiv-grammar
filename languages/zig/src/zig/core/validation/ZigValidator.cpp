@@ -4,10 +4,12 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "cursiv/core/validation/ValidationRegistry.hpp"
 #include "zig/core/CoreServices.hpp"
+#include "zig/core/Literal.hpp"
 
 namespace zig {
 
@@ -102,14 +104,22 @@ void ZigValidator::checkFieldOrder(const ast::ContainerMembers& members,
 void ZigValidator::checkUniqueContainerFields(
     const ast::ContainerMembers& members,
     cursiv::ValidationAcceptor& accept) const {
-  std::unordered_map<std::string_view, std::vector<const ast::ContainerField*>>
+  std::unordered_map<std::string, std::vector<const ast::ContainerField*>>
       names;
   for (const ast::ContainerMember* const member : members.members) {
     if (member == nullptr ||
         member->type != &cursiv::ast_type_tag<ast::ContainerField>)
       continue;
     const auto& field = *static_cast<const ast::ContainerField*>(member);
-    if (field.name) names[*field.name].push_back(&field);
+    if (field.name) {
+      std::string name(*field.name);
+      if (name.starts_with("@\"")) {
+        auto decoded=decodeLiteral(std::string_view(name).substr(1));
+        if (!decoded.error.empty()) continue;
+        name=std::move(decoded.value);
+      }
+      names[std::move(name)].push_back(&field);
+    }
   }
   for (const auto& [name, fields] : names) {
     if (fields.size() <= 1) continue;
@@ -117,6 +127,23 @@ void ZigValidator::checkUniqueContainerFields(
     for (const ast::ContainerField* const field : fields)
       accept.error(*field, message, "zig.duplicate-field").property<&ast::ContainerField::name>();
   }
+}
+
+void ZigValidator::checkModifier(const ast::TypeModifier& modifier,
+                                 cursiv::ValidationAcceptor& accept) const {
+  const auto repeated = [&](const auto* type) {
+    if (!type) return false;
+    for (const auto* previous : type->modifiers) {
+      if (previous == &modifier) break;
+      if (previous && previous->kind == modifier.kind) return true;
+    }
+    return false;
+  };
+  if (repeated(cursiv::ast_cast<ast::PtrType>(modifier.parent)) ||
+      repeated(cursiv::ast_cast<ast::SliceType>(modifier.parent)) ||
+      repeated(cursiv::ast_cast<ast::ManyPtrType>(modifier.parent)))
+    accept.error(modifier,"This type qualifier may occur only once","zig.type-modifier")
+        .property<&ast::TypeModifier::kind>();
 }
 
 void register_validation_checks(ZigCoreServices& services) {
@@ -127,7 +154,8 @@ void register_validation_checks(ZigCoreServices& services) {
       {cursiv::ValidationRegistry::makeValidationCheck<
           &V::checkUniqueContainerFields>(validator),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkFieldOrder>(validator),
-       cursiv::ValidationRegistry::makeValidationCheck<&V::checkNumber>(validator)});
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkNumber>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkModifier>(validator)});
 }
 
 }  // namespace zig

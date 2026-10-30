@@ -22,12 +22,10 @@ inline constexpr auto undouble_dquote = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unescaped = cursiv::text_conv<undouble_dquote>;
 
 inline constexpr auto strip_bars = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unbarred = cursiv::text_conv<strip_bars>;
 
 struct Smtlibv2 : cursiv::GrammarSpec {
   // The Sym alphabet plus digits: what a symbol may continue with, and what a
@@ -47,12 +45,14 @@ struct Smtlibv2 : cursiv::GrammarSpec {
   struct HEXADECIMAL : terminal<lit<"#x"> + some(cr<"0-9a-fA-F">)> {};
 
   struct STRING
-      : terminal<lit<"\""> + many(lit<"\"\""> | cr<R"(\t\n\r !#-~\u{80}-\u{10FFFF})">) +
-                     lit<"\"">,
-                 Unescaped> {};
+      : terminal<as<undouble_dquote>(
+            lit<"\""> +
+            many(lit<"\"\""> | cr<R"(\t\n\r !#-~\u{80}-\u{10FFFF})">) +
+            lit<"\"">)> {};
   struct QUOTED_SYMBOL
-      : terminal<lit<"|"> + many(cr<R"(\t\n\r -[]-{}-~\u{80}-\u{10FFFF})">) + lit<"|">,
-                 Unbarred> {};
+      : terminal<as<strip_bars>(
+            lit<"|"> + many(cr<R"(\t\n\r -[]-{}-~\u{80}-\u{10FFFF})">) +
+            lit<"|">)> {};
   struct UNDEF_SYMBOL : terminal<sym_first + many(word_boundary)> {};
 
   static constexpr auto Symbol = ref<UNDEF_SYMBOL> | ref<QUOTED_SYMBOL>;
@@ -63,191 +63,191 @@ struct Smtlibv2 : cursiv::GrammarSpec {
   struct GenericKeyword : terminal<lit<":"> + sym_first + many(word_boundary)> {
   };
 
-  struct SpecConstantRule;
-  struct SExprListRule;
-  struct IdentifierRule;
-  struct SortRule;
-  struct QualIdentifierRule;
-  struct AttributeRule;
-  struct TermRule;
-  struct VarBindingRule;
-  struct SortedVarRule;
-  struct QuantTermRule;
-  struct PatternRule;
-  struct MatchCaseRule;
-  struct MatchTermRule;
-  struct AnnotTermRule;
-  struct ConstTermRule;
-  struct IdentTermRule;
-  struct AppTermRule;
-  struct LetTermRule;
+  struct SpecConstant;
+  struct SExprList;
+  struct Identifier;
+  struct Sort;
+  struct QualIdentifier;
+  struct Attribute;
+  struct Term;
+  struct VarBinding;
+  struct SortedVar;
+  struct QuantTerm;
+  struct Pattern;
+  struct MatchCase;
+  struct MatchTerm;
+  struct AnnotTerm;
+  struct ConstTerm;
+  struct IdentTerm;
+  struct AppTerm;
+  struct LetTerm;
 
-  struct SpecConstantRule
+  struct SpecConstant
       : rule<create<ast::SpecConstant>(
             assign<&ast::SpecConstant::text>(ref<NUMERAL> | ref<DECIMAL> |
                                              ref<HEXADECIMAL> | ref<BINARY>) |
             flag<&ast::SpecConstant::isString>(
                 assign<&ast::SpecConstant::text>(ref<STRING>)))> {};
 
-  struct SExprListRule : rule<create<ast::SExprList>(
+  struct SExprList : rule<create<ast::SExprList>(
                              lit<"("> +
                              many(append<&ast::SExprList::items>(
-                                 ref<SpecConstantRule> | Symbol |
-                                 ref<GenericKeyword> | ref<SExprListRule>)) +
+                                 ref<SpecConstant> | Symbol |
+                                 ref<GenericKeyword> | ref<SExprList>)) +
                              lit<")">)> {};
 
   static constexpr auto s_expr_val =
-      ref<SpecConstantRule> | Symbol | ref<GenericKeyword> | ref<SExprListRule>;
+      ref<SpecConstant> | Symbol | ref<GenericKeyword> | ref<SExprList>;
   // No bare keyword alternative here, unlike s_expr_val above.
   static constexpr auto attr_value =
-      ref<SpecConstantRule> | Symbol | ref<SExprListRule>;
+      ref<SpecConstant> | Symbol | ref<SExprList>;
 
   static constexpr auto index_val = ref<NUMERAL> | Symbol;
 
-  struct IdentifierRule
+  struct Identifier
       : rule<create<ast::Identifier>(
             assign<&ast::Identifier::symbol>(Symbol) |
             (lit<"("> + kw<"_"> + assign<&ast::Identifier::symbol>(Symbol) +
              some(append<&ast::Identifier::indices>(index_val)) + lit<")">))> {
   };
 
-  struct SortRule
-      : rule<create<ast::Sort>(assign<&ast::Sort::id>(ref<IdentifierRule>)) |
+  struct Sort
+      : rule<create<ast::Sort>(assign<&ast::Sort::id>(ref<Identifier>)) |
              create<ast::Sort>(
-                 lit<"("> + assign<&ast::Sort::id>(ref<IdentifierRule>) +
-                 some(append<&ast::Sort::args>(ref<SortRule>)) + lit<")">)> {};
+                 lit<"("> + assign<&ast::Sort::id>(ref<Identifier>) +
+                 some(append<&ast::Sort::args>(ref<Sort>)) + lit<")">)> {};
 
-  struct QualIdentifierRule
+  struct QualIdentifier
       : rule<create<ast::QualIdentifier>(
-                 assign<&ast::QualIdentifier::id>(ref<IdentifierRule>)) |
+                 assign<&ast::QualIdentifier::id>(ref<Identifier>)) |
              create<ast::QualIdentifier>(
                  lit<"("> + kw<"as"> +
-                 assign<&ast::QualIdentifier::id>(ref<IdentifierRule>) +
-                 assign<&ast::QualIdentifier::ascribedSort>(ref<SortRule>) +
+                 assign<&ast::QualIdentifier::id>(ref<Identifier>) +
+                 assign<&ast::QualIdentifier::ascribedSort>(ref<Sort>) +
                  lit<")">)> {};
 
-  struct AttributeRule
+  struct Attribute
       : rule<create<ast::Attribute>(
             assign<&ast::Attribute::keyword>(ref<GenericKeyword>) +
             option(assign<&ast::Attribute::value>(attr_value)))> {};
 
-  struct ConstTermRule
+  struct ConstTerm
       : rule<create<ast::ConstTerm>(
-            assign<&ast::ConstTerm::value>(ref<SpecConstantRule>))> {};
+            assign<&ast::ConstTerm::value>(ref<SpecConstant>))> {};
 
-  struct IdentTermRule
+  struct IdentTerm
       : rule<create<ast::IdentTerm>(
-            assign<&ast::IdentTerm::id>(ref<QualIdentifierRule>))> {};
+            assign<&ast::IdentTerm::id>(ref<QualIdentifier>))> {};
 
-  struct AppTermRule
+  struct AppTerm
       : rule<create<ast::AppTerm>(
-            lit<"("> + assign<&ast::AppTerm::head>(ref<QualIdentifierRule>) +
-            many(append<&ast::AppTerm::args>(ref<TermRule>)) + lit<")">)> {};
+            lit<"("> + assign<&ast::AppTerm::head>(ref<QualIdentifier>) +
+            many(append<&ast::AppTerm::args>(ref<Term>)) + lit<")">)> {};
 
-  struct VarBindingRule
+  struct VarBinding
       : rule<create<ast::VarBinding>(
             lit<"("> + assign<&ast::VarBinding::name>(Symbol) +
-            assign<&ast::VarBinding::value>(ref<TermRule>) + lit<")">)> {};
+            assign<&ast::VarBinding::value>(ref<Term>) + lit<")">)> {};
 
-  struct LetTermRule
+  struct LetTerm
       : rule<create<ast::LetTerm>(
             lit<"("> + kw<"let"> + lit<"("> +
-            many(append<&ast::LetTerm::bindings>(ref<VarBindingRule>)) +
-            lit<")"> + assign<&ast::LetTerm::body>(ref<TermRule>) + lit<")">)> {
+            many(append<&ast::LetTerm::bindings>(ref<VarBinding>)) +
+            lit<")"> + assign<&ast::LetTerm::body>(ref<Term>) + lit<")">)> {
   };
 
-  struct SortedVarRule
+  struct SortedVar
       : rule<create<ast::SortedVar>(
             lit<"("> + assign<&ast::SortedVar::name>(Symbol) +
-            assign<&ast::SortedVar::sort>(ref<SortRule>) + lit<")">)> {};
+            assign<&ast::SortedVar::sort>(ref<Sort>) + lit<")">)> {};
 
-  struct QuantTermRule
+  struct QuantTerm
       : rule<create<ast::QuantTerm>(
             lit<"("> +
             (flag<&ast::QuantTerm::exists>(kw<"exists">) |
              kw<"forall">)+lit<"("> +
-            many(append<&ast::QuantTerm::vars>(ref<SortedVarRule>)) + lit<")"> +
-            assign<&ast::QuantTerm::body>(ref<TermRule>) + lit<")">)> {};
+            many(append<&ast::QuantTerm::vars>(ref<SortedVar>)) + lit<")"> +
+            assign<&ast::QuantTerm::body>(ref<Term>) + lit<")">)> {};
 
-  struct PatternRule
+  struct Pattern
       : rule<create<ast::Pattern>(assign<&ast::Pattern::head>(Symbol)) |
              create<ast::Pattern>(
                  lit<"("> + assign<&ast::Pattern::head>(Symbol) +
                  some(append<&ast::Pattern::args>(Symbol)) + lit<")">)> {};
 
-  struct MatchCaseRule
+  struct MatchCase
       : rule<create<ast::MatchCase>(
-            lit<"("> + assign<&ast::MatchCase::pattern>(ref<PatternRule>) +
-            assign<&ast::MatchCase::body>(ref<TermRule>) + lit<")">)> {};
+            lit<"("> + assign<&ast::MatchCase::pattern>(ref<Pattern>) +
+            assign<&ast::MatchCase::body>(ref<Term>) + lit<")">)> {};
 
-  struct MatchTermRule
+  struct MatchTerm
       : rule<create<ast::MatchTerm>(
             lit<"("> + kw<"match"> +
-            assign<&ast::MatchTerm::scrutinee>(ref<TermRule>) + lit<"("> +
-            many(append<&ast::MatchTerm::cases>(ref<MatchCaseRule>)) +
+            assign<&ast::MatchTerm::scrutinee>(ref<Term>) + lit<"("> +
+            many(append<&ast::MatchTerm::cases>(ref<MatchCase>)) +
             lit<")"> + lit<")">)> {};
 
-  struct AnnotTermRule
+  struct AnnotTerm
       : rule<create<ast::AnnotTerm>(
-            lit<"("> + kw<"!"> + assign<&ast::AnnotTerm::term>(ref<TermRule>) +
-            many(append<&ast::AnnotTerm::attrs>(ref<AttributeRule>)) +
+            lit<"("> + kw<"!"> + assign<&ast::AnnotTerm::term>(ref<Term>) +
+            many(append<&ast::AnnotTerm::attrs>(ref<Attribute>)) +
             lit<")">)> {};
 
-  struct TermRule
-      : rule<ref<ConstTermRule> | ref<LetTermRule> | ref<QuantTermRule> |
-             ref<MatchTermRule> | ref<AnnotTermRule> | ref<AppTermRule> |
-             ref<IdentTermRule>> {};
+  struct Term
+      : rule<ref<ConstTerm> | ref<LetTerm> | ref<QuantTerm> |
+             ref<MatchTerm> | ref<AnnotTerm> | ref<AppTerm> |
+             ref<IdentTerm>> {};
 
   // Theory declarations.
 
-  struct SortSymbolDeclRule
+  struct SortSymbolDecl
       : rule<create<ast::SortSymbolDecl>(
-            lit<"("> + assign<&ast::SortSymbolDecl::id>(ref<IdentifierRule>) +
+            lit<"("> + assign<&ast::SortSymbolDecl::id>(ref<Identifier>) +
             assign<&ast::SortSymbolDecl::arity>(ref<NUMERAL>) +
-            many(append<&ast::SortSymbolDecl::attrs>(ref<AttributeRule>)) +
+            many(append<&ast::SortSymbolDecl::attrs>(ref<Attribute>)) +
             lit<")">)> {};
 
-  struct IdentFunDeclRule
+  struct IdentFunDecl
       : rule<create<ast::FunSymbolDecl>(
-            lit<"("> + assign<&ast::FunSymbolDecl::head>(ref<IdentifierRule>) +
-            some(append<&ast::FunSymbolDecl::sorts>(ref<SortRule>)) +
-            many(append<&ast::FunSymbolDecl::attrs>(ref<AttributeRule>)) +
+            lit<"("> + assign<&ast::FunSymbolDecl::head>(ref<Identifier>) +
+            some(append<&ast::FunSymbolDecl::sorts>(ref<Sort>)) +
+            many(append<&ast::FunSymbolDecl::attrs>(ref<Attribute>)) +
             lit<")">)> {};
 
-  struct FunSymbolDeclRule
+  struct FunSymbolDecl
       : rule<create<ast::FunSymbolDecl>(
                  lit<"("> +
-                 assign<&ast::FunSymbolDecl::head>(ref<SpecConstantRule>) +
-                 append<&ast::FunSymbolDecl::sorts>(ref<SortRule>) +
-                 many(append<&ast::FunSymbolDecl::attrs>(ref<AttributeRule>)) +
+                 assign<&ast::FunSymbolDecl::head>(ref<SpecConstant>) +
+                 append<&ast::FunSymbolDecl::sorts>(ref<Sort>) +
+                 many(append<&ast::FunSymbolDecl::attrs>(ref<Attribute>)) +
                  lit<")">) |
              create<ast::FunSymbolDecl>(
                  lit<"("> +
                  assign<&ast::FunSymbolDecl::head>(
                      kw<"NUMERAL"> | kw<"DECIMAL"> | kw<"string">) +
-                 append<&ast::FunSymbolDecl::sorts>(ref<SortRule>) +
-                 many(append<&ast::FunSymbolDecl::attrs>(ref<AttributeRule>)) +
+                 append<&ast::FunSymbolDecl::sorts>(ref<Sort>) +
+                 many(append<&ast::FunSymbolDecl::attrs>(ref<Attribute>)) +
                  lit<")">) |
-             ref<IdentFunDeclRule>> {};
+             ref<IdentFunDecl>> {};
 
-  struct ParFunSymbolDeclRule
+  struct ParFunSymbolDecl
       : rule<create<ast::ParFunSymbolDecl>(
-                 assign<&ast::ParFunSymbolDecl::decl>(ref<FunSymbolDeclRule>)) |
+                 assign<&ast::ParFunSymbolDecl::decl>(ref<FunSymbolDecl>)) |
              create<ast::ParFunSymbolDecl>(
                  lit<"("> + kw<"par"> + lit<"("> +
                  some(append<&ast::ParFunSymbolDecl::params>(Symbol)) +
                  lit<")"> +
-                 assign<&ast::ParFunSymbolDecl::decl>(ref<IdentFunDeclRule>) +
+                 assign<&ast::ParFunSymbolDecl::decl>(ref<IdentFunDecl>) +
                  lit<")">)> {};
 
-  struct TheoryAttributeRule
+  struct TheoryAttribute
       : rule<create<ast::SortsAttr>(
                  kw<":sorts"> + lit<"("> +
-                 some(append<&ast::SortsAttr::decls>(ref<SortSymbolDeclRule>)) +
+                 some(append<&ast::SortsAttr::decls>(ref<SortSymbolDecl>)) +
                  lit<")">) |
              create<ast::FunsAttr>(kw<":funs"> + lit<"("> +
                                    some(append<&ast::FunsAttr::decls>(
-                                       ref<ParFunSymbolDeclRule>)) +
+                                       ref<ParFunSymbolDecl>)) +
                                    lit<")">) |
              create<ast::TheoryTextAttr>(
                  assign<&ast::TheoryTextAttr::keyword>(
@@ -255,15 +255,15 @@ struct Smtlibv2 : cursiv::GrammarSpec {
                      kw<":definition"> | kw<":values"> | kw<":notes">) +
                  assign<&ast::TheoryTextAttr::text>(ref<STRING>)) |
              create<ast::TheoryGenericAttr>(
-                 assign<&ast::TheoryGenericAttr::attr>(ref<AttributeRule>))> {};
+                 assign<&ast::TheoryGenericAttr::attr>(ref<Attribute>))> {};
 
-  struct TheoryDeclRule
+  struct TheoryDecl
       : rule<create<ast::TheoryDecl>(
             lit<"("> + kw<"theory"> + assign<&ast::TheoryDecl::name>(Symbol) +
-            some(append<&ast::TheoryDecl::attrs>(ref<TheoryAttributeRule>)) +
+            some(append<&ast::TheoryDecl::attrs>(ref<TheoryAttribute>)) +
             lit<")">)> {};
 
-  struct LogicAttributeRule
+  struct LogicAttribute
       : rule<create<ast::TheoriesAttr>(
                  kw<":theories"> + lit<"("> +
                  some(append<&ast::TheoriesAttr::theories>(Symbol)) +
@@ -274,62 +274,62 @@ struct Smtlibv2 : cursiv::GrammarSpec {
                      kw<":notes">) +
                  assign<&ast::LogicTextAttr::text>(ref<STRING>)) |
              create<ast::LogicGenericAttr>(
-                 assign<&ast::LogicGenericAttr::attr>(ref<AttributeRule>))> {};
+                 assign<&ast::LogicGenericAttr::attr>(ref<Attribute>))> {};
 
-  struct LogicRule
+  struct Logic
       : rule<create<ast::Logic>(
             lit<"("> + kw<"logic"> + assign<&ast::Logic::name>(Symbol) +
-            some(append<&ast::Logic::attrs>(ref<LogicAttributeRule>)) +
+            some(append<&ast::Logic::attrs>(ref<LogicAttribute>)) +
             lit<")">)> {};
 
   // Scripts.
 
-  struct SortDecRule
+  struct SortDec
       : rule<create<ast::SortDec>(
             lit<"("> + assign<&ast::SortDec::name>(Symbol) +
             assign<&ast::SortDec::arity>(ref<NUMERAL>) + lit<")">)> {};
 
-  struct SelectorDecRule
+  struct SelectorDec
       : rule<create<ast::SelectorDec>(
             lit<"("> + assign<&ast::SelectorDec::name>(Symbol) +
-            assign<&ast::SelectorDec::sort>(ref<SortRule>) + lit<")">)> {};
+            assign<&ast::SelectorDec::sort>(ref<Sort>) + lit<")">)> {};
 
-  struct ConstructorDecRule
+  struct ConstructorDec
       : rule<create<ast::ConstructorDec>(
             lit<"("> + assign<&ast::ConstructorDec::name>(Symbol) +
             many(
-                append<&ast::ConstructorDec::selectors>(ref<SelectorDecRule>)) +
+                append<&ast::ConstructorDec::selectors>(ref<SelectorDec>)) +
             lit<")">)> {};
 
-  struct DatatypeDecRule
+  struct DatatypeDec
       : rule<create<ast::DatatypeDec>(
                  lit<"("> +
                  many(append<&ast::DatatypeDec::constructors>(
-                     ref<ConstructorDecRule>)) +
+                     ref<ConstructorDec>)) +
                  lit<")">) |
              create<ast::DatatypeDec>(
                  lit<"("> + kw<"par"> + lit<"("> +
                  some(append<&ast::DatatypeDec::params>(Symbol)) + lit<")"> +
                  lit<"("> +
                  many(append<&ast::DatatypeDec::constructors>(
-                     ref<ConstructorDecRule>)) +
+                     ref<ConstructorDec>)) +
                  lit<")"> + lit<")">)> {};
 
-  struct FunctionDecRule
+  struct FunctionDec
       : rule<create<ast::FunctionDec>(
             lit<"("> + assign<&ast::FunctionDec::name>(Symbol) + lit<"("> +
-            many(append<&ast::FunctionDec::params>(ref<SortedVarRule>)) +
-            lit<")"> + assign<&ast::FunctionDec::result>(ref<SortRule>) +
+            many(append<&ast::FunctionDec::params>(ref<SortedVar>)) +
+            lit<")"> + assign<&ast::FunctionDec::result>(ref<Sort>) +
             lit<")">)> {};
 
-  struct FunctionDefRule
+  struct FunctionDef
       : rule<create<ast::FunctionDef>(
             assign<&ast::FunctionDef::name>(Symbol) + lit<"("> +
-            many(append<&ast::FunctionDef::params>(ref<SortedVarRule>)) +
-            lit<")"> + assign<&ast::FunctionDef::result>(ref<SortRule>) +
-            assign<&ast::FunctionDef::body>(ref<TermRule>))> {};
+            many(append<&ast::FunctionDef::params>(ref<SortedVar>)) +
+            lit<")"> + assign<&ast::FunctionDef::result>(ref<Sort>) +
+            assign<&ast::FunctionDef::body>(ref<Term>))> {};
 
-  struct PropLiteralRule
+  struct PropLiteral
       : rule<create<ast::PropLiteral>(
                  assign<&ast::PropLiteral::symbol>(Symbol)) |
              create<ast::PropLiteral>(
@@ -338,179 +338,179 @@ struct Smtlibv2 : cursiv::GrammarSpec {
 
   // Commands.
 
-  struct SimpleCommandRule
+  struct SimpleCommand
       : rule<create<ast::SimpleCommand>(assign<&ast::SimpleCommand::name>(
             kw<"check-sat"> | kw<"exit"> | kw<"get-assertions"> |
             kw<"get-assignment"> | kw<"get-model"> | kw<"get-proof"> |
             kw<"get-unsat-assumptions"> | kw<"get-unsat-core"> |
             kw<"reset-assertions"> | kw<"reset">))> {};
 
-  struct AssertCommandRule
+  struct AssertCommand
       : rule<create<ast::AssertCommand>(
-            kw<"assert"> + assign<&ast::AssertCommand::term>(ref<TermRule>))> {
+            kw<"assert"> + assign<&ast::AssertCommand::term>(ref<Term>))> {
   };
 
-  struct CheckSatAssumingCommandRule
+  struct CheckSatAssumingCommand
       : rule<create<ast::CheckSatAssumingCommand>(
             kw<"check-sat-assuming"> + lit<"("> +
             many(append<&ast::CheckSatAssumingCommand::assumptions>(
-                ref<PropLiteralRule>)) +
+                ref<PropLiteral>)) +
             lit<")">)> {};
 
-  struct DeclareConstCommandRule
+  struct DeclareConstCommand
       : rule<create<ast::DeclareConstCommand>(
             kw<"declare-const"> +
             assign<&ast::DeclareConstCommand::name>(Symbol) +
-            assign<&ast::DeclareConstCommand::sort>(ref<SortRule>))> {};
+            assign<&ast::DeclareConstCommand::sort>(ref<Sort>))> {};
 
-  struct DeclareDatatypeCommandRule
+  struct DeclareDatatypeCommand
       : rule<create<ast::DeclareDatatypeCommand>(
             kw<"declare-datatype"> +
             assign<&ast::DeclareDatatypeCommand::name>(Symbol) +
-            assign<&ast::DeclareDatatypeCommand::decl>(ref<DatatypeDecRule>))> {
+            assign<&ast::DeclareDatatypeCommand::decl>(ref<DatatypeDec>))> {
   };
 
-  struct DeclareDatatypesCommandRule
+  struct DeclareDatatypesCommand
       : rule<create<ast::DeclareDatatypesCommand>(
             kw<"declare-datatypes"> + lit<"("> +
             many(append<&ast::DeclareDatatypesCommand::sorts>(
-                ref<SortDecRule>)) +
+                ref<SortDec>)) +
             lit<")"> + lit<"("> +
             many(append<&ast::DeclareDatatypesCommand::decls>(
-                ref<DatatypeDecRule>)) +
+                ref<DatatypeDec>)) +
             lit<")">)> {};
 
-  struct DeclareFunCommandRule
+  struct DeclareFunCommand
       : rule<create<ast::DeclareFunCommand>(
             kw<"declare-fun"> + assign<&ast::DeclareFunCommand::name>(Symbol) +
             lit<"("> +
-            many(append<&ast::DeclareFunCommand::params>(ref<SortRule>)) +
+            many(append<&ast::DeclareFunCommand::params>(ref<Sort>)) +
             lit<")"> +
-            assign<&ast::DeclareFunCommand::result>(ref<SortRule>))> {};
+            assign<&ast::DeclareFunCommand::result>(ref<Sort>))> {};
 
-  struct DeclareSortCommandRule
+  struct DeclareSortCommand
       : rule<create<ast::DeclareSortCommand>(
             kw<"declare-sort"> +
             assign<&ast::DeclareSortCommand::name>(Symbol) +
             assign<&ast::DeclareSortCommand::arity>(ref<NUMERAL>))> {};
 
-  struct DefineFunCommandRule
+  struct DefineFunCommand
       : rule<create<ast::DefineFunCommand>(
             kw<"define-fun"> +
-            assign<&ast::DefineFunCommand::def>(ref<FunctionDefRule>))> {};
+            assign<&ast::DefineFunCommand::def>(ref<FunctionDef>))> {};
 
-  struct DefineFunRecCommandRule
+  struct DefineFunRecCommand
       : rule<create<ast::DefineFunRecCommand>(
             kw<"define-fun-rec"> +
-            assign<&ast::DefineFunRecCommand::def>(ref<FunctionDefRule>))> {};
+            assign<&ast::DefineFunRecCommand::def>(ref<FunctionDef>))> {};
 
-  struct DefineFunsRecCommandRule
+  struct DefineFunsRecCommand
       : rule<create<ast::DefineFunsRecCommand>(
             kw<"define-funs-rec"> + lit<"("> +
             many(append<&ast::DefineFunsRecCommand::decls>(
-                ref<FunctionDecRule>)) +
+                ref<FunctionDec>)) +
             lit<")"> + lit<"("> +
-            many(append<&ast::DefineFunsRecCommand::bodies>(ref<TermRule>)) +
+            many(append<&ast::DefineFunsRecCommand::bodies>(ref<Term>)) +
             lit<")">)> {};
 
-  struct DefineSortCommandRule
+  struct DefineSortCommand
       : rule<create<ast::DefineSortCommand>(
             kw<"define-sort"> + assign<&ast::DefineSortCommand::name>(Symbol) +
             lit<"("> + many(append<&ast::DefineSortCommand::params>(Symbol)) +
-            lit<")"> + assign<&ast::DefineSortCommand::body>(ref<SortRule>))> {
+            lit<")"> + assign<&ast::DefineSortCommand::body>(ref<Sort>))> {
   };
 
-  struct EchoCommandRule
+  struct EchoCommand
       : rule<create<ast::EchoCommand>(
             kw<"echo"> + assign<&ast::EchoCommand::text>(ref<STRING>))> {};
 
-  struct GetInfoCommandRule
+  struct GetInfoCommand
       : rule<create<ast::GetInfoCommand>(
             kw<"get-info"> +
             assign<&ast::GetInfoCommand::flag>(ref<GenericKeyword>))> {};
 
-  struct GetOptionCommandRule
+  struct GetOptionCommand
       : rule<create<ast::GetOptionCommand>(
             kw<"get-option"> +
             assign<&ast::GetOptionCommand::keyword>(ref<GenericKeyword>))> {};
 
-  struct GetValueCommandRule
+  struct GetValueCommand
       : rule<create<ast::GetValueCommand>(
             kw<"get-value"> + lit<"("> +
-            some(append<&ast::GetValueCommand::terms>(ref<TermRule>)) +
+            some(append<&ast::GetValueCommand::terms>(ref<Term>)) +
             lit<")">)> {};
 
-  struct PopCommandRule
+  struct PopCommand
       : rule<create<ast::PopCommand>(
             kw<"pop"> +
             option(assign<&ast::PopCommand::count>(ref<NUMERAL>)))> {};
 
-  struct PushCommandRule
+  struct PushCommand
       : rule<create<ast::PushCommand>(
             kw<"push"> +
             option(assign<&ast::PushCommand::count>(ref<NUMERAL>)))> {};
 
-  struct SetInfoCommandRule
+  struct SetInfoCommand
       : rule<create<ast::SetInfoCommand>(
             kw<"set-info"> +
-            assign<&ast::SetInfoCommand::attr>(ref<AttributeRule>))> {};
+            assign<&ast::SetInfoCommand::attr>(ref<Attribute>))> {};
 
-  struct SetLogicCommandRule
+  struct SetLogicCommand
       : rule<create<ast::SetLogicCommand>(
             kw<"set-logic"> + assign<&ast::SetLogicCommand::name>(Symbol))> {};
 
-  struct SetOptionCommandRule
+  struct SetOptionCommand
       : rule<create<ast::SetOptionCommand>(
             kw<"set-option"> +
-            assign<&ast::SetOptionCommand::option>(ref<AttributeRule>))> {};
+            assign<&ast::SetOptionCommand::option>(ref<Attribute>))> {};
 
   static constexpr auto command_body =
-      ref<AssertCommandRule> | ref<SimpleCommandRule> |
-      ref<CheckSatAssumingCommandRule> | ref<DeclareConstCommandRule> |
-      ref<DeclareDatatypeCommandRule> | ref<DeclareDatatypesCommandRule> |
-      ref<DeclareFunCommandRule> | ref<DeclareSortCommandRule> |
-      ref<DefineFunCommandRule> | ref<DefineFunRecCommandRule> |
-      ref<DefineFunsRecCommandRule> | ref<DefineSortCommandRule> |
-      ref<EchoCommandRule> | ref<GetInfoCommandRule> |
-      ref<GetOptionCommandRule> | ref<GetValueCommandRule> |
-      ref<PopCommandRule> | ref<PushCommandRule> | ref<SetInfoCommandRule> |
-      ref<SetLogicCommandRule> | ref<SetOptionCommandRule>;
+      ref<AssertCommand> | ref<SimpleCommand> |
+      ref<CheckSatAssumingCommand> | ref<DeclareConstCommand> |
+      ref<DeclareDatatypeCommand> | ref<DeclareDatatypesCommand> |
+      ref<DeclareFunCommand> | ref<DeclareSortCommand> |
+      ref<DefineFunCommand> | ref<DefineFunRecCommand> |
+      ref<DefineFunsRecCommand> | ref<DefineSortCommand> |
+      ref<EchoCommand> | ref<GetInfoCommand> |
+      ref<GetOptionCommand> | ref<GetValueCommand> |
+      ref<PopCommand> | ref<PushCommand> | ref<SetInfoCommand> |
+      ref<SetLogicCommand> | ref<SetOptionCommand>;
 
-  struct CommandRule : rule<lit<"("> + command_body + lit<")">> {};
+  struct Command : rule<lit<"("> + command_body + lit<")">> {};
 
-  struct ScriptRule : rule<create<ast::Script>(many(
-                          append<&ast::Script::commands>(ref<CommandRule>)))> {
+  struct Script : rule<create<ast::Script>(many(
+                          append<&ast::Script::commands>(ref<Command>)))> {
   };
 
-  struct LogicDocRule : rule<create<ast::LogicDoc>(
-                            assign<&ast::LogicDoc::logic>(ref<LogicRule>))> {};
+  struct LogicDoc : rule<create<ast::LogicDoc>(
+                            assign<&ast::LogicDoc::logic>(ref<Logic>))> {};
 
-  struct TheoryDeclDocRule
+  struct TheoryDeclDoc
       : rule<create<ast::TheoryDeclDoc>(
-            assign<&ast::TheoryDeclDoc::decl>(ref<TheoryDeclRule>))> {};
+            assign<&ast::TheoryDeclDoc::decl>(ref<TheoryDecl>))> {};
 
-  struct CheckSatResponseRule : rule<assign<&ast::CheckSatResponse::result>(
+  struct CheckSatResponse : rule<assign<&ast::CheckSatResponse::result>(
                                     kw<"sat"> | kw<"unsat"> | kw<"unknown">)> {
   };
-  struct EchoResponseRule
+  struct EchoResponse
       : rule<assign<&ast::EchoResponse::text>(ref<STRING>)> {};
-  struct SExprResponseRule
+  struct SExprResponse
       : rule<assign<&ast::SExprResponse::value>(s_expr_val)> {};
-  struct GeneralResponseRule
+  struct GeneralResponse
       : rule<(create<ast::SuccessResponse> + kw<"success">) |
              (create<ast::UnsupportedResponse> + kw<"unsupported">) |
              create<ast::ErrorResponse>(
                  lit<"("> + kw<"error"> +
                  assign<&ast::ErrorResponse::message>(ref<STRING>) + lit<")">) |
-             ref<CheckSatResponseRule> | ref<EchoResponseRule> |
-             ref<SExprResponseRule>> {};
-  struct ResponseDocRule : rule<some(append<&ast::ResponseDoc::responses>(
-                               ref<GeneralResponseRule>))> {};
-  struct StartRule : rule<ref<ScriptRule> | ref<LogicDocRule> |
-                          ref<TheoryDeclDocRule> | ref<ResponseDocRule>> {};
+             ref<CheckSatResponse> | ref<EchoResponse> |
+             ref<SExprResponse>> {};
+  struct ResponseDoc : rule<some(append<&ast::ResponseDoc::responses>(
+                               ref<GeneralResponse>))> {};
+  struct Start : rule<ref<Script> | ref<LogicDoc> |
+                          ref<TheoryDeclDoc> | ref<ResponseDoc>> {};
 
-  using entry = StartRule;
-  using ignore = list<WS, COMMENT>;
+  using entry = Start;
+  using ignored = list<WS, COMMENT>;
 };
 
 }  // namespace smtlibv2

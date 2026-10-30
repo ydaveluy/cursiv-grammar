@@ -1,6 +1,6 @@
 // The grammar's smoke test: every document under tests/ (the upstream
 // corpus is empty) parses clean, real field values read back correctly, and
-// a fragment named `on` is accepted.
+// context-sensitive syntax violations are retained for validation.
 
 #include <cstdint>
 #include <cstdio>

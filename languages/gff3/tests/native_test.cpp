@@ -17,6 +17,37 @@ int main() {
   const auto language = cursiv::create_language<gff3::Gff3CoreServices,
                                                 gff3::Gff3SharedCoreServices,
                                                 gff3::install_core_module>();
+  for (const char* row : {
+           "chr1\t.\tCDS\t1\t9\t.\t+\t.\tID=c1",
+           "chr1\t.\tSO:0000316\t1\t9\t.\t+\t.\tID=c1",
+           "chr1\t.\tgene\t1\t9\t.\t+\t.\tNote=a&b",
+           "chr1\t.\tgene\t1\t9\t.\t+\t.\tnote%Q1=raw"}) {
+    const std::string source = std::string("##gff-version 3\n") + row + '\n';
+    const auto parsed = language.language.parser->parse(source);
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() ||
+        cursiv::test::validationHelper(language.language, source).diagnostics.size() != 1) {
+      std::fprintf(stderr, "gff3: required CDS phase or attribute escaping\n");
+      return 1;
+    }
+  }
+  {
+    const std::string source = "##gff-version 3\n"
+        "chr1\t.\tCDS\t1\t9\t.\t+\t0\tID=c1;note%3Dkey=a%26b%3Dc\n";
+    const auto parsed = language.language.parser->parse(source);
+    const auto* doc = parsed.value_as<gff3::ast::Document>();
+    const auto* feature = doc && doc->lines.size() == 2 ?
+        std::get_if<gff3::ast::Feature*>(&doc->lines[1]) : nullptr;
+    if (!parsed.accepted || parsed.cst().recovered() || !feature ||
+        (*feature)->attributes.size() != 2 ||
+        (*feature)->attributes[1]->key != "note%3Dkey" ||
+        (*feature)->attributes[1]->values.size() != 1 ||
+        (*feature)->attributes[1]->values[0] != "a%26b%3Dc" ||
+        !cursiv::test::validationHelper(language.language, source).diagnostics.empty()) {
+      std::fprintf(stderr, "gff3: encoded attribute text must remain raw in AST\n");
+      return 1;
+    }
+  }
   unsigned native = 0;
   for (const auto &c : nativeCases) {
     const auto fail = [&](const char *what) {

@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Roman-numeral spellings, preserved in the AST. Validation checks their supported structure.
+
 ```
 MCMLXXII
 ```
-
-A document is one Roman numeral: a run of `M`, then an optional
-hundreds/tens/ones group each spelled with the classic subtractive forms
-(`CM`, `CD`, `XC`, `XL`, `IX`, `IV`). The AST is one `RomanNumeral` node —
-`thousands` a list of 1000s, `hundreds`/`tens`/`ones` the value each group
-denotes, 0 meaning absent.
 
 ## The command line
 

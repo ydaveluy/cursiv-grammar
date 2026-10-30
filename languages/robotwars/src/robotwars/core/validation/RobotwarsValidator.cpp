@@ -11,6 +11,30 @@
 
 namespace robotwars {
 
+void RobotwarsValidator::checkNumber(
+    const ast::NumberLit& number, cursiv::ValidationAcceptor& accept) const {
+  if (number.value > 1024)
+    accept.error(number, "RobotWar literals must be between -1024 and +1024.",
+                 "robotwars.number-range").property<&ast::NumberLit::value>();
+}
+
+void RobotwarsValidator::checkLabel(
+    const ast::Label& label, cursiv::ValidationAcceptor& accept) const {
+  if (label.name.size() >= 32)
+    accept.error(label, "RobotWar labels must have fewer than 32 characters.",
+                 "robotwars.label-length").property<&ast::Label::name>();
+  std::string name(label.name);
+  for (char& c : name) if (c >= 'a' && c <= 'z') c -= 'a' - 'A';
+  for (const std::string_view reserved : {"TO", "IF", "GOTO", "GOSUB", "ENDSUB", "AIM",
+      "SHOT", "RADAR", "DAMAGE", "SPEEDX", "SPEEDY", "RANDOM", "INDEX", "DATA"}) {
+    if (name == reserved) {
+      accept.error(label, "RobotWar labels cannot be register or command names.",
+                   "robotwars.label-reserved").property<&ast::Label::name>();
+      break;
+    }
+  }
+}
+
 // GOSUB/GOTO resolve a label by name against every one declared in the
 // program: two labels sharing a name make that resolution ambiguous.
 void RobotwarsValidator::checkUniqueLabels(
@@ -35,7 +59,9 @@ void register_validation_checks(RobotwarsCoreServices& services) {
   services.validator = std::make_unique<const V>(services);
   const V& validator = *services.validator;
   services.validationRegistry->registerChecks(
-      {cursiv::ValidationRegistry::makeValidationCheck<&V::checkUniqueLabels>(
+      {cursiv::ValidationRegistry::makeValidationCheck<&V::checkNumber>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkLabel>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkUniqueLabels>(
           validator)});
 }
 

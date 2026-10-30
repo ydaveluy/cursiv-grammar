@@ -16,7 +16,21 @@ struct Odin : cursiv::GrammarSpec {
                  many(ref<BLOCK_COMMENT> | (!lit<"/*"> + !lit<"*/"> + any)) +
                  lit<"*/">> {};
 
-  struct ID : terminal<cr<"a-zA-Z_"> + many(w)> {};
+  static constexpr auto IdentStart = uc::L | cr<"_">;
+  static constexpr auto IdentCont = uc::L | uc::Nd | cr<"_">;
+  static constexpr auto word_boundary = IdentCont;
+  static constexpr auto Reserved =
+      kw<"asm"> | kw<"auto_cast"> | kw<"bit_field"> | kw<"bit_set"> |
+      kw<"break"> | kw<"case"> | kw<"cast"> | kw<"context"> |
+      kw<"continue"> | kw<"defer"> | kw<"distinct"> | kw<"do"> |
+      kw<"dynamic"> | kw<"else"> | kw<"enum"> | kw<"fallthrough"> |
+      kw<"for"> | kw<"foreign"> | kw<"if"> | kw<"import"> | kw<"in"> |
+      kw<"map"> | kw<"matrix"> | kw<"not_in"> | kw<"or_break"> |
+      kw<"or_continue"> | kw<"or_else"> | kw<"or_return"> |
+      kw<"package"> | kw<"proc"> | kw<"return"> | kw<"struct"> |
+      kw<"switch"> | kw<"transmute"> | kw<"typeid"> | kw<"union"> |
+      kw<"using"> | kw<"when"> | kw<"where">;
+  struct ID : terminal<!Reserved + IdentStart + many(IdentCont)> {};
 
   static constexpr auto DEC_DIGITS = cr<"0-9"> + many(cr<"0-9_">);
   static constexpr auto HEX_DIGITS = cr<"0-9a-fA-F"> + many(cr<"0-9a-fA-F_">);
@@ -27,21 +41,23 @@ struct Odin : cursiv::GrammarSpec {
 
   struct INTEGER
       : terminal<(lit<"0b"> + BIN_DIGITS) | (lit<"0o"> + OCT_DIGITS) |
-                 (lit<"0x"> + HEX_DIGITS) | DEC_DIGITS> {};
+                 (lit<"0x"> + HEX_DIGITS) | (lit<"0d"> + DEC_DIGITS) |
+                 (lit<"0z"> + cr<"0-9aAbB"> + many(cr<"0-9aAbB_">)) |
+                 DEC_DIGITS> {};
 
-  // A mandatory digit on both sides of the dot: `1..5` never loses its first
-  // dot to this rule, so a range needs no guard against it.
+  static constexpr auto DEC_FLOAT =
+      (DEC_DIGITS + lit<".", !lit<".">> + option(DEC_DIGITS) + option(DEC_EXP)) |
+      (lit<"."> + DEC_DIGITS + option(DEC_EXP)) | (DEC_DIGITS + DEC_EXP);
   struct FLOAT
-      : terminal<(DEC_DIGITS + lit<"."> + DEC_DIGITS + option(DEC_EXP))  //
-                 | (DEC_DIGITS + DEC_EXP)  //
-                 | (lit<"0x"> + HEX_DIGITS + lit<"."> + option(HEX_DIGITS) +
-                    option(HEX_EXP))> {};
-
-  struct IMAG
-      : terminal<(DEC_DIGITS + lit<"."> + DEC_DIGITS + option(DEC_EXP) +
-                  cr<"ijk">)  //
-                 | (DEC_DIGITS + DEC_EXP + cr<"ijk">)  //
-                 | (DEC_DIGITS + cr<"ijk">)> {};
+      : terminal<DEC_FLOAT |
+                 (lit<"0h"> + (repeat<16>(cr<"0-9a-fA-F">) |
+                                repeat<8>(cr<"0-9a-fA-F">) |
+                                repeat<4>(cr<"0-9a-fA-F">)) +
+                  !cr<"0-9a-fA-F_">) |
+                 // Retained imported C-style hexadecimal float extension.
+                 (lit<"0x"> + HEX_DIGITS + lit<"."> + option(HEX_DIGITS) +
+                  option(HEX_EXP))> {};
+  struct IMAG : terminal<(DEC_FLOAT | DEC_DIGITS) + cr<"ijk">> {};
 
   static constexpr auto ESCAPE_SEQ =
       lit<"\\"> +
@@ -90,7 +106,7 @@ struct Odin : cursiv::GrammarSpec {
   struct EnumField;
   struct EnumType;
   struct UnionType;
-  struct RangeExprRule;
+  struct RangeExpr;
   struct BitSetType;
   struct BitFieldEntry;
   struct BitFieldType;
@@ -100,21 +116,20 @@ struct Odin : cursiv::GrammarSpec {
   struct TypeArgs;
 
   struct Expression;
-  struct IdentRule;
+  struct Ident;
   struct Literal;
-  struct DefinedExprRule;
-  struct ProcedureExprRule;
-  struct LoadExprRule;
-  struct AssertExprRule;
+  struct DefinedExpr;
+  struct ProcedureExpr;
+  struct LoadExpr;
+  struct AssertExpr;
   struct Operand;
   struct PostfixLevel;
   struct CastLevel;
-  struct UnaryExprRule;
-  struct CastExprRule;
-  struct TransmuteExprRule;
-  struct AutoCastExprRule;
+  struct UnaryExpr;
+  struct CastExpr;
+  struct TransmuteExpr;
+  struct AutoCastExpr;
   struct BinaryLevel;
-  struct CondTail;
   struct CallArg;
   struct LiteralElem;
   struct ProcExpr;
@@ -227,8 +242,8 @@ struct Odin : cursiv::GrammarSpec {
       : rule<kw<"proc"> +
              option(assign<&ast::ProcType::callingConvention>(ref<STRING>)) +
              lit<"("> +
-             option(some(append<&ast::ProcType::params>(ref<Param>), lit<",">)) +
-             lit<")"> +
+             many(append<&ast::ProcType::params>(ref<Param>), lit<",">) +
+             option(lit<",">) + lit<")"> +
              option(lit<"->"> +
                     ((lit<"("> +
                       some(append<&ast::ProcType::results>(ref<ReturnParam>),
@@ -257,20 +272,20 @@ struct Odin : cursiv::GrammarSpec {
                                                     ref<RAW_STRING>))> {};
 
   static constexpr auto StructAlign =
-      append<&ast::StructType::tags>(lit<"#align">) + lit<"("> +
+      append<&ast::StructType::tags>((lit<"#"> + kw<"align">)) + lit<"("> +
       append<&ast::StructType::align>(ref<Expression>) + lit<")">;
   static constexpr auto StructMinFieldAlign =
-      append<&ast::StructType::tags>(lit<"#min_field_align">) + lit<"("> +
+      append<&ast::StructType::tags>((lit<"#"> + kw<"min_field_align">)) + lit<"("> +
       append<&ast::StructType::minFieldAlign>(ref<Expression>) + lit<")">;
   static constexpr auto StructTagItem =
       flag<&ast::StructType::packed>(
-          append<&ast::StructType::tags>(lit<"#packed">))  //
+          append<&ast::StructType::tags>((lit<"#"> + kw<"packed">)))  //
       | flag<&ast::StructType::rawUnion>(
-            append<&ast::StructType::tags>(lit<"#raw_union">))  //
+            append<&ast::StructType::tags>((lit<"#"> + kw<"raw_union">)))  //
       | flag<&ast::StructType::simple>(
-            append<&ast::StructType::tags>(lit<"#simple">))  //
+            append<&ast::StructType::tags>((lit<"#"> + kw<"simple">)))  //
       | flag<&ast::StructType::allOrNone>(
-            append<&ast::StructType::tags>(lit<"#all_or_none">))  //
+            append<&ast::StructType::tags>((lit<"#"> + kw<"all_or_none">)))  //
       | (kw<"where"> +
          some(append<&ast::StructType::whereConditions>(ref<WhereCondition>),
               lit<",">));
@@ -297,7 +312,7 @@ struct Odin : cursiv::GrammarSpec {
 
   struct EnumType
       : rule<kw<"enum"> +
-             option(assign<&ast::EnumType::underlying>(ref<BasicType>)) +
+             option(assign<&ast::EnumType::underlying>(ref<TypeSpec>)) +
              lit<"{"> +
              option(some(append<&ast::EnumType::fields>(ref<EnumField>),
                          lit<",">) +
@@ -305,9 +320,9 @@ struct Odin : cursiv::GrammarSpec {
              lit<"}">> {};
 
   static constexpr auto UnionTagItem =
-      flag<&ast::UnionType::noNil>(lit<"#no_nil">)  //
-      | flag<&ast::UnionType::sharedNil>(lit<"#shared_nil">)  //
-      | flag<&ast::UnionType::maybe>(lit<"#maybe">);
+      flag<&ast::UnionType::noNil>((lit<"#"> + kw<"no_nil">))  //
+      | flag<&ast::UnionType::sharedNil>((lit<"#"> + kw<"shared_nil">))  //
+      | flag<&ast::UnionType::maybe>((lit<"#"> + kw<"maybe">));
 
   struct UnionType
       : rule<kw<"union"> +
@@ -324,16 +339,16 @@ struct Odin : cursiv::GrammarSpec {
 
   // A range, or a plain value -- one rule for a for-loop's range clause, a
   // bit-set element, and a switch case value alike.
-  struct RangeExprRule
+  struct RangeExpr
       : rule<assign<&ast::RangeExpr::low>(ref<Expression>) + lit<".."> +
              (flag<&ast::RangeExpr::inclusive>(lit<"=">) | lit<"<">) +
              assign<&ast::RangeExpr::high>(ref<Expression>)> {};
 
-  static constexpr auto RangeOrExpr = ref<RangeExprRule> | ref<Expression>;
+  static constexpr auto RangeOrExpr = ref<RangeExpr> | ref<Expression>;
 
   struct BitSetType
       : rule<kw<"bit_set"> + lit<"["> +
-             assign<&ast::BitSetType::elem>(ref<RangeExprRule> |
+             assign<&ast::BitSetType::elem>(ref<RangeExpr> |
                                             ref<TypeSpec>) +
              option(lit<";"> + assign<&ast::BitSetType::word>(ref<TypeSpec>)) +
              lit<"]">> {};
@@ -353,14 +368,14 @@ struct Odin : cursiv::GrammarSpec {
              lit<"}">> {};
 
   struct MatrixType
-      : rule<option(flag<&ast::MatrixType::rowMajor>(lit<"#row_major">)) +
+      : rule<option(flag<&ast::MatrixType::rowMajor>((lit<"#"> + kw<"row_major">))) +
              kw<"matrix"> + lit<"["> +
              assign<&ast::MatrixType::rows>(ref<Expression>) + lit<","> +
              assign<&ast::MatrixType::cols>(ref<Expression>) + lit<"]"> +
              assign<&ast::MatrixType::elem>(ref<TypeSpec>)> {};
 
   struct SoaArrayType
-      : rule<lit<"#soa"> +
+      : rule<(lit<"#"> + kw<"soa">) +
              ((lit<"["> + assign<&ast::SoaArrayType::size>(ref<Expression>) +
                lit<"]">)  //
               | (lit<"["> +
@@ -373,7 +388,7 @@ struct Odin : cursiv::GrammarSpec {
              assign<&ast::SoaArrayType::elem>(ref<TypeSpec>)> {};
 
   struct SparseArrayType
-      : rule<lit<"#sparse"> + lit<"["> +
+      : rule<(lit<"#"> + kw<"sparse">) + lit<"["> +
              assign<&ast::SparseArrayType::key>(ref<TypeSpec>) + lit<"]"> +
              assign<&ast::SparseArrayType::elem>(ref<TypeSpec>)> {};
 
@@ -403,8 +418,8 @@ struct Odin : cursiv::GrammarSpec {
       : rule<kw<"proc"> +
              option(assign<&ast::ProcExpr::callingConvention>(ref<STRING>)) +
              lit<"("> +
-             option(some(append<&ast::ProcExpr::params>(ref<Param>), lit<",">)) +
-             lit<")"> +
+             many(append<&ast::ProcExpr::params>(ref<Param>), lit<",">) +
+             option(lit<",">) + lit<")"> +
              option(lit<"->"> +
                     ((lit<"("> +
                       some(append<&ast::ProcExpr::results>(ref<ReturnParam>),
@@ -422,12 +437,10 @@ struct Odin : cursiv::GrammarSpec {
              some(append<&ast::ProcGroup::members>(ref<ID>), lit<",">) +
              lit<"}">> {};
 
-  struct IdentRule
-      : rule<((assign<&ast::Ident::pkg>(ref<ID>) + lit<"."> +
-               assign<&ast::Ident::name>(ref<ID>))  //
-              | assign<&ast::Ident::name>(ref<ID>)) +
-             option(lit<"("> + assign<&ast::Ident::typeArgs>(ref<TypeArgs>) +
-                    lit<")">)> {};
+  struct Ident
+      : rule<(assign<&ast::Ident::pkg>(ref<ID>) + lit<"."> +
+              assign<&ast::Ident::name>(ref<ID>)) |
+             assign<&ast::Ident::name>(ref<ID>)> {};
 
   struct Literal
       : rule<assign<&ast::FloatLit::text>(ref<FLOAT>)  //
@@ -442,16 +455,16 @@ struct Odin : cursiv::GrammarSpec {
                    flag<&ast::BoolLit::value>(kw<"true">) | kw<"false">)  //
              | create<ast::UninitLit>(lit<"---">)> {};
 
-  struct DefinedExprRule
-      : rule<lit<"#defined"> + lit<"("> +
+  struct DefinedExpr
+      : rule<(lit<"#"> + kw<"defined">) + lit<"("> +
              assign<&ast::DefinedExpr::name>(ref<ID>) + lit<")">> {};
-  struct ProcedureExprRule : rule<create<ast::ProcedureExpr>(lit<"#procedure">)> {
+  struct ProcedureExpr : rule<create<ast::ProcedureExpr>((lit<"#"> + kw<"procedure">))> {
   };
-  struct LoadExprRule
-      : rule<lit<"#load"> + lit<"("> +
+  struct LoadExpr
+      : rule<(lit<"#"> + kw<"load">) + lit<"("> +
              assign<&ast::LoadExpr::path>(ref<Expression>) + lit<")">> {};
-  struct AssertExprRule
-      : rule<lit<"#assert"> + lit<"("> +
+  struct AssertExpr
+      : rule<(lit<"#"> + kw<"assert">) + lit<"("> +
              assign<&ast::AssertExpr::cond>(ref<WhereCondition>) + lit<")">> {};
 
   static constexpr auto CompositeBody =
@@ -461,7 +474,8 @@ struct Odin : cursiv::GrammarSpec {
 
   struct Operand
       : rule<ref<Literal>  //
-             | ref<IdentRule>  //
+             | create<ast::ContextExpr>(kw<"context">) |
+             ref<Ident>  //
              | create<ast::BasicTypeExpr>(
                    assign<&ast::BasicTypeExpr::keyword>(BasicTypeKw))  //
              | create<ast::ImplicitSelectorExpr>(
@@ -501,11 +515,16 @@ struct Odin : cursiv::GrammarSpec {
                    lit<"{"> + CompositeBody)  //
              | create<ast::CompositeLit>(
                    assign<&ast::CompositeLit::typeSpec>(ref<BitSetType>) +
-                   lit<"{"> + CompositeBody)> {};
+                   lit<"{"> + CompositeBody) |
+             create<ast::TypeExpr>(assign<&ast::TypeExpr::type>(
+                 ref<ArrayType> | ref<SliceType> | ref<DynamicArrayType> |
+                 ref<MapType> | ref<StructType> | ref<EnumType> |
+                 ref<SoaArrayType> | ref<SparseArrayType> |
+                 ref<MatrixType> | ref<BitSetType>))> {};
 
-  static constexpr auto PrimaryBase = ref<Operand> | ref<DefinedExprRule> |
-                                      ref<ProcedureExprRule> | ref<LoadExprRule> |
-                                      ref<AssertExprRule>;
+  static constexpr auto PrimaryBase = ref<Operand> | ref<DefinedExpr> |
+                                      ref<ProcedureExpr> | ref<LoadExpr> |
+                                      ref<AssertExpr>;
 
   static constexpr auto PostfixOp =
       nest<ast::IndexExpr, &ast::IndexExpr::array>(
@@ -530,6 +549,11 @@ struct Odin : cursiv::GrammarSpec {
       | nest<ast::MemberExpr, &ast::MemberExpr::object>(
             lit<"."> + assign<&ast::MemberExpr::field>(ref<ID>))  //
       | nest<ast::DerefExpr, &ast::DerefExpr::operand>(lit<"^">)  //
+      | nest<ast::OrJumpExpr, &ast::OrJumpExpr::value>(
+            assign<&ast::OrJumpExpr::kind>(kw<"or_return">)) |
+        nest<ast::OrJumpExpr, &ast::OrJumpExpr::value>(
+            assign<&ast::OrJumpExpr::kind>(kw<"or_break"> | kw<"or_continue">) +
+            option(assign<&ast::OrJumpExpr::label>(ref<ID>)))
       | nest<ast::CompositeLit, &ast::CompositeLit::typeExpr>(lit<"{"> +
                                                                CompositeBody);
 
@@ -538,27 +562,27 @@ struct Odin : cursiv::GrammarSpec {
   static constexpr auto UnaryOp =
       lit<"+"> | lit<"-"> | lit<"~"> | lit<"!"> | lit<"^"> | lit<"&">;
 
-  struct UnaryExprRule
+  struct UnaryExpr
       : rule<assign<&ast::UnaryExpr::op>(UnaryOp) +
              assign<&ast::UnaryExpr::operand>(ref<CastLevel>)> {};
 
-  struct CastExprRule
+  struct CastExpr
       : rule<assign<&ast::CastExpr::kind>(kw<"cast">) + lit<"("> +
              assign<&ast::CastExpr::type>(ref<TypeSpec>) + lit<")"> +
              assign<&ast::CastExpr::operand>(ref<CastLevel>)> {};
 
-  struct TransmuteExprRule
+  struct TransmuteExpr
       : rule<assign<&ast::CastExpr::kind>(kw<"transmute">) + lit<"("> +
              assign<&ast::CastExpr::type>(ref<TypeSpec>) + lit<")"> +
              assign<&ast::CastExpr::operand>(ref<CastLevel>)> {};
 
-  struct AutoCastExprRule
+  struct AutoCastExpr
       : rule<kw<"auto_cast"> +
              assign<&ast::AutoCastExpr::operand>(ref<CastLevel>)> {};
 
   struct CastLevel
-      : rule<ref<UnaryExprRule> | ref<CastExprRule> | ref<TransmuteExprRule> |
-             ref<AutoCastExprRule> | ref<PostfixLevel>> {};
+      : rule<ref<UnaryExpr> | ref<CastExpr> | ref<TransmuteExpr> |
+             ref<AutoCastExpr> | ref<PostfixLevel>> {};
 
   // Odin's precedence table (odin-lang.org/docs/overview/, "Operator
   // Precedence"), tightest first; same-level operators associate left to
@@ -574,57 +598,27 @@ struct Odin : cursiv::GrammarSpec {
   static constexpr auto OrLevelOp = lit<"||">;
 
   struct BinaryLevel
-      : infix<CastLevel, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(MulLevelOp) >> left(AddLevelOp) >> left(RelLevelOp) >>
-               left(AndLevelOp) >> left(OrLevelOp))> {};
+      : infix<CastLevel, ast::BinaryExpr,
+              levels(left(MulLevelOp), left(AddLevelOp), left(RelLevelOp),
+                     left(AndLevelOp), left(OrLevelOp))> {};
 
-  // Odin's documented table puts the ternary forms and `or_else` one
-  // level below every binary operator. `if`/`when`/`?` take a
-  // `BinaryLevel` condition and recurse rightward into a full
-  // `Expression` on each branch, so one of these nests inside another
-  // without parentheses -- `a if b else c if d else e`, `(a if b else c)
-  // or_else d` without the parens.
-  struct CondTail
-      : rule<create<ast::CondExpr>(
-                 assign<&ast::CondExpr::thenValue>(ref<BinaryLevel>) +
-                 kw<"if"> + assign<&ast::CondExpr::cond>(ref<Expression>) +
-                 kw<"else"> +
-                 assign<&ast::CondExpr::elseValue>(ref<Expression>))  //
-             | create<ast::CondExpr>(
-                   assign<&ast::CondExpr::thenValue>(ref<BinaryLevel>) +
-                   flag<&ast::CondExpr::compileTime>(kw<"when">) +
-                   assign<&ast::CondExpr::cond>(ref<Expression>) +
-                   kw<"else"> +
-                   assign<&ast::CondExpr::elseValue>(ref<Expression>))  //
-             | create<ast::TernaryExpr>(
-                   assign<&ast::TernaryExpr::cond>(ref<BinaryLevel>) +
-                   lit<"?"> +
-                   assign<&ast::TernaryExpr::thenValue>(ref<Expression>) +
-                   lit<":"> +
-                   assign<&ast::TernaryExpr::elseValue>(ref<Expression>))  //
-             | ref<BinaryLevel>> {};
-
-  // The error-propagation tier: `or_else`'s left operand reaches down
-  // through `CondTail`, so it can take a ternary/`if`/`when` form
-  // un-parenthesized.
+  // Native parser.cpp gives ternaries and or_else precedence1. Normal
+  // or_else folds left; ternary branches recursively take complete expressions.
   struct Expression
-      : rule<create<ast::OrElseExpr>(
-                 assign<&ast::OrElseExpr::value>(ref<CondTail>) +
-                 kw<"or_else"> +
-                 assign<&ast::OrElseExpr::fallback>(ref<Expression>))  //
-             | create<ast::OrJumpExpr>(
-                   assign<&ast::OrJumpExpr::value>(ref<CondTail>) +
-                   assign<&ast::OrJumpExpr::kind>(kw<"or_return">))  //
-             | create<ast::OrJumpExpr>(
-                   assign<&ast::OrJumpExpr::value>(ref<CondTail>) +
-                   assign<&ast::OrJumpExpr::kind>(kw<"or_continue">) +
-                   option(assign<&ast::OrJumpExpr::label>(ref<ID>)))  //
-             | create<ast::OrJumpExpr>(
-                   assign<&ast::OrJumpExpr::value>(ref<CondTail>) +
-                   assign<&ast::OrJumpExpr::kind>(kw<"or_break">) +
-                   option(assign<&ast::OrJumpExpr::label>(ref<ID>)))  //
-             | ref<CondTail>> {};
+      : rule<ref<BinaryLevel> +
+             many(nest<ast::OrElseExpr, &ast::OrElseExpr::value>(
+                      kw<"or_else"> +
+                      assign<&ast::OrElseExpr::fallback>(ref<BinaryLevel>)) |
+                  nest<ast::CondExpr, &ast::CondExpr::thenValue>(
+                      (kw<"if"> | flag<&ast::CondExpr::compileTime>(kw<"when">)) +
+                      assign<&ast::CondExpr::cond>(ref<Expression>) +
+                      kw<"else"> +
+                      assign<&ast::CondExpr::elseValue>(ref<Expression>)) |
+                  nest<ast::TernaryExpr, &ast::TernaryExpr::cond>(
+                      lit<"?"> +
+                      assign<&ast::TernaryExpr::thenValue>(ref<Expression>) +
+                      lit<":"> +
+                      assign<&ast::TernaryExpr::elseValue>(ref<Expression>)))> {};
 
   struct CallArg
       : rule<(option(assign<&ast::CallArg::name>(ref<ID>) + lit<"=">) +
@@ -675,8 +669,8 @@ struct Odin : cursiv::GrammarSpec {
   // range-or-expr -- the two range forms merged. This also accepts `&`
   // with three or more names or a literal range.
   struct ForStmt
-      : rule<option(assign<&ast::ForStmt::directive>(lit<"#reverse"> |
-                                                      lit<"#unroll">)) +
+      : rule<option(assign<&ast::ForStmt::directive>((lit<"#"> + kw<"reverse">) |
+                                                      (lit<"#"> + kw<"unroll">))) +
              kw<"for"> +
              (assign<&ast::ForStmt::body>(ref<Block>)  // infinite
               | (option(assign<&ast::ForStmt::init>(ref<SimpleStmt>)) +
@@ -695,22 +689,22 @@ struct Odin : cursiv::GrammarSpec {
 
   struct SwitchCase
       : rule<kw<"case"> +
-             option(some(
-                 append<&ast::SwitchCase::values>(ref<RangeExprRule> |
+             many(
+                 append<&ast::SwitchCase::values>(ref<RangeExpr> |
                                                    ref<TypeSpec> |
                                                    ref<Expression>),
-                 lit<",">)) +
+                 lit<",">) +
              lit<":"> + many(append<&ast::SwitchCase::body>(ref<Statement>))> {};
 
   struct TypeSwitchCase
       : rule<kw<"case"> +
-             option(some(append<&ast::SwitchCase::values>(ref<TypeSpec> |
+             many(append<&ast::SwitchCase::values>(ref<TypeSpec> |
                                                            ref<Expression>),
-                         lit<",">)) +
+                         lit<",">) +
              lit<":"> + many(append<&ast::SwitchCase::body>(ref<Statement>))> {};
 
   struct SwitchStmt
-      : rule<option(flag<&ast::SwitchStmt::partial>(lit<"#partial">)) +
+      : rule<option(flag<&ast::SwitchStmt::partial>((lit<"#"> + kw<"partial">))) +
              kw<"switch"> +
              option(assign<&ast::SwitchStmt::init>(ref<SimpleStmt>) + lit<";">) +
              option(assign<&ast::SwitchStmt::tag>(ref<Expression>)) + lit<"{"> +
@@ -720,7 +714,7 @@ struct Odin : cursiv::GrammarSpec {
   // Before SwitchStmt in every choice: `name in value` also reads as a plain
   // subject, and the first arm wins.
   struct TypeSwitchStmt
-      : rule<option(flag<&ast::TypeSwitchStmt::partial>(lit<"#partial">)) +
+      : rule<option(flag<&ast::TypeSwitchStmt::partial>((lit<"#"> + kw<"partial">))) +
              kw<"switch"> + option(assign<&ast::TypeSwitchStmt::name>(ref<ID>)) +
              kw<"in"> + assign<&ast::TypeSwitchStmt::value>(ref<Expression>) +
              lit<"{"> +
@@ -741,8 +735,8 @@ struct Odin : cursiv::GrammarSpec {
 
   struct ReturnStmt
       : rule<kw<"return"> +
-             option(some(append<&ast::ReturnStmt::values>(ref<Expression>),
-                         lit<",">))> {};
+             many(append<&ast::ReturnStmt::values>(ref<Expression>),
+                         lit<",">)> {};
 
   struct DeferStmt
       : rule<kw<"defer"> + assign<&ast::DeferStmt::body>(ref<Statement>)> {};
@@ -761,7 +755,7 @@ struct Odin : cursiv::GrammarSpec {
       : rule<create<ast::FallthroughStmt>(kw<"fallthrough">)> {};
 
   struct AssertStmt
-      : rule<lit<"#assert"> + lit<"("> +
+      : rule<(lit<"#"> + kw<"assert">) + lit<"("> +
              assign<&ast::AssertStmt::cond>(ref<WhereCondition>) + lit<")">> {};
 
   struct Statement
@@ -838,9 +832,9 @@ struct Odin : cursiv::GrammarSpec {
              option(assign<&ast::ForeignEntry::callingConvention>(
                  ref<STRING>)) +
              lit<"("> +
-             option(some(append<&ast::ForeignEntry::params>(ref<Param>),
-                         lit<",">)) +
-             lit<")"> +
+             many(append<&ast::ForeignEntry::params>(ref<Param>),
+                         lit<",">) +
+             option(lit<",">) + lit<")"> +
              option(
                  lit<"->"> +
                  ((lit<"("> +
@@ -873,7 +867,7 @@ struct Odin : cursiv::GrammarSpec {
                  many(append<&ast::Unit::items>(ref<TopDecl>)))> {};
 
   using entry = Unit;
-  using ignore = list<WS, BUILD_TAG>;
+  using ignored = list<WS, BUILD_TAG>;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 

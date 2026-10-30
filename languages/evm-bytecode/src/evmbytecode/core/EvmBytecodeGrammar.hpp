@@ -11,7 +11,6 @@ namespace evmbytecode {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.size() >= 2 ? t.substr(1, t.size() - 2) : std::string_view{};
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct EvmBytecode : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \n\t\r)">)> {};
@@ -21,29 +20,29 @@ struct EvmBytecode : cursiv::GrammarSpec {
 
   struct PushName : terminal<lit<"PUSH"> + some(d)> {};
   struct Immediate : terminal<Head + some(Hex)> {};
-  struct PushRule : rule<assign<&ast::Push::mnemonic>(ref<PushName>) +
+  struct Push : rule<assign<&ast::Push::mnemonic>(ref<PushName>) +
                          option(assign<&ast::Push::data>(ref<Immediate>))> {};
 
   struct MNEMONIC : terminal<
       !(lit<"PUSH"> + some(d) + !cr<"a-zA-Z0-9_">) +
       cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_">)> {};
-  struct InstrRule : rule<assign<&ast::Instr::mnemonic>(ref<MNEMONIC>) +
+  struct Instr : rule<assign<&ast::Instr::mnemonic>(ref<MNEMONIC>) +
                          option(assign<&ast::Instr::data>(ref<Immediate>))> {};
 
-  struct HexByte : terminal<lit<"'"> + repeat<2, 2>(Hex) + lit<"'">, Unquoted> {
-  };
+  struct HexByte
+      : terminal<as<unquote>(lit<"'"> + repeat<2, 2>(Hex) + lit<"'">)> {};
 
   struct UnknownRule : rule<assign<&ast::Unknown::data>(ref<HexByte>) +
                             lit<"(Unknown Opcode)">> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program> +
-             many(append<&ast::Program::opcodes>(ref<InstrRule>) |
-                  append<&ast::Program::opcodes>(ref<PushRule>) |
+             many(append<&ast::Program::opcodes>(ref<Instr>) |
+                  append<&ast::Program::opcodes>(ref<Push>) |
                   append<&ast::Program::opcodes>(ref<UnknownRule>))> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
 };
 
 } // namespace evmbytecode

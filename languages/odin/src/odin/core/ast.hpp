@@ -361,7 +361,14 @@ struct AssertStmt : cursiv::Extends<Stmt> {
 struct Ident : cursiv::Extends<Expr> {
   string_view pkg;  // empty when unqualified
   string_view name;
-  TypeArgs* typeArgs;
+  TypeArgs* typeArgs;  // legacy field; expression applications now use CallExpr
+};
+
+struct ContextExpr : cursiv::Extends<Expr> {};
+
+// A structural type used as a value, for example make([]u32, count).
+struct TypeExpr : cursiv::Extends<Expr> {
+  Type* type;
 };
 
 struct BasicTypeExpr : cursiv::Extends<Expr> {

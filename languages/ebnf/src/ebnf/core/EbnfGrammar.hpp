@@ -14,52 +14,52 @@ struct Ebnf : cursiv::GrammarSpec {
   // space -- a one-letter name and a run of words are both representable.
   struct ID : terminal<cr<"A-Za-z"> + many(cr<"A-Za-z0-9 -">)> {};
 
-  struct OptionalRule;
-  struct ZeroOrMoreRule;
-  struct OneOrMoreRule;
-  struct TextRule;
-  struct IdRule;
+  struct Optional;
+  struct ZeroOrMore;
+  struct OneOrMore;
+  struct Text;
+  struct Id;
 
   static constexpr auto element =
-      ref<OptionalRule> | ref<ZeroOrMoreRule> | ref<OneOrMoreRule> |
-      ref<TextRule> | ref<IdRule>;
+      ref<Optional> | ref<ZeroOrMore> | ref<OneOrMore> |
+      ref<Text> | ref<Id>;
 
-  struct AlternativeRule
+  struct Alternative
       : rule<many(append<&ast::Alternative::elements>(element))> {};
 
-  struct OptionalRule
+  struct Optional
       : rule<lit<"["> +
-             some(append<&ast::Optional::alternatives>(ref<AlternativeRule>),
+             some(append<&ast::Optional::alternatives>(ref<Alternative>),
                   lit<"|">) +
              lit<"]">> {};
 
-  struct ZeroOrMoreRule
+  struct ZeroOrMore
       : rule<lit<"{"> +
-             some(append<&ast::ZeroOrMore::alternatives>(ref<AlternativeRule>),
+             some(append<&ast::ZeroOrMore::alternatives>(ref<Alternative>),
                   lit<"|">) +
              lit<"}">> {};
 
-  struct OneOrMoreRule
+  struct OneOrMore
       : rule<lit<"("> +
-             some(append<&ast::OneOrMore::alternatives>(ref<AlternativeRule>),
+             some(append<&ast::OneOrMore::alternatives>(ref<Alternative>),
                   lit<"|">) +
              lit<")">> {};
 
-  struct TextRule : rule<assign<&ast::Text::value>(ref<ID>)> {};
+  struct Text : rule<assign<&ast::Text::value>(ref<ID>)> {};
 
-  struct IdRule
+  struct Id
       : rule<lit<"<"> + assign<&ast::Id::name>(ref<ID>) + lit<">">> {};
 
-  struct RuleRule
-      : rule<assign<&ast::Rule::lhs>(ref<IdRule>) + lit<"::="> +
-             some(append<&ast::Rule::alternatives>(ref<AlternativeRule>),
+  struct Rule
+      : rule<assign<&ast::Rule::lhs>(ref<Id>) + lit<"::="> +
+             some(append<&ast::Rule::alternatives>(ref<Alternative>),
                   lit<"|">)> {};
 
-  struct DocumentRule
-      : rule<many(append<&ast::Document::rules>(ref<RuleRule>))> {};
+  struct Document
+      : rule<many(append<&ast::Document::rules>(ref<Rule>))> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
 };
 
 }  // namespace ebnf

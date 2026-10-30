@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Java properties files with comments, continued lines, separators and decoded escapes.
+
 ```properties
 # a comment
 website = https://en.wikipedia.org/
@@ -40,11 +42,6 @@ multiline = This line \
 continues
 path = c:\\wiki\\templates
 ```
-
-A row is a comment (`#` or `!` to end of line) or a key/value entry. The
-delimiter is `:` or `=`; a key with none has no value. `\` escapes the next
-byte, or a line terminator to fold the value onto the next line — kept raw,
-undecoded, in the tree.
 
 ## The command line
 

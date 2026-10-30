@@ -3,10 +3,12 @@
 // field, so a converter that silently drifted would fail here.
 
 #include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <initializer_list>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "cursiv/core/parser/Parser.hpp"
@@ -222,11 +224,78 @@ void gap_coverage() {
   }
 }
 
+void numeric_boundaries() {
+  for (const std::string& literal : std::initializer_list<std::string>{
+           "110+9999", "110-9999", std::string(400, '9')}) {
+    const std::string source = "begin real x; x := " + literal + " end";
+    const auto result = engine().parse(source);
+    CHECK(result.accepted && !result.cst().recovered());
+    CHECK(result.diagnostics.size() == 1);
+    if (result.diagnostics.size() == 1)
+      CHECK(result.diagnostics[0].kind == cursiv::DiagnosticKind::conversion_error);
+  }
+  for (const auto& [literal, expected] :
+       {std::pair{".0110+310", 1e308}, std::pair{"010+9999", 0.0},
+        std::pair{"2.510–3", .0025}}) {
+    const std::string source = std::string("begin real x; x := ") + literal + " end";
+    const auto result = engine().parse(source);
+    CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
+    const ast::NumberLiteral* value = nullptr;
+    for (const auto* node : result.nodes)
+      if (const auto* number = cursiv::ast_cast<ast::NumberLiteral>(node)) value = number;
+    CHECK(value && value->value == expected);
+  }
+}
+
+void native_empty_statements_and_division() {
+  namespace ast = algol60::ast;
+  for (const char* source : {"begin end", "begin ;;; end",
+                            "begin integer x; end",
+                            "begin if true then else end",
+                            "begin for i:=1 do end",
+                            "begin procedure p; ; p end"}) {
+    const auto parsed = engine().parse(source);
+    CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
+  }
+  const std::string source = "outer: 12: begin x:=7÷2; if true then else end";
+  const auto parsed = engine().parse(source);
+  const auto* block = parsed.value_as<ast::Block>();
+  CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
+  CHECK(block && block->labels.size() == 2 && block->labels[0] == "outer" &&
+        block->labels[1] == "12" && block->statements.size() == 2);
+  bool division = false, dummy_else = false;
+  for (const auto* node : parsed.nodes) {
+    if (const auto* binary = cursiv::ast_cast<ast::BinaryExpr>(node)) {
+      division |= binary->op == ast::BinOp::intdiv;
+      if (binary->op != ast::BinOp::intdiv)
+        std::fprintf(stderr, "algol60 division AST: op=%d expected=%d\n",
+                     static_cast<int>(binary->op),
+                     static_cast<int>(ast::BinOp::intdiv));
+    }
+    if (const auto* conditional = cursiv::ast_cast<ast::IfStmt>(node)) {
+      dummy_else |= conditional->hasElse && !conditional->then_branch &&
+                    !conditional->else_branch;
+      if (!conditional->hasElse || conditional->then_branch ||
+          conditional->else_branch)
+        std::fprintf(stderr,
+                     "algol60 dummy else AST: hasElse=%d then=%d else=%d\n",
+                     conditional->hasElse,
+                     conditional->then_branch != nullptr,
+                     conditional->else_branch != nullptr);
+    }
+  }
+  CHECK(division);
+  CHECK(dummy_else);
+  CHECK(division && dummy_else);
+}
+
 }  // namespace
 
 int main() {
+  native_empty_statements_and_division();
   corpus_parses_clean();
   jensen_ast();
   gap_coverage();
+  numeric_boundaries();
   return cursiv::test::report("algol60_grammar_test");
 }

@@ -29,7 +29,7 @@ struct Reference : cursiv::Extends<cursiv::AstNode> {
   string_view name;
 };
 
-// `_word` -- an inline hyperlink target.
+// _`target name` -- an inline internal target.
 struct HyperlinkTarget : cursiv::Extends<cursiv::AstNode> {
   string_view name;
 };
@@ -67,6 +67,15 @@ struct Directive : cursiv::Extends<cursiv::AstNode> {
       body;  // Indented options and content, including deeper blocks.
 };
 
+// The target header is distinct from a comment. Destination is raw URI or
+// indirect reference text; indented continuation lines retain their hierarchy.
+struct ExplicitTarget : cursiv::Extends<cursiv::AstNode> {
+  boolean anonymous;
+  string_view name;
+  string_view destination;
+  DirectiveBody* continuation;
+};
+
 struct Comment : cursiv::Extends<cursiv::AstNode> {
   string_view firstLine;  // the rest of the marker's own line, may be empty
   vector<string_view> bodyLines;
@@ -82,7 +91,7 @@ struct DefinitionItem;
 struct Transition : cursiv::Extends<cursiv::AstNode> {};
 
 using SectionElement =
-    std::variant<Directive*, Comment*, BulletItem*, EnumItem*, LineBlock*,
+    std::variant<ExplicitTarget*, Directive*, Comment*, BulletItem*, EnumItem*, LineBlock*,
                  Paragraph*, Transition*, BlockQuote*, DefinitionItem*>;
 
 // An item's body: its text, then whatever its indented lines hold. Empty
@@ -123,7 +132,7 @@ struct Section : cursiv::Extends<cursiv::AstNode> {
   string_view underline;
 };
 
-using Block = std::variant<Section*, Directive*, Comment*, BulletItem*,
+using Block = std::variant<Section*, ExplicitTarget*, Directive*, Comment*, BulletItem*,
                            EnumItem*, LineBlock*, Paragraph*, Transition*,
                            BlockQuote*, DefinitionItem*>;
 

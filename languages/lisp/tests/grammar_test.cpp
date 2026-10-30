@@ -7,16 +7,21 @@
 #include "cursiv/test/Check.hpp"
 #include "lisp/core/ast.hpp"
 #include "lisp/generated/Lisp/Module.hpp"
+#include "lisp/core/CoreServices.hpp"
+#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 namespace {
 
 namespace fs = std::filesystem;
 
-const cursiv::Parser &engine() {
-  static const std::unique_ptr<cursiv::Parser> p =
-      lisp::generated::Lisp::create_parser();
-  return *p;
+const auto& services() {
+  static const auto language = cursiv::create_language<
+      lisp::LispCoreServices, lisp::LispSharedCoreServices, lisp::install_core_module>();
+  return language.language;
 }
+const cursiv::Parser &engine() { return *services().parser; }
 
 void examples() {
   int seen = 0;
@@ -108,10 +113,41 @@ void reader_values() {
     CHECK(doc && doc->expressions.empty());
   }
 }
+void native_reader_constraints() {
+  struct Case { const char* text; const char* code; };
+  for (const auto& item : {
+           Case{"1/0", "lisp.number"}, {"#b102", "lisp.number"},
+           {"#x1.2", "lisp.number"}, {"#1r0", "lisp.number"},
+           {"#37r1", "lisp.number"}, {"#r10", "lisp.number"},
+           {"#*012", "lisp.bit-vector"}, {"#2*101", "lisp.bit-vector"},
+           {"#1*", "lisp.bit-vector"}, {"#2*", "lisp.bit-vector"},
+           {"#(a . b)", "lisp.dotted-list"}, {"(. a)", "lisp.dotted-list"},
+           {"#2(1 2 3)", "lisp.vector-length"}, {"#3()", "lisp.vector-length"},
+           {"#A(1 2)", "lisp.array-rank"},
+           {"#C(1)", "lisp.complex"}, {"#C(1 x)", "lisp.complex"},
+           {",x", "lisp.comma"}, {"',x", "lisp.comma"}, {"`(,,x)", "lisp.comma"}}) {
+    const auto parsed = engine().parse(item.text);
+    CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
+    bool found = false;
+    const auto validated = cursiv::test::validationHelper(services(), item.text);
+    for (const auto& diagnostic : validated.diagnostics)
+      found |= diagnostic.code && *diagnostic.code == item.code;
+    CHECK(found);
+  }
+  for (const auto* text : {"-5/9", "#b101 #o77 #xFF #16rFF #36rZ", "#2b1",
+                           "#4*10", "#*", "#0*", "#0()", "#3(1)",
+                           "#0A1", "#1A(1 2)", "#C(1 -2)", "`(,x ,@y)", "``(,,x)",
+                           "#+unknown-reader-feature 1/0",
+                           "#2(#+unknown-reader-feature 1 2 3)",
+                           "#C(#+unknown-reader-feature 0 1 2)"})
+    CHECK(cursiv::test::validationHelper(services(), text).diagnostics.empty());
+}
+
 } // namespace
 
 int main() {
   examples();
   reader_values();
+  native_reader_constraints();
   return cursiv::test::report("lisp_grammar_test");
 }

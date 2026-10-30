@@ -18,14 +18,28 @@ struct Cpp : cursiv::GrammarSpec {
   // rather than run, so the macros it names stay unexpanded text. A trailing
   // `\` splices the next physical line into the same directive.
   struct Directive
-      : terminal<lit<"#"> +
+      : terminal<(lit<"#"> | lit<"%:">) +
                  many(LineSplice | cr<R"(^\n)">)> {};
 
   static constexpr auto HEXDIGIT = cr<"0-9a-fA-F">;
   static constexpr auto UCN =
       (lit<"\\u"> + repeat<4>(HEXDIGIT)) | (lit<"\\U"> + repeat<8>(HEXDIGIT));
+  static constexpr auto LegacyID = cr<"\u00A8\u00AA\u00AD\u00AF\u00B2-\u00B5\u00B7-\u00BA\u00BC-\u00BE"
+      "\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF\u0100-\u167F\u1681-\u180D"
+      "\u180F-\u1FFF\u200B-\u200D\u202A-\u202E\u203F-\u2040\u2054"
+      "\u2060-\u206F\u2070-\u218F\u2460-\u24FF\u2776-\u2793\u2C00-\u2DFF"
+      "\u2E80-\u2FFF\u3004-\u3007\u3021-\u302F\u3031-\u303F\u3040-\uD7FF"
+      "\uF900-\uFD3D\uFD40-\uFDCF\uFDF0-\uFE44\uFE47-\uFFFD"
+      "\U00010000-\U0001FFFD\U00020000-\U0002FFFD\U00030000-\U0003FFFD"
+      "\U00040000-\U0004FFFD\U00050000-\U0005FFFD\U00060000-\U0006FFFD"
+      "\U00070000-\U0007FFFD\U00080000-\U0008FFFD\U00090000-\U0009FFFD"
+      "\U000A0000-\U000AFFFD\U000B0000-\U000BFFFD\U000C0000-\U000CFFFD"
+      "\U000D0000-\U000DFFFD\U000E0000-\U000EFFFD">;
+  static constexpr auto LegacyStart =
+      ~(~LegacyID | cr<"\u0300-\u036F\u1DC0-\u1DFF\u20D0-\u20FF\uFE20-\uFE2F">);
   static constexpr auto IdChars =
-      (uc::XID_Start | cr<"_"> | UCN) + many(uc::XID_Continue | UCN);
+      (uc::XID_Start | cr<"_"> | LegacyStart | UCN) +
+      many(uc::XID_Continue | LegacyID | UCN);
   struct ID : terminal<IdChars> {};
 
   // A backslash-newline splice: valid inside a literal's escape sequence,
@@ -87,6 +101,12 @@ struct Cpp : cursiv::GrammarSpec {
                            (STRING_BODY + UD_SUFFIX) |
                            (RAW_STRING_BODY + UD_SUFFIX)> {};
 
+  // C++14 digraphs, including the <:: tokenization exception.
+  static constexpr auto LBracket = lit<"["> | lit<"<:", !(lit<":"> + !cr<":>">)>;
+  static constexpr auto RBracket = lit<"]"> | lit<":>">;
+  static constexpr auto LBrace = lit<"{"> | lit<"<%">;
+  static constexpr auto RBrace = lit<"}"> | lit<"%>">;
+
   static constexpr auto Lt = lit<"<", !cr<"=">>;
   static constexpr auto Gt = lit<">", !cr<"=">>;
 
@@ -119,6 +139,12 @@ struct Cpp : cursiv::GrammarSpec {
       kw<"using"> | kw<"while"> | kw<"xor"> | kw<"xor_eq">;
 
   struct TypeId;
+  struct NewTypeId;
+  struct NewDeclarator;
+  struct ExpandedTypeId;
+  struct PackExpansion;
+  struct Argument;
+  struct UnnamedPackDeclarator;
   struct Declarator;
   struct AbstractDeclarator;
   struct Expression;
@@ -130,7 +156,7 @@ struct Cpp : cursiv::GrammarSpec {
   struct CompoundStatement;
   struct Statement;
   struct InitializerClause;
-  struct BracedInitListRule;
+  struct BracedInitList;
   struct NestedNameSpecifier;
   struct UnqualifiedId;
   struct TheTypeName;
@@ -143,18 +169,18 @@ struct Cpp : cursiv::GrammarSpec {
   struct NamedTypeSpec;
   struct DeclSpecifierSeq;
   struct Param;
-  struct ExceptionSpecRule;
+  struct ExceptionSpec;
   struct ParametersAndQualifiers;
   struct MemberDeclarator;
   struct Declaration;
   struct MemberDeclaration;
-  struct TemplateParameterRule;
-  struct AccessLabelRule;
-  struct TemplateDeclRule;
-  struct FunctionDefinitionRule;
-  struct InitDeclaratorRule;
+  struct TemplateParameter;
+  struct AccessLabel;
+  struct TemplateDecl;
+  struct FunctionDefinition;
+  struct InitDeclarator;
   struct BlockDeclaration;
-  struct CatchClauseRule;
+  struct CatchClause;
 
   // -- Names --------------------------------------------------------
 
@@ -203,11 +229,11 @@ struct Cpp : cursiv::GrammarSpec {
       assign<&ast::QualifiedName::id>(ref<SimpleTemplateId>));
 
   struct OpCallParens : rule<lit<"("> + lit<")">> {};
-  struct OpSubscriptBrackets : rule<lit<"["> + lit<"]">> {};
-  struct OpNew : rule<kw<"new"> + option(lit<"["> + lit<"]">)> {};
-  struct OpDelete : rule<kw<"delete"> + option(lit<"["> + lit<"]">)> {};
-  struct OpShl : rule<Lt + Lt> {};
-  struct OpShr : rule<Gt + Gt> {};
+  struct OpSubscriptBrackets : rule<LBracket + RBracket> {};
+  struct OpNew : rule<kw<"new"> + option(LBracket + RBracket)> {};
+  struct OpDelete : rule<kw<"delete"> + option(LBracket + RBracket)> {};
+  struct OpShl : rule<Lt + gap::none + Lt> {};
+  struct OpShr : rule<Gt + gap::none + Gt> {};
   static constexpr auto TheOperatorText =
       ref<OpNew> | ref<OpDelete>  //
       | lit<"+"> | lit<"-"> | lit<"*"> | lit<"/"> | lit<"%"> |
@@ -245,9 +271,11 @@ struct Cpp : cursiv::GrammarSpec {
   };
 
   struct TemplateId
-      : rule<assign<&ast::TemplateId::templateName>(ref<PlainIdent>) + Lt +
+      : rule<assign<&ast::TemplateId::templateName>(ref<PlainIdent> |
+                 ref<OperatorFunctionId> | ref<LiteralOperatorId>) + Lt +
              option(some(append<&ast::TemplateId::args>(
-                             ref<TypeId> | ref<ConstantExpression>),
+                             ref<ExpandedTypeId> | ref<TypeId> |
+                             ref<PackExpansion> | ref<ConstantExpression>),
                     lit<",">)) +
              Gt> {};
 
@@ -262,13 +290,24 @@ struct Cpp : cursiv::GrammarSpec {
 
   // -- Attributes (matched, discarded) -------------------------------
 
+  struct BalancedParens;
+  struct BalancedBrackets;
+  struct BalancedBraces;
   static constexpr auto AttrAtom =
       ref<ID> | ref<INT_LIT> | ref<FLOAT_LIT> | ref<CHAR_LIT> |
-      ref<STRING_LIT> | lit<","> | lit<"::"> | lit<"..."> | lit<"*"> |
+      ref<STRING_LIT> | ref<RAW_STRING_LIT> | ref<UD_LIT> | lit<","> | lit<"::"> | lit<"..."> | lit<"*"> |
       lit<"&"> | lit<"+"> | lit<"-"> | lit<"="> | Lt | Gt | lit<"!"> |
-      lit<"~"> | lit<"?"> | lit<":"> | lit<".">;
+      lit<"~"> | lit<"?"> | lit<":"> | lit<"."> | lit<"/"> | lit<"%"> |
+      lit<"|"> | lit<"^"> | lit<"&&"> | lit<"||"> | lit<"=="> | lit<"!="> |
+      lit<"<="> | lit<">="> | lit<"->"> | lit<"++"> | lit<"--"> | lit<";">;
   struct BalancedParens
-      : rule<lit<"("> + many(ref<BalancedParens> | AttrAtom) + lit<")">> {};
+      : rule<lit<"("> + many(ref<BalancedParens> | ref<BalancedBrackets> | ref<BalancedBraces> | AttrAtom) + lit<")">> {};
+  struct BalancedBrackets
+      : rule<LBracket + many(ref<BalancedParens> | ref<BalancedBrackets> |
+                             ref<BalancedBraces> | AttrAtom) + RBracket> {};
+  struct BalancedBraces
+      : rule<LBrace + many(ref<BalancedParens> | ref<BalancedBrackets> |
+                           ref<BalancedBraces> | AttrAtom) + RBrace> {};
   static constexpr auto AttrName = ref<ID> + option(lit<"::"> + ref<ID>);
   struct StdAttribute
       : rule<AttrName + option(ref<BalancedParens>) + option(lit<"...">)> {};
@@ -277,10 +316,10 @@ struct Cpp : cursiv::GrammarSpec {
   };
   struct AlignAttr : rule<kw<"alignas"> + ref<AlignArguments>> {};
   struct StdAttributeSpec
-      : rule<lit<"["> + lit<"["> +
+      : rule<LBracket + LBracket +
              option(ref<StdAttribute>) +
              many(lit<","> + option(ref<StdAttribute>)) +
-             lit<"]"> + lit<"]">> {};
+             RBracket + RBracket> {};
   // Not its own named rule: `AttributeSpec` naming a top-level choice of two
   // wholly value-less branches defeats the generator's node-type deduction
   // when asked for that rule's own type (as any call outside a bare
@@ -291,7 +330,7 @@ struct Cpp : cursiv::GrammarSpec {
 
   // -- Expressions ----------------------------------------------------
 
-  struct ThisExprRule : rule<create<ast::ThisExpr>(kw<"this">)> {};
+  struct ThisExpr : rule<create<ast::ThisExpr>(kw<"this">)> {};
   struct IntegerLiteral : rule<assign<&ast::IntLit::text>(ref<INT_LIT>)> {};
   struct FloatingLiteral : rule<assign<&ast::FloatLit::text>(ref<FLOAT_LIT>)> {
   };
@@ -319,7 +358,8 @@ struct Cpp : cursiv::GrammarSpec {
   struct SimpleCapture
       : rule<create<ast::Capture>(
                  option(flag<&ast::Capture::byRef>(lit<"&"> | kw<"bitand">)) +
-                 assign<&ast::Capture::name>(ref<ID>))  //
+                 assign<&ast::Capture::name>(ref<ID>) +
+                 option(flag<&ast::Capture::pack>(lit<"...">)))  //
              | create<ast::Capture>(
                    flag<&ast::Capture::isThis>(kw<"this">))> {};
   struct InitCapture
@@ -327,7 +367,7 @@ struct Cpp : cursiv::GrammarSpec {
                  option(flag<&ast::Capture::byRef>(lit<"&"> | kw<"bitand">)) +
                  assign<&ast::Capture::name>(ref<ID>) +
                  ((lit<"="> + assign<&ast::Capture::init>(ref<InitializerClause>)) |
-                  assign<&ast::Capture::init>(ref<BracedInitListRule>)))> {};
+                  assign<&ast::Capture::init>(ref<BracedInitList>)))> {};
   struct Capture : rule<ref<InitCapture> | ref<SimpleCapture>> {};
   // Plain combinators, not rules of their own: each writes straight into
   // `ast::LambdaExpr`, so naming either as a `ref<>`-called rule would make
@@ -337,24 +377,20 @@ struct Cpp : cursiv::GrammarSpec {
   static constexpr auto CaptureDefault =
       assign<&ast::LambdaExpr::captureDefault>(lit<"&"> | kw<"bitand"> | lit<"=">);
   static constexpr auto LambdaIntroducer =
-      lit<"["> +
-      option((some(append<&ast::LambdaExpr::captures>(ref<Capture>),
-                  lit<",">) +
-                 option(lit<","> + CaptureDefault))  //
-             | (CaptureDefault +
-                option(lit<","> +
-                       some(append<&ast::LambdaExpr::captures>(ref<Capture>),
-                            lit<",">)))) +
-      lit<"]">;
+      LBracket +
+      option((some(append<&ast::LambdaExpr::captures>(ref<Capture>), lit<",">)) |
+             (CaptureDefault +
+              option(lit<","> +
+                     some(append<&ast::LambdaExpr::captures>(ref<Capture>), lit<",">)))) +
+      RBracket;
   static constexpr auto LambdaDeclarator =
       flag<&ast::LambdaExpr::hasDeclarator>(lit<"(">) +
-      option(some(append<&ast::LambdaExpr::params>(ref<Param>), lit<",">)) +
-      lit<")"> +
-      option(flag<&ast::LambdaExpr::mutableKw>(kw<"mutable">)) +
-      option(
-          assign<&ast::LambdaExpr::exceptionSpec>(ref<ExceptionSpecRule>)) +
-      option(lit<"->"> + assign<&ast::LambdaExpr::trailingReturnType>(
-                              ref<TypeId>));
+      option((some(append<&ast::LambdaExpr::params>(ref<Param>), lit<",">) +
+              option(lit<","> + flag<&ast::LambdaExpr::variadic>(lit<"...">))) |
+             flag<&ast::LambdaExpr::variadic>(lit<"...">)) +
+      lit<")"> + option(flag<&ast::LambdaExpr::mutableKw>(kw<"mutable">)) +
+      option(assign<&ast::LambdaExpr::exceptionSpec>(ref<ExceptionSpec>)) + Attrs +
+      option(lit<"->"> + assign<&ast::LambdaExpr::trailingReturnType>(ref<TypeId>));
   struct LambdaExpression
       : rule<create<ast::LambdaExpr>(LambdaIntroducer +
                                      option(LambdaDeclarator) +
@@ -362,7 +398,7 @@ struct Cpp : cursiv::GrammarSpec {
                                          ref<CompoundStatement>))> {};
 
   struct PrimaryExpression
-      : rule<ref<Literal> | ref<ThisExprRule> |
+      : rule<ref<Literal> | ref<ThisExpr> |
              (lit<"("> + ref<Expression> + lit<")">) | ref<IdExpression> |
              ref<LambdaExpression>> {};
 
@@ -376,7 +412,7 @@ struct Cpp : cursiv::GrammarSpec {
                  assign<&ast::NamedCastExpr::operand>(ref<Expression>) +
                  lit<")">)> {};
 
-  struct TypeidExprRule
+  struct TypeidExpr
       : rule<create<ast::TypeidExpr>(
                  kw<"typeid"> + lit<"("> +
                  (assign<&ast::TypeidExpr::expr>(ref<Expression>)  //
@@ -388,15 +424,15 @@ struct Cpp : cursiv::GrammarSpec {
                  assign<&ast::FunctionalCastExpr::type>(ref<TypeId>) +
                  ((lit<"("> +
                    option(some(append<&ast::FunctionalCastExpr::args>(
-                                   ref<AssignmentExpression>),
+                                   ref<Argument>),
                                lit<",">)) +
                    lit<")">)  //
-                  | (flag<&ast::FunctionalCastExpr::braced>(lit<"{">) +
+                  | (flag<&ast::FunctionalCastExpr::braced>(LBrace) +
                      option(some(append<&ast::FunctionalCastExpr::args>(
-                                     ref<AssignmentExpression>),
+                                     ref<Argument>),
                                  lit<",">) +
                             option(lit<",">)) +
-                     lit<"}">)))> {};
+                     RBrace)))> {};
 
   struct PseudoDestructorName
       : rule<option(assign<&ast::DestructorName::qualifier>(
@@ -414,16 +450,16 @@ struct Cpp : cursiv::GrammarSpec {
 
   struct PostfixExpression
       : rule<(ref<PrimaryExpression> | ref<FunctionalCast> | ref<NamedCast> |
-              ref<TypeidExprRule>) +
+              ref<TypeidExpr>) +
              many(nest<ast::IndexExpr, &ast::IndexExpr::array>(
-                      lit<"["> +
+                      LBracket +
                       assign<&ast::IndexExpr::index>(
-                          ref<Expression> | ref<BracedInitListRule>) +
-                      lit<"]">)  //
+                          ref<Expression> | ref<BracedInitList>) +
+                      RBracket)  //
                   | nest<ast::CallExpr, &ast::CallExpr::callee>(
                         lit<"("> +
                         option(some(append<&ast::CallExpr::args>(
-                                        ref<AssignmentExpression>),
+                                        ref<Argument>),
                                     lit<",">)) +
                         lit<")">)  //
                   | nest<ast::MemberExpr, &ast::MemberExpr::object>(
@@ -440,40 +476,40 @@ struct Cpp : cursiv::GrammarSpec {
       lit<"*"> | (lit<"&"> | kw<"bitand">) | lit<"+"> |
       (lit<"~"> | kw<"compl">) | lit<"-"> | (lit<"!"> | kw<"not">);
 
-  struct NewExpressionRule
+  struct NewExpression
       : rule<create<ast::NewExpr>(
                  option(flag<&ast::NewExpr::globalScope>(lit<"::">)) +
                  kw<"new"> +
                  option(lit<"("> +
                         some(append<&ast::NewExpr::placement>(
-                                 ref<AssignmentExpression>),
+                                 ref<Argument>),
                              lit<",">) +
                         lit<")">) +
-                 (assign<&ast::NewExpr::type>(ref<TypeId>)  //
+                 (assign<&ast::NewExpr::type>(ref<NewTypeId>)  //
                   | (lit<"("> + assign<&ast::NewExpr::type>(ref<TypeId>) +
                      lit<")">)) +
-                 option((lit<"("> +
+                 option(flag<&ast::NewExpr::hasInit>((lit<"("> +
                          option(some(append<&ast::NewExpr::initArgs>(
-                                         ref<AssignmentExpression>),
+                                         ref<Argument>),
                                      lit<",">)) +
                          lit<")">)  //
-                        | (flag<&ast::NewExpr::braced>(lit<"{">) +
+                        | (flag<&ast::NewExpr::braced>(LBrace) +
                            option(some(append<&ast::NewExpr::initArgs>(
-                                           ref<AssignmentExpression>),
+                                           ref<Argument>),
                                        lit<",">) +
                                   option(lit<",">)) +
-                           lit<"}">)))> {};
+                           RBrace))))> {};
 
-  struct DeleteExpressionRule
+  struct DeleteExpression
       : rule<create<ast::DeleteExpr>(
                  option(flag<&ast::DeleteExpr::globalScope>(
                      lit<"::">)) +
                  kw<"delete"> +
-                 option(flag<&ast::DeleteExpr::isArray>(lit<"[">) +
-                        lit<"]">) +
+                 option(flag<&ast::DeleteExpr::isArray>(LBracket) +
+                        RBracket) +
                  assign<&ast::DeleteExpr::operand>(ref<CastExpression>))> {};
 
-  struct NoExceptExprRule
+  struct NoExceptExpr
       : rule<create<ast::NoexceptExpr>(
                  kw<"noexcept"> + lit<"("> +
                  assign<&ast::NoexceptExpr::expr>(ref<Expression>) +
@@ -482,7 +518,7 @@ struct Cpp : cursiv::GrammarSpec {
   struct UnaryExpression
       : rule<create<ast::PrefixExpr>(
                  assign<&ast::PrefixExpr::op>(lit<"++"> | lit<"--">) +
-                 assign<&ast::PrefixExpr::operand>(ref<UnaryExpression>))  //
+                 assign<&ast::PrefixExpr::operand>(ref<CastExpression>))  //
              | create<ast::PrefixExpr>(
                    assign<&ast::PrefixExpr::op>(UnaryOp) +
                    assign<&ast::PrefixExpr::operand>(ref<CastExpression>))  //
@@ -499,8 +535,8 @@ struct Cpp : cursiv::GrammarSpec {
              | create<ast::AlignofExpr>(
                    kw<"alignof"> + lit<"("> +
                    assign<&ast::AlignofExpr::type>(ref<TypeId>) + lit<")">)  //
-             | ref<NoExceptExprRule> | ref<NewExpressionRule> |
-             ref<DeleteExpressionRule> | ref<PostfixExpression>> {};
+             | ref<NoExceptExpr> | ref<NewExpression> |
+             ref<DeleteExpression> | ref<PostfixExpression>> {};
 
   struct CastExpression
       : rule<create<ast::CastExpr>(
@@ -514,23 +550,14 @@ struct Cpp : cursiv::GrammarSpec {
   static constexpr auto OpAdd = lit<"+"> | lit<"-">;
 
   struct AdditiveLevel
-      : infix<CastExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpPtrMem) >> left(OpMul) >> left(OpAdd))> {};
+      : infix<CastExpression, ast::BinaryExpr,
+              levels(left(OpPtrMem), left(OpMul), left(OpAdd))> {};
 
-  // Kept out of the infix table below: `<<`/`>>` open on the same token
-  // (`<`/`>`, guarded against `=` -- never their own lexer token, see
-  // `Lt`/`Gt`) as the relational operators one level up, and an infix table
-  // refuses two levels claiming one opening token. A hand-rolled
-  // left-associative chain sidesteps the clash instead of resolving it.
-  // `assign<>` over raw multi-token text needs the ONE part named, so the
-  // two-token match is its own data rule (see LiteralOperatorId above).
-  struct ShiftOp : rule<(Lt + Lt) | (Gt + Gt)> {};
+  // Reuse adjacent operator rules while keeping individual '>' tokens
+  // available to close nested template arguments.
+  struct ShiftOp : rule<ref<OpShl> | ref<OpShr>> {};
   struct ShiftExpression
-      : rule<ref<AdditiveLevel> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(ref<ShiftOp>) +
-                 assign<&ast::BinaryExpr::right>(ref<AdditiveLevel>)))> {};
+      : infix<AdditiveLevel, ast::BinaryExpr, left(ref<ShiftOp>)> {};
 
   static constexpr auto OpRel = lit<"<="> | lit<">="> | Lt | Gt;
   static constexpr auto OpEq = lit<"=="> | lit<"!="> | kw<"not_eq">;
@@ -541,15 +568,14 @@ struct Cpp : cursiv::GrammarSpec {
   static constexpr auto OpLogOr = lit<"||"> | kw<"or">;
 
   struct BinaryExpression
-      : infix<ShiftExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpRel) >>     //
-               left(OpEq) >>      //
-               left(OpBitAnd) >>  //
-               left(OpBitXor) >>  //
-               left(OpBitOr) >>   //
-               left(OpLogAnd) >>  //
-               left(OpLogOr))> {};
+      : infix<ShiftExpression, ast::BinaryExpr,
+              levels(left(OpRel),     //
+                     left(OpEq),      //
+                     left(OpBitAnd),  //
+                     left(OpBitXor),  //
+                     left(OpBitOr),   //
+                     left(OpLogAnd),  //
+                     left(OpLogOr))> {};
 
   struct ConditionalExpression
       : rule<create<ast::CondExpr>(
@@ -578,23 +604,27 @@ struct Cpp : cursiv::GrammarSpec {
              | ref<ConditionalExpression>> {};
 
   struct Expression
-      : infix<AssignmentExpression, &ast::BinaryExpr::left,
-              &ast::BinaryExpr::op, &ast::BinaryExpr::right, left(lit<",">)> {
+      : infix<AssignmentExpression, ast::BinaryExpr, left(lit<",">)> {
   };
 
   struct ConstantExpression : rule<ref<ConditionalExpression>> {};
 
-  struct BracedInitListRule
+  struct PackExpansion
+      : rule<create<ast::PackExpansionExpr>(
+            assign<&ast::PackExpansionExpr::pattern>(ref<InitializerClause>) + lit<"...">)> {};
+  struct Argument : rule<ref<PackExpansion> | ref<InitializerClause>> {};
+
+  struct BracedInitList
       : rule<create<ast::BracedInitList>(
-                 lit<"{"> +
+                 LBrace +
                  option(some(append<&ast::BracedInitList::items>(
-                                 ref<InitializerClause>),
+                                 ref<Argument>),
                              lit<",">) +
                         option(lit<",">)) +
-                 lit<"}">)> {};
+                 RBrace)> {};
 
   struct InitializerClause
-      : rule<ref<AssignmentExpression> | ref<BracedInitListRule>> {};
+      : rule<ref<AssignmentExpression> | ref<BracedInitList>> {};
 
   // -- Declarators ----------------------------------------------------
 
@@ -613,18 +643,17 @@ struct Cpp : cursiv::GrammarSpec {
                    many(append<&ast::Pointer::qualifiers>(CvQualifierKw)))> {
   };
 
-  struct ArraySuffixRule
+  struct ArraySuffix
       : rule<create<ast::ArraySuffix>(
-                 lit<"["> +
+                 LBracket +
                  option(assign<&ast::ArraySuffix::size>(ref<Expression>)) +
-                 lit<"]"> + Attrs)> {};
+                 RBracket + Attrs)> {};
 
-  struct ExceptionSpecRule
+  struct ExceptionSpec
       : rule<create<ast::ExceptionSpec>(
                  flag<&ast::ExceptionSpec::dynamic>(kw<"throw">) +
                  lit<"("> +
-                 option(some(append<&ast::ExceptionSpec::types>(ref<TypeId>) +
-                                 option(lit<"...">),
+                 option(some(append<&ast::ExceptionSpec::types>(ref<ExpandedTypeId> | ref<TypeId>),
                              lit<",">)) +
                  lit<")">)  //
              | create<ast::ExceptionSpec>(
@@ -652,26 +681,38 @@ struct Cpp : cursiv::GrammarSpec {
                  option(assign<&ast::FunctionSuffix::refQualifier>(
                      lit<"&&"> | kw<"and"> | lit<"&"> | kw<"bitand">)) +
                  option(assign<&ast::FunctionSuffix::exceptionSpec>(
-                     ref<ExceptionSpecRule>)) +
+                     ref<ExceptionSpec>)) +
                  Attrs)> {};
 
   struct DeclaratorSuffix
-      : rule<ref<ArraySuffixRule> | ref<ParametersAndQualifiers>> {};
+      : rule<ref<ArraySuffix> | ref<ParametersAndQualifiers>> {};
 
   struct Param
       : rule<create<ast::Param>(
                  Attrs +
                  assign<&ast::Param::specifiers>(ref<DeclSpecifierSeq>) +
                  option(assign<&ast::Param::declarator>(
-                     ref<Declarator> | ref<AbstractDeclarator>)) +
+                     ref<Declarator> | ref<UnnamedPackDeclarator> | ref<AbstractDeclarator>)) +
                  option(lit<"="> + assign<&ast::Param::defaultValue>(
                                        ref<InitializerClause>)))> {};
 
-  struct TypeId
-      : rule<create<ast::TypeId>(
-                 assign<&ast::TypeId::specifiers>(ref<DeclSpecifierSeq>) +
-                 option(assign<&ast::TypeId::declarator>(
-                     ref<AbstractDeclarator>)))> {};
+  static constexpr auto TypeIdBody =
+      assign<&ast::TypeId::specifiers>(ref<DeclSpecifierSeq>) +
+      option(assign<&ast::TypeId::declarator>(ref<AbstractDeclarator>));
+  struct TypeId : rule<create<ast::TypeId>(TypeIdBody)> {};
+  struct ExpandedTypeId : rule<create<ast::TypeId>(
+      TypeIdBody + flag<&ast::TypeId::packExpansion>(lit<"...">))> {};
+
+  // A new-type-id cannot consume constructor parentheses as a function
+  // declarator: those parentheses are the new-initializer.
+  struct NewDeclarator
+      : rule<create<ast::Declarator>(
+          (some(append<&ast::Declarator::pointers>(ref<PointerOperator>)) +
+           many(append<&ast::Declarator::suffixes>(ref<ArraySuffix>))) |
+          some(append<&ast::Declarator::suffixes>(ref<ArraySuffix>)))> {};
+  struct NewTypeId : rule<create<ast::TypeId>(
+      assign<&ast::TypeId::specifiers>(ref<DeclSpecifierSeq>) +
+      option(assign<&ast::TypeId::declarator>(ref<NewDeclarator>)))> {};
 
   static constexpr auto AbstractTail =
       (lit<"("> + assign<&ast::Declarator::nested>(ref<AbstractDeclarator>) +
@@ -687,6 +728,11 @@ struct Cpp : cursiv::GrammarSpec {
               | AbstractTail) +
              option(lit<"->"> + assign<&ast::Declarator::trailingReturnType>(
                                      ref<TypeId>))> {};
+
+  struct UnnamedPackDeclarator
+      : rule<create<ast::Declarator>(
+          many(append<&ast::Declarator::pointers>(ref<PointerOperator>)) +
+          flag<&ast::Declarator::pack>(lit<"...">))> {};
 
   // A member function's own declarator: whether the pure-specifier `= 0` is
   // allowed is checked structurally here instead of by walking the tree
@@ -711,20 +757,18 @@ struct Cpp : cursiv::GrammarSpec {
   // trailing `-> TypeId` here rather than a second top-level alternative --
   // over-accepting a leading pointer alongside it, a harmless corner no
   // real declarator uses.
-  // No trailing `Attrs` here: self-recursive through `nested`, it left this
-  // rule's own type deduction unable to settle on `ast::Declarator` -- see
-  // DeclSpecifierSeq above for the same trap. An attribute immediately
-  // after a declarator's core is the one position this loses.
+  // An explicit creator fixes the recursive node type before attributes.
   struct Declarator
-      : rule<many(append<&ast::Declarator::pointers>(ref<PointerOperator>)) +
+      : rule<create<ast::Declarator>(many(append<&ast::Declarator::pointers>(ref<PointerOperator>)) +
              ((option(flag<&ast::Declarator::pack>(lit<"...">)) +
                   assign<&ast::Declarator::name>(ref<IdExpression>))  //
               | (lit<"("> +
                  assign<&ast::Declarator::nested>(ref<Declarator>) +
                  lit<")">)) +
+             Attrs +
              many(append<&ast::Declarator::suffixes>(ref<DeclaratorSuffix>)) +
              option(lit<"->"> + assign<&ast::Declarator::trailingReturnType>(
-                                     ref<TypeId>))> {};
+                                     ref<TypeId>)))> {};
 
   // -- Type specifiers --------------------------------------------------
 
@@ -775,18 +819,13 @@ struct Cpp : cursiv::GrammarSpec {
       ref<EnumSpecifier> | ref<ElaboratedTypeSpecifier> |
       ref<TypeNameSpecifier> | ref<DecltypeSpecifier> | ref<NamedTypeSpec>;
 
-  // No trailing attribute sequence here: through `alignas`'s type-operand,
-  // that would cycle DeclSpecifierSeq back through Attrs to itself with
-  // nothing on the cycle committing a class. An attribute immediately
-  // after the specifiers and before the declarator is the one position
-  // this loses; before the specifiers (every call site's own `Attrs`
-  // prefix) still works.
+  // Pin the node type explicitly; attributes follow the complete sequence.
   struct DeclSpecifierSeq
-      : rule<(many(DeclQualifier) +
+      : rule<create<ast::Specifiers>((many(DeclQualifier) +
               append<&ast::Specifiers::types>(TypeSpecifier) +
               many(DeclQualifier + option(append<&ast::Specifiers::types>(
                   ref<BuiltinTypeSpecifier>)))) |
-             some(DeclQualifier)> {};
+             some(DeclQualifier)) + Attrs> {};
 
   // -- Classes ----------------------------------------------------------
 
@@ -795,7 +834,7 @@ struct Cpp : cursiv::GrammarSpec {
   static constexpr auto BaseTypeExpr =
       Qualified<TheTypeName> | ref<DecltypeSpecifier>;
 
-  struct BaseSpecifierRule
+  struct BaseSpecifier
       : rule<create<ast::BaseSpecifier>(
                  Attrs +
                  ((option(assign<&ast::BaseSpecifier::accessSpec>(
@@ -819,14 +858,14 @@ struct Cpp : cursiv::GrammarSpec {
                             kw<"final">))) +
                  option(lit<":"> +
                         some(append<&ast::ClassType::bases>(
-                                 ref<BaseSpecifierRule>),
+                                 ref<BaseSpecifier>),
                              lit<",">)) +
-                 flag<&ast::ClassType::defined>(lit<"{">) +
+                 flag<&ast::ClassType::defined>(LBrace) +
                  many(append<&ast::ClassType::members>(
-                     ref<AccessLabelRule> | ref<MemberDeclaration>)) +
-                 lit<"}">)> {};
+                     ref<AccessLabel> | ref<MemberDeclaration>)) +
+                 RBrace)> {};
 
-  struct AccessLabelRule
+  struct AccessLabel
       : rule<create<ast::AccessLabel>(
                  assign<&ast::AccessLabel::keyword>(AccessSpecKw) +
                  lit<":">)> {};
@@ -849,15 +888,15 @@ struct Cpp : cursiv::GrammarSpec {
                   | (lit<"="> + assign<&ast::MemberDeclarator::init>(
                                      ref<InitializerClause>))  //
                   | assign<&ast::MemberDeclarator::init>(
-                        ref<BracedInitListRule>)))  //
+                        ref<BracedInitList>)))  //
              | (option(assign<&ast::MemberDeclarator::declarator>(
                     create<ast::Declarator>(
                         assign<&ast::Declarator::name>(ref<PlainIdent>)))) +
-                lit<":"> +
+                Attrs + lit<":"> +
                 assign<&ast::MemberDeclarator::bitWidth>(
                     ref<ConstantExpression>))> {};
 
-  struct StaticAssertDeclRule
+  struct StaticAssertDecl
       : rule<create<ast::StaticAssertDecl>(
                  kw<"static_assert"> + lit<"("> +
                  assign<&ast::StaticAssertDecl::cond>(
@@ -866,13 +905,13 @@ struct Cpp : cursiv::GrammarSpec {
                                        ref<STRING_LIT>)) +
                  lit<")"> + lit<";">)> {};
 
-  struct AliasDeclarationRule
+  struct AliasDeclaration
       : rule<create<ast::AliasDecl>(
                  kw<"using"> + assign<&ast::AliasDecl::name>(ref<ID>) +
                  Attrs + lit<"="> +
                  assign<&ast::AliasDecl::type>(ref<TypeId>) + lit<";">)> {};
 
-  struct UsingDeclRule
+  struct UsingDecl
       : rule<create<ast::UsingDecl>(
                  kw<"using"> +
                  ((option(flag<&ast::UsingDecl::typenameKw>(
@@ -883,21 +922,21 @@ struct Cpp : cursiv::GrammarSpec {
                      assign<&ast::UsingDecl::name>(ref<UnqualifiedId>))) +
                  lit<";">)> {};
 
-  struct EmptyDeclRule : rule<create<ast::EmptyDecl>(lit<";">)> {};
+  struct EmptyDecl : rule<create<ast::EmptyDecl>(lit<";">)> {};
 
   struct PlainMemberDecl
       : rule<create<ast::MemberDecl>(
                  Attrs +
-                 assign<&ast::MemberDecl::specifiers>(ref<DeclSpecifierSeq>) +
+                 option(assign<&ast::MemberDecl::specifiers>(ref<DeclSpecifierSeq>)) +
                  option(some(append<&ast::MemberDecl::declarators>(
                                  ref<MemberDeclaratorRule>),
                              lit<",">)) +
                  lit<";">)> {};
 
   struct MemberDeclaration
-      : rule<ref<StaticAssertDeclRule> | ref<TemplateDeclRule> |
-             ref<AliasDeclarationRule> | ref<UsingDeclRule> |
-             ref<EmptyDeclRule> | ref<FunctionDefinitionRule> |
+      : rule<ref<StaticAssertDecl> | ref<TemplateDecl> |
+             ref<AliasDeclaration> | ref<UsingDecl> |
+             ref<EmptyDecl> | ref<FunctionDefinition> |
              ref<PlainMemberDecl>> {};
 
   // -- Enums --------------------------------------------------------
@@ -910,7 +949,7 @@ struct Cpp : cursiv::GrammarSpec {
   // an auto-deduced rule's sequence it leaves the rule's own type unable
   // to settle on `ast::Enumerator` -- see DeclSpecifierSeq above for the
   // same trap.
-  struct EnumeratorRule
+  struct Enumerator
       : rule<assign<&ast::Enumerator::name>(ref<ID>) +
              option(lit<"="> + assign<&ast::Enumerator::value>(
                                     ref<ConstantExpression>))> {};
@@ -922,14 +961,14 @@ struct Cpp : cursiv::GrammarSpec {
                      Qualified<PlainIdent>)) +
                  option(lit<":"> + assign<&ast::EnumType::underlying>(
                                        ref<DeclSpecifierSeq>)) +
-                 flag<&ast::EnumType::defined>(lit<"{">) +
+                 flag<&ast::EnumType::defined>(LBrace) +
                  option(some(append<&ast::EnumType::enumerators>(
-                                 ref<EnumeratorRule>),
+                                 ref<Enumerator>),
                              lit<",">) +
                         option(lit<",">)) +
-                 lit<"}">)> {};
+                 RBrace)> {};
 
-  struct OpaqueEnumDeclRule
+  struct OpaqueEnumDecl
       : rule<create<ast::Declaration>(
                  assign<&ast::Declaration::specifiers>(
                      create<ast::Specifiers>(append<&ast::Specifiers::types>(
@@ -949,9 +988,9 @@ struct Cpp : cursiv::GrammarSpec {
                  lit<";">)> {};
 
   struct CompoundStatement
-      : rule<lit<"{"> +
+      : rule<LBrace +
              many(append<&ast::CompoundStmt::items>(ref<Statement>)) +
-             lit<"}">> {};
+             RBrace> {};
 
   struct ConditionDecl
       : rule<create<ast::Condition>(
@@ -961,13 +1000,13 @@ struct Cpp : cursiv::GrammarSpec {
                  ((lit<"="> +
                    assign<&ast::Condition::init>(ref<InitializerClause>))  //
                   | assign<&ast::Condition::init>(
-                        ref<BracedInitListRule>)))> {};
-  struct ConditionRule : rule<ref<ConditionDecl> | ref<Expression>> {};
+                        ref<BracedInitList>)))> {};
+  struct Condition : rule<ref<ConditionDecl> | ref<Expression>> {};
 
   struct IfStatement
       : rule<create<ast::IfStmt>(
                  kw<"if"> + lit<"("> +
-                 assign<&ast::IfStmt::cond>(ref<ConditionRule>) + lit<")"> +
+                 assign<&ast::IfStmt::cond>(ref<Condition>) + lit<")"> +
                  assign<&ast::IfStmt::thenBranch>(ref<Statement>) +
                  option(commit(kw<"else">, assign<&ast::IfStmt::elseBranch>(
                                            ref<Statement>))))> {};
@@ -975,7 +1014,7 @@ struct Cpp : cursiv::GrammarSpec {
   struct SwitchStatement
       : rule<create<ast::SwitchStmt>(
                  kw<"switch"> + lit<"("> +
-                 assign<&ast::SwitchStmt::cond>(ref<ConditionRule>) +
+                 assign<&ast::SwitchStmt::cond>(ref<Condition>) +
                  lit<")"> +
                  assign<&ast::SwitchStmt::body>(ref<Statement>))> {};
 
@@ -985,7 +1024,7 @@ struct Cpp : cursiv::GrammarSpec {
   struct WhileStatement
       : rule<create<ast::WhileStmt>(
                  kw<"while"> + lit<"("> +
-                 assign<&ast::WhileStmt::cond>(ref<ConditionRule>) +
+                 assign<&ast::WhileStmt::cond>(ref<Condition>) +
                  lit<")"> +
                  assign<&ast::WhileStmt::body>(ref<Statement>))> {};
 
@@ -1000,7 +1039,7 @@ struct Cpp : cursiv::GrammarSpec {
       : rule<create<ast::Declaration>(
                  assign<&ast::Declaration::specifiers>(ref<DeclSpecifierSeq>) +
                  some(append<&ast::Declaration::declarators>(
-                          ref<InitDeclaratorRule>),
+                          ref<InitDeclarator>),
                       lit<",">) +
                  lit<";">)> {};
   struct ForInitStatement
@@ -1024,7 +1063,7 @@ struct Cpp : cursiv::GrammarSpec {
                  assign<&ast::ForRangeStmt::declarator>(ref<Declarator>) +
                  lit<":"> +
                  assign<&ast::ForRangeStmt::range>(
-                     ref<Expression> | ref<BracedInitListRule>) +
+                     ref<Expression> | ref<BracedInitList>) +
                  lit<")"> +
                  assign<&ast::ForRangeStmt::body>(ref<Statement>))> {};
 
@@ -1038,7 +1077,7 @@ struct Cpp : cursiv::GrammarSpec {
              | create<ast::ReturnStmt>(
                    kw<"return"> +
                    option(assign<&ast::ReturnStmt::value>(
-                       ref<Expression> | ref<BracedInitListRule>)) +
+                       ref<Expression> | ref<BracedInitList>)) +
                    lit<";">)  //
              | create<ast::GotoStmt>(
                    kw<"goto"> + assign<&ast::GotoStmt::target>(ref<ID>) +
@@ -1057,21 +1096,22 @@ struct Cpp : cursiv::GrammarSpec {
                    Attrs + assign<&ast::Label::name>(ref<ID>) + lit<":"> +
                    assign<&ast::Label::body>(ref<Statement>))> {};
 
-  struct MemInitRule
+  struct MemInit
       : rule<assign<&ast::MemInit::target>(BaseTypeExpr) +
              ((lit<"("> +
                option(some(append<&ast::MemInit::args>(
-                               ref<AssignmentExpression>),
+                               ref<Argument>),
                            lit<",">)) +
                lit<")">)  //
-              | (flag<&ast::MemInit::braced>(lit<"{">) +
+              | (flag<&ast::MemInit::braced>(LBrace) +
                  option(some(append<&ast::MemInit::args>(
-                                 ref<AssignmentExpression>),
+                                 ref<Argument>),
                              lit<",">) +
                         option(lit<",">)) +
-                 lit<"}">))> {};
+                 RBrace)) +
+             option(flag<&ast::MemInit::pack>(lit<"...">))> {};
 
-  struct CatchClauseRule
+  struct CatchClause
       : rule<create<ast::CatchClause>(
                  kw<"catch"> + lit<"("> +
                  (flag<&ast::CatchClause::catchAll>(lit<"...">)  //
@@ -1084,58 +1124,54 @@ struct Cpp : cursiv::GrammarSpec {
                  assign<&ast::CatchClause::body>(
                      ref<CompoundStatement>))> {};
 
-  struct TryBlockRule
+  struct TryBlock
       : rule<create<ast::TryStmt>(
                  kw<"try"> +
                  assign<&ast::TryStmt::body>(ref<CompoundStatement>) +
                  some(append<&ast::TryStmt::handlers>(
-                     ref<CatchClauseRule>)))> {};
+                     ref<CatchClause>)))> {};
 
-  // An attribute sequence on this group (`[[likely]] if (...)`,
-  // `[[fallthrough]];`) is not ported: folding it in here mixes a void
-  // prefix with this dispatch's inner choice, which defeats the
-  // generator's node-type deduction for the whole rule (see DeclSpecifierSeq
-  // above for the same trap on a type). No example needs it.
-  struct Statement
+  struct StatementCore
       : rule<ref<LabeledStatement> | ref<BlockDeclaration> |
              ref<CompoundStatement> | ref<SelectionStatement> |
              ref<IterationStatement> | ref<JumpStatement> |
-             ref<TryBlockRule> | ref<ExpressionStatement>> {};
+             ref<TryBlock> | ref<ExpressionStatement>> {};
+  struct Statement : rule<Attrs + ref<StatementCore>> {};
 
   // -- Declarations -------------------------------------------------
 
-  struct InitDeclaratorRule
+  struct InitDeclarator
       : rule<assign<&ast::InitDeclarator::declarator>(ref<Declarator>) +
              option((lit<"("> +
                      some(append<&ast::InitDeclarator::directInit>(
-                              ref<AssignmentExpression>),
+                              ref<Argument>),
                           lit<",">) +
                      lit<")">)  //
                     | (lit<"="> + assign<&ast::InitDeclarator::init>(
                                        ref<InitializerClause>))  //
                     | assign<&ast::InitDeclarator::init>(
-                          ref<BracedInitListRule>))> {};
+                          ref<BracedInitList>))> {};
 
   // `int;` alone with no declarator IS accepted (an empty declarator list
   // is legal); a declarator with no specifiers at all is not -- that
   // reading falls through to an expression statement instead, since it has
   // no meaning in real C++ and no example needs the finer disambiguation.
-  struct SimpleDeclarationRule
+  struct SimpleDeclaration
       : rule<create<ast::Declaration>(
                  Attrs +
                  assign<&ast::Declaration::specifiers>(ref<DeclSpecifierSeq>) +
                  option(some(append<&ast::Declaration::declarators>(
-                                 ref<InitDeclaratorRule>),
+                                 ref<InitDeclarator>),
                              lit<",">)) +
                  lit<";">)> {};
 
-  struct AsmDeclRule
+  struct AsmDecl
       : rule<create<ast::AsmDecl>(
                  kw<"asm"> + lit<"("> +
                  assign<&ast::AsmDecl::code>(ref<STRING_LIT>) + lit<")"> +
                  lit<";">)> {};
 
-  struct NamespaceAliasDeclRule
+  struct NamespaceAliasDecl
       : rule<create<ast::NamespaceAliasDecl>(
                  kw<"namespace"> +
                  assign<&ast::NamespaceAliasDecl::name>(ref<ID>) + lit<"="> +
@@ -1143,7 +1179,7 @@ struct Cpp : cursiv::GrammarSpec {
                      Qualified<NamespaceName>) +
                  lit<";">)> {};
 
-  struct UsingDirectiveRule
+  struct UsingDirective
       : rule<create<ast::UsingDirective>(
                  Attrs + kw<"using"> + kw<"namespace"> +
                  assign<&ast::UsingDirective::name>(
@@ -1151,36 +1187,36 @@ struct Cpp : cursiv::GrammarSpec {
                  lit<";">)> {};
 
   struct BlockDeclaration
-      : rule<ref<SimpleDeclarationRule> | ref<AsmDeclRule> |
-             ref<NamespaceAliasDeclRule> | ref<UsingDeclRule> |
-             ref<UsingDirectiveRule> | ref<StaticAssertDeclRule> |
-             ref<AliasDeclarationRule> | ref<OpaqueEnumDeclRule>> {};
+      : rule<ref<SimpleDeclaration> | ref<AsmDecl> |
+             ref<NamespaceAliasDecl> | ref<UsingDecl> |
+             ref<UsingDirective> | ref<StaticAssertDecl> |
+             ref<AliasDeclaration> | ref<OpaqueEnumDecl>> {};
 
-  struct AttributeDeclRule
+  struct AttributeDecl
       : rule<create<ast::AttributeDecl>(some(AttributeSpec) +
                                         lit<";">)> {};
 
-  struct LinkageSpecRule
+  struct LinkageSpec
       : rule<create<ast::LinkageSpec>(
                  kw<"extern"> +
                  assign<&ast::LinkageSpec::lang>(ref<STRING_LIT>) +
-                 ((lit<"{"> +
+                 ((LBrace +
                    many(append<&ast::LinkageSpec::items>(ref<Declaration>)) +
-                   lit<"}">)  //
+                   RBrace)  //
                   | append<&ast::LinkageSpec::items>(
                         ref<Declaration>)))> {};
 
-  struct NamespaceDeclRule
+  struct NamespaceDecl
       : rule<create<ast::NamespaceDecl>(
                  option(flag<&ast::NamespaceDecl::isInline>(
                      kw<"inline">)) +
                  kw<"namespace"> +
                  option(assign<&ast::NamespaceDecl::name>(ref<ID>)) +
-                 lit<"{"> +
+                 LBrace +
                  many(append<&ast::NamespaceDecl::items>(ref<Declaration>)) +
-                 lit<"}">)> {};
+                 RBrace)> {};
 
-  struct FunctionDefinitionRule
+  struct FunctionDefinition
       : rule<create<ast::FunctionDef>(
              Attrs +
              option(assign<&ast::FunctionDef::specifiers>(
@@ -1190,17 +1226,17 @@ struct Cpp : cursiv::GrammarSpec {
                  kw<"override"> | kw<"final">)) +
              ((option(lit<":"> +
                       some(append<&ast::FunctionDef::ctorInit>(
-                               ref<MemInitRule>),
+                               ref<MemInit>),
                            lit<",">)) +
                assign<&ast::FunctionDef::body>(ref<CompoundStatement>))  //
               | (kw<"try"> +
                  option(lit<":"> +
                         some(append<&ast::FunctionDef::ctorInit>(
-                                 ref<MemInitRule>),
+                                 ref<MemInit>),
                              lit<",">)) +
                  assign<&ast::FunctionDef::body>(ref<CompoundStatement>) +
                  some(append<&ast::FunctionDef::handlers>(
-                     ref<CatchClauseRule>)))  //
+                     ref<CatchClause>)))  //
               | (lit<"="> +
                  (flag<&ast::FunctionDef::isDefault>(kw<"default">)  //
                   | flag<&ast::FunctionDef::isDelete>(kw<"delete">)) +
@@ -1208,15 +1244,15 @@ struct Cpp : cursiv::GrammarSpec {
 
   // -- Templates ------------------------------------------------------
 
-  struct ParamTemplateParamRule
+  struct ParamTemplateParam
       : rule<create<ast::ParamTemplateParam>(
                  assign<&ast::ParamTemplateParam::param>(ref<Param>))> {};
 
-  struct TypeTemplateParamRule
+  struct TypeTemplateParam
       : rule<create<ast::TypeTemplateParam>(
                  ((kw<"template"> + Lt +
                    some(append<&ast::TypeTemplateParam::templateParams>(
-                            ref<TemplateParameterRule>),
+                            ref<TemplateParameter>),
                         lit<",">) +
                    Gt + (kw<"class"> | kw<"typename">))  //
                   | (kw<"class"> | kw<"typename">)) +
@@ -1227,18 +1263,18 @@ struct Cpp : cursiv::GrammarSpec {
                         assign<&ast::TypeTemplateParam::defaultType>(
                             ref<TypeId>)))> {};
 
-  struct TemplateParameterRule
-      : rule<ref<TypeTemplateParamRule> | ref<ParamTemplateParamRule>> {};
+  struct TemplateParameter
+      : rule<ref<TypeTemplateParam> | ref<ParamTemplateParam>> {};
 
-  struct TemplateDeclRule
+  struct TemplateDecl
       : rule<create<ast::TemplateDecl>(
                  kw<"template"> + Lt +
                  some(append<&ast::TemplateDecl::params>(
-                          ref<TemplateParameterRule>),
+                          ref<TemplateParameter>),
                       lit<",">) +
                  Gt + assign<&ast::TemplateDecl::body>(ref<Declaration>))> {};
 
-  struct ExplicitInstantiationRule
+  struct ExplicitInstantiation
       : rule<create<ast::ExplicitInstantiation>(
                  option(flag<&ast::ExplicitInstantiation::isExtern>(
                      kw<"extern">)) +
@@ -1246,26 +1282,26 @@ struct Cpp : cursiv::GrammarSpec {
                  assign<&ast::ExplicitInstantiation::decl>(
                      ref<Declaration>))> {};
 
-  struct ExplicitSpecializationRule
+  struct ExplicitSpecialization
       : rule<create<ast::ExplicitSpecialization>(
                  kw<"template"> + Lt + Gt +
                  assign<&ast::ExplicitSpecialization::decl>(
                      ref<Declaration>))> {};
 
   struct Declaration
-      : rule<ref<BlockDeclaration> | ref<FunctionDefinitionRule> |
-             ref<TemplateDeclRule> | ref<ExplicitInstantiationRule> |
-             ref<ExplicitSpecializationRule> | ref<LinkageSpecRule> |
-             ref<NamespaceDeclRule> | ref<EmptyDeclRule> |
-             ref<AttributeDeclRule>> {};
+      : rule<ref<BlockDeclaration> | ref<FunctionDefinition> |
+             ref<TemplateDecl> | ref<ExplicitInstantiation> |
+             ref<ExplicitSpecialization> | ref<LinkageSpec> |
+             ref<NamespaceDecl> | ref<EmptyDecl> |
+             ref<AttributeDecl>> {};
 
   struct TranslationUnit
       : rule<many(append<&ast::TranslationUnit::items>(ref<Declaration>))> {
   };
 
   using entry = TranslationUnit;
-  static constexpr auto word_boundary = uc::XID_Continue;
-  using ignore = list<WS, Directive>;
+  static constexpr auto word_boundary = uc::XID_Continue | LegacyID;
+  using ignored = list<WS, Directive>;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

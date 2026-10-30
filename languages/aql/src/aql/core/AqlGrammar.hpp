@@ -2,68 +2,52 @@
 // COLLECT and the expr ladder overlap.
 #pragma once
 
-#include <cstddef>
-#include <memory_resource>
-#include <span>
-#include <string_view>
-
 #include "aql/core/ast.hpp"
+#include "aql/core/TextValue.hpp"
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 
 namespace aql {
 
-inline constexpr auto undouble_sq =
-    [](std::string_view t, std::pmr::memory_resource* mem) {
-      const std::string_view body = t.substr(1, t.size() - 2);
-      if (body.find('\'') == std::string_view::npos) return body;
-      const std::span<char> room = cursiv::text_room(mem, body.size());
-      std::size_t n = 0;
-      for (std::size_t i = 0; i < body.size(); ++i) {
-        room[n++] = body[i];
-        if (body[i] == '\'') ++i;
-      }
-      return std::string_view(room.data(), n);
-    };
-using UndoubledSQ = cursiv::text_conv<undouble_sq>;
-
-inline constexpr auto strip1 = [](std::string_view t) {
-  return t.substr(1, t.size() - 2);
-};
-using Strip1 = cursiv::text_conv<strip1>;
-
 struct Aql : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
-  // Block comments nest.
-  struct SQL_COMMENT
-      : terminal<lit<"/*"> +
-                 many(ref<SQL_COMMENT> | (!lit<"/*"> + !lit<"*/"> + any)) +
-                 lit<"*/">> {};
-  struct LINE_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
+  struct SQL_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
+  struct LINE_COMMENT : terminal<lit<"//"> + many(cr<R"(^\n)">)> {};
 
-  struct ID : terminal<cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_">)> {};
+  static constexpr auto Escape = lit<"\\"> + any;
+  struct ID
+      : terminal<as<text_value>(
+            ((option(lit<"$">) | some(lit<"_">)) + cr<"a-zA-Z"> +
+             many(cr<"a-zA-Z0-9_">)) |
+            (lit<"`"> + many(Escape | cr<R"(^`\\)">) + lit<"`">) |
+            (lit<"´"> + many(Escape | (!lit<"´"> + !lit<"\\"> + any)) +
+             lit<"´">))> {};
+  static constexpr auto ParameterName =
+      many(lit<"_">) + cr<"a-zA-Z0-9"> + many(cr<"a-zA-Z0-9_">);
   struct BIND_PARAMETER
-      : terminal<lit<"@"> + cr<"a-zA-Z0-9"> + many(cr<"a-zA-Z0-9_">)> {};
+      : terminal<lit<"@"> + ParameterName> {};
   struct BIND_PARAMETER_COLL
-      : terminal<lit<"@@"> + cr<"a-zA-Z0-9"> + many(cr<"a-zA-Z0-9_">)> {};
+      : terminal<lit<"@@"> + ParameterName> {};
 
-  // Single quotes double to escape; double/backstick strings take no escape
-  // at all and may not be empty.
+  // Backslash escaping applies to both quote styles, including empty strings.
   struct STRING_LITERAL
-      : terminal<lit<"'"> + many(lit<"''"> | cr<"^'">) + lit<"'">,
-                 UndoubledSQ> {};
+      : terminal<as<text_value>(lit<"'"> + many(Escape | cr<R"(^'\\)">) +
+                                lit<"'">)> {};
   struct DOUBLE_QUOTED_STRING_LITERAL
-      : terminal<lit<"\""> + some(cr<R"(^")">) + lit<"\"">, Strip1> {};
-  struct BACKSTICK_STRING_LITERAL
-      : terminal<lit<"`"> + some(cr<"^`">) + lit<"`">, Strip1> {};
+      : terminal<as<text_value>(lit<"\""> + many(Escape | cr<R"(^"\\)">) +
+                                lit<"\"">)> {};
 
   // Decimal, float and exponent forms merged into one terminal: no other
   // rule names them apart, and the union is unambiguous by maximal munch (a
   // trailing `E[+-]digits` always reads longer).
   struct NUMBER
-      : terminal<((some(d) + option(lit<"."> + some(d))) |
-                  (lit<"."> + some(d))) +
-                     option(cr<"eE"> + option(cr<"+-">) + some(d)),
-                 double> {};
+      : terminal<as<double>(
+            (((lit<"0"> | (cr<"1-9"> + many(d))) +
+              option(lit<"."> + some(d))) | (lit<"."> + some(d))) +
+            option(cr<"eE"> + option(cr<"+-">) + some(d)))> {};
+  struct RADIX_NUMBER
+      : terminal<as<radix_number>(
+            (lit<"0"> + cr<"bB"> + some(cr<"01">)) |
+            (lit<"0"> + cr<"xX"> + some(cr<"0-9a-fA-F">)))> {};
 
   struct Atom;
   struct Postfix;
@@ -73,16 +57,20 @@ struct Aql : cursiv::GrammarSpec {
   struct AndOrBelow;
   struct TernaryOrBelow;
   struct Expr;
+  struct ExprList;
+  struct Binding;
+  struct BindingList;
   struct DataAccessQuery;
   struct SimpleQuery;
   struct TraversalQuery;
   struct DataModificationQuery;
+  struct ArangodbQuery;
 
   static constexpr auto StringText = ref<STRING_LITERAL> |
-                                     ref<DOUBLE_QUOTED_STRING_LITERAL> |
-                                     ref<BACKSTICK_STRING_LITERAL>;
+                                     ref<DOUBLE_QUOTED_STRING_LITERAL>;
 
-  struct NumberLit : rule<assign<&ast::NumberLit::value>(ref<NUMBER>)> {};
+  struct NumberLit
+      : rule<assign<&ast::NumberLit::value>(ref<NUMBER> | ref<RADIX_NUMBER>)> {};
   struct StringLit : rule<assign<&ast::StringLit::value>(StringText)> {};
   struct BoolLit
       : rule<create<ast::BoolLit> +
@@ -98,22 +86,30 @@ struct Aql : cursiv::GrammarSpec {
 
   struct ArrayLit
       : rule<create<ast::ArrayLit> + lit<"["> +
-             option(assign<&ast::ArrayLit::value>(ref<Expr>)) + lit<"]">> {};
+             option(assign<&ast::ArrayLit::value>(ref<ExprList>) +
+                    option(lit<",">)) + lit<"]">> {};
 
-  struct Pair : rule<assign<&ast::Pair::key>(StringText | ref<ID>) +
-                     lit<":"> + assign<&ast::Pair::value>(ref<Expr>)> {};
+  struct Pair
+      : rule<((assign<&ast::Pair::key>(StringText | ref<ID>) |
+               assign<&ast::Pair::keyExpr>(ref<BindParamRef>) |
+               (lit<"["> + assign<&ast::Pair::keyExpr>(ref<Expr>) + lit<"]">)) +
+              lit<":"> + assign<&ast::Pair::value>(ref<Expr>)) |
+             flag<&ast::Pair::shorthand>(
+                 assign<&ast::Pair::key>(ref<ID>))> {};
 
   struct ObjectLit
       : rule<create<ast::ObjectLit> + lit<"{"> +
-             option(some(append<&ast::ObjectLit::pairs>(ref<Pair>), lit<",">) |
-                    some(append<&ast::ObjectLit::shorthand>(ref<ID>),
-                         lit<",">)) +
+             option(some(append<&ast::ObjectLit::pairs>(ref<Pair>), lit<",">) +
+                    option(lit<",">)) +
              lit<"}">> {};
+
+  struct FunctionName : rule<ref<ID> + many(lit<"::"> + ref<ID>)> {};
 
   struct FuncCall
       : rule<create<ast::FuncCall>(
-            assign<&ast::FuncCall::name>(ref<ID>) + lit<"("> +
-            option(assign<&ast::FuncCall::args>(ref<Expr>)) + lit<")">)> {};
+            assign<&ast::FuncCall::name>(ref<FunctionName> | ikw<"LIKE">) +
+            lit<"("> + option(assign<&ast::FuncCall::args>(ref<ExprList>)) +
+            lit<")">)> {};
 
   struct Atom
       : rule<ref<NumberLit>       //
@@ -129,7 +125,7 @@ struct Aql : cursiv::GrammarSpec {
              | (lit<"("> +
                 (ref<Expr> |
                  create<ast::SubqueryExpr>(
-                     assign<&ast::SubqueryExpr::query>(ref<DataAccessQuery>))) +
+                     assign<&ast::SubqueryExpr::query>(ref<ArangodbQuery>))) +
                 lit<")">)> {};
 
   struct Postfix
@@ -141,7 +137,8 @@ struct Aql : cursiv::GrammarSpec {
                       lit<"]">)  //
                   | nest<ast::DotExpr, &ast::DotExpr::object>(
                         lit<"."> +
-                        assign<&ast::DotExpr::field>(ref<ID>)))> {};
+                        (assign<&ast::DotExpr::field>(ref<ID>) |
+                         assign<&ast::DotExpr::fieldParam>(ref<BindParamRef>))))> {};
 
   struct Unary
       : rule<create<ast::UnaryExpr>(
@@ -152,106 +149,97 @@ struct Aql : cursiv::GrammarSpec {
                    assign<&ast::NotExpr::operand>(ref<Unary>))  //
              | ref<Postfix>> {};
 
-  struct MUL : terminal<lit<"*">, value<ast::BinOp::multiply>> {};
-  struct DIVOP : terminal<lit<"/">, value<ast::BinOp::divide>> {};
-  struct MODOP : terminal<lit<"%">, value<ast::BinOp::modulo>> {};
-  struct ADDOP : terminal<lit<"+">, value<ast::BinOp::add>> {};
-  struct SUBOP : terminal<lit<"-">, value<ast::BinOp::subtract>> {};
-  struct RANGEOP : terminal<lit<"..">, value<ast::BinOp::range>> {};
-  struct GEOP : terminal<lit<">=">, value<ast::BinOp::ge>> {};
-  struct LEOP : terminal<lit<"<=">, value<ast::BinOp::le>> {};
-  struct GTOP : terminal<lit<">">, value<ast::BinOp::gt>> {};
-  struct LTOP : terminal<lit<"<">, value<ast::BinOp::lt>> {};
-  struct OpIn : terminal<ikw<"IN">, value<ast::BinOp::in>> {};
-  struct OpNotIn : rule<ikw<"NOT"> + ikw<"IN">, value<ast::BinOp::notIn>> {};
-  struct EQOP : terminal<lit<"==">, value<ast::BinOp::eq>> {};
-  struct NEOP : terminal<lit<"!=">, value<ast::BinOp::ne>> {};
-  struct REMATCH : terminal<lit<"=~">, value<ast::BinOp::regexMatch>> {};
-  struct RENMATCH : terminal<lit<"!~">, value<ast::BinOp::regexNotMatch>> {};
-  struct OpLike : terminal<ikw<"LIKE">, value<ast::BinOp::like>> {};
-  struct OpNotLike
-      : rule<ikw<"NOT"> + ikw<"LIKE">, value<ast::BinOp::notLike>> {};
 
-  static constexpr auto OpMulDivMod = ref<MUL> | ref<DIVOP> | ref<MODOP>;
-  static constexpr auto OpAddSub = ref<ADDOP> | ref<SUBOP>;
+  static constexpr auto OpMulDivMod = as<ast::BinOp::multiply>(lit<"*">) | as<ast::BinOp::divide>(lit<"/">) | as<ast::BinOp::modulo>(lit<"%">);
+  static constexpr auto OpAddSub = as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::subtract>(lit<"-">);
   static constexpr auto OpRelational =
-      ref<GEOP> | ref<LEOP> | ref<GTOP> | ref<LTOP>;
-  // IN and LIKE share the NOT keyword their negated forms open on, so one
-  // precedence step must hold all four (precedenceClash otherwise).
-  static constexpr auto OpEqualityInLike =
-      ref<REMATCH> | ref<RENMATCH> | ref<EQOP> | ref<NEOP> | ref<OpNotIn> |
-      ref<OpIn> | ref<OpNotLike> | ref<OpLike>;
+      as<ast::BinOp::ge>(lit<">=">) | as<ast::BinOp::le>(lit<"<=">) | as<ast::BinOp::gt>(lit<">">) | as<ast::BinOp::lt>(lit<"<">);
+  // Give negated membership one token, as tokens.ll does, so its NOT prefix
+  // need not share a precedence level with LIKE or equality.
+  struct NOT_IN
+      : terminal<((ikw<"NOT"> + some(cr<R"( \t\r\n)">)) |
+                  (lit<"!"> + many(cr<R"( \t\r\n)">))) + ikw<"IN">> {};
+  struct NOT_LIKE
+      : terminal<ikw<"NOT"> + some(cr<R"( \t\r\n)">) + ikw<"LIKE">> {};
+  struct NOT_REGEX_MATCH
+      : terminal<ikw<"NOT"> + many(cr<R"( \t\r\n)">) + lit<"=~">> {};
+  struct NOT_REGEX_NON_MATCH
+      : terminal<ikw<"NOT"> + many(cr<R"( \t\r\n)">) + lit<"!~">> {};
+  static constexpr auto OpMembership =
+      as<ast::BinOp::notIn>(ref<NOT_IN>) | as<ast::BinOp::in>(ikw<"IN">);
+  static constexpr auto OpEqualityLike =
+      as<ast::BinOp::regexMatch>(lit<"=~"> | ref<NOT_REGEX_NON_MATCH>) |
+      as<ast::BinOp::regexNotMatch>(lit<"!~"> | ref<NOT_REGEX_MATCH>) |
+      as<ast::BinOp::eq>(lit<"==">) | as<ast::BinOp::ne>(lit<"!=">) |
+      as<ast::BinOp::notLike>(ref<NOT_LIKE>) | as<ast::BinOp::like>(ikw<"LIKE">);
 
-  // AQL's own operator table: range binds above relational, relational
-  // above IN/equality/LIKE.
+  // ArangoDB 3.12 grammar.y: arithmetic, range, relational, membership,
+  // equality/LIKE, in decreasing precedence.
   struct InfixA
-      : infix<Unary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMulDivMod) >> left(OpAddSub) >> left(ref<RANGEOP>) >>
-               left(OpRelational) >> left(OpEqualityInLike))> {};
+      : infix<Unary, ast::BinaryExpr,
+              levels(left(OpMulDivMod), left(OpAddSub), left(as<ast::BinOp::range>(lit<"..">)),
+                     left(OpRelational), left(OpMembership), left(OpEqualityLike))> {};
 
-  struct QuantAll : terminal<ikw<"ALL">, value<ast::Quantifier::all>> {};
-  struct QuantNone : terminal<ikw<"NONE">, value<ast::Quantifier::none>> {};
-  struct QuantAny : terminal<ikw<"ANY">, value<ast::Quantifier::any>> {};
-  static constexpr auto AnyQuant = ref<QuantAll> | ref<QuantNone> | ref<QuantAny>;
+  static constexpr auto AnyQuant = as<ast::Quantifier::all>(ikw<"ALL">) | as<ast::Quantifier::none>(ikw<"NONE">) | as<ast::Quantifier::any>(ikw<"ANY">);
 
-  struct QCmpIn : terminal<ikw<"IN">, value<ast::CmpOp::in>> {};
-  struct QCmpEq : terminal<lit<"==">, value<ast::CmpOp::eq>> {};
-  struct QCmpNe : terminal<lit<"!=">, value<ast::CmpOp::ne>> {};
-  struct QCmpGe : terminal<lit<">=">, value<ast::CmpOp::ge>> {};
-  struct QCmpLe : terminal<lit<"<=">, value<ast::CmpOp::le>> {};
-  struct QCmpGt : terminal<lit<">">, value<ast::CmpOp::gt>> {};
-  struct QCmpLt : terminal<lit<"<">, value<ast::CmpOp::lt>> {};
-  static constexpr auto AnyQCmp = ref<QCmpIn> | ref<QCmpEq> | ref<QCmpNe> |
-                                  ref<QCmpGe> | ref<QCmpLe> | ref<QCmpGt> |
-                                  ref<QCmpLt>;
+  static constexpr auto AnyQCmp = as<ast::CmpOp::notIn>(ref<NOT_IN>) | as<ast::CmpOp::in>(ikw<"IN">) | as<ast::CmpOp::eq>(lit<"==">) | as<ast::CmpOp::ne>(lit<"!=">) |
+                                  as<ast::CmpOp::ge>(lit<">=">) | as<ast::CmpOp::le>(lit<"<=">) | as<ast::CmpOp::gt>(lit<">">) |
+                                  as<ast::CmpOp::lt>(lit<"<">);
 
   // `expr (ALL|NONE|ANY) (IN|==|!=|>=|<=|>|<) expr`: kept out of the main
   // ladder since its operator is two independent words, not one text/value.
   struct QuantCompareOrBelow
       : rule<create<ast::QuantifiedExpr>(
                  assign<&ast::QuantifiedExpr::left>(ref<InfixA>) +
-                 assign<&ast::QuantifiedExpr::quant>(AnyQuant) +
+                 (assign<&ast::QuantifiedExpr::quant>(AnyQuant) |
+                  (assign<&ast::QuantifiedExpr::quant>(
+                       as<ast::Quantifier::atLeast>(ikw<"AT"> + ikw<"LEAST">)) +
+                   lit<"("> + assign<&ast::QuantifiedExpr::minimum>(ref<Expr>) +
+                   lit<")">)) +
                  assign<&ast::QuantifiedExpr::cmp>(AnyQCmp) +
                  assign<&ast::QuantifiedExpr::right>(ref<InfixA>))  //
              | ref<InfixA>> {};
 
-  struct ANDOP : terminal<lit<"&&"> | ikw<"AND">, value<ast::BinOp::and_>> {};
-  struct OROP : terminal<lit<"||"> | ikw<"OR">, value<ast::BinOp::or_>> {};
-  struct ASSIGNOP : terminal<lit<"=">, value<ast::BinOp::assign>> {};
+  struct ANDOP : terminal<as<ast::BinOp::and_>(lit<"&&"> | ikw<"AND">)> {};
+  struct OROP : terminal<as<ast::BinOp::or_>(lit<"||"> | ikw<"OR">)> {};
 
   struct AndOrBelow
-      : infix<QuantCompareOrBelow, &ast::BinaryExpr::left,
-              &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-              (left(ref<ANDOP>) >> left(ref<OROP>) >>
-               left(ref<ASSIGNOP>))> {};
+      : infix<QuantCompareOrBelow, ast::BinaryExpr,
+              levels(left(ref<ANDOP>), left(ref<OROP>))> {};
 
   // The `?`/`:` branches admit the full ladder; the condition only the
   // tighter levels below it.
   struct TernaryOrBelow
       : rule<create<ast::TernaryExpr>(
                  assign<&ast::TernaryExpr::cond>(ref<AndOrBelow>) +
-                 lit<"?"> + assign<&ast::TernaryExpr::then_>(ref<Expr>) +
+                 lit<"?"> + option(assign<&ast::TernaryExpr::then_>(ref<Expr>)) +
                  lit<":"> + assign<&ast::TernaryExpr::else_>(ref<Expr>))  //
              | ref<AndOrBelow>> {};
 
-  struct COMMAOP : terminal<lit<",">, value<ast::BinOp::comma>> {};
+  struct Expr : rule<ref<TernaryOrBelow>> {};
+  // Commas separate list items; they never belong to a scalar expression.
+  struct ExprList : infix<Expr, ast::BinaryExpr,
+                      left(as<ast::BinOp::comma>(lit<",">))> {};
+  struct Binding
+      : rule<create<ast::BinaryExpr>(
+            assign<&ast::BinaryExpr::left>(ref<IdRef>) +
+            assign<&ast::BinaryExpr::op>(as<ast::BinOp::assign>(lit<"=">)) +
+            assign<&ast::BinaryExpr::right>(ref<Expr>))> {};
+  struct BindingList : infix<Binding, ast::BinaryExpr,
+                             left(as<ast::BinOp::comma>(lit<",">))> {};
 
-  struct Expr
-      : infix<TernaryOrBelow, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, left(ref<COMMAOP>)> {};
-
-  struct Collection : rule<assign<&ast::Collection::name>(ref<ID>)  //
+  struct Collection : rule<assign<&ast::Collection::name>(ref<ID> | StringText)  //
                            | assign<&ast::Collection::bindParam>(
                                  ref<BIND_PARAMETER_COLL>)> {};
 
   struct LetList
-      : rule<some(ikw<"LET"> + append<&ast::LetList::bindings>(ref<Expr>))> {
+      : rule<some(ikw<"LET"> + append<&ast::LetList::bindings>(ref<BindingList>))> {
   };
 
-  struct AggregateAssign
-      : rule<ikw<"AGGREGATE"> + assign<&ast::AggregateAssign::name>(ref<ID>) +
-             lit<"="> + assign<&ast::AggregateAssign::value>(ref<Expr>)> {};
+  struct AggregateBinding
+      : rule<assign<&ast::AggregateAssign::name>(ref<ID>) +
+             lit<"="> + assign<&ast::AggregateAssign::value>(ref<FuncCall>)> {};
+  struct AggregateAssign : rule<ikw<"AGGREGATE"> + ref<AggregateBinding>> {};
 
   struct Options
       : rule<ikw<"OPTIONS"> + assign<&ast::Options::value>(ref<ObjectLit>)> {
@@ -268,7 +256,8 @@ struct Aql : cursiv::GrammarSpec {
                  ref<Expr> | create<ast::CollectionRef>(
                                  assign<&ast::CollectionRef::name>(
                                      ref<BIND_PARAMETER_COLL>))) +
-             option(assign<&ast::ForIn::search>(ref<Search>)) +
+             option(assign<&ast::ForIn::search>(ref<Search>) |
+                    assign<&ast::ForIn::options>(ref<Options>)) +
              option(assign<&ast::ForIn::letAfter>(ref<LetList>))> {};
 
   struct Filter
@@ -289,42 +278,43 @@ struct Aql : cursiv::GrammarSpec {
 
   struct Limit
       : rule<option(assign<&ast::Limit::letBefore>(ref<LetList>)) +
-             ikw<"LIMIT"> + assign<&ast::Limit::count>(ref<NUMBER>) +
-             option(lit<","> + assign<&ast::Limit::second>(ref<NUMBER>)) +
+             ikw<"LIMIT"> + assign<&ast::Limit::count>(ref<Expr>) +
+             option(lit<","> + assign<&ast::Limit::second>(ref<Expr>)) +
              option(assign<&ast::Limit::letAfter>(ref<LetList>))> {};
 
-  // The five shapes COLLECT admits, merged so no two branches ever read the
-  // same bare `expr` (two branches sharing it were indistinguishable when
-  // INTO was absent).
+  static constexpr auto CountInto =
+      ikw<"WITH"> + flag<&ast::Collect::withCount>(ikw<"COUNT">) +
+      ikw<"INTO"> + assign<&ast::Collect::intoVar>(ref<ID>);
+  static constexpr auto CollectAggregate =
+      assign<&ast::Collect::aggregate>(ref<AggregateAssign>) +
+      many(lit<","> + append<&ast::Collect::moreAggregates>(ref<AggregateBinding>));
+  static constexpr auto CollectInto =
+      ikw<"INTO"> + assign<&ast::Collect::into>(ref<Binding> | ref<IdRef>) +
+      option(ikw<"KEEP"> + assign<&ast::Collect::keepVar>(ref<ID>) +
+             many(lit<","> + append<&ast::Collect::keepMore>(ref<ID>)));
+
   struct Collect
-      : rule<ikw<"COLLECT"> +
-             ((assign<&ast::Collect::expr_>(ref<Expr>) +
-               (option(ikw<"INTO"> +
-                       ((assign<&ast::Collect::intoVar>(ref<ID>) +
-                         ikw<"KEEP"> +
-                         assign<&ast::Collect::keepVar>(ref<ID>))  //
-                        | assign<&ast::Collect::into>(ref<Expr>)))  //
-                | (ikw<"WITH"> + ikw<"COUNT"> + ikw<"INTO"> +
-                   assign<&ast::Collect::intoVar>(ref<ID>))))  //
-              | (option(assign<&ast::Collect::expr_>(ref<Expr>)) +
-                 assign<&ast::Collect::aggregate>(ref<AggregateAssign>) +
-                 option(ikw<"INTO"> +
-                        assign<&ast::Collect::intoVar>(ref<ID>)))  //
-              | (ikw<"WITH"> +
-                 flag<&ast::Collect::withCount>(ikw<"COUNT">) +
-                 ikw<"INTO"> + assign<&ast::Collect::intoVar>(ref<ID>))) +
+      : rule<option(assign<&ast::Collect::letBefore>(ref<LetList>)) +
+             ikw<"COLLECT"> +
+             ((assign<&ast::Collect::expr_>(ref<BindingList>) +
+               (CountInto | (option(CollectAggregate) + option(CollectInto)))) |
+              (CollectAggregate + option(CollectInto)) | CountInto) +
              option(assign<&ast::Collect::options>(ref<Options>))> {};
 
   struct Window
-      : rule<ikw<"WINDOW"> +
+      : rule<option(assign<&ast::Window::letBefore>(ref<LetList>)) +
+             ikw<"WINDOW"> +
              option(assign<&ast::Window::expr_>(ref<Expr>) + ikw<"WITH">) +
              assign<&ast::Window::spec>(ref<ObjectLit>) +
-             assign<&ast::Window::aggregate>(ref<AggregateAssign>)> {};
+             assign<&ast::Window::aggregate>(ref<AggregateAssign>) +
+             many(lit<","> + append<&ast::Window::moreAggregates>(ref<AggregateBinding>))> {};
 
+  static constexpr auto PipelineOperation = ref<Collect> | ref<Filter> |
+                                           ref<Sort> | ref<Limit> | ref<Window>;
   struct ForOp
-      : rule<assign<&ast::ForOp::forIn>(ref<ForIn>) +
-             many(append<&ast::ForOp::operations>(ref<Collect> | ref<Filter> | ref<Sort> | ref<Limit> |
-                          ref<Window>))> {};
+      : rule<(assign<&ast::ForOp::forIn>(ref<ForIn>) +
+              many(append<&ast::ForOp::operations>(PipelineOperation))) |
+             some(append<&ast::ForOp::operations>(PipelineOperation))> {};
 
   struct ReturnExpr
       : rule<option(assign<&ast::ReturnExpr::letBefore>(ref<LetList>)) +
@@ -336,7 +326,7 @@ struct Aql : cursiv::GrammarSpec {
       : rule<create<ast::SimpleQuery>(
             option(ikw<"WITH"> +
                    some(append<&ast::SimpleQuery::with_>(ref<Collection>),
-                        lit<",">)) +
+                        option(lit<",">))) +
             many(append<&ast::SimpleQuery::forOps>(ref<ForOp>)) +
             assign<&ast::SimpleQuery::return_>(ref<ReturnExpr>))> {};
 
@@ -344,7 +334,7 @@ struct Aql : cursiv::GrammarSpec {
       : rule<create<ast::TraversalQuery>(
             option(ikw<"WITH"> +
                    some(append<&ast::TraversalQuery::with_>(ref<Collection>),
-                        lit<",">)) +
+                        option(lit<",">))) +
             ikw<"FOR"> + assign<&ast::TraversalQuery::v>(ref<ID>) +
             option(lit<","> + assign<&ast::TraversalQuery::e>(ref<ID>) +
                    option(lit<","> +
@@ -363,14 +353,14 @@ struct Aql : cursiv::GrammarSpec {
                         ref<Collection>),
                     lit<",">)) +
             option(ikw<"PRUNE"> +
+                   option(assign<&ast::TraversalQuery::pruneVar>(ref<ID>) + lit<"=">) +
                    assign<&ast::TraversalQuery::prune>(ref<Expr>)) +
-            many(append<&ast::TraversalQuery::filters>(ref<Filter>)) +
             option(assign<&ast::TraversalQuery::options>(ref<Options>)) +
-            option(
-                assign<&ast::TraversalQuery::return_>(ref<ReturnExpr>)))> {};
+            many(append<&ast::TraversalQuery::filters>(ref<Filter>)) +
+            assign<&ast::TraversalQuery::return_>(ref<ReturnExpr>))> {};
 
   struct InsertOp
-      : rule<ikw<"INSERT"> + assign<&ast::InsertOp::doc>(ref<ObjectLit>) +
+      : rule<ikw<"INSERT"> + assign<&ast::InsertOp::doc>(ref<Expr>) +
              (flag<&ast::InsertOp::isInto>(ikw<"INTO">) | ikw<"IN">) +
              assign<&ast::InsertOp::target>(ref<Collection>) +
              option(assign<&ast::InsertOp::options>(ref<Options>))> {};
@@ -378,20 +368,20 @@ struct Aql : cursiv::GrammarSpec {
   struct UpdateOp
       : rule<ikw<"UPDATE"> +
              option(assign<&ast::UpdateOp::key>(ref<Expr>) + ikw<"WITH">) +
-             assign<&ast::UpdateOp::doc>(ref<ObjectLit>) + ikw<"IN"> +
+             assign<&ast::UpdateOp::doc>(ref<Expr>) + (ikw<"IN"> | ikw<"INTO">) +
              assign<&ast::UpdateOp::target>(ref<Collection>) +
              option(assign<&ast::UpdateOp::options>(ref<Options>))> {};
 
   struct ReplaceOp
       : rule<ikw<"REPLACE"> +
              option(assign<&ast::ReplaceOp::key>(ref<Expr>) + ikw<"WITH">) +
-             assign<&ast::ReplaceOp::doc>(ref<ObjectLit>) + ikw<"IN"> +
+             assign<&ast::ReplaceOp::doc>(ref<Expr>) + (ikw<"IN"> | ikw<"INTO">) +
              assign<&ast::ReplaceOp::target>(ref<Collection>) +
              option(assign<&ast::ReplaceOp::options>(ref<Options>))> {};
 
   struct RemoveOp
       : rule<ikw<"REMOVE"> + assign<&ast::RemoveOp::key>(ref<Expr>) +
-             ikw<"IN"> + assign<&ast::RemoveOp::target>(ref<Collection>) +
+             (ikw<"IN"> | ikw<"INTO">) + assign<&ast::RemoveOp::target>(ref<Collection>) +
              option(assign<&ast::RemoveOp::options>(ref<Options>))> {};
 
   struct UpsertOp
@@ -399,7 +389,7 @@ struct Aql : cursiv::GrammarSpec {
              ikw<"INSERT"> + assign<&ast::UpsertOp::insert_>(ref<Expr>) +
              (flag<&ast::UpsertOp::isUpdate>(ikw<"UPDATE">) |
               ikw<"REPLACE">) +
-             assign<&ast::UpsertOp::modify>(ref<Expr>) + ikw<"IN"> +
+             assign<&ast::UpsertOp::modify>(ref<Expr>) + (ikw<"IN"> | ikw<"INTO">) +
              assign<&ast::UpsertOp::target>(ref<Collection>) +
              option(assign<&ast::UpsertOp::options>(ref<Options>))> {};
 
@@ -409,8 +399,9 @@ struct Aql : cursiv::GrammarSpec {
                 ikw<"WITH"> +
                 some(append<&ast::DataModificationQuery::with_>(
                          ref<Collection>),
-                     lit<",">)) +
+                     option(lit<",">))) +
             many(append<&ast::DataModificationQuery::forOps>(ref<ForOp>)) +
+            option(assign<&ast::DataModificationQuery::letBefore>(ref<LetList>)) +
             (assign<&ast::DataModificationQuery::insert_>(ref<InsertOp>)  //
              | assign<&ast::DataModificationQuery::update_>(ref<UpdateOp>)  //
              | assign<&ast::DataModificationQuery::replace_>(
@@ -427,7 +418,7 @@ struct Aql : cursiv::GrammarSpec {
       : rule<ref<DataAccessQuery> | ref<DataModificationQuery>> {};
 
   using entry = ArangodbQuery;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, SQL_COMMENT>;
 };
 

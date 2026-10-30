@@ -1,6 +1,6 @@
 # z
 
-ISO/IEC 13568 Z notation, Unicode (`.zed`) markup, built with
+A Unicode (`.zed`) syntax subset of ISO/IEC 13568 Z notation, built with
 [cursiv](https://github.com/ydaveluy/cursiv).
 
 ## Build

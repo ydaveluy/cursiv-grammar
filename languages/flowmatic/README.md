@@ -2,6 +2,21 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+The corpus is a compact FLOW-MATIC-like operation language inspired by the
+1958 UNIVAC example. The primary reference located was Sperry Rand's
+[U1518 FLOW-MATIC Programming System, 1958](https://www.bitsavers.org/pdf/univac/flow-matic/U1518_FLOW-MATIC_Programming_System_1958.pdf).
+Only its indexed introductory text was available during this review: direct
+fetches were blocked or timed out. The complete native statement/lexical
+specification and a matching compiler edition remain unverified.
+
+The local grammar additionally allows omitted operation periods and `(END)`,
+empty operations, case-insensitive words and arithmetic extensions; these are
+not asserted to be a universal 1958 standard. Selected arithmetic operand and
+GIVING checks are local policies pending fuller native evidence. The AST keeps
+source file-designator tokens, unresolved operation labels and `hasEnd`; no
+native file linking, execution, arithmetic typing or full data-description
+language is implemented. No original compiler/runtime was executed.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`
@@ -44,7 +59,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 sequence of lines: each opens on a `(N)` label and holds one or more
 statements — `INPUT`/`OUTPUT` file bindings, `COMPARE`/`MOVE`/`TEST` on a
 field within a file letter, `IF`/`OTHERWISE ... GO TO OPERATION N` control
-transfer — ending on `.`. The program itself ends on the `(END)` marker.
+transfer. Canonical examples end each operation with `.` and the program with
+`(END)`; this import grammar also accepts their omission.
 
 ## The command line
 

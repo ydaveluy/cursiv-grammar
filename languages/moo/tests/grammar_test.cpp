@@ -5,6 +5,7 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "moo/core/CoreServices.hpp"
 #include "moo/core/ast.hpp"
+#include "native_regressions.hpp"
 // The smoke test of the language: every corpus document parses clean, and
 // one is read back field by field to catch a converter that silently
 // mismaps its value.
@@ -47,9 +48,8 @@ const moo::ast::Expr* if_cond(const cursiv::ParseResult& result) {
   return ifStmt.cond;
 }
 
-// Comparisons bind tighter than `&&`, and `&&` tighter than `||`: `1==2 &&
-// 3==4` is `(1==2)&&(3==4)`, and `1==2 || 3==4 && 5==6` is
-// `(1==2)||((3==4)&&(5==6))`.
+// LambdaMOO's parser.y gives && and || the same left-associative level:
+// `1==2 || 3==4 && 5==6` is `((1==2)||(3==4))&&(5==6)`.
 int check_condition_precedence(moo::MooCoreServices& language) {
   {
     const std::string text =
@@ -74,13 +74,28 @@ int check_condition_precedence(moo::MooCoreServices& language) {
     if (cond == nullptr)
       return fail("'1==2 || 3==4 && 5==6' probe does not parse clean");
     const auto* top = static_cast<const moo::ast::BinaryExpr*>(cond);
-    if (top->op != moo::ast::Operator::logical_or)
-      return fail("'1==2 || 3==4 && 5==6' is not top-level ||");
-    if (top->right->type != &cursiv::ast_type_tag<moo::ast::BinaryExpr>)
-      return fail("'1==2 || 3==4 && 5==6' right operand is not &&");
-    const auto* right = static_cast<const moo::ast::BinaryExpr*>(top->right);
-    if (right->op != moo::ast::Operator::logical_and)
-      return fail("'1==2 || 3==4 && 5==6' right operand is not &&");
+    if (top->op != moo::ast::Operator::logical_and)
+      return fail("'1==2 || 3==4 && 5==6' is not top-level &&");
+    const auto* left = cursiv::ast_cast<moo::ast::BinaryExpr>(top->left);
+    if (!left || left->op != moo::ast::Operator::logical_or)
+      return fail("'1==2 || 3==4 && 5==6' left operand is not ||");
+  }
+  for (const auto *expression : {"2^3^4", "!1+2"}) {
+    const std::string text = "@program prog:run\nif (" +
+        std::string(expression) + ")\nreturn 1;\nendif\n.";
+    const auto result = language.parser->parse(text);
+    const auto *top = cursiv::ast_cast<moo::ast::BinaryExpr>(if_cond(result));
+    if (!top || !result.diagnostics.empty())
+      return fail("native expression precedence probe did not build a binary expression");
+    if (expression == std::string_view("2^3^4")) {
+      const auto *right = cursiv::ast_cast<moo::ast::BinaryExpr>(top->right);
+      if (top->op != moo::ast::Operator::power || !right ||
+          right->op != moo::ast::Operator::power)
+        return fail("exponentiation must associate right");
+    } else if (top->op != moo::ast::Operator::add ||
+               !cursiv::ast_cast<moo::ast::NotExpr>(top->left)) {
+      return fail("logical negation must bind before arithmetic");
+    }
   }
   return 0;
 }
@@ -130,6 +145,43 @@ int main() {
   const auto language = cursiv::create_language<
       moo::MooCoreServices, moo::MooSharedCoreServices,
       moo::install_core_module>();
+
+  if (!moo_native::run(*language.language.parser)) return 1;
+
+  {
+    const std::string source =
+        R"MOO(@program hello:run
+x = {325.0, 325., 3.25e2, 0.325E3, .0325e+4, 32500e-2};
+s = "His name was \"Leroy\" and \\.";
+.)MOO";
+    const auto result = language.language.parser->parse(source);
+    const auto *root = result.value_as<moo::ast::Prog>();
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !root || root->declarations.size() != 1)
+      return fail("native real literals and escaped quotes parse cleanly");
+    const auto *program = cursiv::ast_cast<moo::ast::ProgramDecl>(root->declarations[0]);
+    if (!program || program->body.size() != 2)
+      return fail("native literal test preserves both assignments");
+    const auto *numbers = cursiv::ast_cast<moo::ast::AssignStmt>(program->body[0]);
+    const auto *list = numbers ? cursiv::ast_cast<moo::ast::ListExpr>(numbers->value) : nullptr;
+    if (!list || list->items.size() != 6)
+      return fail("native real literals are six separate values");
+    for (const auto *item : list->items) {
+      const auto *number = cursiv::ast_cast<moo::ast::RealLit>(item);
+      if (!number || number->value != 325.0)
+        return fail("native real literal retains its numeric value");
+    }
+    const auto *assignment = cursiv::ast_cast<moo::ast::AssignStmt>(program->body[1]);
+    const auto *string = assignment ? cursiv::ast_cast<moo::ast::StringLit>(assignment->value) : nullptr;
+    if (!string || string->value != "His name was \"Leroy\" and \\.")
+      return fail("MOO quote and backslash escapes decode once");
+  }
+
+  for (const auto *source : {"@programhello:run\nreturn 1;\n.", "@kidsfoo"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("a directive must not consume the prefix of a longer word");
+  }
 
   if (const int rc = check_condition_precedence(language.language); rc != 0)
     return rc;

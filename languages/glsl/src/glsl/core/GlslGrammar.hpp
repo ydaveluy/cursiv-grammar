@@ -55,10 +55,12 @@ struct Glsl : cursiv::GrammarSpec {
   static constexpr auto NL = (lit<"\r\n"> | cr<R"(\r\n)">);
   static constexpr auto Splice = lit<"\\"> + NL;
   struct LineCont : terminal<Splice> {};
+  // Splicing precedes token recognition in GLSL, including keywords.
+  template <cursiv::str S>
+  struct Keyword : terminal<as<unsplice>(detail::spelling<S>() +
+                                        !(many(Splice) + w))> {};
   struct BlockComment : terminal<through(lit<"/*">, lit<"*/">)> {};
   struct LineComment : terminal<lit<"//"> + many(Splice | cr<R"(^\r\n)">)> {};
-  struct ID : terminal<cr<"a-zA-Z_"> + many(w | Splice), text_conv<unsplice>> {
-  };
   static constexpr auto HexStart = lit<"0"> + many(Splice) + cr<"xX">;
   struct Number : terminal<(HexStart + many(Splice | cr<"a-zA-Z_0-9.">)) |
                            (!HexStart + (d | (lit<"."> + many(Splice) + d)) +
@@ -79,15 +81,17 @@ struct Glsl : cursiv::GrammarSpec {
                  option(NL)> {};
 
   template <cursiv::str S>
-  struct Op : terminal<detail::spelling<S>(), text_conv<unsplice>> {};
+  struct Op : terminal<as<unsplice>(detail::spelling<S>())> {};
 
-  static constexpr auto QualifierWord =
-      kw<"const"> | kw<"in"> | kw<"out"> | kw<"inout"> | kw<"centroid"> |
-      kw<"patch"> | kw<"sample"> | kw<"uniform"> | kw<"buffer"> | kw<"shared"> |
-      kw<"coherent"> | kw<"volatile"> | kw<"restrict"> | kw<"readonly"> |
-      kw<"writeonly"> | kw<"attribute"> | kw<"varying"> | kw<"highp"> |
-      kw<"mediump"> | kw<"lowp"> | kw<"smooth"> | kw<"flat"> |
-      kw<"noperspective"> | kw<"invariant"> | kw<"precise"> |
+  static constexpr auto CoreQualifierWord =
+      ref<Keyword<"const">> | ref<Keyword<"in">> | ref<Keyword<"out">> | ref<Keyword<"inout">> | ref<Keyword<"centroid">> |
+      ref<Keyword<"patch">> | ref<Keyword<"sample">> | ref<Keyword<"uniform">> | ref<Keyword<"buffer">> | ref<Keyword<"shared">> |
+      ref<Keyword<"coherent">> | ref<Keyword<"volatile">> | ref<Keyword<"restrict">> | ref<Keyword<"readonly">> |
+      ref<Keyword<"writeonly">> | ref<Keyword<"attribute">> | ref<Keyword<"varying">> | ref<Keyword<"highp">> |
+      ref<Keyword<"mediump">> | ref<Keyword<"lowp">> | ref<Keyword<"smooth">> | ref<Keyword<"flat">> |
+      ref<Keyword<"noperspective">> | ref<Keyword<"invariant">> | ref<Keyword<"precise">>;
+
+  static constexpr auto QualifierWord = CoreQualifierWord |
       kw<"pervertexEXT"> | kw<"pervertexNV"> | kw<"perprimitiveEXT"> |
       kw<"perprimitiveNV"> | kw<"perviewNV"> | kw<"taskNV"> |
       kw<"nonuniformEXT"> | kw<"rayPayloadEXT"> | kw<"rayPayloadInEXT"> |
@@ -99,7 +103,18 @@ struct Glsl : cursiv::GrammarSpec {
       kw<"nontemporal"> | kw<"taskPayloadSharedEXT">;
 
   static constexpr auto PrecisionWord =
-      kw<"highp"> | kw<"mediump"> | kw<"lowp">;
+      ref<Keyword<"highp">> | ref<Keyword<"mediump">> | ref<Keyword<"lowp">>;
+
+  static constexpr auto ReservedWords = CoreQualifierWord |
+      ref<Keyword<"true">> | ref<Keyword<"false">> | ref<Keyword<"void">> |
+      ref<Keyword<"subroutine">> | ref<Keyword<"layout">> | ref<Keyword<"struct">> |
+      ref<Keyword<"precision">> | ref<Keyword<"if">> | ref<Keyword<"else">> |
+      ref<Keyword<"switch">> | ref<Keyword<"case">> | ref<Keyword<"default">> |
+      ref<Keyword<"while">> | ref<Keyword<"do">> | ref<Keyword<"for">> |
+      ref<Keyword<"continue">> | ref<Keyword<"break">> | ref<Keyword<"return">> |
+      ref<Keyword<"discard">>;
+  struct ID : terminal<as<unsplice>(!ReservedWords + cr<"a-zA-Z_"> +
+                                    many(w | Splice))> {};
 
   static constexpr auto OpAssign =
       ref<Op<"<<=">> | ref<Op<">>=">> | ref<Op<"+=">> | ref<Op<"-=">> |
@@ -126,37 +141,37 @@ struct Glsl : cursiv::GrammarSpec {
   struct UnaryExpression;
   struct PostfixExpression;
   struct PrimaryExpression;
-  struct TypeRefRule;
-  struct PlainTypeRefRule;
-  struct TypeArgumentRule;
-  struct ParameterizedTypeRefRule;
-  struct StructSpecifierRule;
-  struct TypeQualifierRule;
-  struct InitializerRule;
-  struct DeclarationRule;
-  struct LocalDeclarationRule;
+  struct TypeRef;
+  struct PlainTypeRef;
+  struct TypeArgument;
+  struct ParameterizedTypeRef;
+  struct StructSpecifier;
+  struct TypeQualifier;
+  struct Initializer;
+  struct Declaration;
+  struct LocalDeclaration;
   struct FunctionPrototypeRule;
-  struct LocalFunctionPrototypeRule;
-  struct StatementRule;
-  struct CompoundStmtRule;
-  struct ConditionRule;
-  struct DirectiveRule;
+  struct LocalFunctionPrototype;
+  struct Statement;
+  struct CompoundStmt;
+  struct Condition;
+  struct Directive;
 
-  struct ArrayDimRule
+  struct ArrayDim
       : rule<lit<"["> +
              option(assign<&ast::ArrayDim::size>(ref<ConstantExpression>)) +
              lit<"]">> {};
 
-  struct IdentifierRule : rule<assign<&ast::Ident::name>(ref<ID>)> {};
-  struct BoolLitRule
+  struct Identifier : rule<assign<&ast::Ident::name>(ref<ID>)> {};
+  struct BoolLit
       : rule<create<ast::BoolLit> +
-             (flag<&ast::BoolLit::value>(kw<"true">) | kw<"false">)> {};
-  struct NumberLitRule : rule<assign<&ast::NumberLit::text>(ref<Number>)> {};
-  struct StringLitRule : rule<assign<&ast::StringLit::text>(ref<String>)> {};
-  static constexpr auto BareVoid = kw<"void"> + &lit<")">;
+             (flag<&ast::BoolLit::value>(ref<Keyword<"true">>) | ref<Keyword<"false">>)> {};
+  struct NumberLit : rule<assign<&ast::NumberLit::text>(ref<Number>)> {};
+  struct StringLit : rule<assign<&ast::StringLit::text>(ref<String>)> {};
+  static constexpr auto BareVoid = ref<Keyword<"void">> + &lit<")">;
   struct PrimaryExpression
-      : rule<ref<IdentifierRule> | ref<BoolLitRule> | ref<NumberLitRule> |
-             ref<StringLitRule> | (lit<"("> + ref<Expression> + lit<")">)> {};
+      : rule<ref<Identifier> | ref<BoolLit> | ref<NumberLit> |
+             ref<StringLit> | (lit<"("> + ref<Expression> + lit<")">)> {};
 
   struct PostfixExpression
       : rule<ref<PrimaryExpression> +
@@ -187,12 +202,10 @@ struct Glsl : cursiv::GrammarSpec {
              ref<PostfixExpression>> {};
 
   struct BinaryExpression
-      : infix<UnaryExpression, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMul) >> left(OpAdd) >> left(OpShift) >> left(OpRel) >>
-               left(OpEq) >> left(OpBitAnd) >> left(OpBitXor) >>
-               left(OpBitOr) >> left(OpLogAnd) >> left(OpLogXor) >>
-               left(OpLogOr))> {};
+      : infix<UnaryExpression, ast::BinaryExpr,
+              levels(left(OpMul), left(OpAdd), left(OpShift), left(OpRel),
+                     left(OpEq), left(OpBitAnd), left(OpBitXor), left(OpBitOr),
+                     left(OpLogAnd), left(OpLogXor), left(OpLogOr))> {};
 
   struct ConstantExpression
       : rule<create<ast::CondExpr>(
@@ -210,278 +223,277 @@ struct Glsl : cursiv::GrammarSpec {
              ref<ConstantExpression>> {};
 
   struct Expression
-      : infix<AssignmentExpression, &ast::BinaryExpr::left,
-              &ast::BinaryExpr::op, &ast::BinaryExpr::right, left(lit<",">)> {};
+      : infix<AssignmentExpression, ast::BinaryExpr, left(lit<",">)> {};
 
-  struct LayoutQualifierIdRule
-      : rule<assign<&ast::LayoutQualifierId::name>(ref<ID> | kw<"shared">) +
+  struct LayoutQualifierId
+      : rule<assign<&ast::LayoutQualifierId::name>(ref<ID> | ref<Keyword<"shared">>) +
              option(lit<"="> + assign<&ast::LayoutQualifierId::value>(
                                    ref<AssignmentExpression>))> {};
-  struct QualifierClauseRule
+  struct QualifierClause
       : rule<assign<&ast::QualifierClause::name>(QualifierWord) |
-             (assign<&ast::QualifierClause::name>(kw<"subroutine">) +
+             (assign<&ast::QualifierClause::name>(ref<Keyword<"subroutine">>) +
               option(
                   lit<"("> +
                   some(append<&ast::QualifierClause::subroutineTypes>(ref<ID>),
                        lit<",">) +
                   lit<")">)) |
-             (assign<&ast::QualifierClause::name>(kw<"layout">) + lit<"("> +
+             (assign<&ast::QualifierClause::name>(ref<Keyword<"layout">>) + lit<"("> +
               some(append<&ast::QualifierClause::layout>(
-                       ref<LayoutQualifierIdRule>),
+                       ref<LayoutQualifierId>),
                    lit<",">) +
               lit<")">)> {};
-  struct TypeQualifierRule : rule<some(append<&ast::TypeQualifier::clauses>(
-                                 ref<QualifierClauseRule>))> {};
+  struct TypeQualifier : rule<some(append<&ast::TypeQualifier::clauses>(
+                                 ref<QualifierClause>))> {};
 
-  struct DeclaratorRule
+  struct Declarator
       : rule<assign<&ast::Declarator::name>(ref<ID>) +
-             many(append<&ast::Declarator::dims>(ref<ArrayDimRule>))> {};
+             many(append<&ast::Declarator::dims>(ref<ArrayDim>))> {};
 
-  struct StructMemberRule
+  struct StructMember
       : rule<option(assign<&ast::StructMember::qualifier>(
-                 ref<TypeQualifierRule>)) +
-             assign<&ast::StructMember::type>(ref<TypeRefRule>) +
-             some(append<&ast::StructMember::declarators>(ref<DeclaratorRule>),
+                 ref<TypeQualifier>)) +
+             assign<&ast::StructMember::type>(ref<TypeRef>) +
+             some(append<&ast::StructMember::declarators>(ref<Declarator>),
                   lit<",">) +
              lit<";">> {};
 
-  struct StructSpecifierRule
-      : rule<kw<"struct"> +
+  struct StructSpecifier
+      : rule<ref<Keyword<"struct">> +
              option(assign<&ast::StructSpecifier::name>(ref<ID>)) + lit<"{"> +
-             many(append<&ast::StructSpecifier::members>(ref<StructMemberRule> |
-                                                         ref<DirectiveRule>)) +
+             many(append<&ast::StructSpecifier::members>(ref<StructMember> |
+                                                         ref<Directive>)) +
              lit<"}">> {};
 
   static constexpr auto TypeHead =
-      assign<&ast::TypeRef::name>(ref<ID>) |
-      assign<&ast::TypeRef::structure>(ref<StructSpecifierRule>);
+      assign<&ast::TypeRef::name>(ref<ID> | ref<Keyword<"void">>) |
+      assign<&ast::TypeRef::structure>(ref<StructSpecifier>);
   static constexpr auto TypeParameters =
       lit<"<"> +
-      some(append<&ast::TypeRef::parameters>(ref<TypeArgumentRule>), lit<",">) +
+      some(append<&ast::TypeRef::parameters>(ref<TypeArgument>), lit<",">) +
       lit<">">;
   static constexpr auto TypeDimensions =
-      many(append<&ast::TypeRef::dims>(ref<ArrayDimRule>));
-  struct TypeRefRule
+      many(append<&ast::TypeRef::dims>(ref<ArrayDim>));
+  struct TypeRef
       : rule<TypeHead + option(TypeParameters) + TypeDimensions> {};
-  struct PlainTypeRefRule : rule<TypeHead + TypeDimensions> {};
-  struct ParameterizedTypeRefRule
+  struct PlainTypeRef : rule<TypeHead + TypeDimensions> {};
+  struct ParameterizedTypeRef
       : rule<TypeHead + TypeParameters + TypeDimensions> {};
-  struct TypeArgumentRule
-      : rule<ref<ParameterizedTypeRefRule> |
-             (&kw<"struct"> + ref<TypeRefRule>) | ref<UnaryExpression>> {};
-  struct InitializerRule
+  struct TypeArgument
+      : rule<ref<ParameterizedTypeRef> |
+             (&ref<Keyword<"struct">> + ref<TypeRef>) | ref<UnaryExpression>> {};
+  struct Initializer
       : rule<create<ast::ListInit>(
                  lit<"{"> +
-                 many(append<&ast::ListInit::items>(ref<InitializerRule>),
+                 many(append<&ast::ListInit::items>(ref<Initializer>),
                       lit<",">) +
                  option(lit<",">) + lit<"}">) |
              create<ast::ExprInit>(
                  assign<&ast::ExprInit::value>(ref<AssignmentExpression>))> {};
 
-  struct InitDeclaratorRule
+  struct InitDeclarator
       : rule<assign<&ast::InitDeclarator::name>(ref<ID>) +
-             many(append<&ast::InitDeclarator::dims>(ref<ArrayDimRule>)) +
+             many(append<&ast::InitDeclarator::dims>(ref<ArrayDim>)) +
              option(lit<"="> +
-                    assign<&ast::InitDeclarator::init>(ref<InitializerRule>))> {
+                    assign<&ast::InitDeclarator::init>(ref<Initializer>))> {
   };
 
-  struct FunctionDeclStmtRule : rule<assign<&ast::FunctionDeclStmt::prototype>(
+  struct FunctionDeclStmt : rule<assign<&ast::FunctionDeclStmt::prototype>(
                                          ref<FunctionPrototypeRule>) +
                                      lit<";">> {};
 
   template <class Type>
   static constexpr auto VariableDeclaration =
-      option(assign<&ast::VarDeclStmt::qualifier>(ref<TypeQualifierRule>)) +
+      option(assign<&ast::VarDeclStmt::qualifier>(ref<TypeQualifier>)) +
       assign<&ast::VarDeclStmt::type>(ref<Type>) +
-      some(append<&ast::VarDeclStmt::declarators>(ref<InitDeclaratorRule>),
+      some(append<&ast::VarDeclStmt::declarators>(ref<InitDeclarator>),
            lit<",">) +
       lit<";">;
-  struct VarDeclStmtRule : rule<VariableDeclaration<TypeRefRule>> {};
-  struct LocalVarDeclStmtRule : rule<VariableDeclaration<PlainTypeRefRule>> {};
-  struct LocalFunctionDeclStmtRule
+  struct VarDeclStmt : rule<VariableDeclaration<TypeRef>> {};
+  struct LocalVarDeclStmt : rule<VariableDeclaration<PlainTypeRef>> {};
+  struct LocalFunctionDeclStmt
       : rule<assign<&ast::FunctionDeclStmt::prototype>(
-                 ref<LocalFunctionPrototypeRule>) +
+                 ref<LocalFunctionPrototype>) +
              lit<";">> {};
-  struct LocalTypeDeclStmtRule
+  struct LocalTypeDeclStmt
       : rule<option(
-                 assign<&ast::VarDeclStmt::qualifier>(ref<TypeQualifierRule>)) +
-             assign<&ast::VarDeclStmt::type>(&kw<"struct"> +
-                                             ref<PlainTypeRefRule>) +
+                 assign<&ast::VarDeclStmt::qualifier>(ref<TypeQualifier>)) +
+             assign<&ast::VarDeclStmt::type>(&ref<Keyword<"struct">> +
+                                             ref<PlainTypeRef>) +
              lit<";">> {};
-  struct TypeDeclStmtRule : rule<option(assign<&ast::VarDeclStmt::qualifier>(
-                                     ref<TypeQualifierRule>)) +
+  struct TypeDeclStmt : rule<option(assign<&ast::VarDeclStmt::qualifier>(
+                                     ref<TypeQualifier>)) +
                                  assign<&ast::VarDeclStmt::type>(
-                                     (&kw<"struct"> + ref<TypeRefRule>) |
-                                     ref<ParameterizedTypeRefRule>) +
+                                     (&ref<Keyword<"struct">> + ref<TypeRef>) |
+                                     ref<ParameterizedTypeRef>) +
                                  lit<";">> {};
 
-  struct PrecisionDeclStmtRule
-      : rule<kw<"precision"> +
+  struct PrecisionDeclStmt
+      : rule<ref<Keyword<"precision">> +
              assign<&ast::PrecisionDeclStmt::precision>(PrecisionWord) +
-             assign<&ast::PrecisionDeclStmt::type>(ref<TypeRefRule>) +
+             assign<&ast::PrecisionDeclStmt::type>(ref<TypeRef>) +
              lit<";">> {};
 
-  struct InterfaceBlockDeclStmtRule
+  struct InterfaceBlockDeclStmt
       : rule<assign<&ast::InterfaceBlockDeclStmt::qualifier>(
-                 ref<TypeQualifierRule>) +
+                 ref<TypeQualifier>) +
              assign<&ast::InterfaceBlockDeclStmt::blockName>(ref<ID>) +
              lit<"{"> +
              many(append<&ast::InterfaceBlockDeclStmt::members>(
-                 ref<StructMemberRule> | ref<DirectiveRule>)) +
+                 ref<StructMember> | ref<Directive>)) +
              lit<"}"> +
              option(
                  assign<&ast::InterfaceBlockDeclStmt::instanceName>(ref<ID>) +
                  option(some(append<&ast::InterfaceBlockDeclStmt::instanceDims>(
-                     ref<ArrayDimRule>)))) +
+                     ref<ArrayDim>)))) +
              lit<";">> {};
 
-  struct QualifierDeclStmtRule
+  struct QualifierDeclStmt
       : rule<assign<&ast::QualifierDeclStmt::qualifier>(
-                 ref<TypeQualifierRule>) +
+                 ref<TypeQualifier>) +
              option(some(append<&ast::QualifierDeclStmt::names>(ref<ID>),
                          lit<",">)) +
              lit<";">> {};
 
-  struct DeclarationRule
-      : rule<ref<FunctionDeclStmtRule> | ref<VarDeclStmtRule> |
-             ref<TypeDeclStmtRule> | ref<PrecisionDeclStmtRule> |
-             ref<InterfaceBlockDeclStmtRule> | ref<QualifierDeclStmtRule>> {};
+  struct Declaration
+      : rule<ref<FunctionDeclStmt> | ref<VarDeclStmt> |
+             ref<TypeDeclStmt> | ref<PrecisionDeclStmt> |
+             ref<InterfaceBlockDeclStmt> | ref<QualifierDeclStmt>> {};
 
-  struct LocalDeclarationRule
-      : rule<ref<LocalFunctionDeclStmtRule> | ref<LocalVarDeclStmtRule> |
-             ref<LocalTypeDeclStmtRule> | ref<PrecisionDeclStmtRule> |
-             ref<InterfaceBlockDeclStmtRule> | ref<QualifierDeclStmtRule>> {};
+  struct LocalDeclaration
+      : rule<ref<LocalFunctionDeclStmt> | ref<LocalVarDeclStmt> |
+             ref<LocalTypeDeclStmt> | ref<PrecisionDeclStmt> |
+             ref<InterfaceBlockDeclStmt> | ref<QualifierDeclStmt>> {};
 
-  struct ParamRule
-      : rule<option(assign<&ast::Param::qualifier>(ref<TypeQualifierRule>)) +
-             assign<&ast::Param::type>(ref<TypeRefRule>) +
+  struct Param
+      : rule<option(assign<&ast::Param::qualifier>(ref<TypeQualifier>)) +
+             assign<&ast::Param::type>(ref<TypeRef>) +
              option(assign<&ast::Param::name>(ref<ID>) +
-                    many(append<&ast::Param::dims>(ref<ArrayDimRule>)))> {};
+                    many(append<&ast::Param::dims>(ref<ArrayDim>)))> {};
 
   template <class Type>
   static constexpr auto FunctionPrototype =
       option(
-          assign<&ast::FunctionPrototype::qualifier>(ref<TypeQualifierRule>)) +
+          assign<&ast::FunctionPrototype::qualifier>(ref<TypeQualifier>)) +
       assign<&ast::FunctionPrototype::returnType>(ref<Type>) +
       assign<&ast::FunctionPrototype::name>(ref<ID>) + lit<"("> +
       option(BareVoid |
              (!BareVoid +
-              some(append<&ast::FunctionPrototype::params>(ref<ParamRule>),
+              some(append<&ast::FunctionPrototype::params>(ref<Param>),
                    lit<",">))) +
       lit<")">;
-  struct FunctionPrototypeRule : rule<FunctionPrototype<TypeRefRule>> {};
-  struct LocalFunctionPrototypeRule
-      : rule<FunctionPrototype<PlainTypeRefRule>> {};
+  struct FunctionPrototypeRule : rule<FunctionPrototype<TypeRef>> {};
+  struct LocalFunctionPrototype
+      : rule<FunctionPrototype<PlainTypeRef>> {};
 
-  struct FunctionDefRule
+  struct FunctionDef
       : rule<assign<&ast::FunctionDef::prototype>(ref<FunctionPrototypeRule>) +
-             assign<&ast::FunctionDef::body>(ref<CompoundStmtRule>)> {};
+             assign<&ast::FunctionDef::body>(ref<CompoundStmt>)> {};
 
-  struct NameStmtRule : rule<assign<&ast::NameStmt::name>(ref<ID>) + lit<";">> {
+  struct NameStmt : rule<assign<&ast::NameStmt::name>(ref<ID>) + lit<";">> {
   };
-  struct ExprStmtRule
+  struct ExprStmt
       : rule<!(ref<ID> + lit<";">)+option(
                  assign<&ast::ExprStmt::value>(ref<Expression>)) +
              lit<";">> {};
 
-  struct ConditionRule
+  struct Condition
       : rule<assign<&ast::Condition::expr>(ref<Expression>) |
              (option(
-                  assign<&ast::Condition::qualifier>(ref<TypeQualifierRule>)) +
-              assign<&ast::Condition::type>(ref<PlainTypeRefRule>) +
+                  assign<&ast::Condition::qualifier>(ref<TypeQualifier>)) +
+              assign<&ast::Condition::type>(ref<PlainTypeRef>) +
               assign<&ast::Condition::name>(ref<ID>) + lit<"="> +
-              assign<&ast::Condition::init>(ref<InitializerRule>))> {};
+              assign<&ast::Condition::init>(ref<Initializer>))> {};
 
-  struct IfStmtRule
-      : rule<kw<"if"> + lit<"("> + assign<&ast::IfStmt::cond>(ref<Expression>) +
-             lit<")"> + assign<&ast::IfStmt::thenBranch>(ref<StatementRule>) +
-             option(commit(kw<"else">, assign<&ast::IfStmt::elseBranch>(ref<StatementRule>)))> {};
+  struct IfStmt
+      : rule<ref<Keyword<"if">> + lit<"("> + assign<&ast::IfStmt::cond>(ref<Expression>) +
+             lit<")"> + assign<&ast::IfStmt::thenBranch>(ref<Statement>) +
+             option(commit(ref<Keyword<"else">>, assign<&ast::IfStmt::elseBranch>(ref<Statement>)))> {};
 
-  struct SwitchStmtRule
-      : rule<kw<"switch"> + lit<"("> +
+  struct SwitchStmt
+      : rule<ref<Keyword<"switch">> + lit<"("> +
              assign<&ast::SwitchStmt::value>(ref<Expression>) + lit<")"> +
              lit<"{"> +
-             many(append<&ast::SwitchStmt::items>(ref<StatementRule>)) +
+             many(append<&ast::SwitchStmt::items>(ref<Statement>)) +
              lit<"}">> {};
 
-  struct CaseLabelStmtRule
-      : rule<kw<"case"> + assign<&ast::CaseLabelStmt::value>(ref<Expression>) +
+  struct CaseLabelStmt
+      : rule<ref<Keyword<"case">> + assign<&ast::CaseLabelStmt::value>(ref<Expression>) +
              lit<":">> {};
 
-  struct DefaultLabelStmtRule
-      : rule<create<ast::DefaultLabelStmt> + kw<"default"> + lit<":">> {};
+  struct DefaultLabelStmt
+      : rule<create<ast::DefaultLabelStmt> + ref<Keyword<"default">> + lit<":">> {};
 
-  struct WhileStmtRule
-      : rule<kw<"while"> + lit<"("> +
-             assign<&ast::WhileStmt::cond>(ref<ConditionRule>) + lit<")"> +
-             assign<&ast::WhileStmt::body>(ref<StatementRule>)> {};
+  struct WhileStmt
+      : rule<ref<Keyword<"while">> + lit<"("> +
+             assign<&ast::WhileStmt::cond>(ref<Condition>) + lit<")"> +
+             assign<&ast::WhileStmt::body>(ref<Statement>)> {};
 
-  struct DoWhileStmtRule
-      : rule<kw<"do"> + assign<&ast::DoWhileStmt::body>(ref<StatementRule>) +
-             kw<"while"> + lit<"("> +
+  struct DoWhileStmt
+      : rule<ref<Keyword<"do">> + assign<&ast::DoWhileStmt::body>(ref<Statement>) +
+             ref<Keyword<"while">> + lit<"("> +
              assign<&ast::DoWhileStmt::cond>(ref<Expression>) + lit<")"> +
              lit<";">> {};
 
-  struct ForStmtRule
-      : rule<kw<"for"> + lit<"("> +
-             assign<&ast::ForStmt::init>(ref<NameStmtRule> | ref<ExprStmtRule> |
-                                         ref<LocalDeclarationRule>) +
-             option(assign<&ast::ForStmt::cond>(ref<ConditionRule>)) +
+  struct ForStmt
+      : rule<ref<Keyword<"for">> + lit<"("> +
+             assign<&ast::ForStmt::init>(ref<NameStmt> | ref<ExprStmt> |
+                                         ref<LocalDeclaration>) +
+             option(assign<&ast::ForStmt::cond>(ref<Condition>)) +
              lit<";"> + option(assign<&ast::ForStmt::step>(ref<Expression>)) +
-             lit<")"> + assign<&ast::ForStmt::body>(ref<StatementRule>)> {};
+             lit<")"> + assign<&ast::ForStmt::body>(ref<Statement>)> {};
 
-  struct ContinueStmtRule
-      : rule<create<ast::ContinueStmt> + kw<"continue"> + lit<";">> {};
-  struct BreakStmtRule : rule<create<ast::BreakStmt> + kw<"break"> + lit<";">> {
+  struct ContinueStmt
+      : rule<create<ast::ContinueStmt> + ref<Keyword<"continue">> + lit<";">> {};
+  struct BreakStmt : rule<create<ast::BreakStmt> + ref<Keyword<"break">> + lit<";">> {
   };
-  struct ReturnStmtRule
-      : rule<kw<"return"> +
+  struct ReturnStmt
+      : rule<ref<Keyword<"return">> +
              option(assign<&ast::ReturnStmt::value>(ref<Expression>)) +
              lit<";">> {};
-  struct DiscardStmtRule
-      : rule<create<ast::DiscardStmt> + kw<"discard"> + lit<";">> {};
+  struct DiscardStmt
+      : rule<create<ast::DiscardStmt> + ref<Keyword<"discard">> + lit<";">> {};
 
-  struct CompoundStmtRule
+  struct CompoundStmt
       : rule<lit<"{"> +
-             many(append<&ast::CompoundStmt::items>(ref<StatementRule>)) +
+             many(append<&ast::CompoundStmt::items>(ref<Statement>)) +
              lit<"}">> {};
 
-  struct DirectiveRule
+  struct Directive
       : rule<assign<&ast::RawDirective::text>(ref<DirectiveText>)> {};
-  struct AttributeRule
+  struct Attribute
       : rule<assign<&ast::Attribute::name>(ref<ID>) +
              option(
                  lit<"("> +
                  some(append<&ast::Attribute::args>(ref<AssignmentExpression>),
                       lit<",">) +
                  lit<")">)> {};
-  struct AttributedStmtRule
+  struct AttributedStmt
       : rule<lit<"[["> +
-             some(append<&ast::AttributedStmt::attributes>(ref<AttributeRule>),
+             some(append<&ast::AttributedStmt::attributes>(ref<Attribute>),
                   lit<",">) +
              lit<"]]"> +
-             assign<&ast::AttributedStmt::body>(ref<StatementRule>)> {};
+             assign<&ast::AttributedStmt::body>(ref<Statement>)> {};
 
-  struct StatementRule
-      : rule<ref<AttributedStmtRule> | ref<CompoundStmtRule> |
-             ref<LocalDeclarationRule> | ref<NameStmtRule> | ref<ExprStmtRule> |
-             ref<IfStmtRule> | ref<SwitchStmtRule> | ref<CaseLabelStmtRule> |
-             ref<DefaultLabelStmtRule> | ref<WhileStmtRule> |
-             ref<DoWhileStmtRule> | ref<ForStmtRule> | ref<ContinueStmtRule> |
-             ref<BreakStmtRule> | ref<ReturnStmtRule> | ref<DiscardStmtRule> |
-             ref<DirectiveRule>> {};
+  struct Statement
+      : rule<ref<AttributedStmt> | ref<CompoundStmt> |
+             ref<LocalDeclaration> | ref<NameStmt> | ref<ExprStmt> |
+             ref<IfStmt> | ref<SwitchStmt> | ref<CaseLabelStmt> |
+             ref<DefaultLabelStmt> | ref<WhileStmt> |
+             ref<DoWhileStmt> | ref<ForStmt> | ref<ContinueStmt> |
+             ref<BreakStmt> | ref<ReturnStmt> | ref<DiscardStmt> |
+             ref<Directive>> {};
 
-  struct TranslationUnitRule
+  struct TranslationUnit
       : rule<create<ast::TranslationUnit> +
-             many(append<&ast::TranslationUnit::items>(ref<FunctionDefRule>) |
-                  append<&ast::TranslationUnit::items>(ref<DeclarationRule>) |
-                  append<&ast::TranslationUnit::items>(ref<DirectiveRule>) |
-                  append<&ast::TranslationUnit::items>(ref<NameStmtRule>) |
+             many(append<&ast::TranslationUnit::items>(ref<FunctionDef>) |
+                  append<&ast::TranslationUnit::items>(ref<Declaration>) |
+                  append<&ast::TranslationUnit::items>(ref<Directive>) |
+                  append<&ast::TranslationUnit::items>(ref<NameStmt>) |
                   append<&ast::TranslationUnit::items>(
                       create<ast::ExprStmt>(lit<";">)))> {};
 
-  using entry = TranslationUnitRule;
-  using ignore = list<WS, LineCont>;
+  using entry = TranslationUnit;
+  using ignored = list<WS, LineCont>;
   using hidden = list<BlockComment, LineComment>;
 };
 

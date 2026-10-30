@@ -84,5 +84,4 @@ inline constexpr auto unescape_string =
   }
   return {room.data(), n};
 };
-using UnescapedString = cursiv::text_conv<unescape_string>;
 }  // namespace rego

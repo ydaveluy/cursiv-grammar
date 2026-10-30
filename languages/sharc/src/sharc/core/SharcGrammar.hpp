@@ -1,36 +1,52 @@
 // The SHARC language: its grammar. SHARC is SIMD/DSP assembly: register-file
-// operands and instruction opcodes have no useful AST shape, so instruction
-// bodies keep their matched text while value expressions, declarations and
-// directives get real structure.
+// instruction payloads retain token boundaries. Value expressions,
+// declarations and directives have structured AST nodes.
 #pragma once
+
+#include <memory_resource>
+#include <span>
+#include <string_view>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "sharc/core/ast.hpp"
 
 namespace sharc {
 
+// Preserve token boundaries in instruction payloads. Data rules otherwise
+// concatenate adjacent keywords into spellings such as IFEQJUMPtarget.
+inline constexpr auto instruction_text = [](std::span<const std::string_view> parts,
+                                            std::pmr::memory_resource* mem) {
+  std::size_t size = parts.empty() ? 0 : parts.size() - 1;
+  for (const auto part : parts) size += part.size();
+  const auto room = cursiv::text_room(mem, size);
+  std::size_t offset = 0;
+  for (std::size_t i = 0; i < parts.size(); ++i) {
+    if (i) room[offset++] = ' ';
+    for (char c : parts[i]) room[offset++] = c;
+  }
+  return std::string_view(room.data(), offset);
+};
+
+
 struct Sharc : cursiv::GrammarSpec {
-  static constexpr auto word_boundary = cr<"a-zA-Z0-9_.">;
+  static constexpr auto word_boundary = cr<"a-zA-Z0-9_.$">;
 
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">) + option(eol)> {};
   struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
-  // An identifier may itself open on a dot (`.foo`, section-local labels):
-  // a bare dot-digit run is left to NUM, since the two would otherwise match
-  // the same bytes at the same length with no way to prefer one.
-  struct ID : terminal<(cr<"a-zA-Z_"> + many(cr<"a-zA-Z_.0-9">)) |
-                       (lit<"."> + cr<"a-zA-Z_."> + many(cr<"a-zA-Z_.0-9">))> {
-  };
+  struct ID;
 
   static constexpr auto HexDigit = cr<"0-9a-fA-F">;
   static constexpr auto HexPrefix = lit<"0x"> | lit<"0X">;
   static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + some(d);
 
-  struct NUM : terminal<(some(d) + lit<"."> + many(d) + option(Exponent)) |
-                        (lit<"."> + some(d) + option(Exponent)) |
-                        (some(d) + Exponent) | some(d) |
-                        (HexPrefix + some(HexDigit))> {};
+  struct NUM : terminal<
+      (cr<"bB"> + lit<"#"> + some(cr<"01">)) |
+      (HexPrefix + some(HexDigit)) |
+      (((some(d) + lit<"."> + many(d) + option(Exponent)) |
+        (lit<"."> + some(d) + option(Exponent)) |
+        (some(d) + Exponent) | some(d)) + option(cr<"rR">))> {};
 
   struct STRING
       : terminal<lit<"\""> +
@@ -40,175 +56,205 @@ struct Sharc : cursiv::GrammarSpec {
       : terminal<lit<"'"> + ((lit<"\\"> + any) | cr<R"(^'\\\r\n)">) + lit<"'">> {
   };
 
-  struct PLUS_OP : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct MINUS_OP : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct MULT_OP : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIV_OP : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct MOD_OP : terminal<lit<"%">, value<ast::Operator::modulo>> {};
-  struct IOR_OP : terminal<lit<"|">, value<ast::Operator::bit_or>> {};
-  struct IXOR_OP : terminal<lit<"^">, value<ast::Operator::bit_xor>> {};
 
   // Forward declarations: value expressions and statement bodies recurse
   // into each other and into themselves.
-  struct NumberLitRule;
-  struct NameRefRule;
-  struct AddrOfRule;
-  struct LengthOfRule;
-  struct VarAddrRule;
-  struct AtomRule;
-  struct FactorRule;
-  struct TermRule;
-  struct ValueExprRule;
-  struct StringLitRule;
-  struct CharLitRule;
-  struct InitExprRule;
+  struct NumberLit;
+  struct NameRef;
+  struct AddrOf;
+  struct LengthOf;
+  struct VarAddr;
+  struct Atom;
+  struct Factor;
+  struct Term;
+  struct ValueExpr;
+  struct StringLit;
+  struct CharLit;
+  struct InitExpr;
 
-  struct StatementRule;
-  struct StmtAtomRule;
-  struct StmtRule;
-  struct ComputeRule;
-  struct FlowControlRule;
-  struct ImmMovRule;
-  struct MiscRule;
-  struct DeclarationRule;
-  struct IfComputeMovRule;
-  struct ComputeMovExprRule;
-  struct SecRule;
-  struct SegRule;
-  struct EndSegRule;
-  struct DirectiveExpRule;
-  struct ProgramRule;
+  struct Statement;
+  struct StmtAtom;
+  struct Stmt;
+  struct Compute;
+  struct FlowControl;
+  struct ImmMov;
+  struct Misc;
+  struct Declaration;
+  struct IfComputeMov;
+  struct ComputeMovExpr;
+  struct Sec;
+  struct Seg;
+  struct EndSeg;
+  struct DirectiveExp;
+  struct Program;
 
   // ==================== value expressions ====================
-  // No precedence step: `+ - * / % | ^` all stand on the one level a value
-  // expression evaluates, left to right.
-  static constexpr auto ValueOperator = ref<PLUS_OP> | ref<MINUS_OP> | ref<MULT_OP> |
-                                        ref<DIV_OP> | ref<MOD_OP> | ref<IOR_OP> |
-                                        ref<IXOR_OP>;
-  template <bool Build>
-  struct ValueSyntax;
-  template <bool Build>
-  struct AtomSyntax : rule<[] {
-    if constexpr (Build)
-      return ref<AtomRule>;
-    else
-      return ref<NUM> | (lit<"@"> + ref<ID>) |
-             (kw<"length"> + lit<"("> + ref<ID> + lit<")">) | ref<ID>;
-  }()> {};
-  template <bool Build>
-  struct FactorSyntax
-      : rule<ref<AtomSyntax<Build>> | (lit<"("> + ref<ValueSyntax<Build>> + lit<")">)> {
-  };
-  template <bool Build>
-  struct TermSyntax : rule<[] {
-    if constexpr (Build)
-      return create<ast::UnaryMinus>(lit<"-"> + assign<&ast::UnaryMinus::operand>(
-                                                    ref<FactorSyntax<Build>>)) |
-             ref<FactorSyntax<Build>>;
-    else
-      return option(lit<"-">) + ref<FactorSyntax<Build>>;
-  }()> {};
-  template <bool Build>
-  struct ValueSyntax : rule<[] {
-    if constexpr (Build)
-      return ref<TermSyntax<Build>> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(ValueOperator) +
-                 assign<&ast::BinaryExpr::right>(ref<TermSyntax<Build>>)));
-    else
-      return ref<TermSyntax<Build>> + many(ValueOperator + ref<TermSyntax<Build>>);
-  }()> {};
-  struct ValueExprRule : rule<ref<ValueSyntax<true>>> {};
+  static constexpr auto MultiplyOp = as<ast::Operator::multiply>(lit<"*">) |
+      as<ast::Operator::divide>(lit<"/">) | as<ast::Operator::modulo>(lit<"%">);
+  static constexpr auto AddOp = as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">);
+  static constexpr auto ShiftOp = as<ast::Operator::shift_left>(lit<"<<">) | as<ast::Operator::shift_right>(lit<">>">);
+  static constexpr auto AndOp = as<ast::Operator::bit_and>(lit<"&">);
+  static constexpr auto OrOp = as<ast::Operator::bit_or>(lit<"|">);
+  static constexpr auto XorOp = as<ast::Operator::bit_xor>(lit<"^">);
+  static constexpr auto ValueOperator = MultiplyOp | AddOp | ShiftOp | AndOp | OrOp | XorOp;
 
-  struct NumberLitRule
+  struct ValueExprText;
+  struct Factor : rule<ref<Atom> | (lit<"("> + ref<ValueExpr> + lit<")">)> {};
+  struct Term
+      : rule<create<ast::UnaryMinus>(lit<"-"> + assign<&ast::UnaryMinus::operand>(ref<Term>)) |
+             create<ast::BitNot>(lit<"~"> + assign<&ast::BitNot::operand>(ref<Term>)) | ref<Factor>> {};
+  struct ValueExpr : infix<Term, ast::BinaryExpr,
+      levels(left(MultiplyOp), left(AddOp), left(ShiftOp), left(AndOp), left(OrOp), left(XorOp))> {};
+
+  struct NumberLit
       : rule<create<ast::NumberLit>(assign<&ast::NumberLit::value>(ref<NUM>))> {
   };
 
-  struct NameRefRule
+  struct NameRef
       : rule<create<ast::NameRef>(assign<&ast::NameRef::name>(ref<ID>))> {};
 
-  struct AddrOfRule
-      : rule<create<ast::AddrOf>(lit<"@"> +
-                                 assign<&ast::AddrOf::name>(ref<ID>))> {};
+  struct AddrOf
+      : rule<create<ast::AddrOf>(
+            (lit<"@"> + assign<&ast::AddrOf::name>(ref<ID>)) |
+            (ikw<"ADDRESS"> + lit<"("> + assign<&ast::AddrOf::name>(ref<ID>) + lit<")">))> {};
 
-  struct LengthOfRule
-      : rule<create<ast::LengthOf>(kw<"length"> + lit<"("> +
+  struct LengthOf
+      : rule<create<ast::LengthOf>(ikw<"length"> + lit<"("> +
                                    assign<&ast::LengthOf::name>(ref<ID>) +
                                    lit<")">)> {};
 
-  struct VarAddrRule : rule<ref<AddrOfRule> | ref<LengthOfRule>> {};
+  struct VarAddr : rule<ref<AddrOf> | ref<LengthOf>> {};
 
-  struct AtomRule
-      : rule<ref<NumberLitRule> | ref<VarAddrRule> | ref<NameRefRule>> {};
+  struct Atom
+      : rule<ref<NumberLit> | ref<VarAddr> | ref<NameRef>> {};
 
-  struct StringLitRule
+  struct StringLit
       : rule<create<ast::StringLit>(assign<&ast::StringLit::value>(
             ref<STRING>))> {};
 
-  struct CharLitRule
+  struct CharLit
       : rule<create<ast::CharLit>(assign<&ast::CharLit::value>(
             ref<CHARLIT>))> {};
 
-  struct InitExprRule : rule<ref<ValueExprRule> | ref<CharLitRule>> {};
+  struct InitExpr : rule<ref<ValueExpr> | ref<CharLit>> {};
 
-  // Instruction strings reuse the same expression syntax without allocating nodes.
-  struct ValueExprTextRule : rule<ref<ValueSyntax<false>>> {};
-  static constexpr auto ValueSkip = ref<ValueExprTextRule>;
-  static constexpr auto AtomSkip = ref<AtomSyntax<false>>;
+  // Instruction expression syntax needs no expression AST; every operator
+  // still consumes the same token sequence as its structured counterpart.
+  struct AtomText : rule<as<instruction_text>(ref<NUM> | (lit<"@"> + ref<ID>) |
+      ((ikw<"length"> | ikw<"address">) + lit<"("> + ref<ID> + lit<")">) | ref<ID>)> {};
+  struct FactorText : rule<as<instruction_text>(ref<AtomText> | (lit<"("> + ref<ValueExprText> + lit<")">))> {};
+  struct TermText : rule<as<instruction_text>((cr<"-~"> + ref<TermText>) | ref<FactorText>)> {};
+  struct ValueExprText : rule<as<instruction_text>(ref<TermText> + many(ValueOperator + ref<TermText>))> {};
+  static constexpr auto ValueSkip = ref<ValueExprText>;
+  static constexpr auto AtomSkip = ref<AtomText>;
 
   // ==================== registers ====================
   static constexpr auto RReg =
-      kw<"r0"> | kw<"r1"> | kw<"r2"> | kw<"r3"> | kw<"r4"> | kw<"r5"> |
-      kw<"r6"> | kw<"r7"> | kw<"r8"> | kw<"r9"> | kw<"r10"> | kw<"r11"> |
-      kw<"r12"> | kw<"r13"> | kw<"r14"> | kw<"r15">;
+      ikw<"r0"> | ikw<"r1"> | ikw<"r2"> | ikw<"r3"> | ikw<"r4"> | ikw<"r5"> |
+      ikw<"r6"> | ikw<"r7"> | ikw<"r8"> | ikw<"r9"> | ikw<"r10"> | ikw<"r11"> |
+      ikw<"r12"> | ikw<"r13"> | ikw<"r14"> | ikw<"r15">;
   static constexpr auto FReg =
-      kw<"f0"> | kw<"f1"> | kw<"f2"> | kw<"f3"> | kw<"f4"> | kw<"f5"> |
-      kw<"f6"> | kw<"f7"> | kw<"f8"> | kw<"f9"> | kw<"f10"> | kw<"f11"> |
-      kw<"f12"> | kw<"f13"> | kw<"f14"> | kw<"f15">;
+      ikw<"f0"> | ikw<"f1"> | ikw<"f2"> | ikw<"f3"> | ikw<"f4"> | ikw<"f5"> |
+      ikw<"f6"> | ikw<"f7"> | ikw<"f8"> | ikw<"f9"> | ikw<"f10"> | ikw<"f11"> |
+      ikw<"f12"> | ikw<"f13"> | ikw<"f14"> | ikw<"f15">;
   static constexpr auto BReg =
-      kw<"b0"> | kw<"b1"> | kw<"b2"> | kw<"b3"> | kw<"b4"> | kw<"b5"> |
-      kw<"b6"> | kw<"b7"> | kw<"b8"> | kw<"b9"> | kw<"b10"> | kw<"b11"> |
-      kw<"b12"> | kw<"b13"> | kw<"b14"> | kw<"b15">;
+      ikw<"b0"> | ikw<"b1"> | ikw<"b2"> | ikw<"b3"> | ikw<"b4"> | ikw<"b5"> |
+      ikw<"b6"> | ikw<"b7"> | ikw<"b8"> | ikw<"b9"> | ikw<"b10"> | ikw<"b11"> |
+      ikw<"b12"> | ikw<"b13"> | ikw<"b14"> | ikw<"b15">;
   static constexpr auto LReg =
-      kw<"l0"> | kw<"l1"> | kw<"l2"> | kw<"l3"> | kw<"l4"> | kw<"l5"> |
-      kw<"l6"> | kw<"l7"> | kw<"l8"> | kw<"l9"> | kw<"l10"> | kw<"l11"> |
-      kw<"l12"> | kw<"l13"> | kw<"l14"> | kw<"l15">;
-  static constexpr auto IA = kw<"i0"> | kw<"i1"> | kw<"i2"> | kw<"i3"> |
-                             kw<"i4"> | kw<"i5"> | kw<"i6"> | kw<"i7">;
-  static constexpr auto IC = kw<"i8"> | kw<"i9"> | kw<"i10"> | kw<"i11"> |
-                             kw<"i12"> | kw<"i13"> | kw<"i14"> | kw<"i15">;
-  static constexpr auto MB = kw<"m0"> | kw<"m1"> | kw<"m2"> | kw<"m3"> |
-                             kw<"m4"> | kw<"m5"> | kw<"m6"> | kw<"m7">;
-  static constexpr auto MD = kw<"m8"> | kw<"m9"> | kw<"m10"> | kw<"m11"> |
-                             kw<"m12"> | kw<"m13"> | kw<"m14"> | kw<"m15">;
-  static constexpr auto SReg = kw<"mode1"> | kw<"mode2"> | kw<"irptl"> |
-                               kw<"imask"> | kw<"imaskp"> | kw<"astat"> |
-                               kw<"stky"> | kw<"ustat1"> | kw<"ustat2">;
+      ikw<"l0"> | ikw<"l1"> | ikw<"l2"> | ikw<"l3"> | ikw<"l4"> | ikw<"l5"> |
+      ikw<"l6"> | ikw<"l7"> | ikw<"l8"> | ikw<"l9"> | ikw<"l10"> | ikw<"l11"> |
+      ikw<"l12"> | ikw<"l13"> | ikw<"l14"> | ikw<"l15">;
+  static constexpr auto IA = ikw<"i0"> | ikw<"i1"> | ikw<"i2"> | ikw<"i3"> |
+                             ikw<"i4"> | ikw<"i5"> | ikw<"i6"> | ikw<"i7">;
+  static constexpr auto IC = ikw<"i8"> | ikw<"i9"> | ikw<"i10"> | ikw<"i11"> |
+                             ikw<"i12"> | ikw<"i13"> | ikw<"i14"> | ikw<"i15">;
+  static constexpr auto MB = ikw<"m0"> | ikw<"m1"> | ikw<"m2"> | ikw<"m3"> |
+                             ikw<"m4"> | ikw<"m5"> | ikw<"m6"> | ikw<"m7">;
+  static constexpr auto MD = ikw<"m8"> | ikw<"m9"> | ikw<"m10"> | ikw<"m11"> |
+                             ikw<"m12"> | ikw<"m13"> | ikw<"m14"> | ikw<"m15">;
+  static constexpr auto SReg = ikw<"mode1"> | ikw<"mode2"> | ikw<"irptl"> |
+                               ikw<"imask"> | ikw<"imaskp"> | ikw<"astat"> |
+                               ikw<"stky"> | ikw<"ustat1"> | ikw<"ustat2">;
   static constexpr auto IReg = IA | IC;
   static constexpr auto MReg = MB | MD;
   static constexpr auto DagReg = IReg | MReg | BReg | LReg;
   static constexpr auto DReg = RReg | FReg;
   static constexpr auto UReg2 =
-      DReg | kw<"pc"> | kw<"pcstk"> | kw<"pcstkp"> | kw<"faddr"> |
-      kw<"daddr"> | kw<"laddr"> | kw<"curlcntr"> | DagReg | kw<"px1"> |
-      kw<"px2"> | kw<"px"> | kw<"tperiod"> | kw<"tcount"> | SReg;
-  static constexpr auto UReg = UReg2 | kw<"lcntr">;
-  static constexpr auto MRF = kw<"mr0f"> | kw<"mr1f"> | kw<"mr2f">;
-  static constexpr auto MRB = kw<"mr0b"> | kw<"mr1b"> | kw<"mr2b">;
-  static constexpr auto MR = kw<"mrb"> | kw<"mrf">;
+      DReg | ikw<"pc"> | ikw<"pcstk"> | ikw<"pcstkp"> | ikw<"faddr"> |
+      ikw<"daddr"> | ikw<"laddr"> | ikw<"curlcntr"> | DagReg | ikw<"px1"> |
+      ikw<"px2"> | ikw<"px"> | ikw<"tperiod"> | ikw<"tcount"> | SReg;
+  static constexpr auto UReg = UReg2 | ikw<"lcntr">;
+  static constexpr auto MRF = ikw<"mr0f"> | ikw<"mr1f"> | ikw<"mr2f">;
+  static constexpr auto MRB = ikw<"mr0b"> | ikw<"mr1b"> | ikw<"mr2b">;
+  static constexpr auto MR = ikw<"mrb"> | ikw<"mrf">;
+  // VisualDSP++ 5.0 assembler Table 1-11; suspect printed cells are
+  // kept out of this set. C-struct field names need a separate identifier.
+  static constexpr auto ReservedWord = UReg | MRF | MRB | MR |
+      ikw<".align"> | ikw<".compress"> | ikw<".elif"> | ikw<".else"> | ikw<".endif"> |
+      ikw<".extern"> | ikw<".file"> | ikw<".file_attr"> | ikw<".forcecompress"> |
+      ikw<".global"> | ikw<".if"> | ikw<".import"> | ikw<".leftmargin"> | ikw<".list"> |
+      ikw<".list_data"> | ikw<".list_datfile"> | ikw<".list_deftab"> | ikw<".list_loctab"> |
+      ikw<".list_wrapdata"> | ikw<".newpage"> | ikw<".nocompress"> | ikw<".nolist_data"> |
+      ikw<".nolist_datfile"> | ikw<".nolist_wrapdata"> | ikw<".pagelength"> |
+      ikw<".pagewidth"> | ikw<".precision"> | ikw<".previous"> | ikw<".round_minus"> |
+      ikw<".round_nearest"> | ikw<".round_plus"> | ikw<".round_zero"> | ikw<".section"> |
+      ikw<".struct"> | ikw<".var"> | ikw<".weak"> | ikw<"abs"> | ikw<"acs"> | ikw<"act"> |
+      ikw<"address"> | ikw<"and"> | ikw<"ashift"> | ikw<"av"> | ikw<"bb"> | ikw<"bclr"> |
+      ikw<"bf"> | ikw<"bit"> | ikw<"bitrev"> | ikw<"bm"> | ikw<"bset"> | ikw<"btgl"> |
+      ikw<"btsts"> | ikw<"by"> | ikw<"ca"> | ikw<"cache"> | ikw<"call"> | ikw<"ch"> |
+      ikw<"ci"> | ikw<"cjump"> | ikw<"cl"> | ikw<"clip"> | ikw<"comp"> | ikw<"copysign"> |
+      ikw<"cos"> | ikw<"db"> | ikw<"dec"> | ikw<"def"> | ikw<"dim"> | ikw<"dm"> |
+      ikw<"dma1e"> | ikw<"dma1s"> | ikw<"dma2e"> | ikw<"dma2s"> | ikw<"dmabank1"> |
+      ikw<"dmabank2"> | ikw<"dmabank3"> | ikw<"dmadr"> | ikw<"dmawait"> | ikw<"do"> |
+      ikw<"dovl"> | ikw<"eb"> | ikw<"ece"> | ikw<"ef"> | ikw<"else"> | ikw<"emuclk"> |
+      ikw<"emuclk2"> | ikw<"emuidle"> | ikw<"emun"> | ikw<"endef"> | ikw<"eos"> | ikw<"eq"> |
+      ikw<"ex"> | ikw<"exp"> | ikw<"exp2"> | ikw<"fdep"> | ikw<"fext"> | ikw<"file"> |
+      ikw<"fix"> | ikw<"flag0_in"> | ikw<"flag1_in"> | ikw<"flag2_in"> | ikw<"flag3_in"> |
+      ikw<"float"> | ikw<"flush"> | ikw<"fmerg"> | ikw<"forever"> | ikw<"fpack"> |
+      ikw<"fractional"> | ikw<"fta"> | ikw<"ftb"> | ikw<"ftc"> | ikw<"funpack"> |
+      ikw<"gcc_compiled"> | ikw<"ge"> | ikw<"gt"> | ikw<"idle16"> | ikw<"if"> | ikw<"inc"> |
+      ikw<"jump"> | ikw<"la"> | ikw<"lce"> | ikw<"le"> | ikw<"lefto"> | ikw<"leftz"> |
+      ikw<"length"> | ikw<"line"> | ikw<"ln"> | ikw<"load"> | ikw<"log2"> | ikw<"logb"> |
+      ikw<"loop"> | ikw<"lr"> | ikw<"lshift"> | ikw<"lt"> | ikw<"mant"> | ikw<"max"> |
+      ikw<"mbm"> | ikw<"min"> | ikw<"mod"> | ikw<"modify"> | ikw<"ms"> | ikw<"mv"> |
+      ikw<"ne"> | ikw<"nofz"> | ikw<"nop"> | ikw<"nopspecial"> | ikw<"not"> | ikw<"nu"> |
+      ikw<"nw"> | ikw<"offsetof"> | ikw<"or"> | ikw<"p20"> | ikw<"p32"> | ikw<"p40"> |
+      ikw<"pack"> | ikw<"page"> | ikw<"pm"> | ikw<"pmadr"> | ikw<"pmbank1"> | ikw<"pmdae"> |
+      ikw<"pmdas"> | ikw<"pop"> | ikw<"povl1"> | ikw<"psa1e"> | ikw<"psa1s"> | ikw<"psa2e"> |
+      ikw<"psa3e"> | ikw<"psa3s"> | ikw<"psa4e"> | ikw<"psa4s"> | ikw<"push"> | ikw<"read"> |
+      ikw<"recips"> | ikw<"retain_name"> | ikw<"rframe"> | ikw<"rnd"> | ikw<"rot"> |
+      ikw<"rs"> | ikw<"rsqrts"> | ikw<"rti"> | ikw<"rts"> | ikw<"scalb"> | ikw<"scl"> |
+      ikw<"se"> | ikw<"set"> | ikw<"sf"> | ikw<"sin"> | ikw<"size"> | ikw<"sizeof"> |
+      ikw<"sqr"> | ikw<"sr"> | ikw<"ssf"> | ikw<"ssfr"> | ikw<"ssi"> | ikw<"ssir"> |
+      ikw<"st"> | ikw<"step"> | ikw<"struct"> | ikw<"sts"> | ikw<"suf"> | ikw<"sufr"> |
+      ikw<"sv"> | ikw<"sw"> | ikw<"sz"> | ikw<"tag"> | ikw<"tf"> | ikw<"tgl"> | ikw<"trap"> |
+      ikw<"true"> | ikw<"trunc"> | ikw<"tst"> | ikw<"type"> | ikw<"uf"> | ikw<"ui"> |
+      ikw<"unpack"> | ikw<"until"> | ikw<"ur"> | ikw<"usf"> | ikw<"usfr"> | ikw<"usi"> |
+      ikw<"usir"> | ikw<"uuf"> | ikw<"uufr"> | ikw<"uuir"> | ikw<"val"> | ikw<"with"> |
+      ikw<"xor"> | ikw<"__adi__"> | ikw<"__date__"> | ikw<"__file__"> |
+      ikw<"__lastsuffix__"> | ikw<"__line__"> | ikw<"__normal_word_code__"> |
+      ikw<"__short_word_code__"> | ikw<"__time__">;
+
+  // Exact words are reserved in every symbol position; keyword boundaries
+  // keep r1_name, r1.local and r1$foo as identifiers. Dot-digit runs stay NUM.
+  struct ID : terminal<!ReservedWord +
+      ((cr<"a-zA-Z_"> + many(cr<"a-zA-Z_.$0-9">)) |
+       (lit<"."> + cr<"a-zA-Z_.$"> + many(cr<"a-zA-Z_.$0-9">)))> {};
+
   static constexpr auto AddOrSub = lit<"+"> | lit<"-">;
 
   static constexpr auto Condition =
-      kw<"eq"> | kw<"lt"> | kw<"le"> | kw<"ac"> | kw<"av"> | kw<"mv"> |
-      kw<"ms"> | kw<"sv"> | kw<"sz"> | kw<"flag0_in"> | kw<"flag1_in"> |
-      kw<"flag2_in"> | kw<"flag3_in"> | kw<"tf"> | kw<"bm"> | kw<"lce"> |
-      (kw<"not"> + kw<"lce">) | kw<"ne"> | kw<"ge"> | kw<"gt"> |
-      (kw<"not"> + kw<"ac">) | (kw<"not"> + kw<"av">) |
-      (kw<"not"> + kw<"mv">) | (kw<"not"> + kw<"ms">) |
-      (kw<"not"> + kw<"sv">) | (kw<"not"> + kw<"sz">) |
-      (kw<"not"> + kw<"flag0_in">) | (kw<"not"> + kw<"flag1_in">) |
-      (kw<"not"> + kw<"flag2_in">) | (kw<"not"> + kw<"flag3_in">) |
-      (kw<"not"> + kw<"tf">) | kw<"nbm"> | kw<"forever"> | kw<"true">;
+      ikw<"eq"> | ikw<"lt"> | ikw<"le"> | ikw<"ac"> | ikw<"av"> | ikw<"mv"> |
+      ikw<"ms"> | ikw<"sv"> | ikw<"sz"> | ikw<"flag0_in"> | ikw<"flag1_in"> |
+      ikw<"flag2_in"> | ikw<"flag3_in"> | ikw<"tf"> | ikw<"bm"> | ikw<"lce"> |
+      (ikw<"not"> + ikw<"lce">) | ikw<"ne"> | ikw<"ge"> | ikw<"gt"> |
+      (ikw<"not"> + ikw<"ac">) | (ikw<"not"> + ikw<"av">) |
+      (ikw<"not"> + ikw<"mv">) | (ikw<"not"> + ikw<"ms">) |
+      (ikw<"not"> + ikw<"sv">) | (ikw<"not"> + ikw<"sz">) |
+      (ikw<"not"> + ikw<"flag0_in">) | (ikw<"not"> + ikw<"flag1_in">) |
+      (ikw<"not"> + ikw<"flag2_in">) | (ikw<"not"> + ikw<"flag3_in">) |
+      (ikw<"not"> + ikw<"tf">) | ikw<"nbm"> | ikw<"forever"> | ikw<"true">;
 
   // ==================== memory addressing ====================
   static constexpr auto MemIaMb = lit<"("> + IA + lit<","> + MB + lit<")">;
@@ -225,83 +271,83 @@ struct Sharc : cursiv::GrammarSpec {
       lit<"("> + ValueSkip + lit<","> + IC + lit<")">;
   static constexpr auto MemInt = lit<"("> + ValueSkip + lit<")">;
 
-  static constexpr auto MemDmIaMb = kw<"dm"> + MemIaMb;
-  static constexpr auto MemPmIcMd = kw<"pm"> + MemIcMd;
-  static constexpr auto MemDmMbIa = kw<"dm"> + MemMbIa;
-  static constexpr auto MemPmMdIc = kw<"pm"> + MemMdIc;
-  static constexpr auto MemDmIaInt = kw<"dm"> + MemIaInt;
-  static constexpr auto MemPmIcInt = kw<"pm"> + MemIcInt;
-  static constexpr auto MemDmIntIa = kw<"dm"> + MemIntIa;
-  static constexpr auto MemPmIntIc = kw<"pm"> + MemIntIc;
-  static constexpr auto MemDmInt = kw<"dm"> + MemInt;
-  static constexpr auto MemPmInt = kw<"pm"> + MemInt;
+  static constexpr auto MemDmIaMb = ikw<"dm"> + MemIaMb;
+  static constexpr auto MemPmIcMd = ikw<"pm"> + MemIcMd;
+  static constexpr auto MemDmMbIa = ikw<"dm"> + MemMbIa;
+  static constexpr auto MemPmMdIc = ikw<"pm"> + MemMdIc;
+  static constexpr auto MemDmIaInt = ikw<"dm"> + MemIaInt;
+  static constexpr auto MemPmIcInt = ikw<"pm"> + MemIcInt;
+  static constexpr auto MemDmIntIa = ikw<"dm"> + MemIntIa;
+  static constexpr auto MemPmIntIc = ikw<"pm"> + MemIntIc;
+  static constexpr auto MemDmInt = ikw<"dm"> + MemInt;
+  static constexpr auto MemPmInt = ikw<"pm"> + MemInt;
 
   // ==================== compute ====================
   static constexpr auto RExp =
       (RReg + AddOrSub + RReg) |
-      (RReg + lit<"+"> + RReg + lit<"+"> + kw<"ci">) |
-      (RReg + lit<"+"> + RReg + lit<"+"> + kw<"ci"> + lit<"-"> + ref<NUM>) |
+      (RReg + lit<"+"> + RReg + lit<"+"> + ikw<"ci">) |
+      (RReg + lit<"-"> + RReg + lit<"+"> + ikw<"ci"> + lit<"-"> + ref<NUM>) |
       (lit<"("> + RReg + lit<"+"> + RReg + lit<")"> + lit<"/"> + ref<NUM>) |
-      (RReg + lit<"+"> + kw<"ci">) |
-      (RReg + lit<"+"> + kw<"ci"> + lit<"-"> + ref<NUM>) |
+      (RReg + lit<"+"> + ikw<"ci">) |
+      (RReg + lit<"+"> + ikw<"ci"> + lit<"-"> + ref<NUM>) |
       (RReg + lit<"+"> + ref<NUM>) | (RReg + lit<"-"> + ref<NUM>) |
-      (lit<"-"> + RReg) | (kw<"abs"> + RReg) | (kw<"pass"> + RReg) |
-      (RReg + kw<"and"> + RReg) | (RReg + kw<"or"> + RReg) |
-      (RReg + kw<"xor"> + RReg) | (kw<"not"> + RReg) |
-      (kw<"min"> + lit<"("> + RReg + lit<","> + RReg + lit<")">) |
-      (kw<"max"> + lit<"("> + RReg + lit<","> + RReg + lit<")">) |
-      (kw<"clip"> + RReg + kw<"by"> + RReg) | (kw<"mant"> + FReg) |
-      (kw<"logb"> + FReg) | (kw<"fix"> + FReg + option(kw<"by"> + RReg)) |
-      (kw<"trunc"> + FReg + option(kw<"by"> + RReg));
+      (lit<"-"> + RReg) | (ikw<"abs"> + RReg) | (ikw<"pass"> + RReg) |
+      (RReg + ikw<"and"> + RReg) | (RReg + ikw<"or"> + RReg) |
+      (RReg + ikw<"xor"> + RReg) | (ikw<"not"> + RReg) |
+      (ikw<"min"> + lit<"("> + RReg + lit<","> + RReg + lit<")">) |
+      (ikw<"max"> + lit<"("> + RReg + lit<","> + RReg + lit<")">) |
+      (ikw<"clip"> + RReg + ikw<"by"> + RReg) | (ikw<"mant"> + FReg) |
+      (ikw<"logb"> + FReg) | (ikw<"fix"> + FReg + option(ikw<"by"> + RReg)) |
+      (ikw<"trunc"> + FReg + option(ikw<"by"> + RReg));
 
   static constexpr auto FixpointAluOp =
       (RReg + lit<"="> + RExp) |
-      (kw<"comp"> + lit<"("> + RReg + lit<","> + RReg + lit<")">);
+      (ikw<"comp"> + lit<"("> + RReg + lit<","> + RReg + lit<")">);
 
   static constexpr auto FExp =
       (FReg + lit<"+"> + FReg) | (FReg + lit<"-"> + FReg) |
-      (kw<"abs"> + lit<"("> + FReg + lit<"+"> + FReg + lit<")">) |
-      (kw<"abs"> + lit<"("> + FReg + lit<"-"> + FReg + lit<")">) |
+      (ikw<"abs"> + lit<"("> + FReg + lit<"+"> + FReg + lit<")">) |
+      (ikw<"abs"> + lit<"("> + FReg + lit<"-"> + FReg + lit<")">) |
       (lit<"("> + FReg + lit<"+"> + FReg + lit<")"> + lit<"/"> + ref<NUM>) |
-      (lit<"-"> + FReg) | (kw<"abs"> + FReg) | (kw<"pass"> + FReg) |
-      (kw<"rnd"> + FReg) | (kw<"scalb"> + FReg + kw<"by"> + RReg) |
-      (kw<"float"> + RReg + option(kw<"by"> + RReg)) |
-      (kw<"recips"> + FReg) | (kw<"rsqrts"> + FReg) |
-      (FReg + kw<"copysign"> + FReg) |
-      (kw<"min"> + lit<"("> + FReg + lit<","> + FReg + lit<")">) |
-      (kw<"max"> + lit<"("> + FReg + lit<","> + FReg + lit<")">) |
-      (kw<"clip"> + FReg + kw<"by"> + FReg) | (FReg + lit<"*"> + FReg);
+      (lit<"-"> + FReg) | (ikw<"abs"> + FReg) | (ikw<"pass"> + FReg) |
+      (ikw<"rnd"> + FReg) | (ikw<"scalb"> + FReg + ikw<"by"> + RReg) |
+      (ikw<"float"> + RReg + option(ikw<"by"> + RReg)) |
+      (ikw<"recips"> + FReg) | (ikw<"rsqrts"> + FReg) |
+      (FReg + ikw<"copysign"> + FReg) |
+      (ikw<"min"> + lit<"("> + FReg + lit<","> + FReg + lit<")">) |
+      (ikw<"max"> + lit<"("> + FReg + lit<","> + FReg + lit<")">) |
+      (ikw<"clip"> + FReg + ikw<"by"> + FReg) | (FReg + lit<"*"> + FReg);
 
   static constexpr auto FloatingAluOp =
       (FReg + lit<"="> + FExp) |
-      (kw<"comp"> + lit<"("> + FReg + lit<","> + FReg + lit<")">);
+      (ikw<"comp"> + lit<"("> + FReg + lit<","> + FReg + lit<")">);
 
   static constexpr auto MultiMod1_ =
-      lit<"("> + (kw<"si"> | kw<"ui"> | kw<"sf"> | kw<"uf">) + lit<")">;
+      lit<"("> + (ikw<"si"> | ikw<"ui"> | ikw<"sf"> | ikw<"uf">) + lit<")">;
   static constexpr auto MultiMod2_ =
       lit<"("> +
-      (kw<"ssi"> | kw<"sui"> | kw<"usi"> | kw<"uui"> | kw<"ssf"> |
-       kw<"suf"> | kw<"usf"> | kw<"uuf"> | kw<"ssfr"> | kw<"sufr"> |
-       kw<"usfr"> | kw<"uufr">) +
+      (ikw<"ssi"> | ikw<"sui"> | ikw<"usi"> | ikw<"uui"> | ikw<"ssf"> |
+       ikw<"suf"> | ikw<"usf"> | ikw<"uuf"> | ikw<"ssfr"> | ikw<"sufr"> |
+       ikw<"usfr"> | ikw<"uufr">) +
       lit<")">;
   static constexpr auto MultiR =
       RReg + lit<"*"> + RReg + option(MultiMod2_);
   static constexpr auto MultiExpR =
       MultiR | (MR + AddOrSub + MultiR) |
-      (kw<"sat"> + MR + option(MultiMod1_)) |
-      (kw<"rnd"> + MR + option(MultiMod1_)) | MR;
+      (ikw<"sat"> + MR + option(MultiMod1_)) |
+      (ikw<"rnd"> + MR + option(MultiMod1_)) | MR;
   static constexpr auto MultiExpMrf =
-      MultiR | (kw<"mrf"> + AddOrSub + MultiR) |
-      (kw<"sat"> + kw<"mrf"> + option(MultiMod1_)) |
-      (kw<"rnd"> + kw<"mrf"> + option(MultiMod1_));
+      MultiR | (ikw<"mrf"> + AddOrSub + MultiR) |
+      (ikw<"sat"> + ikw<"mrf"> + option(MultiMod1_)) |
+      (ikw<"rnd"> + ikw<"mrf"> + option(MultiMod1_));
   static constexpr auto MultiExpMrb =
-      MultiR | (kw<"mrb"> + AddOrSub + MultiR) |
-      (kw<"sat"> + kw<"mrb"> + option(MultiMod1_)) |
-      (kw<"rnd"> + kw<"mrb"> + option(MultiMod1_));
+      MultiR | (ikw<"mrb"> + AddOrSub + MultiR) |
+      (ikw<"sat"> + ikw<"mrb"> + option(MultiMod1_)) |
+      (ikw<"rnd"> + ikw<"mrb"> + option(MultiMod1_));
 
   static constexpr auto MultiOp =
-      (RReg + lit<"="> + MultiExpR) | (kw<"mrf"> + lit<"="> + MultiExpMrf) |
-      (kw<"mrb"> + lit<"="> + MultiExpMrb) | (MR + lit<"="> + ref<NUM>) |
+      (RReg + lit<"="> + MultiExpR) | (ikw<"mrf"> + lit<"="> + MultiExpMrf) |
+      (ikw<"mrb"> + lit<"="> + MultiExpMrb) | (MR + lit<"="> + ref<NUM>) |
       ((MRF | MRB) + lit<"="> + RReg) | (RReg + lit<"="> + (MRF | MRB));
 
   static constexpr auto SecOp = RReg | AtomSkip | (lit<"-"> + AtomSkip);
@@ -309,25 +355,25 @@ struct Sharc : cursiv::GrammarSpec {
   static constexpr auto SecOp2 = RReg | BitData;
 
   static constexpr auto ShifterExp =
-      (kw<"lshift"> + RReg + kw<"by"> + SecOp) |
-      (RReg + kw<"or"> + kw<"lshift"> + RReg + kw<"by"> + SecOp) |
-      (kw<"ashift"> + RReg + kw<"by"> + SecOp) |
-      (RReg + kw<"or"> + kw<"ashift"> + RReg + kw<"by"> + SecOp) |
-      (kw<"rot"> + RReg + kw<"by"> + SecOp) |
-      (kw<"bclr"> + RReg + kw<"by"> + SecOp) |
-      (kw<"bset"> + RReg + kw<"by"> + SecOp) |
-      (kw<"btgl"> + RReg + kw<"by"> + SecOp) |
-      (kw<"fdep"> + RReg + kw<"by"> + SecOp2 +
-       option(lit<"("> + kw<"se"> + lit<")">)) |
-      (kw<"fext"> + RReg + kw<"by"> + SecOp2 +
-       option(lit<"("> + kw<"se"> + lit<")">)) |
-      (RReg + kw<"or"> + kw<"fdep"> + RReg + kw<"by"> + SecOp2) |
-      (kw<"exp"> + RReg + option(lit<"("> + kw<"ex"> + lit<")">)) |
-      (kw<"leftz"> + RReg) | (kw<"lefto"> + RReg) | (kw<"fpack"> + FReg);
+      (ikw<"lshift"> + RReg + ikw<"by"> + SecOp) |
+      (RReg + ikw<"or"> + ikw<"lshift"> + RReg + ikw<"by"> + SecOp) |
+      (ikw<"ashift"> + RReg + ikw<"by"> + SecOp) |
+      (RReg + ikw<"or"> + ikw<"ashift"> + RReg + ikw<"by"> + SecOp) |
+      (ikw<"rot"> + RReg + ikw<"by"> + SecOp) |
+      (ikw<"bclr"> + RReg + ikw<"by"> + SecOp) |
+      (ikw<"bset"> + RReg + ikw<"by"> + SecOp) |
+      (ikw<"btgl"> + RReg + ikw<"by"> + SecOp) |
+      (ikw<"fdep"> + RReg + ikw<"by"> + SecOp2 +
+       option(lit<"("> + ikw<"se"> + lit<")">)) |
+      (ikw<"fext"> + RReg + ikw<"by"> + SecOp2 +
+       option(lit<"("> + ikw<"se"> + lit<")">)) |
+      (RReg + ikw<"or"> + ikw<"fdep"> + RReg + ikw<"by"> + SecOp2) |
+      (ikw<"exp"> + RReg + option(lit<"("> + ikw<"ex"> + lit<")">)) |
+      (ikw<"leftz"> + RReg) | (ikw<"lefto"> + RReg) | (ikw<"fpack"> + FReg);
 
   static constexpr auto ShifterOp =
-      (RReg + lit<"="> + ShifterExp) | (kw<"btst"> + RReg + kw<"by"> + SecOp) |
-      (FReg + lit<"="> + kw<"funpack"> + RReg);
+      (RReg + lit<"="> + ShifterExp) | (ikw<"btst"> + RReg + ikw<"by"> + SecOp) |
+      (FReg + lit<"="> + ikw<"funpack"> + RReg);
 
   static constexpr auto DualAddR =
       RReg + lit<"="> + RReg + lit<"+"> + RReg + lit<","> + RReg + lit<"="> +
@@ -337,14 +383,13 @@ struct Sharc : cursiv::GrammarSpec {
       (FloatingAluOp + some(lit<","> + FloatingAluOp));
   static constexpr auto DualOp = DualAddR | ParallelMulti;
 
-  // No directive anywhere in this body: it joins as the matched text, per
-  // `assign<>`'s requirement that its argument itself produce a value.
-  struct ComputeBodyRule
-      : rule<DualOp | FixpointAluOp | FloatingAluOp | MultiOp | ShifterOp> {};
+  // A converted data rule supplies each instruction payload.
+  struct ComputeBody
+      : rule<as<instruction_text>(DualOp | FixpointAluOp | FloatingAluOp | MultiOp | ShifterOp)> {};
 
-  struct ComputeRule
+  struct Compute
       : rule<create<ast::Compute>(
-            assign<&ast::Compute::raw>(ref<ComputeBodyRule>))> {};
+            assign<&ast::Compute::raw>(ref<ComputeBody>))> {};
 
   // ==================== moves ====================
   static constexpr auto MovExp1_1 =
@@ -368,85 +413,85 @@ struct Sharc : cursiv::GrammarSpec {
   static constexpr auto MovExp4d = ImmMov15b;
   static constexpr auto MovExp5 = UReg2 + lit<"="> + UReg;
   static constexpr auto MovExp7 =
-      kw<"modify"> +
+      ikw<"modify"> +
       ((lit<"("> + IA + lit<","> + MB + lit<")">) |
        (lit<"("> + IC + lit<","> + MD + lit<")">));
 
-  struct ComputeMovExpBodyRule
-      : rule<option(ref<ComputeBodyRule> + lit<",">) +
+  struct ComputeMovExpBody
+      : rule<as<instruction_text>(option(ref<ComputeBody> + lit<",">) +
              (MovExp1 | MovExp3a | MovExp3b | MovExp3c | MovExp3d | MovExp4a |
-              MovExp4b | MovExp4c | MovExp4d | MovExp5 | MovExp7)> {};
+              MovExp4b | MovExp4c | MovExp4d | MovExp5 | MovExp7))> {};
 
-  struct ComputeMovExprRule
+  struct ComputeMovExpr
       : rule<create<ast::ComputeMovExpr>(
-            assign<&ast::ComputeMovExpr::raw>(ref<ComputeMovExpBodyRule>))> {
+            assign<&ast::ComputeMovExpr::raw>(ref<ComputeMovExpBody>))> {
   };
 
-  struct IfComputeMovBodyRule
-      : rule<kw<"if"> + Condition +
-             (ref<ComputeMovExpBodyRule> | ref<ComputeBodyRule>)> {};
+  struct IfComputeMovBody
+      : rule<as<instruction_text>(ikw<"if"> + Condition +
+             (ref<ComputeMovExpBody> | ref<ComputeBody>))> {};
 
-  struct IfComputeMovRule
+  struct IfComputeMov
       : rule<create<ast::IfComputeMov>(
-            assign<&ast::IfComputeMov::raw>(ref<IfComputeMovBodyRule>))> {};
+            assign<&ast::IfComputeMov::raw>(ref<IfComputeMovBody>))> {};
 
   // ==================== flow control ====================
   static constexpr auto JumpAddrPc =
-      lit<"("> + kw<"pc"> + lit<","> + ValueSkip + lit<")">;
+      lit<"("> + ikw<"pc"> + lit<","> + ValueSkip + lit<")">;
   static constexpr auto JumpAddrInt = ValueSkip;
   static constexpr auto JumpAddrIntOrPc = JumpAddrInt | JumpAddrPc;
   static constexpr auto FlowControl10Frag = MemMdIc | JumpAddrPc;
 
   static constexpr auto JumpModifier =
       lit<"("> +
-      ((kw<"db"> + option(lit<","> + (kw<"la"> | kw<"ci">))) | kw<"la"> |
-       kw<"ci">) +
+      ((ikw<"db"> + option(lit<","> + (ikw<"la"> | ikw<"ci">))) | ikw<"la"> |
+       ikw<"ci">) +
       lit<")">;
-  static constexpr auto JumpModifier2 = lit<"("> + kw<"db"> + lit<")">;
+  static constexpr auto JumpModifier2 = lit<"("> + ikw<"db"> + lit<")">;
   static constexpr auto JumpModifier3 =
-      lit<"("> + ((kw<"db"> + option(lit<","> + kw<"lr">)) | kw<"lr">) +
+      lit<"("> + ((ikw<"db"> + option(lit<","> + ikw<"lr">)) | ikw<"lr">) +
       lit<")">;
 
   static constexpr auto FlowControl8a =
-      kw<"jump"> + JumpAddrInt + option(JumpModifier);
+      ikw<"jump"> + JumpAddrInt + option(JumpModifier);
   static constexpr auto FlowControl8b =
-      kw<"call"> + JumpAddrInt + option(JumpModifier2);
+      ikw<"call"> + JumpAddrInt + option(JumpModifier2);
   static constexpr auto FlowControl9a =
-      kw<"jump"> + FlowControl10Frag + option(JumpModifier) +
-      option(lit<","> + ref<ComputeBodyRule>);
+      ikw<"jump"> + FlowControl10Frag + option(JumpModifier) +
+      option(lit<","> + ref<ComputeBody>);
   static constexpr auto FlowControl9b =
-      kw<"call"> + FlowControl10Frag + option(JumpModifier2) +
-      option(lit<","> + ref<ComputeBodyRule>);
+      ikw<"call"> + FlowControl10Frag + option(JumpModifier2) +
+      option(lit<","> + ref<ComputeBody>);
   static constexpr auto FlowControl11a =
-      kw<"rts"> + option(JumpModifier3) + option(lit<","> + ref<ComputeBodyRule>);
+      ikw<"rts"> + option(JumpModifier3) + option(lit<","> + ref<ComputeBody>);
   static constexpr auto FlowControl11b =
-      kw<"rti"> + option(JumpModifier2) + option(lit<","> + ref<ComputeBodyRule>);
+      ikw<"rti"> + option(JumpModifier2) + option(lit<","> + ref<ComputeBody>);
   static constexpr auto FlowControl8Exp = FlowControl8a | FlowControl8b;
   static constexpr auto FlowControl9and11Exp =
       FlowControl9a | FlowControl9b | FlowControl11a | FlowControl11b;
-  static constexpr auto FlowContorl8 = kw<"if"> + Condition + FlowControl8Exp;
-  static constexpr auto FlowControl9and11 = kw<"if"> + Condition +
+  static constexpr auto FlowContorl8 = ikw<"if"> + Condition + FlowControl8Exp;
+  static constexpr auto FlowControl9and11 = ikw<"if"> + Condition +
                                             FlowControl9and11Exp + lit<","> +
-                                            kw<"else"> + ref<ComputeBodyRule>;
+                                            ikw<"else"> + ref<ComputeBody>;
   static constexpr auto FlowControl10 =
-      kw<"if"> + Condition + kw<"jump"> + FlowControl10Frag + lit<","> +
-      kw<"else"> + option(ref<ComputeBodyRule> + lit<",">) + MovExp1_1;
+      ikw<"if"> + Condition + ikw<"jump"> + FlowControl10Frag + lit<","> +
+      ikw<"else"> + option(ref<ComputeBody> + lit<",">) + MovExp1_1;
   static constexpr auto LcntrV = ValueSkip | UReg;
   static constexpr auto FlowControl12 =
-      kw<"lcntr"> + lit<"="> + LcntrV + lit<","> + kw<"do"> +
-      JumpAddrIntOrPc + kw<"until"> + kw<"lce">;
+      ikw<"lcntr"> + lit<"="> + LcntrV + lit<","> + ikw<"do"> +
+      JumpAddrIntOrPc + ikw<"until"> + ikw<"lce">;
   static constexpr auto FlowControl13 =
-      kw<"do"> + JumpAddrIntOrPc + kw<"until"> + Condition;
+      ikw<"do"> + JumpAddrIntOrPc + ikw<"until"> + Condition;
 
-  struct FlowControlBodyRule
-      : rule<FlowContorl8 | FlowControl9and11 | FlowControl10 |
+  struct FlowControlBody
+      : rule<as<instruction_text>(FlowContorl8 | FlowControl9and11 | FlowControl10 |
              FlowControl8a | FlowControl8b | FlowControl9a | FlowControl9b |
              FlowControl11a | FlowControl11b | FlowControl12 |
-             FlowControl13> {};
+             FlowControl13)> {};
 
-  struct FlowControlRule
+  struct FlowControl
       : rule<create<ast::FlowControl>(
-            assign<&ast::FlowControl::raw>(ref<FlowControlBodyRule>))> {};
+            assign<&ast::FlowControl::raw>(ref<FlowControlBody>))> {};
 
   // ==================== immediate moves ====================
   static constexpr auto ImmMov14a = (MemDmInt | MemPmInt) + lit<"="> + UReg;
@@ -454,44 +499,44 @@ struct Sharc : cursiv::GrammarSpec {
   static constexpr auto ImmMov16 =
       (MemDmIaMb | MemPmIcMd) + lit<"="> + ValueSkip;
   static constexpr auto ImmMov17 = UReg2 + lit<"="> + ValueSkip;
-  struct ImmMovBodyRule
-      : rule<ImmMov14a | ImmMov14b | ImmMov16 | ImmMov17> {};
+  struct ImmMovBody
+      : rule<as<instruction_text>(ImmMov14a | ImmMov14b | ImmMov16 | ImmMov17)> {};
 
-  struct ImmMovRule
+  struct ImmMov
       : rule<create<ast::ImmMov>(
-            assign<&ast::ImmMov::raw>(ref<ImmMovBodyRule>))> {};
+            assign<&ast::ImmMov::raw>(ref<ImmMovBody>))> {};
 
   // ==================== misc ====================
   static constexpr auto Misc20 =
-      (kw<"push"> | kw<"pop">) + (kw<"loop"> | kw<"sts"> | kw<"pcstk">);
-  struct MiscBodyRule
-      : rule<(kw<"bit"> +
-              (kw<"set"> | kw<"clr"> | kw<"tgl"> | kw<"tst"> | kw<"xor">) +
+      (ikw<"push"> | ikw<"pop">) + (ikw<"loop"> | ikw<"sts"> | ikw<"pcstk">);
+  struct MiscBody
+      : rule<as<instruction_text>((ikw<"bit"> +
+              (ikw<"set"> | ikw<"clr"> | ikw<"tgl"> | ikw<"tst"> | ikw<"xor">) +
               SReg + ValueSkip) |
-             (kw<"bitrev"> + (MemIaInt | MemIcInt)) |
-             (kw<"modify"> + lit<"("> + IA + lit<","> + ValueSkip + lit<")">) |
-             (kw<"modify"> + lit<"("> + IC + lit<","> + ValueSkip + lit<")">) |
+             (ikw<"bitrev"> + (MemIaInt | MemIcInt)) |
+             (ikw<"modify"> + lit<"("> + IA + lit<","> + ValueSkip + lit<")">) |
+             (ikw<"modify"> + lit<"("> + IC + lit<","> + ValueSkip + lit<")">) |
              (Misc20 + many(lit<","> + Misc20)) |
-             (kw<"flush"> + kw<"cache">) | kw<"nop"> | kw<"idle"> |
-             kw<"idle16"> |
-             (kw<"cjump"> + JumpAddrIntOrPc + option(JumpModifier2)) |
-             kw<"rframe">> {};
+             (ikw<"flush"> + ikw<"cache">) | ikw<"nop"> | ikw<"idle"> |
+             ikw<"idle16"> |
+             (ikw<"cjump"> + JumpAddrIntOrPc + option(JumpModifier2)) |
+             ikw<"rframe">)> {};
 
-  struct MiscRule
-      : rule<create<ast::Misc>(assign<&ast::Misc::raw>(ref<MiscBodyRule>))> {
+  struct Misc
+      : rule<create<ast::Misc>(assign<&ast::Misc::raw>(ref<MiscBody>))> {
   };
 
   // ==================== declaration ====================
   static constexpr auto DeclF1 =
-      some(append<&ast::Declaration::values>(ref<InitExprRule>), lit<",">) |
-      append<&ast::Declaration::values>(ref<StringLitRule>);
+      some(append<&ast::Declaration::values>(ref<InitExpr>), lit<",">) |
+      append<&ast::Declaration::values>(ref<StringLit>);
   static constexpr auto DeclF2 = (lit<"{"> + DeclF1 + lit<"}">) | DeclF1;
 
   static constexpr auto DeclExp1 =
       some(append<&ast::Declaration::names>(ref<ID>), lit<",">);
   static constexpr auto DeclExp2 =
       lit<"="> +
-      some(append<&ast::Declaration::values>(ref<InitExprRule>), lit<",">);
+      some(append<&ast::Declaration::values>(ref<InitExpr>), lit<",">);
   static constexpr auto DeclExp3 =
       append<&ast::Declaration::names>(ref<ID>) +
       flag<&ast::Declaration::is_array>(lit<"[">) + lit<"]"> +
@@ -499,148 +544,148 @@ struct Sharc : cursiv::GrammarSpec {
   static constexpr auto DeclExp4 =
       append<&ast::Declaration::names>(ref<ID>) +
       flag<&ast::Declaration::is_array>(lit<"[">) +
-      assign<&ast::Declaration::size>(ref<ValueExprRule>) + lit<"]"> +
+      assign<&ast::Declaration::size>(ref<ValueExpr>) + lit<"]"> +
       option(lit<"="> + DeclF2);
   static constexpr auto DeclExp5 = append<&ast::Declaration::names>(
                                        ref<ID>) +
                                    lit<"="> +
                                    append<&ast::Declaration::values>(
-                                       ref<ValueExprRule>);
+                                       ref<ValueExpr>);
 
-  struct DeclarationRule
+  struct Declaration
       : rule<create<ast::Declaration>(
-            kw<".var"> +
+            ikw<".var"> +
             (DeclExp1 | DeclExp2 | DeclExp3 | DeclExp4 | DeclExp5))> {};
 
   // ==================== sections and segments ====================
   static constexpr auto SegQ1 =
       lit<"/"> +
-      (kw<"pm"> | kw<"code"> | kw<"dm"> | kw<"data64"> | kw<"data">);
+      (ikw<"pm"> | ikw<"code"> | ikw<"dm"> | ikw<"data64"> | ikw<"data">);
   static constexpr auto SegQ2 =
-      lit<"/"> + (kw<"no_init"> | kw<"zero_init"> | kw<"runtime_init">);
-  static constexpr auto SegQ3 = lit<"/"> + kw<"dmaonly">;
-  struct SegQualifierRule
+      lit<"/"> + (ikw<"no_init"> | ikw<"zero_init"> | ikw<"runtime_init">);
+  static constexpr auto SegQ3 = lit<"/"> + ikw<"dmaonly">;
+  struct SegQualifier
       : rule<(SegQ1 + option(SegQ2 | SegQ3)) | (SegQ2 + option(SegQ1 | SegQ3)) |
              (SegQ3 + option(SegQ1 | SegQ2))> {};
 
-  struct SecRule
+  struct Sec
       : rule<create<ast::SectionDecl>(
-            kw<".section"> +
-            assign<&ast::SectionDecl::qualifier>(ref<SegQualifierRule>) +
+            ikw<".section"> +
+            option(assign<&ast::SectionDecl::qualifier>(ref<SegQualifier>)) +
             assign<&ast::SectionDecl::name>(ref<ID>))> {};
 
-  struct SegRule
+  struct Seg
       : rule<create<ast::SegmentDecl>(
-            kw<".segment"> +
-            assign<&ast::SegmentDecl::qualifier>(ref<SegQualifierRule>) +
+            ikw<".segment"> +
+            assign<&ast::SegmentDecl::qualifier>(ref<SegQualifier>) +
             assign<&ast::SegmentDecl::name>(ref<ID>))> {};
 
-  struct EndSegRule : rule<create<ast::EndSeg> + kw<".endseg">> {};
+  struct EndSeg : rule<create<ast::EndSeg> + ikw<".endseg">> {};
 
   // ==================== directives ====================
   // .file_attr's argument: approximated as this language's value-carrying
   // token kinds.
-  struct DirectiveExpRule
+  struct DirectiveExp
       : rule<
             create<ast::Directive>(
-                assign<&ast::Directive::keyword>(kw<".align">) +
-                append<&ast::Directive::values>(ref<NumberLitRule>))  //
+                assign<&ast::Directive::keyword>(ikw<".align">) +
+                append<&ast::Directive::values>(ref<ValueExpr>))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".compress">))  //
+                  assign<&ast::Directive::keyword>(ikw<".compress">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".extern">) +
+                  assign<&ast::Directive::keyword>(ikw<".extern">) +
                   some(append<&ast::Directive::names>(ref<ID>), lit<",">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".file">) +
+                  assign<&ast::Directive::keyword>(ikw<".file">) +
                   append<&ast::Directive::strings>(ref<STRING>))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".file_attr">) +
-                  option(append<&ast::Directive::values>(ref<ValueExprRule>) |
+                  assign<&ast::Directive::keyword>(ikw<".file_attr">) +
+                  option(append<&ast::Directive::values>(ref<ValueExpr>) |
                          append<&ast::Directive::strings>(ref<STRING>) |
                          append<&ast::Directive::strings>(ref<CHARLIT>) |
                          append<&ast::Directive::names>(ref<ID>)))  //
             | create<ast::Directive>(assign<&ast::Directive::keyword>(
-                  kw<".forcecompress">))  //
+                  ikw<".forcecompress">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".global">) +
+                  assign<&ast::Directive::keyword>(ikw<".global">) +
                   some(append<&ast::Directive::names>(ref<ID>), lit<",">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".import">) +
+                  assign<&ast::Directive::keyword>(ikw<".import">) +
                   some(append<&ast::Directive::strings>(ref<STRING>),
                        lit<",">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".leftmargin">) +
-                  append<&ast::Directive::values>(ref<ValueExprRule>))  //
+                  assign<&ast::Directive::keyword>(ikw<".leftmargin">) +
+                  append<&ast::Directive::values>(ref<ValueExpr>))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".list">))  //
+                  assign<&ast::Directive::keyword>(ikw<".list">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".list_data">))  //
+                  assign<&ast::Directive::keyword>(ikw<".list_data">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".list_datfile">))  //
+                  assign<&ast::Directive::keyword>(ikw<".list_datfile">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".list_deftab">) +
-                  append<&ast::Directive::values>(ref<ValueExprRule>))  //
+                  assign<&ast::Directive::keyword>(ikw<".list_deftab">) +
+                  append<&ast::Directive::values>(ref<ValueExpr>))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".list_loctab">) +
-                  append<&ast::Directive::values>(ref<ValueExprRule>))  //
+                  assign<&ast::Directive::keyword>(ikw<".list_loctab">) +
+                  append<&ast::Directive::values>(ref<ValueExpr>))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".list_wrapdata">))  //
+                  assign<&ast::Directive::keyword>(ikw<".list_wrapdata">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".newpage">))  //
+                  assign<&ast::Directive::keyword>(ikw<".newpage">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".nocompress">))  //
+                  assign<&ast::Directive::keyword>(ikw<".nocompress">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".nolist_data">))  //
+                  assign<&ast::Directive::keyword>(ikw<".nolist_data">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".nolist_datfile">))  //
+                  assign<&ast::Directive::keyword>(ikw<".nolist_datfile">))  //
             | create<ast::Directive>(assign<&ast::Directive::keyword>(
-                  kw<".nolist_wrapdata">))  //
+                  ikw<".nolist_wrapdata">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".pagelength">) +
-                  append<&ast::Directive::values>(ref<ValueExprRule>))  //
+                  assign<&ast::Directive::keyword>(ikw<".pagelength">) +
+                  append<&ast::Directive::values>(ref<ValueExpr>))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".pagewidth">) +
-                  append<&ast::Directive::values>(ref<ValueExprRule>))  //
+                  assign<&ast::Directive::keyword>(ikw<".pagewidth">) +
+                  append<&ast::Directive::values>(ref<ValueExpr>))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".precision">) +
+                  assign<&ast::Directive::keyword>(ikw<".precision">) +
                   option(lit<"=">) +
-                  append<&ast::Directive::values>(ref<NumberLitRule>))  //
+                  append<&ast::Directive::values>(ref<NumberLit>))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".round_minus">))  //
+                  assign<&ast::Directive::keyword>(ikw<".round_minus">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".round_nearest">))  //
+                  assign<&ast::Directive::keyword>(ikw<".round_nearest">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".round_plus">))  //
+                  assign<&ast::Directive::keyword>(ikw<".round_plus">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".round_zero">))  //
+                  assign<&ast::Directive::keyword>(ikw<".round_zero">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".previous">))  //
+                  assign<&ast::Directive::keyword>(ikw<".previous">))  //
             | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(kw<".weak">) +
+                  assign<&ast::Directive::keyword>(ikw<".weak">) +
                   append<&ast::Directive::names>(ref<ID>))> {};
 
   // ==================== statement ====================
-  struct StmtRule
-      : rule<ref<ComputeRule> | ref<FlowControlRule> | ref<ImmMovRule> |
-             ref<MiscRule> | ref<DeclarationRule> | ref<IfComputeMovRule> |
-             ref<ComputeMovExprRule>> {};
+  struct Stmt
+      : rule<ref<Compute> | ref<FlowControl> | ref<ImmMov> |
+             ref<Misc> | ref<Declaration> | ref<IfComputeMov> |
+             ref<ComputeMovExpr>> {};
 
-  struct StmtAtomRule
-      : rule<ref<StmtRule> | ref<SecRule> | ref<SegRule> | ref<EndSegRule> |
-             ref<DirectiveExpRule>> {};
+  struct StmtAtom
+      : rule<ref<Stmt> | ref<Sec> | ref<Seg> | ref<EndSeg> |
+             ref<DirectiveExp>> {};
 
-  struct StatementRule
+  struct Statement
       : rule<create<ast::Statement>(
             many(append<&ast::Statement::labels>(ref<ID>) + lit<":">) +
-            assign<&ast::Statement::atom>(ref<StmtAtomRule>))> {};
+            assign<&ast::Statement::atom>(ref<StmtAtom>))> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program>(
-            some(append<&ast::Program::statements>(ref<StatementRule>) +
+            some(append<&ast::Program::statements>(ref<Statement>) +
                  lit<";">))> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

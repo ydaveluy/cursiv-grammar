@@ -31,10 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-pegen is CPython's PEG metagrammar: the `.gram` format `Tools/peg_generator`
-reads to build the real Python parser. A rule is a pipe-separated list of
-alternatives; each alternative a sequence of named, guarded or repeated atoms
-followed by an optional C action:
+Pegen is CPython’s `.gram` metagrammar. A rule contains alternatives of named,
+guarded or repeated atoms, optionally followed by a target-language action.
 
 ```
 start[mod_ty]: a=statements ENDMARKER { a }

@@ -31,18 +31,14 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Datalog documents contain facts, rules, queries and clause retractions.
+
 ```
 edge(a, b). edge(b, c). edge(c, d). edge(d, a).
 path(X, Y) :- edge(X, Y).
 path(X, Y) :- edge(X, Z), path(Z, Y).
 path(X, Y)?
 ```
-
-A fact (`edge(a, b).`), a rule (`path(X, Y) :- ...`) and a query
-(`path(X, Y)?`) — the three shapes most datalog documents are built from.
-A clause can also be retracted (`edge(a, b)~`, no trailing `.`), and a
-literal can compare two terms (`X = Y`, `X != Y`) or bind a variable to an
-external predicate's answer (`Z :- add(X, Y)`).
 
 ## The command line
 

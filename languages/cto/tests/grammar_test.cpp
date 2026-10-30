@@ -4,6 +4,7 @@
 // range, a soft-keyword field name, a non-ASCII class name.
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <variant>
@@ -161,8 +162,8 @@ void owner() {
     }
     CHECK(owner->properties.size() == 3);
     if (owner->properties.size() == 3)
-      // octal 057 == decimal 47.
-      CHECK(integer(owner->properties[2]->defaultValue) == 47);
+      // Leading-zero SignedInteger literals remain decimal in Composer.
+      CHECK(integer(owner->properties[2]->defaultValue) == 57);
   }
 }
 
@@ -185,7 +186,7 @@ void transaction() {
   CHECK(event != nullptr && event->name == "SampleEvent");
 }
 
-void invalid_datetime() { check_invalid(engine().parse(example("datetime.cto"))); }
+void valid_datetime() { check_clean(engine().parse(example("datetime.cto"))); }
 void invalid_namespace() { check_invalid(engine().parse(example("namespace.cto"))); }
 void invalid_reference() { check_invalid(engine().parse(example("reference.cto"))); }
 
@@ -220,7 +221,7 @@ void coverage() {
         *boite->properties[4]->rangeMax == 1000.0);
   CHECK(boite->properties[5]->name == "matrix" && boite->properties[5]->isArray);
   CHECK(boite->properties[6]->name == "label" &&
-        str(boite->properties[6]->defaultValue) == "a\\'b" &&
+        str(boite->properties[6]->defaultValue) == "a'b" &&
         boite->properties[6]->regex == "^[a-z]+$");
   CHECK(boite->properties[7]->name == "flag" &&
         boolean(boite->properties[7]->defaultValue, true) &&
@@ -231,8 +232,145 @@ void coverage() {
   if (ping != nullptr && ping->properties.size() == 3) {
     CHECK(integer(ping->properties[0]->defaultValue) == 1000);   // 1_000L
     CHECK(number(ping->properties[1]->defaultValue) == 150.0);   // 1.5e2D
-    CHECK(integer(ping->properties[2]->defaultValue) == 15);     // 0_17L (octal)
+    CHECK(integer(ping->properties[2]->defaultValue) == 17);     // 0_17L, decimal extension
   }
+}
+
+void numeric_boundaries() {
+  const auto with_default = [](const std::string& value) {
+    return "namespace x concept A { o Long n default = " + value + " }";
+  };
+  for (const std::string value : {"9223372036854775807L",
+                                  "0009223372036854775807L"}) {
+    const auto source = with_default(value);
+    const auto result = engine().parse(source);
+    check_clean(result);
+    const auto* model = result.value_as<ast::Model>();
+    if (model == nullptr || model->declarations.size() != 1) continue;
+    const auto* declaration = as_class(model->declarations[0]);
+    CHECK(declaration != nullptr && declaration->properties.size() == 1);
+    if (declaration != nullptr && declaration->properties.size() == 1)
+      CHECK(integer(declaration->properties[0]->defaultValue) ==
+            std::numeric_limits<std::int64_t>::max());
+  }
+  {
+    const std::string source = with_default("-9223372036854775808L");
+    const auto result = engine().parse(source);
+    check_clean(result);
+    const auto* model = result.value_as<ast::Model>();
+    const auto* declaration = model && model->declarations.size() == 1
+        ? as_class(model->declarations[0]) : nullptr;
+    CHECK(declaration && declaration->properties.size() == 1);
+    if (declaration && declaration->properties.size() == 1)
+      CHECK(integer(declaration->properties[0]->defaultValue) ==
+            std::numeric_limits<std::int64_t>::min());
+  }
+  for (const std::string value : {"9223372036854775808",
+                                  "01000000000000000000000",
+                                  "999_999_999_999_999_999_999L",
+                                  "-9223372036854775809L",
+                                  "1e9999", "1e-9999"}) {
+    const auto source = with_default(value);
+    const auto result = engine().parse(source);
+    CHECK(!result.cst().recovered());
+    CHECK(result.diagnostics.size() == 1);
+    if (result.diagnostics.size() == 1)
+      CHECK(result.diagnostics[0].kind == cursiv::DiagnosticKind::conversion_error);
+  }
+  // The exponent used to fall beyond the converter's fixed 64-byte buffer.
+  const auto source = with_default("1." + std::string(80, '0') + "e3D");
+  const auto result = engine().parse(source);
+  check_clean(result);
+  const auto* model = result.value_as<ast::Model>();
+  if (model == nullptr || model->declarations.size() != 1) return;
+  const auto* declaration = as_class(model->declarations[0]);
+  CHECK(declaration != nullptr && declaration->properties.size() == 1);
+  if (declaration != nullptr && declaration->properties.size() == 1)
+    CHECK(number(declaration->properties[0]->defaultValue) == 1000.0);
+}
+
+void native_defaults() {
+  for (const char* value : {"\"2000-01-31T23:59:59.001+05:41\"",
+                            "'2000-01-31T23:59:59'",
+                            "\"2000-01-31T23:59:59-03:15\""}) {
+    const std::string source =
+        std::string("namespace x concept A { o DateTime n default = ") + value + " }";
+    check_clean(engine().parse(source));
+  }
+  // DateTime uses StringDefault in Composer's parser. Calendar validity is
+  // model validation, not a restriction of the quoted-string syntax.
+  check_invalid(engine().parse("namespace x concept A { o DateTime n default = \"x' }"));
+  check_clean(engine().parse("namespace x concept A { o DateTime n default = \"2000-01-31\" }"));
+  const auto result = engine().parse(
+      "namespace x concept A { o Double n default = -1.25 range = [-3.5,2.0] }");
+  check_clean(result);
+  const auto* model = result.value_as<ast::Model>();
+  const auto* declaration = model && model->declarations.size() == 1
+      ? as_class(model->declarations[0]) : nullptr;
+  CHECK(declaration && declaration->properties.size() == 1);
+  if (declaration && declaration->properties.size() == 1) {
+    const auto* property = declaration->properties[0];
+    CHECK(number(property->defaultValue) == -1.25);
+    CHECK(property->rangeMin == -3.5 && property->rangeMax == 2.0);
+  }
+}
+
+void composer_primary_forms() {
+  const auto result = engine().parse(R"cto(namespace x
+import org.example.A from https://example.org/a.cto
+@Empty() abstract asset A identified by id extends Base {
+  @Field(Type[], 0x2A) o Thing thing default="v" optional
+  @Rel() --> Owner owner optional
+  o Integer n default=+5 range=[,]
+  o String s default="A\n\x42\u00E9" regex=/[a/b]\/x/gi optional
+}
+@E() abstract event E identified by id extends Base {}
+@T() transaction T extends Base {}
+abstract participant P {}
+@Enum() enum Kind { @Value() o A optional o B }
+)cto");
+  check_clean(result);
+  const auto* model = result.value_as<ast::Model>();
+  CHECK(model && model->imports.size() == 1 && model->declarations.size() == 5);
+  if (!model || model->declarations.size() != 5) return;
+  if (model->imports.size() == 1)
+    CHECK(model->imports[0]->uri == "https://example.org/a.cto");
+  const auto* asset = as_class(model->declarations[0]);
+  CHECK(asset && asset->isAbstract && asset->identifiedBy == "id" &&
+        asset->extends == "Base" && asset->decorators.size() == 1 &&
+        asset->decorators[0]->arguments.empty() && asset->properties.size() == 4);
+  if (asset && asset->properties.size() == 4) {
+    const auto* object = asset->properties[0];
+    CHECK(object->isOptional && str(object->defaultValue) == "v" &&
+          object->decorators.size() == 1);
+    if (object->decorators.size() == 1 && object->decorators[0]->arguments.size() == 2) {
+      const auto* argument = std::get_if<ast::DecoratorIdentifier*>(
+          &object->decorators[0]->arguments[0]);
+      CHECK(argument && *argument && (*argument)->name == "Type" && (*argument)->isArray &&
+            integer(object->decorators[0]->arguments[1]) == 42);
+    } else CHECK(false);
+    CHECK(asset->properties[1]->isReference && asset->properties[1]->isOptional &&
+          asset->properties[1]->decorators.size() == 1);
+    CHECK(!asset->properties[2]->rangeMin && !asset->properties[2]->rangeMax &&
+          integer(asset->properties[2]->defaultValue) == 5);
+    CHECK(str(asset->properties[3]->defaultValue) == "A\nBé" &&
+          asset->properties[3]->regex == R"([a/b]\/x)" &&
+          asset->properties[3]->regexFlags == "gi");
+  }
+  const auto* event = cursiv::ast_cast<ast::EventDeclaration>(model->declarations[1]);
+  CHECK(event && event->isAbstract && event->identifiedBy == "id" &&
+        event->extends == "Base" && event->decorators.size() == 1);
+  const auto* transaction = as_class(model->declarations[2]);
+  CHECK(transaction && transaction->extends == "Base");
+  const auto* enumeration = cursiv::ast_cast<ast::EnumDeclaration>(model->declarations[4]);
+  CHECK(enumeration && enumeration->decorators.size() == 1 && enumeration->constants.size() == 2);
+  if (enumeration && enumeration->constants.size() == 2)
+    CHECK(enumeration->constants[0]->isOptional && enumeration->constants[0]->decorators.size() == 1);
+  for (const char* escape : {R"("\uZZZZ")", R"("\xZ1")"}) {
+    const std::string source = std::string("namespace x concept A { o String s default=") + escape + " }";
+    check_invalid(engine().parse(source));
+  }
+
 }
 
 }  // namespace
@@ -241,9 +379,12 @@ int main() {
   car();
   owner();
   transaction();
-  invalid_datetime();
+  valid_datetime();
   invalid_namespace();
   invalid_reference();
   coverage();
+  numeric_boundaries();
+  native_defaults();
+  composer_primary_forms();
   return cursiv::test::report("cto_grammar_test");
 }

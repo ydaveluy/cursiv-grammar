@@ -79,6 +79,21 @@ _entrée[List[Tuple[str, int]]](memo):
       cursiv::ast_cast<pegen::ast::StringLit>(soft->value->value)->value != "\"match\"" ||
       alt->action.find("# ignored }") == std::string_view::npos)
     return fail("regression", "binding, keyword kind or action text was lost");
+  for (const auto* invalid : {"start: NAME {}\n", "start[]: NAME\n",
+                              "start: x[]=NAME\n", "start: NAME { # only comment\n }\n"}) {
+    const auto bad = language.language.parser->parse(invalid);
+    if (bad.accepted && !bad.cst().recovered() && bad.diagnostics.empty())
+      return fail("target-atoms", "empty outer action/annotation accepted");
+  }
+  {
+    const auto nested = language.language.parser->parse("start[[]]: NAME {{}}\n");
+    const auto* root = nested.value_as<pegen::ast::Grammar>();
+    const auto* r = root && root->rules.size() == 1 ? root->rules[0] : nullptr;
+    if (!nested.accepted || nested.cst().recovered() || !nested.diagnostics.empty() ||
+        !r || r->returnType != "[]" || r->body->alts.size() != 1 ||
+        r->body->alts[0]->action != "{}")
+      return fail("target-atoms", "nested empty containers lost their source text");
+  }
   const std::string duplicate = "start: NAME\nstart: STRING\n";
   const auto validation = cursiv::test::validationHelper(language.language, duplicate);
   bool diagnosed = false;

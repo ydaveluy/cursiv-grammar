@@ -16,6 +16,10 @@ class LuaValidator final : public cursiv::DefaultCoreService {
 
   void checkAssignTargets(const ast::AssignStat& stat,
                           cursiv::ValidationAcceptor& accept) const;
+  void checkString(const ast::StringExpr&, cursiv::ValidationAcceptor&) const;
+  void checkLocal(const ast::LocalStat&, cursiv::ValidationAcceptor&) const;
+  void checkVararg(const ast::VarargExpr&, cursiv::ValidationAcceptor&) const;
+  void checkBreak(const ast::BreakStat&, cursiv::ValidationAcceptor&) const;
   void checkCallStat(const ast::CallStat& stat,
                      cursiv::ValidationAcceptor& accept) const;
 };

@@ -1,5 +1,4 @@
-// The checks of this language. None yet: the grammar carries no semantic
-// rule beyond parsing (no symbol table, no type resolution).
+// Source-definition and generic-parameter checks; no symbol/type resolution.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,9 @@ namespace tinyosnesc {
 class TinyosNescValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkModule(const ast::Module&, cursiv::ValidationAcceptor&) const;
+  void checkConfiguration(const ast::Configuration&, cursiv::ValidationAcceptor&) const;
+  void checkDocument(const ast::Document&, cursiv::ValidationAcceptor&) const;
 };
 
 struct TinyosNescCoreServices;

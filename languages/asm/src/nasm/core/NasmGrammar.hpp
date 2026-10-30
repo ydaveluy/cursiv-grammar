@@ -13,17 +13,6 @@ namespace nasm {
 
 namespace detail {
 
-inline constexpr auto conv_float = [](std::string_view t,
-                                      std::pmr::memory_resource*) {
-  double v = 0.0;
-  const auto [p, ec] =
-      std::from_chars(t.data(), t.data() + t.size(), v);
-  (void)p;
-  if (ec != std::errc{})
-    return cursiv::ConversionResult<double>::err("number is out of range");
-  return cursiv::ConversionResult<double>::ok(v);
-};
-
 // Quotes off; the token graph admits no escapes (`~'"'*` / `~'\''*`), so the
 // body is exactly what is between the quotes.
 inline constexpr auto unquote = [](std::string_view t,
@@ -76,27 +65,37 @@ struct Nasm : cursiv::GrammarSpec {
                      (cr<"0"> + cr<"qQoO"> + cr<"0-7"> + many(cr<"0-7_">))> {};
 
   struct HEX_INTEGER
-      : terminal<(cr<"0-9A-Fa-f"> + some(cr<"0-9A-Fa-f_">) + cr<"hH">) |
+      : terminal<(d + many(cr<"0-9A-Fa-f_">) + cr<"hH">) |
                      (lit<"$"> + cr<"0-9A-Fa-f"> + many(cr<"0-9A-Fa-f_">)) |
                      (cr<"0"> + cr<"xXhH"> + cr<"0-9A-Fa-f"> +
                       many(cr<"0-9A-Fa-f_">))> {};
 
   struct BIN_INTEGER
-      : terminal<(cr<"01"> + some(cr<"01_">) + cr<"bByY">) |
+      : terminal<(cr<"01"> + many(cr<"01_">) + cr<"bByY">) |
                      (cr<"0"> + cr<"bByY"> + cr<"01"> + many(cr<"01_">))> {};
 
   static constexpr auto Sign = cr<"+-">;
+  static constexpr auto DecimalDigits = d + many(cr<"0-9_">);
+  static constexpr auto BinaryExponent = cr<"pP"> + option(Sign) + DecimalDigits;
+  // Preserve the spelling: NASM has binary/octal/hex reals and 80/128-bit
+  // formats whose values cannot be represented by a host double.
+  static constexpr auto HexMantissa = cr<"0-9A-Fa-f"> + many(cr<"0-9A-Fa-f_">);
+  static constexpr auto BinMantissa = cr<"01"> + many(cr<"01_">);
+  static constexpr auto OctMantissa = cr<"0-7"> + many(cr<"0-7_">);
+  template <auto Digits>
+  static constexpr auto BasedFloat =
+      Digits + ((lit<"."> + many(Digits | lit<"_">) + option(BinaryExponent)) |
+                BinaryExponent);
   struct FLOAT_NUMBER
-      : terminal<(cr<"0-9"> + many(cr<"0-9_">) + lit<"."> +
-                  many(cr<"0-9_">) + option(cr<"eE">) + option(Sign) +
-                  some(cr<"0-9_">)) |
-                     (lit<"0x1p+"> + some(cr<"0-9">)),
-                 cursiv::text_conv<detail::conv_float>> {};
+      : terminal<(DecimalDigits + lit<"."> + many(cr<"0-9_">) +
+                  option(cr<"eE"> + option(Sign) + DecimalDigits)) |
+                 (((lit<"0"> + cr<"xXhH">) | lit<"$">) + BasedFloat<HexMantissa>) |
+                 (lit<"0"> + cr<"bByY"> + BasedFloat<BinMantissa>) |
+                 (lit<"0"> + cr<"oOqQ"> + BasedFloat<OctMantissa>)> {};
 
-  struct STRING
-      : terminal<(lit<"\""> + many(cr<R"(^")">) + lit<"\"">) |
-                     (lit<"'"> + many(cr<"^'">) + lit<"'">),
-                 cursiv::text_conv<detail::unquote>> {};
+  struct STRING : terminal<as<detail::unquote>(
+                      (lit<"\""> + many(cr<R"(^")">) + lit<"\"">) |
+                      (lit<"'"> + many(cr<"^'">) + lit<"'">))> {};
 
   // Instruction names are open; ISA and macro resolution belong to the runtime.
   static constexpr auto Mnemonic = ref<NAME>;
@@ -160,7 +159,7 @@ struct Nasm : cursiv::GrammarSpec {
   struct Expression;
   struct Primary;
   struct BinaryLadder;
-  struct ValueRule;
+  struct Value;
 
   struct IntegerLiteral
       : rule<assign<&ast::IntegerLit::text>(
@@ -168,14 +167,14 @@ struct Nasm : cursiv::GrammarSpec {
             ref<BIN_INTEGER>)> {};
 
   struct FloatLiteral
-      : rule<assign<&ast::FloatLit::value>(ref<FLOAT_NUMBER>)> {};
+      : rule<assign<&ast::FloatLit::text>(ref<FLOAT_NUMBER>)> {};
 
   struct StringLiteral
       : rule<assign<&ast::StringLit::value>(ref<STRING>)> {};
 
-  struct NameRefRule : rule<assign<&ast::NameRef::name>(ref<NAME>)> {};
+  struct NameRef : rule<assign<&ast::NameRef::name>(ref<NAME>)> {};
 
-  struct RegisterRefRule
+  struct RegisterRef
       : rule<assign<&ast::RegisterRef::name>(RegisterName)> {};
 
   // A plain expression, or `?`, the reserve-with-no-value marker: a lone `?`
@@ -199,9 +198,9 @@ struct Nasm : cursiv::GrammarSpec {
                    assign<&ast::QualifiedName::segment>(RegisterName) +
                    lit<":"> +
                    assign<&ast::QualifiedName::target>(
-                       ref<RegisterRefRule> | ref<NameRefRule>))  //
-             | ref<RegisterRefRule>                               //
-             | ref<NameRefRule>                                   //
+                       ref<RegisterRef> | ref<NameRef>))  //
+             | ref<RegisterRef>                               //
+             | ref<NameRef>                                   //
              | ref<StringLiteral>                                 //
              | ref<FloatLiteral>                                  //
              | create<ast::DollarExpr>(
@@ -228,26 +227,24 @@ struct Nasm : cursiv::GrammarSpec {
   static constexpr auto OpBoolOr = lit<"||">;
 
   struct BinaryLadder
-      : infix<Primary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMul) >>      //
-               left(OpAdd) >>      //
-               left(OpShift) >>    //
-               left(OpAnd) >>      //
-               left(OpXor) >>      //
-               left(OpOr) >>       //
-               left(OpCompare) >>  //
-               left(OpBoolAnd) >>  //
-               left(OpBoolXor) >>  //
-               left(OpBoolOr))> {};
+      : infix<Primary, ast::BinaryExpr,
+              levels(left(OpMul),      //
+                     left(OpAdd),      //
+                     left(OpShift),    //
+                     left(OpAnd),      //
+                     left(OpXor),      //
+                     left(OpOr),       //
+                     left(OpCompare),  //
+                     left(OpBoolAnd),  //
+                     left(OpBoolXor),  //
+                     left(OpBoolOr))> {};
 
-  // The ternary's `then` branch is a bare integer; `else` is a full
-  // expression.
+  // Both ternary branches are expressions and preserve nested conditionals.
   struct Expression
       : rule<create<ast::ConditionalExpr>(
                  assign<&ast::ConditionalExpr::cond>(ref<BinaryLadder>) +
                  lit<"?"> +
-                 assign<&ast::ConditionalExpr::then_>(ref<IntegerLiteral>) +
+                 assign<&ast::ConditionalExpr::then_>(ref<Expression>) +
                  lit<":"> +
                  assign<&ast::ConditionalExpr::else_>(ref<Expression>))  //
              | ref<BinaryLadder>> {};
@@ -255,11 +252,11 @@ struct Nasm : cursiv::GrammarSpec {
   // The size-wrap and list-of-values shapes on top of Atom/Expression:
   // `size value`, `dup(...)`, and `%(...)`.
   static constexpr auto ParList =
-      lit<"("> + append<&ast::ValueList::items>(ref<ValueRule>) +
-      many(lit<","> + append<&ast::ValueList::items>(ref<ValueRule>)) +
+      lit<"("> + append<&ast::ValueList::items>(ref<Value>) +
+      many(lit<","> + append<&ast::ValueList::items>(ref<Value>)) +
       lit<")">;
 
-  struct ValueListRule
+  struct ValueList
       : rule<create<ast::ValueList>(
                  assign<&ast::ValueList::dupCount>(ref<Expression>) +
                  ikw<"dup"> + option(assign<&ast::ValueList::size>(SizeKw)) +
@@ -272,16 +269,16 @@ struct Nasm : cursiv::GrammarSpec {
                    option(flag<&ast::ValueList::percent>(lit<"%">)) +
                    ParList)> {};
 
-  struct ValueRule
+  struct Value
       : rule<create<ast::Value>(assign<&ast::Value::size>(SizeKw) +
-                                assign<&ast::Value::inner>(ref<ValueRule>))  //
+                                assign<&ast::Value::inner>(ref<Value>))  //
              | create<ast::Value>(
-                   assign<&ast::Value::list>(ref<ValueListRule>))  //
+                   assign<&ast::Value::list>(ref<ValueList>))  //
              | create<ast::Value>(assign<&ast::Value::atom>(ref<Atom>))> {};
 
   // An operand's non-bracket forms are all subsets of Expression, so they
   // collapse to one shape here.
-  struct OperandRule
+  struct Operand
       : rule<create<ast::Operand>(
             option(flag<&ast::Operand::strict>(ikw<"strict">)) +
             option(assign<&ast::Operand::size>(SizeKw)) +
@@ -297,48 +294,48 @@ struct Nasm : cursiv::GrammarSpec {
   struct InstructionRule
       : rule<create<ast::Instruction>(
             TimesPrefix + assign<&ast::Instruction::mnemonic>(Mnemonic) +
-            option(append<&ast::Instruction::operands>(ref<OperandRule>) +
+            option(append<&ast::Instruction::operands>(ref<Operand>) +
                    many(lit<","> +
                         append<&ast::Instruction::operands>(
-                            ref<OperandRule>))))> {};
+                            ref<Operand>))))> {};
 
   struct MacroParam
-      : rule<ref<StringLiteral> | ref<NameRefRule> | ref<IntegerLiteral> |
+      : rule<ref<StringLiteral> | ref<NameRef> | ref<IntegerLiteral> |
              ref<FloatLiteral>> {};
 
   static constexpr auto MacroArgs =
       option(append<&ast::MacroCall::args>(ref<MacroParam>) +
              many(lit<","> + append<&ast::MacroCall::args>(ref<MacroParam>)));
 
-  struct MacroCallRule
+  struct MacroCall
       : rule<create<ast::MacroCall>(
             TimesPrefix + assign<&ast::MacroCall::name>(ref<NAME>) +
             ((lit<"("> + MacroArgs + lit<")">) | MacroArgs))> {};
 
-  struct DataDeclRule
+  struct DataDecl
       : rule<create<ast::DataDecl>(
             TimesPrefix +
             option(assign<&ast::DataDecl::label>(ref<NAME>)) +
             assign<&ast::DataDecl::kind>(DxKw) +
-            append<&ast::DataDecl::values>(ref<ValueRule>) +
-            many(lit<","> + append<&ast::DataDecl::values>(ref<ValueRule>)))> {
+            append<&ast::DataDecl::values>(ref<Value>) +
+            many(lit<","> + append<&ast::DataDecl::values>(ref<Value>)))> {
   };
 
-  struct ReserveDeclRule
+  struct ReserveDecl
       : rule<create<ast::ReserveDecl>(
             TimesPrefix +
             option(assign<&ast::ReserveDecl::label>(ref<NAME>)) +
             assign<&ast::ReserveDecl::kind>(ResxKw) +
-            assign<&ast::ReserveDecl::count>(ref<IntegerLiteral>))> {};
+            assign<&ast::ReserveDecl::count>(ref<Expression>))> {};
 
-  struct IncbinDeclRule
+  struct IncbinDecl
       : rule<create<ast::IncbinDecl>(
             TimesPrefix +
             option(assign<&ast::IncbinDecl::label>(ref<NAME>)) +
             ikw<"incbin"> + append<&ast::IncbinDecl::args>(ref<Atom>) +
             many(lit<","> + append<&ast::IncbinDecl::args>(ref<Atom>)))> {};
 
-  struct EquDeclRule
+  struct EquDecl
       : rule<create<ast::EquDecl>(
             TimesPrefix +
             option(assign<&ast::EquDecl::label>(ref<NAME>)) + ikw<"equ"> +
@@ -437,7 +434,7 @@ struct Nasm : cursiv::GrammarSpec {
             append<&ast::Directive::values>(ref<IntegerLiteral>)) |
            append<&ast::Directive::values>(ref<IntegerLiteral>));
 
-  struct DirectiveRule
+  struct Directive
       : rule<create<ast::Directive>(
             (assign<&ast::Directive::kind>(ikw<"bits">) +
              append<&ast::Directive::values>(ref<IntegerLiteral>))  //
@@ -492,22 +489,23 @@ struct Nasm : cursiv::GrammarSpec {
             | (assign<&ast::Directive::kind>(ikw<"osabi">) +
                append<&ast::Directive::values>(ref<IntegerLiteral>)))> {};
 
-  struct LineRule
+  static constexpr auto LineStatement = assign<&ast::Line::stmt>(
+      ref<Directive> | (lit<"["> + ref<Directive> + lit<"]">) |
+      ref<DataDecl> | ref<ReserveDecl> | ref<IncbinDecl> | ref<EquDecl> |
+      ref<InstructionRule> | ref<MacroCall>);
+
+  struct Line
       : rule<create<ast::Line>(
-            option(assign<&ast::Line::label>(ref<NAME>) + lit<":">) +
-            option(assign<&ast::Line::stmt>(
-                ref<DirectiveRule> | ref<DataDeclRule> |
-                ref<ReserveDeclRule> | ref<IncbinDeclRule> |
-                ref<EquDeclRule> | ref<InstructionRule> |
-                ref<MacroCallRule>))) +
-            ref<EOL>> {};
+            (((assign<&ast::Line::label>(ref<NAME>) + lit<":"> +
+               option(LineStatement)) | LineStatement) + (ref<EOL> | eof)) |
+            ref<EOL>)> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program> +
-             many(append<&ast::Program::lines>(ref<LineRule>))> {};
+             many(append<&ast::Program::lines>(ref<Line>))> {};
 
-  using entry = ProgramRule;
-  using ignore = list<WS, COMMENT, PREPROC, MACROBLOCK>;
+  using entry = Program;
+  using ignored = list<WS, COMMENT, PREPROC, MACROBLOCK>;
 };
 
 }  // namespace nasm

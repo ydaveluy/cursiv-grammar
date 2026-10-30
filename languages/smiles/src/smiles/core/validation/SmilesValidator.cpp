@@ -29,8 +29,12 @@ std::optional<std::uint32_t> decimal(std::string_view text,
 
 bool knownSymbol(std::string_view symbol) {
   if (symbol.starts_with('#')) return decimal(symbol.substr(1), 118).has_value();
-  if (symbol.size() > 2 && symbol.front() == '\'' && symbol.back() == '\'')
+  if (symbol.size() > 2 && symbol.front() == '\'' && symbol.back() == '\'') {
     symbol = symbol.substr(1, symbol.size() - 2);
+    // RDKit's quoted Biovia spelling is restricted to Rf through Og.
+    return std::find(atomic_symbols.begin() + 104, atomic_symbols.end(), symbol)
+        != atomic_symbols.end();
+  }
   if (std::find(atomic_symbols.begin(), atomic_symbols.end(), symbol) != atomic_symbols.end())
     return true;
   for (std::string_view alias : {"Uun", "Uuu", "Uub", "Uut", "Uuq", "Uup", "Uuh", "Uus", "Uuo",

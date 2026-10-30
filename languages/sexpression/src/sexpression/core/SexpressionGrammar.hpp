@@ -11,7 +11,8 @@ struct Sexpression : cursiv::GrammarSpec {
   static constexpr auto symbol_piece =
       plain | (lit<"\\"> + any) | (lit<"|"> + many(cr<R"(^|)">) + lit<"|">);
   struct WS : terminal<some(whitespace)> {};
-  struct COMMENT : terminal<lit<";"> + many(cr<R"(^\r\n)">)> {};
+  struct COMMENT
+      : terminal<lit<";"> + many(cr<R"(^\r\n\u0085\u2028\u2029)">)> {};
   struct BLOCK_COMMENT
       : terminal<lit<"#|"> +
                  many(ref<BLOCK_COMMENT> | (!lit<"#|"> + !lit<"|#"> + any)) +
@@ -22,12 +23,12 @@ struct Sexpression : cursiv::GrammarSpec {
                  (lit<"#"> + cr<"eEiIbBoOdDxX%"> + many(symbol_piece))> {};
   struct KEYWORD : terminal<lit<"#:"> + many(symbol_piece)> {};
   struct BOOLEAN : terminal<(lit<"#true"> | lit<"#false"> | lit<"#t"> |
-                             lit<"#f"> | lit<"#T"> | lit<"#F">)+!plain> {};
+                             lit<"#f"> | lit<"#T"> | lit<"#F">)+!(~delimiter)> {};
   static constexpr auto quoted =
       lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">;
   struct HereTag;
   struct HERE_STRING
-      : terminal<lit<"#<<"> + mark<HereTag>(many(cr<R"(^\n)">)) + lit<"\n"> +
+      : terminal<lit<"#<<"> + mark<HereTag>(some(cr<R"(^\n)">)) + lit<"\n"> +
                  many(!(same<HereTag> + !cr<R"(^\n)">)+many(cr<R"(^\n)">) +
                       lit<"\n">) +
                  same<HereTag> + !cr<R"(^\n)">> {};
@@ -50,42 +51,42 @@ struct Sexpression : cursiv::GrammarSpec {
   struct DIRECTIVE : terminal<(lit<"#lang "> | lit<"#reader "> |
                                lit<"#!">)+many(cr<R"(^\r\n)">)> {};
 
-  struct AtomRule : rule<assign<&ast::Atom::text>(ref<ATOM>)> {};
-  struct StringRule
+  struct Atom : rule<assign<&ast::Atom::text>(ref<ATOM>)> {};
+  struct String
       : rule<assign<&ast::String::text>(ref<STRING> | ref<HERE_STRING>)> {};
-  struct CharacterRule : rule<assign<&ast::Character::text>(ref<CHARACTER>)> {};
-  struct BooleanRule : rule<assign<&ast::Boolean::text>(ref<BOOLEAN>)> {};
-  struct KeywordRule : rule<assign<&ast::Keyword::text>(ref<KEYWORD>)> {};
-  struct BytesRule : rule<assign<&ast::Bytes::text>(ref<BYTES>)> {};
-  struct RegexRule : rule<assign<&ast::Regex::text>(ref<REGEX>)> {};
-  struct GraphRefRule : rule<assign<&ast::GraphRef::text>(ref<GRAPH_REF>)> {};
-  struct DirectiveRule : rule<assign<&ast::Directive::text>(ref<DIRECTIVE>)> {};
-  struct ListRule;
-  struct PrefixRule;
-  struct DiscardRule;
+  struct Character : rule<assign<&ast::Character::text>(ref<CHARACTER>)> {};
+  struct Boolean : rule<assign<&ast::Boolean::text>(ref<BOOLEAN>)> {};
+  struct Keyword : rule<assign<&ast::Keyword::text>(ref<KEYWORD>)> {};
+  struct Bytes : rule<assign<&ast::Bytes::text>(ref<BYTES>)> {};
+  struct Regex : rule<assign<&ast::Regex::text>(ref<REGEX>)> {};
+  struct GraphRef : rule<assign<&ast::GraphRef::text>(ref<GRAPH_REF>)> {};
+  struct Directive : rule<assign<&ast::Directive::text>(ref<DIRECTIVE>)> {};
+  struct List;
+  struct Prefix;
+  struct Discard;
   static constexpr auto value =
-      ref<AtomRule> | ref<BooleanRule> | ref<StringRule> | ref<CharacterRule> |
-      ref<KeywordRule> | ref<BytesRule> | ref<RegexRule> | ref<GraphRefRule> |
-      ref<ListRule> | ref<PrefixRule>;
-  static constexpr auto datum = value | ref<DiscardRule> | ref<DirectiveRule>;
+      ref<Atom> | ref<Boolean> | ref<String> | ref<Character> |
+      ref<Keyword> | ref<Bytes> | ref<Regex> | ref<GraphRef> |
+      ref<List> | ref<Prefix>;
+  static constexpr auto datum = value | ref<Discard> | ref<Directive>;
   template <auto Member>
   static constexpr auto OperandInto =
-      many(append<&ast::Item::discards>(ref<DiscardRule>)) +
+      many(append<&ast::Item::discards>(ref<Discard>)) +
       assign<Member>(value);
-  struct ListRule
+  struct List
       : rule<assign<&ast::List::opener>(ref<OPEN>) +
              many(append<&ast::List::items>(datum)) +
              option(lit<"."> + OperandInto<&ast::List::tail> +
                     option(flag<&ast::List::infix>(lit<".">) +
                            many(append<&ast::List::suffix>(datum)))) +
              assign<&ast::List::closer>(ref<CLOSE>)> {};
-  struct PrefixRule : rule<assign<&ast::Prefix::marker>(ref<PREFIX>) +
+  struct Prefix : rule<assign<&ast::Prefix::marker>(ref<PREFIX>) +
                            OperandInto<&ast::Prefix::value>> {};
-  struct DiscardRule : rule<lit<"#;"> + OperandInto<&ast::Discard::value>> {};
-  struct SexprRule
+  struct Discard : rule<lit<"#;"> + OperandInto<&ast::Discard::value>> {};
+  struct Sexpr
       : rule<create<ast::Sexpr> + many(append<&ast::Sexpr::items>(datum))> {};
-  using entry = SexprRule;
-  using ignore = WS;
+  using entry = Sexpr;
+  using ignored = WS;
   using hidden = list<COMMENT, BLOCK_COMMENT>;
 };
 } // namespace sexpression

@@ -1,6 +1,6 @@
 # unrealangelscript
 
-A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+A Hazelight Unreal AngelScript syntax subset built with [cursiv](https://github.com/ydaveluy/cursiv).
 
 ## Build
 
@@ -48,8 +48,7 @@ class ABaseThing
 
 `UCLASS`/`USTRUCT`/`UPROPERTY`/`UFUNCTION` are Unreal's reflection
 annotations on a class, a struct, a property or a function; the grammar is
-otherwise a scripting dialect of C++ -- classes, enums, namespaces,
-operators, lambdas, `Cast<T>(...)` in place of a C-style cast.
+supports classes, enums, namespaces, delegates, events and `Cast<T>(...)`.
 
 ## The command line
 

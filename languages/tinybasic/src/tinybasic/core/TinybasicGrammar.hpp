@@ -2,6 +2,8 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
+#include <span>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "tinybasic/core/ast.hpp"
@@ -11,7 +13,17 @@ namespace tinybasic {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
+
+inline constexpr auto decimal = [](std::span<const std::string_view> tokens)
+    -> cursiv::ConversionResult<std::int32_t> {
+  std::int32_t value = 0;
+  for (const auto token : tokens) for (const char digit : token) {
+    if (digit < '0' || digit > '9' || value > (std::numeric_limits<std::int32_t>::max() - (digit - '0')) / 10)
+      return cursiv::ConversionResult<std::int32_t>::err("The number exceeds the port's signed 32-bit range");
+    value = value * 10 + (digit - '0');
+  }
+  return cursiv::ConversionResult<std::int32_t>::ok(value);
+};
 
 struct Tinybasic : cursiv::GrammarSpec {
   // Names are one letter, so a keyword is spelled `lit<>`, never `kw<>`: a
@@ -21,89 +33,85 @@ struct Tinybasic : cursiv::GrammarSpec {
   struct CR : terminal<some(cr<R"(\r\n)">)> {};
 
   struct VAR : terminal<cr<"A-Z">> {};
-  struct STRING : terminal<lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">, Unquoted> {};
-  struct NUMBER : terminal<some(d), std::int32_t> {};
+  struct STRING
+      : terminal<as<unquote>(lit<"\""> + many(cr<R"(^"\r\n)">) + lit<"\"">)> {};
+  struct DIGIT : terminal<d> {};
+  struct NUMBER : rule<as<decimal>(some(ref<DIGIT>))> {};
 
-  struct MUL : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIV : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct ADD : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct SUB : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-
-  struct RelNe : terminal<lit<"<>"> | lit<"><">, value<ast::RelOp::ne>> {};
-  struct RelLe : terminal<lit<"<=">, value<ast::RelOp::le>> {};
-  struct RelGe : terminal<lit<">=">, value<ast::RelOp::ge>> {};
-  struct RelLt : terminal<lit<"<">, value<ast::RelOp::lt>> {};
-  struct RelGt : terminal<lit<">">, value<ast::RelOp::gt>> {};
-  struct RelEq : terminal<lit<"=">, value<ast::RelOp::eq>> {};
+  struct RelNe : terminal<as<ast::RelOp::ne>(lit<"<>"> | lit<"><">)> {};
 
   // A name or a string, wherever either is legal -- an INPUT prompt/target,
   // or an assignment's two sides.
-  struct VaraRule
+  struct Vara
       : rule<create<ast::VarRef>(assign<&ast::VarRef::name>(ref<VAR>))  //
              | create<ast::StringLit>(
                    assign<&ast::StringLit::value>(ref<STRING>))> {};
 
   struct Factor
-      : rule<ref<VaraRule>  //
+      : rule<ref<Vara>  //
              | create<ast::NumberLit>(
                    assign<&ast::NumberLit::value>(ref<NUMBER>))> {};
 
-  // TinyBASIC restricts a leading sign to an expression's first term; a
-  // sign here may lead any factor instead, which accepts a few more strings
-  // ('2*-3') for the same values ('-(a*b)' is '(-a)*b').
-  struct SignedFactor
+  struct Term
+      : infix<Factor, ast::BinaryExpr,
+              left(as<ast::Operator::multiply>(lit<"*">) |
+                   as<ast::Operator::divide>(lit<"/">))> {};
+
+  // Only the first term of an expression may have a sign.
+  struct SignedTerm
       : rule<create<ast::Negate>(
-                 lit<"-"> + assign<&ast::Negate::operand>(ref<Factor>))  //
-             | (option(lit<"+">) + ref<Factor>)> {};
+                 lit<"-"> + assign<&ast::Negate::operand>(ref<Term>))
+             | (option(lit<"+">) + ref<Term>)> {};
 
-  struct ExpressionRule
-      : infix<SignedFactor, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<MUL> | ref<DIV>) >> left(ref<ADD> | ref<SUB>))> {};
+  struct Expression
+      : rule<ref<SignedTerm> + many(nest<&ast::BinaryExpr::left>(
+            assign<&ast::BinaryExpr::op>(as<ast::Operator::add>(lit<"+">) |
+                                         as<ast::Operator::subtract>(lit<"-">)) +
+            assign<&ast::BinaryExpr::right>(ref<Term>)))> {};
 
-  struct StatementRule
+  struct Statement
       : rule<create<ast::PrintStmt>(
                  lit<"PRINT"> +
-                 some(append<&ast::PrintStmt::items>(ref<ExpressionRule>),
+                 some(append<&ast::PrintStmt::items>(ref<Expression>),
                       lit<",">))  //
              | create<ast::IfStmt>(
-                   lit<"IF"> + assign<&ast::IfStmt::left>(ref<ExpressionRule>) +
-                   assign<&ast::IfStmt::op>(ref<RelNe> | ref<RelLe> |
-                                            ref<RelGe> | ref<RelLt> |
-                                            ref<RelGt> | ref<RelEq>) +
-                   assign<&ast::IfStmt::right>(ref<ExpressionRule>) +
+                   lit<"IF"> + assign<&ast::IfStmt::left>(ref<Expression>) +
+                   assign<&ast::IfStmt::op>(ref<RelNe> | as<ast::RelOp::le>(lit<"<=">) |
+                                            as<ast::RelOp::ge>(lit<">=">) | as<ast::RelOp::lt>(lit<"<">) |
+                                            as<ast::RelOp::gt>(lit<">">) | as<ast::RelOp::eq>(lit<"=">)) +
+                   assign<&ast::IfStmt::right>(ref<Expression>) +
                    option(lit<"THEN">) +
-                   assign<&ast::IfStmt::then>(ref<StatementRule>))  //
+                   assign<&ast::IfStmt::then>(ref<Statement>))  //
              | create<ast::GotoStmt>(
                    lit<"GOTO"> +
                    assign<&ast::GotoStmt::target>(ref<NUMBER>))  //
              | create<ast::InputStmt>(
                    lit<"INPUT"> +
-                   some(append<&ast::InputStmt::items>(ref<VaraRule>),
+                   some(append<&ast::InputStmt::items>(ref<Vara>),
                         lit<",">))  //
              | create<ast::LetStmt>(
                    option(lit<"LET">) +
-                   assign<&ast::LetStmt::target>(ref<VaraRule>) + lit<"="> +
-                   assign<&ast::LetStmt::value>(ref<ExpressionRule>))  //
+                   assign<&ast::LetStmt::target>(ref<Vara>) + lit<"="> +
+                   assign<&ast::LetStmt::value>(ref<Expression>))  //
              | create<ast::GosubStmt>(
                    lit<"GOSUB"> +
-                   assign<&ast::GosubStmt::target>(ref<ExpressionRule>))  //
+                   assign<&ast::GosubStmt::target>(ref<Expression>))  //
              | (create<ast::ReturnStmt> + lit<"RETURN">)                  //
              | (create<ast::ClearStmt> + lit<"CLEAR">)                    //
              | (create<ast::ListStmt> + lit<"LIST">)                      //
              | (create<ast::RunStmt> + lit<"RUN">)                        //
              | (create<ast::EndStmt> + lit<"END">)> {};
 
-  struct LineRule
+  struct Line
       : rule<option(assign<&ast::Line::number>(ref<NUMBER>)) +
-             assign<&ast::Line::statement>(ref<StatementRule>) + ref<CR>> {};
+             assign<&ast::Line::statement>(ref<Statement>) + ref<CR>> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program> +
-             many(append<&ast::Program::lines>(ref<LineRule>))> {};
+             many(append<&ast::Program::lines>(ref<Line>))> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
+  using entry = Program;
+  using ignored = WS;
 };
 
 }  // namespace tinybasic

@@ -16,10 +16,19 @@ void ScssValidator::checkReturnContext(
   accept.error(node, "@return is only valid inside a function.");
 }
 
+void ScssValidator::checkVariableFlags(
+    const ast::VariableDeclaration& node, cursiv::ValidationAcceptor& accept) const {
+  if (node.isGlobal && !node.nsPrefix.empty())
+    accept.error(node, "!global is not allowed on a variable in another module.",
+                 "scss.variable.global");
+}
+
 void register_validation_checks(ScssCoreServices& services) {
   services.validator = std::make_unique<const ScssValidator>(services);
   services.validationRegistry->registerChecks(
       {cursiv::ValidationRegistry::makeValidationCheck<
+          &ScssValidator::checkVariableFlags>(*services.validator),
+       cursiv::ValidationRegistry::makeValidationCheck<
           &ScssValidator::checkReturnContext>(*services.validator)});
 }
 

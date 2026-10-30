@@ -31,14 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Untyped lambda calculus with variables, abstractions and parenthesized applications.
+
 ```
 ((λa.a g) bc)
 ```
-
-Untyped lambda calculus: a `Variable` is a name, a `Function` binds one
-variable over a body (`λa.a`), and an `Application` applies one term to
-another -- always parenthesized, which is what makes `a b` illegal on its own
-and `(a b)` the only way to write it.
 
 ## The command line
 

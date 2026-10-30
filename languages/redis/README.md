@@ -31,18 +31,14 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Redis command lines as ordered raw arguments. This is a text-command grammar; it does not parse RESP or execute commands.
+
 ```
 SET mykey myval NX EX 60
 HSET myhash field1 value1 field2 value2
 ZADD myzset GT CH 1 a 2 b
 EXPIRE mykey 100 NX
 ```
-
-Redis command syntax: a keyword, then a positional run of arguments -- keys,
-values, decimal counts, and flag words such as `NX` or `WITHSCORES`. Every
-command parses to one AST class, `ast::Command`: `name` holds the keyword as
-written, `keys` the key-name arguments, `args` everything else, in order, each
-either text or a typed integer. Keywords are case-insensitive.
 
 ## The command line
 

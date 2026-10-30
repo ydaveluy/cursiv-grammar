@@ -1,5 +1,4 @@
-// The checks of this language. None yet: the grammar carries the shape, and
-// nothing here judges it further.
+// Semantic checks keep the unbounded numeric lexemes in the AST.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,8 @@ namespace alpaca {
 class AlpacaValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkAdjacency(const ast::AdjacencyPred& node,
+                      cursiv::ValidationAcceptor& accept) const;
 };
 
 struct AlpacaCoreServices;

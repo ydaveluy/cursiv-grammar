@@ -6,6 +6,8 @@
 
 #include <charconv>
 #include <cstdint>
+#include <memory_resource>
+#include <span>
 #include <string_view>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
@@ -20,35 +22,50 @@ struct Modula2pim4 : cursiv::GrammarSpec {
                  many(ref<COMMENT> | (!lit<"(*"> + !lit<"*)"> + any)) +
                  lit<"*)">> {};
 
-  // A keyword and a name end at the same byte: `_` ends neither.
+  // PIM4 identifiers contain letters/digits; keywords share that boundary.
   static constexpr auto word_boundary = cr<"a-zA-Z0-9">;
 
-  struct IDENT : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9">)> {};
+  static constexpr auto Reserved =
+      kw<"AND"> | kw<"ARRAY"> | kw<"BEGIN"> | kw<"BY"> | kw<"CASE"> |
+      kw<"CONST"> | kw<"DEFINITION"> | kw<"DIV"> | kw<"DO"> | kw<"ELSE"> |
+      kw<"ELSIF"> | kw<"END"> | kw<"EXIT"> | kw<"EXPORT"> | kw<"FOR"> |
+      kw<"FROM"> | kw<"IF"> | kw<"IMPLEMENTATION"> | kw<"IMPORT"> | kw<"IN"> |
+      kw<"LOOP"> | kw<"MOD"> | kw<"MODULE"> | kw<"NOT"> | kw<"OF"> |
+      kw<"OR"> | kw<"POINTER"> | kw<"PROCEDURE"> | kw<"QUALIFIED"> |
+      kw<"RECORD"> | kw<"REPEAT"> | kw<"RETURN"> | kw<"SET"> | kw<"THEN"> |
+      kw<"TO"> | kw<"TYPE"> | kw<"UNTIL"> | kw<"VAR"> | kw<"WHILE"> | kw<"WITH">;
+  struct IDENT
+      : terminal<!Reserved + cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9">)> {};
 
-  static constexpr auto parseInt = [](std::string_view t) -> std::int64_t {
-    std::int64_t v = 0;
+  static constexpr auto parseInt = [](std::string_view t)
+      -> cursiv::ConversionResult<std::int64_t> {
+    int base = 10;
     if (t.back() == 'H') {
-      std::from_chars(t.data(), t.data() + t.size() - 1, v, 16);
+      base = 16;
+      t.remove_suffix(1);
     } else if (t.back() == 'B' || t.back() == 'C') {
-      std::from_chars(t.data(), t.data() + t.size() - 1, v, 8);
-    } else {
-      std::from_chars(t.data(), t.data() + t.size(), v, 10);
+      base = 8;
+      t.remove_suffix(1);
     }
-    return v;
+    std::int64_t v = 0;
+    const auto [end, ec] = std::from_chars(t.data(), t.data() + t.size(), v, base);
+    if (ec != std::errc{} || end != t.data() + t.size())
+      return cursiv::ConversionResult<std::int64_t>::err("Integer literal out of range.");
+    return cursiv::ConversionResult<std::int64_t>::ok(v);
   };
-  using IntConv = cursiv::text_conv<parseInt>;
   struct INTEGER
-      : terminal<(some(cr<"0-7">) + (lit<"B"> | lit<"C">))  //
-                     | (d + many(cr<"0-9A-F">) + lit<"H">)  //
-                     | some(d),
-                 IntConv> {};
+      : terminal<as<parseInt>((some(cr<"0-7">) + lit<"B">)  //
+                              | (d + many(cr<"0-9A-F">) + lit<"H">)      //
+                              | some(d))> {};
+
+  struct CHARACTER_CODE
+      : terminal<as<parseInt>(some(cr<"0-7">) + lit<"C">)> {};
 
   // The dot is guarded so a subrange's `..` (`[1..5]`) is not eaten as the
   // start of a real literal.
   struct REAL
-      : terminal<some(d) + lit<".", !lit<".">> + many(d) +
-                     option(lit<"E"> + option(cr<"+-">) + some(d)),
-                 double> {};
+      : terminal<as<double>(some(d) + lit<".", !lit<".">> + many(d) +
+                            option(lit<"E"> + option(cr<"+-">) + some(d)))> {};
 
   // Every printable byte but the two quotes: Modula-2 has no reason to
   // refuse a slash in a string.
@@ -56,18 +73,16 @@ struct Modula2pim4 : cursiv::GrammarSpec {
   static constexpr auto unquote = [](std::string_view t) {
     return t.substr(1, t.size() - 2);
   };
-  using StringConv = cursiv::text_conv<unquote>;
   struct STRING
-      : terminal<(lit<"'"> + many(StringByte | lit<"\"">) + lit<"'">)  //
-                     | (lit<"\""> + many(StringByte | lit<"'">) +
-                        lit<"\"">),
-                 StringConv> {};
+      : terminal<as<unquote>(
+            (lit<"'"> + many(StringByte | lit<"\"">) + lit<"'">)  //
+            | (lit<"\""> + many(StringByte | lit<"'">) + lit<"\"">))> {};
 
   // A dotted chain of names, kept as one span of text: a module qualifier
   // (`Module.Ident`) and, absent any preceding index/deref, a plain
   // record-field chain both read through here -- a designator's postfix
   // tail only opens on `[` or `^`.
-  struct QualidentRule : rule<ref<IDENT> + many(lit<"."> + ref<IDENT>)> {};
+  struct Qualident : rule<ref<IDENT> + many(lit<"."> + ref<IDENT>)> {};
 
   static constexpr auto MulOp =
       lit<"*"> | lit<"/"> | kw<"DIV"> | kw<"MOD"> | kw<"AND"> | lit<"&">;
@@ -75,49 +90,51 @@ struct Modula2pim4 : cursiv::GrammarSpec {
   static constexpr auto RelOp = lit<"="> | lit<"#"> | lit<"<>"> | lit<"<="> |
                                 lit<"<"> | lit<">="> | lit<">"> | kw<"IN">;
 
-  struct ExpressionRule;
-  struct ConstExpressionRule;
-  struct FactorRule;
-  struct ConstFactorRule;
-  struct DesignatorRule;
-  struct StatementRule;
-  struct TypeRule;
-  struct SimpleTypeRule;
-  struct FieldItemRule;
-  struct CaseFieldRule;
-  struct VariantRule;
-  struct BlockRule;
-  struct ModuleDeclRule;
-  struct ProcDeclRule;
+  struct Expression;
+  struct ConstExpression;
+  struct Factor;
+  struct Designator;
+  struct Statement;
+  struct Type;
+  struct SimpleType;
+  struct FieldItem;
+  struct CaseField;
+  struct Variant;
+  struct Block;
+  struct ModuleDecl;
+  struct ProcDecl;
 
   // -- literals and sets, shared by constant and runtime expressions ----
 
-  struct IntLitRule : rule<assign<&ast::IntLit::value>(ref<INTEGER>)> {};
-  struct RealLitRule : rule<assign<&ast::RealLit::value>(ref<REAL>)> {};
-  struct StringLitRule
+  struct IntLit
+      : rule<assign<&ast::IntLit::value>(ref<INTEGER>) |
+             flag<&ast::IntLit::character>(
+                 assign<&ast::IntLit::value>(ref<CHARACTER_CODE>))> {};
+  struct RealLit : rule<assign<&ast::RealLit::value>(ref<REAL>)> {};
+  struct StringLit
       : rule<assign<&ast::StringLit::value>(ref<STRING>)> {};
 
-  // A set element's bounds are always a constant expression, even inside a
-  // runtime `factor`'s set literal, so one rule serves both.
-  struct SetElementRule
+  // Set elements use expression syntax; constantness is checked by the
+  // native type/constant rules rather than a duplicate expression grammar.
+  struct SetElement
       : rule<create<ast::SetElement>(
-            assign<&ast::SetElement::low>(ref<ConstExpressionRule>) +
+            assign<&ast::SetElement::low>(ref<ConstExpression>) +
             option(lit<".."> +
-                   assign<&ast::SetElement::high>(ref<ConstExpressionRule>)))> {
+                   assign<&ast::SetElement::high>(ref<ConstExpression>)))> {
   };
   static constexpr auto SetBody =
       lit<"{"> +
-      option(some(append<&ast::SetLit::elements>(ref<SetElementRule>),
-                  lit<",">)) +
+      many(append<&ast::SetLit::elements>(ref<SetElement>),
+                  lit<",">) +
       lit<"}">;
-  struct SetLitRule : rule<create<ast::SetLit> + SetBody> {};
+  struct SetLit : rule<create<ast::SetLit> + SetBody> {};
 
   // -- designators (postfix chains) ----
 
   static constexpr auto IndexPostfix =
       nest<ast::IndexExpr, &ast::IndexExpr::array>(
           lit<"["> +
-          some(append<&ast::IndexExpr::indices>(ref<ExpressionRule>),
+          some(append<&ast::IndexExpr::indices>(ref<Expression>),
                lit<",">) +
           lit<"]">);
   static constexpr auto DerefPostfix =
@@ -131,20 +148,20 @@ struct Modula2pim4 : cursiv::GrammarSpec {
       (IndexPostfix | DerefPostfix) +
       many(IndexPostfix | DerefPostfix | FieldPostfix);
 
-  struct DesignatorRule
-      : rule<assign<&ast::NameExpr::name>(ref<QualidentRule>) +
+  struct Designator
+      : rule<assign<&ast::NameExpr::name>(ref<Qualident>) +
              option(DesignatorTailBody)> {};
 
   static constexpr auto CallBody =
       lit<"("> +
-      option(some(append<&ast::CallExpr::args>(ref<ExpressionRule>),
-                  lit<",">)) +
+      many(append<&ast::CallExpr::args>(ref<Expression>),
+                  lit<",">) +
       lit<")">;
 
   // designator (actualParameters)? -- shared by an expression-context call
   // and a statement-context one.
-  struct DesignatorCallRule
-      : rule<ref<DesignatorRule> +
+  struct DesignatorCall
+      : rule<ref<Designator> +
              option(nest<ast::CallExpr, &ast::CallExpr::callee>(
                  CallBody))> {};
 
@@ -154,351 +171,336 @@ struct Modula2pim4 : cursiv::GrammarSpec {
   // two halves never overlap despite each reading a qualident. `nest<>`
   // needs an optional context to adopt through, so the base name is its own
   // `create<>` here instead.
-  struct QualSetRule
+  struct QualSet
       : rule<create<ast::SetLit>(
             assign<&ast::SetLit::baseType>(create<ast::NameExpr>(
-                assign<&ast::NameExpr::name>(ref<QualidentRule>))) +
+                assign<&ast::NameExpr::name>(ref<Qualident>))) +
             SetBody)> {};
-
-  // constFactor's setOrQualident: a bare set, a qualident with a trailing
-  // typed set, or a bare qualident naming a constant.
-  struct ConstFactorRule
-      : rule<ref<IntLitRule>                                            //
-             | ref<RealLitRule>                                         //
-             | ref<StringLitRule>                                       //
-             | ref<SetLitRule>                                          //
-             | ref<QualSetRule>                                         //
-             | assign<&ast::NameExpr::name>(ref<QualidentRule>)          //
-             | (lit<"("> + ref<ConstExpressionRule> + lit<")">)          //
-             | create<ast::UnaryExpr>(
-                   assign<&ast::UnaryExpr::op>(kw<"NOT"> | lit<"~">) +
-                   assign<&ast::UnaryExpr::operand>(ref<ConstFactorRule>))> {
-  };
 
   // factor's setOrDesignatorOrProcCall: a bare set, a qualident with a
   // trailing typed set, or a designator with an optional call -- disjoint
-  // from the typed-set form by the same lookahead as ConstFactorRule.
-  struct FactorRule
-      : rule<ref<IntLitRule>                                            //
-             | ref<RealLitRule>                                         //
-             | ref<StringLitRule>                                       //
-             | ref<SetLitRule>                                          //
-             | ref<QualSetRule>                                         //
-             | ref<DesignatorCallRule>                                  //
-             | (lit<"("> + ref<ExpressionRule> + lit<")">)               //
+  // from the typed-set form by the following brace.
+  struct Factor
+      : rule<ref<IntLit>                                            //
+             | ref<RealLit>                                         //
+             | ref<StringLit>                                       //
+             | ref<SetLit>                                          //
+             | ref<QualSet>                                         //
+             | ref<DesignatorCall>                                  //
+             | (lit<"("> + ref<Expression> + lit<")">)               //
              | create<ast::UnaryExpr>(
                    assign<&ast::UnaryExpr::op>(kw<"NOT"> | lit<"~">) +
-                   assign<&ast::UnaryExpr::operand>(ref<FactorRule>))> {};
+                   assign<&ast::UnaryExpr::operand>(ref<Factor>))> {};
 
-  // The leading sign of a simpleConstExpr/simpleExpression binds the whole
-  // term; folded into one factor-level wrap, so `a + -b` also parses -- an
-  // over-acceptance the literal grammar refuses, priced nil.
-  struct SignedConstFactorRule
+  // PIM4 SimpleExpression puts one optional sign before the whole term;
+  // subsequent additive operands are unsigned terms, and relations do not
+  // chain. ConstExpression has the same syntax (constantness is semantic).
+  struct Term : infix<Factor, ast::BinaryExpr, left(MulOp)> {};
+  struct SignedTerm
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
-                 assign<&ast::UnaryExpr::operand>(ref<ConstFactorRule>))  //
-             | ref<ConstFactorRule>> {};
-  struct SignedFactorRule
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
-                 assign<&ast::UnaryExpr::operand>(ref<FactorRule>))  //
-             | ref<FactorRule>> {};
-
-  // Constant and runtime expressions each collapse relation/add/mul into
-  // one precedence table, so a relation may chain here (`a < b < c`);
-  // Modula-2 allows at most one -- the same low-price normalization as the
-  // sign above.
-  struct ConstExpressionRule
-      : infix<SignedConstFactorRule, &ast::BinaryExpr::left,
-              &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-              (left(MulOp) >> left(AddOp) >> left(RelOp))> {};
-  struct ExpressionRule
-      : infix<SignedFactorRule, &ast::BinaryExpr::left,
-              &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-              (left(MulOp) >> left(AddOp) >> left(RelOp))> {};
+                 assign<&ast::UnaryExpr::operand>(ref<Term>)) |
+             ref<Term>> {};
+  struct SimpleExpression
+      : rule<ref<SignedTerm> +
+             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
+                 assign<&ast::BinaryExpr::op>(AddOp) +
+                 assign<&ast::BinaryExpr::right>(ref<Term>)))> {};
+  struct Expression
+      : infix<SimpleExpression, ast::BinaryExpr, nonassoc(RelOp)> {};
+  struct ConstExpression : rule<ref<Expression>> {};
 
   // -- statements ----
 
-  struct AssignStmtRule
+  struct AssignStmt
       : rule<create<ast::AssignStmt>(
-            assign<&ast::AssignStmt::target>(ref<DesignatorRule>) +
+            assign<&ast::AssignStmt::target>(ref<Designator>) +
             lit<":="> +
-            assign<&ast::AssignStmt::value>(ref<ExpressionRule>))> {};
+            assign<&ast::AssignStmt::value>(ref<Expression>))> {};
 
-  struct CallStmtRule
+  struct CallStmt
       : rule<create<ast::CallStmt>(
-            assign<&ast::CallStmt::value>(ref<DesignatorCallRule>))> {};
+            assign<&ast::CallStmt::value>(ref<DesignatorCall>))> {};
 
-  struct IfElsifRule
+  struct IfElsif
       : rule<create<ast::ElsifClause>(
             kw<"ELSIF"> +
-            assign<&ast::ElsifClause::cond>(ref<ExpressionRule>) +
+            assign<&ast::ElsifClause::cond>(ref<Expression>) +
             kw<"THEN"> +
-            some(append<&ast::ElsifClause::body>(ref<StatementRule>),
+            some(append<&ast::ElsifClause::body>(ref<Statement>),
                  lit<";">))> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<create<ast::IfStmt>(
-            kw<"IF"> + assign<&ast::IfStmt::cond>(ref<ExpressionRule>) +
+            kw<"IF"> + assign<&ast::IfStmt::cond>(ref<Expression>) +
             kw<"THEN"> +
-            some(append<&ast::IfStmt::thenBranch>(ref<StatementRule>),
+            some(append<&ast::IfStmt::thenBranch>(ref<Statement>),
                  lit<";">) +
-            many(append<&ast::IfStmt::elsifs>(ref<IfElsifRule>)) +
+            many(append<&ast::IfStmt::elsifs>(ref<IfElsif>)) +
             option(kw<"ELSE"> +
-                   some(append<&ast::IfStmt::elseBranch>(ref<StatementRule>),
+                   some(append<&ast::IfStmt::elseBranch>(ref<Statement>),
                         lit<";">)) +
             kw<"END">)> {};
 
-  struct CaseLabelRangeRule
+  struct CaseLabelRange
       : rule<create<ast::CaseLabelRange>(
-            assign<&ast::CaseLabelRange::low>(ref<ConstExpressionRule>) +
+            assign<&ast::CaseLabelRange::low>(ref<ConstExpression>) +
             option(lit<".."> + assign<&ast::CaseLabelRange::high>(
-                                    ref<ConstExpressionRule>)))> {};
+                                    ref<ConstExpression>)))> {};
 
-  struct CCaseRule
+  struct CCase
       : rule<create<ast::CCase>(
-            some(append<&ast::CCase::labels>(ref<CaseLabelRangeRule>),
-                 lit<",">) +
-            lit<":"> +
-            some(append<&ast::CCase::body>(ref<StatementRule>), lit<";">))> {};
+            option(some(append<&ast::CCase::labels>(ref<CaseLabelRange>),
+                        lit<",">) + lit<":"> +
+                   some(append<&ast::CCase::body>(ref<Statement>), lit<";">)))> {};
 
-  struct CaseStmtRule
+  struct CaseStmt
       : rule<create<ast::CaseStmt>(
-            kw<"CASE"> + assign<&ast::CaseStmt::value>(ref<ExpressionRule>) +
+            kw<"CASE"> + assign<&ast::CaseStmt::value>(ref<Expression>) +
             kw<"OF"> +
-            some(append<&ast::CaseStmt::arms>(ref<CCaseRule>), lit<"|">) +
+            some(append<&ast::CaseStmt::arms>(ref<CCase>), lit<"|">) +
             option(kw<"ELSE"> +
-                   some(append<&ast::CaseStmt::elseBranch>(ref<StatementRule>),
+                   some(append<&ast::CaseStmt::elseBranch>(ref<Statement>),
                         lit<";">)) +
             kw<"END">)> {};
 
-  struct WhileStmtRule
+  struct WhileStmt
       : rule<create<ast::WhileStmt>(
             kw<"WHILE"> +
-            assign<&ast::WhileStmt::cond>(ref<ExpressionRule>) + kw<"DO"> +
-            some(append<&ast::WhileStmt::body>(ref<StatementRule>),
+            assign<&ast::WhileStmt::cond>(ref<Expression>) + kw<"DO"> +
+            some(append<&ast::WhileStmt::body>(ref<Statement>),
                  lit<";">) +
             kw<"END">)> {};
 
-  struct RepeatStmtRule
+  struct RepeatStmt
       : rule<create<ast::RepeatStmt>(
             kw<"REPEAT"> +
-            some(append<&ast::RepeatStmt::body>(ref<StatementRule>),
+            some(append<&ast::RepeatStmt::body>(ref<Statement>),
                  lit<";">) +
             kw<"UNTIL"> +
-            assign<&ast::RepeatStmt::cond>(ref<ExpressionRule>))> {};
+            assign<&ast::RepeatStmt::cond>(ref<Expression>))> {};
 
-  struct LoopStmtRule
+  struct LoopStmt
       : rule<create<ast::LoopStmt>(
             kw<"LOOP"> +
-            some(append<&ast::LoopStmt::body>(ref<StatementRule>), lit<";">) +
+            some(append<&ast::LoopStmt::body>(ref<Statement>), lit<";">) +
             kw<"END">)> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<create<ast::ForStmt>(
             kw<"FOR"> + assign<&ast::ForStmt::variable>(ref<IDENT>) +
-            lit<":="> + assign<&ast::ForStmt::from>(ref<ExpressionRule>) +
-            kw<"TO"> + assign<&ast::ForStmt::to>(ref<ExpressionRule>) +
+            lit<":="> + assign<&ast::ForStmt::from>(ref<Expression>) +
+            kw<"TO"> + assign<&ast::ForStmt::to>(ref<Expression>) +
             option(kw<"BY"> +
-                   assign<&ast::ForStmt::by>(ref<ConstExpressionRule>)) +
+                   assign<&ast::ForStmt::by>(ref<ConstExpression>)) +
             kw<"DO"> +
-            some(append<&ast::ForStmt::body>(ref<StatementRule>), lit<";">) +
+            some(append<&ast::ForStmt::body>(ref<Statement>), lit<";">) +
             kw<"END">)> {};
 
-  struct WithStmtRule
+  struct WithStmt
       : rule<create<ast::WithStmt>(
-            kw<"WITH"> + assign<&ast::WithStmt::target>(ref<DesignatorRule>) +
+            kw<"WITH"> + assign<&ast::WithStmt::target>(ref<Designator>) +
             kw<"DO"> +
-            some(append<&ast::WithStmt::body>(ref<StatementRule>), lit<";">) +
+            some(append<&ast::WithStmt::body>(ref<Statement>), lit<";">) +
             kw<"END">)> {};
 
-  struct ExitStmtRule : rule<create<ast::ExitStmt> + kw<"EXIT">> {};
+  struct ExitStmt : rule<create<ast::ExitStmt> + kw<"EXIT">> {};
 
-  struct ReturnStmtRule
+  struct ReturnStmt
       : rule<create<ast::ReturnStmt>(
             kw<"RETURN"> +
-            option(assign<&ast::ReturnStmt::value>(ref<ExpressionRule>)))> {
+            option(assign<&ast::ReturnStmt::value>(ref<Expression>)))> {
   };
 
-  struct StatementRule
-      : rule<ref<AssignStmtRule>   //
-             | ref<CallStmtRule>   //
-             | ref<IfStmtRule>     //
-             | ref<CaseStmtRule>   //
-             | ref<WhileStmtRule>  //
-             | ref<RepeatStmtRule>  //
-             | ref<LoopStmtRule>    //
-             | ref<ForStmtRule>     //
-             | ref<WithStmtRule>    //
-             | ref<ExitStmtRule>    //
-             | ref<ReturnStmtRule>  //
+  struct Statement
+      : rule<ref<AssignStmt>   //
+             | ref<CallStmt>   //
+             | ref<IfStmt>     //
+             | ref<CaseStmt>   //
+             | ref<WhileStmt>  //
+             | ref<RepeatStmt>  //
+             | ref<LoopStmt>    //
+             | ref<ForStmt>     //
+             | ref<WithStmt>    //
+             | ref<ExitStmt>    //
+             | ref<ReturnStmt>  //
              | create<ast::EmptyStmt>> {};
 
   // -- types ----
 
-  struct NamedTypeRule
-      : rule<assign<&ast::NamedType::name>(ref<QualidentRule>)> {};
+  struct NamedType
+      : rule<assign<&ast::NamedType::name>(ref<Qualident>)> {};
 
-  struct EnumTypeRule
+  struct EnumType
       : rule<create<ast::EnumType>(
             lit<"("> +
             some(append<&ast::EnumType::values>(ref<IDENT>), lit<",">) +
             lit<")">)> {};
 
-  struct SubrangeTypeRule
+  struct SubrangeType
       : rule<create<ast::SubrangeType>(
+            option(assign<&ast::SubrangeType::base>(ref<IDENT>)) +
             lit<"["> + assign<&ast::SubrangeType::low>(
-                           ref<ConstExpressionRule>) +
+                           ref<ConstExpression>) +
             lit<".."> +
-            assign<&ast::SubrangeType::high>(ref<ConstExpressionRule>) +
+            assign<&ast::SubrangeType::high>(ref<ConstExpression>) +
             lit<"]">)> {};
 
-  struct SimpleTypeRule
-      : rule<ref<NamedTypeRule> | ref<EnumTypeRule> |
-             ref<SubrangeTypeRule>> {};
+  struct SimpleType
+      : rule<ref<NamedType> | ref<EnumType> |
+             ref<SubrangeType>> {};
 
-  struct ArrayTypeRule
+  struct ArrayType
       : rule<create<ast::ArrayType>(
             kw<"ARRAY"> +
-            some(append<&ast::ArrayType::indexTypes>(ref<SimpleTypeRule>),
+            some(append<&ast::ArrayType::indexTypes>(ref<SimpleType>),
                  lit<",">) +
             kw<"OF"> +
-            assign<&ast::ArrayType::component>(ref<TypeRule>))> {};
+            assign<&ast::ArrayType::component>(ref<Type>))> {};
 
-  struct FieldGroupRule
+  struct FieldGroup
       : rule<create<ast::RecordField>(
             some(append<&ast::RecordField::names>(ref<IDENT>),
                  lit<",">) +
-            lit<":"> + assign<&ast::RecordField::type>(ref<TypeRule>))> {};
+            lit<":"> + assign<&ast::RecordField::type>(ref<Type>))> {};
 
-  struct VariantRule
+  struct Variant
       : rule<create<ast::Variant>(
-            some(append<&ast::Variant::labels>(ref<CaseLabelRangeRule>),
-                 lit<",">) +
-            lit<":"> +
-            some(append<&ast::Variant::fields>(ref<FieldItemRule>),
-                 lit<";">))> {};
+            option(some(append<&ast::Variant::labels>(ref<CaseLabelRange>),
+                        lit<",">) + lit<":"> +
+                   some(append<&ast::Variant::fields>(ref<FieldItem>), lit<";">)))> {};
 
-  struct CaseFieldRule
+  struct CaseField
       : rule<create<ast::CaseField>(
-            kw<"CASE"> + assign<&ast::CaseField::tag>(ref<IDENT>) +
-            option((lit<":"> | lit<".">) +
-                   assign<&ast::CaseField::tagType>(ref<QualidentRule>)) +
+            kw<"CASE"> + option(assign<&ast::CaseField::tag>(ref<IDENT>)) +
+            lit<":"> + assign<&ast::CaseField::tagType>(ref<Qualident>) +
             kw<"OF"> +
-            append<&ast::CaseField::variants>(ref<VariantRule>) +
+            append<&ast::CaseField::variants>(ref<Variant>) +
             many(lit<"|"> +
-                 append<&ast::CaseField::variants>(ref<VariantRule>)) +
+                 append<&ast::CaseField::variants>(ref<Variant>)) +
             option(kw<"ELSE"> +
-                   some(append<&ast::CaseField::elseFields>(ref<FieldItemRule>),
+                   some(append<&ast::CaseField::elseFields>(ref<FieldItem>),
                         lit<";">)) +
             kw<"END">)> {};
 
-  struct FieldItemRule
-      : rule<ref<FieldGroupRule> | ref<CaseFieldRule> |
+  struct FieldItem
+      : rule<ref<FieldGroup> | ref<CaseField> |
              create<ast::EmptyField>> {};
 
-  struct RecordTypeRule
+  struct RecordType
       : rule<create<ast::RecordType>(
             kw<"RECORD"> +
-            some(append<&ast::RecordType::fields>(ref<FieldItemRule>),
+            some(append<&ast::RecordType::fields>(ref<FieldItem>),
                  lit<";">) +
             kw<"END">)> {};
 
-  struct SetTypeRule
+  struct SetType
       : rule<create<ast::SetType>(
             kw<"SET"> + kw<"OF"> +
-            assign<&ast::SetType::base>(ref<SimpleTypeRule>))> {};
+            assign<&ast::SetType::base>(ref<SimpleType>))> {};
 
-  struct PointerTypeRule
+  struct PointerType
       : rule<create<ast::PointerType>(
             kw<"POINTER"> + kw<"TO"> +
-            assign<&ast::PointerType::target>(ref<TypeRule>))> {};
+            assign<&ast::PointerType::target>(ref<Type>))> {};
 
-  // formalType: (ARRAY OF)? qualident -- a data rule, the whole spelling
-  // kept as one span since this port does not resolve types.
-  struct FormalTypeRule
-      : rule<option(kw<"ARRAY"> + kw<"OF">) + ref<QualidentRule>> {};
+  // Preserve the semantic distinction between open-array and plain types:
+  // the default data-rule concatenation would make both ARRAY OF T and
+  // ARRAYOFT spell ARRAYOFT.
+  struct FormalType
+      : rule<as<[](std::span<const std::string_view> parts,
+                    std::pmr::memory_resource* mem) {
+          const bool array = parts.size() >= 3 && parts[0] == "ARRAY" && parts[1] == "OF";
+          std::size_t size = array ? 9 : 0;
+          for (std::size_t i = array ? 2 : 0; i < parts.size(); ++i) size += parts[i].size();
+          const auto room = cursiv::text_room(mem, size);
+          std::size_t n = 0;
+          if (array) for (const char c : std::string_view("ARRAY OF ")) room[n++] = c;
+          for (std::size_t i = array ? 2 : 0; i < parts.size(); ++i)
+            for (const char c : parts[i]) room[n++] = c;
+          return std::string_view(room.data(), n);
+        }>(option(kw<"ARRAY"> + kw<"OF">) + ref<Qualident>)> {};
 
-  struct ProcTypeParamRule
+  struct ProcTypeParam
       : rule<create<ast::ProcTypeParam>(
             option(flag<&ast::ProcTypeParam::byRef>(kw<"VAR">)) +
-            assign<&ast::ProcTypeParam::type>(ref<FormalTypeRule>))> {};
+            assign<&ast::ProcTypeParam::type>(ref<FormalType>))> {};
 
-  struct FormalTypeListRule
+  struct FormalTypeList
       : rule<create<ast::FormalTypeList>(
             lit<"("> +
-            option(some(append<&ast::FormalTypeList::params>(
-                            ref<ProcTypeParamRule>),
-                        lit<",">)) +
+            many(append<&ast::FormalTypeList::params>(
+                            ref<ProcTypeParam>),
+                        lit<",">) +
             lit<")"> +
             option(lit<":"> + assign<&ast::FormalTypeList::resultType>(
-                                   ref<QualidentRule>)))> {};
+                                   ref<Qualident>)))> {};
 
-  struct ProcedureTypeRule
+  struct ProcedureType
       : rule<create<ast::ProcedureType> + kw<"PROCEDURE"> +
              option(assign<&ast::ProcedureType::signature>(
-                 ref<FormalTypeListRule>))> {};
+                 ref<FormalTypeList>))> {};
 
-  struct TypeRule
-      : rule<ref<SimpleTypeRule> | ref<ArrayTypeRule> | ref<RecordTypeRule> |
-             ref<SetTypeRule> | ref<PointerTypeRule> |
-             ref<ProcedureTypeRule>> {};
+  struct Type
+      : rule<ref<SimpleType> | ref<ArrayType> | ref<RecordType> |
+             ref<SetType> | ref<PointerType> |
+             ref<ProcedureType>> {};
 
   // -- declarations ----
 
-  struct ConstDeclRule
+  struct ConstDecl
       : rule<create<ast::ConstDecl>(
             assign<&ast::ConstDecl::name>(ref<IDENT>) + lit<"="> +
-            assign<&ast::ConstDecl::value>(ref<ConstExpressionRule>))> {};
+            assign<&ast::ConstDecl::value>(ref<ConstExpression>))> {};
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<create<ast::TypeDecl>(
             assign<&ast::TypeDecl::name>(ref<IDENT>) + lit<"="> +
-            assign<&ast::TypeDecl::type>(ref<TypeRule>))> {};
+            assign<&ast::TypeDecl::type>(ref<Type>))> {};
 
   // A definition module's TYPE entry may leave the type opaque.
-  struct DefTypeDeclRule
+  struct DefTypeDecl
       : rule<create<ast::TypeDecl>(
             assign<&ast::TypeDecl::name>(ref<IDENT>) +
-            option(lit<"="> + assign<&ast::TypeDecl::type>(ref<TypeRule>)))> {
+            option(lit<"="> + assign<&ast::TypeDecl::type>(ref<Type>)))> {
   };
 
-  struct VarDeclRule
+  struct VarDecl
       : rule<create<ast::VarDecl>(
             some(append<&ast::VarDecl::names>(ref<IDENT>), lit<",">) +
-            lit<":"> + assign<&ast::VarDecl::type>(ref<TypeRule>))> {};
+            lit<":"> + assign<&ast::VarDecl::type>(ref<Type>))> {};
 
-  struct FPSectionRule
+  struct FPSection
       : rule<create<ast::FormalParam>(
             option(flag<&ast::FormalParam::byRef>(kw<"VAR">)) +
             some(append<&ast::FormalParam::names>(ref<IDENT>),
                  lit<",">) +
             lit<":"> +
-            assign<&ast::FormalParam::type>(ref<FormalTypeRule>))> {};
+            assign<&ast::FormalParam::type>(ref<FormalType>))> {};
 
-  struct FormalParametersRule
+  struct FormalParameters
       : rule<create<ast::FormalParams>(
             lit<"("> +
-            option(some(append<&ast::FormalParams::params>(
-                            ref<FPSectionRule>),
-                        lit<";">)) +
+            many(append<&ast::FormalParams::params>(
+                            ref<FPSection>),
+                        lit<";">) +
             lit<")"> +
             option(lit<":"> + assign<&ast::FormalParams::resultType>(
-                                   ref<QualidentRule>)))> {};
+                                   ref<Qualident>)))> {};
 
-  struct ProcHeadingRule
+  struct ProcHeading
       : rule<create<ast::ProcHeading>(
             kw<"PROCEDURE"> + assign<&ast::ProcHeading::name>(ref<IDENT>) +
             option(assign<&ast::ProcHeading::params>(
-                ref<FormalParametersRule>)))> {};
+                ref<FormalParameters>)))> {};
 
-  struct ProcDeclRule
+  struct ProcDecl
       : rule<create<ast::ProcDecl>(
-            assign<&ast::ProcDecl::heading>(ref<ProcHeadingRule>) +
-            lit<";"> + assign<&ast::ProcDecl::block>(ref<BlockRule>) +
+            assign<&ast::ProcDecl::heading>(ref<ProcHeading>) +
+            lit<";"> + assign<&ast::ProcDecl::block>(ref<Block>) +
             assign<&ast::ProcDecl::endName>(ref<IDENT>))> {};
 
-  struct ImportRule
+  struct Import
       : rule<create<ast::Import>(
             option(kw<"FROM"> + assign<&ast::Import::from>(ref<IDENT>)) +
             kw<"IMPORT"> +
@@ -508,47 +510,47 @@ struct Modula2pim4 : cursiv::GrammarSpec {
   // block: declaration* (BEGIN statementSequence)? END -- each declaration
   // is a whole CONST/TYPE/VAR section, a procedure or a nested module, and
   // the sections may repeat and interleave in any order.
-  struct BlockRule
+  struct Block
       : rule<create<ast::Block>(
             many((kw<"CONST"> +
-                  many(append<&ast::Block::decls>(ref<ConstDeclRule>) +
+                  many(append<&ast::Block::decls>(ref<ConstDecl>) +
                        lit<";">))  //
                  | (kw<"TYPE"> +
-                    many(append<&ast::Block::decls>(ref<TypeDeclRule>) +
+                    many(append<&ast::Block::decls>(ref<TypeDecl>) +
                          lit<";">))  //
                  | (kw<"VAR"> +
-                    many(append<&ast::Block::decls>(ref<VarDeclRule>) +
+                    many(append<&ast::Block::decls>(ref<VarDecl>) +
                          lit<";">))  //
-                 | (append<&ast::Block::decls>(ref<ProcDeclRule>) +
+                 | (append<&ast::Block::decls>(ref<ProcDecl>) +
                     lit<";">)  //
-                 | (append<&ast::Block::decls>(ref<ModuleDeclRule>) +
+                 | (append<&ast::Block::decls>(ref<ModuleDecl>) +
                     lit<";">)) +
             option(kw<"BEGIN"> +
-                   some(append<&ast::Block::body>(ref<StatementRule>),
+                   some(append<&ast::Block::body>(ref<Statement>),
                         lit<";">)) +
             kw<"END">)> {};
 
-  struct ModuleDeclRule
+  struct ModuleDecl
       : rule<create<ast::ModuleDecl>(
             kw<"MODULE"> + assign<&ast::ModuleDecl::name>(ref<IDENT>) +
             option(lit<"["> +
                    assign<&ast::ModuleDecl::priority>(
-                       ref<ConstExpressionRule>) +
+                       ref<ConstExpression>) +
                    lit<"]">) +
             lit<";"> +
-            many(append<&ast::ModuleDecl::imports>(ref<ImportRule>)) +
+            many(append<&ast::ModuleDecl::imports>(ref<Import>)) +
             option(kw<"EXPORT"> +
                    option(flag<&ast::ModuleDecl::exportQualified>(
                        kw<"QUALIFIED">)) +
                    some(append<&ast::ModuleDecl::exports>(ref<IDENT>),
                         lit<",">) +
                    lit<";">) +
-            assign<&ast::ModuleDecl::block>(ref<BlockRule>) +
+            assign<&ast::ModuleDecl::block>(ref<Block>) +
             assign<&ast::ModuleDecl::endName>(ref<IDENT>))> {};
 
   // The optional IMPLEMENTATION prefix folds into this rule, so a
   // compilation unit itself is a plain two-way choice.
-  struct ProgramModuleRule
+  struct ProgramModule
       : rule<create<ast::ProgramModule>(
             option(flag<&ast::ProgramModule::isImplementation>(
                 kw<"IMPLEMENTATION">)) +
@@ -556,20 +558,20 @@ struct Modula2pim4 : cursiv::GrammarSpec {
             assign<&ast::ProgramModule::name>(ref<IDENT>) +
             option(lit<"["> +
                    assign<&ast::ProgramModule::priority>(
-                       ref<ConstExpressionRule>) +
+                       ref<ConstExpression>) +
                    lit<"]">) +
             lit<";"> +
-            many(append<&ast::ProgramModule::imports>(ref<ImportRule>)) +
-            assign<&ast::ProgramModule::block>(ref<BlockRule>) +
+            many(append<&ast::ProgramModule::imports>(ref<Import>)) +
+            assign<&ast::ProgramModule::block>(ref<Block>) +
             assign<&ast::ProgramModule::endName>(ref<IDENT>) +
             lit<".">)> {};
 
-  struct DefinitionModuleRule
+  struct DefinitionModule
       : rule<create<ast::DefinitionModule>(
             kw<"DEFINITION"> + kw<"MODULE"> +
             assign<&ast::DefinitionModule::name>(ref<IDENT>) +
             lit<";"> +
-            many(append<&ast::DefinitionModule::imports>(ref<ImportRule>)) +
+            many(append<&ast::DefinitionModule::imports>(ref<Import>)) +
             option(kw<"EXPORT"> +
                    option(flag<&ast::DefinitionModule::exportQualified>(
                        kw<"QUALIFIED">)) +
@@ -579,28 +581,28 @@ struct Modula2pim4 : cursiv::GrammarSpec {
                    lit<";">) +
             many((kw<"CONST"> +
                   many(append<&ast::DefinitionModule::decls>(
-                           ref<ConstDeclRule>) +
+                           ref<ConstDecl>) +
                        lit<";">))  //
                  | (kw<"TYPE"> +
                     many(append<&ast::DefinitionModule::decls>(
-                             ref<DefTypeDeclRule>) +
+                             ref<DefTypeDecl>) +
                          lit<";">))  //
                  | (kw<"VAR"> +
                     many(append<&ast::DefinitionModule::decls>(
-                             ref<VarDeclRule>) +
+                             ref<VarDecl>) +
                          lit<";">))  //
                  | (append<&ast::DefinitionModule::decls>(
-                        ref<ProcHeadingRule>) +
+                        ref<ProcHeading>) +
                     lit<";">)) +
             kw<"END"> +
             assign<&ast::DefinitionModule::endName>(ref<IDENT>) +
             lit<".">)> {};
 
-  struct CompilationUnitRule
-      : rule<ref<DefinitionModuleRule> | ref<ProgramModuleRule>> {};
+  struct CompilationUnit
+      : rule<ref<DefinitionModule> | ref<ProgramModule>> {};
 
-  using entry = CompilationUnitRule;
-  using ignore = WS;
+  using entry = CompilationUnit;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

@@ -145,7 +145,9 @@ int main() {
     };
     const auto as_assign_value =
         [&](const std::string& expr) -> const action::ast::Expr* {
-      const cursiv::ParseResult result = parse_proc("a = " + expr);
+      static std::vector<cursiv::ParseResult> results;
+      results.push_back(parse_proc("a = " + expr));
+      const auto& result = results.back();
       if (!result.accepted || result.cst().recovered() ||
           !result.diagnostics.empty())
         return nullptr;
@@ -162,6 +164,35 @@ int main() {
       const auto* const b = static_cast<const action::ast::BinaryExpr*>(e);
       return b->op == op ? b : nullptr;
     };
+
+    // ACTION! reference manual IV.3.2 and IV.4.1.2: apostrophe-prefixed
+    // character constants and arithmetic bitwise operators are native.
+    {
+      const auto* character = cursiv::ast_cast<action::ast::NumberLiteral>(
+          as_assign_value("'v"));
+      if (!character || character->text != "'v")
+        return fail("native character constant was lost");
+      for (const char* text : {"b & c", "b AND c"})
+        if (!is_binary(as_assign_value(text), action::ast::ArithOp::band))
+          return fail("native arithmetic bitwise AND was lost");
+      for (const char* text : {"b % c", "b OR c"})
+        if (!is_binary(as_assign_value(text), action::ast::ArithOp::bor))
+          return fail("native arithmetic bitwise OR was lost");
+      const auto* outer = is_binary(as_assign_value("b % c & d"),
+                                    action::ast::ArithOp::bor);
+      if (!outer || !is_binary(outer->right, action::ast::ArithOp::band))
+        return fail("native bitwise precedence was lost");
+      const auto quoted = parse_proc("PrintE(\"a \"\"quoted\"\" string\")");
+      if (!quoted.accepted || quoted.cst().recovered() ||
+          !quoted.diagnostics.empty())
+        return fail("native doubled quote did not parse");
+      const auto* call = cursiv::ast_cast<action::ast::RoutineCallStmt>(
+          first_stmt(quoted));
+      const auto* value = call && call->args.size() == 1
+          ? cursiv::ast_cast<action::ast::StrLiteral>(call->args[0]) : nullptr;
+      if (!value || value->text != "a \"quoted\" string")
+        return fail("native doubled quote decoded incorrectly");
+    }
 
     // `*` binds tighter than `+`: 2 + 3 * 4 is 2 + (3 * 4).
     {

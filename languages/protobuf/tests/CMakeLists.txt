@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: a few shapes exercised directly, and the whole corpus.
 add_executable(protobuf_grammar_test grammar_test.cpp)
-target_link_libraries(protobuf_grammar_test PRIVATE protobufCore)
+target_link_libraries(protobuf_grammar_test PRIVATE protobufCore cursiv::test)
 target_compile_definitions(protobuf_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

@@ -2,17 +2,17 @@
 
 #include "cursiv/core/services/CoreServicesFor.hpp"
 #include "cursiv/core/services/SharedCoreServices.hpp"
+#include "xsmp/core/validation/XsmpValidator.hpp"
+#include <memory>
 
-// What this language owns beyond what every language owns, and the module that
-// fills its container. The pair of types is empty: it exists so the container
-// is built from the language's own shared type, and a service added later
-// lands in a container that already has a home.
+// The language adds its local validator to the default shared/core services.
 
 namespace xsmp {
 
 struct XsmpSharedCoreServices : virtual cursiv::SharedCoreServices {};
 
 struct XsmpCoreServices : cursiv::CoreServicesFor<XsmpSharedCoreServices> {
+  std::unique_ptr<const XsmpValidator> validator;
   explicit XsmpCoreServices(XsmpSharedCoreServices& sharedServices)
       : cursiv::CoreServices(sharedServices), CoreServicesFor(sharedServices) {}
 };

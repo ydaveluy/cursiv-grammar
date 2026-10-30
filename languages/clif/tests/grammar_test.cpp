@@ -41,6 +41,49 @@ std::string_view name_of(const ast::Term* term) {
   return name != nullptr ? name->value : std::string_view{};
 }
 
+int native_forms(const cursiv::Parser& parser) {
+  const std::string source = R"clif(
+(cl:text "urn:native"
+  (cl:module "urn:module" (cl:excludes 'x')
+    (P (roleset: (r a) (s b)))
+    (Q (roleset:)))
+  (cl:comment 'group' (R 'a\'b' "n\"m" '\u00e9') (S))
+  (T (cl:comment 'term' f)))
+)clif";
+  const auto result = parser.parse(source);
+  if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+    return fail("ISO 2007 spellings, escaping or multi-phrase comment was refused");
+  bool roles = false, empty_roles = false, grouped = false, term = false,
+       string = false, name = false, unicode = false;
+  for (const auto* node : result.nodes) {
+    if (const auto* r = cursiv::ast_cast<ast::RolesetAtom>(node)) {
+      roles |= r->roles.size() == 2 && name_of(r->roles[0]->role) == "r" &&
+               name_of(r->roles[0]->filler) == "a" &&
+               name_of(r->roles[1]->role) == "s" &&
+               name_of(r->roles[1]->filler) == "b";
+      empty_roles |= r->roles.empty();
+    }
+    if (const auto* c = cursiv::ast_cast<ast::CommentedPhrase>(node))
+      grouped |= c->comment == "group" && c->items.size() == 2;
+    if (const auto* c = cursiv::ast_cast<ast::CommentedTerm>(node))
+      term |= c->comment == "term" && name_of(c->body) == "f";
+    if (const auto* s = cursiv::ast_cast<ast::StringTerm>(node)) {
+      string |= s->value == "a'b";
+      unicode |= s->value == "é";
+    }
+    if (const auto* n = cursiv::ast_cast<ast::NameTerm>(node))
+      name |= n->value == "n\"m";
+  }
+  if (!roles || !empty_roles || !grouped || !term || !string || !name || !unicode)
+    return fail("ISO 2007 role set, comment or escaped text lost its payload");
+  for (const char* invalid : {"(P and)", "(P cl:module)", "(= a =)", "(P 'bad\\q')"}) {
+    const auto bad = parser.parse(invalid);
+    if (bad.accepted && !bad.cst().recovered() && bad.diagnostics.empty())
+      return fail("reserved name or unsupported string escape was accepted");
+  }
+  return 0;
+}
+
 }  // namespace
 
 int main() {
@@ -48,6 +91,7 @@ int main() {
       clif::ClifCoreServices, clif::ClifSharedCoreServices,
       clif::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
+  if (native_forms(parser)) return 1;
 
   // module.clif: colore's own sample, wrapped in one named text.
   {

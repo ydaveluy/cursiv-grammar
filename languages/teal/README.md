@@ -31,8 +31,10 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A partial Teal 0.24.8 syntax parser with typed Lua statements and named type declarations. It builds syntax trees without Teal type checking.
+
 ```lua
-local Point = record
+local record Point
    x: number
    y: number
 end
@@ -45,10 +47,6 @@ end
 
 local origin: Point = { x = 0, y = 0 }
 ```
-
-Teal is Lua's syntax with a type annotation layer over it: a `record`
-declares a named type, `NAME: typ` annotates a local, parameter or field, and
-ordinary Lua statements and expressions carry on unchanged underneath.
 
 ## The command line
 

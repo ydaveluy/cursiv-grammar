@@ -57,6 +57,33 @@ int main() {
       dot::DotSharedCoreServices,
       dot::install_core_module>();
   {
+    const std::string source = R"DOT(digraph {
+      a [label=<<B>x</B>>];
+      b [label="<B>x</B>"];
+      c [label=<one> + <two>];
+      label=<<I>title</I>>;
+    })DOT";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("native HTML attribute fixture does not parse clean");
+    bool html = false, ordinary = false, concatenated = false, assignment = false;
+    for (const auto* node : result.nodes) {
+      if (const auto* attr = cursiv::ast_cast<dot::ast::AttrPair>(node)) {
+        if (attr->value && *attr->value == "<B>x</B>") {
+          html |= attr->valueIsHtml;
+          ordinary |= !attr->valueIsHtml;
+        }
+        concatenated |= attr->value && *attr->value == "onetwo" &&
+                        !attr->valueIsHtml;
+      }
+      if (const auto* assign = cursiv::ast_cast<dot::ast::AssignStmt>(node))
+        assignment |= assign->name == "label" && assign->value == "<I>title</I>" &&
+                      assign->valueIsHtml;
+    }
+    if (!html || !ordinary || !concatenated || !assignment)
+      return fail("native HTML/text attribute distinction was lost");
+  }
+  {
     const auto result = language.language.parser->parse(
         R"DOT(digraph "a" + /* " */ "b" { é [label="x\"" + "y"]; })DOT");
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) return 1;

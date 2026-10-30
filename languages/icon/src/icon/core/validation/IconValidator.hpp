@@ -1,5 +1,4 @@
-// The checks of this language: what the grammar accepts but the language
-// does not. None yet: nothing here needs a check beyond parsing.
+// Native declaration constraints left outside the shared syntax rules.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,9 @@ namespace icon {
 class IconValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkProcedure(const ast::Procedure&, cursiv::ValidationAcceptor&) const;
+  void checkInvocable(const ast::InvocableItem&, cursiv::ValidationAcceptor&) const;
+  void checkSuspend(const ast::SuspendExpr&, cursiv::ValidationAcceptor&) const;
 };
 
 struct IconCoreServices;

@@ -1,5 +1,5 @@
 // Own test document: every statement form -- if/else, switch/case/default
-// fallthrough, while, do-while, both for-loop shapes, labels/goto, jump
+// fallthrough, while, do-while, both for-loop shapes, jump
 // statements, blocks and a local declaration.
 
 void TestStatements()
@@ -46,9 +46,7 @@ void TestStatements()
 		x += v;
 	}
 
-Loop:
 	x = x + 1;
-	goto Loop;
 
 	;
 

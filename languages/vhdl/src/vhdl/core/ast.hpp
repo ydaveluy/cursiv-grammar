@@ -392,6 +392,7 @@ struct SubprogramDecl : cursiv::Extends<Item> {
 
 struct SubprogramBody : cursiv::Extends<Item> {
   SubprogramSpec* spec;
+  string_view endKind;  // explicit closing procedure/function, or empty
   vector<Item*> decls;
   vector<SeqStmt*> statements;
 };
@@ -487,6 +488,7 @@ struct BlockStmt : cursiv::Extends<ConcStmt> {
 struct ProcessStmt : cursiv::Extends<ConcStmt> {
   string_view label;
   boolean postponed;
+  boolean endPostponed;
   vector<Expr*> sensitivity;
   boolean allSensitivity;
   vector<Item*> decls;
@@ -628,6 +630,7 @@ struct CaseAlt : cursiv::Extends<Item> {
 struct CaseStmt : cursiv::Extends<SeqStmt> {
   string_view label;
   boolean questioned;
+  boolean endQuestioned;
   Expr* selector;
   vector<CaseAlt*> alternatives;
 };

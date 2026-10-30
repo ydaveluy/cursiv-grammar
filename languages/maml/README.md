@@ -31,8 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-MAML — Minimal Abstract Markup Language — is JSON with comments, unquoted
-keys, optional commas and multiline strings:
+MAML is a JSON-like notation with comments, unquoted keys, optional commas and multiline strings.
 
 ```
 # A basic MAML document
@@ -49,12 +48,6 @@ keys, optional commas and multiline strings:
   nothing: null
 }
 ```
-
-A member is separated from the next by a comma or a newline, never both on
-the same line. A key may be bare (`project`), quoted, digit-only or one of
-`true`/`false`/`null` spelled as a key. A string may be `"quoted, with
-\n escapes"` or a triple-quoted raw string (`"""...."""`) that keeps its
-content literally.
 
 ## The command line
 

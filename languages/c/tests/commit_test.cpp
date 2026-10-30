@@ -65,7 +65,7 @@ int main() {
     cursiv::Cst cst;
     cursiv::LrParseStats stats;
     CHECK(cursiv::lr_parser<c::generated::C::kTable>.parse(
-        doc, cst, &stats, c::generated::C::kDrivePtr));
+        doc, cst, &stats, &c::generated::C::kDrive));
     std::printf("  %4u deep, %6zu bytes, %u splits\n", n, doc.size(),
                 stats.splits);
     CHECK(cst.accepted() && cst.diagnostics().empty());

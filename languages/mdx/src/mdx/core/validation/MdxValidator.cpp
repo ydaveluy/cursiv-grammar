@@ -1,6 +1,9 @@
 #include "mdx/core/validation/MdxValidator.hpp"
 
 #include <memory>
+#include <charconv>
+#include <array>
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -16,15 +19,37 @@ namespace mdx {
 // provider actually keys on.
 void MdxValidator::checkDuplicateAxisNames(
     const ast::SelectStatement& select, cursiv::ValidationAcceptor& accept) const {
-  std::unordered_map<std::string_view, std::vector<const ast::AxisSpec*>> byName;
-  for (const ast::AxisSpec* const axis : select.axes)
-    if (axis != nullptr) byName[axis->axisName].push_back(axis);
-
-  for (const auto& [name, axes] : byName) {
-    if (axes.size() <= 1) continue;
-    const std::string message = "Duplicate axis: " + std::string(name);
-    for (const ast::AxisSpec* const axis : axes)
-      accept.error(*axis, message).property<&ast::AxisSpec::axisName>();
+  std::array<const ast::AxisSpec*, 128> byIndex{};
+  unsigned largest = 0;
+  bool any = false;
+  for (const auto* axis : select.axes) {
+    std::string name(axis->axisName);
+    for (auto& c : name) if (c >= 'a' && c <= 'z') c -= 'a' - 'A';
+    unsigned index = 128;
+    if (!axis->axisFunction) {
+      static constexpr std::array aliases = {"COLUMNS", "ROWS", "PAGES", "SECTIONS", "CHAPTERS"};
+      for (unsigned i = 0; i < aliases.size(); ++i) if (name == aliases[i]) index = i;
+    }
+    if (index == 128) {
+      const auto r = std::from_chars(name.data(), name.data() + name.size(), index);
+      if (r.ec != std::errc{} || r.ptr != name.data() + name.size()) index = 128;
+    }
+    if (index >= byIndex.size()) {
+      accept.error(*axis, "Invalid axis: expected an axis alias or integer0..127.", "mdx.axis")
+          .property<&ast::AxisSpec::axisName>();
+      continue;
+    }
+    if (byIndex[index]) {
+      accept.error(*axis, "Duplicate axis position.", "mdx.duplicate-axis").property<&ast::AxisSpec::axisName>();
+      accept.error(*byIndex[index], "Duplicate axis position.", "mdx.duplicate-axis").property<&ast::AxisSpec::axisName>();
+    }
+    byIndex[index] = axis;
+    largest = std::max(largest, index);
+    any = true;
+  }
+  if (any) for (unsigned i = 0; i < largest; ++i) if (!byIndex[i]) {
+    accept.error(select, "Query axes cannot skip a lower-numbered axis.", "mdx.axis-gap");
+    break;
   }
 }
 

@@ -2,6 +2,7 @@
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "modern_cases.hpp"
+#include "native_followup_cases.hpp"
 #include "yara/core/CoreServices.hpp"
 #include "yara/core/ast.hpp"
 #include <cstdio>
@@ -35,6 +36,8 @@ int main() {
   auto language = cursiv::create_language<yara::YaraCoreServices,
                                           yara::YaraSharedCoreServices,
                                           yara::install_core_module>();
+  if (!yara_followup::run(language))
+    return 1;
   if (!yara_audit::modern_cases(language))
     return 1;
   auto source = read(CURSIV_SAMPLE);

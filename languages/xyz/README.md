@@ -31,23 +31,13 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[XYZ](https://en.wikipedia.org/wiki/XYZ_file_format) is a molecular
-coordinate format: an atom count, a free-text title line, then one line per
-atom.
+Standard XYZ geometry blocks: an atom count, comment line and element/coordinate rows.
 
 ```
-5
-methane
-C    0.000000    0.000000    0.000000
-H   +0.629118    0.629118    0.629118
-H   -0.629118   -0.629118    0.629118
-H   -0.629118    0.629118   -0.629118
-H    0.629118   -0.629118   -0.629118
+1
+one atom
+H 1_000.5 .5_0 1e1_0
 ```
-
-The title line carries free text (`benzene example`, `glucose from 2gbp` in
-`example/`). The count is not enforced against the number of atom lines by
-the grammar — `XyzValidator` warns when they disagree.
 
 ## The command line
 

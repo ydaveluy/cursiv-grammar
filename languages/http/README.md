@@ -38,9 +38,9 @@ Connection: close
 Content-Length: 4
 ```
 
-An HTTP/1.1 request: a request line (method, target, version) followed by
-zero or more header fields, each `name: value` — no message body, and no
-status line, matching the subset the reference grammar covers.
+A message keeps either a request line (method, target, version) or a response
+status line, ordered header fields, the optional empty-line terminator and an
+opaque body. Empty values and legacy folded header spelling are preserved.
 
 ## The command line
 

@@ -41,6 +41,103 @@ int main() {
       angelscript::AngelscriptSharedCoreServices,
       angelscript::install_core_module>();
 
+  // AngelCode's BNF: attributes are zero-or-more; index arguments use
+  // the same optional name prefix at every position; empty scripts are legal.
+  for (const char* text : {"", "namespace Empty {}", "namespace A::B {}",
+                           "import void plain() from 'mod';",
+                           "class C { int value { get; set {} } }",
+                           "void f() { a[0, 1, named: 2]; }",
+                           "uint a=0xAF; uint b=0B101; uint c=0o77;"}) {
+    const auto result = language.language.parser->parse(text);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("native empty declaration, attribute, index or bits form rejected");
+  }
+  {
+    const auto result = language.language.parser->parse(
+        "class C { void f() override final; int p { get final property; } } "
+        "import void f() explicit property from 'mod';");
+    unsigned sequences = 0;
+    for (const auto* node : result.nodes) {
+      if (const auto* f = cursiv::ast_cast<ast::FuncDecl>(node)) {
+        if (f->attr.size() != 2 || f->attr[0] != "override" || f->attr[1] != "final")
+          return fail("function attributes lost order or multiplicity");
+        ++sequences;
+      }
+      if (const auto* a = cursiv::ast_cast<ast::AccessorDecl>(node)) {
+        if (a->attr.size() != 2 || a->attr[0] != "final" || a->attr[1] != "property")
+          return fail("accessor attributes lost order or multiplicity");
+        ++sequences;
+      }
+      if (const auto* i = cursiv::ast_cast<ast::ImportDecl>(node)) {
+        if (i->attr.size() != 2 || i->attr[0] != "explicit" || i->attr[1] != "property")
+          return fail("import attributes lost order or multiplicity");
+        ++sequences;
+      }
+    }
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || sequences != 3)
+      return fail("native function attribute sequence rejected");
+  }
+  for (const char* text : {"uint a=0xG;", "uint a=0b2;", "uint a=0o8;", "uint a=0dA;"}) {
+    const auto result = language.language.parser->parse(text);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("invalid radix digits accepted");
+  }
+
+  // Native strings share their lexical form in expressions and imports.
+  // Keep the raw spelling, including escapes and heredoc contents, in the AST.
+  for (const char* literal : {R"("a\"b\\c")", R"('a\'b')",
+                              R"("\0\n\r\t\xA\x00FF\u00E9\U0001F600")",
+                              "\"\"\"\nfirst \"quoted\" line\nsecond\n\"\"\"",
+                              "\"first\" /* join */ 'second'"}) {
+    const std::string text = std::string("string value = ") + literal + ";";
+    const auto result = language.language.parser->parse(text);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("native escaped, heredoc or adjacent string does not parse");
+    unsigned count = 0;
+    for (const auto* node : result.nodes)
+      if (const auto* value = cursiv::ast_cast<ast::LiteralExpr>(node)) {
+        ++count;
+        if (std::string_view(literal).find("/*") == std::string_view::npos &&
+            value->text != literal)
+          return fail("native string literal lost its raw spelling");
+        if (std::string_view(literal).find("/*") != std::string_view::npos &&
+            value->text != "\"first\"'second'")
+          return fail("adjacent strings did not form one literal");
+      }
+    if (count != 1) return fail("a native string did not form one literal node");
+  }
+  for (const char* literal : {R"("\q")", R"("\u123")", "\"line\nline\""}) {
+    const std::string text = std::string("string value = ") + literal + ";";
+    const auto result = language.language.parser->parse(text);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("invalid default string syntax accepted without diagnostics");
+  }
+  {
+    const auto result = language.language.parser->parse("int value = 8 >> 1 >> 1 < 5;");
+    const ast::BinExpr* comparison = nullptr;
+    for (const auto* node : result.nodes)
+      if (const auto* binary = cursiv::ast_cast<ast::BinExpr>(node);
+          binary && binary->op == "<") comparison = binary;
+    const auto* shift = comparison
+        ? cursiv::ast_cast<ast::BinExpr>(comparison->left) : nullptr;
+    const auto* left = shift ? cursiv::ast_cast<ast::BinExpr>(shift->left) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !shift || shift->op != ">>" || !left || left->op != ">>")
+      return fail("shift associativity or precedence changed");
+  }
+  for (const char* op : {">>", ">>>", "<<"}) {
+    const std::string text = std::string("int value = 8 ") + op + " 1;";
+    const auto result = language.language.parser->parse(text);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("adjacent shift operator was rejected");
+  }
+  for (const char* op : {"> >", ">/* gap */>", ">> >", "< <"}) {
+    const std::string text = std::string("int value = 8 ") + op + " 1;";
+    const auto result = language.language.parser->parse(text);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("separated angle brackets were accepted as a shift");
+  }
+
   for (const char* const path : kCleanExamples) {
     const std::string text = read(path);
     if (text.empty()) return fail(path);

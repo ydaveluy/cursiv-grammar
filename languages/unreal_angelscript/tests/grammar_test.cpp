@@ -1,4 +1,5 @@
 #include "audit_regressions.hpp"
+#include "native_followup_cases.hpp"
 #include <cstdio>
 #include <fstream>
 #include <iterator>
@@ -43,6 +44,8 @@ int main() {
       unrealangelscript::UnrealAngelscriptCoreServices,
       unrealangelscript::UnrealAngelscriptSharedCoreServices,
       unrealangelscript::install_core_module>();
+
+  if (!unreal_followup::run(language)) return 1;
 
   for (const char* const path : kCleanExamples) {
     const std::string text = read(path);
@@ -97,23 +100,20 @@ int main() {
     if (classDef->bases.size() != 1 || classDef->bases[0]->name != "AActor")
       return fail("Example_Actor: base class");
 
-    // ExampleUPropertyBool = false; -- a PropertyDef with a UPROPERTY
-    // annotation and no decl-specifier-seq, reached through its bare
-    // assignmentExpression alternative.
+    // The declared bool retains its type, name, initializer and annotation.
     bool sawExampleBool = false;
     bool sawUFunctionCallable = false;
     for (const ast::Item* const member : classDef->members) {
       if (member->type != &cursiv::ast_type_tag<ast::PropertyDef>) continue;
       const auto& prop = *static_cast<const ast::PropertyDef*>(member);
-      if (prop.expr == nullptr) continue;
-      if (prop.expr->type != &cursiv::ast_type_tag<ast::AssignExpr>) continue;
-      const auto& assign = *static_cast<const ast::AssignExpr*>(prop.expr);
-      if (assign.target->type != &cursiv::ast_type_tag<ast::IdExpr>) continue;
-      const auto& name = *static_cast<const ast::IdExpr*>(assign.target);
-      if (name.name == "ExampleUPropertyBool") {
+      for (const auto* field : prop.declarators) {
+        if (field->name != "ExampleUPropertyBool") continue;
         sawExampleBool = true;
-        if (prop.uproperty == nullptr)
-          return fail("ExampleUPropertyBool: missing UPROPERTY");
+        const auto* init = cursiv::ast_cast<ast::ExprInit>(field->init);
+        const auto* seq = init ? cursiv::ast_cast<ast::LiteralSeq>(init->value) : nullptr;
+        const auto* val = seq && seq->items.size() == 1 ? cursiv::ast_cast<ast::BoolLit>(seq->items[0]) : nullptr;
+        if (!prop.uproperty || !prop.specifiers || prop.specifiers->parts.size() != 1 || !val || val->value)
+          return fail("ExampleUPropertyBool: type, annotation or false initializer lost");
       }
     }
     if (!sawExampleBool) return fail("Example_Actor: ExampleUPropertyBool not found");

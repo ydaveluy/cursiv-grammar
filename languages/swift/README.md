@@ -31,7 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-Swift 5.4 syntax. `example/` contains Playground-style examples for control
+Swift 5.4 core syntax with selected later features through Swift 6.2, including
+raw identifiers; this is not a complete Swift 6.2 implementation. `example/` contains Playground-style examples for control
 flow, enumerations and structures, error handling, functions and closures,
 generics, objects and classes, protocols and extensions, simple values, a
 string extension, and a `Package.swift` manifest.

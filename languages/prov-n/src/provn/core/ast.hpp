@@ -27,7 +27,7 @@ struct StringLiteral : cursiv::Extends<Literal> {
 };
 
 struct IntLiteral : cursiv::Extends<Literal> {
-  int64 value;
+  string_view value;  // exact unbounded integer spelling
 };
 
 // 'prefix:local' -- the convenience form of a qualified name as a value.

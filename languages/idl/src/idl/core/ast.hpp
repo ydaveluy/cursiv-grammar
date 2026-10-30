@@ -67,8 +67,7 @@ enum class BaseType : std::uint8_t {
   object_,
   value_base,
   void_,
-  fixed_, // bare `fixed` (const_type only; FLOATING_PT_LITERAL is the
-          // token that always wins the tie with the dead FIXED_PT_LITERAL)
+  fixed_, // bare fixed in const_type
 };
 
 struct BaseTypeRef : cursiv::Extends<TypeSpec> {
@@ -127,6 +126,9 @@ struct IntLit : cursiv::Extends<Expr> {
 struct FloatLit : cursiv::Extends<Expr> {
   string_view text;
 };
+struct FixedLit : cursiv::Extends<Expr> {
+  string_view text;
+};
 struct CharLit : cursiv::Extends<Expr> {
   string_view text;
 };
@@ -135,9 +137,11 @@ struct WCharLit : cursiv::Extends<Expr> {
 };
 struct StringLit : cursiv::Extends<Expr> {
   string_view text;
+  vector<string_view> continuations; // adjacent literals, with boundaries intact
 };
 struct WStringLit : cursiv::Extends<Expr> {
   string_view text;
+  vector<string_view> continuations;
 };
 struct BoolLit : cursiv::Extends<Expr> {
   boolean value;
@@ -202,7 +206,7 @@ struct BitsetDecl : cursiv::Extends<Decl> {
 
 struct BitmaskDecl : cursiv::Extends<Decl> {
   string_view name;
-  vector<string_view> values;
+  vector<EnumeratorDecl *> values; // each bit value owns its annotations
 };
 
 struct ExceptionDecl : cursiv::Extends<Decl> {

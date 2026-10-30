@@ -25,12 +25,15 @@ inline constexpr auto stringValue = [](std::string_view text,
         c = '\r';
       else if (c == 'n')
         c = '\n';
+      else if (c == '(')
+        c = '{';
+      else if (c == ')')
+        c = '}';
     }
     room[n++] = c;
   }
   return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<stringValue>;
 
 struct B : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
@@ -39,11 +42,11 @@ struct B : cursiv::GrammarSpec {
   struct ID : terminal<cr<"a-zA-Z_."> + many(cr<"a-zA-Z0-9_.">)> {};
   struct INT : terminal<some(d)> {};
   static constexpr auto escape = lit<"*"> + any;
-  struct STRING1
-      : terminal<lit<"\""> + many(escape | cr<R"(^"*\n)">) + lit<"\"">,
-                 Unquoted> {};
-  struct STRING2 : terminal<lit<"'"> + many(escape | cr<R"(^'*\n)">) + lit<"'">,
-                            Unquoted> {};
+  struct STRING1 : terminal<as<stringValue>(
+                       lit<"\""> + many(escape | cr<R"(^"*\n)">) + lit<"\"">)> {
+  };
+  struct STRING2 : terminal<as<stringValue>(
+                       lit<"'"> + many(escape | cr<R"(^'*\n)">) + lit<"'">)> {};
 
   // `*` joins the unary operators here (Users' Reference to B §4.2.1): a
   // prefix, right-to-left indirection, one tier looser than a primary
@@ -65,11 +68,11 @@ struct B : cursiv::GrammarSpec {
   struct Identifier : rule<assign<&ast::Ident::name>(ref<ID>)> {};
 
   struct IntegerLit : rule<assign<&ast::IntLit::value>(ref<INT>)> {};
-  struct StringLitRule : rule<assign<&ast::StringLit::text>(ref<STRING1>)> {};
-  struct CharLitRule : rule<assign<&ast::CharLit::text>(ref<STRING2>)> {};
+  struct StringLit : rule<assign<&ast::StringLit::text>(ref<STRING1>)> {};
+  struct CharLit : rule<assign<&ast::CharLit::text>(ref<STRING2>)> {};
 
   struct Constant
-      : rule<ref<IntegerLit> | ref<StringLitRule> | ref<CharLitRule>> {};
+      : rule<ref<IntegerLit> | ref<StringLit> | ref<CharLit>> {};
 
   struct Ival : rule<ref<Constant> | ref<Identifier>> {};
 
@@ -98,10 +101,9 @@ struct B : cursiv::GrammarSpec {
              ref<Postfix>> {};
 
   struct BinaryExpr
-      : infix<UnaryExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(MulOp) >> left(AddOp) >> left(ShiftOp) >> left(RelOp) >>
-               left(EqOp) >> left(AndOp) >> left(OrOp))> {};
+      : infix<UnaryExpr, ast::BinaryExpr,
+              levels(left(MulOp), left(AddOp), left(ShiftOp), left(RelOp),
+                     left(EqOp), left(AndOp), left(OrOp))> {};
 
   struct Ternary
       : rule<create<ast::CondExpr>(
@@ -114,9 +116,8 @@ struct B : cursiv::GrammarSpec {
                                      AddOp | ShiftOp | RelOp | EqOp | AndOp |
                                      OrOp;
   struct AssignOperator
-      : terminal<
-            lit<"="> + option(CompoundOp),
-            text_conv<[](std::string_view text) { return text.substr(1); }>> {};
+      : terminal<as<[](std::string_view text) { return text.substr(1); }>(
+            lit<"="> + option(CompoundOp))> {};
   struct Assignment
       : rule<(assign<&ast::AssignExpr::target>(ref<Ternary>) +
                  assign<&ast::AssignExpr::op>(ref<AssignOperator>) +
@@ -124,8 +125,7 @@ struct B : cursiv::GrammarSpec {
              ref<Ternary>> {};
 
   struct Rvalue
-      : infix<Assignment, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, right(lit<",">)> {};
+      : infix<Assignment, ast::BinaryExpr, right(lit<",">)> {};
 
   struct NullStmt : rule<create<ast::NullStmt>(lit<";">)> {};
 
@@ -174,7 +174,7 @@ struct B : cursiv::GrammarSpec {
              some(append<&ast::ExternStmt::names>(ref<Identifier>), lit<",">) +
              lit<";">> {};
 
-  struct AutoVarRule
+  struct AutoVar
       : rule<create<ast::AutoVar>(
             assign<&ast::AutoVar::name>(ref<Identifier>) +
             option((flag<&ast::AutoVar::bracketed>(lit<"[">) +
@@ -184,7 +184,7 @@ struct B : cursiv::GrammarSpec {
 
   struct AutoStmt
       : rule<kw<"auto"> +
-             some(append<&ast::AutoStmt::vars>(ref<AutoVarRule>), lit<",">) +
+             some(append<&ast::AutoStmt::vars>(ref<AutoVar>), lit<",">) +
              lit<";">> {};
 
   struct Statement : rule<ref<ExternStmt>    //
@@ -217,12 +217,12 @@ struct B : cursiv::GrammarSpec {
 
   struct Definition : rule<ref<FunctionDef> | ref<VarDef>> {};
 
-  struct ProgramRule
+  struct Program
       : rule<many(append<&ast::Program::items>(ref<Definition>) | lit<";">)> {};
 
   static constexpr auto word_boundary = w | cr<".">;
-  using entry = ProgramRule;
-  using ignore = list<WS, BLOCKCOMMENT>;
+  using entry = Program;
+  using ignored = list<WS, BLOCKCOMMENT>;
 };
 
 } // namespace b

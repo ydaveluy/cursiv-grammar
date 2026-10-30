@@ -31,6 +31,9 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+ABNF (RFC 5234 and RFC 7405) describes syntax using named rules, alternatives,
+concatenations, repetitions and case-sensitive or case-insensitive strings.
+
 ```abnf
 postal-address   = name-part street zip-part
 
@@ -40,14 +43,6 @@ name-part        =/ personal-part CRLF
 personal-part    = first-name / (initial ".")
 ...
 ```
-
-Augmented BNF for Syntax Specifications (RFC 5234, RFC 7405): a rulename, a
-defining `=` or the incremental `=/`, and a right side of alternatives,
-concatenations and repetitions over rule references, quoted strings
-(`%s"..."` case-sensitive, `%i"..."` case-insensitive), `%b`/`%d`/`%x`
-numeric values, groups, options and prose descriptions. Rule references are
-plain names, not cross references: an ABNF document commonly names a rule
-another file defines (`example/rfc5322.abnf`).
 
 ## The command line
 

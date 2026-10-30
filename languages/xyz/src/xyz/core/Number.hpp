@@ -6,10 +6,19 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <string_view>
 
 namespace xyz {
 inline cursiv::ConversionResult<double> coordinate_value(std::string_view text) {
+  if (text.find('_') != text.npos) {
+    // Separator placement was already checked by the NUM terminal.
+    std::string compact;
+    compact.reserve(text.size());
+    for (char c : text)
+      if (c != '_') compact += c;
+    return coordinate_value(compact);
+  }
   auto parsed = cursiv::default_convert<double>(text);
   if (parsed)
     return parsed;

@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every example under example/ parses clean.
 add_executable(kirikiritjs_grammar_test grammar_test.cpp)
-target_link_libraries(kirikiritjs_grammar_test PRIVATE kirikiritjsCore)
+target_link_libraries(kirikiritjs_grammar_test PRIVATE kirikiritjsCore cursiv::test)
 target_compile_definitions(kirikiritjs_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

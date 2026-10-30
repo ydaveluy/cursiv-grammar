@@ -66,6 +66,29 @@ int main() {
       corundum::CorundumCoreServices, corundum::CorundumSharedCoreServices,
       corundum::install_core_module>();
 
+  {
+    // The author's comparison_list groups its right-recursive conditions
+    // independently of the general rvalue operator ladder.
+    const std::string source =
+        "if a < b | c < d & e < f\n  x = 1\nend\n";
+    const auto parsed = language.language.parser->parse(source);
+    const auto* root = as<corundum::ast::Block>(parsed.value);
+    const auto* conditional = root && root->statements.size() == 1
+        ? as<corundum::ast::Conditional>(root->statements[0]) : nullptr;
+    const auto* outer = conditional
+        ? as<corundum::ast::BinaryExpr>(conditional->cond) : nullptr;
+    const auto* right = outer
+        ? as<corundum::ast::BinaryExpr>(outer->right) : nullptr;
+    const auto* left = outer
+        ? as<corundum::ast::BinaryExpr>(outer->left) : nullptr;
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !outer ||
+        outer->op != corundum::ast::BinOp::logical_or || !right ||
+        right->op != corundum::ast::BinOp::logical_and || !left ||
+        left->op != corundum::ast::BinOp::lt)
+      return fail("native condition list lost its right-recursive grouping");
+  }
+
   cursiv::ParseResult sampleResult;
   const corundum::ast::Block* const model =
       parse_clean(language, sample, "the sample", sampleResult);

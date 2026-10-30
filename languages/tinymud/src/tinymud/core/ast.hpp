@@ -46,7 +46,7 @@ struct FindCommand : cursiv::Extends<Command> {
 
 struct ForceCommand : cursiv::Extends<Command> {
   string_view player;
-  Command* command;
+  Line* command;
 };
 
 // number, dir_ and room collapse to one target: a room number, or a name
@@ -63,8 +63,8 @@ struct LockCommand : cursiv::Extends<Command> {
 
 struct NameCommand : cursiv::Extends<Command> {
   string_view object;
-  string_view name;
-  string_view password;  // empty when omitted
+  string_view name; // Complete RHS; player-password split needs the object's type.
+  string_view password;  // legacy slot; complete RHS retained in name
 };
 
 struct NewPasswordCommand : cursiv::Extends<Command> {
@@ -80,6 +80,7 @@ struct OfailCommand : cursiv::Extends<Command> {
 struct OpenCommand : cursiv::Extends<Command> {
   vector<string_view> directions;
   optional<int64> number;
+  string_view destination;
 };
 
 struct OsuccessCommand : cursiv::Extends<Command> {
@@ -94,12 +95,14 @@ struct PasswordCommand : cursiv::Extends<Command> {
 
 struct PcreateCommand : cursiv::Extends<Command> {
   string_view name;
+  string_view password;
 };
 
 struct SetCommand : cursiv::Extends<Command> {
   string_view object;
   boolean negate;
-  int64 flag;
+  int64 flag; // legacy numeric syntax; native flags are names
+  string_view flagName;
 };
 
 struct ShutdownCommand : cursiv::Extends<Command> {};
@@ -120,6 +123,7 @@ struct TeleportCommand : cursiv::Extends<Command> {
 
 struct ToadCommand : cursiv::Extends<Command> {
   string_view player;
+  string_view name;
 };
 
 struct UnlinkCommand : cursiv::Extends<Command> {
@@ -166,6 +170,7 @@ struct InventoryAction : cursiv::Extends<Action> {};
 struct KillAction : cursiv::Extends<Action> {
   string_view player;
   int64 cost;
+  boolean hasCost;
 };
 
 struct LookAction : cursiv::Extends<Action> {

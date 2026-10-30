@@ -1,8 +1,7 @@
 module features
 
 import os
-import . os
-import http net
+import net.http as net
 
 const (
 	max_count = 100
@@ -20,11 +19,12 @@ mut:
 	hits int
 }
 
+interface Shape {
+	area() int
+}
+
 struct Container {
-	shape interface Shape {
-		area() int
-		Point
-	}
+	shape Shape
 }
 
 fn (p Point) sum() int {
@@ -42,7 +42,7 @@ fn apply(f fn(int) int, v int) int {
 fn main() {
 	mut count := 0
 	names := ['a', 'b', 'c']
-	scores := map[string]int{'a': 1, 'b': 2}
+	scores := {'a': 1, 'b': 2}
 	grid := [3]int{}
 	p := Point{x: 1, y: 2}
 	q := &p
@@ -64,13 +64,11 @@ fn main() {
 	} else {
 		println('none')
 	}
-	switch count {
-	case 1, 2:
-		println('few')
-	default:
-		println('many')
+	match count {
+		1, 2 { println('few') }
+		else { println('many') }
 	}
-	bytes := []byte(names[0])
+	bytes := names[0].bytes()
 	total := apply(fn (x int) int {
 		return x * 2
 	}, count)

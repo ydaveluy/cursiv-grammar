@@ -94,6 +94,39 @@ int main() {
       return fail("patrol.karel: dangling ELSE did not bind to the inner IF");
   }
 
+  {
+    const auto result = language.language.parser->parse(
+        "BEGINNING-OF-PROGRAM DEFINE MOVE-CUSTOM AS MOVE "
+        "BEGINNING-OF-EXECUTION ITERATE 000123456789012345678901234567890 TIMES "
+        "MOVE-CUSTOM END-OF-EXECUTION END-OF-PROGRAM");
+    const auto* program = result.value_as<karel::ast::Program>();
+    const auto* iteration = program && program->statements.size() == 1
+        ? std::get_if<karel::ast::Iteration*>(&program->statements[0]) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !program || program->definitions.size() != 1 ||
+        program->definitions[0]->name != "MOVE-CUSTOM" || !iteration || !*iteration ||
+        (*iteration)->count != "000123456789012345678901234567890")
+      return fail("native identifier or arbitrary decimal iteration count lost");
+  }
+  {
+    const auto result = language.language.parser->parse(
+        "BEGINNING-OF-PROGRAM BEGINNING-OF-EXECUTION ITERATE 1 2 TIMES MOVE "
+        "END-OF-EXECUTION END-OF-PROGRAM");
+    const auto* program = result.value_as<karel::ast::Program>();
+    const auto* iteration = program && program->statements.size() == 1
+        ? std::get_if<karel::ast::Iteration*>(&program->statements[0]) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !iteration || !*iteration || (*iteration)->count != "12")
+      return fail("native digit rule joins an iteration count across whitespace");
+  }
+  for (const char* reserved : {"MOVE", "BEGIN", "FRONT-IS-CLEAR", "END-OF-PROGRAM"}) {
+    const auto source = std::string("BEGINNING-OF-PROGRAM DEFINE ") + reserved +
+        " AS MOVE BEGINNING-OF-EXECUTION TURNOFF END-OF-EXECUTION END-OF-PROGRAM";
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("reserved keyword accepted as a definition name");
+  }
+
   std::puts("karel: the examples parse");
   return 0;
 }

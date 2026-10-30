@@ -73,3 +73,8 @@ if(_xsmpEngine STREQUAL "LR")
       CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}")
   add_test(NAME xsmp_writes_through_test COMMAND xsmp_writes_through_test)
 endif()
+
+# Native-source and fresh official parser values, local validation and target scopes.
+add_executable(xsmp_native_test native_test.cpp)
+target_link_libraries(xsmp_native_test PRIVATE xsmpCore cursiv::test)
+add_test(NAME xsmp_native_test COMMAND xsmp_native_test)

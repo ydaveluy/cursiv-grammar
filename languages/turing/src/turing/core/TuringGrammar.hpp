@@ -2,6 +2,9 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
+#include <memory_resource>
+#include <string_view>
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "turing/core/ast.hpp"
@@ -12,119 +15,128 @@ struct Turing : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
   struct SL_COMMENT : terminal<lit<"%"> + many(cr<R"(^\r\n)">)> {};
 
-  struct ID : terminal<cr<"a-zA-Z"> + many(w)> {};
+  struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
-  struct INT : terminal<option(cr<"+-">) + some(d), std::int64_t> {};
-  // The point (present here) is what tells a real from an int; the exponent
-  // is optional, matching ordinary numeric-literal use. Digits are required
-  // on both sides of the point: a bare trailing `.` would swallow one dot of
-  // a subrange's `..`.
-  struct REAL
-      : terminal<option(cr<"+-">) +
-                     ((some(d) + lit<"."> + some(d)) | (lit<"."> + some(d))) +
-                     option(lit<"e"> + option(cr<"+-">) + some(d)),
-                 double> {};
-
-  inline static constexpr auto unquote = [](std::string_view t) {
-    return t.substr(1, t.size() - 2);
+  inline static constexpr auto identifier_value = [](std::string_view text)
+      -> cursiv::ConversionResult<std::string_view> {
+    using Result = cursiv::ConversionResult<std::string_view>;
+    if (text.size() > 50)
+      return Result::err("A Turing identifier has at most 50 characters.");
+    constexpr std::string_view reserved[] = {
+        "all", "and", "array", "assert", "begin", "bind", "body", "boolean",
+        "case", "collection", "const", "decreasing", "div", "else", "elsif",
+        "end", "enum", "exit", "export", "false", "fcn", "for", "forward",
+        "free", "function", "get", "if", "import", "in", "init", "int",
+        "invariant", "label", "loop", "mod", "module", "new", "not", "of",
+        "opaque", "or", "pervasive", "pointer", "post", "pre", "proc",
+        "procedure", "put", "real", "record", "result", "return", "set",
+        "skip", "string", "tag", "then", "to", "true", "type", "union",
+        "var", "when"};
+    for (const auto word : reserved)
+      if (text == word) return Result::err("A Turing keyword is reserved.");
+    return Result::ok(text);
   };
-  using Unquoted = text_conv<unquote>;
-  struct STRING
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
+  struct ID : terminal<as<identifier_value>(cr<"a-zA-Z"> + many(w))> {};
 
-  struct KW_INT : terminal<kw<"int">, value<ast::StandardType::Kind::int_>> {
+  // Signs are prefix operators and may be separated from their operand.
+  struct INT : terminal<as<std::int64_t>(some(d))> {};
+  static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
+  // The point guard leaves a subrange's two dots intact.
+  struct REAL : terminal<as<double>(
+      ((some(d) + lit<".", !lit<".">> + many(d)) |
+       (lit<"."> + some(d))) + option(exponent) |
+      (some(d) + exponent))> {};
+
+  inline static constexpr auto string_value = [](
+      std::string_view quoted, std::pmr::memory_resource* memory)
+      -> cursiv::ConversionResult<std::string_view> {
+    using Result = cursiv::ConversionResult<std::string_view>;
+    if (quoted.size() < 2) return Result::err("Unterminated Turing string.");
+    const auto text = quoted.substr(1, quoted.size() - 2);
+    if (text.find('\\') == text.npos) return Result::ok(text);
+    constexpr std::string_view escapes = "nNtTfFrRbBeEdD\\\"";
+    constexpr std::string_view values = "\n\n\t\t\f\f\r\r\b\b\x1b\x1b\x7f\x7f\\\"";
+    const auto room = cursiv::text_room(memory, text.size());
+    std::size_t count = 0;
+    for (std::size_t i = 0; i < text.size(); ++i) {
+      char value = text[i];
+      if (value == '\\') {
+        if (++i == text.size()) return Result::err("Incomplete Turing escape.");
+        const auto index = escapes.find(text[i]);
+        if (index == escapes.npos) return Result::err("Unknown Turing escape.");
+        value = values[index];
+      }
+      room[count++] = value;
+    }
+    return Result::ok(std::string_view(room.data(), count));
   };
-  struct KW_REAL
-      : terminal<kw<"real">, value<ast::StandardType::Kind::real>> {};
-  struct KW_BOOLEAN
-      : terminal<kw<"boolean">, value<ast::StandardType::Kind::boolean>> {};
-  struct KW_STRING
-      : terminal<kw<"string">, value<ast::StandardType::Kind::string>> {};
-
-  struct CAP_GET : terminal<kw<"get">, value<ast::Capability::get_>> {};
-  struct CAP_PUT : terminal<kw<"put">, value<ast::Capability::put_>> {};
+  struct STRING : terminal<as<string_value>(
+      lit<"\""> + many((lit<"\\"> + cr<R"(nNtTfFrRbBeEdD\\")">) |
+                         cr<R"(^"\\\r\n\x00)">) + lit<"\"">)> {};
 
   // Each operator token denotes its own constant, so `op` holds meaning
   // rather than spelling. Subtraction and unary minus use ASCII `-`,
   // matching the numeric-literal tokens below.
-  struct OP_POW : terminal<lit<"**">, value<ast::BinOp::exponent>> {};
-  struct OP_MUL : terminal<lit<"*">, value<ast::BinOp::multiply>> {};
-  struct OP_DIVR : terminal<lit<"/">, value<ast::BinOp::divide>> {};
-  struct OP_DIVI : terminal<kw<"div">, value<ast::BinOp::intDivide>> {};
-  struct OP_MOD : terminal<kw<"mod">, value<ast::BinOp::modulo>> {};
-  struct OP_ADD : terminal<lit<"+">, value<ast::BinOp::add>> {};
-  struct OP_SUB : terminal<lit<"-">, value<ast::BinOp::subtract>> {};
-  struct OP_LE : terminal<lit<"<=">, value<ast::BinOp::lessEqual>> {};
-  struct OP_GE : terminal<lit<">=">, value<ast::BinOp::greaterEqual>> {};
-  struct OP_NE : terminal<lit<"not=">, value<ast::BinOp::notEqual>> {};
-  struct OP_LT : terminal<lit<"<">, value<ast::BinOp::less>> {};
-  struct OP_GT : terminal<lit<">">, value<ast::BinOp::greater>> {};
-  struct OP_EQ : terminal<lit<"=">, value<ast::BinOp::equal>> {};
-  struct OP_AND : terminal<kw<"and">, value<ast::BinOp::logicalAnd>> {};
-  struct OP_OR : terminal<kw<"or">, value<ast::BinOp::logicalOr>> {};
 
-  struct UNARY_PLUS : terminal<lit<"+">, value<ast::UnOp::plus>> {};
-  struct UNARY_MINUS : terminal<lit<"-">, value<ast::UnOp::minus>> {};
-  struct UNARY_NOT : terminal<kw<"not">, value<ast::UnOp::logicalNot>> {};
 
   struct Expression;
-  struct TypeSpecRule;
-  struct ItemRule;
+  struct TypeSpec;
+  struct Item;
 
   // One repeated append covers a field access, an index/call, or a
   // substring range.
-  struct FieldSelectorRule
+  struct FieldSelector
       : rule<create<ast::FieldSelector>(
             lit<"."> + assign<&ast::FieldSelector::field>(ref<ID>))> {};
 
-  struct IndexSelectorRule
+  struct IndexSelector
       : rule<create<ast::IndexSelector>(
             lit<"("> +
             some(append<&ast::IndexSelector::args>(ref<Expression>), lit<",">) +
             lit<")">)> {};
 
-  struct StarPositionRule
+  struct StarPosition
       : rule<create<ast::Position>(
             flag<&ast::Position::fromEnd>(lit<"*">) +
             option(lit<"-"> +
                    assign<&ast::Position::offset>(ref<Expression>)))> {};
-  struct PlainPositionRule
+  struct PlainPosition
       : rule<create<ast::Position>(
             assign<&ast::Position::value>(ref<Expression>))> {};
   static constexpr auto Position =
-      ref<StarPositionRule> | ref<PlainPositionRule>;
+      ref<StarPosition> | ref<PlainPosition>;
 
   // A range needs `*` or an explicit `..` to be told apart from a plain
   // one-argument index/call -- a lone value is genuinely ambiguous between
   // the two, and this keeps that case an index.
-  struct RangeSelectorRule
+  struct RangeSelector
       : rule<lit<"("> +
             create<ast::RangeSelector>(
-                (assign<&ast::RangeSelector::from>(ref<StarPositionRule>) +
+                (assign<&ast::RangeSelector::from>(ref<StarPosition>) +
                  option(lit<".."> +
                         assign<&ast::RangeSelector::to>(Position))) |
-                (assign<&ast::RangeSelector::from>(ref<PlainPositionRule>) +
+                (assign<&ast::RangeSelector::from>(ref<PlainPosition>) +
                  lit<".."> + assign<&ast::RangeSelector::to>(Position))) +
             lit<")">> {};
 
-  struct SelectorRule
-      : rule<ref<FieldSelectorRule> | ref<IndexSelectorRule> |
-            ref<RangeSelectorRule>> {};
+  struct Selector
+      : rule<ref<FieldSelector> | ref<IndexSelector> |
+            ref<RangeSelector>> {};
 
-  struct ReferenceRule
+  struct Reference
       : rule<create<ast::Reference>(
             assign<&ast::Reference::name>(ref<ID>) +
-            many(append<&ast::Reference::selectors>(ref<SelectorRule>)))> {};
+            many(append<&ast::Reference::selectors>(ref<Selector>)))> {};
 
-  struct IntLitRule
+  struct IntLit
       : rule<create<ast::IntLit>(assign<&ast::IntLit::value>(ref<INT>))> {};
-  struct RealLitRule
+  struct RealLit
       : rule<create<ast::RealLit>(assign<&ast::RealLit::value>(ref<REAL>))> {
   };
-  struct StringLitRule
+  struct StringLit
       : rule<create<ast::StringLit>(
             assign<&ast::StringLit::value>(ref<STRING>))> {};
-  struct BoolLitRule
+  struct BoolLit
       : rule<create<ast::BoolLit>(
             flag<&ast::BoolLit::value>(kw<"true">) | kw<"false">)> {};
 
@@ -132,94 +144,116 @@ struct Turing : cursiv::GrammarSpec {
       : rule<create<ast::ParenExpr>(
                  lit<"("> + assign<&ast::ParenExpr::inner>(ref<Expression>) +
                  lit<")">) |
-            ref<RealLitRule> | ref<IntLitRule> | ref<StringLitRule> |
-            ref<BoolLitRule> |
-            ref<ReferenceRule>> {};
+            ref<RealLit> | ref<IntLit> | ref<StringLit> |
+            ref<BoolLit> |
+            ref<Reference>> {};
 
-  struct Unary
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<UNARY_PLUS> |
-                                              ref<UNARY_MINUS> |
-                                              ref<UNARY_NOT>) +
-                 assign<&ast::UnaryExpr::operand>(ref<Unary>)) |
-            ref<Primary>> {};
-
-  struct Expression
-      : infix<Unary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (right(ref<OP_POW>) >>
-               left(ref<OP_MUL> | ref<OP_DIVR> | ref<OP_DIVI> |
-                    ref<OP_MOD>) >>
-               left(ref<OP_ADD> | ref<OP_SUB>) >>
-               left(ref<OP_LE> | ref<OP_GE> | ref<OP_NE> | ref<OP_EQ> |
-                    ref<OP_LT> | ref<OP_GT>) >>
-               left(ref<OP_AND>) >> left(ref<OP_OR>))> {};
+  static constexpr auto sign =
+      as<ast::UnOp::plus>(lit<"+">) | as<ast::UnOp::minus>(lit<"-">);
+  // Keep the signed 64-bit minimum representable without accepting an
+  // overflowing positive magnitude in INT.
+  struct MinimumInt : rule<assign<&ast::IntLit::value>(
+      as<std::numeric_limits<std::int64_t>::min()>(
+          lit<"-"> + lit<"9223372036854775808", !w>))> {};
+  struct SignedPrimary : rule<ref<MinimumInt> |
+      (assign<&ast::UnaryExpr::op>(sign) +
+       assign<&ast::UnaryExpr::operand>(ref<SignedPrimary>)) | ref<Primary>> {};
+  struct Power : rule<ref<Primary> + many(nest<&ast::BinaryExpr::left>(
+      assign<&ast::BinaryExpr::op>(as<ast::BinOp::exponent>(lit<"**">)) +
+      assign<&ast::BinaryExpr::right>(ref<SignedPrimary>)))> {};
+  struct Unary : rule<ref<MinimumInt> |
+      (assign<&ast::UnaryExpr::op>(sign) +
+       assign<&ast::UnaryExpr::operand>(ref<Unary>)) | ref<Power>> {};
+  struct Relational : infix<Unary, ast::BinaryExpr,
+      levels(left(as<ast::BinOp::multiply>(lit<"*">) |
+                  as<ast::BinOp::divide>(lit<"/">) |
+                  as<ast::BinOp::intDivide>(kw<"div">) |
+                  as<ast::BinOp::modulo>(kw<"mod">)),
+             left(as<ast::BinOp::add>(lit<"+">) |
+                  as<ast::BinOp::subtract>(lit<"-">)),
+             left(as<ast::BinOp::lessEqual>(lit<"<=">) |
+                  as<ast::BinOp::greaterEqual>(lit<">=">) |
+                  as<ast::BinOp::notEqual>(lit<"not=">) |
+                  as<ast::BinOp::equal>(lit<"=">) |
+                  as<ast::BinOp::less>(lit<"<">) |
+                  as<ast::BinOp::greater>(lit<">">) |
+                  as<ast::BinOp::member>(kw<"in">) |
+                  as<ast::BinOp::notMember>(kw<"not"> + kw<"in">)))> {};
+  struct Not : rule<
+      (assign<&ast::UnaryExpr::op>(as<ast::UnOp::logicalNot>(kw<"not">)) +
+       assign<&ast::UnaryExpr::operand>(ref<Not>)) | ref<Relational>> {};
+  // The report specifies left association, including exponentiation; `not`
+  // binds less tightly than relations and more tightly than `and`.
+  struct Expression : infix<Not, ast::BinaryExpr,
+      levels(left(as<ast::BinOp::logicalAnd>(kw<"and">)),
+             left(as<ast::BinOp::logicalOr>(kw<"or">)),
+             left(as<ast::BinOp::implies>(lit<"->">)))> {};
 
   // An initializer is a plain value, or `init(...)` nesting more of the same
   // for an array or record.
-  struct InitListRule
+  struct InitList
       : rule<create<ast::InitList>(
             kw<"init"> + lit<"("> +
             some(append<&ast::InitList::items>(ref<Expression> |
-                                                ref<InitListRule>),
+                                                ref<InitList>),
                  lit<",">) +
             lit<")">)> {};
-  static constexpr auto InitValue = ref<Expression> | ref<InitListRule>;
+  static constexpr auto InitValue = ref<Expression> | ref<InitList>;
 
-  struct StandardTypeRule
+  struct StandardType
       : rule<create<ast::StandardType>(
-            assign<&ast::StandardType::kind>(ref<KW_INT> | ref<KW_REAL> |
-                                              ref<KW_BOOLEAN>) |
-            (assign<&ast::StandardType::kind>(ref<KW_STRING>) +
+            assign<&ast::StandardType::kind>(as<ast::StandardType::Kind::int_>(kw<"int">) | as<ast::StandardType::Kind::real>(kw<"real">) |
+                                              as<ast::StandardType::Kind::boolean>(kw<"boolean">)) |
+            (assign<&ast::StandardType::kind>(as<ast::StandardType::Kind::string>(kw<"string">)) +
              option(lit<"("> +
                     assign<&ast::StandardType::length>(ref<Expression>) +
                     lit<")">)))> {};
 
-  struct SubrangeTypeRule
+  struct SubrangeType
       : rule<create<ast::SubrangeType>(
             assign<&ast::SubrangeType::low>(ref<Expression>) + lit<".."> +
             assign<&ast::SubrangeType::high>(ref<Expression>))> {};
 
-  struct NamedTypeRule
+  struct NamedType
       : rule<create<ast::NamedType>(
             assign<&ast::NamedType::name>(ref<ID>))> {};
 
-  static constexpr auto IndexType = ref<SubrangeTypeRule> | ref<NamedTypeRule>;
+  static constexpr auto IndexType = ref<SubrangeType> | ref<NamedType>;
 
-  struct ArrayTypeRule
+  struct ArrayType
       : rule<create<ast::ArrayType>(
             kw<"array"> +
             some(append<&ast::ArrayType::indices>(IndexType), lit<",">) +
             kw<"of"> +
-            assign<&ast::ArrayType::element>(ref<TypeSpecRule>))> {};
+            assign<&ast::ArrayType::element>(ref<TypeSpec>))> {};
 
-  struct RecordFieldRule
+  struct RecordField
       : rule<create<ast::RecordField>(
             some(append<&ast::RecordField::names>(ref<ID>), lit<",">) +
             lit<":"> +
-            assign<&ast::RecordField::type>(ref<TypeSpecRule>))> {};
+            assign<&ast::RecordField::type>(ref<TypeSpec>))> {};
 
-  struct RecordTypeRule
+  struct RecordType
       : rule<create<ast::RecordType>(
             kw<"record"> +
-            some(append<&ast::RecordType::fields>(ref<RecordFieldRule>)) +
+            some(append<&ast::RecordType::fields>(ref<RecordField>)) +
             kw<"end"> + kw<"record">)> {};
 
-  struct TypeSpecRule
-      : rule<ref<StandardTypeRule> | ref<SubrangeTypeRule> |
-            ref<ArrayTypeRule> | ref<RecordTypeRule> | ref<NamedTypeRule>> {};
+  struct TypeSpec
+      : rule<ref<StandardType> | ref<SubrangeType> |
+            ref<ArrayType> | ref<RecordType> | ref<NamedType>> {};
 
-  struct StringStarTypeRule
+  struct StringStarType
       : rule<create<ast::StringStarType> + kw<"string"> + lit<"("> +
             lit<"*"> + lit<")">> {};
 
-  struct SimpleParamTypeRule
+  struct SimpleParamType
       : rule<create<ast::SimpleParamType>(
-            assign<&ast::SimpleParamType::type>(ref<TypeSpecRule> |
-                                                 ref<StringStarTypeRule>))> {
+            assign<&ast::SimpleParamType::type>(ref<TypeSpec> |
+                                                 ref<StringStarType>))> {
   };
 
-  struct OpenArrayParamTypeRule
+  struct OpenArrayParamType
       : rule<create<ast::OpenArrayParamType>(
             kw<"array"> +
             some(append<&ast::OpenArrayParamType::bounds>(ref<Expression>) +
@@ -227,133 +261,132 @@ struct Turing : cursiv::GrammarSpec {
                  lit<",">) +
             kw<"of"> +
             assign<&ast::OpenArrayParamType::element>(
-                ref<TypeSpecRule> | ref<StringStarTypeRule>))> {};
+                ref<TypeSpec> | ref<StringStarType>))> {};
 
-  struct ParamTypeRule
-      : rule<ref<SimpleParamTypeRule> | ref<OpenArrayParamTypeRule>> {};
+  struct ParamType
+      : rule<ref<SimpleParamType> | ref<OpenArrayParamType>> {};
 
-  struct ParamRule
+  struct Param
       : rule<create<ast::Param>(
             option(flag<&ast::Param::isVar>(kw<"var">)) +
             some(append<&ast::Param::names>(ref<ID>), lit<",">) + lit<":"> +
-            assign<&ast::Param::type>(ref<ParamTypeRule>))> {};
+            assign<&ast::Param::type>(ref<ParamType>))> {};
 
   // The two forms real Turing declares: a procedure has no return type, a
   // function's header ends in `: typeSpec`.
-  struct SubprogramDeclRule
+  struct SubprogramDecl
       : rule<create<ast::SubprogramDecl>(
-                 kw<"procedure"> +
+                 (kw<"procedure"> | kw<"proc">) +
                  assign<&ast::SubprogramDecl::name>(ref<ID>) +
                  option(lit<"("> +
                         some(append<&ast::SubprogramDecl::params>(
-                                 ref<ParamRule>),
+                                 ref<Param>),
                              lit<",">) +
                         lit<")">) +
-                 many(append<&ast::SubprogramDecl::body>(ref<ItemRule>)) +
+                 many(append<&ast::SubprogramDecl::body>(ref<Item>)) +
                  kw<"end"> +
                  assign<&ast::SubprogramDecl::endName>(ref<ID>)) |
             create<ast::SubprogramDecl>(
                 flag<&ast::SubprogramDecl::isFunction>(
-                    kw<"function">) +
+                    kw<"function"> | kw<"fcn">) +
                 assign<&ast::SubprogramDecl::name>(ref<ID>) +
                 option(lit<"("> +
                        some(append<&ast::SubprogramDecl::params>(
-                                ref<ParamRule>),
+                                ref<Param>),
                             lit<",">) +
                        lit<")">) +
                 lit<":"> +
-                assign<&ast::SubprogramDecl::returnType>(ref<TypeSpecRule>) +
-                many(append<&ast::SubprogramDecl::body>(ref<ItemRule>)) +
+                assign<&ast::SubprogramDecl::returnType>(ref<TypeSpec>) +
+                many(append<&ast::SubprogramDecl::body>(ref<Item>)) +
                 kw<"end"> +
                 assign<&ast::SubprogramDecl::endName>(ref<ID>))> {};
 
-  struct ConstDeclRule
+  struct ConstDecl
       : rule<create<ast::ConstDecl>(
             kw<"const"> + assign<&ast::ConstDecl::name>(ref<ID>) +
             option(lit<":"> +
-                   assign<&ast::ConstDecl::typeSpec>(ref<TypeSpecRule>)) +
+                   assign<&ast::ConstDecl::typeSpec>(ref<TypeSpec>)) +
             lit<":="> + assign<&ast::ConstDecl::value>(InitValue))> {};
 
-  struct VarDeclRule
+  struct VarDecl
       : rule<create<ast::VarDecl>(
             kw<"var"> +
             some(append<&ast::VarDecl::names>(ref<ID>), lit<",">) +
             ((lit<":="> + assign<&ast::VarDecl::value>(InitValue)) |
              (lit<":"> +
-              assign<&ast::VarDecl::typeSpec>(ref<TypeSpecRule>) +
+              assign<&ast::VarDecl::typeSpec>(ref<TypeSpec>) +
               option(lit<":="> +
                      assign<&ast::VarDecl::value>(InitValue)))))> {};
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<create<ast::TypeDecl>(
             kw<"type"> + assign<&ast::TypeDecl::name>(ref<ID>) + lit<":"> +
-            assign<&ast::TypeDecl::typeSpec>(ref<TypeSpecRule>))> {};
+            assign<&ast::TypeDecl::typeSpec>(ref<TypeSpec>))> {};
 
-  struct DeclRule
-      : rule<ref<ConstDeclRule> | ref<VarDeclRule> | ref<TypeDeclRule>> {};
+  struct Decl
+      : rule<ref<ConstDecl> | ref<VarDecl> | ref<TypeDecl>> {};
 
-  struct AssignStmtRule
+  struct AssignStmt
       : rule<create<ast::AssignStmt>(
-            assign<&ast::AssignStmt::target>(ref<ReferenceRule>) +
+            assign<&ast::AssignStmt::target>(ref<Reference>) +
             lit<":="> + assign<&ast::AssignStmt::value>(ref<Expression>))> {
   };
-  struct CallStmtRule
+  struct CallStmt
       : rule<create<ast::CallStmt>(
-            assign<&ast::CallStmt::call>(ref<ReferenceRule>))> {};
-  struct AssertStmtRule
+            assign<&ast::CallStmt::call>(ref<Reference>))> {};
+  struct AssertStmt
       : rule<create<ast::AssertStmt>(
             kw<"assert"> + assign<&ast::AssertStmt::cond>(ref<Expression>))> {
   };
-  struct ResultStmtRule
+  struct ResultStmt
       : rule<create<ast::ResultStmt>(
             kw<"result"> +
             assign<&ast::ResultStmt::value>(ref<Expression>))> {};
 
-  struct ElsifClauseRule
+  struct ElsifClause
       : rule<create<ast::ElsifClause>(
             kw<"elsif"> + assign<&ast::ElsifClause::cond>(ref<Expression>) +
             kw<"then"> +
-            many(append<&ast::ElsifClause::body>(ref<ItemRule>)))> {};
+            many(append<&ast::ElsifClause::body>(ref<Item>)))> {};
 
-  struct IfStmtRule
+  struct IfStmt
       : rule<create<ast::IfStmt>(
             kw<"if"> + assign<&ast::IfStmt::cond>(ref<Expression>) +
             kw<"then"> +
-            many(append<&ast::IfStmt::thenBody>(ref<ItemRule>)) +
-            many(append<&ast::IfStmt::elsifs>(ref<ElsifClauseRule>)) +
+            many(append<&ast::IfStmt::thenBody>(ref<Item>)) +
+            many(append<&ast::IfStmt::elsifs>(ref<ElsifClause>)) +
             option(kw<"else"> +
-                   many(append<&ast::IfStmt::elseBody>(ref<ItemRule>))) +
+                   many(append<&ast::IfStmt::elseBody>(ref<Item>))) +
             kw<"end"> + kw<"if">)> {};
 
-  struct LoopStmtRule
+  struct LoopStmt
       : rule<create<ast::LoopStmt>(
-            kw<"loop"> + many(append<&ast::LoopStmt::body>(ref<ItemRule>)) +
+            kw<"loop"> + many(append<&ast::LoopStmt::body>(ref<Item>)) +
             kw<"end"> + kw<"loop">)> {};
 
-  struct ExitStmtRule
+  struct ExitStmt
       : rule<create<ast::ExitStmt>(
             kw<"exit"> +
             option(kw<"when"> +
                    assign<&ast::ExitStmt::cond>(ref<Expression>)))> {};
 
-  // Simplified: a bare default `label :` may repeat and appear anywhere,
-  // rather than at most once and last.
-  struct CaseLabelRule
+  // The validator checks that the optional default label is last.
+  struct CaseLabel
       : rule<create<ast::CaseLabel>(
             kw<"label"> +
             ((some(append<&ast::CaseLabel::values>(ref<Expression>), lit<",">) +
               lit<":">) |
              lit<":">) +
-            many(append<&ast::CaseLabel::body>(ref<ItemRule>)))> {};
+            many(append<&ast::CaseLabel::body>(ref<Item>)))> {};
 
-  struct CaseStmtRule
+  struct CaseStmt
       : rule<create<ast::CaseStmt>(
             kw<"case"> + assign<&ast::CaseStmt::value>(ref<Expression>) +
             kw<"of"> +
-            some(append<&ast::CaseStmt::labels>(ref<CaseLabelRule>)) +
+            some(append<&ast::CaseStmt::labels>(ref<CaseLabel>)) +
             kw<"end"> + kw<"case">)> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<create<ast::ForStmt>(
             kw<"for"> +
             option(flag<&ast::ForStmt::decreasing>(kw<"decreasing">)) +
@@ -362,10 +395,10 @@ struct Turing : cursiv::GrammarSpec {
             assign<&ast::ForStmt::to>(ref<Expression>) +
             option(kw<"by"> +
                    assign<&ast::ForStmt::step>(ref<Expression>)) +
-            many(append<&ast::ForStmt::body>(ref<ItemRule>)) + kw<"end"> +
+            many(append<&ast::ForStmt::body>(ref<Item>)) + kw<"end"> +
             kw<"for">)> {};
 
-  struct PutItemRule
+  struct PutItem
       : rule<create<ast::PutItem>(kw<"skip">) |
             create<ast::PutItem>(
                 assign<&ast::PutItem::value>(ref<Expression>) +
@@ -378,67 +411,71 @@ struct Turing : cursiv::GrammarSpec {
                                      assign<&ast::PutItem::exponent>(
                                          ref<Expression>)))))> {};
 
-  struct PutStmtRule
+  struct PutStmt
       : rule<create<ast::PutStmt>(
             kw<"put"> +
             option(lit<":"> +
                    assign<&ast::PutStmt::stream>(ref<Expression>) +
                    lit<",">) +
-            some(append<&ast::PutStmt::items>(ref<PutItemRule>), lit<",">) +
+            some(append<&ast::PutStmt::items>(ref<PutItem>), lit<",">) +
             option(flag<&ast::PutStmt::noNewline>(lit<"..">)))> {};
 
-  struct GetItemRule
+  struct GetItem
       : rule<create<ast::GetItem>(
                  flag<&ast::GetItem::skipToEnd>(kw<"skip">) +
-                 assign<&ast::GetItem::target>(ref<ReferenceRule>) +
+                 assign<&ast::GetItem::target>(ref<Reference>) +
                  lit<":"> + lit<"*">) |
             create<ast::GetItem>(
-                assign<&ast::GetItem::target>(ref<ReferenceRule>) +
+                assign<&ast::GetItem::target>(ref<Reference>) +
                 option(lit<":"> +
                        assign<&ast::GetItem::width>(ref<Expression>)))> {};
 
-  struct GetStmtRule
+  struct GetStmt
       : rule<create<ast::GetStmt>(
             kw<"get"> +
             option(lit<":"> +
                    assign<&ast::GetStmt::stream>(ref<Expression>) +
                    lit<",">) +
-            some(append<&ast::GetStmt::items>(ref<GetItemRule>), lit<",">))> {
+            some(append<&ast::GetStmt::items>(ref<GetItem>), lit<",">))> {
   };
 
-  struct OpenStmtRule
+  struct OpenStmt
       : rule<create<ast::OpenStmt>(
             kw<"open"> + lit<":"> +
             assign<&ast::OpenStmt::fileNumber>(ref<Expression>) + lit<","> +
             assign<&ast::OpenStmt::path>(ref<STRING>) + lit<","> +
-            some(append<&ast::OpenStmt::capabilities>(ref<CAP_GET> |
-                                                        ref<CAP_PUT>),
+            some(append<&ast::OpenStmt::capabilities>(as<ast::Capability::get_>(kw<"get">) |
+                                                        as<ast::Capability::put_>(kw<"put">)),
                  lit<",">))> {};
 
-  struct CloseStmtRule
+  struct CloseStmt
       : rule<create<ast::CloseStmt>(
             kw<"close"> + lit<":"> +
             assign<&ast::CloseStmt::fileNumber>(ref<Expression>))> {};
 
-  struct StmtRule
-      : rule<ref<AssignStmtRule> | ref<CallStmtRule> | ref<AssertStmtRule> |
-            ref<ResultStmtRule> | ref<IfStmtRule> | ref<LoopStmtRule> |
-            ref<ExitStmtRule> | ref<CaseStmtRule> | ref<ForStmtRule> |
-            ref<PutStmtRule> | ref<GetStmtRule> | ref<OpenStmtRule> |
-            ref<CloseStmtRule>> {};
+  struct ReturnStmt : rule<create<ast::ReturnStmt> + kw<"return">> {};
+  struct BeginStmt : rule<kw<"begin"> + create<ast::BeginStmt>(
+      many(append<&ast::BeginStmt::body>(ref<Item>))) + kw<"end">> {};
 
-  struct ItemRule : rule<ref<DeclRule> | ref<StmtRule>> {};
+  struct Stmt
+      : rule<ref<AssignStmt> | ref<CallStmt> | ref<AssertStmt> |
+            ref<ResultStmt> | ref<ReturnStmt> | ref<BeginStmt> | ref<IfStmt> | ref<LoopStmt> |
+            ref<ExitStmt> | ref<CaseStmt> | ref<ForStmt> |
+            ref<PutStmt> | ref<GetStmt> | ref<OpenStmt> |
+            ref<CloseStmt>> {};
 
-  struct ProgramItemRule
-      : rule<ref<DeclRule> | ref<StmtRule> | ref<SubprogramDeclRule>> {};
+  struct Item : rule<(ref<Decl> | ref<Stmt>) + option(lit<";">)> {};
 
-  struct ProgramRule
+  struct ProgramItem
+      : rule<(ref<Decl> | ref<Stmt> | ref<SubprogramDecl>) + option(lit<";">)> {};
+
+  struct Program
       : rule<create<ast::Program>(
-            some(append<&ast::Program::items>(ref<ProgramItemRule>)))> {};
+            many(append<&ast::Program::items>(ref<ProgramItem>)))> {};
 
-  using entry = ProgramRule;
-  using ignore = WS;
-  using hidden = list<SL_COMMENT>;
+  using entry = Program;
+  using ignored = WS;
+  using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 
 }  // namespace turing

@@ -24,6 +24,17 @@ enum class Operator : std::uint8_t {
   ngt,
   nlt,
   eq,
+  neq,
+  contains,
+  notContains,
+  follows,
+  notFollows,
+  sortsAfter,
+  notSortsAfter,
+  and_,
+  nand,
+  or_,
+  nor,
 };
 
 struct BinaryExpression : cursiv::Extends<Expression> {
@@ -41,9 +52,9 @@ struct NumberLiteral : cursiv::Extends<Expression> {
   double value = 0;
 };
 
-// `global` is the leading `^` (a routine's global array), `extrinsic` the
-// leading `&` (an extrinsic special variable); either may repeat, so only
-// their presence is kept.
+// `global` records a leading ^. `extrinsic` retains the imported & prefix
+// extension; it is not the native external-call/extrinsic-function syntax.
+// Repetition of those prefixes is a legacy port extension.
 struct Variable : cursiv::Extends<Expression> {
   bool global = false;
   bool extrinsic = false;
@@ -107,10 +118,12 @@ struct HangCommand : cursiv::Extends<Command> {
 
 struct IfCommand : cursiv::Extends<Command> {
   Expression* condition = nullptr;
+  vector<Expression*> moreConditions;
   Command* command = nullptr;
 };
 
 struct KillCommand : cursiv::Extends<Command> {
+  bool exclusive = false;
   Expression* postcondition = nullptr;
   vector<Expression*> args;
 };
@@ -121,6 +134,7 @@ struct MergeCommand : cursiv::Extends<Command> {
 };
 
 struct NewCommand : cursiv::Extends<Command> {
+  bool exclusive = false;
   Expression* postcondition = nullptr;
   vector<Expression*> args;
 };
@@ -155,8 +169,7 @@ struct XecuteCommand : cursiv::Extends<Command> {
   string_view code;
 };
 
-// CLOSE, ELSE, GOTO, JOB, LOCK, OPEN, TCOMMIT, TRESTART, TROLLBACK, TSTART,
-// USE: bare keywords, with no argument of their own.
+// Remaining command families retain their raw argument text and postcondition.
 struct OtherCommand : cursiv::Extends<Command> {
   string_view keyword;
   Expression* postcondition = nullptr;
@@ -173,6 +186,8 @@ struct Line : cursiv::Extends<cursiv::AstNode> {};
 
 struct CodeLine : cursiv::Extends<Line> {
   string_view label;
+  vector<Expression*> params;  // formal parameters after a line label
+  std::uint64_t level = 0;  // count of dots, independent of intervening spaces
   vector<Command*> commands;
 };
 

@@ -14,6 +14,10 @@ class XmlValidator final : public cursiv::DefaultCoreService {
 
   void checkCloseTagMatches(const ast::Element& element,
                             cursiv::ValidationAcceptor& accept) const;
+  void checkUniqueAttributes(const ast::Element& element,
+                             cursiv::ValidationAcceptor& accept) const;
+  void checkDeclaration(const ast::Declaration& declaration,
+                        cursiv::ValidationAcceptor& accept) const;
 };
 
 struct XmlCoreServices;

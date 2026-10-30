@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+LESS stylesheets extend CSS with variables, nesting, mixins and interpolation.
+
 ```less
 @primarycolor: #FF7F50;
 @color:#800080;
@@ -42,11 +44,6 @@ h3 {
    color: @color;
 }
 ```
-
-A LESS stylesheet is CSS with variables (`@name`), nesting, mixins and
-interpolation (`@{name}`) layered on top. `@primarycolor` and `@color` are
-variable declarations; `color: @primarycolor;` reads one back as a property
-value.
 
 ## The command line
 

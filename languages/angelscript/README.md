@@ -2,6 +2,16 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+The syntax follows the pre-2.38 AngelScript language families in the corpus,
+compared with [AngelCode's BNF](https://www.angelcode.com/angelscript/sdk/docs/manual/doc_script_bnf.html)
+and the [2.36–2.38 release history](https://www.angelcode.com/angelscript/changes.php).
+This is a syntax subset: 2.38 `using namespace`, `foreach`, variadic parameters
+and template function calls, plus 2.37 `delete`, are not implemented. Host type
+registration, overload resolution, engine settings and lvalue/type checks are
+outside this port. Empty initializer slots remain available in the CST but are
+omitted from the AST. Import, function and accessor `attr` fields are ordered
+vectors so repeated attributes retain their spelling.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`

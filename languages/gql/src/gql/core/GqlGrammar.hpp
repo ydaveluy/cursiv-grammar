@@ -1,8 +1,8 @@
 // The GQL language: its grammar. GQL (ISO/IEC 39075) layers catalog DDL,
 // session/transaction control and a composable query pipeline over a shared
 // value-expression and graph-pattern language. Lexing is per LR state, so
-// most of GQL's own soft/contextual keywords need no special handling -- a
-// word is a keyword only where the state also reads that keyword.
+// non-reserved keywords stay contextual, while IDENT independently guards
+// the native reserved/pre-reserved vocabulary.
 #pragma once
 
 #include <cstdint>
@@ -45,14 +45,12 @@ constexpr void append_utf8(std::span<char> room, std::size_t &n, unsigned cp) {
 
 } // namespace detail
 
-// A quoted sequence's content, one converter for all three delimiters
-// (single/double/accent quote) and the optional leading `@` marker: the
-// quote character is whatever the last byte of the match is, doubling it
-// escapes it, and `\t \b \n \r \f \\ \' \" \` \uXXXX \UXXXXXX` decode as
-// written. `@` is accepted but changes nothing here -- GQL's own lexical
-// form does not condition the body on it either.
+// Quoted contents share one decoder. `@` opts out of backslash escaping;
+// quote doubling still denotes the delimiter itself. Unicode escapes must
+// produce scalar values so the semantic value remains valid UTF-8.
 inline constexpr auto decode_quoted =
-    [](std::string_view t, std::pmr::memory_resource *mem) -> std::string_view {
+    [](std::string_view t, std::pmr::memory_resource *mem) {
+  using Result = cursiv::ConversionResult<std::string_view>;
   std::size_t start = 0;
   if (!t.empty() && t.front() == '@')
     start = 1;
@@ -60,7 +58,7 @@ inline constexpr auto decode_quoted =
   const std::string_view body = t.substr(start + 1, t.size() - start - 2);
   if (body.find('\\') == std::string_view::npos &&
       body.find(q) == std::string_view::npos)
-    return body;
+    return Result::ok(body);
   const std::span<char> room = cursiv::text_room(mem, body.size());
   std::size_t n = 0;
   for (std::size_t i = 0; i < body.size(); ++i) {
@@ -68,7 +66,7 @@ inline constexpr auto decode_quoted =
     if (c == q && i + 1 < body.size() && body[i + 1] == q) {
       room[n++] = q;
       ++i;
-    } else if (c == '\\' && i + 1 < body.size()) {
+    } else if (start == 0 && c == '\\' && i + 1 < body.size()) {
       const char e = body[i + 1];
       switch (e) {
       case '\\':
@@ -113,6 +111,8 @@ inline constexpr auto decode_quoted =
           for (int k = 0; k < 4; ++k)
             cp = (cp << 4) |
                  detail::hex_val(body[i + 2 + static_cast<std::size_t>(k)]);
+          if (cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff))
+            return Result::err("Unicode escape is not a scalar value.");
           detail::append_utf8(room, n, cp);
           i += 5;
         }
@@ -123,6 +123,8 @@ inline constexpr auto decode_quoted =
           for (int k = 0; k < 6; ++k)
             cp = (cp << 4) |
                  detail::hex_val(body[i + 2 + static_cast<std::size_t>(k)]);
+          if (cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff))
+            return Result::err("Unicode escape is not a scalar value.");
           detail::append_utf8(room, n, cp);
           i += 7;
         }
@@ -135,11 +137,11 @@ inline constexpr auto decode_quoted =
       room[n++] = c;
     }
   }
-  return std::string_view(room.data(), n);
+  return Result::ok(std::string_view(room.data(), n));
 };
-using Unquoted = cursiv::text_conv<decode_quoted>;
 
 struct Gql : cursiv::GrammarSpec {
+  static constexpr auto word_boundary = uc::XID_Continue;
   // ---- trivia -----------------------------------------------------------
 
   struct WS : terminal<some(s | cr<R"(\x1c-\x1f)"> | uc::Zs | uc::Zl | uc::Zp |
@@ -150,7 +152,79 @@ struct Gql : cursiv::GrammarSpec {
 
   // ---- identifiers -------------------------------------------------------
 
-  struct IDENT : terminal<(uc::XID_Start | uc::Pc) + many(uc::XID_Continue)> {};
+  // ISO/IEC 39075:2024 reserved and pre-reserved words. Contextual
+  // lexing alone cannot reject them where only a regular name is expected.
+  static constexpr auto ReservedWords =
+      ikw<"ABS"> | ikw<"ACOS"> | ikw<"ALL"> | ikw<"ALL_DIFFERENT"> |
+      ikw<"AND"> | ikw<"ANY"> | ikw<"ARRAY"> | ikw<"AS"> |
+      ikw<"ASC"> | ikw<"ASCENDING"> | ikw<"ASIN"> | ikw<"AT"> |
+      ikw<"ATAN"> | ikw<"AVG"> | ikw<"BIG"> | ikw<"BIGINT"> |
+      ikw<"BINARY"> | ikw<"BOOL"> | ikw<"BOOLEAN"> | ikw<"BOTH"> |
+      ikw<"BTRIM"> | ikw<"BY"> | ikw<"BYTE_LENGTH"> | ikw<"BYTES"> |
+      ikw<"CALL"> | ikw<"CARDINALITY"> | ikw<"CASE"> | ikw<"CAST"> |
+      ikw<"CEIL"> | ikw<"CEILING"> | ikw<"CHAR"> | ikw<"CHAR_LENGTH"> |
+      ikw<"CHARACTER_LENGTH"> | ikw<"CHARACTERISTICS"> | ikw<"CLOSE"> | ikw<"COALESCE"> |
+      ikw<"COLLECT_LIST"> | ikw<"COMMIT"> | ikw<"COPY"> | ikw<"COS"> |
+      ikw<"COSH"> | ikw<"COT"> | ikw<"COUNT"> | ikw<"CREATE"> |
+      ikw<"CURRENT_DATE"> | ikw<"CURRENT_GRAPH"> | ikw<"CURRENT_PROPERTY_GRAPH"> | ikw<"CURRENT_SCHEMA"> |
+      ikw<"CURRENT_TIME"> | ikw<"CURRENT_TIMESTAMP"> | ikw<"DATE"> | ikw<"DATETIME"> |
+      ikw<"DAY"> | ikw<"DEC"> | ikw<"DECIMAL"> | ikw<"DEGREES"> |
+      ikw<"DELETE"> | ikw<"DESC"> | ikw<"DESCENDING"> | ikw<"DETACH"> |
+      ikw<"DISTINCT"> | ikw<"DOUBLE"> | ikw<"DROP"> | ikw<"DURATION"> |
+      ikw<"DURATION_BETWEEN"> | ikw<"ELEMENT_ID"> | ikw<"ELSE"> | ikw<"END"> |
+      ikw<"EXCEPT"> | ikw<"EXISTS"> | ikw<"EXP"> | ikw<"FALSE"> |
+      ikw<"FILTER"> | ikw<"FINISH"> | ikw<"FLOAT"> | ikw<"FLOAT16"> |
+      ikw<"FLOAT32"> | ikw<"FLOAT64"> | ikw<"FLOAT128"> | ikw<"FLOAT256"> |
+      ikw<"FLOOR"> | ikw<"FOR"> | ikw<"FROM"> | ikw<"GROUP"> |
+      ikw<"HAVING"> | ikw<"HOME_GRAPH"> | ikw<"HOME_PROPERTY_GRAPH"> | ikw<"HOME_SCHEMA"> |
+      ikw<"HOUR"> | ikw<"IF"> | ikw<"IMPLIES"> | ikw<"IN"> |
+      ikw<"INSERT"> | ikw<"INT"> | ikw<"INTEGER"> | ikw<"INT8"> |
+      ikw<"INTEGER8"> | ikw<"INT16"> | ikw<"INTEGER16"> | ikw<"INT32"> |
+      ikw<"INTEGER32"> | ikw<"INT64"> | ikw<"INTEGER64"> | ikw<"INT128"> |
+      ikw<"INTEGER128"> | ikw<"INT256"> | ikw<"INTEGER256"> | ikw<"INTERSECT"> |
+      ikw<"INTERVAL"> | ikw<"IS"> | ikw<"LEADING"> | ikw<"LEFT"> |
+      ikw<"LET"> | ikw<"LIKE"> | ikw<"LIMIT"> | ikw<"LIST"> |
+      ikw<"LN"> | ikw<"LOCAL"> | ikw<"LOCAL_DATETIME"> | ikw<"LOCAL_TIME"> |
+      ikw<"LOCAL_TIMESTAMP"> | ikw<"LOG"> | ikw<"LOG10"> | ikw<"LOWER"> |
+      ikw<"LTRIM"> | ikw<"MATCH"> | ikw<"MAX"> | ikw<"MIN"> |
+      ikw<"MINUTE"> | ikw<"MOD"> | ikw<"MONTH"> | ikw<"NEXT"> |
+      ikw<"NODETACH"> | ikw<"NORMALIZE"> | ikw<"NOT"> | ikw<"NOTHING"> |
+      ikw<"NULL"> | ikw<"NULLS"> | ikw<"NULLIF"> | ikw<"OCTET_LENGTH"> |
+      ikw<"OF"> | ikw<"OFFSET"> | ikw<"OPTIONAL"> | ikw<"OR"> |
+      ikw<"ORDER"> | ikw<"OTHERWISE"> | ikw<"PARAMETER"> | ikw<"PARAMETERS"> |
+      ikw<"PATH"> | ikw<"PATH_LENGTH"> | ikw<"PATHS"> | ikw<"PERCENTILE_CONT"> |
+      ikw<"PERCENTILE_DISC"> | ikw<"POWER"> | ikw<"PRECISION"> | ikw<"PROPERTY_EXISTS"> |
+      ikw<"RADIANS"> | ikw<"REAL"> | ikw<"RECORD"> | ikw<"REMOVE"> |
+      ikw<"REPLACE"> | ikw<"RESET"> | ikw<"RETURN"> | ikw<"RIGHT"> |
+      ikw<"ROLLBACK"> | ikw<"RTRIM"> | ikw<"SAME"> | ikw<"SCHEMA"> |
+      ikw<"SECOND"> | ikw<"SELECT"> | ikw<"SESSION"> | ikw<"SESSION_USER"> |
+      ikw<"SET"> | ikw<"SIGNED"> | ikw<"SIN"> | ikw<"SINH"> |
+      ikw<"SIZE"> | ikw<"SKIP"> | ikw<"SMALL"> | ikw<"SMALLINT"> |
+      ikw<"SQRT"> | ikw<"START"> | ikw<"STDDEV_POP"> | ikw<"STDDEV_SAMP"> |
+      ikw<"STRING"> | ikw<"SUM"> | ikw<"TAN"> | ikw<"TANH"> |
+      ikw<"THEN"> | ikw<"TIME"> | ikw<"TIMESTAMP"> | ikw<"TRAILING"> |
+      ikw<"TRIM"> | ikw<"TRUE"> | ikw<"TYPED"> | ikw<"UBIGINT"> |
+      ikw<"UINT"> | ikw<"UINT8"> | ikw<"UINT16"> | ikw<"UINT32"> |
+      ikw<"UINT64"> | ikw<"UINT128"> | ikw<"UINT256"> | ikw<"UNION"> |
+      ikw<"UNKNOWN"> | ikw<"UNSIGNED"> | ikw<"UPPER"> | ikw<"USE"> |
+      ikw<"USMALLINT"> | ikw<"VALUE"> | ikw<"VARBINARY"> | ikw<"VARCHAR"> |
+      ikw<"VARIABLE"> | ikw<"WHEN"> | ikw<"WHERE"> | ikw<"WITH"> |
+      ikw<"XOR"> | ikw<"YEAR"> | ikw<"YIELD"> | ikw<"ZONED"> |
+      ikw<"ZONED_DATETIME"> | ikw<"ZONED_TIME"> | ikw<"ABSTRACT"> | ikw<"AGGREGATE"> |
+      ikw<"AGGREGATES"> | ikw<"ALTER"> | ikw<"CATALOG"> | ikw<"CLEAR"> |
+      ikw<"CLONE"> | ikw<"CONSTRAINT"> | ikw<"CURRENT_ROLE"> | ikw<"CURRENT_USER"> |
+      ikw<"DATA"> | ikw<"DIRECTORY"> | ikw<"DRYRUN"> | ikw<"EXACT"> |
+      ikw<"EXISTING"> | ikw<"FUNCTION"> | ikw<"GQLSTATUS"> | ikw<"GRANT"> |
+      ikw<"INSTANT"> | ikw<"INFINITY"> | ikw<"NUMBER"> | ikw<"NUMERIC"> |
+      ikw<"ON"> | ikw<"OPEN"> | ikw<"PARTITION"> | ikw<"PROCEDURE"> |
+      ikw<"PRODUCT"> | ikw<"PROJECT"> | ikw<"QUERY"> | ikw<"RECORDS"> |
+      ikw<"REFERENCE"> | ikw<"RENAME"> | ikw<"REVOKE"> | ikw<"SUBSTRING"> |
+      ikw<"SYSTEM_USER"> | ikw<"TEMPORAL"> | ikw<"UNIQUE"> | ikw<"UNIT"> |
+      ikw<"VALUES"> | ikw<"WHITESPACE">;
+
+  struct IDENT
+      : terminal<!ReservedWords + (uc::XID_Start | uc::Pc) +
+                 many(uc::XID_Continue)> {};
 
   static constexpr auto NonReservedWordsAlt =
       ikw<"ACYCLIC"> | ikw<"BINDING"> | ikw<"BINDINGS"> | ikw<"CONNECTING"> |
@@ -161,7 +235,7 @@ struct Gql : cursiv::GrammarSpec {
       ikw<"NFKC"> | ikw<"NFKD"> | ikw<"NO"> | ikw<"NODE"> | ikw<"NORMALIZED"> |
       ikw<"ONLY"> | ikw<"ORDINALITY"> | ikw<"PROPERTY"> | ikw<"READ"> |
       ikw<"RELATIONSHIP"> | ikw<"RELATIONSHIPS"> | ikw<"REPEATABLE"> |
-      ikw<"SHORTEST"> | ikw<"SIMPLE"> | ikw<"SOURCE"> | ikw<"TABLE"> |
+      ikw<"SHORTEST"> | ikw<"SIMPLE"> | ikw<"SOURCE"> | ikw<"TABLE"> | ikw<"TEMP"> |
       ikw<"TO"> | ikw<"TRAIL"> | ikw<"TRANSACTION"> | ikw<"TYPE"> |
       ikw<"UNDIRECTED"> | ikw<"VERTEX"> | ikw<"WALK"> | ikw<"WITHOUT"> |
       ikw<"WRITE"> | ikw<"ZONE">;
@@ -171,34 +245,36 @@ struct Gql : cursiv::GrammarSpec {
   struct Ident : rule<ref<IDENT> | NonReservedWordsAlt> {};
   static constexpr auto RegularIdentifier = ref<Ident>;
 
-  static constexpr auto HexDigit = cr<"0-9a-f">;
+  static constexpr auto HexDigit = cr<"0-9a-fA-F">;
   static constexpr auto QuoteEscape =
       lit<"\\"> + (cr<R"(\\'"`tbnrf)"> | (lit<"u"> + repeat<4>(HexDigit)) |
                    (lit<"U"> + repeat<6>(HexDigit)));
   struct SINGLE_QUOTED
-      : terminal<option(lit<"@">) + lit<"'"> +
-                     many(QuoteEscape | cr<R"(^'\\\r\n)"> | lit<"''">) +
-                     lit<"'">,
-                 Unquoted> {};
+      : terminal<as<decode_quoted>(
+            (lit<"@'"> + many(cr<R"(^'\r\n)"> | lit<"''">) + lit<"'">) |
+            (lit<"'"> + many(QuoteEscape | cr<R"(^'\\\r\n)"> | lit<"''">) +
+             lit<"'">))> {};
   struct DOUBLE_QUOTED
-      : terminal<option(lit<"@">) + lit<"\""> +
-                     many(QuoteEscape | cr<R"(^"\\\r\n)"> | lit<"\"\"">) +
-                     lit<"\"">,
-                 Unquoted> {};
+      : terminal<as<decode_quoted>(
+            (lit<"@\""> + many(cr<R"(^"\r\n)"> | lit<"\"\"">) + lit<"\"">) |
+            (lit<"\""> + many(QuoteEscape | cr<R"(^"\\\r\n)"> | lit<"\"\"">) +
+             lit<"\"">))> {};
   struct ACCENT_QUOTED
-      : terminal<option(lit<"@">) + lit<"`"> +
-                     many(QuoteEscape | cr<R"(^`\\\r\n)"> | lit<"``">) +
-                     lit<"`">,
-                 Unquoted> {};
+      : terminal<as<decode_quoted>(
+            (lit<"@`"> + many(cr<R"(^`\r\n)"> | lit<"``">) + lit<"`">) |
+            (lit<"`"> + many(QuoteEscape | cr<R"(^`\\\r\n)"> | lit<"``">) +
+             lit<"`">))> {};
 
-  // A name: an identifier, or one of these words used as one. `Identifier`
-  // additionally admits a delimited (quoted) spelling.
-  static constexpr auto Name = RegularIdentifier;
   static constexpr auto Identifier =
       RegularIdentifier | ref<DOUBLE_QUOTED> | ref<ACCENT_QUOTED>;
+  // Object, property, label and field names admit delimited identifiers;
+  // binding variables continue to use RegularIdentifier explicitly.
+  static constexpr auto Name = Identifier;
 
   static constexpr auto ExtendedIdentBody = some(uc::XID_Continue);
   static constexpr auto ParamNameBody =
+      (lit<"@\""> + many(cr<R"(^"\r\n)"> | lit<"\"\"">) + lit<"\"">) |
+      (lit<"@`"> + many(cr<R"(^`\r\n)"> | lit<"``">) + lit<"`">) |
       (lit<"\""> + many(QuoteEscape | cr<R"(^"\\\r\n)"> | lit<"\"\"">) +
        lit<"\"">) |
       (lit<"`"> + many(QuoteEscape | cr<R"(^`\\\r\n)"> | lit<"``">) +
@@ -212,6 +288,7 @@ struct Gql : cursiv::GrammarSpec {
   struct BOOL_LIT : terminal<ikw<"TRUE"> | ikw<"FALSE"> | ikw<"UNKNOWN">> {};
 
   static constexpr auto DecDigits = d + many(option(lit<"_">) + d);
+  struct UNSIGNED_INT : terminal<DecDigits> {};
   static constexpr auto DecCommon =
       (DecDigits + option(lit<"."> + option(DecDigits))) |
       (lit<"."> + DecDigits);
@@ -219,16 +296,21 @@ struct Gql : cursiv::GrammarSpec {
       : terminal<DecCommon + option(cr<"eE"> + option(cr<"+-">) + DecDigits) +
                  option(cr<"mMfFdD">)> {};
   struct HEX_INT
-      : terminal<lit<"0x"> + some(option(lit<"_">) + cr<"0-9a-fA-F">)> {};
-  struct OCT_INT : terminal<lit<"0o"> + some(option(lit<"_">) + cr<"0-7">)> {};
-  struct BIN_INT : terminal<lit<"0b"> + some(option(lit<"_">) + cr<"0-1">)> {};
+      : terminal<lit<"0"> + cr<"xX"> + some(option(lit<"_">) + cr<"0-9a-fA-F">)> {};
+  struct OCT_INT : terminal<lit<"0"> + cr<"oO"> + some(option(lit<"_">) + cr<"0-7">)> {};
+  struct BIN_INT : terminal<lit<"0"> + cr<"bB"> + some(option(lit<"_">) + cr<"0-1">)> {};
   static constexpr auto NumberText =
       ref<HEX_INT> | ref<OCT_INT> | ref<BIN_INT> | ref<NUMERIC>;
 
-  struct BYTE_STRING : terminal<cr<"xX"> + lit<"'"> + many(cr<" ">) +
-                                many(cr<"0-9a-fA-F"> + many(cr<" ">) +
-                                     cr<"0-9a-fA-F"> + many(cr<" ">)) +
-                                lit<"'">> {};
+  static constexpr auto BytePart =
+      lit<"'"> + many(cr<" ">) +
+      many(cr<"0-9a-fA-F"> + many(cr<" ">) +
+           cr<"0-9a-fA-F"> + many(cr<" ">)) + lit<"'">;
+  static constexpr auto Separator =
+      some(ref<WS> | ref<BLOCK_COMMENT> | ref<LINE_COMMENT_SLASH> |
+           ref<LINE_COMMENT_DASH>);
+  struct BYTE_STRING
+      : terminal<cr<"xX"> + BytePart + many(Separator + BytePart)> {};
 
   static constexpr auto StringLiteral = ref<SINGLE_QUOTED> | ref<DOUBLE_QUOTED>;
 
@@ -239,6 +321,11 @@ struct Gql : cursiv::GrammarSpec {
   struct NullLit : rule<create<ast::NullLit> + ikw<"NULL">> {};
   struct BoolLit : rule<assign<&ast::BoolLit::value>(ref<BOOL_LIT>)> {};
   struct NumberLit : rule<assign<&ast::NumberLit::text>(NumberText)> {};
+  struct UnsignedIntLit
+      : rule<assign<&ast::NumberLit::text>(
+            ref<HEX_INT> | ref<OCT_INT> | ref<BIN_INT> | ref<UNSIGNED_INT>)> {};
+  struct UnsignedDecLit
+      : rule<assign<&ast::NumberLit::text>(ref<UNSIGNED_INT>)> {};
   struct StringLit : rule<assign<&ast::StringLit::value>(StringLiteral)> {};
   struct ByteStringLit
       : rule<assign<&ast::ByteStringLit::text>(ref<BYTE_STRING>)> {};
@@ -281,7 +368,7 @@ struct Gql : cursiv::GrammarSpec {
             // list / array, prefix form
             (assign<&ast::TypeRef::name>(ikw<"LIST"> | ikw<"ARRAY">) +
              lit<"<"> + append<&ast::TypeRef::params>(ref<TypeRef>) + lit<">"> +
-             option(lit<"["> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+             option(lit<"["> + append<&ast::TypeRef::args>(ref<UnsignedIntLit>) +
                     lit<"]">) +
              option(NotNull)) |
             // record: a bare keyword (the generic record type), or an
@@ -300,10 +387,12 @@ struct Gql : cursiv::GrammarSpec {
              assign<&ast::TypeRef::name>(ikw<"VALUE">) + option(NotNull)) |
             // graph / binding table / node / edge reference types
             (option(ikw<"PROPERTY">) +
-             assign<&ast::TypeRef::name>(ikw<"GRAPH">) +
+             flag<&ast::TypeRef::graphType>(
+                 assign<&ast::TypeRef::name>(ikw<"GRAPH">)) +
              option(NestedGraphTypeSpec) + option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"ANY">) + option(ikw<"PROPERTY">) +
-             ikw<"GRAPH"> + option(NotNull)) |
+             flag<&ast::TypeRef::graphType>(ikw<"GRAPH">) +
+             option(NotNull)) |
             (option(ikw<"BINDING">) +
              assign<&ast::TypeRef::name>(ikw<"TABLE">) + PropertyTypeFields +
              option(NotNull)) |
@@ -323,32 +412,42 @@ struct Gql : cursiv::GrammarSpec {
             // character/byte strings with length
             (assign<&ast::TypeRef::name>(ikw<"STRING">) +
              option(lit<"("> +
-                    option(append<&ast::TypeRef::args>(ref<NumberLit>) +
+                    option(append<&ast::TypeRef::args>(ref<UnsignedIntLit>) +
                            lit<",">) +
-                    append<&ast::TypeRef::args>(ref<NumberLit>) + lit<")">) +
+                    append<&ast::TypeRef::args>(ref<UnsignedIntLit>) + lit<")">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"CHAR">) +
-             option(lit<"("> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+             option(lit<"("> + append<&ast::TypeRef::args>(ref<UnsignedIntLit>) +
                     lit<")">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"VARCHAR">) +
-             option(lit<"("> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+             option(lit<"("> + append<&ast::TypeRef::args>(ref<UnsignedIntLit>) +
                     lit<")">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"BYTES">) +
              option(lit<"("> +
-                    option(append<&ast::TypeRef::args>(ref<NumberLit>) +
+                    option(append<&ast::TypeRef::args>(ref<UnsignedIntLit>) +
                            lit<",">) +
-                    append<&ast::TypeRef::args>(ref<NumberLit>) + lit<")">) +
+                    append<&ast::TypeRef::args>(ref<UnsignedIntLit>) + lit<")">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"BINARY">) +
-             option(lit<"("> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+             option(lit<"("> + append<&ast::TypeRef::args>(ref<UnsignedIntLit>) +
                     lit<")">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"VARBINARY">) +
-             option(lit<"("> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+             option(lit<"("> + append<&ast::TypeRef::args>(ref<UnsignedIntLit>) +
                     lit<")">) +
              option(NotNull)) |
+            // A sign modifier applies to the verbose INTEGER family.
+            (assign<&ast::TypeRef::signedness>(ikw<"SIGNED"> | ikw<"UNSIGNED">) +
+             ((assign<&ast::TypeRef::name>(
+                   ikw<"INTEGER8"> | ikw<"INTEGER16"> | ikw<"INTEGER32"> |
+                   ikw<"INTEGER64"> | ikw<"INTEGER128"> | ikw<"INTEGER256">)) |
+              (assign<&ast::TypeRef::name>(ikw<"SMALL"> | ikw<"BIG">) +
+               ikw<"INTEGER">) |
+              (assign<&ast::TypeRef::name>(ikw<"INTEGER">) +
+               option(lit<"("> + append<&ast::TypeRef::args>(ref<UnsignedDecLit>) +
+                      lit<")">))) + option(NotNull)) |
             // exact numeric
             (assign<&ast::TypeRef::name>(
                  ikw<"INT8"> | ikw<"INT16"> | ikw<"INT32"> | ikw<"INT64"> |
@@ -359,18 +458,16 @@ struct Gql : cursiv::GrammarSpec {
                  ikw<"INTEGER16"> | ikw<"INTEGER32"> | ikw<"INTEGER64"> |
                  ikw<"INTEGER128"> | ikw<"INTEGER256">) +
              option(NotNull)) |
-            (option(ikw<"SIGNED">) + assign<&ast::TypeRef::name>(ikw<"INT">) +
-             option(lit<"("> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+            (assign<&ast::TypeRef::name>(ikw<"INT">) +
+             option(lit<"("> + append<&ast::TypeRef::args>(ref<UnsignedDecLit>) +
                     lit<")">) +
              option(NotNull)) |
-            (option(ikw<"UNSIGNED">) +
-             assign<&ast::TypeRef::name>(ikw<"UINT">) +
-             option(lit<"("> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+            (assign<&ast::TypeRef::name>(ikw<"UINT">) +
+             option(lit<"("> + append<&ast::TypeRef::args>(ref<UnsignedDecLit>) +
                     lit<")">) +
              option(NotNull)) |
-            (option(ikw<"SIGNED">) +
-             assign<&ast::TypeRef::name>(ikw<"INTEGER">) +
-             option(lit<"("> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+            (assign<&ast::TypeRef::name>(ikw<"INTEGER">) +
+             option(lit<"("> + append<&ast::TypeRef::args>(ref<UnsignedDecLit>) +
                     lit<")">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"SMALL">) + ikw<"INTEGER"> +
@@ -378,9 +475,9 @@ struct Gql : cursiv::GrammarSpec {
             (assign<&ast::TypeRef::name>(ikw<"BIG">) + ikw<"INTEGER"> +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"DECIMAL"> | ikw<"DEC">) +
-             option(lit<"("> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+             option(lit<"("> + append<&ast::TypeRef::args>(ref<UnsignedDecLit>) +
                     option(lit<","> +
-                           append<&ast::TypeRef::args>(ref<NumberLit>)) +
+                           append<&ast::TypeRef::args>(ref<UnsignedDecLit>)) +
                     lit<")">) +
              option(NotNull)) |
             // approximate numeric
@@ -389,36 +486,46 @@ struct Gql : cursiv::GrammarSpec {
                                          ikw<"FLOAT256"> | ikw<"REAL">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"FLOAT">) +
-             option(lit<"("> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+             option(lit<"("> + append<&ast::TypeRef::args>(ref<UnsignedDecLit>) +
                     option(lit<","> +
-                           append<&ast::TypeRef::args>(ref<NumberLit>)) +
+                           append<&ast::TypeRef::args>(ref<UnsignedDecLit>)) +
                     lit<")">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"DOUBLE">) +
              option(ikw<"PRECISION">) + option(NotNull)) |
             // temporal
-            (assign<&ast::TypeRef::name>(ikw<"ZONED">) + ikw<"DATETIME"> +
-             option(NotNull)) |
-            (assign<&ast::TypeRef::name>(ikw<"TIMESTAMP">) + ikw<"WITH"> +
-             ikw<"TIME"> + ikw<"ZONE"> + option(NotNull)) |
-            (assign<&ast::TypeRef::name>(ikw<"LOCAL">) + ikw<"DATETIME"> +
+            (assign<&ast::TypeRef::name>(ikw<"ZONED">) +
+             assign<&ast::TypeRef::qualifier>(ikw<"DATETIME">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"TIMESTAMP">) +
-             option(ikw<"WITHOUT"> + ikw<"TIME"> + ikw<"ZONE">) +
+             assign<&ast::TypeRef::qualifier>(ikw<"WITH">) +
+             ikw<"TIME"> + ikw<"ZONE"> + option(NotNull)) |
+            (assign<&ast::TypeRef::name>(ikw<"LOCAL">) +
+             assign<&ast::TypeRef::qualifier>(ikw<"DATETIME">) +
+             option(NotNull)) |
+            (assign<&ast::TypeRef::name>(ikw<"TIMESTAMP">) +
+             option(assign<&ast::TypeRef::qualifier>(ikw<"WITHOUT">) +
+                    ikw<"TIME"> + ikw<"ZONE">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"DATE">) + option(NotNull)) |
-            (assign<&ast::TypeRef::name>(ikw<"ZONED">) + ikw<"TIME"> +
-             option(NotNull)) |
-            (assign<&ast::TypeRef::name>(ikw<"TIME">) + ikw<"WITH"> +
-             ikw<"TIME"> + ikw<"ZONE"> + option(NotNull)) |
-            (assign<&ast::TypeRef::name>(ikw<"LOCAL">) + ikw<"TIME"> +
+            (assign<&ast::TypeRef::name>(ikw<"ZONED">) +
+             assign<&ast::TypeRef::qualifier>(ikw<"TIME">) +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"TIME">) +
-             option(ikw<"WITHOUT"> + ikw<"TIME"> + ikw<"ZONE">) +
+             assign<&ast::TypeRef::qualifier>(ikw<"WITH">) +
+             ikw<"TIME"> + ikw<"ZONE"> + option(NotNull)) |
+            (assign<&ast::TypeRef::name>(ikw<"LOCAL">) +
+             assign<&ast::TypeRef::qualifier>(ikw<"TIME">) +
+             option(NotNull)) |
+            (assign<&ast::TypeRef::name>(ikw<"TIME">) +
+             assign<&ast::TypeRef::qualifier>(ikw<"WITHOUT">) +
+             ikw<"TIME"> + ikw<"ZONE"> +
              option(NotNull)) |
             (assign<&ast::TypeRef::name>(ikw<"DURATION">) + lit<"("> +
-             assign<&ast::TypeRef::qualifier>(ikw<"YEAR"> | ikw<"DAY">) +
-             ikw<"TO"> + (ikw<"MONTH"> | ikw<"SECOND">)+lit<")"> +
+             ((assign<&ast::TypeRef::qualifier>(ikw<"YEAR">) +
+               ikw<"TO"> + ikw<"MONTH">) |
+              (assign<&ast::TypeRef::qualifier>(ikw<"DAY">) +
+               ikw<"TO"> + ikw<"SECOND">))+lit<")"> +
              option(NotNull))> {};
 
   // Each postfix LIST/ARRAY keeps the preceding type as its sole parameter.
@@ -426,7 +533,7 @@ struct Gql : cursiv::GrammarSpec {
       : rule<ref<TypeBase> +
              many(nest<ast::TypeRef, &ast::TypeRef::params>(
                  flag<&ast::TypeRef::postfixList>(ikw<"LIST"> | ikw<"ARRAY">) +
-                 option(lit<"["> + append<&ast::TypeRef::args>(ref<NumberLit>) +
+                 option(lit<"["> + append<&ast::TypeRef::args>(ref<UnsignedIntLit>) +
                         lit<"]">) +
                  option(NotNull)))> {};
 
@@ -462,12 +569,14 @@ struct Gql : cursiv::GrammarSpec {
   static constexpr auto SourceNodeTypeRef =
       lit<"("> +
       (assign<&ast::ElementTypeSpec::sourceAlias>(EndpointAlias) |
-       option(ElementFillerAlt)) +
+       option(assign<&ast::ElementTypeSpec::sourceType>(
+           create<ast::ElementTypeSpec>(ElementFillerAlt)))) +
       lit<")">;
   static constexpr auto DestNodeTypeRef =
       lit<"("> +
       (assign<&ast::ElementTypeSpec::destAlias>(EndpointAlias) |
-       option(ElementFillerAlt)) +
+       option(assign<&ast::ElementTypeSpec::destType>(
+           create<ast::ElementTypeSpec>(ElementFillerAlt)))) +
       flag<&ast::ElementTypeSpec::isEdge>(lit<")">);
 
   struct ElementTypeSpec
@@ -536,6 +645,7 @@ struct Gql : cursiv::GrammarSpec {
   struct ValuePrimary;
   struct GraphPattern;
   struct SimpleStatement;
+  struct MatchStmt;
   struct SimplifiedPathExpr;
   struct PathPatternExpr;
 
@@ -588,7 +698,9 @@ struct Gql : cursiv::GrammarSpec {
       lit<")">;
 
   static constexpr auto SetQuantifier =
-      assign<&ast::CallExpr::extra>(ikw<"DISTINCT"> | ikw<"ALL">);
+      (flag<&ast::CallExpr::distinct>(
+           assign<&ast::CallExpr::extra>(ikw<"DISTINCT">)) |
+       assign<&ast::CallExpr::extra>(ikw<"ALL">));
 
   // Every keyword-headed `NAME(args)` shape -- aggregate, numeric, datetime,
   // duration, character/byte-string and list functions, plus ELEMENT_ID,
@@ -622,8 +734,10 @@ struct Gql : cursiv::GrammarSpec {
              (assign<&ast::CallExpr::name>(ikw<"MOD"> | ikw<"POWER">) + Args2) |
              (assign<&ast::CallExpr::name>(ikw<"LOG">) + Args2) |
              (assign<&ast::CallExpr::name>(ikw<"DURATION_BETWEEN">) + Args2 +
-              option(assign<&ast::CallExpr::extra>(ikw<"YEAR"> | ikw<"DAY">) +
-                     ikw<"TO"> + (ikw<"MONTH"> | ikw<"SECOND">))) |
+              option((assign<&ast::CallExpr::extra>(ikw<"YEAR">) +
+                      ikw<"TO"> + ikw<"MONTH">) |
+                     (assign<&ast::CallExpr::extra>(ikw<"DAY">) +
+                      ikw<"TO"> + ikw<"SECOND">))) |
              (assign<&ast::CallExpr::name>((ikw<"LEFT"> | ikw<"RIGHT">)) +
               Args2) |
              (assign<&ast::CallExpr::name>(ikw<"BTRIM"> | ikw<"LTRIM"> |
@@ -632,10 +746,10 @@ struct Gql : cursiv::GrammarSpec {
               option(lit<","> + append<&ast::CallExpr::args>(ref<Expression>)) +
               lit<")">) |
              (assign<&ast::CallExpr::name>(ikw<"TRIM">) + lit<"("> +
-              option(assign<&ast::CallExpr::extra>(
-                  ikw<"LEADING"> | ikw<"TRAILING"> | ikw<"BOTH">)) +
-              option(append<&ast::CallExpr::args>(ref<Expression>)) +
-              option(ikw<"FROM">) +
+              option(option(assign<&ast::CallExpr::extra>(
+                                ikw<"LEADING"> | ikw<"TRAILING"> | ikw<"BOTH">)) +
+                     option(append<&ast::CallExpr::args>(ref<Expression>)) +
+                     ikw<"FROM">) +
               append<&ast::CallExpr::args>(ref<Expression>) + lit<")">) |
              (assign<&ast::CallExpr::name>(ikw<"NORMALIZE">) + lit<"("> +
               append<&ast::CallExpr::args>(ref<Expression>) +
@@ -650,8 +764,8 @@ struct Gql : cursiv::GrammarSpec {
                  ikw<"CURRENT_TIMESTAMP"> | ikw<"LOCAL_TIMESTAMP">)) |
              (assign<&ast::CallExpr::name>(
                   ikw<"DATE"> | ikw<"ZONED_TIME"> | ikw<"ZONED_DATETIME"> |
-                  ikw<"LOCAL_DATETIME"> | ikw<"DURATION">) +
-              ArgsOpt) |
+                  ikw<"LOCAL_DATETIME">) + ArgsOpt) |
+             (assign<&ast::CallExpr::name>(ikw<"DURATION">) + Args1) |
              (assign<&ast::CallExpr::name>(ikw<"LOCAL_TIME">) +
               option(ArgsOpt))> {};
 
@@ -742,15 +856,13 @@ struct Gql : cursiv::GrammarSpec {
 
   struct LabelNotExpr
       : rule<(create<ast::LabelNot>(lit<"!"> + assign<&ast::LabelNot::operand>(
-                                                   ref<LabelNotExpr>))) |
+                                                   ref<LabelAtom>))) |
              ref<LabelAtom>> {};
 
-  struct LabelAndOp : terminal<lit<"&">, value<ast::LabelOp::and_>> {};
-  struct LabelOrOp : terminal<lit<"|">, value<ast::LabelOp::or_>> {};
 
-  struct LabelExpr : infix<LabelNotExpr, &ast::LabelBin::left,
-                           &ast::LabelBin::op, &ast::LabelBin::right,
-                           (left(ref<LabelAndOp>) >> left(ref<LabelOrOp>))> {};
+  struct LabelExpr
+      : infix<LabelNotExpr, ast::LabelBin,
+              levels(left(as<ast::LabelOp::and_>(lit<"&">)), left(as<ast::LabelOp::or_>(lit<"|">)))> {};
 
   // ---- expressions: predicates ---------------------------------------------
 
@@ -763,21 +875,22 @@ struct Gql : cursiv::GrammarSpec {
               (lit<"("> + assign<&ast::ExistsTest::pattern>(ref<GraphPattern>) +
                lit<")">) |
               (lit<"{"> +
-               some(append<&ast::ExistsTest::block>(ref<SimpleStatement>)) +
+               some(append<&ast::ExistsTest::block>(ref<MatchStmt>)) +
                lit<"}">) |
               (lit<"("> +
-               some(append<&ast::ExistsTest::block>(ref<SimpleStatement>)) +
+               some(append<&ast::ExistsTest::block>(ref<MatchStmt>)) +
                lit<")">) |
               (lit<"{"> + assign<&ast::ExistsTest::nested>(ref<Procedure>) +
                lit<"}">))> {};
 
   struct AllDifferentTest
       : rule<ikw<"ALL_DIFFERENT"> + lit<"("> +
-             some(append<&ast::AllDifferentTest::operands>(ElementVarRef),
-                  lit<",">) +
+             append<&ast::AllDifferentTest::operands>(ElementVarRef) + lit<","> +
+             some(append<&ast::AllDifferentTest::operands>(ElementVarRef), lit<",">) +
              lit<")">> {};
   struct SameTest
       : rule<ikw<"SAME"> + lit<"("> +
+             append<&ast::SameTest::operands>(ElementVarRef) + lit<","> +
              some(append<&ast::SameTest::operands>(ElementVarRef), lit<",">) +
              lit<")">> {};
   struct PropertyExistsTest
@@ -844,35 +957,23 @@ struct Gql : cursiv::GrammarSpec {
   struct SignExpr
       : rule<(create<ast::SignExpr>(
                   flag<&ast::SignExpr::negative>(lit<"-">) | lit<"+">) +
-              assign<&ast::SignExpr::operand>(ref<SignExpr>)) |
+              assign<&ast::SignExpr::operand>(ref<ValuePrimary>)) |
              ref<ValuePrimary>> {};
 
-  struct OpMul : terminal<lit<"*">, value<ast::BinOp::multiply>> {};
-  struct OpDiv : terminal<lit<"/">, value<ast::BinOp::divide>> {};
-  struct OpAdd : terminal<lit<"+">, value<ast::BinOp::add>> {};
-  struct OpSub : terminal<lit<"-">, value<ast::BinOp::subtract>> {};
-  struct OpConcat : terminal<lit<"||">, value<ast::BinOp::concat>> {};
-  struct OpNe : terminal<lit<"<>">, value<ast::BinOp::ne>> {};
-  struct OpLe : terminal<lit<"<=">, value<ast::BinOp::le>> {};
-  struct OpGe : terminal<lit<">=">, value<ast::BinOp::ge>> {};
-  struct OpEq : terminal<lit<"=">, value<ast::BinOp::eq>> {};
-  struct OpLt : terminal<lit<"<">, value<ast::BinOp::lt>> {};
-  struct OpGt : terminal<lit<">">, value<ast::BinOp::gt>> {};
 
-  static constexpr auto MulOp = ref<OpMul> | ref<OpDiv>;
-  static constexpr auto AddOp = ref<OpAdd> | ref<OpSub>;
-  static constexpr auto ConcatOp = ref<OpConcat>;
+  static constexpr auto MulOp = as<ast::BinOp::multiply>(lit<"*">) | as<ast::BinOp::divide>(lit<"/">);
+  static constexpr auto AddOp = as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::subtract>(lit<"-">);
+  static constexpr auto ConcatOp = as<ast::BinOp::concat>(lit<"||">);
   static constexpr auto CmpOp =
-      ref<OpNe> | ref<OpLe> | ref<OpGe> | ref<OpEq> | ref<OpLt> | ref<OpGt>;
+      as<ast::BinOp::ne>(lit<"<>">) | as<ast::BinOp::le>(lit<"<=">) | as<ast::BinOp::ge>(lit<">=">) | as<ast::BinOp::eq>(lit<"=">) | as<ast::BinOp::lt>(lit<"<">) | as<ast::BinOp::gt>(lit<">">);
 
   // `<character string concatenation> ::= <character string value expression>
   // '||' <character string primary>` is left-recursive on its own left
   // operand, the same shape as `<term>`/`<numeric value expression>` above
   // it: `a || b || c` is `(a || b) || c`.
   struct ArithCompare
-      : infix<SignExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(MulOp) >> left(AddOp) >> left(ConcatOp) >> left(CmpOp))> {};
+      : infix<SignExpr, ast::BinaryExpr,
+              levels(left(MulOp), left(AddOp), left(ConcatOp), nonassoc(CmpOp))> {};
 
   static constexpr auto ArithOrPredicate = ref<ArithCompare> | Predicate;
 
@@ -885,26 +986,24 @@ struct Gql : cursiv::GrammarSpec {
                  ikw<"NORMALIZED">)) |
              ArithOrPredicate> {};
 
-  struct NotWrap
-      : rule<(create<ast::NotExpr>(
-                 ikw<"NOT"> + assign<&ast::NotExpr::operand>(ref<NotWrap>))) |
-             ref<NormalizedWrap>> {};
-
   struct TruthWrap
       : rule<(create<ast::TruthTest>(
-                 assign<&ast::TruthTest::operand>(ref<NotWrap>) + ikw<"IS"> +
+                 assign<&ast::TruthTest::operand>(ref<NormalizedWrap>) + ikw<"IS"> +
                  option(flag<&ast::TruthTest::negated>(ikw<"NOT">)) +
                  assign<&ast::TruthTest::value>(ref<BOOL_LIT>))) |
-             ref<NotWrap>> {};
+             ref<NormalizedWrap>> {};
 
-  struct OpAnd : terminal<ikw<"AND">, value<ast::BinOp::and_>> {};
-  struct OpOr : terminal<ikw<"OR">, value<ast::BinOp::or_>> {};
-  struct OpXor : terminal<ikw<"XOR">, value<ast::BinOp::xor_>> {};
+  // A boolean factor is [NOT] boolean-test: the truth test binds first.
+  struct NotWrap
+      : rule<(create<ast::NotExpr>(
+                 ikw<"NOT"> + assign<&ast::NotExpr::operand>(ref<TruthWrap>))) |
+             ref<TruthWrap>> {};
 
   struct Expression
-      : infix<TruthWrap, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<OpAnd>) >> left(ref<OpOr> | ref<OpXor>))> {};
+      : infix<NotWrap, ast::BinaryExpr,
+              levels(left(as<ast::BinOp::and_>(ikw<"AND">)),
+                     left(as<ast::BinOp::or_>(ikw<"OR">) |
+                          as<ast::BinOp::xor_>(ikw<"XOR">)))> {};
 
   // ---- graph/binding-table expressions -------------------------------------
 
@@ -916,13 +1015,16 @@ struct Gql : cursiv::GrammarSpec {
   static constexpr auto DirSegments =
       many(append<&ast::CatalogRef::segments>(Name) + lit<"/">);
   struct SchemaRef
-      : rule<(create<ast::CatalogRef> + lit<"/">) |
+      : rule<flag<&ast::CatalogRef::absolute>(lit<"/">) |
              (flag<&ast::CatalogRef::absolute>(lit<"/">) + DirSegments +
               append<&ast::CatalogRef::segments>(Name)) |
              (flag<&ast::CatalogRef::home>(
-                 ikw<"HOME_SCHEMA"> | ikw<"CURRENT_SCHEMA"> | lit<".">)) |
+                 assign<&ast::CatalogRef::predefined>(
+                     ikw<"HOME_SCHEMA"> | ikw<"CURRENT_SCHEMA"> | lit<".">))) |
              (flag<&ast::CatalogRef::relative>(
-                  lit<".."> + many(lit<"/"> + lit<"..">) + lit<"/">) +
+                  append<&ast::CatalogRef::parentSteps>(lit<"..">) +
+                  many(lit<"/"> + append<&ast::CatalogRef::parentSteps>(lit<"..">)) +
+                  lit<"/">) +
               DirSegments + append<&ast::CatalogRef::segments>(Name)) |
              (assign<&ast::CatalogRef::paramName>(ref<SUBSTITUTED_PARAM>))> {};
   struct CatalogObjRef
@@ -931,6 +1033,9 @@ struct Gql : cursiv::GrammarSpec {
                                                 ikw<"HOME_PROPERTY_GRAPH">)) |
              (assign<&ast::CatalogRef::delimitedName>(ref<DOUBLE_QUOTED> |
                                                       ref<ACCENT_QUOTED>)) |
+             (assign<&ast::CatalogRef::schema>(ref<SchemaRef>) +
+              option(lit<"/">) + option(CatalogSegments) +
+              append<&ast::CatalogRef::segments>(Name)) |
              (option(CatalogSegments) +
               append<&ast::CatalogRef::segments>(Name))> {};
 
@@ -958,12 +1063,12 @@ struct Gql : cursiv::GrammarSpec {
                            assign<&ast::PropertyKV::value>(ref<Expression>)> {};
   static constexpr auto ElementProperties =
       lit<"{"> +
-      option(some(append<&ast::ElementFiller::properties>(ref<PropertyKV>),
-                  lit<",">)) +
+      some(append<&ast::ElementFiller::properties>(ref<PropertyKV>), lit<",">) +
       lit<"}">;
   struct ElementFiller
       : rule<create<ast::ElementFiller> +
-             option(assign<&ast::ElementFiller::variable>(RegularIdentifier)) +
+             option(option(flag<&ast::ElementFiller::temporary>(ikw<"TEMP">)) +
+                    assign<&ast::ElementFiller::variable>(RegularIdentifier)) +
              option(IsOrColon +
                     assign<&ast::ElementFiller::labels>(ref<LabelExpr>)) +
              option((ikw<"WHERE"> +
@@ -1013,10 +1118,10 @@ struct Gql : cursiv::GrammarSpec {
       : rule<(create<ast::Quantifier> + assign<&ast::Quantifier::symbol>(
                                             lit<"*"> | lit<"+"> | lit<"?">)) |
              (create<ast::Quantifier> + lit<"{"> +
-              assign<&ast::Quantifier::min>(ref<NumberLit>) + lit<"}">) |
+              assign<&ast::Quantifier::min>(ref<UnsignedIntLit>) + lit<"}">) |
              (create<ast::Quantifier> + lit<"{"> +
-              option(assign<&ast::Quantifier::min>(ref<NumberLit>)) + lit<","> +
-              option(assign<&ast::Quantifier::max>(ref<NumberLit>)) +
+              option(assign<&ast::Quantifier::min>(ref<UnsignedIntLit>)) + lit<","> +
+              option(assign<&ast::Quantifier::max>(ref<UnsignedIntLit>)) +
               lit<"}">)> {};
 
   static constexpr auto PathMode =
@@ -1025,24 +1130,26 @@ struct Gql : cursiv::GrammarSpec {
   struct PathPrefix
       : rule<(assign<&ast::PathPrefix::mode>(PathMode) +
               option(assign<&ast::PathPrefix::pathOrPaths>(PathOrPaths))) |
-             (assign<&ast::PathPrefix::search>(ikw<"ALL">) + ikw<"SHORTEST"> +
+             (assign<&ast::PathPrefix::search>(ikw<"ALL">) + flag<&ast::PathPrefix::shortest>(ikw<"SHORTEST">) +
               option(assign<&ast::PathPrefix::mode>(PathMode)) +
               option(assign<&ast::PathPrefix::pathOrPaths>(PathOrPaths))) |
-             (assign<&ast::PathPrefix::search>(ikw<"ANY">) + ikw<"SHORTEST"> +
+             (assign<&ast::PathPrefix::search>(ikw<"ANY">) + flag<&ast::PathPrefix::shortest>(ikw<"SHORTEST">) +
               option(assign<&ast::PathPrefix::mode>(PathMode)) +
               option(assign<&ast::PathPrefix::pathOrPaths>(PathOrPaths))) |
-             (assign<&ast::PathPrefix::search>(ikw<"SHORTEST">) +
-              assign<&ast::PathPrefix::count>(ref<NumberLit>) +
+             (flag<&ast::PathPrefix::shortest>(
+                 assign<&ast::PathPrefix::search>(ikw<"SHORTEST">)) +
+              assign<&ast::PathPrefix::count>(ref<UnsignedIntLit> | ref<ParamRef>) +
               option(assign<&ast::PathPrefix::mode>(PathMode)) +
               option(assign<&ast::PathPrefix::pathOrPaths>(PathOrPaths))) |
-             (assign<&ast::PathPrefix::search>(ikw<"SHORTEST">) +
-              option(assign<&ast::PathPrefix::count>(ref<NumberLit>)) +
+             (flag<&ast::PathPrefix::shortest>(
+                 assign<&ast::PathPrefix::search>(ikw<"SHORTEST">)) +
+              option(assign<&ast::PathPrefix::count>(ref<UnsignedIntLit> | ref<ParamRef>)) +
               option(assign<&ast::PathPrefix::mode>(PathMode)) +
               option(assign<&ast::PathPrefix::pathOrPaths>(PathOrPaths)) +
               flag<&ast::PathPrefix::group>(ikw<"GROUP"> |
                                                  ikw<"GROUPS">)) |
              (assign<&ast::PathPrefix::search>(ikw<"ANY">) +
-              option(assign<&ast::PathPrefix::count>(ref<NumberLit>)) +
+              option(assign<&ast::PathPrefix::count>(ref<UnsignedIntLit> | ref<ParamRef>)) +
               option(assign<&ast::PathPrefix::mode>(PathMode)) +
               option(assign<&ast::PathPrefix::pathOrPaths>(PathOrPaths))) |
              (assign<&ast::PathPrefix::search>(ikw<"ALL">) +
@@ -1050,7 +1157,7 @@ struct Gql : cursiv::GrammarSpec {
               option(assign<&ast::PathPrefix::pathOrPaths>(PathOrPaths)))> {};
 
 
-  struct PathPrimaryRule
+  struct PathPrimary
       : rule<ref<ElementPattern> |
              (create<ast::ParenPathExpr>(
                  lit<"("> +
@@ -1066,7 +1173,7 @@ struct Gql : cursiv::GrammarSpec {
 
   struct PathFactor
       : rule<create<ast::PathFactor> +
-             assign<&ast::PathFactor::primary>(ref<PathPrimaryRule>) +
+             assign<&ast::PathFactor::primary>(ref<PathPrimary>) +
              option(assign<&ast::PathFactor::quantifier>(ref<Quantifier>))> {};
 
   struct PathTerm
@@ -1075,52 +1182,69 @@ struct Gql : cursiv::GrammarSpec {
   struct PathPatternExpr
       : rule<(append<&ast::PathPatternExpr::terms>(ref<PathTerm>) +
               assign<&ast::PathPatternExpr::op>(lit<"|+|">) +
-              append<&ast::PathPatternExpr::terms>(ref<PathTerm>) +
-              many(lit<"|+|"> +
-                   append<&ast::PathPatternExpr::terms>(ref<PathTerm>))) |
+              some(append<&ast::PathPatternExpr::terms>(ref<PathTerm>), lit<"|+|">)) |
              (append<&ast::PathPatternExpr::terms>(ref<PathTerm>) +
               assign<&ast::PathPatternExpr::op>(lit<"|">) +
-              append<&ast::PathPatternExpr::terms>(ref<PathTerm>) +
-              many(lit<"|"> +
-                   append<&ast::PathPatternExpr::terms>(ref<PathTerm>))) |
+              some(append<&ast::PathPatternExpr::terms>(ref<PathTerm>), lit<"|">)) |
              append<&ast::PathPatternExpr::terms>(ref<PathTerm>)> {};
 
-  // The simplified path pattern's five-tier internal precedence (union,
-  // multiset alternation, concatenation, conjunction, quantifiers and
-  // direction overrides) flattens to one associative level of `&`/`|`
-  // between label atoms; a quantified/questioned/negated/overridden atom is
-  // read but not distinguished from a plain one.
+  struct SimplifiedAlternative;
+  struct SimplifiedPrimary
+      : rule<assign<&ast::LabelName::name>(Name) |
+             (lit<"("> + ref<SimplifiedAlternative> + lit<")">)> {};
+  struct SimplifiedSecondary
+      : rule<create<ast::LabelNot>(
+                 lit<"!"> + assign<&ast::LabelNot::operand>(ref<SimplifiedPrimary>)) |
+             ref<SimplifiedPrimary>> {};
+  struct SimplifiedDirection
+      : rule<create<ast::SimplifiedDirection>(
+                 assign<&ast::SimplifiedDirection::openMark>(lit<"<"> | lit<"~">) +
+                 assign<&ast::SimplifiedDirection::operand>(ref<SimplifiedSecondary>) +
+                 option(assign<&ast::SimplifiedDirection::closeMark>(lit<">">))) |
+             create<ast::SimplifiedDirection>(
+                 assign<&ast::SimplifiedDirection::openMark>(lit<"<~"> | lit<"-">) +
+                 assign<&ast::SimplifiedDirection::operand>(ref<SimplifiedSecondary>)) |
+             create<ast::SimplifiedDirection>(
+                 assign<&ast::SimplifiedDirection::operand>(ref<SimplifiedSecondary>) +
+                 assign<&ast::SimplifiedDirection::closeMark>(lit<">">)) |
+             ref<SimplifiedSecondary>> {};
+  struct SimplifiedFactor
+      : rule<ref<SimplifiedDirection> +
+             option(nest<ast::SimplifiedQuantified, &ast::SimplifiedQuantified::operand>(
+                 assign<&ast::SimplifiedQuantified::quantifier>(ref<Quantifier>)))> {};
+  struct SimplifiedConjunction
+      : infix<SimplifiedFactor, ast::LabelBin, left(as<ast::LabelOp::and_>(lit<"&">))> {};
+  struct SimplifiedTerm
+      : rule<ref<SimplifiedConjunction> +
+             option(nest<ast::SimplifiedConcat, &ast::SimplifiedConcat::factors>(
+                 some(append<&ast::SimplifiedConcat::factors>(ref<SimplifiedConjunction>))))> {};
+
+  template <class Owner>
+  static constexpr auto SimplifiedContentsFor =
+      append<&Owner::terms>(ref<SimplifiedTerm>) +
+      option((assign<&Owner::op>(lit<"|">) +
+              some(append<&Owner::terms>(ref<SimplifiedTerm>), lit<"|">)) |
+             (assign<&Owner::op>(lit<"|+|">) +
+              some(append<&Owner::terms>(ref<SimplifiedTerm>), lit<"|+|">)));
+  struct SimplifiedAlternative
+      : rule<create<ast::SimplifiedAlternative>(
+            SimplifiedContentsFor<ast::SimplifiedAlternative>)> {};
   static constexpr auto SimplifiedContents =
-      append<&ast::SimplifiedPathExpr::terms>(ref<LabelExpr>) +
-      option((assign<&ast::SimplifiedPathExpr::op>(lit<"&">) +
-              some(append<&ast::SimplifiedPathExpr::terms>(ref<LabelExpr>),
-                   lit<"&">)) |
-             (assign<&ast::SimplifiedPathExpr::op>(lit<"|">) +
-              some(append<&ast::SimplifiedPathExpr::terms>(ref<LabelExpr>),
-                   lit<"|">)) |
-             (assign<&ast::SimplifiedPathExpr::op>(lit<"|+|">) +
-              some(append<&ast::SimplifiedPathExpr::terms>(ref<LabelExpr>),
-                   lit<"|+|">)));
+      SimplifiedContentsFor<ast::SimplifiedPathExpr>;
 
   struct SimplifiedPathExpr
       : rule<(assign<&ast::SimplifiedPathExpr::openMark>(lit<"<-/">) +
               SimplifiedContents +
-              assign<&ast::SimplifiedPathExpr::closeMark>(lit<"/-">)) |
+              assign<&ast::SimplifiedPathExpr::closeMark>(lit<"/-"> | lit<"/->">)) |
              (assign<&ast::SimplifiedPathExpr::openMark>(lit<"~/">) +
               SimplifiedContents +
-              assign<&ast::SimplifiedPathExpr::closeMark>(lit<"/~">)) |
+              assign<&ast::SimplifiedPathExpr::closeMark>(lit<"/~"> | lit<"/~>">)) |
              (assign<&ast::SimplifiedPathExpr::openMark>(lit<"-/">) +
               SimplifiedContents +
-              assign<&ast::SimplifiedPathExpr::closeMark>(lit<"/->">)) |
+              assign<&ast::SimplifiedPathExpr::closeMark>(lit<"/->"> | lit<"/-">)) |
              (assign<&ast::SimplifiedPathExpr::openMark>(lit<"<~/">) +
               SimplifiedContents +
-              assign<&ast::SimplifiedPathExpr::closeMark>(lit<"/~">)) |
-             (assign<&ast::SimplifiedPathExpr::openMark>(lit<"~/">) +
-              SimplifiedContents +
-              assign<&ast::SimplifiedPathExpr::closeMark>(lit<"/~>">)) |
-             (assign<&ast::SimplifiedPathExpr::openMark>(lit<"-/">) +
-              SimplifiedContents +
-              assign<&ast::SimplifiedPathExpr::closeMark>(lit<"/-">))> {};
+              assign<&ast::SimplifiedPathExpr::closeMark>(lit<"/~">))> {};
 
   struct PathPattern
       : rule<option(assign<&ast::PathPattern::variable>(RegularIdentifier) +
@@ -1150,18 +1274,28 @@ struct Gql : cursiv::GrammarSpec {
 
   // ---- insert pattern ---------------------------------------------------
 
+  struct InsertLabel : rule<assign<&ast::LabelName::name>(Name)> {};
+  struct InsertLabels
+      : infix<InsertLabel, ast::LabelBin, left(as<ast::LabelOp::and_>(lit<"&">))> {};
+  struct InsertElementFiller
+      : rule<create<ast::ElementFiller> +
+             option(option(flag<&ast::ElementFiller::temporary>(ikw<"TEMP">)) +
+                    assign<&ast::ElementFiller::variable>(RegularIdentifier)) +
+             option(IsOrColon + assign<&ast::ElementFiller::labels>(ref<InsertLabels>)) +
+             option(ElementProperties)> {};
+
   struct InsertNode
-      : rule<lit<"("> + assign<&ast::InsertNode::filler>(ref<ElementFiller>) +
+      : rule<lit<"("> + assign<&ast::InsertNode::filler>(ref<InsertElementFiller>) +
              lit<")">> {};
   struct InsertEdge
       : rule<(assign<&ast::InsertEdge::openMark>(lit<"<-[">) +
-              assign<&ast::InsertEdge::filler>(ref<ElementFiller>) +
+              assign<&ast::InsertEdge::filler>(ref<InsertElementFiller>) +
               lit<"]-">) |
              (assign<&ast::InsertEdge::openMark>(lit<"-[">) +
-              assign<&ast::InsertEdge::filler>(ref<ElementFiller>) +
+              assign<&ast::InsertEdge::filler>(ref<InsertElementFiller>) +
               lit<"]->">) |
              (assign<&ast::InsertEdge::openMark>(lit<"~[">) +
-              assign<&ast::InsertEdge::filler>(ref<ElementFiller>) +
+              assign<&ast::InsertEdge::filler>(ref<InsertElementFiller>) +
               lit<"]~">)> {};
   struct InsertStep : rule<assign<&ast::InsertStep::edge>(ref<InsertEdge>) +
                            assign<&ast::InsertStep::node>(ref<InsertNode>)> {};
@@ -1183,8 +1317,10 @@ struct Gql : cursiv::GrammarSpec {
   };
   struct GraphPatternYieldClause
       : rule<ikw<"YIELD"> +
-             some(append<&ast::YieldClause::items>(ref<YieldItem>), lit<",">)> {
-  };
+             (flag<&ast::YieldClause::noBindings>(ikw<"NO"> + ikw<"BINDINGS">) |
+              some(append<&ast::YieldClause::items>(create<ast::YieldItem>(
+                       assign<&ast::YieldItem::name>(RegularIdentifier))),
+                   lit<",">))> {};
 
   struct SortSpec
       : rule<assign<&ast::SortSpec::key>(ref<Expression>) +
@@ -1207,10 +1343,9 @@ struct Gql : cursiv::GrammarSpec {
              (OffsetClauseExpr + option(LimitClauseExpr)) | LimitClauseExpr> {};
 
   struct ReturnItem : rule<assign<&ast::ReturnItem::value>(ref<Expression>) +
-                           option(ikw<"AS"> + assign<&ast::ReturnItem::alias>(
-                                                  RegularIdentifier))> {};
+                           option(ikw<"AS"> + assign<&ast::ReturnItem::alias>(Name))> {};
   static constexpr auto GroupByClauseExpr =
-      ikw<"GROUP"> + ikw<"BY"> +
+      flag<&ast::ResultStmt::grouped>(ikw<"GROUP">) + ikw<"BY"> +
       ((some(append<&ast::ResultStmt::groupBy>(ref<Expression>), lit<",">)) |
        (lit<"("> + lit<")">));
   struct ResultStmt
@@ -1236,11 +1371,11 @@ struct Gql : cursiv::GrammarSpec {
              ((assign<&ast::OptionalMatchStmt::simple>(ref<MatchStmt>)) |
               (lit<"{"> +
                some(append<&ast::OptionalMatchStmt::block>(
-                   ref<SimpleStatement>)) +
+                   ref<MatchStmt>)) +
                lit<"}">) |
               (lit<"("> +
                some(append<&ast::OptionalMatchStmt::block>(
-                   ref<SimpleStatement>)) +
+                   ref<MatchStmt>)) +
                lit<")">))> {};
 
   struct LetStmt
@@ -1434,7 +1569,7 @@ struct Gql : cursiv::GrammarSpec {
   static constexpr auto WhereClauseExpr =
       ikw<"WHERE"> + assign<&ast::SelectStmt::where>(ref<Expression>);
   static constexpr auto SelectGroupByExpr =
-      ikw<"GROUP"> + ikw<"BY"> +
+      flag<&ast::SelectStmt::grouped>(ikw<"GROUP">) + ikw<"BY"> +
       ((some(append<&ast::SelectStmt::groupBy>(ref<Expression>), lit<",">)) |
        (lit<"("> + lit<")">));
 
@@ -1463,11 +1598,11 @@ struct Gql : cursiv::GrammarSpec {
 
   static constexpr auto QueryOperand = ref<LinearStatement> | ref<SelectStmt>;
   struct QueryOperation
-      : rule<assign<&ast::QueryOperation::op>(ikw<"UNION"> | ikw<"EXCEPT"> |
-                                              ikw<"INTERSECT"> |
-                                              ikw<"OTHERWISE">) +
-             option(assign<&ast::QueryOperation::quantifier>(ikw<"ALL"> |
-                                                             ikw<"DISTINCT">)) +
+      : rule<((assign<&ast::QueryOperation::op>(ikw<"UNION"> | ikw<"EXCEPT"> |
+                                               ikw<"INTERSECT">) +
+               option(assign<&ast::QueryOperation::quantifier>(ikw<"ALL"> |
+                                                               ikw<"DISTINCT">))) |
+              assign<&ast::QueryOperation::op>(ikw<"OTHERWISE">)) +
              assign<&ast::QueryOperation::right>(QueryOperand)> {};
   static constexpr auto CompositeQueryBody =
       assign<&ast::CompositeQuery::first>(QueryOperand) +
@@ -1476,11 +1611,10 @@ struct Gql : cursiv::GrammarSpec {
 
   // ---- procedure ------------------------------------------------------------
 
-  struct VarKindGraph : terminal<option(ikw<"PROPERTY">) + ikw<"GRAPH">,
-                                 value<ast::VarKind::graph>> {};
-  struct VarKindTable : terminal<option(ikw<"BINDING">) + ikw<"TABLE">,
-                                 value<ast::VarKind::bindingTable>> {};
-  struct VarKindValue : terminal<ikw<"VALUE">, value<ast::VarKind::value>> {};
+  struct VarKindGraph : terminal<as<ast::VarKind::graph>(
+                            option(ikw<"PROPERTY">) + ikw<"GRAPH">)> {};
+  struct VarKindTable : terminal<as<ast::VarKind::bindingTable>(
+                            option(ikw<"BINDING">) + ikw<"TABLE">)> {};
 
   struct VarDef
       : rule<(assign<&ast::VarDef::kind>(ref<VarKindGraph>) +
@@ -1492,7 +1626,7 @@ struct Gql : cursiv::GrammarSpec {
               option(option(Typed) + assign<&ast::VarDef::type>(ref<TypeRef>)) +
               lit<"="> +
               assign<&ast::VarDef::tableInit>(ref<BindingTableExpr>)) |
-             (assign<&ast::VarDef::kind>(ref<VarKindValue>) +
+             (assign<&ast::VarDef::kind>(as<ast::VarKind::value>(ikw<"VALUE">)) +
               assign<&ast::VarDef::name>(RegularIdentifier) +
               option(option(Typed) + assign<&ast::VarDef::type>(ref<TypeRef>)) +
               lit<"="> + assign<&ast::VarDef::valueInit>(ref<Expression>))> {};
@@ -1614,7 +1748,7 @@ struct Gql : cursiv::GrammarSpec {
                     SessionCloseExpr)> {};
 
   using entry = Root;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<BLOCK_COMMENT, LINE_COMMENT_SLASH, LINE_COMMENT_DASH>;
 };
 

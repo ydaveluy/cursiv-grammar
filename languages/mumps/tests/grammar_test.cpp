@@ -30,6 +30,19 @@ std::string read(const std::string& path) {
                       std::istreambuf_iterator<char>());
 }
 
+void print_parse_failure(const cursiv::ParseResult& result) {
+  const auto source = result.cst().text();
+  std::fprintf(stderr, "mumps source:\n%.*s\naccepted=%d recovered=%d diagnostics=%zu\n",
+               static_cast<int>(source.size()), source.data(), result.accepted,
+               result.cst().recovered(), result.diagnostics.size());
+  for (const auto& diagnostic : result.diagnostics)
+    std::fprintf(stderr, "kind=%u begin=%u end=%u element=%u message=%s\n",
+                 static_cast<unsigned>(diagnostic.kind),
+                 static_cast<unsigned>(diagnostic.begin),
+                 static_cast<unsigned>(diagnostic.end),
+                 static_cast<unsigned>(diagnostic.element), diagnostic.message.c_str());
+}
+
 // AST nodes are identified by tag, not RTTI: `dynamic_cast` does not apply.
 template <class T, class From>
 const T* as(const From* node) {
@@ -56,8 +69,24 @@ static int audit_regression() {
   const auto language = cursiv::create_language<mumps::MumpsCoreServices,
                                                 mumps::MumpsSharedCoreServices,
                                                 mumps::install_core_module>();
+  const auto parse = [&](std::string_view source) {
+    auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) {
+      std::fprintf(stderr, "mumps audit source:\n%.*saccepted=%d recovered=%d diagnostics=%zu\n",
+                   static_cast<int>(source.size()), source.data(), result.accepted,
+                   result.cst().recovered(), result.diagnostics.size());
+      for (const auto& diagnostic : result.diagnostics)
+        std::fprintf(stderr, "kind=%u begin=%u end=%u element=%u message=%s\n",
+                     static_cast<unsigned>(diagnostic.kind),
+                     static_cast<unsigned>(diagnostic.begin),
+                     static_cast<unsigned>(diagnostic.end),
+                     static_cast<unsigned>(diagnostic.element),
+                     diagnostic.message.c_str());
+    }
+    return result;
+  };
   {
-    const auto r = language.language.parser->parse("r\n S x=\"a\"_\"b\" W x\n");
+    const auto r = parse("r\n S x=\"a\"_\"b\" W x\n");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr) {
       std::fprintf(stderr,
@@ -65,11 +94,11 @@ static int audit_regression() {
                    r.accepted, r.cst().recovered(), r.diagnostics.size());
       for (const auto& d : r.diagnostics)
         std::fprintf(stderr, "%s\n", d.message.c_str());
-      return 1;
+      return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
     }
   }
   {
-    const auto r = language.language.parser->parse("r\n G label\n");
+    const auto r = parse("r\n G label\n");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr) {
       std::fprintf(stderr,
@@ -77,13 +106,13 @@ static int audit_regression() {
                    r.accepted, r.cst().recovered(), r.diagnostics.size());
       for (const auto& d : r.diagnostics)
         std::fprintf(stderr, "%s\n", d.message.c_str());
-      return 1;
+      return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
     }
   }
   {
     const auto r =
-        language.language.parser->parse("r\n F i=1:1:3,5,7:1:9 W i\n");
-    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return 1;
+        parse("r\n F i=1:1:3,5,7:1:9 W i\n");
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
     const auto* doc = r.value_as<mumps::ast::Document>();
     const auto* line =
         doc && doc->lines.size() == 2
@@ -96,32 +125,97 @@ static int audit_regression() {
     if (!loop || loop->parameters.size() != 3 || !loop->parameters[0]->step ||
         !loop->parameters[0]->end || loop->parameters[1]->step ||
         !loop->parameters[2]->end || loop->commands.size() != 1)
-      return 1;
+      return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
   }
   {
-    const auto r = language.language.parser->parse("r\n E TC\n");
-    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return 1;
+    const auto r = parse("r\n E TC\n");
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
     const auto* doc = r.value_as<mumps::ast::Document>();
     const auto* line =
         doc && doc->lines.size() == 2
             ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[1])
             : nullptr;
-    if (!line || line->commands.size() != 2) return 1;
+    if (!line || line->commands.size() != 2) return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
   }
   {
     auto doc = language.shared->documentFactory->fromString("r\n G\n",
                                                             "file:///audit.m");
     if (!doc->parseResult.accepted || doc->parseResult.cst().recovered() ||
         !doc->parseResult.diagnostics.empty())
-      return 1;
+      return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
     std::vector<cursiv::Diagnostic> diagnostics;
     language.language.documentValidator->validateDocument(*doc, diagnostics);
-    if (diagnostics.empty()) return 1;
+    if (diagnostics.empty()) return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
   }
   {
     const auto r =
-        language.language.parser->parse("r\n S x=-.5 S y=+1. W \"a\"\"b\"\n");
-    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return 1;
+        parse("r\n S x=-.5 S y=+1. W \"a\"\"b\"\n");
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
+  }
+  {
+    const std::string source =
+        "r\n D\n . . W 1&0!1\n100(%x) S %v=1'=2\n";
+    const auto r = parse(source);
+    const auto* doc = r.value_as<mumps::ast::Document>();
+    const auto* plainDo = doc && doc->lines.size() == 4
+        ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[1]) : nullptr;
+    const auto* call = plainDo && plainDo->commands.size() == 1
+        ? cursiv::ast_cast<mumps::ast::DoCommand>(plainDo->commands[0]) : nullptr;
+    const auto* nested = doc && doc->lines.size() == 4
+        ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[2]) : nullptr;
+    const auto* write = nested && nested->commands.size() == 1
+        ? cursiv::ast_cast<mumps::ast::WriteCommand>(nested->commands[0]) : nullptr;
+    const auto* orExpr = write && write->args.size() == 1
+        ? cursiv::ast_cast<mumps::ast::BinaryExpression>(write->args[0]) : nullptr;
+    const auto* andExpr = orExpr
+        ? cursiv::ast_cast<mumps::ast::BinaryExpression>(orExpr->left) : nullptr;
+    const auto* label = doc && doc->lines.size() == 4
+        ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[3]) : nullptr;
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
+        !call || !call->name.empty() || !nested || nested->level != 2 ||
+        !orExpr || orExpr->op != mumps::ast::Operator::or_ || !andExpr ||
+        andExpr->op != mumps::ast::Operator::and_ || andExpr->parent != orExpr ||
+        !label || label->label != "100" || label->params.size() != 1)
+      return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
+  }
+  {
+    const auto r = parse(
+        "r\n D  W 1\n I  W 2\n K  N\n K (a,b) N (a,b)\n I a=b,c=d W 1\n");
+    const auto* doc = r.value_as<mumps::ast::Document>();
+    const auto* d = doc && doc->lines.size() == 6
+        ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[1]) : nullptr;
+    const auto* doCmd = d && d->commands.size() == 2
+        ? cursiv::ast_cast<mumps::ast::DoCommand>(d->commands[0]) : nullptr;
+    const auto* i = doc && doc->lines.size() == 6
+        ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[2]) : nullptr;
+    const auto* ifCmd = i && i->commands.size() == 1
+        ? cursiv::ast_cast<mumps::ast::IfCommand>(i->commands[0]) : nullptr;
+    const auto* x = doc && doc->lines.size() == 6
+        ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[4]) : nullptr;
+    const auto* kill = x && x->commands.size() == 2
+        ? cursiv::ast_cast<mumps::ast::KillCommand>(x->commands[0]) : nullptr;
+    const auto* newCmd = x && x->commands.size() == 2
+        ? cursiv::ast_cast<mumps::ast::NewCommand>(x->commands[1]) : nullptr;
+    const auto* m = doc && doc->lines.size() == 6
+        ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[5]) : nullptr;
+    const auto* multi = m && m->commands.size() == 1
+        ? cursiv::ast_cast<mumps::ast::IfCommand>(m->commands[0]) : nullptr;
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
+        !doCmd || !doCmd->name.empty() || !ifCmd || ifCmd->condition ||
+        !ifCmd->command || !kill || !kill->exclusive || kill->args.size() != 2 ||
+        !newCmd || !newCmd->exclusive || newCmd->args.size() != 2 ||
+        !multi || multi->moreConditions.size() != 1)
+      return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
+  }
+  for (const auto source : {
+      "r\n W 1'=2,1'[2,1']2,1']]2,1'&0,1'!0\n",
+      "r\n F i=1:1:3 I i>1 W i\n",
+      "r\n F d=1:1:3 W d\n",
+      "r\n F  D  Q\n",
+      "r\n D ^%R(1+2) Q 1+2\n",
+      "r\n H 1+2\n"}) {
+    const auto r = parse(source);
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
   }
   return 0;
 }
@@ -155,6 +249,7 @@ int main() {
       continue;
     }
     if (!clean) {
+      print_parse_failure(result);
       std::fprintf(stderr, "mumps: %s does not parse clean\n", name.data());
       return fail("a corpus file does not parse clean");
     }
@@ -171,8 +266,10 @@ int main() {
     const std::string text =
         read(std::string(CURSIV_EXAMPLE_DIR) + "/fibonacci.m");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    if (result.cst().recovered() || !result.diagnostics.empty())
+    if (result.cst().recovered() || !result.diagnostics.empty()) {
+      print_parse_failure(result);
       return fail("fibonacci.m does not parse clean");
+    }
     const auto& doc =
         *static_cast<const mumps::ast::Document*>(result.value);
     if (doc.lines.size() != 4) return fail("fibonacci.m: wrong line count");
@@ -224,8 +321,10 @@ int main() {
     const std::string text =
         read(std::string(CURSIV_TEST_DIR) + "/coverage.m");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    if (result.cst().recovered() || !result.diagnostics.empty())
+    if (result.cst().recovered() || !result.diagnostics.empty()) {
+      print_parse_failure(result);
       return fail("coverage.m does not parse clean");
+    }
     const auto& doc = *static_cast<const mumps::ast::Document*>(result.value);
 
     const auto* decl = as<mumps::ast::RoutineDecl>(doc.lines[0]);
@@ -310,8 +409,10 @@ int main() {
   {
     const cursiv::ParseResult result =
         language.language.parser->parse(" SET X=10-5-2\n");
-    if (result.cst().recovered() || !result.diagnostics.empty())
+    if (result.cst().recovered() || !result.diagnostics.empty()) {
+      print_parse_failure(result);
       return fail("10-5-2 does not parse clean");
+    }
     const auto& doc = *static_cast<const mumps::ast::Document*>(result.value);
     const auto* line = as<mumps::ast::CodeLine>(doc.lines[0]);
     const auto* set =
@@ -337,8 +438,10 @@ int main() {
   {
     const cursiv::ParseResult result =
         language.language.parser->parse("NAME\n QUIT\nLOOP \n QUIT\n");
-    if (result.cst().recovered() || !result.diagnostics.empty())
+    if (result.cst().recovered() || !result.diagnostics.empty()) {
+      print_parse_failure(result);
       return fail("NAME / LOOP does not parse clean");
+    }
     const auto& doc = *static_cast<const mumps::ast::Document*>(result.value);
     if (doc.lines.size() != 4) return fail("NAME / LOOP: wrong line count");
     const auto* header = as<mumps::ast::RoutineDecl>(doc.lines[0]);

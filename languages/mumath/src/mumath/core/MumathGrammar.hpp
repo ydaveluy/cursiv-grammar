@@ -11,7 +11,6 @@ namespace mumath {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Mumath : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -21,16 +20,20 @@ struct Mumath : cursiv::GrammarSpec {
   // The trailing chars go beyond the default word class, so a keyword must
   // not be taken as their prefix.
   static constexpr auto word_boundary = cr<"0-9A-Za-z_#}">;
-  struct ID : terminal<cr<"A-Z@{#"> + many(cr<"A-Z0-9#}">) +
-                       option(lit<"["> + some(d) + lit<"]">)> {};
+  static constexpr auto Reserved =
+      kw<"FUNCTION"> | kw<"ENDFUN"> | kw<"BLOCK"> | kw<"ENDBLOCK"> |
+      kw<"LOOP"> | kw<"ENDLOOP"> | kw<"WHEN"> | kw<"EXIT"> |
+      kw<"AND"> | kw<"OR"> | kw<"NOT">;
+  struct RAW_ID : terminal<cr<"A-Za-z@{#"> + many(cr<"A-Za-z0-9#}">) +
+                           option(lit<"["> + some(d) + lit<"]">)> {};
+  struct ID : terminal<!Reserved + ref<RAW_ID>> {};
 
-  struct NUMBER : terminal<some(d), double> {};
+  struct NUMBER : terminal<as<double>(some(d))> {};
 
-  struct STRING : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {
-  };
+  struct STRING
+      : terminal<as<unquote>(lit<"\""> + many(cr<R"(^")">) + lit<"\"">)> {};
 
-  // Binding powers, loosest to tightest: OR < AND < NOT <
-  // comparison < binary +/- < */,mod < unary +/- < ^ (right-assoc).
+  // Default muSIMP-79 binding powers, with the imported mod/comparison extensions.
   static constexpr auto RelOp = kw<"EQ"> | lit<"=="> | lit<"<>"> | lit<"<="> |
                                 lit<"<"> | lit<">="> | lit<">"> | lit<"=">;
   static constexpr auto AddOp = lit<"+"> | lit<"-">;
@@ -38,11 +41,12 @@ struct Mumath : cursiv::GrammarSpec {
 
   struct Expression;
   struct Conjunction;
-  struct NotRule;
+  struct Not;
   struct Comparison;
   struct SimpleExpression;
   struct Term;
   struct Power;
+  struct Unary;
   struct Factor;
   struct FunctionDesignator;
   struct Assignment;
@@ -61,7 +65,7 @@ struct Mumath : cursiv::GrammarSpec {
              | create<ast::StringLiteral>(
                    assign<&ast::StringLiteral::text>(ref<STRING>))  //
              | create<ast::QuotedName>(
-                   lit<"'"> + assign<&ast::QuotedName::name>(ref<ID>))  //
+                   lit<"'"> + assign<&ast::QuotedName::name>(ref<RAW_ID>))  //
              | create<ast::QuotedString>(
                    lit<"'"> + assign<&ast::QuotedString::text>(ref<STRING>))  //
              | create<ast::GroupedExpression>(
@@ -72,27 +76,27 @@ struct Mumath : cursiv::GrammarSpec {
              | create<ast::NameExpression>(
                    assign<&ast::NameExpression::name>(ref<ID>))> {};
 
-  // `^` binds tighter than `*`/`/` and is right-associative: `2^3^2` reads
-  // `2^(3^2)`.
-  struct Power : infix<Factor, &ast::BinaryExpression::left,
-                       &ast::BinaryExpression::op, &ast::BinaryExpression::right,
-                       right(lit<"^">)> {};
+  // muSIMP-79 table: power 140/139, prefix +/- 130, product 120.
+  // A signed power's right operand may itself start with a prefix sign.
+  struct Power
+      : rule<ref<Factor> +
+             option(nest<ast::BinaryExpression, &ast::BinaryExpression::left>(
+                 assign<&ast::BinaryExpression::op>(lit<"^">) +
+                 assign<&ast::BinaryExpression::right>(ref<Unary>)))> {};
 
-  struct Term : infix<Power, &ast::BinaryExpression::left,
-                      &ast::BinaryExpression::op, &ast::BinaryExpression::right,
-                      left(MulOp)> {};
+  struct Unary
+      : rule<create<ast::NegateExpression>(
+                 lit<"-"> +
+                 assign<&ast::NegateExpression::operand>(ref<Unary>)) |
+             create<ast::PositiveExpression>(
+                 lit<"+"> +
+                 assign<&ast::PositiveExpression::operand>(ref<Unary>)) |
+             ref<Power>> {};
 
-  // A leading sign applies to the whole term, `^` included: `-2^2` reads
-  // `-(2^2)`. Only the first term of a chain may carry one (Pascal's own
-  // `simple-expression = [sign] term {addop term}` shape).
+  struct Term : infix<Unary, ast::BinaryExpression, left(MulOp)> {};
+
   struct SimpleExpression
-      : rule<(create<ast::NegateExpression>(
-                  lit<"-"> +
-                  assign<&ast::NegateExpression::operand>(ref<Term>))  //
-              | ref<Term>) +
-             many(nest<ast::BinaryExpression, &ast::BinaryExpression::left>(
-                 assign<&ast::BinaryExpression::op>(AddOp) +
-                 assign<&ast::BinaryExpression::right>(ref<Term>)))> {};
+      : infix<Term, ast::BinaryExpression, left(AddOp)> {};
 
   struct Comparison
       : rule<ref<SimpleExpression> +
@@ -103,22 +107,19 @@ struct Mumath : cursiv::GrammarSpec {
 
   // NOT is looser than comparison, so `NOT A=B` reads `NOT(A=B)`, not
   // `(NOT A)=B`; stacks (`NOT NOT A`).
-  struct NotRule
+  struct Not
       : rule<create<ast::NotExpression>(
                  kw<"NOT"> +
-                 assign<&ast::NotExpression::operand>(ref<NotRule>))  //
+                 assign<&ast::NotExpression::operand>(ref<Not>))  //
              | ref<Comparison>> {};
 
-  struct Conjunction : infix<NotRule, &ast::BinaryExpression::left,
-                             &ast::BinaryExpression::op,
-                             &ast::BinaryExpression::right,
+  struct Conjunction : infix<Not, ast::BinaryExpression,
                              left(kw<"AND">)> {};
 
   // AND/OR are the loosest operators: `A<=B AND A>=B` reads
   // `(A<=B) AND (A>=B)`.
-  struct Expression : infix<Conjunction, &ast::BinaryExpression::left,
-                            &ast::BinaryExpression::op,
-                            &ast::BinaryExpression::right, left(kw<"OR">)> {};
+  struct Expression
+      : infix<Conjunction, ast::BinaryExpression, left(kw<"OR">)> {};
 
   struct FunctionDesignator
       : rule<assign<&ast::CallExpression::func>(ref<ID>) + lit<"("> +
@@ -134,8 +135,7 @@ struct Mumath : cursiv::GrammarSpec {
   struct ExpressionStatement
       : rule<assign<&ast::ExpressionStatement::expr>(ref<Expression>)> {};
 
-  // A functionDesignator used as a statement, at program level -- the only
-  // expression form accepted there.
+  // Compatibility entry for clients; program items now share Stmt.
   struct CallStatement
       : rule<assign<&ast::ExpressionStatement::expr>(ref<FunctionDesignator>)> {
   };
@@ -145,40 +145,41 @@ struct Mumath : cursiv::GrammarSpec {
   struct Stmt : rule<ref<Loop> | ref<When> | ref<Block> | ref<Assignment> |
                      ref<ExpressionStatement>> {};
 
-  // The statement list never ends on a trailing ',', so its own separators
-  // plus the one before ENDBLOCK are exactly one ',' after every item.
-  struct Block : rule<kw<"BLOCK"> +
-                      some(append<&ast::Block::body>(ref<Stmt>) + lit<",">) +
-                      kw<"ENDBLOCK">> {};
+  struct Block
+      : rule<kw<"BLOCK"> +
+             many(append<&ast::Block::body>(ref<Stmt>), lit<",">) +
+             option(lit<",">) + kw<"ENDBLOCK">> {};
 
   struct Loop
       : rule<kw<"LOOP"> +
-             some(append<&ast::Loop::body>(ref<Stmt>), lit<",">) +
+             many(append<&ast::Loop::body>(ref<Stmt>), lit<",">) +
              option(lit<",">) + kw<"ENDLOOP">> {};
 
-  struct When : rule<kw<"WHEN"> +
-                     assign<&ast::When::condition>(ref<Expression>) +
-                     option(lit<",">) + kw<"EXIT"> + lit<","> +
-                     some(append<&ast::When::body>(ref<Stmt>), lit<",">) +
-                     option(lit<",">) + kw<"EXIT">> {};
+  // MATCH(EXIT) closes one list: the first expression is the condition,
+  // and any remaining expressions form the conditional exit's body.
+  struct When
+      : rule<kw<"WHEN"> +
+             assign<&ast::When::condition>(ref<Expression>) +
+             option(lit<","> +
+                    some(append<&ast::When::body>(ref<Stmt>), lit<",">)) +
+             option(lit<",">) + kw<"EXIT">> {};
 
   struct FunctionDefinition
       : rule<kw<"FUNCTION"> +
              assign<&ast::FunctionDefinition::name>(ref<ID>) + lit<"("> +
              many(append<&ast::FunctionDefinition::params>(ref<ID>), lit<",">) +
              lit<")"> + lit<","> +
-             some(append<&ast::FunctionDefinition::body>(ref<Stmt>), lit<",">) +
+             many(append<&ast::FunctionDefinition::body>(ref<Stmt>), lit<",">) +
              option(lit<",">) + kw<"ENDFUN">> {};
 
-  struct ProgramItem
-      : rule<ref<FunctionDefinition> | ref<Assignment> | ref<CallStatement>> {};
+  struct ProgramItem : rule<ref<FunctionDefinition> | ref<Stmt>> {};
 
-  struct ProgramRule
+  struct Program
       : rule<many(append<&ast::Program::statements>(ref<ProgramItem>) +
-                  (lit<";"> | lit<"$">))> {};
+                  (lit<";"> | lit<"$"> | lit<"&">))> {};
 
-  using entry = ProgramRule;
-  using ignore = list<WS, COMMENT>;
+  using entry = Program;
+  using ignored = list<WS, COMMENT>;
 };
 
 }  // namespace mumath

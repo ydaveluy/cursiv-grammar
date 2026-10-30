@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Limbo source describes Inferno modules, types, functions and concurrent programs.
+
 ```
 implement Command;
 
@@ -43,10 +45,6 @@ init(nil: ref Draw->Context, nil: list of string)
 	sys->print("Hello World!\n");
 }
 ```
-
-A Limbo module `implement`s itself, declares what it `include`s, and defines
-its functions -- `init` here takes an unnamed (`nil`) context and an unnamed
-argument list, matching the shape every Inferno module's entry point has.
 
 ## The command line
 

@@ -1,5 +1,5 @@
-// The checks of this language. None yet: the grammar carries the language's
-// structure and nothing here needs a check beyond parsing.
+// Numeric literals retain their source spelling; range errors are reported
+// without rounding the integer or decimal value stored in the tree.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +11,7 @@ namespace powerbuilder {
 class PowerbuilderValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkNumber(const ast::NumberLit&, cursiv::ValidationAcceptor&) const;
 };
 
 struct PowerbuilderCoreServices;

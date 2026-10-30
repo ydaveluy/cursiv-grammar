@@ -94,6 +94,16 @@ struct StringLit : cursiv::Extends<Expr> {
 };
 struct StarExpr : cursiv::Extends<Expr> {};
 
+enum class TemporalKind : std::uint8_t { datetime_literal, interval_literal, current };
+struct TemporalExpr : cursiv::Extends<Expr> {
+  TemporalKind kind;
+  string_view payload; // Parenthesized source; empty for CURRENT.
+  TimeUnit from;
+  optional<int64> fromPrecision;
+  TimeUnit to;
+  optional<int64> toPrecision;
+};
+
 // A dotted name chain: `a`, `a.b`, `a[1].b`, `a.*`. `base` is null at the
 // head of the chain.
 struct NameRef : cursiv::Extends<Expr> {
@@ -154,6 +164,7 @@ enum class Op : std::uint8_t {
   gt,
   logical_and,
   logical_or,
+  power,
 };
 
 struct BinaryExpr : cursiv::Extends<Expr> {
@@ -180,6 +191,22 @@ struct LikeExpr : cursiv::Extends<Expr> {
   boolean negated;
   boolean matches;
   Expr* pattern;
+  StringLit* escape;
+};
+
+struct InExpr : cursiv::Extends<Expr> {
+  Expr* operand;
+  boolean negated;
+  vector<Expr*> values;
+  struct SelectStmt* subquery;
+};
+
+enum class FormatOperator : std::uint8_t { ascii, column, ord, clipped, spaces, wordwrap, using_ };
+struct FormatExpr : cursiv::Extends<Expr> {
+  FormatOperator op;
+  Expr* operand;
+  Expr* format;
+  Expr* rightMargin;
 };
 
 struct ExistsExpr : cursiv::Extends<Expr> {
@@ -195,6 +222,7 @@ struct QuantifiedExpr : cursiv::Extends<Expr> {
   CompareOp op;
   boolean all;
   boolean any;
+  boolean some;
   struct SelectStmt* subquery;
 };
 
@@ -437,8 +465,8 @@ struct ConstructStmt : cursiv::Extends<Stmt> {
 struct MenuEvent : cursiv::Extends<cursiv::AstNode> {
   boolean beforeMenu;
   vector<Expr*> keys;
+  Expr* optionName; // null for a hidden COMMAND KEY option
   Expr* description;
-  Expr* command;
   NumberLit* help;
   vector<Stmt*> body;
 };
@@ -549,9 +577,13 @@ enum class WindowClauseKind : std::uint8_t {
   commentLine
 };
 
+enum class WindowLinePosition : std::uint8_t { absolute, first, last, off };
+
 struct WindowAttrClause : cursiv::Extends<cursiv::AstNode> {
   WindowClauseKind kind;
-  NumberLit* line;
+  Expr* line; // absolute line number or variable
+  WindowLinePosition position;
+  Expr* offset; // added to FIRST or subtracted from LAST
 };
 
 struct OpenWindowStmt : cursiv::Extends<Stmt> {
@@ -574,7 +606,9 @@ struct ScrollStmt : cursiv::Extends<Stmt> {
 // ---------------------------------------------------------- Embedded SQL
 
 struct TableRef : cursiv::Extends<cursiv::AstNode> {
-  string_view qualifier;  // module: or module@db:, empty when absent
+  string_view qualifier;  // database before ':'
+  string_view server;
+  string_view owner;
   string_view name;
 };
 
@@ -586,6 +620,7 @@ struct ColumnDef : cursiv::Extends<ColumnItem> {
   boolean isText;
   boolean isByte;
   string_view storeIn;  // IN TABLE | IN dbspace
+  boolean inTable;
   boolean notNull;
 };
 
@@ -860,6 +895,7 @@ enum class FormatSectionKind : std::uint8_t {
 
 struct FormatSection : cursiv::Extends<cursiv::AstNode> {
   FormatSectionKind kind;
+  boolean firstPage;
   Expr* groupVar;
   vector<Stmt*> body;
 };
@@ -900,6 +936,7 @@ struct PrintItem : cursiv::Extends<cursiv::AstNode> {
 struct PrintStmt : cursiv::Extends<Stmt> {
   vector<PrintItem*> items;
   Expr* file;
+  boolean suppressNewline;
 };
 
 struct StartReportStmt : cursiv::Extends<Stmt> {

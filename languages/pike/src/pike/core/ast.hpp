@@ -8,8 +8,7 @@
 
 namespace pike::ast {
 
-// `'static'|'private'|'nomask'|'public'|'protected'|'inline'`: at most one
-// per declaration.
+// Declaration modifiers retain their complete source order.
 enum class Modifier : std::uint8_t {
   Static,
   Private,
@@ -17,12 +16,12 @@ enum class Modifier : std::uint8_t {
   Public,
   Protected,
   Inline,
+  Final, Extern, Optional, Local, Variant,
 };
 
-// `modifier` sits on the base: every definition kind reads `modifiers?` at
-// the same spot, and only ever one of them at a time.
+// Every definition keeps its modifier sequence on the shared base.
 struct Definition : cursiv::Extends<cursiv::AstNode> {
-  optional<Modifier> modifier;
+  vector<Modifier> modifiers;
 };
 
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
@@ -39,10 +38,13 @@ struct Type : cursiv::Extends<cursiv::AstNode> {
   boolean pointer; // trailing `'*'*` of `type_`, collapsed to a fact
 };
 
-enum class SimpleTypeKind : std::uint8_t { Int, Float, String, Program };
+enum class SimpleTypeKind : std::uint8_t { Int, Float, String, Program, Void, Mixed };
 
 struct SimpleType : cursiv::Extends<Type> {
   SimpleTypeKind kind;
+  boolean hasRange;
+  string_view lower;
+  string_view upper;
 };
 
 // `object` or `object(Some.Program)`.
@@ -70,7 +72,10 @@ struct MultisetType : cursiv::Extends<Type> {
 struct FunctionType : cursiv::Extends<Type> {
   vector<Type *> params;
   boolean variadic;
+  Type* returnType;
 };
+
+struct UnionType : cursiv::Extends<Type> { Type* left; Type* right; };
 
 struct Argument : cursiv::Extends<cursiv::AstNode> {
   Type *type;
@@ -125,17 +130,18 @@ struct Case : cursiv::Extends<Statement> {
 
 struct Default : cursiv::Extends<Statement> {};
 
+struct LValue;
 struct Foreach : cursiv::Extends<Statement> {
   Expr *collection;
-  Expr *variable;
+  LValue *key;
+  LValue *variable;
   Statement *body;
 };
 
 struct Break : cursiv::Extends<Statement> {};
 struct Continue : cursiv::Extends<Statement> {};
 
-// No trailing `;` of its own: the statement after it, a bare `';'`, is
-// what consumes the source's own terminator (`example1.pike`'s `return 0;`).
+// A complete native return statement; value is null for `return;`.
 struct Return : cursiv::Extends<Statement> {
   Expr *value;
 };
@@ -235,7 +241,8 @@ struct MemberExpr : cursiv::Extends<Expr> {
 struct IndexExpr : cursiv::Extends<Expr> {
   Expr *object;
   Expr *index;
-  Expr *rangeEnd; // set by `[a..b]`
+  boolean range;
+  Expr *rangeEnd; // null for an open-ended slice
 };
 
 // `'@'? expression2` inside an `expression_list`: the splice marks an array
@@ -246,8 +253,9 @@ struct ArgItem : cursiv::Extends<Expr> {
 };
 
 struct StringLit : cursiv::Extends<Expr> {
-  string_view value;
+  vector<string_view> pieces; // adjacent raw quoted literals
 };
+struct CharLit : cursiv::Extends<Expr> { string_view text; };
 
 struct NumberLit : cursiv::Extends<Expr> {
   string_view value;
@@ -283,6 +291,8 @@ struct Program;
 // `'class' identifier? '{' program '}'` as a value -- an anonymous or named
 // class body used where an expression is expected.
 struct ClassExpr : cursiv::Extends<Expr> {
+  vector<Argument*> constructorParams;
+  boolean hasConstructorParams;
   string_view name; // empty when anonymous
   Program *body;
 };
@@ -319,7 +329,7 @@ struct Import : cursiv::Extends<Definition> {
 };
 
 struct Inheritance : cursiv::Extends<Definition> {
-  ConstantIdentifier *program;
+  Expr *program; // dotted program name or quoted file path
   string_view alias; // set by `: identifier`
 };
 
@@ -356,8 +366,14 @@ struct Constant : cursiv::Extends<Definition> {
   vector<ConstantDecl *> names;
 };
 
-// No name or body: this shape only represents a bare `class` or `class;`.
-struct ClassDef : cursiv::Extends<Definition> {};
+// Native class declaration with optional name and structured nested program.
+struct ClassDef : cursiv::Extends<Definition> {
+  string_view name; Program* body;
+  vector<Argument*> constructorParams;
+  boolean hasConstructorParams;
+};
+
+struct LocalDeclaration : cursiv::Extends<Statement> { Definition* declaration; };
 
 struct Program : cursiv::Extends<cursiv::AstNode> {
   vector<Definition *> definitions;

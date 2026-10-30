@@ -10,7 +10,6 @@ namespace webidl {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 inline constexpr auto unescape = [](std::string_view text) {
   return text.starts_with('_') ? text.substr(1) : text;
 };
@@ -24,7 +23,7 @@ struct Webidl : cursiv::GrammarSpec {
   static constexpr auto Identifier =
       option(cr<"_-">) + cr<"A-Za-z_"> + many(cr<"0-9A-Za-z_-">);
   struct RAW_ID : terminal<Identifier> {};
-  struct ID : terminal<Identifier, text_conv<unescape>> {};
+  struct ID : terminal<as<unescape>(Identifier)> {};
 
   struct INTEGER
       : terminal<option(lit<"-">) +
@@ -40,50 +39,24 @@ struct Webidl : cursiv::GrammarSpec {
                   (some(d) + cr<"eE"> + option(cr<"+-">) + some(d)))> {};
 
   struct STRING
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> + many(cr<R"(^")">) + lit<"\"">)> {};
 
-  struct ExtendedAttributeRule;
-  struct ArgumentRule;
-  struct UnionTypeRule;
-  struct TypeRule;
+  struct ExtendedAttribute;
+  struct Argument;
+  struct UnionType;
+  struct Type;
 
   static constexpr auto ArgumentName = ref<ID>;
   static constexpr auto AttributeName = ref<ID>;
   static constexpr auto OperationName = ref<ID>;
 
-  struct KShort : rule<kw<"short">, value<ast::Primitive::short_>> {};
-  struct KLongLong
-      : rule<kw<"long"> + kw<"long">, value<ast::Primitive::long_long>> {};
-  struct KLong : rule<kw<"long">, value<ast::Primitive::long_>> {};
-  struct KUShort : rule<kw<"unsigned"> + kw<"short">,
-                        value<ast::Primitive::unsigned_short>> {};
-  struct KULongLong
-      : rule<kw<"unsigned"> + kw<"long"> + kw<"long">,
-             value<ast::Primitive::unsigned_long_long>> {};
-  struct KULong : rule<kw<"unsigned"> + kw<"long">,
-                       value<ast::Primitive::unsigned_long>> {};
-  struct KFloat : rule<kw<"float">, value<ast::Primitive::float_>> {};
-  struct KUnrestrictedFloat
-      : rule<kw<"unrestricted"> + kw<"float">,
-             value<ast::Primitive::unrestricted_float>> {};
-  struct KDouble : rule<kw<"double">, value<ast::Primitive::double_>> {};
-  struct KUnrestrictedDouble
-      : rule<kw<"unrestricted"> + kw<"double">,
-             value<ast::Primitive::unrestricted_double>> {};
-  struct KUndefined
-      : rule<kw<"undefined">, value<ast::Primitive::undefined_>> {};
-  struct KVoid : rule<kw<"void">, value<ast::Primitive::void_>> {};
-  struct KBoolean : rule<kw<"boolean">, value<ast::Primitive::boolean_>> {};
-  struct KByte : rule<kw<"byte">, value<ast::Primitive::byte_>> {};
-  struct KOctet : rule<kw<"octet">, value<ast::Primitive::octet_>> {};
-  struct KBigint : rule<kw<"bigint">, value<ast::Primitive::bigint_>> {};
 
   static constexpr auto PrimitiveKw =
-      ref<KULongLong> | ref<KULong> | ref<KUShort> | ref<KLongLong> |
-      ref<KLong> | ref<KShort> | ref<KUnrestrictedFloat> |
-      ref<KUnrestrictedDouble> | ref<KFloat> | ref<KDouble> |
-      ref<KUndefined> | ref<KVoid> | ref<KBoolean> | ref<KByte> |
-      ref<KOctet> | ref<KBigint>;
+      as<ast::Primitive::unsigned_long_long>(kw<"unsigned"> + kw<"long"> + kw<"long">) | as<ast::Primitive::unsigned_long>(kw<"unsigned"> + kw<"long">) | as<ast::Primitive::unsigned_short>(kw<"unsigned"> + kw<"short">) | as<ast::Primitive::long_long>(kw<"long"> + kw<"long">) |
+      as<ast::Primitive::long_>(kw<"long">) | as<ast::Primitive::short_>(kw<"short">) | as<ast::Primitive::unrestricted_float>(kw<"unrestricted"> + kw<"float">) |
+      as<ast::Primitive::unrestricted_double>(kw<"unrestricted"> + kw<"double">) | as<ast::Primitive::float_>(kw<"float">) | as<ast::Primitive::double_>(kw<"double">) |
+      as<ast::Primitive::undefined_>(kw<"undefined">) | as<ast::Primitive::void_>(kw<"void">) | as<ast::Primitive::boolean_>(kw<"boolean">) | as<ast::Primitive::byte_>(kw<"byte">) |
+      as<ast::Primitive::octet_>(kw<"octet">) | as<ast::Primitive::bigint_>(kw<"bigint">);
 
   static constexpr auto BufferTypeKw =
       kw<"ArrayBuffer"> | kw<"SharedArrayBuffer"> | kw<"DataView"> | kw<"Int8Array"> |
@@ -94,19 +67,17 @@ struct Webidl : cursiv::GrammarSpec {
 
   static constexpr auto Nullable =
       option(flag<&ast::Type::nullable>(lit<"?">));
-  static constexpr auto TypeAttrs =
-      option(lit<"["> +
-             append<&ast::Type::attrs>(ref<ExtendedAttributeRule>) +
-             many(lit<","> +
-                  append<&ast::Type::attrs>(ref<ExtendedAttributeRule>)) +
-             lit<"]">);
+  template <auto Member>
+  static constexpr auto Attributes = option(lit<"["> +
+      some(append<Member>(ref<ExtendedAttribute>), lit<",">) + lit<"]">);
+  static constexpr auto TypeAttrs = Attributes<&ast::Type::attrs>;
 
-  struct PrimitiveTypeRule
+  struct PrimitiveType
       : rule<create<ast::PrimitiveType>(
             TypeAttrs + assign<&ast::PrimitiveType::kind>(PrimitiveKw) +
             Nullable)> {};
 
-  struct StringTypeRule
+  struct StringType
       : rule<create<ast::StringType>(
             TypeAttrs +
             assign<&ast::StringType::name>(kw<"ByteString"> |
@@ -114,122 +85,117 @@ struct Webidl : cursiv::GrammarSpec {
                                            kw<"USVString">) +
             Nullable)> {};
 
-  struct NamedTypeRule
+  struct NamedType
       : rule<create<ast::NamedType>(
             TypeAttrs + assign<&ast::NamedType::name>(ref<ID>) + Nullable)> {
   };
 
-  struct AnyTypeRule : rule<create<ast::AnyType>(TypeAttrs + kw<"any"> + Nullable)> {};
+  struct AnyType : rule<create<ast::AnyType>(TypeAttrs + kw<"any"> + Nullable)> {};
 
-  struct ObjectTypeRule
+  struct ObjectType
       : rule<create<ast::ObjectType>(TypeAttrs + kw<"object"> + Nullable)> {};
 
-  struct SymbolTypeRule
+  struct SymbolType
       : rule<create<ast::SymbolType>(TypeAttrs + kw<"symbol"> + Nullable)> {};
 
-  struct BufferTypeRule
+  struct BufferType
       : rule<create<ast::BufferType>(
             TypeAttrs + assign<&ast::BufferType::name>(BufferTypeKw) +
             Nullable)> {};
 
-  struct SequenceTypeRule
+  struct SequenceType
       : rule<create<ast::SequenceType>(
             TypeAttrs +
             (flag<&ast::SequenceType::async_>(kw<"async_sequence">) |
              kw<"sequence">) + lit<"<"> +
-            assign<&ast::SequenceType::element>(ref<TypeRule>) + lit<">"> +
+            assign<&ast::SequenceType::element>(ref<Type>) + lit<">"> +
             Nullable)> {};
 
-  struct FrozenArrayTypeRule
+  struct FrozenArrayType
       : rule<create<ast::FrozenArrayType>(
             TypeAttrs + kw<"FrozenArray"> + lit<"<"> +
-            assign<&ast::FrozenArrayType::element>(ref<TypeRule>) +
+            assign<&ast::FrozenArrayType::element>(ref<Type>) +
             lit<">"> + Nullable)> {};
 
-  struct ObservableArrayTypeRule
+  struct ObservableArrayType
       : rule<create<ast::ObservableArrayType>(
             TypeAttrs + kw<"ObservableArray"> + lit<"<"> +
-            assign<&ast::ObservableArrayType::element>(ref<TypeRule>) +
+            assign<&ast::ObservableArrayType::element>(ref<Type>) +
             lit<">"> + Nullable)> {};
 
-  struct RecordTypeRule
+  struct RecordType
       : rule<create<ast::RecordType>(
             TypeAttrs + kw<"record"> + lit<"<"> +
-            assign<&ast::RecordType::keyType>(ref<StringTypeRule>) +
-            lit<","> + assign<&ast::RecordType::valueType>(ref<TypeRule>) +
+            assign<&ast::RecordType::keyType>(ref<StringType>) +
+            lit<","> + assign<&ast::RecordType::valueType>(ref<Type>) +
             lit<">"> + Nullable)> {};
 
-  struct PromiseTypeRule
+  struct PromiseType
       : rule<create<ast::PromiseType>(
             TypeAttrs + kw<"Promise"> + lit<"<"> +
-            assign<&ast::PromiseType::value>(ref<TypeRule>) + lit<">"> + Nullable)> {};
+            assign<&ast::PromiseType::value>(ref<Type>) + lit<">"> + Nullable)> {};
 
   static constexpr auto DistinguishableTypeChoice =
-      ref<PrimitiveTypeRule> | ref<StringTypeRule> | ref<NamedTypeRule> |
-      ref<SequenceTypeRule> | ref<ObjectTypeRule> | ref<SymbolTypeRule> |
-      ref<BufferTypeRule> | ref<FrozenArrayTypeRule> |
-      ref<ObservableArrayTypeRule> | ref<RecordTypeRule>;
+      ref<PrimitiveType> | ref<StringType> | ref<NamedType> |
+      ref<SequenceType> | ref<ObjectType> | ref<SymbolType> |
+      ref<BufferType> | ref<FrozenArrayType> |
+      ref<ObservableArrayType> | ref<RecordType>;
 
-  struct UnionTypeRule
+  struct UnionType
       : rule<create<ast::UnionType>(
             TypeAttrs + lit<"("> +
-            many(append<&ast::UnionType::members>(ref<TypeRule>), kw<"or">) +
+            many(append<&ast::UnionType::members>(ref<Type>), kw<"or">) +
             lit<")"> + Nullable)> {};
 
-  struct TypeRule
-      : rule<DistinguishableTypeChoice | ref<UnionTypeRule> |
-             ref<AnyTypeRule> | ref<PromiseTypeRule>> {};
+  struct Type
+      : rule<DistinguishableTypeChoice | ref<UnionType> |
+             ref<AnyType> | ref<PromiseType>> {};
 
-  struct BoolValueRule
+  struct BoolValue
       : rule<create<ast::BoolValue>(
             flag<&ast::BoolValue::value>(kw<"true">) | kw<"false">)> {};
-  struct IntValueRule
+  struct IntValue
       : rule<create<ast::IntValue>(
             assign<&ast::IntValue::text>(ref<INTEGER>))> {};
-  struct FloatValueRule
+  struct FloatValue
       : rule<create<ast::FloatValue>(assign<&ast::FloatValue::text>(
             ref<DECIMAL> | kw<"-Infinity"> | kw<"Infinity"> | kw<"NaN">))> {};
-  struct StringValueRule
+  struct StringValue
       : rule<create<ast::StringValue>(
             assign<&ast::StringValue::text>(ref<STRING>))> {};
-  struct NullValueRule : rule<create<ast::NullValue> + kw<"null">> {};
-  struct EmptySequenceValueRule
+  struct NullValue : rule<create<ast::NullValue> + kw<"null">> {};
+  struct EmptySequenceValue
       : rule<create<ast::EmptySequenceValue> + lit<"["> + lit<"]">> {};
-  struct EmptyDictionaryValueRule
+  struct EmptyDictionaryValue
       : rule<create<ast::EmptyDictionaryValue> + lit<"{"> + lit<"}">> {};
 
   static constexpr auto ConstValueChoice =
-      ref<BoolValueRule> | ref<FloatValueRule> | ref<IntValueRule>;
+      ref<BoolValue> | ref<FloatValue> | ref<IntValue>;
   static constexpr auto DefaultValueChoice =
-      ConstValueChoice | ref<StringValueRule> | ref<EmptySequenceValueRule> |
-      ref<EmptyDictionaryValueRule> | ref<NullValueRule>;
+      ConstValueChoice | ref<StringValue> | ref<EmptySequenceValue> |
+      ref<EmptyDictionaryValue> | ref<NullValue>;
 
-  static constexpr auto ArgumentAttrs =
-      option(lit<"["> +
-             append<&ast::Argument::attrs>(ref<ExtendedAttributeRule>) +
-             many(lit<","> +
-                  append<&ast::Argument::attrs>(ref<ExtendedAttributeRule>)) +
-             lit<"]">);
+  static constexpr auto ArgumentAttrs = Attributes<&ast::Argument::attrs>;
 
-  struct ArgumentRule
+  struct Argument
       : rule<create<ast::Argument>(
             ArgumentAttrs +
             option(flag<&ast::Argument::optional_>(kw<"optional">)) +
-            assign<&ast::Argument::type>(ref<TypeRule>) +
+            assign<&ast::Argument::type>(ref<Type>) +
             option(flag<&ast::Argument::variadic>(lit<"...">)) +
             assign<&ast::Argument::name>(ArgumentName) +
             option(lit<"="> +
                    assign<&ast::Argument::default_>(DefaultValueChoice)))> {};
 
-  struct IdentifierValueRule
+  struct IdentifierValue
       : rule<assign<&ast::IdentifierValue::text>(ref<ID>)> {};
-  struct AttributeDecimalRule
+  struct AttributeDecimal
       : rule<assign<&ast::FloatValue::text>(ref<DECIMAL>)> {};
   static constexpr auto ExtendedValueChoice =
-      ref<IdentifierValueRule> | ref<StringValueRule> |
-      ref<AttributeDecimalRule> | ref<IntValueRule>;
+      ref<IdentifierValue> | ref<StringValue> |
+      ref<AttributeDecimal> | ref<IntValue>;
 
-  struct ExtendedAttributeRule
+  struct ExtendedAttribute
       : rule<create<ast::ExtendedAttribute>(
             assign<&ast::ExtendedAttribute::name>(ref<RAW_ID>) +
             option(lit<"="> +
@@ -239,50 +205,42 @@ struct Webidl : cursiv::GrammarSpec {
                      many(append<&ast::ExtendedAttribute::values>(ExtendedValueChoice), lit<",">) +
                      lit<")">))) +
             option(flag<&ast::ExtendedAttribute::hasArguments>(lit<"(">) +
-                   many(append<&ast::ExtendedAttribute::args>(ref<ArgumentRule>), lit<",">) +
+                   many(append<&ast::ExtendedAttribute::args>(ref<Argument>), lit<",">) +
                    lit<")">))> {};
 
-  static constexpr auto MemberAttrs =
-      option(lit<"["> +
-             append<&ast::Member::attrs>(ref<ExtendedAttributeRule>) +
-             many(lit<","> +
-                  append<&ast::Member::attrs>(ref<ExtendedAttributeRule>)) +
-             lit<"]">);
+  static constexpr auto MemberAttrs = Attributes<&ast::Member::attrs>;
 
   static constexpr auto AttributeRestBody =
-      kw<"attribute"> + assign<&ast::Attribute::type>(ref<TypeRule>) +
+      kw<"attribute"> + assign<&ast::Attribute::type>(ref<Type>) +
       assign<&ast::Attribute::name>(AttributeName) + lit<";">;
 
   static constexpr auto RegularOperationBody =
-      assign<&ast::Operation::returnType>(ref<TypeRule>) +
+      assign<&ast::Operation::returnType>(ref<Type>) +
       option(assign<&ast::Operation::name>(OperationName)) + lit<"("> +
-      many(append<&ast::Operation::params>(ref<ArgumentRule>), lit<",">) +
+      many(append<&ast::Operation::params>(ref<Argument>), lit<",">) +
       lit<")"> + lit<";">;
 
   static constexpr auto MaplikeRestBody =
       kw<"maplike"> + lit<"<"> +
-      assign<&ast::Maplike::keyType>(ref<TypeRule>) + lit<","> +
-      assign<&ast::Maplike::valueType>(ref<TypeRule>) + lit<">"> + lit<";">;
+      assign<&ast::Maplike::keyType>(ref<Type>) + lit<","> +
+      assign<&ast::Maplike::valueType>(ref<Type>) + lit<">"> + lit<";">;
 
   static constexpr auto SetlikeRestBody =
-      kw<"setlike"> + lit<"<"> + assign<&ast::Setlike::type>(ref<TypeRule>) +
+      kw<"setlike"> + lit<"<"> + assign<&ast::Setlike::type>(ref<Type>) +
       lit<">"> + lit<";">;
 
-  struct KGetter : rule<kw<"getter">, value<ast::Special::getter_>> {};
-  struct KSetter : rule<kw<"setter">, value<ast::Special::setter_>> {};
-  struct KDeleter : rule<kw<"deleter">, value<ast::Special::deleter_>> {};
   static constexpr auto SpecialKw =
-      ref<KGetter> | ref<KSetter> | ref<KDeleter>;
+      as<ast::Special::getter_>(kw<"getter">) | as<ast::Special::setter_>(kw<"setter">) | as<ast::Special::deleter_>(kw<"deleter">);
 
-  struct ConstMemberRule
+  struct ConstMember
       : rule<create<ast::ConstMember>(
             MemberAttrs + kw<"const"> +
-            assign<&ast::ConstMember::type>(ref<TypeRule>) +
+            assign<&ast::ConstMember::type>(ref<Type>) +
             assign<&ast::ConstMember::name>(ref<ID>) + lit<"="> +
             assign<&ast::ConstMember::value>(ConstValueChoice) +
             lit<";">)> {};
 
-  struct OperationRule
+  struct Operation
       : rule<create<ast::Operation>(
             MemberAttrs +
             option(assign<&ast::Operation::special>(SpecialKw) |
@@ -290,7 +248,7 @@ struct Webidl : cursiv::GrammarSpec {
                    flag<&ast::Operation::stringifier>(kw<"stringifier">)) +
             RegularOperationBody)> {};
 
-  struct AttributeRule
+  struct Attribute
       : rule<create<ast::Attribute>(
             MemberAttrs +
             option(flag<&ast::Attribute::inherit_>(kw<"inherit">) |
@@ -299,78 +257,68 @@ struct Webidl : cursiv::GrammarSpec {
             option(flag<&ast::Attribute::readonly_>(kw<"readonly">)) +
             AttributeRestBody)> {};
 
-  struct StringifierBareRule
+  struct StringifierBare
       : rule<create<ast::Stringifier>(MemberAttrs + kw<"stringifier"> + lit<";">)> {};
 
-  struct MaplikeRule
+  struct Maplike
       : rule<create<ast::Maplike>(MemberAttrs +
             option(flag<&ast::Maplike::readonly_>(kw<"readonly">)) +
             MaplikeRestBody)> {};
 
-  struct SetlikeRule
+  struct Setlike
       : rule<create<ast::Setlike>(MemberAttrs +
             option(flag<&ast::Setlike::readonly_>(kw<"readonly">)) +
             SetlikeRestBody)> {};
 
-  struct ConstructorRule
+  struct Constructor
       : rule<create<ast::Constructor>(
             MemberAttrs + kw<"constructor"> + lit<"("> +
-            many(append<&ast::Constructor::params>(ref<ArgumentRule>),
+            many(append<&ast::Constructor::params>(ref<Argument>),
                  lit<",">) +
             lit<")"> + lit<";">)> {};
 
-  struct IterableRule
+  struct Iterable
       : rule<create<ast::Iterable>(
             MemberAttrs + kw<"iterable"> + lit<"<"> +
-            assign<&ast::Iterable::keyType>(ref<TypeRule>) +
+            assign<&ast::Iterable::keyType>(ref<Type>) +
             option(lit<","> +
-                   assign<&ast::Iterable::valueType>(ref<TypeRule>)) +
+                   assign<&ast::Iterable::valueType>(ref<Type>)) +
             lit<">"> + lit<";">)> {};
 
-  struct AsyncIterableRule
+  struct AsyncIterable
       : rule<create<ast::AsyncIterable>(
             MemberAttrs +
             ((flag<&ast::AsyncIterable::legacySyntax>(kw<"async">) +
               kw<"iterable">) | kw<"async_iterable">) + lit<"<"> +
-            assign<&ast::AsyncIterable::keyType>(ref<TypeRule>) +
+            assign<&ast::AsyncIterable::keyType>(ref<Type>) +
             option(lit<","> +
-                   assign<&ast::AsyncIterable::valueType>(ref<TypeRule>)) +
+                   assign<&ast::AsyncIterable::valueType>(ref<Type>)) +
             lit<">"> +
             option(lit<"("> +
-                   many(append<&ast::AsyncIterable::params>(ref<ArgumentRule>),
+                   many(append<&ast::AsyncIterable::params>(ref<Argument>),
                         lit<",">) +
                    lit<")">) +
             lit<";">)> {};
 
   static constexpr auto MemberChoice =
-      ref<ConstMemberRule> | ref<ConstructorRule> | ref<OperationRule> |
-      ref<StringifierBareRule> | ref<AttributeRule> | ref<IterableRule> |
-      ref<AsyncIterableRule> | ref<MaplikeRule> | ref<SetlikeRule>;
+      ref<ConstMember> | ref<Constructor> | ref<Operation> |
+      ref<StringifierBare> | ref<Attribute> | ref<Iterable> |
+      ref<AsyncIterable> | ref<Maplike> | ref<Setlike>;
 
-  static constexpr auto DictMemberAttrs =
-      option(lit<"["> +
-             append<&ast::DictionaryMember::attrs>(ref<ExtendedAttributeRule>) +
-             many(lit<","> + append<&ast::DictionaryMember::attrs>(
-                                  ref<ExtendedAttributeRule>)) +
-             lit<"]">);
+  static constexpr auto DictMemberAttrs = Attributes<&ast::DictionaryMember::attrs>;
 
-  struct DictionaryMemberRule
+  struct DictionaryMember
       : rule<create<ast::DictionaryMember>(
             DictMemberAttrs +
             option(flag<&ast::DictionaryMember::required_>(kw<"required">)) +
-            assign<&ast::DictionaryMember::type>(ref<TypeRule>) +
+            assign<&ast::DictionaryMember::type>(ref<Type>) +
             assign<&ast::DictionaryMember::name>(ref<ID>) +
             option(lit<"="> + assign<&ast::DictionaryMember::default_>(DefaultValueChoice)) +
             lit<";">)> {};
 
-  static constexpr auto DefinitionAttrs =
-      option(lit<"["> +
-             append<&ast::Definition::attrs>(ref<ExtendedAttributeRule>) +
-             many(lit<","> + append<&ast::Definition::attrs>(
-                                  ref<ExtendedAttributeRule>)) +
-             lit<"]">);
+  static constexpr auto DefinitionAttrs = Attributes<&ast::Definition::attrs>;
 
-  struct InterfaceRule
+  struct Interface
       : rule<create<ast::Interface>(
             DefinitionAttrs +
             option(flag<&ast::Interface::partial_>(kw<"partial">)) +
@@ -380,7 +328,7 @@ struct Webidl : cursiv::GrammarSpec {
             many(append<&ast::Interface::members>(MemberChoice)) +
             lit<"}"> + lit<";">)> {};
 
-  struct MixinRule
+  struct Mixin
       : rule<create<ast::Mixin>(
             DefinitionAttrs +
             option(flag<&ast::Mixin::partial_>(kw<"partial">)) +
@@ -389,7 +337,7 @@ struct Webidl : cursiv::GrammarSpec {
             many(append<&ast::Mixin::members>(MemberChoice)) +
             lit<"}"> + lit<";">)> {};
 
-  struct CallbackInterfaceRule
+  struct CallbackInterface
       : rule<create<ast::CallbackInterface>(
             DefinitionAttrs + kw<"callback"> + kw<"interface"> +
             assign<&ast::CallbackInterface::name>(ref<ID>) + lit<"{"> +
@@ -397,16 +345,16 @@ struct Webidl : cursiv::GrammarSpec {
                 MemberChoice)) +
             lit<"}"> + lit<";">)> {};
 
-  struct CallbackRule
+  struct Callback
       : rule<create<ast::Callback>(
             DefinitionAttrs + kw<"callback"> +
             assign<&ast::Callback::name>(ref<ID>) + lit<"="> +
-            assign<&ast::Callback::returnType>(ref<TypeRule>) + lit<"("> +
-            many(append<&ast::Callback::params>(ref<ArgumentRule>),
+            assign<&ast::Callback::returnType>(ref<Type>) + lit<"("> +
+            many(append<&ast::Callback::params>(ref<Argument>),
                  lit<",">) +
             lit<")"> + lit<";">)> {};
 
-  struct NamespaceRule
+  struct Namespace
       : rule<create<ast::Namespace>(
             DefinitionAttrs +
             option(flag<&ast::Namespace::partial_>(kw<"partial">)) +
@@ -415,31 +363,30 @@ struct Webidl : cursiv::GrammarSpec {
             many(append<&ast::Namespace::members>(MemberChoice)) +
             lit<"}"> + lit<";">)> {};
 
-  struct DictionaryRule
+  struct Dictionary
       : rule<create<ast::Dictionary>(
             DefinitionAttrs +
             option(flag<&ast::Dictionary::partial_>(kw<"partial">)) +
             kw<"dictionary"> + assign<&ast::Dictionary::name>(ref<ID>) +
             option(lit<":"> + assign<&ast::Dictionary::base>(ref<ID>)) +
             lit<"{"> +
-            many(append<&ast::Dictionary::members>(ref<DictionaryMemberRule>)) +
+            many(append<&ast::Dictionary::members>(ref<DictionaryMember>)) +
             lit<"}"> + lit<";">)> {};
 
-  struct EnumRule
+  struct Enum
       : rule<create<ast::Enum>(
             DefinitionAttrs + kw<"enum"> +
             assign<&ast::Enum::name>(ref<ID>) + lit<"{"> +
-            append<&ast::Enum::values>(ref<STRING>) +
-            many(lit<","> + append<&ast::Enum::values>(ref<STRING>)) +
+            some(append<&ast::Enum::values>(ref<STRING>), lit<",">) +
             option(lit<",">) + lit<"}"> + lit<";">)> {};
 
-  struct TypedefRule
+  struct Typedef
       : rule<create<ast::Typedef>(
             DefinitionAttrs + kw<"typedef"> +
-            assign<&ast::Typedef::type>(ref<TypeRule>) +
+            assign<&ast::Typedef::type>(ref<Type>) +
             assign<&ast::Typedef::name>(ref<ID>) + lit<";">)> {};
 
-  struct IncludesStatementRule
+  struct IncludesStatement
       : rule<create<ast::IncludesStatement>(
             DefinitionAttrs +
             assign<&ast::IncludesStatement::target>(ref<ID>) +
@@ -447,16 +394,16 @@ struct Webidl : cursiv::GrammarSpec {
             assign<&ast::IncludesStatement::mixin>(ref<ID>) + lit<";">)> {};
 
   static constexpr auto DefinitionChoice =
-      ref<InterfaceRule> | ref<MixinRule> | ref<CallbackInterfaceRule> |
-      ref<CallbackRule> | ref<NamespaceRule> | ref<DictionaryRule> |
-      ref<EnumRule> | ref<TypedefRule> | ref<IncludesStatementRule>;
+      ref<Interface> | ref<Mixin> | ref<CallbackInterface> |
+      ref<Callback> | ref<Namespace> | ref<Dictionary> |
+      ref<Enum> | ref<Typedef> | ref<IncludesStatement>;
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document>(
             many(append<&ast::Document::definitions>(DefinitionChoice)))> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

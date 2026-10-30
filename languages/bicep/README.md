@@ -31,9 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/) is
-Azure's declarative deployment DSL: newline-terminated statements, and
-string interpolation with `'${...}'`.
+Bicep describes Azure deployments with resources, modules, parameters and expressions.
 
 ```
 param storageName string = 'examplestorage'
@@ -48,10 +46,6 @@ resource stg 'Microsoft.Storage/storageAccounts@2019-06-01' = {
 
 output endpoint string = stg.properties.primaryEndpoints.blob
 ```
-
-A `resource`/`module` value may also be a `for` loop building a collection,
-optionally guarded by `if (...)`; a `type` declaration may combine ambient
-types, object and tuple shapes, and unions with `|`.
 
 ## The command line
 

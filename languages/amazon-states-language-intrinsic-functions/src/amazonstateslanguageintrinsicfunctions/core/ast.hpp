@@ -49,6 +49,8 @@ struct BoolArg : cursiv::Extends<Arg> {
   boolean value;
 };
 
+struct NullArg : cursiv::Extends<Arg> {};
+
 // `$.a.b[0]`: a path into the state's input.
 struct JsonPathArg : cursiv::Extends<Arg> {
   string_view path;

@@ -97,11 +97,6 @@ inline constexpr auto string_text = [](std::string_view text,
       text.size() >= 6 && text[0] == text[1] && text[1] == text[2] ? 3 : 1;
   return decode(text.substr(quotes, text.size() - 2 * quotes), memory, true);
 };
-using UnicodeText = cursiv::text_conv<unicode_text>;
-using PrefixText = cursiv::text_conv<prefix_text>;
-using HeadText = cursiv::text_conv<head_text>;
-using IriText = cursiv::text_conv<iri_text>;
-using StringText = cursiv::text_conv<string_text>;
 
 struct Sparql : cursiv::GrammarSpec {
   struct LINE_COMMENT : terminal<lit<"#"> + many(cr<R"(^\r\n)">)> {};
@@ -138,19 +133,17 @@ struct Sparql : cursiv::GrammarSpec {
   inline static constexpr auto blank_label = [](std::string_view text) {
     return text.substr(2);
   };
-  struct BLANK_NODE_LABEL : terminal<blank_node_label, text_conv<blank_label>> {
-  };
+  struct BLANK_NODE_LABEL : terminal<as<blank_label>(blank_node_label)> {};
   static constexpr auto varname_extra = cr<"·̀-ͯ‿-⁀">;
   static constexpr auto varname =
       (pn_chars_u | cr<"0-9"> | uchar) +
       many(pn_chars_u | cr<"0-9"> | varname_extra | uchar);
-  struct VAR1 : terminal<lit<"?"> + varname, HeadText> {};
-  struct VAR2 : terminal<lit<"$"> + varname, HeadText> {};
+  struct VAR1 : terminal<as<head_text>(lit<"?"> + varname)> {};
+  struct VAR2 : terminal<as<head_text>(lit<"$"> + varname)> {};
 
-  struct LANGTAG
-      : terminal<lit<"@"> + some(pn_chars_base) +
-                     many(lit<"-"> + some(pn_chars_base | cr<"0-9">)),
-                 HeadText> {};
+  struct LANGTAG : terminal<as<head_text>(
+                       lit<"@"> + some(cr<"a-zA-Z">) +
+                       many(lit<"-"> + some(cr<"a-zA-Z0-9">)))> {};
 
   static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   static constexpr auto decimal =
@@ -166,31 +159,29 @@ struct Sparql : cursiv::GrammarSpec {
   static constexpr auto echar = lit<"\\"> + cr<R"(tbnrf"'\\)">;
 
   struct STRING_LITERAL1
-      : terminal<lit<"'"> + many(echar | uchar | cr<R"(^'\\\n\r)">) + lit<"'">,
-                 StringText> {};
+      : terminal<as<string_text>(
+            lit<"'"> + many(echar | uchar | cr<R"(^'\\\n\r)">) + lit<"'">)> {};
   struct STRING_LITERAL2
-      : terminal<lit<"\""> + many(echar | uchar | cr<R"(^"\\\n\r)">) +
-                     lit<"\"">,
-                 StringText> {};
+      : terminal<as<string_text>(
+            lit<"\""> + many(echar | uchar | cr<R"(^"\\\n\r)">) + lit<"\"">)> {
+  };
 
   // A triple-quoted string excludes its own quote character and `\`; a
   // raw run of the OTHER quote character is unrestricted.
   struct STRING_LITERAL_LONG1
-      : terminal<lit<"'''"> +
-                     many(option(lit<"''"> | lit<"'">) +
-                          (echar | uchar | cr<R"(^'\\)">)) +
-                     lit<"'''">,
-                 StringText> {};
+      : terminal<as<string_text>(lit<"'''"> +
+                                 many(option(lit<"''"> | lit<"'">) +
+                                      (echar | uchar | cr<R"(^'\\)">)) +
+                                 lit<"'''">)> {};
   struct STRING_LITERAL_LONG2
-      : terminal<lit<"\"\"\""> +
-                     many(option(lit<"\"\""> | lit<"\"">) +
-                          (echar | uchar | cr<R"(^"\\)">)) +
-                     lit<"\"\"\"">,
-                 StringText> {};
+      : terminal<as<string_text>(lit<"\"\"\""> +
+                                 many(option(lit<"\"\""> | lit<"\"">) +
+                                      (echar | uchar | cr<R"(^"\\)">)) +
+                                 lit<"\"\"\"">)> {};
 
   struct IRI_REF
-      : terminal<lit<"<"> + many(uchar | cr<R"(^<>"{}|^`\\)">) + lit<">">,
-                 IriText> {};
+      : terminal<as<iri_text>(lit<"<"> + many(uchar | cr<R"(^\x00- <>"{}|^`\\)">) +
+                              lit<">">)> {};
 
   // Only PN_CHARS may abut a keyword: '.', ':', '?' and '$' stay outside so
   // a term like `ex:a` or a variable's own sigil still lexes as intended.
@@ -198,123 +189,93 @@ struct Sparql : cursiv::GrammarSpec {
 
   // Operators, each denoting its own constant -- `op` holds what a step
   // means, never what it spelled.
-  struct MULTIPLY : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIVIDE : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct ADD_OP : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct SUB_OP : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct EQUAL_OP : terminal<lit<"=">, value<ast::Operator::equal>> {};
-  struct NOT_EQUAL_OP : terminal<lit<"!=">, value<ast::Operator::not_equal>> {};
-  struct LESS_EQUAL_OP : terminal<lit<"<=">, value<ast::Operator::less_equal>> {
-  };
-  struct GREATER_EQUAL_OP
-      : terminal<lit<">=">, value<ast::Operator::greater_equal>> {};
-  struct LESS_OP : terminal<lit<"<">, value<ast::Operator::less>> {};
-  struct GREATER_OP : terminal<lit<">">, value<ast::Operator::greater>> {};
-  struct AND_OP : terminal<lit<"&&">, value<ast::Operator::logical_and>> {};
-  struct OR_OP : terminal<lit<"||">, value<ast::Operator::logical_or>> {};
 
-  static constexpr auto OpMul = ref<MULTIPLY> | ref<DIVIDE>;
-  static constexpr auto OpAdd = ref<ADD_OP> | ref<SUB_OP>;
-  static constexpr auto OpCompare = ref<NOT_EQUAL_OP> | ref<LESS_EQUAL_OP> |
-                                    ref<GREATER_EQUAL_OP> | ref<EQUAL_OP> |
-                                    ref<LESS_OP> | ref<GREATER_OP>;
-  static constexpr auto OpAnd = ref<AND_OP>;
-  static constexpr auto OpOr = ref<OR_OP>;
+  static constexpr auto OpMul = as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">);
+  static constexpr auto OpAdd = as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">);
+  static constexpr auto OpCompare = as<ast::Operator::not_equal>(lit<"!=">) | as<ast::Operator::less_equal>(lit<"<=">) |
+                                    as<ast::Operator::greater_equal>(lit<">=">) | as<ast::Operator::equal>(lit<"=">) |
+                                    as<ast::Operator::less>(lit<"<">) | as<ast::Operator::greater>(lit<">">);
+  static constexpr auto OpAnd = as<ast::Operator::logical_and>(lit<"&&">);
+  static constexpr auto OpOr = as<ast::Operator::logical_or>(lit<"||">);
 
   // BuiltInCall's function keywords, each denoting its own `BuiltIn` tag.
-  struct STR_KW : terminal<ikw<"STR">, value<ast::BuiltIn::str>> {};
-  struct LANG_KW : terminal<ikw<"LANG">, value<ast::BuiltIn::lang>> {};
-  struct LANGMATCHES_KW
-      : terminal<ikw<"LANGMATCHES">, value<ast::BuiltIn::lang_matches>> {};
-  struct DATATYPE_KW
-      : terminal<ikw<"DATATYPE">, value<ast::BuiltIn::datatype>> {};
-  struct BOUND_KW : terminal<ikw<"BOUND">, value<ast::BuiltIn::bound>> {};
-  struct SAME_TERM_KW
-      : terminal<ikw<"sameTerm">, value<ast::BuiltIn::same_term>> {};
   // isURI and isIRI are the one predicate under two spellings (SPARQL
   // synonyms): both denote `is_iri`.
-  struct IS_IRI_KW : terminal<ikw<"isIRI">, value<ast::BuiltIn::is_iri>> {};
-  struct IS_URI_KW : terminal<ikw<"isURI">, value<ast::BuiltIn::is_iri>> {};
-  struct IS_BLANK_KW : terminal<ikw<"isBLANK">, value<ast::BuiltIn::is_blank>> {
-  };
-  struct IS_LITERAL_KW
-      : terminal<ikw<"isLITERAL">, value<ast::BuiltIn::is_literal>> {};
-  struct REGEX_KW : terminal<ikw<"REGEX">, value<ast::BuiltIn::regex>> {};
 
-  struct IriRefRule;
-  struct PrefixedTermRule;
-  struct BlankNodeRule;
-  struct RdfTypeRule;
-  struct NilTermRule;
-  struct VarRule;
+  struct IriRef;
+  struct PrefixedTerm;
+  struct BlankNode;
+  struct RdfType;
+  struct NilTerm;
+  struct Var;
   struct NumberLitRule;
-  struct ProjectionRule;
-  struct BoolLitRule;
-  struct StringLitRule;
-  struct CollectionRule;
-  struct BlankNodePropertyListRule;
-  struct PredicateObjectRule;
-  struct PredicateObjectListRule;
-  struct TriplesRule;
-  struct UnaryRule;
-  struct PrimaryExprRule;
-  struct NumericExprRule;
-  struct RelationalRule;
-  struct ExpressionRule;
+  struct Projection;
+  struct BoolLit;
+  struct StringLit;
+  struct Collection;
+  struct BlankNodePropertyList;
+  struct PredicateObject;
+  struct PredicateObjectList;
+  struct Triples;
+  struct Unary;
+  struct PrimaryExpr;
+  struct NumericExpr;
+  struct Relational;
+  struct Expression;
   struct BuiltInCallRule;
-  struct FunctionCallRule;
-  struct IriRefOrFunctionRule;
-  struct FilterRule;
-  struct GroupGraphPatternRule;
-  struct OptionalGraphPatternRule;
-  struct GraphGraphPatternRule;
-  struct GroupOrUnionGraphPatternRule;
-  struct DatasetClauseRule;
-  struct OrderConditionRule;
-  struct SolutionModifierRule;
-  struct PrefixDeclRule;
-  struct PrologueRule;
-  struct SelectQueryRule;
-  struct ConstructQueryRule;
-  struct DescribeQueryRule;
-  struct AskQueryRule;
-  struct QueryRule;
+  struct FunctionCall;
+  struct IriRefOrFunction;
+  struct Filter;
+  struct GroupGraphPattern;
+  struct OptionalGraphPattern;
+  struct GraphGraphPattern;
+  struct GroupOrUnionGraphPattern;
+  struct DatasetClause;
+  struct OrderCondition;
+  struct SolutionModifier;
+  struct PrefixDecl;
+  struct Prologue;
+  struct SelectQuery;
+  struct ConstructQuery;
+  struct DescribeQuery;
+  struct AskQuery;
+  struct Query;
 
-  static constexpr auto IriTerm = ref<IriRefRule> | ref<PrefixedTermRule>;
-  static constexpr auto GraphTerm = IriTerm | ref<StringLitRule> |
-                                    ref<NumberLitRule> | ref<BoolLitRule> |
-                                    ref<BlankNodeRule> | ref<NilTermRule>;
-  static constexpr auto VarOrTerm = ref<VarRule> | GraphTerm;
-  static constexpr auto VarOrIriRef = ref<VarRule> | IriTerm;
+  static constexpr auto IriTerm = ref<IriRef> | ref<PrefixedTerm>;
+  static constexpr auto GraphTerm = IriTerm | ref<StringLit> |
+                                    ref<NumberLitRule> | ref<BoolLit> |
+                                    ref<BlankNode> | ref<NilTerm>;
+  static constexpr auto VarOrTerm = ref<Var> | GraphTerm;
+  static constexpr auto VarOrIriRef = ref<Var> | IriTerm;
   static constexpr auto TriplesNode =
-      ref<CollectionRule> | ref<BlankNodePropertyListRule>;
+      ref<Collection> | ref<BlankNodePropertyList>;
   static constexpr auto GraphNode = VarOrTerm | TriplesNode;
-  static constexpr auto Verb = VarOrIriRef | ref<RdfTypeRule>;
-  static constexpr auto Bracketed = lit<"("> + ref<ExpressionRule> + lit<")">;
+  static constexpr auto Verb = VarOrIriRef | ref<RdfType>;
+  static constexpr auto Bracketed = lit<"("> + ref<Expression> + lit<")">;
   static constexpr auto Constraint =
-      Bracketed | ref<BuiltInCallRule> | ref<FunctionCallRule>;
+      Bracketed | ref<BuiltInCallRule> | ref<FunctionCall>;
 
-  struct IriRefRule : rule<assign<&ast::IriRef::value>(ref<IRI_REF>)> {};
-  struct PrefixNameRule : rule<ref<PNAME_NS>, PrefixText> {};
-  struct PrefixedValueRule : rule<ref<PNAME_LN> | ref<PNAME_NS>, UnicodeText> {
+  struct IriRef : rule<assign<&ast::IriRef::value>(ref<IRI_REF>)> {};
+  struct PrefixName : rule<as<prefix_text>(ref<PNAME_NS>)> {};
+  struct PrefixedValue : rule<as<unicode_text>(ref<PNAME_LN> | ref<PNAME_NS>)> {
   };
-  struct PrefixedTermRule
-      : rule<assign<&ast::PrefixedTerm::value>(ref<PrefixedValueRule>)> {};
-  struct BlankNodeRule
+  struct PrefixedTerm
+      : rule<assign<&ast::PrefixedTerm::value>(ref<PrefixedValue>)> {};
+  struct BlankNode
       : rule<assign<&ast::BlankNode::label>(ref<BLANK_NODE_LABEL>) |
              (create<ast::BlankNode> + lit<"["> + lit<"]">)> {};
-  struct RdfTypeRule : rule<create<ast::RdfType> + ref<A>> {};
-  struct NilTermRule : rule<create<ast::NilTerm> + lit<"("> + lit<")">> {};
+  struct RdfType : rule<create<ast::RdfType> + ref<A>> {};
+  struct NilTerm : rule<create<ast::NilTerm> + lit<"("> + lit<")">> {};
 
-  struct VarRule : rule<assign<&ast::Var::name>(ref<VAR1> | ref<VAR2>)> {};
+  struct Var : rule<assign<&ast::Var::name>(ref<VAR1> | ref<VAR2>)> {};
 
   struct NumberLitRule
       : rule<assign<&ast::NumberLit::text>(ref<NUMERIC_LITERAL>)> {};
 
-  struct BoolLitRule
+  struct BoolLit
       : rule<assign<&ast::BoolLit::value>(ikw<"true"> | ikw<"false">)> {};
 
-  struct StringLitRule
+  struct StringLit
       : rule<assign<&ast::StringLit::value>(
                  ref<STRING_LITERAL_LONG1> | ref<STRING_LITERAL_LONG2> |
                  ref<STRING_LITERAL1> | ref<STRING_LITERAL2>) +
@@ -322,151 +283,149 @@ struct Sparql : cursiv::GrammarSpec {
                     (lit<"^^"> + assign<&ast::StringLit::datatype>(IriTerm)))> {
   };
 
-  struct CollectionRule
+  struct Collection
       : rule<lit<"("> + some(append<&ast::Collection::items>(GraphNode)) +
              lit<")">> {};
 
-  struct PredicateObjectRule
+  struct PredicateObject
       : rule<create<ast::PredicateObject>(
             assign<&ast::PredicateObject::predicate>(Verb) +
             some(append<&ast::PredicateObject::objects>(GraphNode),
                  lit<",">))> {};
 
-  struct PredicateObjectListRule
+  struct PredicateObjectList
       : rule<create<ast::PredicateObjectList>(
-            append<&ast::PredicateObjectList::items>(ref<PredicateObjectRule>) +
+            append<&ast::PredicateObjectList::items>(ref<PredicateObject>) +
             many(lit<";"> + option(append<&ast::PredicateObjectList::items>(
-                                ref<PredicateObjectRule>))))> {};
+                                ref<PredicateObject>))))> {};
 
-  struct BlankNodePropertyListRule
+  struct BlankNodePropertyList
       : rule<lit<"["> +
              assign<&ast::BlankNodePropertyList::properties>(
-                 ref<PredicateObjectListRule>) +
+                 ref<PredicateObjectList>) +
              lit<"]">> {};
 
-  struct TriplesRule
+  struct Triples
       : rule<create<ast::Triple>(
             (assign<&ast::Triple::subject>(VarOrTerm) +
-             assign<&ast::Triple::properties>(ref<PredicateObjectListRule>)) |
+             assign<&ast::Triple::properties>(ref<PredicateObjectList>)) |
             (assign<&ast::Triple::subject>(TriplesNode) +
              option(assign<&ast::Triple::properties>(
-                 ref<PredicateObjectListRule>))))> {};
+                 ref<PredicateObjectList>))))> {};
 
   // A `!`/`+`/`-` prefix directly on a digit run is unreachable: the
   // signed numeric terminals below win by length wherever both are
   // offered, so `-5` is always a signed NumberLit, never `UnaryExpr(-,
   // NumberLit(5))`.
-  struct UnaryRule
+  struct Unary
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(lit<"!"> | lit<"+"> | lit<"-">) +
-                 assign<&ast::UnaryExpr::operand>(ref<PrimaryExprRule>)) |
-             ref<PrimaryExprRule>> {};
+                 assign<&ast::UnaryExpr::operand>(ref<PrimaryExpr>)) |
+             ref<PrimaryExpr>> {};
 
-  struct NumericExprRule
-      : infix<UnaryRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, (left(OpMul) >> left(OpAdd))> {};
+  struct NumericExpr
+      : infix<Unary, ast::BinaryExpr, levels(left(OpMul), left(OpAdd))> {};
 
   // One optional comparison, never a chain: `a < b < c` is not SPARQL, so
   // this sits outside the infix ladders rather than repeating like
   // `*`/`+`/`&&`/`||` do.
-  struct RelationalRule
+  struct Relational
       : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<NumericExprRule>) +
+                 assign<&ast::BinaryExpr::left>(ref<NumericExpr>) +
                  assign<&ast::BinaryExpr::op>(OpCompare) +
-                 assign<&ast::BinaryExpr::right>(ref<NumericExprRule>)) |
-             ref<NumericExprRule>> {};
+                 assign<&ast::BinaryExpr::right>(ref<NumericExpr>)) |
+             ref<NumericExpr>> {};
 
-  struct ExpressionRule
-      : infix<RelationalRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right, (left(OpAnd) >> left(OpOr))> {};
+  struct Expression
+      : infix<Relational, ast::BinaryExpr, levels(left(OpAnd), left(OpOr))> {};
 
   static constexpr auto BuiltInName =
-      ref<STR_KW> | ref<LANG_KW> | ref<LANGMATCHES_KW> | ref<DATATYPE_KW> |
-      ref<BOUND_KW> | ref<SAME_TERM_KW> | ref<IS_IRI_KW> | ref<IS_URI_KW> |
-      ref<IS_BLANK_KW> | ref<IS_LITERAL_KW> | ref<REGEX_KW>;
+      as<ast::BuiltIn::str>(ikw<"STR">) | as<ast::BuiltIn::lang>(ikw<"LANG">) | as<ast::BuiltIn::lang_matches>(ikw<"LANGMATCHES">) | as<ast::BuiltIn::datatype>(ikw<"DATATYPE">) |
+      as<ast::BuiltIn::bound>(ikw<"BOUND">) | as<ast::BuiltIn::same_term>(ikw<"sameTerm">) | as<ast::BuiltIn::is_iri>(ikw<"isIRI">) | as<ast::BuiltIn::is_iri>(ikw<"isURI">) |
+      as<ast::BuiltIn::is_blank>(ikw<"isBLANK">) | as<ast::BuiltIn::is_literal>(ikw<"isLITERAL">) | as<ast::BuiltIn::regex>(ikw<"REGEX">);
   struct BuiltInCallRule
       : rule<assign<&ast::BuiltInCall::fn>(BuiltInName) + lit<"("> +
-             many(append<&ast::BuiltInCall::args>(ref<ExpressionRule>),
+             many(append<&ast::BuiltInCall::args>(ref<Expression>),
                   lit<",">) +
              lit<")">> {};
   static constexpr auto ArgListInto =
       lit<"("> +
-      many(append<&ast::FuncCall::args>(ref<ExpressionRule>), lit<",">) +
+      many(append<&ast::FuncCall::args>(ref<Expression>), lit<",">) +
       lit<")">;
 
-  struct FunctionCallRule
+  struct FunctionCall
       : rule<create<ast::FuncCall>(assign<&ast::FuncCall::target>(IriTerm) +
                                    ArgListInto)> {};
 
-  struct IriRefOrFunctionRule
+  struct IriRefOrFunction
       : rule<create<ast::FuncCall>(assign<&ast::FuncCall::target>(IriTerm) +
                                    ArgListInto) |
              IriTerm> {};
 
-  struct PrimaryExprRule
-      : rule<Bracketed | ref<BuiltInCallRule> | ref<IriRefOrFunctionRule> |
-             ref<StringLitRule> | ref<NumberLitRule> | ref<BoolLitRule> |
-             ref<VarRule>> {};
+  struct PrimaryExpr
+      : rule<Bracketed | ref<BuiltInCallRule> | ref<IriRefOrFunction> |
+             ref<StringLit> | ref<NumberLitRule> | ref<BoolLit> |
+             ref<Var>> {};
 
-  struct FilterRule
+  struct Filter
       : rule<create<ast::Filter>(
             ikw<"FILTER"> + assign<&ast::Filter::constraint>(Constraint))> {};
 
-  struct OptionalGraphPatternRule
+  struct OptionalGraphPattern
       : rule<create<ast::OptionalGraphPattern>(
             ikw<"OPTIONAL"> + assign<&ast::OptionalGraphPattern::pattern>(
-                                  ref<GroupGraphPatternRule>))> {};
+                                  ref<GroupGraphPattern>))> {};
 
-  struct GraphGraphPatternRule
+  struct GraphGraphPattern
       : rule<create<ast::GraphGraphPattern>(
             ikw<"GRAPH"> + assign<&ast::GraphGraphPattern::graph>(VarOrIriRef) +
             assign<&ast::GraphGraphPattern::pattern>(
-                ref<GroupGraphPatternRule>))> {};
+                ref<GroupGraphPattern>))> {};
 
-  struct GroupOrUnionGraphPatternRule
+  struct GroupOrUnionGraphPattern
       : rule<create<ast::GroupOrUnionGraphPattern>(
             append<&ast::GroupOrUnionGraphPattern::alternatives>(
-                ref<GroupGraphPatternRule>) +
+                ref<GroupGraphPattern>) +
             many(ikw<"UNION"> +
                  append<&ast::GroupOrUnionGraphPattern::alternatives>(
-                     ref<GroupGraphPatternRule>)))> {};
+                     ref<GroupGraphPattern>)))> {};
 
   static constexpr auto TriplesInto =
-      some(append<&ast::GroupGraphPattern::elements>(ref<TriplesRule>),
+      some(append<&ast::GroupGraphPattern::elements>(ref<Triples>),
            lit<".">) +
       option(lit<".">);
 
-  struct GroupGraphPatternRule
+  struct GroupGraphPattern
       : rule<create<ast::GroupGraphPattern>(
             lit<"{"> + option(TriplesInto) +
             many((append<&ast::GroupGraphPattern::elements>(
-                      ref<OptionalGraphPatternRule>) |
+                      ref<OptionalGraphPattern>) |
                   append<&ast::GroupGraphPattern::elements>(
-                      ref<GroupOrUnionGraphPatternRule>) |
+                      ref<GroupOrUnionGraphPattern>) |
                   append<&ast::GroupGraphPattern::elements>(
-                      ref<GraphGraphPatternRule>) |
-                  append<&ast::GroupGraphPattern::elements>(ref<FilterRule>)) +
+                      ref<GraphGraphPattern>) |
+                  append<&ast::GroupGraphPattern::elements>(ref<Filter>)) +
                  option(lit<".">) + option(TriplesInto)) +
             lit<"}">)> {};
 
-  struct DatasetClauseRule
+  struct DatasetClause
       : rule<create<ast::DatasetClause>(
             ikw<"FROM"> +
             option(flag<&ast::DatasetClause::named>(ikw<"NAMED">)) +
             assign<&ast::DatasetClause::graph>(IriTerm))> {};
 
-  struct OrderConditionRule
+  struct OrderCondition
       : rule<create<ast::OrderCondition>(
             ((flag<&ast::OrderCondition::descending>(ikw<"DESC">) |
               ikw<"ASC">)+assign<&ast::OrderCondition::value>(Bracketed)) |
             assign<&ast::OrderCondition::value>(Constraint) |
-            assign<&ast::OrderCondition::value>(ref<VarRule>))> {};
+            assign<&ast::OrderCondition::value>(ref<Var>))> {};
 
-  struct SolutionModifierRule
+  struct SolutionModifier
       : rule<create<ast::SolutionModifier>(
             option(ikw<"ORDER"> + ikw<"BY"> +
                    some(append<&ast::SolutionModifier::orderBy>(
-                       ref<OrderConditionRule>))) +
+                       ref<OrderCondition>))) +
             option(
                 (ikw<"LIMIT"> +
                  assign<&ast::SolutionModifier::limit>(ref<INTEGER>) +
@@ -477,80 +436,80 @@ struct Sparql : cursiv::GrammarSpec {
                  option(ikw<"LIMIT"> + assign<&ast::SolutionModifier::limit>(
                                            ref<INTEGER>)))))> {};
 
-  struct PrefixDeclRule
+  struct PrefixDecl
       : rule<create<ast::PrefixDecl>(
             ikw<"PREFIX"> +
-            assign<&ast::PrefixDecl::prefix>(ref<PrefixNameRule>) +
+            assign<&ast::PrefixDecl::prefix>(ref<PrefixName>) +
             assign<&ast::PrefixDecl::iri>(ref<IRI_REF>))> {};
 
-  struct PrologueRule
+  struct Prologue
       : rule<create<ast::Prologue>(
             option(ikw<"BASE"> +
-                   assign<&ast::Prologue::base>(ref<IriRefRule>)) +
-            many(append<&ast::Prologue::prefixes>(ref<PrefixDeclRule>)))> {};
+                   assign<&ast::Prologue::base>(ref<IriRef>)) +
+            many(append<&ast::Prologue::prefixes>(ref<PrefixDecl>)))> {};
 
-  struct ProjectionRule
+  struct Projection
       : rule<lit<"("> +
-             assign<&ast::Projection::expression>(ref<ExpressionRule>) +
-             ikw<"AS"> + assign<&ast::Projection::variable>(ref<VarRule>) +
+             assign<&ast::Projection::expression>(ref<Expression>) +
+             ikw<"AS"> + assign<&ast::Projection::variable>(ref<Var>) +
              lit<")">> {};
 
-  struct SelectQueryRule
+  struct SelectQuery
       : rule<create<ast::SelectQuery>(
             ikw<"SELECT"> +
             option(flag<&ast::SelectQuery::distinct>(ikw<"DISTINCT">) |
                    flag<&ast::SelectQuery::reduced>(ikw<"REDUCED">)) +
             (flag<&ast::SelectQuery::star>(lit<"*">) |
-             some(append<&ast::SelectQuery::vars>(ref<VarRule> |
-                                                  ref<ProjectionRule>))) +
-            many(append<&ast::SelectQuery::datasets>(ref<DatasetClauseRule>)) +
+             some(append<&ast::SelectQuery::vars>(ref<Var> |
+                                                  ref<Projection>))) +
+            many(append<&ast::SelectQuery::datasets>(ref<DatasetClause>)) +
             option(ikw<"WHERE">) +
-            assign<&ast::SelectQuery::where>(ref<GroupGraphPatternRule>) +
-            assign<&ast::SelectQuery::modifier>(ref<SolutionModifierRule>))> {};
+            assign<&ast::SelectQuery::where>(ref<GroupGraphPattern>) +
+            assign<&ast::SelectQuery::modifier>(ref<SolutionModifier>))> {};
 
   static constexpr auto ConstructTriplesInto =
-      some(append<&ast::ConstructQuery::templateTriples>(ref<TriplesRule>),
+      some(append<&ast::ConstructQuery::templateTriples>(ref<Triples>),
            lit<".">) +
       option(lit<".">);
 
-  struct ConstructQueryRule
+  struct ConstructQuery
       : rule<create<ast::ConstructQuery>(
             ikw<"CONSTRUCT"> + lit<"{"> + option(ConstructTriplesInto) +
             lit<"}"> +
             many(append<&ast::ConstructQuery::datasets>(
-                ref<DatasetClauseRule>)) +
+                ref<DatasetClause>)) +
             option(ikw<"WHERE">) +
-            assign<&ast::ConstructQuery::where>(ref<GroupGraphPatternRule>) +
+            assign<&ast::ConstructQuery::where>(ref<GroupGraphPattern>) +
             assign<&ast::ConstructQuery::modifier>(
-                ref<SolutionModifierRule>))> {};
+                ref<SolutionModifier>))> {};
 
-  struct DescribeQueryRule
+  struct DescribeQuery
       : rule<create<ast::DescribeQuery>(
             ikw<"DESCRIBE"> +
             (flag<&ast::DescribeQuery::star>(lit<"*">) |
              some(append<&ast::DescribeQuery::vars>(VarOrIriRef))) +
             many(
-                append<&ast::DescribeQuery::datasets>(ref<DatasetClauseRule>)) +
+                append<&ast::DescribeQuery::datasets>(ref<DatasetClause>)) +
             option(option(ikw<"WHERE">) + assign<&ast::DescribeQuery::where>(
-                                              ref<GroupGraphPatternRule>)) +
-            assign<&ast::DescribeQuery::modifier>(ref<SolutionModifierRule>))> {
+                                              ref<GroupGraphPattern>)) +
+            assign<&ast::DescribeQuery::modifier>(ref<SolutionModifier>))> {
   };
 
-  struct AskQueryRule
+  struct AskQuery
       : rule<create<ast::AskQuery>(
             ikw<"ASK"> +
-            many(append<&ast::AskQuery::datasets>(ref<DatasetClauseRule>)) +
+            many(append<&ast::AskQuery::datasets>(ref<DatasetClause>)) +
             option(ikw<"WHERE">) +
-            assign<&ast::AskQuery::where>(ref<GroupGraphPatternRule>))> {};
+            assign<&ast::AskQuery::where>(ref<GroupGraphPattern>))> {};
 
-  struct QueryRule : rule<create<ast::Query>(
-                         assign<&ast::Query::prologue>(ref<PrologueRule>) +
+  struct Query : rule<create<ast::Query>(
+                         assign<&ast::Query::prologue>(ref<Prologue>) +
                          assign<&ast::Query::form>(
-                             ref<SelectQueryRule> | ref<ConstructQueryRule> |
-                             ref<DescribeQueryRule> | ref<AskQueryRule>))> {};
+                             ref<SelectQuery> | ref<ConstructQuery> |
+                             ref<DescribeQuery> | ref<AskQuery>))> {};
 
-  using entry = QueryRule;
-  using ignore = list<WS, LINE_COMMENT>;
+  using entry = Query;
+  using ignored = list<WS, LINE_COMMENT>;
 };
 
 } // namespace sparql

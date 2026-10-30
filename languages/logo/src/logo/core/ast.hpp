@@ -19,7 +19,7 @@ enum class Op : std::uint8_t { add, subtract, multiply, divide };
 enum class CompareOp : std::uint8_t { less, greater, equal };
 
 struct NumberLiteral : cursiv::Extends<Expression> {
-  std::int64_t value = 0;
+  string_view value;
 };
 
 struct Deref : cursiv::Extends<Expression> {

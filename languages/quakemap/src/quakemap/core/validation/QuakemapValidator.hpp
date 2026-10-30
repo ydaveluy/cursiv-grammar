@@ -1,5 +1,4 @@
-// The checks of this language: what the grammar accepts but a valid map does
-// not -- a plane needs exactly 3 points, a point exactly 3 numbers.
+// Defensive shape checks for brush-plane and point nodes.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

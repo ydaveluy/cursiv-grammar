@@ -31,6 +31,12 @@ void PdnValidator::checkDocument(const ast::Document &document,
                                  cursiv::ValidationAcceptor &accept) const {
   if (document.games.empty())
     accept.error(document, "A PDN file needs a game.", "pdn.empty");
+  for (std::size_t i = 1; i < document.games.size(); ++i)
+    if (document.games[i - 1] && document.games[i] &&
+        document.games[i - 1]->results.empty())
+      accept.error(*document.games[i],
+                   "A result marker or '*' is required between games.",
+                   "pdn.separator");
 }
 
 void PdnValidator::checkVariation(const ast::Variation &variation,

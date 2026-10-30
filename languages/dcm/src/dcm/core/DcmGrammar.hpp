@@ -11,210 +11,216 @@ namespace dcm {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Dcm : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\f)">)> {};
 
-  struct NEWLINE : terminal<lit<"\n">> {};
-
-  struct COMMENT : terminal<cr<"*!."> + many(cr<R"(^\n)">) + lit<"\n">> {};
+  // Comments are entire lines. Keeping the comment pattern inside line
+  // boundaries prevents a fractional number such as .5 becoming trivia.
+  static constexpr auto comment =
+      cr<"*!."> + many(cr<R"(^\n)">) + (lit<"\n"> | eof);
+  static constexpr auto blank_line = many(cr<R"( \t\r\f)">) +
+                                     (comment | lit<"\n">);
+  struct INITIAL_COMMENT : terminal<comment> {};
+  struct NEWLINE : terminal<lit<"\n"> + many(blank_line)> {};
+  static constexpr auto line_end = ref<NEWLINE> | eof;
 
   struct NAME : terminal<cr<"A-Za-z_"> + many(cr<"A-Za-z0-9_.[]">)> {};
 
   static constexpr auto escape = lit<"\\"> + cr<R"(btnfr"'\\)">;
-  struct TEXT
-      : terminal<lit<"\""> + many(escape | cr<R"(^\\")">) + lit<"\"">,
-                 Unquoted> {};
+  struct TEXT : terminal<as<unquote>(lit<"\""> + many(escape | cr<R"(^\\")">) +
+                                     lit<"\"">)> {};
 
   struct INT
-      : terminal<option(lit<"-">) + (lit<"0"> | (cr<"1-9"> + many(d))),
-                 std::int64_t> {};
+      : terminal<as<std::int64_t>(option(cr<"+-">) + some(d))> {};
 
   static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   struct FLOAT
-      : terminal<option(lit<"-">) +
-                     ((some(d) + lit<"."> + many(d) + option(exponent)) |
-                      (lit<"."> + some(d) + option(exponent)) |
-                      (some(d) + exponent)),
-                 double> {};
+      : terminal<as<double>(
+            option(cr<"+-">) +
+            ((some(d) + option(lit<"."> + many(d))) |
+             (lit<"."> + some(d))) +
+            option(exponent))> {};
 
-  static constexpr auto realzahl = ref<INT> | ref<FLOAT>;
+  // Numeric values have the native floating-point domain; only array
+  // dimensions use the checked integer conversion.
+  static constexpr auto realzahl = ref<FLOAT>;
 
-  struct VarAbhRule
+  struct VarAbh
       : rule<assign<&ast::VarAbh::name>(ref<NAME>) + lit<"="> +
              assign<&ast::VarAbh::value>(ref<NAME>)> {};
 
-  struct KgrInfoRule
+  struct KgrInfo
       : rule<create<ast::KgrInfo> +
              option(kw<"LANGNAME"> +
                     assign<&ast::KgrInfo::langname>(ref<TEXT>) +
-                    ref<NEWLINE>) +
+                    line_end) +
              option(kw<"DISPLAYNAME"> +
                     assign<&ast::KgrInfo::displayName>(ref<NAME> |
                                                         ref<TEXT>) +
-                    ref<NEWLINE>) +
+                    line_end) +
              option(kw<"VAR"> +
-                    some(append<&ast::KgrInfo::dependencies>(ref<VarAbhRule>),
+                    some(append<&ast::KgrInfo::dependencies>(ref<VarAbh>),
                          lit<",">) +
-                    ref<NEWLINE>) +
+                    line_end) +
              option(kw<"FUNKTION"> +
                     some(append<&ast::KgrInfo::functions>(ref<NAME>)) +
-                    ref<NEWLINE>)> {};
+                    line_end)> {};
 
-  struct SupportPointsRule
+  struct SupportPoints
       : rule<(lit<"ST/X"> +
               some(append<&ast::SupportPoints::numbers>(realzahl)) +
-              ref<NEWLINE>) |
+              line_end) |
              (lit<"ST_TX/X"> +
               some(append<&ast::SupportPoints::texts>(ref<TEXT>)) +
-              ref<NEWLINE>)> {};
+              line_end)> {};
 
-  struct ValueRowRule
+  struct ValueRow
       : rule<kw<"WERT"> + some(append<&ast::ValueRow::values>(realzahl)) +
-             ref<NEWLINE>> {};
+             line_end> {};
 
-  struct ValueBlockRule
+  struct ValueBlock
       : rule<(kw<"WERT"> +
               some(append<&ast::ValueBlock::numbers>(realzahl)) +
-              ref<NEWLINE>) |
+              line_end) |
              (kw<"TEXT"> +
               some(append<&ast::ValueBlock::texts>(ref<TEXT>)) +
-              ref<NEWLINE>)> {};
+              line_end)> {};
 
-  struct MapRowNumRule
-      : rule<lit<"ST/Y"> + assign<&ast::MapRow::y>(realzahl) + ref<NEWLINE> +
-             some(append<&ast::MapRow::rows>(ref<ValueRowRule>))> {};
+  struct MapRowNum
+      : rule<lit<"ST/Y"> + assign<&ast::MapRow::y>(realzahl) + line_end +
+             some(append<&ast::MapRow::rows>(ref<ValueRow>))> {};
 
-  struct MapRowTextRule
+  struct MapRowText
       : rule<lit<"ST_TX/Y"> + assign<&ast::MapRow::yText>(ref<TEXT>) +
-             ref<NEWLINE> +
-             some(append<&ast::MapRow::rows>(ref<ValueRowRule>))> {};
+             line_end +
+             some(append<&ast::MapRow::rows>(ref<ValueRow>))> {};
 
-  struct KennwertRule
+  struct MapRowsWithoutAxis
+      : rule<some(append<&ast::MapRow::rows>(ref<ValueRow>))> {};
+
+  struct Kennwert
       : rule<kw<"FESTWERT"> + assign<&ast::Kennwert::name>(ref<NAME>) +
-             ref<NEWLINE> + assign<&ast::Kennwert::info>(ref<KgrInfoRule>) +
+             line_end + assign<&ast::Kennwert::info>(ref<KgrInfo>) +
              option(kw<"EINHEIT_W"> +
-                    assign<&ast::Kennwert::unit>(ref<TEXT>) + ref<NEWLINE>) +
+                    assign<&ast::Kennwert::unit>(ref<TEXT>) + line_end) +
              ((kw<"WERT"> + assign<&ast::Kennwert::value>(realzahl) +
-               ref<NEWLINE>) |
+               line_end) |
               (kw<"TEXT"> + assign<&ast::Kennwert::text>(ref<TEXT>) +
-               ref<NEWLINE>)) +
-             kw<"END"> + some(ref<NEWLINE>)> {};
+               line_end)) +
+             kw<"END"> + line_end> {};
 
-  struct KennwerteblockRule
+  struct Kennwerteblock
       : rule<kw<"FESTWERTEBLOCK"> +
              assign<&ast::Kennwerteblock::name>(ref<NAME>) +
-             assign<&ast::Kennwerteblock::count>(ref<INT>) + ref<NEWLINE> +
-             assign<&ast::Kennwerteblock::info>(ref<KgrInfoRule>) +
+             assign<&ast::Kennwerteblock::count>(ref<INT>) +
+             option(lit<"@"> + assign<&ast::Kennwerteblock::countY>(ref<INT>)) +
+             line_end +
+             assign<&ast::Kennwerteblock::info>(ref<KgrInfo>) +
              option(kw<"EINHEIT_W"> +
                     assign<&ast::Kennwerteblock::unit>(ref<TEXT>) +
-                    ref<NEWLINE>) +
-             some(append<&ast::Kennwerteblock::blocks>(ref<ValueBlockRule>)) +
-             kw<"END"> + some(ref<NEWLINE>)> {};
+                    line_end) +
+             some(append<&ast::Kennwerteblock::blocks>(ref<ValueBlock>)) +
+             kw<"END"> + line_end> {};
 
-  struct CurveKindNormal : rule<kw<"KENNLINIE">, value<ast::CurveKind::Normal>> {};
-  struct CurveKindFixed : rule<kw<"FESTKENNLINIE">, value<ast::CurveKind::Fixed>> {};
-  struct CurveKindGroup : rule<kw<"GRUPPENKENNLINIE">, value<ast::CurveKind::Group>> {};
 
-  struct KennlinieRule
+  struct Kennlinie
       : rule<assign<&ast::Kennlinie::kind>(
-                 ref<CurveKindNormal> | ref<CurveKindFixed> |
-                 ref<CurveKindGroup>) +
+                 as<ast::CurveKind::Normal>(kw<"KENNLINIE">) | as<ast::CurveKind::Fixed>(kw<"FESTKENNLINIE">) |
+                 as<ast::CurveKind::Group>(kw<"GRUPPENKENNLINIE">)) +
              assign<&ast::Kennlinie::name>(ref<NAME>) +
-             assign<&ast::Kennlinie::count>(ref<INT>) + ref<NEWLINE> +
-             assign<&ast::Kennlinie::info>(ref<KgrInfoRule>) +
+             assign<&ast::Kennlinie::count>(ref<INT>) + line_end +
+             assign<&ast::Kennlinie::info>(ref<KgrInfo>) +
              option(kw<"EINHEIT_X"> +
                     assign<&ast::Kennlinie::unitX>(ref<TEXT>) +
-                    ref<NEWLINE>) +
+                    line_end) +
              option(kw<"EINHEIT_W"> +
                     assign<&ast::Kennlinie::unitW>(ref<TEXT>) +
-                    ref<NEWLINE>) +
-             some(append<&ast::Kennlinie::supportX>(ref<SupportPointsRule>)) +
-             some(append<&ast::Kennlinie::values>(ref<ValueRowRule>)) +
-             kw<"END"> + some(ref<NEWLINE>)> {};
+                    line_end) +
+             many(append<&ast::Kennlinie::supportX>(ref<SupportPoints>)) +
+             some(append<&ast::Kennlinie::values>(ref<ValueRow>)) +
+             kw<"END"> + line_end> {};
 
-  struct MapKindNormal : rule<kw<"KENNFELD">, value<ast::CurveKind::Normal>> {};
-  struct MapKindFixed : rule<kw<"FESTKENNFELD">, value<ast::CurveKind::Fixed>> {};
-  struct MapKindGroup : rule<kw<"GRUPPENKENNFELD">, value<ast::CurveKind::Group>> {};
 
-  struct KennfeldRule
+  struct Kennfeld
       : rule<assign<&ast::Kennfeld::kind>(
-                 ref<MapKindNormal> | ref<MapKindFixed> | ref<MapKindGroup>) +
+                 as<ast::CurveKind::Normal>(kw<"KENNFELD">) | as<ast::CurveKind::Fixed>(kw<"FESTKENNFELD">) | as<ast::CurveKind::Group>(kw<"GRUPPENKENNFELD">)) +
              assign<&ast::Kennfeld::name>(ref<NAME>) +
              assign<&ast::Kennfeld::countX>(ref<INT>) +
-             assign<&ast::Kennfeld::countY>(ref<INT>) + ref<NEWLINE> +
-             assign<&ast::Kennfeld::info>(ref<KgrInfoRule>) +
+             assign<&ast::Kennfeld::countY>(ref<INT>) + line_end +
+             assign<&ast::Kennfeld::info>(ref<KgrInfo>) +
              option(kw<"EINHEIT_X"> +
-                    assign<&ast::Kennfeld::unitX>(ref<TEXT>) + ref<NEWLINE>) +
+                    assign<&ast::Kennfeld::unitX>(ref<TEXT>) + line_end) +
              option(kw<"EINHEIT_Y"> +
-                    assign<&ast::Kennfeld::unitY>(ref<TEXT>) + ref<NEWLINE>) +
+                    assign<&ast::Kennfeld::unitY>(ref<TEXT>) + line_end) +
              option(kw<"EINHEIT_W"> +
-                    assign<&ast::Kennfeld::unitW>(ref<TEXT>) + ref<NEWLINE>) +
-             some(append<&ast::Kennfeld::supportX>(ref<SupportPointsRule>)) +
-             (some(append<&ast::Kennfeld::rows>(ref<MapRowNumRule>)) |
-              some(append<&ast::Kennfeld::rows>(ref<MapRowTextRule>))) +
-             kw<"END"> + some(ref<NEWLINE>)> {};
+                    assign<&ast::Kennfeld::unitW>(ref<TEXT>) + line_end) +
+             many(append<&ast::Kennfeld::supportX>(ref<SupportPoints>)) +
+             (some(append<&ast::Kennfeld::rows>(ref<MapRowNum>)) |
+              some(append<&ast::Kennfeld::rows>(ref<MapRowText>)) |
+              append<&ast::Kennfeld::rows>(ref<MapRowsWithoutAxis>)) +
+             kw<"END"> + line_end> {};
 
-  struct GruppenstuetzstellenRule
+  struct Gruppenstuetzstellen
       : rule<kw<"STUETZSTELLENVERTEILUNG"> +
              assign<&ast::Gruppenstuetzstellen::name>(ref<NAME>) +
              assign<&ast::Gruppenstuetzstellen::count>(ref<INT>) +
-             ref<NEWLINE> +
-             assign<&ast::Gruppenstuetzstellen::info>(ref<KgrInfoRule>) +
+             line_end +
+             assign<&ast::Gruppenstuetzstellen::info>(ref<KgrInfo>) +
              option(kw<"EINHEIT_X"> +
                     assign<&ast::Gruppenstuetzstellen::unitX>(ref<TEXT>) +
-                    ref<NEWLINE>) +
+                    line_end) +
              some(append<&ast::Gruppenstuetzstellen::supportX>(
-                 ref<SupportPointsRule>)) +
-             kw<"END"> + some(ref<NEWLINE>)> {};
+                 ref<SupportPoints>)) +
+             kw<"END"> + line_end> {};
 
-  struct KenntextRule
+  struct Kenntext
       : rule<kw<"TEXTSTRING"> + assign<&ast::Kenntext::name>(ref<NAME>) +
-             ref<NEWLINE> + assign<&ast::Kenntext::info>(ref<KgrInfoRule>) +
+             line_end + assign<&ast::Kenntext::info>(ref<KgrInfo>) +
              kw<"TEXT"> + assign<&ast::Kenntext::text>(ref<TEXT>) +
-             ref<NEWLINE> + kw<"END"> + some(ref<NEWLINE>)> {};
+             line_end + kw<"END"> + line_end> {};
 
-  struct ModHeaderLineRule
+  struct ModHeaderLine
       : rule<kw<"MODULKOPF"> + assign<&ast::ModHeaderLine::name>(ref<NAME>) +
              append<&ast::ModHeaderLine::values>(ref<TEXT>) +
-             some(ref<NEWLINE>) +
+             line_end +
              many(kw<"MODULKOPF"> +
                   append<&ast::ModHeaderLine::values>(ref<TEXT>) +
-                  some(ref<NEWLINE>))> {};
+                  line_end)> {};
 
-  struct FunctionEntryRule
+  struct FunctionEntry
       : rule<kw<"FKT"> + assign<&ast::FunctionEntry::name>(ref<NAME>) +
              assign<&ast::FunctionEntry::version>(ref<TEXT>) +
              assign<&ast::FunctionEntry::longName>(ref<TEXT>) +
-             some(ref<NEWLINE>)> {};
+             line_end> {};
 
-  struct VariantCriterionRule
+  struct VariantCriterion
       : rule<kw<"KRITERIUM"> +
              assign<&ast::VariantCriterion::name>(ref<NAME>) +
              many(append<&ast::VariantCriterion::values>(ref<NAME>)) +
-             some(ref<NEWLINE>)> {};
+             line_end> {};
 
-  struct DocumentRule
-      : rule<create<ast::Document> + many(ref<NEWLINE>) +
-             lit<"KONSERVIERUNG_FORMAT 2.0"> + some(ref<NEWLINE>) +
+  struct Document
+      : rule<create<ast::Document> +
+             many(ref<NEWLINE> | ref<INITIAL_COMMENT>) +
+             kw<"KONSERVIERUNG_FORMAT"> + lit<"2.0"> + line_end +
              option(some(append<&ast::Document::moduleHeader>(
-                 ref<ModHeaderLineRule>))) +
-             option(kw<"FUNKTIONEN"> + ref<NEWLINE> +
+                 ref<ModHeaderLine>))) +
+             option(kw<"FUNKTIONEN"> + line_end +
                     some(append<&ast::Document::functions>(
-                        ref<FunctionEntryRule>)) +
-                    kw<"END"> + some(ref<NEWLINE>)) +
-             option(kw<"VARIANTENKODIERUNG"> + ref<NEWLINE> +
+                        ref<FunctionEntry>)) +
+                    kw<"END"> + line_end) +
+             option(kw<"VARIANTENKODIERUNG"> + line_end +
                     some(append<&ast::Document::variants>(
-                        ref<VariantCriterionRule>)) +
-                    kw<"END"> + some(ref<NEWLINE>)) +
+                        ref<VariantCriterion>)) +
+                    kw<"END"> + line_end) +
              many(append<&ast::Document::items>(
-                 ref<KennwertRule> | ref<KennwerteblockRule> |
-                 ref<KennlinieRule> | ref<KennfeldRule> |
-                 ref<GruppenstuetzstellenRule> | ref<KenntextRule>))> {};
+                 ref<Kennwert> | ref<Kennwerteblock> |
+                 ref<Kennlinie> | ref<Kennfeld> |
+                 ref<Gruppenstuetzstellen> | ref<Kenntext>))> {};
 
-  using entry = DocumentRule;
-  using ignore = list<WS, COMMENT>;
+  using entry = Document;
+  using ignored = WS;
 };
 
 }  // namespace dcm

@@ -7,8 +7,7 @@
 
 namespace fusiontables {
 
-// No checks yet: the grammar carries the whole language, nothing here needs
-// validating beyond parsing.
+// This teaching grammar has no native table/type/name/statement validation.
 void register_validation_checks(FusionTablesCoreServices& services) {
   services.validator =
       std::make_unique<const FusionTablesValidator>(services);

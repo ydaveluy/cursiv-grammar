@@ -16,13 +16,12 @@ inline constexpr auto unquote = [](std::string_view text,
   for (std::size_t i = 0; i < text.size(); ++i) {
     char c = text[i];
     if (c == '\\' && i + 1 < text.size() &&
-        (text[i + 1] == '\\' || text[i + 1] == '"'))
+        (text[i + 1] == '\\' || text[i + 1] == '"' || text[i + 1] == ':'))
       c = text[++i];
     room[size++] = c;
   }
   return std::string_view(room.data(), size);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Guido : cursiv::GrammarSpec {
   static constexpr auto identifier = cr<"a-zA-Z_"> + many(cr<"a-zA-Z_0-9">);
@@ -37,50 +36,57 @@ struct Guido : cursiv::GrammarSpec {
   struct FLOAT : terminal<option(cr<"+-">) + many(d) + lit<"."> + some(d)> {};
   struct ID : terminal<identifier> {};
   struct VARIABLE : terminal<lit<"$"> + identifier> {};
-  struct TAG_NAME
-      : terminal<lit<"\\"> + identifier,
-                 text_conv<[](std::string_view s) { return s.substr(1); }>> {};
-  struct BAR : terminal<lit<"|">, text_conv<[](std::string_view) {
-                          return std::string_view("bar");
-                        }>> {};
+  struct TAG_NAME : terminal<as<[](std::string_view s) { return s.substr(1); }>(
+                        lit<"\\"> + identifier)> {};
+  struct BAR
+      : terminal<as<[](std::string_view) { return std::string_view("bar"); }>(
+            lit<"|">)> {};
   struct STRING
-      : terminal<
-            (lit<"\""> + many((lit<"\\"> + any) | (!lit<"\""> + any)) + lit<"\"">) |
-                (lit<"'"> + many((lit<"\\"> + any) | (!lit<"'"> + any)) + lit<"'">),
-            Unquoted> {};
+      : terminal<as<unquote>(
+            (lit<"\""> + many((lit<"\\"> + cr<R"(^\n)">) | cr<R"(^"\\)">) +
+             lit<"\"">) |
+            (lit<"'"> + many((lit<"\\"> + cr<R"(^\n)">) | cr<R"(^'\\)">) +
+             lit<"'">))> {};
   struct NOTENAME
       : terminal<lit<"empty"> | lit<"cis"> | lit<"dis"> | lit<"fis"> |
                  lit<"gis"> | lit<"ais"> | lit<"do"> | lit<"re"> | lit<"mi"> |
                  lit<"fa"> | lit<"sol"> | lit<"la"> | lit<"si"> | lit<"ti"> |
                  cr<"a-h"> | lit<"_">> {};
-  struct Sharp : terminal<lit<"#">, value<ast::Accidental::sharp>> {};
-  struct Flat : terminal<lit<"&">, value<ast::Accidental::flat>> {};
   struct DOTS : terminal<some(lit<".">)> {};
+  struct TAB : terminal<lit<"s"> + cr<"1-6">> {};
+  struct FRETS : terminal<as<unquote>(
+      lit<":"> + many(lit<"\\:"> | cr<"^:">) + lit<":">)> {};
 
-  struct NumberRule : rule<create<ast::Number>(
+  struct Number : rule<create<ast::Number>(
                           option(flag<&ast::Number::negative>(lit<"-">) |
                                  flag<&ast::Number::positive>(lit<"+">)) +
                           assign<&ast::Number::value>(ref<NUMBER>))> {};
 
-  struct DurationRule
+  struct Duration
       : rule<create<ast::Duration>(
             (flag<&ast::Duration::asterisk>(lit<"*">) +
-                option(assign<&ast::Duration::numerator>(ref<NumberRule>)) +
+                option(assign<&ast::Duration::numerator>(ref<Number>)) +
                 option((lit<"/"> + assign<&ast::Duration::denominator>(
-                                      ref<NumberRule>)) |
+                                      ref<Number>)) |
                        flag<&ast::Duration::milliseconds>(lit<"ms">))) |
-            (lit<"/"> + assign<&ast::Duration::denominator>(ref<NumberRule>)))> {
+            (lit<"/"> + assign<&ast::Duration::denominator>(ref<Number>)))> {
   };
 
-  struct NoteRule
+  struct Note
       : rule<create<ast::Note>(
             assign<&ast::Note::name>(ref<NOTENAME>) +
             option(lit<"<"> + assign<&ast::Note::annotation>(ref<NUMBER>) +
                    lit<">">) +
-            many(append<&ast::Note::accidentals>(ref<Sharp> | ref<Flat>)) +
-            option(assign<&ast::Note::octave>(ref<NumberRule>)) +
-            option(assign<&ast::Note::duration>(ref<DurationRule>)) +
+            many(append<&ast::Note::accidentals>(as<ast::Accidental::sharp>(lit<"#">) | as<ast::Accidental::flat>(lit<"&">))) +
+            option(assign<&ast::Note::octave>(ref<Number>)) +
+            option(assign<&ast::Note::duration>(ref<Duration>)) +
             option(assign<&ast::Note::dots>(ref<DOTS>)))> {};
+
+  struct Tablature : rule<create<ast::Tablature>(
+      assign<&ast::Tablature::string>(ref<TAB>) +
+      assign<&ast::Tablature::frets>(ref<FRETS>) +
+      option(assign<&ast::Tablature::duration>(ref<Duration>)) +
+      option(assign<&ast::Tablature::dots>(ref<DOTS>)))> {};
 
   static constexpr auto parameter_value =
       (flag<&ast::Parameter::quoted>(
@@ -96,71 +102,71 @@ struct Guido : cursiv::GrammarSpec {
 
   struct ParameterValue : rule<create<ast::Parameter>(parameter_value)> {};
 
-  struct ParameterRule
+  struct Parameter
       : rule<create<ast::Parameter>(
             option(assign<&ast::Parameter::name>(ref<ID>) + lit<"=">) +
             parameter_value)> {};
 
-  struct VariableDeclRule
+  struct VariableDecl
       : rule<create<ast::VariableDecl>(
             assign<&ast::VariableDecl::name>(ref<VARIABLE>) + lit<"="> +
             assign<&ast::VariableDecl::value>(ref<ParameterValue>) +
             lit<";">)> {};
 
-  struct VariableRefRule
+  struct VariableRef
       : rule<create<ast::VariableRef>(
             assign<&ast::VariableRef::name>(ref<VARIABLE>))> {};
 
-  struct TagRule;
-  struct ChordRule;
-  struct ItemRule : rule<ref<TagRule> | ref<NoteRule> | ref<ChordRule> |
-                         ref<VariableRefRule>> {};
+  struct Tag;
+  struct Chord;
+  struct Item : rule<ref<Tag> | ref<Note> | ref<Tablature> | ref<Chord> |
+                         ref<VariableRef>> {};
 
-  struct TagRule
+  struct Tag
       : rule<create<ast::Tag>(
             (assign<&ast::Tag::name>(ref<TAG_NAME>) |
              flag<&ast::Tag::bar>(assign<&ast::Tag::name>(ref<BAR>))) +
             option(lit<":"> + assign<&ast::Tag::id>(ref<NUMBER>)) +
             option(lit<"<"> +
-                   some(append<&ast::Tag::parameters>(ref<ParameterRule>),
+                   some(append<&ast::Tag::parameters>(ref<Parameter>),
                         lit<",">) +
                    lit<">">) +
             option(flag<&ast::Tag::ranged>(lit<"(">) +
-                   many(append<&ast::Tag::notes>(ref<ItemRule>)) + lit<")">))> {
+                   many(append<&ast::Tag::notes>(ref<Item>)) + lit<")">))> {
   };
 
-  struct ChordMemberRule
+  struct ChordMember
       : rule<create<ast::ChordMember>(some(
-            append<&ast::ChordMember::items>(ref<TagRule> | ref<NoteRule>)))> {
+            append<&ast::ChordMember::items>(ref<Tag> | ref<Note> | ref<Tablature>)))> {
   };
 
-  struct ChordRule
+  struct Chord
       : rule<create<ast::Chord>(
             lit<"{"> +
-            some(append<&ast::Chord::members>(ref<ChordMemberRule>), lit<",">) +
+            some(append<&ast::Chord::members>(ref<ChordMember>), lit<",">) +
             lit<"}">)> {};
 
-  struct SequenceRule
+  struct Sequence
       : rule<create<ast::Sequence>(
-            lit<"["> + many(append<&ast::Sequence::items>(ref<ItemRule>)) +
+            lit<"["> + many(append<&ast::Sequence::items>(ref<Item>)) +
             lit<"]">)> {};
 
-  struct SegmentRule
+  struct Segment
       : rule<create<ast::Segment>(
             lit<"{"> +
             many(option(lit<",">) +
-                 append<&ast::Segment::sequences>(ref<SequenceRule>)) +
+                 append<&ast::Segment::sequences>(ref<Sequence>)) +
             lit<"}">)> {};
 
-  struct ProgRule
+  struct Prog
       : rule<create<ast::Prog>(
-            many(append<&ast::Prog::variables>(ref<VariableDeclRule>)) +
-            (some(append<&ast::Prog::segments>(ref<SegmentRule>)) |
-             some(append<&ast::Prog::sequences>(ref<SequenceRule>),
+            many(append<&ast::Prog::variables>(ref<VariableDecl>)) +
+            (some(append<&ast::Prog::segments>(ref<Segment>)) |
+             some(append<&ast::Prog::sequences>(ref<Sequence>),
                   lit<",">)))> {};
 
-  using entry = ProgRule;
-  using ignore = WS;
+  using entry = Prog;
+  using ignored = WS;
   using hidden = list<COMMENT, BLOCK_COMMENT>;
 };
 

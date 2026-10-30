@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every file of example/ parses clean, and the tree
 # holds what each sample declares.
 add_executable(racketbsl_grammar_test grammar_test.cpp)
-target_link_libraries(racketbsl_grammar_test PRIVATE racketbslCore)
+target_link_libraries(racketbsl_grammar_test PRIVATE racketbslCore cursiv::test)
 target_compile_definitions(racketbsl_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

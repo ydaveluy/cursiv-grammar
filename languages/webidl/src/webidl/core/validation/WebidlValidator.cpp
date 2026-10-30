@@ -200,6 +200,10 @@ void WebidlValidator::checkType(const ast::Type &n,
 
 void WebidlValidator::checkMember(const ast::Member &n,
                                   cursiv::ValidationAcceptor &a) const {
+  if (const auto *iterable = cursiv::ast_cast<ast::AsyncIterable>(&n);
+      iterable && iterable->legacySyntax)
+    a.error(n, "Use async_iterable instead of async iterable.",
+            "webidl.async-iterable-syntax").keyword("async");
   const auto *p = n.parent;
   const bool constant = is<ast::ConstMember>(&n);
   const auto *op = cursiv::ast_cast<ast::Operation>(&n);

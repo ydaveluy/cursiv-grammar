@@ -48,6 +48,59 @@ static int audit_regression() {
       cursiv::create_language<miniscript::MiniscriptCoreServices,
                               miniscript::MiniscriptSharedCoreServices,
                               miniscript::install_core_module>();
+  for (const std::string_view source :
+       {"multi(2,key)", "multi_a(2,key)", "thresh(2,pk(key))",
+        "multi(999999999999999999999999999999,key)", "multi(0,key)",
+        "multi_a(00,key)", "thresh(0,pk(key))", "older(0)", "after(000)",
+        "older(2147483648)", "after(999999999999999999999999999999)"}) {
+    auto doc = language.shared->documentFactory->fromString(
+        std::string(source), "file:///threshold.ms");
+    std::vector<cursiv::Diagnostic> diagnostics;
+    language.language.documentValidator->validateDocument(*doc, diagnostics);
+    if (!doc->parseResult.accepted || doc->parseResult.cst().recovered() ||
+        !doc->parseResult.diagnostics.empty() || diagnostics.size() != 1)
+      return 1;
+  }
+  for (const std::string_view source :
+       {"multi(1,key)", "multi_a(2,key1,key2)", "thresh(1,pk(key))",
+        "multi(0001,key)", "thresh(01,pk(key))", "older(0001)",
+        "after(2147483647)", "older(0000000000002147483647)"}) {
+    auto doc = language.shared->documentFactory->fromString(
+        std::string(source), "file:///threshold-ok.ms");
+    std::vector<cursiv::Diagnostic> diagnostics;
+    language.language.documentValidator->validateDocument(*doc, diagnostics);
+    if (!doc->parseResult.accepted || doc->parseResult.cst().recovered() ||
+        !doc->parseResult.diagnostics.empty() || !diagnostics.empty())
+      return 1;
+  }
+  for (const std::string_view key :
+       {"pk", "older", "and_v", "multi_a", "0", "1", "123",
+        "0000000000000000000000000000000000000000000000000000000000000000",
+        "[deadbeef/44h/0h]xpub/*", "key/<0;1>/*"}) {
+    const std::string source = "pk(" + std::string(key) + ")";
+    const auto parse = language.language.parser->parse(source);
+    const auto* document = parse.value_as<miniscript::ast::Document>();
+    const auto* expression = document
+        ? cursiv::ast_cast<miniscript::ast::KeyExpression>(document->expression)
+        : nullptr;
+    if (!parse.accepted || parse.cst().recovered() ||
+        !parse.diagnostics.empty() || !expression || expression->key != key)
+      return 1;
+  }
+  for (const auto* op : {"sha256", "hash256", "hash160", "ripemd160"}) {
+    const bool wide = std::string_view(op) == "sha256" ||
+                      std::string_view(op) == "hash256";
+    const std::string payload(wide ? 64 : 40, '0');
+    const std::string source = std::string(op) + "(" + payload + ")";
+    const auto parse = language.language.parser->parse(source);
+    const auto* document = parse.value_as<miniscript::ast::Document>();
+    const auto* expression = document
+        ? cursiv::ast_cast<miniscript::ast::HashExpression>(document->expression)
+        : nullptr;
+    if (!parse.accepted || parse.cst().recovered() ||
+        !parse.diagnostics.empty() || !expression || expression->hash != payload)
+      return 1;
+  }
   {
     const auto r = language.language.parser->parse(
         "multi(1,key0,key1,key2,key3,key4,key5,key6,key7,key8,key9,key10,key11,"

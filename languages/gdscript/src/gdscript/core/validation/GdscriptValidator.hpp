@@ -15,6 +15,7 @@ class GdscriptValidator final : public cursiv::DefaultCoreService {
   void checkNumber(const ast::FloatLit&, cursiv::ValidationAcceptor&) const;
   void checkInteger(const ast::IntLit&, cursiv::ValidationAcceptor&) const;
   void checkCall(const ast::CallExpr&, cursiv::ValidationAcceptor&) const;
+  void checkCast(const ast::CastExpr&, cursiv::ValidationAcceptor&) const;
   void checkBreak(const ast::BreakStmt&, cursiv::ValidationAcceptor&) const;
   void checkContinue(const ast::ContinueStmt&,
                      cursiv::ValidationAcceptor&) const;

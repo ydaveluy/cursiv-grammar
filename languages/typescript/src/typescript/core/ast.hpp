@@ -340,7 +340,7 @@ struct NewExpr : cursiv::Extends<Expr> {
 
 struct CallExpr : cursiv::Extends<Expr> {
   Expr* callee;
-  vector<Type*> typeArgs;  // a generic call on a bare name: callee<T>(args)
+  vector<Type*> typeArgs;  // generic calls on any callee, including optional calls
   vector<Expr*> args;
   boolean optional;
 };
@@ -350,7 +350,7 @@ struct MemberExpr : cursiv::Extends<Expr> {
   Expr* property;  // Ident* unless computed; its name keeps a leading '#'
   boolean computed;
   boolean optional;
-  vector<Type*> typeArgs;  // a generic call on the property: obj.method<T>()
+  vector<Type*> typeArgs;  // legacy field; generic arguments now belong to CallExpr/InstantiationExpr
 };
 
 // `e!`, the non-null assertion operator.
@@ -454,7 +454,9 @@ struct Declarator : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct VarDecl : cursiv::Extends<Stmt> {
-  string_view kind;  // "var" | "let" | "const" | empty (bare destructuring form)
+  string_view kind;  // "var" | "let" | "const" | "using" | empty
+  boolean isAwaitUsing;  // independent of a surrounding `for await`
+  boolean hasTrailingComma;  // resource list syntax, diagnosed after parsing
   boolean isDeclare;
   boolean isReadonly;
   string_view accessibility;

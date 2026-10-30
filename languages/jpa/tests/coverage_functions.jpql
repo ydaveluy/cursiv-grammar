@@ -13,7 +13,7 @@ WHERE LENGTH(e.name) > 3
   AND e.hireDate = CURRENT_DATE
   AND e.startTime = CURRENT_TIME
   AND e.stamp = CURRENT_TIMESTAMP
-  AND e.id = ?1
+  AND e.id = :id
   AND e.dept = :dept
   AND -e.rating + 1 = 0
   AND NOT e.active = true

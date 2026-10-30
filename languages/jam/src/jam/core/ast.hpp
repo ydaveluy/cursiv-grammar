@@ -9,9 +9,8 @@
 namespace jam::ast {
 
 enum class Accidental : std::uint8_t { none, flat, sharp };
-// Eight spellings kept apart: 'm'/'M'/'P'/'d' and the three-letter words are
-// distinct tokens, not synonyms folded into one value.
-enum class Quality : std::uint8_t { none, m, M, P, d, maj, min, dim, aug };
+// Written quality spellings stay distinct; this is not harmonic normalization.
+enum class Quality : std::uint8_t { none, m, M, P, d, maj, min, dim, aug, sus, aug_plus };
 enum class Sign : std::uint8_t { none, plus, minus };
 
 struct Note : cursiv::Extends<cursiv::AstNode> {
@@ -20,11 +19,12 @@ struct Note : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct Bass : cursiv::Extends<cursiv::AstNode> {
-  string_view key;  // one of A-G; no accidental, unlike Note
+  string_view key;
+  Accidental accidental;
 };
 
 // The five shapes a measure repeats. Empty by design: every alternative of
-// ItemRule extends it, so a measure's items are one list of one base.
+// Item extends it, so a measure's items are one list of one base.
 struct Item : cursiv::Extends<cursiv::AstNode> {};
 
 struct Chord : cursiv::Extends<Item> {
@@ -41,7 +41,9 @@ struct Chord : cursiv::Extends<Item> {
 struct RepeatChord : cursiv::Extends<Item> {};
 struct Rest : cursiv::Extends<Item> {};
 struct ExtendChord : cursiv::Extends<Item> {};
-struct RepeatMeasure : cursiv::Extends<Item> {};
+struct RepeatMeasure : cursiv::Extends<Item> {
+  std::int64_t count; // %% repeats the preceding two measures, not one twice.
+};
 
 struct Meter : cursiv::Extends<cursiv::AstNode> {
   std::int64_t numerator;

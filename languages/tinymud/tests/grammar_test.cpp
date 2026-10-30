@@ -15,6 +15,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "tinymud/core/CoreServices.hpp"
 #include "tinymud/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -41,6 +42,7 @@ int main() {
   const auto language = cursiv::create_language<
       tinymud::TinymudCoreServices, tinymud::TinymudSharedCoreServices,
       tinymud::install_core_module>();
+  if (!tinymud_native_followup::run(language)) return fail("native followup syntax/AST/validation failed");
 
   for (const char* path : {CURSIV_EXAMPLE1, CURSIV_ADMIN, CURSIV_ACTIONS}) {
     const std::string text = read(path);
@@ -107,12 +109,13 @@ int main() {
     if (!sawNegate) return fail("@set's '!' did not set the flag");
   }
 
-  // A blank line mid-document is not a member: `line+` cannot resync past it.
+  // The native network input layer drops an empty line without queuing a command.
   {
     const std::string text = read(CURSIV_NEGATIVE_BLANK_LINE);
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    if (!result.cst().recovered() && result.diagnostics.empty())
-      return fail("a mid-document blank line should not parse clean");
+    const auto* session = result.value_as<tinymud::ast::Session>();
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !session || session->lines.size() != 2)
+      return fail("a mid-document blank line should preserve the two commands");
   }
 
   std::puts("tinymud: the corpus parses");

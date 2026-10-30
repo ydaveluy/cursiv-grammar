@@ -22,16 +22,14 @@ struct Edif300 : cursiv::GrammarSpec {
   static constexpr auto unquote = [](std::string_view t) {
     return t.substr(1, t.size() - 2);
   };
-  using Unquoted = text_conv<unquote>;
   struct STRING_LITERAL
-      : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
+      : terminal<as<unquote>(lit<"\""> + many(cr<R"(^")">) + lit<"\"">)> {};
 
   // The fractional part is digits, not a repeated signed integer run: read
   // as the decimal number this spelling names -- every corpus value is a
   // plain (optionally signed) decimal.
-  struct DECIMAL_LITERAL
-      : terminal<option(cr<"+-">) + some(d) + option(lit<"."> + many(d)),
-                 double> {};
+  struct DECIMAL_LITERAL : terminal<as<double>(option(cr<"+-">) + some(d) +
+                                               option(lit<"."> + many(d)))> {};
 
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
 
@@ -45,690 +43,690 @@ struct Edif300 : cursiv::GrammarSpec {
 
   // Forward declarations: every construct may reference any other.
 
-  struct AbsoluteRule;
-  struct AcLoadRule;
-  struct AcLoadDisplayRule;
-  struct AddDisplayRule;
-  struct AmpereRule;
-  struct AndRule;
-  struct AnnotateRule;
-  struct ApprovedDateRule;
-  struct ApprovedDateDisplayRule;
-  struct ArcRule;
-  struct AsciiRule;
-  struct AssociatedInterconnectNameDisplayRule;
-  struct AuthorRule;
-  struct BackgroundColorRule;
-  struct BaselineJustifyRule;
-  struct BecomesRule;
-  struct BehaviorViewRule;
-  struct BidirectionalRule;
-  struct BidirectionalPortRule;
-  struct BidirectionalPortAttributesRule;
-  struct BitOrderRule;
-  struct BoldStyleRule;
-  struct EbooleanRule;
-  struct BooleanConstantRule;
-  struct BooleanConstantRefRule;
-  struct BooleanMapRule;
-  struct BooleanParameterRule;
-  struct BooleanParameterAssignRule;
-  struct BooleanParameterRefRule;
-  struct BorderPatternRule;
-  struct BorderPatternVisibleRule;
-  struct BorderWidthRule;
-  struct BottomJustifyRule;
-  struct CalculatedRule;
-  struct CandelaRule;
-  struct CaplineJustifyRule;
-  struct CellRule;
-  struct CellHeaderRule;
-  struct CellNameDisplayRule;
-  struct CellPropertyDisplayRule;
-  struct CellPropertyDisplayOverrideRule;
-  struct CellPropertyOverrideRule;
-  struct CellRefRule;
-  struct CelsiusRule;
-  struct CenterJustifyRule;
-  struct CharacterEncodingRule;
-  struct CheckDateRule;
-  struct CheckDateDisplayRule;
-  struct CircleRule;
-  struct ClusterRule;
-  struct ClusterConfigurationRule;
-  struct ClusterConfigurationNameCaseSensitiveRule;
-  struct ClusterConfigurationRefRule;
-  struct ClusterHeaderRule;
-  struct ClusterNameCaseSensitiveRule;
-  struct ClusterPropertyDisplayRule;
-  struct ClusterPropertyDisplayOverrideRule;
-  struct ClusterPropertyOverrideRule;
-  struct ClusterRefRule;
-  struct ColorRule;
-  struct CommentRule;
-  struct CommentGraphicsRule;
-  struct CompanyNameRule;
-  struct CompanyNameDisplayRule;
-  struct ComplementedNameRule;
-  struct ComplementedNamePartRule;
-  struct ComplexGeometryRule;
-  struct ComplexNameRule;
-  struct CompoundRule;
-  struct ConditionRule;
-  struct ConditionDisplayRule;
-  struct ConnectedSignalIndexGeneratorRule;
-  struct ConnectedSignalIndexGeneratorDisplayRule;
-  struct ConnectivityBusRule;
-  struct ConnectivityBusJoinedRule;
-  struct ConnectivityBusSliceRule;
-  struct ConnectivityFrameStructureRule;
-  struct ConnectivityNetRule;
-  struct ConnectivityNetJoinedRule;
-  struct ConnectivityRipperRule;
-  struct ConnectivityRipperRefRule;
-  struct ConnectivityStructureRule;
-  struct ConnectivitySubBusRule;
-  struct ConnectivitySubNetRule;
-  struct ConnectivityTagGeneratorRule;
-  struct ConnectivityTagGeneratorDisplayRule;
-  struct ConnectivityUnitsRule;
-  struct ConnectivityViewRule;
-  struct ConnectivityViewHeaderRule;
-  struct ConstantValuesRule;
-  struct ContractRule;
-  struct ContractDisplayRule;
-  struct CopyrightRule;
-  struct CopyrightDisplayRule;
-  struct CornerTypeRule;
-  struct CoulombRule;
-  struct CriticalityRule;
-  struct CriticalityDisplayRule;
-  struct CurrentMapRule;
-  struct CurveRule;
-  struct DataOriginRule;
-  struct DateRule;
-  struct DcFanInLoadRule;
-  struct DcFanInLoadDisplayRule;
-  struct DcFanOutLoadRule;
-  struct DcFanOutLoadDisplayRule;
-  struct DcMaxFanInRule;
-  struct DcMaxFanInDisplayRule;
-  struct DcMaxFanOutRule;
-  struct DcMaxFanOutDisplayRule;
-  struct DecimalToStringRule;
-  struct DefaultClusterConfigurationRule;
-  struct DefaultConnectionRule;
-  struct DegreeRule;
-  struct DelayRule;
-  struct DerivedFromRule;
-  struct DesignRule;
-  struct DesignatorRule;
-  struct DesignatorDisplayRule;
-  struct DesignHeaderRule;
-  struct DesignHierarchyRule;
-  struct DesignHierarchyHeaderRule;
-  struct DesignHierarchyNameCaseSensitiveRule;
-  struct DesignNameCaseSensitiveRule;
-  struct DesignUnitsRule;
-  struct DiagramRule;
-  struct DirectionalPortAttributeOverrideRule;
-  struct DisplayRule;
-  struct DisplayAttributesRule;
-  struct DisplayNameRule;
-  struct DisplayNameOverrideRule;
-  struct DocumentationRule;
-  struct DocumentationHeaderRule;
-  struct DocumentationNameCaseSensitiveRule;
-  struct DocumentationUnitsRule;
-  struct DominatesRule;
-  struct DotRule;
-  struct DrawingDescriptionRule;
-  struct DrawingDescriptionDisplayRule;
-  struct DrawingIdentificationRule;
-  struct DrawingIdentificationDisplayRule;
-  struct DrawingSizeRule;
-  struct DrawingSizeDisplayRule;
-  struct DurationRule;
-  struct ERule;
-  struct EdifRule;
-  struct EdifHeaderRule;
-  struct EdifLevelRule;
-  struct EdifVersionRule;
-  struct EndTypeRule;
-  struct EngineeringDateRule;
-  struct EngineeringDateDisplayRule;
-  struct EventRule;
-  struct ExtendRule;
-  struct ExternalRule;
-  struct FahrenheitRule;
-  struct EfalseRule;
-  struct FaradRule;
-  struct FigureRule;
-  struct FigureGroupRule;
-  struct FigureGroupNameCaseSensitiveRule;
-  struct FigureGroupOverrideRule;
-  struct FillPatternRule;
-  struct FillPatternVisibleRule;
-  struct FixedRule;
-  struct FontRule;
-  struct FontCapitalHeightRule;
-  struct FontDefinitionsRule;
-  struct FontDescentRule;
-  struct FontHeightRule;
-  struct FontProportionsRule;
-  struct FontRefRule;
-  struct FontsRule;
-  struct FontWidthRule;
-  struct ForbiddenEventRule;
-  struct ForFrameRule;
-  struct ForFrameAnnotateRule;
-  struct ForFrameIndexRule;
-  struct ForFrameIndexDisplayRule;
-  struct ForFrameIndexNameCaseSensitiveRule;
-  struct ForFrameIndexRefRule;
-  struct ForFrameMemberRefRule;
-  struct ForFrameRefRule;
-  struct FrameConfigurationRule;
-  struct FrameNameCaseSensitiveRule;
-  struct FrameRefRule;
-  struct FromBottomRule;
-  struct FromLeftRule;
-  struct FromRightRule;
-  struct FromTopRule;
-  struct GeneratedRule;
-  struct GeometryMacroRule;
-  struct GeometryMacroHeaderRule;
-  struct GeometryMacroRefRule;
-  struct GeometryMacroUnitsRule;
-  struct GlobalPortRule;
-  struct GlobalPortBundleRule;
-  struct GlobalPortDefinitionsRule;
-  struct GlobalPortListRule;
-  struct GlobalPortNameCaseSensitiveRule;
-  struct GlobalPortNameDisplayRule;
-  struct GlobalPortPropertyDisplayRule;
-  struct GlobalPortRefRule;
-  struct GlobalPortScopeRule;
-  struct HenryRule;
-  struct HertzRule;
-  struct HorizontalJustificationRule;
-  struct HotspotRule;
-  struct HotspotConnectDirectionRule;
-  struct HotspotGridRule;
-  struct HotspotNameCaseSensitiveRule;
-  struct HotspotNameDisplayRule;
-  struct IeeeSectionRule;
-  struct IeeeStandardRule;
-  struct IfFrameRule;
-  struct IfFrameAnnotateRule;
-  struct IfFrameRefRule;
-  struct IfFrameSetRule;
-  struct IgnoreRule;
-  struct ImplementationNameCaseSensitiveRule;
-  struct ImplementationNameDisplayRule;
-  struct IndexEndDisplayRule;
-  struct IndexNameDisplayRule;
-  struct IndexStartRule;
-  struct IndexStartDisplayRule;
-  struct IndexStepRule;
-  struct IndexStepDisplayRule;
-  struct IndexValueRule;
-  struct InputRule;
-  struct InputPortRule;
-  struct InputPortAttributesRule;
-  struct InstanceRule;
-  struct InstanceConfigurationRule;
-  struct InstanceIndexValueRule;
-  struct InstanceMemberRefRule;
-  struct InstanceNameCaseSensitiveRule;
-  struct InstanceNameDisplayRule;
-  struct InstanceNameGeneratorRule;
-  struct InstanceNameGeneratorDisplayRule;
-  struct InstancePortAttributeDisplayRule;
-  struct InstancePortAttributesRule;
-  struct InstancePropertyDisplayRule;
-  struct InstancePropertyOverrideRule;
-  struct InstanceRefRule;
-  struct InstanceWidthRule;
-  struct InstanceWidthDisplayRule;
-  struct IntegerRule;
-  struct IntegerConstantRule;
-  struct IntegerConstantRefRule;
-  struct IntegerEqualRule;
-  struct IntegerParameterRule;
-  struct IntegerParameterAssignRule;
-  struct IntegerParameterRefRule;
-  struct IntegerProductRule;
-  struct IntegerQuotientRule;
-  struct IntegerRemainderRule;
-  struct IntegerSubtractRule;
-  struct IntegerSumRule;
-  struct InterconnectAnnotateRule;
-  struct InterconnectAttachedTextRule;
-  struct InterconnectDelayRule;
-  struct InterconnectDelayDisplayRule;
-  struct InterconnectHeaderRule;
-  struct InterconnectNameCaseSensitiveRule;
-  struct InterconnectNameDisplayRule;
-  struct InterconnectPropertyDisplayRule;
-  struct InterconnectRefRule;
-  struct InterconnectSetRule;
-  struct EinterfaceRule;
-  struct InterfaceJoinedRule;
-  struct InterfaceUnitsRule;
-  struct Iso8859Rule;
-  struct IsolatedRule;
-  struct ItalicStyleRule;
-  struct Jisx0201Rule;
-  struct Jisx0208Rule;
-  struct JoinedAsSignalRule;
-  struct JouleRule;
-  struct K0KeywordLevelRule;
-  struct K1KeywordAliasRule;
-  struct K1KeywordLevelRule;
-  struct K2ActualRule;
-  struct K2BuildRule;
-  struct K2FormalRule;
-  struct K2GenerateRule;
-  struct K2KeywordDefineRule;
-  struct K2KeywordLevelRule;
-  struct K2KeywordParametersRule;
-  struct K2LiteralRule;
-  struct K2OptionalRule;
-  struct K2RequiredRule;
-  struct K3BuildRule;
-  struct K3CollectorRule;
-  struct K3ForEachRule;
-  struct K3FormalRule;
-  struct K3FormalListRule;
-  struct K3GenerateRule;
-  struct K3KeywordDefineRule;
-  struct K3KeywordLevelRule;
-  struct K3KeywordParametersRule;
-  struct KelvinRule;
-  struct KeywordMapRule;
-  struct KilogramRule;
-  struct LeafRule;
-  struct LeafOccurrenceAnnotateRule;
-  struct LeftJustifyRule;
-  struct LessThanRule;
-  struct LessThanOrEqualRule;
-  struct LibraryRule;
-  struct LibraryHeaderRule;
-  struct LibraryNameCaseSensitiveRule;
-  struct LibraryObjectNameCaseSensitiveRule;
-  struct LibraryRefRule;
-  struct LoadDelayRule;
-  struct LocalPortGroupRule;
-  struct LocalPortGroupNameCaseSensitiveRule;
-  struct LocalPortGroupRefRule;
-  struct LogicalConnectivityRule;
-  struct LogicDefinitionsRule;
-  struct LogicListRule;
-  struct LogicMapInputRule;
-  struct LogicMapOutputRule;
-  struct LogicModelUnitsRule;
-  struct LogicModelViewRule;
-  struct LogicOneOfRule;
-  struct LogicRefRule;
-  struct LogicValueRule;
-  struct LsbToMsbRule;
-  struct MaskLayoutUnitsRule;
-  struct MaskLayoutViewRule;
-  struct MeasuredRule;
-  struct MeterRule;
-  struct MiddleJustifyRule;
-  struct MinimalWidthRule;
-  struct MinimumStringLengthRule;
-  struct MiNoMaxRule;
-  struct MixedDirectionRule;
-  struct MnmRule;
-  struct MoleRule;
-  struct MsbToLsbRule;
-  struct MustJoinRule;
-  struct NameAliasRule;
-  struct NameCaseSensitivityRule;
-  struct NameDimensionRule;
-  struct NameDimensionStructureRule;
-  struct NameInformationRule;
-  struct NamePartSeparatorRule;
-  struct NameStructureRule;
-  struct NarrowPortRule;
-  struct NarrowWireRule;
-  struct NoHotspotGridRule;
-  struct NominalHotspotGridRule;
-  struct NonPermutableRule;
-  struct NotRule;
-  struct NotInheritedRule;
-  struct NumberRule;
-  struct NumberParameterRule;
-  struct NumberParameterAssignRule;
-  struct NumberParameterRefRule;
-  struct NumberPointRule;
-  struct OccurrenceAnnotateRule;
-  struct OccurrenceHierarchyAnnotateRule;
-  struct OffsetEventRule;
-  struct OhmRule;
-  struct OpenShapeRule;
-  struct OrRule;
-  struct OriginRule;
-  struct OriginalBoundingBoxRule;
-  struct OriginalDrawingDateRule;
-  struct OriginalDrawingDateDisplayRule;
-  struct OtherwiseFrameRule;
-  struct OtherwiseFrameAnnotateRule;
-  struct OtherwiseFrameRefRule;
-  struct OutputRule;
-  struct OutputPortRule;
-  struct OutputPortAttributesRule;
-  struct OwnerRule;
-  struct PageRule;
-  struct PageAnnotateRule;
-  struct PageBorderRule;
-  struct PageBorderTemplateRule;
-  struct PageBorderTemplateRefRule;
-  struct PageCommentGraphicsRule;
-  struct PageHeaderRule;
-  struct PageIdentificationRule;
-  struct PageIdentificationDisplayRule;
-  struct PageNameCaseSensitiveRule;
-  struct PagePropertyDisplayRule;
-  struct PageRefRule;
-  struct PageSizeRule;
-  struct PageTitleRule;
-  struct PageTitleBlockRule;
-  struct PageTitleBlockAttributeDisplayRule;
-  struct PageTitleBlockAttributesRule;
-  struct PageTitleBlockTemplateRule;
-  struct PageTitleBlockTemplateRefRule;
-  struct PageTitleDisplayRule;
-  struct ParameterDisplayRule;
-  struct ParameterNameCaseSensitiveRule;
-  struct ParameterNameDisplayRule;
-  struct PathRule;
-  struct PathDelayRule;
-  struct PathWidthRule;
-  struct PcbLayoutUnitsRule;
-  struct PcbLayoutViewRule;
-  struct PermutableRule;
-  struct PhysicalDefaultsRule;
-  struct PhysicalScalingRule;
-  struct PixelPatternRule;
-  struct PixelRowRule;
-  struct PointRule;
-  struct PointListRule;
-  struct PolygonRule;
-  struct PortRule;
-  struct PortAnnotateRule;
-  struct PortAttributeDisplayRule;
-  struct PortBundleRule;
-  struct PortDelayRule;
-  struct PortDelayDisplayRule;
-  struct PortDelayOverrideRule;
-  struct PortIndexValueRule;
-  struct PortInstanceRefRule;
-  struct PortJoinedRule;
-  struct PortListRule;
-  struct PortLoadDelayRule;
-  struct PortLoadDelayDisplayRule;
-  struct PortLoadDelayOverrideRule;
-  struct PortMemberRefRule;
-  struct PortNameCaseSensitiveRule;
-  struct PortNameDisplayRule;
-  struct PortNameGeneratorRule;
-  struct PortNameGeneratorDisplayRule;
-  struct PortPropertyDisplayRule;
-  struct PortPropertyDisplayOverrideRule;
-  struct PortPropertyOverrideRule;
-  struct PortRefRule;
-  struct PortSetRule;
-  struct PortWidthRule;
-  struct PreviousVersionRule;
-  struct PrimaryNameRule;
-  struct ProgramRule;
-  struct PropertyRule;
-  struct PropertyDisplayRule;
-  struct PropertyDisplayOverrideRule;
-  struct PropertyInheritanceControlRule;
-  struct PropertyNameCaseSensitiveRule;
-  struct PropertyNameDisplayRule;
-  struct PropertyOverrideRule;
-  struct ProportionalFontRule;
-  struct PtRule;
-  struct RadianRule;
-  struct ReasonRule;
-  struct RectangleRule;
-  struct RemoveDisplayRule;
-  struct RepetitionCountRule;
-  struct RepetitionCountDisplayRule;
-  struct ReplaceDisplayRule;
-  struct RequiredRule;
-  struct ResolvesRule;
-  struct RevisionRule;
-  struct RevisionDisplayRule;
-  struct RightJustifyRule;
-  struct RipperHotspotRule;
-  struct RipperHotspotRefRule;
-  struct RotationRule;
-  struct RoundRule;
-  struct ScaleXRule;
-  struct ScaleYRule;
-  struct SchematicBusRule;
-  struct SchematicBusDetailsRule;
-  struct SchematicBusGraphicsRule;
-  struct SchematicBusJoinedRule;
-  struct SchematicBusSliceRule;
-  struct SchematicComplexFigureRule;
-  struct SchematicFigureMacroRule;
-  struct SchematicFigureMacroRefRule;
-  struct SchematicForFrameBorderRule;
-  struct SchematicForFrameBorderTemplateRule;
-  struct SchematicForFrameBorderTemplateRefRule;
-  struct SchematicForFrameImplementationRule;
-  struct SchematicForFrameImplementationHeaderRule;
-  struct SchematicFrameImplementationDetailsRule;
-  struct SchematicGlobalPortAttributesRule;
-  struct SchematicGlobalPortImplementationRule;
-  struct SchematicGlobalPortImplementationRefRule;
-  struct SchematicGlobalPortTemplateRule;
-  struct SchematicGlobalPortTemplateRefRule;
-  struct SchematicIfFrameBorderRule;
-  struct SchematicIfFrameBorderTemplateRule;
-  struct SchematicIfFrameBorderTemplateRefRule;
-  struct SchematicIfFrameImplementationRule;
-  struct SchematicIfFrameImplementationHeaderRule;
-  struct SchematicImplementationRule;
-  struct SchematicInstanceImplementationRule;
-  struct SchematicInstanceImplementationRefRule;
-  struct SchematicInterconnectAttributeDisplayRule;
-  struct SchematicInterconnectHeaderRule;
-  struct SchematicInterconnectTerminatorImplementationRule;
-  struct SchematicInterconnectTerminatorImplementationRefRule;
-  struct SchematicInterconnectTerminatorTemplateRule;
-  struct SchematicInterconnectTerminatorTemplateRefRule;
-  struct SchematicJunctionImplementationRule;
-  struct SchematicJunctionImplementationRefRule;
-  struct SchematicJunctionTemplateRule;
-  struct SchematicJunctionTemplateRefRule;
-  struct SchematicMasterPortImplementationRule;
-  struct SchematicMasterPortImplementationRefRule;
-  struct SchematicMasterPortTemplateRule;
-  struct SchematicMasterPortTemplateRefRule;
-  struct SchematicMetricRule;
-  struct SchematicNetRule;
-  struct SchematicNetDetailsRule;
-  struct SchematicNetGraphicsRule;
-  struct SchematicNetJoinedRule;
-  struct SchematicOffPageConnectorImplementationRule;
-  struct SchematicOffPageConnectorImplementationRefRule;
-  struct SchematicOffPageConnectorTemplateRule;
-  struct SchematicOffPageConnectorTemplateRefRule;
-  struct SchematicOnPageConnectorImplementationRule;
-  struct SchematicOnPageConnectorImplementationRefRule;
-  struct SchematicOnPageConnectorTemplateRule;
-  struct SchematicOnPageConnectorTemplateRefRule;
-  struct SchematicOtherwiseFrameBorderRule;
-  struct SchematicOtherwiseFrameBorderTemplateRule;
-  struct SchematicOtherwiseFrameBorderTemplateRefRule;
-  struct SchematicOtherwiseFrameImplementationRule;
-  struct SchematicOtherwiseFrameImplementationHeaderRule;
-  struct SchematicPortAcPowerRule;
-  struct SchematicPortAcPowerRecommendedFrequencyRule;
-  struct SchematicPortAcPowerRecommendedVoltageRmsRule;
-  struct SchematicPortAnalogRule;
-  struct SchematicPortAttributesRule;
-  struct SchematicPortChassisGroundRule;
-  struct SchematicPortClockRule;
-  struct SchematicPortDcPowerRule;
-  struct SchematicPortDcPowerRecommendedVoltageRule;
-  struct SchematicPortEarthGroundRule;
-  struct SchematicPortGroundRule;
-  struct SchematicPortNonLogicalRule;
-  struct SchematicPortOpenCollectorRule;
-  struct SchematicPortOpenEmitterRule;
-  struct SchematicPortPowerRule;
-  struct SchematicPortStyleRule;
-  struct SchematicPortThreeStateRule;
-  struct SchematicRequiredDefaultsRule;
-  struct SchematicRipperImplementationRule;
-  struct SchematicRipperImplementationRefRule;
-  struct SchematicRipperTemplateRule;
-  struct SchematicRipperTemplateRefRule;
-  struct SchematicSubBusRule;
-  struct SchematicSubBusSetRule;
-  struct SchematicSubInterconnectHeaderRule;
-  struct SchematicSubNetRule;
-  struct SchematicSubNetSetRule;
-  struct SchematicSymbolRule;
-  struct SchematicSymbolBorderRule;
-  struct SchematicSymbolBorderTemplateRule;
-  struct SchematicSymbolBorderTemplateRefRule;
-  struct SchematicSymbolHeaderRule;
-  struct SchematicSymbolPortImplementationRule;
-  struct SchematicSymbolPortImplementationRefRule;
-  struct SchematicSymbolPortTemplateRule;
-  struct SchematicSymbolPortTemplateRefRule;
-  struct SchematicSymbolRefRule;
-  struct SchematicTemplateHeaderRule;
-  struct SchematicUnitsRule;
-  struct SchematicViewRule;
-  struct SchematicViewHeaderRule;
-  struct SchematicWireAffinityRule;
-  struct SchematicWireStyleRule;
-  struct SecondRule;
-  struct SectionRule;
-  struct SectionTitleRule;
-  struct SequenceRule;
-  struct SetAngleRule;
-  struct SetCapacitanceRule;
-  struct SetCurrentRule;
-  struct SetDistanceRule;
-  struct SetFrequencyRule;
-  struct SetTimeRule;
-  struct SetVoltageRule;
-  struct ShapeRule;
-  struct SiemensRule;
-  struct SignalRule;
-  struct SignalAnnotateRule;
-  struct SignalGroupRule;
-  struct SignalGroupAnnotateRule;
-  struct SignalGroupNameCaseSensitiveRule;
-  struct SignalGroupRefRule;
-  struct SignalIndexValueRule;
-  struct SignalJoinedRule;
-  struct SignalListRule;
-  struct SignalMemberRefRule;
-  struct SignalNameCaseSensitiveRule;
-  struct SignalRefRule;
-  struct SignalWidthRule;
-  struct StatusRule;
-  struct StepRule;
-  struct StringRule;
-  struct StringConcatenateRule;
-  struct StringConstantRule;
-  struct StringConstantRefRule;
-  struct StringEqualRule;
-  struct StringLengthRule;
-  struct StringParameterRule;
-  struct StringParameterAssignRule;
-  struct StringParameterRefRule;
-  struct StringPrefixRule;
-  struct StringSuffixRule;
-  struct StrongRule;
-  struct SubstringRule;
-  struct SymbolicLayoutUnitsRule;
-  struct SymbolicLayoutViewRule;
-  struct TechnologyRule;
-  struct TextHeightRule;
-  struct TimeRule;
-  struct TimeIntervalRule;
-  struct TimeStampRule;
-  struct TimingRule;
-  struct TimingDisplayRule;
-  struct TopJustifyRule;
-  struct TotalPagesRule;
-  struct TotalPagesDisplayRule;
-  struct TransformRule;
-  struct TransitionRule;
-  struct EtrueRule;
-  struct TruncateRule;
-  struct TypefaceRule;
-  struct TypefaceSuffixRule;
-  struct UnconfiguredRule;
-  struct UnconstrainedRule;
-  struct UndefinedRule;
-  struct UnitRule;
-  struct UnitDefinitionsRule;
-  struct UnitRefRule;
-  struct UnrestrictedRule;
-  struct UnspecifiedRule;
-  struct UnspecifiedDirectionPortRule;
-  struct UntypedRule;
-  struct UnusedRule;
-  struct UsableAreaRule;
-  struct UserDataRule;
-  struct VersionRule;
-  struct VerticalJustificationRule;
-  struct ViewGroupRule;
-  struct ViewGroupHeaderRule;
-  struct ViewGroupNameCaseSensitiveRule;
-  struct ViewGroupRefRule;
-  struct ViewNameCaseSensitiveRule;
-  struct ViewNameDisplayRule;
-  struct ViewPropertyDisplayRule;
-  struct ViewPropertyOverrideRule;
-  struct ViewRefRule;
-  struct VisibleRule;
-  struct VoltRule;
-  struct VoltageMapRule;
-  struct WattRule;
-  struct WeakRule;
-  struct WeakJoinedRule;
-  struct WeberRule;
-  struct WidePortRule;
-  struct WideWireRule;
-  struct WrittenRule;
-  struct XorRule;
-  struct YearRule;
+  struct Absolute;
+  struct AcLoad;
+  struct AcLoadDisplay;
+  struct AddDisplay;
+  struct Ampere;
+  struct And;
+  struct Annotate;
+  struct ApprovedDate;
+  struct ApprovedDateDisplay;
+  struct Arc;
+  struct Ascii;
+  struct AssociatedInterconnectNameDisplay;
+  struct Author;
+  struct BackgroundColor;
+  struct BaselineJustify;
+  struct Becomes;
+  struct BehaviorView;
+  struct Bidirectional;
+  struct BidirectionalPort;
+  struct BidirectionalPortAttributes;
+  struct BitOrder;
+  struct BoldStyle;
+  struct Eboolean;
+  struct BooleanConstant;
+  struct BooleanConstantRef;
+  struct BooleanMap;
+  struct BooleanParameter;
+  struct BooleanParameterAssign;
+  struct BooleanParameterRef;
+  struct BorderPattern;
+  struct BorderPatternVisible;
+  struct BorderWidth;
+  struct BottomJustify;
+  struct Calculated;
+  struct Candela;
+  struct CaplineJustify;
+  struct Cell;
+  struct CellHeader;
+  struct CellNameDisplay;
+  struct CellPropertyDisplay;
+  struct CellPropertyDisplayOverride;
+  struct CellPropertyOverride;
+  struct CellRef;
+  struct Celsius;
+  struct CenterJustify;
+  struct CharacterEncoding;
+  struct CheckDate;
+  struct CheckDateDisplay;
+  struct Circle;
+  struct Cluster;
+  struct ClusterConfiguration;
+  struct ClusterConfigurationNameCaseSensitive;
+  struct ClusterConfigurationRef;
+  struct ClusterHeader;
+  struct ClusterNameCaseSensitive;
+  struct ClusterPropertyDisplay;
+  struct ClusterPropertyDisplayOverride;
+  struct ClusterPropertyOverride;
+  struct ClusterRef;
+  struct Color;
+  struct Comment;
+  struct CommentGraphics;
+  struct CompanyName;
+  struct CompanyNameDisplay;
+  struct ComplementedName;
+  struct ComplementedNamePart;
+  struct ComplexGeometry;
+  struct ComplexName;
+  struct Compound;
+  struct Condition;
+  struct ConditionDisplay;
+  struct ConnectedSignalIndexGenerator;
+  struct ConnectedSignalIndexGeneratorDisplay;
+  struct ConnectivityBus;
+  struct ConnectivityBusJoined;
+  struct ConnectivityBusSlice;
+  struct ConnectivityFrameStructure;
+  struct ConnectivityNet;
+  struct ConnectivityNetJoined;
+  struct ConnectivityRipper;
+  struct ConnectivityRipperRef;
+  struct ConnectivityStructure;
+  struct ConnectivitySubBus;
+  struct ConnectivitySubNet;
+  struct ConnectivityTagGenerator;
+  struct ConnectivityTagGeneratorDisplay;
+  struct ConnectivityUnits;
+  struct ConnectivityView;
+  struct ConnectivityViewHeader;
+  struct ConstantValues;
+  struct Contract;
+  struct ContractDisplay;
+  struct Copyright;
+  struct CopyrightDisplay;
+  struct CornerType;
+  struct Coulomb;
+  struct Criticality;
+  struct CriticalityDisplay;
+  struct CurrentMap;
+  struct Curve;
+  struct DataOrigin;
+  struct Date;
+  struct DcFanInLoad;
+  struct DcFanInLoadDisplay;
+  struct DcFanOutLoad;
+  struct DcFanOutLoadDisplay;
+  struct DcMaxFanIn;
+  struct DcMaxFanInDisplay;
+  struct DcMaxFanOut;
+  struct DcMaxFanOutDisplay;
+  struct DecimalToString;
+  struct DefaultClusterConfiguration;
+  struct DefaultConnection;
+  struct Degree;
+  struct Delay;
+  struct DerivedFrom;
+  struct Design;
+  struct Designator;
+  struct DesignatorDisplay;
+  struct DesignHeader;
+  struct DesignHierarchy;
+  struct DesignHierarchyHeader;
+  struct DesignHierarchyNameCaseSensitive;
+  struct DesignNameCaseSensitive;
+  struct DesignUnits;
+  struct Diagram;
+  struct DirectionalPortAttributeOverride;
+  struct Display;
+  struct DisplayAttributes;
+  struct DisplayName;
+  struct DisplayNameOverride;
+  struct Documentation;
+  struct DocumentationHeader;
+  struct DocumentationNameCaseSensitive;
+  struct DocumentationUnits;
+  struct Dominates;
+  struct Dot;
+  struct DrawingDescription;
+  struct DrawingDescriptionDisplay;
+  struct DrawingIdentification;
+  struct DrawingIdentificationDisplay;
+  struct DrawingSize;
+  struct DrawingSizeDisplay;
+  struct Duration;
+  struct E;
+  struct Edif;
+  struct EdifHeader;
+  struct EdifLevel;
+  struct EdifVersion;
+  struct EndType;
+  struct EngineeringDate;
+  struct EngineeringDateDisplay;
+  struct Event;
+  struct Extend;
+  struct External;
+  struct Fahrenheit;
+  struct Efalse;
+  struct Farad;
+  struct Figure;
+  struct FigureGroup;
+  struct FigureGroupNameCaseSensitive;
+  struct FigureGroupOverride;
+  struct FillPattern;
+  struct FillPatternVisible;
+  struct Fixed;
+  struct Font;
+  struct FontCapitalHeight;
+  struct FontDefinitions;
+  struct FontDescent;
+  struct FontHeight;
+  struct FontProportions;
+  struct FontRef;
+  struct Fonts;
+  struct FontWidth;
+  struct ForbiddenEvent;
+  struct ForFrame;
+  struct ForFrameAnnotate;
+  struct ForFrameIndex;
+  struct ForFrameIndexDisplay;
+  struct ForFrameIndexNameCaseSensitive;
+  struct ForFrameIndexRef;
+  struct ForFrameMemberRef;
+  struct ForFrameRef;
+  struct FrameConfiguration;
+  struct FrameNameCaseSensitive;
+  struct FrameRef;
+  struct FromBottom;
+  struct FromLeft;
+  struct FromRight;
+  struct FromTop;
+  struct Generated;
+  struct GeometryMacro;
+  struct GeometryMacroHeader;
+  struct GeometryMacroRef;
+  struct GeometryMacroUnits;
+  struct GlobalPort;
+  struct GlobalPortBundle;
+  struct GlobalPortDefinitions;
+  struct GlobalPortList;
+  struct GlobalPortNameCaseSensitive;
+  struct GlobalPortNameDisplay;
+  struct GlobalPortPropertyDisplay;
+  struct GlobalPortRef;
+  struct GlobalPortScope;
+  struct Henry;
+  struct Hertz;
+  struct HorizontalJustification;
+  struct Hotspot;
+  struct HotspotConnectDirection;
+  struct HotspotGrid;
+  struct HotspotNameCaseSensitive;
+  struct HotspotNameDisplay;
+  struct IeeeSection;
+  struct IeeeStandard;
+  struct IfFrame;
+  struct IfFrameAnnotate;
+  struct IfFrameRef;
+  struct IfFrameSet;
+  struct Ignore;
+  struct ImplementationNameCaseSensitive;
+  struct ImplementationNameDisplay;
+  struct IndexEndDisplay;
+  struct IndexNameDisplay;
+  struct IndexStart;
+  struct IndexStartDisplay;
+  struct IndexStep;
+  struct IndexStepDisplay;
+  struct IndexValue;
+  struct Input;
+  struct InputPort;
+  struct InputPortAttributes;
+  struct Instance;
+  struct InstanceConfiguration;
+  struct InstanceIndexValue;
+  struct InstanceMemberRef;
+  struct InstanceNameCaseSensitive;
+  struct InstanceNameDisplay;
+  struct InstanceNameGenerator;
+  struct InstanceNameGeneratorDisplay;
+  struct InstancePortAttributeDisplay;
+  struct InstancePortAttributes;
+  struct InstancePropertyDisplay;
+  struct InstancePropertyOverride;
+  struct InstanceRef;
+  struct InstanceWidth;
+  struct InstanceWidthDisplay;
+  struct Integer;
+  struct IntegerConstant;
+  struct IntegerConstantRef;
+  struct IntegerEqual;
+  struct IntegerParameter;
+  struct IntegerParameterAssign;
+  struct IntegerParameterRef;
+  struct IntegerProduct;
+  struct IntegerQuotient;
+  struct IntegerRemainder;
+  struct IntegerSubtract;
+  struct IntegerSum;
+  struct InterconnectAnnotate;
+  struct InterconnectAttachedText;
+  struct InterconnectDelay;
+  struct InterconnectDelayDisplay;
+  struct InterconnectHeader;
+  struct InterconnectNameCaseSensitive;
+  struct InterconnectNameDisplay;
+  struct InterconnectPropertyDisplay;
+  struct InterconnectRef;
+  struct InterconnectSet;
+  struct Einterface;
+  struct InterfaceJoined;
+  struct InterfaceUnits;
+  struct Iso8859;
+  struct Isolated;
+  struct ItalicStyle;
+  struct Jisx0201;
+  struct Jisx0208;
+  struct JoinedAsSignal;
+  struct Joule;
+  struct K0KeywordLevel;
+  struct K1KeywordAlias;
+  struct K1KeywordLevel;
+  struct K2Actual;
+  struct K2Build;
+  struct K2Formal;
+  struct K2Generate;
+  struct K2KeywordDefine;
+  struct K2KeywordLevel;
+  struct K2KeywordParameters;
+  struct K2Literal;
+  struct K2Optional;
+  struct K2Required;
+  struct K3Build;
+  struct K3Collector;
+  struct K3ForEach;
+  struct K3Formal;
+  struct K3FormalList;
+  struct K3Generate;
+  struct K3KeywordDefine;
+  struct K3KeywordLevel;
+  struct K3KeywordParameters;
+  struct Kelvin;
+  struct KeywordMap;
+  struct Kilogram;
+  struct Leaf;
+  struct LeafOccurrenceAnnotate;
+  struct LeftJustify;
+  struct LessThan;
+  struct LessThanOrEqual;
+  struct Library;
+  struct LibraryHeader;
+  struct LibraryNameCaseSensitive;
+  struct LibraryObjectNameCaseSensitive;
+  struct LibraryRef;
+  struct LoadDelay;
+  struct LocalPortGroup;
+  struct LocalPortGroupNameCaseSensitive;
+  struct LocalPortGroupRef;
+  struct LogicalConnectivity;
+  struct LogicDefinitions;
+  struct LogicList;
+  struct LogicMapInput;
+  struct LogicMapOutput;
+  struct LogicModelUnits;
+  struct LogicModelView;
+  struct LogicOneOf;
+  struct LogicRef;
+  struct LogicValue;
+  struct LsbToMsb;
+  struct MaskLayoutUnits;
+  struct MaskLayoutView;
+  struct Measured;
+  struct Meter;
+  struct MiddleJustify;
+  struct MinimalWidth;
+  struct MinimumStringLength;
+  struct MiNoMax;
+  struct MixedDirection;
+  struct Mnm;
+  struct Mole;
+  struct MsbToLsb;
+  struct MustJoin;
+  struct NameAlias;
+  struct NameCaseSensitivity;
+  struct NameDimension;
+  struct NameDimensionStructure;
+  struct NameInformation;
+  struct NamePartSeparator;
+  struct NameStructure;
+  struct NarrowPort;
+  struct NarrowWire;
+  struct NoHotspotGrid;
+  struct NominalHotspotGrid;
+  struct NonPermutable;
+  struct Not;
+  struct NotInherited;
+  struct Number;
+  struct NumberParameter;
+  struct NumberParameterAssign;
+  struct NumberParameterRef;
+  struct NumberPoint;
+  struct OccurrenceAnnotate;
+  struct OccurrenceHierarchyAnnotate;
+  struct OffsetEvent;
+  struct Ohm;
+  struct OpenShape;
+  struct Or;
+  struct Origin;
+  struct OriginalBoundingBox;
+  struct OriginalDrawingDate;
+  struct OriginalDrawingDateDisplay;
+  struct OtherwiseFrame;
+  struct OtherwiseFrameAnnotate;
+  struct OtherwiseFrameRef;
+  struct Output;
+  struct OutputPort;
+  struct OutputPortAttributes;
+  struct Owner;
+  struct Page;
+  struct PageAnnotate;
+  struct PageBorder;
+  struct PageBorderTemplate;
+  struct PageBorderTemplateRef;
+  struct PageCommentGraphics;
+  struct PageHeader;
+  struct PageIdentification;
+  struct PageIdentificationDisplay;
+  struct PageNameCaseSensitive;
+  struct PagePropertyDisplay;
+  struct PageRef;
+  struct PageSize;
+  struct PageTitle;
+  struct PageTitleBlock;
+  struct PageTitleBlockAttributeDisplay;
+  struct PageTitleBlockAttributes;
+  struct PageTitleBlockTemplate;
+  struct PageTitleBlockTemplateRef;
+  struct PageTitleDisplay;
+  struct ParameterDisplay;
+  struct ParameterNameCaseSensitive;
+  struct ParameterNameDisplay;
+  struct Path;
+  struct PathDelay;
+  struct PathWidth;
+  struct PcbLayoutUnits;
+  struct PcbLayoutView;
+  struct Permutable;
+  struct PhysicalDefaults;
+  struct PhysicalScaling;
+  struct PixelPattern;
+  struct PixelRow;
+  struct Point;
+  struct PointList;
+  struct Polygon;
+  struct Port;
+  struct PortAnnotate;
+  struct PortAttributeDisplay;
+  struct PortBundle;
+  struct PortDelay;
+  struct PortDelayDisplay;
+  struct PortDelayOverride;
+  struct PortIndexValue;
+  struct PortInstanceRef;
+  struct PortJoined;
+  struct PortList;
+  struct PortLoadDelay;
+  struct PortLoadDelayDisplay;
+  struct PortLoadDelayOverride;
+  struct PortMemberRef;
+  struct PortNameCaseSensitive;
+  struct PortNameDisplay;
+  struct PortNameGenerator;
+  struct PortNameGeneratorDisplay;
+  struct PortPropertyDisplay;
+  struct PortPropertyDisplayOverride;
+  struct PortPropertyOverride;
+  struct PortRef;
+  struct PortSet;
+  struct PortWidth;
+  struct PreviousVersion;
+  struct PrimaryName;
+  struct Program;
+  struct Property;
+  struct PropertyDisplay;
+  struct PropertyDisplayOverride;
+  struct PropertyInheritanceControl;
+  struct PropertyNameCaseSensitive;
+  struct PropertyNameDisplay;
+  struct PropertyOverride;
+  struct ProportionalFont;
+  struct Pt;
+  struct Radian;
+  struct Reason;
+  struct Rectangle;
+  struct RemoveDisplay;
+  struct RepetitionCount;
+  struct RepetitionCountDisplay;
+  struct ReplaceDisplay;
+  struct Required;
+  struct Resolves;
+  struct Revision;
+  struct RevisionDisplay;
+  struct RightJustify;
+  struct RipperHotspot;
+  struct RipperHotspotRef;
+  struct Rotation;
+  struct Round;
+  struct ScaleX;
+  struct ScaleY;
+  struct SchematicBus;
+  struct SchematicBusDetails;
+  struct SchematicBusGraphics;
+  struct SchematicBusJoined;
+  struct SchematicBusSlice;
+  struct SchematicComplexFigure;
+  struct SchematicFigureMacro;
+  struct SchematicFigureMacroRef;
+  struct SchematicForFrameBorder;
+  struct SchematicForFrameBorderTemplate;
+  struct SchematicForFrameBorderTemplateRef;
+  struct SchematicForFrameImplementation;
+  struct SchematicForFrameImplementationHeader;
+  struct SchematicFrameImplementationDetails;
+  struct SchematicGlobalPortAttributes;
+  struct SchematicGlobalPortImplementation;
+  struct SchematicGlobalPortImplementationRef;
+  struct SchematicGlobalPortTemplate;
+  struct SchematicGlobalPortTemplateRef;
+  struct SchematicIfFrameBorder;
+  struct SchematicIfFrameBorderTemplate;
+  struct SchematicIfFrameBorderTemplateRef;
+  struct SchematicIfFrameImplementation;
+  struct SchematicIfFrameImplementationHeader;
+  struct SchematicImplementation;
+  struct SchematicInstanceImplementation;
+  struct SchematicInstanceImplementationRef;
+  struct SchematicInterconnectAttributeDisplay;
+  struct SchematicInterconnectHeader;
+  struct SchematicInterconnectTerminatorImplementation;
+  struct SchematicInterconnectTerminatorImplementationRef;
+  struct SchematicInterconnectTerminatorTemplate;
+  struct SchematicInterconnectTerminatorTemplateRef;
+  struct SchematicJunctionImplementation;
+  struct SchematicJunctionImplementationRef;
+  struct SchematicJunctionTemplate;
+  struct SchematicJunctionTemplateRef;
+  struct SchematicMasterPortImplementation;
+  struct SchematicMasterPortImplementationRef;
+  struct SchematicMasterPortTemplate;
+  struct SchematicMasterPortTemplateRef;
+  struct SchematicMetric;
+  struct SchematicNet;
+  struct SchematicNetDetails;
+  struct SchematicNetGraphics;
+  struct SchematicNetJoined;
+  struct SchematicOffPageConnectorImplementation;
+  struct SchematicOffPageConnectorImplementationRef;
+  struct SchematicOffPageConnectorTemplate;
+  struct SchematicOffPageConnectorTemplateRef;
+  struct SchematicOnPageConnectorImplementation;
+  struct SchematicOnPageConnectorImplementationRef;
+  struct SchematicOnPageConnectorTemplate;
+  struct SchematicOnPageConnectorTemplateRef;
+  struct SchematicOtherwiseFrameBorder;
+  struct SchematicOtherwiseFrameBorderTemplate;
+  struct SchematicOtherwiseFrameBorderTemplateRef;
+  struct SchematicOtherwiseFrameImplementation;
+  struct SchematicOtherwiseFrameImplementationHeader;
+  struct SchematicPortAcPower;
+  struct SchematicPortAcPowerRecommendedFrequency;
+  struct SchematicPortAcPowerRecommendedVoltageRms;
+  struct SchematicPortAnalog;
+  struct SchematicPortAttributes;
+  struct SchematicPortChassisGround;
+  struct SchematicPortClock;
+  struct SchematicPortDcPower;
+  struct SchematicPortDcPowerRecommendedVoltage;
+  struct SchematicPortEarthGround;
+  struct SchematicPortGround;
+  struct SchematicPortNonLogical;
+  struct SchematicPortOpenCollector;
+  struct SchematicPortOpenEmitter;
+  struct SchematicPortPower;
+  struct SchematicPortStyle;
+  struct SchematicPortThreeState;
+  struct SchematicRequiredDefaults;
+  struct SchematicRipperImplementation;
+  struct SchematicRipperImplementationRef;
+  struct SchematicRipperTemplate;
+  struct SchematicRipperTemplateRef;
+  struct SchematicSubBus;
+  struct SchematicSubBusSet;
+  struct SchematicSubInterconnectHeader;
+  struct SchematicSubNet;
+  struct SchematicSubNetSet;
+  struct SchematicSymbol;
+  struct SchematicSymbolBorder;
+  struct SchematicSymbolBorderTemplate;
+  struct SchematicSymbolBorderTemplateRef;
+  struct SchematicSymbolHeader;
+  struct SchematicSymbolPortImplementation;
+  struct SchematicSymbolPortImplementationRef;
+  struct SchematicSymbolPortTemplate;
+  struct SchematicSymbolPortTemplateRef;
+  struct SchematicSymbolRef;
+  struct SchematicTemplateHeader;
+  struct SchematicUnits;
+  struct SchematicView;
+  struct SchematicViewHeader;
+  struct SchematicWireAffinity;
+  struct SchematicWireStyle;
+  struct Second;
+  struct Section;
+  struct SectionTitle;
+  struct Sequence;
+  struct SetAngle;
+  struct SetCapacitance;
+  struct SetCurrent;
+  struct SetDistance;
+  struct SetFrequency;
+  struct SetTime;
+  struct SetVoltage;
+  struct Shape;
+  struct Siemens;
+  struct Signal;
+  struct SignalAnnotate;
+  struct SignalGroup;
+  struct SignalGroupAnnotate;
+  struct SignalGroupNameCaseSensitive;
+  struct SignalGroupRef;
+  struct SignalIndexValue;
+  struct SignalJoined;
+  struct SignalList;
+  struct SignalMemberRef;
+  struct SignalNameCaseSensitive;
+  struct SignalRef;
+  struct SignalWidth;
+  struct Status;
+  struct Step;
+  struct String;
+  struct StringConcatenate;
+  struct StringConstant;
+  struct StringConstantRef;
+  struct StringEqual;
+  struct StringLength;
+  struct StringParameter;
+  struct StringParameterAssign;
+  struct StringParameterRef;
+  struct StringPrefix;
+  struct StringSuffix;
+  struct Strong;
+  struct Substring;
+  struct SymbolicLayoutUnits;
+  struct SymbolicLayoutView;
+  struct Technology;
+  struct TextHeight;
+  struct Time;
+  struct TimeInterval;
+  struct TimeStamp;
+  struct Timing;
+  struct TimingDisplay;
+  struct TopJustify;
+  struct TotalPages;
+  struct TotalPagesDisplay;
+  struct Transform;
+  struct Transition;
+  struct Etrue;
+  struct Truncate;
+  struct Typeface;
+  struct TypefaceSuffix;
+  struct Unconfigured;
+  struct Unconstrained;
+  struct Undefined;
+  struct Unit;
+  struct UnitDefinitions;
+  struct UnitRef;
+  struct Unrestricted;
+  struct Unspecified;
+  struct UnspecifiedDirectionPort;
+  struct Untyped;
+  struct Unused;
+  struct UsableArea;
+  struct UserData;
+  struct Version;
+  struct VerticalJustification;
+  struct ViewGroup;
+  struct ViewGroupHeader;
+  struct ViewGroupNameCaseSensitive;
+  struct ViewGroupRef;
+  struct ViewNameCaseSensitive;
+  struct ViewNameDisplay;
+  struct ViewPropertyDisplay;
+  struct ViewPropertyOverride;
+  struct ViewRef;
+  struct Visible;
+  struct Volt;
+  struct VoltageMap;
+  struct Watt;
+  struct Weak;
+  struct WeakJoined;
+  struct Weber;
+  struct WidePort;
+  struct WideWire;
+  struct Written;
+  struct Xor;
+  struct Year;
 
   // Type-union / pure-forwarding rules: shared expressions, not nodes
 
   // of their own -- spliced wherever the construct they stand for is named.
 
   static constexpr auto integerTokenExpr = ref<DECIMAL_LITERAL>;
-  static constexpr auto scaledIntegerExpr = integerTokenExpr | ref<ERule>;
+  static constexpr auto scaledIntegerExpr = integerTokenExpr | ref<E>;
   static constexpr auto numberValueExpr = scaledIntegerExpr;
-  static constexpr auto miNoMaxValueExpr = numberValueExpr | ref<MnmRule>;
+  static constexpr auto miNoMaxValueExpr = numberValueExpr | ref<Mnm>;
   static constexpr auto capacitanceValueExpr = miNoMaxValueExpr;
   static constexpr auto acLoadFactorCapacitanceExpr = capacitanceValueExpr;
   static constexpr auto timeValueExpr = miNoMaxValueExpr;
   static constexpr auto acLoadFactorTimeExpr = timeValueExpr;
   static constexpr auto angleValueExpr = numberValueExpr;
-  static constexpr auto pointValueExpr = ref<PtRule>;
+  static constexpr auto pointValueExpr = ref<Pt>;
   static constexpr auto attachmentPointExpr = pointValueExpr;
   static constexpr auto blueExpr = scaledIntegerExpr;
-  static constexpr auto booleanTokenExpr = ref<EfalseRule> | ref<EtrueRule>;
-  static constexpr auto booleanExpressionExpr = ref<AndRule> | ref<BooleanParameterRefRule> | booleanTokenExpr | ref<StringEqualRule> | ref<IntegerEqualRule> | ref<LessThanRule> | ref<LessThanOrEqualRule> | ref<NotRule> | ref<OrRule> | ref<XorRule> | ref<BooleanConstantRefRule>;
+  static constexpr auto booleanTokenExpr = ref<Efalse> | ref<Etrue>;
+  static constexpr auto booleanExpressionExpr = ref<And> | ref<BooleanParameterRef> | booleanTokenExpr | ref<StringEqual> | ref<IntegerEqual> | ref<LessThan> | ref<LessThanOrEqual> | ref<Not> | ref<Or> | ref<Xor> | ref<BooleanConstantRef>;
   static constexpr auto booleanValueExpr = booleanTokenExpr;
   static constexpr auto nameDefExpr = ref<IDENTIFIER>;
   static constexpr auto clusterConfigurationNameDefExpr = nameDefExpr;
@@ -745,12 +743,12 @@ struct Edif300 : cursiv::GrammarSpec {
   static constexpr auto dayNumberExpr = integerTokenExpr;
   static constexpr auto integerValueExpr = integerTokenExpr;
   static constexpr auto denominatorExpr = integerValueExpr;
-  static constexpr auto derivationExpr = ref<CalculatedRule> | ref<MeasuredRule> | ref<RequiredRule>;
+  static constexpr auto derivationExpr = ref<Calculated> | ref<Measured> | ref<Required>;
   static constexpr auto designHierarchyNameDefExpr = nameDefExpr;
   static constexpr auto designNameDefExpr = nameDefExpr;
   static constexpr auto diagramNameDefExpr = nameDefExpr;
   static constexpr auto distanceValueExpr = integerValueExpr;
-  static constexpr auto integerExpressionExpr = ref<IntegerParameterRefRule> | integerTokenExpr | ref<IntegerProductRule> | ref<IntegerSubtractRule> | ref<IntegerSumRule> | ref<IntegerRemainderRule> | ref<IntegerQuotientRule> | ref<StringLengthRule> | ref<IntegerConstantRefRule> | ref<ForFrameIndexRefRule> | ref<PortIndexValueRule> | ref<SignalIndexValueRule> | ref<AbsoluteRule> | ref<InstanceIndexValueRule>;
+  static constexpr auto integerExpressionExpr = ref<IntegerParameterRef> | integerTokenExpr | ref<IntegerProduct> | ref<IntegerSubtract> | ref<IntegerSum> | ref<IntegerRemainder> | ref<IntegerQuotient> | ref<StringLength> | ref<IntegerConstantRef> | ref<ForFrameIndexRef> | ref<PortIndexValue> | ref<SignalIndexValue> | ref<Absolute> | ref<InstanceIndexValue>;
   static constexpr auto dividendExpr = integerExpressionExpr;
   static constexpr auto divisorExpr = integerExpressionExpr;
   static constexpr auto documentationNameDefExpr = nameDefExpr;
@@ -758,29 +756,29 @@ struct Edif300 : cursiv::GrammarSpec {
   static constexpr auto edifNameDefExpr = nameDefExpr;
   static constexpr auto endPointExpr = pointValueExpr;
   static constexpr auto exponentExpr = integerTokenExpr;
-  static constexpr auto extendForFrameMemberDefExpr = ref<ForFrameMemberRefRule>;
+  static constexpr auto extendForFrameMemberDefExpr = ref<ForFrameMemberRef>;
   static constexpr auto frameNameRefExpr = nameRefExpr;
   static constexpr auto extendFrameDefExpr = frameNameRefExpr;
   static constexpr auto instanceNameRefExpr = nameRefExpr;
   static constexpr auto extendInstanceDefExpr = instanceNameRefExpr;
-  static constexpr auto extendInstanceMemberDefExpr = ref<InstanceMemberRefRule>;
+  static constexpr auto extendInstanceMemberDefExpr = ref<InstanceMemberRef>;
   static constexpr auto interconnectNameRefExpr = nameRefExpr;
   static constexpr auto extendInterconnectDefExpr = interconnectNameRefExpr;
   static constexpr auto pageNameRefExpr = nameRefExpr;
   static constexpr auto extendPageDefExpr = pageNameRefExpr;
   static constexpr auto portNameRefExpr = nameRefExpr;
   static constexpr auto extendPortDefExpr = portNameRefExpr;
-  static constexpr auto extendPortMemberDefExpr = ref<PortMemberRefRule>;
+  static constexpr auto extendPortMemberDefExpr = ref<PortMemberRef>;
   static constexpr auto signalNameRefExpr = nameRefExpr;
   static constexpr auto extendSignalDefExpr = signalNameRefExpr;
   static constexpr auto signalGroupNameRefExpr = nameRefExpr;
   static constexpr auto extendSignalGroupDefExpr = signalGroupNameRefExpr;
-  static constexpr auto extendSignalMemberDefExpr = ref<SignalMemberRefRule>;
+  static constexpr auto extendSignalMemberDefExpr = ref<SignalMemberRef>;
   static constexpr auto figureGroupNameDefExpr = nameDefExpr;
   static constexpr auto figureGroupNameRefExpr = nameRefExpr;
   static constexpr auto firstIntegerExpressionExpr = integerExpressionExpr;
   static constexpr auto stringTokenExpr = ref<STRING_LITERAL>;
-  static constexpr auto stringExpressionExpr = ref<StringParameterRefRule> | stringTokenExpr | ref<StringConstantRefRule> | ref<StringConcatenateRule> | ref<SubstringRule> | ref<DecimalToStringRule> | ref<StringPrefixRule> | ref<StringSuffixRule>;
+  static constexpr auto stringExpressionExpr = ref<StringParameterRef> | stringTokenExpr | ref<StringConstantRef> | ref<StringConcatenate> | ref<Substring> | ref<DecimalToString> | ref<StringPrefix> | ref<StringSuffix>;
   static constexpr auto firstStringExpressionExpr = stringExpressionExpr;
   static constexpr auto fontFamilyExpr = stringTokenExpr;
   static constexpr auto fontNameDefExpr = nameDefExpr;
@@ -823,7 +821,7 @@ struct Edif300 : cursiv::GrammarSpec {
   static constexpr auto minuendExpr = integerExpressionExpr;
   static constexpr auto minuteNumberExpr = integerTokenExpr;
   static constexpr auto monthNumberExpr = integerTokenExpr;
-  static constexpr auto numberExpressionExpr = numberValueExpr | ref<NumberParameterRefRule>;
+  static constexpr auto numberExpressionExpr = numberValueExpr | ref<NumberParameterRef>;
   static constexpr auto numberOfBasicUnitsExpr = scaledIntegerExpr;
   static constexpr auto numberOfNewUnitsExpr = scaledIntegerExpr;
   static constexpr auto numeratorExpr = integerValueExpr;
@@ -833,13 +831,13 @@ struct Edif300 : cursiv::GrammarSpec {
   static constexpr auto parameterNameRefExpr = nameRefExpr;
   static constexpr auto portDelayNameDefExpr = nameDefExpr;
   static constexpr auto portDelayNameRefExpr = nameRefExpr;
-  static constexpr auto portDirectionExpr = ref<InputPortRule> | ref<OutputPortRule> | ref<BidirectionalPortRule> | ref<UnspecifiedDirectionPortRule>;
-  static constexpr auto portDirectionIndicatorExpr = ref<InputRule> | ref<OutputRule> | ref<BidirectionalRule> | ref<UnspecifiedRule> | ref<UnrestrictedRule> | ref<MixedDirectionRule>;
+  static constexpr auto portDirectionExpr = ref<InputPort> | ref<OutputPort> | ref<BidirectionalPort> | ref<UnspecifiedDirectionPort>;
+  static constexpr auto portDirectionIndicatorExpr = ref<Input> | ref<Output> | ref<Bidirectional> | ref<Unspecified> | ref<Unrestricted> | ref<MixedDirection>;
   static constexpr auto portLoadDelayNameDefExpr = nameDefExpr;
   static constexpr auto portLoadDelayNameRefExpr = nameRefExpr;
   static constexpr auto portNameDefExpr = nameDefExpr;
-  static constexpr auto presentLogicValueExpr = logicNameRefExpr | ref<LogicListRule> | ref<LogicOneOfRule>;
-  static constexpr auto previousLogicValueExpr = logicNameRefExpr | ref<LogicListRule> | ref<LogicOneOfRule>;
+  static constexpr auto presentLogicValueExpr = logicNameRefExpr | ref<LogicList> | ref<LogicOneOf>;
+  static constexpr auto previousLogicValueExpr = logicNameRefExpr | ref<LogicList> | ref<LogicOneOf>;
   static constexpr auto propertyNameDefExpr = nameDefExpr;
   static constexpr auto propertyNameRefExpr = nameRefExpr;
   static constexpr auto pt1Expr = pointValueExpr;
@@ -861,12 +859,12 @@ struct Edif300 : cursiv::GrammarSpec {
   static constexpr auto subtrahendExpr = integerExpressionExpr;
   static constexpr auto symbolPortImplementationNameDefExpr = nameDefExpr;
   static constexpr auto symbolPortImplementationNameRefExpr = nameRefExpr;
-  static constexpr auto throughPointExpr = ref<NumberPointRule>;
+  static constexpr auto throughPointExpr = ref<NumberPoint>;
   static constexpr auto timeDelayExpr = timeValueExpr;
   static constexpr auto timingNameDefExpr = nameDefExpr;
   static constexpr auto timingNameRefExpr = nameRefExpr;
   static constexpr auto toIntegerExpr = integerTokenExpr;
-  static constexpr auto typedValueExpr = ref<EbooleanRule> | ref<IntegerRule> | ref<MiNoMaxRule> | ref<NumberRule> | ref<PointRule> | ref<StringRule>;
+  static constexpr auto typedValueExpr = ref<Eboolean> | ref<Integer> | ref<MiNoMax> | ref<Number> | ref<Point> | ref<String>;
   static constexpr auto unitExponentExpr = scaledIntegerExpr;
   static constexpr auto unitNameDefExpr = nameDefExpr;
   static constexpr auto unitNameRefExpr = nameRefExpr;
@@ -884,1721 +882,1721 @@ struct Edif300 : cursiv::GrammarSpec {
 
   // Every remaining construct: one macro call each, alphabetical by name.
 
-  EDIF_FORM(AbsoluteRule, "(absolute",
+  EDIF_FORM(Absolute, "(absolute",
            arg(integerExpressionExpr));
-  EDIF_FORM(AcLoadRule, "(acLoad",
+  EDIF_FORM(AcLoad, "(acLoad",
            arg(capacitanceValueExpr));
-  EDIF_FORM(AcLoadDisplayRule, "(acLoadDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(AddDisplayRule, "(addDisplay",
-           many(arg(ref<DisplayRule>)));
-  EDIF_FORM(AmpereRule, "(ampere",
+  EDIF_FORM(AcLoadDisplay, "(acLoadDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(AddDisplay, "(addDisplay",
+           many(arg(ref<Display>)));
+  EDIF_FORM(Ampere, "(ampere",
            arg(unitExponentExpr));
-  EDIF_FORM(AndRule, "(and",
+  EDIF_FORM(And, "(and",
            many(arg(booleanExpressionExpr)));
-  EDIF_FORM(AnnotateRule, "(annotate",
+  EDIF_FORM(Annotate, "(annotate",
            arg(stringValueExpr) +
-           many(arg(ref<DisplayRule>)));
-  EDIF_FORM(ApprovedDateRule, "(approvedDate",
-           arg(ref<DateRule>));
-  EDIF_FORM(ApprovedDateDisplayRule, "(approvedDateDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(ArcRule, "(arc",
+           many(arg(ref<Display>)));
+  EDIF_FORM(ApprovedDate, "(approvedDate",
+           arg(ref<Date>));
+  EDIF_FORM(ApprovedDateDisplay, "(approvedDateDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(Arc, "(arc",
            arg(startPointExpr) +
            arg(throughPointExpr) +
            arg(endPointExpr));
-  EDIF_FORM0(AsciiRule, "(ascii");
-  EDIF_FORM(AssociatedInterconnectNameDisplayRule, "(associatedInterconnectNameDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(AuthorRule, "(author",
+  EDIF_FORM0(Ascii, "(ascii");
+  EDIF_FORM(AssociatedInterconnectNameDisplay, "(associatedInterconnectNameDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(Author, "(author",
            arg(stringTokenExpr));
-  EDIF_FORM(BackgroundColorRule, "(backgroundColor",
-           arg(ref<ColorRule>));
-  EDIF_FORM0(BaselineJustifyRule, "(baselineJustify");
-  EDIF_FORM(BecomesRule, "(becomes",
-           arg(logicNameRefExpr | ref<LogicListRule> | ref<LogicOneOfRule>));
-  EDIF_FORM(BehaviorViewRule, "(behaviorView",
+  EDIF_FORM(BackgroundColor, "(backgroundColor",
+           arg(ref<Color>));
+  EDIF_FORM0(BaselineJustify, "(baselineJustify");
+  EDIF_FORM(Becomes, "(becomes",
+           arg(logicNameRefExpr | ref<LogicList> | ref<LogicOneOf>));
+  EDIF_FORM(BehaviorView, "(behaviorView",
            arg(viewNameDefExpr) +
-           many(arg(ref<CommentRule> | ref<NameInformationRule> | ref<UserDataRule>)));
-  EDIF_FORM0(BidirectionalRule, "(bidirectional");
-  EDIF_FORM(BidirectionalPortRule, "(bidirectionalPort",
-           option(arg(ref<BidirectionalPortAttributesRule>)));
-  EDIF_FORM(BidirectionalPortAttributesRule, "(bidirectionalPortAttributes",
-           many(arg(ref<DcFanInLoadRule> | ref<DcFanOutLoadRule> | ref<DcMaxFanInRule> | ref<DcMaxFanOutRule>)));
-  EDIF_FORM(BitOrderRule, "(bitOrder",
-           arg(ref<LsbToMsbRule> | ref<MsbToLsbRule>));
-  EDIF_FORM0(BoldStyleRule, "(boldStyle");
-  EDIF_FORM(EbooleanRule, "(boolean",
+           many(arg(ref<Comment> | ref<NameInformation> | ref<UserData>)));
+  EDIF_FORM0(Bidirectional, "(bidirectional");
+  EDIF_FORM(BidirectionalPort, "(bidirectionalPort",
+           option(arg(ref<BidirectionalPortAttributes>)));
+  EDIF_FORM(BidirectionalPortAttributes, "(bidirectionalPortAttributes",
+           many(arg(ref<DcFanInLoad> | ref<DcFanOutLoad> | ref<DcMaxFanIn> | ref<DcMaxFanOut>)));
+  EDIF_FORM(BitOrder, "(bitOrder",
+           arg(ref<LsbToMsb> | ref<MsbToLsb>));
+  EDIF_FORM0(BoldStyle, "(boldStyle");
+  EDIF_FORM(Eboolean, "(boolean",
            arg(booleanExpressionExpr));
-  EDIF_FORM(BooleanConstantRule, "(booleanConstant",
+  EDIF_FORM(BooleanConstant, "(booleanConstant",
            arg(constantNameDefExpr) +
            arg(booleanTokenExpr));
-  EDIF_FORM(BooleanConstantRefRule, "(booleanConstantRef",
+  EDIF_FORM(BooleanConstantRef, "(booleanConstantRef",
            arg(constantNameRefExpr));
-  EDIF_FORM(BooleanMapRule, "(booleanMap",
+  EDIF_FORM(BooleanMap, "(booleanMap",
            arg(booleanValueExpr));
-  EDIF_FORM(BooleanParameterRule, "(booleanParameter",
+  EDIF_FORM(BooleanParameter, "(booleanParameter",
            arg(parameterNameDefExpr) +
-           many(arg(ref<EbooleanRule> | ref<NameInformationRule>)));
-  EDIF_FORM(BooleanParameterAssignRule, "(booleanParameterAssign",
+           many(arg(ref<Eboolean> | ref<NameInformation>)));
+  EDIF_FORM(BooleanParameterAssign, "(booleanParameterAssign",
            arg(parameterNameRefExpr) +
            arg(booleanExpressionExpr));
-  EDIF_FORM(BooleanParameterRefRule, "(booleanParameterRef",
+  EDIF_FORM(BooleanParameterRef, "(booleanParameterRef",
            arg(parameterNameRefExpr));
-  EDIF_FORM(BorderPatternRule, "(borderPattern",
-           arg(ref<PixelPatternRule>));
-  EDIF_FORM(BorderPatternVisibleRule, "(borderPatternVisible",
+  EDIF_FORM(BorderPattern, "(borderPattern",
+           arg(ref<PixelPattern>));
+  EDIF_FORM(BorderPatternVisible, "(borderPatternVisible",
            arg(booleanValueExpr));
-  EDIF_FORM(BorderWidthRule, "(borderWidth",
-           arg(lengthValueExpr | ref<MinimalWidthRule>));
-  EDIF_FORM0(BottomJustifyRule, "(bottomJustify");
-  EDIF_FORM0(CalculatedRule, "(calculated");
-  EDIF_FORM(CandelaRule, "(candela",
+  EDIF_FORM(BorderWidth, "(borderWidth",
+           arg(lengthValueExpr | ref<MinimalWidth>));
+  EDIF_FORM0(BottomJustify, "(bottomJustify");
+  EDIF_FORM0(Calculated, "(calculated");
+  EDIF_FORM(Candela, "(candela",
            arg(unitExponentExpr));
-  EDIF_FORM0(CaplineJustifyRule, "(caplineJustify");
-  EDIF_FORM(CellRule, "(cell",
+  EDIF_FORM0(CaplineJustify, "(caplineJustify");
+  EDIF_FORM(Cell, "(cell",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<CellHeaderRule>) +
-           many(arg(ref<ClusterRule> | ref<CommentRule> | ref<UserDataRule> | ref<ViewGroupRule>)));
-  EDIF_FORM(CellHeaderRule, "(cellHeader",
-           many(arg(ref<DocumentationRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<StatusRule>)));
-  EDIF_FORM(CellNameDisplayRule, "(cellNameDisplay",
-           many(arg(ref<DisplayRule> | ref<DisplayNameOverrideRule>)));
-  EDIF_FORM(CellPropertyDisplayRule, "(cellPropertyDisplay",
+           arg(ref<CellHeader>) +
+           many(arg(ref<Cluster> | ref<Comment> | ref<UserData> | ref<ViewGroup>)));
+  EDIF_FORM(CellHeader, "(cellHeader",
+           many(arg(ref<Documentation> | ref<NameInformation> | ref<Property> | ref<Status>)));
+  EDIF_FORM(CellNameDisplay, "(cellNameDisplay",
+           many(arg(ref<Display> | ref<DisplayNameOverride>)));
+  EDIF_FORM(CellPropertyDisplay, "(cellPropertyDisplay",
            arg(propertyNameRefExpr) +
-           many(arg(ref<DisplayRule> | ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(CellPropertyDisplayOverrideRule, "(cellPropertyDisplayOverride",
+           many(arg(ref<Display> | ref<PropertyNameDisplay>)));
+  EDIF_FORM(CellPropertyDisplayOverride, "(cellPropertyDisplayOverride",
            arg(propertyNameRefExpr) +
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>) +
-           option(arg(ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(CellPropertyOverrideRule, "(cellPropertyOverride",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>) +
+           option(arg(ref<PropertyNameDisplay>)));
+  EDIF_FORM(CellPropertyOverride, "(cellPropertyOverride",
            arg(propertyNameRefExpr) +
-           arg(typedValueExpr | ref<UntypedRule>) +
-           many(arg(ref<CommentRule> | ref<FixedRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(CellRefRule, "(cellRef",
+           arg(typedValueExpr | ref<Untyped>) +
+           many(arg(ref<Comment> | ref<Fixed> | ref<PropertyOverride>)));
+  EDIF_FORM(CellRef, "(cellRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(CelsiusRule, "(celsius",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(Celsius, "(celsius",
            arg(unitExponentExpr));
-  EDIF_FORM0(CenterJustifyRule, "(centerJustify");
-  EDIF_FORM(CharacterEncodingRule, "(characterEncoding",
-           arg(ref<AsciiRule> | ref<Iso8859Rule> | ref<Jisx0201Rule> | ref<Jisx0208Rule>));
-  EDIF_FORM(CheckDateRule, "(checkDate",
-           arg(ref<DateRule>));
-  EDIF_FORM(CheckDateDisplayRule, "(checkDateDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(CircleRule, "(circle",
+  EDIF_FORM0(CenterJustify, "(centerJustify");
+  EDIF_FORM(CharacterEncoding, "(characterEncoding",
+           arg(ref<Ascii> | ref<Iso8859> | ref<Jisx0201> | ref<Jisx0208>));
+  EDIF_FORM(CheckDate, "(checkDate",
+           arg(ref<Date>));
+  EDIF_FORM(CheckDateDisplay, "(checkDateDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(Circle, "(circle",
            arg(pt1Expr) +
            arg(pt2Expr));
-  EDIF_FORM(ClusterRule, "(cluster",
+  EDIF_FORM(Cluster, "(cluster",
            arg(clusterNameDefExpr) +
-           arg(ref<EinterfaceRule>) +
-           arg(ref<ClusterHeaderRule>) +
-           many(arg(ref<SchematicSymbolRule> | ref<SchematicViewRule> | ref<BehaviorViewRule> | ref<ClusterConfigurationRule> | ref<CommentRule> | ref<ConnectivityViewRule> | ref<DefaultClusterConfigurationRule> | ref<UserDataRule> | ref<LogicModelViewRule> | ref<MaskLayoutViewRule> | ref<PcbLayoutViewRule> | ref<SymbolicLayoutViewRule>)));
-  EDIF_FORM(ClusterConfigurationRule, "(clusterConfiguration",
+           arg(ref<Einterface>) +
+           arg(ref<ClusterHeader>) +
+           many(arg(ref<SchematicSymbol> | ref<SchematicView> | ref<BehaviorView> | ref<ClusterConfiguration> | ref<Comment> | ref<ConnectivityView> | ref<DefaultClusterConfiguration> | ref<UserData> | ref<LogicModelView> | ref<MaskLayoutView> | ref<PcbLayoutView> | ref<SymbolicLayoutView>)));
+  EDIF_FORM(ClusterConfiguration, "(clusterConfiguration",
            arg(clusterConfigurationNameDefExpr) +
-           arg(ref<ViewRefRule> | ref<LeafRule> | ref<UnconfiguredRule>) +
-           many(arg(ref<CommentRule> | ref<FrameConfigurationRule> | ref<GlobalPortScopeRule> | ref<NameInformationRule> | ref<InstanceConfigurationRule> | ref<PropertyRule> | ref<UserDataRule>)));
-  EDIF_FORM(ClusterConfigurationNameCaseSensitiveRule, "(clusterConfigurationNameCaseSensitive",
+           arg(ref<ViewRef> | ref<Leaf> | ref<Unconfigured>) +
+           many(arg(ref<Comment> | ref<FrameConfiguration> | ref<GlobalPortScope> | ref<NameInformation> | ref<InstanceConfiguration> | ref<Property> | ref<UserData>)));
+  EDIF_FORM(ClusterConfigurationNameCaseSensitive, "(clusterConfigurationNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(ClusterConfigurationRefRule, "(clusterConfigurationRef",
+  EDIF_FORM(ClusterConfigurationRef, "(clusterConfigurationRef",
            arg(clusterConfigurationNameRefExpr));
-  EDIF_FORM(ClusterHeaderRule, "(clusterHeader",
-           many(arg(ref<DocumentationRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<StatusRule>)));
-  EDIF_FORM(ClusterNameCaseSensitiveRule, "(clusterNameCaseSensitive",
+  EDIF_FORM(ClusterHeader, "(clusterHeader",
+           many(arg(ref<Documentation> | ref<NameInformation> | ref<Property> | ref<Status>)));
+  EDIF_FORM(ClusterNameCaseSensitive, "(clusterNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(ClusterPropertyDisplayRule, "(clusterPropertyDisplay",
+  EDIF_FORM(ClusterPropertyDisplay, "(clusterPropertyDisplay",
            arg(propertyNameRefExpr) +
-           many(arg(ref<DisplayRule> | ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(ClusterPropertyDisplayOverrideRule, "(clusterPropertyDisplayOverride",
+           many(arg(ref<Display> | ref<PropertyNameDisplay>)));
+  EDIF_FORM(ClusterPropertyDisplayOverride, "(clusterPropertyDisplayOverride",
            arg(propertyNameRefExpr) +
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>) +
-           option(arg(ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(ClusterPropertyOverrideRule, "(clusterPropertyOverride",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>) +
+           option(arg(ref<PropertyNameDisplay>)));
+  EDIF_FORM(ClusterPropertyOverride, "(clusterPropertyOverride",
            arg(propertyNameRefExpr) +
-           arg(typedValueExpr | ref<UntypedRule>) +
-           many(arg(ref<CommentRule> | ref<FixedRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(ClusterRefRule, "(clusterRef",
+           arg(typedValueExpr | ref<Untyped>) +
+           many(arg(ref<Comment> | ref<Fixed> | ref<PropertyOverride>)));
+  EDIF_FORM(ClusterRef, "(clusterRef",
            arg(clusterNameRefExpr) +
-           option(arg(ref<CellRefRule>)));
-  EDIF_FORM(ColorRule, "(color",
+           option(arg(ref<CellRef>)));
+  EDIF_FORM(Color, "(color",
            arg(redExpr) +
            arg(greenExpr) +
            arg(blueExpr));
-  EDIF_FORM(CommentRule, "(comment",
+  EDIF_FORM(Comment, "(comment",
            many(arg(stringTokenExpr)));
-  EDIF_FORM(CommentGraphicsRule, "(commentGraphics",
-           many(arg(ref<AnnotateRule> | ref<CommentRule> | ref<FigureRule> | ref<OriginalBoundingBoxRule> | ref<PropertyDisplayRule> | ref<UserDataRule>)));
-  EDIF_FORM(CompanyNameRule, "(companyName",
+  EDIF_FORM(CommentGraphics, "(commentGraphics",
+           many(arg(ref<Annotate> | ref<Comment> | ref<Figure> | ref<OriginalBoundingBox> | ref<PropertyDisplay> | ref<UserData>)));
+  EDIF_FORM(CompanyName, "(companyName",
            arg(stringTokenExpr));
-  EDIF_FORM(CompanyNameDisplayRule, "(companyNameDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(ComplementedNameRule, "(complementedName",
-           many(arg(ref<ComplementedNamePartRule> | ref<NameDimensionRule> | ref<NamePartSeparatorRule> | simpleNameExpr)));
-  EDIF_FORM(ComplementedNamePartRule, "(complementedNamePart",
-           many(arg(ref<ComplementedNamePartRule> | ref<NamePartSeparatorRule> | simpleNameExpr)));
-  EDIF_FORM(ComplexGeometryRule, "(complexGeometry",
-           arg(ref<GeometryMacroRefRule>) +
-           arg(ref<TransformRule>));
-  EDIF_FORM(ComplexNameRule, "(complexName",
-           many(arg(ref<ComplementedNamePartRule> | ref<NameDimensionRule> | ref<NamePartSeparatorRule> | simpleNameExpr)));
-  EDIF_FORM(CompoundRule, "(compound",
+  EDIF_FORM(CompanyNameDisplay, "(companyNameDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(ComplementedName, "(complementedName",
+           many(arg(ref<ComplementedNamePart> | ref<NameDimension> | ref<NamePartSeparator> | simpleNameExpr)));
+  EDIF_FORM(ComplementedNamePart, "(complementedNamePart",
+           many(arg(ref<ComplementedNamePart> | ref<NamePartSeparator> | simpleNameExpr)));
+  EDIF_FORM(ComplexGeometry, "(complexGeometry",
+           arg(ref<GeometryMacroRef>) +
+           arg(ref<Transform>));
+  EDIF_FORM(ComplexName, "(complexName",
+           many(arg(ref<ComplementedNamePart> | ref<NameDimension> | ref<NamePartSeparator> | simpleNameExpr)));
+  EDIF_FORM(Compound, "(compound",
            many(arg(logicNameRefExpr)));
-  EDIF_FORM(ConditionRule, "(condition",
+  EDIF_FORM(Condition, "(condition",
            arg(booleanExpressionExpr));
-  EDIF_FORM(ConditionDisplayRule, "(conditionDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(ConnectedSignalIndexGeneratorRule, "(connectedSignalIndexGenerator",
+  EDIF_FORM(ConditionDisplay, "(conditionDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(ConnectedSignalIndexGenerator, "(connectedSignalIndexGenerator",
            arg(integerExpressionExpr));
-  EDIF_FORM(ConnectedSignalIndexGeneratorDisplayRule, "(connectedSignalIndexGeneratorDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(ConnectivityBusRule, "(connectivityBus",
+  EDIF_FORM(ConnectedSignalIndexGeneratorDisplay, "(connectedSignalIndexGeneratorDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(ConnectivityBus, "(connectivityBus",
            arg(interconnectNameDefExpr) +
-           arg(ref<SignalGroupRefRule>) +
-           arg(ref<InterconnectHeaderRule>) +
-           arg(ref<ConnectivityBusJoinedRule>) +
-           many(arg(ref<CommentRule> | ref<ConnectivityBusSliceRule> | ref<ConnectivitySubBusRule> | ref<UserDataRule>)));
-  EDIF_FORM(ConnectivityBusJoinedRule, "(connectivityBusJoined",
-           arg(ref<PortJoinedRule>) +
-           many(arg(ref<ConnectivityRipperRefRule>)));
-  EDIF_FORM(ConnectivityBusSliceRule, "(connectivityBusSlice",
+           arg(ref<SignalGroupRef>) +
+           arg(ref<InterconnectHeader>) +
+           arg(ref<ConnectivityBusJoined>) +
+           many(arg(ref<Comment> | ref<ConnectivityBusSlice> | ref<ConnectivitySubBus> | ref<UserData>)));
+  EDIF_FORM(ConnectivityBusJoined, "(connectivityBusJoined",
+           arg(ref<PortJoined>) +
+           many(arg(ref<ConnectivityRipperRef>)));
+  EDIF_FORM(ConnectivityBusSlice, "(connectivityBusSlice",
            arg(interconnectNameDefExpr) +
-           arg(ref<SignalGroupRefRule>) +
-           arg(ref<InterconnectHeaderRule>) +
-           arg(ref<ConnectivityBusJoinedRule>) +
-           many(arg(ref<CommentRule> | ref<ConnectivityBusSliceRule> | ref<ConnectivitySubBusRule> | ref<UserDataRule>)));
-  EDIF_FORM(ConnectivityFrameStructureRule, "(connectivityFrameStructure",
+           arg(ref<SignalGroupRef>) +
+           arg(ref<InterconnectHeader>) +
+           arg(ref<ConnectivityBusJoined>) +
+           many(arg(ref<Comment> | ref<ConnectivityBusSlice> | ref<ConnectivitySubBus> | ref<UserData>)));
+  EDIF_FORM(ConnectivityFrameStructure, "(connectivityFrameStructure",
            arg(connectivityFrameStructureNameDefExpr) +
-           arg(ref<FrameRefRule>) +
-           many(arg(ref<CommentRule> | ref<ConnectivityBusRule> | ref<ConnectivityFrameStructureRule> | ref<ConnectivityNetRule> | ref<ConnectivityRipperRule> | ref<TimingRule> | ref<UserDataRule>)));
-  EDIF_FORM(ConnectivityNetRule, "(connectivityNet",
+           arg(ref<FrameRef>) +
+           many(arg(ref<Comment> | ref<ConnectivityBus> | ref<ConnectivityFrameStructure> | ref<ConnectivityNet> | ref<ConnectivityRipper> | ref<Timing> | ref<UserData>)));
+  EDIF_FORM(ConnectivityNet, "(connectivityNet",
            arg(interconnectNameDefExpr) +
-           arg(ref<SignalRefRule>) +
-           arg(ref<InterconnectHeaderRule>) +
-           arg(ref<ConnectivityNetJoinedRule>) +
-           many(arg(ref<CommentRule> | ref<ConnectivitySubNetRule> | ref<UserDataRule>)));
-  EDIF_FORM(ConnectivityNetJoinedRule, "(connectivityNetJoined",
-           arg(ref<PortJoinedRule> | ref<JoinedAsSignalRule>) +
-           many(arg(ref<ConnectivityRipperRefRule>)));
-  EDIF_FORM(ConnectivityRipperRule, "(connectivityRipper",
+           arg(ref<SignalRef>) +
+           arg(ref<InterconnectHeader>) +
+           arg(ref<ConnectivityNetJoined>) +
+           many(arg(ref<Comment> | ref<ConnectivitySubNet> | ref<UserData>)));
+  EDIF_FORM(ConnectivityNetJoined, "(connectivityNetJoined",
+           arg(ref<PortJoined> | ref<JoinedAsSignal>) +
+           many(arg(ref<ConnectivityRipperRef>)));
+  EDIF_FORM(ConnectivityRipper, "(connectivityRipper",
            arg(connectivityRipperNameDefExpr));
-  EDIF_FORM(ConnectivityRipperRefRule, "(connectivityRipperRef",
+  EDIF_FORM(ConnectivityRipperRef, "(connectivityRipperRef",
            arg(connectivityRipperNameRefExpr));
-  EDIF_FORM(ConnectivityStructureRule, "(connectivityStructure",
-           many(arg(ref<CommentRule> | ref<ConnectivityBusRule> | ref<ConnectivityFrameStructureRule> | ref<ConnectivityNetRule> | ref<ConnectivityRipperRule> | ref<LocalPortGroupRule> | ref<TimingRule> | ref<UserDataRule>)));
-  EDIF_FORM(ConnectivitySubBusRule, "(connectivitySubBus",
+  EDIF_FORM(ConnectivityStructure, "(connectivityStructure",
+           many(arg(ref<Comment> | ref<ConnectivityBus> | ref<ConnectivityFrameStructure> | ref<ConnectivityNet> | ref<ConnectivityRipper> | ref<LocalPortGroup> | ref<Timing> | ref<UserData>)));
+  EDIF_FORM(ConnectivitySubBus, "(connectivitySubBus",
            arg(interconnectNameDefExpr) +
-           arg(ref<InterconnectHeaderRule>) +
-           arg(ref<ConnectivityBusJoinedRule>) +
-           many(arg(ref<CommentRule> | ref<ConnectivityBusSliceRule> | ref<ConnectivitySubBusRule> | ref<UserDataRule>)));
-  EDIF_FORM(ConnectivitySubNetRule, "(connectivitySubNet",
+           arg(ref<InterconnectHeader>) +
+           arg(ref<ConnectivityBusJoined>) +
+           many(arg(ref<Comment> | ref<ConnectivityBusSlice> | ref<ConnectivitySubBus> | ref<UserData>)));
+  EDIF_FORM(ConnectivitySubNet, "(connectivitySubNet",
            arg(interconnectNameDefExpr) +
-           arg(ref<InterconnectHeaderRule>) +
-           arg(ref<ConnectivityNetJoinedRule>) +
-           many(arg(ref<CommentRule> | ref<ConnectivitySubNetRule> | ref<UserDataRule>)));
-  EDIF_FORM(ConnectivityTagGeneratorRule, "(connectivityTagGenerator",
+           arg(ref<InterconnectHeader>) +
+           arg(ref<ConnectivityNetJoined>) +
+           many(arg(ref<Comment> | ref<ConnectivitySubNet> | ref<UserData>)));
+  EDIF_FORM(ConnectivityTagGenerator, "(connectivityTagGenerator",
            arg(stringExpressionExpr));
-  EDIF_FORM(ConnectivityTagGeneratorDisplayRule, "(connectivityTagGeneratorDisplay",
-           many(arg(ref<DisplayRule>)));
-  EDIF_FORM(ConnectivityUnitsRule, "(connectivityUnits",
-           option(arg(ref<SetCapacitanceRule> | ref<SetTimeRule>)));
-  EDIF_FORM(ConnectivityViewRule, "(connectivityView",
+  EDIF_FORM(ConnectivityTagGeneratorDisplay, "(connectivityTagGeneratorDisplay",
+           many(arg(ref<Display>)));
+  EDIF_FORM(ConnectivityUnits, "(connectivityUnits",
+           option(arg(ref<SetCapacitance> | ref<SetTime>)));
+  EDIF_FORM(ConnectivityView, "(connectivityView",
            arg(viewNameDefExpr) +
-           arg(ref<ConnectivityViewHeaderRule>) +
-           arg(ref<LogicalConnectivityRule>) +
-           arg(ref<ConnectivityStructureRule>) +
-           many(arg(ref<CommentRule> | ref<UserDataRule>)));
-  EDIF_FORM(ConnectivityViewHeaderRule, "(connectivityViewHeader",
-           arg(ref<ConnectivityUnitsRule>) +
-           many(arg(ref<DerivedFromRule> | ref<DocumentationRule> | ref<NameInformationRule> | ref<PreviousVersionRule> | ref<PropertyRule> | ref<StatusRule>)));
-  EDIF_FORM(ConstantValuesRule, "(constantValues",
-           many(arg(ref<BooleanConstantRule> | ref<IntegerConstantRule> | ref<StringConstantRule>)));
-  EDIF_FORM(ContractRule, "(contract",
+           arg(ref<ConnectivityViewHeader>) +
+           arg(ref<LogicalConnectivity>) +
+           arg(ref<ConnectivityStructure>) +
+           many(arg(ref<Comment> | ref<UserData>)));
+  EDIF_FORM(ConnectivityViewHeader, "(connectivityViewHeader",
+           arg(ref<ConnectivityUnits>) +
+           many(arg(ref<DerivedFrom> | ref<Documentation> | ref<NameInformation> | ref<PreviousVersion> | ref<Property> | ref<Status>)));
+  EDIF_FORM(ConstantValues, "(constantValues",
+           many(arg(ref<BooleanConstant> | ref<IntegerConstant> | ref<StringConstant>)));
+  EDIF_FORM(Contract, "(contract",
            arg(stringTokenExpr));
-  EDIF_FORM(ContractDisplayRule, "(contractDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(CopyrightRule, "(copyright",
-           arg(ref<YearRule>) +
+  EDIF_FORM(ContractDisplay, "(contractDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(Copyright, "(copyright",
+           arg(ref<Year>) +
            many(arg(stringTokenExpr)));
-  EDIF_FORM(CopyrightDisplayRule, "(copyrightDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(CornerTypeRule, "(cornerType",
-           arg(ref<TruncateRule> | ref<RoundRule> | ref<ExtendRule>));
-  EDIF_FORM(CoulombRule, "(coulomb",
+  EDIF_FORM(CopyrightDisplay, "(copyrightDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(CornerType, "(cornerType",
+           arg(ref<Truncate> | ref<Round> | ref<Extend>));
+  EDIF_FORM(Coulomb, "(coulomb",
            arg(unitExponentExpr));
-  EDIF_FORM(CriticalityRule, "(criticality",
+  EDIF_FORM(Criticality, "(criticality",
            arg(integerValueExpr));
-  EDIF_FORM(CriticalityDisplayRule, "(criticalityDisplay",
-           many(arg(ref<DisplayRule>)));
-  EDIF_FORM(CurrentMapRule, "(currentMap",
+  EDIF_FORM(CriticalityDisplay, "(criticalityDisplay",
+           many(arg(ref<Display>)));
+  EDIF_FORM(CurrentMap, "(currentMap",
            arg(currentValueExpr));
-  EDIF_FORM(CurveRule, "(curve",
-           many(arg(ref<ArcRule> | pointValueExpr)));
-  EDIF_FORM(DataOriginRule, "(dataOrigin",
+  EDIF_FORM(Curve, "(curve",
+           many(arg(ref<Arc> | pointValueExpr)));
+  EDIF_FORM(DataOrigin, "(dataOrigin",
            arg(stringTokenExpr) +
-           option(arg(ref<VersionRule>)));
-  EDIF_FORM(DateRule, "(date",
+           option(arg(ref<Version>)));
+  EDIF_FORM(Date, "(date",
            arg(yearNumberExpr) +
            arg(monthNumberExpr) +
            arg(dayNumberExpr));
-  EDIF_FORM(DcFanInLoadRule, "(dcFanInLoad",
+  EDIF_FORM(DcFanInLoad, "(dcFanInLoad",
            arg(numberValueExpr));
-  EDIF_FORM(DcFanInLoadDisplayRule, "(dcFanInLoadDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(DcFanOutLoadRule, "(dcFanOutLoad",
+  EDIF_FORM(DcFanInLoadDisplay, "(dcFanInLoadDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(DcFanOutLoad, "(dcFanOutLoad",
            arg(numberValueExpr));
-  EDIF_FORM(DcFanOutLoadDisplayRule, "(dcFanOutLoadDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(DcMaxFanInRule, "(dcMaxFanIn",
+  EDIF_FORM(DcFanOutLoadDisplay, "(dcFanOutLoadDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(DcMaxFanIn, "(dcMaxFanIn",
            arg(numberValueExpr));
-  EDIF_FORM(DcMaxFanInDisplayRule, "(dcMaxFanInDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(DcMaxFanOutRule, "(dcMaxFanOut",
+  EDIF_FORM(DcMaxFanInDisplay, "(dcMaxFanInDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(DcMaxFanOut, "(dcMaxFanOut",
            arg(numberValueExpr));
-  EDIF_FORM(DcMaxFanOutDisplayRule, "(dcMaxFanOutDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(DecimalToStringRule, "(decimalToString",
+  EDIF_FORM(DcMaxFanOutDisplay, "(dcMaxFanOutDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(DecimalToString, "(decimalToString",
            arg(integerExpressionExpr) +
-           option(arg(ref<MinimumStringLengthRule>)));
-  EDIF_FORM(DefaultClusterConfigurationRule, "(defaultClusterConfiguration",
+           option(arg(ref<MinimumStringLength>)));
+  EDIF_FORM(DefaultClusterConfiguration, "(defaultClusterConfiguration",
            arg(clusterConfigurationNameRefExpr));
-  EDIF_FORM(DefaultConnectionRule, "(defaultConnection",
-           arg(ref<GlobalPortRefRule>));
-  EDIF_FORM(DegreeRule, "(degree",
+  EDIF_FORM(DefaultConnection, "(defaultConnection",
+           arg(ref<GlobalPortRef>));
+  EDIF_FORM(Degree, "(degree",
            arg(unitExponentExpr));
-  EDIF_FORM(DelayRule, "(delay",
+  EDIF_FORM(Delay, "(delay",
            arg(timeDelayExpr));
-  EDIF_FORM(DerivedFromRule, "(derivedFrom",
-           arg(ref<ViewRefRule>) +
-           option(arg(ref<ReasonRule>)));
-  EDIF_FORM(DesignRule, "(design",
+  EDIF_FORM(DerivedFrom, "(derivedFrom",
+           arg(ref<ViewRef>) +
+           option(arg(ref<Reason>)));
+  EDIF_FORM(Design, "(design",
            arg(designNameDefExpr) +
-           arg(ref<CellRefRule>) +
-           arg(ref<DesignHeaderRule>) +
-           many(arg(ref<CommentRule> | ref<DesignHierarchyRule> | ref<UserDataRule>)));
-  EDIF_FORM(DesignatorRule, "(designator",
+           arg(ref<CellRef>) +
+           arg(ref<DesignHeader>) +
+           many(arg(ref<Comment> | ref<DesignHierarchy> | ref<UserData>)));
+  EDIF_FORM(Designator, "(designator",
            arg(stringValueExpr));
-  EDIF_FORM(DesignatorDisplayRule, "(designatorDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(DesignHeaderRule, "(designHeader",
-           arg(ref<DesignUnitsRule>) +
-           many(arg(ref<DocumentationRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<StatusRule>)));
-  EDIF_FORM(DesignHierarchyRule, "(designHierarchy",
+  EDIF_FORM(DesignatorDisplay, "(designatorDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(DesignHeader, "(designHeader",
+           arg(ref<DesignUnits>) +
+           many(arg(ref<Documentation> | ref<NameInformation> | ref<Property> | ref<Status>)));
+  EDIF_FORM(DesignHierarchy, "(designHierarchy",
            arg(designHierarchyNameDefExpr) +
-           arg(ref<ClusterRefRule>) +
-           arg(ref<ClusterConfigurationRefRule>) +
-           arg(ref<DesignHierarchyHeaderRule>) +
-           option(arg(ref<OccurrenceHierarchyAnnotateRule>)));
-  EDIF_FORM(DesignHierarchyHeaderRule, "(designHierarchyHeader",
-           many(arg(ref<BooleanParameterAssignRule> | ref<IntegerParameterAssignRule> | ref<NameInformationRule> | ref<NumberParameterAssignRule> | ref<PropertyRule> | ref<StringParameterAssignRule>)));
-  EDIF_FORM(DesignHierarchyNameCaseSensitiveRule, "(designHierarchyNameCaseSensitive",
+           arg(ref<ClusterRef>) +
+           arg(ref<ClusterConfigurationRef>) +
+           arg(ref<DesignHierarchyHeader>) +
+           option(arg(ref<OccurrenceHierarchyAnnotate>)));
+  EDIF_FORM(DesignHierarchyHeader, "(designHierarchyHeader",
+           many(arg(ref<BooleanParameterAssign> | ref<IntegerParameterAssign> | ref<NameInformation> | ref<NumberParameterAssign> | ref<Property> | ref<StringParameterAssign>)));
+  EDIF_FORM(DesignHierarchyNameCaseSensitive, "(designHierarchyNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(DesignNameCaseSensitiveRule, "(designNameCaseSensitive",
+  EDIF_FORM(DesignNameCaseSensitive, "(designNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(DesignUnitsRule, "(designUnits",
-           many(arg(ref<SetCapacitanceRule> | ref<SetTimeRule>)));
-  EDIF_FORM(DiagramRule, "(diagram",
+  EDIF_FORM(DesignUnits, "(designUnits",
+           many(arg(ref<SetCapacitance> | ref<SetTime>)));
+  EDIF_FORM(Diagram, "(diagram",
            arg(diagramNameDefExpr) +
-           many(arg(ref<AnnotateRule> | ref<CommentRule> | ref<FigureRule> | ref<UserDataRule>)));
-  EDIF_FORM(DirectionalPortAttributeOverrideRule, "(directionalPortAttributeOverride",
-           arg(ref<InputPortAttributesRule> | ref<OutputPortAttributesRule> | ref<BidirectionalPortAttributesRule>));
-  EDIF_FORM(DisplayRule, "(display",
-           many(arg(figureGroupNameRefExpr | ref<FigureGroupOverrideRule>)) +
-           arg(ref<TransformRule>));
-  EDIF_FORM(DisplayAttributesRule, "(displayAttributes",
-           many(arg(ref<BorderPatternRule> | ref<BorderPatternVisibleRule> | ref<BorderWidthRule> | ref<ColorRule> | ref<FillPatternRule> | ref<FillPatternVisibleRule> | ref<FontRefRule> | ref<HorizontalJustificationRule> | ref<TextHeightRule> | ref<VerticalJustificationRule> | ref<VisibleRule>)));
-  EDIF_FORM(DisplayNameRule, "(displayName",
+           many(arg(ref<Annotate> | ref<Comment> | ref<Figure> | ref<UserData>)));
+  EDIF_FORM(DirectionalPortAttributeOverride, "(directionalPortAttributeOverride",
+           arg(ref<InputPortAttributes> | ref<OutputPortAttributes> | ref<BidirectionalPortAttributes>));
+  EDIF_FORM(Display, "(display",
+           many(arg(figureGroupNameRefExpr | ref<FigureGroupOverride>)) +
+           arg(ref<Transform>));
+  EDIF_FORM(DisplayAttributes, "(displayAttributes",
+           many(arg(ref<BorderPattern> | ref<BorderPatternVisible> | ref<BorderWidth> | ref<Color> | ref<FillPattern> | ref<FillPatternVisible> | ref<FontRef> | ref<HorizontalJustification> | ref<TextHeight> | ref<VerticalJustification> | ref<Visible>)));
+  EDIF_FORM(DisplayName, "(displayName",
            arg(stringTokenExpr));
-  EDIF_FORM(DisplayNameOverrideRule, "(displayNameOverride",
+  EDIF_FORM(DisplayNameOverride, "(displayNameOverride",
            arg(stringTokenExpr) +
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(DocumentationRule, "(documentation",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(Documentation, "(documentation",
            arg(documentationNameDefExpr) +
-           arg(ref<DocumentationHeaderRule>) +
-           many(arg(ref<SectionRule>)));
-  EDIF_FORM(DocumentationHeaderRule, "(documentationHeader",
-           arg(ref<DocumentationUnitsRule>) +
-           many(arg(ref<BackgroundColorRule> | ref<NameInformationRule> | ref<StatusRule>)));
-  EDIF_FORM(DocumentationNameCaseSensitiveRule, "(documentationNameCaseSensitive",
+           arg(ref<DocumentationHeader>) +
+           many(arg(ref<Section>)));
+  EDIF_FORM(DocumentationHeader, "(documentationHeader",
+           arg(ref<DocumentationUnits>) +
+           many(arg(ref<BackgroundColor> | ref<NameInformation> | ref<Status>)));
+  EDIF_FORM(DocumentationNameCaseSensitive, "(documentationNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(DocumentationUnitsRule, "(documentationUnits",
-           many(arg(ref<SetAngleRule> | ref<SetDistanceRule>)));
-  EDIF_FORM(DominatesRule, "(dominates",
+  EDIF_FORM(DocumentationUnits, "(documentationUnits",
+           many(arg(ref<SetAngle> | ref<SetDistance>)));
+  EDIF_FORM(Dominates, "(dominates",
            many(arg(logicNameRefExpr)));
-  EDIF_FORM(DotRule, "(dot",
+  EDIF_FORM(Dot, "(dot",
            arg(pointValueExpr));
-  EDIF_FORM(DrawingDescriptionRule, "(drawingDescription",
+  EDIF_FORM(DrawingDescription, "(drawingDescription",
            arg(stringTokenExpr));
-  EDIF_FORM(DrawingDescriptionDisplayRule, "(drawingDescriptionDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(DrawingIdentificationRule, "(drawingIdentification",
+  EDIF_FORM(DrawingDescriptionDisplay, "(drawingDescriptionDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(DrawingIdentification, "(drawingIdentification",
            arg(stringTokenExpr));
-  EDIF_FORM(DrawingIdentificationDisplayRule, "(drawingIdentificationDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(DrawingSizeRule, "(drawingSize",
+  EDIF_FORM(DrawingIdentificationDisplay, "(drawingIdentificationDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(DrawingSize, "(drawingSize",
            arg(stringTokenExpr));
-  EDIF_FORM(DrawingSizeDisplayRule, "(drawingSizeDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(DurationRule, "(duration",
+  EDIF_FORM(DrawingSizeDisplay, "(drawingSizeDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(Duration, "(duration",
            arg(timeValueExpr));
-  EDIF_FORM(ERule, "(e",
+  EDIF_FORM(E, "(e",
            arg(mantissaExpr) +
            arg(exponentExpr));
-  EDIF_FORM(EdifRule, "(edif",
+  EDIF_FORM(Edif, "(edif",
            arg(edifNameDefExpr) +
-           arg(ref<EdifVersionRule>) +
-           arg(ref<EdifHeaderRule>) +
-           many(arg(ref<LibraryRule> | ref<DesignRule> | ref<CommentRule> | ref<ExternalRule> | ref<UserDataRule>)));
-  EDIF_FORM(EdifHeaderRule, "(edifHeader",
-           arg(ref<EdifLevelRule>) +
-           arg(ref<KeywordMapRule>) +
-           arg(ref<UnitDefinitionsRule>) +
-           arg(ref<FontDefinitionsRule>) +
-           arg(ref<PhysicalDefaultsRule>) +
-           many(arg(ref<CharacterEncodingRule> | ref<ConstantValuesRule> | ref<DocumentationRule> | ref<GlobalPortDefinitionsRule> | ref<NameCaseSensitivityRule> | ref<NameInformationRule> | ref<PhysicalScalingRule> | ref<PropertyRule> | ref<StatusRule>)));
-  EDIF_FORM(EdifLevelRule, "(edifLevel",
+           arg(ref<EdifVersion>) +
+           arg(ref<EdifHeader>) +
+           many(arg(ref<Library> | ref<Design> | ref<Comment> | ref<External> | ref<UserData>)));
+  EDIF_FORM(EdifHeader, "(edifHeader",
+           arg(ref<EdifLevel>) +
+           arg(ref<KeywordMap>) +
+           arg(ref<UnitDefinitions>) +
+           arg(ref<FontDefinitions>) +
+           arg(ref<PhysicalDefaults>) +
+           many(arg(ref<CharacterEncoding> | ref<ConstantValues> | ref<Documentation> | ref<GlobalPortDefinitions> | ref<NameCaseSensitivity> | ref<NameInformation> | ref<PhysicalScaling> | ref<Property> | ref<Status>)));
+  EDIF_FORM(EdifLevel, "(edifLevel",
            arg(edifLevelValueExpr));
-  EDIF_FORM(EdifVersionRule, "(edifVersion",
+  EDIF_FORM(EdifVersion, "(edifVersion",
            arg(markExpr) +
            arg(issueExpr) +
            arg(subIssueExpr));
-  EDIF_FORM(EndTypeRule, "(endType",
-           arg(ref<TruncateRule> | ref<RoundRule> | ref<ExtendRule>));
-  EDIF_FORM(EngineeringDateRule, "(engineeringDate",
-           arg(ref<DateRule>));
-  EDIF_FORM(EngineeringDateDisplayRule, "(engineeringDateDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(EventRule, "(event",
-           arg(ref<PortRefRule> | ref<PortListRule> | ref<PortSetRule> | ref<InterconnectRefRule> | ref<InterconnectSetRule>) +
-           many(arg(ref<BecomesRule> | ref<TransitionRule>)));
-  EDIF_FORM0(ExtendRule, "(extend");
-  EDIF_FORM(ExternalRule, "(external",
+  EDIF_FORM(EndType, "(endType",
+           arg(ref<Truncate> | ref<Round> | ref<Extend>));
+  EDIF_FORM(EngineeringDate, "(engineeringDate",
+           arg(ref<Date>));
+  EDIF_FORM(EngineeringDateDisplay, "(engineeringDateDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(Event, "(event",
+           arg(ref<PortRef> | ref<PortList> | ref<PortSet> | ref<InterconnectRef> | ref<InterconnectSet>) +
+           many(arg(ref<Becomes> | ref<Transition>)));
+  EDIF_FORM0(Extend, "(extend");
+  EDIF_FORM(External, "(external",
            arg(libraryNameDefExpr) +
-           arg(ref<LibraryHeaderRule>) +
-           many(arg(ref<CellRule> | ref<CommentRule> | ref<GeometryMacroRule> | ref<PageBorderTemplateRule> | ref<PageTitleBlockTemplateRule> | ref<SchematicFigureMacroRule> | ref<SchematicForFrameBorderTemplateRule> | ref<SchematicGlobalPortTemplateRule> | ref<SchematicIfFrameBorderTemplateRule> | ref<SchematicInterconnectTerminatorTemplateRule> | ref<SchematicJunctionTemplateRule> | ref<SchematicMasterPortTemplateRule> | ref<SchematicOffPageConnectorTemplateRule> | ref<SchematicOnPageConnectorTemplateRule> | ref<SchematicOtherwiseFrameBorderTemplateRule> | ref<SchematicRipperTemplateRule> | ref<SchematicSymbolBorderTemplateRule> | ref<SchematicSymbolPortTemplateRule> | ref<UserDataRule>)));
-  EDIF_FORM(FahrenheitRule, "(fahrenheit",
+           arg(ref<LibraryHeader>) +
+           many(arg(ref<Cell> | ref<Comment> | ref<GeometryMacro> | ref<PageBorderTemplate> | ref<PageTitleBlockTemplate> | ref<SchematicFigureMacro> | ref<SchematicForFrameBorderTemplate> | ref<SchematicGlobalPortTemplate> | ref<SchematicIfFrameBorderTemplate> | ref<SchematicInterconnectTerminatorTemplate> | ref<SchematicJunctionTemplate> | ref<SchematicMasterPortTemplate> | ref<SchematicOffPageConnectorTemplate> | ref<SchematicOnPageConnectorTemplate> | ref<SchematicOtherwiseFrameBorderTemplate> | ref<SchematicRipperTemplate> | ref<SchematicSymbolBorderTemplate> | ref<SchematicSymbolPortTemplate> | ref<UserData>)));
+  EDIF_FORM(Fahrenheit, "(fahrenheit",
            arg(unitExponentExpr));
-  EDIF_FORM0(EfalseRule, "(false");
-  EDIF_FORM(FaradRule, "(farad",
+  EDIF_FORM0(Efalse, "(false");
+  EDIF_FORM(Farad, "(farad",
            arg(unitExponentExpr));
-  EDIF_FORM(FigureRule, "(figure",
-           arg(figureGroupNameRefExpr | ref<FigureGroupOverrideRule>) +
-           many(arg(ref<CircleRule> | ref<CommentRule> | ref<ComplexGeometryRule> | ref<DotRule> | ref<OpenShapeRule> | ref<PathRule> | ref<PolygonRule> | ref<RectangleRule> | ref<ShapeRule> | ref<UserDataRule>)));
-  EDIF_FORM(FigureGroupRule, "(figureGroup",
+  EDIF_FORM(Figure, "(figure",
+           arg(figureGroupNameRefExpr | ref<FigureGroupOverride>) +
+           many(arg(ref<Circle> | ref<Comment> | ref<ComplexGeometry> | ref<Dot> | ref<OpenShape> | ref<Path> | ref<Polygon> | ref<Rectangle> | ref<Shape> | ref<UserData>)));
+  EDIF_FORM(FigureGroup, "(figureGroup",
            arg(figureGroupNameDefExpr) +
-           many(arg(ref<CommentRule> | ref<CornerTypeRule> | ref<DisplayAttributesRule> | ref<EndTypeRule> | ref<NameInformationRule> | ref<PathWidthRule> | ref<PropertyRule> | ref<UserDataRule>)));
-  EDIF_FORM(FigureGroupNameCaseSensitiveRule, "(figureGroupNameCaseSensitive",
+           many(arg(ref<Comment> | ref<CornerType> | ref<DisplayAttributes> | ref<EndType> | ref<NameInformation> | ref<PathWidth> | ref<Property> | ref<UserData>)));
+  EDIF_FORM(FigureGroupNameCaseSensitive, "(figureGroupNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(FigureGroupOverrideRule, "(figureGroupOverride",
+  EDIF_FORM(FigureGroupOverride, "(figureGroupOverride",
            arg(figureGroupNameRefExpr) +
-           many(arg(ref<CommentRule> | ref<CornerTypeRule> | ref<DisplayAttributesRule> | ref<EndTypeRule> | ref<PathWidthRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(FillPatternRule, "(fillPattern",
-           arg(ref<PixelPatternRule>));
-  EDIF_FORM(FillPatternVisibleRule, "(fillPatternVisible",
+           many(arg(ref<Comment> | ref<CornerType> | ref<DisplayAttributes> | ref<EndType> | ref<PathWidth> | ref<PropertyOverride>)));
+  EDIF_FORM(FillPattern, "(fillPattern",
+           arg(ref<PixelPattern>));
+  EDIF_FORM(FillPatternVisible, "(fillPatternVisible",
            arg(booleanValueExpr));
-  EDIF_FORM0(FixedRule, "(fixed");
-  EDIF_FORM(FontRule, "(font",
+  EDIF_FORM0(Fixed, "(fixed");
+  EDIF_FORM(Font, "(font",
            arg(fontNameDefExpr) +
-           arg(ref<TypefaceRule>) +
-           arg(ref<FontProportionsRule>) +
-           many(arg(ref<BoldStyleRule> | ref<ItalicStyleRule> | ref<PropertyRule> | ref<ProportionalFontRule> | ref<UserDataRule>)));
-  EDIF_FORM(FontCapitalHeightRule, "(fontCapitalHeight",
+           arg(ref<Typeface>) +
+           arg(ref<FontProportions>) +
+           many(arg(ref<BoldStyle> | ref<ItalicStyle> | ref<Property> | ref<ProportionalFont> | ref<UserData>)));
+  EDIF_FORM(FontCapitalHeight, "(fontCapitalHeight",
            arg(lengthValueExpr));
-  EDIF_FORM(FontDefinitionsRule, "(fontDefinitions",
-           option(arg(ref<FontsRule>)));
-  EDIF_FORM(FontDescentRule, "(fontDescent",
+  EDIF_FORM(FontDefinitions, "(fontDefinitions",
+           option(arg(ref<Fonts>)));
+  EDIF_FORM(FontDescent, "(fontDescent",
            arg(lengthValueExpr));
-  EDIF_FORM(FontHeightRule, "(fontHeight",
+  EDIF_FORM(FontHeight, "(fontHeight",
            arg(lengthValueExpr));
-  EDIF_FORM(FontProportionsRule, "(fontProportions",
-           arg(ref<FontHeightRule>) +
-           arg(ref<FontDescentRule>) +
-           arg(ref<FontCapitalHeightRule>) +
-           arg(ref<FontWidthRule>));
-  EDIF_FORM(FontRefRule, "(fontRef",
+  EDIF_FORM(FontProportions, "(fontProportions",
+           arg(ref<FontHeight>) +
+           arg(ref<FontDescent>) +
+           arg(ref<FontCapitalHeight>) +
+           arg(ref<FontWidth>));
+  EDIF_FORM(FontRef, "(fontRef",
            arg(fontNameRefExpr));
-  EDIF_FORM(FontsRule, "(fonts",
-           arg(ref<SetDistanceRule>) +
-           many(arg(ref<FontRule>)));
-  EDIF_FORM(FontWidthRule, "(fontWidth",
+  EDIF_FORM(Fonts, "(fonts",
+           arg(ref<SetDistance>) +
+           many(arg(ref<Font>)));
+  EDIF_FORM(FontWidth, "(fontWidth",
            arg(lengthValueExpr));
-  EDIF_FORM(ForbiddenEventRule, "(forbiddenEvent",
-           arg(ref<TimeIntervalRule>) +
-           many(arg(ref<EventRule>)));
-  EDIF_FORM(ForFrameRule, "(forFrame",
+  EDIF_FORM(ForbiddenEvent, "(forbiddenEvent",
+           arg(ref<TimeInterval>) +
+           many(arg(ref<Event>)));
+  EDIF_FORM(ForFrame, "(forFrame",
            arg(frameNameDefExpr) +
-           arg(ref<RepetitionCountRule>) +
-           arg(ref<ForFrameIndexRule>) +
-           arg(ref<LogicalConnectivityRule>) +
-           many(arg(ref<CommentRule> | ref<DocumentationRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<UserDataRule>)));
-  EDIF_FORM(ForFrameAnnotateRule, "(forFrameAnnotate",
+           arg(ref<RepetitionCount>) +
+           arg(ref<ForFrameIndex>) +
+           arg(ref<LogicalConnectivity>) +
+           many(arg(ref<Comment> | ref<Documentation> | ref<NameInformation> | ref<Property> | ref<UserData>)));
+  EDIF_FORM(ForFrameAnnotate, "(forFrameAnnotate",
            arg(extendForFrameMemberDefExpr) +
-           many(arg(ref<CommentRule> | ref<ForFrameAnnotateRule> | ref<IfFrameAnnotateRule> | ref<InterconnectAnnotateRule> | ref<LeafOccurrenceAnnotateRule> | ref<OccurrenceAnnotateRule> | ref<OtherwiseFrameAnnotateRule>)));
-  EDIF_FORM(ForFrameIndexRule, "(forFrameIndex",
+           many(arg(ref<Comment> | ref<ForFrameAnnotate> | ref<IfFrameAnnotate> | ref<InterconnectAnnotate> | ref<LeafOccurrenceAnnotate> | ref<OccurrenceAnnotate> | ref<OtherwiseFrameAnnotate>)));
+  EDIF_FORM(ForFrameIndex, "(forFrameIndex",
            arg(indexNameDefExpr) +
-           many(arg(ref<IndexStartRule> | ref<IndexStepRule> | ref<NameInformationRule>)));
-  EDIF_FORM(ForFrameIndexDisplayRule, "(forFrameIndexDisplay",
-           many(arg(ref<IndexEndDisplayRule> | ref<IndexNameDisplayRule> | ref<IndexStartDisplayRule> | ref<IndexStepDisplayRule>)));
-  EDIF_FORM(ForFrameIndexNameCaseSensitiveRule, "(forFrameIndexNameCaseSensitive",
+           many(arg(ref<IndexStart> | ref<IndexStep> | ref<NameInformation>)));
+  EDIF_FORM(ForFrameIndexDisplay, "(forFrameIndexDisplay",
+           many(arg(ref<IndexEndDisplay> | ref<IndexNameDisplay> | ref<IndexStartDisplay> | ref<IndexStepDisplay>)));
+  EDIF_FORM(ForFrameIndexNameCaseSensitive, "(forFrameIndexNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(ForFrameIndexRefRule, "(forFrameIndexRef",
+  EDIF_FORM(ForFrameIndexRef, "(forFrameIndexRef",
            arg(indexNameRefExpr));
-  EDIF_FORM(ForFrameMemberRefRule, "(forFrameMemberRef",
+  EDIF_FORM(ForFrameMemberRef, "(forFrameMemberRef",
            arg(frameNameRefExpr) +
-           arg(ref<IndexValueRule>));
-  EDIF_FORM(ForFrameRefRule, "(forFrameRef",
+           arg(ref<IndexValue>));
+  EDIF_FORM(ForFrameRef, "(forFrameRef",
            arg(frameNameRefExpr));
-  EDIF_FORM(FrameConfigurationRule, "(frameConfiguration",
+  EDIF_FORM(FrameConfiguration, "(frameConfiguration",
            arg(frameNameRefExpr) +
-           many(arg(ref<FrameConfigurationRule> | ref<InstanceConfigurationRule>)));
-  EDIF_FORM(FrameNameCaseSensitiveRule, "(frameNameCaseSensitive",
+           many(arg(ref<FrameConfiguration> | ref<InstanceConfiguration>)));
+  EDIF_FORM(FrameNameCaseSensitive, "(frameNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(FrameRefRule, "(frameRef",
+  EDIF_FORM(FrameRef, "(frameRef",
            arg(frameNameRefExpr));
-  EDIF_FORM0(FromBottomRule, "(fromBottom");
-  EDIF_FORM0(FromLeftRule, "(fromLeft");
-  EDIF_FORM0(FromRightRule, "(fromRight");
-  EDIF_FORM0(FromTopRule, "(fromTop");
-  EDIF_FORM0(GeneratedRule, "(generated");
-  EDIF_FORM(GeometryMacroRule, "(geometryMacro",
+  EDIF_FORM0(FromBottom, "(fromBottom");
+  EDIF_FORM0(FromLeft, "(fromLeft");
+  EDIF_FORM0(FromRight, "(fromRight");
+  EDIF_FORM0(FromTop, "(fromTop");
+  EDIF_FORM0(Generated, "(generated");
+  EDIF_FORM(GeometryMacro, "(geometryMacro",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<GeometryMacroHeaderRule>) +
-           many(arg(ref<CircleRule> | ref<CommentRule> | ref<ComplexGeometryRule> | ref<DotRule> | ref<OpenShapeRule> | ref<PathRule> | ref<PolygonRule> | ref<RectangleRule> | ref<ShapeRule> | ref<UserDataRule>)));
-  EDIF_FORM(GeometryMacroHeaderRule, "(geometryMacroHeader",
-           arg(ref<GeometryMacroUnitsRule>) +
-           many(arg(ref<BackgroundColorRule> | ref<DocumentationRule> | ref<NameInformationRule> | ref<OriginalBoundingBoxRule> | ref<PropertyRule> | ref<StatusRule>)));
-  EDIF_FORM(GeometryMacroRefRule, "(geometryMacroRef",
+           arg(ref<GeometryMacroHeader>) +
+           many(arg(ref<Circle> | ref<Comment> | ref<ComplexGeometry> | ref<Dot> | ref<OpenShape> | ref<Path> | ref<Polygon> | ref<Rectangle> | ref<Shape> | ref<UserData>)));
+  EDIF_FORM(GeometryMacroHeader, "(geometryMacroHeader",
+           arg(ref<GeometryMacroUnits>) +
+           many(arg(ref<BackgroundColor> | ref<Documentation> | ref<NameInformation> | ref<OriginalBoundingBox> | ref<Property> | ref<Status>)));
+  EDIF_FORM(GeometryMacroRef, "(geometryMacroRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(GeometryMacroUnitsRule, "(geometryMacroUnits",
-           option(arg(ref<SetAngleRule>)));
-  EDIF_FORM(GlobalPortRule, "(globalPort",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(GeometryMacroUnits, "(geometryMacroUnits",
+           option(arg(ref<SetAngle>)));
+  EDIF_FORM(GlobalPort, "(globalPort",
            arg(globalPortNameDefExpr) +
-           many(arg(ref<CommentRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<SchematicGlobalPortAttributesRule> | ref<UserDataRule>)));
-  EDIF_FORM(GlobalPortBundleRule, "(globalPortBundle",
+           many(arg(ref<Comment> | ref<NameInformation> | ref<Property> | ref<SchematicGlobalPortAttributes> | ref<UserData>)));
+  EDIF_FORM(GlobalPortBundle, "(globalPortBundle",
            arg(globalPortNameDefExpr) +
-           arg(ref<GlobalPortListRule>) +
-           many(arg(ref<CommentRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<UserDataRule>)));
-  EDIF_FORM(GlobalPortDefinitionsRule, "(globalPortDefinitions",
-           many(arg(ref<GlobalPortRule> | ref<GlobalPortBundleRule>)));
-  EDIF_FORM(GlobalPortListRule, "(globalPortList",
-           many(arg(ref<GlobalPortRefRule>)));
-  EDIF_FORM(GlobalPortNameCaseSensitiveRule, "(globalPortNameCaseSensitive",
+           arg(ref<GlobalPortList>) +
+           many(arg(ref<Comment> | ref<NameInformation> | ref<Property> | ref<UserData>)));
+  EDIF_FORM(GlobalPortDefinitions, "(globalPortDefinitions",
+           many(arg(ref<GlobalPort> | ref<GlobalPortBundle>)));
+  EDIF_FORM(GlobalPortList, "(globalPortList",
+           many(arg(ref<GlobalPortRef>)));
+  EDIF_FORM(GlobalPortNameCaseSensitive, "(globalPortNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(GlobalPortNameDisplayRule, "(globalPortNameDisplay",
-           many(arg(ref<DisplayRule> | ref<DisplayNameOverrideRule>)));
-  EDIF_FORM(GlobalPortPropertyDisplayRule, "(globalPortPropertyDisplay",
+  EDIF_FORM(GlobalPortNameDisplay, "(globalPortNameDisplay",
+           many(arg(ref<Display> | ref<DisplayNameOverride>)));
+  EDIF_FORM(GlobalPortPropertyDisplay, "(globalPortPropertyDisplay",
            arg(propertyNameRefExpr) +
-           many(arg(ref<DisplayRule> | ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(GlobalPortRefRule, "(globalPortRef",
+           many(arg(ref<Display> | ref<PropertyNameDisplay>)));
+  EDIF_FORM(GlobalPortRef, "(globalPortRef",
            arg(globalPortNameRefExpr));
-  EDIF_FORM(GlobalPortScopeRule, "(globalPortScope",
+  EDIF_FORM(GlobalPortScope, "(globalPortScope",
            arg(globalPortNameRefExpr));
-  EDIF_FORM(HenryRule, "(henry",
+  EDIF_FORM(Henry, "(henry",
            arg(unitExponentExpr));
-  EDIF_FORM(HertzRule, "(hertz",
+  EDIF_FORM(Hertz, "(hertz",
            arg(unitExponentExpr));
-  EDIF_FORM(HorizontalJustificationRule, "(horizontalJustification",
-           arg(ref<LeftJustifyRule> | ref<CenterJustifyRule> | ref<RightJustifyRule>));
-  EDIF_FORM(HotspotRule, "(hotspot",
+  EDIF_FORM(HorizontalJustification, "(horizontalJustification",
+           arg(ref<LeftJustify> | ref<CenterJustify> | ref<RightJustify>));
+  EDIF_FORM(Hotspot, "(hotspot",
            arg(pointValueExpr) +
-           many(arg(ref<HotspotConnectDirectionRule> | ref<HotspotNameDisplayRule> | ref<NameInformationRule> | ref<SchematicWireAffinityRule>)));
-  EDIF_FORM(HotspotConnectDirectionRule, "(hotspotConnectDirection",
-           many(arg(ref<FromBottomRule> | ref<FromLeftRule> | ref<FromRightRule> | ref<FromTopRule>)));
-  EDIF_FORM(HotspotGridRule, "(hotspotGrid",
+           many(arg(ref<HotspotConnectDirection> | ref<HotspotNameDisplay> | ref<NameInformation> | ref<SchematicWireAffinity>)));
+  EDIF_FORM(HotspotConnectDirection, "(hotspotConnectDirection",
+           many(arg(ref<FromBottom> | ref<FromLeft> | ref<FromRight> | ref<FromTop>)));
+  EDIF_FORM(HotspotGrid, "(hotspotGrid",
            arg(lengthValueExpr));
-  EDIF_FORM(HotspotNameCaseSensitiveRule, "(hotspotNameCaseSensitive",
+  EDIF_FORM(HotspotNameCaseSensitive, "(hotspotNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(HotspotNameDisplayRule, "(hotspotNameDisplay",
-           many(arg(ref<DisplayRule> | ref<DisplayNameOverrideRule>)));
-  EDIF_FORM(IeeeSectionRule, "(ieeeSection",
+  EDIF_FORM(HotspotNameDisplay, "(hotspotNameDisplay",
+           many(arg(ref<Display> | ref<DisplayNameOverride>)));
+  EDIF_FORM(IeeeSection, "(ieeeSection",
            many(arg(integerTokenExpr)));
-  EDIF_FORM(IeeeStandardRule, "(ieeeStandard",
+  EDIF_FORM(IeeeStandard, "(ieeeStandard",
            arg(ieeeDesignationExpr) +
-           arg(ref<YearRule>) +
-           many(arg(ref<CommentRule> | ref<IeeeSectionRule>)));
-  EDIF_FORM(IfFrameRule, "(ifFrame",
+           arg(ref<Year>) +
+           many(arg(ref<Comment> | ref<IeeeSection>)));
+  EDIF_FORM(IfFrame, "(ifFrame",
            arg(frameNameDefExpr) +
-           arg(ref<ConditionRule>) +
-           arg(ref<LogicalConnectivityRule>) +
-           many(arg(ref<CommentRule> | ref<NameInformationRule> | ref<DocumentationRule> | ref<PropertyRule> | ref<UserDataRule>)));
-  EDIF_FORM(IfFrameAnnotateRule, "(ifFrameAnnotate",
+           arg(ref<Condition>) +
+           arg(ref<LogicalConnectivity>) +
+           many(arg(ref<Comment> | ref<NameInformation> | ref<Documentation> | ref<Property> | ref<UserData>)));
+  EDIF_FORM(IfFrameAnnotate, "(ifFrameAnnotate",
            arg(extendFrameDefExpr) +
-           many(arg(ref<CommentRule> | ref<ForFrameAnnotateRule> | ref<IfFrameAnnotateRule> | ref<InterconnectAnnotateRule> | ref<LeafOccurrenceAnnotateRule> | ref<OccurrenceAnnotateRule> | ref<OtherwiseFrameAnnotateRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(IfFrameRefRule, "(ifFrameRef",
+           many(arg(ref<Comment> | ref<ForFrameAnnotate> | ref<IfFrameAnnotate> | ref<InterconnectAnnotate> | ref<LeafOccurrenceAnnotate> | ref<OccurrenceAnnotate> | ref<OtherwiseFrameAnnotate> | ref<PropertyOverride>)));
+  EDIF_FORM(IfFrameRef, "(ifFrameRef",
            arg(frameNameRefExpr));
-  EDIF_FORM(IfFrameSetRule, "(ifFrameSet",
-           many(arg(ref<IfFrameRefRule>)));
-  EDIF_FORM0(IgnoreRule, "(ignore");
-  EDIF_FORM(ImplementationNameCaseSensitiveRule, "(implementationNameCaseSensitive",
+  EDIF_FORM(IfFrameSet, "(ifFrameSet",
+           many(arg(ref<IfFrameRef>)));
+  EDIF_FORM0(Ignore, "(ignore");
+  EDIF_FORM(ImplementationNameCaseSensitive, "(implementationNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(ImplementationNameDisplayRule, "(implementationNameDisplay",
-           many(arg(ref<DisplayRule> | ref<DisplayNameOverrideRule>)));
-  EDIF_FORM(IndexEndDisplayRule, "(indexEndDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(IndexNameDisplayRule, "(indexNameDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(IndexStartRule, "(indexStart",
+  EDIF_FORM(ImplementationNameDisplay, "(implementationNameDisplay",
+           many(arg(ref<Display> | ref<DisplayNameOverride>)));
+  EDIF_FORM(IndexEndDisplay, "(indexEndDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(IndexNameDisplay, "(indexNameDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(IndexStart, "(indexStart",
            arg(integerExpressionExpr));
-  EDIF_FORM(IndexStartDisplayRule, "(indexStartDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(IndexStepRule, "(indexStep",
+  EDIF_FORM(IndexStartDisplay, "(indexStartDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(IndexStep, "(indexStep",
            arg(integerExpressionExpr));
-  EDIF_FORM(IndexStepDisplayRule, "(indexStepDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(IndexValueRule, "(indexValue",
+  EDIF_FORM(IndexStepDisplay, "(indexStepDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(IndexValue, "(indexValue",
            arg(integerTokenExpr));
-  EDIF_FORM0(InputRule, "(input");
-  EDIF_FORM(InputPortRule, "(inputPort",
-           option(arg(ref<InputPortAttributesRule>)));
-  EDIF_FORM(InputPortAttributesRule, "(inputPortAttributes",
-           many(arg(ref<DcFanOutLoadRule> | ref<DcMaxFanInRule>)));
-  EDIF_FORM(InstanceRule, "(instance",
+  EDIF_FORM0(Input, "(input");
+  EDIF_FORM(InputPort, "(inputPort",
+           option(arg(ref<InputPortAttributes>)));
+  EDIF_FORM(InputPortAttributes, "(inputPortAttributes",
+           many(arg(ref<DcFanOutLoad> | ref<DcMaxFanIn>)));
+  EDIF_FORM(Instance, "(instance",
            arg(instanceNameDefExpr) +
-           arg(ref<ClusterRefRule>) +
-           many(arg(ref<BooleanParameterAssignRule> | ref<CellPropertyOverrideRule> | ref<ClusterPropertyOverrideRule> | ref<CommentRule> | ref<DesignatorRule> | ref<InstanceNameGeneratorRule> | ref<InstancePortAttributesRule> | ref<InstanceWidthRule> | ref<IntegerParameterAssignRule> | ref<NameInformationRule> | ref<NumberParameterAssignRule> | ref<PropertyRule> | ref<StringParameterAssignRule> | ref<TimingRule> | ref<UserDataRule>)));
-  EDIF_FORM(InstanceConfigurationRule, "(instanceConfiguration",
+           arg(ref<ClusterRef>) +
+           many(arg(ref<BooleanParameterAssign> | ref<CellPropertyOverride> | ref<ClusterPropertyOverride> | ref<Comment> | ref<Designator> | ref<InstanceNameGenerator> | ref<InstancePortAttributes> | ref<InstanceWidth> | ref<IntegerParameterAssign> | ref<NameInformation> | ref<NumberParameterAssign> | ref<Property> | ref<StringParameterAssign> | ref<Timing> | ref<UserData>)));
+  EDIF_FORM(InstanceConfiguration, "(instanceConfiguration",
            arg(instanceNameRefExpr) +
-           arg(ref<ClusterConfigurationRefRule>));
-  EDIF_FORM0(InstanceIndexValueRule, "(instanceIndexValue");
-  EDIF_FORM(InstanceMemberRefRule, "(instanceMemberRef",
+           arg(ref<ClusterConfigurationRef>));
+  EDIF_FORM0(InstanceIndexValue, "(instanceIndexValue");
+  EDIF_FORM(InstanceMemberRef, "(instanceMemberRef",
            arg(instanceNameRefExpr) +
-           arg(ref<IndexValueRule>));
-  EDIF_FORM(InstanceNameCaseSensitiveRule, "(instanceNameCaseSensitive",
+           arg(ref<IndexValue>));
+  EDIF_FORM(InstanceNameCaseSensitive, "(instanceNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(InstanceNameDisplayRule, "(instanceNameDisplay",
-           many(arg(ref<DisplayRule> | ref<DisplayNameOverrideRule>)));
-  EDIF_FORM(InstanceNameGeneratorRule, "(instanceNameGenerator",
+  EDIF_FORM(InstanceNameDisplay, "(instanceNameDisplay",
+           many(arg(ref<Display> | ref<DisplayNameOverride>)));
+  EDIF_FORM(InstanceNameGenerator, "(instanceNameGenerator",
            arg(stringExpressionExpr));
-  EDIF_FORM(InstanceNameGeneratorDisplayRule, "(instanceNameGeneratorDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(InstancePortAttributeDisplayRule, "(instancePortAttributeDisplay",
+  EDIF_FORM(InstanceNameGeneratorDisplay, "(instanceNameGeneratorDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(InstancePortAttributeDisplay, "(instancePortAttributeDisplay",
            arg(symbolPortImplementationNameRefExpr) +
-           arg(ref<PortRefRule>) +
-           many(arg(ref<PortPropertyDisplayOverrideRule> | ref<PortAttributeDisplayRule>)));
-  EDIF_FORM(InstancePortAttributesRule, "(instancePortAttributes",
+           arg(ref<PortRef>) +
+           many(arg(ref<PortPropertyDisplayOverride> | ref<PortAttributeDisplay>)));
+  EDIF_FORM(InstancePortAttributes, "(instancePortAttributes",
            arg(extendPortDefExpr) +
-           many(arg(ref<AcLoadRule> | ref<CommentRule> | ref<ConnectedSignalIndexGeneratorRule> | ref<DesignatorRule> | ref<DirectionalPortAttributeOverrideRule> | ref<PortDelayRule> | ref<PortDelayOverrideRule> | ref<PortLoadDelayRule> | ref<PortLoadDelayOverrideRule> | ref<PortPropertyOverrideRule> | ref<PropertyRule> | ref<UnusedRule>)));
-  EDIF_FORM(InstancePropertyDisplayRule, "(instancePropertyDisplay",
+           many(arg(ref<AcLoad> | ref<Comment> | ref<ConnectedSignalIndexGenerator> | ref<Designator> | ref<DirectionalPortAttributeOverride> | ref<PortDelay> | ref<PortDelayOverride> | ref<PortLoadDelay> | ref<PortLoadDelayOverride> | ref<PortPropertyOverride> | ref<Property> | ref<Unused>)));
+  EDIF_FORM(InstancePropertyDisplay, "(instancePropertyDisplay",
            arg(propertyNameRefExpr) +
-           many(arg(ref<DisplayRule>)) +
-           option(arg(ref<PropertyNameDisplayRule>) +
-                  many(arg(ref<DisplayRule>))));
-  EDIF_FORM(InstancePropertyOverrideRule, "(instancePropertyOverride",
+           many(arg(ref<Display>)) +
+           option(arg(ref<PropertyNameDisplay>) +
+                  many(arg(ref<Display>))));
+  EDIF_FORM(InstancePropertyOverride, "(instancePropertyOverride",
            arg(propertyNameRefExpr) +
-           arg(typedValueExpr | ref<UntypedRule>) +
-           many(arg(ref<CommentRule> | ref<FixedRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(InstanceRefRule, "(instanceRef",
+           arg(typedValueExpr | ref<Untyped>) +
+           many(arg(ref<Comment> | ref<Fixed> | ref<PropertyOverride>)));
+  EDIF_FORM(InstanceRef, "(instanceRef",
            arg(instanceNameRefExpr));
-  EDIF_FORM(InstanceWidthRule, "(instanceWidth",
+  EDIF_FORM(InstanceWidth, "(instanceWidth",
            arg(integerExpressionExpr));
-  EDIF_FORM(InstanceWidthDisplayRule, "(instanceWidthDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(IntegerRule, "(integer",
+  EDIF_FORM(InstanceWidthDisplay, "(instanceWidthDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(Integer, "(integer",
            arg(integerExpressionExpr));
-  EDIF_FORM(IntegerConstantRule, "(integerConstant",
+  EDIF_FORM(IntegerConstant, "(integerConstant",
            arg(constantNameDefExpr) +
            arg(integerTokenExpr));
-  EDIF_FORM(IntegerConstantRefRule, "(integerConstantRef",
+  EDIF_FORM(IntegerConstantRef, "(integerConstantRef",
            arg(constantNameRefExpr));
-  EDIF_FORM(IntegerEqualRule, "(integerEqual",
+  EDIF_FORM(IntegerEqual, "(integerEqual",
            arg(firstIntegerExpressionExpr) +
            arg(secondIntegerExpressionExpr));
-  EDIF_FORM(IntegerParameterRule, "(integerParameter",
+  EDIF_FORM(IntegerParameter, "(integerParameter",
            arg(parameterNameDefExpr) +
-           many(arg(ref<IntegerRule> | ref<NameInformationRule>)));
-  EDIF_FORM(IntegerParameterAssignRule, "(integerParameterAssign",
+           many(arg(ref<Integer> | ref<NameInformation>)));
+  EDIF_FORM(IntegerParameterAssign, "(integerParameterAssign",
            arg(parameterNameRefExpr) +
            arg(integerExpressionExpr));
-  EDIF_FORM(IntegerParameterRefRule, "(integerParameterRef",
+  EDIF_FORM(IntegerParameterRef, "(integerParameterRef",
            arg(parameterNameRefExpr));
-  EDIF_FORM(IntegerProductRule, "(integerProduct",
+  EDIF_FORM(IntegerProduct, "(integerProduct",
            many(arg(integerExpressionExpr)));
-  EDIF_FORM(IntegerQuotientRule, "(integerQuotient",
+  EDIF_FORM(IntegerQuotient, "(integerQuotient",
            arg(dividendExpr) +
            arg(divisorExpr));
-  EDIF_FORM(IntegerRemainderRule, "(integerRemainder",
+  EDIF_FORM(IntegerRemainder, "(integerRemainder",
            arg(dividendExpr) +
            arg(divisorExpr));
-  EDIF_FORM(IntegerSubtractRule, "(integerSubtract",
+  EDIF_FORM(IntegerSubtract, "(integerSubtract",
            arg(minuendExpr) +
            arg(subtrahendExpr));
-  EDIF_FORM(IntegerSumRule, "(integerSum",
+  EDIF_FORM(IntegerSum, "(integerSum",
            many(arg(integerExpressionExpr)));
-  EDIF_FORM(InterconnectAnnotateRule, "(interconnectAnnotate",
+  EDIF_FORM(InterconnectAnnotate, "(interconnectAnnotate",
            arg(extendInterconnectDefExpr) +
-           many(arg(ref<CommentRule> | ref<InterconnectAnnotateRule> | ref<CriticalityRule> | ref<InterconnectDelayRule> | ref<PropertyRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(InterconnectAttachedTextRule, "(interconnectAttachedText",
+           many(arg(ref<Comment> | ref<InterconnectAnnotate> | ref<Criticality> | ref<InterconnectDelay> | ref<Property> | ref<PropertyOverride>)));
+  EDIF_FORM(InterconnectAttachedText, "(interconnectAttachedText",
            arg(attachmentPointExpr) +
-           many(arg(ref<AnnotateRule> | ref<ConnectivityTagGeneratorDisplayRule> | ref<CriticalityDisplayRule> | ref<InterconnectDelayDisplayRule> | ref<InterconnectNameDisplayRule> | ref<InterconnectPropertyDisplayRule>)));
-  EDIF_FORM(InterconnectDelayRule, "(interconnectDelay",
+           many(arg(ref<Annotate> | ref<ConnectivityTagGeneratorDisplay> | ref<CriticalityDisplay> | ref<InterconnectDelayDisplay> | ref<InterconnectNameDisplay> | ref<InterconnectPropertyDisplay>)));
+  EDIF_FORM(InterconnectDelay, "(interconnectDelay",
            arg(interconnectDelayNameDefExpr) +
            arg(derivationExpr) +
-           arg(ref<DelayRule>) +
-           many(arg(ref<BecomesRule> | ref<TransitionRule>)));
-  EDIF_FORM(InterconnectDelayDisplayRule, "(interconnectDelayDisplay",
+           arg(ref<Delay>) +
+           many(arg(ref<Becomes> | ref<Transition>)));
+  EDIF_FORM(InterconnectDelayDisplay, "(interconnectDelayDisplay",
            arg(interconnectDelayNameRefExpr) +
-           many(arg(ref<DisplayRule>)));
-  EDIF_FORM(InterconnectHeaderRule, "(interconnectHeader",
-           many(arg(ref<CriticalityRule> | ref<DocumentationRule> | ref<InterconnectDelayRule> | ref<NameInformationRule> | ref<PropertyRule>)));
-  EDIF_FORM(InterconnectNameCaseSensitiveRule, "(interconnectNameCaseSensitive",
+           many(arg(ref<Display>)));
+  EDIF_FORM(InterconnectHeader, "(interconnectHeader",
+           many(arg(ref<Criticality> | ref<Documentation> | ref<InterconnectDelay> | ref<NameInformation> | ref<Property>)));
+  EDIF_FORM(InterconnectNameCaseSensitive, "(interconnectNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(InterconnectNameDisplayRule, "(interconnectNameDisplay",
-           many(arg(ref<DisplayRule> | ref<DisplayNameOverrideRule>)));
-  EDIF_FORM(InterconnectPropertyDisplayRule, "(interconnectPropertyDisplay",
+  EDIF_FORM(InterconnectNameDisplay, "(interconnectNameDisplay",
+           many(arg(ref<Display> | ref<DisplayNameOverride>)));
+  EDIF_FORM(InterconnectPropertyDisplay, "(interconnectPropertyDisplay",
            arg(propertyNameRefExpr) +
-           many(arg(ref<DisplayRule>)) +
-           option(arg(ref<PropertyNameDisplayRule>) +
-                  many(arg(ref<DisplayRule>))));
-  EDIF_FORM(InterconnectRefRule, "(interconnectRef",
+           many(arg(ref<Display>)) +
+           option(arg(ref<PropertyNameDisplay>) +
+                  many(arg(ref<Display>))));
+  EDIF_FORM(InterconnectRef, "(interconnectRef",
            arg(interconnectNameRefExpr) +
-           option(arg(ref<PageRefRule>)));
-  EDIF_FORM(InterconnectSetRule, "(interconnectSet",
-           many(arg(ref<InterconnectRefRule>)));
-  EDIF_FORM(EinterfaceRule, "(interface",
-           arg(ref<InterfaceUnitsRule>) +
-           many(arg(ref<DesignatorRule> | ref<BooleanParameterRule> | ref<IntegerParameterRule> | ref<InterfaceJoinedRule> | ref<MustJoinRule> | ref<NumberParameterRule> | ref<PermutableRule> | ref<PortRule> | ref<PortBundleRule> | ref<StringParameterRule> | ref<TimingRule> | ref<WeakJoinedRule>)));
-  EDIF_FORM(InterfaceJoinedRule, "(interfaceJoined",
-           many(arg(ref<PortRefRule>)));
-  EDIF_FORM(InterfaceUnitsRule, "(interfaceUnits",
-           many(arg(ref<SetCapacitanceRule> | ref<SetTimeRule>)));
-  EDIF_FORM(Iso8859Rule, "(iso8859",
+           option(arg(ref<PageRef>)));
+  EDIF_FORM(InterconnectSet, "(interconnectSet",
+           many(arg(ref<InterconnectRef>)));
+  EDIF_FORM(Einterface, "(interface",
+           arg(ref<InterfaceUnits>) +
+           many(arg(ref<Designator> | ref<BooleanParameter> | ref<IntegerParameter> | ref<InterfaceJoined> | ref<MustJoin> | ref<NumberParameter> | ref<Permutable> | ref<Port> | ref<PortBundle> | ref<StringParameter> | ref<Timing> | ref<WeakJoined>)));
+  EDIF_FORM(InterfaceJoined, "(interfaceJoined",
+           many(arg(ref<PortRef>)));
+  EDIF_FORM(InterfaceUnits, "(interfaceUnits",
+           many(arg(ref<SetCapacitance> | ref<SetTime>)));
+  EDIF_FORM(Iso8859, "(iso8859",
            arg(iso8859PartExpr));
-  EDIF_FORM0(IsolatedRule, "(isolated");
-  EDIF_FORM0(ItalicStyleRule, "(italicStyle");
-  EDIF_FORM0(Jisx0201Rule, "(jisx0201");
-  EDIF_FORM0(Jisx0208Rule, "(jisx0208");
-  EDIF_FORM0(JoinedAsSignalRule, "(joinedAsSignal");
-  EDIF_FORM(JouleRule, "(joule",
+  EDIF_FORM0(Isolated, "(isolated");
+  EDIF_FORM0(ItalicStyle, "(italicStyle");
+  EDIF_FORM0(Jisx0201, "(jisx0201");
+  EDIF_FORM0(Jisx0208, "(jisx0208");
+  EDIF_FORM0(JoinedAsSignal, "(joinedAsSignal");
+  EDIF_FORM(Joule, "(joule",
            arg(unitExponentExpr));
-  EDIF_FORM0(K0KeywordLevelRule, "(k0KeywordLevel");
-  EDIF_FORM(K1KeywordAliasRule, "(k1KeywordAlias",
+  EDIF_FORM0(K0KeywordLevel, "(k0KeywordLevel");
+  EDIF_FORM(K1KeywordAlias, "(k1KeywordAlias",
            arg(k1KeywordNameDefExpr) +
            arg(k1KeywordNameRefExpr));
-  EDIF_FORM(K1KeywordLevelRule, "(k1KeywordLevel",
-           many(arg(ref<K1KeywordAliasRule>)));
-  EDIF_FORM(K2ActualRule, "(k2Actual",
+  EDIF_FORM(K1KeywordLevel, "(k1KeywordLevel",
+           many(arg(ref<K1KeywordAlias>)));
+  EDIF_FORM(K2Actual, "(k2Actual",
            arg(k2FormalNameRefExpr));
-  EDIF_FORM(K2BuildRule, "(k2Build",
+  EDIF_FORM(K2Build, "(k2Build",
            arg(k1KeywordNameRefExpr) +
-           many(arg(ref<CommentRule> | ref<K2ActualRule> | ref<K2BuildRule> | ref<K2LiteralRule>)));
-  EDIF_FORM(K2FormalRule, "(k2Formal",
+           many(arg(ref<Comment> | ref<K2Actual> | ref<K2Build> | ref<K2Literal>)));
+  EDIF_FORM(K2Formal, "(k2Formal",
            arg(k2FormalNameDefExpr) +
-           arg(ref<K2OptionalRule> | ref<K2RequiredRule>));
-  EDIF_FORM(K2GenerateRule, "(k2Generate",
-           many(arg(ref<CommentRule> | ref<K2ActualRule> | ref<K2BuildRule> | ref<K2LiteralRule>)));
-  EDIF_FORM(K2KeywordDefineRule, "(k2KeywordDefine",
+           arg(ref<K2Optional> | ref<K2Required>));
+  EDIF_FORM(K2Generate, "(k2Generate",
+           many(arg(ref<Comment> | ref<K2Actual> | ref<K2Build> | ref<K2Literal>)));
+  EDIF_FORM(K2KeywordDefine, "(k2KeywordDefine",
            arg(k1KeywordNameDefExpr) +
-           arg(ref<K2KeywordParametersRule>) +
-           arg(ref<K2GenerateRule>));
-  EDIF_FORM(K2KeywordLevelRule, "(k2KeywordLevel",
-           many(arg(ref<K1KeywordAliasRule> | ref<K2KeywordDefineRule>)));
-  EDIF_FORM(K2KeywordParametersRule, "(k2KeywordParameters",
-           many(arg(ref<K2FormalRule>)));
-  EDIF_FORM(K2LiteralRule, "(k2Literal",
+           arg(ref<K2KeywordParameters>) +
+           arg(ref<K2Generate>));
+  EDIF_FORM(K2KeywordLevel, "(k2KeywordLevel",
+           many(arg(ref<K1KeywordAlias> | ref<K2KeywordDefine>)));
+  EDIF_FORM(K2KeywordParameters, "(k2KeywordParameters",
+           many(arg(ref<K2Formal>)));
+  EDIF_FORM(K2Literal, "(k2Literal",
            many(arg(ref<IDENTIFIER> | integerTokenExpr | stringTokenExpr)));
-  EDIF_FORM(K2OptionalRule, "(k2Optional",
-           arg(ref<K2LiteralRule> | ref<K2ActualRule> | ref<K2BuildRule>));
-  EDIF_FORM0(K2RequiredRule, "(k2Required");
-  EDIF_FORM(K3BuildRule, "(k3Build",
+  EDIF_FORM(K2Optional, "(k2Optional",
+           arg(ref<K2Literal> | ref<K2Actual> | ref<K2Build>));
+  EDIF_FORM0(K2Required, "(k2Required");
+  EDIF_FORM(K3Build, "(k3Build",
            arg(k1KeywordNameRefExpr) +
-           many(arg(ref<CommentRule> | ref<K2ActualRule> | ref<K2LiteralRule> | ref<K3BuildRule> | ref<K3ForEachRule>)));
-  EDIF_FORM0(K3CollectorRule, "(k3Collector");
-  EDIF_FORM(K3ForEachRule, "(k3ForEach",
-           arg(k2FormalNameRefExpr | ref<K3FormalListRule>) +
-           many(arg(ref<CommentRule> | ref<K2ActualRule> | ref<K2LiteralRule> | ref<K3BuildRule> | ref<K3ForEachRule>)));
-  EDIF_FORM(K3FormalRule, "(k3Formal",
+           many(arg(ref<Comment> | ref<K2Actual> | ref<K2Literal> | ref<K3Build> | ref<K3ForEach>)));
+  EDIF_FORM0(K3Collector, "(k3Collector");
+  EDIF_FORM(K3ForEach, "(k3ForEach",
+           arg(k2FormalNameRefExpr | ref<K3FormalList>) +
+           many(arg(ref<Comment> | ref<K2Actual> | ref<K2Literal> | ref<K3Build> | ref<K3ForEach>)));
+  EDIF_FORM(K3Formal, "(k3Formal",
            arg(k2FormalNameDefExpr) +
-           arg(ref<K2OptionalRule> | ref<K2RequiredRule> | ref<K3CollectorRule>));
-  EDIF_FORM(K3FormalListRule, "(k3FormalList",
+           arg(ref<K2Optional> | ref<K2Required> | ref<K3Collector>));
+  EDIF_FORM(K3FormalList, "(k3FormalList",
            many(arg(k2FormalNameRefExpr)));
-  EDIF_FORM(K3GenerateRule, "(k3Generate",
-           many(arg(ref<CommentRule> | ref<K2ActualRule> | ref<K2BuildRule> | ref<K2LiteralRule> | ref<K3ForEachRule>)));
-  EDIF_FORM(K3KeywordDefineRule, "(k3KeywordDefine",
+  EDIF_FORM(K3Generate, "(k3Generate",
+           many(arg(ref<Comment> | ref<K2Actual> | ref<K2Build> | ref<K2Literal> | ref<K3ForEach>)));
+  EDIF_FORM(K3KeywordDefine, "(k3KeywordDefine",
            arg(k1KeywordNameDefExpr) +
-           arg(ref<K3KeywordParametersRule>) +
-           arg(ref<K3GenerateRule>));
-  EDIF_FORM(K3KeywordLevelRule, "(k3KeywordLevel",
-           many(arg(ref<K1KeywordAliasRule> | ref<K3KeywordDefineRule>)));
-  EDIF_FORM(K3KeywordParametersRule, "(k3KeywordParameters",
-           many(arg(ref<K3FormalRule>)));
-  EDIF_FORM(KelvinRule, "(kelvin",
+           arg(ref<K3KeywordParameters>) +
+           arg(ref<K3Generate>));
+  EDIF_FORM(K3KeywordLevel, "(k3KeywordLevel",
+           many(arg(ref<K1KeywordAlias> | ref<K3KeywordDefine>)));
+  EDIF_FORM(K3KeywordParameters, "(k3KeywordParameters",
+           many(arg(ref<K3Formal>)));
+  EDIF_FORM(Kelvin, "(kelvin",
            arg(unitExponentExpr));
-  EDIF_FORM(KeywordMapRule, "(keywordMap",
-           arg(ref<K0KeywordLevelRule> | ref<K1KeywordLevelRule> | ref<K2KeywordLevelRule> | ref<K3KeywordLevelRule>) +
-           many(arg(ref<CommentRule>)));
-  EDIF_FORM(KilogramRule, "(kilogram",
+  EDIF_FORM(KeywordMap, "(keywordMap",
+           arg(ref<K0KeywordLevel> | ref<K1KeywordLevel> | ref<K2KeywordLevel> | ref<K3KeywordLevel>) +
+           many(arg(ref<Comment>)));
+  EDIF_FORM(Kilogram, "(kilogram",
            arg(unitExponentExpr));
-  EDIF_FORM0(LeafRule, "(leaf");
-  EDIF_FORM(LeafOccurrenceAnnotateRule, "(leafOccurrenceAnnotate",
+  EDIF_FORM0(Leaf, "(leaf");
+  EDIF_FORM(LeafOccurrenceAnnotate, "(leafOccurrenceAnnotate",
            arg(extendInstanceDefExpr | extendInstanceMemberDefExpr) +
-           many(arg(ref<CellPropertyOverrideRule> | ref<ClusterPropertyOverrideRule> | ref<CommentRule> | ref<DesignatorRule> | ref<InstancePropertyOverrideRule> | ref<PortAnnotateRule> | ref<PropertyRule>)));
-  EDIF_FORM0(LeftJustifyRule, "(leftJustify");
-  EDIF_FORM(LessThanRule, "(lessThan",
+           many(arg(ref<CellPropertyOverride> | ref<ClusterPropertyOverride> | ref<Comment> | ref<Designator> | ref<InstancePropertyOverride> | ref<PortAnnotate> | ref<Property>)));
+  EDIF_FORM0(LeftJustify, "(leftJustify");
+  EDIF_FORM(LessThan, "(lessThan",
            many(arg(integerExpressionExpr)));
-  EDIF_FORM(LessThanOrEqualRule, "(lessThanOrEqual",
+  EDIF_FORM(LessThanOrEqual, "(lessThanOrEqual",
            many(arg(integerExpressionExpr)));
-  EDIF_FORM(LibraryRule, "(library",
+  EDIF_FORM(Library, "(library",
            arg(libraryNameDefExpr) +
-           arg(ref<LibraryHeaderRule>) +
-           many(arg(ref<CellRule> | ref<SchematicInterconnectTerminatorTemplateRule> | ref<SchematicJunctionTemplateRule> | ref<SchematicGlobalPortTemplateRule> | ref<SchematicMasterPortTemplateRule> | ref<SchematicOffPageConnectorTemplateRule> | ref<SchematicOnPageConnectorTemplateRule> | ref<SchematicRipperTemplateRule> | ref<SchematicSymbolBorderTemplateRule> | ref<SchematicSymbolPortTemplateRule> | ref<PageBorderTemplateRule> | ref<PageTitleBlockTemplateRule> | ref<CommentRule> | ref<GeometryMacroRule> | ref<SchematicFigureMacroRule> | ref<SchematicForFrameBorderTemplateRule> | ref<SchematicIfFrameBorderTemplateRule> | ref<SchematicOtherwiseFrameBorderTemplateRule> | ref<UserDataRule>)));
-  EDIF_FORM(LibraryHeaderRule, "(libraryHeader",
-           arg(ref<EdifLevelRule>) +
-           arg(ref<NameCaseSensitivityRule>) +
-           arg(ref<TechnologyRule>) +
-           many(arg(ref<BackgroundColorRule> | ref<DocumentationRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<StatusRule>)));
-  EDIF_FORM(LibraryNameCaseSensitiveRule, "(libraryNameCaseSensitive",
+           arg(ref<LibraryHeader>) +
+           many(arg(ref<Cell> | ref<SchematicInterconnectTerminatorTemplate> | ref<SchematicJunctionTemplate> | ref<SchematicGlobalPortTemplate> | ref<SchematicMasterPortTemplate> | ref<SchematicOffPageConnectorTemplate> | ref<SchematicOnPageConnectorTemplate> | ref<SchematicRipperTemplate> | ref<SchematicSymbolBorderTemplate> | ref<SchematicSymbolPortTemplate> | ref<PageBorderTemplate> | ref<PageTitleBlockTemplate> | ref<Comment> | ref<GeometryMacro> | ref<SchematicFigureMacro> | ref<SchematicForFrameBorderTemplate> | ref<SchematicIfFrameBorderTemplate> | ref<SchematicOtherwiseFrameBorderTemplate> | ref<UserData>)));
+  EDIF_FORM(LibraryHeader, "(libraryHeader",
+           arg(ref<EdifLevel>) +
+           arg(ref<NameCaseSensitivity>) +
+           arg(ref<Technology>) +
+           many(arg(ref<BackgroundColor> | ref<Documentation> | ref<NameInformation> | ref<Property> | ref<Status>)));
+  EDIF_FORM(LibraryNameCaseSensitive, "(libraryNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(LibraryObjectNameCaseSensitiveRule, "(libraryObjectNameCaseSensitive",
+  EDIF_FORM(LibraryObjectNameCaseSensitive, "(libraryObjectNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(LibraryRefRule, "(libraryRef",
+  EDIF_FORM(LibraryRef, "(libraryRef",
            arg(libraryNameRefExpr));
-  EDIF_FORM(LoadDelayRule, "(loadDelay",
+  EDIF_FORM(LoadDelay, "(loadDelay",
            arg(acLoadFactorTimeExpr) +
            arg(acLoadFactorCapacitanceExpr));
-  EDIF_FORM(LocalPortGroupRule, "(localPortGroup",
+  EDIF_FORM(LocalPortGroup, "(localPortGroup",
            arg(localPortGroupNameDefExpr) +
-           arg(ref<PortListRule>) +
-           many(arg(ref<CommentRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<UserDataRule>)));
-  EDIF_FORM(LocalPortGroupNameCaseSensitiveRule, "(localPortGroupNameCaseSensitive",
+           arg(ref<PortList>) +
+           many(arg(ref<Comment> | ref<NameInformation> | ref<Property> | ref<UserData>)));
+  EDIF_FORM(LocalPortGroupNameCaseSensitive, "(localPortGroupNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(LocalPortGroupRefRule, "(localPortGroupRef",
+  EDIF_FORM(LocalPortGroupRef, "(localPortGroupRef",
            arg(localPortGroupNameRefExpr));
-  EDIF_FORM(LogicalConnectivityRule, "(logicalConnectivity",
-           many(arg(ref<CommentRule> | ref<ForFrameRule> | ref<IfFrameRule> | ref<InstanceRule> | ref<OtherwiseFrameRule> | ref<SignalRule> | ref<SignalGroupRule> | ref<UserDataRule>)));
-  EDIF_FORM(LogicDefinitionsRule, "(logicDefinitions",
-           arg(ref<SetVoltageRule>) +
-           arg(ref<SetCurrentRule>) +
-           many(arg(ref<CommentRule> | ref<LogicValueRule>)));
-  EDIF_FORM(LogicListRule, "(logicList",
-           many(arg(ref<IgnoreRule> | logicNameRefExpr | ref<LogicOneOfRule>)));
-  EDIF_FORM(LogicMapInputRule, "(logicMapInput",
-           many(arg(ref<LogicRefRule>)));
-  EDIF_FORM(LogicMapOutputRule, "(logicMapOutput",
-           many(arg(ref<LogicRefRule>)));
-  EDIF_FORM(LogicModelUnitsRule, "(logicModelUnits",
-           many(arg(ref<SetCapacitanceRule> | ref<SetTimeRule>)));
-  EDIF_FORM(LogicModelViewRule, "(logicModelView",
+  EDIF_FORM(LogicalConnectivity, "(logicalConnectivity",
+           many(arg(ref<Comment> | ref<ForFrame> | ref<IfFrame> | ref<Instance> | ref<OtherwiseFrame> | ref<Signal> | ref<SignalGroup> | ref<UserData>)));
+  EDIF_FORM(LogicDefinitions, "(logicDefinitions",
+           arg(ref<SetVoltage>) +
+           arg(ref<SetCurrent>) +
+           many(arg(ref<Comment> | ref<LogicValue>)));
+  EDIF_FORM(LogicList, "(logicList",
+           many(arg(ref<Ignore> | logicNameRefExpr | ref<LogicOneOf>)));
+  EDIF_FORM(LogicMapInput, "(logicMapInput",
+           many(arg(ref<LogicRef>)));
+  EDIF_FORM(LogicMapOutput, "(logicMapOutput",
+           many(arg(ref<LogicRef>)));
+  EDIF_FORM(LogicModelUnits, "(logicModelUnits",
+           many(arg(ref<SetCapacitance> | ref<SetTime>)));
+  EDIF_FORM(LogicModelView, "(logicModelView",
            arg(viewNameDefExpr) +
-           many(arg(ref<CommentRule> | ref<NameInformationRule> | ref<UserDataRule>)));
-  EDIF_FORM(LogicOneOfRule, "(logicOneOf",
-           many(arg(ref<LogicListRule> | logicNameRefExpr)));
-  EDIF_FORM(LogicRefRule, "(logicRef",
+           many(arg(ref<Comment> | ref<NameInformation> | ref<UserData>)));
+  EDIF_FORM(LogicOneOf, "(logicOneOf",
+           many(arg(ref<LogicList> | logicNameRefExpr)));
+  EDIF_FORM(LogicRef, "(logicRef",
            arg(logicNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(LogicValueRule, "(logicValue",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(LogicValue, "(logicValue",
            arg(logicNameDefExpr) +
-           many(arg(ref<BooleanMapRule> | ref<CommentRule> | ref<CompoundRule> | ref<CurrentMapRule> | ref<DominatesRule> | ref<IsolatedRule> | ref<LogicMapInputRule> | ref<LogicMapOutputRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<ResolvesRule> | ref<StrongRule> | ref<VoltageMapRule> | ref<WeakRule>)));
-  EDIF_FORM0(LsbToMsbRule, "(lsbToMsb");
-  EDIF_FORM(MaskLayoutUnitsRule, "(maskLayoutUnits",
-           many(arg(ref<SetAngleRule> | ref<SetCapacitanceRule> | ref<SetDistanceRule> | ref<SetTimeRule>)));
-  EDIF_FORM(MaskLayoutViewRule, "(maskLayoutView",
+           many(arg(ref<BooleanMap> | ref<Comment> | ref<Compound> | ref<CurrentMap> | ref<Dominates> | ref<Isolated> | ref<LogicMapInput> | ref<LogicMapOutput> | ref<NameInformation> | ref<Property> | ref<Resolves> | ref<Strong> | ref<VoltageMap> | ref<Weak>)));
+  EDIF_FORM0(LsbToMsb, "(lsbToMsb");
+  EDIF_FORM(MaskLayoutUnits, "(maskLayoutUnits",
+           many(arg(ref<SetAngle> | ref<SetCapacitance> | ref<SetDistance> | ref<SetTime>)));
+  EDIF_FORM(MaskLayoutView, "(maskLayoutView",
            arg(viewNameDefExpr) +
-           many(arg(ref<CommentRule> | ref<NameInformationRule> | ref<UserDataRule>)));
-  EDIF_FORM0(MeasuredRule, "(measured");
-  EDIF_FORM(MeterRule, "(meter",
+           many(arg(ref<Comment> | ref<NameInformation> | ref<UserData>)));
+  EDIF_FORM0(Measured, "(measured");
+  EDIF_FORM(Meter, "(meter",
            arg(unitExponentExpr));
-  EDIF_FORM0(MiddleJustifyRule, "(middleJustify");
-  EDIF_FORM0(MinimalWidthRule, "(minimalWidth");
-  EDIF_FORM(MinimumStringLengthRule, "(minimumStringLength",
+  EDIF_FORM0(MiddleJustify, "(middleJustify");
+  EDIF_FORM0(MinimalWidth, "(minimalWidth");
+  EDIF_FORM(MinimumStringLength, "(minimumStringLength",
            arg(substringLengthExpr));
-  EDIF_FORM(MiNoMaxRule, "(miNoMax",
+  EDIF_FORM(MiNoMax, "(miNoMax",
            arg(miNoMaxValueExpr));
-  EDIF_FORM0(MixedDirectionRule, "(mixedDirection");
-  EDIF_FORM(MnmRule, "(mnm",
-           arg(numberValueExpr | ref<UndefinedRule> | ref<UnconstrainedRule>) +
-           arg(numberValueExpr | ref<UndefinedRule> | ref<UnconstrainedRule>) +
-           arg(numberValueExpr | ref<UndefinedRule> | ref<UnconstrainedRule>));
-  EDIF_FORM(MoleRule, "(mole",
+  EDIF_FORM0(MixedDirection, "(mixedDirection");
+  EDIF_FORM(Mnm, "(mnm",
+           arg(numberValueExpr | ref<Undefined> | ref<Unconstrained>) +
+           arg(numberValueExpr | ref<Undefined> | ref<Unconstrained>) +
+           arg(numberValueExpr | ref<Undefined> | ref<Unconstrained>));
+  EDIF_FORM(Mole, "(mole",
            arg(unitExponentExpr));
-  EDIF_FORM0(MsbToLsbRule, "(msbToLsb");
-  EDIF_FORM(MustJoinRule, "(mustJoin",
-           many(arg(ref<InterfaceJoinedRule> | ref<PortRefRule> | ref<WeakJoinedRule>)));
-  EDIF_FORM(NameAliasRule, "(nameAlias",
+  EDIF_FORM0(MsbToLsb, "(msbToLsb");
+  EDIF_FORM(MustJoin, "(mustJoin",
+           many(arg(ref<InterfaceJoined> | ref<PortRef> | ref<WeakJoined>)));
+  EDIF_FORM(NameAlias, "(nameAlias",
            arg(originalNameExpr) +
-           many(arg(ref<DisplayNameRule> | ref<GeneratedRule> | ref<NameStructureRule>)));
-  EDIF_FORM(NameCaseSensitivityRule, "(nameCaseSensitivity",
-           many(arg(ref<ClusterConfigurationNameCaseSensitiveRule> | ref<ClusterNameCaseSensitiveRule> | ref<DesignHierarchyNameCaseSensitiveRule> | ref<DesignNameCaseSensitiveRule> | ref<DocumentationNameCaseSensitiveRule> | ref<FigureGroupNameCaseSensitiveRule> | ref<ForFrameIndexNameCaseSensitiveRule> | ref<FrameNameCaseSensitiveRule> | ref<GlobalPortNameCaseSensitiveRule> | ref<HotspotNameCaseSensitiveRule> | ref<ImplementationNameCaseSensitiveRule> | ref<InstanceNameCaseSensitiveRule> | ref<InterconnectNameCaseSensitiveRule> | ref<LibraryNameCaseSensitiveRule> | ref<LibraryObjectNameCaseSensitiveRule> | ref<LocalPortGroupNameCaseSensitiveRule> | ref<PageNameCaseSensitiveRule> | ref<ParameterNameCaseSensitiveRule> | ref<PortNameCaseSensitiveRule> | ref<PropertyNameCaseSensitiveRule> | ref<SignalGroupNameCaseSensitiveRule> | ref<SignalNameCaseSensitiveRule> | ref<ViewGroupNameCaseSensitiveRule> | ref<ViewNameCaseSensitiveRule>)));
-  EDIF_FORM(NameDimensionRule, "(nameDimension",
-           arg(ref<NameDimensionStructureRule>) +
-           option(arg(ref<BitOrderRule>)));
-  EDIF_FORM(NameDimensionStructureRule, "(nameDimensionStructure",
-           many(arg(ref<ComplementedNameRule> | ref<ComplexNameRule> | integerValueExpr | ref<SequenceRule> | simpleNameExpr)));
-  EDIF_FORM(NameInformationRule, "(nameInformation",
-           arg(ref<PrimaryNameRule>) +
-           many(arg(ref<NameAliasRule>)));
-  EDIF_FORM(NamePartSeparatorRule, "(namePartSeparator",
+           many(arg(ref<DisplayName> | ref<Generated> | ref<NameStructure>)));
+  EDIF_FORM(NameCaseSensitivity, "(nameCaseSensitivity",
+           many(arg(ref<ClusterConfigurationNameCaseSensitive> | ref<ClusterNameCaseSensitive> | ref<DesignHierarchyNameCaseSensitive> | ref<DesignNameCaseSensitive> | ref<DocumentationNameCaseSensitive> | ref<FigureGroupNameCaseSensitive> | ref<ForFrameIndexNameCaseSensitive> | ref<FrameNameCaseSensitive> | ref<GlobalPortNameCaseSensitive> | ref<HotspotNameCaseSensitive> | ref<ImplementationNameCaseSensitive> | ref<InstanceNameCaseSensitive> | ref<InterconnectNameCaseSensitive> | ref<LibraryNameCaseSensitive> | ref<LibraryObjectNameCaseSensitive> | ref<LocalPortGroupNameCaseSensitive> | ref<PageNameCaseSensitive> | ref<ParameterNameCaseSensitive> | ref<PortNameCaseSensitive> | ref<PropertyNameCaseSensitive> | ref<SignalGroupNameCaseSensitive> | ref<SignalNameCaseSensitive> | ref<ViewGroupNameCaseSensitive> | ref<ViewNameCaseSensitive>)));
+  EDIF_FORM(NameDimension, "(nameDimension",
+           arg(ref<NameDimensionStructure>) +
+           option(arg(ref<BitOrder>)));
+  EDIF_FORM(NameDimensionStructure, "(nameDimensionStructure",
+           many(arg(ref<ComplementedName> | ref<ComplexName> | integerValueExpr | ref<Sequence> | simpleNameExpr)));
+  EDIF_FORM(NameInformation, "(nameInformation",
+           arg(ref<PrimaryName>) +
+           many(arg(ref<NameAlias>)));
+  EDIF_FORM(NamePartSeparator, "(namePartSeparator",
            arg(stringTokenExpr));
-  EDIF_FORM(NameStructureRule, "(nameStructure",
-           arg(simpleNameExpr | ref<ComplexNameRule> | ref<ComplementedNameRule>));
-  EDIF_FORM0(NarrowPortRule, "(narrowPort");
-  EDIF_FORM0(NarrowWireRule, "(narrowWire");
-  EDIF_FORM0(NoHotspotGridRule, "(noHotspotGrid");
-  EDIF_FORM(NominalHotspotGridRule, "(nominalHotspotGrid",
+  EDIF_FORM(NameStructure, "(nameStructure",
+           arg(simpleNameExpr | ref<ComplexName> | ref<ComplementedName>));
+  EDIF_FORM0(NarrowPort, "(narrowPort");
+  EDIF_FORM0(NarrowWire, "(narrowWire");
+  EDIF_FORM0(NoHotspotGrid, "(noHotspotGrid");
+  EDIF_FORM(NominalHotspotGrid, "(nominalHotspotGrid",
            arg(lengthValueExpr));
-  EDIF_FORM(NonPermutableRule, "(nonPermutable",
-           many(arg(ref<PermutableRule> | ref<PortRefRule>)));
-  EDIF_FORM(NotRule, "(not",
+  EDIF_FORM(NonPermutable, "(nonPermutable",
+           many(arg(ref<Permutable> | ref<PortRef>)));
+  EDIF_FORM(Not, "(not",
            arg(booleanExpressionExpr));
-  EDIF_FORM0(NotInheritedRule, "(notInherited");
-  EDIF_FORM(NumberRule, "(number",
+  EDIF_FORM0(NotInherited, "(notInherited");
+  EDIF_FORM(Number, "(number",
            arg(numberExpressionExpr));
-  EDIF_FORM(NumberParameterRule, "(numberParameter",
+  EDIF_FORM(NumberParameter, "(numberParameter",
            arg(parameterNameDefExpr) +
-           many(arg(ref<NameInformationRule> | ref<NumberRule>)));
-  EDIF_FORM(NumberParameterAssignRule, "(numberParameterAssign",
+           many(arg(ref<NameInformation> | ref<Number>)));
+  EDIF_FORM(NumberParameterAssign, "(numberParameterAssign",
            arg(parameterNameRefExpr) +
            arg(numberExpressionExpr));
-  EDIF_FORM(NumberParameterRefRule, "(numberParameterRef",
+  EDIF_FORM(NumberParameterRef, "(numberParameterRef",
            arg(parameterNameRefExpr));
-  EDIF_FORM(NumberPointRule, "(numberPoint",
+  EDIF_FORM(NumberPoint, "(numberPoint",
            arg(xNumberValueExpr) +
            arg(yNumberValueExpr));
-  EDIF_FORM(OccurrenceAnnotateRule, "(occurrenceAnnotate",
+  EDIF_FORM(OccurrenceAnnotate, "(occurrenceAnnotate",
            arg(extendInstanceDefExpr | extendInstanceMemberDefExpr) +
-           many(arg(ref<CellPropertyOverrideRule> | ref<ClusterPropertyOverrideRule> | ref<CommentRule> | ref<DesignatorRule> | ref<ForFrameAnnotateRule> | ref<IfFrameAnnotateRule> | ref<InstancePropertyOverrideRule> | ref<InterconnectAnnotateRule> | ref<LeafOccurrenceAnnotateRule> | ref<OccurrenceAnnotateRule> | ref<OtherwiseFrameAnnotateRule> | ref<PageAnnotateRule> | ref<PortAnnotateRule> | ref<PropertyRule> | ref<SignalAnnotateRule> | ref<SignalGroupAnnotateRule> | ref<TimingRule> | ref<ViewPropertyOverrideRule>)));
-  EDIF_FORM(OccurrenceHierarchyAnnotateRule, "(occurrenceHierarchyAnnotate",
-           many(arg(ref<CellPropertyOverrideRule> | ref<ClusterPropertyOverrideRule> | ref<CommentRule> | ref<ForFrameAnnotateRule> | ref<IfFrameAnnotateRule> | ref<InterconnectAnnotateRule> | ref<LeafOccurrenceAnnotateRule> | ref<OccurrenceAnnotateRule> | ref<OtherwiseFrameAnnotateRule> | ref<PageAnnotateRule> | ref<PortAnnotateRule> | ref<SignalAnnotateRule> | ref<SignalGroupAnnotateRule> | ref<TimingRule> | ref<ViewPropertyOverrideRule>)));
-  EDIF_FORM(OffsetEventRule, "(offsetEvent",
-           arg(ref<EventRule>) +
+           many(arg(ref<CellPropertyOverride> | ref<ClusterPropertyOverride> | ref<Comment> | ref<Designator> | ref<ForFrameAnnotate> | ref<IfFrameAnnotate> | ref<InstancePropertyOverride> | ref<InterconnectAnnotate> | ref<LeafOccurrenceAnnotate> | ref<OccurrenceAnnotate> | ref<OtherwiseFrameAnnotate> | ref<PageAnnotate> | ref<PortAnnotate> | ref<Property> | ref<SignalAnnotate> | ref<SignalGroupAnnotate> | ref<Timing> | ref<ViewPropertyOverride>)));
+  EDIF_FORM(OccurrenceHierarchyAnnotate, "(occurrenceHierarchyAnnotate",
+           many(arg(ref<CellPropertyOverride> | ref<ClusterPropertyOverride> | ref<Comment> | ref<ForFrameAnnotate> | ref<IfFrameAnnotate> | ref<InterconnectAnnotate> | ref<LeafOccurrenceAnnotate> | ref<OccurrenceAnnotate> | ref<OtherwiseFrameAnnotate> | ref<PageAnnotate> | ref<PortAnnotate> | ref<SignalAnnotate> | ref<SignalGroupAnnotate> | ref<Timing> | ref<ViewPropertyOverride>)));
+  EDIF_FORM(OffsetEvent, "(offsetEvent",
+           arg(ref<Event>) +
            arg(numberValueExpr));
-  EDIF_FORM(OhmRule, "(ohm",
+  EDIF_FORM(Ohm, "(ohm",
            arg(unitExponentExpr));
-  EDIF_FORM(OpenShapeRule, "(openShape",
-           arg(ref<CurveRule>));
-  EDIF_FORM(OrRule, "(or",
+  EDIF_FORM(OpenShape, "(openShape",
+           arg(ref<Curve>));
+  EDIF_FORM(Or, "(or",
            many(arg(booleanExpressionExpr)));
-  EDIF_FORM(OriginRule, "(origin",
+  EDIF_FORM(Origin, "(origin",
            arg(pointValueExpr));
-  EDIF_FORM(OriginalBoundingBoxRule, "(originalBoundingBox",
-           arg(ref<RectangleRule>));
-  EDIF_FORM(OriginalDrawingDateRule, "(originalDrawingDate",
-           arg(ref<DateRule>));
-  EDIF_FORM(OriginalDrawingDateDisplayRule, "(originalDrawingDateDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(OtherwiseFrameRule, "(otherwiseFrame",
+  EDIF_FORM(OriginalBoundingBox, "(originalBoundingBox",
+           arg(ref<Rectangle>));
+  EDIF_FORM(OriginalDrawingDate, "(originalDrawingDate",
+           arg(ref<Date>));
+  EDIF_FORM(OriginalDrawingDateDisplay, "(originalDrawingDateDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(OtherwiseFrame, "(otherwiseFrame",
            arg(frameNameDefExpr) +
-           arg(ref<IfFrameSetRule>) +
-           arg(ref<LogicalConnectivityRule>) +
-           many(arg(ref<CommentRule> | ref<DocumentationRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<UserDataRule>)));
-  EDIF_FORM(OtherwiseFrameAnnotateRule, "(otherwiseFrameAnnotate",
+           arg(ref<IfFrameSet>) +
+           arg(ref<LogicalConnectivity>) +
+           many(arg(ref<Comment> | ref<Documentation> | ref<NameInformation> | ref<Property> | ref<UserData>)));
+  EDIF_FORM(OtherwiseFrameAnnotate, "(otherwiseFrameAnnotate",
            arg(extendFrameDefExpr) +
-           many(arg(ref<CommentRule> | ref<ForFrameAnnotateRule> | ref<IfFrameAnnotateRule> | ref<InterconnectAnnotateRule> | ref<LeafOccurrenceAnnotateRule> | ref<OccurrenceAnnotateRule> | ref<OtherwiseFrameAnnotateRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(OtherwiseFrameRefRule, "(otherwiseFrameRef",
+           many(arg(ref<Comment> | ref<ForFrameAnnotate> | ref<IfFrameAnnotate> | ref<InterconnectAnnotate> | ref<LeafOccurrenceAnnotate> | ref<OccurrenceAnnotate> | ref<OtherwiseFrameAnnotate> | ref<PropertyOverride>)));
+  EDIF_FORM(OtherwiseFrameRef, "(otherwiseFrameRef",
            arg(frameNameRefExpr));
-  EDIF_FORM0(OutputRule, "(output");
-  EDIF_FORM(OutputPortRule, "(outputPort",
-           option(arg(ref<OutputPortAttributesRule>)));
-  EDIF_FORM(OutputPortAttributesRule, "(outputPortAttributes",
-           many(arg(ref<DcFanInLoadRule> | ref<DcMaxFanOutRule>)));
-  EDIF_FORM(OwnerRule, "(owner",
+  EDIF_FORM0(Output, "(output");
+  EDIF_FORM(OutputPort, "(outputPort",
+           option(arg(ref<OutputPortAttributes>)));
+  EDIF_FORM(OutputPortAttributes, "(outputPortAttributes",
+           many(arg(ref<DcFanInLoad> | ref<DcMaxFanOut>)));
+  EDIF_FORM(Owner, "(owner",
            arg(stringValueExpr));
-  EDIF_FORM(PageRule, "(page",
+  EDIF_FORM(Page, "(page",
            arg(pageNameDefExpr) +
-           arg(ref<PageHeaderRule>) +
-           many(arg(ref<CellPropertyDisplayRule> | ref<ClusterPropertyDisplayRule> | ref<CommentRule> | ref<LocalPortGroupRule> | ref<PageCommentGraphicsRule> | ref<PageTitleBlockRule> | ref<PropertyDisplayRule> | ref<SchematicBusRule> | ref<SchematicForFrameImplementationRule> | ref<SchematicGlobalPortImplementationRule> | ref<SchematicIfFrameImplementationRule> | ref<SchematicInstanceImplementationRule> | ref<SchematicMasterPortImplementationRule> | ref<SchematicNetRule> | ref<SchematicOffPageConnectorImplementationRule> | ref<SchematicOnPageConnectorImplementationRule> | ref<SchematicOtherwiseFrameImplementationRule> | ref<SchematicRipperImplementationRule> | ref<UserDataRule> | ref<ViewPropertyDisplayRule>)));
-  EDIF_FORM(PageAnnotateRule, "(pageAnnotate",
+           arg(ref<PageHeader>) +
+           many(arg(ref<CellPropertyDisplay> | ref<ClusterPropertyDisplay> | ref<Comment> | ref<LocalPortGroup> | ref<PageCommentGraphics> | ref<PageTitleBlock> | ref<PropertyDisplay> | ref<SchematicBus> | ref<SchematicForFrameImplementation> | ref<SchematicGlobalPortImplementation> | ref<SchematicIfFrameImplementation> | ref<SchematicInstanceImplementation> | ref<SchematicMasterPortImplementation> | ref<SchematicNet> | ref<SchematicOffPageConnectorImplementation> | ref<SchematicOnPageConnectorImplementation> | ref<SchematicOtherwiseFrameImplementation> | ref<SchematicRipperImplementation> | ref<UserData> | ref<ViewPropertyDisplay>)));
+  EDIF_FORM(PageAnnotate, "(pageAnnotate",
            arg(extendPageDefExpr) +
-           many(arg(ref<InterconnectAnnotateRule>)));
-  EDIF_FORM(PageBorderRule, "(pageBorder",
-           arg(ref<PageBorderTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(PageBorderTemplateRule, "(pageBorderTemplate",
+           many(arg(ref<InterconnectAnnotate>)));
+  EDIF_FORM(PageBorder, "(pageBorder",
+           arg(ref<PageBorderTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(PageBorderTemplate, "(pageBorderTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<UsableAreaRule>) +
-           many(arg(ref<AnnotateRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(PageBorderTemplateRefRule, "(pageBorderTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<UsableArea>) +
+           many(arg(ref<Annotate> | ref<CommentGraphics> | ref<Figure> | ref<PropertyDisplay> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(PageBorderTemplateRef, "(pageBorderTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(PageCommentGraphicsRule, "(pageCommentGraphics",
-           many(arg(ref<AnnotateRule> | ref<CommentRule> | ref<FigureRule> | ref<SchematicComplexFigureRule> | ref<UserDataRule>)));
-  EDIF_FORM(PageHeaderRule, "(pageHeader",
-           many(arg(ref<BackgroundColorRule> | ref<DocumentationRule> | ref<NameInformationRule> | ref<OriginalBoundingBoxRule> | ref<PageBorderRule> | ref<PageSizeRule> | ref<PropertyRule> | ref<StatusRule>)));
-  EDIF_FORM(PageIdentificationRule, "(pageIdentification",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(PageCommentGraphics, "(pageCommentGraphics",
+           many(arg(ref<Annotate> | ref<Comment> | ref<Figure> | ref<SchematicComplexFigure> | ref<UserData>)));
+  EDIF_FORM(PageHeader, "(pageHeader",
+           many(arg(ref<BackgroundColor> | ref<Documentation> | ref<NameInformation> | ref<OriginalBoundingBox> | ref<PageBorder> | ref<PageSize> | ref<Property> | ref<Status>)));
+  EDIF_FORM(PageIdentification, "(pageIdentification",
            arg(stringTokenExpr));
-  EDIF_FORM(PageIdentificationDisplayRule, "(pageIdentificationDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(PageNameCaseSensitiveRule, "(pageNameCaseSensitive",
+  EDIF_FORM(PageIdentificationDisplay, "(pageIdentificationDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(PageNameCaseSensitive, "(pageNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(PagePropertyDisplayRule, "(pagePropertyDisplay",
+  EDIF_FORM(PagePropertyDisplay, "(pagePropertyDisplay",
            arg(propertyNameRefExpr) +
-           many(arg(ref<DisplayRule> | ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(PageRefRule, "(pageRef",
+           many(arg(ref<Display> | ref<PropertyNameDisplay>)));
+  EDIF_FORM(PageRef, "(pageRef",
            arg(pageNameRefExpr));
-  EDIF_FORM(PageSizeRule, "(pageSize",
-           arg(ref<RectangleRule>));
-  EDIF_FORM(PageTitleRule, "(pageTitle",
+  EDIF_FORM(PageSize, "(pageSize",
+           arg(ref<Rectangle>));
+  EDIF_FORM(PageTitle, "(pageTitle",
            arg(stringTokenExpr));
-  EDIF_FORM(PageTitleBlockRule, "(pageTitleBlock",
+  EDIF_FORM(PageTitleBlock, "(pageTitleBlock",
            arg(implementationNameDefExpr) +
-           arg(ref<PageTitleBlockTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<NameInformationRule> | ref<PagePropertyDisplayRule> | ref<PageTitleBlockAttributeDisplayRule> | ref<PageTitleBlockAttributesRule> | ref<PropertyRule> | ref<PropertyDisplayRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(PageTitleBlockAttributeDisplayRule, "(pageTitleBlockAttributeDisplay",
-           many(arg(ref<ApprovedDateDisplayRule> | ref<CheckDateDisplayRule> | ref<CompanyNameDisplayRule> | ref<ContractDisplayRule> | ref<CopyrightDisplayRule> | ref<DrawingDescriptionDisplayRule> | ref<DrawingIdentificationDisplayRule> | ref<DrawingSizeDisplayRule> | ref<EngineeringDateDisplayRule> | ref<OriginalDrawingDateDisplayRule> | ref<PageIdentificationDisplayRule> | ref<PageTitleDisplayRule> | ref<RevisionDisplayRule> | ref<TotalPagesDisplayRule>)));
-  EDIF_FORM(PageTitleBlockAttributesRule, "(pageTitleBlockAttributes",
-           many(arg(ref<ApprovedDateRule> | ref<CheckDateRule> | ref<CompanyNameRule> | ref<ContractRule> | ref<DrawingDescriptionRule> | ref<DrawingIdentificationRule> | ref<DrawingSizeRule> | ref<EngineeringDateRule> | ref<OriginalDrawingDateRule> | ref<PageIdentificationRule> | ref<PageTitleRule> | ref<RevisionRule>)));
-  EDIF_FORM(PageTitleBlockTemplateRule, "(pageTitleBlockTemplate",
+           arg(ref<PageTitleBlockTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<NameInformation> | ref<PagePropertyDisplay> | ref<PageTitleBlockAttributeDisplay> | ref<PageTitleBlockAttributes> | ref<Property> | ref<PropertyDisplay> | ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(PageTitleBlockAttributeDisplay, "(pageTitleBlockAttributeDisplay",
+           many(arg(ref<ApprovedDateDisplay> | ref<CheckDateDisplay> | ref<CompanyNameDisplay> | ref<ContractDisplay> | ref<CopyrightDisplay> | ref<DrawingDescriptionDisplay> | ref<DrawingIdentificationDisplay> | ref<DrawingSizeDisplay> | ref<EngineeringDateDisplay> | ref<OriginalDrawingDateDisplay> | ref<PageIdentificationDisplay> | ref<PageTitleDisplay> | ref<RevisionDisplay> | ref<TotalPagesDisplay>)));
+  EDIF_FORM(PageTitleBlockAttributes, "(pageTitleBlockAttributes",
+           many(arg(ref<ApprovedDate> | ref<CheckDate> | ref<CompanyName> | ref<Contract> | ref<DrawingDescription> | ref<DrawingIdentification> | ref<DrawingSize> | ref<EngineeringDate> | ref<OriginalDrawingDate> | ref<PageIdentification> | ref<PageTitle> | ref<Revision>)));
+  EDIF_FORM(PageTitleBlockTemplate, "(pageTitleBlockTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           many(arg(ref<AnnotateRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<PageTitleBlockAttributeDisplayRule> | ref<PageTitleBlockAttributesRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(PageTitleBlockTemplateRefRule, "(pageTitleBlockTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           many(arg(ref<Annotate> | ref<CommentGraphics> | ref<Figure> | ref<PageTitleBlockAttributeDisplay> | ref<PageTitleBlockAttributes> | ref<PropertyDisplay> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(PageTitleBlockTemplateRef, "(pageTitleBlockTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(PageTitleDisplayRule, "(pageTitleDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(ParameterDisplayRule, "(parameterDisplay",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(PageTitleDisplay, "(pageTitleDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(ParameterDisplay, "(parameterDisplay",
            arg(parameterNameRefExpr) +
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>) +
-           option(arg(ref<ParameterNameDisplayRule>)));
-  EDIF_FORM(ParameterNameCaseSensitiveRule, "(parameterNameCaseSensitive",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>) +
+           option(arg(ref<ParameterNameDisplay>)));
+  EDIF_FORM(ParameterNameCaseSensitive, "(parameterNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(ParameterNameDisplayRule, "(parameterNameDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(PathRule, "(path",
-           arg(ref<PointListRule>));
-  EDIF_FORM(PathDelayRule, "(pathDelay",
-           arg(ref<DelayRule>) +
-           many(arg(ref<EventRule>)));
-  EDIF_FORM(PathWidthRule, "(pathWidth",
-           arg(lengthValueExpr | ref<MinimalWidthRule>));
-  EDIF_FORM(PcbLayoutUnitsRule, "(pcbLayoutUnits",
-           many(arg(ref<SetAngleRule> | ref<SetCapacitanceRule> | ref<SetDistanceRule> | ref<SetTimeRule>)));
-  EDIF_FORM(PcbLayoutViewRule, "(pcbLayoutView",
+  EDIF_FORM(ParameterNameDisplay, "(parameterNameDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(Path, "(path",
+           arg(ref<PointList>));
+  EDIF_FORM(PathDelay, "(pathDelay",
+           arg(ref<Delay>) +
+           many(arg(ref<Event>)));
+  EDIF_FORM(PathWidth, "(pathWidth",
+           arg(lengthValueExpr | ref<MinimalWidth>));
+  EDIF_FORM(PcbLayoutUnits, "(pcbLayoutUnits",
+           many(arg(ref<SetAngle> | ref<SetCapacitance> | ref<SetDistance> | ref<SetTime>)));
+  EDIF_FORM(PcbLayoutView, "(pcbLayoutView",
            arg(viewNameDefExpr) +
-           many(arg(ref<CommentRule> | ref<NameInformationRule> | ref<UserDataRule>)));
-  EDIF_FORM(PermutableRule, "(permutable",
-           many(arg(ref<NonPermutableRule> | ref<PermutableRule> | ref<PortRefRule>)));
-  EDIF_FORM(PhysicalDefaultsRule, "(physicalDefaults",
-           option(arg(ref<SchematicRequiredDefaultsRule>)));
-  EDIF_FORM(PhysicalScalingRule, "(physicalScaling",
-           many(arg(ref<CommentRule> | ref<ConnectivityUnitsRule> | ref<DocumentationUnitsRule> | ref<GeometryMacroUnitsRule> | ref<InterfaceUnitsRule> | ref<LogicModelUnitsRule> | ref<MaskLayoutUnitsRule> | ref<PcbLayoutUnitsRule> | ref<SchematicUnitsRule> | ref<SymbolicLayoutUnitsRule>)));
-  EDIF_FORM(PixelPatternRule, "(pixelPattern",
+           many(arg(ref<Comment> | ref<NameInformation> | ref<UserData>)));
+  EDIF_FORM(Permutable, "(permutable",
+           many(arg(ref<NonPermutable> | ref<Permutable> | ref<PortRef>)));
+  EDIF_FORM(PhysicalDefaults, "(physicalDefaults",
+           option(arg(ref<SchematicRequiredDefaults>)));
+  EDIF_FORM(PhysicalScaling, "(physicalScaling",
+           many(arg(ref<Comment> | ref<ConnectivityUnits> | ref<DocumentationUnits> | ref<GeometryMacroUnits> | ref<InterfaceUnits> | ref<LogicModelUnits> | ref<MaskLayoutUnits> | ref<PcbLayoutUnits> | ref<SchematicUnits> | ref<SymbolicLayoutUnits>)));
+  EDIF_FORM(PixelPattern, "(pixelPattern",
            arg(rowSizeExpr) +
-           many(arg(ref<PixelRowRule>)));
-  EDIF_FORM(PixelRowRule, "(pixelRow",
+           many(arg(ref<PixelRow>)));
+  EDIF_FORM(PixelRow, "(pixelRow",
            many(arg(booleanTokenExpr)));
-  EDIF_FORM(PointRule, "(point",
+  EDIF_FORM(Point, "(point",
            arg(pointValueExpr));
-  EDIF_FORM(PointListRule, "(pointList",
+  EDIF_FORM(PointList, "(pointList",
            many(arg(pointValueExpr)));
-  EDIF_FORM(PolygonRule, "(polygon",
-           arg(ref<PointListRule>));
-  EDIF_FORM(PortRule, "(port",
+  EDIF_FORM(Polygon, "(polygon",
+           arg(ref<PointList>));
+  EDIF_FORM(Port, "(port",
            option(arg(portNameDefExpr)) +
            option(arg(portDirectionExpr)) +
-           many(arg(ref<AcLoadRule> | ref<CommentRule> | ref<DefaultConnectionRule> | ref<DesignatorRule> | ref<NameInformationRule> | ref<PortDelayRule> | ref<PortLoadDelayRule> | ref<PortNameGeneratorRule> | ref<PortWidthRule> | ref<PropertyRule> | ref<SchematicPortAttributesRule> | ref<UnusedRule> | ref<UserDataRule>)));
-  EDIF_FORM(PortAnnotateRule, "(portAnnotate",
+           many(arg(ref<AcLoad> | ref<Comment> | ref<DefaultConnection> | ref<Designator> | ref<NameInformation> | ref<PortDelay> | ref<PortLoadDelay> | ref<PortNameGenerator> | ref<PortWidth> | ref<Property> | ref<SchematicPortAttributes> | ref<Unused> | ref<UserData>)));
+  EDIF_FORM(PortAnnotate, "(portAnnotate",
            arg(extendPortDefExpr | extendPortMemberDefExpr) +
-           many(arg(ref<AcLoadRule> | ref<CommentRule> | ref<DesignatorRule> | ref<DirectionalPortAttributeOverrideRule> | ref<PortDelayRule> | ref<PortDelayOverrideRule> | ref<PortLoadDelayRule> | ref<PortLoadDelayOverrideRule> | ref<PortPropertyOverrideRule> | ref<PropertyRule>)));
-  EDIF_FORM(PortAttributeDisplayRule, "(portAttributeDisplay",
-           many(arg(ref<AcLoadDisplayRule> | ref<ConnectedSignalIndexGeneratorDisplayRule> | ref<DcFanInLoadDisplayRule> | ref<DcFanOutLoadDisplayRule> | ref<DcMaxFanInDisplayRule> | ref<DcMaxFanOutDisplayRule> | ref<DesignatorDisplayRule> | ref<PortDelayDisplayRule> | ref<PortLoadDelayDisplayRule> | ref<PortNameDisplayRule> | ref<PortNameGeneratorDisplayRule> | ref<PortPropertyDisplayRule>)));
-  EDIF_FORM(PortBundleRule, "(portBundle",
+           many(arg(ref<AcLoad> | ref<Comment> | ref<Designator> | ref<DirectionalPortAttributeOverride> | ref<PortDelay> | ref<PortDelayOverride> | ref<PortLoadDelay> | ref<PortLoadDelayOverride> | ref<PortPropertyOverride> | ref<Property>)));
+  EDIF_FORM(PortAttributeDisplay, "(portAttributeDisplay",
+           many(arg(ref<AcLoadDisplay> | ref<ConnectedSignalIndexGeneratorDisplay> | ref<DcFanInLoadDisplay> | ref<DcFanOutLoadDisplay> | ref<DcMaxFanInDisplay> | ref<DcMaxFanOutDisplay> | ref<DesignatorDisplay> | ref<PortDelayDisplay> | ref<PortLoadDelayDisplay> | ref<PortNameDisplay> | ref<PortNameGeneratorDisplay> | ref<PortPropertyDisplay>)));
+  EDIF_FORM(PortBundle, "(portBundle",
            arg(portNameDefExpr) +
-           arg(ref<PortListRule>) +
-           many(arg(ref<CommentRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<UserDataRule> | ref<DesignatorRule>)));
-  EDIF_FORM(PortDelayRule, "(portDelay",
+           arg(ref<PortList>) +
+           many(arg(ref<Comment> | ref<NameInformation> | ref<Property> | ref<UserData> | ref<Designator>)));
+  EDIF_FORM(PortDelay, "(portDelay",
            arg(portDelayNameDefExpr) +
            arg(derivationExpr) +
-           arg(ref<DelayRule>) +
-           many(arg(ref<BecomesRule> | ref<TransitionRule>)));
-  EDIF_FORM(PortDelayDisplayRule, "(portDelayDisplay",
+           arg(ref<Delay>) +
+           many(arg(ref<Becomes> | ref<Transition>)));
+  EDIF_FORM(PortDelayDisplay, "(portDelayDisplay",
            arg(portDelayNameRefExpr) +
-           many(arg(ref<DisplayRule>)));
-  EDIF_FORM(PortDelayOverrideRule, "(portDelayOverride",
+           many(arg(ref<Display>)));
+  EDIF_FORM(PortDelayOverride, "(portDelayOverride",
            arg(portDelayNameRefExpr) +
            arg(derivationExpr) +
-           arg(ref<DelayRule>) +
-           many(arg(ref<BecomesRule> | ref<TransitionRule>)));
-  EDIF_FORM0(PortIndexValueRule, "(portIndexValue");
-  EDIF_FORM(PortInstanceRefRule, "(portInstanceRef",
-           arg(portNameRefExpr | ref<PortMemberRefRule>) +
-           arg(ref<InstanceRefRule> | ref<InstanceMemberRefRule>));
-  EDIF_FORM(PortJoinedRule, "(portJoined",
-           many(arg(ref<GlobalPortRefRule> | ref<LocalPortGroupRefRule> | ref<PortInstanceRefRule> | ref<PortRefRule>)));
-  EDIF_FORM(PortListRule, "(portList",
-           many(arg(ref<PortRefRule>)));
-  EDIF_FORM(PortLoadDelayRule, "(portLoadDelay",
+           arg(ref<Delay>) +
+           many(arg(ref<Becomes> | ref<Transition>)));
+  EDIF_FORM0(PortIndexValue, "(portIndexValue");
+  EDIF_FORM(PortInstanceRef, "(portInstanceRef",
+           arg(portNameRefExpr | ref<PortMemberRef>) +
+           arg(ref<InstanceRef> | ref<InstanceMemberRef>));
+  EDIF_FORM(PortJoined, "(portJoined",
+           many(arg(ref<GlobalPortRef> | ref<LocalPortGroupRef> | ref<PortInstanceRef> | ref<PortRef>)));
+  EDIF_FORM(PortList, "(portList",
+           many(arg(ref<PortRef>)));
+  EDIF_FORM(PortLoadDelay, "(portLoadDelay",
            arg(portLoadDelayNameDefExpr) +
            arg(derivationExpr) +
-           arg(ref<LoadDelayRule>) +
-           many(arg(ref<BecomesRule> | ref<TransitionRule>)));
-  EDIF_FORM(PortLoadDelayDisplayRule, "(portLoadDelayDisplay",
+           arg(ref<LoadDelay>) +
+           many(arg(ref<Becomes> | ref<Transition>)));
+  EDIF_FORM(PortLoadDelayDisplay, "(portLoadDelayDisplay",
            arg(portLoadDelayNameRefExpr) +
-           many(arg(ref<DisplayRule>)));
-  EDIF_FORM(PortLoadDelayOverrideRule, "(portLoadDelayOverride",
+           many(arg(ref<Display>)));
+  EDIF_FORM(PortLoadDelayOverride, "(portLoadDelayOverride",
            arg(portLoadDelayNameRefExpr) +
            arg(derivationExpr) +
-           arg(ref<LoadDelayRule>) +
-           many(arg(ref<BecomesRule> | ref<TransitionRule>)));
-  EDIF_FORM(PortMemberRefRule, "(portMemberRef",
+           arg(ref<LoadDelay>) +
+           many(arg(ref<Becomes> | ref<Transition>)));
+  EDIF_FORM(PortMemberRef, "(portMemberRef",
            arg(portNameRefExpr) +
-           arg(ref<IndexValueRule>));
-  EDIF_FORM(PortNameCaseSensitiveRule, "(portNameCaseSensitive",
+           arg(ref<IndexValue>));
+  EDIF_FORM(PortNameCaseSensitive, "(portNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(PortNameDisplayRule, "(portNameDisplay",
-           many(arg(ref<DisplayRule> | ref<DisplayNameOverrideRule>)));
-  EDIF_FORM(PortNameGeneratorRule, "(portNameGenerator",
+  EDIF_FORM(PortNameDisplay, "(portNameDisplay",
+           many(arg(ref<Display> | ref<DisplayNameOverride>)));
+  EDIF_FORM(PortNameGenerator, "(portNameGenerator",
            arg(stringExpressionExpr));
-  EDIF_FORM(PortNameGeneratorDisplayRule, "(portNameGeneratorDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(PortPropertyDisplayRule, "(portPropertyDisplay",
+  EDIF_FORM(PortNameGeneratorDisplay, "(portNameGeneratorDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(PortPropertyDisplay, "(portPropertyDisplay",
            arg(propertyNameRefExpr) +
-           many(arg(ref<DisplayRule> | ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(PortPropertyDisplayOverrideRule, "(portPropertyDisplayOverride",
+           many(arg(ref<Display> | ref<PropertyNameDisplay>)));
+  EDIF_FORM(PortPropertyDisplayOverride, "(portPropertyDisplayOverride",
            arg(propertyNameRefExpr) +
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>) +
-           option(arg(ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(PortPropertyOverrideRule, "(portPropertyOverride",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>) +
+           option(arg(ref<PropertyNameDisplay>)));
+  EDIF_FORM(PortPropertyOverride, "(portPropertyOverride",
            arg(propertyNameRefExpr) +
-           arg(typedValueExpr | ref<UntypedRule>) +
-           many(arg(ref<CommentRule> | ref<FixedRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(PortRefRule, "(portRef",
+           arg(typedValueExpr | ref<Untyped>) +
+           many(arg(ref<Comment> | ref<Fixed> | ref<PropertyOverride>)));
+  EDIF_FORM(PortRef, "(portRef",
            arg(portNameRefExpr));
-  EDIF_FORM(PortSetRule, "(portSet",
-           many(arg(ref<PortRefRule>)));
-  EDIF_FORM(PortWidthRule, "(portWidth",
+  EDIF_FORM(PortSet, "(portSet",
+           many(arg(ref<PortRef>)));
+  EDIF_FORM(PortWidth, "(portWidth",
            arg(integerExpressionExpr));
-  EDIF_FORM(PreviousVersionRule, "(previousVersion",
-           arg(ref<ViewRefRule>) +
-           option(arg(ref<ReasonRule>)));
-  EDIF_FORM(PrimaryNameRule, "(primaryName",
+  EDIF_FORM(PreviousVersion, "(previousVersion",
+           arg(ref<ViewRef>) +
+           option(arg(ref<Reason>)));
+  EDIF_FORM(PrimaryName, "(primaryName",
            arg(originalNameExpr) +
-           many(arg(ref<DisplayNameRule> | ref<GeneratedRule> | ref<NameStructureRule>)));
-  EDIF_FORM(ProgramRule, "(program",
+           many(arg(ref<DisplayName> | ref<Generated> | ref<NameStructure>)));
+  EDIF_FORM(Program, "(program",
            arg(stringValueExpr) +
-           option(arg(ref<VersionRule>)));
-  EDIF_FORM(PropertyRule, "(property",
+           option(arg(ref<Version>)));
+  EDIF_FORM(Property, "(property",
            arg(propertyNameDefExpr) +
-           arg(typedValueExpr | ref<UntypedRule>) +
-           many(arg(ref<CommentRule> | ref<NameInformationRule> | ref<OwnerRule> | ref<PropertyRule> | ref<PropertyInheritanceControlRule> | ref<UnitRefRule>)));
-  EDIF_FORM(PropertyDisplayRule, "(propertyDisplay",
+           arg(typedValueExpr | ref<Untyped>) +
+           many(arg(ref<Comment> | ref<NameInformation> | ref<Owner> | ref<Property> | ref<PropertyInheritanceControl> | ref<UnitRef>)));
+  EDIF_FORM(PropertyDisplay, "(propertyDisplay",
            arg(propertyNameRefExpr) +
-           many(arg(ref<DisplayRule> | ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(PropertyDisplayOverrideRule, "(propertyDisplayOverride",
+           many(arg(ref<Display> | ref<PropertyNameDisplay>)));
+  EDIF_FORM(PropertyDisplayOverride, "(propertyDisplayOverride",
            arg(propertyNameRefExpr) +
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>) +
-           option(arg(ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(PropertyInheritanceControlRule, "(propertyInheritanceControl",
-           arg(ref<FixedRule> | ref<NotInheritedRule>));
-  EDIF_FORM(PropertyNameCaseSensitiveRule, "(propertyNameCaseSensitive",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>) +
+           option(arg(ref<PropertyNameDisplay>)));
+  EDIF_FORM(PropertyInheritanceControl, "(propertyInheritanceControl",
+           arg(ref<Fixed> | ref<NotInherited>));
+  EDIF_FORM(PropertyNameCaseSensitive, "(propertyNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(PropertyNameDisplayRule, "(propertyNameDisplay",
-           many(arg(ref<DisplayRule> | ref<DisplayNameOverrideRule>)));
-  EDIF_FORM(PropertyOverrideRule, "(propertyOverride",
+  EDIF_FORM(PropertyNameDisplay, "(propertyNameDisplay",
+           many(arg(ref<Display> | ref<DisplayNameOverride>)));
+  EDIF_FORM(PropertyOverride, "(propertyOverride",
            arg(propertyNameRefExpr) +
-           arg(typedValueExpr | ref<UntypedRule>) +
-           many(arg(ref<CommentRule> | ref<FixedRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM0(ProportionalFontRule, "(proportionalFont");
-  EDIF_FORM(PtRule, "(pt",
+           arg(typedValueExpr | ref<Untyped>) +
+           many(arg(ref<Comment> | ref<Fixed> | ref<PropertyOverride>)));
+  EDIF_FORM0(ProportionalFont, "(proportionalFont");
+  EDIF_FORM(Pt, "(pt",
            arg(xCoordinateExpr) +
            arg(yCoordinateExpr));
-  EDIF_FORM(RadianRule, "(radian",
+  EDIF_FORM(Radian, "(radian",
            arg(unitExponentExpr));
-  EDIF_FORM(ReasonRule, "(reason",
+  EDIF_FORM(Reason, "(reason",
            arg(stringTokenExpr));
-  EDIF_FORM(RectangleRule, "(rectangle",
+  EDIF_FORM(Rectangle, "(rectangle",
            arg(pt1Expr) +
            arg(pt2Expr));
-  EDIF_FORM0(RemoveDisplayRule, "(removeDisplay");
-  EDIF_FORM(RepetitionCountRule, "(repetitionCount",
+  EDIF_FORM0(RemoveDisplay, "(removeDisplay");
+  EDIF_FORM(RepetitionCount, "(repetitionCount",
            arg(integerExpressionExpr));
-  EDIF_FORM(RepetitionCountDisplayRule, "(repetitionCountDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(ReplaceDisplayRule, "(replaceDisplay",
-           many(arg(ref<DisplayRule>)));
-  EDIF_FORM0(RequiredRule, "(required");
-  EDIF_FORM(ResolvesRule, "(resolves",
+  EDIF_FORM(RepetitionCountDisplay, "(repetitionCountDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(ReplaceDisplay, "(replaceDisplay",
+           many(arg(ref<Display>)));
+  EDIF_FORM0(Required, "(required");
+  EDIF_FORM(Resolves, "(resolves",
            many(arg(logicNameRefExpr)));
-  EDIF_FORM(RevisionRule, "(revision",
+  EDIF_FORM(Revision, "(revision",
            arg(stringTokenExpr));
-  EDIF_FORM(RevisionDisplayRule, "(revisionDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM0(RightJustifyRule, "(rightJustify");
-  EDIF_FORM(RipperHotspotRule, "(ripperHotspot",
+  EDIF_FORM(RevisionDisplay, "(revisionDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM0(RightJustify, "(rightJustify");
+  EDIF_FORM(RipperHotspot, "(ripperHotspot",
            arg(hotspotNameDefExpr) +
-           arg(ref<HotspotRule>));
-  EDIF_FORM(RipperHotspotRefRule, "(ripperHotspotRef",
+           arg(ref<Hotspot>));
+  EDIF_FORM(RipperHotspotRef, "(ripperHotspotRef",
            arg(hotspotNameRefExpr) +
-           arg(ref<SchematicRipperImplementationRefRule>));
-  EDIF_FORM(RotationRule, "(rotation",
+           arg(ref<SchematicRipperImplementationRef>));
+  EDIF_FORM(Rotation, "(rotation",
            arg(angleValueExpr));
-  EDIF_FORM0(RoundRule, "(round");
-  EDIF_FORM(ScaleXRule, "(scaleX",
+  EDIF_FORM0(Round, "(round");
+  EDIF_FORM(ScaleX, "(scaleX",
            arg(numeratorExpr) +
            arg(denominatorExpr));
-  EDIF_FORM(ScaleYRule, "(scaleY",
+  EDIF_FORM(ScaleY, "(scaleY",
            arg(numeratorExpr) +
            arg(denominatorExpr));
-  EDIF_FORM(SchematicBusRule, "(schematicBus",
+  EDIF_FORM(SchematicBus, "(schematicBus",
            arg(interconnectNameDefExpr) +
-           arg(ref<SignalGroupRefRule>) +
-           arg(ref<SchematicInterconnectHeaderRule>) +
-           arg(ref<SchematicBusJoinedRule>) +
-           many(arg(ref<CommentRule> | ref<SchematicBusDetailsRule> | ref<SchematicBusSliceRule> | ref<SchematicInterconnectAttributeDisplayRule> | ref<UserDataRule>)));
-  EDIF_FORM(SchematicBusDetailsRule, "(schematicBusDetails",
-           arg(ref<SchematicBusGraphicsRule> | ref<SchematicSubBusSetRule>));
-  EDIF_FORM(SchematicBusGraphicsRule, "(schematicBusGraphics",
-           many(arg(ref<CommentRule> | ref<FigureRule> | ref<SchematicComplexFigureRule> | ref<UserDataRule>)));
-  EDIF_FORM(SchematicBusJoinedRule, "(schematicBusJoined",
-           many(arg(ref<PortJoinedRule> | ref<RipperHotspotRefRule> | ref<SchematicGlobalPortImplementationRefRule> | ref<SchematicInterconnectTerminatorImplementationRefRule> | ref<SchematicJunctionImplementationRefRule> | ref<SchematicMasterPortImplementationRefRule> | ref<SchematicOffPageConnectorImplementationRefRule> | ref<SchematicOnPageConnectorImplementationRefRule> | ref<SchematicSymbolPortImplementationRefRule>)));
-  EDIF_FORM(SchematicBusSliceRule, "(schematicBusSlice",
+           arg(ref<SignalGroupRef>) +
+           arg(ref<SchematicInterconnectHeader>) +
+           arg(ref<SchematicBusJoined>) +
+           many(arg(ref<Comment> | ref<SchematicBusDetails> | ref<SchematicBusSlice> | ref<SchematicInterconnectAttributeDisplay> | ref<UserData>)));
+  EDIF_FORM(SchematicBusDetails, "(schematicBusDetails",
+           arg(ref<SchematicBusGraphics> | ref<SchematicSubBusSet>));
+  EDIF_FORM(SchematicBusGraphics, "(schematicBusGraphics",
+           many(arg(ref<Comment> | ref<Figure> | ref<SchematicComplexFigure> | ref<UserData>)));
+  EDIF_FORM(SchematicBusJoined, "(schematicBusJoined",
+           many(arg(ref<PortJoined> | ref<RipperHotspotRef> | ref<SchematicGlobalPortImplementationRef> | ref<SchematicInterconnectTerminatorImplementationRef> | ref<SchematicJunctionImplementationRef> | ref<SchematicMasterPortImplementationRef> | ref<SchematicOffPageConnectorImplementationRef> | ref<SchematicOnPageConnectorImplementationRef> | ref<SchematicSymbolPortImplementationRef>)));
+  EDIF_FORM(SchematicBusSlice, "(schematicBusSlice",
            arg(interconnectNameDefExpr) +
-           arg(ref<SignalGroupRefRule>) +
-           arg(ref<SchematicInterconnectHeaderRule>) +
-           arg(ref<SchematicBusJoinedRule>) +
-           many(arg(ref<CommentRule> | ref<SchematicBusDetailsRule> | ref<SchematicBusSliceRule> | ref<SchematicInterconnectAttributeDisplayRule> | ref<UserDataRule>)));
-  EDIF_FORM(SchematicComplexFigureRule, "(schematicComplexFigure",
-           arg(ref<SchematicFigureMacroRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicFigureMacroRule, "(schematicFigureMacro",
+           arg(ref<SignalGroupRef>) +
+           arg(ref<SchematicInterconnectHeader>) +
+           arg(ref<SchematicBusJoined>) +
+           many(arg(ref<Comment> | ref<SchematicBusDetails> | ref<SchematicBusSlice> | ref<SchematicInterconnectAttributeDisplay> | ref<UserData>)));
+  EDIF_FORM(SchematicComplexFigure, "(schematicComplexFigure",
+           arg(ref<SchematicFigureMacroRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicFigureMacro, "(schematicFigureMacro",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           many(arg(ref<AnnotateRule> | ref<CommentRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule> | ref<UserDataRule>)));
-  EDIF_FORM(SchematicFigureMacroRefRule, "(schematicFigureMacroRef",
+           arg(ref<SchematicTemplateHeader>) +
+           many(arg(ref<Annotate> | ref<Comment> | ref<CommentGraphics> | ref<Figure> | ref<PropertyDisplay> | ref<SchematicComplexFigure> | ref<UserData>)));
+  EDIF_FORM(SchematicFigureMacroRef, "(schematicFigureMacroRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicForFrameBorderRule, "(schematicForFrameBorder",
-           arg(ref<SchematicForFrameBorderTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<ForFrameIndexDisplayRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule> | ref<RepetitionCountDisplayRule>)));
-  EDIF_FORM(SchematicForFrameBorderTemplateRule, "(schematicForFrameBorderTemplate",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicForFrameBorder, "(schematicForFrameBorder",
+           arg(ref<SchematicForFrameBorderTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<ForFrameIndexDisplay> | ref<PropertyDisplayOverride> | ref<PropertyOverride> | ref<RepetitionCountDisplay>)));
+  EDIF_FORM(SchematicForFrameBorderTemplate, "(schematicForFrameBorderTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<UsableAreaRule>) +
-           many(arg(ref<AnnotateRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<ForFrameIndexDisplayRule> | ref<PropertyDisplayRule> | ref<RepetitionCountDisplayRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(SchematicForFrameBorderTemplateRefRule, "(schematicForFrameBorderTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<UsableArea>) +
+           many(arg(ref<Annotate> | ref<CommentGraphics> | ref<Figure> | ref<ForFrameIndexDisplay> | ref<PropertyDisplay> | ref<RepetitionCountDisplay> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(SchematicForFrameBorderTemplateRef, "(schematicForFrameBorderTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicForFrameImplementationRule, "(schematicForFrameImplementation",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicForFrameImplementation, "(schematicForFrameImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<ForFrameRefRule>) +
-           arg(ref<SchematicForFrameImplementationHeaderRule>) +
-           arg(ref<SchematicFrameImplementationDetailsRule>));
-  EDIF_FORM(SchematicForFrameImplementationHeaderRule, "(schematicForFrameImplementationHeader",
-           option(arg(ref<SchematicForFrameBorderRule>)));
-  EDIF_FORM(SchematicFrameImplementationDetailsRule, "(schematicFrameImplementationDetails",
-           many(arg(ref<CellPropertyDisplayRule> | ref<ClusterPropertyDisplayRule> | ref<CommentRule> | ref<CommentGraphicsRule> | ref<PropertyDisplayRule> | ref<SchematicBusRule> | ref<SchematicForFrameImplementationRule> | ref<SchematicGlobalPortImplementationRule> | ref<SchematicIfFrameImplementationRule> | ref<SchematicInstanceImplementationRule> | ref<SchematicMasterPortImplementationRule> | ref<SchematicNetRule> | ref<SchematicOffPageConnectorImplementationRule> | ref<SchematicOnPageConnectorImplementationRule> | ref<SchematicOtherwiseFrameImplementationRule> | ref<SchematicRipperImplementationRule> | ref<UserDataRule> | ref<ViewPropertyDisplayRule>)));
-  EDIF_FORM(SchematicGlobalPortAttributesRule, "(schematicGlobalPortAttributes",
-           many(arg(ref<IeeeStandardRule> | ref<SchematicPortAcPowerRule> | ref<SchematicPortAnalogRule> | ref<SchematicPortChassisGroundRule> | ref<SchematicPortClockRule> | ref<SchematicPortDcPowerRule> | ref<SchematicPortEarthGroundRule> | ref<SchematicPortGroundRule> | ref<SchematicPortNonLogicalRule> | ref<SchematicPortOpenCollectorRule> | ref<SchematicPortOpenEmitterRule> | ref<SchematicPortPowerRule> | ref<SchematicPortThreeStateRule>)));
-  EDIF_FORM(SchematicGlobalPortImplementationRule, "(schematicGlobalPortImplementation",
+           arg(ref<ForFrameRef>) +
+           arg(ref<SchematicForFrameImplementationHeader>) +
+           arg(ref<SchematicFrameImplementationDetails>));
+  EDIF_FORM(SchematicForFrameImplementationHeader, "(schematicForFrameImplementationHeader",
+           option(arg(ref<SchematicForFrameBorder>)));
+  EDIF_FORM(SchematicFrameImplementationDetails, "(schematicFrameImplementationDetails",
+           many(arg(ref<CellPropertyDisplay> | ref<ClusterPropertyDisplay> | ref<Comment> | ref<CommentGraphics> | ref<PropertyDisplay> | ref<SchematicBus> | ref<SchematicForFrameImplementation> | ref<SchematicGlobalPortImplementation> | ref<SchematicIfFrameImplementation> | ref<SchematicInstanceImplementation> | ref<SchematicMasterPortImplementation> | ref<SchematicNet> | ref<SchematicOffPageConnectorImplementation> | ref<SchematicOnPageConnectorImplementation> | ref<SchematicOtherwiseFrameImplementation> | ref<SchematicRipperImplementation> | ref<UserData> | ref<ViewPropertyDisplay>)));
+  EDIF_FORM(SchematicGlobalPortAttributes, "(schematicGlobalPortAttributes",
+           many(arg(ref<IeeeStandard> | ref<SchematicPortAcPower> | ref<SchematicPortAnalog> | ref<SchematicPortChassisGround> | ref<SchematicPortClock> | ref<SchematicPortDcPower> | ref<SchematicPortEarthGround> | ref<SchematicPortGround> | ref<SchematicPortNonLogical> | ref<SchematicPortOpenCollector> | ref<SchematicPortOpenEmitter> | ref<SchematicPortPower> | ref<SchematicPortThreeState>)));
+  EDIF_FORM(SchematicGlobalPortImplementation, "(schematicGlobalPortImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<SchematicGlobalPortTemplateRefRule>) +
-           arg(ref<GlobalPortRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<GlobalPortNameDisplayRule> | ref<GlobalPortPropertyDisplayRule> | ref<ImplementationNameDisplayRule> | ref<NameInformationRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicGlobalPortImplementationRefRule, "(schematicGlobalPortImplementationRef",
+           arg(ref<SchematicGlobalPortTemplateRef>) +
+           arg(ref<GlobalPortRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<GlobalPortNameDisplay> | ref<GlobalPortPropertyDisplay> | ref<ImplementationNameDisplay> | ref<NameInformation> | ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicGlobalPortImplementationRef, "(schematicGlobalPortImplementationRef",
            arg(implementationNameRefExpr));
-  EDIF_FORM(SchematicGlobalPortTemplateRule, "(schematicGlobalPortTemplate",
+  EDIF_FORM(SchematicGlobalPortTemplate, "(schematicGlobalPortTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           option(arg(ref<HotspotRule>)) +
-           many(arg(ref<AnnotateRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<GlobalPortNameDisplayRule> | ref<ImplementationNameDisplayRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule> | ref<SchematicGlobalPortAttributesRule>)) +
-           option(arg(ref<HotspotRule>)));
-  EDIF_FORM(SchematicGlobalPortTemplateRefRule, "(schematicGlobalPortTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           option(arg(ref<Hotspot>)) +
+           many(arg(ref<Annotate> | ref<CommentGraphics> | ref<Figure> | ref<GlobalPortNameDisplay> | ref<ImplementationNameDisplay> | ref<PropertyDisplay> | ref<SchematicComplexFigure> | ref<SchematicGlobalPortAttributes>)) +
+           option(arg(ref<Hotspot>)));
+  EDIF_FORM(SchematicGlobalPortTemplateRef, "(schematicGlobalPortTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicIfFrameBorderRule, "(schematicIfFrameBorder",
-           arg(ref<SchematicIfFrameBorderTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<ConditionDisplayRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicIfFrameBorderTemplateRule, "(schematicIfFrameBorderTemplate",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicIfFrameBorder, "(schematicIfFrameBorder",
+           arg(ref<SchematicIfFrameBorderTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<ConditionDisplay> | ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicIfFrameBorderTemplate, "(schematicIfFrameBorderTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<UsableAreaRule>) +
-           many(arg(ref<AnnotateRule> | ref<CommentGraphicsRule> | ref<ConditionDisplayRule> | ref<FigureRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(SchematicIfFrameBorderTemplateRefRule, "(schematicIfFrameBorderTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<UsableArea>) +
+           many(arg(ref<Annotate> | ref<CommentGraphics> | ref<ConditionDisplay> | ref<Figure> | ref<PropertyDisplay> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(SchematicIfFrameBorderTemplateRef, "(schematicIfFrameBorderTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicIfFrameImplementationRule, "(schematicIfFrameImplementation",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicIfFrameImplementation, "(schematicIfFrameImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<IfFrameRefRule>) +
-           arg(ref<SchematicIfFrameImplementationHeaderRule>) +
-           arg(ref<SchematicFrameImplementationDetailsRule>));
-  EDIF_FORM(SchematicIfFrameImplementationHeaderRule, "(schematicIfFrameImplementationHeader",
-           option(arg(ref<SchematicIfFrameBorderRule>)));
-  EDIF_FORM(SchematicImplementationRule, "(schematicImplementation",
-           many(arg(ref<PageRule> | ref<TotalPagesRule>)));
-  EDIF_FORM(SchematicInstanceImplementationRule, "(schematicInstanceImplementation",
+           arg(ref<IfFrameRef>) +
+           arg(ref<SchematicIfFrameImplementationHeader>) +
+           arg(ref<SchematicFrameImplementationDetails>));
+  EDIF_FORM(SchematicIfFrameImplementationHeader, "(schematicIfFrameImplementationHeader",
+           option(arg(ref<SchematicIfFrameBorder>)));
+  EDIF_FORM(SchematicImplementation, "(schematicImplementation",
+           many(arg(ref<Page> | ref<TotalPages>)));
+  EDIF_FORM(SchematicInstanceImplementation, "(schematicInstanceImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<InstanceRefRule>) +
-           arg(ref<SchematicSymbolRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<CellNameDisplayRule> | ref<CellPropertyDisplayOverrideRule> | ref<ClusterPropertyDisplayOverrideRule> | ref<DesignatorDisplayRule> | ref<ImplementationNameDisplayRule> | ref<InstanceNameDisplayRule> | ref<InstanceNameGeneratorDisplayRule> | ref<InstancePortAttributeDisplayRule> | ref<InstancePropertyDisplayRule> | ref<InstanceWidthDisplayRule> | ref<NameInformationRule> | ref<PageCommentGraphicsRule> | ref<ParameterDisplayRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule> | ref<TimingDisplayRule> | ref<ViewNameDisplayRule>)));
-  EDIF_FORM(SchematicInstanceImplementationRefRule, "(schematicInstanceImplementationRef",
+           arg(ref<InstanceRef>) +
+           arg(ref<SchematicSymbolRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<CellNameDisplay> | ref<CellPropertyDisplayOverride> | ref<ClusterPropertyDisplayOverride> | ref<DesignatorDisplay> | ref<ImplementationNameDisplay> | ref<InstanceNameDisplay> | ref<InstanceNameGeneratorDisplay> | ref<InstancePortAttributeDisplay> | ref<InstancePropertyDisplay> | ref<InstanceWidthDisplay> | ref<NameInformation> | ref<PageCommentGraphics> | ref<ParameterDisplay> | ref<PropertyDisplayOverride> | ref<PropertyOverride> | ref<TimingDisplay> | ref<ViewNameDisplay>)));
+  EDIF_FORM(SchematicInstanceImplementationRef, "(schematicInstanceImplementationRef",
            arg(implementationNameRefExpr));
-  EDIF_FORM(SchematicInterconnectAttributeDisplayRule, "(schematicInterconnectAttributeDisplay",
-           many(arg(ref<ConnectivityTagGeneratorDisplayRule> | ref<CriticalityDisplayRule> | ref<InterconnectAttachedTextRule> | ref<InterconnectDelayDisplayRule> | ref<InterconnectNameDisplayRule> | ref<InterconnectPropertyDisplayRule>)));
-  EDIF_FORM(SchematicInterconnectHeaderRule, "(schematicInterconnectHeader",
-           many(arg(ref<CriticalityRule> | ref<DocumentationRule> | ref<InterconnectDelayRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<SchematicInterconnectTerminatorImplementationRule> | ref<SchematicJunctionImplementationRule> | ref<SchematicWireStyleRule>)));
-  EDIF_FORM(SchematicInterconnectTerminatorImplementationRule, "(schematicInterconnectTerminatorImplementation",
+  EDIF_FORM(SchematicInterconnectAttributeDisplay, "(schematicInterconnectAttributeDisplay",
+           many(arg(ref<ConnectivityTagGeneratorDisplay> | ref<CriticalityDisplay> | ref<InterconnectAttachedText> | ref<InterconnectDelayDisplay> | ref<InterconnectNameDisplay> | ref<InterconnectPropertyDisplay>)));
+  EDIF_FORM(SchematicInterconnectHeader, "(schematicInterconnectHeader",
+           many(arg(ref<Criticality> | ref<Documentation> | ref<InterconnectDelay> | ref<NameInformation> | ref<Property> | ref<SchematicInterconnectTerminatorImplementation> | ref<SchematicJunctionImplementation> | ref<SchematicWireStyle>)));
+  EDIF_FORM(SchematicInterconnectTerminatorImplementation, "(schematicInterconnectTerminatorImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<SchematicInterconnectTerminatorTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<ImplementationNameDisplayRule> | ref<NameInformationRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicInterconnectTerminatorImplementationRefRule, "(schematicInterconnectTerminatorImplementationRef",
+           arg(ref<SchematicInterconnectTerminatorTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<ImplementationNameDisplay> | ref<NameInformation> | ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicInterconnectTerminatorImplementationRef, "(schematicInterconnectTerminatorImplementationRef",
            arg(implementationNameRefExpr));
-  EDIF_FORM(SchematicInterconnectTerminatorTemplateRule, "(schematicInterconnectTerminatorTemplate",
+  EDIF_FORM(SchematicInterconnectTerminatorTemplate, "(schematicInterconnectTerminatorTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<HotspotRule>) +
-           many(arg(ref<CommentGraphicsRule> | ref<FigureRule> | ref<ImplementationNameDisplayRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(SchematicInterconnectTerminatorTemplateRefRule, "(schematicInterconnectTerminatorTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<Hotspot>) +
+           many(arg(ref<CommentGraphics> | ref<Figure> | ref<ImplementationNameDisplay> | ref<PropertyDisplay> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(SchematicInterconnectTerminatorTemplateRef, "(schematicInterconnectTerminatorTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicJunctionImplementationRule, "(schematicJunctionImplementation",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicJunctionImplementation, "(schematicJunctionImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<SchematicJunctionTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<ImplementationNameDisplayRule> | ref<NameInformationRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicJunctionImplementationRefRule, "(schematicJunctionImplementationRef",
+           arg(ref<SchematicJunctionTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<ImplementationNameDisplay> | ref<NameInformation> | ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicJunctionImplementationRef, "(schematicJunctionImplementationRef",
            arg(implementationNameRefExpr));
-  EDIF_FORM(SchematicJunctionTemplateRule, "(schematicJunctionTemplate",
+  EDIF_FORM(SchematicJunctionTemplate, "(schematicJunctionTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<HotspotRule>) +
-           many(arg(ref<CommentGraphicsRule> | ref<FigureRule> | ref<ImplementationNameDisplayRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(SchematicJunctionTemplateRefRule, "(schematicJunctionTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<Hotspot>) +
+           many(arg(ref<CommentGraphics> | ref<Figure> | ref<ImplementationNameDisplay> | ref<PropertyDisplay> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(SchematicJunctionTemplateRef, "(schematicJunctionTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicMasterPortImplementationRule, "(schematicMasterPortImplementation",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicMasterPortImplementation, "(schematicMasterPortImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<SchematicMasterPortTemplateRefRule>) +
-           arg(ref<PortRefRule> | ref<LocalPortGroupRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<ImplementationNameDisplayRule> | ref<NameInformationRule> | ref<PortAttributeDisplayRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicMasterPortImplementationRefRule, "(schematicMasterPortImplementationRef",
+           arg(ref<SchematicMasterPortTemplateRef>) +
+           arg(ref<PortRef> | ref<LocalPortGroupRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<ImplementationNameDisplay> | ref<NameInformation> | ref<PortAttributeDisplay> | ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicMasterPortImplementationRef, "(schematicMasterPortImplementationRef",
            arg(implementationNameRefExpr));
-  EDIF_FORM(SchematicMasterPortTemplateRule, "(schematicMasterPortTemplate",
+  EDIF_FORM(SchematicMasterPortTemplate, "(schematicMasterPortTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<HotspotRule>) +
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<Hotspot>) +
            arg(portDirectionIndicatorExpr) +
-           many(arg(ref<AnnotateRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<ImplementationNameDisplayRule> | ref<PortAttributeDisplayRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule> | ref<SchematicPortStyleRule>)));
-  EDIF_FORM(SchematicMasterPortTemplateRefRule, "(schematicMasterPortTemplateRef",
+           many(arg(ref<Annotate> | ref<CommentGraphics> | ref<Figure> | ref<ImplementationNameDisplay> | ref<PortAttributeDisplay> | ref<PropertyDisplay> | ref<SchematicComplexFigure> | ref<SchematicPortStyle>)));
+  EDIF_FORM(SchematicMasterPortTemplateRef, "(schematicMasterPortTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicMetricRule, "(schematicMetric",
-           arg(ref<SetDistanceRule>) +
-           arg(ref<HotspotGridRule> | ref<NoHotspotGridRule>) +
-           option(arg(ref<NominalHotspotGridRule>)));
-  EDIF_FORM(SchematicNetRule, "(schematicNet",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicMetric, "(schematicMetric",
+           arg(ref<SetDistance>) +
+           arg(ref<HotspotGrid> | ref<NoHotspotGrid>) +
+           option(arg(ref<NominalHotspotGrid>)));
+  EDIF_FORM(SchematicNet, "(schematicNet",
            arg(interconnectNameDefExpr) +
-           arg(ref<SignalRefRule>) +
-           arg(ref<SchematicInterconnectHeaderRule>) +
-           arg(ref<SchematicNetJoinedRule>) +
-           many(arg(ref<CommentRule> | ref<SchematicInterconnectAttributeDisplayRule> | ref<SchematicNetDetailsRule> | ref<UserDataRule>)));
-  EDIF_FORM(SchematicNetDetailsRule, "(schematicNetDetails",
-           arg(ref<SchematicNetGraphicsRule> | ref<SchematicSubNetSetRule>));
-  EDIF_FORM(SchematicNetGraphicsRule, "(schematicNetGraphics",
-           many(arg(ref<CommentRule> | ref<FigureRule> | ref<SchematicComplexFigureRule> | ref<UserDataRule>)));
-  static constexpr auto schematicNetJoinedRefExpr = ref<RipperHotspotRefRule> | ref<SchematicGlobalPortImplementationRefRule> | ref<SchematicInterconnectTerminatorImplementationRefRule> | ref<SchematicJunctionImplementationRefRule> | ref<SchematicMasterPortImplementationRefRule> | ref<SchematicOffPageConnectorImplementationRefRule> | ref<SchematicOnPageConnectorImplementationRefRule> | ref<SchematicSymbolPortImplementationRefRule>;
-  static constexpr auto schematicNetJoinedPortExpr = ref<PortJoinedRule> | ref<JoinedAsSignalRule>;
-  EDIF_FORM(SchematicNetJoinedRule, "(schematicNetJoined",
+           arg(ref<SignalRef>) +
+           arg(ref<SchematicInterconnectHeader>) +
+           arg(ref<SchematicNetJoined>) +
+           many(arg(ref<Comment> | ref<SchematicInterconnectAttributeDisplay> | ref<SchematicNetDetails> | ref<UserData>)));
+  EDIF_FORM(SchematicNetDetails, "(schematicNetDetails",
+           arg(ref<SchematicNetGraphics> | ref<SchematicSubNetSet>));
+  EDIF_FORM(SchematicNetGraphics, "(schematicNetGraphics",
+           many(arg(ref<Comment> | ref<Figure> | ref<SchematicComplexFigure> | ref<UserData>)));
+  static constexpr auto schematicNetJoinedRefExpr = ref<RipperHotspotRef> | ref<SchematicGlobalPortImplementationRef> | ref<SchematicInterconnectTerminatorImplementationRef> | ref<SchematicJunctionImplementationRef> | ref<SchematicMasterPortImplementationRef> | ref<SchematicOffPageConnectorImplementationRef> | ref<SchematicOnPageConnectorImplementationRef> | ref<SchematicSymbolPortImplementationRef>;
+  static constexpr auto schematicNetJoinedPortExpr = ref<PortJoined> | ref<JoinedAsSignal>;
+  EDIF_FORM(SchematicNetJoined, "(schematicNetJoined",
            option((some(arg(schematicNetJoinedRefExpr)) |
                    (arg(schematicNetJoinedPortExpr) +
                     many(arg(schematicNetJoinedRefExpr)))) +
                   option(arg(schematicNetJoinedPortExpr) +
                          many(arg(schematicNetJoinedRefExpr)))));
-  EDIF_FORM(SchematicOffPageConnectorImplementationRule, "(schematicOffPageConnectorImplementation",
+  EDIF_FORM(SchematicOffPageConnectorImplementation, "(schematicOffPageConnectorImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<SchematicOffPageConnectorTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<AssociatedInterconnectNameDisplayRule> | ref<ImplementationNameDisplayRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<PropertyDisplayRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicOffPageConnectorImplementationRefRule, "(schematicOffPageConnectorImplementationRef",
+           arg(ref<SchematicOffPageConnectorTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<AssociatedInterconnectNameDisplay> | ref<ImplementationNameDisplay> | ref<NameInformation> | ref<Property> | ref<PropertyDisplay> | ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicOffPageConnectorImplementationRef, "(schematicOffPageConnectorImplementationRef",
            arg(implementationNameRefExpr));
-  EDIF_FORM(SchematicOffPageConnectorTemplateRule, "(schematicOffPageConnectorTemplate",
+  EDIF_FORM(SchematicOffPageConnectorTemplate, "(schematicOffPageConnectorTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<HotspotRule>) +
-           many(arg(ref<AnnotateRule> | ref<AssociatedInterconnectNameDisplayRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<ImplementationNameDisplayRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(SchematicOffPageConnectorTemplateRefRule, "(schematicOffPageConnectorTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<Hotspot>) +
+           many(arg(ref<Annotate> | ref<AssociatedInterconnectNameDisplay> | ref<CommentGraphics> | ref<Figure> | ref<ImplementationNameDisplay> | ref<PropertyDisplay> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(SchematicOffPageConnectorTemplateRef, "(schematicOffPageConnectorTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicOnPageConnectorImplementationRule, "(schematicOnPageConnectorImplementation",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicOnPageConnectorImplementation, "(schematicOnPageConnectorImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<SchematicOnPageConnectorTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<AssociatedInterconnectNameDisplayRule> | ref<ImplementationNameDisplayRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<PropertyDisplayRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicOnPageConnectorImplementationRefRule, "(schematicOnPageConnectorImplementationRef",
+           arg(ref<SchematicOnPageConnectorTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<AssociatedInterconnectNameDisplay> | ref<ImplementationNameDisplay> | ref<NameInformation> | ref<Property> | ref<PropertyDisplay> | ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicOnPageConnectorImplementationRef, "(schematicOnPageConnectorImplementationRef",
            arg(implementationNameRefExpr));
-  EDIF_FORM(SchematicOnPageConnectorTemplateRule, "(schematicOnPageConnectorTemplate",
+  EDIF_FORM(SchematicOnPageConnectorTemplate, "(schematicOnPageConnectorTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<HotspotRule>) +
-           many(arg(ref<AnnotateRule> | ref<AssociatedInterconnectNameDisplayRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<ImplementationNameDisplayRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(SchematicOnPageConnectorTemplateRefRule, "(schematicOnPageConnectorTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<Hotspot>) +
+           many(arg(ref<Annotate> | ref<AssociatedInterconnectNameDisplay> | ref<CommentGraphics> | ref<Figure> | ref<ImplementationNameDisplay> | ref<PropertyDisplay> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(SchematicOnPageConnectorTemplateRef, "(schematicOnPageConnectorTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicOtherwiseFrameBorderRule, "(schematicOtherwiseFrameBorder",
-           arg(ref<SchematicOtherwiseFrameBorderTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicOtherwiseFrameBorderTemplateRule, "(schematicOtherwiseFrameBorderTemplate",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicOtherwiseFrameBorder, "(schematicOtherwiseFrameBorder",
+           arg(ref<SchematicOtherwiseFrameBorderTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicOtherwiseFrameBorderTemplate, "(schematicOtherwiseFrameBorderTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<UsableAreaRule>) +
-           many(arg(ref<AnnotateRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(SchematicOtherwiseFrameBorderTemplateRefRule, "(schematicOtherwiseFrameBorderTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<UsableArea>) +
+           many(arg(ref<Annotate> | ref<CommentGraphics> | ref<Figure> | ref<PropertyDisplay> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(SchematicOtherwiseFrameBorderTemplateRef, "(schematicOtherwiseFrameBorderTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicOtherwiseFrameImplementationRule, "(schematicOtherwiseFrameImplementation",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicOtherwiseFrameImplementation, "(schematicOtherwiseFrameImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<OtherwiseFrameRefRule>) +
-           arg(ref<SchematicOtherwiseFrameImplementationHeaderRule>) +
-           arg(ref<SchematicFrameImplementationDetailsRule>));
-  EDIF_FORM(SchematicOtherwiseFrameImplementationHeaderRule, "(schematicOtherwiseFrameImplementationHeader",
-           option(arg(ref<SchematicOtherwiseFrameBorderRule>)));
-  EDIF_FORM(SchematicPortAcPowerRule, "(schematicPortAcPower",
-           many(arg(ref<SchematicPortAcPowerRecommendedFrequencyRule> | ref<SchematicPortAcPowerRecommendedVoltageRmsRule>)));
-  EDIF_FORM(SchematicPortAcPowerRecommendedFrequencyRule, "(schematicPortAcPowerRecommendedFrequency",
+           arg(ref<OtherwiseFrameRef>) +
+           arg(ref<SchematicOtherwiseFrameImplementationHeader>) +
+           arg(ref<SchematicFrameImplementationDetails>));
+  EDIF_FORM(SchematicOtherwiseFrameImplementationHeader, "(schematicOtherwiseFrameImplementationHeader",
+           option(arg(ref<SchematicOtherwiseFrameBorder>)));
+  EDIF_FORM(SchematicPortAcPower, "(schematicPortAcPower",
+           many(arg(ref<SchematicPortAcPowerRecommendedFrequency> | ref<SchematicPortAcPowerRecommendedVoltageRms>)));
+  EDIF_FORM(SchematicPortAcPowerRecommendedFrequency, "(schematicPortAcPowerRecommendedFrequency",
            arg(frequencyValueExpr));
-  EDIF_FORM(SchematicPortAcPowerRecommendedVoltageRmsRule, "(schematicPortAcPowerRecommendedVoltageRms",
+  EDIF_FORM(SchematicPortAcPowerRecommendedVoltageRms, "(schematicPortAcPowerRecommendedVoltageRms",
            arg(voltageValueExpr));
-  EDIF_FORM0(SchematicPortAnalogRule, "(schematicPortAnalog");
-  EDIF_FORM(SchematicPortAttributesRule, "(schematicPortAttributes",
-           many(arg(ref<IeeeStandardRule> | ref<SchematicPortAcPowerRule> | ref<SchematicPortAnalogRule> | ref<SchematicPortChassisGroundRule> | ref<SchematicPortClockRule> | ref<SchematicPortDcPowerRule> | ref<SchematicPortEarthGroundRule> | ref<SchematicPortGroundRule> | ref<SchematicPortNonLogicalRule> | ref<SchematicPortOpenCollectorRule> | ref<SchematicPortOpenEmitterRule> | ref<SchematicPortPowerRule> | ref<SchematicPortThreeStateRule>)));
-  EDIF_FORM(SchematicPortChassisGroundRule, "(schematicPortChassisGround",
-           option(arg(ref<SchematicPortAnalogRule>)));
-  EDIF_FORM(SchematicPortClockRule, "(schematicPortClock",
-           option(arg(ref<IeeeStandardRule>)));
-  EDIF_FORM(SchematicPortDcPowerRule, "(schematicPortDcPower",
-           many(arg(ref<SchematicPortAnalogRule> | ref<SchematicPortDcPowerRecommendedVoltageRule>)));
-  EDIF_FORM(SchematicPortDcPowerRecommendedVoltageRule, "(schematicPortDcPowerRecommendedVoltage",
+  EDIF_FORM0(SchematicPortAnalog, "(schematicPortAnalog");
+  EDIF_FORM(SchematicPortAttributes, "(schematicPortAttributes",
+           many(arg(ref<IeeeStandard> | ref<SchematicPortAcPower> | ref<SchematicPortAnalog> | ref<SchematicPortChassisGround> | ref<SchematicPortClock> | ref<SchematicPortDcPower> | ref<SchematicPortEarthGround> | ref<SchematicPortGround> | ref<SchematicPortNonLogical> | ref<SchematicPortOpenCollector> | ref<SchematicPortOpenEmitter> | ref<SchematicPortPower> | ref<SchematicPortThreeState>)));
+  EDIF_FORM(SchematicPortChassisGround, "(schematicPortChassisGround",
+           option(arg(ref<SchematicPortAnalog>)));
+  EDIF_FORM(SchematicPortClock, "(schematicPortClock",
+           option(arg(ref<IeeeStandard>)));
+  EDIF_FORM(SchematicPortDcPower, "(schematicPortDcPower",
+           many(arg(ref<SchematicPortAnalog> | ref<SchematicPortDcPowerRecommendedVoltage>)));
+  EDIF_FORM(SchematicPortDcPowerRecommendedVoltage, "(schematicPortDcPowerRecommendedVoltage",
            arg(voltageValueExpr));
-  EDIF_FORM(SchematicPortEarthGroundRule, "(schematicPortEarthGround",
-           option(arg(ref<SchematicPortAnalogRule>)));
-  EDIF_FORM(SchematicPortGroundRule, "(schematicPortGround",
-           option(arg(ref<SchematicPortAnalogRule>)));
-  EDIF_FORM0(SchematicPortNonLogicalRule, "(schematicPortNonLogical");
-  EDIF_FORM0(SchematicPortOpenCollectorRule, "(schematicPortOpenCollector");
-  EDIF_FORM0(SchematicPortOpenEmitterRule, "(schematicPortOpenEmitter");
-  EDIF_FORM0(SchematicPortPowerRule, "(schematicPortPower");
-  EDIF_FORM(SchematicPortStyleRule, "(schematicPortStyle",
-           arg(ref<NarrowPortRule> | ref<WidePortRule>));
-  EDIF_FORM0(SchematicPortThreeStateRule, "(schematicPortThreeState");
-  EDIF_FORM(SchematicRequiredDefaultsRule, "(schematicRequiredDefaults",
-           arg(ref<SchematicMetricRule>) +
-           arg(ref<FontRefRule>) +
-           arg(ref<TextHeightRule>));
-  EDIF_FORM(SchematicRipperImplementationRule, "(schematicRipperImplementation",
+  EDIF_FORM(SchematicPortEarthGround, "(schematicPortEarthGround",
+           option(arg(ref<SchematicPortAnalog>)));
+  EDIF_FORM(SchematicPortGround, "(schematicPortGround",
+           option(arg(ref<SchematicPortAnalog>)));
+  EDIF_FORM0(SchematicPortNonLogical, "(schematicPortNonLogical");
+  EDIF_FORM0(SchematicPortOpenCollector, "(schematicPortOpenCollector");
+  EDIF_FORM0(SchematicPortOpenEmitter, "(schematicPortOpenEmitter");
+  EDIF_FORM0(SchematicPortPower, "(schematicPortPower");
+  EDIF_FORM(SchematicPortStyle, "(schematicPortStyle",
+           arg(ref<NarrowPort> | ref<WidePort>));
+  EDIF_FORM0(SchematicPortThreeState, "(schematicPortThreeState");
+  EDIF_FORM(SchematicRequiredDefaults, "(schematicRequiredDefaults",
+           arg(ref<SchematicMetric>) +
+           arg(ref<FontRef>) +
+           arg(ref<TextHeight>));
+  EDIF_FORM(SchematicRipperImplementation, "(schematicRipperImplementation",
            arg(implementationNameDefExpr) +
-           arg(ref<SchematicRipperTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<ImplementationNameDisplayRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<PropertyDisplayRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicRipperImplementationRefRule, "(schematicRipperImplementationRef",
+           arg(ref<SchematicRipperTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<ImplementationNameDisplay> | ref<NameInformation> | ref<Property> | ref<PropertyDisplay> | ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicRipperImplementationRef, "(schematicRipperImplementationRef",
            arg(implementationNameRefExpr));
-  EDIF_FORM(SchematicRipperTemplateRule, "(schematicRipperTemplate",
+  EDIF_FORM(SchematicRipperTemplate, "(schematicRipperTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           many(arg(ref<AnnotateRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<ImplementationNameDisplayRule> | ref<PropertyDisplayRule> | ref<RipperHotspotRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(SchematicRipperTemplateRefRule, "(schematicRipperTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           many(arg(ref<Annotate> | ref<CommentGraphics> | ref<Figure> | ref<ImplementationNameDisplay> | ref<PropertyDisplay> | ref<RipperHotspot> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(SchematicRipperTemplateRef, "(schematicRipperTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicSubBusRule, "(schematicSubBus",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicSubBus, "(schematicSubBus",
            arg(interconnectNameDefExpr) +
-           arg(ref<SchematicSubInterconnectHeaderRule>) +
-           arg(ref<SchematicBusJoinedRule>) +
-           many(arg(ref<CommentRule> | ref<SchematicBusDetailsRule> | ref<SchematicBusSliceRule> | ref<SchematicInterconnectAttributeDisplayRule> | ref<UserDataRule>)));
-  EDIF_FORM(SchematicSubBusSetRule, "(schematicSubBusSet",
-           many(arg(ref<SchematicSubBusRule>)));
-  EDIF_FORM(SchematicSubInterconnectHeaderRule, "(schematicSubInterconnectHeader",
-           many(arg(ref<CriticalityRule> | ref<DocumentationRule> | ref<InterconnectDelayRule> | ref<NameInformationRule> | ref<PropertyRule>)));
-  EDIF_FORM(SchematicSubNetRule, "(schematicSubNet",
+           arg(ref<SchematicSubInterconnectHeader>) +
+           arg(ref<SchematicBusJoined>) +
+           many(arg(ref<Comment> | ref<SchematicBusDetails> | ref<SchematicBusSlice> | ref<SchematicInterconnectAttributeDisplay> | ref<UserData>)));
+  EDIF_FORM(SchematicSubBusSet, "(schematicSubBusSet",
+           many(arg(ref<SchematicSubBus>)));
+  EDIF_FORM(SchematicSubInterconnectHeader, "(schematicSubInterconnectHeader",
+           many(arg(ref<Criticality> | ref<Documentation> | ref<InterconnectDelay> | ref<NameInformation> | ref<Property>)));
+  EDIF_FORM(SchematicSubNet, "(schematicSubNet",
            arg(interconnectNameDefExpr) +
-           arg(ref<SchematicSubInterconnectHeaderRule>) +
-           arg(ref<SchematicNetJoinedRule>) +
-           many(arg(ref<CommentRule> | ref<SchematicInterconnectAttributeDisplayRule> | ref<SchematicNetDetailsRule> | ref<UserDataRule>)));
-  EDIF_FORM(SchematicSubNetSetRule, "(schematicSubNetSet",
-           many(arg(ref<SchematicSubNetRule>)));
-  EDIF_FORM(SchematicSymbolRule, "(schematicSymbol",
+           arg(ref<SchematicSubInterconnectHeader>) +
+           arg(ref<SchematicNetJoined>) +
+           many(arg(ref<Comment> | ref<SchematicInterconnectAttributeDisplay> | ref<SchematicNetDetails> | ref<UserData>)));
+  EDIF_FORM(SchematicSubNetSet, "(schematicSubNetSet",
+           many(arg(ref<SchematicSubNet>)));
+  EDIF_FORM(SchematicSymbol, "(schematicSymbol",
            arg(viewNameDefExpr) +
-           arg(ref<SchematicSymbolHeaderRule>) +
-           many(arg(ref<AnnotateRule> | ref<CellNameDisplayRule> | ref<CellPropertyDisplayRule> | ref<ClusterPropertyDisplayRule> | ref<CommentRule> | ref<CommentGraphicsRule> | ref<DesignatorDisplayRule> | ref<FigureRule> | ref<ImplementationNameDisplayRule> | ref<InstanceNameDisplayRule> | ref<InstanceNameGeneratorDisplayRule> | ref<InstanceWidthDisplayRule> | ref<ParameterDisplayRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule> | ref<SchematicSymbolPortImplementationRule> | ref<UserDataRule> | ref<ViewNameDisplayRule>)));
-  EDIF_FORM(SchematicSymbolBorderRule, "(schematicSymbolBorder",
-           arg(ref<SchematicSymbolBorderTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicSymbolBorderTemplateRule, "(schematicSymbolBorderTemplate",
+           arg(ref<SchematicSymbolHeader>) +
+           many(arg(ref<Annotate> | ref<CellNameDisplay> | ref<CellPropertyDisplay> | ref<ClusterPropertyDisplay> | ref<Comment> | ref<CommentGraphics> | ref<DesignatorDisplay> | ref<Figure> | ref<ImplementationNameDisplay> | ref<InstanceNameDisplay> | ref<InstanceNameGeneratorDisplay> | ref<InstanceWidthDisplay> | ref<ParameterDisplay> | ref<PropertyDisplay> | ref<SchematicComplexFigure> | ref<SchematicSymbolPortImplementation> | ref<UserData> | ref<ViewNameDisplay>)));
+  EDIF_FORM(SchematicSymbolBorder, "(schematicSymbolBorder",
+           arg(ref<SchematicSymbolBorderTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicSymbolBorderTemplate, "(schematicSymbolBorderTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<UsableAreaRule>) +
-           many(arg(ref<AnnotateRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule>)));
-  EDIF_FORM(SchematicSymbolBorderTemplateRefRule, "(schematicSymbolBorderTemplateRef",
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<UsableArea>) +
+           many(arg(ref<Annotate> | ref<CommentGraphics> | ref<Figure> | ref<PropertyDisplay> | ref<SchematicComplexFigure>)));
+  EDIF_FORM(SchematicSymbolBorderTemplateRef, "(schematicSymbolBorderTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicSymbolHeaderRule, "(schematicSymbolHeader",
-           arg(ref<SchematicUnitsRule>) +
-           many(arg(ref<BackgroundColorRule> | ref<DerivedFromRule> | ref<DocumentationRule> | ref<NameInformationRule> | ref<OriginalBoundingBoxRule> | ref<PageSizeRule> | ref<PreviousVersionRule> | ref<PropertyRule> | ref<SchematicSymbolBorderRule> | ref<StatusRule>)));
-  EDIF_FORM(SchematicSymbolPortImplementationRule, "(schematicSymbolPortImplementation",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicSymbolHeader, "(schematicSymbolHeader",
+           arg(ref<SchematicUnits>) +
+           many(arg(ref<BackgroundColor> | ref<DerivedFrom> | ref<Documentation> | ref<NameInformation> | ref<OriginalBoundingBox> | ref<PageSize> | ref<PreviousVersion> | ref<Property> | ref<SchematicSymbolBorder> | ref<Status>)));
+  EDIF_FORM(SchematicSymbolPortImplementation, "(schematicSymbolPortImplementation",
            arg(symbolPortImplementationNameDefExpr) +
-           arg(ref<PortRefRule>) +
-           arg(ref<SchematicSymbolPortTemplateRefRule>) +
-           arg(ref<TransformRule>) +
-           many(arg(ref<PortAttributeDisplayRule> | ref<PropertyDisplayOverrideRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SchematicSymbolPortImplementationRefRule, "(schematicSymbolPortImplementationRef",
+           arg(ref<PortRef>) +
+           arg(ref<SchematicSymbolPortTemplateRef>) +
+           arg(ref<Transform>) +
+           many(arg(ref<PortAttributeDisplay> | ref<PropertyDisplayOverride> | ref<PropertyOverride>)));
+  EDIF_FORM(SchematicSymbolPortImplementationRef, "(schematicSymbolPortImplementationRef",
            arg(symbolPortImplementationNameRefExpr) +
-           arg(ref<SchematicInstanceImplementationRefRule>));
-  EDIF_FORM(SchematicSymbolPortTemplateRule, "(schematicSymbolPortTemplate",
+           arg(ref<SchematicInstanceImplementationRef>));
+  EDIF_FORM(SchematicSymbolPortTemplate, "(schematicSymbolPortTemplate",
            arg(libraryObjectNameDefExpr) +
-           arg(ref<SchematicTemplateHeaderRule>) +
-           arg(ref<HotspotRule>) +
+           arg(ref<SchematicTemplateHeader>) +
+           arg(ref<Hotspot>) +
            arg(portDirectionIndicatorExpr) +
-           many(arg(ref<AnnotateRule> | ref<CommentGraphicsRule> | ref<FigureRule> | ref<ImplementationNameDisplayRule> | ref<PortAttributeDisplayRule> | ref<PropertyDisplayRule> | ref<SchematicComplexFigureRule> | ref<SchematicPortAttributesRule> | ref<SchematicPortStyleRule>)));
-  EDIF_FORM(SchematicSymbolPortTemplateRefRule, "(schematicSymbolPortTemplateRef",
+           many(arg(ref<Annotate> | ref<CommentGraphics> | ref<Figure> | ref<ImplementationNameDisplay> | ref<PortAttributeDisplay> | ref<PropertyDisplay> | ref<SchematicComplexFigure> | ref<SchematicPortAttributes> | ref<SchematicPortStyle>)));
+  EDIF_FORM(SchematicSymbolPortTemplateRef, "(schematicSymbolPortTemplateRef",
            arg(libraryObjectNameRefExpr) +
-           option(arg(ref<LibraryRefRule>)));
-  EDIF_FORM(SchematicSymbolRefRule, "(schematicSymbolRef",
+           option(arg(ref<LibraryRef>)));
+  EDIF_FORM(SchematicSymbolRef, "(schematicSymbolRef",
            arg(viewNameRefExpr));
-  EDIF_FORM(SchematicTemplateHeaderRule, "(schematicTemplateHeader",
-           arg(ref<SchematicUnitsRule>) +
-           many(arg(ref<BackgroundColorRule> | ref<DocumentationRule> | ref<NameInformationRule> | ref<OriginalBoundingBoxRule> | ref<PropertyRule> | ref<StatusRule>)));
-  EDIF_FORM(SchematicUnitsRule, "(schematicUnits",
-           many(arg(ref<SchematicMetricRule> | ref<SetAngleRule> | ref<SetCapacitanceRule> | ref<SetFrequencyRule> | ref<SetTimeRule> | ref<SetVoltageRule>)));
-  EDIF_FORM(SchematicViewRule, "(schematicView",
+  EDIF_FORM(SchematicTemplateHeader, "(schematicTemplateHeader",
+           arg(ref<SchematicUnits>) +
+           many(arg(ref<BackgroundColor> | ref<Documentation> | ref<NameInformation> | ref<OriginalBoundingBox> | ref<Property> | ref<Status>)));
+  EDIF_FORM(SchematicUnits, "(schematicUnits",
+           many(arg(ref<SchematicMetric> | ref<SetAngle> | ref<SetCapacitance> | ref<SetFrequency> | ref<SetTime> | ref<SetVoltage>)));
+  EDIF_FORM(SchematicView, "(schematicView",
            arg(viewNameDefExpr) +
-           arg(ref<SchematicViewHeaderRule>) +
-           arg(ref<LogicalConnectivityRule>) +
-           arg(ref<SchematicImplementationRule>) +
-           many(arg(ref<CommentRule> | ref<UserDataRule>)));
-  EDIF_FORM(SchematicViewHeaderRule, "(schematicViewHeader",
-           arg(ref<SchematicUnitsRule>) +
-           many(arg(ref<DerivedFromRule> | ref<DocumentationRule> | ref<NameInformationRule> | ref<PreviousVersionRule> | ref<PropertyRule> | ref<StatusRule>)));
-  EDIF_FORM(SchematicWireAffinityRule, "(schematicWireAffinity",
-           arg(ref<NarrowWireRule> | ref<WideWireRule> | ref<UnrestrictedRule>));
-  EDIF_FORM(SchematicWireStyleRule, "(schematicWireStyle",
-           arg(ref<NarrowWireRule> | ref<WideWireRule>));
-  EDIF_FORM(SecondRule, "(second",
+           arg(ref<SchematicViewHeader>) +
+           arg(ref<LogicalConnectivity>) +
+           arg(ref<SchematicImplementation>) +
+           many(arg(ref<Comment> | ref<UserData>)));
+  EDIF_FORM(SchematicViewHeader, "(schematicViewHeader",
+           arg(ref<SchematicUnits>) +
+           many(arg(ref<DerivedFrom> | ref<Documentation> | ref<NameInformation> | ref<PreviousVersion> | ref<Property> | ref<Status>)));
+  EDIF_FORM(SchematicWireAffinity, "(schematicWireAffinity",
+           arg(ref<NarrowWire> | ref<WideWire> | ref<Unrestricted>));
+  EDIF_FORM(SchematicWireStyle, "(schematicWireStyle",
+           arg(ref<NarrowWire> | ref<WideWire>));
+  EDIF_FORM(Second, "(second",
            arg(unitExponentExpr));
-  EDIF_FORM(SectionRule, "(section",
+  EDIF_FORM(Section, "(section",
            arg(sectionNameDefExpr) +
-           arg(ref<SectionTitleRule>) +
-           many(arg(ref<DiagramRule> | ref<SectionRule> | stringValueExpr)));
-  EDIF_FORM(SectionTitleRule, "(sectionTitle",
+           arg(ref<SectionTitle>) +
+           many(arg(ref<Diagram> | ref<Section> | stringValueExpr)));
+  EDIF_FORM(SectionTitle, "(sectionTitle",
            arg(stringTokenExpr));
-  EDIF_FORM(SequenceRule, "(sequence",
+  EDIF_FORM(Sequence, "(sequence",
            arg(fromIntegerExpr) +
            arg(toIntegerExpr) +
-           option(arg(ref<StepRule>)));
-  EDIF_FORM(SetAngleRule, "(setAngle",
-           arg(ref<UnitRefRule>));
-  EDIF_FORM(SetCapacitanceRule, "(setCapacitance",
-           arg(ref<UnitRefRule>));
-  EDIF_FORM(SetCurrentRule, "(setCurrent",
-           arg(ref<UnitRefRule>));
-  EDIF_FORM(SetDistanceRule, "(setDistance",
-           arg(ref<UnitRefRule>));
-  EDIF_FORM(SetFrequencyRule, "(setFrequency",
-           arg(ref<UnitRefRule>));
-  EDIF_FORM(SetTimeRule, "(setTime",
-           arg(ref<UnitRefRule>));
-  EDIF_FORM(SetVoltageRule, "(setVoltage",
-           arg(ref<UnitRefRule>));
-  EDIF_FORM(ShapeRule, "(shape",
-           arg(ref<CurveRule>));
-  EDIF_FORM(SiemensRule, "(siemens",
+           option(arg(ref<Step>)));
+  EDIF_FORM(SetAngle, "(setAngle",
+           arg(ref<UnitRef>));
+  EDIF_FORM(SetCapacitance, "(setCapacitance",
+           arg(ref<UnitRef>));
+  EDIF_FORM(SetCurrent, "(setCurrent",
+           arg(ref<UnitRef>));
+  EDIF_FORM(SetDistance, "(setDistance",
+           arg(ref<UnitRef>));
+  EDIF_FORM(SetFrequency, "(setFrequency",
+           arg(ref<UnitRef>));
+  EDIF_FORM(SetTime, "(setTime",
+           arg(ref<UnitRef>));
+  EDIF_FORM(SetVoltage, "(setVoltage",
+           arg(ref<UnitRef>));
+  EDIF_FORM(Shape, "(shape",
+           arg(ref<Curve>));
+  EDIF_FORM(Siemens, "(siemens",
            arg(unitExponentExpr));
-  EDIF_FORM(SignalRule, "(signal",
+  EDIF_FORM(Signal, "(signal",
            arg(signalNameDefExpr) +
-           arg(ref<SignalJoinedRule>) +
-           many(arg(ref<ConnectivityTagGeneratorRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<SignalWidthRule>)));
-  EDIF_FORM(SignalAnnotateRule, "(signalAnnotate",
+           arg(ref<SignalJoined>) +
+           many(arg(ref<ConnectivityTagGenerator> | ref<NameInformation> | ref<Property> | ref<SignalWidth>)));
+  EDIF_FORM(SignalAnnotate, "(signalAnnotate",
            arg(extendSignalDefExpr | extendSignalMemberDefExpr) +
-           many(arg(ref<CommentRule> | ref<PropertyRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SignalGroupRule, "(signalGroup",
+           many(arg(ref<Comment> | ref<Property> | ref<PropertyOverride>)));
+  EDIF_FORM(SignalGroup, "(signalGroup",
            arg(signalGroupNameDefExpr) +
-           arg(ref<SignalListRule>) +
-           many(arg(ref<PropertyRule> | ref<NameInformationRule>)));
-  EDIF_FORM(SignalGroupAnnotateRule, "(signalGroupAnnotate",
+           arg(ref<SignalList>) +
+           many(arg(ref<Property> | ref<NameInformation>)));
+  EDIF_FORM(SignalGroupAnnotate, "(signalGroupAnnotate",
            arg(extendSignalGroupDefExpr) +
-           many(arg(ref<CommentRule> | ref<PropertyRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(SignalGroupNameCaseSensitiveRule, "(signalGroupNameCaseSensitive",
+           many(arg(ref<Comment> | ref<Property> | ref<PropertyOverride>)));
+  EDIF_FORM(SignalGroupNameCaseSensitive, "(signalGroupNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(SignalGroupRefRule, "(signalGroupRef",
+  EDIF_FORM(SignalGroupRef, "(signalGroupRef",
            arg(signalGroupNameRefExpr));
-  EDIF_FORM0(SignalIndexValueRule, "(signalIndexValue");
-  EDIF_FORM(SignalJoinedRule, "(signalJoined",
-           many(arg(ref<GlobalPortRefRule> | ref<PortInstanceRefRule> | ref<PortMemberRefRule> | ref<PortRefRule>)));
-  EDIF_FORM(SignalListRule, "(signalList",
-           many(arg(ref<SignalGroupRefRule> | ref<SignalRefRule>)));
-  EDIF_FORM(SignalMemberRefRule, "(signalMemberRef",
+  EDIF_FORM0(SignalIndexValue, "(signalIndexValue");
+  EDIF_FORM(SignalJoined, "(signalJoined",
+           many(arg(ref<GlobalPortRef> | ref<PortInstanceRef> | ref<PortMemberRef> | ref<PortRef>)));
+  EDIF_FORM(SignalList, "(signalList",
+           many(arg(ref<SignalGroupRef> | ref<SignalRef>)));
+  EDIF_FORM(SignalMemberRef, "(signalMemberRef",
            arg(signalNameRefExpr) +
-           arg(ref<IndexValueRule>));
-  EDIF_FORM(SignalNameCaseSensitiveRule, "(signalNameCaseSensitive",
+           arg(ref<IndexValue>));
+  EDIF_FORM(SignalNameCaseSensitive, "(signalNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(SignalRefRule, "(signalRef",
+  EDIF_FORM(SignalRef, "(signalRef",
            arg(signalNameRefExpr));
-  EDIF_FORM(SignalWidthRule, "(signalWidth",
+  EDIF_FORM(SignalWidth, "(signalWidth",
            arg(integerExpressionExpr));
-  EDIF_FORM(StatusRule, "(status",
-           many(arg(ref<CommentRule> | ref<CopyrightRule> | ref<UserDataRule> | ref<WrittenRule>)));
-  EDIF_FORM(StepRule, "(step",
+  EDIF_FORM(Status, "(status",
+           many(arg(ref<Comment> | ref<Copyright> | ref<UserData> | ref<Written>)));
+  EDIF_FORM(Step, "(step",
            arg(integerValueExpr));
-  EDIF_FORM(StringRule, "(string",
+  EDIF_FORM(String, "(string",
            arg(stringExpressionExpr));
-  EDIF_FORM(StringConcatenateRule, "(stringConcatenate",
+  EDIF_FORM(StringConcatenate, "(stringConcatenate",
            many(arg(stringExpressionExpr)));
-  EDIF_FORM(StringConstantRule, "(stringConstant",
+  EDIF_FORM(StringConstant, "(stringConstant",
            arg(constantNameDefExpr) +
            arg(stringTokenExpr));
-  EDIF_FORM(StringConstantRefRule, "(stringConstantRef",
+  EDIF_FORM(StringConstantRef, "(stringConstantRef",
            arg(constantNameRefExpr));
-  EDIF_FORM(StringEqualRule, "(stringEqual",
+  EDIF_FORM(StringEqual, "(stringEqual",
            arg(firstStringExpressionExpr) +
            arg(secondStringExpressionExpr));
-  EDIF_FORM(StringLengthRule, "(stringLength",
+  EDIF_FORM(StringLength, "(stringLength",
            arg(stringExpressionExpr));
-  EDIF_FORM(StringParameterRule, "(stringParameter",
+  EDIF_FORM(StringParameter, "(stringParameter",
            arg(parameterNameDefExpr) +
-           many(arg(ref<NameInformationRule> | ref<StringRule>)));
-  EDIF_FORM(StringParameterAssignRule, "(stringParameterAssign",
+           many(arg(ref<NameInformation> | ref<String>)));
+  EDIF_FORM(StringParameterAssign, "(stringParameterAssign",
            arg(parameterNameRefExpr) +
            arg(stringExpressionExpr));
-  EDIF_FORM(StringParameterRefRule, "(stringParameterRef",
+  EDIF_FORM(StringParameterRef, "(stringParameterRef",
            arg(parameterNameRefExpr));
-  EDIF_FORM(StringPrefixRule, "(stringPrefix",
+  EDIF_FORM(StringPrefix, "(stringPrefix",
            arg(stringExpressionExpr) +
            arg(substringLengthExpr));
-  EDIF_FORM(StringSuffixRule, "(stringSuffix",
+  EDIF_FORM(StringSuffix, "(stringSuffix",
            arg(stringExpressionExpr) +
            arg(substringOffsetExpr));
-  EDIF_FORM(StrongRule, "(strong",
+  EDIF_FORM(Strong, "(strong",
            arg(logicNameRefExpr));
-  EDIF_FORM(SubstringRule, "(substring",
+  EDIF_FORM(Substring, "(substring",
            arg(stringExpressionExpr) +
            arg(substringLengthExpr) +
            arg(substringOffsetExpr));
-  EDIF_FORM(SymbolicLayoutUnitsRule, "(symbolicLayoutUnits",
-           many(arg(ref<SetAngleRule> | ref<SetCapacitanceRule> | ref<SetDistanceRule> | ref<SetTimeRule>)));
-  EDIF_FORM(SymbolicLayoutViewRule, "(symbolicLayoutView",
+  EDIF_FORM(SymbolicLayoutUnits, "(symbolicLayoutUnits",
+           many(arg(ref<SetAngle> | ref<SetCapacitance> | ref<SetDistance> | ref<SetTime>)));
+  EDIF_FORM(SymbolicLayoutView, "(symbolicLayoutView",
            arg(viewNameDefExpr) +
-           many(arg(ref<CommentRule> | ref<UserDataRule>)) +
-           option(arg(ref<NameInformationRule>) +
-                  many(arg(ref<CommentRule> | ref<UserDataRule>))));
-  EDIF_FORM(TechnologyRule, "(technology",
-           arg(ref<PhysicalScalingRule>) +
-           many(arg(ref<CommentRule> | ref<FigureGroupRule> | ref<LogicDefinitionsRule> | ref<UserDataRule>)));
-  EDIF_FORM(TextHeightRule, "(textHeight",
+           many(arg(ref<Comment> | ref<UserData>)) +
+           option(arg(ref<NameInformation>) +
+                  many(arg(ref<Comment> | ref<UserData>))));
+  EDIF_FORM(Technology, "(technology",
+           arg(ref<PhysicalScaling>) +
+           many(arg(ref<Comment> | ref<FigureGroup> | ref<LogicDefinitions> | ref<UserData>)));
+  EDIF_FORM(TextHeight, "(textHeight",
            arg(lengthValueExpr));
-  EDIF_FORM(TimeRule, "(time",
+  EDIF_FORM(Time, "(time",
            arg(hourNumberExpr) +
            arg(minuteNumberExpr) +
            arg(secondNumberExpr));
-  EDIF_FORM(TimeIntervalRule, "(timeInterval",
-           arg(ref<EventRule> | ref<OffsetEventRule>) +
-           arg(ref<EventRule> | ref<OffsetEventRule> | ref<DurationRule>));
-  EDIF_FORM(TimeStampRule, "(timeStamp",
-           arg(ref<DateRule>) +
-           arg(ref<TimeRule>));
-  EDIF_FORM(TimingRule, "(timing",
+  EDIF_FORM(TimeInterval, "(timeInterval",
+           arg(ref<Event> | ref<OffsetEvent>) +
+           arg(ref<Event> | ref<OffsetEvent> | ref<Duration>));
+  EDIF_FORM(TimeStamp, "(timeStamp",
+           arg(ref<Date>) +
+           arg(ref<Time>));
+  EDIF_FORM(Timing, "(timing",
            arg(timingNameDefExpr) +
            arg(derivationExpr) +
-           many(arg(ref<CommentRule> | ref<ForbiddenEventRule> | ref<PathDelayRule> | ref<PropertyRule> | ref<UserDataRule>)));
-  EDIF_FORM(TimingDisplayRule, "(timingDisplay",
+           many(arg(ref<Comment> | ref<ForbiddenEvent> | ref<PathDelay> | ref<Property> | ref<UserData>)));
+  EDIF_FORM(TimingDisplay, "(timingDisplay",
            arg(timingNameRefExpr) +
-           many(arg(ref<DisplayRule>)));
-  EDIF_FORM0(TopJustifyRule, "(topJustify");
-  EDIF_FORM(TotalPagesRule, "(totalPages",
+           many(arg(ref<Display>)));
+  EDIF_FORM0(TopJustify, "(topJustify");
+  EDIF_FORM(TotalPages, "(totalPages",
            arg(integerTokenExpr));
-  EDIF_FORM(TotalPagesDisplayRule, "(totalPagesDisplay",
-           arg(ref<AddDisplayRule> | ref<ReplaceDisplayRule> | ref<RemoveDisplayRule>));
-  EDIF_FORM(TransformRule, "(transform",
-           many(arg(ref<OriginRule> | ref<RotationRule> | ref<ScaleXRule> | ref<ScaleYRule>)));
-  EDIF_FORM(TransitionRule, "(transition",
+  EDIF_FORM(TotalPagesDisplay, "(totalPagesDisplay",
+           arg(ref<AddDisplay> | ref<ReplaceDisplay> | ref<RemoveDisplay>));
+  EDIF_FORM(Transform, "(transform",
+           many(arg(ref<Origin> | ref<Rotation> | ref<ScaleX> | ref<ScaleY>)));
+  EDIF_FORM(Transition, "(transition",
            arg(previousLogicValueExpr) +
            arg(presentLogicValueExpr));
-  EDIF_FORM0(EtrueRule, "(true");
-  EDIF_FORM0(TruncateRule, "(truncate");
-  EDIF_FORM(TypefaceRule, "(typeface",
+  EDIF_FORM0(Etrue, "(true");
+  EDIF_FORM0(Truncate, "(truncate");
+  EDIF_FORM(Typeface, "(typeface",
            arg(fontFamilyExpr) +
-           option(arg(ref<TypefaceSuffixRule>)));
-  EDIF_FORM(TypefaceSuffixRule, "(typefaceSuffix",
+           option(arg(ref<TypefaceSuffix>)));
+  EDIF_FORM(TypefaceSuffix, "(typefaceSuffix",
            arg(stringTokenExpr));
-  EDIF_FORM0(UnconfiguredRule, "(unconfigured");
-  EDIF_FORM0(UnconstrainedRule, "(unconstrained");
-  EDIF_FORM0(UndefinedRule, "(undefined");
-  EDIF_FORM(UnitRule, "(unit",
+  EDIF_FORM0(Unconfigured, "(unconfigured");
+  EDIF_FORM0(Unconstrained, "(unconstrained");
+  EDIF_FORM0(Undefined, "(undefined");
+  EDIF_FORM(Unit, "(unit",
            arg(unitNameDefExpr) +
            arg(numberOfNewUnitsExpr) +
            arg(numberOfBasicUnitsExpr) +
-           many(arg(ref<AmpereRule> | ref<CandelaRule> | ref<CelsiusRule> | ref<CoulombRule> | ref<DegreeRule> | ref<FahrenheitRule> | ref<FaradRule> | ref<HenryRule> | ref<HertzRule> | ref<JouleRule> | ref<KelvinRule> | ref<KilogramRule> | ref<MeterRule> | ref<MoleRule> | ref<OhmRule> | ref<RadianRule> | ref<SecondRule> | ref<SiemensRule> | ref<VoltRule> | ref<WattRule> | ref<WeberRule>)));
-  EDIF_FORM(UnitDefinitionsRule, "(unitDefinitions",
-           many(arg(ref<UnitRule>)));
-  EDIF_FORM(UnitRefRule, "(unitRef",
+           many(arg(ref<Ampere> | ref<Candela> | ref<Celsius> | ref<Coulomb> | ref<Degree> | ref<Fahrenheit> | ref<Farad> | ref<Henry> | ref<Hertz> | ref<Joule> | ref<Kelvin> | ref<Kilogram> | ref<Meter> | ref<Mole> | ref<Ohm> | ref<Radian> | ref<Second> | ref<Siemens> | ref<Volt> | ref<Watt> | ref<Weber>)));
+  EDIF_FORM(UnitDefinitions, "(unitDefinitions",
+           many(arg(ref<Unit>)));
+  EDIF_FORM(UnitRef, "(unitRef",
            arg(unitNameRefExpr));
-  EDIF_FORM0(UnrestrictedRule, "(unrestricted");
-  EDIF_FORM0(UnspecifiedRule, "(unspecified");
-  EDIF_FORM0(UnspecifiedDirectionPortRule, "(unspecifiedDirectionPort");
-  EDIF_FORM0(UntypedRule, "(untyped");
-  EDIF_FORM0(UnusedRule, "(unused");
-  EDIF_FORM(UsableAreaRule, "(usableArea",
-           many(arg(ref<RectangleRule>)));
-  EDIF_FORM(UserDataRule, "(userData",
+  EDIF_FORM0(Unrestricted, "(unrestricted");
+  EDIF_FORM0(Unspecified, "(unspecified");
+  EDIF_FORM0(UnspecifiedDirectionPort, "(unspecifiedDirectionPort");
+  EDIF_FORM0(Untyped, "(untyped");
+  EDIF_FORM0(Unused, "(unused");
+  EDIF_FORM(UsableArea, "(usableArea",
+           many(arg(ref<Rectangle>)));
+  EDIF_FORM(UserData, "(userData",
            arg(userDataTagExpr) +
-           many(arg(ref<IDENTIFIER> | integerTokenExpr | stringTokenExpr | ref<UserDataRule>)));
-  EDIF_FORM(VersionRule, "(version",
+           many(arg(ref<IDENTIFIER> | integerTokenExpr | stringTokenExpr | ref<UserData>)));
+  EDIF_FORM(Version, "(version",
            arg(stringValueExpr));
-  EDIF_FORM(VerticalJustificationRule, "(verticalJustification",
-           arg(ref<BottomJustifyRule> | ref<BaselineJustifyRule> | ref<MiddleJustifyRule> | ref<CaplineJustifyRule> | ref<TopJustifyRule>));
-  EDIF_FORM(ViewGroupRule, "(viewGroup",
+  EDIF_FORM(VerticalJustification, "(verticalJustification",
+           arg(ref<BottomJustify> | ref<BaselineJustify> | ref<MiddleJustify> | ref<CaplineJustify> | ref<TopJustify>));
+  EDIF_FORM(ViewGroup, "(viewGroup",
            arg(viewGroupNameDefExpr) +
-           arg(ref<ViewGroupHeaderRule>) +
-           many(arg(ref<CommentRule> | ref<UserDataRule> | ref<ViewGroupRefRule> | ref<ViewRefRule>)));
-  EDIF_FORM(ViewGroupHeaderRule, "(viewGroupHeader",
-           many(arg(ref<DocumentationRule> | ref<NameInformationRule> | ref<PropertyRule> | ref<ReasonRule>)));
-  EDIF_FORM(ViewGroupNameCaseSensitiveRule, "(viewGroupNameCaseSensitive",
+           arg(ref<ViewGroupHeader>) +
+           many(arg(ref<Comment> | ref<UserData> | ref<ViewGroupRef> | ref<ViewRef>)));
+  EDIF_FORM(ViewGroupHeader, "(viewGroupHeader",
+           many(arg(ref<Documentation> | ref<NameInformation> | ref<Property> | ref<Reason>)));
+  EDIF_FORM(ViewGroupNameCaseSensitive, "(viewGroupNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(ViewGroupRefRule, "(viewGroupRef",
+  EDIF_FORM(ViewGroupRef, "(viewGroupRef",
            arg(viewGroupNameRefExpr));
-  EDIF_FORM(ViewNameCaseSensitiveRule, "(viewNameCaseSensitive",
+  EDIF_FORM(ViewNameCaseSensitive, "(viewNameCaseSensitive",
            arg(booleanTokenExpr));
-  EDIF_FORM(ViewNameDisplayRule, "(viewNameDisplay",
-           many(arg(ref<DisplayRule> | ref<DisplayNameOverrideRule>)));
-  EDIF_FORM(ViewPropertyDisplayRule, "(viewPropertyDisplay",
+  EDIF_FORM(ViewNameDisplay, "(viewNameDisplay",
+           many(arg(ref<Display> | ref<DisplayNameOverride>)));
+  EDIF_FORM(ViewPropertyDisplay, "(viewPropertyDisplay",
            arg(propertyNameRefExpr) +
-           many(arg(ref<DisplayRule> | ref<PropertyNameDisplayRule>)));
-  EDIF_FORM(ViewPropertyOverrideRule, "(viewPropertyOverride",
+           many(arg(ref<Display> | ref<PropertyNameDisplay>)));
+  EDIF_FORM(ViewPropertyOverride, "(viewPropertyOverride",
            arg(propertyNameRefExpr) +
-           arg(typedValueExpr | ref<UntypedRule>) +
-           many(arg(ref<CommentRule> | ref<FixedRule> | ref<PropertyOverrideRule>)));
-  EDIF_FORM(ViewRefRule, "(viewRef",
+           arg(typedValueExpr | ref<Untyped>) +
+           many(arg(ref<Comment> | ref<Fixed> | ref<PropertyOverride>)));
+  EDIF_FORM(ViewRef, "(viewRef",
            arg(viewNameRefExpr) +
-           option(arg(ref<ClusterRefRule>)));
-  EDIF_FORM(VisibleRule, "(visible",
+           option(arg(ref<ClusterRef>)));
+  EDIF_FORM(Visible, "(visible",
            arg(booleanValueExpr));
-  EDIF_FORM(VoltRule, "(volt",
+  EDIF_FORM(Volt, "(volt",
            arg(unitExponentExpr));
-  EDIF_FORM(VoltageMapRule, "(voltageMap",
+  EDIF_FORM(VoltageMap, "(voltageMap",
            arg(voltageValueExpr));
-  EDIF_FORM(WattRule, "(watt",
+  EDIF_FORM(Watt, "(watt",
            arg(unitExponentExpr));
-  EDIF_FORM(WeakRule, "(weak",
+  EDIF_FORM(Weak, "(weak",
            arg(logicNameRefExpr));
-  EDIF_FORM(WeakJoinedRule, "(weakJoined",
-           many(arg(ref<InterfaceJoinedRule> | ref<PortRefRule>)));
-  EDIF_FORM(WeberRule, "(weber",
+  EDIF_FORM(WeakJoined, "(weakJoined",
+           many(arg(ref<InterfaceJoined> | ref<PortRef>)));
+  EDIF_FORM(Weber, "(weber",
            arg(unitExponentExpr));
-  EDIF_FORM0(WidePortRule, "(widePort");
-  EDIF_FORM0(WideWireRule, "(wideWire");
-  EDIF_FORM(WrittenRule, "(written",
-           arg(ref<TimeStampRule>) +
-           many(arg(ref<AuthorRule> | ref<CommentRule> | ref<DataOriginRule> | ref<ProgramRule> | ref<UserDataRule>)));
-  EDIF_FORM(XorRule, "(xor",
+  EDIF_FORM0(WidePort, "(widePort");
+  EDIF_FORM0(WideWire, "(wideWire");
+  EDIF_FORM(Written, "(written",
+           arg(ref<TimeStamp>) +
+           many(arg(ref<Author> | ref<Comment> | ref<DataOrigin> | ref<Program> | ref<UserData>)));
+  EDIF_FORM(Xor, "(xor",
            many(arg(booleanExpressionExpr)));
-  EDIF_FORM(YearRule, "(year",
+  EDIF_FORM(Year, "(year",
            many(arg(yearNumberExpr)));
 
 #undef EDIF_FORM0
 #undef EDIF_FORM
 
   // goal: edif EOF -- the whole document is one (edif ...) form.
-  struct GoalRule : rule<ref<EdifRule> + eof> {};
+  struct Goal : rule<ref<Edif> + eof> {};
 
-  using entry = GoalRule;
-  using ignore = WS;
+  using entry = Goal;
+  using ignored = WS;
 };
 
 }  // namespace edif300

@@ -1,3 +1,4 @@
+#include "native_followup_cases.hpp"
 // The smoke test of the language: every corpus document parses clean, the
 // constructs the corpus never exercises parse clean too, and one document is
 // read back field by field to catch a converter that silently mismaps its
@@ -67,6 +68,7 @@ int main() {
   const auto language = cursiv::create_language<
       vaxscan::VaxscanCoreServices, vaxscan::VaxscanSharedCoreServices,
       vaxscan::install_core_module>();
+  if (!vaxscan_followup::run(language)) return 1;
 
   for (const char* const name : kExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;

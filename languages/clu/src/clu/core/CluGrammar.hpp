@@ -8,70 +8,66 @@
 
 namespace clu {
 
-inline constexpr auto strip_quotes = [](std::string_view t) {
-  return t.substr(1, t.size() - 2);
+inline constexpr auto strip_quotes = [](std::string_view t,
+                                        std::pmr::memory_resource* memory) {
+  t = t.substr(1, t.size() - 2);
+  if (t.find('\\') == t.npos) return t;
+  const auto room = cursiv::text_room(memory, t.size());
+  std::size_t n = 0;
+  for (std::size_t i = 0; i < t.size(); ++i) {
+    if (t[i] != '\\') { room[n++] = t[i]; continue; }
+    char c = t[++i];
+    if (c >= '0' && c <= '7') {
+      unsigned value = c - '0';
+      value = value * 8 + t[++i] - '0';
+      value = value * 8 + t[++i] - '0';
+      room[n++] = static_cast<char>(value);
+      continue;
+    }
+    if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+    switch (c) {
+      case 'n': room[n++] = '\n'; break;
+      case 't': room[n++] = '\t'; break;
+      case 'p': room[n++] = '\f'; break;
+      case 'b': room[n++] = '\b'; break;
+      case 'r': room[n++] = '\r'; break;
+      case 'v': room[n++] = '\v'; break;
+      default: room[n++] = c; break;
+    }
+  }
+  return std::string_view(room.data(), n);
 };
-using Unquoted = cursiv::text_conv<strip_quotes>;
 
 struct Clu : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
+  struct WS : terminal<some(cr<R"( \t\r\n\v\f)">)> {};
   struct COMMENT : terminal<lit<"%"> + many(cr<R"(^\r\n)">)> {};
+  static constexpr auto Reserved =
+      ikw<"any"> | ikw<"array"> | ikw<"begin"> | ikw<"bool"> | ikw<"break"> |
+      ikw<"cand"> | ikw<"char"> | ikw<"cluster"> | ikw<"continue"> | ikw<"cor"> |
+      ikw<"cvt"> | ikw<"do"> | ikw<"down"> | ikw<"else"> | ikw<"elseif"> |
+      ikw<"end"> | ikw<"except"> | ikw<"exit"> | ikw<"false"> | ikw<"for"> |
+      ikw<"force"> | ikw<"has"> | ikw<"if"> | ikw<"in"> | ikw<"int"> |
+      ikw<"is"> | ikw<"iter"> | ikw<"itertype"> | ikw<"nil"> | ikw<"null"> |
+      ikw<"oneof"> | ikw<"others"> | ikw<"own"> | ikw<"proc"> | ikw<"proctype"> |
+      ikw<"real"> | ikw<"record"> | ikw<"rep"> | ikw<"resignal"> | ikw<"return"> |
+      ikw<"returns"> | ikw<"sequence"> | ikw<"signal"> | ikw<"signals"> |
+      ikw<"string"> | ikw<"struct"> | ikw<"tag"> | ikw<"tagcase"> | ikw<"then"> |
+      ikw<"true"> | ikw<"type"> | ikw<"up"> | ikw<"variant"> | ikw<"when"> |
+      ikw<"where"> | ikw<"while"> | ikw<"yield"> | ikw<"yields">;
+  struct ID : terminal<!Reserved + cr<"a-zA-Z_"> + many(w)> {};
+  struct INTLIT : terminal<as<std::int64_t>(some(d))> {};
+  static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + some(d);
+  struct FLOATLIT : terminal<as<double>(
+      ((some(d) + lit<"."> + many(d)) | (lit<"."> + some(d))) +
+          option(Exponent) | (some(d) + Exponent))> {};
+  static constexpr auto Escape = lit<"\\"> +
+      (cr<R"(nNtTpPbBrRvV'"\\)"> | (cr<"0-3"> + repeat<2>(cr<"0-7">)));
+  struct STRLIT : terminal<as<strip_quotes>(
+      lit<"\""> + many(Escape | cr<R"(\x20-\x21\x23-\x5b\x5d-\x7e)">) + lit<"\"">)> {};
+  struct CHARLIT : terminal<as<strip_quotes>(
+      lit<"'"> + (Escape | cr<R"(\x20-\x26\x28-\x5b\x5d-\x7e)">) + lit<"'">)> {};
 
-  struct ID : terminal<cr<"a-zA-Z"> + many(w)> {};
-  struct INTLIT : terminal<some(d), std::int64_t> {};
-  struct FLOATLIT : terminal<some(d) + lit<"."> + many(d), double> {};
-  struct STRLIT : terminal<lit<"\""> + many(cr<R"(^")">) + lit<"\"">, Unquoted> {};
-
-  // One token per operator, denoting its own constant. Longest spelling
-  // first within a family so `~<=` never lexes as `~<` then `=`.
-  struct OpPower : terminal<lit<"**">, value<ast::BinOp::power>> {};
-  struct OpIntDiv : terminal<lit<"//">, value<ast::BinOp::intdiv>> {};
-  struct OpDiv : terminal<lit<"/">, value<ast::BinOp::div>> {};
-  struct OpMul : terminal<lit<"*">, value<ast::BinOp::mul>> {};
-  struct OpConcat : terminal<lit<"||">, value<ast::BinOp::concat>> {};
-  struct OpAdd : terminal<lit<"+">, value<ast::BinOp::add>> {};
-  struct OpSub : terminal<lit<"-">, value<ast::BinOp::sub>> {};
-  struct OpNle : terminal<lit<"~<=">, value<ast::BinOp::nle>> {};
-  struct OpNlt : terminal<lit<"~<">, value<ast::BinOp::nlt>> {};
-  struct OpNeq : terminal<lit<"~=">, value<ast::BinOp::neq>> {};
-  struct OpNge : terminal<lit<"~>=">, value<ast::BinOp::nge>> {};
-  struct OpNgt : terminal<lit<"~>">, value<ast::BinOp::ngt>> {};
-  struct OpLe : terminal<lit<"<=">, value<ast::BinOp::le>> {};
-  struct OpLt : terminal<lit<"<">, value<ast::BinOp::lt>> {};
-  struct OpEq : terminal<lit<"=">, value<ast::BinOp::eq>> {};
-  struct OpGe : terminal<lit<">=">, value<ast::BinOp::ge>> {};
-  struct OpGt : terminal<lit<">">, value<ast::BinOp::gt>> {};
-  struct OpAnd : terminal<lit<"&">, value<ast::BinOp::and_>> {};
-  struct OpCand : terminal<kw<"cand">, value<ast::BinOp::cand>> {};
-  struct OpOr : terminal<lit<"|">, value<ast::BinOp::or_>> {};
-  struct OpCor : terminal<kw<"cor">, value<ast::BinOp::cor>> {};
-
-  struct OpNot : terminal<lit<"~">, value<ast::UnOp::not_>> {};
-  struct OpNeg : terminal<lit<"-">, value<ast::UnOp::neg>> {};
-
-  struct KwUp : terminal<kw<"up">, value<ast::UpDown::up>> {};
-  struct KwDown : terminal<kw<"down">, value<ast::UpDown::down>> {};
-
-  struct KwNull : terminal<kw<"null">, value<ast::Builtin::null_>> {};
-  struct KwBool : terminal<kw<"bool">, value<ast::Builtin::bool_>> {};
-  struct KwInt : terminal<kw<"int">, value<ast::Builtin::int_>> {};
-  struct KwReal : terminal<kw<"real">, value<ast::Builtin::real_>> {};
-  struct KwChar : terminal<kw<"char">, value<ast::Builtin::char_>> {};
-  struct KwString : terminal<kw<"string">, value<ast::Builtin::string_>> {};
-  struct KwAny : terminal<kw<"any">, value<ast::Builtin::any_>> {};
-  struct KwRep : terminal<kw<"rep">, value<ast::Builtin::rep_>> {};
-  struct KwCvt : terminal<kw<"cvt">, value<ast::Builtin::cvt_>> {};
-
-  struct KwRecord : terminal<kw<"record">, value<ast::RecordKind::record_>> {};
-  struct KwStruct : terminal<kw<"struct">, value<ast::RecordKind::struct_>> {};
-  struct KwOneof : terminal<kw<"oneof">, value<ast::RecordKind::oneof_>> {};
-  struct KwVariant
-      : terminal<kw<"variant">, value<ast::RecordKind::variant_>> {};
-
-  struct KwProctype
-      : terminal<kw<"proctype">, value<ast::RoutineTypeKind::proc_>> {};
-  struct KwItertype
-      : terminal<kw<"itertype">, value<ast::RoutineTypeKind::iter_>> {};
+  // Longer operator spellings take precedence in the lexer.
 
   // ---- forward declarations: the grammar is mutually recursive ----
   struct Expression;
@@ -79,57 +75,59 @@ struct Clu : cursiv::GrammarSpec {
   struct Primary;
   struct AtomBase;
   struct Invocation;
-  struct FieldRule;
-  struct TypeSpecRule;
-  struct FieldSpecRule;
-  struct DeclRule;
-  struct ParamRule;
-  struct ExceptionRule;
-  struct EquateRule;
-  struct TypeSetRule;
-  struct OperDeclRule;
-  struct RestrictionRule;
-  struct BodyRule;
-  struct StatementRule;
-  struct WhenHandlerRule;
-  struct OthersHandlerRule;
-  struct OwnVarRule;
-  struct RoutineRule;
-  struct ClusterRule;
+  struct Field;
+  struct TypeSpec;
+  struct FieldSpec;
+  struct Decl;
+  struct Param;
+  struct Exception;
+  struct Equate;
+  struct TypeSet;
+  struct OperDecl;
+  struct Restriction;
+  struct Body;
+  struct Statement;
+  struct WhenHandler;
+  struct OthersHandler;
+  struct OwnVar;
+  struct Routine;
+  struct Cluster;
 
   // ---- expressions ----
 
-  struct FieldRule
+  struct Field
       : rule<create<ast::Field> +
              some(append<&ast::Field::names>(ref<ID>), lit<",">) + lit<":"> +
              assign<&ast::Field::value>(ref<Expression>)> {};
 
-  static constexpr auto ConstantItem = ref<Expression> | ref<TypeSpecRule>;
+  static constexpr auto ConstantItem = ref<Expression> | ref<TypeSpec>;
 
   // `idn` alone, or the parameterized `idn[c1, c2]`; the brackets are
   // required here, and at every other constant-list site below.
   struct AtomBase
-      : rule<create<ast::NilLit>(kw<"nil">)  //
+      : rule<create<ast::NilLit>(ikw<"nil">)  //
              | create<ast::BoolLit>(flag<&ast::BoolLit::value>(
-                                         kw<"true">) |
-                                     kw<"false">)  //
+                                         ikw<"true">) |
+                                     ikw<"false">)  //
              | create<ast::IntLit>(assign<&ast::IntLit::value>(ref<INTLIT>))  //
              | create<ast::RealLit>(
                    assign<&ast::RealLit::value>(ref<FLOATLIT>))  //
              | create<ast::StringLit>(
                    assign<&ast::StringLit::value>(ref<STRLIT>))  //
+             | create<ast::CharLit>(
+                   assign<&ast::CharLit::value>(ref<CHARLIT>))
              | create<ast::GroupedExpr>(
                    lit<"("> + assign<&ast::GroupedExpr::inner>(ref<Expression>) +
                    lit<")">)  //
              | create<ast::TypeRecordLit>(
-                   assign<&ast::TypeRecordLit::type>(ref<TypeSpecRule>) +
+                   assign<&ast::TypeRecordLit::type>(ref<TypeSpec>) +
                    lit<"$"> + lit<"{"> +
                    option(some(append<&ast::TypeRecordLit::fields>(
-                                   ref<FieldRule>),
+                                   ref<Field>),
                                lit<",">)) +
                    lit<"}">)  //
              | create<ast::TypeSeqLit>(
-                   assign<&ast::TypeSeqLit::type>(ref<TypeSpecRule>) +
+                   assign<&ast::TypeSeqLit::type>(ref<TypeSpec>) +
                    lit<"$"> + lit<"["> +
                    option(assign<&ast::TypeSeqLit::start>(ref<Expression>) +
                           lit<":">) +
@@ -137,7 +135,7 @@ struct Clu : cursiv::GrammarSpec {
                                lit<",">)) +
                    lit<"]">)  //
              | create<ast::TypeOpRef>(
-                   assign<&ast::TypeOpRef::type>(ref<TypeSpecRule>) + lit<"$"> +
+                   assign<&ast::TypeOpRef::type>(ref<TypeSpec>) + lit<"$"> +
                    assign<&ast::TypeOpRef::name>(ref<ID>) +
                    option(lit<"["> +
                           option(some(append<&ast::TypeOpRef::args>(
@@ -145,10 +143,10 @@ struct Clu : cursiv::GrammarSpec {
                                       lit<",">)) +
                           lit<"]">))  //
              | create<ast::ForceExpr>(
-                   kw<"force"> +
-                   option(assign<&ast::ForceExpr::type>(ref<TypeSpecRule>)))  //
+                   ikw<"force"> + lit<"["> +
+                   assign<&ast::ForceExpr::type>(ref<TypeSpec>) + lit<"]">)  //
              | create<ast::UpDownExpr>(
-                   assign<&ast::UpDownExpr::kind>(ref<KwUp> | ref<KwDown>) +
+                   assign<&ast::UpDownExpr::kind>(as<ast::UpDown::up>(ikw<"up">) | as<ast::UpDown::down>(ikw<"down">)) +
                    lit<"("> +
                    assign<&ast::UpDownExpr::operand>(ref<Expression>) +
                    lit<")">)  //
@@ -180,72 +178,68 @@ struct Clu : cursiv::GrammarSpec {
 
   struct Unary
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<OpNot> | ref<OpNeg>) +
+                 assign<&ast::UnaryExpr::op>(as<ast::UnOp::not_>(lit<"~">) | as<ast::UnOp::neg>(lit<"-">)) +
                  assign<&ast::UnaryExpr::operand>(ref<Unary>))  //
              | ref<Primary>> {};
 
   struct Expression
-      : infix<Unary, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (right(ref<OpPower>) >>
-               left(ref<OpIntDiv> | ref<OpDiv> | ref<OpMul>) >>
-               left(ref<OpConcat> | ref<OpAdd> | ref<OpSub>) >>
-               left(ref<OpNle> | ref<OpNlt> | ref<OpNeq> | ref<OpNge> |
-                    ref<OpNgt> | ref<OpLe> | ref<OpLt> | ref<OpEq> | ref<OpGe> |
-                    ref<OpGt>) >>
-               left(ref<OpAnd> | ref<OpCand>) >>
-               left(ref<OpOr> | ref<OpCor>))> {};
+      : infix<Unary, ast::BinaryExpr,
+              levels(right(as<ast::BinOp::power>(lit<"**">)),
+                     left(as<ast::BinOp::intdiv>(lit<"//">) | as<ast::BinOp::div>(lit<"/">) | as<ast::BinOp::mul>(lit<"*">)),
+                     left(as<ast::BinOp::concat>(lit<"||">) | as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::sub>(lit<"-">)),
+                     left(as<ast::BinOp::nle>(lit<"~<=">) | as<ast::BinOp::nlt>(lit<"~<">) | as<ast::BinOp::neq>(lit<"~=">) | as<ast::BinOp::nge>(lit<"~>=">) |
+                          as<ast::BinOp::ngt>(lit<"~>">) | as<ast::BinOp::le>(lit<"<=">) | as<ast::BinOp::lt>(lit<"<">) | as<ast::BinOp::eq>(lit<"=">) |
+                          as<ast::BinOp::ge>(lit<">=">) | as<ast::BinOp::gt>(lit<">">)),
+                     left(as<ast::BinOp::and_>(lit<"&">) | as<ast::BinOp::cand>(ikw<"cand">)),
+                     left(as<ast::BinOp::or_>(lit<"|">) | as<ast::BinOp::cor>(ikw<"cor">)))> {};
 
-  // A call with at least one argument: `for`, `own`, and a bare-statement
-  // call all require this shape rather than any `Primary`.
+  // A call (including an empty argument list), rather than any Primary.
   struct Invocation
       : rule<create<ast::Call>(
                  assign<&ast::Call::callee>(ref<Primary>) + lit<"("> +
-                 some(append<&ast::Call::args>(ref<Expression>), lit<",">) +
+                 many(append<&ast::Call::args>(ref<Expression>), lit<",">) +
                  lit<")">)> {};
 
   // ---- type specs ----
 
-  struct FieldSpecRule
+  struct FieldSpec
       : rule<create<ast::FieldSpec> +
              some(append<&ast::FieldSpec::names>(ref<ID>), lit<",">) +
-             lit<":"> + assign<&ast::FieldSpec::type>(ref<TypeSpecRule>)> {};
+             lit<":"> + assign<&ast::FieldSpec::type>(ref<TypeSpec>)> {};
 
-  struct TypeSpecRule
+  struct TypeSpec
       : rule<create<ast::BuiltinTypeSpec>(assign<&ast::BuiltinTypeSpec::kind>(
-                 ref<KwNull> | ref<KwBool> | ref<KwInt> | ref<KwReal> |
-                 ref<KwChar> | ref<KwString> | ref<KwAny> | ref<KwRep> |
-                 ref<KwCvt>))  //
-             | create<ast::ArrayTypeSpec>(kw<"array">)  //
+                 as<ast::Builtin::null_>(ikw<"null">) | as<ast::Builtin::bool_>(ikw<"bool">) | as<ast::Builtin::int_>(ikw<"int">) | as<ast::Builtin::real_>(ikw<"real">) |
+                 as<ast::Builtin::char_>(ikw<"char">) | as<ast::Builtin::string_>(ikw<"string">) | as<ast::Builtin::any_>(ikw<"any">) | as<ast::Builtin::rep_>(ikw<"rep">) |
+                 as<ast::Builtin::cvt_>(ikw<"cvt">) | as<ast::Builtin::type_>(ikw<"type">)))  //
+             | create<ast::ArrayTypeSpec>(ikw<"array"> + lit<"["> +
+                   assign<&ast::ArrayTypeSpec::element>(ref<TypeSpec>) + lit<"]">)  //
              | create<ast::SequenceTypeSpec>(
-                   kw<"sequence"> +
-                   option(assign<&ast::SequenceTypeSpec::element>(
-                       ref<TypeSpecRule>)))  //
+                   ikw<"sequence"> + lit<"["> +
+                   assign<&ast::SequenceTypeSpec::element>(ref<TypeSpec>) + lit<"]">)  //
              | create<ast::RecordTypeSpec>(
                    assign<&ast::RecordTypeSpec::kind>(
-                       ref<KwRecord> | ref<KwStruct> | ref<KwOneof> |
-                       ref<KwVariant>) +
-                   option(lit<"["> +
-                          option(some(append<&ast::RecordTypeSpec::fields>(
-                                          ref<FieldSpecRule>),
-                                      lit<",">)) +
-                          lit<"]">))  //
+                       as<ast::RecordKind::record_>(ikw<"record">) | as<ast::RecordKind::struct_>(ikw<"struct">) | as<ast::RecordKind::oneof_>(ikw<"oneof">) |
+                       as<ast::RecordKind::variant_>(ikw<"variant">)) +
+                   lit<"["> +
+                   some(append<&ast::RecordTypeSpec::fields>(ref<FieldSpec>),
+                        lit<",">) + lit<"]">)  //
              | create<ast::RoutineTypeSpec>(
                    assign<&ast::RoutineTypeSpec::kind>(
-                       ref<KwProctype> | ref<KwItertype>) +
+                       as<ast::RoutineTypeKind::proc_>(ikw<"proctype">) | as<ast::RoutineTypeKind::iter_>(ikw<"itertype">)) +
                    lit<"("> +
                    option(some(append<&ast::RoutineTypeSpec::params>(
-                                   ref<TypeSpecRule>),
+                                   ref<TypeSpec>),
                                lit<",">)) +
                    lit<")"> +
-                   option((kw<"returns"> | kw<"yields">) + lit<"("> +
+                   option((ikw<"returns"> | ikw<"yields">) + lit<"("> +
                           some(append<&ast::RoutineTypeSpec::results>(
-                                   ref<TypeSpecRule>),
+                                   ref<TypeSpec>),
                                lit<",">) +
                           lit<")">) +
-                   option(kw<"signals"> + lit<"("> +
+                   option(ikw<"signals"> + lit<"("> +
                           some(append<&ast::RoutineTypeSpec::signals>(
-                                   ref<ExceptionRule>),
+                                   ref<Exception>),
                                lit<",">) +
                           lit<")">))  //
              | create<ast::NamedTypeSpec>(
@@ -258,113 +252,112 @@ struct Clu : cursiv::GrammarSpec {
 
   // ---- shared shapes ----
 
-  struct DeclRule
+  struct Decl
       : rule<create<ast::Decl> +
              some(append<&ast::Decl::names>(ref<ID>), lit<",">) + lit<":"> +
-             assign<&ast::Decl::type>(ref<TypeSpecRule>)> {};
+             assign<&ast::Decl::type>(ref<TypeSpec>)> {};
 
-  struct ParamRule
+  struct Param
       : rule<create<ast::Param> +
              some(append<&ast::Param::names>(ref<ID>), lit<",">) + lit<":"> +
-             (flag<&ast::Param::isTypeParam>(kw<"type">) |
-              assign<&ast::Param::type>(ref<TypeSpecRule>))> {};
+             (flag<&ast::Param::isTypeParam>(ikw<"type">) |
+              assign<&ast::Param::type>(ref<TypeSpec>))> {};
 
   // `name [(type_spec, ...)]`. The parens around the types are required:
   // `signals` is itself a comma-separated list of these, so an unparenthesized
   // reading is ambiguous about which comma closes which list.
-  struct ExceptionRule
+  struct Exception
       : rule<create<ast::Exception> + assign<&ast::Exception::name>(ref<ID>) +
              option(lit<"("> +
-                    some(append<&ast::Exception::types>(ref<TypeSpecRule>),
+                    some(append<&ast::Exception::types>(ref<TypeSpec>),
                          lit<",">) +
                     lit<")">)> {};
 
-  struct EquateRule
+  struct Equate
       : rule<create<ast::Equate> + assign<&ast::Equate::name>(ref<ID>) +
              lit<"="> +
-             assign<&ast::Equate::value>(ref<Expression> | ref<TypeSpecRule> |
-                                          ref<TypeSetRule>)> {};
+             assign<&ast::Equate::value>(ref<Expression> | ref<TypeSpec> |
+                                          ref<TypeSet>) + option(lit<";">)> {};
 
-  struct OpNameRule
+  struct OpName
       : rule<create<ast::OpName> + assign<&ast::OpName::name>(ref<ID>) +
-             lit<"["> +
-             option(some(append<&ast::OpName::args>(ConstantItem), lit<",">)) +
-             lit<"]">> {};
+             option(lit<"["> +
+                    some(append<&ast::OpName::args>(ConstantItem), lit<",">) +
+                    lit<"]">)> {};
 
-  struct OperDeclRule
+  struct OperDecl
       : rule<create<ast::OperDecl> +
-             some(append<&ast::OperDecl::names>(ref<OpNameRule>), lit<",">) +
-             lit<":"> + assign<&ast::OperDecl::type>(ref<TypeSpecRule>)> {};
+             some(append<&ast::OperDecl::names>(ref<OpName>), lit<",">) +
+             lit<":"> + assign<&ast::OperDecl::type>(ref<TypeSpec>)> {};
 
-  struct TypeSetItemRule
-      : rule<create<ast::TypeSetItem> +
-             assign<&ast::TypeSetItem::name>(ref<ID>) +
-             option(kw<"has"> +
-                    some(append<&ast::TypeSetItem::ops>(ref<OperDeclRule>),
-                         lit<",">) +
-                    many(append<&ast::TypeSetItem::equates>(ref<EquateRule>)))> {
-  };
+  struct TypeSetItem
+      : rule<assign<&ast::TypeSetItem::name>(ref<ID>) + ikw<"has"> +
+             some(append<&ast::TypeSetItem::ops>(ref<OperDecl>), lit<",">) +
+             option(lit<";">) +
+             many(append<&ast::TypeSetItem::equates>(ref<Equate>))> {};
 
-  struct TypeSetRule
-      : rule<create<ast::TypeSet> +
-             many(append<&ast::TypeSet::items>(ref<TypeSetItemRule>))> {};
+  struct TypeSet
+      : rule<lit<"{"> + assign<&ast::TypeSet::name>(ref<ID>) + lit<"|"> +
+             append<&ast::TypeSet::items>(ref<TypeSetItem>) + lit<"}">> {};
 
-  struct RestrictionRule
+  struct Restriction
       : rule<create<ast::Restriction> +
              assign<&ast::Restriction::name>(ref<ID>) +
-             ((kw<"has"> +
-                  some(append<&ast::Restriction::hasOps>(ref<OperDeclRule>),
+             ((ikw<"has"> +
+                  some(append<&ast::Restriction::hasOps>(ref<OperDecl>),
                        lit<",">))  //
-              | (kw<"in"> +
-                    assign<&ast::Restriction::inTypeSet>(ref<TypeSetRule>)))> {};
+              | (ikw<"in"> +
+                    (assign<&ast::Restriction::inTypeSet>(ref<TypeSet>) |
+                     assign<&ast::Restriction::inName>(ref<ID>))))> {};
 
-  struct BodyRule
+  struct Body
       : rule<create<ast::Body> +
-             many(append<&ast::Body::equates>(ref<EquateRule>)) +
-             many(append<&ast::Body::statements>(ref<StatementRule>))> {};
+             many(append<&ast::Body::equates>(ref<Equate>)) +
+             many(append<&ast::Body::statements>(ref<Statement>))> {};
 
   // ---- statements ----
 
-  struct ElseIfRule
-      : rule<create<ast::ElseIf> + kw<"elseif"> +
-             assign<&ast::ElseIf::cond>(ref<Expression>) + kw<"then"> +
-             assign<&ast::ElseIf::body>(ref<BodyRule>)> {};
+  struct ElseIf
+      : rule<create<ast::ElseIf> + ikw<"elseif"> +
+             assign<&ast::ElseIf::cond>(ref<Expression>) + ikw<"then"> +
+             assign<&ast::ElseIf::body>(ref<Body>)> {};
 
-  struct TagArmRule
-      : rule<create<ast::TagArm> + kw<"tag"> +
+  struct TagArm
+      : rule<create<ast::TagArm> + ikw<"tag"> +
              some(append<&ast::TagArm::tags>(ref<ID>), lit<",">) +
              option(lit<"("> + assign<&ast::TagArm::bindName>(ref<ID>) +
-                    lit<":"> + assign<&ast::TagArm::bindType>(ref<TypeSpecRule>) +
+                    lit<":"> + assign<&ast::TagArm::bindType>(ref<TypeSpec>) +
                     lit<")">) +
-             lit<":"> + assign<&ast::TagArm::body>(ref<BodyRule>)> {};
+             lit<":"> + assign<&ast::TagArm::body>(ref<Body>)> {};
 
-  struct WhenHandlerRule
-      : rule<create<ast::WhenHandler> + kw<"when"> +
+  struct WhenHandler
+      : rule<create<ast::WhenHandler> + ikw<"when"> +
              some(append<&ast::WhenHandler::names>(ref<ID>), lit<",">) +
              (flag<&ast::WhenHandler::star>(lit<"("> + lit<"*"> +
                                                   lit<")">)  //
-              | option(some(append<&ast::WhenHandler::decls>(ref<DeclRule>),
-                            lit<",">))) +
-             lit<":"> + assign<&ast::WhenHandler::body>(ref<BodyRule>)> {};
+              | option(lit<"("> +
+                       some(append<&ast::WhenHandler::decls>(ref<Decl>), lit<",">) +
+                       lit<")">)) +
+             lit<":"> + assign<&ast::WhenHandler::body>(ref<Body>)> {};
 
-  struct OthersHandlerRule
-      : rule<create<ast::OthersHandler> + kw<"others"> +
+  struct OthersHandler
+      : rule<create<ast::OthersHandler> + ikw<"others"> +
              option(lit<"("> + assign<&ast::OthersHandler::bindName>(ref<ID>) +
                     lit<":"> +
-                    assign<&ast::OthersHandler::bindType>(ref<TypeSpecRule>) +
+                    assign<&ast::OthersHandler::bindType>(ref<TypeSpec>) +
                     lit<")">) +
-             lit<":"> + assign<&ast::OthersHandler::body>(ref<BodyRule>)> {};
+             lit<":"> + assign<&ast::OthersHandler::body>(ref<Body>)> {};
 
   struct StatementBase
       : rule<
-            create<ast::DeclStmt>(assign<&ast::DeclStmt::decl>(ref<DeclRule>))  //
+            create<ast::DeclStmt>(assign<&ast::DeclStmt::decl>(ref<Decl>))  //
             | create<ast::VarInitStmt>(
                   assign<&ast::VarInitStmt::name>(ref<ID>) + lit<":"> +
-                  assign<&ast::VarInitStmt::type>(ref<TypeSpecRule>) +
+                  assign<&ast::VarInitStmt::type>(ref<TypeSpec>) +
                   lit<":="> +
                   assign<&ast::VarInitStmt::value>(ref<Expression>))  //
             | create<ast::MultiInitStmt>(
-                  some(append<&ast::MultiInitStmt::decls>(ref<DeclRule>),
+                  some(append<&ast::MultiInitStmt::decls>(ref<Decl>),
                        lit<",">) +
                   lit<":="> +
                   assign<&ast::MultiInitStmt::value>(ref<Invocation>))  //
@@ -388,69 +381,70 @@ struct Clu : cursiv::GrammarSpec {
             | create<ast::ExprStmt>(
                   assign<&ast::ExprStmt::call>(ref<Invocation>))  //
             | create<ast::WhileStmt>(
-                  kw<"while"> + assign<&ast::WhileStmt::cond>(ref<Expression>) +
-                  kw<"do"> + assign<&ast::WhileStmt::body>(ref<BodyRule>) +
-                  kw<"end">)  //
+                  ikw<"while"> + assign<&ast::WhileStmt::cond>(ref<Expression>) +
+                  ikw<"do"> + assign<&ast::WhileStmt::body>(ref<Body>) +
+                  ikw<"end">)  //
             | create<ast::ForStmt>(
-                  kw<"for"> +
+                  ikw<"for"> +
                   option(
-                      some(append<&ast::ForStmt::decls>(ref<DeclRule>),
+                      some(append<&ast::ForStmt::decls>(ref<Decl>),
                            lit<",">)  //
                       | some(append<&ast::ForStmt::names>(ref<ID>), lit<",">)) +
-                  kw<"in"> +
-                  assign<&ast::ForStmt::iterCall>(ref<Invocation>) + kw<"do"> +
-                  assign<&ast::ForStmt::body>(ref<BodyRule>) + kw<"end">)  //
+                  ikw<"in"> +
+                  assign<&ast::ForStmt::iterCall>(ref<Invocation>) + ikw<"do"> +
+                  assign<&ast::ForStmt::body>(ref<Body>) + ikw<"end">)  //
             | create<ast::IfStmt>(
-                  kw<"if"> + assign<&ast::IfStmt::cond>(ref<Expression>) +
-                  kw<"then"> + assign<&ast::IfStmt::thenBody>(ref<BodyRule>) +
-                  many(append<&ast::IfStmt::elseIfs>(ref<ElseIfRule>)) +
-                  option(kw<"else"> +
-                         assign<&ast::IfStmt::elseBody>(ref<BodyRule>)) +
-                  kw<"end">)  //
+                  ikw<"if"> + assign<&ast::IfStmt::cond>(ref<Expression>) +
+                  ikw<"then"> + assign<&ast::IfStmt::thenBody>(ref<Body>) +
+                  many(append<&ast::IfStmt::elseIfs>(ref<ElseIf>)) +
+                  option(ikw<"else"> +
+                         assign<&ast::IfStmt::elseBody>(ref<Body>)) +
+                  ikw<"end">)  //
             | create<ast::TagcaseStmt>(
-                  kw<"tagcase"> + assign<&ast::TagcaseStmt::expr>(ref<Expression>) +
-                  many(append<&ast::TagcaseStmt::arms>(ref<TagArmRule>)) +
-                  option(flag<&ast::TagcaseStmt::hasOthers>(kw<"others">) +
+                  ikw<"tagcase"> + assign<&ast::TagcaseStmt::expr>(ref<Expression>) +
+                  many(append<&ast::TagcaseStmt::arms>(ref<TagArm>)) +
+                  option(flag<&ast::TagcaseStmt::hasOthers>(ikw<"others">) +
                          lit<":"> +
-                         assign<&ast::TagcaseStmt::othersBody>(ref<BodyRule>)) +
-                  kw<"end">)  //
+                         assign<&ast::TagcaseStmt::othersBody>(ref<Body>)) +
+                  ikw<"end">)  //
             | create<ast::ReturnStmt>(
-                  (kw<"return">  //
-                   | flag<&ast::ReturnStmt::isYield>(kw<"yield">)) +
+                  (ikw<"return">  //
+                   | flag<&ast::ReturnStmt::isYield>(ikw<"yield">)) +
                   option(lit<"("> +
                          some(append<&ast::ReturnStmt::values>(ref<Expression>),
                               lit<",">) +
                          lit<")">))  //
             | create<ast::SignalStmt>(
-                  kw<"signal"> + assign<&ast::SignalStmt::name>(ref<ID>) +
+                  ikw<"signal"> + assign<&ast::SignalStmt::name>(ref<ID>) +
                   option(lit<"("> +
                          some(append<&ast::SignalStmt::values>(ref<Expression>),
                               lit<",">) +
                          lit<")">))  //
             | create<ast::ExitStmt>(
-                  kw<"exit"> + assign<&ast::ExitStmt::name>(ref<ID>) +
+                  ikw<"exit"> + assign<&ast::ExitStmt::name>(ref<ID>) +
                   option(lit<"("> +
                          some(append<&ast::ExitStmt::values>(ref<Expression>),
                               lit<",">) +
                          lit<")">))  //
-            | create<ast::BreakStmt>(kw<"break">)  //
+            | create<ast::BreakStmt>(ikw<"break">)
+            | create<ast::ContinueStmt>(ikw<"continue">)  //
             | create<ast::BeginStmt>(
-                  kw<"begin"> + assign<&ast::BeginStmt::body>(ref<BodyRule>) +
-                  kw<"end">)> {};
+                  ikw<"begin"> + assign<&ast::BeginStmt::body>(ref<Body>) +
+                  ikw<"end">)> {};
 
-  struct StatementRule
-      : rule<ref<StatementBase> +
-             many(nest<ast::ResignalStmt, &ast::ResignalStmt::inner>(
-                      kw<"resignal"> +
+  struct Statement
+      : rule<ref<StatementBase> + option(lit<";">) +
+             many((nest<ast::ResignalStmt, &ast::ResignalStmt::inner>(
+                      ikw<"resignal"> +
                       some(append<&ast::ResignalStmt::names>(ref<ID>),
                            lit<",">))  //
                   | nest<ast::ExceptStmt, &ast::ExceptStmt::inner>(
-                        kw<"except"> +
+                        ikw<"except"> +
                         many(append<&ast::ExceptStmt::whens>(
-                            ref<WhenHandlerRule>)) +
+                            ref<WhenHandler>)) +
                         option(assign<&ast::ExceptStmt::others>(
-                            ref<OthersHandlerRule>)) +
-                        kw<"end">))> {};
+                            ref<OthersHandler>)) +
+                        ikw<"end">)) + option(lit<";">))> {};
 
   // ---- routines ----
 
@@ -458,68 +452,70 @@ struct Clu : cursiv::GrammarSpec {
   // unified, since the first two share a decl's shape and the last differs
   // from the second only by requiring a call on the right. Accepts a
   // slightly wider set (several names before a single-value `:=`).
-  struct OwnVarRule
+  struct OwnVar
       : rule<create<ast::OwnVar>(
-            kw<"own"> +
-            some(append<&ast::OwnVar::decls>(ref<DeclRule>), lit<",">) +
+            ikw<"own"> +
+            some(append<&ast::OwnVar::decls>(ref<Decl>), lit<",">) +
             option(lit<":="> +
-                   assign<&ast::OwnVar::init>(ref<Expression>)))> {};
+                   assign<&ast::OwnVar::init>(ref<Expression>)) +
+            option(lit<";">))> {};
 
-  struct RoutineRule
+  struct Routine
       : rule<create<ast::Routine>(
             assign<&ast::Routine::name>(ref<ID>) + lit<"="> +
-            ((kw<"proc">)  //
-             | flag<&ast::Routine::isIterator>(kw<"iter">)) +
-            option(some(append<&ast::Routine::parms>(ref<ParamRule>),
-                        lit<",">)) +
+            ((ikw<"proc">)  //
+             | flag<&ast::Routine::isIterator>(ikw<"iter">)) +
+            option(lit<"["> +
+                   some(append<&ast::Routine::parms>(ref<Param>), lit<",">) +
+                   lit<"]">) +
             lit<"("> +
-            option(some(append<&ast::Routine::args>(ref<DeclRule>), lit<",">)) +
+            option(some(append<&ast::Routine::args>(ref<Decl>), lit<",">)) +
             lit<")"> +
-            option((kw<"returns">  //
-                    | kw<"yields">) +
+            option((ikw<"returns">  //
+                    | ikw<"yields">) +
                    lit<"("> +
-                   some(append<&ast::Routine::results>(ref<TypeSpecRule>),
+                   some(append<&ast::Routine::results>(ref<TypeSpec>),
                         lit<",">) +
                    lit<")">) +
-            option(kw<"signals"> + lit<"("> +
-                   some(append<&ast::Routine::signals>(ref<ExceptionRule>),
+            option(ikw<"signals"> + lit<"("> +
+                   some(append<&ast::Routine::signals>(ref<Exception>),
                         lit<",">) +
                    lit<")">) +
-            option(kw<"where"> +
-                   some(append<&ast::Routine::where>(ref<RestrictionRule>),
-                        lit<",">)) +
-            many(append<&ast::Routine::bodyEquates>(ref<EquateRule>)) +
-            many(append<&ast::Routine::ownVars>(ref<OwnVarRule>)) +
-            many(append<&ast::Routine::statements>(ref<StatementRule>)) +
-            kw<"end"> + assign<&ast::Routine::endName>(ref<ID>))> {};
+            option(ikw<"where"> +
+                   some(append<&ast::Routine::where>(ref<Restriction>),
+                        lit<",">)) + option(lit<";">) +
+            many(append<&ast::Routine::bodyEquates>(ref<Equate>)) +
+            many(append<&ast::Routine::ownVars>(ref<OwnVar>)) +
+            many(append<&ast::Routine::statements>(ref<Statement>)) +
+            ikw<"end"> + assign<&ast::Routine::endName>(ref<ID>) + option(lit<";">))> {};
 
-  struct ClusterRule
+  struct Cluster
       : rule<create<ast::Cluster>(
-            assign<&ast::Cluster::name>(ref<ID>) + lit<"="> + kw<"cluster"> +
-            option(some(append<&ast::Cluster::parms>(ref<ParamRule>),
-                        lit<",">)) +
-            kw<"is"> +
+            assign<&ast::Cluster::name>(ref<ID>) + lit<"="> + ikw<"cluster"> +
+            option(lit<"["> +
+                   some(append<&ast::Cluster::parms>(ref<Param>), lit<",">) +
+                   lit<"]">) +
+            ikw<"is"> +
             some(append<&ast::Cluster::isNames>(ref<ID>), lit<",">) +
-            option(kw<"where"> +
-                   some(append<&ast::Cluster::where>(ref<RestrictionRule>),
-                        lit<",">)) +
-            many(append<&ast::Cluster::preRepEquates>(ref<EquateRule>)) +
-            kw<"rep"> + lit<"="> +
-            assign<&ast::Cluster::rep>(ref<TypeSpecRule>) +
-            many(append<&ast::Cluster::postRepEquates>(ref<EquateRule>)) +
-            many(append<&ast::Cluster::ownVars>(ref<OwnVarRule>)) +
-            kw<"routine"> +
-            many(append<&ast::Cluster::routines>(ref<RoutineRule>)) +
-            kw<"end"> + assign<&ast::Cluster::endName>(ref<ID>))> {};
+            option(ikw<"where"> +
+                   some(append<&ast::Cluster::where>(ref<Restriction>),
+                        lit<",">)) + option(lit<";">) +
+            many(append<&ast::Cluster::preRepEquates>(ref<Equate>)) +
+            ikw<"rep"> + lit<"="> +
+            assign<&ast::Cluster::rep>(ref<TypeSpec>) + option(lit<";">) +
+            many(append<&ast::Cluster::postRepEquates>(ref<Equate>)) +
+            many(append<&ast::Cluster::ownVars>(ref<OwnVar>)) +
+            many(append<&ast::Cluster::routines>(ref<Routine>)) +
+            ikw<"end"> + assign<&ast::Cluster::endName>(ref<ID>) + option(lit<";">))> {};
 
-  struct ModuleRule
+  struct Module
       : rule<create<ast::Module> +
-             many(append<&ast::Module::equates>(ref<EquateRule>)) +
-             assign<&ast::Module::routine>(ref<RoutineRule> |
-                                            ref<ClusterRule>)> {};
+             many(append<&ast::Module::equates>(ref<Equate>)) +
+             assign<&ast::Module::routine>(ref<Routine> |
+                                            ref<Cluster>)> {};
 
-  using entry = ModuleRule;
-  using ignore = WS;
+  using entry = Module;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

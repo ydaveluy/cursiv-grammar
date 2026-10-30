@@ -27,6 +27,7 @@ enum class Op : std::uint8_t {
   mul,
   div,
   mod,
+  xor_,
 };
 
 struct BinOp : cursiv::Extends<Expr> {
@@ -48,6 +49,10 @@ struct AnyOf : cursiv::Extends<Expr> {
   vector<Expr*> operands;
 };
 
+struct ConcatExpr : cursiv::Extends<Expr> {
+  vector<Expr*> operands;
+};
+
 struct NotExpr : cursiv::Extends<Expr> {
   Expr* operand;
 };
@@ -57,9 +62,8 @@ struct FuncCall : cursiv::Extends<Expr> {
   vector<Expr*> args;
 };
 
-// A name read as a value. LOLCODE resolves it dynamically (loop and
-// declaration scoping do not match a static linker's rules), so it is text,
-// not a reference<>.
+// A name read as a value. Function/program-local binding is left to a
+// semantic pass; this syntax port retains the name as text.
 struct VarRef : cursiv::Extends<Expr> {
   string_view name;
 };
@@ -84,6 +88,9 @@ struct Comment : cursiv::Extends<Statement> {
 
 struct LoopStmt : cursiv::Extends<Statement> {
   string_view label;
+  string_view operation;
+  string_view iterator;
+  boolean until;
   Expr* condition;
   vector<Statement*> body;
   string_view endLabel;
@@ -95,6 +102,7 @@ struct Declaration : cursiv::Extends<Statement> {
 };
 
 struct PrintBlock : cursiv::Extends<Statement> {
+  boolean suppressNewline;
   vector<Expr*> items;
 };
 
@@ -117,6 +125,19 @@ struct IfBlock : cursiv::Extends<Statement> {
   ElseClause* elseChain;
 };
 
+struct CaseClause : cursiv::Extends<cursiv::AstNode> {
+  string_view literal;  // one complete token, with quotes/escapes retained
+  vector<Statement*> body;
+};
+
+// IT is the selector. Ordered cases and ordinary BreakStmt children retain
+// fallthrough; an empty default still differs from an absent one.
+struct SwitchStmt : cursiv::Extends<Statement> {
+  vector<CaseClause*> cases;
+  boolean hasDefault = false;
+  vector<Statement*> defaultBody;
+};
+
 struct InputBlock : cursiv::Extends<Statement> {
   string_view name;
 };
@@ -125,6 +146,15 @@ struct FuncDecl : cursiv::Extends<Statement> {
   string_view name;
   vector<string_view> params;
   vector<Statement*> body;
+};
+
+struct ReturnStmt : cursiv::Extends<Statement> {
+  Expr* value;
+};
+struct BreakStmt : cursiv::Extends<Statement> {};
+struct RetypeStmt : cursiv::Extends<Statement> {
+  string_view name;
+  string_view targetType;
 };
 
 struct Assignment : cursiv::Extends<Statement> {

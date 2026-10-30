@@ -2,6 +2,19 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+This is a textual NASM port, compared with NASM 2.16.01 (2022-12-21),
+its native assembler and [language manual](https://www.nasm.us/doc/nasm03.html).
+It is not a generic assembly language or an instruction-encoding validator.
+`FloatLit::text` preserves real literals exactly, including NASM radix prefixes,
+underscores and exponents beyond the range of a C++ double.
+
+The preprocessor is only skipped for selected directives; it is not executed.
+Instruction prefixes, backtick strings, forced identifiers, address modifiers,
+ISA operand constraints, object-format details and full macro syntax are not
+covered. Most directives keep positional name/value lists rather than typed
+attribute pairs; the CST retains their spelling. A label without a colon can
+be indistinguishable from an unknown mnemonic in this open-mnemonic syntax.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`

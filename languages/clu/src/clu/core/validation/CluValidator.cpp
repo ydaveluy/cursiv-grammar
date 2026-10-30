@@ -7,10 +7,19 @@
 #include "clu/core/CoreServices.hpp"
 
 namespace clu {
+namespace {
+bool same_id(std::string_view left, std::string_view right) {
+  if (left.size() != right.size()) return false;
+  const auto fold = [](char c) { return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c; };
+  for (std::size_t i = 0; i < left.size(); ++i)
+    if (fold(left[i]) != fold(right[i])) return false;
+  return true;
+}
+}  // namespace
 
 void CluValidator::checkRoutineEndName(
     const ast::Routine& routine, cursiv::ValidationAcceptor& accept) const {
-  if (!routine.endName.empty() && routine.endName != routine.name)
+  if (!routine.endName.empty() && !same_id(routine.endName, routine.name))
     accept
         .error(routine,
                std::format("End name '{}' does not match '{}'.",
@@ -20,7 +29,7 @@ void CluValidator::checkRoutineEndName(
 
 void CluValidator::checkClusterEndName(
     const ast::Cluster& cluster, cursiv::ValidationAcceptor& accept) const {
-  if (!cluster.endName.empty() && cluster.endName != cluster.name)
+  if (!cluster.endName.empty() && !same_id(cluster.endName, cluster.name))
     accept
         .error(cluster,
                std::format("End name '{}' does not match '{}'.",

@@ -303,6 +303,39 @@ program demo; procedure p(procedure f); begin f; end; procedure q; begin end; be
     const auto* c = s ? as<ast::CallExpr>(s->value) : nullptr;
     return c && i < c->args.size() ? c->args[i]->value : nullptr;
   };
+  for (const auto* invalid : {"program if; begin end.",
+                              "program p; var BeGiN:integer; begin end.",
+                              "program p; const while=1; begin end."}) {
+    const auto result = parser.parse(invalid);
+    check(!result.accepted || result.cst().recovered() ||
+              !result.diagnostics.empty(), "reserved words cannot be ordinary names");
+  }
+  {
+    const auto result = parser.parse(
+        "program p; var ifx,&if:integer; begin ifx:=1; &if:=ifx; end.");
+    const auto* program = as<ast::Program>(result.value);
+    const auto* decl = program && !program->block->decls.empty()
+                           ? as<ast::VarDecl>(program->block->decls[0]) : nullptr;
+    check(result.accepted && !result.cst().recovered() &&
+              result.diagnostics.empty() && decl && decl->names.size() == 2 &&
+              decl->names[0] == "ifx" && decl->names[1] == "if",
+          "word boundaries and escaped reserved names retain values");
+  }
+  {
+    const auto result = parser.parse(
+        "program p; begin writeln(+2 ** 3 ** 2,-2 ** 2); end.");
+    const auto* power = as<ast::BinaryExpr>(argument(result));
+    const auto* first = power ? as<ast::BinaryExpr>(power->left) : nullptr;
+    const auto* positive = first ? as<ast::UnaryExpr>(first->left) : nullptr;
+    const auto* negative = as<ast::UnaryExpr>(argument(result, 1));
+    const auto* negativePower = negative ? as<ast::BinaryExpr>(negative->operand) : nullptr;
+    check(result.accepted && !result.cst().recovered() && power &&
+              power->op == "**" && first && first->op == "**" &&
+              positive && positive->op == "+" && positive->parent == first &&
+              negative && negative->op == "-" && negativePower &&
+              negativePower->op == "**" && negativePower->parent == negative,
+          "FPC power associates left, unary plus is a factor and minus wraps power");
+  }
   {
     const std::string text =
         "program p; begin writeln($FF,%101,&17,18446744073709551615,1.25E+02); "

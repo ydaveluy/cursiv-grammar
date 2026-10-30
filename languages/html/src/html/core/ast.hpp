@@ -1,5 +1,5 @@
-// The html language: its AST. A document is optional leading declarations
-// (an XML prolog, a doctype) plus a mixed sequence of elements, embedded
+// The HTML source AST. Declarations are retained in metadata vectors,
+// alongside a mixed sequence of elements, embedded
 // script/style blocks, scriptlets and comments; an element carries its
 // attributes and, recursively, the same mixed content.
 #pragma once
@@ -39,7 +39,7 @@ struct CData : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct Text : cursiv::Extends<cursiv::AstNode> {
-  string_view text;
+  string_view text; // raw character references; CR/CRLF normalized to LF
 };
 
 struct Scriptlet : cursiv::Extends<cursiv::AstNode> {
@@ -59,7 +59,7 @@ struct Element : cursiv::Extends<cursiv::AstNode> {
   vector<Attribute*> attributes;
   vector<ElementContent> content;
   bool selfClosing = false;
-  optional<string_view> closeName;  // absent when self-closing
+  optional<string_view> closeName;  // absent for void, self-closing or omitted end tags
 };
 
 struct Document : cursiv::Extends<cursiv::AstNode> {

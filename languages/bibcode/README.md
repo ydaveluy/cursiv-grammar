@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A bibcode is the 19-character publication identifier used by ADS and SIMBAD.
+
 ```
 1974AJ.....79..819H
 ```
-
-A [Bibcode](https://en.wikipedia.org/wiki/Bibcode): the 19-character
-identifier astronomical databases (ADS, SIMBAD) use to cite a publication —
-year (4 digits), journal (5 letters/digits/dots), volume (4), an optional
-qualifying letter, the page (one or more digits/dots), and the first letter
-of the first author's last name.
 
 ## The command line
 

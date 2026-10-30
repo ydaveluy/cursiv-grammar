@@ -14,8 +14,10 @@ struct Z : cursiv::GrammarSpec {
   // spelled `kw<>`, so a name still wins where they are not expected.
   static constexpr auto word_boundary = uc::L | uc::Nd | cr<"_">;
 
-  struct WS : terminal<some(uc::Zs)> {};
-  struct NL_TRIVIA : terminal<some(cr<R"(\r\n)">)> {};
+  static constexpr auto Line = gap::line | gap::has(lit<"\u2028">);
+
+  struct WS : terminal<some(uc::Zs | cr<R"(\t)">)> {};
+  struct NL_TRIVIA : terminal<some(cr<R"(\r\n\u{2028})">)> {};
   // Prose between Z paragraphs: anything but the three openers.
   struct TEXT_TOK : terminal<some(cr<"^─┌╷">)> {};
 
@@ -42,35 +44,35 @@ struct Z : cursiv::GrammarSpec {
       kw<"iseq"> | kw<"rev"> | kw<"head"> | kw<"last"> | kw<"tail"> |
       kw<"front"> | kw<"squash"> | kw<"disjoint"> | kw<"pre"> | lit<"ℙ"> |
       lit<"⋃"> | lit<"⋂"> | lit<"𝔽"> | lit<"⁀/"> | lit<"#"> |
-      lit<"-", !cr<"0-9">>;
+      lit<"-">;
   static constexpr auto PostfixOp = lit<"∼"> | lit<"↗+↙"> | lit<"↗*↙">;
 
   static constexpr auto ToolkitInner =
-      left(lit<"×">) >>                                                //
-      left(lit<"◁"> | lit<"⩤">) >> left(lit<"▷"> | lit<"⩥">) >>        //
-      left(lit<"⊕">) >> right(lit<"↿">) >>                             //
-      left(lit<"∩"> | lit<"⨾"> | lit<"∘"> | lit<"*"> | kw<"div"> |      //
-           kw<"mod"> | lit<"↾">) >>                                    //
-      left(lit<"+"> | lit<"∪"> | lit<"∖"> | lit<"−"> | lit<"⁀">) >>    //
-      left(lit<"⊖">) >> left(lit<"..">) >> left(lit<"↦">) >>           //
-      right(lit<"↔"> | lit<"→"> | lit<"⇸"> | lit<"⤔"> | lit<"↣"> |      //
-            lit<"⤀"> | lit<"↠"> | lit<"⤖"> | lit<"⇻"> | lit<"⤕">) >>   //
-      left(lit<"≠"> | lit<"∉"> | lit<"⊆"> | lit<"⊂"> | lit<"≤"> |       //
-           lit<"<"> | lit<"≥"> | lit<">"> | kw<"partition"> |          //
-           kw<"prefix"> | kw<"suffix"> | kw<"infix"> | lit<"∈"> |      //
-           lit<"=">) >>                                                //
-      left(lit<"⨟">) >> left(lit<"⨠">) >> left(lit<"⨡">);
+      levels(left(lit<"×">),                                               //
+             left(lit<"◁"> | lit<"⩤">), left(lit<"▷"> | lit<"⩥">),         //
+             left(lit<"⊕">), right(lit<"↿">),                              //
+             left(lit<"∩"> | lit<"⨾"> | lit<"∘"> | lit<"*"> | kw<"div"> |  //
+                  kw<"mod"> | lit<"↾">),                                   //
+             left(lit<"+"> | lit<"∪"> | lit<"∖"> | lit<"−"> | lit<"⁀">),   //
+             left(lit<"⊖">), left(lit<"..">), left(lit<"↦">),              //
+             right(lit<"↔"> | lit<"→"> | lit<"⇸"> | lit<"⤔"> | lit<"↣"> |  //
+                   lit<"⤀"> | lit<"↠"> | lit<"⤖"> | lit<"⇻"> | lit<"⤕">),  //
+             left(lit<"≠"> | lit<"∉"> | lit<"⊆"> | lit<"⊂"> | lit<"≤"> |   //
+                  lit<"<"> | lit<"≥"> | lit<">"> | kw<"partition"> |       //
+                  kw<"prefix"> | kw<"suffix"> | kw<"infix"> | lit<"∈"> |   //
+                  lit<"=">),                                               //
+             left(lit<"⨟">), left(lit<"⨠">), left(lit<"⨡">));
 
   static constexpr auto ToolkitOuter =
-      left(lit<"∧">) >> left(lit<"∨">) >> right(lit<"⇒">) >>
-      left(lit<"⇔">) >> left(lit<";">);
+      levels(left(lit<"∧">), left(lit<"∨">), right(lit<"⇒">),
+             left(lit<"⇔">), left(lit<";">));
 
   // -- expressions -------------------------------------------------------
   struct Expr;
   struct SchemaText;
-  struct ThetaRule;
+  struct Theta;
 
-  struct DeclEqRule
+  struct DeclEq
       : rule<assign<&ast::DeclEq::name>(ref<NAME>) + lit<"=="> +
              assign<&ast::DeclEq::value>(ref<Expr>)> {};
 
@@ -78,19 +80,18 @@ struct Z : cursiv::GrammarSpec {
   // heterogeneous list below can tell which of the three it just built.
   static constexpr auto DeclItem =
       create<ast::DeclNames>(
-          append<&ast::DeclNames::names>(ref<NAME>) +
-          many(lit<","> + append<&ast::DeclNames::names>(ref<NAME>)) +
+          some(append<&ast::DeclNames::names>(ref<NAME>), lit<",">) +
           lit<":"> + assign<&ast::DeclNames::type>(ref<Expr>))  //
-      | ref<DeclEqRule> | ref<Expr>;
+      | ref<DeclEq> | ref<Expr>;
 
   struct SchemaText
       : rule<create<ast::SchemaText> +
              option(append<&ast::SchemaText::decls>(DeclItem) +
-                    many(implied(lit<";">, gap::line) +
+                    many(implied(lit<";">, Line) +
                          append<&ast::SchemaText::decls>(DeclItem))) +
              option(lit<"|"> +
                     option(append<&ast::SchemaText::where>(ref<Expr>) +
-                           many(implied(lit<";">, gap::line) +
+                           many(implied(lit<";">, Line) +
                                 append<&ast::SchemaText::where>(ref<Expr>))))> {
   };
 
@@ -124,10 +125,10 @@ struct Z : cursiv::GrammarSpec {
              | create<ast::BindingExtension>(
                    lit<"⦉"> +
                    option(append<&ast::BindingExtension::items>(
-                              ref<DeclEqRule>) +
+                              ref<DeclEq>) +
                           many(lit<","> +
                                append<&ast::BindingExtension::items>(
-                                   ref<DeclEqRule>))) +
+                                   ref<DeclEq>))) +
                    lit<"⦊">)  //
              | create<ast::SeqExtension>(
                    lit<"⟨"> +
@@ -145,7 +146,7 @@ struct Z : cursiv::GrammarSpec {
                         append<&ast::TupleExtension::items>(ref<Expr>)) +
                    lit<")">)                                    //
              | (lit<"("> + ref<Expr> + lit<")">)                //
-             | ref<ThetaRule>                                   //
+             | ref<Theta>                                   //
              | (ref<GenericInstArgs> + lit<"]">)                //
              // A toolkit prefix word (`dom`, `last`, ...) is `kw<>`, not
              // `NAME`: offered here too, so the reading that is not
@@ -155,7 +156,7 @@ struct Z : cursiv::GrammarSpec {
                    assign<&ast::NameRef::name>(ref<NAME> | lit<"∅"> |
                                                PrefixOp))> {};
 
-  struct RenameRule
+  struct Rename
       : rule<assign<&ast::Rename::newName>(ref<NAME>) + lit<"/"> +
              assign<&ast::Rename::oldName>(ref<NAME>)> {};
 
@@ -173,9 +174,9 @@ struct Z : cursiv::GrammarSpec {
                                        ref<NUMERAL>))  //
                   | nest<ast::Renaming, &ast::Renaming::operand>(
                         lit<"["> +
-                        append<&ast::Renaming::renames>(ref<RenameRule>) +
+                        append<&ast::Renaming::renames>(ref<Rename>) +
                         many(lit<","> + append<&ast::Renaming::renames>(
-                                             ref<RenameRule>)) +
+                                             ref<Rename>)) +
                         lit<"]">))> {};
 
   // Juxtaposition: function application, left-associative. A line break
@@ -186,7 +187,7 @@ struct Z : cursiv::GrammarSpec {
   // truly cannot take the token, and application always could.
   struct Applied
       : rule<ref<Decorated> +
-             many(!gap::line + nest<ast::Application, &ast::Application::func>(
+             many(!gap::line + !gap::has(lit<"\u2028">) + nest<ast::Application, &ast::Application::func>(
                                     assign<&ast::Application::arg>(
                                         ref<Decorated>)))> {};
 
@@ -202,18 +203,17 @@ struct Z : cursiv::GrammarSpec {
   // Prefix: every toolkit prefix name and `pre`, one tier (self-recursive,
   // so `dom ran f` chains).
   struct PrefixApplied
-      : rule<ref<PostfixApplied>  //
-             | create<ast::Prefix>(
-                   assign<&ast::Prefix::op>(PrefixOp) +
-                   assign<&ast::Prefix::operand>(ref<PrefixApplied>))> {};
+      : rule<create<ast::Prefix>(
+                 assign<&ast::Prefix::op>(PrefixOp) +
+                 assign<&ast::Prefix::operand>(ref<PrefixApplied>)) |
+             ref<PostfixApplied>> {};
 
   // Schema hiding: postfix bracket, repeatable. Spelled `⧹`, the character
   // Z documents actually carry here.
   struct Hidden
       : rule<ref<PrefixApplied> +
              many(nest<ast::Hide, &ast::Hide::operand>(
-                 lit<"⧹"> + lit<"("> + append<&ast::Hide::names>(ref<NAME>) +
-                 many(lit<","> + append<&ast::Hide::names>(ref<NAME>)) +
+                 lit<"⧹"> + lit<"("> + some(append<&ast::Hide::names>(ref<NAME>), lit<",">) +
                  lit<")">))> {};
 
   static constexpr auto KnownInfix =
@@ -241,7 +241,7 @@ struct Z : cursiv::GrammarSpec {
             many(append<&ast::OperatorSequence::steps>(ref<AnyStep>)))> {};
 
   struct InnerOps
-      : infix<Hidden, &ast::Infix::left, &ast::Infix::op, &ast::Infix::right,
+      : infix<Hidden, ast::Infix,
               ToolkitInner> {};
 
   // Negation: looser than every relation and toolkit operator (it negates a
@@ -253,29 +253,28 @@ struct Z : cursiv::GrammarSpec {
              | ref<InnerOps>> {};
 
   struct OuterOps
-      : infix<Negated, &ast::Infix::left, &ast::Infix::op, &ast::Infix::right,
+      : infix<Negated, ast::Infix,
               ToolkitOuter> {};
 
-  struct IfThenElseRule
+  struct IfThenElse
       : rule<create<ast::IfThenElse>(
             kw<"if"> + assign<&ast::IfThenElse::cond>(ref<Expr>) +
             kw<"then"> + assign<&ast::IfThenElse::thenValue>(ref<Expr>) +
             kw<"else"> + assign<&ast::IfThenElse::elseValue>(ref<Expr>))> {};
 
-  struct LetRule
+  struct Let
       : rule<create<ast::Let>(
-            kw<"let"> + append<&ast::Let::bindings>(ref<DeclEqRule>) +
-            many(lit<";"> + append<&ast::Let::bindings>(ref<DeclEqRule>)) +
+            kw<"let"> + some(append<&ast::Let::bindings>(ref<DeclEq>), lit<";">) +
             lit<"⦁"> + assign<&ast::Let::body>(ref<Expr>))> {};
 
-  struct ThetaRule
+  struct Theta
       : rule<create<ast::BindingConstructionTheta>(
             lit<"θ"> + assign<&ast::BindingConstructionTheta::operand>(
                            ref<Decorated>) +
             many(append<&ast::BindingConstructionTheta::strokes>(
                 ref<STROKE>)))> {};
 
-  struct QuantifierRule
+  struct Quantifier
       : rule<create<ast::Quantifier>(
                  assign<&ast::Quantifier::kind>(lit<"∀">) +
                  assign<&ast::Quantifier::text>(ref<SchemaText>) + lit<"⦁"> +
@@ -295,101 +294,75 @@ struct Z : cursiv::GrammarSpec {
                    assign<&ast::Quantifier::text>(ref<SchemaText>) +
                    lit<"⦁"> + assign<&ast::Quantifier::body>(ref<Expr>))> {};
 
-  struct Expr : rule<ref<CustomSequence> | ref<QuantifierRule>  //
-                     | ref<LetRule>                             //
-                     | ref<IfThenElseRule>                      //
+  struct Expr : rule<ref<CustomSequence> | ref<Quantifier>  //
+                     | ref<Let>                             //
+                     | ref<IfThenElse>                      //
                      | ref<OuterOps>> {};
 
   // -- paragraphs & sections ---------------------------------------------
 
   struct OperatorTemplateBody : terminal<some(cr<"^)">)> {};
 
-  struct OperatorTemplateRule
+  struct OperatorTemplate
       : rule<create<ast::OperatorTemplate>(
-            assign<&ast::OperatorTemplate::category>(
-                kw<"relation"> | kw<"function"> | kw<"generic">) +
-            option(flag<&ast::OperatorTemplate::hasPrec>(ref<NUMERAL>) +
-                   (flag<&ast::OperatorTemplate::rightAssoc>(
-                        kw<"rightassoc">) |
-                    kw<"leftassoc">)) +
+            (assign<&ast::OperatorTemplate::category>(kw<"relation">) |
+             (assign<&ast::OperatorTemplate::category>(kw<"function"> | kw<"generic">) +
+              option(flag<&ast::OperatorTemplate::hasPrec>(
+                         assign<&ast::OperatorTemplate::precedence>(ref<NUMERAL>)) +
+                     (flag<&ast::OperatorTemplate::rightAssoc>(kw<"rightassoc">) | kw<"leftassoc">)))) +
             lit<"("> +
             option(assign<&ast::OperatorTemplate::text>(ref<OperatorTemplateBody>)) +
             lit<")">)> {};
 
-  struct FreeTypeBranchRule
+  struct FreeTypeBranch
       : rule<assign<&ast::FreeTypeBranch::name>(ref<NAME>) +
              option(lit<"⟪"> +
                     assign<&ast::FreeTypeBranch::payload>(ref<Expr>) +
                     lit<"⟫">)> {};
 
-  struct FreeTypeRule
+  struct FreeType
       : rule<assign<&ast::FreeType::name>(ref<NAME>) + lit<"::="> +
-             append<&ast::FreeType::branches>(ref<FreeTypeBranchRule>) +
-             many(lit<"|"> +
-                  append<&ast::FreeType::branches>(ref<FreeTypeBranchRule>))> {
+             some(append<&ast::FreeType::branches>(ref<FreeTypeBranch>), lit<"|">)> {
   };
 
-  struct Paragraph
+  struct PlainParagraph
       : rule<create<ast::GivenTypes>(
-                 lit<"─"> + lit<"["> +
-                 option(append<&ast::GivenTypes::names>(ref<NAME>) +
-                        many(lit<","> + append<&ast::GivenTypes::names>(
-                                            ref<NAME>))) +
-                 lit<"]">)  //
-             | create<ast::SchemaDef>(
-                   flag<&ast::SchemaDef::isAxiomatic>(lit<"╷">) +
-                   option(lit<"═"> + lit<"["> +
-                          option(append<&ast::SchemaDef::formals>(ref<NAME>) +
-                                 many(lit<","> +
-                                      append<&ast::SchemaDef::formals>(
-                                          ref<NAME>))) +
-                          lit<"]">) +
-                   assign<&ast::SchemaDef::text>(ref<SchemaText>))  //
-             | create<ast::SchemaDef>(
-                   lit<"┌"> +
-                   ((lit<"═"> + assign<&ast::SchemaDef::name>(ref<NAME>) +
-                     lit<"["> +
-                     option(append<&ast::SchemaDef::formals>(ref<NAME>) +
-                            many(lit<","> + append<&ast::SchemaDef::formals>(
-                                                ref<NAME>))) +
-                     lit<"]">)  //
-                    | assign<&ast::SchemaDef::name>(ref<NAME>)) +
-                   assign<&ast::SchemaDef::text>(ref<SchemaText>))  //
-             | (lit<"─"> + ref<OperatorTemplateRule>)               //
-             | create<ast::HorizontalDef>(
-                   lit<"─"> + assign<&ast::HorizontalDef::name>(ref<NAME>) +
-                   option(lit<"["> +
-                          option(append<&ast::HorizontalDef::formals>(
-                                     ref<NAME>) +
-                                 many(lit<","> +
-                                      append<&ast::HorizontalDef::formals>(
-                                          ref<NAME>))) +
-                          lit<"]">) +
-                   lit<"=="> +
-                   assign<&ast::HorizontalDef::value>(ref<Expr>))  //
-             | create<ast::FreeTypes>(
-                   lit<"─"> +
-                   append<&ast::FreeTypes::types>(ref<FreeTypeRule>) +
-                   many(lit<"&"> +
-                        append<&ast::FreeTypes::types>(ref<FreeTypeRule>)))  //
-             | create<ast::Conjecture>(
-                   lit<"─"> +
-                   option(lit<"["> +
-                          option(append<&ast::Conjecture::formals>(
-                                     ref<NAME>) +
-                                 many(lit<","> +
-                                      append<&ast::Conjecture::formals>(
-                                          ref<NAME>))) +
-                          lit<"]">) +
-                   lit<"⊢?"> + assign<&ast::Conjecture::value>(ref<Expr>))> {
-  };
+                 lit<"["> + some(append<&ast::GivenTypes::names>(ref<NAME>), lit<",">) + lit<"]">) |
+             ref<OperatorTemplate> |
+             create<ast::HorizontalDef>(
+                 assign<&ast::HorizontalDef::name>(ref<NAME>) +
+                 option(lit<"["> + some(append<&ast::HorizontalDef::formals>(ref<NAME>), lit<",">) + lit<"]">) +
+                 lit<"=="> + assign<&ast::HorizontalDef::value>(ref<Expr>)) |
+             create<ast::FreeTypes>(
+                 some(append<&ast::FreeTypes::types>(ref<FreeType>), lit<"&">)) |
+             create<ast::Conjecture>(
+                 option(lit<"["> + some(append<&ast::Conjecture::formals>(ref<NAME>), lit<",">) + lit<"]">) +
+                 lit<"⊢?"> + assign<&ast::Conjecture::value>(ref<Expr>))> {};
 
-  struct ParagraphItem : rule<ref<Paragraph> + lit<"└">> {};
+  struct BoxedParagraph
+      : rule<(create<ast::SchemaDef>(
+                 flag<&ast::SchemaDef::isAxiomatic>(lit<"╷">) +
+                 option(lit<"═"> + lit<"["> +
+                        some(append<&ast::SchemaDef::formals>(ref<NAME>), lit<",">) + lit<"]">) +
+                 assign<&ast::SchemaDef::text>(ref<SchemaText>)) |
+              create<ast::SchemaDef>(
+                 lit<"┌"> +
+                 ((lit<"═"> + assign<&ast::SchemaDef::name>(ref<NAME>) + lit<"["> +
+                   some(append<&ast::SchemaDef::formals>(ref<NAME>), lit<",">) + lit<"]">) |
+                  assign<&ast::SchemaDef::name>(ref<NAME>)) +
+                 assign<&ast::SchemaDef::text>(ref<SchemaText>))) + lit<"└">> {};
+
+  // An unboxed ZED environment can contain several newline-separated
+  // paragraphs. Append directly to the owning specification/section.
+  template <auto Member>
+  static constexpr auto ParagraphItems =
+      (lit<"─"> + append<Member>(ref<PlainParagraph>) +
+       many(Line + append<Member>(ref<PlainParagraph>)) + lit<"└">) |
+      append<Member>(ref<BoxedParagraph>);
 
   static constexpr auto SectionHeader =
       lit<"─"> + kw<"section"> + assign<&ast::Section::name>(ref<NAME>) +
-      option(kw<"parents"> + append<&ast::Section::parents>(ref<NAME>) +
-             many(lit<","> + append<&ast::Section::parents>(ref<NAME>))) +
+      option(kw<"parents"> + some(append<&ast::Section::parents>(ref<NAME>), lit<",">)) +
       lit<"└">;
 
   // Prose commonly separates a section's paragraphs; without this, a
@@ -399,18 +372,18 @@ struct Z : cursiv::GrammarSpec {
       : rule<create<ast::Section>(
             SectionHeader +
             many(ref<TEXT_TOK> |
-                 append<&ast::Section::body>(ref<ParagraphItem>)))> {};
+                 ParagraphItems<&ast::Section::body>))> {};
 
   // A section keeps all that follows it up to the next section, so only a
   // section can follow one: its end is never a second reading of its text.
   struct Specification
       : rule<create<ast::Specification> +
              many(ref<TEXT_TOK> |
-                  append<&ast::Specification::items>(ref<ParagraphItem>)) +
+                  ParagraphItems<&ast::Specification::items>) +
              many(append<&ast::Specification::items>(ref<Section>))> {};
 
   using entry = Specification;
-  using ignore = list<WS, NL_TRIVIA>;
+  using ignored = list<WS, NL_TRIVIA>;
 };
 
 }  // namespace z

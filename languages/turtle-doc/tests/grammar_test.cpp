@@ -1,3 +1,5 @@
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 #include "audit_regressions.hpp"
 #include <cstdio>
 #include <fstream>
@@ -200,6 +202,22 @@ int main() {
       return fail("an unterminated short string should not parse");
   }
 
+  // Invalid scalar escapes retain the editable AST and precise diagnostics.
+  struct EscapeCase { const char *source, *escape; };
+  for (const auto &c : {EscapeCase{R"(<urn:s> <urn:p> "\uD800" .)", R"(\uD800)"},
+       {R"(<urn:\U00110000> <urn:p> <urn:o> .)", R"(\U00110000)"},
+       {R"(<urn:s> <urn:p> ([<urn:q> "\UFFFFFFFF"]) .)", R"(\UFFFFFFFF)"},
+       {R"(PREFIX ex: <urn:\uDFFF> ex:s ex:p ex:o .)", R"(\uDFFF)"}}) {
+    const auto parsed = language.language.parser->parse(c.source);
+    const auto validation = cursiv::test::validationHelper(language.language, c.source);
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        validation.diagnostics.size() != 1)
+      return fail("invalid scalar escape diagnostic count");
+    const auto &d = validation.diagnostics[0];
+    if (!d.code || !d.code->isString() || d.code->string() != "turtledoc.unicode-scalar" ||
+        std::string_view(c.source).substr(d.range.begin, d.range.end - d.range.begin) != c.escape)
+      return fail("invalid scalar escape source range/code");
+  }
   std::puts("turtledoc: the corpus parses");
   return 0;
 }

@@ -14,6 +14,7 @@ struct V : cursiv::GrammarSpec {
   struct Expression;
   struct Block;
   struct Statement;
+  struct LabelStmt;
   struct Signature;
   struct Result_;
   struct Param;
@@ -31,7 +32,6 @@ struct V : cursiv::GrammarSpec {
   struct CompositeLit;
   struct ArrayLit;
   struct FunctionLit;
-  struct ConversionExpr;
   struct Operand;
   struct PrimaryExpr;
   struct UnaryExpr;
@@ -43,76 +43,93 @@ struct V : cursiv::GrammarSpec {
   struct BreakStmt;
   struct ContinueStmt;
   struct IfStmt;
-  struct CaseClause;
-  struct SwitchStmt;
   struct ForStmt;
   struct ConstSpec;
   struct ConstDecl;
   struct VarDecl;
+  struct PlainVarDecl;
   struct FieldDecl;
   struct StructDecl;
-  struct Declaration;
   struct FunctionDecl;
   struct TopLevelDecl;
   struct ModuleClause;
   struct ImportSpec;
   struct SourceFile;
 
-  // Identifiers admit full Unicode letters/digits, so the boundary a
-  // keyword may not run into does too.
-  static constexpr auto word_boundary = cr<"_"> | uc::L | uc::Nd;
+  // V 0.4.12 uses ASCII identifiers.
+  static constexpr auto word_boundary = cr<"_a-zA-Z0-9">;
 
   // -- Trivia ---- WS and TERMINATOR are one hidden class: `gap::line`
   // reads the raw gap bytes directly, so no separate newline token is
   // needed to tell ASI's boundary condition apart from plain spacing.
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
-  struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
+  struct ML_COMMENT : terminal<lit<"/*"> +
+      many(ref<ML_COMMENT> | (!lit<"/*"> + !lit<"*/"> + any)) + lit<"*/">> {};
 
   // A statement ends at a line break, right before `}`, or at EOF --
-  // V has no `;` terminator.
-  static constexpr auto Eos = gap::line | &lit<"}"> | eof;
+  // A written semicolon is also a statement terminator.
+  static constexpr auto Eos = lit<";"> | gap::line | &lit<"}"> | eof;
 
-  struct ID : terminal<(uc::L | cr<"_">) + many(uc::L | uc::Nd | cr<"_">)> {};
+  struct IdentifierToken : terminal<cr<"_a-zA-Z"> + many(cr<"_a-zA-Z0-9">)> {};
+  static constexpr auto Reserved =
+      kw<"assert"> | kw<"struct"> | kw<"if"> |
+      kw<"else"> | kw<"asm"> | kw<"return"> | kw<"module"> |
+      kw<"sizeof"> | kw<"isreftype"> | kw<"_likely_"> | kw<"_unlikely_"> |
+      kw<"go"> | kw<"goto"> | kw<"const"> | kw<"mut"> |
+      kw<"shared"> | kw<"lock"> | kw<"rlock"> | kw<"type"> |
+      kw<"for"> | kw<"fn"> | kw<"true"> | kw<"false"> |
+      kw<"continue"> | kw<"break"> | kw<"import"> | kw<"unsafe"> |
+      kw<"typeof"> | kw<"dump"> | kw<"enum"> | kw<"interface"> |
+      kw<"pub"> | kw<"in"> | kw<"atomic"> | kw<"or"> |
+      kw<"__global"> | kw<"union"> | kw<"static"> | kw<"volatile"> |
+      kw<"as"> | kw<"defer"> | kw<"match"> | kw<"select"> |
+      kw<"none"> | kw<"nil"> | kw<"__offsetof"> | kw<"is"> |
+      kw<"spawn"> | kw<"implements">;
+  struct ID : rule<as<std::string_view>(!Reserved + ref<IdentifierToken>)> {};
   struct Identifier : rule<assign<&ast::Ident::name>(ref<ID>)> {};
 
   static constexpr auto HexDigit = cr<"0-9a-fA-F">;
   static constexpr auto OctalDigit = cr<"0-7">;
-  struct INT_LIT : terminal<(cr<"1-9"> + many(d))  //
-                            | (lit<"0"> + cr<"xX"> + some(HexDigit))  //
-                            | (lit<"0"> + many(OctalDigit))> {};
+  template <auto Digit>
+  static constexpr auto DigitRun = Digit + many(option(lit<"_">) + Digit);
+  static constexpr auto DecimalRun = DigitRun<d>;
+  struct INT_LIT : terminal<
+      (lit<"0"> + cr<"xX"> + DigitRun<HexDigit>) |
+      (lit<"0"> + cr<"bB"> + DigitRun<cr<"01">>) |
+      (lit<"0"> + cr<"oO"> + DigitRun<OctalDigit>) | DecimalRun> {};
   struct IntegerLiteral : rule<assign<&ast::IntLit::text>(ref<INT_LIT>)> {};
-
-  static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + some(d);
-  struct FLOAT_LIT
-      : terminal<(some(d) + lit<"."> + option(some(d)) + option(Exponent))  //
-                | (some(d) + Exponent)                                     //
-                | (lit<"."> + some(d) + option(Exponent))> {};
-  struct FloatingLiteral : rule<assign<&ast::FloatLit::text>(ref<FLOAT_LIT>)> {
-  };
-
-  // A rune literal and a string literal in one terminal: both are
-  // single-quoted, and they match the same bytes at length one.
+  static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + DecimalRun;
+  struct FLOAT_LIT : terminal<
+      (DecimalRun + lit<".", !lit<"."> + !(cr<"a-df-zA-DF-Z_">)> + option(DecimalRun) + option(Exponent)) |
+      (DecimalRun + Exponent) | (lit<"."> + DecimalRun + option(Exponent))> {};
+  struct FloatingLiteral : rule<assign<&ast::FloatLit::text>(ref<FLOAT_LIT>)> {};
   static constexpr auto StrEscape =
-      (lit<"\\u"> + repeat<4>(HexDigit))    //
-      | (lit<"\\U"> + repeat<8>(HexDigit))  //
-      | (lit<"\\x"> + repeat<2>(HexDigit))  //
-      | (lit<"\\"> + repeat<3>(OctalDigit))  //
-      | (lit<"\\"> + cr<R"(abfnrtv\\'")">);
-  struct STRING_LIT
-      : terminal<lit<"'"> + many(StrEscape | (!cr<R"('\n)"> + any)) + lit<"'">> {
-  };
-  struct StringLiteral : rule<assign<&ast::StringLit::text>(ref<STRING_LIT>)> {
-  };
+      (lit<"\\u"> + repeat<4>(HexDigit)) |
+      (lit<"\\U"> + repeat<8>(HexDigit)) |
+      (lit<"\\x"> + repeat<2>(HexDigit)) |
+      (lit<"\\"> + repeat<3>(OctalDigit)) |
+      (lit<"\\"> + cr<R"(abfnrtv\\'"$`)">);
+  struct STRING_LIT : terminal<
+      (lit<"r'"> + many(cr<"^'">) + lit<"'">) |
+      (lit<"r\""> + many(cr<R"(^")">) + lit<"\"">) |
+      (lit<"'"> + many(StrEscape | cr<R"(^'\\)">) + lit<"'">) |
+      (lit<"\""> + many(StrEscape | cr<R"(^"\\)">) + lit<"\"">)> {};
+  struct CHAR_LIT : terminal<lit<"`"> + (StrEscape | cr<R"(^`\\\r\n)">) + lit<"`">> {};
+  struct StringLiteral : rule<assign<&ast::StringLit::text>(ref<STRING_LIT>)> {};
+  struct RuneLiteral : rule<assign<&ast::RuneLit::text>(ref<CHAR_LIT>)> {};
+  struct BoolLiteral : rule<create<ast::BoolLit>(flag<&ast::BoolLit::value>(kw<"true">) | kw<"false">)> {};
+  struct NoneLiteral : rule<create<ast::NoneLit>(kw<"none">)> {};
+  struct NilLiteral : rule<create<ast::NilLit>(kw<"nil">)> {};
 
   // -- Reusable list tails, parameterised on the member they fill ----
   template <auto Ptr>
   static constexpr auto IdentifierListFor =
-      append<Ptr>(ref<ID>) + many(lit<","> + append<Ptr>(ref<ID>));
+      some(append<Ptr>(ref<ID>), lit<",">);
 
   template <auto Ptr>
   static constexpr auto ExpressionListFor =
-      append<Ptr>(ref<Expression>) + many(lit<","> + append<Ptr>(ref<Expression>));
+      some(append<Ptr>(ref<Expression>), lit<",">);
 
   template <auto Ptr>
   static constexpr auto ParametersFor =
@@ -147,9 +164,10 @@ struct V : cursiv::GrammarSpec {
             kw<"fn"> + assign<&ast::FunctionType::signature>(ref<Signature>))> {
   };
 
-  struct Param
-      : rule<create<ast::Param>(option(IdentifierListFor<&ast::Param::names>) +
-                                assign<&ast::Param::type>(ref<Type>))> {};
+  struct Param : rule<create<ast::Param>(option(flag<&ast::Param::mut>(kw<"mut">)) +
+      option(append<&ast::Param::names>(ref<ID>)) + assign<&ast::Param::type>(ref<Type>))> {};
+  struct NamedParam : rule<create<ast::Param>(option(flag<&ast::Param::mut>(kw<"mut">)) +
+      append<&ast::Param::names>(ref<ID>) + assign<&ast::Param::type>(ref<Type>))> {};
 
   struct MethodSpec
       : rule<create<ast::MethodSpec>(
@@ -157,6 +175,8 @@ struct V : cursiv::GrammarSpec {
                  ParametersFor<&ast::MethodSpec::params> +
                  option(!gap::line +
                         assign<&ast::MethodSpec::result>(ref<Result_>)))  //
+             | create<ast::MethodSpec>(assign<&ast::MethodSpec::name>(ref<ID>) +
+                   assign<&ast::MethodSpec::fieldType>(ref<Type>))
              | create<ast::MethodSpec>(assign<&ast::MethodSpec::embedded>(
                    ref<NamedType> | ref<QualifiedType>))> {};
 
@@ -177,18 +197,16 @@ struct V : cursiv::GrammarSpec {
   // so it is safe to lead a conversion or a type-led call argument with one
   // -- unlike a bare name, which a call already covers.
   struct TypeLit
-      : rule<ref<ArrayType> | ref<FunctionType> | ref<InterfaceType> |
-            ref<MapType>> {};
+      : rule<ref<ArrayType> | ref<FunctionType> | ref<MapType>> {};
 
   struct Type
       : rule<ref<NamedType> | ref<QualifiedType> | ref<ArrayType> |
-            ref<FunctionType> | ref<InterfaceType> | ref<MapType>> {};
+            ref<FunctionType> | ref<MapType>> {};
 
   struct Result_
       : rule<create<ast::Result_>(
                  flag<&ast::Result_::isParams>(lit<"(">) +
-                 option(append<&ast::Result_::params>(ref<Param>) +
-                        many(lit<","> + append<&ast::Result_::params>(ref<Param>)) +
+                 option(some(append<&ast::Result_::params>(ref<Param>), lit<",">) +
                         option(lit<",">)) +
                  lit<")">)  //
              | create<ast::Result_>(assign<&ast::Result_::type>(ref<Type>))> {};
@@ -198,6 +216,10 @@ struct V : cursiv::GrammarSpec {
             ParametersFor<&ast::Signature::params> +
             option(!gap::line + assign<&ast::Signature::result>(ref<Result_>)))> {
   };
+
+  struct NamedSignature : rule<create<ast::Signature>(lit<"("> +
+      option(some(append<&ast::Signature::params>(ref<NamedParam>), lit<",">) + option(lit<",">)) +
+      lit<")"> + option(!gap::line + assign<&ast::Signature::result>(ref<Result_>)))> {};
 
   // -- Expressions ----
 
@@ -209,39 +231,31 @@ struct V : cursiv::GrammarSpec {
             assign<&ast::KeyedElement::value>(ref<Expression> |
                                               ref<v::V::LiteralValue>))> {};
 
-  // `{...}`, untyped: elements separated by commas -- V's real struct/map
-  // literals need the separator.
+  // Struct fields may also be separated by a line break.
   struct LiteralValue
       : rule<lit<"{"> +
-            option(append<&ast::LiteralValue::elements>(ref<KeyedElement>) +
-                   many(lit<","> +
-                        append<&ast::LiteralValue::elements>(ref<KeyedElement>)) +
+            option(some(append<&ast::LiteralValue::elements>(ref<KeyedElement>), lit<","> | gap::line) +
                    option(lit<",">)) +
             lit<"}">> {};
 
   struct LiteralType
-      : rule<ref<ArrayType> | ref<MapType> | ref<NamedType> | ref<QualifiedType>> {
+      : rule<ref<ArrayType> | ref<NamedType> | ref<QualifiedType>> {
   };
 
-  struct CompositeLit
-      : rule<create<ast::CompositeLit>(
-            assign<&ast::CompositeLit::type>(ref<LiteralType>) +
-            assign<&ast::CompositeLit::value>(ref<LiteralValue>))> {};
+  struct EmptyLiteralValue : rule<create<ast::LiteralValue>(lit<"{"> + lit<"}">)> {};
+  struct CompositeLit : rule<create<ast::CompositeLit>(
+      (assign<&ast::CompositeLit::type>(ref<MapType>) + assign<&ast::CompositeLit::value>(ref<EmptyLiteralValue>)) |
+      (assign<&ast::CompositeLit::type>(ref<LiteralType>) + assign<&ast::CompositeLit::value>(ref<LiteralValue>)))> {};
 
   struct ArrayLit
       : rule<create<ast::ArrayLit>(
-            lit<"["> + ExpressionListFor<&ast::ArrayLit::elements> + lit<"]">)> {
+            lit<"["> + ExpressionListFor<&ast::ArrayLit::elements> + option(lit<",">) + lit<"]">)> {
   };
 
   struct FunctionLit
       : rule<create<ast::FunctionLit>(
-            kw<"fn"> + assign<&ast::FunctionLit::signature>(ref<Signature>) +
+            kw<"fn"> + assign<&ast::FunctionLit::signature>(ref<NamedSignature>) +
             assign<&ast::FunctionLit::body>(ref<Block>))> {};
-
-  struct ConversionExpr
-      : rule<create<ast::ConversionExpr>(
-            assign<&ast::ConversionExpr::type>(ref<TypeLit>) + lit<"("> +
-            assign<&ast::ConversionExpr::value>(ref<Expression>) + lit<")">)> {};
 
   struct MatchArm;
   struct MatchExpr
@@ -255,8 +269,8 @@ struct V : cursiv::GrammarSpec {
              assign<&ast::MatchArm::body>(ref<Block>)> {};
   struct EnumValue : rule<lit<"."> + assign<&ast::EnumValue::name>(ref<ID>)> {};
   struct Operand : rule<ref<MatchExpr> | ref<EnumValue> | ref<IntegerLiteral> |
-                        ref<FloatingLiteral> | ref<StringLiteral> | ref<CompositeLit> |
-                        ref<FunctionLit> | ref<ArrayLit> | ref<Identifier> |
+                        ref<FloatingLiteral> | ref<StringLiteral> | ref<RuneLiteral> | ref<BoolLiteral> | ref<NoneLiteral> | ref<NilLiteral> | ref<CompositeLit> |
+                        ref<FunctionLit> | ref<ArrayLit> | ref<LiteralValue> | ref<Identifier> |
                         (lit<"("> + ref<Expression> + lit<")">)> {};
 
   static constexpr auto Arguments =
@@ -271,7 +285,7 @@ struct V : cursiv::GrammarSpec {
   // method-expression, and a call reading `Arguments` also covers a type
   // conversion for a named type.
   struct PrimaryExpr
-      : rule<(ref<Operand> | ref<ConversionExpr>)+many(
+      : rule<ref<Operand> + many(
             nest<ast::OrExpr, &ast::OrExpr::operand>(
                 kw<"or"> + assign<&ast::OrExpr::handler>(ref<Block>)) |
             nest<ast::SelectorExpr, &ast::SelectorExpr::object>(
@@ -282,28 +296,29 @@ struct V : cursiv::GrammarSpec {
             | nest<ast::CallExpr, &ast::CallExpr::callee>(Arguments))> {};
 
   static constexpr auto OpUnary =
-      lit<"+"> | lit<"-"> | lit<"!"> | lit<"^"> | lit<"*"> | lit<"&">;
+      lit<"-"> | lit<"!"> | lit<"~"> | lit<"*"> | lit<"&">;
   struct UnaryExpr
       : rule<create<ast::PrefixExpr>(
                  assign<&ast::PrefixExpr::op>(OpUnary) +
                  assign<&ast::PrefixExpr::operand>(ref<UnaryExpr>))  //
              | ref<PrimaryExpr>> {};
 
-  // Precedence tiers a Go-shaped language actually uses.
+  // Native V precedence tiers for the supported operator subset.
   static constexpr auto OpMul =
-      lit<"<<"> | lit<">>"> | lit<"&^"> | lit<"&"> | lit<"*"> | lit<"/"> |
+      lit<"<<"> | lit<">>>"> | lit<">>"> | lit<"&"> | lit<"*"> | lit<"/"> |
       lit<"%">;
   static constexpr auto OpAdd = lit<"+"> | lit<"-"> | lit<"|"> | lit<"^">;
   static constexpr auto OpRel =
       lit<"=="> | lit<"!="> | lit<"<="> | lit<">="> | lit<"<"> | lit<">">;
-  static constexpr auto OpLogAnd = lit<"&&">;
+  // The native scanner distinguishes logical && from & followed by prefix &.
+  static constexpr auto OpLogAnd = lit<"&&", s | lit<"!"> | lit<"\x85"> | lit<"\xA0">>;
+  static constexpr auto OpMembership = kw<"in"> | kw<"!in">;
   static constexpr auto OpLogOr = lit<"||">;
 
   struct Expression
-      : infix<UnaryExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpMul) >> left(OpAdd) >> left(OpRel) >> left(OpLogAnd) >>
-               left(OpLogOr))> {};
+      : infix<UnaryExpr, ast::BinaryExpr,
+              levels(left(OpMul), left(OpAdd), left(OpRel), left(OpMembership),
+                     left(OpLogAnd | OpLogOr))> {};
 
   // -- Statements ----
 
@@ -317,7 +332,7 @@ struct V : cursiv::GrammarSpec {
             assign<&ast::IncDecStmt::op>(lit<"++"> | lit<"--">))> {};
 
   static constexpr auto AssignOp =
-      lit<"<<="> | lit<">>="> | lit<"+="> | lit<"-="> | lit<"*="> |
+      lit<"<<="> | lit<">>>="> | lit<">>="> | lit<"+="> | lit<"-="> | lit<"*="> |
       lit<"/="> | lit<"%="> | lit<"&="> | lit<"^="> | lit<"|="> |
       lit<"=">;
   struct AssignStmt
@@ -331,49 +346,27 @@ struct V : cursiv::GrammarSpec {
 
   struct ReturnStmt
       : rule<create<ast::ReturnStmt>(
-            kw<"return"> + option(ExpressionListFor<&ast::ReturnStmt::values>))> {
+            kw<"return"> + (ExpressionListFor<&ast::ReturnStmt::values> | &(lit<"}"> | (ref<ID> + lit<":", !lit<"=">>))))> {
   };
-  struct BreakStmt : rule<create<ast::BreakStmt>(kw<"break">)> {};
-  struct ContinueStmt : rule<create<ast::ContinueStmt>(kw<"continue">)> {};
+  struct BreakStmt : rule<create<ast::BreakStmt>(kw<"break"> + option(!gap::line + assign<&ast::BreakStmt::label>(ref<ID>)))> {};
+  struct ContinueStmt : rule<create<ast::ContinueStmt>(kw<"continue"> + option(!gap::line + assign<&ast::ContinueStmt::label>(ref<ID>)))> {};
 
-  struct IfStmt
-      : rule<create<ast::IfStmt>(
-            kw<"if"> +
-            option(assign<&ast::IfStmt::init>(ref<SimpleStmt>) + lit<";">) +
-            assign<&ast::IfStmt::cond>(ref<Expression>) +
-            assign<&ast::IfStmt::thenBranch>(ref<Block>) +
-            option(kw<"else"> + assign<&ast::IfStmt::elseBranch>(
-                                     ref<IfStmt> | ref<Block>)))> {};
+  struct IfStmt : rule<create<ast::IfStmt>(kw<"if"> +
+      assign<&ast::IfStmt::cond>(ref<Expression>) + assign<&ast::IfStmt::thenBranch>(ref<Block>) +
+      option(kw<"else"> + assign<&ast::IfStmt::elseBranch>(ref<IfStmt> | ref<Block>)))> {};
 
-  struct CaseClause
-      : rule<create<ast::CaseClause>(
-                 kw<"case"> + ExpressionListFor<&ast::CaseClause::values> +
-                 lit<":"> +
-                 many(append<&ast::CaseClause::stmts>(ref<Statement>) + Eos))  //
-             | create<ast::CaseClause>(
-                   flag<&ast::CaseClause::isDefault>(kw<"default">) +
-                   lit<":"> +
-                   many(append<&ast::CaseClause::stmts>(ref<Statement>) +
-                        Eos))> {};
-
-  struct SwitchStmt
-      : rule<create<ast::SwitchStmt>(
-            kw<"switch"> +
-            option(assign<&ast::SwitchStmt::init>(ref<SimpleStmt>) + lit<";">) +
-            option(assign<&ast::SwitchStmt::tag>(ref<Expression>)) + lit<"{"> +
-            many(append<&ast::SwitchStmt::cases>(ref<CaseClause>)) + lit<"}">)> {
-  };
-
+  struct Iterable : rule<ref<Expression> + option(nest<ast::RangeExpr, &ast::RangeExpr::low>(
+      lit<".."> + assign<&ast::RangeExpr::high>(ref<Expression>)))> {};
   // The classic three-part form's init also admits a `:=` declaration:
   // the idiomatic `for i := 0; i < n; i++` needs it.
   struct ForStmt
       : rule<create<ast::ForStmt>(
                  kw<"for"> + ExpressionListFor<&ast::ForStmt::inTargets> +
-                 kw<"in"> + assign<&ast::ForStmt::inIterable>(ref<ID>) +
+                 kw<"in"> + assign<&ast::ForStmt::inIterable>(ref<Iterable>) +
                  assign<&ast::ForStmt::body>(ref<Block>))  //
              | create<ast::ForStmt>(
                    kw<"for"> +
-                   option(assign<&ast::ForStmt::init>(ref<VarDecl> |
+                   option(assign<&ast::ForStmt::init>(ref<PlainVarDecl> |
                                                        ref<SimpleStmt>)) +
                    flag<&ast::ForStmt::isForClause>(lit<";">) +
                    option(assign<&ast::ForStmt::cond>(ref<Expression>)) +
@@ -392,41 +385,36 @@ struct V : cursiv::GrammarSpec {
             assign<&ast::ConstSpec::name>(ref<ID>) + lit<"="> +
             assign<&ast::ConstSpec::value>(ref<Expression>))> {};
 
-  struct ConstDecl
-      : rule<create<ast::ConstDecl>(
-            kw<"const"> + lit<"("> +
-            many(append<&ast::ConstDecl::specs>(ref<ConstSpec>) + Eos) +
-            lit<")">)> {};
-
-  struct VarDecl
-      : rule<create<ast::VarDecl>(
-            option(flag<&ast::VarDecl::mut>(kw<"mut">)) +
-            IdentifierListFor<&ast::VarDecl::names> + lit<":="> +
-            ExpressionListFor<&ast::VarDecl::values>)> {};
+  struct ConstDecl : rule<create<ast::ConstDecl>(
+      option(flag<&ast::ConstDecl::isPub>(kw<"pub">)) + kw<"const"> +
+      ((lit<"("> + many(append<&ast::ConstDecl::specs>(ref<ConstSpec>) + (Eos | &lit<")">)) + lit<")">) |
+       append<&ast::ConstDecl::specs>(ref<ConstSpec>)))> {};
+  static constexpr auto VariableBody = IdentifierListFor<&ast::VarDecl::names> + lit<":="> +
+      ExpressionListFor<&ast::VarDecl::values>;
+  struct VarDecl : rule<create<ast::VarDecl>(option(flag<&ast::VarDecl::mut>(kw<"mut">)) + VariableBody)> {};
+  struct PlainVarDecl : rule<create<ast::VarDecl>(VariableBody)> {};
 
   // A field (named, or anonymous -- an embedded type alone), or a `pub:` /
   // `mut:` / `pub mut:` visibility marker: `type == nullptr` tells the
   // marker forms apart from a real field.
   struct FieldDecl
       : rule<create<ast::FieldDecl>(
-                 IdentifierListFor<&ast::FieldDecl::names> + !gap::line +
+                 append<&ast::FieldDecl::names>(ref<ID>) + !gap::line +
                  assign<&ast::FieldDecl::type>(ref<Type>) +
-                 option(assign<&ast::FieldDecl::tag>(ref<STRING_LIT>)))  //
+                 option(lit<"="> + assign<&ast::FieldDecl::defaultValue>(ref<Expression>)))  //
              | create<ast::FieldDecl>(
                    assign<&ast::FieldDecl::type>(ref<NamedType> |
-                                                 ref<QualifiedType>) +
-                   option(assign<&ast::FieldDecl::tag>(ref<STRING_LIT>)))  //
+                                                 ref<QualifiedType>))  //
              | create<ast::FieldDecl>(
                    flag<&ast::FieldDecl::pub>(kw<"pub">) +
-                   option(flag<&ast::FieldDecl::mut>(kw<"mut">) +
-                          option(kw<"mut">)) +
-                   lit<":">)  //
+                   option(flag<&ast::FieldDecl::mut>(kw<"mut">)) +
+                   flag<&ast::FieldDecl::isSection>(lit<":">))  //
              | create<ast::FieldDecl>(flag<&ast::FieldDecl::mut>(kw<"mut">) +
-                                      lit<":">)> {};
+                                      flag<&ast::FieldDecl::isSection>(lit<":">))> {};
 
   struct StructDecl
       : rule<create<ast::StructDecl>(
-            kw<"struct"> + assign<&ast::StructDecl::name>(ref<ID>) + lit<"{"> +
+            option(flag<&ast::StructDecl::isPub>(kw<"pub">)) + kw<"struct"> + assign<&ast::StructDecl::name>(ref<ID>) + lit<"{"> +
             many(append<&ast::StructDecl::fields>(ref<FieldDecl>) + Eos) +
             lit<"}">)> {};
 
@@ -438,29 +426,27 @@ struct V : cursiv::GrammarSpec {
              assign<&ast::EnumDecl::name>(ref<ID>) + lit<"{"> +
              many(append<&ast::EnumDecl::members>(ref<EnumMember>) + option(lit<",">)) +
              lit<"}">> {};
-  struct Declaration
-      : rule<ref<EnumDecl> | ref<ConstDecl> | ref<VarDecl> | ref<StructDecl>> {};
+  struct InterfaceDecl : rule<create<ast::InterfaceDecl>(
+      option(flag<&ast::InterfaceDecl::isPub>(kw<"pub">)) +
+      assign<&ast::InterfaceDecl::type>(ref<InterfaceType>))> {};
 
-  // A method (receiver parenthesised right after `fn`) or a plain function
-  // (name right after `fn`) -- disjoint on the token following `fn`.
-  struct FunctionDecl
-      : rule<create<ast::FunctionDecl>(
-                 kw<"fn"> + ParametersFor<&ast::FunctionDecl::receiver> +
-                 assign<&ast::FunctionDecl::name>(ref<ID>) +
-                 assign<&ast::FunctionDecl::signature>(ref<Signature>) +
-                 option(assign<&ast::FunctionDecl::body>(ref<Block>)))  //
-             | create<ast::FunctionDecl>(
-                   kw<"fn"> + assign<&ast::FunctionDecl::name>(ref<ID>) +
-                   assign<&ast::FunctionDecl::signature>(ref<Signature>) +
-                   option(assign<&ast::FunctionDecl::body>(ref<Block>)))> {};
+  static constexpr auto FunctionEnd =
+      (assign<&ast::FunctionDecl::signature>(ref<NamedSignature>) + assign<&ast::FunctionDecl::body>(ref<Block>)) |
+      (assign<&ast::FunctionDecl::signature>(ref<Signature>) + !lit<"{">);
+  struct FunctionDecl : rule<create<ast::FunctionDecl>(
+      option(flag<&ast::FunctionDecl::isPub>(kw<"pub">)) + kw<"fn"> +
+      option(lit<"("> + append<&ast::FunctionDecl::receiver>(ref<NamedParam>) + lit<")">) +
+      assign<&ast::FunctionDecl::name>(ref<ID>) + FunctionEnd)> {};
 
-  struct TopLevelDecl : rule<ref<Declaration> | ref<FunctionDecl>> {};
+  struct TopLevelDecl : rule<ref<EnumDecl> | ref<ConstDecl> | ref<StructDecl> | ref<InterfaceDecl> | ref<FunctionDecl>> {};
 
   struct Statement
-      : rule<ref<Declaration> | ref<SimpleStmt> | ref<ReturnStmt> |
+      : rule<ref<EnumDecl> | ref<VarDecl> | ref<StructDecl> | ref<SimpleStmt> | ref<ReturnStmt> |
             ref<BreakStmt> | ref<ContinueStmt> | ref<Block> | ref<IfStmt> |
-            ref<SwitchStmt> | ref<ForStmt>> {};
+            ref<ForStmt> | ref<LabelStmt>> {};
 
+  struct LabelStmt : rule<create<ast::LabelStmt>(assign<&ast::LabelStmt::name>(ref<ID>) +
+      lit<":"> + assign<&ast::LabelStmt::body>(ref<ForStmt>))> {};
   struct Block
       : rule<create<ast::Block>(
             lit<"{"> + many(append<&ast::Block::stmts>(ref<Statement>) + Eos) +
@@ -470,12 +456,10 @@ struct V : cursiv::GrammarSpec {
       : rule<create<ast::ModuleClause>(
             kw<"module"> + assign<&ast::ModuleClause::name>(ref<ID>))> {};
 
-  struct ImportSpec
-      : rule<create<ast::ImportSpec>(
-            kw<"import"> +
-            option(flag<&ast::ImportSpec::dot>(lit<".">) |
-                   assign<&ast::ImportSpec::alias>(ref<ID>)) +
-            assign<&ast::ImportSpec::path>(ref<ID> | ref<STRING_LIT>))> {};
+  struct ImportPath : rule<as<std::string_view>(some(ref<ID>, lit<".">) | ref<STRING_LIT>)> {};
+  struct ImportSpec : rule<create<ast::ImportSpec>(kw<"import"> +
+      assign<&ast::ImportSpec::path>(ref<ImportPath>) +
+      option(kw<"as"> + assign<&ast::ImportSpec::alias>(ref<ID>)))> {};
 
   struct SourceFile
       : rule<create<ast::SourceFile>(
@@ -485,7 +469,7 @@ struct V : cursiv::GrammarSpec {
   };
 
   using entry = SourceFile;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

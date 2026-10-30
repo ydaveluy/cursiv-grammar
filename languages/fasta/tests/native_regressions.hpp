@@ -45,6 +45,16 @@ inline bool native_regressions(const auto& services) {
       for (const auto* line : record->body) check(line->parent == record, "body parent");
     }
   }
+  {
+    const auto source = services.parser->parse(">id|free text\n ;literal\n A>C;D\n");
+    const auto* d = source.template value_as<ast::Document>();
+    const auto* r = d && d->records.size() == 1 ? d->records[0] : nullptr;
+    const auto* first = r && r->body.size() == 2 ? cursiv::ast_cast<ast::SequenceLine>(r->body[0]) : nullptr;
+    const auto* second = r && r->body.size() == 2 ? cursiv::ast_cast<ast::SequenceLine>(r->body[1]) : nullptr;
+    check(source.accepted && !source.cst().recovered() && source.diagnostics.empty() &&
+          r && r->description->text == "id|free text" && first && first->text == " ;literal" &&
+          second && second->text == " A>C;D", "only column-one header/comment markers are structural");
+  }
   for (std::string text : {"", "metadata\n;comment\n", ">\n>second", ">id\nACD-EF.*?123xyz\n",
                            ">id\nA\tC G\t\n", ">séquence\n;commenté\nACGT\n",
                            "métadonnées\n>id\nACT\n"}) {

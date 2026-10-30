@@ -12,6 +12,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "tinybasic/core/CoreServices.hpp"
 #include "tinybasic/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -26,6 +27,7 @@ int main() {
   const auto language = cursiv::create_language<
       tinybasic::TinybasicCoreServices, tinybasic::TinybasicSharedCoreServices,
       tinybasic::install_core_module>();
+  if (!tinybasic_native_followup::run(language)) return fail("native followup", "arithmetic, digits or AST mismatch");
 
   int total = 0;
   int failures = 0;

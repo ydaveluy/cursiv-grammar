@@ -12,6 +12,7 @@ struct Stmt : cursiv::Extends<cursiv::AstNode> {};
 
 struct Ident : cursiv::Extends<Expr> {
   string_view name;
+  boolean floating;
 };
 
 // Raw digit text, radix included (`#X1F`, `#B101`, `37`): the value's
@@ -69,6 +70,7 @@ struct PrefixExpr : cursiv::Extends<Expr> {
 struct CallExpr : cursiv::Extends<Expr> {
   Expr* callee;
   vector<Expr*> args;
+  boolean method;
 };
 
 struct IndexExpr : cursiv::Extends<Expr> {
@@ -92,6 +94,7 @@ struct BinaryExpr : cursiv::Extends<Expr> {
 // `cond -> then, else` (`->` or the float form `#->`).
 struct CondExpr : cursiv::Extends<Expr> {
   Expr* cond;
+  string_view op;
   Expr* thenValue;
   Expr* elseValue;
 };
@@ -196,6 +199,7 @@ struct GotoStmt : cursiv::Extends<Stmt> {
 struct CallStmt : cursiv::Extends<Stmt> {
   Expr* callee;
   vector<Expr*> args;
+  boolean method;
 };
 
 struct ResultisStmt : cursiv::Extends<Stmt> {

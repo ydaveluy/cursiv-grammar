@@ -47,15 +47,9 @@ struct BoolLit : cursiv::Extends<Expr> {
   boolean value;
 };
 
-// An integer/float/char/string literal with a user-defined suffix, kept
-// verbatim: the suffix names a conversion this parser does not resolve.
-struct UserLit : cursiv::Extends<Expr> {
-  string_view text;
-};
-
 struct NullLit : cursiv::Extends<Expr> {};
 
-// `literal+`: adjacent literals (concatenated string pieces, most often).
+// One literal, or adjacent quoted pieces of a string constant.
 struct LiteralSeq : cursiv::Extends<Expr> {
   vector<Expr*> items;
 };
@@ -66,9 +60,7 @@ struct ParenExpr : cursiv::Extends<Expr> {
   Expr* inner;
 };
 
-// A name: a plain identifier, an operator-function-id (`operator+`), a
-// literal-operator-id, a destructor spelling (`~T`), any of them optionally
-// qualified by a nested-name-specifier -- captured whole, as written.
+// A possibly qualified identifier or destructor spelling, captured as text.
 struct IdExpr : cursiv::Extends<Expr> {
   string_view name;
 };
@@ -77,7 +69,7 @@ struct IdExpr : cursiv::Extends<Expr> {
 
 struct TypeSpec : cursiv::Extends<cursiv::AstNode> {};
 
-// One element of a decl-specifier-seq / type-specifier-seq.
+// One type plus its qualifiers, retained in source order.
 struct Specifiers : cursiv::Extends<cursiv::AstNode> {
   vector<TypeSpec*> parts;
 };
@@ -86,8 +78,7 @@ struct BuiltinTypeSpec : cursiv::Extends<TypeSpec> {
   string_view keyword;  // int, float, bool, void, auto...
 };
 
-// `const`, `&` (a reference marker) and `out` (an out-parameter marker), and
-// `virtual` as a function-specifier -- all bare qualifier words.
+// Constness and parameter-reference qualifiers, in source order.
 struct QualifierSpec : cursiv::Extends<TypeSpec> {
   string_view keyword;
 };
@@ -104,11 +95,6 @@ struct GenericTypeSpec : cursiv::Extends<TypeSpec> {
   vector<Specifiers*> args;
 };
 
-struct DecltypeSpec : cursiv::Extends<TypeSpec> {
-  Expr* expr;     // null when `isAuto`
-  boolean isAuto;
-};
-
 // `class`/`struct`/`enum` naming a tag without defining it:
 // `struct S`, `enum NS::Color`.
 struct ElaboratedTypeSpec : cursiv::Extends<TypeSpec> {
@@ -116,14 +102,10 @@ struct ElaboratedTypeSpec : cursiv::Extends<TypeSpec> {
   string_view name;
 };
 
-// -- Classes and enums (also type-specifiers: a definition may appear
-// wherever a type does) ----------------------------------------------------
+// -- Classes and enums, stored in a declaration's specifier container ----
 
 struct BaseSpecifier : cursiv::Extends<cursiv::AstNode> {
-  boolean isVirtual;
-  string_view access;  // empty when absent
-  string_view name;    // className text; empty when `declType` is set
-  DecltypeSpec* declType;
+  string_view name;
 };
 
 struct ClassDef : cursiv::Extends<TypeSpec> {
@@ -141,6 +123,7 @@ struct Enumerator : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct EnumDef : cursiv::Extends<TypeSpec> {
+  UType* utype;
   string_view name;
   Specifiers* base;  // enumbase, or null
   vector<Enumerator*> enumerators;
@@ -192,11 +175,10 @@ struct Param : cursiv::Extends<cursiv::AstNode> {
   Initializer* defaultValue;
 };
 
-// `( parameter-list? ) const? refqualifier?`
+// `( parameter-list? ) const?`
 struct Params : cursiv::Extends<cursiv::AstNode> {
   vector<Param*> params;
   boolean isConst;
-  string_view refQualifier;  // "&" | "&&" | empty
 };
 
 // A function declarator: `Name(args) const &`, always ending in a mandatory
@@ -214,31 +196,15 @@ struct InitDeclarator : cursiv::Extends<cursiv::AstNode> {
   vector<Initializer*> callArgs;  // direct-init: `Name(args)`
 };
 
-// A member: either a function-shaped declarator, or a bare name, optionally
-// with a bit-field width.
+// A function-shaped declarator or a property with an optional initializer.
 struct MemberDeclarator : cursiv::Extends<cursiv::AstNode> {
   Declarator* declarator;
   vector<string_view> postSpecifiers;
   Initializer* init;
   string_view name;
-  Expr* bitWidth;
 };
 
 // -- Expressions -----------------------------------------------------------
-
-struct LambdaCapture : cursiv::Extends<cursiv::AstNode> {
-  boolean byRef;
-  boolean isThis;
-  string_view name;
-  Initializer* init;  // set only for an init-capture
-};
-
-struct LambdaExpr : cursiv::Extends<Expr> {
-  string_view captureDefault;  // "&" | "=" | empty
-  vector<LambdaCapture*> captures;
-  vector<Param*> params;
-  CompoundStmt* body;
-};
 
 struct AssertExpr : cursiv::Extends<Expr> {
   string_view kind;  // "ensure" | "ensureAlways" | "check"
@@ -271,9 +237,7 @@ struct IndexExpr : cursiv::Extends<Expr> {
   ListInit* indexList;  // set for the rare bracedInitList form
 };
 
-// `s.f`, `p->f` (arrow spelled the same as dot here -- the grammar has no
-// separate Arrow token) and `p.~T()`: `field` carries whatever followed the
-// dot, verbatim.
+// `s.field`: the member name is retained as text.
 struct MemberExpr : cursiv::Extends<Expr> {
   Expr* object;
   string_view field;
@@ -317,15 +281,6 @@ struct CompoundStmt : cursiv::Extends<Stmt> {
   vector<Item*> items;
 };
 
-// A declaration used as an `if`/`while`/`switch` condition:
-// `if (int x = f())`. Extends Expr so `IfStmt::cond` et al. stay one field.
-struct CondDecl : cursiv::Extends<Expr> {
-  Specifiers* specifiers;
-  Declarator* declarator;
-  Initializer* init;  // set for the `= initializerClause` branch
-  ListInit* list;     // set for the bracedInitList branch
-};
-
 struct IfStmt : cursiv::Extends<Stmt> {
   Expr* cond;
   Stmt* thenBranch;
@@ -363,11 +318,6 @@ struct ForStmt : cursiv::Extends<Stmt> {
   Stmt* body;
 };
 
-struct Label : cursiv::Extends<Stmt> {
-  string_view name;
-  Stmt* body;
-};
-
 struct CaseLabel : cursiv::Extends<Stmt> {
   Expr* value;
   Stmt* body;
@@ -379,10 +329,6 @@ struct DefaultLabel : cursiv::Extends<Stmt> {
 
 struct BreakStmt : cursiv::Extends<Stmt> {};
 struct ContinueStmt : cursiv::Extends<Stmt> {};
-
-struct GotoStmt : cursiv::Extends<Stmt> {
-  string_view target;
-};
 
 struct ReturnStmt : cursiv::Extends<Stmt> {
   Expr* value;
@@ -411,22 +357,8 @@ struct NamespaceDef : cursiv::Extends<Item> {
   vector<Item*> items;
 };
 
-struct NamespaceAlias : cursiv::Extends<Item> {
-  string_view name;
-  string_view target;
-};
-
-struct AliasDecl : cursiv::Extends<Item> {
-  string_view name;
-  Specifiers* type;
-};
-
-// `declSpecifierSeq? (initDeclaratorList | assignmentExpression)? ;` -- a
-// variable declaration, a bare type definition (class/struct/enum), or a
-// bare expression statement at declaration scope.
-// Extends Stmt, not Item directly: a restricted form of this same class is
-// also reachable through Statement (DeclStmtRule), where every alternative
-// must share the Stmt family for `Label::body`-shaped members to type-check.
+// A variable declaration or the wrapper for a class/enum definition.
+// Local declarations share the statement family required by statement bodies.
 struct VarDecl : cursiv::Extends<Stmt> {
   Specifiers* specifiers;
   vector<InitDeclarator*> declarators;
@@ -441,11 +373,6 @@ struct FunctionDef : cursiv::Extends<Item> {
   Declarator* declarator;
   vector<string_view> postSpecifiers;
   CompoundStmt* body;
-  boolean isDefaulted;  // `= default;`
-};
-
-struct AccessLabel : cursiv::Extends<Item> {
-  string_view access;
 };
 
 struct PropertyDef : cursiv::Extends<Item> {
@@ -455,6 +382,12 @@ struct PropertyDef : cursiv::Extends<Item> {
   Specifiers* specifiers;
   vector<MemberDeclarator*> declarators;
   Expr* expr;
+};
+
+struct DelegateDecl : cursiv::Extends<Item> {
+  boolean isEvent;
+  Specifiers* result;
+  Declarator* declarator;
 };
 
 struct Script : cursiv::Extends<cursiv::AstNode> {

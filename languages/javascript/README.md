@@ -46,10 +46,9 @@ const alice = new Greeter("Alice");
 console.log(alice.greet());
 ```
 
-A program is a sequence of statements and declarations: variables, functions,
-classes, `import`/`export`, control flow, and the full expression grammar
-(arrow functions, destructuring, template literals, optional chaining,
-generators, async/await).
+This port models an ECMAScript 2025 subset with statements, declarations,
+modules, templates and modern expressions. Identifiers retain decoded names;
+literal text and the CST keep their source spelling.
 
 ## The command line
 

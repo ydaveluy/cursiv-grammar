@@ -1,3 +1,4 @@
+#include "native_followup.hpp"
 
 #include <cstdio>
 
@@ -291,7 +292,8 @@ int main() {
       scala::ScalaSharedCoreServices,
       scala::install_core_module>();
 
-  if (!scala_audit::modern_cases(*language.language.parser))
+  if (!scala_audit::native_followup(*language.language.parser) ||
+      !scala_audit::modern_cases(*language.language.parser))
     return 1;
 
   int documents = 0;

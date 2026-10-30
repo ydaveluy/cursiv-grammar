@@ -2,7 +2,9 @@
 #include "cursiv/core/validation/ValidationRegistry.hpp"
 #include "iso8601/core/CoreServices.hpp"
 #include <array>
+#include <cstdint>
 #include <memory>
+#include <type_traits>
 
 namespace iso8601 {
 namespace {
@@ -60,11 +62,30 @@ const ast::DateValue *inherited(const ast::DateValue &d) {
     }
   return nullptr;
 }
+bool exceeds(std::string_view value, unsigned limit) {
+  return whole(value) > limit || (whole(value) == limit && fractional(value));
+}
+
+// Captures are source views. Adjacency identifies basic/extended syntax
+// without reparsing the source or converting numeric payloads.
+unsigned styleBetween(std::string_view left, std::string_view right,
+                      std::size_t basicGap = 0) {
+  const auto end = reinterpret_cast<std::uintptr_t>(left.data()) + left.size();
+  return reinterpret_cast<std::uintptr_t>(right.data()) == end + basicGap ? 1u : 2u;
+}
 } // namespace
 void Iso8601Validator::checkDate(const ast::DateValue &d,
                                  cursiv::ValidationAcceptor &a) const {
-  if (amount(d))
+  if (amount(d)) {
+    if (d.week || d.weekDay)
+      a.error(d, "Alternative duration notation does not use week dates.")
+          .code("iso8601.duration-week-date");
+    else if ((d.month && whole(*d.month) > 12) ||
+             (d.day && whole(*d.day) > 30))
+      a.error(d, "Alternative duration components exceed their carry-over points.")
+          .code("iso8601.duration-date");
     return;
+  }
   auto year = d.year, month = d.month;
   if (const auto *start = inherited(d)) {
     if (!year)
@@ -120,8 +141,13 @@ void Iso8601Validator::checkDate(const ast::DateValue &d,
 }
 void Iso8601Validator::checkTime(const ast::TimeValue &t,
                                  cursiv::ValidationAcceptor &a) const {
-  if (amount(t))
+  if (amount(t)) {
+    if (exceeds(t.hour, 24) || (t.minute && exceeds(*t.minute, 60)) ||
+        (t.second && exceeds(*t.second, 60)))
+      a.error(t, "Alternative duration components exceed their carry-over points.")
+          .code("iso8601.duration-clock");
     return;
+  }
   const auto h = whole(t.hour), m = t.minute ? whole(*t.minute) : 0,
              s = t.second ? whole(*t.second) : 0;
   if (h > 24 ||
@@ -139,7 +165,10 @@ void Iso8601Validator::checkTime(const ast::TimeValue &t,
 }
 void Iso8601Validator::checkZone(const ast::TimeZoneValue &z,
                                  cursiv::ValidationAcceptor &a) const {
-  if ((z.hour && whole(*z.hour) > 23) || (z.minute && whole(*z.minute) > 59))
+  if (amount(z))
+    a.error(z, "Alternative duration notation uses local time without a zone.")
+        .code("iso8601.duration-zone");
+  else if ((z.hour && whole(*z.hour) > 23) || (z.minute && whole(*z.minute) > 59))
     a.error(z, "UTC offset components are outside their range.")
         .code("iso8601.zone");
   else if (z.negative && (!z.hour || !nonzero(*z.hour)) &&
@@ -175,6 +204,47 @@ void Iso8601Validator::checkDuration(const ast::DurationParts &d,
     a.error(d, "Only the last duration component may have a fraction.")
         .code("iso8601.fraction");
 }
+
+void Iso8601Validator::checkDateTime(const ast::DateTimeValue &d,
+                                    cursiv::ValidationAcceptor &a) const {
+  if (d.date && !d.date->day && !d.date->ordinalDay && !d.date->weekDay)
+    a.error(d, "A date combined with a time must retain its day component.")
+        .code("iso8601.datetime-date");
+}
+
+void Iso8601Validator::checkDocument(const ast::Document &d,
+                                    cursiv::ValidationAcceptor &a) const {
+  auto styles = [](auto &&self, const auto *node) -> unsigned {
+    if (!node) return 0;
+    using T = std::remove_cv_t<std::remove_pointer_t<decltype(node)>>;
+    if constexpr (std::is_same_v<T, ast::DateValue>) {
+      if (node->year && node->month) return styleBetween(*node->year, *node->month);
+      if (node->year && node->ordinalDay) return styleBetween(*node->year, *node->ordinalDay);
+      if (node->year && node->week) return styleBetween(*node->year, *node->week, 1);
+      if (node->month && node->day) return styleBetween(*node->month, *node->day);
+      if (node->week && node->weekDay) return styleBetween(*node->week, *node->weekDay);
+      return 0;
+    } else if constexpr (std::is_same_v<T, ast::TimeZoneValue>) {
+      return node->hour && node->minute ? styleBetween(*node->hour, *node->minute) : 0;
+    } else if constexpr (std::is_same_v<T, ast::TimeValue>) {
+      return (node->minute ? styleBetween(node->hour, *node->minute) : 0) | self(self, node->zone);
+    } else if constexpr (std::is_same_v<T, ast::DateTimeValue>) {
+      return self(self, node->date) | self(self, node->time);
+    } else if constexpr (std::is_same_v<T, ast::DurationParts>) {
+      return 0; // Designators do not select basic or extended notation.
+    } else if constexpr (std::is_same_v<T, ast::DurationRange>) {
+      const auto arm = [&](auto *x) { return self(self, x); };
+      return std::visit(arm, node->start) | std::visit(arm, node->stop);
+    } else if constexpr (std::is_same_v<T, ast::Recurring>) {
+      return self(self, node->body);
+    } else {
+      return std::visit([&](auto *x) { return self(self, x); }, node->value);
+    }
+  };
+  if (styles(styles, &d) == 3)
+    a.error(d, "Basic and extended date/time formats must not be mixed.")
+        .code("iso8601.format");
+}
 void register_validation_checks(Iso8601CoreServices &services) {
   services.validator = std::make_unique<const Iso8601Validator>(services);
   const auto &v = *services.validator;
@@ -183,6 +253,8 @@ void register_validation_checks(Iso8601CoreServices &services) {
       {cursiv::ValidationRegistry::makeValidationCheck<&V::checkDate>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkTime>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkZone>(v),
-       cursiv::ValidationRegistry::makeValidationCheck<&V::checkDuration>(v)});
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkDuration>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkDateTime>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkDocument>(v)});
 }
 } // namespace iso8601

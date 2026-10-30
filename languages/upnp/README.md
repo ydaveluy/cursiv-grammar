@@ -31,21 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-A [UPnP ContentDirectory search criteria](http://upnp.org/specs/av/UPnP-av-ContentDirectory-v2-Service.pdf)
-string: a property test, or two of them joined by `and`/`or`, or `*` for
-everything.
+UPnP SearchCriteria expressions, with logical operators, property comparisons and quoted values.
 
 ```
 upnp:class derivedfrom "object.item.audioItem.musicTrack" and (dc:title contains "FindThis")
 ```
-
-`upnp:class`, `dc:title`, `@id`... are a closed set of property names; the
-relational operators (`=`, `!=`, `<`, `<=`, `>`, `>=`, `contains`,
-`doesnotcontain`, `derivedfrom`) compare a property against a quoted value,
-and `exists` compares it against `true`/`false`. A plain space is the one
-significant whitespace character the grammar places explicitly around
-properties, operators and `and`/`or` -- a tab, newline or carriage return is
-trivia everywhere.
 
 ## The command line
 

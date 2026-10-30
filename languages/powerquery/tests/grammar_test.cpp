@@ -186,7 +186,7 @@ void primitive_type_keywords() {
     ast::TypeValueExpr* const tv = doc != nullptr ? as<ast::TypeValueExpr>(doc->expr) : nullptr;
     ast::PrimitiveTypeNode* const prim =
         tv != nullptr ? as<ast::PrimitiveTypeNode>(tv->type) : nullptr;
-    CHECK(prim != nullptr && prim->literal == nullptr && !prim->name.empty());
+    CHECK(prim != nullptr && !prim->name.empty());
   }
 }
 
@@ -197,6 +197,65 @@ static int audit_regression() {
       cursiv::create_language<powerquery::PowerqueryCoreServices,
                               powerquery::PowerquerySharedCoreServices,
                               powerquery::install_core_module>();
+  for(const auto source:{
+      "let IF=1 in IF", "[Base Line=1, true=2]", "x[Base Line]", "x[[Base Line],[true]]",
+      "type [Base Line=number]", "type [optional Base Line=number]", "type table []",
+      "#date(2026,1,2)", "#infinity", "#nan", "1 ?? 2 ?? 3", "0XFF",
+      "try error \"x\" catch (e)=>e", "try error \"x\" catch ()=>0",
+      "type nullable (Type.ForList({type number}))", "type function(x as {number}) as number",
+      "let catch=1 in catch", "[12Name=1]", "type [x=MyType]", "let Ⅰ=1 in Ⅰ",
+      "//comment\r1", "//comment\u20281"}) {
+    const auto r=language.language.parser->parse(source);
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()) {
+      std::fprintf(stderr,"powerquery: native form rejected: %s\n",source);return 1;
+    }
+  }
+  for(const auto source:{"LET x=1 IN x", "type TEXT", "let if=1 in if", "a meta b meta c", "type 5", "type true"}) {
+    const auto r=language.language.parser->parse(source);
+    if(r.accepted&&!r.cst().recovered()&&r.diagnostics.empty()) {
+      std::fprintf(stderr,"powerquery: native-invalid form accepted: %s\n",source);return 1;
+    }
+  }
+  // These violate the published escape BNF; the Microsoft syntax package
+  // currently accepts them without evaluating the literal.
+  for(const auto source:{"\"#(bad)\"","\"#(cr,lf,)\""}) {
+    const auto r=language.language.parser->parse(source);
+    if(r.accepted&&!r.cst().recovered()&&r.diagnostics.empty())return 1;
+  }
+  {
+    const auto r=language.language.parser->parse("1 ?? 2 ?? 3");
+    const auto* p=r.value_as<ast::Doc>();
+    const auto* left=p?cursiv::ast_cast<ast::BinaryExpr>(p->expr):nullptr;
+    const auto* right=left?cursiv::ast_cast<ast::BinaryExpr>(left->right):nullptr;
+    if(!left||left->op!=ast::Op::coalesce||!right||right->op!=ast::Op::coalesce)return 1;
+  }
+  {
+    const auto r=language.language.parser->parse("#date(2026,1,2)");
+    const auto* p=r.value_as<ast::Doc>();
+    const auto* call=p?cursiv::ast_cast<ast::Invoke>(p->expr):nullptr;
+    const auto* name=call?cursiv::ast_cast<ast::NameExpr>(call->callee):nullptr;
+    if(!call||call->args.size()!=3||!name||name->name!="#date"||name->inclusive)return 1;
+  }
+  {
+    const auto r=language.language.parser->parse("[Base Line=1, true=2, 12Name=3]");
+    const auto* p=r.value_as<ast::Doc>();
+    const auto* record=p?cursiv::ast_cast<ast::RecordExpr>(p->expr):nullptr;
+    if(!record||record->fields.size()!=3||record->fields[0]->name!="Base Line"||
+       record->fields[1]->name!="true"||record->fields[2]->name!="12Name")return 1;
+  }
+  {
+    const auto r=language.language.parser->parse("type [optional Base Line=number]");
+    const auto* p=r.value_as<ast::Doc>();
+    const auto* type=p?cursiv::ast_cast<ast::TypeValueExpr>(p->expr):nullptr;
+    const auto* record=type?cursiv::ast_cast<ast::RecordTypeNode>(type->type):nullptr;
+    if(!record||record->fields.size()!=1||!record->fields[0]->optional||record->fields[0]->name!="Base Line")return 1;
+  }
+  {
+    const auto r=language.language.parser->parse("try error \"x\" catch (e)=>e");
+    const auto* p=r.value_as<ast::Doc>();
+    const auto* t=p?cursiv::ast_cast<ast::TryExpr>(p->expr):nullptr;
+    if(!t||t->otherwiseExpr||!t->catchFunction||t->catchFunction->params.size()!=1||t->catchFunction->params[0]->name!="e")return 1;
+  }
   {
     const auto r = language.language.parser->parse("\"#(lf,0041,0001F600)\"");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||

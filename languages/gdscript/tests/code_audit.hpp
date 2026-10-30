@@ -209,7 +209,10 @@ inline bool run() {
         "extends Reference\nextends Reference\n",
         "var value = 1\nvar value = 2\n", "var value = \"\\q\"\n",
         "const X = 1E3\n", "func f(): return yield(1)\n",
-        "var value = preload()\n"}) {
+        "var value = preload()\n", "const X = 1e___\n",
+        "const X = 1._\n", "const X = 0x___\n", "const X = 0b___\n",
+        "func f(value): return value as Node as Node\n",
+        "func f(value): value as Node = value\n"}) {
     const auto diagnostics = validate(bad);
     check(!diagnostics.empty(),
           "semantic errors parse and are diagnosed at runtime");
@@ -217,6 +220,10 @@ inline bool run() {
       check(diagnostics[0].code &&
                 diagnostics[0].range.end > diagnostics[0].range.begin,
             "runtime diagnostic has a code and source range");
+  }
+  for (std::string_view text : {"const X = 1.2_\n", "const X = 1e__-2_\n",
+                                "const X = 0x__FF_\n", "const X = 0b__10_\n"}) {
+    check(validate(text).empty(), "Godot 3 ignores internal/trailing numeric underscores");
   }
   return ok;
 }

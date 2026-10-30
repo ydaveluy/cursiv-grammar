@@ -42,7 +42,7 @@ TOW-AWAY TEMPORARY NO PARKING 6:30AM TO 4PM EXCEPT SATURDAY & SUNDAY
 DISTRICT NO. 78 PERMITS EXEMPT
 ```
 
-Each line is one sign, its kind read off the words alone (`NO PARKING`, `NO
+A sign is recognized from its syntax, its kind read off the words alone (`NO PARKING`, `NO
 STOPPING`, `N HOUR PARKING`, `PERMITS`, …); the document is the sequence of
 signs a single pole carries.
 

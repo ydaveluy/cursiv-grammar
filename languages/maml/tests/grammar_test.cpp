@@ -13,17 +13,22 @@
 #include "cursiv/core/syntax-tree/Cst.hpp"
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "maml/core/ast.hpp"
+#include "maml/core/CoreServices.hpp"
+#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 #include "maml/generated/Maml/Module.hpp"
 
 namespace {
 
 namespace ast = maml::ast;
 
-const cursiv::Parser& engine() {
-  static const std::unique_ptr<cursiv::Parser> p =
-      maml::generated::Maml::create_parser();
-  return *p;
+const auto& services() {
+  static const auto language = cursiv::create_language<maml::MamlCoreServices,
+      maml::MamlSharedCoreServices, maml::install_core_module>();
+  return language.language;
 }
+const cursiv::Parser& engine() { return *services().parser; }
 
 bool accepts(std::string_view text) {
   const cursiv::ParseResult r = engine().parse(text);
@@ -54,8 +59,9 @@ ast::Array* arr(const ast::Val& v) {
              : nullptr;
 }
 double number(const ast::Val& v) {
-  const double* d = std::get_if<double>(&v);
-  return d != nullptr ? *d : -1.0;
+  if (const auto* d = std::get_if<double>(&v)) return *d;
+  if (const auto* i = std::get_if<std::int64_t>(&v)) return static_cast<double>(*i);
+  return -1.0;
 }
 std::string_view str(const ast::Val& v) {
   const auto* s = std::get_if<std::string_view>(&v);
@@ -176,7 +182,7 @@ void scalar_document() {
   CHECK(number(root->items[2]) == 3.0);
 }
 
-// Escapes stay raw in the slice; a triple-quoted raw string keeps its
+// Escapes decode to arena-backed strings; a triple-quoted raw string keeps its
 // content literally, single-line or multiline; a trailing comment.
 void strings_document() {
   const std::string src = load("strings.maml");
@@ -188,14 +194,14 @@ void strings_document() {
 
   ast::Member* m = member(root, 0, "escaped");
   CHECK(m != nullptr &&
-        str(m->value) == "line1\\nline2\\ttabbed \\\"quoted\\\" back\\\\slash");
+        str(m->value) == "line1\nline2\ttabbed \"quoted\" back\\slash");
   m = member(root, 1, "unicode");
   CHECK(m != nullptr &&
-        str(m->value) == "snowman \\u{2603} and emoji \\u{1F600}");
+        str(m->value) == "snowman ☃ and emoji 😀");
   m = member(root, 2, "notes");
   CHECK(m != nullptr &&
         str(m->value) ==
-            "\nThis preserves\nformatting \"as-is\" and even \"\"double "
+            "This preserves\nformatting \"as-is\" and even \"\"double "
             "quotes\"\"\n");
   m = member(root, 3, "oneline");
   CHECK(m != nullptr && str(m->value) == "raw single line");
@@ -222,7 +228,36 @@ void refused_texts() {
   CHECK(!accepts("{ a: 1 b: 2 }"));    // two members on one line, no comma
   CHECK(!accepts("{ a: 1,, b: 2 }"));  // two commas running
   CHECK(!accepts("[1 2]"));            // two items on one line
+  CHECK(!accepts("\"\"\"\"\"\"\""));
+  CHECK(!accepts("\"\"\"\"\"\"\"\""));
   CHECK(!accepts("\"\"\"\"\"\""));     // an empty raw string
+}
+
+void native_semantics() {
+  for (const auto source : {"9223372036854775807", "-9223372036854775808", "9007199254740993"}) {
+    const auto parsed = build(source);
+    const auto* doc = parsed.value_as<ast::Doc>();
+    const auto* value = doc ? std::get_if<std::int64_t>(&doc->value) : nullptr;
+    CHECK(value && std::to_string(*value) == source && parsed.diagnostics.empty());
+  }
+  for (const auto source : {"[1\n,2]", "{a:1\n,b:2}", "\"\"\"\n\"\"\"", "{-3: true}"})
+    CHECK(accepts(source));
+  {
+    const auto parsed = build(R"({"\u{61}": "\u{1F600}\n"})");
+    const auto* doc = parsed.value_as<ast::Doc>();
+    const auto* root = doc ? obj(doc->value) : nullptr;
+    CHECK(root && root->members.size() == 1 && root->members[0]->key == "a" &&
+          str(root->members[0]->value) == "😀\n");
+  }
+  for (const auto source : {R"({a:1,a:2})", R"({a:1,"\u{61}":2})"})
+    CHECK(!cursiv::test::validationHelper(services(), source).diagnostics.empty());
+  for (const auto source : {"9223372036854775808", R"("\u{D800}")", R"("\u{110000}")",
+                            "{1.2:true}", "\"\x7f\"", "#\x7f\nnull"}) {
+    const auto parsed = engine().parse(source);
+    CHECK(!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty());
+  }
+  const auto nul = engine().parse(std::string_view("#\0\nnull", 7));
+  CHECK(!nul.accepted || nul.cst().recovered() || !nul.diagnostics.empty());
 }
 
 }  // namespace
@@ -235,5 +270,6 @@ int main() {
   strings_document();
   comment_and_newline_separators();
   refused_texts();
+  native_semantics();
   return cursiv::test::report("maml_grammar_test");
 }

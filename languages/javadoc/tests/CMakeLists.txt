@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every sample under example/ parses, clean.
 add_executable(javadoc_grammar_test grammar_test.cpp)
-target_link_libraries(javadoc_grammar_test PRIVATE javadocCore)
+target_link_libraries(javadoc_grammar_test PRIVATE javadocCore cursiv::test)
 target_compile_definitions(javadoc_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

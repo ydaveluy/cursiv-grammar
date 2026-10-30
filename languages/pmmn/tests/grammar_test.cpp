@@ -14,6 +14,8 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "pmmn/core/CoreServices.hpp"
 #include "pmmn/core/ast.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 namespace {
 
@@ -29,6 +31,19 @@ int main() {
   const auto language = cursiv::create_language<
       pmmn::PmmnCoreServices, pmmn::PmmnSharedCoreServices,
       pmmn::install_core_module>();
+
+  {
+    const auto r=language.language.parser->parse("/* head */inc(1);if /* gap */(dec(2000000000)){dec(1);}");
+    const auto* p=r.value_as<pmmn::ast::Program>();
+    const auto* inc=p&&p->commands.size()==2?cursiv::ast_cast<pmmn::ast::Inc>(p->commands[0]):nullptr;
+    const auto* cond=p&&p->commands.size()==2?cursiv::ast_cast<pmmn::ast::If>(p->commands[1]):nullptr;
+    if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!inc||inc->counter!=1||!cond||!cond->test||cond->test->counter!=2000000000ULL)
+      return fail("native comments or counter AST lost");
+  }
+  for(const auto source:{"inc(2000000000);", "dec(0000000000000000000000000000000000001);"})
+    if(!cursiv::test::validationHelper(language.language,source).diagnostics.empty())return fail("native boundary counter rejected");
+  for(const auto source:{"inc(2000000001);", "if(dec(2000000001)){inc(0);}"})
+    if(cursiv::test::validationHelper(language.language,source).diagnostics.empty())return fail("native counter bound needs a diagnostic");
 
   std::vector<std::filesystem::path> files;
   for (const auto& entry :

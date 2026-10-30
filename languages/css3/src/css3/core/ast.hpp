@@ -223,9 +223,20 @@ struct AtMedia : cursiv::Extends<Statement> {
   vector<Statement*> body;
 };
 
-struct AtPage : cursiv::Extends<Statement> {
-  string_view pseudo;  // empty when absent, e.g. ":first"
+struct PageSelector : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  vector<string_view> pseudos;
+};
+
+struct PageMargin : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
   vector<Declaration*> declarations;
+};
+
+struct AtPage : cursiv::Extends<Statement> {
+  vector<PageSelector*> selectors;
+  vector<Declaration*> declarations;
+  vector<PageMargin*> margins;
 };
 
 struct AtFontFace : cursiv::Extends<Statement> {

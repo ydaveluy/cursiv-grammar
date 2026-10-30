@@ -7,7 +7,7 @@ constant PI = 3.14, E = 2.71;
 int global_count = 0;
 static string *names;
 
-class;
+class Empty {}
 
 mapping(string:int) counts;
 
@@ -45,7 +45,7 @@ array(int) make_array(int n, int ...extra) {
     }
 
     int v = 0;
-    foreach (a : v) {
+    foreach (a, v) {
         write(v);
     }
 

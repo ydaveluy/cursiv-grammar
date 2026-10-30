@@ -51,14 +51,10 @@ output "out" {
 }
 ```
 
-A document is a sequence of top-level blocks -- `resource`, `data`,
-`provider`, `output`, `locals`, `module`, `variable`, `terraform` -- each
-holding a body of `name = expression` arguments and nested blocks
-(`tags { ... }`). Expressions cover arithmetic and comparison operators,
-lists, object literals, function calls, `for` comprehensions and the `? :`
-conditional; a dotted reference like `data.aws_ami.ami.id` is an `Identifier`
-of `local`/`data`/`var`/`module` scope plus a chain of segments, each
-optionally indexed (`list[0]`).
+The port models HCL2 native syntax (v2.24.0) for Terraform configuration,
+with generic blocks/arguments, expressions, traversals, splats and quoted
+templates. References form nested member/index nodes; heredocs retain raw
+source text. Terraform provider schemas and evaluation are separate.
 
 ## The command line
 

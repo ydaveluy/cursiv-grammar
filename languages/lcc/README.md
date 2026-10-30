@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Library of Congress Classification call numbers combine classification, cutter and publication information.
+
 ```
 QB981 .H377 1998
 ```
-
-A [Library of Congress Classification](https://en.wikipedia.org/wiki/Library_of_Congress_Classification)
-call number: topic `Q` (Science), subtopic `B` (Astronomy), subclass `981`,
-cutter `.H377`, date `1998`. Space is significant and never trivia -- only
-tab, CR and LF are skipped, so it appears in the grammar wherever the number
-allows or requires it.
 
 ## The command line
 

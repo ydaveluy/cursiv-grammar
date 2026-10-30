@@ -26,10 +26,11 @@ struct Bicep : cursiv::GrammarSpec {
 
   static constexpr auto NLRun = some(cr<R"(\r\n)">);
   struct NL : terminal<NLRun> {};
+  static constexpr auto StatementEnd = ref<NL> | eof;
   // Swallows its own trailing NL, unlike an ordinary comment: the directive
   // line leaves no blank-statement NL behind it either.
   struct DisableNextLine
-      : terminal<lit<"#disable-next-line"> + some(cr<R"(^\r\n)">) + NLRun> {};
+      : terminal<lit<"#disable-next-line"> + some(cr<R"(^\r\n)">) + (NLRun | eof)> {};
 
   struct ID : terminal<cr<"a-zA-Z_"> + many(w)> {};
 
@@ -44,13 +45,14 @@ struct Bicep : cursiv::GrammarSpec {
   // -- Strings: '...', with '${' / '}' interpolation pieces ----
   static constexpr auto Escape =
       lit<"\\"> + (cr<R"(\\'nrt$)"> | (lit<"u{"> + some(cr<"0-9a-fA-F">) + lit<"}">));
-  static constexpr auto StrRun = many(Escape | cr<R"(^\\'\n\r\t$)">);
-  struct StrLeft : terminal<lit<"'"> + StrRun + lit<"${">, text_conv<trim_1_2>> {};
-  struct StrMiddle : terminal<lit<"}"> + StrRun + lit<"${">, text_conv<trim_1_2>> {};
-  struct StrRight : terminal<lit<"}"> + StrRun + lit<"'">, text_conv<trim_1_1>> {};
-  struct StrComplete : terminal<lit<"'"> + StrRun + lit<"'">, text_conv<trim_1_1>> {};
+  static constexpr auto StrRun =
+      many(Escape | lit<"$", !lit<"{">> | cr<R"(^\\'\n\r\t$)">);
+  struct StrLeft : terminal<as<trim_1_2>(lit<"'"> + StrRun + lit<"${">)> {};
+  struct StrMiddle : terminal<as<trim_1_2>(lit<"}"> + StrRun + lit<"${">)> {};
+  struct StrRight : terminal<as<trim_1_1>(lit<"}"> + StrRun + lit<"'">)> {};
+  struct StrComplete : terminal<as<trim_1_1>(lit<"'"> + StrRun + lit<"'">)> {};
   struct MultilineStr
-      : terminal<through(lit<"'''">, lit<"'''">), text_conv<trim_3_3>> {};
+      : terminal<as<trim_3_3>(through(lit<"'''">, lit<"'''">))> {};
 
   struct NUMBER : terminal<some(d) + option(lit<"."> + some(d))> {};
 
@@ -66,7 +68,7 @@ struct Bicep : cursiv::GrammarSpec {
   struct FunctionCall_;
   struct LambdaExpr_;
   struct ParenExpr_;
-  struct InterpStringRule;
+  struct InterpString;
   struct Decorator_;
   struct TypeExpression;
   struct SingularTypeExpr;
@@ -85,14 +87,14 @@ struct Bicep : cursiv::GrammarSpec {
            append<&ast::InterpString::quasis>(ref<StrMiddle>)) +
       append<&ast::InterpString::expressions>(ref<Expression>) +
       append<&ast::InterpString::quasis>(ref<StrRight>);
-  struct InterpStringRule
+  struct InterpString
       : rule<create<ast::InterpString>(InterpBody) |
              create<ast::InterpString>(
                  append<&ast::InterpString::quasis>(ref<StrComplete>))> {};
 
   // -- Number, bool, null and identifier literals ----
   struct NumberLit_ : rule<assign<&ast::NumberLit::text>(ref<NUMBER>)> {};
-  struct BOOL_TOK : terminal<kw<"true"> | kw<"false">, bool> {};
+  struct BOOL_TOK : terminal<as<bool>(kw<"true"> | kw<"false">)> {};
   struct BoolLit_ : rule<assign<&ast::BoolLit::value>(ref<BOOL_TOK>)> {};
   struct NullLit_ : rule<create<ast::NullLit>(kw<"null">)> {};
   struct IdentExpr_
@@ -134,7 +136,7 @@ struct Bicep : cursiv::GrammarSpec {
   struct ObjectProperty_
       : rule<create<ast::ObjectProperty>(
             (assign<&ast::ObjectProperty::name>(IdentSpelling) |
-             assign<&ast::ObjectProperty::nameExpr>(ref<InterpStringRule>)) +
+             assign<&ast::ObjectProperty::nameExpr>(ref<InterpString>)) +
             lit<":"> + assign<&ast::ObjectProperty::value>(ref<Expression>))> {
   };
   struct ObjectExpr_
@@ -174,7 +176,7 @@ struct Bicep : cursiv::GrammarSpec {
             lit<"]">)> {};
 
   struct PrimaryExpr_
-      : rule<ref<FunctionCall_> | ref<LiteralValue> | ref<InterpStringRule> |
+      : rule<ref<FunctionCall_> | ref<LiteralValue> | ref<InterpString> |
              assign<&ast::MultilineString::text>(ref<MultilineStr>) |
              ref<ArrayExpr_> | ref<ForExpr_> | ref<ObjectExpr_> |
              ref<ParenExpr_> | ref<LambdaExpr_>> {};
@@ -202,17 +204,16 @@ struct Bicep : cursiv::GrammarSpec {
 
   // -- multiplicative > additive > relational > equality > && > || > ?? ----
   struct BinaryExpr
-      : infix<UnaryExpr, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(lit<"*"> | lit<"/"> | lit<"%">) >>
-               left(lit<"+"> | lit<"-">) >>
-               left(lit<">="> | lit<"<="> | lit<">"> | lit<"<">) >>
-               left(lit<"=="> | lit<"!=">) >>
-               left(lit<"&&">) >>
-               // The source grammar spells this operator `'OR'` (a
-               // transcription defect); ported as the real `||`.
-               left(lit<"||">) >>
-               left(lit<"??">))> {};
+      : infix<UnaryExpr, ast::BinaryExpr,
+              levels(left(lit<"*"> | lit<"/"> | lit<"%">),
+                     left(lit<"+"> | lit<"-">),
+                     left(lit<">="> | lit<"<="> | lit<">"> | lit<"<">),
+                     left(lit<"=="> | lit<"!=">),
+                     left(lit<"&&">),
+                     // The source grammar spells this operator `'OR'` (a
+                     // transcription defect); ported as the real `||`.
+                     left(lit<"||">),
+                     left(lit<"??">))> {};
 
   // -- The top-level expression, with its optional ternary ----
   struct Expression
@@ -317,24 +318,25 @@ struct Bicep : cursiv::GrammarSpec {
   struct TargetScopeDecl_
       : rule<create<ast::TargetScopeDecl>(
             kw<"targetScope"> + lit<"="> +
-            assign<&ast::TargetScopeDecl::value>(ref<Expression>))> {};
+            assign<&ast::TargetScopeDecl::value>(ref<Expression>) +
+            StatementEnd)> {};
 
   struct ImportDecl_
       : rule<create<ast::ImportDecl>(
             many(append<&ast::ImportDecl::decorators>(ref<Decorator_>)) +
             kw<"import"> +
-            assign<&ast::ImportDecl::specification>(ref<InterpStringRule>) +
+            assign<&ast::ImportDecl::specification>(ref<InterpString>) +
             option(kw<"with"> +
                    assign<&ast::ImportDecl::withClause>(ref<ObjectExpr_>)) +
             option(kw<"as"> +
                    assign<&ast::ImportDecl::alias>(IdentSpelling)) +
-            ref<NL>)> {};
+            StatementEnd)> {};
 
   struct MetadataDecl_
       : rule<create<ast::MetadataDecl>(
             kw<"metadata"> +
             assign<&ast::MetadataDecl::name>(IdentSpelling) + lit<"="> +
-            assign<&ast::MetadataDecl::value>(ref<Expression>) + ref<NL>)> {};
+            assign<&ast::MetadataDecl::value>(ref<Expression>) + StatementEnd)> {};
 
   struct ParameterDecl_
       : rule<create<ast::ParameterDecl>(
@@ -345,49 +347,49 @@ struct Bicep : cursiv::GrammarSpec {
                                      ref<Expression>))) |
              (kw<"resource"> +
               assign<&ast::ParameterDecl::resourceType>(
-                  ref<InterpStringRule>) +
+                  ref<InterpString>) +
               option(lit<"="> + assign<&ast::ParameterDecl::defaultValue>(
                                      ref<Expression>)))) +
-            ref<NL>)> {};
+            StatementEnd)> {};
 
   struct TypeDecl_
       : rule<create<ast::TypeDecl>(
             many(append<&ast::TypeDecl::decorators>(ref<Decorator_>)) +
             kw<"type"> + assign<&ast::TypeDecl::name>(IdentSpelling) +
             lit<"="> + assign<&ast::TypeDecl::type>(ref<TypeExpression>) +
-            ref<NL>)> {};
+            StatementEnd)> {};
 
   struct VariableDecl_
       : rule<create<ast::VariableDecl>(
             many(append<&ast::VariableDecl::decorators>(ref<Decorator_>)) +
             kw<"var"> + assign<&ast::VariableDecl::name>(IdentSpelling) +
             lit<"="> + assign<&ast::VariableDecl::value>(ref<Expression>) +
-            ref<NL>)> {};
+            StatementEnd)> {};
 
   struct ResourceDecl_
       : rule<create<ast::ResourceDecl>(
             many(append<&ast::ResourceDecl::decorators>(ref<Decorator_>)) +
             kw<"resource"> +
             assign<&ast::ResourceDecl::name>(IdentSpelling) +
-            assign<&ast::ResourceDecl::type>(ref<InterpStringRule>) +
+            assign<&ast::ResourceDecl::type>(ref<InterpString>) +
             option(
                 flag<&ast::ResourceDecl::existing>(kw<"existing">)) +
             lit<"="> +
             (assign<&ast::ResourceDecl::ifValue>(ref<IfExpr_>) |
              assign<&ast::ResourceDecl::object>(ref<ObjectExpr_>) |
              assign<&ast::ResourceDecl::forValue>(ref<ForExpr_>)) +
-            ref<NL>)> {};
+            StatementEnd)> {};
 
   struct ModuleDecl_
       : rule<create<ast::ModuleDecl>(
             many(append<&ast::ModuleDecl::decorators>(ref<Decorator_>)) +
             kw<"module"> + assign<&ast::ModuleDecl::name>(IdentSpelling) +
-            assign<&ast::ModuleDecl::type>(ref<InterpStringRule>) +
+            assign<&ast::ModuleDecl::type>(ref<InterpString>) +
             lit<"="> +
             (assign<&ast::ModuleDecl::ifValue>(ref<IfExpr_>) |
              assign<&ast::ModuleDecl::object>(ref<ObjectExpr_>) |
              assign<&ast::ModuleDecl::forValue>(ref<ForExpr_>)) +
-            ref<NL>)> {};
+            StatementEnd)> {};
 
   struct OutputDecl_
       : rule<create<ast::OutputDecl>(
@@ -396,14 +398,38 @@ struct Bicep : cursiv::GrammarSpec {
             (assign<&ast::OutputDecl::typeName>(IdentSpelling) |
              (kw<"resource"> +
               assign<&ast::OutputDecl::resourceType>(
-                  ref<InterpStringRule>))) +
+                  ref<InterpString>))) +
             lit<"="> + assign<&ast::OutputDecl::value>(ref<Expression>) +
-            ref<NL>)> {};
+            StatementEnd)> {};
+
+  struct FunctionParameter_
+      : rule<assign<&ast::FunctionParameter::name>(IdentSpelling) +
+             assign<&ast::FunctionParameter::type>(ref<TypeExpression>)> {};
+  static constexpr auto ParameterSeparator =
+      many(ref<NL>) + lit<","> + many(ref<NL>);
+  struct FunctionDecl_
+      : rule<many(append<&ast::FunctionDecl::decorators>(ref<Decorator_>)) +
+             kw<"func"> + assign<&ast::FunctionDecl::name>(IdentSpelling) +
+             lit<"("> + many(ref<NL>) +
+             option(some(append<&ast::FunctionDecl::parameters>(
+                             ref<FunctionParameter_>), ParameterSeparator) +
+                    option(ParameterSeparator)) +
+             many(ref<NL>) + lit<")"> +
+             assign<&ast::FunctionDecl::returnType>(ref<TypeExpression>) +
+             lit<"=>"> + many(ref<NL>) +
+             assign<&ast::FunctionDecl::body>(ref<Expression>) +
+             StatementEnd> {};
+  struct AssertDecl_
+      : rule<many(append<&ast::AssertDecl::decorators>(ref<Decorator_>)) +
+             kw<"assert"> + assign<&ast::AssertDecl::name>(IdentSpelling) +
+             lit<"="> + assign<&ast::AssertDecl::value>(ref<Expression>) +
+             StatementEnd> {};
 
   static constexpr auto StatementAlt =
       ref<TargetScopeDecl_> | ref<ImportDecl_> | ref<MetadataDecl_> |
       ref<ParameterDecl_> | ref<TypeDecl_> | ref<VariableDecl_> |
-      ref<ResourceDecl_> | ref<ModuleDecl_> | ref<OutputDecl_>;
+      ref<ResourceDecl_> | ref<ModuleDecl_> | ref<OutputDecl_> |
+      ref<FunctionDecl_> | ref<AssertDecl_>;
 
   // A blank line is its own (void) statement, so runs of them between
   // declarations need no separate handling.
@@ -412,7 +438,7 @@ struct Bicep : cursiv::GrammarSpec {
             many(append<&ast::Program::body>(StatementAlt) | ref<NL>))> {};
 
   using entry = Program_;
-  using ignore = list<WS, SlComment, MlComment, DisableNextLine>;
+  using ignored = list<WS, SlComment, MlComment, DisableNextLine>;
 };
 
 }  // namespace bicep

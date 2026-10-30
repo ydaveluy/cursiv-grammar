@@ -9,7 +9,7 @@ namespace pddl {
 
 struct Pddl : cursiv::GrammarSpec {
   // PDDL names carry '-' and '_' beyond letters and digits, so the keyword
-  // boundary must include them too, or `kw<"end">` would fire inside a name
+  // boundary must include them too, or `ikw<"end">` would fire inside a name
   // like `end-effector`.
   static constexpr auto NameCont = cr<"a-zA-Z0-9_-">;
   static constexpr auto word_boundary = NameCont;
@@ -25,143 +25,124 @@ struct Pddl : cursiv::GrammarSpec {
   struct NUMBER : terminal<some(d) + option(lit<"."> + some(d))> {};
 
   struct REQUIRE_KEY
-      : terminal<kw<":strips"> | kw<":typing"> |
-                 kw<":negative-preconditions"> |
-                 kw<":disjunctive-preconditions"> | kw<":equality"> |
-                 kw<":existential-preconditions"> |
-                 kw<":universal-preconditions"> |
-                 kw<":quantified-preconditions"> | kw<":conditional-effects"> |
-                 kw<":fluents"> | kw<":numeric-fluents"> |
-                 kw<":action-costs"> | kw<":non-deterministic"> |
-                 kw<":adl"> | kw<":durative-actions"> |
-                 kw<":derived-predicates"> | kw<":timed-initial-literals"> |
-                 kw<":preferences"> | kw<":constraints">> {};
+      : terminal<ikw<":strips"> | ikw<":typing"> |
+                 ikw<":negative-preconditions"> |
+                 ikw<":disjunctive-preconditions"> | ikw<":equality"> |
+                 ikw<":existential-preconditions"> |
+                 ikw<":universal-preconditions"> |
+                 ikw<":quantified-preconditions"> | ikw<":conditional-effects"> |
+                 ikw<":fluents"> | ikw<":numeric-fluents"> |
+                 ikw<":action-costs"> | ikw<":non-deterministic"> |
+                 ikw<":adl"> | ikw<":durative-actions"> |
+                 ikw<":derived-predicates"> | ikw<":timed-initial-literals"> |
+                 ikw<":preferences"> | ikw<":constraints">> {};
 
   static constexpr auto OPEN = lit<"(">;
   static constexpr auto CLOSE = lit<")">;
 
-  struct GE : terminal<lit<">=">, value<ast::CompareOp::Ge>> {};
-  struct LE : terminal<lit<"<=">, value<ast::CompareOp::Le>> {};
-  struct GT : terminal<lit<">">, value<ast::CompareOp::Gt>> {};
-  struct LT : terminal<lit<"<">, value<ast::CompareOp::Lt>> {};
-  struct EQ : terminal<lit<"=">, value<ast::CompareOp::Eq>> {};
   static constexpr auto BinaryComp =
-      ref<GE> | ref<LE> | ref<GT> | ref<LT> | ref<EQ>;
+      as<ast::CompareOp::Ge>(lit<">=">) | as<ast::CompareOp::Le>(lit<"<=">) | as<ast::CompareOp::Gt>(lit<">">) | as<ast::CompareOp::Lt>(lit<"<">) | as<ast::CompareOp::Eq>(lit<"=">);
   // A duration constraint's comparator: only <=, >= and =, all already
   // spelled above.
-  static constexpr auto DurOp = ref<GE> | ref<LE> | ref<EQ>;
+  static constexpr auto DurOp = as<ast::CompareOp::Ge>(lit<">=">) | as<ast::CompareOp::Le>(lit<"<=">) | as<ast::CompareOp::Eq>(lit<"=">);
 
-  struct MUL : terminal<lit<"*">, value<ast::ArithOp::Mul>> {};
-  struct ADD : terminal<lit<"+">, value<ast::ArithOp::Add>> {};
-  struct SUB : terminal<lit<"-">, value<ast::ArithOp::Sub>> {};
-  struct DIV : terminal<lit<"/">, value<ast::ArithOp::Div>> {};
   static constexpr auto BinaryOp =
-      ref<MUL> | ref<ADD> | ref<SUB> | ref<DIV>;
+      as<ast::ArithOp::Mul>(lit<"*">) | as<ast::ArithOp::Add>(lit<"+">) | as<ast::ArithOp::Sub>(lit<"-">) | as<ast::ArithOp::Div>(lit<"/">);
 
-  struct ASSIGN_OP : terminal<kw<"assign">, value<ast::AssignKind::Assign>> {
-  };
-  struct SCALE_UP_OP
-      : terminal<kw<"scale-up">, value<ast::AssignKind::ScaleUp>> {};
-  struct SCALE_DOWN_OP
-      : terminal<kw<"scale-down">, value<ast::AssignKind::ScaleDown>> {};
-  struct INCREASE_OP
-      : terminal<kw<"increase">, value<ast::AssignKind::Increase>> {};
-  struct DECREASE_OP
-      : terminal<kw<"decrease">, value<ast::AssignKind::Decrease>> {};
-  static constexpr auto AssignOp = ref<ASSIGN_OP> | ref<SCALE_UP_OP> |
-                                    ref<SCALE_DOWN_OP> | ref<INCREASE_OP> |
-                                    ref<DECREASE_OP>;
+  static constexpr auto AssignOp = as<ast::AssignKind::Assign>(ikw<"assign">) | as<ast::AssignKind::ScaleUp>(ikw<"scale-up">) |
+                                    as<ast::AssignKind::ScaleDown>(ikw<"scale-down">) | as<ast::AssignKind::Increase>(ikw<"increase">) |
+                                    as<ast::AssignKind::Decrease>(ikw<"decrease">);
 
-  struct TimeStart : terminal<kw<"start">> {};
-  struct TimeEnd : terminal<kw<"end">> {};
+  struct TimeStart : terminal<ikw<"start">> {};
+  struct TimeEnd : terminal<ikw<"end">> {};
   static constexpr auto TimeSpecifier = ref<TimeStart> | ref<TimeEnd>;
-  struct IntervalAll : terminal<kw<"all">> {};
+  struct IntervalAll : terminal<ikw<"all">> {};
   static constexpr auto Interval = ref<IntervalAll>;
-  struct MinimizeKw : terminal<kw<"minimize">> {};
-  struct MaximizeKw : terminal<kw<"maximize">> {};
+  struct MinimizeKw : terminal<ikw<"minimize">> {};
+  struct MaximizeKw : terminal<ikw<"maximize">> {};
   static constexpr auto Optimization = ref<MinimizeKw> | ref<MaximizeKw>;
 
   // Forward declarations: the mutually recursive core of the language.
-  struct GoalDescRule;
-  struct FExpRule;
-  struct FExpDARule;
-  struct MetricFExpRule;
-  struct TypedVarListRule;
-  struct ConstraintRule;
-  struct DaGoalRule;
-  struct DaEffectRule;
-  struct EffectRule;
+  struct GoalDesc;
+  struct FExp;
+  struct FExpDA;
+  struct MetricFExp;
+  struct TypedVarList;
+  struct Constraint;
+  struct DaGoal;
+  struct DaEffect;
+  struct Effect;
 
-  struct TermRule
+  struct Term
       : rule<assign<&ast::Term::name>(ref<NAME> | ref<VARIABLE>)> {};
   // A primitive type name, a by-name predicate/function argument, or a
   // metric's function-application argument: a name only, never a variable.
-  struct NameTermRule : rule<assign<&ast::Term::name>(ref<NAME>)> {};
+  struct NameTerm : rule<assign<&ast::Term::name>(ref<NAME>)> {};
 
-  struct TypeRule
+  struct Type
       : rule<create<ast::Type> +
-             ((OPEN + kw<"either"> +
+             ((OPEN + ikw<"either"> +
                some(append<&ast::Type::names>(ref<NAME>)) + CLOSE) |
               append<&ast::Type::names>(ref<NAME>))> {};
 
-  struct TypedNameGroupRule
+  struct TypedNameGroup
       : rule<some(append<&ast::TypedGroup::names>(ref<NAME>)) + lit<"-"> +
-             assign<&ast::TypedGroup::type>(ref<TypeRule>)> {};
-  struct TypedVarGroupRule
+             assign<&ast::TypedGroup::type>(ref<Type>)> {};
+  struct TypedVarGroup
       : rule<some(append<&ast::TypedGroup::names>(ref<VARIABLE>)) +
-             lit<"-"> + assign<&ast::TypedGroup::type>(ref<TypeRule>)> {};
+             lit<"-"> + assign<&ast::TypedGroup::type>(ref<Type>)> {};
 
   // A typed list of names: typed groups (if any) always come first, then
   // untyped names.
-  struct TypedNameListRule
+  struct TypedNameList
       : rule<create<ast::TypedList> +
-             many(append<&ast::TypedList::groups>(ref<TypedNameGroupRule>)) +
+             many(append<&ast::TypedList::groups>(ref<TypedNameGroup>)) +
              many(append<&ast::TypedList::untyped>(ref<NAME>))> {};
-  struct TypedVarListRule
+  struct TypedVarList
       : rule<create<ast::TypedList> +
-             many(append<&ast::TypedList::groups>(ref<TypedVarGroupRule>)) +
+             many(append<&ast::TypedList::groups>(ref<TypedVarGroup>)) +
              many(append<&ast::TypedList::untyped>(ref<VARIABLE>))> {};
 
   // `at` is also a keyword -- a durative goal's/effect's `(at start|end
   // ...)`, a constraint's `(at end ...)`, a problem's timed literal -- so a
   // predicate literally named `at` (rover-style domains routinely declare
-  // one) needs the soft-keyword spelling: `ref<NAME> | kw<"at">`.
-  struct AtomicTermFormulaRule
+  // one) needs the soft-keyword spelling: `ref<NAME> | ikw<"at">`.
+  struct AtomicTermFormula
       : rule<OPEN +
-             assign<&ast::AtomicFormula::predicate>(ref<NAME> | kw<"at">) +
-             many(append<&ast::AtomicFormula::args>(ref<TermRule>)) +
+             assign<&ast::AtomicFormula::predicate>(ref<NAME> | ikw<"at">) +
+             many(append<&ast::AtomicFormula::args>(ref<Term>)) +
              CLOSE> {};
   // Same soft-keyword spelling, for the by-name form.
-  struct AtomicNameFormulaRule
+  struct AtomicNameFormula
       : rule<OPEN +
-             assign<&ast::AtomicFormula::predicate>(ref<NAME> | kw<"at">) +
-             many(append<&ast::AtomicFormula::args>(ref<NameTermRule>)) +
+             assign<&ast::AtomicFormula::predicate>(ref<NAME> | ikw<"at">) +
+             many(append<&ast::AtomicFormula::args>(ref<NameTerm>)) +
              CLOSE> {};
-  struct AtomicFormulaSkeletonRule
+  struct AtomicFormulaSkeleton
       : rule<OPEN + assign<&ast::PredicateDecl::name>(ref<NAME>) +
-             assign<&ast::PredicateDecl::parameters>(ref<TypedVarListRule>) +
+             assign<&ast::PredicateDecl::parameters>(ref<TypedVarList>) +
              CLOSE> {};
-  struct AtomicFunctionSkeletonRule
+  struct AtomicFunctionSkeleton
       : rule<OPEN + assign<&ast::FunctionDecl::name>(ref<NAME>) +
-             assign<&ast::FunctionDecl::parameters>(ref<TypedVarListRule>) +
+             assign<&ast::FunctionDecl::parameters>(ref<TypedVarList>) +
              CLOSE> {};
-  struct TypedFunctionGroupRule
+  struct TypedFunctionGroup
       : rule<some(append<&ast::FunctionGroup::functions>(
-                 ref<AtomicFunctionSkeletonRule>)) +
+                 ref<AtomicFunctionSkeleton>)) +
              flag<&ast::FunctionGroup::isNumberTyped>(lit<"-"> +
-                                                            kw<"number">)> {};
-  struct UntypedFunctionGroupRule
+                                                            ikw<"number">)> {};
+  struct UntypedFunctionGroup
       : rule<some(append<&ast::FunctionGroup::functions>(
-            ref<AtomicFunctionSkeletonRule>))> {};
+            ref<AtomicFunctionSkeleton>))> {};
 
-  struct FHeadRule
+  struct FHead
       : rule<(OPEN + assign<&ast::AtomicFormula::predicate>(ref<NAME>) +
-              many(append<&ast::AtomicFormula::args>(ref<TermRule>)) +
+              many(append<&ast::AtomicFormula::args>(ref<Term>)) +
               CLOSE) |
              assign<&ast::AtomicFormula::predicate>(ref<NAME>)> {};
-  struct MetricFHeadRule
+  struct MetricFHead
       : rule<(OPEN + assign<&ast::AtomicFormula::predicate>(ref<NAME>) +
-              many(append<&ast::AtomicFormula::args>(ref<NameTermRule>)) +
+              many(append<&ast::AtomicFormula::args>(ref<NameTerm>)) +
               CLOSE) |
              assign<&ast::AtomicFormula::predicate>(ref<NAME>)> {};
 
@@ -172,373 +153,347 @@ struct Pddl : cursiv::GrammarSpec {
       OPEN + assign<&ast::Expr::arith>(BinaryOp) +
       many(append<&ast::Expr::operands>(ref<Operand>)) + CLOSE;
 
-  struct FExpRule
+  struct FExp
       : rule<assign<&ast::Expr::number>(ref<NUMBER>) |
-             Arithmetic<FExpRule> |
-             assign<&ast::Expr::head>(ref<FHeadRule>) |
+             Arithmetic<FExp> |
+             assign<&ast::Expr::head>(ref<FHead>) |
              assign<&ast::Expr::variable>(ref<VARIABLE>)> {};
 
-  // Self-contained rather than falling back to `ref<FExpRule>`: every
+  // Self-contained rather than falling back to `ref<FExp>`: every
   // shape a numeric expression admits is spelled again here, so
   // `?duration` can nest at any depth, not only at the top.
-  struct FExpDARule
-      : rule<flag<&ast::Expr::isDuration>(kw<"?duration">) |
+  struct FExpDA
+      : rule<flag<&ast::Expr::isDuration>(ikw<"?duration">) |
              assign<&ast::Expr::number>(ref<NUMBER>) |
-             assign<&ast::Expr::head>(ref<FHeadRule>) |
-             Arithmetic<FExpDARule>> {};
+             assign<&ast::Expr::head>(ref<FHead>) |
+             Arithmetic<FExpDA>> {};
 
-  struct MetricFExpRule
+  struct MetricFExp
       : rule<assign<&ast::Expr::number>(ref<NUMBER>) |
-             flag<&ast::Expr::isTotalTime>(kw<"total-time">) |
-             (OPEN + kw<"is-violated"> +
+             flag<&ast::Expr::isTotalTime>(ikw<"total-time">) |
+             (OPEN + ikw<"is-violated"> +
               assign<&ast::Expr::violatedName>(ref<NAME>) + CLOSE) |
-             Arithmetic<MetricFExpRule> |
-             assign<&ast::Expr::head>(ref<MetricFHeadRule>)> {};
+             Arithmetic<MetricFExp> |
+             assign<&ast::Expr::head>(ref<MetricFHead>)> {};
 
-  struct GoalDescRule
-      : rule<assign<&ast::GoalFormula::atom>(ref<AtomicTermFormulaRule>) |
-             (OPEN + kw<"and"> +
-              many(append<&ast::GoalFormula::operands>(ref<GoalDescRule>)) +
+  struct GoalDesc
+      : rule<(OPEN + ikw<"and"> +
+              many(append<&ast::GoalFormula::operands>(ref<GoalDesc>)) +
               CLOSE) |
-             (OPEN + flag<&ast::GoalFormula::isOr>(kw<"or">) +
-              many(append<&ast::GoalFormula::operands>(ref<GoalDescRule>)) +
+             (OPEN + flag<&ast::GoalFormula::isOr>(ikw<"or">) +
+              many(append<&ast::GoalFormula::operands>(ref<GoalDesc>)) +
               CLOSE) |
-             (OPEN + kw<"not"> +
-              assign<&ast::GoalFormula::notBody>(ref<GoalDescRule>) +
+             (OPEN + ikw<"not"> +
+              assign<&ast::GoalFormula::notBody>(ref<GoalDesc>) +
               CLOSE) |
-             (OPEN + kw<"imply"> +
-              assign<&ast::GoalFormula::left>(ref<GoalDescRule>) +
-              assign<&ast::GoalFormula::right>(ref<GoalDescRule>) + CLOSE) |
-             (OPEN + kw<"exists"> + OPEN +
-              assign<&ast::GoalFormula::parameters>(ref<TypedVarListRule>) +
-              CLOSE + assign<&ast::GoalFormula::quantBody>(ref<GoalDescRule>) +
+             (OPEN + ikw<"imply"> +
+              assign<&ast::GoalFormula::left>(ref<GoalDesc>) +
+              assign<&ast::GoalFormula::right>(ref<GoalDesc>) + CLOSE) |
+             (OPEN + ikw<"exists"> + OPEN +
+              assign<&ast::GoalFormula::parameters>(ref<TypedVarList>) +
+              CLOSE + assign<&ast::GoalFormula::quantBody>(ref<GoalDesc>) +
               CLOSE) |
-             (OPEN + flag<&ast::GoalFormula::isForall>(kw<"forall">) +
+             (OPEN + flag<&ast::GoalFormula::isForall>(ikw<"forall">) +
               OPEN +
-              assign<&ast::GoalFormula::parameters>(ref<TypedVarListRule>) +
-              CLOSE + assign<&ast::GoalFormula::quantBody>(ref<GoalDescRule>) +
+              assign<&ast::GoalFormula::parameters>(ref<TypedVarList>) +
+              CLOSE + assign<&ast::GoalFormula::quantBody>(ref<GoalDesc>) +
               CLOSE) |
              (OPEN + assign<&ast::GoalFormula::compareOp>(BinaryComp) +
-              assign<&ast::GoalFormula::leftExpr>(ref<FExpRule>) +
-              assign<&ast::GoalFormula::rightExpr>(ref<FExpRule>) +
-              CLOSE)> {};
+              assign<&ast::GoalFormula::leftExpr>(ref<FExp>) +
+              assign<&ast::GoalFormula::rightExpr>(ref<FExp>) +
+              CLOSE) |
+             assign<&ast::GoalFormula::atom>(ref<AtomicTermFormula>)> {};
 
   // `op` names which of the twelve operators an alternative is: several
   // pairs (AtEnd/Always/Sometime/AtMostOnce; Within/HoldAfter;
   // SometimeAfter/SometimeBefore) would otherwise write the same fields.
-  struct ConstraintForall
-      : terminal<kw<"forall">, value<ast::ConstraintOp::Forall>> {};
-  struct ConstraintAtEnd
-      : rule<kw<"at"> + kw<"end">, value<ast::ConstraintOp::AtEnd>> {};
-  struct ConstraintAlways
-      : terminal<kw<"always">, value<ast::ConstraintOp::Always>> {};
-  struct ConstraintSometime
-      : terminal<kw<"sometime">, value<ast::ConstraintOp::Sometime>> {};
-  struct ConstraintWithin
-      : terminal<kw<"within">, value<ast::ConstraintOp::Within>> {};
-  struct ConstraintAtMostOnce
-      : terminal<kw<"at-most-once">, value<ast::ConstraintOp::AtMostOnce>> {
-  };
-  struct ConstraintSometimeAfter
-      : terminal<kw<"sometime-after">,
-                 value<ast::ConstraintOp::SometimeAfter>> {};
-  struct ConstraintSometimeBefore
-      : terminal<kw<"sometime-before">,
-                 value<ast::ConstraintOp::SometimeBefore>> {};
-  struct ConstraintAlwaysWithin
-      : terminal<kw<"always-within">,
-                 value<ast::ConstraintOp::AlwaysWithin>> {};
-  struct ConstraintHoldDuring
-      : terminal<kw<"hold-during">, value<ast::ConstraintOp::HoldDuring>> {};
-  struct ConstraintHoldAfter
-      : terminal<kw<"hold-after">, value<ast::ConstraintOp::HoldAfter>> {};
 
-  struct ConstraintRule
-      : rule<(OPEN + kw<"and"> +
-              many(append<&ast::Constraint::operands>(ref<ConstraintRule>)) +
+  struct Constraint
+      : rule<(OPEN + ikw<"and"> +
+              many(append<&ast::Constraint::operands>(ref<Constraint>)) +
               CLOSE) |
-             (OPEN + assign<&ast::Constraint::op>(ref<ConstraintForall>) +
+             (OPEN + assign<&ast::Constraint::op>(as<ast::ConstraintOp::Forall>(ikw<"forall">)) +
               OPEN +
-              assign<&ast::Constraint::parameters>(ref<TypedVarListRule>) +
-              CLOSE + assign<&ast::Constraint::body>(ref<ConstraintRule>) +
+              assign<&ast::Constraint::parameters>(ref<TypedVarList>) +
+              CLOSE + assign<&ast::Constraint::body>(ref<Constraint>) +
               CLOSE) |
-             (OPEN + assign<&ast::Constraint::op>(ref<ConstraintAtEnd>) +
-              assign<&ast::Constraint::goal1>(ref<GoalDescRule>) + CLOSE) |
-             (OPEN + assign<&ast::Constraint::op>(ref<ConstraintAlways>) +
-              assign<&ast::Constraint::goal1>(ref<GoalDescRule>) + CLOSE) |
-             (OPEN + assign<&ast::Constraint::op>(ref<ConstraintSometime>) +
-              assign<&ast::Constraint::goal1>(ref<GoalDescRule>) + CLOSE) |
-             (OPEN + assign<&ast::Constraint::op>(ref<ConstraintWithin>) +
+             (OPEN + assign<&ast::Constraint::op>(as<ast::ConstraintOp::AtEnd>(ikw<"at"> + ikw<"end">)) +
+              assign<&ast::Constraint::goal1>(ref<GoalDesc>) + CLOSE) |
+             (OPEN + assign<&ast::Constraint::op>(as<ast::ConstraintOp::Always>(ikw<"always">)) +
+              assign<&ast::Constraint::goal1>(ref<GoalDesc>) + CLOSE) |
+             (OPEN + assign<&ast::Constraint::op>(as<ast::ConstraintOp::Sometime>(ikw<"sometime">)) +
+              assign<&ast::Constraint::goal1>(ref<GoalDesc>) + CLOSE) |
+             (OPEN + assign<&ast::Constraint::op>(as<ast::ConstraintOp::Within>(ikw<"within">)) +
               assign<&ast::Constraint::num1>(ref<NUMBER>) +
-              assign<&ast::Constraint::goal1>(ref<GoalDescRule>) + CLOSE) |
+              assign<&ast::Constraint::goal1>(ref<GoalDesc>) + CLOSE) |
              (OPEN +
-              assign<&ast::Constraint::op>(ref<ConstraintAtMostOnce>) +
-              assign<&ast::Constraint::goal1>(ref<GoalDescRule>) + CLOSE) |
+              assign<&ast::Constraint::op>(as<ast::ConstraintOp::AtMostOnce>(ikw<"at-most-once">)) +
+              assign<&ast::Constraint::goal1>(ref<GoalDesc>) + CLOSE) |
              (OPEN +
-              assign<&ast::Constraint::op>(ref<ConstraintSometimeAfter>) +
-              assign<&ast::Constraint::goal1>(ref<GoalDescRule>) +
-              assign<&ast::Constraint::goal2>(ref<GoalDescRule>) + CLOSE) |
+              assign<&ast::Constraint::op>(as<ast::ConstraintOp::SometimeAfter>(ikw<"sometime-after">)) +
+              assign<&ast::Constraint::goal1>(ref<GoalDesc>) +
+              assign<&ast::Constraint::goal2>(ref<GoalDesc>) + CLOSE) |
              (OPEN +
-              assign<&ast::Constraint::op>(ref<ConstraintSometimeBefore>) +
-              assign<&ast::Constraint::goal1>(ref<GoalDescRule>) +
-              assign<&ast::Constraint::goal2>(ref<GoalDescRule>) + CLOSE) |
+              assign<&ast::Constraint::op>(as<ast::ConstraintOp::SometimeBefore>(ikw<"sometime-before">)) +
+              assign<&ast::Constraint::goal1>(ref<GoalDesc>) +
+              assign<&ast::Constraint::goal2>(ref<GoalDesc>) + CLOSE) |
              (OPEN +
-              assign<&ast::Constraint::op>(ref<ConstraintAlwaysWithin>) +
+              assign<&ast::Constraint::op>(as<ast::ConstraintOp::AlwaysWithin>(ikw<"always-within">)) +
               assign<&ast::Constraint::num1>(ref<NUMBER>) +
-              assign<&ast::Constraint::goal1>(ref<GoalDescRule>) +
-              assign<&ast::Constraint::goal2>(ref<GoalDescRule>) + CLOSE) |
+              assign<&ast::Constraint::goal1>(ref<GoalDesc>) +
+              assign<&ast::Constraint::goal2>(ref<GoalDesc>) + CLOSE) |
              (OPEN +
-              assign<&ast::Constraint::op>(ref<ConstraintHoldDuring>) +
+              assign<&ast::Constraint::op>(as<ast::ConstraintOp::HoldDuring>(ikw<"hold-during">)) +
               assign<&ast::Constraint::num1>(ref<NUMBER>) +
               assign<&ast::Constraint::num2>(ref<NUMBER>) +
-              assign<&ast::Constraint::goal1>(ref<GoalDescRule>) + CLOSE) |
-             (OPEN + assign<&ast::Constraint::op>(ref<ConstraintHoldAfter>) +
+              assign<&ast::Constraint::goal1>(ref<GoalDesc>) + CLOSE) |
+             (OPEN + assign<&ast::Constraint::op>(as<ast::ConstraintOp::HoldAfter>(ikw<"hold-after">)) +
               assign<&ast::Constraint::num1>(ref<NUMBER>) +
-              assign<&ast::Constraint::goal1>(ref<GoalDescRule>) +
+              assign<&ast::Constraint::goal1>(ref<GoalDesc>) +
               CLOSE)> {};
 
-  struct PrefConstraintRule
-      : rule<(OPEN + kw<"and"> +
+  struct PrefConstraint
+      : rule<(OPEN + ikw<"and"> +
               many(append<&ast::PrefConstraint::operands>(
-                  ref<PrefConstraintRule>)) +
+                  ref<PrefConstraint>)) +
               CLOSE) |
-             (OPEN + kw<"forall"> + OPEN +
+             (OPEN + ikw<"forall"> + OPEN +
               assign<&ast::PrefConstraint::parameters>(
-                  ref<TypedVarListRule>) +
+                  ref<TypedVarList>) +
               CLOSE +
-              assign<&ast::PrefConstraint::body>(ref<PrefConstraintRule>) +
+              assign<&ast::PrefConstraint::body>(ref<PrefConstraint>) +
               CLOSE) |
              (OPEN +
               flag<&ast::PrefConstraint::isPreference>(
-                  kw<"preference">) +
+                  ikw<"preference">) +
               option(assign<&ast::PrefConstraint::name>(ref<NAME>)) +
-              assign<&ast::PrefConstraint::constraint>(ref<ConstraintRule>) +
+              assign<&ast::PrefConstraint::constraint>(ref<Constraint>) +
               CLOSE) |
-             assign<&ast::PrefConstraint::constraint>(ref<ConstraintRule>)> {
+             assign<&ast::PrefConstraint::constraint>(ref<Constraint>)> {
   };
 
   static constexpr auto TimedGDBody =
-      (OPEN + kw<"at"> + assign<&ast::DaGoal::timeSpecifier>(TimeSpecifier) +
-       assign<&ast::DaGoal::goal>(ref<GoalDescRule>) + CLOSE) |
-      (OPEN + kw<"over"> + assign<&ast::DaGoal::interval>(Interval) +
-       assign<&ast::DaGoal::goal>(ref<GoalDescRule>) + CLOSE);
-  struct TimedGDRule : rule<TimedGDBody> {};
+      (OPEN + ikw<"at"> + assign<&ast::DaGoal::timeSpecifier>(TimeSpecifier) +
+       assign<&ast::DaGoal::goal>(ref<GoalDesc>) + CLOSE) |
+      (OPEN + ikw<"over"> + assign<&ast::DaGoal::interval>(Interval) +
+       assign<&ast::DaGoal::goal>(ref<GoalDesc>) + CLOSE);
+  struct TimedGD : rule<TimedGDBody> {};
 
-  struct DaGoalRule
+  struct DaGoal
       : rule<TimedGDBody |
-             (OPEN + kw<"and"> +
-              many(append<&ast::DaGoal::operands>(ref<DaGoalRule>)) +
+             (OPEN + ikw<"and"> +
+              many(append<&ast::DaGoal::operands>(ref<DaGoal>)) +
               CLOSE) |
-             (OPEN + kw<"forall"> + OPEN +
-              assign<&ast::DaGoal::parameters>(ref<TypedVarListRule>) +
-              CLOSE + assign<&ast::DaGoal::body>(ref<DaGoalRule>) + CLOSE) |
-             (OPEN + kw<"preference"> +
+             (OPEN + ikw<"forall"> + OPEN +
+              assign<&ast::DaGoal::parameters>(ref<TypedVarList>) +
+              CLOSE + assign<&ast::DaGoal::body>(ref<DaGoal>) + CLOSE) |
+             (OPEN + ikw<"preference"> +
               option(assign<&ast::DaGoal::name>(ref<NAME>)) +
-              assign<&ast::DaGoal::body>(ref<TimedGDRule>) + CLOSE)> {};
+              assign<&ast::DaGoal::body>(ref<TimedGD>) + CLOSE)> {};
 
   // Shared by an ordinary and a durative action's effect: both can add or
   // delete a predicate, not only reassign a numeric fluent.
   static constexpr auto AtomicEffectBody =
-      (OPEN + flag<&ast::Effect::negated>(kw<"not">) +
-       assign<&ast::Effect::head>(ref<AtomicTermFormulaRule>) + CLOSE) |
-      assign<&ast::Effect::head>(ref<AtomicTermFormulaRule>);
+      (OPEN + flag<&ast::Effect::negated>(ikw<"not">) +
+       assign<&ast::Effect::head>(ref<AtomicTermFormula>) + CLOSE) |
+      assign<&ast::Effect::head>(ref<AtomicTermFormula>);
 
   static constexpr auto PEffectBody =
       (OPEN + assign<&ast::Effect::assignOp>(AssignOp) +
-       assign<&ast::Effect::head>(ref<FHeadRule>) +
-       assign<&ast::Effect::value>(ref<FExpRule>) + CLOSE) |
+       assign<&ast::Effect::head>(ref<FHead>) +
+       assign<&ast::Effect::value>(ref<FExp>) + CLOSE) |
       AtomicEffectBody;
-  struct PEffectRule : rule<PEffectBody> {};
+  struct PEffect : rule<PEffectBody> {};
 
   static constexpr auto CondEffectBody =
-      (OPEN + kw<"and"> +
-       many(append<&ast::Effect::operands>(ref<PEffectRule>)) + CLOSE) |
+      (OPEN + ikw<"and"> +
+       many(append<&ast::Effect::operands>(ref<PEffect>)) + CLOSE) |
       PEffectBody;
-  struct CondEffectRule : rule<CondEffectBody> {};
+  struct CondEffect : rule<CondEffectBody> {};
 
   static constexpr auto CEffectBody =
-      (OPEN + kw<"forall"> + OPEN +
-       assign<&ast::Effect::parameters>(ref<TypedVarListRule>) + CLOSE +
-       assign<&ast::Effect::body>(ref<EffectRule>) + CLOSE) |
-      (OPEN + kw<"when"> +
-       assign<&ast::Effect::condition>(ref<GoalDescRule>) +
-       assign<&ast::Effect::consequence>(ref<CondEffectRule>) + CLOSE) |
-      (OPEN + flag<&ast::Effect::isOneOf>(kw<"oneof">) +
-       many(append<&ast::Effect::operands>(ref<EffectRule>)) + CLOSE) |
+      (OPEN + ikw<"forall"> + OPEN +
+       assign<&ast::Effect::parameters>(ref<TypedVarList>) + CLOSE +
+       assign<&ast::Effect::body>(ref<Effect>) + CLOSE) |
+      (OPEN + ikw<"when"> +
+       assign<&ast::Effect::condition>(ref<GoalDesc>) +
+       assign<&ast::Effect::consequence>(ref<CondEffect>) + CLOSE) |
+      (OPEN + flag<&ast::Effect::isOneOf>(ikw<"oneof">) +
+       many(append<&ast::Effect::operands>(ref<Effect>)) + CLOSE) |
       PEffectBody;
-  struct CEffectRule : rule<CEffectBody> {};
+  struct CEffect : rule<CEffectBody> {};
 
-  struct EffectRule
-      : rule<(OPEN + kw<"and"> +
-              many(append<&ast::Effect::operands>(ref<CEffectRule>)) +
+  struct Effect
+      : rule<(OPEN + ikw<"and"> +
+              many(append<&ast::Effect::operands>(ref<CEffect>)) +
               CLOSE) |
              CEffectBody> {};
 
   static constexpr auto TimedEffectBody =
-      OPEN + kw<"at"> + assign<&ast::Effect::timeSpecifier>(TimeSpecifier) +
-      (assign<&ast::Effect::body>(ref<DaEffectRule>) |
+      OPEN + ikw<"at"> + assign<&ast::Effect::timeSpecifier>(TimeSpecifier) +
+      (assign<&ast::Effect::body>(ref<DaEffect>) |
        (assign<&ast::Effect::assignOp>(AssignOp) +
-        assign<&ast::Effect::head>(ref<FHeadRule>) +
-        assign<&ast::Effect::value>(ref<FExpDARule>))) +
+        assign<&ast::Effect::head>(ref<FHead>) +
+        assign<&ast::Effect::value>(ref<FExpDA>))) +
       CLOSE;
-  struct TimedEffectRule : rule<TimedEffectBody> {};
+  struct TimedEffect : rule<TimedEffectBody> {};
 
-  struct DaEffectRule
+  struct DaEffect
       : rule<TimedEffectBody |
              AtomicEffectBody |
-             (OPEN + kw<"and"> +
-              many(append<&ast::Effect::operands>(ref<DaEffectRule>)) +
+             (OPEN + ikw<"and"> +
+              many(append<&ast::Effect::operands>(ref<DaEffect>)) +
               CLOSE) |
-             (OPEN + kw<"forall"> + OPEN +
-              assign<&ast::Effect::parameters>(ref<TypedVarListRule>) +
-              CLOSE + assign<&ast::Effect::body>(ref<DaEffectRule>) +
+             (OPEN + ikw<"forall"> + OPEN +
+              assign<&ast::Effect::parameters>(ref<TypedVarList>) +
+              CLOSE + assign<&ast::Effect::body>(ref<DaEffect>) +
               CLOSE) |
-             (OPEN + kw<"when"> +
-              assign<&ast::Effect::daCondition>(ref<DaGoalRule>) +
-              assign<&ast::Effect::consequence>(ref<TimedEffectRule>) +
+             (OPEN + ikw<"when"> +
+              assign<&ast::Effect::daCondition>(ref<DaGoal>) +
+              assign<&ast::Effect::consequence>(ref<TimedEffect>) +
               CLOSE) |
              (OPEN + assign<&ast::Effect::assignOp>(AssignOp) +
-              assign<&ast::Effect::head>(ref<FHeadRule>) +
-              assign<&ast::Effect::value>(ref<FExpDARule>) + CLOSE)> {};
+              assign<&ast::Effect::head>(ref<FHead>) +
+              assign<&ast::Effect::value>(ref<FExpDA>) + CLOSE)> {};
 
   struct DurationRule
-      : rule<(OPEN + kw<"and"> +
+      : rule<(OPEN + ikw<"and"> +
               some(append<&ast::Duration::operands>(ref<DurationRule>)) +
               CLOSE) |
              (create<ast::Duration> + OPEN + CLOSE) |
              (OPEN + assign<&ast::Duration::compareOp>(DurOp) +
-              kw<"?duration"> +
-              assign<&ast::Duration::value>(ref<FExpRule>) + CLOSE) |
-             (OPEN + kw<"at"> +
+              ikw<"?duration"> +
+              assign<&ast::Duration::value>(ref<FExp>) + CLOSE) |
+             (OPEN + ikw<"at"> +
               assign<&ast::Duration::timeSpecifier>(TimeSpecifier) +
               assign<&ast::Duration::body>(ref<DurationRule>) + CLOSE)> {};
 
-  struct ActionDefRule
-      : rule<OPEN + kw<":action"> +
-             assign<&ast::ActionDef::name>(ref<NAME>) + kw<":parameters"> +
+  struct ActionDef
+      : rule<OPEN + ikw<":action"> +
+             assign<&ast::ActionDef::name>(ref<NAME>) + ikw<":parameters"> +
              OPEN +
-             assign<&ast::ActionDef::parameters>(ref<TypedVarListRule>) +
+             assign<&ast::ActionDef::parameters>(ref<TypedVarList>) +
              CLOSE +
-             option(flag<&ast::ActionDef::hasPrecondition>(kw<":precondition">) +
+             option(flag<&ast::ActionDef::hasPrecondition>(ikw<":precondition">) +
                     ((OPEN + CLOSE) |
                      assign<&ast::ActionDef::precondition>(
-                         ref<GoalDescRule>))) +
-             option(flag<&ast::ActionDef::hasEffect>(kw<":effect">) +
+                         ref<GoalDesc>))) +
+             option(flag<&ast::ActionDef::hasEffect>(ikw<":effect">) +
                     ((OPEN + CLOSE) |
-                     assign<&ast::ActionDef::effect>(ref<EffectRule>))) +
+                     assign<&ast::ActionDef::effect>(ref<Effect>))) +
              CLOSE> {};
 
   // Duration, condition and effect are optional and independent, exactly as
   // they are for a plain action, not mutually exclusive.
-  struct DurativeActionDefRule
-      : rule<OPEN + kw<":durative-action"> +
+  struct DurativeActionDef
+      : rule<OPEN + ikw<":durative-action"> +
              assign<&ast::DurativeActionDef::name>(ref<NAME>) +
-             kw<":parameters"> + OPEN +
+             ikw<":parameters"> + OPEN +
              assign<&ast::DurativeActionDef::parameters>(
-                 ref<TypedVarListRule>) +
+                 ref<TypedVarList>) +
              CLOSE +
-             option(kw<":duration"> +
+             option(ikw<":duration"> +
                     assign<&ast::DurativeActionDef::duration>(
                         ref<DurationRule>)) +
-             option(flag<&ast::DurativeActionDef::hasCondition>(kw<":condition">) +
+             option(flag<&ast::DurativeActionDef::hasCondition>(ikw<":condition">) +
                     ((OPEN + CLOSE) |
                      assign<&ast::DurativeActionDef::condition>(
-                         ref<DaGoalRule>))) +
-             option(flag<&ast::DurativeActionDef::hasEffect>(kw<":effect">) +
+                         ref<DaGoal>))) +
+             option(flag<&ast::DurativeActionDef::hasEffect>(ikw<":effect">) +
                     ((OPEN + CLOSE) |
                      assign<&ast::DurativeActionDef::effect>(
-                         ref<DaEffectRule>))) +
+                         ref<DaEffect>))) +
              CLOSE> {};
 
-  struct DerivedDefRule
-      : rule<OPEN + kw<":derived"> + OPEN +
+  struct DerivedDef
+      : rule<OPEN + ikw<":derived"> + OPEN +
              assign<&ast::DerivedDef::name>(ref<NAME>) +
-             assign<&ast::DerivedDef::parameters>(ref<TypedVarListRule>) +
-             CLOSE + assign<&ast::DerivedDef::body>(ref<GoalDescRule>) +
+             assign<&ast::DerivedDef::parameters>(ref<TypedVarList>) +
+             CLOSE + assign<&ast::DerivedDef::body>(ref<GoalDesc>) +
              CLOSE> {};
 
-  static constexpr auto StructureAlt = ref<ActionDefRule> |
-                                        ref<DurativeActionDefRule> |
-                                        ref<DerivedDefRule>;
+  static constexpr auto StructureAlt = ref<ActionDef> |
+                                        ref<DurativeActionDef> |
+                                        ref<DerivedDef>;
 
   struct DomainRule
-      : rule<OPEN + kw<"define"> + OPEN + kw<"domain"> +
+      : rule<OPEN + ikw<"define"> + OPEN + ikw<"domain"> +
              assign<&ast::Domain::name>(ref<NAME>) + CLOSE +
-             option(OPEN + kw<":requirements"> +
+             option(OPEN + ikw<":requirements"> +
                     some(append<&ast::Domain::requirements>(
                         ref<REQUIRE_KEY>)) +
                     CLOSE) +
-             option(OPEN + kw<":types"> +
-                    assign<&ast::Domain::types>(ref<TypedNameListRule>) +
+             option(OPEN + ikw<":types"> +
+                    assign<&ast::Domain::types>(ref<TypedNameList>) +
                     CLOSE) +
-             option(OPEN + kw<":constants"> +
-                    assign<&ast::Domain::constants>(ref<TypedNameListRule>) +
+             option(OPEN + ikw<":constants"> +
+                    assign<&ast::Domain::constants>(ref<TypedNameList>) +
                     CLOSE) +
-             option(OPEN + kw<":predicates"> +
+             option(OPEN + ikw<":predicates"> +
                     some(append<&ast::Domain::predicates>(
-                        ref<AtomicFormulaSkeletonRule>)) +
+                        ref<AtomicFormulaSkeleton>)) +
                     CLOSE) +
-             option(OPEN + kw<":functions"> +
+             option(OPEN + ikw<":functions"> +
                     many(append<&ast::Domain::functionGroups>(
-                        ref<TypedFunctionGroupRule>)) +
+                        ref<TypedFunctionGroup>)) +
                     option(append<&ast::Domain::functionGroups>(
-                        ref<UntypedFunctionGroupRule>)) +
+                        ref<UntypedFunctionGroup>)) +
                     CLOSE) +
-             option(OPEN + kw<":constraints"> +
-                    assign<&ast::Domain::constraints>(ref<ConstraintRule>) +
+             option(OPEN + ikw<":constraints"> +
+                    assign<&ast::Domain::constraints>(ref<Constraint>) +
                     CLOSE) +
              many(append<&ast::Domain::structures>(StructureAlt)) +
              CLOSE> {};
 
-  struct NameLiteralRule
-      : rule<assign<&ast::NameLiteral::atom>(ref<AtomicNameFormulaRule>) |
-             (OPEN + flag<&ast::NameLiteral::negated>(kw<"not">) +
-              assign<&ast::NameLiteral::atom>(ref<AtomicNameFormulaRule>) +
+  struct NameLiteral
+      : rule<assign<&ast::NameLiteral::atom>(ref<AtomicNameFormula>) |
+             (OPEN + flag<&ast::NameLiteral::negated>(ikw<"not">) +
+              assign<&ast::NameLiteral::atom>(ref<AtomicNameFormula>) +
               CLOSE)> {};
 
-  struct InitElRule
-      : rule<assign<&ast::InitElement::literal>(ref<NameLiteralRule>) |
+  struct InitEl
+      : rule<assign<&ast::InitElement::literal>(ref<NameLiteral>) |
              (OPEN + lit<"="> +
-              assign<&ast::InitElement::head>(ref<FHeadRule>) +
+              assign<&ast::InitElement::head>(ref<FHead>) +
               assign<&ast::InitElement::value>(ref<NUMBER>) + CLOSE) |
-             (OPEN + flag<&ast::InitElement::isTimed>(kw<"at">) +
+             (OPEN + flag<&ast::InitElement::isTimed>(ikw<"at">) +
               assign<&ast::InitElement::timestamp>(ref<NUMBER>) +
-              assign<&ast::InitElement::literal>(ref<NameLiteralRule>) +
+              assign<&ast::InitElement::literal>(ref<NameLiteral>) +
               CLOSE)> {};
 
-  struct ProblemRule
-      : rule<OPEN + kw<"define"> + OPEN + kw<"problem"> +
+  struct Problem
+      : rule<OPEN + ikw<"define"> + OPEN + ikw<"problem"> +
              assign<&ast::Problem::name>(ref<NAME>) + CLOSE + OPEN +
-             kw<":domain"> +
+             ikw<":domain"> +
              assign<&ast::Problem::domainName>(ref<NAME>) + CLOSE +
-             option(OPEN + kw<":requirements"> +
+             option(OPEN + ikw<":requirements"> +
                     some(append<&ast::Problem::requirements>(
                         ref<REQUIRE_KEY>)) +
                     CLOSE) +
-             option(OPEN + kw<":objects"> +
-                    assign<&ast::Problem::objects>(ref<TypedNameListRule>) +
+             option(OPEN + ikw<":objects"> +
+                    assign<&ast::Problem::objects>(ref<TypedNameList>) +
                     CLOSE) +
-             OPEN + kw<":init"> +
-             many(append<&ast::Problem::init>(ref<InitElRule>)) + CLOSE +
-             OPEN + kw<":goal"> +
-             assign<&ast::Problem::goal>(ref<GoalDescRule>) + CLOSE +
-             option(OPEN + kw<":constraints"> +
+             OPEN + ikw<":init"> +
+             many(append<&ast::Problem::init>(ref<InitEl>)) + CLOSE +
+             OPEN + ikw<":goal"> +
+             assign<&ast::Problem::goal>(ref<GoalDesc>) + CLOSE +
+             option(OPEN + ikw<":constraints"> +
                     assign<&ast::Problem::constraints>(
-                        ref<PrefConstraintRule>) +
+                        ref<PrefConstraint>) +
                     CLOSE) +
-             option(flag<&ast::Problem::hasMetric>(OPEN + kw<":metric">) +
+             option(flag<&ast::Problem::hasMetric>(OPEN + ikw<":metric">) +
                     assign<&ast::Problem::metricOptimization>(
                         Optimization) +
-                    assign<&ast::Problem::metricExpr>(ref<MetricFExpRule>) +
+                    assign<&ast::Problem::metricExpr>(ref<MetricFExp>) +
                     CLOSE) +
              CLOSE> {};
 
-  struct DocumentRule
+  struct Document
       : rule<assign<&ast::Document::content>(ref<DomainRule> |
-                                              ref<ProblemRule>)> {};
+                                              ref<Problem>)> {};
 
-  using entry = DocumentRule;
-  using ignore = list<WS, LineComment>;
+  using entry = Document;
+  using ignored = list<WS, LineComment>;
 };
 
 }  // namespace pddl

@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Amazon States Language state machines, with typed states, transitions and JSON values. Numeric values use `int64` and `double`.
+
 ```json
 {
   "StartAt": "FailState",
@@ -43,15 +45,6 @@ Generated files live under `build/src/generated-src/`; do not edit them.
   }
 }
 ```
-
-An [Amazon States Language](https://states-language.net/spec.html) document
-is JSON whose object keys are a fixed vocabulary of state-machine field
-names (`"Type"`, `"Resource"`, `"Next"`, `"Choices"`...): the grammar reads
-each key as its own token and dispatches on it, the way a `States:`/`Choice:`
-DSL would. `Parameters`, `Result`, `ItemSelector` and `ResultSelector` stay
-plain JSON — the grammar accepts any shape there, including a `"key.$"`
-binding to a JSONPath (`$...`), a context-object path (`$$...`), or an
-intrinsic function call.
 
 ## The command line
 

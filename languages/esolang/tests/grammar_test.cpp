@@ -4,6 +4,7 @@
 // values, not only structure.
 
 #include <cstdio>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -15,6 +16,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "lolcode/core/CoreServices.hpp"
 #include "lolcode/core/ast.hpp"
+#include "switch_cases.hpp"
 
 namespace {
 
@@ -45,7 +47,13 @@ const cursiv::Parser &parser() {
 }
 
 ast::Program *parse_clean(const std::string &text, const char *label) {
-  const cursiv::ParseResult result = parser().parse(text);
+  // AST allocations belong to ParseResult; retain it for the callers' reads.
+  const auto& p = parser();
+  static std::deque<std::string> sources;
+  static std::deque<cursiv::ParseResult> results;
+  sources.push_back(text);
+  results.push_back(p.parse(sources.back()));
+  const auto& result = results.back();
   check(!result.cst().recovered(), label);
   check(result.diagnostics.empty(), label);
   const cursiv::AstNode *const root = result.value;
@@ -232,6 +240,63 @@ void call_absorbs_every_trailing_name() {
   }
 }
 
+void native_spec_regressions() {
+  for (const std::string source : {
+      "HAI 1.2\nKTHXBYE\n",
+      "HAI 1.2, I\tHAS   A x ITZ -2, VISIBLE x, x R SUM\tOF x 1, KTHXBYE",
+      "HAI\nHOW IZ I f YR p\nFOUND YR p\nIF U SAY SO\nKTHXBYE\n",
+      "HAI\nHOW IZ I empty\nIF U SAY SO\nKTHXBYE\n",
+      "HAI\nIM IN YR infinite\nGTFO\nIM OUTTA YR infinite\nKTHXBYE\n",
+      "HAI\nI HAS A x ITZ ALL OF WIN AN FAIL BTW inline comment\nKTHXBYE\n",
+      "HAI\nI HAS A x ITZ WON OF WIN FAIL\nx IS NOW A NUMBAR\nKTHXBYE\n",
+      "HAI\nI HAS A x ITZ MAEK 1 YARN\nI HAS A y ITZ SMOOSH x AN 2 MKAY\nKTHXBYE\n"}) {
+    parse_clean(source, "native LOLCODE 1.2 syntax");
+  }
+  {
+    const std::string source = "HAI\nVISIBLE 1\nx\nKTHXBYE\n";
+    const auto* p = parse_clean(source, "newline ends VISIBLE arguments");
+    const auto* print = p && p->statements.size() == 2 ?
+        cursiv::ast_cast<ast::PrintBlock>(p->statements[0]) : nullptr;
+    const auto* name = p && p->statements.size() == 2 ?
+        cursiv::ast_cast<ast::VarRef>(p->statements[1]) : nullptr;
+    check(print && print->items.size() == 1 && name && name->name == "x",
+          "VISIBLE must not consume the following expression statement");
+  }
+  {
+    const std::string source = "HAI\nVISIBLE \"a\" ...\n \"b\"\nx\nKTHXBYE\n";
+    const auto* p = parse_clean(source, "continued print");
+    const auto* print = p && p->statements.size() == 2 ?
+        cursiv::ast_cast<ast::PrintBlock>(p->statements[0]) : nullptr;
+    check(print && print->items.size() == 2, "continuation joins one print statement");
+  }
+  {
+    const std::string source = R"(HAI
+VISIBLE "a:"b"!
+IM IN YR counted UPPIN YR i TIL BOTH SAEM i AN 3
+GTFO
+IM OUTTA YR counted
+KTHXBYE
+)";
+    const auto* p = parse_clean(source, "native string and counted loop");
+    const auto* print = p && p->statements.size() == 2 ?
+        cursiv::ast_cast<ast::PrintBlock>(p->statements[0]) : nullptr;
+    const auto* loop = p && p->statements.size() == 2 ?
+        cursiv::ast_cast<ast::LoopStmt>(p->statements[1]) : nullptr;
+    const auto* string = print && print->items.size() == 1 ?
+        cursiv::ast_cast<ast::StrLit>(print->items[0]) : nullptr;
+    check(print && print->suppressNewline && string && string->text == "a:\"b" &&
+          loop && loop->operation == "UPPIN" && loop->iterator == "i" && loop->until &&
+          loop->condition && loop->body.size() == 1 &&
+          cursiv::ast_cast<ast::BreakStmt>(loop->body[0]),
+          "colon escape spelling, print flag and loop controls are retained");
+  }
+  for (const std::string source : {"HAI\nVISIBLE 1\n", "HAI\nVISIBLE .\nKTHXBYE\n"}) {
+    const auto parsed = parser().parse(source);
+    check(!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty(),
+          "missing program close or lone numeric dot rejected");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -240,6 +305,8 @@ int main() {
         cursiv::create_language<lolcode::LolcodeCoreServices,
                                 lolcode::LolcodeSharedCoreServices,
                                 lolcode::install_core_module>();
+    if (!lolcode_switch_cases::run(audit_language.language))
+      return 1;
     const auto audit_result = audit_language.language.parser->parse(
         "HAI\nI HAS A x ITZ I IZ f YR 1 MKAY\nKTHXBYE\n");
     if (!audit_result.accepted || audit_result.cst().recovered() ||
@@ -255,6 +322,7 @@ int main() {
       return 1;
   }
 
+  native_spec_regressions();
   every_example_parses_clean();
   hai_example_values();
   full_example_values();

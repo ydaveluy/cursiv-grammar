@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A MATLAB script syntax subset with expressions, matrix notation, control flow and functions.
+
 ```
 for i = 1:5
   a = i + 1;
@@ -40,11 +42,6 @@ if a > 0
   b = [1, 2; 3, 4];
 end
 ```
-
-A statement ends at a comma, a semicolon or a line break -- all three are
-interchangeable. Indexing and calling a name share one syntax, `name(args)`,
-and `:` alone inside it means the whole range along that dimension: `b(1:2,
-:)`.
 
 ## The command line
 

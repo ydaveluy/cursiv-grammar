@@ -2,6 +2,20 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+The corpus does not pin an Apex API version. Its class syntax was compared
+with Salesforce's [Apex Developer Guide](https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/salesforce_apex_developer_guide.pdf),
+version 68.0, Winter ’27, updated 2026-10-23, for the declared families.
+This is not a version-68 compiler: trigger files, anonymous Apex, multiline
+string literals and full SOQL/SOSL/bind parsing remain outside the port.
+Queries are opaque spans with quoted strings; nested brackets in bind
+expressions are not balanced. Switch value types, uniqueness, exhaustiveness
+and DML type/access checks require the native Salesforce compiler.
+
+The reference corpus also exercises Java compatibility extensions: package
+and import preludes, custom annotation declarations, user-defined generics,
+wildcards, varargs, try-with-resources, Java numeric forms and labelled jumps.
+These accepted forms must not be treated as evidence of native Apex validity.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`

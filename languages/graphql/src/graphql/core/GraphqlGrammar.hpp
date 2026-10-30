@@ -79,7 +79,6 @@ inline constexpr auto unquote1 =
   }
   return Result::ok(std::string_view(room.data(), n));
 };
-using Unquoted = cursiv::text_conv<unquote1>;
 
 inline constexpr auto unquote3 =
     [](std::string_view t, std::pmr::memory_resource* mem) -> std::string_view {
@@ -124,12 +123,10 @@ inline constexpr auto unquote3 =
   }
   return std::string_view(room.data(), out);
 };
-using BlockUnquoted = cursiv::text_conv<unquote3>;
 
 inline constexpr auto null_value = [](std::string_view) {
   return std::monostate{};
 };
-using NullValue = cursiv::text_conv<null_value>;
 
 struct Graphql : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\n\r)">)> {};
@@ -145,13 +142,12 @@ struct Graphql : cursiv::GrammarSpec {
       (cr<R"("\\/bfnrt)"> | (lit<"u"> + (repeat<4>(cr<"0-9a-fA-F">) |
                       (lit<"{"> + repeat<1, 8>(cr<"0-9a-fA-F">) + lit<"}">))));
   struct STRING
-      : terminal<lit<"\""> + many(StringEscape | cr<R"(^"\\\r\n)">) + lit<"\"">,
-                 Unquoted> {};
+      : terminal<as<unquote1>(
+            lit<"\""> + many(StringEscape | cr<R"(^"\\\r\n)">) + lit<"\"">)> {};
   static constexpr auto BlockUnit =
       option(lit<"\"\""> | lit<"\"">) + (lit<R"(\""")"> | cr<R"(^")">);
-  struct BLOCK_STRING
-      : terminal<lit<"\"\"\""> + many(BlockUnit) + lit<"\"\"\"">,
-                 BlockUnquoted> {};
+  struct BLOCK_STRING : terminal<as<unquote3>(lit<"\"\"\""> + many(BlockUnit) +
+                                              lit<"\"\"\"">)> {};
 
   static constexpr auto IntBody =
       option(lit<"-">) + (lit<"0"> | (cr<"1-9"> + many(d)));
@@ -162,271 +158,214 @@ struct Graphql : cursiv::GrammarSpec {
                              option(cr<"eE"> + option(cr<"+-">) + some(d))) |
                             (cr<"eE"> + option(cr<"+-">) + some(d))) + NumberEnd> {};
 
-  struct BOOL : terminal<kw<"true"> | kw<"false">, bool> {};
-  struct NULLK : terminal<kw<"null">, NullValue> {};
+  struct BOOL : terminal<as<bool>(kw<"true"> | kw<"false">)> {};
+  struct NULLK : terminal<as<null_value>(kw<"null">)> {};
 
-  struct OP_QUERY : terminal<kw<"query">, value<ast::OperationKind::Query>> {};
-  struct OP_MUTATION
-      : terminal<kw<"mutation">, value<ast::OperationKind::Mutation>> {};
-  struct OP_SUBSCRIPTION
-      : terminal<kw<"subscription">, value<ast::OperationKind::Subscription>> {
-  };
   static constexpr auto OperationTypeExpr =
-      ref<OP_QUERY> | ref<OP_MUTATION> | ref<OP_SUBSCRIPTION>;
+      as<ast::OperationKind::Query>(kw<"query">) | as<ast::OperationKind::Mutation>(kw<"mutation">) | as<ast::OperationKind::Subscription>(kw<"subscription">);
 
-  struct DL_QUERY
-      : terminal<kw<"QUERY">, value<ast::DirectiveLocationKind::Query>> {};
-  struct DL_MUTATION
-      : terminal<kw<"MUTATION">, value<ast::DirectiveLocationKind::Mutation>> {
-  };
-  struct DL_SUBSCRIPTION
-      : terminal<kw<"SUBSCRIPTION">,
-                 value<ast::DirectiveLocationKind::Subscription>> {};
-  struct DL_FIELD
-      : terminal<kw<"FIELD">, value<ast::DirectiveLocationKind::Field>> {};
-  struct DL_FRAGMENT_DEFINITION
-      : terminal<kw<"FRAGMENT_DEFINITION">,
-                 value<ast::DirectiveLocationKind::FragmentDefinition>> {};
-  struct DL_FRAGMENT_SPREAD
-      : terminal<kw<"FRAGMENT_SPREAD">,
-                 value<ast::DirectiveLocationKind::FragmentSpread>> {};
-  struct DL_INLINE_FRAGMENT
-      : terminal<kw<"INLINE_FRAGMENT">,
-                 value<ast::DirectiveLocationKind::InlineFragment>> {};
-  struct DL_VARIABLE_DEFINITION
-      : terminal<kw<"VARIABLE_DEFINITION">,
-                 value<ast::DirectiveLocationKind::VariableDefinition>> {};
-  struct DL_SCHEMA
-      : terminal<kw<"SCHEMA">, value<ast::DirectiveLocationKind::Schema>> {};
-  struct DL_SCALAR
-      : terminal<kw<"SCALAR">, value<ast::DirectiveLocationKind::Scalar>> {};
-  struct DL_OBJECT
-      : terminal<kw<"OBJECT">, value<ast::DirectiveLocationKind::Object>> {};
-  struct DL_FIELD_DEFINITION
-      : terminal<kw<"FIELD_DEFINITION">,
-                 value<ast::DirectiveLocationKind::FieldDefinition>> {};
-  struct DL_ARGUMENT_DEFINITION
-      : terminal<kw<"ARGUMENT_DEFINITION">,
-                 value<ast::DirectiveLocationKind::ArgumentDefinition>> {};
-  struct DL_INTERFACE : terminal<kw<"INTERFACE">,
-                                 value<ast::DirectiveLocationKind::Interface>> {
-  };
-  struct DL_UNION
-      : terminal<kw<"UNION">, value<ast::DirectiveLocationKind::Union>> {};
-  struct DL_ENUM
-      : terminal<kw<"ENUM">, value<ast::DirectiveLocationKind::Enum>> {};
-  struct DL_ENUM_VALUE
-      : terminal<kw<"ENUM_VALUE">,
-                 value<ast::DirectiveLocationKind::EnumValue>> {};
-  struct DL_INPUT_OBJECT
-      : terminal<kw<"INPUT_OBJECT">,
-                 value<ast::DirectiveLocationKind::InputObject>> {};
-  struct DL_INPUT_FIELD_DEFINITION
-      : terminal<kw<"INPUT_FIELD_DEFINITION">,
-                 value<ast::DirectiveLocationKind::InputFieldDefinition>> {};
   static constexpr auto DirectiveLocationExpr =
-      ref<DL_QUERY> | ref<DL_MUTATION> | ref<DL_SUBSCRIPTION> | ref<DL_FIELD> |
-      ref<DL_FRAGMENT_DEFINITION> | ref<DL_FRAGMENT_SPREAD> |
-      ref<DL_INLINE_FRAGMENT> | ref<DL_VARIABLE_DEFINITION> | ref<DL_SCHEMA> |
-      ref<DL_SCALAR> | ref<DL_OBJECT> | ref<DL_FIELD_DEFINITION> |
-      ref<DL_ARGUMENT_DEFINITION> | ref<DL_INTERFACE> | ref<DL_UNION> |
-      ref<DL_ENUM> | ref<DL_ENUM_VALUE> | ref<DL_INPUT_OBJECT> |
-      ref<DL_INPUT_FIELD_DEFINITION>;
+      as<ast::DirectiveLocationKind::Query>(kw<"QUERY">) | as<ast::DirectiveLocationKind::Mutation>(kw<"MUTATION">) | as<ast::DirectiveLocationKind::Subscription>(kw<"SUBSCRIPTION">) | as<ast::DirectiveLocationKind::Field>(kw<"FIELD">) |
+      as<ast::DirectiveLocationKind::FragmentDefinition>(kw<"FRAGMENT_DEFINITION">) | as<ast::DirectiveLocationKind::FragmentSpread>(kw<"FRAGMENT_SPREAD">) |
+      as<ast::DirectiveLocationKind::InlineFragment>(kw<"INLINE_FRAGMENT">) | as<ast::DirectiveLocationKind::VariableDefinition>(kw<"VARIABLE_DEFINITION">) | as<ast::DirectiveLocationKind::Schema>(kw<"SCHEMA">) |
+      as<ast::DirectiveLocationKind::Scalar>(kw<"SCALAR">) | as<ast::DirectiveLocationKind::Object>(kw<"OBJECT">) | as<ast::DirectiveLocationKind::FieldDefinition>(kw<"FIELD_DEFINITION">) |
+      as<ast::DirectiveLocationKind::ArgumentDefinition>(kw<"ARGUMENT_DEFINITION">) | as<ast::DirectiveLocationKind::Interface>(kw<"INTERFACE">) | as<ast::DirectiveLocationKind::Union>(kw<"UNION">) |
+      as<ast::DirectiveLocationKind::Enum>(kw<"ENUM">) | as<ast::DirectiveLocationKind::EnumValue>(kw<"ENUM_VALUE">) | as<ast::DirectiveLocationKind::InputObject>(kw<"INPUT_OBJECT">) |
+      as<ast::DirectiveLocationKind::InputFieldDefinition>(kw<"INPUT_FIELD_DEFINITION">);
 
   static constexpr auto DescriptionExpr = ref<STRING> | ref<BLOCK_STRING>;
 
-  struct VariableRule : rule<create<ast::Variable>(
+  struct Variable : rule<create<ast::Variable>(
                             lit<"$"> + assign<&ast::Variable::name>(ref<NAME>))> {};
-  struct IntValueRule
+  struct IntValue
       : rule<assign<&ast::IntLit::value>(ref<INT>)> {};
-  struct FloatValueRule
+  struct FloatValue
       : rule<assign<&ast::FloatLit::value>(ref<FLOAT>)> {};
-  struct EnumLitRule
+  struct EnumLit
       : rule<create<ast::EnumLit>(assign<&ast::EnumLit::name>(ref<NAME>))> {};
 
-  struct ListValueRule;
-  struct ObjectValueRule;
-  static constexpr auto ValueExpr = ref<VariableRule> | ref<FloatValueRule> |
-                                    ref<IntValueRule> |
+  struct ListValue;
+  struct ObjectValue;
+  static constexpr auto ValueExpr = ref<Variable> | ref<FloatValue> |
+                                    ref<IntValue> |
                                     ref<STRING> | ref<BLOCK_STRING> |
-                                    ref<BOOL> | ref<NULLK> | ref<EnumLitRule> |
-                                    ref<ListValueRule> | ref<ObjectValueRule>;
+                                    ref<BOOL> | ref<NULLK> | ref<EnumLit> |
+                                    ref<ListValue> | ref<ObjectValue>;
 
-  struct ListValueRule
+  struct ListValue
       : rule<create<ast::ListValue>(
             lit<"["> + many(append<&ast::ListValue::items>(ValueExpr)) +
             lit<"]">)> {};
 
-  struct ObjectFieldRule
+  struct ObjectField
       : rule<create<ast::ObjectField>(
             assign<&ast::ObjectField::name>(ref<NAME>) + lit<":"> +
             assign<&ast::ObjectField::value>(ValueExpr))> {};
-  struct ObjectValueRule
+  struct ObjectValue
       : rule<create<ast::ObjectValue>(
             lit<"{"> +
-            many(append<&ast::ObjectValue::fields>(ref<ObjectFieldRule>)) +
+            many(append<&ast::ObjectValue::fields>(ref<ObjectField>)) +
             lit<"}">)> {};
 
-  struct TypeRefRule;
-  struct NamedTypeRefRule
+  struct TypeRef;
+  struct NamedTypeRef
       : rule<create<ast::NamedTypeRef>(
             assign<&ast::NamedTypeRef::name>(ref<NAME>) +
             option(flag<&ast::NamedTypeRef::nonNull>(lit<"!">)))> {};
-  struct ListTypeRefRule
+  struct ListTypeRef
       : rule<create<ast::ListTypeRef>(
-            lit<"["> + assign<&ast::ListTypeRef::itemType>(ref<TypeRefRule>) +
+            lit<"["> + assign<&ast::ListTypeRef::itemType>(ref<TypeRef>) +
             lit<"]"> +
             option(flag<&ast::ListTypeRef::nonNull>(lit<"!">)))> {};
-  struct TypeRefRule : rule<ref<NamedTypeRefRule> | ref<ListTypeRefRule>> {};
+  struct TypeRef : rule<ref<NamedTypeRef> | ref<ListTypeRef>> {};
 
-  struct ArgumentRule : rule<create<ast::Argument>(
+  struct Argument : rule<create<ast::Argument>(
                             assign<&ast::Argument::name>(ref<NAME>) + lit<":"> +
                             assign<&ast::Argument::value>(ValueExpr))> {};
 
-  struct DirectiveRule
+  struct Directive
       : rule<create<ast::Directive>(
             lit<"@"> + assign<&ast::Directive::name>(ref<NAME>) +
             option(lit<"("> +
-                   some(append<&ast::Directive::arguments>(ref<ArgumentRule>)) +
+                   some(append<&ast::Directive::arguments>(ref<Argument>)) +
                    lit<")">))> {};
 
-  struct InputValueDefinitionRule
+  struct InputValueDefinition
       : rule<create<ast::InputValueDefinition>(
             option(assign<&ast::InputValueDefinition::description>(
                 DescriptionExpr)) +
             assign<&ast::InputValueDefinition::name>(ref<NAME>) + lit<":"> +
-            assign<&ast::InputValueDefinition::type>(ref<TypeRefRule>) +
+            assign<&ast::InputValueDefinition::type>(ref<TypeRef>) +
             option(lit<"="> + assign<&ast::InputValueDefinition::defaultValue>(
                                   ValueExpr)) +
             many(append<&ast::InputValueDefinition::directives>(
-                ref<DirectiveRule>)))> {};
+                ref<Directive>)))> {};
 
-  struct FieldDefinitionRule
+  struct FieldDefinition
       : rule<create<ast::FieldDefinition>(
             option(
                 assign<&ast::FieldDefinition::description>(DescriptionExpr)) +
             assign<&ast::FieldDefinition::name>(ref<NAME>) +
             option(lit<"("> +
                    some(append<&ast::FieldDefinition::arguments>(
-                       ref<InputValueDefinitionRule>)) +
+                       ref<InputValueDefinition>)) +
                    lit<")">) +
-            lit<":"> + assign<&ast::FieldDefinition::type>(ref<TypeRefRule>) +
+            lit<":"> + assign<&ast::FieldDefinition::type>(ref<TypeRef>) +
             many(append<&ast::FieldDefinition::directives>(
-                ref<DirectiveRule>)))> {};
+                ref<Directive>)))> {};
 
-  struct SelectionSetRule;
-  struct FieldRule
+  struct SelectionSet;
+  struct Field
       : rule<create<ast::Field>(
             option(assign<&ast::Field::alias>(ref<NAME>) + lit<":">) +
             assign<&ast::Field::name>(ref<NAME>) +
             option(lit<"("> +
-                   some(append<&ast::Field::arguments>(ref<ArgumentRule>)) +
+                   some(append<&ast::Field::arguments>(ref<Argument>)) +
                    lit<")">) +
-            many(append<&ast::Field::directives>(ref<DirectiveRule>)) +
-            option(assign<&ast::Field::selectionSet>(ref<SelectionSetRule>)))> {
+            many(append<&ast::Field::directives>(ref<Directive>)) +
+            option(assign<&ast::Field::selectionSet>(ref<SelectionSet>)))> {
   };
-  struct FragmentSpreadRule
+  struct FragmentSpread
       : rule<create<ast::FragmentSpread>(
             lit<"..."> + assign<&ast::FragmentSpread::name>(ref<NAME>) +
             many(append<&ast::FragmentSpread::directives>(
-                ref<DirectiveRule>)))> {};
-  struct InlineFragmentRule
+                ref<Directive>)))> {};
+  struct InlineFragment
       : rule<create<ast::InlineFragment>(
             lit<"..."> +
             option(kw<"on"> +
                    assign<&ast::InlineFragment::typeCondition>(ref<NAME>)) +
-            many(append<&ast::InlineFragment::directives>(ref<DirectiveRule>)) +
+            many(append<&ast::InlineFragment::directives>(ref<Directive>)) +
             assign<&ast::InlineFragment::selectionSet>(
-                ref<SelectionSetRule>))> {};
-  struct SelectionRule : rule<ref<FieldRule> | ref<FragmentSpreadRule> |
-                              ref<InlineFragmentRule>> {};
-  struct SelectionSetRule
+                ref<SelectionSet>))> {};
+  struct Selection : rule<ref<Field> | ref<FragmentSpread> |
+                              ref<InlineFragment>> {};
+  struct SelectionSet
       : rule<create<ast::SelectionSet>(
             lit<"{"> +
-            some(append<&ast::SelectionSet::selections>(ref<SelectionRule>)) +
+            some(append<&ast::SelectionSet::selections>(ref<Selection>)) +
             lit<"}">)> {};
 
-  struct VariableDefinitionRule
+  struct VariableDefinition
       : rule<create<ast::VariableDefinition>(
             lit<"$"> + assign<&ast::VariableDefinition::name>(ref<NAME>) +
             lit<":"> +
-            assign<&ast::VariableDefinition::type>(ref<TypeRefRule>) +
+            assign<&ast::VariableDefinition::type>(ref<TypeRef>) +
             option(lit<"="> +
                    assign<&ast::VariableDefinition::defaultValue>(ValueExpr)) +
             many(append<&ast::VariableDefinition::directives>(
-                ref<DirectiveRule>)))> {};
+                ref<Directive>)))> {};
 
-  struct OperationDefinitionRule
+  struct OperationDefinition
       : rule<create<ast::OperationDefinition>(
             (assign<&ast::OperationDefinition::operation>(OperationTypeExpr) +
              option(assign<&ast::OperationDefinition::name>(ref<NAME>)) +
              option(lit<"("> +
                     some(append<&ast::OperationDefinition::variableDefinitions>(
-                        ref<VariableDefinitionRule>)) +
+                        ref<VariableDefinition>)) +
                     lit<")">) +
              many(append<&ast::OperationDefinition::directives>(
-                 ref<DirectiveRule>)) +
+                 ref<Directive>)) +
              assign<&ast::OperationDefinition::selectionSet>(
-                 ref<SelectionSetRule>)) |
+                 ref<SelectionSet>)) |
             assign<&ast::OperationDefinition::selectionSet>(
-                ref<SelectionSetRule>))> {};
+                ref<SelectionSet>))> {};
 
-  struct FragmentDefinitionRule
+  struct FragmentDefinition
       : rule<create<ast::FragmentDefinition>(
             kw<"fragment"> + assign<&ast::FragmentDefinition::name>(ref<NAME>) +
             kw<"on"> +
             assign<&ast::FragmentDefinition::typeCondition>(ref<NAME>) +
             many(append<&ast::FragmentDefinition::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             assign<&ast::FragmentDefinition::selectionSet>(
-                ref<SelectionSetRule>))> {};
+                ref<SelectionSet>))> {};
 
-  struct RootOperationTypeDefinitionRule
+  struct RootOperationTypeDefinition
       : rule<create<ast::RootOperationTypeDefinition>(
             assign<&ast::RootOperationTypeDefinition::operation>(
                 OperationTypeExpr) +
             lit<":"> +
             assign<&ast::RootOperationTypeDefinition::type>(ref<NAME>))> {};
 
-  struct SchemaDefinitionRule
+  struct SchemaDefinition
       : rule<create<ast::SchemaDefinition>(
             option(assign<&ast::SchemaDefinition::description>(DescriptionExpr)) +
             kw<"schema"> +
             many(append<&ast::SchemaDefinition::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             lit<"{"> +
             some(append<&ast::SchemaDefinition::operationTypes>(
-                ref<RootOperationTypeDefinitionRule>)) +
+                ref<RootOperationTypeDefinition>)) +
             lit<"}">)> {};
 
-  // The extension bodies (directives, the braced block) are parsed
-  // all-optional: `extend schema` alone over-accepts, harmlessly.
-  struct SchemaExtensionRule
+  // Incomplete extensions are retained for the empty-extension validator.
+  struct SchemaExtension
       : rule<create<ast::SchemaExtension>(
             kw<"extend"> + kw<"schema"> +
             many(
-                append<&ast::SchemaExtension::directives>(ref<DirectiveRule>)) +
+                append<&ast::SchemaExtension::directives>(ref<Directive>)) +
             option(lit<"{"> +
                    some(append<&ast::SchemaExtension::operationTypes>(
-                       ref<RootOperationTypeDefinitionRule>)) +
+                       ref<RootOperationTypeDefinition>)) +
                    lit<"}">))> {};
 
-  struct ScalarTypeDefinitionRule
+  struct ScalarTypeDefinition
       : rule<create<ast::ScalarTypeDefinition>(
             option(assign<&ast::ScalarTypeDefinition::description>(
                 DescriptionExpr)) +
             kw<"scalar"> + assign<&ast::ScalarTypeDefinition::name>(ref<NAME>) +
             many(append<&ast::ScalarTypeDefinition::directives>(
-                ref<DirectiveRule>)))> {};
+                ref<Directive>)))> {};
 
-  struct ScalarTypeExtensionRule
+  struct ScalarTypeExtension
       : rule<create<ast::ScalarTypeExtension>(
             kw<"extend"> + kw<"scalar"> +
             assign<&ast::ScalarTypeExtension::name>(ref<NAME>) +
             many(append<&ast::ScalarTypeExtension::directives>(
-                ref<DirectiveRule>)))> {};
+                ref<Directive>)))> {};
 
-  struct ObjectTypeDefinitionRule
+  struct ObjectTypeDefinition
       : rule<create<ast::ObjectTypeDefinition>(
             option(assign<&ast::ObjectTypeDefinition::description>(
                 DescriptionExpr)) +
@@ -437,13 +376,13 @@ struct Graphql : cursiv::GrammarSpec {
                 many(lit<"&"> + append<&ast::ObjectTypeDefinition::interfaces>(
                                     ref<NAME>))) +
             many(append<&ast::ObjectTypeDefinition::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             option(lit<"{"> +
                    some(append<&ast::ObjectTypeDefinition::fields>(
-                       ref<FieldDefinitionRule>)) +
+                       ref<FieldDefinition>)) +
                    lit<"}">))> {};
 
-  struct ObjectTypeExtensionRule
+  struct ObjectTypeExtension
       : rule<create<ast::ObjectTypeExtension>(
             kw<"extend"> + kw<"type"> +
             assign<&ast::ObjectTypeExtension::name>(ref<NAME>) +
@@ -453,13 +392,13 @@ struct Graphql : cursiv::GrammarSpec {
                 many(lit<"&"> + append<&ast::ObjectTypeExtension::interfaces>(
                                     ref<NAME>))) +
             many(append<&ast::ObjectTypeExtension::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             option(lit<"{"> +
                    some(append<&ast::ObjectTypeExtension::fields>(
-                       ref<FieldDefinitionRule>)) +
+                       ref<FieldDefinition>)) +
                    lit<"}">))> {};
 
-  struct InterfaceTypeDefinitionRule
+  struct InterfaceTypeDefinition
       : rule<create<ast::InterfaceTypeDefinition>(
             option(assign<&ast::InterfaceTypeDefinition::description>(
                 DescriptionExpr)) +
@@ -472,13 +411,13 @@ struct Graphql : cursiv::GrammarSpec {
                      append<&ast::InterfaceTypeDefinition::interfaces>(
                          ref<NAME>))) +
             many(append<&ast::InterfaceTypeDefinition::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             option(lit<"{"> +
                    some(append<&ast::InterfaceTypeDefinition::fields>(
-                       ref<FieldDefinitionRule>)) +
+                       ref<FieldDefinition>)) +
                    lit<"}">))> {};
 
-  struct InterfaceTypeExtensionRule
+  struct InterfaceTypeExtension
       : rule<create<ast::InterfaceTypeExtension>(
             kw<"extend"> + kw<"interface"> +
             assign<&ast::InterfaceTypeExtension::name>(ref<NAME>) +
@@ -488,91 +427,91 @@ struct Graphql : cursiv::GrammarSpec {
                         append<&ast::InterfaceTypeExtension::interfaces>(
                             ref<NAME>))) +
             many(append<&ast::InterfaceTypeExtension::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             option(lit<"{"> +
                    some(append<&ast::InterfaceTypeExtension::fields>(
-                       ref<FieldDefinitionRule>)) +
+                       ref<FieldDefinition>)) +
                    lit<"}">))> {};
 
-  struct UnionTypeDefinitionRule
+  struct UnionTypeDefinition
       : rule<create<ast::UnionTypeDefinition>(
             option(assign<&ast::UnionTypeDefinition::description>(
                 DescriptionExpr)) +
             kw<"union"> + assign<&ast::UnionTypeDefinition::name>(ref<NAME>) +
             many(append<&ast::UnionTypeDefinition::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             option(lit<"="> + option(lit<"|">) +
                    append<&ast::UnionTypeDefinition::members>(ref<NAME>) +
                    many(lit<"|"> + append<&ast::UnionTypeDefinition::members>(
                                        ref<NAME>))))> {};
 
-  struct UnionTypeExtensionRule
+  struct UnionTypeExtension
       : rule<create<ast::UnionTypeExtension>(
             kw<"extend"> + kw<"union"> +
             assign<&ast::UnionTypeExtension::name>(ref<NAME>) +
             many(append<&ast::UnionTypeExtension::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             option(lit<"="> + option(lit<"|">) +
                    append<&ast::UnionTypeExtension::members>(ref<NAME>) +
                    many(lit<"|"> + append<&ast::UnionTypeExtension::members>(
                                        ref<NAME>))))> {};
 
-  struct EnumValueDefinitionRule
+  struct EnumValueDefinition
       : rule<create<ast::EnumValueDefinition>(
             option(assign<&ast::EnumValueDefinition::description>(
                 DescriptionExpr)) +
             assign<&ast::EnumValueDefinition::name>(ref<NAME>) +
             many(append<&ast::EnumValueDefinition::directives>(
-                ref<DirectiveRule>)))> {};
+                ref<Directive>)))> {};
 
-  struct EnumTypeDefinitionRule
+  struct EnumTypeDefinition
       : rule<create<ast::EnumTypeDefinition>(
             option(assign<&ast::EnumTypeDefinition::description>(
                 DescriptionExpr)) +
             kw<"enum"> + assign<&ast::EnumTypeDefinition::name>(ref<NAME>) +
             many(append<&ast::EnumTypeDefinition::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             option(lit<"{"> +
                    some(append<&ast::EnumTypeDefinition::values>(
-                       ref<EnumValueDefinitionRule>)) +
+                       ref<EnumValueDefinition>)) +
                    lit<"}">))> {};
 
-  struct EnumTypeExtensionRule
+  struct EnumTypeExtension
       : rule<create<ast::EnumTypeExtension>(
             kw<"extend"> + kw<"enum"> +
             assign<&ast::EnumTypeExtension::name>(ref<NAME>) +
             many(append<&ast::EnumTypeExtension::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             option(lit<"{"> +
                    some(append<&ast::EnumTypeExtension::values>(
-                       ref<EnumValueDefinitionRule>)) +
+                       ref<EnumValueDefinition>)) +
                    lit<"}">))> {};
 
-  struct InputObjectTypeDefinitionRule
+  struct InputObjectTypeDefinition
       : rule<create<ast::InputObjectTypeDefinition>(
             option(assign<&ast::InputObjectTypeDefinition::description>(
                 DescriptionExpr)) +
             kw<"input"> +
             assign<&ast::InputObjectTypeDefinition::name>(ref<NAME>) +
             many(append<&ast::InputObjectTypeDefinition::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             option(lit<"{"> +
                    some(append<&ast::InputObjectTypeDefinition::fields>(
-                       ref<InputValueDefinitionRule>)) +
+                       ref<InputValueDefinition>)) +
                    lit<"}">))> {};
 
-  struct InputObjectTypeExtensionRule
+  struct InputObjectTypeExtension
       : rule<create<ast::InputObjectTypeExtension>(
             kw<"extend"> + kw<"input"> +
             assign<&ast::InputObjectTypeExtension::name>(ref<NAME>) +
             many(append<&ast::InputObjectTypeExtension::directives>(
-                ref<DirectiveRule>)) +
+                ref<Directive>)) +
             option(lit<"{"> +
                    some(append<&ast::InputObjectTypeExtension::fields>(
-                       ref<InputValueDefinitionRule>)) +
+                       ref<InputValueDefinition>)) +
                    lit<"}">))> {};
 
-  struct DirectiveDefinitionRule
+  struct DirectiveDefinition
       : rule<create<ast::DirectiveDefinition>(
             option(assign<&ast::DirectiveDefinition::description>(
                 DescriptionExpr)) +
@@ -580,7 +519,7 @@ struct Graphql : cursiv::GrammarSpec {
             assign<&ast::DirectiveDefinition::name>(ref<NAME>) +
             option(lit<"("> +
                    some(append<&ast::DirectiveDefinition::arguments>(
-                       ref<InputValueDefinitionRule>)) +
+                       ref<InputValueDefinition>)) +
                    lit<")">) +
             option(flag<&ast::DirectiveDefinition::repeatable>(
                 kw<"repeatable">)) +
@@ -590,23 +529,23 @@ struct Graphql : cursiv::GrammarSpec {
 
   // A document is a nonempty sequence of definitions, grouped or
   // interleaved, flattened to one `definition+`.
-  struct DefinitionRule
-      : rule<ref<OperationDefinitionRule> | ref<FragmentDefinitionRule> |
-             ref<SchemaDefinitionRule> | ref<ScalarTypeDefinitionRule> |
-             ref<ObjectTypeDefinitionRule> | ref<InterfaceTypeDefinitionRule> |
-             ref<UnionTypeDefinitionRule> | ref<EnumTypeDefinitionRule> |
-             ref<InputObjectTypeDefinitionRule> | ref<DirectiveDefinitionRule> |
-             ref<SchemaExtensionRule> | ref<ScalarTypeExtensionRule> |
-             ref<ObjectTypeExtensionRule> | ref<InterfaceTypeExtensionRule> |
-             ref<UnionTypeExtensionRule> | ref<EnumTypeExtensionRule> |
-             ref<InputObjectTypeExtensionRule>> {};
+  struct Definition
+      : rule<ref<OperationDefinition> | ref<FragmentDefinition> |
+             ref<SchemaDefinition> | ref<ScalarTypeDefinition> |
+             ref<ObjectTypeDefinition> | ref<InterfaceTypeDefinition> |
+             ref<UnionTypeDefinition> | ref<EnumTypeDefinition> |
+             ref<InputObjectTypeDefinition> | ref<DirectiveDefinition> |
+             ref<SchemaExtension> | ref<ScalarTypeExtension> |
+             ref<ObjectTypeExtension> | ref<InterfaceTypeExtension> |
+             ref<UnionTypeExtension> | ref<EnumTypeExtension> |
+             ref<InputObjectTypeExtension>> {};
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document>(
-            some(append<&ast::Document::definitions>(ref<DefinitionRule>)))> {};
+            some(append<&ast::Document::definitions>(ref<Definition>)))> {};
 
-  using entry = DocumentRule;
-  using ignore = list<WS, COMMA, LineComment, Bom>;
+  using entry = Document;
+  using ignored = list<WS, COMMA, LineComment, Bom>;
 };
 
 } // namespace graphql

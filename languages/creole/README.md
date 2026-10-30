@@ -31,8 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[Creole](http://www.wikicreole.org/) is a wiki markup language: a document is
-a sequence of lines, each a run of markup items.
+Creole 1.0 wiki markup, including headings, lists, links, tables and inline formatting.
 
 ```
 = Top-level heading =
@@ -48,9 +47,6 @@ You can make things **bold** or //italic//, link to [[internal links]] or
 
 ----
 ```
-
-Bold and italics nest and close on the fly; a heading's level and a list
-item's level are the run of `=` or `*`/`#` that opens it.
 
 ## The command line
 

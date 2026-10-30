@@ -13,6 +13,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "tinyosnesc/core/CoreServices.hpp"
 #include "tinyosnesc/core/ast.hpp"
+#include "native_followup_cases.hpp"
 
 namespace {
 
@@ -50,6 +51,7 @@ int main() {
   const auto language = cursiv::create_language<
       tinyosnesc::TinyosNescCoreServices, tinyosnesc::TinyosNescSharedCoreServices,
       tinyosnesc::install_core_module>();
+  if (!tinyosnesc_native_followup::run(language)) return fail("native followup syntax/AST/validation failed");
 
   for (const char* const name : kCleanExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;
@@ -125,7 +127,7 @@ int main() {
   if (!foundCall) return fail("BlinkC.nc: expected call to Leds.led0Toggle");
 
   // The catch-all FuncStat (no leading keyword) is disjoint from every
-  // keyword-led statement it sits beside in StatRule: each of
+  // keyword-led statement it sits beside in Stat: each of
   // if/for/while/atomic/enum/switch/call/signal below must read back as its
   // own class, not as a Soup-based FuncStat/CallStat mismatch.
   {

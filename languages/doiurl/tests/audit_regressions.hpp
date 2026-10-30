@@ -4,10 +4,12 @@
 #include <cstdio>
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreServices.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
 #include "doiurl/core/ast.hpp"
 
 inline int doiurl_regressions(const cursiv::CoreServices& services) {
@@ -36,6 +38,34 @@ inline int doiurl_regressions(const cursiv::CoreServices& services) {
         result.nodes.size() != 1 || result.cst().text() != c.source) {
       std::fprintf(stderr, "doiurl regression: %.*s\n", int(c.source.size()),
                    c.source.data());
+      ++failures;
+    }
+  }
+  for (const auto text : {"doi :10.1000/a", "doi:10.1000 /a",
+                          "doi:10.1000/a /b", "doi:10.1000/a? x"}) {
+    const auto result = services.parser->parse(text);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty()) {
+      std::fprintf(stderr, "doiurl: whitespace split a URI token sequence\n");
+      ++failures;
+    }
+  }
+  for (const auto text : {"doi:10.1000/a?\n", "doi:10.1000/a#\r\n",
+                          "doi:10.1000/a?#\n"}) {
+    const auto result = services.parser->parse(text);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) {
+      std::fprintf(stderr, "doiurl: empty URI tail rejected file whitespace\n");
+      ++failures;
+    }
+  }
+  for (const auto& [text, code] :
+       {std::pair{"doi:/a", "doi.prefix"},
+        std::pair{"doi:10.1000/", "doi.suffix"}}) {
+    const auto validation = cursiv::test::validationHelper(services, text);
+    if (validation.diagnostics.size() != 1 ||
+        !validation.diagnostics[0].code ||
+        !validation.diagnostics[0].code->isString() ||
+        validation.diagnostics[0].code->string() != code) {
+      std::fprintf(stderr, "doiurl: empty DOI component lacks validation\n");
       ++failures;
     }
   }

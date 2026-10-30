@@ -64,6 +64,28 @@ int main() {
                               langium::LangiumSharedCoreServices,
                               langium::install_core_module>();
 
+  for (const auto source : {"grammar grammar", "type string=number", "R: true;",
+                            "R<true>: 'x';", "interface I{EOF:string;}",
+                            "R: \"a\\\nb\";", "terminal R: /a\\\nb/;"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("native reserved word or escaped-newline form accepted");
+  }
+  {
+    const auto result = language.language.parser->parse(
+        "grammar ^grammar type X=string; interface I{entry:string;} R<a>: <true> 'x';");
+    const auto* g = result.value_as<langium::ast::Grammar>();
+    const auto* type = g && g->types.size() == 1
+        ? cursiv::ast_cast<langium::ast::SimpleType>(g->types[0]->type) : nullptr;
+    const auto* rule = g && g->rules.size() == 1
+        ? cursiv::ast_cast<langium::ast::ParserRule>(g->rules[0]) : nullptr;
+    const auto* group = rule ? cursiv::ast_cast<langium::ast::Group>(rule->definition) : nullptr;
+    const auto* condition = group ? cursiv::ast_cast<langium::ast::BooleanLiteral>(group->guardCondition) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !g || g->name != "grammar" || !type || type->primitiveType != "string" ||
+        !type->typeRef.empty() || !condition || !condition->value)
+      return fail("native primitive/Boolean/escaped-name AST was lost");
+  }
   for (const char* const name : kExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;
     const std::string text = read_file(path);

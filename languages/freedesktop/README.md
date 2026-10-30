@@ -46,9 +46,8 @@ Terminal=true
 Categories=System;Monitor;ConsoleOnly;
 ```
 
-Each group becomes a `Group`, each line an `Entry`; a value is a string, a
-number or a boolean, and a key may carry a `Locale` (language, country,
-encoding, modifier).
+Each group becomes a `Group`, each line an `Entry`; values remain raw strings,
+and a key may carry a `Locale` (language, country, encoding, modifier).
 
 ## The command line
 

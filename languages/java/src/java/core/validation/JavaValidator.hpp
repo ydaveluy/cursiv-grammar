@@ -14,6 +14,12 @@ class JavaValidator final : public cursiv::DefaultCoreService {
 
   void checkRecordComponentVarargsIsLast(const ast::RecordDecl& record,
                                          cursiv::ValidationAcceptor& accept) const;
+  void checkMethod(const ast::MethodDecl&, cursiv::ValidationAcceptor&) const;
+  void checkConstructor(const ast::ConstructorDecl&, cursiv::ValidationAcceptor&) const;
+  void checkLambda(const ast::LambdaExpr&, cursiv::ValidationAcceptor&) const;
+  void checkCall(const ast::CallExpr&, cursiv::ValidationAcceptor&) const;
+  void checkGenericCall(const ast::ExplicitGenericInvokeExpr&, cursiv::ValidationAcceptor&) const;
+  void checkPattern(const ast::TypePattern&, cursiv::ValidationAcceptor&) const;
 };
 
 struct JavaCoreServices;

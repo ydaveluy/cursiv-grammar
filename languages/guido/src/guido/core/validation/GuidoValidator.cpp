@@ -34,6 +34,12 @@ void GuidoValidator::checkDuration(const ast::Duration &node,
           .property<&ast::Duration::denominator>();
   }
 }
+void GuidoValidator::checkTablature(const ast::Tablature &node,
+                                   cursiv::ValidationAcceptor &accept) const {
+  if (node.dots.size() > 3)
+    accept.error(node, "Expected at most three duration dots.",
+                 "guido.duration-dots").property<&ast::Tablature::dots>();
+}
 void GuidoValidator::checkParameter(const ast::Parameter &node,
                                     cursiv::ValidationAcceptor &accept) const {
   constexpr std::array<std::string_view, 8> units = {"m",  "cm", "mm", "in",
@@ -47,7 +53,8 @@ void GuidoValidator::checkChordMember(
     const ast::ChordMember &node, cursiv::ValidationAcceptor &accept) const {
   const auto count = [&](auto &&self,
                          const ast::SequenceItem *item) -> std::size_t {
-    if (cursiv::ast_cast<ast::Note>(item))
+    if (cursiv::ast_cast<ast::Note>(item) ||
+        cursiv::ast_cast<ast::Tablature>(item))
       return 1;
     if (const auto *tag = cursiv::ast_cast<ast::Tag>(item)) {
       std::size_t total = 0;
@@ -69,6 +76,8 @@ void register_validation_checks(GuidoCoreServices &services) {
   services.validationRegistry->registerChecks(
       {cursiv::ValidationRegistry::makeValidationCheck<
            &GuidoValidator::checkNote>(*services.validator),
+       cursiv::ValidationRegistry::makeValidationCheck<
+           &GuidoValidator::checkTablature>(*services.validator),
        cursiv::ValidationRegistry::makeValidationCheck<
            &GuidoValidator::checkDuration>(*services.validator),
        cursiv::ValidationRegistry::makeValidationCheck<

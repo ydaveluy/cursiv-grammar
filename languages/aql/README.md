@@ -31,9 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-AQL (ArangoDB Query Language): a read chains `FOR`/`FILTER`/`SORT`/`LIMIT`/
-`COLLECT`/`WINDOW` clauses into a `RETURN`, or walks a graph; a write is
-`INSERT`/`UPDATE`/`REPLACE`/`REMOVE`/`UPSERT`.
+AQL chains ArangoDB query clauses into a read or write operation. This port models a subset of the 3.12 syntax and retains ordered object entries and expression trees.
 
 ```
 FOR u IN users
@@ -47,10 +45,6 @@ FOR u IN users
     "usersInCity" : groups
   }
 ```
-
-No name is resolved against a definition here: a `FOR`/`LET` binding is
-read back as text, not linked, since nothing in the document declares a
-collection's shape for a reference to check against.
 
 ## The command line
 

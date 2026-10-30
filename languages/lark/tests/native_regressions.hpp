@@ -87,6 +87,12 @@ inline bool native_regressions(const auto& services) {
                            "start.99999999999999999999999999999999: \"x\"\n"})
     check(cursiv::test::validationHelper(services, text).diagnostics.empty(),
           "valid native form has no runtime error");
+  const auto adjacent = services.parser->parse("start: \"x\"?_item\n_item: \"y\"\n");
+  check(!adjacent.accepted || adjacent.cst().recovered() || !adjacent.diagnostics.empty(),
+        "a question-mark operator cannot run into a lowercase/underscore rule name");
+  const auto spaced = services.parser->parse("start: \"x\"? _item\n_item: \"y\"\n");
+  check(spaced.accepted && !spaced.cst().recovered() && spaced.diagnostics.empty(),
+        "a spaced question-mark operator and following rule remain valid");
   const std::string text = "start: \"x\"~4..2\n";
   const auto precise = cursiv::test::validationHelper(services, text);
   check(precise.diagnostics.size() == 1 &&

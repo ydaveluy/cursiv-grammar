@@ -421,6 +421,7 @@ struct PathDecl : cursiv::Extends<Item> {
   Expr* condition;
   string_view edge;
   vector<Expr*> inputs;
+  string_view pathOp;  // parallel => or full *>
   string_view polarity;
   vector<Expr*> outputs;
   Expr* dataSource;
@@ -461,6 +462,7 @@ struct ConfigRule : cursiv::Extends<cursiv::AstNode> {
   string_view target;
   vector<string_view> liblist;
   string_view useCell;
+  boolean useConfig;  // :config explicitly selects a configuration
 };
 
 struct SourceText : cursiv::Extends<cursiv::AstNode> {

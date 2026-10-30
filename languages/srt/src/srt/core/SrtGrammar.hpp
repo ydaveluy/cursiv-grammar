@@ -7,7 +7,7 @@ namespace srt {
 
 struct Srt : cursiv::GrammarSpec {
   struct BOM : terminal<lit<"\xEF\xBB\xBF">> {};
-  struct NEWLINE : terminal<lit<"\r\n"> | cr<R"(\r\n)">> {};
+  struct NEWLINE : terminal<eol> {};
   static constexpr auto space = many(cr<R"( \t\v\f)">);
   static constexpr auto integer = space + option(cr<"+-">) + some(d);
   static constexpr auto clock = integer + lit<":"> + integer + lit<":"> +
@@ -33,7 +33,7 @@ struct Srt : cursiv::GrammarSpec {
   static constexpr auto first_caption_end =
       timing_start | (ref<STANDALONE_NUMBER> + some(ref<NEWLINE>) + timing_start);
 
-  struct SubtitleRule
+  struct Subtitle
       : rule<option(assign<&ast::Subtitle::number>(ref<NUMBER_LINE>) +
                     some(ref<NEWLINE>)) +
              assign<&ast::Subtitle::start>(ref<TIME>) + ref<ARROW> +
@@ -49,17 +49,17 @@ struct Srt : cursiv::GrammarSpec {
   static constexpr auto preamble_line =
       !start + ((append<&ast::Document::preamble>(ref<TEXT>) + option(ref<NEWLINE>)) |
                  ref<NEWLINE>);
-  static constexpr auto subtitles = append<&ast::Document::subtitles>(ref<SubtitleRule>);
+  static constexpr auto subtitles = append<&ast::Document::subtitles>(ref<Subtitle>);
   template <class FirstText>
   static constexpr auto content =
       ((!start + ((append<&ast::Document::preamble>(ref<FirstText>) +
                     option(ref<NEWLINE>)) | ref<NEWLINE>)) +
          many(preamble_line) + many(subtitles)) | some(subtitles) | eof;
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document> +
              ((ref<BOM> + content<TEXT>) | content<FIRST_TEXT>)> {};
 
-  using entry = DocumentRule;
+  using entry = Document;
 };
 
 }  // namespace srt

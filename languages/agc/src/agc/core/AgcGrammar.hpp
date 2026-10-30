@@ -1,7 +1,7 @@
 // The agc language: its grammar. AGC assembly source is column-oriented --
 // whitespace is not trivia here, it is the separator a line's label, opcode
 // and operand fields are read against explicitly -- so nothing is declared
-// `ignore` or `hidden`.
+// `ignored` or `hidden`.
 #pragma once
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
@@ -18,6 +18,7 @@ struct Agc : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t)">)> {};
   struct EOL : terminal<some(cr<R"(\r\n)">)> {};
   struct COMMENT : terminal<lit<"#"> + many(cr<R"(^\r\n)">)> {};
+  struct INCLUDE_PATH : terminal<some(cr<R"(^\r\n)">)> {};
 
   // No operator character starts a LABEL token: after an operand, `+ - * /`
   // must stay operators. `Label` reads a name that starts with one as the
@@ -27,7 +28,7 @@ struct Agc : cursiv::GrammarSpec {
       ref<LABEL> |
       (some(lit<"+"> | lit<"-"> | lit<"*"> | lit<"/">) + ref<LABEL>);
 
-  static constexpr auto Eol = option(ref<WS>) + ref<EOL>;
+  static constexpr auto Eol = option(ref<WS>) + (ref<EOL> | eof);
 
   static constexpr auto Register =
       kw<"A"> | kw<"L"> | kw<"Q"> | kw<"EB"> |
@@ -56,7 +57,10 @@ struct Agc : cursiv::GrammarSpec {
       (lit<"-"> + kw<"3DNADR">) | (lit<"-"> + kw<"4DNADR">) |
       (lit<"-"> + kw<"5DNADR">) | (lit<"-"> + kw<"6DNADR">) |
       (lit<"-"> + kw<"DNCHAN">) | (lit<"-"> + kw<"DNPTR">) |
-      kw<"2DEC"> | kw<"2DEC*"> | kw<"2FCADR"> | kw<"BANK"> |
+      kw<"2DEC"> | kw<"2DEC*"> | kw<"2FCADR"> | kw<"2CADR"> |
+      kw<"2BCADR"> | (lit<"-"> + kw<"2CADR">) | kw<"ECADR"> |
+      kw<"FCADR"> | kw<"EBANK="> | kw<"SBANK="> | kw<"BBCON"> |
+      kw<"GENADR"> | kw<"BANK"> |
       kw<"BLOCK"> | kw<"BNKSUM"> | kw<"COUNT"> | kw<"COUNT*"> |
       kw<"DEC"> | kw<"OCT"> | kw<"SETLOC"> | kw<"SUBRO">;
 
@@ -102,11 +106,11 @@ struct Agc : cursiv::GrammarSpec {
   // LPAREN LABEL RPAREN | variable LPAREN LABEL RPAREN` flattened: a name
   // (or none, for the parenthesised-only form) followed by zero or more
   // index groups.
-  struct VariableRule;
+  struct Variable;
   static constexpr auto IndexGroup =
       lit<"("> + append<&ast::VariableRef::indices>(Label) + lit<")">;
 
-  struct VariableRule
+  struct Variable
       : rule<create<ast::VariableRef> +
              ((assign<&ast::VariableRef::name>(NameLike) + many(IndexGroup)) |
               some(IndexGroup))> {};
@@ -114,103 +118,110 @@ struct Agc : cursiv::GrammarSpec {
   // `atom: inte | decimal | variable | label | register_` -- `inte` and
   // `decimal` are unreachable (see ast.hpp) and `label`/`register_` accept
   // nothing `variable` does not already accept, so only it remains.
-  static constexpr auto Atom = ref<VariableRule>;
+  static constexpr auto Atom = ref<Variable>;
 
-  struct MulTermRule : rule<assign<&ast::MulTerm::operand>(Atom)> {};
-  struct MulTailRule
+  struct MulTerm : rule<assign<&ast::MulTerm::operand>(Atom)> {};
+  struct MulTail
       : rule<assign<&ast::MulTerm::op>(lit<"*"> | lit<"/">) +
              option(ref<WS>) + assign<&ast::MulTerm::operand>(Atom)> {};
 
-  struct MulExprRule
+  struct MulExpr
       : rule<create<ast::MulExpr> +
-             append<&ast::MulExpr::terms>(ref<MulTermRule>) +
+             append<&ast::MulExpr::terms>(ref<MulTerm>) +
              many(option(ref<WS>) +
-                  append<&ast::MulExpr::terms>(ref<MulTailRule>))> {};
+                  append<&ast::MulExpr::terms>(ref<MulTail>))> {};
 
-  struct AddTermRule
-      : rule<assign<&ast::AddTerm::operand>(ref<MulExprRule>)> {};
-  struct AddTailRule
+  struct AddTerm
+      : rule<assign<&ast::AddTerm::operand>(ref<MulExpr>)> {};
+  struct AddTail
       : rule<assign<&ast::AddTerm::op>(lit<"+"> | lit<"-">) +
              option(ref<WS>) +
-             assign<&ast::AddTerm::operand>(ref<MulExprRule>)> {};
+             assign<&ast::AddTerm::operand>(ref<MulExpr>)> {};
 
   // A `(` right after an expression indexes its last variable.
-  struct ExpressionRule
+  struct Expression
       : rule<create<ast::Expression> +
-             append<&ast::Expression::terms>(ref<AddTermRule>) +
+             append<&ast::Expression::terms>(ref<AddTerm>) +
              many(option(ref<WS>) +
-                  append<&ast::Expression::terms>(ref<AddTailRule>)) +
+                  append<&ast::Expression::terms>(ref<AddTail>)) +
              !lit<"(">> {};
 
-  struct CommentLineRule
+  struct CommentLine
       : rule<option(ref<WS>) + assign<&ast::CommentLine::text>(ref<COMMENT>) +
              Eol> {};
 
+  struct SourceInclude
+      : rule<lit<"$"> + assign<&ast::SourceInclude::path>(ref<INCLUDE_PATH>) +
+             Eol> {};
+
   struct BlankLineRule
-      : rule<option(assign<&ast::BlankLine::label>(NameLike)) + Eol> {};
+      : rule<create<ast::BlankLine>(
+            (assign<&ast::BlankLine::label>(NameLike) + Eol) |
+            ref<EOL> | (ref<WS> + Eol))> {};
 
   struct ArgumentLineRule
       : rule<create<ast::ArgumentLine> +
              many(ref<WS> +
-                  append<&ast::ArgumentLine::expressions>(ref<ExpressionRule>)) +
-             option(ref<WS> +
+                  append<&ast::ArgumentLine::expressions>(ref<Expression>)) +
+             option(option(ref<WS>) +
                     assign<&ast::ArgumentLine::comment>(ref<COMMENT>))> {};
 
   // A continuation row holds an expression or a comment: a row of blanks is
   // a `BlankLine`, never an operand row.
-  struct ContinuationLineRule
-      : rule<create<ast::ArgumentLine> + ref<WS> +
-             ((append<&ast::ArgumentLine::expressions>(ref<ExpressionRule>) +
+  struct ContinuationLine
+      : rule<create<ast::ArgumentLine> + ref<WS> + !Opcode + !kw<"ERASE"> +
+             ((append<&ast::ArgumentLine::expressions>(ref<Expression>) +
                many(ref<WS> + append<&ast::ArgumentLine::expressions>(
-                                  ref<ExpressionRule>)) +
-               option(ref<WS> +
+                                  ref<Expression>)) +
+               option(option(ref<WS>) +
                       assign<&ast::ArgumentLine::comment>(ref<COMMENT>)))  //
               | assign<&ast::ArgumentLine::comment>(ref<COMMENT>))> {};
 
   // `instruction_line: label? ws opcodes (eol comment_line)? argument (eol
   // argument)* eol` -- an instruction can span several physical lines, one
   // `ArgumentLine` per continuation.
-  struct InstructionLineRule
+  struct InstructionLine
       : rule<create<ast::InstructionLine> +
              option(assign<&ast::InstructionLine::label>(NameLike)) +
              ref<WS> + assign<&ast::InstructionLine::opcode>(Opcode) +
              option(ref<WS> +
                     assign<&ast::InstructionLine::opcode2>(Opcode)) +
              option(Eol + assign<&ast::InstructionLine::midComment>(
-                              ref<CommentLineRule>)) +
+                              ref<CommentLine>)) +
              append<&ast::InstructionLine::arguments>(ref<ArgumentLineRule>) +
              many(Eol + append<&ast::InstructionLine::arguments>(
-                            ref<ContinuationLineRule>)) +
+                            ref<ContinuationLine>)) +
              Eol> {};
 
-  struct EraseLineRule
+  struct EraseLine
       : rule<create<ast::EraseLine> +
-             option(assign<&ast::EraseLine::variable>(ref<VariableRule>)) +
+             option(assign<&ast::EraseLine::variable>(ref<Variable>)) +
              ref<WS> + kw<"ERASE"> +
              many(option(ref<WS>) +
-                  append<&ast::EraseLine::expressions>(ref<ExpressionRule>)) +
-             option(ref<WS> + assign<&ast::EraseLine::comment>(ref<COMMENT>)) +
+                  append<&ast::EraseLine::expressions>(ref<Expression>)) +
+             option(option(ref<WS>) +
+                    assign<&ast::EraseLine::comment>(ref<COMMENT>)) +
              Eol> {};
 
-  struct AssignmentLineRule
+  struct AssignmentLine
       : rule<create<ast::AssignmentLine> +
-             assign<&ast::AssignmentLine::variable>(ref<VariableRule>) +
+             assign<&ast::AssignmentLine::variable>(ref<Variable>) +
              option(ref<WS>) + (lit<"="> | kw<"EQUALS">) +
              many(option(ref<WS>) + append<&ast::AssignmentLine::expressions>(
-                                         ref<ExpressionRule>)) +
-             option(ref<WS> +
+                                         ref<Expression>)) +
+             option(option(ref<WS>) +
                     assign<&ast::AssignmentLine::comment>(ref<COMMENT>)) +
              Eol> {};
 
   static constexpr auto Line =
-      ref<CommentLineRule> | ref<BlankLineRule> | ref<InstructionLineRule> |
-      ref<EraseLineRule> | ref<AssignmentLineRule>;
+      ref<CommentLine> | ref<SourceInclude> | ref<BlankLineRule> | ref<InstructionLine> |
+      ref<EraseLine> | ref<AssignmentLine>;
 
-  struct ProgRule
+  struct Prog
       : rule<create<ast::Document> +
-             some(append<&ast::Document::lines>(Line))> {};
+             many(append<&ast::Document::lines>(Line))> {};
 
-  using entry = ProgRule;
+  using entry = Prog;
 };
 
 }  // namespace agc

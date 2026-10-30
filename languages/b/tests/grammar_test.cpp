@@ -32,6 +32,27 @@ int main() {
 
   if(native_regressions::run(language)) return 1;
 
+  // Thompson's Users' Reference to B, section 2: *(/ *) spell braces
+  // inside both string and packed-character constants.
+  {
+    const auto result = language.language.parser->parse(
+        "f(){ putchar('*('); putchar('*)'); printf(\"*(body*)\"); }");
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty())
+      return fail("native brace escapes do not parse clean");
+    std::vector<std::string_view> characters;
+    const b::ast::StringLit* string = nullptr;
+    for (const auto* node : result.nodes) {
+      if (const auto* c = cursiv::ast_cast<b::ast::CharLit>(node))
+        characters.push_back(c->text);
+      if (const auto* s = cursiv::ast_cast<b::ast::StringLit>(node))
+        string = s;
+    }
+    if (characters != std::vector<std::string_view>{"{", "}"} ||
+        string == nullptr || string->text != "{body}")
+      return fail("native brace escapes lost their character values");
+  }
+
   int count = 0;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
   for (const fs::directory_entry& entry : fs::directory_iterator(dir)) {

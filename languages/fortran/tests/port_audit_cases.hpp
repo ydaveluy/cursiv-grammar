@@ -178,6 +178,67 @@ bool run(const Parser& parser) {
                    power->right->parent == power;
           }))
     return false;
+  if (!inspect(
+          parser,
+          "program p\ninteger :: a(3), i\ncomplex :: z\n"
+          "data (a(i),i=1,3) /3*-1/, z /(1.0,-2.0)/\nend\n",
+          [](const Model& m) {
+            const auto* p = m.units.size() == 1
+                                ? as<MainProgramUnit>(m.units[0]) : nullptr;
+            const auto* d = p && p->body.size() == 3
+                                ? as<DataDecl>(p->body[2]) : nullptr;
+            if (!d || d->sets.size() != 2) return false;
+            const auto* array = d->sets[0];
+            const auto* scalar = d->sets[1];
+            const auto* loop = array->objects.size() == 1
+                                   ? as<ImpliedDo>(array->objects[0]) : nullptr;
+            const auto* repeat = array->values.size() == 1
+                                     ? as<DataRepeat>(array->values[0]) : nullptr;
+            const auto* value = repeat ? as<UnaryExpr>(repeat->value) : nullptr;
+            const auto* complex = scalar->values.size() == 1
+                                      ? as<ComplexLit>(scalar->values[0]) : nullptr;
+            return loop && loop->var == "i" && loop->items.size() == 1 &&
+                   as<NameRef>(loop->items[0]) && loop->start && loop->stop &&
+                   !loop->step && loop->parent == array && repeat &&
+                   as<IntLit>(repeat->count) &&
+                   as<IntLit>(repeat->count)->text == "3" &&
+                   repeat->count->parent == repeat && value && value->op == "-" &&
+                   as<IntLit>(value->operand) &&
+                   as<IntLit>(value->operand)->text == "1" && complex &&
+                   as<RealLit>(complex->real) &&
+                   as<RealLit>(complex->real)->text == "1.0" &&
+                   as<UnaryExpr>(complex->imag);
+          }))
+    return false;
+  if (!inspect(parser,
+               "subroutine s(x)\ninteger :: x\ninteger,pointer :: p => null()\n"
+               "integer :: a = 1\nintent(in) :: x\nend\n",
+               [](const Model& m) {
+                 const auto* s = m.units.size() == 1
+                                     ? as<SubroutineUnit>(m.units[0]) : nullptr;
+                 if (!s || s->body.size() != 4) return false;
+                 const auto* p = as<TypeDecl>(s->body[1]);
+                 const auto* a = as<TypeDecl>(s->body[2]);
+                 const auto* intent = as<AttrDecl>(s->body[3]);
+                 return p && p->declarators.size() == 1 &&
+                        p->declarators[0]->pointerInit &&
+                        as<NameRef>(p->declarators[0]->init) && a &&
+                        a->declarators.size() == 1 &&
+                        !a->declarators[0]->pointerInit &&
+                        as<IntLit>(a->declarators[0]->init) && intent &&
+                        intent->keyword == "intent" && intent->qualifier == "in" &&
+                        intent->items.size() == 1 && intent->items[0] == "x";
+               }))
+    return false;
+  for (const auto* source : {"program p\nx = a < b < c\nend\n",
+                             "program p\nx = a.eq.b.ne.c\nend\n"}) {
+    const auto result = parser.parse(source);
+    if (result.accepted && !result.cst().recovered() &&
+        result.diagnostics.empty()) {
+      std::fprintf(stderr, "Fortran accepted chained comparison: %s\n", source);
+      return false;
+    }
+  }
   return true;
 }
 

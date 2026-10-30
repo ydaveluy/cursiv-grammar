@@ -40,6 +40,21 @@ static int audit_regression() {
       cursiv::create_language<oberon::OberonCoreServices,
                               oberon::OberonSharedCoreServices,
                               oberon::install_core_module>();
+  for (const std::string_view number : {"9223372036854775808", "08000000000000000H", "100X"}) {
+    const std::string source = "MODULE M; CONST x = " + std::string(number) + "; END M.";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() ||
+        result.diagnostics.size() != 1 ||
+        result.diagnostics[0].kind != cursiv::DiagnosticKind::conversion_error)
+      return 1;
+  }
+  for (const std::string_view number : {"9223372036854775807", "07FFFFFFFFFFFFFFFH"}) {
+    const std::string source = "MODULE M; CONST x = " + std::string(number) + "; END M.";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return 1;
+  }
+
   {
     const auto r = language.language.parser->parse(
         "MODULE M; VAR T: INTEGER; PROCEDURE p(x: INTEGER); BEGIN END p; BEGIN "
@@ -47,6 +62,38 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
+  }
+  {
+    const std::string source =
+        "MODULE M; VAR x: INTEGER; "
+        "PROCEDURE p(a: ARRAY OF ARRAY OF CHAR; b: ARRAYOFCHAR); END p; "
+        "BEGIN x := -x*2 END M.";
+    const auto r = language.language.parser->parse(source);
+    const auto* module = r.value_as<oberon::ast::Module>();
+    const auto* proc = module && module->decls.size() == 2
+        ? cursiv::ast_cast<oberon::ast::ProcDecl>(module->decls[1]) : nullptr;
+    const auto* assignment = module && module->body.size() == 1
+        ? cursiv::ast_cast<oberon::ast::AssignStmt>(module->body[0]) : nullptr;
+    const auto* sign = assignment
+        ? cursiv::ast_cast<oberon::ast::UnaryExpr>(assignment->value) : nullptr;
+    const auto* product = sign
+        ? cursiv::ast_cast<oberon::ast::BinaryExpr>(sign->operand) : nullptr;
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
+        !proc || !proc->params || proc->params->params.size() != 2 ||
+        proc->params->params[0]->type != "ARRAY OF ARRAY OF CHAR" ||
+        proc->params->params[1]->type != "ARRAYOFCHAR" || !sign ||
+        sign->op != "-" || !product || product->op != "*" ||
+        product->parent != sign)
+      return 1;
+  }
+  for (const auto source : {
+      "MODULE END; END END.",
+      "MODULE M; BEGIN x := a+-b END M.",
+      "MODULE M; BEGIN x := a*-b END M.",
+      "MODULE M; BEGIN x := a=b=c END M.",
+      "MODULE M; CONST s = \"a\nb\"; END M."}) {
+    const auto r = language.language.parser->parse(source);
+    if (r.accepted && !r.cst().recovered() && r.diagnostics.empty()) return 1;
   }
   return 0;
 }

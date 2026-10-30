@@ -41,7 +41,10 @@ struct NumberLit : cursiv::Extends<MathExpr> {
 struct Variable : cursiv::Extends<MathExpr> {
   string_view name;  // one letter
   MathExpr* index;   // ALPHA '(' mathExp ')' -- null when unsubscripted
+  MathExpr* secondIndex;
 };
+
+struct AbsoluteMath : cursiv::Extends<MathExpr> { MathExpr* inner; };
 
 enum class UnaryFn : std::uint8_t {
   sqrt_,
@@ -61,15 +64,21 @@ struct UnaryCall : cursiv::Extends<MathExpr> {
   MathExpr* arg;
 };
 
-enum class NaryFn : std::uint8_t { max_, min_ };
+enum class NaryFn : std::uint8_t { max_, min_, sum_, prod_ };
 
 struct NaryCall : cursiv::Extends<MathExpr> {
   NaryFn fn;
   MathExpr* first;
   vector<MathExpr*> rest;  // one or more, from argList
 };
+struct ForCond;
+struct RangeCall : cursiv::Extends<MathExpr> {
+  NaryFn fn;
+  ForCond* range;
+  MathExpr* value;
+};
 
-enum class MathOp : std::uint8_t { add, sub, mul, div };
+enum class MathOp : std::uint8_t { add, sub, mul, div, power };
 
 struct BinMath : cursiv::Extends<MathExpr> {
   MathExpr* left;
@@ -125,7 +134,7 @@ struct ForCond : cursiv::Extends<Conditional> {
 };
 
 // Every direct/indirect command, whether or not a STEPNUMBER prefixes it.
-struct Command : cursiv::Extends<cursiv::AstNode> {};
+struct Command : cursiv::Extends<cursiv::AstNode> { Conditional* cond; };
 
 struct GoCmd : cursiv::Extends<Command> {};
 struct CancelCmd : cursiv::Extends<Command> {};
@@ -139,6 +148,7 @@ struct StopCmd : cursiv::Extends<Command> {};
 
 struct DemandCmd : cursiv::Extends<Command> {
   Variable* var;
+  optional<string_view> prompt;
 };
 
 struct ToCmd : cursiv::Extends<Command> {
@@ -148,22 +158,23 @@ struct ToCmd : cursiv::Extends<Command> {
 struct SetCmd : cursiv::Extends<Command> {
   Assignment* assignment;
 };
+struct LetCmd : cursiv::Extends<Command> { Assignment* assignment; };
 
 struct DoCmd : cursiv::Extends<Command> {
   Selector* target;
-  Conditional* cond;  // null when absent
 };
 
 struct TypeContent : cursiv::Extends<cursiv::AstNode> {};
 
 struct TypeFormContent : cursiv::Extends<TypeContent> {
-  vector<Variable*> vars;
+  vector<MathExpr*> vars;
   RefSelector* form;
 };
 
 // A heterogeneous list element: namespace scope keeps the AstNode vocabulary
 // out of reach, so this is the plain std spelling (cursiv/core/reference/ast.md).
-using TypeElemVal = std::variant<std::string_view, Variable*>;
+struct TypeLineBreak : cursiv::Extends<cursiv::AstNode> {};
+using TypeElemVal = std::variant<std::string_view, MathExpr*, TypeLineBreak*>;
 
 struct TypeDataContent : cursiv::Extends<TypeContent> {
   vector<TypeElemVal> items;
@@ -202,6 +213,7 @@ struct IndirectStmt : cursiv::Extends<Statement> {
 
 struct FormStmt : cursiv::Extends<Statement> {
   string_view partNumber;
+  optional<string_view> layout;
 };
 
 struct AssignStmt : cursiv::Extends<Statement> {

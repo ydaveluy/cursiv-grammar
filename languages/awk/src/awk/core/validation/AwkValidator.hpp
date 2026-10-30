@@ -11,6 +11,7 @@ namespace awk {
 class AwkValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkRegex(const ast::RegexLit&, cursiv::ValidationAcceptor&) const;
 
   void checkUniqueFunctionNames(const ast::Program& program,
                                 cursiv::ValidationAcceptor& accept) const;

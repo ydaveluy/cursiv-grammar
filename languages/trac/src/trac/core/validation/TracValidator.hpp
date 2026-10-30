@@ -1,6 +1,5 @@
 // The checks of this language: what the grammar accepts but the language
-// does not. None yet -- a macro call has no name to resolve and no
-// convention to enforce.
+// does not. This teaching subset does not resolve or execute macro names.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"

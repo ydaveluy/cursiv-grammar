@@ -7,31 +7,27 @@ namespace stacktrace {
 
 struct Stacktrace : cursiv::GrammarSpec {
   struct HSP : terminal<some(cr<R"( \t\f)">)> {};
-  struct EOL : terminal<lit<"\r\n"> | cr<R"(\r\n)">> {};
+  struct EOL : terminal<eol> {};
   struct JAVA_WORD : terminal<some(cr<R"(^.()/:@ \t\r\n\f)">)> {};
   struct NUMBER : terminal<some(d)> {};
-  struct OriginPart : terminal<some(cr<R"(^/() \t\r\n\f)">) + lit<"/">> {};
-  struct Origin : rule<ref<OriginPart> + option(ref<OriginPart> | lit<"/">),
-                       std::string_view> {};
+  // A named Java class loader may contain horizontal whitespace.
+  struct OriginPart : terminal<some(cr<R"(^/()\r\n)">) + lit<"/">> {};
+  struct Origin : rule<as<std::string_view>(
+                      ref<OriginPart> + option(ref<OriginPart> | lit<"/">))> {};
   struct FileName : terminal<some(cr<R"(^():\r\n)">)> {};
-  struct Message : terminal<lit<":"> + many(cr<R"(^\r\n)">),
-                           cursiv::text_conv<[](std::string_view text) {
-                             text.remove_prefix(1);
-                             if (text.starts_with(' ')) text.remove_prefix(1);
-                             return text;
-                           }>> {};
-  struct Thread : terminal<lit<R"(Exception in thread ")"> +
-                              many(cr<R"(^"\r\n)">) + lit<"\"">,
-                           cursiv::text_conv<[](std::string_view text) {
-                             return text.substr(21, text.size() - 22);
-                           }>> {};
-  struct Circular : terminal<lit<"[CIRCULAR REFERENCE: "> +
-                                many(cr<R"(^\r\n)">),
-                             cursiv::text_conv<[](std::string_view text) {
-                               text.remove_prefix(21);
-                               if (text.ends_with(']')) text.remove_suffix(1);
-                               return text;
-                             }>> {};
+  struct Message : terminal<as<[](std::string_view text) {
+    text.remove_prefix(1);
+    if (text.starts_with(' ')) text.remove_prefix(1);
+    return text;
+  }>(lit<":"> + many(cr<R"(^\r\n)">))> {};
+  struct Thread : terminal<as<[](std::string_view text) {
+    return text.substr(21, text.size() - 22);
+  }>(lit<R"(Exception in thread ")"> + many(cr<R"(^"\r\n)">) + lit<"\"">)> {};
+  struct Circular : terminal<as<[](std::string_view text) {
+    text.remove_prefix(21);
+    if (text.ends_with(']')) text.remove_suffix(1);
+    return text;
+  }>(lit<"[CIRCULAR REFERENCE: "> + many(cr<R"(^\r\n)">))> {};
   struct Caption : terminal<lit<"Caused by:"> | lit<"Suppressed:">> {};
   struct QualifiedClass : rule<some(ref<JAVA_WORD>, lit<".">)> {};
   struct MessageLine

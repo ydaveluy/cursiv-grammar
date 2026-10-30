@@ -35,7 +35,7 @@ struct PrimitiveType : cursiv::Extends<Type> {
 
 struct ArrayType : cursiv::Extends<Type> {
   Type* element;
-  uint8 dims;
+  uint32 dims;
 };
 
 struct Annotation;
@@ -94,7 +94,7 @@ struct ResultType : cursiv::Extends<cursiv::AstNode> {
 
 struct VariableDeclaratorId : cursiv::Extends<cursiv::AstNode> {
   string_view name;
-  uint8 extraDims;
+  uint32 extraDims;
 };
 
 struct FormalParameter : cursiv::Extends<cursiv::AstNode> {
@@ -193,7 +193,7 @@ struct ArrayInit;
 struct NewArrayExpr : cursiv::Extends<Expr> {
   Type* elementType;
   vector<Expr*> dims;  // `[expr]` dimensions
-  uint8 extraDims;      // trailing `[]`
+  uint32 extraDims;      // trailing `[]`
   ArrayInit* init;
 };
 
@@ -221,8 +221,9 @@ struct AllocAccessExpr : cursiv::Extends<Expr> {  // `outer.new Inner()`
   Expr* alloc;  // a NewObjectExpr*, or a NewArrayExpr* the grammar over-accepts
 };
 
-struct GenericMemberExpr : cursiv::Extends<Expr> {  // `x.<T>method`, T dropped
+struct GenericMemberExpr : cursiv::Extends<Expr> {  // `x.<T>method`
   Expr* object;
+  vector<TypeArgument*> typeArgs;
   string_view field;
 };
 
@@ -406,7 +407,7 @@ struct MethodDecl : cursiv::Extends<Decl> {
   ResultType* resultType;
   string_view name;
   FormalParameters* params;
-  uint8 extraDims;
+  uint32 extraDims;
   vector<string_view> throwsList;
   Block* body;  // null when the declaration ends in `;`
 };
@@ -500,7 +501,8 @@ struct EofRegex : cursiv::Extends<RegularExpression> {};
 
 struct CharDescriptor : cursiv::Extends<cursiv::AstNode> {
   string_view from;
-  string_view to;  // empty when the descriptor is a single character
+  boolean range;
+  string_view to;  // decoded; range distinguishes absent and empty endpoints
 };
 
 struct RegexUnit : cursiv::Extends<cursiv::AstNode> {};
@@ -616,6 +618,7 @@ struct Expansion : cursiv::Extends<cursiv::AstNode> {
 struct Production : cursiv::Extends<cursiv::AstNode> {};
 
 struct JavaCodeProduction : cursiv::Extends<Production> {
+  string_view accessModifier;
   ResultType* resultType;
   string_view name;
   FormalParameters* params;
@@ -646,6 +649,7 @@ struct TokenManagerDecls : cursiv::Extends<Production> {
 };
 
 struct BnfProduction : cursiv::Extends<Production> {
+  string_view accessModifier;
   ResultType* resultType;
   string_view name;
   FormalParameters* params;

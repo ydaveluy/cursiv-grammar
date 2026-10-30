@@ -408,6 +408,8 @@ struct TryStmt : cursiv::Extends<Stmt> {
   vector<CatchClause*> catchClauses;
 };
 
+struct ThrowStmt : cursiv::Extends<Stmt> {};
+
 struct ReturnStmt : cursiv::Extends<Stmt> {
   Expr* value;
 };

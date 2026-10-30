@@ -47,10 +47,7 @@ CustomType = type table [
 ];
 ```
 
-A section holds members, each a name bound to an expression: a record, a
-function value, or -- as `CustomType` shows -- a `type` value describing the
-shape of other values. Power Query has no cross-file or cross-name resolution
-this port models: every name is text, not a reference.
+A Power Query M document is an expression or a section.
 
 ## The command line
 

@@ -6,42 +6,16 @@
 
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/workspace/Document.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
 #include "rego/core/CoreServices.hpp"
 #include "rego/generated/Rego/Module.hpp"
 namespace code_audit {
 namespace ast = rego::ast;
 inline unsigned validate(const rego::RegoCoreServices& services,
                          std::string_view source) {
-  cursiv::Document doc(cursiv::TextDocument::create("memory:rego", "rego", 0,
-                                                    std::string(source)));
-  doc.parseResult = services.parser->parse(source);
-  unsigned errors = 0;
-  auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
-  cursiv::ValidationAcceptor accept(sink, doc, source);
-  const auto reflection = rego::generated::Rego::create_ast_reflection();
-  std::function<void(const cursiv::AstNode*)> walk = [&](const auto* n) {
-    if (!n) return;
-    if (const auto* x = cursiv::ast_cast<ast::NumberLiteral>(n))
-      services.validator->checkNumber(*x, accept);
-    if (const auto* x = cursiv::ast_cast<ast::ScalarTerm>(n))
-      services.validator->checkScalar(*x, accept);
-    if (const auto* x = cursiv::ast_cast<ast::Query>(n))
-      services.validator->checkQuery(*x, accept);
-    if (const auto* x = cursiv::ast_cast<ast::LiteralExpr>(n))
-      services.validator->checkLiteral(*x, accept);
-    if (const auto* x = cursiv::ast_cast<ast::SomeDecl>(n))
-      services.validator->checkSome(*x, accept);
-    if (const auto* x = cursiv::ast_cast<ast::Every>(n))
-      services.validator->checkEvery(*x, accept);
-    if (const auto* x = cursiv::ast_cast<ast::Rule>(n))
-      services.validator->checkRule(*x, accept);
-    if (const auto* x = cursiv::ast_cast<ast::WithMod>(n))
-      services.validator->checkWith(*x, accept);
-    reflection->visitMembers(*n, [&](std::string_view, std::uint32_t,
-                                     cursiv::AstNode& c) { walk(&c); });
-  };
-  walk(doc.parseResult.value);
-  return errors;
+  // Exercise the registered checks rather than duplicating a stale list.
+  return static_cast<unsigned>(cursiv::test::validationHelper(
+      services, std::string(source)).diagnostics.size());
 }
 inline bool run() {
   auto language = cursiv::create_language<rego::RegoCoreServices,
@@ -218,17 +192,19 @@ p if {
               add->op == "+" && mul && mul->op == "*",
           "native operator precedence");
   }
-  const std::string invalid =
-      "a = +1\nb = 01\np {}\nq { not some x }\nr { some 1 }\ns { every 1,2,3 "
-      "in xs { true } }\nt { a = b = c }\nu(x) contains 1 { true }\ndefault "
-      "f(1) = 2\nv { x with 1 as 2 }\nw { not every x in xs { true } }\n";
-  const auto r = language.language.parser->parse(invalid);
-  check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
-        "invalid semantic forms parse clean");
-  const auto errors = validate(language.language, invalid);
-  if (errors != 14)
-    std::fprintf(stderr, "rego validation errors: %u\n", errors);
-  check(errors == 14, "precise runtime validation");
+  // Native-invalid forms may be refused syntactically or diagnosed by the
+  // runtime. In particular p {} is no longer an empty, silently built Query.
+  for(const auto* invalid : {
+      "a = +1\n", "b = 01\n", "p {}\n", "q { not some x }\n",
+      "r { some 1 }\n", "s { every 1,2,3 in xs { true } }\n",
+      "t { a = b = c }\n", "u(x) contains 1 { true }\n",
+      "default f(1) = 2\n", "v { x with 1 as 2 }\n",
+      "w { not every x in xs { true } }\n"}) {
+    if(validate(language.language,invalid)==0) {
+      std::fprintf(stderr,"rego native-invalid form undiagnosed: %s\n",invalid);
+      ok=false;
+    }
+  }
   return ok;
 }
 }  // namespace code_audit

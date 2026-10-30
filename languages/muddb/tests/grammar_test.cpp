@@ -88,6 +88,15 @@ void blank_fields_read_as_absent() {
         *zero.osuccess == "is briefly visible through the mist.");
 }
 
+void an_asterisk_after_the_record_is_not_an_extra_field() {
+  const std::string original = read_example("minimal.muddb");
+  std::string source = original;
+  source.insert(source.find("***END OF DUMP***"), "*not an end marker\n");
+  const auto result = engine().parse(source);
+  CHECK(!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty());
+}
+
 void broken_documents_are_refused() {
   const std::string text = "not a room dump at all\n";
   const cursiv::ParseResult r = engine().parse(text);
@@ -102,6 +111,7 @@ int main() {
   every_example_parses_clean();
   minimal_dump_holds_its_two_rooms();
   blank_fields_read_as_absent();
+  an_asterisk_after_the_record_is_not_an_extra_field();
   broken_documents_are_refused();
   return cursiv::test::report("muddb_grammar_test");
 }

@@ -16,6 +16,8 @@ class CValidator final : public cursiv::DefaultCoreService {
   // An identifier spelling a reserved word, anywhere in the unit.
   void checkReservedNames(const ast::TranslationUnit& unit,
                           cursiv::ValidationAcceptor& accept) const;
+  void checkInference(const ast::Specifiers& node,
+                      cursiv::ValidationAcceptor& accept) const;
   void checkEnumBase(const ast::EnumType& type,
                      cursiv::ValidationAcceptor& accept) const;
 };

@@ -10,6 +10,8 @@ namespace scss {
 class ScssValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkVariableFlags(const ast::VariableDeclaration&,
+                          cursiv::ValidationAcceptor&) const;
   void checkReturnContext(const ast::ReturnStmt&,
                           cursiv::ValidationAcceptor&) const;
 };

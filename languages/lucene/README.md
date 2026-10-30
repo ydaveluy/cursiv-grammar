@@ -31,6 +31,8 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Lucene's flexible `StandardSyntaxParser` query dialect supports fields, Boolean clauses, ranges and interval expressions.
+
 ```
 title:"The Right Way" AND text:go
 mod_date:[20020101 TO 20030101]
@@ -38,13 +40,6 @@ jakarta^4 apache
 roam~0.8
 (jakarta OR apache) AND website
 ```
-
-A query is a list of clauses, joined by `AND`/`OR` or by nothing at all (an
-implicit OR). A clause is a bare term, a `field:value` or `field=value` pair,
-a `field<value`/`field<=value`/... range comparison, a `[lo TO hi]` or
-`{lo TO hi}` range, or a parenthesised sub-query — each optionally prefixed
-by `+` (required), `-`/`NOT`/`!` (excluded), and optionally suffixed by
-`~similarity` (fuzzy) or `^boost`.
 
 ## The command line
 

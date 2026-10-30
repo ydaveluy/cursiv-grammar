@@ -1,10 +1,9 @@
 // The powerbuilder language: its grammar. PowerScript source exports read as
 // a flat sequence of declarations and statements; `&` before a line break and
-// comments are the only trivia beyond plain whitespace -- there is no
-// newline-sensitive construct to spell with `gap::`.
+// nested comments are trivia. RETURN observes a physical statement break,
+// unless an explicit ampersand continues the statement.
 #pragma once
 
-#include <charconv>
 #include <cstddef>
 #include <memory_resource>
 #include <span>
@@ -15,55 +14,56 @@
 
 namespace powerbuilder {
 
-inline constexpr auto parse_number = [](std::string_view t) -> double {
+inline constexpr auto parse_number = [](std::string_view t) {
   if (!t.empty()) {
     const char c = t.back();
     if (c == 'D' || c == 'd' || c == 'F' || c == 'f') t.remove_suffix(1);
   }
-  double v = 0.0;
-  std::from_chars(t.data(), t.data() + t.size(), v);
-  return v;
+  return cursiv::default_convert<double>(t);
 };
-using NumberValue = cursiv::text_conv<parse_number>;
 
-// `~~` doubles a literal tilde, `~"` escapes an embedded quote.
-inline constexpr auto unescape_dquoted = [](std::string_view t,
+// PowerScript tilde escapes are shared by both quote styles. Numeric escapes
+// in the ASCII range have a portable value; extended code-page bytes remain
+// spelled as entered rather than being assigned a guessed Unicode character.
+inline constexpr auto unescape_string = [](std::string_view t,
                                             std::pmr::memory_resource* mem) {
   const std::string_view body = t.substr(1, t.size() - 2);
-  if (body.find('~') == std::string_view::npos) return body;
+  if (body.find_first_of("~&") == std::string_view::npos) return body;
   const std::span<char> room = cursiv::text_room(mem, body.size());
   std::size_t n = 0;
   for (std::size_t i = 0; i < body.size(); ++i) {
-    if (body[i] == '~' && i + 1 < body.size() &&
-        (body[i + 1] == '~' || body[i + 1] == '"')) {
-      room[n++] = body[i + 1];
-      ++i;
-    } else {
-      room[n++] = body[i];
+    if(body[i]=='&') {
+      std::size_t j=i+1;
+      while(j<body.size()&&(body[j]==' '||body[j]=='\t'))++j;
+      if(j<body.size()&&body[j]=='\r')++j;
+      if(j<body.size()&&body[j]=='\n') { i=j; continue; }
     }
+    if (body[i] != '~' || i + 1 == body.size()) { room[n++]=body[i]; continue; }
+    const char c=body[i+1];
+    char decoded{};
+    bool known=true;
+    switch(c) {
+      case '~': case '"': case '\'': decoded=c; break;
+      case 'n': decoded='\n'; break; case 'r': decoded='\r'; break;
+      case 't': decoded='\t'; break; case 'v': decoded='\v'; break;
+      case 'f': decoded='\f'; break; case 'b': decoded='\b'; break;
+      default: known=false;
+    }
+    if(known) { room[n++]=decoded; ++i; continue; }
+    const unsigned base=c=='h'?16:c=='o'?8:10;
+    const std::size_t begin=i+(base==10?1:2), count=base==16?2:3;
+    unsigned value=0; bool digits=begin+count<=body.size();
+    for(std::size_t j=begin;digits&&j<begin+count;++j) {
+      const char d=body[j];
+      const unsigned digit=d>='0'&&d<='9'?unsigned(d-'0'):
+          d>='a'&&d<='f'?unsigned(d-'a'+10):d>='A'&&d<='F'?unsigned(d-'A'+10):99;
+      if(digit>=base) digits=false; else value=value*base+digit;
+    }
+    if(digits&&value<128) { room[n++]=static_cast<char>(value); i=begin+count-1; }
+    else room[n++]=body[i];
   }
   return std::string_view(room.data(), n);
 };
-using DQuotedValue = cursiv::text_conv<unescape_dquoted>;
-
-// `~'` escapes an embedded quote in a single-quoted string.
-inline constexpr auto unescape_quoted = [](std::string_view t,
-                                           std::pmr::memory_resource* mem) {
-  const std::string_view body = t.substr(1, t.size() - 2);
-  if (body.find('~') == std::string_view::npos) return body;
-  const std::span<char> room = cursiv::text_room(mem, body.size());
-  std::size_t n = 0;
-  for (std::size_t i = 0; i < body.size(); ++i) {
-    if (body[i] == '~' && i + 1 < body.size() && body[i + 1] == '\'') {
-      room[n++] = '\'';
-      ++i;
-    } else {
-      room[n++] = body[i];
-    }
-  }
-  return std::string_view(room.data(), n);
-};
-using QuotedValue = cursiv::text_conv<unescape_quoted>;
 
 struct Powerbuilder : cursiv::GrammarSpec {
   // Identifiers spell `-$#%_` past letters and digits (ID_PARTS), so a
@@ -74,7 +74,7 @@ struct Powerbuilder : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct LineContinuation : terminal<lit<"&"> + many(cr<R"( \t)">) + eol> {};
   struct SlComment : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
-  struct MlComment : terminal<through(lit<"/*">, lit<"*/">)> {};
+  struct MlComment : terminal<lit<"/*"> + many(ref<MlComment> | (!(lit<"/*"> | lit<"*/">) + any)) + lit<"*/">> {};
   // `HA$PBExportHeader$w.srw`, `$PBExportComments$...`: a directive line
   // introduced by `$`, kept as trivia like a comment.
   struct ExportHeader
@@ -88,11 +88,10 @@ struct Powerbuilder : cursiv::GrammarSpec {
   struct ENUM : terminal<cr<"A-Za-z_"> + many(IdCont) + lit<"!">> {};
 
   static constexpr auto NumCore =
-      (some(d) + lit<"."> + some(d)) | (lit<"."> + some(d)) | some(d);
-  struct NUMBER
-      : terminal<NumCore + option(cr<"Ee"> + option(cr<"+-">) + some(d)) +
-                     option(cr<"DFdf">),
-                 NumberValue> {};
+      (some(d) + lit<"."> + many(d)) | (lit<"."> + some(d)) | some(d);
+  struct NUMBER : terminal<NumCore + option(cr<"Ee"> + option(cr<"+-">) + some(d)) +
+                      option(cr<"DFdf">)> {};
+  struct ConvertedNumber : rule<as<parse_number>(ref<NUMBER>)> {};
 
   struct DATE : terminal<repeat<4>(d) + lit<"-"> + repeat<2>(d) + lit<"-"> +
                          repeat<2>(d)> {};
@@ -100,11 +99,13 @@ struct Powerbuilder : cursiv::GrammarSpec {
                          repeat<2>(d) + option(lit<"."> + repeat<6>(d))> {};
 
   struct DQUOTED_STRING
-      : terminal<lit<"\""> + many(lit<"~\""> | cr<R"(^")">) + lit<"\"">,
-                 DQuotedValue> {};
+      : terminal<as<unescape_string>(
+            lit<"\""> + many((lit<"~"> + cr<R"(^\r\n)">) | (lit<"&"> + many(cr<R"( \t)">) + eol) |
+                cr<R"(^"~\r\n)">) + lit<"\"">)> {};
   struct QUOTED_STRING
-      : terminal<lit<"'"> + many(lit<"~'"> | cr<"^'">) + lit<"'">,
-                 QuotedValue> {};
+      : terminal<as<unescape_string>(lit<"'"> + many((lit<"~"> + cr<R"(^\r\n)">) |
+                 (lit<"&"> + many(cr<R"( \t)">) + eol) | cr<R"(^'~\r\n)">) +
+                                     lit<"'">)> {};
 
   static constexpr auto DataTypeKw =
       ikw<"ANY"> | ikw<"BLOB"> | ikw<"BOOLEAN"> | ikw<"BYTE"> |
@@ -137,114 +138,101 @@ struct Powerbuilder : cursiv::GrammarSpec {
 
   // ---- operators (longer spellings declared first: `<>`/`<=`/`>=` before
   // `<`/`>`, so the shorter reading never wins a shared prefix) ----
-  struct NE_OP : terminal<lit<"<>">, value<ast::Operator::ne>> {};
-  struct LE_OP : terminal<lit<"<=">, value<ast::Operator::le>> {};
-  struct GE_OP : terminal<lit<">=">, value<ast::Operator::ge>> {};
-  struct EQ_OP : terminal<lit<"=">, value<ast::Operator::eq>> {};
-  struct LT_OP : terminal<lit<"<">, value<ast::Operator::lt>> {};
-  struct GT_OP : terminal<lit<">">, value<ast::Operator::gt>> {};
-  struct ADD_OP : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct SUB_OP : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct MUL_OP : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIV_OP : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct POW_OP : terminal<lit<"^">, value<ast::Operator::power>> {};
-  struct AND_OP : terminal<ikw<"AND">, value<ast::Operator::logical_and>> {};
-  struct OR_OP : terminal<ikw<"OR">, value<ast::Operator::logical_or>> {};
 
   static constexpr auto OpCompare =
-      ref<NE_OP> | ref<LE_OP> | ref<GE_OP> | ref<EQ_OP> | ref<LT_OP> |
-      ref<GT_OP>;
-  static constexpr auto OpAdd = ref<ADD_OP> | ref<SUB_OP>;
-  static constexpr auto OpMul = ref<MUL_OP> | ref<DIV_OP>;
-  static constexpr auto OpPow = ref<POW_OP>;
+      as<ast::Operator::ne>(lit<"<>">) | as<ast::Operator::le>(lit<"<=">) | as<ast::Operator::ge>(lit<">=">) | as<ast::Operator::eq>(lit<"=">) | as<ast::Operator::lt>(lit<"<">) |
+      as<ast::Operator::gt>(lit<">">);
+  static constexpr auto OpAdd = as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">);
+  static constexpr auto OpMul = as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">);
+  static constexpr auto OpPow = as<ast::Operator::power>(lit<"^">);
 
   // ------------------------------------------------------- paths and names
 
-  struct PathSegmentRule;
-  struct PathRule;
-  struct ArrayIndexRule;
-  struct ArgumentRule;
-  struct ExpressionRule;
-  struct TypeSpecRule;
+  struct PathSegment;
+  struct Path;
+  struct ArrayIndex;
+  struct Argument;
+  struct Expression;
+  struct TypeSpec;
 
-  struct ArrayIndexRule
+  struct ArrayIndex
       : rule<create<ast::ArrayIndex>(
             lit<"["> +
-            option(some(append<&ast::ArrayIndex::items>(ref<ExpressionRule>),
-                       lit<",">)) +
+            many(append<&ast::ArrayIndex::items>(ref<Expression>),
+                       lit<",">) +
             lit<"]">)> {};
 
-  struct PathSegmentRule
+  struct PathSegment
       : rule<assign<&ast::PathSegment::name>(IdentifierNameEx) +
-             option(assign<&ast::PathSegment::index>(ref<ArrayIndexRule>))> {
+             option(assign<&ast::PathSegment::index>(ref<ArrayIndex>))> {
   };
 
-  struct PathRule
+  struct Path
       : rule<create<ast::Path>(
-            some(append<&ast::Path::segments>(ref<PathSegmentRule>),
+            some(append<&ast::Path::segments>(ref<PathSegment>),
                 lit<".">))> {};
 
-  struct BindParamRule
+  struct BindParam
       : rule<create<ast::BindParam>(
-            lit<":"> + assign<&ast::BindParam::name>(ref<PathRule>))> {};
+            lit<":"> + assign<&ast::BindParam::name>(ref<Path>))> {};
 
   // -------------------------------------------------------- literal atoms
 
-  struct EnumLitRule
+  struct EnumLit
       : rule<create<ast::EnumLit>(assign<&ast::EnumLit::value>(ref<ENUM>))> {
   };
-  struct NumberLitRule
+  struct NumberLit
       : rule<create<ast::NumberLit>(
             assign<&ast::NumberLit::value>(ref<NUMBER>))> {};
-  struct BoolLitRule
+  struct BoolLit
       : rule<create<ast::BoolLit>(
             flag<&ast::BoolLit::value>(ikw<"TRUE">) | ikw<"FALSE">)> {};
-  struct DateLitRule
+  struct DateLit
       : rule<create<ast::DateLit>(assign<&ast::DateLit::value>(ref<DATE>))> {
   };
-  struct TimeLitRule
+  struct TimeLit
       : rule<create<ast::TimeLit>(assign<&ast::TimeLit::value>(ref<TIME>))> {
   };
-  struct StringLitRule
+  struct StringLit
       : rule<create<ast::StringLit>(assign<&ast::StringLit::value>(
             ref<DQUOTED_STRING> | ref<QUOTED_STRING>))> {};
 
-  struct BraceListRule
+  struct BraceList
       : rule<create<ast::BraceList>(
             lit<"{"> +
-            some(append<&ast::BraceList::items>(ref<ExpressionRule>),
+            some(append<&ast::BraceList::items>(ref<Expression>),
                 lit<",">) +
             lit<"}">)> {};
 
-  struct IsNullTestRule
+  struct IsNullTest
       : rule<create<ast::IsNullTest>(
-            assign<&ast::IsNullTest::operand>(ref<PathRule>) + ikw<"IS"> +
+            assign<&ast::IsNullTest::operand>(ref<Path>) + ikw<"IS"> +
             option(flag<&ast::IsNullTest::negated>(ikw<"NOT">)) +
             ikw<"NULL">)> {};
 
   // `name = :param`: kept out of the general expression atoms (it would
   // clash with `=` comparison on the same span) and reachable only through
-  // the SQL SET/WHERE list, `SqlSetItemRule`, below.
-  struct BindAssignRule
+  // the SQL SET/WHERE list, `SqlSetItem`, below.
+  struct BindAssign
       : rule<create<ast::BindAssign>(
-            assign<&ast::BindAssign::target>(ref<PathRule>) + lit<"="> +
-            assign<&ast::BindAssign::value>(ref<BindParamRule>))> {};
+            assign<&ast::BindAssign::target>(ref<Path>) + lit<"="> +
+            assign<&ast::BindAssign::value>(ref<BindParam>))> {};
 
-  struct SqlSetItemRule : rule<ref<IsNullTestRule> | ref<BindAssignRule>> {};
+  struct SqlSetItem : rule<ref<IsNullTest> | ref<BindAssign>> {};
 
-  struct WhereClauseRule
+  struct WhereClause
       : rule<create<ast::WhereClause>(
             ikw<"WHERE"> +
-            (some(append<&ast::WhereClause::setValues>(ref<SqlSetItemRule>),
+            (some(append<&ast::WhereClause::setValues>(ref<SqlSetItem>),
                  lit<",">) |
-             assign<&ast::WhereClause::cond>(ref<ExpressionRule>)))> {};
+             assign<&ast::WhereClause::cond>(ref<Expression>)))> {};
 
   // ----------------------------------------------------------- call chain
 
-  struct ArgumentRule
+  struct Argument
       : rule<create<ast::Argument>(
             option(flag<&ast::Argument::byRef>(ikw<"REF">)) +
-            assign<&ast::Argument::value>(ref<ExpressionRule>))> {};
+            assign<&ast::Argument::value>(ref<Expression>))> {};
 
   // EVENT and TRIGGER/POST order differently across the shapes this unifies
   // (`FUNCTION? POST? DYNAMIC? EVENT?`, `(POST|TRIGGER) EVENT?`,
@@ -262,33 +250,33 @@ struct Powerbuilder : cursiv::GrammarSpec {
   static constexpr auto CallTail =
       assign<&ast::Call::name>(FunctionNameKw) +
       flag<&ast::Call::hasParens>(lit<"(">) +
-      option(some(append<&ast::Call::args>(ref<ArgumentRule>), lit<",">)) +
+      many(append<&ast::Call::args>(ref<Argument>), lit<",">) +
       lit<")">;
 
-  struct CallHeadRule : rule<create<ast::Call>(CallModifiers + CallTail)> {};
+  struct CallHead : rule<create<ast::Call>(CallModifiers + CallTail)> {};
 
-  struct AncestorCallRule
+  struct AncestorCall
       : rule<create<ast::Call>(
             flag<&ast::Call::ancestor>(lit<"::">) +
             option(flag<&ast::Call::isEvent>(ikw<"EVENT">)) +
             CallTail)> {};
 
-  struct SuperCallRule
+  struct SuperCall
       : rule<create<ast::Call>(
             ikw<"SUPER"> + flag<&ast::Call::ancestor>(lit<"::">) +
             CallModifiers + CallTail)> {};
 
-  struct SpecialCallRule
+  struct SpecialCall
       : rule<create<ast::SpecialCall>(
                  assign<&ast::SpecialCall::keyword>(ikw<"OPEN">) +
                  flag<&ast::SpecialCall::hasParens>(lit<"(">) +
-                 some(append<&ast::SpecialCall::args>(ref<ArgumentRule>),
+                 some(append<&ast::SpecialCall::args>(ref<Argument>),
                      lit<",">) +
                  lit<")">) |
              create<ast::SpecialCall>(
                  assign<&ast::SpecialCall::keyword>(ikw<"CLOSE">) +
                  flag<&ast::SpecialCall::hasParens>(lit<"(">) +
-                 some(append<&ast::SpecialCall::args>(ref<ArgumentRule>),
+                 some(append<&ast::SpecialCall::args>(ref<Argument>),
                      lit<",">) +
                  lit<")">) |
              create<ast::SpecialCall>(
@@ -296,133 +284,131 @@ struct Powerbuilder : cursiv::GrammarSpec {
                  option(flag<&ast::SpecialCall::haltClose>(ikw<"CLOSE">)))>{
   };
 
-  struct PostfixPrimaryRule
+  struct PostfixPrimary
       : rule<create<ast::Path>(append<&ast::Path::segments>(
-                 ref<PathSegmentRule>)) |
-             ref<CallHeadRule> | ref<AncestorCallRule> |
-             ref<SuperCallRule>> {};
+                 ref<PathSegment>)) |
+             ref<CallHead> | ref<AncestorCall> |
+             ref<SuperCall>> {};
 
-  struct PostfixChainRule
-      : rule<ref<PostfixPrimaryRule> +
+  struct PostfixChain
+      : rule<ref<PostfixPrimary> +
              many(nest<ast::MemberAccess, &ast::MemberAccess::object>(
                       lit<"."> +
                       assign<&ast::MemberAccess::field>(FunctionNameKw) +
                       option(assign<&ast::MemberAccess::index>(
-                          ref<ArrayIndexRule>))) |
+                          ref<ArrayIndex>))) |
                   nest<ast::Call, &ast::Call::receiver>(
                       lit<"."> + CallModifiers + CallTail))> {};
 
-  struct CreateExprRule
+  struct CreateExpr
       : rule<create<ast::CreateExpr>(
             ikw<"CREATE">+
             ((ikw<"USING"> +
-              assign<&ast::CreateExpr::usingExpr>(ref<ExpressionRule>)) |
+              assign<&ast::CreateExpr::usingExpr>(ref<Expression>)) |
              (option(ikw<"USING">) +
-              option(assign<&ast::CreateExpr::qualifier>(ref<PathRule>) +
+              option(assign<&ast::CreateExpr::qualifier>(ref<Path>) +
                      lit<".">) +
-              assign<&ast::CreateExpr::type>(ref<TypeSpecRule>) +
+              assign<&ast::CreateExpr::type>(ref<TypeSpec>) +
               option(flag<&ast::CreateExpr::hasParens>(lit<"(">) +
-                     option(some(
-                         append<&ast::CreateExpr::args>(ref<ArgumentRule>),
-                         lit<",">)) +
+                     many(
+                         append<&ast::CreateExpr::args>(ref<Argument>),
+                         lit<",">) +
                      lit<")">))))> {};
 
-  struct DescribeExprRule
+  struct DescribeExpr
       : rule<create<ast::DescribeExpr>(
-                 option(assign<&ast::DescribeExpr::qualifier>(ref<PathRule>) +
+                 option(assign<&ast::DescribeExpr::qualifier>(ref<Path>) +
                         lit<".">) +
                  ikw<"DESCRIBE"> + lit<"("> +
-                 option(some(
-                     append<&ast::DescribeExpr::args>(ref<ArgumentRule>),
-                     lit<",">)) +
+                 many(
+                     append<&ast::DescribeExpr::args>(ref<Argument>),
+                     lit<",">) +
                  lit<")">) |
              create<ast::DescribeExpr>(
                  ikw<"DESCRIBE"> +
-                 assign<&ast::DescribeExpr::target>(ref<PathRule>) +
+                 assign<&ast::DescribeExpr::target>(ref<Path>) +
                  ikw<"INTO"> +
-                 assign<&ast::DescribeExpr::into>(ref<PathRule>))> {};
+                 assign<&ast::DescribeExpr::into>(ref<Path>))> {};
 
   // -------------------------------------------------------------- atoms
 
-  struct AtomRule
-      : rule<(lit<"("> + ref<ExpressionRule> + lit<")">) |
-             ref<BraceListRule> | ref<IsNullTestRule> | ref<EnumLitRule> |
-             ref<NumberLitRule> | ref<BoolLitRule> | ref<DateLitRule> |
-             ref<TimeLitRule> | ref<StringLitRule> | ref<BindParamRule> |
-             ref<CreateExprRule> | ref<DescribeExprRule> |
-             ref<SpecialCallRule> | ref<PostfixChainRule>> {};
+  struct Atom
+      : rule<(lit<"("> + ref<Expression> + lit<")">) |
+             ref<BraceList> | ref<IsNullTest> | ref<EnumLit> |
+             ref<NumberLit> | ref<BoolLit> | ref<DateLit> |
+             ref<TimeLit> | ref<StringLit> | ref<BindParam> |
+             ref<CreateExpr> | ref<DescribeExpr> |
+             ref<SpecialCall> | ref<PostfixChain>> {};
 
-  struct UnarySignRule
+  struct UnarySign
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
-                 assign<&ast::UnaryExpr::operand>(ref<AtomRule>)) |
-             ref<AtomRule>> {};
+                 assign<&ast::UnaryExpr::operand>(ref<Atom>)) |
+             ref<Atom>> {};
 
-  struct ArithExprRule
-      : infix<UnarySignRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(OpPow) >> left(OpMul) >> left(OpAdd))> {};
+  struct ArithExpr
+      : infix<UnarySign, ast::BinaryExpr,
+              levels(left(OpPow), left(OpMul), left(OpAdd))> {};
 
-  struct ComparisonExprRule
+  struct ComparisonExpr
       : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<ArithExprRule>) +
+                 assign<&ast::BinaryExpr::left>(ref<ArithExpr>) +
                  assign<&ast::BinaryExpr::op>(OpCompare) +
-                 assign<&ast::BinaryExpr::right>(ref<ArithExprRule>)) |
-             ref<ArithExprRule>> {};
+                 assign<&ast::BinaryExpr::right>(ref<ArithExpr>)) |
+             ref<ArithExpr>> {};
 
-  struct NotExprRule
+  struct NotExpr
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(ikw<"NOT">) +
-                 assign<&ast::UnaryExpr::operand>(ref<ComparisonExprRule>)) |
-             ref<ComparisonExprRule>> {};
+                 assign<&ast::UnaryExpr::operand>(ref<ComparisonExpr>)) |
+             ref<ComparisonExpr>> {};
 
-  struct ExpressionRule
-      : infix<NotExprRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(ref<AND_OP>) >> left(ref<OR_OP>))> {};
+  struct Expression
+      : infix<NotExpr, ast::BinaryExpr,
+              levels(left(as<ast::Operator::logical_and>(ikw<"AND">)), left(as<ast::Operator::logical_or>(ikw<"OR">)))> {};
 
   // ------------------------------------------------------------- typing
 
-  struct TypeSpecRule
+  struct TypeSpec
       : rule<create<ast::TypeSpec>(
             assign<&ast::TypeSpec::name>(DataTypeKw | ref<ID>) +
-            option(lit<"{"> + assign<&ast::TypeSpec::scale>(ref<NUMBER>) +
+            option(lit<"{"> + assign<&ast::TypeSpec::scale>(ref<ConvertedNumber>) +
                    lit<"}">))> {};
   static constexpr auto TypeSpecText =
       (DataTypeKw | ref<ID>) + option(lit<"{"> + ref<NUMBER> + lit<"}">);
 
-  struct SignedNumberTextRule
+  struct SignedNumberText
       : rule<option(lit<"+"> | lit<"-">) + ref<NUMBER>> {};
 
-  struct ArrayBoundRule
+  struct ArrayBound
       : rule<create<ast::ArrayBound>(
-            assign<&ast::ArrayBound::from>(ref<SignedNumberTextRule>) +
+            assign<&ast::ArrayBound::from>(ref<SignedNumberText>) +
             option(ikw<"TO"> + assign<&ast::ArrayBound::to>(
-                                    ref<SignedNumberTextRule>)))> {};
+                                    ref<SignedNumberText>)))> {};
 
-  struct ArrayDeclRule
+  struct ArrayDecl
       : rule<create<ast::ArrayDecl>(
             lit<"["> +
-            option(some(append<&ast::ArrayDecl::bounds>(ref<ArrayBoundRule>),
-                       lit<",">)) +
+            many(append<&ast::ArrayDecl::bounds>(ref<ArrayBound>),
+                       lit<",">) +
             lit<"]">)> {};
 
-  struct ParameterRule
+  struct Parameter
       : rule<create<ast::Parameter>(
             option(flag<&ast::Parameter::readOnly>(ikw<"READONLY">)) +
             option(flag<&ast::Parameter::byRef>(ikw<"REF">)) +
-            assign<&ast::Parameter::type>(ref<TypeSpecRule>) +
+            assign<&ast::Parameter::type>(ref<TypeSpec>) +
             assign<&ast::Parameter::name>(ref<ID>) +
-            option(assign<&ast::Parameter::array>(ref<ArrayDeclRule>)))> {};
+            option(assign<&ast::Parameter::array>(ref<ArrayDecl>)))> {};
 
 
   // ------------------------------------------------------- declarations
 
-  struct AssignStmtRule;
+  struct AssignStmt;
 
-  struct DeclaratorRule
+  struct Declarator
       : rule<assign<&ast::Declarator::name>(ref<ID>) +
-             option(assign<&ast::Declarator::array>(ref<ArrayDeclRule>))> {};
+             option(assign<&ast::Declarator::array>(ref<ArrayDecl>))> {};
 
   // The four variable_decl_sub shapes and the modifiers ahead of them all
   // write directly into the enclosing ast::VariableDecl: spliced as plain
@@ -432,33 +418,33 @@ struct Powerbuilder : cursiv::GrammarSpec {
   // variable_decl_sub0: a shared type, one or more names, one shared
   // initializer for the whole list.
   static constexpr auto VarSub0 =
-      assign<&ast::VariableDecl::type>(ref<TypeSpecRule>) +
-      some(append<&ast::VariableDecl::declarators>(ref<DeclaratorRule>),
+      assign<&ast::VariableDecl::type>(ref<TypeSpec>) +
+      some(append<&ast::VariableDecl::declarators>(ref<Declarator>),
           lit<",">) +
       option(lit<"="> +
-             assign<&ast::VariableDecl::sharedInit>(ref<ExpressionRule>));
+             assign<&ast::VariableDecl::sharedInit>(ref<Expression>));
 
   // variable_decl_sub2: a shared type, exactly one name, an optional
   // brace-list initializer attached to that one name.
   static constexpr auto VarSub2 =
-      assign<&ast::VariableDecl::type>(ref<TypeSpecRule>) +
+      assign<&ast::VariableDecl::type>(ref<TypeSpec>) +
       append<&ast::VariableDecl::declarators>(create<ast::Declarator>(
           assign<&ast::Declarator::name>(IdentifierNameEx) +
-          option(assign<&ast::Declarator::array>(ref<ArrayDeclRule>)) +
+          option(assign<&ast::Declarator::array>(ref<ArrayDecl>)) +
           option(option(lit<"=">) +
-                 assign<&ast::Declarator::init>(ref<BraceListRule>))));
+                 assign<&ast::Declarator::init>(ref<BraceList>))));
 
   // variable_decl_sub1: a shared type, one or more chained assignments.
   static constexpr auto VarSub1 =
-      assign<&ast::VariableDecl::type>(ref<TypeSpecRule>) +
-      append<&ast::VariableDecl::assigns>(ref<AssignStmtRule>) +
+      assign<&ast::VariableDecl::type>(ref<TypeSpec>) +
+      append<&ast::VariableDecl::assigns>(ref<AssignStmt>) +
       many(lit<","> + option(TypeSpecText) +
-           append<&ast::VariableDecl::assigns>(ref<AssignStmtRule>));
+           append<&ast::VariableDecl::assigns>(ref<AssignStmt>));
 
   // `EVENT name(args)` is an event call or a forward declaration, never this.
   static constexpr auto VarEvent =
       flag<&ast::VariableDecl::isEventForm>(ikw<"EVENT">) +
-      assign<&ast::VariableDecl::eventName>(ref<PathRule>);
+      assign<&ast::VariableDecl::eventName>(ref<Path>);
 
   static constexpr auto VariableDeclSub =
       option(flag<&ast::VariableDecl::indirect>(ikw<"INDIRECT">)) +
@@ -467,13 +453,13 @@ struct Powerbuilder : cursiv::GrammarSpec {
       option(assign<&ast::VariableDecl::scope>(ScopeModifKw)) +
       (VarSub0 | VarSub1 | VarSub2 | VarEvent);
 
-  struct VariableDeclRule
+  struct VariableDecl
       : rule<create<ast::VariableDecl>(
             option(assign<&ast::VariableDecl::accessType>(AccessTypeKw)) +
             VariableDeclSub) +
             option(lit<";">)> {};
 
-  struct ConstantDeclRule
+  struct ConstantDecl
       : rule<create<ast::VariableDecl>(
                  option(assign<&ast::VariableDecl::accessType>(
                      AccessTypeKw)) +
@@ -481,48 +467,48 @@ struct Powerbuilder : cursiv::GrammarSpec {
                  VariableDeclSub) +
              option(lit<";">)> {};
 
-  struct AccessMarkerRule
+  struct AccessMarker
       : rule<create<ast::AccessMarker>(
             assign<&ast::AccessMarker::kind>(AccessTypeKw) + lit<":">)> {};
 
   // ---------------------------------------------------------- statements
 
-  struct AtAssignStmtRule
+  struct AtAssignStmt
       : rule<create<ast::AtAssignStmt>(
-            lit<"@"> + assign<&ast::AtAssignStmt::target>(ref<PathRule>) +
+            lit<"@"> + assign<&ast::AtAssignStmt::target>(ref<Path>) +
             lit<"="> +
-            assign<&ast::AtAssignStmt::value>(ref<BindParamRule>) +
+            assign<&ast::AtAssignStmt::value>(ref<BindParam>) +
             lit<";">)> {};
 
   static constexpr auto AssignOp =
       lit<"="> | lit<"+="> | lit<"-="> | lit<"*="> | lit<"/=">;
 
-  struct AssignStmtRule
+  struct AssignStmt
       : rule<create<ast::AssignStmt>(
-            assign<&ast::AssignStmt::target>(ref<PostfixChainRule>) +
+            assign<&ast::AssignStmt::target>(ref<PostfixChain>) +
             assign<&ast::AssignStmt::op>(AssignOp) +
-            some(append<&ast::AssignStmt::rhs>(ref<ExpressionRule>),
+            some(append<&ast::AssignStmt::rhs>(ref<Expression>),
                 lit<",">) +
             option(lit<";">))> {};
 
-  struct IncDecOpRule
+  struct IncDecOp
       : rule<(lit<"+"> + lit<"+">) | (lit<"-"> + lit<"-">)> {};
 
-  struct IncDecStmtRule
+  struct IncDecStmt
       : rule<create<ast::IncDecStmt>(
-            assign<&ast::IncDecStmt::target>(ref<PathRule>) +
-            assign<&ast::IncDecStmt::op>(ref<IncDecOpRule>))> {};
+            assign<&ast::IncDecStmt::target>(ref<Path>) +
+            assign<&ast::IncDecStmt::op>(ref<IncDecOp>))> {};
 
-  struct ExprStmtRule
+  struct ExprStmt
       : rule<create<ast::ExprStmt>(assign<&ast::ExprStmt::value>(
-            ref<PostfixChainRule> | ref<SpecialCallRule> |
-            ref<CreateExprRule> | ref<DescribeExprRule>))> {};
+            ref<PostfixChain> | ref<SpecialCall> |
+            ref<CreateExpr> | ref<DescribeExpr>))> {};
 
   // `CALL name(args)`, `CALL name::CREATE`, and the everyday
   // `CALL SUPER::eventname` (no parens at all -- the corpus's most common
   // shape, an ancestor's version of the handler in hand): call_statement and
   // super_call_statement's two CALL-prefixed forms.
-  struct CallStmtRule
+  struct CallStmt
       : rule<create<ast::Call>(
             ikw<"CALL"> +
             ((flag<&ast::Call::ancestor>(ikw<"SUPER">) + lit<"::"> +
@@ -531,219 +517,220 @@ struct Powerbuilder : cursiv::GrammarSpec {
                                         ikw<"OPEN"> | ikw<"CLOSE"> |
                                         IdentifierNameEx)) +
               option(flag<&ast::Call::hasParens>(lit<"(">) +
-                     option(some(
-                         append<&ast::Call::args>(ref<ArgumentRule>),
-                         lit<",">)) +
+                     many(
+                         append<&ast::Call::args>(ref<Argument>),
+                         lit<",">) +
                      lit<")">)) |
-             (option(assign<&ast::Call::receiver>(ref<PathRule>) +
+             (option(assign<&ast::Call::receiver>(ref<Path>) +
                      lit<"`">) +
               assign<&ast::Call::name>(ref<ID> | ikw<"DESCRIBE">) +
               option((flag<&ast::Call::ancestor>(lit<"::">) +
-                      (ikw<"CREATE"> | ikw<"DESTROY"> | ikw<"OPEN"> |
+                      assign<&ast::Call::ancestorMethod>(ikw<"CREATE"> | ikw<"DESTROY"> | ikw<"OPEN"> |
                        ikw<"CLOSE"> | IdentifierNameEx)) |
                      (flag<&ast::Call::hasParens>(lit<"(">) +
-                      option(some(
-                          append<&ast::Call::args>(ref<ArgumentRule>),
-                          lit<",">)) +
+                      many(
+                          append<&ast::Call::args>(ref<Argument>),
+                          lit<",">) +
                       lit<")">)))) +
             option(lit<";">))> {};
 
-  struct DescribeStmtRule
+  struct DescribeStmt
       : rule<create<ast::DescribeStmt>(
             ikw<"DESCRIBE"> +
-            assign<&ast::DescribeStmt::name>(ref<PathRule>))> {};
+            assign<&ast::DescribeStmt::name>(ref<Path>))> {};
 
-  struct DestroyStmtRule
+  struct DestroyStmt
       : rule<create<ast::DestroyStmt>(
             ikw<"DESTROY"> +
-            assign<&ast::DestroyStmt::value>(ref<ExpressionRule>))> {};
+            assign<&ast::DestroyStmt::value>(ref<Expression>))> {};
 
-  struct ThrowStmtRule
+  struct ThrowStmt
       : rule<create<ast::ThrowStmt>(
             ikw<"THROW"> +
-            assign<&ast::ThrowStmt::value>(ref<ExpressionRule>))> {};
+            assign<&ast::ThrowStmt::value>(ref<Expression>))> {};
 
-  struct ReturnStmtRule
+  struct ReturnStmt
       : rule<create<ast::ReturnStmt>(
             ikw<"RETURN"> +
-            option(assign<&ast::ReturnStmt::value>(ref<ExpressionRule>)))> {
+            option((!gap::line | gap::has(lit<"&"> + many(cr<R"( \t)">) + eol)) +
+                   assign<&ast::ReturnStmt::value>(ref<Expression>)))> {
   };
 
-  struct ContinueStmtRule : rule<create<ast::ContinueStmt> + ikw<"CONTINUE">> {
+  struct ContinueStmt : rule<create<ast::ContinueStmt> + ikw<"CONTINUE">> {
   };
-  struct ExitStmtRule : rule<create<ast::ExitStmt> + ikw<"EXIT">> {};
+  struct ExitStmt : rule<create<ast::ExitStmt> + ikw<"EXIT">> {};
 
-  struct GotoStmtRule
+  struct GotoStmt
       : rule<create<ast::GotoStmt>(
             ikw<"GOTO"> +
-            assign<&ast::GotoStmt::target>(ref<PathRule>))> {};
+            assign<&ast::GotoStmt::target>(ref<Path>))> {};
 
-  struct LabelStmtRule
+  struct LabelStmt
       : rule<create<ast::LabelStmt>(
             assign<&ast::LabelStmt::name>(ref<ID>) + lit<":">)> {};
 
-  struct StatementRule;
+  struct Statement;
 
-  struct StmtLineRule : rule<ref<StatementRule> + option(lit<";">)> {};
+  struct StmtLine : rule<ref<Statement> + option(lit<";">)> {};
 
-  struct ElseIfRule
+  struct ElseIf
       : rule<create<ast::ElseIf>(
             ikw<"ELSEIF"> +
-            assign<&ast::ElseIf::cond>(ref<ExpressionRule>) + ikw<"THEN"> +
-            many(append<&ast::ElseIf::body>(ref<StmtLineRule>)))> {};
+            assign<&ast::ElseIf::cond>(ref<Expression>) + ikw<"THEN"> +
+            many(append<&ast::ElseIf::body>(ref<StmtLine>)))> {};
 
-  struct IfBlockStmtRule
+  struct IfBlockStmt
       : rule<create<ast::IfStmt>(
-            ikw<"IF"> + assign<&ast::IfStmt::cond>(ref<ExpressionRule>) +
+            ikw<"IF"> + assign<&ast::IfStmt::cond>(ref<Expression>) +
             ikw<"THEN"> +
-            many(append<&ast::IfStmt::thenBody>(ref<StmtLineRule>)) +
-            many(append<&ast::IfStmt::elseIfs>(ref<ElseIfRule>)) +
+            many(append<&ast::IfStmt::thenBody>(ref<StmtLine>)) +
+            many(append<&ast::IfStmt::elseIfs>(ref<ElseIf>)) +
             option(ikw<"ELSE"> +
-                   many(append<&ast::IfStmt::elseBody>(ref<StmtLineRule>))) +
+                   many(append<&ast::IfStmt::elseBody>(ref<StmtLine>))) +
             flag<&ast::IfStmt::blockForm>(ikw<"END"> + ikw<"IF">) +
             option(lit<";">))> {};
 
-  struct IfSimpleStmtRule
+  struct IfSimpleStmt
       : rule<create<ast::IfStmt>(
-            ikw<"IF"> + assign<&ast::IfStmt::cond>(ref<ExpressionRule>) +
+            ikw<"IF"> + assign<&ast::IfStmt::cond>(ref<Expression>) +
             ikw<"THEN"> +
-            append<&ast::IfStmt::thenBody>(ref<StatementRule>) +
+            append<&ast::IfStmt::thenBody>(ref<Statement>) +
             option(ikw<"ELSE"> +
-                   append<&ast::IfStmt::elseBody>(ref<StatementRule>)) +
+                   append<&ast::IfStmt::elseBody>(ref<Statement>)) +
             option(lit<";">))> {};
 
-  struct CaseValueRangeRule
+  struct CaseValueRange
       : rule<create<ast::CaseValueRange>(
-            assign<&ast::CaseValueRange::from>(ref<ExpressionRule>) +
+            assign<&ast::CaseValueRange::from>(ref<Expression>) +
             option(ikw<"TO"> + assign<&ast::CaseValueRange::to>(
-                                    ref<ExpressionRule>)))> {};
+                                    ref<Expression>)))> {};
 
-  struct ChooseCaseValueRule
+  struct ChooseCaseValue
       : rule<create<ast::ChooseCaseValue>(
             ikw<"CASE"> +
             some(append<&ast::ChooseCaseValue::ranges>(
-                     ref<CaseValueRangeRule>),
+                     ref<CaseValueRange>),
                 lit<",">) +
-            many(append<&ast::ChooseCaseValue::body>(ref<StmtLineRule>)))> {
+            many(append<&ast::ChooseCaseValue::body>(ref<StmtLine>)))> {
   };
 
-  struct ChooseCaseCondRule
+  struct ChooseCaseCond
       : rule<create<ast::ChooseCaseCond>(
             ikw<"CASE"> + ikw<"IS"> +
             assign<&ast::ChooseCaseCond::op>(OpCompare) +
-            assign<&ast::ChooseCaseCond::value>(ref<ExpressionRule>) +
-            many(append<&ast::ChooseCaseCond::body>(ref<StmtLineRule>)))> {};
+            assign<&ast::ChooseCaseCond::value>(ref<Expression>) +
+            many(append<&ast::ChooseCaseCond::body>(ref<StmtLine>)))> {};
 
-  struct ChooseCaseElseRule
+  struct ChooseCaseElse
       : rule<create<ast::ChooseCaseElse>(
             ikw<"CASE"> + ikw<"ELSE"> +
-            many(append<&ast::ChooseCaseElse::body>(ref<StmtLineRule>)))> {};
+            many(append<&ast::ChooseCaseElse::body>(ref<StmtLine>)))> {};
 
-  struct ChooseStmtRule
+  struct ChooseStmt
       : rule<create<ast::ChooseStmt>(
             ikw<"CHOOSE"> + ikw<"CASE"> +
-            assign<&ast::ChooseStmt::value>(ref<ExpressionRule>) +
-            some(append<&ast::ChooseStmt::cases>(ref<ChooseCaseCondRule>) |
-                 append<&ast::ChooseStmt::cases>(ref<ChooseCaseElseRule>) |
-                 append<&ast::ChooseStmt::cases>(ref<ChooseCaseValueRule>)) +
+            assign<&ast::ChooseStmt::value>(ref<Expression>) +
+            some(append<&ast::ChooseStmt::cases>(ref<ChooseCaseCond>) |
+                 append<&ast::ChooseStmt::cases>(ref<ChooseCaseElse>) |
+                 append<&ast::ChooseStmt::cases>(ref<ChooseCaseValue>)) +
             ikw<"END"> + ikw<"CHOOSE">)> {};
 
-  struct ForStmtRule
+  struct ForStmt
       : rule<create<ast::ForStmt>(
-            ikw<"FOR"> + assign<&ast::ForStmt::var>(ref<PathRule>) +
-            lit<"="> + assign<&ast::ForStmt::from>(ref<ExpressionRule>) +
-            ikw<"TO"> + assign<&ast::ForStmt::to>(ref<ExpressionRule>) +
+            ikw<"FOR"> + assign<&ast::ForStmt::var>(ref<Path>) +
+            lit<"="> + assign<&ast::ForStmt::from>(ref<Expression>) +
+            ikw<"TO"> + assign<&ast::ForStmt::to>(ref<Expression>) +
             option(ikw<"STEP"> +
-                   assign<&ast::ForStmt::step>(ref<ExpressionRule>)) +
-            many(append<&ast::ForStmt::body>(ref<StmtLineRule>)) +
+                   assign<&ast::ForStmt::step>(ref<Expression>)) +
+            many(append<&ast::ForStmt::body>(ref<StmtLine>)) +
             (ikw<"NEXT"> | (ikw<"END"> + ikw<"FOR">)))> {};
 
-  struct DoWhileStmtRule
+  struct DoWhileStmt
       : rule<create<ast::DoWhileStmt>(
             flag<&ast::DoWhileStmt::testFirst>(ikw<"DO">) +
             (ikw<"WHILE"> |
              flag<&ast::DoWhileStmt::isUntil>(ikw<"UNTIL">)) +
-            assign<&ast::DoWhileStmt::cond>(ref<ExpressionRule>) +
-            many(append<&ast::DoWhileStmt::body>(ref<StmtLineRule>)) +
+            assign<&ast::DoWhileStmt::cond>(ref<Expression>) +
+            many(append<&ast::DoWhileStmt::body>(ref<StmtLine>)) +
             ikw<"LOOP">)> {};
 
-  struct DoLoopWhileStmtRule
+  struct DoLoopWhileStmt
       : rule<create<ast::DoWhileStmt>(
             ikw<"DO"> +
-            many(append<&ast::DoWhileStmt::body>(ref<StmtLineRule>)) +
+            many(append<&ast::DoWhileStmt::body>(ref<StmtLine>)) +
             ikw<"LOOP"> +
             (ikw<"WHILE"> |
              flag<&ast::DoWhileStmt::isUntil>(ikw<"UNTIL">)) +
-            assign<&ast::DoWhileStmt::cond>(ref<ExpressionRule>))> {};
+            assign<&ast::DoWhileStmt::cond>(ref<Expression>))> {};
 
-  struct CatchClauseRule
+  struct CatchClause
       : rule<create<ast::CatchClause>(
             ikw<"CATCH"> + lit<"("> +
             assign<&ast::CatchClause::exceptionVar>(
                 create<ast::VariableDecl>(VariableDeclSub)) +
             lit<")"> +
-            many(append<&ast::CatchClause::body>(ref<StmtLineRule>)))> {};
+            many(append<&ast::CatchClause::body>(ref<StmtLine>)))> {};
 
-  struct TryStmtRule
+  struct TryStmt
       : rule<create<ast::TryStmt>(
             ikw<"TRY"> +
-            many(append<&ast::TryStmt::body>(ref<StmtLineRule>)) +
-            many(append<&ast::TryStmt::catches>(ref<CatchClauseRule>)) +
+            many(append<&ast::TryStmt::body>(ref<StmtLine>)) +
+            many(append<&ast::TryStmt::catches>(ref<CatchClause>)) +
             option(flag<&ast::TryStmt::hasFinally>(ikw<"FINALLY">) +
                    many(append<&ast::TryStmt::finallyBody>(
-                       ref<StmtLineRule>))) +
+                       ref<StmtLine>))) +
             ikw<"END"> + ikw<"TRY">)> {};
 
   // ---------------------------------------------------------------- SQL
 
-  struct SqlInsertStmtRule
+  struct SqlInsertStmt
       : rule<create<ast::SqlInsertStmt>(
             ikw<"INSERT"> + ikw<"INTO"> +
-            assign<&ast::SqlInsertStmt::table>(ref<PathRule>) + lit<"("> +
-            some(append<&ast::SqlInsertStmt::columns>(ref<PathRule>),
+            assign<&ast::SqlInsertStmt::table>(ref<Path>) + lit<"("> +
+            some(append<&ast::SqlInsertStmt::columns>(ref<Path>),
                 lit<",">) +
             lit<")"> + ikw<"VALUES"> + lit<"("> +
             some(append<&ast::SqlInsertStmt::values>(
-                     ref<ExpressionRule> | ref<BindParamRule>),
+                     ref<Expression> | ref<BindParam>),
                 lit<",">) +
             lit<")"> + option(lit<";">))> {};
 
-  struct SqlDeleteStmtRule
+  struct SqlDeleteStmt
       : rule<create<ast::SqlDeleteStmt>(
             ikw<"DELETE"> + ikw<"FROM"> +
-            assign<&ast::SqlDeleteStmt::table>(ref<PathRule>) +
-            assign<&ast::SqlDeleteStmt::where>(ref<WhereClauseRule>) +
+            assign<&ast::SqlDeleteStmt::table>(ref<Path>) +
+            assign<&ast::SqlDeleteStmt::where>(ref<WhereClause>) +
             option(lit<";">))> {};
 
-  struct SqlSelectStmtRule
+  struct SqlSelectStmt
       : rule<create<ast::SqlSelectStmt>(
             (ikw<"SELECT"> |
              flag<&ast::SqlSelectStmt::isBlob>(ikw<"SELECTBLOB">)) +
-            (some(append<&ast::SqlSelectStmt::columns>(ref<PathRule>),
+            (some(append<&ast::SqlSelectStmt::columns>(ref<Path>),
                  lit<",">) |
-             assign<&ast::SqlSelectStmt::funcCall>(ref<CallHeadRule>)) +
+             assign<&ast::SqlSelectStmt::funcCall>(ref<CallHead>)) +
             ikw<"INTO"> +
-            some(append<&ast::SqlSelectStmt::into>(ref<BindParamRule>),
+            some(append<&ast::SqlSelectStmt::into>(ref<BindParam>),
                 lit<",">) +
             ikw<"FROM"> +
-            some(append<&ast::SqlSelectStmt::from>(ref<PathRule>), lit<",">) +
-            option(assign<&ast::SqlSelectStmt::where>(ref<WhereClauseRule>)) +
+            some(append<&ast::SqlSelectStmt::from>(ref<Path>), lit<",">) +
+            option(assign<&ast::SqlSelectStmt::where>(ref<WhereClause>)) +
             option(ikw<"USING"> +
-                   assign<&ast::SqlSelectStmt::usingConn>(ref<PathRule>)) +
+                   assign<&ast::SqlSelectStmt::usingConn>(ref<Path>)) +
             option(lit<";">))> {};
 
-  struct SqlUpdateStmtRule
+  struct SqlUpdateStmt
       : rule<create<ast::SqlUpdateStmt>(
             (ikw<"UPDATE"> |
              flag<&ast::SqlUpdateStmt::isBlob>(ikw<"UPDATEBLOB">)) +
-            assign<&ast::SqlUpdateStmt::table>(ref<PathRule>) + ikw<"SET"> +
-            some(append<&ast::SqlUpdateStmt::setValues>(ref<SqlSetItemRule>),
+            assign<&ast::SqlUpdateStmt::table>(ref<Path>) + ikw<"SET"> +
+            some(append<&ast::SqlUpdateStmt::setValues>(ref<SqlSetItem>),
                 lit<",">) +
             option(
-                assign<&ast::SqlUpdateStmt::where>(ref<WhereClauseRule>)))> {
+                assign<&ast::SqlUpdateStmt::where>(ref<WhereClause>)))> {
   };
 
-  struct SqlConnectStmtRule
+  struct SqlConnectStmt
       : rule<create<ast::SqlConnectStmt>(
             assign<&ast::SqlConnectStmt::keyword>(
                 ikw<"CONNECT"> | ikw<"DISCONNECT"> | ikw<"ROLLBACK">) +
@@ -751,139 +738,139 @@ struct Powerbuilder : cursiv::GrammarSpec {
                        ikw<"USING">) +
                    (flag<&ast::SqlConnectStmt::usingSqlca>(
                         ikw<"SQLCA">) |
-                    assign<&ast::SqlConnectStmt::usingName>(ref<PathRule>))) +
+                    assign<&ast::SqlConnectStmt::usingName>(ref<Path>))) +
             lit<";">)> {};
 
-  struct SqlCommitStmtRule
+  struct SqlCommitStmt
       : rule<create<ast::SqlCommitStmt>(
             ikw<"COMMIT"> +
             option(flag<&ast::SqlCommitStmt::usingClause>(
                 ikw<"USING">)) +
             option(flag<&ast::SqlCommitStmt::usingSqlca>(ikw<"SQLCA">) |
-                   assign<&ast::SqlCommitStmt::usingName>(ref<PathRule>)) +
+                   assign<&ast::SqlCommitStmt::usingName>(ref<Path>)) +
             option(lit<";">))> {};
 
-  struct ExecuteStmtRule
+  struct ExecuteStmt
       : rule<create<ast::ExecuteStmt>(
             ikw<"EXECUTE"> +
             ((option(flag<&ast::ExecuteStmt::immediate>(
                  ikw<"IMMEDIATE">)) +
                  ((assign<&ast::ExecuteStmt::value>(
-                       ref<PathRule> | ref<AtomRule>) +
+                       ref<Path> | ref<Atom>) +
                    option(lit<";">)) |
-                  (assign<&ast::ExecuteStmt::value>(ref<BindParamRule>) +
+                  (assign<&ast::ExecuteStmt::value>(ref<BindParam>) +
                    option(ikw<"USING"> +
                           (flag<&ast::ExecuteStmt::usingSqlca>(
                                ikw<"SQLCA">) |
                            assign<&ast::ExecuteStmt::usingName>(
-                               ref<PathRule>))) +
+                               ref<Path>))) +
                    lit<";">))) |
              (option(flag<&ast::ExecuteStmt::dynamic>(
                   ikw<"DYNAMIC">)) +
-              assign<&ast::ExecuteStmt::identifier>(ref<PathRule>) +
+              assign<&ast::ExecuteStmt::identifier>(ref<Path>) +
               option(ikw<"USING"> +
                      option(flag<&ast::ExecuteStmt::usingDescriptor>(
                          ikw<"DESCRIPTOR">)) +
                      (flag<&ast::ExecuteStmt::usingSqlca>(
                           ikw<"SQLCA">) |
                       assign<&ast::ExecuteStmt::usingName>(
-                          ref<PathRule>))) +
+                          ref<Path>))) +
               option(lit<";">))))> {};
 
-  struct CloseSqlStmtRule
+  struct CloseSqlStmt
       : rule<create<ast::CloseSqlStmt>(
             ikw<"CLOSE"> +
-            assign<&ast::CloseSqlStmt::cursor>(ref<PathRule>) +
+            assign<&ast::CloseSqlStmt::cursor>(ref<Path>) +
             option(lit<";">))> {};
 
-  struct DeclareProcedureStmtRule
+  struct DeclareProcedureStmt
       : rule<create<ast::DeclareProcedureStmt>(
             ikw<"DECLARE"> +
-            assign<&ast::DeclareProcedureStmt::handle>(ref<PathRule>) +
+            assign<&ast::DeclareProcedureStmt::handle>(ref<Path>) +
             option(flag<&ast::DeclareProcedureStmt::dynamic>(
                 ikw<"DYNAMIC">)) +
             ikw<"PROCEDURE"> + ikw<"FOR"> +
-            assign<&ast::DeclareProcedureStmt::procName>(ref<PathRule>) +
+            assign<&ast::DeclareProcedureStmt::procName>(ref<Path>) +
             option(lit<";">))> {};
 
-  struct DeclareCursorStmtRule
+  struct DeclareCursorStmt
       : rule<create<ast::DeclareCursorStmt>(
             ikw<"DECLARE"> +
-            assign<&ast::DeclareCursorStmt::cursor>(ref<PathRule>) +
+            assign<&ast::DeclareCursorStmt::cursor>(ref<Path>) +
             option(flag<&ast::DeclareCursorStmt::dynamic>(
                 ikw<"DYNAMIC">)) +
             ikw<"CURSOR"> + ikw<"FOR"> +
-            assign<&ast::DeclareCursorStmt::forName>(ref<PathRule>) +
+            assign<&ast::DeclareCursorStmt::forName>(ref<Path>) +
             lit<";">)> {};
 
-  struct OpenCursorStmtRule
+  struct OpenCursorStmt
       : rule<create<ast::OpenCursorStmt>(
             ikw<"OPEN"> +
             option(flag<&ast::OpenCursorStmt::dynamic>(
                 ikw<"DYNAMIC">)) +
-            assign<&ast::OpenCursorStmt::cursor>(ref<PathRule>) +
+            assign<&ast::OpenCursorStmt::cursor>(ref<Path>) +
             option(ikw<"USING"> +
                    (flag<&ast::OpenCursorStmt::usingDescriptor>(
                         ikw<"DESCRIPTOR">) |
                     assign<&ast::OpenCursorStmt::usingName>(
-                        ref<PathRule>))) +
+                        ref<Path>))) +
             option(assign<&ast::OpenCursorStmt::trailingIdent>(
-                ref<PathRule>)) +
+                ref<Path>)) +
             option(lit<";">))> {};
 
-  struct FetchStmtRule
+  struct FetchStmt
       : rule<create<ast::FetchStmt>(
             ikw<"FETCH"> +
-            ((assign<&ast::FetchStmt::cursor>(ref<PathRule>) + ikw<"INTO"> +
-              assign<&ast::FetchStmt::into>(ref<BindParamRule>)) |
-             (assign<&ast::FetchStmt::usingIdent>(ref<PathRule>) +
+            ((assign<&ast::FetchStmt::cursor>(ref<Path>) + ikw<"INTO"> +
+              assign<&ast::FetchStmt::into>(ref<BindParam>)) |
+             (assign<&ast::FetchStmt::usingIdent>(ref<Path>) +
               flag<&ast::FetchStmt::usingDescriptorForm>(ikw<"USING">) +
-              option(ikw<"DESCRIPTOR">) +
-              assign<&ast::FetchStmt::usingTarget>(ref<PathRule>))) +
+              option(flag<&ast::FetchStmt::usingDescriptor>(ikw<"DESCRIPTOR">)) +
+              assign<&ast::FetchStmt::usingTarget>(ref<Path>))) +
             option(lit<";">))> {};
 
-  struct PrepareStmtRule
+  struct PrepareStmt
       : rule<create<ast::PrepareStmt>(
             ikw<"PREPARE"> +
-            assign<&ast::PrepareStmt::stmt>(ref<PathRule>) + ikw<"FROM"> +
-            assign<&ast::PrepareStmt::from>(ref<BindParamRule>) +
+            assign<&ast::PrepareStmt::stmt>(ref<Path>) + ikw<"FROM"> +
+            assign<&ast::PrepareStmt::from>(ref<BindParam>) +
             ikw<"USING"> +
-            assign<&ast::PrepareStmt::usingName>(ref<PathRule>) + lit<";">)>{
+            assign<&ast::PrepareStmt::usingName>(ref<Path>) + lit<";">)>{
   };
 
   // ------------------------------------------------------------ statement
 
-  struct StatementRule
-      : rule<ref<IncDecStmtRule> | ref<AccessMarkerRule> |
-             ref<IfSimpleStmtRule> | ref<ExecuteStmtRule> |
-             ref<ThrowStmtRule> | ref<DescribeStmtRule> |
-             ref<AtAssignStmtRule> | ref<AssignStmtRule> | ref<TryStmtRule> |
-             ref<CloseSqlStmtRule> | ref<IfBlockStmtRule> |
-             ref<VariableDeclRule> | ref<ConstantDeclRule> |
-             ref<DoLoopWhileStmtRule> | ref<DoWhileStmtRule> |
-             ref<DestroyStmtRule> | ref<LabelStmtRule> | ref<GotoStmtRule> |
-             ref<ChooseStmtRule> | ref<ReturnStmtRule> | ref<ForStmtRule> |
-             ref<ContinueStmtRule> | ref<ExitStmtRule> |
-             ref<SqlInsertStmtRule> | ref<SqlDeleteStmtRule> |
-             ref<SqlSelectStmtRule> | ref<SqlUpdateStmtRule> |
-             ref<SqlConnectStmtRule> | ref<SqlCommitStmtRule> |
-             ref<OpenCursorStmtRule> | ref<PrepareStmtRule> |
-             ref<DeclareCursorStmtRule> | ref<DeclareProcedureStmtRule> |
-             ref<FetchStmtRule> | ref<CallStmtRule> | ref<ExprStmtRule>> {};
+  struct Statement
+      : rule<ref<IncDecStmt> | ref<AccessMarker> |
+             ref<IfSimpleStmt> | ref<ExecuteStmt> |
+             ref<ThrowStmt> | ref<DescribeStmt> |
+             ref<AtAssignStmt> | ref<AssignStmt> | ref<TryStmt> |
+             ref<CloseSqlStmt> | ref<IfBlockStmt> |
+             ref<VariableDecl> | ref<ConstantDecl> |
+             ref<DoLoopWhileStmt> | ref<DoWhileStmt> |
+             ref<DestroyStmt> | ref<LabelStmt> | ref<GotoStmt> |
+             ref<ChooseStmt> | ref<ReturnStmt> | ref<ForStmt> |
+             ref<ContinueStmt> | ref<ExitStmt> |
+             ref<SqlInsertStmt> | ref<SqlDeleteStmt> |
+             ref<SqlSelectStmt> | ref<SqlUpdateStmt> |
+             ref<SqlConnectStmt> | ref<SqlCommitStmt> |
+             ref<OpenCursorStmt> | ref<PrepareStmt> |
+             ref<DeclareCursorStmt> | ref<DeclareProcedureStmt> |
+             ref<FetchStmt> | ref<CallStmt> | ref<ExprStmt>> {};
 
   // -------------------------------------------------- top-level constructs
 
-  struct DataTypeNameRule
+  struct DataTypeName
       : rule<create<ast::TypeSpec>(
             assign<&ast::TypeSpec::name>(DataTypeKw | ref<ID>))> {};
 
   static constexpr auto EventForwardParams =
-      some(append<&ast::EventForwardDecl::params>(ref<ParameterRule>),
+      some(append<&ast::EventForwardDecl::params>(ref<Parameter>),
           lit<",">) +
       option(lit<","> +
              flag<&ast::EventForwardDecl::varargs>(lit<"...">));
 
-  struct EventForwardDeclRule
+  struct EventForwardDecl
       : rule<create<ast::EventForwardDecl>(
             ikw<"EVENT"> +
             ((assign<&ast::EventForwardDecl::name>(ref<ID> | ikw<"CREATE"> |
@@ -893,19 +880,19 @@ struct Powerbuilder : cursiv::GrammarSpec {
                          lit<"(">) +
                      option(EventForwardParams) + lit<")">)) |
              (ikw<"TYPE"> +
-              assign<&ast::EventForwardDecl::type>(ref<DataTypeNameRule>) +
+              assign<&ast::EventForwardDecl::type>(ref<DataTypeName>) +
               assign<&ast::EventForwardDecl::name>(ref<ID>) +
               flag<&ast::EventForwardDecl::hasParens>(lit<"(">) +
               option(EventForwardParams) + lit<")">)))> {};
 
-  struct TypeDeclRule
+  struct TypeDecl
       : rule<create<ast::TypeDecl>(
             option(assign<&ast::TypeDecl::scope>(ScopeModifKw)) +
             ikw<"TYPE"> + assign<&ast::TypeDecl::name>(ref<ID>) +
             ikw<"FROM"> +
             option(assign<&ast::TypeDecl::libraryQualifier>(ref<ID>) +
                    lit<"`">) +
-            assign<&ast::TypeDecl::super_>(ref<DataTypeNameRule>) +
+            assign<&ast::TypeDecl::super_>(ref<DataTypeName>) +
             option(ikw<"WITHIN"> +
                    assign<&ast::TypeDecl::within>(ref<ID>)) +
             option(flag<&ast::TypeDecl::autoInstantiate>(
@@ -916,56 +903,56 @@ struct Powerbuilder : cursiv::GrammarSpec {
                    lit<"="> +
                    assign<&ast::TypeDecl::descriptorValue>(
                        ref<DQUOTED_STRING>)) +
-            many(append<&ast::TypeDecl::members>(ref<VariableDeclRule>) |
+            many(append<&ast::TypeDecl::members>(ref<VariableDecl>) |
                  append<&ast::TypeDecl::members>(
-                     ref<EventForwardDeclRule>)) +
+                     ref<EventForwardDecl>)) +
             ikw<"END"> + ikw<"TYPE">)> {};
 
-  struct ForwardDeclRule
+  struct ForwardDecl
       : rule<create<ast::ForwardDecl>(
             ikw<"FORWARD"> +
-            some(append<&ast::ForwardDecl::items>(ref<TypeDeclRule>) |
-                 append<&ast::ForwardDecl::items>(ref<VariableDeclRule>)) +
+            some(append<&ast::ForwardDecl::items>(ref<TypeDecl>) |
+                 append<&ast::ForwardDecl::items>(ref<VariableDecl>)) +
             ikw<"END"> + ikw<"FORWARD">)> {};
 
-  struct TypeVariablesDeclRule
+  struct TypeVariablesDecl
       : rule<create<ast::TypeVariablesDecl>(
             ikw<"TYPE"> + ikw<"VARIABLES"> +
             many(append<&ast::TypeVariablesDecl::items>(
-                     ref<VariableDeclRule>) |
+                     ref<VariableDecl>) |
                  append<&ast::TypeVariablesDecl::items>(
-                     ref<ConstantDeclRule>) |
+                     ref<ConstantDecl>) |
                  append<&ast::TypeVariablesDecl::items>(
-                     ref<AccessMarkerRule>)) +
+                     ref<AccessMarker>)) +
             ikw<"END"> + ikw<"VARIABLES">)> {};
 
-  struct GlobalVariablesDeclRule
+  struct GlobalVariablesDecl
       : rule<create<ast::GlobalVariablesDecl>(
                  ikw<"GLOBAL"> +
                  assign<&ast::GlobalVariablesDecl::single>(
-                     ref<VariableDeclRule>)) |
+                     ref<VariableDecl>)) |
              create<ast::GlobalVariablesDecl>(
                  (ikw<"GLOBAL"> |
                   flag<&ast::GlobalVariablesDecl::shared_>(
                       ikw<"SHARED">)) +
                  ikw<"VARIABLES"> +
                  many(append<&ast::GlobalVariablesDecl::items>(
-                     ref<VariableDeclRule>)) +
+                     ref<VariableDecl>)) +
                  ikw<"END"> + ikw<"VARIABLES">)> {};
 
-  struct FunctionForwardDeclRule
+  struct FunctionForwardDecl
       : rule<create<ast::FunctionForwardDecl>(
             option(assign<&ast::FunctionForwardDecl::accessModifPart>(
                 AccessModifPartKw)) +
             option(assign<&ast::FunctionForwardDecl::scope>(ScopeModifKw)) +
             ((ikw<"FUNCTION"> +
               assign<&ast::FunctionForwardDecl::returnType>(
-                  ref<DataTypeNameRule>)) |
+                  ref<DataTypeName>)) |
              flag<&ast::FunctionForwardDecl::isSubroutine>(
                  ikw<"SUBROUTINE">)) +
             assign<&ast::FunctionForwardDecl::name>(ref<ID>) + lit<"("> +
             option(some(append<&ast::FunctionForwardDecl::params>(
-                            ref<ParameterRule>),
+                            ref<Parameter>),
                        lit<",">) +
                    option(lit<","> +
                           flag<&ast::FunctionForwardDecl::varargs>(
@@ -975,36 +962,36 @@ struct Powerbuilder : cursiv::GrammarSpec {
                 (ikw<"ALIAS"> + ikw<"FOR"> +
                  assign<&ast::FunctionForwardDecl::aliasText>(ref<ID>) +
                  ikw<"LIBRARY"> +
-                 (ref<DQUOTED_STRING> | ref<QUOTED_STRING>)) |
-                (ikw<"LIBRARY"> + (ref<DQUOTED_STRING> | ref<QUOTED_STRING>) +
+                 assign<&ast::FunctionForwardDecl::libraryName>(ref<DQUOTED_STRING> | ref<QUOTED_STRING>)) |
+                (ikw<"LIBRARY"> + assign<&ast::FunctionForwardDecl::libraryName>(ref<DQUOTED_STRING> | ref<QUOTED_STRING>) +
                  option(ikw<"ALIAS"> + ikw<"FOR"> +
-                        (ref<DQUOTED_STRING> | ref<QUOTED_STRING>))) |
-                (ikw<"RPCFUNC"> + ikw<"ALIAS"> + ikw<"FOR"> +
-                 option(ref<DQUOTED_STRING> | ref<QUOTED_STRING>) +
-                 option(ikw<"THROWS"> + ref<ID>)) |
-                (ikw<"THROWS"> + ref<ID>)))> {};
+                        assign<&ast::FunctionForwardDecl::aliasText>(ref<DQUOTED_STRING> | ref<QUOTED_STRING>))) |
+                (flag<&ast::FunctionForwardDecl::isRpc>(ikw<"RPCFUNC">) + ikw<"ALIAS"> + ikw<"FOR"> +
+                 option(assign<&ast::FunctionForwardDecl::aliasText>(ref<DQUOTED_STRING> | ref<QUOTED_STRING>)) +
+                 option(ikw<"THROWS"> + assign<&ast::FunctionForwardDecl::throwsName>(ref<ID>))) |
+                (ikw<"THROWS"> + assign<&ast::FunctionForwardDecl::throwsName>(ref<ID>))))> {};
 
-  struct FunctionsForwardDeclRule
+  struct FunctionsForwardDecl
       : rule<create<ast::FunctionsForwardDecl>(
             (flag<&ast::FunctionsForwardDecl::isForward>(
                  ikw<"FORWARD">) |
              ikw<"TYPE">) +
             ikw<"PROTOTYPES"> +
             many(append<&ast::FunctionsForwardDecl::items>(
-                ref<FunctionForwardDeclRule>)) +
+                ref<FunctionForwardDecl>)) +
             ikw<"END"> + ikw<"PROTOTYPES">)> {};
 
-  struct FunctionBodyRule
+  struct FunctionBody
       : rule<create<ast::FunctionBody>(
             option(assign<&ast::FunctionBody::accessType>(AccessTypeKw)) +
             option(assign<&ast::FunctionBody::scope>(ScopeModifKw)) +
             ((ikw<"FUNCTION"> +
               assign<&ast::FunctionBody::returnType>(
-                  ref<DataTypeNameRule>)) |
+                  ref<DataTypeName>)) |
              flag<&ast::FunctionBody::isSubroutine>(
                  ikw<"SUBROUTINE">)) +
             assign<&ast::FunctionBody::name>(ref<ID>) + lit<"("> +
-            option(some(append<&ast::FunctionBody::params>(ref<ParameterRule>),
+            option(some(append<&ast::FunctionBody::params>(ref<Parameter>),
                        lit<",">) +
                    option(lit<","> +
                           flag<&ast::FunctionBody::varargs>(
@@ -1013,59 +1000,59 @@ struct Powerbuilder : cursiv::GrammarSpec {
             option(ikw<"THROWS"> +
                    assign<&ast::FunctionBody::throwsName>(ref<ID>)) +
             option(lit<";">) +
-            many(append<&ast::FunctionBody::body>(ref<StmtLineRule>)) +
+            many(append<&ast::FunctionBody::body>(ref<StmtLine>)) +
             ikw<"END"> + (ikw<"FUNCTION"> | ikw<"SUBROUTINE">))> {};
 
-  struct OnBodyRule
+  struct OnBody
       : rule<create<ast::OnBody>(
-            ikw<"ON"> + assign<&ast::OnBody::target>(ref<PathRule>) +
+            ikw<"ON"> + assign<&ast::OnBody::target>(ref<Path>) +
             option((lit<"."> +
                     assign<&ast::OnBody::suffix>(ikw<"CREATE"> |
                                                  ikw<"DESTROY">)) |
                    assign<&ast::OnBody::suffix>(ikw<"OPEN"> |
                                                 ikw<"CLOSE">)) +
             option(lit<";">) +
-            many(append<&ast::OnBody::body>(ref<StmtLineRule>)) +
+            many(append<&ast::OnBody::body>(ref<StmtLine>)) +
             ikw<"END"> + ikw<"ON">)> {};
 
-  struct EventBodyRule
+  struct EventBody
       : rule<create<ast::EventBody>(
             ikw<"EVENT"> +
             option(ikw<"TYPE"> +
-                   assign<&ast::EventBody::type>(ref<DataTypeNameRule>)) +
+                   assign<&ast::EventBody::type>(ref<DataTypeName>)) +
             option(assign<&ast::EventBody::qualifier>(ref<ID>) +
                    lit<"::">) +
             assign<&ast::EventBody::name>(ref<ID> | ikw<"OPEN"> |
                                           ikw<"CLOSE">) +
             option(flag<&ast::EventBody::hasParens>(lit<"(">) +
                    option(some(append<&ast::EventBody::params>(
-                                   ref<ParameterRule>),
+                                   ref<Parameter>),
                               lit<",">) +
                           option(lit<","> +
                                  flag<&ast::EventBody::varargs>(
                                      lit<"...">))) +
                    lit<")">) +
             option(lit<";">) +
-            many(append<&ast::EventBody::body>(ref<StmtLineRule>)) +
+            many(append<&ast::EventBody::body>(ref<StmtLine>)) +
             ikw<"END"> + ikw<"EVENT">)> {};
 
-  struct BodyRule
-      : rule<ref<TypeDeclRule> | ref<AccessMarkerRule> |
-             ref<ForwardDeclRule> | ref<TypeVariablesDeclRule> |
-             ref<GlobalVariablesDeclRule> | ref<VariableDeclRule> |
-             ref<ConstantDeclRule> | ref<FunctionForwardDeclRule> |
-             ref<FunctionsForwardDeclRule> | ref<FunctionBodyRule> |
-             ref<OnBodyRule> | ref<EventBodyRule>> {};
+  struct Body
+      : rule<ref<TypeDecl> | ref<AccessMarker> |
+             ref<ForwardDecl> | ref<TypeVariablesDecl> |
+             ref<GlobalVariablesDecl> | ref<VariableDecl> |
+             ref<ConstantDecl> | ref<FunctionForwardDecl> |
+             ref<FunctionsForwardDecl> | ref<FunctionBody> |
+             ref<OnBody> | ref<EventBody>> {};
 
-  struct DocumentRule
+  struct Document
       : rule<create<ast::Document>(
             option(ikw<"RELEASE"> +
-                   assign<&ast::Document::release>(ref<NUMBER>) +
+                   assign<&ast::Document::release>(ref<ConvertedNumber>) +
                    lit<";">) +
-            some(append<&ast::Document::items>(ref<BodyRule>)))> {};
+            some(append<&ast::Document::items>(ref<Body>)))> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<SlComment, MlComment, LineContinuation, ExportHeader>;
 };
 

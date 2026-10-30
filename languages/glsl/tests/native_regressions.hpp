@@ -308,6 +308,8 @@ void main(){int x=F();})GLSL",
        ""},
       {"newline-cr", "#version 460\rfloat x=1.0;\rvoid main(){}\r", ""},
       {"splice-cr", "#version 460\rfloat va\\\rlue=1.0;\rvoid main(){}\r", ""},
+      {"keyword-splices", "#version 460\nunif\\\norm float x;\n"
+          "voi\\\nd main(){i\\\nf(x>0.0){ret\\\nurn;}}\n", ""},
       {"hex-adjacent-operator", R"GLSL(#version 460
 int x=0x1e+2,y=0x1e-2;void main(){})GLSL",
        ""},
@@ -399,6 +401,16 @@ void main(){float f(float x);})GLSL",
     check(result.accepted && !result.cst().recovered() &&
               result.diagnostics.empty() && result.value,
           c.name);
+    if (std::string_view(c.name) == "keyword-splices") {
+      const auto qualifiers = nodes<ast::QualifierClause>(result);
+      const auto functions = nodes<ast::FunctionPrototype>(result);
+      check(qualifiers.size() == 1 && qualifiers[0]->name == "uniform" &&
+                functions.size() == 1 && functions[0]->returnType &&
+                functions[0]->returnType->name == "void" &&
+                nodes<ast::IfStmt>(result).size() == 1 &&
+                nodes<ast::ReturnStmt>(result).size() == 1,
+            "spliced keywords retain the same AST values and statement roles");
+    }
     bool owned = result.value != nullptr;
     std::unordered_set<const cursiv::AstNode *> seen;
     const auto walk = [&](auto &&self, const cursiv::AstNode &n) -> void {

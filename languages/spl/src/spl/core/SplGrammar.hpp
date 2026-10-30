@@ -9,7 +9,6 @@ namespace spl {
 inline constexpr auto unquote = [](std::string_view t) {
   return t.substr(1, t.size() - 2);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Spl : cursiv::GrammarSpec {
   static constexpr auto word_boundary = cr<"A-Za-z0-9_.:">;
@@ -18,22 +17,8 @@ struct Spl : cursiv::GrammarSpec {
   struct LINE_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
   struct BLOCK_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
-  struct POW : terminal<lit<"^">, value<ast::ArithOp::power>> {};
-  struct MULT : terminal<lit<"*">, value<ast::ArithOp::multiply>> {};
-  struct MOD : terminal<lit<"%">, value<ast::ArithOp::modulo>> {};
-  struct DIV : terminal<lit<"/">, value<ast::ArithOp::divide>> {};
-  struct ADD : terminal<lit<"+">, value<ast::ArithOp::add>> {};
-  struct SUB : terminal<lit<"-">, value<ast::ArithOp::subtract>> {};
 
-  struct NE : terminal<lit<"!=">, value<ast::CompareOp::ne>> {};
-  struct GE : terminal<lit<">=">, value<ast::CompareOp::ge>> {};
-  struct LE : terminal<lit<"<=">, value<ast::CompareOp::le>> {};
-  struct EQ : terminal<lit<"=">, value<ast::CompareOp::eq>> {};
-  struct GT : terminal<lit<">">, value<ast::CompareOp::gt>> {};
-  struct LT : terminal<lit<"<">, value<ast::CompareOp::lt>> {};
 
-  struct AND_KW : terminal<ikw<"AND">, value<ast::BoolOp::and_>> {};
-  struct OR_KW : terminal<ikw<"OR">, value<ast::BoolOp::or_>> {};
   struct LIKE_KW : terminal<ikw<"LIKE">> {};
 
   // Commands and functions: one terminal per word category, so a word
@@ -42,7 +27,9 @@ struct Spl : cursiv::GrammarSpec {
   struct INIT_COMMAND
       : terminal<ikw<"datamodel"> | ikw<"datamodelsimple"> | ikw<"dbinspect"> | ikw<"eventcount"> | ikw<"from"> | ikw<"gentimes"> |
           ikw<"history"> | ikw<"inputcsv"> | ikw<"inputintelligence"> | ikw<"inputlookup"> | ikw<"makeresults"> | ikw<"metadata"> |
-          ikw<"metasearch"> | ikw<"msearch"> | ikw<"rest"> | ikw<"savedsearch"> | ikw<"search"> | ikw<"tstats">> {};
+          ikw<"metasearch"> | ikw<"msearch"> | ikw<"rest"> | ikw<"savedsearch"> | ikw<"tstats">> {};
+
+  struct SEARCH_COMMAND : terminal<ikw<"search">> {};
 
   struct STD_COMMAND_AND_FUNCTION
       : terminal<ikw<"lookup"> | ikw<"replace"> | ikw<"spath">> {};
@@ -108,30 +95,31 @@ struct Spl : cursiv::GrammarSpec {
   struct OUTPUT_KW : terminal<ikw<"OUTPUT">> {};
   struct OUTPUTNEW_KW : terminal<ikw<"OUTPUTNEW">> {};
   struct IN_KW : terminal<ikw<"IN">> {};
-  struct NOT_KW : terminal<ikw<"NOT">> {};
+  struct NOT_KW : terminal<kw<"NOT">> {};
 
-  // A relative time unit, case-insensitive: longest spellings first, so
-  // `week`/`quarter` are not cut short by the single-letter forms.
+  // SPL1 time aliases share the same structural unit, without letter-by-letter spelling.
   static constexpr auto TimeUnit =
-      (cr<"Qq"> + cr<"Uu"> + cr<"Aa"> + cr<"Rr"> + cr<"Tt"> + cr<"Ee"> + cr<"Rr">) |
-      (cr<"Ww"> + cr<"Ee"> + cr<"Ee"> + cr<"Kk">) | (cr<"Yy"> + cr<"Ee"> + cr<"Aa"> + cr<"Rr">) |
-      (cr<"Mm"> + cr<"Oo"> + cr<"Nn">) | (cr<"Qq"> + cr<"Tt"> + cr<"Rr">) |
-      (cr<"Ww"> + cr<"0">) | (cr<"Ww"> + cr<"1">) | (cr<"Ww"> + cr<"2">) | (cr<"Ww"> + cr<"3">) |
-      (cr<"Ww"> + cr<"4">) | (cr<"Ww"> + cr<"5">) | (cr<"Ww"> + cr<"6">) | (cr<"Ww"> + cr<"7">) |
-      cr<"SMHDWYQsmhdwyq">;
+      ikw<"seconds"> | ikw<"second"> | ikw<"secs"> | ikw<"sec"> | ikw<"s"> |
+      ikw<"minutes"> | ikw<"minute"> | ikw<"mins"> | ikw<"min"> | ikw<"m"> |
+      ikw<"hours"> | ikw<"hour"> | ikw<"hrs"> | ikw<"hr"> | ikw<"h"> |
+      ikw<"days"> | ikw<"day"> | ikw<"d"> |
+      ikw<"weeks"> | ikw<"week"> | ikw<"w"> |
+      ikw<"months"> | ikw<"month"> | ikw<"mon"> |
+      ikw<"quarters"> | ikw<"quarter"> | ikw<"qtrs"> | ikw<"qtr"> | ikw<"q"> |
+      ikw<"years"> | ikw<"year"> | ikw<"yrs"> | ikw<"yr"> | ikw<"y"> |
+      ikw<"w0"> | ikw<"w1"> | ikw<"w2"> | ikw<"w3"> | ikw<"w4"> |
+      ikw<"w5"> | ikw<"w6"> | ikw<"w7">;
+  static constexpr auto TimeBody =
+      (cr<"+-"> + many(d) + TimeUnit + option(lit<"@"> + TimeUnit)) |
+      (lit<"@"> + TimeUnit) |
+      (repeat<2>(d) + lit<"/"> + repeat<2>(d) + lit<"/"> + repeat<4>(d) +
+       lit<":"> + repeat<2>(d) + lit<":"> + repeat<2>(d) + lit<":"> + repeat<2>(d));
+  struct TIME : terminal<TimeBody | (lit<"\""> + TimeBody + lit<"\"">)> {};
 
-  // The sign is `+` or `-`.
-  struct TIME
-      : terminal<(option(lit<"\"">) + cr<"+-"> + some(d) + TimeUnit +
-                  option(lit<"@"> + TimeUnit) + option(lit<"\"">)) |
-                 (option(lit<"\"">) + lit<"@"> + TimeUnit + option(lit<"\"">)) |
-                 (option(lit<"\"">) + repeat<2>(d) + lit<"/"> + repeat<2>(d) + lit<"/"> +
-                  repeat<4>(d) + lit<":"> + repeat<2>(d) + lit<":"> + repeat<2>(d) + lit<":"> +
-                  repeat<2>(d) + option(lit<"\"">))> {};
-
-  struct NUMBER : terminal<some(d) + option(lit<"."> + some(d)), double> {};
-  struct STRING
-      : terminal<lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) + lit<"\"">, Unquoted> {};
+  struct NUMBER : terminal<as<double>(some(d) + option(lit<"."> + some(d)))> {};
+  struct STRING : terminal<as<unquote>(
+                      lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\\r\n)">) +
+                      lit<"\"">)> {};
   struct IDENTIFIER : terminal<cr<"A-Za-z_.:"> + many(cr<"A-Za-z_.:0-9">)> {};
 
   // A command or function word is also a plain name (`id`): cursiv's
@@ -139,35 +127,36 @@ struct Spl : cursiv::GrammarSpec {
   // expected and the name reading everywhere else -- no terminal is spelled
   // twice.
   static constexpr auto CommandWord =
-      ref<INIT_COMMAND> | ref<STD_COMMAND> | ref<STD_COMMAND_AND_FUNCTION>;
+      ref<SEARCH_COMMAND> | ref<INIT_COMMAND> | ref<STD_COMMAND> | ref<STD_COMMAND_AND_FUNCTION>;
   static constexpr auto FunctionHead = ref<FUNCTION> | ref<STD_COMMAND_AND_FUNCTION> |
                                        ref<MODIFIER_AND_FUNCTION> | ref<TIME_AND_FUNCTION> |
                                        ref<LIKE_KW>;
   static constexpr auto IdWord = ref<IDENTIFIER> | CommandWord | FunctionHead;
 
   struct Expr;
+  struct EvalExpr;
 
-  struct FuncCallRule
+  struct FuncCall
       : rule<create<ast::FuncCall>(
             assign<&ast::FuncCall::name>(FunctionHead) + lit<"("> +
-            option(some(append<&ast::FuncCall::args>(ref<Expr>), lit<",">)) +
+            option(some(append<&ast::FuncCall::args>(ref<EvalExpr>), lit<",">)) +
             lit<")">)> {};
 
-  struct PathExprRule;
-  struct DateLitRule;
-  struct StringLitRule;
-  struct NameExprRule;
-  struct NumberLitRule;
+  struct PathExpr;
+  struct DateLit;
+  struct StringLit;
+  struct NameExpr;
+  struct NumberLit;
 
   static constexpr auto glob_operand =
-      ref<FuncCallRule> | (lit<"("> + ref<Expr> + lit<")">) | ref<PathExprRule> |
-      ref<DateLitRule> | ref<StringLitRule> | ref<NameExprRule> | ref<NumberLitRule>;
+      ref<FuncCall> | (lit<"("> + ref<Expr> + lit<")">) | ref<PathExpr> |
+      ref<DateLit> | ref<StringLit> | ref<NameExpr> | ref<NumberLit>;
 
   // A glob: an opening star, a closing star, or both, wrapping an optional
   // expression -- either star alone stands for the whole thing. The trailing
   // form wraps an operand, not an expression: it must not be a turn of
   // `Primary`'s own loop, which would take the `*` of `2/3*4`.
-  struct GlobRule
+  struct Glob
       : rule<create<ast::Glob>(
                  flag<&ast::Glob::leadingStar>(lit<"*">) +
                  option(assign<&ast::Glob::inner>(ref<Expr>)) +
@@ -176,100 +165,136 @@ struct Spl : cursiv::GrammarSpec {
                                flag<&ast::Glob::trailingStar>(lit<"*">))> {};
 
   // One segment: a further `/` is a division.
-  struct PathExprRule
+  struct PathExpr
       : rule<create<ast::PathExpr>(
             lit<"/"> + append<&ast::PathExpr::segments>(IdWord))> {};
 
-  struct DateLitRule
-      : rule<(option(lit<"\"">) + assign<&ast::DateLit::text>(ref<TIME_AND_FUNCTION>) +
-              option(lit<"\"">)) |
+  struct DateLit
+      : rule<assign<&ast::DateLit::text>(ref<TIME_AND_FUNCTION>) |
+             (lit<"\""> + assign<&ast::DateLit::text>(ref<TIME_AND_FUNCTION>) + lit<"\"">) |
              assign<&ast::DateLit::text>(ref<TIME>)> {};
 
-  struct StringLitRule : rule<assign<&ast::StringLit::value>(ref<STRING>)> {};
-  struct NameExprRule : rule<assign<&ast::NameExpr::name>(IdWord)> {};
-  struct NumberLitRule
-      : rule<option(flag<&ast::NumberLit::negative>(ref<SUB>) | ref<ADD>) +
+  struct StringLit : rule<assign<&ast::StringLit::value>(ref<STRING>)> {};
+  struct NameExpr : rule<assign<&ast::NameExpr::name>(IdWord)> {};
+  struct NumberLit
+      : rule<option(flag<&ast::NumberLit::negative>(as<ast::ArithOp::subtract>(lit<"-">)) | as<ast::ArithOp::add>(lit<"+">)) +
              assign<&ast::NumberLit::value>(ref<NUMBER>)> {};
 
   struct Primary
-      : rule<glob_operand | ref<GlobRule>> {};
+      : rule<glob_operand | ref<Glob>> {};
 
-  struct Expr : infix<Primary, &ast::ArithExpr::left, &ast::ArithExpr::op, &ast::ArithExpr::right,
-                      (right(ref<POW>) >>                       //
-                       left(ref<MULT> | ref<DIV> | ref<MOD>) >>  //
-                       left(ref<ADD> | ref<SUB>))> {};
+  struct Expr : infix<Primary, ast::ArithExpr,
+                      levels(right(as<ast::ArithOp::power>(lit<"^">)),                        //
+                             left(as<ast::ArithOp::multiply>(lit<"*">) | as<ast::ArithOp::divide>(lit<"/">) | as<ast::ArithOp::modulo>(lit<"%">)),  //
+                             left(as<ast::ArithOp::add>(lit<"+">) | as<ast::ArithOp::subtract>(lit<"-">)))> {};
+
+  static constexpr auto CompareOperator =
+      as<ast::CompareOp::eq>(lit<"=="> | lit<"=">) |
+      as<ast::CompareOp::ne>(lit<"!=">) | as<ast::CompareOp::ge>(lit<">=">) |
+      as<ast::CompareOp::le>(lit<"<=">) | as<ast::CompareOp::gt>(lit<">">) |
+      as<ast::CompareOp::lt>(lit<"<">);
+  struct EvalComparison
+      : rule<create<ast::ValueComparison>(
+                 assign<&ast::ValueComparison::left>(ref<Expr>) +
+                 assign<&ast::ValueComparison::op>(CompareOperator) +
+                 assign<&ast::ValueComparison::right>(ref<Expr>)) |
+             (lit<"("> + ref<EvalExpr> + lit<")">) | ref<Expr>> {};
+  struct EvalNot
+      : rule<create<ast::ValueNegation>(kw<"NOT"> +
+                 assign<&ast::ValueNegation::operand>(ref<EvalNot>)) |
+             ref<EvalComparison>> {};
+  struct EvalExpr
+      : infix<EvalNot, ast::ValueBoolean,
+              levels(left(as<ast::BoolOp::and_>(kw<"AND">)),
+                     left(as<ast::BoolOp::or_>(kw<"OR">)),
+                     left(as<ast::BoolOp::xor_>(kw<"XOR">)))> {};
 
   struct Operation;
+  struct SearchOperation;
 
-  struct LikeTestRule
+  struct LikeTest
       : rule<create<ast::LikeTest>(assign<&ast::LikeTest::subject>(ref<Expr>) + ref<LIKE_KW> +
                                    assign<&ast::LikeTest::pattern>(ref<Expr>))> {};
 
-  struct InTestRule
+  struct InTest
       : rule<create<ast::InTest>(
             assign<&ast::InTest::subject>(ref<Expr>) + ref<IN_KW> + lit<"("> +
             option(some(append<&ast::InTest::options>(ref<Expr>), lit<",">)) + lit<")">)> {};
 
-  struct OutputClauseRule : rule<create<ast::OutputClause>(
+  struct OutputClause : rule<create<ast::OutputClause>(
       some(append<&ast::OutputClause::sources>(ref<Expr>)) +
       (flag<&ast::OutputClause::isNew>(ref<OUTPUTNEW_KW>) | ref<OUTPUT_KW>) +
       some(append<&ast::OutputClause::targets>(IdWord), lit<",">))> {};
 
-  struct ByClauseRule
+  struct ByClause
       : rule<create<ast::ByClause>(ref<BY_KW> +
                                    some(append<&ast::ByClause::fields>(IdWord)))> {};
 
-  struct AliasRule
+  struct Alias
       : rule<create<ast::Alias>(assign<&ast::Alias::value>(ref<Expr>) + ref<AS_KW> +
                                 assign<&ast::Alias::name>(IdWord))> {};
 
-  struct ComparisonRule
+  struct Comparison
       : rule<create<ast::Comparison>(
             assign<&ast::Comparison::field>(IdWord) +
-            assign<&ast::Comparison::op>(ref<EQ> | ref<NE> | ref<GE> | ref<LE> | ref<GT> | ref<LT>) +
+            assign<&ast::Comparison::op>(CompareOperator) +
             assign<&ast::Comparison::value>(ref<Expr>))> {};
 
-  struct BareExprRule
+  struct BareExpr
       : rule<create<ast::BareExpr>(assign<&ast::BareExpr::value>(ref<Expr>))> {};
 
-  struct AtomOp
-      : rule<ref<LikeTestRule> | ref<InTestRule> | ref<OutputClauseRule> | ref<ByClauseRule> | ref<AliasRule> | ref<ComparisonRule> |
-             (lit<"("> + ref<Operation> + lit<")">) | ref<BareExprRule>> {};
-
-  struct NotRule
+  static constexpr auto SimpleOperation =
+      ref<LikeTest> | ref<InTest> | ref<OutputClause> | ref<ByClause> |
+      ref<Alias> | ref<Comparison> | ref<BareExpr>;
+  struct AtomOp : rule<SimpleOperation |
+             (lit<"("> + ref<Operation> + lit<")">)> {};
+  struct SearchAtom : rule<SimpleOperation |
+             (lit<"("> + ref<SearchOperation> + lit<")">)> {};
+  struct Not
       : rule<create<ast::Negation>(ref<NOT_KW> +
-                                   assign<&ast::Negation::operand>(ref<NotRule>)) |
-             ref<AtomOp>> {};
-
+                 assign<&ast::Negation::operand>(ref<Not>)) | ref<AtomOp>> {};
+  struct SearchNot
+      : rule<create<ast::Negation>(ref<NOT_KW> +
+                 assign<&ast::Negation::operand>(ref<SearchNot>)) | ref<SearchAtom>> {};
   struct Operation
-      : infix<NotRule, &ast::BoolCombine::left, &ast::BoolCombine::op, &ast::BoolCombine::right,
-              (left(ref<AND_KW>) >> left(ref<OR_KW>))> {};
+      : infix<Not, ast::BoolCombine,
+              levels(left(as<ast::BoolOp::and_>(kw<"AND">)),
+                     left(as<ast::BoolOp::or_>(kw<"OR">)),
+                     left(as<ast::BoolOp::xor_>(kw<"XOR">)))> {};
+  // Search evaluates OR before AND. Juxtaposed vector entries remain implicit AND.
+  struct SearchOperation
+      : infix<SearchNot, ast::BoolCombine,
+              levels(left(as<ast::BoolOp::or_>(kw<"OR">)),
+                     left(as<ast::BoolOp::and_>(kw<"AND">)))> {};
 
-  struct InitCommandRule;
-  struct NextCommandRule;
+  struct InitCommand;
+  struct NextCommand;
 
-  struct SubqueryRule
-      : rule<lit<"["> + assign<&ast::Subquery::init>(ref<InitCommandRule>) +
-             many(lit<"|"> + append<&ast::Subquery::pipeline>(ref<NextCommandRule>)) + lit<"]">> {
+  struct Subquery
+      : rule<lit<"["> + assign<&ast::Subquery::init>(ref<InitCommand>) +
+             many(lit<"|"> + append<&ast::Subquery::pipeline>(ref<NextCommand>)) + lit<"]">> {
   };
 
-  struct InitCommandRule
+  struct InitCommand
       : rule<option(lit<"|">) +
-             option(assign<&ast::InitCommand::commandName>(ref<INIT_COMMAND>)) +
-             some(append<&ast::InitCommand::operations>(ref<Operation>)) +
-             option(assign<&ast::InitCommand::subquery>(ref<SubqueryRule>))> {};
+             ((!ref<INIT_COMMAND> + option(assign<&ast::InitCommand::commandName>(ref<SEARCH_COMMAND>)) +
+               some(append<&ast::InitCommand::operations>(ref<SearchOperation>))) |
+              (assign<&ast::InitCommand::commandName>(ref<INIT_COMMAND>) +
+               many(append<&ast::InitCommand::operations>(ref<Operation>)))) +
+             option(assign<&ast::InitCommand::subquery>(ref<Subquery>))> {};
+  struct NextCommand
+      : rule<((assign<&ast::NextCommand::commandName>(ref<SEARCH_COMMAND>) +
+               some(append<&ast::NextCommand::operations>(ref<SearchOperation>))) |
+              (!ref<SEARCH_COMMAND> + assign<&ast::NextCommand::commandName>(CommandWord) +
+               many(append<&ast::NextCommand::operations>(ref<Operation>)))) +
+             option(assign<&ast::NextCommand::subquery>(ref<Subquery>))> {};
 
-  struct NextCommandRule
-      : rule<assign<&ast::NextCommand::commandName>(CommandWord) +
-             some(append<&ast::NextCommand::operations>(ref<Operation>)) +
-             option(assign<&ast::NextCommand::subquery>(ref<SubqueryRule>))> {};
+  struct Query
+      : rule<assign<&ast::Query::init>(ref<InitCommand>) +
+             many(lit<"|"> + append<&ast::Query::pipeline>(ref<NextCommand>))> {};
 
-  struct QueryRule
-      : rule<assign<&ast::Query::init>(ref<InitCommandRule>) +
-             many(lit<"|"> + append<&ast::Query::pipeline>(ref<NextCommandRule>))> {};
-
-  using entry = QueryRule;
-  using ignore = WS;
+  using entry = Query;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 

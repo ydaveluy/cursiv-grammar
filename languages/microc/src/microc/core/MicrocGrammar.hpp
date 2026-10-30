@@ -12,9 +12,6 @@ struct Microc : cursiv::GrammarSpec {
   struct ID : terminal<some(cr<"a-z">)> {};
   struct INT : terminal<some(d)> {};
 
-  struct LESS : terminal<lit<"<">, value<ast::BinOp::less>> {};
-  struct ADD : terminal<lit<"+">, value<ast::BinOp::add>> {};
-  struct SUB : terminal<lit<"-">, value<ast::BinOp::subtract>> {};
 
   struct Statement;
   struct Expr;
@@ -28,13 +25,14 @@ struct Microc : cursiv::GrammarSpec {
                      | ref<Ident>                       //
                      | ref<IntegerLiteral>> {};
 
-  struct Sum : infix<Term, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-                     &ast::BinaryExpr::right, left(ref<ADD> | ref<SUB>)> {};
+  struct Sum : infix<Term, ast::BinaryExpr,
+                     left(as<ast::BinOp::add>(lit<"+">) |
+                          as<ast::BinOp::subtract>(lit<"-">))> {};
 
   // At most one comparison: `a<b<c` is not in the language.
   struct Test
       : rule<create<ast::BinaryExpr>(assign<&ast::BinaryExpr::left>(ref<Sum>) +
-                                     assign<&ast::BinaryExpr::op>(ref<LESS>) +
+                                     assign<&ast::BinaryExpr::op>(as<ast::BinOp::less>(lit<"<">)) +
                                      assign<&ast::BinaryExpr::right>(ref<Sum>))  //
              | ref<Sum>> {};
 
@@ -69,7 +67,7 @@ struct Microc : cursiv::GrammarSpec {
       : rule<some(append<&ast::Program::statements>(ref<Statement>))> {};
 
   using entry = Program;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 }  // namespace microc

@@ -23,14 +23,14 @@ void CookieValidator::checkDocument(const ast::Document& doc,
       if (c >= 'A' && c <= 'Z')
         c += 'a' - 'A';
     const bool flag = name == "secure" || name == "httponly" || name == "partitioned";
-    const bool attribute = flag || name == "expires" || name == "path" ||
-        name == "comment" || name == "domain" || name == "max-age" ||
-        name == "version" || name == "samesite" || name.starts_with('$');
-    if (attribute && !name.starts_with('$') && !cookieSeen)
+    // The document may be a Cookie or Set-Cookie field value. Reserved
+    // Set-Cookie attribute names are also valid cookie names when valued;
+    // only a bare flag is unambiguously an attribute here.
+    if (flag && !pair->value && !cookieSeen)
       accept.error(*pair, "An attribute must follow a cookie.", "cookie.attribute");
     if (!pair->value && !flag && !name.starts_with('$'))
       accept.error(*pair, "This cookie or attribute needs a value.", "cookie.value");
-    if (!attribute && pair->value)
+    if (pair->value)
       cookieSeen = true;
     if (const auto value = decoded_value(*pair))
       for (const unsigned char c : *value)

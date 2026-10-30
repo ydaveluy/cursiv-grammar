@@ -22,7 +22,6 @@ inline constexpr auto unquote = [](std::string_view t,
   }
   return std::string_view(room.data(), size);
 };
-using Unquoted = cursiv::text_conv<unquote>;
 
 struct Less : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
@@ -36,18 +35,17 @@ struct Less : cursiv::GrammarSpec {
   struct ID : terminal<(identHead + many(identCont)) |
                        (lit<"-"> + identHead + many(identCont))> {};
 
-  struct NUMBER
-      : terminal<option(cr<"+-">) + option(many(d) + lit<".">) + some(d),
-                 double> {};
+  struct NUMBER : terminal<as<double>(option(cr<"+-">) +
+                                      option(many(d) + lit<".">) + some(d))> {};
 
   struct COLOR : terminal<lit<"#"> + some(cr<"0-9a-fA-F">)> {};
 
   // Quoted values retain Less escapes; the native reader normalizes line ends.
   static constexpr auto StringEscape = lit<"\\"> + any;
   struct STRING
-      : terminal<(lit<"\""> + many(StringEscape | cr<R"(^"\\)">) + lit<"\"">) |
-                     (lit<"'"> + many(StringEscape | cr<R"(^'\\)">) + lit<"'">),
-                 Unquoted> {};
+      : terminal<as<unquote>(
+            (lit<"\""> + many(StringEscape | cr<R"(^"\\)">) + lit<"\"">) |
+            (lit<"'"> + many(StringEscape | cr<R"(^'\\)">) + lit<"'">))> {};
 
   // Only legal right after `url(`: a state that isn't inside url() never
   // offers it, so it never competes with ID elsewhere.
@@ -59,56 +57,30 @@ struct Less : cursiv::GrammarSpec {
   struct ELLIPSIS : terminal<lit<"...">> {};
   struct IMPORTANT : terminal<lit<"!important">> {};
 
-  struct MUL : terminal<lit<"*">, value<ast::MathOp::times>> {};
-  struct MADD : terminal<lit<"+">, value<ast::MathOp::plus>> {};
-  struct MDIV : terminal<lit<"/">, value<ast::MathOp::div>> {};
-  struct MSUB : terminal<lit<"-">, value<ast::MathOp::minus>> {};
-  struct MMOD : terminal<lit<"%">, value<ast::MathOp::mod>> {};
   // `*`/`/`/`%` bind tighter than `+`/`-`.
-  static constexpr auto MulOp = ref<MUL> | ref<MDIV> | ref<MMOD>;
-  static constexpr auto AddOp = ref<MADD> | ref<MSUB>;
+  static constexpr auto MulOp = as<ast::MathOp::times>(lit<"*">) | as<ast::MathOp::div>(lit<"/">) | as<ast::MathOp::mod>(lit<"%">);
+  static constexpr auto AddOp = as<ast::MathOp::plus>(lit<"+">) | as<ast::MathOp::minus>(lit<"-">);
 
-  struct CEQ : terminal<lit<"=">, value<ast::CompareOp::eq>> {};
-  struct CGE : terminal<lit<">=">, value<ast::CompareOp::ge>> {};
-  struct CLE : terminal<lit<"<=">, value<ast::CompareOp::le>> {};
-  struct CLT : terminal<lit<"<">, value<ast::CompareOp::lt>> {};
-  struct CGT : terminal<lit<">">, value<ast::CompareOp::gt>> {};
   static constexpr auto CompareOperator =
-      ref<CGE> | ref<CLE> | ref<CEQ> | ref<CLT> | ref<CGT>;
+      as<ast::CompareOp::ge>(lit<">="> | lit<"=>">) |
+      as<ast::CompareOp::le>(lit<"<="> | lit<"=<">) |
+      as<ast::CompareOp::eq>(lit<"=">) | as<ast::CompareOp::lt>(lit<"<">) | as<ast::CompareOp::gt>(lit<">">);
 
-  struct ATTR_INCLUDES
-      : terminal<lit<"~=">, value<ast::AttribRelate::includes>> {};
-  struct ATTR_DASHMATCH
-      : terminal<lit<"|=">, value<ast::AttribRelate::dashmatch>> {};
-  struct ATTR_EQ : terminal<lit<"=">, value<ast::AttribRelate::equals>> {};
   static constexpr auto AttribRelateOp =
-      ref<ATTR_INCLUDES> | ref<ATTR_DASHMATCH> | ref<ATTR_EQ>;
+      as<ast::AttribRelate::includes>(lit<"~=">) | as<ast::AttribRelate::dashmatch>(lit<"|=">) | as<ast::AttribRelate::prefix>(lit<"^=">) | as<ast::AttribRelate::suffix>(lit<"$=">) | as<ast::AttribRelate::substring>(lit<"*=">) | as<ast::AttribRelate::equals>(lit<"=">);
 
-  struct PFX_CHILD : terminal<lit<">">, value<ast::SelectorPrefix::child>> {};
-  struct PFX_SIBLING : terminal<lit<"+">, value<ast::SelectorPrefix::sibling>> {
-  };
-  struct PFX_GENERAL_SIBLING
-      : terminal<lit<"~">, value<ast::SelectorPrefix::general_sibling>> {};
   static constexpr auto SelectorPrefixOp =
-      ref<PFX_CHILD> | ref<PFX_SIBLING> | ref<PFX_GENERAL_SIBLING>;
+      as<ast::SelectorPrefix::child>(lit<">">) | as<ast::SelectorPrefix::sibling>(lit<"+">) | as<ast::SelectorPrefix::general_sibling>(lit<"~">);
 
-  struct OPT_REFERENCE
-      : terminal<kw<"reference">, value<ast::ImportOption::reference>> {};
-  struct OPT_INLINE
-      : terminal<kw<"inline">, value<ast::ImportOption::inline_>> {};
-  struct OPT_LESS : terminal<kw<"less">, value<ast::ImportOption::less>> {};
-  struct OPT_CSS : terminal<kw<"css">, value<ast::ImportOption::css>> {};
-  struct OPT_ONCE : terminal<kw<"once">, value<ast::ImportOption::once>> {};
-  struct OPT_MULTIPLE
-      : terminal<kw<"multiple">, value<ast::ImportOption::multiple>> {};
-  static constexpr auto ImportOptionAlt = ref<OPT_REFERENCE> | ref<OPT_INLINE> |
-                                          ref<OPT_LESS> | ref<OPT_CSS> |
-                                          ref<OPT_ONCE> | ref<OPT_MULTIPLE>;
+  static constexpr auto ImportOptionAlt = as<ast::ImportOption::reference>(kw<"reference">) | as<ast::ImportOption::inline_>(kw<"inline">) |
+                                          as<ast::ImportOption::less>(kw<"less">) | as<ast::ImportOption::css>(kw<"css">) |
+                                          as<ast::ImportOption::once>(kw<"once">) | as<ast::ImportOption::multiple>(kw<"multiple">) | as<ast::ImportOption::optional_>(kw<"optional">);
 
   static constexpr auto UrlBody = ref<STRING> | ref<URL_RAW>;
 
-  struct InterpRule : rule<create<ast::Interp> + lit<"@{"> +
-                           assign<&ast::Interp::name>(ref<ID>) + lit<"}">> {};
+  struct VARIABLE_ID : terminal<some(cr<"a-zA-Z0-9_-">)> {};
+  struct Interp : rule<create<ast::Interp> + lit<"@{"> + gap::none +
+                           assign<&ast::Interp::name>(ref<VARIABLE_ID>) + gap::none + lit<"}">> {};
 
   // A fractional dimension must not compete with a dot-prefixed value name.
   // Selectors retain their more permissive ID spelling (for example .123).
@@ -116,203 +88,287 @@ struct Less : cursiv::GrammarSpec {
       : terminal<!(option(lit<"-">) + lit<"."> + d) + ref<ID>> {};
   template <class Token> struct NameParts
       : rule<create<ast::Name> +
-             append<&ast::Name::parts>(ref<Token> | ref<InterpRule>) +
+             append<&ast::Name::parts>(ref<Token> | ref<Interp>) +
              many(gap::none +
-                  append<&ast::Name::parts>(ref<Token> | ref<InterpRule>)) +
+                  append<&ast::Name::parts>(ref<Token> | ref<Interp>)) +
              !(gap::none + (ref<Token> | lit<"@{">))> {};
-  struct NameRule : NameParts<ID> {};
-  struct ValueNameRule : NameParts<VALUE_ID> {};
+  struct Name : NameParts<ID> {};
+  struct ValueName : NameParts<VALUE_ID> {};
 
-  struct VariableNameRule
-      : rule<lit<"@"> +
-             (assign<&ast::VariableName::inner>(ref<VariableNameRule>) |
-              assign<&ast::VariableName::name>(ref<ID>))> {};
+  struct DirectVariableName : rule<lit<"@"> + gap::none +
+      assign<&ast::VariableName::name>(ref<VARIABLE_ID>)> {};
+  struct VariableName : rule<lit<"@"> + gap::none +
+      (assign<&ast::VariableName::inner>(ref<DirectVariableName>) |
+       assign<&ast::VariableName::name>(ref<VARIABLE_ID>))> {};
 
-  struct CommandStatementRule;
+  struct CommandStatement;
+  struct Block;
+  struct ArgumentValue;
+  struct ArgumentValueList;
 
-  struct MeasurementRule
+  struct Measurement
       : rule<assign<&ast::Measurement::value>(ref<NUMBER>) +
              option(gap::none + assign<&ast::Measurement::unit>(ref<UNIT>))> {};
 
-  struct ColorLitRule : rule<assign<&ast::ColorLit::value>(ref<COLOR>)> {};
-  struct StringLitRule
+  struct ColorLit : rule<assign<&ast::ColorLit::value>(ref<COLOR>)> {};
+  struct StringLit
       : rule<option(flag<&ast::StringLit::escaped>(lit<"~">)) +
              assign<&ast::StringLit::value>(ref<STRING>)> {};
 
-  struct UrlLitRule : rule<kw<"url"> + lit<"("> +
+  struct UrlLit : rule<kw<"url"> + lit<"("> +
                            assign<&ast::UrlLit::value>(UrlBody) + lit<")">> {};
 
-  struct FuncCallRule
-      : rule<assign<&ast::FuncCall::name>(ref<ValueNameRule>) + lit<"("> +
+  struct FuncCall
+      : rule<assign<&ast::FuncCall::name>(ref<ValueName>) + lit<"("> +
              option(
-                 some(append<&ast::FuncCall::args>(ref<CommandStatementRule>),
-                      lit<",">)) +
+                 (append<&ast::FuncCall::argumentGroups>(ref<ArgumentValueList>) +
+                  some(lit<";"> + option(append<&ast::FuncCall::argumentGroups>(
+                      ref<ArgumentValueList>)))) |
+                 some(append<&ast::FuncCall::args>(ref<ArgumentValue>), lit<",">)) +
              lit<")">> {};
 
-  struct IdentValueRule
-      : rule<assign<&ast::IdentValue::name>(ref<ValueNameRule>) +
+  struct IdentValue
+      : rule<assign<&ast::IdentValue::name>(ref<ValueName>) +
              option(flag<&ast::IdentValue::important>(ref<IMPORTANT>))> {};
 
-  struct VarValueRule
-      : rule<assign<&ast::VarValue::name>(ref<VariableNameRule>) +
+  struct VarValue
+      : rule<assign<&ast::VarValue::name>(ref<VariableName>) +
              option(flag<&ast::VarValue::important>(ref<IMPORTANT>))> {};
 
-  struct ParenExprRule
+  struct ParenExpr
       : rule<lit<"("> +
-             assign<&ast::ParenExpr::value>(ref<CommandStatementRule>) +
+             assign<&ast::ParenExpr::value>(ref<CommandStatement>) +
              lit<")">> {};
 
   static constexpr auto ExpressionAlt =
-      ref<MeasurementRule> | ref<FuncCallRule> | ref<IdentValueRule> |
-      ref<ColorLitRule> | ref<StringLitRule> | ref<UrlLitRule> |
-      ref<VarValueRule> | ref<ParenExprRule>;
+      ref<Measurement> | ref<FuncCall> | ref<IdentValue> |
+      ref<ColorLit> | ref<StringLit> | ref<UrlLit> |
+      ref<VarValue> | ref<ParenExpr>;
 
-  struct MulTermRule : rule<some(append<&ast::MulTerm::items>(ExpressionAlt))> {
+  struct MulTerm : rule<some(append<&ast::MulTerm::items>(ExpressionAlt))> {
   };
-  struct MulTailRule : rule<assign<&ast::MulTerm::op>(MulOp) +
+  struct MulTail : rule<assign<&ast::MulTerm::op>(MulOp) +
                             some(append<&ast::MulTerm::items>(ExpressionAlt))> {
   };
 
-  struct MulExprRule
+  struct MulExpr
       : rule<create<ast::MulExpr> +
-             append<&ast::MulExpr::terms>(ref<MulTermRule>) +
-             many(append<&ast::MulExpr::terms>(ref<MulTailRule>))> {};
+             append<&ast::MulExpr::terms>(ref<MulTerm>) +
+             many(append<&ast::MulExpr::terms>(ref<MulTail>))> {};
 
-  struct AddTermRule : rule<assign<&ast::AddTerm::operand>(ref<MulExprRule>)> {
+  struct AddTerm : rule<assign<&ast::AddTerm::operand>(ref<MulExpr>)> {
   };
-  struct AddTailRule : rule<assign<&ast::AddTerm::op>(AddOp) +
-                            assign<&ast::AddTerm::operand>(ref<MulExprRule>)> {
+  struct AddTail : rule<assign<&ast::AddTerm::op>(AddOp) +
+                            assign<&ast::AddTerm::operand>(ref<MulExpr>)> {
   };
 
-  struct CommandStatementRule
+  struct CommandStatement
       : rule<create<ast::CommandStatement> +
-             append<&ast::CommandStatement::terms>(ref<AddTermRule>) +
-             many(append<&ast::CommandStatement::terms>(ref<AddTailRule>))> {};
+             append<&ast::CommandStatement::terms>(ref<AddTerm>) +
+             many(append<&ast::CommandStatement::terms>(ref<AddTail>))> {};
 
-  struct ValueListRule
+  struct ValueList
       : rule<create<ast::ValueList> +
-             some(append<&ast::ValueList::items>(ref<CommandStatementRule>),
+             some(append<&ast::ValueList::items>(ref<CommandStatement>),
                   lit<",">)> {};
 
-  struct ConditionStatementRule
-      : rule<assign<&ast::ConditionStatement::left>(ref<CommandStatementRule>) +
+  struct DetachedRuleset
+      : rule<assign<&ast::DetachedRuleset::body>(ref<Block>)> {};
+  // Preserve the existing CommandStatement argument API, including every
+  // ownership edge, while keeping detached values out of ExpressionAlt.
+  template <class Atom> struct AtomicArgument
+      : rule<create<ast::CommandStatement>(
+            append<&ast::CommandStatement::terms>(create<ast::AddTerm>(
+                assign<&ast::AddTerm::operand>(create<ast::MulExpr>(
+                    append<&ast::MulExpr::terms>(create<ast::MulTerm>(
+                        append<&ast::MulTerm::items>(ref<Atom>))))))))> {};
+  struct ArgumentValue : rule<ref<AtomicArgument<DetachedRuleset>> |
+                              ref<CommandStatement>> {};
+  struct ArgumentValueList : rule<create<ast::ValueList> +
+      some(append<&ast::ValueList::items>(ref<ArgumentValue>), lit<",">)> {};
+  struct SingleArgumentValueList : rule<create<ast::ValueList> +
+      append<&ast::ValueList::items>(ref<ArgumentValue>)> {};
+  struct NamedArgument : rule<assign<&ast::NamedArgument::name>(ref<VariableName>) +
+      lit<":"> + assign<&ast::NamedArgument::value>(ref<SingleArgumentValueList>)> {};
+  struct NamedArgumentList : rule<assign<&ast::NamedArgument::name>(ref<VariableName>) +
+      lit<":"> + assign<&ast::NamedArgument::value>(ref<ArgumentValueList>)> {};
+  struct MixinArgument : rule<ref<AtomicArgument<NamedArgument>> |
+                             ref<ArgumentValue>> {};
+  struct NamedArgumentGroup : rule<create<ast::ValueList> +
+      append<&ast::ValueList::items>(ref<AtomicArgument<NamedArgumentList>>)> {};
+  struct MixinArgumentGroup : rule<ref<NamedArgumentGroup> |
+                                  ref<ArgumentValueList>> {};
+
+  struct ConditionStatement
+      : rule<assign<&ast::ConditionStatement::left>(ref<CommandStatement>) +
              option(assign<&ast::ConditionStatement::op>(CompareOperator) +
                     assign<&ast::ConditionStatement::right>(
-                        ref<CommandStatementRule>))> {};
+                        ref<CommandStatement>))> {};
 
-  struct ConditionRule
+  struct Condition
       : rule<option(flag<&ast::Condition::negated>(kw<"not">)) + lit<"("> +
-             assign<&ast::Condition::test>(ref<ConditionStatementRule>) +
+             assign<&ast::Condition::test>(ref<ConditionStatement>) +
              lit<")">> {};
 
   struct Selector;
+  struct SelectorsRule;
 
-  struct AttribRule
+  struct Attrib
       : rule<lit<"["> + assign<&ast::Attrib::name>(ref<ID>) +
              option(assign<&ast::Attrib::relate>(AttribRelateOp) +
-                    assign<&ast::Attrib::value>(ref<STRING> | ref<ID>)) +
-             lit<"]">> {};
+                    assign<&ast::Attrib::value>(ref<STRING> | ref<ID>) +
+                    option(assign<&ast::Attrib::modifier>(ikw<"i"> | ikw<"s">))) + lit<"]">> {};
 
-  struct PseudoRule : rule<(flag<&ast::Pseudo::isClass>(lit<"::">) |
-                            lit<":">)+assign<&ast::Pseudo::name>(ref<ID>)> {};
+  static constexpr auto RawQuote =
+      (lit<"\""> + many(StringEscape | cr<R"(^"\\)">) + lit<"\"">) |
+      (lit<"'"> + many(StringEscape | cr<R"(^'\\)">) + lit<"'">);
+  struct MediaGroup : terminal<lit<"("> +
+      many(ref<MediaGroup> | RawQuote | StringEscape | cr<R"(^()'"\\)">) + lit<")">> {};
+  struct PseudoName : terminal<!(lit<"not"> + many(ref<WS>) + lit<"(">) + ref<ID>> {};
+  struct Pseudo : rule<(flag<&ast::Pseudo::isClass>(lit<"::">) | lit<":">) +
+      assign<&ast::Pseudo::name>(ref<PseudoName>) +
+      option(flag<&ast::Pseudo::hasArguments>(lit<"(">) +
+             option(assign<&ast::Pseudo::argumentSelectors>(ref<SelectorsRule>) |
+                    assign<&ast::Pseudo::argumentValues>(ref<ValueList>)) + lit<")">)> {};
+  struct ExtendElement;
 
-  struct NegationRule
+  struct Negation
       : rule<create<ast::Negation> + lit<":"> + kw<"not"> + lit<"("> +
-             option(lit<"[">) +
              some(append<&ast::Negation::alternatives>(ref<Selector>),
-                  lit<",">) +
-             option(lit<"]">) + lit<")">> {};
+                  lit<",">) + lit<")">> {};
 
-  struct ElementRule
+  struct Element
       : rule<(assign<&ast::NamedElement::prefix>(SelectorPrefixOp) +
-              assign<&ast::NamedElement::name>(ref<NameRule>)) |
-             assign<&ast::NamedElement::name>(ref<NameRule>) |
-             (lit<"#"> + assign<&ast::IdElement::name>(ref<NameRule>)) |
-             ref<PseudoRule> | ref<NegationRule> |
+              assign<&ast::NamedElement::name>(ref<Name>)) |
+             assign<&ast::NamedElement::name>(ref<Name>) |
+             (lit<"#"> + assign<&ast::IdElement::name>(ref<Name>)) |
+             ref<ExtendElement> | ref<Pseudo> | ref<Negation> |
              (create<ast::ParentRefElement> + lit<"&">) |
              (create<ast::WildcardElement> + lit<"*">)> {};
 
-  struct Selector
-      : rule<create<ast::Selector> +
-             some(append<&ast::Selector::elements>(ref<ElementRule>)) +
-             many(append<&ast::Selector::attribs>(ref<AttribRule>)) +
-             option(assign<&ast::Selector::trailingPseudo>(ref<PseudoRule>))> {
-  };
+  static constexpr auto SelectorPart =
+      append<&ast::Selector::elements>(ref<Element>) |
+      append<&ast::Selector::attribs>(ref<Attrib>);
+  static constexpr auto SelectorBody = create<ast::Selector> + some(SelectorPart);
+  struct Selector : rule<SelectorBody> {};
+  // Native CSS guards belong to a single selector. Keep this separate from
+  // the ordinary selector list, so neither a first nor a last guarded item
+  // can accidentally admit a comma-separated list.
+  struct GuardedSelector : rule<SelectorBody + kw<"when"> +
+      assign<&ast::Selector::guard>(ref<Condition>)> {};
+  struct GuardedSelectors : rule<create<ast::Selectors> +
+      append<&ast::Selectors::items>(ref<GuardedSelector>)> {};
+  static constexpr auto ExtendOptionEnd =
+      option(lit<"!">) + kw<"all"> + (lit<")"> | lit<",">);
+  struct ExtendSelector : rule<create<ast::Selector> +
+      some(!ExtendOptionEnd + SelectorPart)> {};
+  struct ExtendTarget : rule<assign<&ast::ExtendTarget::selector>(ref<ExtendSelector>) +
+      option(assign<&ast::ExtendTarget::option>(kw<"all"> | lit<"!all">))> {};
+  struct ExtendElement : rule<lit<":extend("> +
+      some(append<&ast::ExtendElement::targets>(ref<ExtendTarget>), lit<",">) + lit<")">> {};
 
   struct SelectorsRule
       : rule<create<ast::Selectors> +
              some(append<&ast::Selectors::items>(ref<Selector>), lit<",">)> {};
 
   struct Statement;
+  struct BodyStatement;
 
-  struct PropertyRule
-      : rule<assign<&ast::Property::name>(ref<NameRule>) + lit<":"> +
-             assign<&ast::Property::value>(ref<ValueListRule>)> {};
+  struct Property
+      : rule<assign<&ast::Property::name>(ref<Name>) + lit<":"> +
+             assign<&ast::Property::value>(ref<ValueList>)> {};
 
-  struct MixinRefRule
-      : rule<assign<&ast::MixinRef::target>(ref<Selector>) + lit<"("> +
+  // The general Selector fallback can also read `property:pseudo(...)`.
+  // Only a mixin name path followed by '(' admits named args, not a CSS
+  // pseudo-selector on a property or class. The existing Selector builds it.
+  struct MixinBareHead : terminal<some(cr<"A-Za-z0-9_-">)> {};
+  struct MixinClassHead : terminal<lit<"."> + some(cr<"A-Za-z0-9_-">)> {};
+  static constexpr auto MixinHeadElement = ref<MixinClassHead> |
+      (lit<"#"> + gap::none + ref<MixinBareHead>);
+  static constexpr auto MixinCallHead = MixinHeadElement +
+      many(option(lit<">">) + MixinHeadElement) + lit<"(">;
+  template <class Argument, class Group>
+  static constexpr auto MixinCallBody =
+      assign<&ast::MixinRef::target>(ref<Selector>) + lit<"("> +
              option(
-                 some(append<&ast::MixinRef::args>(ref<CommandStatementRule>),
-                      lit<",">)) +
+                 (append<&ast::MixinRef::argumentGroups>(ref<Group>) +
+                  some(lit<";"> + option(append<&ast::MixinRef::argumentGroups>(ref<Group>)))) |
+                 some(append<&ast::MixinRef::args>(ref<Argument>), lit<",">)) +
              lit<")"> +
              option(flag<&ast::MixinRef::important>(ref<IMPORTANT>)) +
-             lit<";">> {};
+             (lit<";"> | &lit<"}">);
+  struct MixinRef
+      : rule<(&MixinCallHead + MixinCallBody<MixinArgument, MixinArgumentGroup>) |
+             (!MixinCallHead + MixinCallBody<ArgumentValue, ArgumentValueList>)> {};
 
-  struct BlockRule
+  struct Block
       : rule<create<ast::Block> + lit<"{"> +
-             many(append<&ast::Block::items>((ref<PropertyRule> + lit<";">) |
-                                             ref<Statement> |
-                                             ref<MixinRefRule>)) +
-             option(append<&ast::Block::items>(ref<PropertyRule>)) + lit<"}">> {
+             many(append<&ast::Block::items>((ref<Property> + lit<";">) |
+                                             ref<BodyStatement> | ref<MixinRef>)) +
+             option(append<&ast::Block::items>(ref<Property>)) + lit<"}">> {
   };
 
-  struct VariableDeclRule
-      : rule<assign<&ast::VariableDecl::name>(ref<VariableNameRule>) +
-             lit<":"> + assign<&ast::VariableDecl::value>(ref<ValueListRule>)> {
+  struct VariableDecl
+      : rule<assign<&ast::VariableDecl::name>(ref<DirectVariableName>) +
+             lit<":"> + assign<&ast::VariableDecl::value>(ref<ValueList>)> {
   };
 
   static constexpr auto MixinGuard =
-      kw<"when"> + some(append<&ast::MixinDef::guard>(ref<ConditionRule>),
+      kw<"when"> + some(append<&ast::MixinDef::guard>(ref<Condition>),
                         kw<"and"> | lit<",">);
 
-  struct RulesetRule
-      : rule<assign<&ast::Ruleset::selectors>(ref<SelectorsRule>) +
-             assign<&ast::Ruleset::body>(ref<BlockRule>)> {};
+  struct Ruleset
+      : rule<assign<&ast::Ruleset::selectors>(ref<GuardedSelectors> | ref<SelectorsRule>) +
+             assign<&ast::Ruleset::body>(ref<Block>)> {};
 
   // In comma mode a comma ends the parameter. In semicolon mode it can
   // belong to a default value, so the two default-value rules stay distinct.
   struct MixinCommaDefault
       : rule<create<ast::ValueList> +
-             append<&ast::ValueList::items>(ref<CommandStatementRule>)> {};
+             append<&ast::ValueList::items>(ref<ArgumentValue>)> {};
+  struct MixinSemiParam : rule<assign<&ast::VariableDecl::name>(ref<VariableName>) +
+      lit<":"> + assign<&ast::VariableDecl::value>(ref<ArgumentValueList>)> {};
   struct MixinCommaParam
-      : rule<assign<&ast::VariableDecl::name>(ref<VariableNameRule>) +
+      : rule<assign<&ast::VariableDecl::name>(ref<VariableName>) +
              lit<":"> +
              assign<&ast::VariableDecl::value>(ref<MixinCommaDefault>)> {};
 
-  struct MixinDefRule
+  struct MixinLiteralParam : rule<!lit<"@"> + ref<CommandStatement>> {};
+  struct MixinDef
       : rule<assign<&ast::MixinDef::selectors>(ref<SelectorsRule>) + lit<"("> +
-             option(some(append<&ast::MixinDef::params>(ref<VariableDeclRule> |
-                                                        ref<VariableNameRule>),
+             option(some(append<&ast::MixinDef::params>(ref<MixinSemiParam> |
+                                                        ref<VariableName> | ref<MixinLiteralParam>),
                          lit<";">) |
                     some(append<&ast::MixinDef::params>(ref<MixinCommaParam> |
-                                                        ref<VariableNameRule>),
+                                                        ref<VariableName> | ref<MixinLiteralParam>),
                          lit<",">)) +
              option(flag<&ast::MixinDef::variadic>(ref<ELLIPSIS>)) +
              lit<")"> + option(MixinGuard) +
-             assign<&ast::MixinDef::body>(ref<BlockRule>)> {};
+             assign<&ast::MixinDef::body>(ref<Block>)> {};
+
+  struct DetachedRulesetDecl : rule<
+      assign<&ast::DetachedRulesetDecl::name>(ref<DirectVariableName>) + lit<":"> +
+      assign<&ast::DetachedRulesetDecl::body>(ref<Block>) + option(lit<";">)> {};
+  struct DetachedCall : rule<assign<&ast::DetachedCall::target>(ref<DirectVariableName>) +
+      gap::none + lit<"()"> + (lit<";"> | &lit<"}"> | eof)> {};
+  struct MixinCallStatement : rule<assign<&ast::MixinCallStatement::call>(ref<MixinRef>)> {};
+  struct ExtendStatement : rule<lit<"&"> +
+      assign<&ast::ExtendStatement::extension>(ref<ExtendElement>) + lit<";">> {};
+  struct MediaQuery : terminal<!s + some(ref<MediaGroup> | RawQuote | StringEscape |
+                                    cr<R"(^;(){}'"\\)">)> {};
 
   static constexpr auto ImportUrl =
       assign<&ast::Import::url>(ref<STRING>) |
       (kw<"url"> + lit<"("> + assign<&ast::Import::url>(UrlBody) + lit<")">);
 
-  struct ImportRule
+  struct Import
       : rule<lit<"@import"> +
              option(lit<"("> +
                     some(append<&ast::Import::options>(ImportOptionAlt),
                          lit<",">) +
                     lit<")">) +
              ImportUrl +
-             option(some(append<&ast::Import::mediaTypes>(ref<ID>), lit<",">)) +
+             option(assign<&ast::Import::mediaQuery>(ref<MediaQuery>)) +
              lit<";">> {};
 
   static constexpr auto PreludeEscape = lit<"\\"> + any;
@@ -326,21 +382,25 @@ struct Less : cursiv::GrammarSpec {
   // out of the first prelude unit, even when whitespace precedes it.
   struct AtPrelude : terminal<(PreludeQuote | PreludeEscape |
                                cr<R"(^{};:'"\\ \t\r\n)">)+many(PreludeUnit)> {};
-  struct AtRuleRule
-      : rule<lit<"@"> + assign<&ast::AtRule::name>(ref<ID>) +
+  struct AtRule
+      : rule<!(lit<"@"> + gap::none + ref<VARIABLE_ID> + gap::none + lit<"()"> + (lit<";"> | &lit<"}"> | eof)) +
+             lit<"@"> + gap::none + assign<&ast::AtRule::name>(ref<ID>) +
              option(assign<&ast::AtRule::prelude>(ref<AtPrelude>)) +
-             (assign<&ast::AtRule::body>(ref<BlockRule>) | lit<";">)> {};
+             (assign<&ast::AtRule::body>(ref<Block>) | lit<";">)> {};
 
-  struct Statement : rule<ref<ImportRule> | ref<RulesetRule> |
-                          (ref<VariableDeclRule> + lit<";">) |
-                          ref<MixinDefRule> | ref<AtRuleRule>> {};
+  static constexpr auto StatementCore =
+      ref<DetachedRulesetDecl> | ref<DetachedCall> | ref<ExtendStatement> |
+      ref<Import> | ref<Ruleset> | (ref<VariableDecl> + lit<";">) |
+      ref<MixinDef> | ref<AtRule>;
+  struct BodyStatement : rule<StatementCore> {};
+  struct Statement : rule<ref<MixinCallStatement> | StatementCore> {};
 
-  struct StylesheetRule
+  struct Stylesheet
       : rule<create<ast::Stylesheet> +
              many(append<&ast::Stylesheet::statements>(ref<Statement>))> {};
 
-  using entry = StylesheetRule;
-  using ignore = WS;
+  using entry = Stylesheet;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

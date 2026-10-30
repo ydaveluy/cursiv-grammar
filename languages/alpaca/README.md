@@ -38,11 +38,14 @@ state Dead  " " to Alive when 3 Alive and 5 Dead;
 state Alive "*" to Dead when 4 Alive or 7 Dead.
 ```
 
-An ALPACA document declares `state`s, `class`es and `neighbourhood`s,
-separated by `;` and closed by `.` or `begin`. A state carries a display
+An ALPACA 1.1 document declares `state`s, `class`es and `neighbourhood`s,
+separated by `;`. A final `.` ends the description; `begin` introduces an
+initial configuration whose exact source is retained in the AST. A state carries a display
 glyph and transition rules (`to <state> when <condition>`); a condition
 counts neighbours matching a state or class, tests equality between two
 state references, or combines those with `and`/`or`/`xor`/`not`.
+Adjacency counts retain their decimal spelling without a machine-integer
+bound. The lowercase `v` is an arrow, as defined by ALPACA 1.1.
 
 ## The command line
 

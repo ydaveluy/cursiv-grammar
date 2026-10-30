@@ -35,7 +35,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 pub fn main() !void {
     const dbg = @import("std").debug;
 
-    var doors = [_]bool{false} ** 101;
+    var doors: [101]bool = @splat(false);
     var pass: u8 = 1;
 
     while (pass <= 100) : (pass += 1) {
@@ -48,9 +48,8 @@ pub fn main() !void {
 }
 ```
 
-Zig syntax: declarations, containers (`struct`/`enum`/`union`/`opaque`), and
-the full expression and statement grammar (`if`/`while`/`for`/`switch`, labels
-and payloads, pointer and slice types, `asm`).
+Zig 0.17.0 syntax for declarations, containers, control flow, expressions,
+pointer and slice types, and `asm`.
 
 ## The command line
 

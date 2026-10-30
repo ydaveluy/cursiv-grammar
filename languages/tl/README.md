@@ -31,20 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[TL](https://en.wikipedia.org/wiki/Temporal_logic#Prior's_tense_logic_(TL))
-is Prior's minimal tense logic: atomic propositions, negation (`⌐`),
-disjunction (`∨`), the falsity constant (`⊥`), and two temporal operators --
-`G` ("always going to be") and `H` ("has always been"). A document is a
-single formula, and the empty formula is itself valid, at the top level and
-wherever a sub-formula is expected.
+A small teaching language for temporal formulas, including boolean operators and `G`/`H` modalities.
 
 ```
 Gp ∨ q
 ```
-
-reads "always p, or q" -- `G` is looser than `∨`, so it reaches across the
-whole disjunction. Parentheses force a tighter reading: `G(p ∨ q)` and
-`(Gp) ∨ q` differ.
 
 ## The command line
 

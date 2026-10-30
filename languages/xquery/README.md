@@ -1,6 +1,6 @@
 # xquery
 
-A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
+An XQuery 4.0 draft syntax subset with batch query input, built with [cursiv](https://github.com/ydaveluy/cursiv).
 
 ## Build
 

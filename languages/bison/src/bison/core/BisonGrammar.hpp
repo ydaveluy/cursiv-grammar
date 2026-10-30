@@ -14,13 +14,11 @@ inline constexpr auto stripEnds1 = [](std::string_view t,
                                       std::pmr::memory_resource*) {
   return t.substr(1, t.size() - 2);
 };
-using Unwrapped = cursiv::text_conv<stripEnds1>;
 
 inline constexpr auto stripPct = [](std::string_view t,
                                     std::pmr::memory_resource*) {
   return t.substr(2, t.size() - 4);
 };
-using UnwrappedPct = cursiv::text_conv<stripPct>;
 
 struct Bison : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n\f\v,)">)> {};
@@ -85,19 +83,17 @@ struct Bison : cursiv::GrammarSpec {
                                   many(OpaqueCode | CodePunctuation |
                                        ref<CodeRegion> | DigraphClose) +
                                   lit<"}">> {};
-  struct BRACED_CODE : terminal<ref<RawBracedCode>, Unwrapped> {};
-  struct PROLOGUE : terminal<lit<"%{"> +
-                                 many(OpaqueCode | lit<"{"> | lit<"}"> |
-                                      lit<"<"> | (lit<"%"> + !lit<"}">)) +
-                                 lit<"%}">,
-                             UnwrappedPct> {};
+  struct BRACED_CODE : terminal<as<stripEnds1>(ref<RawBracedCode>)> {};
+  struct PROLOGUE
+      : terminal<as<stripPct>(lit<"%{"> +
+                              many(OpaqueCode | lit<"{"> | lit<"}"> | lit<"<"> |
+                                   (lit<"%"> + !lit<"}">)) +
+                              lit<"%}">)> {};
   struct BRACED_PREDICATE
-      : terminal<lit<"%?"> + many(cr<R"( \t\r\n\f\v)">) + ref<RawBracedCode>,
-                 cursiv::text_conv<[](std::string_view t,
-                                      std::pmr::memory_resource*) {
-                   const auto start = t.find('{');
-                   return t.substr(start + 1, t.size() - start - 2);
-                 }>> {};
+      : terminal<as<[](std::string_view t, std::pmr::memory_resource*) {
+        const auto start = t.find('{');
+        return t.substr(start + 1, t.size() - start - 2);
+      }>(lit<"%?"> + many(cr<R"( \t\r\n\f\v)">) + ref<RawBracedCode>)> {};
 
   struct OBS_ERROR_VERBOSE
       : terminal<lit<"%error"> + cr<"-_"> + lit<"verbose">> {};
@@ -132,61 +128,61 @@ struct Bison : cursiv::GrammarSpec {
   struct PrecDeclaratorKw : rule<kw<"%left"> | kw<"%right"> | kw<"%nonassoc"> |
                                  kw<"%binary"> | kw<"%precedence">> {};
 
-  struct ActionBlockRule : rule<create<ast::Action> +
+  struct ActionBlock : rule<create<ast::Action> +
                                 assign<&ast::Action::code>(ref<BRACED_CODE>)> {
   };
 
-  struct SymbolElemRule : rule<!ProductionHead + create<ast::SymbolRef> +
+  struct SymbolElem : rule<!ProductionHead + create<ast::SymbolRef> +
                                assign<&ast::SymbolRef::name>(ref<SymbolText>) +
                                NamedRef<&ast::SymbolRef::namedRef>> {};
 
-  struct ActionElemRule
+  struct ActionElem
       : rule<create<ast::Action> + option(assign<&ast::Action::tag>(ref<TAG>)) +
              assign<&ast::Action::code>(ref<BRACED_CODE>) +
              NamedRef<&ast::Action::namedRef>> {};
 
-  struct PredicateElemRule
+  struct PredicateElem
       : rule<create<ast::Predicate> +
              assign<&ast::Predicate::code>(ref<BRACED_PREDICATE>)> {};
 
-  struct PrecMiscRule
+  struct PrecMisc
       : rule<create<ast::RhsMisc> + assign<&ast::RhsMisc::kind>(kw<"%prec">) +
              assign<&ast::RhsMisc::text>(ref<SymbolText>)> {};
-  struct DPrecMiscRule
+  struct DPrecMisc
       : rule<create<ast::RhsMisc> + assign<&ast::RhsMisc::kind>(kw<"%dprec">) +
              assign<&ast::RhsMisc::text>(ref<INT>)> {};
-  struct MergeMiscRule
+  struct MergeMisc
       : rule<create<ast::RhsMisc> + assign<&ast::RhsMisc::kind>(kw<"%merge">) +
              assign<&ast::RhsMisc::text>(ref<TAG>)> {};
-  struct ExpectMiscRule
+  struct ExpectMisc
       : rule<create<ast::RhsMisc> + assign<&ast::RhsMisc::kind>(kw<"%expect">) +
              assign<&ast::RhsMisc::text>(ref<INT>)> {};
-  struct ExpectRRMiscRule
+  struct ExpectRRMisc
       : rule<create<ast::RhsMisc> +
              assign<&ast::RhsMisc::kind>(ref<EXPECT_RR_KW>) +
              assign<&ast::RhsMisc::text>(ref<INT>)> {};
-  struct EmptyMiscRule
+  struct EmptyMisc
       : rule<create<ast::RhsMisc> + assign<&ast::RhsMisc::kind>(kw<"%empty">)> {
   };
 
-  struct AlternativeRule
+  struct Alternative
       : rule<create<ast::Alternative> +
              many(append<&ast::Alternative::elements>(
-                 ref<SymbolElemRule> | ref<ActionElemRule> |
-                 ref<PredicateElemRule> | ref<PrecMiscRule> |
-                 ref<DPrecMiscRule> | ref<MergeMiscRule> | ref<ExpectMiscRule> |
-                 ref<ExpectRRMiscRule> | ref<EmptyMiscRule>))> {};
+                 ref<SymbolElem> | ref<ActionElem> |
+                 ref<PredicateElem> | ref<PrecMisc> |
+                 ref<DPrecMisc> | ref<MergeMisc> | ref<ExpectMisc> |
+                 ref<ExpectRRMisc> | ref<EmptyMisc>))> {};
 
-  struct ProductionRule
+  struct Production
       : rule<create<ast::Production> +
              assign<&ast::Production::name>(ref<IdText>) +
              NamedRef<&ast::Production::namedRef> + lit<":"> +
-             append<&ast::Production::alternatives>(ref<AlternativeRule>) +
+             append<&ast::Production::alternatives>(ref<Alternative>) +
              many((lit<"|"> + append<&ast::Production::alternatives>(
-                                  ref<AlternativeRule>)) |
+                                  ref<Alternative>)) |
                   lit<";">)> {};
 
-  struct TokenDeclRule
+  struct TokenDecl
       : rule<create<ast::TokenSymbol> +
              assign<&ast::TokenSymbol::name>(ref<SymbolText>) +
              option(assign<&ast::TokenSymbol::number>(ref<INT>) |
@@ -194,13 +190,13 @@ struct Bison : cursiv::GrammarSpec {
              option(assign<&ast::TokenSymbol::alias>(ref<STRING> |
                                                      ref<TSTRING>))> {};
 
-  struct TokenDeclForPrecRule
+  struct TokenDeclForPrec
       : rule<create<ast::TokenSymbol> +
              ((assign<&ast::TokenSymbol::name>(ref<IdText>) +
                option(assign<&ast::TokenSymbol::number>(ref<INT>))) |
               assign<&ast::TokenSymbol::name>(ref<STRING>))> {};
 
-  struct TypeSymbolRule
+  struct TypeSymbol
       : rule<create<ast::TokenSymbol> +
              assign<&ast::TokenSymbol::name>(ref<SymbolText>)> {};
 
@@ -213,35 +209,35 @@ struct Bison : cursiv::GrammarSpec {
   static constexpr auto Groups =
       append<&ast::SymbolDecl::groups>(ref<Group<Symbol>>) +
       many(append<&ast::SymbolDecl::groups>(ref<Group<Symbol, TAG>>));
-  struct SymbolDeclRule
+  struct SymbolDecl
       : rule<create<ast::SymbolDecl> +
              ((assign<&ast::SymbolDecl::kind>(kw<"%nterm"> | kw<"%token"> |
                                               kw<"%term">) +
-               Groups<TokenDeclRule>) |
+               Groups<TokenDecl>) |
               (assign<&ast::SymbolDecl::kind>(kw<"%type">) +
-               Groups<TypeSymbolRule>) |
+               Groups<TypeSymbol>) |
               (assign<&ast::SymbolDecl::kind>(ref<PrecDeclaratorKw>) +
-               Groups<TokenDeclForPrecRule>))> {};
+               Groups<TokenDeclForPrec>))> {};
 
-  struct CodePropsRule
+  struct CodeProps
       : rule<create<ast::CodePropsDecl> +
              assign<&ast::CodePropsDecl::kind>(kw<"%destructor"> |
                                                kw<"%printer">) +
-             assign<&ast::CodePropsDecl::action>(ref<ActionBlockRule>) +
+             assign<&ast::CodePropsDecl::action>(ref<ActionBlock>) +
              some(append<&ast::CodePropsDecl::items>(ref<SymbolText>) |
                   append<&ast::CodePropsDecl::items>(ref<TAG>))> {};
 
-  struct GrammarDeclDirectiveRule
+  struct GrammarDeclDirective
       : rule<(assign<&ast::Directive::kind>(kw<"%start">) +
               some(append<&ast::Directive::args>(ref<SymbolText>))) |
              (assign<&ast::Directive::kind>(ref<DEFAULT_PREC_KW>)) |
              (assign<&ast::Directive::kind>(ref<NO_DEFAULT_PREC_KW>)) |
              (assign<&ast::Directive::kind>(kw<"%code">) +
               option(append<&ast::Directive::args>(ref<ID>)) +
-              append<&ast::Directive::actions>(ref<ActionBlockRule>)) |
+              append<&ast::Directive::actions>(ref<ActionBlock>)) |
              (assign<&ast::Directive::kind>(kw<"%union">) +
               option(append<&ast::Directive::args>(ref<ID>)) +
-              append<&ast::Directive::actions>(ref<ActionBlockRule>))> {};
+              append<&ast::Directive::actions>(ref<ActionBlock>))> {};
 
   struct PrologueOnlyDirective
       : rule<(assign<&ast::Directive::kind>(kw<"%debug">)) |
@@ -260,7 +256,7 @@ struct Bison : cursiv::GrammarSpec {
               append<&ast::Directive::args>(ref<STRING>)) |
              (assign<&ast::Directive::kind>(kw<"%glr-parser">)) |
              (assign<&ast::Directive::kind>(kw<"%initial-action">) +
-              append<&ast::Directive::actions>(ref<ActionBlockRule>)) |
+              append<&ast::Directive::actions>(ref<ActionBlock>)) |
              (assign<&ast::Directive::kind>(kw<"%language">) +
               append<&ast::Directive::args>(ref<STRING>)) |
              (assign<&ast::Directive::kind>(ref<NAME_PREFIX_KW>) +
@@ -270,12 +266,12 @@ struct Bison : cursiv::GrammarSpec {
              (assign<&ast::Directive::kind>(ref<OBS_OUTPUT_KW>) +
               append<&ast::Directive::args>(ref<STRING>)) |
              (assign<&ast::Directive::kind>(kw<"%param">) +
-              some(append<&ast::Directive::actions>(ref<ActionBlockRule>))) |
+              some(append<&ast::Directive::actions>(ref<ActionBlock>))) |
              (assign<&ast::Directive::kind>(ref<PURE_PARSER_KW>)) |
              (assign<&ast::Directive::kind>(kw<"%parse-param">) +
-              some(append<&ast::Directive::actions>(ref<ActionBlockRule>))) |
+              some(append<&ast::Directive::actions>(ref<ActionBlock>))) |
              (assign<&ast::Directive::kind>(kw<"%lex-param">) +
-              some(append<&ast::Directive::actions>(ref<ActionBlockRule>))) |
+              some(append<&ast::Directive::actions>(ref<ActionBlock>))) |
              (assign<&ast::Directive::kind>(kw<"%require">) +
               append<&ast::Directive::args>(ref<STRING>)) |
              (assign<&ast::Directive::kind>(kw<"%skeleton">) +
@@ -290,22 +286,22 @@ struct Bison : cursiv::GrammarSpec {
   struct File_
       : rule<create<ast::File> +
              many(append<&ast::File::prologue>(
-                 ref<SymbolDeclRule> | ref<CodePropsRule> |
-                 ref<GrammarDeclDirectiveRule> | ref<PrologueOnlyDirective>)) +
+                 ref<SymbolDecl> | ref<CodeProps> |
+                 ref<GrammarDeclDirective> | ref<PrologueOnlyDirective>)) +
              lit<"%%"> +
-             some(append<&ast::File::grammarSection>(ref<ProductionRule>) |
-                  (append<&ast::File::grammarSection>(ref<SymbolDeclRule>) +
+             some(append<&ast::File::grammarSection>(ref<Production>) |
+                  (append<&ast::File::grammarSection>(ref<SymbolDecl>) +
                    lit<";">) |
-                  (append<&ast::File::grammarSection>(ref<CodePropsRule>) +
+                  (append<&ast::File::grammarSection>(ref<CodeProps>) +
                    lit<";">) |
                   (append<&ast::File::grammarSection>(
-                       ref<GrammarDeclDirectiveRule>) +
+                       ref<GrammarDeclDirective>) +
                    lit<";">)) +
              option(lit<"%%"> +
                     tight(assign<&ast::File::epilogue>(ref<EpilogueText>)))> {};
 
   using entry = File_;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<BLOCK_COMMENT, LINE_COMMENT, SYNCLINE>;
 };
 

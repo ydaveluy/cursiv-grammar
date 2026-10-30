@@ -18,45 +18,24 @@ struct Calculator : cursiv::GrammarSpec {
       : terminal<NumberPart +
                  option(cr<"eE"> + option(cr<"+-">) + NumberPart)> {};
 
-  struct COS : terminal<kw<"cos">, value<ast::Func::cos>> {};
-  struct SIN : terminal<kw<"sin">, value<ast::Func::sin>> {};
-  struct TAN : terminal<kw<"tan">, value<ast::Func::tan>> {};
-  struct ACOS : terminal<kw<"acos">, value<ast::Func::acos>> {};
-  struct ASIN : terminal<kw<"asin">, value<ast::Func::asin>> {};
-  struct ATAN : terminal<kw<"atan">, value<ast::Func::atan>> {};
-  struct LOG : terminal<kw<"log">, value<ast::Func::log>> {};
-  struct LN : terminal<kw<"ln">, value<ast::Func::ln>> {};
-  struct SQRT : terminal<kw<"sqrt">, value<ast::Func::sqrt>> {};
 
-  struct PI : terminal<kw<"pi">, value<ast::Constant::pi>> {};
-  struct EULER : terminal<kw<"e">, value<ast::Constant::euler>> {};
-  struct I : terminal<kw<"i">, value<ast::Constant::i>> {};
 
-  struct PLUS : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct MINUS : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct TIMES : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIV : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct POW : terminal<lit<"^">, value<ast::Operator::power>> {};
 
-  struct EQ : terminal<lit<"=">, value<ast::RelOp::eq>> {};
-  struct GT : terminal<lit<">">, value<ast::RelOp::gt>> {};
-  struct LT : terminal<lit<"<">, value<ast::RelOp::lt>> {};
 
   struct Expression;
   struct SignedAtom;
 
   struct Expression
-      : infix<SignedAtom, &ast::BinaryExpression::left,
-              &ast::BinaryExpression::op, &ast::BinaryExpression::right,
-              (left(ref<POW>) >>                //
-               left(ref<TIMES> | ref<DIV>) >>   //
-               left(ref<PLUS> | ref<MINUS>))> {};
+      : infix<SignedAtom, ast::BinaryExpression,
+              levels(left(as<ast::Operator::power>(lit<"^">)),               //
+                     left(as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">)),  //
+                     left(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">)))> {};
 
   struct FunctionCall
       : rule<create<ast::FunctionCall>(
             assign<&ast::FunctionCall::func>(
-                ref<COS> | ref<SIN> | ref<TAN> | ref<ACOS> | ref<ASIN> |
-                ref<ATAN> | ref<LOG> | ref<LN> | ref<SQRT>) +
+                as<ast::Func::cos>(kw<"cos">) | as<ast::Func::sin>(kw<"sin">) | as<ast::Func::tan>(kw<"tan">) | as<ast::Func::acos>(kw<"acos">) | as<ast::Func::asin>(kw<"asin">) |
+                as<ast::Func::atan>(kw<"atan">) | as<ast::Func::log>(kw<"log">) | as<ast::Func::ln>(kw<"ln">) | as<ast::Func::sqrt>(kw<"sqrt">)) +
             lit<"("> +
             some(append<&ast::FunctionCall::args>(ref<Expression>),
                  lit<",">) +
@@ -65,7 +44,7 @@ struct Calculator : cursiv::GrammarSpec {
   // Each sign nests one level deeper; the sign is not part of the number.
   struct SignedAtom
       : rule<create<ast::UnaryExpression>(
-                 assign<&ast::UnaryExpression::op>(ref<PLUS> | ref<MINUS>) +
+                 assign<&ast::UnaryExpression::op>(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">)) +
                  assign<&ast::UnaryExpression::operand>(
                      ref<SignedAtom>))                                     //
              | ref<FunctionCall>                                          //
@@ -76,21 +55,21 @@ struct Calculator : cursiv::GrammarSpec {
                    assign<&ast::VariableExpression::name>(ref<VARIABLE>))  //
              | create<ast::ConstantExpression>(
                    assign<&ast::ConstantExpression::value>(
-                       ref<PI> | ref<EULER> | ref<I>))                     //
+                       as<ast::Constant::pi>(kw<"pi">) | as<ast::Constant::euler>(kw<"e">) | as<ast::Constant::i>(kw<"i">)))                     //
              | create<ast::GroupedExpression>(
                    lit<"("> +
                    assign<&ast::GroupedExpression::expression>(
                        ref<Expression>) +
                    lit<")">)> {};
 
-  struct EquationRule
+  struct Equation
       : rule<create<ast::Equation>(
                  assign<&ast::Equation::left>(ref<Expression>) +
-                 assign<&ast::Equation::op>(ref<EQ> | ref<GT> | ref<LT>) +
+                 assign<&ast::Equation::op>(as<ast::RelOp::eq>(lit<"=">) | as<ast::RelOp::gt>(lit<">">) | as<ast::RelOp::lt>(lit<"<">)) +
                  assign<&ast::Equation::right>(ref<Expression>))> {};
 
-  using entry = EquationRule;
-  using ignore = WS;
+  using entry = Equation;
+  using ignored = WS;
 };
 
 }  // namespace calculator

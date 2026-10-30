@@ -34,6 +34,9 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 Corundum is a small Ruby-like scripting language (variables, arrays, `if`/
 `unless`/`while`/`for`, functions, and a `pir` block for inline Parrot IR):
 
+This port targets [Alexander Belov’s experimental Corundum language](https://github.com/AlexBelov/corundum),
+a Ruby-like language designed for the Parrot VM.
+
 ```ruby
 def factorial(n)
   if n <= 1

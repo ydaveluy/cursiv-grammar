@@ -34,7 +34,7 @@ struct IndexedVariable : cursiv::Extends<Expression> {
 
 struct BuiltinCall : cursiv::Extends<Expression> {
   string_view name;
-  Expression* arg;
+  Expression* arg;  // null only for the argument-free FRAN() form
 };
 
 // `(e)`, `[e]` or `<e>`: three bracket spellings, one grouping.
@@ -65,32 +65,38 @@ struct AskPair : cursiv::Extends<cursiv::AstNode> {
 
 struct AskCommand : cursiv::Extends<Command> {
   vector<AskPair*> pairs;
+  Command* next;
 };
 
 struct DoCommand : cursiv::Extends<Command> {
-  boolean all;             // 'all'
+  boolean all;             // explicit 'all'; no target/group also means all
   optional<int64> group;   // a bare group number
   LineNumber* target;      // a full line number
+  Command* next;
 };
 
 struct ForCommand : cursiv::Extends<Command> {
   string_view variable;
   Expression* from;
-  Expression* to;
-  Expression* step;  // null: no third bound was written
+  Expression* to;    // null: FOR A=B is the non-iterating SET form
+  Expression* step;  // null: omitted increment, default one
   Command* body;
 };
 
-struct QuitCommand : cursiv::Extends<Command> {};
+struct QuitCommand : cursiv::Extends<Command> {
+  Command* next;
+};
 
 struct SetCommand : cursiv::Extends<Command> {
   string_view variable;
+  Expression* index;  // null: a scalar assignment
   Expression* value;
   Command* next;  // null: no chained command
 };
 
 struct GotoCommand : cursiv::Extends<Command> {
   LineNumber* target;  // null: no line number was written
+  Command* next;
 };
 
 struct IfCommand : cursiv::Extends<Command> {
@@ -110,25 +116,34 @@ struct HashRun {
   std::int64_t count;
 };
 
-// `%width.decimals`: a print format, the one TYPE item with two fields.
+// `%`, `%width`, `%width.decimals`: floating/default or fixed print format.
 struct FormatSpec : cursiv::Extends<cursiv::AstNode> {
+  boolean hasWidth;
+  boolean hasDecimals;
   int64 width;
   int64 decimals;
 };
 
+struct DumpVariables : cursiv::Extends<cursiv::AstNode> {};
+
 using TypeItem =
-    std::variant<Expression*, BangRun, HashRun, std::string_view, FormatSpec*>;
+    std::variant<Expression*, BangRun, HashRun, std::string_view, FormatSpec*,
+                 DumpVariables*>;
 
 struct TypeCommand : cursiv::Extends<Command> {
   vector<TypeItem> items;
   Command* next;  // null: no chained command
 };
 
-struct ReturnCommand : cursiv::Extends<Command> {};
+struct ReturnCommand : cursiv::Extends<Command> {
+  Command* next;
+};
 
 struct WriteCommand : cursiv::Extends<Command> {
+  boolean all;
   optional<int64> group;  // a bare group number
   LineNumber* target;     // a full line number
+  Command* next;
 };
 
 struct CommentCommand : cursiv::Extends<Command> {

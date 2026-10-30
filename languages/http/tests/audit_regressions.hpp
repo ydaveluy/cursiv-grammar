@@ -48,6 +48,12 @@ inline bool run(const cursiv::Parser& parser) {
     const auto* message = result.value_as<http::ast::Message>();
     check(message && message->body == "a\0b"sv);
   }
+  {
+    const auto result = parse("GET / HTTP/1.1\r\nX-Latin: \x80\xff\r\n\r\n");
+    const auto* message = result.value_as<http::ast::Message>();
+    check(message && message->headers.size() == 1 && message->headersTerminated &&
+          message->headers[0]->value == "\x80\xff"sv);
+  }
   if (failures) std::fprintf(stderr, "http: %d AST audit failures\n", failures);
   return failures == 0;
 }

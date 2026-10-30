@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every document under example/ parses clean and
 # builds a Document; a second, inline document checks field readback.
 add_executable(rego_grammar_test grammar_test.cpp)
-target_link_libraries(rego_grammar_test PRIVATE regoCore)
+target_link_libraries(rego_grammar_test PRIVATE regoCore cursiv::test)
 target_compile_definitions(rego_grammar_test PRIVATE
     "CURSIV_EXAMPLE_DIR=\"${PROJECT_SOURCE_DIR}/example\""
     "CURSIV_TEST_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")

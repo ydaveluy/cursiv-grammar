@@ -8,6 +8,7 @@
 namespace trapc {
 
 struct Trapc : cursiv::GrammarSpec {
+  static constexpr auto word_boundary = cr<"_a-zA-Z0-9">;
   struct WS : terminal<some(s)> {};
 
   struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
@@ -17,7 +18,25 @@ struct Trapc : cursiv::GrammarSpec {
   // pass, so `#include`/`#define` lines are skipped verbatim, not expanded.
   struct PREPROC : terminal<lit<"#"> + many(cr<R"(^\n)">)> {};
 
-  struct ID : terminal<(cr<"_a-zA-Z"> + many(w))> {};
+  struct IdentifierToken : terminal<cr<"_a-zA-Z"> + many(cr<"_a-zA-Z0-9">)> {};
+  static constexpr auto Reserved =
+      kw<"alignas"> | kw<"alignof"> | kw<"auto"> | kw<"bool"> |
+      kw<"break"> | kw<"case"> | kw<"char"> | kw<"const"> |
+      kw<"constexpr"> | kw<"continue"> | kw<"default"> | kw<"do"> |
+      kw<"double"> | kw<"else"> | kw<"enum"> | kw<"extern"> |
+      kw<"false"> | kw<"float"> | kw<"for"> | kw<"goto"> |
+      kw<"if"> | kw<"inline"> | kw<"int"> | kw<"long"> |
+      kw<"nullptr"> | kw<"register"> | kw<"restrict"> | kw<"return"> |
+      kw<"short"> | kw<"signed"> | kw<"sizeof"> | kw<"static"> |
+      kw<"static_assert"> | kw<"struct"> | kw<"switch"> | kw<"thread_local"> |
+      kw<"true"> | kw<"typedef"> | kw<"typeof"> | kw<"typeof_unqual"> |
+      kw<"union"> | kw<"unsigned"> | kw<"void"> | kw<"volatile"> |
+      kw<"while"> | kw<"_Alignas"> | kw<"_Alignof"> | kw<"_Atomic"> |
+      kw<"_BitInt"> | kw<"_Bool"> | kw<"_Complex"> | kw<"_Decimal32"> |
+      kw<"_Decimal64"> | kw<"_Decimal128"> | kw<"_Generic"> | kw<"_Imaginary"> |
+      kw<"_Noreturn"> | kw<"_Static_assert"> | kw<"_Thread_local"> | kw<"trap"> |
+      kw<"alias">;
+  struct ID : rule<as<std::string_view>(!Reserved + ref<IdentifierToken>)> {};
 
   static constexpr auto HEXDIGIT = cr<"0-9a-fA-F">;
 
@@ -38,18 +57,23 @@ struct Trapc : cursiv::GrammarSpec {
                              option(INTEGERSUFFIX))> {};
 
   static constexpr auto EXPONENT = cr<"eE"> + option(cr<"+-">) + some(d);
-  struct FLOAT_LIT : terminal<((((many(d) + lit<"."> + some(d))  //
-                                 | (some(d) + lit<".">)) +       //
-                                option(EXPONENT))                //
-                               | (some(d) + EXPONENT)) +         //
-                              option(cr<"flFL">)> {};
+  static constexpr auto DecimalFloat =
+      (((many(d) + lit<"."> + some(d)) | (some(d) + lit<".">)) + option(EXPONENT)) |
+      (some(d) + EXPONENT);
+  static constexpr auto HexSignificand =
+      (some(HEXDIGIT) + option(lit<"."> + many(HEXDIGIT))) |
+      (lit<"."> + some(HEXDIGIT));
+  static constexpr auto HexFloat = lit<"0"> + cr<"xX"> + HexSignificand +
+      cr<"pP"> + option(cr<"+-">) + some(d);
+  struct FLOAT_LIT : terminal<(DecimalFloat | HexFloat) + option(cr<"flFL">)> {};
 
-  struct CHAR_LIT : terminal<(option(cr<"LuU">) + lit<"'"> +
-                              some(ESCAPE | (!cr<R"('\n)"> + any)) + lit<"'">)> {
+
+  struct CHAR_LIT : terminal<(option(lit<"u8"> | cr<"LuU">) + lit<"'"> +
+                              some(ESCAPE | cr<R"(^'\\\r\n)">) + lit<"'">)> {
   };
   struct STRING_LIT
       : terminal<(option(lit<"u8"> | cr<"LuU">) + lit<"\""> +
-                  many(ESCAPE | (!cr<R"("\n)"> + any)) + lit<"\"">)> {};
+                  many(ESCAPE | cr<R"(^"\\\r\n)">) + lit<"\"">)> {};
 
   static constexpr auto BuiltinTypeWord =
       kw<"void"> | kw<"char"> | kw<"short"> | kw<"int"> | kw<"long"> |
@@ -139,14 +163,14 @@ struct Trapc : cursiv::GrammarSpec {
   // `BalancedParens` balances the parens recursively so a nested one, e.g.
   // `((format(printf, 1, 2)))`, still matches as a whole.
   static constexpr auto AttrAtom =
-      ref<ID> | ref<INT_LIT> | ref<FLOAT_LIT> | ref<STRING_LIT> |
+      ref<IdentifierToken> | ref<INT_LIT> | ref<FLOAT_LIT> | ref<STRING_LIT> |
       ref<CHAR_LIT> | lit<","> | lit<"::"> | lit<"..."> | lit<"*"> |
       lit<"&"> | lit<"+"> | lit<"-"> | lit<"="> | lit<"<"> | lit<">"> |
       lit<"!"> | lit<"~"> | lit<"?"> | lit<":"> | lit<".">;
   struct BalancedParens
       : rule<lit<"("> + many(ref<BalancedParens> | AttrAtom) + lit<")">> {};
   struct GnuAttribute : rule<AttributeWord + ref<BalancedParens>> {};
-  static constexpr auto AttrName = ref<ID> + option(lit<"::"> + ref<ID>);
+  static constexpr auto AttrName = ref<IdentifierToken> + option(lit<"::"> + ref<IdentifierToken>);
   struct StdAttribute
       : rule<AttrName + option(ref<BalancedParens>)> {};
   struct StdAttributeSpec
@@ -212,7 +236,7 @@ struct Trapc : cursiv::GrammarSpec {
 
   struct StaticAssertDecl
       : rule<create<ast::StaticAssertItem>(
-            kw<"_Static_assert"> + lit<"("> +
+            (kw<"static_assert"> | kw<"_Static_assert">) + lit<"("> +
             assign<&ast::StaticAssertItem::cond>(ref<ConditionalExpression>) +
             option(lit<","> + assign<&ast::StaticAssertItem::message>(
                                    ref<StringLiteral>)) +
@@ -249,14 +273,14 @@ struct Trapc : cursiv::GrammarSpec {
   struct EnumSpecifier
       : rule<kw<"enum"> + many(ref<AttributeSpec>) +
              ((option(assign<&ast::EnumType::name>(ref<ID>)) +
-               option(assign<&ast::EnumType::underlying>(
+               option(lit<":"> + assign<&ast::EnumType::underlying>(
                    ref<DeclarationSpecifiers>)) +
                flag<&ast::EnumType::defined>(lit<"{">) +
                some(append<&ast::EnumType::enumerators>(ref<Enumerator>),
                     lit<",">) +
                option(lit<",">) + lit<"}">)  //
               | (assign<&ast::EnumType::name>(ref<ID>) +
-                 option(assign<&ast::EnumType::underlying>(
+                 option(lit<":"> + assign<&ast::EnumType::underlying>(
                      ref<DeclarationSpecifiers>))))> {};
 
   struct Enumerator : rule<assign<&ast::Enumerator::name>(ref<ID>) +
@@ -487,18 +511,17 @@ struct Trapc : cursiv::GrammarSpec {
                  assign<&ast::CastExpr::operand>(ref<CastExpression>))  //
              | ref<UnaryExpression>> {};
 
-  struct BinaryExpression : infix<CastExpression, &ast::BinaryExpr::left,
-                                  &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                                  (left(OpMul) >>     //
-                                   left(OpAdd) >>     //
-                                   left(OpShift) >>   //
-                                   left(OpRel) >>     //
-                                   left(OpEq) >>      //
-                                   left(OpBitAnd) >>  //
-                                   left(OpBitXor) >>  //
-                                   left(OpBitOr) >>   //
-                                   left(OpLogAnd) >>  //
-                                   left(OpLogOr))> {};
+  struct BinaryExpression : infix<CastExpression, ast::BinaryExpr,
+                                  levels(left(OpMul),     //
+                                         left(OpAdd),     //
+                                         left(OpShift),   //
+                                         left(OpRel),     //
+                                         left(OpEq),      //
+                                         left(OpBitAnd),  //
+                                         left(OpBitXor),  //
+                                         left(OpBitOr),   //
+                                         left(OpLogAnd),  //
+                                         left(OpLogOr))> {};
 
   struct ConditionalExpression
       : rule<create<ast::CondExpr>(
@@ -517,8 +540,7 @@ struct Trapc : cursiv::GrammarSpec {
              | ref<ConditionalExpression>> {};
 
   struct Expression
-      : infix<AssignmentExpression, &ast::BinaryExpr::left,
-              &ast::BinaryExpr::op, &ast::BinaryExpr::right, left(lit<",">)> {};
+      : infix<AssignmentExpression, ast::BinaryExpr, left(lit<",">)> {};
 
   struct Designator
       : rule<create<ast::FieldDesignator>(
@@ -663,7 +685,7 @@ struct Trapc : cursiv::GrammarSpec {
                           | ref<ExpressionStatement>> {};
 
   struct BlockItem
-      : rule<ref<Declaration> | ref<Statement> | ref<AttributeDeclaration>> {
+      : rule<ref<StaticAssertDecl> | ref<Declaration> | ref<Statement> | ref<AttributeDeclaration>> {
   };
 
   struct FunctionDefinition
@@ -710,7 +732,7 @@ struct Trapc : cursiv::GrammarSpec {
                                ref<ExternalDeclaration>))> {};
 
   using entry = TranslationUnit;
-  using ignore = WS;
+  using ignored = WS;
   using hidden = list<SL_COMMENT, ML_COMMENT, PREPROC>;
 };
 

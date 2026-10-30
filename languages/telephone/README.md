@@ -31,13 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A teaching grammar for telephone-like numbers with optional country, area and extension parts. It does not validate real numbering plans.
+
 ```
 011 403 867 5309
 ```
-
-A North American number: `011`, then the area code, exchange and subscriber
-digit groups. `+1` and `+` may each prefix it, and `010` in place of `011`
-reads the same shape as a Japanese number instead.
 
 ## The command line
 

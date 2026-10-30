@@ -12,20 +12,11 @@ struct Arithmetic : cursiv::GrammarSpec {
   struct VARIABLE : terminal<cr<"a-zA-Z_"> + many(w)> {};
 
   struct SCIENTIFIC_NUMBER
-      : terminal<some(d) + option(lit<"."> + some(d)) +
-                     option(cr<"eE"> + option(cr<"+-">) + some(d)),
-                 double> {};
+      : terminal<as<double>(some(d) + option(lit<"."> + some(d)) +
+                            option(cr<"eE"> + option(cr<"+-">) + some(d)))> {};
 
   struct LPAREN : terminal<lit<"(">> {};
   struct RPAREN : terminal<lit<")">> {};
-  struct POW : terminal<lit<"^">, value<ast::Operator::exponent>> {};
-  struct TIMES : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIV : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct PLUS : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct MINUS : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct EQ : terminal<lit<"=">, value<ast::RelOp::eq>> {};
-  struct GT : terminal<lit<">">, value<ast::RelOp::gt>> {};
-  struct LT : terminal<lit<"<">, value<ast::RelOp::lt>> {};
 
   struct Expression;
   struct UnaryExpression;
@@ -40,7 +31,7 @@ struct Arithmetic : cursiv::GrammarSpec {
   // Each sign nests one level deeper; the sign is not part of the number.
   struct UnaryExpression
       : rule<create<ast::UnaryExpression>(
-                 assign<&ast::UnaryExpression::op>(ref<PLUS> | ref<MINUS>) +
+                 assign<&ast::UnaryExpression::op>(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">)) +
                  assign<&ast::UnaryExpression::operand>(
                      ref<UnaryExpression>)) //
              | ref<AtomExpression> | ref<GroupedExpression>> {};
@@ -54,24 +45,23 @@ struct Arithmetic : cursiv::GrammarSpec {
   struct PrimaryExpression : rule<ref<UnaryExpression>> {};
 
   struct Expression
-      : infix<PrimaryExpression, &ast::BinaryExpression::left,
-              &ast::BinaryExpression::op, &ast::BinaryExpression::right,
-              (right(ref<POW>) >>             //
-               left(ref<TIMES> | ref<DIV>) >> //
-               left(ref<PLUS> | ref<MINUS>))> {};
+      : infix<PrimaryExpression, ast::BinaryExpression,
+              levels(right(as<ast::Operator::exponent>(lit<"^">)),              //
+                     left(as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">)),  //
+                     left(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">)))> {};
 
-  struct EquationRule
+  struct Equation
       : rule<create<ast::Equation>(
             assign<&ast::Equation::left>(ref<Expression>) +
-            assign<&ast::Equation::op>(ref<EQ> | ref<GT> | ref<LT>) +
+            assign<&ast::Equation::op>(as<ast::RelOp::eq>(lit<"=">) | as<ast::RelOp::gt>(lit<">">) | as<ast::RelOp::lt>(lit<"<">)) +
             assign<&ast::Equation::right>(ref<Expression>))> {};
 
-  struct FileRule
+  struct File
       : rule<create<ast::File> +
-             many(append<&ast::File::equations>(ref<EquationRule>))> {};
+             many(append<&ast::File::equations>(ref<Equation>))> {};
 
-  using entry = FileRule;
-  using ignore = WS;
+  using entry = File;
+  using ignored = WS;
 };
 
 } // namespace arithmetic

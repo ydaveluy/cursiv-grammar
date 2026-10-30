@@ -113,6 +113,31 @@ void nested_brackets_and_string_split_and_math_add_parse() {
   CHECK(call->args.size() == 2);
 }
 
+void native_null_and_quoted_path_members() {
+  const auto r = engine().parse(
+      "States.Array(null, $[0][1], $.rows[0][1], $['a]b'], $[\"a[b\"],\r\n"
+      "$$.items[0][1], $data[0][1])");
+  CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
+  const auto* call = r.value_as<ast::FuncCall>();
+  CHECK(call != nullptr);
+  if (call == nullptr || call->args.size() != 7) {
+    CHECK(false);
+    return;
+  }
+  CHECK(cursiv::ast_cast<ast::NullArg>(call->args[0]) != nullptr);
+  constexpr std::string_view paths[] = {
+      "$[0][1]", "$.rows[0][1]", "$['a]b']", "$[\"a[b\"]"};
+  for (std::size_t i = 0; i < 4; ++i) {
+    const auto* path = cursiv::ast_cast<ast::JsonPathArg>(call->args[i + 1]);
+    CHECK(path != nullptr);
+    if (path != nullptr) CHECK(path->path == paths[i]);
+  }
+  const auto* context = cursiv::ast_cast<ast::ContextPathArg>(call->args[5]);
+  const auto* variable = cursiv::ast_cast<ast::VariableArg>(call->args[6]);
+  CHECK(context != nullptr && context->path == "$$.items[0][1]");
+  CHECK(variable != nullptr && variable->expression == "$data[0][1]");
+}
+
 }  // namespace
 
 int main() {
@@ -123,5 +148,6 @@ int main() {
   json_merge_carries_its_bool_flag();
   nested_calls_carry_a_context_path_and_a_negative_int();
   nested_brackets_and_string_split_and_math_add_parse();
+  native_null_and_quoted_path_members();
   return cursiv::test::report("amazonstateslanguageintrinsicfunctions_grammar_test");
 }

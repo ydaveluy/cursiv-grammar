@@ -29,6 +29,16 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 Generated files live under `build/src/generated-src/`; do not edit them.
 
+The syntax is checked against the MIT Portable CLU 3.7 parser sources
+(release dated 2016-11-30), with the 1978/1981 reference syntax as historical
+context. Keywords and identifiers ignore ASCII case. Formal parameters use
+brackets (`proc [t: type] (...)`), as do array/sequence element types and
+`force[t]`; a cluster contains its operation definitions directly.
+
+The port builds one module and a syntax tree. It does not perform native
+name/type checking, instantiate clusters, or implement every PCLU extension
+and directive. Some context-dependent restrictions remain unchecked.
+
 ## The sample
 
 CLU, Barbara Liskov's language for data abstraction: a module is one

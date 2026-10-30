@@ -65,7 +65,7 @@ struct Vhdl : cursiv::GrammarSpec {
 
   // ---------------- expressions & names ----------------
   struct ExternalName;
-  struct SignatureRule;
+  struct Signature;
   struct NameAtom
       : rule<create<ast::Ident>(assign<&ast::Ident::name>(Identifier)) |
              create<ast::Literal>(assign<&ast::Literal::text>(
@@ -87,7 +87,7 @@ struct Vhdl : cursiv::GrammarSpec {
       ikw<"ACROSS"> | ikw<"THROUGH"> | ikw<"REFERENCE"> | ikw<"TOLERANCE"> |
       ikw<"SUBTYPE">;
 
-  struct AssocRule;
+  struct Assoc;
 
   static constexpr auto SelectionTail =
       nest<ast::SelectedName, &ast::SelectedName::prefix>(
@@ -101,11 +101,11 @@ struct Vhdl : cursiv::GrammarSpec {
                  SelectionTail  //
                  | nest<ast::CallName, &ast::CallName::prefix>(
                        lit<"("> +
-                       some(append<&ast::CallName::args>(ref<AssocRule>),
+                       some(append<&ast::CallName::args>(ref<Assoc>),
                             lit<",">) +
                        lit<")">)  //
                  | nest<ast::AttributeName, &ast::AttributeName::prefix>(
-                       option(assign<&ast::AttributeName::signature>(ref<SignatureRule>)) +
+                       option(assign<&ast::AttributeName::signature>(ref<Signature>)) +
                        lit<"'"> +
                        assign<&ast::AttributeName::designator>(
                            AttrDesignatorSpelling) +
@@ -130,10 +130,9 @@ struct Vhdl : cursiv::GrammarSpec {
                  assign<&ast::SubtypeIndication::typeMark>(ref<NameExpr>))> {
   };
 
-  struct ExternalRoot
-      : rule<lit<"."> | (lit<"@"> + Identifier + lit<".">) |
-             some(lit<"^"> + lit<".">),
-             text_conv<[](std::string_view text) { return text; }>> {};
+  struct ExternalRoot : rule<as<[](std::string_view text) { return text; }>(
+                            lit<"."> | (lit<"@"> + Identifier + lit<".">) |
+                            some(lit<"^"> + lit<".">))> {};
   struct ExternalName
       : rule<create<ast::ExternalName>(
                  lit<"<<"> + assign<&ast::ExternalName::kind>(
@@ -154,7 +153,7 @@ struct Vhdl : cursiv::GrammarSpec {
 
   struct OpenMarker : rule<create<ast::OpenMark> + ikw<"OPEN">> {};
 
-  struct AssocRule
+  struct Assoc
       : rule<create<ast::Assoc>(
                  option(assign<&ast::Assoc::formal>(ref<NameExpr>) +
                         lit<"=>">) +
@@ -164,7 +163,7 @@ struct Vhdl : cursiv::GrammarSpec {
                         ikw<"INERTIAL">)) +
                      assign<&ast::Assoc::actual>(ref<Expression>))))> {};
 
-  struct ElementAssocRule
+  struct ElementAssoc
       : rule<create<ast::ElementAssoc>(
                  option(some(append<&ast::ElementAssoc::choices>(Choice),
                              lit<"|">) +
@@ -174,7 +173,7 @@ struct Vhdl : cursiv::GrammarSpec {
   struct Aggregate
       : rule<create<ast::Aggregate>(
                  lit<"("> +
-                 some(append<&ast::Aggregate::elements>(ref<ElementAssocRule>),
+                 some(append<&ast::Aggregate::elements>(ref<ElementAssoc>),
                       lit<",">) +
                  lit<")">)> {};
 
@@ -194,7 +193,7 @@ struct Vhdl : cursiv::GrammarSpec {
       : rule<create<ast::Literal>(
                  assign<&ast::Literal::text>(ref<BASED_NUMBER> |
                                               ref<NUMBER>) +
-                 option(&Identifier + assign<&ast::Literal::unit>(ref<NameExpr>)))> {};
+                 option(!gap::none + &Identifier + assign<&ast::Literal::unit>(ref<NameExpr>)))> {};
 
   struct BitStrLiteral
       : rule<create<ast::Literal>(
@@ -222,9 +221,11 @@ struct Vhdl : cursiv::GrammarSpec {
                  assign<&ast::UnaryExpr::operand>(ref<Primary>))  //
              | ref<Primary>> {};
 
-  struct PowerExpr : infix<UnaryFactor, &ast::BinaryExpr::left,
-                           &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                           left(lit<"**">)> {};
+  struct PowerExpr
+      : rule<ref<UnaryFactor> +
+             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
+                 assign<&ast::BinaryExpr::op>(lit<"**">) +
+                 assign<&ast::BinaryExpr::right>(ref<Primary>)))> {};
 
   static constexpr auto OpMul = lit<"*"> | lit<"/"> | ikw<"MOD"> | ikw<"REM">;
   static constexpr auto OpAdd = lit<"+"> | lit<"-"> | lit<"&">;
@@ -235,24 +236,22 @@ struct Vhdl : cursiv::GrammarSpec {
       lit<"?>"> | lit<"/="> | lit<"<="> | lit<">="> | lit<"="> | lit<"<"> |
       lit<">">;
 
-  struct Term : infix<PowerExpr, &ast::BinaryExpr::left,
-                       &ast::BinaryExpr::op, &ast::BinaryExpr::right,
+  struct Term : infix<PowerExpr, ast::BinaryExpr,
                        left(OpMul)> {};
   struct SignedTerm
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
                  assign<&ast::UnaryExpr::operand>(ref<Term>)) | ref<Term>> {};
-  struct SimpleExpr : infix<SignedTerm, &ast::BinaryExpr::left,
-                             &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                             left(OpAdd)> {};
-  struct ShiftExpr : infix<SimpleExpr, &ast::BinaryExpr::left,
-                            &ast::BinaryExpr::op, &ast::BinaryExpr::right,
+  struct SimpleExpr
+      : rule<ref<SignedTerm> +
+             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
+                 assign<&ast::BinaryExpr::op>(OpAdd) +
+                 assign<&ast::BinaryExpr::right>(ref<Term>)))> {};
+  struct ShiftExpr : infix<SimpleExpr, ast::BinaryExpr,
                             left(OpShift)> {};
-  struct RelationExpr : infix<ShiftExpr, &ast::BinaryExpr::left,
-                               &ast::BinaryExpr::op, &ast::BinaryExpr::right,
+  struct RelationExpr : infix<ShiftExpr, ast::BinaryExpr,
                                left(OpRel)> {};
-  struct LogicalExpr : infix<RelationExpr, &ast::BinaryExpr::left,
-                              &ast::BinaryExpr::op, &ast::BinaryExpr::right,
+  struct LogicalExpr : infix<RelationExpr, ast::BinaryExpr,
                               left(OpLogical)> {};
 
   struct Expression
@@ -261,7 +260,7 @@ struct Vhdl : cursiv::GrammarSpec {
                  assign<&ast::CondOpExpr::operand>(ref<Primary>))  //
              | ref<LogicalExpr>> {};
 
-  struct CondExprEntryRule
+  struct CondExprEntry
       : rule<create<ast::CondExprEntry>(
                  assign<&ast::CondExprEntry::value>(ref<Expression>) +
                  ikw<"WHEN"> +
@@ -270,15 +269,15 @@ struct Vhdl : cursiv::GrammarSpec {
   struct ConditionalExpr
       : rule<create<ast::ConditionalExpr>(
                  append<&ast::ConditionalExpr::entries>(
-                     ref<CondExprEntryRule>) +
+                     ref<CondExprEntry>) +
                  many(ikw<"ELSE"> +
                       append<&ast::ConditionalExpr::entries>(
-                          ref<CondExprEntryRule>)) +
+                          ref<CondExprEntry>)) +
                  option(ikw<"ELSE"> +
                         assign<&ast::ConditionalExpr::elseValue>(
                             ref<Expression>)))> {};
 
-  struct SelExprEntryRule
+  struct SelExprEntry
       : rule<create<ast::SelExprEntry>(
                  assign<&ast::SelExprEntry::value>(ref<Expression>) +
                  ikw<"WHEN"> +
@@ -288,11 +287,11 @@ struct Vhdl : cursiv::GrammarSpec {
   struct SelectedExpr
       : rule<create<ast::SelectedExpr>(
                  some(append<&ast::SelectedExpr::entries>(
-                          ref<SelExprEntryRule>),
+                          ref<SelExprEntry>),
                       lit<",">))> {};
 
   // ---------------- waveforms & delay ----------------
-  struct WaveformElementRule
+  struct WaveformElement
       : rule<create<ast::WaveformElement>(
                  (flag<&ast::WaveformElement::isNull>(ikw<"NULL">) |
                   assign<&ast::WaveformElement::value>(ref<Expression>)) +
@@ -304,7 +303,7 @@ struct Vhdl : cursiv::GrammarSpec {
       : rule<create<ast::Waveform>(
                  flag<&ast::Waveform::unaffected>(ikw<"UNAFFECTED">) |
                  some(append<&ast::Waveform::elements>(
-                          ref<WaveformElementRule>),
+                          ref<WaveformElement>),
                       lit<",">))> {};
 
   struct DelayMechanism
@@ -319,7 +318,7 @@ struct Vhdl : cursiv::GrammarSpec {
 
   // The WHEN is optional on the first entry alone: a plain (non-conditional)
   // waveform is this same shape with one unconditioned entry.
-  struct CondWaveEntryRule
+  struct CondWaveEntry
       : rule<create<ast::CondWaveEntry>(
                  assign<&ast::CondWaveEntry::wave>(ref<Waveform>) +
                  option(ikw<"WHEN"> +
@@ -329,10 +328,10 @@ struct Vhdl : cursiv::GrammarSpec {
   struct CondWaveAssign
       : rule<create<ast::CondWaveAssign>(
                  some(append<&ast::CondWaveAssign::entries>(
-                          ref<CondWaveEntryRule>),
+                          ref<CondWaveEntry>),
                       ikw<"ELSE">))> {};
 
-  struct SelWaveEntryRule
+  struct SelWaveEntry
       : rule<create<ast::SelWaveEntry>(
                  assign<&ast::SelWaveEntry::wave>(ref<Waveform>) +
                  ikw<"WHEN"> +
@@ -342,7 +341,7 @@ struct Vhdl : cursiv::GrammarSpec {
   struct SelectedWaveforms
       : rule<create<ast::SelectedWaveforms>(
                  some(append<&ast::SelectedWaveforms::entries>(
-                          ref<SelWaveEntryRule>),
+                          ref<SelWaveEntry>),
                       lit<",">))> {};
 
   // ---------------- declarative items ----------------
@@ -435,7 +434,7 @@ struct Vhdl : cursiv::GrammarSpec {
                   flag<&ast::InterfacePackage::genericDefault>(
                       ikw<"DEFAULT">) |
                   some(append<&ast::InterfacePackage::generics>(
-                           ref<AssocRule>),
+                           ref<Assoc>),
                        lit<",">)) +
                  lit<")">)> {};
 
@@ -458,11 +457,11 @@ struct Vhdl : cursiv::GrammarSpec {
                  ikw<"RANGE"> +
                  assign<&ast::RangeTypeDef::range>(ref<DiscreteRange>))> {};
 
-  struct UnitDeclRule
+  struct UnitDecl
       : rule<create<ast::UnitDecl>(
                  assign<&ast::UnitDecl::name>(Identifier) + lit<";">)> {};
 
-  struct SecondaryUnitDeclRule
+  struct SecondaryUnitDecl
       : rule<create<ast::UnitDecl>(
                  assign<&ast::UnitDecl::name>(Identifier) + lit<"="> +
                  assign<&ast::UnitDecl::value>(ref<NumericLiteral>) +
@@ -473,9 +472,9 @@ struct Vhdl : cursiv::GrammarSpec {
                  ikw<"RANGE"> +
                  assign<&ast::PhysicalTypeDef::range>(ref<DiscreteRange>) +
                  ikw<"UNITS"> +
-                 append<&ast::PhysicalTypeDef::units>(ref<UnitDeclRule>) +
+                 append<&ast::PhysicalTypeDef::units>(ref<UnitDecl>) +
                  many(append<&ast::PhysicalTypeDef::units>(
-                     ref<SecondaryUnitDeclRule>)) +
+                     ref<SecondaryUnitDecl>)) +
                  ikw<"END"> + ikw<"UNITS"> + option(assign<&ast::Item::endName>(Identifier)))> {};
 
   struct ScalarTypeDef
@@ -505,7 +504,7 @@ struct Vhdl : cursiv::GrammarSpec {
   struct ArrayTypeDef
       : rule<ref<UnboundedArrayDef> | ref<ConstrainedArrayDef>> {};
 
-  struct RecordElementDeclRule
+  struct RecordElementDecl
       : rule<create<ast::RecordElementDecl>(
                  some(append<&ast::RecordElementDecl::names>(Identifier),
                       lit<",">) +
@@ -518,7 +517,7 @@ struct Vhdl : cursiv::GrammarSpec {
       : rule<create<ast::RecordTypeDef>(
                  ikw<"RECORD"> +
                  some(append<&ast::RecordTypeDef::elements>(
-                     ref<RecordElementDeclRule>)) +
+                     ref<RecordElementDecl>)) +
                  ikw<"END"> + ikw<"RECORD"> + option(assign<&ast::Item::endName>(Identifier)))> {};
 
   struct CompositeTypeDef : rule<ref<ArrayTypeDef> | ref<RecordTypeDef>> {};
@@ -575,7 +574,7 @@ struct Vhdl : cursiv::GrammarSpec {
                  assign<&ast::SubtypeDecl::subtype>(ref<SubtypeIndication>) +
                  lit<";">)> {};
 
-  struct FileOpenInfoRule
+  struct FileOpenInfo
       : rule<create<ast::FileOpenInfo>(
                  option(ikw<"OPEN"> +
                         assign<&ast::FileOpenInfo::openKind>(
@@ -598,13 +597,13 @@ struct Vhdl : cursiv::GrammarSpec {
                  option(assign<&ast::ObjectDecl::signalKind>(
                      ikw<"REGISTER"> | ikw<"BUS">)) +
                  option(assign<&ast::ObjectDecl::fileOpen>(
-                     ref<FileOpenInfoRule>)) +
+                     ref<FileOpenInfo>)) +
                  option(lit<":="> +
                         assign<&ast::ObjectDecl::defaultValue>(
                             ref<Expression>)) +
                  lit<";">)> {};
 
-  struct SignatureRule
+  struct Signature
       : rule<create<ast::Signature>(
                  lit<"["> +
                  many(append<&ast::Signature::params>(ref<NameExpr>), lit<",">) +
@@ -620,7 +619,7 @@ struct Vhdl : cursiv::GrammarSpec {
                             ref<SubtypeIndication>)) +
                  ikw<"IS"> + assign<&ast::AliasDecl::target>(ref<NameExpr>) +
                  option(assign<&ast::AliasDecl::signature>(
-                     ref<SignatureRule>)) +
+                     ref<Signature>)) +
                  lit<";">)> {};
 
   struct ComponentDecl
@@ -657,7 +656,7 @@ struct Vhdl : cursiv::GrammarSpec {
 
   struct EntityDesignator
       : rule<assign<&ast::EntityDesignator::name>(NameAtomText) +
-             option(assign<&ast::EntityDesignator::signature>(ref<SignatureRule>))> {};
+             option(assign<&ast::EntityDesignator::signature>(ref<Signature>))> {};
 
   struct AttributeSpec
       : rule<create<ast::AttributeSpec>(
@@ -685,17 +684,17 @@ struct Vhdl : cursiv::GrammarSpec {
          assign<&ast::BindingIndication::aspectName>(ref<EntityName>))  //
       | assign<&ast::BindingIndication::aspectKind>(ikw<"OPEN">);
 
-  struct BindingIndicationRule
+  struct BindingIndication
       : rule<create<ast::BindingIndication>(
                  option(ikw<"USE"> + EntityAspect) +
                  option(ikw<"GENERIC"> + ikw<"MAP"> + lit<"("> +
                         some(append<&ast::BindingIndication::generics>(
-                                 ref<AssocRule>),
+                                 ref<Assoc>),
                              lit<",">) +
                         lit<")">) +
                  option(ikw<"PORT"> + ikw<"MAP"> + lit<"("> +
                         some(append<&ast::BindingIndication::ports>(
-                                 ref<AssocRule>),
+                                 ref<Assoc>),
                              lit<",">) +
                         lit<")">))> {};
 
@@ -710,7 +709,7 @@ struct Vhdl : cursiv::GrammarSpec {
                  lit<":"> +
                  assign<&ast::ConfigSpec::componentName>(ref<NameExpr>) +
                  assign<&ast::ConfigSpec::binding>(
-                     ref<BindingIndicationRule>) +
+                     ref<BindingIndication>) +
                  lit<";">)> {};
 
   struct DisconnectSpec
@@ -727,7 +726,7 @@ struct Vhdl : cursiv::GrammarSpec {
                  assign<&ast::DisconnectSpec::afterTime>(ref<Expression>) +
                  lit<";">)> {};
 
-  struct GroupTemplateEntryRule
+  struct GroupTemplateEntry
       : rule<create<ast::GroupTemplateEntry>(
                  assign<&ast::GroupTemplateEntry::entityClass>(
                      EntityClass) +
@@ -740,7 +739,7 @@ struct Vhdl : cursiv::GrammarSpec {
                  assign<&ast::GroupTemplateDecl::name>(Identifier) +
                  ikw<"IS"> + lit<"("> +
                  some(append<&ast::GroupTemplateDecl::entries>(
-                          ref<GroupTemplateEntryRule>),
+                          ref<GroupTemplateEntry>),
                       lit<",">) +
                  lit<")"> + lit<";">)> {};
 
@@ -762,11 +761,11 @@ struct Vhdl : cursiv::GrammarSpec {
              lit<")"> +
              option(ikw<"GENERIC"> + ikw<"MAP"> + lit<"("> +
                     some(append<&ast::SubprogramSpec::headerGenericMap>(
-                             ref<AssocRule>),
+                             ref<Assoc>),
                          lit<",">) +
                     lit<")">));
 
-  struct SubprogramSpecRule
+  struct SubprogramSpec
       : rule<create<ast::SubprogramSpec>(
                  option(flag<&ast::SubprogramSpec::pure>(ikw<"PURE">) |
                         flag<&ast::SubprogramSpec::impure>(ikw<"IMPURE">)) +
@@ -780,19 +779,19 @@ struct Vhdl : cursiv::GrammarSpec {
 
   struct SubprogramDecl
       : rule<create<ast::SubprogramDecl>(
-                 assign<&ast::SubprogramDecl::spec>(ref<SubprogramSpecRule>) +
+                 assign<&ast::SubprogramDecl::spec>(ref<SubprogramSpec>) +
                  lit<";">)> {};
 
   struct SubprogramBody
       : rule<create<ast::SubprogramBody>(
-                 assign<&ast::SubprogramBody::spec>(ref<SubprogramSpecRule>) +
+                 assign<&ast::SubprogramBody::spec>(ref<SubprogramSpec>) +
                  ikw<"IS"> +
                  many(append<&ast::SubprogramBody::decls>(
                      ref<DeclarativeItem>)) +
                  ikw<"BEGIN"> +
                  many(append<&ast::SubprogramBody::statements>(
                      ref<SequentialStatement>)) +
-                 ikw<"END"> + option(ikw<"PROCEDURE"> | ikw<"FUNCTION">) +
+                 ikw<"END"> + option(assign<&ast::SubprogramBody::endKind>(ikw<"PROCEDURE"> | ikw<"FUNCTION">)) +
                  option(assign<&ast::Item::endName>(NameAtomText)) + lit<";">)> {};
 
   struct SubprogramInstDecl
@@ -805,7 +804,7 @@ struct Vhdl : cursiv::GrammarSpec {
                      ref<NameExpr>) +
                  option(ikw<"GENERIC"> + ikw<"MAP"> + lit<"("> +
                         some(append<&ast::SubprogramInstDecl::generics>(
-                                 ref<AssocRule>),
+                                 ref<Assoc>),
                              lit<",">) +
                         lit<")">) +
                  lit<";">)> {};
@@ -825,7 +824,7 @@ struct Vhdl : cursiv::GrammarSpec {
                         lit<")"> + lit<";"> +
                         option(ikw<"GENERIC"> + ikw<"MAP"> + lit<"("> +
                                some(append<&ast::PackageDecl::headerGenericMap>(
-                                        ref<AssocRule>),
+                                        ref<Assoc>),
                                     lit<",">) +
                                lit<")"> + lit<";">)) +
                  many(append<&ast::PackageDecl::decls>(ref<DeclarativeItem>)) +
@@ -851,7 +850,7 @@ struct Vhdl : cursiv::GrammarSpec {
                  assign<&ast::PackageInstDecl::uninstantiated>(ref<NameExpr>) +
                  option(ikw<"GENERIC"> + ikw<"MAP"> + lit<"("> +
                         some(append<&ast::PackageInstDecl::generics>(
-                                 ref<AssocRule>),
+                                 ref<Assoc>),
                              lit<",">) +
                         lit<")">) +
                  lit<";">)> {};
@@ -877,7 +876,7 @@ struct Vhdl : cursiv::GrammarSpec {
             | ref<GroupDecl>> {};
 
   // ---------------- concurrent & sequential statements ----------------
-  struct SeqIfBranchRule
+  struct SeqIfBranch
       : rule<create<ast::IfBranch>(
                  assign<&ast::IfBranch::condition>(ref<Expression>) +
                  ikw<"THEN"> +
@@ -888,15 +887,15 @@ struct Vhdl : cursiv::GrammarSpec {
       : rule<create<ast::IfStmt>(
                  option(assign<&ast::IfStmt::label>(Identifier) + lit<":">) +
                  ikw<"IF"> +
-                 append<&ast::IfStmt::branches>(ref<SeqIfBranchRule>) +
+                 append<&ast::IfStmt::branches>(ref<SeqIfBranch>) +
                  many(ikw<"ELSIF"> +
-                      append<&ast::IfStmt::branches>(ref<SeqIfBranchRule>)) +
+                      append<&ast::IfStmt::branches>(ref<SeqIfBranch>)) +
                  option(ikw<"ELSE"> +
                         many(append<&ast::IfStmt::elseBody>(
                             ref<SequentialStatement>))) +
                  ikw<"END"> + ikw<"IF"> + option(assign<&ast::SeqStmt::endLabel>(Identifier)) + lit<";">)> {};
 
-  struct CaseAltRule
+  struct CaseAlt
       : rule<create<ast::CaseAlt>(
                  ikw<"WHEN"> +
                  some(append<&ast::CaseAlt::choices>(Choice),
@@ -912,9 +911,9 @@ struct Vhdl : cursiv::GrammarSpec {
                  + option(flag<&ast::CaseStmt::questioned>(lit<"?">)) +
                  assign<&ast::CaseStmt::selector>(ref<Expression>) +
                  ikw<"IS"> +
-                 some(append<&ast::CaseStmt::alternatives>(ref<CaseAltRule>)) +
+                 some(append<&ast::CaseStmt::alternatives>(ref<CaseAlt>)) +
                  ikw<"END"> + ikw<"CASE"> +
-                 option(lit<"?">) +
+                 option(flag<&ast::CaseStmt::endQuestioned>(lit<"?">)) +
                  option(assign<&ast::SeqStmt::endLabel>(Identifier)) + lit<";">)> {};
 
   static constexpr auto IterationScheme =
@@ -975,12 +974,11 @@ struct Vhdl : cursiv::GrammarSpec {
                  option(ikw<"WITH"> +
                         assign<&ast::SeqSignalAssign::selector>(
                             ref<Expression>) +
-                        ikw<"SELECT">) +
+                        ikw<"SELECT"> +
+                        option(flag<&ast::SeqSignalAssign::questioned>(lit<"?">))) +
                  assign<&ast::SeqSignalAssign::target>(ref<NameExpr> |
                                                        ref<Aggregate>) +
                  lit<"<="> +
-                 option(flag<&ast::SeqSignalAssign::questioned>(
-                     lit<"?">)) +
                  ((flag<&ast::SeqSignalAssign::force>(ikw<"FORCE">) +
                    option(assign<&ast::SeqSignalAssign::forceMode>(
                        ikw<"IN"> | ikw<"OUT">)) +
@@ -1006,12 +1004,11 @@ struct Vhdl : cursiv::GrammarSpec {
                  option(ikw<"WITH"> +
                         assign<&ast::SeqVarAssign::selector>(
                             ref<Expression>) +
-                        ikw<"SELECT">) +
+                        ikw<"SELECT"> +
+                        option(flag<&ast::SeqVarAssign::questioned>(lit<"?">))) +
                  assign<&ast::SeqVarAssign::target>(ref<NameExpr> |
                                                     ref<Aggregate>) +
                  lit<":="> +
-                 option(flag<&ast::SeqVarAssign::questioned>(
-                     lit<"?">)) +
                  (assign<&ast::SeqVarAssign::selExpr>(ref<SelectedExpr>) |
                   assign<&ast::SeqVarAssign::condExpr>(ref<ConditionalExpr>) |
                   assign<&ast::SeqVarAssign::simpleValue>(ref<Expression>)) +
@@ -1087,7 +1084,7 @@ struct Vhdl : cursiv::GrammarSpec {
                  ikw<"BEGIN"> +
                  many(append<&ast::ProcessStmt::statements>(
                      ref<SequentialStatement>)) +
-                 ikw<"END"> + option(ikw<"POSTPONED">) + ikw<"PROCESS"> +
+                 ikw<"END"> + option(flag<&ast::ProcessStmt::endPostponed>(ikw<"POSTPONED">)) + ikw<"PROCESS"> +
                  option(assign<&ast::ConcStmt::endLabel>(Identifier)) + lit<";">)> {};
 
   struct ConcProcCallStatement
@@ -1122,11 +1119,11 @@ struct Vhdl : cursiv::GrammarSpec {
                  option(ikw<"WITH"> +
                         assign<&ast::SignalAssign::selector>(
                             ref<Expression>) +
-                        ikw<"SELECT">) +
+                        ikw<"SELECT"> +
+                        option(flag<&ast::SignalAssign::questioned>(lit<"?">))) +
                  assign<&ast::SignalAssign::target>(ref<NameExpr> |
                                                     ref<Aggregate>) +
                  lit<"<="> +
-                 option(flag<&ast::SignalAssign::questioned>(lit<"?">)) +
                  option(flag<&ast::SignalAssign::guarded>(
                      ikw<"GUARDED">)) +
                  ((flag<&ast::SignalAssign::force>(ikw<"FORCE">) +
@@ -1159,17 +1156,17 @@ struct Vhdl : cursiv::GrammarSpec {
                  InstantiatedUnit +
                  option(ikw<"GENERIC"> + ikw<"MAP"> + lit<"("> +
                         some(append<&ast::ComponentInst::generics>(
-                                 ref<AssocRule>),
+                                 ref<Assoc>),
                              lit<",">) +
                         lit<")">) +
                  option(ikw<"PORT"> + ikw<"MAP"> + lit<"("> +
                         some(append<&ast::ComponentInst::ports>(
-                                 ref<AssocRule>),
+                                 ref<Assoc>),
                              lit<",">) +
                         lit<")">) +
                  lit<";">)> {};
 
-  struct GenBodyRule
+  struct GenBody
       : rule<create<ast::GenBody>(
                  option(many(append<&ast::GenBody::decls>(ref<DeclarativeItem>)) +
                         ikw<"BEGIN">) +
@@ -1181,36 +1178,36 @@ struct Vhdl : cursiv::GrammarSpec {
       : rule<create<ast::GenerateBranch>(
                  option(assign<&ast::GenerateBranch::label>(Identifier) + lit<":">) +
                  assign<&ast::GenerateBranch::condition>(ref<Expression>) +
-                 ikw<"GENERATE"> + assign<&ast::GenerateBranch::body>(ref<GenBodyRule>))> {};
+                 ikw<"GENERATE"> + assign<&ast::GenerateBranch::body>(ref<GenBody>))> {};
   struct GenerateElseBranch
       : rule<create<ast::GenerateBranch>(
                  option(assign<&ast::GenerateBranch::label>(Identifier) + lit<":">) +
-                 ikw<"GENERATE"> + assign<&ast::GenerateBranch::body>(ref<GenBodyRule>))> {};
+                 ikw<"GENERATE"> + assign<&ast::GenerateBranch::body>(ref<GenBody>))> {};
 
   static constexpr auto ForGenerateStatement =
       ikw<"FOR"> + assign<&ast::GenerateStmt::paramName>(Identifier) +
       ikw<"IN"> +
       assign<&ast::GenerateStmt::paramRange>(ref<DiscreteRange>) +
-      ikw<"GENERATE"> + assign<&ast::GenerateStmt::body>(ref<GenBodyRule>);
+      ikw<"GENERATE"> + assign<&ast::GenerateStmt::body>(ref<GenBody>);
 
   static constexpr auto IfGenerateStatement =
       ikw<"IF"> + append<&ast::GenerateStmt::branches>(ref<GenerateIfBranch>) +
       many(ikw<"ELSIF"> + append<&ast::GenerateStmt::branches>(ref<GenerateIfBranch>)) +
       option(ikw<"ELSE"> + append<&ast::GenerateStmt::branches>(ref<GenerateElseBranch>));
 
-  struct CaseGenAltRule
+  struct CaseGenAlt
       : rule<create<ast::CaseGenAlt>(
                  ikw<"WHEN"> +
                  option(assign<&ast::CaseGenAlt::label>(Identifier) + lit<":">) +
                  some(append<&ast::CaseGenAlt::choices>(Choice),
                       lit<"|">) +
                  lit<"=>"> +
-                 assign<&ast::CaseGenAlt::body>(ref<GenBodyRule>))> {};
+                 assign<&ast::CaseGenAlt::body>(ref<GenBody>))> {};
 
   static constexpr auto CaseGenerateStatement =
       ikw<"CASE"> + assign<&ast::GenerateStmt::selector>(ref<Expression>) +
       ikw<"GENERATE"> +
-      some(append<&ast::GenerateStmt::caseAlts>(ref<CaseGenAltRule>));
+      some(append<&ast::GenerateStmt::caseAlts>(ref<CaseGenAlt>));
 
   struct GenerateStatement
       : rule<create<ast::GenerateStmt>(
@@ -1237,7 +1234,7 @@ struct Vhdl : cursiv::GrammarSpec {
                         lit<")"> + lit<";"> +
                         option(ikw<"GENERIC"> + ikw<"MAP"> + lit<"("> +
                                some(append<&ast::BlockStmt::genericMap>(
-                                        ref<AssocRule>),
+                                        ref<Assoc>),
                                     lit<",">) +
                                lit<")"> + lit<";">)) +
                  option(ikw<"PORT"> + lit<"("> +
@@ -1247,7 +1244,7 @@ struct Vhdl : cursiv::GrammarSpec {
                         lit<")"> + lit<";"> +
                         option(ikw<"PORT"> + ikw<"MAP"> + lit<"("> +
                                some(append<&ast::BlockStmt::portMap>(
-                                        ref<AssocRule>),
+                                        ref<Assoc>),
                                     lit<",">) +
                                lit<")"> + lit<";">)) +
                  many(append<&ast::BlockStmt::decls>(ref<DeclarativeItem>)) +
@@ -1267,7 +1264,7 @@ struct Vhdl : cursiv::GrammarSpec {
             | ref<ConcSignalAssignStatement>> {};
 
   // ---------------- design units ----------------
-  struct ContextItemRule
+  struct ContextItem
       : rule<ref<LibraryClause> | ref<UseClause> | ref<ContextRef>> {};
 
   struct ContextDecl
@@ -1275,7 +1272,7 @@ struct Vhdl : cursiv::GrammarSpec {
                  ikw<"CONTEXT"> + assign<&ast::ContextDecl::name>(Identifier) +
                  ikw<"IS"> +
                  many(append<&ast::ContextDecl::context>(
-                     ref<ContextItemRule>)) +
+                     ref<ContextItem>)) +
                  ikw<"END"> + option(ikw<"CONTEXT">) + option(assign<&ast::Item::endName>(Identifier)) +
                  lit<";">)> {};
 
@@ -1315,9 +1312,9 @@ struct Vhdl : cursiv::GrammarSpec {
                  ikw<"END"> + option(ikw<"ARCHITECTURE">) +
                  option(assign<&ast::Item::endName>(Identifier)) + lit<";">)> {};
 
-  struct BlockConfigRule;
+  struct BlockConfig;
 
-  struct ComponentConfigRule
+  struct ComponentConfig
       : rule<create<ast::ComponentConfig>(
                  ikw<"FOR"> +
                  (flag<&ast::ComponentConfig::allInstances>(
@@ -1329,21 +1326,21 @@ struct Vhdl : cursiv::GrammarSpec {
                  lit<":"> +
                  assign<&ast::ComponentConfig::componentName>(ref<NameExpr>) +
                  option(assign<&ast::ComponentConfig::binding>(
-                            ref<BindingIndicationRule>) +
+                            ref<BindingIndication>) +
                         lit<";">) +
                  option(assign<&ast::ComponentConfig::block>(
-                     ref<BlockConfigRule>)) +
+                     ref<BlockConfig>)) +
                  ikw<"END"> + ikw<"FOR"> + lit<";">)> {};
 
-  struct ConfigItemRule
-      : rule<ref<BlockConfigRule> | ref<ComponentConfigRule>> {};
+  struct ConfigItem
+      : rule<ref<BlockConfig> | ref<ComponentConfig>> {};
 
-  struct BlockConfigRule
+  struct BlockConfig
       : rule<create<ast::BlockConfig>(
                  ikw<"FOR"> +
                  assign<&ast::BlockConfig::target>(ref<NameExpr>) +
                  many(append<&ast::BlockConfig::uses>(ref<UseClause>)) +
-                 many(append<&ast::BlockConfig::items>(ref<ConfigItemRule>)) +
+                 many(append<&ast::BlockConfig::items>(ref<ConfigItem>)) +
                  ikw<"END"> + ikw<"FOR"> + lit<";">)> {};
 
   struct ConfigurationDecl
@@ -1355,7 +1352,7 @@ struct Vhdl : cursiv::GrammarSpec {
                  ikw<"IS"> +
                  many(append<&ast::ConfigurationDecl::decls>(
                      ref<DeclarativeItem>)) +
-                 assign<&ast::ConfigurationDecl::body>(ref<BlockConfigRule>) +
+                 assign<&ast::ConfigurationDecl::body>(ref<BlockConfig>) +
                  ikw<"END"> + option(ikw<"CONFIGURATION">) +
                  option(assign<&ast::Item::endName>(Identifier)) + lit<";">)> {};
 
@@ -1369,21 +1366,21 @@ struct Vhdl : cursiv::GrammarSpec {
   struct SecondaryUnit
       : rule<ref<ArchitectureBody> | ref<PackageBody>> {};
 
-  struct LibraryUnitRule : rule<ref<PrimaryUnit> | ref<SecondaryUnit>> {};
+  struct LibraryUnit : rule<ref<PrimaryUnit> | ref<SecondaryUnit>> {};
 
-  struct DesignUnitRule
+  struct DesignUnit
       : rule<create<ast::DesignUnit>(
                  many(append<&ast::DesignUnit::context>(
-                     ref<ContextItemRule>)) +
-                 assign<&ast::DesignUnit::unit>(ref<LibraryUnitRule>))> {};
+                     ref<ContextItem>)) +
+                 assign<&ast::DesignUnit::unit>(ref<LibraryUnit>))> {};
 
-  struct DesignFileRule
+  struct DesignFile
       : rule<create<ast::DesignFile>(
-                 many(append<&ast::DesignFile::units>(ref<DesignUnitRule>)))> {
+                 many(append<&ast::DesignFile::units>(ref<DesignUnit>)))> {
   };
 
-  using entry = DesignFileRule;
-  using ignore = WS;
+  using entry = DesignFile;
+  using ignored = WS;
   using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 

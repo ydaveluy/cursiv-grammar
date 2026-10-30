@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+SMILES molecular notation with branches, ring closures, bracket atoms and bonds. It builds syntax trees without chemical graph sanitization.
+
 ```
 CN1CCC[C@H]1c2cccnc2
 ```
-
-Nicotine, written in SMILES: a ring of five aliphatic atoms holding a
-stereocentre (`[C@H]`), bonded to a pyridine ring of aromatic atoms. Each
-atom is one letter, or a bracket carrying an isotope, chirality, hydrogen
-count, charge or atom class; ring-closure digits and `(...)` branches attach
-directly to the atom or bracket they follow, with no separator at all.
 
 ## The command line
 

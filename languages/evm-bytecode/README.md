@@ -2,6 +2,24 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+This port reads textual disassembler notation, never raw bytecode. Its opcode
+set combines historical aliases, legacy EVM and proposal families; it does not
+identify a single deployed fork. Immediate syntax is compared with
+[EIP-4200](https://eips.ethereum.org/EIPS/eip-4200),
+[EIP-4750](https://eips.ethereum.org/EIPS/eip-4750),
+[EIP-6206](https://eips.ethereum.org/EIPS/eip-6206),
+[EIP-7480](https://eips.ethereum.org/EIPS/eip-7480),
+[EIP-7620](https://eips.ethereum.org/EIPS/eip-7620) and
+[EIP-8024](https://eips.ethereum.org/EIPS/eip-8024), as consulted 2026-10-28.
+The EOF proposals are marked Stagnant and EIP-8024 is under review; accepting
+them does not imply deployment. `RETURNCONTRACT` is retained as a historical
+alias for the proposal's `RETURNCODE` spelling.
+
+Validation checks selected operand widths and reserved immediate values.
+It does not verify EOF containers, jump targets, stack effects, gas, fork
+availability or whether an unknown-byte annotation matches an opcode table.
+Final truncated PUSH immediates retain the disassembly spelling.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`

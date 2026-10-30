@@ -14,6 +14,11 @@ class JavaccValidator final : public cursiv::DefaultCoreService {
 
   void checkParserNamesMatch(const ast::JavaccInput& input,
                              cursiv::ValidationAcceptor& accept) const;
+  void checkOption(const ast::OptionBinding&, cursiv::ValidationAcceptor&) const;
+  void checkLookahead(const ast::LocalLookahead&, cursiv::ValidationAcceptor&) const;
+  void checkRange(const ast::RegexGroupUnit&, cursiv::ValidationAcceptor&) const;
+  void checkCharacter(const ast::CharDescriptor&, cursiv::ValidationAcceptor&) const;
+  void checkTry(const ast::TryExpansionUnit&, cursiv::ValidationAcceptor&) const;
 };
 
 struct JavaccCoreServices;

@@ -2,6 +2,8 @@
 
 A language library built with [cursiv](https://github.com/ydaveluy/cursiv).
 
+This library parses textual FlatBuffers 25.9.23 schemas and JSON-like data.
+
 ## Build
 
 Requires CMake 3.30+, Git and a C++20 compiler with `std::format` and `musttail`
@@ -30,6 +32,9 @@ The build generates the parser automatically. Rebuild after changing the grammar
 Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
+
+A FlatBuffers schema declares tables, structs, enums and unions, with metadata
+and a root type identifying the document’s entry type.
 
 ```
 namespace MyGame.Sample;
@@ -63,11 +68,6 @@ table Weapon {
 
 root_type Monster;
 ```
-
-A [FlatBuffers](https://flatbuffers.dev/) schema: `table`/`struct` declare a
-type's fields, `enum`/`union` a closed or open alternative, `(...)` after a
-declaration or a field attaches metadata (`deprecated`, `id: N`, ...), and
-`root_type` names the document's entry type.
 
 ## The command line
 

@@ -48,8 +48,7 @@ struct Scala : cursiv::GrammarSpec {
       many(IdContinue | UnicodeEscape) + option(lit<"_"> + Op);
   static constexpr auto Plainid = ((Letter | UnicodeEscape) + Idrest) | Op;
   static constexpr auto VarId =
-      !(lit<"_"> + !(IdContinue | Opchar)) +
-      (((Letter | UnicodeEscape) + Idrest) | (lit<"_"> + Op));
+      !(lit<"_"> + !IdContinue) + (Letter | UnicodeEscape) + Idrest;
   static constexpr auto word_boundary = IdContinue | cr<R"(\\)">;
   static constexpr auto ReservedOp =
       (lit<"="> | lit<"=>"> | lit<":"> | lit<"<-"> | lit<"<:"> | lit<"<%"> |
@@ -70,6 +69,9 @@ struct Scala : cursiv::GrammarSpec {
       : terminal<(!ReservedWord + VarId) | (lit<"`"> + some(CharNoBackQuoteOrNewline | Escape) +
                           lit<"`">)> {};
   struct OP_ID : terminal<OpName> {};
+  struct VARIABLE_ID
+      : terminal<!ReservedWord + &(uc::Ll | cr<"_">) + VarId> {};
+  static constexpr auto StarName = lit<"*", !Opchar> | lit<"`*`">;
   static constexpr auto Name = ref<ID> | ref<OP_ID>;
 
   // ==== Literals =============================================================
@@ -79,18 +81,18 @@ struct Scala : cursiv::GrammarSpec {
       lit<"0", !DecDigit> | (NonZeroDigit + many(DecDigit));
   static constexpr auto HexNumeral = lit<"0"> + cr<"xX"> + some(HexDigit);
   struct INT_LIT
-      : terminal<(DecimalNumeral | HexNumeral) + option(cr<"Ll">)> {};
+      : terminal<(DecimalNumeral | HexNumeral) + option(cr<"Ll">) + !IdContinue> {};
 
   static constexpr auto ExponentPart =
       cr<"Ee"> + option(cr<"+-">) + some(DecDigit);
   static constexpr auto FloatTypeSuffix = cr<"FfDd">;
   struct FLOAT_LIT
-      : terminal<(some(DecDigit) + lit<"."> + some(DecDigit) +
+      : terminal<((some(DecDigit) + lit<"."> + some(DecDigit) +
                   option(ExponentPart) + option(FloatTypeSuffix))  //
                  | (lit<"."> + some(DecDigit) + option(ExponentPart) +
                     option(FloatTypeSuffix))                                  //
                  | (some(DecDigit) + ExponentPart + option(FloatTypeSuffix))  //
-                 | (some(DecDigit) + option(ExponentPart) + FloatTypeSuffix)> {
+                 | (some(DecDigit) + option(ExponentPart) + FloatTypeSuffix)) + !IdContinue> {
   };
 
   struct CHAR_LIT
@@ -281,22 +283,22 @@ struct Scala : cursiv::GrammarSpec {
   inline static constexpr auto drop_closer = [](std::string_view text) {
     return text.substr(0, text.size() - 3);
   };
-  struct StringOpen : terminal<ref<ID> + lit<"\"">, text_conv<drop_quote>> {};
-  struct MultiStringOpen
-      : terminal<ref<ID> + lit<"\"\"\"">, text_conv<drop_closer>> {};
+  struct StringOpen : terminal<as<drop_quote>(ref<ID> + lit<"\"">)> {};
+  struct MultiStringOpen : terminal<as<drop_closer>(ref<ID> + lit<"\"\"\"">)> {
+  };
   static constexpr auto InterpolationIdentPart =
       uc::L | uc::Nl | uc::Nd | uc::Mn | uc::Mc | uc::Pc | uc::Cf | cr<"_">;
-  struct StringRef : terminal<lit<"$"> + (uc::L | uc::Nl |
-                                          cr<"_">)+many(InterpolationIdentPart),
-                              text_conv<drop_dollar>> {};
+  struct StringRef
+      : terminal<as<drop_dollar>(lit<"$"> + (uc::L | uc::Nl | cr<"_">)+many(
+                                                InterpolationIdentPart))> {};
   struct StringThis : terminal<lit<"$this", !InterpolationIdentPart>> {};
   struct StringText : terminal<some(lit<"$$"> | cr<R"(^"$\r\n)">)> {};
   struct MultiStringText : terminal<some(lit<"$$"> | cr<R"(^"$)">)> {};
   struct StringDollar : terminal<lit<"$">> {};
   struct MultiStringQuotes
       : terminal<lit<"\""> + option(lit<"\"">) + !lit<"\"">> {};
-  struct MultiStringClose : terminal<repeat<3, cursiv::kUnbounded>(lit<"\"">),
-                                     text_conv<drop_closer>> {};
+  struct MultiStringClose
+      : terminal<as<drop_closer>(repeat<3, cursiv::kUnbounded>(lit<"\"">))> {};
 
   struct StringShortHole
       : rule<create<ast::InterpolationPart>(
@@ -311,14 +313,14 @@ struct Scala : cursiv::GrammarSpec {
                     assign<&ast::StableId::root>(ref<StringRef>))))))> {};
   struct StringLongHole
       : rule<create<ast::InterpolationPart>(
-            skip(ignored<WS, SEMI>, hide<SL_COMMENT, ML_COMMENT>,
+            skip(ignore<WS, SEMI>, hide<SL_COMMENT, ML_COMMENT>,
             lit<"${"> +
             assign<&ast::InterpolationPart::expression>(
                 ref<BlockBody_> | create<ast::Block>(&CloseBrace)) +
             CloseBrace))> {};
   struct PatternLongHole
       : rule<create<ast::InterpolationPart>(
-            skip(ignored<WS, SEMI>, hide<SL_COMMENT, ML_COMMENT>,
+            skip(ignore<WS, SEMI>, hide<SL_COMMENT, ML_COMMENT>,
             lit<"${"> +
             assign<&ast::InterpolationPart::pattern>(ref<Pattern_>) +
             CloseBrace))> {};
@@ -366,8 +368,8 @@ struct Scala : cursiv::GrammarSpec {
   struct SimpleType
       : rule<create<ast::TupleType>(
                  lit<"("> +
-                 option(some(append<&ast::TupleType::items>(ref<Type_>),
-                             lit<",">)) +
+                 many(append<&ast::TupleType::items>(ref<Type_>),
+                             lit<",">) +
                  CloseParen)  //
              | create<ast::WildcardType>(
                    lit<"_", !Opchar> +
@@ -394,8 +396,7 @@ struct Scala : cursiv::GrammarSpec {
 
   // `annotType ('with' annotType)*`, a shared shape with `infixType`'s
   // `Id`-operator chain -- both a `BinaryType`, `op` empty for `with`.
-  struct WithChain : infix<AnnotType, &ast::BinaryType::left,
-                           &ast::BinaryType::op, &ast::BinaryType::right,
+  struct WithChain : infix<AnnotType, ast::BinaryType,
                            left(kw<"with">)> {};
 
 
@@ -410,8 +411,7 @@ struct Scala : cursiv::GrammarSpec {
                   RefinementTail)))  //
              | create<ast::RefinedType>(RefinementTail)> {};
 
-  struct InfixType : infix<CompoundType, &ast::BinaryType::left,
-                           &ast::BinaryType::op, &ast::BinaryType::right,
+  struct InfixType : infix<CompoundType, ast::BinaryType,
                            left(Name)> {};
 
   static constexpr auto ExistentialDecls =
@@ -426,9 +426,9 @@ struct Scala : cursiv::GrammarSpec {
   struct Type_
       : rule<create<ast::FunctionType>(
                  lit<"("> +
-                 option(some(append<&ast::FunctionType::params>(
+                 many(append<&ast::FunctionType::params>(
                                   ref<ParamType>),
-                             lit<",">)) +
+                             lit<",">) +
                  CloseParen + Arrow +
                  assign<&ast::FunctionType::result>(ref<Type_>))  //
              | create<ast::FunctionType>(
@@ -448,7 +448,7 @@ struct Scala : cursiv::GrammarSpec {
              assign<&ast::ParamType::type>(ref<Type_>))  //
             | (assign<&ast::ParamType::type>(ref<Type_>) +
                option(flag<&ast::ParamType::repeated>(
-                   Name))))> {};
+                   StarName))))> {};
 
   // ==== Type parameters ======================================================
 
@@ -554,9 +554,7 @@ struct Scala : cursiv::GrammarSpec {
   static constexpr auto ArgListOnce = create<ast::ArgList>(
       lit<"("> +
       option(append<&ast::ArgList::args>(ref<Expr_>) +
-             many(lit<","> + append<&ast::ArgList::args>(ref<Expr_>)) +
-             option(flag<&ast::ArgList::varargsSplice>(
-                 lit<":", !Opchar> + lit<"_", !Opchar> + Name))) +
+             many(lit<","> + append<&ast::ArgList::args>(ref<Expr_>))) +
       CloseParen);
 
   struct Annotation
@@ -573,14 +571,13 @@ struct Scala : cursiv::GrammarSpec {
   // `argumentExprs: '(' args ')' | blockExpr` -- folded onto a `CallExpr`
   // chain step. A block argument that is one expression or one function
   // literal is that argument, as scalac reads it.
-  template <auto ArgsMember, auto SpliceMember>
+  // A repeated argument is already an AscribeExpr inside Expr_, as in
+  // scalac. A second suffix here would admit two ascriptions.
+  template <auto ArgsMember>
   static constexpr auto callArgsInto =
       (lit<"("> +
        option(append<ArgsMember>(ref<Expr_>) +
-              many(lit<","> + append<ArgsMember>(ref<Expr_>)) +
-              option(flag<SpliceMember>(lit<":", !Opchar> +
-                                              lit<"_", !Opchar> +
-                                              Name))) +
+              many(lit<","> + append<ArgsMember>(ref<Expr_>))) +
        CloseParen)  //
       | (lit<"{"> +
          append<ArgsMember>(create<ast::MatchBlock>(CaseClausesBody)) +
@@ -623,8 +620,7 @@ struct Scala : cursiv::GrammarSpec {
                                             ref<Type_>)) +
                         CloseBracket)  //
                   | nest<ast::CallExpr, &ast::CallExpr::callee>(
-                        callArgsInto<&ast::CallExpr::args,
-                                     &ast::CallExpr::varargsSplice>)) +
+                        callArgsInto<&ast::CallExpr::args>)) +
              option(nest<ast::EtaExpr, &ast::EtaExpr::operand>(lit<"_">))> {};
 
   struct PrefixSign : terminal<cr<"+~!-"> + !Opchar> {};
@@ -665,18 +661,17 @@ struct Scala : cursiv::GrammarSpec {
   };
 
   struct InfixExpr
-      : infix<PrefixExpr, &ast::InfixExpr::left, &ast::InfixExpr::op,
-             &ast::InfixExpr::right,
-             (left(ref<OpOther>) >> right(ref<OpOtherR>) >>
-              left(ref<OpMulDiv>) >> right(ref<OpMulDivR>) >>
-              left(ref<OpAddSub>) >> right(ref<OpAddSubR>) >>
-              left(ref<OpColon>) >> right(ref<OpColonR>) >>
-              left(ref<OpAngle>) >> right(ref<OpAngleR>) >>
-              left(ref<OpEqBang>) >> right(ref<OpEqBangR>) >>
-              left(ref<OpAmp>) >> right(ref<OpAmpR>) >>
-              left(ref<OpCaret>) >> right(ref<OpCaretR>) >>
-              left(ref<OpPipe>) >> right(ref<OpPipeR>) >>
-              left(ref<OpLetter>))> {};
+      : infix<PrefixExpr, ast::InfixExpr,
+             levels(left(ref<OpOther>), right(ref<OpOtherR>),
+                    left(ref<OpMulDiv>), right(ref<OpMulDivR>),
+                    left(ref<OpAddSub>), right(ref<OpAddSubR>),
+                    left(ref<OpColon>), right(ref<OpColonR>),
+                    left(ref<OpAngle>), right(ref<OpAngleR>),
+                    left(ref<OpEqBang>), right(ref<OpEqBangR>),
+                    left(ref<OpAmp>), right(ref<OpAmpR>),
+                    left(ref<OpCaret>), right(ref<OpCaretR>),
+                    left(ref<OpPipe>), right(ref<OpPipeR>),
+                    left(ref<OpLetter>))> {};
 
   // A postfix id follows its operand with no separator between them and
   // comes before a token no operand opens on: an operator ending a line takes
@@ -704,9 +699,10 @@ struct Scala : cursiv::GrammarSpec {
 
   static constexpr auto AscriptionSuffix =
       lit<":", !Opchar> +
-      ((assign<&ast::AscribeExpr::type>(ref<InfixType>))  //
+      ((!lit<"_"> +
+        assign<&ast::AscribeExpr::type>(ref<InfixType>))  //
        | (some(append<&ast::AscribeExpr::annotations>(ref<Annotation>)))  //
-       | (flag<&ast::AscribeExpr::varargsSplice>(lit<"_"> + Name)));
+       | (flag<&ast::AscribeExpr::varargsSplice>(lit<"_"> + StarName)));
 
   static constexpr auto EnumeratorsBody =
       some(append<&ast::ForExpr::enumerators>(ref<Generator_>));
@@ -860,35 +856,37 @@ struct Scala : cursiv::GrammarSpec {
                                 lit<"@", !Opchar>) +
                          flag<&ast::ExtractorPattern::varargsSplice>(
                              lit<"_">) +
-                         Name)) //
+                         StarName)) //
                     | (option(assign<&ast::ExtractorPattern::varargsBindName>(
                                   Name) +
                               lit<"@", !Opchar>) +
                        flag<&ast::ExtractorPattern::varargsSplice>(
                            lit<"_">) +
-                       Name)) +
+                       StarName)) +
                 CloseParen) //
+            | create<ast::VarPattern>(
+                  assign<&ast::VarPattern::name>(ref<VARIABLE_ID>) + !lit<".">)
             | create<ast::StablePattern>(
                   assign<&ast::StablePattern::path>(ref<StableId>))> {};
 
   struct Pattern3_
-      : infix<SimplePattern_, &ast::InfixPattern::left, &ast::InfixPattern::op,
-              &ast::InfixPattern::right,
-              (left(ref<OpOther>) >> right(ref<OpOtherR>) >>
-               left(ref<OpMulDiv>) >> right(ref<OpMulDivR>) >>
-               left(ref<OpAddSub>) >> right(ref<OpAddSubR>) >>
-               left(ref<OpColon>) >> right(ref<OpColonR>) >>
-               left(ref<OpAngle>) >> right(ref<OpAngleR>) >>
-               left(ref<OpEqBang>) >> right(ref<OpEqBangR>) >>
-               left(ref<OpAmp>) >> right(ref<OpAmpR>) >> left(ref<OpCaret>) >>
-               right(ref<OpCaretR>) >> left(ref<OpPipe>) >>
-               right(ref<OpPipeR>) >> left(ref<OpLetter>))> {};
+      : infix<SimplePattern_, ast::InfixPattern,
+              levels(left(ref<OpOther>), right(ref<OpOtherR>),
+                     left(ref<OpMulDiv>), right(ref<OpMulDivR>),
+                     left(ref<OpAddSub>), right(ref<OpAddSubR>),
+                     left(ref<OpColon>), right(ref<OpColonR>),
+                     left(ref<OpAngle>), right(ref<OpAngleR>),
+                     left(ref<OpEqBang>), right(ref<OpEqBangR>),
+                     left(ref<OpAmp>), right(ref<OpAmpR>), left(ref<OpCaret>),
+                     right(ref<OpCaretR>), left(ref<OpPipe>),
+                     right(ref<OpPipeR>), left(ref<OpLetter>))> {};
 
   struct Pattern2_
-      : rule<create<ast::BindPattern>(
+      : rule<(lit<"_"> + lit<"@", !Opchar> + ref<Pattern3_>) |
+             create<ast::BindPattern>(
                  assign<&ast::BindPattern::name>(Name) +
-                 option(lit<"@", !Opchar> +
-                        assign<&ast::BindPattern::inner>(ref<Pattern3_>)))  //
+                 lit<"@", !Opchar> +
+                 assign<&ast::BindPattern::inner>(ref<Pattern3_>))  //
              | ref<Pattern3_>> {};
 
   struct Pattern1_
@@ -995,8 +993,7 @@ struct Scala : cursiv::GrammarSpec {
       create<ast::PathExpr>(assign<&ast::PathExpr::path>(create<ast::StableId>(
           flag<&ast::StableId::hasThis>(kw<"this">)))) +
       some(nest<ast::CallExpr, &ast::CallExpr::callee>(
-          callArgsInto<&ast::CallExpr::args,
-                       &ast::CallExpr::varargsSplice>));
+          callArgsInto<&ast::CallExpr::args>));
 
   struct SecondaryCtorDef_
       : rule<create<ast::SecondaryCtorDef>(
@@ -1200,7 +1197,7 @@ struct Scala : cursiv::GrammarSpec {
             many(append<&ast::CompilationUnit::items>(ref<TopStat_>)))> {};
 
   using entry = CompilationUnit_;
-  using ignore = list<WS, SEMI>;
+  using ignored = list<WS, SEMI>;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

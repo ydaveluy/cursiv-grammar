@@ -29,6 +29,13 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 Generated files live under `build/src/generated-src/`; do not edit them.
 
+This library parses one compact expression with dependent function types,
+lambdas, data constructors, signatures and structures. Its syntax follows a
+Core Cayenne style; the implementation's exact source edition is unpinned.
+Full Cayenne's surface declarations, layout, literals, syntactic sugar and
+type checking are outside the implemented scope. The native paper/compiler
+has not been fully compared with this port.
+
 ## The sample
 
 ```

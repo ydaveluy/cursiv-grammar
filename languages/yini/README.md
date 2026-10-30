@@ -31,9 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-[YINI](https://github.com/YINI-lang) is an INI-flavoured configuration
-format with markers for nested sections, quoted keys, lists, inline objects
-and several number bases:
+YINI 1.0.0-RC.6 configuration syntax. The AST preserves an ordered list of sections and members; validation checks nesting and duplicates.
 
 ```
 ^ Preferences
@@ -46,12 +44,6 @@ recent = ["report.yini", "draft.yini"]
     title = 'Sample Window'
     size: 1024, 768
 ```
-
-A header's marker (`^`, `^^^`, or the shorthand `^7`) is repeated per YINI's
-own convention up to six times; the language has no rule for the nesting a
-deeper marker implies, so this port keeps sections flat, in document order,
-and leaves the marker's own spelling on `Section::markerText` for a reader to
-interpret.
 
 ## The command line
 

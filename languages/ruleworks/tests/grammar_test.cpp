@@ -1,3 +1,4 @@
+#include "native_followup.hpp"
 #include <cstdio>
 
 #include "cursiv/core/parser/Parser.hpp"
@@ -86,6 +87,8 @@ int main() {
       ruleworks::RuleworksCoreServices, ruleworks::RuleworksSharedCoreServices,
       ruleworks::install_core_module>();
 
+  if (!native_followup::run(language)) return 1;
+
   const char* const examples[] = {
       CURSIV_EXAMPLE_DIR "/advent.rul",
       CURSIV_EXAMPLE_DIR "/count.rul",
@@ -143,7 +146,7 @@ int main() {
 
   // The coverage document: constructs the corpus never reaches (method,
   // generic-method, external-routine, catch, sql-* actions, ce_disjunction,
-  // neg_ce, an open-ended ce_form, ...). Lives under tests/, not example/:
+  // neg_ce, and SQL actions). Lives under tests/, not example/:
   // it is not part of the upstream corpus.
   bool ok = false;
   const std::string coverageText = read_file(CURSIV_TEST_DIR "/coverage.rul", ok);

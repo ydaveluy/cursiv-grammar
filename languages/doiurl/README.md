@@ -31,15 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A DOI URI uses the historical draft-paskin-doi-uri-04 syntax (June 2003): doi:prefix/suffix with optional query and fragment. The AST retains URI components and empty segments.
+
 ```
 doi:10.1594/PANGAEA.726855
 ```
-
-A DOI name as a URI: `doi:`, a prefix segment, `/`, one or more suffix
-segments separated by `/`, an optional `?query` and an optional `#fragment`.
-Each segment is a run of unreserved characters, a handful of reserved
-sub-delimiters, and `%XX` escapes (uppercase hex, as the source grammar
-allows).
 
 ## The command line
 

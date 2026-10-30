@@ -25,8 +25,8 @@ struct TextLit : cursiv::Extends<Expr> {
 
 struct NullLit : cursiv::Extends<Expr> {};
 
-// `#!` then text then a closing `"` -- no opening quote, an asymmetric
-// spelling but the language's own.
+// Native verbatim literal #!"...", specified even though the Microsoft
+// syntax package currently does not recognize it.
 struct VerbatimLit : cursiv::Extends<Expr> {
   string_view value;
 };
@@ -132,6 +132,7 @@ struct ErrorExpr : cursiv::Extends<Expr> {
 struct TryExpr : cursiv::Extends<Expr> {
   Expr* protectedExpr;
   Expr* otherwiseExpr;  // null when there is no `otherwise` clause
+  FunctionExpr* catchFunction;
 };
 
 // `type <a type>`, a type value used where an expression is expected.
@@ -161,6 +162,7 @@ enum class Op : std::uint8_t {
   not_equal,
   logical_and,
   logical_or,
+  coalesce,
 };
 
 struct BinaryExpr : cursiv::Extends<Expr> {
@@ -179,13 +181,10 @@ struct AsExpr : cursiv::Extends<Expr> {
   TypeNode* type;
 };
 
-// ANY, ANYNONNULL, BINARY, DATE, ..., TEXT, TYPE -- or, when `literal` is
-// set instead of `name`, a literal standing for its own type (`type null`,
-// `type 5`, `type "x"`).
+// Primitive type names are contextual keywords in a type position.
 struct PrimitiveTypeNode : cursiv::Extends<TypeNode> {
   boolean nullable;  // set only when preceded by `nullable`
   string_view name;
-  Expr* literal;
 };
 
 struct FieldSpec : cursiv::Extends<cursiv::AstNode> {
@@ -222,8 +221,8 @@ struct NullableTypeNode : cursiv::Extends<TypeNode> {
   TypeNode* inner;
 };
 
-// `type (expr)`: an arbitrary parenthesized expression standing where a
-// type is expected, evaluated to a type at run time.
+// A primary expression in a nested type position, evaluated to a type at
+// run time; type values and arbitrary values are distinguished semantically.
 struct ComputedTypeNode : cursiv::Extends<TypeNode> {
   Expr* expr;
 };

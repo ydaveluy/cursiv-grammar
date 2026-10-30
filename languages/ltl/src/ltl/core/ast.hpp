@@ -24,6 +24,7 @@ enum class BinaryOp : std::uint8_t {
   until,
   weak,
   release,
+  strong_release,
   equivalent,
 };
 

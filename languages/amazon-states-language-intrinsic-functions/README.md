@@ -37,7 +37,7 @@ States.Format('Formatting arguments fst={} and snd={}.', $.FunctionInput.fst, $.
 
 A document is one [Amazon States Language intrinsic function][asl-intrinsics]
 call: `States.<Name>(args...)`. An argument is a string, an int, a number, a
-`true`/`false`, a `$`-prefixed JSONPath into the state's input, a
+`true`/`false`, `null`, a `$`-prefixed JSONPath into the state's input, a
 `$$`-prefixed path into the context object, or another call — intrinsics
 nest, as `example/intrinsic_states_nested_calls.asl-intrinsic` shows.
 

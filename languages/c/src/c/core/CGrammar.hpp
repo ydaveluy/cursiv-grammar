@@ -19,7 +19,7 @@ struct C : cursiv::GrammarSpec {
   // whole rather than run, so the macros it names stay unexpanded text. A
   // trailing `\` splices the next physical line into the same directive.
   struct Directive
-      : terminal<lit<"#"> +
+      : terminal<(lit<"#"> | lit<"%:">) +
                  many(LineSplice | cr<R"(^\n)">)> {};
 
   static constexpr auto HEXDIGIT = cr<"0-9a-fA-F">;
@@ -77,10 +77,15 @@ struct C : cursiv::GrammarSpec {
                                      cr<"flFL">)> {};
 
   struct CHAR_LIT : terminal<(option(lit<"u8"> | cr<"LuU">) + lit<"'"> +
-                              some(ESCAPE | (!cr<R"('\n)"> + any)) + lit<"'">)> {};
+                              some(ESCAPE | (!cr<R"('\r\n)"> + any)) + lit<"'">)> {};
   struct STRING_LIT
       : terminal<(option(lit<"u8"> | cr<"LuU">) + lit<"\""> +
-                  many(ESCAPE | (!cr<R"("\n)"> + any)) + lit<"\"">)> {};
+                  many(ESCAPE | (!cr<R"("\r\n)"> + any)) + lit<"\"">)> {};
+
+  static constexpr auto LBracket = lit<"["> | lit<"<:">;
+  static constexpr auto RBracket = lit<"]"> | lit<":>">;
+  static constexpr auto LBrace = lit<"{"> | lit<"<%">;
+  static constexpr auto RBrace = lit<"}"> | lit<"%>">;
 
   static constexpr auto BuiltinTypeWord =
       kw<"void"> | kw<"char"> | kw<"short"> | kw<"int"> | kw<"long"> |
@@ -198,8 +203,8 @@ struct C : cursiv::GrammarSpec {
   static constexpr auto AttrName = ref<ID> + option(lit<"::"> + ref<ID>);
   struct StdAttribute : rule<AttrName + option(ref<BalancedParens>)> {};
   struct StdAttributeSpec
-      : rule<lit<"["> + lit<"["> + option(ref<StdAttribute>) +
-             many(lit<","> + option(ref<StdAttribute>)) + lit<"]"> + lit<"]">> {};
+      : rule<LBracket + LBracket + option(ref<StdAttribute>) +
+             many(lit<","> + option(ref<StdAttribute>)) + RBracket + RBracket> {};
   struct AttributeSpec : rule<ref<GnuAttribute> | ref<StdAttributeSpec>> {};
 
   // `__declspec(...)`: like an attribute, matched and discarded.
@@ -262,19 +267,23 @@ struct C : cursiv::GrammarSpec {
       ref<AttributeSpec> | ref<DeclSpec>;
 
   struct DeclarationSpecifiers
-      : rule<many(DeclSpecifierItem) +
-             append<&ast::Specifiers::types>(ref<TypeSpecifier>) +
-             many(DeclSpecifierItem +
-                  option(append<&ast::Specifiers::types>(
-                      ref<BuiltinTypeSpecifier>)))> {};
+      : rule<(many(!kw<"auto"> + DeclSpecifierItem) +
+              flag<&ast::Specifiers::inferred>(
+                  append<&ast::Specifiers::qualifiers>(kw<"auto">)) +
+              many(DeclSpecifierItem)) |
+             (many(DeclSpecifierItem) +
+              append<&ast::Specifiers::types>(ref<TypeSpecifier>) +
+              many(DeclSpecifierItem +
+                   option(append<&ast::Specifiers::types>(
+                       ref<BuiltinTypeSpecifier>))))> {};
 
   struct StructOrUnionSpecifier
       : rule<assign<&ast::TagType::keyword>(kw<"struct"> | kw<"union">) +
              many(ref<AttributeSpec>) +
              ((option(assign<&ast::TagType::name>(ref<ID>)) +
-               flag<&ast::TagType::defined>(lit<"{">) +
+               flag<&ast::TagType::defined>(LBrace) +
                many(append<&ast::TagType::members>(ref<MemberDeclaration>)) +
-               lit<"}">)  //
+               RBrace)  //
               | assign<&ast::TagType::name>(ref<ID>))> {};
 
   struct EnumSpecifier
@@ -282,10 +291,10 @@ struct C : cursiv::GrammarSpec {
              ((option(assign<&ast::EnumType::name>(ref<ID>)) +
                option(option(flag<&ast::EnumType::hasUnderlyingColon>(lit<":">)) +
                       assign<&ast::EnumType::underlying>(ref<DeclarationSpecifiers>)) +
-               flag<&ast::EnumType::defined>(lit<"{">) +
+               flag<&ast::EnumType::defined>(LBrace) +
                some(append<&ast::EnumType::enumerators>(ref<Enumerator>),
                     lit<",">) +
-               option(lit<",">) + lit<"}">)  //
+               option(lit<",">) + RBrace)  //
               |
               (assign<&ast::EnumType::name>(ref<ID>) +
                option(
@@ -304,12 +313,12 @@ struct C : cursiv::GrammarSpec {
              many(append<&ast::Pointer::qualifiers>(TypeQualifier))> {};
 
   struct ArraySuffix
-      : rule<lit<"["> +
+      : rule<LBracket +
              many(append<&ast::ArraySuffix::qualifiers>(TypeQualifier) |
                   flag<&ast::ArraySuffix::isStatic>(kw<"static">)) +
              option(assign<&ast::ArraySuffix::size>(ref<AssignmentExpression>) |
-                    lit<"*">) +
-             lit<"]">> {};
+                    flag<&ast::ArraySuffix::isStar>(lit<"*">)) +
+             RBracket> {};
 
   struct FunctionSuffix
       : rule<lit<"("> +
@@ -395,7 +404,7 @@ struct C : cursiv::GrammarSpec {
   struct BuiltinCall
       : rule<create<ast::BuiltinExpr>(
                  assign<&ast::BuiltinExpr::name>(kw<"__builtin_va_arg">) +
-                 lit<"("> + append<&ast::BuiltinExpr::args>(ref<UnaryExpression>) +
+                 lit<"("> + append<&ast::BuiltinExpr::args>(ref<AssignmentExpression>) +
                  lit<","> + append<&ast::BuiltinExpr::types>(ref<TypeName>) +
                  lit<")">)  //
              | create<ast::BuiltinExpr>(
@@ -409,11 +418,11 @@ struct C : cursiv::GrammarSpec {
                    assign<&ast::BuiltinExpr::name>(
                        kw<"__builtin_choose_expr">) +
                    lit<"("> +
-                   append<&ast::BuiltinExpr::args>(ref<UnaryExpression>) +
+                   append<&ast::BuiltinExpr::args>(ref<AssignmentExpression>) +
                    lit<","> +
-                   append<&ast::BuiltinExpr::args>(ref<UnaryExpression>) +
+                   append<&ast::BuiltinExpr::args>(ref<AssignmentExpression>) +
                    lit<","> +
-                   append<&ast::BuiltinExpr::args>(ref<UnaryExpression>) +
+                   append<&ast::BuiltinExpr::args>(ref<AssignmentExpression>) +
                    lit<")">)  //
              | create<ast::BuiltinExpr>(
                    assign<&ast::BuiltinExpr::name>(
@@ -465,9 +474,9 @@ struct C : cursiv::GrammarSpec {
   struct PostfixExpression
       : rule<(ref<PrimaryExpression> | ref<CompoundLiteral>) +
              many(nest<ast::IndexExpr, &ast::IndexExpr::array>(
-                      lit<"["> +
+                      LBracket +
                       assign<&ast::IndexExpr::index>(ref<Expression>) +
-                      lit<"]">)  //
+                      RBracket)  //
                   | nest<ast::CallExpr, &ast::CallExpr::callee>(
                         lit<"("> +
                         many(append<&ast::CallExpr::args>(
@@ -527,18 +536,17 @@ struct C : cursiv::GrammarSpec {
                  assign<&ast::CastExpr::operand>(ref<CastExpression>))  //
              | ref<UnaryExpression>> {};
 
-  struct BinaryExpression : infix<CastExpression, &ast::BinaryExpr::left,
-                                  &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                                  (left(OpMul) >>     //
-                                   left(OpAdd) >>     //
-                                   left(OpShift) >>   //
-                                   left(OpRel) >>     //
-                                   left(OpEq) >>      //
-                                   left(OpBitAnd) >>  //
-                                   left(OpBitXor) >>  //
-                                   left(OpBitOr) >>   //
-                                   left(OpLogAnd) >>  //
-                                   left(OpLogOr))> {};
+  struct BinaryExpression : infix<CastExpression, ast::BinaryExpr,
+                                  levels(left(OpMul),     //
+                                         left(OpAdd),     //
+                                         left(OpShift),   //
+                                         left(OpRel),     //
+                                         left(OpEq),      //
+                                         left(OpBitAnd),  //
+                                         left(OpBitXor),  //
+                                         left(OpBitOr),   //
+                                         left(OpLogAnd),  //
+                                         left(OpLogOr))> {};
 
   struct ConditionalExpression
       : rule<create<ast::CondExpr>(
@@ -557,27 +565,24 @@ struct C : cursiv::GrammarSpec {
              | ref<ConditionalExpression>> {};
 
   struct Expression
-      : infix<AssignmentExpression, &ast::BinaryExpr::left,
-              &ast::BinaryExpr::op, &ast::BinaryExpr::right, left(lit<",">)> {};
+      : infix<AssignmentExpression, ast::BinaryExpr, left(lit<",">)> {};
 
+  struct IndexDesignatorRule
+      : rule<create<ast::IndexDesignator>(
+            LBracket + assign<&ast::IndexDesignator::index>(ref<ConditionalExpression>) +
+            option(lit<"..."> + assign<&ast::IndexDesignator::rangeEnd>(ref<ConditionalExpression>)) +
+            RBracket)> {};
   struct Designator
       : rule<create<ast::FieldDesignator>(
-                 lit<"."> + assign<&ast::FieldDesignator::name>(ref<ID>))  //
-             |
-             create<ast::IndexDesignator>(
-                 lit<"["> +
-                 assign<&ast::IndexDesignator::index>(
-                     ref<ConditionalExpression>) +
-                 option(lit<"..."> + assign<&ast::IndexDesignator::rangeEnd>(
-                                          ref<ConditionalExpression>)) +
-                 lit<"]">)> {};
+                 lit<"."> + assign<&ast::FieldDesignator::name>(ref<ID>)) |
+             ref<IndexDesignatorRule>> {};
 
   struct BracedInit
       : rule<create<ast::ListInit>(
-                 lit<"{"> +
+                 LBrace +
                  many(append<&ast::ListInit::items>(ref<InitializerItem>),
                       lit<",">) +
-                 option(lit<",">) + lit<"}">)> {};
+                 option(lit<",">) + RBrace)> {};
 
   struct Initializer
       : rule<ref<BracedInit>  //
@@ -587,14 +592,20 @@ struct C : cursiv::GrammarSpec {
 
   struct InitializerItem
       : rule<create<ast::DesignatedInit>(
-                 some(append<&ast::DesignatedInit::designators>(
-                     ref<Designator>)) +
-                 lit<"="> +
+                 ((some(append<&ast::DesignatedInit::designators>(ref<Designator>)) + lit<"=">) |
+                  flag<&ast::DesignatedInit::obsoleteColon>(
+                      append<&ast::DesignatedInit::designators>(create<ast::FieldDesignator>(
+                          assign<&ast::FieldDesignator::name>(ref<ID>))) + lit<":">) |
+                  flag<&ast::DesignatedInit::omittedEquals>(
+                      append<&ast::DesignatedInit::designators>(ref<IndexDesignatorRule>))) +
                  assign<&ast::DesignatedInit::value>(ref<Initializer>))  //
              | ref<Initializer>> {};
 
   struct InitDeclarator
       : rule<assign<&ast::InitDeclarator::declarator>(ref<Declarator>) +
+             option(AsmKw + lit<"("> +
+                    some(append<&ast::InitDeclarator::assemblerNameParts>(ref<STRING_LIT>)) +
+                    lit<")"> + many(ref<AttributeSpec>)) +
              option(lit<"="> +
                     assign<&ast::InitDeclarator::init>(ref<Initializer>))> {};
 
@@ -644,9 +655,9 @@ struct C : cursiv::GrammarSpec {
              lit<";">> {};
 
   struct CompoundStatement
-      : rule<lit<"{"> +
+      : rule<LBrace +
              many(append<&ast::CompoundStmt::items>(ref<BlockItem>)) +
-             lit<"}">> {};
+             RBrace> {};
 
   struct IfStatement
       : rule<kw<"if"> + lit<"("> + assign<&ast::IfStmt::cond>(ref<Expression>) +
@@ -678,27 +689,31 @@ struct C : cursiv::GrammarSpec {
              option(assign<&ast::ForStmt::step>(ref<Expression>)) + lit<")"> +
              assign<&ast::ForStmt::body>(ref<Statement>)> {};
 
+  // C23 permits any label before a declaration or at a compound block's
+  // end. A following statement is kept as its body when one can be read.
+  static constexpr auto standalone_label_end =
+      &(RBrace | LBracket | BuiltinTypeWord | Qualifier | ref<ID> |
+        kw<"struct"> | kw<"union"> | kw<"enum"> | TypeofWord |
+        kw<"typeof_unqual"> | kw<"__typeof_unqual__"> | AttributeWord |
+        kw<"alignas"> | kw<"_Alignas"> | kw<"__declspec"> |
+        kw<"_Static_assert"> | kw<"static_assert">);
   struct CaseStatement
       : rule<kw<"case"> +
              assign<&ast::CaseLabel::value>(ref<ConditionalExpression>) +
              option(lit<"..."> + assign<&ast::CaseLabel::rangeEnd>(
                                       ref<ConditionalExpression>)) +
-             lit<":"> + assign<&ast::CaseLabel::body>(ref<Statement>)> {};
+             lit<":"> + (assign<&ast::CaseLabel::body>(ref<Statement>) |
+                           standalone_label_end)> {};
 
   struct DefaultStatement
       : rule<kw<"default"> + lit<":"> +
-             assign<&ast::DefaultLabel::body>(ref<Statement>)> {};
+             (assign<&ast::DefaultLabel::body>(ref<Statement>) |
+              standalone_label_end)> {};
 
-  // A label labels the statement after it: it stands alone only where none
-  // can follow, a block's end or a declaration a keyword opens (C23). Optional
-  // anywhere, a run of labels reads every way they can nest. `case` and
-  // `default` always take one.
   struct LabeledStatement
       : rule<assign<&ast::Label::name>(ref<ID>) + lit<":"> +
              (assign<&ast::Label::body>(ref<Statement>) |
-              &(lit<"}"> | BuiltinTypeWord | Qualifier | kw<"struct"> |
-                kw<"union"> | kw<"enum"> | TypeofWord |
-                kw<"_Static_assert"> | kw<"static_assert">))> {};
+              standalone_label_end)> {};
 
   // GNU `__label__ name;`: declares a block-scoped label name.
   struct LocalLabelDeclaration
@@ -723,9 +738,9 @@ struct C : cursiv::GrammarSpec {
                    lit<";">)> {};
 
   struct AsmOperandSpec
-      : rule<option(lit<"["> +
+      : rule<option(LBracket +
                     assign<&ast::AsmOperand::symbolicName>(ref<ID>) +
-                    lit<"]">) +
+                    RBracket) +
              assign<&ast::AsmOperand::constraint>(ref<StringLiteral>) +
              lit<"("> + assign<&ast::AsmOperand::expr>(ref<Expression>) +
              lit<")">> {};
@@ -830,7 +845,7 @@ struct C : cursiv::GrammarSpec {
 
   using entry = TranslationUnit;
   static constexpr auto word_boundary = uc::XID_Continue | LegacyID;
-  using ignore = list<WS, Directive>;
+  using ignored = list<WS, Directive>;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

@@ -59,6 +59,55 @@ bool decoded_values(const cursiv::Parser &parser) {
         !parsed.diagnostics.empty() || !text || *text != "onetwo")
       return false;
   }
+  // Hex escapes denote Unicode code points, including Latin-1 characters.
+  const auto hex_result = parser.parse(
+      R"json5({'\xE9':'\x80\xE9\xFF','\u00E9':'\u0080\u00E9\u00FF','é':'\0'})json5");
+  const auto *hex_doc = hex_result.value_as<json5::ast::Doc>();
+  const auto *hex_held = hex_doc && hex_doc->value
+                             ? std::get_if<json5::ast::Value *>(&*hex_doc->value)
+                             : nullptr;
+  const auto *hex_object = hex_held
+                               ? cursiv::ast_cast<json5::ast::Object>(*hex_held)
+                               : nullptr;
+  if (!hex_result.accepted || hex_result.cst().recovered() ||
+      !hex_result.diagnostics.empty() || !hex_object ||
+      hex_object->members.size() != 3)
+    return false;
+  const auto *hex_value =
+      std::get_if<std::string_view>(&hex_object->members[0]->value);
+  const auto *unicode_value =
+      std::get_if<std::string_view>(&hex_object->members[1]->value);
+  const auto *nul_value =
+      std::get_if<std::string_view>(&hex_object->members[2]->value);
+  if (!hex_value || *hex_value != "\xc2\x80éÿ" ||
+      !unicode_value || *hex_value != *unicode_value ||
+      !nul_value || *nul_value != std::string_view("\0", 1))
+    return false;
+  for (const auto *member : hex_object->members)
+    if (member->name != "é")
+      return false;
+  for (const std::string_view empty : {"", " ", "// comment", "/* comment */"}) {
+    const auto parsed = parser.parse(empty);
+    if (parsed.accepted && !parsed.cst().recovered() &&
+        parsed.diagnostics.empty())
+      return false;
+  }
+  // ES5 IdentifierPart includes Mn/Mc and Nd, but not Me or No.
+  for (const std::string_view source : {"{á:1}", "{aा:1}", "{a١:1}",
+                                       R"({\u0041\u0301:1})"}) {
+    const auto parsed = parser.parse(source);
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty())
+      return false;
+  }
+  for (const std::string_view source : {"{a²:1}", "{a⃝:1}",
+                                       R"({\u0030abc:1})",
+                                       R"({a\u002D:1})", R"({a\u00B2:1})"}) {
+    const auto parsed = parser.parse(source);
+    if (parsed.accepted && !parsed.cst().recovered() &&
+        parsed.diagnostics.empty())
+      return false;
+  }
   return true;
 }
 
@@ -108,9 +157,17 @@ int main() {
   if (files.empty())
     return fail(CURSIV_EXAMPLE_DIR, "no examples found");
 
+  std::size_t rejected = 0;
   for (const std::filesystem::path &path : files) {
     const std::string text = cursiv::test::read_file(path.string());
     const cursiv::ParseResult result = language.language.parser->parse(text);
+    if (path.filename() == "empty.json5") {
+      if (result.accepted && !result.cst().recovered() &&
+          result.diagnostics.empty())
+        return fail(path.string(), "a document requires a root value");
+      ++rejected;
+      continue;
+    }
     // `recovered()` is set when the parser had to repair the input to keep
     // going: a clean document leaves it false.
     if (result.cst().recovered())
@@ -127,6 +184,7 @@ int main() {
       return fail(path.string(), "the parse built no Doc");
   }
 
-  std::printf("json5: %zu examples parse\n", files.size());
+  std::printf("json5: %zu examples parse; %zu invalid fixtures rejected\n",
+               files.size() - rejected, rejected);
   return 0;
 }

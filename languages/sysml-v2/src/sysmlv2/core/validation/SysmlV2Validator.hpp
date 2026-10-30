@@ -1,16 +1,19 @@
-// The checks of this language: none yet -- the port covers parsing, not
-// the model-level rules OMG layers on top (name uniqueness, subject/actor
-// resolution, multiplicity well-formedness).
+// Local textual constraints only; model/type/library resolution is separate.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
 #include "sysmlv2/core/ast.hpp"
+#include "cursiv/core/validation/ValidationAcceptor.hpp"
 
 namespace sysmlv2 {
 
 class SysmlV2Validator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkPostfix(const ast::Postfix&, cursiv::ValidationAcceptor&) const;
+  void checkSpec(const ast::Spec&, cursiv::ValidationAcceptor&) const;
+  void checkElement(const ast::Element&, cursiv::ValidationAcceptor&) const;
+  void checkBinary(const ast::Binary&, cursiv::ValidationAcceptor&) const;
 };
 
 struct SysmlV2CoreServices;

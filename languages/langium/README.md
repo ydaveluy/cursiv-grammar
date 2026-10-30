@@ -31,9 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-A `.langium` document declares a Langium grammar: rules, terminals,
-interfaces and type aliases. This parses the declaration itself — the
-grammar of grammars — not what the declared grammar would go on to accept:
+Langium grammar files declare parser rules, terminals, interfaces and type aliases.
 
 ```
 grammar Sql
@@ -48,14 +46,6 @@ Statement:
 CatalogDefinition:
     'CREATE' (catalogSyntax?='CATALOG' | 'DATABASE') name=Identifier;
 ```
-
-Rule bodies are ordered choices of sequences (`|`, juxtaposition), with
-`?`/`*`/`+` cardinality, named feature assignments (`name=Identifier`,
-`items+=Item`, `flag?='KEYWORD'`), cross references (`[Type:Terminal]`),
-actions (`{infer Type.feature=current}`) and guarded alternatives
-(`<param> ... | <!param> ...`). Terminal rules use their own small EBNF:
-character ranges (`'a'..'z'`), negation (`!x`), until (`->`), lookahead
-(`(?=x)`), and a regex literal escape hatch (`/[a-z]+/`).
 
 ## The command line
 

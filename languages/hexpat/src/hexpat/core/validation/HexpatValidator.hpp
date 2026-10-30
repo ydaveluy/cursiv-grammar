@@ -1,5 +1,4 @@
-// The checks of this language: what the grammar accepts but the language
-// does not. None yet -- the port has no semantic rule beyond parsing.
+// Native ordering and type restrictions for function parameters.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,9 @@ namespace hexpat {
 class HexpatValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkParameters(const ast::Fn&, cursiv::ValidationAcceptor&) const;
+  void checkString(const ast::StringLit&, cursiv::ValidationAcceptor&) const;
+  void checkCharacter(const ast::CharLit&, cursiv::ValidationAcceptor&) const;
 };
 
 struct HexpatCoreServices;

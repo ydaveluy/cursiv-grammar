@@ -19,6 +19,10 @@
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "cursiv/test/Check.hpp"
 #include "protobuf/generated/Protobuf/Module.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
+#include "proto2_extensions.hpp"
+#include "keyword_context.hpp"
 
 namespace {
 
@@ -295,35 +299,17 @@ void corpus() {
   CHECK(files.size() == 29);
   std::sort(files.begin(), files.end());
 
-  const std::vector<std::string> expected_error = {"descriptor.proto",
-                                                   "5.v2.proto"};
-
   int clean_count = 0;
   for (const fs::path &file : files) {
-    const std::string name = file.filename().string();
     const std::string src = cursiv::test::read_file(file.string());
     const cursiv::ParseResult r = engine().parse(src);
-    const bool clean = is_clean(r);
-
-    const bool wants_error =
-        std::find(expected_error.begin(), expected_error.end(), name) !=
-        expected_error.end();
-
-    if (wants_error) {
-      CHECK(!clean);
-      if (clean)
-        std::printf("FAIL expected a diagnostic, got a clean parse: %s\n",
-                    file.string().c_str());
-    } else {
-      CHECK(clean);
-      if (!clean)
-        std::printf("FAIL corpus file did not parse clean: %s\n",
-                    file.string().c_str());
-      else
-        ++clean_count;
-    }
+    CHECK(is_clean(r));
+    if (!is_clean(r))
+      std::printf("FAIL corpus file did not parse clean: %s\n", file.string().c_str());
+    else
+      ++clean_count;
   }
-  CHECK(clean_count == 27);
+  CHECK(clean_count == 29);
 }
 
 } // namespace
@@ -333,6 +319,8 @@ static int audit_regression() {
       cursiv::create_language<protobuf::ProtobufCoreServices,
                               protobuf::ProtobufSharedCoreServices,
                               protobuf::install_core_module>();
+  if (!protobuf_proto2_extensions::run(language.language)) return 1;
+  if (!protobuf_keyword_context::run(*language.language.parser)) return 1;
   {
     const auto r = language.language.parser->parse(
         "syntax=\"proto3\"; message M { string s = 1 [deprecated = true]; "
@@ -342,6 +330,28 @@ static int audit_regression() {
         r.value == nullptr)
       return 1;
   }
+  for(const auto source:{
+      "syntax=\"fish\"; message M{}", "syntax=\"proto3\";package a;package b;",
+      "syntax=\"proto3\";message M{int32 a=1[default=1];}",
+      "syntax=\"proto3\";message M{string a=1[default=\"x\"];}",
+      "syntax=\"proto3\";message M{required int32 a=1;}",
+      "syntax=\"proto2\";message M{int32 a=1;}",
+      "syntax=\"proto3\";enum E{}", "syntax=\"proto3\";enum E{A=1;}",
+      "syntax=\"proto3\";enum E{A=0;B=0;}",
+      "syntax=\"proto3\";message M{int32 a=1;oneof q{int32 b=1;}}",
+      "syntax=\"proto3\";message M{reserved 1;int32 a=1;}",
+      "syntax=\"proto3\";message M{reserved \"a\";int32 a=1;}",
+      "syntax=\"proto3\";enum E{reserved 1;A=0;B=1;}",
+      "syntax=\"proto3\";enum E{reserved \"A\";A=0;}",
+      "syntax=\"proto3\";message M{oneof q{}}",
+      "syntax=\"proto2\";message M{map<string,int32>x=1[default=1];}"})
+    if(cursiv::test::validationHelper(language.language,source).diagnostics.empty())return 1;
+  for(const auto source:{
+      "syntax=\"proto3\";enum E{option allow_alias=true;A=0;B=0;}",
+      "syntax=\"proto2\";message M{required int32 a=1[default=1];}",
+      "message M{required int32 a=1;}", "syntax=\"proto2\";enum E{A=1;}",
+      "syntax=\"proto2\";message M{oneof x{int32 a=1[default=1];}}", ""})
+    if(!cursiv::test::validationHelper(language.language,source).diagnostics.empty())return 1;
   return 0;
 }
 

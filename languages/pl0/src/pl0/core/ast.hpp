@@ -11,7 +11,7 @@ namespace pl0::ast {
 
 struct ConstDecl : cursiv::Extends<cursiv::AstNode> {
   string_view name;
-  uint64 value;
+  string_view value; // exact decimal lexeme; no parser-imposed integer bound
 };
 
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
@@ -21,7 +21,7 @@ struct NameExpr : cursiv::Extends<Expr> {
 };
 
 struct NumberExpr : cursiv::Extends<Expr> {
-  uint64 value;
+  string_view value; // exact decimal lexeme; no parser-imposed integer bound
 };
 
 struct GroupedExpr : cursiv::Extends<Expr> {

@@ -36,11 +36,7 @@ max by (very, second)(foo_metric{very=~'important', something='else'}) > 0
   AND ON(host,project)(metric_name) > 0
 ```
 
-An aggregation over a label-matched selector, compared against a threshold,
-joined with a second comparison through a vector-matching `AND`. PromQL has
-no statements: a document is one expression -- a metric selector, a
-function call, an aggregation, or an arithmetic/comparison/set combination
-of these, evaluated against the label sets it names.
+A PromQL query selects and combines time series.
 
 ## The command line
 

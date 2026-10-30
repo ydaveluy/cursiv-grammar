@@ -3,6 +3,8 @@
 // in the generated one, and this file is the only place the two meet.
 
 #include "javacc/core/CoreServices.hpp"
+#include "cursiv/core/parser/Parser.hpp"
+#include "javacc/core/UnicodeEscapes.hpp"
 #include "javacc/core/validation/JavaccValidator.hpp"
 #include "javacc/generated/Javacc/Module.hpp"
 
@@ -10,6 +12,8 @@ namespace javacc {
 
 void install_core_module(JavaccCoreServices& services) {
   javacc::generated::Javacc::install_generated_module(services);
+  services.parser = cursiv::translating_parser(std::move(services.parser),
+                                               translate_unicode_escapes);
   register_validation_checks(services);
 }
 

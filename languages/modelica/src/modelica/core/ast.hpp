@@ -92,7 +92,8 @@ struct FunctionRefArg : cursiv::Extends<Expr> {
 };
 
 // function_arguments / function_call_args: a positional list optionally
-// closed by a `for` comprehension, or a named-argument list -- never both.
+// closed by a `for` comprehension from its first expression, or followed
+// by named arguments. Array arguments populate only positional/forIndices.
 struct CallArgs : cursiv::Extends<cursiv::AstNode> {
   vector<Expr*> positional;
   vector<ForIndex*> forIndices;
@@ -100,13 +101,13 @@ struct CallArgs : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct CallExpr : cursiv::Extends<Expr> {
-  Name* callee;  // a name, or the bare word `der`/`initial`
+  ComponentRef* callee;  // indexed/qualified reference, or der/initial/pure
   CallArgs* args;
 };
 
 // `(' output_expression_list ')` grouping and multi-output targets: a slot
-// left empty in the source is simply absent from `items`, so a gap's
-// position is not recoverable from this node alone.
+// left empty in the source is represented by OmittedOutput, preserving
+// every position in the items/targets vectors.
 struct OmittedOutput : cursiv::Extends<Expr> {};
 
 struct TupleExpr : cursiv::Extends<Expr> {
@@ -139,7 +140,7 @@ struct EqEquality : cursiv::Extends<Equation> {
 };
 
 struct CallEquation : cursiv::Extends<Equation> {
-  Name* callee;
+  ComponentRef* callee;
   CallArgs* args;
   vector<string_view> docStrings;
   Annotation* annotation;

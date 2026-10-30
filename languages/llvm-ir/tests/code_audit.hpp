@@ -262,6 +262,16 @@ inline bool run() {
     check(validate(R"(!0 = !{!"bytes\00\FF"})").empty(),
           "NUL remains valid in metadata strings");
   }
+  {
+    const auto result = parse("declare i32 @g(i32,...) define i32 @f(i32 %x,...){%r=musttail call i32(i32,...) @g(i32 %x,...) ret i32 %r}");
+    bool forward = false;
+    for (const auto* n : result.nodes) if (const auto* call = cursiv::ast_cast<ast::CallInst>(n))
+      forward |= call->forwardsVarargs && call->tailKind && *call->tailKind == "musttail" && call->args.size() == 1;
+    check(forward, "musttail variadic forwarding AST");
+  }
+  check(!validate("declare void @g(...) define void @f(){call void(...) @g(...) ret void}").empty(), "ellipsis requires musttail");
+  check(!validate("define i32 @f(i8 %x){%v=zext nnan i8 %x to i32 ret i32 %v}").empty(), "integer cast rejects fast-math flag");
+  check(validate("define float @f(i8 %x){%v=uitofp nnan nneg i8 %x to float ret float %v}").empty(), "native uitofp flags remain valid");
   repeated_alignment(parse, validate, check);
   return ok;
 }

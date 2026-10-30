@@ -74,6 +74,7 @@ struct SizeofExpr : cursiv::Extends<Expr> {
 
 struct TypenameofExpr : cursiv::Extends<Expr> {
   Expr* operand;
+  string_view primType;
 };
 
 // `be u32(offset)`: a read of a primitive type at an expression address.
@@ -137,11 +138,10 @@ struct Attribute : cursiv::Extends<cursiv::AstNode> {
   vector<AttrItem*> items;
 };
 
-// `@ 0x10`, `@ 0x10 in ram`, `@ expr`.
+// `@ offsetExpression` with an optional `in sectionExpression`.
 struct At : cursiv::Extends<cursiv::AstNode> {
-  string_view intText;
-  string_view inSection;
   Expr* expr;
+  Expr* section;
 };
 
 // `expr` or `expr ... expr` (a range), used by enum values and match
@@ -164,21 +164,15 @@ struct Import : cursiv::Extends<Item> {
   vector<string_view> parts;
 };
 
-// `using Name = Type;`
+// `using Name<T, auto N> = Type;`, or a forward declaration without `=`.
 struct UsingAlias : cursiv::Extends<Item> {
   string_view name;
+  vector<TypeParam*> typeParams;
+  boolean isRef;
+  string_view endian;
   TypeRef* type;
   vector<TypeArg*> typeArgs;
   Attribute* attr;
-};
-
-// `using A<T> = B<T>` -- a second, semicolon-less form the grammar allows
-// alongside the plain alias below.
-struct UsingGeneric : cursiv::Extends<Item> {
-  TypeRef* fromType;
-  vector<TypeArg*> fromArgs;
-  TypeRef* toType;
-  vector<TypeArg*> toArgs;
 };
 
 struct Namespace : cursiv::Extends<Item> {
@@ -224,8 +218,12 @@ struct Enum : cursiv::Extends<Item> {
 
 struct Param : cursiv::Extends<cursiv::AstNode> {
   boolean isRef;
+  string_view endian;
   TypeRef* type;
+  vector<TypeArg*> typeArgs;
   string_view name;
+  Expr* defaultValue;
+  boolean isPack;
 };
 
 struct Fn : cursiv::Extends<Item> {
@@ -354,6 +352,8 @@ struct TryCatchStmt : cursiv::Extends<Item> {
 struct VarDeclarator : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   boolean isArray;
+  Expr* size;
+  Expr* sizeWhile;
   At* at;
   Expr* init;
 };

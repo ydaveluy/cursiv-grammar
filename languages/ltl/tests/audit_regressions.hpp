@@ -14,25 +14,23 @@ inline void ltl_regressions(ltl::LtlCoreServices &services) {
   const auto *implication =
       equivalence ? cursiv::ast_cast<ast::BinaryExpr>(equivalence->left)
                   : nullptr;
-  const auto *conjunction =
-      implication ? cursiv::ast_cast<ast::BinaryExpr>(implication->left)
-                  : nullptr;
   const auto *disjunction =
-      conjunction ? cursiv::ast_cast<ast::BinaryExpr>(conjunction->left)
-                  : nullptr;
+      implication ? cursiv::ast_cast<ast::BinaryExpr>(implication->left) : nullptr;
+  const auto *conjunction =
+      disjunction ? cursiv::ast_cast<ast::BinaryExpr>(disjunction->right) : nullptr;
   CHECK(equivalence && equivalence->op == ast::BinaryOp::equivalent &&
         !equivalence->parent);
   CHECK(implication && implication->op == ast::BinaryOp::implies &&
         implication->parent == equivalence);
   CHECK(conjunction && conjunction->op == ast::BinaryOp::land &&
-        conjunction->parent == implication);
+        conjunction->parent == disjunction);
   CHECK(disjunction && disjunction->op == ast::BinaryOp::lor &&
-        disjunction->parent == conjunction);
+        disjunction->parent == implication);
   if (disjunction) {
     const auto *a = cursiv::ast_cast<ast::AtomicProp>(disjunction->left);
-    const auto *b = cursiv::ast_cast<ast::AtomicProp>(disjunction->right);
+    const auto *b = conjunction ? cursiv::ast_cast<ast::AtomicProp>(conjunction->left) : nullptr;
     CHECK(a && a->name == "a1" && a->parent == disjunction && b &&
-          b->name == "b_2" && b->parent == disjunction);
+          b->name == "b_2" && b->parent == conjunction);
   }
   if (equivalence && implication && conjunction) {
     const auto *c = cursiv::ast_cast<ast::AtomicProp>(conjunction->right);
@@ -45,6 +43,23 @@ inline void ltl_regressions(ltl::LtlCoreServices &services) {
     CHECK(span.begin == 0 && span.end == source.size());
   }
   CHECK(result.nodes.size() == 9);
+  {
+    const auto parsed = services.parser->parse("a -> b -> c");
+    const auto* top = cursiv::ast_cast<ast::BinaryExpr>(parsed.value);
+    const auto* rhs = top ? cursiv::ast_cast<ast::BinaryExpr>(top->right) : nullptr;
+    CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
+    CHECK(top && top->op == ast::BinaryOp::implies && rhs &&
+          rhs->op == ast::BinaryOp::implies && rhs->parent == top);
+  }
+  {
+    const auto parsed = services.parser->parse("a M b && c");
+    const auto* top = cursiv::ast_cast<ast::BinaryExpr>(parsed.value);
+    const auto* lhs = top ? cursiv::ast_cast<ast::BinaryExpr>(top->left) : nullptr;
+    CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
+    CHECK(top && top->op == ast::BinaryOp::land && lhs &&
+          lhs->op == ast::BinaryOp::strong_release && lhs->parent == top);
+  }
+
   {
     const auto parsed = services.parser->parse("aUb");
     const auto *atom = cursiv::ast_cast<ast::AtomicProp>(parsed.value);

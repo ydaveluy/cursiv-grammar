@@ -40,6 +40,48 @@ int main() {
       provn::ProvNCoreServices, provn::ProvNSharedCoreServices,
       provn::install_core_module>();
 
+  {
+    const auto result = language.language.parser->parse(R"prov(document
+prefix ex <http://example.org/\u00E9>
+entity(𐀀, [ex:big=1234567890123456789012345678901234567890,
+            ex:text="line\n\u00E9\U0001F600",
+            ex:long="""long\ttext"""])
+activity(ex:a, 2026-10-28T12:00:00+14:00, -)
+endDocument)prov");
+    const auto *doc = result.value_as<provn::ast::Document>();
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !doc || doc->prefixes.size() != 1 ||
+        doc->prefixes[0]->iri != "http://example.org/é" ||
+        doc->expressions.size() != 2)
+      return fail("native Unicode/unbounded integer document rejected");
+    const auto *e = cursiv::ast_cast<provn::ast::EntityExpr>(doc->expressions[0]);
+    if (!e || e->entity != "𐀀" || e->attributes.size() != 3) return 1;
+    const auto *integer = cursiv::ast_cast<provn::ast::IntLiteral>(e->attributes[0]->value);
+    const auto *text = cursiv::ast_cast<provn::ast::StringLiteral>(e->attributes[1]->value);
+    const auto *longText = cursiv::ast_cast<provn::ast::StringLiteral>(e->attributes[2]->value);
+    if (!integer || integer->value != "1234567890123456789012345678901234567890" ||
+        !text || text->text != "line\né😀" || !longText || longText->text != "long\ttext")
+      return fail("native lexical values lost in AST");
+  }
+  for (const auto *source : {
+           "document activity(a,2026-10-28T12:00:00+19:00,-) endDocument",
+           "document activity(a,2026-10-28T12:00:00+14:01,-) endDocument",
+           "document entity(\ue000) endDocument",
+           "document activity(a,2026-02-29T12:00:00,-) endDocument",
+           "document activity(a,1900-02-29T12:00:00,-) endDocument"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("native-invalid timezone or qualified-name character accepted");
+  }
+  for (const auto *source : {
+           "document activity(a,2000-02-29T24:00:00,-) endDocument",
+           "document activity(a,0000-02-29T00:00:00,-) endDocument",
+           "document activity(a,-0004-02-29T00:00:00,-) endDocument"}) {
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("valid XSD1.1 leap-year/dateTime spelling rejected");
+  }
+
   for (const char* const name : kExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;
     const std::string text = read_file(path);

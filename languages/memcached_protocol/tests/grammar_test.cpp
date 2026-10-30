@@ -12,6 +12,8 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "memcachedprotocol/core/CoreServices.hpp"
 #include "memcachedprotocol/core/ast.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 #include "native_cases.hpp"
 
@@ -98,6 +100,40 @@ int main() {
     }
   }
 
+  {
+    const auto result = language.language.parser->parse(
+        "slabs reassign -1 2\nlru_crawler metadump all\nlru mode segmented\n"
+        "watch fetchers mutations\ncache_memlimit 64 noreply\nshutdown graceful\n"
+        "version ignored arguments\nquit ignored\n");
+    const auto* root = result.value_as<memcachedprotocol::ast::CommandLine>();
+    const auto* admin = root && root->commands.size() == 8
+        ? cursiv::ast_cast<memcachedprotocol::ast::AdministrationCommand>(root->commands[0]) : nullptr;
+    const auto* version = root && root->commands.size() == 8
+        ? cursiv::ast_cast<memcachedprotocol::ast::VersionCommand>(root->commands[6]) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !admin || admin->operation != "slabs" || admin->arguments.size() != 3 ||
+        admin->arguments[1] != "-1" || !version || version->arguments.size() != 2)
+      return fail("native-followup", "native administrative/ignored-argument AST");
+  }
+  for (const auto source : {"get-key\n", "version-extra\n"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail("native-followup", "a command prefix must occupy its whole native token");
+  }
+  for (const auto source : {"set key 0-1 2\n", "incr key +-1\n", "stats detail invalid\n",
+                            "stats cachedump 1\n", "shutdown invalid\n", "watch invalid\n",
+                            "slabs reassign 1\n", "lru mode invalid\n"}) {
+    const auto validated = cursiv::test::validationHelper(language.language, source);
+    if (validated.diagnostics.empty())
+      return fail("native-followup", "native malformed command needs a diagnostic");
+  }
+  for (const auto source : {"incr key -18446744073709551615\n", "touch key \t+30\n",
+                            "incr key 12\tignored\n", "cache_memlimit 64 noreply\n",
+                            "slabs automove ratio 0.8\n", "lru_crawler enable\n"}) {
+    const auto validated = cursiv::test::validationHelper(language.language, source);
+    if (!validated.diagnostics.empty())
+      return fail("native-followup", "native numeric/admin spelling rejected");
+  }
   if (total == 0)
     return fail(CURSIV_EXAMPLE_DIR, "no example documents");
   if (failures > 0)

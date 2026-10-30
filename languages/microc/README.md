@@ -31,14 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A small C-like teaching language with expressions, assignments, conditionals and loops.
+
 ```
 { i=125; j=100; while (i-j) if (i<j) j=j-i; else i=i-j; }
 ```
-
-microC is a minimal, untyped C-like language: statements are `if`/`else`,
-`while`, `{ }` blocks and expression statements; expressions are a single
-`<` comparison, `+`/`-`, and right-associative assignment to a plain name --
-there are no declarations, so a name is bound by first assignment.
 
 ## The command line
 

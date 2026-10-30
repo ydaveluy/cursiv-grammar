@@ -2,8 +2,7 @@
 // virtprop and var at script scope, plus a namespace wrapping more of the
 // same.
 
-// A function attribute (override/final/explicit/property) is mandatory on
-// an import, unlike on a plain function declaration.
+// Function attributes are optional and may form a sequence.
 import void notify(int level) explicit from "log.as";
 
 namespace Game

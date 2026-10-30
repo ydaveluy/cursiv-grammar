@@ -123,7 +123,7 @@ struct WhileStmt : cursiv::Extends<Stmt> {
 };
 
 // The comparison the branch tests against the Evaluate value: "=" (also the
-// default, when the branch writes no operator) or ">".
+// default, when the branch writes no operator), or another comparison.
 struct WhenBranch : cursiv::Extends<cursiv::AstNode> {
   string_view op;
   Expr* value;
@@ -209,6 +209,7 @@ enum class BinOp : std::uint8_t {
   logical_and,
   logical_or,
   concat,
+  power,
 };
 
 struct BinaryExpr : cursiv::Extends<Expr> {

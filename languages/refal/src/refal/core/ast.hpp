@@ -17,13 +17,18 @@ struct ExternalDecl : cursiv::Extends<Definition> {
   vector<string_view> names;
 };
 
-// The expression family: a symbol, a pattern variable, or a nested call
-// (`<...>`). Every position that reads an expression is a `vector<Term*>`
-// here.
+// Expressions retain both structural parentheses and literal categories.
 struct Term : cursiv::Extends<cursiv::AstNode> {};
 
 struct Symbol : cursiv::Extends<Term> {
-  string_view text;  // an identifier, digits, a string's content, or an escape
+  string_view text;  // decoded compound-symbol content
+};
+
+struct NumberSymbol : cursiv::Extends<Symbol> {};
+struct Characters : cursiv::Extends<Symbol> {};
+
+struct Group : cursiv::Extends<Term> {
+  vector<Term*> body;
 };
 
 enum class VarKind : std::uint8_t { s, t, e };

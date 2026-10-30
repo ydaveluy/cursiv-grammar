@@ -17,10 +17,11 @@ struct Expr : cursiv::Extends<cursiv::AstNode> {};
 struct Pattern : cursiv::Extends<cursiv::AstNode> {};
 struct TypeRef : cursiv::Extends<cursiv::AstNode> {};
 
-// A balanced run of tokens neither the lexer nor a grammar rule gives shape
-// to: an attribute argument, a key-path subscript. Content is not kept, only
-// that it balanced.
+// Balanced attribute/key-path tokens: leaves retain their value, groups their
+// opening delimiter, and string literals their structured interpolation.
 struct Opaque : cursiv::Extends<cursiv::AstNode> {
+  string_view text;
+  Expr* literal;
   vector<Opaque*> children;
 };
 
@@ -343,7 +344,7 @@ struct ImplicitMemberExpr : cursiv::Extends<Expr> {
   string_view name;
 };
 
-// A flat chain: Swift's real operator precedence is a runtime table (user
+// A flat chain: Swift's real operator precedence is a declaration-defined table (user
 // `precedencegroup`s), not something a static grammar can climb, so binary
 // expressions stay unassociated here.
 struct BinaryOpItem : cursiv::Extends<cursiv::AstNode> {};
@@ -551,7 +552,7 @@ struct EnumCaseElement : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   TypeRef* associatedValue;
   Expr* rawValue;
-  TypeRef* opaqueBase;  // `case foo(some P)`, rare
+  TypeRef* opaqueBase;  // Legacy slot; associated values belong to associatedValue.
 };
 struct EnumCaseDecl : cursiv::Extends<Decl> {
   vector<EnumCaseElement*> cases;

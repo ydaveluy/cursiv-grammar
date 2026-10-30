@@ -44,6 +44,13 @@ int main() {
       fusiontables::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
 
+  {
+    const std::string source = "INSERT INTO T (X) VALUES (" + std::string(400, '9') + ");";
+    const auto overflow = parser.parse(source);
+    if (overflow.diagnostics.empty())
+      return fail("an overflowing numeric literal must not silently become zero");
+  }
+
   const char* const docs[] = {
       CURSIV_TEST_DIR "/select.fql",
       CURSIV_TEST_DIR "/ddl.fql",

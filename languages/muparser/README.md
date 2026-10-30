@@ -31,6 +31,9 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+A muParser document contains expressions with variables, function calls,
+arithmetic, comparisons, Boolean operators and assignments.
+
 ```
 max(sign(20),rint(3.73),abs(-9),sqrt(16))
 (5>3?true:false)?log(5)+sin(0.9+3)^4+log2(6)-asinh(0.2):(2-1)
@@ -38,12 +41,6 @@ sum(sin(0.1*_pi),cos(0.2),tan(0.2),asin(0.2),acos(0.2),atan(0.2))
 min(sinh(0.2), cosh(0.2), tanh(0.2), asinh(0.2), acosh(1.2), atanh(0.2))
 sin(_pi/6)
 ```
-
-A document is one or more expressions: numbers, `_e`/`_pi`, `true`/`false`, a
-bare name as a variable reference, `sin(x)`-style single-argument functions,
-`max(a,b,...)`-style variadic ones, the usual arithmetic and comparison
-operators, `&&`/`||`, `? :`, and `x = ...`/`x += ...` assignment — reachable
-anywhere an operand is, not only at the top of an expression.
 
 ## The command line
 

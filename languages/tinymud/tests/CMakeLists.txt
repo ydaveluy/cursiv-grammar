@@ -4,7 +4,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
 endif()
 
 add_executable(tinymud_grammar_test grammar_test.cpp)
-target_link_libraries(tinymud_grammar_test PRIVATE tinymudCore)
+target_link_libraries(tinymud_grammar_test PRIVATE tinymudCore cursiv::test)
 target_compile_definitions(tinymud_grammar_test PRIVATE
     CURSIV_EXAMPLE1="${PROJECT_SOURCE_DIR}/example/example1.tinymud"
     CURSIV_ADMIN="${CMAKE_CURRENT_SOURCE_DIR}/admin.tinymud"

@@ -40,9 +40,7 @@ TABLE(COLUMN=(TYPE=CHAR(30) NAME=CUSTOMER_NAME DBNAME="CUSTOMER.NAME")
  )
 ```
 
-A Sybase PowerBuilder DataWindow export (`.srd`): a nested property list,
-all-uppercase by convention. `RETRIEVE=` carries an embedded PBSELECT string
-this grammar does not parse further.
+A DataWindow export stores object properties.
 
 ## The command line
 

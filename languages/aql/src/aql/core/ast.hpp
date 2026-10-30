@@ -56,14 +56,14 @@ struct ArrayLit : cursiv::Extends<Expr> {
 
 struct Pair : cursiv::Extends<cursiv::AstNode> {
   string_view key;  // a bare name or a decoded string, joined to one text
+  Expr* keyExpr;    // bind parameter or computed attribute name
+  boolean shorthand;  // no colon: value is the variable named by key
   Expr* value;
 };
 
-// `{ pair, ... }` or the shorthand `{ id, ... }` (RETURN's `{ name }` reading
-// a variable of the same name) -- mutually exclusive, never both populated.
+// Entries stay in source order, including shorthand and computed names.
 struct ObjectLit : cursiv::Extends<Expr> {
   vector<Pair*> pairs;
-  vector<string_view> shorthand;
 };
 
 // `( data_access_query )`: a read used where an expression is expected.
@@ -84,11 +84,11 @@ struct IndexExpr : cursiv::Extends<Expr> {
   boolean star;
 };
 
-// `a.b`. A full expression may follow `.` grammatically; restricted here to
-// a name, which is what every real use (and every corpus document) writes.
+// `a.b`, including a quoted name, or `a.@attribute`.
 struct DotExpr : cursiv::Extends<Expr> {
   Expr* object;
   string_view field;
+  BindParamRef* fieldParam;
 };
 
 // `+x`, `-x`.
@@ -135,8 +135,8 @@ struct BinaryExpr : cursiv::Extends<Expr> {
   Expr* right;
 };
 
-enum class Quantifier : std::uint8_t { all, none, any };
-enum class CmpOp : std::uint8_t { in, eq, ne, gt, ge, lt, le };
+enum class Quantifier : std::uint8_t { all, none, any, atLeast };
+enum class CmpOp : std::uint8_t { in, notIn, eq, ne, gt, ge, lt, le };
 
 // `expr ALL == expr`, `expr ANY IN expr`: an array comparison, kept apart
 // from `BinaryExpr` since its operator is two words with independent
@@ -144,18 +144,18 @@ enum class CmpOp : std::uint8_t { in, eq, ne, gt, ge, lt, le };
 struct QuantifiedExpr : cursiv::Extends<Expr> {
   Expr* left;
   Quantifier quant;
+  Expr* minimum;  // AT LEAST(minimum)
   CmpOp cmp;
   Expr* right;
 };
 
 struct TernaryExpr : cursiv::Extends<Expr> {
   Expr* cond;
-  Expr* then_;
+  Expr* then_;  // null for the short form `cond ?: fallback`
   Expr* else_;
 };
 
-// `(LET expr)+`: LET has no name token of its own -- a binding is
-// ordinarily an assignment expression (`x = 1`), read generically.
+// LET bindings use assignment/comma nodes; scalar expressions do not.
 struct LetList : cursiv::Extends<cursiv::AstNode> {
   vector<Expr*> bindings;
 };
@@ -180,6 +180,7 @@ struct ForIn : cursiv::Extends<cursiv::AstNode> {
   string_view var;
   Expr* source;  // an expression, or a CollectionRef (`@@name`)
   Search* search;
+  Options* options;
   LetList* letAfter;
 };
 
@@ -204,8 +205,8 @@ struct Sort : cursiv::Extends<cursiv::AstNode> {
 // count and `count` becomes the offset.
 struct Limit : cursiv::Extends<cursiv::AstNode> {
   LetList* letBefore;
-  float64 count;
-  optional<float64> second;
+  Expr* count;
+  Expr* second;
   LetList* letAfter;
 };
 
@@ -219,24 +220,29 @@ struct AggregateAssign : cursiv::Extends<cursiv::AstNode> {
 // leading key, or COLLECT WITH COUNT INTO alone. Unused fields stay at
 // their default for whichever shape matched.
 struct Collect : cursiv::Extends<cursiv::AstNode> {
+  LetList* letBefore;
   Expr* expr_;
   Expr* into;
   string_view intoVar;
   string_view keepVar;
+  vector<string_view> keepMore;
   boolean withCount;
   AggregateAssign* aggregate;
+  vector<AggregateAssign*> moreAggregates;
   Options* options;
 };
 
 // `WINDOW (expr WITH)? object_literal aggregate_assign`.
 struct Window : cursiv::Extends<cursiv::AstNode> {
+  LetList* letBefore;
   Expr* expr_;
   ObjectLit* spec;
   AggregateAssign* aggregate;
+  vector<AggregateAssign*> moreAggregates;
 };
 
 struct ForOp : cursiv::Extends<cursiv::AstNode> {
-  ForIn* forIn;
+  ForIn* forIn;  // null for a pipeline operating on the implicit initial row
   vector<std::variant<Collect*, Filter*, Sort*, Limit*, Window*>>
       operations;
 };
@@ -254,7 +260,7 @@ struct SimpleQuery : cursiv::Extends<Query> {
 };
 
 // `FOR v[, e[, p]] IN [from..to] OUTBOUND|INBOUND|ANY start (GRAPH g |
-// collections) [PRUNE p] filter* options? return?`.
+// collections) [PRUNE [var =] p] options? filter* return`.
 struct TraversalQuery : cursiv::Extends<Query> {
   vector<Collection*> with_;
   string_view v;
@@ -266,6 +272,7 @@ struct TraversalQuery : cursiv::Extends<Query> {
   Expr* target;
   Expr* graph;                     // GRAPH form
   vector<Collection*> collections;  // collection-list form
+  string_view pruneVar;
   Expr* prune;
   vector<Filter*> filters;
   Options* options;
@@ -273,7 +280,7 @@ struct TraversalQuery : cursiv::Extends<Query> {
 };
 
 struct InsertOp : cursiv::Extends<cursiv::AstNode> {
-  ObjectLit* doc;
+  Expr* doc;
   boolean isInto;  // IN vs INTO
   Collection* target;
   Options* options;
@@ -281,14 +288,14 @@ struct InsertOp : cursiv::Extends<cursiv::AstNode> {
 
 struct UpdateOp : cursiv::Extends<cursiv::AstNode> {
   Expr* key;
-  ObjectLit* doc;
+  Expr* doc;
   Collection* target;
   Options* options;
 };
 
 struct ReplaceOp : cursiv::Extends<cursiv::AstNode> {
   Expr* key;
-  ObjectLit* doc;
+  Expr* doc;
   Collection* target;
   Options* options;
 };
@@ -313,6 +320,7 @@ struct UpsertOp : cursiv::Extends<cursiv::AstNode> {
 struct DataModificationQuery : cursiv::Extends<Query> {
   vector<Collection*> with_;
   vector<ForOp*> forOps;
+  LetList* letBefore;
   InsertOp* insert_;
   UpdateOp* update_;
   ReplaceOp* replace_;

@@ -20,8 +20,6 @@ struct Recfile : cursiv::GrammarSpec {
   struct RAW : terminal<!(FieldShape | CommentShape | BlankShape) +
                         some(cr<R"(^\n)">)> {};
   struct FIELD_END : terminal<lit<"\n"> + !lit<"+">> {};
-  struct PLUS : terminal<lit<"\n+">, value<ast::Join::newline>> {};
-  struct SPLICE : terminal<lit<"\\\n">, value<ast::Join::splice>> {};
   struct PartText : rule<option(ref<TEXT>)> {};
   struct CommentText : rule<option(ref<REST>)> {};
   struct LineEnd : rule<ref<LF> | eof> {};
@@ -30,37 +28,37 @@ struct Recfile : cursiv::GrammarSpec {
                            assign<&ast::ValuePart::text>(ref<PartText>))> {};
   struct ContinuedPart
       : rule<create<ast::ValuePart>(
-            assign<&ast::ValuePart::join>(ref<PLUS> | ref<SPLICE>) +
+            assign<&ast::ValuePart::join>(as<ast::Join::newline>(lit<"\n+">) | as<ast::Join::splice>(lit<"\\\n">)) +
             assign<&ast::ValuePart::text>(ref<PartText>))> {};
-  struct FieldRule
+  struct Field
       : rule<create<ast::Field>(
             option(assign<&ast::Field::indentation>(ref<HWS>)) +
             assign<&ast::Field::key>(ref<NAME>) + lit<":"> +
             append<&ast::Field::parts>(ref<InitialPart>) +
             many(append<&ast::Field::parts>(ref<ContinuedPart>)) +
             (flag<&ast::Field::terminated>(ref<FIELD_END>) | eof))> {};
-  struct CommentRule
+  struct Comment
       : rule<create<ast::Comment>(
             option(assign<&ast::Comment::indentation>(ref<HWS>)) + lit<"#"> +
             append<&ast::Comment::lines>(ref<CommentText>) + ref<LineEnd> +
             many(lit<"#"> + append<&ast::Comment::lines>(ref<CommentText>) +
                  ref<LineEnd>) +
             !lit<"#">)> {};
-  struct RawLineRule
+  struct RawLine
       : rule<create<ast::RawLine>(assign<&ast::RawLine::text>(ref<RAW>) +
                                   ref<LineEnd>)> {};
-  struct RecordRule
+  struct Record
       : rule<create<ast::Record>(
-            append<&ast::Record::lines>(ref<FieldRule>) +
-            many(append<&ast::Record::lines>(ref<FieldRule> | ref<CommentRule> |
-                                             ref<RawLineRule>)) +
+            append<&ast::Record::lines>(ref<Field>) +
+            many(append<&ast::Record::lines>(ref<Field> | ref<Comment> |
+                                             ref<RawLine>)) +
             ((&ref<BLANK>) | eof))> {};
-  struct DocRule : rule<create<ast::Document>(many(
+  struct Doc : rule<create<ast::Document>(many(
                        ref<BLANK> | append<&ast::Document::entries>(
-                                        ref<RecordRule> | ref<CommentRule> |
-                                        ref<RawLineRule>)))> {};
+                                        ref<Record> | ref<Comment> |
+                                        ref<RawLine>)))> {};
 
-  using entry = DocRule;
+  using entry = Doc;
 };
 
 } // namespace recfile

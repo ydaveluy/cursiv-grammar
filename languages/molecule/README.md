@@ -31,13 +31,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
+Chemical molecular formulas with element counts and groups.
+
 ```
 NiC2O4 · 2H2O
 ```
-
-A Hill formula: element symbols, each with an optional count; `(...)` groups
-and `[...]` ions carrying their own counted structures; several formulas
-joined by a middle dot (`·`) for a hydrate.
 
 ## The command line
 

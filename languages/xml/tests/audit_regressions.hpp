@@ -1,9 +1,15 @@
 #pragma once
 #include "cursiv/core/parser/Parser.hpp"
+#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/core/validation/DocumentValidator.hpp"
+#include "cursiv/core/workspace/Document.hpp"
+#include "xml/core/CoreServices.hpp"
 #include "xml/core/ast.hpp"
 #include "xml/generated/Xml/Module.hpp"
 #include <cstdio>
+#include <initializer_list>
 #include <string>
+#include <vector>
 namespace audit_regressions {
 template <class T> T *as(cursiv::AstNode *p) {
   return p && p->type == &cursiv::ast_type_tag<T> ? static_cast<T *>(p)
@@ -59,6 +65,64 @@ inline bool run() {
                (*element)->name == "b" && right && *right == "\xEF\xBB\xBF ";
   }
   check(mixed_ok, "xml mixed content preserves whitespace and embedded BOM");
+
+  for (const char* source : {
+           "<a x='&amp;&#65;&#x41;' y=\"a&amp;b\"/>",
+           "<a>&#x1FFFE;&#x10FFFF;&#0000000000000000000065;</a>",
+           "<a><![CDATA[&#0;]]></a>",
+           "<!DOCTYPE a SYSTEM 'a>b'><a/>",
+           "<!DOCTYPE a PUBLIC '-//Example//DTD Test//EN' 'test.dtd'><a/>",
+           "<?p?><a><!--a-b--><?xml-stylesheet href='x'?><![CDATA[]]>x]]</a>",
+           "<?xml version='1.0' encoding='UTF-8' standalone='no'?><a />"}) {
+    const auto valid = parser->parse(source);
+    check(valid.accepted && !valid.cst().recovered() && valid.diagnostics.empty(),
+          "XML references, comments, targets and tag spacing remain valid");
+  }
+  for (const char* source : {
+           "< a/>", "<a></ a>", "<a x='1'y='2'/>", "<a x='&broken'/>",
+           "<a x='a&b'/>", "<a>]]></a>", "<!--a--b--><a/>",
+           "<!--a---><a/>", "<?XML?><a/>", "<??><a/>", "<?1p?><a/>",
+           "<?xml?><a/>", " <?xml version='1.0'?><a/>",
+           "<?xml version='1.0'encoding='UTF-8'?><a/>"}) {
+    const auto invalid = parser->parse(source);
+    check(!invalid.accepted || invalid.cst().recovered() || !invalid.diagnostics.empty(),
+          "malformed XML must not parse without a diagnostic");
+  }
+  for (const std::string_view source : std::initializer_list<std::string_view>{
+           std::string_view{"<a>&#0;</a>"}, "<a>&#xD800;</a>",
+           "<a>&#xFFFE;</a>", "<a>&#x110000;</a>", "<a x='&#0;'/>",
+           "<a>\x01</a>", "<a x='\x0b'/>", "<?pi \x01?><a/>",
+           "<!BAD thing><a/>", "<!DOCTYPE a foo><a/>",
+           "<!DOCTYPE a><!DOCTYPE a><a/>",
+           std::string_view{"<a>\0</a>", 8},
+           std::string_view{"<!--\0--><a/>", 12},
+           std::string_view{"<a><![CDATA[\0]]></a>", 20}}) {
+    const auto invalid = parser->parse(source);
+    check(!invalid.accepted || invalid.cst().recovered() ||
+              !invalid.diagnostics.empty(),
+          "XML character and document-type constraints");
+  }
+
+  const auto language = cursiv::create_language<xml::XmlCoreServices,
+      xml::XmlSharedCoreServices, xml::install_core_module>();
+  for (const auto& [source, code] : {
+           std::pair{"<a x='1' x='2'/>", "xml.duplicate-attribute"},
+           {"<?xml encoding='UTF-8'?><a/>", "xml.declaration-order"},
+           {"<?xml version='1.0' version='1.0'?><a/>", "xml.declaration-order"},
+           {"<?xml version='1.0' standalone='maybe'?><a/>", "xml.declaration-value"},
+           {"<?xml version='1.0' encoding='8bit'?><a/>", "xml.declaration-value"}}) {
+    cursiv::Document document(
+        cursiv::TextDocument::create("memory:xml", "xml", 0, source));
+    document.language = &language.language;
+    document.parseResult = language.language.parser->parse(document.textDocument().getText());
+    std::vector<cursiv::Diagnostic> diagnostics;
+    language.language.documentValidator->validateDocument(document, diagnostics);
+    bool found = false;
+    for (const auto& diagnostic : diagnostics)
+      found |= diagnostic.code && diagnostic.code->isString() &&
+               diagnostic.code->string() == code;
+    check(found, "XML well-formedness constraints are diagnosed during validation");
+  }
 
   return ok;
 }

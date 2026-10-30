@@ -45,7 +45,7 @@ const ast::Table* find(const ast::Document& doc, std::string_view key) {
 
 // The values `test.toml` declares, read back through the AST rather than
 // merely trusted to have parsed: a converter that silently yields the wrong
-// value, or a `text_conv` that refuses, leaves the structural checks above
+// value, or a converter that refuses, leaves the structural checks above
 // none the wiser.
 int check_test_toml_values(const fs::path& path,
                            const cursiv::ParseResult& result) {

@@ -42,9 +42,9 @@ get name
 put "Hello, ", name, "!"
 ```
 
-`example/` also carries `showcase.t`, which exercises constants, types
+`tests/showcase.t`, which exercises constants, types
 (standard, subrange, array, record, named), procedures and functions,
-`if`/`case`/`for`/`loop`, and the full expression grammar including
+`if`/`case`/`for`/`loop`, and expressions including
 `init(...)` and substrings.
 
 ## The command line

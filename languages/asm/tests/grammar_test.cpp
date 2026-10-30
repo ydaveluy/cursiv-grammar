@@ -216,6 +216,45 @@ int main() {
   }
 
 
+  // Fresh NASM 2.16.01 oracle cases: constant-expression operands and
+  // real spellings are independent of the host's floating-point formats.
+  for (const char* text : {"db 1 ? 2+3 : 4\n", "x equ 3\ndb 1 ? x : 4\n",
+                           "db 1 ? 0 ? 2 : 3 : 4\n", "resb 2+3\n",
+                           "db 1b,1h,0AFh\n", "[bits 64]\nnop\n", "nop"}) {
+    const auto result = language.language.parser->parse(text);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) {
+      std::fprintf(stderr, "nasm: native expression or line form rejected: %s\n", text);
+      return 1;
+    }
+  }
+  for (const char* literal : {"1.", "1.e+10", "1.222_222", "1.e+4000",
+                              "0x1p+2", "0x1.8p+2", "0x1p-2",
+                              "0b1.1p+2", "0o1.4p+2"}) {
+    const std::string text = std::string("do ") + literal + "\n";
+    const auto result = language.language.parser->parse(text);
+    unsigned exact = 0;
+    for (const auto* node : result.nodes)
+      if (const auto* f = cursiv::ast_cast<ast::FloatLit>(node)) {
+        if (f->text != literal) return 1;
+        ++exact;
+      }
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || exact != 1) {
+      std::fprintf(stderr, "nasm: native real spelling lost: %s\n", literal);
+      return 1;
+    }
+  }
+  {
+    const auto result = language.language.parser->parse("db 1 ? 2+3 : 4\nresb 2+3\n");
+    const ast::ConditionalExpr* ternary = nullptr;
+    const ast::ReserveDecl* reserve = nullptr;
+    for (const auto* node : result.nodes) {
+      if (const auto* t = cursiv::ast_cast<ast::ConditionalExpr>(node)) ternary = t;
+      if (const auto* r = cursiv::ast_cast<ast::ReserveDecl>(node)) reserve = r;
+    }
+    if (!ternary || !as<ast::BinaryExpr>(ternary->then_) ||
+        !reserve || !as<ast::BinaryExpr>(reserve->count)) return 1;
+  }
+
   const std::filesystem::path example_dir = CURSIV_EXAMPLE_DIR;
 
   int total = 0;

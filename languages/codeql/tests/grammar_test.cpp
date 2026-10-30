@@ -140,6 +140,29 @@ static int audit_regression() {
         r.value == nullptr)
       return 1;
   }
+  {
+    const auto r = language.language.parser->parse(
+        "signature module S {} module Arg {} module Generic<S M> {} "
+        "import Generic<Arg> as Inst "
+        "overlay[local?] predicate p() { 1 = 1 } "
+        "where (1 = 1 implies 2 = 2) implies (3 = 3 implies 4 = 4) select 1");
+    const auto* doc = r.value_as<codeql::ast::Document>();
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
+        !doc || doc->body.size() != 6) return 1;
+    const auto* import_decl = cursiv::ast_cast<codeql::ast::ImportDecl>(doc->body[3]);
+    const auto* predicate = cursiv::ast_cast<codeql::ast::Predicate>(doc->body[4]);
+    if (!import_decl || import_decl->modulePath != "Generic<Arg>" || !import_decl->alias ||
+        *import_decl->alias != "Inst" || !predicate || predicate->annotations.size() != 1 ||
+        predicate->annotations[0]->name != "overlay" ||
+        predicate->annotations[0]->args.size() != 1 ||
+        predicate->annotations[0]->args[0] != "local?") return 1;
+  }
+  {
+    const auto r = language.language.parser->parse(
+        "where 1 = 1 implies 2 = 2 implies 3 = 3 select 1");
+    if (r.diagnostics.empty())
+      return fail("native-implication", "an unparenthesized implication chain needs a diagnostic");
+  }
   return 0;
 }
 

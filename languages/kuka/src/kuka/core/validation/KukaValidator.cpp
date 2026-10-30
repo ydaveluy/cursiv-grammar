@@ -13,10 +13,13 @@ namespace kuka {
 
 void KukaValidator::checkUniqueParams(const ast::Routine& routine,
                                       cursiv::ValidationAcceptor& accept) const {
-  std::unordered_map<std::string_view, std::vector<const ast::Param*>> names;
+  std::unordered_map<std::string, std::vector<const ast::Param*>> names;
   for (const ast::Param* const param : routine.params)
-    if (param != nullptr && param->name != nullptr)
-      names[param->name->id].push_back(param);
+    if (param != nullptr && param->name != nullptr) {
+      std::string folded(param->name->id);
+      for (auto& c : folded) if (c >= 'a' && c <= 'z') c -= 'a' - 'A';
+      names[folded].push_back(param);
+    }
 
   for (const auto& [name, params] : names) {
     if (params.size() <= 1) continue;

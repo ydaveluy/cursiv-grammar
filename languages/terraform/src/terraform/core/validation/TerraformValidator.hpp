@@ -15,6 +15,7 @@ class TerraformValidator final : public cursiv::DefaultCoreService {
   void checkUnary(const ast::UnaryExpr&, cursiv::ValidationAcceptor&) const;
   void checkTemplate(const ast::StringLit&, cursiv::ValidationAcceptor&) const;
   void checkText(const ast::TemplateText&, cursiv::ValidationAcceptor&) const;
+  void checkMap(const ast::MapObj&, cursiv::ValidationAcceptor&) const;
 };
 
 struct TerraformCoreServices;

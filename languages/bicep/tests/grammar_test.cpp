@@ -50,6 +50,78 @@ int main() {
       bicep::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
 
+  // Microsoft Parser.Program accepts either a newline or EOF after a
+  // declaration; Lexer.ScanString accepts a dollar not followed by `{`.
+  for (const char* source : {
+           "param p string", "var x = 1", "type T = string",
+           "metadata description = 'price $5'", "output x string = '$'",
+           "resource r 'Provider/type@2023-01-01' = {}",
+           "module m './other.bicep' = {}", "import 'sys@1.0.0' as sys",
+           "var x = 1 // trailing comment",
+           "var x = 1\n#disable-next-line no-unused-vars"}) {
+    const auto result = parser.parse(source);
+    const auto* program = as<ast::Program>(result.value);
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || program == nullptr ||
+        program->body.size() != 1)
+      return fail(std::string(source) + ": native EOF or dollar spelling lost");
+  }
+  {
+    const auto result = parser.parse("var x = 'price $5 ${name} $'");
+    const auto* program = as<ast::Program>(result.value);
+    const auto* decl = program != nullptr && program->body.size() == 1
+                           ? as<ast::VariableDecl>(program->body[0])
+                           : nullptr;
+    const auto* string = decl != nullptr ? as<ast::InterpString>(decl->value)
+                                         : nullptr;
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || string == nullptr ||
+        string->quasis.size() != 2 || string->expressions.size() != 1 ||
+        string->quasis[0] != "price $5 " || string->quasis[1] != " $")
+      return fail("dollar/interpolation AST boundaries changed");
+  }
+  {
+    const auto result = parser.parse(
+        "@description('sum')\n"
+        "func add(\n a int,\n b int,\n) int =>\n a + b\n"
+        "assert sumIsThree = add(1, 2) == 3");
+    const auto* program = as<ast::Program>(result.value);
+    const auto* function = program != nullptr && program->body.size() == 2
+                               ? as<ast::FunctionDecl>(program->body[0])
+                               : nullptr;
+    const auto* assertion = program != nullptr && program->body.size() == 2
+                                ? as<ast::AssertDecl>(program->body[1])
+                                : nullptr;
+    const auto* returnType = function != nullptr
+                                ? as<ast::AmbientType>(function->returnType)
+                                : nullptr;
+    const auto* body = function != nullptr
+                           ? as<ast::BinaryExpr>(function->body) : nullptr;
+    const auto* value = assertion != nullptr
+                            ? as<ast::BinaryExpr>(assertion->value) : nullptr;
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || function == nullptr ||
+        function->name != "add" || function->decorators.size() != 1 ||
+        function->parameters.size() != 2 ||
+        function->parameters[0]->name != "a" ||
+        function->parameters[1]->name != "b" || returnType == nullptr ||
+        returnType->name != "int" || body == nullptr || body->op != "+" ||
+        assertion == nullptr || assertion->name != "sumIsThree" ||
+        value == nullptr || value->op != "==")
+      return fail("native function/assertion fields or expression AST lost");
+  }
+  {
+    const auto result = parser.parse("func zero() int => 0");
+    const auto* program = as<ast::Program>(result.value);
+    const auto* function = program != nullptr && program->body.size() == 1
+                               ? as<ast::FunctionDecl>(program->body[0])
+                               : nullptr;
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || function == nullptr ||
+        !function->parameters.empty())
+      return fail("zero-parameter native function refused");
+  }
+
   int failures = 0;
   int count = 0;
   for (const fs::directory_entry& entry :

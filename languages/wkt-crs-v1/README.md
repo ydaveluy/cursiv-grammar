@@ -35,15 +35,11 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-```
-5705=VERT_CS["Baltic 1977 height", VERT_DATUM["Baltic 1977", 2005, AUTHORITY["EPSG","5105"]], UNIT["m", 1.0], AXIS["Gravity-related height", UP], AUTHORITY["EPSG","5705"]]
-```
+WKT1 coordinate-reference-system descriptions, including OGC and ESRI variants.
 
-A row maps an authority code to one WKT CRS definition: `PROJCS`, `GEOGCS`,
-`GEOCCS`, `VERT_CS`, `LOCAL_CS` or `COMPD_CS`, each nesting a `DATUM`, a
-`SPHEROID`, an optional `TOWGS84`, a `UNIT`, one or more `AXIS` clauses and an
-`AUTHORITY`. A `#` line is a comment row, kept in the tree rather than
-skipped.
+```
+5705=VERT_CS["Baltic 1977 height",VERT_DATUM["Baltic 1977",2005],UNIT["m",1],AXIS["height",UP]]
+```
 
 ## The command line
 

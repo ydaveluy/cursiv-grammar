@@ -31,15 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-A document is one [RFC 1035 §3.1](https://tools.ietf.org/html/rfc1035)
-`<domain>`: dot-separated labels, each a letter optionally followed by
-letters, digits and hyphens (never ending on a hyphen) --
-
-```
-SRI-NIC.ARPA
-```
-
--- or the single space RFC 1035 reserves for the root domain.
+DNS presentation names with dot-separated labels, escaped octets and an optional final root dot.
 
 ## The command line
 

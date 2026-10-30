@@ -14,11 +14,13 @@
 #include "key_segments.hpp"
 #include "mdx/core/CoreServices.hpp"
 #include "mdx/core/ast.hpp"
+#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/test/ValidationResult.hpp"
 
 namespace {
 
-int fail(const char* what) {
-  std::fprintf(stderr, "mdx: %s\n", what);
+int fail(const std::string& what) {
+  std::fprintf(stderr, "mdx: %s\n", what.c_str());
   return 1;
 }
 
@@ -90,8 +92,10 @@ int main() {
     if (text.empty()) return fail("a construct document is not readable");
 
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    if (result.cst().recovered())
+    if (result.cst().recovered()) {
+      for (const auto& d : result.diagnostics) std::fprintf(stderr, "%s: repair kind=%u at=%u:%u\n", path, static_cast<unsigned>(d.kind), d.begin, d.end);
       return fail("a construct document does not parse");
+    }
     if (!result.diagnostics.empty())
       return fail("a construct document carries diagnostics");
   }
@@ -174,8 +178,8 @@ int main() {
       return fail("a:b + c: expected : under +");
   }
 
-  // A CASE branch never reaches `:`: an ordinary branch still builds a
-  // CaseExpr, one that tries `:` is refused.
+  // CASE uses the same expression syntax; native scalar type constraints
+  // require semantic analysis beyond this parser.
   {
     const std::string text =
         "SELECT FROM Sales WHERE CASE WHEN a = b THEN c ELSE d END";
@@ -191,10 +195,34 @@ int main() {
     const std::string text =
         "SELECT FROM Sales WHERE CASE WHEN a:b THEN c ELSE d END";
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    if (!result.cst().recovered() && result.diagnostics.empty())
-      return fail("`:` inside a CASE branch parsed clean");
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("CASE expression should use the ordinary expression syntax; type checking is deferred");
   }
 
+  for (const auto source : {"WITH MEMBER [Measures].[x] AS 1 SELECT [Measures].[x] ON 0 FROM Sales", "SELECT {} ON AXIS(0) FROM Sales;", "SELECT * FROM Sales", "SELECT {} ON 0 FROM (SELECT {} ON 0 FROM Sales)", "// comment\nSELECT {} ON 0 FROM Sales -- tail\n", "SELECT FROM Sales WHERE a IS b:c^2 * 3 + .5e2", "SELECT FROM Sales WHERE Measures.CurrentMember.Value"}) {
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) return fail(std::string("native form rejected: ") + source);
+  }
+  {
+    const auto result = language.language.parser->parse("WITH MEMBER [M] AS 2 SELECT {} ON AXIS(0) FROM (SELECT FROM Sales) WHERE a IS b:c^2 * 3");
+    const auto* q = result.value_as<mdx::ast::SelectStatement>();
+    const auto* mul = q ? cursiv::ast_cast<mdx::ast::BinaryExpr>(q->slicer) : nullptr;
+    const auto* power = mul ? cursiv::ast_cast<mdx::ast::BinaryExpr>(mul->left) : nullptr;
+    const auto* range = power ? cursiv::ast_cast<mdx::ast::BinaryExpr>(power->left) : nullptr;
+    const auto* identity = range ? cursiv::ast_cast<mdx::ast::BinaryExpr>(range->left) : nullptr;
+    if (!q || q->formulas.size() != 1 || !q->subquery || q->axes.size() != 1 || !q->axes[0]->axisFunction ||
+        !mul || mul->op != mdx::ast::BinaryOp::multiply || !power || power->op != mdx::ast::BinaryOp::power ||
+        !range || range->op != mdx::ast::BinaryOp::range || !identity || identity->op != mdx::ast::BinaryOp::is_)
+      return fail("native formula/subquery/axis/operator AST lost");
+  }
+  for (const auto source : {"SELECT FROM Sales WHERE CASE END", "WITH MEMBER [x] AS 1, SELECT FROM Sales", "SELECT FROM SELECT", "SELECT FROM Sales WHERE CREATE"}) {
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty()) return fail("non-native keyword/CASE/member syntax accepted");
+  }
+  for (const auto source : {"SELECT {} ON columns, {} ON 0 FROM Sales", "SELECT {} ON 128 FROM Sales", "SELECT {} ON rows FROM Sales", "SELECT {} ON AXIS(0), {} ON COLUMNS FROM Sales", "SELECT {} ON UNKNOWN FROM Sales"}) {
+    const auto result = cursiv::test::validationHelper(language.language, source);
+    if (result.diagnostics.empty()) return fail("native axis constraint needs diagnostic");
+  }
   std::puts("mdx: the examples parse");
   return 0;
 }

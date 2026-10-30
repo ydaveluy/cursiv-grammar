@@ -17,19 +17,22 @@ struct Doiurl : cursiv::GrammarSpec {
 
   struct SEGMENT : terminal<some(pchar)> {};
   struct URI_TEXT : terminal<some(query_char)> {};
-  struct SegmentValue : rule<option(ref<SEGMENT>)> {};
-  struct UriValue : rule<option(ref<URI_TEXT>)> {};
+  struct SegmentValue : rule<option(gap::none + ref<SEGMENT>)> {};
+  struct UriValue : rule<option(gap::none + ref<URI_TEXT>)> {};
 
-  struct DoiUriRule
-      : rule<ikw<"doi"> + lit<":"> +
+  struct DoiUri
+      : rule<ikw<"doi"> + gap::none + lit<":"> +
              assign<&ast::DoiUri::prefix>(ref<SegmentValue>) +
-             some(lit<"/"> + append<&ast::DoiUri::suffix>(ref<SegmentValue>)) +
-             option(lit<"?"> + assign<&ast::DoiUri::query>(ref<UriValue>)) +
-             option(lit<"#"> + assign<&ast::DoiUri::fragment>(ref<UriValue>))> {
+             some(gap::none + lit<"/"> +
+                  append<&ast::DoiUri::suffix>(ref<SegmentValue>)) +
+             option(gap::none + lit<"?"> +
+                    assign<&ast::DoiUri::query>(ref<UriValue>)) +
+             option(gap::none + lit<"#"> +
+                    assign<&ast::DoiUri::fragment>(ref<UriValue>))> {
   };
 
-  using entry = DoiUriRule;
-  using ignore = WS;
+  using entry = DoiUri;
+  using ignored = WS;
 };
 
 }  // namespace doiurl

@@ -12,6 +12,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "ocl/core/CoreServices.hpp"
 #include "ocl/core/ast.hpp"
+#include "native_regressions.hpp"
 
 namespace {
 
@@ -42,6 +43,7 @@ int main() {
       ocl::OclCoreServices, ocl::OclSharedCoreServices,
       ocl::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
+  if (!ocl_native_regressions(parser)) return fail("native OCL regression");
 
   // contextExamples.ocl: the upstream corpus, 30 context specifications.
   {

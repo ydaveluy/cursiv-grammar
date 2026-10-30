@@ -43,7 +43,7 @@ part def Camera {
 }
 ```
 
-The OMG SysML v2 textual notation: `part def` declares a part kind, `perform
+A subset of the OMG SysML 2.0 textual notation, with selected KerML forms: `part def` declares a part kind, `perform
 action` invokes a behavior owned by another element, and `import` brings a
 package's members into scope.
 

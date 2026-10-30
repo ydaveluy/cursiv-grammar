@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <bit>
 #include <span>
 #include <string_view>
 #include <system_error>
@@ -13,59 +14,58 @@
 
 namespace sdl {
 
+// Native SDL doubles an embedded quote. Backslashes remain ordinary text.
 inline constexpr auto unescape = [](std::string_view t,
                                     std::pmr::memory_resource* mem) {
-  const std::string_view body = t.substr(1, t.size() - 2);
-  if (body.find('\\') == std::string_view::npos) return body;
-  const std::span<char> room = cursiv::text_room(mem, body.size());
+  const auto body = t.substr(1, t.size() - 2);
+  if (body.find_first_of("\"\r\n") == body.npos) return body;
+  const auto room = cursiv::text_room(mem, body.size());
   std::size_t n = 0;
   for (std::size_t i = 0; i < body.size(); ++i) {
-    if (body[i] == '\\' && i + 1 < body.size() && body[i + 1] == '"') {
-      room[n++] = '"';
-      ++i;
-    } else {
-      room[n++] = body[i];
-    }
+    if (body[i] == '\r' || body[i] == '\n') continue;
+    room[n++] = body[i];
+    if (body[i] == '"' && i + 1 < body.size() && body[i + 1] == '"') ++i;
   }
   return std::string_view(room.data(), n);
 };
-using Unescaped = cursiv::text_conv<unescape>;
+
+inline constexpr auto decimal_value = [](std::string_view text) {
+  std::int32_t value = 0;
+  const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+  if (error != std::errc{} || end != text.data() + text.size())
+    return cursiv::ConversionResult<std::int64_t>::err("decimal literal out of longword range");
+  return cursiv::ConversionResult<std::int64_t>::ok(value);
+};
 
 inline constexpr auto hex_value = [](std::string_view t) {
-  std::int64_t v = 0;
+  std::uint32_t v = 0;
   const auto [p, ec] = std::from_chars(t.data() + 2, t.data() + t.size(), v, 16);
   if (ec != std::errc{} || p != t.data() + t.size())
     return cursiv::ConversionResult<std::int64_t>::err("hex literal out of range");
-  return cursiv::ConversionResult<std::int64_t>::ok(v);
+  return cursiv::ConversionResult<std::int64_t>::ok(std::bit_cast<std::int32_t>(v));
 };
-using HexValue = cursiv::text_conv<hex_value>;
 
 inline constexpr auto octal_value = [](std::string_view t) {
-  std::int64_t v = 0;
+  std::uint32_t v = 0;
   const auto [p, ec] = std::from_chars(t.data() + 2, t.data() + t.size(), v, 8);
   if (ec != std::errc{} || p != t.data() + t.size())
     return cursiv::ConversionResult<std::int64_t>::err("octal literal out of range");
-  return cursiv::ConversionResult<std::int64_t>::ok(v);
+  return cursiv::ConversionResult<std::int64_t>::ok(std::bit_cast<std::int32_t>(v));
 };
-using OctalValue = cursiv::text_conv<octal_value>;
 
 inline constexpr auto binary_value = [](std::string_view t) {
-  std::int64_t v = 0;
+  std::uint32_t v = 0;
   const auto [p, ec] = std::from_chars(t.data() + 2, t.data() + t.size(), v, 2);
   if (ec != std::errc{} || p != t.data() + t.size())
     return cursiv::ConversionResult<std::int64_t>::err("binary literal out of range");
-  return cursiv::ConversionResult<std::int64_t>::ok(v);
+  return cursiv::ConversionResult<std::int64_t>::ok(std::bit_cast<std::int32_t>(v));
 };
-using BinaryValue = cursiv::text_conv<binary_value>;
 
-// '%A' followed by one letter: the ASCII code of that letter, upper case.
+// The lexer takes the following character verbatim; PUSHTERM uses rank().
 inline constexpr auto ascii_value = [](std::string_view t) {
-  char c = t[2];
-  if (c >= 'a' && c <= 'z') c = static_cast<char>(c - 'a' + 'A');
   return cursiv::ConversionResult<std::int64_t>::ok(
-      static_cast<std::int64_t>(static_cast<unsigned char>(c)));
+      static_cast<std::int64_t>(static_cast<unsigned char>(t[2])));
 };
-using AsciiValue = cursiv::text_conv<ascii_value>;
 
 struct Sdl : cursiv::GrammarSpec {
   static constexpr auto word_boundary = cr<"a-zA-Z0-9$_">;
@@ -77,35 +77,56 @@ struct Sdl : cursiv::GrammarSpec {
   // read, not only at the specific positions a statement list would name.
   struct COMMENT : terminal<lit<"/*"> + many(cr<R"(^\r\n)">)> {};
 
-  // At least one non-digit somewhere disjoins NAME from INTEGER_NUMBER: a
-  // pure digit run must always read as the number, since the two
-  // terminals would otherwise tie at equal length.
-  struct NAME : terminal<many(cr<"0-9">) + cr<"a-zA-Z$_"> + many(cr<"a-zA-Z0-9$_">)> {};
+  static constexpr auto Reserved =
+      ikw<"AGGREGATE"> | ikw<"CONSTANT"> | ikw<"END"> | ikw<"END_MODULE"> | ikw<"ENTRY"> |
+      ikw<"ITEM"> | ikw<"MODULE"> | ikw<"EQUALS"> | ikw<"STRING"> | ikw<"COMMON"> |
+      ikw<"DIMENSION"> | ikw<"PREFIX"> | ikw<"TAG"> | ikw<"INCREMENT"> | ikw<"PARAMETER"> |
+      ikw<"RETURNS"> | ikw<"VALUE"> | ikw<"GLOBAL"> | ikw<"VARIABLE"> | ikw<"ADDRESS"> |
+      ikw<"BOOLEAN"> | ikw<"BYTE"> | ikw<"CHARACTER"> | ikw<"DECIMAL"> | ikw<"D_FLOATING"> |
+      ikw<"F_FLOATING"> | ikw<"G_FLOATING"> | ikw<"H_FLOATING"> | ikw<"LONGWORD"> | ikw<"OCTAWORD"> |
+      ikw<"QUADWORD"> | ikw<"BITFIELD"> | ikw<"WORD"> | ikw<"STRUCTURE"> | ikw<"UNION"> |
+      ikw<"ANY"> | ikw<"LENGTH"> | ikw<"MASK"> | ikw<"PRECISION"> | ikw<"UNSIGNED"> |
+      ikw<"VARYING"> | ikw<"ORIGIN"> | ikw<"DESCRIPTOR"> | ikw<"RTL_STR_DESC"> | ikw<"COMPLEX"> |
+      ikw<"COUNTER"> | ikw<"IN"> | ikw<"OUT"> | ikw<"LIST"> | ikw<"NAMED"> |
+      ikw<"IDENT"> | ikw<"BASED"> | ikw<"FILL"> | ikw<"ALIAS"> | ikw<"DEFAULT"> |
+      ikw<"REFERENCE"> | ikw<"LINKAGE"> | ikw<"INCLUDE"> | ikw<"OPTIONAL"> | ikw<"SIGNED"> |
+      ikw<"MARKER"> | ikw<"TYPENAME"> | ikw<"TYPEDEF"> | ikw<"VOID"> | ikw<"SIZEOF"> |
+      ikw<"DECLARE"> | ikw<"IFLANGUAGE"> | ikw<"END_IFLANGUAGE"> | ikw<"LITERAL"> | ikw<"END_LITERAL"> |
+      ikw<"READ"> | ikw<"INTEGER"> | ikw<"IFSYMBOL"> | ikw<"END_IFSYMBOL"> | ikw<"HARDWARE_ADDRESS"> |
+      ikw<"HARDWARE_INTEGER"> | ikw<"POINTER_HW"> | ikw<"POINTER_LONG"> | ikw<"POINTER"> | ikw<"POINTER_QUAD"> |
+      ikw<"INTEGER_BYTE"> | ikw<"INTEGER_WORD"> | ikw<"INTEGER_LONG"> | ikw<"INTEGER_QUAD"> | ikw<"INTEGER_HW"> |
+      ikw<"ALIGN"> | ikw<"NOALIGN"> | ikw<"BASEALIGN"> | ikw<"ELSE"> | ikw<"ELSE_IFSYMBOL"> |
+      ikw<"ELSE_IFLANGUAGE">;
+  struct NAME : terminal<!Reserved + cr<"a-zA-Z$_"> + many(cr<"a-zA-Z0-9$_">)> {};
   struct LOCAL_NAME : terminal<lit<"#"> + some(cr<"a-zA-Z0-9$_">)> {};
   struct STRING_LITERAL
-      : terminal<lit<"\""> + many(lit<"\\\""> | cr<R"(^")">) + lit<"\"">, Unescaped> {};
+      : terminal<as<unescape>(lit<"\""> + many(lit<"\"\""> | cr<R"(^")">) + lit<"\"">)> {};
 
-  struct INTEGER_NUMBER : terminal<some(cr<"0-9">), std::int64_t> {};
-  struct HEX_NUMBER : terminal<lit<"%"> + cr<"xX"> + some(cr<"0-9a-fA-F">), HexValue> {};
-  struct OCTAL_NUMBER : terminal<lit<"%"> + cr<"oO"> + some(cr<"0-7">), OctalValue> {};
-  struct BINARY_NUMBER : terminal<lit<"%"> + cr<"bB"> + some(cr<"01">), BinaryValue> {};
-  struct ASCII_VALUE : terminal<lit<"%"> + cr<"aA"> + cr<"a-zA-Z">, AsciiValue> {};
+  struct INTEGER_NUMBER : terminal<as<decimal_value>(some(cr<"0-9">))> {};
+  struct HEX_NUMBER
+      : terminal<as<hex_value>(lit<"%"> + cr<"xX"> + some(cr<"0-9a-fA-F">))> {};
+  struct OCTAL_NUMBER
+      : terminal<as<octal_value>(lit<"%"> + cr<"oO"> + some(cr<"0-7">))> {};
+  struct BINARY_NUMBER
+      : terminal<as<binary_value>(lit<"%"> + cr<"bB"> + some(cr<"01">))> {};
+  struct ASCII_VALUE
+      : terminal<as<ascii_value>(lit<"%"> + cr<"aA"> + cr<R"(\x00-\x7f)">)> {};
 
   static constexpr auto NameStr = ref<NAME> | ref<STRING_LITERAL>;
 
   // Forward declarations: the grammar below is mutually recursive
   // (expressions inside dimensions, aggregates nesting aggregates, symbol
   // conditionals nesting statements).
-  struct PrimitiveTypeRule;
-  struct NamedTypeRule;
-  struct ExpressionRule;
-  struct DimExprRule;
-  struct BaseAlignRule;
-  struct ParamRule;
-  struct ModuleStmtRule;
-  struct AggrBodyItemRule;
+  struct PrimitiveType;
+  struct NamedType;
+  struct Expression;
+  struct DimExpr;
+  struct BaseAlign;
+  struct Param;
+  struct ModuleStmt;
+  struct AggrBodyItem;
 
-  static constexpr auto DataOrUserType = ref<PrimitiveTypeRule> | ref<NamedTypeRule>;
+  static constexpr auto DataOrUserType = ref<PrimitiveType> | ref<NamedType>;
 
   static constexpr auto SignOption =
       option(flag<&ast::PrimitiveType::signed_>(ikw<"SIGNED">) |
@@ -119,7 +140,7 @@ struct Sdl : cursiv::GrammarSpec {
   static constexpr auto VieldOptions =
       many(VieldFlags) +
       option(ikw<"LENGTH"> +
-             assign<&ast::PrimitiveType::length>(ref<ExpressionRule>) +
+             assign<&ast::PrimitiveType::length>(ref<Expression>) +
              many(VieldFlags));
   static constexpr auto CharVarying =
       flag<&ast::PrimitiveType::varying_>(ikw<"VARYING">);
@@ -127,12 +148,12 @@ struct Sdl : cursiv::GrammarSpec {
       many(CharVarying) +
       option(ikw<"LENGTH"> +
              (flag<&ast::PrimitiveType::lengthStar>(lit<"*">) |
-              assign<&ast::PrimitiveType::length>(ref<ExpressionRule>)) +
+              assign<&ast::PrimitiveType::length>(ref<Expression>)) +
              many(CharVarying));
 
   static constexpr auto EntryOptionsBody =
       many((ikw<"PARAMETER"> + lit<"("> +
-            some(append<&ast::EntryOpts::params>(ref<ParamRule>), lit<",">) +
+            some(append<&ast::EntryOpts::params>(ref<Param>), lit<",">) +
             lit<")">) |
            (ikw<"RETURNS"> +
             (flag<&ast::EntryOpts::returnVoid>(ikw<"VOID">) |
@@ -149,69 +170,61 @@ struct Sdl : cursiv::GrammarSpec {
       assign<&ast::PrimitiveType::object>(create<ast::ObjectSpec>(
           ((assign<&ast::ObjectSpec::type>(DataOrUserType) +
             option(ikw<"DIMENSION"> +
-                   assign<&ast::ObjectSpec::dimension>(ref<DimExprRule>))) |
+                   assign<&ast::ObjectSpec::dimension>(ref<DimExpr>))) |
            (ikw<"ENTRY"> + assign<&ast::ObjectSpec::entry>(
                                create<ast::EntryOpts>(EntryOptionsBody)))) +
-          option(assign<&ast::ObjectSpec::basealign>(ref<BaseAlignRule>)))) +
+          option(assign<&ast::ObjectSpec::basealign>(ref<BaseAlign>)))) +
       lit<")">);
 
   // --- Expressions ---
 
-  struct OpMul : terminal<lit<"*">, value<ast::BinOp::multiply>> {};
-  struct OpDiv : terminal<lit<"/">, value<ast::BinOp::divide>> {};
-  struct OpAdd : terminal<lit<"+">, value<ast::BinOp::add>> {};
-  struct OpSub : terminal<lit<"-">, value<ast::BinOp::subtract>> {};
-  struct OpAt : terminal<lit<"@">, value<ast::BinOp::at>> {};
-  struct OpBang : terminal<lit<"!">, value<ast::BinOp::bang>> {};
-  struct OpAmp : terminal<lit<"&">, value<ast::BinOp::amp>> {};
 
-  static constexpr auto MulLvl = ref<OpMul> | ref<OpDiv>;
-  static constexpr auto AddLvl = ref<OpAdd> | ref<OpSub>;
-  static constexpr auto AtLvl = ref<OpAt>;
-  static constexpr auto BangLvl = ref<OpBang>;
-  static constexpr auto AmpLvl = ref<OpAmp>;
+  static constexpr auto MulLvl = as<ast::BinOp::multiply>(lit<"*">) | as<ast::BinOp::divide>(lit<"/">);
+  static constexpr auto AddLvl = as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::subtract>(lit<"-">);
+  static constexpr auto AtLvl = as<ast::BinOp::at>(lit<"@">);
+  static constexpr auto BangLvl = as<ast::BinOp::bang>(lit<"!">);
+  static constexpr auto AmpLvl = as<ast::BinOp::amp>(lit<"&">);
 
-  struct NumberLitRule
+  struct NumberLit
       : rule<assign<&ast::NumberLit::value>(
             ref<INTEGER_NUMBER> | ref<HEX_NUMBER> | ref<OCTAL_NUMBER> |
             ref<BINARY_NUMBER> | ref<ASCII_VALUE>)> {};
-  struct LocalRefRule : rule<assign<&ast::LocalRef::name>(ref<LOCAL_NAME>)> {};
-  struct NameRefRule : rule<assign<&ast::NameRef::name>(ref<NAME>)> {};
-  struct StringRefRule : rule<assign<&ast::StringRef::text>(ref<STRING_LITERAL>)> {};
-  struct LocationRefRule
+  struct LocalRef : rule<assign<&ast::LocalRef::name>(ref<LOCAL_NAME>)> {};
+  struct NameRef : rule<assign<&ast::NameRef::name>(ref<NAME>)> {};
+  struct StringRef : rule<assign<&ast::StringRef::text>(ref<STRING_LITERAL>)> {};
+  struct LocationRef
       : rule<assign<&ast::LocationRef::symbol>(lit<"."> | lit<"^"> | lit<":">)> {};
 
-  struct PrimaryRule
-      : rule<ref<NumberLitRule> | ref<LocalRefRule> | ref<NameRefRule> |
-             ref<StringRefRule> | ref<LocationRefRule> |
-             (lit<"("> + ref<ExpressionRule> + lit<")">)> {};
+  struct Primary
+      : rule<ref<NumberLit> | ref<LocalRef> | ref<NameRef> |
+             ref<StringRef> | ref<LocationRef> |
+             (lit<"("> + ref<Expression> + lit<")">)> {};
 
-  struct UnaryRule
+  struct Unary
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
-                 assign<&ast::UnaryExpr::operand>(ref<PrimaryRule>)) |
-             ref<PrimaryRule>> {};
+                 assign<&ast::UnaryExpr::operand>(ref<Primary>)) |
+             ref<Primary>> {};
 
-  struct ExpressionRule
-      : infix<UnaryRule, &ast::BinaryExpr::left, &ast::BinaryExpr::op,
-              &ast::BinaryExpr::right,
-              (left(MulLvl) >> left(AddLvl) >> left(AtLvl) >> left(BangLvl) >>
-               left(AmpLvl))> {};
+  struct Expression
+      : infix<Unary, ast::BinaryExpr,
+              levels(left(MulLvl), left(AddLvl), left(AtLvl), left(BangLvl),
+                     left(AmpLvl))> {};
 
-  struct DimExprRule
+  struct DimExpr
       : rule<create<ast::DimSpec>(
             flag<&ast::DimSpec::star>(lit<"*">) |
-            (option(assign<&ast::DimSpec::lo>(ref<ExpressionRule>) + lit<":">) +
-             assign<&ast::DimSpec::hi>(ref<ExpressionRule>)))> {};
+            (option(assign<&ast::DimSpec::lo>(ref<Expression>) + lit<":">) +
+             assign<&ast::DimSpec::hi>(ref<Expression>)))> {};
 
-  struct BaseAlignRule
+  struct BaseAlign
       : rule<create<ast::BaseAlign>(
             ikw<"BASEALIGN"> +
             (assign<&ast::BaseAlign::type>(DataOrUserType) |
-             (lit<"("> + assign<&ast::BaseAlign::size>(ref<ExpressionRule>) +
+             (lit<"("> + assign<&ast::BaseAlign::size>(ref<Expression>) +
               lit<")">)))> {};
 
-  struct ParamRule
+  struct Param
       : rule<create<ast::Param>(
             (flag<&ast::Param::any_>(ikw<"ANY">) |
              assign<&ast::Param::type>(DataOrUserType)) +
@@ -219,13 +232,13 @@ struct Sdl : cursiv::GrammarSpec {
                  flag<&ast::Param::descriptor_>(ikw<"DESCRIPTOR">) |
                  flag<&ast::Param::rtlStrDesc_>(ikw<"RTL_STR_DESC">) |
                  (ikw<"DIMENSION"> +
-                  append<&ast::Param::dimensions>(ref<DimExprRule>)) |
+                  append<&ast::Param::dimensions>(ref<DimExpr>)) |
                  flag<&ast::Param::in_>(ikw<"IN">) |
                  flag<&ast::Param::out_>(ikw<"OUT">) |
                  flag<&ast::Param::list_>(ikw<"LIST">) |
                  (ikw<"NAMED"> + append<&ast::Param::named>(NameStr)) |
                  (ikw<"DEFAULT"> +
-                  append<&ast::Param::defaults>(ref<ExpressionRule>)) |
+                  append<&ast::Param::defaults>(ref<Expression>)) |
                  flag<&ast::Param::optional_>(ikw<"OPTIONAL">) |
                  flag<&ast::Param::reference_>(ikw<"REFERENCE">) |
                  (ikw<"TYPENAME"> +
@@ -233,74 +246,46 @@ struct Sdl : cursiv::GrammarSpec {
 
   // --- Types ---
 
-  struct PrimitiveTypeRule
+  static constexpr auto SignedKeyword =
+      ikw<"BYTE"> | ikw<"WORD"> | ikw<"LONGWORD"> | ikw<"QUADWORD"> |
+      ikw<"OCTAWORD"> | ikw<"INTEGER_BYTE"> | ikw<"INTEGER_WORD"> |
+      ikw<"INTEGER_LONG"> | ikw<"INTEGER_QUAD"> | ikw<"INTEGER_HW"> |
+      ikw<"INTEGER"> | ikw<"HARDWARE_INTEGER">;
+  static constexpr auto FloatingKeyword =
+      ikw<"F_FLOATING"> | ikw<"D_FLOATING"> | ikw<"G_FLOATING"> | ikw<"H_FLOATING">;
+  static constexpr auto ObjectKeyword =
+      ikw<"ADDRESS"> | ikw<"POINTER"> | ikw<"POINTER_LONG"> |
+      ikw<"POINTER_QUAD"> | ikw<"POINTER_HW"> | ikw<"HARDWARE_ADDRESS">;
+  struct PrimitiveType
       : rule<create<ast::PrimitiveType>(
-            (assign<&ast::PrimitiveType::keyword>(ikw<"BYTE">) + SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"WORD">) + SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"LONGWORD">) + SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"QUADWORD">) + SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"OCTAWORD">) + SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"F_FLOATING">) +
-             ComplexOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"D_FLOATING">) +
-             ComplexOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"G_FLOATING">) +
-             ComplexOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"H_FLOATING">) +
-             ComplexOption) |
+            (assign<&ast::PrimitiveType::keyword>(SignedKeyword) + SignOption) |
+            (assign<&ast::PrimitiveType::keyword>(FloatingKeyword) + ComplexOption) |
+            (assign<&ast::PrimitiveType::keyword>(ObjectKeyword) + ObjectOption) |
             (assign<&ast::PrimitiveType::keyword>(ikw<"DECIMAL">) +
-             ikw<"PRECISION"> + lit<"("> +
-             assign<&ast::PrimitiveType::precision>(ref<ExpressionRule>) +
-             lit<","> +
-             assign<&ast::PrimitiveType::scale>(ref<ExpressionRule>) +
-             lit<")">) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"BITFIELD">) +
-             VieldOptions) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"CHARACTER">) +
-             CharOptions) |
-            assign<&ast::PrimitiveType::keyword>(ikw<"BOOLEAN">) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"ADDRESS">) + ObjectOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"POINTER">) + ObjectOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"POINTER_LONG">) +
-             ObjectOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"POINTER_QUAD">) +
-             ObjectOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"POINTER_HW">) +
-             ObjectOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"INTEGER_BYTE">) +
-             SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"INTEGER_WORD">) +
-             SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"INTEGER_LONG">) +
-             SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"INTEGER_QUAD">) +
-             SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"INTEGER_HW">) +
-             SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"INTEGER">) + SignOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"HARDWARE_ADDRESS">) +
-             ObjectOption) |
-            (assign<&ast::PrimitiveType::keyword>(ikw<"HARDWARE_INTEGER">) +
-             SignOption))> {};
+             ikw<"PRECISION"> + lit<"("> + assign<&ast::PrimitiveType::precision>(ref<Expression>) +
+             lit<","> + assign<&ast::PrimitiveType::scale>(ref<Expression>) + lit<")">) |
+            (assign<&ast::PrimitiveType::keyword>(ikw<"BITFIELD">) + VieldOptions) |
+            (assign<&ast::PrimitiveType::keyword>(ikw<"CHARACTER">) + CharOptions) |
+            assign<&ast::PrimitiveType::keyword>(ikw<"BOOLEAN">))> {};
 
-  struct NamedTypeRule
+  struct NamedType
       : rule<create<ast::NamedType>(
             assign<&ast::NamedType::name>(NameStr) +
             option(ikw<"SIZEOF"> +
                    (assign<&ast::NamedType::sizeofType>(DataOrUserType) |
                     (lit<"("> +
-                     assign<&ast::NamedType::sizeofExpr>(ref<ExpressionRule>) +
+                     assign<&ast::NamedType::sizeofExpr>(ref<Expression>) +
                      lit<")">))))> {};
 
   // --- Statements ---
 
-  struct LocalAssignmentRule
+  struct LocalAssignment
       : rule<create<ast::LocalAssignment>(
             assign<&ast::LocalAssignment::name>(ref<LOCAL_NAME>) + lit<"="> +
-            assign<&ast::LocalAssignment::value>(ref<ExpressionRule>) +
+            assign<&ast::LocalAssignment::value>(ref<Expression>) +
             lit<";">)> {};
 
-  struct ConstantPhraseRule
+  struct ConstantPhrase
       : rule<create<ast::ConstantPhrase>(
             (append<&ast::ConstantPhrase::names>(NameStr) |
              (lit<"("> + many(lit<",">) +
@@ -308,10 +293,10 @@ struct Sdl : cursiv::GrammarSpec {
                    some(lit<",">)) +
               many(lit<",">) + lit<")">)) +
             ikw<"EQUALS"> +
-            ((assign<&ast::ConstantPhrase::value>(ref<ExpressionRule>) +
+            ((assign<&ast::ConstantPhrase::value>(ref<Expression>) +
               many((ikw<"INCREMENT"> +
                     append<&ast::ConstantPhrase::increments>(
-                        ref<ExpressionRule>)) |
+                        ref<Expression>)) |
                    (ikw<"PREFIX"> +
                     append<&ast::ConstantPhrase::prefixes>(NameStr)) |
                    (ikw<"TAG"> + append<&ast::ConstantPhrase::tags>(NameStr)) |
@@ -326,20 +311,20 @@ struct Sdl : cursiv::GrammarSpec {
                    (ikw<"TAG"> +
                     append<&ast::ConstantPhrase::tags>(NameStr))))))> {};
 
-  struct ConstantStmtRule
+  struct ConstantStmt
       : rule<create<ast::ConstantStmt>(
             ikw<"CONSTANT"> +
-            some(append<&ast::ConstantStmt::phrases>(ref<ConstantPhraseRule>),
+            some(append<&ast::ConstantStmt::phrases>(ref<ConstantPhrase>),
                  lit<",">) +
             lit<";">)> {};
 
-  struct EntryDeclRule
+  struct EntryDecl
       : rule<create<ast::EntryDecl>(
             ikw<"ENTRY"> + assign<&ast::EntryDecl::name>(NameStr) +
             assign<&ast::EntryDecl::opts>(create<ast::EntryOpts>(EntryOptionsBody)) +
             lit<";">)> {};
 
-  struct ItemDeclRule
+  struct ItemDecl
       : rule<create<ast::ItemDecl>(
             ikw<"ITEM"> + assign<&ast::ItemDecl::name>(NameStr) +
             assign<&ast::ItemDecl::type>(DataOrUserType) +
@@ -349,8 +334,8 @@ struct Sdl : cursiv::GrammarSpec {
                  (ikw<"PREFIX"> + append<&ast::ItemDecl::prefixes>(NameStr)) |
                  (ikw<"TAG"> + append<&ast::ItemDecl::tags>(NameStr)) |
                  (ikw<"DIMENSION"> +
-                  append<&ast::ItemDecl::dimensions>(ref<DimExprRule>)) |
-                 append<&ast::ItemDecl::basealigns>(ref<BaseAlignRule>)) +
+                  append<&ast::ItemDecl::dimensions>(ref<DimExpr>)) |
+                 append<&ast::ItemDecl::basealigns>(ref<BaseAlign>)) +
             lit<";">)> {};
 
   static constexpr auto DeclarePrefix =
@@ -358,28 +343,28 @@ struct Sdl : cursiv::GrammarSpec {
   static constexpr auto DeclareTag =
       ikw<"TAG"> + assign<&ast::DeclareStmt::tag>(NameStr);
 
-  struct DeclareStmtRule
+  struct DeclareStmt
       : rule<create<ast::DeclareStmt>(
             ikw<"DECLARE"> + assign<&ast::DeclareStmt::name>(NameStr) +
             ikw<"SIZEOF"> +
             (assign<&ast::DeclareStmt::sizeofType>(DataOrUserType) |
              (lit<"("> +
-              assign<&ast::DeclareStmt::sizeofExpr>(ref<ExpressionRule>) +
+              assign<&ast::DeclareStmt::sizeofExpr>(ref<Expression>) +
               lit<")">)) +
             option((DeclarePrefix + option(DeclareTag)) |
                    (DeclareTag + option(DeclarePrefix))))> {};
 
-  struct AggregateMemberRule
+  struct AggregateMember
       : rule<(assign<&ast::Member::name>(NameStr) +
               assign<&ast::Member::type>(DataOrUserType) +
               many((ikw<"PREFIX"> + append<&ast::Member::prefixes>(NameStr)) |
                    (ikw<"TAG"> + append<&ast::Member::tags>(NameStr)) |
                    flag<&ast::Member::fill_>(ikw<"FILL">) |
                    (ikw<"DIMENSION"> +
-                    append<&ast::Member::dimensions>(ref<DimExprRule>)) |
+                    append<&ast::Member::dimensions>(ref<DimExpr>)) |
                    flag<&ast::Member::align_>(ikw<"ALIGN">) |
                    flag<&ast::Member::noalign_>(ikw<"NOALIGN">) |
-                   append<&ast::Member::basealigns>(ref<BaseAlignRule>)) +
+                   append<&ast::Member::basealigns>(ref<BaseAlign>)) +
               lit<";">) |
              (assign<&ast::NestedAggregate::name>(NameStr) +
               assign<&ast::NestedAggregate::kind>(ikw<"STRUCTURE"> |
@@ -391,41 +376,41 @@ struct Sdl : cursiv::GrammarSpec {
                    flag<&ast::NestedAggregate::fill_>(ikw<"FILL">) |
                    (ikw<"DIMENSION"> +
                     append<&ast::NestedAggregate::dimensions>(
-                        ref<DimExprRule>)) |
+                        ref<DimExpr>)) |
                    flag<&ast::NestedAggregate::align_>(ikw<"ALIGN">) |
                    flag<&ast::NestedAggregate::noalign_>(ikw<"NOALIGN">) |
                    append<&ast::NestedAggregate::basealigns>(
-                       ref<BaseAlignRule>)) +
+                       ref<BaseAlign>)) +
               lit<";"> +
-              many(append<&ast::NestedAggregate::body>(ref<AggrBodyItemRule>) |
+              many(append<&ast::NestedAggregate::body>(ref<AggrBodyItem>) |
                    lit<";">) +
               ikw<"END"> +
               option(assign<&ast::NestedAggregate::endName>(NameStr)) +
               lit<";">)> {};
 
-  struct IfSymbolClauseRule
+  struct IfSymbolClause
       : rule<create<ast::IfSymbolStmt>(
             ikw<"IFSYMBOL"> + assign<&ast::IfSymbolStmt::symbol>(NameStr) +
             lit<";"> +
-            many(append<&ast::IfSymbolStmt::thenBody>(ref<AggrBodyItemRule>) |
+            many(append<&ast::IfSymbolStmt::thenBody>(ref<AggrBodyItem>) |
                  lit<";">) +
             many(append<&ast::IfSymbolStmt::elseIfs>(create<ast::ElseIfBranch>(
                 ikw<"ELSE_IFSYMBOL"> +
                 assign<&ast::ElseIfBranch::symbol>(NameStr) + lit<";"> +
-                many(append<&ast::ElseIfBranch::body>(ref<AggrBodyItemRule>) |
+                many(append<&ast::ElseIfBranch::body>(ref<AggrBodyItem>) |
                      lit<";">)))) +
             option(flag<&ast::IfSymbolStmt::hasElse>(ikw<"ELSE">) +
                    lit<";"> +
                    many(append<&ast::IfSymbolStmt::elseBody>(
-                            ref<AggrBodyItemRule>) |
+                            ref<AggrBodyItem>) |
                         lit<";">)) +
             ikw<"END_IFSYMBOL"> + lit<";">)> {};
 
-  struct AggrBodyItemRule
-      : rule<ref<AggregateMemberRule> | ref<LocalAssignmentRule> |
-             ref<ConstantStmtRule> | ref<IfSymbolClauseRule>> {};
+  struct AggrBodyItem
+      : rule<ref<AggregateMember> | ref<LocalAssignment> |
+             ref<ConstantStmt> | ref<IfSymbolClause>> {};
 
-  struct AggregateStmtRule
+  struct AggregateStmt
       : rule<create<ast::AggregateStmt>(
             ikw<"AGGREGATE"> + assign<&ast::AggregateStmt::name>(NameStr) +
             assign<&ast::AggregateStmt::kind>(ikw<"STRUCTURE"> |
@@ -436,12 +421,12 @@ struct Sdl : cursiv::GrammarSpec {
                  flag<&ast::AggregateStmt::typedef_>(ikw<"TYPEDEF">) |
                  flag<&ast::AggregateStmt::align_>(ikw<"ALIGN">) |
                  flag<&ast::AggregateStmt::noalign_>(ikw<"NOALIGN">) |
-                 append<&ast::AggregateStmt::basealigns>(ref<BaseAlignRule>) |
+                 append<&ast::AggregateStmt::basealigns>(ref<BaseAlign>) |
                  (ikw<"PREFIX"> +
                   append<&ast::AggregateStmt::prefixes>(NameStr)) |
                  (ikw<"TAG"> + append<&ast::AggregateStmt::tags>(NameStr)) |
                  (ikw<"DIMENSION"> +
-                  append<&ast::AggregateStmt::dimensions>(ref<DimExprRule>)) |
+                  append<&ast::AggregateStmt::dimensions>(ref<DimExpr>)) |
                  (ikw<"ORIGIN"> +
                   append<&ast::AggregateStmt::origins>(NameStr)) |
                  (flag<&ast::AggregateStmt::based_>(ikw<"BASED">) +
@@ -450,78 +435,82 @@ struct Sdl : cursiv::GrammarSpec {
                   append<&ast::AggregateStmt::markers>(NameStr)) |
                  flag<&ast::AggregateStmt::fill_>(ikw<"FILL">)) +
             lit<";"> +
-            many(append<&ast::AggregateStmt::body>(ref<AggrBodyItemRule>) |
+            many(append<&ast::AggregateStmt::body>(ref<AggrBodyItem>) |
                  lit<";">) +
             ikw<"END"> + option(assign<&ast::AggregateStmt::endName>(NameStr)) +
             lit<";">)> {};
 
-  struct ConditionalStmtRule
+  struct ConditionalStmt
       : rule<create<ast::ConditionalStmt>(
             ikw<"IFLANGUAGE"> +
             some(append<&ast::ConditionalStmt::languages>(NameStr)) +
-            many(append<&ast::ConditionalStmt::body>(ref<ModuleStmtRule>) |
+            many(append<&ast::ConditionalStmt::body>(ref<ModuleStmt>) |
                  lit<";">) +
             ikw<"END_IFLANGUAGE"> +
             many(append<&ast::ConditionalStmt::endLanguages>(NameStr)))> {};
 
-  struct IfSymbolStmtRule
+  struct IfSymbolStmt
       : rule<create<ast::IfSymbolStmt>(
             ikw<"IFSYMBOL"> + assign<&ast::IfSymbolStmt::symbol>(NameStr) +
             lit<";"> +
-            many(append<&ast::IfSymbolStmt::thenBody>(ref<ModuleStmtRule>) |
+            many(append<&ast::IfSymbolStmt::thenBody>(ref<ModuleStmt>) |
                  lit<";">) +
             many(append<&ast::IfSymbolStmt::elseIfs>(create<ast::ElseIfBranch>(
                 ikw<"ELSE_IFSYMBOL"> +
                 assign<&ast::ElseIfBranch::symbol>(NameStr) + lit<";"> +
-                many(append<&ast::ElseIfBranch::body>(ref<ModuleStmtRule>) |
+                many(append<&ast::ElseIfBranch::body>(ref<ModuleStmt>) |
                      lit<";">)))) +
             option(flag<&ast::IfSymbolStmt::hasElse>(ikw<"ELSE">) +
                    lit<";"> +
                    many(append<&ast::IfSymbolStmt::elseBody>(
-                            ref<ModuleStmtRule>) |
+                            ref<ModuleStmt>) |
                         lit<";">)) +
             ikw<"END_IFSYMBOL"> + lit<";">)> {};
 
-  struct LiteralStmtRule
+  // The native input reader switches to raw records in LITERAL mode;
+  // apparent quotes, comments and SDL declarations are pass-through text.
+  static constexpr auto EndLiteral = cursiv::Lit<"END_LITERAL", true>{};
+  struct LITERAL_TEXT : terminal<some(!EndLiteral + any)> {};
+  struct LiteralStmt
       : rule<create<ast::LiteralStmt>(
-            ikw<"LITERAL"> + lit<";"> +
-            many(append<&ast::LiteralStmt::strings>(ref<STRING_LITERAL>)) +
-            ikw<"END_LITERAL">)> {};
+            ikw<"LITERAL"> + tight(lit<";"> +
+                 option(assign<&ast::LiteralStmt::text>(ref<LITERAL_TEXT>)) +
+                 ikw<"END_LITERAL">))> {};
 
-  struct ReadStmtRule
+  struct ReadStmt
       : rule<create<ast::ReadStmt>(
             ikw<"READ"> + assign<&ast::ReadStmt::path>(ref<STRING_LITERAL>) +
             lit<";">)> {};
 
-  struct IncludeStmtRule
+  struct IncludeStmt
       : rule<create<ast::IncludeStmt>(
             ikw<"INCLUDE"> +
             assign<&ast::IncludeStmt::path>(ref<STRING_LITERAL>) + lit<";">)> {
   };
 
-  struct ModuleStmtRule
-      : rule<ref<LocalAssignmentRule> | ref<ConstantStmtRule> |
-             ref<EntryDeclRule> | ref<AggregateStmtRule> | ref<ItemDeclRule> |
-             ref<DeclareStmtRule> | ref<IfSymbolStmtRule> |
-             ref<ConditionalStmtRule> | ref<LiteralStmtRule> |
-             ref<ReadStmtRule> | ref<IncludeStmtRule>> {};
+  struct ModuleStmt
+      : rule<ref<LocalAssignment> | ref<ConstantStmt> |
+             ref<EntryDecl> | ref<AggregateStmt> | ref<ItemDecl> |
+             ref<DeclareStmt> | ref<IfSymbolStmt> |
+             ref<ConditionalStmt> | ref<LiteralStmt> |
+             ref<ReadStmt> | ref<IncludeStmt>> {};
 
-  struct ModuleRule
+  struct Module
       : rule<create<ast::Module>(
             ikw<"MODULE"> + assign<&ast::Module::name>(NameStr) +
             option(ikw<"IDENT"> + assign<&ast::Module::ident>(NameStr)) +
             lit<";"> +
-            many(append<&ast::Module::body>(ref<ModuleStmtRule>) | lit<";">) +
+            many(append<&ast::Module::body>(ref<ModuleStmt>) | lit<";">) +
             ikw<"END_MODULE"> + option(assign<&ast::Module::endName>(NameStr)) +
             lit<";">)> {};
 
-  struct ProgramRule
+  struct Program
       : rule<create<ast::Program>(
-            some(append<&ast::Program::items>(ref<ModuleRule>) |
-                 append<&ast::Program::items>(ref<LocalAssignmentRule>)))> {};
+            some(append<&ast::Program::items>(ref<Module>) |
+                 append<&ast::Program::items>(ref<LocalAssignment>)))> {};
 
-  using entry = ProgramRule;
-  using ignore = list<WS, LOCAL_COMMENT>;
+  using entry = Program;
+  using ignored = list<WS, LOCAL_COMMENT>;
   using hidden = list<COMMENT>;
 };
 

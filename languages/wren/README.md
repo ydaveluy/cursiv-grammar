@@ -52,7 +52,7 @@ System.print("check: %(tree.check)")
 ```
 
 A class, a constructor, a getter, an `if` with an implicit-return getter body,
-and string interpolation (read as plain text).
+and string interpolation represented in the AST.
 
 ## The command line
 

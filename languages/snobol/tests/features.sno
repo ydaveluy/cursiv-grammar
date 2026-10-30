@@ -1,4 +1,4 @@
-* feature coverage: comments, blank lines, subscripts, indirection,
+* feature coverage: comments, blank lines, subscripts, keyword access,
 * builtins of every arity, lists, grouping, both quote kinds, transfers
 
 OUTPUT = "start"
@@ -7,7 +7,7 @@ M = -3
 S = N + M * 2
 P = N ^ M + 1
 A[I,J] = "cell"
-&IND = "indirect"
+&IND = "keyword"
 NAME "x"
 OUTPUT = ident(N)
 OUTPUT = date()

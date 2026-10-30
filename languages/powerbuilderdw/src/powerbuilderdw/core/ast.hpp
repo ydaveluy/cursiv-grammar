@@ -13,14 +13,15 @@ namespace powerbuilderdw::ast {
 // A bare literal item of a property list: a number, or raw text (a quoted
 // string, a DATE/TIME literal, or the word NULL).
 // Namespace scope, so the AstNode vocabulary is out of reach here.
-using Literal = std::variant<double, std::string_view>;
+struct NumberValue : cursiv::Extends<cursiv::AstNode> { string_view text; };
+using Literal = std::variant<NumberValue*, std::string_view>;
 
 struct FuncCall;
 struct NestedValue;
 struct TypeSpec;
 
 // The value on the right of a `KEY=...` pair.
-using AttrValue = std::variant<bool, double, std::string_view, FuncCall*,
+using AttrValue = std::variant<bool, NumberValue*, std::string_view, FuncCall*,
                                 NestedValue*, TypeSpec*>;
 
 // One element of a call's argument list: `REF? expression`.
@@ -101,18 +102,20 @@ struct TableAttr : cursiv::Extends<cursiv::AstNode> {};
 
 struct ColumnTypeAttr : cursiv::Extends<TableAttr> {
   string_view dataType;
-  double size;
+  optional<double> size;
   vector<Attr*> attrs;
 };
 
-// RETRIEVE/ARGUMENTS/SORT are opaque text: RETRIEVE carries an embedded
-// PBSELECT sub-language this grammar does not parse into, and ARGUMENTS is
-// captured the same way, as a raw run up to its closing `))`.
-struct RetrieveAttr : cursiv::Extends<TableAttr> {
-  string_view retrieveText;
-  string_view argsText;  // empty when ARGUMENTS= is absent
-  string_view sortText;  // empty when SORT= is absent
+// RETRIEVE contains its SQL/PBSELECT text; argument declarations and other
+// table properties have their own structured entries in source order.
+struct RetrieveAttr : cursiv::Extends<TableAttr> { string_view retrieveText; };
+struct RetrievalArgument : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  string_view type;
+  boolean list;
 };
+struct RetrievalArguments : cursiv::Extends<TableAttr> { vector<RetrievalArgument*> items; };
+struct TableValueAttr : cursiv::Extends<TableAttr> { Attr* attr; };
 
 // A `NAME(...)`, `TABLE(...)` or `COLUMN(...)` top-level record.
 struct Property : cursiv::Extends<cursiv::AstNode> {};

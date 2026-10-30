@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <tuple>
 
 #include "atl/core/CoreServices.hpp"
 #include "atl/core/ast.hpp"
@@ -13,6 +14,7 @@
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "assignment_regressions.hpp"
 
 namespace {
 
@@ -33,6 +35,67 @@ int main() {
   const auto language =
       cursiv::create_language<atl::AtlCoreServices, atl::AtlSharedCoreServices,
                               atl::install_core_module>();
+  if (!atl_assignment_regressions::run(*language.language.parser)) return 1;
+  // An absent else and an explicit empty else have distinct source syntax.
+  for (const auto& test : {
+           std::tuple{"if (true) {}", false, 0u, 0u},
+           std::tuple{"if (true) {} else {}", true, 0u, 0u},
+           std::tuple{"if (true) {} else 1;", true, 0u, 1u},
+           std::tuple{"if (true) 1; else 2;", true, 1u, 1u},
+           std::tuple{"if (true) { if (false) {} else {} }", false, 1u, 0u}}) {
+    const auto& [body, hasElse, thenSize, elseSize] = test;
+    const std::string source =
+        std::string("module M; create OUT:M from IN:M; rule R { ") +
+        "from s:IN!A to t:OUT!B do { " + body + " } }";
+    const auto parsed = language.language.parser->parse(source);
+    const auto* module = cursiv::ast_cast<atl::ast::Module>(parsed.value);
+    const auto* rule = module && module->elements.size() == 1
+        ? cursiv::ast_cast<atl::ast::MatchedRule>(module->elements[0]) : nullptr;
+    const auto* block = rule ? rule->action : nullptr;
+    const auto* branch = block && block->statements.size() == 1
+        ? cursiv::ast_cast<atl::ast::IfStmt>(block->statements[0]) : nullptr;
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !branch || branch->hasElse != hasElse || branch->thenStmts.size() != thenSize ||
+        branch->elseStmts.size() != elseSize || branch->parent != block ||
+        !branch->cond || branch->cond->parent != branch)
+      return fail("if statement lost its else presence, children or ownership");
+    for (const auto* child : branch->thenStmts)
+      if (child->parent != branch) return fail("then statement ownership changed");
+    for (const auto* child : branch->elseStmts)
+      if (child->parent != branch) return fail("else statement ownership changed");
+    if (const auto* nested = thenSize == 1
+            ? cursiv::ast_cast<atl::ast::IfStmt>(branch->thenStmts[0]) : nullptr)
+      if (!nested->hasElse || !nested->elseStmts.empty())
+        return fail("nested empty else presence was lost");
+  }
+  for (const char* text : {"module M; create OUT:M from IN:M; uses Utils;",
+                           "library L; uses Utils; uses Other;",
+                           "query Q = 1; uses Utils;"}) {
+    const auto result = language.language.parser->parse(text);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail("native unquoted library reference rejected");
+  }
+  {
+    const auto result = language.language.parser->parse("query Q = 00012;");
+    const auto* q = result.value_as<atl::ast::Query>();
+    const auto* i = q ? cursiv::ast_cast<atl::ast::IntLit>(q->body) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !i || i->value != 12)
+      return fail("native decimal with leading zeroes lost its value");
+  }
+  for (const char* literal : {"1e999", "1e-999"}) {
+    const std::string source = std::string("query Q = ") + literal + ";";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() || result.diagnostics.empty())
+      return fail("out-of-range real literal was silently converted");
+  }
+  {
+    const auto result = language.language.parser->parse("query Q = 1.25d;");
+    const auto* query = result.value_as<atl::ast::Query>();
+    const auto* value = query ? cursiv::ast_cast<atl::ast::FloatLit>(query->body) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !value || value->value != 1.25)
+      return fail("representable suffixed real literal lost its value");
+  }
   {
     const auto result = language.language.parser->parse("module M; create OUT: M from IN: M; lazy unique rule R { from x : IN!A to y : OUT!B }");
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) return 1;
@@ -113,17 +176,16 @@ int main() {
       main->variables.size() != 2)
     return fail("rule Main's header misread");
 
-  // OCL precedence (tightest to loosest): relational binds tighter than
-  // equality; "and" tighter than "or" tighter than "xor" tighter than
-  // "implies"; all left-associative.
+  // Both native ATL TCS frontends share comparison priority 4 and boolean
+  // priority 5; all operators at a priority associate to the left.
   const struct {
     const char* text;
     const char* rootOp;
   } precedenceProbes[] = {
-      {"query Q = 1 = 2 < 3;", "="},
-      {"query Q = true or false and true;", "or"},
-      {"query Q = true xor false or true;", "xor"},
-      {"query Q = true implies false xor true;", "implies"},
+      {"query Q = 1 = 2 < 3;", "<"},
+      {"query Q = true or false and true;", "and"},
+      {"query Q = true xor false or true;", "or"},
+      {"query Q = true implies false xor true;", "xor"},
       {"query Q = true and false and true;", "and"},
   };
   for (const auto& probe : precedenceProbes) {
@@ -139,8 +201,8 @@ int main() {
         query.body->type != &cursiv::ast_type_tag<atl::ast::BinaryExpr>)
       return fail("a precedence probe's body is not a BinaryExpr");
     const auto& root = *static_cast<const atl::ast::BinaryExpr*>(query.body);
-    if (root.op != probe.rootOp)
-      return fail("a precedence probe's root operator is wrong");
+    if (root.op != probe.rootOp || !cursiv::ast_cast<atl::ast::BinaryExpr>(root.left))
+      return fail("native ATL precedence or left associativity is wrong");
   }
 
   std::puts("atl: every document parses, field values read back correctly");

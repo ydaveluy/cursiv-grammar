@@ -25,7 +25,6 @@ inline constexpr auto undouble_string = [](std::string_view t,
   }
   return std::string_view(room.data(), n);
 };
-using Unescaped = cursiv::text_conv<undouble_string>;
 
 struct Matlab : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t)">)> {};
@@ -33,64 +32,52 @@ struct Matlab : cursiv::GrammarSpec {
   // never skipped as trivia.
   struct CR : terminal<some(cr<R"(\r\n)">)> {};
 
-  struct IDENTIFIER : terminal<cr<"a-zA-Z"> + many(w)> {};
+  struct LINE_COMMENT : terminal<lit<"%"> + many(cr<R"(^\r\n)">)> {};
+  struct CONTINUATION : terminal<lit<"..."> + many(cr<R"(^\r\n)">) + eol> {};
+  static constexpr auto reserved = kw<"break"> | kw<"case"> | kw<"catch"> | kw<"classdef"> |
+      kw<"continue"> | kw<"else"> | kw<"elseif"> | kw<"end"> | kw<"for"> | kw<"function"> |
+      kw<"global"> | kw<"if"> | kw<"otherwise"> | kw<"parfor"> | kw<"persistent"> |
+      kw<"return"> | kw<"spmd"> | kw<"switch"> | kw<"try"> | kw<"while">;
+  struct IDENTIFIER : terminal<!reserved + cr<"a-zA-Z"> + many(w)> {};
 
-  static constexpr auto NumberBody = some(d) + option(lit<"."> + some(d));
+  static constexpr auto NumberBody =
+      (some(d) + option(lit<".", !cr<R"(*/\^')">> + many(d))) |
+      (lit<"."> + some(d));
   struct CONSTANT
-      : terminal<NumberBody + option((lit<"E"> | lit<"e">)+option(cr<"+-">) +
-                                     NumberBody),
-                 double> {};
+      : terminal<as<double>(
+            NumberBody +
+            option(cr<"eE"> + option(cr<"+-">) + some(d)))> {};
 
   // A single-quoted character vector ends on its physical line. Keeping
   // line breaks out also distinguishes adjacent transpose operators.
   struct STRING_LITERAL
-      : terminal<lit<"'"> + many(lit<"''"> | cr<R"(^'\r\n)">) + lit<"'">,
-                 Unescaped> {};
+      : terminal<as<undouble_string>(
+            lit<"'"> + many(lit<"''"> | cr<R"(^'\r\n)">) + lit<"'">)> {};
 
   static constexpr auto Eostmt = lit<","> | lit<";"> | ref<CR>;
+  static constexpr auto EndStatement = tight(Eostmt) | eof;
 
   // Every operator token hands its own constant over: the ladder below reads
   // `op`, never the spelling.
-  struct MULTIPLY : terminal<lit<"*">, value<ast::Operator::multiply>> {};
-  struct DIVIDE : terminal<lit<"/">, value<ast::Operator::divide>> {};
-  struct LDIVIDE : terminal<lit<"\\">, value<ast::Operator::ldivide>> {};
-  struct POWER : terminal<lit<"^">, value<ast::Operator::power>> {};
-  struct EWISE_MULTIPLY
-      : terminal<lit<".*">, value<ast::Operator::ewise_multiply>> {};
-  struct EWISE_LDIVIDE
-      : terminal<lit<".\\">, value<ast::Operator::ewise_ldivide>> {};
-  struct EWISE_RDIVIDE
-      : terminal<lit<"./">, value<ast::Operator::ewise_rdivide>> {};
-  struct EWISE_POWER : terminal<lit<".^">, value<ast::Operator::ewise_power>> {
-  };
-  struct ADD : terminal<lit<"+">, value<ast::Operator::add>> {};
-  struct SUBTRACT : terminal<lit<"-">, value<ast::Operator::subtract>> {};
-  struct LE_OP : terminal<lit<"<=">, value<ast::Operator::less_equal>> {};
-  struct GE_OP : terminal<lit<">=">, value<ast::Operator::greater_equal>> {};
-  struct LESS : terminal<lit<"<">, value<ast::Operator::less>> {};
-  struct GREATER : terminal<lit<">">, value<ast::Operator::greater>> {};
-  struct EQ_OP : terminal<lit<"==">, value<ast::Operator::equal>> {};
-  struct NE_OP : terminal<lit<"~=">, value<ast::Operator::not_equal>> {};
-  struct AND_OP : terminal<lit<"&">, value<ast::Operator::logical_and>> {};
-  struct OR_OP : terminal<lit<"|">, value<ast::Operator::logical_or>> {};
-  struct RANGE_OP : terminal<lit<":">, value<ast::Operator::range>> {};
 
-  static constexpr auto OpPow = ref<POWER> | ref<EWISE_POWER>;
-  static constexpr auto OpMul = ref<MULTIPLY> | ref<DIVIDE> | ref<LDIVIDE> |
-                                ref<EWISE_MULTIPLY> | ref<EWISE_LDIVIDE> |
-                                ref<EWISE_RDIVIDE>;
-  static constexpr auto OpAdd = ref<ADD> | ref<SUBTRACT>;
-  static constexpr auto OpRange = ref<RANGE_OP>;
-  static constexpr auto OpRel = ref<LE_OP> | ref<GE_OP> | ref<LESS> |
-                                ref<GREATER> | ref<EQ_OP> | ref<NE_OP>;
-  static constexpr auto OpAnd = ref<AND_OP>;
-  static constexpr auto OpOr = ref<OR_OP>;
+  static constexpr auto OpPow = as<ast::Operator::power>(lit<"^">) | as<ast::Operator::ewise_power>(lit<".^">);
+  static constexpr auto OpMul = as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">) | as<ast::Operator::ldivide>(lit<"\\">) |
+                                as<ast::Operator::ewise_multiply>(lit<".*">) | as<ast::Operator::ewise_ldivide>(lit<".\\">) |
+                                as<ast::Operator::ewise_rdivide>(lit<"./">);
+  static constexpr auto OpAdd = as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">);
+  static constexpr auto OpRange = as<ast::Operator::range>(lit<":">);
+  static constexpr auto OpRel = as<ast::Operator::less_equal>(lit<"<=">) | as<ast::Operator::greater_equal>(lit<">=">) | as<ast::Operator::less>(lit<"<">) |
+                                as<ast::Operator::greater>(lit<">">) | as<ast::Operator::equal>(lit<"==">) | as<ast::Operator::not_equal>(lit<"~=">);
+  static constexpr auto OpAnd = as<ast::Operator::logical_and>(lit<"&">);
+  static constexpr auto OpOr = as<ast::Operator::logical_or>(lit<"|">);
+  static constexpr auto OpShortAnd = as<ast::Operator::short_and>(lit<"&&">);
+  static constexpr auto OpShortOr = as<ast::Operator::short_or>(lit<"||">);
 
   struct Expression;
   struct UnaryExpression;
   struct PostfixExpression;
   struct IndexArg;
-  struct IndexExprRule;
+  struct IndexExpr;
   struct Statement;
 
   // `:` alone (the whole range along one dimension) or a full expression --
@@ -99,83 +86,92 @@ struct Matlab : cursiv::GrammarSpec {
                          assign<&ast::IndexArg::value>(ref<Expression>)> {};
 
   // `name(args)`: the same syntax MATLAB uses for indexing and for a call.
-  struct IndexExprRule
+  struct IndexExpr
       : rule<assign<&ast::IndexExpr::name>(ref<IDENTIFIER>) + lit<"("> +
-             some(append<&ast::IndexExpr::args>(ref<IndexArg>), lit<",">) +
+             option(some(append<&ast::IndexExpr::args>(ref<IndexArg>), lit<",">)) +
              lit<")">> {};
 
   // `'[' ']'` and `'[' array_list ']'` collapse into one alternative here: an
   // empty element list already spells the same two brackets. Inside, the
   // commas and horizontal whitespace separate columns; semicolons and line
   // breaks delimit row nodes, so the AST retains the matrix dimensions.
-  struct ArrayRowRule
+  struct ArrayRow
       : rule<some(append<&ast::ArrayRow::elements>(ref<Expression>) +
                   option(lit<",">))> {};
   static constexpr auto RowSeparator = lit<";"> | ref<CR>;
 
-  struct PostfixExpression
+  struct PrimaryExpression
       : rule<(create<ast::ParenExpr>(
                   lit<"("> + assign<&ast::ParenExpr::inner>(ref<Expression>) +
                   lit<")">) //
               | create<ast::ArrayLit>(
                     lit<"["> + many(ref<CR>) +
-                    many(append<&ast::ArrayLit::rows>(ref<ArrayRowRule>) +
+                    many(append<&ast::ArrayLit::rows>(ref<ArrayRow>) +
                          some(RowSeparator)) +
-                    option(append<&ast::ArrayLit::rows>(ref<ArrayRowRule>)) +
+                    option(append<&ast::ArrayLit::rows>(ref<ArrayRow>)) +
                     lit<"]">)      //
-              | ref<IndexExprRule> //
+              | ref<IndexExpr> //
               |
               create<ast::Ident>(assign<&ast::Ident::name>(ref<IDENTIFIER>)) //
               | create<ast::NumberLit>(
-                    assign<&ast::NumberLit::value>(ref<CONSTANT>)) //
+                    assign<&ast::NumberLit::value>(ref<CONSTANT>) +
+                    option(gap::none + flag<&ast::NumberLit::imaginary>(lit<"i", !w> | lit<"j", !w>))) //
               | create<ast::StringLit>(
-                    assign<&ast::StringLit::value>(ref<STRING_LITERAL>))) +
+                    assign<&ast::StringLit::value>(ref<STRING_LITERAL>)))> {};
+
+  struct PostfixExpression : rule<ref<PrimaryExpression> +
              many(nest<ast::PostfixOpExpr, &ast::PostfixOpExpr::operand>(
                  assign<&ast::PostfixOpExpr::op>(lit<"'"> | lit<".'">)))> {};
 
-  struct UnaryExpression
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-"> | lit<"~">) +
-                 assign<&ast::UnaryExpr::operand>(ref<PostfixExpression>)) //
-             | ref<PostfixExpression>> {};
+  struct PrefixExpression : rule<create<ast::UnaryExpr>(
+      assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-"> | lit<"~">) +
+      assign<&ast::UnaryExpr::operand>(ref<UnaryExpression>))> {};
+  // Power and transpose share one left-associative tier. A signed exponent
+  // starts a unary expression without changing pure a^b^c left association.
+  struct PowerExpression : rule<ref<PrimaryExpression> + many(
+      nest<ast::PostfixOpExpr, &ast::PostfixOpExpr::operand>(
+          assign<&ast::PostfixOpExpr::op>(lit<"'"> | lit<".'">)) |
+      nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
+          assign<&ast::BinaryExpr::op>(OpPow) +
+          assign<&ast::BinaryExpr::right>(ref<PrefixExpression> | ref<PrimaryExpression>)))> {};
+  struct UnaryExpression : rule<ref<PrefixExpression> | ref<PowerExpression>> {};
 
   // MathWorks' operator-precedence table, tightest to loosest: transpose and
   // power; unary; multiplication/division; addition/subtraction; colon;
   // relational (one tier, all six); element-wise AND; element-wise OR.
-  struct Expression : infix<UnaryExpression, &ast::BinaryExpr::left,
-                            &ast::BinaryExpr::op, &ast::BinaryExpr::right,
-                            (left(OpPow) >>   //
-                             left(OpMul) >>   //
-                             left(OpAdd) >>   //
-                             left(OpRange) >> //
-                             left(OpRel) >>   //
-                             left(OpAnd) >>   //
-                             left(OpOr))> {};
+  struct Expression : infix<UnaryExpression, ast::BinaryExpr,
+                            levels(left(OpMul),    //
+                                   left(OpAdd),    //
+                                   left(OpRange),  //
+                                   left(OpRel),    //
+                                   left(OpAnd),    //
+                                   left(OpOr),
+                                   left(OpShortAnd), left(OpShortOr))> {};
 
   struct GlobalStmt
       : rule<kw<"global"> +
              some(append<&ast::GlobalStmt::names>(ref<IDENTIFIER>)) +
-             tight(Eostmt)> {};
+             EndStatement> {};
 
   struct ClearStmt
       : rule<kw<"clear"> +
              some(append<&ast::ClearStmt::names>(ref<IDENTIFIER>)) +
-             tight(Eostmt)> {};
+             EndStatement> {};
 
   // The target is a `postfix_expression`, not a full `expression`: `(x) = 1`
   // and `x(1) = 2` are targets this grammar accepts, `x + 1 = 2` is not.
   struct AssignStmt
       : rule<assign<&ast::AssignStmt::target>(ref<PostfixExpression>) +
              lit<"="> + assign<&ast::AssignStmt::value>(ref<Expression>) +
-             tight(Eostmt)> {};
+             EndStatement> {};
 
   // A bare separator alone is a statement with nothing in it.
   struct ExprStmt
       : rule<create<ast::ExprStmt> +
-             option(assign<&ast::ExprStmt::value>(ref<Expression>)) +
-             tight(Eostmt)> {};
+             ((option(assign<&ast::ExprStmt::value>(ref<Expression>)) + tight(Eostmt)) |
+              (assign<&ast::ExprStmt::value>(ref<Expression>) + eof))> {};
 
-  struct ElseIfClauseRule
+  struct ElseIfClause
       : rule<create<ast::ElseIfClause> + kw<"elseif"> +
              assign<&ast::ElseIfClause::cond>(ref<Expression>) +
              some(append<&ast::ElseIfClause::body>(ref<Statement>))> {};
@@ -184,15 +180,15 @@ struct Matlab : cursiv::GrammarSpec {
       : rule<create<ast::IfStmt> + kw<"if"> +
              assign<&ast::IfStmt::cond>(ref<Expression>) +
              some(append<&ast::IfStmt::thenBody>(ref<Statement>)) +
-             many(append<&ast::IfStmt::elseIfs>(ref<ElseIfClauseRule>)) +
+             many(append<&ast::IfStmt::elseIfs>(ref<ElseIfClause>)) +
              option(kw<"else"> +
                     some(append<&ast::IfStmt::elseBody>(ref<Statement>))) +
-             kw<"end"> + tight(Eostmt)> {};
+             kw<"end"> + EndStatement> {};
 
   struct WhileStmt : rule<create<ast::WhileStmt> + kw<"while"> +
                           assign<&ast::WhileStmt::cond>(ref<Expression>) +
                           some(append<&ast::WhileStmt::body>(ref<Statement>)) +
-                          kw<"end"> + tight(Eostmt)> {};
+                          kw<"end"> + EndStatement> {};
 
   // The header's parentheses are optional and change nothing else: both
   // forms build the same node.
@@ -204,23 +200,34 @@ struct Matlab : cursiv::GrammarSpec {
                  lit<"="> + assign<&ast::ForStmt::range>(ref<Expression>) +
                  lit<")">)) +
              some(append<&ast::ForStmt::body>(ref<Statement>)) + kw<"end"> +
-             tight(Eostmt)> {};
+             EndStatement> {};
 
   struct BreakStmt : rule<create<ast::BreakStmt> + kw<"break"> +
-                          tight(Eostmt)> {};
+                          EndStatement> {};
   struct ReturnStmt : rule<create<ast::ReturnStmt> + kw<"return"> +
-                           tight(Eostmt)> {};
+                           EndStatement> {};
+
+  struct ContinueStmt : rule<create<ast::ContinueStmt> + kw<"continue"> + EndStatement> {};
+  static constexpr auto OutputNames = some(append<&ast::FunctionDef::outputs>(ref<IDENTIFIER>) + option(lit<",">));
+  struct FunctionDef : rule<kw<"function"> +
+      option(((lit<"["> + option(OutputNames) + lit<"]">) |
+              append<&ast::FunctionDef::outputs>(ref<IDENTIFIER>)) + lit<"=">) +
+      assign<&ast::FunctionDef::name>(ref<IDENTIFIER>) +
+      option(lit<"("> + option(some(append<&ast::FunctionDef::parameters>(ref<IDENTIFIER> | lit<"~">), lit<",">)) + lit<")">) +
+      Eostmt + many(append<&ast::FunctionDef::body>(ref<Statement>)) +
+      ((kw<"end"> + EndStatement) | eof)> {};
 
   struct Statement : rule<ref<GlobalStmt> | ref<ClearStmt> | ref<AssignStmt> |
                           ref<ExprStmt> | ref<IfStmt> | ref<WhileStmt> |
-                          ref<ForStmt> | ref<BreakStmt> | ref<ReturnStmt>> {};
+                          ref<ForStmt> | ref<BreakStmt> | ref<ReturnStmt> | ref<ContinueStmt> | ref<FunctionDef>> {};
 
-  struct FileRule : rule<create<ast::File> +
+  struct File : rule<create<ast::File> +
                          many(append<&ast::File::statements>(ref<Statement>))> {
   };
 
-  using entry = FileRule;
-  using ignore = WS;
+  using entry = File;
+  using ignored = WS;
+  using hidden = list<CONTINUATION, LINE_COMMENT>;
 };
 
 } // namespace matlab

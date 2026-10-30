@@ -1,5 +1,5 @@
-// The molecule language: its grammar. A Hill formula -- symbol runs made of
-// elements, parenthesised groups and bracketed ions, each optionally
+// A text formula: symbol runs made of elements, parenthesised groups and
+// bracketed coordination entities, each optionally
 // counted, several formulas joined by a middle dot for a hydrate.
 #pragma once
 
@@ -13,7 +13,7 @@ namespace molecule {
 struct Molecule : cursiv::GrammarSpec {
   struct WS : terminal<some(s)> {};
 
-  struct COUNT : terminal<some(d), std::uint32_t> {};
+  struct COUNT : terminal<as<std::uint32_t>(some(d))> {};
 
   // Every symbol of the periodic table up to element 118 (Og); the longest
   // alternative wins so "He" is read whole and not as "H" then a stray "e".
@@ -43,40 +43,40 @@ struct Molecule : cursiv::GrammarSpec {
                  lit<"P"> | lit<"S"> | lit<"K"> | lit<"V"> | lit<"Y"> |
                  lit<"I"> | lit<"W"> | lit<"U">> {};
 
-  struct ElementRule : rule<assign<&ast::Element::name>(ref<ELEMENT>)> {};
+  struct Element : rule<assign<&ast::Element::name>(ref<ELEMENT>)> {};
 
-  struct GroupRule;
-  struct IonRule;
+  struct Group;
+  struct Ion;
 
   static constexpr auto symbol =
-      ref<ElementRule> | ref<GroupRule> | ref<IonRule>;
+      ref<Element> | ref<Group> | ref<Ion>;
 
-  struct StructureRule
+  struct Structure
       : rule<assign<&ast::Structure::symbol>(symbol) +
              option(assign<&ast::Structure::count>(ref<COUNT>))> {};
 
-  struct GroupRule
+  struct Group
       : rule<lit<"("> +
-             some(append<&ast::Group::structures>(ref<StructureRule>)) +
+             some(append<&ast::Group::structures>(ref<Structure>)) +
              lit<")">> {};
 
-  struct IonRule
+  struct Ion
       : rule<lit<"["> +
-             some(append<&ast::Ion::structures>(ref<StructureRule>)) +
+             some(append<&ast::Ion::structures>(ref<Structure>)) +
              lit<"]">> {};
 
-  struct TermRule
-      : rule<option(assign<&ast::Term::multiplier>(ref<COUNT>)) +
-             assign<&ast::Term::structure>(ref<StructureRule>)> {};
-
-  struct PartRule : rule<some(append<&ast::Part::terms>(ref<TermRule>))> {};
+  // A hydrate coefficient multiplies the whole component, including every
+  // structure in H2O, rather than only its first element H2.
+  struct Part
+      : rule<option(assign<&ast::Part::multiplier>(ref<COUNT>)) +
+             some(append<&ast::Part::structures>(ref<Structure>))> {};
 
   struct MoleculeRule
-      : rule<some(append<&ast::Molecule::parts>(ref<PartRule>), lit<"·">)> {
+      : rule<some(append<&ast::Molecule::parts>(ref<Part>), lit<"·">)> {
   };
 
   using entry = MoleculeRule;
-  using ignore = WS;
+  using ignored = WS;
 };
 
 }  // namespace molecule

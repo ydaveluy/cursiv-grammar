@@ -42,6 +42,39 @@ int main() {
       arden::ArdenCoreServices, arden::ArdenSharedCoreServices,
       arden::install_core_module>();
 
+  // Arden2ByteCode's native ParseHelpers defines doubled quotes and the
+  // folding of physical lines inside a string. Inspect the actual value.
+  {
+    const std::string basis =
+        read_file(std::string(CURSIV_TEST_DIR) + "/self_reference.mlm");
+    const std::string original = "action: write this_mlm;";
+    const auto pos = basis.find(original);
+    if (pos == std::string::npos) return fail("missing native string probe site");
+    const struct {
+      std::string_view literal;
+      std::string_view value;
+    } cases[] = {{"\"quoted\"\" text\"", "quoted\" text"},
+                 {"\"one \n  two\"", "one two"},
+                 {"\"one\n\n  two\"", "one\ntwo"},
+                 {"\"one\r\n  two\"", "one two"}};
+    for (const auto& c : cases) {
+      std::string text = basis;
+      text.replace(pos, original.size(),
+                   "action: write " + std::string(c.literal) + ";");
+      const auto version = text.find("version 3;;");
+      text.replace(version, std::string_view("version 3;;").size(),
+                   "version \t 3;;");
+      const auto r = language.language.parser->parse(text);
+      if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty())
+        return fail("native string literal does not parse clean");
+      bool found = false;
+      for (const auto* node : r.nodes)
+        if (const auto* string = as<arden::ast::StringLit>(node))
+          found |= string->value == c.value;
+      if (!found) return fail("native string literal value was not decoded");
+    }
+  }
+
   std::vector<std::filesystem::path> paths;
   for (const auto& entry :
        std::filesystem::directory_iterator(CURSIV_EXAMPLE_DIR))

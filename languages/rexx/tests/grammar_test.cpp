@@ -1,4 +1,6 @@
+#include "native_regressions.hpp"
 #include <cstdio>
+#include <optional>
 
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
@@ -32,27 +34,27 @@ const T* as(const cursiv::AstNode* node) {
   return static_cast<const T*>(node);
 }
 
-const rexx::ast::Block* parse_clean(
+std::optional<cursiv::ParseResult> parse_clean(
     const cursiv::CoreLanguage<rexx::RexxCoreServices,
                                rexx::RexxSharedCoreServices>& language,
     const std::string& path, const std::string& text) {
-  const cursiv::ParseResult result = language.language.parser->parse(text);
+  cursiv::ParseResult result = language.language.parser->parse(text);
   if (result.cst().recovered()) {
     std::fprintf(stderr, "rexx: %s does not parse clean\n", path.c_str());
     ++g_failures;
-    return nullptr;
+    return std::nullopt;
   }
   if (!result.diagnostics.empty()) {
     std::fprintf(stderr, "rexx: %s carries diagnostics\n", path.c_str());
     ++g_failures;
-    return nullptr;
+    return std::nullopt;
   }
   const rexx::ast::Block* const block = as<rexx::ast::Block>(result.value);
   if (block == nullptr) {
     std::fprintf(stderr, "rexx: %s built no block\n", path.c_str());
     ++g_failures;
   }
-  return block;
+  return std::move(result);
 }
 
 std::string slurp(const char* path) {
@@ -111,8 +113,8 @@ const rexx::ast::Assignment* find_assignment(const rexx::ast::Block& doc,
 }
 
 // binary_good1's value is the binary string token itself; binary_bad1's is
-// a string abuttal-concatenated with the bare name `b` -- a blank inside
-// the quotes makes it not a binary string at all.
+// a string blank-concatenated with bare name `b`. Native-invalid bitstring
+// attempts remain separate negative regressions.
 void check_bitstring(const rexx::ast::Block& doc) {
   const rexx::ast::Assignment* const good1 = find_assignment(doc, "binary_good1");
   if (good1 == nullptr || as<rexx::ast::BinaryLit>(good1->value) == nullptr) {
@@ -124,8 +126,8 @@ void check_bitstring(const rexx::ast::Block& doc) {
   const rexx::ast::Assignment* const bad1 = find_assignment(doc, "binary_bad1");
   const rexx::ast::Concat* const concat =
       bad1 != nullptr ? as<rexx::ast::Concat>(bad1->value) : nullptr;
-  if (concat == nullptr || concat->explicitOp || concat->blank) {
-    fail("binary_bad1 is not an abuttal concatenation");
+  if (concat == nullptr || concat->explicitOp || !concat->blank) {
+    fail("binary_bad1 is not a blank concatenation");
   } else {
     const auto* const left = as<rexx::ast::StringLit>(concat->left);
     const auto* const right = as<rexx::ast::NameRef>(concat->right);
@@ -281,40 +283,43 @@ int main() {
       rexx::RexxCoreServices, rexx::RexxSharedCoreServices,
       rexx::install_core_module>();
 
+  if (!rexx_native_regressions(language)) return 1;
+
   const std::string example1 = CURSIV_EXAMPLE_DIR "/example1.rex";
   const std::string bitstring = CURSIV_EXAMPLE_DIR "/test_bitstring.rex";
   const std::string concatenation = CURSIV_EXAMPLE_DIR "/test_concatenation.rex";
 
-  // Each document is read and checked before the next parse touches the
-  // parser's own arena: a result kept past the following parse() reads
-  // freed memory.
+  // Keep each ParseResult alive while reading its AST and borrowed source fields.
   {
     const std::string text = slurp(example1.c_str());
-    const rexx::ast::Block* const doc = parse_clean(language, example1, text);
+    const auto result = parse_clean(language, example1, text);
+    const auto* doc = result ? result->value_as<rexx::ast::Block>() : nullptr;
     if (doc != nullptr && doc->body.empty())
       fail("example1.rex built an empty program");
   }
   {
     const std::string text = slurp(bitstring.c_str());
-    const rexx::ast::Block* const doc = parse_clean(language, bitstring, text);
+    const auto result = parse_clean(language, bitstring, text);
+    const auto* doc = result ? result->value_as<rexx::ast::Block>() : nullptr;
     if (doc != nullptr) check_bitstring(*doc);
   }
   {
     const std::string text = slurp(concatenation.c_str());
-    const rexx::ast::Block* const doc =
-        parse_clean(language, concatenation, text);
+    const auto result = parse_clean(language, concatenation, text);
+    const auto* doc = result ? result->value_as<rexx::ast::Block>() : nullptr;
     if (doc != nullptr) check_concatenation(*doc);
   }
   {
     const std::string coverage = std::string(CURSIV_TEST_DIR) + "/docs/coverage.rex";
     const std::string text = slurp(coverage.c_str());
-    const rexx::ast::Block* const doc = parse_clean(language, coverage, text);
+    const auto result = parse_clean(language, coverage, text);
+    const auto* doc = result ? result->value_as<rexx::ast::Block>() : nullptr;
     if (doc != nullptr) check_coverage(*doc);
   }
   {
     const std::string text = "x = f()\ny = f(,1)\ncall g\ncall g()\ncall g ,2\n";
-    const rexx::ast::Block* const doc =
-        parse_clean(language, "argument lists", text);
+    const auto result = parse_clean(language, "argument lists", text);
+    const auto* doc = result ? result->value_as<rexx::ast::Block>() : nullptr;
     if (doc != nullptr) check_argument_lists(*doc);
   }
 

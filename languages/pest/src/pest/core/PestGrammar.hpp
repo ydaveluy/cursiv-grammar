@@ -30,21 +30,11 @@ struct Pest : cursiv::GrammarSpec {
   struct NUMBER : terminal<some(d)> {};
   struct INTEGER : terminal<option(lit<"-">) + some(d)> {};
 
-  struct POS_PRED_OP
-      : terminal<lit<"&">, value<ast::PrefixOp::positive_predicate>> {};
-  struct NEG_PRED_OP
-      : terminal<lit<"!">, value<ast::PrefixOp::negative_predicate>> {};
   struct SEQ_OP : terminal<lit<"~">> {};
   struct CHOICE_OP : terminal<lit<"|">> {};
 
-  struct SILENT_MOD : terminal<lit<"_">, value<ast::Modifier::silent>> {};
-  struct ATOMIC_MOD : terminal<lit<"@">, value<ast::Modifier::atomic>> {};
-  struct COMPOUND_ATOMIC_MOD
-      : terminal<lit<"$">, value<ast::Modifier::compound_atomic>> {};
-  struct NON_ATOMIC_MOD
-      : terminal<lit<"!">, value<ast::Modifier::non_atomic>> {};
 
-  struct ExpressionRule;
+  struct Expression;
 
   struct OptionalOp : rule<create<ast::Optional_> + lit<"?">> {};
   struct ZeroOrMoreOp : rule<create<ast::ZeroOrMore> + lit<"*">> {};
@@ -64,15 +54,15 @@ struct Pest : cursiv::GrammarSpec {
              assign<&ast::RepeatMinMax::min>(ref<NUMBER>) + lit<","> +
              assign<&ast::RepeatMinMax::max>(ref<NUMBER>) + lit<"}">> {};
 
-  struct TermRule
+  struct Term
       : rule<option(lit<"#"> + assign<&ast::Term::tag>(ref<IDENTIFIER>) + lit<"=">) +
-             many(append<&ast::Term::prefixes>(ref<POS_PRED_OP> |
-                                                ref<NEG_PRED_OP>)) +
+             many(append<&ast::Term::prefixes>(as<ast::PrefixOp::positive_predicate>(lit<"&">) |
+                                                as<ast::PrefixOp::negative_predicate>(lit<"!">))) +
              assign<&ast::Term::item>(
-                 (lit<"("> + ref<ExpressionRule> + lit<")">)  //
+                 (lit<"("> + ref<Expression> + lit<")">)  //
                  | create<ast::Push>(kw<"PUSH"> + lit<"("> +
                                       assign<&ast::Push::expr>(
-                                          ref<ExpressionRule>) +
+                                          ref<Expression>) +
                                       lit<")">)  //
                  | create<ast::PushLiteral>(
                        kw<"PUSH_LITERAL"> + lit<"("> +
@@ -101,31 +91,31 @@ struct Pest : cursiv::GrammarSpec {
 
   // Sequence binds before choice.
   struct SequenceRule
-      : rule<append<&ast::Sequence::terms>(ref<TermRule>) +
-             many(ref<SEQ_OP> + append<&ast::Sequence::terms>(ref<TermRule>))> {
+      : rule<append<&ast::Sequence::terms>(ref<Term>) +
+             many(ref<SEQ_OP> + append<&ast::Sequence::terms>(ref<Term>))> {
   };
 
-  struct ExpressionRule
+  struct Expression
       : rule<option(ref<CHOICE_OP>) +
              append<&ast::Expression::alternatives>(ref<SequenceRule>) +
              many(ref<CHOICE_OP> +
                   append<&ast::Expression::alternatives>(ref<SequenceRule>))> {
   };
 
-  struct RuleDeclRule
+  struct RuleDecl
       : rule<assign<&ast::RuleDecl::name>(ref<IDENTIFIER>) + lit<"="> +
              option(assign<&ast::RuleDecl::modifier>(
-                 ref<SILENT_MOD> | ref<ATOMIC_MOD> | ref<COMPOUND_ATOMIC_MOD> |
-                 ref<NON_ATOMIC_MOD>)) +
+                 as<ast::Modifier::silent>(lit<"_">) | as<ast::Modifier::atomic>(lit<"@">) | as<ast::Modifier::compound_atomic>(lit<"$">) |
+                 as<ast::Modifier::non_atomic>(lit<"!">))) +
              lit<"{"> +
-             assign<&ast::RuleDecl::expression>(ref<ExpressionRule>) +
+             assign<&ast::RuleDecl::expression>(ref<Expression>) +
              lit<"}">> {};
 
-  struct DocumentRule
-      : rule<many(append<&ast::Document::rules>(ref<RuleDeclRule>))> {};
+  struct Document
+      : rule<many(append<&ast::Document::rules>(ref<RuleDecl>))> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
   using hidden = list<COMMENT>;
 };
 

@@ -31,8 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-MDX (MultiDimensional eXpressions) is an OLAP query language — `SELECT`
-projects members onto axes, `FROM` names a cube:
+MDX queries select OLAP members onto axes, with cube sources and calculated members.
 
 ```
 SELECT

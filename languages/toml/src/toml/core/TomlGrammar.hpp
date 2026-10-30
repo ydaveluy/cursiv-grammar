@@ -20,7 +20,6 @@ inline constexpr auto string_value = [](std::string_view t,
   const auto decoded = decode_string(t);
   return cursiv::copy_into(memory, decoded.text);
 };
-using StringConv = cursiv::text_conv<string_value>;
 
 // `from_chars` takes a leading '-' but never a leading '+' -- unlike
 // `strtod`/`strtoll` -- so a `+`-prefixed literal drops the sign here too.
@@ -44,7 +43,6 @@ inline constexpr auto dec_int_value =
   // The original token remains in the CST for the runtime range check.
   return ec == std::errc{} && ptr == s.data() + s.size() ? v : 0;
 };
-using DecIntConv = cursiv::text_conv<dec_int_value>;
 
 template <int Base>
 inline constexpr auto radix_int_value =
@@ -59,9 +57,6 @@ inline constexpr auto radix_int_value =
              ? static_cast<std::int64_t>(v)
              : 0;
 };
-using HexIntConv = cursiv::text_conv<radix_int_value<16>>;
-using OctIntConv = cursiv::text_conv<radix_int_value<8>>;
-using BinIntConv = cursiv::text_conv<radix_int_value<2>>;
 
 inline constexpr auto float_value = [](std::string_view t,
                                        std::pmr::memory_resource *m) -> double {
@@ -104,36 +99,27 @@ inline constexpr auto float_value = [](std::string_view t,
       underflow ? 0.0 : std::numeric_limits<double>::infinity();
   return negative ? -magnitude : magnitude;
 };
-using FloatConv = cursiv::text_conv<float_value>;
 
 inline constexpr auto inf_value = [](std::string_view t) {
   return t.front() == '-' ? -std::numeric_limits<double>::infinity()
                           : std::numeric_limits<double>::infinity();
 };
-using InfConv = cursiv::text_conv<inf_value>;
 
 inline constexpr auto nan_value = [](std::string_view t) {
   return t.starts_with('-') ? -std::numeric_limits<double>::quiet_NaN()
                             : std::numeric_limits<double>::quiet_NaN();
 };
-using NanConv = cursiv::text_conv<nan_value>;
 
 template <ast::DateTimeKind Kind>
 inline constexpr auto date_time_value =
     [](std::string_view t) { return ast::DateTime{Kind, t}; };
-using OffsetDateTimeConv =
-    cursiv::text_conv<date_time_value<ast::DateTimeKind::OffsetDateTime>>;
-using LocalDateTimeConv =
-    cursiv::text_conv<date_time_value<ast::DateTimeKind::LocalDateTime>>;
-using LocalDateConv =
-    cursiv::text_conv<date_time_value<ast::DateTimeKind::LocalDate>>;
-using LocalTimeConv =
-    cursiv::text_conv<date_time_value<ast::DateTimeKind::LocalTime>>;
 
 struct Toml : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t)">)> {};
   struct NL : terminal<some(option(lit<"\r">) + lit<"\n">)> {};
-  struct COMMENT : terminal<lit<"#"> + many(cr<R"(^\n)">)> {};
+  struct COMMENT
+      : terminal<lit<"#"> +
+                 many(cr<R"(\t\x20-\x7E\u{80}-\u{10FFFF})">)> {};
 
   struct UNQUOTED_KEY : terminal<some(cr<"A-Za-z0-9_-">)> {};
 
@@ -142,19 +128,20 @@ struct Toml : cursiv::GrammarSpec {
   // complete token. The parser only needs to keep escaped delimiters inside.
   static constexpr auto esc = lit<"\\"> + any;
   struct BASIC_STRING
-      : terminal<lit<"\""> + many(esc | cr<R"(^"\\\n)">) + lit<"\"">,
-                 StringConv> {};
+      : terminal<as<string_value>(lit<"\""> + many(esc | cr<R"(^"\\\n)">) +
+                                  lit<"\"">)> {};
   struct LITERAL_STRING
-      : terminal<lit<"'"> + many(cr<R"(^'\n)">) + lit<"'">, StringConv> {};
+      : terminal<as<string_value>(lit<"'"> + many(cr<R"(^'\n)">) + lit<"'">)> {
+  };
   struct ML_BASIC_STRING
-      : terminal<lit<"\"\"\""> +
-                     many(esc | cr<R"(^"\\)"> | lit<"\"\"", !lit<"\"">> |
-                          lit<"\"", !lit<"\"">>) +
-                     lit<"\"\"\""> + repeat<0, 2>(lit<"\"">),
-                 StringConv> {};
+      : terminal<as<string_value>(lit<"\"\"\""> +
+                                  many(esc | cr<R"(^"\\)"> |
+                                       lit<"\"\"", !lit<"\"">> |
+                                       lit<"\"", !lit<"\"">>) +
+                                  lit<"\"\"\""> + repeat<0, 2>(lit<"\"">))> {};
   struct ML_LITERAL_STRING
-      : terminal<through(lit<"'''">, lit<"'''">)+repeat<0, 2>(lit<"'">),
-                 StringConv> {};
+      : terminal<as<string_value>(through(lit<"'''">, lit<"'''">) +
+                                  repeat<0, 2>(lit<"'">))> {};
 
   static constexpr auto zero_prefixable_int = d + many(d | (lit<"_"> + d));
   static constexpr auto dec_int_body =
@@ -163,22 +150,25 @@ struct Toml : cursiv::GrammarSpec {
       cr<"eE"> + option(cr<"+-">) + zero_prefixable_int;
   static constexpr auto frac = lit<"."> + zero_prefixable_int;
 
-  struct DEC_INT : terminal<dec_int_body, DecIntConv> {};
-  struct HEX_INT : terminal<lit<"0x"> + hex_digit +
-                                many(hex_digit | (lit<"_"> + hex_digit)),
-                            HexIntConv> {};
-  struct OCT_INT : terminal<lit<"0o"> + cr<"0-7"> +
-                                many(cr<"0-7"> | (lit<"_"> + cr<"0-7">)),
-                            OctIntConv> {};
-  struct BIN_INT : terminal<lit<"0b"> + cr<"0-1"> +
-                                many(cr<"0-1"> | (lit<"_"> + cr<"0-1">)),
-                            BinIntConv> {};
-  struct FLOAT : terminal<dec_int_body + (exponent | (frac + option(exponent))),
-                          FloatConv> {};
-  struct INF : terminal<option(cr<"+-">) + lit<"inf">, InfConv> {};
-  struct NAN_TOK : terminal<option(cr<"+-">) + lit<"nan">, NanConv> {};
+  struct DEC_INT : terminal<as<dec_int_value>(dec_int_body)> {};
+  struct HEX_INT
+      : terminal<as<radix_int_value<16>>(
+            lit<"0x"> + hex_digit + many(hex_digit | (lit<"_"> + hex_digit)))> {
+  };
+  struct OCT_INT
+      : terminal<as<radix_int_value<8>>(
+            lit<"0o"> + cr<"0-7"> + many(cr<"0-7"> | (lit<"_"> + cr<"0-7">)))> {
+  };
+  struct BIN_INT
+      : terminal<as<radix_int_value<2>>(
+            lit<"0b"> + cr<"0-1"> + many(cr<"0-1"> | (lit<"_"> + cr<"0-1">)))> {
+  };
+  struct FLOAT : terminal<as<float_value>(
+                     dec_int_body + (exponent | (frac + option(exponent))))> {};
+  struct INF : terminal<as<inf_value>(option(cr<"+-">) + lit<"inf">)> {};
+  struct NAN_TOK : terminal<as<nan_value>(option(cr<"+-">) + lit<"nan">)> {};
 
-  struct BOOLEAN : terminal<kw<"true"> | kw<"false">, bool> {};
+  struct BOOLEAN : terminal<as<bool>(kw<"true"> | kw<"false">)> {};
 
   static constexpr auto year_month_day =
       repeat<4>(d) + lit<"-"> + repeat<2>(d) + lit<"-"> + repeat<2>(d);
@@ -191,29 +181,34 @@ struct Toml : cursiv::GrammarSpec {
   static constexpr auto delim = lit<"T"> | lit<"t"> | lit<" ">;
 
   struct OFFSET_DATE_TIME
-      : terminal<year_month_day + delim + partial_time + offset,
-                 OffsetDateTimeConv> {};
+      : terminal<as<date_time_value<ast::DateTimeKind::OffsetDateTime>>(
+            year_month_day + delim + partial_time + offset)> {};
   struct LOCAL_DATE_TIME
-      : terminal<year_month_day + delim + partial_time, LocalDateTimeConv> {};
-  struct LOCAL_DATE : terminal<year_month_day, LocalDateConv> {};
-  struct LOCAL_TIME : terminal<partial_time, LocalTimeConv> {};
+      : terminal<as<date_time_value<ast::DateTimeKind::LocalDateTime>>(
+            year_month_day + delim + partial_time)> {};
+  struct LOCAL_DATE
+      : terminal<as<date_time_value<ast::DateTimeKind::LocalDate>>(
+            year_month_day)> {};
+  struct LOCAL_TIME
+      : terminal<as<date_time_value<ast::DateTimeKind::LocalTime>>(
+            partial_time)> {};
 
   static constexpr auto simple_key =
       ref<BASIC_STRING> | ref<LITERAL_STRING> | ref<UNQUOTED_KEY>;
   struct DottedKey
       : rule<some(append<&ast::Key::parts>(simple_key), lit<".">)> {};
 
-  struct ArrayRule;
-  struct InlineTableRule;
+  struct Array;
+  struct InlineTable;
 
   static constexpr auto value =
       ref<BASIC_STRING> | ref<ML_BASIC_STRING> | ref<LITERAL_STRING> |
       ref<ML_LITERAL_STRING> | ref<FLOAT> | ref<INF> | ref<NAN_TOK> |
       ref<DEC_INT> | ref<HEX_INT> | ref<OCT_INT> | ref<BIN_INT> | ref<BOOLEAN> |
       ref<OFFSET_DATE_TIME> | ref<LOCAL_DATE_TIME> | ref<LOCAL_DATE> |
-      ref<LOCAL_TIME> | ref<ArrayRule> | ref<InlineTableRule>;
+      ref<LOCAL_TIME> | ref<Array> | ref<InlineTable>;
 
-  struct KeyValueRule : rule<assign<&ast::KeyValue::key>(ref<DottedKey>) +
+  struct KeyValue : rule<assign<&ast::KeyValue::key>(ref<DottedKey>) +
                              lit<"="> + assign<&ast::KeyValue::value>(value)> {
   };
 
@@ -223,42 +218,43 @@ struct Toml : cursiv::GrammarSpec {
   static constexpr auto array_pad = many(ref<NL> | ref<COMMENT>);
   static constexpr auto array_item = append<&ast::Array::items>(value);
 
-  struct ArrayRule
+  struct Array
       : rule<lit<"["> + array_pad +
              option(array_item + array_pad +
                     many(lit<","> + array_pad + array_item + array_pad) +
                     option(lit<","> + array_pad)) +
              lit<"]">> {};
 
-  struct InlineTableRule
+  struct InlineTable
       : rule<lit<"{"> +
-             many(append<&ast::InlineTable::entries>(ref<KeyValueRule>),
+             many(append<&ast::InlineTable::entries>(ref<KeyValue>),
                   lit<",">) +
              lit<"}">> {};
 
   static constexpr auto trailing_comment =
       tight(option(ref<COMMENT>));
+  static constexpr auto line_end = &(ref<COMMENT> | ref<NL> | eof);
   static constexpr auto line_body =
-      option(append<&ast::Table::entries>(ref<KeyValueRule>)) +
+      option(append<&ast::Table::entries>(ref<KeyValue>) + line_end) +
       trailing_comment;
 
   static constexpr auto array_table_marker = lit<"["> + lit<"[">;
 
-  struct TableBlockRule
+  struct TableBlock
       : rule<((flag<&ast::Table::is_array>(array_table_marker) +
                assign<&ast::Table::key>(ref<DottedKey>) + lit<"]"> + lit<"]">) |
               (lit<"["> + assign<&ast::Table::key>(ref<DottedKey>) +
                lit<"]">)) +
-             line_body + many(ref<NL> + line_body)> {};
+             line_end + trailing_comment + many(ref<NL> + line_body)> {};
 
-  struct RootBlockRule : rule<line_body + many(ref<NL> + line_body)> {};
+  struct RootBlock : rule<line_body + many(ref<NL> + line_body)> {};
 
-  struct DocumentRule
-      : rule<append<&ast::Document::tables>(ref<RootBlockRule>) +
-             many(append<&ast::Document::tables>(ref<TableBlockRule>))> {};
+  struct Document
+      : rule<append<&ast::Document::tables>(ref<RootBlock>) +
+             many(append<&ast::Document::tables>(ref<TableBlock>))> {};
 
-  using entry = DocumentRule;
-  using ignore = WS;
+  using entry = Document;
+  using ignored = WS;
 };
 
 } // namespace toml

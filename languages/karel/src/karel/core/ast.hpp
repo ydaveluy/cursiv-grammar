@@ -58,7 +58,7 @@ struct Block : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct Iteration : cursiv::Extends<cursiv::AstNode> {
-  int64 count;
+  string_view count;  // original decimal spelling, without a machine-integer bound
   Statement body;
 };
 

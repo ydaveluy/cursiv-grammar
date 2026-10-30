@@ -12,6 +12,7 @@ struct Stmt : cursiv::Extends<cursiv::AstNode> {};
 struct AttrPair : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   optional<string_view> value;
+  boolean valueIsHtml;
 };
 
 struct AttrList : cursiv::Extends<cursiv::AstNode> {
@@ -54,6 +55,7 @@ struct AttrStmt : cursiv::Extends<Stmt> {
 struct AssignStmt : cursiv::Extends<Stmt> {
   string_view name;
   string_view value;
+  boolean valueIsHtml;
 };
 
 struct Graph : cursiv::Extends<cursiv::AstNode> {

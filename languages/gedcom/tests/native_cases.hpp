@@ -11,6 +11,16 @@
 namespace native_regressions {
 inline int run(const auto &language) {
   int failures = 0;
+  {
+    // GEDCOM 5.5.1, page 11: readers ignore leading blank physical lines.
+    const std::string source = " \n\r\n\t0 HEAD\n \t\n1 NOTE  raw  \n0 TRLR\n";
+    const auto result = language.language.parser->parse(source);
+    const auto* root = result.template value_as<gedcom::ast::Document>();
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || !root || root->lines.size() != 3 ||
+        root->lines[1]->value != " raw  " || !root->lines[1]->hasValue)
+      ++failures;
+  }
   struct Case {
     const char *file;
     const char *fields;

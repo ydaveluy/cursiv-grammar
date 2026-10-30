@@ -13,6 +13,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "modula2pim4/core/CoreServices.hpp"
 #include "modula2pim4/core/ast.hpp"
+#include "native_regressions.hpp"
 
 namespace {
 
@@ -38,6 +39,22 @@ int main() {
       modula2pim4::Modula2pim4CoreServices,
       modula2pim4::Modula2pim4SharedCoreServices,
       modula2pim4::install_core_module>();
+  if (!modula2pim4_native::run(*language.language.parser)) return 1;
+  for (const std::string_view number : {"9223372036854775808", "08000000000000000H", "1000000000000000000000B"}) {
+    const std::string source = "MODULE M; CONST x = " + std::string(number) + "; END M.";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() ||
+        result.diagnostics.size() != 1 ||
+        result.diagnostics[0].kind != cursiv::DiagnosticKind::conversion_error)
+      return 1;
+  }
+  for (const std::string_view number : {"9223372036854775807", "07FFFFFFFFFFFFFFFH"}) {
+    const std::string source = "MODULE M; CONST x = " + std::string(number) + "; END M.";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return 1;
+  }
+
 
   for (const char* const name : kExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;

@@ -12,6 +12,7 @@
 namespace ron::ast {
 
 struct Number;
+struct Range;
 struct Bytes;
 struct Tuple;
 struct ListV;
@@ -20,7 +21,7 @@ struct MapLit;
 struct CharLit;
 struct Ident;
 
-using Val = std::variant<Number *, Bytes *, bool, std::string_view, CharLit *,
+using Val = std::variant<Number *, Range *, Bytes *, bool, std::string_view, CharLit *,
                          Ident *, Tuple *, ListV *, StructLit *, MapLit *>;
 
 struct Value : cursiv::Extends<cursiv::AstNode> {
@@ -30,6 +31,12 @@ struct Value : cursiv::Extends<cursiv::AstNode> {
 
 struct Number : cursiv::Extends<cursiv::AstNode> {
   string_view text;
+};
+
+struct Range : cursiv::Extends<cursiv::AstNode> {
+  Number *start = nullptr;
+  Number *end = nullptr;
+  bool inclusive = false;
 };
 
 struct Bytes : cursiv::Extends<cursiv::AstNode> {

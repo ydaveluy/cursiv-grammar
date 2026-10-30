@@ -18,7 +18,7 @@ struct IntegerLit : cursiv::Extends<Expr> {
 };
 
 struct FloatLit : cursiv::Extends<Expr> {
-  float64 value;
+  string_view text;  // exact NASM real spelling, including radix and exponent
 };
 
 struct StringLit : cursiv::Extends<Expr> {
@@ -62,9 +62,7 @@ struct BinaryExpr : cursiv::Extends<Expr> {
   Expr* right;
 };
 
-// `cond ? then : else`. NASM restricts `then` to a bare integer; `then_`
-// still types as `Expr*` since IntegerLit is one, but only an integer is
-// ever parsed there.
+// `cond ? then : else`: both branches are complete expressions.
 struct ConditionalExpr : cursiv::Extends<Expr> {
   Expr* cond;
   Expr* then_;

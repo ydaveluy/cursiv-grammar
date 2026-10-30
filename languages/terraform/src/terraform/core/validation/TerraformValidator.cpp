@@ -6,8 +6,37 @@
 
 #include "cursiv/core/validation/ValidationRegistry.hpp"
 #include "terraform/core/CoreServices.hpp"
+#include "cursiv/core/workspace/Document.hpp"
 namespace terraform {
 namespace {
+// Inline-comment newlines are whitespace in HCL; line comments end a line.
+bool separator(std::string_view text, bool comma = false) {
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    if (text.substr(i).starts_with("/*")) {
+      const auto end = text.find("*/", i + 2);
+      if (end == text.npos) return false;
+      i = end + 1;
+    } else if (text[i] == '#' || text.substr(i).starts_with("//")) {
+      return text.find('\n', i) != text.npos;
+    } else if (text[i] == '\n' || (comma && text[i] == ',')) return true;
+  }
+  return false;
+}
+template<class Items>
+void separated(const Items& items, const cursiv::AstNode& owner,
+               cursiv::ValidationAcceptor& accept, bool comma = false) {
+  const auto* document = owner.getDocument();
+  if (!document) return;
+  const auto source = document->textDocument().getText();
+  for (std::size_t i = 1; i < items.size(); ++i) {
+    if (!items[i - 1] || !items[i]) continue;
+    const auto from = accept.spanOf(*items[i - 1]).end;
+    const auto to = accept.spanOf(*items[i]).begin;
+    if (from <= to && to <= source.size() && !separator(source.substr(from, to - from), comma))
+      accept.error(*items[i], comma ? "Object elements need a comma or newline." : "Body items need a newline.",
+                   comma ? "terraform.object-separator" : "terraform.body-newline");
+  }
+}
 void check_body(std::span<ast::BodyItem* const> items,
                 cursiv::ValidationAcceptor& accept) {
   std::unordered_set<std::string_view> names;
@@ -21,10 +50,34 @@ void check_body(std::span<ast::BodyItem* const> items,
 void TerraformValidator::checkFile(const ast::File& n,
                                    cursiv::ValidationAcceptor& a) const {
   check_body({n.items.data(), n.items.size()}, a);
+  separated(n.items, n, a);
 }
 void TerraformValidator::checkBlock(const ast::Block& n,
                                     cursiv::ValidationAcceptor& a) const {
   check_body({n.body.data(), n.body.size()}, a);
+  const auto* document = n.getDocument();
+  const auto open = a.keywordSpan(n, "{", 0);
+  const auto span = a.spanOf(n);
+  if (document && open) {
+    const auto source = document->textDocument().getText();
+    if (span.begin <= open->begin && span.end <= source.size() && open->end <= span.end) {
+      if (separator(source.substr(span.begin, open->begin - span.begin)))
+        a.error(n, "A block header and its opening brace must share a line.", "terraform.block-header");
+      if (!n.body.empty() && n.body[0] && n.body.back()) {
+        const auto first = a.spanOf(*n.body[0]);
+        const auto last = a.spanOf(*n.body.back());
+        if (open->end <= first.begin && last.end < span.end) {
+          const bool multiline = separator(source.substr(open->end, first.begin - open->end));
+          const bool ending = separator(source.substr(last.end, span.end - 1 - last.end));
+          if (!multiline && (n.body.size() != 1 || !cursiv::ast_cast<ast::Argument>(n.body[0]) || ending))
+            a.error(n, "An inline block contains one argument followed by its closing brace.", "terraform.inline-block");
+          if (multiline && !ending)
+            a.error(n, "A multiline block body ends with a newline.", "terraform.body-newline");
+          if (multiline) separated(n.body, n, a);
+        }
+      }
+    }
+  }
   for (const auto* label : n.labels)
     if (const auto* text = cursiv::ast_cast<ast::StringLit>(label))
       for (const auto* part : text->parts)
@@ -37,6 +90,9 @@ void TerraformValidator::checkFor(const ast::ForLoop& n,
     a.error(n, "a for expression binds one or two variables");
   if (!n.object && n.grouping)
     a.error(n, "grouping is only valid in an object for expression");
+}
+void TerraformValidator::checkMap(const ast::MapObj& n, cursiv::ValidationAcceptor& a) const {
+  separated(n.entries, n, a, true);
 }
 void TerraformValidator::checkUnary(const ast::UnaryExpr& n,
                                     cursiv::ValidationAcceptor& a) const {
@@ -112,6 +168,7 @@ void register_validation_checks(TerraformCoreServices& services) {
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkFor>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkUnary>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkTemplate>(v),
-       cursiv::ValidationRegistry::makeValidationCheck<&V::checkText>(v)});
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkText>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkMap>(v)});
 }
 }  // namespace terraform
