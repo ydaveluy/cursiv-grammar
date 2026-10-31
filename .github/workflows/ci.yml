@@ -1,15 +1,10 @@
 name: Languages
 
+# A push builds the languages it changes; a Cursiv commit that passed its own
+# CI dispatches a build of every language against that commit.
 on:
   push:
     branches: [main]
-  pull_request:
-  workflow_dispatch:
-    inputs:
-      engine_ref:
-        description: Cursiv commit, tag or branch to validate against all languages
-        type: string
-        default: main
   repository_dispatch:
     types: [cursiv-engine-updated]
 
@@ -17,8 +12,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: languages-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: languages-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
 
 jobs:
   select:
@@ -41,17 +36,15 @@ jobs:
         id: select
         env:
           EVENT: ${{ github.event_name }}
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          if [ "$EVENT" = repository_dispatch ]; then EVENT=workflow_dispatch; fi
-          python3 .github/scripts/select_languages.py --event "$EVENT" --base "$BASE" --head "$HEAD"
+          BASE: ${{ github.event.before }}
+          HEAD: ${{ github.sha }}
+        run: python3 .github/scripts/select_languages.py --event "$EVENT" --base "$BASE" --head "$HEAD"
       - name: Resolve Cursiv revision once
         if: steps.select.outputs.count != '0'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ydaveluy/cursiv
-          ref: ${{ inputs.engine_ref || github.event.client_payload.engine_ref || 'main' }}
+          ref: ${{ github.event.client_payload.engine_ref || 'main' }}
           path: .cache/cursiv-engine
           persist-credentials: false
       - name: Record Cursiv revision

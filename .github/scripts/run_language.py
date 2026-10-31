@@ -27,12 +27,12 @@ def run(args):
         raise ValueError('Unknown language directory: ' + args.language)
     if args.jobs < 1:
         raise ValueError('--jobs must be positive')
-    label = f'{args.language}-{args.compiler_label}-{args.engine}'
+    label = f'{args.language}-{args.engine}'
     build = args.build_root.resolve() / label
     results = args.results_dir.resolve()
     results.mkdir(parents=True, exist_ok=True)
-    result = {'language': args.language, 'compiler': args.compiler_label,
-              'engine': args.engine, 'status': 'KO', 'stages': []}
+    result = {'language': args.language, 'engine': args.engine,
+              'status': 'KO', 'stages': []}
     configure = ['cmake', '-S', str(source), '-B', str(build), '-G', 'Ninja',
                  '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_CXX_SCAN_FOR_MODULES=OFF',
                  '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', '-DCURSIV_BUILD_TESTS=OFF',
@@ -69,11 +69,11 @@ def run(args):
                 log = results / (label + '-cleanup.log')
                 log.write_text(str(error) + '\n')
                 result['stages'].append({'stage': 'cleanup', 'exit_code': 1, 'log': log.name})
-        summary = (f"| {args.language} | {args.compiler_label} | {args.engine} | "
+        summary = (f"| {args.language} | {args.engine} | "
                    f"{'✅ OK' if result['status'] == 'OK' else '❌ KO'} |\n")
         if os.environ.get('GITHUB_STEP_SUMMARY'):
             with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as stream:
-                stream.write('| Language | Compiler | Engine | Build + test |\n|---|---|---|---|\n' + summary)
+                stream.write('| Language | Engine | Build + test |\n|---|---|---|\n' + summary)
         (results / (label + '.json')).write_text(json.dumps(result, indent=2) + '\n')
     return 0 if result['status'] == 'OK' else 1
 
@@ -81,7 +81,6 @@ def run(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--language', required=True)
-    parser.add_argument('--compiler-label', required=True, choices=['GCC', 'Clang'])
     parser.add_argument('--cxx', required=True)
     parser.add_argument('--cc', required=True)
     parser.add_argument('--engine', required=True, choices=['LL', 'LR'])

@@ -2,8 +2,8 @@
 """Select independent language CI jobs from the checked-out language inventory.
 
 The checkout supplies languages/* containing both CMakeLists.txt and src/.
-PRs compare merge-base(base, head)..head; pushes compare base..head. Missing
-history selects every language, as do manual dispatches and --force-all.
+Pushes compare base..head. Missing history selects every language, as do a
+Cursiv dispatch and --force-all.
 
 Root README files and doc/, docs/, audit/ are documentation-only. Changes in
 bench/, .github/ or root CMake configuration select everything. Any other
@@ -24,7 +24,7 @@ import sys
 
 
 MAX_GROUP_SIZE = 256
-EVENTS = ("push", "pull_request", "workflow_dispatch")
+EVENTS = ("push", "repository_dispatch")
 
 
 class SelectionError(ValueError):
@@ -101,8 +101,8 @@ def select_languages(
     available = inventory(repo)
     if force_all:
         return result(available, "force-all")
-    if event == "workflow_dispatch":
-        return result(available, "workflow-dispatch")
+    if event == "repository_dispatch":
+        return result(available, "cursiv-dispatch")
 
     base_commit = resolve_commit(repo, base)
     if base_commit is None:
@@ -110,13 +110,6 @@ def select_languages(
     head_commit = resolve_commit(repo, head)
     if head_commit is None:
         return result(available, "head-unavailable")
-    if event == "pull_request":
-        try:
-            base_commit = git(repo, "merge-base", base_commit, head_commit).decode(
-                "ascii"
-            ).strip()
-        except (subprocess.CalledProcessError, OSError):
-            return result(available, "merge-base-unavailable")
 
     try:
         # Disable rename detection so both the removed and added path are
@@ -155,8 +148,8 @@ def select_languages(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base", default="", help="push before SHA or PR base SHA")
-    parser.add_argument("--head", default="HEAD", help="push/PR head SHA")
+    parser.add_argument("--base", default="", help="push before SHA")
+    parser.add_argument("--head", default="HEAD", help="push head SHA")
     parser.add_argument("--event", required=True, choices=EVENTS)
     parser.add_argument("--force-all", action="store_true")
     parser.add_argument("--output", type=Path, help="also write the selection as JSON")

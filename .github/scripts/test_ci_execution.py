@@ -43,14 +43,14 @@ sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
         self.environment.start()
         self.addCleanup(self.environment.stop)
         self.args = argparse.Namespace(repo_root=self.root, language='csv',
-            compiler_label='GCC', engine='LL', cxx='g++-14', cc='gcc-14', jobs=2,
+            engine='LL', cxx='g++-14', cc='gcc-14', jobs=2,
             build_root=self.root / 'build', results_dir=self.root / 'results',
             cursiv_source=self.root / 'engine', cmake_arg=[], cxx_flags='', clean_build=False)
 
     def run_variant(self):
         with contextlib.redirect_stdout(io.StringIO()):
             code = run_language.run(self.args)
-        data = json.loads((self.args.results_dir / 'csv-GCC-LL.json').read_text())
+        data = json.loads((self.args.results_dir / 'csv-LL.json').read_text())
         commands = [json.loads(s) for s in (self.root / 'commands').read_text().splitlines()]
         return code, data, commands
 
@@ -71,7 +71,7 @@ sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
         self.assertEqual(code, 1)
         self.assertEqual(data['status'], 'KO')
         self.assertEqual(len(commands), 1)
-        self.assertTrue((self.args.results_dir / 'csv-GCC-LL-configure.log').exists())
+        self.assertTrue((self.args.results_dir / 'csv-LL-configure.log').exists())
 
     def test_build_failure_cannot_report_success(self):
         with patch.dict(os.environ, {'CI_TEST_BUILD': '2'}):
@@ -91,7 +91,7 @@ sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
 
     def test_cleanup_failure_is_not_a_green_result(self):
         self.args.clean_build = True
-        (self.args.build_root / 'csv-GCC-LL').mkdir(parents=True)
+        (self.args.build_root / 'csv-LL').mkdir(parents=True)
         with patch.object(run_language.shutil, 'rmtree', side_effect=OSError('cleanup failed')):
             code, data, _ = self.run_variant()
         self.assertEqual(code, 1)
@@ -112,26 +112,26 @@ class ReportTests(unittest.TestCase):
         self.root = Path(self.temp.name)
 
     def fill(self, language):
-        for compiler, engine in report.CONFIGS:
-            (self.root / f'{language}-{compiler}-{engine}.json').write_text(json.dumps({
-                'status': 'OK', 'language': language, 'compiler': compiler, 'engine': engine}))
+        for engine in report.ENGINES:
+            (self.root / f'{language}-{engine}.json').write_text(json.dumps({
+                'status': 'OK', 'language': language, 'engine': engine}))
 
     def test_overview_keeps_successful_and_failed_languages(self):
         self.fill('csv')
         self.fill('json')
-        (self.root / 'json-Clang-LR.json').write_text('{"status": "KO"}')
+        (self.root / 'json-LR.json').write_text('{"status": "KO"}')
         text, failed = report.report(['csv', 'json'], self.root)
         self.assertTrue(failed)
-        self.assertIn('| csv | ✅ | ✅ | ✅ | ✅ | ✅ OK |', text)
-        self.assertIn('| json | ✅ | ✅ | ✅ | ❌ | ❌ KO |', text)
+        self.assertIn('| csv | ✅ | ✅ | ✅ OK |', text)
+        self.assertIn('| json | ✅ | ❌ | ❌ KO |', text)
 
     def test_missing_or_truncated_results_are_not_success(self):
         self.fill('csv')
-        (self.root / 'csv-GCC-LL.json').unlink()
-        (self.root / 'csv-GCC-LR.json').write_text('{')
+        (self.root / 'csv-LL.json').unlink()
+        (self.root / 'csv-LR.json').write_text('{')
         text, failed = report.report(['csv'], self.root)
         self.assertTrue(failed)
-        self.assertIn('| csv | ❌ | ❌ | ✅ | ✅ | ❌ KO |', text)
+        self.assertIn('| csv | ❌ | ❌ | ❌ KO |', text)
 
     def test_empty_selection_has_no_failure(self):
         text, failed = report.report([], self.root)

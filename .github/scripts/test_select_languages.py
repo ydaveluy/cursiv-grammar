@@ -69,7 +69,7 @@ class SelectLanguagesTest(unittest.TestCase):
         self.assertEqual(selected["group_2"], [])
         self.assertEqual(selected["count"], 1)
 
-    def test_pr_uses_merge_base_and_push_uses_both_endpoints(self):
+    def test_push_compares_both_endpoints(self):
         self.git("checkout", "-q", "-b", "feature")
         self.write("languages/alpha/src/source.cpp", "// feature\n")
         head = self.commit()
@@ -77,10 +77,6 @@ class SelectLanguagesTest(unittest.TestCase):
         self.write("languages/beta/src/source.cpp", "// target branch advanced\n")
         base = self.commit()
         self.git("checkout", "-q", "feature")
-        self.assertEqual(
-            self.select(base=base, head=head, event="pull_request")["languages"],
-            ["alpha"],
-        )
         self.assertEqual(
             self.select(base=base, head=head, event="push")["languages"],
             ["alpha", "beta"],
@@ -133,15 +129,6 @@ class SelectLanguagesTest(unittest.TestCase):
         self.assertEqual(selected["languages"], ["alpha", "beta"])
         self.assertEqual(selected["reason"], "head-unavailable")
 
-    def test_pr_without_shared_history_selects_every_existing_language(self):
-        self.git("checkout", "-q", "--orphan", "unrelated")
-        self.git("rm", "-r", "-q", "-f", ".")
-        self.port("unrelated")
-        head = self.commit()
-        selected = self.select(head=head, event="pull_request")
-        self.assertEqual(selected["languages"], ["unrelated"])
-        self.assertEqual(selected["reason"], "merge-base-unavailable")
-
     def test_common_paths_select_every_language(self):
         for path in (
             "CMakeLists.txt",
@@ -193,9 +180,9 @@ class SelectLanguagesTest(unittest.TestCase):
         self.assertEqual(self.select()["languages"], [])
         self.assertEqual(selector.inventory(self.repo), ["alpha", "beta"])
 
-    def test_manual_and_forced_runs_select_every_language(self):
+    def test_cursiv_dispatch_and_forced_runs_select_every_language(self):
         self.assertEqual(
-            self.select(event="workflow_dispatch")["languages"], ["alpha", "beta"]
+            self.select(event="repository_dispatch")["languages"], ["alpha", "beta"]
         )
         self.assertEqual(self.select(force_all=True)["reason"], "force-all")
 

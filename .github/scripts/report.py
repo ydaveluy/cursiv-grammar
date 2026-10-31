@@ -6,23 +6,23 @@ import os
 from pathlib import Path
 import sys
 
-CONFIGS = [('GCC', 'LL'), ('GCC', 'LR'), ('Clang', 'LL'), ('Clang', 'LR')]
+ENGINES = ['LL', 'LR']
 
 
 def report(languages, results):
-    rows = ['| Language | GCC LL | GCC LR | Clang LL | Clang LR | Result |',
-            '|---|---|---|---|---|---|']
+    rows = ['| Language | LL | LR | Result |',
+            '|---|---|---|---|']
     failed = False
     for language in languages:
         statuses = []
-        for compiler, engine in CONFIGS:
-            matches = list(results.rglob(f'{language}-{compiler}-{engine}.json'))
+        for engine in ENGINES:
+            matches = list(results.rglob(f'{language}-{engine}.json'))
             try:
                 result = json.loads(matches[0].read_text()) if len(matches) == 1 else {}
             except (OSError, ValueError):
                 result = {}
             ok = (result.get('status') == 'OK' and result.get('language') == language
-                  and result.get('compiler') == compiler and result.get('engine') == engine)
+                  and result.get('engine') == engine)
             statuses.append('✅' if ok else '❌')
         ok = all(s == '✅' for s in statuses)
         failed |= not ok
