@@ -15,7 +15,9 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "bcpl/core/ast.hpp"
-#include "bcpl/generated/Bcpl/Module.hpp"
+#include "bcpl/core/CoreServices.hpp"
+#include "cursiv/core/services/CoreLanguage.hpp"
+#include "section_tags.hpp"
 
 namespace {
 
@@ -26,11 +28,14 @@ int fail(const std::string& what) {
   return 1;
 }
 
-const cursiv::Parser& engine() {
-  static const std::unique_ptr<cursiv::Parser> p =
-      bcpl::generated::Bcpl::create_parser();
-  return *p;
+const bcpl::BcplCoreServices& services() {
+  static const auto language = cursiv::create_language<
+      bcpl::BcplCoreServices, bcpl::BcplSharedCoreServices,
+      bcpl::install_core_module>();
+  return language.language;
 }
+
+const cursiv::Parser& engine() { return *services().parser; }
 
 std::string read_file(const fs::path& path) {
   std::ifstream file(path, std::ios::binary);
@@ -55,6 +60,7 @@ const bcpl::ast::FunctionDef* find_function(const bcpl::ast::Program& program,
 }  // namespace
 
 int main() {
+  if (!bcpl_sections::run(services())) return 1;
   // Richards, BCPL Cintsys/Cintpos manual, chapter 2: radix separators,
   // floating constants, nested comments, and escaped string delimiters.
   for (const char* literal : {"1_234_456", "#B_1011_1100", "#o377",

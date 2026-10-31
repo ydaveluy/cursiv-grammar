@@ -99,7 +99,8 @@ void hai_example_values() {
     return;
 
   const ast::NumLit *version = as<ast::NumLit>(prog->version);
-  check(version != nullptr && version->value == 1.3, "hai.lol version is 1.3");
+  check(version != nullptr && version->text == "1.3" && version->numbar,
+        "hai.lol version is NUMBAR 1.3");
   check(prog->hasKthxbye, "hai.lol closes with KTHXBYE");
   check(prog->statements.size() == 1, "hai.lol has one statement");
   if (prog->statements.size() != 1)
@@ -124,7 +125,8 @@ void full_example_values() {
 
   check(prog->hasKthxbye, "full.lol closes with KTHXBYE");
   const ast::NumLit *version = as<ast::NumLit>(prog->version);
-  check(version != nullptr && version->value == 1.2, "full.lol version is 1.2");
+  check(version != nullptr && version->text == "1.2" && version->numbar,
+        "full.lol version is NUMBAR 1.2");
 
   check(prog->statements.size() == 34, "full.lol has 34 statements");
   if (prog->statements.size() != 34)
@@ -137,7 +139,8 @@ void full_example_values() {
 
   const ast::Declaration *d1 = as<ast::Declaration>(st[1]);
   const ast::NumLit *d1v = d1 != nullptr ? as<ast::NumLit>(d1->init) : nullptr;
-  check(d1 != nullptr && d1->name == "y" && d1v != nullptr && d1v->value == 5.0,
+  check(d1 != nullptr && d1->name == "y" && d1v != nullptr &&
+            d1v->text == "5" && !d1v->numbar,
         "y is declared ITZ 5");
 
   const ast::Comment *c0 = as<ast::Comment>(st[6]);
@@ -159,7 +162,8 @@ void full_example_values() {
   if (a0v != nullptr) {
     const ast::NumLit *l = as<ast::NumLit>(a0v->left);
     const ast::NumLit *r = as<ast::NumLit>(a0v->right);
-    check(l != nullptr && l->value == 1.0 && r != nullptr && r->value == 2.0,
+    check(l != nullptr && l->text == "1" && !l->numbar &&
+              r != nullptr && r->text == "2" && !r->numbar,
           "SUM OF 1 AN 2 reads 1 and 2");
   }
 
@@ -297,6 +301,49 @@ KTHXBYE
   }
 }
 
+void numeric_literal_regressions() {
+  struct Case { std::string text; bool numbar; };
+  const std::vector<Case> cases = {
+      {"0", false}, {"-0", false}, {"1", false}, {"-1", false},
+      {"9007199254740992", false}, {"9007199254740993", false},
+      {"9223372036854775807", false}, {"-9223372036854775808", false},
+      {"00042", false}, {std::string(320, '9'), false},
+      {"1.0", true}, {"-0.0", true}, {"1.", true}, {"-1.", true},
+      {".5", true}, {"-.5", true}, {"1.0000000000000001", true},
+      {"12345678901234567890.123456789", true},
+      {"0." + std::string(320, '0') + "1", true},
+  };
+  for (const auto& test : cases) {
+    const std::string source = "HAI 1.2\nI HAS A n ITZ " + test.text +
+        "\nVISIBLE SUM OF n AN " + test.text + "\nKTHXBYE\n";
+    const auto parsed = parser().parse(source);
+    const auto* program = parsed.value_as<ast::Program>();
+    check(parsed.accepted && !parsed.cst().recovered() &&
+              parsed.diagnostics.empty() && parsed.cst().text() == source &&
+              program && program->statements.size() == 2,
+          "numeric literal document parses without precision conversion");
+    if (!program || program->statements.size() != 2) continue;
+    const auto* declaration = cursiv::ast_cast<ast::Declaration>(program->statements[0]);
+    const auto* literal = declaration ? cursiv::ast_cast<ast::NumLit>(declaration->init) : nullptr;
+    const auto* print = cursiv::ast_cast<ast::PrintBlock>(program->statements[1]);
+    const auto* sum = print && print->items.size() == 1 ?
+        cursiv::ast_cast<ast::BinOp>(print->items[0]) : nullptr;
+    const auto* right = sum ? cursiv::ast_cast<ast::NumLit>(sum->right) : nullptr;
+    check(literal && right && literal->text == test.text && right->text == test.text &&
+              literal->numbar == test.numbar && right->numbar == test.numbar,
+          "NUMBR/NUMBAR category and complete spelling survive both expression contexts");
+    check(declaration && declaration->parent == program && literal && literal->parent == declaration &&
+              print && print->parent == program && sum && sum->parent == print &&
+              right && right->parent == sum,
+          "numeric literal expressions belong to their immediate owners");
+  }
+  for (const std::string_view invalid : {".", "--1", "1.2.3", "1e3"}) {
+    const auto parsed = parser().parse("HAI 1.2\nI HAS A n ITZ " + std::string(invalid) + "\nKTHXBYE\n");
+    check(!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty(),
+          "neighboring malformed numeric initializer is rejected");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -323,6 +370,7 @@ int main() {
   }
 
   native_spec_regressions();
+  numeric_literal_regressions();
   every_example_parses_clean();
   hai_example_values();
   full_example_values();

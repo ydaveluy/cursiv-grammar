@@ -216,10 +216,13 @@ struct OutPatternElem : cursiv::Extends<cursiv::AstNode> {
   string_view iterVar;  // foreach form: the bound iterator
   Expr* source;         // foreach form: 'in' oclExpression
   string_view mapsTo;
+  boolean hasReverseBindings = false;
+  vector<Binding*> reverseBindings;  // simple form only: -> (...)
   vector<Binding*> bindings;
 };
 
 struct OutPattern : cursiv::Extends<cursiv::AstNode> {
+  boolean hasDrop = false;
   vector<OutPatternElem*> elements;
 };
 

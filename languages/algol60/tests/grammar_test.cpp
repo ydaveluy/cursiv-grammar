@@ -17,18 +17,21 @@
 #include "cursiv/test/Check.hpp"
 #include "algol60/core/CoreServices.hpp"
 #include "algol60/core/ast.hpp"
+#include "statement_families.hpp"
 
 namespace {
 
 namespace fs = std::filesystem;
 namespace ast = algol60::ast;
 
-const cursiv::Parser& engine() {
+const auto& language() {
   static const auto language = cursiv::create_language<
       algol60::Algol60CoreServices, algol60::Algol60SharedCoreServices,
       algol60::install_core_module>();
-  return *language.language.parser;
+  return language.language;
 }
+
+const cursiv::Parser& engine() { return *language().parser; }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
@@ -80,8 +83,9 @@ void jensen_ast() {
   CHECK(root != nullptr);
   if (root == nullptr) return;
   CHECK(root->decls.size() == 2);
-  CHECK(root->statements.size() == 1);
-  if (root->decls.size() != 2 || root->statements.size() != 1) return;
+  CHECK(root->statements.size() == 2);
+  if (root->decls.size() != 2 || root->statements.size() != 2) return;
+  CHECK(as<ast::EmptyStmt>(root->statements[1]->stmt) != nullptr);
 
   ast::ProcDecl* sigma = as<ast::ProcDecl>(root->decls[0]);
   CHECK(sigma != nullptr);
@@ -100,13 +104,14 @@ void jensen_ast() {
     CHECK(body != nullptr);
     if (body != nullptr) {
       CHECK(body->decls.size() == 1);
-      CHECK(body->statements.size() == 3);
+      CHECK(body->statements.size() == 4);
       if (body->decls.size() == 1) {
         ast::TypeDecl* sum_decl = as<ast::TypeDecl>(body->decls[0]);
         CHECK(sum_decl != nullptr && sum_decl->type_name == "integer");
         CHECK(sum_decl != nullptr && names_are(sum_decl->names, {"sum"}));
       }
-      if (body->statements.size() == 3) {
+      if (body->statements.size() == 4) {
+        CHECK(as<ast::EmptyStmt>(body->statements[3]->stmt) != nullptr);
         ast::AssignStmt* init =
             as<ast::AssignStmt>(body->statements[0]->stmt);
         CHECK(init != nullptr && init->targets.size() == 1);
@@ -273,10 +278,10 @@ void native_empty_statements_and_division() {
                      static_cast<int>(ast::BinOp::intdiv));
     }
     if (const auto* conditional = cursiv::ast_cast<ast::IfStmt>(node)) {
-      dummy_else |= conditional->hasElse && !conditional->then_branch &&
-                    !conditional->else_branch;
-      if (!conditional->hasElse || conditional->then_branch ||
-          conditional->else_branch)
+      const bool empty_then = as<ast::EmptyStmt>(conditional->then_branch);
+      const bool empty_else = as<ast::EmptyStmt>(conditional->else_branch);
+      dummy_else |= conditional->hasElse && empty_then && empty_else;
+      if (!conditional->hasElse || !empty_then || !empty_else)
         std::fprintf(stderr,
                      "algol60 dummy else AST: hasElse=%d then=%d else=%d\n",
                      conditional->hasElse,
@@ -292,6 +297,7 @@ void native_empty_statements_and_division() {
 }  // namespace
 
 int main() {
+  algol60_tests::statementFamilies(language());
   native_empty_statements_and_division();
   corpus_parses_clean();
   jensen_ast();

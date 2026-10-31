@@ -4,6 +4,11 @@
 #include "audit_regressions.hpp"
 #include "lexical_cases.hpp"
 #include "template_converter_cases.hpp"
+#include "yield_cases.hpp"
+#include "yield_context_cases.hpp"
+#include "arrow_cases.hpp"
+#include "keyword_cases.hpp"
+#include "identifier_cases.hpp"
 // The smoke test of the language: parse every file under example/, the way a
 // workspace would build one.
 
@@ -54,6 +59,11 @@ int main() {
   if (!typescript_lexical_cases(*language.language.parser)) return 1;
   if (!typescript_template_converter_cases::run(*language.language.parser)) return 1;
   if (!assertion_precedence::run(language.language)) return 1;
+  if (!typescript_yield_cases::run(language.language)) return 1;
+  if (!typescript_yield_context_cases::run(language.language)) return 1;
+  if (!typescript_arrow_cases::run(language.language)) return 1;
+  if (!typescript_keyword_cases::run(language.language)) return 1;
+  if (!typescript_identifier_cases::run(language.language)) return 1;
 
   for (const fs::path& path : files) {
     std::ifstream file(path);

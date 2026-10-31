@@ -115,8 +115,23 @@ void UrlValidator::checkComponents(
       accept.error(*url.host, "Malformed URI host.", "url.host")
           .property<&ast::Host::text>();
   }
-  if (url.frag.find('#') != std::string_view::npos)
-    accept.error(url, "A fragment cannot contain an unescaped '#'.", "url.fragment")
+  if (url.path)
+    for (const auto segment : url.path->segments)
+      if (!encoded(segment, ":@")) {
+        accept.error(*url.path, "Path segments need valid URI characters or percent escapes.",
+                     "url.path").property<&ast::Path::segments>();
+        break;
+      }
+  for (const auto* parameter : url.query) {
+    if (!encoded(parameter->key, ":@/?"))
+      accept.error(*parameter, "Query keys need valid URI characters or percent escapes.",
+                   "url.query").property<&ast::SearchParameter::key>();
+    if (!encoded(parameter->value, ":@/?"))
+      accept.error(*parameter, "Query values need valid URI characters or percent escapes.",
+                   "url.query").property<&ast::SearchParameter::value>();
+  }
+  if (!encoded(url.frag, ":@/?"))
+    accept.error(url, "A fragment needs valid URI characters or percent escapes.", "url.fragment")
         .property<&ast::Url::frag>();
 }
 

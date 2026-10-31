@@ -135,6 +135,8 @@ struct Stringtemplate : cursiv::GrammarSpec {
   struct Conditional;
   struct ArgList;
   struct Arg;
+  struct BuiltinArg;
+  struct BuiltinArgs;
   template <bool Nested> struct Element;
   struct ExprTag;
   template <bool Nested> struct IfBranch;
@@ -202,10 +204,24 @@ struct Stringtemplate : cursiv::GrammarSpec {
   struct QualifiedName : rule<option(SP + lit<"/">) + SP + ref<ID> +
                               many(SP + lit<"/"> + SP + ref<ID>)> {};
 
-  struct CallExpr : rule<assign<&ast::CallExpr::name>(ref<QualifiedName>) +
-                         (SP + lit<"(">)+option(
-                             assign<&ast::CallExpr::args>(ref<ArgList>)) +
-                         (SP + lit<")">)> {};
+  // Only the lookahead uses keywords. The call itself still reads the same
+  // QualifiedName/ID, and longer identifiers keep the ordinary argument list.
+  static constexpr auto BuiltinHead =
+      SP + (kw<"first"> | kw<"last"> | kw<"rest"> | kw<"trunc"> |
+            kw<"strip"> | kw<"trim"> | kw<"length"> | kw<"strlen"> |
+            kw<"reverse">) + SP + lit<"(">;
+
+  // Native builtins take expr?, including a complete zipped map expression
+  // as one argument. Preserve the public ArgList/Arg/CallExpr representation.
+  struct BuiltinArg : rule<assign<&ast::Arg::value>(ref<MapExpr>)> {};
+  struct BuiltinArgs : rule<append<&ast::ArgList::items>(ref<BuiltinArg>)> {};
+  template <class Arguments>
+  static constexpr auto callBody =
+      assign<&ast::CallExpr::name>(ref<QualifiedName>) +
+      (SP + lit<"(">) + option(assign<&ast::CallExpr::args>(ref<Arguments>)) +
+      (SP + lit<")">);
+  struct CallExpr : rule<(&BuiltinHead + callBody<BuiltinArgs>) |
+                         (!BuiltinHead + callBody<ArgList>)> {};
 
   struct SuperCallExpr
       : rule<(SP + kw<"super">)+(SP + lit<".">)+(

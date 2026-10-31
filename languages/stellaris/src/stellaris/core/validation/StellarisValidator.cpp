@@ -22,8 +22,9 @@ void StellarisValidator::checkOperator(
 void StellarisValidator::checkDocument(
     const ast::Document& node, cursiv::ValidationAcceptor& accept) const {
   for (const auto& item : node.items)
-    if (!cursiv::ast_cast<ast::KeyValue>(item))
-      accept.error(node, "Expected a key/value pair.", "stellaris.document-item");
+    if (!cursiv::ast_cast<ast::KeyValue>(item) &&
+        !cursiv::ast_cast<ast::ParameterDefinition>(item))
+      accept.error(node, "Expected an object entry.", "stellaris.document-item");
 }
 void register_validation_checks(StellarisCoreServices& services) {
   services.validator = std::make_unique<const StellarisValidator>(services);

@@ -91,6 +91,17 @@ struct RawText : cursiv::Extends<ComponentValue> {
   string_view text;
 };
 
+// A custom property's unevaluated source, with Sass interpolations retained.
+struct RawCustomValue : cursiv::Extends<ComponentValue> {
+  vector<ComponentValue*> parts;
+};
+
+struct RawCustomGroup : cursiv::Extends<ComponentValue> {
+  string_view open;
+  vector<ComponentValue*> parts;
+  string_view close;
+};
+
 struct Interpolation : cursiv::Extends<ComponentValue> {
   string_view nsPrefix;
   string_view innerNsPrefix;

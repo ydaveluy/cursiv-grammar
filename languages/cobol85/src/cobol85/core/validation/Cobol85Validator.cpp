@@ -7,6 +7,12 @@
 
 namespace cobol85 {
 
+void Cobol85Validator::checkCommunication(const ast::CommunicationEntry& entry,
+                                         cursiv::ValidationAcceptor& accept) const {
+  if (entry.records.empty())
+    accept.error(entry, "A communication description needs a record.", "cobol85.communication-record");
+}
+
 void Cobol85Validator::checkEndName(const ast::ProgramUnit& p,
                                     cursiv::ValidationAcceptor& accept) const {
   if (!p.hasEndProgram) return;
@@ -30,7 +36,8 @@ void Cobol85Validator::checkEndName(const ast::ProgramUnit& p,
 void register_validation_checks(Cobol85CoreServices& services) {
   services.validator = std::make_unique<const Cobol85Validator>(services);
   services.validationRegistry->registerChecks(
-      {cursiv::ValidationRegistry::makeValidationCheck<&Cobol85Validator::checkEndName>(
+      {cursiv::ValidationRegistry::makeValidationCheck<&Cobol85Validator::checkCommunication>(*services.validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&Cobol85Validator::checkEndName>(
           *services.validator)});
 }
 

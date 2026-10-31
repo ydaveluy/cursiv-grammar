@@ -392,13 +392,13 @@ struct Aspectj : cursiv::GrammarSpec {
       : rule<create<ast::FloatLit>(
                  assign<&ast::FloatLit::text>(ref<FLOAT_LITERAL> | ref<HEX_FLOAT_LITERAL>))> {};
   struct CharLiteral
-      : rule<create<ast::CharLit>(assign<&ast::CharLit::text>(ref<CHAR_LITERAL>))> {};
+      : rule<assign<&ast::CharLit::text>(ref<CHAR_LITERAL>)> {};
   struct StringLiteral
-      : rule<create<ast::StringLit>(assign<&ast::StringLit::text>(ref<STRING_LITERAL>))> {};
+      : rule<assign<&ast::StringLit::text>(ref<STRING_LITERAL>)> {};
   struct TextBlockLiteral
-      : rule<create<ast::TextBlockLit>(assign<&ast::TextBlockLit::text>(ref<TEXT_BLOCK>))> {};
+      : rule<assign<&ast::TextBlockLit::text>(ref<TEXT_BLOCK>)> {};
   struct BooleanLiteral
-      : rule<create<ast::BoolLit>(assign<&ast::BoolLit::text>(ref<BOOL_LITERAL>))> {};
+      : rule<assign<&ast::BoolLit::text>(ref<BOOL_LITERAL>)> {};
 
   // -- expressions ----
 
@@ -571,7 +571,7 @@ struct Aspectj : cursiv::GrammarSpec {
                   assign<&ast::LambdaParam::type>(ref<TypeType>)) +
                  assign<&ast::LambdaParam::name>(ref<Identifier>))> {};
   struct BareLambdaParam
-      : rule<create<ast::LambdaParam>(assign<&ast::LambdaParam::name>(ref<Identifier>))> {};
+      : rule<assign<&ast::LambdaParam::name>(ref<Identifier>)> {};
 
   struct LambdaExpr
       : rule<create<ast::LambdaExpr>(

@@ -16,6 +16,7 @@
 #include "erlang/core/ErlangGrammar.hpp"
 #include "erlang/core/ast.hpp"
 #include "port_audit_cases.hpp"
+#include "primary_chains.hpp"
 
 namespace {
 
@@ -129,6 +130,7 @@ int main() {
   const auto language = cursiv::create_language<
       erlang::ErlangCoreServices, erlang::ErlangSharedCoreServices,
       erlang::install_core_module>();
+  if (!erlang_chains::run(language.language)) return 1;
 
   for (const char* source : {
       "f() -> fun f/0.", "-module(sample).", "-author foo, bar.",

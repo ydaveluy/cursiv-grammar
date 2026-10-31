@@ -69,9 +69,20 @@ struct NoteDecl : cursiv::Extends<Element> {
   string_view text;  // multiline form retains its newline and end-note delimiter
 };
 
+struct ContainerDecl : cursiv::Extends<Element> {
+  string_view kind;  // package or namespace
+  string_view name;
+  string_view displayName;
+  string_view stereotype;
+  string_view color;
+  vector<Element*> elements;
+  boolean hasClosingBrace = false;
+};
+
 struct Document : cursiv::Extends<cursiv::AstNode> {
   string_view name;  // the identifier after @startuml, empty when absent
   vector<Element*> elements;
+  boolean hasRootClose = false;
 };
 
 }  // namespace plantuml::ast

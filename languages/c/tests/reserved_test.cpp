@@ -68,6 +68,7 @@ int main() {
   expect("enum E unsigned int { A };\n", 1);
   expect("__attribute__((const)) int f(void);\n", 0);
   expect("[[gnu::const]] int f(void);\n", 0);
+  expect("[[v::tokens(const, return, if)]] int n;\n", 0);
   expect("struct alignas { int value; };\n", 1);
   expect_refused("int while;\n");
   expect("struct if { int a; };\n", 1);

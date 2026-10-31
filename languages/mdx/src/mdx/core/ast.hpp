@@ -143,7 +143,9 @@ struct AxisSpec : cursiv::Extends<cursiv::AstNode> {
   boolean nonEmpty;
   Expr* expr;
   vector<Name*> dimProps;
+  Expr* having;
   string_view axisName;
+  Expr* axisExpression;
 };
 
 struct CellProperty : cursiv::Extends<cursiv::AstNode> {

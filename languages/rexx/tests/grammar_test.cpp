@@ -1,4 +1,5 @@
 #include "native_regressions.hpp"
+#include "parse_options.hpp"
 #include <cstdio>
 #include <optional>
 
@@ -54,7 +55,7 @@ std::optional<cursiv::ParseResult> parse_clean(
     std::fprintf(stderr, "rexx: %s built no block\n", path.c_str());
     ++g_failures;
   }
-  return std::move(result);
+  return result;
 }
 
 std::string slurp(const char* path) {
@@ -284,6 +285,7 @@ int main() {
       rexx::install_core_module>();
 
   if (!rexx_native_regressions(language)) return 1;
+  if (!rexx_parse_options::run(language.language)) return 1;
 
   const std::string example1 = CURSIV_EXAMPLE_DIR "/example1.rex";
   const std::string bitstring = CURSIV_EXAMPLE_DIR "/test_bitstring.rex";

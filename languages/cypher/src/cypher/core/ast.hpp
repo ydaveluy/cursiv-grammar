@@ -148,6 +148,15 @@ struct GroupedPatternElem : cursiv::Extends<PatternElem> {
   Quantifier* quantifier;
 };
 
+struct ShortestPattern : cursiv::Extends<PatternElem> {
+  boolean all;
+  PatternElem* inner;
+};
+struct ShortestPathExpr : cursiv::Extends<Expr> {
+  boolean all;
+  PatternElem* pattern;
+};
+
 struct PatternPart : cursiv::Extends<cursiv::AstNode> {
   string_view variable;  // `p =` -- empty when unbound
   PatternElem* elem;
@@ -252,10 +261,30 @@ struct IsNullExpr : cursiv::Extends<Expr> {
 
 // Reading and updating clauses.
 
+struct MatchHint : cursiv::Extends<cursiv::AstNode> {};
+struct IndexHint : cursiv::Extends<MatchHint> {
+  string_view variable;
+  string_view label;
+  string_view property;
+};
+struct JoinHint : cursiv::Extends<MatchHint> { vector<string_view> variables; };
+struct ScanHint : cursiv::Extends<MatchHint> {
+  string_view variable;
+  string_view label;
+};
+
 struct MatchClause : cursiv::Extends<cursiv::AstNode> {
   boolean optional_;
   Pattern* pattern;
+  vector<MatchHint*> hints;
   Expr* where_;
+};
+
+struct LoadCsvClause : cursiv::Extends<cursiv::AstNode> {
+  boolean headers;
+  Expr* source;
+  string_view variable;
+  StringLit* fieldTerminator;
 };
 
 struct UnwindClause : cursiv::Extends<cursiv::AstNode> {
@@ -356,9 +385,19 @@ struct ReturnClause : cursiv::Extends<cursiv::AstNode> {
   ProjectionBody* body;
 };
 
+struct ForeachClause;
+using UpdatingStatement = std::variant<CreateClause*, MergeClause*, DeleteClause*,
+    SetClause*, RemoveClause*, ForeachClause*>;
+struct ForeachClause : cursiv::Extends<cursiv::AstNode> {
+  string_view variable;
+  Expr* source;
+  vector<UpdatingStatement> updates;
+};
+
 using Statement =
     std::variant<MatchClause*, UnwindClause*, QueryCallClause*, CreateClause*,
-                 MergeClause*, DeleteClause*, SetClause*, RemoveClause*>;
+                 MergeClause*, DeleteClause*, SetClause*, RemoveClause*,
+                 LoadCsvClause*, ForeachClause*>;
 
 // One WITH-bounded segment of a query: statements in source order, then the
 // WITH that closes the segment (null on the final part, which may instead
@@ -391,8 +430,14 @@ struct StandaloneCall : cursiv::Extends<cursiv::AstNode> {
   Expr* where_;  // filters the yielded rows; only with yieldItems
 };
 
+struct BulkImportQuery : cursiv::Extends<cursiv::AstNode> {
+  optional<string_view> batchSize;
+  LoadCsvClause* load;
+  SingleQuery* query;
+};
+
 struct Script : cursiv::Extends<cursiv::AstNode> {
-  std::variant<RegularQuery*, StandaloneCall*> query;
+  std::variant<RegularQuery*, StandaloneCall*, BulkImportQuery*> query;
 };
 
 }  // namespace cypher::ast

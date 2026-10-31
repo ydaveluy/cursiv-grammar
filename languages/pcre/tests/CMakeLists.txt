@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every document under example/ parses clean, and one
 # pattern is read back field by field.
 add_executable(pcre_grammar_test grammar_test.cpp)
-target_link_libraries(pcre_grammar_test PRIVATE pcreCore)
+target_link_libraries(pcre_grammar_test PRIVATE pcreCore cursiv::test)
 target_compile_definitions(pcre_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

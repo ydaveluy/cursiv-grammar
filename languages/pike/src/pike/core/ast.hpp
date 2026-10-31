@@ -357,6 +357,11 @@ struct Variables : cursiv::Extends<Definition> {
   vector<VariableDecl *> names;
 };
 
+struct Typedef : cursiv::Extends<Definition> {
+  Type* type;
+  string_view name;
+};
+
 struct ConstantDecl : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   Expr *value;

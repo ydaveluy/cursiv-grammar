@@ -13,6 +13,7 @@
 #include "guido/core/CoreServices.hpp"
 #include "guido/core/ast.hpp"
 #include "native_cases.hpp"
+#include "score_shape_cases.hpp"
 
 namespace {
 
@@ -72,6 +73,10 @@ int main() {
 
   int total = 0;
   int failures = native_regressions::run(language);
+  if (failures) std::fprintf(stderr, "guido: native_regressions failures=%d\n", failures);
+  const bool shape = score_shape_cases::run(language);
+  if (!shape) std::fprintf(stderr, "guido: score_shape_cases failed\n");
+  failures += !shape;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
     for (const auto& entry : std::filesystem::directory_iterator(dir)) {
       if (!entry.is_regular_file() || entry.path().extension() != ".gmn")
@@ -92,6 +97,13 @@ int main() {
       // on an otherwise-accepted parse (an out-of-range number, say), which
       // recovered() alone would not catch.
       const cursiv::ParseResult result = language.language.parser->parse(text);
+      if (path.filename() == "juxtaposed.gmn") {
+        if (result.accepted && !result.cst().recovered() && result.diagnostics.empty()) {
+          fail(path, "native-invalid juxtaposed scores accepted");
+          ++failures;
+        }
+        continue;
+      }
       if (result.cst().recovered()) {
         fail(path, "the parse was recovered");
         ++failures;
@@ -116,6 +128,6 @@ int main() {
     return 1;
   }
   if (failures > 0) return 1;
-  std::printf("guido: %d example(s) parse\n", total);
+  std::printf("guido: %d example(s) checked\n", total);
   return 0;
 }

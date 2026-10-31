@@ -100,7 +100,7 @@ inline void run() {
       }
     CHECK(found);
   }
-  for (const std::string ending : {std::string("\r\n"), std::string("\r"), std::string("\n")}) {
+  for (const std::string& ending : {std::string("\r\n"), std::string("\r"), std::string("\n")}) {
     const std::string source = "[Native]" + ending +
         "key=first\\ ; folded comment" + ending + "  second" + ending +
         "token=%str;key%,tail ; comment" + ending + "next=last" + ending;

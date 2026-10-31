@@ -6,6 +6,14 @@
 
 namespace bcpl {
 
+inline constexpr auto section_tag = [](std::string_view text) {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (text == "{" || text == "}") return Result::ok({});
+  if (text.size() < 2 || text[0] != '$' || (text[1] != '(' && text[1] != ')'))
+    return Result::err("Incomplete BCPL section bracket.");
+  return Result::ok(text.substr(2));
+};
+
 struct Bcpl : cursiv::GrammarSpec {
   // Identifiers absorb '.' and digits (`a.b`, `x1`), so a keyword must not
   // be followed by any of those bytes either, or "IFx" would still lex as
@@ -90,10 +98,13 @@ struct Bcpl : cursiv::GrammarSpec {
       lit<"-:="> | lit<"#+:="> | lit<"#-:="> | lit<"#~:="> |
       lit<"<<:="> | lit<">>:="> | lit<"&:="> |
       lit<"|:="> | kw<"EQV:="> | kw<"NEQV:="> | kw<"XOR:=">;
-  // `$(`/`{` and `$)`/`}` are alternate spellings of the same bracket:
-  // BCPL does not require a block's closer to match its opener's spelling.
-  static constexpr auto OB = lit<"$("> | lit<"{">;
-  static constexpr auto CB = lit<"$)"> | lit<"}">;
+  static constexpr auto TagChar = cr<"a-zA-Z0-9_"> | lit<".", !lit<".">>;
+  struct OPEN_SECTION : terminal<as<section_tag>(
+      lit<"{"> | (lit<"$("> + many(TagChar)))> {};
+  struct CLOSE_SECTION : terminal<as<section_tag>(
+      lit<"}"> | (lit<"$)"> + many(TagChar)))> {};
+  static constexpr auto OB = ref<OPEN_SECTION>;
+  static constexpr auto CB = ref<CLOSE_SECTION>;
   static constexpr auto Bpat =
       ref<SignedNumber> | kw<"TRUE"> | kw<"FALSE"> | lit<"?"> | ref<CharConst>;
   // One or more semicolons, or nothing where a newline sits in the gap:
@@ -175,8 +186,7 @@ struct Bcpl : cursiv::GrammarSpec {
              | ref<Fname>> {};
 
   struct PatternTermFirst
-      : rule<create<ast::PatternTerm>(
-            assign<&ast::PatternTerm::term>(ref<Sp>))> {};
+      : rule<assign<&ast::PatternTerm::term>(ref<Sp>)> {};
   struct PatternTermJoined
       : rule<create<ast::PatternTerm>(
             option(assign<&ast::PatternTerm::join>(lit<","> | lit<"|">)) +
@@ -347,18 +357,18 @@ struct Bcpl : cursiv::GrammarSpec {
                    assign<&ast::ManifestItem::value>(ref<ConstExpr>)))> {};
 
   struct ManifestDecl
-      : rule<kw<"MANIFEST"> + OB +
-            append<&ast::ManifestDecl::items>(ref<ManifestItem>) +
-            many(Semi +
-                 append<&ast::ManifestDecl::items>(ref<ManifestItem>)) +
-            CB> {};
+      : rule<kw<"MANIFEST"> + assign<&ast::ManifestDecl::openTag>(OB) +
+            option(append<&ast::ManifestDecl::items>(ref<ManifestItem>) +
+                   many(Semi + append<&ast::ManifestDecl::items>(ref<ManifestItem>)) +
+                   option(lit<";">)) +
+            assign<&ast::ManifestDecl::closeTag>(CB)> {};
 
   struct StaticDecl
-      : rule<kw<"STATIC"> + OB +
-            append<&ast::StaticDecl::items>(ref<ManifestItem>) +
-            many(Semi +
-                 append<&ast::StaticDecl::items>(ref<ManifestItem>)) +
-            CB> {};
+      : rule<kw<"STATIC"> + assign<&ast::StaticDecl::openTag>(OB) +
+            option(append<&ast::StaticDecl::items>(ref<ManifestItem>) +
+                   many(Semi + append<&ast::StaticDecl::items>(ref<ManifestItem>)) +
+                   option(lit<";">)) +
+            assign<&ast::StaticDecl::closeTag>(CB)> {};
 
   struct GlobalItem
       : rule<create<ast::GlobalItem>(
@@ -367,10 +377,11 @@ struct Bcpl : cursiv::GrammarSpec {
                    assign<&ast::GlobalItem::value>(ref<ConstExpr>)))> {};
 
   struct GlobalDecl
-      : rule<kw<"GLOBAL"> + OB +
-            append<&ast::GlobalDecl::items>(ref<GlobalItem>) +
-            many(Semi + append<&ast::GlobalDecl::items>(ref<GlobalItem>)) +
-            CB> {};
+      : rule<kw<"GLOBAL"> + assign<&ast::GlobalDecl::openTag>(OB) +
+            option(append<&ast::GlobalDecl::items>(ref<GlobalItem>) +
+                   many(Semi + append<&ast::GlobalDecl::items>(ref<GlobalItem>)) +
+                   option(lit<";">)) +
+            assign<&ast::GlobalDecl::closeTag>(CB)> {};
 
   struct SimpleDef
       : rule<append<&ast::SimpleDef::names>(ref<Identifier>) +
@@ -456,11 +467,11 @@ struct Bcpl : cursiv::GrammarSpec {
 
   struct CompoundStmt
       : rule<create<ast::CompoundStmt>(
-            OB +
+            assign<&ast::CompoundStmt::openTag>(OB) +
             option(append<&ast::CompoundStmt::commands>(ref<Command>) +
                    many(Semi +
                         append<&ast::CompoundStmt::commands>(ref<Command>))) +
-            CB)> {};
+            assign<&ast::CompoundStmt::closeTag>(CB))> {};
 
   struct SwitchonStmt
       : rule<create<ast::SwitchonStmt>(
@@ -471,13 +482,13 @@ struct Bcpl : cursiv::GrammarSpec {
 
   struct Block
       : rule<create<ast::Block>(
-            OB + append<&ast::Block::declarations>(ref<Declaration>) +
+            assign<&ast::Block::openTag>(OB) +
+            append<&ast::Block::declarations>(ref<Declaration>) +
             many(Semi + append<&ast::Block::declarations>(ref<Declaration>)) +
-            Semi +
-            option(append<&ast::Block::commands>(ref<Command>) +
-                   many(Semi +
-                        append<&ast::Block::commands>(ref<Command>))) +
-            CB)> {};
+            option(Semi +
+                   option(append<&ast::Block::commands>(ref<Command>) +
+                          many(Semi + append<&ast::Block::commands>(ref<Command>)))) +
+            assign<&ast::Block::closeTag>(CB))> {};
 
   // Every form `REPEAT`/`REPEATUNTIL`/`REPEATWHILE` may suffix, one rule.
   struct BaseStmt

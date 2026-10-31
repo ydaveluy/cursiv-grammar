@@ -8,7 +8,7 @@ namespace ocl::ast {
 
 struct Type : cursiv::Extends<cursiv::AstNode> {};
 
-// Sequence/Set/Bag/OrderedSet/Ref (one arg) and Map/Function (two).
+// Sequence/Set/Bag/OrderedSet/Collection/Ref (one arg), Map/Function (two).
 struct ParamType : cursiv::Extends<Type> {
   string_view keyword;
   vector<Type*> args;
@@ -16,6 +16,11 @@ struct ParamType : cursiv::Extends<Type> {
 
 struct NamedType : cursiv::Extends<Type> {
   string_view name;
+};
+
+struct IdentOptType;
+struct TupleType : cursiv::Extends<Type> {
+  vector<IdentOptType*> parts;
 };
 
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
@@ -37,6 +42,15 @@ struct FloatLit : cursiv::Extends<Expr> {
 
 struct StringLit : cursiv::Extends<Expr> {
   string_view value;
+};
+
+struct TuplePart : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  Type* type = nullptr;
+  Expr* value;
+};
+struct TupleLiteral : cursiv::Extends<Expr> {
+  vector<TuplePart*> parts;
 };
 
 // `Color::red`: an enum literal's qualifier and member lex as one token.

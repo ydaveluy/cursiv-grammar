@@ -2,9 +2,8 @@
 // no recovery, no diagnostics -- and builds a Program at the root; a few
 // field values are read back to catch a silently-wrong converter, and one
 // authored document (tests/extras.bicep, never counted as example corpus)
-// exercises constructs no upstream file reaches. A deliberately malformed
-// document, kept as a string literal here rather than a file, must be
-// refused.
+// exercises constructs no upstream file reaches. Targeted helpers also check
+// native syntax boundaries and complete AST ownership.
 
 #include <cstdio>
 #include <filesystem>
@@ -18,6 +17,8 @@
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "bicep/core/CoreServices.hpp"
 #include "bicep/core/ast.hpp"
+#include "postfix_cases.hpp"
+#include "declarations_types.hpp"
 
 namespace {
 
@@ -49,6 +50,8 @@ int main() {
       bicep::BicepCoreServices, bicep::BicepSharedCoreServices,
       bicep::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
+  if (!bicep_postfix::run(language.language)) return 1;
+  if (!bicep_declarations_types::run(language.language)) return 1;
 
   // Microsoft Parser.Program accepts either a newline or EOF after a
   // declaration; Lexer.ScanString accepts a dollar not followed by `{`.
@@ -194,7 +197,7 @@ int main() {
 
   // -- The authored document, exercising constructs no example/ file
   // reaches: bool/union/object/tuple/paren/named types, a lambda, string
-  // escapes, a multiline string, the member ':' form. ----
+  // escapes, a multiline string, nested-resource access. ----
   {
     const std::string text = read(fs::path(CURSIV_TEST_DIR) / "extras.bicep");
     const cursiv::ParseResult result = parser.parse(text);
@@ -229,13 +232,23 @@ int main() {
       failures += fail("extras.bicep: && / || / ?? precedence lost its levels");
   }
 
-  // -- A malformed document (no NL+ before an object's first property):
-  // the CST must report recovery or a diagnostic. ----
+  // The native parser accepts both newline-separated and inline objects.
   {
-    const std::string bad = "var x = {\n  a: 1\n}\nvar y = { a: 1 }\n";
-    const cursiv::ParseResult result = parser.parse(bad);
-    if (!result.cst().recovered() && result.diagnostics.empty())
-      failures += fail("a single-line object with a property should be refused");
+    const std::string source = "var x = {\n  a: 1\n}\nvar y = { a: 1 }\n";
+    const auto result = parser.parse(source);
+    const auto* program = as<ast::Program>(result.value);
+    bool valid = result.accepted && !result.cst().recovered() &&
+                 result.diagnostics.empty() && program && program->body.size() == 2;
+    if (program && program->body.size() == 2)
+      for (const auto* statement : program->body) {
+        const auto* variable = as<ast::VariableDecl>(statement);
+        const auto* object = variable ? as<ast::ObjectExpr>(variable->value) : nullptr;
+        const auto* property = object && object->properties.size() == 1 ? object->properties[0] : nullptr;
+        const auto* number = property ? as<ast::NumberLit>(property->value) : nullptr;
+        valid &= property && property->name == "a" && number && number->text == "1" &&
+                 object->parent == variable && property->parent == object && number->parent == property;
+      }
+    if (!valid) failures += fail("native multiline and inline objects must retain their property/value AST");
   }
 
   if (failures > 0) return 1;

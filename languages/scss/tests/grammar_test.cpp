@@ -1,5 +1,6 @@
 #include "native_followup.hpp"
 #include "extend_cases.hpp"
+#include "custom_property_cases.hpp"
 #include <cstdio>
 
 #include "cursiv/core/parser/Parser.hpp"
@@ -138,6 +139,7 @@ int main() {
 
   if (!native_followup::run(language)) return 1;
   if (!scss_extend_cases::run(*language.language.parser)) return 1;
+  if (!scss_custom_cases::run(language.language)) return 1;
 
   int failures = 0;
   int count = 0;

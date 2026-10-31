@@ -2,6 +2,7 @@
 // workspace would.
 
 #include <cstdio>
+#include "raw_layout_cases.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -28,6 +29,7 @@ int main() {
   const auto language = cursiv::create_language<
       csharp::CSharpCoreServices, csharp::CSharpSharedCoreServices,
       csharp::install_core_module>();
+  csharp_raw_layout::run(language.language);
 
   {
     const auto result = language.language.parser->parse("class C { int value = 8 >> 1 >> 1 < 5; }");
@@ -235,5 +237,5 @@ int main() {
   if (count == 0) return fail("no example files found");
 
   std::printf("csharp: %d examples parse clean\n", count);
-  return 0;
+  return cursiv::test::report("csharp_grammar_test");
 }

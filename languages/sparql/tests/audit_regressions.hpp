@@ -31,7 +31,11 @@ inline const ast::Triple *first_triple(const ast::GroupGraphPattern *pattern) {
   return nullptr;
 }
 inline bool run() {
-  const auto parser = sparql::generated::Sparql::create_parser();
+  const auto services =
+      cursiv::create_language<sparql::SparqlCoreServices,
+                              sparql::SparqlSharedCoreServices,
+                              sparql::install_core_module>();
+  const auto& parser = services.language.parser;
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) {

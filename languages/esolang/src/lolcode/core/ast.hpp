@@ -75,7 +75,10 @@ struct BoolLit : cursiv::Extends<Expr> {
 struct NoobLit : cursiv::Extends<Expr> {};
 
 struct NumLit : cursiv::Extends<Expr> {
-  float64 value;
+  // Keep precision and the native NUMBR/NUMBAR distinction. Their numeric
+  // ranges and evaluation belong to the host implementation.
+  string_view text;
+  boolean numbar;
 };
 
 struct StrLit : cursiv::Extends<Expr> {

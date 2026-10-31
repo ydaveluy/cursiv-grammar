@@ -6,6 +6,7 @@
 #include "dart2/core/CoreServices.hpp"
 #include "dart2/core/ast.hpp"
 #include "modern_cases.hpp"
+#include "uri_adjacency_cases.hpp"
 // Dart2 end to end: every document under example/ and tests/ parses clean
 // (no repair, no diagnostics) into a CompilationUnit.
 
@@ -372,6 +373,12 @@ static int audit_regression() {
 }
 
 int main() {
+  {
+    const auto language = cursiv::create_language<
+        dart2::Dart2CoreServices, dart2::Dart2SharedCoreServices,
+        dart2::install_core_module>();
+    CHECK(dart2_uri_adjacency::run(language.language));
+  }
   CHECK(dart2_audit::modern_cases(engine()));
   if (const int line = audit_regression(); line != 0) {
     std::fprintf(stderr, "audit regression failed at line %d\n", line);

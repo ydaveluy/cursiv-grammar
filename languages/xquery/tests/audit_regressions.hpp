@@ -78,7 +78,7 @@ inline bool run() {
     check(!invalid.accepted || invalid.cst().recovered() || !invalid.diagnostics.empty(),
           "digit separators must occur between digits");
   }
-  for (const std::string source : {std::string("0x8000000000000000"),
+  for (const std::string& source : {std::string("0x8000000000000000"),
                                   std::string("0b1") + std::string(63, '0')}) {
     const auto overflow = parser->parse(source);
     check(!overflow.diagnostics.empty(),

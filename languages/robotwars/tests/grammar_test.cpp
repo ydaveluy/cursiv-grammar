@@ -222,6 +222,80 @@ void native_constraints(const World& world) {
   }
 }
 
+// A condition controls the next instruction, even across comment-only lines.
+// Keep these comments on the condition and later trailing comments in Program.
+void comments_before_controlled_instruction(const World& world) {
+  for (const std::string source : {
+           "IF A=1\n;first\n2 TO B\n",
+           "IF A=1 ;first\n\n;second\n2 TO B\n",
+           "IF A=1, ;first\n2 TO B ;after\n",
+           "IF A=1.\n;first\n2 TO B\n"}) {
+    const auto parsed = world.language.language.parser->parse(source);
+    CHECK(parsed.accepted && parsed.diagnostics.empty() &&
+          !parsed.cst().recovered() && parsed.cst().text() == source);
+    const auto* program = parsed.value_as<ast::Program>();
+    CHECK(program && !program->items.empty());
+    if (!program || program->items.empty()) continue;
+    const auto* condition = as<ast::IfStatement>(program->items[0]);
+    CHECK(condition && condition->parent == program);
+    if (!condition) continue;
+    CHECK(condition->comments.size() ==
+          (source.find(";second") == std::string::npos ? 1 : 2));
+    if (!condition->comments.empty()) {
+      CHECK(condition->comments[0]->text == ";first");
+      CHECK(condition->comments[0]->parent == condition);
+    }
+    const auto* body = as<ast::ToStatement>(condition->body);
+    const auto* value = body ? as<ast::NumberLit>(body->value) : nullptr;
+    CHECK(body && body->parent == condition && body->targets.size() == 1 &&
+          body->targets[0] == ast::Register::b);
+    CHECK(value && value->value == 2 && value->parent == body);
+    if (source.find(";after") != std::string::npos) {
+      CHECK(program->items.size() == 2);
+      const auto* after = program->items.size() == 2
+                              ? as<ast::Comment>(program->items[1]) : nullptr;
+      CHECK(after && after->text == ";after" && after->parent == program);
+    } else {
+      CHECK(program->items.size() == 1);
+    }
+  }
+  for (const std::string prefix : {"< 1", "> 1", "=", "#"}) {
+    const std::string source = prefix + " ;guard\n;body\n2 TO A\n";
+    const auto parsed = world.language.language.parser->parse(source);
+    CHECK(parsed.accepted && parsed.diagnostics.empty() &&
+          !parsed.cst().recovered() && parsed.cst().text() == source);
+    const auto* program = parsed.value_as<ast::Program>();
+    const auto* guard = program && program->items.size() == 1
+                            ? as<ast::AccumStatement>(program->items[0]) : nullptr;
+    CHECK(guard && guard->comments.size() == 2 && guard->parent == program);
+    if (!guard || guard->comments.size() != 2) continue;
+    CHECK(guard->comments[0]->text == ";guard" &&
+          guard->comments[1]->text == ";body");
+    for (const auto* comment : guard->comments) CHECK(comment->parent == guard);
+    CHECK(as<ast::ToStatement>(guard->body) && guard->body->parent == guard);
+    CHECK((guard->operand != nullptr) == (prefix == "< 1" || prefix == "> 1"));
+  }
+  {
+    const std::string source =
+        "IF A=1\n;outer\nIF B=2\n;inner\n3 TO C\n";
+    const auto parsed = world.language.language.parser->parse(source);
+    CHECK(parsed.accepted && parsed.diagnostics.empty() && !parsed.cst().recovered());
+    const auto* program = parsed.value_as<ast::Program>();
+    const auto* outer = program && program->items.size() == 1
+                            ? as<ast::IfStatement>(program->items[0]) : nullptr;
+    const auto* inner = outer ? as<ast::IfStatement>(outer->body) : nullptr;
+    CHECK(outer && outer->comments.size() == 1 && inner &&
+          inner->comments.size() == 1 && inner->parent == outer);
+    CHECK(inner && as<ast::ToStatement>(inner->body) &&
+          inner->body->parent == inner);
+  }
+  for (const char* source : {"IF A=1\n;missing body\n", "# ;missing body\n",
+                             "< 1\n;missing body\n"}) {
+    const auto parsed = world.language.language.parser->parse(source);
+    CHECK(!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty());
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -232,6 +306,7 @@ int main() {
   field_values_of_unary(world);
   native_manual_cases(world);
   native_constraints(world);
+  comments_before_controlled_instruction(world);
 
   return cursiv::test::report("robotwars_grammar_test");
 }

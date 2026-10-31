@@ -55,10 +55,9 @@ struct Corundum : cursiv::GrammarSpec {
   struct Value;
 
   struct IdentAtom
-      : rule<create<ast::Ident>(assign<&ast::Ident::name>(ref<ID>))> {};
+      : rule<assign<&ast::Ident::name>(ref<ID>)> {};
   struct GlobalIdentAtom
-      : rule<create<ast::GlobalIdent>(
-            assign<&ast::GlobalIdent::name>(ref<ID_GLOBAL>))> {};
+      : rule<assign<&ast::GlobalIdent::name>(ref<ID_GLOBAL>)> {};
 
   static constexpr auto IndexSuffix = nest<ast::Index, &ast::Index::base>(
       lit<"["> + assign<&ast::Index::index>(ref<Value>) + lit<"]">);
@@ -84,13 +83,11 @@ struct Corundum : cursiv::GrammarSpec {
              | ref<Value>> {};
 
   struct IntLitAtom
-      : rule<create<ast::IntLit>(assign<&ast::IntLit::value>(ref<INT>))> {};
+      : rule<assign<&ast::IntLit::value>(ref<INT>)> {};
   struct FloatLitAtom
-      : rule<create<ast::FloatLit>(
-            assign<&ast::FloatLit::value>(ref<FLOAT>))> {};
+      : rule<assign<&ast::FloatLit::value>(ref<FLOAT>)> {};
   struct StringLitAtom
-      : rule<create<ast::StringLit>(
-            assign<&ast::StringLit::text>(ref<LITERAL>))> {};
+      : rule<assign<&ast::StringLit::text>(ref<LITERAL>)> {};
   struct BoolLitAtom
       : rule<create<ast::BoolLit>(
             assign<&ast::BoolLit::value>(as<true>(kw<"true">) | as<false>(kw<"false">)))> {};

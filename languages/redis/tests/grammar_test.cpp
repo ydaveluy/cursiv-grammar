@@ -88,6 +88,18 @@ int main() {
     }
   };
   check("SET NX XX", {"SET", "NX", "XX"});
+  check("\vSET a b", {"SET", "a", "b"});
+  check("\fSET a b", {"SET", "a", "b"});
+  check("SET \v\fa b", {"SET", "a", "b"});
+  check("SET a b\vc", {"SET", "a", "b\vc"});
+  check("SET a b\fc", {"SET", "a", "b\fc"});
+  check("SET a \"b\"\v\fc", {"SET", "a", "b", "c"});
+  {
+    const auto whitespace = language.language.parser->parse("\v\f");
+    const auto *document = whitespace.value_as<redis::ast::Document>();
+    CHECK(whitespace.accepted && !whitespace.cst().recovered() && whitespace.diagnostics.empty());
+    CHECK(document && document->commands.empty());
+  }
   check("SET mykey myval NX GET EX 60",
         {"SET", "mykey", "myval", "NX", "GET", "EX", "60"});
   check("EXPIRE key -1 GT", {"EXPIRE", "key", "-1", "GT"});

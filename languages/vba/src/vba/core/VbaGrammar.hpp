@@ -178,16 +178,18 @@ struct Vba : cursiv::GrammarSpec {
                                 lit<":", !cr<"=">>)> {};
 
   // A name: an ID, or one of the words that stay legal as one.
-  static constexpr auto NameText =
-      ref<ID> | AmbiguousKeyword | ref<FOREIGN_NAME>;
+  struct NameTextRule
+      : rule<ref<ID> | AmbiguousKeyword | ref<FOREIGN_NAME>> {};
+  static constexpr auto NameText = ref<NameTextRule>;
 
   // A name usable after `.`/`!`: every reserved word besides `NameText`'s own
   // set is legal there too (`unrestrictedName`). `REM` is excluded: it is
   // always read as a comment.
-  static constexpr auto UnrestrictedNameText =
-      NameText | StatementKeyword | MarkerKeyword | OperatorIdentifier |
-      SpecialForm | ReservedName | ReservedTypeIdentifier |
-      LiteralIdentifier | ReservedForImplementationUse | FutureReserved;
+  struct UnrestrictedNameTextRule
+      : rule<NameText | StatementKeyword | MarkerKeyword | OperatorIdentifier |
+             SpecialForm | ReservedName | ReservedTypeIdentifier |
+             LiteralIdentifier | ReservedForImplementationUse | FutureReserved> {};
+  static constexpr auto UnrestrictedNameText = ref<UnrestrictedNameTextRule>;
 
   static constexpr auto TypeSuffixClass = cr<"&%#!@$^">;
 
@@ -596,6 +598,13 @@ struct Vba : cursiv::GrammarSpec {
                  ikw<"CONST"> +
                  some(append<&ast::ConstDecl::items>(ref<ConstDeclItem>),
                       lit<",">))> {};
+
+  struct CompilationConst
+      : rule<lit<"#"> + ikw<"CONST"> +
+             assign<&ast::CompilationConst::name>(NameText) +
+             TypeSuffixInto<&ast::CompilationConst::typeChar> + lit<"="> +
+             assign<&ast::CompilationConst::value>(ref<Expression>) +
+             &(ref<NEWLINE> | eof)> {};
 
   struct UdtMember
       : rule<create<ast::UdtMember>(
@@ -1008,12 +1017,10 @@ struct Vba : cursiv::GrammarSpec {
                  assign<&ast::ErrorStmt::number>(ref<Expression>))> {};
 
   struct LabelStmt
-      : rule<create<ast::LabelStmt>(
-                 assign<&ast::LabelStmt::name>(ref<LABEL>))> {};
+      : rule<assign<&ast::LabelStmt::name>(ref<LABEL>)> {};
 
   struct LineNumberLabel
-      : rule<create<ast::LabelStmt>(
-                 assign<&ast::LabelStmt::name>(ref<INTEGERLITERAL>))> {};
+      : rule<assign<&ast::LabelStmt::name>(ref<INTEGERLITERAL>)> {};
 
   // -- File statements --------------------------------------------------
 
@@ -1174,7 +1181,7 @@ struct Vba : cursiv::GrammarSpec {
              ref<MidStmt> | ref<AssignStmt> | ref<CallStmt>> {};
 
   struct BodyItem
-      : rule<ref<Attribute> | ref<VarDecl> | ref<ConstDecl> |
+      : rule<ref<CompilationConst> | ref<Attribute> | ref<VarDecl> | ref<ConstDecl> |
              ref<ReDimStmt> | ref<EraseStmt> | ref<IfStmt> |
              ref<SameLineStmt>> {};
 
@@ -1241,7 +1248,7 @@ struct Vba : cursiv::GrammarSpec {
   // -- Module-level items -------------------------------------------------
 
   struct ModuleItem
-      : rule<ref<Attribute> | ref<OptionStmt> |
+      : rule<ref<CompilationConst> | ref<Attribute> | ref<OptionStmt> |
              ref<DefDirective> | ref<VarDecl> | ref<ConstDecl> |
              ref<TypeDecl> | ref<EnumDecl> | ref<DeclareDecl> |
              ref<EventDecl> | ref<ImplementsDecl> | ref<Procedure>> {};

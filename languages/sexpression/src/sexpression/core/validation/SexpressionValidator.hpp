@@ -10,6 +10,7 @@ class SexpressionValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
   void checkList(const ast::List&, cursiv::ValidationAcceptor&) const;
+  void checkCharacter(const ast::Character&, cursiv::ValidationAcceptor&) const;
 };
 
 struct SexpressionCoreServices;

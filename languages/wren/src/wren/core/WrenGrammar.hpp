@@ -114,10 +114,8 @@ struct Wren : cursiv::GrammarSpec {
   struct Expression;
   struct Block;
   struct FileItem;
-  struct StringTextRule : rule<create<ast::StringText>(
-      assign<&ast::StringText::value>(ref<StringText>))> {};
-  struct RawText : rule<create<ast::StringText>(
-      assign<&ast::StringText::value>(ref<RawBody>))> {};
+  struct StringTextRule : rule<assign<&ast::StringText::value>(ref<StringText>)> {};
+  struct RawText : rule<assign<&ast::StringText::value>(ref<RawBody>)> {};
   struct StringInterpolation : rule<create<ast::StringInterpolation>(
       skip(ignore<WS>, hide<SL_COMMENT, ML_COMMENT>, lit<"%("> + NLs +
       assign<&ast::StringInterpolation::expression>(ref<Expression>) + NLs + lit<")">))> {};
@@ -130,7 +128,7 @@ struct Wren : cursiv::GrammarSpec {
   struct NullExpr : rule<create<ast::NullExpr>(kw<"null">)> {};
   struct BoolExpr : rule<create<ast::BoolExpr>(
       flag<&ast::BoolExpr::value>(kw<"true">) | kw<"false">)> {};
-  struct NumExpr : rule<create<ast::NumExpr>(assign<&ast::NumExpr::text>(ref<NUMBER>))> {};
+  struct NumExpr : rule<assign<&ast::NumExpr::text>(ref<NUMBER>)> {};
   struct BreakExpr : rule<create<ast::BreakExpr>(kw<"break">)> {};
   struct ContinueExpr : rule<create<ast::ContinueExpr>(kw<"continue">)> {};
   struct ListExpr : rule<create<ast::ListExpr>(lit<"["> + NLs +

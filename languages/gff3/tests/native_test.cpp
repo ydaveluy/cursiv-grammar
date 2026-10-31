@@ -13,10 +13,75 @@
 #include "cursiv/test/ValidationResult.hpp"
 #include "gff3/core/CoreServices.hpp"
 
+int source_format_cases(const auto& language) {
+  for (const char* directive : {"##gff-version3", "##gff-version 3.",
+                                "##gff-version 3.x", "##gff-version 3.1.26.1",
+                                "##gff-version 3 extra"}) {
+    auto validation = cursiv::test::validationHelper(
+        language.language, std::string(directive) + '\n');
+    const bool valid = validation.diagnostics.size() == 1 &&
+                       validation.diagnostics[0].code == "gff3.version";
+    validation.dispose();
+    if (!valid) return 1;
+  }
+  for (const char* directive : {"##gff-version 3", "##gff-version 3.1",
+                                "##gff-version\t3.1.26  "}) {
+    auto validation = cursiv::test::validationHelper(
+        language.language, std::string(directive) + '\n');
+    const bool valid = validation.diagnostics.empty();
+    validation.dispose();
+    if (!valid) return 1;
+  }
+  struct Case { const char* row; const char* code; };
+  for (const Case c : {
+       Case{"chr1\t.\tmatch\t1\t23\t.\t+\t.\tTarget=EST23 1 21;Gap=M8 D3 M6 I1 M6", ""},
+       {"chr1\t.\tmatch\t100\t129\t.\t+\t.\tTarget=p101 1 10 -;Gap=M3 I1 M2 D1 M4", ""},
+       {"chr1\t.\tmatch\t1\t23\t.\t+\t.\tTarget=id%20with%20spaces 0001 999999999999999999999999999999999 +;Gap=M3 F1 M4 R1 M2", ""},
+       {"chr%20one%2F%3E%CE%B1\tsource%25name\tgene\t1\t9\t.\t+\t.\tNote=a%01b%7F", ""},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\ttarget=application data;gap=also application data", ""},
+       {"chr one\t.\tgene\t1\t9\t.\t+\t.\t.", "gff3.seqid"},
+       {"chr/one\t.\tgene\t1\t9\t.\t+\t.\t.", "gff3.seqid"},
+       {"α\t.\tgene\t1\t9\t.\t+\t.\t.", "gff3.seqid"},
+       {"chr%Q1\t.\tgene\t1\t9\t.\t+\t.\t.", "gff3.seqid"},
+       {"chr1\tsource%\tgene\t1\t9\t.\t+\t.\t.", "gff3.field-escape"},
+       {"chr1\tsource\x01\tgene\t1\t9\t.\t+\t.\t.", "gff3.field-escape"},
+       {"chr1\t\tgene\t1\t9\t.\t+\t.\t.", "gff3.field"},
+       {"chr1\t.\t\t1\t9\t.\t+\t.\t.", "gff3.field"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tName=raw\x01", "gff3.escape"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tname&other=x", "gff3.attribute-key"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tTarget=id", "gff3.target"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tTarget=id 0 2", "gff3.target"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tTarget=id 3 2", "gff3.target"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tTarget=id 1 2 ?", "gff3.target"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tTarget=id 1 2 + extra", "gff3.target"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tTarget=id 1 2,other 1 2", "gff3.target"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tGap=M", "gff3.gap"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tGap=X2", "gff3.gap"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tGap=M3D2", "gff3.gap"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tGap=M1.5", "gff3.gap"},
+       {"chr1\t.\tgene\t1\t9\t.\t+\t.\tGap=M-1", "gff3.gap"}}) {
+    const std::string source = std::string("##gff-version 3\n") + c.row + '\n';
+    const auto parsed = language.language.parser->parse(source);
+    auto validation = cursiv::test::validationHelper(language.language, source);
+    const bool valid = parsed.accepted && !parsed.cst().recovered() &&
+        parsed.diagnostics.empty() && parsed.cst().text() == source &&
+        (std::string_view(c.code).empty()
+             ? validation.diagnostics.empty()
+             : validation.diagnostics.size() == 1 && validation.diagnostics[0].code == c.code);
+    validation.dispose();
+    if (!valid) {
+      std::fprintf(stderr, "gff3 source-format case: %s (%s)\n", c.row, c.code);
+      return 1;
+    }
+  }
+  return 0;
+}
+
 int main() {
   const auto language = cursiv::create_language<gff3::Gff3CoreServices,
                                                 gff3::Gff3SharedCoreServices,
                                                 gff3::install_core_module>();
+  if (source_format_cases(language)) return 1;
   for (const char* row : {
            "chr1\t.\tCDS\t1\t9\t.\t+\t.\tID=c1",
            "chr1\t.\tSO:0000316\t1\t9\t.\t+\t.\tID=c1",

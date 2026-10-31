@@ -28,7 +28,7 @@ struct Mdx : cursiv::GrammarSpec {
   struct BLOCK_COMMENT : terminal<lit<"/*"> + many(ref<BLOCK_COMMENT> | (!(lit<"*/"> | lit<"/*">) + any)) + lit<"*/">> {};
 
   static constexpr auto id_body = cr<"a-zA-Z_$"> + many(cr<"a-zA-Z0-9_$">);
-  static constexpr auto reserved = ikw<"AS"> | ikw<"CASE"> | ikw<"CELL"> | ikw<"CELL_ORDINAL"> | ikw<"ELSE"> | ikw<"EMPTY"> | ikw<"END"> | ikw<"FORMATTED_VALUE"> | ikw<"FROM"> | ikw<"MEMBER"> | ikw<"NON"> | ikw<"ON"> | ikw<"SELECT"> | ikw<"SET"> | ikw<"THEN"> | ikw<"VALUE"> | ikw<"WHEN"> | ikw<"WHERE"> | ikw<"WITH"> | ikw<"CREATE"> | ikw<"GLOBAL"> | ikw<"SESSION"> | ikw<"AND"> | ikw<"OR"> | ikw<"XOR"> | ikw<"NOT"> | ikw<"IS">;
+  static constexpr auto reserved = ikw<"AS"> | ikw<"CASE"> | ikw<"CELL"> | ikw<"CELL_ORDINAL"> | ikw<"ELSE"> | ikw<"EMPTY"> | ikw<"END"> | ikw<"FORMATTED_VALUE"> | ikw<"FROM"> | ikw<"HAVING"> | ikw<"MEMBER"> | ikw<"NON"> | ikw<"ON"> | ikw<"SELECT"> | ikw<"SET"> | ikw<"THEN"> | ikw<"VALUE"> | ikw<"WHEN"> | ikw<"WHERE"> | ikw<"WITH"> | ikw<"CREATE"> | ikw<"GLOBAL"> | ikw<"SESSION"> | ikw<"AND"> | ikw<"OR"> | ikw<"XOR"> | ikw<"NOT"> | ikw<"IS">;
   struct ID : terminal<!reserved + id_body> {};
 
   struct QUOTED_ID
@@ -77,6 +77,7 @@ struct Mdx : cursiv::GrammarSpec {
   struct END : terminal<ikw<"END">> {};
   struct FORMATTED_VALUE : terminal<ikw<"FORMATTED_VALUE">> {};
   struct FROM : terminal<ikw<"FROM">> {};
+  struct HAVING : terminal<ikw<"HAVING">> {};
   struct MEMBER : terminal<ikw<"MEMBER">> {};
   struct NON : terminal<ikw<"NON">> {};
   struct ON : terminal<ikw<"ON">> {};
@@ -229,10 +230,15 @@ struct Mdx : cursiv::GrammarSpec {
       : rule<create<ast::AxisSpec>(
             option(flag<&ast::AxisSpec::nonEmpty>(ref<NON>) + ref<EMPTY>) +
             assign<&ast::AxisSpec::expr>(ref<Expression>) + option(dim_props) +
+            option(ref<HAVING> + assign<&ast::AxisSpec::having>(ref<Expression>)) +
             ref<ON> +
             ((flag<&ast::AxisSpec::axisFunction>(ikw<"AXIS">) + ref<LPAREN> +
-              assign<&ast::AxisSpec::axisName>(ref<AXIS_NUMBER>) + ref<RPAREN>) |
-             assign<&ast::AxisSpec::axisName>(ref<ID> | ref<AXIS_NUMBER>)))> {};
+              ((assign<&ast::AxisSpec::axisName>(ref<AXIS_NUMBER>) + &ref<RPAREN>) |
+               assign<&ast::AxisSpec::axisExpression>(ref<Expression>)) + ref<RPAREN>) |
+             (!ikw<"AXIS"> +
+              ((assign<&ast::AxisSpec::axisName>(ref<ID> | ref<AXIS_NUMBER>) +
+                &(ref<COMMA> | ref<FROM>)) |
+               assign<&ast::AxisSpec::axisExpression>(ref<Expression>)))))> {};
 
   struct CellProperty
       : rule<create<ast::CellProperty>(assign<&ast::CellProperty::name>(

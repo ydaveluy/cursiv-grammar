@@ -9,7 +9,7 @@ It is not a generic assembly language or an instruction-encoding validator.
 underscores and exponents beyond the range of a C++ double.
 
 The preprocessor is only skipped for selected directives; it is not executed.
-Instruction prefixes, backtick strings, forced identifiers, address modifiers,
+Instruction prefixes, backtick strings, address modifiers,
 ISA operand constraints, object-format details and full macro syntax are not
 covered. Most directives keep positional name/value lists rather than typed
 attribute pairs; the CST retains their spelling. A label without a colon can

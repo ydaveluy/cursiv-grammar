@@ -31,6 +31,7 @@ std::string readFile(const std::filesystem::path& path) {
 }  // namespace
 
 #include "code_audit.hpp"
+#include "pattern_rest_cases.hpp"
 
 int main() {
   if (!code_audit::run()) return 1;
@@ -61,6 +62,7 @@ int main() {
       cursiv::create_language<gdscript::GdscriptCoreServices,
                               gdscript::GdscriptSharedCoreServices,
                               gdscript::install_core_module>();
+  if (!gdscript_pattern_rest::run(language.language)) return 1;
 
   int checked = 0;
   // `custom_features.gd` lives beside this test, not in the corpus: it is

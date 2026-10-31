@@ -40,9 +40,26 @@ int main() {
         owned = false;
         return;
       }
-      if (const auto *tag = cursiv::ast_cast<javadoc::ast::InlineTag>(&node))
-        check(source.find(tag->content) != source.npos, c.name,
-              "inline source retained");
+      if (const auto *tag = cursiv::ast_cast<javadoc::ast::InlineTag>(&node)) {
+        const auto raw = javadoc::raw_inline_content(*tag);
+        const auto span = parsed.cst().text(tag->cstNodeId);
+        const auto projected = std::string(tag->open) + std::string(tag->name) +
+            raw + std::string(tag->close);
+        if (span != projected)
+          std::fprintf(stderr, "javadoc [%s] projection name=[%.*s] raw=[%s] "
+              "CST=[%.*s] projected=[%s] recovered=%d\n", c.name,
+              int(tag->name.size()), tag->name.data(), raw.c_str(),
+              int(span.size()), span.data(), projected.c_str(), parsed.cst().recovered());
+        check(source.find(raw) != source.npos &&
+                  span == projected,
+              c.name, "inline source retained exactly by the typed projection");
+        if (c.clean)
+          check(tag->open == "{@" && tag->close == "}", c.name,
+                "clean inline punctuation was read from source");
+        if (std::string_view(c.name) == "unclosed-inline")
+          check(tag->open == "{@" && tag->close.empty() && parsed.cst().recovered(),
+                c.name, "missing close stays absent in AST; recovery does not invent source");
+      }
       lang.language.astReflection->visitMembers(
           node, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &node &&

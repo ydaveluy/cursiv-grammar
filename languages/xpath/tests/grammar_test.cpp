@@ -117,7 +117,7 @@ int main() {
       return fail("text(): did not read as a kind test");
   }
 
-  for (const std::string source : {std::string("\"\xe6\"", 3),
+  for (const std::string& source : {std::string("\"\xe6\"", 3),
       std::string("'\x80'", 3), std::string("Q{u\xc3}x"),
       std::string("1(: outer (: \xc3 :) :) +2")}) {
     const auto r = language.language.parser->parse(source);

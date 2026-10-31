@@ -68,12 +68,10 @@ ENDMODULE)RAPID";
       record->fields[1]->type != "string" || record->fields[1]->name != "b")
     return false;
   const auto &message = module->declarations[0]->value;
-  const auto *text =
-      message ? std::get_if<std::string_view>(&*message) : nullptr;
+  const auto *text = cursiv::ast_cast<ast::StringLiteral>(message);
   const auto &raw = module->declarations[1]->value;
-  const auto *number = raw ? std::get_if<ast::FloatLiteral *>(&*raw) : nullptr;
-  if (!text || *text != "hello world" || !number || !*number ||
-      (*number)->text != "1e400")
+  const auto *number = cursiv::ast_cast<ast::FloatLiteral>(raw);
+  if (!text || text->value != "hello world" || !number || number->text != "1e400")
     return false;
   const auto *function = module->functions[0];
   if (function->name != "f" || function->returnType != "num" ||
@@ -87,9 +85,8 @@ ENDMODULE)RAPID";
       !function->parameters[1]->isOptional)
     return false;
   const auto *ret = cursiv::ast_cast<ast::Return>(function->statements[0]);
-  const auto *ref =
-      ret && ret->value ? std::get_if<ast::Reference *>(&*ret->value) : nullptr;
-  if (!ref || !*ref || (*ref)->name != "x")
+  const auto *ref = ret ? cursiv::ast_cast<ast::Reference>(ret->value) : nullptr;
+  if (!ref || ref->name != "x")
     return false;
   const auto *procedure = module->procedures[0];
   if (procedure->locals.size() != 1 || procedure->locals[0]->name != "temp" ||
@@ -103,10 +100,11 @@ ENDMODULE)RAPID";
     return false;
   const auto *assignment =
       cursiv::ast_cast<ast::Assignment>(ifStmt->branches[0]->statements[0]);
-  const auto *assigned =
-      assignment ? std::get_if<ast::Integer *>(&assignment->value) : nullptr;
-  if (!assignment || assignment->target->name != "temp" || !assigned ||
-      !*assigned || (*assigned)->text != "2")
+  const auto *assigned = assignment ? cursiv::ast_cast<ast::Integer>(assignment->value)
+                                     : nullptr;
+  const auto *target = assignment ? cursiv::ast_cast<ast::Reference>(assignment->target)
+                                   : nullptr;
+  if (!target || target->name != "temp" || !assigned || assigned->text != "2")
     return false;
   const auto *loop =
       cursiv::ast_cast<ast::While>(ifStmt->branches[1]->statements[0]);
@@ -121,22 +119,18 @@ ENDMODULE)RAPID";
   const auto *move = cursiv::ast_cast<ast::Call>(procedure->statements[1]);
   if (!move || move->name != "MoveL" || move->arguments.size() != 5)
     return false;
-  const auto *binding =
-      std::get_if<ast::BindingArgument *>(&move->arguments[4]);
+  const auto *binding = cursiv::ast_cast<ast::BindingArgument>(move->arguments[4]);
   const auto *workObject =
-      binding && *binding && (*binding)->value
-          ? std::get_if<ast::Reference *>(&*(*binding)->value)
-          : nullptr;
-  if (!binding || !*binding || (*binding)->name != "WObj" ||
-      !(*binding)->isOptional || !workObject || !*workObject ||
-      (*workObject)->name != "wobj0")
+      binding ? cursiv::ast_cast<ast::Reference>(binding->value) : nullptr;
+  if (!binding || binding->name != "WObj" || !binding->isOptional ||
+      binding->isConditional || !workObject || workObject->name != "wobj0")
     return false;
   const auto *write = cursiv::ast_cast<ast::Call>(procedure->statements[2]);
   const auto *messageRef =
       write && write->arguments.size() == 1
-          ? std::get_if<ast::Reference *>(&write->arguments[0])
+          ? cursiv::ast_cast<ast::Reference>(write->arguments[0])
           : nullptr;
-  if (!messageRef || !*messageRef || (*messageRef)->name != "msg")
+  if (!messageRef || messageRef->name != "msg")
     return false;
   if (!cursiv::test::validationHelper(language, source).diagnostics.empty())
     return false;

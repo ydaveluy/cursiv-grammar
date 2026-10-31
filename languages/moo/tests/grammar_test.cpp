@@ -5,6 +5,7 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "moo/core/CoreServices.hpp"
 #include "moo/core/ast.hpp"
+#include "conditional_fork_cases.hpp"
 #include "native_regressions.hpp"
 // The smoke test of the language: every corpus document parses clean, and
 // one is read back field by field to catch a converter that silently
@@ -145,6 +146,8 @@ int main() {
   const auto language = cursiv::create_language<
       moo::MooCoreServices, moo::MooSharedCoreServices,
       moo::install_core_module>();
+
+  if (!moo_conditional_fork_cases::run(language.language)) return 1;
 
   if (!moo_native::run(*language.language.parser)) return 1;
 

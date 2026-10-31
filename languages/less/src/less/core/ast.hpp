@@ -138,7 +138,13 @@ struct Condition : cursiv::Extends<cursiv::AstNode> {
   ConditionStatement *test = nullptr;
 };
 
-struct Attrib : cursiv::Extends<cursiv::AstNode> {
+// Every selector component has one position and one incoming combinator.
+struct Element : cursiv::Extends<cursiv::AstNode> {
+  optional<SelectorPrefix> prefix;
+  boolean descendant;
+};
+
+struct Attrib : cursiv::Extends<Element> {
   string_view name;
   optional<AttribRelate> relate;
   string_view value;
@@ -147,12 +153,9 @@ struct Attrib : cursiv::Extends<cursiv::AstNode> {
 
 // The selector family: one class per `element` alternative, so a tool can
 // tell a class/tag name from a combinator or a pseudo-selector.
-struct Element : cursiv::Extends<cursiv::AstNode> {};
-
 struct Selector;
 
 struct NamedElement : cursiv::Extends<Element> {
-  optional<SelectorPrefix> prefix;
   Name *name = nullptr;
 };
 
@@ -187,7 +190,6 @@ struct Negation : cursiv::Extends<Element> {
 
 struct Selector : cursiv::Extends<cursiv::AstNode> {
   vector<Element *> elements;
-  vector<Attrib *> attribs;
   Pseudo *trailingPseudo = nullptr;
   Condition *guard = nullptr;
 };
@@ -224,11 +226,21 @@ struct Property : cursiv::Extends<cursiv::AstNode> {
   ValueList *value = nullptr;
 };
 
-struct MixinRef : cursiv::Extends<cursiv::AstNode> {
+struct MixinRef : cursiv::Extends<Expr> {
   Selector *target = nullptr;
+  boolean hasArguments; // parentheses were written, including an empty list
   vector<CommandStatement *> args;
   vector<ValueList*> argumentGroups;
   boolean important;
+};
+
+// A lookup value retains the native callee kind and each raw key in order.
+// Exactly one of call/variable is set. Variable lookups have no parentheses;
+// plain @r() is a statement form, not a native value expression.
+struct NamespaceValue : cursiv::Extends<Expr> {
+  MixinRef* call = nullptr;
+  VariableName* variable = nullptr;
+  vector<string_view> lookups; // empty string is native [] (last declaration)
 };
 
 // A block's body, in source order: a declaration, a nested statement, or a

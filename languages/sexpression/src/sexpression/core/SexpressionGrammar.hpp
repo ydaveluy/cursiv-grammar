@@ -12,7 +12,7 @@ struct Sexpression : cursiv::GrammarSpec {
       plain | (lit<"\\"> + any) | (lit<"|"> + many(cr<R"(^|)">) + lit<"|">);
   struct WS : terminal<some(whitespace)> {};
   struct COMMENT
-      : terminal<lit<";"> + many(cr<R"(^\r\n\u0085\u2028\u2029)">)> {};
+      : terminal<lit<";"> + many(cr<R"(^\n)">)> {};
   struct BLOCK_COMMENT
       : terminal<lit<"#|"> +
                  many(ref<BLOCK_COMMENT> | (!lit<"#|"> + !lit<"|#"> + any)) +
@@ -28,7 +28,7 @@ struct Sexpression : cursiv::GrammarSpec {
       lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">;
   struct HereTag;
   struct HERE_STRING
-      : terminal<lit<"#<<"> + mark<HereTag>(some(cr<R"(^\n)">)) + lit<"\n"> +
+      : terminal<lit<"#<<"> + mark<HereTag>(many(cr<R"(^\n)">)) + lit<"\n"> +
                  many(!(same<HereTag> + !cr<R"(^\n)">)+many(cr<R"(^\n)">) +
                       lit<"\n">) +
                  same<HereTag> + !cr<R"(^\n)">> {};
@@ -36,7 +36,11 @@ struct Sexpression : cursiv::GrammarSpec {
   struct BYTES : terminal<lit<"#"> + quoted> {};
   struct REGEX : terminal<(lit<"#rx"> | lit<"#px">)+option(lit<"#">) + quoted> {
   };
-  struct CHARACTER : terminal<lit<"#\\"> + any + many(~delimiter)> {};
+  struct CHARACTER
+      : terminal<lit<"#\\"> + ((lit<"u"> + repeat<0, 4>(cr<"0-9a-fA-F">)) |
+                               (lit<"U"> + repeat<0, 8>(cr<"0-9a-fA-F">)) |
+                               (cr<"0-7"> + repeat<0, 2>(cr<"0-7">)) |
+                               (!cr<"uU"> + uc::Alphabetic + many(uc::Alphabetic)) | any)> {};
   struct GRAPH_REF : terminal<lit<"#"> + some(d) + lit<"#">> {};
   struct PREFIX : terminal<lit<"'"> | lit<"`"> | lit<",@"> | lit<","> |
                            lit<"#'"> | lit<"#`"> | lit<"#,@"> | lit<"#,"> |

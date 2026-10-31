@@ -12,6 +12,7 @@
 #include "joss/core/CoreServices.hpp"
 #include "joss/core/ast.hpp"
 #include "native_followup_cases.hpp"
+#include "command_lists.hpp"
 
 namespace {
 
@@ -34,6 +35,7 @@ int main() {
       joss::install_core_module>();
 
   if (!joss_native_followup::run(language)) return 1;
+  if (!joss_command_lists::run(language)) return 1;
 
   const char* const docs[] = {
       CURSIV_TEST_DIR "/statements.joss",   //

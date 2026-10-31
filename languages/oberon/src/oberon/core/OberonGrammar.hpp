@@ -176,8 +176,7 @@ struct Oberon : cursiv::GrammarSpec {
             assign<&ast::AssignStmt::value>(ref<Expression>))> {};
 
   struct ExprStmt
-      : rule<create<ast::ExprStmt>(
-            assign<&ast::ExprStmt::value>(ref<DesignatorCall>))> {};
+      : rule<assign<&ast::ExprStmt::value>(ref<DesignatorCall>)> {};
 
   struct IfElsif
       : rule<create<ast::ElsifClause>(

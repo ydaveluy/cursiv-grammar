@@ -16,6 +16,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 
 #include "native_regressions.hpp"
+#include "rapid_families.hpp"
 
 namespace {
 
@@ -69,8 +70,8 @@ ENDMODULE)RAPID");
       return fail("native RAPID strings lost declarations");
     for (std::size_t i = 0; i < 3; ++i) {
       const auto &value = module->declarations[i]->value;
-      const auto *text = value ? std::get_if<std::string_view>(&*value) : nullptr;
-      if (!text || *text != expected[i])
+      const auto *text = cursiv::ast_cast<abb::ast::StringLiteral>(value);
+      if (!text || text->value != expected[i])
         return fail("native RAPID string has the wrong decoded value");
     }
     for (const char *source : {
@@ -95,25 +96,27 @@ ENDMODULE)RAPID");
     if (!module || module->declarations.size() != 4 ||
         module->procedures.size() != 1)
       return fail("integer regression lost declarations or procedure");
-    const std::string_view expected[] = {"+12", "-'H1F'",
+    const std::string_view expected[] = {"12", "'H1F'",
                                          "999999999999999999999999"};
     for (std::size_t i = 0; i < 3; ++i) {
       const auto *decl = module->declarations[i];
-      const auto *integer =
-          decl->value ? std::get_if<abb::ast::Integer *>(&*decl->value)
-                      : nullptr;
-      if (decl->type != "num" || !integer || !*integer ||
-          (*integer)->text != expected[i])
+      const auto *sign = cursiv::ast_cast<abb::ast::Unary>(decl->value);
+      const auto *integer = cursiv::ast_cast<abb::ast::Integer>(
+          sign ? sign->operand : decl->value);
+      if (decl->type != "num" || !integer || integer->text != expected[i] ||
+          (i < 2 ? !sign || sign->op != (i == 0 ? "+" : "-") : sign != nullptr))
         return fail("integer declaration lost its exact value");
     }
     const auto &arrayValue = module->declarations[3]->value;
-    const auto *array =
-        arrayValue ? std::get_if<abb::ast::Array *>(&*arrayValue) : nullptr;
-    if (!array || !*array || (*array)->items.size() != 2)
+    const auto *array = cursiv::ast_cast<abb::ast::Array>(arrayValue);
+    if (!array || array->items.size() != 2)
       return fail("integer array was lost");
     for (std::size_t i = 0; i < 2; ++i) {
-      const auto *value = std::get_if<abb::ast::Integer *>(&(*array)->items[i]);
-      if (!value || !*value || (*value)->text != (i == 0 ? "-1" : "+2"))
+      const auto *sign = cursiv::ast_cast<abb::ast::Unary>(array->items[i]);
+      const auto *value = sign ? cursiv::ast_cast<abb::ast::Integer>(sign->operand)
+                               : nullptr;
+      if (!sign || sign->op != (i == 0 ? "-" : "+") || !value ||
+          value->text != (i == 0 ? "1" : "2"))
         return fail("integer array item lost its sign");
     }
     const auto &calls = module->procedures[0]->statements;
@@ -122,14 +125,17 @@ ENDMODULE)RAPID");
                            : nullptr;
     if (!call || call->arguments.size() != 1)
       return fail("integer call argument was lost");
-    const auto *argument =
-        std::get_if<abb::ast::Integer *>(&call->arguments[0]);
-    if (!argument || !*argument || (*argument)->text != "-3")
+    const auto *sign = cursiv::ast_cast<abb::ast::Unary>(call->arguments[0]);
+    const auto *argument = sign ? cursiv::ast_cast<abb::ast::Integer>(sign->operand)
+                                : nullptr;
+    if (!sign || sign->op != "-" || !argument || argument->text != "3")
       return fail("integer call argument lost its value");
   }
 
   if (!abb_tests::nativeRegressions(language.language))
     return fail("native semantic regressions failed");
+  if (!abb_tests::rapidFamilies(language.language))
+    return fail("native expression/control-family regressions failed");
 
   int count = 0;
   for (const char *const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

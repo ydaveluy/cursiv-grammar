@@ -22,7 +22,11 @@ void MdxValidator::checkDuplicateAxisNames(
   std::array<const ast::AxisSpec*, 128> byIndex{};
   unsigned largest = 0;
   bool any = false;
+  bool hasExpression = false;
   for (const auto* axis : select.axes) {
+    // The provider evaluates Integer_Expression. Keep local checks on known
+    // aliases/ordinals without guessing the value or type of a general AST.
+    if (axis->axisExpression) { hasExpression = true; continue; }
     std::string name(axis->axisName);
     for (auto& c : name) if (c >= 'a' && c <= 'z') c -= 'a' - 'A';
     unsigned index = 128;
@@ -47,7 +51,7 @@ void MdxValidator::checkDuplicateAxisNames(
     largest = std::max(largest, index);
     any = true;
   }
-  if (any) for (unsigned i = 0; i < largest; ++i) if (!byIndex[i]) {
+  if (any && !hasExpression) for (unsigned i = 0; i < largest; ++i) if (!byIndex[i]) {
     accept.error(select, "Query axes cannot skip a lower-numbered axis.", "mdx.axis-gap");
     break;
   }

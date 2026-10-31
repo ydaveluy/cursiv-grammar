@@ -43,9 +43,8 @@ inline constexpr auto unsigned_number = [](std::string_view t) {
 
 struct Algol60 : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
-  // A `comment` clause reads to the next `;`; the classic close-tag after
-  // `end` (`end name;`) is handled at the block rule instead, since its
-  // closer must not be swallowed.
+  // The first comment structure wins (§2.3). END reads its own comment,
+  // including any later `comment` word, before hidden trivia can see it.
   struct COMMENT : terminal<through(ikw<"comment">, lit<";">)> {};
 
   static constexpr auto Digits = some(cr<"0-9">);
@@ -65,6 +64,18 @@ struct Algol60 : cursiv::GrammarSpec {
       : terminal<(Digits + cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_">)) |
                      (cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_">))> {};
   struct UnsignedInteger : terminal<some(cr<"0-9">)> {};
+
+  struct EndCommentWord
+      : terminal<!(ikw<"end"> | ikw<"else">) + some(w)> {};
+  struct END
+      : terminal<ikw<"end"> +
+                 many(ref<EndCommentWord> | cr<R"(^;A-Za-z0-9_)">)> {};
+
+  // Unstropped control words cannot fall back to a bare procedure call.
+  struct CallIdentifier
+      : terminal<!(ikw<"if"> | ikw<"then"> | ikw<"else"> | ikw<"for"> |
+                    ikw<"do"> | ikw<"begin"> | ikw<"end">) +
+                 ref<Identifier>> {};
 
   // Two non-standard string forms the corpus uses, plus the report's own
   // nesting corner brackets.
@@ -257,7 +268,7 @@ struct Algol60 : cursiv::GrammarSpec {
 
   struct CallStatement
       : rule<create<ast::CallStmt>(
-                 assign<&ast::CallStmt::callee>(ref<Identifier>) +
+                 assign<&ast::CallStmt::callee>(ref<CallIdentifier>) +
                  option(lit<"("> +
                         some(append<&ast::CallStmt::args>(
                                  StringLit | ref<ArithExpr> | ref<BoolExpr>),
@@ -279,10 +290,25 @@ struct Algol60 : cursiv::GrammarSpec {
                  ikw<"while"> +
                  assign<&ast::ForWhile::cond>(ref<BoolExpr>))> {};
   struct ForSimpleItem
-      : rule<create<ast::ForSimple>(
-                 assign<&ast::ForSimple::value>(ref<ArithExpr>))> {};
+      : rule<assign<&ast::ForSimple::value>(ref<ArithExpr>)> {};
 
-  struct ForStatement
+  struct EmptyStatement : rule<create<ast::EmptyStmt>> {};
+
+  struct UnlabelledUnconditional
+      : rule<ref<AssignStatement> | ref<GotoStatement> | ref<Block> |
+             ref<CallStatement> | ref<EmptyStatement>> {};
+
+  template <class Body>
+  struct LabelledStatement
+      : rule<some(append<&ast::StmtEntry::labels>(
+                      ref<Identifier> | ref<UnsignedInteger>) + lit<":">) +
+             assign<&ast::StmtEntry::stmt>(ref<Body>)> {};
+
+  struct UnconditionalStatement
+      : rule<ref<LabelledStatement<UnlabelledUnconditional>> |
+             ref<UnlabelledUnconditional>> {};
+
+  struct ForCore
       : rule<create<ast::ForStmt>(
                  ikw<"for"> + assign<&ast::ForStmt::var>(ref<Identifier>) +
                  lit<":="> +
@@ -290,38 +316,33 @@ struct Algol60 : cursiv::GrammarSpec {
                           ref<ForStepUntilItem> | ref<ForWhileItem> |
                           ref<ForSimpleItem>),
                       lit<",">) +
-                 ikw<"do"> + option(assign<&ast::ForStmt::body>(ref<Statement>)))> {};
+                 ikw<"do"> + assign<&ast::ForStmt::body>(ref<Statement>))> {};
+
+  struct ForStatement
+      : rule<ref<LabelledStatement<ForCore>> | ref<ForCore>> {};
 
   struct IfStatement
       : rule<create<ast::IfStmt>(
                  ikw<"if"> + assign<&ast::IfStmt::cond>(ref<BoolExpr>) +
                  ikw<"then"> +
-                 option(assign<&ast::IfStmt::then_branch>(ref<Statement>)) +
-                 option(flag<&ast::IfStmt::hasElse>(ikw<"else">) +
-                        option(assign<&ast::IfStmt::else_branch>(ref<Statement>))))> {
+                 ((assign<&ast::IfStmt::then_branch>(ref<UnconditionalStatement>) +
+                   option(flag<&ast::IfStmt::hasElse>(ikw<"else">) +
+                          assign<&ast::IfStmt::else_branch>(ref<Statement>))) |
+                  assign<&ast::IfStmt::then_branch>(ref<ForStatement>)))> {
   };
 
-  // The `unlabelled_*` core statement kinds, unified: assignment, goto, a
-  // dummy (empty) body handled by the optional slot at each call site, a
-  // procedure call, if/for, and a nested block.
-  struct Statement
-      : rule<ref<IfStatement>       //
-             | ref<ForStatement>    //
-             | ref<AssignStatement> //
-             | ref<GotoStatement>   //
-             | ref<Block>           //
-             | ref<CallStatement>> {};
+  struct StatementCore
+      : rule<ref<IfStatement> | ref<ForCore> |
+             ref<UnlabelledUnconditional>> {};
 
-  // A statement list entry: zero or more labels, then an optional
-  // statement -- `out2: end` labels nothing at all.
+  struct Statement
+      : rule<ref<LabelledStatement<StatementCore>> | ref<StatementCore>> {};
+
+  // Even a zero-width dummy has an entry and an EmptyStmt child.
   struct StatementEntry
-      : rule<create<ast::StmtEntry>(
-                 some(append<&ast::StmtEntry::labels>(
-                          ref<Identifier> | ref<UnsignedInteger>) +
-                      lit<":">) +
-                 option(assign<&ast::StmtEntry::stmt>(ref<Statement>)))  //
-             | create<ast::StmtEntry>(
-                   assign<&ast::StmtEntry::stmt>(ref<Statement>))> {};
+      : rule<many(append<&ast::StmtEntry::labels>(
+                      ref<Identifier> | ref<UnsignedInteger>) + lit<":">) +
+             assign<&ast::StmtEntry::stmt>(ref<StatementCore>)> {};
 
   static constexpr auto LocalOrOwn =
       option(flag<&ast::TypeDecl::own_>(ikw<"own">));
@@ -397,7 +418,7 @@ struct Algol60 : cursiv::GrammarSpec {
       : rule<create<ast::ProcDecl>(
                  option(assign<&ast::ProcDecl::type_name>(TypeTok)) +
                  ikw<"procedure"> + ProcHeading +
-                 option(assign<&ast::ProcDecl::body>(ref<Statement>)))> {};
+                 assign<&ast::ProcDecl::body>(ref<Statement>))> {};
 
   struct Declaration
       : rule<ref<ProcDecl>    //
@@ -405,20 +426,14 @@ struct Algol60 : cursiv::GrammarSpec {
              | ref<SwitchDecl>//
              | ref<TypeDecl>> {};
 
-  // The optional close-tag after `end` -- `end name;`, echoing the block's
-  // own label or procedure name. Stops on its own: `;`/`end`/`else` never
-  // lex as a name here, so no lookahead guard is needed.
-  static constexpr auto EndCloseTag =
-      option(ref<Identifier> | ref<UnsignedInteger>);
-
   // block / compound_statement, unified: an optional `begin decl;...;`
   // head, then a `;`-separated statement list, closed by `end`.
   static constexpr auto BlockBody =
       ikw<"begin"> +
       option(some(append<&ast::Block::decls>(ref<Declaration>), lit<";">) + lit<";">) +
-      option(append<&ast::Block::statements>(ref<StatementEntry>)) +
-      many(lit<";"> + option(append<&ast::Block::statements>(ref<StatementEntry>))) +
-      ikw<"end"> + EndCloseTag;
+      append<&ast::Block::statements>(ref<StatementEntry>) +
+      many(lit<";"> + append<&ast::Block::statements>(ref<StatementEntry>)) +
+      ref<END>;
 
   struct Block : rule<create<ast::Block> + BlockBody> {};
 

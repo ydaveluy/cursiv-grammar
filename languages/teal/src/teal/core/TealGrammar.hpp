@@ -217,13 +217,15 @@ struct Teal : cursiv::GrammarSpec {
                                        ref<BaseType>)))> {};
 
   struct RecordBody;
+  struct InterfaceBody;
   struct EnumBody;
   struct AliasBody;
   template <auto Name, auto Value>
   static constexpr auto type_binding =
       (ref<ContextWord<"record">> + assign<Name>(ref<ID>) + assign<Value>(ref<RecordBody>)) |
       (ref<ContextWord<"enum">> + assign<Name>(ref<ID>) + assign<Value>(ref<EnumBody>)) |
-      (ref<ContextWord<"type">> + assign<Name>(ref<ID>) + assign<Value>(ref<AliasBody>));
+      (ref<ContextWord<"type">> + assign<Name>(ref<ID>) + assign<Value>(ref<AliasBody>)) |
+      (ref<ContextWord<"interface">> + assign<Name>(ref<ID>) + assign<Value>(ref<InterfaceBody>));
 
   struct NamedNewType
       : rule<type_binding<&ast::NamedNewType::name, &ast::NamedNewType::value> |
@@ -240,6 +242,8 @@ struct Teal : cursiv::GrammarSpec {
   static constexpr auto enum_body =
       many(append<&ast::EnumNewType::values>(StrText)) + kw<"end">;
   struct RecordBody : rule<create<ast::RecordNewType> + record_body> {};
+  struct InterfaceBody : rule<create<ast::RecordNewType>(
+      flag<&ast::RecordNewType::isInterface>(record_body))> {};
   struct EnumBody : rule<create<ast::EnumNewType> + enum_body> {};
   struct AliasBody
       : rule<create<ast::AliasNewType> +

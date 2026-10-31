@@ -95,8 +95,24 @@ void RegoValidator::checkEvery(const ast::Every& n,
 }
 void RegoValidator::checkRule(const ast::Rule& n,
                               cursiv::ValidationAcceptor& a) const {
-  if (n.contains && !n.params.empty())
-    a.error(n, "a function cannot use contains");
+  if (n.contains && n.hasParams)
+    a.error(n, "a function cannot use contains", "rego.function-contains");
+  const bool bareVariable = !n.hasParams && n.parts.empty();
+  const bool emptyCall = n.hasParams && n.params.empty();
+  if (!cursiv::ast_cast<ast::DefaultRule>(&n) && (bareVariable || emptyCall) &&
+      !n.value && !n.contains && n.bodies.empty()) {
+    if (const auto* document = cursiv::ast_cast<ast::Document>(n.parent))
+      for (const auto* statement : document->statements)
+        if (cursiv::ast_cast<ast::PackageDecl>(statement)) {
+          if (bareVariable)
+            a.error(n, "a bare variable cannot define a module rule",
+                    "rego.module-rule-name");
+          else
+            a.error(n, "a bodyless function rule needs an argument or value",
+                    "rego.module-rule-arguments");
+          break;
+        }
+  }
   if (cursiv::ast_cast<ast::DefaultRule>(&n)) {
     if (!n.value) a.error(n, "a default rule requires a value");
     else if (!defaultValue(n.value)) a.error(n, "a default value cannot contain variables or calls");

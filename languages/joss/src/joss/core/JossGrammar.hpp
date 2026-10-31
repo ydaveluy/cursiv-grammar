@@ -174,6 +174,15 @@ struct Joss : cursiv::GrammarSpec {
       : rule<create<ast::DeleteCmdCmd>(
             kw<"Delete"> +
             assign<&ast::DeleteCmdCmd::target>(RefSel3 | AllSel3))> {};
+  static constexpr auto DeleteSelector = RefSel3 | AllSel4;
+  static constexpr auto DeleteListTarget = ref<Variable> | DeleteSelector;
+  static constexpr auto DeleteListTail =
+      many(lit<","> + append<&ast::DeleteListCmd::targets>(DeleteListTarget));
+  struct DeleteListCmd : rule<create<ast::DeleteListCmd>(kw<"Delete"> + (
+      (append<&ast::DeleteListCmd::targets>(DeleteSelector) + lit<","> +
+       append<&ast::DeleteListCmd::targets>(DeleteListTarget) + DeleteListTail) |
+      (some(append<&ast::DeleteListCmd::targets>(ref<Variable>), lit<",">) + lit<","> +
+       append<&ast::DeleteListCmd::targets>(DeleteSelector) + DeleteListTail)))> {};
 
   struct DoneCmd : rule<create<ast::DoneCmd>(kw<"Done">)> {};
   struct StopCmd : rule<create<ast::StopCmd>(kw<"Stop">)> {};
@@ -193,7 +202,9 @@ struct Joss : cursiv::GrammarSpec {
       assign<&ast::LetCmd::assignment>(ref<Assignment>))> {};
   struct DoCmd
       : rule<create<ast::DoCmd>(
-            kw<"Do"> + assign<&ast::DoCmd::target>(RefSel2))> {};
+            kw<"Do"> + assign<&ast::DoCmd::target>(RefSel2) +
+            option(lit<","> + assign<&ast::DoCmd::times>(ref<MathExpr>) +
+                   kw<"times">))> {};
 
   struct TypeContent
       : rule<create<ast::TypeFormContent>(
@@ -229,7 +240,7 @@ struct Joss : cursiv::GrammarSpec {
       ref<SetCmd> | ref<LetCmd> | ref<DoCmd> | ref<TypeCmd> |
       ref<DeleteValCmd> | ref<LineCmd> | ref<PageCmd>;
   static constexpr auto DirectCmd =
-      ref<CancelCmd> | ref<DeleteCmdCmd> | ref<GoCmd> | ArbitraryCmd;
+      ref<CancelCmd> | ref<DeleteListCmd> | ref<DeleteCmdCmd> | ref<GoCmd> | ArbitraryCmd;
   static constexpr auto IndirectCmd = ref<ToCmd> | ref<DoneCmd> |
                                       ref<StopCmd> | ref<DemandCmd> |
                                       ArbitraryCmd;
@@ -248,8 +259,7 @@ struct Joss : cursiv::GrammarSpec {
             kw<"Form"> + assign<&ast::FormStmt::partNumber>(ref<PARTNUMBER>) +
             lit<":"> + option(gap::none + assign<&ast::FormStmt::layout>(ref<FORM_LAYOUT>)))> {};
   struct AssignStmt
-      : rule<create<ast::AssignStmt>(
-            assign<&ast::AssignStmt::assignment>(ref<Assignment>))> {};
+      : rule<assign<&ast::AssignStmt::assignment>(ref<Assignment>)> {};
 
   struct Statement
       : rule<ref<DirectStmt> | ref<IndirectStmt> | ref<FormStmt> |

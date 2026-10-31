@@ -6,5 +6,5 @@
 .import "lib.dsp";
 .leftmargin 2;
 .list;
-.precision 24;
+.precision 40;
 .weak sym;

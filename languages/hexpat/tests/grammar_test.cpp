@@ -15,6 +15,7 @@
 #include "hexpat/core/CoreServices.hpp"
 #include "hexpat/core/ast.hpp"
 #include "native_followup_cases.hpp"
+#include "imports_arrays.hpp"
 
 namespace {
 
@@ -66,6 +67,7 @@ int main() {
       hexpat::install_core_module>();
 
   if (!hexpat_native_followup::run(language.language)) return 1;
+  if (!hexpat_imports_arrays::run(language.language)) return 1;
 
   const std::filesystem::path exampleDir = CURSIV_EXAMPLE_DIR;
   std::vector<std::filesystem::path> files;

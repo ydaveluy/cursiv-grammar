@@ -27,7 +27,7 @@ struct Limbo : cursiv::GrammarSpec {
   static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   struct REAL : terminal<
       (some(d) + cr<"rR"> + many(basedDigits) + lit<"."> + many(basedDigits)) |
-      ((some(d) + lit<"."> + many(d) | lit<"."> + some(d)) + option(exponent)) |
+      (((some(d) + lit<"."> + many(d)) | (lit<"."> + some(d))) + option(exponent)) |
       (some(d) + exponent)> {};
   static constexpr auto escape = lit<"\\"> +
       (cr<R"(\\'"abtnvfr0)"> | (lit<"u"> + repeat<4>(cr<"0-9A-Fa-f">)));

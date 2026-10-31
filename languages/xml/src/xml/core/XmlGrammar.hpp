@@ -66,10 +66,11 @@ struct Xml : cursiv::GrammarSpec {
 
   static constexpr auto DtdQuoted =
       (lit<"\""> + until_end<"\"">) | (lit<"'"> + until_end<"'">);
+  struct COMMENT;
+  struct PI;
   static constexpr auto DtdSubset =
-      lit<"["> + many(DtdQuoted | (lit<"<!--"> + until_end<"-->">) |
-                      (lit<"<?"> + until_end<"?>">) |
-                      (!cr<"]\"'"> + Char)) + lit<"]">;
+      lit<"["> + many(DtdQuoted | ref<COMMENT> | ref<PI> |
+                      (!lit<"<!--"> + !lit<"<?"> + !cr<"]\"'"> + Char)) + lit<"]">;
   static constexpr auto PubidChar = cr<R"( \r\na-zA-Z0-9'()+,./:=?;!*#@$_%-)">;
   static constexpr auto PubidLiteral =
       (lit<"\""> + many(PubidChar) + lit<"\"">) |

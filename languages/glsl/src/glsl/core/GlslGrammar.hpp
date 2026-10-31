@@ -284,9 +284,8 @@ struct Glsl : cursiv::GrammarSpec {
   struct Initializer
       : rule<create<ast::ListInit>(
                  lit<"{"> +
-                 many(append<&ast::ListInit::items>(ref<Initializer>),
-                      lit<",">) +
-                 option(lit<",">) + lit<"}">) |
+                 option(some(append<&ast::ListInit::items>(ref<Initializer>),
+                             lit<",">) + option(lit<",">)) + lit<"}">) |
              create<ast::ExprInit>(
                  assign<&ast::ExprInit::value>(ref<AssignmentExpression>))> {};
 

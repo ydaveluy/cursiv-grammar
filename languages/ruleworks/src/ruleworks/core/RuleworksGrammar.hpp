@@ -416,11 +416,9 @@ struct Ruleworks : cursiv::GrammarSpec {
 
   // ---- Values ---------------------------------------------------------
   struct Variable
-      : rule<create<ast::Variable>(
-            assign<&ast::Variable::name>(ref<TOK_VARIABLE>))> {};
+      : rule<assign<&ast::Variable::name>(ref<TOK_VARIABLE>)> {};
   struct QuotedVar
-      : rule<create<ast::QuotedVariable>(
-            assign<&ast::QuotedVariable::name>(ref<TOK_QUOTED_VAR>))> {};
+      : rule<assign<&ast::QuotedVariable::name>(ref<TOK_QUOTED_VAR>)> {};
 
   struct Constant
       : rule<create<ast::Literal>(

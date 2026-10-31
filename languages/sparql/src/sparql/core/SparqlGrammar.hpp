@@ -3,8 +3,6 @@
 // UNION/GRAPH/FILTER, and a solution modifier.
 #pragma once
 
-#include <charconv>
-#include <cstdint>
 #include <memory_resource>
 #include <string_view>
 
@@ -13,89 +11,45 @@
 
 namespace sparql {
 
-inline std::string_view decode(std::string_view text,
-                               std::pmr::memory_resource *memory,
-                               bool strings = false) {
-  if (text.find('\\') == std::string_view::npos)
-    return text;
+// Codepoint escapes have already been substituted globally. Only ECHAR
+// remains a string-value escape; never decode another Unicode escape here.
+inline std::string_view decode_string(std::string_view text,
+                                      std::pmr::memory_resource* memory) {
+  if (text.find('\\') == std::string_view::npos) return text;
   const auto room = cursiv::text_room(memory, text.size());
   std::size_t size = 0;
   for (std::size_t i = 0; i < text.size(); ++i) {
-    if (text[i] != '\\' || i + 1 == text.size()) {
-      room[size++] = text[i];
-      continue;
+    char c = text[i];
+    if (c == '\\' && i + 1 < text.size()) {
+      c = text[++i];
+      switch (c) {
+      case 't': c = '\t'; break;
+      case 'b': c = '\b'; break;
+      case 'n': c = '\n'; break;
+      case 'r': c = '\r'; break;
+      case 'f': c = '\f'; break;
+      default: break;
+      }
     }
-    const char escaped = text[++i];
-    if (escaped == 'u' || escaped == 'U') {
-      const std::size_t count = escaped == 'u' ? 4 : 8;
-      std::uint32_t cp = 0;
-      std::from_chars(text.data() + i + 1, text.data() + i + 1 + count, cp, 16);
-      i += count;
-      if (cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff))
-        cp = 0xfffd;
-      if (cp < 0x80)
-        room[size++] = static_cast<char>(cp);
-      else {
-        if (cp >= 0x10000)
-          room[size++] = static_cast<char>(0xf0 | (cp >> 18));
-        else if (cp >= 0x800)
-          room[size++] = static_cast<char>(0xe0 | (cp >> 12));
-        else
-          room[size++] = static_cast<char>(0xc0 | (cp >> 6));
-        if (cp >= 0x10000)
-          room[size++] = static_cast<char>(0x80 | ((cp >> 12) & 63));
-        if (cp >= 0x800)
-          room[size++] = static_cast<char>(0x80 | ((cp >> 6) & 63));
-        room[size++] = static_cast<char>(0x80 | (cp & 63));
-      }
-    } else if (!strings) {
-      room[size++] = '\\';
-      room[size++] = escaped;
-    } else
-      switch (escaped) {
-      case 't':
-        room[size++] = '\t';
-        break;
-      case 'b':
-        room[size++] = '\b';
-        break;
-      case 'n':
-        room[size++] = '\n';
-        break;
-      case 'r':
-        room[size++] = '\r';
-        break;
-      case 'f':
-        room[size++] = '\f';
-        break;
-      default:
-        room[size++] = escaped;
-        break;
-      }
+    room[size++] = c;
   }
   return {room.data(), size};
 }
-inline constexpr auto unicode_text = [](std::string_view text,
-                                        std::pmr::memory_resource *memory) {
-  return decode(text, memory);
+inline constexpr auto prefix_text = [](std::string_view text) {
+  return text.empty() ? text : text.substr(0, text.size() - 1);
 };
-inline constexpr auto prefix_text = [](std::string_view text,
-                                       std::pmr::memory_resource *memory) {
-  return decode(text.substr(0, text.size() - 1), memory);
+inline constexpr auto head_text = [](std::string_view text) {
+  return text.empty() ? text : text.substr(1);
 };
-inline constexpr auto head_text = [](std::string_view text,
-                                     std::pmr::memory_resource *memory) {
-  return decode(text.substr(1), memory);
-};
-inline constexpr auto iri_text = [](std::string_view text,
-                                    std::pmr::memory_resource *memory) {
-  return decode(text.substr(1, text.size() - 2), memory);
+inline constexpr auto iri_text = [](std::string_view text) {
+  return text.size() >= 2 ? text.substr(1, text.size() - 2) : std::string_view{};
 };
 inline constexpr auto string_text = [](std::string_view text,
-                                       std::pmr::memory_resource *memory) {
+                                      std::pmr::memory_resource* memory) {
   const std::size_t quotes =
       text.size() >= 6 && text[0] == text[1] && text[1] == text[2] ? 3 : 1;
-  return decode(text.substr(quotes, text.size() - 2 * quotes), memory, true);
+  if (text.size() < 2 * quotes) return std::string_view{};
+  return decode_string(text.substr(quotes, text.size() - 2 * quotes), memory);
 };
 
 struct Sparql : cursiv::GrammarSpec {
@@ -107,23 +61,20 @@ struct Sparql : cursiv::GrammarSpec {
   struct A : terminal<kw<"a">> {};
 
   static constexpr auto hex = cr<"0-9a-fA-F">;
-  static constexpr auto uchar =
-      (lit<"\\u"> + repeat<4>(hex)) | (lit<"\\U"> + repeat<8>(hex));
   static constexpr auto pn_chars_base =
       cr<"A-Za-zÀ-ÖØ-öø-˿Ͱ-ͽͿ-῿‌-‍⁰-↏Ⰰ-⿯、-퟿豈-﷏ﷰ-�\U00010000-"
          "\U000EFFFF">;
   static constexpr auto pn_chars_u = pn_chars_base | cr<"_">;
   static constexpr auto pn_chars = pn_chars_u | cr<"0-9·̀-ͯ‿-⁀-">;
   static constexpr auto pn_prefix =
-      (pn_chars_base | uchar) +
-      option(many(pn_chars | uchar | lit<".">) + (pn_chars | uchar));
+      pn_chars_base + option(many(pn_chars | lit<".">) + pn_chars);
   static constexpr auto pname_ns_body = option(pn_prefix) + lit<":">;
   static constexpr auto plx =
       (lit<"%"> + repeat<2>(hex)) | (lit<"\\"> + cr<"_~.!$&'()*+,;=/?#@%-">);
   static constexpr auto pn_local =
-      (pn_chars_u | uchar | cr<"0-9:"> | plx) +
-      option(many(pn_chars | uchar | cr<".:"> | plx) +
-             (pn_chars | uchar | lit<":"> | plx));
+      (pn_chars_u | cr<"0-9:"> | plx) +
+      option(many(pn_chars | cr<".:"> | plx) +
+             (pn_chars | lit<":"> | plx));
   struct PNAME_NS : terminal<pname_ns_body> {};
   struct PNAME_LN : terminal<pname_ns_body + pn_local> {};
 
@@ -136,8 +87,8 @@ struct Sparql : cursiv::GrammarSpec {
   struct BLANK_NODE_LABEL : terminal<as<blank_label>(blank_node_label)> {};
   static constexpr auto varname_extra = cr<"·̀-ͯ‿-⁀">;
   static constexpr auto varname =
-      (pn_chars_u | cr<"0-9"> | uchar) +
-      many(pn_chars_u | cr<"0-9"> | varname_extra | uchar);
+      (pn_chars_u | cr<"0-9">) +
+      many(pn_chars_u | cr<"0-9"> | varname_extra);
   struct VAR1 : terminal<as<head_text>(lit<"?"> + varname)> {};
   struct VAR2 : terminal<as<head_text>(lit<"$"> + varname)> {};
 
@@ -160,10 +111,10 @@ struct Sparql : cursiv::GrammarSpec {
 
   struct STRING_LITERAL1
       : terminal<as<string_text>(
-            lit<"'"> + many(echar | uchar | cr<R"(^'\\\n\r)">) + lit<"'">)> {};
+            lit<"'"> + many(echar | cr<R"(^'\\\n\r)">) + lit<"'">)> {};
   struct STRING_LITERAL2
       : terminal<as<string_text>(
-            lit<"\""> + many(echar | uchar | cr<R"(^"\\\n\r)">) + lit<"\"">)> {
+            lit<"\""> + many(echar | cr<R"(^"\\\n\r)">) + lit<"\"">)> {
   };
 
   // A triple-quoted string excludes its own quote character and `\`; a
@@ -171,16 +122,16 @@ struct Sparql : cursiv::GrammarSpec {
   struct STRING_LITERAL_LONG1
       : terminal<as<string_text>(lit<"'''"> +
                                  many(option(lit<"''"> | lit<"'">) +
-                                      (echar | uchar | cr<R"(^'\\)">)) +
+                                      (echar | cr<R"(^'\\)">)) +
                                  lit<"'''">)> {};
   struct STRING_LITERAL_LONG2
       : terminal<as<string_text>(lit<"\"\"\""> +
                                  many(option(lit<"\"\""> | lit<"\"">) +
-                                      (echar | uchar | cr<R"(^"\\)">)) +
+                                      (echar | cr<R"(^"\\)">)) +
                                  lit<"\"\"\"">)> {};
 
   struct IRI_REF
-      : terminal<as<iri_text>(lit<"<"> + many(uchar | cr<R"(^\x00- <>"{}|^`\\)">) +
+      : terminal<as<iri_text>(lit<"<"> + many(cr<R"(^\x00- <>"{}|^`\\)">) +
                               lit<">">)> {};
 
   // Only PN_CHARS may abut a keyword: '.', ':', '?' and '$' stay outside so
@@ -257,7 +208,7 @@ struct Sparql : cursiv::GrammarSpec {
 
   struct IriRef : rule<assign<&ast::IriRef::value>(ref<IRI_REF>)> {};
   struct PrefixName : rule<as<prefix_text>(ref<PNAME_NS>)> {};
-  struct PrefixedValue : rule<as<unicode_text>(ref<PNAME_LN> | ref<PNAME_NS>)> {
+  struct PrefixedValue : rule<ref<PNAME_LN> | ref<PNAME_NS>> {
   };
   struct PrefixedTerm
       : rule<assign<&ast::PrefixedTerm::value>(ref<PrefixedValue>)> {};

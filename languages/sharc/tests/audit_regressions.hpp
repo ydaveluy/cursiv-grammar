@@ -117,7 +117,7 @@ inline bool run() {
   for (const std::string_view word : {
       "r1", "R1", "mr0f", "MR1B", "MRF", "LCNTR", "MODE1", "FLAG0_IN",
       "abs", "ADDRESS", ".ALIGN", "__DATE__"}) {
-    for (const std::string source : {
+    for (const std::string& source : {
         ".VAR " + std::string(word) + " = 1;",
         std::string(word) + ": NOP;",
         ".VAR sink = " + std::string(word) + ";"}) {

@@ -559,7 +559,7 @@ template <class Language> bool modern_cases(const Language &language) {
               errors[0].code->isString() && errors[0].code->string() == "wat.string",
           "unescaped string controls receive a native lexical diagnostic");
   }
-  for (const std::string source : {std::string(";;\x80\n(module)"),
+  for (const std::string& source : {std::string(";;\x80\n(module)"),
                                     std::string("(module (; \xc3 ;))"), std::string("(module (data \"\xc3\"))"),
                                     std::string("(module (data \"[\xed\xa0\x80]\"))")}) {
     const auto result = parser.parse(source);

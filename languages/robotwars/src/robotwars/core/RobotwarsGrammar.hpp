@@ -94,11 +94,17 @@ struct Robotwars : cursiv::GrammarSpec {
   struct Label : rule<assign<&ast::Label::name>(ref<ID>)> {};
   struct Comment : rule<assign<&ast::Comment::text>(ref<COMMENT>)> {};
 
+  template <auto Comments, auto Body>
+  static constexpr auto controlled_body =
+      option(ref<COMMA> | ref<DOT>) +
+      many(option(append<Comments>(ref<Comment>)) + ref<EOL>) +
+      assign<Body>(ref<Statement>);
+
   struct IfStatement
       : rule<option(ikw<"IF">) +
              assign<&ast::IfStatement::condition>(ref<Condition>) +
-             option(ref<EOL> | ref<COMMA> | ref<DOT>) +
-             assign<&ast::IfStatement::body>(ref<Statement>)> {};
+             controlled_body<&ast::IfStatement::comments,
+                             &ast::IfStatement::body>> {};
 
   struct ToStatement
       : rule<option(assign<&ast::ToStatement::value>(ref<Expression>)) +
@@ -117,15 +123,19 @@ struct Robotwars : cursiv::GrammarSpec {
   // `=` and `#` read no expression, `<`/`>` do.
   struct AccumStatement
       : rule<(assign<&ast::AccumStatement::op>(as<ast::Comparison::equal>(lit<"=">)) +
-             assign<&ast::AccumStatement::body>(ref<Statement>)) |
+             controlled_body<&ast::AccumStatement::comments,
+                            &ast::AccumStatement::body>) |
             (assign<&ast::AccumStatement::op>(as<ast::Comparison::notEqual>(lit<"#">)) +
-             assign<&ast::AccumStatement::body>(ref<Statement>)) |
+             controlled_body<&ast::AccumStatement::comments,
+                            &ast::AccumStatement::body>) |
             (assign<&ast::AccumStatement::op>(as<ast::Comparison::less>(lit<"<">)) +
              assign<&ast::AccumStatement::operand>(ref<Expression>) +
-             assign<&ast::AccumStatement::body>(ref<Statement>)) |
+             controlled_body<&ast::AccumStatement::comments,
+                            &ast::AccumStatement::body>) |
             (assign<&ast::AccumStatement::op>(as<ast::Comparison::greater>(lit<">">)) +
              assign<&ast::AccumStatement::operand>(ref<Expression>) +
-             assign<&ast::AccumStatement::body>(ref<Statement>))> {};
+             controlled_body<&ast::AccumStatement::comments,
+                            &ast::AccumStatement::body>)> {};
 
   struct Statement
       : rule<ref<IfStatement> | ref<ToStatement> |

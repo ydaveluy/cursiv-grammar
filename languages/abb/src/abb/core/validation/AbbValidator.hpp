@@ -10,6 +10,8 @@ public:
   void checkRoutine(const ast::Routine &, cursiv::ValidationAcceptor &) const;
   void checkParameter(const ast::Parameter &,
                       cursiv::ValidationAcceptor &) const;
+  void checkControl(const ast::Statement &,
+                    cursiv::ValidationAcceptor &) const;
 };
 struct AbbCoreServices;
 void register_validation_checks(AbbCoreServices &);

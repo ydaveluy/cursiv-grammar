@@ -13,6 +13,11 @@ class PhpValidator final : public cursiv::DefaultCoreService {
   void checkFunction(const ast::FunctionDecl&, cursiv::ValidationAcceptor&) const;
   void checkClass(const ast::ClassDecl&, cursiv::ValidationAcceptor&) const;
   void checkEnum(const ast::EnumDecl&, cursiv::ValidationAcceptor&) const;
+  void checkParam(const ast::Param&, cursiv::ValidationAcceptor&) const;
+  void checkHook(const ast::PropertyHook&, cursiv::ValidationAcceptor&) const;
+  void checkNullable(const ast::NullableTypeRef&, cursiv::ValidationAcceptor&) const;
+  void checkIntersection(const ast::IntersectionTypeRef&, cursiv::ValidationAcceptor&) const;
+  void checkUnion(const ast::UnionTypeRef&, cursiv::ValidationAcceptor&) const;
 };
 
 struct PhpCoreServices;

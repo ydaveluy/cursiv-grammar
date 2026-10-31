@@ -13,14 +13,25 @@ inline constexpr auto unquote_string = [](std::string_view t) {
 };
 
 struct Squirrel : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \t\f)">)> {};
-  struct SL_COMMENT : terminal<(lit<"//"> | lit<"#">) + many(cr<R"(^\r\n)">)> {};
+  struct WS : terminal<some(cr<R"( \t\r)">)> {};
+  struct SL_COMMENT : terminal<(lit<"//"> | lit<"#">) + many(cr<R"(^\n)">)> {};
   struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
   // Significant: statements end at a NL the way they end at `;` (see
   // `StatementSep`), so it is never dropped as trivia.
-  struct NL : terminal<some(cr<R"(\r\n)">)> {};
+  struct NL : terminal<some(lit<"\n">)> {};
 
-  struct IDENT : terminal<cr<"a-zA-Z_"> + many(w)> {};
+  // Expect(TK_IDENTIFIER) explicitly accepts constructor in the native
+  // compiler. Every other keyword remains reserved in all name contexts.
+  static constexpr auto reserved =
+      kw<"while"> | kw<"do"> | kw<"if"> | kw<"else"> | kw<"break"> |
+      kw<"continue"> | kw<"return"> | kw<"null"> | kw<"function"> |
+      kw<"local"> | kw<"for"> | kw<"foreach"> | kw<"in"> | kw<"typeof"> |
+      kw<"base"> | kw<"delete"> | kw<"try"> | kw<"catch"> | kw<"throw"> |
+      kw<"clone"> | kw<"yield"> | kw<"resume"> | kw<"switch"> | kw<"case"> |
+      kw<"default"> | kw<"this"> | kw<"class"> | kw<"extends"> |
+      kw<"instanceof"> | kw<"true"> | kw<"false"> | kw<"static"> |
+      kw<"enum"> | kw<"const"> | kw<"__LINE__"> | kw<"__FILE__"> | kw<"rawcall">;
+  struct IDENT : terminal<!reserved + cr<"a-zA-Z_"> + many(w)> {};
 
   static constexpr auto Hex = cr<"0-9a-fA-F">;
   static constexpr auto Escape = lit<"\\"> +
@@ -76,6 +87,11 @@ struct Squirrel : cursiv::GrammarSpec {
   struct StatementOrEmpty;
   struct ClassMember;
   struct FunctionDecl;
+  struct ConstructorDecl;
+  struct BlockStmt;
+  struct ClassDecl;
+  struct EnumDecl;
+  struct PostfixExpr;
 
   // ---- literals and names ----
 
@@ -123,33 +139,31 @@ struct Squirrel : cursiv::GrammarSpec {
 
   struct KeyValue
       : rule<assign<&ast::KeyValue::key>(ref<IDENT> | ref<BracketKey>) +
-             lit<"="> +
+             many(ref<NL>) + lit<"="> +
              assign<&ast::KeyValue::value>(ref<AssignExpr>)> {};
 
   struct JsonKeyValue
       : rule<create<ast::KeyValue>(assign<&ast::KeyValue::key>(ref<StringExpr>) +
-             lit<":"> + assign<&ast::KeyValue::value>(ref<AssignExpr>))> {};
+             many(ref<NL>) + lit<":"> + assign<&ast::KeyValue::value>(ref<AssignExpr>))> {};
 
   struct TableExpr
-      : rule<lit<"{"> + many(lit<","> | ref<NL>) +
+      : rule<lit<"{"> + many(ref<NL>) +
              many(append<&ast::TableExpr::items>(ref<KeyValue> | ref<JsonKeyValue> |
-                                                 ref<FunctionDecl>) +
-                  many(lit<","> | ref<NL>)) +
+                                                 ref<FunctionDecl> | ref<ConstructorDecl>) +
+                  option(lit<",">) + many(ref<NL>)) +
              lit<"}">> {};
 
-  // A plain name or a defaulted one, merged into one rule: an
-  // id-then-optional-`=` prefix is identical for both, so telling them
-  // apart needs lookahead past the `=` that a shared prefix does not give
-  // an LR table; this over-accepts a default before a plain parameter,
-  // which no example reaches.
+  // Preserve default expressions; the validator checks their ordering and
+  // their incompatibility with varargs, as the native compiler does.
   struct Param : rule<many(ref<NL>) + assign<&ast::Param::name>(ref<IDENT>) +
+                          many(ref<NL>) +
                           option(lit<"="> + assign<&ast::Param::defaultValue>(
-                                                ref<AssignExpr>))> {};
+                                                ref<AssignExpr>)) + many(ref<NL>)> {};
 
   struct FunctionExpr
-      : rule<kw<"function"> +
+      : rule<kw<"function"> + many(ref<NL>) +
              option(lit<"["> + assign<&ast::FunctionExpr::environment>(ref<AssignExpr>) + many(ref<NL>) + lit<"]">) +
-             lit<"("> +
+             many(ref<NL>) + lit<"("> +
              option((some(append<&ast::FunctionExpr::params>(ref<Param>),
                          lit<",">) +
                         option(lit<","> +
@@ -159,9 +173,9 @@ struct Squirrel : cursiv::GrammarSpec {
              assign<&ast::FunctionExpr::body>(ref<StatementOrEmpty>)> {};
 
   struct LambdaExpr
-      : rule<lit<"@"> +
+      : rule<lit<"@"> + many(ref<NL>) +
              option(lit<"["> + assign<&ast::LambdaExpr::environment>(ref<AssignExpr>) + many(ref<NL>) + lit<"]">) +
-             lit<"("> +
+             many(ref<NL>) + lit<"("> +
              option((some(append<&ast::LambdaExpr::params>(ref<Param>),
                          lit<",">) +
                         option(lit<","> +
@@ -170,40 +184,67 @@ struct Squirrel : cursiv::GrammarSpec {
              many(ref<NL>) + lit<")"> +
              assign<&ast::LambdaExpr::body>(ref<AssignExpr>)> {};
 
-  struct ClassExpr
-      : rule<kw<"class"> +
-             option(kw<"extends"> +
-                    some(append<&ast::ClassExpr::base>(ref<IDENT>), lit<".">)) +
-             lit<"{"> + many(ref<NL>) +
-             many(append<&ast::ClassExpr::members>(ref<ClassMember>) +
-                  many(lit<";"> | ref<NL>)) +
-             lit<"}">> {};
+  template <auto Args, auto Initializers>
+  static constexpr auto call_tail =
+      lit<"("> +
+      option(append<Args>(ref<AssignExpr>) +
+             many(many(ref<NL>) + option(lit<",">) +
+                  append<Args>(ref<AssignExpr>))) +
+      many(ref<NL>) + lit<")"> +
+      option(commit(many(ref<NL>) + lit<"{">,
+                    many(ref<NL>) +
+                    many(append<Initializers>(ref<KeyValue>) +
+                         option(lit<",">) + many(ref<NL>)) +
+                    lit<"}">));
+
+  struct RawCallExpr : rule<kw<"rawcall"> + many(ref<NL>) +
+      call_tail<&ast::RawCallExpr::args, &ast::RawCallExpr::initializers>> {};
+  struct SourceConstant : rule<assign<&ast::SourceConstant::name>(
+      kw<"__LINE__"> | kw<"__FILE__">)> {};
+  struct ParenExpr : rule<lit<"("> + assign<&ast::ParenExpr::inner>(ref<Expression>) +
+                          many(ref<NL>) + lit<")">> {};
+
+  template <auto Base, auto Members>
+  static constexpr auto class_body =
+      option(kw<"extends"> + assign<Base>(ref<AssignExpr>)) + many(ref<NL>) +
+      lit<"{"> + many(ref<NL>) +
+      many(append<Members>(ref<ClassMember>) +
+           option(lit<";">) + many(ref<NL>)) +
+      lit<"}">;
+  struct ClassExpr : rule<kw<"class"> + many(ref<NL>) +
+      class_body<&ast::ClassExpr::base, &ast::ClassExpr::members>> {};
 
   struct PrimaryExpr
       : rule<ref<LiteralExpr>                                           //
-             | (lit<"("> + ref<Expression> + many(ref<NL>) + lit<")">)  //
+             | ref<ParenExpr>                                       //
              | ref<ClassExpr>                                       //
              | ref<TableExpr>                                       //
              | ref<ArrayExpr>                                       //
              | ref<FunctionExpr>                                    //
              | ref<LambdaExpr>                                      //
+             | create<ast::ThisExpr>(kw<"this">)                      //
+             | create<ast::BaseExpr>(kw<"base">)                      //
+             | ref<SourceConstant>                                  //
+             | ref<RawCallExpr>                                     //
              | ref<IdentExpr>> {};
 
   struct PostfixExpr
       : rule<ref<PrimaryExpr> +
              many(nest<ast::MemberExpr, &ast::MemberExpr::object>(
-                      lit<"."> + assign<&ast::MemberExpr::field>(ref<IDENT> |
+                      many(ref<NL>) + lit<"."> + many(ref<NL>) +
+                      assign<&ast::MemberExpr::field>(ref<IDENT> |
                                                                  kw<"constructor">))  //
                   | nest<ast::CallExpr, &ast::CallExpr::callee>(
-                        lit<"("> +
-                        many(append<&ast::CallExpr::args>(ref<AssignExpr>),
-                             lit<",">) +
-                        many(ref<NL>) + lit<")">)  //
+                        many(ref<NL>) + call_tail<&ast::CallExpr::args,
+                                  &ast::CallExpr::initializers>)  //
                   | nest<ast::IndexExpr, &ast::IndexExpr::object>(
                         lit<"["> + assign<&ast::IndexExpr::index>(ref<AssignExpr>) +
                         many(ref<NL>) + lit<"]">)  //
                   | nest<ast::PostfixOpExpr, &ast::PostfixOpExpr::operand>(
-                        assign<&ast::PostfixOpExpr::op>(lit<"++"> | lit<"--">)))> {};
+                        assign<&ast::PostfixOpExpr::op>(lit<"++"> | lit<"--">))) +
+             // Native '[' dereference never starts on a new physical line;
+             // it is an error, rather than a second array expression.
+             !(some(ref<NL>) + lit<"[">)> {};
 
   struct UnaryExpr;
   struct UnaryExpr
@@ -250,15 +291,20 @@ struct Squirrel : cursiv::GrammarSpec {
   struct StatementOrEmpty
       : rule<ref<Statement> | create<ast::EmptyStmt>(lit<";">)> {};
 
+  // A closing block/class/enum brace terminates these statements natively.
+  // Other statement endings retain the required semicolon/newline.
+  template <auto Body>
+  static constexpr auto statement_item =
+      (append<Body>(ref<BlockStmt> | ref<ClassDecl> | ref<EnumDecl>) + LeadingSeps) |
+      (append<Body>(ref<Statement>) + StatementSep);
+
   struct BlockStmt
       : rule<lit<"{"> + LeadingSeps +
-             many(append<&ast::BlockStmt::body>(ref<Statement>) +
-                  StatementSep) +
+             many(statement_item<&ast::BlockStmt::body>) +
              lit<"}">> {};
 
   struct ExprStmt
-      : rule<create<ast::ExprStmt>(
-                 assign<&ast::ExprStmt::value>(ref<Expression>))> {};
+      : rule<assign<&ast::ExprStmt::value>(ref<Expression>)> {};
 
   struct ConstDecl
       : rule<kw<"const"> + assign<&ast::ConstDecl::name>(ref<IDENT>) +
@@ -267,15 +313,18 @@ struct Squirrel : cursiv::GrammarSpec {
 
   struct EnumItem
       : rule<assign<&ast::EnumItem::name>(ref<IDENT>) +
+             many(ref<NL>) +
              option(lit<"="> +
-                    assign<&ast::EnumItem::value>(ref<ConstLiteral>))> {};
+                    many(ref<NL>) +
+                    assign<&ast::EnumItem::value>(ref<ConstLiteral>) +
+                    many(ref<NL>))> {};
 
   struct EnumDecl
-      : rule<kw<"enum"> + assign<&ast::EnumDecl::name>(ref<IDENT>) +
-             lit<"{"> +
-             option(some(append<&ast::EnumDecl::items>(ref<EnumItem>),
-                         lit<",">) +
-                    option(lit<",">)) +
+      : rule<kw<"enum"> + many(ref<NL>) +
+             assign<&ast::EnumDecl::name>(ref<IDENT>) + many(ref<NL>) +
+             lit<"{"> + many(ref<NL>) +
+             many(append<&ast::EnumDecl::items>(ref<EnumItem>) +
+                  option(lit<",">) + many(ref<NL>)) +
              lit<"}">> {};
 
   struct VarItem
@@ -296,12 +345,14 @@ struct Squirrel : cursiv::GrammarSpec {
                         ref<FunctionDecl>)))> {};
 
   struct FunctionDecl
-      : rule<kw<"function"> +
+      : rule<kw<"function"> + many(ref<NL>) +
              append<&ast::FunctionDecl::path>(ref<IDENT>) +
-             many(lit<"::"> + append<&ast::FunctionDecl::path>(
+             many(many(ref<NL>) + lit<"::"> + many(ref<NL>) +
+                  append<&ast::FunctionDecl::path>(
                                    ref<IDENT> | kw<"constructor">)) +
+             many(ref<NL>) +
              option(lit<"["> + assign<&ast::FunctionDecl::environment>(ref<AssignExpr>) + many(ref<NL>) + lit<"]">) +
-             lit<"("> +
+             many(ref<NL>) + lit<"("> +
              option((some(append<&ast::FunctionDecl::params>(ref<Param>),
                           lit<",">) +
                      option(lit<","> + option(flag<&ast::FunctionDecl::variadic>(
@@ -311,9 +362,9 @@ struct Squirrel : cursiv::GrammarSpec {
              assign<&ast::FunctionDecl::body>(ref<StatementOrEmpty>)> {};
 
   struct ConstructorDecl
-      : rule<kw<"constructor"> +
+      : rule<kw<"constructor"> + many(ref<NL>) +
              option(lit<"["> + assign<&ast::ConstructorDecl::environment>(ref<AssignExpr>) + many(ref<NL>) + lit<"]">) +
-             lit<"("> +
+             many(ref<NL>) + lit<"("> +
              option(
                  (some(append<&ast::ConstructorDecl::params>(ref<Param>),
                        lit<",">) +
@@ -324,23 +375,19 @@ struct Squirrel : cursiv::GrammarSpec {
              assign<&ast::ConstructorDecl::body>(ref<StatementOrEmpty>)> {};
 
   struct ClassMember
-      : rule<option(lit<"</"> + many(lit<","> | ref<NL>) +
-                    many(append<&ast::ClassMember::attrs>(ref<KeyValue>) +
-                         many(lit<","> | ref<NL>)) +
+      : rule<option(lit<"</"> + many(ref<NL>) +
+                    many(!kw<"constructor"> + append<&ast::ClassMember::attrs>(ref<KeyValue>) +
+                         option(lit<",">) + many(ref<NL>)) +
                     lit<"/>"> + many(ref<NL>)) +
-             option(flag<&ast::ClassMember::isStatic>(kw<"static">)) +
+             option(flag<&ast::ClassMember::isStatic>(kw<"static"> + many(ref<NL>))) +
              assign<&ast::ClassMember::member>(ref<ConstructorDecl>  //
                                                | ref<KeyValue>       //
                                                | ref<FunctionDecl>)> {};
 
   struct ClassDecl
-      : rule<kw<"class"> + some(append<&ast::ClassDecl::name>(ref<IDENT>), lit<".">) +
-             option(kw<"extends"> +
-                    some(append<&ast::ClassDecl::base>(ref<IDENT>), lit<".">)) +
-             lit<"{"> + many(ref<NL>) +
-             many(append<&ast::ClassDecl::members>(ref<ClassMember>) +
-                  many(lit<";"> | ref<NL>)) +
-             lit<"}">> {};
+      : rule<kw<"class"> + many(ref<NL>) +
+             assign<&ast::ClassDecl::target>(ref<PostfixExpr>) + many(ref<NL>) +
+             class_body<&ast::ClassDecl::base, &ast::ClassDecl::members>> {};
 
   struct ForStmt
       : rule<kw<"for"> + lit<"("> +
@@ -384,13 +431,11 @@ struct Squirrel : cursiv::GrammarSpec {
   struct SwitchCase
       : rule<kw<"case"> + assign<&ast::SwitchCase::value>(ref<Expression>) +
              lit<":"> + LeadingSeps +
-             many(append<&ast::SwitchCase::body>(ref<Statement>) +
-                  StatementSep)> {};
+             many(statement_item<&ast::SwitchCase::body>)> {};
 
   struct DefaultCase
       : rule<kw<"default"> + lit<":"> + LeadingSeps +
-             many(append<&ast::DefaultCase::body>(ref<Statement>) +
-                  StatementSep)> {};
+             many(statement_item<&ast::DefaultCase::body>)> {};
 
   struct SwitchStmt
       : rule<kw<"switch"> + lit<"("> +
@@ -441,12 +486,11 @@ struct Squirrel : cursiv::GrammarSpec {
              | ref<ContinueStmt>  //
              | ref<YieldStmt>     //
              | ref<ThrowStmt>     //
-             | ref<ExprStmt>> {};
+             | (!kw<"class"> + !kw<"function"> + ref<ExprStmt>)> {};
 
   struct Chunk
       : rule<create<ast::Chunk> + LeadingSeps +
-             many(append<&ast::Chunk::body>(ref<Statement>) +
-                  StatementSep)> {};
+             many(statement_item<&ast::Chunk::body>)> {};
 
   using entry = Chunk;
   using ignored = list<WS, SL_COMMENT, ML_COMMENT>;

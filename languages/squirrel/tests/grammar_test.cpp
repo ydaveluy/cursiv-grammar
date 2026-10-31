@@ -1,5 +1,6 @@
 #include "native_validation.hpp"
 #include "audit_regressions.hpp"
+#include "native_core_regressions.hpp"
 // The Squirrel grammar end to end: every corpus example parses clean, real
 // field values are read back out of one of them, and a handful of
 // constructs the corpus does not exercise are covered here with short
@@ -103,14 +104,19 @@ void class_values() {
   ast::ClassDecl* vector3 = nullptr;
   for (ast::Stmt* const stmt : root->body) {
     ast::ClassDecl* const c = as<ast::ClassDecl>(stmt);
-    if (c != nullptr && c->name.size() == 1 && c->name[0] == "Vector3") {
+    const auto* name = c ? as<ast::Ident>(c->target) : nullptr;
+    if (name && name->name == "Vector3" && !name->rootScoped) {
       vector3 = c;
       break;
     }
   }
   CHECK(vector3 != nullptr);
   if (vector3 == nullptr) return;
-  CHECK(vector3->base.size() == 1 && vector3->base[0] == "BaseVector");
+  const auto* target = as<ast::Ident>(vector3->target);
+  const auto* base = as<ast::Ident>(vector3->base);
+  CHECK(target && target->name == "Vector3" && target->parent == vector3);
+  CHECK(base && base->name == "BaseVector" && !base->rootScoped &&
+        base->parent == vector3);
   CHECK(vector3->members.size() == 2);
   if (vector3->members.size() == 2) {
     ast::FunctionDecl* const* const add =
@@ -243,7 +249,8 @@ void instanceof_precedence() {
 }  // namespace
 
 int main() {
-  if (!audit_regressions::run() || !squirrel_native_validation()) return 1;
+  if (!audit_regressions::run() || !squirrel_native_validation() ||
+      !squirrel_native_cases::run()) return 1;
   every_example_parses_clean();
   ackermann_values();
   class_values();

@@ -22,7 +22,7 @@ struct RacketBsl : cursiv::GrammarSpec {
                  (lit<"#"> + cr<"eEiIbBoOdDxX%"> + many(symbol_piece))> {};
   struct KEYWORD : terminal<lit<"#:"> + many(symbol_piece)> {};
   struct BOOLEAN : terminal<(lit<"#true"> | lit<"#false"> | lit<"#t"> |
-                             lit<"#f"> | lit<"#T"> | lit<"#F">)+!plain> {};
+                             lit<"#f"> | lit<"#T"> | lit<"#F">)+!(~delimiter)> {};
   static constexpr auto quoted =
       lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">;
   struct HereTag;
@@ -39,7 +39,7 @@ struct RacketBsl : cursiv::GrammarSpec {
       : terminal<lit<"#\\"> + ((lit<"u"> + repeat<0, 4>(cr<"0-9a-fA-F">)) |
                                (lit<"U"> + repeat<0, 8>(cr<"0-9a-fA-F">)) |
                                (cr<"0-7"> + repeat<0, 2>(cr<"0-7">)) |
-                               (!cr<"uU"> + uc::L + many(uc::L)) | any)> {};
+                               (!cr<"uU"> + uc::Alphabetic + many(uc::Alphabetic)) | any)> {};
   struct GRAPH_REF : terminal<lit<"#"> + some(d) + lit<"#">> {};
   struct PREFIX : terminal<lit<"'"> | lit<"`"> | lit<",@"> | lit<","> |
                            lit<"#'"> | lit<"#`"> | lit<"#,@"> | lit<"#,"> |

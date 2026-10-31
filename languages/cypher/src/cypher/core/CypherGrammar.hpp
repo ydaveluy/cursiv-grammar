@@ -203,6 +203,7 @@ struct Cypher : cursiv::GrammarSpec {
       (Digits + ((ExponentPart + option(FloatSuffix)) | FloatSuffix));
 
   struct NUMBER : terminal<HexDigits | OctalDigits | Float | Digits> {};
+  struct INTEGER_LITERAL : terminal<HexDigits | OctalDigits | Digits> {};
 
   struct ALL : terminal<ikw<"ALL">> {};
   struct ASC : terminal<ikw<"ASC">> {};
@@ -294,6 +295,7 @@ struct Cypher : cursiv::GrammarSpec {
   struct RelationshipsChainPattern;
   struct RegularQuery;
   struct PatternWhere;
+  struct ForeachClause;
 
   struct InvocationName
       : rule<ref<Symbol> + many(lit<"."> + ref<Symbol>)> {};
@@ -425,10 +427,19 @@ struct Cypher : cursiv::GrammarSpec {
                    option(assign<&ast::GroupedPatternElem::quantifier>(
                        ref<Quantifier>)))> {};
 
+  template<auto All, auto Pattern> static constexpr auto shortest_path =
+      ((flag<All>(&ikw<"allShortestPaths"> + ref<Symbol>)) |
+       (&ikw<"shortestPath"> + ref<Symbol>)) +
+      lit<"("> + assign<Pattern>(ref<PatternElem>) + lit<")">;
+  struct ShortestPattern : rule<shortest_path<&ast::ShortestPattern::all,
+      &ast::ShortestPattern::inner>> {};
+  struct ShortestPathExpr : rule<shortest_path<&ast::ShortestPathExpr::all,
+      &ast::ShortestPathExpr::pattern>> {};
+
   struct PatternPart
       : rule<option(assign<&ast::PatternPart::variable>(ref<Symbol>) +
                     lit<"=">) +
-             assign<&ast::PatternPart::elem>(ref<PatternElem>)> {};
+             assign<&ast::PatternPart::elem>(ref<ShortestPattern> | ref<PatternElem>)> {};
 
   struct Pattern
       : rule<some(append<&ast::Pattern::parts>(ref<PatternPart>), lit<",">)> {
@@ -520,6 +531,7 @@ struct Cypher : cursiv::GrammarSpec {
              | ref<CountAll>                   //
              | ref<PatternComprehension>       //
              | ref<FilterWith>                 //
+             | ref<ShortestPathExpr>           //
              | ref<RelationshipsChainPattern>  //
              | create<ast::GroupExpr>(
                    lit<"("> + assign<&ast::GroupExpr::value>(ref<Expression>) +
@@ -616,10 +628,29 @@ struct Cypher : cursiv::GrammarSpec {
 
   // reading / updating clauses
 
+  struct IndexHint : rule<ikw<"INDEX"> +
+       assign<&ast::IndexHint::variable>(ref<Symbol>) + lit<":"> +
+       assign<&ast::IndexHint::label>(ref<Name>) + lit<"("> +
+       assign<&ast::IndexHint::property>(ref<Name>) + lit<")">> {};
+  struct JoinHint : rule<ikw<"JOIN"> + ref<ON> +
+      some(append<&ast::JoinHint::variables>(ref<Symbol>), lit<",">)> {};
+  struct ScanHint : rule<ikw<"SCAN"> +
+      assign<&ast::ScanHint::variable>(ref<Symbol>) + lit<":"> +
+      assign<&ast::ScanHint::label>(ref<Name>)> {};
+  struct MatchHint : rule<ikw<"USING"> +
+      (ref<IndexHint> | ref<JoinHint> | ref<ScanHint>)> {};
+
+  struct LoadCsvClause : rule<ikw<"LOAD"> + ikw<"CSV"> +
+      option(ref<WITH> + flag<&ast::LoadCsvClause::headers>(ikw<"HEADERS">)) +
+      ikw<"FROM"> + assign<&ast::LoadCsvClause::source>(ref<Expression>) + ref<AS> +
+      assign<&ast::LoadCsvClause::variable>(ref<Symbol>) +
+      option(ikw<"FIELDTERMINATOR"> + assign<&ast::LoadCsvClause::fieldTerminator>(ref<StringLit>))> {};
+
   struct MatchClause
       : rule<option(flag<&ast::MatchClause::optional_>(ref<OPTIONAL>)) +
              ref<MATCH> +
              assign<&ast::MatchClause::pattern>(ref<Pattern>) +
+             many(append<&ast::MatchClause::hints>(ref<MatchHint>)) +
              option(ref<WHERE> +
                     assign<&ast::MatchClause::where_>(ref<Expression>))> {};
 
@@ -696,6 +727,15 @@ struct Cypher : cursiv::GrammarSpec {
                             ref<PropertyExpression>),
                   lit<",">)> {};
 
+  template<auto Member> static constexpr auto updating =
+      append<Member>(ref<CreateClause>) | append<Member>(ref<MergeClause>) |
+      append<Member>(ref<DeleteClause>) | append<Member>(ref<SetClause>) |
+      append<Member>(ref<RemoveClause>) | append<Member>(ref<ForeachClause>);
+  struct ForeachClause : rule<ikw<"FOREACH"> + lit<"("> +
+      assign<&ast::ForeachClause::variable>(ref<Symbol>) + ref<IN> +
+      assign<&ast::ForeachClause::source>(ref<Expression>) + lit<"|"> +
+      some(updating<&ast::ForeachClause::updates>) + lit<")">> {};
+
   // projection
 
   struct OrderItem
@@ -738,33 +778,21 @@ struct Cypher : cursiv::GrammarSpec {
       : rule<ref<RETURN> +
              assign<&ast::ReturnClause::body>(ref<ProjectionBody>)> {};
 
-  static constexpr auto ReadingOrUpdating =
-      append<&ast::QueryPart::statements>(ref<MatchClause>)   //
-      | append<&ast::QueryPart::statements>(ref<UnwindClause>)  //
-      | append<&ast::QueryPart::statements>(ref<QueryCallClause>)  //
-      | append<&ast::QueryPart::statements>(ref<CreateClause>)  //
-      | append<&ast::QueryPart::statements>(ref<MergeClause>)   //
-      | append<&ast::QueryPart::statements>(ref<DeleteClause>)  //
-      | append<&ast::QueryPart::statements>(ref<SetClause>)     //
-      | append<&ast::QueryPart::statements>(ref<RemoveClause>);
-
   static constexpr auto Reading =
       append<&ast::QueryPart::statements>(ref<MatchClause>)     //
       | append<&ast::QueryPart::statements>(ref<UnwindClause>)  //
-      | append<&ast::QueryPart::statements>(ref<QueryCallClause>);
+      | append<&ast::QueryPart::statements>(ref<QueryCallClause>)
+      | append<&ast::QueryPart::statements>(ref<LoadCsvClause>);
 
   struct WithPart
-      : rule<create<ast::QueryPart> + many(ReadingOrUpdating) +
+      : rule<create<ast::QueryPart> + many(Reading) +
+             many(updating<&ast::QueryPart::statements>) +
              assign<&ast::QueryPart::with>(ref<WithClause>)> {};
 
   struct FinalPart
       : rule<create<ast::QueryPart> + many(Reading) +
              (assign<&ast::QueryPart::ret>(ref<ReturnClause>)  //
-              | (some(append<&ast::QueryPart::statements>(ref<CreateClause>) |
-                      append<&ast::QueryPart::statements>(ref<MergeClause>) |
-                      append<&ast::QueryPart::statements>(ref<DeleteClause>) |
-                      append<&ast::QueryPart::statements>(ref<SetClause>) |
-                      append<&ast::QueryPart::statements>(ref<RemoveClause>)) +
+              | (some(updating<&ast::QueryPart::statements>) +
                  option(assign<&ast::QueryPart::ret>(ref<ReturnClause>))))> {
   };
 
@@ -801,9 +829,14 @@ struct Cypher : cursiv::GrammarSpec {
                                assign<&ast::StandaloneCall::where_>(
                                    ref<Expression>)))))> {};
 
+  struct BulkImportQuery : rule<ikw<"USING"> + ikw<"PERIODIC"> + ikw<"COMMIT"> +
+      option(assign<&ast::BulkImportQuery::batchSize>(ref<INTEGER_LITERAL>)) +
+      assign<&ast::BulkImportQuery::load>(ref<LoadCsvClause>) +
+      assign<&ast::BulkImportQuery::query>(ref<SingleQuery>)> {};
+
   struct Script
       : rule<assign<&ast::Script::query>(ref<RegularQuery> |
-                                         ref<StandaloneCall>) +
+                                         ref<StandaloneCall> | ref<BulkImportQuery>) +
              option(lit<";">)> {};
 
   using entry = Script;

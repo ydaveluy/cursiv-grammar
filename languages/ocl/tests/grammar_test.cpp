@@ -13,6 +13,7 @@
 #include "ocl/core/CoreServices.hpp"
 #include "ocl/core/ast.hpp"
 #include "native_regressions.hpp"
+#include "tuple_cases.hpp"
 
 namespace {
 
@@ -43,6 +44,7 @@ int main() {
       ocl::OclCoreServices, ocl::OclSharedCoreServices,
       ocl::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
+  if (!ocl_tuple_cases::run(language.language)) return fail("tuple syntax/AST/validation");
   if (!ocl_native_regressions(parser)) return fail("native OCL regression");
 
   // contextExamples.ocl: the upstream corpus, 30 context specifications.

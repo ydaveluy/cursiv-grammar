@@ -43,12 +43,10 @@ module robdata(sysmodule)
 endmodule
 ```
 
-An ABB RAPID module (`.sys`): a `MODULE`/`ENDMODULE` block holding records,
-`PERS`/`VAR`/`CONST` declarations, procedures and functions. The statement
-subset includes calls (`ConfJ\On`), assignments, returns, `IF` and `WHILE`.
-Expressions currently contain literal values, aggregates and references;
-general operator expressions, `FOR`, `TEST`, traps and recovery handlers
-are outside this port's current subset. Numeric lexemes are preserved.
+ABB RAPID RobotWare 7.20 source modules with data, `PROC`/`FUNC`/`TRAP`
+routines, operator expressions and structured control/recovery bodies.
+This remains a syntax subset; robot execution and name/type resolution are
+outside the library. Numeric digits remain exact, with signs in unary nodes.
 
 Strings follow the RobotWare 7 RAPID kernel: quotes and backslashes are
 doubled and `\HH` character codes are decoded. Character codes above ASCII

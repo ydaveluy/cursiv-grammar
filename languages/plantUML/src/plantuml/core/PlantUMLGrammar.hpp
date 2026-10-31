@@ -129,14 +129,55 @@ struct PlantUML : cursiv::GrammarSpec {
                 option(assign<&ast::AssociativeClass::name>(
                     ref<AFTER_COLON>)))> {};
 
+  struct DiagramElement;
+  struct PACKAGE_ID : terminal<some(uc::L | uc::Nd | cr<"_.$">)> {};
+  struct NAMESPACE_ID : terminal<(uc::L | uc::Nd | cr<"_">) +
+      many(uc::L | uc::Nd | cr<R"(-_.:\\/)">)> {};
+  struct CONTAINER_TITLE : terminal<as<unquote>(
+      lit<"\""> + some(cr<R"(^\r\n")">) + lit<"\"">)> {};
+  static constexpr auto container_stereotype =
+      option(!gap::line + assign<&ast::ContainerDecl::stereotype>(ref<STEREOTYPE>));
+  static constexpr auto container_color =
+      option(!gap::line + assign<&ast::ContainerDecl::color>(ref<NoteColor>));
+  static constexpr auto container_end =
+      flag<&ast::ContainerDecl::hasClosingBrace>(lit<"}">) | &kw<"@enduml">;
+  static constexpr auto container_contents = gap::line +
+      many(append<&ast::ContainerDecl::elements>(ref<DiagramElement>) + gap::line) + container_end;
+  static constexpr auto package_open_gap = !gap::line |
+      gap::is(many(horizontal) + eol + many(horizontal));
+  static constexpr auto package_multiline = package_open_gap + lit<"{"> + container_contents;
+  static constexpr auto namespace_multiline = !gap::line + lit<"{"> + container_contents;
+  static constexpr auto container_inline = !gap::line + lit<"{"> + !gap::line +
+      flag<&ast::ContainerDecl::hasClosingBrace>(lit<"}">);
+  static constexpr auto package_name =
+      (assign<&ast::ContainerDecl::displayName>(ref<CONTAINER_TITLE>) + !gap::line +
+       kw<"as"> + !gap::line + assign<&ast::ContainerDecl::name>(ref<PACKAGE_ID>)) |
+      (assign<&ast::ContainerDecl::name>(ref<PACKAGE_ID>) +
+       option(!gap::line + kw<"as"> + !gap::line +
+              assign<&ast::ContainerDecl::displayName>(ref<CONTAINER_TITLE>))) |
+      assign<&ast::ContainerDecl::name>(ref<CONTAINER_TITLE>);
+  static constexpr auto namespace_name =
+      (assign<&ast::ContainerDecl::displayName>(ref<CONTAINER_TITLE>) + !gap::line +
+       kw<"as"> + !gap::line + assign<&ast::ContainerDecl::name>(ref<NAMESPACE_ID>)) |
+      assign<&ast::ContainerDecl::name>(ref<NAMESPACE_ID>);
+  struct PackageDecl : rule<create<ast::ContainerDecl>(gap::line +
+      assign<&ast::ContainerDecl::kind>(kw<"package">) + !gap::line + !gap::none + package_name +
+      ((container_stereotype + container_color + package_multiline) |
+       (container_color + container_inline)) + (gap::line | eof))> {};
+  struct NamespaceDecl : rule<create<ast::ContainerDecl>(gap::line +
+      assign<&ast::ContainerDecl::kind>(kw<"namespace">) + !gap::line + !gap::none + namespace_name +
+      container_stereotype + container_color + (namespace_multiline | container_inline) +
+      (gap::line | eof))> {};
+
   struct DiagramElement
       : rule<ref<ClassDecl> | ref<EnumDecl> | ref<Association> |
-             ref<AssociativeClass> | ref<NoteDecl>> {};
+             ref<AssociativeClass> | ref<NoteDecl> | ref<PackageDecl> | ref<NamespaceDecl>> {};
 
   struct Uml
       : rule<kw<"@startuml"> +
              option(!gap::line + assign<&ast::Document::name>(ref<IDENT>)) +
              many(append<&ast::Document::elements>(ref<DiagramElement>)) +
+             option(gap::line + flag<&ast::Document::hasRootClose>(lit<"}">)) +
              kw<"@enduml">> {};
 
   using entry = Uml;

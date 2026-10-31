@@ -12,15 +12,18 @@ namespace less {
 
 inline constexpr auto unquote = [](std::string_view t,
                                   std::pmr::memory_resource* memory) {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (t.size() < 2 || (t.front() != '\'' && t.front() != '"') || t.back() != t.front())
+    return Result::err("A string literal needs matching quotes.");
   t = t.substr(1, t.size() - 2);
-  if (t.find('\r') == std::string_view::npos) return t;
+  if (t.find('\r') == std::string_view::npos) return Result::ok(t);
   const auto room = cursiv::text_room(memory, t.size());
   std::size_t size = 0;
   for (std::size_t i = 0; i < t.size(); ++i) {
     room[size++] = t[i] == '\r' ? '\n' : t[i];
     if (t[i] == '\r' && i + 1 < t.size() && t[i + 1] == '\n') ++i;
   }
-  return std::string_view(room.data(), size);
+  return Result::ok(std::string_view(room.data(), size));
 };
 
 struct Less : cursiv::GrammarSpec {
@@ -38,7 +41,11 @@ struct Less : cursiv::GrammarSpec {
   struct NUMBER : terminal<as<double>(option(cr<"+-">) +
                                       option(many(d) + lit<".">) + some(d))> {};
 
-  struct COLOR : terminal<lit<"#"> + some(cr<"0-9a-fA-F">)> {};
+  // Native entities.color rejects a following word/dot/#/[ so a namespace
+  // lookup such as #abc[@x] reaches the mixin path instead of a color prefix.
+  struct COLOR : terminal<lit<"#"> +
+      (repeat<8>(cr<"0-9a-fA-F">) | repeat<6>(cr<"0-9a-fA-F">) |
+       repeat<3,4>(cr<"0-9a-fA-F">)) + !cr<R"(\w.#\[)">> {};
 
   // Quoted values retain Less escapes; the native reader normalizes line ends.
   static constexpr auto StringEscape = lit<"\\"> + any;
@@ -82,10 +89,10 @@ struct Less : cursiv::GrammarSpec {
   struct Interp : rule<create<ast::Interp> + lit<"@{"> + gap::none +
                            assign<&ast::Interp::name>(ref<VARIABLE_ID>) + gap::none + lit<"}">> {};
 
-  // A fractional dimension must not compete with a dot-prefixed value name.
-  // Selectors retain their more permissive ID spelling (for example .123).
+  // Dot-prefixed values are native mixin calls/lookups, not bare keywords.
+  // Keep fractional dimensions out too; selectors retain their own ID.
   struct VALUE_ID
-      : terminal<!(option(lit<"-">) + lit<"."> + d) + ref<ID>> {};
+      : terminal<!(lit<"."> | (lit<"-."> + d)) + ref<ID>> {};
   template <class Token> struct NameParts
       : rule<create<ast::Name> +
              append<&ast::Name::parts>(ref<Token> | ref<Interp>) +
@@ -105,6 +112,8 @@ struct Less : cursiv::GrammarSpec {
   struct Block;
   struct ArgumentValue;
   struct ArgumentValueList;
+  struct NamespaceValue;
+  struct ValueMixinCall;
 
   struct Measurement
       : rule<assign<&ast::Measurement::value>(ref<NUMBER>) +
@@ -143,7 +152,7 @@ struct Less : cursiv::GrammarSpec {
   static constexpr auto ExpressionAlt =
       ref<Measurement> | ref<FuncCall> | ref<IdentValue> |
       ref<ColorLit> | ref<StringLit> | ref<UrlLit> |
-      ref<VarValue> | ref<ParenExpr>;
+      ref<NamespaceValue> | ref<ValueMixinCall> | ref<VarValue> | ref<ParenExpr>;
 
   struct MulTerm : rule<some(append<&ast::MulTerm::items>(ExpressionAlt))> {
   };
@@ -213,8 +222,14 @@ struct Less : cursiv::GrammarSpec {
   struct Selector;
   struct SelectorsRule;
 
+  // Native combinator() tests the physical character immediately before
+  // the next element. A comment-only gap is not a descendant combinator.
+  static constexpr auto ElementPrefix = option(
+      assign<&ast::Element::prefix>(SelectorPrefixOp) |
+      flag<&ast::Element::descendant>(gap::is(many(any) + cr<R"( \t\r\n)">)));
+
   struct Attrib
-      : rule<lit<"["> + assign<&ast::Attrib::name>(ref<ID>) +
+      : rule<create<ast::Attrib> + ElementPrefix + lit<"["> + assign<&ast::Attrib::name>(ref<ID>) +
              option(assign<&ast::Attrib::relate>(AttribRelateOp) +
                     assign<&ast::Attrib::value>(ref<STRING> | ref<ID>) +
                     option(assign<&ast::Attrib::modifier>(ikw<"i"> | ikw<"s">))) + lit<"]">> {};
@@ -225,7 +240,8 @@ struct Less : cursiv::GrammarSpec {
   struct MediaGroup : terminal<lit<"("> +
       many(ref<MediaGroup> | RawQuote | StringEscape | cr<R"(^()'"\\)">) + lit<")">> {};
   struct PseudoName : terminal<!(lit<"not"> + many(ref<WS>) + lit<"(">) + ref<ID>> {};
-  struct Pseudo : rule<(flag<&ast::Pseudo::isClass>(lit<"::">) | lit<":">) +
+  struct Pseudo : rule<create<ast::Pseudo> + ElementPrefix +
+      (flag<&ast::Pseudo::isClass>(lit<"::">) | lit<":">) +
       assign<&ast::Pseudo::name>(ref<PseudoName>) +
       option(flag<&ast::Pseudo::hasArguments>(lit<"(">) +
              option(assign<&ast::Pseudo::argumentSelectors>(ref<SelectorsRule>) |
@@ -233,22 +249,20 @@ struct Less : cursiv::GrammarSpec {
   struct ExtendElement;
 
   struct Negation
-      : rule<create<ast::Negation> + lit<":"> + kw<"not"> + lit<"("> +
+      : rule<create<ast::Negation> + ElementPrefix + lit<":"> + kw<"not"> + lit<"("> +
              some(append<&ast::Negation::alternatives>(ref<Selector>),
                   lit<",">) + lit<")">> {};
 
   struct Element
-      : rule<(assign<&ast::NamedElement::prefix>(SelectorPrefixOp) +
-              assign<&ast::NamedElement::name>(ref<Name>)) |
-             assign<&ast::NamedElement::name>(ref<Name>) |
-             (lit<"#"> + assign<&ast::IdElement::name>(ref<Name>)) |
+      : rule<ref<Attrib> |
+             create<ast::NamedElement>(ElementPrefix + assign<&ast::NamedElement::name>(ref<Name>)) |
+             create<ast::IdElement>(ElementPrefix + lit<"#"> + assign<&ast::IdElement::name>(ref<Name>)) |
              ref<ExtendElement> | ref<Pseudo> | ref<Negation> |
-             (create<ast::ParentRefElement> + lit<"&">) |
-             (create<ast::WildcardElement> + lit<"*">)> {};
+             create<ast::ParentRefElement>(ElementPrefix + lit<"&">) |
+             create<ast::WildcardElement>(ElementPrefix + lit<"*">)> {};
 
   static constexpr auto SelectorPart =
-      append<&ast::Selector::elements>(ref<Element>) |
-      append<&ast::Selector::attribs>(ref<Attrib>);
+      append<&ast::Selector::elements>(ref<Element>);
   static constexpr auto SelectorBody = create<ast::Selector> + some(SelectorPart);
   struct Selector : rule<SelectorBody> {};
   // Native CSS guards belong to a single selector. Keep this separate from
@@ -287,19 +301,62 @@ struct Less : cursiv::GrammarSpec {
       (lit<"#"> + gap::none + ref<MixinBareHead>);
   static constexpr auto MixinCallHead = MixinHeadElement +
       many(option(lit<">">) + MixinHeadElement) + lit<"(">;
+  // The argument capture paths are identical in statements and values.
+  template <class Argument, class Group>
+  static constexpr auto MixinArguments =
+      flag<&ast::MixinRef::hasArguments>(lit<"(">) +
+      option(
+          (append<&ast::MixinRef::argumentGroups>(ref<Group>) +
+           some(lit<";"> + option(append<&ast::MixinRef::argumentGroups>(ref<Group>)))) |
+          some(append<&ast::MixinRef::args>(ref<Argument>), lit<",">)) + lit<")">;
   template <class Argument, class Group>
   static constexpr auto MixinCallBody =
-      assign<&ast::MixinRef::target>(ref<Selector>) + lit<"("> +
-             option(
-                 (append<&ast::MixinRef::argumentGroups>(ref<Group>) +
-                  some(lit<";"> + option(append<&ast::MixinRef::argumentGroups>(ref<Group>)))) |
-                 some(append<&ast::MixinRef::args>(ref<Argument>), lit<",">)) +
-             lit<")"> +
-             option(flag<&ast::MixinRef::important>(ref<IMPORTANT>)) +
-             (lit<";"> | &lit<"}">);
+      assign<&ast::MixinRef::target>(ref<Selector>) +
+      MixinArguments<Argument, Group> +
+      option(flag<&ast::MixinRef::important>(ref<IMPORTANT>)) +
+      (lit<";"> | &lit<"}">);
   struct MixinRef
       : rule<(&MixinCallHead + MixinCallBody<MixinArgument, MixinArgumentGroup>) |
              (!MixinCallHead + MixinCallBody<ArgumentValue, ArgumentValueList>)> {};
+
+  // Native mixin paths are only . / # names and optional >, not arbitrary
+  // CSS selectors. In particular a lookup bracket is not a selector attribute.
+  static constexpr auto MixinNameEscape = lit<"\\"> +
+      ((repeat<1,6>(cr<"0-9A-Fa-f">) + option(lit<" ">)) | ~cr<"0-9A-Fa-f">);
+  static constexpr auto MixinNameChar = cr<"A-Za-z0-9_-"> | MixinNameEscape;
+  struct MIXIN_CLASS_NAME : terminal<lit<"."> + some(MixinNameChar)> {};
+  struct MIXIN_BARE_NAME : terminal<some(MixinNameChar)> {};
+  struct MixinClassName : rule<append<&ast::Name::parts>(ref<MIXIN_CLASS_NAME>)> {};
+  struct MixinIdName : rule<append<&ast::Name::parts>(ref<MIXIN_BARE_NAME>)> {};
+  static constexpr auto MixinPathPrefix = option(assign<&ast::Element::prefix>(
+      as<ast::SelectorPrefix::child>(lit<">">)));
+  struct MixinFirstElement : rule<
+      create<ast::NamedElement>(assign<&ast::NamedElement::name>(ref<MixinClassName>)) |
+      create<ast::IdElement>(lit<"#"> + gap::none + assign<&ast::IdElement::name>(ref<MixinIdName>))> {};
+  struct MixinNextElement : rule<
+      create<ast::NamedElement>(MixinPathPrefix + assign<&ast::NamedElement::name>(ref<MixinClassName>)) |
+      create<ast::IdElement>(MixinPathPrefix + lit<"#"> + gap::none + assign<&ast::IdElement::name>(ref<MixinIdName>))> {};
+  struct MixinValueTarget : rule<create<ast::Selector>(
+      append<&ast::Selector::elements>(ref<MixinFirstElement>) +
+      many(append<&ast::Selector::elements>(ref<MixinNextElement>)))> {};
+  struct ValueMixinCall : rule<
+      assign<&ast::MixinRef::target>(ref<MixinValueTarget>) +
+      MixinArguments<MixinArgument, MixinArgumentGroup>> {};
+  struct BareLookupMixinCall : rule<
+      assign<&ast::MixinRef::target>(ref<MixinValueTarget>)> {};
+
+  struct LOOKUP_NAME : terminal<
+      (repeat<0,2>(cr<"@$">) + some(cr<"_a-zA-Z0-9-">)) |
+      repeat<1,2>(cr<"@$">)> {};
+  // A named data rule gives even an absent name its empty text value.
+  struct LookupName : rule<option(ref<LOOKUP_NAME>)> {};
+  static constexpr auto RuleLookups = some(
+      lit<"["> + append<&ast::NamespaceValue::lookups>(ref<LookupName>) + lit<"]">);
+  struct NamespaceValue : rule<
+      create<ast::NamespaceValue>(
+          assign<&ast::NamespaceValue::call>(ref<ValueMixinCall> | ref<BareLookupMixinCall>) + RuleLookups) |
+      create<ast::NamespaceValue>(
+          assign<&ast::NamespaceValue::variable>(ref<VariableName>) + gap::none + RuleLookups)> {};
 
   struct Block
       : rule<create<ast::Block> + lit<"{"> +

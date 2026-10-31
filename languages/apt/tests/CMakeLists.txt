@@ -3,11 +3,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
   add_link_options(--no-wasm-opt)
 endif()
 
-# The grammar itself: every example under example/ parses clean.
+# The grammar itself: every sample under tests/ parses clean.
 add_executable(apt_grammar_test grammar_test.cpp)
 target_link_libraries(apt_grammar_test PRIVATE aptCore)
 target_compile_definitions(apt_grammar_test PRIVATE
-    CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 add_test(NAME apt_grammar_test COMMAND apt_grammar_test)
 

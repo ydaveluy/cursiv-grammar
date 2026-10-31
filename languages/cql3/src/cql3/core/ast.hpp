@@ -14,6 +14,35 @@ struct Statement : cursiv::Extends<cursiv::AstNode> {};
 // The literal-value family, plus the two forms (a bare name, a function
 // call) that share its syntactic slots in function arguments and relations.
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
+struct ColumnType;
+
+struct BinaryExpr : cursiv::Extends<Expr> {
+  Expr* left;
+  string_view op;
+  Expr* right;
+};
+struct UnaryExpr : cursiv::Extends<Expr> {
+  string_view op;
+  Expr* operand;
+};
+struct CastExpr : cursiv::Extends<Expr> {
+  ColumnType* type;
+  Expr* value;
+  boolean functionStyle;
+};
+struct FieldExpr : cursiv::Extends<Expr> {
+  Expr* object;
+  string_view field;
+};
+struct ElementExpr : cursiv::Extends<Expr> {
+  Expr* object;
+  Expr* index;
+};
+struct SliceExpr : cursiv::Extends<Expr> {
+  Expr* object;
+  Expr* from;
+  Expr* to;
+};
 
 struct BindMarker : cursiv::Extends<Expr> {
   string_view name;
@@ -109,11 +138,14 @@ struct InRelation : cursiv::Extends<Relation> {
 struct TupleInRelation : cursiv::Extends<Relation> {
   vector<string_view> columns;
   vector<TupleLit*> values;
+  BindMarker* marker;
+  vector<BindMarker*> markers;
 };
 struct TupleCompareRelation : cursiv::Extends<Relation> {
   vector<string_view> columns;
   CompareOp op;
   vector<TupleLit*> values;
+  BindMarker* marker;
 };
 struct ContainsRelation : cursiv::Extends<Relation> {
   string_view column;
@@ -320,6 +352,7 @@ struct SelectElement : cursiv::Extends<cursiv::AstNode> {
   string_view qualifier;
   string_view name;  // a plain column, with an optional alias
   FuncCall* call;     // a function call, with an optional alias
+  Expr* expression;  // complex selection, exclusive with name/call
   string_view alias;
 };
 struct OrderSpec : cursiv::Extends<cursiv::AstNode> {
@@ -515,6 +548,7 @@ struct Grant : cursiv::Extends<Statement> {
   string_view role;
 };
 
+enum class JsonDefault : std::uint8_t { none_, null_, unset_ };
 struct Insert : cursiv::Extends<Statement> {
   Batch* batch;
   string_view keyspace;
@@ -522,6 +556,7 @@ struct Insert : cursiv::Extends<Statement> {
   vector<string_view> columns;
   vector<Expr*> values;  // the VALUES(...) form
   Expr* jsonValue;       // the JSON form; null unless used
+  JsonDefault jsonDefault = JsonDefault::none_;
   boolean ifNotExists;
   Using* using_;
 };

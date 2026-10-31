@@ -199,9 +199,15 @@ struct ClassParam : cursiv::Extends<cursiv::AstNode> {
   Expr* defaultValue;
 };
 
+enum class DestructuringKind { none, named, positional };
+
 struct VariableDeclarator : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   Type* type;
+  vector<string_view> modifiers;
+  vector<Annotation*> annotations;
+  string_view valOrVar;
+  string_view sourceName;
 };
 
 struct TypeParam : cursiv::Extends<cursiv::AstNode> {
@@ -218,12 +224,11 @@ struct TypeConstraint : cursiv::Extends<cursiv::AstNode> {
   Type* bound;
 };
 
-// A lambda parameter: a plain `name: Type` or a destructured `(a, b): Type`
-// -- `declarators` holds one entry for the plain form, several for the
-// destructured one.
+// Declarators hold the plain parameter or the ordered destructuring entries.
 struct LambdaParam : cursiv::Extends<cursiv::AstNode> {
   vector<VariableDeclarator*> declarators;
   Type* type;
+  DestructuringKind destructuring = DestructuringKind::none;
 };
 
 // A class/object supertype: a bare interface, a constructor call, or a `by`
@@ -347,6 +352,7 @@ struct PropertyDecl : cursiv::Extends<Declaration> {
   vector<TypeParam*> typeParameters;
   Type* receiverType;
   vector<VariableDeclarator*> declarators;
+  DestructuringKind destructuring = DestructuringKind::none;
   vector<TypeConstraint*> typeConstraints;
   boolean isDelegate;
   Expr* initializer;
@@ -476,6 +482,8 @@ struct ContinueExpr : cursiv::Extends<Expr> {
 struct ForExpr : cursiv::Extends<Expr> {
   vector<Annotation *> annotations;
   vector<VariableDeclarator*> declarators;
+  DestructuringKind destructuring = DestructuringKind::none;
+  string_view valOrVar;
   Expr* iterable;
   Node* body;
 };

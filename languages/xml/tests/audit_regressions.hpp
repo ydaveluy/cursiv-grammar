@@ -81,7 +81,7 @@ inline bool run() {
   for (const char* source : {
            "< a/>", "<a></ a>", "<a x='1'y='2'/>", "<a x='&broken'/>",
            "<a x='a&b'/>", "<a>]]></a>", "<!--a--b--><a/>",
-           "<!--a---><a/>", "<?XML?><a/>", "<??><a/>", "<?1p?><a/>",
+           "<!--a---><a/>", "<?XML?><a/>", "<?\?><a/>", "<?1p?><a/>",
            "<?xml?><a/>", " <?xml version='1.0'?><a/>",
            "<?xml version='1.0'encoding='UTF-8'?><a/>"}) {
     const auto invalid = parser->parse(source);

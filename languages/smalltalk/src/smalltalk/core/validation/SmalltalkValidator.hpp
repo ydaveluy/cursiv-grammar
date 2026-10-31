@@ -1,5 +1,4 @@
-// The checks of this language: none yet -- nothing here needs a check
-// beyond parsing.
+// Local AST predicates used by the pinned Amber parser.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,9 @@ namespace smalltalk {
 class SmalltalkValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkDictionary(const ast::DynamicDictionary&,
+                       cursiv::ValidationAcceptor&) const;
+  void checkCascade(const ast::Cascade&, cursiv::ValidationAcceptor&) const;
 };
 
 struct SmalltalkCoreServices;

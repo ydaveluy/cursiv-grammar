@@ -20,10 +20,8 @@ struct Muddb : cursiv::GrammarSpec {
 
   struct Key;
   struct ReferenceKey
-      : rule<create<ast::KeyReference>(
-            assign<&ast::KeyReference::value>(ref<KEY_NUMBER>))> {};
-  struct LegacyKey : rule<create<ast::LegacyKey>(
-                             assign<&ast::LegacyKey::text>(ref<LEGACY_KEY>))> {
+      : rule<assign<&ast::KeyReference::value>(ref<KEY_NUMBER>)> {};
+  struct LegacyKey : rule<assign<&ast::LegacyKey::text>(ref<LEGACY_KEY>)> {
   };
   struct NotKey
       : rule<create<ast::KeyNot>(lit<"("> + lit<"!"> +

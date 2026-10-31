@@ -1,6 +1,8 @@
 
 #include <cstdio>
 
+#include "container_cases.hpp"
+
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "plantuml/core/CoreServices.hpp"
@@ -53,6 +55,8 @@ int main() {
   const auto language = cursiv::create_language<
       plantuml::PlantUMLCoreServices, plantuml::PlantUMLSharedCoreServices,
       plantuml::install_core_module>();
+
+  if (!plantuml_containers::run(language.language)) return 1;
 
   for (const char* name : kFiles) {
     const bool authored = std::string_view(name) == "constructs.plantuml";

@@ -13,6 +13,7 @@ class TuringValidator final : public cursiv::DefaultCoreService {
   using cursiv::DefaultCoreService::DefaultCoreService;
 
   void checkCaseLabels(const ast::CaseStmt&, cursiv::ValidationAcceptor&) const;
+  void checkEnumNames(const ast::EnumType&, cursiv::ValidationAcceptor&) const;
 
   void checkSubprogramEndNameMatches(const ast::SubprogramDecl& subprogram,
                                      cursiv::ValidationAcceptor& accept) const;

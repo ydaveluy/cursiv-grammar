@@ -1,4 +1,5 @@
 #include "native_followup.hpp"
+#include "unicode_source_cases.hpp"
 
 #include <cstdio>
 
@@ -295,6 +296,7 @@ int main() {
   if (!scala_audit::native_followup(*language.language.parser) ||
       !scala_audit::modern_cases(*language.language.parser))
     return 1;
+  if (!scala_unicode_source::run(language.language, *language.shared)) return 1;
 
   int documents = 0;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

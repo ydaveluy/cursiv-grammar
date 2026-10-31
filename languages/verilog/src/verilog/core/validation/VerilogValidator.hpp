@@ -16,6 +16,7 @@ class VerilogValidator final : public cursiv::DefaultCoreService {
   void checkFunction(const ast::FunctionDecl&, cursiv::ValidationAcceptor&) const;
   void checkTiming(const ast::SystemTimingCheck&, cursiv::ValidationAcceptor&) const;
   void checkInitial(const ast::InitialConstruct&, cursiv::ValidationAcceptor&) const;
+  void checkAttribute(const ast::AttributeInstance&, cursiv::ValidationAcceptor&) const;
 };
 
 struct VerilogCoreServices;

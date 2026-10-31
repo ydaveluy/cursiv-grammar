@@ -155,14 +155,12 @@ struct Webidl : cursiv::GrammarSpec {
       : rule<create<ast::BoolValue>(
             flag<&ast::BoolValue::value>(kw<"true">) | kw<"false">)> {};
   struct IntValue
-      : rule<create<ast::IntValue>(
-            assign<&ast::IntValue::text>(ref<INTEGER>))> {};
+      : rule<assign<&ast::IntValue::text>(ref<INTEGER>)> {};
   struct FloatValue
       : rule<create<ast::FloatValue>(assign<&ast::FloatValue::text>(
             ref<DECIMAL> | kw<"-Infinity"> | kw<"Infinity"> | kw<"NaN">))> {};
   struct StringValue
-      : rule<create<ast::StringValue>(
-            assign<&ast::StringValue::text>(ref<STRING>))> {};
+      : rule<assign<&ast::StringValue::text>(ref<STRING>)> {};
   struct NullValue : rule<create<ast::NullValue> + kw<"null">> {};
   struct EmptySequenceValue
       : rule<create<ast::EmptySequenceValue> + lit<"["> + lit<"]">> {};

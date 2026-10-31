@@ -1,4 +1,5 @@
 #include "audit_regressions.hpp"
+#include "unicode_source_regressions.hpp"
 // The smoke test of the language: every corpus document parses clean, this
 // port's own documents cover what the corpus never exercises, and one is
 // read back field by field to catch a converter that silently mismaps its
@@ -52,6 +53,7 @@ int main() {
       cursiv::create_language<sparql::SparqlCoreServices,
                               sparql::SparqlSharedCoreServices,
                               sparql::install_core_module>();
+  if (!sparql_uchar_tests::run(language.language)) return 1;
 
   for (const char *const name : kExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;

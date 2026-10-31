@@ -2,11 +2,21 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 #include "cursiv/core/validation/ValidationRegistry.hpp"
 #include "turing/core/CoreServices.hpp"
 
 namespace turing {
+
+void TuringValidator::checkEnumNames(
+    const ast::EnumType& enumeration, cursiv::ValidationAcceptor& accept) const {
+  std::unordered_set<std::string_view> names;
+  for (std::size_t i = 0; i < enumeration.names.size(); ++i)
+    if (!names.insert(enumeration.names[i]).second)
+      accept.error(enumeration, "Enumerated identifiers must be distinct.",
+                   "turing.enum-duplicate").property<&ast::EnumType::names>(i);
+}
 
 void TuringValidator::checkSubprogramEndNameMatches(
     const ast::SubprogramDecl& subprogram,
@@ -34,7 +44,9 @@ void register_validation_checks(TuringCoreServices& services) {
       {cursiv::ValidationRegistry::makeValidationCheck<
           &V::checkSubprogramEndNameMatches>(validator),
        cursiv::ValidationRegistry::makeValidationCheck<
-           &V::checkCaseLabels>(validator)});
+           &V::checkCaseLabels>(validator),
+       cursiv::ValidationRegistry::makeValidationCheck<
+           &V::checkEnumNames>(validator)});
 }
 
 }  // namespace turing

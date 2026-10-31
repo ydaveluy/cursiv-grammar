@@ -17,37 +17,49 @@ struct Eiffel : cursiv::GrammarSpec {
   // everywhere else (docs/reference/grammar.md, soft keywords).
   struct NAME : rule<ref<ID> | ikw<"tuple">> {};
 
-  static constexpr auto STR_ESCAPE =
-      lit<"%\""> | lit<"%%"> |
-      (lit<"%"> + many(cr<R"( \t)">) + lit<"\n"> + many(cr<R"( \t)">) + lit<"%">);
+  template <auto Digit>
+  static constexpr auto Digits = Digit + many(Digit | (some(lit<"_">) + Digit));
+  static constexpr auto DecimalDigits = Digits<d>;
+  static constexpr auto INT_BODY =
+      (lit<"0"> + cr<"bB"> + Digits<cr<"01">>) |
+      (lit<"0"> + cr<"cC"> + Digits<cr<"0-7">>) |
+      (lit<"0"> + cr<"xX"> + Digits<cr<"0-9a-fA-F">>) | DecimalDigits;
+  static constexpr auto NewLine = lit<"\r\n"> | cr<R"(\r\n)">;
+  static constexpr auto BlankOrTab = cr<R"( \t)">;
+  // One shared character-code syntax, also valid inside basic strings.
+  static constexpr auto PercentCharacter = lit<"%"> +
+      (cr<R"(ABCDFHLNQRSTUV%'"()<>)"> | (lit<"/"> + INT_BODY + lit<"/">));
+  static constexpr auto STR_ESCAPE = PercentCharacter |
+      (lit<"%"> + many(BlankOrTab) + NewLine + many(BlankOrTab) + lit<"%">);
   struct BASIC_STRING
-      : terminal<lit<"\""> + many(STR_ESCAPE | (!cr<R"("\n)"> + any)) + lit<"\"">> {};
+      : terminal<lit<"\""> +
+                 many(STR_ESCAPE | cr<R"(^%"\x00-\x1f\x7f)">) + lit<"\"">> {};
   struct VerbatimTag {};
   // Delimiter labels must match exactly (ECMA-367 8.29.15). Literal text
   // remains raw; `same` also prevents an unrelated ]" ending the token.
-  static constexpr auto VerbatimLabel = cr<R"(^"\r\n \t[{)">;
-  static constexpr auto VerbatimLine = many(cr<R"( \t)">) + (lit<"\r\n"> | lit<"\n">);
+  static constexpr auto VerbatimLabel = cr<R"(^"\x00-\x20\x7f)">;
+  static constexpr auto VerbatimLine = many(BlankOrTab) + NewLine;
+  template <auto Bracket>
+  static constexpr auto VerbatimClose =
+      many(BlankOrTab) + Bracket + same<VerbatimTag> + lit<"\"">;
+  template <auto Open, auto Close>
+  static constexpr auto VerbatimBody =
+      lit<"\""> + mark<VerbatimTag>(many(VerbatimLabel)) + Open + VerbatimLine +
+      many(!VerbatimClose<Close> + many(cr<R"(^\r\n)">) + NewLine) + VerbatimClose<Close>;
   struct VERBATIM_STRING
-      : terminal<through(lit<"\""> + mark<VerbatimTag>(many(VerbatimLabel)) + lit<"["> + VerbatimLine,
-                         lit<"]"> + same<VerbatimTag> + lit<"\"">) |
-                 through(lit<"\""> + mark<VerbatimTag>(many(VerbatimLabel)) + lit<"{"> + VerbatimLine,
-                         lit<"}"> + same<VerbatimTag> + lit<"\"">)> {};
+      : terminal<VerbatimBody<lit<"[">, lit<"]">> |
+                 VerbatimBody<lit<"{">, lit<"}">>> {};
 
   struct CHAR_CONST
       : terminal<lit<"'"> +
-                 ((lit<"%"> + lit<"/"> + some(cr<"0-9a-fA-F_">) + lit<"/">) |
-                  (lit<"%"> + any) | (!cr<"%'"> + any)) +
+                 (PercentCharacter | cr<R"(^%'\x00-\x1f\x7f)">) +
                  lit<"'">> {};
 
-  static constexpr auto INT_BODY =
-      (lit<"0"> + cr<"bBcCxX"> + some(cr<"0-9a-fA-F_">)) |
-      (cr<"0-9"> + many(cr<"0-9a-fA-F_">));
-  struct INTEGER : terminal<INT_BODY> {};
+  struct INTEGER : terminal<INT_BODY + !word_boundary> {};
   struct REAL
-      : terminal<(many(cr<"0-9">) + lit<"."> + some(cr<"0-9">) +
-                  option(cr<"eE"> + option(cr<"+-">) + some(cr<"0-9">))) |
-                 (some(cr<"0-9">) + lit<".", !lit<".">> + many(cr<"0-9">) +
-                  option(cr<"eE"> + option(cr<"+-">) + some(cr<"0-9">)))> {};
+      : terminal<((DecimalDigits + lit<".", !lit<".">> + option(DecimalDigits)) |
+                  (lit<"."> + DecimalDigits)) +
+                 option(cr<"eE"> + option(cr<"+-">) + DecimalDigits) + !word_boundary> {};
 
   // Admits {":=.", ":=+", ":=-", "<<-", "<<+", "<<>", "<<>>"} as free
   // operators too (over-acceptance of a handful of unusual spellings, not

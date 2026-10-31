@@ -133,22 +133,19 @@ struct Icon : cursiv::GrammarSpec {
              lit<"&"> + assign<&ast::KeywordRef::name>(ref<ID> | kw<"fail">))> {};
 
   struct NameRef
-      : rule<create<ast::NameRef>(assign<&ast::NameRef::name>(ref<ID>))> {};
+      : rule<assign<&ast::NameRef::name>(ref<ID>)> {};
 
   struct StringLit
-      : rule<create<ast::StringLit>(
-             assign<&ast::StringLit::text>(ref<STRING_LITERAL>))> {};
+      : rule<assign<&ast::StringLit::text>(ref<STRING_LITERAL>)> {};
 
   struct CsetLit
-      : rule<create<ast::CsetLit>(assign<&ast::CsetLit::text>(ref<CSET_LITERAL>))> {};
+      : rule<assign<&ast::CsetLit::text>(ref<CSET_LITERAL>)> {};
 
   struct IntLit
-      : rule<create<ast::IntLit>(
-             assign<&ast::IntLit::text>(ref<INTEGER_LITERAL>))> {};
+      : rule<assign<&ast::IntLit::text>(ref<INTEGER_LITERAL>)> {};
 
   struct RealLit
-      : rule<create<ast::RealLit>(
-             assign<&ast::RealLit::text>(ref<REAL_LITERAL>))> {};
+      : rule<assign<&ast::RealLit::text>(ref<REAL_LITERAL>)> {};
 
   struct Primary
       : rule<ref<ExprList> | ref<Block> | ref<ListLit> |
@@ -166,8 +163,8 @@ struct Icon : cursiv::GrammarSpec {
   struct MaybeSubscript : rule<ref<Subscript> |
       create<ast::Subscript>(assign<&ast::Subscript::index>(create<ast::NullExpr>))> {};
   static constexpr auto SubscriptItems = option(
-      append<&ast::SubscriptExpr::subscripts>(ref<Subscript>) +
-      many(lit<","> + append<&ast::SubscriptExpr::subscripts>(ref<MaybeSubscript>)) |
+      (append<&ast::SubscriptExpr::subscripts>(ref<Subscript>) +
+       many(lit<","> + append<&ast::SubscriptExpr::subscripts>(ref<MaybeSubscript>))) |
       (&lit<","> + append<&ast::SubscriptExpr::subscripts>(
           create<ast::Subscript>(assign<&ast::Subscript::index>(create<ast::NullExpr>))) +
        some(lit<","> + append<&ast::SubscriptExpr::subscripts>(ref<MaybeSubscript>))));

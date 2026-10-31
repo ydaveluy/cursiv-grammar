@@ -118,6 +118,7 @@ struct Rule : cursiv::Extends<Stmt> {
   string_view name;
   vector<RefPart> parts;
   vector<Expr*> params;
+  boolean hasParams;
   boolean contains;
   Expr* key;
   string_view op;

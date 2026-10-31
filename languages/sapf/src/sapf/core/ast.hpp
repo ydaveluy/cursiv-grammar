@@ -43,6 +43,13 @@ struct Word : cursiv::Extends<Expression> {
   string_view name;
 };
 
+enum class BindingKind : std::uint8_t { single, stack, list };
+
+struct Binding : cursiv::Extends<Item> {
+  BindingKind kind = BindingKind::single;
+  vector<string_view> names;  // source order, including stack destructuring
+};
+
 struct Group : cursiv::Extends<Expression> {
   vector<Item*> items;
 };

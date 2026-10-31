@@ -5,6 +5,7 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cypher/core/CoreServices.hpp"
 #include "cypher/core/ast.hpp"
+#include "legacy_clauses.hpp"
 // The grammar end to end: every document under `example/` parses clean --
 // no recovery, no diagnostics -- and builds a Script at the top. One
 // document is also read back field by field, since a structural pass alone
@@ -246,6 +247,7 @@ int main() {
   const auto language = cursiv::create_language<
       cypher::CypherCoreServices, cypher::CypherSharedCoreServices,
       cypher::install_core_module>();
+  if (!cypher_legacy::run(language.language)) return 1;
   {
     const std::string source = R"cypher(MATCH (a€)−−〉(b)
 SET a€ = {name: 'x'}

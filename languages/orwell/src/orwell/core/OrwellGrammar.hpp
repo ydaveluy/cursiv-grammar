@@ -144,8 +144,7 @@ struct Orwell : cursiv::GrammarSpec {
             lit<"]">)> {};
 
   struct GuardQualifier
-      : rule<create<ast::GuardQualifier>(
-            assign<&ast::GuardQualifier::condition>(ref<Term>))> {};
+      : rule<assign<&ast::GuardQualifier::condition>(ref<Term>)> {};
   struct GeneratorQualifier
       : rule<create<ast::GeneratorQualifier>(
             assign<&ast::GeneratorQualifier::pat>(ref<Pat>) + LArrow +
@@ -164,14 +163,12 @@ struct Orwell : cursiv::GrammarSpec {
   };
 
   struct FloatLit
-      : rule<create<ast::FloatLit>(
-            assign<&ast::FloatLit::value>(ref<FLOAT>))> {};
+      : rule<assign<&ast::FloatLit::value>(ref<FLOAT>)> {};
   struct IntLit
-      : rule<create<ast::IntLit>(assign<&ast::IntLit::value>(ref<INTEGER>))> {
+      : rule<assign<&ast::IntLit::value>(ref<INTEGER>)> {
   };
   struct StringLit
-      : rule<create<ast::StringLit>(
-            assign<&ast::StringLit::value>(ref<STRING>))> {};
+      : rule<assign<&ast::StringLit::value>(ref<STRING>)> {};
 
   struct CharacterLit
       : rule<assign<&ast::CharacterLit::value>(ref<CHARACTER>)> {};
@@ -179,7 +176,7 @@ struct Orwell : cursiv::GrammarSpec {
       : rule<ref<FloatLit> | ref<IntLit> | ref<StringLit> | ref<CharacterLit>> {};
 
   struct VarRef
-      : rule<create<ast::VarRef>(assign<&ast::VarRef::name>(ref<ID>))> {};
+      : rule<assign<&ast::VarRef::name>(ref<ID>)> {};
 
   struct Section
       : rule<create<ast::Section>(
@@ -225,17 +222,16 @@ struct Orwell : cursiv::GrammarSpec {
   // ---- patterns -----------------------------------------------------------
 
   struct PatInt
-      : rule<create<ast::PatInt>(assign<&ast::PatInt::value>(ref<INTEGER>))> {
+      : rule<assign<&ast::PatInt::value>(ref<INTEGER>)> {
   };
   struct PatString
-      : rule<create<ast::PatString>(
-            assign<&ast::PatString::value>(ref<STRING>))> {};
+      : rule<assign<&ast::PatString::value>(ref<STRING>)> {};
   struct PatCharacter
       : rule<assign<&ast::PatCharacter::value>(ref<CHARACTER>)> {};
   struct PatLiteral : rule<ref<PatInt> | ref<PatString> | ref<PatCharacter>> {};
 
   struct PatVar
-      : rule<create<ast::PatVar>(assign<&ast::PatVar::name>(ref<ID>))> {};
+      : rule<assign<&ast::PatVar::name>(ref<ID>)> {};
 
   struct PatSection
       : rule<create<ast::PatSection>(
@@ -284,7 +280,7 @@ struct Orwell : cursiv::GrammarSpec {
   // ---- types ---------------------------------------------------------------
 
   struct TypeName
-      : rule<create<ast::TypeName>(assign<&ast::TypeName::name>(ref<ID>))> {
+      : rule<assign<&ast::TypeName::name>(ref<ID>)> {
   };
 
   struct TypeList

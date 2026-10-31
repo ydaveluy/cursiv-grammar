@@ -13,6 +13,7 @@
 #include "javadoc/core/CoreServices.hpp"
 #include "javadoc/core/ast.hpp"
 #include "native_followup_cases.hpp"
+#include "nested_tests.hpp"
 
 namespace {
 
@@ -29,6 +30,7 @@ int main() {
       javadoc::install_core_module>();
 
   if (!javadoc_native_followup::run(language)) return 1;
+  if (!javadoc_nested::run(language)) return 1;
 
   int checked = 0;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

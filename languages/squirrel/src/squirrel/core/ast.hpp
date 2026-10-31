@@ -43,6 +43,18 @@ struct Ident : cursiv::Extends<Expr> {
   boolean rootScoped;  // a leading `::`
 };
 
+struct ThisExpr : cursiv::Extends<Expr> {};
+struct BaseExpr : cursiv::Extends<Expr> {};
+
+// Preserve the source constant until a document/compiler context resolves it.
+struct SourceConstant : cursiv::Extends<Expr> {
+  string_view name;  // __LINE__ or __FILE__
+};
+
+struct ParenExpr : cursiv::Extends<Expr> {
+  Expr* inner = nullptr;
+};
+
 // ---- compound expressions ----
 
 struct ArrayExpr : cursiv::Extends<Expr> {
@@ -50,6 +62,7 @@ struct ArrayExpr : cursiv::Extends<Expr> {
 };
 
 struct FunctionDecl;
+struct ConstructorDecl;
 
 struct KeyValue : cursiv::Extends<cursiv::AstNode> {
   std::variant<string_view, Expr*> key;  // a name, or a computed `[expr]` key
@@ -57,7 +70,7 @@ struct KeyValue : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct TableExpr : cursiv::Extends<Expr> {
-  vector<std::variant<KeyValue*, FunctionDecl*>> items;
+  vector<std::variant<KeyValue*, FunctionDecl*, ConstructorDecl*>> items;
 };
 
 struct Param : cursiv::Extends<cursiv::AstNode> {
@@ -82,7 +95,7 @@ struct LambdaExpr : cursiv::Extends<Expr> {
 struct ClassMember;
 
 struct ClassExpr : cursiv::Extends<Expr> {
-  vector<string_view> base;  // empty when there is no `extends`
+  Expr* base = nullptr;
   vector<ClassMember*> members;
 };
 
@@ -94,6 +107,14 @@ struct MemberExpr : cursiv::Extends<Expr> {
 struct CallExpr : cursiv::Extends<Expr> {
   Expr* callee = nullptr;
   vector<Expr*> args;
+  vector<KeyValue*> initializers;
+};
+
+// The callee and receiver are args[0] and args[1], followed by arguments.
+// Short lists retain an AST so the validator can diagnose native arity.
+struct RawCallExpr : cursiv::Extends<Expr> {
+  vector<Expr*> args;
+  vector<KeyValue*> initializers;
 };
 
 struct IndexExpr : cursiv::Extends<Expr> {
@@ -101,8 +122,7 @@ struct IndexExpr : cursiv::Extends<Expr> {
   Expr* index = nullptr;
 };
 
-// `i++`, `i--`: a suffix of any postfix chain -- wider than Squirrel's own
-// grammar, which only allows it after a bare name or a `[...]` index.
+// i++ and i--. Native lvalue/scope checks on the operand are a later phase.
 struct PostfixOpExpr : cursiv::Extends<Expr> {
   Expr* operand = nullptr;
   string_view op;
@@ -202,8 +222,8 @@ struct ClassMember : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct ClassDecl : cursiv::Extends<Stmt> {
-  vector<string_view> name;
-  vector<string_view> base;  // empty when there is no `extends`
+  Expr* target = nullptr;
+  Expr* base = nullptr;
   vector<ClassMember*> members;
 };
 

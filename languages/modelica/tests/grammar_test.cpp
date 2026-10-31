@@ -6,6 +6,7 @@
 #include "modelica/core/CoreServices.hpp"
 #include "modelica/core/ast.hpp"
 #include "native_regressions.hpp"
+#include "inheritance_breaks.hpp"
 // The grammar end to end: every document under example/ (the corpus) and
 // tests/ (constructs the corpus never reaches) parses clean -- recovered()
 // false, no diagnostics, the right root type -- and a few real field values
@@ -77,6 +78,7 @@ int main() {
       modelica::install_core_module>();
 
   if (!modelica_native::run(*language.language.parser)) return 1;
+  if (!modelica_inheritance::run(language.language)) return 1;
 
   std::vector<fs::path> docs;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

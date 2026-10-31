@@ -45,7 +45,7 @@ struct Vmf : cursiv::GrammarSpec {
       : terminal<as<unquote>(
             lit<"\""> + many((lit<"\\"> + any) | cr<R"(^"\\)">) + lit<"\"">)> {
   };
-  struct STRING : terminal<cr<R"(^"{} \t\r\n)" "\xEF\xBB\xBF"> +
+  struct STRING : terminal<!lit<"/"> + cr<R"(^"{} \t\r\n)" "\xEF\xBB\xBF"> +
                            many(cr<R"(^"{} \t\r\n)">)> {};
   static constexpr auto key =
       flag<&ast::KeyValue::keyQuoted>(assign<&ast::KeyValue::key>(ref<QUOTEDSTRING>)) |
@@ -55,7 +55,7 @@ struct Vmf : cursiv::GrammarSpec {
       assign<&ast::KeyValue::value>(ref<STRING>);
   struct KeyValue
       : rule<key +
-             (value |
+             ((!gap::line + value + &(gap::line | lit<"}"> | eof)) |
               (lit<"{"> + many(append<&ast::KeyValue::children>(ref<KeyValue>)) + lit<"}">))> {};
   struct Document
       : rule<create<ast::Document> + option(lit<"\xEF\xBB\xBF">) +

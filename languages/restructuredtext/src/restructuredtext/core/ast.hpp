@@ -57,6 +57,11 @@ struct Paragraph : cursiv::Extends<cursiv::AstNode> {
   vector<Span> spans;
 };
 
+// An interactive session is source text, without inline interpretation.
+struct DoctestBlock : cursiv::Extends<cursiv::AstNode> {
+  string_view text;
+};
+
 struct DirectiveBody : cursiv::Extends<cursiv::AstNode> {
   vector<variant<string_view, DirectiveBody*>> entries;
 };
@@ -86,13 +91,26 @@ struct EnumItem;
 struct LineBlock;
 struct BlockQuote;
 struct DefinitionItem;
+struct FieldList;
 
 // A line of four or more of one punctuation byte between blank lines.
 struct Transition : cursiv::Extends<cursiv::AstNode> {};
 
 using SectionElement =
     std::variant<ExplicitTarget*, Directive*, Comment*, BulletItem*, EnumItem*, LineBlock*,
-                 Paragraph*, Transition*, BlockQuote*, DefinitionItem*>;
+                 Paragraph*, Transition*, BlockQuote*, DefinitionItem*,
+                 DoctestBlock*, FieldList*>;
+
+// Keep the field name's source spelling, including escapes/inline markup.
+// Bibliographic transforms and name interpretation belong to consumers.
+struct FieldItem : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  vector<SectionElement> body;
+};
+
+struct FieldList : cursiv::Extends<cursiv::AstNode> {
+  vector<FieldItem*> fields;
+};
 
 // An item's body: its text, then whatever its indented lines hold. Empty
 // for an item with no text.
@@ -134,7 +152,7 @@ struct Section : cursiv::Extends<cursiv::AstNode> {
 
 using Block = std::variant<Section*, ExplicitTarget*, Directive*, Comment*, BulletItem*,
                            EnumItem*, LineBlock*, Paragraph*, Transition*,
-                           BlockQuote*, DefinitionItem*>;
+                           BlockQuote*, DefinitionItem*, DoctestBlock*, FieldList*>;
 
 struct Document : cursiv::Extends<cursiv::AstNode> {
   vector<Block> blocks;

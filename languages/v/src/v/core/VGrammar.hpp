@@ -323,7 +323,7 @@ struct V : cursiv::GrammarSpec {
   // -- Statements ----
 
   struct ExprStmt
-      : rule<create<ast::ExprStmt>(assign<&ast::ExprStmt::value>(ref<Expression>))> {
+      : rule<assign<&ast::ExprStmt::value>(ref<Expression>)> {
   };
 
   struct IncDecStmt

@@ -15,6 +15,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "nasm/core/CoreServices.hpp"
 #include "nasm/core/ast.hpp"
+#include "lexical_names.hpp"
 
 namespace {
 
@@ -201,6 +202,7 @@ int main() {
   const auto language = cursiv::create_language<
       nasm::NasmCoreServices, nasm::NasmSharedCoreServices,
       nasm::install_core_module>();
+  if (!nasm_lexical::run(language.language)) return 1;
   {
     const auto result = language.language.parser->parse("dq 18446744073709551615123456\n");
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) return 1;

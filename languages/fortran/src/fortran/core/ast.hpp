@@ -15,7 +15,10 @@ struct LabelledStmt : cursiv::Extends<Stmt> {
   string_view label;
   Stmt* statement;
 };
-struct ProgramUnit : cursiv::Extends<cursiv::AstNode> {};
+struct ProgramUnit : cursiv::Extends<cursiv::AstNode> {
+  string_view endName;
+  boolean endHasKind = false;  // END FUNCTION rather than bare END, etc.
+};
 
 // -- expressions ----
 
@@ -258,6 +261,7 @@ struct ModuleProcRef : cursiv::Extends<ProgramUnit> {
 
 struct InterfaceDecl : cursiv::Extends<Stmt> {
   string_view name;
+  string_view endName;
   vector<ProgramUnit*> procedures;
 };
 
@@ -270,6 +274,7 @@ struct Component : cursiv::Extends<cursiv::AstNode> {
 
 struct DerivedTypeDecl : cursiv::Extends<Stmt> {
   string_view name;
+  string_view endName;
   string_view access;
   boolean isSequence;
   boolean isPrivate;
@@ -321,11 +326,14 @@ struct IfStmt : cursiv::Extends<Stmt> {
 
 struct ElseIfClause : cursiv::Extends<cursiv::AstNode> {
   Expr* cond;
+  string_view name;
   vector<Stmt*> body;
 };
 
 struct BlockIfStmt : cursiv::Extends<Stmt> {
   string_view name;
+  string_view endName;
+  string_view elseName;
   Expr* cond;
   vector<Stmt*> thenBody;
   vector<ElseIfClause*> elseIfs;
@@ -335,7 +343,10 @@ struct BlockIfStmt : cursiv::Extends<Stmt> {
 
 struct DoStmt : cursiv::Extends<Stmt> {
   string_view name;
+  string_view endName;
   string_view endLabel;
+  string_view terminalLabel;
+  boolean endsWithContinue = false;
   string_view var;
   Expr* start;
   Expr* stop;
@@ -345,6 +356,7 @@ struct DoStmt : cursiv::Extends<Stmt> {
 };
 
 struct CaseClause : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
   vector<Argument*> values;
   boolean isDefault;
   vector<Stmt*> body;
@@ -352,6 +364,7 @@ struct CaseClause : cursiv::Extends<cursiv::AstNode> {
 
 struct SelectCaseStmt : cursiv::Extends<Stmt> {
   string_view name;
+  string_view endName;
   Expr* selector;
   vector<CaseClause*> cases;
 };

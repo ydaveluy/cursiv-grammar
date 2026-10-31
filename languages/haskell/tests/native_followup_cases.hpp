@@ -10,7 +10,7 @@ inline bool run(const cursiv::Parser& parser) {
   const auto check = [&](bool value, const char* message) {
     if (!value) { std::fprintf(stderr, "haskell native: %s\n", message); ok = false; }
   };
-  for (const std::string source : {
+  for (const std::string& source : {
       std::string("x\u00a0=\u20031\n"),
       std::string("x\v=\v1\n"),
       std::string("{-# custom ignored body #-}\nmodule Audit where x = 1\n"),

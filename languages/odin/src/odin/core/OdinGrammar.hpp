@@ -859,12 +859,13 @@ struct Odin : cursiv::GrammarSpec {
       : rule<kw<"import"> + option(assign<&ast::ImportItem::alias>(ref<ID>)) +
              assign<&ast::ImportItem::path>(ref<STRING>)> {};
 
+  // A token-free file is allowed; comments or build tags still need a package.
   struct Unit
       : rule<create<ast::Unit>(
-                 option(kw<"package"> +
-                        assign<&ast::Unit::packageName>(ref<ID>)) +
-                 many(append<&ast::Unit::imports>(ref<ImportItem>)) +
-                 many(append<&ast::Unit::items>(ref<TopDecl>)))> {};
+                 (!gap::has(~cr<R"( \t\r\n)">) + eof) |
+                 (kw<"package"> + assign<&ast::Unit::packageName>(ref<ID>) +
+                  many(append<&ast::Unit::imports>(ref<ImportItem>)) +
+                  many(append<&ast::Unit::items>(ref<TopDecl>))))> {};
 
   using entry = Unit;
   using ignored = list<WS, BUILD_TAG>;

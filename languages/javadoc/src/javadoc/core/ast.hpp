@@ -10,12 +10,26 @@
 
 namespace javadoc::ast {
 
+struct InlineTag;
+struct InlineBrace;
+using Item = std::variant<std::string_view, InlineTag *, InlineBrace *>;
+
 struct InlineTag : cursiv::Extends<cursiv::AstNode> {
+  string_view open;     // actual punctuation, empty if recovery inserted it
   string_view name;
-  string_view content;
+  string_view content;  // raw families: code, literal, snippet, unknown...
+  bool structured = false;
+  vector<Item> parts;  // structured bodies/labels; use raw_inline_content for text
+  string_view close;
 };
 
-using Item = std::variant<std::string_view, InlineTag *>;
+// Plain balanced braces remain source syntax; tags inside them still have
+// real children. No group nodes are made inside raw code/literal bodies.
+struct InlineBrace : cursiv::Extends<cursiv::AstNode> {
+  string_view open;
+  vector<Item> parts;
+  string_view close;
+};
 
 struct BlockTag : cursiv::Extends<cursiv::AstNode> {
   string_view name;

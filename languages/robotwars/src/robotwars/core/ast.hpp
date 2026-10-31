@@ -70,6 +70,7 @@ struct Comment : cursiv::Extends<Item> {
 struct Statement : cursiv::Extends<Item> {};
 
 struct IfStatement : cursiv::Extends<Statement> {
+  vector<Comment*> comments;
   Condition* condition;
   Statement* body;
 };
@@ -93,6 +94,7 @@ struct EndSubStatement : cursiv::Extends<Statement> {};
 // nested statement it carries. `operand` stays null for the `=`/`#` forms,
 // which read no expression.
 struct AccumStatement : cursiv::Extends<Statement> {
+  vector<Comment*> comments;
   Comparison op;
   Expr* operand;
   Statement* body;

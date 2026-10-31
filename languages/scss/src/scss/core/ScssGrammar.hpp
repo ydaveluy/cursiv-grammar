@@ -6,39 +6,10 @@
 
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "scss/core/ExtendOptional.hpp"
+#include "scss/core/ValueConverters.hpp"
 #include "scss/core/ast.hpp"
 
 namespace scss {
-
-inline constexpr auto unquote = [](std::string_view t) {
-  return t.substr(1, t.size() - 2);
-};
-
-inline constexpr auto trim_url = [](std::string_view text) {
-  const auto blank = [](char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f'; };
-  while (!text.empty() && blank(text.front())) text.remove_prefix(1);
-  while (!text.empty() && blank(text.back())) text.remove_suffix(1);
-  return text;
-};
-inline constexpr auto quoted_url = [](std::string_view text) {
-  std::size_t start = 0;
-  while (start < text.size()) {
-    if (text.substr(start).starts_with("/*")) { start = text.find("*/", start + 2) + 2; continue; }
-    if (text[start] == '\'' || text[start] == '"') break;
-    ++start;
-  }
-  const char quote = text[start];
-  std::size_t end = start + 1;
-  while (end < text.size()) {
-    if (text[end] == '\\') { end += 2; continue; }
-    if (text[end++] == quote) break;
-  }
-  return unquote(text.substr(start, end - start));
-};
-
-inline constexpr auto drop_parent = [](std::string_view t) {
-  return t.substr(1);
-};
 
 struct Scss : cursiv::GrammarSpec {
   // `-` is a legal identifier byte throughout CSS/Sass (`font-size`,
@@ -161,6 +132,7 @@ struct Scss : cursiv::GrammarSpec {
   struct AttribSelector;
   struct IdSelector;
   struct BlockRule;
+  struct NestedPropertyBlock;
   struct Ruleset;
   struct MediaQuery;
   struct FunctionBlock;
@@ -559,23 +531,82 @@ struct Scss : cursiv::GrammarSpec {
       many(gap::none +
            append<SuffixMember>(ref<Interpolation> | DashName));
 
-  struct VariableDeclaration
-      : rule<((flag<&ast::VariableDeclaration::isCustomProperty>(
-                   lit<"--">) +
-               assign<&ast::VariableDeclaration::name>(
-                   ref<CUSTOM_PROP_NAME>)) |
-              (option(flag<&ast::VariableDeclaration::negative>(
-                          lit<"-">) |
-                      lit<"+">) +
-               option(assign<&ast::VariableDeclaration::nsPrefix>(ref<IDENT>) + lit<".">) +
-               lit<"$"> +
-               assign<&ast::VariableDeclaration::name>(IdentLike))) +
-             lit<":"> +
-             assign<&ast::VariableDeclaration::value>(ValueOrListOrMap) +
-             many(flag<&ast::VariableDeclaration::isDefault>(lit<"!default">) |
-                  flag<&ast::VariableDeclaration::isGlobal>(lit<"!global">)) +
-             option(assign<&ast::VariableDeclaration::prio>(ref<IMPORTANT_TOK>)) +
-             StatementEnd> {};
+  // Raw text must keep whitespace, comments and // as content. Only #{...}
+  // returns to the ordinary Sass trivia/expression rules.
+  struct RawCustomPart;
+  struct RawCustomGroupPart;
+  static constexpr auto RawCustomEscape = lit<"\\"> + ~cr<R"(\r\n\f)">;
+  static constexpr auto RawCustomChar =
+      RawCustomEscape | ref<ML_COMMENT> |
+      cr<R"(^;(){}\[\]"'#\/\\)"> | lit<"#", !lit<"{">> | lit<"/", !lit<"*">>;
+  struct RAW_CUSTOM_TEXT : terminal<some(RawCustomChar)> {};
+  struct RAW_CUSTOM_GROUP_TEXT : terminal<some(RawCustomChar | lit<";">)> {};
+  struct RAW_CUSTOM_DQ : terminal<some(
+      (lit<"\\"> + (eol | any)) | cr<R"(^"#\\\r\n\f)"> | lit<"#", !lit<"{">>)> {};
+  struct RAW_CUSTOM_SQ : terminal<some(
+      (lit<"\\"> + (eol | any)) | cr<R"(^'#\\\r\n\f)"> | lit<"#", !lit<"{">>)> {};
+  template <class Text>
+  struct RawCustomText : rule<assign<&ast::RawText::text>(ref<Text>)> {};
+  // Read the opener under raw trivia before entering ordinary Sass. Its
+  // padding belongs inside #{...}, including comments before the expression.
+  struct RAW_CUSTOM_INTERPOLATION_OPEN : terminal<
+      lit<"#{"> + many(ref<SPACE> | ref<SL_COMMENT> | ref<ML_COMMENT>)> {};
+  struct RAW_CUSTOM_INTERPOLATION_CLOSE : terminal<lit<"}">> {};
+  struct RawCustomInterpolation : rule<create<ast::Interpolation>(
+      ref<RAW_CUSTOM_INTERPOLATION_OPEN> +
+      skip(ignore<SPACE, SL_COMMENT, ML_COMMENT>, hide<>,
+           assign<&ast::Interpolation::inner>(ValueOrListOrMap) +
+           ref<RAW_CUSTOM_INTERPOLATION_CLOSE>))> {};
+  struct RawCustomDqPart : rule<ref<RawCustomText<RAW_CUSTOM_DQ>> | ref<RawCustomInterpolation>> {};
+  struct RawCustomSqPart : rule<ref<RawCustomText<RAW_CUSTOM_SQ>> | ref<RawCustomInterpolation>> {};
+  template <auto Open, auto Close, class Part>
+  static constexpr auto RawCustomGroupBody = create<ast::RawCustomGroup>(
+      assign<&ast::RawCustomGroup::open>(Open) +
+      many(append<&ast::RawCustomGroup::parts>(ref<Part>)) +
+      assign<&ast::RawCustomGroup::close>(Close));
+  struct RawCustomQuoted : rule<
+      RawCustomGroupBody<lit<"\"">, lit<"\"">, RawCustomDqPart> |
+      RawCustomGroupBody<lit<"'">, lit<"'">, RawCustomSqPart>> {};
+  struct RawCustomGroup : rule<
+      RawCustomGroupBody<lit<"(">, lit<")">, RawCustomGroupPart> |
+      RawCustomGroupBody<lit<"[">, lit<"]">, RawCustomGroupPart> |
+      RawCustomGroupBody<lit<"{">, lit<"}">, RawCustomGroupPart>> {};
+  struct RawCustomGroupPart : rule<ref<RawCustomInterpolation> |
+      ref<RawCustomQuoted> | ref<RawCustomGroup> | ref<RawCustomText<RAW_CUSTOM_GROUP_TEXT>>> {};
+  struct RawCustomPart : rule<ref<RawCustomInterpolation> |
+      ref<RawCustomQuoted> | ref<RawCustomGroup> | ref<RawCustomText<RAW_CUSTOM_TEXT>>> {};
+  struct EmptyRawCustomValue : rule<create<ast::RawCustomValue>(
+      lit<":", &(lit<";"> | lit<"}"> | eof)>)> {};
+  // A distinct opening symbol separates the nonempty trivia region from
+  // EmptyRawCustomValue before it opens, rather than merging two ':' states.
+  struct RAW_CUSTOM_COLON : terminal<
+      lit<":", !(lit<";"> | lit<"}"> | lit<"{"> | eof)>> {};
+  struct RawCustomValue : rule<create<ast::RawCustomValue>(
+      // Native atEndOfStatement treats an immediate { after : as empty.
+      ref<RAW_CUSTOM_COLON> +
+      // End the tight region on a required part, never a nullable list tail.
+      many(append<&ast::RawCustomValue::parts>(ref<RawCustomPart>)) +
+      append<&ast::RawCustomValue::parts>(ref<RawCustomPart>))> {};
+
+  static constexpr auto CustomPropertyHead =
+      flag<&ast::VariableDeclaration::isCustomProperty>(lit<"--">) +
+      assign<&ast::VariableDeclaration::name>(ref<CUSTOM_PROP_NAME>);
+  static constexpr auto VariableHead =
+      option(flag<&ast::VariableDeclaration::negative>(lit<"-">) | lit<"+">) +
+      option(assign<&ast::VariableDeclaration::nsPrefix>(ref<IDENT>) + lit<".">) +
+      lit<"$"> + assign<&ast::VariableDeclaration::name>(IdentLike);
+  static constexpr auto SassVariableTail =
+      lit<":"> + assign<&ast::VariableDeclaration::value>(ValueOrListOrMap) +
+      many(flag<&ast::VariableDeclaration::isDefault>(lit<"!default">) |
+           flag<&ast::VariableDeclaration::isGlobal>(lit<"!global">)) +
+      option(assign<&ast::VariableDeclaration::prio>(ref<IMPORTANT_TOK>)) + StatementEnd;
+  struct SassVariableDeclaration : rule<VariableHead + SassVariableTail> {};
+  struct NestedCustomDeclaration : rule<CustomPropertyHead + SassVariableTail> {};
+  struct VariableDeclaration : rule<
+      (CustomPropertyHead +
+       (assign<&ast::VariableDeclaration::value>(ref<EmptyRawCustomValue>) |
+        tight(assign<&ast::VariableDeclaration::value>(ref<RawCustomValue>))) + StatementEnd) |
+      ref<SassVariableDeclaration>> {};
 
   // Test the adjacent bytes in a literal guard: a rule condition would
   // compare this prefix with a whole token such as `not` or `hover`.
@@ -596,9 +627,9 @@ struct Scss : cursiv::GrammarSpec {
        option(assign<PrioMember>(PrioAlt)) + StatementEnd) |
       (lit<":", !PseudoStart> + ValueRun<ValueMember> +
        option(assign<PrioMember>(PrioAlt)) +
-       (assign<NestedMember>(ref<BlockRule>) | StatementEnd)) |
+       (assign<NestedMember>(ref<NestedPropertyBlock>) | StatementEnd)) |
       (lit<":"> +
-       (assign<NestedMember>(ref<BlockRule>) |
+       (assign<NestedMember>(ref<NestedPropertyBlock>) |
         (option(assign<PrioMember>(PrioAlt)) + StatementEnd)));
 
   struct PropertyDeclaration
@@ -869,43 +900,54 @@ struct Scss : cursiv::GrammarSpec {
 
   // -- Control flow -----------------------------------------------------
 
-  struct ElseIfClause
+  template <class BodyBlock>
+  struct ElseIfClause_
       : rule<create<ast::ElseIfClause>(
             kw<"@else"> + kw<"if"> +
             assign<&ast::ElseIfClause::condition>(Value) +
-            assign<&ast::ElseIfClause::body>(ref<BlockRule>))> {};
+            assign<&ast::ElseIfClause::body>(ref<BodyBlock>))> {};
 
-  struct IfDeclaration
+  template <class BodyBlock>
+  struct IfDeclaration_
       : rule<kw<"@if"> + assign<&ast::IfDeclaration::condition>(Value) +
-             assign<&ast::IfDeclaration::body>(ref<BlockRule>) +
-             many(append<&ast::IfDeclaration::elseIfs>(ref<ElseIfClause>)) +
+             assign<&ast::IfDeclaration::body>(ref<BodyBlock>) +
+             many(append<&ast::IfDeclaration::elseIfs>(ref<ElseIfClause_<BodyBlock>>)) +
              option(kw<"@else"> +
-                    assign<&ast::IfDeclaration::elseBody>(ref<BlockRule>))> {};
+                    assign<&ast::IfDeclaration::elseBody>(ref<BodyBlock>))> {};
 
   struct PlainNumberLit
-      : rule<create<ast::NumberLit>(
-            assign<&ast::NumberLit::magnitude>(ref<NUMBER>))> {};
+      : rule<assign<&ast::NumberLit::magnitude>(ref<NUMBER>)> {};
 
-  struct ForDeclaration
+  template <class BodyBlock>
+  struct ForDeclaration_
       : rule<kw<"@for"> + lit<"$"> +
              assign<&ast::ForDeclaration::varName>(IdentLike) + kw<"from"> +
              assign<&ast::ForDeclaration::from>(Value) +
              (kw<"to"> | flag<&ast::ForDeclaration::throughInclusive>(
                              kw<"through">)) +
              assign<&ast::ForDeclaration::to>(Value) +
-             assign<&ast::ForDeclaration::body>(ref<BlockRule>)> {};
+             assign<&ast::ForDeclaration::body>(ref<BodyBlock>)> {};
 
-  struct WhileDeclaration
+  template <class BodyBlock>
+  struct WhileDeclaration_
       : rule<kw<"@while"> + assign<&ast::WhileDeclaration::condition>(Value) +
-             assign<&ast::WhileDeclaration::body>(ref<BlockRule>)> {};
+             assign<&ast::WhileDeclaration::body>(ref<BodyBlock>)> {};
 
-  struct EachDeclaration
+  template <class BodyBlock>
+  struct EachDeclaration_
       : rule<kw<"@each"> +
              some(lit<"$"> +
                       append<&ast::EachDeclaration::varNames>(IdentLike),
                   lit<",">) +
              kw<"in"> + assign<&ast::EachDeclaration::list>(ValueOrListOrMap) +
-             assign<&ast::EachDeclaration::body>(ref<BlockRule>)> {};
+             assign<&ast::EachDeclaration::body>(ref<BodyBlock>)> {};
+
+
+  using ElseIfClause = ElseIfClause_<BlockRule>;
+  using IfDeclaration = IfDeclaration_<BlockRule>;
+  using ForDeclaration = ForDeclaration_<BlockRule>;
+  using WhileDeclaration = WhileDeclaration_<BlockRule>;
+  using EachDeclaration = EachDeclaration_<BlockRule>;
 
   // -- Rulesets -------------------------------------------------------
 
@@ -925,25 +967,24 @@ struct Scss : cursiv::GrammarSpec {
             some(append<&ast::ReturnStmt::values>(Value), lit<",">) +
             StatementEnd)> {};
 
-  struct BlockRule
-      : rule<create<ast::Block>(
-            lit<"{"> +
-            many(append<&ast::Block::statements>(ref<StatementAlt>) |
-                 lit<";">) +
-            lit<"}">)> {};
+  struct NestedStatementAlt : rule<ref<SassVariableDeclaration> |
+      ref<NestedCustomDeclaration> | ref<PropertyDeclaration> | ref<InterpolationDeclaration> |
+      ref<ContentDeclaration> | ref<DebugDeclaration> | ref<WarnDeclaration> | ref<ErrorDeclaration> |
+      ref<IncludeDeclaration> | ref<IfDeclaration_<NestedPropertyBlock>> |
+      ref<ForDeclaration_<NestedPropertyBlock>> | ref<WhileDeclaration_<NestedPropertyBlock>> |
+      ref<EachDeclaration_<NestedPropertyBlock>>> {};
+  template <auto Item>
+  static constexpr auto BlockBody = create<ast::Block>(
+      lit<"{"> + many(append<&ast::Block::statements>(Item) | lit<";">) + lit<"}">);
+  struct BlockRule : rule<BlockBody<ref<StatementAlt>>> {};
+  struct NestedPropertyBlock : rule<BlockBody<ref<NestedStatementAlt>>> {};
 
   // `expr;` is legal only inside a @function body: admitting it into every
   // block would make a keyword like `repeat`/`calc`, reserved for the
   // dedicated call shapes below, compete with the SAME spelling used as an
   // ordinary property name in that block (per-state lexing picks one
   // reading for the whole state, not per alternative).
-  struct FunctionBlock
-      : rule<create<ast::Block>(
-            lit<"{"> +
-            many(append<&ast::Block::statements>(ref<StatementAlt> |
-                                                 ref<ExprStatement>) |
-                 lit<";">) +
-            lit<"}">)> {};
+  struct FunctionBlock : rule<BlockBody<ref<StatementAlt> | ref<ExprStatement>>> {};
 
   struct StatementAlt
       : rule<ref<ReturnStmt> | ref<ImportDeclaration> |

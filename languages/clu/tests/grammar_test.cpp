@@ -1,3 +1,5 @@
+#include "converter_cases.hpp"
+#include "representation_cases.hpp"
 // The smoke test of the language: parse every file in example/, check each
 // tree, and read a few real field values back out of one of them.
 
@@ -205,6 +207,9 @@ int main() {
   const auto language = cursiv::create_language<
       clu::CluCoreServices, clu::CluSharedCoreServices,
       clu::install_core_module>();
+
+  if (!clu_converter_cases::run(*language.language.parser)) return 1;
+  if (!clu_representation_cases::run(*language.language.parser)) return 1;
 
   int total = 0;
   int failures = 0;

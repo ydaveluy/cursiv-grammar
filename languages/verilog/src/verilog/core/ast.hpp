@@ -4,17 +4,27 @@
 
 namespace verilog::ast {
 
-struct Item : cursiv::Extends<cursiv::AstNode> {};
-struct Expr : cursiv::Extends<cursiv::AstNode> {};
-struct Stmt : cursiv::Extends<cursiv::AstNode> {};
+struct Expr;
+struct AttributeSpec : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  Expr* value;
+};
+struct AttributeInstance : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpec*> specs;
+};
+struct Item : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeInstance*> attributes;
+};
+struct Expr : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeInstance*> attributes;
+};
+struct Stmt : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeInstance*> attributes;
+};
 
 struct PreprocessorItem : cursiv::Extends<Item> { string_view text; };
 struct PreprocessorStmt : cursiv::Extends<Stmt> { string_view text; };
 struct PreprocessorExpr : cursiv::Extends<Expr> { string_view text; };
-
-// `(* full_case, parallel_case *)`: recognized as an opaque bracketed run
-// everywhere Verilog allows an attribute instance, but not parsed into
-// structure -- a synthesis pragma, not a fact this AST carries.
 
 // Expressions.
 
@@ -320,6 +330,7 @@ struct TaskDecl : cursiv::Extends<Item> {
 // An ordered argument has an empty `name`; shared by parameter value
 // assignments and port connections, both ordered-or-named lists.
 struct NamedArg : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeInstance*> attributes;
   string_view name;
   Expr* value;
 };

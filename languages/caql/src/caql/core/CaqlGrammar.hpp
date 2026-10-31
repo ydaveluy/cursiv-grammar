@@ -117,13 +117,11 @@ struct Caql : cursiv::GrammarSpec {
              ref<GROUP_RIGHT> | ref<OFFSET> | ref<BOOL> | ref<NOT>> {};
 
   struct NumberLit
-      : rule<create<ast::NumberLit>(
-            assign<&ast::NumberLit::value>(ref<NUMBER>))> {};
+      : rule<assign<&ast::NumberLit::value>(ref<NUMBER>)> {};
   struct StringLit
-      : rule<create<ast::StringLit>(
-            assign<&ast::StringLit::value>(ref<STRING>))> {};
+      : rule<assign<&ast::StringLit::value>(ref<STRING>)> {};
   struct UuidLit
-      : rule<create<ast::UuidLit>(assign<&ast::UuidLit::value>(ref<UUID>))> {
+      : rule<assign<&ast::UuidLit::value>(ref<UUID>)> {
   };
   struct DurationLit
       : rule<assign<&ast::DurationLit::text>(ref<DURATION>)> {};

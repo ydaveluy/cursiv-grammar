@@ -218,7 +218,7 @@ struct Golang : cursiv::GrammarSpec {
       lit<")">;
 
   struct UnnamedResult
-      : rule<create<ast::Param>(assign<&ast::Param::type>(ref<Type_>))> {};
+      : rule<assign<&ast::Param::type>(ref<Type_>)> {};
 
   struct Signature
       : rule<create<ast::Signature>(
@@ -312,7 +312,7 @@ struct Golang : cursiv::GrammarSpec {
                    assign<&ast::FloatLit::text>(ref<FLOAT_LIT>))> {};
 
   struct IdentExpr
-      : rule<create<ast::Ident>(assign<&ast::Ident::name>(ref<ID>))> {};
+      : rule<assign<&ast::Ident::name>(ref<ID>)> {};
 
   struct FuncLit
       : rule<create<ast::FuncLit>(
@@ -400,7 +400,7 @@ struct Golang : cursiv::GrammarSpec {
   // lists. Keep our distinct Type hierarchy behind an explicit wrapper;
   // names and pointer expressions keep their existing expression reading.
   struct TypeExpr
-      : rule<create<ast::TypeExpr>(assign<&ast::TypeExpr::type>(ref<Type_>))> {};
+      : rule<assign<&ast::TypeExpr::type>(ref<Type_>)> {};
 
   struct Argument : rule<ref<Expression> | ref<TypeExpr>> {};
 

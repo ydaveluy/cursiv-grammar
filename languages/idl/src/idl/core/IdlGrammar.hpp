@@ -48,9 +48,9 @@ struct Idl : cursiv::GrammarSpec {
   static constexpr auto escape_seq =
       simple_escape | unicode_escape | hex_escape | octal_escape;
   static constexpr auto char_body =
-      lit<"'"> + (escape_seq | cr<R"(^'\\\\)">)+lit<"'">;
+      lit<"'"> + (escape_seq | cr<R"(^'\\\\\x00-\x1f\x7f-\x9f)">)+lit<"'">;
   static constexpr auto string_body =
-      lit<"\""> + many(escape_seq | cr<R"(^"\\\\)">) + lit<"\"">;
+      lit<"\""> + many(escape_seq | cr<R"(^"\\\\\x00-\x1f\x7f-\x9f)">) + lit<"\"">;
   struct CHAR_LIT : terminal<char_body> {};
   struct WCHAR_LIT : terminal<lit<"L"> + char_body> {};
   struct STR_LIT : terminal<string_body> {};
@@ -79,15 +79,17 @@ struct Idl : cursiv::GrammarSpec {
 
   // Reuse constant expressions for annotation arguments, preserving their AST.
   struct AnnotationArgument
-      : rule<option(assign<&ast::AnnotationArgument::name>(ref<ID>) +
-                    lit<"=">) +
+      : rule<assign<&ast::AnnotationArgument::value>(ref<ConstExpr>)> {};
+  struct NamedAnnotationArgument
+      : rule<assign<&ast::AnnotationArgument::name>(ref<ID>) + lit<"="> +
              assign<&ast::AnnotationArgument::value>(ref<ConstExpr>)> {};
   static constexpr auto annotation_appl = create<ast::AnnotationUse>(
       lit<"@"> + assign<&ast::AnnotationUse::name>(ref<ScopedName>) +
       option(
           flag<&ast::AnnotationUse::hasArguments>(lit<"(">) +
-          many(append<&ast::AnnotationUse::arguments>(ref<AnnotationArgument>),
-               lit<",">) +
+          (some(append<&ast::AnnotationUse::arguments>(ref<NamedAnnotationArgument>),
+                lit<",">) |
+           append<&ast::AnnotationUse::arguments>(ref<AnnotationArgument>)) +
           lit<")">));
   static constexpr auto annapps =
       many(append<&ast::Annotated::annotations>(annotation_appl));
@@ -100,16 +102,13 @@ struct Idl : cursiv::GrammarSpec {
       : rule<create<ast::ParenExpr>(
             lit<"("> + assign<&ast::ParenExpr::inner>(ref<ConstExpr>) +
             lit<")">)> {};
-  struct FloatLit : rule<create<ast::FloatLit>(
-                            assign<&ast::FloatLit::text>(ref<FLOAT_LIT>))> {};
-  struct FixedLit : rule<create<ast::FixedLit>(
-                            assign<&ast::FixedLit::text>(ref<FIXED_LIT>))> {};
+  struct FloatLit : rule<assign<&ast::FloatLit::text>(ref<FLOAT_LIT>)> {};
+  struct FixedLit : rule<assign<&ast::FixedLit::text>(ref<FIXED_LIT>)> {};
   struct IntLit : rule<create<ast::IntLit>(assign<&ast::IntLit::text>(
                           ref<DEC_LIT> | ref<OCT_LIT> | ref<HEX_LIT>))> {};
-  struct WCharLit : rule<create<ast::WCharLit>(
-                            assign<&ast::WCharLit::text>(ref<WCHAR_LIT>))> {};
+  struct WCharLit : rule<assign<&ast::WCharLit::text>(ref<WCHAR_LIT>)> {};
   struct CharLit
-      : rule<create<ast::CharLit>(assign<&ast::CharLit::text>(ref<CHAR_LIT>))> {
+      : rule<assign<&ast::CharLit::text>(ref<CHAR_LIT>)> {
   };
   struct WStringLit : rule<create<ast::WStringLit>(
                               assign<&ast::WStringLit::text>(ref<WSTR_LIT>) +
@@ -121,8 +120,7 @@ struct Idl : cursiv::GrammarSpec {
   struct BoolLit
       : rule<create<ast::BoolLit>(flag<&ast::BoolLit::value>(kw<"TRUE">) |
                                   kw<"FALSE">)> {};
-  struct NameExpr : rule<create<ast::NameExpr>(
-                            assign<&ast::NameExpr::name>(ref<ScopedName>))> {};
+  struct NameExpr : rule<assign<&ast::NameExpr::name>(ref<ScopedName>)> {};
 
   struct PrimaryExpr : rule<ref<ParenExpr>    //
                                 | ref<FloatLit>   //
@@ -169,8 +167,7 @@ struct Idl : cursiv::GrammarSpec {
             assign<&ast::BaseTypeRef::kind>(base_type_kw))> {};
 
   struct NamedTypeRef
-      : rule<create<ast::NamedTypeRef>(
-            assign<&ast::NamedTypeRef::name>(ref<ScopedName>))> {};
+      : rule<assign<&ast::NamedTypeRef::name>(ref<ScopedName>)> {};
 
   // --- template types: sequence/set/map/string/wstring/fixed --------------
   static constexpr auto element_type_spec =

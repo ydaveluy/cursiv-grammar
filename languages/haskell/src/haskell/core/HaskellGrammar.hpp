@@ -175,7 +175,7 @@ struct Haskell : cursiv::GrammarSpec {
   // Literal whitespace is restricted to an ordinary space. A string gap
   // consumes both backslashes and one or more white characters as one token.
   static constexpr auto literalChar =
-      !horizontalWhite + cr<R"(^\x00-\x1f\x7f-\x9f\\)"> | lit<" ">;
+      (!horizontalWhite + cr<R"(^\x00-\x1f\x7f-\x9f\\)">) | lit<" ">;
   struct CHAR_TOK
       : terminal<lit<"'"> + (charEscape | (!lit<"'"> + literalChar)) + lit<"'">> {};
   struct STRING_TOK
@@ -187,13 +187,11 @@ struct Haskell : cursiv::GrammarSpec {
   struct IntLit : rule<create<ast::IntLit>(assign<&ast::IntLit::text>(
                           ref<HEX_TOK> | ref<OCTAL_TOK> | ref<BINARY_TOK> |
                           ref<DECIMAL_TOK>))> {};
-  struct FloatLit : rule<create<ast::FloatLit>(
-                            assign<&ast::FloatLit::text>(ref<FLOAT_TOK>))> {};
+  struct FloatLit : rule<assign<&ast::FloatLit::text>(ref<FLOAT_TOK>)> {};
   struct CharLit
-      : rule<create<ast::CharLit>(assign<&ast::CharLit::text>(ref<CHAR_TOK>))> {
+      : rule<assign<&ast::CharLit::text>(ref<CHAR_TOK>)> {
   };
-  struct StringLit : rule<create<ast::StringLit>(
-                             assign<&ast::StringLit::text>(ref<STRING_TOK>))> {
+  struct StringLit : rule<assign<&ast::StringLit::text>(ref<STRING_TOK>)> {
   };
 
   // A pragma body from right after its keyword through `#-}`, for the
@@ -271,7 +269,7 @@ struct Haskell : cursiv::GrammarSpec {
   // Types, patterns and kinds all reuse this same grammar.
 
   struct TyVarExpr
-      : rule<create<ast::TyVar>(assign<&ast::TyVar::name>(ref<VarIdTerm>))> {};
+      : rule<assign<&ast::TyVar::name>(ref<VarIdTerm>)> {};
   struct TyConExpr : rule<create<ast::TyCon>(
                          option(assign<&ast::TyCon::qualifier>(ref<QUAL_TOK>)) +
                          assign<&ast::TyCon::name>(ref<CONID_TOK>))> {};

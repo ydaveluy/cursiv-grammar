@@ -287,14 +287,16 @@ struct Gdscript : cursiv::GrammarSpec {
       : rule<create<ast::BindingPattern>(
             kw<"var"> + assign<&ast::BindingPattern::name>(ref<Ident>))> {};
 
+  template<auto Items, auto Rest, class Item> static constexpr auto pattern_items =
+      many(append<Items>(ref<Item>) + lit<",">) +
+      option(append<Items>(ref<Item>) |
+             (flag<Rest>(lit<"."> + lit<".">) + option(lit<",">)));
+
   struct ArrayPattern
       : rule<create<ast::ArrayPattern>(
             lit<"["> +
-            option(some(append<&ast::ArrayPattern::items>(ref<Pattern>),
-                        lit<",">) +
-                   option(lit<",">)) +
-            option(flag<&ast::ArrayPattern::openEnded>(lit<"..">) +
-                   option(lit<",">)) +
+            pattern_items<&ast::ArrayPattern::items,
+                          &ast::ArrayPattern::openEnded, Pattern> +
             lit<"]">)> {};
 
   struct DictKeyValuePattern
@@ -306,12 +308,8 @@ struct Gdscript : cursiv::GrammarSpec {
   struct DictPattern
       : rule<create<ast::DictPattern>(
             lit<"{"> +
-            option(some(append<&ast::DictPattern::items>(
-                            ref<DictKeyValuePattern>),
-                        lit<",">) +
-                   option(lit<",">)) +
-            option(flag<&ast::DictPattern::openEnded>(lit<"..">) +
-                   option(lit<",">)) +
+            pattern_items<&ast::DictPattern::items,
+                          &ast::DictPattern::openEnded, DictKeyValuePattern> +
             lit<"}">)> {};
 
   struct Pattern

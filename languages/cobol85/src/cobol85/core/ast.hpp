@@ -6,6 +6,8 @@
 // clause written again keeps every value, in order, in its list.
 #pragma once
 
+#include <cstdint>
+
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 
 namespace cobol85::ast {
@@ -191,12 +193,25 @@ struct ReportDescription : cursiv::Extends<cursiv::AstNode> {
   vector<ReportGroupItem*> groups;
 };
 
-// COMMUNICATION SECTION: the CD's name and direction; its many status/queue
-// clauses parse and write nothing, a teleprocessing detail no example here
-// exercises meaningfully.
+enum class CommunicationClauseKind : std::uint8_t {
+  unnamed, queue, subQueue1, subQueue2, subQueue3, messageDate, messageTime,
+  source, textLength, endKey, statusKey, messageCount, destinationCount,
+  destinationTable, errorKey, destination, terminal
+};
+
+struct CommunicationClause : cursiv::Extends<cursiv::AstNode> {
+  CommunicationClauseKind kind = CommunicationClauseKind::unnamed;
+  vector<Identifier*> fields; // one named target, or the positional input list
+  string_view occurs;        // DESTINATION TABLE OCCURS count
+  vector<string_view> indexes;
+};
+
 struct CommunicationEntry : cursiv::Extends<cursiv::AstNode> {
   string_view cdName;
   string_view direction;  // INPUT, OUTPUT, or I-O
+  boolean initial = false;
+  vector<CommunicationClause*> clauses;
+  vector<DataEntry*> records;
 };
 
 struct LibraryEntry : cursiv::Extends<cursiv::AstNode> {

@@ -3,13 +3,17 @@
 // in the generated one, and this file is the only place the two meet.
 
 #include "bcpl/core/CoreServices.hpp"
+#include "bcpl/core/SectionTags.hpp"
 #include "bcpl/core/validation/BcplValidator.hpp"
 #include "bcpl/generated/Bcpl/Module.hpp"
+#include "cursiv/core/parser/Parser.hpp"
 
 namespace bcpl {
 
 void install_core_module(BcplCoreServices& services) {
   bcpl::generated::Bcpl::install_generated_module(services);
+  services.parser = cursiv::translating_parser(std::move(services.parser),
+                                               translate_section_tags);
   register_validation_checks(services);
 }
 

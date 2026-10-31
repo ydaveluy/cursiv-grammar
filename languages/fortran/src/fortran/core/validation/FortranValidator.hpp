@@ -1,5 +1,5 @@
-// No semantic checks are registered yet. Declaration, type, DATA, I/O and
-// construct constraints are outside this permissive syntax importer.
+// Local closing-name and block-DO checks. Declaration, type, DATA and I/O
+// semantics still need symbol/type analysis beyond this syntax subset.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +11,8 @@ namespace fortran {
 class FortranValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkUnit(const ast::ProgramUnit&, cursiv::ValidationAcceptor&) const;
+  void checkStatement(const ast::Stmt&, cursiv::ValidationAcceptor&) const;
 };
 
 struct FortranCoreServices;

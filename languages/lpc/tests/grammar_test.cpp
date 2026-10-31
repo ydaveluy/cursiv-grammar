@@ -10,6 +10,7 @@
 #include "cursiv/test/ValidationResult.hpp"
 #include "lpc/core/CoreServices.hpp"
 #include "lpc/core/ast.hpp"
+#include "heredoc_cases.hpp"
 
 namespace {
 
@@ -79,6 +80,7 @@ int main() {
         cursiv::create_language<lpc::LpcCoreServices,
                                 lpc::LpcSharedCoreServices,
                                 lpc::install_core_module>();
+    if (!lpc_heredoc_cases::run(audit_language.language)) return 1;
     const auto audit_result = audit_language.language.parser->parse(
         "void f(int x) { switch(x) { case x=1: break; case 1+2: break; } }");
     if (!audit_result.accepted || audit_result.cst().recovered() ||

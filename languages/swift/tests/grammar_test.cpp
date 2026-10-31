@@ -1,6 +1,7 @@
 #include "audit_regressions.hpp"
 #include "native_regressions.hpp"
 #include "native_followup_cases.hpp"
+#include "raw_escape_cases.hpp"
 // The smoke test of the language: every file under example/ parses clean (no
 // recovery) and roots at ast::File.
 
@@ -118,6 +119,7 @@ int main() {
 
   if (!native_regressions::run(language.language)) return 1;
   if (!native_followup::run(language.language)) return 1;
+  if (!swift_raw_escapes::run(language.language)) return 1;
 
   int seen = 0;
   for (const auto& entry :

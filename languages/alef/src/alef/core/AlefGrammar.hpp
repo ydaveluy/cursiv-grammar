@@ -104,7 +104,7 @@ struct Alef : cursiv::GrammarSpec {
                    assign<&ast::NamedType::name>(ref<ID>))> {};
 
   struct NamedType
-      : rule<create<ast::NamedType>(assign<&ast::NamedType::name>(ref<ID>))> {
+      : rule<assign<&ast::NamedType::name>(ref<ID>)> {
   };
 
   struct TypeCast

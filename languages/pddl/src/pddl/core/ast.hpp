@@ -114,6 +114,9 @@ struct GoalFormula : cursiv::Extends<cursiv::AstNode> {
   boolean isForall;                  // false: exists, true: forall
   TypedList* parameters = nullptr;   // exists, forall
   GoalFormula* quantBody = nullptr;  // exists, forall
+  boolean isPreference;
+  string_view preferenceName;       // optional ordinary pre-GD preference name
+  GoalFormula* preferenceBody = nullptr;
   CompareOp compareOp{};             // a comparison
   Expr* leftExpr = nullptr;          // a comparison
   Expr* rightExpr = nullptr;         // a comparison

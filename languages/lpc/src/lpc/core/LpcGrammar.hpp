@@ -59,10 +59,18 @@ struct Lpc : cursiv::GrammarSpec {
        (lit<"u"> + repeat<4>(HexDigit)) | (lit<"U"> + repeat<8>(HexDigit)) |
        eol | (!cr<R"(\x0089uU)"> + any));
 
-  struct STRING : terminal<option(lit<"@">) + lit<"\""> +
+  struct HeredocTag {};
+  static constexpr auto HeredocEnd = same<HeredocTag> + !cr<"a-zA-Z0-9_">;
+  static constexpr auto HeredocBody =
+      mark<HeredocTag>(some(cr<"a-zA-Z0-9_">)) +
+      many(cr<R"( \t\v\f\r)">) + lit<"\n"> +
+      many(!HeredocEnd + many(cr<R"(^\n)">) + lit<"\n">) + HeredocEnd;
+
+  struct STRING : terminal<(option(lit<"@">) + lit<"\""> +
                            many(Escape | lit<"\r\n"> | lit<"\n"> |
                                 (!cr<R"("\\\r\n)"> + any)) +
-                           lit<"\"">> {};
+                           lit<"\"">) | (lit<"@"> + HeredocBody)> {};
+  struct ARRAY_HEREDOC : terminal<lit<"@@"> + HeredocBody> {};
 
   static constexpr auto CharEscape = lit<"\\"> +
       (some(OctalDigit) | (lit<"x"> + many(HexDigit)) | eol | (!cr<R"(\x0089)"> + byte));
@@ -98,7 +106,7 @@ struct Lpc : cursiv::GrammarSpec {
   static constexpr auto OpLogOr = lit<"||">;
   static constexpr auto OpAssign =
       lit<"<<="> | lit<">>="> | lit<"+="> | lit<"-="> | lit<"*="> | lit<"/="> |
-      lit<"??="> | lit<"%="> | lit<"&="> | lit<"|="> | lit<"^="> | lit<"=">;
+      lit<"?\?="> | lit<"%="> | lit<"&="> | lit<"|="> | lit<"^="> | lit<"=">;
 
   // `constant` (switch case bounds) reuses BinaryExpr/PrefixExpr/IntLit but
   // needs its own operator tokens: an infix table claims a token for the
@@ -370,6 +378,7 @@ struct Lpc : cursiv::GrammarSpec {
                    assign<&ast::EvalExpr::index>(ref<CommaExpr>) +
                    lit<")">)      //
              | ref<StringLike> //
+             | assign<&ast::ArrayHeredocExpr::text>(ref<ARRAY_HEREDOC>) //
              |
              create<ast::CharLit>(assign<&ast::CharLit::text>(ref<CHAR_LIT>)) //
              | (lit<"("> + ref<CommaExpr> + lit<")">)                     //

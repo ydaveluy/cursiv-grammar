@@ -773,17 +773,66 @@ struct Cobol85 : cursiv::GrammarSpec {
              ref<DOT_FS> +
              some(append<&ast::ReportDescription::groups>(ref<ReportGroupDescriptionEntry>))> {};
 
-  struct CommunicationClause
-      : rule<((ref<CobolWord> + many((ref<CobolWord> | ref<INTLIT>))))> {};
+  // Shared CD targets and keyword heads; each direction adds its own clauses.
+  static constexpr auto cd_target =
+      option(ikw<"IS">) + append<&ast::CommunicationClause::fields>(ref<Identifier>);
+  static constexpr auto cd_length_status =
+      as<ast::CommunicationClauseKind::textLength>(ikw<"TEXT"> + ikw<"LENGTH">) |
+      as<ast::CommunicationClauseKind::statusKey>(ikw<"STATUS"> + ikw<"KEY">);
+  static constexpr auto cd_input_common =
+      cd_length_status |
+      as<ast::CommunicationClauseKind::messageDate>(ikw<"MESSAGE"> + ikw<"DATE">) |
+      as<ast::CommunicationClauseKind::messageTime>(ikw<"MESSAGE"> + ikw<"TIME">) |
+      as<ast::CommunicationClauseKind::endKey>(ikw<"END"> + ikw<"KEY">);
+
+  struct InputCommunicationClause
+      : rule<create<ast::CommunicationClause> +
+             (assign<&ast::CommunicationClause::kind>(cd_input_common |
+                  as<ast::CommunicationClauseKind::messageCount>(option(ikw<"MESSAGE">) + ikw<"COUNT">)) |
+              (option(ikw<"SYMBOLIC">) + assign<&ast::CommunicationClause::kind>(
+                  as<ast::CommunicationClauseKind::queue>(ikw<"QUEUE">) |
+                  as<ast::CommunicationClauseKind::subQueue1>(ikw<"SUB-QUEUE-1">) |
+                  as<ast::CommunicationClauseKind::subQueue2>(ikw<"SUB-QUEUE-2">) |
+                  as<ast::CommunicationClauseKind::subQueue3>(ikw<"SUB-QUEUE-3">) |
+                  as<ast::CommunicationClauseKind::source>(ikw<"SOURCE">)))) + cd_target> {};
+
+  struct InputOutputCommunicationClause
+      : rule<create<ast::CommunicationClause> +
+             (assign<&ast::CommunicationClause::kind>(cd_input_common) |
+              (option(ikw<"SYMBOLIC">) + assign<&ast::CommunicationClause::kind>(
+                  as<ast::CommunicationClauseKind::terminal>(ikw<"TERMINAL">)))) + cd_target> {};
+
+  struct OutputCommunicationClause
+      : rule<create<ast::CommunicationClause> +
+             ((assign<&ast::CommunicationClause::kind>(cd_length_status |
+                   as<ast::CommunicationClauseKind::destinationCount>(ikw<"DESTINATION"> + ikw<"COUNT">) |
+                   as<ast::CommunicationClauseKind::errorKey>(ikw<"ERROR"> + ikw<"KEY">) |
+                   as<ast::CommunicationClauseKind::destination>(option(ikw<"SYMBOLIC">) + ikw<"DESTINATION">)) + cd_target) |
+              (assign<&ast::CommunicationClause::kind>(as<ast::CommunicationClauseKind::destinationTable>(
+                   ikw<"DESTINATION"> + ikw<"TABLE">)) + ikw<"OCCURS"> +
+               assign<&ast::CommunicationClause::occurs>(ref<INTLIT>) + option(ikw<"TIMES">) +
+               option(ikw<"INDEXED"> + option(ikw<"BY">) +
+                      some(append<&ast::CommunicationClause::indexes>(ref<CobolWord>)))))> {};
+
+  template <std::size_t Count>
+  struct PositionalCommunicationClause
+      : rule<create<ast::CommunicationClause> +
+             repeat<Count>(append<&ast::CommunicationClause::fields>(ref<Identifier>))> {};
 
   struct CommunicationDescriptionEntry
-      : rule<create<ast::CommunicationEntry> + ikw<"CD">+
+      : rule<create<ast::CommunicationEntry> + ikw<"CD"> +
              assign<&ast::CommunicationEntry::cdName>(ref<CobolWord>) + option(ikw<"FOR">) +
-             option(ikw<"INITIAL">) +
-             assign<&ast::CommunicationEntry::direction>(
-                 ikw<"I-O"> | ikw<"INPUT"> | ikw<"OUTPUT">) +
-             many(ref<CommunicationClause>) +
-             ref<DOT_FS>> {};
+             ((option(flag<&ast::CommunicationEntry::initial>(ikw<"INITIAL">)) +
+               assign<&ast::CommunicationEntry::direction>(ikw<"INPUT">) +
+               (many(append<&ast::CommunicationEntry::clauses>(ref<InputCommunicationClause>)) |
+                append<&ast::CommunicationEntry::clauses>(ref<PositionalCommunicationClause<11>>))) |
+              (assign<&ast::CommunicationEntry::direction>(ikw<"OUTPUT">) +
+               many(append<&ast::CommunicationEntry::clauses>(ref<OutputCommunicationClause>))) |
+              (option(flag<&ast::CommunicationEntry::initial>(ikw<"INITIAL">)) +
+               assign<&ast::CommunicationEntry::direction>(ikw<"I-O">) +
+               (many(append<&ast::CommunicationEntry::clauses>(ref<InputOutputCommunicationClause>)) |
+                append<&ast::CommunicationEntry::clauses>(ref<PositionalCommunicationClause<6>>)))) +
+             ref<DOT_FS> + many(append<&ast::CommunicationEntry::records>(ref<DataDescriptionEntry>))> {};
 
   struct LibraryDescriptionEntry
       : rule<create<ast::LibraryEntry> +

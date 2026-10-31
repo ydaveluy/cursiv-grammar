@@ -22,7 +22,7 @@ struct Python : cursiv::GrammarSpec {
   // A line with nothing but whitespace and/or a comment does not end a
   // logical line in Python: folded into NEWLINE so the grammar never sees it.
   static constexpr auto blank_line =
-      many(cr<R"( \t)">) + option(comment_body) + eol;
+      many(cr<R"( \t\f)">) + option(comment_body) + eol;
   struct NEWLINE : terminal<eol + many(blank_line)> {};
   struct LeadingTrivia : terminal<some(blank_line)> {};
   // `indent` and `dedent` are the parse's own: inside these brackets they
@@ -943,14 +943,11 @@ struct Python : cursiv::GrammarSpec {
       | create<ast::BoolLit>(flag<&ast::BoolLit::value>(kw<"True">))  //
       | create<ast::BoolLit>(kw<"False">)> {};
 
-  struct LiteralPattern : rule<create<ast::MatchValue>(
-      assign<&ast::MatchValue::value>(ref<LiteralExprBare>))> {};
+  struct LiteralPattern : rule<assign<&ast::MatchValue::value>(ref<LiteralExprBare>)> {};
 
-  struct ValuePattern : rule<create<ast::MatchValue>(
-      assign<&ast::MatchValue::value>(ref<AttrChain>))> {};
+  struct ValuePattern : rule<assign<&ast::MatchValue::value>(ref<AttrChain>)> {};
 
-  struct CapturePattern : rule<create<ast::MatchCapture>(
-      assign<&ast::MatchCapture::name>(ref<NameNotWildcard>))> {};
+  struct CapturePattern : rule<assign<&ast::MatchCapture::name>(ref<NameNotWildcard>)> {};
 
   struct WildcardPattern
       : rule<create<ast::MatchCapture>(ref<WildcardKwTerm>)> {};
@@ -1013,8 +1010,8 @@ struct Python : cursiv::GrammarSpec {
                      some(append<&ast::MatchClass::keywords>(
                               ref<KeywordPattern>),
                           lit<",">)) + option(lit<",">))  //
-             | some(append<&ast::MatchClass::keywords>(ref<KeywordPattern>),
-                    lit<",">) + option(lit<",">)) +
+             | (some(append<&ast::MatchClass::keywords>(ref<KeywordPattern>),
+                     lit<",">) + option(lit<",">))) +
       lit<")">)> {};
 
   struct ClosedPattern : rule<

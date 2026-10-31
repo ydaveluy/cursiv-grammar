@@ -512,9 +512,10 @@ end)
  validate("f(foo: 1, 2)", "elixir.keyword-order", 1);
  validate("[foo: 1, 2]", "elixir.keyword-order", 1);
  validate("%{foo: 1, 2 => 3}", "elixir.keyword-order", 1);
- validate(R"ex("""inline""")ex", "elixir.heredoc-header", 1);
- validate(R"ex('''inline''')ex", "elixir.heredoc-header", 1);
- validate(R"ex(~S"""inline""")ex", "elixir.heredoc-header", 1);
+ validate("\"\"\"inline\n\"\"\"", "elixir.heredoc-header", 1);
+ validate("'''inline\n'''", "elixir.heredoc-header", 1);
+ validate("~S\"\"\"inline\n\"\"\"", "elixir.heredoc-header", 1);
+ validate("\"\"\"\rbody\n\"\"\"", "elixir.heredoc-header", 1);
  validate("\"\"\"\nvalid\n\"\"\"", "elixir.heredoc-header", 0);
  std::printf("elixir audit: %zu native forms, %u checks\n", std::size(valid), checks);
  return ok;

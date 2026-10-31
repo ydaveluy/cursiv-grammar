@@ -35,6 +35,6 @@ line one
 line two
 '''
 
-var tagged = foo:bar
+var tagged = foo::bar
 
 var prec = a + b * c == d && e || f ?? g

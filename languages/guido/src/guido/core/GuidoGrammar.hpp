@@ -88,23 +88,31 @@ struct Guido : cursiv::GrammarSpec {
       option(assign<&ast::Tablature::duration>(ref<Duration>)) +
       option(assign<&ast::Tablature::dots>(ref<DOTS>)))> {};
 
+  static constexpr auto quoted_parameter = flag<&ast::Parameter::quoted>(
+      assign<&ast::Parameter::text>(ref<STRING>));
+  static constexpr auto numeric_parameter =
+      flag<&ast::Parameter::real>(
+          assign<&ast::Parameter::text>(ref<FLOAT>)) |
+      assign<&ast::Parameter::text>(ref<INTEGER>);
+  // In native PARAM, UNIT/MLS/SEC win their equal-length match over IDT.
+  static constexpr auto ParameterName =
+      !(kw<"m"> | kw<"cm"> | kw<"mm"> | kw<"in"> | kw<"pt"> | kw<"pc"> |
+        kw<"hs"> | kw<"rl"> | kw<"ms"> | kw<"s">) + ref<ID>;
   static constexpr auto parameter_value =
-      (flag<&ast::Parameter::quoted>(
-           assign<&ast::Parameter::text>(ref<STRING>)) |
+      (quoted_parameter |
        flag<&ast::Parameter::variable>(
            assign<&ast::Parameter::text>(ref<VARIABLE>)) |
-       ((flag<&ast::Parameter::real>(
-            assign<&ast::Parameter::text>(ref<FLOAT>)) |
-        assign<&ast::Parameter::text>(ref<INTEGER>)) +
+       (numeric_parameter +
            option(assign<&ast::Parameter::unit>(ref<ID>))) |
        flag<&ast::Parameter::bare>(
-           assign<&ast::Parameter::text>(ref<ID>)));
+           assign<&ast::Parameter::text>(ParameterName)));
 
-  struct ParameterValue : rule<create<ast::Parameter>(parameter_value)> {};
+  struct ParameterValue
+      : rule<create<ast::Parameter>(quoted_parameter | numeric_parameter)> {};
 
   struct Parameter
       : rule<create<ast::Parameter>(
-            option(assign<&ast::Parameter::name>(ref<ID>) + lit<"=">) +
+            option(assign<&ast::Parameter::name>(ParameterName) + lit<"=">) +
             parameter_value)> {};
 
   struct VariableDecl
@@ -114,8 +122,7 @@ struct Guido : cursiv::GrammarSpec {
             lit<";">)> {};
 
   struct VariableRef
-      : rule<create<ast::VariableRef>(
-            assign<&ast::VariableRef::name>(ref<VARIABLE>))> {};
+      : rule<assign<&ast::VariableRef::name>(ref<VARIABLE>)> {};
 
   struct Tag;
   struct Chord;
@@ -124,9 +131,9 @@ struct Guido : cursiv::GrammarSpec {
 
   struct Tag
       : rule<create<ast::Tag>(
-            (assign<&ast::Tag::name>(ref<TAG_NAME>) |
+            ((assign<&ast::Tag::name>(ref<TAG_NAME>) +
+              option(lit<":"> + assign<&ast::Tag::id>(ref<NUMBER>))) |
              flag<&ast::Tag::bar>(assign<&ast::Tag::name>(ref<BAR>))) +
-            option(lit<":"> + assign<&ast::Tag::id>(ref<NUMBER>)) +
             option(lit<"<"> +
                    some(append<&ast::Tag::parameters>(ref<Parameter>),
                         lit<",">) +
@@ -154,16 +161,15 @@ struct Guido : cursiv::GrammarSpec {
   struct Segment
       : rule<create<ast::Segment>(
             lit<"{"> +
-            many(option(lit<",">) +
-                 append<&ast::Segment::sequences>(ref<Sequence>)) +
+            option(some(append<&ast::Segment::sequences>(ref<Sequence>),
+                        lit<",">)) +
             lit<"}">)> {};
 
   struct Prog
       : rule<create<ast::Prog>(
             many(append<&ast::Prog::variables>(ref<VariableDecl>)) +
-            (some(append<&ast::Prog::segments>(ref<Segment>)) |
-             some(append<&ast::Prog::sequences>(ref<Sequence>),
-                  lit<",">)))> {};
+            (append<&ast::Prog::segments>(ref<Segment>) |
+             append<&ast::Prog::sequences>(ref<Sequence>)))> {};
 
   using entry = Prog;
   using ignored = WS;

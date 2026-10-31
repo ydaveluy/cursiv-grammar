@@ -12,6 +12,8 @@
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "tags_real.hpp"
+#include "real_numbers.hpp"
 
 namespace {
 
@@ -46,6 +48,11 @@ int main() {
   const auto language = cursiv::create_language<
       asn::AsnCoreServices, asn::AsnSharedCoreServices,
       asn::install_core_module>();
+
+  if (!asn_tests::tagsAndReal(language.language))
+    return fail("tags/REAL native syntax, AST or local validation failed");
+  if (!asn_tests::realNumbers(language.language))
+    return fail("REAL scalar text or lexical boundaries failed");
 
   // X.680 (02/2021), clauses 12 and 19: signed values remain integers,
   // quote doubling is literal text, and comments/bit-string whitespace

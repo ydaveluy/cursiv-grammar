@@ -209,19 +209,15 @@ struct Hypertalk : cursiv::GrammarSpec {
   // ---- Literals ---------------------------------------------------------
 
   struct NamedLit
-      : rule<create<ast::NamedLit>(
-            assign<&ast::NamedLit::kind>(ref<NamedLitWord>))> {};
+      : rule<assign<&ast::NamedLit::kind>(ref<NamedLitWord>)> {};
   struct FindFormWord : rule<as<named_lit_of>(ikw<"word"> | ikw<"chars"> |
                                               ikw<"whole"> | ikw<"string">)> {};
   struct FindForm
-      : rule<create<ast::NamedLit>(
-            assign<&ast::NamedLit::kind>(ref<FindFormWord>))> {};
+      : rule<assign<&ast::NamedLit::kind>(ref<FindFormWord>)> {};
   struct StringLit
-      : rule<create<ast::StringLit>(
-            assign<&ast::StringLit::value>(ref<STRING_LITERAL>))> {};
+      : rule<assign<&ast::StringLit::value>(ref<STRING_LITERAL>)> {};
   struct NumberLit
-      : rule<create<ast::NumberLit>(
-            assign<&ast::NumberLit::value>(ref<NUMBER_LITERAL>))> {};
+      : rule<assign<&ast::NumberLit::value>(ref<NUMBER_LITERAL>)> {};
   static constexpr auto LiteralExpr =
       ref<StringLit> | ref<NumberLit> | ref<NamedLit>;
 
@@ -876,7 +872,7 @@ struct Hypertalk : cursiv::GrammarSpec {
 
   struct PushCmd
       : rule<create<ast::PushCmd>(
-            ikw<"push"> + (flag<&ast::PushCmd::card>(CardKw) + &(ref<NEWLINE> | eof) //
+            ikw<"push"> + ((flag<&ast::PushCmd::card>(CardKw) + &(ref<NEWLINE> | eof)) //
                           | assign<&ast::PushCmd::value>(ref<Expression>)))> {
   };
 

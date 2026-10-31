@@ -26,7 +26,6 @@ struct TypeRef : cursiv::Extends<cursiv::AstNode> {};
 
 struct NamedTypeRef : cursiv::Extends<TypeRef> {
   Name* name;
-  vector<TypeRef*> genericArgs;  // '<:' T, U ':>' -- not standard PHP, rare
 };
 
 struct PrimitiveTypeRef : cursiv::Extends<TypeRef> {
@@ -135,7 +134,6 @@ struct MemberExpr : cursiv::Extends<Expr> {
 // access, a parenthesised expression, or another call's result.
 struct CallExpr : cursiv::Extends<Expr> {
   Expr* callee;
-  vector<TypeRef*> genericArgs;
   vector<Arg*> args;
 };
 
@@ -302,6 +300,7 @@ struct PropertyHook : cursiv::Extends<cursiv::AstNode> {
   vector<string_view> modifiers;
   boolean byRef;
   string_view name;
+  boolean hasParams;  // distinguishes an explicit empty list from no list
   vector<Param*> params;
   Stmt* body;
   Expr* expression;

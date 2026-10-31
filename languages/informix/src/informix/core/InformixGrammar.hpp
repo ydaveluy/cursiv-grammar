@@ -1374,8 +1374,8 @@ struct Informix : cursiv::GrammarSpec {
   struct SetLockModeStmtR
       : rule<create<ast::SetLockModeStmt>(
                  ikw<"SET"> + ikw<"LOCK"> + ikw<"MODE"> + ikw<"TO"> +
-                 (flag<&ast::SetLockModeStmt::wait>(
-                      ikw<"WAIT">) + option(assign<&ast::SetLockModeStmt::seconds>(ref<Expression>)) |
+                 ((flag<&ast::SetLockModeStmt::wait>(ikw<"WAIT">) +
+                   option(assign<&ast::SetLockModeStmt::seconds>(ref<Expression>))) |
                   (ikw<"NOT"> + ikw<"WAIT">)))> {};
 
   struct SetExplainStmtR
@@ -1513,8 +1513,7 @@ struct Informix : cursiv::GrammarSpec {
       : rule<create<ast::PrintItem>(
                  flag<&ast::PrintItem::isText>(ikw<"TEXT">) +
                  assign<&ast::PrintItem::value>(ref<ComponentRef>))> {};
-  struct PrintItemExpr : rule<create<ast::PrintItem>(
-      assign<&ast::PrintItem::value>(ref<Expression>))> {};
+  struct PrintItemExpr : rule<assign<&ast::PrintItem::value>(ref<Expression>)> {};
 
   static constexpr auto PrintItemR =
       ref<PrintItemColumn> | ref<PrintItemPageno> | ref<PrintItemLineno> |

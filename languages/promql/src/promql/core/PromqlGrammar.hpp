@@ -206,7 +206,7 @@ struct Promql : cursiv::GrammarSpec {
             assign<&ast::LabelMatcher::value>(ref<STRING>))> {};
 
   struct QuotedMetric
-      : rule<create<ast::LabelMatcher>(assign<&ast::LabelMatcher::value>(ref<STRING>))> {};
+      : rule<assign<&ast::LabelMatcher::value>(ref<STRING>)> {};
 
   struct Grouping
       : rule<create<ast::Grouping>(
@@ -389,8 +389,7 @@ struct Promql : cursiv::GrammarSpec {
   struct Expression : rule<ref<OrExpr>> {};
 
   struct Query
-      : rule<create<ast::Query>(
-            assign<&ast::Query::expression>(ref<Expression>))> {};
+      : rule<assign<&ast::Query::expression>(ref<Expression>)> {};
 
   using entry = Query;
   using ignored = WS;

@@ -18,6 +18,7 @@
 #include "glsl/core/Directives.hpp"
 #include "glsl/core/ast.hpp"
 #include "native_regressions.hpp"
+#include "initializer_cases.hpp"
 
 namespace {
 
@@ -137,6 +138,7 @@ int main() {
 
   if (!glsl_native::run(language.language))
     return 1;
+  if (!glsl_initializers::run(language.language)) return 1;
 
   int failures = 0;
   int count = 0;

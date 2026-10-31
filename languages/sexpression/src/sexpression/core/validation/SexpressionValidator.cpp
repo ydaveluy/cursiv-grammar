@@ -1,5 +1,7 @@
 #include "sexpression/core/validation/SexpressionValidator.hpp"
 
+#include <algorithm>
+#include <charconv>
 #include <memory>
 #include <string>
 
@@ -7,6 +9,38 @@
 #include "sexpression/core/CoreServices.hpp"
 
 namespace sexpression {
+
+void SexpressionValidator::checkCharacter(
+    const ast::Character& character, cursiv::ValidationAcceptor& accept) const {
+  if (character.text.size() < 3) return;
+  const auto text = character.text.substr(2);
+  bool valid = true;
+  if ((text.front() == 'u' || text.front() == 'U') && text.size() > 1) {
+    unsigned value = 0;
+    const auto result = std::from_chars(text.data() + 1,
+                                       text.data() + text.size(), value, 16);
+    valid = result.ec == std::errc{} && value <= 0x10ffff &&
+            (value < 0xd800 || value > 0xdfff);
+  } else if (text.front() >= '0' && text.front() <= '7' && text.size() > 1) {
+    unsigned value = 0;
+    const auto result = std::from_chars(text.data(),
+                                       text.data() + text.size(), value, 8);
+    valid = result.ec == std::errc{} && text.size() == 3 && value <= 255;
+  } else if (std::count_if(text.begin(), text.end(), [](unsigned char c) {
+               return (c & 0xc0) != 0x80;
+             }) > 1) {
+    std::string name(text);
+    for (char& c : name)
+      if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+    constexpr std::string_view names[] = {
+        "nul", "null", "backspace", "tab", "newline", "linefeed",
+        "vtab", "page", "return", "space", "rubout"};
+    valid = std::find(std::begin(names), std::end(names), name) != std::end(names);
+  }
+  if (!valid)
+    accept.error(character, "Invalid character constant.",
+                 "sexpression.reader.character");
+}
 
 void SexpressionValidator::checkList(
     const ast::List& list, cursiv::ValidationAcceptor& accept) const {
@@ -62,7 +96,9 @@ void register_validation_checks(SexpressionCoreServices& services) {
   services.validator = std::make_unique<const V>(services);
   services.validationRegistry->registerChecks(
       {cursiv::ValidationRegistry::makeValidationCheck<&V::checkList>(
-          *services.validator)});
+           *services.validator),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkCharacter>(
+           *services.validator)});
 }
 
 }  // namespace sexpression

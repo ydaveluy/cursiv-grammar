@@ -15,6 +15,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "spass/core/CoreServices.hpp"
 #include "spass/core/ast.hpp"
+#include "plain_clauses.hpp"
 
 namespace {
 
@@ -41,6 +42,7 @@ int main() {
   const auto language = cursiv::create_language<
       spass::SpassCoreServices, spass::SpassSharedCoreServices,
       spass::install_core_module>();
+  if (check_plain_clauses(language)) return fail("native plain-clause structure");
 
   for (const char* const name : kExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;
@@ -88,7 +90,7 @@ int main() {
     if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty())
       return fail("native connective failed");
   }
-  for (const auto text : {source("a-b", "p(a-b)"),
+  for (const auto& text : {source("a-b", "p(a-b)"),
                           source("a", "somequant([X],p(X))"),
                           source("a", ""), source("forall", "p(forall)"),
                           source("a", "not"), source("a", "not(p(a),p(a))"),
@@ -120,8 +122,14 @@ int main() {
     if (!lp.declarations.has_value() ||
         (*lp.declarations)->declarations.size() != 4)
       return fail("features.spass: expected 4 declarations");
-    if (lp.clauseLists.size() != 1 || lp.clauseLists[0]->clauses.size() != 3)
-      return fail("features.spass: expected 3 clauses");
+    if (lp.clauseLists.size() != 2 || !lp.clauseLists[0]->isDnf ||
+        lp.clauseLists[1]->isDnf || lp.clauseLists[0]->clauses.size() != 2 ||
+        lp.clauseLists[1]->clauses.size() != 1)
+      return fail("features.spass: expected 2 DNF and 1 CNF clauses");
+    for (const auto* list : lp.clauseLists)
+      for (const auto* entry : list->clauses)
+        if (!entry->clause || (**entry->clause).isDnf != list->isDnf)
+          return fail("features.spass: clause category differs from its list");
     if (problem.settings.size() != 2)
       return fail("features.spass: expected 2 settings sections");
   }

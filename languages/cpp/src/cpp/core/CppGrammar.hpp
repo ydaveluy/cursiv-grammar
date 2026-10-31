@@ -288,45 +288,60 @@ struct Cpp : cursiv::GrammarSpec {
 
   struct IdExpression : rule<ref<QualifiedId> | ref<UnqualifiedId>> {};
 
-  // -- Attributes (matched, discarded) -------------------------------
+  // -- Attributes -----------------------------------------------------
 
   struct BalancedParens;
   struct BalancedBrackets;
   struct BalancedBraces;
   static constexpr auto AttrAtom =
       ref<ID> | ref<INT_LIT> | ref<FLOAT_LIT> | ref<CHAR_LIT> |
-      ref<STRING_LIT> | ref<RAW_STRING_LIT> | ref<UD_LIT> | lit<","> | lit<"::"> | lit<"..."> | lit<"*"> |
-      lit<"&"> | lit<"+"> | lit<"-"> | lit<"="> | Lt | Gt | lit<"!"> |
-      lit<"~"> | lit<"?"> | lit<":"> | lit<"."> | lit<"/"> | lit<"%"> |
-      lit<"|"> | lit<"^"> | lit<"&&"> | lit<"||"> | lit<"=="> | lit<"!="> |
-      lit<"<="> | lit<">="> | lit<"->"> | lit<"++"> | lit<"--"> | lit<";">;
+      ref<STRING_LIT> | ref<RAW_STRING_LIT> | ref<UD_LIT> | lit<","> |
+      lit<"::"> | lit<"..."> | lit<"*"> | lit<"&"> | lit<"+"> | lit<"-"> |
+      lit<"="> | Lt | Gt | lit<"!"> | lit<"~"> | lit<"?"> | lit<":"> |
+      lit<"."> | lit<"/", !cr<"/*">> | lit<"%"> | lit<"|"> | lit<"^"> |
+      lit<"&&"> | lit<"||"> | lit<"=="> | lit<"!="> | lit<"<="> | lit<">="> |
+      lit<"->"> | lit<"->*"> | lit<".*"> | lit<"++"> | lit<"--"> | lit<";"> |
+      lit<"<<"> | lit<">>"> | lit<"<<="> | lit<">>="> | lit<"+="> | lit<"-="> |
+      lit<"*="> | lit<"/="> | lit<"%="> | lit<"&="> | lit<"^="> | lit<"|=">;
+  static constexpr auto BalancedTokens =
+      many(append<&ast::AttributeGroup::tokens>(
+          ref<BalancedParens> | ref<BalancedBrackets> | ref<BalancedBraces> |
+          create<ast::AttributeAtom>(
+              assign<&ast::AttributeAtom::text>(AttrAtom))));
   struct BalancedParens
-      : rule<lit<"("> + many(ref<BalancedParens> | ref<BalancedBrackets> | ref<BalancedBraces> | AttrAtom) + lit<")">> {};
+      : rule<assign<&ast::AttributeGroup::opening>(lit<"(">) + BalancedTokens +
+             assign<&ast::AttributeGroup::closing>(lit<")">)> {};
   struct BalancedBrackets
-      : rule<LBracket + many(ref<BalancedParens> | ref<BalancedBrackets> |
-                             ref<BalancedBraces> | AttrAtom) + RBracket> {};
+      : rule<assign<&ast::AttributeGroup::opening>(LBracket) + BalancedTokens +
+             assign<&ast::AttributeGroup::closing>(RBracket)> {};
   struct BalancedBraces
-      : rule<LBrace + many(ref<BalancedParens> | ref<BalancedBrackets> |
-                           ref<BalancedBraces> | AttrAtom) + RBrace> {};
+      : rule<assign<&ast::AttributeGroup::opening>(LBrace) + BalancedTokens +
+             assign<&ast::AttributeGroup::closing>(RBrace)> {};
   static constexpr auto AttrName = ref<ID> + option(lit<"::"> + ref<ID>);
   struct StdAttribute
-      : rule<AttrName + option(ref<BalancedParens>) + option(lit<"...">)> {};
-  struct AlignArguments
-      : terminal<lit<"("> + many(ref<AlignArguments> | cr<"^()">) + lit<")">> {
-  };
-  struct AlignAttr : rule<kw<"alignas"> + ref<AlignArguments>> {};
+      : rule<assign<&ast::Attribute::name>(AttrName) +
+             option(assign<&ast::Attribute::arguments>(ref<BalancedParens>)) +
+             option(flag<&ast::Attribute::packExpansion>(lit<"...">))> {};
+  struct AlignAttr
+      : rule<assign<&ast::AttributeSpecifier::kind>(
+                 as<ast::AttributeKind::Alignment>(kw<"alignas">)) +
+             lit<"("> +
+             (assign<&ast::AttributeSpecifier::alignmentType>(ref<TypeId>) |
+              assign<&ast::AttributeSpecifier::alignmentExpression>(
+                  ref<ConstantExpression>)) +
+             option(flag<&ast::AttributeSpecifier::packExpansion>(lit<"...">)) +
+             lit<")">> {};
   struct StdAttributeSpec
-      : rule<LBracket + LBracket +
-             option(ref<StdAttribute>) +
-             many(lit<","> + option(ref<StdAttribute>)) +
+      : rule<create<ast::AttributeSpecifier> + LBracket + LBracket +
+             option(append<&ast::AttributeSpecifier::attributes>(
+                 ref<StdAttribute>)) +
+             many(lit<","> +
+                  option(append<&ast::AttributeSpecifier::attributes>(
+                      ref<StdAttribute>))) +
              RBracket + RBracket> {};
-  // Not its own named rule: `AttributeSpec` naming a top-level choice of two
-  // wholly value-less branches defeats the generator's node-type deduction
-  // when asked for that rule's own type (as any call outside a bare
-  // `many()`/`some()` eventually is) -- inlined, only the two branches'
-  // OWN (individually void, single-alternative) types are ever asked for.
   static constexpr auto AttributeSpec = ref<StdAttributeSpec> | ref<AlignAttr>;
-  static constexpr auto Attrs = many(AttributeSpec);
+  template <auto Member>
+  static constexpr auto Attrs = many(append<Member>(AttributeSpec));
 
   // -- Expressions ----------------------------------------------------
 
@@ -389,8 +404,10 @@ struct Cpp : cursiv::GrammarSpec {
               option(lit<","> + flag<&ast::LambdaExpr::variadic>(lit<"...">))) |
              flag<&ast::LambdaExpr::variadic>(lit<"...">)) +
       lit<")"> + option(flag<&ast::LambdaExpr::mutableKw>(kw<"mutable">)) +
-      option(assign<&ast::LambdaExpr::exceptionSpec>(ref<ExceptionSpec>)) + Attrs +
-      option(lit<"->"> + assign<&ast::LambdaExpr::trailingReturnType>(ref<TypeId>));
+      option(assign<&ast::LambdaExpr::exceptionSpec>(ref<ExceptionSpec>)) +
+      Attrs<&ast::LambdaExpr::attributes> +
+      option(lit<"->"> +
+             assign<&ast::LambdaExpr::trailingReturnType>(ref<TypeId>));
   struct LambdaExpression
       : rule<create<ast::LambdaExpr>(LambdaIntroducer +
                                      option(LambdaDeclarator) +
@@ -633,21 +650,22 @@ struct Cpp : cursiv::GrammarSpec {
   // narrowed to the `*` form alone.
   struct PointerOperator
       : rule<create<ast::Pointer>(
-                 assign<&ast::Pointer::kind>(lit<"&&"> | kw<"and"> |
-                                            lit<"&"> | kw<"bitand">) + Attrs +
+                 assign<&ast::Pointer::kind>(lit<"&&"> | kw<"and"> | lit<"&"> |
+                                             kw<"bitand">) +
+                 Attrs<&ast::Pointer::attributes> +
                  option(append<&ast::Pointer::qualifiers>(kw<"const">)))  //
              | create<ast::Pointer>(
                    option(assign<&ast::Pointer::memberOf>(
                        ref<NestedNameSpecifier>)) +
-                   assign<&ast::Pointer::kind>(lit<"*">) + Attrs +
-                   many(append<&ast::Pointer::qualifiers>(CvQualifierKw)))> {
-  };
+                   assign<&ast::Pointer::kind>(lit<"*">) +
+                   Attrs<&ast::Pointer::attributes> +
+                   many(append<&ast::Pointer::qualifiers>(CvQualifierKw)))> {};
 
   struct ArraySuffix
       : rule<create<ast::ArraySuffix>(
-                 LBracket +
-                 option(assign<&ast::ArraySuffix::size>(ref<Expression>)) +
-                 RBracket + Attrs)> {};
+            LBracket +
+            option(assign<&ast::ArraySuffix::size>(ref<Expression>)) +
+            RBracket + Attrs<&ast::ArraySuffix::attributes>)> {};
 
   struct ExceptionSpec
       : rule<create<ast::ExceptionSpec>(
@@ -666,35 +684,31 @@ struct Cpp : cursiv::GrammarSpec {
 
   struct ParametersAndQualifiers
       : rule<create<ast::FunctionSuffix>(
-                 lit<"("> +
-                 option((some(append<&ast::FunctionSuffix::params>(
-                                  ref<Param>),
-                              lit<",">) +
-                         option(lit<","> +
-                                flag<&ast::FunctionSuffix::variadic>(
-                                    lit<"...">)))  //
-                        | flag<&ast::FunctionSuffix::variadic>(
-                              lit<"...">)) +
-                 lit<")"> +
-                 many(append<&ast::FunctionSuffix::cvQualifiers>(
-                     CvQualifierKw)) +
-                 option(assign<&ast::FunctionSuffix::refQualifier>(
-                     lit<"&&"> | kw<"and"> | lit<"&"> | kw<"bitand">)) +
-                 option(assign<&ast::FunctionSuffix::exceptionSpec>(
-                     ref<ExceptionSpec>)) +
-                 Attrs)> {};
+            lit<"("> +
+            option((some(append<&ast::FunctionSuffix::params>(ref<Param>),
+                         lit<",">) +
+                    option(lit<","> + flag<&ast::FunctionSuffix::variadic>(
+                                          lit<"...">)))  //
+                   | flag<&ast::FunctionSuffix::variadic>(lit<"...">)) +
+            lit<")"> +
+            many(append<&ast::FunctionSuffix::cvQualifiers>(CvQualifierKw)) +
+            option(assign<&ast::FunctionSuffix::refQualifier>(
+                lit<"&&"> | kw<"and"> | lit<"&"> | kw<"bitand">)) +
+            option(assign<&ast::FunctionSuffix::exceptionSpec>(
+                ref<ExceptionSpec>)) +
+            Attrs<&ast::FunctionSuffix::attributes>)> {};
 
   struct DeclaratorSuffix
       : rule<ref<ArraySuffix> | ref<ParametersAndQualifiers>> {};
 
-  struct Param
-      : rule<create<ast::Param>(
-                 Attrs +
-                 assign<&ast::Param::specifiers>(ref<DeclSpecifierSeq>) +
-                 option(assign<&ast::Param::declarator>(
-                     ref<Declarator> | ref<UnnamedPackDeclarator> | ref<AbstractDeclarator>)) +
-                 option(lit<"="> + assign<&ast::Param::defaultValue>(
-                                       ref<InitializerClause>)))> {};
+  struct Param : rule<create<ast::Param>(
+                     Attrs<&ast::Param::attributes> +
+                     assign<&ast::Param::specifiers>(ref<DeclSpecifierSeq>) +
+                     option(assign<&ast::Param::declarator>(
+                         ref<Declarator> | ref<UnnamedPackDeclarator> |
+                         ref<AbstractDeclarator>)) +
+                     option(lit<"="> + assign<&ast::Param::defaultValue>(
+                                           ref<InitializerClause>)))> {};
 
   static constexpr auto TypeIdBody =
       assign<&ast::TypeId::specifiers>(ref<DeclSpecifierSeq>) +
@@ -749,9 +763,10 @@ struct Cpp : cursiv::GrammarSpec {
   struct FunctionShapedDeclarator
       : rule<many(append<&ast::Declarator::pointers>(ref<PointerOperator>)) +
              assign<&ast::Declarator::name>(ref<IdExpression>) +
+             Attrs<&ast::Declarator::attributes> +
              append<&ast::Declarator::suffixes>(ref<ParametersAndQualifiers>) +
              option(lit<"->"> + assign<&ast::Declarator::trailingReturnType>(
-                                     ref<TypeId>))> {};
+                                    ref<TypeId>))> {};
 
   // The trailing-return-type declarator form folds into an optional
   // trailing `-> TypeId` here rather than a second top-level alternative --
@@ -759,16 +774,16 @@ struct Cpp : cursiv::GrammarSpec {
   // real declarator uses.
   // An explicit creator fixes the recursive node type before attributes.
   struct Declarator
-      : rule<create<ast::Declarator>(many(append<&ast::Declarator::pointers>(ref<PointerOperator>)) +
-             ((option(flag<&ast::Declarator::pack>(lit<"...">)) +
-                  assign<&ast::Declarator::name>(ref<IdExpression>))  //
-              | (lit<"("> +
-                 assign<&ast::Declarator::nested>(ref<Declarator>) +
-                 lit<")">)) +
-             Attrs +
-             many(append<&ast::Declarator::suffixes>(ref<DeclaratorSuffix>)) +
-             option(lit<"->"> + assign<&ast::Declarator::trailingReturnType>(
-                                     ref<TypeId>)))> {};
+      : rule<create<ast::Declarator>(
+            many(append<&ast::Declarator::pointers>(ref<PointerOperator>)) +
+            ((option(flag<&ast::Declarator::pack>(lit<"...">)) +
+              assign<&ast::Declarator::name>(ref<IdExpression>) +
+              Attrs<&ast::Declarator::attributes>)  //
+             | (lit<"("> + assign<&ast::Declarator::nested>(ref<Declarator>) +
+                lit<")">)) +
+            many(append<&ast::Declarator::suffixes>(ref<DeclaratorSuffix>)) +
+            option(lit<"->"> + assign<&ast::Declarator::trailingReturnType>(
+                                   ref<TypeId>)))> {};
 
   // -- Type specifiers --------------------------------------------------
 
@@ -782,14 +797,14 @@ struct Cpp : cursiv::GrammarSpec {
   struct ElaboratedTypeSpecifier
       : rule<create<ast::ElaboratedType>(
                  assign<&ast::ElaboratedType::keyword>(ClassKeyKw) +
-                 Attrs +
+                 Attrs<&ast::ElaboratedType::attributes> +
                  assign<&ast::ElaboratedType::name>(
                      Qualified<PlainIdent> | Qualified<SimpleTemplateId> |
                      QualifiedTemplateId))  //
              | create<ast::ElaboratedType>(
                    assign<&ast::ElaboratedType::keyword>(kw<"enum">) +
-                   assign<&ast::ElaboratedType::name>(
-                       Qualified<PlainIdent>))> {};
+                   assign<&ast::ElaboratedType::name>(Qualified<PlainIdent>))> {
+  };
 
   struct TypeNameSpecifier
       : rule<create<ast::TypenameType>(
@@ -821,11 +836,13 @@ struct Cpp : cursiv::GrammarSpec {
 
   // Pin the node type explicitly; attributes follow the complete sequence.
   struct DeclSpecifierSeq
-      : rule<create<ast::Specifiers>((many(DeclQualifier) +
-              append<&ast::Specifiers::types>(TypeSpecifier) +
-              many(DeclQualifier + option(append<&ast::Specifiers::types>(
-                  ref<BuiltinTypeSpecifier>)))) |
-             some(DeclQualifier)) + Attrs> {};
+      : rule<create<ast::Specifiers>(
+                 (many(DeclQualifier) +
+                  append<&ast::Specifiers::types>(TypeSpecifier) +
+                  many(DeclQualifier + option(append<&ast::Specifiers::types>(
+                                           ref<BuiltinTypeSpecifier>)))) |
+                 some(DeclQualifier)) +
+             Attrs<&ast::Specifiers::attributes>> {};
 
   // -- Classes ----------------------------------------------------------
 
@@ -836,34 +853,28 @@ struct Cpp : cursiv::GrammarSpec {
 
   struct BaseSpecifier
       : rule<create<ast::BaseSpecifier>(
-                 Attrs +
-                 ((option(assign<&ast::BaseSpecifier::accessSpec>(
-                       AccessSpecKw)) +
-                   option(flag<&ast::BaseSpecifier::isVirtual>(
-                       kw<"virtual">)))  //
-                  | (flag<&ast::BaseSpecifier::isVirtual>(
-                         kw<"virtual">) +
-                     option(assign<&ast::BaseSpecifier::accessSpec>(
-                         AccessSpecKw)))) +
-                 assign<&ast::BaseSpecifier::type>(BaseTypeExpr) +
-                 option(flag<&ast::BaseSpecifier::pack>(
-                     lit<"...">)))> {};
+            Attrs<&ast::BaseSpecifier::attributes> +
+            ((option(assign<&ast::BaseSpecifier::accessSpec>(AccessSpecKw)) +
+              option(flag<&ast::BaseSpecifier::isVirtual>(kw<"virtual">)))  //
+             |
+             (flag<&ast::BaseSpecifier::isVirtual>(kw<"virtual">) +
+              option(assign<&ast::BaseSpecifier::accessSpec>(AccessSpecKw)))) +
+            assign<&ast::BaseSpecifier::type>(BaseTypeExpr) +
+            option(flag<&ast::BaseSpecifier::pack>(lit<"...">)))> {};
 
   struct ClassSpecifier
       : rule<create<ast::ClassType>(
-                 assign<&ast::ClassType::keyword>(ClassKeyKw) + Attrs +
-                 option(assign<&ast::ClassType::name>(
-                            Qualified<TheTypeName>) +
-                        option(flag<&ast::ClassType::isFinal>(
-                            kw<"final">))) +
-                 option(lit<":"> +
-                        some(append<&ast::ClassType::bases>(
-                                 ref<BaseSpecifier>),
-                             lit<",">)) +
-                 flag<&ast::ClassType::defined>(LBrace) +
-                 many(append<&ast::ClassType::members>(
-                     ref<AccessLabel> | ref<MemberDeclaration>)) +
-                 RBrace)> {};
+            assign<&ast::ClassType::keyword>(ClassKeyKw) +
+            Attrs<&ast::ClassType::attributes> +
+            option(assign<&ast::ClassType::name>(Qualified<TheTypeName>) +
+                   option(flag<&ast::ClassType::isFinal>(kw<"final">))) +
+            option(lit<":"> +
+                   some(append<&ast::ClassType::bases>(ref<BaseSpecifier>),
+                        lit<",">)) +
+            flag<&ast::ClassType::defined>(LBrace) +
+            many(append<&ast::ClassType::members>(ref<AccessLabel> |
+                                                  ref<MemberDeclaration>)) +
+            RBrace)> {};
 
   struct AccessLabel
       : rule<create<ast::AccessLabel>(
@@ -882,17 +893,16 @@ struct Cpp : cursiv::GrammarSpec {
               assign<&ast::MemberDeclarator::init>(create<ast::IntLit>(
                   assign<&ast::IntLit::text>(ref<INT_LIT>))))  //
              | (assign<&ast::MemberDeclarator::declarator>(ref<Declarator>) +
-              option(
-                  some(append<&ast::MemberDeclarator::virtualSpecifiers>(
-                      kw<"override"> | kw<"final">))  //
-                  | (lit<"="> + assign<&ast::MemberDeclarator::init>(
-                                     ref<InitializerClause>))  //
-                  | assign<&ast::MemberDeclarator::init>(
-                        ref<BracedInitList>)))  //
+                option(some(append<&ast::MemberDeclarator::virtualSpecifiers>(
+                           kw<"override"> | kw<"final">))  //
+                       | (lit<"="> + assign<&ast::MemberDeclarator::init>(
+                                         ref<InitializerClause>))  //
+                       | assign<&ast::MemberDeclarator::init>(
+                             ref<BracedInitList>)))  //
              | (option(assign<&ast::MemberDeclarator::declarator>(
                     create<ast::Declarator>(
                         assign<&ast::Declarator::name>(ref<PlainIdent>)))) +
-                Attrs + lit<":"> +
+                Attrs<&ast::MemberDeclarator::attributes> + lit<":"> +
                 assign<&ast::MemberDeclarator::bitWidth>(
                     ref<ConstantExpression>))> {};
 
@@ -907,9 +917,9 @@ struct Cpp : cursiv::GrammarSpec {
 
   struct AliasDeclaration
       : rule<create<ast::AliasDecl>(
-                 kw<"using"> + assign<&ast::AliasDecl::name>(ref<ID>) +
-                 Attrs + lit<"="> +
-                 assign<&ast::AliasDecl::type>(ref<TypeId>) + lit<";">)> {};
+            kw<"using"> + assign<&ast::AliasDecl::name>(ref<ID>) +
+            Attrs<&ast::AliasDecl::attributes> + lit<"="> +
+            assign<&ast::AliasDecl::type>(ref<TypeId>) + lit<";">)> {};
 
   struct UsingDecl
       : rule<create<ast::UsingDecl>(
@@ -926,12 +936,13 @@ struct Cpp : cursiv::GrammarSpec {
 
   struct PlainMemberDecl
       : rule<create<ast::MemberDecl>(
-                 Attrs +
-                 option(assign<&ast::MemberDecl::specifiers>(ref<DeclSpecifierSeq>)) +
-                 option(some(append<&ast::MemberDecl::declarators>(
-                                 ref<MemberDeclaratorRule>),
-                             lit<",">)) +
-                 lit<";">)> {};
+            Attrs<&ast::MemberDecl::attributes> +
+            option(
+                assign<&ast::MemberDecl::specifiers>(ref<DeclSpecifierSeq>)) +
+            option(some(append<&ast::MemberDecl::declarators>(
+                            ref<MemberDeclaratorRule>),
+                        lit<",">)) +
+            lit<";">)> {};
 
   struct MemberDeclaration
       : rule<ref<StaticAssertDecl> | ref<TemplateDecl> |
@@ -945,156 +956,154 @@ struct Cpp : cursiv::GrammarSpec {
       kw<"enum"> +
       option(flag<&ast::EnumType::isClass>(kw<"class"> | kw<"struct">));
 
-  // No `Attrs` here, between the name and the `=`: bare in the middle of
-  // an auto-deduced rule's sequence it leaves the rule's own type unable
-  // to settle on `ast::Enumerator` -- see DeclSpecifierSeq above for the
-  // same trap.
-  struct Enumerator
-      : rule<assign<&ast::Enumerator::name>(ref<ID>) +
-             option(lit<"="> + assign<&ast::Enumerator::value>(
-                                    ref<ConstantExpression>))> {};
+  // C++14 enumerators are identifiers; attributes belong to the enum head.
+  struct Enumerator : rule<assign<&ast::Enumerator::name>(ref<ID>) +
+
+                           option(lit<"="> + assign<&ast::Enumerator::value>(
+                                                 ref<ConstantExpression>))> {};
 
   struct EnumSpecifier
       : rule<create<ast::EnumType>(
-                 EnumKey + Attrs +
-                 option(assign<&ast::EnumType::name>(
-                     Qualified<PlainIdent>)) +
-                 option(lit<":"> + assign<&ast::EnumType::underlying>(
-                                       ref<DeclSpecifierSeq>)) +
-                 flag<&ast::EnumType::defined>(LBrace) +
-                 option(some(append<&ast::EnumType::enumerators>(
-                                 ref<Enumerator>),
-                             lit<",">) +
-                        option(lit<",">)) +
-                 RBrace)> {};
+            EnumKey + Attrs<&ast::EnumType::attributes> +
+            option(assign<&ast::EnumType::name>(Qualified<PlainIdent>)) +
+            option(lit<":"> +
+                   assign<&ast::EnumType::underlying>(ref<DeclSpecifierSeq>)) +
+            flag<&ast::EnumType::defined>(LBrace) +
+            option(some(append<&ast::EnumType::enumerators>(ref<Enumerator>),
+                        lit<",">) +
+                   option(lit<",">)) +
+            RBrace)> {};
 
   struct OpaqueEnumDecl
       : rule<create<ast::Declaration>(
-                 assign<&ast::Declaration::specifiers>(
-                     create<ast::Specifiers>(append<&ast::Specifiers::types>(
-                         create<ast::EnumType>(
-                             EnumKey + Attrs +
-                             assign<&ast::EnumType::name>(ref<PlainIdent>) +
-                             option(lit<":"> +
-                                    assign<&ast::EnumType::underlying>(
-                                        ref<DeclSpecifierSeq>)))))) +
-                 lit<";">)> {};
+            assign<&ast::Declaration::specifiers>(create<ast::Specifiers>(
+                append<&ast::Specifiers::types>(create<ast::EnumType>(
+                    EnumKey + Attrs<&ast::EnumType::attributes> +
+                    assign<&ast::EnumType::name>(ref<PlainIdent>) +
+                    option(lit<":"> + assign<&ast::EnumType::underlying>(
+                                          ref<DeclSpecifierSeq>)))))) +
+            lit<";">)> {};
 
   // -- Statements -------------------------------------------------------
 
-  struct ExpressionStatement
-      : rule<create<ast::ExprStmt>(
-                 option(assign<&ast::ExprStmt::value>(ref<Expression>)) +
-                 lit<";">)> {};
+  static constexpr auto ExpressionStatementBody = create<ast::ExprStmt>(
+      option(assign<&ast::ExprStmt::value>(ref<Expression>)) + lit<";">);
+  struct ExpressionStatement : rule<ExpressionStatementBody> {};
+  struct AttributedExpressionStatement
+      : rule<Attrs<&ast::Item::attributes> + ExpressionStatementBody> {};
 
-  struct CompoundStatement
-      : rule<LBrace +
-             many(append<&ast::CompoundStmt::items>(ref<Statement>)) +
-             RBrace> {};
+  static constexpr auto CompoundStatementBody =
+      LBrace + many(append<&ast::CompoundStmt::items>(ref<Statement>)) + RBrace;
+  struct CompoundStatement : rule<CompoundStatementBody> {};
+  struct AttributedCompoundStatement
+      : rule<Attrs<&ast::Item::attributes> + CompoundStatementBody> {};
 
   struct ConditionDecl
       : rule<create<ast::Condition>(
-                 Attrs +
-                 assign<&ast::Condition::specifiers>(ref<DeclSpecifierSeq>) +
-                 assign<&ast::Condition::declarator>(ref<Declarator>) +
-                 ((lit<"="> +
-                   assign<&ast::Condition::init>(ref<InitializerClause>))  //
-                  | assign<&ast::Condition::init>(
-                        ref<BracedInitList>)))> {};
+            Attrs<&ast::Condition::attributes> +
+            assign<&ast::Condition::specifiers>(ref<DeclSpecifierSeq>) +
+            assign<&ast::Condition::declarator>(ref<Declarator>) +
+            ((lit<"="> +
+              assign<&ast::Condition::init>(ref<InitializerClause>))  //
+             | assign<&ast::Condition::init>(ref<BracedInitList>)))> {};
   struct Condition : rule<ref<ConditionDecl> | ref<Expression>> {};
 
   struct IfStatement
-      : rule<create<ast::IfStmt>(
+      : rule<Attrs<&ast::Item::attributes> +
+             (create<ast::IfStmt>(
                  kw<"if"> + lit<"("> +
                  assign<&ast::IfStmt::cond>(ref<Condition>) + lit<")"> +
                  assign<&ast::IfStmt::thenBranch>(ref<Statement>) +
                  option(commit(kw<"else">, assign<&ast::IfStmt::elseBranch>(
-                                           ref<Statement>))))> {};
+                                               ref<Statement>)))))> {};
 
   struct SwitchStatement
-      : rule<create<ast::SwitchStmt>(
+      : rule<Attrs<&ast::Item::attributes> +
+             (create<ast::SwitchStmt>(
                  kw<"switch"> + lit<"("> +
-                 assign<&ast::SwitchStmt::cond>(ref<Condition>) +
-                 lit<")"> +
-                 assign<&ast::SwitchStmt::body>(ref<Statement>))> {};
+                 assign<&ast::SwitchStmt::cond>(ref<Condition>) + lit<")"> +
+                 assign<&ast::SwitchStmt::body>(ref<Statement>)))> {};
 
   struct SelectionStatement
       : rule<ref<IfStatement> | ref<SwitchStatement>> {};
 
   struct WhileStatement
-      : rule<create<ast::WhileStmt>(
+      : rule<Attrs<&ast::Item::attributes> +
+             (create<ast::WhileStmt>(
                  kw<"while"> + lit<"("> +
-                 assign<&ast::WhileStmt::cond>(ref<Condition>) +
-                 lit<")"> +
-                 assign<&ast::WhileStmt::body>(ref<Statement>))> {};
+                 assign<&ast::WhileStmt::cond>(ref<Condition>) + lit<")"> +
+                 assign<&ast::WhileStmt::body>(ref<Statement>)))> {};
 
   struct DoStatement
-      : rule<create<ast::DoStmt>(
-                 kw<"do"> + assign<&ast::DoStmt::body>(ref<Statement>) +
-                 kw<"while"> + lit<"("> +
-                 assign<&ast::DoStmt::cond>(ref<Expression>) + lit<")"> +
-                 lit<";">)> {};
+      : rule<Attrs<&ast::Item::attributes> +
+             (create<ast::DoStmt>(kw<"do"> +
+                                  assign<&ast::DoStmt::body>(ref<Statement>) +
+                                  kw<"while"> + lit<"("> +
+                                  assign<&ast::DoStmt::cond>(ref<Expression>) +
+                                  lit<")"> + lit<";">))> {};
 
   struct ForInitDecl
       : rule<create<ast::Declaration>(
-                 assign<&ast::Declaration::specifiers>(ref<DeclSpecifierSeq>) +
-                 some(append<&ast::Declaration::declarators>(
-                          ref<InitDeclarator>),
-                      lit<",">) +
-                 lit<";">)> {};
+            Attrs<&ast::Item::attributes> +
+            assign<&ast::Declaration::specifiers>(ref<DeclSpecifierSeq>) +
+            some(append<&ast::Declaration::declarators>(ref<InitDeclarator>),
+                 lit<",">) +
+            lit<";">)> {};
   struct ForInitStatement
       : rule<ref<ForInitDecl> | ref<ExpressionStatement>> {};
 
   struct ForStatement
-      : rule<create<ast::ForStmt>(
+      : rule<Attrs<&ast::Item::attributes> +
+             (create<ast::ForStmt>(
                  kw<"for"> + lit<"("> +
                  assign<&ast::ForStmt::init>(ref<ForInitStatement>) +
                  option(assign<&ast::ForStmt::cond>(ref<Expression>)) +
                  lit<";"> +
                  option(assign<&ast::ForStmt::step>(ref<Expression>)) +
-                 lit<")"> +
-                 assign<&ast::ForStmt::body>(ref<Statement>))> {};
+                 lit<")"> + assign<&ast::ForStmt::body>(ref<Statement>)))> {};
 
   struct ForRangeStatement
-      : rule<create<ast::ForRangeStmt>(
-                 kw<"for"> + lit<"("> + Attrs +
-                 assign<&ast::ForRangeStmt::specifiers>(
-                     ref<DeclSpecifierSeq>) +
+      : rule<Attrs<&ast::Item::attributes> +
+             (create<ast::ForRangeStmt>(
+                 kw<"for"> + lit<"("> +
+                 Attrs<&ast::ForRangeStmt::rangeAttributes> +
+                 assign<&ast::ForRangeStmt::specifiers>(ref<DeclSpecifierSeq>) +
                  assign<&ast::ForRangeStmt::declarator>(ref<Declarator>) +
                  lit<":"> +
-                 assign<&ast::ForRangeStmt::range>(
-                     ref<Expression> | ref<BracedInitList>) +
+                 assign<&ast::ForRangeStmt::range>(ref<Expression> |
+                                                   ref<BracedInitList>) +
                  lit<")"> +
-                 assign<&ast::ForRangeStmt::body>(ref<Statement>))> {};
+                 assign<&ast::ForRangeStmt::body>(ref<Statement>)))> {};
 
   struct IterationStatement
       : rule<ref<WhileStatement> | ref<DoStatement> | ref<ForStatement> |
              ref<ForRangeStatement>> {};
 
   struct JumpStatement
-      : rule<create<ast::BreakStmt>(kw<"break"> + lit<";">)  //
-             | create<ast::ContinueStmt>(kw<"continue"> + lit<";">)  //
-             | create<ast::ReturnStmt>(
-                   kw<"return"> +
-                   option(assign<&ast::ReturnStmt::value>(
-                       ref<Expression> | ref<BracedInitList>)) +
-                   lit<";">)  //
-             | create<ast::GotoStmt>(
-                   kw<"goto"> + assign<&ast::GotoStmt::target>(ref<ID>) +
-                   lit<";">)> {};
+      : rule<Attrs<&ast::Item::attributes> +
+             (create<ast::BreakStmt>(kw<"break"> + lit<";">)          //
+              | create<ast::ContinueStmt>(kw<"continue"> + lit<";">)  //
+              | create<ast::ReturnStmt>(
+                    kw<"return"> +
+                    option(assign<&ast::ReturnStmt::value>(
+                        ref<Expression> | ref<BracedInitList>)) +
+                    lit<";">)  //
+              | create<ast::GotoStmt>(kw<"goto"> +
+                                      assign<&ast::GotoStmt::target>(ref<ID>) +
+                                      lit<";">))> {};
 
   struct LabeledStatement
       : rule<create<ast::CaseLabel>(
-                 Attrs + kw<"case"> +
+                 Attrs<&ast::Item::attributes> + kw<"case"> +
                  assign<&ast::CaseLabel::value>(ref<ConstantExpression>) +
-                 lit<":"> +
-                 assign<&ast::CaseLabel::body>(ref<Statement>))  //
+                 lit<":"> + assign<&ast::CaseLabel::body>(ref<Statement>))  //
              | create<ast::DefaultLabel>(
-                   Attrs + kw<"default"> + lit<":"> +
+                   Attrs<&ast::Item::attributes> + kw<"default"> + lit<":"> +
                    assign<&ast::DefaultLabel::body>(ref<Statement>))  //
-             | create<ast::Label>(
-                   Attrs + assign<&ast::Label::name>(ref<ID>) + lit<":"> +
-                   assign<&ast::Label::body>(ref<Statement>))> {};
+             |
+             create<ast::Label>(Attrs<&ast::Item::attributes> +
+                                assign<&ast::Label::name>(ref<ID>) + lit<":"> +
+                                assign<&ast::Label::body>(ref<Statement>))> {};
 
   struct MemInit
       : rule<assign<&ast::MemInit::target>(BaseTypeExpr) +
@@ -1113,30 +1122,29 @@ struct Cpp : cursiv::GrammarSpec {
 
   struct CatchClause
       : rule<create<ast::CatchClause>(
-                 kw<"catch"> + lit<"("> +
-                 (flag<&ast::CatchClause::catchAll>(lit<"...">)  //
-                  | (Attrs +
-                     assign<&ast::CatchClause::specifiers>(
-                         ref<DeclSpecifierSeq>) +
-                     option(assign<&ast::CatchClause::declarator>(
-                         ref<Declarator> | ref<AbstractDeclarator>)))) +
-                 lit<")"> +
-                 assign<&ast::CatchClause::body>(
-                     ref<CompoundStatement>))> {};
+            kw<"catch"> + lit<"("> +
+            (flag<&ast::CatchClause::catchAll>(lit<"...">)  //
+             | (Attrs<&ast::CatchClause::attributes> +
+                assign<&ast::CatchClause::specifiers>(ref<DeclSpecifierSeq>) +
+                option(assign<&ast::CatchClause::declarator>(
+                    ref<Declarator> | ref<AbstractDeclarator>)))) +
+            lit<")"> +
+            assign<&ast::CatchClause::body>(ref<CompoundStatement>))> {};
 
   struct TryBlock
-      : rule<create<ast::TryStmt>(
+      : rule<Attrs<&ast::Item::attributes> +
+             (create<ast::TryStmt>(
                  kw<"try"> +
                  assign<&ast::TryStmt::body>(ref<CompoundStatement>) +
-                 some(append<&ast::TryStmt::handlers>(
-                     ref<CatchClause>)))> {};
+                 some(append<&ast::TryStmt::handlers>(ref<CatchClause>))))> {};
 
   struct StatementCore
       : rule<ref<LabeledStatement> | ref<BlockDeclaration> |
-             ref<CompoundStatement> | ref<SelectionStatement> |
-             ref<IterationStatement> | ref<JumpStatement> |
-             ref<TryBlock> | ref<ExpressionStatement>> {};
-  struct Statement : rule<Attrs + ref<StatementCore>> {};
+             ref<AttributedCompoundStatement> | ref<SelectionStatement> |
+             ref<IterationStatement> | ref<JumpStatement> | ref<TryBlock> |
+             ref<AttributedExpressionStatement>> {};
+  struct Statement : rule<ref<StatementCore>> {};
+  ;
 
   // -- Declarations -------------------------------------------------
 
@@ -1158,12 +1166,12 @@ struct Cpp : cursiv::GrammarSpec {
   // no meaning in real C++ and no example needs the finer disambiguation.
   struct SimpleDeclaration
       : rule<create<ast::Declaration>(
-                 Attrs +
-                 assign<&ast::Declaration::specifiers>(ref<DeclSpecifierSeq>) +
-                 option(some(append<&ast::Declaration::declarators>(
-                                 ref<InitDeclarator>),
-                             lit<",">)) +
-                 lit<";">)> {};
+            Attrs<&ast::Declaration::attributes> +
+            assign<&ast::Declaration::specifiers>(ref<DeclSpecifierSeq>) +
+            option(some(
+                append<&ast::Declaration::declarators>(ref<InitDeclarator>),
+                lit<",">)) +
+            lit<";">)> {};
 
   struct AsmDecl
       : rule<create<ast::AsmDecl>(
@@ -1181,10 +1189,10 @@ struct Cpp : cursiv::GrammarSpec {
 
   struct UsingDirective
       : rule<create<ast::UsingDirective>(
-                 Attrs + kw<"using"> + kw<"namespace"> +
-                 assign<&ast::UsingDirective::name>(
-                     Qualified<NamespaceName>) +
-                 lit<";">)> {};
+            Attrs<&ast::UsingDirective::attributes> + kw<"using"> +
+            kw<"namespace"> +
+            assign<&ast::UsingDirective::name>(Qualified<NamespaceName>) +
+            lit<";">)> {};
 
   struct BlockDeclaration
       : rule<ref<SimpleDeclaration> | ref<AsmDecl> |
@@ -1193,8 +1201,8 @@ struct Cpp : cursiv::GrammarSpec {
              ref<AliasDeclaration> | ref<OpaqueEnumDecl>> {};
 
   struct AttributeDecl
-      : rule<create<ast::AttributeDecl>(some(AttributeSpec) +
-                                        lit<";">)> {};
+      : rule<create<ast::AttributeDecl>(
+            some(append<&ast::Item::attributes>(AttributeSpec)) + lit<";">)> {};
 
   struct LinkageSpec
       : rule<create<ast::LinkageSpec>(
@@ -1217,36 +1225,34 @@ struct Cpp : cursiv::GrammarSpec {
                  RBrace)> {};
 
   struct FunctionDefinition
-      : rule<create<ast::FunctionDef>(
-             Attrs +
-             option(assign<&ast::FunctionDef::specifiers>(
-                 ref<DeclSpecifierSeq>)) +
-             assign<&ast::FunctionDef::declarator>(ref<Declarator>) +
-             many(append<&ast::FunctionDef::virtualSpecifiers>(
-                 kw<"override"> | kw<"final">)) +
-             ((option(lit<":"> +
-                      some(append<&ast::FunctionDef::ctorInit>(
-                               ref<MemInit>),
-                           lit<",">)) +
-               assign<&ast::FunctionDef::body>(ref<CompoundStatement>))  //
-              | (kw<"try"> +
-                 option(lit<":"> +
-                        some(append<&ast::FunctionDef::ctorInit>(
-                                 ref<MemInit>),
-                             lit<",">)) +
-                 assign<&ast::FunctionDef::body>(ref<CompoundStatement>) +
-                 some(append<&ast::FunctionDef::handlers>(
-                     ref<CatchClause>)))  //
-              | (lit<"="> +
-                 (flag<&ast::FunctionDef::isDefault>(kw<"default">)  //
-                  | flag<&ast::FunctionDef::isDelete>(kw<"delete">)) +
-                 lit<";">)))> {};
+      : rule<Attrs<&ast::FunctionDef::attributes> +
+             create<ast::FunctionDef>(
+
+                 option(assign<&ast::FunctionDef::specifiers>(
+                     ref<DeclSpecifierSeq>)) +
+                 assign<&ast::FunctionDef::declarator>(ref<Declarator>) +
+                 many(append<&ast::FunctionDef::virtualSpecifiers>(
+                     kw<"override"> | kw<"final">)) +
+                 ((option(lit<":"> + some(append<&ast::FunctionDef::ctorInit>(
+                                              ref<MemInit>),
+                                          lit<",">)) +
+                   assign<&ast::FunctionDef::body>(ref<CompoundStatement>))  //
+                  | (kw<"try"> +
+                     option(lit<":"> + some(append<&ast::FunctionDef::ctorInit>(
+                                                ref<MemInit>),
+                                            lit<",">)) +
+                     assign<&ast::FunctionDef::body>(ref<CompoundStatement>) +
+                     some(append<&ast::FunctionDef::handlers>(
+                         ref<CatchClause>)))  //
+                  | (lit<"="> +
+                     (flag<&ast::FunctionDef::isDefault>(kw<"default">)  //
+                      | flag<&ast::FunctionDef::isDelete>(kw<"delete">)) +
+                     lit<";">)))> {};
 
   // -- Templates ------------------------------------------------------
 
   struct ParamTemplateParam
-      : rule<create<ast::ParamTemplateParam>(
-                 assign<&ast::ParamTemplateParam::param>(ref<Param>))> {};
+      : rule<assign<&ast::ParamTemplateParam::param>(ref<Param>)> {};
 
   struct TypeTemplateParam
       : rule<create<ast::TypeTemplateParam>(

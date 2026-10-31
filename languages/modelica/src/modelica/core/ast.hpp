@@ -7,6 +7,7 @@
 namespace modelica::ast {
 
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
+struct BreakExpr : cursiv::Extends<Expr> {};
 struct Equation : cursiv::Extends<cursiv::AstNode> {};
 struct Statement : cursiv::Extends<cursiv::AstNode> {};
 struct ClassSpec : cursiv::Extends<cursiv::AstNode> {};
@@ -244,6 +245,11 @@ struct WhenStmt : cursiv::Extends<Statement> {
 };
 
 // -- modification system ----
+
+struct InheritanceBreak : cursiv::Extends<Argument> {
+  string_view name;
+  ConnectEquation* connection;
+};
 
 struct ClassMod : cursiv::Extends<cursiv::AstNode> {
   vector<Argument*> args;

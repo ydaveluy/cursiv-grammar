@@ -14,6 +14,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "smalltalk/core/CoreServices.hpp"
 #include "smalltalk/core/ast.hpp"
+#include "amber_script_cases.hpp"
 
 namespace {
 
@@ -36,6 +37,7 @@ int main() {
       cursiv::create_language<smalltalk::SmalltalkCoreServices,
                               smalltalk::SmalltalkSharedCoreServices,
                               smalltalk::install_core_module>();
+  if (!amber_script_cases::run(language)) return fail("Amber script followup failed");
 
   std::vector<std::filesystem::path> files;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

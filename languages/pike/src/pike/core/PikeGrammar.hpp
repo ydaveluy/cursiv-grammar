@@ -487,6 +487,10 @@ struct Pike : cursiv::GrammarSpec {
                   append<&ast::Constant::names>(ref<ConstantDecl>)) +
              lit<";">> {};
 
+  struct Typedef : rule<many(append<&ast::Definition::modifiers>(ModifierWord)) +
+      kw<"typedef"> + assign<&ast::Typedef::type>(ref<TypeRule>) +
+      assign<&ast::Typedef::name>(ref<ID>) + lit<";">> {};
+
   struct ClassDef : rule<create<ast::ClassDef>(
       many(append<&ast::Definition::modifiers>(ModifierWord)) +
       kw<"class"> + option(assign<&ast::ClassDef::name>(ref<ID>)) +
@@ -499,7 +503,8 @@ struct Pike : cursiv::GrammarSpec {
                                | ref<FunctionDefinition>  //
                                | ref<Variables>           //
                                | ref<Constant>            //
-                               | ref<ClassDef>> {};
+                               | ref<ClassDef>
+                               | ref<Typedef>> {};
 
   struct Program
       : rule<create<ast::Program> +

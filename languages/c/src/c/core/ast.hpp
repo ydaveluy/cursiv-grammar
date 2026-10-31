@@ -6,10 +6,37 @@
 
 namespace c::ast {
 
+// Balanced argument tokens keep their order and grouping. Trivia stays in
+// the CST; no converter rescans or repeatedly copies nested arguments.
+struct AttributeToken : cursiv::Extends<cursiv::AstNode> {};
+struct AttributeAtom : cursiv::Extends<AttributeToken> {
+  string_view text;
+};
+struct AttributeGroup : cursiv::Extends<AttributeToken> {
+  string_view opening;
+  string_view closing;
+  vector<AttributeToken*> tokens;
+};
+
+struct Attribute : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  AttributeGroup* arguments;
+};
+
+enum class AttributeKind { Standard, Gnu, Declspec };
+
+struct AttributeSpecifier : cursiv::Extends<cursiv::AstNode> {
+  AttributeKind kind = AttributeKind::Standard;
+  vector<Attribute*> attributes;
+  AttributeGroup* arguments;
+};
+
 // Base for anything a list of items may hold: a statement, a declaration, or a
 // function definition. `TranslationUnit::items` and `CompoundStmt::items` share
 // it -- the grammar, not this type, keeps a function definition out of a block.
-struct Item : cursiv::Extends<cursiv::AstNode> {};
+struct Item : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
+};
 
 // A statement, empty by design: what a statement is, is its subclass.
 struct Stmt : cursiv::Extends<Item> {};
@@ -91,6 +118,7 @@ struct Specifiers;
 // abstract one -- `int *`, `char[10]`, `int (*)(void)` -- which is the same
 // `Declarator` class with no name in it.
 struct TypeName : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   Specifiers* specifiers;
   Declarator* declarator;
 };
@@ -271,6 +299,7 @@ struct Declaration;
 // layout, not syntax. `defined` tells an empty definition (`struct S {}`) apart
 // from a bare reference to a tag declared elsewhere -- empty `members` can't.
 struct TagType : cursiv::Extends<TypeSpec> {
+  vector<AttributeSpecifier*> attributes;
   string_view keyword;  // "struct" or "union", as written
   string_view name;     // empty for an anonymous aggregate
   boolean defined;       // a braced member list was present
@@ -282,6 +311,7 @@ struct Enumerator;
 // Fixed underlying enum type and explicit C23 colon. A missing colon can be
 // diagnosed by semantic validation while retaining the intended type.
 struct EnumType : cursiv::Extends<TypeSpec> {
+  vector<AttributeSpecifier*> attributes;
   boolean hasUnderlyingColon;
   string_view name;
   Specifiers* underlying;  // absent when no fixed underlying type is given
@@ -290,6 +320,7 @@ struct EnumType : cursiv::Extends<TypeSpec> {
 };
 
 struct Enumerator : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   string_view name;
   Expr* value;
 };
@@ -303,6 +334,7 @@ struct AlignSpec : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct Specifiers : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   boolean inferred;  // C23 auto without an explicit type specifier
   vector<string_view> qualifiers;  // static, extern, const, volatile, inline...
   vector<AlignSpec*> aligns;
@@ -313,6 +345,7 @@ struct Specifiers : cursiv::Extends<cursiv::AstNode> {
 // apply to that pointer: `char * const * p` has two, and only the inner one
 // is const.
 struct Pointer : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   vector<string_view> qualifiers;
   boolean isBlock;  // `^` rather than `*`
 };
@@ -323,6 +356,7 @@ struct Pointer : cursiv::Extends<cursiv::AstNode> {
 struct Suffix : cursiv::Extends<cursiv::AstNode> {};
 
 struct ArraySuffix : cursiv::Extends<Suffix> {
+  vector<AttributeSpecifier*> attributes;
   vector<string_view> qualifiers;  // `int a[const 5]`, a parameter's own array
   boolean isStatic;                // `int a[static 5]`: at least this many
   boolean isStar;                  // `int a[*]`: complete variable-size type
@@ -330,6 +364,7 @@ struct ArraySuffix : cursiv::Extends<Suffix> {
 };
 
 struct FunctionSuffix : cursiv::Extends<Suffix> {
+  vector<AttributeSpecifier*> attributes;
   vector<TypeName*> params;  // `(void)` is one parameter of type void
   boolean variadic;          // a trailing `, ...`, with or without named ones
 };
@@ -338,6 +373,7 @@ struct FunctionSuffix : cursiv::Extends<Suffix> {
 // by whether `name` was written, so an empty (not optional) `name` marks the
 // abstract form. `nested`, the parenthesised form, is exclusive with `name`.
 struct Declarator : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   string_view callingConvention;  // `__cdecl`, `__stdcall`... empty if none
   vector<Pointer*> pointers;
   string_view name;
@@ -380,6 +416,7 @@ struct DesignatedInit : cursiv::Extends<Initializer> {
 // `InitDeclarator` setting declarator+init and `MemberDeclarator`
 // declarator+bitWidth -- the latter alone for an anonymous bit field.
 struct InitDeclarator : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   vector<string_view> assemblerNameParts;  // GNU asm label/register string pieces
   Declarator* declarator;
   Initializer* init;

@@ -1,5 +1,4 @@
-// The checks of this language. None yet: the grammar is syntactic only, and
-// nothing here needs a check the parser itself can't already enforce.
+// Lexical constraints whose spelling matters after Unicode source translation.
 #pragma once
 
 #include "cursiv/core/services/DefaultCoreService.hpp"
@@ -11,6 +10,7 @@ namespace scala {
 class ScalaValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkSpelling(const cursiv::AstNode&, cursiv::ValidationAcceptor&) const;
 };
 
 struct ScalaCoreServices;

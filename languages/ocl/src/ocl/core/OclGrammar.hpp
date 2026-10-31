@@ -13,8 +13,11 @@ namespace ocl {
 // surrounding quote, then decode \b\t\n\f\r\"\'\\ , octal and \uXXXX.
 inline constexpr auto unescape = [](std::string_view t,
                                      std::pmr::memory_resource* mem) {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (t.size() < 2 || (t.front() != '\'' && t.front() != '"') || t.back() != t.front())
+    return Result::err("A string literal needs matching quotes.");
   const std::string_view body = t.substr(1, t.size() - 2);
-  if (body.find('\\') == std::string_view::npos) return body;
+  if (body.find('\\') == std::string_view::npos) return Result::ok(body);
   const std::span<char> room = cursiv::text_room(mem, body.size() * 3);
   std::size_t n = 0;
   for (std::size_t i = 0; i < body.size(); ++i) {
@@ -22,6 +25,7 @@ inline constexpr auto unescape = [](std::string_view t,
       room[n++] = body[i];
       continue;
     }
+    if (i + 1 == body.size()) return Result::err("Incomplete string escape.");
     const char e = body[++i];
     switch (e) {
       case 'b':
@@ -48,7 +52,9 @@ inline constexpr auto unescape = [](std::string_view t,
       case 'x': {
         unsigned cp = 0;
         const int digits = e == 'u' ? 4 : 2;
-        for (int k = 0; k < digits && i + 1 < body.size(); ++k) {
+        if (body.size() - i - 1 < static_cast<std::size_t>(digits))
+          return Result::err("Incomplete hexadecimal escape.");
+        for (int k = 0; k < digits; ++k) {
           const char h = body[++i];
           cp <<= 4;
           if (h >= '0' && h <= '9')
@@ -57,6 +63,7 @@ inline constexpr auto unescape = [](std::string_view t,
             cp |= static_cast<unsigned>(h - 'a' + 10);
           else if (h >= 'A' && h <= 'F')
             cp |= static_cast<unsigned>(h - 'A' + 10);
+          else return Result::err("Invalid hexadecimal escape.");
         }
         if (cp < 0x80) {
           room[n++] = static_cast<char>(cp);
@@ -71,8 +78,10 @@ inline constexpr auto unescape = [](std::string_view t,
         break;
       }
       default: {
+        if (e < '0' || e > '7') return Result::err("Unknown string escape.");
         unsigned v = static_cast<unsigned>(e - '0');
-        for (int k = 0; k < 2 && i + 1 < body.size() && body[i + 1] >= '0' &&
+        const int following = e <= '3' ? 2 : 1;
+        for (int k = 0; k < following && i + 1 < body.size() && body[i + 1] >= '0' &&
                         body[i + 1] <= '7';
              ++k)
           v = v * 8 + static_cast<unsigned>(body[++i] - '0');
@@ -81,7 +90,7 @@ inline constexpr auto unescape = [](std::string_view t,
       }
     }
   }
-  return std::string_view(room.data(), n);
+  return Result::ok(std::string_view(room.data(), n));
 };
 
 struct Ocl : cursiv::GrammarSpec {
@@ -103,7 +112,8 @@ struct Ocl : cursiv::GrammarSpec {
       kw<"true"> | kw<"xor">;
   static constexpr auto identifierValue = [](std::string_view text,
                                             std::pmr::memory_resource* mem) {
-    return text.starts_with("_'") ? unescape(text.substr(1), mem) : text;
+    return text.starts_with("_'") ? unescape(text.substr(1), mem) :
+        cursiv::ConversionResult<std::string_view>::ok(text);
   };
   struct ENUMERATION_LITERAL : terminal<IdBody + lit<"::"> + IdBody> {};
 
@@ -141,11 +151,14 @@ struct Ocl : cursiv::GrammarSpec {
   struct Type;
   struct IdentOptType;
 
+  struct TupleTypePart : rule<assign<&ast::IdentOptType::name>(ref<ID>) +
+      lit<":"> + assign<&ast::IdentOptType::type>(ref<Type>)> {};
+
   struct Type
       : rule<create<ast::ParamType>(
                  assign<&ast::ParamType::keyword>(
                      kw<"Sequence"> | kw<"Set"> | kw<"Bag"> |
-                     kw<"OrderedSet"> | kw<"Ref">) +
+                     kw<"OrderedSet"> | kw<"Collection"> | kw<"Ref">) +
                  lit<"("> + append<&ast::ParamType::args>(ref<Type>) +
                  lit<")">)  //
              | create<ast::ParamType>(
@@ -154,6 +167,8 @@ struct Ocl : cursiv::GrammarSpec {
                    lit<"("> + append<&ast::ParamType::args>(ref<Type>) +
                    lit<","> + append<&ast::ParamType::args>(ref<Type>) +
                    lit<")">)  //
+             | create<ast::TupleType>(kw<"Tuple"> + lit<"("> +
+                   many(append<&ast::TupleType::parts>(ref<TupleTypePart>), lit<",">) + lit<")">)
              | create<ast::NamedType>(
                    assign<&ast::NamedType::name>(ref<ID>))> {};
 
@@ -163,9 +178,15 @@ struct Ocl : cursiv::GrammarSpec {
              option(lit<":"> +
                     assign<&ast::IdentOptType::type>(ref<Type>))> {};
 
+  struct TuplePart : rule<assign<&ast::TuplePart::name>(ref<ID>) +
+      option(lit<":"> + assign<&ast::TuplePart::type>(ref<Type>)) + lit<"="> +
+      assign<&ast::TuplePart::value>(ref<Expression>)> {};
+  struct TupleLiteral : rule<kw<"Tuple"> + lit<"{"> +
+      some(append<&ast::TupleLiteral::parts>(ref<TuplePart>), lit<",">) + lit<"}">> {};
+
   // Literals and names -- the leaves a postfix chain climbs from.
   struct PrimaryFactor
-      : rule<ref<ConditionalExpression> | ref<LetExpression> |
+      : rule<ref<ConditionalExpression> | ref<LetExpression> | ref<TupleLiteral> |
              create<ast::InvalidLit>(kw<"invalid">) |
              create<ast::NameRef>(flag<&ast::NameRef::isSelf>(
                  assign<&ast::NameRef::name>(kw<"self">))) |

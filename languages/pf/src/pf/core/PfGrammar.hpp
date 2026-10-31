@@ -38,7 +38,6 @@ struct Pf : cursiv::GrammarSpec {
 
   struct NUMBER : terminal<some(d)> {};
   struct HEX : terminal<lit<"0"> + cr<"Xx"> + some(cr<"0-9a-fA-F">)> {};
-  struct BWUNIT : terminal<cr<"KMG">> {};
   struct TOSNUM : terminal<(lit<"0x"> + some(cr<"0-9a-fA-F">)) | some(d)> {};
   struct BANDWIDTH_NUMBER : terminal<some(d) + option(lit<"."> + many(d)) +
       option(cr<"eE"> + option(cr<"+-">) + some(d))> {};
@@ -55,6 +54,9 @@ struct Pf : cursiv::GrammarSpec {
 
   static constexpr auto NameCont = cr<"a-zA-Z0-9_.-">;
   static constexpr auto word_boundary = NameCont;
+  struct BWUNIT : terminal<((cr<"KMG"> +
+                            option(lit<"Bit"> | lit<"bit"> | cr<"Bb">)) |
+                           lit<"b">) + !NameCont> {};
   static constexpr auto quoted =
       (lit<"\""> + many((lit<"\\"> + lit<"\"">) | cr<R"(^")">) + lit<"\"">) |
       (lit<"'"> + many((lit<"\\"> + lit<"'">) | cr<"^'">) + lit<"'">);
@@ -530,15 +532,19 @@ struct Pf : cursiv::GrammarSpec {
              option(tableOptsList)> {};
 
   // --- queue_rule ---
+  template <auto Value, auto Unit>
+  static constexpr auto bandwidthSpec =
+      (assign<Value>(ref<BANDWIDTH_NUMBER>) + gap::none +
+       assign<Unit>(ref<BWUNIT>)) | assign<Value>(ref<NUMBER>);
+
   struct Bandwidth
-      : rule<assign<&ast::Bandwidth::value>(ref<BANDWIDTH_NUMBER>) +
-             option(assign<&ast::Bandwidth::unit>(ref<BWUNIT>)) +
+      : rule<bandwidthSpec<&ast::Bandwidth::value, &ast::Bandwidth::unit> +
              option(kw<"burst"> +
-                    assign<&ast::Bandwidth::burstValue>(ref<BANDWIDTH_NUMBER>) +
-                    option(assign<&ast::Bandwidth::burstUnit>(ref<BWUNIT>)) +
+                    bandwidthSpec<&ast::Bandwidth::burstValue,
+                                  &ast::Bandwidth::burstUnit> +
                     kw<"for"> +
                     assign<&ast::Bandwidth::burstMs>(ref<NUMBER>) +
-                    kw<"ms">)> {};
+                    gap::none + kw<"ms">)> {};
 
   struct QueueOpt
       : rule<(assign<&ast::QueueOpt::kind>(kw<"bandwidth">) +

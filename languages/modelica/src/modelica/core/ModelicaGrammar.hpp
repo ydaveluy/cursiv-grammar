@@ -335,20 +335,29 @@ struct Modelica : cursiv::GrammarSpec {
       : rule<kw<"annotation"> +
              assign<&ast::Annotation::mod>(ref<ClassMod>)> {};
 
-  struct ClassMod
-      : rule<lit<"("> +
-             many(append<&ast::ClassMod::args>(ref<Argument>),
-                         lit<",">) +
-             lit<")">> {};
+  static constexpr auto ConnectBody = kw<"connect"> + lit<"("> +
+      assign<&ast::ConnectEquation::a>(ref<ComponentReference>) + lit<","> +
+      assign<&ast::ConnectEquation::b>(ref<ComponentReference>) + lit<")">;
+  struct BrokenConnection : rule<ConnectBody> {};
+  struct InheritanceBreak : rule<kw<"break"> +
+      (assign<&ast::InheritanceBreak::name>(ref<IDENT>) |
+       assign<&ast::InheritanceBreak::connection>(ref<BrokenConnection>))> {};
+  template<auto Item> static constexpr auto class_modification =
+      lit<"("> + many(append<&ast::ClassMod::args>(Item), lit<",">) + lit<")">;
+  struct ClassMod : rule<class_modification<ref<Argument>>> {};
+  struct InheritanceClassMod
+      : rule<class_modification<ref<Argument> | ref<InheritanceBreak>>> {};
+  static constexpr auto ModificationValue =
+      ref<Expression> | create<ast::BreakExpr>(kw<"break">);
 
   struct Modification
       : rule<(assign<&ast::Modification::mod>(ref<ClassMod>) +
               option(assign<&ast::Modification::assignOp>(lit<"=">) +
-                     assign<&ast::Modification::value>(ref<Expression>)))  //
+                     assign<&ast::Modification::value>(ModificationValue)))  //
              | (assign<&ast::Modification::assignOp>(lit<"=">) +
-                assign<&ast::Modification::value>(ref<Expression>))  //
+                assign<&ast::Modification::value>(ModificationValue))  //
              | (assign<&ast::Modification::assignOp>(lit<":=">) +
-                assign<&ast::Modification::value>(ref<Expression>))> {};
+                assign<&ast::Modification::value>(ModificationValue))> {};
 
   struct ElementModWithFlags
       : rule<option(flag<&ast::ElementMod::each_>(kw<"each">)) +
@@ -551,7 +560,7 @@ struct Modelica : cursiv::GrammarSpec {
 
   struct ExtendsClause
       : rule<kw<"extends"> + assign<&ast::ExtendsClause::name>(ref<Name>) +
-             option(assign<&ast::ExtendsClause::mod>(ref<ClassMod>)) +
+             option(assign<&ast::ExtendsClause::mod>(ref<InheritanceClassMod>)) +
              option(assign<&ast::ExtendsClause::annotation>(ref<Annotation>))> {
   };
 
@@ -669,11 +678,7 @@ struct Modelica : cursiv::GrammarSpec {
   };
 
   struct ConnectEquation
-      : rule<kw<"connect"> + lit<"("> +
-             assign<&ast::ConnectEquation::a>(ref<ComponentReference>) +
-             lit<","> +
-             assign<&ast::ConnectEquation::b>(ref<ComponentReference>) +
-             lit<")"> +
+      : rule<ConnectBody +
              many(append<&ast::ConnectEquation::docStrings>(ref<STRING>),
                          lit<"+">) +
              option(

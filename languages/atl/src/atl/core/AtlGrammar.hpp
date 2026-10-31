@@ -330,6 +330,9 @@ struct Atl : cursiv::GrammarSpec {
              (flag<&ast::Binding::isAssignment>(lit<"<:=">) | lit<"<-">) +
              assign<&ast::Binding::value>(ref<Expression>)> {};
 
+  static constexpr auto maps_to = option(
+      kw<"mapsTo"> + assign<&ast::OutPatternElem::mapsTo>(ref<ID>));
+
   struct OutPatternElem
       : rule<create<ast::OutPatternElem> +
              assign<&ast::OutPatternElem::name>(ref<ID>) + lit<":"> +
@@ -338,12 +341,13 @@ struct Atl : cursiv::GrammarSpec {
                kw<"foreach"> + lit<"("> +
                assign<&ast::OutPatternElem::iterVar>(ref<ID>) + kw<"in"> +
                assign<&ast::OutPatternElem::source>(ref<Expression>) +
-               lit<")">)  //
+               lit<")"> + maps_to)  //
               | (assign<&ast::OutPatternElem::type>(ref<OclTypeRule>) +
                  option(kw<"in"> + assign<&ast::OutPatternElem::inModel>(
-                                       ref<ID>)))) +
-             option(kw<"mapsTo"> +
-                    assign<&ast::OutPatternElem::mapsTo>(ref<ID>)) +
+                                       ref<ID>)) + maps_to +
+                 option(flag<&ast::OutPatternElem::hasReverseBindings>(lit<"->">) +
+                        lit<"("> + many(append<&ast::OutPatternElem::reverseBindings>(
+                            ref<Binding>), lit<",">) + lit<")">))) +
              option(lit<"("> +
                     many(append<&ast::OutPatternElem::bindings>(
                              ref<Binding>),
@@ -352,7 +356,8 @@ struct Atl : cursiv::GrammarSpec {
 
   struct OutPattern
       : rule<create<ast::OutPattern> + kw<"to"> +
-             some(append<&ast::OutPattern::elements>(ref<OutPatternElem>),
+             option(flag<&ast::OutPattern::hasDrop>(kw<"drop">)) +
+             many(append<&ast::OutPattern::elements>(ref<OutPatternElem>),
                   lit<",">)> {};
 
   struct IfStmt

@@ -106,7 +106,7 @@ struct Mps : cursiv::GrammarSpec {
   struct Quadratic
       : rule<(assign<&ast::QuadraticSection::kind>(ref<Header<"QUADOBJ">> | ref<Header<"QMATRIX">>) |
               (option(space) + assign<&ast::QuadraticSection::kind>(ikw<"QSECTION"> | ikw<"QCMATRIX">) +
-               option(space + assign<&ast::QuadraticSection::row>(ref<WORD>)))) + end +
+               space + assign<&ast::QuadraticSection::row>(ref<WORD>))) + end +
              many(append<&ast::QuadraticSection::cards>(ref<ColumnCard>) + end)> {};
   static constexpr auto objectiveSense =
       append<&ast::Model::objectiveSenses>(ikw<"MAX"> | ikw<"MIN">);

@@ -1,4 +1,5 @@
 #include <filesystem>
+#include "reader_boundaries.hpp"
 #include <memory>
 #include <string>
 
@@ -36,11 +37,13 @@ void examples() {
 }
 void datums() {
   for (const char* newline : {"\n", "\r", "\r\n", "\u0085", "\u2028", "\u2029"}) {
-    const auto result = engine().parse(std::string("a;comment") + newline + "b");
+    const std::string source = std::string("a;comment") + newline + "b";
+    const auto result = engine().parse(source);
     const auto* root = result.value_as<ast::Sexpr>();
     CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
-    CHECK(root && root->items.size() == 2);
-    if (root && root->items.size() == 2) {
+    const bool endsComment = std::string_view(newline).ends_with('\n');
+    CHECK(root && root->items.size() == (endsComment ? 2 : 1));
+    if (endsComment && root && root->items.size() == 2) {
       const auto* second = cursiv::ast_cast<ast::Atom>(root->items[1]);
       CHECK(second && second->text == "b");
     }
@@ -229,13 +232,19 @@ void reader_constraints() {
     const auto validation = cursiv::test::validationHelper(language.language, source);
     CHECK(validation.diagnostics.empty());
   }
-  for (const auto* source : {"#t|name|", "#false\\name", "#<<\nbody\n\n"}) {
+  for (const auto* source : {"#t|name|", "#false\\name"}) {
     const auto parsed = engine().parse(source);
     CHECK(!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty());
   }
 }
 } // namespace
 int main() {
+  {
+    auto language = cursiv::create_language<sexpression::SexpressionCoreServices,
+        sexpression::SexpressionSharedCoreServices, sexpression::install_core_module>();
+    sexpression_reader_boundaries::run(language.language);
+  }
+
   examples();
   datums();
   numeric_kinds();

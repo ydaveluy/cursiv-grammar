@@ -1,6 +1,8 @@
 
 #include <cstdio>
 
+#include "typedef_cases.hpp"
+
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "pike/core/CoreServices.hpp"
@@ -85,6 +87,8 @@ int main() {
   const auto language = cursiv::create_language<
       pike::PikeCoreServices, pike::PikeSharedCoreServices,
       pike::install_core_module>();
+
+  if (!pike_typedef::run(language.language)) return 1;
 
   int status = 0;
 

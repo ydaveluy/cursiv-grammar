@@ -41,6 +41,14 @@ struct Restructuredtext : cursiv::GrammarSpec {
       : terminal<line_break + some(many(cr<R"( \t)">) + line_break)> {};
   struct SP : terminal<some(cr<R"( \t)">)> {};
 
+  // A doctest starts with a prompt at the beginning of a fresh block and
+  // holds every nonblank physical line, including output and indentation.
+  static constexpr auto nonblank_line =
+      many(cr<R"( \t)">) + cr<R"(^ \t\r\n)"> + many(cr<R"(^\r\n)">);
+  struct DOCTEST_BLOCK : terminal<
+      lit<">>>", &(lit<" "> | line_break | eof)> +
+      many(cr<R"(^\r\n)">) + many(line_break + nonblank_line)> {};
+
   static constexpr auto sepchar = cr<"-=+^">;
   template <char C>
   static constexpr char kThree[] = {C, C, C, '\0'};
@@ -153,8 +161,12 @@ struct Restructuredtext : cursiv::GrammarSpec {
   static constexpr auto role_name =
       word_body + many(cr<"-._+:"> + word_body);
   struct ROLE : terminal<as<trim1>(lit<":"> + role_name + lit<":">)> {};
+  // A role prefix must touch its backtick. Keeping this condition lexical
+  // also lets ordinary ":name: text" remain prose outside a field list.
+  struct ROLE_PREFIX : terminal<as<trim1>(
+      lit<":"> + role_name + lit<":", &lit<"`">>)> {};
   struct InterpretedText
-      : rule<(assign<&ast::InterpretedText::role>(ref<ROLE>) +
+      : rule<(assign<&ast::InterpretedText::role>(ref<ROLE_PREFIX>) +
               assign<&ast::InterpretedText::text>(ref<INTERPRETED_SPAN>)) |
              (assign<&ast::InterpretedText::text>(ref<INTERPRETED_SPAN>) +
               option(assign<&ast::InterpretedText::role>(ref<ROLE>)))> {};
@@ -197,6 +209,27 @@ struct Restructuredtext : cursiv::GrammarSpec {
                   !block_start_guard +
                   append<&ast::Paragraph::spans>(span | block_start_marker) +
                   many(append<&ast::Paragraph::spans>(span)))> {};
+
+  struct DoctestBlock : rule<
+      assign<&ast::DoctestBlock::text>(ref<DOCTEST_BLOCK>) +
+      (ref<EOL> | ref<BLANK> | eof)> {};
+
+  // Docutils' field marker permits an internal colon except before a
+  // space/backtick or line end; escaping it permits those contexts too.
+  static constexpr auto field_colon =
+      lit<":", !cr<R"( `\t\r\n)">> + !eof;
+  static constexpr auto field_piece =
+      escaped | field_colon | cr<R"(^:\\\r\n)">;
+  static constexpr auto field_last =
+      escaped | field_colon | cr<R"(^:\\ \t\r\n)">;
+  inline static constexpr auto field_name_text = [](std::string_view text) {
+    std::size_t end = text.size();
+    while (end && (text[end - 1] == ' ' || text[end - 1] == '\t')) --end;
+    return end >= 2 ? text.substr(1, end - 2) : std::string_view{};
+  };
+  struct FIELD_MARK : terminal<as<field_name_text>(
+      lit<":"> + !cr<R"(: \t\r\n)"> + many(field_piece) + field_last +
+      lit<":"> + (some(cr<R"( \t)">) | &(line_break | eof)))> {};
 
   struct LineBlockLine
       : rule<ref<BLOCK_MARK> +
@@ -274,6 +307,7 @@ struct Restructuredtext : cursiv::GrammarSpec {
   struct EnumItem;
   struct LastEnum;
   struct Section;
+  struct FieldList;
 
   struct TRANSITION_ADORN
       : terminal<adornment4 + many(cr<R"( \t)">) + (line_break | eof)> {};
@@ -288,8 +322,11 @@ struct Restructuredtext : cursiv::GrammarSpec {
       (eof | ((ref<EOL> | ref<BLANK>) +
               option(append<Body>(ref<BlockQuote>))));
   template <auto Body>
-  static constexpr auto after_blank =
-      option(append<Body>(ref<BlockQuote>) | transition<Body>);
+  static constexpr auto fresh_block =
+      append<Body>(ref<BlockQuote> | ref<DoctestBlock> | ref<FieldList>) |
+      transition<Body>;
+  template <auto Body>
+  static constexpr auto after_blank = many(fresh_block<Body>);
   template <auto Body>
   static constexpr auto line_end = ref<EOL> | (ref<BLANK> + after_blank<Body>);
   // ...and the blank lines after a block whose last token read its own line
@@ -305,12 +342,12 @@ struct Restructuredtext : cursiv::GrammarSpec {
   static constexpr auto unit =
       ((append<Body>(ref<BulletItemRule>) | append<Body>(ref<EnumItem>) |
         append<Body>(ref<ExplicitTarget> | ref<Directive> | ref<Comment>)) +
-       option(transition<Body>)) |
+       after_blank<Body>) |
       (append<Body>(ref<MarkComment>) + ref<BLANK> + after_blank<Body>) |
       (append<Body>(ref<EmptyComment>) + after_line<Body>) |
       (append<Body>(ref<BareComment>) + after_line<Body>) |
       (append<Body>(ref<LineBlock>) + line_end<Body>) |
-      append<Body>(ref<DefinitionItem>) |
+      (append<Body>(ref<DefinitionItem>) + after_blank<Body>) |
       (append<Body>(ref<Paragraph>) + line_end<Body>);
   template <auto Body>
   static constexpr auto last =
@@ -320,7 +357,9 @@ struct Restructuredtext : cursiv::GrammarSpec {
       append<Body>(ref<Paragraph>);
   template <auto Body>
   static constexpr auto suite =
-      ref<INDENT> + ((many(unit<Body>) + last<Body>) | some(unit<Body>)) +
+      ref<INDENT> +
+      ((some(fresh_block<Body>) + many(unit<Body>) + option(last<Body>)) |
+       (many(unit<Body>) + last<Body>) | some(unit<Body>)) +
       ref<DEDENT>;
 
   struct BlockQuote : rule<suite<&ast::BlockQuote::body>> {};
@@ -374,6 +413,15 @@ struct Restructuredtext : cursiv::GrammarSpec {
       : rule<assign<&ast::EnumItem::number>(ref<ENUM_MARK>) +
              option(append<&ast::EnumItem::body>(ref<ItemOnly>))> {};
 
+  struct FieldItem : rule<assign<&ast::FieldItem::name>(ref<FIELD_MARK>) +
+                         item_rest<&ast::FieldItem::body>> {};
+  struct LastField : rule<assign<&ast::FieldItem::name>(ref<FIELD_MARK>) +
+      option(append<&ast::FieldItem::body>(ref<ItemOnly>)) + eof> {};
+  struct FieldList : rule<
+      (some(append<&ast::FieldList::fields>(ref<FieldItem>)) +
+       option(append<&ast::FieldList::fields>(ref<LastField>))) |
+      append<&ast::FieldList::fields>(ref<LastField>)> {};
+
   // Title and underline only: see ast.hpp for how a section's own trailing
   // content is grouped from the flat list this produces. An overlined title
   // may be inset.
@@ -389,8 +437,7 @@ struct Restructuredtext : cursiv::GrammarSpec {
   // as prose is a title, whatever the adornment byte.
   struct Doc
       : rule<create<ast::Document> + option(ref<EOL> | ref<BLANK>) +
-             option(append<&ast::Document::blocks>(ref<BlockQuote>) |
-                    transition<&ast::Document::blocks>) +
+             after_blank<&ast::Document::blocks> +
              many((append<&ast::Document::blocks>(ref<Section>) +
                    after_line<&ast::Document::blocks>) |
                   unit<&ast::Document::blocks>) +

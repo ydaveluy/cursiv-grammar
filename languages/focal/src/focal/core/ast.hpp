@@ -146,12 +146,23 @@ struct WriteCommand : cursiv::Extends<Command> {
   Command* next;
 };
 
+struct EraseCommand : cursiv::Extends<Command> {
+  boolean all;
+  optional<int64> group;
+  LineNumber* target;
+  Command* next;
+};
+
+struct ModifyCommand : cursiv::Extends<Command> {
+  LineNumber* target;
+};
+
 struct CommentCommand : cursiv::Extends<Command> {
   string_view text;
 };
 
 struct Statement : cursiv::Extends<cursiv::AstNode> {
-  LineNumber* number;
+  LineNumber* number;  // null for a direct command
   Command* command;
 };
 

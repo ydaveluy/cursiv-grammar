@@ -15,6 +15,7 @@
 #include "fortran/core/ast.hpp"
 
 #include "port_audit_cases.hpp"
+#include "source_form.hpp"
 
 namespace {
 
@@ -73,6 +74,8 @@ int main() {
                               fortran::install_core_module>();
   if (!port_audit::run(*language.language.parser))
     return fail("native syntax and AST regression");
+  if (!fortran_source::run(language.language))
+    return fail("free-form EOS, continuation, closing-name AST or validation");
 
   for (const fs::path &path : files) {
     std::ifstream file(path);

@@ -10,6 +10,7 @@
 #include "css3/core/CoreServices.hpp"
 #include "css3/core/ast.hpp"
 #include "audit_regressions.hpp"
+#include "important_cases.hpp"
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
@@ -56,6 +57,7 @@ int main() {
       css3::Css3CoreServices, css3::Css3SharedCoreServices,
       css3::install_core_module>();
   if (!css3_audit::run(*language.language.parser)) return 1;
+  if (!css3_important_cases::run(language.language)) return 1;
 
   // Regression: inspect the semantic payload, not only clean acceptance.
   {

@@ -15,6 +15,7 @@
 #include "idl/core/CoreServices.hpp"
 #include "idl/core/ast.hpp"
 #include "native_followup_cases.hpp"
+#include "lexical_annotation_cases.hpp"
 
 namespace {
 
@@ -77,6 +78,7 @@ int main() {
   const cursiv::Parser &parser = *language.language.parser;
 
   if (!idl_native_followup::run(parser)) return 1;
+  if (!idl_lexical_annotations::run(language.language)) return 1;
 
   // helloworld.idl: the corpus's minimal sample.
   {

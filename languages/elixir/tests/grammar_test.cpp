@@ -15,6 +15,7 @@
 #include "elixir/core/ast.hpp"
 #include "audit_regressions.hpp"
 #include "modern_cases.hpp"
+#include "heredoc_lines.hpp"
 
 namespace {
 
@@ -49,6 +50,7 @@ int main() {
       elixir::ElixirCoreServices, elixir::ElixirSharedCoreServices,
       elixir::install_core_module>();
   if (!elixir_audit::modern_cases(language)) return 1;
+  if (!elixir_heredoc_lines::run(language.language)) return 1;
   if (elixir::tests::audit_regressions(*language.language.parser)) return 1;
   for (const std::string_view text : {std::string_view{R"(def join(a, b \\ nil))"}, std::string_view{"&+/2"}}) {
     const auto result = language.language.parser->parse(text);

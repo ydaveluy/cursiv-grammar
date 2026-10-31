@@ -178,6 +178,7 @@ struct AliasNewType : cursiv::Extends<NewType> {
   Type* type = nullptr;
 };
 struct RecordNewType : cursiv::Extends<NewType> {
+  boolean isInterface = false;
   TypeArgs* typeParams;  // null when absent
   Type* arrayPart;       // `{ typ }`, or null
   vector<NamedNewType*> nestedTypes;

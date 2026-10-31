@@ -57,7 +57,8 @@ struct Rego : cursiv::GrammarSpec {
   static constexpr auto Name =
       ref<NAME> | kw<"if"> | kw<"contains"> | kw<"in"> | kw<"every">;
   static constexpr auto PathName = Name | reserved;
-  static constexpr auto HeadName = Name | (reserved + &(lit<"."> | lit<"[">));
+  static constexpr auto HeadName =
+      Name | (reserved + gap::none + &(lit<"."> | lit<"[">));
 
   struct Number : rule<assign<&ast::NumberLiteral::text>(ref<NUMBER>)> {};
   static constexpr auto Scalar =
@@ -74,11 +75,12 @@ struct Rego : cursiv::GrammarSpec {
 
   template <auto Member>
   static constexpr auto part =
-      (lit<"."> + append<Member>(PathName)) |
+      (lit<"."> + gap::none + append<Member>(PathName)) |
       (lit<"["> + append<Member>(ref<Expression>) + lit<"]">);
   struct NameRule : rule<assign<&ast::Ref::name>(HeadName)> {};
   struct Ref
-      : rule<assign<&ast::Ref::name>(Name) + many(part<&ast::Ref::parts>)> {};
+      : rule<assign<&ast::Ref::name>(Name) +
+             many(gap::none + part<&ast::Ref::parts>)> {};
   static constexpr auto callSuffix =
       lit<"("> +
       option(append<&ast::Call::args>(ref<Expression>) +
@@ -86,9 +88,10 @@ struct Rego : cursiv::GrammarSpec {
              option(lit<",">)) +
       lit<")">;
   struct Atom : rule<ref<Primary> +
-                     many(nest<ast::Call, &ast::Call::target>(callSuffix) |
-                          nest<ast::AccessExpr, &ast::AccessExpr::target>(
-                              part<&ast::AccessExpr::parts>))> {};
+                     many(gap::none +
+                          (nest<ast::Call, &ast::Call::target>(callSuffix) |
+                           nest<ast::AccessExpr, &ast::AccessExpr::target>(
+                               part<&ast::AccessExpr::parts>)))> {};
   struct Primary
       : rule<(lit<"("> + ref<FullExpression> + lit<")">) | ref<ArrayCompr> |
              ref<ObjectCompr> | ref<SetCompr> | ref<Object> |
@@ -181,20 +184,36 @@ struct Rego : cursiv::GrammarSpec {
               option(assign<&ast::RuleBody::op>(ref<EQOPER>) +
                      assign<&ast::RuleBody::elseValue>(ref<Expression>)) +
               option(ifBody | bracedBody))> {};
-  static constexpr auto ruleHead =
-      assign<&ast::Rule::name>(HeadName) + many(part<&ast::Rule::parts>) +
-      option(
+  static constexpr auto headArguments = flag<&ast::Rule::hasParams>(
           lit<"("> +
           option(append<&ast::Rule::params>(ref<Expression>) +
                  many(lit<","> + append<&ast::Rule::params>(ref<Expression>)) +
                  option(lit<",">)) +
-          lit<")">) +
-      option((flag<&ast::Rule::contains>(kw<"contains">) +
-              assign<&ast::Rule::key>(ref<Expression>)) |
-             (assign<&ast::Rule::op>(ref<EQOPER>) +
-              assign<&ast::Rule::value>(ref<Expression>)));
+          lit<")">);
+  static constexpr auto headLoose =
+      assign<&ast::Rule::name>(HeadName) +
+      option((part<&ast::Rule::parts> +
+              many(gap::none + part<&ast::Rule::parts>) +
+              option(gap::none + headArguments)) | headArguments);
+  static constexpr auto headTight =
+      assign<&ast::Rule::name>(HeadName) +
+      many(gap::none + part<&ast::Rule::parts>) +
+      option(gap::none + headArguments);
+  static constexpr auto assignedHead =
+      assign<&ast::Rule::op>(ref<EQOPER>) +
+      assign<&ast::Rule::value>(ref<Expression>);
+  static constexpr auto containsHead =
+      flag<&ast::Rule::contains>(kw<"contains">) +
+      assign<&ast::Rule::key>(ref<Expression>);
+  static constexpr auto ruleHead = headLoose + option(containsHead | assignedHead);
+  struct HeadLooseWithBody
+      : rule<headLoose +
+             ((containsHead + many(append<&ast::Rule::bodies>(ref<RuleBody>))) |
+              (option(assignedHead) +
+               some(append<&ast::Rule::bodies>(ref<RuleBody>))))> {};
+  struct HeadTightFact : rule<headTight + option(assignedHead)> {};
   struct Rule
-      : rule<ruleHead + many(append<&ast::Rule::bodies>(ref<RuleBody>))> {};
+      : rule<ref<HeadLooseWithBody> | ref<HeadTightFact>> {};
   struct DefaultRule
       : rule<create<ast::DefaultRule>(kw<"default"> + ruleHead)> {};
   struct PackageDecl
@@ -214,7 +233,7 @@ struct Rego : cursiv::GrammarSpec {
   struct Document
       : rule<create<ast::Document> +
              option(append<&ast::Document::statements>(ref<Stmt>) +
-                    many((gap::line | !cr<"{[(+-">)+append<
+                    many((gap::line | !cr<"{[+-">)+append<
                          &ast::Document::statements>(ref<Stmt>)))> {};
   using entry = Document;
   using ignored = WS;

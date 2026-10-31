@@ -172,6 +172,74 @@ int check_postfix_types(const auto &language) {
   return 0;
 }
 
+int check_closed_element_types(const auto &language) {
+  struct Case { const char *type; bool edge; const char *name; };
+  for (const Case c : {
+           Case{"()", false, ""}, {"(n)", false, ""},
+           {"(IS Person)", false, ""}, {"NODE Person", false, "Person"},
+           {"NODE TYPE", false, "TYPE"}, // TYPE is a non-reserved name.
+           {"NODE TYPE Person (p IS Person {name STRING}) NOT NULL", false, "Person"},
+           {"VERTEX {name STRING} AS p", false, ""},
+           {"(IS S)-[IS E {weight INT}]->(IS T)", true, ""},
+           {"(s)<-[IS E]-(t)", true, ""},
+           {"(s)~[IS E]~(t)", true, ""},
+           {"DIRECTED EDGE E CONNECTING (s TO t)", true, "E"},
+           {"UNDIRECTED RELATIONSHIP LABEL E CONNECTING (s ~ t)", true, ""}}) {
+    const std::string source = std::string("RETURN CAST(NULL AS ") + c.type + ")";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() ||
+        !result.diagnostics.empty() || result.cst().text() != source)
+      return fail(c.type, "closed reference value type did not parse clean");
+    const gql::ast::CastExpr *cast = nullptr;
+    for (const auto *node : result.nodes) {
+      if (node != result.value && !node->parent)
+        return fail(c.type, "closed reference left an unowned AST node");
+      if (const auto *value = cursiv::ast_cast<gql::ast::CastExpr>(node)) cast = value;
+    }
+    const auto *type = cast ? cast->target : nullptr;
+    const auto *element = type ? type->element : nullptr;
+    if (!element || type->parent != cast || element->parent != type ||
+        element->isEdge != c.edge || element->typeName != c.name ||
+        !type->elements.empty() || type->graphType)
+      return fail(c.type, "closed reference lost its specification or ownership");
+    if (element->typeName == "Person" && !element->properties.empty()) {
+      const auto *field = element->properties[0];
+      if (element->alias != "p" || element->labels.size() != 1 ||
+          element->labels[0] != "Person" || field->name != "name" ||
+          field->parent != element || !field->type || field->type->name != "STRING" ||
+          field->type->parent != field || !type->notNull)
+        return fail(c.type, "node labels, fields or nullability were lost");
+    }
+    if (element->sourceType &&
+        (element->sourceType->parent != element || !element->destType ||
+         element->destType->parent != element ||
+         element->sourceType->labels.size() != 1 ||
+         element->destType->labels.size() != 1 ||
+         element->sourceType->labels[0] != "S" || element->destType->labels[0] != "T"))
+      return fail(c.type, "edge endpoint fillers were not retained independently");
+  }
+  for (const char *type : {"NODE", "ANY NODE NOT NULL", "EDGE", "ANY RELATIONSHIP",
+                            "GRAPH {(IS Person)}"}) {
+    const std::string source = std::string("RETURN CAST(NULL AS ") + type + ")";
+    const auto result = language.language.parser->parse(source);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
+      return fail(type, "existing open/graph reference no longer parses");
+    for (const auto *node : result.nodes)
+      if (const auto *value = cursiv::ast_cast<gql::ast::CastExpr>(node);
+          value && value->target->element)
+        return fail(type, "open/graph reference was classified as a closed element");
+  }
+  for (const char *type : {"NODE TYPE AS", "NODE (", "(IS)",
+                            "DIRECTED EDGE E CONNECTING (s)",
+                            "(s)-[IS E]->", "(IS Person {name})"}) {
+    const std::string source = std::string("RETURN CAST(NULL AS ") + type + ")";
+    const auto result = language.language.parser->parse(source);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+      return fail(type, "malformed closed reference was accepted");
+  }
+  return 0;
+}
+
 const gql::ast::SelectStmt *first_select(const cursiv::ParseResult &result) {
   const auto *const program =
       result.value != nullptr &&
@@ -339,6 +407,7 @@ int main() {
   failures += check_match_with_path(language, dir);
   failures += check_select_page(language);
   failures += check_postfix_types(language);
+  failures += check_closed_element_types(language);
   failures += check_edge_abbreviation(language);
   failures += check_coverage(language, CURSIV_TEST_DIR);
   failures += check_concat_left_assoc(language);

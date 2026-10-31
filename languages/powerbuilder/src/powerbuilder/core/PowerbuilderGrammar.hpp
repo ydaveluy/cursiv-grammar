@@ -179,19 +179,18 @@ struct Powerbuilder : cursiv::GrammarSpec {
   // -------------------------------------------------------- literal atoms
 
   struct EnumLit
-      : rule<create<ast::EnumLit>(assign<&ast::EnumLit::value>(ref<ENUM>))> {
+      : rule<assign<&ast::EnumLit::value>(ref<ENUM>)> {
   };
   struct NumberLit
-      : rule<create<ast::NumberLit>(
-            assign<&ast::NumberLit::value>(ref<NUMBER>))> {};
+      : rule<assign<&ast::NumberLit::value>(ref<NUMBER>)> {};
   struct BoolLit
       : rule<create<ast::BoolLit>(
             flag<&ast::BoolLit::value>(ikw<"TRUE">) | ikw<"FALSE">)> {};
   struct DateLit
-      : rule<create<ast::DateLit>(assign<&ast::DateLit::value>(ref<DATE>))> {
+      : rule<assign<&ast::DateLit::value>(ref<DATE>)> {
   };
   struct TimeLit
-      : rule<create<ast::TimeLit>(assign<&ast::TimeLit::value>(ref<TIME>))> {
+      : rule<assign<&ast::TimeLit::value>(ref<TIME>)> {
   };
   struct StringLit
       : rule<create<ast::StringLit>(assign<&ast::StringLit::value>(
@@ -552,7 +551,7 @@ struct Powerbuilder : cursiv::GrammarSpec {
   struct ReturnStmt
       : rule<create<ast::ReturnStmt>(
             ikw<"RETURN"> +
-            option((!gap::line | gap::has(lit<"&"> + many(cr<R"( \t)">) + eol)) +
+            option(((!gap::line) | gap::has(lit<"&"> + many(cr<R"( \t)">) + eol)) +
                    assign<&ast::ReturnStmt::value>(ref<Expression>)))> {
   };
 

@@ -14,6 +14,7 @@
 #include "kotlin/core/CoreServices.hpp"
 #include "kotlin/core/ast.hpp"
 #include "modern_cases.hpp"
+#include "destructuring_cases.hpp"
 
 namespace {
 
@@ -106,6 +107,7 @@ int main() {
       kotlin::install_core_module>();
 
   const bool candidatesOk = collection_candidates(*language.language.parser);
+  if (!kotlin_destructuring::run(language.language)) return 1;
 
   if (!kotlin_audit::modern_cases(*language.language.parser))
     return 1;

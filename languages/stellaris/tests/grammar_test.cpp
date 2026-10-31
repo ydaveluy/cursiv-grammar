@@ -1,5 +1,6 @@
 #include "audit_regressions.hpp"
 #include "native_cases.hpp"
+#include "parameter_regressions.hpp"
 // The grammar of this language: every file under example/ and tests/
 // parses clean and builds a Document root.
 
@@ -38,6 +39,7 @@ int main() {
       stellaris::install_core_module>();
 
   if (!native_regressions::run(language.language, *language.shared)) return 1;
+  if (!parameter_regressions::run(language.language, *language.shared)) return 1;
 
   std::vector<std::filesystem::path> files;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

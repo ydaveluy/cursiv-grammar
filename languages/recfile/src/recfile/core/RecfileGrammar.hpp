@@ -8,14 +8,14 @@ namespace recfile {
 struct Recfile : cursiv::GrammarSpec {
   struct LF : terminal<lit<"\n">> {};
   struct HWS : terminal<some(cr<" \t">)> {};
-  static constexpr auto NameShape = !(cr<" \t"> | lit<"#">)+some(cr<R"(^:\n)">);
+  static constexpr auto NameShape = !cr<" \t#"> + some(cr<R"(^:\n)">);
   static constexpr auto FieldShape = many(cr<" \t">) + NameShape + lit<":">;
   static constexpr auto CommentShape = many(cr<" \t">) + lit<"#">;
   static constexpr auto BlankShape =
-      (many(cr<" \t">) + lit<"\n">) | (some(cr<" \t">) + !any);
+      (many(cr<" \t">) + lit<"\n">) | (some(cr<" \t">) + eof);
   struct NAME : terminal<NameShape> {};
   struct BLANK : terminal<BlankShape> {};
-  struct TEXT : terminal<some(!(lit<"\\\n"> | lit<"\n">)+any)> {};
+  struct TEXT : terminal<some(cr<R"(^\\\n)"> | lit<"\\", !lit<"\n">>)> {};
   struct REST : terminal<some(cr<R"(^\n)">)> {};
   struct RAW : terminal<!(FieldShape | CommentShape | BlankShape) +
                         some(cr<R"(^\n)">)> {};
@@ -24,8 +24,7 @@ struct Recfile : cursiv::GrammarSpec {
   struct CommentText : rule<option(ref<REST>)> {};
   struct LineEnd : rule<ref<LF> | eof> {};
 
-  struct InitialPart : rule<create<ast::ValuePart>(
-                           assign<&ast::ValuePart::text>(ref<PartText>))> {};
+  struct InitialPart : rule<assign<&ast::ValuePart::text>(ref<PartText>)> {};
   struct ContinuedPart
       : rule<create<ast::ValuePart>(
             assign<&ast::ValuePart::join>(as<ast::Join::newline>(lit<"\n+">) | as<ast::Join::splice>(lit<"\\\n">)) +

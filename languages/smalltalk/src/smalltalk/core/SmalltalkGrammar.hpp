@@ -43,10 +43,11 @@ inline constexpr auto drop_first = [](std::string_view t) {
 };
 
 struct Smalltalk : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
+  struct WS : terminal<some(cr<R"( \t\v\f\r\n\u00a0\ufeff\u2028\u2029)">)> {};
   struct COMMENT : terminal<through(lit<"\"">, lit<"\"">)> {};
 
-  struct ID : terminal<cr<"a-zA-Z"> + many(w)> {};
+  static constexpr auto Identifier = cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9">);
+  struct ID : terminal<Identifier> {};
 
   struct STRING : terminal<as<unquote>(lit<"'"> + many(lit<"''"> | cr<"^'">) +
                                        lit<"'">)> {};
@@ -59,13 +60,13 @@ struct Smalltalk : cursiv::GrammarSpec {
   struct HEX_NUMBER : terminal<as<hex_to_double>(option(lit<"-">) + lit<"16r"> +
                                                  some(cr<"0-9a-fA-F">))> {};
 
-  static constexpr auto AnyBinChar = cr<R"(\\+*/=><,@%~|&?-)">;
+  static constexpr auto AnyBinChar = cr<R"(\\+*/=><,@%~|&-)">;
   struct BINARY_SELECTOR : terminal<some(AnyBinChar)> {};
 
-  struct KEYWORD : terminal<cr<"a-zA-Z"> + many(w) + lit<":">> {};
+  struct KEYWORD : terminal<Identifier + lit<":">> {};
+  struct SELECTOR : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9:">)> {};
 
-  struct BLOCK_PARAM
-      : terminal<as<drop_first>(lit<":"> + cr<"a-zA-Z"> + many(w))> {};
+  struct BLOCK_PARAM : terminal<lit<":">> {};
 
   struct CHARACTER_CONSTANT : terminal<as<drop_first>(lit<"$"> + any)> {};
 
@@ -78,14 +79,11 @@ struct Smalltalk : cursiv::GrammarSpec {
   struct BareLiteralArray;
   struct Sequence;
 
-  // A run of keyword tokens with no gap between them, the multi-keyword
-  // form of a bare symbol (#at:put:); a data rule, so it yields its own
-  // matched text.
-  struct KeywordSelectorText
-      : rule<ref<KEYWORD> + many(gap::none + ref<KEYWORD>)> {};
+  // Amber's literal selector may end in a name or contain repeated colons.
+  struct KeywordSelectorText : rule<ref<SELECTOR>> {};
 
   static constexpr auto SymbolBody =
-      assign<&ast::SymbolLiteral::name>(ref<Name> | ref<BINARY_SELECTOR> |
+      assign<&ast::SymbolLiteral::name>(ref<BINARY_SELECTOR> |
                                         ref<KeywordSelectorText> | ref<STRING>);
 
   // #foo -- no gap between the '#' and the symbol text.
@@ -105,12 +103,10 @@ struct Smalltalk : cursiv::GrammarSpec {
             ref<NUMBER> | ref<HEX_NUMBER>))> {};
 
   struct CharLiteral
-      : rule<create<ast::CharLiteral>(
-            assign<&ast::CharLiteral::value>(ref<CHARACTER_CONSTANT>))> {};
+      : rule<assign<&ast::CharLiteral::value>(ref<CHARACTER_CONSTANT>)> {};
 
   struct StringLiteral
-      : rule<create<ast::StringLiteral>(
-            assign<&ast::StringLiteral::value>(ref<STRING>))> {};
+      : rule<assign<&ast::StringLiteral::value>(ref<STRING>)> {};
 
   struct LiteralArray;
   static constexpr auto ScalarLiteral =
@@ -142,26 +138,26 @@ struct Smalltalk : cursiv::GrammarSpec {
   // Amber closes a nonempty parameter list with its own mandatory pipe.
   struct Block
       : rule<create<ast::Block> + lit<"["> +
-             ((some(append<&ast::Block::params>(ref<BLOCK_PARAM>)) + lit<"|"> +
-               option(assign<&ast::Block::body>(ref<Sequence>))) |
-              option(assign<&ast::Block::body>(ref<Sequence>))) +
+             option(some(ref<BLOCK_PARAM> +
+                         append<&ast::Block::params>(ref<Name>)) + lit<"|">) +
+             assign<&ast::Block::body>(ref<Sequence>) +
              lit<"]">> {};
 
   struct DynamicArray
       : rule<create<ast::DynamicArray> + lit<"{"> +
              option(some(append<&ast::DynamicArray::items>(ref<Expression>),
-                         lit<".">)) + option(lit<".">) +
+                         some(lit<".">))) + many(lit<".">) +
              lit<"}">> {};
 
   struct DynamicDictionary
       : rule<create<ast::DynamicDictionary> + lit<"#{"> +
              option(
                  some(append<&ast::DynamicDictionary::items>(ref<Expression>),
-                      lit<".">)) + option(lit<".">) +
+                      some(lit<".">))) + many(lit<".">) +
              lit<"}">> {};
 
   struct VarRef
-      : rule<create<ast::VarRef>(assign<&ast::VarRef::name>(ref<Name>))> {};
+      : rule<assign<&ast::VarRef::name>(ref<Name>)> {};
 
   struct Operand
       : rule<ref<Block> | ref<DynamicDictionary> |
@@ -217,21 +213,21 @@ struct Smalltalk : cursiv::GrammarSpec {
   struct Expression : rule<ref<Assignment> | ref<Cascade> |
                            ref<KeywordSend> | ref<BinarySend>> {};
 
-  // ^expr, with its optional trailing period.
+  // Empty periods are trivia between statements and after a return.
   static constexpr auto Answer =
       lit<"^"> + assign<&ast::Sequence::answer>(ref<Expression>) +
-      option(lit<".">);
+      many(lit<".">);
 
   static constexpr auto Temps =
       lit<"|"> + many(append<&ast::Sequence::temps>(ref<Name>)) + lit<"|">;
 
   static constexpr auto Statements =
-      (some(append<&ast::Sequence::statements>(ref<Expression>), lit<".">) +
-       option(lit<"."> + option(Answer))) |
+      (some(append<&ast::Sequence::statements>(ref<Expression>), some(lit<".">)) +
+       option(some(lit<".">) + option(Answer))) |
       Answer;
 
-  struct Sequence : rule<create<ast::Sequence> +
-                             ((Temps + option(Statements)) | Statements)> {};
+  struct Sequence : rule<create<ast::Sequence> + option(Temps) +
+                             many(lit<".">) + option(Statements)> {};
 
   using entry = Sequence;
   using ignored = list<WS, COMMENT>;

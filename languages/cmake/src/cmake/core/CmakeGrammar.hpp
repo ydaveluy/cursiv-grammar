@@ -84,14 +84,11 @@ struct Cmake : cursiv::GrammarSpec {
   struct BRACKET : terminal<as<unbracket>(bracketBody)> {};
 
   struct UnquotedArgument
-      : rule<create<ast::UnquotedArgument>(
-            assign<&ast::UnquotedArgument::text>(ref<UNQUOTED>))> {};
+      : rule<assign<&ast::UnquotedArgument::text>(ref<UNQUOTED>)> {};
   struct QuotedArgument
-      : rule<create<ast::QuotedArgument>(
-            assign<&ast::QuotedArgument::text>(ref<QUOTED>))> {};
+      : rule<assign<&ast::QuotedArgument::text>(ref<QUOTED>)> {};
   struct BracketArgument
-      : rule<create<ast::BracketArgument>(
-            assign<&ast::BracketArgument::text>(ref<BRACKET>))> {};
+      : rule<assign<&ast::BracketArgument::text>(ref<BRACKET>)> {};
 
   struct CompoundArgument;
   static constexpr auto argument =

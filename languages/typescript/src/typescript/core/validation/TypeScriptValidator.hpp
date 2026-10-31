@@ -15,6 +15,12 @@ class TypeScriptValidator final : public cursiv::DefaultCoreService {
                              cursiv::ValidationAcceptor& accept) const;
   void checkResources(const ast::VarDecl& declaration,
                       cursiv::ValidationAcceptor& accept) const;
+  void checkIdentifierNames(const cursiv::AstNode&, cursiv::ValidationAcceptor&) const;
+  void checkLabel(const ast::LabeledStmt&, cursiv::ValidationAcceptor&) const;
+  void checkBreak(const ast::BreakStmt&, cursiv::ValidationAcceptor&) const;
+  void checkContinue(const ast::ContinueStmt&, cursiv::ValidationAcceptor&) const;
+  void checkImportBinding(const ast::ImportSpecifier&, cursiv::ValidationAcceptor&) const;
+  void checkImportEquals(const ast::ImportEqualsDecl&, cursiv::ValidationAcceptor&) const;
 };
 
 struct TypeScriptCoreServices;

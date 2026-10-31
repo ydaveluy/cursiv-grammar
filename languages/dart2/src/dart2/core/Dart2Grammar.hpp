@@ -224,6 +224,13 @@ struct Dart2 : cursiv::GrammarSpec {
             many(append<&ast::AdjacentStrings::parts>(ref<SingleStringLiteral>)))> {
   };
 
+  // A single URI keeps its existing concrete StringLit node.
+  struct UriLiteral : rule<
+      create<ast::AdjacentStrings>(
+          append<&ast::AdjacentStrings::parts>(ref<SingleStringLiteral>) +
+          some(append<&ast::AdjacentStrings::parts>(ref<SingleStringLiteral>))) |
+      ref<SingleStringLiteral>> {};
+
   struct SymbolName
       : rule<(lit<"["> + lit<"]"> + option(lit<"=">)) |
              (lit<">"> + lit<">"> + option(lit<">">)) |
@@ -379,7 +386,7 @@ struct Dart2 : cursiv::GrammarSpec {
             lit<")">)> {};
   // -- primary / postfix expressions ----
   struct IdentExpr
-      : rule<create<ast::Ident>(assign<&ast::Ident::name>(ref<IdentName>))> {};
+      : rule<assign<&ast::Ident::name>(ref<IdentName>)> {};
   struct ThisExpr_ : rule<create<ast::ThisExpr>(ref<K_THIS>)> {};
   struct SuperExpr_ : rule<create<ast::SuperExpr>(ref<K_SUPER>)> {};
   struct NullLit_ : rule<create<ast::NullLit> + ref<K_NULL>> {};
@@ -425,8 +432,7 @@ struct Dart2 : cursiv::GrammarSpec {
              ref<SetOrMapLit_>> {};
 
   struct ExprElement_
-      : rule<create<ast::ExprElement>(
-            assign<&ast::ExprElement::value>(ref<Expression>))> {};
+      : rule<assign<&ast::ExprElement::value>(ref<Expression>)> {};
   struct MapElement_
       : rule<create<ast::MapElement>(
             assign<&ast::MapElement::key>(ref<Expression>) + lit<":"> +
@@ -473,8 +479,7 @@ struct Dart2 : cursiv::GrammarSpec {
                        ref<IdentName>)))> {};
 
   struct PositionalArgument
-      : rule<create<ast::Argument>(
-            assign<&ast::Argument::value>(ref<Expression>))> {};
+      : rule<assign<&ast::Argument::value>(ref<Expression>)> {};
   struct NamedArgument
       : rule<create<ast::Argument>(
             assign<&ast::Argument::name>(ref<IdentName>) + lit<":"> +
@@ -936,15 +941,15 @@ struct Dart2 : cursiv::GrammarSpec {
             append<&ast::ConfiguredUri::testName>(ref<IdentName>) +
             many(lit<"."> + append<&ast::ConfiguredUri::testName>(ref<IdentName>)) +
             option(lit<"=="> + assign<&ast::ConfiguredUri::testValue>(
-                                    ref<SingleStringLiteral>)) +
+                                    ref<UriLiteral>)) +
             lit<")"> +
-            assign<&ast::ConfiguredUri::uri>(ref<SingleStringLiteral>))> {};
+            assign<&ast::ConfiguredUri::uri>(ref<UriLiteral>))> {};
 
   struct ImportDirective_
       : rule<create<ast::ImportDirective>(
             many(append<&ast::ImportDirective::annotations>(ref<MetadataItem>)) +
             ref<K_IMPORT> +
-            assign<&ast::ImportDirective::uri>(ref<SingleStringLiteral>) +
+            assign<&ast::ImportDirective::uri>(ref<UriLiteral>) +
             many(append<&ast::ImportDirective::configurations>(
                 ref<ConfigurationUri_>)) +
             option(option(flag<&ast::ImportDirective::isDeferred>(
@@ -959,7 +964,7 @@ struct Dart2 : cursiv::GrammarSpec {
       : rule<create<ast::ExportDirective>(
             many(append<&ast::ExportDirective::annotations>(ref<MetadataItem>)) +
             ref<K_EXPORT> +
-            assign<&ast::ExportDirective::uri>(ref<SingleStringLiteral>) +
+            assign<&ast::ExportDirective::uri>(ref<UriLiteral>) +
             many(append<&ast::ExportDirective::configurations>(
                 ref<ConfigurationUri_>)) +
             many(append<&ast::ExportDirective::combinators>(
@@ -970,7 +975,7 @@ struct Dart2 : cursiv::GrammarSpec {
       : rule<create<ast::PartDirective>(
             many(append<&ast::PartDirective::annotations>(ref<MetadataItem>)) +
             ref<K_PART> +
-            assign<&ast::PartDirective::uri>(ref<SingleStringLiteral>) +
+            assign<&ast::PartDirective::uri>(ref<UriLiteral>) +
             lit<";">)> {};
 
   struct PartOfDirective_
@@ -980,7 +985,7 @@ struct Dart2 : cursiv::GrammarSpec {
             ((append<&ast::PartOfDirective::nameParts>(ref<IdentName>) +
               many(lit<"."> +
                    append<&ast::PartOfDirective::nameParts>(ref<IdentName>)))  //
-             | assign<&ast::PartOfDirective::uri>(ref<SingleStringLiteral>)) +
+             | assign<&ast::PartOfDirective::uri>(ref<UriLiteral>)) +
             lit<";">)> {};
 
   struct LibraryName_
@@ -1308,8 +1313,8 @@ struct Dart2 : cursiv::GrammarSpec {
             (assign<&ast::CompilationUnit::partOf>(ref<PartOfDirective_>) +
              many(append<&ast::CompilationUnit::declarations>(
                  ref<TopLevelDecl>))) |
-            assign<&ast::CompilationUnit::exprEntry>(ref<Expression>) |
-            assign<&ast::CompilationUnit::stmtEntry>(ref<EntryStatement>)))> {};
+            (!ref<K_PART> + assign<&ast::CompilationUnit::exprEntry>(ref<Expression>)) |
+            (!ref<K_PART> + assign<&ast::CompilationUnit::stmtEntry>(ref<EntryStatement>))))> {};
 
   using entry = CompilationUnit;
   using ignored = WS;

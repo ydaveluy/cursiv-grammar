@@ -64,6 +64,7 @@ struct Pddl : cursiv::GrammarSpec {
 
   // Forward declarations: the mutually recursive core of the language.
   struct GoalDesc;
+  struct PreGoal;
   struct FExp;
   struct FExpDA;
   struct MetricFExp;
@@ -176,10 +177,15 @@ struct Pddl : cursiv::GrammarSpec {
              Arithmetic<MetricFExp> |
              assign<&ast::Expr::head>(ref<MetricFHead>)> {};
 
-  struct GoalDesc
-      : rule<(OPEN + ikw<"and"> +
-              many(append<&ast::GoalFormula::operands>(ref<GoalDesc>)) +
-              CLOSE) |
+  template <class Operand>
+  static constexpr auto GoalAndForall =
+      (OPEN + ikw<"and"> +
+       many(append<&ast::GoalFormula::operands>(ref<Operand>)) + CLOSE) |
+      (OPEN + flag<&ast::GoalFormula::isForall>(ikw<"forall">) + OPEN +
+       assign<&ast::GoalFormula::parameters>(ref<TypedVarList>) + CLOSE +
+       assign<&ast::GoalFormula::quantBody>(ref<Operand>) + CLOSE);
+
+  static constexpr auto OrdinaryGoal =
              (OPEN + flag<&ast::GoalFormula::isOr>(ikw<"or">) +
               many(append<&ast::GoalFormula::operands>(ref<GoalDesc>)) +
               CLOSE) |
@@ -193,16 +199,20 @@ struct Pddl : cursiv::GrammarSpec {
               assign<&ast::GoalFormula::parameters>(ref<TypedVarList>) +
               CLOSE + assign<&ast::GoalFormula::quantBody>(ref<GoalDesc>) +
               CLOSE) |
-             (OPEN + flag<&ast::GoalFormula::isForall>(ikw<"forall">) +
-              OPEN +
-              assign<&ast::GoalFormula::parameters>(ref<TypedVarList>) +
-              CLOSE + assign<&ast::GoalFormula::quantBody>(ref<GoalDesc>) +
-              CLOSE) |
              (OPEN + assign<&ast::GoalFormula::compareOp>(BinaryComp) +
               assign<&ast::GoalFormula::leftExpr>(ref<FExp>) +
               assign<&ast::GoalFormula::rightExpr>(ref<FExp>) +
               CLOSE) |
-             assign<&ast::GoalFormula::atom>(ref<AtomicTermFormula>)> {};
+             assign<&ast::GoalFormula::atom>(ref<AtomicTermFormula>);
+
+  struct GoalDesc : rule<GoalAndForall<GoalDesc> | OrdinaryGoal> {};
+  // Only pre-GD admits preferences, under its own and/forall wrappers.
+  // A preference's body and the other logical operators still use plain GD.
+  struct PreGoal : rule<GoalAndForall<PreGoal> |
+      (OPEN + flag<&ast::GoalFormula::isPreference>(ikw<"preference">) +
+       option(assign<&ast::GoalFormula::preferenceName>(ref<NAME>)) +
+       assign<&ast::GoalFormula::preferenceBody>(ref<GoalDesc>) + CLOSE) |
+      OrdinaryGoal> {};
 
   // `op` names which of the twelve operators an alternative is: several
   // pairs (AtEnd/Always/Sometime/AtMostOnce; Within/HoldAfter;
@@ -377,7 +387,7 @@ struct Pddl : cursiv::GrammarSpec {
              option(flag<&ast::ActionDef::hasPrecondition>(ikw<":precondition">) +
                     ((OPEN + CLOSE) |
                      assign<&ast::ActionDef::precondition>(
-                         ref<GoalDesc>))) +
+                         ref<PreGoal>))) +
              option(flag<&ast::ActionDef::hasEffect>(ikw<":effect">) +
                     ((OPEN + CLOSE) |
                      assign<&ast::ActionDef::effect>(ref<Effect>))) +
@@ -476,7 +486,7 @@ struct Pddl : cursiv::GrammarSpec {
              OPEN + ikw<":init"> +
              many(append<&ast::Problem::init>(ref<InitEl>)) + CLOSE +
              OPEN + ikw<":goal"> +
-             assign<&ast::Problem::goal>(ref<GoalDesc>) + CLOSE +
+             assign<&ast::Problem::goal>(ref<PreGoal>) + CLOSE +
              option(OPEN + ikw<":constraints"> +
                     assign<&ast::Problem::constraints>(
                         ref<PrefConstraint>) +

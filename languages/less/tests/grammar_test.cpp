@@ -1,3 +1,4 @@
+#include "lookup_cases.hpp"
 // The smoke test of the language: every corpus document parses clean,
 // features.less covers what the corpus never exercises (including a
 // precedence probe read back at AST level), and example1.less is read back
@@ -15,6 +16,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "less/core/CoreServices.hpp"
 #include "less/core/ast.hpp"
+#include "selector_order_cases.hpp"
 #include "resume_regressions.hpp"
 #include "detached_argument_cases.hpp"
 
@@ -202,6 +204,8 @@ int main() {
   const bool guardsOk = guarded_rulesets(*language.language.parser);
 
   if (!less_resume::run(language.language)) return fail("native regressions");
+  if (!less_selector_order_cases::run(language.language)) return fail("selector order/combinators");
+  if (!less_lookup_cases::run(language.language)) return 1;
   if (!less_detached_arguments::run(language.language)) return fail("detached argument regressions");
   for (const auto source : {
            "@dr:{color:red;};a{@dr();}", "@dr:{color:red;}a{@dr()}",
@@ -232,7 +236,12 @@ int main() {
       if (const auto* value = cursiv::ast_cast<less::ast::Pseudo>(node))
         pseudo |= value->name == "nth-child" && value->hasArguments && value->argumentValues && value->argumentValues->items.size() == 1;
       if (const auto* value = cursiv::ast_cast<less::ast::Selector>(node))
-        attribute |= value->elements.size() == 3 && value->attribs.size() == 1;
+        attribute |= value->elements.size() == 4 &&
+            cursiv::ast_cast<less::ast::NamedElement>(value->elements[0]) &&
+            cursiv::ast_cast<less::ast::Pseudo>(value->elements[1]) &&
+            cursiv::ast_cast<less::ast::Attrib>(value->elements[2]) &&
+            cursiv::ast_cast<less::ast::Attrib>(value->elements[2])->name == "attr" &&
+            cursiv::ast_cast<less::ast::NamedElement>(value->elements[3]);
       if (const auto* value = cursiv::ast_cast<less::ast::Import>(node))
         media |= value->options.size() == 1 && value->options[0] == less::ast::ImportOption::optional_ &&
                  value->mediaQuery == "screen and (min-width:600px)";

@@ -71,9 +71,9 @@ func compute(a, b):
 			print(n)
 		_:
 			pass
-		[a, b..]:
+		[a, b, ..]:
 			pass
-		{"key": value ..}:
+		{"key": value, ..}:
 			pass
 
 	yield(self, "done")

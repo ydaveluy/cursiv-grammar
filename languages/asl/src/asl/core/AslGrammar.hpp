@@ -222,8 +222,7 @@ struct Asl : cursiv::GrammarSpec {
                  assign<&ast::TimeConstant::value>(ref<TIME_VALUE>))> {};
 
   struct RNumberSpec
-      : rule<create<ast::RelationshipSpec>(
-            assign<&ast::RelationshipSpec::number>(ref<R_NUMBER>))> {};
+      : rule<assign<&ast::RelationshipSpec::number>(ref<R_NUMBER>)> {};
   struct QualifiedRelationshipSpec
       : rule<create<ast::QualifiedRelationshipSpec>(
             assign<&ast::QualifiedRelationshipSpec::number>(ref<R_NUMBER>) +

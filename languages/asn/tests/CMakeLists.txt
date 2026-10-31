@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every sample of example/ parses as expected, plus
 # this port's own document exercising constructs the corpus does not reach.
 add_executable(asn_grammar_test grammar_test.cpp)
-target_link_libraries(asn_grammar_test PRIVATE asnCore)
+target_link_libraries(asn_grammar_test PRIVATE asnCore cursiv::test)
 target_compile_definitions(asn_grammar_test PRIVATE
     CURSIV_EXAMPLE1_SAMPLE="${PROJECT_SOURCE_DIR}/example/example1.asn"
     CURSIV_EXAMPLE2_SAMPLE="${PROJECT_SOURCE_DIR}/example/example2.asn"

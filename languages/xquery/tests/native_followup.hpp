@@ -55,7 +55,7 @@ template<class Language> bool run(const Language& language) {
     {"xml-comment-bad", "<!--a--b-->", false, nullptr},
     {"xml-comment-tail", "<!--a--->", false, nullptr},
     {"xml-pi", "<?pi data?>", true, nullptr},
-    {"xml-pi-empty", "<??>", false, nullptr},
+    {"xml-pi-empty", "<?\?>", false, nullptr},
     {"xml-pi-xml", "<?XmL data?>", false, nullptr},
     {"xml-pi-colon", "<?p:x data?>", false, nullptr},
     {"xml-cdata", "<a><![CDATA[a<b]]></a>", true, nullptr},

@@ -393,9 +393,9 @@ inline bool run(const lolcode::LolcodeCoreServices& services) {
     validated.dispose();
   }
 
-  // A raw label does not pass through the expression AST's double member.
-  // These distinct int64 spellings must never become duplicate labels merely
-  // because the ordinary NUMBER converter rounds them to the same double.
+  // Switch labels and ordinary numeric expressions both preserve raw text.
+  // Distinct int64 spellings must never become duplicate labels through an
+  // approximate numeric comparison.
   const std::string precise =
       "HAI 1.2\nWTF?\nOMG 9007199254740992\nOMG 9007199254740993\nOIC\nKTHXBYE\n";
   const auto parsed = services.parser->parse(precise);

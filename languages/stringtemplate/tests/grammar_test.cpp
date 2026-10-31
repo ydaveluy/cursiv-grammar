@@ -1,5 +1,6 @@
 #include "audit_regressions.hpp"
 #include "native_cases.hpp"
+#include "builtin_cases.hpp"
 // The grammar itself: the upstream corpus parses clean, a hand-written
 // document exercises every construct the language accepts, and a few field
 // values are read back out of the tree.
@@ -40,6 +41,7 @@ int main() {
       stringtemplate::install_core_module>();
 
   if(native_regressions::run(language)) return 1;
+  if (!stringtemplate_builtins::run(language.language)) return 1;
 
   // The upstream corpus: one file, `<title>`.
   const std::string corpus = read_file(CURSIV_EXAMPLE_DIR "/example1.st");

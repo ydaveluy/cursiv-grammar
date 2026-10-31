@@ -13,6 +13,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "vmf/core/CoreServices.hpp"
 #include "vmf/core/ast.hpp"
+#include "physical_line_cases.hpp"
 
 namespace {
 
@@ -27,6 +28,7 @@ int main() {
       vmf::VmfCoreServices, vmf::VmfSharedCoreServices,
       vmf::install_core_module>();
   if (!audit_regressions::run(language.language, *language.shared)) return 1;
+  if (!physical_line_cases::run(language.language)) return 1;
 
   int total = 0;
   int failures = 0;

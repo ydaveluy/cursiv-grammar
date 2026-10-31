@@ -128,8 +128,7 @@ struct Basic : cursiv::GrammarSpec {
             assign<&ast::NumberLit::value>(ref<NUMBER> | ref<FLOAT>))> {};
 
   struct StringLit
-      : rule<create<ast::StringLit>(
-            assign<&ast::StringLit::value>(ref<STRINGLITERAL>))> {};
+      : rule<assign<&ast::StringLit::value>(ref<STRINGLITERAL>)> {};
 
   struct FuncCall
       : rule<create<ast::FuncCall>(
@@ -428,8 +427,7 @@ struct Basic : cursiv::GrammarSpec {
              ref<ArgStmt> | ref<SimpleStmt>> {};
 
   struct CommentItem
-      : rule<create<ast::StmtItem>(
-            assign<&ast::StmtItem::stmt>(ref<CommentStmt>))> {};
+      : rule<assign<&ast::StmtItem::stmt>(ref<CommentStmt>)> {};
 
   struct AmprStmt
       : rule<create<ast::StmtItem>(

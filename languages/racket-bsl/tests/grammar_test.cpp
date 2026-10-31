@@ -1,4 +1,5 @@
 #include <filesystem>
+#include "reader_boundaries.hpp"
 #include <memory>
 #include <string>
 
@@ -331,6 +332,12 @@ void line_comment_boundaries() {
 }
 } // namespace
 int main() {
+  {
+    auto language = cursiv::create_language<racketbsl::RacketBslCoreServices,
+        racketbsl::RacketBslSharedCoreServices, racketbsl::install_core_module>();
+    racketbsl_reader_boundaries::run(language.language);
+  }
+
   native_reader_rejections();
   line_comment_boundaries();
   character_boundaries();

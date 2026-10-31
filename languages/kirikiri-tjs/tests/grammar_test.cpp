@@ -17,6 +17,8 @@
 #include "kirikiritjs/core/ast.hpp"
 #include "cursiv/test/ValidationHelper.hpp"
 #include "cursiv/test/ValidationResult.hpp"
+#include "lexical_cases.hpp"
+#include "octet_regexp_cases.hpp"
 
 namespace {
 
@@ -84,6 +86,10 @@ int main() {
       cursiv::create_language<kirikiritjs::KirikiriTjsCoreServices,
                               kirikiritjs::KirikiriTjsSharedCoreServices,
                               kirikiritjs::install_core_module>();
+  if (!tjs_lexical_cases::run(*language.language.parser))
+    return fail("native lexical contract failed");
+  if (!tjs_octet_regexp_cases::run(language.language))
+    return fail("native octet/regexp lexical contract failed");
 
   for (const auto source : {"var x:int=1; function f(a:real=2,rest:string*):void{return;} ", "try f(); catch(e) g();", "property p{getter:int{return 1;} setter(v:int){x=v;}}", "var ́wide=1;", "var v=global; var n=NaN; var i=Infinity;", "#! /usr/bin/tjs\nvar x=1;", "var x=$65;", "switch(x){var y=1;case 1:y=2;}", "var x=(int)-a;", "var x=0x.8p2; var y=0b1.p+ 2; var z=1e+ 3;"}) {
     const auto r = language.language.parser->parse(source);

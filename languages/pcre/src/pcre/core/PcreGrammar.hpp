@@ -59,11 +59,37 @@ inline constexpr auto class_set_operator = [](std::string_view text) {
   return text.substr(0, 1);
 };
 
+// Build expression types without ADL completing their referenced rule
+// templates. Explicit return types also avoid deduction inside an incomplete
+// enclosing grammar class. These are the ordinary DSL operators, in order.
+template <class A, class B>
+constexpr auto sequence_fragment(A a, B b) -> decltype(cursiv::operator+(a, b)) {
+  return cursiv::operator+(a, b);
+}
+template <class A, class B, class C>
+constexpr auto sequence_fragment(A a, B b, C c)
+    -> decltype(cursiv::operator+(cursiv::operator+(a, b), c)) {
+  return cursiv::operator+(cursiv::operator+(a, b), c);
+}
+template <class A, class B>
+constexpr auto choice_fragment(A a, B b) -> decltype(cursiv::operator|(a, b)) {
+  return cursiv::operator|(a, b);
+}
+template <class A, class B, class C>
+constexpr auto choice_fragment(A a, B b, C c)
+    -> decltype(cursiv::operator|(cursiv::operator|(a, b), c)) {
+  return cursiv::operator|(cursiv::operator|(a, b), c);
+}
+
 struct Pcre : cursiv::GrammarSpec {
   struct Alternation;
-  struct Atom;
-  struct Group;
   struct CharacterClass;
+  template <unsigned Mode, unsigned Newline> struct ModeAtom;
+  template <unsigned Mode, unsigned Newline> struct ModeGroup;
+  template <unsigned Mode, unsigned Newline> struct ModeAlternation;
+  template <unsigned First, unsigned Last, unsigned Newline> struct ModeSequence;
+  template <unsigned Mode, unsigned Newline> struct SequenceFrom;
+  template <unsigned From, unsigned To, unsigned Newline> struct ModeTransition;
 
   static constexpr auto Digit = cr<"0-9">;
   static constexpr auto Hex = cr<"0-9a-fA-F">;
@@ -71,7 +97,78 @@ struct Pcre : cursiv::GrammarSpec {
   static constexpr auto Name = some(uc::L | uc::Nd | lit<"_">);
   struct NameTerm : terminal<Name> {};
   struct DigitsTerm : terminal<as<std::int64_t>(some(Digit))> {};
-  struct FlagTerm : terminal<some(cr<"aimnrsxJUDPTSW">)> {};
+  static constexpr auto FlagUnit = cr<"imnrsxJU"> | (lit<"a"> + option(cr<"DPSTW">));
+  struct FlagTerm : terminal<some(FlagUnit)> {};
+
+  // PCRE2's parse-time lexical modes: normal, x, xx. A standalone option
+  // persists across alternatives, whereas closing a group restores its mode.
+  // Conditions inspect only the option header; parsed flag fields stay raw.
+  static constexpr auto FlagChar = cr<"aimnrsxJUDPSTW">;
+  static constexpr auto FlagOnX = option(lit<"^">) + many(FlagChar) + lit<"x">;
+  static constexpr auto FlagOnXX = option(lit<"^">) + many(FlagChar) + lit<"xx">;
+  static constexpr auto FlagOffX =
+      option(lit<"^">) + many(FlagChar) + lit<"-"> + many(FlagChar) + lit<"x">;
+  template <unsigned From, unsigned To, auto End>
+  static constexpr auto option_mode = [] {
+    constexpr auto shape = ((lit<"^"> + many(FlagChar)) |
+        (many(FlagChar) + option(lit<"-"> + many(FlagChar)))) + End;
+    constexpr auto unchanged = !FlagOffX + !FlagOnX + !lit<"^">;
+    constexpr auto changed = [] {
+      if constexpr (To == 0) return &FlagOffX | (!FlagOnX + &lit<"^">);
+      else if constexpr (To == 1) return !FlagOffX + !FlagOnXX + &FlagOnX;
+      else return !FlagOffX + &FlagOnXX;
+    }();
+    if constexpr (From == To) return &shape + (changed | unchanged);
+    else return &shape + changed;
+  }();
+
+  // Six effective newline conventions; LF is the default. Only the final
+  // leading newline setting matters. These are lexical prefix tests, not an
+  // input scanner or a mutable parser state.
+  template <unsigned N> static constexpr auto newline = [] {
+    if constexpr (N == 0) return lit<"\n">;
+    else if constexpr (N == 1) return lit<"\r">;
+    else if constexpr (N == 2) return lit<"\r\n">;
+    else if constexpr (N == 3) return eol;
+    else if constexpr (N == 4) return eol | cr<R"(\v\f\u0085\u2028\u2029)">;
+    else return lit<"\0">;
+  }();
+  struct PatternSpaceTerm
+      : terminal<some(cr<R"(\x09-\x0d \u0085\u200e\u200f\u2028\u2029)">)> {};
+  template <unsigned N> struct HashCommentTerm
+      : terminal<lit<"#"> + many(!newline<N> + any) + option(newline<N>)> {};
+  template <unsigned N> static constexpr auto padding =
+      many(ref<PatternSpaceTerm> | ref<HashCommentTerm<N>>);
+  struct ExtendedPlainCharTerm
+      : terminal<cr<R"(^\\.^$()[?*+{|#\x09-\x0d \u0085\u200e\u200f\u2028\u2029)">> {};
+
+  // Paths through a three-state graph, written as EBNF in the caller's
+  // construction context. Edges consume input. Eliminate the third state,
+  // then use the two-state paths; no recursive AST tail or flattening pass.
+  template <unsigned First, unsigned Last, class Edges>
+  static constexpr auto mode_path = [] {
+    constexpr unsigned other = First == Last ? (First + 1) % 3 : Last;
+    constexpr unsigned via = 3 - First - other;
+    constexpr auto stay_first = ::pcre::choice_fragment(Edges::template edge<First, First>,
+        ::pcre::sequence_fragment(Edges::template edge<First, via>, many(Edges::template edge<via, via>),
+             Edges::template edge<via, First>));
+    constexpr auto stay_other = ::pcre::choice_fragment(Edges::template edge<other, other>,
+        ::pcre::sequence_fragment(Edges::template edge<other, via>, many(Edges::template edge<via, via>),
+             Edges::template edge<via, other>));
+    constexpr auto outward = ::pcre::choice_fragment(Edges::template edge<First, other>,
+        ::pcre::sequence_fragment(Edges::template edge<First, via>, many(Edges::template edge<via, via>),
+             Edges::template edge<via, other>));
+    constexpr auto inward = ::pcre::choice_fragment(Edges::template edge<other, First>,
+        ::pcre::sequence_fragment(Edges::template edge<other, via>, many(Edges::template edge<via, via>),
+             Edges::template edge<via, First>));
+    if constexpr (First == Last)
+      return many(::pcre::choice_fragment(stay_first,
+          ::pcre::sequence_fragment(outward, many(stay_other), inward)));
+    else
+      return ::pcre::sequence_fragment(many(stay_first), outward,
+          many(::pcre::choice_fragment(stay_other,
+              ::pcre::sequence_fragment(inward, many(stay_first), outward))));
+  }();
 
   struct CommentTerm
       : terminal<as<comment_text>(lit<"(?#"> + many(cr<"^)">) + lit<")">)> {};
@@ -105,6 +202,10 @@ struct Pcre : cursiv::GrammarSpec {
   struct LiteralAtom
       : rule<assign<&ast::Literal::text>(ref<EscapeLiteralTerm> |
                                          ref<PlainCharTerm>) |
+             (!CountShape + assign<&ast::Literal::text>(lit<"{">))> {};
+  struct ExtendedLiteralAtom
+      : rule<assign<&ast::Literal::text>(ref<EscapeLiteralTerm> |
+                                       ref<ExtendedPlainCharTerm>) |
              (!CountShape + assign<&ast::Literal::text>(lit<"{">))> {};
 
   static constexpr auto TypeEscape =
@@ -245,24 +346,73 @@ struct Pcre : cursiv::GrammarSpec {
         lit<"}"> + QuantifierSuffix));
   static constexpr auto Quantifier =
       option(nest<ast::Quantified, &ast::Quantified::operand>(QuantifierBody));
-  struct Element : rule<ref<Atom> + Quantifier> {};
-  struct QuotedEnd : rule<ref<QuotedChar> + QuoteStop + Quantifier> {};
-  static constexpr auto Quoted =
+  template <unsigned Mode, unsigned N> static constexpr auto mode_quantifier = [] {
+    if constexpr (Mode == 0) return Quantifier;
+    else {
+      constexpr auto annotations = many(
+          append<&ast::Quantified::annotations>(Annotation) + padding<N>);
+      constexpr auto suffix = option(annotations +
+          assign<&ast::Quantified::mode>(
+              as<ast::QuantifierMode::possessive>(lit<"+">) |
+              as<ast::QuantifierMode::lazy>(lit<"?">)));
+      return option(nest<ast::Quantified, &ast::Quantified::operand>(
+          padding<N> + annotations +
+          ((assign<&ast::Quantified::kind>(
+                as<ast::QuantifierKind::optional>(lit<"?">) |
+                as<ast::QuantifierKind::star>(lit<"*">) |
+                as<ast::QuantifierKind::plus>(lit<"+">)) + padding<N> + suffix) |
+           (assign<&ast::Quantified::kind>(as<ast::QuantifierKind::range>(lit<"{">)) +
+            Space + ((assign<&ast::Quantified::from>(ref<DigitsTerm>) + Space +
+                      option(flag<&ast::Quantified::hasComma>(lit<",">) + Space +
+                             option(assign<&ast::Quantified::to>(ref<DigitsTerm>)) +
+                             Space)) |
+                     (flag<&ast::Quantified::hasComma>(lit<",">) + Space +
+                      assign<&ast::Quantified::to>(ref<DigitsTerm>) + Space)) +
+            lit<"}"> + padding<N> + suffix))));
+    }
+  }();
+  template <unsigned Mode, unsigned N> struct ModeElement
+      : rule<ref<ModeAtom<Mode, N>> + mode_quantifier<Mode, N>> {};
+  template <unsigned Mode, unsigned N> struct QuotedEnd
+      : rule<ref<QuotedChar> + QuoteStop + mode_quantifier<Mode, N>> {};
+  template <unsigned Mode, unsigned N> static constexpr auto mode_quoted =
       lit<"\\Q"> +
       ((many(append<&ast::Sequence::items>(ref<QuotedChar> + !QuoteStop)) +
-        append<&ast::Sequence::items>(ref<QuotedEnd>)) |
+        append<&ast::Sequence::items>(ref<QuotedEnd<Mode, N>>)) |
        QuoteStop);
-  struct Sequence : rule<create<ast::Sequence> +
-                         many(Quoted | append<&ast::Sequence::items>(
-                                           ref<Element> | Annotation))> {};
-  struct Alternation : rule<create<ast::Alternation> +
-                            append<&ast::Alternation::branches>(ref<Sequence>) +
-                            many(lit<"|"> + append<&ast::Alternation::branches>(
-                                                ref<Sequence>))> {};
+  template <unsigned N> struct SequenceEdges {
+    template <unsigned From, unsigned To> static constexpr auto edge = [] {
+      constexpr auto change = append<&ast::Sequence::items>(ref<ModeTransition<From, To, N>>);
+      if constexpr (From != To) return change;
+      else {
+        constexpr auto item = ::pcre::choice_fragment(mode_quoted<From, N>,
+            append<&ast::Sequence::items>(::pcre::choice_fragment(ref<ModeElement<From, N>>, Annotation)), change);
+        if constexpr (From == 0) return item;
+        else return ::pcre::choice_fragment(item, ref<PatternSpaceTerm>, ref<HashCommentTerm<N>>);
+      }
+    }();
+  };
+  template <unsigned First, unsigned Last, unsigned N> struct ModeSequence
+      : rule<create<ast::Sequence> + mode_path<First, Last, SequenceEdges<N>>> {};
+  template <unsigned Mode, unsigned N> struct SequenceFrom
+      : rule<ref<ModeSequence<Mode, 0, N>> | ref<ModeSequence<Mode, 1, N>> |
+             ref<ModeSequence<Mode, 2, N>>> {};
+  template <unsigned N> struct AlternationEdges {
+    template <unsigned From, unsigned To> static constexpr auto edge =
+        ::pcre::sequence_fragment(append<&ast::Alternation::branches>(ref<ModeSequence<From, To, N>>), lit<"|">);
+  };
+  template <unsigned Mode, unsigned N> struct ModeAlternation
+      : rule<create<ast::Alternation> +
+             ((mode_path<Mode, 0, AlternationEdges<N>> +
+               append<&ast::Alternation::branches>(ref<SequenceFrom<0, N>>)) |
+              (mode_path<Mode, 1, AlternationEdges<N>> +
+               append<&ast::Alternation::branches>(ref<SequenceFrom<1, N>>)) |
+              (mode_path<Mode, 2, AlternationEdges<N>> +
+               append<&ast::Alternation::branches>(ref<SequenceFrom<2, N>>)))> {};
+  struct Alternation : rule<ref<ModeAlternation<0, 0>>> {};
 
-  struct Group
-      : rule<create<ast::Group> +
-             ((lit<"(?"> +
+  static constexpr auto GroupHead =
+             (lit<"(?"> +
                (assign<&ast::Group::kind>(as<ast::GroupKind::lookbehind>(lit<"<=">) |
                                           as<ast::GroupKind::neg_lookbehind>(lit<"<!">) |
                                           as<ast::GroupKind::non_atomic_lookbehind>(lit<"<*">)) |
@@ -274,18 +424,25 @@ struct Pcre : cursiv::GrammarSpec {
                  assign<&ast::Group::name>(ref<NameTerm>) + lit<">">) |
                 assign<&ast::Group::kind>(as<ast::GroupKind::lookahead>(lit<"=">) | as<ast::GroupKind::neg_lookahead>(lit<"!">) |
                                           as<ast::GroupKind::non_atomic_lookahead>(lit<"*">) |
-                                          as<ast::GroupKind::atomic>(lit<">">) | as<ast::GroupKind::alt_group>(lit<"|">)) |
-                (option(flag<&ast::Group::resetFlags>(lit<"^">)) +
-                 option(assign<&ast::Group::onFlags>(ref<FlagTerm>)) +
-                 option(lit<"-"> +
-                        option(assign<&ast::Group::offFlags>(ref<FlagTerm>))) +
-                 assign<&ast::Group::kind>(as<ast::GroupKind::non_capturing>(lit<":">))))) |
+                                          as<ast::GroupKind::atomic>(lit<">">) | as<ast::GroupKind::alt_group>(lit<"|">)))) |
               (lit<"(*"> +
                assign<&ast::Group::kind>(
                    as<ast::GroupKind::lookahead>(lit<"pla:"> | lit<"positive_lookahead:">) | as<ast::GroupKind::lookbehind>(lit<"plb:"> | lit<"positive_lookbehind:">) | as<ast::GroupKind::neg_lookahead>(lit<"nla:"> | lit<"negative_lookahead:">) |
                    as<ast::GroupKind::neg_lookbehind>(lit<"nlb:"> | lit<"negative_lookbehind:">) | as<ast::GroupKind::non_atomic_lookahead>(lit<"napla:"> | lit<"non_atomic_positive_lookahead:">) |
                    as<ast::GroupKind::non_atomic_lookbehind>(lit<"naplb:"> | lit<"non_atomic_positive_lookbehind:">) | as<ast::GroupKind::atomic>(lit<"atomic:">))) |
-              lit<"(">)+assign<&ast::Group::body>(ref<Alternation>) +
+              lit<"(">;
+  template <unsigned From, unsigned To> static constexpr auto ScopedGroupHead =
+      lit<"(?", option_mode<From, To, lit<":">>> +
+      option(flag<&ast::Group::resetFlags>(lit<"^">)) +
+      option(assign<&ast::Group::onFlags>(ref<FlagTerm>)) +
+      option(lit<"-"> + option(assign<&ast::Group::offFlags>(ref<FlagTerm>))) +
+      assign<&ast::Group::kind>(as<ast::GroupKind::non_capturing>(lit<":">));
+  template <unsigned Mode, unsigned N> struct ModeGroup
+      : rule<create<ast::Group> +
+             ((GroupHead + assign<&ast::Group::body>(ref<ModeAlternation<Mode, N>>)) |
+              (ScopedGroupHead<Mode, 0> + assign<&ast::Group::body>(ref<ModeAlternation<0, N>>)) |
+              (ScopedGroupHead<Mode, 1> + assign<&ast::Group::body>(ref<ModeAlternation<1, N>>)) |
+              (ScopedGroupHead<Mode, 2> + assign<&ast::Group::body>(ref<ModeAlternation<2, N>>))) +
              lit<")">> {};
 
   struct Backreference
@@ -333,17 +490,20 @@ struct Pcre : cursiv::GrammarSpec {
                  (lit<"<"> + Name + lit<">">) | (lit<"'"> + Name + lit<"'">) |
                  (lit<"R"> + many(Digit)) | (lit<"R&"> + Name) | Name> {
   };
-  struct ConditionalPattern
+  template <unsigned Mode, unsigned N, unsigned End>
+  static constexpr auto conditional_branches =
+      assign<&ast::ConditionalPattern::thenBranch>(ref<ModeSequence<Mode, End, N>>) +
+      option(lit<"|"> + assign<&ast::ConditionalPattern::elseBranch>(ref<SequenceFrom<End, N>>));
+  template <unsigned Mode, unsigned N> struct ModeConditionalPattern
       : rule<create<ast::ConditionalPattern> + lit<"(?"> +
              ((lit<"("> +
                assign<&ast::ConditionalPattern::conditionText>(
                    ref<ConditionTerm>) +
                lit<")">) |
               assign<&ast::ConditionalPattern::conditionNode>(ref<Callout> |
-                                                              ref<Group>)) +
-             assign<&ast::ConditionalPattern::thenBranch>(ref<Sequence>) +
-             option(lit<"|"> + assign<&ast::ConditionalPattern::elseBranch>(
-                                   ref<Sequence>)) +
+                                                              ref<ModeGroup<Mode, N>>)) +
+             (conditional_branches<Mode, N, 0> | conditional_branches<Mode, N, 1> |
+              conditional_branches<Mode, N, 2>) +
              lit<")">> {};
 
   static constexpr auto StarOptions =
@@ -359,15 +519,30 @@ struct Pcre : cursiv::GrammarSpec {
   struct FlagOption
       : rule<as<std::string_view>(
             (lit<"^"> + option(ref<FlagTerm>)) |
-            (ref<FlagTerm> + option(lit<"-"> + option(ref<FlagTerm>))) |
-            (lit<"-"> + option(ref<FlagTerm>)))> {};
+            (option(ref<FlagTerm>) + option(lit<"-"> + option(ref<FlagTerm>))))> {};
   struct OptionSetting
-      : rule<create<ast::OptionSetting> +
-             ((lit<"(*"> +
-               assign<&ast::OptionSetting::text>(ref<StarOptionTerm>)) |
-              (lit<"(?"> +
-               assign<&ast::OptionSetting::text>(ref<FlagOption>))) +
+      : rule<lit<"(*"> + assign<&ast::OptionSetting::text>(ref<StarOptionTerm>) +
              lit<")">> {};
+  template <unsigned From, unsigned To> struct ModeSetting
+      : rule<lit<"(?", option_mode<From, To, lit<")">>> +
+             assign<&ast::OptionSetting::text>(ref<FlagOption>) + lit<")">> {};
+  template <unsigned From, unsigned To, unsigned N> struct ModeTransition
+      : rule<ref<ModeSetting<From, To>> + mode_quantifier<To, N>> {};
+
+  template <unsigned N> static constexpr auto newline_name = [] {
+    if constexpr (N == 0) return lit<"LF">;
+    else if constexpr (N == 1) return lit<"CR">;
+    else if constexpr (N == 2) return lit<"CRLF">;
+    else if constexpr (N == 3) return lit<"ANYCRLF">;
+    else if constexpr (N == 4) return lit<"ANY">;
+    else return lit<"NUL">;
+  }();
+  static constexpr auto NewlineNames = lit<"LF"> | lit<"CR"> | lit<"CRLF"> |
+      lit<"ANYCRLF"> | lit<"ANY"> | lit<"NUL">;
+  template <unsigned N> static constexpr auto leading_newline =
+      many(StarOptions + lit<")(*">) + newline_name<N> + lit<")"> +
+      many(lit<"(*"> + !(NewlineNames + lit<")">) + StarOptions + lit<")">) +
+      !(lit<"(*"> + StarOptions + lit<")">);
   struct VerbTerm
       : terminal<lit<"ACCEPT"> | lit<"F"> | lit<"FAIL"> | lit<"MARK"> |
                  lit<"COMMIT"> | lit<"PRUNE"> | lit<"SKIP"> | lit<"THEN">> {};
@@ -399,15 +574,30 @@ struct Pcre : cursiv::GrammarSpec {
                             ref<CalloutText<lit<"{">, lit<"}">>>))) +
              lit<")">> {};
 
-  struct Atom
+  template <unsigned Mode> static constexpr auto mode_class = [] {
+    if constexpr (Mode == 2) return ref<ExtendedOrdinaryClass>;
+    else return ref<CharacterClass>;
+  }();
+  template <unsigned Mode> static constexpr auto mode_literal = [] {
+    if constexpr (Mode == 0) return ref<LiteralAtom>;
+    else return ref<ExtendedLiteralAtom>;
+  }();
+  template <unsigned Mode, unsigned N> struct ModeAtom
       : rule<ref<OptionSetting> | ref<BacktrackingControl> |
-             ref<Callout> | ref<Group> | ref<Backreference> |
+             ref<Callout> | ref<ModeGroup<Mode, N>> | ref<Backreference> |
              ref<AmbiguousNumber> | ref<SubroutineReference> |
-             ref<ConditionalPattern> | ref<CharacterType> |
-             ref<ExtendedCharacterClass> | ref<CharacterClass> |
-             ref<Anchor> | ref<MatchPointReset> | ref<LiteralAtom>> {};
+             ref<ModeConditionalPattern<Mode, N>> | ref<CharacterType> |
+             ref<ExtendedCharacterClass> | mode_class<Mode> |
+             ref<Anchor> | ref<MatchPointReset> | mode_literal<Mode>> {};
   struct PcreRule : rule<create<ast::Pcre> +
-                         assign<&ast::Pcre::pattern>(ref<Alternation>)> {};
+      ((&lit<"(*", leading_newline<1>> + assign<&ast::Pcre::pattern>(ref<ModeAlternation<0, 1>>)) |
+       (&lit<"(*", leading_newline<2>> + assign<&ast::Pcre::pattern>(ref<ModeAlternation<0, 2>>)) |
+       (&lit<"(*", leading_newline<3>> + assign<&ast::Pcre::pattern>(ref<ModeAlternation<0, 3>>)) |
+       (&lit<"(*", leading_newline<4>> + assign<&ast::Pcre::pattern>(ref<ModeAlternation<0, 4>>)) |
+       (&lit<"(*", leading_newline<5>> + assign<&ast::Pcre::pattern>(ref<ModeAlternation<0, 5>>)) |
+       (!lit<"(*", (leading_newline<1> | leading_newline<2> | leading_newline<3> |
+                    leading_newline<4> | leading_newline<5>)> +
+        assign<&ast::Pcre::pattern>(ref<Alternation>)))> {};
   using entry = PcreRule;
 };
 

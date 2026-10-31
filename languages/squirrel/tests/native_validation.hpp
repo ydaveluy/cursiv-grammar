@@ -27,5 +27,53 @@ inline bool squirrel_native_validation() {
                                     *diagnostic.code == "squirrel.parameter-varargs");
     if (!found) { std::fprintf(stderr, "squirrel: missing native parameter diagnostic: %s\n", source); return false; }
   }
+  struct Case { const char* source; const char* code; };
+  for (const auto& c : {
+           Case{"local x=rawcall();", "squirrel.rawcall-arity"},
+           Case{"local x=rawcall(f);", "squirrel.rawcall-arity"},
+           Case{"class 1 {}", "squirrel.class-target"},
+           Case{"class this {}", "squirrel.class-target"},
+           Case{"class (C) {}", "squirrel.class-target"},
+           Case{"class f() extends B {}", "squirrel.class-target"},
+           Case{"class base.field {}", "squirrel.class-target"},
+           Case{"class base[0] {}", "squirrel.class-target"},
+           Case{"class C {function ns::f(){}}", "squirrel.member-name"},
+           Case{"local t={function ns::f(){}};", "squirrel.member-name"},
+           Case{"local function ns::f(){}", "squirrel.local-function-name"}}) {
+    const auto document = language.shared->documentFactory->fromString(
+        c.source, "file:///squirrel-native/" + std::to_string(index++) + ".nut");
+    language.shared->documents->addDocument(document);
+    cursiv::Document* one = document.get();
+    language.shared->documentBuilder->build(std::span<cursiv::Document* const>(&one, 1));
+    if (!document->parseResult.accepted || document->parseResult.cst().recovered() ||
+        !document->parseResult.diagnostics.empty()) {
+      std::fprintf(stderr, "squirrel: semantic error should retain its AST: %s\n", c.source);
+      return false;
+    }
+    bool found = false;
+    for (const auto& d : document->diagnostics)
+      found |= d.code && *d.code == c.code;
+    if (!found) {
+      std::fprintf(stderr, "squirrel: missing %s: %s\n", c.code, c.source);
+      return false;
+    }
+  }
+  for (const char* source : {"local constructor=1;",
+                             "function f(constructor){return this;}",
+                             "local x=rawcall(f,this);",
+                             "class slots[\"C\"] extends (chooseBase()) {}",
+                             "class ::ns.C extends bases[i] {}",
+                             "class C extends 1 {}"}) {
+    const auto document = language.shared->documentFactory->fromString(
+        source, "file:///squirrel-native/" + std::to_string(index++) + ".nut");
+    language.shared->documents->addDocument(document);
+    cursiv::Document* one = document.get();
+    language.shared->documentBuilder->build(std::span<cursiv::Document* const>(&one, 1));
+    if (!document->parseResult.accepted || document->parseResult.cst().recovered() ||
+        !document->diagnostics.empty()) {
+      std::fprintf(stderr, "squirrel: native-valid local control diagnosed: %s\n", source);
+      return false;
+    }
+  }
   return true;
 }

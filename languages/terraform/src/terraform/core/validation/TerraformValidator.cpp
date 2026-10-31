@@ -10,7 +10,7 @@
 namespace terraform {
 namespace {
 // Inline-comment newlines are whitespace in HCL; line comments end a line.
-bool separator(std::string_view text, bool comma = false) {
+bool separator(std::string_view text, bool comma = false, char stop = '\0') {
   for (std::size_t i = 0; i < text.size(); ++i) {
     if (text.substr(i).starts_with("/*")) {
       const auto end = text.find("*/", i + 2);
@@ -18,9 +18,39 @@ bool separator(std::string_view text, bool comma = false) {
       i = end + 1;
     } else if (text[i] == '#' || text.substr(i).starts_with("//")) {
       return text.find('\n', i) != text.npos;
-    } else if (text[i] == '\n' || (comma && text[i] == ',')) return true;
+    } else if (stop != '\0' && text[i] == stop) return false;
+    else if (text[i] == '\n' || (comma && text[i] == ',')) return true;
   }
   return false;
+}
+// Match the parser's nearest newline scope, rather than treating every
+// ancestor pair of brackets as if it suspended object-element separators.
+bool newlines_active(const cursiv::AstNode& node) {
+  const auto* child = &node;
+  for (const auto* parent = child->parent; parent;
+       child = parent, parent = parent->parent) {
+    if (cursiv::ast_cast<ast::MapObj>(parent)) return true;
+    if (cursiv::ast_cast<ast::ParenthesizedExpr>(parent) ||
+        cursiv::ast_cast<ast::List>(parent) ||
+        cursiv::ast_cast<ast::FuncCall>(parent) ||
+        cursiv::ast_cast<ast::ForLoop>(parent) ||
+        cursiv::ast_cast<ast::Interpolation>(parent) ||
+        cursiv::ast_cast<ast::TemplateDirective>(parent)) return false;
+    if (const auto* index = cursiv::ast_cast<ast::IndexExpr>(parent);
+        index && index->index == child) return false;
+  }
+  return true;
+}
+void check_gap(const cursiv::AstNode& owner, cursiv::TextOffset from,
+               cursiv::TextOffset to, cursiv::ValidationAcceptor& accept,
+               char stop = '\0') {
+  const auto* document = owner.getDocument();
+  if (!document) return;
+  const auto source = document->textDocument().getText();
+  if (from <= to && to <= source.size() &&
+      separator(source.substr(from, to - from), false, stop))
+    accept.error(owner, "A newline ends this expression outside its grouping delimiters.",
+                 "terraform.expression-newline");
 }
 template<class Items>
 void separated(const Items& items, const cursiv::AstNode& owner,
@@ -98,6 +128,55 @@ void TerraformValidator::checkUnary(const ast::UnaryExpr& n,
                                     cursiv::ValidationAcceptor& a) const {
   if (n.op == ast::UnaryOp::positive)
     a.error(n, "HCL has no unary plus operator");
+  if (n.operand && newlines_active(n))
+    check_gap(n, a.spanOf(n).begin, a.spanOf(*n.operand).begin, a);
+}
+void TerraformValidator::checkBinary(const ast::BinaryExpr& n,
+                                     cursiv::ValidationAcceptor& a) const {
+  if (n.left && n.right && newlines_active(n))
+    check_gap(n, a.spanOf(*n.left).end, a.spanOf(*n.right).begin, a);
+}
+void TerraformValidator::checkConditional(const ast::TernaryExpr& n,
+                                          cursiv::ValidationAcceptor& a) const {
+  if (!newlines_active(n)) return;
+  if (n.cond && n.thenValue)
+    check_gap(n, a.spanOf(*n.cond).end, a.spanOf(*n.thenValue).begin, a);
+  if (n.thenValue && n.elseValue)
+    check_gap(n, a.spanOf(*n.thenValue).end, a.spanOf(*n.elseValue).begin, a);
+}
+void TerraformValidator::checkMember(const ast::MemberExpr& n,
+                                     cursiv::ValidationAcceptor& a) const {
+  if (n.object && newlines_active(n))
+    check_gap(n, a.spanOf(*n.object).end, a.spanOf(n).end, a);
+}
+void TerraformValidator::checkIndex(const ast::IndexExpr& n,
+                                    cursiv::ValidationAcceptor& a) const {
+  if (n.object && n.index && newlines_active(n))
+    // A bracket's interior suspends newlines. Legacy `.0` does not.
+    check_gap(n, a.spanOf(*n.object).end, a.spanOf(*n.index).begin, a, '[');
+}
+void TerraformValidator::checkSplat(const ast::SplatExpr& n,
+                                    cursiv::ValidationAcceptor& a) const {
+  if (n.source && newlines_active(n))
+    // Full-splat [*] markers inherit the caller's scope; normal [expr]
+    // indices instead suspend newlines in their key expression.
+    check_gap(n, a.spanOf(*n.source).end, a.spanOf(n).end, a,
+              n.legacy ? '*' : ']');
+}
+void TerraformValidator::checkCall(const ast::FuncCall& n,
+                                   cursiv::ValidationAcceptor& a) const {
+  if (!newlines_active(n)) return;
+  if (const auto open = a.keywordSpan(n, "(", 0))
+    check_gap(n, a.spanOf(n).begin, open->begin, a);
+}
+void TerraformValidator::checkArgument(const ast::Argument& n,
+                                       cursiv::ValidationAcceptor& a) const {
+  if (n.value) check_gap(n, a.spanOf(n).begin, a.spanOf(*n.value).begin, a);
+}
+void TerraformValidator::checkEntry(const ast::MapEntry& n,
+                                    cursiv::ValidationAcceptor& a) const {
+  if (n.key && n.value)
+    check_gap(n, a.spanOf(*n.key).end, a.spanOf(*n.value).begin, a);
 }
 void TerraformValidator::checkTemplate(const ast::StringLit& n,
                                        cursiv::ValidationAcceptor& a) const {
@@ -167,6 +246,14 @@ void register_validation_checks(TerraformCoreServices& services) {
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkBlock>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkFor>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkUnary>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkBinary>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkConditional>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkMember>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkIndex>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkSplat>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkCall>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkArgument>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkEntry>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkTemplate>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkText>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkMap>(v)});

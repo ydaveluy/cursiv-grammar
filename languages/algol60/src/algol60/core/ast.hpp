@@ -68,10 +68,13 @@ struct CallExpr : cursiv::Extends<Expr> {
   vector<Expr*> args;
 };
 
-struct StmtEntry : cursiv::Extends<cursiv::AstNode> {
+// Labels can prefix list entries and the single statement of an if/for.
+struct StmtEntry : cursiv::Extends<Stmt> {
   vector<string_view> labels;
   Stmt* stmt = nullptr;
 };
+
+struct EmptyStmt : cursiv::Extends<Stmt> {};
 
 struct AssignStmt : cursiv::Extends<Stmt> {
   vector<Expr*> targets;  // NameRef or IndexExpr

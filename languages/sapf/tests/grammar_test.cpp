@@ -1,4 +1,5 @@
 #include "native_regressions.hpp"
+#include "binding_cases.hpp"
 // The grammar's smoke test: every document under example/ parses clean (no
 // repair) and builds a File root.
 
@@ -36,6 +37,7 @@ int main() {
       sapf::install_core_module>();
 
   if (!sapf_native_regressions(language)) return 1;
+  if (!sapf_bindings::run(language.language)) return 1;
 
   for (const char* const path : kExamples) {
     std::ifstream file(path);

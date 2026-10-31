@@ -83,6 +83,12 @@ struct BinaryExpr : cursiv::Extends<Expr> {
   Expr* right = nullptr;
 };
 
+struct ConditionalExpr : cursiv::Extends<Expr> {
+  Expr* condition;
+  Expr* consequent;
+  Expr* alternate;
+};
+
 struct FuncCall : cursiv::Extends<Expr> {
   string_view name;
   vector<Expr*> args;
@@ -117,6 +123,12 @@ struct WhileStmt : cursiv::Extends<Statement> {
 struct DoStmt : cursiv::Extends<Statement> {
   vector<Statement*> body;
   Expr* cond = nullptr;
+};
+
+struct ForkStmt : cursiv::Extends<Statement> {
+  string_view name;
+  Expr* delay;
+  vector<Statement*> body;
 };
 
 struct ForStmt : cursiv::Extends<Statement> {

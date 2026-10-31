@@ -307,6 +307,7 @@ struct RemoveOp : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct UpsertOp : cursiv::Extends<cursiv::AstNode> {
+  boolean isFilter;  // true for UPSERT FILTER expression, false for object/bind
   Expr* search;
   Expr* insert_;
   boolean isUpdate;  // UPDATE vs REPLACE

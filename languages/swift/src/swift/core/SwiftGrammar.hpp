@@ -473,7 +473,7 @@ struct Swift : cursiv::GrammarSpec {
       : rule<create<ast::IntLit>(
             assign<&ast::IntLit::text>(ref<INT_LIT> | ref<DECIMAL_DIGITS>))> {};
   struct FloatLiteral
-      : rule<create<ast::FloatLit>(assign<&ast::FloatLit::text>(ref<FLOAT_LIT>))> {
+      : rule<assign<&ast::FloatLit::text>(ref<FLOAT_LIT>)> {
   };
   struct BoolLiteral
       : rule<create<ast::BoolLit>(

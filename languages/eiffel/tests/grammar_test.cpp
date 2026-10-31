@@ -15,6 +15,8 @@
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "eiffel/core/ast.hpp"
 #include "eiffel/generated/Eiffel/Module.hpp"
+#include "eiffel/generated/Eiffel/AstReflection.hpp"
+#include "lexical_cases.hpp"
 
 namespace {
 
@@ -40,6 +42,8 @@ std::string read_file(const fs::path& path) {
 }  // namespace
 
 int main() {
+  const auto reflection = eiffel::generated::Eiffel::create_ast_reflection();
+  if (!eiffel_lexical::run(engine(), *reflection)) return 1;
   std::vector<fs::path> docs;
   // `features.e` and `inspect.e` live beside this test, not in the corpus:
   // they are written here for the constructs the corpus never reaches.

@@ -18,7 +18,9 @@ template<class Services> bool run(const Services& services) {
     const auto r=parser.parse(source);
     if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()){
       std::fprintf(stderr,"zig native literal rejected: %s\n",source);
-      for(const auto& d:r.diagnostics)std::fprintf(stderr,"  kind=%d begin=%zu end=%zu element=%u\n",int(d.kind),std::size_t(d.begin),std::size_t(d.end),unsigned(d.element));return false;
+      for(const auto& d:r.diagnostics)
+        std::fprintf(stderr,"  kind=%d begin=%zu end=%zu element=%u\n",int(d.kind),std::size_t(d.begin),std::size_t(d.end),unsigned(d.element));
+      return false;
     }
   }
   // Fmt alone accepts many of these tokens; fresh ast-check rejects their values.

@@ -102,6 +102,15 @@ void VerilogValidator::checkInitial(const ast::InitialConstruct& node,
     accept.error(node, "An initial construct requires a statement; use begin/end for an empty body",
                  "verilog.initial-statement");
 }
+void VerilogValidator::checkAttribute(const ast::AttributeInstance& node,
+                                     cursiv::ValidationAcceptor& accept) const {
+  for (const auto* parent = node.parent; parent; parent = parent->parent)
+    if (cursiv::ast_cast<ast::AttributeSpec>(parent)) {
+      accept.error(node, "An attribute value cannot contain another attribute instance.",
+                   "verilog.nested-attribute");
+      return;
+    }
+}
 void register_validation_checks(VerilogCoreServices& services) {
   services.validator = std::make_unique<const VerilogValidator>(services);
   services.validationRegistry->registerChecks({
@@ -111,7 +120,8 @@ void register_validation_checks(VerilogCoreServices& services) {
       cursiv::ValidationRegistry::makeValidationCheck<&VerilogValidator::checkCall>(*services.validator),
       cursiv::ValidationRegistry::makeValidationCheck<&VerilogValidator::checkFunction>(*services.validator),
       cursiv::ValidationRegistry::makeValidationCheck<&VerilogValidator::checkTiming>(*services.validator),
-      cursiv::ValidationRegistry::makeValidationCheck<&VerilogValidator::checkInitial>(*services.validator)});
+      cursiv::ValidationRegistry::makeValidationCheck<&VerilogValidator::checkInitial>(*services.validator),
+      cursiv::ValidationRegistry::makeValidationCheck<&VerilogValidator::checkAttribute>(*services.validator)});
 }
 
 }  // namespace verilog

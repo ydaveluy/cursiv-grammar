@@ -85,8 +85,7 @@ struct Terraform : cursiv::GrammarSpec {
             assign<&ast::ForLoop::key>(ref<Expression>) + lit<"=>"> +
             assign<&ast::ForLoop::result>(ref<Expression>) + ForTail +
             lit<"}">)> {};
-  struct Number : rule<create<ast::NumberLit>(
-                          assign<&ast::NumberLit::text>(ref<NUMBER>))> {};
+  struct Number : rule<assign<&ast::NumberLit::text>(ref<NUMBER>)> {};
   struct FuncCall
       : rule<create<ast::FuncCall>(
             some(append<&ast::FuncCall::name>(Name), lit<"::">) + lit<"("> +
@@ -159,8 +158,7 @@ struct Terraform : cursiv::GrammarSpec {
              create<ast::Identifier>(assign<&ast::Identifier::name>(
                  ref<ID> | ref<FOR> | ref<IN> | ref<IF>))> {};
   struct LEGACY_INDEX : rule<as<decimal_index>(ref<NUMBER>)> {};
-  struct LegacyIndexNumber : rule<create<ast::NumberLit>(
-      assign<&ast::NumberLit::text>(ref<LEGACY_INDEX>))> {};
+  struct LegacyIndexNumber : rule<assign<&ast::NumberLit::text>(ref<LEGACY_INDEX>)> {};
   static constexpr auto MemberStep =
       nest<ast::MemberExpr, &ast::MemberExpr::object>(
           lit<"."> + assign<&ast::MemberExpr::name>(Name)) |
@@ -172,14 +170,18 @@ struct Terraform : cursiv::GrammarSpec {
           lit<"["> + assign<&ast::IndexExpr::index>(ref<Expression>) +
           lit<"]">) |
       nest<ast::SplatExpr, &ast::SplatExpr::source>(
-          lit<"["> + lit<"*"> + lit<"]"> +
           assign<&ast::SplatExpr::each>(ref<FullEach>)) |
       nest<ast::SplatExpr, &ast::SplatExpr::source>(
-          flag<&ast::SplatExpr::legacy>(lit<"."> + lit<"*">) +
-          assign<&ast::SplatExpr::each>(ref<LegacyEach>));
-  struct AnonSymbol : rule<create<ast::AnonSymbolExpr>> {};
-  struct FullEach : rule<ref<AnonSymbol> + many(PostfixStep)> {};
-  struct LegacyEach : rule<ref<AnonSymbol> + many(MemberStep)> {};
+          flag<&ast::SplatExpr::legacy>(
+              assign<&ast::SplatExpr::each>(ref<LegacyEach>)));
+  // The native anonymous item owns the splat marker, not an empty position
+  // after it (which could already be beyond a significant caller newline).
+  struct FullSymbol : rule<create<ast::AnonSymbolExpr>(
+                              lit<"["> + lit<"*"> + lit<"]">)> {};
+  struct LegacySymbol : rule<create<ast::AnonSymbolExpr>(
+                                lit<"."> + lit<"*">)> {};
+  struct FullEach : rule<ref<FullSymbol> + many(PostfixStep)> {};
+  struct LegacyEach : rule<ref<LegacySymbol> + many(MemberStep)> {};
   struct UnaryExpr
       : rule<(create<ast::UnaryExpr>(
                   assign<&ast::UnaryExpr::op>(

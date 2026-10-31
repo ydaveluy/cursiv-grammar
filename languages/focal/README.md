@@ -31,7 +31,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-FOCAL: every line opens with a group and line number, then a command.
+DEC FOCAL 1969 commands can be direct or stored under a group and line number.
 
 ```
 01.10 ASK "HOW MUCH MONEY DO YOU WANT TO BORROW ?",PRINCIPAL

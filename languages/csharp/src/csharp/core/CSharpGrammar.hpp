@@ -238,8 +238,7 @@ struct CSharp : cursiv::GrammarSpec {
   // One generic argument, named so a generic type's own argument list does
   // not reference its own rule directly.
   struct TypeArg_
-      : rule<create<ast::TypeArg>(
-            assign<&ast::TypeArg::typeRef>(ref<TypeNode>))> {};
+      : rule<assign<&ast::TypeArg::typeRef>(ref<TypeNode>)> {};
 
   struct TypeSegment_
       : rule<assign<&ast::TypeSegment::name>(ref<Ident> | PredefinedTypeKw |
@@ -452,8 +451,7 @@ struct CSharp : cursiv::GrammarSpec {
                 ref<SimpleDesignation_>))> {};
 
   struct ConstantPattern_
-      : rule<create<ast::ConstantPattern>(
-            assign<&ast::ConstantPattern::value>(ref<RelationalAndBelow_>))> {};
+      : rule<assign<&ast::ConstantPattern::value>(ref<RelationalAndBelow_>)> {};
 
   struct Subpattern_
       : rule<create<ast::Subpattern>(

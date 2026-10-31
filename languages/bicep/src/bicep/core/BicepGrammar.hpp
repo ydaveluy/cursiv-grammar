@@ -39,8 +39,10 @@ struct Bicep : cursiv::GrammarSpec {
       ref<ID>;
   static constexpr auto IdentExprSpelling =
       ref<ID>;
+  static constexpr auto AmbientTypeName =
+      kw<"string"> | kw<"int"> | kw<"bool"> | kw<"array"> | kw<"object">;
   static constexpr auto TypeNameSpelling =
-      ref<ID>;
+      ref<ID> | AmbientTypeName;
 
   // -- Strings: '...', with '${' / '}' interpolation pieces ----
   static constexpr auto Escape =
@@ -72,6 +74,8 @@ struct Bicep : cursiv::GrammarSpec {
   struct Decorator_;
   struct TypeExpression;
   struct SingularTypeExpr;
+  struct UnaryTypeBase;
+  struct UnaryTypeExpr;
   struct PrimaryTypeExpr;
   struct ParenTypeExpr;
   struct ObjectType_;
@@ -79,6 +83,13 @@ struct Bicep : cursiv::GrammarSpec {
   struct ObjectTypeProperty_;
   struct ObjectTypeAdditionalProperties_;
   struct TupleItem_;
+
+  static constexpr auto ElementSeparator = lit<","> | some(ref<NL>);
+  template<auto Item> static constexpr auto elements =
+      many(ref<NL>) + option(Item + many(ElementSeparator + Item) +
+                             option(ElementSeparator));
+  template<auto Item> static constexpr auto type_arguments =
+      many(ref<NL>) + option(some(Item, lit<","> + many(ref<NL>))) + many(ref<NL>);
 
   // -- Interpolated strings ----
   static constexpr auto InterpBody =
@@ -142,18 +153,13 @@ struct Bicep : cursiv::GrammarSpec {
   struct ObjectExpr_
       : rule<create<ast::ObjectExpr>(
             lit<"{"> +
-            option(some(ref<NL>) +
-                   many(append<&ast::ObjectExpr::properties>(
-                            ref<ObjectProperty_>) +
-                        some(ref<NL>))) +
+            elements<append<&ast::ObjectExpr::properties>(ref<ObjectProperty_>)> +
             lit<"}">)> {};
 
   struct ArrayExpr_
       : rule<create<ast::ArrayExpr>(
             lit<"["> +
-            option(some(ref<NL>) +
-                   many(append<&ast::ArrayExpr::items>(ref<Expression>) +
-                        some(ref<NL>))) +
+            elements<append<&ast::ArrayExpr::items>(ref<Expression>)> +
             lit<"]">)> {};
 
   struct IfExpr_
@@ -184,14 +190,18 @@ struct Bicep : cursiv::GrammarSpec {
   // -- Member access, indexing and calls (postfix chain) ----
   static constexpr auto MemberTail =
       nest<ast::IndexExpr, &ast::IndexExpr::object>(
-          lit<"["> + assign<&ast::IndexExpr::index>(ref<Expression>) +
+          lit<"["> + option(flag<&ast::IndexExpr::safe>(lit<"?">)) +
+          option(flag<&ast::IndexExpr::fromEnd>(lit<"^">)) +
+          assign<&ast::IndexExpr::index>(ref<Expression>) +
           lit<"]">) |
       nest<ast::MethodCallExpr, &ast::MethodCallExpr::object>(
           lit<"."> + assign<&ast::MethodCallExpr::call>(ref<FunctionCall_>)) |
       nest<ast::PropertyExpr, &ast::PropertyExpr::object>(
-          lit<"."> + assign<&ast::PropertyExpr::property>(IdentSpelling)) |
+          lit<"."> + option(flag<&ast::PropertyExpr::safe>(lit<"?">)) +
+          assign<&ast::PropertyExpr::property>(IdentSpelling)) |
       nest<ast::NamedAccessExpr, &ast::NamedAccessExpr::object>(
-          lit<":"> + assign<&ast::NamedAccessExpr::name>(IdentSpelling));
+          lit<"::"> + assign<&ast::NamedAccessExpr::name>(IdentSpelling)) |
+      nest<ast::NonNullExpr, &ast::NonNullExpr::object>(lit<"!">);
 
   struct MemberExpr_ : rule<ref<PrimaryExpr_> + many(MemberTail)> {};
 
@@ -236,17 +246,15 @@ struct Bicep : cursiv::GrammarSpec {
   // -- Types ----
   struct AmbientTypeRef
       : rule<create<ast::AmbientType>(assign<&ast::AmbientType::name>(
-            // The source grammar lists INT twice and omits BOOL (a
-            // transcription defect); ported with `bool` restored.
-            kw<"string"> | kw<"int"> | kw<"bool"> | kw<"array"> |
-            kw<"object">))> {};
+            AmbientTypeName))> {};
   struct TypeReference
-      : rule<create<ast::TypeRef>(
-            assign<&ast::TypeRef::name>(TypeNameSpelling))> {};
+      : rule<create<ast::ParameterizedType>(
+                 assign<&ast::ParameterizedType::name>(TypeNameSpelling) + lit<"<"> +
+                 type_arguments<append<&ast::ParameterizedType::args>(ref<TypeExpression>)> +
+                 lit<">">) |
+             create<ast::TypeRef>(assign<&ast::TypeRef::name>(TypeNameSpelling))> {};
   struct LiteralTypeExpr
       : rule<create<ast::LiteralType>(
-            option(assign<&ast::LiteralType::op>(
-                lit<"!"> | lit<"-"> | lit<"+">)) +
             assign<&ast::LiteralType::value>(ref<LiteralValueNoIdent>))> {};
   struct StringTypeExpr
       : rule<assign<&ast::StringType::text>(ref<StrComplete>)> {};
@@ -265,31 +273,24 @@ struct Bicep : cursiv::GrammarSpec {
       : rule<create<ast::ObjectTypeAdditionalProperties>(
             many(append<&ast::ObjectTypeAdditionalProperties::decorators>(
                 ref<Decorator_>)) +
-            lit<"*:"> +
+            lit<"*"> + lit<":"> +
             assign<&ast::ObjectTypeAdditionalProperties::type>(
                 ref<TypeExpression>))> {};
   struct ObjectType_
       : rule<create<ast::ObjectType>(
             lit<"{"> +
-            option(
-                some(ref<NL>) +
-                many((append<&ast::ObjectType::members>(
-                          ref<ObjectTypeProperty_>) |
-                      append<&ast::ObjectType::members>(
-                          ref<ObjectTypeAdditionalProperties_>)) +
-                     some(ref<NL>))) +
+            elements<append<&ast::ObjectType::members>(ref<ObjectTypeProperty_> |
+                       ref<ObjectTypeAdditionalProperties_>)> +
             lit<"}">)> {};
 
   struct TupleItem_
       : rule<create<ast::TupleItem>(
             many(append<&ast::TupleItem::decorators>(ref<Decorator_>)) +
-            assign<&ast::TupleItem::type>(ref<TypeExpression>) +
-            some(ref<NL>))> {};
+            assign<&ast::TupleItem::type>(ref<TypeExpression>))> {};
   struct TupleType_
       : rule<create<ast::TupleType>(
             lit<"["> +
-            option(some(ref<NL>) +
-                   many(append<&ast::TupleType::items>(ref<TupleItem_>))) +
+            elements<append<&ast::TupleType::items>(ref<TupleItem_>)> +
             lit<"]">)> {};
 
   struct PrimaryTypeExpr
@@ -304,15 +305,35 @@ struct Bicep : cursiv::GrammarSpec {
 
   struct SingularTypeExpr
       : rule<(ref<PrimaryTypeExpr> | ref<ParenTypeExpr>) +
-             many(nest<ast::ArrayType, &ast::ArrayType::element>(
-                 lit<"["> + lit<"]">))> {};
+             many(nest<ast::ArrayType, &ast::ArrayType::element>(lit<"["> + lit<"]">) |
+                  nest<ast::TypeItems, &ast::TypeItems::object>(lit<"["> + lit<"*"> + lit<"]">) |
+                  nest<ast::TypeIndex, &ast::TypeIndex::object>(lit<"["> +
+                      assign<&ast::TypeIndex::index>(ref<Expression>) + lit<"]">) |
+                  nest<ast::TypeAdditionalProperties, &ast::TypeAdditionalProperties::object>(
+                      lit<"."> + lit<"*">) |
+                  nest<ast::ParameterizedType, &ast::ParameterizedType::object>(
+                      lit<"."> + assign<&ast::ParameterizedType::name>(IdentSpelling) + lit<"<"> +
+                      type_arguments<append<&ast::ParameterizedType::args>(ref<TypeExpression>)> + lit<">">) |
+                  nest<ast::TypeProperty, &ast::TypeProperty::object>(
+                      lit<"."> + assign<&ast::TypeProperty::name>(IdentSpelling)))> {};
+
+  struct UnaryTypeBase : rule<ref<SingularTypeExpr> |
+      create<ast::LiteralType>(assign<&ast::LiteralType::op>(lit<"!"> | lit<"-"> | lit<"+">) +
+          assign<&ast::LiteralType::value>(ref<LiteralValueNoIdent>)) |
+      (assign<&ast::UnaryType::op>(lit<"!"> | lit<"-">) +
+       assign<&ast::UnaryType::operand>(ref<SingularTypeExpr>))> {};
+  struct UnaryTypeExpr : rule<ref<UnaryTypeBase> +
+      many(nest<ast::NullableType, &ast::NullableType::inner>(
+          lit<"?"> | flag<&ast::NullableType::nonNullable>(lit<"!">)))> {};
+
+  static constexpr auto UnionSeparator = option(ref<NL>) + lit<"|">;
+  static constexpr auto UnionMember = append<&ast::UnionType::options>(ref<UnaryTypeExpr>);
 
   struct TypeExpression
       : rule<create<ast::UnionType>(
-            append<&ast::UnionType::options>(ref<SingularTypeExpr>) +
-            some(lit<"|"> +
-                 append<&ast::UnionType::options>(ref<SingularTypeExpr>))) |
-             ref<SingularTypeExpr>> {};
+                 (UnionSeparator + UnionMember + many(UnionSeparator + UnionMember)) |
+                 (UnionMember + some(UnionSeparator + UnionMember))) |
+             ref<UnaryTypeExpr>> {};
 
   // -- Top-level statements ----
   struct TargetScopeDecl_
@@ -321,16 +342,35 @@ struct Bicep : cursiv::GrammarSpec {
             assign<&ast::TargetScopeDecl::value>(ref<Expression>) +
             StatementEnd)> {};
 
-  struct ImportDecl_
-      : rule<create<ast::ImportDecl>(
-            many(append<&ast::ImportDecl::decorators>(ref<Decorator_>)) +
-            kw<"import"> +
-            assign<&ast::ImportDecl::specification>(ref<InterpString>) +
-            option(kw<"with"> +
-                   assign<&ast::ImportDecl::withClause>(ref<ObjectExpr_>)) +
-            option(kw<"as"> +
-                   assign<&ast::ImportDecl::alias>(IdentSpelling)) +
-            StatementEnd)> {};
+  static constexpr auto ExtensionClauses =
+      option(kw<"with"> + assign<&ast::ImportDecl::withClause>(ref<ObjectExpr_>)) +
+      option(kw<"as"> + assign<&ast::ImportDecl::alias>(IdentSpelling));
+  struct ImportDecl_ : rule<
+      many(append<&ast::ImportDecl::decorators>(ref<Decorator_>)) +
+      kw<"import"> + assign<&ast::ImportDecl::specification>(ref<InterpString>) +
+      ExtensionClauses + StatementEnd> {};
+  struct ExtensionDecl_ : rule<create<ast::ExtensionDecl>(
+      many(append<&ast::ImportDecl::decorators>(ref<Decorator_>)) +
+      kw<"extension"> + assign<&ast::ImportDecl::specification>(
+          ref<IdentExpr_> | ref<InterpString>) + ExtensionClauses + StatementEnd)> {};
+
+  struct ImportedSymbol_ : rule<
+      (assign<&ast::ImportedSymbol::name>(IdentSpelling) +
+       option(kw<"as"> + assign<&ast::ImportedSymbol::alias>(IdentSpelling))) |
+      (flag<&ast::ImportedSymbol::quoted>(assign<&ast::ImportedSymbol::name>(ref<StrComplete>)) +
+       kw<"as"> + assign<&ast::ImportedSymbol::alias>(IdentSpelling))> {};
+  struct CompileTimeImportDecl_ : rule<
+      many(append<&ast::CompileTimeImportDecl::decorators>(ref<Decorator_>)) +
+      kw<"import"> +
+      ((lit<"{"> + elements<append<&ast::CompileTimeImportDecl::symbols>(ref<ImportedSymbol_>)> + lit<"}">) |
+       (flag<&ast::CompileTimeImportDecl::wildcard>(lit<"*">) + kw<"as"> +
+        assign<&ast::CompileTimeImportDecl::alias>(IdentSpelling))) +
+      kw<"from"> + assign<&ast::CompileTimeImportDecl::path>(ref<InterpString>) + StatementEnd> {};
+
+  struct TestDecl_ : rule<many(append<&ast::TestDecl::decorators>(ref<Decorator_>)) +
+      kw<"test"> + assign<&ast::TestDecl::name>(IdentSpelling) +
+      assign<&ast::TestDecl::path>(ref<InterpString>) + lit<"="> +
+      assign<&ast::TestDecl::body>(ref<ObjectExpr_>) + StatementEnd> {};
 
   struct MetadataDecl_
       : rule<create<ast::MetadataDecl>(
@@ -426,7 +466,8 @@ struct Bicep : cursiv::GrammarSpec {
              StatementEnd> {};
 
   static constexpr auto StatementAlt =
-      ref<TargetScopeDecl_> | ref<ImportDecl_> | ref<MetadataDecl_> |
+      ref<TargetScopeDecl_> | ref<ImportDecl_> | ref<CompileTimeImportDecl_> |
+      ref<ExtensionDecl_> | ref<TestDecl_> | ref<MetadataDecl_> |
       ref<ParameterDecl_> | ref<TypeDecl_> | ref<VariableDecl_> |
       ref<ResourceDecl_> | ref<ModuleDecl_> | ref<OutputDecl_> |
       ref<FunctionDecl_> | ref<AssertDecl_>;

@@ -209,10 +209,12 @@ struct OptionsStmt : cursiv::Extends<Stmt> {
   Expr* value = nullptr;
 };
 enum class ParseSource : std::uint8_t {
-  Arg, External, Numeric, Pull, Source, Version, Value, Var
+  Arg, External, Numeric, Pull, Source, Version, Value, Var, Linein
 };
 struct ParseStmt : cursiv::Extends<Stmt> {
   bool upper = false;
+  bool lower = false;
+  bool caseless = false;
   ParseSource source{};
   Expr* valueExpr = nullptr;
   string_view varName;

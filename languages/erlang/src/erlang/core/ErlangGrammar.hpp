@@ -264,25 +264,30 @@ struct Erlang : cursiv::GrammarSpec {
              lit<",">) +
         lit<"}">));
 
+  static constexpr auto MapTail =
+      nest<ast::MapExpr, &ast::MapExpr::base>(lit<"#"> + MapTupleBody);
+  static constexpr auto RecordTail =
+      nest<ast::RecordExpr, &ast::RecordExpr::base>(lit<"#"> + RecordBody);
+  struct MapLiteral : rule<lit<"#"> + MapTupleBody> {};
+  struct RecordLiteral : rule<lit<"#"> + RecordBody> {};
+
+  // Native map_expr and record_expr start from expr_max, then continue
+  // their own family. A call/mixed update needs parentheses as expr_max.
+  struct SectionPrimary
+      : rule<(ref<ExprMax> + option(some(MapTail) | some(RecordTail))) |
+             (ref<MapLiteral> + many(MapTail)) |
+             (ref<RecordLiteral> + many(RecordTail))> {};
+
   struct PrimaryChain
-      : rule<(ref<ExprMax> +
-              option(nest<ast::ModuleRef, &ast::ModuleRef::module>(
+      : rule<((ref<ExprMax> +
+               nest<ast::ModuleRef, &ast::ModuleRef::module>(
                   lit<":"> +
-                  assign<&ast::ModuleRef::member>(ref<ExprMax>))) +
+                  assign<&ast::ModuleRef::member>(ref<ExprMax>))) |
+              ref<SectionPrimary>) +
               many(nest<ast::Call, &ast::Call::target>(
                   lit<"("> +
                   many(append<&ast::Call::args>(ref<Expr>), lit<",">) +
-                  lit<")">)) +
-              many(nest<ast::MapExpr, &ast::MapExpr::base>(lit<"#"> +
-                                                            MapTupleBody) |
-                   nest<ast::RecordExpr, &ast::RecordExpr::base>(
-                       lit<"#"> + RecordBody)))
-             | ((create<ast::MapExpr>(lit<"#"> + MapTupleBody) |
-                 create<ast::RecordExpr>(lit<"#"> + RecordBody)) +
-                many(nest<ast::MapExpr, &ast::MapExpr::base>(lit<"#"> +
-                                                              MapTupleBody) |
-                     nest<ast::RecordExpr, &ast::RecordExpr::base>(
-                         lit<"#"> + RecordBody)))> {};
+                  lit<")">))> {};
 
   struct ListLit
       : rule<create<ast::ListLit>(

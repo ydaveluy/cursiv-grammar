@@ -107,11 +107,11 @@ struct Sharc : cursiv::GrammarSpec {
       levels(left(MultiplyOp), left(AddOp), left(ShiftOp), left(AndOp), left(OrOp), left(XorOp))> {};
 
   struct NumberLit
-      : rule<create<ast::NumberLit>(assign<&ast::NumberLit::value>(ref<NUM>))> {
+      : rule<assign<&ast::NumberLit::value>(ref<NUM>)> {
   };
 
   struct NameRef
-      : rule<create<ast::NameRef>(assign<&ast::NameRef::name>(ref<ID>))> {};
+      : rule<assign<&ast::NameRef::name>(ref<ID>)> {};
 
   struct AddrOf
       : rule<create<ast::AddrOf>(
@@ -129,12 +129,12 @@ struct Sharc : cursiv::GrammarSpec {
       : rule<ref<NumberLit> | ref<VarAddr> | ref<NameRef>> {};
 
   struct StringLit
-      : rule<create<ast::StringLit>(assign<&ast::StringLit::value>(
-            ref<STRING>))> {};
+      : rule<assign<&ast::StringLit::value>(
+            ref<STRING>)> {};
 
   struct CharLit
-      : rule<create<ast::CharLit>(assign<&ast::CharLit::value>(
-            ref<CHARLIT>))> {};
+      : rule<assign<&ast::CharLit::value>(
+            ref<CHARLIT>)> {};
 
   struct InitExpr : rule<ref<ValueExpr> | ref<CharLit>> {};
 
@@ -388,8 +388,7 @@ struct Sharc : cursiv::GrammarSpec {
       : rule<as<instruction_text>(DualOp | FixpointAluOp | FloatingAluOp | MultiOp | ShifterOp)> {};
 
   struct Compute
-      : rule<create<ast::Compute>(
-            assign<&ast::Compute::raw>(ref<ComputeBody>))> {};
+      : rule<assign<&ast::Compute::raw>(ref<ComputeBody>)> {};
 
   // ==================== moves ====================
   static constexpr auto MovExp1_1 =
@@ -423,8 +422,7 @@ struct Sharc : cursiv::GrammarSpec {
               MovExp4b | MovExp4c | MovExp4d | MovExp5 | MovExp7))> {};
 
   struct ComputeMovExpr
-      : rule<create<ast::ComputeMovExpr>(
-            assign<&ast::ComputeMovExpr::raw>(ref<ComputeMovExpBody>))> {
+      : rule<assign<&ast::ComputeMovExpr::raw>(ref<ComputeMovExpBody>)> {
   };
 
   struct IfComputeMovBody
@@ -432,8 +430,7 @@ struct Sharc : cursiv::GrammarSpec {
              (ref<ComputeMovExpBody> | ref<ComputeBody>))> {};
 
   struct IfComputeMov
-      : rule<create<ast::IfComputeMov>(
-            assign<&ast::IfComputeMov::raw>(ref<IfComputeMovBody>))> {};
+      : rule<assign<&ast::IfComputeMov::raw>(ref<IfComputeMovBody>)> {};
 
   // ==================== flow control ====================
   static constexpr auto JumpAddrPc =
@@ -490,8 +487,7 @@ struct Sharc : cursiv::GrammarSpec {
              FlowControl13)> {};
 
   struct FlowControl
-      : rule<create<ast::FlowControl>(
-            assign<&ast::FlowControl::raw>(ref<FlowControlBody>))> {};
+      : rule<assign<&ast::FlowControl::raw>(ref<FlowControlBody>)> {};
 
   // ==================== immediate moves ====================
   static constexpr auto ImmMov14a = (MemDmInt | MemPmInt) + lit<"="> + UReg;
@@ -503,8 +499,7 @@ struct Sharc : cursiv::GrammarSpec {
       : rule<as<instruction_text>(ImmMov14a | ImmMov14b | ImmMov16 | ImmMov17)> {};
 
   struct ImmMov
-      : rule<create<ast::ImmMov>(
-            assign<&ast::ImmMov::raw>(ref<ImmMovBody>))> {};
+      : rule<assign<&ast::ImmMov::raw>(ref<ImmMovBody>)> {};
 
   // ==================== misc ====================
   static constexpr auto Misc20 =
@@ -523,7 +518,7 @@ struct Sharc : cursiv::GrammarSpec {
              ikw<"rframe">)> {};
 
   struct Misc
-      : rule<create<ast::Misc>(assign<&ast::Misc::raw>(ref<MiscBody>))> {
+      : rule<assign<&ast::Misc::raw>(ref<MiscBody>)> {
   };
 
   // ==================== declaration ====================
@@ -583,86 +578,39 @@ struct Sharc : cursiv::GrammarSpec {
   struct EndSeg : rule<create<ast::EndSeg> + ikw<".endseg">> {};
 
   // ==================== directives ====================
-  // .file_attr's argument: approximated as this language's value-carrying
-  // token kinds.
+  // Directives with the same argument shape share one branch. Their
+  // original keyword spelling remains in the tree.
+  static constexpr auto no_argument_directive =
+      ikw<".compress"> | ikw<".forcecompress"> | ikw<".list"> | ikw<".nolist"> |
+      ikw<".list_data"> | ikw<".list_datfile"> | ikw<".list_wrapdata"> |
+      ikw<".newpage"> | ikw<".nocompress"> | ikw<".nolist_data"> |
+      ikw<".nolist_datfile"> | ikw<".nolist_wrapdata"> |
+      ikw<".round_minus"> | ikw<".round_nearest"> | ikw<".round_plus"> |
+      ikw<".round_zero"> | ikw<".previous">;
+  static constexpr auto value_directive =
+      ikw<".align"> | ikw<".leftmargin"> | ikw<".list_deftab"> |
+      ikw<".list_loctab"> | ikw<".pagelength"> | ikw<".pagewidth">;
+
+  struct FileAttribute
+      : rule<assign<&ast::FileAttribute::name>(ref<ID>) +
+             option(lit<"="> + assign<&ast::FileAttribute::value>(ref<ID> | ref<STRING>))> {};
+
   struct DirectiveExp
-      : rule<
-            create<ast::Directive>(
-                assign<&ast::Directive::keyword>(ikw<".align">) +
-                append<&ast::Directive::values>(ref<ValueExpr>))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".compress">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".extern">) +
-                  some(append<&ast::Directive::names>(ref<ID>), lit<",">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".file">) +
-                  append<&ast::Directive::strings>(ref<STRING>))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".file_attr">) +
-                  option(append<&ast::Directive::values>(ref<ValueExpr>) |
-                         append<&ast::Directive::strings>(ref<STRING>) |
-                         append<&ast::Directive::strings>(ref<CHARLIT>) |
-                         append<&ast::Directive::names>(ref<ID>)))  //
-            | create<ast::Directive>(assign<&ast::Directive::keyword>(
-                  ikw<".forcecompress">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".global">) +
-                  some(append<&ast::Directive::names>(ref<ID>), lit<",">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".import">) +
-                  some(append<&ast::Directive::strings>(ref<STRING>),
-                       lit<",">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".leftmargin">) +
-                  append<&ast::Directive::values>(ref<ValueExpr>))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".list">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".list_data">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".list_datfile">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".list_deftab">) +
-                  append<&ast::Directive::values>(ref<ValueExpr>))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".list_loctab">) +
-                  append<&ast::Directive::values>(ref<ValueExpr>))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".list_wrapdata">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".newpage">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".nocompress">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".nolist_data">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".nolist_datfile">))  //
-            | create<ast::Directive>(assign<&ast::Directive::keyword>(
-                  ikw<".nolist_wrapdata">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".pagelength">) +
-                  append<&ast::Directive::values>(ref<ValueExpr>))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".pagewidth">) +
-                  append<&ast::Directive::values>(ref<ValueExpr>))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".precision">) +
-                  option(lit<"=">) +
-                  append<&ast::Directive::values>(ref<NumberLit>))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".round_minus">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".round_nearest">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".round_plus">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".round_zero">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".previous">))  //
-            | create<ast::Directive>(
-                  assign<&ast::Directive::keyword>(ikw<".weak">) +
-                  append<&ast::Directive::names>(ref<ID>))> {};
+      : rule<assign<&ast::Directive::keyword>(no_argument_directive) |
+             (assign<&ast::Directive::keyword>(value_directive) +
+              append<&ast::Directive::values>(ref<ValueExpr>)) |
+             (assign<&ast::Directive::keyword>(ikw<".extern"> | ikw<".global">) +
+              some(append<&ast::Directive::names>(ref<ID>), lit<",">)) |
+             (assign<&ast::Directive::keyword>(ikw<".file">) +
+              append<&ast::Directive::strings>(ref<STRING>)) |
+             (assign<&ast::Directive::keyword>(ikw<".import">) +
+              some(append<&ast::Directive::strings>(ref<STRING>), lit<",">)) |
+             (assign<&ast::Directive::keyword>(ikw<".file_attr">) +
+              some(append<&ast::Directive::attributes>(ref<FileAttribute>), lit<",">)) |
+             (assign<&ast::Directive::keyword>(ikw<".precision">) + option(lit<"=">) +
+              append<&ast::Directive::values>(ref<NumberLit>)) |
+             (assign<&ast::Directive::keyword>(ikw<".weak">) +
+              append<&ast::Directive::names>(ref<ID>))> {};
 
   // ==================== statement ====================
   struct Stmt
@@ -674,15 +622,15 @@ struct Sharc : cursiv::GrammarSpec {
       : rule<ref<Stmt> | ref<Sec> | ref<Seg> | ref<EndSeg> |
              ref<DirectiveExp>> {};
 
+  static constexpr auto label =
+      append<&ast::Statement::labels>(ref<ID>) + lit<":">;
   struct Statement
-      : rule<create<ast::Statement>(
-            many(append<&ast::Statement::labels>(ref<ID>) + lit<":">) +
-            assign<&ast::Statement::atom>(ref<StmtAtom>))> {};
+      : rule<(many(label) + assign<&ast::Statement::atom>(ref<StmtAtom>) + lit<";">) |
+             some(label)> {};
 
   struct Program
-      : rule<create<ast::Program>(
-            some(append<&ast::Program::statements>(ref<Statement>) +
-                 lit<";">))> {};
+      : rule<create<ast::Program> +
+             some(append<&ast::Program::statements>(ref<Statement>))> {};
 
   using entry = Program;
   using ignored = WS;

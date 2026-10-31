@@ -19,9 +19,9 @@ struct Gml : cursiv::GrammarSpec {
 
   static constexpr auto fraction = (many(d) + lit<"."> + some(d)) |
                                     (some(d) + lit<"."> + many(d));
-  struct NUMBER : terminal<option(cr<"+-">) +
+  struct NUMBER : terminal<(option(cr<"+-">) +
       ((fraction + option(cr<"eE"> + option(cr<"+-">) + some(d))) |
-       some(d) | lit<"INF">) | lit<"NAN">> {};
+       some(d) | lit<"INF">)) | lit<"NAN">> {};
   struct Number : rule<assign<&ast::Number::literal>(ref<NUMBER>)> {};
 
   struct STRINGLITERAL

@@ -171,7 +171,7 @@ struct Xpath : cursiv::GrammarSpec {
       : rule<create<ast::ItemType>(assign<&ast::ItemType::name>(kw<"item">) +
                                    lit<"("> + lit<")">)> {};
   struct AtomicOrUnionType
-      : rule<create<ast::ItemType>(assign<&ast::ItemType::name>(ref<EqName>))> {
+      : rule<assign<&ast::ItemType::name>(ref<EqName>)> {
   };
 
   struct SequenceType;

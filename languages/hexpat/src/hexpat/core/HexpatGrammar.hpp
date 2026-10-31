@@ -243,6 +243,19 @@ struct Hexpat : cursiv::GrammarSpec {
 
   // ---- declarators ----
 
+  struct ArrayInitializer : rule<lit<"{"> +
+      many(append<&ast::ArrayInitializer::values>(ref<Ternary>), lit<",">) + lit<"}">> {};
+  template<auto Name, auto Brackets, auto Size, auto While, auto Init>
+  static constexpr auto initialized_array = assign<Name>(ref<ID>) +
+      flag<Brackets>(lit<"[">) +
+      option(assign<Size>(ref<Expression>) | assign<While>(ref<WhileSize>)) + lit<"]"> +
+      lit<"="> + assign<Init>(ref<ArrayInitializer>);
+  struct InitializedStructArray : rule<initialized_array<
+      &ast::StructMemberDeclarator::name, &ast::StructMemberDeclarator::hasBrackets,
+      &ast::StructMemberDeclarator::size, &ast::StructMemberDeclarator::sizeWhile,
+      &ast::StructMemberDeclarator::init> +
+      option(assign<&ast::StructMemberDeclarator::attr>(ref<Attribute>))> {};
+
   struct StructMemberDeclarator
       : rule<option(
                  flag<&ast::StructMemberDeclarator::isPointer>(lit<"*">)) +
@@ -278,19 +291,23 @@ struct Hexpat : cursiv::GrammarSpec {
                                 lit<",">) +
                            lit<">">)) +
              some(append<&ast::StructMember::declarators>(
-                      ref<StructMemberDeclarator>),
+                           ref<InitializedStructArray> | ref<StructMemberDeclarator>),
                   lit<",">) +
              option(assign<&ast::StructMember::io>(IoKw)) + lit<";">> {};
 
   struct StructMember
       : rule<ref<StructMemberDecl> | (ref<Padding> + lit<";">)> {};
 
+  struct InitializedUnionArray : rule<assign<&ast::UnionMember::type>(ref<TypeName>) +
+      initialized_array<&ast::UnionMember::name, &ast::UnionMember::hasBrackets,
+          &ast::UnionMember::size, &ast::UnionMember::sizeWhile, &ast::UnionMember::init> +
+      option(assign<&ast::UnionMember::attr>(ref<Attribute>))> {};
   struct UnionMemberOrPtr
-      : rule<
+      : rule<ref<InitializedUnionArray> |
             (assign<&ast::UnionMember::type>(ref<TypeName>) +
              assign<&ast::UnionMember::name>(ref<ID>) +
-             option(lit<"["> +
-                    (assign<&ast::UnionMember::size>(ref<Expression>) |
+             option(flag<&ast::UnionMember::hasBrackets>(lit<"[">) +
+                    option(assign<&ast::UnionMember::size>(ref<Expression>) |
                      assign<&ast::UnionMember::sizeWhile>(ref<WhileSize>)) +
                     lit<"]">) +
              option(assign<&ast::UnionMember::at>(ref<At>)) +
@@ -422,10 +439,15 @@ struct Hexpat : cursiv::GrammarSpec {
              option(lit<"="> +
                     assign<&ast::VarDeclarator::init>(ref<Expression>))> {};
 
+  struct InitializedVarArray : rule<initialized_array<
+      &ast::VarDeclarator::name, &ast::VarDeclarator::isArray,
+      &ast::VarDeclarator::size, &ast::VarDeclarator::sizeWhile,
+      &ast::VarDeclarator::init>> {};
+
   struct VarDeclCore
       : rule<option(flag<&ast::VarDecl::isConst>(kw<"const">)) +
              assign<&ast::VarDecl::type>(ref<TypeName>) +
-             some(append<&ast::VarDecl::declarators>(ref<VarDeclarator>),
+             some(append<&ast::VarDecl::declarators>(ref<InitializedVarArray> | ref<VarDeclarator>),
                   lit<",">)> {};
 
   struct VarDeclStmt : rule<ref<VarDeclCore> + lit<";">> {};
@@ -551,10 +573,14 @@ struct Hexpat : cursiv::GrammarSpec {
              lit<"}"> + option(assign<&ast::Enum::attr>(ref<Attribute>)) +
              lit<";">> {};
 
-  struct Import
-      : rule<kw<"import"> +
-             some(append<&ast::Import::parts>(ref<ID>), lit<".">) + lit<";">> {
-  };
+  struct NamespaceName;
+  static constexpr auto ImportPath = assign<&ast::Import::source>(ref<StringLitExpr>) |
+      some(append<&ast::Import::parts>(ref<ID>), lit<".">);
+  struct Import : rule<kw<"import"> +
+      ((flag<&ast::Import::all>(lit<"*">) + kw<"from"> + ImportPath +
+        kw<"as"> + assign<&ast::Import::alias>(ref<ID>)) |
+       (ImportPath + option(kw<"as"> + assign<&ast::Import::alias>(ref<NamespaceName>)))) +
+      lit<";">> {};
 
   struct UsingAlias
       : rule<kw<"using"> + assign<&ast::UsingAlias::name>(ref<ID>) +
@@ -567,7 +593,8 @@ struct Hexpat : cursiv::GrammarSpec {
 
   struct NamespaceName : rule<some(ref<ID>, lit<"::">)> {};
   struct Namespace
-      : rule<kw<"namespace"> + assign<&ast::Namespace::name>(ref<NamespaceName>) +
+      : rule<kw<"namespace"> + option(flag<&ast::Namespace::auto_>(kw<"auto">)) +
+             assign<&ast::Namespace::name>(ref<NamespaceName>) +
              lit<"{"> + many(append<&ast::Namespace::items>(ref<DocumentItem>)) + lit<"}">> {};
 
   struct DocumentItem

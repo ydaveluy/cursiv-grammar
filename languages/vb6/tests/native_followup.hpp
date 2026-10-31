@@ -11,7 +11,9 @@ inline bool run(const cursiv::Parser& parser){
  const auto r=parser.parse(source);
  if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()){
   std::fprintf(stderr,"vb6 native documentation cases failed: %s\n",source);
-  for(const auto& d:r.diagnostics)std::fprintf(stderr,"  kind=%d begin=%zu end=%zu element=%u\n",int(d.kind),std::size_t(d.begin),std::size_t(d.end),unsigned(d.element));return false;
+  for(const auto& d:r.diagnostics)
+    std::fprintf(stderr,"  kind=%d begin=%zu end=%zu element=%u\n",int(d.kind),std::size_t(d.begin),std::size_t(d.end),unsigned(d.element));
+  return false;
  }
  bool numericLabel=false,resumeZero=false,resumeLine=false,foreign=false,redim=false,integer=false,single=false,exponent=false,handle=false,semicolon=false,comma=false,defaultMode=false;
  for(const auto* node:r.nodes){

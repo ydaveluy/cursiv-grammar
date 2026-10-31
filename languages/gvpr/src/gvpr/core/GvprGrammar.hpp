@@ -66,8 +66,8 @@ struct Gvpr : cursiv::GrammarSpec {
   static constexpr auto SChar =
       cr<R"(^"\\\n\r)"> | EscapeSequence | lit<"\\\n"> | lit<"\\\r\n">;
   struct StringLitTok
-      : terminal<option(lit<"u8"> | lit<"u"> | lit<"U"> | lit<"L">) +
-                 lit<"\""> + many(SChar) + lit<"\""> |
+      : terminal<(option(lit<"u8"> | lit<"u"> | lit<"U"> | lit<"L">) +
+                  lit<"\""> + many(SChar) + lit<"\"">) |
                  (lit<"'"> + many(CChar | lit<"\\\n"> | lit<"\\\r\n">) + lit<"'">)> {};
 
   // Keywords a value is read from: which enum member a spelling denotes.
@@ -141,17 +141,13 @@ struct Gvpr : cursiv::GrammarSpec {
              lit<")">)> {};
 
   struct IntLit
-      : rule<create<ast::IntLit>(
-             assign<&ast::IntLit::text>(ref<IntegerConstant>))> {};
+      : rule<assign<&ast::IntLit::text>(ref<IntegerConstant>)> {};
   struct FloatLit
-      : rule<create<ast::FloatLit>(
-             assign<&ast::FloatLit::text>(ref<FloatingConstant>))> {};
+      : rule<assign<&ast::FloatLit::text>(ref<FloatingConstant>)> {};
   struct CharLit
-      : rule<create<ast::CharLit>(
-             assign<&ast::CharLit::text>(ref<CharacterConstant>))> {};
+      : rule<assign<&ast::CharLit::text>(ref<CharacterConstant>)> {};
   struct StringLit
-      : rule<create<ast::StringLit>(
-             assign<&ast::StringLit::text>(ref<StringLitTok>))> {};
+      : rule<assign<&ast::StringLit::text>(ref<StringLitTok>)> {};
 
   struct Constant
       : rule<ref<IntLit> | ref<FloatLit> | ref<CharLit> |
@@ -293,8 +289,7 @@ struct Gvpr : cursiv::GrammarSpec {
              lit<"}">)> {};
 
   struct ExprStmt
-      : rule<create<ast::ExprStmt>(
-             assign<&ast::ExprStmt::expr>(ref<CommaExpr>))> {};
+      : rule<assign<&ast::ExprStmt::expr>(ref<CommaExpr>)> {};
 
   struct If
       : rule<create<ast::If>(

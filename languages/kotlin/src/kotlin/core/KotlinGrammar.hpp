@@ -427,12 +427,38 @@ struct Kotlin : cursiv::GrammarSpec {
             option(lit<"="> + assign<&ast::ClassParam::defaultValue>(
                                    ref<Expression>)))> {};
 
-  struct VariableDeclarator
-      : rule<create<ast::VariableDeclarator>(
+  static constexpr auto variable_declarator_body =
             assign<&ast::VariableDeclarator::name>(ref<SimpleIdentifier>) +
             option(lit<":"> +
-                   assign<&ast::VariableDeclarator::type>(ref<Type>)))> {
-  };
+                   assign<&ast::VariableDeclarator::type>(ref<Type>));
+  struct VariableDeclarator : rule<create<ast::VariableDeclarator>(
+      variable_declarator_body)> {};
+
+  enum class DestructuringMode { short_form, full, values };
+  template<DestructuringMode Mode> static constexpr auto destructuring_prefix = [] {
+    if constexpr (Mode == DestructuringMode::short_form)
+      return modifiers<&ast::VariableDeclarator::modifiers,
+                       &ast::VariableDeclarator::annotations>;
+    else if constexpr (Mode == DestructuringMode::full)
+      return assign<&ast::VariableDeclarator::valOrVar>(ref<VAL> | ref<VAR>);
+    else return assign<&ast::VariableDeclarator::valOrVar>(ref<VAL>);
+  }();
+  template<bool Named> static constexpr auto destructuring_entry_body = [] {
+    if constexpr (Named) return variable_declarator_body + option(lit<"="> +
+        assign<&ast::VariableDeclarator::sourceName>(ref<SimpleIdentifier>));
+    else return variable_declarator_body;
+  }();
+  template<bool Named, DestructuringMode Mode> struct DestructuringEntry
+      : rule<create<ast::VariableDeclarator>(destructuring_prefix<Mode> +
+             destructuring_entry_body<Named>)> {};
+  template<auto Entries, auto Kind, DestructuringMode Mode>
+  static constexpr auto destructuring_list =
+      (assign<Kind>(as<ast::DestructuringKind::named>(lit<"(">)) +
+       some(append<Entries>(ref<DestructuringEntry<true, Mode>>), lit<",">) +
+       option(lit<",">) + lit<")">) |
+      (assign<Kind>(as<ast::DestructuringKind::positional>(lit<"[">)) +
+       some(append<Entries>(ref<DestructuringEntry<false, Mode>>), lit<",">) +
+       option(lit<",">) + lit<"]">);
 
   struct TypeParam
       : rule<create<ast::TypeParam>(
@@ -463,12 +489,10 @@ struct Kotlin : cursiv::GrammarSpec {
       : rule<create<ast::LambdaParam>(
             (append<&ast::LambdaParam::declarators>(
                  ref<VariableDeclarator>) |
-             (lit<"("> +
-              append<&ast::LambdaParam::declarators>(
-                  ref<VariableDeclarator>) +
-              many(lit<","> + append<&ast::LambdaParam::declarators>(
-                                   ref<VariableDeclarator>)) +
-              lit<")">)) +
+             destructuring_list<&ast::LambdaParam::declarators,
+                                &ast::LambdaParam::destructuring, DestructuringMode::short_form> |
+             destructuring_list<&ast::LambdaParam::declarators,
+                                &ast::LambdaParam::destructuring, DestructuringMode::values>) +
             option(lit<":"> +
                    assign<&ast::LambdaParam::type>(ref<Type>)))> {};
 
@@ -816,12 +840,12 @@ struct Kotlin : cursiv::GrammarSpec {
       : rule<create<ast::ForExpr>(
             kw<"for"> + lit<"("> +
             many(annotation_modifier<&ast::ForExpr::annotations>) +
+            option(assign<&ast::ForExpr::valOrVar>(ref<VAL> | ref<VAR>)) +
             (append<&ast::ForExpr::declarators>(ref<VariableDeclarator>) |
-             (lit<"("> +
-              append<&ast::ForExpr::declarators>(ref<VariableDeclarator>) +
-              many(lit<","> + append<&ast::ForExpr::declarators>(
-                                  ref<VariableDeclarator>)) +
-              lit<")">)) +
+             destructuring_list<&ast::ForExpr::declarators,
+                                &ast::ForExpr::destructuring, DestructuringMode::short_form> |
+             destructuring_list<&ast::ForExpr::declarators,
+                                &ast::ForExpr::destructuring, DestructuringMode::values>) +
             ref<IN> + assign<&ast::ForExpr::iterable>(ref<Expression>) +
             lit<")"> + option(assign<&ast::ForExpr::body>(ControlBody)))> {};
 
@@ -844,6 +868,8 @@ struct Kotlin : cursiv::GrammarSpec {
   // propertyDeclaration | typeAlias);` -- the label prefix is real Kotlin
   // syntax (unused, but not refused) on any of the four, at statement level
   // only (`topLevelObject` has no such prefix).
+  static constexpr auto FullDestructuringHead =
+      (lit<"("> | lit<"[">) + (ref<VAL> | ref<VAR>);
   static constexpr auto LocalDeclarationBody = ref<ClassDeclaration> | ref<FunctionDeclaration> |
       ref<PropertyDeclaration> | ref<TypeAlias>;
   struct LocalDeclaration : rule<
@@ -853,7 +879,7 @@ struct Kotlin : cursiv::GrammarSpec {
   static constexpr auto StatementItem =
       ref<LocalDeclaration> | ref<ObjectDeclaration> |
       ref<CompanionObject> | ref<SecondaryConstructor> |
-      ref<InitBlock> | ref<Expression>;
+      ref<InitBlock> | (!FullDestructuringHead + ref<Expression>);
 
   template <auto Ptr>
   static constexpr auto statements_into =
@@ -1047,18 +1073,16 @@ struct Kotlin : cursiv::GrammarSpec {
             contextual_modifiers<&ast::PropertyDecl::modifiers,
                                  &ast::PropertyDecl::annotations,
                                  &ast::PropertyDecl::contextParameters> +
-            (flag<&ast::PropertyDecl::isVar>(ref<VAR>) | ref<VAL>)+option(
+            (((flag<&ast::PropertyDecl::isVar>(ref<VAR>) | ref<VAL>)+option(
                 type_parameters<&ast::PropertyDecl::typeParameters>) +
             option(assign<&ast::PropertyDecl::receiverType>(ref<ReceiverType>) +
                    lit<".">) +
-            ((lit<"("> +
-                 append<&ast::PropertyDecl::declarators>(
-                     ref<VariableDeclarator>) +
-                 many(lit<","> + append<&ast::PropertyDecl::declarators>(
-                                     ref<VariableDeclarator>)) +
-                 lit<")">) |
+            (destructuring_list<&ast::PropertyDecl::declarators,
+                                &ast::PropertyDecl::destructuring, DestructuringMode::short_form> |
              append<&ast::PropertyDecl::declarators>(
-                 ref<VariableDeclarator>)) +
+                 ref<VariableDeclarator>))) |
+             destructuring_list<&ast::PropertyDecl::declarators,
+                                &ast::PropertyDecl::destructuring, DestructuringMode::full>) +
             NLs +
             option(type_constraints<&ast::PropertyDecl::typeConstraints> +
                    NLs) +
@@ -1115,7 +1139,7 @@ struct Kotlin : cursiv::GrammarSpec {
             many(append<&ast::KotlinFile::imports>(ref<ImportHeader>)) +
             many(Anysemi) +
             option(some(append<&ast::KotlinFile::members>(
-                            TopLevelObject | ref<Expression>),
+                            TopLevelObject | (!FullDestructuringHead + ref<Expression>)),
                         some(Anysemi)) +
                    many(Anysemi)))> {};
 

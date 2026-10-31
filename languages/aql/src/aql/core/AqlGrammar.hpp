@@ -385,7 +385,13 @@ struct Aql : cursiv::GrammarSpec {
              option(assign<&ast::RemoveOp::options>(ref<Options>))> {};
 
   struct UpsertOp
-      : rule<ikw<"UPSERT"> + assign<&ast::UpsertOp::search>(ref<Expr>) +
+      : rule<ikw<"UPSERT"> +
+             ((flag<&ast::UpsertOp::isFilter>(ikw<"FILTER">) +
+               assign<&ast::UpsertOp::search>(ref<Expr>)) |
+              assign<&ast::UpsertOp::search>(
+                  ref<ObjectLit> | ref<BindParamRef> |
+                  create<ast::CollectionRef>(
+                      assign<&ast::CollectionRef::name>(ref<BIND_PARAMETER_COLL>)))) +
              ikw<"INSERT"> + assign<&ast::UpsertOp::insert_>(ref<Expr>) +
              (flag<&ast::UpsertOp::isUpdate>(ikw<"UPDATE">) |
               ikw<"REPLACE">) +

@@ -91,7 +91,7 @@ int main() {
   }
 
   {
-    for (const std::string source : {std::string("9223372036854775808"), std::string("˜9223372036854775809"),
+    for (const std::string& source : {std::string("9223372036854775808"), std::string("˜9223372036854775809"),
                                      std::string(400, '9') + ".0"}) {
       const auto result = language.language.parser->parse(source);
       if (!result.accepted || result.cst().recovered() ||

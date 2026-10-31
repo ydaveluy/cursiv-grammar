@@ -196,8 +196,7 @@ struct Vhdl : cursiv::GrammarSpec {
                  option(!gap::none + &Identifier + assign<&ast::Literal::unit>(ref<NameExpr>)))> {};
 
   struct BitStrLiteral
-      : rule<create<ast::Literal>(
-                 assign<&ast::Literal::text>(ref<BIT_STRING_LIT>))> {};
+      : rule<assign<&ast::Literal::text>(ref<BIT_STRING_LIT>)> {};
 
   struct NullLiteral
       : rule<create<ast::Literal>(assign<&ast::Literal::text>(ikw<"NULL">))> {

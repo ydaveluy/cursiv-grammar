@@ -266,6 +266,9 @@ struct LlvmIr : cursiv::GrammarSpec {
   static constexpr auto ParamAttribute = Attribute;
   static constexpr auto ReturnAttribute = Attribute;
   static constexpr auto FuncAttribute = Attribute;
+  static constexpr auto GroupAttribute =
+      ref<AlignPairAttr> | ref<AlignStackPairAttr> |
+      (!(kw<"align"> | kw<"alignstack"> | ref<ATTR_GROUP_ID>) + FuncAttribute);
   static constexpr auto GlobalField =
       ref<SectionAttr> | ref<PartitionAttr> | ref<ComdatAttr> | ref<AlignAttr> |
       ref<BareAttr> | ref<SanitizeMemtagAttr> | ref<CodeModelAttr>;
@@ -1177,7 +1180,7 @@ struct LlvmIr : cursiv::GrammarSpec {
   struct AttrGroupDef
       : rule<kw<"attributes"> +
              assign<&ast::AttrGroupDef::id>(ref<ATTR_GROUP_ID>) + lit<"="> +
-             lit<"{"> + many(append<&ast::AttrGroupDef::attrs>(FuncAttribute)) +
+             lit<"{"> + some(append<&ast::AttrGroupDef::attrs>(GroupAttribute)) +
              lit<"}">> {};
 
   struct NamedMetadataDef

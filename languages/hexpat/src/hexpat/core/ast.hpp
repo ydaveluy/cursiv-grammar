@@ -31,6 +31,11 @@ struct StringLit : cursiv::Extends<Expr> {
   string_view text;
 };
 
+// Declaration-only array initialization, not a general brace expression.
+struct ArrayInitializer : cursiv::Extends<Expr> {
+  vector<Expr*> values;
+};
+
 struct BoolLit : cursiv::Extends<Expr> {
   boolean value;
 };
@@ -162,6 +167,9 @@ struct Item : cursiv::Extends<cursiv::AstNode> {};
 
 struct Import : cursiv::Extends<Item> {
   vector<string_view> parts;
+  StringLit* source;
+  string_view alias;
+  boolean all;
 };
 
 // `using Name<T, auto N> = Type;`, or a forward declaration without `=`.
@@ -177,6 +185,7 @@ struct UsingAlias : cursiv::Extends<Item> {
 
 struct Namespace : cursiv::Extends<Item> {
   string_view name;
+  boolean auto_;
   vector<Item*> items;
 };
 
@@ -265,8 +274,10 @@ struct StructMember : cursiv::Extends<Item> {
 struct UnionMember : cursiv::Extends<Item> {
   TypeRef* type;
   string_view name;
+  boolean hasBrackets;
   Expr* size;
   Expr* sizeWhile;
+  Expr* init;
   At* at;
   Attribute* attr;
 };

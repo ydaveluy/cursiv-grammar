@@ -396,6 +396,10 @@ struct Gql : cursiv::GrammarSpec {
             (option(ikw<"BINDING">) +
              assign<&ast::TypeRef::name>(ikw<"TABLE">) + PropertyTypeFields +
              option(NotNull)) |
+            // Closed references reuse the same node/edge specifications as
+            // graph type DDL; the child retains labels, fields and endpoints.
+            (assign<&ast::TypeRef::element>(ref<ElementTypeSpec>) +
+             option(NotNull)) |
             (option(ikw<"ANY">) +
              assign<&ast::TypeRef::name>(ikw<"NODE"> | ikw<"VERTEX">) +
              option(NotNull)) |

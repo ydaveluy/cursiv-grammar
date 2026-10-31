@@ -19,13 +19,15 @@ void JavadocValidator::checkInline(const ast::InlineTag &tag,
     accept.error(tag, "This inline tag does not accept content.")
         .property<&ast::InlineTag::content>()
         .code("javadoc.unexpected-content");
-  if ((tag.name == "index" || tag.name == "systemProperty") && content.empty())
-    accept.error(tag, "This inline tag requires content.")
-        .property<&ast::InlineTag::content>()
-        .code("javadoc.missing-content");
+  if ((tag.name == "index" || tag.name == "systemProperty") && content.empty()) {
+    auto finding = accept.error(tag, "This inline tag requires content.");
+    finding.code("javadoc.missing-content");
+    if (tag.structured) finding.property<&ast::InlineTag::name>();
+    else finding.property<&ast::InlineTag::content>();
+  }
   if ((tag.name == "link" || tag.name == "linkplain") && content.empty())
     accept.warning(tag, "No reference given for this link.")
-        .property<&ast::InlineTag::content>()
+        .property<&ast::InlineTag::name>()
         .code("javadoc.missing-reference");
 }
 

@@ -15,6 +15,11 @@ class SquirrelValidator final : public cursiv::DefaultCoreService {
   void checkFunctionExpr(const ast::FunctionExpr&, cursiv::ValidationAcceptor&) const;
   void checkLambda(const ast::LambdaExpr&, cursiv::ValidationAcceptor&) const;
   void checkConstructor(const ast::ConstructorDecl&, cursiv::ValidationAcceptor&) const;
+  void checkRawCall(const ast::RawCallExpr&, cursiv::ValidationAcceptor&) const;
+  void checkClassTarget(const ast::ClassDecl&, cursiv::ValidationAcceptor&) const;
+  void checkMemberName(const ast::ClassMember&, cursiv::ValidationAcceptor&) const;
+  void checkTableNames(const ast::TableExpr&, cursiv::ValidationAcceptor&) const;
+  void checkLocalFunctionName(const ast::LocalFunctionDecl&, cursiv::ValidationAcceptor&) const;
 
 };
 

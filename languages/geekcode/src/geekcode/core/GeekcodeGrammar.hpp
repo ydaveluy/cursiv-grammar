@@ -37,8 +37,7 @@ struct Geekcode : cursiv::GrammarSpec {
   static constexpr auto Modifier = ref<SIZING> | ref<Crossover> |
       ref<NOTRIGID> | as<ast::Qualifier::wannabe>(lit<">">) | as<ast::Qualifier::for_living>(lit<"$">) | ref<NOKNOWLEDGE> | as<ast::Qualifier::refused>(lit<"!">);
 
-  struct Unix : rule<create<ast::Unix>(
-      assign<&ast::Unix::variants>(ref<UNIX_VARIANTS>))> {};
+  struct Unix : rule<assign<&ast::Unix::variants>(ref<UNIX_VARIANTS>)> {};
   static constexpr auto ShapeModifiers =
       many(gap::none + append<&ast::ShapeSegment::modifiers>(Modifier));
   struct FirstShapeSegment : rule<create<ast::ShapeSegment>(lit<"s"> + ShapeModifiers)> {};

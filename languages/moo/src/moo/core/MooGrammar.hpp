@@ -11,15 +11,18 @@ namespace moo {
 
 inline constexpr auto strip_quotes = [](std::string_view t,
                                         std::pmr::memory_resource* mem) {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (t.size() < 2 || t.front() != '"' || t.back() != '"')
+    return Result::err("A string literal needs opening and closing quotes.");
   const auto body = t.substr(1, t.size() - 2);
-  if (body.find('\\') == body.npos) return body;
+  if (body.find('\\') == body.npos) return Result::ok(body);
   auto room = cursiv::text_room(mem, body.size());
   std::size_t n = 0;
   for (std::size_t i = 0; i < body.size(); ++i) {
     if (body[i] == '\\' && i + 1 < body.size()) ++i;
     room[n++] = body[i];
   }
-  return std::string_view(room.data(), n);
+  return Result::ok(std::string_view(room.data(), n));
 };
 
 struct Moo : cursiv::GrammarSpec {
@@ -83,13 +86,20 @@ struct Moo : cursiv::GrammarSpec {
 
   // Native LambdaMOO: exponentiation associates right; && and || share
   // one left-associative level. Unary operators bind tighter than power.
-  struct Expression
+  struct BinaryExprRule
       : infix<SignedAtom, ast::BinaryExpr,
               levels(right(ref<POW>),                          //
                      left(as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">) | as<ast::Operator::modulo>(lit<"%">)),  //
                      left(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">)),
                      left(CompareOps),
                      left(ref<AND> | as<ast::Operator::logical_or>(lit<"||">)))> {};
+
+  // Native '?' and '|' are one non-associative level below &&/||.
+  // Parenthesized expressions restart this level through Atom.
+  struct Expression : rule<ref<BinaryExprRule> + option(
+      nest<ast::ConditionalExpr, &ast::ConditionalExpr::condition>(
+          lit<"?"> + assign<&ast::ConditionalExpr::consequent>(ref<BinaryExprRule>) +
+          lit<"|"> + assign<&ast::ConditionalExpr::alternate>(ref<BinaryExprRule>)))> {};
 
   struct SignedAtom
       : rule<create<ast::UnaryExpr>(
@@ -178,6 +188,11 @@ struct Moo : cursiv::GrammarSpec {
              many(append<&ast::DoStmt::body>(ref<Statement>)) + ikw<"while"> +
              assign<&ast::DoStmt::cond>(ref<Condition>)> {};
 
+  struct ForkStmt : rule<ikw<"fork"> +
+      option(assign<&ast::ForkStmt::name>(ref<WORD>)) +
+      lit<"("> + assign<&ast::ForkStmt::delay>(ref<Expression>) + lit<")"> +
+      many(append<&ast::ForkStmt::body>(ref<Statement>)) + ikw<"endfork">> {};
+
   struct ForStmt
       : rule<create<ast::ForStmt> + ikw<"for"> +
              assign<&ast::ForStmt::var>(Name) + ikw<"in"> +
@@ -225,6 +240,7 @@ struct Moo : cursiv::GrammarSpec {
 
   struct Statement
       : rule<ref<IfStmt> | ref<WhileStmt> | ref<DoStmt> | ref<ForStmt> |
+             ref<ForkStmt> |
              ref<AssignStmt> | ref<TryStmt> | ref<LoopControlStmt> | ref<CommandStmt>> {};
 
   struct ProgramDecl

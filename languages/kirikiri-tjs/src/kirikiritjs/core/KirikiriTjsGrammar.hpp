@@ -13,8 +13,14 @@ struct KirikiriTjs : cursiv::GrammarSpec {
                             lit<"\xE2\x80\xA8"> | lit<"\xE2\x80\xA9"> |
                             lit<"\xEF\xBB\xBF">)> {};
   struct SHEBANG : terminal<lit<"#!"> + many(cr<R"(^\r\n)">)> {};
-  struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
-  struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
+  struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n\x00)">)> {};
+  // Native nested comments advance one character at inner delimiters. The
+  // recursive body leaves their slash for its caller; the outer token owns it.
+  struct CommentBody
+      : terminal<many((&lit<"/*"> + lit<"/"> + ref<CommentBody>) |
+                      (!lit<"/*"> + !lit<"*/"> + cr<R"(^\x00)">)) +
+                 lit<"*"> + &lit<"/">> {};
+  struct ML_COMMENT : terminal<lit<"/*"> + ref<CommentBody> + lit<"/">> {};
 
   // Native TJS2 treats every wide character from U0100 as name text;
   // '$' is the character-from-code operator, and identifier escapes are not JS.
@@ -25,7 +31,7 @@ struct KirikiriTjs : cursiv::GrammarSpec {
   static constexpr auto ReservedWordSet = kw<"break"> | kw<"continue"> | kw<"const"> | kw<"catch"> | kw<"class"> | kw<"case"> | kw<"debugger"> | kw<"default"> | kw<"delete"> | kw<"do"> | kw<"extends"> | kw<"export"> | kw<"enum"> | kw<"else"> | kw<"function"> | kw<"finally"> | kw<"false"> | kw<"for"> | kw<"global"> | kw<"getter"> | kw<"goto"> | kw<"incontextof"> | kw<"invalidate"> | kw<"instanceof"> | kw<"isvalid"> | kw<"import"> | kw<"int"> | kw<"in"> | kw<"if"> | kw<"null"> | kw<"new"> | kw<"octet"> | kw<"protected"> | kw<"property"> | kw<"private"> | kw<"public"> | kw<"return"> | kw<"real"> | kw<"synchronized"> | kw<"switch"> | kw<"static"> | kw<"setter"> | kw<"string"> | kw<"super"> | kw<"typeof"> | kw<"throw"> | kw<"this"> | kw<"true"> | kw<"try"> | kw<"void"> | kw<"var"> | kw<"while"> | kw<"NaN"> | kw<"Infinity"> | kw<"with">;
   struct PlainNameTok : terminal<!ReservedWordSet + IdStart + many(IdPart)> {};
   struct Identifier
-      : rule<create<ast::Ident>(assign<&ast::Ident::name>(ref<PlainNameTok>))> {
+      : rule<assign<&ast::Ident::name>(ref<PlainNameTok>)> {
   };
   struct IdentifierName : rule<create<ast::Ident>(assign<&ast::Ident::name>(
                               ref<RawId> | ReservedWordSet))> {};
@@ -47,26 +53,29 @@ struct KirikiriTjs : cursiv::GrammarSpec {
       (lit<"0"> + some(cr<"0-7">) + option(lit<"."> + many(cr<"0-7">)) + option(BinaryExponent))> {};
 
   // -- Strings ---- Escapes are kept raw, only enough to not hide the closer.
-  static constexpr auto EscapeSeq = lit<"\\"> + any;
+  static constexpr auto EscapeSeq = lit<"\\"> + cr<R"(^\x00)">;
   struct STRING
-      : terminal<(lit<"\""> + many(EscapeSeq | cr<R"(^"\\\r\n)">) + lit<"\"">) |
-                 (lit<"'"> + many(EscapeSeq | cr<R"(^'\\\r\n)">) + lit<"'">)> {
+      : terminal<(lit<"\""> + many(EscapeSeq | cr<R"(^"\\\x00)">) + lit<"\"">) |
+                 (lit<"'"> + many(EscapeSeq | cr<R"(^'\\\x00)">) + lit<"'">)> {
   };
   // `@"..."`/`@'...'`: only its own quote is escapable, unlike STRING above.
   struct TEMPLATE_STRING
       : terminal<(lit<"@\""> + many(lit<"\\\""> | cr<R"(^")">) + lit<"\"">) |
                  (lit<"@'"> + many(lit<"\\'"> | cr<"^'">) + lit<"'">)> {};
-  // `<% ... %>`, kept whole with its delimiters.
-  struct OCTET : terminal<through(lit<"<%">, lit<"%>">)> {};
+  // Native octets skip comments before testing their closing delimiter.
+  // Source CR/CRLF line boundaries match the native newline-unification stage.
+  struct OCTET : terminal<lit<"<%"> + many(
+      ref<ML_COMMENT> | (ref<SL_COMMENT> + eol) |
+      (!lit<"%>"> + !lit<"/*"> + !lit<"//"> + cr<R"(^\x00)">)) + lit<"%>">> {};
 
-  static constexpr auto RegexBackslash = lit<"\\"> + cr<R"(^\r\n)">;
-  static constexpr auto RegexClass =
-      lit<"["> + many(RegexBackslash | cr<R"(^\r\n\\])">) + lit<"]">;
+  // The native regex lexer does not give [] a delimiter-quoting role.
+  // Raw newlines are allowed; only lowercase letters extend its flag token.
+  static constexpr auto RegexBackslash = lit<"\\"> + cr<R"(^\x00)">;
+  static constexpr auto RegexChar = RegexBackslash | cr<R"(^/\\\x00)">;
   struct REGEX
       : terminal<lit<"/"> +
-                 (RegexBackslash | RegexClass | cr<R"(^*\r\n\\/[)">)+many(
-                     RegexBackslash | RegexClass | cr<R"(^\r\n\\/[)">) +
-                 lit<"/"> + many(cr<"a-zA-Z">)> {};
+                 (RegexBackslash | cr<R"(^*/\\\x00)">) + many(RegexChar) +
+                 lit<"/"> + many(cr<"a-z">)> {};
 
   struct NullLit : rule<create<ast::NullLit>(kw<"null">)> {};
   struct VoidLit : rule<create<ast::VoidLit>(kw<"void">)> {};

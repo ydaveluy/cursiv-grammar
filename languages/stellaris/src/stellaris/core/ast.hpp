@@ -29,6 +29,12 @@ struct Group : cursiv::Extends<Value> {
   boolean closed;
 };
 
+struct ParameterDefinition : cursiv::Extends<Item> {
+  string_view name;
+  boolean undefined;
+  Value* value;
+};
+
 struct Document : cursiv::Extends<cursiv::AstNode> {
   vector<Item*> items;
   boolean bom;

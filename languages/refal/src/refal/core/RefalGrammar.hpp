@@ -11,9 +11,12 @@ namespace refal {
 
 struct Refal : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \r\n\t)">)> {};
-  // A line starting with '*' runs to end of line; no other construct opens
-  // on a bare '*'.
-  struct LINE_COMMENT : terminal<lit<"*"> + many(cr<R"(^\r\n)">)> {};
+  static constexpr auto comment_line = lit<"*"> + many(cr<R"(^\r\n)">);
+  // The newline belongs to the comment token, so '*' is in column one.
+  // Blank lines before it may contain horizontal whitespace.
+  struct LINE_COMMENT
+      : terminal<some(many(cr<" \t">) + eol) + comment_line> {};
+  struct INITIAL_COMMENT : terminal<comment_line> {};
   struct BLOCK_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
 
   struct IDENT : terminal<cr<"a-zA-Z"> + many(cr<"a-zA-Z0-9_-">)> {};
@@ -108,10 +111,12 @@ struct Refal : cursiv::GrammarSpec {
   static constexpr auto item = (ref<FunctionDef> + option(lit<";">)) |
                                (ref<ExternalDecl> + lit<";">);
 
-  struct Program : rule<some(append<&ast::Program::items>(item))> {};
+  struct Program : rule<option(gap::none + ref<INITIAL_COMMENT>) +
+                        some(append<&ast::Program::items>(item))> {};
 
   using entry = Program;
-  using ignored = list<WS, LINE_COMMENT, BLOCK_COMMENT>;
+  using ignored = WS;
+  using hidden = list<LINE_COMMENT, BLOCK_COMMENT>;
 };
 
 }  // namespace refal

@@ -44,8 +44,12 @@ void CValidator::checkReservedNames(const ast::TranslationUnit& unit,
   const cursiv::Grammar* const grammar = cst.grammar();
   if (grammar == nullptr) return;
   cst.visit_leaves([&](const cursiv::CstLeaf& leaf) {
-    if (grammar->recordRule(cst[leaf.id]) != "ID" ||
-        grammar->recordFeature(cst[leaf.id]).empty()) return;
+    // An attribute argument may contain any token, including keywords.
+    // Its preserved token text is not an identifier use.
+    const auto feature = grammar->recordFeature(cst[leaf.id]);
+    if (grammar->recordRule(cst[leaf.id]) != "ID" || feature.empty() ||
+        feature == "text")
+      return;
     const std::string_view word = cst.text(leaf.id);
     if (std::ranges::find(kReserved, word) != kReserved.end())
       accept.error(cursiv::TextRange{leaf.begin, leaf.end},

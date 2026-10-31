@@ -1,4 +1,5 @@
 #include "audit_regressions.hpp"
+#include "interface_cases.hpp"
 // The teal grammar end to end: every example parses clean, and a few real
 // field values are read back so a converter that silently misfires would
 // not pass unnoticed.
@@ -157,7 +158,7 @@ void enums_example_values() {
   }
 }
 
-// `local Comparator = functiontype<T>(T, T): boolean` then a generic
+// `local type Comparator = function<T>(T, T): boolean` then a generic
 // function reading a generic type back as its parameter.
 void functions_example_values() {
   const std::string text = cursiv::test::read_file(
@@ -170,11 +171,12 @@ void functions_example_values() {
   ast::LocalNewTypeStat* const cmp =
       as<ast::LocalNewTypeStat>(root->statements[0]);
   CHECK(cmp != nullptr && cmp->name == "Comparator");
-  ast::FuncNewType* const fn =
-      cmp != nullptr ? as<ast::FuncNewType>(cmp->value) : nullptr;
-  CHECK(fn != nullptr && fn->signature != nullptr);
-  if (fn != nullptr && fn->signature != nullptr) {
-    ast::FunctionSigType* const sig = fn->signature;
+  ast::AliasNewType* const alias =
+      cmp != nullptr ? as<ast::AliasNewType>(cmp->value) : nullptr;
+  ast::FunctionSigType* const sig =
+      alias != nullptr ? as<ast::FunctionSigType>(base(alias->type)) : nullptr;
+  CHECK(sig != nullptr);
+  if (sig != nullptr) {
     CHECK(sig->typeParams != nullptr && sig->typeParams->names.size() == 1 &&
           sig->typeParams->names[0] == "T");
     CHECK(sig->params.size() == 2);
@@ -271,7 +273,7 @@ void is_and_as() {
 }  // namespace
 
 int main() {
-  if (!audit_regressions::run()) return 1;
+  if (!audit_regressions::run() || !teal_interfaces::run()) return 1;
   every_example_parses_clean();
   arrays_example_values();
   enums_example_values();

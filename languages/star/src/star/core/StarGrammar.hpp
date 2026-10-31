@@ -44,12 +44,12 @@ struct Star : cursiv::GrammarSpec {
                           ref<TRIPLE1> | ref<TRIPLE2> | ref<STRING1> |
                           ref<STRING2> | ref<TEXT>))> {};
   struct Literal
-      : rule<create<ast::Literal>(assign<&ast::Literal::text>(ref<LITERAL>))> {
+      : rule<assign<&ast::Literal::text>(ref<LITERAL>)> {
   };
   struct Value;
   struct DelimitedValue;
   struct Atom
-      : rule<create<ast::Literal>(assign<&ast::Literal::text>(ref<ATOM>))> {};
+      : rule<assign<&ast::Literal::text>(ref<ATOM>)> {};
   struct Loop;
   struct List
       : rule<create<ast::List>(

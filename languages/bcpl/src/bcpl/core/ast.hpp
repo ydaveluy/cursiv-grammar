@@ -257,12 +257,16 @@ struct Decl;
 
 // `OB declaration_part semi command_list? CB`.
 struct Block : cursiv::Extends<Stmt> {
+  string_view openTag;
+  string_view closeTag;  // empty for an untagged or implicit closer
   vector<Decl*> declarations;
   vector<Stmt*> commands;
 };
 
 // `OB command_list? CB`: no declarations, unlike `Block`.
 struct CompoundStmt : cursiv::Extends<Stmt> {
+  string_view openTag;
+  string_view closeTag;
   vector<Stmt*> commands;
 };
 
@@ -274,10 +278,14 @@ struct ManifestItem : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct ManifestDecl : cursiv::Extends<Decl> {
+  string_view openTag;
+  string_view closeTag;
   vector<ManifestItem*> items;
 };
 
 struct StaticDecl : cursiv::Extends<Decl> {
+  string_view openTag;
+  string_view closeTag;
   vector<ManifestItem*> items;
 };
 
@@ -287,6 +295,8 @@ struct GlobalItem : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct GlobalDecl : cursiv::Extends<Decl> {
+  string_view openTag;
+  string_view closeTag;
   vector<GlobalItem*> items;
 };
 

@@ -14,6 +14,7 @@
 #include "javascript/core/CoreServices.hpp"
 #include "javascript/core/ast.hpp"
 #include "native_followup_cases.hpp"
+#include "label_cases.hpp"
 
 namespace {
 
@@ -118,6 +119,8 @@ int main() {
   if (modern_syntax(*language.language.parser))
     return 1;
   if (!javascript_native_followup::run(language))
+    return 1;
+  if (!javascript_label_cases::run(language.language))
     return 1;
 
   for (const fs::path &path : files) {

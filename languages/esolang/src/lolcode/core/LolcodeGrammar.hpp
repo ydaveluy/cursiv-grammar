@@ -25,14 +25,17 @@ struct Lolcode : cursiv::GrammarSpec {
   struct CONTINUATION : terminal<(lit<"..."> | lit<"…">) + many(cr<R"( \t)">) + eol> {};
 
   // An identifier must start with a letter or underscore, so a pure-digit
-  // spelling stays disjoint from NUMBER.
+  // spelling stays disjoint from numeric literals.
   struct LABEL : terminal<cr<"a-zA-Z_"> + many(cr<"a-zA-Z0-9_">)> {};
 
-  static constexpr auto number_body = option(lit<"-">) +
-      ((some(d) + option(lit<"."> + many(d))) | (lit<"."> + some(d)));
+  static constexpr auto numbr_body = option(lit<"-">) + some(d);
+  static constexpr auto numbar_body = option(lit<"-">) +
+      ((some(d) + lit<"."> + many(d)) | (lit<"."> + some(d)));
+  static constexpr auto number_body = numbar_body | numbr_body;
   static constexpr auto bool_body = kw<"WIN"> | kw<"FAIL">;
 
-  struct NUMBER : terminal<as<double>(number_body)> {};
+  struct NUMBR : terminal<numbr_body> {};
+  struct NUMBAR : terminal<numbar_body> {};
 
   struct BOOL : terminal<as<win_or_fail>(bool_body)> {};
   struct NOOBK : terminal<kw<"NOOB">> {};
@@ -56,7 +59,8 @@ struct Lolcode : cursiv::GrammarSpec {
 
   struct BoolLit : rule<assign<&ast::BoolLit::value>(ref<BOOL>)> {};
   struct NoobLit : rule<create<ast::NoobLit> + ref<NOOBK>> {};
-  struct NumLit : rule<assign<&ast::NumLit::value>(ref<NUMBER>)> {};
+  struct NumLit : rule<assign<&ast::NumLit::text>(ref<NUMBR>) |
+      flag<&ast::NumLit::numbar>(assign<&ast::NumLit::text>(ref<NUMBAR>))> {};
   struct StrLit : rule<assign<&ast::StrLit::text>(ref<STRING>)> {};
 
   static constexpr auto atom =

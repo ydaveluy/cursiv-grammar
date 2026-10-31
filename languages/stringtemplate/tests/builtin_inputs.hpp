@@ -1,0 +1,62 @@
+#pragma once
+
+#include <string_view>
+
+// Root ST4.3.4 compile-only:41prior expectations plus10classified observations.
+// See audit/review-20261030-port-fixes/stringtemplate-builtin-native-results01.json.
+namespace stringtemplate_builtins {
+struct Case { const char* id; std::string_view source; bool valid; };
+inline constexpr Case cases[] = {
+    {"first-one", "<first(x)>", true},
+    {"first-two", "<first(x,y)>", false},
+    {"first-named", "<first(x=y)>", false},
+    {"first-empty", "<first()>", true},
+    {"last-one", "<last(x)>", true},
+    {"last-two", "<last(x,y)>", false},
+    {"last-named", "<last(x=y)>", false},
+    {"last-empty", "<last()>", true},
+    {"rest-one", "<rest(x)>", true},
+    {"rest-two", "<rest(x,y)>", false},
+    {"rest-named", "<rest(x=y)>", false},
+    {"rest-empty", "<rest()>", true},
+    {"trunc-one", "<trunc(x)>", true},
+    {"trunc-two", "<trunc(x,y)>", false},
+    {"trunc-named", "<trunc(x=y)>", false},
+    {"trunc-empty", "<trunc()>", true},
+    {"strip-one", "<strip(x)>", true},
+    {"strip-two", "<strip(x,y)>", false},
+    {"strip-named", "<strip(x=y)>", false},
+    {"strip-empty", "<strip()>", true},
+    {"trim-one", "<trim(x)>", true},
+    {"trim-two", "<trim(x,y)>", false},
+    {"trim-named", "<trim(x=y)>", false},
+    {"trim-empty", "<trim()>", true},
+    {"length-one", "<length(x)>", true},
+    {"length-two", "<length(x,y)>", false},
+    {"length-named", "<length(x=y)>", false},
+    {"length-empty", "<length()>", true},
+    {"strlen-one", "<strlen(x)>", true},
+    {"strlen-two", "<strlen(x,y)>", false},
+    {"strlen-named", "<strlen(x=y)>", false},
+    {"strlen-empty", "<strlen()>", true},
+    {"reverse-one", "<reverse(x)>", true},
+    {"reverse-two", "<reverse(x,y)>", false},
+    {"reverse-named", "<reverse(x=y)>", false},
+    {"reverse-empty", "<reverse()>", true},
+    {"longer-name", "<firstx(x,y)>", true},
+    {"case-sensitive", "<First(x,y)>", true},
+    {"rooted-name", "</first(x,y)>", true},
+    {"qualified-tail", "<ns/first(x,y)>", true},
+    {"qualified-head", "<first/t(x,y)>", true},
+    {"spaced-builtin-one", "< first ( x ) >", true},
+    {"spaced-builtin-two", "< first ( x,y ) >", false},
+    {"nested-one", "<first(last(x))>", true},
+    {"nested-invalid", "<first(last(x,y))>", false},
+    {"list-operand", "<first([x,y])>", true},
+    {"mapped-operand", "<first(x:t())>", true},
+    {"zipped-operand", "<first(x,y:{a,b|<a><b>})>", true},
+    {"zipped-named-target", "<first(x,y:t())>", true},
+    {"forwarding", "<first(...)>", false},
+    {"named-forwarding", "<first(x=y,...)>", false},
+};
+}  // namespace stringtemplate_builtins

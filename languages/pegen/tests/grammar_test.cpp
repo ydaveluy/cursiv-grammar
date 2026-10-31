@@ -2,6 +2,7 @@
 // workspace does, and check each tree.
 
 #include <cstdio>
+#include "layout_cases.hpp"
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -31,6 +32,12 @@ int fail(const char* file, const char* what) {
 }  // namespace
 
 int main() {
+  {
+    auto language = cursiv::create_language<pegen::PegenCoreServices,
+        pegen::PegenSharedCoreServices, pegen::install_core_module>();
+    pegen_layout::run(language.language);
+  }
+
   const auto language = cursiv::create_language<
       pegen::PegenCoreServices, pegen::PegenSharedCoreServices,
       pegen::install_core_module>();
@@ -104,5 +111,5 @@ _entrée[List[Tuple[str, int]]](memo):
   if (!diagnosed) return fail("regression", "duplicate rule has no precise diagnostic");
 
   std::puts("pegen: every sample parses");
-  return 0;
+  return cursiv::test::report("pegen_grammar_test");
 }

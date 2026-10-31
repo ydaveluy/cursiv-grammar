@@ -70,7 +70,7 @@ inline bool run() {
       return false;
   }
   // RFC 8259 §8.1: raw string characters must be well-formed UTF-8.
-  for (const auto raw : {std::string("\x80", 1), std::string("\xc3", 1),
+  for (const auto& raw : {std::string("\x80", 1), std::string("\xc3", 1),
                          std::string("\xc0\xaf", 2), std::string("\xed\xa0\x80", 3),
                          std::string("\xf4\x90\x80\x80", 4)}) {
     const std::string source = "\"" + raw + "\"";
@@ -78,7 +78,7 @@ inline bool run() {
     if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
       return false;
   }
-  for (const auto raw : {std::string("\x7f", 1), std::string("\xc2\x80", 2),
+  for (const auto& raw : {std::string("\x7f", 1), std::string("\xc2\x80", 2),
                          std::string("\xf4\x8f\xbf\xbf", 4)}) {
     const std::string source = "\"" + raw + "\"";
     const auto result = services.language.parser->parse(source);

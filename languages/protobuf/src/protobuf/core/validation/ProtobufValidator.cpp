@@ -56,6 +56,9 @@ void ProtobufValidator::checkField(const ast::Field &node,
         .property<&ast::Field::label>();
   if(syntaxOf(node)=="proto2"&&!node.label)
     accept.error(node,"A proto2 field needs optional, required or repeated.","protobuf.field-label");
+  if(cursiv::ast_cast<ast::ExtendDef>(node.parent) && node.label==ast::FieldLabel::required_)
+    accept.error(node,"An extension cannot be required.","protobuf.extension-label")
+        .property<&ast::Field::label>();
 }
 void ProtobufValidator::checkGroup(const ast::Group& node,
                                     cursiv::ValidationAcceptor& accept) const {

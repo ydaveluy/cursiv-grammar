@@ -96,6 +96,10 @@ struct Clause : cursiv::Extends<cursiv::AstNode> {
   boolean isDnf;
   TermList* vars = nullptr;
   vector<Term*> literals;
+  boolean plain;
+  vector<Term*> constraints;
+  vector<Term*> antecedent;
+  vector<Term*> succedent;
 };
 
 struct ClauseEntry : cursiv::Extends<cursiv::AstNode> {
@@ -163,10 +167,17 @@ struct LogicalPart : cursiv::Extends<cursiv::AstNode> {
   vector<ProofList*> proofLists;
 };
 
+struct Include : cursiv::Extends<cursiv::AstNode> {
+  string_view filename;
+  boolean hasSelection;
+  vector<string_view> selection;
+};
+
 struct Problem : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   Description* description = nullptr;
   LogicalPart* logicalPart = nullptr;
+  vector<Include*> includes;
   vector<std::variant<GeneralSettings*, NamedSettings*>> settings;
 };
 

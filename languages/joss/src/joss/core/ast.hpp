@@ -143,6 +143,11 @@ struct DeleteCmdCmd : cursiv::Extends<Command> {
   Selector* target;
 };
 
+using DeleteTarget = std::variant<Variable*, Selector*>;
+struct DeleteListCmd : cursiv::Extends<Command> {
+  vector<DeleteTarget> targets;
+};
+
 struct DoneCmd : cursiv::Extends<Command> {};
 struct StopCmd : cursiv::Extends<Command> {};
 
@@ -162,6 +167,7 @@ struct LetCmd : cursiv::Extends<Command> { Assignment* assignment; };
 
 struct DoCmd : cursiv::Extends<Command> {
   Selector* target;
+  MathExpr* times;
 };
 
 struct TypeContent : cursiv::Extends<cursiv::AstNode> {};

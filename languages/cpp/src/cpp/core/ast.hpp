@@ -8,11 +8,44 @@
 
 namespace cpp::ast {
 
+// Balanced argument tokens keep their order and grouping. Trivia stays in
+// the CST; no converter rescans or repeatedly copies nested arguments.
+struct AttributeToken : cursiv::Extends<cursiv::AstNode> {};
+struct AttributeAtom : cursiv::Extends<AttributeToken> {
+  string_view text;
+};
+struct AttributeGroup : cursiv::Extends<AttributeToken> {
+  string_view opening;
+  string_view closing;
+  vector<AttributeToken*> tokens;
+};
+
+struct Attribute : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  AttributeGroup* arguments;
+  boolean packExpansion;
+};
+
+struct TypeId;
+struct Expr;
+
+enum class AttributeKind { Standard, Alignment };
+
+struct AttributeSpecifier : cursiv::Extends<cursiv::AstNode> {
+  AttributeKind kind = AttributeKind::Standard;
+  vector<Attribute*> attributes;
+  TypeId* alignmentType;
+  Expr* alignmentExpression;
+  boolean packExpansion;
+};
+
 // Anything a list of items may hold: a declaration, a statement, a function
 // definition, an access-specifier label. The grammar keeps a function
 // definition out of a block, not this type.
 
-struct Item : cursiv::Extends<cursiv::AstNode> {};
+struct Item : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
+};
 struct Stmt : cursiv::Extends<Item> {};
 struct Expr : cursiv::Extends<cursiv::AstNode> {};
 // Anything name-shaped: an identifier, a qualified or templated name, an
@@ -112,6 +145,7 @@ struct Capture : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct LambdaExpr : cursiv::Extends<Expr> {
+  vector<AttributeSpecifier*> attributes;
   vector<Capture*> captures;
   string_view captureDefault;  // "&", "=", or empty
   boolean hasDeclarator;       // a lambdaDeclarator was written at all
@@ -255,6 +289,7 @@ struct NamedType : cursiv::Extends<TypeSpec> {
 // `class`/`struct`/`union`/`enum` used as an elaborated-type-specifier
 // (`struct S`, `enum E`), without a body.
 struct ElaboratedType : cursiv::Extends<TypeSpec> {
+  vector<AttributeSpecifier*> attributes;
   string_view keyword;
   Name* name;
 };
@@ -269,6 +304,7 @@ struct DecltypeType : cursiv::Extends<TypeSpec> {
 };
 
 struct BaseSpecifier : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   string_view accessSpec;  // "public"/"protected"/"private", or empty
   boolean isVirtual;
   cursiv::AstNode* type;  // Name* or a decltype TypeSpec*
@@ -276,6 +312,7 @@ struct BaseSpecifier : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct ClassType : cursiv::Extends<TypeSpec> {
+  vector<AttributeSpecifier*> attributes;
   string_view keyword;  // "class", "struct" or "union"
   Name* name;            // null for an anonymous class/struct/union
   boolean isFinal;
@@ -295,6 +332,7 @@ struct Enumerator : cursiv::Extends<cursiv::AstNode> {
   Expr* value;
 };
 struct EnumType : cursiv::Extends<TypeSpec> {
+  vector<AttributeSpecifier*> attributes;
   boolean isClass;  // `enum class`/`enum struct` (scoped)
   Name* name;
   Specifiers* underlying;  // the `: type` base, or null
@@ -307,6 +345,7 @@ struct EnumType : cursiv::Extends<TypeSpec> {
 // One `*` or pointer-to-member `T::*`, or a reference `&`/`&&`: `kind` holds
 // the written token(s), `memberOf` is set only for a pointer-to-member.
 struct Pointer : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   string_view kind;  // "*", "&" or "&&"
   cursiv::AstNode* memberOf;  // Name* or a decltype TypeSpec*, pointer-to-member only
   vector<string_view> qualifiers;  // const/volatile, meaningful for "*" only
@@ -314,9 +353,11 @@ struct Pointer : cursiv::Extends<cursiv::AstNode> {
 
 struct Suffix : cursiv::Extends<cursiv::AstNode> {};
 struct ArraySuffix : cursiv::Extends<Suffix> {
+  vector<AttributeSpecifier*> attributes;
   Expr* size;  // null: `[]`
 };
 struct FunctionSuffix : cursiv::Extends<Suffix> {
+  vector<AttributeSpecifier*> attributes;
   vector<Param*> params;
   boolean variadic;
   vector<string_view> cvQualifiers;
@@ -336,6 +377,7 @@ struct ExceptionSpec : cursiv::Extends<cursiv::AstNode> {
 // (rather than a null one) marks the abstract form. `nested` is the
 // parenthesised sub-declarator, exclusive with `name`.
 struct Declarator : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   vector<Pointer*> pointers;
   boolean pack;  // a leading `...`
   Name* name;
@@ -345,6 +387,7 @@ struct Declarator : cursiv::Extends<cursiv::AstNode> {
 };
 
 struct Param : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   Specifiers* specifiers;
   Declarator* declarator;  // may be null: an unnamed/abstract parameter
   Expr* defaultValue;
@@ -356,6 +399,7 @@ struct Param : cursiv::Extends<cursiv::AstNode> {
 // order written -- a run of builtin keywords is one, `unsigned const long` is
 // two --, empty when the list holds only qualifiers.
 struct Specifiers : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   vector<string_view> qualifiers;
   vector<TypeSpec*> types;
 };
@@ -386,6 +430,7 @@ struct Declaration : cursiv::Extends<Item> {
 // (`: width` with no declarator). `init` also carries a pure-specifier's
 // `= 0`.
 struct MemberDeclarator : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   Declarator* declarator;  // null: a pure bit-field
   Expr* bitWidth;           // null: not a bit-field
   vector<string_view> virtualSpecifiers;
@@ -472,6 +517,7 @@ struct CompoundStmt : cursiv::Extends<Stmt> {
 // this node.
 // `init` may itself be a BracedInitList, distinguishable by its type tag.
 struct Condition : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   Specifiers* specifiers;
   Declarator* declarator;
   Expr* init;
@@ -503,6 +549,7 @@ struct ForStmt : cursiv::Extends<Stmt> {
   Item* body;
 };
 struct ForRangeStmt : cursiv::Extends<Stmt> {
+  vector<AttributeSpecifier*> rangeAttributes;
   Specifiers* specifiers;
   Declarator* declarator;
   Expr* range;
@@ -539,6 +586,7 @@ struct MemInit : cursiv::Extends<cursiv::AstNode> {
   boolean braced;
 };
 struct CatchClause : cursiv::Extends<cursiv::AstNode> {
+  vector<AttributeSpecifier*> attributes;
   boolean catchAll;  // `catch (...)`
   Specifiers* specifiers;
   Declarator* declarator;

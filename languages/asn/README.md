@@ -54,6 +54,9 @@ A module is a named sequence of type and value assignments, `::=` reading as
 module resolves them against `IMPORTS` and its own assignments, which this
 grammar accepts but does not link.
 
+Textual ASN.1 subset based on ITU-T X.680 (02/2021), with selected X.681–X.683
+forms. Tags and REAL scalar/associated-sequence values preserve their written structure.
+
 ## The command line
 
 ```bash

@@ -35,21 +35,25 @@ struct Scala : cursiv::GrammarSpec {
   static constexpr auto DecDigit = cr<"0-9">;
 
   static constexpr auto HexDigit = cr<"0-9a-fA-F">;
-  static constexpr auto UnicodeEscape =
-      lit<"\\u"> + many(lit<"u">) + repeat<4>(HexDigit);
+  // All other Unicode escapes have already been substituted. Retain only
+  // the UTF16 units which cannot be represented as a Unicode scalar.
+  static constexpr auto SurrogateEscape =
+      lit<"\\u"> + many(lit<"u">) + cr<"dD"> + cr<"8-9a-fA-F"> + repeat<2>(HexDigit);
   static constexpr auto CharEscapeSeq =
       lit<"\\"> + (lit<"b"> | lit<"t"> | lit<"n"> | lit<"f"> | lit<"r"> |
                    lit<"\""> | lit<"'"> | lit<"\\">);
-  static constexpr auto OctalEscape = lit<"\\"> + repeat<1, 3>(cr<"0-7">);
-  static constexpr auto Escape = CharEscapeSeq | UnicodeEscape | OctalEscape;
-  static constexpr auto CharNoBackQuoteOrNewline =
-      ~cr<R"(`\\\r\n)">;
+  static constexpr auto OctalEscape =
+      lit<"\\"> + ((cr<"0-3"> + repeat<0, 2>(cr<"0-7">)) |
+                   (cr<"4-7"> + option(cr<"0-7">)));
+  static constexpr auto Escape = CharEscapeSeq | SurrogateEscape | OctalEscape;
+  static constexpr auto CharNoBackQuote =
+      ~cr<R"(`\\)">;
   static constexpr auto Idrest =
-      many(IdContinue | UnicodeEscape) + option(lit<"_"> + Op);
-  static constexpr auto Plainid = ((Letter | UnicodeEscape) + Idrest) | Op;
+      many(IdContinue) + option(lit<"_"> + Op);
+  static constexpr auto Plainid = (Letter + Idrest) | Op;
   static constexpr auto VarId =
-      !(lit<"_"> + !IdContinue) + (Letter | UnicodeEscape) + Idrest;
-  static constexpr auto word_boundary = IdContinue | cr<R"(\\)">;
+      !(lit<"_"> + !IdContinue) + Letter + Idrest;
+  static constexpr auto word_boundary = IdContinue;
   static constexpr auto ReservedOp =
       (lit<"="> | lit<"=>"> | lit<":"> | lit<"<-"> | lit<"<:"> | lit<"<%"> |
        lit<">:"> | lit<"#"> | lit<"@">)+!Opchar;
@@ -66,7 +70,7 @@ struct Scala : cursiv::GrammarSpec {
       kw<"trait"> | kw<"true"> | kw<"try"> | kw<"type"> | kw<"val"> |
       kw<"var"> | kw<"while"> | kw<"with"> | kw<"yield">;
   struct ID
-      : terminal<(!ReservedWord + VarId) | (lit<"`"> + some(CharNoBackQuoteOrNewline | Escape) +
+      : terminal<(!ReservedWord + VarId) | (lit<"`"> + some(CharNoBackQuote | Escape) +
                           lit<"`">)> {};
   struct OP_ID : terminal<OpName> {};
   struct VARIABLE_ID
@@ -96,10 +100,13 @@ struct Scala : cursiv::GrammarSpec {
   };
 
   struct CHAR_LIT
-      : terminal<lit<"'"> + (Escape | ~cr<R"('\\\r\n)">) +
+      // Scala2.12 still accepts the deprecated apostrophe spelling '''.
+      : terminal<lit<"'"> + (Escape | lit<"'"> | ~cr<R"('\\)">) +
                  lit<"'">> {};
 
-  static constexpr auto StringElement = Escape | ~cr<R"("\\\r\n)">;
+  // Translated CR/LF are legal inside these tokens. The validator checks
+  // their original spelling to reject physical line ends locally.
+  static constexpr auto StringElement = Escape | ~cr<R"("\\)">;
   struct MULTILINE_STRING_LIT
       : terminal<through(lit<"\"\"\"">, lit<"\"\"\"">)+many(lit<"\"">)> {};
   struct STRING_LIT : terminal<lit<"\""> + many(StringElement) + lit<"\"">> {};
@@ -292,8 +299,8 @@ struct Scala : cursiv::GrammarSpec {
       : terminal<as<drop_dollar>(lit<"$"> + (uc::L | uc::Nl | cr<"_">)+many(
                                                 InterpolationIdentPart))> {};
   struct StringThis : terminal<lit<"$this", !InterpolationIdentPart>> {};
-  struct StringText : terminal<some(lit<"$$"> | cr<R"(^"$\r\n)">)> {};
-  struct MultiStringText : terminal<some(lit<"$$"> | cr<R"(^"$)">)> {};
+  struct StringText : terminal<some(lit<"$$"> | cr<R"(^"$)">)> {};
+  using MultiStringText = StringText;
   struct StringDollar : terminal<lit<"$">> {};
   struct MultiStringQuotes
       : terminal<lit<"\""> + option(lit<"\"">) + !lit<"\"">> {};

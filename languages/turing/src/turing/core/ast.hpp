@@ -112,6 +112,15 @@ struct SubrangeType : cursiv::Extends<TypeSpec> {
   Expr* low;
   Expr* high;
 };
+struct EnumType : cursiv::Extends<TypeSpec> {
+  vector<string_view> names;
+};
+struct SetType : cursiv::Extends<TypeSpec> {
+  TypeSpec* base;
+};
+struct PointerType : cursiv::Extends<TypeSpec> {
+  string_view collection;
+};
 struct RecordField : cursiv::Extends<cursiv::AstNode> {
   vector<string_view> names;
   TypeSpec* type;

@@ -11,7 +11,8 @@ struct R : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<R"( \t\f\r\n)">)> {};
   struct SL_COMMENT : terminal<lit<"#"> + many(cr<R"(^\r\n)">)> {};
 
-  static constexpr auto LETTER = uc::L | uc::Nl;
+  // A letter as R reads one in a UTF-8 locale.
+  static constexpr auto LETTER = uc::Alphabetic;
   static constexpr auto word_boundary = LETTER | uc::Nd | cr<"_.">;
   static constexpr auto reserved = kw<"if"> | kw<"else"> | kw<"repeat"> |
       kw<"while"> | kw<"function"> | kw<"for"> | kw<"in"> | kw<"next"> |

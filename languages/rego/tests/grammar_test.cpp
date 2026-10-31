@@ -18,6 +18,7 @@
 #include "rego/core/CoreServices.hpp"
 #include "rego/core/ast.hpp"
 #include "native_followup.hpp"
+#include "postfix_adjacency_cases.hpp"
 
 namespace {
 
@@ -64,6 +65,7 @@ int main() {
                                                 rego::install_core_module>();
 
   if(const int rc=rego_native_followup(language.language)) return rc;
+  if(!postfix_adjacency_cases::run(language.language)) return 1;
 
   int count = 0;
   for (const fs::directory_entry& entry :

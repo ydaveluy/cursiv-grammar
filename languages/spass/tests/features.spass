@@ -30,6 +30,9 @@ end_of_list.
 list_of_clauses(axioms,dnf).
 clause(exists([P(x)],and(P(x),Q(x))),lab1).
 clause(and(P(zero),Q(zero))).
+end_of_list.
+
+list_of_clauses(axioms,cnf).
 clause(or(P(zero))).
 end_of_list.
 

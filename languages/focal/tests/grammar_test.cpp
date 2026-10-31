@@ -13,6 +13,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "focal/core/CoreServices.hpp"
 #include "focal/core/ast.hpp"
+#include "command_families.hpp"
 
 namespace {
 
@@ -44,6 +45,7 @@ int main() {
   const auto language = cursiv::create_language<
       focal::FocalCoreServices, focal::FocalSharedCoreServices,
       focal::install_core_module>();
+  if (!focal_commands::run(language.language)) return 1;
 
   {
     const std::string source =

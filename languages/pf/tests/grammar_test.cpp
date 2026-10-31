@@ -6,6 +6,7 @@
 #include "pf/core/CoreServices.hpp"
 #include "pf/core/ast.hpp"
 #include "native_followup.hpp"
+#include "bandwidth_cases.hpp"
 // The smoke test of the language: every corpus document parses clean, the
 // constructs the corpus never exercises parse from documents of our own,
 // and one document is read back field by field.
@@ -64,6 +65,7 @@ int main() {
   const auto language = cursiv::create_language<
       pf::PfCoreServices, pf::PfSharedCoreServices, pf::install_core_module>();
   if (!pf_followup::run(language.language)) return fail("native follow-up fields or validation differ");
+  if (!bandwidth_cases::run(language.language)) return fail("bandwidth followup failed");
 
   for (const char* const name : kExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;

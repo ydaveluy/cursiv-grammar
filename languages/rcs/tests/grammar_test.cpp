@@ -5,7 +5,7 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "rcs/core/CoreServices.hpp"
 #include "rcs/core/ast.hpp"
-// The grammar's end to end check: every document under example/ parses
+// The grammar's end to end check: every sample under tests/ parses
 // clean, with no recovery and no diagnostics, and builds a File root; a
 // dedicated check on full.rcs reads the fields back, since a converter that
 // refuses (out of range, unparsable) would still leave recovered() false and
@@ -48,6 +48,31 @@ static int audit_regression() {
     const auto r = language.language.parser->parse("head; access; symbols; desc @@");
     if (r.accepted && !r.cst().recovered() && r.diagnostics.empty()) return 1;
   }
+  {
+    const std::string compact =
+        "head1.1;access;symbols;locks;"
+        "1.1 date2026.01.01.00.00.00;authorbob;stateExp;branches;next;"
+        "desc@@1.1 log@@text@@\n";
+    const auto result = language.language.parser->parse(compact);
+    const auto *file = result.value_as<rcs::ast::File>();
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !file || !file->admin || file->admin->head != "1.1" || file->deltas.size() != 1 ||
+        file->deltas[0]->author != "bob" || file->deltas[0]->state != "Exp" ||
+        file->deltatexts.size() != 1 || !file->deltatexts[0]->hasText)
+      return fail("native fixed-byte keyword prefixes or numeric captures changed");
+    for (unsigned kind = 0; kind < 3; ++kind) {
+      std::string source = compact;
+      if (kind == 0)
+        source.erase(source.find("1.1 date") + 3, 1);
+      else if (kind == 1)
+        source.insert(source.find("bob") + 1, 1, '\x01');
+      else
+        source.insert(source.find("access") + 6, " user\x7f");
+      const auto invalid = language.language.parser->parse(source);
+      if (invalid.accepted && !invalid.cst().recovered() && invalid.diagnostics.empty())
+        return fail("native numeric delimiter or unquoted control-byte restriction missing");
+    }
+  }
   return 0;
 }
 
@@ -63,29 +88,29 @@ int main() {
       rcs::install_core_module>();
 
   int count = 0;
-  for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
-    for (const fs::directory_entry& entry : fs::directory_iterator(dir)) {
-      if (!entry.is_regular_file() || entry.path().extension() != ".rcs")
-        continue;
-      const fs::path path = entry.path();
+  for (const fs::directory_entry& entry :
+       fs::directory_iterator(CURSIV_TEST_DIR)) {
+    if (!entry.is_regular_file() || entry.path().extension() != ".rcs")
+      continue;
+    const fs::path path = entry.path();
 
-      std::ifstream file(path, std::ios::binary);
-      if (!file) return fail(path.filename().string() + " is not readable");
-      const std::string text = read_file(path);
+    std::ifstream file(path, std::ios::binary);
+    if (!file) return fail(path.filename().string() + " is not readable");
+    const std::string text = read_file(path);
 
-      const cursiv::ParseResult result = language.language.parser->parse(text);
-      if (result.cst().recovered())
-        return fail(path.filename().string() + " does not parse clean");
-      if (!result.diagnostics.empty())
-        return fail(path.filename().string() + " left diagnostics");
+    const cursiv::ParseResult result = language.language.parser->parse(text);
+    if (result.cst().recovered())
+      return fail(path.filename().string() + " does not parse clean");
+    if (!result.diagnostics.empty())
+      return fail(path.filename().string() + " left diagnostics");
 
-      const cursiv::AstNode* const root = result.value;
-      if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<rcs::ast::File>)
-        return fail(path.filename().string() + " built no file");
-      ++count;
-    }
-  if (count == 0) return fail("no example documents found");
+    const cursiv::AstNode* const root = result.value;
+    if (root == nullptr ||
+        root->type != &cursiv::ast_type_tag<rcs::ast::File>)
+      return fail(path.filename().string() + " built no file");
+    ++count;
+  }
+  if (count == 0) return fail("no sample documents found");
 
   // full.rcs exercises every field: read them back to prove the STRING
   // converter unescapes `@@` and the record shape holds together.

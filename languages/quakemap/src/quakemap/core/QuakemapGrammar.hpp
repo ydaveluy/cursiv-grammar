@@ -34,7 +34,7 @@ struct Quakemap : cursiv::GrammarSpec {
       (lit<"\""> + numeric + lit<"\"">))> {};
 
   struct STRING
-      : terminal<as<unquote>(lit<"\""> + many(cr<R"(^")">) +
+      : terminal<as<unquote>(lit<"\""> + many(cr<R"(^\x00")">) +
                              lit<"\"">)> {};
 
   struct KeyValue

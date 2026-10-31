@@ -182,7 +182,7 @@ struct Graphql : cursiv::GrammarSpec {
   struct FloatValue
       : rule<assign<&ast::FloatLit::value>(ref<FLOAT>)> {};
   struct EnumLit
-      : rule<create<ast::EnumLit>(assign<&ast::EnumLit::name>(ref<NAME>))> {};
+      : rule<assign<&ast::EnumLit::name>(ref<NAME>)> {};
 
   struct ListValue;
   struct ObjectValue;

@@ -1,5 +1,6 @@
 #include "audit_regressions.hpp"
 #include "native_conformance.hpp"
+#include "uri_component_cases.hpp"
 // The smoke test of the language: build the container the way a workspace
 // does, parse every document under example/, and check the tree.
 
@@ -30,6 +31,7 @@ int main() {
   const auto language =
       cursiv::create_language<url::UrlCoreServices, url::UrlSharedCoreServices,
                               url::install_core_module>();
+  if (!uri_component_cases(language)) return 1;
 
   int total = 0;
   int failures = 0;

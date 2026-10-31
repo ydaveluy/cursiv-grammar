@@ -43,8 +43,8 @@ struct Turing : cursiv::GrammarSpec {
   static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   // The point guard leaves a subrange's two dots intact.
   struct REAL : terminal<as<double>(
-      ((some(d) + lit<".", !lit<".">> + many(d)) |
-       (lit<"."> + some(d))) + option(exponent) |
+      (((some(d) + lit<".", !lit<".">> + many(d)) |
+        (lit<"."> + some(d))) + option(exponent)) |
       (some(d) + exponent))> {};
 
   inline static constexpr auto string_value = [](
@@ -101,8 +101,7 @@ struct Turing : cursiv::GrammarSpec {
             option(lit<"-"> +
                    assign<&ast::Position::offset>(ref<Expression>)))> {};
   struct PlainPosition
-      : rule<create<ast::Position>(
-            assign<&ast::Position::value>(ref<Expression>))> {};
+      : rule<assign<&ast::Position::value>(ref<Expression>)> {};
   static constexpr auto Position =
       ref<StarPosition> | ref<PlainPosition>;
 
@@ -129,13 +128,12 @@ struct Turing : cursiv::GrammarSpec {
             many(append<&ast::Reference::selectors>(ref<Selector>)))> {};
 
   struct IntLit
-      : rule<create<ast::IntLit>(assign<&ast::IntLit::value>(ref<INT>))> {};
+      : rule<assign<&ast::IntLit::value>(ref<INT>)> {};
   struct RealLit
-      : rule<create<ast::RealLit>(assign<&ast::RealLit::value>(ref<REAL>))> {
+      : rule<assign<&ast::RealLit::value>(ref<REAL>)> {
   };
   struct StringLit
-      : rule<create<ast::StringLit>(
-            assign<&ast::StringLit::value>(ref<STRING>))> {};
+      : rule<assign<&ast::StringLit::value>(ref<STRING>)> {};
   struct BoolLit
       : rule<create<ast::BoolLit>(
             flag<&ast::BoolLit::value>(kw<"true">) | kw<"false">)> {};
@@ -214,11 +212,20 @@ struct Turing : cursiv::GrammarSpec {
             assign<&ast::SubrangeType::low>(ref<Expression>) + lit<".."> +
             assign<&ast::SubrangeType::high>(ref<Expression>))> {};
 
-  struct NamedType
-      : rule<create<ast::NamedType>(
-            assign<&ast::NamedType::name>(ref<ID>))> {};
+  struct EnumType
+      : rule<kw<"enum"> + lit<"("> +
+             some(append<&ast::EnumType::names>(ref<ID>), lit<",">) + lit<")">> {};
 
-  static constexpr auto IndexType = ref<SubrangeType> | ref<NamedType>;
+  struct TypeName : rule<ref<ID> + option(lit<"."> + ref<ID>)> {};
+  struct NamedType
+      : rule<assign<&ast::NamedType::name>(ref<TypeName>)> {};
+
+  static constexpr auto IndexType = ref<SubrangeType> | ref<EnumType> | ref<NamedType>;
+
+  struct SetType
+      : rule<kw<"set"> + kw<"of"> + assign<&ast::SetType::base>(IndexType)> {};
+  struct PointerType
+      : rule<kw<"pointer"> + kw<"to"> + assign<&ast::PointerType::collection>(ref<ID>)> {};
 
   struct ArrayType
       : rule<create<ast::ArrayType>(
@@ -241,7 +248,8 @@ struct Turing : cursiv::GrammarSpec {
 
   struct TypeSpec
       : rule<ref<StandardType> | ref<SubrangeType> |
-            ref<ArrayType> | ref<RecordType> | ref<NamedType>> {};
+            ref<EnumType> | ref<ArrayType> | ref<SetType> | ref<RecordType> |
+            ref<PointerType> | ref<NamedType>> {};
 
   struct StringStarType
       : rule<create<ast::StringStarType> + kw<"string"> + lit<"("> +
@@ -332,8 +340,7 @@ struct Turing : cursiv::GrammarSpec {
             lit<":="> + assign<&ast::AssignStmt::value>(ref<Expression>))> {
   };
   struct CallStmt
-      : rule<create<ast::CallStmt>(
-            assign<&ast::CallStmt::call>(ref<Reference>))> {};
+      : rule<assign<&ast::CallStmt::call>(ref<Reference>)> {};
   struct AssertStmt
       : rule<create<ast::AssertStmt>(
             kw<"assert"> + assign<&ast::AssertStmt::cond>(ref<Expression>))> {

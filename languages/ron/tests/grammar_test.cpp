@@ -137,7 +137,7 @@ static int audit_regression() {
     if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
       return 1;
   }
-  for (const std::string source : {std::string("\"a\\\n  \tb\""),
+  for (const std::string& source : {std::string("\"a\\\n  \tb\""),
                                     std::string("\"a\\\r\n  \tb\"")}) {
     const auto result = language.language.parser->parse(source);
     const auto *doc = result.value_as<ron::ast::Document>();

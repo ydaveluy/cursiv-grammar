@@ -162,8 +162,7 @@ struct Argus : cursiv::GrammarSpec {
             option(assign<&ast::RoutineType::signals>(ref<SignalsClause>)))> {};
 
   struct ReferenceTypeSpec
-      : rule<create<ast::ReferenceType>(
-            assign<&ast::ReferenceType::ref>(ref<Reference>))> {};
+      : rule<assign<&ast::ReferenceType::ref>(ref<Reference>)> {};
 
   struct TypeSpec : rule<ref<SimpleTypeSpec>      //
                              | ref<ContainerTypeSpec>  //

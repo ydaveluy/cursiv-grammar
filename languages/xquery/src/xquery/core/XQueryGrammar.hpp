@@ -331,7 +331,7 @@ struct XQuery : cursiv::GrammarSpec {
              ref<ArrayType> | ref<RecordType> | ref<EnumerationType>> {};
 
   struct TypeName
-      : rule<create<ast::ItemType>(assign<&ast::ItemType::name>(ref<EqName>))> {};
+      : rule<assign<&ast::ItemType::name>(ref<EqName>)> {};
 
   struct ChoiceItemTypeRule
       : rule<create<ast::ItemType>(ChoiceItemType)> {};
@@ -609,10 +609,10 @@ struct XQuery : cursiv::GrammarSpec {
                skip(ignore<WS>, hide<>, assign<&ast::DirElemConstructor::closeName>(ref<TagClose>) + lit<">">)))))> {};
 
   struct DirCommentConstructor
-      : rule<create<ast::DirComment>(assign<&ast::DirComment::text>(ref<DirCommentTerm>))> {
+      : rule<assign<&ast::DirComment::text>(ref<DirCommentTerm>)> {
   };
   struct DirPIConstructor
-      : rule<create<ast::DirPI>(assign<&ast::DirPI::text>(ref<DirPITerm>))> {};
+      : rule<assign<&ast::DirPI::text>(ref<DirPITerm>)> {};
 
   struct NodeConstructor
       : rule<ref<DirElemConstructor> | ref<DirCommentConstructor> |
@@ -685,11 +685,9 @@ struct XQuery : cursiv::GrammarSpec {
       : rule<ref<NamedFunctionRef> | ref<InlineFunctionExprRule>> {};
 
   struct StringTemplateExpr
-      : rule<create<ast::StringTemplateExpr>(
-            assign<&ast::StringTemplateExpr::raw>(ref<StringTemplate>))> {};
+      : rule<assign<&ast::StringTemplateExpr::raw>(ref<StringTemplate>)> {};
   struct StringConstructorExpr
-      : rule<create<ast::StringConstructorExpr>(
-            assign<&ast::StringConstructorExpr::raw>(ref<StringConstructor>))> {};
+      : rule<assign<&ast::StringConstructorExpr::raw>(ref<StringConstructor>)> {};
 
   struct UnaryLookup : rule<ref<Lookup>> {};
 

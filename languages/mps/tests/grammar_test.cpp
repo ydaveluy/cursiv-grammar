@@ -12,6 +12,7 @@
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "mps/core/CoreServices.hpp"
 #include "mps/core/ast.hpp"
+#include "quadratic_header_cases.hpp"
 
 namespace {
 
@@ -28,6 +29,7 @@ int main() {
       mps::MpsSharedCoreServices,
       mps::install_core_module>();
   if (!audit_regressions::run(language.language, *language.shared)) return 1;
+  if (!quadratic_header_cases::run(language.language)) return 1;
 
   {
     const std::string source =

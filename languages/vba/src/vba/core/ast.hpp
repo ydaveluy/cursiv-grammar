@@ -173,6 +173,14 @@ struct ConstDecl : cursiv::Extends<Item> {
   vector<ConstDeclItem*> items;
 };
 
+// A preprocessing constant, wherever its logical line occurs in a module.
+// The suffix is source spelling; native conditional constants are Variant.
+struct CompilationConst : cursiv::Extends<Item> {
+  string_view name;
+  optional<string_view> typeChar;
+  Expr* value;
+};
+
 struct UdtMember : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   boolean isArray;

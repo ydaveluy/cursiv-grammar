@@ -18,20 +18,31 @@ void Gff3Validator::checkDocument(const ast::Document &doc,
         line && *line) {
       auto text = (*line)->text;
       constexpr std::string_view prefix = "##gff-version";
-      if (text.starts_with(prefix)) {
+      if (text.starts_with(prefix) && text.size() > prefix.size() &&
+          (text[prefix.size()] == ' ' || text[prefix.size()] == '\t')) {
         text.remove_prefix(prefix.size());
         const auto begin = text.find_first_not_of(" \t");
         if (begin != text.npos) {
           text.remove_prefix(begin);
-          version =
-              text.front() == '3' && (text.size() == 1 || text[1] == '.' ||
-                                      text[1] == ' ' || text[1] == '\t');
+          text = text.substr(0, text.find_last_not_of(" \t") + 1);
+          if (text.starts_with('3')) {
+            text.remove_prefix(1);
+            bool complete = true;
+            for (int part = 0; part < 2 && text.starts_with('.'); ++part) {
+              text.remove_prefix(1);
+              const auto end = text.find_first_not_of("0123456789");
+              if (text.empty() || end == 0) { complete = false; break; }
+              if (end == text.npos) { text = {}; break; }
+              text.remove_prefix(end);
+            }
+            version = complete && text.empty();
+          }
         }
       }
     }
   if (!version)
-    accept.warning(
-        doc, "A GFF3 document should begin with a gff-version 3 directive.",
+    accept.error(
+        doc, "A GFF3 document must begin with a gff-version 3 directive.",
         "gff3.version");
 }
 
@@ -41,6 +52,15 @@ void Gff3Validator::checkFeature(const ast::Feature &feature,
     accept.error(feature,
                  "A GFF3 feature needs exactly nine tab-separated columns.",
                  "gff3.columns");
+  if (!encoded_field(feature.seqid, true))
+    accept.error(feature, "Sequence ID characters outside the GFF3 set must be percent-encoded.",
+                 "gff3.seqid").property<&ast::Feature::seqid>();
+  if (feature.source.empty() || feature.type.empty())
+    accept.error(feature, "An undefined source or type must be written as '.'.",
+                 "gff3.field");
+  if (!encoded_field(feature.source) || !encoded_field(feature.type))
+    accept.error(feature, "Literal controls and percent signs in fields must be percent-encoded.",
+                 "gff3.field-escape");
   const auto start = decimal(feature.start), end = decimal(feature.end);
   if (!start || *start == "0")
     accept
@@ -94,9 +114,12 @@ void Gff3Validator::checkFeature(const ast::Feature &feature,
 
 void Gff3Validator::checkAttribute(const ast::Attribute &attribute,
                                    cursiv::ValidationAcceptor &accept) const {
-  if (!attribute_value(attribute.key))
-    accept.error(attribute, "A percent escape needs two hexadecimal digits.",
+  if (!encoded_field(attribute.key))
+    accept.error(attribute, "Control characters must be encoded and percent escapes need two hexadecimal digits.",
                  "gff3.escape").property<&ast::Attribute::key>();
+  if (attribute.key.find_first_of(",&") != attribute.key.npos)
+    accept.error(attribute, "Reserved punctuation in attribute names must be percent-encoded.",
+                 "gff3.attribute-key").property<&ast::Attribute::key>();
   if (!attribute.hasEquals)
     accept.error(attribute, "A GFF3 attribute needs '=' and a value.",
                  "gff3.attribute");
@@ -104,9 +127,9 @@ void Gff3Validator::checkAttribute(const ast::Attribute &attribute,
     accept.error(attribute, "A GFF3 attribute value is empty.",
                  "gff3.attribute");
   for (auto value : attribute.values) {
-    if (!attribute_value(value))
+    if (!encoded_field(value))
       accept
-          .error(attribute, "A percent escape needs two hexadecimal digits.",
+          .error(attribute, "Control characters must be encoded and percent escapes need two hexadecimal digits.",
                  "gff3.escape")
           .property<&ast::Attribute::values>();
     if (value.find_first_of("=&") != value.npos)
@@ -116,6 +139,31 @@ void Gff3Validator::checkAttribute(const ast::Attribute &attribute,
                  "gff3.attribute-value")
           .property<&ast::Attribute::values>();
   }
+  // Reserved attribute names are case-sensitive, including when escaped.
+  const auto key = attribute_value(attribute.key);
+  if (!key || (*key != "Target" && *key != "Gap")) return;
+  bool valid = attribute.values.size() == 1;
+  if (valid) {
+    const auto parts = words(attribute.values[0]);
+    if (*key == "Target") {
+      valid = (parts.size() == 3 || parts.size() == 4) &&
+              ordered_coordinates(parts[1], parts[2]) &&
+              (parts.size() == 3 || parts[3] == "+" || parts[3] == "-");
+    } else {
+      valid = !parts.empty();
+      for (auto part : parts) {
+        valid &= part.size() >= 2 &&
+                 std::string_view("MIDFR").find(part.front()) != std::string_view::npos &&
+                 part.substr(1).find_first_not_of("0123456789") == part.npos;
+      }
+    }
+  }
+  if (!valid)
+    accept.error(attribute, *key == "Target"
+                    ? "Target needs an ID, positive ordered coordinates and an optional '+' or '-' strand."
+                    : "Gap needs space-separated M, I, D, F or R operations with decimal lengths.",
+                 *key == "Target" ? "gff3.target" : "gff3.gap")
+        .property<&ast::Attribute::values>();
 }
 
 void register_validation_checks(Gff3CoreServices &services) {

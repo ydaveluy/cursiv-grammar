@@ -15,6 +15,7 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "assignment_regressions.hpp"
+#include "drop_reverse.hpp"
 
 namespace {
 
@@ -36,6 +37,7 @@ int main() {
       cursiv::create_language<atl::AtlCoreServices, atl::AtlSharedCoreServices,
                               atl::install_core_module>();
   if (!atl_assignment_regressions::run(*language.language.parser)) return 1;
+  if (!atl_drop_reverse::run(language.language)) return 1;
   // An absent else and an explicit empty else have distinct source syntax.
   for (const auto& test : {
            std::tuple{"if (true) {}", false, 0u, 0u},

@@ -12,6 +12,7 @@ class TealValidator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
   void checkNewType(const ast::NewType&, cursiv::ValidationAcceptor&) const;
+  void checkRecord(const ast::RecordNewType&, cursiv::ValidationAcceptor&) const;
 };
 
 struct TealCoreServices;

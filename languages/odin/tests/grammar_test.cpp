@@ -42,7 +42,7 @@ void parse_failure(const cursiv::ParseResult& result, const std::string& source)
                          "context starts at %zu: %.*s\n",
                  static_cast<unsigned>(diagnostic.kind), std::size_t(diagnostic.begin),
                  std::size_t(diagnostic.end), static_cast<unsigned>(diagnostic.element),
-                 int(diagnostic.message.size()), diagnostic.message.data(), start,
+                 int(diagnostic.message.size()), diagnostic.message.data(), std::size_t(start),
                  int(context.size()), context.data());
   }
 }
@@ -56,6 +56,46 @@ static int audit_regression() {
                                                 odin::OdinSharedCoreServices,
                                                 odin::install_core_module>();
   if (!odin_native_followup(*language.language.parser)) return fail("native follow-up");
+  // A native Odin source file starts with a package, after comments/build tags.
+  for (const char* source : {"// comment only\n", "/* comment only */",
+                             "#!x\n", "#+build linux\n", "x :: 1\n",
+                             "import \"core:fmt\"\n"}) {
+    const auto parsed = language.language.parser->parse(source);
+    if (parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty()) {
+      std::fprintf(stderr, "odin: missing package accepted: %s\n", source);
+      return 1;
+    }
+  }
+  for (const char* source : {"", " \t\r\n"}) {
+    const auto parsed = language.language.parser->parse(source);
+    const auto* unit = parsed.value_as<odin::ast::Unit>();
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !unit || !unit->packageName.empty() ||
+        !unit->imports.empty() || !unit->items.empty())
+      return fail("native empty file must stay empty");
+  }
+  for (const char* source : {"package main\n", "package main\nx :: 1\n",
+                             "// comment\npackage main\nx :: 1\n",
+                             "#+vet !using-stmt\npackage main\nx :: 1\n"}) {
+    const auto parsed = language.language.parser->parse(source);
+    const auto* unit = parsed.value_as<odin::ast::Unit>();
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !unit || unit->packageName != "main") {
+      std::fprintf(stderr, "odin: valid package file rejected: %s\n", source);
+      return 1;
+    }
+    if (std::string_view(source) == "package main\n") {
+      if (!unit->items.empty()) return fail("package-only file has declarations");
+    } else {
+      const auto* decl = unit->items.size() == 1
+          ? cursiv::ast_cast<odin::ast::NamedDecl>(unit->items[0]) : nullptr;
+      const auto* number = decl
+          ? cursiv::ast_cast<odin::ast::IntLit>(decl->value) : nullptr;
+      if (!decl || decl->name != "x" || decl->parent != unit || !number ||
+          number->text != "1" || number->parent != decl)
+        return fail("package declaration readback/ownership");
+    }
+  }
   {
     const auto r = language.language.parser->parse(
         "package p\nS :: struct #simple #packed #align(4) #raw_union "

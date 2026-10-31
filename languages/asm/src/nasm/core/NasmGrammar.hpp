@@ -13,6 +13,13 @@ namespace nasm {
 
 namespace detail {
 
+inline constexpr auto name_text = [](std::string_view text) {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (!text.empty() && text.front() == '$') text.remove_prefix(1);
+  if (text.empty()) return Result::err("Incomplete NASM identifier.");
+  return Result::ok(text);
+};
+
 // Quotes off; the token graph admits no escapes (`~'"'*` / `~'\''*`), so the
 // body is exactly what is between the quotes.
 inline constexpr auto unquote = [](std::string_view t,
@@ -49,7 +56,8 @@ struct Nasm : cursiv::GrammarSpec {
 
   static constexpr auto NameHead = cr<"a-zA-Z._?">;
   static constexpr auto NameTail = cr<"a-zA-Z0-9_$#@~.?">;
-  struct NAME : terminal<NameHead + many(NameTail)> {};
+  struct NAME : terminal<as<detail::name_text>(
+      option(lit<"$">) + NameHead + many(NameTail))> {};
 
   // `NAME (MINUS NAME)+` -- a hyphenated warning class, e.g. `no-deprecated`.
   struct WARNING_NAME
@@ -57,16 +65,16 @@ struct Nasm : cursiv::GrammarSpec {
                  some(lit<"-"> + NameHead + many(NameTail))> {};
 
   struct DECIMAL_INTEGER
-      : terminal<(cr<"0-9"> + many(cr<"0-9_">) + option(cr<"dD">)) |
-                     (cr<"0"> + cr<"dD"> + cr<"0-9"> + many(cr<"0-9_">))> {};
+      : terminal<(cr<"0-9"> + many(cr<"0-9_">) + option(cr<"dDtT">)) |
+                     (cr<"0"> + cr<"dDtT"> + cr<"0-9"> + many(cr<"0-9_">))> {};
 
   struct OCT_INTEGER
       : terminal<(cr<"0-7"> + many(cr<"0-7_">) + cr<"qQoO">) |
                      (cr<"0"> + cr<"qQoO"> + cr<"0-7"> + many(cr<"0-7_">))> {};
 
   struct HEX_INTEGER
-      : terminal<(d + many(cr<"0-9A-Fa-f_">) + cr<"hH">) |
-                     (lit<"$"> + cr<"0-9A-Fa-f"> + many(cr<"0-9A-Fa-f_">)) |
+      : terminal<(d + many(cr<"0-9A-Fa-f_">) + cr<"hHxX">) |
+                     (lit<"$"> + d + many(cr<"0-9A-Fa-f_">)) |
                      (cr<"0"> + cr<"xXhH"> + cr<"0-9A-Fa-f"> +
                       many(cr<"0-9A-Fa-f_">))> {};
 
@@ -76,20 +84,26 @@ struct Nasm : cursiv::GrammarSpec {
 
   static constexpr auto Sign = cr<"+-">;
   static constexpr auto DecimalDigits = d + many(cr<"0-9_">);
-  static constexpr auto BinaryExponent = cr<"pP"> + option(Sign) + DecimalDigits;
+  // The pinned native reader treats an empty/underscore-only exponent as zero.
+  static constexpr auto DecimalExponent = cr<"eE"> + option(Sign) + many(cr<"0-9_">);
+  // A bare final p is a packed-BCD suffix in NASM, not a binary exponent.
+  static constexpr auto BinaryExponent = cr<"pP"> +
+      ((Sign + many(cr<"0-9_">)) | some(cr<"0-9_">));
   // Preserve the spelling: NASM has binary/octal/hex reals and 80/128-bit
   // formats whose values cannot be represented by a host double.
   static constexpr auto HexMantissa = cr<"0-9A-Fa-f"> + many(cr<"0-9A-Fa-f_">);
   static constexpr auto BinMantissa = cr<"01"> + many(cr<"01_">);
   static constexpr auto OctMantissa = cr<"0-7"> + many(cr<"0-7_">);
-  template <auto Digits>
+  template <auto Digits, auto Head = Digits>
   static constexpr auto BasedFloat =
-      Digits + ((lit<"."> + many(Digits | lit<"_">) + option(BinaryExponent)) |
+      Head + ((lit<"."> + many(Digits | lit<"_">) + option(BinaryExponent)) |
                 BinaryExponent);
   struct FLOAT_NUMBER
-      : terminal<(DecimalDigits + lit<"."> + many(cr<"0-9_">) +
-                  option(cr<"eE"> + option(Sign) + DecimalDigits)) |
-                 (((lit<"0"> + cr<"xXhH">) | lit<"$">) + BasedFloat<HexMantissa>) |
+      : terminal<(DecimalDigits +
+                  ((lit<"."> + many(cr<"0-9_">) + option(DecimalExponent)) |
+                   DecimalExponent)) |
+                 (lit<"0"> + cr<"xXhH"> + BasedFloat<HexMantissa>) |
+                 (lit<"$"> + BasedFloat<HexMantissa, d + many(cr<"0-9A-Fa-f_">)>) |
                  (lit<"0"> + cr<"bByY"> + BasedFloat<BinMantissa>) |
                  (lit<"0"> + cr<"oOqQ"> + BasedFloat<OctMantissa>)> {};
 

@@ -88,7 +88,7 @@ struct Action : cursiv::GrammarSpec {
                      left(ref<BXOR_OP>))> {};
 
   struct FundRef
-      : rule<create<ast::FundRef>(assign<&ast::FundRef::name>(ref<ID>))> {};
+      : rule<assign<&ast::FundRef::name>(ref<ID>)> {};
   struct ArrRef
       : rule<create<ast::ArrRef>(
             assign<&ast::ArrRef::name>(ref<ID>) + lit<"("> +
@@ -277,8 +277,7 @@ struct Action : cursiv::GrammarSpec {
             kw<"OD">)> {};
 
   struct DoLoopStmt
-      : rule<create<ast::DoLoopStmt>(
-            assign<&ast::DoLoopStmt::loop>(ref<DoLoop>))> {};
+      : rule<assign<&ast::DoLoopStmt::loop>(ref<DoLoop>)> {};
 
   struct WhileLoop
       : rule<create<ast::WhileLoop>(

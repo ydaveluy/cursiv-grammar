@@ -24,6 +24,10 @@ inline constexpr Case cases[] = {
   {"group-oneof", R"proto(syntax="proto2";message M { oneof choice { group Pick=1 { optional int32 value=2; } string text=3; } })proto", true, ""},
   {"group-extend", R"proto(syntax="proto2";message M { extensions 100 to max; } extend M { optional group Extra=100 { optional int32 value=1; } })proto", true, ""},
   {"group-nested-extend", R"proto(syntax="proto2";message M { extensions 100 to 110; } message N { extend M { repeated group Extra=101 { optional bool flag=1; } } })proto", true, ""},
+  {"field-required-extension", R"proto(syntax="proto2";message M { extensions 100 to 110; } extend M { required int32 extra=100; })proto", true, "protobuf.extension-label"},
+  {"field-required-nested-extension", R"proto(syntax="proto2";message M { extensions 100 to 110; } message N { extend M { required bool extra=100; } })proto", true, "protobuf.extension-label"},
+  {"field-optional-extension", R"proto(syntax="proto2";message M { extensions 100 to 110; } extend M { optional int32 extra=100; })proto", true, ""},
+  {"field-repeated-extension", R"proto(syntax="proto2";message M { extensions 100 to 110; } extend M { repeated int32 extra=100; })proto", true, ""},
   {"group-nested", R"proto(syntax="proto2";message M { optional group Outer=1 { optional group Inner=2 { optional int32 value=3; } } })proto", true, ""},
   {"contextual-names", R"proto(syntax="proto2";message group {} message extensions {} message M { optional string group=1; optional extensions extensions=2; optional .group other=3; })proto", true, ""},
   {"extensions-options", R"proto(syntax="proto2";message M { extensions 100, 200 to 210, 300 to max [verification=UNVERIFIED]; })proto", true, ""},
@@ -123,6 +127,18 @@ inline bool run(const auto& language) {
          oneof->groups[0]->label || oneof->groups[0]->fields.size()!=1 ||
          oneof->groups[0]->fields[0]->parent!=oneof->groups[0])
         return fail(test.name,"oneof group header or ownership lost");
+    } else if(name.starts_with("field-")) {
+      const auto* extension=name=="field-required-nested-extension"?
+          (document->messages.size()==2 && document->messages[1]->extends_.size()==1?
+             document->messages[1]->extends_[0]:nullptr):
+          (document->extends_.size()==1?document->extends_[0]:nullptr);
+      const auto* field=extension && extension->fields.size()==1?extension->fields[0]:nullptr;
+      const auto label=name=="field-optional-extension"?ast::FieldLabel::optional_:
+                       name=="field-repeated-extension"?ast::FieldLabel::repeated_:
+                       ast::FieldLabel::required_;
+      if(!field || extension->target!="M" || field->parent!=extension ||
+         field->name!="extra" || field->number!="100" || field->label!=label)
+        return fail(test.name,"extension field label or exact ownership lost");
     } else if(name=="group-extend" || name=="group-nested-extend") {
       const auto* extension=name=="group-extend"?
           (document->extends_.size()==1?document->extends_[0]:nullptr):

@@ -112,8 +112,7 @@ struct Snobol : cursiv::GrammarSpec {
   };
 
   struct CommentLine
-      : rule<create<ast::CommentLine>(
-            assign<&ast::CommentLine::text>(ref<COMMENT>))> {};
+      : rule<assign<&ast::CommentLine::text>(ref<COMMENT>)> {};
 
   struct EndLine : rule<create<ast::EndLine> + ref<END_KW>> {};
 

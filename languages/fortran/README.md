@@ -33,6 +33,7 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 A free-form Fortran grammar centered on Fortran 90, with selected later
 constructs. Files can contain programs, procedures, modules and block data.
+Statements use line endings or semicolons, with `&` continuation.
 
 ```fortran
 program greet

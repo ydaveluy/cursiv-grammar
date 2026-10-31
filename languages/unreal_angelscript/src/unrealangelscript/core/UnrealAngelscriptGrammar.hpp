@@ -169,9 +169,8 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
             assign<&ast::BuiltinTypeSpec::keyword>(BuiltinTypeWord))> {};
 
   struct NamedTypeSpec
-      : rule<create<ast::NamedTypeSpec>(
-            assign<&ast::NamedTypeSpec::name>(
-                ref<QualifiedName>))> {};
+      : rule<assign<&ast::NamedTypeSpec::name>(
+                ref<QualifiedName>)> {};
 
   struct AsGeneric
       : rule<create<ast::GenericTypeSpec>(
@@ -314,7 +313,7 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
              append<&ast::LiteralSeq::items>(ref<LiteralItem>)> {};
 
   struct IdExpr
-      : rule<create<ast::IdExpr>(assign<&ast::IdExpr::name>(ref<IdText>))> {};
+      : rule<assign<&ast::IdExpr::name>(ref<IdText>)> {};
 
   struct AssertExpr
       : rule<create<ast::AssertExpr>(

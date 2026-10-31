@@ -3,6 +3,7 @@
 // document in example/ parsing clean.
 
 #include <cstddef>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -206,10 +207,64 @@ void native_followup() {
   }
 }
 
+void column_one_comments() {
+  for (const auto source : {
+      "* first\nF { = True; }",
+      "\n* after empty line\nF { = True; }",
+      " \t\n\t\n* after blank lines\nF { = True; }",
+      "F { =\n* inside function\n<* 3 4>; }",
+      "F { = True; }\r\n* trailing CRLF comment",
+      "/* block\n* still block\n*/ F { = 'a*text' \"*symbol\"; }"}) {
+    const bool clean = accepts(source);
+    if (!clean) std::cerr << "refal: column-one comment rejected: " << source << '\n';
+    CHECK(clean);
+  }
+  for (const auto source : {
+      " * indented first line\nF { = True; }",
+      "\t* indented first line\nF { = True; }",
+      "\n * indented later line\nF { = True; }",
+      "F { = True; } * inline\nG { = False; }",
+      "F { = True * inline\n; }"}) {
+    const bool clean = accepts(source);
+    if (clean) std::cerr << "refal: non-column-one comment accepted: " << source << '\n';
+    CHECK(!clean);
+  }
+
+  const std::string_view source =
+      "* initial\r\n \t\r\n* before F\r\nF { =\r\n"
+      "* inside F\r\n<* 3 4> 'a*text' \"*symbol\"; }\r\n"
+      "* before G\r\nG { = False; }\r\n* trailing";
+  const auto parsed = engine().parse(source);
+  const auto* program = parsed.value_as<ast::Program>();
+  CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
+  CHECK(parsed.cst().text() == source);
+  CHECK(program && program->items.size() == 2);
+  if (!program || program->items.size() != 2) return;
+  const auto* f = cursiv::ast_cast<ast::FunctionDef>(program->items[0]);
+  const auto* g = cursiv::ast_cast<ast::FunctionDef>(program->items[1]);
+  CHECK(f && f->name == "F" && f->parent == program && f->sentences.size() == 1);
+  CHECK(g && g->name == "G" && g->parent == program);
+  if (!f || f->sentences.size() != 1) return;
+  const auto* sentence = f->sentences[0];
+  CHECK(sentence->parent == f && sentence->result.size() == 3);
+  if (sentence->result.size() != 3) return;
+  const auto* call = cursiv::ast_cast<ast::Call>(sentence->result[0]);
+  const auto* chars = cursiv::ast_cast<ast::Characters>(sentence->result[1]);
+  const auto* word = cursiv::ast_cast<ast::Symbol>(sentence->result[2]);
+  CHECK(call && call->parent == sentence && call->body.size() == 3);
+  CHECK(chars && chars->text == "a*text" && chars->parent == sentence);
+  CHECK(word && word->text == "*symbol" && word->parent == sentence);
+  if (call && call->body.size() == 3) {
+    const auto* op = cursiv::ast_cast<ast::Symbol>(call->body[0]);
+    CHECK(op && op->text == "*" && op->parent == call);
+  }
+}
+
 }  // namespace
 
 int main() {
   native_followup();
+  column_one_comments();
   accepted_texts();
   refused_texts();
   corpus();

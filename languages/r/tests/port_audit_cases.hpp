@@ -40,6 +40,52 @@ bool run(const Parser& parser) {
                as<Ident>(p.body[4])->name == "...";
       }))
     return false;
+  // A letter is what R reads as one in a UTF-8 locale: it holds the signs
+  // that spell a sound, such as the Devanagari vowel sign in भारत.
+  if (!inspect(parser, "भारत <- 1\n", [](const Program& p) {
+        const auto* a = p.body.size() == 1 ? as<AssignExpr>(p.body[0]) : nullptr;
+        const auto* name = a ? as<Ident>(a->target) : nullptr;
+        return name && name->name == "भारत";
+      }))
+    return false;
+  // R 4.5.1 under C.UTF-8 accepts alphabetic marks, while an ordinary
+  // combining accent still needs backticks. Check reserved-word boundaries too.
+  struct NameCase {
+    const char* source;
+    const char* name;
+    bool quoted;
+  };
+  for (const auto& c : {
+           NameCase{"\u0345 <- 1", "\u0345", false},
+           NameCase{"e\u0345 <- 1", "e\u0345", false},
+           NameCase{"TRUE\u0345 <- 1", "TRUE\u0345", false},
+           NameCase{".\u0345 <- 1", ".\u0345", false},
+           NameCase{"\u0301 <- 1", nullptr, false},
+           NameCase{"e\u0301 <- 1", nullptr, false},
+           NameCase{"TRUE\u0301 <- 1", nullptr, false},
+           NameCase{"`e\u0301` <- 1", "e\u0301", true},
+           NameCase{"\u2160 <- 1", "\u2160", false},
+           NameCase{"_name <- 1", nullptr, false}}) {
+    if (!c.name) {
+      const auto parsed = parser.parse(c.source);
+      if (parsed.accepted && !parsed.cst().recovered() &&
+          parsed.diagnostics.empty()) {
+        std::fprintf(stderr, "R invalid name accepted: %s\n", c.source);
+        return false;
+      }
+    } else if (!inspect(parser, c.source, [&](const Program& p) {
+                 const auto* a = p.body.size() == 1
+                     ? as<AssignExpr>(p.body[0]) : nullptr;
+                 const auto* name = a ? as<Ident>(a->target) : nullptr;
+                 const auto* number = a ? as<FloatLit>(a->value) : nullptr;
+                 return a && a->op == "<-" && a->parent == &p && name &&
+                        name->name == c.name && name->quoted == c.quoted &&
+                        name->parent == a && number && number->text == "1" &&
+                        number->parent == a;
+               })) {
+      return false;
+    }
+  }
   if (!inspect(parser, "1L\n1e2L\n0x1.fp3\n0x1p2i\nNA_real_\n",
                [](const Program& p) {
                  return p.body.size() == 5 && as<IntLit>(p.body[0]) &&

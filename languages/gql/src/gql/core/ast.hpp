@@ -66,6 +66,7 @@ struct TypeRef : cursiv::Extends<cursiv::AstNode> {
   vector<TypeRef *> params;
   vector<PropertyTypeField *> fields;
   vector<ElementTypeSpec *> elements; // nested graph type specification
+  ElementTypeSpec *element; // closed node/edge reference value type
   boolean notNull;
   boolean graphType; // distinguishes ANY GRAPH from unrestricted ANY VALUE
   boolean postfixList; // `T LIST` rather than `LIST<T>`

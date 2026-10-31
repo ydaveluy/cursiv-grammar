@@ -7,27 +7,9 @@
 #include "cursiv/core/grammar/GrammarSpec.hpp"
 #include "javascript/core/ast.hpp"
 #include "javascript/core/IdentifierValue.hpp"
+#include "javascript/core/TemplateValue.hpp"
 
 namespace javascript {
-
-// Drops the delimiters a template-text terminal reads along with its text --
-// "`" or "}" before it, "`" or "${" after it -- so the text alone reaches the
-// AST.
-template <std::size_t Tail>
-inline constexpr auto drop_ends =
-    [](std::string_view t, std::pmr::memory_resource* memory) {
-      const auto body = t.substr(1, t.size() - 1 - Tail);
-      if (body.find('\r') == std::string_view::npos) return body;
-      const auto room = cursiv::text_room(memory, body.size());
-      std::size_t size = 0;
-      for (std::size_t i = 0; i < body.size(); ++i) {
-        if (body[i] == '\r') {
-          room[size++] = '\n';
-          if (i + 1 < body.size() && body[i + 1] == '\n') ++i;
-        } else room[size++] = body[i];
-      }
-      return std::string_view(room.data(), size);
-    };
 
 struct JavaScript : cursiv::GrammarSpec {
   // A LineTerminator in the gap before the token in hand, comments included:
@@ -99,6 +81,9 @@ struct JavaScript : cursiv::GrammarSpec {
 
   struct PlainId : terminal<as<decode_identifier>(!HardReserved + IdChars)> {};
   struct Ident : rule<assign<&ast::Ident::name>(ref<PlainId> | SoftReserved | kw<"await">)> {};
+  // The same contextual keyword token must be viable for a label as for an
+  // expression. Reserved-name checks still apply in strict/async/module code.
+  struct LabelIdentifier : rule<ref<PlainId> | SoftReserved | kw<"await">> {};
   // Any word, keywords included: `.foo` and `.#foo` both take one -- `assign`
   // reads one part, so the optional `#` is folded into the terminal itself.
   struct PrivateOrName : terminal<as<decode_identifier>(option(lit<"#">) + IdChars)> {};
@@ -453,7 +438,7 @@ struct JavaScript : cursiv::GrammarSpec {
             assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {};
 
   struct ArrowSingleParam
-      : rule<create<ast::Param>(assign<&ast::Param::pattern>(ref<Ident>))> {};
+      : rule<assign<&ast::Param::pattern>(ref<Ident>)> {};
 
   static constexpr auto ArrowParams =
       (lit<"("> +
@@ -701,8 +686,7 @@ struct JavaScript : cursiv::GrammarSpec {
             lit<")"> + assign<&ast::ForStmt::body>(ref<Statement>))> {};
 
   struct ForBindingDeclarator
-      : rule<create<ast::Declarator>(
-            assign<&ast::Declarator::id>(ref<Assignable>))> {};
+      : rule<assign<&ast::Declarator::id>(ref<Assignable>)> {};
   struct ForBindingDecl
       : rule<create<ast::VarDecl>(
             assign<&ast::VarDecl::kind>(VarKind) +
@@ -734,13 +718,13 @@ struct JavaScript : cursiv::GrammarSpec {
       : rule<create<ast::ContinueStmt>(
             kw<"continue"> +
             option(!LineBreak +
-                   assign<&ast::ContinueStmt::label>(ref<PlainId>)) +
+                   assign<&ast::ContinueStmt::label>(ref<LabelIdentifier>)) +
             Eos)> {};
 
   struct BreakStatement
       : rule<create<ast::BreakStmt>(
             kw<"break"> +
-            option(!LineBreak + assign<&ast::BreakStmt::label>(ref<PlainId>)) +
+            option(!LineBreak + assign<&ast::BreakStmt::label>(ref<LabelIdentifier>)) +
             Eos)> {};
 
   struct ReturnStatement
@@ -767,7 +751,7 @@ struct JavaScript : cursiv::GrammarSpec {
 
   struct LabelledStatement
       : rule<create<ast::LabeledStmt>(
-            assign<&ast::LabeledStmt::label>(ref<PlainId>) + lit<":"> +
+            assign<&ast::LabeledStmt::label>(ref<LabelIdentifier>) + lit<":"> +
             assign<&ast::LabeledStmt::body>(ref<Statement>))> {};
 
   struct CaseClause
@@ -837,8 +821,7 @@ struct JavaScript : cursiv::GrammarSpec {
   // `imported` stays empty: that (with `isNamespace` false) is what marks a
   // default specifier, the same way ImportNamespace leaves it empty too.
   struct ImportDefault
-      : rule<create<ast::ImportSpecifier>(
-            assign<&ast::ImportSpecifier::local>(ref<RawId>))> {};
+      : rule<assign<&ast::ImportSpecifier::local>(ref<RawId>)> {};
 
   struct ImportAttribute
       : rule<assign<&ast::ImportAttribute::key>(ref<ModuleExportName>) +
@@ -878,8 +861,7 @@ struct JavaScript : cursiv::GrammarSpec {
       lit<"}">;
 
   struct ExportStarSpecifier
-      : rule<create<ast::ExportSpecifier>(
-            assign<&ast::ExportSpecifier::exported>(ref<ModuleExportName>))> {};
+      : rule<assign<&ast::ExportSpecifier::exported>(ref<ModuleExportName>)> {};
 
   struct ExportDeclaration_
       : rule<ref<VariableStatement> | ref<ClassDeclaration> |

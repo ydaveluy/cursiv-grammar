@@ -25,10 +25,6 @@ inline constexpr auto origin_of = [](std::string_view t) {
   return t == "axioms" ? ast::Origin::axioms : ast::Origin::conjectures;
 };
 
-inline constexpr auto is_dnf_type = [](std::string_view t) {
-  return t == "dnf";
-};
-
 // Native dfglexer.c reserves these tokens globally. Keep the name token
 // permissive and report a reserved spelling as a conversion diagnostic.
 inline constexpr auto identifier_value = [](std::string_view text)
@@ -77,7 +73,6 @@ struct Spass : cursiv::GrammarSpec {
                                   kw<"unknown">)> {};
   struct ORIGIN_TYPE
       : terminal<as<origin_of>(kw<"axioms"> | kw<"conjectures">)> {};
-  struct CLAUSE_TYPE : terminal<as<is_dnf_type>(kw<"cnf"> | kw<"dnf">)> {};
 
   static constexpr auto word_boundary = w;
 
@@ -179,7 +174,30 @@ struct Spass : cursiv::GrammarSpec {
                                  ref<Formula>)) +
              kw<"end_of_list"> + lit<".">> {};
 
-  struct Clause
+  // In native plain clauses function terms, atoms and negated constraint
+  // literals have distinct syntax, despite sharing the AppTerm AST family.
+  struct FunctionTerm
+      : rule<assign<&ast::AppTerm::symbol>(ref<Identifier>) +
+             option(lit<"("> + some(append<&ast::AppTerm::args>(
+                                        ref<FunctionTerm>), lit<",">) + lit<")">)> {};
+  struct Atom
+      : rule<(assign<&ast::AppTerm::symbol>(kw<"equal">) + lit<"("> +
+              append<&ast::AppTerm::args>(ref<FunctionTerm>) + lit<","> +
+              append<&ast::AppTerm::args>(ref<FunctionTerm>) + lit<")">) |
+             assign<&ast::AppTerm::symbol>(kw<"true"> | kw<"false">) |
+             (assign<&ast::AppTerm::symbol>(ref<Identifier>) +
+              option(lit<"("> + some(append<&ast::AppTerm::args>(
+                                         ref<FunctionTerm>), lit<",">) + lit<")">))> {};
+  struct ConstraintLiteral
+      : rule<(assign<&ast::AppTerm::symbol>(kw<"not">) + lit<"("> +
+              append<&ast::AppTerm::args>(ref<Atom>) + lit<")">) | ref<Atom>> {};
+  struct PlainClause
+      : rule<many(append<&ast::Clause::constraints>(ref<ConstraintLiteral>)) +
+             flag<&ast::Clause::plain>(lit<"||">) +
+             many(append<&ast::Clause::antecedent>(ref<Atom>)) +
+             lit<"->"> + many(append<&ast::Clause::succedent>(ref<Atom>))> {};
+
+  struct CnfClause
       : rule<(kw<"forall"> + lit<"("> +
               assign<&ast::Clause::vars>(ref<TermList>) + lit<","> +
               kw<"or"> + lit<"("> +
@@ -187,8 +205,10 @@ struct Spass : cursiv::GrammarSpec {
               lit<")"> + lit<")">) |
              (kw<"or"> + lit<"("> +
               some(append<&ast::Clause::literals>(ref<Term>), lit<",">) +
-              lit<")">) |
-             (kw<"exists"> + lit<"("> +
+              lit<")">) | ref<PlainClause>> {};
+
+  struct DnfClause
+      : rule<(kw<"exists"> + lit<"("> +
               assign<&ast::Clause::vars>(ref<TermList>) + lit<","> +
               flag<&ast::Clause::isDnf>(kw<"and">) + lit<"("> +
               some(append<&ast::Clause::literals>(ref<Term>), lit<",">) +
@@ -197,18 +217,22 @@ struct Spass : cursiv::GrammarSpec {
               some(append<&ast::Clause::literals>(ref<Term>), lit<",">) +
               lit<")">)> {};
 
-  struct ClauseEntry
+  struct Clause : rule<ref<CnfClause> | ref<DnfClause>> {};
+
+  template <class Body>
+  struct ClauseEntryFor
       : rule<kw<"clause"> + lit<"("> +
-             assign<&ast::ClauseEntry::clause>(ref<Clause>) +
+             assign<&ast::ClauseEntry::clause>(ref<Body>) +
              option(lit<","> + assign<&ast::ClauseEntry::label>(labelExpr)) +
              lit<")"> + lit<".">> {};
 
   struct ClauseList
       : rule<kw<"list_of_clauses"> + lit<"("> +
              assign<&ast::ClauseList::origin>(ref<ORIGIN_TYPE>) + lit<","> +
-             assign<&ast::ClauseList::isDnf>(ref<CLAUSE_TYPE>) + lit<")"> +
-             lit<"."> + many(append<&ast::ClauseList::clauses>(
-                                 ref<ClauseEntry>)) +
+             ((kw<"cnf"> + lit<")"> + lit<"."> +
+               many(append<&ast::ClauseList::clauses>(ref<ClauseEntryFor<CnfClause>>))) |
+              (flag<&ast::ClauseList::isDnf>(kw<"dnf">) + lit<")"> + lit<"."> +
+               many(append<&ast::ClauseList::clauses>(ref<ClauseEntryFor<DnfClause>>)))) +
              kw<"end_of_list"> + lit<".">> {};
 
   static constexpr auto userRuleApplWord =
@@ -340,12 +364,27 @@ struct Spass : cursiv::GrammarSpec {
              many(append<&ast::LogicalPart::proofLists>(
                  ref<ProofList>))> {};
 
+  struct FILENAME : terminal<as<[](std::string_view text) {
+      return text.substr(1, text.size() - 2);
+    }>(lit<"'"> + many(cr<"^'">) + lit<"'">)> {};
+  struct Include
+      : rule<kw<"include"> + lit<"("> +
+             assign<&ast::Include::filename>(ref<FILENAME>) +
+             option(lit<","> + flag<&ast::Include::hasSelection>(lit<"[">) +
+                    some(append<&ast::Include::selection>(ref<Identifier>), lit<",">) +
+                    lit<"]">) + lit<")"> + lit<".">> {};
+  static constexpr auto include_list =
+      kw<"list_of_includes"> + lit<"."> +
+      many(append<&ast::Problem::includes>(ref<Include>)) +
+      kw<"end_of_list"> + lit<".">;
+
   struct Problem
       : rule<kw<"begin_problem"> + lit<"("> +
              assign<&ast::Problem::name>(ref<Identifier>) + lit<")"> +
              lit<"."> +
              assign<&ast::Problem::description>(ref<Description>) +
              assign<&ast::Problem::logicalPart>(ref<LogicalPart>) +
+             option(include_list) +
              many(append<&ast::Problem::settings>(
                  ref<GeneralSettings> | ref<NamedSettings>)) +
              kw<"end_problem"> + lit<".">> {};

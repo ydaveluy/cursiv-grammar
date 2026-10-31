@@ -56,11 +56,11 @@ struct Cql3 : cursiv::GrammarSpec {
 
   struct CODE_BLOCK : terminal<through(lit<"$$">, lit<"$$">)> {};
 
-  struct DECIMAL_LITERAL : terminal<option(cr<"+-">) + some(d)> {};
+  struct DECIMAL_LITERAL : terminal<option(lit<"-">) + some(d)> {};
   static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   struct FLOAT_LITERAL
-      : terminal<option(cr<"+-">) +
-                 ((some(d) + lit<"."> + many(d) + option(Exponent)) |
+      : terminal<option(lit<"-">) +
+                 ((some(d) + lit<".", !lit<"."> | &lit<"..">> + many(d) + option(Exponent)) |
                   (some(d) + Exponent))> {};
 
   struct HEXADECIMAL_LITERAL
@@ -74,7 +74,7 @@ struct Cql3 : cursiv::GrammarSpec {
                                  Hex4> {};
 
   struct SPECIAL_FLOAT
-      : terminal<option(cr<"+-">) + (ikw<"NaN"> | ikw<"Infinity">)> {};
+      : terminal<option(lit<"-">) + (ikw<"NaN"> | ikw<"Infinity">)> {};
   static constexpr auto duration_unit =
       (cr<"mM"> + cr<"oO">) | (cr<"mM"> + cr<"sS">) |
       (cr<"uUµnN"> + cr<"sS">) |
@@ -138,6 +138,7 @@ struct Cql3 : cursiv::GrammarSpec {
   struct Constant : rule<ref<BindMarker> | ref<UuidLit> | ref<StringLit> |
                          ref<IntLit> | ref<FloatLit> | ref<DurationLit> | ref<HexLit> |
                          ref<BoolLit> | ref<CodeBlockLit> | ref<NullLit>> {};
+  struct IntegerValue : rule<ref<IntLit> | ref<BindMarker>> {};
 
   struct FuncCall;
   struct MapLit;
@@ -145,40 +146,51 @@ struct Cql3 : cursiv::GrammarSpec {
   struct ListLit;
   struct TupleLit;
   struct Expression;
+  struct SimpleTerm;
+  struct TermGroup;
+  struct Selection;
+  struct SelectionBase;
+  struct SelectionPostfix;
+  struct SelectionUnary;
+  struct ColumnType;
+  struct NativeCastType;
   struct UdtLit;
 
-  struct ColumnRef : rule<assign<&ast::ColumnRef::name>(ref<ID>)> {};
+  static constexpr auto SelectionKeyword = ikw<"CAST"> | ikw<"TTL"> |
+      ikw<"WRITETIME"> | ikw<"MAXWRITETIME"> | ikw<"COUNT">;
+  struct ColumnIdentifier : rule<as<unquote_cql>(
+      ref<UNQUOTED_ID> | ref<QUOTED_ID> | SelectionKeyword)> {};
+  struct ColumnRef : rule<assign<&ast::ColumnRef::name>(ref<ColumnIdentifier>)> {};
+  struct FunctionIdentifier : rule<as<unquote_cql>(
+      !(ikw<"CAST"> | ikw<"TTL"> | ikw<"WRITETIME"> | ikw<"MAXWRITETIME">) +
+      (ref<UNQUOTED_ID> | ref<QUOTED_ID> | ikw<"TOKEN"> | ikw<"COUNT"> | ikw<"UUID">))> {};
+  static constexpr auto Arg = ref<Expression>;
+  template<auto Argument> static constexpr auto function_call =
+      (flag<&ast::FuncCall::uuidCall>(ikw<"UUID">) + lit<"("> + lit<")">) |
+      (option(assign<&ast::FuncCall::keyspace>(ref<ColumnIdentifier>) + lit<".">) +
+       assign<&ast::FuncCall::name>(ref<FunctionIdentifier>) + lit<"("> +
+       many(append<&ast::FuncCall::args>(Argument), lit<",">) + lit<")">);
+  struct FuncCall : rule<function_call<ref<Expression>>> {};
+  struct TokenCall : rule<&ikw<"TOKEN"> +
+      assign<&ast::FuncCall::name>(ref<FunctionIdentifier>) + lit<"("> +
+      some(append<&ast::FuncCall::args>(ref<ColumnRef>), lit<",">) + lit<")">> {};
 
-  static constexpr auto Arg = ref<Expression> | ref<ColumnRef>;
-
-  struct FuncCall
-      : rule<(flag<&ast::FuncCall::uuidCall>(ikw<"UUID">) + lit<"("> +
-                 lit<")">) |
-                 (option(assign<&ast::FuncCall::keyspace>(ref<ID>) + lit<".">) +
-                  assign<&ast::FuncCall::name>(ref<ID>) + lit<"("> +
-                     option(flag<&ast::FuncCall::star>(lit<"*">) |
-                            some(append<&ast::FuncCall::args>(Arg),
-                                 lit<",">)) +
-                     lit<")">)> {};
-
-  struct MapEntry
-      : rule<assign<&ast::MapEntry::key>(ref<Expression>) + lit<":"> +
-             assign<&ast::MapEntry::value>(ref<Expression>)> {};
+  template<auto Item> static constexpr auto map_entry =
+      assign<&ast::MapEntry::key>(Item) + lit<":"> + assign<&ast::MapEntry::value>(Item);
+  struct MapEntry : rule<map_entry<ref<Expression>>> {};
+  template<auto Entry> static constexpr auto map_literal = lit<"{"> +
+      some(append<&ast::MapLit::entries>(Entry), lit<",">) + lit<"}">;
   // `{}` is a SetLit: Cassandra's parser forces the empty braces to a set.
   struct MapLit
-      : rule<lit<"{"> +
-                 some(append<&ast::MapLit::entries>(ref<MapEntry>),
-                      lit<",">) +
-                 lit<"}">> {};
-  struct SetLit : rule<lit<"{"> +
-                       option(some(append<&ast::SetLit::items>(ref<Expression>),
-                                   lit<",">)) +
-                       lit<"}">> {};
-  struct ListLit
-      : rule<lit<"["> +
-             option(some(append<&ast::ListLit::items>(ref<Expression>),
-                         lit<",">)) +
-             lit<"]">> {};
+      : rule<map_literal<ref<MapEntry>>> {};
+  template<auto Item> static constexpr auto set_literal = lit<"{"> +
+      many(append<&ast::SetLit::items>(Item), lit<",">) + lit<"}">;
+  template<auto Item> static constexpr auto list_literal = lit<"["> +
+      many(append<&ast::ListLit::items>(Item), lit<",">) + lit<"]">;
+  template<auto Item> static constexpr auto tuple_literal = lit<"("> +
+      some(append<&ast::TupleLit::items>(Item), lit<",">) + lit<")">;
+  struct SetLit : rule<set_literal<ref<Expression>>> {};
+  struct ListLit : rule<list_literal<ref<Expression>>> {};
 
   struct UdtEntry
       : rule<assign<&ast::UdtEntry::field>(ref<ID>) + lit<":"> +
@@ -187,15 +199,57 @@ struct Cql3 : cursiv::GrammarSpec {
       : rule<lit<"{"> + some(append<&ast::UdtLit::fields>(ref<UdtEntry>), lit<",">) +
              lit<"}">> {};
 
-  // What an UPDATE assignment's right-hand side and INSERT's VALUES(...) hold.
-  struct Expression : rule<ref<Constant> | ref<FuncCall> | ref<MapLit> |
-                           ref<SetLit> | ref<ListLit> | ref<TupleLit> | ref<UdtLit>> {};
+  struct TupleLit : rule<tuple_literal<ref<Expression>>> {};
+  template<auto Value> static constexpr auto cast_hint = lit<"("> +
+      assign<&ast::CastExpr::type>(ref<ColumnType>) + lit<")"> + assign<&ast::CastExpr::value>(Value);
+  template<auto Value> static constexpr auto cast_function =
+      flag<&ast::CastExpr::functionStyle>(ikw<"CAST">) + lit<"("> +
+      assign<&ast::CastExpr::value>(Value) + ikw<"AS"> +
+      assign<&ast::CastExpr::type>(ref<NativeCastType>) + lit<")">;
+  struct SimpleTerm : rule<ref<Constant> | ref<FuncCall> | ref<MapLit> |
+      ref<SetLit> | ref<ListLit> | ref<TupleLit> | ref<UdtLit> |
+      cast_hint<ref<SimpleTerm>> | cast_function<ref<SimpleTerm>>> {};
+  // A minus immediately starting a signed literal is part of that token in
+  // Cassandra, not a binary operator (normalColumnOperation handles X=X-3).
+  struct MINUS : terminal<!(ref<DECIMAL_LITERAL> | ref<FLOAT_LITERAL> |
+      ref<SPECIAL_FLOAT> | ref<DURATION_LITERAL>) + lit<"-">> {};
+  struct TermGroup : rule<ref<SimpleTerm> |
+      (assign<&ast::UnaryExpr::op>(ref<MINUS>) + assign<&ast::UnaryExpr::operand>(ref<SimpleTerm>))> {};
+  static constexpr auto ArithmeticLevels = levels(
+      left(lit<"*"> | lit<"/"> | lit<"%">), left(lit<"+"> | ref<MINUS>));
+  struct Expression : infix<TermGroup, ast::BinaryExpr, ArithmeticLevels> {};
 
-  struct TupleLit
-      : rule<lit<"("> +
-                 some(append<&ast::TupleLit::items>(ref<Expression>),
-                      lit<",">) +
-                 lit<")">> {};
+  static constexpr auto SelectionTail =
+      nest<ast::FieldExpr, &ast::FieldExpr::object>(lit<"."> +
+          assign<&ast::FieldExpr::field>(ref<ID>)) |
+      nest<ast::SliceExpr, &ast::SliceExpr::object>(lit<"["> +
+          ((assign<&ast::SliceExpr::from>(ref<Expression>) + lit<".."> +
+            option(assign<&ast::SliceExpr::to>(ref<Expression>))) |
+           (lit<".."> + assign<&ast::SliceExpr::to>(ref<Expression>))) + lit<"]">) |
+      nest<ast::ElementExpr, &ast::ElementExpr::object>(lit<"["> +
+          assign<&ast::ElementExpr::index>(ref<Expression>) + lit<"]">);
+  struct SelectionMetadataArg : rule<ref<ColumnRef> + many(SelectionTail)> {};
+  struct MetadataFunctionName : rule<as<unquote_cql>(
+      ikw<"TTL"> | ikw<"WRITETIME"> | ikw<"MAXWRITETIME">)> {};
+  struct CountFunctionName : rule<as<unquote_cql>(ikw<"COUNT">)> {};
+  struct SelectionFuncCall : rule<
+      (assign<&ast::FuncCall::name>(ref<CountFunctionName>) + lit<"("> +
+       flag<&ast::FuncCall::star>(lit<"*">) + lit<")">) |
+      (assign<&ast::FuncCall::name>(ref<MetadataFunctionName>) + lit<"("> +
+       append<&ast::FuncCall::args>(ref<SelectionMetadataArg>) + lit<")">) |
+      function_call<ref<Selection>>> {};
+  struct SelectionMapEntry : rule<map_entry<ref<Selection>>> {};
+  struct SelectionMap : rule<map_literal<ref<SelectionMapEntry>>> {};
+  struct SelectionSet : rule<set_literal<ref<Selection>>> {};
+  struct SelectionList : rule<list_literal<ref<Selection>>> {};
+  struct SelectionTuple : rule<tuple_literal<ref<Selection>>> {};
+  struct SelectionBase : rule<ref<Constant> | ref<ColumnRef> | ref<SelectionFuncCall> |
+      ref<SelectionMap> | ref<SelectionSet> | ref<SelectionList> | ref<SelectionTuple> |
+      cast_hint<ref<SelectionBase>> | cast_function<ref<Selection>>> {};
+  struct SelectionPostfix : rule<ref<SelectionBase> + many(SelectionTail)> {};
+  struct SelectionUnary : rule<ref<SelectionPostfix> |
+      (assign<&ast::UnaryExpr::op>(ref<MINUS>) + assign<&ast::UnaryExpr::operand>(ref<SelectionUnary>))> {};
+  struct Selection : infix<SelectionUnary, ast::BinaryExpr, ArithmeticLevels> {};
 
   // ---- relations (WHERE clauses) -----------------------------------------
 
@@ -214,7 +268,7 @@ struct Cql3 : cursiv::GrammarSpec {
               assign<&ast::CompareRelation::rhs>(ref<Expression>))> {};
 
   struct FuncCompareRelation
-      : rule<assign<&ast::FuncCompareRelation::call>(ref<FuncCall>) +
+      : rule<assign<&ast::FuncCompareRelation::call>(ref<TokenCall>) +
              assign<&ast::FuncCompareRelation::op>(CompareOpAlt) +
              assign<&ast::FuncCompareRelation::rhs>(ref<Expression>)> {};
 
@@ -229,10 +283,12 @@ struct Cql3 : cursiv::GrammarSpec {
       : rule<lit<"("> +
                  some(append<&ast::TupleInRelation::columns>(ref<ID>),
                       lit<",">) +
-                 lit<")"> + ikw<"IN"> + lit<"("> +
-                 some(append<&ast::TupleInRelation::values>(ref<TupleLit>),
-                      lit<",">) +
-                 lit<")">> {};
+                 lit<")"> + ikw<"IN"> +
+                 (assign<&ast::TupleInRelation::marker>(ref<BindMarker>) |
+                  (lit<"("> +
+                   (many(append<&ast::TupleInRelation::values>(ref<TupleLit>), lit<",">) |
+                    some(append<&ast::TupleInRelation::markers>(ref<BindMarker>), lit<",">)) +
+                   lit<")">))> {};
 
   struct TupleCompareRelation
       : rule<lit<"("> +
@@ -240,9 +296,8 @@ struct Cql3 : cursiv::GrammarSpec {
                       lit<",">) +
                  lit<")"> +
                  assign<&ast::TupleCompareRelation::op>(CompareOpAlt) +
-                 some(
-                     append<&ast::TupleCompareRelation::values>(ref<TupleLit>),
-                     lit<",">)> {};
+                 (append<&ast::TupleCompareRelation::values>(ref<TupleLit>) |
+                  assign<&ast::TupleCompareRelation::marker>(ref<BindMarker>))> {};
 
   struct ContainsRelation
       : rule<assign<&ast::ContainsRelation::column>(ref<ID>) +
@@ -267,14 +322,15 @@ struct Cql3 : cursiv::GrammarSpec {
 
   // Each built-in type keyword is soft, spelled once alongside ID: also a
   // plain name wherever no type is expected.
-  static constexpr auto DataTypeNameAlt =
-      ref<UNQUOTED_ID> | ikw<"TIMESTAMP"> | ikw<"SET"> | ikw<"ASCII"> | ikw<"BIGINT"> |
-      ikw<"BLOB"> | ikw<"BOOLEAN"> | ikw<"COUNTER"> | ikw<"DATE"> |
-      ikw<"DECIMAL"> | ikw<"DOUBLE"> | ikw<"FLOAT"> | ikw<"FROZEN"> |
-      ikw<"INET"> | ikw<"INT"> | ikw<"LIST"> | ikw<"MAP"> | ikw<"SMALLINT"> |
-      ikw<"TEXT"> | ikw<"TIME"> | ikw<"TIMEUUID"> | ikw<"TINYINT"> |
-      ikw<"TUPLE"> | ikw<"VARCHAR"> | ikw<"VARINT"> | ikw<"UUID"> |
-      ikw<"VECTOR">;
+  static constexpr auto NativeTypeName = ikw<"ASCII"> | ikw<"BIGINT"> | ikw<"BLOB"> |
+      ikw<"BOOLEAN"> | ikw<"COUNTER"> | ikw<"DATE"> | ikw<"DECIMAL"> |
+      ikw<"DOUBLE"> | ikw<"DURATION"> | ikw<"FLOAT"> | ikw<"INET"> |
+      ikw<"INT"> | ikw<"SMALLINT"> | ikw<"TEXT"> | ikw<"TIME"> |
+      ikw<"TIMESTAMP"> | ikw<"TIMEUUID"> | ikw<"TINYINT"> | ikw<"UUID"> |
+      ikw<"VARCHAR"> | ikw<"VARINT">;
+  struct NativeCastType : rule<assign<&ast::ColumnType::name>(NativeTypeName)> {};
+  static constexpr auto DataTypeNameAlt = ref<UNQUOTED_ID> | NativeTypeName |
+      ikw<"SET"> | ikw<"FROZEN"> | ikw<"LIST"> | ikw<"MAP"> | ikw<"TUPLE"> | ikw<"VECTOR">;
 
   struct ColumnType
       : rule<(flag<&ast::ColumnType::quoted>(
@@ -368,18 +424,18 @@ struct Cql3 : cursiv::GrammarSpec {
                                                        as<ast::BatchKind::unlogged>(ikw<"UNLOGGED">))) +
                       ikw<"BATCH"> +
                       option(ikw<"USING"> + ikw<"TIMESTAMP"> +
-                             assign<&ast::Batch::timestamp>(ref<Expression>))> {
+                             assign<&ast::Batch::timestamp>(ref<IntegerValue>))> {
   };
 
   struct Using
       : rule<create<ast::Using> + ikw<"USING"> +
-             ((ikw<"TTL"> + assign<&ast::Using::ttl>(ref<Expression>) +
+             ((ikw<"TTL"> + assign<&ast::Using::ttl>(ref<IntegerValue>) +
                option(ikw<"AND"> + ikw<"TIMESTAMP"> +
-                      assign<&ast::Using::timestamp>(ref<Expression>))) |
+                      assign<&ast::Using::timestamp>(ref<IntegerValue>))) |
               (ikw<"TIMESTAMP"> +
-               assign<&ast::Using::timestamp>(ref<Expression>) +
+               assign<&ast::Using::timestamp>(ref<IntegerValue>) +
                option(ikw<"AND"> + ikw<"TTL"> +
-                      assign<&ast::Using::ttl>(ref<Expression>))))> {};
+                      assign<&ast::Using::ttl>(ref<IntegerValue>))))> {};
 
   struct ReplicationEntry
       : rule<assign<&ast::ReplicationEntry::key>(ref<STRING_LITERAL>) +
@@ -482,8 +538,8 @@ struct Cql3 : cursiv::GrammarSpec {
                    ref<Expression>)) |
               (flag<&ast::CounterOp::deltaFirst>(
                    assign<&ast::CounterOp::deltaOperand>(
-                   ref<SetLit> | ref<MapLit> | ref<ListLit>)) +
-               assign<&ast::CounterOp::op>(ArithOpAlt) +
+                   ref<Expression>)) +
+               assign<&ast::CounterOp::op>(as<ast::ArithOp::plus>(lit<"+">)) +
                assign<&ast::CounterOp::nameOperand>(ref<ID>)))> {};
 
   struct Assignment
@@ -508,12 +564,14 @@ struct Cql3 : cursiv::GrammarSpec {
   struct SelectElement
       : rule<(assign<&ast::SelectElement::qualifier>(ref<ID>) + lit<"."> +
                  flag<&ast::SelectElement::qualifiedStar>(lit<"*">)) |
-                 (assign<&ast::SelectElement::call>(ref<FuncCall>) +
+                 (assign<&ast::SelectElement::call>(ref<SelectionFuncCall>) +
                      option(ikw<"AS"> +
                             assign<&ast::SelectElement::alias>(ref<ID>))) |
-                 (assign<&ast::SelectElement::name>(ref<ID>) +
+                 (assign<&ast::SelectElement::name>(ref<ColumnIdentifier>) +
                      option(ikw<"AS"> +
-                            assign<&ast::SelectElement::alias>(ref<ID>)))> {};
+                            assign<&ast::SelectElement::alias>(ref<ID>))) |
+                 (assign<&ast::SelectElement::expression>(ref<Selection>) +
+                     option(ikw<"AS"> + assign<&ast::SelectElement::alias>(ref<ID>)))> {};
 
   struct OrderSpec
       : rule<assign<&ast::OrderSpec::column>(ref<ID>) +
@@ -772,7 +830,7 @@ struct Cql3 : cursiv::GrammarSpec {
              option(assign<&ast::Delete::keyspace>(ref<ID>) + lit<".">) +
              assign<&ast::Delete::table>(ref<ID>) +
              option(ikw<"USING"> + ikw<"TIMESTAMP"> +
-                    assign<&ast::Delete::usingTimestamp>(ref<Expression>)) +
+                    assign<&ast::Delete::usingTimestamp>(ref<IntegerValue>)) +
              ikw<"WHERE"> +
              some(append<&ast::Delete::where>(ref<Relation>), ikw<"AND">) +
              option(
@@ -822,14 +880,16 @@ struct Cql3 : cursiv::GrammarSpec {
              ikw<"INTO"> +
              option(assign<&ast::Insert::keyspace>(ref<ID>) + lit<".">) +
              assign<&ast::Insert::table>(ref<ID>) +
-             option(lit<"("> +
+             ((lit<"("> +
                     some(append<&ast::Insert::columns>(ref<ID>), lit<",">) +
-                    lit<")">) +
-             ((ikw<"VALUES"> + lit<"("> +
+                    lit<")"> + ikw<"VALUES"> + lit<"("> +
                some(append<&ast::Insert::values>(ref<Expression>), lit<",">) +
                lit<")">) |
               (ikw<"JSON"> +
-               assign<&ast::Insert::jsonValue>(ref<Constant>))) +
+               assign<&ast::Insert::jsonValue>(ref<StringLit> | ref<BindMarker>) +
+               option(ikw<"DEFAULT"> + assign<&ast::Insert::jsonDefault>(
+                   as<ast::JsonDefault::null_>(ikw<"NULL">) |
+                   as<ast::JsonDefault::unset_>(ikw<"UNSET">))))) +
              option(flag<&ast::Insert::ifNotExists>(
                  ikw<"IF"> + ikw<"NOT"> + ikw<"EXISTS">)) +
              option(assign<&ast::Insert::using_>(ref<Using>))> {};
@@ -872,9 +932,9 @@ struct Cql3 : cursiv::GrammarSpec {
              option(ikw<"ORDER"> + ikw<"BY"> +
                     some(append<&ast::Select::orderBy>(ref<OrderSpec>), lit<",">)) +
              option(ikw<"PER"> + ikw<"PARTITION"> + ikw<"LIMIT"> +
-                    assign<&ast::Select::perPartitionLimit>(ref<Expression>)) +
+                    assign<&ast::Select::perPartitionLimit>(ref<IntegerValue>)) +
              option(ikw<"LIMIT"> +
-                    assign<&ast::Select::limit>(ref<Expression>)) +
+                    assign<&ast::Select::limit>(ref<IntegerValue>)) +
              option(flag<&ast::Select::allowFiltering>(
                  ikw<"ALLOW"> + ikw<"FILTERING">))> {};
 

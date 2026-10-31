@@ -3,11 +3,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
   add_link_options(--no-wasm-opt)
 endif()
 
-# The grammar itself: every document under example/ parses clean.
+# The grammar itself: every sample under tests/ parses clean.
 add_executable(rfc3080_grammar_test grammar_test.cpp)
 target_link_libraries(rfc3080_grammar_test PRIVATE rfc3080Core cursiv::test)
 target_compile_definitions(rfc3080_grammar_test PRIVATE
-    CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 add_test(NAME rfc3080_grammar_test COMMAND rfc3080_grammar_test)
 

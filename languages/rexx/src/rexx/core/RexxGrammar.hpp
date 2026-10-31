@@ -79,6 +79,7 @@ struct Rexx : cursiv::GrammarSpec {
   static constexpr auto KWD_ARG = ikw<"ARG">;
   static constexpr auto KWD_BY = ikw<"BY">;
   static constexpr auto KWD_CALL = ikw<"CALL">;
+  static constexpr auto KWD_CASELESS = ikw<"CASELESS">;
   static constexpr auto KWD_DIGITS = ikw<"DIGITS">;
   static constexpr auto KWD_DO = ikw<"DO">;
   static constexpr auto KWD_DROP = ikw<"DROP">;
@@ -99,6 +100,8 @@ struct Rexx : cursiv::GrammarSpec {
   static constexpr auto KWD_INTERPRET = ikw<"INTERPRET">;
   static constexpr auto KWD_ITERATE = ikw<"ITERATE">;
   static constexpr auto KWD_LEAVE = ikw<"LEAVE">;
+  static constexpr auto KWD_LINEIN = ikw<"LINEIN">;
+  static constexpr auto KWD_LOWER = ikw<"LOWER">;
   static constexpr auto KWD_NAME = ikw<"NAME">;
   static constexpr auto KWD_NOP = ikw<"NOP">;
   static constexpr auto KWD_NOVALUE = ikw<"NOVALUE">;
@@ -219,13 +222,11 @@ struct Rexx : cursiv::GrammarSpec {
                  ref<VAR_SYMBOL> | ref<SPECIAL_VAR> | ref<CONST_SYMBOL>))> {};
 
   struct StringLit
-      : rule<create<ast::StringLit>(
-            assign<&ast::StringLit::value>(ref<STRING>))> {};
+      : rule<assign<&ast::StringLit::value>(ref<STRING>)> {};
   struct BinaryLit
-      : rule<create<ast::BinaryLit>(
-            assign<&ast::BinaryLit::text>(ref<BINARY_STRING>))> {};
+      : rule<assign<&ast::BinaryLit::text>(ref<BINARY_STRING>)> {};
   struct HexLit
-      : rule<create<ast::HexLit>(assign<&ast::HexLit::text>(ref<HEX_STRING>))> {
+      : rule<assign<&ast::HexLit::text>(ref<HEX_STRING>)> {
   };
   struct ParenExpr
       : rule<create<ast::ParenExpr>(
@@ -237,7 +238,7 @@ struct Rexx : cursiv::GrammarSpec {
   };
 
   struct FilledArgSlot
-      : rule<create<ast::Arg>(assign<&ast::Arg::value>(ref<Expression>))> {};
+      : rule<assign<&ast::Arg::value>(ref<Expression>)> {};
 
   // A lone slot is never empty: `f()` holds no `Arg`.
   template <auto Member>
@@ -300,8 +301,7 @@ struct Rexx : cursiv::GrammarSpec {
   };
   struct TplDrop : rule<create<ast::TplDrop>(ref<STOP>)> {};
   struct TplStringPattern
-      : rule<create<ast::TplStringPattern>(
-            assign<&ast::TplStringPattern::value>(ref<STRING>))> {};
+      : rule<assign<&ast::TplStringPattern::value>(ref<STRING>)> {};
   struct TplVarPattern
       : rule<create<ast::TplVarPattern>(
             ref<BR_O> +
@@ -494,14 +494,21 @@ struct Rexx : cursiv::GrammarSpec {
       : rule<create<ast::OptionsStmt>(KWD_OPTIONS + option(assign<&ast::OptionsStmt::value>(ref<Expression>)))> {
   };
 
+  static constexpr auto ParseCase =
+      flag<&ast::ParseStmt::upper>(KWD_UPPER) | flag<&ast::ParseStmt::lower>(KWD_LOWER);
+  static constexpr auto ParseCaseless = flag<&ast::ParseStmt::caseless>(KWD_CASELESS);
+  static constexpr auto ParseFlags =
+      (ParseCase + option(ParseCaseless)) | (ParseCaseless + option(ParseCase));
+
   struct ParseStmt
       : rule<create<ast::ParseStmt>(
             KWD_PARSE +
-            option(flag<&ast::ParseStmt::upper>(KWD_UPPER)) +
+            option(ParseFlags) +
             ((assign<&ast::ParseStmt::source>(
                  as<ast::ParseSource::Arg>(KWD_ARG) | as<ast::ParseSource::External>(KWD_EXTERNAL) |
                  as<ast::ParseSource::Numeric>(KWD_NUMERIC) | as<ast::ParseSource::Pull>(KWD_PULL) |
-                 as<ast::ParseSource::Source>(KWD_SOURCE) | as<ast::ParseSource::Version>(KWD_VERSION))) |
+                 as<ast::ParseSource::Source>(KWD_SOURCE) | as<ast::ParseSource::Version>(KWD_VERSION) |
+                 as<ast::ParseSource::Linein>(KWD_LINEIN))) |
              (assign<&ast::ParseStmt::source>(as<ast::ParseSource::Value>(KWD_VALUE)) +
               option(assign<&ast::ParseStmt::valueExpr>(ref<Expression>)) +
               KWD_WITH) |

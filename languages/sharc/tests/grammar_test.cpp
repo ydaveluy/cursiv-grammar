@@ -1,4 +1,6 @@
 #include "audit_regressions.hpp"
+#include "directive_cases.hpp"
+#include "precision_cases.hpp"
 // SHARC end to end: upstream ships no corpus, so every document tested here
 // is this port's own, under tests/. Checks acceptance, a clean diagnostics
 // list, and a few AST fields read back from a declaration.
@@ -10,9 +12,11 @@
 #include <string>
 
 #include "cursiv/core/parser/Parser.hpp"
+#include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "sharc/core/ast.hpp"
+#include "sharc/core/CoreServices.hpp"
 #include "sharc/generated/Sharc/Module.hpp"
 
 namespace {
@@ -126,6 +130,11 @@ void refused_texts() {
 
 int main() {
   if (!audit_regressions::run()) return 1;
+  if (!sharc_directive_cases::run(engine())) return 1;
+  const auto language = cursiv::create_language<
+      sharc::SharcCoreServices, sharc::SharcSharedCoreServices,
+      sharc::install_core_module>();
+  if (!sharc_precision_cases::run(language.language)) return 1;
   document("declarations.dsp");
   document("directives.dsp");
   document("sections.dsp");

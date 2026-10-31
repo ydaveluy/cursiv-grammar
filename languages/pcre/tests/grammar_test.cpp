@@ -2,6 +2,7 @@
 #include "modern_cases.hpp"
 #include "extended_class_cases.hpp"
 #include "converter_cases.hpp"
+#include "x_mode_tests.hpp"
 #include <cstdio>
 
 #include "cursiv/core/parser/Parser.hpp"
@@ -204,6 +205,8 @@ int main() {
                                                 pcre::PcreSharedCoreServices,
                                                 pcre::install_core_module>();
   if (!pcre_converter_cases::run(*language.language.parser))
+    return 1;
+  if (!pcre_x_modes::run(language))
     return 1;
   if (!pcre_audit::modern_cases(language))
     return 1;

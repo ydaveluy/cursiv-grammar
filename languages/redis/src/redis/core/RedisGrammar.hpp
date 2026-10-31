@@ -7,13 +7,14 @@ struct Redis : cursiv::GrammarSpec {
   struct NEWLINE : terminal<lit<"\n">> {};
   static constexpr auto quoteEnd = !cr<R"(^ \t\r\n\v\f)">;
   static constexpr auto unquoted = cr<R"(^ \t\r\n'"\x00)">;
+  static constexpr auto unquotedStart = !cr<R"(\v\f)"> + unquoted;
   static constexpr auto doubleQuoted =
       lit<"\""> + many((lit<"\\"> + cr<R"(^\n\x00)">) | cr<R"(^"\\\n\x00)">) +
       option(lit<"\"">);
   static constexpr auto singleQuoted =
       lit<"'"> + many(lit<"\\'"> | cr<R"(^'\n\x00)">) + option(lit<"'">);
   struct WORD
-      : terminal<((some(unquoted) + option(doubleQuoted | singleQuoted)) |
+      : terminal<((unquotedStart + many(unquoted) + option(doubleQuoted | singleQuoted)) |
                   doubleQuoted | singleQuoted) +
                  quoteEnd> {};
   struct Argument : rule<assign<&ast::Argument::raw>(ref<WORD>)> {};

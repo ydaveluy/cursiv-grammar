@@ -1,3 +1,5 @@
+#include "attribute_cases.hpp"
+#include "attribute_tokens.hpp"
 #include "audit_regressions.hpp"
 // The smoke test of the language: every file in example/ and tests/ parses
 // without recovery and builds a TranslationUnit.
@@ -31,7 +33,9 @@ int main() {
       c::CCoreServices,
       c::CSharedCoreServices,
       c::install_core_module>();
+  if (!c_attribute_tokens::run(*language.language.parser)) return 1;
 
+  if (!c_attribute_cases::run(*language.language.parser)) return 1;
   int seen = 0;
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
   for (const std::filesystem::directory_entry& entry :

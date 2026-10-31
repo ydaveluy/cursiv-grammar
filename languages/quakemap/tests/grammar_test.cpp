@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <string_view>
 
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
@@ -107,6 +108,17 @@ int main() {
         result.diagnostics.empty()) {
       std::fprintf(stderr, "quakemap: native-invalid plane accepted: %s\n", source);
       return 1;
+    }
+  }
+
+  {
+    constexpr char key[] = "{\n\"before\0after\" \"value\"\n}\n";
+    constexpr char value[] = "{\n\"key\" \"before\0after\"\n}\n";
+    for (const auto source : {std::string_view(key, sizeof(key) - 1),
+                              std::string_view(value, sizeof(value) - 1)}) {
+      const auto result = language.language.parser->parse(source);
+      if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
+        return failed_expectation("native quoted token stops at NUL", result);
     }
   }
 

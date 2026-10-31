@@ -34,6 +34,7 @@ std::string read_file(const fs::path& path) {
 }  // namespace
 
 #include "code_audit.hpp"
+#include "attribute_group_cases.hpp"
 
 int main() {
   if (!code_audit::run()) return 1;
@@ -57,6 +58,7 @@ int main() {
       cursiv::create_language<llvmir::LlvmIrCoreServices,
                               llvmir::LlvmIrSharedCoreServices,
                               llvmir::install_core_module>();
+  if (!llvm_attribute_groups::run(language.language)) return 1;
 
   int clean = 0, total = 0;
   for (const auto& entry : fs::directory_iterator(CURSIV_EXAMPLE_DIR)) {

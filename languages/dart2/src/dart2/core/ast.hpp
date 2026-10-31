@@ -117,14 +117,16 @@ struct NumberLit : cursiv::Extends<Expr> {
 // String text remains source text (escapes included); interpolations are Expr
 // nodes. Ordered parts preserve empty boundaries without requiring empty lexer
 // tokens.
-struct StringLit : cursiv::Extends<Expr> {
+struct StringValue : cursiv::Extends<Expr> {};
+
+struct StringLit : cursiv::Extends<StringValue> {
   vector<variant<string_view, Expr*>> parts;
   boolean raw;
   boolean multiline;
 };
 
 // Adjacent string literals: `'a' 'b'` is one string in Dart.
-struct AdjacentStrings : cursiv::Extends<Expr> {
+struct AdjacentStrings : cursiv::Extends<StringValue> {
   vector<StringLit*> parts;
 };
 
@@ -462,12 +464,12 @@ struct Combinator : cursiv::Extends<cursiv::AstNode> {
 
 struct ConfiguredUri : cursiv::Extends<cursiv::AstNode> {
   vector<string_view> testName;
-  StringLit* testValue;  // null when the `== value` part is absent
-  StringLit* uri;
+  StringValue* testValue;  // null when the equality test is absent
+  StringValue* uri;
 };
 
 struct ImportDirective : cursiv::Extends<Directive> {
-  StringLit* uri;
+  StringValue* uri;
   vector<ConfiguredUri*> configurations;
   boolean isDeferred;
   string_view asName;
@@ -476,20 +478,20 @@ struct ImportDirective : cursiv::Extends<Directive> {
 };
 
 struct ExportDirective : cursiv::Extends<Directive> {
-  StringLit* uri;
+  StringValue* uri;
   vector<ConfiguredUri*> configurations;
   vector<Combinator*> combinators;
   vector<Metadata*> annotations;
 };
 
 struct PartDirective : cursiv::Extends<Directive> {
-  StringLit* uri;
+  StringValue* uri;
   vector<Metadata*> annotations;
 };
 
 struct PartOfDirective : cursiv::Extends<Directive> {
   vector<string_view> nameParts;  // set when `part of a.b.c;`
-  StringLit* uri;                 // set when `part of 'uri.dart';`
+  StringValue* uri;               // set for a URI instead of a dotted name
   vector<Metadata*> annotations;
 };
 

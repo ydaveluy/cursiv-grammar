@@ -94,11 +94,14 @@ struct LambdaExpr : cursiv::Extends<Expr> {
 
 struct IndexExpr : cursiv::Extends<Expr> {
   Expr* object;
+  boolean safe;
+  boolean fromEnd;
   Expr* index;
 };
 
 struct PropertyExpr : cursiv::Extends<Expr> {
   Expr* object;
+  boolean safe;
   string_view property;
 };
 
@@ -107,12 +110,14 @@ struct MethodCallExpr : cursiv::Extends<Expr> {
   FunctionCall* call;
 };
 
-// `memberExpression ":" identifier` -- unused by any corpus example, kept as
-// its own node since the source grammar admits it beside indexing and
-// property access.
+// `memberExpression "::" identifier`: access to a nested resource.
 struct NamedAccessExpr : cursiv::Extends<Expr> {
   Expr* object;
   string_view name;
+};
+
+struct NonNullExpr : cursiv::Extends<Expr> {
+  Expr* object;
 };
 
 struct UnaryExpr : cursiv::Extends<Expr> {
@@ -161,6 +166,32 @@ struct ArrayType : cursiv::Extends<TypeExpr> {
   TypeExpr* element;
 };
 
+struct ParameterizedType : cursiv::Extends<TypeExpr> {
+  TypeExpr* object;
+  string_view name;
+  vector<TypeExpr*> args;
+};
+
+struct TypeIndex : cursiv::Extends<TypeExpr> {
+  TypeExpr* object;
+  Expr* index;
+};
+struct TypeItems : cursiv::Extends<TypeExpr> { TypeExpr* object; };
+struct TypeProperty : cursiv::Extends<TypeExpr> {
+  TypeExpr* object;
+  string_view name;
+};
+struct TypeAdditionalProperties : cursiv::Extends<TypeExpr> { TypeExpr* object; };
+
+struct UnaryType : cursiv::Extends<TypeExpr> {
+  string_view op;
+  TypeExpr* operand;
+};
+struct NullableType : cursiv::Extends<TypeExpr> {
+  TypeExpr* inner;
+  boolean nonNullable;
+};
+
 struct ParenType : cursiv::Extends<TypeExpr> {
   TypeExpr* inner;
 };
@@ -207,6 +238,28 @@ struct ImportDecl : cursiv::Extends<Stmt> {
   Expr* specification;
   ObjectExpr* withClause;  // null when absent
   string_view alias;        // empty when absent
+};
+
+struct ExtensionDecl : cursiv::Extends<ImportDecl> {};
+
+struct ImportedSymbol : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  boolean quoted;
+  string_view alias;
+};
+struct CompileTimeImportDecl : cursiv::Extends<Stmt> {
+  vector<Decorator*> decorators;
+  vector<ImportedSymbol*> symbols;
+  boolean wildcard;
+  string_view alias;
+  Expr* path;
+};
+
+struct TestDecl : cursiv::Extends<Stmt> {
+  vector<Decorator*> decorators;
+  string_view name;
+  Expr* path;
+  ObjectExpr* body;
 };
 
 struct MetadataDecl : cursiv::Extends<Stmt> {

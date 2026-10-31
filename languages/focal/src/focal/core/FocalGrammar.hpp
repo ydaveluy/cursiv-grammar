@@ -11,7 +11,12 @@
 namespace focal {
 
 inline constexpr auto unquote = [](std::string_view t) {
-  return t.substr(1, t.size() - 2);
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (t.empty() || t.front() != '"')
+    return Result::err("Incomplete FOCAL text literal.");
+  t.remove_prefix(1);
+  if (!t.empty() && t.back() == '"') t.remove_suffix(1);
+  return Result::ok(t);
 };
 
 inline constexpr auto run_length = [](std::string_view t) {
@@ -80,12 +85,17 @@ struct Focal : cursiv::GrammarSpec {
   static constexpr auto sign = option(cr<"+-">);
   static constexpr auto digits = some(d);
   static constexpr auto mantissa =
-      (sign + digits + option(lit<"."> + option(sign + digits))) |
+      (digits + option(lit<"."> + option(sign + digits))) |
       (lit<"."> + sign + digits);
-  struct NUMBER : terminal<as<number_value>(
-                      mantissa + option(cr<"eE"> + sign + digits))> {};
+  struct NUMBER : terminal<mantissa + option(cr<"eE"> + sign + digits)> {};
 
   struct PLUSMIN : terminal<as<plusmin_op>(cr<"+-">)> {};
+  // The sign belongs to the parser: a signed token would turn TYPE1+2
+  // into two adjacent numbers before the expression rule can see '+'.
+  struct NumberValue
+      : rule<as<number_value>(option(ref<PLUSMIN>) + ref<NUMBER>)> {};
+  struct AddOperator
+      : rule<as<plusmin_op>(ref<PLUSMIN> + !ref<PLUSMIN>)> {};
   struct POWER : terminal<as<ast::Operator::power>(lit<"^">)> {};
   struct MULTIPLY : terminal<as<ast::Operator::multiply>(lit<"*">)> {};
   struct DIVIDE : terminal<as<ast::Operator::divide>(lit<"/">)> {};
@@ -105,7 +115,8 @@ struct Focal : cursiv::GrammarSpec {
 
   struct INTEGER : terminal<as<std::int64_t>(some(d))> {};
 
-  struct STRING_LITERAL : terminal<as<unquote>(through(lit<"\"">, lit<"\"">))> {
+  struct STRING_LITERAL : terminal<as<unquote>(
+      lit<"\""> + many(cr<R"(^"\r\n)">) + (lit<"\""> | &eol | eof))> {
   };
 
   struct COMMENT : terminal<lit<"C"> + many(cr<R"(^\r\n)">)> {};
@@ -116,7 +127,7 @@ struct Focal : cursiv::GrammarSpec {
               // DEC FOCAL 1969 gives multiplication priority over division:
               // X/2*Y means X/(2*Y), manual section 2.4.
               levels(left(ref<POWER>), left(ref<MULTIPLY>),
-                     left(ref<DIVIDE>), left(ref<PLUSMIN>))> {};
+                     left(ref<DIVIDE>), left(ref<AddOperator>))> {};
 
   struct Term
       : rule<create<ast::GroupedExpression>(
@@ -135,7 +146,7 @@ struct Focal : cursiv::GrammarSpec {
                      ref<Expression>) +
                  lit<">">) |
              create<ast::NumberLiteral>(
-                 assign<&ast::NumberLiteral::value>(ref<NUMBER>)) |
+                 assign<&ast::NumberLiteral::value>(ref<NumberValue>)) |
              create<ast::BuiltinCall>(
                  assign<&ast::BuiltinCall::name>(ref<BUILTIN>) + lit<"("> +
                  assign<&ast::BuiltinCall::arg>(ref<Expression>) +
@@ -252,6 +263,19 @@ struct Focal : cursiv::GrammarSpec {
                     assign<&ast::WriteCommand::group>(ref<INTEGER>)) +
              option(lit<";"> + assign<&ast::WriteCommand::next>(ref<Command>))> {};
 
+  struct Erase
+      : rule<create<ast::EraseCommand>(
+            (kw<"ERASE"> | kw<"E">) +
+            option(flag<&ast::EraseCommand::all>(kw<"ALL">) |
+                   assign<&ast::EraseCommand::target>(ref<LineNumber>) |
+                   assign<&ast::EraseCommand::group>(ref<INTEGER>)) +
+            option(lit<";"> + assign<&ast::EraseCommand::next>(ref<Command>)))> {};
+
+  struct Modify
+      : rule<create<ast::ModifyCommand>(
+            (kw<"MODIFY"> | kw<"M">) +
+            assign<&ast::ModifyCommand::target>(ref<LineNumber>))> {};
+
   struct Comment
       : rule<create<ast::CommentCommand> +
              assign<&ast::CommentCommand::text>(ref<COMMENT>)> {};
@@ -259,11 +283,11 @@ struct Focal : cursiv::GrammarSpec {
   struct Command
       : rule<ref<Ask> | ref<Do> | ref<For> | ref<Set> |
              ref<Quit> | ref<Goto> | ref<If> | ref<Type> |
-             ref<Return> | ref<Write> | ref<Comment>> {};
+             ref<Return> | ref<Write> | ref<Erase> | ref<Modify> | ref<Comment>> {};
 
   struct Statement
       : rule<create<ast::Statement> +
-             assign<&ast::Statement::number>(ref<LineNumber>) +
+             option(assign<&ast::Statement::number>(ref<LineNumber>)) +
              assign<&ast::Statement::command>(ref<Command>)> {};
 
   struct Program

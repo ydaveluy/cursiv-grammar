@@ -1,5 +1,6 @@
 #include "native_followup.hpp"
 #include "audit_regressions.hpp"
+#include "ccconst_cases.hpp"
 // The grammar end to end: every document under example/ parses clean (no
 // recovery, no diagnostics, a Module root), and one document's AST is read
 // back field by field.
@@ -437,6 +438,7 @@ int main() {
       vba::install_core_module>();
 
   if (!vba_native_followup::run(*language.language.parser)) return 1;
+  if (!vba_ccconst::run(language.language, *language.shared)) return 1;
   corpus(language);
   own_examples(language);
   field_readback(language);

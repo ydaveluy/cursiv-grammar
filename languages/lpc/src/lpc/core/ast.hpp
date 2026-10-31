@@ -111,6 +111,12 @@ struct StringLit : cursiv::Extends<Expr> {
   vector<string_view> pieces;
 };
 
+// The native lexer expands @@ blocks to arrays of lines. Preserve this
+// lexical form without inventing quoted source or evaluating its lines.
+struct ArrayHeredocExpr : cursiv::Extends<Expr> {
+  string_view text;
+};
+
 struct TemplatePart : cursiv::Extends<cursiv::AstNode> {
   string_view text;
   Expr* expression;

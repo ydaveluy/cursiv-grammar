@@ -70,8 +70,12 @@ struct Abb : cursiv::GrammarSpec {
       ikw<"ELSEIF"> | ikw<"ELSE"> | ikw<"ENDIF"> | ikw<"WHILE"> | ikw<"DO"> |
       ikw<"ENDWHILE"> | ikw<"FOR"> | ikw<"ENDFOR"> | ikw<"TEST"> | ikw<"CASE"> |
       ikw<"DEFAULT"> | ikw<"ENDTEST"> | ikw<"RETURN"> | ikw<"CONNECT"> |
-      ikw<"ERROR"> | ikw<"UNDO"> | ikw<"BACKWARD">;
-  struct CALL_NAME : terminal<!control + ref<IDENTIFIER>> {};
+      ikw<"ERROR"> | ikw<"UNDO"> | ikw<"BACKWARD"> | ikw<"FROM"> | ikw<"TO"> |
+      ikw<"STEP"> | ikw<"WITH"> | ikw<"GOTO"> | ikw<"BREAK"> | ikw<"CONTINUE"> |
+      ikw<"EXIT"> | ikw<"RAISE"> | ikw<"RETRY"> | ikw<"TRYNEXT">;
+  static constexpr auto operator_word = ikw<"AND"> | ikw<"OR"> | ikw<"XOR"> |
+      ikw<"NOT"> | ikw<"DIV"> | ikw<"MOD"> | ikw<"TRUE"> | ikw<"FALSE">;
+  struct CALL_NAME : terminal<!control + !operator_word + ref<IDENTIFIER>> {};
   struct BOOLLITERAL
       : terminal<as<[](std::string_view text) { return text.size() == 4; }>(
             ikw<"TRUE"> | ikw<"FALSE">)> {};
@@ -87,30 +91,61 @@ struct Abb : cursiv::GrammarSpec {
                  cr<R"(^"\\\r\n)">) +
             lit<"\"">)> {};
   static constexpr auto exponent = cr<"eE"> + option(cr<"+-">) + some(d);
-  static constexpr auto sign = option(cr<"+-">);
   struct FLOATLITERAL
-      : terminal<sign + ((some(d) + lit<"."> + many(d) + option(exponent)) |
+      : terminal<((some(d) + lit<"."> + many(d) + option(exponent)) |
                          (lit<"."> + some(d) + option(exponent)) |
-                         (some(d) + exponent))> {};
+                         (some(d) + exponent)) + !w> {};
   struct INTLITERAL
-      : terminal<sign +
-                 (some(d) |
+      : terminal<(some(d) |
                   (lit<"'"> + cr<"hH"> + some(cr<"0-9A-Fa-f">) + lit<"'">) |
-                  (lit<"'"> + cr<"bB"> + some(cr<"01">) + lit<"'">))> {};
+                  (lit<"'"> + cr<"bB"> + some(cr<"01">) + lit<"'">)) + !w> {};
   struct Integer : rule<assign<&ast::Integer::text>(ref<INTLITERAL>)> {};
   struct Float : rule<assign<&ast::FloatLiteral::text>(ref<FLOATLITERAL>)> {
   };
-  struct Reference : rule<assign<&ast::Reference::name>(ref<IDENTIFIER>)> {
+  struct Reference : rule<assign<&ast::Reference::name>(ref<CALL_NAME>)> {
   };
-  struct Array;
-  static constexpr auto primitive = ref<BOOLLITERAL> | ref<CHARLITERAL> |
-                                    ref<STRINGLITERAL> | ref<Float> |
-                                    ref<Integer>;
-  static constexpr auto expression =
-      ref<Array> | primitive | ref<Reference>;
+  struct Boolean : rule<assign<&ast::BoolLiteral::value>(ref<BOOLLITERAL>)> {};
+  struct String : rule<assign<&ast::StringLiteral::value>(ref<STRINGLITERAL>)> {};
+  struct Character
+      : rule<assign<&ast::CharacterLiteral::value>(ref<CHARLITERAL>)> {};
+  struct Expression;
+  struct FunctionCall;
   struct Array
-      : rule<lit<"["> + many(append<&ast::Array::items>(expression), lit<",">) +
+      : rule<lit<"["> + some(append<&ast::Array::items>(ref<Expression>), lit<",">) +
              lit<"]">> {};
+  struct DataReference
+      : rule<ref<Reference> +
+             many(nest<&ast::Index::target>(
+                      lit<"{"> + some(append<&ast::Index::indexes>(ref<Expression>),
+                                      lit<",">) + lit<"}">) |
+                  nest<&ast::Component::target>(
+                      lit<"."> + assign<&ast::Component::name>(ref<IDENTIFIER>)))> {};
+  struct Primary : rule<ref<Boolean> | ref<Character> | ref<String> | ref<Float> |
+                        ref<Integer> | ref<FunctionCall> | ref<DataReference> |
+                        ref<Array> | (lit<"("> + ref<Expression> + lit<")">)> {};
+  struct Term : infix<Primary, ast::Binary,
+                      left(lit<"*"> | lit<"/"> | ikw<"DIV"> | ikw<"MOD">)> {};
+  // Native 3.1 allows a sign only on the initial term, not on each RHS.
+  struct SimpleExpression
+      : rule<(create<ast::Unary>(
+                  assign<&ast::Unary::op>(lit<"+"> | lit<"-">) +
+                  assign<&ast::Unary::operand>(ref<Term>)) | ref<Term>) +
+             many(nest<&ast::Binary::left>(
+                 assign<&ast::Binary::op>(lit<"+"> | lit<"-">) +
+                 assign<&ast::Binary::right>(ref<Term>)))> {};
+  struct Relation : infix<SimpleExpression, ast::Binary,
+                          nonassoc(lit<"<="> | lit<">="> | lit<"<>"> |
+                                   lit<"<"> | lit<">"> | lit<"=">)> {};
+  struct LogicalTerm : infix<Relation, ast::Binary, left(ikw<"AND">)> {};
+  // NOT applies to the initial logical term; OR and XOR share a left level.
+  struct Expression
+      : rule<(create<ast::Unary>(
+                  assign<&ast::Unary::op>(ikw<"NOT">) +
+                  assign<&ast::Unary::operand>(ref<LogicalTerm>)) | ref<LogicalTerm>) +
+             many(nest<&ast::Binary::left>(
+                 assign<&ast::Binary::op>(ikw<"OR"> | ikw<"XOR">) +
+                 assign<&ast::Binary::right>(ref<LogicalTerm>)))> {};
+  static constexpr auto expression = ref<Expression>;
   struct Wildcard : rule<assign<&ast::Reference::name>(lit<"*">)> {};
   struct Dimensions
       : rule<create<ast::Array>(
@@ -132,22 +167,29 @@ struct Abb : cursiv::GrammarSpec {
   struct OptionalArgument
       : rule<flag<&ast::BindingArgument::isOptional>(lit<"\\">) +
              assign<&ast::BindingArgument::name>(ref<IDENTIFIER>) +
-             option(lit<":="> +
-                    assign<&ast::BindingArgument::value>(expression))> {};
+             option((lit<":="> + assign<&ast::BindingArgument::value>(expression)) |
+                    (flag<&ast::BindingArgument::isConditional>(lit<"?">) +
+                     assign<&ast::BindingArgument::value>(ref<DataReference>)))> {};
   struct NamedArgument
       : rule<assign<&ast::BindingArgument::name>(ref<IDENTIFIER>) + lit<":="> +
              assign<&ast::BindingArgument::value>(expression)> {};
   static constexpr auto argument =
       ref<OptionalArgument> | ref<NamedArgument> | expression;
+  template <auto Member>
+  static constexpr auto arguments =
+      option(append<Member>(argument)) +
+      many((lit<","> + append<Member>(argument)) |
+           append<Member>(ref<OptionalArgument>));
+  struct FunctionCall
+      : rule<assign<&ast::FunctionCall::name>(ref<CALL_NAME>) + lit<"("> +
+             arguments<&ast::FunctionCall::arguments> + lit<")">> {};
   struct Call
       : rule<assign<&ast::Call::name>(ref<CALL_NAME>) +
-             option(append<&ast::Call::arguments>(argument)) +
-             many((lit<","> + append<&ast::Call::arguments>(argument)) |
-                  append<&ast::Call::arguments>(ref<OptionalArgument>)) +
+             arguments<&ast::Call::arguments> +
              lit<";">> {};
   struct Statement;
   struct Assignment
-      : rule<assign<&ast::Assignment::target>(ref<Reference>) + lit<":="> +
+      : rule<assign<&ast::Assignment::target>(ref<DataReference>) + lit<":="> +
              assign<&ast::Assignment::value>(expression) + lit<";">> {};
   struct Return
       : rule<ikw<"RETURN"> + option(assign<&ast::Return::value>(expression)) +
@@ -167,8 +209,39 @@ struct Abb : cursiv::GrammarSpec {
              ikw<"DO"> +
              many(append<&ast::While::statements>(ref<Statement>)) +
              ikw<"ENDWHILE">> {};
-  struct Statement : rule<ref<Assignment> | ref<Return> |
-                              ref<If> | ref<While> | ref<Call>> {};
+  struct For
+      : rule<ikw<"FOR"> + assign<&ast::For::variable>(ref<IDENTIFIER>) +
+             ikw<"FROM"> + assign<&ast::For::from>(expression) +
+             ikw<"TO"> + assign<&ast::For::to>(expression) +
+             option(ikw<"STEP"> + assign<&ast::For::step>(expression)) +
+             ikw<"DO"> + many(append<&ast::For::statements>(ref<Statement>)) +
+             ikw<"ENDFOR">> {};
+  struct TestCase
+      : rule<ikw<"CASE"> + some(append<&ast::TestCase::values>(expression), lit<",">) +
+             lit<":"> + many(append<&ast::TestCase::statements>(ref<Statement>))> {};
+  struct Test
+      : rule<ikw<"TEST"> + assign<&ast::Test::value>(expression) +
+             many(append<&ast::Test::cases>(ref<TestCase>)) +
+             option(flag<&ast::Test::hasDefault>(ikw<"DEFAULT">) + lit<":"> +
+                    many(append<&ast::Test::defaultStatements>(ref<Statement>))) +
+             ikw<"ENDTEST">> {};
+  struct Label : rule<assign<&ast::Label::name>(ref<CALL_NAME>) + lit<":">> {};
+  struct Goto : rule<ikw<"GOTO"> + assign<&ast::Goto::name>(ref<IDENTIFIER>) + lit<";">> {};
+  struct Break : rule<create<ast::Break>(ikw<"BREAK"> + lit<";">)> {};
+  struct Continue : rule<create<ast::Continue>(ikw<"CONTINUE"> + lit<";">)> {};
+  struct Exit : rule<create<ast::Exit>(ikw<"EXIT"> + lit<";">)> {};
+  struct Retry : rule<create<ast::Retry>(ikw<"RETRY"> + lit<";">)> {};
+  struct TryNext : rule<create<ast::TryNext>(ikw<"TRYNEXT"> + lit<";">)> {};
+  struct Raise
+      : rule<create<ast::Raise>(ikw<"RAISE"> +
+             option(assign<&ast::Raise::error>(expression)) + lit<";">)> {};
+  struct Connect
+      : rule<ikw<"CONNECT"> + assign<&ast::Connect::target>(ref<DataReference>) +
+             ikw<"WITH"> + assign<&ast::Connect::trap>(ref<IDENTIFIER>) + lit<";">> {};
+  struct Statement : rule<ref<Assignment> | ref<Return> | ref<If> | ref<While> |
+                         ref<For> | ref<Test> | ref<Label> | ref<Goto> |
+                         ref<Break> | ref<Continue> | ref<Exit> | ref<Raise> |
+                         ref<Retry> | ref<TryNext> | ref<Connect> | ref<Call>> {};
   struct Parameter
       : rule<option(flag<&ast::Parameter::isOptional>(lit<"\\">)) +
              option(assign<&ast::Parameter::mode>(ikw<"VAR"> | ikw<"PERS"> |
@@ -184,15 +257,37 @@ struct Abb : cursiv::GrammarSpec {
   static constexpr auto body =
       many(append<&ast::Routine::locals>(ref<Declaration>)) +
       many(append<&ast::Routine::statements>(ref<Statement>));
+  struct BackwardHandler
+      : rule<create<ast::BackwardHandler>(ikw<"BACKWARD"> +
+             many(append<&ast::Handler::statements>(ref<Statement>)))> {};
+  struct ErrorHandler
+      : rule<create<ast::ErrorHandler>(ikw<"ERROR"> +
+             option(lit<"("> + some(append<&ast::ErrorHandler::numbers>(
+                 ref<Integer> | ref<Float> | ref<Reference>), lit<",">) + lit<")">) +
+             many(append<&ast::Handler::statements>(ref<Statement>)))> {};
+  struct UndoHandler
+      : rule<create<ast::UndoHandler>(ikw<"UNDO"> +
+             many(append<&ast::Handler::statements>(ref<Statement>)))> {};
+  static constexpr auto error_and_undo =
+      option(assign<&ast::Routine::error>(ref<ErrorHandler>)) +
+      option(assign<&ast::Routine::undo>(ref<UndoHandler>));
   struct Procedure
       : rule<create<ast::Procedure>(
+            option(flag<&ast::Routine::local>(ikw<"LOCAL">)) +
             ikw<"PROC"> + assign<&ast::Routine::name>(ref<IDENTIFIER>) +
-            parameters + body + ikw<"ENDPROC">)> {};
+            parameters + body +
+            option(assign<&ast::Routine::backward>(ref<BackwardHandler>)) +
+            error_and_undo + ikw<"ENDPROC">)> {};
   struct Function
       : rule<create<ast::Function>(
+            option(flag<&ast::Routine::local>(ikw<"LOCAL">)) +
             ikw<"FUNC"> + assign<&ast::Function::returnType>(ref<IDENTIFIER>) +
             assign<&ast::Routine::name>(ref<IDENTIFIER>) + parameters + body +
-            ikw<"ENDFUNC">)> {};
+            error_and_undo + ikw<"ENDFUNC">)> {};
+  struct Trap
+      : rule<create<ast::Trap>(option(flag<&ast::Routine::local>(ikw<"LOCAL">)) +
+            ikw<"TRAP"> + assign<&ast::Routine::name>(ref<IDENTIFIER>) + body +
+            error_and_undo + ikw<"ENDTRAP">)> {};
   struct RecordField
       : rule<assign<&ast::RecordField::type>(ref<IDENTIFIER>) +
              assign<&ast::RecordField::name>(ref<IDENTIFIER>) + lit<";">> {};
@@ -209,7 +304,8 @@ struct Abb : cursiv::GrammarSpec {
              many(append<&ast::Module::records>(ref<Record>) |
                   append<&ast::Module::declarations>(ref<Declaration>) |
                   append<&ast::Module::procedures>(ref<Procedure>) |
-                  append<&ast::Module::functions>(ref<Function>)) +
+                  append<&ast::Module::functions>(ref<Function>) |
+                  append<&ast::Module::traps>(ref<Trap>)) +
              ikw<"ENDMODULE">> {};
   using entry = Module;
   using ignored = WS;

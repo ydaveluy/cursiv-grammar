@@ -1,3 +1,4 @@
+#include "attribute_cases.hpp"
 // The smoke test of the language: every file in example/ parses without
 // recovery and builds a TranslationUnit.
 
@@ -30,6 +31,15 @@ int main() {
       cpp::CppCoreServices,
       cpp::CppSharedCoreServices,
       cpp::install_core_module>();
+  if (!cpp_attribute_cases::run(*language.language.parser)) return 1;
+  {
+    auto checked = cursiv::test::validationHelper(
+        language.language, "[[v::tokens(const, class, return, if)]] int n;");
+    const bool ok = checked.diagnostics.empty();
+    checked.dispose();
+    if (!ok) return fail("attribute argument tokens were validated as names");
+  }
+
   {
     const auto result = language.language.parser->parse("int value = 8 >> 1 >> 1 < 5;");
     const cpp::ast::BinaryExpr* comparison = nullptr;

@@ -142,17 +142,27 @@ struct Verilog : cursiv::GrammarSpec {
                   lit<"]">) +
              lit<".">> {};
 
-  // An attribute is one lexical island: trivia before its closing delimiter
-  // belongs to the island, and delimiters inside strings remain string text.
+  struct AttributeSpec
+      : rule<assign<&ast::AttributeSpec::name>(ID) +
+             option(lit<"="> + assign<&ast::AttributeSpec::value>(ref<Expression>))> {};
   struct AttributeInstance
-      : rule<lit<"(*"> + tight(many(ref<STRING> | ref<ML_COMMENT> | ref<SL_COMMENT> |
-                      (!lit<"*)"> + any)) + lit<"*)">)> {};
-  static constexpr auto Attrs = many(ref<AttributeInstance>);
+      : rule<create<ast::AttributeInstance>(lit<"(*"> +
+             some(append<&ast::AttributeInstance::specs>(ref<AttributeSpec>),
+                  lit<",">) + lit<"*)">)> {};
+  template <auto Member>
+  static constexpr auto attributes = many(append<Member>(ref<AttributeInstance>));
+  static constexpr auto item_attributes = attributes<&ast::Item::attributes>;
+  static constexpr auto stmt_attributes = attributes<&ast::Stmt::attributes>;
+  static constexpr auto expr_attributes = attributes<&ast::Expr::attributes>;
 
   struct PreprocessorItem
       : rule<assign<&ast::PreprocessorItem::text>(PreprocessorText)> {};
+  struct AttributedPreprocessorItem
+      : rule<item_attributes +
+                 assign<&ast::PreprocessorItem::text>(PreprocessorText)> {};
   struct PreprocessorStmt
-      : rule<assign<&ast::PreprocessorStmt::text>(PreprocessorText)> {};
+      : rule<stmt_attributes +
+                 assign<&ast::PreprocessorStmt::text>(PreprocessorText)> {};
   struct PreprocessorExpr
       : rule<assign<&ast::PreprocessorExpr::text>(PreprocessorText)> {};
 
@@ -161,8 +171,7 @@ struct Verilog : cursiv::GrammarSpec {
                  many(append<&ast::HierIdent::prefix>(ref<HierSeg>)) +
                  assign<&ast::HierIdent::name>(ID))> {};
   struct SysIdentAtom
-      : rule<create<ast::HierIdent>(
-                 assign<&ast::HierIdent::name>(ref<SYSID>))> {};
+      : rule<assign<&ast::HierIdent::name>(ref<SYSID>)> {};
 
   struct CallArg : rule<ref<Expression> | create<ast::OmittedArg>> {};
   static constexpr auto CallArgs =
@@ -172,7 +181,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct PostfixChain
       : rule<(ref<HierIdentAtom> | ref<SysIdentAtom>) +
-             many(nest<ast::CallExpr, &ast::CallExpr::callee>(Attrs +
+             many(nest<ast::CallExpr, &ast::CallExpr::callee>(expr_attributes +
                                                               CallArgs) |
                   nest<ast::IndexExpr, &ast::IndexExpr::base>(
                       lit<"["> +
@@ -250,7 +259,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct Unary
       : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(UnaryOp) + Attrs +
+                 assign<&ast::UnaryExpr::op>(UnaryOp) + expr_attributes +
                  assign<&ast::UnaryExpr::operand>(ref<Unary>)) |
              ref<Primary>> {};
 
@@ -271,29 +280,29 @@ struct Verilog : cursiv::GrammarSpec {
   static constexpr auto OpLogAnd = ref<LOG_AND>;
   static constexpr auto OpLogOr = lit<"||">;
 
-  template <auto Tokens>
-  struct Op : rule<as<[](std::string_view text) {
-    return text.substr(0, text.find("(*"));
-  }>(Tokens + Attrs)> {};
-
-  struct BinaryExpression
-      : infix<Unary, ast::BinaryExpr,
-              levels(left(ref<Op<OpPow>>),     //
-                     left(ref<Op<OpMul>>),     //
-                     left(ref<Op<OpAdd>>),     //
-                     left(ref<Op<OpShift>>),   //
-                     left(ref<Op<OpRel>>),     //
-                     left(ref<Op<OpEq>>),      //
-                     left(ref<Op<OpBitAnd>>),  //
-                     left(ref<Op<OpBitXor>>),  //
-                     left(ref<Op<OpBitOr>>),   //
-                     left(ref<Op<OpLogAnd>>),  //
-                     left(ref<Op<OpLogOr>>))> {};
+  // Operators carry child attributes, so their suffix builds the BinaryExpr
+  // explicitly. One chain definition serves every precedence level.
+  template <class Operand, auto Tokens>
+  struct BinaryLevel
+      : rule<ref<Operand> + many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
+                 assign<&ast::BinaryExpr::op>(Tokens) + expr_attributes +
+                 assign<&ast::BinaryExpr::right>(ref<Operand>)))> {};
+  using Power = BinaryLevel<Unary, OpPow>;
+  using Multiplicative = BinaryLevel<Power, OpMul>;
+  using Additive = BinaryLevel<Multiplicative, OpAdd>;
+  using Shift = BinaryLevel<Additive, OpShift>;
+  using Relational = BinaryLevel<Shift, OpRel>;
+  using Equality = BinaryLevel<Relational, OpEq>;
+  using BitAnd = BinaryLevel<Equality, OpBitAnd>;
+  using BitXor = BinaryLevel<BitAnd, OpBitXor>;
+  using BitOr = BinaryLevel<BitXor, OpBitOr>;
+  using LogicalAnd = BinaryLevel<BitOr, OpLogAnd>;
+  using BinaryExpression = BinaryLevel<LogicalAnd, OpLogOr>;
 
   struct Expression
       : rule<ref<BinaryExpression> +
              option(nest<ast::CondExpr, &ast::CondExpr::cond>(
-                 lit<"?"> + Attrs +
+                 lit<"?"> + expr_attributes +
                  assign<&ast::CondExpr::thenValue>(ref<Expression>) +
                  lit<":"> +
                  assign<&ast::CondExpr::elseValue>(ref<Expression>)))> {};
@@ -368,6 +377,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct NetDecl
       : rule<create<ast::NetDecl>(
+                 item_attributes +
                  assign<&ast::NetDecl::netType>(NetTypeKw) +
                  option(assign<&ast::NetDecl::strength>(ref<StrengthText>)) +
                  option(assign<&ast::NetDecl::expansion>(kw<"vectored"> |
@@ -380,6 +390,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct RegDecl
       : rule<create<ast::RegDecl>(
+                 item_attributes +
                  kw<"reg"> +
                  option(flag<&ast::RegDecl::isSigned>(kw<"signed">)) +
                  option(assign<&ast::RegDecl::range>(ref<DimRange>)) +
@@ -389,6 +400,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct VarDecl
       : rule<create<ast::VarDecl>(
+                 item_attributes +
                  assign<&ast::VarDecl::kind>(kw<"integer"> | kw<"real"> |
                                              kw<"realtime"> | kw<"time">) +
                  some(append<&ast::VarDecl::items>(ref<VarItem>),
@@ -397,6 +409,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct EventDecl
       : rule<create<ast::EventDecl>(
+                 item_attributes +
                  kw<"event"> +
                  some(append<&ast::EventDecl::items>(ref<VarItem>),
                       lit<",">)) +
@@ -404,14 +417,15 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct GenvarDecl
       : rule<create<ast::GenvarDecl>(
+                 item_attributes +
                  kw<"genvar"> +
                  some(append<&ast::GenvarDecl::names>(ID), lit<",">)) +
              lit<";">> {};
 
   // No trailing `;`: the two callers (a module item, a `#( ... )` list)
   // disagree on how the declaration ends.
-  struct ParamDecl
-      : rule<create<ast::ParamDecl>(
+  static constexpr auto parameter_decl =
+      create<ast::ParamDecl>(
                  assign<&ast::ParamDecl::kind>(kw<"parameter"> |
                                                kw<"localparam">) +
                  ((option(flag<&ast::ParamDecl::isSigned>(
@@ -421,7 +435,10 @@ struct Verilog : cursiv::GrammarSpec {
                                                kw<"realtime"> |
                                                kw<"time">)) +
                  some(append<&ast::ParamDecl::items>(ref<VarItem>),
-                      lit<",">))> {};
+                      lit<",">));
+  struct ParamDecl : rule<parameter_decl> {};
+  struct AttributedParamDecl : rule<item_attributes +
+                 parameter_decl> {};
 
   struct TimingLimits
       : rule<create<ast::TimingLimits>(
@@ -433,12 +450,15 @@ struct Verilog : cursiv::GrammarSpec {
       : rule<assign<&ast::VarItem::name>(ID) + lit<"="> +
              assign<&ast::VarItem::init>(ref<MinTypMax> | ref<TimingLimits>)> {};
 
-  struct SpecParamDecl
-      : rule<create<ast::ParamDecl>(
+  static constexpr auto specparam_decl =
+      create<ast::ParamDecl>(
                  assign<&ast::ParamDecl::kind>(kw<"specparam">) +
                  option(assign<&ast::ParamDecl::range>(ref<DimRange>)) +
                  some(append<&ast::ParamDecl::items>(ref<SpecParamItem>),
-                      lit<",">)) + lit<";">> {};
+                      lit<",">)) + lit<";">;
+  struct SpecParamDecl : rule<specparam_decl> {};
+  struct AttributedSpecParamDecl : rule<item_attributes +
+                 specparam_decl> {};
 
   struct DefparamAssign
       : rule<create<ast::Assign>(
@@ -448,6 +468,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct ParamOverride
       : rule<create<ast::ParamOverride>(
+                 item_attributes +
                  kw<"defparam"> +
                  some(append<&ast::ParamOverride::items>(
                           ref<DefparamAssign>),
@@ -463,6 +484,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct ContinuousAssign
       : rule<create<ast::ContinuousAssign>(
+                 item_attributes +
                  kw<"assign"> +
                  option(assign<&ast::ContinuousAssign::strength>(ref<StrengthText>)) +
                  option(assign<&ast::ContinuousAssign::delay>(ref<DelayText>)) +
@@ -483,6 +505,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct PortDecl
       : rule<create<ast::PortDecl>(
+                 item_attributes +
                  assign<&ast::PortDecl::direction>(
                      kw<"input"> | kw<"output"> | kw<"inout">) +
                  option(assign<&ast::PortDecl::typeKind>(
@@ -497,6 +520,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct TaskPortDecl
       : rule<create<ast::PortDecl>(
+                 item_attributes +
                  assign<&ast::PortDecl::direction>(
                      kw<"input"> | kw<"output"> | kw<"inout">) +
                  option(assign<&ast::PortDecl::typeKind>(
@@ -507,6 +531,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct AssignStmt
       : rule<create<ast::AssignStmt>(
+                 stmt_attributes +
                  assign<&ast::AssignStmt::lvalue>(ref<PostfixChain> |
                                                   ref<ConcatOrReplicate>) +
                  ((flag<&ast::AssignStmt::isBlocking>(lit<"=">)) |
@@ -517,6 +542,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct IfStmt
       : rule<create<ast::IfStmt>(
+                 stmt_attributes +
                  kw<"if"> + lit<"("> +
                  assign<&ast::IfStmt::cond>(ref<Expression>) + lit<")"> +
                  assign<&ast::IfStmt::thenBranch>(ref<Statement>) +
@@ -536,6 +562,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct CaseStmt
       : rule<create<ast::CaseStmt>(
+                 stmt_attributes +
                  assign<&ast::CaseStmt::kind>(kw<"case"> | kw<"casez"> |
                                               kw<"casex">) +
                  lit<"("> + assign<&ast::CaseStmt::value>(ref<Expression>) +
@@ -545,6 +572,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct ForStmt
       : rule<create<ast::ForStmt>(
+                 stmt_attributes +
                  kw<"for"> + lit<"("> +
                  assign<&ast::ForStmt::init>(ref<SimpleAssign>) + lit<";"> +
                  assign<&ast::ForStmt::cond>(ref<Expression>) + lit<";"> +
@@ -553,12 +581,14 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct WhileStmt
       : rule<create<ast::WhileStmt>(
+                 stmt_attributes +
                  kw<"while"> + lit<"("> +
                  assign<&ast::WhileStmt::cond>(ref<Expression>) + lit<")"> +
                  assign<&ast::WhileStmt::body>(ref<Statement>))> {};
 
   struct RepeatStmt
       : rule<create<ast::RepeatStmt>(
+                 stmt_attributes +
                  kw<"repeat"> + lit<"("> +
                  assign<&ast::RepeatStmt::count>(ref<Expression>) +
                  lit<")"> +
@@ -566,29 +596,34 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct ForeverStmt
       : rule<create<ast::ForeverStmt>(
+                 stmt_attributes +
                  kw<"forever"> +
                  assign<&ast::ForeverStmt::body>(ref<Statement>))> {};
 
   struct WaitStmt
       : rule<create<ast::WaitStmt>(
+                 stmt_attributes +
                  kw<"wait"> + lit<"("> +
                  assign<&ast::WaitStmt::cond>(ref<Expression>) + lit<")"> +
                  assign<&ast::WaitStmt::body>(ref<Statement>))> {};
 
   struct DisableStmt
       : rule<create<ast::DisableStmt>(
+                 stmt_attributes +
                  kw<"disable"> +
                  assign<&ast::DisableStmt::target>(ref<PostfixChain>)) +
              lit<";">> {};
 
   struct EventTriggerStmt
       : rule<create<ast::EventTriggerStmt>(
+                 stmt_attributes +
                  lit<"->"> + assign<&ast::EventTriggerStmt::target>(
                                  ref<PostfixChain>)) +
              lit<";">> {};
 
   struct TaskEnableStmt
       : rule<create<ast::TaskEnableStmt>(
+                 stmt_attributes +
                  assign<&ast::TaskEnableStmt::call>(ref<PostfixChain>)) +
              lit<";">> {};
 
@@ -596,6 +631,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct ProcAssignStmt
       : rule<create<ast::ProcAssignStmt>(
+                 stmt_attributes +
                  assign<&ast::ProcAssignStmt::kind>(
                      kw<"assign"> | kw<"deassign"> | kw<"force"> | kw<"release">) +
                  assign<&ast::ProcAssignStmt::lvalue>(LValue) +
@@ -604,16 +640,18 @@ struct Verilog : cursiv::GrammarSpec {
              lit<";">> {};
 
   struct TimingStmt : rule<create<ast::TimingStmt>(
-                          assign<&ast::TimingStmt::control>(ref<TimingText>) +
+                 stmt_attributes +
+                 assign<&ast::TimingStmt::control>(ref<TimingText>) +
                           assign<&ast::TimingStmt::body>(ref<Statement>))> {};
 
   struct BlockItemDecl
-      : rule<Attrs + (ref<PreprocessorItem> | ref<RegDecl> | ref<VarDecl> | ref<EventDecl> |
-                      (ref<ParamDecl> + lit<";">))> {};
+      : rule<(ref<AttributedPreprocessorItem> | ref<RegDecl> | ref<VarDecl> | ref<EventDecl> |
+                      (ref<AttributedParamDecl> + lit<";">))> {};
 
   struct BlockStmt
       : rule<create<ast::BlockStmt>(
-                 (kw<"begin"> +
+                 stmt_attributes +
+                 ((kw<"begin"> +
                   option(lit<":"> +
                          assign<&ast::BlockStmt::label>(ID) +
                          many(append<&ast::BlockStmt::decls>(
@@ -626,13 +664,13 @@ struct Verilog : cursiv::GrammarSpec {
                          many(append<&ast::BlockStmt::decls>(
                              ref<BlockItemDecl>))) +
                   many(append<&ast::BlockStmt::stmts>(ref<Statement>)) +
-                  kw<"join">))> {};
+                  kw<"join">)))> {};
 
-  struct NullStmt : rule<create<ast::NullStmt>(lit<";">)> {};
+  struct NullStmt : rule<create<ast::NullStmt>(stmt_attributes +
+                 lit<";">)> {};
 
   struct Statement
-      : rule<Attrs +
-             (ref<PreprocessorStmt> | ref<NullStmt> | ref<AssignStmt>         //
+      : rule<(ref<PreprocessorStmt> | ref<NullStmt> | ref<AssignStmt>         //
               | ref<CaseStmt>         //
               | ref<IfStmt>           //
               | ref<DisableStmt>      //
@@ -649,20 +687,23 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct InitialConstruct
       : rule<create<ast::InitialConstruct>(
+                 item_attributes +
                  kw<"initial"> +
                  assign<&ast::InitialConstruct::body>(ref<Statement>))> {};
 
   struct AlwaysConstruct
       : rule<create<ast::AlwaysConstruct>(
+                 item_attributes +
                  kw<"always"> +
                  assign<&ast::AlwaysConstruct::body>(ref<Statement>))> {};
 
   // Functions and tasks.
 
-  struct FuncPortDecl : rule<Attrs + ref<TaskPortDecl>> {};
+  using FuncPortDecl = TaskPortDecl;
 
   struct FunctionDecl
       : rule<create<ast::FunctionDecl>(
+                 item_attributes +
                  kw<"function"> +
                  option(
                      flag<&ast::FunctionDecl::automatic>(
@@ -693,6 +734,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct TaskDecl
       : rule<create<ast::TaskDecl>(
+                 item_attributes +
                  kw<"task"> +
                  option(flag<&ast::TaskDecl::automatic>(
                      kw<"automatic">)) +
@@ -714,14 +756,15 @@ struct Verilog : cursiv::GrammarSpec {
 
   // Instantiation.
 
-  struct NamedArg
-      : rule<create<ast::NamedArg>(
+  static constexpr auto named_arg =
+      create<ast::NamedArg>(
                  lit<"."> + assign<&ast::NamedArg::name>(ID) + lit<"("> +
                  option(assign<&ast::NamedArg::value>(ref<Expression>)) +
                  lit<")">) |
              create<ast::NamedArg>(
-                 option(assign<&ast::NamedArg::value>(ref<Expression>)))> {
-  };
+                 option(assign<&ast::NamedArg::value>(ref<Expression>)));
+  struct NamedArg : rule<named_arg> {};
+  struct PortConnection : rule<attributes<&ast::NamedArg::attributes> + named_arg> {};
 
   struct GateInstItem
       : rule<create<ast::GateInstItem>(
@@ -744,6 +787,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct GateInst
       : rule<create<ast::GateInst>(
+                 item_attributes +
                  assign<&ast::GateInst::gateType>(GateTypeKw) +
                  option(assign<&ast::GateInst::strength>(ref<StrengthText>)) +
                  option(assign<&ast::GateInst::delay>(ref<DelayText>)) +
@@ -756,13 +800,13 @@ struct Verilog : cursiv::GrammarSpec {
                  option(assign<&ast::ModuleInstItem::range>(
                      ref<DimRange>)) +
                  lit<"("> +
-                 some(append<&ast::ModuleInstItem::ports>(Attrs +
-                                                          ref<NamedArg>),
+                 some(append<&ast::ModuleInstItem::ports>(ref<PortConnection>),
                       lit<",">) +
                  lit<")">)> {};
 
   struct ModuleInst
       : rule<create<ast::ModuleInst>(
+                 item_attributes +
                  assign<&ast::ModuleInst::moduleName>(ID) +
                  option(lit<"#"> + lit<"("> +
                         some(append<&ast::ModuleInst::params>(
@@ -800,6 +844,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct ForGenerate
       : rule<create<ast::ForGenerate>(
+                 item_attributes +
                  kw<"for"> + lit<"("> +
                  assign<&ast::ForGenerate::init>(ref<SimpleAssign>) +
                  lit<";"> +
@@ -812,6 +857,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct IfGenerate
       : rule<create<ast::IfGenerate>(
+                 item_attributes +
                  kw<"if"> + lit<"("> +
                  assign<&ast::IfGenerate::cond>(ref<Expression>) + lit<")"> +
                  assign<&ast::IfGenerate::thenBranch>(
@@ -833,6 +879,7 @@ struct Verilog : cursiv::GrammarSpec {
 
   struct CaseGenerate
       : rule<create<ast::CaseGenerate>(
+                 item_attributes +
                  kw<"case"> + lit<"("> +
                  assign<&ast::CaseGenerate::value>(ref<Expression>) +
                  lit<")"> +
@@ -843,9 +890,9 @@ struct Verilog : cursiv::GrammarSpec {
   // UDP declaration.
 
   struct UdpPortDecl
-      : rule<Attrs +
-             create<ast::PortDecl>(
-                 (assign<&ast::PortDecl::direction>(kw<"output">) +
+      : rule<create<ast::PortDecl>(
+                 item_attributes +
+                 ((assign<&ast::PortDecl::direction>(kw<"output">) +
                   option(assign<&ast::PortDecl::typeKind>(kw<"reg">)) +
                   some(append<&ast::PortDecl::items>(ref<VarItem>),
                        lit<",">)) |
@@ -853,7 +900,7 @@ struct Verilog : cursiv::GrammarSpec {
                   some(append<&ast::PortDecl::items>(ref<VarItem>),
                        lit<",">)) |
                  (assign<&ast::PortDecl::direction>(kw<"reg">) +
-                  append<&ast::PortDecl::items>(ref<VarItem>)))> {};
+                  append<&ast::PortDecl::items>(ref<VarItem>))))> {};
 
   struct UdpRow
       : rule<create<ast::UdpRow>(assign<&ast::UdpRow::text>(PreprocessorText)) |
@@ -867,8 +914,8 @@ struct Verilog : cursiv::GrammarSpec {
              lit<";">)> {};
 
   struct UdpDecl
-      : rule<Attrs +
-             create<ast::UdpDecl>(
+      : rule<create<ast::UdpDecl>(
+                 item_attributes +
                  kw<"primitive"> + assign<&ast::UdpDecl::name>(ID) +
                  ((lit<"("> + some(append<&ast::UdpDecl::portNames>(ID), lit<",">) +
                    lit<")"> + lit<";"> +
@@ -974,9 +1021,8 @@ struct Verilog : cursiv::GrammarSpec {
             | ref<FunctionDecl>> {};
 
   struct ModuleOrGenerateItem
-      : rule<Attrs +
-             (ref<PreprocessorItem> | ref<ModuleOrGenerateItemDecl>       //
-              | (ref<ParamDecl> + lit<";">)        //
+      : rule<(ref<AttributedPreprocessorItem> | ref<ModuleOrGenerateItemDecl>       //
+              | (ref<AttributedParamDecl> + lit<";">)        //
               | ref<ParamOverride>                 //
               | ref<ContinuousAssign>              //
               | ref<GateInst>                      //
@@ -988,11 +1034,11 @@ struct Verilog : cursiv::GrammarSpec {
               | ref<CaseGenerate>)> {};
 
   struct ModuleItem
-      : rule<(Attrs + ref<PortDecl> + lit<";">)  //
+      : rule<(ref<PortDecl> + lit<";">)  //
             | ref<ModuleOrGenerateItem>           //
             | ref<GenerateRegion>                 //
             | ref<SpecifyBlock>                   //
-            | (Attrs + ref<SpecParamDecl>)> {};
+            | ref<AttributedSpecParamDecl>> {};
 
   struct PortItem
       : rule<create<ast::PortItem>(
@@ -1018,14 +1064,14 @@ struct Verilog : cursiv::GrammarSpec {
   static constexpr auto PortComma = lit<","> + TrailingEmptyPort;
   static constexpr auto ModulePorts =
       many(PortDirective |
-           (append<&ast::ModuleDecl::ports>((Attrs + ref<PortDecl>) |
+           (append<&ast::ModuleDecl::ports>(ref<PortDecl> |
                                             ref<PortItem>) + option(PortComma)) |
            (append<&ast::ModuleDecl::ports>(create<ast::PortItem>(lit<",">)) +
             TrailingEmptyPort));
 
   struct ModuleDecl
-      : rule<Attrs +
-             create<ast::ModuleDecl>(
+      : rule<create<ast::ModuleDecl>(
+                 item_attributes +
                  (kw<"module"> |
                   flag<&ast::ModuleDecl::macromodule>(
                       kw<"macromodule">)) +

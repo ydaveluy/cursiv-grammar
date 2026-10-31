@@ -26,12 +26,15 @@ inline constexpr auto unat = [](std::string_view t,
 };
 
 struct Rcs : cursiv::GrammarSpec {
-  static constexpr auto snippetChar = cr<"^;: \t\n\r\f\v">;
+  // GNU's snippet reader stops at unrecognized ASCII control bytes.
+  static constexpr auto snippetChar = cr<R"(^;: \t\n\r\f\v\x00-\x07\x0e-\x1f\x7f)">;
   static constexpr auto word_boundary = snippetChar;
   struct WS : terminal<some(cr<" \t\f\r\n\v">)> {};
   struct IDENT : terminal<some(snippetChar)> {};
   struct OptionalIdent : rule<option(ref<IDENT>)> {};
-  struct REVISION : terminal<some(d | lit<".">)> {};
+  // Unlike keyword prefixes, numbers require a delimiter in b-grok.c.
+  struct REVISION : terminal<some(d | lit<".">) +
+      &(cr<" \t\f\r\n\v;"> | eof)> {};
   struct STRING
       : terminal<as<unat>(lit<"@"> + many(lit<"@@"> | cr<"^@">) + lit<"@">)> {};
   struct PHRASE_NAME
@@ -50,6 +53,7 @@ struct Rcs : cursiv::GrammarSpec {
                                  ref<STRING> | ref<WORD> | ref<COLON>)) +
                              lit<";">)> {};
 
+  // Native keywords consume fixed bytes without an identifier boundary.
   struct Admin
       : rule<create<ast::Admin>(
             lit<"head"> + option(assign<&ast::Admin::head>(ref<REVISION>)) +

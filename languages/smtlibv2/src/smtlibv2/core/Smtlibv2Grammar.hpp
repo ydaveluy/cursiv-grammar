@@ -132,12 +132,10 @@ struct Smtlibv2 : cursiv::GrammarSpec {
             option(assign<&ast::Attribute::value>(attr_value)))> {};
 
   struct ConstTerm
-      : rule<create<ast::ConstTerm>(
-            assign<&ast::ConstTerm::value>(ref<SpecConstant>))> {};
+      : rule<assign<&ast::ConstTerm::value>(ref<SpecConstant>)> {};
 
   struct IdentTerm
-      : rule<create<ast::IdentTerm>(
-            assign<&ast::IdentTerm::id>(ref<QualIdentifier>))> {};
+      : rule<assign<&ast::IdentTerm::id>(ref<QualIdentifier>)> {};
 
   struct AppTerm
       : rule<create<ast::AppTerm>(
@@ -482,12 +480,10 @@ struct Smtlibv2 : cursiv::GrammarSpec {
                           append<&ast::Script::commands>(ref<Command>)))> {
   };
 
-  struct LogicDoc : rule<create<ast::LogicDoc>(
-                            assign<&ast::LogicDoc::logic>(ref<Logic>))> {};
+  struct LogicDoc : rule<assign<&ast::LogicDoc::logic>(ref<Logic>)> {};
 
   struct TheoryDeclDoc
-      : rule<create<ast::TheoryDeclDoc>(
-            assign<&ast::TheoryDeclDoc::decl>(ref<TheoryDecl>))> {};
+      : rule<assign<&ast::TheoryDeclDoc::decl>(ref<TheoryDecl>)> {};
 
   struct CheckSatResponse : rule<assign<&ast::CheckSatResponse::result>(
                                     kw<"sat"> | kw<"unsat"> | kw<"unknown">)> {

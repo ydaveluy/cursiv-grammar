@@ -104,44 +104,56 @@ struct Php : cursiv::GrammarSpec {
               option(flag<&ast::Name::rooted>(lit<"\\">))) +
              some(append<&ast::Name::parts>(ref<ID>), lit<"\\">)> {};
 
-  struct TypeRef;
+  template <bool AllowStatic> struct TypeRef_;
+  using TypeRef = TypeRef_<true>;
+  using TypeWithoutStatic = TypeRef_<false>;
 
-  struct PrimitiveTypeRef
-      : rule<create<ast::PrimitiveTypeRef>(assign<&ast::PrimitiveTypeRef::keyword>(
+  struct TYPE_KEYWORD
+      : terminal<(
             ikw<"bool"> | ikw<"int"> | ikw<"float"> | ikw<"string"> | ikw<"object"> |
             ikw<"array"> | ikw<"callable"> | ikw<"iterable"> | ikw<"mixed"> |
-            ikw<"void"> | ikw<"never"> | ikw<"null"> | ikw<"true"> | ikw<"false">))> {};
+            ikw<"void"> | ikw<"never"> | ikw<"null"> | ikw<"true"> | ikw<"false">) +
+            !lit<"\\">> {};
+  struct STATIC_TYPE : terminal<ikw<"static"> + !lit<"\\">> {};
 
-  static constexpr auto GenericArgs =
-      lit<"<:"> + some(append<&ast::NamedTypeRef::genericArgs>(ref<TypeRef>), lit<",">) +
-      lit<":>">;
+  struct PrimitiveTypeRef
+      : rule<assign<&ast::PrimitiveTypeRef::keyword>(ref<TYPE_KEYWORD>)> {};
 
-  struct SingleTypeRef
-      : rule<create<ast::StaticTypeRef>(ikw<"static">) | ref<PrimitiveTypeRef> |
-             create<ast::NamedTypeRef>(assign<&ast::NamedTypeRef::name>(ref<Name>) +
-                                       option(GenericArgs))> {};
-
-  struct TypeAtom
-      : rule<create<ast::NullableTypeRef>(lit<"?"> +
-                 assign<&ast::NullableTypeRef::type>(ref<SingleTypeRef>)) |
-             (lit<"("> + ref<TypeRef> + lit<")">) |
-             ref<SingleTypeRef>> {};
+  static constexpr auto OrdinaryType = ref<PrimitiveTypeRef> |
+      (!ref<STATIC_TYPE> + assign<&ast::NamedTypeRef::name>(ref<Name>));
+  template <bool AllowStatic>
+  static constexpr auto SingleType = [] {
+    if constexpr (AllowStatic)
+      return create<ast::StaticTypeRef>(ref<STATIC_TYPE>) | OrdinaryType;
+    else return OrdinaryType;
+  }();
+  template <bool AllowStatic>
+  struct SingleTypeRef : rule<SingleType<AllowStatic>> {};
 
   static constexpr auto TypeAmp = lit<"&", !(many(ref<WS> | ref<ML_COMMENT> |
       ref<SL_COMMENT>) + (lit<"$"> | lit<"...">))>;
 
+  template <bool AllowStatic>
   struct IntersectionTypeRef
       : rule<create<ast::IntersectionTypeRef>(
-                 append<&ast::IntersectionTypeRef::options>(ref<TypeAtom>) +
+                 append<&ast::IntersectionTypeRef::options>(ref<SingleTypeRef<AllowStatic>>) +
                  TypeAmp +
-                 some(append<&ast::IntersectionTypeRef::options>(ref<TypeAtom>), TypeAmp)) |
-             ref<TypeAtom>> {};
+                 some(append<&ast::IntersectionTypeRef::options>(ref<SingleTypeRef<AllowStatic>>), TypeAmp))> {};
 
-  struct TypeRef
+  template <bool AllowStatic>
+  struct UnionTypeElement
+      : rule<ref<SingleTypeRef<AllowStatic>> |
+             (lit<"("> + ref<IntersectionTypeRef<AllowStatic>> + lit<")">)> {};
+
+  template <bool AllowStatic>
+  struct TypeRef_
       : rule<create<ast::UnionTypeRef>(
-                 append<&ast::UnionTypeRef::options>(ref<IntersectionTypeRef>) + lit<"|"> +
-                 some(append<&ast::UnionTypeRef::options>(ref<IntersectionTypeRef>), lit<"|">)) |
-             ref<IntersectionTypeRef>> {};
+                 append<&ast::UnionTypeRef::options>(ref<UnionTypeElement<AllowStatic>>) + lit<"|"> +
+                 some(append<&ast::UnionTypeRef::options>(ref<UnionTypeElement<AllowStatic>>), lit<"|">)) |
+             ref<IntersectionTypeRef<AllowStatic>> |
+             create<ast::NullableTypeRef>(lit<"?"> +
+                 assign<&ast::NullableTypeRef::type>(ref<SingleTypeRef<AllowStatic>>)) |
+             ref<SingleTypeRef<AllowStatic>>> {};
 
   struct Arg;
 
@@ -177,7 +189,7 @@ struct Php : cursiv::GrammarSpec {
              create<ast::StringLit>(assign<&ast::StringLit::text>(ref<ID>))> {};
 
   struct PlainVariable
-      : rule<create<ast::Var>(assign<&ast::Var::name>(ref<VARNAME>))> {};
+      : rule<assign<&ast::Var::name>(ref<VARNAME>)> {};
 
   static constexpr auto SimplePostfixStart =
       lit<"["> | lit<"->", &ref<ID>> | lit<"?->", &ref<ID>>;
@@ -195,7 +207,7 @@ struct Php : cursiv::GrammarSpec {
 
   static constexpr auto LegacyNameStart = ref<ID> + cr<"[}">;
   struct LegacyVariableHead
-      : rule<create<ast::Var>(assign<&ast::Var::name>(ref<ID>))> {};
+      : rule<assign<&ast::Var::name>(ref<ID>)> {};
 
   struct LegacyVarInterp
       : rule<lit<"${", &LegacyNameStart> + ref<LegacyVariableHead> +
@@ -530,14 +542,18 @@ struct Php : cursiv::GrammarSpec {
                  ikw<"public"> | ikw<"protected"> | ikw<"private"> | ikw<"static"> |
                  ikw<"abstract"> | ikw<"final"> | ikw<"readonly">> {};
   static constexpr auto MemberModifier = ref<MEMBER_MODIFIER>;
+  struct PARAM_MODIFIER
+      : terminal<((ikw<"public"> | ikw<"protected"> | ikw<"private">) +
+                  option(lit<"("> + ikw<"set"> + lit<")">)) |
+                 ikw<"final"> | ikw<"readonly">> {};
 
   struct PropertyHook;
 
   struct Param
       : rule<create<ast::Param>(
             many(append<&ast::Param::attributes>(ref<AttributeGroup>)) +
-            many(append<&ast::Param::modifiers>(MemberModifier)) +
-            option(assign<&ast::Param::type>(ref<TypeRef>)) +
+            many(append<&ast::Param::modifiers>(ref<PARAM_MODIFIER>)) +
+            option(assign<&ast::Param::type>(ref<TypeWithoutStatic>)) +
             option(flag<&ast::Param::byRef>(lit<"&">)) +
             option(flag<&ast::Param::variadic>(lit<"...">)) +
             assign<&ast::Param::name>(create<ast::Var>(assign<&ast::Var::name>(ref<VARNAME>))) +
@@ -552,15 +568,12 @@ struct Php : cursiv::GrammarSpec {
 
   struct InnerStatement;
 
-  struct GenericArgsBare
-      : rule<lit<"<:"> + many(cr<"^:"> | lit<":", !lit<">">>) + lit<":>">> {};
-
   struct Identifier : rule<ref<ID>> {};
 
   static constexpr auto FunctionHead =
       ikw<"function"> + option(flag<&ast::FunctionDecl::byRef>(lit<"&">)) +
       assign<&ast::FunctionDecl::name>(ref<Identifier>) +
-      option(ref<GenericArgsBare>) + lit<"("> + ParamList + lit<")"> + ReturnTypeTail;
+      lit<"("> + ParamList + lit<")"> + ReturnTypeTail;
 
   struct FunctionDecl
       : rule<create<ast::FunctionDecl>(
@@ -575,14 +588,14 @@ struct Php : cursiv::GrammarSpec {
 
   static constexpr auto ClassHeaderTail =
       assign<&ast::ClassDecl::kind>(ikw<"class"> | ikw<"trait">) +
-      assign<&ast::ClassDecl::name>(ref<Identifier>) + option(ref<GenericArgsBare>) +
+      assign<&ast::ClassDecl::name>(ref<Identifier>) +
       option(ikw<"extends"> + assign<&ast::ClassDecl::extendsName>(ref<Name>)) +
       option(ikw<"implements"> +
              some(append<&ast::ClassDecl::implementsList>(ref<Name>), lit<",">));
 
   static constexpr auto InterfaceHeaderTail =
       assign<&ast::ClassDecl::kind>(ikw<"interface">) +
-      assign<&ast::ClassDecl::name>(ref<Identifier>) + option(ref<GenericArgsBare>) +
+      assign<&ast::ClassDecl::name>(ref<Identifier>) +
       option(ikw<"extends"> + some(append<&ast::ClassDecl::extendsList>(ref<Name>), lit<",">));
 
   struct ClassDecl
@@ -602,10 +615,12 @@ struct Php : cursiv::GrammarSpec {
   struct PropertyHook
       : rule<create<ast::PropertyHook>(
             many(append<&ast::PropertyHook::attributes>(ref<AttributeGroup>)) +
-            many(append<&ast::PropertyHook::modifiers>(MemberModifier)) +
+            many(append<&ast::PropertyHook::modifiers>(ikw<"final">)) +
             option(flag<&ast::PropertyHook::byRef>(lit<"&">)) +
             assign<&ast::PropertyHook::name>(ref<ID>) +
-            option(ClosureParams<&ast::PropertyHook::params>) +
+            option(flag<&ast::PropertyHook::hasParams>(lit<"(">) +
+                   option(some(append<&ast::PropertyHook::params>(ref<Param>), lit<",">) +
+                          option(lit<",">)) + lit<")">) +
             ((lit<"=>"> + assign<&ast::PropertyHook::expression>(ref<Expression>) + SEMI) |
              assign<&ast::PropertyHook::body>(ref<BlockStmt>) | SEMI))> {};
 
@@ -652,7 +667,7 @@ struct Php : cursiv::GrammarSpec {
              | create<ast::PropertyMember>(
                    many(append<&ast::PropertyMember::attributes>(ref<AttributeGroup>)) +
                    ((some(append<&ast::PropertyMember::modifiers>(MemberModifier)) +
-                     option(assign<&ast::PropertyMember::type>(ref<TypeRef>))) |
+                     option(assign<&ast::PropertyMember::type>(ref<TypeWithoutStatic>))) |
                     append<&ast::PropertyMember::modifiers>(ikw<"var">)) +
                    ((some(append<&ast::PropertyMember::props>(ref<PropertyDecl>), lit<",">) + SEMI) |
                     append<&ast::PropertyMember::props>(ref<HookedProperty>)))  //

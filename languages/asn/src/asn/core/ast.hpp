@@ -32,13 +32,28 @@ struct ObjectClass : cursiv::Extends<cursiv::AstNode> {};
 // same token and cannot be told apart without a symbol table, so they share
 // this one node.
 struct NameValue : cursiv::Extends<Value> {
+  string_view moduleRef;  // empty for an unqualified defined value
   string_view name;
 };
 struct IntegerValue : cursiv::Extends<Value> {
   string_view text;  // a signed number, minus sign included when present
 };
+struct RealNumberValue : cursiv::Extends<Value> {
+  string_view text;  // decimal/exponent spelling, never rounded to double
+};
 struct BooleanValue : cursiv::Extends<Value> {
   boolean value;
+};
+enum class SpecialReal : std::uint8_t { plusInfinity, minusInfinity, notANumber };
+struct SpecialRealValue : cursiv::Extends<Value> {
+  SpecialReal kind;
+};
+// The REAL associated sequence's written shape; its governing type decides
+// whether the REAL restrictions apply, rather than the field names alone.
+struct CompositeRealValue : cursiv::Extends<Value> {
+  Value* mantissa;
+  Value* base;
+  Value* exponent;
 };
 // CSTRING | BSTRING | HSTRING: the spelling kept verbatim, quotes/marks
 // included, since the three notations are otherwise unrelated in shape.
@@ -140,6 +155,16 @@ struct ConstraintSpec : cursiv::Extends<Constraint> {
 };
 
 // --- types -------------------------------------------------------------------
+
+enum class TagMode : std::uint8_t { none_, explicit_, implicit_, automatic_ };
+enum class TagClass : std::uint8_t { contextSpecific, universal, application, private_ };
+struct TaggedType : cursiv::Extends<Type> {
+  boolean explicitEncodingReference = false;  // TAG: was written
+  TagClass tagClass = TagClass::contextSpecific;
+  Value* number;  // unsigned IntegerValue or a defined NameValue
+  TagMode mode = TagMode::none_;  // inherit module/default rules, not resolved
+  Type* inner;
+};
 
 struct BooleanType : cursiv::Extends<Type> {};
 struct NullType : cursiv::Extends<Type> {};
@@ -317,7 +342,6 @@ struct ImportsFromModule : cursiv::Extends<cursiv::AstNode> {
   string_view moduleName;
 };
 
-enum class TagMode : std::uint8_t { none_, explicit_, implicit_, automatic_ };
 struct Module : cursiv::Extends<cursiv::AstNode> {
   string_view name;
   TagMode tagDefault;

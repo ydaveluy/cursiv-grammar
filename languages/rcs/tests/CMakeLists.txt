@@ -3,11 +3,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
   add_link_options(--no-wasm-opt)
 endif()
 
-# The grammar itself: every document under example/ parses clean.
+# The grammar itself: every sample under tests/ parses clean.
 add_executable(rcs_grammar_test grammar_test.cpp)
 target_link_libraries(rcs_grammar_test PRIVATE rcsCore)
 target_compile_definitions(rcs_grammar_test PRIVATE
-    CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 add_test(NAME rcs_grammar_test COMMAND rcs_grammar_test)
 

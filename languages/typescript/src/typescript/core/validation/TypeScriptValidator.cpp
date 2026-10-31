@@ -33,6 +33,72 @@ bool identifierIs(std::string_view source, std::string_view name) {
   return offset == source.size();
 }
 
+// Official scanner FirstReservedWord..LastReservedWord (83..118), not the
+// separate future-reserved/contextual range. Compare decoded spelling while
+// leaving the public AST's raw source views unchanged.
+bool hardKeyword(std::string_view name) {
+  static constexpr std::string_view words[] = {
+      "break", "case", "catch", "class", "const", "continue", "debugger",
+      "default", "delete", "do", "else", "enum", "export", "extends",
+      "false", "finally", "for", "function", "if", "import", "in",
+      "instanceof", "new", "null", "return", "super", "switch", "this",
+      "throw", "true", "try", "typeof", "var", "void", "while", "with"};
+  for (const auto word : words) if (identifierIs(name, word)) return true;
+  return false;
+}
+void checkHardName(const cursiv::AstNode& node, std::string_view name,
+                   cursiv::ValidationAcceptor& accept) {
+  if (hardKeyword(name))
+    accept.error(node, "A reserved word cannot be used as an identifier here.",
+                 "typescript.reserved-identifier");
+}
+
+bool propertyName(const ast::Ident& node) {
+  if (const auto* member = cursiv::ast_cast<ast::MemberExpr>(node.parent))
+    return !member->computed && member->property == &node;
+  if (const auto* property = cursiv::ast_cast<ast::Prop>(node.parent))
+    return !property->computed && property->key == &node;
+  if (const auto* member = cursiv::ast_cast<ast::ClassMember>(node.parent))
+    return !member->computed && member->key == &node;
+  if (const auto* member = cursiv::ast_cast<ast::TypeMember>(node.parent))
+    return !member->computed && member->key == &node;
+  if (const auto* member = cursiv::ast_cast<ast::EnumMember>(node.parent))
+    return member->key == &node;
+  return false;
+}
+
+// The same nearest-function/body boundaries as resource-name checks. These
+// callers own statement/binding names, never computed keys or export names.
+struct NameContext { bool generator = false; bool await = false; };
+NameContext nameContext(const cursiv::AstNode& node) {
+  for (const auto* parent = node.parent; parent; parent = parent->parent) {
+    if (const auto* function = cursiv::ast_cast<ast::FunctionDecl>(parent))
+      return {function->isGenerator, function->isAsync};
+    if (const auto* function = cursiv::ast_cast<ast::FunctionExpr>(parent)) {
+      const auto* property = cursiv::ast_cast<ast::Prop>(function->parent);
+      return {function->isGenerator || (property && property->isMethod && property->isGenerator),
+              function->isAsync || (property && property->isMethod && property->isAsync)};
+    }
+    if (const auto* arrow = cursiv::ast_cast<ast::ArrowFunctionExpr>(parent))
+      return {false, arrow->isAsync};
+    if (const auto* member = cursiv::ast_cast<ast::ClassMember>(parent); member && member->body) {
+      const bool staticBlock = member->isStatic && !member->key && !member->isMethod &&
+                               !member->isGetter && !member->isSetter;
+      return {!staticBlock && member->isGenerator, staticBlock || member->isAsync};
+    }
+  }
+  return {};
+}
+void checkContextName(const cursiv::AstNode& node, std::string_view name,
+                      cursiv::ValidationAcceptor& accept) {
+  checkHardName(node, name, accept);
+  const auto context = nameContext(node);
+  if ((context.generator && identifierIs(name, "yield")) ||
+      (context.await && identifierIs(name, "await")))
+    accept.error(node, "This binding or label name is reserved in the enclosing function context.",
+                 "typescript.contextual-name");
+}
+
 bool memberSeparator(std::string_view gap) {
   if (gap.find_first_of("\r\n") != gap.npos ||
       gap.find("\xE2\x80\xA8") != gap.npos ||
@@ -81,6 +147,52 @@ void TypeScriptValidator::checkObjectMembers(
 void TypeScriptValidator::checkInterfaceMembers(
     const ast::InterfaceDecl& interface, cursiv::ValidationAcceptor& accept) const {
   checkMembers(interface.members, accept);
+}
+
+void TypeScriptValidator::checkIdentifierNames(
+    const cursiv::AstNode& node, cursiv::ValidationAcceptor& accept) const {
+  std::string_view name;
+  if (const auto* identifier = cursiv::ast_cast<ast::Ident>(&node)) {
+    if (propertyName(*identifier)) return;
+    // TypeScript's special this parameter uses createIdentifier(true),
+    // including an escaped spelling; it is not an ordinary binding name.
+    const auto* parameter = cursiv::ast_cast<ast::Param>(node.parent);
+    if (parameter && parameter->pattern == identifier &&
+        identifierIs(identifier->name, "this")) return;
+    name = identifier->name;
+  } else if (const auto* n = cursiv::ast_cast<ast::FunctionDecl>(&node)) name = n->name;
+  else if (const auto* n = cursiv::ast_cast<ast::FunctionExpr>(&node)) name = n->name;
+  else if (const auto* n = cursiv::ast_cast<ast::ClassDecl>(&node)) name = n->name;
+  else if (const auto* n = cursiv::ast_cast<ast::ClassExpr>(&node)) name = n->name;
+  else if (const auto* n = cursiv::ast_cast<ast::InterfaceDecl>(&node)) name = n->name;
+  else if (const auto* n = cursiv::ast_cast<ast::TypeAliasDecl>(&node)) name = n->name;
+  else if (const auto* n = cursiv::ast_cast<ast::EnumDecl>(&node)) name = n->name;
+  else if (const auto* n = cursiv::ast_cast<ast::TypeParam>(&node)) name = n->name;
+  else if (const auto* n = cursiv::ast_cast<ast::MappedType>(&node)) name = n->name;
+  else if (const auto* n = cursiv::ast_cast<ast::ClassMember>(&node); n && n->isIndex) name = n->indexName;
+  else if (const auto* n = cursiv::ast_cast<ast::TypeMember>(&node); n && n->isIndex) name = n->indexName;
+  else if (const auto* n = cursiv::ast_cast<ast::NamespaceDecl>(&node)) name = n->name;
+  else if (const auto* n = cursiv::ast_cast<ast::NamespaceExportDecl>(&node)) name = n->name;
+  else return;
+  // TypeRef/TypeQuery and exported/property names deliberately do not pass
+  // here: native type references use allowReservedWords=true.
+  checkHardName(node, name, accept);
+}
+
+void TypeScriptValidator::checkLabel(const ast::LabeledStmt& node, cursiv::ValidationAcceptor& accept) const {
+  checkContextName(node, node.label, accept);
+}
+void TypeScriptValidator::checkBreak(const ast::BreakStmt& node, cursiv::ValidationAcceptor& accept) const {
+  checkContextName(node, node.label, accept);
+}
+void TypeScriptValidator::checkContinue(const ast::ContinueStmt& node, cursiv::ValidationAcceptor& accept) const {
+  checkContextName(node, node.label, accept);
+}
+void TypeScriptValidator::checkImportBinding(const ast::ImportSpecifier& node, cursiv::ValidationAcceptor& accept) const {
+  checkContextName(node, node.local.empty() ? node.imported : node.local, accept);
+}
+void TypeScriptValidator::checkImportEquals(const ast::ImportEqualsDecl& node, cursiv::ValidationAcceptor& accept) const {
+  checkContextName(node, node.name, accept);
 }
 
 void TypeScriptValidator::checkResources(
@@ -206,12 +318,19 @@ void register_validation_checks(TypeScriptCoreServices& services) {
   using V = TypeScriptValidator;
   services.validator = std::make_unique<const V>(services);
   services.validationRegistry->registerChecks({
+      cursiv::ValidationRegistry::makeValidationCheck<&V::checkIdentifierNames>(
+          *services.validator),
       cursiv::ValidationRegistry::makeValidationCheck<&V::checkObjectMembers>(
           *services.validator),
       cursiv::ValidationRegistry::makeValidationCheck<&V::checkInterfaceMembers>(
           *services.validator),
       cursiv::ValidationRegistry::makeValidationCheck<&V::checkResources>(
-          *services.validator)});
+          *services.validator),
+      cursiv::ValidationRegistry::makeValidationCheck<&V::checkLabel>(*services.validator),
+      cursiv::ValidationRegistry::makeValidationCheck<&V::checkBreak>(*services.validator),
+      cursiv::ValidationRegistry::makeValidationCheck<&V::checkContinue>(*services.validator),
+      cursiv::ValidationRegistry::makeValidationCheck<&V::checkImportBinding>(*services.validator),
+      cursiv::ValidationRegistry::makeValidationCheck<&V::checkImportEquals>(*services.validator)});
 }
 
 }  // namespace typescript

@@ -1,5 +1,5 @@
-// The smoke test of the language: parse every file in example/, and check each
-// tree.
+// The smoke test of the language: parse every sample in tests/, and check
+// each tree.
 
 #include <cstdio>
 #include <filesystem>
@@ -67,8 +67,8 @@ int main() {
 
   int total = 0;
   int failures = 0;
-  for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
-  for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+  for (const auto& entry :
+       std::filesystem::directory_iterator(CURSIV_TEST_DIR)) {
     if (!entry.is_regular_file() || entry.path().extension() != ".list")
       continue;
     ++total;

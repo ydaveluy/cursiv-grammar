@@ -16,6 +16,7 @@
 #include "cursiv/core/syntax-tree/AstReflection.hpp"
 #include "cursiv/core/syntax-tree/ParseResult.hpp"
 #include "cursiv/test/Check.hpp"
+#include "upsert_filter.hpp"
 
 namespace {
 template <class T> std::vector<T *> operations(const aql::ast::ForOp *op) {
@@ -444,6 +445,7 @@ void native_pipeline_and_writes() {
 }  // namespace
 
 int main() {
+  if (!aql_upsert::run(engine(), reflection())) return 1;
   {
     const std::string source = "FOR x IN xs SORT x FILTER x > 0 LIMIT 2 FILTER x < 9 RETURN F()";
     auto result = build(source);

@@ -7,6 +7,7 @@
 #include "pddl/core/ast.hpp"
 #include "native_regressions.hpp"
 #include "native_followup.hpp"
+#include "preference_cases.hpp"
 // The grammar's smoke test: every document under tests/ (the upstream
 // corpus is empty) parses clean, and real field values read back --  a
 // converter that silently gave the wrong value would still pass a
@@ -101,6 +102,7 @@ int main() {
       pddl::PddlCoreServices, pddl::PddlSharedCoreServices,
       pddl::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
+  if (!pddl_preference_cases::run(language.language)) return fail("ordinary preference syntax/AST differs");
   if (!pddl_followup::run(language.language)) return fail("case/empty logical forms differ");
 
   const char* const docs[] = {

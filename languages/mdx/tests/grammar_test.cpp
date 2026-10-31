@@ -12,6 +12,7 @@
 #include "cursiv/core/services/CoreLanguage.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
 #include "key_segments.hpp"
+#include "query_axis_cases.hpp"
 #include "mdx/core/CoreServices.hpp"
 #include "mdx/core/ast.hpp"
 #include "cursiv/test/ValidationHelper.hpp"
@@ -71,6 +72,7 @@ int main() {
 
   if (!check_key_segments(language.language))
     return fail("key segment content/range/parent mismatch");
+  if (!mdx_query_axes::run(language.language)) return 1;
 
   for (const char* const path : kExamples) {
     const std::string text = read_file(path);

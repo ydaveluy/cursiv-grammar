@@ -8,19 +8,26 @@
 
 namespace clu {
 
-inline constexpr auto strip_quotes = [](std::string_view t,
+inline constexpr auto strip_quotes = [](std::string_view text,
                                         std::pmr::memory_resource* memory) {
-  t = t.substr(1, t.size() - 2);
-  if (t.find('\\') == t.npos) return t;
-  const auto room = cursiv::text_room(memory, t.size());
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (text.size() < 2 || (text.front() != '\'' && text.front() != '"') ||
+      text.back() != text.front())
+    return Result::err("Incomplete CLU quoted literal.");
+  const auto body = text.substr(1, text.size() - 2);
+  if (body.find('\\') == body.npos) return Result::ok(body);
+  const auto room = cursiv::text_room(memory, body.size());
   std::size_t n = 0;
-  for (std::size_t i = 0; i < t.size(); ++i) {
-    if (t[i] != '\\') { room[n++] = t[i]; continue; }
-    char c = t[++i];
-    if (c >= '0' && c <= '7') {
-      unsigned value = c - '0';
-      value = value * 8 + t[++i] - '0';
-      value = value * 8 + t[++i] - '0';
+  for (std::size_t i = 0; i < body.size(); ++i) {
+    if (body[i] != '\\') { room[n++] = body[i]; continue; }
+    if (i + 1 == body.size()) return Result::err("Incomplete CLU escape.");
+    char c = body[++i];
+    if (c >= '0' && c <= '3') {
+      if (body.size() - i < 3 || body[i + 1] < '0' || body[i + 1] > '7' ||
+          body[i + 2] < '0' || body[i + 2] > '7')
+        return Result::err("A CLU octal escape needs three digits in 000..377.");
+      const unsigned value = (c - '0') * 64 + (body[i + 1] - '0') * 8 + body[i + 2] - '0';
+      i += 2;
       room[n++] = static_cast<char>(value);
       continue;
     }
@@ -32,10 +39,11 @@ inline constexpr auto strip_quotes = [](std::string_view t,
       case 'b': room[n++] = '\b'; break;
       case 'r': room[n++] = '\r'; break;
       case 'v': room[n++] = '\v'; break;
-      default: room[n++] = c; break;
+      case '\'': case '"': case '\\': room[n++] = c; break;
+      default: return Result::err("Invalid CLU escape.");
     }
   }
-  return std::string_view(room.data(), n);
+  return Result::ok({room.data(), n});
 };
 
 struct Clu : cursiv::GrammarSpec {
@@ -58,8 +66,9 @@ struct Clu : cursiv::GrammarSpec {
   struct INTLIT : terminal<as<std::int64_t>(some(d))> {};
   static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   struct FLOATLIT : terminal<as<double>(
-      ((some(d) + lit<"."> + many(d)) | (lit<"."> + some(d))) +
-          option(Exponent) | (some(d) + Exponent))> {};
+      (((some(d) + lit<"."> + many(d)) | (lit<"."> + some(d))) +
+       option(Exponent)) |
+      (some(d) + Exponent))> {};
   static constexpr auto Escape = lit<"\\"> +
       (cr<R"(nNtTpPbBrRvV'"\\)"> | (cr<"0-3"> + repeat<2>(cr<"0-7">)));
   struct STRLIT : terminal<as<strip_quotes>(
@@ -501,11 +510,11 @@ struct Clu : cursiv::GrammarSpec {
                    some(append<&ast::Cluster::where>(ref<Restriction>),
                         lit<",">)) + option(lit<";">) +
             many(append<&ast::Cluster::preRepEquates>(ref<Equate>)) +
-            ikw<"rep"> + lit<"="> +
-            assign<&ast::Cluster::rep>(ref<TypeSpec>) + option(lit<";">) +
+            option(ikw<"rep"> + lit<"="> +
+                   assign<&ast::Cluster::rep>(ref<TypeSpec>) + option(lit<";">)) +
             many(append<&ast::Cluster::postRepEquates>(ref<Equate>)) +
             many(append<&ast::Cluster::ownVars>(ref<OwnVar>)) +
-            many(append<&ast::Cluster::routines>(ref<Routine>)) +
+            some(append<&ast::Cluster::routines>(ref<Routine>)) +
             ikw<"end"> + assign<&ast::Cluster::endName>(ref<ID>) + option(lit<";">))> {};
 
   struct Module

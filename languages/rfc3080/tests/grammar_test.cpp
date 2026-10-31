@@ -9,7 +9,7 @@
 #include "cursiv/core/workspace/DocumentFactory.hpp"
 #include "rfc3080/core/CoreServices.hpp"
 #include "rfc3080/core/ast.hpp"
-// The grammar's end to end check: every document under example/ parses
+// The grammar's end to end check: every sample under tests/ parses
 // clean, with no recovery, and builds a Frame root.
 
 #include <filesystem>
@@ -71,28 +71,28 @@ int main() {
                               rfc3080::install_core_module>();
 
   int count = 0;
-  for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
-    for (const fs::directory_entry& entry : fs::directory_iterator(dir)) {
-      if (!entry.is_regular_file() || entry.path().extension() != ".beep")
-        continue;
-      const fs::path path = entry.path();
+  for (const fs::directory_entry& entry :
+       fs::directory_iterator(CURSIV_TEST_DIR)) {
+    if (!entry.is_regular_file() || entry.path().extension() != ".beep")
+      continue;
+    const fs::path path = entry.path();
 
-      std::ifstream file(path, std::ios::binary);
-      if (!file) return fail(path.filename().string() + " is not readable");
-      const std::string text((std::istreambuf_iterator<char>(file)),
-                             std::istreambuf_iterator<char>());
+    std::ifstream file(path, std::ios::binary);
+    if (!file) return fail(path.filename().string() + " is not readable");
+    const std::string text((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
 
-      const cursiv::ParseResult result = language.language.parser->parse(text);
-      if (result.cst().recovered())
-        return fail(path.filename().string() + " does not parse clean");
+    const cursiv::ParseResult result = language.language.parser->parse(text);
+    if (result.cst().recovered())
+      return fail(path.filename().string() + " does not parse clean");
 
-      const cursiv::AstNode* const root = result.value;
-      if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<rfc3080::ast::Frame>)
-        return fail(path.filename().string() + " built no frame");
-      ++count;
-    }
-  if (count == 0) return fail("no example documents found");
+    const cursiv::AstNode* const root = result.value;
+    if (root == nullptr ||
+        root->type != &cursiv::ast_type_tag<rfc3080::ast::Frame>)
+      return fail(path.filename().string() + " built no frame");
+    ++count;
+  }
+  if (count == 0) return fail("no sample documents found");
 
   std::printf("rfc3080: %d examples parse\n", count);
   return 0;

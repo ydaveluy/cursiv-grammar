@@ -14,8 +14,12 @@ inline constexpr auto strip_delimiters = [](std::string_view text) {
 };
 
 struct Pegen : cursiv::GrammarSpec {
-  struct WS : terminal<some(cr<R"( \t\n\r\f)">)> {};
+  struct WS : terminal<some(cr<R"( \t\f)">)> {};
   struct COMMENT : terminal<lit<"#"> + many(cr<R"(^\r\n)">)> {};
+  struct NEWLINE
+      : terminal<eol + many(many(cr<R"( \t\f)">) + option(ref<COMMENT>) + eol) +
+                 option(many(cr<R"( \t\f)">) + option(ref<COMMENT>) + eof)> {};
+  struct LineEnd : rule<ref<NEWLINE> | eof> {};
   struct CONTINUATION : terminal<lit<"\\"> + option(lit<"\r">) + lit<"\n">> {};
   struct NAME : terminal<(uc::XID_Start | cr<"_">) + many(uc::XID_Continue)> {};
   static constexpr auto word_boundary = uc::XID_Continue;
@@ -46,9 +50,9 @@ struct Pegen : cursiv::GrammarSpec {
 
   struct TargetAtom;
   static constexpr auto target_items =
-      many(ref<TargetAtom> | ref<WS> | ref<COMMENT> | ref<CONTINUATION>);
+      many(ref<TargetAtom> | ref<WS> | ref<NEWLINE> | ref<COMMENT> | ref<CONTINUATION>);
   static constexpr auto target_trivia =
-      many(ref<WS> | ref<COMMENT> | ref<CONTINUATION>);
+      many(ref<WS> | ref<NEWLINE> | ref<COMMENT> | ref<CONTINUATION>);
   static constexpr auto target_nonempty =
       target_trivia + some(ref<TargetAtom> + target_trivia);
   struct ACTION
@@ -116,9 +120,9 @@ struct Pegen : cursiv::GrammarSpec {
 
   struct Group : rule<create<ast::Group>(lit<"("> + assign<&ast::Group::body>(ref<Alts>) +
                                          lit<")">)> {};
-  struct NameRef : rule<create<ast::NameRef>(assign<&ast::NameRef::name>(ref<NAME>))> {};
+  struct NameRef : rule<assign<&ast::NameRef::name>(ref<NAME>)> {};
   struct StringLit
-      : rule<create<ast::StringLit>(assign<&ast::StringLit::value>(ref<STRING>))> {};
+      : rule<assign<&ast::StringLit::value>(ref<STRING>)> {};
   struct Atom : rule<ref<Group> | ref<NameRef> | ref<StringLit>> {};
 
   // `'[' alts ']'` is sugar for an optional group: the same Group node, the
@@ -157,30 +161,40 @@ struct Pegen : cursiv::GrammarSpec {
                               option(flag<&ast::Alt::cutMark>(lit<"$">)) +
                               option(assign<&ast::Alt::action>(ref<ACTION>)))> {};
 
-  struct Alts : rule<create<ast::Alts>(some(append<&ast::Alts::alts>(ref<Alt>), lit<"|">))> {};
+  static constexpr auto altList = some(append<&ast::Alts::alts>(ref<Alt>), lit<"|">);
+  struct Alts : rule<create<ast::Alts>(altList)> {};
 
-  // Layout is not significant here, so a rule's several shapes (alts on
-  // the header line, or led by an indented block of `|` alts) collapse to
-  // one alternative list with an optional leading `|`.
+  static constexpr auto moreAlts = some(lit<"|"> + altList + ref<LineEnd>);
+  struct RuleAlts
+      : rule<create<ast::Alts>(
+            (altList + ref<LineEnd> + option(indent + moreAlts + dedent)) |
+            (ref<NEWLINE> + indent + moreAlts + dedent))> {};
+
+  // Header alternatives and the optional indented continuation share one AST
+  // list, while groups retain their ordinary inline alternative syntax.
   struct Rule
       : rule<create<ast::Rule>(
             assign<&ast::Rule::name>(ref<NAME>) +
             option(assign<&ast::Rule::returnType>(ref<Annotation>)) +
-            option(flag<&ast::Rule::memo>(memoflag)) + lit<":"> + option(lit<"|">) +
-            assign<&ast::Rule::body>(ref<Alts>))> {};
+            option(flag<&ast::Rule::memo>(memoflag)) + lit<":"> +
+            assign<&ast::Rule::body>(ref<RuleAlts>))> {};
 
   struct Meta
       : rule<create<ast::Meta>(
             lit<"@"> + assign<&ast::Meta::name>(ref<NAME>) +
             option(assign<&ast::Meta::valueName>(ref<NAME>) |
-                   assign<&ast::Meta::valueString>(ref<STRING>)))> {};
+                   assign<&ast::Meta::valueString>(ref<STRING>)) + ref<LineEnd>)> {};
 
   struct Grammar
-      : rule<create<ast::Grammar>(many(append<&ast::Grammar::metas>(ref<Meta>)) +
+      : rule<create<ast::Grammar>(option(ref<NEWLINE>) +
+                                  many(append<&ast::Grammar::metas>(ref<Meta>)) +
                                   some(append<&ast::Grammar::rules>(ref<Rule>)))> {};
 
   using entry = Grammar;
   using ignored = list<WS, COMMENT, CONTINUATION>;
+  using indent_newline = NEWLINE;
+  static constexpr auto indent_open = lit<"("> | lit<"["> | lit<"{">;
+  static constexpr auto indent_close = lit<")"> | lit<"]"> | lit<"}">;
 };
 
 }  // namespace pegen

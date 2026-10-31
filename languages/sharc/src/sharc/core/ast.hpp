@@ -86,11 +86,17 @@ struct Declaration : cursiv::Extends<StmtAtom> {
   ValueExpr* size;
 };
 
+struct FileAttribute : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  string_view value;  // raw symbol/string; empty means the native default, 1
+};
+
 struct Directive : cursiv::Extends<StmtAtom> {
   string_view keyword;
   vector<string_view> names;
   vector<string_view> strings;
   vector<ValueExpr*> values;
+  vector<FileAttribute*> attributes;
 };
 
 // Instruction bodies: registers and opcodes have no cross-references or

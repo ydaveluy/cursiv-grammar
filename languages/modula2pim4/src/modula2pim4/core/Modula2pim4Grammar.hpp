@@ -219,8 +219,7 @@ struct Modula2pim4 : cursiv::GrammarSpec {
             assign<&ast::AssignStmt::value>(ref<Expression>))> {};
 
   struct CallStmt
-      : rule<create<ast::CallStmt>(
-            assign<&ast::CallStmt::value>(ref<DesignatorCall>))> {};
+      : rule<assign<&ast::CallStmt::value>(ref<DesignatorCall>)> {};
 
   struct IfElsif
       : rule<create<ast::ElsifClause>(

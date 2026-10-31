@@ -6,6 +6,17 @@
 namespace elixir {
 
 inline constexpr auto dropFirst = [](std::string_view t) { return t.substr(1); };
+template<cursiv::str Close> inline constexpr auto heredoc_tail = [](std::string_view text) {
+  using Result = cursiv::ConversionResult<std::string_view>;
+  const std::string_view close{Close.data, Close.size()};
+  if (text.size() < close.size() || !text.ends_with(close))
+    return Result::err("Incomplete heredoc closing line");
+  const auto body = text.substr(0, text.size() - close.size());
+  const auto newline = body.rfind('\n');
+  if (newline == body.npos || body.substr(newline + 1).find_first_not_of(" \t") != body.npos)
+    return Result::err("A heredoc closing delimiter must begin an indented line");
+  return Result::ok(body);
+};
 
 struct Elixir : cursiv::GrammarSpec {
   struct COMMENT : terminal<lit<"#"> + many(cr<R"(^\r\n)">)> {};
@@ -143,17 +154,48 @@ struct Elixir : cursiv::GrammarSpec {
   struct StrText : terminal<some((lit<"\\"> + any) | lit<"#", !lit<"{">> | cr<R"(^"\\#)">)> {};
   struct StrFragment : rule<option(ref<StrText>)> {};
   struct StringLit : rule<create<ast::StringLit>(LiteralBody<&ast::StringLit::texts, &ast::StringLit::holes, StrFragment, "\"">)> {};
-  using MultiStrText = StrText;
-  struct MultiStrQuotes : terminal<lit<"\"\""> | lit<"\"">> {};
-  struct MultiStrFragment : rule<many(ref<MultiStrText> | ref<MultiStrQuotes>)> {};
-  struct MultiStringLit : rule<create<ast::MultiStringLit>(LiteralBody<&ast::MultiStringLit::texts, &ast::MultiStringLit::holes, MultiStrFragment, "\"\"\"">)> {};
+  // A triple delimiter closes only after LF/CRLF and horizontal indentation.
+  // Keep that closing line's whitespace in the last raw text segment.
+  template<cursiv::str Close> static constexpr auto heredoc_end =
+      (lit<"\r\n"> | lit<"\n">) + many(cr<" \t">) + lit<Close>;
+  template<cursiv::str Close> struct HeredocEnd : terminal<heredoc_end<Close>> {};
+  static constexpr auto heredoc_newline = lit<"\r\n"> | lit<"\n">;
+  static constexpr auto heredoc_inline_character = cr<R"(^\r\n)"> | lit<"\r", !lit<"\n">>;
+  struct HeredocLineStart : terminal<heredoc_newline + many(cr<" \t">)> {};
+  template<bool Interpolate> static constexpr auto heredoc_character = [] {
+    if constexpr (Interpolate)
+      return lit<"#", !lit<"{">> | cr<R"(^\\#\r\n)"> | lit<"\r", !lit<"\n">>;
+    else return cr<R"(^\\\r\n)"> | lit<"\r", !lit<"\n">>;
+  }();
+  template<bool Interpolate> struct HeredocInlineText : terminal<some(
+      (lit<"\\"> + option(heredoc_inline_character)) | heredoc_character<Interpolate>)> {};
+  // At a closing line End is longer than LineStart and wins before the data
+  // rule can take its newline. Inline text has no LF/CRLF, so cannot eat it.
+  template<bool Interpolate> struct HeredocText
+      : rule<some(ref<HeredocInlineText<Interpolate>> | ref<HeredocLineStart>)> {};
+  template<bool Interpolate> struct HeredocFragment
+      : rule<option(ref<HeredocText<Interpolate>>)> {};
+  template<cursiv::str Close, bool Interpolate> struct HeredocLast
+      : rule<as<heredoc_tail<Close>>(option(ref<HeredocText<Interpolate>>) +
+                                     ref<HeredocEnd<Close>>)> {};
+  template<auto Texts, auto Holes, cursiv::str Close, bool Interpolate>
+  static constexpr auto heredoc_payload = [] {
+    if constexpr (Interpolate) return
+        many(append<Texts>(ref<HeredocFragment<true>>) + ref<INTERP_OPEN> +
+             skip(ignore<SPACES>, hide<COMMENT>, append<Holes>(ref<Block>) + lit<"}">)) +
+        append<Texts>(ref<HeredocLast<Close, true>>);
+    else return append<Texts>(ref<HeredocLast<Close, false>>);
+  }();
+  template<auto Texts, auto Holes, cursiv::str Close> static constexpr auto heredoc_literal =
+      tight(skip(ignore<SPACES>, hide<COMMENT>, lit<Close>) +
+            heredoc_payload<Texts, Holes, Close, true>);
+  struct MultiStringLit : rule<create<ast::MultiStringLit>(
+      heredoc_literal<&ast::MultiStringLit::texts, &ast::MultiStringLit::holes, "\"\"\"">)> {};
   struct CharsText : terminal<some((lit<"\\"> + any) | lit<"#", !lit<"{">> | cr<R"(^'\\#)">)> {};
   struct CharsFragment : rule<option(ref<CharsText>)> {};
   struct CharlistLit : rule<create<ast::CharlistLit>(LiteralBody<&ast::CharlistLit::texts, &ast::CharlistLit::holes, CharsFragment, "'">)> {};
-  using MultiCharsText = CharsText;
-  struct MultiCharsQuotes : terminal<lit<"''"> | lit<"'">> {};
-  struct MultiCharsFragment : rule<many(ref<MultiCharsText> | ref<MultiCharsQuotes>)> {};
-  struct MultiCharlistLit : rule<create<ast::MultiCharlistLit>(LiteralBody<&ast::MultiCharlistLit::texts, &ast::MultiCharlistLit::holes, MultiCharsFragment, "'''">)> {};
+  struct MultiCharlistLit : rule<create<ast::MultiCharlistLit>(
+      heredoc_literal<&ast::MultiCharlistLit::texts, &ast::MultiCharlistLit::holes, "'''">)> {};
   struct QuotedAtom : rule<create<ast::QuotedAtomLit>(lit<":"> + tight((LiteralBody<&ast::QuotedAtomLit::texts, &ast::QuotedAtomLit::holes, StrFragment, "\""> |
        LiteralBody<&ast::QuotedAtomLit::texts, &ast::QuotedAtomLit::holes, CharsFragment, "'">)))> {};
   struct AtomLit : rule<assign<&ast::AtomLit::text>(ref<ATOM>)> {};
@@ -165,32 +207,29 @@ struct Elixir : cursiv::GrammarSpec {
   template<cursiv::str Close> struct RawSigilText : terminal<some(
       (lit<"\\"> + any) | ~(cr<Close> | cr<R"(\\)">))> {};
   template<cursiv::str Close> struct RawSigilFragment : rule<option(ref<RawSigilText<Close>>)> {};
-  struct RawMultiStrText : terminal<some((lit<"\\"> + any) | cr<R"(^"\\)">)> {};
-  struct RawMultiCharsText : terminal<some((lit<"\\"> + any) | cr<R"(^'\\)">)> {};
-  struct RawMultiStrFragment : rule<many(ref<RawMultiStrText> | ref<MultiStrQuotes>)> {};
-  struct RawMultiCharsFragment : rule<many(ref<RawMultiCharsText> | ref<MultiCharsQuotes>)> {};
-  template<cursiv::str Close> using LowerSigilFragment = std::conditional_t<Close.size() == 3,
-      std::conditional_t<Close[0] == '"', MultiStrFragment, MultiCharsFragment>, SigilFragment<Close>>;
-  template<cursiv::str Close> using UpperSigilFragment = std::conditional_t<Close.size() == 3,
-      std::conditional_t<Close[0] == '"', RawMultiStrFragment, RawMultiCharsFragment>, RawSigilFragment<Close>>;
-  template <cursiv::str Close>
-  struct SigilEnd
-      : terminal<as<[](std::string_view s) { return s.substr(Close.size()); }>(
-            lit<Close> + many(cr<"a-zA-Z0-9">))> {};
-  template<cursiv::str Open, cursiv::str Close> static constexpr auto SigilBody =
+  struct SIGIL_MODIFIERS : terminal<some(cr<"a-zA-Z0-9">)> {};
+  template<cursiv::str Open, cursiv::str Close> static constexpr auto SigilBody = [] {
+    if constexpr (Close.size() == 3) return
       assign<&ast::SigilLit::delimiter>(lit<Open>) +
-      append<&ast::SigilLit::texts>(ref<LowerSigilFragment<Close>>) +
+      heredoc_payload<&ast::SigilLit::texts, &ast::SigilLit::holes, Close, true>;
+    else return assign<&ast::SigilLit::delimiter>(lit<Open>) +
+      append<&ast::SigilLit::texts>(ref<SigilFragment<Close>>) +
       many(ref<INTERP_OPEN> + skip(ignore<SPACES>, hide<COMMENT>,
           append<&ast::SigilLit::holes>(ref<Block>) + lit<"}">) +
-          append<&ast::SigilLit::texts>(ref<LowerSigilFragment<Close>>)) +
-      assign<&ast::SigilLit::modifiers>(ref<SigilEnd<Close>>);
-  template<cursiv::str Open, cursiv::str Close> static constexpr auto RawSigilBody =
+          append<&ast::SigilLit::texts>(ref<SigilFragment<Close>>)) +
+      lit<Close>;
+  }();
+  template<cursiv::str Open, cursiv::str Close> static constexpr auto RawSigilBody = [] {
+    if constexpr (Close.size() == 3) return
       assign<&ast::SigilLit::delimiter>(lit<Open>) +
-      append<&ast::SigilLit::texts>(ref<UpperSigilFragment<Close>>) +
-      assign<&ast::SigilLit::modifiers>(ref<SigilEnd<Close>>);
+      heredoc_payload<&ast::SigilLit::texts, &ast::SigilLit::holes, Close, false>;
+    else return assign<&ast::SigilLit::delimiter>(lit<Open>) +
+      append<&ast::SigilLit::texts>(ref<RawSigilFragment<Close>>) +
+      lit<Close>;
+  }();
   struct SigilNameLower : terminal<cr<"a-z">> {};
   struct SigilNameUpper : terminal<cr<"A-Z"> + many(cr<"A-Z0-9">)> {};
-  struct SigilLit : rule<create<ast::SigilLit>(lit<"~"> + tight(((assign<&ast::SigilLit::name>(ref<SigilNameLower>) +
+  struct SigilLit : rule<create<ast::SigilLit>(tight(lit<"~"> + ((assign<&ast::SigilLit::name>(ref<SigilNameLower>) +
         (SigilBody<"/", "/"> | SigilBody<"|", "|"> | SigilBody<"(", ")"> |
          SigilBody<"[", "]"> | SigilBody<"{", "}"> | SigilBody<"<", ">"> |
          SigilBody<"\"", "\""> | SigilBody<"'", "'"> |
@@ -199,7 +238,8 @@ struct Elixir : cursiv::GrammarSpec {
         (RawSigilBody<"/", "/"> | RawSigilBody<"|", "|"> | RawSigilBody<"(", ")"> |
          RawSigilBody<"[", "]"> | RawSigilBody<"{", "}"> | RawSigilBody<"<", ">"> |
          RawSigilBody<"\"", "\""> | RawSigilBody<"'", "'"> |
-         RawSigilBody<"\"\"\"", "\"\"\""> | RawSigilBody<"'''", "'''">)))))> {};
+         RawSigilBody<"\"\"\"", "\"\"\""> | RawSigilBody<"'''", "'''">)))) +
+      option(gap::none + assign<&ast::SigilLit::modifiers>(ref<SIGIL_MODIFIERS>)))> {};
 
   struct NullaryOperator : rule<assign<&ast::OperatorLit::text>(lit<"..."> | lit<"..">)> {};
   struct QuotedKey : rule<create<ast::QuotedAtomLit>(

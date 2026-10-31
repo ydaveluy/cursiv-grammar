@@ -17,6 +17,7 @@
 #include "terraform/core/CoreServices.hpp"
 #include "terraform/core/ast.hpp"
 #include "native_followup_cases.hpp"
+#include "expression_layout_cases.hpp"
 
 namespace {
 
@@ -47,6 +48,7 @@ int main() {
       terraform::TerraformCoreServices, terraform::TerraformSharedCoreServices,
       terraform::install_core_module>();
   if (!terraform_native_followup::run(language)) return failMsg("native syntax/AST followup failed");
+  if (!terraform_expression_layout::run(language)) return failMsg("expression layout followup failed");
 
   int failures = 0;
   int count = 0;

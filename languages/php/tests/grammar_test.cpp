@@ -8,6 +8,7 @@
 #include "cursiv/test/ValidationHelper.hpp"
 #include "cursiv/test/ValidationResult.hpp"
 #include "port_audit_cases.hpp"
+#include "dnf_hook_cases.hpp"
 // The smoke test of the language: parse every file under example/, the way a
 // workspace would build one.
 
@@ -218,6 +219,8 @@ int main() {
 
   if (!port_audit_cases::run(*language.language.parser))
     return fail("port audit regression");
+  if (!dnf_hook_cases::run(language.language))
+    return fail("DNF/property-hook regression");
 
   for (const fs::path& path : files) {
     std::ifstream file(path);

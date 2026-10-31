@@ -81,10 +81,16 @@ inline constexpr auto sapf_unquote = [](std::string_view t) {
 namespace sapf {
 
 struct Sapf : cursiv::GrammarSpec {
+  // Author Parser.cpp endOfWord: '=' and apostrophes may occur inside a
+  // symbol. The wider boundary also prevents '=name' being read as '='.
+  static constexpr auto SymbolChar = cr<R"(^\0\s;()\[\]{}.`,:")">;
+  static constexpr auto word_boundary = SymbolChar;
   struct WS : terminal<some(cr<R"( \t\r\n)">)> {};
   struct COMMENT : terminal<lit<";"> + many(cr<R"(^\r\n)">)> {};
 
-  struct LITERAL : terminal<cr<"a-zA-Z_"> + many(cr<"a-zA-Z_0-9">)> {};
+  struct SYMBOL : terminal<some(SymbolChar)> {};
+  struct LITERAL : terminal<(cr<"a-zA-Z_"> + many(SymbolChar)) |
+                            (lit<"="> + some(SymbolChar))> {};
   struct STRING : terminal<as<sapf_unquote>(through(lit<"\"">, lit<"\"">))> {};
 
   static constexpr auto digits = some(d);
@@ -115,13 +121,21 @@ struct Sapf : cursiv::GrammarSpec {
                    assign<&ast::NumberLiteral::suffix>(ref<SUFFIX>)))> {};
 
   struct String
-      : rule<create<ast::StringLiteral>(
-            assign<&ast::StringLiteral::value>(ref<STRING>))> {};
+      : rule<assign<&ast::StringLiteral::value>(ref<STRING>)> {};
 
   struct Word
       : rule<create<ast::Word>(
-            option(assign<&ast::Word::prefix>(ref<WORD_PREFIX>)) +
+            (assign<&ast::Word::prefix>(ref<WORD_PREFIX>) +
+             assign<&ast::Word::name>(ref<SYMBOL>)) |
             assign<&ast::Word::name>(ref<LITERAL>))> {};
+
+  struct Binding
+      : rule<kw<"="> +
+             ((assign<&ast::Binding::kind>(as<ast::BindingKind::stack>(lit<"(">)) +
+               some(append<&ast::Binding::names>(ref<SYMBOL>)) + lit<")">) |
+              (assign<&ast::Binding::kind>(as<ast::BindingKind::list>(lit<"[">)) +
+               some(append<&ast::Binding::names>(ref<SYMBOL>)) + lit<"]">) |
+              append<&ast::Binding::names>(ref<SYMBOL>))> {};
 
   struct Group
       : rule<create<ast::Group>(
@@ -137,7 +151,7 @@ struct Sapf : cursiv::GrammarSpec {
 
   struct Key
       : rule<create<ast::Key>(lit<":"> +
-                              assign<&ast::Key::name>(ref<LITERAL>))> {};
+                              assign<&ast::Key::name>(ref<SYMBOL>))> {};
 
   struct Form
       : rule<create<ast::FormLiteral>(
@@ -145,22 +159,22 @@ struct Sapf : cursiv::GrammarSpec {
             many(append<&ast::FormLiteral::items>(ref<Key> |
                                                   ref<Item>)) +
             lit<"}"> +
-            option(lit<"="> +
+            option(kw<"="> +
                    assign<&ast::FormLiteral::name>(ref<Word>)))> {};
 
   struct Function
       : rule<create<ast::FunctionLiteral>(
             lit<"\\"> +
-            many(append<&ast::FunctionLiteral::params>(ref<LITERAL>)) +
+            many(append<&ast::FunctionLiteral::params>(ref<SYMBOL>)) +
             option(assign<&ast::FunctionLiteral::doc>(ref<STRING>)) +
             assign<&ast::FunctionLiteral::body>(ref<List>) +
-            option(lit<"="> +
+            option(kw<"="> +
                    assign<&ast::FunctionLiteral::name>(ref<Word>)))> {};
 
   struct Item
       : rule<ref<Operator> | ref<Number> | ref<String> | ref<Word> |
              ref<Group> | ref<List> | ref<Form> |
-             ref<Function>> {};
+             ref<Function> | ref<Binding>> {};
 
   struct File
       : rule<create<ast::File> +

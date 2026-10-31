@@ -63,6 +63,7 @@ int expect_clean(const Language& language, const char* path, Check check) {
 
 #include "native_inline_regressions.hpp"
 #include "native_followup.hpp"
+#include "native_block_regressions.hpp"
 
 static int audit_regression() {
   const auto language = cursiv::create_language<
@@ -104,6 +105,7 @@ int main() {
       restructuredtext::install_core_module>();
 
   if (const int rc = rst_native_followup(language.language)) return rc;
+  if (!rst_blocks::run(language.language)) return 1;
 
   if (const int rc = expect_clean(
           language.language, CURSIV_SECTIONS_SAMPLE, [](const Document& doc) {

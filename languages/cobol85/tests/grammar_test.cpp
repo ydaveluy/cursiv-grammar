@@ -1,3 +1,4 @@
+#include "communication_cases.hpp"
 #include "audit_regressions.hpp"
 // The smoke test of the language: every document under example/ parses clean
 // (no recovery) and builds a CompilationUnit with at least one program.
@@ -28,6 +29,8 @@ int main() {
   const auto language = cursiv::create_language<
       cobol85::Cobol85CoreServices, cobol85::Cobol85SharedCoreServices,
       cobol85::install_core_module>();
+
+  if (!cobol_communication_cases::run(language.language)) return 1;
 
   int failures = 0;
   int checked = 0;

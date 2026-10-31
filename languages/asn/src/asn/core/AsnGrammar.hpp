@@ -1,5 +1,5 @@
 // The asn language: its grammar, for the reduced ASN.1 module syntax this
-// port covers (X.680/681/682/683: no type tagging, no EXTERNAL/
+// port covers (X.680/681/682/683: no EXTERNAL/
 // EMBEDDED PDV/CHARACTER STRING/INSTANCE OF). A bare
 // IDENTIFIER is genuinely ambiguous in several ASN.1 productions; the
 // engine is LR with GLR forks for the positions not folded below.
@@ -24,6 +24,17 @@ struct Asn : cursiv::GrammarSpec {
   };
 
   struct NUMBER : terminal<some(d)> {};
+  static constexpr auto real_exponent =
+      cr<"eE"> + option(cr<"+-">) + some(d);
+  // X.680 §12.9. A decimal point or exponent distinguishes these from
+  // IntegerValue. The point must leave an adjacent range delimiter intact.
+  // A leading zero needs a nonzero fractional digit; zero itself is NUMBER.
+  struct REAL_NUMBER
+      : terminal<(cr<"1-9"> + many(d) +
+                  ((lit<".", !lit<".">> + many(d) + option(real_exponent)) |
+                   real_exponent)) |
+                 (lit<"0."> + many(cr<"0">) + cr<"1-9"> + many(d) +
+                  option(real_exponent))> {};
 
   struct CSTRING
       : terminal<lit<"\""> + many(lit<"\"\""> | cr<"^\"">) + lit<"\"">> {};
@@ -36,6 +47,9 @@ struct Asn : cursiv::GrammarSpec {
   struct Constraint;
   struct NameValue;
   struct IntegerValue;
+  struct RealNumberValue;
+  struct SpecialRealValue;
+  struct CompositeRealValue;
   struct BooleanValue;
   struct StringValue;
   struct ChoiceValue;
@@ -51,6 +65,7 @@ struct Asn : cursiv::GrammarSpec {
   struct OctetStringType;
   struct ObjectIdType;
   struct RealType;
+  struct TaggedType;
   struct BooleanType;
   struct NullType;
   struct ObjectClassFieldType;
@@ -83,12 +98,14 @@ struct Asn : cursiv::GrammarSpec {
 
   // --- shared fragments (forward-declared refs only) ---------------------
   static constexpr auto any_value =
-      ref<NameValue> | ref<IntegerValue> | ref<ChoiceValue> |
+      ref<NameValue> | ref<IntegerValue> | ref<RealNumberValue> |
+      ref<SpecialRealValue> |
+      ref<CompositeRealValue> | ref<ChoiceValue> |
       ref<ObjectIdentifierValue> | ref<BooleanValue> |
       ref<StringValue>;
 
   static constexpr auto asn_type =
-      ref<SequenceOrSetType> | ref<SequenceOrSetOfType> |
+      ref<TaggedType> | ref<SequenceOrSetType> | ref<SequenceOrSetOfType> |
       ref<ChoiceType> | ref<EnumeratedType> | ref<IntegerType> |
       ref<BitStringType> | ref<OctetStringType> |
       ref<ObjectIdType> | ref<ObjectClassFieldType> |
@@ -116,15 +133,34 @@ struct Asn : cursiv::GrammarSpec {
   // and cannot be told apart without a symbol table: one
   // node covers both.
   struct NameValue
-      : rule<create<ast::NameValue>(
-            assign<&ast::NameValue::name>(ref<ID>))> {};
+      : rule<option(assign<&ast::NameValue::moduleRef>(ref<ID>) + lit<".">) +
+             assign<&ast::NameValue::name>(ref<ID>)> {};
   struct IntegerValue
       : rule<create<ast::IntegerValue>(
             assign<&ast::IntegerValue::text>(SignedNumber))> {};
+  struct RealNumberValue
+      : rule<assign<&ast::RealNumberValue::text>(
+                 option(lit<"-">) + ref<REAL_NUMBER>)> {};
   struct BooleanValue
       : rule<create<ast::BooleanValue>(
             flag<&ast::BooleanValue::value>(kw<"TRUE"> | kw<"true">) |
             (kw<"FALSE"> | kw<"false">))> {};
+  struct SpecialRealValue
+      : rule<assign<&ast::SpecialRealValue::kind>(
+                 as<ast::SpecialReal::plusInfinity>(kw<"PLUS-INFINITY">) |
+                 as<ast::SpecialReal::minusInfinity>(kw<"MINUS-INFINITY">) |
+                 as<ast::SpecialReal::notANumber>(kw<"NOT-A-NUMBER">))> {};
+  static constexpr auto integer_value = ref<IntegerValue> | ref<NameValue>;
+  // These component names are ordinary identifiers, not reserved words.
+  // Test their text without turning an OID component into a keyword token.
+  struct CompositeRealValue
+      : rule<lit<"{"> + &kw<"mantissa"> + ref<ID> +
+             assign<&ast::CompositeRealValue::mantissa>(integer_value) +
+             lit<","> + &kw<"base"> + ref<ID> +
+             assign<&ast::CompositeRealValue::base>(integer_value) +
+             lit<","> + &kw<"exponent"> + ref<ID> +
+             assign<&ast::CompositeRealValue::exponent>(integer_value) +
+             lit<"}">> {};
   struct StringValue
       : rule<create<ast::StringValue>(assign<&ast::StringValue::text>(
             ref<CSTRING> | ref<BSTRING> | ref<HSTRING>))> {};
@@ -302,6 +338,23 @@ struct Asn : cursiv::GrammarSpec {
             lit<")">)> {};
 
   // --- types ---------------------------------------------------------------
+
+  struct TaggedType
+      : rule<lit<"["> +
+             option(flag<&ast::TaggedType::explicitEncodingReference>(
+                 kw<"TAG"> + lit<":">)) +
+             option(assign<&ast::TaggedType::tagClass>(
+                 as<ast::TagClass::universal>(kw<"UNIVERSAL">) |
+                 as<ast::TagClass::application>(kw<"APPLICATION">) |
+                 as<ast::TagClass::private_>(kw<"PRIVATE">))) +
+             assign<&ast::TaggedType::number>(
+                 create<ast::IntegerValue>(
+                     assign<&ast::IntegerValue::text>(ref<NUMBER>)) |
+                 ref<NameValue>) + lit<"]"> +
+             option(assign<&ast::TaggedType::mode>(
+                 as<ast::TagMode::implicit_>(kw<"IMPLICIT">) |
+                 as<ast::TagMode::explicit_>(kw<"EXPLICIT">))) +
+             assign<&ast::TaggedType::inner>(asn_type)> {};
 
   struct BooleanType
       : rule<create<ast::BooleanType>(kw<"BOOLEAN"> + with_constraints)> {};
@@ -488,8 +541,7 @@ struct Asn : cursiv::GrammarSpec {
   // --- object-class definitions (X.681) ------------------------------------
 
   struct SyntaxLiteral
-      : rule<create<ast::SyntaxLiteral>(
-            assign<&ast::SyntaxLiteral::text>(ref<ID>))> {};
+      : rule<assign<&ast::SyntaxLiteral::text>(ref<ID>)> {};
   struct SyntaxFieldRef
       : rule<create<ast::SyntaxFieldRef>(
             lit<"&"> + assign<&ast::SyntaxFieldRef::name>(ref<ID>))> {};

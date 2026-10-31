@@ -1,4 +1,5 @@
 #include "audit_regressions.hpp"
+#include "dtd_island_cases.hpp"
 // The smoke test of the language: every file under example/ and tests/
 // parses clean and builds a Document whose root is an Element. The exit
 // code is the verdict.
@@ -70,6 +71,7 @@ int main() {
   const auto language = cursiv::create_language<
       xml::XmlCoreServices, xml::XmlSharedCoreServices,
       xml::install_core_module>();
+  if (!xml_dtd_islands::run(*language.language.parser)) return 1;
 
   bool ok = true;
   for (const char* name : kExamples) {

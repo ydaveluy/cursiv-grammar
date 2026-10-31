@@ -14,6 +14,7 @@
 #include "cursiv/test/Check.hpp"
 #include "turing/core/ast.hpp"
 #include "turing/generated/Turing/Module.hpp"
+#include "three_type_cases.hpp"
 
 namespace {
 
@@ -235,6 +236,9 @@ void case_default_validation() {
 }
 
 int main() {
+  const auto language = cursiv::create_language<turing::TuringCoreServices,
+      turing::TuringSharedCoreServices, turing::install_core_module>();
+  if (!turing_three_types::run(language.language)) return 1;
   every_example_parses_clean();
   reads_the_grammars_v4_sample();
   reads_the_showcase();

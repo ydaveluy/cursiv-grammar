@@ -56,7 +56,7 @@ inline bool run(const swift::SwiftCoreServices& services) {
           cases->cases[0]->associatedValue && !cases->cases[0]->opaqueBase && cases->cases[1]->name == "none",
           "some is an enum case name, with an owned associated tuple");
   }
-  for (const std::string text : {
+  for (const std::string& text : {
       std::string("func f() { return−value }\nlet x = true≠false\n"),
       std::string("@Attr(a = b.c / d, \\Root.path) func f() {}\n"),
       std::string("let x") + char(0) + "= 1\n",

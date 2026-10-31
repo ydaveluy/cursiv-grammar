@@ -1,5 +1,4 @@
-// The checks of this language: none yet -- the grammar carries the syntax,
-// and no cross-tree fact needs a validator pass in this port.
+// Local facts checked after parsing; records remain optional in CD syntax.
 #pragma once
 
 #include "cobol85/core/ast.hpp"
@@ -11,6 +10,7 @@ namespace cobol85 {
 class Cobol85Validator final : public cursiv::DefaultCoreService {
  public:
   using cursiv::DefaultCoreService::DefaultCoreService;
+  void checkCommunication(const ast::CommunicationEntry&, cursiv::ValidationAcceptor&) const;
   void checkEndName(const ast::ProgramUnit&, cursiv::ValidationAcceptor&) const;
 };
 

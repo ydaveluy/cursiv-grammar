@@ -17,6 +17,8 @@
 #include <iterator>
 #include <string>
 #include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "json_insert.hpp"
+#include "terms_selectors.hpp"
 
 namespace {
 
@@ -281,6 +283,9 @@ int main() {
   const auto language = cursiv::create_language<
       cql3::Cql3CoreServices, cql3::Cql3SharedCoreServices,
       cql3::install_core_module>();
+
+  if (!cql3_json::run(language.language)) return 1;
+  if (!cql3_terms_selectors::run(language.language)) return 1;
 
   const fs::path dir = CURSIV_EXAMPLE_DIR;
   int failures = 0;

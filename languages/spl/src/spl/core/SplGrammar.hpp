@@ -241,7 +241,7 @@ struct Spl : cursiv::GrammarSpec {
             assign<&ast::Comparison::value>(ref<Expr>))> {};
 
   struct BareExpr
-      : rule<create<ast::BareExpr>(assign<&ast::BareExpr::value>(ref<Expr>))> {};
+      : rule<assign<&ast::BareExpr::value>(ref<Expr>)> {};
 
   static constexpr auto SimpleOperation =
       ref<LikeTest> | ref<InTest> | ref<OutputClause> | ref<ByClause> |
