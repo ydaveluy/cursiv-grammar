@@ -694,8 +694,8 @@ struct C : cursiv::GrammarSpec {
       option(assign<&ast::ExprStmt::value>(ref<Expression>)) + lit<";">;
   struct ExpressionStatement : rule<ExpressionStatementBody> {};
   struct AttributedExpressionStatement
-      : rule<some(append<&ast::Item::attributes>(ref<StdAttributeSpec>)) +
-                 assign<&ast::ExprStmt::value>(ref<Expression>) + lit<";"> |
+      : rule<(some(append<&ast::Item::attributes>(ref<StdAttributeSpec>)) +
+              assign<&ast::ExprStmt::value>(ref<Expression>) + lit<";">) |
              ExpressionStatementBody> {};
 
   static constexpr auto CompoundStatementBody =

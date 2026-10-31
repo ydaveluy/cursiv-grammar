@@ -143,7 +143,7 @@ struct PlantUML : cursiv::GrammarSpec {
       flag<&ast::ContainerDecl::hasClosingBrace>(lit<"}">) | &kw<"@enduml">;
   static constexpr auto container_contents = gap::line +
       many(append<&ast::ContainerDecl::elements>(ref<DiagramElement>) + gap::line) + container_end;
-  static constexpr auto package_open_gap = !gap::line |
+  static constexpr auto package_open_gap = (!gap::line) |
       gap::is(many(horizontal) + eol + many(horizontal));
   static constexpr auto package_multiline = package_open_gap + lit<"{"> + container_contents;
   static constexpr auto namespace_multiline = !gap::line + lit<"{"> + container_contents;

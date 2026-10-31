@@ -66,7 +66,7 @@ inline bool run(const auto& language) {
       correct &= owner && owner->valOrVar == loopPrefix;
     if (owner && owner->declarators.size() == entries.size()) {
       unsigned i = 0;
-      for (const auto expected : entries) {
+      for (const auto& expected : entries) {
         const auto* entry = owner->declarators[i++];
         const auto* type = entry ? cursiv::ast_cast<a::UserType>(entry->type) : nullptr;
         correct &= entry && entry->parent == owner &&

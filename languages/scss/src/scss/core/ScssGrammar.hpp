@@ -533,13 +533,24 @@ struct Scss : cursiv::GrammarSpec {
 
   // Raw text must keep whitespace, comments and // as content. Only #{...}
   // returns to the ordinary Sass trivia/expression rules.
-  struct RawCustomPart;
   struct RawCustomGroupPart;
   static constexpr auto RawCustomEscape = lit<"\\"> + ~cr<R"(\r\n\f)">;
   static constexpr auto RawCustomChar =
       RawCustomEscape | ref<ML_COMMENT> |
       cr<R"(^;(){}\[\]"'#\/\\)"> | lit<"#", !lit<"{">> | lit<"/", !lit<"*">>;
-  struct RAW_CUSTOM_TEXT : terminal<some(RawCustomChar)> {};
+  // The value of a custom property ends where nothing but `;`, `}` or the end
+  // of the text comes next. A token that could be the last of the value is
+  // written twice: guarded by RawCustomEnds for the last part alone, and by
+  // RawCustomGoes for every other part. The lexer then tells the last part from
+  // the others by what follows it, as RAW_CUSTOM_COLON does for the empty value.
+  // Were the parser to tell them apart, a state would read the trivia after a
+  // part under the tight region when another part follows and under the
+  // caller's settings when none does, which a state cannot do. Parts inside a
+  // group or a string keep the plain tokens.
+  static constexpr auto RawCustomEnds = &(lit<";"> | lit<"}"> | eof);
+  static constexpr auto RawCustomGoes = !(lit<";"> | lit<"}"> | eof);
+  struct RAW_CUSTOM_TEXT : terminal<some(RawCustomChar) + RawCustomGoes> {};
+  struct RAW_CUSTOM_LAST_TEXT : terminal<some(RawCustomChar) + RawCustomEnds> {};
   struct RAW_CUSTOM_GROUP_TEXT : terminal<some(RawCustomChar | lit<";">)> {};
   struct RAW_CUSTOM_DQ : terminal<some(
       (lit<"\\"> + (eol | any)) | cr<R"(^"#\\\r\n\f)"> | lit<"#", !lit<"{">>)> {};
@@ -552,11 +563,46 @@ struct Scss : cursiv::GrammarSpec {
   struct RAW_CUSTOM_INTERPOLATION_OPEN : terminal<
       lit<"#{"> + many(ref<SPACE> | ref<SL_COMMENT> | ref<ML_COMMENT>)> {};
   struct RAW_CUSTOM_INTERPOLATION_CLOSE : terminal<lit<"}">> {};
-  struct RawCustomInterpolation : rule<create<ast::Interpolation>(
+  struct RAW_CUSTOM_INTERPOLATION_CLOSE_GOES
+      : terminal<lit<"}", RawCustomGoes>> {};
+  struct RAW_CUSTOM_INTERPOLATION_CLOSE_ENDS
+      : terminal<lit<"}", RawCustomEnds>> {};
+  // Where a part stands: 0 inside a group or a string, 1 in the value with
+  // another part to follow, 2 as the value's last part.
+  template <int Tail, class = void> struct RawCustomSeal;
+  template <class V> struct RawCustomSeal<0, V> {
+    using interpolation = RAW_CUSTOM_INTERPOLATION_CLOSE;
+    static constexpr auto dq = lit<"\"">;
+    static constexpr auto sq = lit<"'">;
+    static constexpr auto round = lit<")">;
+    static constexpr auto square = lit<"]">;
+    static constexpr auto curly = lit<"}">;
+  };
+  template <class V> struct RawCustomSeal<1, V> {
+    using text = RAW_CUSTOM_TEXT;
+    using interpolation = RAW_CUSTOM_INTERPOLATION_CLOSE_GOES;
+    static constexpr auto dq = lit<"\"", RawCustomGoes>;
+    static constexpr auto sq = lit<"'", RawCustomGoes>;
+    static constexpr auto round = lit<")", RawCustomGoes>;
+    static constexpr auto square = lit<"]", RawCustomGoes>;
+    static constexpr auto curly = lit<"}", RawCustomGoes>;
+  };
+  template <class V> struct RawCustomSeal<2, V> {
+    using text = RAW_CUSTOM_LAST_TEXT;
+    using interpolation = RAW_CUSTOM_INTERPOLATION_CLOSE_ENDS;
+    static constexpr auto dq = lit<"\"", RawCustomEnds>;
+    static constexpr auto sq = lit<"'", RawCustomEnds>;
+    static constexpr auto round = lit<")", RawCustomEnds>;
+    static constexpr auto square = lit<"]", RawCustomEnds>;
+    static constexpr auto curly = lit<"}", RawCustomEnds>;
+  };
+  template <int Tail>
+  struct RawCustomInterpolationAt : rule<create<ast::Interpolation>(
       ref<RAW_CUSTOM_INTERPOLATION_OPEN> +
       skip(ignore<SPACE, SL_COMMENT, ML_COMMENT>, hide<>,
            assign<&ast::Interpolation::inner>(ValueOrListOrMap) +
-           ref<RAW_CUSTOM_INTERPOLATION_CLOSE>))> {};
+           ref<typename RawCustomSeal<Tail>::interpolation>))> {};
+  using RawCustomInterpolation = RawCustomInterpolationAt<0>;
   struct RawCustomDqPart : rule<ref<RawCustomText<RAW_CUSTOM_DQ>> | ref<RawCustomInterpolation>> {};
   struct RawCustomSqPart : rule<ref<RawCustomText<RAW_CUSTOM_SQ>> | ref<RawCustomInterpolation>> {};
   template <auto Open, auto Close, class Part>
@@ -564,17 +610,22 @@ struct Scss : cursiv::GrammarSpec {
       assign<&ast::RawCustomGroup::open>(Open) +
       many(append<&ast::RawCustomGroup::parts>(ref<Part>)) +
       assign<&ast::RawCustomGroup::close>(Close));
-  struct RawCustomQuoted : rule<
-      RawCustomGroupBody<lit<"\"">, lit<"\"">, RawCustomDqPart> |
-      RawCustomGroupBody<lit<"'">, lit<"'">, RawCustomSqPart>> {};
-  struct RawCustomGroup : rule<
-      RawCustomGroupBody<lit<"(">, lit<")">, RawCustomGroupPart> |
-      RawCustomGroupBody<lit<"[">, lit<"]">, RawCustomGroupPart> |
-      RawCustomGroupBody<lit<"{">, lit<"}">, RawCustomGroupPart>> {};
+  template <int Tail>
+  struct RawCustomQuotedAt : rule<
+      RawCustomGroupBody<lit<"\"">, RawCustomSeal<Tail>::dq, RawCustomDqPart> |
+      RawCustomGroupBody<lit<"'">, RawCustomSeal<Tail>::sq, RawCustomSqPart>> {};
+  template <int Tail>
+  struct RawCustomGroupAt : rule<
+      RawCustomGroupBody<lit<"(">, RawCustomSeal<Tail>::round, RawCustomGroupPart> |
+      RawCustomGroupBody<lit<"[">, RawCustomSeal<Tail>::square, RawCustomGroupPart> |
+      RawCustomGroupBody<lit<"{">, RawCustomSeal<Tail>::curly, RawCustomGroupPart>> {};
   struct RawCustomGroupPart : rule<ref<RawCustomInterpolation> |
-      ref<RawCustomQuoted> | ref<RawCustomGroup> | ref<RawCustomText<RAW_CUSTOM_GROUP_TEXT>>> {};
-  struct RawCustomPart : rule<ref<RawCustomInterpolation> |
-      ref<RawCustomQuoted> | ref<RawCustomGroup> | ref<RawCustomText<RAW_CUSTOM_TEXT>>> {};
+      ref<RawCustomQuotedAt<0>> | ref<RawCustomGroupAt<0>> |
+      ref<RawCustomText<RAW_CUSTOM_GROUP_TEXT>>> {};
+  template <int Tail>
+  struct RawCustomPartAt : rule<ref<RawCustomInterpolationAt<Tail>> |
+      ref<RawCustomQuotedAt<Tail>> | ref<RawCustomGroupAt<Tail>> |
+      ref<RawCustomText<typename RawCustomSeal<Tail>::text>>> {};
   struct EmptyRawCustomValue : rule<create<ast::RawCustomValue>(
       lit<":", &(lit<";"> | lit<"}"> | eof)>)> {};
   // A distinct opening symbol separates the nonempty trivia region from
@@ -584,9 +635,8 @@ struct Scss : cursiv::GrammarSpec {
   struct RawCustomValue : rule<create<ast::RawCustomValue>(
       // Native atEndOfStatement treats an immediate { after : as empty.
       ref<RAW_CUSTOM_COLON> +
-      // End the tight region on a required part, never a nullable list tail.
-      many(append<&ast::RawCustomValue::parts>(ref<RawCustomPart>)) +
-      append<&ast::RawCustomValue::parts>(ref<RawCustomPart>))> {};
+      many(append<&ast::RawCustomValue::parts>(ref<RawCustomPartAt<1>>)) +
+      append<&ast::RawCustomValue::parts>(ref<RawCustomPartAt<2>>))> {};
 
   static constexpr auto CustomPropertyHead =
       flag<&ast::VariableDeclaration::isCustomProperty>(lit<"--">) +

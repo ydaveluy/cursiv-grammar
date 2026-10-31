@@ -198,7 +198,10 @@ struct TypeScriptLexical : cursiv::GrammarSpec {
       kw<"public"> | kw<"private"> | kw<"protected">;
 
   // A statement ends on `;`, or at a line break, a `}` or the end of the text.
-  static constexpr auto Eos = implied(lit<";">, LineBreak | &lit<"}"> | eof);
+  // A line break never ends it before `(`, which goes on with a call: with
+  // `async` and a line break, `(x)=>1` is not a statement of its own.
+  static constexpr auto Eos =
+      implied(lit<";">, (LineBreak + !lit<"(">) | &lit<"}"> | eof);
 
   // `declare` is a modifier only when its declaration starts on the same line.
   template <auto Ptr>

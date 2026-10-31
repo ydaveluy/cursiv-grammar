@@ -68,7 +68,7 @@ inline bool run(const auto& language) {
     if (!text || *text != (i == 8 ? "direct" : i == 9 ? "open" : "next"))
       return fail("quote or physical-line text termination", source);
   }
-  for (const std::string text : {std::string("TYPE \"open\rTYPE \"next\""),
+  for (const std::string& text : {std::string("TYPE \"open\rTYPE \"next\""),
                                 std::string("TYPE \"open\r\nTYPE \"next\""),
                                 std::string("TYPE \"open\nTYPE \"next\""),
                                 std::string("TYPE \"open\nTYPE \"next\"\n")}) {

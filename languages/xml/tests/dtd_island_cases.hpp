@@ -19,7 +19,7 @@ inline bool run(const cursiv::Parser& parser) {
     {"comment-unclosed", "<!DOCTYPE a [<!--a ]><a/>", false},
     {"pi-xml-reserved", "<!DOCTYPE a [<?xml?>]><a/>", false},
     {"pi-XML-reserved", "<!DOCTYPE a [<?XmL?>]><a/>", false},
-    {"pi-empty", "<!DOCTYPE a [<??>]><a/>", false},
+    {"pi-empty", "<!DOCTYPE a [<?\?>]><a/>", false},
     {"pi-leading-space", "<!DOCTYPE a [<? p?>]><a/>", false},
     {"pi-bad-name", "<!DOCTYPE a [<?1?>]><a/>", false},
     {"pi-unclosed", "<!DOCTYPE a [<?p ]><a/>", false},

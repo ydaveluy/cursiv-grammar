@@ -141,6 +141,23 @@ void RegoValidator::checkRule(const ast::Rule& n,
       a.error(*b, "a body after else must begin with else");
   }
 }
+// A statement of a module that is neither a rule nor a declaration is read as
+// a rule head written with a gap, such as `(a) := a`; a lone term such as the
+// `(1)` of `p := f (1)` has no such reading.
+void RegoValidator::checkQueryStmt(const ast::QueryStmt& n,
+                                   cursiv::ValidationAcceptor& a) const {
+  const auto* document = cursiv::ast_cast<ast::Document>(n.parent);
+  if (!document || !n.body || n.body->literals.size() != 1) return;
+  const auto* literal = cursiv::ast_cast<ast::Literal>(n.body->literals[0]);
+  if (!literal || literal->negated || !literal->withs.empty() || !literal->expr ||
+      !literal->expr->rest.empty())
+    return;
+  for (const auto* statement : document->statements)
+    if (cursiv::ast_cast<ast::PackageDecl>(statement)) {
+      a.error(n, "a module statement must be a rule", "rego.module-statement");
+      break;
+    }
+}
 void RegoValidator::checkPackage(const ast::PackageDecl& n, cursiv::ValidationAcceptor& a) const {
   if(!staticPath(n.path)) a.error(n,"a package path must contain only names or string keys");
 }
@@ -196,6 +213,7 @@ void register_validation_checks(RegoCoreServices& services) {
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkSome>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkEvery>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkRule>(v),
+       cursiv::ValidationRegistry::makeValidationCheck<&V::checkQueryStmt>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkPackage>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkImport>(v),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkRef>(v),

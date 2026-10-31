@@ -60,7 +60,7 @@ struct Cql3 : cursiv::GrammarSpec {
   static constexpr auto Exponent = cr<"eE"> + option(cr<"+-">) + some(d);
   struct FLOAT_LITERAL
       : terminal<option(lit<"-">) +
-                 ((some(d) + lit<".", !lit<"."> | &lit<"..">> + many(d) + option(Exponent)) |
+                 ((some(d) + lit<".", (!lit<".">) | &lit<"..">> + many(d) + option(Exponent)) |
                   (some(d) + Exponent))> {};
 
   struct HEXADECIMAL_LITERAL

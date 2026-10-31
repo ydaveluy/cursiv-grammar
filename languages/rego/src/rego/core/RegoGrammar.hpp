@@ -88,10 +88,10 @@ struct Rego : cursiv::GrammarSpec {
              option(lit<",">)) +
       lit<")">;
   struct Atom : rule<ref<Primary> +
-                     many(gap::none +
-                          (nest<ast::Call, &ast::Call::target>(callSuffix) |
-                           nest<ast::AccessExpr, &ast::AccessExpr::target>(
-                               part<&ast::AccessExpr::parts>)))> {};
+                     many(nest<ast::Call, &ast::Call::target>(
+                              gap::none + callSuffix) |
+                          nest<ast::AccessExpr, &ast::AccessExpr::target>(
+                              gap::none + part<&ast::AccessExpr::parts>))> {};
   struct Primary
       : rule<(lit<"("> + ref<FullExpression> + lit<")">) | ref<ArrayCompr> |
              ref<ObjectCompr> | ref<SetCompr> | ref<Object> |
