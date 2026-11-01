@@ -78,7 +78,7 @@ press **F5**: the task builds the server in the tree of the preset you have
 selected. GCC/Clang presets run the host binary; WASI presets run the wasm
 module. A second window opens on `example/` with the extension loaded. The preset is
 read through the CMake Tools extension, which the workspace recommends along
-with clangd. Native servers require VS Code 1.86 or later; WASI servers require
+with clangd. Native servers require VS Code 1.91 or later; WASI servers require
 1.101 or later.
 
 ```bash

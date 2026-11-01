@@ -59,7 +59,7 @@ Every language works the same way; its own README gives its examples.
 
 Open the language directory in VS Code and install the recommended CMake Tools
 and clangd extensions. **F5** builds the server for the active preset and
-starts the extension. Native servers need VS Code 1.86 or later, WebAssembly
+starts the extension. Native servers need VS Code 1.91 or later, WebAssembly
 servers 1.101 or later.
 
 ## Benchmarks
