@@ -65,6 +65,12 @@ struct Matlab : cursiv::GrammarSpec {
                                 as<ast::Operator::ewise_multiply>(lit<".*">) | as<ast::Operator::ewise_ldivide>(lit<".\\">) |
                                 as<ast::Operator::ewise_rdivide>(lit<"./">);
   static constexpr auto OpAdd = as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">);
+  // In a row, a separated sign attached to its operand starts a column.
+  static constexpr auto RowOpAdd =
+      as<ast::Operator::add>((gap::none + lit<"+">) |
+                             (lit<"+"> + !gap::none)) |
+      as<ast::Operator::subtract>((gap::none + lit<"-">) |
+                                  (lit<"-"> + !gap::none));
   static constexpr auto OpRange = as<ast::Operator::range>(lit<":">);
   static constexpr auto OpRel = as<ast::Operator::less_equal>(lit<"<=">) | as<ast::Operator::greater_equal>(lit<">=">) | as<ast::Operator::less>(lit<"<">) |
                                 as<ast::Operator::greater>(lit<">">) | as<ast::Operator::equal>(lit<"==">) | as<ast::Operator::not_equal>(lit<"~=">);
@@ -74,7 +80,9 @@ struct Matlab : cursiv::GrammarSpec {
   static constexpr auto OpShortOr = as<ast::Operator::short_or>(lit<"||">);
 
   struct Expression;
+  struct RowExpression;
   struct UnaryExpression;
+  struct RowUnaryExpression;
   struct PostfixExpression;
   struct IndexArg;
   struct IndexExpr;
@@ -85,68 +93,142 @@ struct Matlab : cursiv::GrammarSpec {
   struct IndexArg : rule<flag<&ast::IndexArg::all>(lit<":">) |
                          assign<&ast::IndexArg::value>(ref<Expression>)> {};
 
+  template <auto Args>
+  static constexpr auto arguments =
+      some(append<Args>(ref<IndexArg>), lit<",">);
+
   // `name(args)`: the same syntax MATLAB uses for indexing and for a call.
   struct IndexExpr
       : rule<assign<&ast::IndexExpr::name>(ref<IDENTIFIER>) + lit<"("> +
-             option(some(append<&ast::IndexExpr::args>(ref<IndexArg>), lit<",">)) +
+             option(arguments<&ast::IndexExpr::args>) +
              lit<")">> {};
+
+  struct FunctionName
+      : rule<ref<IDENTIFIER> + many(lit<"."> + ref<IDENTIFIER>)> {};
+
+  struct FunctionHandle
+      : rule<lit<"@"> +
+             assign<&ast::FunctionHandle::name>(ref<FunctionName>)> {};
+
+  static constexpr auto identifier_expression =
+      create<ast::Ident>(assign<&ast::Ident::name>(ref<IDENTIFIER>));
+  static constexpr auto cell_suffix =
+      nest<&ast::SubscriptExpr::object>(
+          flag<&ast::SubscriptExpr::braces>(lit<"{">) +
+          arguments<&ast::SubscriptExpr::args> + lit<"}">);
+  static constexpr auto round_suffix =
+      nest<&ast::SubscriptExpr::object>(
+          lit<"("> + option(arguments<&ast::SubscriptExpr::args>) + lit<")">);
+  static constexpr auto member_suffix =
+      nest<&ast::MemberExpr::object>(
+          lit<"."> + assign<&ast::MemberExpr::name>(ref<IDENTIFIER>));
+
+  // Keep the old named round-index route. These suffixes start only after
+  // a named cell-content access, not after arbitrary literals or expressions.
+  // The head rule bounds its CST before later suffixes wrap it.
+  struct HeadCellAccess : rule<identifier_expression + cell_suffix> {};
+  struct CellContents
+      : rule<ref<HeadCellAccess> +
+             many(cell_suffix | round_suffix | member_suffix)> {};
 
   // `'[' ']'` and `'[' array_list ']'` collapse into one alternative here: an
   // empty element list already spells the same two brackets. Inside, the
   // commas and horizontal whitespace separate columns; semicolons and line
   // breaks delimit row nodes, so the AST retains the matrix dimensions.
   struct ArrayRow
-      : rule<some(append<&ast::ArrayRow::elements>(ref<Expression>) +
+      : rule<some(append<&ast::ArrayRow::elements>(ref<RowExpression>) +
                   option(lit<",">))> {};
   static constexpr auto RowSeparator = lit<";"> | ref<CR>;
+
+  template <auto Rows>
+  static constexpr auto array_rows =
+      many(ref<CR>) +
+      many(append<Rows>(ref<ArrayRow>) + some(RowSeparator)) +
+      option(append<Rows>(ref<ArrayRow>));
 
   struct PrimaryExpression
       : rule<(create<ast::ParenExpr>(
                   lit<"("> + assign<&ast::ParenExpr::inner>(ref<Expression>) +
                   lit<")">) //
               | create<ast::ArrayLit>(
-                    lit<"["> + many(ref<CR>) +
-                    many(append<&ast::ArrayLit::rows>(ref<ArrayRow>) +
-                         some(RowSeparator)) +
-                    option(append<&ast::ArrayLit::rows>(ref<ArrayRow>)) +
+                    lit<"["> + array_rows<&ast::ArrayLit::rows> +
                     lit<"]">)      //
+              | create<ast::CellLit>(
+                    lit<"{"> + array_rows<&ast::CellLit::rows> + lit<"}">) //
+              | ref<CellContents> //
+              | ref<FunctionHandle> //
               | ref<IndexExpr> //
-              |
-              create<ast::Ident>(assign<&ast::Ident::name>(ref<IDENTIFIER>)) //
+              | identifier_expression //
               | create<ast::NumberLit>(
                     assign<&ast::NumberLit::value>(ref<CONSTANT>) +
                     option(gap::none + flag<&ast::NumberLit::imaginary>(lit<"i", !w> | lit<"j", !w>))) //
               | create<ast::StringLit>(
                     assign<&ast::StringLit::value>(ref<STRING_LITERAL>)))> {};
 
+  // In a row, a gap before '(' separates a name from the grouped column.
+  static constexpr auto spaced_call_head =
+      ref<IDENTIFIER> + !gap::none + &lit<"(">;
+  struct RowPrimaryExpression
+      : rule<(&spaced_call_head + identifier_expression) |
+             (!spaced_call_head + ref<PrimaryExpression>)> {};
+
   struct PostfixExpression : rule<ref<PrimaryExpression> +
              many(nest<ast::PostfixOpExpr, &ast::PostfixOpExpr::operand>(
                  assign<&ast::PostfixOpExpr::op>(lit<"'"> | lit<".'">)))> {};
 
-  struct PrefixExpression : rule<create<ast::UnaryExpr>(
+  template <class Unary>
+  static constexpr auto prefix_body = create<ast::UnaryExpr>(
       assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-"> | lit<"~">) +
-      assign<&ast::UnaryExpr::operand>(ref<UnaryExpression>))> {};
+      assign<&ast::UnaryExpr::operand>(ref<Unary>));
+  struct PrefixExpression : rule<prefix_body<UnaryExpression>> {};
   // Power and transpose share one left-associative tier. A signed exponent
   // starts a unary expression without changing pure a^b^c left association.
-  struct PowerExpression : rule<ref<PrimaryExpression> + many(
+  template <class Atom, class Prefix>
+  static constexpr auto power_body = ref<Atom> + many(
       nest<ast::PostfixOpExpr, &ast::PostfixOpExpr::operand>(
           assign<&ast::PostfixOpExpr::op>(lit<"'"> | lit<".'">)) |
       nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
           assign<&ast::BinaryExpr::op>(OpPow) +
-          assign<&ast::BinaryExpr::right>(ref<PrefixExpression> | ref<PrimaryExpression>)))> {};
+          assign<&ast::BinaryExpr::right>(ref<Prefix> | ref<Atom>)));
+  struct PowerExpression
+      : rule<power_body<PrimaryExpression, PrefixExpression>> {};
   struct UnaryExpression : rule<ref<PrefixExpression> | ref<PowerExpression>> {};
+  struct RowPrefixExpression : rule<prefix_body<RowUnaryExpression>> {};
+  struct RowPowerExpression
+      : rule<power_body<RowPrimaryExpression, RowPrefixExpression>> {};
+  struct RowUnaryExpression
+      : rule<ref<RowPrefixExpression> | ref<RowPowerExpression>> {};
+
+  struct AnonymousFunction
+      : rule<lit<"@"> + lit<"("> +
+             option(some(append<&ast::AnonymousFunction::parameters>(
+                             ref<IDENTIFIER>),
+                         lit<",">)) +
+             lit<")"> +
+             assign<&ast::AnonymousFunction::body>(ref<Expression>)> {};
 
   // MathWorks' operator-precedence table, tightest to loosest: transpose and
   // power; unary; multiplication/division; addition/subtraction; colon;
   // relational (one tier, all six); element-wise AND; element-wise OR.
-  struct Expression : infix<UnaryExpression, ast::BinaryExpr,
-                            levels(left(OpMul),    //
-                                   left(OpAdd),    //
-                                   left(OpRange),  //
-                                   left(OpRel),    //
-                                   left(OpAnd),    //
-                                   left(OpOr),
-                                   left(OpShortAnd), left(OpShortOr))> {};
+  template <auto Add>
+  static constexpr auto ladder =
+      levels(left(OpMul),    //
+             left(Add),      //
+             left(OpRange),  //
+             left(OpRel),    //
+             left(OpAnd),    //
+             left(OpOr),
+             left(OpShortAnd), left(OpShortOr));
+  struct OperatorExpression
+      : infix<UnaryExpression, ast::BinaryExpr, ladder<OpAdd>> {};
+  struct RowOperatorExpression
+      : infix<RowUnaryExpression, ast::BinaryExpr, ladder<RowOpAdd>> {};
+
+  // An anonymous function owns the complete expression after its input list.
+  struct Expression
+      : rule<ref<AnonymousFunction> | ref<OperatorExpression>> {};
+  struct RowExpression
+      : rule<ref<AnonymousFunction> | ref<RowOperatorExpression>> {};
 
   struct GlobalStmt
       : rule<kw<"global"> +

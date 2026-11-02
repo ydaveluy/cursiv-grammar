@@ -38,6 +38,10 @@ struct Type : cursiv::Extends<cursiv::AstNode> {
   boolean pointer; // trailing `'*'*` of `type_`, collapsed to a fact
 };
 
+struct NamedType : cursiv::Extends<Type> {
+  ConstantIdentifier* name;
+};
+
 enum class SimpleTypeKind : std::uint8_t { Int, Float, String, Program, Void, Mixed };
 
 struct SimpleType : cursiv::Extends<Type> {
@@ -76,6 +80,17 @@ struct FunctionType : cursiv::Extends<Type> {
 };
 
 struct UnionType : cursiv::Extends<Type> { Type* left; Type* right; };
+
+struct EnumEntry : cursiv::Extends<cursiv::AstNode> {
+  string_view name;
+  Expr* value; // null for implicit numbering; constant evaluation is separate
+};
+
+// `enum` returns a type value in Pike, including in an ordinary expression.
+struct EnumExpr : cursiv::Extends<Expr> {
+  string_view name; // empty for an anonymous enum
+  vector<EnumEntry*> entries;
+};
 
 struct Argument : cursiv::Extends<cursiv::AstNode> {
   Type *type;
@@ -360,6 +375,10 @@ struct Variables : cursiv::Extends<Definition> {
 struct Typedef : cursiv::Extends<Definition> {
   Type* type;
   string_view name;
+};
+
+struct EnumDefinition : cursiv::Extends<Definition> {
+  EnumExpr* value;
 };
 
 struct ConstantDecl : cursiv::Extends<cursiv::AstNode> {

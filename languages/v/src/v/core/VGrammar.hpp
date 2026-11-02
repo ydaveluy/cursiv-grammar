@@ -43,6 +43,7 @@ struct V : cursiv::GrammarSpec {
   struct BreakStmt;
   struct ContinueStmt;
   struct IfStmt;
+  struct InterpolatedStringLiteral;
   struct ForStmt;
   struct ConstSpec;
   struct ConstDecl;
@@ -110,13 +111,16 @@ struct V : cursiv::GrammarSpec {
       (lit<"\\x"> + repeat<2>(HexDigit)) |
       (lit<"\\"> + repeat<3>(OctalDigit)) |
       (lit<"\\"> + cr<R"(abfnrtv\\'"$`)">);
+  static constexpr auto InterpolationStart =
+      lit<"$"> + (lit<"{"> | cr<"_a-zA-Z">);
   struct STRING_LIT : terminal<
       (lit<"r'"> + many(cr<"^'">) + lit<"'">) |
       (lit<"r\""> + many(cr<R"(^")">) + lit<"\"">) |
-      (lit<"'"> + many(StrEscape | cr<R"(^'\\)">) + lit<"'">) |
-      (lit<"\""> + many(StrEscape | cr<R"(^"\\)">) + lit<"\"">)> {};
+      (lit<"'"> + many(StrEscape | (!InterpolationStart + cr<R"(^'\\)">)) + lit<"'">) |
+      (lit<"\""> + many(StrEscape | (!InterpolationStart + cr<R"(^"\\)">)) + lit<"\"">)> {};
   struct CHAR_LIT : terminal<lit<"`"> + (StrEscape | cr<R"(^`\\\r\n)">) + lit<"`">> {};
-  struct StringLiteral : rule<assign<&ast::StringLit::text>(ref<STRING_LIT>)> {};
+  struct StringLiteral : rule<ref<InterpolatedStringLiteral> |
+                             assign<&ast::StringLit::text>(ref<STRING_LIT>)> {};
   struct RuneLiteral : rule<assign<&ast::RuneLit::text>(ref<CHAR_LIT>)> {};
   struct BoolLiteral : rule<create<ast::BoolLit>(flag<&ast::BoolLit::value>(kw<"true">) | kw<"false">)> {};
   struct NoneLiteral : rule<create<ast::NoneLit>(kw<"none">)> {};
@@ -268,7 +272,10 @@ struct V : cursiv::GrammarSpec {
               some(append<&ast::MatchArm::patterns>(ref<Expression>), lit<",">)) +
              assign<&ast::MatchArm::body>(ref<Block>)> {};
   struct EnumValue : rule<lit<"."> + assign<&ast::EnumValue::name>(ref<ID>)> {};
-  struct Operand : rule<ref<MatchExpr> | ref<EnumValue> | ref<IntegerLiteral> |
+  struct IfExpression : rule<assign<&ast::IfExpr::statement>(ref<IfStmt>)> {};
+  struct UnsafeExpression : rule<kw<"unsafe"> + lit<"{"> +
+      assign<&ast::UnsafeExpr::value>(ref<Expression>) + lit<"}">> {};
+  struct Operand : rule<ref<IfExpression> | ref<UnsafeExpression> | ref<MatchExpr> | ref<EnumValue> | ref<IntegerLiteral> |
                         ref<FloatingLiteral> | ref<StringLiteral> | ref<RuneLiteral> | ref<BoolLiteral> | ref<NoneLiteral> | ref<NilLiteral> | ref<CompositeLit> |
                         ref<FunctionLit> | ref<ArrayLit> | ref<LiteralValue> | ref<Identifier> |
                         (lit<"("> + ref<Expression> + lit<")">)> {};
@@ -279,6 +286,81 @@ struct V : cursiv::GrammarSpec {
               option(lit<","> + ExpressionListFor<&ast::CallExpr::args>))  //
              | ExpressionListFor<&ast::CallExpr::args>) +
       option(lit<",">) + lit<")">;
+
+  struct STRING_ESCAPE : terminal<StrEscape> {};
+  // A one-byte pattern lets the literal suffixes '.', '(' and '$' take
+  // precedence without a long text token swallowing a short interpolation.
+  struct STRING_PUNCT : terminal<cr<".$(">> {};
+  template <auto Quote>
+  struct STRING_TEXT : terminal<some(!Quote + !cr<R"(.$(\\)"> + any)> {};
+  template <auto Quote>
+  struct StringText : rule<some(ref<STRING_TEXT<Quote>> | ref<STRING_PUNCT> |
+                               ref<STRING_ESCAPE>)> {};
+  template <auto Quote>
+  struct MaybeStringText : rule<option(ref<StringText<Quote>>)> {};
+
+  // V's scanner treats a keyword as a short name only immediately before
+  // the closing quote. Selectors may have trivia after their adjacent dot.
+  template <auto Quote>
+  struct ShortName : rule<((!Reserved) |
+                           &(ref<IdentifierToken> + gap::none + Quote)) +
+                          ref<IdentifierToken>> {};
+  template <auto Quote>
+  struct ShortIdentifier : rule<assign<&ast::Ident::name>(ref<ShortName<Quote>>)> {};
+  template <auto Quote>
+  static constexpr auto ShortSelector =
+      nest<ast::SelectorExpr, &ast::SelectorExpr::object>(
+          skip(ignore<WS>, hide<SL_COMMENT, ML_COMMENT>,
+               lit<"."> + assign<&ast::SelectorExpr::field>(ref<ShortName<Quote>>)));
+  static constexpr auto ShortCall =
+      nest<ast::CallExpr, &ast::CallExpr::callee>(
+          skip(ignore<WS>, hide<SL_COMMENT, ML_COMMENT>, Arguments));
+  template <auto Quote>
+  struct ShortExpression;
+  template <auto Quote>
+  struct ShortSelected : rule<(ref<ShortExpression<Quote>> + ShortSelector<Quote>) |
+                              ref<ShortIdentifier<Quote>>> {};
+  template <auto Quote>
+  struct ShortExpression : rule<(ref<ShortSelected<Quote>> + ShortCall) |
+                                ref<ShortSelected<Quote>>> {};
+  template <auto Quote>
+  struct ShortInterpolation : rule<lit<"$", cr<"_a-zA-Z">> +
+      assign<&ast::StringInterpolation::expression>(ref<ShortExpression<Quote>>)> {};
+
+  struct FORMAT_CODE : terminal<cr<"_a-zA-Z"> + !cr<"_a-zA-Z0-9">> {};
+  struct InterpolationFormat : rule<create<ast::InterpolationFormat>(
+      lit<":"> + option(assign<&ast::InterpolationFormat::sign>(lit<"+"> | lit<"-">)) +
+      option(assign<&ast::InterpolationFormat::number>(ref<FLOAT_LIT> | ref<INT_LIT>)) +
+      option(assign<&ast::InterpolationFormat::code>(ref<FORMAT_CODE>)))> {};
+  // The native parser constructs an empty StringLiteral for `${}`.
+  struct EmptyInterpolationExpr : rule<create<ast::StringLit>(&lit<"}">)> {};
+  struct ClosedInterpolation : rule<skip(ignore<WS>, hide<SL_COMMENT, ML_COMMENT>,
+      create<ast::StringInterpolation>(
+          flag<&ast::StringInterpolation::braced>(lit<"${">) +
+          assign<&ast::StringInterpolation::expression>(ref<EmptyInterpolationExpr> | ref<Expression>) +
+          option(assign<&ast::StringInterpolation::format>(ref<InterpolationFormat>)) +
+          flag<&ast::StringInterpolation::hasClosingBrace>(lit<"}">)))> {};
+
+  static constexpr auto empty_text = []() -> std::string_view { return {}; };
+  template <auto Quote>
+  static constexpr auto FinalInterpolation =
+      skip(ignore<WS>, hide<SL_COMMENT, ML_COMMENT>,
+          append<&ast::InterpolatedString::interpolations>(
+              create<ast::StringInterpolation>(
+                  flag<&ast::StringInterpolation::braced>(lit<"${">) +
+                  assign<&ast::StringInterpolation::expression>(ref<Expression>) +
+                  option(assign<&ast::StringInterpolation::format>(ref<InterpolationFormat>)) +
+                  gap::none + &Quote)) +
+          append<&ast::InterpolatedString::texts>(as<empty_text>(Quote)));
+  template <auto Quote>
+  struct QuotedInterpolation : rule<create<ast::InterpolatedString>(tight(
+      Quote + append<&ast::InterpolatedString::texts>(ref<MaybeStringText<Quote>>) +
+      many(append<&ast::InterpolatedString::interpolations>(
+               ref<ClosedInterpolation> | ref<ShortInterpolation<Quote>>) +
+           append<&ast::InterpolatedString::texts>(ref<MaybeStringText<Quote>>)) +
+      (Quote | FinalInterpolation<Quote>)))> {};
+  struct InterpolatedStringLiteral : rule<ref<QuotedInterpolation<lit<"'">>> |
+                                         ref<QuotedInterpolation<lit<"\"">>>> {};
 
   // Postfix chain, `nest<>` growing it around what came before: a selector
   // reading `.name` also covers a package-qualified name and a
@@ -441,8 +523,8 @@ struct V : cursiv::GrammarSpec {
   struct TopLevelDecl : rule<ref<EnumDecl> | ref<ConstDecl> | ref<StructDecl> | ref<InterfaceDecl> | ref<FunctionDecl>> {};
 
   struct Statement
-      : rule<ref<EnumDecl> | ref<VarDecl> | ref<StructDecl> | ref<SimpleStmt> | ref<ReturnStmt> |
-            ref<BreakStmt> | ref<ContinueStmt> | ref<Block> | ref<IfStmt> |
+      : rule<ref<EnumDecl> | ref<VarDecl> | ref<StructDecl> | ref<IfStmt> | ref<SimpleStmt> | ref<ReturnStmt> |
+            ref<BreakStmt> | ref<ContinueStmt> | ref<Block> |
             ref<ForStmt> | ref<LabelStmt>> {};
 
   struct LabelStmt : rule<create<ast::LabelStmt>(assign<&ast::LabelStmt::name>(ref<ID>) +

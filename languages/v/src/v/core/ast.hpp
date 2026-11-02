@@ -19,6 +19,13 @@ struct Expr : cursiv::Extends<cursiv::AstNode> {};
 struct Type : cursiv::Extends<cursiv::AstNode> {};
 
 struct Block;
+struct IfStmt;
+struct IfExpr : cursiv::Extends<Expr> {
+  IfStmt* statement;
+};
+struct UnsafeExpr : cursiv::Extends<Expr> {
+  Expr* value;
+};
 struct MatchArm : cursiv::Extends<cursiv::AstNode> {
   vector<Expr*> patterns;
   boolean isElse;
@@ -59,7 +66,7 @@ struct FloatLit : cursiv::Extends<Expr> {
   string_view text;
 };
 
-// The quoted source spelling, including raw prefixes and interpolation text.
+// The quoted source spelling, including raw prefixes for ordinary strings.
 struct RuneLit : cursiv::Extends<Expr> { string_view text; };
 struct BoolLit : cursiv::Extends<Expr> { boolean value; };
 struct NoneLit : cursiv::Extends<Expr> {};
@@ -67,6 +74,22 @@ struct NilLit : cursiv::Extends<Expr> {};
 struct RangeExpr : cursiv::Extends<Expr> { Expr* low; Expr* high; };
 struct StringLit : cursiv::Extends<Expr> {
   string_view text;
+};
+struct InterpolationFormat : cursiv::Extends<cursiv::AstNode> {
+  string_view sign;
+  string_view number;
+  string_view code;
+};
+struct StringInterpolation : cursiv::Extends<cursiv::AstNode> {
+  Expr* expression;
+  boolean braced;
+  boolean hasClosingBrace;
+  InterpolationFormat* format;
+};
+struct InterpolatedString : cursiv::Extends<Expr> {
+  // Raw, unquoted pieces. There is one more piece than interpolation.
+  vector<string_view> texts;
+  vector<StringInterpolation*> interpolations;
 };
 
 struct ArrayLit : cursiv::Extends<Expr> {

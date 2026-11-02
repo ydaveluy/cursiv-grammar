@@ -1,5 +1,7 @@
 #include "audit_regressions.hpp"
 #include "native_followup_cases.hpp"
+#include "interpolation_cases.hpp"
+#include "interpolation_targeted_cases.hpp"
 // The smoke test of the language: every document in example/ parses clean
 // (no repair, no diagnostic), and one of them is read back for the values
 // its declarations actually hold -- a converter that silently drops or
@@ -49,6 +51,8 @@ int main() {
   const auto language = cursiv::create_language<
       v::VCoreServices, v::VSharedCoreServices, v::install_core_module>();
   if (!v_followup::run(language)) return 1;
+  if (!v_interpolation::run(language.language)) return 1;
+  if (!v_interpolation_targeted::run(language.language)) return 1;
 
   std::vector<fs::path> samples;
   // `features.v` lives beside this test, not in the corpus: the one upstream

@@ -2,6 +2,7 @@
 #include <cstdio>
 
 #include "typedef_cases.hpp"
+#include "enum_cases.hpp"
 
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/services/CoreLanguage.hpp"
@@ -89,6 +90,7 @@ int main() {
       pike::install_core_module>();
 
   if (!pike_typedef::run(language.language)) return 1;
+  if (!pike_enum::run(language.language)) return 1;
 
   int status = 0;
 

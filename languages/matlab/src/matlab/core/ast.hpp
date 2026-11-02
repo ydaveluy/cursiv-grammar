@@ -50,6 +50,15 @@ struct StringLit : cursiv::Extends<Expr> {
   string_view value;
 };
 
+struct FunctionHandle : cursiv::Extends<Expr> {
+  string_view name;
+};
+
+struct AnonymousFunction : cursiv::Extends<Expr> {
+  vector<string_view> parameters;
+  Expr *body;
+};
+
 // `(expr)`: kept as its own node, like the grouping every level below it
 // could otherwise have absorbed.
 struct ParenExpr : cursiv::Extends<Expr> {
@@ -65,6 +74,10 @@ struct ArrayLit : cursiv::Extends<Expr> {
   vector<ArrayRow *> rows;
 };
 
+struct CellLit : cursiv::Extends<Expr> {
+  vector<ArrayRow *> rows;
+};
+
 // One argument of an indexed/called name: `:` alone (the whole range along
 // that dimension) or an expression.
 struct IndexArg : cursiv::Extends<cursiv::AstNode> {
@@ -77,6 +90,19 @@ struct IndexArg : cursiv::Extends<cursiv::AstNode> {
 struct IndexExpr : cursiv::Extends<Expr> {
   string_view name;
   vector<IndexArg *> args;
+};
+
+// A documented suffix after cell-content access: braces select contents,
+// parentheses select or call the value held in a cell.
+struct SubscriptExpr : cursiv::Extends<Expr> {
+  Expr *object;
+  vector<IndexArg *> args;
+  boolean braces;
+};
+
+struct MemberExpr : cursiv::Extends<Expr> {
+  Expr *object;
+  string_view name;
 };
 
 struct UnaryExpr : cursiv::Extends<Expr> {

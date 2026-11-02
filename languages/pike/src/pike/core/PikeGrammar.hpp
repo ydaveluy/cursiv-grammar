@@ -132,7 +132,7 @@ struct Pike : cursiv::GrammarSpec {
       flag<&ast::SimpleType::hasRange>(lit<"..">) +
       option(assign<&ast::SimpleType::upper>(ref<TypeBound>)) + lit<")">;
 
-  struct TypeAtom
+  struct BuiltinType
       : rule<create<ast::SimpleType>(assign<&ast::SimpleType::kind>(as<ast::SimpleTypeKind::Int>(kw<"int">)) +
                                      option(IntRange) + Stars) |
              create<ast::SimpleType>(assign<&ast::SimpleType::kind>(
@@ -169,10 +169,17 @@ struct Pike : cursiv::GrammarSpec {
              | create<ast::FunctionType>(ref<FUNCTIONTYPE> +
                                          option(FunctionTypeTail) + Stars)> {};
 
+  struct NamedType : rule<create<ast::NamedType>(
+      assign<&ast::NamedType::name>(ref<ConstantIdentifier>))> {};
+  struct TypeAtom : rule<ref<BuiltinType> | ref<NamedType>> {};
   struct TypeUnion : terminal<lit<"|">> {};
-  struct TypeRule : rule<ref<TypeAtom> +
+  static constexpr auto TypeUnionTail =
       many(nest<ast::UnionType, &ast::UnionType::left>(ref<TypeUnion> +
-          assign<&ast::UnionType::right>(ref<TypeAtom>)))> {};
+          assign<&ast::UnionType::right>(ref<TypeAtom>)));
+  struct TypeRule : rule<ref<TypeAtom> + TypeUnionTail> {};
+  // Native casts use `type`, which must begin with a builtin type. Named
+  // full types belong in declarations, not in `(E)value` or `(x)+1` casts.
+  struct CastType : rule<ref<BuiltinType> + TypeUnionTail> {};
 
   struct Argument
       : rule<assign<&ast::Argument::type>(ref<TypeRule>) +
@@ -216,7 +223,7 @@ struct Pike : cursiv::GrammarSpec {
 
   struct Expr5
       : rule<create<ast::CastExpr>(
-                 lit<"("> + assign<&ast::CastExpr::type>(ref<TypeRule>) +
+                 lit<"("> + assign<&ast::CastExpr::type>(ref<CastType>) +
                  lit<")"> + assign<&ast::CastExpr::operand>(ref<Expr5>)) //
              | create<ast::UnaryExpr>(
                    assign<&ast::UnaryExpr::op>(lit<"--"> | lit<"++">) +
@@ -291,6 +298,15 @@ struct Pike : cursiv::GrammarSpec {
             lit<"{"> + assign<&ast::ClassExpr::body>(ref<Program>) +
             lit<"}">)> {};
 
+  struct EnumEntry : rule<create<ast::EnumEntry>(
+      assign<&ast::EnumEntry::name>(ref<ID>) +
+      option(lit<"="> + assign<&ast::EnumEntry::value>(ref<Expr2>)))> {};
+  struct EnumExpression : rule<create<ast::EnumExpr>(
+      kw<"enum"> + option(assign<&ast::EnumExpr::name>(ref<ID>)) + lit<"{"> +
+      option(append<&ast::EnumExpr::entries>(ref<EnumEntry>)) +
+      many(lit<","> + option(append<&ast::EnumExpr::entries>(ref<EnumEntry>))) +
+      lit<"}">)> {};
+
   struct MapEntry
       : rule<assign<&ast::MapEntry::key>(ref<Expression>) + lit<":"> +
              assign<&ast::MapEntry::value>(ref<Expression>)> {};
@@ -335,6 +351,7 @@ struct Pike : cursiv::GrammarSpec {
                         | ref<Sscanf>                             //
                         | ref<Lambda>                             //
                         | ref<ClassImplementation>                    //
+                        | ref<EnumExpression>                     //
                         | ref<ConstantIdentifier>                 //
                         | ref<Mapping>                            //
                         | ref<Multiset>                           //
@@ -491,6 +508,10 @@ struct Pike : cursiv::GrammarSpec {
       kw<"typedef"> + assign<&ast::Typedef::type>(ref<TypeRule>) +
       assign<&ast::Typedef::name>(ref<ID>) + lit<";">> {};
 
+  struct EnumDefinition : rule<create<ast::EnumDefinition>(
+      many(append<&ast::Definition::modifiers>(ModifierWord)) +
+      assign<&ast::EnumDefinition::value>(ref<EnumExpression>))> {};
+
   struct ClassDef : rule<create<ast::ClassDef>(
       many(append<&ast::Definition::modifiers>(ModifierWord)) +
       kw<"class"> + option(assign<&ast::ClassDef::name>(ref<ID>)) +
@@ -504,11 +525,12 @@ struct Pike : cursiv::GrammarSpec {
                                | ref<Variables>           //
                                | ref<Constant>            //
                                | ref<ClassDef>
-                               | ref<Typedef>> {};
+                               | ref<Typedef>
+                               | ref<EnumDefinition>> {};
 
   struct Program
       : rule<create<ast::Program> +
-             many(append<&ast::Program::definitions>(ref<Definition>))> {};
+             many(lit<";"> | append<&ast::Program::definitions>(ref<Definition>))> {};
 
   using entry = Program;
   struct LINE_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};

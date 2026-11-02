@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every file of example/ parses, and one of them is read
 # back for its declared values.
 add_executable(v_grammar_test grammar_test.cpp)
-target_link_libraries(v_grammar_test PRIVATE vCore)
+target_link_libraries(v_grammar_test PRIVATE vCore cursiv::test)
 target_compile_definitions(v_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

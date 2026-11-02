@@ -3,10 +3,12 @@
 // converter that silently mis-reads a value would be caught too.
 
 #include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "cursiv/core/parser/Parser.hpp"
 #include "cursiv/core/syntax-tree/AstNode.hpp"
@@ -16,6 +18,10 @@
 #include "cursiv/test/Check.hpp"
 #include "matlab/core/ast.hpp"
 #include "matlab/generated/Matlab/Module.hpp"
+#include "function_handle_cases.hpp"
+#include "cell_cases.hpp"
+#include "row_sign_cases.hpp"
+#include "row_call_cases.hpp"
 
 namespace {
 
@@ -211,6 +217,57 @@ void index_args_and_colon() {
   CHECK(idx->args[1]->all && idx->args[1]->value == nullptr);
 }
 
+void signed_matrix_columns() {
+  // MathWorks' squarebrackets and creating-and-concatenating-matrices
+  // examples retain a signed last column; it is not binary subtraction.
+  struct Case {
+    const char *source;
+    const char *target;
+    std::vector<std::vector<int>> rows;
+  };
+  const Case cases[] = {
+      {"X = [10 12 -3];\n", "X", {{10, 12, -3}}},
+      {"A = [12 62 93 -8];\n", "A", {{12, 62, 93, -8}}},
+      {"A = [12 62; 93 -8];\n", "A", {{12, 62}, {93, -8}}},
+  };
+  for (const auto &test : cases) {
+    cursiv::ParseResult result = engine().parse(test.source);
+    const auto *file = result.value_as<ast::File>();
+    CHECK(result.accepted && !result.cst().recovered() &&
+          result.diagnostics.empty() && file);
+    const auto *assignment = file && !file->statements.empty()
+        ? as<ast::AssignStmt>(file->statements[0]) : nullptr;
+    const auto *target = assignment ? as<ast::Ident>(assignment->target) : nullptr;
+    const auto *matrix = assignment ? as<ast::ArrayLit>(assignment->value) : nullptr;
+    CHECK(target && target->name == test.target);
+    CHECK(matrix && matrix->rows.size() == test.rows.size());
+    if (!matrix || matrix->rows.size() != test.rows.size())
+      continue;
+    for (std::size_t rowIndex = 0; rowIndex < test.rows.size(); ++rowIndex) {
+      const auto *row = matrix->rows[rowIndex];
+      const auto &expected = test.rows[rowIndex];
+      if (!row || row->elements.size() != expected.size())
+        std::fprintf(stderr,
+                     "matlab signed matrix row %zu: expected %zu columns, got %zu; source=%s",
+                     rowIndex, expected.size(), row ? row->elements.size() : 0,
+                     test.source);
+      CHECK(row && row->elements.size() == expected.size());
+      if (!row || row->elements.size() != expected.size())
+        continue;
+      for (std::size_t column = 0; column < expected.size(); ++column) {
+        const int value = expected[column];
+        const auto *unary = as<ast::UnaryExpr>(row->elements[column]);
+        const auto *number = value < 0
+            ? (unary ? as<ast::NumberLit>(unary->operand) : nullptr)
+            : as<ast::NumberLit>(row->elements[column]);
+        CHECK(value >= 0 || (unary && unary->op == "-"));
+        CHECK(number && !number->imaginary &&
+              number->value == (value < 0 ? -value : value));
+      }
+    }
+  }
+}
+
 // A line break not immediately after a header or before `end`/`elseif`/
 // `else` closes the statement in front of it rather than standing as its
 // own: written this way, every clause holds exactly the statement it names.
@@ -289,6 +346,10 @@ void field_values_from_control_flow() {
 } // namespace
 
 int main() {
+  CHECK(matlab_handles_cases::run(engine(), reflection()));
+  CHECK(matlab_cells_cases::run(engine(), reflection()));
+  CHECK(matlab_row_sign_cases::run(engine(), reflection()));
+  CHECK(matlab_row_call_cases::run(engine(), reflection()));
   {
     const auto result =
         engine().parse("x = [1,2;3,4]\ny = [5 6\n7 8]\nt = x'\n");
@@ -337,6 +398,7 @@ int main() {
   refused_texts();
   operator_precedence();
   index_args_and_colon();
+  signed_matrix_columns();
   if_elseif_else_shape();
   corpus();
   field_values_from_control_flow();
