@@ -1,18 +1,17 @@
 #pragma once
 
 #include <cstdio>
-#include <memory_resource>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "javascript/core/CoreServices.hpp"
-#include "javascript/core/TemplateValue.hpp"
-#include "javascript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "javascript/CoreServices.hpp"
+#include "javascript/TemplateValue.hpp"
+#include "javascript/ast.hpp"
 
 namespace javascript_label_cases {
 namespace a=javascript::ast;
@@ -78,7 +77,7 @@ inline bool run(const javascript::JavaScriptCoreServices& services) {
     const std::string_view name(test.name);
     const bool newline=name=="break-comment-line" || name=="continue-comment-line";
     bool followingName=false;
-    for (const auto* node:parsed.nodes) {
+    for (const auto* node:parsed.nodes()) {
       if (const auto* label=cursiv::ast_cast<a::LabeledStmt>(node)) {
         ++labels; check(label->label==test.label && label->body && label->body->parent==label,
                         test.name,"decoded label spelling and immediate body owner");
@@ -106,23 +105,22 @@ inline bool run(const javascript::JavaScriptCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size()==parsed.nodes.size() && !parsed.value->parent,test.name,"all allocated nodes reachable once");
+    check(seen.size()==parsed.nodes().size() && !parsed.value->parent,test.name,"all allocated nodes reachable once");
   }
-  std::pmr::monotonic_buffer_resource memory;
   for (std::string_view text:{"","`","}","`a","x`","`a${"}) {
-    const auto value=javascript::drop_ends<1>(text,&memory);
+    const auto value=javascript::drop_ends<1>(text);
     check(!value && !value.error.message.empty(),"template-converter","malformed tail returns an error");
   }
   for (std::string_view text:{"","`","}","`${x","}a`","x${"}) {
-    const auto value=javascript::drop_ends<2>(text,&memory);
+    const auto value=javascript::drop_ends<2>(text);
     check(!value && !value.error.message.empty(),"template-converter","malformed head/middle returns an error");
   }
   {
-    const auto empty=javascript::drop_ends<1>("``",&memory);
-    const auto head=javascript::drop_ends<2>("`a${",&memory);
-    const auto middle=javascript::drop_ends<2>("}b${",&memory);
-    const auto tail=javascript::drop_ends<1>("}c`",&memory);
-    const auto newline=javascript::drop_ends<1>("`a\r\nb\rc`",&memory);
+    const auto empty=javascript::drop_ends<1>("``");
+    const auto head=javascript::drop_ends<2>("`a${");
+    const auto middle=javascript::drop_ends<2>("}b${");
+    const auto tail=javascript::drop_ends<1>("}c`");
+    const auto newline=javascript::drop_ends<1>("`a\r\nb\rc`");
     check(empty && empty.value->empty() && head && *head.value=="a" && middle && *middle.value=="b" &&
           tail && *tail.value=="c" && newline && *newline.value=="a\nb\nc",
           "template-converter","valid empty/head/middle/tail and CRLF normalization preserved");

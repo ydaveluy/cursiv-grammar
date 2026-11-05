@@ -5,10 +5,10 @@
 #include "x_mode_tests.hpp"
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "pcre/core/CoreServices.hpp"
-#include "pcre/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "pcre/CoreServices.hpp"
+#include "pcre/ast.hpp"
 // The grammar lane: every document under example/ and tests/ parses clean
 // (no repair, no diagnostic), and one pattern is read back field by field --
 // a structural check alone would miss a converter that silently returns the
@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

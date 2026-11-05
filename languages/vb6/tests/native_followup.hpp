@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdio>
-#include "cursiv/core/parser/Parser.hpp"
-#include "vb6/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "vb6/ast.hpp"
 namespace vb6_native_followup {
 namespace ast=vb6::ast;
 inline bool run(const cursiv::Parser& parser){
@@ -16,7 +16,7 @@ inline bool run(const cursiv::Parser& parser){
   return false;
  }
  bool numericLabel=false,resumeZero=false,resumeLine=false,foreign=false,redim=false,integer=false,single=false,exponent=false,handle=false,semicolon=false,comma=false,defaultMode=false;
- for(const auto* node:r.nodes){
+ for(const auto* node:r.nodes()){
   if(const auto* n=cursiv::ast_cast<ast::LabelStmt>(node))numericLabel|=n->name=="10";
   if(const auto* n=cursiv::ast_cast<ast::ResumeStmt>(node)){resumeZero|=n->label=="0";resumeLine|=n->label=="10";}
   if(const auto* n=cursiv::ast_cast<ast::MemberAccessExpr>(node))foreign|=n->name=="[Some Ident]";

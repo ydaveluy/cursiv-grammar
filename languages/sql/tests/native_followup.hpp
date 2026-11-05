@@ -1,9 +1,9 @@
 #pragma once
 #include <cstdio>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "sqlite/core/CoreServices.hpp"
-#include "sqlite/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "sqlite/CoreServices.hpp"
+#include "sqlite/ast.hpp"
 namespace native_followup {
 inline bool run() {
   const auto language = cursiv::create_language<sqlite::SqliteCoreServices,

@@ -1,10 +1,10 @@
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
 #include "geometry_view.hpp"
 #include "local_dimension_cases.hpp"
-#include "wkt/core/CoreServices.hpp"
+#include "wkt/CoreServices.hpp"
 #include "wkt/generated/Wkt/Module.hpp"
 #include <cstdio>
 #include <unordered_set>
@@ -51,7 +51,7 @@ int main() {
           });
     };
     walk(walk, *doc);
-    CHECK(reached.size() == result.nodes.size());
+    CHECK(reached.size() == result.nodes().size());
     const auto validation =
         cursiv::test::validationHelper(language.language, std::string(source));
     const wkt::Dimensions dimensions(*doc);

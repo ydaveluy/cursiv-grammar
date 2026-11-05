@@ -2,10 +2,10 @@
 #include <cstdio>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "wat/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "wat/ast.hpp"
 namespace wat_gc_audit {
 struct Case {
   std::string_view name, source;
@@ -271,7 +271,7 @@ bool run(const Language& language) {
                 cast->args.size() == 2,
             "folded cast shape");
       if (cast && cast->args.size() == 2) {
-        const auto* ref = std::get_if<std::string_view>(&cast->args[0]);
+        const auto* ref = std::get_if<std::string>(&cast->args[0]);
         const auto* operand = std::get_if<ast::Instr*>(&cast->args[1]);
         check(ref && *ref == "(refnull$s)" && operand &&
                   (*operand)->op == "ref.null" && (*operand)->parent == cast,

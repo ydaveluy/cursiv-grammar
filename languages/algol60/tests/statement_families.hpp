@@ -6,9 +6,9 @@
 #include <unordered_set>
 #include <utility>
 
-#include "algol60/core/ast.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/Check.hpp"
+#include "algol60/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/Check.hpp"
 
 namespace algol60_tests {
 namespace ast = algol60::ast;
@@ -45,7 +45,7 @@ inline bool parents(const auto& language, const cursiv::ParseResult& parsed) {
         });
   };
   visit(visit, *parsed.value);
-  return valid && seen.size() == parsed.nodes.size();
+  return valid && seen.size() == parsed.nodes().size();
 }
 
 inline const ast::Stmt* first(const ast::Block* block) {

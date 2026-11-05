@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID odin
-    GRAMMAR    odin/core/OdinGrammar.hpp
+    GRAMMAR    odin/OdinGrammar.hpp
     NAMESPACE  odin::Odin
     EXTENSIONS .odin
     OUT        odin/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/odin/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(odinCore ${_core})
 target_link_libraries(odinCore PUBLIC odinGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/odin/cli/*.cpp)
-if(_cli)
-  add_executable(odin_cli ${_cli})
-  target_link_libraries(odin_cli
-                        PRIVATE odinCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(odin_cli cli.cpp)
+  target_include_directories(odin_cli PRIVATE cli)
+  target_link_libraries(odin_cli PRIVATE odinCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(odinCli ${_cli})
+    target_include_directories(odinCli PUBLIC cli)
+    target_link_libraries(odinCli PUBLIC odinCore cursiv::cli)
+    target_link_libraries(odin_cli PRIVATE odinCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/odin/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/odin/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/odin/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(odinLsp ${_lsp})
+  target_include_directories(odinLsp PUBLIC lsp)
   target_link_libraries(odinLsp PUBLIC odinCore cursiv::lsp)
-  add_executable(odin_lsp odin/lsp/main.cpp)
-  target_link_libraries(odin_lsp PRIVATE odinLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(odin_lsp lsp.cpp)
+    target_link_libraries(odin_lsp PRIVATE odinLsp)
+  endif()
 endif()
 
-if(TARGET odinLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/odin/bench/main.cpp")
-  cursiv_add_benchmark(odin
-      SOURCES odin/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET odinLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(odin SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(odin)

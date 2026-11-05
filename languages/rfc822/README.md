@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/rfc822/core/Rfc822Grammar.hpp` |
-| The AST | `src/rfc822/core/ast.hpp` |
-| Validation checks | `src/rfc822/core/validation/` |
-| Services of your own | `src/rfc822/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/rfc822/cli/main.cpp` |
-| LSP features | `src/rfc822/lsp/LspModule.cpp` |
+| The grammar | `src/core/rfc822/Rfc822Grammar.hpp` |
+| The AST | `src/core/rfc822/ast.hpp` |
+| Validation checks | `src/core/rfc822/validation/` |
+| Services of your own | `src/core/rfc822/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/rfc822/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/romannumerals/core/RomannumeralsGrammar.hpp` |
-| The AST | `src/romannumerals/core/ast.hpp` |
-| Validation checks | `src/romannumerals/core/validation/` |
-| Services of your own | `src/romannumerals/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/romannumerals/cli/main.cpp` |
-| LSP features | `src/romannumerals/lsp/LspModule.cpp` |
+| The grammar | `src/core/romannumerals/RomannumeralsGrammar.hpp` |
+| The AST | `src/core/romannumerals/ast.hpp` |
+| Validation checks | `src/core/romannumerals/validation/` |
+| Services of your own | `src/core/romannumerals/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/romannumerals/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

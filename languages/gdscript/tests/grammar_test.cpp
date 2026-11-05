@@ -9,11 +9,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "gdscript/core/CoreServices.hpp"
-#include "gdscript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "gdscript/CoreServices.hpp"
+#include "gdscript/ast.hpp"
 
 namespace {
 
@@ -48,7 +48,7 @@ int main() {
       return 1;
     }
     bool typed = false, inferred = false;
-    for (const auto* node : audit_result.nodes)
+    for (const auto* node : audit_result.nodes())
       if (const auto* local =
               cursiv::ast_cast<gdscript::ast::LocalVarDecl>(node)) {
         typed = typed || (local->name == "x" && local->typeHint == "int" &&

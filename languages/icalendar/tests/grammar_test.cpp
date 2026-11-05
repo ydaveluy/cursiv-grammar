@@ -7,15 +7,16 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "icalendar/core/CoreServices.hpp"
-#include "icalendar/core/ast.hpp"
-#include "icalendar/core/Parameters.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "icalendar/CoreServices.hpp"
+#include "icalendar/ast.hpp"
+#include "icalendar/Parameters.hpp"
 #include "native_regressions.hpp"
 
 namespace {
@@ -42,14 +43,14 @@ bool ieq(std::string_view a, std::string_view b) {
   return true;
 }
 
-const ast::Property* find_property(const cursiv::vector<ast::Property*>& props,
+const ast::Property* find_property(const std::vector<ast::Property*>& props,
                                    std::string_view name) {
   for (const ast::Property* const p : props)
     if (p != nullptr && ieq(p->name, name)) return p;
   return nullptr;
 }
 
-const ast::Component* find_component(const cursiv::vector<ast::Component*>& comps,
+const ast::Component* find_component(const std::vector<ast::Component*>& comps,
                                      std::string_view name) {
   for (const ast::Component* const c : comps)
     if (c != nullptr && ieq(c->name, name)) return c;
@@ -77,7 +78,7 @@ int main() {
       return 1;
     }
     bool found = false;
-    for (const auto* node : audit_result.nodes)
+    for (const auto* node : audit_result.nodes())
       if (const auto* c = cursiv::ast_cast<icalendar::ast::Component>(node); c && c->name == "X-FOO") found = c->closeName == "X-BAR";
     if (!found) return 1;
   }

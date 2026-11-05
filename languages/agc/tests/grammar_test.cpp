@@ -8,12 +8,12 @@
 #include <string_view>
 #include <variant>
 
-#include "agc/core/ast.hpp"
+#include "agc/ast.hpp"
 #include "agc/generated/Agc/Module.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
 
 namespace {
 

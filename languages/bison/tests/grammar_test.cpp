@@ -10,12 +10,12 @@
 #include <variant>
 #include <vector>
 
-#include "bison/core/CoreServices.hpp"
-#include "bison/core/ast.hpp"
+#include "bison/CoreServices.hpp"
+#include "bison/ast.hpp"
 #include "code_audit.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -59,7 +59,7 @@ a: 'a' { f({1}); } %?{1};
         !result.diagnostics.empty())
       return fail("code islands");
     bool action = false, predicate = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<bison::ast::Action>(node)) {
         action |= value->code == " f({1}); ";
       } else if (const auto* value =

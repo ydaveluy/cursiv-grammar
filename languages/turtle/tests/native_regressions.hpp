@@ -6,8 +6,8 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace turtle_native_regressions {
 namespace ast = turtle::ast;
@@ -291,7 +291,7 @@ inline bool run() {
             });
       };
       walk(walk, *doc);
-      return owned && seen.size() == r.nodes.size() && typed(c, *doc);
+      return owned && seen.size() == r.nodes().size() && typed(c, *doc);
     };
     const auto a = language.language.parser->parse(source);
     const auto b = factory->parse(source);

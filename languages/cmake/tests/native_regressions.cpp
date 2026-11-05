@@ -2,12 +2,12 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "cmake/core/CoreServices.hpp"
-#include "cmake/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "cmake/CoreServices.hpp"
+#include "cmake/ast.hpp"
 
 namespace {
 bool collect(const cmake::ast::Argument* argument, const cursiv::AstNode* parent,

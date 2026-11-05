@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/sparql/core/SparqlGrammar.hpp` |
-| The AST | `src/sparql/core/ast.hpp` |
-| Validation checks | `src/sparql/core/validation/` |
-| Services of your own | `src/sparql/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/sparql/cli/main.cpp` |
-| LSP features | `src/sparql/lsp/LspModule.cpp` |
+| The grammar | `src/core/sparql/SparqlGrammar.hpp` |
+| The AST | `src/core/sparql/ast.hpp` |
+| Validation checks | `src/core/sparql/validation/` |
+| Services of your own | `src/core/sparql/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/sparql/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

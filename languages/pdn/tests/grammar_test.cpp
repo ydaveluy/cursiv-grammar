@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "pdn/core/CoreServices.hpp"
-#include "pdn/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "pdn/CoreServices.hpp"
+#include "pdn/ast.hpp"
 // The smoke test of the language: every file in example/ parses clean and
 // builds a Game.
 
@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 #include "audit_regressions.hpp"
 

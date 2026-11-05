@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/bicep/core/BicepGrammar.hpp` |
-| The AST | `src/bicep/core/ast.hpp` |
-| Validation checks | `src/bicep/core/validation/` |
-| Services of your own | `src/bicep/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/bicep/cli/main.cpp` |
-| LSP features | `src/bicep/lsp/LspModule.cpp` |
+| The grammar | `src/core/bicep/BicepGrammar.hpp` |
+| The AST | `src/core/bicep/ast.hpp` |
+| Validation checks | `src/core/bicep/validation/` |
+| Services of your own | `src/core/bicep/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/bicep/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

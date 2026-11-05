@@ -1,5 +1,5 @@
 #pragma once
-#include "b/core/ast.hpp"
+#include "b/ast.hpp"
 #include <ostream>
 #include <string>
 namespace native_regressions {

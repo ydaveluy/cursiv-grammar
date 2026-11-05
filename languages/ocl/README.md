@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/ocl/core/OclGrammar.hpp` |
-| The AST | `src/ocl/core/ast.hpp` |
-| Validation checks | `src/ocl/core/validation/` |
-| Services of your own | `src/ocl/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/ocl/cli/main.cpp` |
-| LSP features | `src/ocl/lsp/LspModule.cpp` |
+| The grammar | `src/core/ocl/OclGrammar.hpp` |
+| The AST | `src/core/ocl/ast.hpp` |
+| Validation checks | `src/core/ocl/validation/` |
+| Services of your own | `src/core/ocl/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/ocl/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

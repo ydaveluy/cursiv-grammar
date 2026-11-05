@@ -1,0 +1,93 @@
+#pragma once
+
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "cursiv/grammar/GrammarSpec.hpp"
+
+namespace icalendar {
+inline constexpr auto trim_ows = [](std::string_view text) {
+  const auto begin = text.find_first_not_of(" \t");
+  if (begin == text.npos) return std::string_view{};
+  return text.substr(begin, text.find_last_not_of(" \t") - begin + 1);
+};
+inline std::string_view trim_name_edges(std::string_view text) {
+  static constexpr std::string_view spaces[] = {
+      "\u0085", "\u00a0", "\u1680", "\u2000", "\u2001", "\u2002", "\u2003",
+      "\u2004", "\u2005", "\u2006", "\u2007", "\u2008", "\u2009", "\u200a",
+      "\u2028", "\u2029", "\u202f", "\u205f", "\u3000"};
+  const auto ascii_space = [](unsigned char c) {
+    return (c >= 9 && c <= 13) || (c >= 0x1C && c <= 0x20);
+  };
+  bool changed = true;
+  while (changed && !text.empty()) {
+    changed = false;
+    if (ascii_space(text.front())) { text.remove_prefix(1); changed = true; }
+    else for (auto space : spaces)
+      if (text.starts_with(space)) { text.remove_prefix(space.size()); changed = true; break; }
+  }
+  changed = true;
+  while (changed && !text.empty()) {
+    changed = false;
+    if (ascii_space(text.back())) { text.remove_suffix(1); changed = true; }
+    else for (auto space : spaces)
+      if (text.ends_with(space)) { text.remove_suffix(space.size()); changed = true; break; }
+  }
+  return text;
+}
+inline constexpr auto property_name =
+    [](std::string_view text) -> std::string {
+  text = trim_name_edges(text);
+  if (text.find_first_of(" \t") == text.npos) return std::string(text);
+  std::string out;
+  out.reserve(text.size());
+  for (char c : text)
+    if (c != ' ' && c != '\t') out += c;
+  return out;
+};
+
+inline void replace_all(std::string& text, std::string_view from,
+                        std::string_view to) {
+  for (std::size_t at = 0; (at = text.find(from, at)) != text.npos; at += to.size())
+    text.replace(at, from.size(), to);
+}
+
+inline std::vector<std::string> parameter_values(std::string_view raw) {
+  std::vector<std::string> result;
+  bool quoted = false;
+  std::size_t begin = 0;
+  for (std::size_t i = 0; i <= raw.size(); ++i) {
+    if (i < raw.size() && raw[i] == '"') quoted = !quoted;
+    if (i < raw.size() && !quoted && raw[i] == '\\' && i + 1 < raw.size() &&
+        (raw[i + 1] == ',' || raw[i + 1] == ':' || raw[i + 1] == ';' || raw[i + 1] == '\\')) {
+      ++i; // legacy unquoted separator escape
+      continue;
+    }
+    if (i < raw.size() && (raw[i] != ',' || quoted)) continue;
+    auto part = raw.substr(begin, i - begin);
+    const bool isQuoted = part.size() >= 2 && part.front() == '"' && part.back() == '"';
+    if (isQuoted) { part.remove_prefix(1); part.remove_suffix(1); }
+    std::string value;
+    for (std::size_t j = 0; j < part.size(); ++j) {
+      if (part[j] == '^' && j + 1 < part.size()) {
+        const char next = part[j + 1];
+        if (next == '^' || next == 'n' || next == '\'') {
+          value += next == 'n' ? '\n' : next == '\'' ? '"' : '^';
+          ++j;
+          continue;
+        }
+      }
+      // RFC5545 quoted parameters have no backslash escape mechanism.
+      // Keep the port's unquoted legacy extension separate from RFC6868.
+      if (!isQuoted && part[j] == '\\' && j + 1 < part.size() &&
+          (part[j + 1] == ',' || part[j + 1] == ':' || part[j + 1] == ';' || part[j + 1] == '\\'))
+        value += part[++j];
+      else value += part[j];
+    }
+    result.push_back(std::move(value));
+    begin = i + 1;
+  }
+  return result;
+}
+}  // namespace icalendar

@@ -21,12 +21,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/lolcode/core/LolcodeGrammar.hpp` |
-| The AST | `src/lolcode/core/ast.hpp` |
-| Validation checks | `src/lolcode/core/validation/` |
-| Services of your own | `src/lolcode/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/lolcode/cli/main.cpp` |
-| LSP features | `src/lolcode/lsp/LspModule.cpp` |
+| The grammar | `src/core/lolcode/LolcodeGrammar.hpp` |
+| The AST | `src/core/lolcode/ast.hpp` |
+| Validation checks | `src/core/lolcode/validation/` |
+| Services of your own | `src/core/lolcode/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/lolcode/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

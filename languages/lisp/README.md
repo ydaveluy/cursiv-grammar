@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/lisp/core/LispGrammar.hpp` |
-| The AST | `src/lisp/core/ast.hpp` |
-| Validation checks | `src/lisp/core/validation/` |
-| Services of your own | `src/lisp/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/lisp/cli/main.cpp` |
-| LSP features | `src/lisp/lsp/LspModule.cpp` |
+| The grammar | `src/core/lisp/LispGrammar.hpp` |
+| The AST | `src/core/lisp/ast.hpp` |
+| Validation checks | `src/core/lisp/validation/` |
+| Services of your own | `src/core/lisp/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/lisp/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

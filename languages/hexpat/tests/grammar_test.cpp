@@ -9,11 +9,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "hexpat/core/CoreServices.hpp"
-#include "hexpat/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "hexpat/CoreServices.hpp"
+#include "hexpat/ast.hpp"
 #include "native_followup_cases.hpp"
 #include "imports_arrays.hpp"
 

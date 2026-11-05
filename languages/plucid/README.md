@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/plucid/core/PlucidGrammar.hpp` |
-| The AST | `src/plucid/core/ast.hpp` |
-| Validation checks | `src/plucid/core/validation/` |
-| Services of your own | `src/plucid/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/plucid/cli/main.cpp` |
-| LSP features | `src/plucid/lsp/LspModule.cpp` |
+| The grammar | `src/core/plucid/PlucidGrammar.hpp` |
+| The AST | `src/core/plucid/ast.hpp` |
+| Validation checks | `src/core/plucid/validation/` |
+| Services of your own | `src/core/plucid/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/plucid/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

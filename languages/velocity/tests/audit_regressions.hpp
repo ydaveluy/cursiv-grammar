@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "velocity/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "velocity/ast.hpp"
 #include "velocity/generated/Velocity/Module.hpp"
 #include <cstdio>
 #include <string>

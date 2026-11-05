@@ -6,9 +6,9 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace bandwidth_cases {
 inline bool run(const pf::PfCoreServices& services) {
@@ -55,9 +55,9 @@ inline bool run(const pf::PfCoreServices& services) {
           });
     };
     walk(walk, *root);
-    if (!owned || seen.size() != r.nodes.size()) {
+    if (!owned || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "pf bandwidth: %s ownership=%d seen=%zu nodes=%zu source=%s\n",
-                   id, owned, seen.size(), r.nodes.size(), source.c_str());
+                   id, owned, seen.size(), r.nodes().size(), source.c_str());
       return false;
     }
     return true;

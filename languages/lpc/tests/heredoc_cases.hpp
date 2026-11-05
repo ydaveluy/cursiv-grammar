@@ -3,10 +3,10 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "lpc/core/CoreServices.hpp"
-#include "lpc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "lpc/CoreServices.hpp"
+#include "lpc/ast.hpp"
 
 namespace lpc_heredoc_cases {
 struct Case {
@@ -62,7 +62,7 @@ inline bool run(const lpc::LpcCoreServices& services) {
     const lpc::ast::ArrayHeredocExpr* array = nullptr;
     const lpc::ast::StringLit* string = nullptr;
     unsigned arrayCount = 0, stringCount = 0;
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* value = cursiv::ast_cast<lpc::ast::ArrayHeredocExpr>(node)) {
         array = value; ++arrayCount;
       }
@@ -96,7 +96,7 @@ inline bool run(const lpc::LpcCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size() == parsed.nodes.size() && !parsed.value->parent,
+    check(seen.size() == parsed.nodes().size() && !parsed.value->parent,
           test.name, "every allocated node reachable from root exactly once");
   }
   return !failures;

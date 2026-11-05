@@ -5,8 +5,8 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "atl/core/ast.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "atl/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace atl_drop_reverse {
 namespace ast = atl::ast;
@@ -30,7 +30,7 @@ inline bool parents(const auto& language, const cursiv::ParseResult& parsed) {
         });
   };
   visit(visit, *parsed.value);
-  return valid && seen.size() == parsed.nodes.size();
+  return valid && seen.size() == parsed.nodes().size();
 }
 
 inline bool run(const auto& language) {

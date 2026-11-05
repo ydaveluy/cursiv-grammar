@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/ron/core/RonGrammar.hpp` |
-| The AST | `src/ron/core/ast.hpp` |
-| Validation checks | `src/ron/core/validation/` |
-| Services of your own | `src/ron/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/ron/cli/main.cpp` |
-| LSP features | `src/ron/lsp/LspModule.cpp` |
+| The grammar | `src/core/ron/RonGrammar.hpp` |
+| The AST | `src/core/ron/ast.hpp` |
+| Validation checks | `src/core/ron/validation/` |
+| Services of your own | `src/core/ron/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/ron/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

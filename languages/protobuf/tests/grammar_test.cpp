@@ -1,11 +1,11 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "protobuf/core/CoreServices.hpp"
-#include "protobuf/core/Numbers.hpp"
-#include "protobuf/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "protobuf/CoreServices.hpp"
+#include "protobuf/Numbers.hpp"
+#include "protobuf/ast.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -15,12 +15,12 @@
 #include <variant>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
 #include "protobuf/generated/Protobuf/Module.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include "proto2_extensions.hpp"
 #include "keyword_context.hpp"
 
@@ -214,8 +214,8 @@ void field_option_unescape() {
     CHECK(opt->name->name == "validate.rules");
     CHECK(opt->name->suffix.has_value() &&
           *opt->name->suffix == "string.pattern");
-    CHECK(std::holds_alternative<std::string_view>(opt->value) &&
-          std::get<std::string_view>(opt->value) == "^\\w+( +\\w+)*$");
+    CHECK(std::holds_alternative<std::string>(opt->value) &&
+          std::get<std::string>(opt->value) == "^\\w+( +\\w+)*$");
   }
 }
 
@@ -233,9 +233,9 @@ option (cfg) = { names: ["a", "b"]; child < count: - /* sign */ 1 >, count: 2 };
   if (doc == nullptr || doc->options.size() != 3 || doc->enums.size() != 1)
     return;
   CHECK(doc->syntax == "proto3");
-  const auto *text = std::get_if<std::string_view>(&doc->options[0]->value);
+  const auto *text = std::get_if<std::string>(&doc->options[0]->value);
   CHECK(text != nullptr && *text == std::string_view("\1Z\12Q\4Gtail"));
-  const auto *unicode = std::get_if<std::string_view>(&doc->options[1]->value);
+  const auto *unicode = std::get_if<std::string>(&doc->options[1]->value);
   CHECK(unicode != nullptr && *unicode == "A😀😀\xffZ");
   CHECK(doc->enums[0]->reserved.size() == 1);
   if (doc->enums[0]->reserved.size() == 1) {
@@ -256,7 +256,7 @@ option (cfg) = { names: ["a", "b"]; child < count: - /* sign */ 1 >, count: 2 };
       std::get_if<ast::MessageListValue *>(&(*aggregate)->fields[0]->value);
   CHECK(names != nullptr && *names != nullptr && (*names)->items.size() == 2);
   if (names != nullptr && *names != nullptr && (*names)->items.size() == 2)
-    CHECK(std::get<std::string_view>((*names)->items[1]) == "b");
+    CHECK(std::get<std::string>((*names)->items[1]) == "b");
   const auto *child =
       std::get_if<ast::MessageValue *>(&(*aggregate)->fields[1]->value);
   CHECK(child != nullptr && *child != nullptr && (*child)->fields.size() == 1);

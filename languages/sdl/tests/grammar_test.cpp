@@ -10,12 +10,12 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/Check.hpp"
-#include "sdl/core/CoreServices.hpp"
-#include "sdl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/Check.hpp"
+#include "sdl/CoreServices.hpp"
+#include "sdl/ast.hpp"
 
 namespace {
 

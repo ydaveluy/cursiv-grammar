@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/wln/core/WlnGrammar.hpp` |
-| The AST | `src/wln/core/ast.hpp` |
-| Validation checks | `src/wln/core/validation/` |
-| Services of your own | `src/wln/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/wln/cli/main.cpp` |
-| LSP features | `src/wln/lsp/LspModule.cpp` |
+| The grammar | `src/core/wln/WlnGrammar.hpp` |
+| The AST | `src/core/wln/ast.hpp` |
+| Validation checks | `src/core/wln/validation/` |
+| Services of your own | `src/core/wln/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/wln/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

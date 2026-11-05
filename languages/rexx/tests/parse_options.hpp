@@ -4,8 +4,8 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "rexx/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "rexx/ast.hpp"
 
 namespace rexx_parse_options {
 namespace ast = rexx::ast;
@@ -27,7 +27,7 @@ inline bool parents(const auto& language, const cursiv::ParseResult& parsed) {
         });
   };
   visit(visit, *parsed.value);
-  return okay && seen.size() == parsed.nodes.size();
+  return okay && seen.size() == parsed.nodes().size();
 }
 inline bool run(const auto& language) {
   struct Positive { const char* source; bool upper; bool lower; bool caseless; ast::ParseSource kind; };

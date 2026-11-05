@@ -6,13 +6,13 @@
 #include <variant>
 
 #include "audit_regressions.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 #include "gc_cases.hpp"
 #include "modern_cases.hpp"
-#include "wat/core/CoreServices.hpp"
-#include "wat/core/ast.hpp"
+#include "wat/CoreServices.hpp"
+#include "wat/ast.hpp"
 
 namespace {
 
@@ -91,7 +91,7 @@ int main() {
   if (doIt->body.size() != 5)
     return fail("shared1.wat: expected 5 instructions in the body");
   if (doIt->body[0]->op != "i32.const" || doIt->body[0]->args.size() != 1 ||
-      std::get<std::string_view>(doIt->body[0]->args[0]) != "0")
+      std::get<std::string>(doIt->body[0]->args[0]) != "0")
     return fail("shared1.wat: wrong first instruction");
   if (doIt->body[2]->op != "i32.store")
     return fail("shared1.wat: expected i32.store as the third instruction");
@@ -99,7 +99,7 @@ int main() {
       (std::get_if<ast::Instr*>(&doIt->body[4]->args[0]) == nullptr ||
        std::get<ast::Instr*>(doIt->body[4]->args[0])->op != "type" ||
        std::get<ast::Instr*>(doIt->body[4]->args[0])->args.size() != 1 ||
-       std::get<std::string_view>(
+       std::get<std::string>(
            std::get<ast::Instr*>(doIt->body[4]->args[0])->args[0]) !=
            "$void_to_i32"))
     return fail("shared1.wat: wrong call_indirect");

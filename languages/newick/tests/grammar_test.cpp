@@ -2,11 +2,11 @@
 #include <cstdio>
 
 #include "code_audit.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "newick/core/CoreServices.hpp"
-#include "newick/core/LengthValue.hpp"
-#include "newick/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "newick/CoreServices.hpp"
+#include "newick/LengthValue.hpp"
+#include "newick/ast.hpp"
 // Newick end to end: the tree accepted (and refused) at the CST, the AST a
 // clade builds -- name, length, children -- and every corpus file in
 // example/, parsed clean.
@@ -16,11 +16,11 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/CstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/CstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
 #include "newick/generated/Newick/Module.hpp"
 
 namespace {

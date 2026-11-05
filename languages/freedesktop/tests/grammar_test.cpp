@@ -8,13 +8,13 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "desktopentry/core/CoreServices.hpp"
-#include "desktopentry/core/ast.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "desktopentry/CoreServices.hpp"
+#include "desktopentry/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace {
 
@@ -70,7 +70,7 @@ int main() {
       return 1;
     }
     bool found = false, raw = false;
-    for (const auto *node : audit_result.nodes)
+    for (const auto *node : audit_result.nodes())
       if (const auto *e = cursiv::ast_cast<desktopentry::ast::Entry>(node)) {
         found = found || (e->key == "Name" && e->rawValue == "001");
         raw = raw ||

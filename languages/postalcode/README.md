@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/postalcode/core/PostalcodeGrammar.hpp` |
-| The AST | `src/postalcode/core/ast.hpp` |
-| Validation checks | `src/postalcode/core/validation/` |
-| Services of your own | `src/postalcode/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/postalcode/cli/main.cpp` |
-| LSP features | `src/postalcode/lsp/LspModule.cpp` |
+| The grammar | `src/core/postalcode/PostalcodeGrammar.hpp` |
+| The AST | `src/core/postalcode/ast.hpp` |
+| Validation checks | `src/core/postalcode/validation/` |
+| Services of your own | `src/core/postalcode/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/postalcode/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/webidl/core/WebidlGrammar.hpp` |
-| The AST | `src/webidl/core/ast.hpp` |
-| Validation checks | `src/webidl/core/validation/` |
-| Services of your own | `src/webidl/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/webidl/cli/main.cpp` |
-| LSP features | `src/webidl/lsp/LspModule.cpp` |
+| The grammar | `src/core/webidl/WebidlGrammar.hpp` |
+| The AST | `src/core/webidl/ast.hpp` |
+| Validation checks | `src/core/webidl/validation/` |
+| Services of your own | `src/core/webidl/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/webidl/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

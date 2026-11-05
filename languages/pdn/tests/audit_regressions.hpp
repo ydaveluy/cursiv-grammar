@@ -4,11 +4,11 @@
 #include <utility>
 #include <vector>
 
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/Check.hpp"
-#include "pdn/core/CoreServices.hpp"
-#include "pdn/core/ast.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/Check.hpp"
+#include "pdn/CoreServices.hpp"
+#include "pdn/ast.hpp"
 
 inline void pdn_regressions(const pdn::PdnCoreServices &services) {
   namespace ast = pdn::ast;
@@ -63,7 +63,7 @@ inline void pdn_regressions(const pdn::PdnCoreServices &services) {
       const auto *move = cursiv::ast_cast<ast::Ply>(second->items[0]);
       CHECK(move && move->notation == "1-10" && !move->capture);
     }
-    CHECK(result.nodes.size() == 14);
+    CHECK(result.nodes().size() == 14);
   }
   for (const auto [text, code] :
        {std::pair{"", "pdn.empty"}, std::pair{"1. 32-28 () *", "pdn.variation"},

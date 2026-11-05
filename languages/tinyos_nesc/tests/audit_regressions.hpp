@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "tinyosnesc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "tinyosnesc/ast.hpp"
 #include "tinyosnesc/generated/TinyosNesc/Module.hpp"
 #include <cstdio>
 #include <string>

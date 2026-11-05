@@ -3,9 +3,9 @@
 #include <cstdio>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace physical_line_cases {
 inline bool run(const vmf::VmfCoreServices& services) {
@@ -84,9 +84,9 @@ inline bool run(const vmf::VmfCoreServices& services) {
           });
     };
     walk(walk, *root);
-    if (!owned || seen.size() != r.nodes.size()) {
+    if (!owned || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "vmf physical-line: %s ownership=%d seen=%zu nodes=%zu\n",
-                   test.id, owned, seen.size(), r.nodes.size());
+                   test.id, owned, seen.size(), r.nodes().size());
       return false;
     }
   }

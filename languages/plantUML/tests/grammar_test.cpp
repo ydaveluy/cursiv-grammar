@@ -3,10 +3,10 @@
 
 #include "container_cases.hpp"
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "plantuml/core/CoreServices.hpp"
-#include "plantuml/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "plantuml/CoreServices.hpp"
+#include "plantuml/ast.hpp"
 // The smoke test of the language: every document under example/ parses
 // clean -- no recovery, no diagnostics, and the root is a Document.
 
@@ -15,7 +15,7 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

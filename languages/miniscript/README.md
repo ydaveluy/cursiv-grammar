@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/miniscript/core/MiniscriptGrammar.hpp` |
-| The AST | `src/miniscript/core/ast.hpp` |
-| Validation checks | `src/miniscript/core/validation/` |
-| Services of your own | `src/miniscript/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/miniscript/cli/main.cpp` |
-| LSP features | `src/miniscript/lsp/LspModule.cpp` |
+| The grammar | `src/core/miniscript/MiniscriptGrammar.hpp` |
+| The AST | `src/core/miniscript/ast.hpp` |
+| Validation checks | `src/core/miniscript/validation/` |
+| Services of your own | `src/core/miniscript/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/miniscript/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/aql/core/AqlGrammar.hpp` |
-| The AST | `src/aql/core/ast.hpp` |
-| Validation checks | `src/aql/core/validation/` |
-| Services of your own | `src/aql/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/aql/cli/main.cpp` |
-| LSP features | `src/aql/lsp/LspModule.cpp` |
+| The grammar | `src/core/aql/AqlGrammar.hpp` |
+| The AST | `src/core/aql/ast.hpp` |
+| Validation checks | `src/core/aql/validation/` |
+| Services of your own | `src/core/aql/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/aql/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

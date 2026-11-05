@@ -3,10 +3,10 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "hexpat/core/CoreServices.hpp"
-#include "hexpat/core/ast.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "hexpat/CoreServices.hpp"
+#include "hexpat/ast.hpp"
 
 namespace hexpat_native_followup {
 inline bool run(const hexpat::HexpatCoreServices& services) {
@@ -39,7 +39,7 @@ namespace Audit::Inner {
   check(space && space->name == "Audit::Inner", "qualified namespace spelling");
   bool forward = false, alias = false, ref = false, placement = false;
   bool typenameofPrimitive = false, array = false, parameters = false, integer = false, floating = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* use = cursiv::ast_cast<hexpat::ast::UsingAlias>(node)) {
       forward |= use->name == "Forward" && use->typeParams.size() == 1 && !use->type;
       alias |= use->name == "Alias" && use->typeParams.size() == 2 &&

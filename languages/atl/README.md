@@ -21,12 +21,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/atl/core/AtlGrammar.hpp` |
-| The AST | `src/atl/core/ast.hpp` |
-| Validation checks | `src/atl/core/validation/` |
-| Services of your own | `src/atl/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/atl/cli/main.cpp` |
-| LSP features | `src/atl/lsp/LspModule.cpp` |
+| The grammar | `src/core/atl/AtlGrammar.hpp` |
+| The AST | `src/core/atl/ast.hpp` |
+| Validation checks | `src/core/atl/validation/` |
+| Services of your own | `src/core/atl/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/atl/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

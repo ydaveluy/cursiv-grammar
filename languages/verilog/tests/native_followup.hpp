@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdio>
-#include "cursiv/core/parser/Parser.hpp"
-#include "verilog/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "verilog/ast.hpp"
 namespace verilog_native_followup {
 inline bool run(const cursiv::Parser& parser) {
   namespace ast=verilog::ast;
@@ -19,7 +19,7 @@ inline bool run(const cursiv::Parser& parser) {
     return false;
   }
   bool retained=false,cell=false,config=false,parallel=false,full=false,edgeParallel=false,edgeFull=false;
-  for(const auto* node:r.nodes) {
+  for(const auto* node:r.nodes()) {
     if(const auto* n=cursiv::ast_cast<ast::VarItem>(node))retained|=n->name=="retained";
     if(const auto* n=cursiv::ast_cast<ast::ConfigRule>(node)){
       cell|=n->useCell=="lib.cell1"&&!n->useConfig;

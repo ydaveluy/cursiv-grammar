@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/algol60/core/Algol60Grammar.hpp` |
-| The AST | `src/algol60/core/ast.hpp` |
-| Validation checks | `src/algol60/core/validation/` |
-| Services of your own | `src/algol60/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/algol60/cli/main.cpp` |
-| LSP features | `src/algol60/lsp/LspModule.cpp` |
+| The grammar | `src/core/algol60/Algol60Grammar.hpp` |
+| The AST | `src/core/algol60/ast.hpp` |
+| Validation checks | `src/core/algol60/validation/` |
+| Services of your own | `src/core/algol60/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/algol60/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

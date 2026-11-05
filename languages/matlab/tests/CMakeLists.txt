@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: what this language takes, and what it refuses.
 add_executable(matlab_grammar_test grammar_test.cpp)
-target_link_libraries(matlab_grammar_test PRIVATE matlabCore)
+target_link_libraries(matlab_grammar_test PRIVATE matlabCore cursiv::test)
 target_compile_definitions(matlab_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

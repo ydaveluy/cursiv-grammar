@@ -4,9 +4,9 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "eiffel/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "eiffel/ast.hpp"
 
 namespace eiffel_lexical {
 inline bool fail(const char* message, std::string_view source) {
@@ -28,7 +28,7 @@ inline bool parents(const cursiv::AstReflection& reflection,
         });
   };
   visit(visit, *parsed.value);
-  return okay && seen.size() == parsed.nodes.size();
+  return okay && seen.size() == parsed.nodes().size();
 }
 inline bool run(const cursiv::Parser& parser, const cursiv::AstReflection& reflection) {
   struct Positive { const char* literal; const char* type; };

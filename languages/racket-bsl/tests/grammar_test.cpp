@@ -3,16 +3,16 @@
 #include <memory>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "racketbsl/core/CoreServices.hpp"
-#include "racketbsl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "racketbsl/CoreServices.hpp"
+#include "racketbsl/ast.hpp"
 #include "racketbsl/generated/RacketBsl/Module.hpp"
 
 namespace {

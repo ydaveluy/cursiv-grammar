@@ -6,12 +6,12 @@
 
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "rfc1960/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "rfc1960/CoreServices.hpp"
 
 int main() {
   const auto language =
@@ -95,7 +95,7 @@ int main() {
           });
     };
     walk(walk, *domain);
-    if (!owned || seen.size() != result.nodes.size())
+    if (!owned || seen.size() != result.nodes().size())
       return fail("ownership");
   }
   std::printf("rfc1960: %zu raw filters, %u native filter objects\n",

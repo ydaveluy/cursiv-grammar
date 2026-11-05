@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/tnsnames/core/TnsnamesGrammar.hpp` |
-| The AST | `src/tnsnames/core/ast.hpp` |
-| Validation checks | `src/tnsnames/core/validation/` |
-| Services of your own | `src/tnsnames/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/tnsnames/cli/main.cpp` |
-| LSP features | `src/tnsnames/lsp/LspModule.cpp` |
+| The grammar | `src/core/tnsnames/TnsnamesGrammar.hpp` |
+| The AST | `src/core/tnsnames/ast.hpp` |
+| Validation checks | `src/core/tnsnames/validation/` |
+| Services of your own | `src/core/tnsnames/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/tnsnames/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

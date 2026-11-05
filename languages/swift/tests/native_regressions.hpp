@@ -2,12 +2,12 @@
 #include <cstdio>
 #include <string>
 #include <unordered_set>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "swift/core/CoreServices.hpp"
-#include "swift/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "swift/CoreServices.hpp"
+#include "swift/ast.hpp"
 namespace native_regressions {
 template<class T> const T* as(const cursiv::AstNode* n) { return cursiv::ast_cast<T>(n); }
 inline bool run(const swift::SwiftCoreServices& services) {
@@ -81,7 +81,7 @@ inline bool run(const swift::SwiftCoreServices& services) {
    });
   };
   if(result.value)walk(walk,*result.value);
-  parents &= seen.size()==result.nodes.size();
+  parents &= seen.size()==result.nodes().size();
   const auto validation=cursiv::test::validationHelper(services,text);
   if(!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !parents || !validation.diagnostics.empty()) {
    std::fprintf(stderr,"swift: native case failed: %s\n",c.name);

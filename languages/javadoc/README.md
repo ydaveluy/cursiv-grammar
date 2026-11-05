@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/javadoc/core/JavadocGrammar.hpp` |
-| The AST | `src/javadoc/core/ast.hpp` |
-| Validation checks | `src/javadoc/core/validation/` |
-| Services of your own | `src/javadoc/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/javadoc/cli/main.cpp` |
-| LSP features | `src/javadoc/lsp/LspModule.cpp` |
+| The grammar | `src/core/javadoc/JavadocGrammar.hpp` |
+| The AST | `src/core/javadoc/ast.hpp` |
+| Validation checks | `src/core/javadoc/validation/` |
+| Services of your own | `src/core/javadoc/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/javadoc/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

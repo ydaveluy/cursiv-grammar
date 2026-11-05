@@ -10,11 +10,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "arden/core/CoreServices.hpp"
-#include "arden/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "arden/CoreServices.hpp"
+#include "arden/ast.hpp"
 
 namespace {
 
@@ -68,7 +68,7 @@ int main() {
       if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty())
         return fail("native string literal does not parse clean");
       bool found = false;
-      for (const auto* node : r.nodes)
+      for (const auto* node : r.nodes())
         if (const auto* string = as<arden::ast::StringLit>(node))
           found |= string->value == c.value;
       if (!found) return fail("native string literal value was not decoded");

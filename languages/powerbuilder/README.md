@@ -25,12 +25,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/powerbuilder/core/PowerbuilderGrammar.hpp` |
-| The AST | `src/powerbuilder/core/ast.hpp` |
-| Validation checks | `src/powerbuilder/core/validation/` |
-| Services of your own | `src/powerbuilder/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/powerbuilder/cli/main.cpp` |
-| LSP features | `src/powerbuilder/lsp/LspModule.cpp` |
+| The grammar | `src/core/powerbuilder/PowerbuilderGrammar.hpp` |
+| The AST | `src/core/powerbuilder/ast.hpp` |
+| Validation checks | `src/core/powerbuilder/validation/` |
+| Services of your own | `src/core/powerbuilder/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/powerbuilder/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

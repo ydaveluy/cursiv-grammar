@@ -3,13 +3,13 @@
 #include <memory>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "sexpression/core/CoreServices.hpp"
-#include "sexpression/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "sexpression/CoreServices.hpp"
+#include "sexpression/ast.hpp"
 #include "sexpression/generated/Sexpression/Module.hpp"
 
 namespace {

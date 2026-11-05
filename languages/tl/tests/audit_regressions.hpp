@@ -2,12 +2,12 @@
 
 #include <cstdio>
 #include <string>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "tl/core/CoreServices.hpp"
-#include "tl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "tl/CoreServices.hpp"
+#include "tl/ast.hpp"
 
 namespace audit_regressions {
 inline std::string shape(const tl::ast::Proposition* node) {

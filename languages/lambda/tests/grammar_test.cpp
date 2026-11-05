@@ -7,11 +7,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "lambda/core/CoreServices.hpp"
-#include "lambda/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "lambda/CoreServices.hpp"
+#include "lambda/ast.hpp"
 
 namespace {
 

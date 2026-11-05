@@ -10,12 +10,12 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "golang/core/CoreServices.hpp"
-#include "golang/core/GolangGrammar.hpp"
-#include "golang/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "golang/CoreServices.hpp"
+#include "golang/GolangGrammar.hpp"
+#include "golang/ast.hpp"
 #include "audit_regressions.hpp"
 #include "port_audit_cases.hpp"
 #include "header_regressions.hpp"

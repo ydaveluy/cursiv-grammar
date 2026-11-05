@@ -4,9 +4,9 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "modelica/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "modelica/ast.hpp"
 
 namespace modelica_inheritance {
 inline bool run(const auto& language) {
@@ -33,7 +33,7 @@ end M;)MO";
   }
   bool ordered = false, named = false, connected = false;
   unsigned breaks = 0;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* ext = cursiv::ast_cast<a::ExtendsClause>(node)) {
       if (ext->mod && ext->mod->args.size() == 5) {
         const auto* first = cursiv::ast_cast<a::InheritanceBreak>(ext->mod->args[0]);
@@ -72,7 +72,7 @@ end M;)MO";
           });
     };
     walk(walk, *parsed.value);
-    return valid && seen.size() == parsed.nodes.size();
+    return valid && seen.size() == parsed.nodes().size();
   };
   check(owned(result), "all inheritance captures have unique parents and CST ownership");
   for (const auto source : {

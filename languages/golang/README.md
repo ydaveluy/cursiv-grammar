@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/golang/core/GolangGrammar.hpp` |
-| The AST | `src/golang/core/ast.hpp` |
-| Validation checks | `src/golang/core/validation/` |
-| Services of your own | `src/golang/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/golang/cli/main.cpp` |
-| LSP features | `src/golang/lsp/LspModule.cpp` |
+| The grammar | `src/core/golang/GolangGrammar.hpp` |
+| The AST | `src/core/golang/ast.hpp` |
+| Validation checks | `src/core/golang/validation/` |
+| Services of your own | `src/core/golang/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/golang/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

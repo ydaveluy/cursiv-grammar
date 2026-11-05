@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdio>
-#include "cursiv/core/parser/Parser.hpp"
-#include "typescript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "typescript/ast.hpp"
 namespace typescript_native_followup {
 namespace ast=typescript::ast;
 template<class T> const T* as(const cursiv::AstNode* n){return cursiv::ast_cast<T>(n);}
@@ -43,7 +43,7 @@ inline bool run(const cursiv::Parser& parser){
   {
     const char* source="const x=a\n!b; const y=async\nz=>z; class C { #foo; has(obj:any){return #foo in obj;} }";
     const auto r=parser.parse(source);check(clean(r,source),"newline boundaries and private identifier in");bool privateId=false,arrow=false,nonnull=false;
-    for(const auto* n:r.nodes){if(const auto* id=as<ast::Ident>(n))privateId|=id->name=="#foo";if(const auto* f=as<ast::ArrowFunctionExpr>(n))arrow|=!f->isAsync;nonnull|=as<ast::NonNullExpr>(n)!=nullptr;}
+    for(const auto* n:r.nodes()){if(const auto* id=as<ast::Ident>(n))privateId|=id->name=="#foo";if(const auto* f=as<ast::ArrowFunctionExpr>(n))arrow|=!f->isAsync;nonnull|=as<ast::NonNullExpr>(n)!=nullptr;}
     check(privateId&&arrow&&!nonnull,"private identifier text and separate newline expressions retained");
   }
   {

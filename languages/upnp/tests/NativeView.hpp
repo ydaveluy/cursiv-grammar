@@ -1,9 +1,9 @@
 #pragma once
-#include "upnp/core/ast.hpp"
+#include "upnp/ast.hpp"
 #ifndef AUDIT_BEFORE
-#include "upnp/core/Value.hpp"
+#include "upnp/Value.hpp"
 #endif
-#include "cursiv/core/services/JsonValue.hpp"
+#include "cursiv/services/JsonValue.hpp"
 using J = cursiv::JsonValue;
 namespace audit {
 inline std::string hex(std::string_view s) {

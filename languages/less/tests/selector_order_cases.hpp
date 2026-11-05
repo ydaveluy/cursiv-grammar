@@ -1,15 +1,14 @@
 #pragma once
 #include <cstdio>
-#include <memory_resource>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "less/core/CoreServices.hpp"
-#include "less/core/LessGrammar.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "less/CoreServices.hpp"
+#include "less/LessGrammar.hpp"
 
 namespace less_selector_order_cases {
 struct Case { const char* name; std::string_view source; std::vector<std::string_view> labels; std::vector<std::string_view> combinators; bool guard; };
@@ -93,24 +92,23 @@ inline bool run(const less::LessCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size() == parsed.nodes.size() && !parsed.value->parent, test.name, "every allocated node reachable once");
+    check(seen.size() == parsed.nodes().size() && !parsed.value->parent, test.name, "every allocated node reachable once");
   }
-  std::pmr::monotonic_buffer_resource memory;
   for (std::string_view bad : {"", "a", "'", "'a", "a'", "'a\""}) {
-    const auto converted = less::unquote(bad, &memory);
+    const auto converted = less::unquote(bad);
     check(!converted && !converted.error.message.empty(), "unquote-totality", "malformed fragment returns error");
   }
   for (const auto& pair : {
       std::pair<std::string_view, std::string_view>{"\"\"", ""},
       {"\"a\r\nb\"", "a\nb"}, {R"less('a\'b')less", R"less(a\'b)less"}}) {
-    const auto converted = less::unquote(pair.first, &memory);
+    const auto converted = less::unquote(pair.first);
     check(converted && *converted.value == pair.second, "unquote-totality", "raw escapes and native line normalization preserved");
   }
   const std::string lineSource = "@x: \"a\r\nb\";";
   check(lineSource.find('\r') != std::string::npos, "quoted-CRLF", "runtime source includes physical CR");
   const auto lineResult = services.parser->parse(lineSource);
   const a::StringLit* value = nullptr;
-  for (const auto* node : lineResult.nodes) if (const auto* v = cursiv::ast_cast<a::StringLit>(node)) value = v;
+  for (const auto* node : lineResult.nodes()) if (const auto* v = cursiv::ast_cast<a::StringLit>(node)) value = v;
   check(lineResult.accepted && !lineResult.cst().recovered() && lineResult.diagnostics.empty() &&
         value && value->value == "a\nb", "quoted-CRLF", "parsed value normalizes CRLF with source retained");
   return !failures;

@@ -1,6 +1,6 @@
-#include "bencoding/core/CoreServices.hpp"
+#include "bencoding/CoreServices.hpp"
 #include "bencoding/generated/Bencoding/Module.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
 #include <array>
 #include <cstdio>
 #include <utility>

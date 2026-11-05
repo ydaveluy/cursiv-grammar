@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdio>
 #include <string>
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/ValidationHelper.hpp"
 inline int rego_native_followup(const rego::RegoCoreServices& services) {
   for(const auto source:{
       "package audit\np := data.default\n", "package audit\ndefault.foo := 1\n",

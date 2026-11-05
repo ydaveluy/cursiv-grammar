@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace pf_followup {
 inline bool run(const pf::PfCoreServices& services) {
@@ -66,6 +66,18 @@ inline bool run(const pf::PfCoreServices& services) {
         (*c)->filterOpts[0]->targets[0]->address != "192.0.2.1" ||
         (*c)->filterOpts[0]->targets[0]->weight != 2 || !anchor || !*anchor || !(*anchor)->quick)
       return fail(__LINE__);
+  }
+  {
+    const auto parsed = services.parser->parse("pass log quick log all\n");
+    const auto* file = parsed.value_as<pf::ast::File>();
+    const auto* slot = file && file->lines.size() == 1
+        ? std::get_if<pf::ast::Rule*>(&file->lines[0]) : nullptr;
+    const auto* rule = slot ? *slot : nullptr;
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !rule || !rule->log() || !rule->quick() || rule->modifiers.size() != 3 ||
+        rule->modifiers[0] != pf::ast::RuleModifier::log ||
+        rule->modifiers[1] != pf::ast::RuleModifier::quick ||
+        rule->modifiers[2] != pf::ast::RuleModifier::log) return fail(__LINE__);
   }
   for (const auto* invalid : {"match all scrub (no-df", "match all scrub (min-ttl 5"}) {
     const auto bad = services.parser->parse(invalid);

@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every example parses, and a few field values are read
 # back out of the AST.
 add_executable(squirrel_grammar_test grammar_test.cpp)
-target_link_libraries(squirrel_grammar_test PRIVATE squirrelCore)
+target_link_libraries(squirrel_grammar_test PRIVATE squirrelCore cursiv::test)
 target_compile_definitions(squirrel_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example")
 add_test(NAME squirrel_grammar_test COMMAND squirrel_grammar_test)

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/json/core/JsonGrammar.hpp` |
-| The AST | `src/json/core/ast.hpp` |
-| Validation checks | `src/json/core/validation/` |
-| Services of your own | `src/json/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/json/cli/main.cpp` |
-| LSP features | `src/json/lsp/LspModule.cpp` |
+| The grammar | `src/core/json/JsonGrammar.hpp` |
+| The AST | `src/core/json/ast.hpp` |
+| Validation checks | `src/core/json/validation/` |
+| Services of your own | `src/core/json/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/json/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

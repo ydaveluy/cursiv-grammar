@@ -5,11 +5,11 @@
 #include <iterator>
 #include <string>
 
-#include "antlr/core/CoreServices.hpp"
-#include "antlr/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "antlr/CoreServices.hpp"
+#include "antlr/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -48,7 +48,7 @@ B : 'b';
             " void f() { const char* x = \"}\"; /* } */ } ")
       return fail("action text or mode lost");
     bool action = false;
-    for (const auto *node : result.nodes)
+    for (const auto *node : result.nodes())
       if (const auto *value = cursiv::ast_cast<antlr::ast::Action>(node))
         action |= value->text == " f({1}); ";
     if (!action)

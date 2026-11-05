@@ -1,11 +1,11 @@
 #include "audit_regressions.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include "native_cases.hpp"
-#include "stl/core/Coordinates.hpp"
-#include "stl/core/CoreServices.hpp"
+#include "stl/Coordinates.hpp"
+#include "stl/CoreServices.hpp"
 #include "stl/generated/Stl/Module.hpp"
 #include <bit>
 #include <cmath>
@@ -88,7 +88,7 @@ int main() {
           });
     };
     walk(walk, *doc);
-    check(seen.size() == result.nodes.size(), c.file);
+    check(seen.size() == result.nodes().size(), c.file);
     const auto validation =
         cursiv::test::validationHelper(language.language, source);
     if (*c.code) {
@@ -123,7 +123,7 @@ int main() {
         }
       check(index == c.facets.size(), c.file);
     }
-    for (const auto *node : result.nodes)
+    for (const auto *node : result.nodes())
       if (const auto *triple = cursiv::ast_cast<ast::Triple>(node)) {
         const auto text = result.cst().text(triple->cstNodeId);
         check(text.find(triple->i) != text.npos &&
@@ -138,7 +138,7 @@ int main() {
       check(doc->countBytes == std::string_view(source).substr(
                                    std::min(std::size_t(80), source.size()), 4),
             "binary count bytes");
-      for (const auto *node : result.nodes)
+      for (const auto *node : result.nodes())
         if (const auto *triple = cursiv::ast_cast<ast::Triple>(node)) {
           check(triple->binary && triple->i.size() == 4 &&
                     triple->j.size() == 4 && triple->k.size() == 4,

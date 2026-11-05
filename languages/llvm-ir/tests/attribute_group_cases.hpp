@@ -4,9 +4,9 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "llvmir/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "llvmir/ast.hpp"
 
 namespace llvm_attribute_groups {
 
@@ -34,7 +34,7 @@ inline bool run(const auto& language) {
           });
     };
     walk(walk, *result.value);
-    return valid && seen.size() == result.nodes.size();
+    return valid && seen.size() == result.nodes().size();
   };
   constexpr std::string_view combined =
       "declare void @f() #0\n"
@@ -72,7 +72,7 @@ inline bool run(const auto& language) {
       "declare void @f() align 8\n"}) {
     const auto result = language.parser->parse(source);
     bool attr = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<a::Attr>(node))
         attr |= value->name == "nounwind" ||
                 (value->name == "align" && value->intArg && *value->intArg == "8") ||

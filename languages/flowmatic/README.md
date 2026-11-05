@@ -34,12 +34,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/flowmatic/core/FlowmaticGrammar.hpp` |
-| The AST | `src/flowmatic/core/ast.hpp` |
-| Validation checks | `src/flowmatic/core/validation/` |
-| Services of your own | `src/flowmatic/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/flowmatic/cli/main.cpp` |
-| LSP features | `src/flowmatic/lsp/LspModule.cpp` |
+| The grammar | `src/core/flowmatic/FlowmaticGrammar.hpp` |
+| The AST | `src/core/flowmatic/ast.hpp` |
+| Validation checks | `src/core/flowmatic/validation/` |
+| Services of your own | `src/core/flowmatic/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/flowmatic/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

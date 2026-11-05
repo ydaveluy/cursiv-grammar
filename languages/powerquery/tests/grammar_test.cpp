@@ -1,11 +1,11 @@
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "powerquery/core/CoreServices.hpp"
-#include "powerquery/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "powerquery/CoreServices.hpp"
+#include "powerquery/ast.hpp"
 // Power Query end to end: the corpus example, a coverage document of our own
 // for what it does not reach, and a spot check of field values read back out
 // of the AST.
@@ -13,9 +13,9 @@
 #include <memory>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
 #include "powerquery/generated/Powerquery/Module.hpp"
 
 namespace {

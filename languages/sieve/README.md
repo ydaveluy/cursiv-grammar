@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/sieve/core/SieveGrammar.hpp` |
-| The AST | `src/sieve/core/ast.hpp` |
-| Validation checks | `src/sieve/core/validation/` |
-| Services of your own | `src/sieve/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/sieve/cli/main.cpp` |
-| LSP features | `src/sieve/lsp/LspModule.cpp` |
+| The grammar | `src/core/sieve/SieveGrammar.hpp` |
+| The AST | `src/core/sieve/ast.hpp` |
+| Validation checks | `src/core/sieve/validation/` |
+| Services of your own | `src/core/sieve/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/sieve/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

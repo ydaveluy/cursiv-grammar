@@ -1,7 +1,7 @@
 #pragma once
-#include "c/core/ast.hpp"
+#include "c/ast.hpp"
 #include "c/generated/C/Module.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "cursiv/parser/Parser.hpp"
 #include <cstdio>
 #include <string>
 namespace audit_regressions {

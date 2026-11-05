@@ -13,12 +13,12 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "vba/core/CoreServices.hpp"
-#include "vba/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "vba/CoreServices.hpp"
+#include "vba/ast.hpp"
 
 namespace {
 
@@ -65,6 +65,7 @@ const vba::ast::Module* parse_module(const Language& language,
 void corpus(const Language& language) {
   const fs::path dir = CURSIV_EXAMPLE_DIR;
   int count = 0;
+  int invalidCount = 0;
   for (const fs::directory_entry& e : fs::recursive_directory_iterator(dir)) {
     if (!e.is_regular_file()) continue;
     const fs::path& path = e.path();
@@ -73,9 +74,34 @@ void corpus(const Language& language) {
     ++count;
     std::string text;
     cursiv::ParseResult result;
-    parse_module(language, path, text, &result);
+    const auto relative = path.lexically_relative(dir).generic_string();
+    const std::string_view invalidHeader =
+        relative == "snips/test_function.bas"
+            ? "Private Function Module As Boolean Static"
+            : relative == "snips/test_sub.bas" ? "Private Sub Module() Static" : "";
+    if (!invalidHeader.empty()) {
+      // These upstream fixtures put STATIC after the signature. Microsoft
+      // places it before FUNCTION/SUB; keep the originals as rejection tests:
+      // https://learn.microsoft.com/en-us/office/vba/language/reference/user-interface-help/function-statement
+      // https://learn.microsoft.com/en-us/office/vba/language/reference/user-interface-help/sub-statement
+      ++invalidCount;
+      text = read_file(path);
+      if (text.find(invalidHeader) == std::string::npos) {
+        fail(path.string() + ": invalid STATIC fixture no longer has its expected header");
+        continue;
+      }
+      result = language.language.parser->parse(text);
+      bool syntaxDiagnostic = false;
+      for (const auto& diagnostic : result.diagnostics)
+        syntaxDiagnostic |= diagnostic.isSyntax();
+      if (!syntaxDiagnostic)
+        fail(path.string() + ": trailing STATIC must produce a syntax diagnostic");
+    } else {
+      parse_module(language, path, text, &result);
+    }
   }
   if (count == 0) fail("no corpus document was found under " + dir.string());
+  if (invalidCount != 2) fail("both invalid trailing-STATIC corpus fixtures must be checked");
 }
 
 // The constructs no upstream corpus example exercises: also

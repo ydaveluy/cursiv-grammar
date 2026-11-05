@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/sgf/core/SgfGrammar.hpp` |
-| The AST | `src/sgf/core/ast.hpp` |
-| Validation checks | `src/sgf/core/validation/` |
-| Services of your own | `src/sgf/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/sgf/cli/main.cpp` |
-| LSP features | `src/sgf/lsp/LspModule.cpp` |
+| The grammar | `src/core/sgf/SgfGrammar.hpp` |
+| The AST | `src/core/sgf/ast.hpp` |
+| Validation checks | `src/core/sgf/validation/` |
+| Services of your own | `src/core/sgf/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/sgf/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

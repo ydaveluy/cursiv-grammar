@@ -4,10 +4,10 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "typescript/core/CoreServices.hpp"
-#include "typescript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "typescript/CoreServices.hpp"
+#include "typescript/ast.hpp"
 
 namespace typescript_yield_context_cases {
 namespace a = typescript::ast;
@@ -49,7 +49,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
     check(contextual == test.validationOnly, test.name, "local Await restriction; property/export names unaffected");
     const std::string_view name(test.name);
     bool field = false;
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* n=cursiv::ast_cast<a::BreakStmt>(node))
         field |= (name=="generator-label-control" && n->label=="outer") ||
                  ((name=="generator-break-await" || name=="async-generator-break-await") && n->label=="await");

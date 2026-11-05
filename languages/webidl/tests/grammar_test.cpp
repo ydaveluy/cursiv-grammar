@@ -13,12 +13,12 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "webidl/core/ast.hpp"
-#include "webidl/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "webidl/ast.hpp"
+#include "webidl/CoreServices.hpp"
 #include "webidl/generated/Webidl/Module.hpp"
 
 namespace {

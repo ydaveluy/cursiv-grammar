@@ -3,10 +3,10 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "elixir/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "elixir/ast.hpp"
 namespace elixir_audit {
 template<class Language> bool modern_cases(const Language& language) {
  namespace ast = elixir::ast;
@@ -135,6 +135,10 @@ end
 )AUD"},
   {"definition-no-parens", R"AUD(def f x, do: x
 )AUD"},
+  {"nested-call-no-parens", R"AUD(f g x
+)AUD"},
+  {"nested-call-parenthesized-argument", R"AUD(f g(x)
+)AUD"},
   {"definition-guard", R"AUD(def f(x) when is_integer(x), do: x
 )AUD"},
   {"call-do", R"AUD(foo 1 do
@@ -256,7 +260,17 @@ end)
  };
  for(auto c : valid) {
   auto r = parser.parse(c.source);
-  if(!(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && cursiv::ast_cast<ast::Block>(r.value))) {std::fprintf(stderr,"native case: %.*s\n",int(c.name.size()),c.name.data());check(false,"native-confirmed syntax");}else check(true,"native-confirmed syntax");
+  const bool clean = r.accepted && !r.cst().recovered() &&
+      r.diagnostics.empty() && cursiv::ast_cast<ast::Block>(r.value);
+  if (!clean) {
+   std::fprintf(stderr, "native case: %.*s (accepted=%d recovered=%d error=%u block=%d)\n",
+       int(c.name.size()), c.name.data(), int(r.accepted), int(r.cst().recovered()),
+       unsigned(r.error), int(cursiv::ast_cast<ast::Block>(r.value) != nullptr));
+   for (const auto& d : r.diagnostics)
+    std::fprintf(stderr, "  diagnostic %u at [%u,%u): %s\n",
+        unsigned(d.kind), unsigned(d.begin), unsigned(d.end), d.message.c_str());
+  }
+  check(clean, "native-confirmed syntax");
  }
  auto first = [](const cursiv::ParseResult& r) -> const ast::Expr* {
   auto b = cursiv::ast_cast<ast::Block>(r.value);
@@ -450,7 +464,7 @@ end)
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
         "empty containers remain expressions in call arguments");
   bool empty = false;
-  for (const auto* node : r.nodes) {
+  for (const auto* node : r.nodes()) {
    if (const auto* map = cursiv::ast_cast<ast::MapExpr>(node))
     empty |= map->entries.empty() && map->keywords.empty() && !map->base && !map->structType;
    if (const auto* tuple = cursiv::ast_cast<ast::TupleExpr>(node)) empty |= tuple->items.empty();

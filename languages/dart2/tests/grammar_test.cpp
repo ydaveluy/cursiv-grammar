@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "dart2/core/CoreServices.hpp"
-#include "dart2/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "dart2/CoreServices.hpp"
+#include "dart2/ast.hpp"
 #include "modern_cases.hpp"
 #include "uri_adjacency_cases.hpp"
 // Dart2 end to end: every document under example/ and tests/ parses clean
@@ -15,9 +15,9 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
 #include "dart2/generated/Dart2/Module.hpp"
 
 namespace {
@@ -210,7 +210,7 @@ void native_assignment_and_arguments() {
   CHECK(abstractResult.accepted && !abstractResult.cst().recovered() &&
         abstractResult.diagnostics.empty());
   bool abstractMethod = false;
-  for (const auto* node : abstractResult.nodes)
+  for (const auto* node : abstractResult.nodes())
     if (const auto* method = cursiv::ast_cast<ast::MethodDecl>(node))
       abstractMethod |= method->name == "f" && method->isAbstract;
   CHECK(abstractMethod);

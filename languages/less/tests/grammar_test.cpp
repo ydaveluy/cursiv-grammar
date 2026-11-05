@@ -11,11 +11,11 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "less/core/CoreServices.hpp"
-#include "less/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "less/CoreServices.hpp"
+#include "less/ast.hpp"
 #include "selector_order_cases.hpp"
 #include "resume_regressions.hpp"
 #include "detached_argument_cases.hpp"
@@ -59,7 +59,7 @@ bool adjacency_candidates(const cursiv::Parser& parser) {
   for (const auto& test : cases) {
     const auto result = parser.parse(test.source);
     unsigned calls = 0, atRules = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       calls += cursiv::ast_cast<less::ast::DetachedCall>(node) != nullptr;
       atRules += cursiv::ast_cast<less::ast::AtRule>(node) != nullptr;
     }
@@ -106,7 +106,7 @@ bool guarded_rulesets(const cursiv::Parser& parser) {
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
           test.source, "clean guarded ruleset expected");
     unsigned guards = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       const auto* selector = cursiv::ast_cast<less::ast::Selector>(node);
       if (!selector || !selector->guard) continue;
       ++guards;
@@ -141,7 +141,7 @@ bool guarded_rulesets(const cursiv::Parser& parser) {
   {
     const auto result = parser.parse(".m(@x) when (@x>0){x:@x;}");
     const less::ast::MixinDef* mixin = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<less::ast::MixinDef>(node)) mixin = value;
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
               mixin && mixin->guard.size() == 1 && mixin->guard[0]->parent == mixin,
@@ -178,14 +178,14 @@ int main() {
       return 1;
     }
     bool group = false, media = false, variable = false, quoted = false;
-    for (const auto *node : audit_result.nodes) {
+    for (const auto *node : audit_result.nodes()) {
       if (const auto *e = cursiv::ast_cast<less::ast::ParenExpr>(node))
         group = e->value;
       if (const auto *a = cursiv::ast_cast<less::ast::AtRule>(node))
         media = media || (a->name == "media" && a->body &&
                           a->prelude.find("screen") != std::string_view::npos);
     }
-    for (const auto *node : audit_result.nodes) {
+    for (const auto *node : audit_result.nodes()) {
       if (const auto *v = cursiv::ast_cast<less::ast::VariableDecl>(node))
         variable = variable || (v->name && v->name->name == "base");
       if (const auto *a = cursiv::ast_cast<less::ast::AtRule>(node))
@@ -225,7 +225,7 @@ int main() {
         "@dr:{color:red;};a{@dr()} .x:extend(.b all){} "
         "a:nth-child(2n+1)[attr].b{color:red;} @import (optional) \"x.css\" screen and (min-width:600px);");
     bool detached = false, call = false, extension = false, pseudo = false, attribute = false, media = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* value = cursiv::ast_cast<less::ast::DetachedRulesetDecl>(node))
         detached |= value->name && value->name->name == "dr" && value->body;
       if (const auto* value = cursiv::ast_cast<less::ast::DetachedCall>(node))
@@ -249,7 +249,7 @@ int main() {
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !detached || !call || !extension || !pseudo || !attribute || !media) {
       std::fprintf(stderr, "native AST flags: detached=%d call=%d extend=%d pseudo=%d attribute=%d media=%d\n", detached, call, extension, pseudo, attribute, media);
-      for (const auto* n : result.nodes) {
+      for (const auto* n : result.nodes()) {
         if (const auto* v = cursiv::ast_cast<less::ast::Import>(n))
           std::fprintf(stderr, "mediaQuery=[%.*s]\n", static_cast<int>(v->mediaQuery.size()), v->mediaQuery.data());
       }
@@ -259,7 +259,7 @@ int main() {
   {
     const auto result = language.language.parser->parse("@x(); @x (); @x( ); @1-x:1; a{x:@1-x;}");
     unsigned calls = 0, atRules = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       calls += cursiv::ast_cast<less::ast::DetachedCall>(node) != nullptr;
       atRules += cursiv::ast_cast<less::ast::AtRule>(node) != nullptr;
     }
@@ -275,7 +275,7 @@ int main() {
                      static_cast<unsigned>(diagnostic.element),
                      static_cast<unsigned>(diagnostic.begin),
                      static_cast<unsigned>(diagnostic.end));
-      for (const auto* node : result.nodes) {
+      for (const auto* node : result.nodes()) {
         if (const auto* call = cursiv::ast_cast<less::ast::DetachedCall>(node))
           std::fprintf(stderr, "less call target=[%.*s]\n",
                        call->target ? static_cast<int>(call->target->name.size()) : 0,
@@ -298,7 +298,7 @@ int main() {
   {
     const auto result = language.language.parser->parse("a{.m(1,2;3);}");
     bool groups = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<less::ast::MixinRef>(node))
         groups |= value->args.empty() && value->argumentGroups.size() == 2 &&
                   value->argumentGroups[0]->items.size() == 2 && value->argumentGroups[1]->items.size() == 1;

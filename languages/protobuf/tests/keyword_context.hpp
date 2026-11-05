@@ -5,8 +5,8 @@
 #include <string_view>
 #include <variant>
 
-#include "protobuf/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "protobuf/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
 
 namespace protobuf_keyword_context {
 

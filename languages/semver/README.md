@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/semver/core/SemverGrammar.hpp` |
-| The AST | `src/semver/core/ast.hpp` |
-| Validation checks | `src/semver/core/validation/` |
-| Services of your own | `src/semver/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/semver/cli/main.cpp` |
-| LSP features | `src/semver/lsp/LspModule.cpp` |
+| The grammar | `src/core/semver/SemverGrammar.hpp` |
+| The AST | `src/core/semver/ast.hpp` |
+| Validation checks | `src/core/semver/validation/` |
+| Services of your own | `src/core/semver/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/semver/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

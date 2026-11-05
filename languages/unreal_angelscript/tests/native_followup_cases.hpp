@@ -2,8 +2,8 @@
 #include <cstdio>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "unrealangelscript/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "unrealangelscript/ast.hpp"
 namespace unreal_followup {
 template<class Language> bool run(const Language& language) {
   struct Case {const char* name; std::string_view source; bool accepted;};
@@ -109,8 +109,8 @@ class ACount : AActor {
         });
   };
   if (result.value) walk(walk,*result.value);
-  if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !values || !owned || seen.size() != result.nodes.size()) {
-    std::fprintf(stderr,"UnrealAS typed AST values=%d owned=%d nodes=%zu/%zu\n",values,owned,seen.size(),result.nodes.size());
+  if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !values || !owned || seen.size() != result.nodes().size()) {
+    std::fprintf(stderr,"UnrealAS typed AST values=%d owned=%d nodes=%zu/%zu\n",values,owned,seen.size(),result.nodes().size());
     ok = false;
   }
   const auto definitions = language.language.parser->parse(

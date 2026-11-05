@@ -7,13 +7,13 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "gml/core/CoreServices.hpp"
-#include "gml/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "gml/CoreServices.hpp"
+#include "gml/ast.hpp"
 
 namespace {
 
@@ -46,7 +46,7 @@ int main() {
     const auto* nested = root && root->entries.size() == 1 ?
         std::get_if<gml::ast::List*>(&root->entries[0]->value) : nullptr;
     const auto* text = nested && (*nested)->entries.size() == 1 ?
-        std::get_if<std::string_view>(&(*nested)->entries[0]->value) : nullptr;
+        std::get_if<std::string>(&(*nested)->entries[0]->value) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !text || *text != "alpha beta gamma") return 1;
     for (const auto source : {"graph [ value -NAN ]", "graph [ value +NAN ]"}) {
@@ -79,11 +79,11 @@ graph [
       std::get<gml::ast::Number*>(list->entries[0]->value)->literal != "1.E+12" ||
       std::get<gml::ast::Number*>(list->entries[1]->value)->literal !=
           "1234567890123456789012345678901234567890" ||
-      std::get<std::string_view>(list->entries[2]->value) != "A \"x\" & 🚀" ||
+      std::get<std::string>(list->entries[2]->value) != "A \"x\" & 🚀" ||
       !list->entries[2]->quoted ||
-      std::get<std::string_view>(list->entries[3]->value) != "alpha beta gamma" ||
+      std::get<std::string>(list->entries[3]->value) != "alpha beta gamma" ||
       std::get<gml::ast::Number*>(list->entries[4]->value)->literal != "-INF" ||
-      std::get<std::string_view>(list->entries[5]->value) !=
+      std::get<std::string>(list->entries[5]->value) !=
           "&bogus;&#99999999999999999999999999;") {
     std::fprintf(stderr, "gml: source number or decoded string was lost\n");
     return 1;

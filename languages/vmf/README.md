@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/vmf/core/VmfGrammar.hpp` |
-| The AST | `src/vmf/core/ast.hpp` |
-| Validation checks | `src/vmf/core/validation/` |
-| Services of your own | `src/vmf/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/vmf/cli/main.cpp` |
-| LSP features | `src/vmf/lsp/LspModule.cpp` |
+| The grammar | `src/core/vmf/VmfGrammar.hpp` |
+| The AST | `src/core/vmf/ast.hpp` |
+| Validation checks | `src/core/vmf/validation/` |
+| Services of your own | `src/core/vmf/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/vmf/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

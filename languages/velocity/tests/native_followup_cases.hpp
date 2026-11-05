@@ -3,8 +3,8 @@
 #include <exception>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "velocity/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "velocity/ast.hpp"
 
 namespace velocity_followup {
 template <class Language> bool run(const Language& language) {
@@ -103,7 +103,7 @@ b"))VTL", true},
   const auto result = language.language.parser->parse(source);
   namespace ast = velocity::ast;
   bool formal = false, macro = false, stop = false, breaker = false, boolean = false, range = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* d = cursiv::ast_cast<ast::DefaultExpr>(node)) {
       const auto* number = cursiv::ast_cast<ast::IntLit>(d->fallback);
       const auto* f = cursiv::ast_cast<ast::FormalRef>(d->reference);
@@ -139,14 +139,14 @@ b"))VTL", true},
   };
   if (result.value) walk(walk, *result.value);
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
-      !formal || !macro || !stop || !breaker || !boolean || !range || !owned || seen.size() != result.nodes.size()) {
+      !formal || !macro || !stop || !breaker || !boolean || !range || !owned || seen.size() != result.nodes().size()) {
     std::fprintf(stderr, "velocity native: values/ownership formal=%d macro=%d stop=%d break=%d bool=%d range=%d owned=%d\n", formal, macro, stop, breaker, boolean, range, owned);
     ok = false;
   }
   {
     const auto quotes = language.language.parser->parse(R"VTL(#set($a='$x') #set($b="$x"))VTL");
     bool single = false, doubleQuote = false;
-    for (const auto* node : quotes.nodes)
+    for (const auto* node : quotes.nodes())
       if (const auto* text = cursiv::ast_cast<ast::StringLit>(node); text && text->value == "$x") {
         single |= !text->doubleQuoted;
         doubleQuote |= text->doubleQuoted;
@@ -160,7 +160,7 @@ b"))VTL", true},
     const auto call = language.language.parser->parse(method ? "$obj.f(1,2)" : "$f(1,2)");
     unsigned calls = 0;
     bool shape = !method;
-    for (const auto* node : call.nodes)
+    for (const auto* node : call.nodes())
       if (const auto* c = cursiv::ast_cast<ast::CallAccess>(node)) {
         ++calls;
         const auto* property = cursiv::ast_cast<ast::PropertyAccess>(c->object);
@@ -168,7 +168,7 @@ b"))VTL", true},
       }
     if (!call.accepted || call.cst().recovered() || !call.diagnostics.empty() || calls != unsigned(method) || !shape) {
       std::fprintf(stderr, "velocity native: bare reference vs method call AST method=%d calls=%u shape=%d accepted=%d recovered=%d diagnostics=%zu\n", method, calls, shape, call.accepted, call.cst().recovered(), call.diagnostics.size());
-      for (const auto* node : call.nodes) {
+      for (const auto* node : call.nodes()) {
         if (const auto* v = cursiv::ast_cast<ast::VariableRef>(node)) std::fprintf(stderr, "variable=%.*s\n", int(v->name.size()), v->name.data());
         if (const auto* v = cursiv::ast_cast<ast::PropertyAccess>(node)) std::fprintf(stderr, "property=%.*s\n", int(v->name.size()), v->name.data());
       }

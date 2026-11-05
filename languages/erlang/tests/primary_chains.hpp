@@ -4,8 +4,8 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "erlang/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "erlang/ast.hpp"
 
 namespace erlang_chains {
 namespace ast = erlang::ast;
@@ -57,11 +57,11 @@ inline bool parents(const auto& language, const cursiv::ParseResult& parsed) {
         });
   };
   visit(visit, *parsed.value);
-  for (const auto* node : parsed.nodes)
+  for (const auto* node : parsed.nodes())
     if (!seen.contains(node)) describe("unreachable arena node", *node);
-  if (!okay || seen.size() != parsed.nodes.size())
-    std::fprintf(stderr, "erlang ownership: visited=%zu arena=%zu\n", seen.size(), parsed.nodes.size());
-  return okay && seen.size() == parsed.nodes.size();
+  if (!okay || seen.size() != parsed.nodes().size())
+    std::fprintf(stderr, "erlang ownership: visited=%zu arena=%zu\n", seen.size(), parsed.nodes().size());
+  return okay && seen.size() == parsed.nodes().size();
 }
 inline bool run(const auto& language) {
   const std::string source =
@@ -78,7 +78,7 @@ inline bool run(const auto& language) {
     return fail("native primary/call syntax or complete ownership", source);
   }
   const ast::FunctionClause* clause = nullptr;
-  for (const auto* node : parsed.nodes)
+  for (const auto* node : parsed.nodes())
     if (const auto* c = cursiv::ast_cast<ast::FunctionClause>(node)) clause = c;
   if (!clause || clause->body.size() != 9) return fail("nine expressions", source);
   const auto call = [&](std::size_t i) { return cursiv::ast_cast<ast::Call>(clause->body[i]); };

@@ -5,9 +5,9 @@
 #include <unordered_set>
 #include <utility>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace postfix_adjacency_cases {
 inline bool run(const rego::RegoCoreServices& services) {
@@ -137,11 +137,11 @@ inline bool run(const rego::RegoCoreServices& services) {
           });
     };
     walk(walk, *root);
-    for (const auto* node : r.nodes)
+    for (const auto* node : r.nodes())
       if (!seen.contains(node)) describe("unreachable arena node", *node);
-    if (!owned || seen.size() != r.nodes.size()) {
+    if (!owned || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "rego postfix: %s ownership=%d seen=%zu nodes=%zu source=%s\n",
-                   test.id, owned, seen.size(), r.nodes.size(), test.source);
+                   test.id, owned, seen.size(), r.nodes().size(), test.source);
       return false;
     }
     if (std::string_view(test.id) == "function-spaced-body") {

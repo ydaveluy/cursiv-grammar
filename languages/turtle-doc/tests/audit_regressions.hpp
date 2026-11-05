@@ -3,11 +3,11 @@
 #include <cstdio>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "turtledoc/core/CoreServices.hpp"
-#include "turtledoc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "turtledoc/CoreServices.hpp"
+#include "turtledoc/ast.hpp"
 #include "turtledoc/generated/TurtleDoc/Module.hpp"
 
 namespace audit_regressions {

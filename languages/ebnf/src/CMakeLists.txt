@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID ebnf
-    GRAMMAR    ebnf/core/EbnfGrammar.hpp
+    GRAMMAR    ebnf/EbnfGrammar.hpp
     NAMESPACE  ebnf::Ebnf
     EXTENSIONS .ebnf
     OUT        ebnf/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/ebnf/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(ebnfCore ${_core})
 target_link_libraries(ebnfCore PUBLIC ebnfGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/ebnf/cli/*.cpp)
-if(_cli)
-  add_executable(ebnf_cli ${_cli})
-  target_link_libraries(ebnf_cli
-                        PRIVATE ebnfCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(ebnf_cli cli.cpp)
+  target_include_directories(ebnf_cli PRIVATE cli)
+  target_link_libraries(ebnf_cli PRIVATE ebnfCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(ebnfCli ${_cli})
+    target_include_directories(ebnfCli PUBLIC cli)
+    target_link_libraries(ebnfCli PUBLIC ebnfCore cursiv::cli)
+    target_link_libraries(ebnf_cli PRIVATE ebnfCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ebnf/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/ebnf/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/ebnf/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(ebnfLsp ${_lsp})
+  target_include_directories(ebnfLsp PUBLIC lsp)
   target_link_libraries(ebnfLsp PUBLIC ebnfCore cursiv::lsp)
-  add_executable(ebnf_lsp ebnf/lsp/main.cpp)
-  target_link_libraries(ebnf_lsp PRIVATE ebnfLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(ebnf_lsp lsp.cpp)
+    target_link_libraries(ebnf_lsp PRIVATE ebnfLsp)
+  endif()
 endif()
 
-if(TARGET ebnfLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ebnf/bench/main.cpp")
-  cursiv_add_benchmark(ebnf
-      SOURCES ebnf/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET ebnfLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(ebnf SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(ebnf)

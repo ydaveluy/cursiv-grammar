@@ -6,9 +6,9 @@
 #include <type_traits>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "gdscript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "gdscript/ast.hpp"
 
 namespace gdscript_pattern_rest {
 
@@ -40,14 +40,14 @@ inline bool run(const auto& language) {
           });
     };
     walk(walk, *result.value);
-    return valid && seen.size() == result.nodes.size();
+    return valid && seen.size() == result.nodes().size();
   };
   auto verify = [&]<class Pattern>(std::string_view pattern, unsigned count,
                                    bool rest, bool binding = true) {
     const auto text = source(pattern);
     const auto result = language.parser->parse(text);
     const a::MatchCase* branch = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* matchCase = cursiv::ast_cast<a::MatchCase>(node)) branch = matchCase;
     const auto* value = branch && branch->patterns.size() == 1
         ? cursiv::ast_cast<Pattern>(branch->patterns[0]) : nullptr;

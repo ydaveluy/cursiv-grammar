@@ -16,7 +16,7 @@ bool inspect(const Parser& parser, const std::string& text, Check check) {
     std::fprintf(stderr, "R parse regression: %s\n", text.c_str());
     return false;
   }
-  for (const auto* node : result.nodes)
+  for (const auto* node : result.nodes())
     if (node != program && !node->parent) return false;
   if (check(*program)) return true;
   std::fprintf(stderr, "R AST regression: %s\n", text.c_str());

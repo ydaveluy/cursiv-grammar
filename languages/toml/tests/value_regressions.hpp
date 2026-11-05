@@ -1,9 +1,9 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "toml/core/CoreServices.hpp"
-#include "toml/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "toml/CoreServices.hpp"
+#include "toml/ast.hpp"
 #include <cmath>
 #include <cstdio>
 #include <limits>
@@ -96,7 +96,7 @@ inline bool run() {
        }) {
     const auto r = language.language.parser->parse(c.source);
     const auto *kv = entry(r);
-    const auto *v = kv ? std::get_if<std::string_view>(&kv->value) : nullptr;
+    const auto *v = kv ? std::get_if<std::string>(&kv->value) : nullptr;
     check(clean(r) && v && *v == c.value,
           "decoded string value, including multiline boundaries and escapes");
     const auto validated =
@@ -184,7 +184,7 @@ inline bool run() {
     const auto *pv = kv ? std::get_if<ast::Array *>(&kv->value) : nullptr;
     const auto *a = pv ? *pv : nullptr;
     check(clean(r) && a && a->items.size() == 3 &&
-              std::get<std::string_view>(a->items[0]) == "a\nb",
+              std::get<std::string>(a->items[0]) == "a\nb",
           "nested array string value");
     const auto *nested = a && a->items.size() == 3
                              ? std::get<ast::Array *>(a->items[1])

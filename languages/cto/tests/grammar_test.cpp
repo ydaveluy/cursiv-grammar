@@ -9,13 +9,13 @@
 #include <string>
 #include <variant>
 
-#include "cto/core/ast.hpp"
+#include "cto/ast.hpp"
 #include "cto/generated/Cto/Module.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
 
 namespace {
 
@@ -44,7 +44,7 @@ void check_clean(const cursiv::ParseResult& r) {
 void check_invalid(const cursiv::ParseResult& r) { CHECK(!r.diagnostics.empty()); }
 
 std::string_view str(const ast::Val& v) {
-  const auto* s = std::get_if<std::string_view>(&v);
+  const auto* s = std::get_if<std::string>(&v);
   return s != nullptr ? *s : std::string_view{"<not a string>"};
 }
 std::int64_t integer(const ast::Val& v) {
@@ -386,5 +386,16 @@ int main() {
   numeric_boundaries();
   native_defaults();
   composer_primary_forms();
+  for (const std::string_view modifiers : {"@A abstract @B", "@A @B"}) {
+    const std::string source = "namespace x " + std::string(modifiers) + " concept C {}";
+    const auto parsed = engine().parse(source);
+    check_clean(parsed);
+    const ast::ClassDeclaration* declaration = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* value = cursiv::ast_cast<ast::ClassDeclaration>(node))
+        declaration = value;
+    CHECK(declaration && declaration->decorators.size() == 2 &&
+          declaration->isAbstract == (modifiers.find("abstract") != std::string_view::npos));
+  }
   return cursiv::test::report("cto_grammar_test");
 }

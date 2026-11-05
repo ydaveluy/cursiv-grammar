@@ -4,10 +4,10 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "mdx/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "mdx/ast.hpp"
 
 namespace mdx_query_axes {
 inline bool run(const auto& services) {
@@ -82,9 +82,9 @@ inline bool run(const auto& services) {
           });
     };
     walk(walk, *root);
-    if (!owned || seen.size() != r.nodes.size()) {
+    if (!owned || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "mdx query axes: %s ownership=%d seen=%zu arena=%zu\n",
-                   test.id, owned, seen.size(), r.nodes.size());
+                   test.id, owned, seen.size(), r.nodes().size());
       return false;
     }
     const auto* axis = root->axes[0];

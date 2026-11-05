@@ -6,9 +6,9 @@
 #include <type_traits>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "elixir/core/ElixirGrammar.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "elixir/ElixirGrammar.hpp"
 
 namespace elixir_heredoc_lines {
 
@@ -36,7 +36,7 @@ inline bool run(const auto& language) {
           });
     };
     walk(walk, *result.value);
-    return valid && seen.size() == result.nodes.size();
+    return valid && seen.size() == result.nodes().size();
   };
   unsigned positives = 0;
   auto literal = [&]<class T>(std::string_view source,

@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <string_view>
 #include <utility>
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace native_regressions {
 inline bool run() {

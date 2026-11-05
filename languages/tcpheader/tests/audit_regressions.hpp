@@ -1,10 +1,10 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "tcpheader/core/CoreServices.hpp"
-#include "tcpheader/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "tcpheader/CoreServices.hpp"
+#include "tcpheader/ast.hpp"
 #include "tcpheader/generated/Tcpheader/Module.hpp"
 #include <cstdio>
 #include <string>

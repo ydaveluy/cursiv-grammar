@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/swiftfin/core/SwiftFinGrammar.hpp` |
-| The AST | `src/swiftfin/core/ast.hpp` |
-| Validation checks | `src/swiftfin/core/validation/` |
-| Services of your own | `src/swiftfin/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/swiftfin/cli/main.cpp` |
-| LSP features | `src/swiftfin/lsp/LspModule.cpp` |
+| The grammar | `src/core/swiftfin/SwiftFinGrammar.hpp` |
+| The AST | `src/core/swiftfin/ast.hpp` |
+| Validation checks | `src/core/swiftfin/validation/` |
+| Services of your own | `src/core/swiftfin/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/swiftfin/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -12,11 +12,11 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "xquery/core/CoreServices.hpp"
-#include "xquery/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "xquery/CoreServices.hpp"
+#include "xquery/ast.hpp"
 
 namespace {
 

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/molecule/core/MoleculeGrammar.hpp` |
-| The AST | `src/molecule/core/ast.hpp` |
-| Validation checks | `src/molecule/core/validation/` |
-| Services of your own | `src/molecule/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/molecule/cli/main.cpp` |
-| LSP features | `src/molecule/lsp/LspModule.cpp` |
+| The grammar | `src/core/molecule/MoleculeGrammar.hpp` |
+| The AST | `src/core/molecule/ast.hpp` |
+| Validation checks | `src/core/molecule/validation/` |
+| Services of your own | `src/core/molecule/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/molecule/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

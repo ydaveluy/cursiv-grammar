@@ -3,12 +3,12 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "vba/core/CoreServices.hpp"
-#include "vba/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "vba/CoreServices.hpp"
+#include "vba/ast.hpp"
 namespace vba_ccconst {
 inline bool run(const vba::VbaCoreServices& services,
                 const vba::VbaSharedCoreServices& shared) {
@@ -71,7 +71,7 @@ inline bool run(const vba::VbaCoreServices& services,
           });
     };
     if (r.value) walk(walk, *r.value);
-    if (!parents || seen.size() != r.nodes.size() || count != 1 || !directive ||
+    if (!parents || seen.size() != r.nodes().size() || count != 1 || !directive ||
         directive->name != test.name || !directive->parent ||
         directive->parent->type != test.parentType || !directive->value ||
         directive->value->type != test.valueType ||

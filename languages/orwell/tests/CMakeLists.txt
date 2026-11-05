@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every document in example/ parses, and the tree holds
 # what each one declares.
 add_executable(orwell_grammar_test grammar_test.cpp)
-target_link_libraries(orwell_grammar_test PRIVATE orwellCore)
+target_link_libraries(orwell_grammar_test PRIVATE orwellCore cursiv::test)
 target_compile_definitions(orwell_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

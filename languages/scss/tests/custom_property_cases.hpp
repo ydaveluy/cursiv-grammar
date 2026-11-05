@@ -8,11 +8,11 @@
 #include <variant>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "scss/core/CoreServices.hpp"
-#include "scss/core/ValueConverters.hpp"
-#include "scss/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "scss/CoreServices.hpp"
+#include "scss/ValueConverters.hpp"
+#include "scss/ast.hpp"
 
 namespace scss_custom_cases {
 namespace a = scss::ast;
@@ -104,7 +104,7 @@ inline bool run(const scss::ScssCoreServices& services) {
     check(parsed.cst().text()==test.source,test.name,"complete source retained");
     std::vector<const a::VariableDeclaration*> customs;
     std::size_t interpolations=0, customCount=0;
-    for (const auto* node:parsed.nodes) {
+    for (const auto* node:parsed.nodes()) {
       if (const auto* n=cursiv::ast_cast<a::VariableDeclaration>(node); n && n->isCustomProperty) {
         customs.push_back(n); ++customCount;
       }
@@ -145,11 +145,11 @@ inline bool run(const scss::ScssCoreServices& services) {
         const auto* raw=cursiv::ast_cast<a::RawCustomValue>(custom->value);
         check(raw && project(*raw)==test.projection,test.name,"raw source text, delimiters, whitespace and comments preserved exactly");
         check(interpolations==test.interpolations,test.name,"only actual Sass interpolation is structured");
-        check(!custom->isDefault && !custom->isGlobal && custom->prio==a::Prio::none,
+        check(!custom->isDefault() && !custom->isGlobal() && custom->prio==a::Prio::none,
               test.name,"raw !default/!global/!important are not Sass variable flags");
         // Literal $missing and arithmetic remain text, not evaluated AST nodes.
         if (std::string_view(test.name)=="raw-variable" || std::string_view(test.name)=="raw-operators")
-          for (const auto* node:parsed.nodes)
+          for (const auto* node:parsed.nodes())
             check(!cursiv::ast_cast<a::VariableRef>(node) && !cursiv::ast_cast<a::BinaryExpr>(node),
                   test.name,"raw variable/operator text does not become a Sass expression");
       } else {
@@ -160,7 +160,7 @@ inline bool run(const scss::ScssCoreServices& services) {
     }
     if (std::string_view(test.name)=="ordinary-control") {
       bool found=false;
-      for (const auto* node:parsed.nodes) if (const auto* property=cursiv::ast_cast<a::PropertyDeclaration>(node)) {
+      for (const auto* node:parsed.nodes()) if (const auto* property=cursiv::ast_cast<a::PropertyDeclaration>(node)) {
         const auto* variable=property->value.size()==1 ? cursiv::ast_cast<a::VariableRef>(property->value[0]) : nullptr;
         found |= property->property=="color" && variable && variable->name=="missing";
       }
@@ -181,7 +181,7 @@ inline bool run(const scss::ScssCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size()==parsed.nodes.size() && !parsed.value->parent,test.name,"all allocated nodes reachable once");
+    check(seen.size()==parsed.nodes().size() && !parsed.value->parent,test.name,"all allocated nodes reachable once");
   }
   for (std::string_view text:{"","a","'","'a","a'","'a\""}) {
     const auto r=scss::unquote(text); check(!r && !r.error.message.empty(),"unquote-contract","malformed fragment returns an error");

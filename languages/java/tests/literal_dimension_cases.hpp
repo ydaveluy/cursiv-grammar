@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "java/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "java/ast.hpp"
 
 inline bool java_literal_dimension_cases(const cursiv::Parser& parser) {
   namespace ast = java::ast;
@@ -24,7 +24,7 @@ inline bool java_literal_dimension_cases(const cursiv::Parser& parser) {
     const auto result = parser.parse(source);
     if (!clean(result)) return fail("escaped text-block delimiter");
     unsigned blocks = 0, declarations = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* block = cursiv::ast_cast<ast::TextBlockLit>(node)) {
         ++blocks;
         if (block->text != literal) return fail("text-block spelling retained");
@@ -38,7 +38,7 @@ inline bool java_literal_dimension_cases(const cursiv::Parser& parser) {
   const std::string source = "class T {String s=" + literal + ";}";
   const auto text = parser.parse(source);
   if (!clean(text)) return fail("text-block whitespace and CRLF continuation");
-  for (const auto* node : text.nodes)
+  for (const auto* node : text.nodes())
     if (const auto* block = cursiv::ast_cast<ast::TextBlockLit>(node))
       if (block->text != literal) return fail("text-block CRLF spelling");
 
@@ -54,7 +54,7 @@ inline bool java_literal_dimension_cases(const cursiv::Parser& parser) {
   if (!clean(result)) return fail("annotated array dimensions");
   unsigned declarations = 0, methods = 0, parameters = 0, arrays = 0;
   unsigned iterations = 0, components = 0;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* decl = cursiv::ast_cast<ast::VarDeclarator>(node)) {
       if (decl->name == "a" || decl->name == "b") {
         ++declarations;

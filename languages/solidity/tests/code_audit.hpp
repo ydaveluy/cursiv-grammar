@@ -3,9 +3,9 @@
 #include <cstdio>
 #include <functional>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "solidity/core/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "solidity/CoreServices.hpp"
 #include "solidity/generated/Solidity/Module.hpp"
 
 namespace code_audit {

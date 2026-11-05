@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdio>
 #include <string>
-#include "cursiv/core/parser/Parser.hpp"
-#include "idl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "idl/ast.hpp"
 
 namespace idl_native_followup {
 inline bool run(const cursiv::Parser& parser) {
@@ -42,7 +42,7 @@ module Inside {
   bool anonymousParam=false, anonymousAttribute=false, context=false;
   bool emptyBits=false, names=false, positions=false;
   unsigned imports=0, annotatedImports=0;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (cursiv::ast_cast<idl::ast::FixedLit>(node)) ++fixed;
     if (const auto* literal = cursiv::ast_cast<idl::ast::WCharLit>(node))
       shortUnicode |= literal->text == "L'\\u3BC'";

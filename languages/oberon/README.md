@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/oberon/core/OberonGrammar.hpp` |
-| The AST | `src/oberon/core/ast.hpp` |
-| Validation checks | `src/oberon/core/validation/` |
-| Services of your own | `src/oberon/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/oberon/cli/main.cpp` |
-| LSP features | `src/oberon/lsp/LspModule.cpp` |
+| The grammar | `src/core/oberon/OberonGrammar.hpp` |
+| The AST | `src/core/oberon/ast.hpp` |
+| Validation checks | `src/core/oberon/validation/` |
+| Services of your own | `src/core/oberon/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/oberon/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

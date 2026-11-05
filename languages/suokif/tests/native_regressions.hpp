@@ -3,10 +3,10 @@
 #include <cstdio>
 #include <string>
 #include <utility>
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "suokif/core/CoreServices.hpp"
-#include "suokif/core/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "suokif/CoreServices.hpp"
+#include "suokif/ast.hpp"
 
 namespace native_regressions {
 inline bool run() {

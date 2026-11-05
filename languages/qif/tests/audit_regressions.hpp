@@ -4,12 +4,12 @@
 #include <utility>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/Check.hpp"
-#include "qif/core/CoreServices.hpp"
-#include "qif/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/Check.hpp"
+#include "qif/CoreServices.hpp"
+#include "qif/ast.hpp"
 
 inline void qif_regressions(const qif::QifCoreServices &services) {
   namespace ast = qif::ast;
@@ -65,7 +65,7 @@ inline void qif_regressions(const qif::QifCoreServices &services) {
           ++count;
         }
     }
-    CHECK(count == result.nodes.size());
+    CHECK(count == result.nodes().size());
   }
   for (const auto [text, code] :
        {std::pair{"Nname\n^\n", "qif.header"},

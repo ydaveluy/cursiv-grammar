@@ -6,12 +6,12 @@
 
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "lrc/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "lrc/CoreServices.hpp"
 
 std::string_view line_body(std::string_view text) {
   if (text.ends_with("\r\n"))
@@ -115,7 +115,7 @@ int main() {
           });
     };
     walk(walk, *doc);
-    if (!owned || seen.size() != result.nodes.size())
+    if (!owned || seen.size() != result.nodes().size())
       return fail("ownership");
   }
   std::printf("lrc: %zu files, %u equal native objects, %u preserved reader "

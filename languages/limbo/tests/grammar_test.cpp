@@ -9,14 +9,14 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "limbo/core/CoreServices.hpp"
-#include "limbo/core/ast.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "limbo/CoreServices.hpp"
+#include "limbo/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace {
 
@@ -230,7 +230,7 @@ value`;
     bool generic = false, constraints = false, raises = false, handler = false;
     bool character = false, based = false, real = false, channel = false, send = false;
     bool power = false, slice = false, exports = false, spawn = false, labels = false, initializerKeys = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* x = as<ast::AdtDecl>(node)) {
         generic |= x->parameters && x->parameters->names.size() == 1;
         constraints |= x->constraints.size() == 1 && x->constraints[0]->fields.size() == 1;
@@ -262,7 +262,7 @@ value`;
       });
     };
     walk(walk, *root);
-    if (!owned || root->parent || reached.size() != result.nodes.size())
+    if (!owned || root->parent || reached.size() != result.nodes().size())
       return fail("native AST has missing, orphaned or multiply-owned nodes");
   }
   for (const auto source : {"implement A,B; x: int;", "_name: int;", "λ: int;", "R5: int;"}) {

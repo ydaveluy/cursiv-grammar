@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/bison/core/BisonGrammar.hpp` |
-| The AST | `src/bison/core/ast.hpp` |
-| Validation checks | `src/bison/core/validation/` |
-| Services of your own | `src/bison/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/bison/cli/main.cpp` |
-| LSP features | `src/bison/lsp/LspModule.cpp` |
+| The grammar | `src/core/bison/BisonGrammar.hpp` |
+| The AST | `src/core/bison/ast.hpp` |
+| Validation checks | `src/core/bison/validation/` |
+| Services of your own | `src/core/bison/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/bison/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

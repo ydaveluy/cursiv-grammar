@@ -1,8 +1,7 @@
 #pragma once
 // Boundary cases frozen from python-semver 3.1.0 (2026-10-25).
-// The complete 199-case oracle corpus and executable receipts live in audit/.
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
 #include <unordered_set>
 
 namespace native_conformance {
@@ -53,7 +52,7 @@ inline bool run() {
         });
     };
     walk(walk, *v);
-    check(seen.size() == r.nodes.size(), "all AST nodes reachable");
+    check(seen.size() == r.nodes().size(), "all AST nodes reachable");
     check(cursiv::test::validationHelper(language.language, std::string(text)).diagnostics.empty(),
           "native positive validates");
   }

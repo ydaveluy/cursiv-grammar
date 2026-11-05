@@ -2,11 +2,11 @@
 #include <cstdio>
 #include <string>
 #include <vector>
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
 #include <string_view>
-#include "cursiv/core/parser/Parser.hpp"
-#include "sdl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "sdl/ast.hpp"
 
 inline bool sdl_native_regressions(const auto& language) {
   namespace ast = sdl::ast;
@@ -14,6 +14,31 @@ inline bool sdl_native_regressions(const auto& language) {
   const auto check = [&](bool good, const char* what) {
     if (!good) { std::fprintf(stderr, "sdl native: %s\n", what); ok = false; }
   };
+  {
+    const auto parsed = language.language.parser->parse(
+        "MODULE Flags; ITEM b BITFIELD MASK SIGNED LENGTH 4 MASK; "
+        "ITEM s CHARACTER VARYING LENGTH 3 VARYING; "
+        "ENTRY e VARIABLE VARIABLE PARAMETER(ANY IN OUT IN); END_MODULE Flags;");
+    const ast::PrimitiveType* bits = nullptr;
+    const ast::PrimitiveType* chars = nullptr;
+    const ast::EntryOpts* entry = nullptr;
+    const ast::Param* parameter = nullptr;
+    for (const auto* node : parsed.nodes()) {
+      if (const auto* n = cursiv::ast_cast<ast::PrimitiveType>(node)) {
+        if (n->keyword == "BITFIELD") bits = n;
+        if (n->keyword == "CHARACTER") chars = n;
+      }
+      if (const auto* n = cursiv::ast_cast<ast::EntryOpts>(node)) entry = n;
+      if (const auto* n = cursiv::ast_cast<ast::Param>(node)) parameter = n;
+    }
+    check(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() &&
+              bits && bits->mask_() && bits->signed_() && bits->modifiers.size() == 3 &&
+              bits->modifiers[2] == ast::Modifier::mask_ && chars && chars->varying_() &&
+              chars->modifiers.size() == 2 && entry && entry->variable_() &&
+              entry->modifiers.size() == 2 && parameter && parameter->in_() &&
+              parameter->out_() && parameter->modifiers.size() == 3,
+          "repeatable type, entry and parameter flags retain source order");
+  }
   const auto result = language.language.parser->parse(
       "MODULE sample IDENT \"a\"\"b\ncd\";\n"
       "CONSTANT low EQUALS %Ag; CONSTANT digit EQUALS %A0; CONSTANT bang EQUALS %A!;\n"
@@ -42,7 +67,7 @@ inline bool sdl_native_regressions(const auto& language) {
       return declaration ? cursiv::ast_cast<ast::PrimitiveType>(declaration->type) : nullptr;
     };
     const auto* byte = primitive(6); const auto* real = primitive(7); const auto* ptr = primitive(8);
-    check(byte && byte->keyword == "BYTE" && byte->unsigned_ &&
+    check(byte && byte->keyword == "BYTE" && byte->unsigned_() &&
               real && real->keyword == "G_FLOATING" && real->complex_ &&
               ptr && ptr->keyword == "POINTER_QUAD" && ptr->object && ptr->object->type,
           "factored primitive families retain keyword/options/object AST fields");

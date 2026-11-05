@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdio>
 #include <string>
-#include "cursiv/core/parser/Parser.hpp"
-#include "modula2pim4/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "modula2pim4/ast.hpp"
 
 namespace modula2pim4_native {
 inline bool run(const cursiv::Parser& parser) {
@@ -20,7 +20,7 @@ inline bool run(const cursiv::Parser& parser) {
   }
   bool call = false, character = false, sign = false, subrange = false;
   bool params = false, anonymous = false, emptyCase = false;
-  for (const auto* node : parsed.nodes) {
+  for (const auto* node : parsed.nodes()) {
     if (const auto* n = cursiv::ast_cast<CallExpr>(node))
       call = call || (n->args.size() == 1 && cursiv::ast_cast<NameExpr>(n->callee) &&
                       cursiv::ast_cast<NameExpr>(n->callee)->name == "MAX");

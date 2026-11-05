@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/alloy/core/AlloyGrammar.hpp` |
-| The AST | `src/alloy/core/ast.hpp` |
-| Validation checks | `src/alloy/core/validation/` |
-| Services of your own | `src/alloy/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/alloy/cli/main.cpp` |
-| LSP features | `src/alloy/lsp/LspModule.cpp` |
+| The grammar | `src/core/alloy/AlloyGrammar.hpp` |
+| The AST | `src/core/alloy/ast.hpp` |
+| Validation checks | `src/core/alloy/validation/` |
+| Services of your own | `src/core/alloy/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/alloy/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

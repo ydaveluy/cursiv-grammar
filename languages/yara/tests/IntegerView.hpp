@@ -1,8 +1,8 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "yara/core/Integer.hpp"
-#include "yara/core/ast.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "yara/Integer.hpp"
+#include "yara/ast.hpp"
 using J = cursiv::JsonValue;
 void append_numbers(const cursiv::AstNode &n, J::Array &nums) {
   auto add = [&](const char *role, std::string_view raw) {

@@ -7,14 +7,14 @@
 #include <iterator>
 #include <string>
 
-#include "bencoding/core/CoreServices.hpp"
-#include "bencoding/core/ast.hpp"
+#include "bencoding/CoreServices.hpp"
+#include "bencoding/ast.hpp"
 #include "bencoding/generated/Bencoding/Module.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include "code_audit.hpp"
 
 namespace {

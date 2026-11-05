@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID cql
-    GRAMMAR    cql/core/CqlGrammar.hpp
+    GRAMMAR    cql/CqlGrammar.hpp
     NAMESPACE  cql::Cql
     EXTENSIONS .cql
     OUT        cql/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/cql/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(cqlCore ${_core})
 target_link_libraries(cqlCore PUBLIC cqlGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/cql/cli/*.cpp)
-if(_cli)
-  add_executable(cql_cli ${_cli})
-  target_link_libraries(cql_cli
-                        PRIVATE cqlCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(cql_cli cli.cpp)
+  target_include_directories(cql_cli PRIVATE cli)
+  target_link_libraries(cql_cli PRIVATE cqlCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(cqlCli ${_cli})
+    target_include_directories(cqlCli PUBLIC cli)
+    target_link_libraries(cqlCli PUBLIC cqlCore cursiv::cli)
+    target_link_libraries(cql_cli PRIVATE cqlCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/cql/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/cql/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/cql/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(cqlLsp ${_lsp})
+  target_include_directories(cqlLsp PUBLIC lsp)
   target_link_libraries(cqlLsp PUBLIC cqlCore cursiv::lsp)
-  add_executable(cql_lsp cql/lsp/main.cpp)
-  target_link_libraries(cql_lsp PRIVATE cqlLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(cql_lsp lsp.cpp)
+    target_link_libraries(cql_lsp PRIVATE cqlLsp)
+  endif()
 endif()
 
-if(TARGET cqlLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cql/bench/main.cpp")
-  cursiv_add_benchmark(cql
-      SOURCES cql/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET cqlLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(cql SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(cql)

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/asl/core/AslGrammar.hpp` |
-| The AST | `src/asl/core/ast.hpp` |
-| Validation checks | `src/asl/core/validation/` |
-| Services of your own | `src/asl/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/asl/cli/main.cpp` |
-| LSP features | `src/asl/lsp/LspModule.cpp` |
+| The grammar | `src/core/asl/AslGrammar.hpp` |
+| The AST | `src/core/asl/ast.hpp` |
+| Validation checks | `src/core/asl/validation/` |
+| Services of your own | `src/core/asl/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/asl/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

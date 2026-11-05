@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/smtlibv2/core/Smtlibv2Grammar.hpp` |
-| The AST | `src/smtlibv2/core/ast.hpp` |
-| Validation checks | `src/smtlibv2/core/validation/` |
-| Services of your own | `src/smtlibv2/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/smtlibv2/cli/main.cpp` |
-| LSP features | `src/smtlibv2/lsp/LspModule.cpp` |
+| The grammar | `src/core/smtlibv2/Smtlibv2Grammar.hpp` |
+| The AST | `src/core/smtlibv2/ast.hpp` |
+| Validation checks | `src/core/smtlibv2/validation/` |
+| Services of your own | `src/core/smtlibv2/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/smtlibv2/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every example parses clean, and the tree holds what it
 # declares.
 add_executable(guitartab_grammar_test grammar_test.cpp)
-target_link_libraries(guitartab_grammar_test PRIVATE guitartabCore)
+target_link_libraries(guitartab_grammar_test PRIVATE guitartabCore cursiv::test)
 target_compile_definitions(guitartab_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

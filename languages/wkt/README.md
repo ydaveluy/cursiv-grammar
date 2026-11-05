@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/wkt/core/WktGrammar.hpp` |
-| The AST | `src/wkt/core/ast.hpp` |
-| Validation checks | `src/wkt/core/validation/` |
-| Services of your own | `src/wkt/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/wkt/cli/main.cpp` |
-| LSP features | `src/wkt/lsp/LspModule.cpp` |
+| The grammar | `src/core/wkt/WktGrammar.hpp` |
+| The AST | `src/core/wkt/ast.hpp` |
+| Validation checks | `src/core/wkt/validation/` |
+| Services of your own | `src/core/wkt/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/wkt/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

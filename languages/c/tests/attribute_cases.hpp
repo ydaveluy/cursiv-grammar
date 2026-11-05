@@ -3,8 +3,8 @@
 #include <string_view>
 #include <vector>
 
-#include "c/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "c/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
 namespace c_attribute_cases {
 namespace ast = c::ast;
 
@@ -111,12 +111,12 @@ inline bool run(const cursiv::Parser& parser) {
     bool ok = clean == c.positive;
     if (clean && c.positive) {
       ok &= parsed.cst().text() == c.source;
-      for (const auto* n : parsed.nodes)
+      for (const auto* n : parsed.nodes())
         if (!n || (n != parsed.value && !n->parent)) ok = false;
       unsigned seen = 0;
       const ast::AttributeGroup* arguments = nullptr;
       const ast::AttributeSpecifier* chosen = nullptr;
-      for (const auto* n : parsed.nodes) {
+      for (const auto* n : parsed.nodes()) {
         const auto* spec = cursiv::ast_cast<ast::AttributeSpecifier>(n);
         if (!spec || spec->kind != c.kind || !c.owner(spec->parent)) continue;
         if (*c.name) {

@@ -3,8 +3,8 @@
 #include <string_view>
 #include <vector>
 
-#include "cpp/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "cpp/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
 namespace cpp_attribute_cases {
 namespace ast = cpp::ast;
 
@@ -132,12 +132,12 @@ inline bool run(const cursiv::Parser& parser) {
     bool ok = clean == c.positive;
     if (clean && c.positive) {
       ok &= parsed.cst().text() == c.source;
-      for (const auto* n : parsed.nodes)
+      for (const auto* n : parsed.nodes())
         if (!n || (n != parsed.value && !n->parent)) ok = false;
       unsigned seen = 0;
       const ast::AttributeGroup* arguments = nullptr;
       const ast::AttributeSpecifier* chosen = nullptr;
-      for (const auto* n : parsed.nodes) {
+      for (const auto* n : parsed.nodes()) {
         const auto* spec = cursiv::ast_cast<ast::AttributeSpecifier>(n);
         if (!spec || spec->kind != c.kind || !c.owner(spec->parent)) continue;
         if (*c.name) {
@@ -216,7 +216,7 @@ inline bool run(const cursiv::Parser& parser) {
               chosen->alignmentType->parent == chosen;
       if (std::string_view(c.id) == "pure-function") {
         bool pure = false;
-        for (const auto* n : parsed.nodes)
+        for (const auto* n : parsed.nodes())
           if (const auto* m = cursiv::ast_cast<ast::MemberDeclarator>(n))
             pure |= m->isPure;
         ok &= pure;

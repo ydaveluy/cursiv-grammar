@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID yini
-    GRAMMAR    yini/core/YiniGrammar.hpp
+    GRAMMAR    yini/YiniGrammar.hpp
     NAMESPACE  yini::Yini
     EXTENSIONS .yini
     OUT        yini/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/yini/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(yiniCore ${_core})
 target_link_libraries(yiniCore PUBLIC yiniGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/yini/cli/*.cpp)
-if(_cli)
-  add_executable(yini_cli ${_cli})
-  target_link_libraries(yini_cli
-                        PRIVATE yiniCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(yini_cli cli.cpp)
+  target_include_directories(yini_cli PRIVATE cli)
+  target_link_libraries(yini_cli PRIVATE yiniCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(yiniCli ${_cli})
+    target_include_directories(yiniCli PUBLIC cli)
+    target_link_libraries(yiniCli PUBLIC yiniCore cursiv::cli)
+    target_link_libraries(yini_cli PRIVATE yiniCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/yini/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/yini/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/yini/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(yiniLsp ${_lsp})
+  target_include_directories(yiniLsp PUBLIC lsp)
   target_link_libraries(yiniLsp PUBLIC yiniCore cursiv::lsp)
-  add_executable(yini_lsp yini/lsp/main.cpp)
-  target_link_libraries(yini_lsp PRIVATE yiniLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(yini_lsp lsp.cpp)
+    target_link_libraries(yini_lsp PRIVATE yiniLsp)
+  endif()
 endif()
 
-if(TARGET yiniLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/yini/bench/main.cpp")
-  cursiv_add_benchmark(yini
-      SOURCES yini/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET yiniLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(yini SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(yini)

@@ -4,10 +4,10 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreServices.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "sharc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreServices.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "sharc/ast.hpp"
 
 namespace sharc_precision_cases {
 inline bool run(const cursiv::CoreServices& language) {

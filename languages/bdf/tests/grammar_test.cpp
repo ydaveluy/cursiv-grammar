@@ -7,13 +7,13 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "bdf/core/CoreServices.hpp"
-#include "bdf/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "bdf/CoreServices.hpp"
+#include "bdf/ast.hpp"
 
 namespace {
 

@@ -4,9 +4,9 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cql3/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "cql3/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace cql3_terms_selectors {
 inline bool run(const auto& language) {
@@ -124,7 +124,7 @@ SELECT k FROM t WHERE (a,b)>? AND (a,b) IN :tuples AND (a,b) IN (?,:second) AND 
           });
     };
     walk(walk, *parsed.value);
-    return valid && seen.size() == parsed.nodes.size();
+    return valid && seen.size() == parsed.nodes().size();
   };
   check(owned(result), "all expression/call/cast/tuple-marker nodes have unique parents and CST ownership");
   for (const auto source : {

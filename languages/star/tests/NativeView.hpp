@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "star/core/Value.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "star/Value.hpp"
 using J = cursiv::JsonValue;
 namespace sa = star::ast;
 inline star::StringSyntax syntax = star::StringSyntax::cif1;

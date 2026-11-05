@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/trac/core/TracGrammar.hpp` |
-| The AST | `src/trac/core/ast.hpp` |
-| Validation checks | `src/trac/core/validation/` |
-| Services of your own | `src/trac/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/trac/cli/main.cpp` |
-| LSP features | `src/trac/lsp/LspModule.cpp` |
+| The grammar | `src/core/trac/TracGrammar.hpp` |
+| The AST | `src/core/trac/ast.hpp` |
+| Validation checks | `src/core/trac/validation/` |
+| Services of your own | `src/core/trac/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/trac/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

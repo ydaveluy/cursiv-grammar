@@ -7,12 +7,12 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "awk/core/CoreServices.hpp"
-#include "awk/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "awk/CoreServices.hpp"
+#include "awk/ast.hpp"
 
 namespace {
 namespace ast = awk::ast;
@@ -57,7 +57,7 @@ double number(const ast::Expr* expression) {
   return std::numeric_limits<double>::quiet_NaN();
 }
 template<class T> const T* first(const cursiv::ParseResult& result) {
-  for (const auto* node : result.nodes) if (const auto* value = as<T>(node)) return value;
+  for (const auto* node : result.nodes()) if (const auto* value = as<T>(node)) return value;
   return nullptr;
 }
 }
@@ -134,7 +134,7 @@ int main() {
     const auto result = parser.parse(c.text);
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
           as<ast::Program>(result.value), c.name);
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       check(node == result.value || node->parent, "native AST parent");
     const auto validation = cursiv::test::validationHelper(language.language,c.text);
     check(validation.diagnostics.empty(), c.name);
@@ -213,7 +213,7 @@ int main() {
   {
     const auto result = parser.parse("BEGIN { r=@/a#b/; print /[/]/ }");
     std::vector<const ast::RegexLit*> regexps;
-    for (const auto* node : result.nodes) if (const auto* value=as<ast::RegexLit>(node)) regexps.push_back(value);
+    for (const auto* node : result.nodes()) if (const auto* value=as<ast::RegexLit>(node)) regexps.push_back(value);
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() && regexps.size()==2,
           "regex bodies retain their lexical context");
     check(regexps.size()==2 && regexps[0]->typed && regexps[0]->text=="/a#b/" &&

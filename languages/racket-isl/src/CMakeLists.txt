@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID racketisl
-    GRAMMAR    racketisl/core/RacketIslGrammar.hpp
+    GRAMMAR    racketisl/RacketIslGrammar.hpp
     NAMESPACE  racketisl::RacketIsl
     EXTENSIONS .racketisl .rkt
     OUT        racketisl/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/racketisl/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(racketislCore ${_core})
 target_link_libraries(racketislCore PUBLIC racketislGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/racketisl/cli/*.cpp)
-if(_cli)
-  add_executable(racketisl_cli ${_cli})
-  target_link_libraries(racketisl_cli
-                        PRIVATE racketislCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(racketisl_cli cli.cpp)
+  target_include_directories(racketisl_cli PRIVATE cli)
+  target_link_libraries(racketisl_cli PRIVATE racketislCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(racketislCli ${_cli})
+    target_include_directories(racketislCli PUBLIC cli)
+    target_link_libraries(racketislCli PUBLIC racketislCore cursiv::cli)
+    target_link_libraries(racketisl_cli PRIVATE racketislCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/racketisl/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/racketisl/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/racketisl/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(racketislLsp ${_lsp})
+  target_include_directories(racketislLsp PUBLIC lsp)
   target_link_libraries(racketislLsp PUBLIC racketislCore cursiv::lsp)
-  add_executable(racketisl_lsp racketisl/lsp/main.cpp)
-  target_link_libraries(racketisl_lsp PRIVATE racketislLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(racketisl_lsp lsp.cpp)
+    target_link_libraries(racketisl_lsp PRIVATE racketislLsp)
+  endif()
 endif()
 
-if(TARGET racketislLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/racketisl/bench/main.cpp")
-  cursiv_add_benchmark(racketisl
-      SOURCES racketisl/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET racketislLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(racketisl SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(racketisl)

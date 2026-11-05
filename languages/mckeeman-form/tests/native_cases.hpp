@@ -1,7 +1,7 @@
 #pragma once
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include <unordered_set>
 inline int checkNativeCases(const auto& language) {
   {
@@ -28,7 +28,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -56,7 +56,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -84,7 +84,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -112,7 +112,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -147,7 +147,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -182,7 +182,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -210,7 +210,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -238,7 +238,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -266,7 +266,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -294,7 +294,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -324,7 +324,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -354,7 +354,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -387,7 +387,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -421,7 +421,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -449,7 +449,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -477,7 +477,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     bool found = false;
     for (const auto& d : validation.diagnostics) found |= d.code && d.code->isString() && d.code->string() == "mckeemanform.codepoint";
@@ -507,7 +507,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -535,7 +535,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     bool found = false;
     for (const auto& d : validation.diagnostics) found |= d.code && d.code->isString() && d.code->string() == "mckeemanform.range-order";
@@ -569,7 +569,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }
@@ -597,7 +597,7 @@ inline int checkNativeCases(const auto& language) {
       });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return 1;
+    if (!parents || seen.size() != result.nodes().size()) return 1;
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (!validation.diagnostics.empty()) return 1;
   }

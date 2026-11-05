@@ -19,11 +19,11 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/ini/core/IniGrammar.hpp` |
-| The AST | `src/ini/core/ast.hpp` |
-| Services of your own | `src/ini/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/ini/cli/main.cpp` |
-| LSP features | `src/ini/lsp/LspModule.cpp` |
+| The grammar | `src/core/ini/IniGrammar.hpp` |
+| The AST | `src/core/ini/ast.hpp` |
+| Services of your own | `src/core/ini/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/ini/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

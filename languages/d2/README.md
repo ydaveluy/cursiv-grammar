@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/d2/core/D2Grammar.hpp` |
-| The AST | `src/d2/core/ast.hpp` |
-| Validation checks | `src/d2/core/validation/` |
-| Services of your own | `src/d2/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/d2/cli/main.cpp` |
-| LSP features | `src/d2/lsp/LspModule.cpp` |
+| The grammar | `src/core/d2/D2Grammar.hpp` |
+| The AST | `src/core/d2/ast.hpp` |
+| Validation checks | `src/core/d2/validation/` |
+| Services of your own | `src/core/d2/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/d2/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

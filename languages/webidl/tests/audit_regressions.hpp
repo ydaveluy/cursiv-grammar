@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "webidl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "webidl/ast.hpp"
 #include "webidl/generated/Webidl/Module.hpp"
 #include <cstdio>
 #include <string>

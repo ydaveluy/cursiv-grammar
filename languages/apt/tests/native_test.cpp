@@ -5,13 +5,13 @@
 #include <string>
 #include <unordered_set>
 #include "NativeCases.hpp"
-#include "apt/core/CoreServices.hpp"
-#include "apt/core/Word.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "apt/CoreServices.hpp"
+#include "apt/Word.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 int main() {
   const auto language = cursiv::create_language<apt::AptCoreServices,
@@ -60,7 +60,7 @@ int main() {
           });
     };
     walk(walk, *doc);
-    if (!owned || seen.size() != result.nodes.size()) return fail("ownership");
+    if (!owned || seen.size() != result.nodes().size()) return fail("ownership");
     const auto validation = cursiv::test::validationHelper(language.language, source);
     if (validation.diagnostics.size() != (c.error.empty() ? 0u : 1u))
       return fail("runtime count");

@@ -2,8 +2,8 @@
 #include <cstdio>
 #include <string>
 #include <string_view>
-#include "cursiv/core/parser/Parser.hpp"
-#include "kirikiritjs/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "kirikiritjs/ast.hpp"
 
 namespace tjs_lexical_cases {
 // Same18 ASCII lexer witnesses as the root-run unchanged-primary helper.

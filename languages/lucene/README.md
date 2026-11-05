@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/lucene/core/LuceneGrammar.hpp` |
-| The AST | `src/lucene/core/ast.hpp` |
-| Validation checks | `src/lucene/core/validation/` |
-| Services of your own | `src/lucene/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/lucene/cli/main.cpp` |
-| LSP features | `src/lucene/lsp/LspModule.cpp` |
+| The grammar | `src/core/lucene/LuceneGrammar.hpp` |
+| The AST | `src/core/lucene/ast.hpp` |
+| Validation checks | `src/core/lucene/validation/` |
+| Services of your own | `src/core/lucene/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/lucene/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

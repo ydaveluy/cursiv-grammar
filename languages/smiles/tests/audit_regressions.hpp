@@ -1,10 +1,10 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "smiles/core/CoreServices.hpp"
-#include "smiles/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "smiles/CoreServices.hpp"
+#include "smiles/ast.hpp"
 #include "smiles/generated/Smiles/Module.hpp"
 #include <cstdio>
 #include <string>

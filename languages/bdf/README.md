@@ -20,12 +20,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/bdf/core/BdfGrammar.hpp` |
-| The AST | `src/bdf/core/ast.hpp` |
-| Validation checks | `src/bdf/core/validation/` |
-| Services of your own | `src/bdf/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/bdf/cli/main.cpp` |
-| LSP features | `src/bdf/lsp/LspModule.cpp` |
+| The grammar | `src/core/bdf/BdfGrammar.hpp` |
+| The AST | `src/core/bdf/ast.hpp` |
+| Validation checks | `src/core/bdf/validation/` |
+| Services of your own | `src/core/bdf/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/bdf/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

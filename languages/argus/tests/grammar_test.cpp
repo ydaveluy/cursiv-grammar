@@ -9,11 +9,11 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "argus/core/CoreServices.hpp"
-#include "argus/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "argus/CoreServices.hpp"
+#include "argus/ast.hpp"
 
 namespace {
 
@@ -89,7 +89,7 @@ end E
         !bindings.diagnostics.empty())
       return fail("native braced operation bindings do not parse clean");
     bool foundBinding = false;
-    for (const auto* node : bindings.nodes)
+    for (const auto* node : bindings.nodes())
       if (const auto* actual = cursiv::ast_cast<argus::ast::TypeActual>(node))
         if (actual->bindings.size() == 1 &&
             actual->bindings[0]->names.size() == 1 &&
@@ -133,7 +133,7 @@ end P
          signals = false, returned = false, signalled = false, yielded = false,
          exited = false, tag = false, atomicTag = false, handled = false,
          others = false, typeSet = false;
-    for (const auto* node : r.nodes) {
+    for (const auto* node : r.nodes()) {
       if (const auto* body = cursiv::ast_cast<argus::ast::Body>(node))
         own |= body->ownVars.size() == 1;
       index |= cursiv::ast_cast<argus::ast::IndexExpr>(node) != nullptr;

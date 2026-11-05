@@ -3,12 +3,12 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "pascal/core/CoreServices.hpp"
-#include "pascal/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "pascal/CoreServices.hpp"
+#include "pascal/ast.hpp"
 namespace native_regressions {
 template <class T>
 const T* as(const cursiv::AstNode* n) {
@@ -273,7 +273,7 @@ program demo; procedure p(procedure f); begin f; end; procedure q; begin end; be
           });
     };
     if (r.value) walk(walk, *r.value);
-    parents &= seen.size() == r.nodes.size();
+    parents &= seen.size() == r.nodes().size();
     const auto validation = cursiv::test::validationHelper(services, text);
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         !parents || !validation.diagnostics.empty()) {

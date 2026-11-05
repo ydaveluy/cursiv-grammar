@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/aspectj/core/AspectjGrammar.hpp` |
-| The AST | `src/aspectj/core/ast.hpp` |
-| Validation checks | `src/aspectj/core/validation/` |
-| Services of your own | `src/aspectj/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/aspectj/cli/main.cpp` |
-| LSP features | `src/aspectj/lsp/LspModule.cpp` |
+| The grammar | `src/core/aspectj/AspectjGrammar.hpp` |
+| The AST | `src/core/aspectj/ast.hpp` |
+| Validation checks | `src/core/aspectj/validation/` |
+| Services of your own | `src/core/aspectj/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/aspectj/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -4,9 +4,9 @@
 #include <initializer_list>
 #include <string>
 #include <string_view>
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "racketbsl/core/ast.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "racketbsl/ast.hpp"
 
 namespace racketbsl_reader_boundaries {
 namespace ast = racketbsl::ast;

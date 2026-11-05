@@ -8,12 +8,12 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "java/core/CoreServices.hpp"
-#include "java/core/UnicodeEscapes.hpp"
-#include "java/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "java/CoreServices.hpp"
+#include "java/UnicodeEscapes.hpp"
+#include "java/ast.hpp"
 #include "java/generated/Java/Module.hpp"
 #include "unicode_input_cases.hpp"
 #include "literal_dimension_cases.hpp"
@@ -83,7 +83,7 @@ int unicode_regressions() {
   for (const auto &test : classes) {
     const auto result = parser.parse(test.source);
     const java::ast::ClassDecl *decl = nullptr;
-    for (auto *node : result.nodes)
+    for (auto *node : result.nodes())
       if (const auto *c = cursiv::ast_cast<java::ast::ClassDecl>(node))
         decl = c;
     if (!clean(result) || !decl || decl->name != test.name)
@@ -131,7 +131,7 @@ int unicode_regressions() {
   for (const auto &test : literals) {
     const auto result = parser.parse(test.source);
     bool found = false;
-    for (auto *node : result.nodes) {
+    for (auto *node : result.nodes()) {
       if (const auto *c = cursiv::ast_cast<java::ast::CharLit>(node))
         found |= test.character && c->text == test.text;
       if (const auto *s = cursiv::ast_cast<java::ast::StringLit>(node))
@@ -152,18 +152,18 @@ int unicode_regressions() {
     return first;
   }();
   cursiv::ParseResult moved;
-  retained.arena.carve_bytes(17, alignof(std::uint64_t));
-  auto *extra = retained.arena.make<java::ast::StringLit>();
-  extra->text = "alive";
+  const auto *const firstNode =
+      retained.nodes().empty() ? nullptr : retained.nodes().front();
   moved = std::move(retained);
-  if (extra->text != "alive" || !moved.arena.carve_bytes(11, 1))
-    return fail("Unicode result arena lifetime");
+  if (firstNode == nullptr || moved.nodes().empty() ||
+      moved.nodes().front() != firstNode)
+    return fail("Unicode result node lifetime");
   bool alive = false;
-  for (auto *node : moved.nodes)
+  for (auto *node : moved.nodes())
     if (const auto *c = cursiv::ast_cast<java::ast::ClassDecl>(node))
       alive = c->name == "T";
   if (!clean(moved) || !alive ||
-      moved.cst().owned().size() != moved.nodes.size())
+      moved.cst().owned().size() != moved.nodes().size())
     return fail("Unicode result lifetime");
   if (moved.references) {
     moved.references->reset();
@@ -235,7 +235,7 @@ int main() {
       return 1;
     }
     bool found = false;
-    for (const auto *node : audit_result.nodes)
+    for (const auto *node : audit_result.nodes())
       if (const auto *a = cursiv::ast_cast<java::ast::NewArrayExpr>(node))
         found = a->dimensions.size() == 3 && a->dimensions[0]->size &&
                 !a->dimensions[1]->size && !a->dimensions[2]->size;
@@ -281,5 +281,21 @@ int main() {
     return fail("no example files found");
 
   std::printf("java: %d examples parse clean\n", count);
+  for (const std::string_view modifiers : {"static transitive", "transitive static"}) {
+    const std::string source = "module m { requires " + std::string(modifiers) +
+                               " dependency; }";
+    const auto parsed = language.language.parser->parse(source);
+    const java::ast::RequiresDirective* requirement = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* directive = cursiv::ast_cast<java::ast::RequiresDirective>(node))
+        requirement = directive;
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !requirement ||
+        requirement->modifiers.size() != 2 || requirement->module_ != "dependency" ||
+        requirement->modifiers[0] != modifiers.substr(0, modifiers.find(' ')) ||
+        requirement->modifiers[1] != modifiers.substr(modifiers.find(' ') + 1))
+      return fail("requires modifiers retain source order");
+  }
+
   return 0;
 }

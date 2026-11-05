@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/gql/core/GqlGrammar.hpp` |
-| The AST | `src/gql/core/ast.hpp` |
-| Validation checks | `src/gql/core/validation/` |
-| Services of your own | `src/gql/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/gql/cli/main.cpp` |
-| LSP features | `src/gql/lsp/LspModule.cpp` |
+| The grammar | `src/core/gql/GqlGrammar.hpp` |
+| The AST | `src/core/gql/ast.hpp` |
+| Validation checks | `src/core/gql/validation/` |
+| Services of your own | `src/core/gql/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/gql/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

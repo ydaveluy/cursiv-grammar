@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/clu/core/CluGrammar.hpp` |
-| The AST | `src/clu/core/ast.hpp` |
-| Validation checks | `src/clu/core/validation/` |
-| Services of your own | `src/clu/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/clu/cli/main.cpp` |
-| LSP features | `src/clu/lsp/LspModule.cpp` |
+| The grammar | `src/core/clu/CluGrammar.hpp` |
+| The AST | `src/core/clu/ast.hpp` |
+| Validation checks | `src/core/clu/validation/` |
+| Services of your own | `src/core/clu/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/clu/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

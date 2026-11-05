@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID sparql
-    GRAMMAR    sparql/core/SparqlGrammar.hpp
+    GRAMMAR    sparql/SparqlGrammar.hpp
     NAMESPACE  sparql::Sparql
     EXTENSIONS .rq
     OUT        sparql/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/sparql/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(sparqlCore ${_core})
 target_link_libraries(sparqlCore PUBLIC sparqlGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/sparql/cli/*.cpp)
-if(_cli)
-  add_executable(sparql_cli ${_cli})
-  target_link_libraries(sparql_cli
-                        PRIVATE sparqlCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(sparql_cli cli.cpp)
+  target_include_directories(sparql_cli PRIVATE cli)
+  target_link_libraries(sparql_cli PRIVATE sparqlCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(sparqlCli ${_cli})
+    target_include_directories(sparqlCli PUBLIC cli)
+    target_link_libraries(sparqlCli PUBLIC sparqlCore cursiv::cli)
+    target_link_libraries(sparql_cli PRIVATE sparqlCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/sparql/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/sparql/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/sparql/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(sparqlLsp ${_lsp})
+  target_include_directories(sparqlLsp PUBLIC lsp)
   target_link_libraries(sparqlLsp PUBLIC sparqlCore cursiv::lsp)
-  add_executable(sparql_lsp sparql/lsp/main.cpp)
-  target_link_libraries(sparql_lsp PRIVATE sparqlLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(sparql_lsp lsp.cpp)
+    target_link_libraries(sparql_lsp PRIVATE sparqlLsp)
+  endif()
 endif()
 
-if(TARGET sparqlLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sparql/bench/main.cpp")
-  cursiv_add_benchmark(sparql
-      SOURCES sparql/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET sparqlLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(sparql SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(sparql)

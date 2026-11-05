@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/turing/core/TuringGrammar.hpp` |
-| The AST | `src/turing/core/ast.hpp` |
-| Validation checks | `src/turing/core/validation/` |
-| Services of your own | `src/turing/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/turing/cli/main.cpp` |
-| LSP features | `src/turing/lsp/LspModule.cpp` |
+| The grammar | `src/core/turing/TuringGrammar.hpp` |
+| The AST | `src/core/turing/ast.hpp` |
+| Validation checks | `src/core/turing/validation/` |
+| Services of your own | `src/core/turing/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/turing/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID kirikiritjs
-    GRAMMAR    kirikiritjs/core/KirikiriTjsGrammar.hpp
+    GRAMMAR    kirikiritjs/KirikiriTjsGrammar.hpp
     NAMESPACE  kirikiritjs::KirikiriTjs
     EXTENSIONS .tjs
     OUT        kirikiritjs/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/kirikiritjs/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(kirikiritjsCore ${_core})
 target_link_libraries(kirikiritjsCore PUBLIC kirikiritjsGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/kirikiritjs/cli/*.cpp)
-if(_cli)
-  add_executable(kirikiritjs_cli ${_cli})
-  target_link_libraries(kirikiritjs_cli
-                        PRIVATE kirikiritjsCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(kirikiritjs_cli cli.cpp)
+  target_include_directories(kirikiritjs_cli PRIVATE cli)
+  target_link_libraries(kirikiritjs_cli PRIVATE kirikiritjsCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(kirikiritjsCli ${_cli})
+    target_include_directories(kirikiritjsCli PUBLIC cli)
+    target_link_libraries(kirikiritjsCli PUBLIC kirikiritjsCore cursiv::cli)
+    target_link_libraries(kirikiritjs_cli PRIVATE kirikiritjsCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/kirikiritjs/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/kirikiritjs/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/kirikiritjs/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(kirikiritjsLsp ${_lsp})
+  target_include_directories(kirikiritjsLsp PUBLIC lsp)
   target_link_libraries(kirikiritjsLsp PUBLIC kirikiritjsCore cursiv::lsp)
-  add_executable(kirikiritjs_lsp kirikiritjs/lsp/main.cpp)
-  target_link_libraries(kirikiritjs_lsp PRIVATE kirikiritjsLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(kirikiritjs_lsp lsp.cpp)
+    target_link_libraries(kirikiritjs_lsp PRIVATE kirikiritjsLsp)
+  endif()
 endif()
 
-if(TARGET kirikiritjsLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kirikiritjs/bench/main.cpp")
-  cursiv_add_benchmark(kirikiritjs
-      SOURCES kirikiritjs/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET kirikiritjsLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(kirikiritjs SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(kirikiritjs)

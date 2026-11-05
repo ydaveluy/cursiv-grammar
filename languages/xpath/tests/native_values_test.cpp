@@ -1,11 +1,11 @@
 #include "NativeCases.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "xpath/core/CoreServices.hpp"
-#include "xpath/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "xpath/CoreServices.hpp"
+#include "xpath/ast.hpp"
 #include <cstdio>
 #include <string_view>
 #include <unordered_set>
@@ -50,7 +50,7 @@ int main() {
           });
     };
     walk(walk, *d);
-    check(owned && seen.size() == r.nodes.size(), c.name, "complete ownership");
+    check(owned && seen.size() == r.nodes().size(), c.name, "complete ownership");
     a::Expr *e = unwrap(d->expressions[0]);
     if (id.starts_with("integer")) {
       auto *n = cursiv::ast_cast<a::IntegerLit>(e);

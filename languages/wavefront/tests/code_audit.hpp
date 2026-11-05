@@ -5,10 +5,10 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "wavefront/core/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "wavefront/CoreServices.hpp"
 
 namespace code_audit {
 namespace ast = wavefront::ast;
@@ -42,7 +42,7 @@ inline bool run() {
               *n, [&](auto, auto, auto& child) { visit(&child, n); });
         };
     visit(r.value, nullptr);
-    check(reached.size() == r.nodes.size(), "all allocated nodes reachable");
+    check(reached.size() == r.nodes().size(), "all allocated nodes reachable");
     return r;
   };
   for (std::string_view text : {"", "# comment", "\xef\xbb\xbf# comment\r\n"}) {
@@ -166,7 +166,7 @@ inline bool run() {
     cursiv::ValidationAcceptor accept(sink, doc, source);
     const auto* d = doc.parseResult.value_as<ast::Document>();
     if (d) language.language.validator->checkDocument(*d, accept);
-    for (const auto* n : doc.parseResult.nodes)
+    for (const auto* n : doc.parseResult.nodes())
       if (const auto* p = cursiv::ast_cast<ast::Vertex>(n))
         language.language.validator->checkVertex(*p, accept);
     check(errors == 9, "invalid values and arities receive runtime errors");

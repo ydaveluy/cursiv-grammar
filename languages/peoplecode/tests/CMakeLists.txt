@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every example parses clean, and real field values read
 # back out of the tree match the source.
 add_executable(peoplecode_grammar_test grammar_test.cpp)
-target_link_libraries(peoplecode_grammar_test PRIVATE peoplecodeCore)
+target_link_libraries(peoplecode_grammar_test PRIVATE peoplecodeCore cursiv::test)
 target_compile_definitions(peoplecode_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

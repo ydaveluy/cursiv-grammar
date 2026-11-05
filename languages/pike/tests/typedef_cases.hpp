@@ -4,8 +4,8 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "pike/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "pike/ast.hpp"
 
 namespace pike_typedef {
 inline bool run(const auto& language) {
@@ -51,7 +51,7 @@ inline bool run(const auto& language) {
     if (!clean || !c.clean) continue;
     unsigned declarations = 0;
     const a::Typedef* def = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<a::Typedef>(node)) {
         ++declarations; if (!def) def = value;
       }
@@ -70,7 +70,7 @@ inline bool run(const auto& language) {
           });
     };
     if (result.value) walk(walk, *result.value);
-    check(owned && seen.size() == result.nodes.size(),
+    check(owned && seen.size() == result.nodes().size(),
           "complete unique AST/CST ownership", c.name);
     if (!def) continue;
     if (name == "public")

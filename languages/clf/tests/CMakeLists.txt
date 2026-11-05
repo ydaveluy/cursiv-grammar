@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every corpus file parses, and the fields it writes hold.
 add_executable(clf_grammar_test grammar_test.cpp)
-target_link_libraries(clf_grammar_test PRIVATE clfCore)
+target_link_libraries(clf_grammar_test PRIVATE clfCore cursiv::test)
 target_compile_definitions(clf_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

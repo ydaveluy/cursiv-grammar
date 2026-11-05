@@ -11,11 +11,11 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "sparql/core/CoreServices.hpp"
-#include "sparql/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "sparql/CoreServices.hpp"
+#include "sparql/ast.hpp"
 
 namespace {
 

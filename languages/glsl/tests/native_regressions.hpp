@@ -1,10 +1,10 @@
 #pragma once
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "glsl/core/CoreServices.hpp"
-#include "glsl/core/Directives.hpp"
-#include "glsl/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "glsl/CoreServices.hpp"
+#include "glsl/Directives.hpp"
+#include "glsl/ast.hpp"
 #include <algorithm>
 #include <cstdio>
 #include <string_view>
@@ -17,7 +17,7 @@ template <class T> const T *as(const cursiv::AstNode *n) {
 }
 template <class T> std::vector<const T *> nodes(const cursiv::ParseResult &r) {
   std::vector<const T *> out;
-  for (const auto *n : r.nodes)
+  for (const auto *n : r.nodes())
     if (const auto *x = as<T>(n))
       out.push_back(x);
   return out;
@@ -426,7 +426,7 @@ void main(){float f(float x);})GLSL",
     };
     if (result.value)
       walk(walk, *result.value);
-    check(owned && seen.size() == result.nodes.size(), c.name);
+    check(owned && seen.size() == result.nodes().size(), c.name);
     const auto validation = cursiv::test::validationHelper(services, source);
     if (*c.code) {
       bool found = false;

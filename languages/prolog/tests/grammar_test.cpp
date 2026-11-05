@@ -1,10 +1,10 @@
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "prolog/core/CoreServices.hpp"
-#include "prolog/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "prolog/CoreServices.hpp"
+#include "prolog/ast.hpp"
 #include "reader_cases.hpp"
 #include <bit>
 #include <cstdio>
@@ -46,7 +46,7 @@ bool ownsAll(const cursiv::ParseResult &result,
       };
   if (result.value)
     visit(*result.value, parent);
-  return parents && reached.size() == result.nodes.size();
+  return parents && reached.size() == result.nodes().size();
 }
 } // namespace
 int main() {

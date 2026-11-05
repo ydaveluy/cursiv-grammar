@@ -1,7 +1,7 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "rfc1960/core/FilterValue.hpp"
-#include "rfc1960/core/ast.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "rfc1960/FilterValue.hpp"
+#include "rfc1960/ast.hpp"
 #include <optional>
 #include <string>
 using J = cursiv::JsonValue;

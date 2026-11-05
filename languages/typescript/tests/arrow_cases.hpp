@@ -55,7 +55,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
     check(parsed.cst().text()==test.source,test.name,"complete source retained");
     std::vector<const a::ArrowFunctionExpr*> arrows;
     std::size_t yields=0,calls=0;
-    for(const auto* node:parsed.nodes){
+    for(const auto* node:parsed.nodes()){
       if(const auto* arrow=cursiv::ast_cast<a::ArrowFunctionExpr>(node))arrows.push_back(arrow);
       yields+=cursiv::ast_cast<a::YieldExpr>(node)!=nullptr;
       if(const auto* call=cursiv::ast_cast<a::CallExpr>(node))calls+=typescript_yield_cases::namedYield(call->callee);
@@ -105,7 +105,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size()==parsed.nodes.size()&&!parsed.value->parent,test.name,"all allocated nodes reachable exactly once");
+    check(seen.size()==parsed.nodes().size()&&!parsed.value->parent,test.name,"all allocated nodes reachable exactly once");
   }
   std::printf("typescript arrow: %zu native/context controls\n",std::size(cases));
   return ok;

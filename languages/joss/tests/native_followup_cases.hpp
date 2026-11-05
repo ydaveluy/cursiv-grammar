@@ -3,9 +3,9 @@
 #include <string_view>
 #include <variant>
 #include <unordered_set>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "joss/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "joss/ast.hpp"
 namespace joss_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace a = joss::ast;
@@ -34,7 +34,7 @@ _    __.___
   bool multiply = false, power = false, absolute = false, decimal = false, text = false;
   bool subscript = false, step = false, conditional = false, prompt = false, form = false;
   bool layout = false, removed = false, formula = false, range = false, bracket = false, sum = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* p = cursiv::ast_cast<a::BinMath>(node)) {
       multiply |= p->op == a::MathOp::mul;
       const auto* left = cursiv::ast_cast<a::BinMath>(p->left);
@@ -75,7 +75,7 @@ _    __.___
           });
     };
     walk(walk, *root);
-    check(owned && seen.size() == result.nodes.size(), "all AST captures are uniquely owned");
+    check(owned && seen.size() == result.nodes().size(), "all AST captures are uniquely owned");
   }
   for (const auto example : {"1.1 To part 2 if n = 0.", "Type 2*3.", "Type 7•3.",
                               "Type min[17.5, 1/2, -5, sqrt(2)].",

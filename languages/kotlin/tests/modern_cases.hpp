@@ -5,7 +5,7 @@
 #include <string_view>
 #include <vector>
 
-#include "kotlin/core/ast.hpp"
+#include "kotlin/ast.hpp"
 
 namespace kotlin_audit {
 namespace ast = kotlin::ast;
@@ -13,7 +13,7 @@ namespace ast = kotlin::ast;
 template <class T, class Result>
 std::vector<const T *> nodes(const Result &result) {
   std::vector<const T *> found;
-  for (const auto *node : result.nodes)
+  for (const auto *node : result.nodes())
     if (const auto *value = cursiv::ast_cast<T>(node))
       found.push_back(value);
   return found;

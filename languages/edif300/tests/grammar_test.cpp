@@ -11,11 +11,11 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "edif300/core/CoreServices.hpp"
-#include "edif300/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "edif300/CoreServices.hpp"
+#include "edif300/ast.hpp"
 
 namespace {
 

@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "sysmlv2/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "sysmlv2/ast.hpp"
 #include "sysmlv2/generated/SysmlV2/Module.hpp"
 #include <cstdio>
 #include <string>

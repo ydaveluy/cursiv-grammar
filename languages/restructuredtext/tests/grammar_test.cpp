@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "restructuredtext/core/CoreServices.hpp"
-#include "restructuredtext/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "restructuredtext/CoreServices.hpp"
+#include "restructuredtext/ast.hpp"
 // The smoke test of the language: build the container the way a workspace
 // does, read every sample, and check the trees.
 
@@ -13,7 +13,7 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -29,7 +29,7 @@ int fail(const char* what) {
 // A paragraph joined across lines holds the line break between them.
 bool joined(const restructuredtext::ast::Paragraph& p) {
   for (const auto& span : p.spans)
-    if (const auto* text = std::get_if<std::string_view>(&span);
+    if (const auto* text = std::get_if<std::string>(&span);
         text != nullptr && (*text == "\n" || *text == "\r\n"))
       return true;
   return false;

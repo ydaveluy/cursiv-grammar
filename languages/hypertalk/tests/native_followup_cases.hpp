@@ -1,9 +1,9 @@
 #pragma once
 #include <cstdio>
 #include <string>
-#include "cursiv/test/ValidationHelper.hpp"
-#include "hypertalk/core/CoreServices.hpp"
-#include "hypertalk/core/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "hypertalk/CoreServices.hpp"
+#include "hypertalk/ast.hpp"
 
 namespace hypertalk_native_followup {
 inline bool run(const hypertalk::HypertalkCoreServices& services) {
@@ -44,7 +44,7 @@ inline bool run(const hypertalk::HypertalkCoreServices& services) {
   bool trueValue=false, falseValue=false, date=false, time=false, longDate=false, englishDate=false;
   bool password=false, fileAnswer=false, programAnswer=false, visual=false, messages=false, errors=false;
   bool doLanguage=false, modem=false, menu=false, pop=false, printing=false, showAt=false, allCards=false, go=false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* wait = cursiv::ast_cast<hypertalk::ast::WaitCmd>(node)) {
       const auto* amount = cursiv::ast_cast<hypertalk::ast::NumberLit>(wait->amount);
       defaultTicks |= amount && amount->value == 7 && !wait->unit;

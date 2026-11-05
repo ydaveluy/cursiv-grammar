@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "php/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "php/ast.hpp"
 
 namespace port_audit_cases {
 

@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdio>
 #include <string_view>
-#include "cursiv/core/parser/Parser.hpp"
-#include "xquery/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "xquery/ast.hpp"
 
 namespace xquery_native_types {
 template<class Language> bool run(const Language& language) {
@@ -11,7 +11,7 @@ template<class Language> bool run(const Language& language) {
   auto checkType=[&](std::string_view source,const char* evidence,auto predicate) {
     const auto result=parser.parse(source);
     const ast::ItemType* type=nullptr;
-    for(const auto* node:result.nodes)
+    for(const auto* node:result.nodes())
       if(const auto* test=cursiv::ast_cast<ast::InstanceOfExpr>(node);test&&test->type)
         type=test->type->itemType;
     if(!result.accepted||result.cst().recovered()||!result.diagnostics.empty()||!type||!predicate(*type)) {
@@ -78,7 +78,7 @@ template<class Language> bool run(const Language& language) {
   }))return false;
   const auto fields=parser.parse("declare record local:R(%static foo as xs:string := \"x\", plain as item()); 1");
   bool staticField=false,plainField=false;
-  for(const auto* node:fields.nodes)if(const auto* field=cursiv::ast_cast<ast::FieldDecl>(node)){
+  for(const auto* node:fields.nodes())if(const auto* field=cursiv::ast_cast<ast::FieldDecl>(node)){
     staticField|=field->name=="foo"&&field->isStatic&&field->def&&field->type;
     plainField|=field->name=="plain"&&!field->isStatic&&!field->def&&field->type;
   }

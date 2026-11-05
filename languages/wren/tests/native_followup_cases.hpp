@@ -3,9 +3,9 @@
 #include <cstdio>
 #include <string_view>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "wren/core/CoreServices.hpp"
-#include "wren/core/ast.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "wren/CoreServices.hpp"
+#include "wren/ast.hpp"
 
 namespace wren_followup {
 inline bool run() {

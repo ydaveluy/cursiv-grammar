@@ -1,5 +1,5 @@
 #pragma once
-#include "ruleworks/core/ast.hpp"
+#include "ruleworks/ast.hpp"
 #include <cstdio>
 #include <string>
 #include <variant>
@@ -41,8 +41,8 @@ inline bool run(const auto& services) {
                 second && std::get_if<std::int64_t>(&second->value) &&
                 *std::get_if<std::int64_t>(&second->value) == 7,
             "native integer converter strips optional plus and trailing period");
-      check(quoted && std::get_if<std::string_view>(&quoted->value) &&
-                *std::get_if<std::string_view>(&quoted->value) == "a|b",
+      check(quoted && std::get_if<std::string>(&quoted->value) &&
+                *std::get_if<std::string>(&quoted->value) == "a|b",
             "doubled bar is one symbol character");
       check(unary && unary->op == ast::ArithOp::sub && !unary->left &&
                 as<ast::Variable>(unary->right) &&

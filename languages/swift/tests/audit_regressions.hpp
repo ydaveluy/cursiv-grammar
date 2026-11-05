@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "swift/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "swift/ast.hpp"
 #include "swift/generated/Swift/Module.hpp"
 #include <cstdio>
 #include <string>

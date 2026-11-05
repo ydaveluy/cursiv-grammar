@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "protobuf/core/Numbers.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "protobuf/Numbers.hpp"
 #include <bit>
 #include <cmath>
 #include <cstdio>

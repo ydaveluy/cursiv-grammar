@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every file of example/ parses, and the tree holds a
 # proposition.
 add_executable(ltl_grammar_test grammar_test.cpp)
-target_link_libraries(ltl_grammar_test PRIVATE ltlCore)
+target_link_libraries(ltl_grammar_test PRIVATE ltlCore cursiv::test)
 target_compile_definitions(ltl_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

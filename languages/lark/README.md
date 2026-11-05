@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/lark/core/LarkGrammar.hpp` |
-| The AST | `src/lark/core/ast.hpp` |
-| Validation checks | `src/lark/core/validation/` |
-| Services of your own | `src/lark/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/lark/cli/main.cpp` |
-| LSP features | `src/lark/lsp/LspModule.cpp` |
+| The grammar | `src/core/lark/LarkGrammar.hpp` |
+| The AST | `src/core/lark/ast.hpp` |
+| Validation checks | `src/core/lark/validation/` |
+| Services of your own | `src/core/lark/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/lark/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

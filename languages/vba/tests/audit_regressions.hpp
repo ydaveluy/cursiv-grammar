@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "vba/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "vba/ast.hpp"
 #include "vba/generated/Vba/Module.hpp"
 #include <cstdio>
 #include <string>

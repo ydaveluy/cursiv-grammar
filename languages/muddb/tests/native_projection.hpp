@@ -1,5 +1,5 @@
 #pragma once
-#include "muddb/core/ast.hpp"
+#include "muddb/ast.hpp"
 #include <charconv>
 #include <ostream>
 #include <string>

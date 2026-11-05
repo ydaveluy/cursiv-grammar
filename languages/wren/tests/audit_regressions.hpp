@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "wren/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "wren/ast.hpp"
 #include "wren/generated/Wren/Module.hpp"
 #include <cstdio>
 #include <string>

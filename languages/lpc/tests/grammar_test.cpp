@@ -3,13 +3,13 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "lpc/core/CoreServices.hpp"
-#include "lpc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "lpc/CoreServices.hpp"
+#include "lpc/ast.hpp"
 #include "heredoc_cases.hpp"
 
 namespace {
@@ -89,7 +89,7 @@ int main() {
       return 1;
     }
     bool assignment = false, arithmetic = false;
-    for (const auto *node : audit_result.nodes)
+    for (const auto *node : audit_result.nodes())
       if (const auto *label = cursiv::ast_cast<lpc::ast::CaseStmt>(node)) {
         assignment =
             assignment || cursiv::ast_cast<lpc::ast::AssignExpr>(label->low);
@@ -130,7 +130,7 @@ async promise<int> f(promise<int> input) {
 )LPC");
     bool promise = false, array = false, optionalMember = false, optionalIndex = false;
     bool coalesce = false, interpolation = false, concat = false, reverse = false, initialization = false;
-    for (const auto* n : r.nodes) {
+    for (const auto* n : r.nodes()) {
       if (const auto* t = cursiv::ast_cast<ast::TypeSpec>(n)) { promise |= t->baseType == "promise" && t->typeArgument; array |= t->arrayKeyword; }
       if (const auto* v = cursiv::ast_cast<ast::MemberExpr>(n)) optionalMember |= v->optional;
       if (const auto* v = cursiv::ast_cast<ast::IndexExpr>(n)) optionalIndex |= v->optional;

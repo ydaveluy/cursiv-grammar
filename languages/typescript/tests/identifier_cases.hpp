@@ -6,11 +6,11 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "typescript/core/CoreServices.hpp"
-#include "typescript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "typescript/CoreServices.hpp"
+#include "typescript/ast.hpp"
 
 namespace typescript_identifier_cases {
 inline bool run(const typescript::TypeScriptCoreServices& services) {
@@ -65,7 +65,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
     }
     check(parsed.cst().text() == test.source, "source text retained");
     bool rawSeen = false;
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* n = cursiv::ast_cast<typescript::ast::Ident>(node))
         rawSeen |= n->name == test.raw;
       if (const auto* n = cursiv::ast_cast<typescript::ast::TypeRef>(node))
@@ -86,7 +86,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size() == parsed.nodes.size() && !parsed.value->parent,
+    check(seen.size() == parsed.nodes().size() && !parsed.value->parent,
           "all allocations reachable once");
   }
   std::printf("typescript identifier: %zu native character controls\n", std::size(cases));

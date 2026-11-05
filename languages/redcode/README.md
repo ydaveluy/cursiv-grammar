@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/redcode/core/RedcodeGrammar.hpp` |
-| The AST | `src/redcode/core/ast.hpp` |
-| Validation checks | `src/redcode/core/validation/` |
-| Services of your own | `src/redcode/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/redcode/cli/main.cpp` |
-| LSP features | `src/redcode/lsp/LspModule.cpp` |
+| The grammar | `src/core/redcode/RedcodeGrammar.hpp` |
+| The AST | `src/core/redcode/ast.hpp` |
+| Validation checks | `src/core/redcode/validation/` |
+| Services of your own | `src/core/redcode/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/redcode/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/stellaris/core/StellarisGrammar.hpp` |
-| The AST | `src/stellaris/core/ast.hpp` |
-| Validation checks | `src/stellaris/core/validation/` |
-| Services of your own | `src/stellaris/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/stellaris/cli/main.cpp` |
-| LSP features | `src/stellaris/lsp/LspModule.cpp` |
+| The grammar | `src/core/stellaris/StellarisGrammar.hpp` |
+| The AST | `src/core/stellaris/ast.hpp` |
+| Validation checks | `src/core/stellaris/validation/` |
+| Services of your own | `src/core/stellaris/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/stellaris/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

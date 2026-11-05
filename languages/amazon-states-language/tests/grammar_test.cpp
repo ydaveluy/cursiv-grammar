@@ -9,14 +9,15 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <vector>
 
-#include "amazonstateslanguage/core/CoreServices.hpp"
-#include "amazonstateslanguage/core/ast.hpp"
+#include "amazonstateslanguage/CoreServices.hpp"
+#include "amazonstateslanguage/ast.hpp"
 #include "amazonstateslanguage/generated/AmazonStatesLanguage/Module.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace {
 
@@ -50,12 +51,12 @@ const T* as(const cursiv::AstNode* node) {
 }
 
 template <class T>
-bool only(const cursiv::vector<T>& list, std::type_identity_t<T> value) {
+bool only(const std::vector<T>& list, std::type_identity_t<T> value) {
   return list.size() == 1 && list[0] == value;
 }
 
 template <class T>
-T* single(const cursiv::vector<T*>& list) {
+T* single(const std::vector<T*>& list) {
   return list.size() == 1 ? list[0] : nullptr;
 }
 
@@ -115,7 +116,8 @@ void dynamodb_example_reads_back() {
   check(only(put->types, "Task"), "dynamodb: PutItem type");
   check(only(put->resources, "arn:aws:states:::dynamodb:putItem"),
        "dynamodb: PutItem resource");
-  check(only(put->result_paths, "$.putItemOutput"),
+  check(put->result_paths.size() == 1 &&
+            std::get<std::string>(put->result_paths[0]) == "$.putItemOutput",
        "dynamodb: PutItem result_path");
   check(only(put->next, "UpdateItem"), "dynamodb: PutItem next");
   const ast::Object* const parameters = single(put->parameters);
@@ -124,7 +126,7 @@ void dynamodb_example_reads_back() {
   const ast::Binding* const table_name = find(parameters, "TableName.$");
   check(table_name != nullptr, "dynamodb: TableName.$ binding");
   if (table_name != nullptr)
-    check(std::get<std::string_view>(table_name->value) == "$.TableName",
+    check(std::get<std::string>(table_name->value) == "$.TableName",
          "dynamodb: TableName.$ value");
 }
 
@@ -267,7 +269,7 @@ void json_values_and_escaped_names_read_back() {
         "JSON null has its own value type");
   constexpr std::string_view expected[] = {"null", "é", "😀", "line\nend"};
   for (std::size_t i = 0; i < 4; ++i) {
-    const auto* text = std::get_if<std::string_view>(&array->items[i + 1]);
+    const auto* text = std::get_if<std::string>(&array->items[i + 1]);
     check(text && *text == expected[i], "decoded JSON string value");
   }
 
@@ -301,7 +303,7 @@ void native_jsonata_fields_read_back() {
   if (choose && choose->choices.size() == 1) {
     const auto* rule = as<ast::JsonataChoiceRule>(choose->choices[0]);
     check(rule && rule->conditions.size() == 1 &&
-              std::get<std::string_view>(rule->conditions[0]) ==
+              std::get<std::string>(rule->conditions[0]) ==
                   "{% $states.input.ok %}" &&
               rule->assignments.size() == 1 && rule->outputs.size() == 1,
           "JSONata choice retains condition, assignment and output");
@@ -335,7 +337,7 @@ void native_jsonata_fields_read_back() {
         "Map option names, values and order retained");
   check(state && state->numeric_expressions.size() == 1 &&
             state->numeric_expressions[0]->key == "MaxConcurrency" &&
-            std::get<std::string_view>(state->numeric_expressions[0]->value) ==
+            std::get<std::string>(state->numeric_expressions[0]->value) ==
                 "{% 2 %}" && state->item_selector_values.size() == 1,
         "JSONata numeric and item-selector expressions retained");
   if (state && state->item_readers.size() == 1) {
@@ -405,6 +407,24 @@ int main() {
         R"({"StartAt":"S","Comment":"a","Comm\u0065nt":"b","States":{"S":{"Type":"Succeed"}}})");
     check(escaped_duplicate.diagnostics.size() == 1,
           "JSON-equivalent member names are duplicates");
+  }
+  {
+    const auto parsed = engine().parse(
+        R"({"StartAt":"S","States":{"S":{"Type":"Task","Resource":"r","InputPath":null,"OutputPath":null,"ResultPath":null,"Catch":[{"ErrorEquals":["E"],"ResultPath":null,"Next":"Done"}],"Next":"Done"},"Done":{"Type":"Succeed"}}})");
+    const auto* program = parsed.value_as<ast::Program>();
+    const auto* state = find(program, "S");
+    check(parsed.accepted && !parsed.cst().recovered() &&
+              parsed.diagnostics.empty() && state,
+          "nullable JSON path fields parse clean");
+    if (state) {
+      for (const auto* paths : {&state->input_paths, &state->output_paths,
+                               &state->result_paths})
+        check(paths->size() == 1 && std::holds_alternative<std::monostate>((*paths)[0]),
+              "null path value retained");
+      check(state->catch_.size() == 1 && state->catch_[0]->result_path.size() == 1 &&
+                std::holds_alternative<std::monostate>(state->catch_[0]->result_path[0]),
+            "catcher null result path retained");
+    }
   }
   if (failures != 0) {
     std::fprintf(stderr, "amazonstateslanguage: %d check(s) failed\n",

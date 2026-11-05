@@ -7,10 +7,10 @@
 #include <unordered_set>
 #include <utility>
 
-#include "asn/core/ast.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "asn/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace asn_tests {
 namespace ast = asn::ast;
@@ -46,7 +46,7 @@ inline bool parents(const auto& language, const cursiv::ParseResult& parsed) {
         });
   };
   visit(visit, *parsed.value);
-  return valid && seen.size() == parsed.nodes.size();
+  return valid && seen.size() == parsed.nodes().size();
 }
 
 inline const ast::Decl* find(const ast::Module& module, std::string_view name) {

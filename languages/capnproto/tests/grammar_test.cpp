@@ -9,12 +9,12 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "capnproto/core/CoreServices.hpp"
-#include "capnproto/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "capnproto/CoreServices.hpp"
+#include "capnproto/ast.hpp"
 
 namespace {
 
@@ -38,7 +38,7 @@ int main() {
         "const empty :List(UInt8) = []; struct Foo {} const obj :Foo = ();");
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) return 1;
     bool exact = false, emptyList = false, emptyStruct = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* number = cursiv::ast_cast<capnproto::ast::IntegerLiteral>(node)) exact |= number->text == "1844674407370955161512345";
       if (const auto* list = cursiv::ast_cast<capnproto::ast::ConstList>(node)) emptyList |= list->items.empty();
       if (const auto* value = cursiv::ast_cast<capnproto::ast::ConstStruct>(node)) emptyStruct |= value->fields.empty();

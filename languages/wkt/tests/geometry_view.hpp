@@ -1,7 +1,7 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "wkt/core/Dimensions.hpp"
-#include "wkt/core/Numbers.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "wkt/Dimensions.hpp"
+#include "wkt/Numbers.hpp"
 #include <algorithm>
 #include <cmath>
 namespace wkt_test {

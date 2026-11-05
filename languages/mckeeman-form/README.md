@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/mckeemanform/core/MckeemanFormGrammar.hpp` |
-| The AST | `src/mckeemanform/core/ast.hpp` |
-| Validation checks | `src/mckeemanform/core/validation/` |
-| Services of your own | `src/mckeemanform/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/mckeemanform/cli/main.cpp` |
-| LSP features | `src/mckeemanform/lsp/LspModule.cpp` |
+| The grammar | `src/core/mckeemanform/MckeemanFormGrammar.hpp` |
+| The AST | `src/core/mckeemanform/ast.hpp` |
+| Validation checks | `src/core/mckeemanform/validation/` |
+| Services of your own | `src/core/mckeemanform/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/mckeemanform/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

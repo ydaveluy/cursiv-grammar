@@ -4,9 +4,9 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "scss/core/ExtendOptional.hpp"
-#include "scss/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "scss/ExtendOptional.hpp"
+#include "scss/ast.hpp"
 
 namespace scss_extend_cases {
 namespace ast = scss::ast;
@@ -109,7 +109,7 @@ inline bool run(const cursiv::Parser& parser) {
                      std::size_t(d.begin), std::size_t(d.end), unsigned(d.element));
     if (!clean || !test.clean) continue;
     std::vector<const ast::ExtendDeclaration*> extensions;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* extend = cursiv::ast_cast<ast::ExtendDeclaration>(node)) extensions.push_back(extend);
     check(extensions.size() == 1 && parsed.cst().text() == test.source,
           "one typed extend and exact source", test.source);

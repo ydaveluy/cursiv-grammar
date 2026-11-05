@@ -4,11 +4,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "ply/core/CoreServices.hpp"
-#include "ply/core/Data.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "ply/CoreServices.hpp"
+#include "ply/Data.hpp"
 int main() {
   const auto language =
       cursiv::create_language<ply::PlyCoreServices, ply::PlySharedCoreServices,

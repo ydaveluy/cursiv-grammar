@@ -2,12 +2,12 @@
 
 #include <cstdio>
 #include <string>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "tnt/core/CoreServices.hpp"
-#include "tnt/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "tnt/CoreServices.hpp"
+#include "tnt/ast.hpp"
 
 namespace native_regressions {
 inline bool run() {

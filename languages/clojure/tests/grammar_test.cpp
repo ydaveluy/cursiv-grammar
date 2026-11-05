@@ -8,13 +8,13 @@
 #include <string>
 #include <vector>
 
-#include "clojure/core/CoreServices.hpp"
-#include "clojure/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
+#include "clojure/CoreServices.hpp"
+#include "clojure/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
 
 namespace {
 
@@ -114,7 +114,7 @@ int reader_values(const cursiv::Parser &parser) {
   const std::string namespaced = "#:: {:a 1} [#?@(:clj [1 2])]";
   const auto conditional = parser.parse(namespaced);
   bool auto_namespace = false, splicing = false;
-  for (const auto *node : conditional.nodes) {
+  for (const auto *node : conditional.nodes()) {
     if (const auto *m = cursiv::ast_cast<ast::MapForm>(node))
       auto_namespace = m->autoNamespace && m->entries.size() == 1;
     if (const auto *c = cursiv::ast_cast<ast::ConditionalForm>(node))
@@ -219,7 +219,7 @@ int main() {
       return 1;
     }
     bool ratio = false, decimal = false;
-    for (const auto *node : result.nodes) {
+    for (const auto *node : result.nodes()) {
       if (const auto *value = cursiv::ast_cast<clojure::ast::RatioLit>(node))
         ratio |= value->text == "22/7";
       if (const auto *value = cursiv::ast_cast<clojure::ast::DecimalLit>(node))

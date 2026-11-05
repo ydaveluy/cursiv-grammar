@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID smalltalk
-    GRAMMAR    smalltalk/core/SmalltalkGrammar.hpp
+    GRAMMAR    smalltalk/SmalltalkGrammar.hpp
     NAMESPACE  smalltalk::Smalltalk
     EXTENSIONS .st
     OUT        smalltalk/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/smalltalk/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(smalltalkCore ${_core})
 target_link_libraries(smalltalkCore PUBLIC smalltalkGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/smalltalk/cli/*.cpp)
-if(_cli)
-  add_executable(smalltalk_cli ${_cli})
-  target_link_libraries(smalltalk_cli
-                        PRIVATE smalltalkCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(smalltalk_cli cli.cpp)
+  target_include_directories(smalltalk_cli PRIVATE cli)
+  target_link_libraries(smalltalk_cli PRIVATE smalltalkCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(smalltalkCli ${_cli})
+    target_include_directories(smalltalkCli PUBLIC cli)
+    target_link_libraries(smalltalkCli PUBLIC smalltalkCore cursiv::cli)
+    target_link_libraries(smalltalk_cli PRIVATE smalltalkCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/smalltalk/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/smalltalk/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/smalltalk/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(smalltalkLsp ${_lsp})
+  target_include_directories(smalltalkLsp PUBLIC lsp)
   target_link_libraries(smalltalkLsp PUBLIC smalltalkCore cursiv::lsp)
-  add_executable(smalltalk_lsp smalltalk/lsp/main.cpp)
-  target_link_libraries(smalltalk_lsp PRIVATE smalltalkLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(smalltalk_lsp lsp.cpp)
+    target_link_libraries(smalltalk_lsp PRIVATE smalltalkLsp)
+  endif()
 endif()
 
-if(TARGET smalltalkLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/smalltalk/bench/main.cpp")
-  cursiv_add_benchmark(smalltalk
-      SOURCES smalltalk/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET smalltalkLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(smalltalk SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(smalltalk)

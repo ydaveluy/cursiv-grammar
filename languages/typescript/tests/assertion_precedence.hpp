@@ -4,12 +4,12 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "typescript/core/CoreServices.hpp"
-#include "typescript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "typescript/CoreServices.hpp"
+#include "typescript/ast.hpp"
 
 namespace assertion_precedence {
 namespace ast = typescript::ast;
@@ -75,7 +75,7 @@ inline bool wellOwned(const typescript::TypeScriptCoreServices& services,
         });
   };
   if (result.value) walk(walk, *result.value);
-  return valid && seen.size() == result.nodes.size();
+  return valid && seen.size() == result.nodes().size();
 }
 inline bool run(const typescript::TypeScriptCoreServices& services) {
   struct Case { const char* expression; const char* expected; };
@@ -147,7 +147,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
     std::string members;
     bool valid = result.accepted && !result.cst().recovered() &&
                  result.diagnostics.empty() && wellOwned(services, result);
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* member = cursiv::ast_cast<ast::TypeMember>(node)) {
         const auto* key = cursiv::ast_cast<ast::Ident>(member->key);
         const auto* type = cursiv::ast_cast<ast::PredefinedType>(member->type);

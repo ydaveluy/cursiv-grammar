@@ -1,16 +1,15 @@
 #pragma once
 #include <cstdio>
-#include <memory_resource>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "ocl/core/CoreServices.hpp"
-#include "ocl/core/OclGrammar.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "ocl/CoreServices.hpp"
+#include "ocl/OclGrammar.hpp"
 
 namespace ocl_tuple_cases {
 struct Case { const char* name; std::string_view source; bool valid; unsigned literals; unsigned types; bool duplicate; };
@@ -52,7 +51,7 @@ inline bool run(const ocl::OclCoreServices& services) {
     check(parsed.cst().text() == test.source, test.name, "source retained exactly");
     unsigned literals = 0, types = 0;
     const a::TupleLiteral* literal = nullptr;
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* value = cursiv::ast_cast<a::TupleLiteral>(node)) { ++literals; literal = value; }
       if (cursiv::ast_cast<a::TupleType>(node)) ++types;
       if (const auto* value = cursiv::ast_cast<a::TuplePart>(node))
@@ -80,7 +79,7 @@ inline bool run(const ocl::OclCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size() == parsed.nodes.size() && !parsed.value->parent, test.name, "complete tree reachability");
+    check(seen.size() == parsed.nodes().size() && !parsed.value->parent, test.name, "complete tree reachability");
     auto validated = cursiv::test::validationHelper(services, std::string(test.source));
     check(validated.diagnostics.size() == (test.duplicate ? 1u : 0u), test.name, "local uniqueness diagnostic count");
     if (test.duplicate && validated.diagnostics.size() == 1)
@@ -88,22 +87,21 @@ inline bool run(const ocl::OclCoreServices& services) {
             test.name, "exact decoded-name duplicate diagnostic");
     validated.dispose();
   }
-  std::pmr::monotonic_buffer_resource memory;
   for (std::string_view source : {"", "a", "'", "'a", "a'", "'a\"", R"ocl('a\')ocl",
                                 R"ocl('\u12')ocl", R"ocl('\xG0')ocl", R"ocl('\q')ocl"}) {
-    const auto value = ocl::unescape(source, &memory);
+    const auto value = ocl::unescape(source);
     check(!value && !value.error.message.empty(), "converter-totality", "malformed input reports bounded conversion error");
   }
   for (const auto& pair : {
       std::pair<std::string_view, std::string_view>{"''", ""}, {R"ocl('\u0041')ocl", "A"},
       {R"ocl('\x41')ocl", "A"}, {R"ocl('\101')ocl", "A"},
       {R"ocl('\400')ocl", " 0"}, {R"ocl('\777')ocl", "?7"}}) {
-    const auto value = ocl::unescape(pair.first, &memory);
+    const auto value = ocl::unescape(pair.first);
     check(value && *value.value == pair.second, "converter-decoding", "escape widths follow declared terminal");
     const std::string source = "context C inv: " + std::string(pair.first);
     const auto parsed = services.parser->parse(source);
     const a::StringLit* string = nullptr;
-    for (const auto* node : parsed.nodes) if (const auto* v = cursiv::ast_cast<a::StringLit>(node)) string = v;
+    for (const auto* node : parsed.nodes()) if (const auto* v = cursiv::ast_cast<a::StringLit>(node)) string = v;
     check(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() &&
           string && string->value == pair.second, "converter-decoding", "real parsed AST keeps exact decoded value");
   }

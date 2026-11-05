@@ -7,10 +7,10 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "typescript/core/CoreServices.hpp"
-#include "typescript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "typescript/CoreServices.hpp"
+#include "typescript/ast.hpp"
 
 namespace typescript_yield_cases {
 namespace a = typescript::ast;
@@ -136,7 +136,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
     check(parsed.cst().text() == test.source, test.name, "complete source preserved");
     std::vector<const a::YieldExpr*> yields;
     std::size_t calls = 0, binaries = 0, tags = 0;
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* n = as<a::YieldExpr>(node)) yields.push_back(n);
       if (const auto* n = as<a::CallExpr>(node)) calls += namedYield(n->callee);
       if (const auto* n = as<a::BinaryExpr>(node)) binaries += namedYield(n->left);
@@ -166,20 +166,20 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size() == parsed.nodes.size() && !parsed.value->parent, test.name, "all allocated nodes reachable exactly once");
+    check(seen.size() == parsed.nodes().size() && !parsed.value->parent, test.name, "all allocated nodes reachable exactly once");
     const std::string_view name(test.name);
     const char* expected = name == "assignment-rhs" ? "(= x (yield 1))" :
         name == "assignment-chain" ? "(= x (= y (yield 1)))" :
         name == "conditional-alternate-assignment" ? "(= x (? a b (= c (yield 1))))" : nullptr;
     if (expected) {
       bool found = false;
-      for (const auto* node : parsed.nodes) if (const auto* assignment = as<a::AssignExpr>(node))
+      for (const auto* node : parsed.nodes()) if (const auto* assignment = as<a::AssignExpr>(node))
         found |= expression(assignment) == expected;
       check(found, test.name, "right-associative assignment retains yield at the native operand level");
     }
     if (name == "conditional-arms") {
       bool found = false;
-      for (const auto* node : parsed.nodes) if (const auto* conditional = as<a::ConditionalExpr>(node))
+      for (const auto* node : parsed.nodes()) if (const auto* conditional = as<a::ConditionalExpr>(node))
         found |= expression(conditional) == "(? a (yield 1) (yield* items))";
       check(found, test.name, "both conditional branches retain their distinct yield expressions");
     }

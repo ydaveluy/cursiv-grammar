@@ -3,11 +3,11 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "zig/core/CoreServices.hpp"
-#include "zig/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "zig/CoreServices.hpp"
+#include "zig/ast.hpp"
 namespace zig_audit {
 template<class T> const T* as(const cursiv::AstNode* n) {
   return n && n->type == &cursiv::ast_type_tag<T> ? static_cast<const T*>(n) : nullptr;

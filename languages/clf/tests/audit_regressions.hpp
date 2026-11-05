@@ -4,10 +4,10 @@
 #include <utility>
 #include <vector>
 
-#include "clf/core/CoreServices.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
+#include "clf/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
 
 inline void clf_regressions() {
   namespace ast = clf::ast;
@@ -23,7 +23,7 @@ inline void clf_regressions() {
     const auto* root = cursiv::ast_cast<ast::Log>(result.value);
     CHECK(result.accepted && !result.cst().recovered() &&
           result.diagnostics.empty());
-    CHECK(root && root->lines.size() == 1 && result.nodes.size() == 2);
+    CHECK(root && root->lines.size() == 1 && result.nodes().size() == 2);
     if (root && root->lines.size() == 1) {
       const auto* line = root->lines[0];
       std::string request = "GET /a\"b";

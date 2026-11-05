@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "xquery/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "xquery/ast.hpp"
 #include "xquery/generated/XQuery/Module.hpp"
 #include <cstdio>
 #include <string>

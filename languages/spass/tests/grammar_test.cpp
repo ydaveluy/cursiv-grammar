@@ -10,11 +10,11 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "spass/core/CoreServices.hpp"
-#include "spass/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "spass/CoreServices.hpp"
+#include "spass/ast.hpp"
 #include "plain_clauses.hpp"
 
 namespace {

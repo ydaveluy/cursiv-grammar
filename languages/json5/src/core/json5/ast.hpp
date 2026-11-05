@@ -1,0 +1,44 @@
+// JSON5 values keep numbers as positioned text nodes, preserving arbitrary
+// precision and malformed spellings for runtime diagnostics.
+#pragma once
+
+#include <string>
+#include <string_view>
+#include <variant>
+
+#include "cursiv/syntax-tree/AstNode.hpp"
+
+namespace json5::ast {
+
+struct Value : cursiv::Extends<cursiv::AstNode> {};
+
+struct Member;
+
+struct Number : cursiv::Extends<Value> {
+  string_view text;
+};
+
+// Bool, null and string values are inline; structured and numeric values
+// use nodes so their exact source syntax remains available.
+using Val = std::variant<std::monostate, bool, std::string, Value *>;
+
+struct Object : cursiv::Extends<Value> {
+  vector<Member *> members;
+};
+
+struct Array : cursiv::Extends<Value> {
+  vector<Val> items;
+};
+
+struct Member : cursiv::Extends<cursiv::AstNode> {
+  string name;
+  Val value;
+};
+
+// A complete JSON5 document contains one value. The optional member also
+// represents a missing value when parsing an incomplete document for editing.
+struct Doc : cursiv::Extends<cursiv::AstNode> {
+  optional<Val> value;
+};
+
+} // namespace json5::ast

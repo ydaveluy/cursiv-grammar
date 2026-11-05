@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "morsecode/core/CoreServices.hpp"
-#include "morsecode/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "morsecode/CoreServices.hpp"
+#include "morsecode/ast.hpp"
 #include "table_regressions.hpp"
 // The grammar end to end: every document under `example/` parses clean --
 // no recovery, no diagnostics -- and builds a Message at the root.
@@ -14,8 +14,8 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
 
 namespace {
 

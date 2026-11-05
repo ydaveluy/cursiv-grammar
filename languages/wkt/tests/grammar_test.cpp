@@ -10,11 +10,11 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
-#include "wkt/core/ast.hpp"
-#include "wkt/core/Numbers.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
+#include "wkt/ast.hpp"
+#include "wkt/Numbers.hpp"
 #include "wkt/generated/Wkt/Module.hpp"
 
 namespace {

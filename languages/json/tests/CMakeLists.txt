@@ -23,11 +23,11 @@ get_target_property(_jsonEngine jsonGenerated CURSIV_ENGINE)
 if(_jsonEngine STREQUAL "LR")
   # A string refused in its middle ends at its own closer.
   add_executable(json_refused_escape_test refused_escape_test.cpp)
-  target_link_libraries(json_refused_escape_test PRIVATE jsonCore)
+  target_link_libraries(json_refused_escape_test PRIVATE jsonCore cursiv::test)
   add_test(NAME json_refused_escape_test COMMAND json_refused_escape_test)
 
   # The repair search on a stray opener and on two closers of different kinds.
   add_executable(json_repair_search_test repair_search_test.cpp)
-  target_link_libraries(json_repair_search_test PRIVATE jsonCore)
+  target_link_libraries(json_repair_search_test PRIVATE jsonCore cursiv::test)
   add_test(NAME json_repair_search_test COMMAND json_repair_search_test)
 endif()

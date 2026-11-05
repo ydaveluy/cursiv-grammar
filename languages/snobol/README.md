@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/snobol/core/SnobolGrammar.hpp` |
-| The AST | `src/snobol/core/ast.hpp` |
-| Validation checks | `src/snobol/core/validation/` |
-| Services of your own | `src/snobol/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/snobol/cli/main.cpp` |
-| LSP features | `src/snobol/lsp/LspModule.cpp` |
+| The grammar | `src/core/snobol/SnobolGrammar.hpp` |
+| The AST | `src/core/snobol/ast.hpp` |
+| Validation checks | `src/core/snobol/validation/` |
+| Services of your own | `src/core/snobol/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/snobol/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

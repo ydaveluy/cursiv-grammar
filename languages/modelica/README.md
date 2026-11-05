@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/modelica/core/ModelicaGrammar.hpp` |
-| The AST | `src/modelica/core/ast.hpp` |
-| Validation checks | `src/modelica/core/validation/` |
-| Services of your own | `src/modelica/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/modelica/cli/main.cpp` |
-| LSP features | `src/modelica/lsp/LspModule.cpp` |
+| The grammar | `src/core/modelica/ModelicaGrammar.hpp` |
+| The AST | `src/core/modelica/ast.hpp` |
+| Validation checks | `src/core/modelica/validation/` |
+| Services of your own | `src/core/modelica/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/modelica/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

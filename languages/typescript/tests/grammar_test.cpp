@@ -20,11 +20,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "typescript/core/CoreServices.hpp"
-#include "typescript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "typescript/CoreServices.hpp"
+#include "typescript/ast.hpp"
 
 namespace {
 
@@ -53,6 +53,26 @@ int main() {
   const auto language = cursiv::create_language<
       typescript::TypeScriptCoreServices, typescript::TypeScriptSharedCoreServices,
       typescript::install_core_module>();
+  {
+    const auto parsed = language.language.parser->parse(
+        "type Flags<const in out const T> = T; "
+        "class C { declare static declare x: number; }");
+    const typescript::ast::TypeParam* param = nullptr;
+    const typescript::ast::ClassMember* member = nullptr;
+    for (const auto* node : parsed.nodes()) {
+      if (const auto* n = cursiv::ast_cast<typescript::ast::TypeParam>(node)) param = n;
+      if (const auto* n = cursiv::ast_cast<typescript::ast::ClassMember>(node)) member = n;
+    }
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !param || !param->isConst() || !param->isIn() || !param->isOut() ||
+        param->modifiers.size() != 4 ||
+        param->modifiers[3] != typescript::ast::Modifier::isConst ||
+        !member || !member->isDeclare() || !member->isStatic() ||
+        member->modifiers.size() != 3 ||
+        member->modifiers[2] != typescript::ast::Modifier::isDeclare)
+      return fail("modifier occurrences retain source order before semantic checks");
+  }
+
 
   if (!typescript_native_followup::run(*language.language.parser)) return 1;
   if (!typescript_resources::run(language.language)) return 1;
@@ -201,10 +221,10 @@ int main() {
     if (m == nullptr || !m->isReadonly)
       return fail("members: `readonly type: string` is not one readonly field");
     m = first_member("class A { static async *g() {} }");
-    if (m == nullptr || !m->isStatic || !m->isAsync || !m->isGenerator)
+    if (m == nullptr || !m->isStatic() || !m->isAsync || !m->isGenerator)
       return fail("members: `static async *g() {}` lost a modifier");
     m = first_member("class A { declare x: number; }");
-    if (m == nullptr || !m->isDeclare)
+    if (m == nullptr || !m->isDeclare())
       return fail("members: `declare x: number` is not a declare field");
     m = first_member("class A { x!: number; }");
     if (m == nullptr || !m->definite)
@@ -499,10 +519,10 @@ int main() {
         !cm->abstractDecl->declaration->declarations[0]->optional)
       return fail("members: `abstract x?: T` lost its `?`");
     cm = class_member("class A { static declare y: number; }");
-    if (cm == nullptr || !cm->isStatic || !cm->isDeclare)
+    if (cm == nullptr || !cm->isStatic() || !cm->isDeclare())
       return fail("members: `static declare y` lost a modifier");
     cm = class_member("class A { protected override m(): void {} }");
-    if (cm == nullptr || !cm->isOverride || cm->accessibility != "protected")
+    if (cm == nullptr || !cm->isOverride() || cm->accessibility != "protected")
       return fail("members: `protected override m()` lost a modifier");
     cm = class_member("class A { [key: string]: number; }");
     if (cm == nullptr || !cm->isIndex || cm->indexName != "key")

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/tinybasic/core/TinybasicGrammar.hpp` |
-| The AST | `src/tinybasic/core/ast.hpp` |
-| Validation checks | `src/tinybasic/core/validation/` |
-| Services of your own | `src/tinybasic/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/tinybasic/cli/main.cpp` |
-| LSP features | `src/tinybasic/lsp/LspModule.cpp` |
+| The grammar | `src/core/tinybasic/TinybasicGrammar.hpp` |
+| The AST | `src/core/tinybasic/ast.hpp` |
+| Validation checks | `src/core/tinybasic/validation/` |
+| Services of your own | `src/core/tinybasic/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/tinybasic/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

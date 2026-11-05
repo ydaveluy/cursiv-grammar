@@ -8,13 +8,13 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "molecule/core/CoreServices.hpp"
-#include "molecule/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "molecule/CoreServices.hpp"
+#include "molecule/ast.hpp"
 
 namespace {
 

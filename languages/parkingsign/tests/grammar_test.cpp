@@ -11,11 +11,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "parkingsign/core/CoreServices.hpp"
-#include "parkingsign/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "parkingsign/CoreServices.hpp"
+#include "parkingsign/ast.hpp"
 
 namespace {
 

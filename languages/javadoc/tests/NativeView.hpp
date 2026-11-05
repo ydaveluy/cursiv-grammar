@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "javadoc/core/Content.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "javadoc/Content.hpp"
 namespace audit {
 using J = cursiv::JsonValue;
 inline J items(const auto &source) {

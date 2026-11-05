@@ -10,11 +10,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "apex/core/CoreServices.hpp"
-#include "apex/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "apex/CoreServices.hpp"
+#include "apex/ast.hpp"
 
 namespace {
 
@@ -60,7 +60,7 @@ int main() {
   {
     const auto result = language.language.parser->parse("class C { Integer value = 8 >> 1 >> 1 < 5; }");
     const apex::ast::BinaryExpr* comparison = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* binary = cursiv::ast_cast<apex::ast::BinaryExpr>(node);
           binary && binary->op == "<") comparison = binary;
     const auto* shift = comparison
@@ -106,7 +106,7 @@ class NativeForms {
 )";
     const auto result = parser.parse(source);
     unsigned queries = 0, exact = 0, switches = 0, modes = 0, merges = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* q = cursiv::ast_cast<apex::ast::SoqlExpr>(node)) {
         if (q->text.find("square]") == std::string_view::npos || q->text.back() != ']')
           return fail("query closed inside a quoted string");

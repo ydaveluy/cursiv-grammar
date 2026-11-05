@@ -4,10 +4,10 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "verilog/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "verilog/ast.hpp"
 namespace verilog_audit {
 template<class Language> bool modern_cases(const Language& language) {
   namespace ast=verilog::ast;

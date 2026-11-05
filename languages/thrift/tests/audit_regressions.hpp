@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "thrift/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "thrift/ast.hpp"
 #include "thrift/generated/Thrift/Module.hpp"
 #include <cstdio>
 #include <string>

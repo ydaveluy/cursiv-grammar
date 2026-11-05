@@ -5,8 +5,8 @@
 #include <string_view>
 #include <utility>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "promql/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "promql/ast.hpp"
 
 namespace promql_audit {
 

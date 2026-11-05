@@ -1,9 +1,9 @@
-#include "cookie/core/CoreServices.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "cookie/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
 #pragma once
-#include "cookie/core/Value.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cookie/Value.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include <array>
 #include <cstdio>
 #include <optional>

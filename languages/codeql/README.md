@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/codeql/core/CodeqlGrammar.hpp` |
-| The AST | `src/codeql/core/ast.hpp` |
-| Validation checks | `src/codeql/core/validation/` |
-| Services of your own | `src/codeql/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/codeql/cli/main.cpp` |
-| LSP features | `src/codeql/lsp/LspModule.cpp` |
+| The grammar | `src/core/codeql/CodeqlGrammar.hpp` |
+| The AST | `src/core/codeql/ast.hpp` |
+| Validation checks | `src/core/codeql/validation/` |
+| Services of your own | `src/core/codeql/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/codeql/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

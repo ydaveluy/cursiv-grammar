@@ -4,13 +4,13 @@
 #include <string_view>
 #include <vector>
 
-#include "alloy/core/CoreServices.hpp"
-#include "alloy/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/Check.hpp"
+#include "alloy/CoreServices.hpp"
+#include "alloy/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/Check.hpp"
 
 namespace audit_regressions {
 inline void run() {

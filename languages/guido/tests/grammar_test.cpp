@@ -7,11 +7,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "guido/core/CoreServices.hpp"
-#include "guido/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "guido/CoreServices.hpp"
+#include "guido/ast.hpp"
 #include "native_cases.hpp"
 #include "score_shape_cases.hpp"
 

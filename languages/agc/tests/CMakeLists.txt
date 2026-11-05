@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every corpus document parses clean, and one of them is
 # read back field by field.
 add_executable(agc_grammar_test grammar_test.cpp)
-target_link_libraries(agc_grammar_test PRIVATE agcCore)
+target_link_libraries(agc_grammar_test PRIVATE agcCore cursiv::test)
 target_compile_definitions(agc_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

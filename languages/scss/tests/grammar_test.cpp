@@ -3,12 +3,12 @@
 #include "custom_property_cases.hpp"
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "scss/core/CoreServices.hpp"
-#include "scss/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "scss/CoreServices.hpp"
+#include "scss/ast.hpp"
 // The grammar end to end: every document under `example/` parses clean --
 // no recovery, no diagnostics, a Stylesheet at the root -- and a few real
 // field values, not just structure, read back right from one of them.
@@ -18,8 +18,8 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
 
 namespace {
 
@@ -218,7 +218,7 @@ int main() {
     } else if (static_cast<const scss::ast::HexColorLit*>(black->value)
                    ->text != "#000") {
       failures += fail(path, "$black's hex color is not #000");
-    } else if (!black->isDefault) {
+    } else if (!black->isDefault()) {
       failures += fail(path, "$black does not carry !default");
     }
 

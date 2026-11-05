@@ -6,11 +6,11 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "langium/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "langium/CoreServices.hpp"
 
 namespace code_audit {
 namespace ast = langium::ast;
@@ -43,7 +43,7 @@ inline bool run() {
               *n, [&](auto, auto, auto& child) { walk(&child, n); });
         };
     walk(r.value, nullptr);
-    check(reached.size() == r.nodes.size(),
+    check(reached.size() == r.nodes().size(),
           "all allocated nodes are reachable");
     return r;
   };
@@ -211,7 +211,7 @@ inline bool run() {
     unsigned errors = 0;
     auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, doc, source);
-    for (const auto* n : doc.parseResult.nodes) {
+    for (const auto* n : doc.parseResult.nodes()) {
       if (const auto* p = cursiv::ast_cast<ast::Keyword>(n))
         language.language.validator->checkKeyword(*p, accept);
       if (const auto* p = cursiv::ast_cast<ast::CharacterRange>(n))

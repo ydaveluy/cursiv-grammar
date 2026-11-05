@@ -32,12 +32,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/fdo91/core/Fdo91Grammar.hpp` |
-| The AST | `src/fdo91/core/ast.hpp` |
-| Validation checks | `src/fdo91/core/validation/` |
-| Services of your own | `src/fdo91/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/fdo91/cli/main.cpp` |
-| LSP features | `src/fdo91/lsp/LspModule.cpp` |
+| The grammar | `src/core/fdo91/Fdo91Grammar.hpp` |
+| The AST | `src/core/fdo91/ast.hpp` |
+| Validation checks | `src/core/fdo91/validation/` |
+| Services of your own | `src/core/fdo91/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/fdo91/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

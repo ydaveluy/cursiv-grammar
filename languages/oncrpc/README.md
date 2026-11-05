@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/oncrpc/core/OncrpcGrammar.hpp` |
-| The AST | `src/oncrpc/core/ast.hpp` |
-| Validation checks | `src/oncrpc/core/validation/` |
-| Services of your own | `src/oncrpc/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/oncrpc/cli/main.cpp` |
-| LSP features | `src/oncrpc/lsp/LspModule.cpp` |
+| The grammar | `src/core/oncrpc/OncrpcGrammar.hpp` |
+| The AST | `src/core/oncrpc/ast.hpp` |
+| Validation checks | `src/core/oncrpc/validation/` |
+| Services of your own | `src/core/oncrpc/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/oncrpc/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

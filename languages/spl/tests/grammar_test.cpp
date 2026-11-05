@@ -9,10 +9,10 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/Check.hpp"
-#include "spl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/Check.hpp"
+#include "spl/ast.hpp"
 #include "spl/generated/Spl/AstReflection.hpp"
 #include "spl/generated/Spl/Module.hpp"
 

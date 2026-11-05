@@ -5,12 +5,12 @@
 #include <unordered_set>
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "bdf/core/CoreServices.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "bdf/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 int main() {
   const auto language = cursiv::create_language<bdf::BdfCoreServices,
@@ -95,7 +95,7 @@ int main() {
           });
     };
     walk(walk, *font);
-    if (!owned || seen.size() != result.nodes.size()) return fail("ownership");
+    if (!owned || seen.size() != result.nodes().size()) return fail("ownership");
   }
   std::printf("bdf: %zu source cases, %u native fonts with properties/metrics/bitmaps\n",
               std::size(nativeCases), native);

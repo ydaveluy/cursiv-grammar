@@ -3,14 +3,14 @@
 #include <functional>
 #include <unordered_set>
 
-#include "bison/core/ast.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
+#include "bison/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
 
 namespace code_audit {
 template <class T>
 const T* find(const cursiv::ParseResult& result) {
-  for (const auto* n : result.nodes)
+  for (const auto* n : result.nodes())
     if (const auto* t = cursiv::ast_cast<T>(n)) return t;
   return nullptr;
 }
@@ -44,7 +44,7 @@ bool run(const Language& language) {
               });
         };
     walk(result.value, nullptr);
-    check(reached.size() == result.nodes.size(), "all nodes reachable");
+    check(reached.size() == result.nodes().size(), "all nodes reachable");
     return result;
   };
   {
@@ -92,7 +92,7 @@ tail: 'a'
               pred && pred->code == " 1 ",
           "named RHS and spaced predicate");
     bool action = false;
-    for (const auto* n : r.nodes)
+    for (const auto* n : r.nodes())
       if (const auto* a = cursiv::ast_cast<ast::Action>(n))
         action |= a->tag == "<std::vector<int>>" && a->namedRef == "out" &&
                   a->code == " use($value); ";
@@ -165,7 +165,7 @@ t: %empty {} {};
     unsigned errors = 0;
     auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, doc, source);
-    for (const auto* n : doc.parseResult.nodes) {
+    for (const auto* n : doc.parseResult.nodes()) {
       if (const auto* x = cursiv::ast_cast<ast::Production>(n))
         language.language.validator->checkProduction(*x, accept);
       if (const auto* x = cursiv::ast_cast<ast::SymbolRef>(n))
@@ -194,7 +194,7 @@ t: %empty {} {};
     unsigned errors = 0;
     auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, doc, source);
-    for (const auto* n : doc.parseResult.nodes) {
+    for (const auto* n : doc.parseResult.nodes()) {
       if (const auto* x = cursiv::ast_cast<ast::Directive>(n))
         language.language.validator->checkDirective(*x, accept);
       if (const auto* x = cursiv::ast_cast<ast::Action>(n))

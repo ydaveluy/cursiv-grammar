@@ -5,11 +5,11 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "swift/core/CoreServices.hpp"
-#include "swift/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "swift/CoreServices.hpp"
+#include "swift/ast.hpp"
 
 namespace swift_raw_escapes {
 
@@ -36,7 +36,7 @@ inline bool run(const swift::SwiftCoreServices& services) {
           });
     };
     walk(walk, *result.value);
-    return valid && seen.size() == result.nodes.size();
+    return valid && seen.size() == result.nodes().size();
   };
   struct Case { std::string_view source; bool valid; };
   constexpr Case cases[] = {
@@ -71,7 +71,7 @@ inline bool run(const swift::SwiftCoreServices& services) {
     const auto parsed = services.parser->parse(test.source);
     const swift::ast::RawStringLit* literal = nullptr;
     unsigned rawCount = 0;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* value = cursiv::ast_cast<swift::ast::RawStringLit>(node)) {
         literal = value;
         ++rawCount;

@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "solidity/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "solidity/ast.hpp"
 #include "solidity/generated/Solidity/Module.hpp"
 #include <cstdio>
 #include <string>

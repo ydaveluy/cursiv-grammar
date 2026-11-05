@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <string>
 #include <string_view>
-#include "cursiv/core/parser/Parser.hpp"
-#include "gql/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "gql/ast.hpp"
 
 namespace gql_native_regressions {
 inline bool run(const cursiv::Parser& parser) {
@@ -24,7 +24,7 @@ inline bool run(const cursiv::Parser& parser) {
   clean("LET FORé = 1 MATCH (n:\"RETURN\") RETURN n.\"order\" AS `AS`",
         [&](const auto& parsed) {
     bool name = false, label = false, property = false, alias = false;
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* n = cursiv::ast_cast<LetVarDef>(node)) name = n->name == "FORé";
       if (const auto* n = cursiv::ast_cast<LabelName>(node)) label = n->name == "RETURN";
       if (const auto* n = cursiv::ast_cast<PropertyRef>(node)) property = n->property == "order";
@@ -35,7 +35,7 @@ inline bool run(const cursiv::Parser& parser) {
   });
   clean(R"(RETURN '\uABCD', '\U01F600', @'\q\n''x')", [&](const auto& parsed) {
     bool values = false;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* result = cursiv::ast_cast<ResultStmt>(node); result && result->items.size() == 3) {
         const std::string_view expected[] = {"ꯍ", "😀", "\\q\\n'x"};
         values = true;
@@ -49,7 +49,7 @@ inline bool run(const cursiv::Parser& parser) {
   clean("MATCH (n), (m) RETURN COUNT(DISTINCT n), SAME(n,m), ALL_DIFFERENT(n,m) GROUP BY ()",
         [&](const auto& parsed) {
     bool distinct = false, group = false;
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* n = cursiv::ast_cast<CallExpr>(node))
         distinct = distinct || (n->name == "COUNT" && n->distinct && n->extra == "DISTINCT");
       if (const auto* n = cursiv::ast_cast<ResultStmt>(node))
@@ -59,7 +59,7 @@ inline bool run(const cursiv::Parser& parser) {
   });
   clean("RETURN NOT TRUE IS FALSE", [&](const auto& parsed) {
     const NotExpr* negation = nullptr;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* n = cursiv::ast_cast<NotExpr>(node)) negation = n;
     require(negation && cursiv::ast_cast<TruthTest>(negation->operand),
             "IS FALSE binds more tightly than NOT");
@@ -67,7 +67,7 @@ inline bool run(const cursiv::Parser& parser) {
   for (const auto* prefix : {"ANY", "ANY SHORTEST", "ALL", "ALL SHORTEST", "SHORTEST $count"}) {
     clean(std::string("MATCH ") + prefix + " (n) RETURN n", [&](const auto& parsed) {
       const PathPrefix* path = nullptr;
-      for (const auto* node : parsed.nodes)
+      for (const auto* node : parsed.nodes())
         if (const auto* n = cursiv::ast_cast<PathPrefix>(node)) path = n;
       require(path && path->shortest == (std::string_view(prefix).find("SHORTEST") != std::string_view::npos),
               "SHORTEST remains distinguishable from ANY/ALL");
@@ -80,7 +80,7 @@ inline bool run(const cursiv::Parser& parser) {
     clean(source, [](const auto&) {});
   clean("MATCH ()-/A B&C*|(D|+|E)?/->() RETURN 1", [&](const auto& parsed) {
     const SimplifiedPathExpr* path = nullptr;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* n = cursiv::ast_cast<SimplifiedPathExpr>(node)) path = n;
     const auto* concat = path && path->terms.size() == 2
                              ? cursiv::ast_cast<SimplifiedConcat>(path->terms[0]) : nullptr;
@@ -97,14 +97,14 @@ inline bool run(const cursiv::Parser& parser) {
   });
   clean("MATCH ()-/<A> ~!B> <~C -D E>/->() RETURN 1", [&](const auto& parsed) {
     unsigned directions = 0;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (cursiv::ast_cast<SimplifiedDirection>(node)) ++directions;
     require(directions == 5, "all direction overrides retain their own node");
   });
   clean("CREATE GRAPH TYPE g { (:A {a INT})-[:E {e STRING}]->(:B {b BOOL}) }",
         [&](const auto& parsed) {
     const ElementTypeSpec* edge = nullptr;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* n = cursiv::ast_cast<ElementTypeSpec>(node); n && n->isEdge) edge = n;
     require(edge && edge->sourceType && edge->destType && edge->labels.size() == 1 &&
             edge->labels[0] == "E" && edge->sourceType->labels.size() == 1 &&
@@ -116,20 +116,20 @@ inline bool run(const cursiv::Parser& parser) {
   });
   clean("SESSION SET SCHEMA ../../app SESSION RESET SCHEMA", [&](const auto& parsed) {
     bool parents = false;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* n = cursiv::ast_cast<CatalogRef>(node))
         parents = parents || (n->relative && n->parentSteps.size() == 2 && n->segments.size() == 1);
     require(parents, "relative schema depth retained");
   });
   clean("SESSION SET SCHEMA /", [&](const auto& parsed) {
     bool root = false;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* n = cursiv::ast_cast<CatalogRef>(node)) root = n->absolute && n->segments.empty();
     require(root, "root schema is an absolute path");
   });
   clean("SESSION SET GRAPH /app/g", [&](const auto& parsed) {
     bool schema = false;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* n = cursiv::ast_cast<CatalogRef>(node))
         schema = schema || (n->schema && n->schema->absolute && n->schema->segments.size() == 1 &&
                             n->schema->segments[0] == "app" && n->segments.size() == 1 && n->segments[0] == "g");
@@ -138,7 +138,7 @@ inline bool run(const cursiv::Parser& parser) {
   clean("RETURN CAST(NULL AS UNSIGNED INTEGER64), CAST(NULL AS LOCAL TIME), CAST(NULL AS LOCAL DATETIME), CAST(NULL AS ANY GRAPH)",
         [&](const auto& parsed) {
     bool sign = false, time = false, datetime = false, graph = false;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* n = cursiv::ast_cast<TypeRef>(node)) {
         sign = sign || (n->name == "INTEGER64" && n->signedness == "UNSIGNED");
         time = time || (n->name == "LOCAL" && n->qualifier == "TIME");
@@ -149,20 +149,20 @@ inline bool run(const cursiv::Parser& parser) {
   });
   clean("MATCH (n) YIELD NO BINDINGS RETURN 1", [&](const auto& parsed) {
     bool noBindings = false;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* n = cursiv::ast_cast<YieldClause>(node)) noBindings = n->noBindings && n->items.empty();
     require(noBindings, "YIELD NO BINDINGS retained");
   });
   clean("RETURN X'AB' /* joining separator */ 'CD'", [&](const auto& parsed) {
     bool joined = false;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* n = cursiv::ast_cast<ByteStringLit>(node))
         joined = n->text == "X'AB' /* joining separator */ 'CD'";
     require(joined, "byte literal chunks preserve their complete raw spelling");
   });
   clean("MATCH (TEMP n) RETURN n", [&](const auto& parsed) {
     bool temporary = false;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* n = cursiv::ast_cast<ElementFiller>(node))
         temporary = temporary || (n->temporary && n->variable == "n");
     require(temporary, "temporary element variable declaration retained");

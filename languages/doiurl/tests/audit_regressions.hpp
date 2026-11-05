@@ -7,10 +7,10 @@
 #include <utility>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreServices.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "doiurl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreServices.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "doiurl/ast.hpp"
 
 inline int doiurl_regressions(const cursiv::CoreServices& services) {
   struct Case {
@@ -35,7 +35,7 @@ inline int doiurl_regressions(const cursiv::CoreServices& services) {
         !std::equal(uri->suffix.begin(), uri->suffix.end(), c.suffix.begin(),
                     c.suffix.end()) ||
         uri->query != c.query || uri->fragment != c.fragment || uri->parent ||
-        result.nodes.size() != 1 || result.cst().text() != c.source) {
+        result.nodes().size() != 1 || result.cst().text() != c.source) {
       std::fprintf(stderr, "doiurl regression: %.*s\n", int(c.source.size()),
                    c.source.data());
       ++failures;

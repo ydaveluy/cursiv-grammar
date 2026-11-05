@@ -10,11 +10,11 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "tinymud/core/CoreServices.hpp"
-#include "tinymud/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "tinymud/CoreServices.hpp"
+#include "tinymud/ast.hpp"
 #include "native_followup_cases.hpp"
 
 namespace {
@@ -96,7 +96,7 @@ int main() {
       const auto* link = as<tinymud::ast::LinkCommand>(line);
       if (link == nullptr) continue;
       if (std::holds_alternative<std::int64_t>(link->target)) sawNumber = true;
-      if (std::holds_alternative<std::string_view>(link->target)) sawText = true;
+      if (std::holds_alternative<std::string>(link->target)) sawText = true;
     }
     if (!sawNumber || !sawText)
       return fail("@link's target did not cover both alternatives");

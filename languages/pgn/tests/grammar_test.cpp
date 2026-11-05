@@ -1,10 +1,10 @@
 #include <cstdio>
 
 #include "code_audit.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "pgn/core/CoreServices.hpp"
-#include "pgn/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "pgn/CoreServices.hpp"
+#include "pgn/ast.hpp"
 // The smoke test of the language: build the container the way a workspace
 // does, read every document under tests/, and check each tree.
 
@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

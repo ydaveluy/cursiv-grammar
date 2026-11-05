@@ -8,13 +8,13 @@
 #include <iterator>
 #include <string>
 
-#include "csharp/core/CoreServices.hpp"
-#include "csharp/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "csharp/CoreServices.hpp"
+#include "csharp/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 #include "modern_cases.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace {
 
@@ -34,7 +34,7 @@ int main() {
   {
     const auto result = language.language.parser->parse("class C { int value = 8 >> 1 >> 1 < 5; }");
     const csharp::ast::BinaryExpr* comparison = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* binary = cursiv::ast_cast<csharp::ast::BinaryExpr>(node);
           binary && binary->op == "<") comparison = binary;
     const auto* shift = comparison
@@ -78,7 +78,7 @@ int main() {
     }
     bool generic = false, nullableArray = false, arrayNullable = false;
     bool regular = false, verbatim = false, refStruct = false;
-    for (const auto *node : result.nodes) {
+    for (const auto *node : result.nodes()) {
       if (const auto *type = cursiv::ast_cast<csharp::ast::Type>(node)) {
         if (type->segments.size() == 2 && type->segments[0]->name == "A" &&
             type->segments[1]->name == "B")
@@ -113,7 +113,7 @@ int main() {
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
       return fail("native generic nameof or ref expression bodies");
     bool property = false, indexer = false, closed = false, simple = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* value = cursiv::ast_cast<csharp::ast::PropertyDecl>(node))
         property |= value->isRefBody && value->refKind == "ref" && value->exprBody;
       if (const auto* value = cursiv::ast_cast<csharp::ast::IndexerDecl>(node))
@@ -161,7 +161,7 @@ int main() {
       return fail("native deconstruction, scoped, local function or ref field syntax");
     bool deconstruct = false, typed_foreach = false, scoped = false;
     bool local_attribute = false, static_method = false, ref_field = false, constraint = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* value = cursiv::ast_cast<csharp::ast::DeconstructionExpr>(node))
         deconstruct |= value->designation && value->designation->items.size() == 2 &&
                        value->designation->items[1]->items.size() == 2;
@@ -172,7 +172,7 @@ int main() {
       if (const auto* value = cursiv::ast_cast<csharp::ast::LocalFunctionDeclStmt>(node))
         local_attribute |= value->name == "Local" && value->attributes.size() == 1;
       if (const auto* value = cursiv::ast_cast<csharp::ast::AnonymousMethodExpr>(node))
-        static_method |= value->isStatic;
+        static_method |= value->isStatic();
       if (const auto* value = cursiv::ast_cast<csharp::ast::FieldDecl>(node))
         ref_field |= value->refKind == "ref";
       if (const auto* value = cursiv::ast_cast<csharp::ast::TypeParamConstraintClause>(node))
@@ -205,7 +205,7 @@ int main() {
       return fail("native empty type, ref initializer or target/alias syntax");
     if (std::string_view(source).find("value = ref") != std::string_view::npos) {
       bool retained = false;
-      for (const auto* node : result.nodes)
+      for (const auto* node : result.nodes())
         if (const auto* member = cursiv::ast_cast<csharp::ast::ObjectInitMember>(node))
           retained |= member->name == "value" && member->isRef && member->value;
       if (!retained) return fail("ref object initializer metadata lost");
@@ -235,6 +235,68 @@ int main() {
     ++count;
   }
   if (count == 0) return fail("no example files found");
+
+  for (const char* constraints : {"class, System.IDisposable, new()",
+                                  "class, System.IDisposable, new ( )",
+                                  "class, System.IDisposable, new/*before*/(/*inside*/)",
+                                  "class, System.IDisposable"}) {
+    const std::string source = "class C<T> where T : " + std::string(constraints) + " {}";
+    const auto parsed = language.language.parser->parse(source);
+    const csharp::ast::TypeParamConstraintClause* clause = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* value = cursiv::ast_cast<csharp::ast::TypeParamConstraintClause>(node))
+        clause = value;
+    const bool wantNew = std::string_view(constraints).find("new") != std::string_view::npos;
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !clause || clause->name != "T" ||
+        clause->hasNew() != wantNew || clause->typeConstraints.size() != 1 ||
+        clause->keywordConstraints.size() != (wantNew ? 2u : 1u) ||
+        clause->keywordConstraints[0] != "class" ||
+        (wantNew && clause->keywordConstraints[1] != "new()"))
+      return fail("constructor constraint and neighbouring type/keyword constraints retained");
+  }
+
+  for (const std::string_view modifiers : {"", "async", "static", "async static", "static async"}) {
+    for (const char* body : {"() => 1", "delegate { }"}) {
+      const std::string source =
+          "class C { System.Delegate f = " + std::string(modifiers) + " " + body + "; }";
+      const auto parsed = language.language.parser->parse(source);
+      const bool wantAsync = modifiers.find("async") != std::string_view::npos;
+      const bool wantStatic = modifiers.find("static") != std::string_view::npos;
+      unsigned matches = 0;
+      for (const auto* node : parsed.nodes()) {
+        if (const auto* value = cursiv::ast_cast<csharp::ast::LambdaExpr>(node))
+          matches += value->isAsync() == wantAsync && value->isStatic() == wantStatic;
+        if (const auto* value = cursiv::ast_cast<csharp::ast::AnonymousMethodExpr>(node))
+          matches += value->isAsync() == wantAsync && value->isStatic() == wantStatic;
+      }
+      if (!parsed.accepted || parsed.cst().recovered() ||
+          !parsed.diagnostics.empty() || matches != 1)
+        return fail("lambda and anonymous-method modifier flags retain their values");
+    }
+  }
+
+  {
+    const auto parsed = language.language.parser->parse(
+        "class C { System.Delegate f = async static async () => 1; "
+        "System.Delegate g = static async static delegate { }; }");
+    const csharp::ast::LambdaExpr* lambda = nullptr;
+    const csharp::ast::AnonymousMethodExpr* method = nullptr;
+    for (const auto* node : parsed.nodes()) {
+      if (const auto* value = cursiv::ast_cast<csharp::ast::LambdaExpr>(node))
+        lambda = value;
+      if (const auto* value = cursiv::ast_cast<csharp::ast::AnonymousMethodExpr>(node))
+        method = value;
+    }
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !lambda || !method || !lambda->isAsync() || !lambda->isStatic() ||
+        !method->isAsync() || !method->isStatic() ||
+        lambda->modifiers.size() != 3 || lambda->modifiers[0] != "async" ||
+        lambda->modifiers[1] != "static" || lambda->modifiers[2] != "async" ||
+        method->modifiers.size() != 3 || method->modifiers[0] != "static" ||
+        method->modifiers[1] != "async" || method->modifiers[2] != "static")
+      return fail("modifier order and repeated occurrences retained before semantic checks");
+  }
 
   std::printf("csharp: %d examples parse clean\n", count);
   return cursiv::test::report("csharp_grammar_test");

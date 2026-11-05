@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/blueprint/core/BlueprintGrammar.hpp` |
-| The AST | `src/blueprint/core/ast.hpp` |
-| Validation checks | `src/blueprint/core/validation/` |
-| Services of your own | `src/blueprint/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/blueprint/cli/main.cpp` |
-| LSP features | `src/blueprint/lsp/LspModule.cpp` |
+| The grammar | `src/core/blueprint/BlueprintGrammar.hpp` |
+| The AST | `src/core/blueprint/ast.hpp` |
+| Validation checks | `src/core/blueprint/validation/` |
+| Services of your own | `src/core/blueprint/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/blueprint/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

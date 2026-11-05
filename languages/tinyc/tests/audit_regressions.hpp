@@ -1,11 +1,11 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/Check.hpp"
-#include "tinyc/core/CoreServices.hpp"
-#include "tinyc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/Check.hpp"
+#include "tinyc/CoreServices.hpp"
+#include "tinyc/ast.hpp"
 #include <string>
 #include <vector>
 namespace audit_regressions {

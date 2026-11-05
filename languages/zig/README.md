@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/zig/core/ZigGrammar.hpp` |
-| The AST | `src/zig/core/ast.hpp` |
-| Validation checks | `src/zig/core/validation/` |
-| Services of your own | `src/zig/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/zig/cli/main.cpp` |
-| LSP features | `src/zig/lsp/LspModule.cpp` |
+| The grammar | `src/core/zig/ZigGrammar.hpp` |
+| The AST | `src/core/zig/ast.hpp` |
+| Validation checks | `src/core/zig/validation/` |
+| Services of your own | `src/core/zig/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/zig/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

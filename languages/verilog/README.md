@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/verilog/core/VerilogGrammar.hpp` |
-| The AST | `src/verilog/core/ast.hpp` |
-| Validation checks | `src/verilog/core/validation/` |
-| Services of your own | `src/verilog/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/verilog/cli/main.cpp` |
-| LSP features | `src/verilog/lsp/LspModule.cpp` |
+| The grammar | `src/core/verilog/VerilogGrammar.hpp` |
+| The AST | `src/core/verilog/ast.hpp` |
+| Validation checks | `src/core/verilog/validation/` |
+| Services of your own | `src/core/verilog/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/verilog/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

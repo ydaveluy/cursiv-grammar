@@ -1,11 +1,11 @@
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "blueprint/core/CoreServices.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "blueprint/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include <algorithm>
 #include <cstdio>
 #include <string>
@@ -56,7 +56,7 @@ int main() {
           });
     };
     walk(walk, *d);
-    check(owned && seen.size() == r.nodes.size(), c.name, "complete ownership");
+    check(owned && seen.size() == r.nodes().size(), c.name, "complete ownership");
     a::Assignment *assign = nullptr;
     a::Module *module = nullptr;
     if (!d->definitions.empty()) {

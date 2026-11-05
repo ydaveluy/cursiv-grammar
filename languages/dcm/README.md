@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/dcm/core/DcmGrammar.hpp` |
-| The AST | `src/dcm/core/ast.hpp` |
-| Validation checks | `src/dcm/core/validation/` |
-| Services of your own | `src/dcm/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/dcm/cli/main.cpp` |
-| LSP features | `src/dcm/lsp/LspModule.cpp` |
+| The grammar | `src/core/dcm/DcmGrammar.hpp` |
+| The AST | `src/core/dcm/ast.hpp` |
+| Validation checks | `src/core/dcm/validation/` |
+| Services of your own | `src/core/dcm/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/dcm/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

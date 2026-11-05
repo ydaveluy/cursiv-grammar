@@ -1,7 +1,7 @@
 #pragma once
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include "native_projection.hpp"
 #include <fstream>
 #include <sstream>
@@ -142,7 +142,7 @@ inline int run(const auto &language) {
     };
     if (root)
       visit(visit, *root);
-    parents &= seen.size() == result.nodes.size();
+    parents &= seen.size() == result.nodes().size();
     const auto validation =
         cursiv::test::validationHelper(language.language, source);
     bool arity = false;

@@ -1,7 +1,7 @@
 #pragma once
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/services/JsonValue.hpp"
-#include "redis/core/Argument.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "redis/Argument.hpp"
 using J = cursiv::JsonValue;
 inline std::string hex(std::string_view s) {
   const char *ds = "0123456789abcdef";

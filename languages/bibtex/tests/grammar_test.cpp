@@ -7,15 +7,15 @@
 #include <tuple>
 #include <unordered_set>
 #include <utility>
-#include "bibtex/core/CoreServices.hpp"
-#include "bibtex/core/ast.hpp"
+#include "bibtex/CoreServices.hpp"
+#include "bibtex/ast.hpp"
 #include "bibtex/generated/Bibtex/Module.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace ast = bibtex::ast;
 int main() {
@@ -38,7 +38,7 @@ int main() {
           });
     };
     walk(walk, *result.value);
-    CHECK(nodes.size() == result.nodes.size());
+    CHECK(nodes.size() == result.nodes().size());
     return result;
   };
   for (std::string_view type : {"article", "book", "booklet", "inbook",

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/maml/core/MamlGrammar.hpp` |
-| The AST | `src/maml/core/ast.hpp` |
-| Validation checks | `src/maml/core/validation/` |
-| Services of your own | `src/maml/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/maml/cli/main.cpp` |
-| LSP features | `src/maml/lsp/LspModule.cpp` |
+| The grammar | `src/core/maml/MamlGrammar.hpp` |
+| The AST | `src/core/maml/ast.hpp` |
+| Validation checks | `src/core/maml/validation/` |
+| Services of your own | `src/core/maml/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/maml/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

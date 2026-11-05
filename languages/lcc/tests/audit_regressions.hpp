@@ -1,8 +1,8 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "lcc/core/CoreServices.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "lcc/CoreServices.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include <array>
 #include <string>
 #include <utility>

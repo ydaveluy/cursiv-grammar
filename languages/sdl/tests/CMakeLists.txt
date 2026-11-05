@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every example parses clean, and one document's AST
 # holds what it declares.
 add_executable(sdl_grammar_test grammar_test.cpp)
-target_link_libraries(sdl_grammar_test PRIVATE sdlCore)
+target_link_libraries(sdl_grammar_test PRIVATE sdlCore cursiv::test)
 target_compile_definitions(sdl_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

@@ -5,9 +5,9 @@
 #include <unordered_set>
 #include <variant>
 
-#include "cypher/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "cypher/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace cypher_legacy {
 inline bool run(const auto& language) {
@@ -40,7 +40,7 @@ inline bool run(const auto& language) {
           });
     };
     walk(walk, *parsed.value);
-    return valid && seen.size() == parsed.nodes.size();
+    return valid && seen.size() == parsed.nodes().size();
   };
   constexpr std::string_view source = R"C(LOAD CSV WITH HEADERS FROM 'file:///people.csv' AS row FIELDTERMINATOR ';'
 MATCH p = shortestPath((a:Person)-[:KNOWS*1..3]->(b:Person))
@@ -135,7 +135,7 @@ RETURN p, allShortestPaths((a)-->(b)))C";
     check(clean(r, source) && owned(r), "native legacy or existing query control rejected");
     if (std::string_view(source).starts_with("USING PERIODIC COMMIT LOAD")) {
       bool absent = false;
-      for (const auto* node : r.nodes)
+      for (const auto* node : r.nodes())
         if (const auto* bulk = cursiv::ast_cast<a::BulkImportQuery>(node))
           absent |= !bulk->batchSize && bulk->load && bulk->query;
       check(absent, "absent periodic batch size is distinct from an explicit size");

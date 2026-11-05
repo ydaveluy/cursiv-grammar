@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdio>
 #include <string_view>
-#include "cursiv/core/parser/Parser.hpp"
-#include "xml/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "xml/ast.hpp"
 namespace xml_dtd_islands {
 inline bool run(const cursiv::Parser& parser) {
   struct Case { const char* id; const char* source; bool valid; };

@@ -4,8 +4,8 @@
 #include <string_view>
 #include <utility>
 
-#include "typescript/core/TypeScriptGrammar.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "typescript/TypeScriptGrammar.hpp"
+#include "cursiv/parser/Parser.hpp"
 
 namespace typescript_template_converter_cases {
 

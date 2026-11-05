@@ -6,13 +6,13 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "turing/core/CoreServices.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/Check.hpp"
-#include "turing/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "turing/CoreServices.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/Check.hpp"
+#include "turing/ast.hpp"
 #include "turing/generated/Turing/Module.hpp"
 #include "three_type_cases.hpp"
 

@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "golang/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "golang/ast.hpp"
 
 namespace audit_regressions {
 

@@ -5,15 +5,14 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
-#include <memory_resource>
 #include <string>
 
-#include "abb/core/AbbGrammar.hpp"
-#include "abb/core/CoreServices.hpp"
-#include "abb/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "abb/AbbGrammar.hpp"
+#include "abb/CoreServices.hpp"
+#include "abb/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 #include "native_regressions.hpp"
 #include "rapid_families.hpp"
@@ -36,16 +35,15 @@ int main() {
 
   // The converter must also reject incomplete recovery fragments safely.
   {
-    std::pmr::monotonic_buffer_resource memory;
     for (std::string_view text : {"", "\"", "plain", "\"unterminated",
                                   "\"\\\"", "\"\\4\"", "\"\\GG\"",
                                   "\"bad\"quote\""})
-      if (abb::string_value(text, &memory))
+      if (abb::string_value(text))
         return fail("incomplete string conversion unexpectedly succeeded");
     for (std::string_view text : {"", "'", "'x", "x'"})
       if (abb::unquote(text))
         return fail("incomplete character conversion unexpectedly succeeded");
-    const auto empty = abb::string_value("\"\"", &memory);
+    const auto empty = abb::string_value("\"\"");
     if (!empty || !empty.value->empty())
       return fail("empty string conversion failed");
   }

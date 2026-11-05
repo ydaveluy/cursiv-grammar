@@ -9,11 +9,11 @@
 #include <vector>
 
 #include "audit_regressions.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "datalog/core/CoreServices.hpp"
-#include "datalog/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "datalog/CoreServices.hpp"
+#include "datalog/ast.hpp"
 
 namespace {
 

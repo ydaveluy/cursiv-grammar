@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/sqlite/core/SqliteGrammar.hpp` |
-| The AST | `src/sqlite/core/ast.hpp` |
-| Validation checks | `src/sqlite/core/validation/` |
-| Services of your own | `src/sqlite/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/sqlite/cli/main.cpp` |
-| LSP features | `src/sqlite/lsp/LspModule.cpp` |
+| The grammar | `src/core/sqlite/SqliteGrammar.hpp` |
+| The AST | `src/core/sqlite/ast.hpp` |
+| Validation checks | `src/core/sqlite/validation/` |
+| Services of your own | `src/core/sqlite/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/sqlite/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

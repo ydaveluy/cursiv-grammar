@@ -10,12 +10,12 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "sqlite/core/CoreServices.hpp"
-#include "sqlite/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "sqlite/CoreServices.hpp"
+#include "sqlite/ast.hpp"
 
 namespace {
 
@@ -33,6 +33,20 @@ int main() {
   const auto language = cursiv::create_language<
       sqlite::SqliteCoreServices, sqlite::SqliteSharedCoreServices,
       sqlite::install_core_module>();
+
+  {
+    const auto parsed = language.language.parser->parse(
+        "CREATE TABLE flags(id INTEGER PRIMARY KEY) STRICT, WITHOUT ROWID, STRICT;");
+    const sqlite::ast::CreateTableStmt* table = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* n = cursiv::ast_cast<sqlite::ast::CreateTableStmt>(node)) table = n;
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !table || !table->strict() || !table->withoutRowid() || table->options.size() != 3 ||
+        table->options[0] != sqlite::ast::TableOption::strict ||
+        table->options[1] != sqlite::ast::TableOption::withoutRowid ||
+        table->options[2] != sqlite::ast::TableOption::strict)
+      return fail("table options", "all repeated options retained in order");
+  }
 
   int failures = 0;
   int count = 0;

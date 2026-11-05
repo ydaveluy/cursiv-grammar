@@ -4,8 +4,8 @@
 #include <initializer_list>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "elixir/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "elixir/ast.hpp"
 
 namespace elixir::tests {
 

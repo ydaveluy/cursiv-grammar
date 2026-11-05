@@ -4,9 +4,9 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace score_shape_cases {
 inline bool run(const auto& language) {
@@ -93,9 +93,9 @@ inline bool run(const auto& language) {
           });
       return okay;
     };
-    if (!visit(visit, root) || seen.size() != r.nodes.size()) {
+    if (!visit(visit, root) || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "guido score-shape: %s seen=%zu parser-nodes=%zu\n",
-                   test.id, seen.size(), r.nodes.size());
+                   test.id, seen.size(), r.nodes().size());
       return false;
     }
   }

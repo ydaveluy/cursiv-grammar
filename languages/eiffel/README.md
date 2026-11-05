@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/eiffel/core/EiffelGrammar.hpp` |
-| The AST | `src/eiffel/core/ast.hpp` |
-| Validation checks | `src/eiffel/core/validation/` |
-| Services of your own | `src/eiffel/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/eiffel/cli/main.cpp` |
-| LSP features | `src/eiffel/lsp/LspModule.cpp` |
+| The grammar | `src/core/eiffel/EiffelGrammar.hpp` |
+| The AST | `src/core/eiffel/ast.hpp` |
+| Validation checks | `src/core/eiffel/validation/` |
+| Services of your own | `src/core/eiffel/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/eiffel/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

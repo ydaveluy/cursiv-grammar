@@ -8,11 +8,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "stacktrace/core/CoreServices.hpp"
-#include "stacktrace/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "stacktrace/CoreServices.hpp"
+#include "stacktrace/ast.hpp"
 
 namespace {
 

@@ -9,12 +9,12 @@
 #include <iterator>
 #include <string>
 
-#include "basic/core/CoreServices.hpp"
-#include "basic/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
+#include "basic/CoreServices.hpp"
+#include "basic/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
 
 namespace {
 
@@ -98,7 +98,7 @@ int main() {
       return 1;
     }
     const basic::ast::PrintStmt *print = nullptr;
-    for (const auto *node : result.nodes)
+    for (const auto *node : result.nodes())
       if (const auto *value = cursiv::ast_cast<basic::ast::PrintStmt>(node))
         print = value;
     if (!print || print->items.size() != 4 || !print->items[0]->value ||

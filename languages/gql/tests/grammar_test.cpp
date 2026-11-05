@@ -10,11 +10,11 @@
 #include <string>
 #include <utility>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "gql/core/CoreServices.hpp"
-#include "gql/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "gql/CoreServices.hpp"
+#include "gql/ast.hpp"
 #include "native_regressions.hpp"
 
 namespace {
@@ -140,7 +140,7 @@ int check_postfix_types(const auto &language) {
         !result.diagnostics.empty())
       return fail("<type probe>", "a nested list type does not parse clean");
     const gql::ast::CastExpr *cast = nullptr;
-    for (const auto *node : result.nodes)
+    for (const auto *node : result.nodes())
       if (const auto *value = cursiv::ast_cast<gql::ast::CastExpr>(node))
         cast = value;
     if (!cast || !cast->target || cast->target->parent != cast)
@@ -191,7 +191,7 @@ int check_closed_element_types(const auto &language) {
         !result.diagnostics.empty() || result.cst().text() != source)
       return fail(c.type, "closed reference value type did not parse clean");
     const gql::ast::CastExpr *cast = nullptr;
-    for (const auto *node : result.nodes) {
+    for (const auto *node : result.nodes()) {
       if (node != result.value && !node->parent)
         return fail(c.type, "closed reference left an unowned AST node");
       if (const auto *value = cursiv::ast_cast<gql::ast::CastExpr>(node)) cast = value;
@@ -224,7 +224,7 @@ int check_closed_element_types(const auto &language) {
     const auto result = language.language.parser->parse(source);
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
       return fail(type, "existing open/graph reference no longer parses");
-    for (const auto *node : result.nodes)
+    for (const auto *node : result.nodes())
       if (const auto *value = cursiv::ast_cast<gql::ast::CastExpr>(node);
           value && value->target->element)
         return fail(type, "open/graph reference was classified as a closed element");
@@ -293,7 +293,7 @@ int check_edge_abbreviation(const auto &language) {
     return fail("<probe>", "the edge probe does not parse clean");
   int abbreviated = 0;
   int bracketed = 0;
-  for (const auto *node : result.nodes) {
+  for (const auto *node : result.nodes()) {
     const auto *const edge = cursiv::ast_cast<gql::ast::EdgePattern>(node);
     if (edge == nullptr)
       continue;
@@ -339,7 +339,7 @@ int main() {
       return 1;
     }
     bool predicate = false;
-    for (const auto *node : audit_result.nodes)
+    for (const auto *node : audit_result.nodes())
       if (const auto *w = cursiv::ast_cast<gql::ast::WhenOperand>(node))
         predicate = predicate || (w->partialOp == "IS" && w->negated &&
                                   w->predicate == "NULL");
@@ -352,7 +352,7 @@ int main() {
         !compound.diagnostics.empty())
       return 1;
     bool quantifiers = false;
-    for (const auto *node : compound.nodes)
+    for (const auto *node : compound.nodes())
       if (const auto *q = cursiv::ast_cast<gql::ast::CompositeQuery>(node))
         quantifiers =
             quantifiers ||

@@ -5,9 +5,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "pcre/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "pcre/ast.hpp"
 #include "x_mode_cases.hpp"
 
 namespace pcre_x_modes {
@@ -57,14 +57,14 @@ template <class Language> bool run(const Language& language) {
         root->pattern->branches.size() == test.rootBranches &&
         literals == test.literals && options == test.options && groups == test.groups &&
         classes == test.classes && quantified == test.quantified && parents &&
-        seen.size() == parsed.nodes.size();
+        seen.size() == parsed.nodes().size();
     if (!valid) {
       ok = false;
       std::fprintf(stderr, "pcre modes [%.*s]: accepted=%d recovered=%d diagnostics=%zu "
           "literals=[%s] options=%u groups=%u classes=%u quantified=%u parents=%d nodes=%zu/%zu\n",
           int(test.name.size()), test.name.data(), parsed.accepted, parsed.cst().recovered(),
           parsed.diagnostics.size(), literals.c_str(), options, groups, classes, quantified,
-          parents, seen.size(), parsed.nodes.size());
+          parents, seen.size(), parsed.nodes().size());
       for (const auto& diagnostic : parsed.diagnostics)
         std::fprintf(stderr, "pcre modes diagnostic: kind=%u element=%u bytes=%u..%u\n",
             unsigned(diagnostic.kind), unsigned(diagnostic.element),

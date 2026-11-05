@@ -8,12 +8,13 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "xml/core/CoreServices.hpp"
-#include "xml/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "xml/CoreServices.hpp"
+#include "xml/ast.hpp"
 
 namespace {
 
@@ -37,7 +38,7 @@ void check_declaration(const xml::ast::Document& doc, bool& ok) {
     fail("declaration.xml", "no declaration node", ok);
     return;
   }
-  const cursiv::vector<xml::ast::Attribute*>& attrs =
+  const std::vector<xml::ast::Attribute*>& attrs =
       doc.declaration->attributes;
   if (attrs.size() != 3) {
     fail("declaration.xml", "declaration does not hold three attributes",

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/icon/core/IconGrammar.hpp` |
-| The AST | `src/icon/core/ast.hpp` |
-| Validation checks | `src/icon/core/validation/` |
-| Services of your own | `src/icon/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/icon/cli/main.cpp` |
-| LSP features | `src/icon/lsp/LspModule.cpp` |
+| The grammar | `src/core/icon/IconGrammar.hpp` |
+| The AST | `src/core/icon/ast.hpp` |
+| Validation checks | `src/core/icon/validation/` |
+| Services of your own | `src/core/icon/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/icon/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

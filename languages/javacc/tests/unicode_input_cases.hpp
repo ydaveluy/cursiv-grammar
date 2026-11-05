@@ -1,9 +1,9 @@
 #pragma once
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "javacc/core/UnicodeEscapes.hpp"
-#include "javacc/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "javacc/UnicodeEscapes.hpp"
+#include "javacc/ast.hpp"
 namespace javacc_native_followup {
 template<class Language> bool unicode_input(const Language& language) {
   struct Case { std::string_view source, text; bool invalid = false; };
@@ -34,7 +34,7 @@ PARSER_END(P)
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !result.value ||
       result.cst().text() != source || !result.cst().engine_stamped()) return false;
   bool name = false;
-  for (const auto* node : result.nodes)
+  for (const auto* node : result.nodes())
     if (const auto* p = cursiv::ast_cast<javacc::ast::VariableDeclaratorId>(node))
       name |= p->name == "x" && result.cst().text(p->cstNodeId).find(R"(\u0078)") != std::string_view::npos;
   if (!name) return false;
@@ -49,7 +49,7 @@ PARSER_END(P)
         });
   };
   walk(walk, *result.value);
-  if (!owned || seen.size() != result.nodes.size()) return false;
+  if (!owned || seen.size() != result.nodes().size()) return false;
   for (cursiv::NodeId id = 0; id < result.cst().size(); ++id) {
     const auto& n = result.cst()[id];
     if (n.begin > n.end || n.end > source.size() || (id && n.end < result.cst()[id - 1].end)) return false;

@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID orwell
-    GRAMMAR    orwell/core/OrwellGrammar.hpp
+    GRAMMAR    orwell/OrwellGrammar.hpp
     NAMESPACE  orwell::Orwell
     EXTENSIONS .orwell
     OUT        orwell/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/orwell/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(orwellCore ${_core})
 target_link_libraries(orwellCore PUBLIC orwellGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/orwell/cli/*.cpp)
-if(_cli)
-  add_executable(orwell_cli ${_cli})
-  target_link_libraries(orwell_cli
-                        PRIVATE orwellCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(orwell_cli cli.cpp)
+  target_include_directories(orwell_cli PRIVATE cli)
+  target_link_libraries(orwell_cli PRIVATE orwellCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(orwellCli ${_cli})
+    target_include_directories(orwellCli PUBLIC cli)
+    target_link_libraries(orwellCli PUBLIC orwellCore cursiv::cli)
+    target_link_libraries(orwell_cli PRIVATE orwellCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/orwell/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/orwell/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/orwell/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(orwellLsp ${_lsp})
+  target_include_directories(orwellLsp PUBLIC lsp)
   target_link_libraries(orwellLsp PUBLIC orwellCore cursiv::lsp)
-  add_executable(orwell_lsp orwell/lsp/main.cpp)
-  target_link_libraries(orwell_lsp PRIVATE orwellLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(orwell_lsp lsp.cpp)
+    target_link_libraries(orwell_lsp PRIVATE orwellLsp)
+  endif()
 endif()
 
-if(TARGET orwellLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/orwell/bench/main.cpp")
-  cursiv_add_benchmark(orwell
-      SOURCES orwell/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET orwellLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(orwell SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(orwell)

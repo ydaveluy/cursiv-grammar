@@ -2,8 +2,8 @@
 #include <cstdio>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "tinybasic/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "tinybasic/ast.hpp"
 namespace tinybasic_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace a = tinybasic::ast;
@@ -29,7 +29,7 @@ template<class Language> bool run(const Language& language) {
         });
   };
   walk(walk, *root);
-  if (!owned || seen.size() != result.nodes.size()) return false;
+  if (!owned || seen.size() != result.nodes().size()) return false;
   for (const auto bad : {"10A=2*-3\n", "10A=2+-3\n", "10A=2++3\n", "10GOTO2147483648\n"}) {
     const auto r = language.language.parser->parse(bad);
     if (r.accepted && !r.cst().recovered() && r.diagnostics.empty()) return false;

@@ -1,6 +1,8 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID ruleworks
-    GRAMMAR    ruleworks/core/RuleworksGrammar.hpp
+    GRAMMAR    ruleworks/RuleworksGrammar.hpp
     NAMESPACE  ruleworks::Ruleworks
     EXTENSIONS .rul
     OUT        ruleworks/generated)
@@ -18,34 +20,47 @@ target_compile_options(ruleworksGenerated PRIVATE -ftemplate-depth=4000)
 target_compile_options(ruleworksGenerated PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-fconstexpr-ops-limit=2147483647>)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/ruleworks/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(ruleworksCore ${_core})
 target_link_libraries(ruleworksCore PUBLIC ruleworksGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/ruleworks/cli/*.cpp)
-if(_cli)
-  add_executable(ruleworks_cli ${_cli})
-  target_link_libraries(ruleworks_cli
-                        PRIVATE ruleworksCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(ruleworks_cli cli.cpp)
+  target_include_directories(ruleworks_cli PRIVATE cli)
+  target_link_libraries(ruleworks_cli PRIVATE ruleworksCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(ruleworksCli ${_cli})
+    target_include_directories(ruleworksCli PUBLIC cli)
+    target_link_libraries(ruleworksCli PUBLIC ruleworksCore cursiv::cli)
+    target_link_libraries(ruleworks_cli PRIVATE ruleworksCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ruleworks/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/ruleworks/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/ruleworks/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(ruleworksLsp ${_lsp})
+  target_include_directories(ruleworksLsp PUBLIC lsp)
   target_link_libraries(ruleworksLsp PUBLIC ruleworksCore cursiv::lsp)
-  add_executable(ruleworks_lsp ruleworks/lsp/main.cpp)
-  target_link_libraries(ruleworks_lsp PRIVATE ruleworksLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(ruleworks_lsp lsp.cpp)
+    target_link_libraries(ruleworks_lsp PRIVATE ruleworksLsp)
+  endif()
 endif()
 
-if(TARGET ruleworksLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ruleworks/bench/main.cpp")
-  cursiv_add_benchmark(ruleworks
-      SOURCES ruleworks/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET ruleworksLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(ruleworks SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(ruleworks)

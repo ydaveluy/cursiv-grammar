@@ -1,5 +1,5 @@
 #pragma once
-#include "xsdregex/core/ast.hpp"
+#include "xsdregex/ast.hpp"
 #include <string>
 namespace xa = xsdregex::ast;
 inline std::string pattern(const xa::RegExp &);

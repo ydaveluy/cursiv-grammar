@@ -2,8 +2,8 @@
 #include <cstdio>
 #include <string>
 #include <string_view>
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 inline int check_native_audit(const auto& services) {
   struct Case { const char* text; const char* code; unsigned count; };

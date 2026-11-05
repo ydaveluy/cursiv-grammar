@@ -10,23 +10,37 @@
 
 #include "c/generated/C/Parser.hpp"
 #include "c/generated/C/Table.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/CstBuilder.hpp"
-#include "cursiv/core/syntax-tree/ParseDiagnostic.hpp"
-#include "cursiv/engines/lr/runtime/LrConfig.hpp"
-#include "cursiv/engines/lr/runtime/LrContext.hpp"
-#include "cursiv/engines/lr/runtime/LrParseStats.hpp"
-#include "cursiv/engines/lr/runtime/LrParser.hpp"
-#include "cursiv/engines/shared/runtime/RepairBudget.hpp"
-#include "cursiv/engines/lr/runtime/LrSearch.hpp"
-#include "cursiv/engines/lr/runtime/lr_lookahead.hpp"
-#include "cursiv/engines/lr/runtime/lr_repair_write.hpp"
-#include "cursiv/engines/lr/runtime/lr_search.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/CstBuilder.hpp"
+#include "cursiv/syntax-tree/ParseDiagnostic.hpp"
+#include "cursiv/lr/runtime/LrConfig.hpp"
+#include "cursiv/lr/runtime/LrContext.hpp"
+#include "cursiv/lr/runtime/LrParseStats.hpp"
+#include "cursiv/lr/runtime/LrParser.hpp"
+#include "cursiv/shared/runtime/RepairBudget.hpp"
+#include "cursiv/lr/runtime/LrSearch.hpp"
+#include "cursiv/lr/runtime/lr_lookahead.hpp"
+#include "cursiv/lr/runtime/lr_repair_write.hpp"
+#include "cursiv/lr/runtime/lr_search.hpp"
+#include "cursiv/Check.hpp"
 
 namespace {
 
 namespace gc = ::c::generated::C;
+
+// The writer's reading as a read step asks it: its stack's frames by depth, the
+// cursor its indentation reads from, and whether the table refused it.
+struct Written : cursiv::LrWriteReading {
+  struct Frames : Run {
+    [[nodiscard]] std::uint32_t size() const { return s->size(); }
+    [[nodiscard]] std::uint32_t state_at(std::uint32_t i) const {
+      return (*s)[i].state;
+    }
+  };
+  Frames run;
+  cursiv::TextOffset at = 0;
+  bool dead = false;
+};
 
 // The writer's pool over a whole document: the lexing is the drive's --
 // trivia laid, the cursor past it -- and a cell is decided as the drive
@@ -34,14 +48,12 @@ namespace gc = ::c::generated::C;
 template <const auto& A>
 struct Whole {
   cursiv::LrContext& c;
-  cursiv::LrWriteReading& w;
+  Written& w;
   std::uint32_t forks = 0;
   bool split = false;
-  cursiv::LrWriteReading scratch{};
+  Written scratch{};
 
-  cursiv::LrWriteReading& operator[](std::size_t i) {
-    return i == 0 ? w : scratch;
-  }
+  Written& operator[](std::size_t i) { return i == 0 ? w : scratch; }
   std::size_t fork(std::size_t) {
     ++forks;
     return 1;
@@ -57,7 +69,12 @@ struct Whole {
       at += arm;
       forks = 0;
     }
-    return cursiv::lr_write_apply<A>(c, w, at);
+    return write(at);
+  }
+  bool write(std::uint32_t at) {
+    const bool wrote = cursiv::lr_write_apply<A>(c, w, at);
+    w.at = c.committed;
+    return wrote;
   }
   bool reduce(std::size_t, std::uint16_t p) {
     return cursiv::lr_write_reduce<A>(c, p, cursiv::lr_shadow_holds(c, w));
@@ -71,18 +88,17 @@ struct Whole {
         ++p;
       c.pendEnd = p;
       if (p >= c.len) return cursiv::Token{p, p, cursiv::kEofSymbol};
-      const cursiv::Scan s = cursiv::lr_match_text<A>(c.src, c.len, mode, p);
+      const cursiv::Scan s = c.drive->walk(c.src, c.len, mode, p);
       if (s.term == cursiv::kInvalidSymbol || s.end == p)
         return cursiv::Token{p, p, cursiv::kInvalidSymbol};
       if (!cursiv::lr_is_trivia<A>(s.term) &&
-          !cursiv::lr_joins<A>(c.indent.depth, s.term))
+          !cursiv::lr_joins<A>(w.indent.depth, s.term))
         return cursiv::Token{p, s.end, s.term};
       if (A.cfg.terms[s.term].recorded)
         c.pending.push_back(cursiv::Token{p, s.end, s.term});
       p = s.end;
     }
   }
-  cursiv::Scan* room() { return c.cand; }
   void lexed() {}
   void kept_at(std::size_t) {}
   void cropped() {}
@@ -90,9 +106,8 @@ struct Whole {
 };
 
 // The drive read off the table: the interpreted writer takes the actions the
-// generated states take, lexes as they lex, and decides a cell and a position
-// of several candidates as they decide them -- stopping where they stop for
-// the graph.
+// generated states take, lexes as they lex, and decides a cell as they decide
+// it -- stopping where they stop for the graph.
 template <const auto& A>
 struct Interpreted {
   static inline cursiv::LrDrive drive{};
@@ -118,39 +133,15 @@ struct Interpreted {
         at += arm;
         this->forks = 0;
       }
-      return cursiv::lr_write_apply<A>(this->c, this->w, at);
-    }
-    void pick(std::size_t, std::uint32_t state, cursiv::Scan* room,
-              std::uint32_t n) {
-      const cursiv::Scan best = room[0];
-      std::uint32_t kept = 0;
-      for (std::uint32_t k = 0; k < n; ++k)
-        if (A.cold.follow[state].test(room[k].term)) room[kept++] = room[k];
-      if (kept == 0) {
-        this->w.la = cursiv::Token{this->w.la.begin, best.end, best.term};
-        return;
-      }
-      sync();
-      std::vector<cursiv::Scan> arms(room, room + kept);
-      const std::uint32_t k =
-          kept > 1 ? this->c.candAt(this->c, state, arms.data(), kept) : 0;
-      if (k >= kept) {
-        this->w.la = cursiv::Token{this->w.la.begin, this->w.la.begin,
-                                   cursiv::kInvalidSymbol};
-        return;
-      }
-      this->w.la = cursiv::Token{this->w.la.begin, arms[k].end, arms[k].term};
+      return this->write(at);
     }
   };
 
   static cursiv::LrExit enter(cursiv::LrContext& c) {
-    cursiv::LrWriteReading w;
+    Written w;
+    static_cast<cursiv::LrWriteReading&>(w) = cursiv::lr_write_reading(c);
     w.run.s = &c.stack;
     w.at = c.committed;
-    w.la = c.la;
-    w.laMode = c.laMode;
-    w.virt = c.virt;
-    w.indent = c.indent;
     Pool x{{c, w}};
     for (;;) {
       w.dead = false;

@@ -1,9 +1,9 @@
 #pragma once
 #include <cstdio>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "solidity/core/CoreServices.hpp"
-#include "solidity/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "solidity/CoreServices.hpp"
+#include "solidity/ast.hpp"
 namespace native_followup {
 inline bool run(){
   const auto language=cursiv::create_language<solidity::SolidityCoreServices,
@@ -27,7 +27,7 @@ inline bool run(){
     return false;
   }
   bool trueValue=false,falseValue=false,soft=false,path=false,throwStmt=false;
-  for(const auto* node:r.nodes){
+  for(const auto* node:r.nodes()){
     throwStmt|=cursiv::ast_cast<solidity::ast::ThrowStmt>(node)!=nullptr;
     if(const auto* literal=cursiv::ast_cast<solidity::ast::YulLiteral>(node)){
       trueValue|=literal->text=="true";falseValue|=literal->text=="false";

@@ -7,14 +7,14 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/services/Diagnostic.hpp"
-#include "cursiv/core/services/SharedCoreServices.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/core/workspace/DocumentBuilder.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "cursiv/core/workspace/Documents.hpp"
-#include "javascript/core/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/services/Diagnostic.hpp"
+#include "cursiv/services/SharedCoreServices.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/workspace/DocumentBuilder.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "cursiv/workspace/Documents.hpp"
+#include "javascript/CoreServices.hpp"
 
 namespace {
 

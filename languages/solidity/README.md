@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/solidity/core/SolidityGrammar.hpp` |
-| The AST | `src/solidity/core/ast.hpp` |
-| Validation checks | `src/solidity/core/validation/` |
-| Services of your own | `src/solidity/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/solidity/cli/main.cpp` |
-| LSP features | `src/solidity/lsp/LspModule.cpp` |
+| The grammar | `src/core/solidity/SolidityGrammar.hpp` |
+| The AST | `src/core/solidity/ast.hpp` |
+| Validation checks | `src/core/solidity/validation/` |
+| Services of your own | `src/core/solidity/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/solidity/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

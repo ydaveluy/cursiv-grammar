@@ -1,11 +1,11 @@
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "xsdregex/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "xsdregex/CoreServices.hpp"
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
@@ -71,7 +71,7 @@ int main() {
           });
     };
     walk(walk, *d);
-    if (!raw || !owned || seen.size() != r.nodes.size())
+    if (!raw || !owned || seen.size() != r.nodes().size())
       return fail("ownership/raw fields");
     if (!clean) {
       if (r.diagnostics.empty())

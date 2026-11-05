@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/useragent/core/UseragentGrammar.hpp` |
-| The AST | `src/useragent/core/ast.hpp` |
-| Validation checks | `src/useragent/core/validation/` |
-| Services of your own | `src/useragent/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/useragent/cli/main.cpp` |
-| LSP features | `src/useragent/lsp/LspModule.cpp` |
+| The grammar | `src/core/useragent/UseragentGrammar.hpp` |
+| The AST | `src/core/useragent/ast.hpp` |
+| Validation checks | `src/core/useragent/validation/` |
+| Services of your own | `src/core/useragent/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/useragent/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

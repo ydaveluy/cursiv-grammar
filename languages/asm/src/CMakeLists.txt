@@ -1,6 +1,8 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID nasm
-    GRAMMAR    nasm/core/NasmGrammar.hpp
+    GRAMMAR    nasm/NasmGrammar.hpp
     NAMESPACE  nasm::Nasm
     EXTENSIONS .asm
     OUT        nasm/generated)
@@ -19,34 +21,47 @@ else()
   endif()
 endif()
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/nasm/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(nasmCore ${_core})
 target_link_libraries(nasmCore PUBLIC nasmGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/nasm/cli/*.cpp)
-if(_cli)
-  add_executable(nasm_cli ${_cli})
-  target_link_libraries(nasm_cli
-                        PRIVATE nasmCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(nasm_cli cli.cpp)
+  target_include_directories(nasm_cli PRIVATE cli)
+  target_link_libraries(nasm_cli PRIVATE nasmCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(nasmCli ${_cli})
+    target_include_directories(nasmCli PUBLIC cli)
+    target_link_libraries(nasmCli PUBLIC nasmCore cursiv::cli)
+    target_link_libraries(nasm_cli PRIVATE nasmCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/nasm/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/nasm/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/nasm/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(nasmLsp ${_lsp})
+  target_include_directories(nasmLsp PUBLIC lsp)
   target_link_libraries(nasmLsp PUBLIC nasmCore cursiv::lsp)
-  add_executable(nasm_lsp nasm/lsp/main.cpp)
-  target_link_libraries(nasm_lsp PRIVATE nasmLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(nasm_lsp lsp.cpp)
+    target_link_libraries(nasm_lsp PRIVATE nasmLsp)
+  endif()
 endif()
 
-if(TARGET nasmLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/nasm/bench/main.cpp")
-  cursiv_add_benchmark(nasm
-      SOURCES nasm/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET nasmLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(nasm SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(nasm)

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/ply/core/PlyGrammar.hpp` |
-| The AST | `src/ply/core/ast.hpp` |
-| Validation checks | `src/ply/core/validation/` |
-| Services of your own | `src/ply/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/ply/cli/main.cpp` |
-| LSP features | `src/ply/lsp/LspModule.cpp` |
+| The grammar | `src/core/ply/PlyGrammar.hpp` |
+| The AST | `src/core/ply/ast.hpp` |
+| Validation checks | `src/core/ply/validation/` |
+| Services of your own | `src/core/ply/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/ply/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

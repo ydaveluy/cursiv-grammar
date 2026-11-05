@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/aterm/core/AtermGrammar.hpp` |
-| The AST | `src/aterm/core/ast.hpp` |
-| Validation checks | `src/aterm/core/validation/` |
-| Services of your own | `src/aterm/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/aterm/cli/main.cpp` |
-| LSP features | `src/aterm/lsp/LspModule.cpp` |
+| The grammar | `src/core/aterm/AtermGrammar.hpp` |
+| The AST | `src/core/aterm/ast.hpp` |
+| Validation checks | `src/core/aterm/validation/` |
+| Services of your own | `src/core/aterm/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/aterm/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

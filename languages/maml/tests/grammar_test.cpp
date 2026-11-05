@@ -7,16 +7,16 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/test/Check.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "maml/core/ast.hpp"
-#include "maml/core/CoreServices.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "maml/ast.hpp"
+#include "maml/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include "maml/generated/Maml/Module.hpp"
 
 namespace {
@@ -64,7 +64,7 @@ double number(const ast::Val& v) {
   return -1.0;
 }
 std::string_view str(const ast::Val& v) {
-  const auto* s = std::get_if<std::string_view>(&v);
+  const auto* s = std::get_if<std::string>(&v);
   return s != nullptr ? *s : std::string_view{"<not a string>"};
 }
 bool boolean(const ast::Val& v, bool want) {
@@ -182,7 +182,7 @@ void scalar_document() {
   CHECK(number(root->items[2]) == 3.0);
 }
 
-// Escapes decode to arena-backed strings; a triple-quoted raw string keeps its
+// Escapes decode to owned strings; a triple-quoted raw string keeps its
 // content literally, single-line or multiline; a trailing comment.
 void strings_document() {
   const std::string src = load("strings.maml");

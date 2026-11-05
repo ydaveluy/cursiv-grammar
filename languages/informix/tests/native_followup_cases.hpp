@@ -3,12 +3,12 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "informix/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "informix/ast.hpp"
 
 namespace informix_native_followup {
 namespace a = informix::ast;
@@ -190,7 +190,7 @@ END REPORT;
   bool off = false, variable = false, menu = false, visible = false, hidden = false;
   bool qualified = false, quoted = false, table = false;
   bool firstPage = false, normalPage = false, spaces = false, wrap = false, suppressed = false, newline = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* p = cursiv::ast_cast<a::StringLit>(node)) {
       escaped |= p->value == "a\"b\\c;{#--}";single |= p->value == "it's";
     }
@@ -252,7 +252,7 @@ END REPORT;
           });
     };
     walk(walk, *root);
-    check(owned && seen.size() == result.nodes.size(), "every selected AST node is uniquely owned and contained in its parent CST");
+    check(owned && seen.size() == result.nodes().size(), "every selected AST node is uniquely owned and contained in its parent CST");
   }
   const auto module = language.language.parser->parse("FUNCTION helper(x) DEFINE x INTEGER RETURN x END FUNCTION;");
   const auto* mod = module.template value_as<a::Program>();

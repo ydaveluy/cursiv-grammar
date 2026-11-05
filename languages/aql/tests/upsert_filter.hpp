@@ -4,9 +4,9 @@
 #include <string>
 #include <unordered_set>
 
-#include "aql/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "aql/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace aql_upsert {
 namespace ast = aql::ast;
@@ -30,7 +30,7 @@ inline bool parents(const cursiv::AstReflection& reflection,
         });
   };
   visit(visit, *parsed.value);
-  return valid && seen.size() == parsed.nodes.size();
+  return valid && seen.size() == parsed.nodes().size();
 }
 inline bool run(const cursiv::Parser& parser, const cursiv::AstReflection& reflection) {
   const std::string source =

@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <variant>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 #include "restructuredtext/generated/Restructuredtext/Module.hpp"
 
 // Docutils 0.23 Parser.parse controls; expectations are embedded for CI.
@@ -73,8 +73,9 @@ inline int native_inline_regressions() {
         return at >= begin && at - begin <= source.size() &&
                v.size() <= source.size() - (at - begin);
       };
-      if (text != sample.text || role != sample.role || !captured(text) ||
-          !captured(role))
+      // Interpreted text owns its bytes, since it may hold decoded escapes.
+      if (text != sample.text || role != sample.role ||
+          (sample.literal && !captured(text)) || !captured(role))
         return false;
       bool owned = !doc->parent;
       std::unordered_set<const cursiv::AstNode *> seen;
@@ -93,7 +94,7 @@ inline int native_inline_regressions() {
             });
       };
       walk(walk, *doc);
-      return owned && seen.size() == r.nodes.size();
+      return owned && seen.size() == r.nodes().size();
     };
     const auto service = language.language.parser->parse(source);
     const auto generated = factory->parse(source);

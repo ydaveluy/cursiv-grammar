@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/hexpat/core/HexpatGrammar.hpp` |
-| The AST | `src/hexpat/core/ast.hpp` |
-| Validation checks | `src/hexpat/core/validation/` |
-| Services of your own | `src/hexpat/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/hexpat/cli/main.cpp` |
-| LSP features | `src/hexpat/lsp/LspModule.cpp` |
+| The grammar | `src/core/hexpat/HexpatGrammar.hpp` |
+| The AST | `src/core/hexpat/ast.hpp` |
+| Validation checks | `src/core/hexpat/validation/` |
+| Services of your own | `src/core/hexpat/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/hexpat/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

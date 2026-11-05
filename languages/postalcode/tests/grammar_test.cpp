@@ -8,11 +8,11 @@
 #include <string>
 
 #include "audit_regressions.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "postalcode/core/CoreServices.hpp"
-#include "postalcode/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "postalcode/CoreServices.hpp"
+#include "postalcode/ast.hpp"
 
 namespace {
 

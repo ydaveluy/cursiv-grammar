@@ -6,11 +6,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "dice/core/CoreServices.hpp"
-#include "dice/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "dice/CoreServices.hpp"
+#include "dice/ast.hpp"
 
 #include "audit_regressions.hpp"
 

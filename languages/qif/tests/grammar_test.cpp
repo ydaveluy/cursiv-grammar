@@ -9,11 +9,11 @@
 #include <string>
 
 #include "audit_regressions.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "qif/core/CoreServices.hpp"
-#include "qif/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "qif/CoreServices.hpp"
+#include "qif/ast.hpp"
 
 namespace {
 

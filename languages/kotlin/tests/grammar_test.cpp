@@ -8,11 +8,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "kotlin/core/CoreServices.hpp"
-#include "kotlin/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "kotlin/CoreServices.hpp"
+#include "kotlin/ast.hpp"
 #include "modern_cases.hpp"
 #include "destructuring_cases.hpp"
 
@@ -67,7 +67,7 @@ bool collection_candidates(const cursiv::Parser& parser) {
   for (const auto& test : cases) {
     const auto result = parser.parse(test.source);
     unsigned collections = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       collections += cursiv::ast_cast<kotlin::ast::CollectionLiteral>(node) != nullptr;
     if (result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
         collections == test.collections)
@@ -123,7 +123,7 @@ int main() {
   {
     const auto r = language.language.parser->parse("val x:Number\nprivate field:Int=1\nget()=field\nfun f(){a@ b@ val y=1}");
     bool components = false, labels = false;
-    for (const auto* n : r.nodes) {
+    for (const auto* n : r.nodes()) {
       if (const auto* p = cursiv::ast_cast<kotlin::ast::PropertyDecl>(n))
         components |= p->backingField && p->getter && p->backingField->type && p->backingField->initializer && p->backingField->modifiers.size() == 1;
       if (const auto* d = cursiv::ast_cast<kotlin::ast::LabeledDeclaration>(n))
@@ -134,7 +134,7 @@ int main() {
   {
     const auto r = language.language.parser->parse(R"KT(val x=" a ${ 1 + 2 } b ")KT");
     bool literalText = false;
-    for (const auto* n : r.nodes)
+    for (const auto* n : r.nodes())
       if (const auto* text = cursiv::ast_cast<kotlin::ast::StringLiteral>(n))
         literalText |= text->parts.size() == 3 && text->parts[0]->text == " a " &&
             text->parts[1]->expr && text->parts[2]->text == " b ";
@@ -196,6 +196,21 @@ int main() {
       return fail(path, "the parse built no KotlinFile");
 
     std::printf("kotlin: %s parses\n", path.c_str());
+  }
+
+  for (const char* modifiers : {"@A suspend @B", "@A @B"}) {
+    const std::string source =
+        "val f: " + std::string(modifiers) + " () -> Unit = TODO()\n";
+    const auto parsed = language.language.parser->parse(source);
+    const kotlin::ast::FunctionType* type = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* value = cursiv::ast_cast<kotlin::ast::FunctionType>(node))
+        type = value;
+    const bool wantSuspend = std::string_view(modifiers).find("suspend") != std::string_view::npos;
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !type || type->annotations.size() != 2 ||
+        type->isSuspend != wantSuspend || !type->returnType)
+      return fail("<type modifiers>", "annotations and suspend flag retained");
   }
 
   return candidatesOk ? 0 : fail("collection candidates", "clean syntax/AST expected");

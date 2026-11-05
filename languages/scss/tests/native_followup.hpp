@@ -1,8 +1,8 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "scss/core/ast.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "scss/ast.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
 #include <vector>
 #include <cstdio>
 #include <string>
@@ -16,6 +16,27 @@ inline bool run(const auto& services) {
   const auto check = [&](bool value, const char* message) {
     if (!value) { std::fprintf(stderr, "scss native: %s\n", message); ok = false; }
   };
+  {
+    const auto parsed = services.language.parser->parse(
+        "$flags: 1, 2, 3 !default !global !default; "
+        "@media (width: 1px) or (height: 2px) or (color: red) { .x { a: b; } }");
+    const ast::VariableDeclaration* variable = nullptr;
+    const ast::ListValue* list = nullptr;
+    const ast::MediaQuery* media = nullptr;
+    for (const auto* node : parsed.nodes()) {
+      if (const auto* n = cursiv::ast_cast<ast::VariableDeclaration>(node)) variable = n;
+      if (const auto* n = cursiv::ast_cast<ast::ListValue>(node)) list = n;
+      if (const auto* n = cursiv::ast_cast<ast::MediaQuery>(node)) media = n;
+    }
+    check(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() &&
+              variable && variable->isDefault() && variable->isGlobal() &&
+              variable->modifiers.size() == 3 &&
+              variable->modifiers[2] == ast::VariableModifier::isDefault &&
+              list && list->items.size() == 3 && list->separators.size() == 2 &&
+              list->commaSeparated() && media && media->joinedByOr &&
+              media->expressions.size() == 3,
+          "repeated modifiers, commas and media conditions retain every occurrence");
+  }
   const std::string source = "$x: 1 !global !default; $y: 2 !default !global; "
       ".a { first: url(https://exemple.fr/café.svg); empty: url(); "
       "missing: null; remainder: 10 % 3; equality: null == null; }";
@@ -28,7 +49,7 @@ inline bool run(const auto& services) {
   if (sheet && sheet->statements.size() == 3) {
     for (std::size_t i = 0; i < 2; ++i) {
       const auto* variable = as<ast::VariableDeclaration>(sheet->statements[i]);
-      check(variable && variable->isDefault && variable->isGlobal,
+      check(variable && variable->isDefault() && variable->isGlobal(),
             "default/global flags are independent and order-insensitive");
     }
   }
@@ -158,8 +179,8 @@ inline bool run(const auto& services) {
           const auto* commaList = second ? as<ast::ListValue>(second->defaultValue) : nullptr;
           const auto* third = forward->withArgs[2];
           const auto* map = third ? as<ast::MapValue>(third->defaultValue) : nullptr;
-          check(spaceList && spaceList->items.size() == 2 && !spaceList->commaSeparated &&
-                    commaList && commaList->items.size() == 2 && commaList->commaSeparated &&
+          check(spaceList && spaceList->items.size() == 2 && !spaceList->commaSeparated() &&
+                    commaList && commaList->items.size() == 2 && commaList->commaSeparated() &&
                     map && map->entries.size() == 2,
                 "configuration retains space lists and nested comma lists/maps");
         }
@@ -237,7 +258,7 @@ inline bool run(const auto& services) {
             : as<ast::IfExpr>(parameter->defaultValue);
         const auto* important = list && list->items.size() == 2 ? as<ast::PrioValue>(list->items[1]) : nullptr;
         const bool shapeRetained = hasImportant
-            ? list && !list->commaSeparated && value && value->parent == list && important &&
+            ? list && !list->commaSeparated() && value && value->parent == list && important &&
               !important->isDefault && important->parent == list
             : value && value->parent == parameter;
         const bool conditionalRetained = shapeRetained && value->prio == probe.ifPriority && value->condition &&
@@ -250,7 +271,7 @@ inline bool run(const auto& services) {
               "list=%d comma=%d items=%zu\n",
               probe.source, unsigned(parameter->prio), parameter->defaultValue->parent == parameter,
               value != nullptr, value ? int(value->prio) : -1, list != nullptr,
-              list ? bool(list->commaSeparated) : false, list ? list->items.size() : 0);
+              list ? bool(list->commaSeparated()) : false, list ? list->items.size() : 0);
           if (list) for (std::size_t i = 0; i < list->items.size(); ++i) {
             const auto* item = list->items[i];
             const auto* conditional = as<ast::IfExpr>(item);
@@ -277,7 +298,7 @@ inline bool run(const auto& services) {
             ? as<ast::IdentValue>(list->items[0]) : nullptr;
         check(important && !important->isDefault &&
                   (probe.value == ValueKind::important ||
-                   (list && !list->commaSeparated && red && red->name == "red" &&
+                   (list && !list->commaSeparated() && red && red->name == "red" &&
                     red->parent == list && important->parent == list)),
               "important is a standalone or space-list value node");
       }
@@ -291,7 +312,7 @@ inline bool run(const auto& services) {
       for (std::size_t i = 0; i < 2; ++i) {
         const auto* variable = as<ast::VariableDeclaration>(sheet->statements[i]);
         const auto* value = variable ? as<ast::IfExpr>(variable->value) : nullptr;
-        check(variable && variable->isDefault && variable->isGlobal == (i == 1) &&
+        check(variable && variable->isDefault() && variable->isGlobal() == (i == 1) &&
                   value && value->prio == ast::Prio::none && value->parent == variable,
               "variable declaration owns default/global after if expression");
       }

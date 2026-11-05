@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "muparser/core/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "muparser/CoreServices.hpp"
 
 inline void muparser_regressions() {
   namespace ast = muparser::ast;
@@ -38,7 +38,7 @@ inline void muparser_regressions() {
       CHECK(span.begin == 3 && span.end == 5 &&
             source.substr(span.begin, span.end - span.begin) == "-3");
     }
-    CHECK(result.nodes.size() == 6);
+    CHECK(result.nodes().size() == 6);
   }
   {
     const auto result = services.parser->parse("1==2<3");

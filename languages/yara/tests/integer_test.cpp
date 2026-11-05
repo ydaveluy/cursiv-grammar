@@ -1,10 +1,10 @@
 #include "IntegerView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
 #include "integer_cases.hpp"
-#include "yara/core/CoreServices.hpp"
+#include "yara/CoreServices.hpp"
 #include "yara/generated/Yara/Module.hpp"
 #include <cstdio>
 #include <fstream>
@@ -50,7 +50,7 @@ int main() {
           });
     };
     walk(walk, *r.value);
-    if (!owned || seen.size() != r.nodes.size() ||
+    if (!owned || seen.size() != r.nodes().size() ||
         numbers.size() != c.raw.size())
       return fail("ownership");
     for (std::size_t i = 0; i < numbers.size(); ++i)

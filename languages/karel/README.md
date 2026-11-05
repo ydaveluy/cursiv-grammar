@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/karel/core/KarelGrammar.hpp` |
-| The AST | `src/karel/core/ast.hpp` |
-| Validation checks | `src/karel/core/validation/` |
-| Services of your own | `src/karel/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/karel/cli/main.cpp` |
-| LSP features | `src/karel/lsp/LspModule.cpp` |
+| The grammar | `src/core/karel/KarelGrammar.hpp` |
+| The AST | `src/core/karel/ast.hpp` |
+| Validation checks | `src/core/karel/validation/` |
+| Services of your own | `src/core/karel/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/karel/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

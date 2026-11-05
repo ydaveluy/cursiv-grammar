@@ -2,11 +2,11 @@
 #include <cstdio>
 #include <string>
 #include <string_view>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "iso8601/core/CoreServices.hpp"
-#include "iso8601/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "iso8601/CoreServices.hpp"
+#include "iso8601/ast.hpp"
 
 namespace iso8601_native_followup {
 template<class Language> bool run(const Language& language) {
@@ -54,7 +54,7 @@ template<class Language> bool run(const Language& language) {
   for (std::string_view source : {"1985-102/103", "1985-W15-5/W16-1", "1985-04/05", "1985/1986"}) {
     const auto result = language.language.parser->parse(source);
     bool endpoint = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* date = cursiv::ast_cast<iso8601::ast::DateValue>(node))
         endpoint |= (!date->year && (date->ordinalDay == "103" ||
                      (date->week == "16" && date->weekDay == "1") ||
@@ -67,7 +67,7 @@ template<class Language> bool run(const Language& language) {
   }
   const auto result = language.language.parser->parse("P0000-12-30T24:60:60");
   bool date = false, time = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* d = cursiv::ast_cast<iso8601::ast::DateValue>(node))
       date |= d->year == "0000" && d->month == "12" && d->day == "30";
     if (const auto* t = cursiv::ast_cast<iso8601::ast::TimeValue>(node))

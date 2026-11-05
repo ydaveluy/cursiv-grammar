@@ -4,8 +4,8 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "sharc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "sharc/ast.hpp"
 
 namespace sharc_directive_cases {
 inline bool run(const cursiv::Parser& parser) {

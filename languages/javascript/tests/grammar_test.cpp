@@ -8,11 +8,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "javascript/core/CoreServices.hpp"
-#include "javascript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "javascript/CoreServices.hpp"
+#include "javascript/ast.hpp"
 #include "native_followup_cases.hpp"
 #include "label_cases.hpp"
 
@@ -38,7 +38,7 @@ export * from "b.json" with {type: "json"};
       !result.diagnostics.empty())
     return fail("modern expressions and module attributes need repair");
   unsigned logical = 0, meta = 0, dynamic = 0, attributes = 0;
-  for (const auto *node : result.nodes) {
+  for (const auto *node : result.nodes()) {
     if (const auto *assignment =
             cursiv::ast_cast<javascript::ast::AssignExpr>(node))
       logical += assignment->op == "&&=" || assignment->op == "||=" ||
@@ -92,7 +92,7 @@ int main() {
       return 1;
     }
     bool a = false, b = false;
-    for (const auto *node : audit_result.nodes)
+    for (const auto *node : audit_result.nodes())
       if (const auto *ar = cursiv::ast_cast<javascript::ast::ArrayLit>(node)) {
         a = a || (ar->elements.size() == 3 && ar->elements[0]->value &&
                   !ar->elements[1]->value && ar->elements[2]->value);

@@ -10,11 +10,11 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "graphql/core/CoreServices.hpp"
-#include "graphql/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "graphql/CoreServices.hpp"
+#include "graphql/ast.hpp"
 #include "resume_regressions.hpp"
 
 namespace {
@@ -64,8 +64,8 @@ directive @custom on | FIELD | QUERY
   const auto* field = as<ast::Field>(operation->selectionSet->selections[0]);
   if (field == nullptr || field->arguments.size() != 2)
     return fail("literal regression: arguments were lost");
-  const auto* x = std::get_if<std::string_view>(&field->arguments[0]->value);
-  const auto* y = std::get_if<std::string_view>(&field->arguments[1]->value);
+  const auto* x = std::get_if<std::string>(&field->arguments[0]->value);
+  const auto* y = std::get_if<std::string>(&field->arguments[1]->value);
   if (x == nullptr || *x != "A\nB😀😀" ||
       y == nullptr || *y != "alpha\n  beta\n\"\"\"gamma")
     return fail("literal regression: wrong decoded string value");
@@ -75,9 +75,9 @@ directive @custom on | FIELD | QUERY
       !normalized.diagnostics.empty())
     return fail("literal regression: CR/LF block string refused");
   bool found = false;
-  for (const auto* node : normalized.nodes)
+  for (const auto* node : normalized.nodes())
     if (const auto* arg = as<ast::Argument>(node)) {
-      const auto* value = std::get_if<std::string_view>(&arg->value);
+      const auto* value = std::get_if<std::string>(&arg->value);
       found = value != nullptr && *value == "foo\n  bar";
     }
   return found ? 0 : fail("literal regression: wrong normalized block value");
@@ -113,7 +113,7 @@ int main() {
       return 1;
     }
     bool retained = false;
-    for (const auto *node : audit_result.nodes)
+    for (const auto *node : audit_result.nodes())
       if (const auto *variable =
               cursiv::ast_cast<graphql::ast::VariableDefinition>(node))
         retained = variable->directives.size() == 1 &&
@@ -187,7 +187,7 @@ int main() {
         (*tags_default)->items.size() != 2)
       return fail("query.graphql: $tags's default did not read back as a list");
     const auto *tag0 =
-        std::get_if<std::string_view>(&(*tags_default)->items[0]);
+        std::get_if<std::string>(&(*tags_default)->items[0]);
     if (tag0 == nullptr || *tag0 != "a")
       return fail(
           "query.graphql: $tags's default first item did not read back");
@@ -236,7 +236,7 @@ int main() {
           "query.graphql: the meta argument did not read back as an object");
     const auto *meta_y = (*meta_val)->fields[1];
     const auto *meta_y_val = meta_y != nullptr
-                                 ? std::get_if<std::string_view>(&meta_y->value)
+                                 ? std::get_if<std::string>(&meta_y->value)
                                  : nullptr;
     if (meta_y == nullptr || meta_y->name != "y" || meta_y_val == nullptr ||
         *meta_y_val != "z")

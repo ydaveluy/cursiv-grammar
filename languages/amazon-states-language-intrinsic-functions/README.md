@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/amazonstateslanguageintrinsicfunctions/core/AmazonStatesLanguageIntrinsicFunctionsGrammar.hpp` |
-| The AST | `src/amazonstateslanguageintrinsicfunctions/core/ast.hpp` |
-| Validation checks | `src/amazonstateslanguageintrinsicfunctions/core/validation/` |
-| Services of your own | `src/amazonstateslanguageintrinsicfunctions/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/amazonstateslanguageintrinsicfunctions/cli/main.cpp` |
-| LSP features | `src/amazonstateslanguageintrinsicfunctions/lsp/LspModule.cpp` |
+| The grammar | `src/core/amazonstateslanguageintrinsicfunctions/AmazonStatesLanguageIntrinsicFunctionsGrammar.hpp` |
+| The AST | `src/core/amazonstateslanguageintrinsicfunctions/ast.hpp` |
+| Validation checks | `src/core/amazonstateslanguageintrinsicfunctions/validation/` |
+| Services of your own | `src/core/amazonstateslanguageintrinsicfunctions/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/amazonstateslanguageintrinsicfunctions/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

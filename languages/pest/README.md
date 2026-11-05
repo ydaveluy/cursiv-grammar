@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/pest/core/PestGrammar.hpp` |
-| The AST | `src/pest/core/ast.hpp` |
-| Validation checks | `src/pest/core/validation/` |
-| Services of your own | `src/pest/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/pest/cli/main.cpp` |
-| LSP features | `src/pest/lsp/LspModule.cpp` |
+| The grammar | `src/core/pest/PestGrammar.hpp` |
+| The AST | `src/core/pest/ast.hpp` |
+| Validation checks | `src/core/pest/validation/` |
+| Services of your own | `src/core/pest/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/pest/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

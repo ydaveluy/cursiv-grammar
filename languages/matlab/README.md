@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/matlab/core/MatlabGrammar.hpp` |
-| The AST | `src/matlab/core/ast.hpp` |
-| Validation checks | `src/matlab/core/validation/` |
-| Services of your own | `src/matlab/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/matlab/cli/main.cpp` |
-| LSP features | `src/matlab/lsp/LspModule.cpp` |
+| The grammar | `src/core/matlab/MatlabGrammar.hpp` |
+| The AST | `src/core/matlab/ast.hpp` |
+| Validation checks | `src/core/matlab/validation/` |
+| Services of your own | `src/core/matlab/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/matlab/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

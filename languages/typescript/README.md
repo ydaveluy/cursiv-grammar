@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/typescript/core/TypeScriptGrammar.hpp` |
-| The AST | `src/typescript/core/ast.hpp` |
-| Validation checks | `src/typescript/core/validation/` |
-| Services of your own | `src/typescript/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/typescript/cli/main.cpp` |
-| LSP features | `src/typescript/lsp/LspModule.cpp` |
+| The grammar | `src/core/typescript/TypeScriptGrammar.hpp` |
+| The AST | `src/core/typescript/ast.hpp` |
+| Validation checks | `src/core/typescript/validation/` |
+| Services of your own | `src/core/typescript/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/typescript/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

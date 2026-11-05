@@ -9,13 +9,13 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "szf/core/CoreServices.hpp"
-#include "szf/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "szf/CoreServices.hpp"
+#include "szf/ast.hpp"
 
 namespace {
 
@@ -68,7 +68,7 @@ int main() {
     const auto* file = cursiv::ast_cast<szf::ast::File>(result.value);
     if (!result.accepted || result.cst().recovered() || !file ||
         file->elements.size() != 14 ||
-        result.nodes.size() != file->elements.size() + 1)
+        result.nodes().size() != file->elements.size() + 1)
       return fail("flat headers, directives and opcodes");
     for (const auto* element : file->elements)
       if (element->parent != file) return fail("element parent");

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/szf/core/SzfGrammar.hpp` |
-| The AST | `src/szf/core/ast.hpp` |
-| Validation checks | `src/szf/core/validation/` |
-| Services of your own | `src/szf/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/szf/cli/main.cpp` |
-| LSP features | `src/szf/lsp/LspModule.cpp` |
+| The grammar | `src/core/szf/SzfGrammar.hpp` |
+| The AST | `src/core/szf/ast.hpp` |
+| Validation checks | `src/core/szf/validation/` |
+| Services of your own | `src/core/szf/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/szf/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

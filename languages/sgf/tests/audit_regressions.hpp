@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "sgf/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "sgf/ast.hpp"
 #include "sgf/generated/Sgf/Module.hpp"
 #include <cstdio>
 #include <string>

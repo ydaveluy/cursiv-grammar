@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/yara/core/YaraGrammar.hpp` |
-| The AST | `src/yara/core/ast.hpp` |
-| Validation checks | `src/yara/core/validation/` |
-| Services of your own | `src/yara/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/yara/cli/main.cpp` |
-| LSP features | `src/yara/lsp/LspModule.cpp` |
+| The grammar | `src/core/yara/YaraGrammar.hpp` |
+| The AST | `src/core/yara/ast.hpp` |
+| Validation checks | `src/core/yara/validation/` |
+| Services of your own | `src/core/yara/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/yara/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

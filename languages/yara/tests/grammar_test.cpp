@@ -1,10 +1,10 @@
 #include "audit_regressions.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
 #include "modern_cases.hpp"
 #include "native_followup_cases.hpp"
-#include "yara/core/CoreServices.hpp"
-#include "yara/core/ast.hpp"
+#include "yara/CoreServices.hpp"
+#include "yara/ast.hpp"
 #include <cstdio>
 #include <fstream>
 #include <iterator>
@@ -40,6 +40,16 @@ int main() {
     return 1;
   if (!yara_audit::modern_cases(language))
     return 1;
+  {
+    auto repeated = language.language.parser->parse(
+        "private global private rule flags { condition: true }");
+    const auto declarations = rules(repeated.value_as<yara::ast::Document>());
+    if (!repeated.accepted || repeated.cst().recovered() || !repeated.diagnostics.empty() ||
+        declarations.size() != 1 || !declarations[0]->isPrivate() ||
+        !declarations[0]->isGlobal() || declarations[0]->modifiers.size() != 3 ||
+        declarations[0]->modifiers[2] != yara::ast::RuleModifier::isPrivate)
+      return fail("repeated rule modifiers retain source order");
+  }
   auto source = read(CURSIV_SAMPLE);
   auto result = language.language.parser->parse(source);
   if (!result.accepted || result.cst().recovered() ||
@@ -63,11 +73,11 @@ int main() {
     if (rule->name == "rr2")
       rr = rule;
   }
-  if (!dummy || !dummy->isPrivate || dummy->tags.size() != 2 ||
+  if (!dummy || !dummy->isPrivate() || dummy->tags.size() != 2 ||
       dummy->tags[0] != "Tag1" || dummy->tags[1] != "Tag2" ||
       dummy->meta.size() != 5)
     return fail("sample tags and metadata");
-  auto one = std::get_if<std::string_view>(&dummy->meta[0]->value);
+  auto one = std::get_if<std::string>(&dummy->meta[0]->value);
   auto hex = std::get_if<yara::ast::IntegerLiteral *>(&dummy->meta[2]->value);
   auto boolean = std::get_if<bool>(&dummy->meta[4]->value);
   if (!one || *one != "a" || !hex || !*hex ||

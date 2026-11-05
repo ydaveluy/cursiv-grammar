@@ -1,5 +1,5 @@
 #pragma once
-#include "dart2/core/ast.hpp"
+#include "dart2/ast.hpp"
 #include <cstdio>
 #include <string>
 #include <string_view>
@@ -10,7 +10,7 @@ namespace ast = dart2::ast;
 template <class T, class Result>
 std::vector<const T *> nodes(const Result &result) {
   std::vector<const T *> found;
-  for (const auto *node : result.nodes)
+  for (const auto *node : result.nodes())
     if (const auto *value = cursiv::ast_cast<T>(node))
       found.push_back(value);
   return found;

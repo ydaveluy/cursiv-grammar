@@ -20,12 +20,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/z/core/ZGrammar.hpp` |
-| The AST | `src/z/core/ast.hpp` |
-| Validation checks | `src/z/core/validation/` |
-| Services of your own | `src/z/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/z/cli/main.cpp` |
-| LSP features | `src/z/lsp/LspModule.cpp` |
+| The grammar | `src/core/z/ZGrammar.hpp` |
+| The AST | `src/core/z/ast.hpp` |
+| Validation checks | `src/core/z/validation/` |
+| Services of your own | `src/core/z/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/z/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

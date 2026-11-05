@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/ada/core/AdaGrammar.hpp` |
-| The AST | `src/ada/core/ast.hpp` |
-| Validation checks | `src/ada/core/validation/` |
-| Services of your own | `src/ada/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/ada/cli/main.cpp` |
-| LSP features | `src/ada/lsp/LspModule.cpp` |
+| The grammar | `src/core/ada/AdaGrammar.hpp` |
+| The AST | `src/core/ada/ast.hpp` |
+| Validation checks | `src/core/ada/validation/` |
+| Services of your own | `src/core/ada/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/ada/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

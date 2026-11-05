@@ -3,10 +3,10 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/Check.hpp"
-#include "metric/core/ast.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/Check.hpp"
+#include "metric/ast.hpp"
 
 inline void metric_regressions(const metric::MetricCoreServices &services) {
   namespace ast = metric::ast;
@@ -45,7 +45,7 @@ inline void metric_regressions(const metric::MetricCoreServices &services) {
           right->unit == ast::Unit::m && left->parent == quotient &&
           right->parent == quotient);
   }
-  CHECK(result.nodes.size() == 6);
+  CHECK(result.nodes().size() == 6);
   if (power) {
     const auto span = result.cst()[power->cstNodeId];
     CHECK(span.begin == 0 && span.end == source.find("/1"));

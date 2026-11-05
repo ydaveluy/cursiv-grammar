@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/callable/core/CallableGrammar.hpp` |
-| The AST | `src/callable/core/ast.hpp` |
-| Validation checks | `src/callable/core/validation/` |
-| Services of your own | `src/callable/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/callable/cli/main.cpp` |
-| LSP features | `src/callable/lsp/LspModule.cpp` |
+| The grammar | `src/core/callable/CallableGrammar.hpp` |
+| The AST | `src/core/callable/ast.hpp` |
+| Validation checks | `src/core/callable/validation/` |
+| Services of your own | `src/core/callable/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/callable/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

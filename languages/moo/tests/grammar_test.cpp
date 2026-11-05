@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "moo/core/CoreServices.hpp"
-#include "moo/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "moo/CoreServices.hpp"
+#include "moo/ast.hpp"
 #include "conditional_fork_cases.hpp"
 #include "native_regressions.hpp"
 // The smoke test of the language: every corpus document parses clean, and
@@ -15,7 +15,7 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "desktopentry/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "desktopentry/CoreServices.hpp"
 #include <array>
 #include <string>
 #include <utility>

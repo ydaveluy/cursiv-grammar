@@ -9,11 +9,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "wavefront/core/CoreServices.hpp"
-#include "wavefront/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "wavefront/CoreServices.hpp"
+#include "wavefront/ast.hpp"
 
 namespace {
 
@@ -96,6 +96,12 @@ int main() {
       cursiv::create_language<wavefront::WavefrontCoreServices,
                               wavefront::WavefrontSharedCoreServices,
                               wavefront::install_core_module>();
+
+  for (const char* source : {"cstype bezier rat\n", "cstype rat bezier rat\n"}) {
+    const auto parsed = language.language.parser->parse(source);
+    if (parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty())
+      return fail("rat must precede the curve/surface type");
+  }
 
   for (const char* const name : kExamples) {
     const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;

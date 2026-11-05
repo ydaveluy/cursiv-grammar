@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/wavefront/core/WavefrontGrammar.hpp` |
-| The AST | `src/wavefront/core/ast.hpp` |
-| Validation checks | `src/wavefront/core/validation/` |
-| Services of your own | `src/wavefront/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/wavefront/cli/main.cpp` |
-| LSP features | `src/wavefront/lsp/LspModule.cpp` |
+| The grammar | `src/core/wavefront/WavefrontGrammar.hpp` |
+| The AST | `src/core/wavefront/ast.hpp` |
+| Validation checks | `src/core/wavefront/validation/` |
+| Services of your own | `src/core/wavefront/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/wavefront/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

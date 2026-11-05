@@ -7,10 +7,10 @@
 #include <unordered_set>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "less/core/CoreServices.hpp"
-#include "less/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "less/CoreServices.hpp"
+#include "less/ast.hpp"
 
 namespace less_detached_arguments {
 namespace a = less::ast;
@@ -81,13 +81,13 @@ inline bool run(const less::LessCoreServices &language) {
       check(result.value->parent == nullptr, "root parent", test.source);
       walk(walk, *result.value);
     }
-    check(seen.size() == result.nodes.size(), "all allocations reachable once", test.source);
+    check(seen.size() == result.nodes().size(), "all allocations reachable once", test.source);
     unsigned detached = 0, named = 0;
     const a::DetachedRuleset *block = nullptr;
     const a::MixinRef *call = nullptr;
     const a::FuncCall *function = nullptr;
     const a::MixinDef *definition = nullptr;
-    for (const auto *node : result.nodes) {
+    for (const auto *node : result.nodes()) {
       if (const auto *value = cursiv::ast_cast<a::DetachedRuleset>(node)) {
         ++detached; block = value;
         check(value->body && value->body->parent == value,

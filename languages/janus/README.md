@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/janus/core/JanusGrammar.hpp` |
-| The AST | `src/janus/core/ast.hpp` |
-| Validation checks | `src/janus/core/validation/` |
-| Services of your own | `src/janus/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/janus/cli/main.cpp` |
-| LSP features | `src/janus/lsp/LspModule.cpp` |
+| The grammar | `src/core/janus/JanusGrammar.hpp` |
+| The AST | `src/core/janus/ast.hpp` |
+| Validation checks | `src/core/janus/validation/` |
+| Services of your own | `src/core/janus/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/janus/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

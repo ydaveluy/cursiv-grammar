@@ -5,12 +5,12 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "stellaris/core/CoreServices.hpp"
-#include "stellaris/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "stellaris/CoreServices.hpp"
+#include "stellaris/ast.hpp"
 
 namespace parameter_regressions {
 inline bool run(const stellaris::StellarisCoreServices& services,
@@ -66,7 +66,7 @@ inline bool run(const stellaris::StellarisCoreServices& services,
           });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return fail("ownership");
+    if (!parents || seen.size() != result.nodes().size()) return fail("ownership");
     if (parameters.size() != test.parameters || parameters[0]->name != test.name ||
         parameters[0]->undefined != test.undefined || !parameters[0]->value)
       return fail("parameter AST");

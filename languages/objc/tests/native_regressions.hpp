@@ -4,11 +4,11 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "objc/core/CoreServices.hpp"
-#include "objc/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "objc/CoreServices.hpp"
+#include "objc/ast.hpp"
 namespace objc_native {
 namespace ast = objc::ast;
 template <class T>
@@ -18,7 +18,7 @@ const T* as(const cursiv::AstNode* n) {
 template <class T>
 std::vector<const T*> nodes(const cursiv::ParseResult& r) {
   std::vector<const T*> out;
-  for (const auto* n : r.nodes)
+  for (const auto* n : r.nodes())
     if (const auto* x = as<T>(n)) out.push_back(x);
   return out;
 }
@@ -51,7 +51,7 @@ inline bool run(const objc::ObjcCoreServices& services) {
           });
     };
     if (r.value) walk(walk, *r.value);
-    return valid && seen.size() == r.nodes.size();
+    return valid && seen.size() == r.nodes().size();
   };
   struct Case {
     const char* name;

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/robotwars/core/RobotwarsGrammar.hpp` |
-| The AST | `src/robotwars/core/ast.hpp` |
-| Validation checks | `src/robotwars/core/validation/` |
-| Services of your own | `src/robotwars/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/robotwars/cli/main.cpp` |
-| LSP features | `src/robotwars/lsp/LspModule.cpp` |
+| The grammar | `src/core/robotwars/RobotwarsGrammar.hpp` |
+| The AST | `src/core/robotwars/ast.hpp` |
+| Validation checks | `src/core/robotwars/validation/` |
+| Services of your own | `src/core/robotwars/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/robotwars/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/cobol85/core/Cobol85Grammar.hpp` |
-| The AST | `src/cobol85/core/ast.hpp` |
-| Validation checks | `src/cobol85/core/validation/` |
-| Services of your own | `src/cobol85/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/cobol85/cli/main.cpp` |
-| LSP features | `src/cobol85/lsp/LspModule.cpp` |
+| The grammar | `src/core/cobol85/Cobol85Grammar.hpp` |
+| The AST | `src/core/cobol85/ast.hpp` |
+| Validation checks | `src/core/cobol85/validation/` |
+| Services of your own | `src/core/cobol85/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/cobol85/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

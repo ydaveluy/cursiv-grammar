@@ -2,10 +2,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "properties/core/CoreServices.hpp"
-#include "properties/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "properties/CoreServices.hpp"
+#include "properties/ast.hpp"
 // The smoke test of the language: parse every file in example/, and check each
 // tree.
 
@@ -14,7 +14,7 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

@@ -6,11 +6,11 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "php/core/CoreServices.hpp"
-#include "php/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "php/CoreServices.hpp"
+#include "php/ast.hpp"
 
 namespace dnf_hook_cases {
 namespace a = php::ast;
@@ -129,7 +129,7 @@ inline bool run(const php::PhpCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size() == parsed.nodes.size() && !parsed.value->parent, test.name, "all allocated nodes reachable once");
+    check(seen.size() == parsed.nodes().size() && !parsed.value->parent, test.name, "all allocated nodes reachable once");
     if (test.validation >= 0) {
       const auto validation = cursiv::test::validationHelper(services, std::string(test.source));
       check(validation.diagnostics.empty() == (test.validation == 0), test.name, "native local earlycompile verdict");
@@ -157,7 +157,7 @@ inline bool run(const php::PhpCoreServices& services) {
       check(function && function->returnType && describe(function->returnType) == expected &&
             function->returnType->parent == function, test.name, "exact typed DNF structure, order and return owner");
     }
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* hook = as<a::PropertyHook>(node)) {
         if (name == "hook-basic" || name == "hook-casefold")
           check(!hook->hasParams && hook->params.empty(), test.name, "absent parameters retained without invented implicit value");

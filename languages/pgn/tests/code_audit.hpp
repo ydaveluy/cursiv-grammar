@@ -7,12 +7,12 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "pgn/core/CoreServices.hpp"
-#include "pgn/core/Values.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "pgn/CoreServices.hpp"
+#include "pgn/Values.hpp"
 
 namespace code_audit {
 namespace ast = pgn::ast;
@@ -45,7 +45,7 @@ inline bool run() {
               *n, [&](auto, auto, auto& child) { visit(&child, n); });
         };
     visit(r.value, nullptr);
-    check(reached.size() == r.nodes.size(), "all allocated nodes reachable");
+    check(reached.size() == r.nodes().size(), "all allocated nodes reachable");
     return r;
   };
   {
@@ -95,7 +95,7 @@ inline bool run() {
   {
     const auto r = parse("1.-- -- 2.Z0 Z0 3.0000 0000 4.@@@@ @@@@ *");
     std::vector<std::string_view> moves;
-    for (const auto* n : r.nodes)
+    for (const auto* n : r.nodes())
       if (const auto* m = cursiv::ast_cast<ast::SanMove>(n))
         moves.push_back(m->san);
     check(moves == std::vector<std::string_view>{"--", "--", "Z0", "Z0", "0000",
@@ -108,7 +108,7 @@ inline bool run() {
         "1.e4! e5? 2.Nf3!! Nc6?? 3.Bb5!? a6?! $0005 $" + huge + " *";
     const auto r = parse(source);
     std::vector<std::string_view> nags;
-    for (const auto* n : r.nodes)
+    for (const auto* n : r.nodes())
       if (const auto* m = cursiv::ast_cast<ast::Nag>(n))
         nags.push_back(m->number);
     check(nags.size() == 8, "all NAGs preserved");
@@ -158,7 +158,7 @@ inline bool run() {
         "2.Nf3 {line\n\ninside} *");
     unsigned comments = 0, variations = 0;
     bool start = false, multiline = false;
-    for (const auto* n : r.nodes) {
+    for (const auto* n : r.nodes()) {
       if (const auto* c = cursiv::ast_cast<ast::Comment>(n)) {
         ++comments;
         start |= pgn::comment_value(c->raw) == "start";
@@ -184,7 +184,7 @@ inline bool run() {
     unsigned errors = 0;
     auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, doc, source);
-    for (const auto* n : doc.parseResult.nodes) {
+    for (const auto* n : doc.parseResult.nodes()) {
       if (const auto* p = cursiv::ast_cast<ast::Game>(n))
         language.language.validator->checkGame(*p, accept);
       if (const auto* p = cursiv::ast_cast<ast::Variation>(n))
@@ -205,7 +205,7 @@ inline bool run() {
     unsigned errors = 0;
     auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, doc, source);
-    for (const auto* node : doc.parseResult.nodes)
+    for (const auto* node : doc.parseResult.nodes())
       if (const auto* game = cursiv::ast_cast<ast::Game>(node))
         language.language.validator->checkGame(*game, accept);
     check(errors==1, "star versus decisive Result mismatch reports a diagnostic");
@@ -213,7 +213,7 @@ inline bool run() {
   {
     const auto r=parse("% initial\n\n% escaped\n1.e4\n% ignored e5\ne5 *");
     unsigned moves=0;
-    for(const auto* node:r.nodes) moves+=cursiv::ast_cast<ast::SanMove>(node)!=nullptr;
+    for(const auto* node:r.nodes()) moves+=cursiv::ast_cast<ast::SanMove>(node)!=nullptr;
     check(moves==2, "physical percent escape lines preserve following moves");
     const auto bad=language.language.parser->parse("1.e4 % garbage e5 *");
     check(!bad.accepted||bad.cst().recovered()||!bad.diagnostics.empty(),

@@ -5,7 +5,6 @@
 #include <string_view>
 #include <unordered_set>
 
-// Native answers are pinned in audit/verification/resume-20261024/objc.
 // These cases distinguish token spelling from decoded character/code-unit limits.
 namespace objc_resume {
 inline bool run(const objc::ObjcCoreServices& services) {
@@ -39,7 +38,7 @@ inline bool run(const objc::ObjcCoreServices& services) {
           });
     };
     if (result.value) walk(walk, *result.value);
-    return valid && seen.size() == result.nodes.size();
+    return valid && seen.size() == result.nodes().size();
   };
   const auto hasCode = [](const auto& validation, std::string_view code) {
     for (const auto& diagnostic : validation.diagnostics)

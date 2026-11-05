@@ -4,9 +4,9 @@
 #include <string>
 #include <unordered_set>
 
-#include "bcpl/core/SectionTags.hpp"
-#include "bcpl/core/ast.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "bcpl/SectionTags.hpp"
+#include "bcpl/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace bcpl_sections {
 namespace ast = bcpl::ast;
@@ -35,7 +35,7 @@ inline bool ownership(const auto& services, const cursiv::ParseResult& parsed,
         });
   };
   visit(visit, *parsed.value);
-  return valid && seen.size() == parsed.nodes.size();
+  return valid && seen.size() == parsed.nodes().size();
 }
 inline bool run(const auto& services) {
   const std::string ancestor = "LET start() BE $(A $(B $(C RETURN $)A";
@@ -55,7 +55,7 @@ inline bool run(const auto& services) {
       parsed.cst().translation()->text() != expanded)
     return fail("ancestor close, original CST text or ownership", ancestor);
   unsigned outer = 0, implicit = 0;
-  for (const auto* node : parsed.nodes) {
+  for (const auto* node : parsed.nodes()) {
     if (const auto* block = cursiv::ast_cast<ast::CompoundStmt>(node)) {
       if (block->openTag == "A" && block->closeTag == "A") ++outer;
       else if ((block->openTag == "B" || block->openTag == "C") && block->closeTag.empty()) {
@@ -72,7 +72,7 @@ inline bool run(const auto& services) {
       "LET start() BE $(B LET a=1\n$(C RETURN $)C $)B";
   const auto family = services.parser->parse(families);
   unsigned found = 0;
-  for (const auto* node : family.nodes) {
+  for (const auto* node : family.nodes()) {
     if (const auto* n = cursiv::ast_cast<ast::ManifestDecl>(node))
       found += n->openTag == "M" && n->closeTag == "M" && n->items.size() == 1;
     if (const auto* n = cursiv::ast_cast<ast::StaticDecl>(node))
@@ -91,7 +91,7 @@ inline bool run(const auto& services) {
   const std::string declarations = "LET start() BE $(B MANIFEST $(M x=1 $)B";
   const auto declarationResult = services.parser->parse(declarations);
   unsigned declarationOuter = 0, declarationInner = 0;
-  for (const auto* node : declarationResult.nodes) {
+  for (const auto* node : declarationResult.nodes()) {
     if (const auto* n = cursiv::ast_cast<ast::Block>(node))
       declarationOuter += n->openTag == "B" && n->closeTag == "B" &&
                           n->declarations.size() == 1 && n->commands.empty();
@@ -106,7 +106,7 @@ inline bool run(const auto& services) {
   const std::string empty = "MANIFEST $(M $)M\nSTATIC $(S $)S\nGLOBAL $(G $)G";
   const auto emptyResult = services.parser->parse(empty);
   unsigned empties = 0;
-  for (const auto* node : emptyResult.nodes) {
+  for (const auto* node : emptyResult.nodes()) {
     if (const auto* n = cursiv::ast_cast<ast::ManifestDecl>(node))
       empties += n->openTag == "M" && n->closeTag == "M" && n->items.empty();
     if (const auto* n = cursiv::ast_cast<ast::StaticDecl>(node))

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/morsecode/core/MorsecodeGrammar.hpp` |
-| The AST | `src/morsecode/core/ast.hpp` |
-| Validation checks | `src/morsecode/core/validation/` |
-| Services of your own | `src/morsecode/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/morsecode/cli/main.cpp` |
-| LSP features | `src/morsecode/lsp/LspModule.cpp` |
+| The grammar | `src/core/morsecode/MorsecodeGrammar.hpp` |
+| The AST | `src/core/morsecode/ast.hpp` |
+| Validation checks | `src/core/morsecode/validation/` |
+| Services of your own | `src/core/morsecode/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/morsecode/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

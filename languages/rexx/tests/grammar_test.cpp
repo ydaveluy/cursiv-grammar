@@ -3,12 +3,12 @@
 #include <cstdio>
 #include <optional>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "rexx/core/CoreServices.hpp"
-#include "rexx/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "rexx/CoreServices.hpp"
+#include "rexx/ast.hpp"
 // The smoke test of the language: build the container the way a workspace
 // does, read every example, and check the tree.
 
@@ -18,7 +18,7 @@
 #include <type_traits>
 #include <variant>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

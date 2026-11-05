@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/langium/core/LangiumGrammar.hpp` |
-| The AST | `src/langium/core/ast.hpp` |
-| Validation checks | `src/langium/core/validation/` |
-| Services of your own | `src/langium/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/langium/cli/main.cpp` |
-| LSP features | `src/langium/lsp/LspModule.cpp` |
+| The grammar | `src/core/langium/LangiumGrammar.hpp` |
+| The AST | `src/core/langium/ast.hpp` |
+| Validation checks | `src/core/langium/validation/` |
+| Services of your own | `src/core/langium/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/langium/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

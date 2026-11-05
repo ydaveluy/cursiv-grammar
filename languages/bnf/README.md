@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/bnf/core/BnfGrammar.hpp` |
-| The AST | `src/bnf/core/ast.hpp` |
-| Validation checks | `src/bnf/core/validation/` |
-| Services of your own | `src/bnf/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/bnf/cli/main.cpp` |
-| LSP features | `src/bnf/lsp/LspModule.cpp` |
+| The grammar | `src/core/bnf/BnfGrammar.hpp` |
+| The AST | `src/core/bnf/ast.hpp` |
+| Validation checks | `src/core/bnf/validation/` |
+| Services of your own | `src/core/bnf/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/bnf/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

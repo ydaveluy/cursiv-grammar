@@ -1,10 +1,26 @@
 #pragma once
 #include <cstdio>
-#include "cursiv/core/parser/Parser.hpp"
-#include "vba/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "vba/ast.hpp"
 namespace vba_native_followup {
 namespace ast=vba::ast;
 inline bool run(const cursiv::Parser& parser){
+ // STATIC is a declaration modifier; a trailing bare STATIC is incomplete.
+ for (const char* source : {"Static Sub S()\nEnd Sub\n",
+                            "Public Static Function F() As Long\nEnd Function\n"}) {
+  const auto parsed=parser.parse(source);
+  bool found=false;
+  for(const auto* node:parsed.nodes())
+   if(const auto* procedure=cursiv::ast_cast<ast::Procedure>(node)) found|=procedure->isStatic;
+  if(!parsed.accepted||parsed.cst().recovered()||!parsed.diagnostics.empty()||!found) return false;
+ }
+ for (const char* source : {"Sub S() Static\nEnd Sub\n",
+                            "Function F() As Boolean Static\nEnd Function\n"}) {
+  const auto parsed=parser.parse(source);
+  bool syntaxDiagnostic=false;
+  for (const auto& diagnostic:parsed.diagnostics) syntaxDiagnostic|=diagnostic.isSyntax();
+  if (!syntaxDiagnostic) return false;
+ }
  const char* source="Rem\nPrivate Declare PtrSafe Sub Raw Lib \"kernel32\" (ByVal buffer As Any)\n"
    "Private Sub Test(ParamArray values() As Variant)\nDim label As String * 12\n"
    "ReDim a(1 To 4) As Long\nLock #1\nLock #1, 2 To 3\nEnd Sub\n";
@@ -16,7 +32,7 @@ inline bool run(const cursiv::Parser& parser){
   return false;
  }
  bool any=false,paramarray=false,fixedString=false,redim=false,wholeFile=false,range=false;
- for(const auto* node:r.nodes){
+ for(const auto* node:r.nodes()){
   if(const auto* n=cursiv::ast_cast<ast::Param>(node)){
    any|=n->asType&&n->asType->name=="Any";
    paramarray|=n->paramArray&&n->isArray&&n->asType&&n->asType->name=="Variant";

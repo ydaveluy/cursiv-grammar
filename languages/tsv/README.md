@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/tsv/core/TsvGrammar.hpp` |
-| The AST | `src/tsv/core/ast.hpp` |
-| Validation checks | `src/tsv/core/validation/` |
-| Services of your own | `src/tsv/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/tsv/cli/main.cpp` |
-| LSP features | `src/tsv/lsp/LspModule.cpp` |
+| The grammar | `src/core/tsv/TsvGrammar.hpp` |
+| The AST | `src/core/tsv/ast.hpp` |
+| Validation checks | `src/core/tsv/validation/` |
+| Services of your own | `src/core/tsv/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/tsv/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/kquery/core/KqueryGrammar.hpp` |
-| The AST | `src/kquery/core/ast.hpp` |
-| Validation checks | `src/kquery/core/validation/` |
-| Services of your own | `src/kquery/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/kquery/cli/main.cpp` |
-| LSP features | `src/kquery/lsp/LspModule.cpp` |
+| The grammar | `src/core/kquery/KqueryGrammar.hpp` |
+| The AST | `src/core/kquery/ast.hpp` |
+| Validation checks | `src/core/kquery/validation/` |
+| Services of your own | `src/core/kquery/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/kquery/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -4,16 +4,16 @@
 #include <cstdio>
 #include <string>
 
-#include "c/core/ast.hpp"
+#include "c/ast.hpp"
 #include "c/generated/C/Module.hpp"
 #include "c/generated/C/Parser.hpp"
 #include "c/generated/C/Table.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/engines/lr/runtime/LrParseStats.hpp"
-#include "cursiv/engines/lr/runtime/LrParser.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/lr/runtime/LrParseStats.hpp"
+#include "cursiv/lr/runtime/LrParser.hpp"
+#include "cursiv/Check.hpp"
 
 namespace {
 

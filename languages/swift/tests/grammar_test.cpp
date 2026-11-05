@@ -11,11 +11,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "swift/core/CoreServices.hpp"
-#include "swift/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "swift/CoreServices.hpp"
+#include "swift/ast.hpp"
 
 namespace {
 
@@ -116,6 +116,18 @@ int main() {
       swift::SwiftCoreServices,
       swift::SwiftSharedCoreServices,
       swift::install_core_module>();
+
+  {
+    const auto parsed = language.language.parser->parse(
+        "precedencegroup Flags {\nassignment: true\nassignment: false\n}\n");
+    const swift::ast::PrecedenceGroupDecl* group = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* n = cursiv::ast_cast<swift::ast::PrecedenceGroupDecl>(node)) group = n;
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !group || group->assignments.size() != 2 || !group->assignments[0] ||
+        group->assignments[1] || group->isAssignment())
+      return fail("assignment attributes retain both Boolean values");
+  }
 
   if (!native_regressions::run(language.language)) return 1;
   if (!native_followup::run(language.language)) return 1;

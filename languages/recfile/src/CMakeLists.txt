@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID recfile
-    GRAMMAR    recfile/core/RecfileGrammar.hpp
+    GRAMMAR    recfile/RecfileGrammar.hpp
     NAMESPACE  recfile::Recfile
     EXTENSIONS .rec
     OUT        recfile/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/recfile/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(recfileCore ${_core})
 target_link_libraries(recfileCore PUBLIC recfileGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/recfile/cli/*.cpp)
-if(_cli)
-  add_executable(recfile_cli ${_cli})
-  target_link_libraries(recfile_cli
-                        PRIVATE recfileCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(recfile_cli cli.cpp)
+  target_include_directories(recfile_cli PRIVATE cli)
+  target_link_libraries(recfile_cli PRIVATE recfileCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(recfileCli ${_cli})
+    target_include_directories(recfileCli PUBLIC cli)
+    target_link_libraries(recfileCli PUBLIC recfileCore cursiv::cli)
+    target_link_libraries(recfile_cli PRIVATE recfileCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/recfile/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/recfile/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/recfile/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(recfileLsp ${_lsp})
+  target_include_directories(recfileLsp PUBLIC lsp)
   target_link_libraries(recfileLsp PUBLIC recfileCore cursiv::lsp)
-  add_executable(recfile_lsp recfile/lsp/main.cpp)
-  target_link_libraries(recfile_lsp PRIVATE recfileLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(recfile_lsp lsp.cpp)
+    target_link_libraries(recfile_lsp PRIVATE recfileLsp)
+  endif()
 endif()
 
-if(TARGET recfileLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/recfile/bench/main.cpp")
-  cursiv_add_benchmark(recfile
-      SOURCES recfile/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET recfileLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(recfile SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(recfile)

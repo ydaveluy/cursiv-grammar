@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/xsdregex/core/XsdRegexGrammar.hpp` |
-| The AST | `src/xsdregex/core/ast.hpp` |
-| Validation checks | `src/xsdregex/core/validation/` |
-| Services of your own | `src/xsdregex/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/xsdregex/cli/main.cpp` |
-| LSP features | `src/xsdregex/lsp/LspModule.cpp` |
+| The grammar | `src/core/xsdregex/XsdRegexGrammar.hpp` |
+| The AST | `src/core/xsdregex/ast.hpp` |
+| Validation checks | `src/core/xsdregex/validation/` |
+| Services of your own | `src/core/xsdregex/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/xsdregex/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

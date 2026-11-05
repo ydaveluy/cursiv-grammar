@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "unrealangelscript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "unrealangelscript/ast.hpp"
 #include "unrealangelscript/generated/UnrealAngelscript/Module.hpp"
 #include <cstdio>
 #include <string>

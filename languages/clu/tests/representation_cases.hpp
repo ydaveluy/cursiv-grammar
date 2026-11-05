@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <string_view>
 
-#include "clu/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "clu/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
 
 namespace clu_representation_cases {
 

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/tinymud/core/TinymudGrammar.hpp` |
-| The AST | `src/tinymud/core/ast.hpp` |
-| Validation checks | `src/tinymud/core/validation/` |
-| Services of your own | `src/tinymud/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/tinymud/cli/main.cpp` |
-| LSP features | `src/tinymud/lsp/LspModule.cpp` |
+| The grammar | `src/core/tinymud/TinymudGrammar.hpp` |
+| The AST | `src/core/tinymud/ast.hpp` |
+| Validation checks | `src/core/tinymud/validation/` |
+| Services of your own | `src/core/tinymud/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/tinymud/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

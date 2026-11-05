@@ -10,11 +10,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "alef/core/CoreServices.hpp"
-#include "alef/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "alef/CoreServices.hpp"
+#include "alef/ast.hpp"
 
 namespace {
 
@@ -59,7 +59,7 @@ while(1) { continue 2; break 3; }
       return fail("native literals or integer jump levels did not parse");
     bool hex = false, fraction = false, exponent = false, string = false;
     bool next = false, stop = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* value = as<ast::NumberLit>(node)) {
         hex |= value->text == "0xFF";
         fraction |= value->text == ".5";

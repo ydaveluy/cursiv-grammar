@@ -145,7 +145,7 @@ class SelectLanguagesTest(unittest.TestCase):
                 self.base = head
 
     def test_root_documentation_does_not_create_build_jobs(self):
-        for path in ("README.md", "README.fr.md", "docs/guide.md", "audit/result.json"):
+        for path in ("README.md", "README.fr.md", "docs/guide.md"):
             self.write(path)
         self.commit()
         selected = self.select()

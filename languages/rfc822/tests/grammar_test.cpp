@@ -1,12 +1,12 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "rfc822/core/CoreServices.hpp"
-#include "rfc822/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "rfc822/CoreServices.hpp"
+#include "rfc822/ast.hpp"
 // The smoke test of the language: build the container the way a workspace
 // does, parse every document under example/, and check the tree. A few
 // documents are read back field by field, so a converter that silently
@@ -18,7 +18,7 @@
 #include <string>
 #include <utility>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

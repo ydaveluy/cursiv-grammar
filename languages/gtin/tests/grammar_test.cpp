@@ -4,13 +4,13 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "gtin/core/CoreServices.hpp"
-#include "gtin/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "gtin/CoreServices.hpp"
+#include "gtin/ast.hpp"
 
 namespace {
 
@@ -47,7 +47,7 @@ int main() {
       if (!valid.diagnostics.empty() || !parsed.accepted ||
           parsed.cst().recovered() || !parsed.diagnostics.empty() || !value ||
           value->text != text || value->parent != nullptr ||
-          parsed.nodes.size() != 1)
+          parsed.nodes().size() != 1)
         return 1;
     }
     for (const auto text : {"", "123", "4006381333932", "01234566", "120003",

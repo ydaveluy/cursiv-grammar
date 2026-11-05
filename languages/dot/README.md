@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/dot/core/DotGrammar.hpp` |
-| The AST | `src/dot/core/ast.hpp` |
-| Validation checks | `src/dot/core/validation/` |
-| Services of your own | `src/dot/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/dot/cli/main.cpp` |
-| LSP features | `src/dot/lsp/LspModule.cpp` |
+| The grammar | `src/core/dot/DotGrammar.hpp` |
+| The AST | `src/core/dot/ast.hpp` |
+| Validation checks | `src/core/dot/validation/` |
+| Services of your own | `src/core/dot/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/dot/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

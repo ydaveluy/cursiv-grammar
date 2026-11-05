@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID java
-    GRAMMAR    java/core/JavaGrammar.hpp
+    GRAMMAR    java/JavaGrammar.hpp
     NAMESPACE  java::Java
     EXTENSIONS .java
     OUT        java/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/java/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(javaCore ${_core})
 target_link_libraries(javaCore PUBLIC javaGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/java/cli/*.cpp)
-if(_cli)
-  add_executable(java_cli ${_cli})
-  target_link_libraries(java_cli
-                        PRIVATE javaCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(java_cli cli.cpp)
+  target_include_directories(java_cli PRIVATE cli)
+  target_link_libraries(java_cli PRIVATE javaCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(javaCli ${_cli})
+    target_include_directories(javaCli PUBLIC cli)
+    target_link_libraries(javaCli PUBLIC javaCore cursiv::cli)
+    target_link_libraries(java_cli PRIVATE javaCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/java/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/java/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/java/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(javaLsp ${_lsp})
+  target_include_directories(javaLsp PUBLIC lsp)
   target_link_libraries(javaLsp PUBLIC javaCore cursiv::lsp)
-  add_executable(java_lsp java/lsp/main.cpp)
-  target_link_libraries(java_lsp PRIVATE javaLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(java_lsp lsp.cpp)
+    target_link_libraries(java_lsp PRIVATE javaLsp)
+  endif()
 endif()
 
-if(TARGET javaLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/java/bench/main.cpp")
-  cursiv_add_benchmark(java
-      SOURCES java/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET javaLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(java SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(java)

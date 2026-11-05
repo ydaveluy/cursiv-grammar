@@ -1,13 +1,12 @@
 #pragma once
 
 #include <cstdio>
-#include <memory_resource>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstArena.hpp"
-#include "javadoc/core/Content.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "javadoc/Content.hpp"
 
 namespace javadoc_deep {
 inline std::string source(unsigned depth) {
@@ -16,6 +15,12 @@ inline std::string source(unsigned depth) {
   text += "{@literal end}";
   for (unsigned i = 0; i < depth; ++i) text += "]}}";
   return text;
+}
+
+// A node built by hand: the test owns it, not a parse result.
+template <class T> T* make_node(std::vector<cursiv::AstNodePtr>& nodes) {
+  nodes.push_back(cursiv::detail::new_ast_node<T>());
+  return static_cast<T*>(nodes.back().get());
 }
 
 template <class Language> bool run(const Language& language) {
@@ -54,7 +59,7 @@ template <class Language> bool run(const Language& language) {
   std::string projected;
   if (outer && *outer) javadoc::append_item_source(projected, ast::Item{*outer});
   if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
-      projected != tagSource || !owned || seen.size() != parsed.nodes.size() ||
+      projected != tagSource || !owned || seen.size() != parsed.nodes().size() ||
       tags != parsedDepth + 1 || braces != parsedDepth) {
     std::size_t difference = 0;
     while (difference < projected.size() && difference < tagSource.size() &&
@@ -64,34 +69,33 @@ template <class Language> bool run(const Language& language) {
         "parents=%d nodes=%zu/%zu tags=%u/%u braces=%u/%u\n",
         parsed.accepted, parsed.cst().recovered(), parsed.diagnostics.size(), doc != nullptr,
         doc ? std::size_t(doc->description.size()) : 0u, outer && *outer, projected.size(), tagSource.size(),
-        difference, owned, seen.size(), parsed.nodes.size(), tags, parsedDepth + 1, braces, parsedDepth);
+        difference, owned, seen.size(), parsed.nodes().size(), tags, parsedDepth + 1, braces, parsedDepth);
     return false;
   }
 
   constexpr unsigned deep = 16384;
-  std::pmr::monotonic_buffer_resource pool;
-  cursiv::AstArena arena(&pool);
-  auto* leaf = arena.make<ast::InlineTag>();
+  std::vector<cursiv::AstNodePtr> nodes;
+  auto* leaf = make_node<ast::InlineTag>(nodes);
   leaf->open = "{@";
   leaf->name = "literal";
   leaf->content = " end";
   leaf->close = "}";
   auto* top = leaf;
   for (unsigned i = 0; i < deep; ++i) {
-    auto* brace = arena.make<ast::InlineBrace>();
+    auto* brace = make_node<ast::InlineBrace>(nodes);
     brace->open = "{";
     brace->close = "}";
-    brace->parts.push_back(arena, ast::Item{std::string_view("[")});
-    brace->parts.push_back(arena, ast::Item{top});
-    brace->parts.push_back(arena, ast::Item{std::string_view("]")});
+    brace->parts.push_back(ast::Item{std::string_view("[")});
+    brace->parts.push_back(ast::Item{top});
+    brace->parts.push_back(ast::Item{std::string_view("]")});
     top->parent = brace;
-    auto* tag = arena.make<ast::InlineTag>();
+    auto* tag = make_node<ast::InlineTag>(nodes);
     tag->open = "{@";
     tag->name = "summary";
     tag->close = "}";
     tag->structured = true;
-    tag->parts.push_back(arena, ast::Item{std::string_view(" pre ")});
-    tag->parts.push_back(arena, ast::Item{brace});
+    tag->parts.push_back(ast::Item{std::string_view(" pre ")});
+    tag->parts.push_back(ast::Item{brace});
     brace->parent = tag;
     top = tag;
   }

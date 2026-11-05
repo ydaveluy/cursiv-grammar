@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/graphemes/core/GraphemesGrammar.hpp` |
-| The AST | `src/graphemes/core/ast.hpp` |
-| Validation checks | `src/graphemes/core/validation/` |
-| Services of your own | `src/graphemes/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/graphemes/cli/main.cpp` |
-| LSP features | `src/graphemes/lsp/LspModule.cpp` |
+| The grammar | `src/core/graphemes/GraphemesGrammar.hpp` |
+| The AST | `src/core/graphemes/ast.hpp` |
+| Validation checks | `src/core/graphemes/validation/` |
+| Services of your own | `src/core/graphemes/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/graphemes/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

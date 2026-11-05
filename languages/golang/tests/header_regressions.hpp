@@ -6,8 +6,8 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "golang/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "golang/ast.hpp"
 
 namespace go_header_regressions {
 
@@ -120,7 +120,7 @@ inline bool run(const cursiv::Parser& parser) {
     const auto result = parser.parse(test.source);
     unsigned named = 0, anonymous = 0;
     bool ownership = true;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       const auto* composite = cursiv::ast_cast<ast::CompositeLit>(node);
       if (!composite) continue;
       ownership &= composite->parent && composite->type && composite->value &&

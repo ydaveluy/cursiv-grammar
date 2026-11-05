@@ -1,7 +1,7 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "rpn/core/CoreServices.hpp"
-#include "rpn/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "rpn/CoreServices.hpp"
+#include "rpn/ast.hpp"
 #include <algorithm>
 #include <bit>
 #include <cstdint>
@@ -82,7 +82,7 @@ inline bool run(const rpn::RpnCoreServices& services) {
         }
       }
     }
-    if (result.nodes.size() != nodes) return false;
+    if (result.nodes().size() != nodes) return false;
   }
   return true;
 }

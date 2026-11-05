@@ -4,13 +4,13 @@
 #include <string_view>
 #include <vector>
 #include <utility>
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "dot/core/CoreServices.hpp"
-#include "dot/core/ast.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "dot/CoreServices.hpp"
+#include "dot/ast.hpp"
 int main() {
  const auto language=cursiv::create_language<dot::DotCoreServices,dot::DotSharedCoreServices,dot::install_core_module>();
  struct Case { const char* name; const char* text; bool directed, strict; std::vector<std::string_view> nodes; };
@@ -44,7 +44,7 @@ int main() {
   const auto*graph=result.value_as<dot::ast::Graph>();
   std::vector<std::string_view> names;
   bool parents=true;
-  for(const auto*n:result.nodes) {
+  for(const auto*n:result.nodes()) {
    if(n!=result.value && !n->parent)parents=false;
    if(const auto*id=cursiv::ast_cast<dot::ast::NodeId>(n)) {
     names.push_back(id->id);

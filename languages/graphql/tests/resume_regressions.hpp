@@ -5,10 +5,10 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "graphql/core/CoreServices.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "graphql/CoreServices.hpp"
 
 namespace graphql_resume {
 inline bool run(const graphql::GraphqlCoreServices& language) {
@@ -41,7 +41,7 @@ inline bool run(const graphql::GraphqlCoreServices& language) {
       check(result.value->parent == nullptr, "root parent");
       walk(walk, *result.value);
     }
-    check(seen.size() == result.nodes.size(), "all allocations are reachable");
+    check(seen.size() == result.nodes().size(), "all allocations are reachable");
     return result;
   };
   for (std::string_view number : {
@@ -51,7 +51,7 @@ inline bool run(const graphql::GraphqlCoreServices& language) {
     const std::string source = "{f(x:" + std::string(number) + ")}";
     const auto result = positive(source);
     unsigned found = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* n = cursiv::ast_cast<a::IntLit>(node)) {
         ++found;
         check(n->value == number && result.cst().text(n->cstNodeId) == number,
@@ -69,7 +69,7 @@ inline bool run(const graphql::GraphqlCoreServices& language) {
     const std::string source = "query Q($,#comment\nx:Int){f(x:$ x)}";
     const auto result = positive(source);
     unsigned variables = 0, definitions = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* n = cursiv::ast_cast<a::Variable>(node))
         variables += n->name == "x";
       if (const auto* n = cursiv::ast_cast<a::VariableDefinition>(node))
@@ -81,9 +81,9 @@ inline bool run(const graphql::GraphqlCoreServices& language) {
     const std::string source = R"({f(x:"\u{00000041}\uD83D\uDE00\u{10FFFF}")})";
     const auto result = positive(source);
     bool found = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* arg = cursiv::ast_cast<a::Argument>(node))
-        if (const auto* value = std::get_if<std::string_view>(&arg->value))
+        if (const auto* value = std::get_if<std::string>(&arg->value))
           found = *value == "A😀\xF4\x8F\xBF\xBF";
     check(found, "Unicode scalar boundary and paired surrogate");
   }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "flowmatic/core/ast.hpp"
+#include "flowmatic/ast.hpp"
 #include <ostream>
 #include <string>
 

@@ -49,7 +49,7 @@ bool inspect(const Services& services, const char* id, const char* text,
         });
   };
   walk(walk, *doc);
-  if (owned && seen.size() == parsed.nodes.size() && check(*doc)) return true;
+  if (owned && seen.size() == parsed.nodes().size() && check(*doc)) return true;
   std::fprintf(stderr, "rst blocks: %s: wrong AST or ownership\n%s\n", id, text);
   return false;
 }

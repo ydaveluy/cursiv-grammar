@@ -1,9 +1,9 @@
 #pragma once
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "xyz/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "xyz/CoreServices.hpp"
 #include <array>
 #include <bit>
 #include <cstdio>

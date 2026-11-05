@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/rcs/core/RcsGrammar.hpp` |
-| The AST | `src/rcs/core/ast.hpp` |
-| Validation checks | `src/rcs/core/validation/` |
-| Services of your own | `src/rcs/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/rcs/cli/main.cpp` |
-| LSP features | `src/rcs/lsp/LspModule.cpp` |
+| The grammar | `src/core/rcs/RcsGrammar.hpp` |
+| The AST | `src/core/rcs/ast.hpp` |
+| Validation checks | `src/core/rcs/validation/` |
+| Services of your own | `src/core/rcs/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/rcs/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

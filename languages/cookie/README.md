@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/cookie/core/CookieGrammar.hpp` |
-| The AST | `src/cookie/core/ast.hpp` |
-| Validation checks | `src/cookie/core/validation/` |
-| Services of your own | `src/cookie/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/cookie/cli/main.cpp` |
-| LSP features | `src/cookie/lsp/LspModule.cpp` |
+| The grammar | `src/core/cookie/CookieGrammar.hpp` |
+| The AST | `src/core/cookie/ast.hpp` |
+| Validation checks | `src/core/cookie/validation/` |
+| Services of your own | `src/core/cookie/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/cookie/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -1,7 +1,7 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "gff3/core/Value.hpp"
-#include "gff3/core/ast.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "gff3/Value.hpp"
+#include "gff3/ast.hpp"
 #include <string>
 using J = cursiv::JsonValue;
 inline std::string unquote(std::string_view raw) {

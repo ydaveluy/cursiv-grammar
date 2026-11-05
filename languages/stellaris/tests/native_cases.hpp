@@ -1,10 +1,10 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "stellaris/core/CoreServices.hpp"
-#include "stellaris/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "stellaris/CoreServices.hpp"
+#include "stellaris/ast.hpp"
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -101,7 +101,7 @@ inline bool run(const stellaris::StellarisCoreServices& services,
           });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return false;
+    if (!parents || seen.size() != result.nodes().size()) return false;
     auto sourceDocument = shared.documentFactory->fromString(source, "file:///audit.stellaris");
     std::vector<cursiv::Diagnostic> diagnostics;
     services.documentValidator->validateDocument(*sourceDocument, diagnostics);

@@ -10,13 +10,13 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "kirikiritjs/core/CoreServices.hpp"
-#include "kirikiritjs/core/ast.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "kirikiritjs/CoreServices.hpp"
+#include "kirikiritjs/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include "lexical_cases.hpp"
 #include "octet_regexp_cases.hpp"
 
@@ -49,7 +49,7 @@ int main() {
       return 1;
     }
     bool args = false, array = false, trailing = false, empty = false;
-    for (const auto *node : audit_result.nodes) {
+    for (const auto *node : audit_result.nodes()) {
       if (const auto *a = cursiv::ast_cast<kirikiritjs::ast::ArrayLit>(node)) {
         array = array || (a->elements.size() == 3 && !a->elements[0]->value &&
                           !a->elements[1]->value && !a->elements[2]->value);
@@ -109,7 +109,7 @@ int main() {
     const auto* context = unary ? cursiv::ast_cast<a::BinaryExpr>(unary->operand) : nullptr;
     const auto* mul = cursiv::ast_cast<a::BinaryExpr>(expr(2));
     bool dollar = false, global = false;
-    for (const auto* n : r.nodes) { dollar |= cursiv::ast_cast<a::CharFromCodeExpr>(n) != nullptr; global |= cursiv::ast_cast<a::GlobalExpr>(n) != nullptr; }
+    for (const auto* n : r.nodes()) { dollar |= cursiv::ast_cast<a::CharFromCodeExpr>(n) != nullptr; global |= cursiv::ast_cast<a::GlobalExpr>(n) != nullptr; }
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || !swap || swap->op != "<->" || !cursiv::ast_cast<a::AssignExpr>(swap->value) ||
         !context || context->op != "incontextof" || !cursiv::ast_cast<a::BinaryExpr>(context->right) ||
         !mul || mul->op != "*" || !cursiv::ast_cast<a::BinaryExpr>(mul->left) || !dollar || !global)
@@ -122,7 +122,7 @@ int main() {
   {
     const auto r = language.language.parser->parse("var x=%[bare:1,dynamic,2];");
     unsigned fixed = 0, dynamic = 0;
-    for (const auto* n : r.nodes) if (const auto* p = cursiv::ast_cast<kirikiritjs::ast::Prop>(n)) { fixed += p->identifierKey; dynamic += !p->identifierKey; }
+    for (const auto* n : r.nodes()) if (const auto* p = cursiv::ast_cast<kirikiritjs::ast::Prop>(n)) { fixed += p->identifierKey; dynamic += !p->identifierKey; }
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || fixed != 1 || dynamic != 1) return fail("dictionary literal versus computed key semantics lost");
   }
   bool readback_done = false;

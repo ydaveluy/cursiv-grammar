@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "ply/core/Data.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "ply/Data.hpp"
 #include <bit>
 #include <cmath>
 #include <cstdio>

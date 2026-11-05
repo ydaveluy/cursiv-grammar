@@ -5,9 +5,9 @@
 #include <unordered_set>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "joss/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "joss/ast.hpp"
 
 namespace joss_command_lists {
 template<class Language> bool run(const Language& language) {
@@ -101,7 +101,7 @@ Do part 1.
         });
   };
   walk(walk, *root);
-  check(owned && seen.size() == result.nodes.size(), "all new captures have unique parents and CST ownership");
+  check(owned && seen.size() == result.nodes().size(), "all new captures have unique parents and CST ownership");
   for (const auto source : {"Do step 1.1 3 times.", "Do part 1, times.",
           "Do part 1, 3.", "Do part 1, 3 times times.", "Do form 1, 3 times.",
           "Delete form 1,.", "Delete , form 1.", "Delete form 1,, part 2.",

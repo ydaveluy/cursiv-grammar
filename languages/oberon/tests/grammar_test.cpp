@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "oberon/core/CoreServices.hpp"
-#include "oberon/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "oberon/CoreServices.hpp"
+#include "oberon/ast.hpp"
 // The smoke test of the language: every corpus document parses clean,
 // features.mod (the constructs the one-file corpus never reaches) parses
 // clean too, and hello.mod is read back field by field to catch a
@@ -14,7 +14,7 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

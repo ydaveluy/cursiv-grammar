@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/muparser/core/MuparserGrammar.hpp` |
-| The AST | `src/muparser/core/ast.hpp` |
-| Validation checks | `src/muparser/core/validation/` |
-| Services of your own | `src/muparser/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/muparser/cli/main.cpp` |
-| LSP features | `src/muparser/lsp/LspModule.cpp` |
+| The grammar | `src/core/muparser/MuparserGrammar.hpp` |
+| The AST | `src/core/muparser/ast.hpp` |
+| Validation checks | `src/core/muparser/validation/` |
+| Services of your own | `src/core/muparser/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/muparser/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

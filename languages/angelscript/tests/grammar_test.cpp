@@ -3,11 +3,11 @@
 #include <iterator>
 #include <string>
 
-#include "angelscript/core/CoreServices.hpp"
-#include "angelscript/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "angelscript/CoreServices.hpp"
+#include "angelscript/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -57,7 +57,7 @@ int main() {
         "class C { void f() override final; int p { get final property; } } "
         "import void f() explicit property from 'mod';");
     unsigned sequences = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* f = cursiv::ast_cast<ast::FuncDecl>(node)) {
         if (f->attr.size() != 2 || f->attr[0] != "override" || f->attr[1] != "final")
           return fail("function attributes lost order or multiplicity");
@@ -94,7 +94,7 @@ int main() {
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
       return fail("native escaped, heredoc or adjacent string does not parse");
     unsigned count = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<ast::LiteralExpr>(node)) {
         ++count;
         if (std::string_view(literal).find("/*") == std::string_view::npos &&
@@ -115,7 +115,7 @@ int main() {
   {
     const auto result = language.language.parser->parse("int value = 8 >> 1 >> 1 < 5;");
     const ast::BinExpr* comparison = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* binary = cursiv::ast_cast<ast::BinExpr>(node);
           binary && binary->op == "<") comparison = binary;
     const auto* shift = comparison

@@ -21,12 +21,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/flatbuffers/core/FlatbuffersGrammar.hpp` |
-| The AST | `src/flatbuffers/core/ast.hpp` |
-| Validation checks | `src/flatbuffers/core/validation/` |
-| Services of your own | `src/flatbuffers/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/flatbuffers/cli/main.cpp` |
-| LSP features | `src/flatbuffers/lsp/LspModule.cpp` |
+| The grammar | `src/core/flatbuffers/FlatbuffersGrammar.hpp` |
+| The AST | `src/core/flatbuffers/ast.hpp` |
+| Validation checks | `src/core/flatbuffers/validation/` |
+| Services of your own | `src/core/flatbuffers/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/flatbuffers/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

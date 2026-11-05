@@ -1,7 +1,7 @@
 #pragma once
 #include "NativeModel.hpp"
-#include "recfile/core/Value.hpp"
-#include "recfile/core/ast.hpp"
+#include "recfile/Value.hpp"
+#include "recfile/ast.hpp"
 inline J comment_view(const recfile::ast::Comment &c) {
   std::string text;
   for (std::size_t i = 0; i < c.lines.size(); ++i) {

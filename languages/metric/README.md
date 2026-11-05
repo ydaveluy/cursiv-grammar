@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/metric/core/MetricGrammar.hpp` |
-| The AST | `src/metric/core/ast.hpp` |
-| Validation checks | `src/metric/core/validation/` |
-| Services of your own | `src/metric/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/metric/cli/main.cpp` |
-| LSP features | `src/metric/lsp/LspModule.cpp` |
+| The grammar | `src/core/metric/MetricGrammar.hpp` |
+| The AST | `src/core/metric/ast.hpp` |
+| Validation checks | `src/core/metric/validation/` |
+| Services of your own | `src/core/metric/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/metric/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

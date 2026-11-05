@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/edif300/core/Edif300Grammar.hpp` |
-| The AST | `src/edif300/core/ast.hpp` |
-| Validation checks | `src/edif300/core/validation/` |
-| Services of your own | `src/edif300/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/edif300/cli/main.cpp` |
-| LSP features | `src/edif300/lsp/LspModule.cpp` |
+| The grammar | `src/core/edif300/Edif300Grammar.hpp` |
+| The AST | `src/core/edif300/ast.hpp` |
+| Validation checks | `src/core/edif300/validation/` |
+| Services of your own | `src/core/edif300/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/edif300/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

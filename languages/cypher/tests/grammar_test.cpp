@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cypher/core/CoreServices.hpp"
-#include "cypher/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cypher/CoreServices.hpp"
+#include "cypher/ast.hpp"
 #include "legacy_clauses.hpp"
 // The grammar end to end: every document under `example/` parses clean --
 // no recovery, no diagnostics -- and builds a Script at the top. One
@@ -20,7 +20,7 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -261,7 +261,7 @@ text', 'a' IN ['a'] IS NOT NULL
     bool selector = false, arrow = false, identifier = false, multiline = false,
          predicateChain = false, setVariable = false;
     std::size_t emoji = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* property = cursiv::ast_cast<cypher::ast::PropertyExpr>(node))
         selector |= property->property == "name" &&
                     cursiv::ast_cast<cypher::ast::IndexExpr>(property->object);
@@ -302,7 +302,7 @@ text', 'a' IN ['a'] IS NOT NULL
            "RETURN [(a)⟨‐‐(b) | b]"}) {
     const auto result = parse(source);
     const cypher::ast::PatternComprehensionExpr* comprehension = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<cypher::ast::PatternComprehensionExpr>(node))
         comprehension = value;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||

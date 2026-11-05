@@ -6,11 +6,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "dot/core/CoreServices.hpp"
-#include "dot/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "dot/CoreServices.hpp"
+#include "dot/ast.hpp"
 
 namespace {
 
@@ -67,7 +67,7 @@ int main() {
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
       return fail("native HTML attribute fixture does not parse clean");
     bool html = false, ordinary = false, concatenated = false, assignment = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* attr = cursiv::ast_cast<dot::ast::AttrPair>(node)) {
         if (attr->value && *attr->value == "<B>x</B>") {
           html |= attr->valueIsHtml;
@@ -90,7 +90,7 @@ int main() {
     const auto* graph = result.value_as<dot::ast::Graph>();
     if (!graph || !graph->id || *graph->id != "ab") return 1;
     bool label = false, unicode = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* attr = cursiv::ast_cast<dot::ast::AttrPair>(node))
         label |= attr->name == "label" && attr->value && *attr->value == "x\"y";
       if (const auto* id = cursiv::ast_cast<dot::ast::NodeId>(node)) unicode |= id->id == "é";

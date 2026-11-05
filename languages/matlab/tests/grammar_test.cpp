@@ -10,13 +10,13 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
-#include "matlab/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
+#include "matlab/ast.hpp"
 #include "matlab/generated/Matlab/Module.hpp"
 #include "function_handle_cases.hpp"
 #include "cell_cases.hpp"
@@ -355,7 +355,7 @@ int main() {
         engine().parse("x = [1,2;3,4]\ny = [5 6\n7 8]\nt = x'\n");
     CHECK(result.accepted && !result.cst().recovered());
     int matrices = 0;
-    for (const auto *node : result.nodes)
+    for (const auto *node : result.nodes())
       if (const auto *a = cursiv::ast_cast<ast::ArrayLit>(node)) {
         CHECK(a->rows.size() == 2);
         CHECK(a->rows[0]->elements.size() == 2 &&

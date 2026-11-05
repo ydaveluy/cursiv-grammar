@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID kuka
-    GRAMMAR    kuka/core/KukaGrammar.hpp
+    GRAMMAR    kuka/KukaGrammar.hpp
     NAMESPACE  kuka::Kuka
     EXTENSIONS .kuka
     OUT        kuka/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/kuka/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(kukaCore ${_core})
 target_link_libraries(kukaCore PUBLIC kukaGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/kuka/cli/*.cpp)
-if(_cli)
-  add_executable(kuka_cli ${_cli})
-  target_link_libraries(kuka_cli
-                        PRIVATE kukaCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(kuka_cli cli.cpp)
+  target_include_directories(kuka_cli PRIVATE cli)
+  target_link_libraries(kuka_cli PRIVATE kukaCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(kukaCli ${_cli})
+    target_include_directories(kukaCli PUBLIC cli)
+    target_link_libraries(kukaCli PUBLIC kukaCore cursiv::cli)
+    target_link_libraries(kuka_cli PRIVATE kukaCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/kuka/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/kuka/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/kuka/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(kukaLsp ${_lsp})
+  target_include_directories(kukaLsp PUBLIC lsp)
   target_link_libraries(kukaLsp PUBLIC kukaCore cursiv::lsp)
-  add_executable(kuka_lsp kuka/lsp/main.cpp)
-  target_link_libraries(kuka_lsp PRIVATE kukaLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(kuka_lsp lsp.cpp)
+    target_link_libraries(kuka_lsp PRIVATE kukaLsp)
+  endif()
 endif()
 
-if(TARGET kukaLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/kuka/bench/main.cpp")
-  cursiv_add_benchmark(kuka
-      SOURCES kuka/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET kukaLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(kuka SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(kuka)

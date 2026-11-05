@@ -1,11 +1,11 @@
 #include "DataView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
 #include "native_cases.hpp"
 #include "resume_cases.hpp"
-#include "ply/core/CoreServices.hpp"
+#include "ply/CoreServices.hpp"
 #include "ply/generated/Ply/Module.hpp"
 #include <algorithm>
 #include <array>
@@ -67,7 +67,7 @@ int main() {
           });
     };
     walk(walk, *d);
-    if (!owned || d->parent != nullptr || seen.size() != r.nodes.size())
+    if (!owned || d->parent != nullptr || seen.size() != r.nodes().size())
       return fail("ownership");
     for (auto *h : d->header) {
       if (auto *p = cursiv::ast_cast<ply::ast::Element>(h)) {

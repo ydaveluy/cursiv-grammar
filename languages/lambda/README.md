@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/lambda/core/LambdaGrammar.hpp` |
-| The AST | `src/lambda/core/ast.hpp` |
-| Validation checks | `src/lambda/core/validation/` |
-| Services of your own | `src/lambda/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/lambda/cli/main.cpp` |
-| LSP features | `src/lambda/lsp/LspModule.cpp` |
+| The grammar | `src/core/lambda/LambdaGrammar.hpp` |
+| The AST | `src/core/lambda/ast.hpp` |
+| Validation checks | `src/core/lambda/validation/` |
+| Services of your own | `src/core/lambda/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/lambda/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

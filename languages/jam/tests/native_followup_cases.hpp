@@ -1,9 +1,9 @@
 #pragma once
 #include <cstdio>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "jam/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "jam/ast.hpp"
 namespace jam_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace a = jam::ast;

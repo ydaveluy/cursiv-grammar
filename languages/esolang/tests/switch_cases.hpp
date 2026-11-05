@@ -6,11 +6,11 @@
 #include <unordered_set>
 #include <utility>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "lolcode/core/CoreServices.hpp"
-#include "lolcode/core/LolcodeGrammar.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "lolcode/CoreServices.hpp"
+#include "lolcode/LolcodeGrammar.hpp"
 
 namespace lolcode_switch_cases {
 namespace a = lolcode::ast;
@@ -325,14 +325,14 @@ inline bool run(const lolcode::LolcodeCoreServices& services) {
       check(parsed.value->parent == nullptr, test.name, "root parent");
       walk(walk, *parsed.value);
     }
-    check(seen.size() == parsed.nodes.size(), test.name,
+    check(seen.size() == parsed.nodes().size(), test.name,
           "every allocated node reachable exactly once");
 
     const auto* program = parsed.value_as<a::Program>();
     check(program != nullptr, test.name, "typed Program");
     const a::SwitchStmt* first = nullptr;
     unsigned switches = 0;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* statement = cursiv::ast_cast<a::SwitchStmt>(node)) {
         if (!first) first = statement;
         ++switches;

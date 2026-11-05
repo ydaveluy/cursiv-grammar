@@ -4,9 +4,9 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace quadratic_header_cases {
 inline bool run(const mps::MpsCoreServices& services) {
@@ -64,9 +64,9 @@ inline bool run(const mps::MpsCoreServices& services) {
           });
     };
     walk(walk, *root);
-    if (!owned || seen.size() != r.nodes.size()) {
+    if (!owned || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "mps quadratic header: '%s' ownership=%d seen=%zu nodes=%zu\n",
-                   test.header, owned, seen.size(), r.nodes.size());
+                   test.header, owned, seen.size(), r.nodes().size());
       return false;
     }
   }

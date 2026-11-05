@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID gedcom
-    GRAMMAR    gedcom/core/GedcomGrammar.hpp
+    GRAMMAR    gedcom/GedcomGrammar.hpp
     NAMESPACE  gedcom::Gedcom
     EXTENSIONS .ged
     OUT        gedcom/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/gedcom/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(gedcomCore ${_core})
 target_link_libraries(gedcomCore PUBLIC gedcomGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/gedcom/cli/*.cpp)
-if(_cli)
-  add_executable(gedcom_cli ${_cli})
-  target_link_libraries(gedcom_cli
-                        PRIVATE gedcomCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(gedcom_cli cli.cpp)
+  target_include_directories(gedcom_cli PRIVATE cli)
+  target_link_libraries(gedcom_cli PRIVATE gedcomCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(gedcomCli ${_cli})
+    target_include_directories(gedcomCli PUBLIC cli)
+    target_link_libraries(gedcomCli PUBLIC gedcomCore cursiv::cli)
+    target_link_libraries(gedcom_cli PRIVATE gedcomCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/gedcom/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/gedcom/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/gedcom/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(gedcomLsp ${_lsp})
+  target_include_directories(gedcomLsp PUBLIC lsp)
   target_link_libraries(gedcomLsp PUBLIC gedcomCore cursiv::lsp)
-  add_executable(gedcom_lsp gedcom/lsp/main.cpp)
-  target_link_libraries(gedcom_lsp PRIVATE gedcomLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(gedcom_lsp lsp.cpp)
+    target_link_libraries(gedcom_lsp PRIVATE gedcomLsp)
+  endif()
 endif()
 
-if(TARGET gedcomLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gedcom/bench/main.cpp")
-  cursiv_add_benchmark(gedcom
-      SOURCES gedcom/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET gedcomLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(gedcom SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(gedcom)

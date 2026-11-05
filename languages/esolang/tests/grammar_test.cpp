@@ -11,11 +11,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "lolcode/core/CoreServices.hpp"
-#include "lolcode/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "lolcode/CoreServices.hpp"
+#include "lolcode/ast.hpp"
 #include "switch_cases.hpp"
 
 namespace {
@@ -362,7 +362,7 @@ int main() {
       return 1;
     }
     bool found = false;
-    for (const auto *node : audit_result.nodes)
+    for (const auto *node : audit_result.nodes())
       if (const auto *call = cursiv::ast_cast<lolcode::ast::FuncCall>(node))
         found = call->callee == "f" && call->args.size() == 1;
     if (!found)

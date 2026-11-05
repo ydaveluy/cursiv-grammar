@@ -9,12 +9,12 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
-#include "teal/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
+#include "teal/ast.hpp"
 #include "teal/generated/Teal/Module.hpp"
 
 namespace {
@@ -42,8 +42,8 @@ ast::Type* base(ast::Type* t) {
                                                         : t;
 }
 
-// The document outlives the tree: every AST member is a `string_view` into
-// the source, so a composed document must live past the `ParseResult` that
+// The document outlives the tree: a `string_view` member points into the
+// source, so a composed document must live past the `ParseResult` that
 // points into it.
 const std::string& kept(std::string text) {
   static std::deque<std::string> documents;

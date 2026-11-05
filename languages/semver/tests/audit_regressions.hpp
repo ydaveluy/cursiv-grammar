@@ -1,9 +1,9 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "semver/core/CoreServices.hpp"
-#include "semver/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "semver/CoreServices.hpp"
+#include "semver/ast.hpp"
 #include "semver/generated/Semver/Module.hpp"
 #include <cstdio>
 #include <string>

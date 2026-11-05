@@ -1,6 +1,6 @@
 #pragma once
-#include "csv/core/ast.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "csv/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
 #include <cstdio>
 #include <string>
 #include <string_view>

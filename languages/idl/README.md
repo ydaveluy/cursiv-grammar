@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/idl/core/IdlGrammar.hpp` |
-| The AST | `src/idl/core/ast.hpp` |
-| Validation checks | `src/idl/core/validation/` |
-| Services of your own | `src/idl/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/idl/cli/main.cpp` |
-| LSP features | `src/idl/lsp/LspModule.cpp` |
+| The grammar | `src/core/idl/IdlGrammar.hpp` |
+| The AST | `src/core/idl/ast.hpp` |
+| Validation checks | `src/core/idl/validation/` |
+| Services of your own | `src/core/idl/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/idl/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

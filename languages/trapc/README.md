@@ -20,12 +20,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/trapc/core/TrapcGrammar.hpp` |
-| The AST | `src/trapc/core/ast.hpp` |
-| Validation checks | `src/trapc/core/validation/` |
-| Services of your own | `src/trapc/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/trapc/cli/main.cpp` |
-| LSP features | `src/trapc/lsp/LspModule.cpp` |
+| The grammar | `src/core/trapc/TrapcGrammar.hpp` |
+| The AST | `src/core/trapc/ast.hpp` |
+| Validation checks | `src/core/trapc/validation/` |
+| Services of your own | `src/core/trapc/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/trapc/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -1,15 +1,15 @@
 #pragma once
 
 #include <string>
-#include "cursiv/core/parser/Parser.hpp"
+#include "cursiv/parser/Parser.hpp"
 #include <vector>
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "yini/core/CoreServices.hpp"
-#include "yini/core/Literals.hpp"
-#include "yini/core/ast.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "yini/CoreServices.hpp"
+#include "yini/Literals.hpp"
+#include "yini/ast.hpp"
 
 namespace native_regressions {
 inline void run() {

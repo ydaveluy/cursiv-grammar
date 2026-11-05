@@ -4,21 +4,21 @@
 #include <cstdlib>
 #include <set>
 #include <vector>
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "yini/core/CoreServices.hpp"
-#include "yini/core/Literals.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "yini/CoreServices.hpp"
+#include "yini/Literals.hpp"
 #include <filesystem>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
-#include "yini/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
+#include "yini/ast.hpp"
 #include "yini/generated/Yini/Module.hpp"
 
 namespace {

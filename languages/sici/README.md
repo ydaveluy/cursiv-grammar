@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/sici/core/SiciGrammar.hpp` |
-| The AST | `src/sici/core/ast.hpp` |
-| Validation checks | `src/sici/core/validation/` |
-| Services of your own | `src/sici/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/sici/cli/main.cpp` |
-| LSP features | `src/sici/lsp/LspModule.cpp` |
+| The grammar | `src/core/sici/SiciGrammar.hpp` |
+| The AST | `src/core/sici/ast.hpp` |
+| Validation checks | `src/core/sici/validation/` |
+| Services of your own | `src/core/sici/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/sici/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

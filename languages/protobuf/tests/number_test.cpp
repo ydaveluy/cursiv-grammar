@@ -1,10 +1,10 @@
 #include "NumberView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
 #include "number_cases.hpp"
-#include "protobuf/core/CoreServices.hpp"
+#include "protobuf/CoreServices.hpp"
 #include "protobuf/generated/Protobuf/Module.hpp"
 #include <algorithm>
 #include <cstdio>
@@ -69,7 +69,7 @@ int main() {
           });
     };
     walk(walk, *r.value);
-    if (!owned || seen.size() != r.nodes.size())
+    if (!owned || seen.size() != r.nodes().size())
       return fail("ownership");
     std::sort(raw.begin(), raw.end(),
               [](auto a, auto b) { return a.data() < b.data(); });

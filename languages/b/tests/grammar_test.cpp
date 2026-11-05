@@ -9,11 +9,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "b/core/CoreServices.hpp"
-#include "b/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "b/CoreServices.hpp"
+#include "b/ast.hpp"
 
 namespace {
 
@@ -42,7 +42,7 @@ int main() {
       return fail("native brace escapes do not parse clean");
     std::vector<std::string_view> characters;
     const b::ast::StringLit* string = nullptr;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* c = cursiv::ast_cast<b::ast::CharLit>(node))
         characters.push_back(c->text);
       if (const auto* s = cursiv::ast_cast<b::ast::StringLit>(node))

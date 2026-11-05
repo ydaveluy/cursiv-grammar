@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/cql3/core/Cql3Grammar.hpp` |
-| The AST | `src/cql3/core/ast.hpp` |
-| Validation checks | `src/cql3/core/validation/` |
-| Services of your own | `src/cql3/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/cql3/cli/main.cpp` |
-| LSP features | `src/cql3/lsp/LspModule.cpp` |
+| The grammar | `src/core/cql3/Cql3Grammar.hpp` |
+| The AST | `src/core/cql3/ast.hpp` |
+| Validation checks | `src/core/cql3/validation/` |
+| Services of your own | `src/core/cql3/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/cql3/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

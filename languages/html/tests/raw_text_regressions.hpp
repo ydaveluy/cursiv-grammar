@@ -5,8 +5,8 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "html/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "html/ast.hpp"
 #include "html/generated/Html/Module.hpp"
 
 namespace html_raw_text_regressions {

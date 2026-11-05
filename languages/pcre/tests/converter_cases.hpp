@@ -1,13 +1,12 @@
 #pragma once
 
 #include <cstdio>
-#include <memory_resource>
 #include <string>
 #include <string_view>
 #include <utility>
 
-#include "pcre/core/PcreGrammar.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "pcre/PcreGrammar.hpp"
+#include "cursiv/parser/Parser.hpp"
 
 namespace pcre_converter_cases {
 
@@ -30,20 +29,18 @@ inline bool run(const cursiv::Parser& parser) {
     const auto result = pcre::comment_text(text);
     check(result && *result.value == expected, "valid comment text is retained");
   }
-  // Malformed text is rejected before touching the supplied arena.
   for (std::string_view text : {"", "'", "{", "a", "aa", "[]", "()", "<>",
                                 "'a\"", "{a'", "'''", "{}}", "'a'b'", "{a}b}"})
-    check(error(pcre::callout_text(text, std::pmr::null_memory_resource())),
-          "malformed callout fragment returns an error without allocation");
-  std::pmr::monotonic_buffer_resource memory;
+    check(error(pcre::callout_text(text)),
+          "malformed callout fragment returns an error");
   for (char open : std::string_view("'\"`^%#${")) {
     const char close = open == '{' ? '}' : open;
     const std::string empty = std::string(1, open) + close;
-    const auto noText = pcre::callout_text(empty, std::pmr::null_memory_resource());
-    check(noText && noText.value->empty(), "empty callout text needs no allocation");
+    const auto noText = pcre::callout_text(empty);
+    check(noText && noText.value->empty(), "empty callout text stays empty");
     const std::string source = std::string(1, open) + "a" + close + close + "b" + close;
     const std::string expected = std::string("a") + close + "b";
-    const auto result = pcre::callout_text(source, &memory);
+    const auto result = pcre::callout_text(source);
     check(result && *result.value == expected, "all native callout delimiters un-double closing delimiters");
   }
   for (std::string_view text : {"", "\\", "1", "/1", "\\0", "\\01", "\\-1", "\\+1",

@@ -9,11 +9,11 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "clif/core/CoreServices.hpp"
-#include "clif/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "clif/CoreServices.hpp"
+#include "clif/ast.hpp"
 
 namespace {
 
@@ -55,7 +55,7 @@ int native_forms(const cursiv::Parser& parser) {
     return fail("ISO 2007 spellings, escaping or multi-phrase comment was refused");
   bool roles = false, empty_roles = false, grouped = false, term = false,
        string = false, name = false, unicode = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* r = cursiv::ast_cast<ast::RolesetAtom>(node)) {
       roles |= r->roles.size() == 2 && name_of(r->roles[0]->role) == "r" &&
                name_of(r->roles[0]->filler) == "a" &&

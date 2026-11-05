@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/gdscript/core/GdscriptGrammar.hpp` |
-| The AST | `src/gdscript/core/ast.hpp` |
-| Validation checks | `src/gdscript/core/validation/` |
-| Services of your own | `src/gdscript/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/gdscript/cli/main.cpp` |
-| LSP features | `src/gdscript/lsp/LspModule.cpp` |
+| The grammar | `src/core/gdscript/GdscriptGrammar.hpp` |
+| The AST | `src/core/gdscript/ast.hpp` |
+| Validation checks | `src/core/gdscript/validation/` |
+| Services of your own | `src/core/gdscript/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/gdscript/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

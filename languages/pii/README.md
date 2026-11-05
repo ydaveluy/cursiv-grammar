@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/pii/core/PiiGrammar.hpp` |
-| The AST | `src/pii/core/ast.hpp` |
-| Validation checks | `src/pii/core/validation/` |
-| Services of your own | `src/pii/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/pii/cli/main.cpp` |
-| LSP features | `src/pii/lsp/LspModule.cpp` |
+| The grammar | `src/core/pii/PiiGrammar.hpp` |
+| The AST | `src/core/pii/ast.hpp` |
+| Validation checks | `src/core/pii/validation/` |
+| Services of your own | `src/core/pii/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/pii/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

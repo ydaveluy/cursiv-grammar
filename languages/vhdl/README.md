@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/vhdl/core/VhdlGrammar.hpp` |
-| The AST | `src/vhdl/core/ast.hpp` |
-| Validation checks | `src/vhdl/core/validation/` |
-| Services of your own | `src/vhdl/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/vhdl/cli/main.cpp` |
-| LSP features | `src/vhdl/lsp/LspModule.cpp` |
+| The grammar | `src/core/vhdl/VhdlGrammar.hpp` |
+| The AST | `src/core/vhdl/ast.hpp` |
+| Validation checks | `src/core/vhdl/validation/` |
+| Services of your own | `src/core/vhdl/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/vhdl/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

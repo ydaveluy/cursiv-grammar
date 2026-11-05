@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/ttm/core/TtmGrammar.hpp` |
-| The AST | `src/ttm/core/ast.hpp` |
-| Validation checks | `src/ttm/core/validation/` |
-| Services of your own | `src/ttm/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/ttm/cli/main.cpp` |
-| LSP features | `src/ttm/lsp/LspModule.cpp` |
+| The grammar | `src/core/ttm/TtmGrammar.hpp` |
+| The AST | `src/core/ttm/ast.hpp` |
+| Validation checks | `src/core/ttm/validation/` |
+| Services of your own | `src/core/ttm/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/ttm/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

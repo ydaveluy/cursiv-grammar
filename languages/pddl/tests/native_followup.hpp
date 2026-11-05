@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace pddl_followup {
 inline bool run(const pddl::PddlCoreServices& services) {

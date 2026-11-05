@@ -4,9 +4,9 @@
 #include <string>
 #include <string_view>
 
-#include "abb/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "abb/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace abb_tests {
 

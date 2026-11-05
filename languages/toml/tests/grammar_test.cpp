@@ -14,12 +14,12 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "toml/core/CoreServices.hpp"
-#include "toml/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "toml/CoreServices.hpp"
+#include "toml/ast.hpp"
 
 namespace {
 
@@ -55,14 +55,14 @@ int check_test_toml_values(const fs::path& path,
   if (root == nullptr) return fail(path, "no root table");
   const ast::KeyValue* const title = find(*root, "title");
   if (title == nullptr ||
-      std::get<std::string_view>(title->value) != "TOML Example")
+      std::get<std::string>(title->value) != "TOML Example")
     return fail(path, "title did not read back");
 
   const ast::Table* const owner = find(doc, "owner");
   if (owner == nullptr) return fail(path, "no [owner] table");
   const ast::KeyValue* const name = find(*owner, "name");
   if (name == nullptr ||
-      std::get<std::string_view>(name->value) != "Tom Preston-Werner")
+      std::get<std::string>(name->value) != "Tom Preston-Werner")
     return fail(path, "owner.name did not read back");
   const ast::KeyValue* const dob = find(*owner, "dob");
   if (dob == nullptr || !std::holds_alternative<ast::DateTime>(dob->value) ||

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/racketbsl/core/RacketBslGrammar.hpp` |
-| The AST | `src/racketbsl/core/ast.hpp` |
-| Validation checks | `src/racketbsl/core/validation/` |
-| Services of your own | `src/racketbsl/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/racketbsl/cli/main.cpp` |
-| LSP features | `src/racketbsl/lsp/LspModule.cpp` |
+| The grammar | `src/core/racketbsl/RacketBslGrammar.hpp` |
+| The AST | `src/core/racketbsl/ast.hpp` |
+| Validation checks | `src/core/racketbsl/validation/` |
+| Services of your own | `src/core/racketbsl/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/racketbsl/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

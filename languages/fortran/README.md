@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/fortran/core/FortranGrammar.hpp` |
-| The AST | `src/fortran/core/ast.hpp` |
-| Validation checks | `src/fortran/core/validation/` |
-| Services of your own | `src/fortran/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/fortran/cli/main.cpp` |
-| LSP features | `src/fortran/lsp/LspModule.cpp` |
+| The grammar | `src/core/fortran/FortranGrammar.hpp` |
+| The AST | `src/core/fortran/ast.hpp` |
+| Validation checks | `src/core/fortran/validation/` |
+| Services of your own | `src/core/fortran/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/fortran/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

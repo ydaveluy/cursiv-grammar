@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/argus/core/ArgusGrammar.hpp` |
-| The AST | `src/argus/core/ast.hpp` |
-| Validation checks | `src/argus/core/validation/` |
-| Services of your own | `src/argus/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/argus/cli/main.cpp` |
-| LSP features | `src/argus/lsp/LspModule.cpp` |
+| The grammar | `src/core/argus/ArgusGrammar.hpp` |
+| The AST | `src/core/argus/ast.hpp` |
+| Validation checks | `src/core/argus/validation/` |
+| Services of your own | `src/core/argus/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/argus/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

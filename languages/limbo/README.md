@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/limbo/core/LimboGrammar.hpp` |
-| The AST | `src/limbo/core/ast.hpp` |
-| Validation checks | `src/limbo/core/validation/` |
-| Services of your own | `src/limbo/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/limbo/cli/main.cpp` |
-| LSP features | `src/limbo/lsp/LspModule.cpp` |
+| The grammar | `src/core/limbo/LimboGrammar.hpp` |
+| The AST | `src/core/limbo/ast.hpp` |
+| Validation checks | `src/core/limbo/validation/` |
+| Services of your own | `src/core/limbo/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/limbo/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

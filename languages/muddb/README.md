@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/muddb/core/MuddbGrammar.hpp` |
-| The AST | `src/muddb/core/ast.hpp` |
-| Validation checks | `src/muddb/core/validation/` |
-| Services of your own | `src/muddb/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/muddb/cli/main.cpp` |
-| LSP features | `src/muddb/lsp/LspModule.cpp` |
+| The grammar | `src/core/muddb/MuddbGrammar.hpp` |
+| The AST | `src/core/muddb/ast.hpp` |
+| Validation checks | `src/core/muddb/validation/` |
+| Services of your own | `src/core/muddb/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/muddb/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

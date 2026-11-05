@@ -2,10 +2,10 @@
 #include <cstdio>
 #include <string>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "rexx/core/ast.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "rexx/ast.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
 
 inline bool rexx_native_regressions(const auto& language) {
   namespace ast = rexx::ast;

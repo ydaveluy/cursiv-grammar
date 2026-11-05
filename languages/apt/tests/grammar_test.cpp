@@ -7,12 +7,12 @@
 #include <iterator>
 #include <string>
 
-#include "apt/core/CoreServices.hpp"
-#include "apt/core/ast.hpp"
-#include "apt/core/Word.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "apt/CoreServices.hpp"
+#include "apt/ast.hpp"
+#include "apt/Word.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

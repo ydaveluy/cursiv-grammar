@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/capnproto/core/CapnprotoGrammar.hpp` |
-| The AST | `src/capnproto/core/ast.hpp` |
-| Validation checks | `src/capnproto/core/validation/` |
-| Services of your own | `src/capnproto/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/capnproto/cli/main.cpp` |
-| LSP features | `src/capnproto/lsp/LspModule.cpp` |
+| The grammar | `src/core/capnproto/CapnprotoGrammar.hpp` |
+| The AST | `src/core/capnproto/ast.hpp` |
+| Validation checks | `src/core/capnproto/validation/` |
+| Services of your own | `src/core/capnproto/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/capnproto/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

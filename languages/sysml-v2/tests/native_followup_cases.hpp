@@ -2,11 +2,11 @@
 #include <cstdio>
 #include <string>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "sysmlv2/core/CoreServices.hpp"
-#include "sysmlv2/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "sysmlv2/CoreServices.hpp"
+#include "sysmlv2/ast.hpp"
 
 namespace native_followup {
 inline bool run(const sysmlv2::SysmlV2CoreServices& services) {
@@ -26,7 +26,7 @@ inline bool run(const sysmlv2::SysmlV2CoreServices& services) {
       });
     };
     if (r.value) walk(walk, *r.value);
-    return valid && seen.size() == r.nodes.size();
+    return valid && seen.size() == r.nodes().size();
   };
   const auto member = [](const auto& r, std::string_view name) -> const ast::Element* {
     const auto* root = cursiv::ast_cast<ast::RootNamespace>(r.value);

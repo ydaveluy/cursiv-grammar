@@ -1,5 +1,5 @@
 #pragma once
-#include "wln/core/ast.hpp"
+#include "wln/ast.hpp"
 #include <ostream>
 #include <string>
 namespace native_regressions {

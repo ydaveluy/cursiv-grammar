@@ -4,8 +4,8 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/test/ValidationHelper.hpp"
-#include "icalendar/core/Parameters.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "icalendar/Parameters.hpp"
 
 inline int native_regressions(const auto& language) {
   namespace ast = icalendar::ast;

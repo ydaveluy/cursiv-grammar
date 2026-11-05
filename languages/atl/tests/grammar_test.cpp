@@ -8,12 +8,12 @@
 #include <string>
 #include <tuple>
 
-#include "atl/core/CoreServices.hpp"
-#include "atl/core/ast.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "atl/CoreServices.hpp"
+#include "atl/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 #include "assignment_regressions.hpp"
 #include "drop_reverse.hpp"
 
@@ -102,7 +102,7 @@ int main() {
     const auto result = language.language.parser->parse("module M; create OUT: M from IN: M; lazy unique rule R { from x : IN!A to y : OUT!B }");
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) return 1;
     const atl::ast::MatchedRule* declaration = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<atl::ast::MatchedRule>(node)) declaration = value;
     if (!declaration || declaration->modifiers.size() != 2) return 1;
     const auto invalid = cursiv::test::validationHelper(language.language, "module M; create OUT: M from IN: M; lazy lazy rule R { from x : IN!A }");
@@ -208,5 +208,19 @@ int main() {
   }
 
   std::puts("atl: every document parses, field values read back correctly");
+  {
+    const auto parsed = language.language.parser->parse(
+        "module M; create OUT:M from IN:M; abstract lazy rule R { from s:IN!A }");
+    const atl::ast::MatchedRule* matched = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* value = cursiv::ast_cast<atl::ast::MatchedRule>(node))
+        matched = value;
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !matched ||
+        matched->modifiers.size() != 2 || matched->modifiers[0] != "abstract" ||
+        matched->modifiers[1] != "lazy")
+      return fail("matched rule modifiers retain both values and their order");
+  }
+
   return 0;
 }

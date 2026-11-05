@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/corundum/core/CorundumGrammar.hpp` |
-| The AST | `src/corundum/core/ast.hpp` |
-| Validation checks | `src/corundum/core/validation/` |
-| Services of your own | `src/corundum/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/corundum/cli/main.cpp` |
-| LSP features | `src/corundum/lsp/LspModule.cpp` |
+| The grammar | `src/core/corundum/CorundumGrammar.hpp` |
+| The AST | `src/core/corundum/ast.hpp` |
+| Validation checks | `src/core/corundum/validation/` |
+| Services of your own | `src/core/corundum/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/corundum/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

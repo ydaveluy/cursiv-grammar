@@ -2,7 +2,7 @@
 
 #include <cstdio>
 #include <string>
-#include "spass/core/ast.hpp"
+#include "spass/ast.hpp"
 
 inline std::string plain_problem(std::string_view clause, std::string_view kind = "cnf") {
   return "begin_problem(plain).\nlist_of_descriptions.\n"
@@ -60,7 +60,7 @@ inline int check_plain_clauses(const auto& language) {
     if (!clause || !clause->plain || clause->isDnf || list->isDnf ||
         clause->vars || !clause->literals.empty() || clause->parent != entry)
       return 1;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (node != parsed.value && !node->parent) return 1;
     for (const auto* item : clause->antecedent)
       if (!item || item->parent != clause) return 1;

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/desktopentry/core/DesktopEntryGrammar.hpp` |
-| The AST | `src/desktopentry/core/ast.hpp` |
-| Validation checks | `src/desktopentry/core/validation/` |
-| Services of your own | `src/desktopentry/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/desktopentry/cli/main.cpp` |
-| LSP features | `src/desktopentry/lsp/LspModule.cpp` |
+| The grammar | `src/core/desktopentry/DesktopEntryGrammar.hpp` |
+| The AST | `src/core/desktopentry/ast.hpp` |
+| Validation checks | `src/core/desktopentry/validation/` |
+| Services of your own | `src/core/desktopentry/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/desktopentry/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

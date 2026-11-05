@@ -1,10 +1,10 @@
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
 #include "integer_cases.hpp"
-#include "pike/core/CoreServices.hpp"
-#include "pike/core/Integer.hpp"
+#include "pike/CoreServices.hpp"
+#include "pike/Integer.hpp"
 #include "pike/generated/Pike/Module.hpp"
 #include <cstdio>
 #include <fstream>
@@ -44,7 +44,7 @@ int main() {
           });
     };
     walk(walk, *r.value);
-    if (!owned || seen.size() != r.nodes.size() || !literal ||
+    if (!owned || seen.size() != r.nodes().size() || !literal ||
         literal->value != c.raw)
       return 1;
     const auto value = pike::integer_value(literal->value);

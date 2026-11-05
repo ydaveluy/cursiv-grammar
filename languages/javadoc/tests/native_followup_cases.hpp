@@ -2,12 +2,12 @@
 #include <cstdio>
 #include <string_view>
 #include <variant>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "javadoc/core/Content.hpp"
-#include "javadoc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "javadoc/Content.hpp"
+#include "javadoc/ast.hpp"
 namespace javadoc_native_followup {
 template<class Language> bool run(const Language& language) {
   bool ok = true;

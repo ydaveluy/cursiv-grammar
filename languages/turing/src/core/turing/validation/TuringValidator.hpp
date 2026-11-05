@@ -1,0 +1,25 @@
+// The checks of this language: what the grammar accepts but the language
+// does not.
+#pragma once
+
+#include "cursiv/services/DefaultCoreService.hpp"
+#include "cursiv/validation/ValidationAcceptor.hpp"
+#include "turing/ast.hpp"
+
+namespace turing {
+
+class TuringValidator final : public cursiv::DefaultCoreService {
+ public:
+  using cursiv::DefaultCoreService::DefaultCoreService;
+
+  void checkCaseLabels(const ast::CaseStmt&, cursiv::ValidationAcceptor&) const;
+  void checkEnumNames(const ast::EnumType&, cursiv::ValidationAcceptor&) const;
+
+  void checkSubprogramEndNameMatches(const ast::SubprogramDecl& subprogram,
+                                     cursiv::ValidationAcceptor& accept) const;
+};
+
+struct TuringCoreServices;
+void register_validation_checks(TuringCoreServices& services);
+
+}  // namespace turing

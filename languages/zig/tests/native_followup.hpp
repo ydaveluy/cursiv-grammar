@@ -2,10 +2,10 @@
 #include <cstdio>
 #include <string>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "zig/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "zig/ast.hpp"
 namespace zig_native_followup {
 template<class Services> bool run(const Services& services) {
   namespace ast=zig::ast;
@@ -38,14 +38,14 @@ template<class Services> bool run(const Services& services) {
   }
   const auto variadic=parser.parse("extern fn f(\n /// rest arguments\n ...\n) void;");
   bool documented=false;
-  for(const auto* node:variadic.nodes)if(const auto* param=cursiv::ast_cast<ast::ParamDecl>(node))
+  for(const auto* node:variadic.nodes())if(const auto* param=cursiv::ast_cast<ast::ParamDecl>(node))
     documented|=param->variadic&&param->docComment&&param->docComment->find("rest arguments")!=std::string_view::npos;
   if(!variadic.accepted||variadic.cst().recovered()||!variadic.diagnostics.empty()||!documented){
     std::fprintf(stderr,"zig: variadic parameter documentation lost\n");return false;
   }
   const auto r=parser.parse(R"Z(const @"return"="\x00\u{1f600}"; const c='😀';)Z");
   bool name=false,string=false,character=false;
-  for(const auto* node:r.nodes){
+  for(const auto* node:r.nodes()){
     if(const auto* n=cursiv::ast_cast<ast::VarDeclProto>(node))name|=n->name==R"Z(@"return")Z";
     if(const auto* n=cursiv::ast_cast<ast::StringLiteral>(node))string|=n->text==R"Z("\x00\u{1f600}")Z";
     if(const auto* n=cursiv::ast_cast<ast::CharLiteral>(node))character|=n->text=="'😀'";

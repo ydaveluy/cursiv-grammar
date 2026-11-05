@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/unrealangelscript/core/UnrealAngelscriptGrammar.hpp` |
-| The AST | `src/unrealangelscript/core/ast.hpp` |
-| Validation checks | `src/unrealangelscript/core/validation/` |
-| Services of your own | `src/unrealangelscript/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/unrealangelscript/cli/main.cpp` |
-| LSP features | `src/unrealangelscript/lsp/LspModule.cpp` |
+| The grammar | `src/core/unrealangelscript/UnrealAngelscriptGrammar.hpp` |
+| The AST | `src/core/unrealangelscript/ast.hpp` |
+| Validation checks | `src/core/unrealangelscript/validation/` |
+| Services of your own | `src/core/unrealangelscript/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/unrealangelscript/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

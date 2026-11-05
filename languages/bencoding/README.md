@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/bencoding/core/BencodingGrammar.hpp` |
-| The AST | `src/bencoding/core/ast.hpp` |
-| Validation checks | `src/bencoding/core/validation/` |
-| Services of your own | `src/bencoding/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/bencoding/cli/main.cpp` |
-| LSP features | `src/bencoding/lsp/LspModule.cpp` |
+| The grammar | `src/core/bencoding/BencodingGrammar.hpp` |
+| The AST | `src/core/bencoding/ast.hpp` |
+| Validation checks | `src/core/bencoding/validation/` |
+| Services of your own | `src/core/bencoding/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/bencoding/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -2,8 +2,8 @@
 #include <cstdio>
 #include <string>
 #include <variant>
-#include "cursiv/core/parser/Parser.hpp"
-#include "moo/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "moo/ast.hpp"
 
 namespace moo_native {
 inline bool run(const cursiv::Parser& parser) {
@@ -50,7 +50,7 @@ do = 1;
   bool object = false, multiply = false, unequal = false, membership = false;
   bool literalBase = false, functionStatement = false, branches = false;
   bool range = false, named = false, handlers = false, cleanup = false, softDo = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* n = cursiv::ast_cast<ObjRef>(node)) object = object || n->text == "#-1";
     if (const auto* n = cursiv::ast_cast<BinaryExpr>(node)) {
       multiply = multiply || n->op == Operator::multiply;

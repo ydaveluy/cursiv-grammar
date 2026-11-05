@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/objc/core/ObjcGrammar.hpp` |
-| The AST | `src/objc/core/ast.hpp` |
-| Validation checks | `src/objc/core/validation/` |
-| Services of your own | `src/objc/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/objc/cli/main.cpp` |
-| LSP features | `src/objc/lsp/LspModule.cpp` |
+| The grammar | `src/core/objc/ObjcGrammar.hpp` |
+| The AST | `src/core/objc/ast.hpp` |
+| Validation checks | `src/core/objc/validation/` |
+| Services of your own | `src/core/objc/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/objc/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

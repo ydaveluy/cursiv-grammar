@@ -3,10 +3,10 @@
 #include <initializer_list>
 #include <string>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "csharp/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "csharp/ast.hpp"
 namespace csharp_raw_layout {
 inline void run(const auto& language) {
   struct Case { const char* source; const char* literal; bool valid; };
@@ -58,7 +58,7 @@ inline void run(const auto& language) {
       }
     }
     std::size_t literals = 0;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* literal = cursiv::ast_cast<csharp::ast::LiteralExpr>(node)) {
         ++literals;
         CHECK(literal->text == test.literal);
@@ -75,7 +75,7 @@ inline void run(const auto& language) {
     };
     CHECK(parsed.value && !parsed.value->parent);
     if (parsed.value) visit(visit, *parsed.value);
-    CHECK(visited.size() == parsed.nodes.size());
+    CHECK(visited.size() == parsed.nodes().size());
   }
 }
 }  // namespace csharp_raw_layout

@@ -4,11 +4,11 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "sparql/core/CoreServices.hpp"
-#include "sparql/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "sparql/CoreServices.hpp"
+#include "sparql/ast.hpp"
 #include "sparql/generated/Sparql/Module.hpp"
 
 namespace audit_regressions {

@@ -4,11 +4,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "datalog/core/CoreServices.hpp"
-#include "datalog/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "datalog/CoreServices.hpp"
+#include "datalog/ast.hpp"
 
 inline int datalog_regressions(const cursiv::CoreServices& services) {
   namespace ast = datalog::ast;

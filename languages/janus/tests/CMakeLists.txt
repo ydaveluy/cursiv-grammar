@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every example parses, and a handful of shapes are pinned.
 add_executable(janus_grammar_test grammar_test.cpp)
-target_link_libraries(janus_grammar_test PRIVATE janusCore)
+target_link_libraries(janus_grammar_test PRIVATE janusCore cursiv::test)
 target_compile_definitions(janus_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

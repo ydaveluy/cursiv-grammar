@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/tcpheader/core/TcpheaderGrammar.hpp` |
-| The AST | `src/tcpheader/core/ast.hpp` |
-| Validation checks | `src/tcpheader/core/validation/` |
-| Services of your own | `src/tcpheader/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/tcpheader/cli/main.cpp` |
-| LSP features | `src/tcpheader/lsp/LspModule.cpp` |
+| The grammar | `src/core/tcpheader/TcpheaderGrammar.hpp` |
+| The AST | `src/core/tcpheader/ast.hpp` |
+| Validation checks | `src/core/tcpheader/validation/` |
+| Services of your own | `src/core/tcpheader/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/tcpheader/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

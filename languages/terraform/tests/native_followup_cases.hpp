@@ -2,11 +2,11 @@
 #include <cstdio>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "terraform/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "terraform/ast.hpp"
 namespace terraform_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace a = terraform::ast;
@@ -28,7 +28,7 @@ TAG-name
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && valid.diagnostics.empty(),
         "native multiline body, expansion, legacy index and padded heredoc delimiter validate clean");
   bool call = false, index = false, heredoc = false;
-  for (const auto* node : r.nodes) {
+  for (const auto* node : r.nodes()) {
     if (const auto* p = cursiv::ast_cast<a::FuncCall>(node)) call |= p->expandFinal && p->args.size() == 1;
     if (const auto* p = cursiv::ast_cast<a::IndexExpr>(node))
       if (const auto* n = cursiv::ast_cast<a::NumberLit>(p->index)) index |= n->text == "0";
@@ -47,7 +47,7 @@ TAG-name
           });
     };
     walk(walk, *r.value);
-    check(owned && seen.size() == r.nodes.size(), "complete AST ownership");
+    check(owned && seen.size() == r.nodes().size(), "complete AST ownership");
   }
   struct Invalid { const char* source; const char* code; };
   for (const auto& c : {

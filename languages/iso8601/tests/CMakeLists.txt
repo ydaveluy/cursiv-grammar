@@ -6,7 +6,7 @@ endif()
 # The grammar itself: every file of example/ parses clean and builds a
 # Document.
 add_executable(iso8601_grammar_test grammar_test.cpp)
-target_link_libraries(iso8601_grammar_test PRIVATE iso8601Core)
+target_link_libraries(iso8601_grammar_test PRIVATE iso8601Core cursiv::test)
 target_compile_definitions(iso8601_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example")
 add_test(NAME iso8601_grammar_test COMMAND iso8601_grammar_test)

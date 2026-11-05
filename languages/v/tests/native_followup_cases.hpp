@@ -3,8 +3,8 @@
 #include <string_view>
 #include <string>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "v/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "v/ast.hpp"
 
 namespace v_followup {
 template<class Language> bool run(const Language& language) {
@@ -297,7 +297,7 @@ pub fn f(mut p []int) {
       fn->signature->params[0]->mut && fn->signature->params[0]->names.size() == 1 &&
       fn->signature->params[0]->names[0] == "p" && fn->body && fn->body->stmts.size() == 9;
   bool rune = false, raw = false, yes = false, no = false, none = false, nil = false, range = false, label = false, precedence = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* n = cursiv::ast_cast<ast::RuneLit>(node)) rune |= n->text == "`α`";
     if (const auto* n = cursiv::ast_cast<ast::StringLit>(node)) raw |= n->text == R"TXT(r'a\b')TXT";
     if (const auto* n = cursiv::ast_cast<ast::BoolLit>(node)) { yes |= n->value; no |= !n->value; }
@@ -331,9 +331,9 @@ pub fn f(mut p []int) {
   if (result.value) walk(walk, *result.value);
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
       !values || !rune || !raw || !yes || !no || !none || !nil || !range || !label || !precedence ||
-      !owned || seen.size() != result.nodes.size()) {
+      !owned || seen.size() != result.nodes().size()) {
     std::fprintf(stderr, "V native AST values=%d rune=%d raw=%d bool=%d/%d none/nil=%d/%d range=%d label=%d precedence=%d owned=%d nodes=%zu/%zu\n",
-        values,rune,raw,yes,no,none,nil,range,label,precedence,owned,seen.size(),result.nodes.size());
+        values,rune,raw,yes,no,none,nil,range,label,precedence,owned,seen.size(),result.nodes().size());
     ok = false;
   }
 

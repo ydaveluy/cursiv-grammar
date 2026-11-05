@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/scotty/core/ScottyGrammar.hpp` |
-| The AST | `src/scotty/core/ast.hpp` |
-| Validation checks | `src/scotty/core/validation/` |
-| Services of your own | `src/scotty/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/scotty/cli/main.cpp` |
-| LSP features | `src/scotty/lsp/LspModule.cpp` |
+| The grammar | `src/core/scotty/ScottyGrammar.hpp` |
+| The AST | `src/core/scotty/ast.hpp` |
+| Validation checks | `src/core/scotty/validation/` |
+| Services of your own | `src/core/scotty/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/scotty/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -2,8 +2,8 @@
 #include <cstdio>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "trapc/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "trapc/ast.hpp"
 
 namespace trapc_followup {
 template <class Language> bool run(const Language& language) {
@@ -54,7 +54,7 @@ int f(void) { static_assert(1,"yes"); double h=0x1p2; unsigned char c=u8'a'; ret
   namespace ast = trapc::ast;
   unsigned assertions = 0;
   bool underlying = false, hex = false, character = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (cursiv::ast_cast<ast::StaticAssertItem>(node)) ++assertions;
     if (const auto* e = cursiv::ast_cast<ast::EnumType>(node)) {
       const auto* type = e->underlying ? cursiv::ast_cast<ast::BuiltinType>(e->underlying->type) : nullptr;
@@ -74,14 +74,14 @@ int f(void) { static_assert(1,"yes"); double h=0x1p2; unsigned char c=u8'a'; ret
         });
   };
   if (result.value) walk(walk, *result.value);
-  if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || assertions != 2 || !underlying || !hex || !character || !owned || seen.size() != result.nodes.size()) {
+  if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || assertions != 2 || !underlying || !hex || !character || !owned || seen.size() != result.nodes().size()) {
     std::fprintf(stderr, "trapc: C23 source captures assertions=%u enum=%d hex=%d char=%d owned=%d\n", assertions, underlying, hex, character, owned);
     ok = false;
   }
   // The proposal's trap syntax is separate from the common-C compiler oracle.
   const auto trap = language.language.parser->parse("int f(void) { int x=1; trap { return 1; } return x; }");
   bool body = false;
-  for (const auto* node : trap.nodes)
+  for (const auto* node : trap.nodes())
     if (const auto* t = cursiv::ast_cast<ast::TrapStmt>(node)) body |= t->body && t->body->parent == t;
   if (!trap.accepted || trap.cst().recovered() || !trap.diagnostics.empty() || !body) {
     std::fprintf(stderr, "trapc: proposal trap block AST\n");

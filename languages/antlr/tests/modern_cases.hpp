@@ -1,8 +1,8 @@
 #pragma once
-#include "antlr/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
+#include "antlr/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
 #include <cstdio>
 #include <iterator>
 #include <string>
@@ -179,10 +179,10 @@ template <class Language> bool modern_cases(const Language &language) {
                    entry.name.data());
     check(clean, "native syntax form parses without repair");
     std::unordered_set<const cursiv::AstNode *> nodes;
-    for (auto node : result.nodes)
+    for (auto node : result.nodes())
       nodes.insert(node);
     bool parents = true;
-    for (auto node : result.nodes)
+    for (auto node : result.nodes())
       if (node != result.value &&
           (!node->parent || !nodes.contains(node->parent)))
         parents = false;

@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "rego/core/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "rego/CoreServices.hpp"
 #include "rego/generated/Rego/Module.hpp"
 namespace code_audit {
 namespace ast = rego::ast;
@@ -159,7 +159,7 @@ p if {
       std::vector<std::string_view> values;
       visit(r.value, [&](const auto* n) {
         if (const auto* v = cursiv::ast_cast<ast::ScalarTerm>(n))
-          if (const auto* s = std::get_if<std::string_view>(&v->value))
+          if (const auto* s = std::get_if<std::string>(&v->value))
             values.push_back(*s);
       });
       check(values.size() == 2 && values[0] == "\xf0\x9f\x98\x80" &&

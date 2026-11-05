@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/vba/core/VbaGrammar.hpp` |
-| The AST | `src/vba/core/ast.hpp` |
-| Validation checks | `src/vba/core/validation/` |
-| Services of your own | `src/vba/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/vba/cli/main.cpp` |
-| LSP features | `src/vba/lsp/LspModule.cpp` |
+| The grammar | `src/core/vba/VbaGrammar.hpp` |
+| The AST | `src/core/vba/ast.hpp` |
+| Validation checks | `src/core/vba/validation/` |
+| Services of your own | `src/core/vba/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/vba/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

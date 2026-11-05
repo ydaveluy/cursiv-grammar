@@ -6,16 +6,16 @@
 
 #include <memory>
 #include "native_cases.hpp"
-#include "amazonstateslanguageintrinsicfunctions/core/CoreServices.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
+#include "amazonstateslanguageintrinsicfunctions/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
 #include <string>
 
-#include "cursiv/test/Check.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "amazonstateslanguageintrinsicfunctions/core/ast.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "amazonstateslanguageintrinsicfunctions/ast.hpp"
 #include "amazonstateslanguageintrinsicfunctions/generated/AmazonStatesLanguageIntrinsicFunctions/Module.hpp"
 
 namespace {

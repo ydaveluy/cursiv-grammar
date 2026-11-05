@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID star
-    GRAMMAR    star/core/StarGrammar.hpp
+    GRAMMAR    star/StarGrammar.hpp
     NAMESPACE  star::Star
     EXTENSIONS .star
     OUT        star/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/star/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(starCore ${_core})
 target_link_libraries(starCore PUBLIC starGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/star/cli/*.cpp)
-if(_cli)
-  add_executable(star_cli ${_cli})
-  target_link_libraries(star_cli
-                        PRIVATE starCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(star_cli cli.cpp)
+  target_include_directories(star_cli PRIVATE cli)
+  target_link_libraries(star_cli PRIVATE starCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(starCli ${_cli})
+    target_include_directories(starCli PUBLIC cli)
+    target_link_libraries(starCli PUBLIC starCore cursiv::cli)
+    target_link_libraries(star_cli PRIVATE starCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/star/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/star/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/star/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(starLsp ${_lsp})
+  target_include_directories(starLsp PUBLIC lsp)
   target_link_libraries(starLsp PUBLIC starCore cursiv::lsp)
-  add_executable(star_lsp star/lsp/main.cpp)
-  target_link_libraries(star_lsp PRIVATE starLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(star_lsp lsp.cpp)
+    target_link_libraries(star_lsp PRIVATE starLsp)
+  endif()
 endif()
 
-if(TARGET starLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/star/bench/main.cpp")
-  cursiv_add_benchmark(star
-      SOURCES star/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET starLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(star SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(star)

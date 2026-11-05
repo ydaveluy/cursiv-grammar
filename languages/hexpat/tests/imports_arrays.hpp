@@ -4,9 +4,9 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "hexpat/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "hexpat/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace hexpat_imports_arrays {
 inline bool run(const auto& language) {
@@ -60,7 +60,7 @@ namespace normal {
         "namespace auto marker and qualified name survive independently");
   bool memberArray = false, memberEmpty = false, localArray = false, localEmpty = false;
   bool unionArray = false, unionEmpty = false, unionUninit = false, unionScalar = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* declaration = cursiv::ast_cast<a::StructMemberDeclarator>(node)) {
       const auto* init = cursiv::ast_cast<a::ArrayInitializer>(declaration->init);
       if (declaration->name == "values") {
@@ -115,7 +115,7 @@ namespace normal {
           });
     };
     walk(walk, *parsed.value);
-    return valid && seen.size() == parsed.nodes.size();
+    return valid && seen.size() == parsed.nodes().size();
   };
   check(owned(result), "all path/namespace/array children have unique parents and CST ownership");
   for (const auto source : {

@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "python/core/CoreServices.hpp"
-#include "python/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "python/CoreServices.hpp"
+#include "python/ast.hpp"
 // The smoke test of the language: every file in example/ parses clean and
 // builds a Module.
 
@@ -15,9 +15,9 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace {
 
@@ -98,7 +98,7 @@ static int audit_regression() {
   {
     const auto r = language.language.parser->parse("match x:\n case [a,*_]: pass\n");
     const python::ast::MatchStar *star = nullptr;
-    for (const auto *node : r.nodes)
+    for (const auto *node : r.nodes())
       if (const auto *p = cursiv::ast_cast<python::ast::MatchStar>(node)) star = p;
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         !star || !star->name.empty()) return 1;
@@ -106,7 +106,7 @@ static int audit_regression() {
   {
     const auto r = language.language.parser->parse("x=f\"{a:=1}\"\n");
     const python::ast::ReplField *field = nullptr;
-    for (const auto *node : r.nodes)
+    for (const auto *node : r.nodes())
       if (const auto *p = cursiv::ast_cast<python::ast::ReplField>(node)) field = p;
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || !field ||
         !cursiv::ast_cast<python::ast::Name>(field->value) || field->formatSpec.size() != 1)
@@ -153,7 +153,7 @@ match value:
       return 1;
     unsigned escaped = 0, strings = 0, raw = 0, named = 0, formats = 0,
              bases = 0, defaults = 0, mappings = 0;
-    for (const auto *node : result.nodes) {
+    for (const auto *node : result.nodes()) {
       if (const auto *str = cursiv::ast_cast<python::ast::Str>(node))
         escaped += str->text == "'''a\\'''b'''";
       if (const auto *str = cursiv::ast_cast<python::ast::IStr>(node)) {

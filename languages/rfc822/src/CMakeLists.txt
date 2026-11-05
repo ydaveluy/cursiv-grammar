@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID rfc822
-    GRAMMAR    rfc822/core/Rfc822Grammar.hpp
+    GRAMMAR    rfc822/Rfc822Grammar.hpp
     NAMESPACE  rfc822::Rfc822
     EXTENSIONS .rfc822
     OUT        rfc822/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/rfc822/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(rfc822Core ${_core})
 target_link_libraries(rfc822Core PUBLIC rfc822Generated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/rfc822/cli/*.cpp)
-if(_cli)
-  add_executable(rfc822_cli ${_cli})
-  target_link_libraries(rfc822_cli
-                        PRIVATE rfc822Core cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(rfc822_cli cli.cpp)
+  target_include_directories(rfc822_cli PRIVATE cli)
+  target_link_libraries(rfc822_cli PRIVATE rfc822Core cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(rfc822Cli ${_cli})
+    target_include_directories(rfc822Cli PUBLIC cli)
+    target_link_libraries(rfc822Cli PUBLIC rfc822Core cursiv::cli)
+    target_link_libraries(rfc822_cli PRIVATE rfc822Cli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/rfc822/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/rfc822/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/rfc822/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(rfc822Lsp ${_lsp})
+  target_include_directories(rfc822Lsp PUBLIC lsp)
   target_link_libraries(rfc822Lsp PUBLIC rfc822Core cursiv::lsp)
-  add_executable(rfc822_lsp rfc822/lsp/main.cpp)
-  target_link_libraries(rfc822_lsp PRIVATE rfc822Lsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(rfc822_lsp lsp.cpp)
+    target_link_libraries(rfc822_lsp PRIVATE rfc822Lsp)
+  endif()
 endif()
 
-if(TARGET rfc822Lsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rfc822/bench/main.cpp")
-  cursiv_add_benchmark(rfc822
-      SOURCES rfc822/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET rfc822Lsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(rfc822 SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(rfc822)

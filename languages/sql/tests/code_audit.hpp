@@ -4,11 +4,11 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "sqlite/core/CoreServices.hpp"
-#include "sqlite/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "sqlite/CoreServices.hpp"
+#include "sqlite/ast.hpp"
 namespace code_audit {
 namespace ast = sqlite::ast;
 inline bool run() {
@@ -42,7 +42,7 @@ inline bool run() {
               });
         };
     walk(r.value, nullptr);
-    check(reached.size() == r.nodes.size(),
+    check(reached.size() == r.nodes().size(),
           "every allocated AST node is reachable");
     return r;
   };

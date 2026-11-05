@@ -8,11 +8,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "gvpr/core/CoreServices.hpp"
-#include "gvpr/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "gvpr/CoreServices.hpp"
+#include "gvpr/ast.hpp"
 
 namespace {
 
@@ -63,7 +63,7 @@ int main() {
       return 1;
     }
     bool found = false;
-    for (const auto* node : audit_result.nodes)
+    for (const auto* node : audit_result.nodes())
       if (const auto* d = cursiv::ast_cast<gvpr::ast::DclItem>(node)) found = d->name == "x" && d->initOp.has_value() && *d->initOp == gvpr::ast::AssignOp::set;
     if (!found) return 1;
   }
@@ -198,7 +198,7 @@ int main() {
     bool array=false, cardinality=false, empty=false, shift=false, void_formals=false;
     unsigned compounds=0;
     bool empty_string=false, single_string=false, identity_escape=false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* literal=cursiv::ast_cast<ast::StringLit>(node)) {
         empty_string |= literal->text == "''";
         single_string |= literal->text == "'hello'";

@@ -5,10 +5,10 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "fortran/core/ast.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "fortran/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include "source_form_cases.hpp"
 
 namespace fortran_source {
@@ -43,7 +43,7 @@ inline bool parents(const auto& language, const cursiv::ParseResult& result) {
         });
   };
   visit(visit, *result.value);
-  return valid && seen.size() == result.nodes.size();
+  return valid && seen.size() == result.nodes().size();
 }
 
 inline bool run(const auto& language) {

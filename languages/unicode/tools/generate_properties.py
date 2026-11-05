@@ -6,7 +6,7 @@ import re
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[1] /
-                    "src/graphemes/core/GraphemeProperties.hpp")
+                    "src/core/graphemes/GraphemeProperties.hpp")
 output = parser.parse_args().output
 library = ctypes.util.find_library("icuuc")
 if not library:
@@ -68,7 +68,7 @@ def spelling(point):
     return "\\\\u%04X" % point if point <= 0xFFFF else "\\U%08X" % point
 
 
-lines = ["#pragma once", "", '#include "cursiv/core/grammar/expr.hpp"', "",
+lines = ["#pragma once", "", '#include "cursiv/grammar/expr.hpp"', "",
          "namespace graphemes::properties {",
          f"// Generated from ICU {version('u_getVersion')} / Unicode {version('u_getUnicodeVersion')} property values."]
 for name, spans in ranges.items():

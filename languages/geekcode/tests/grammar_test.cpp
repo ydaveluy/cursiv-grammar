@@ -8,15 +8,15 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "geekcode/core/CoreServices.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "geekcode/core/ast.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "geekcode/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "geekcode/ast.hpp"
 #include "geekcode/generated/Geekcode/Module.hpp"
 
 namespace {

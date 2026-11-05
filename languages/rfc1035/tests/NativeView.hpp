@@ -1,8 +1,8 @@
 #pragma once
 
-#include "rfc1035/core/ast.hpp"
-#include "rfc1035/core/Label.hpp"
-#include "cursiv/core/services/JsonValue.hpp"
+#include "rfc1035/ast.hpp"
+#include "rfc1035/Label.hpp"
+#include "cursiv/services/JsonValue.hpp"
 
 inline cursiv::JsonValue native_view(const rfc1035::ast::Domain& domain) {
   using J = cursiv::JsonValue;

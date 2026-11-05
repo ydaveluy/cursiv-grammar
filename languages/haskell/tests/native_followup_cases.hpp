@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdio>
 #include <string>
-#include "cursiv/core/parser/Parser.hpp"
-#include "haskell/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "haskell/ast.hpp"
 
 namespace haskell_native_followup {
 inline bool run(const cursiv::Parser& parser) {
@@ -43,7 +43,7 @@ inline bool run(const cursiv::Parser& parser) {
           module->exports.size() == 2 && module->exports[0]->name == "Data.List.map" &&
           module->exports[1]->name == "(Data.List.++)", "qualified export spellings");
     bool role = false, visible = false, options = false, inlinePragma = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* declaration = cursiv::ast_cast<haskell::ast::RoleDecl>(node)) {
         const auto* name = cursiv::ast_cast<haskell::ast::TyCon>(declaration->header);
         role |= name && name->name == "T" && declaration->roles.size() == 2 &&

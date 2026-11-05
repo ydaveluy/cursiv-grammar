@@ -1,7 +1,7 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "lrc/core/Time.hpp"
-#include "lrc/core/ast.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "lrc/Time.hpp"
+#include "lrc/ast.hpp"
 #include <algorithm>
 using J = cursiv::JsonValue;
 inline J lyric_view(const lrc::ast::Document &doc) {

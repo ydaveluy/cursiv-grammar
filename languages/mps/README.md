@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/mps/core/MpsGrammar.hpp` |
-| The AST | `src/mps/core/ast.hpp` |
-| Validation checks | `src/mps/core/validation/` |
-| Services of your own | `src/mps/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/mps/cli/main.cpp` |
-| LSP features | `src/mps/lsp/LspModule.cpp` |
+| The grammar | `src/core/mps/MpsGrammar.hpp` |
+| The AST | `src/core/mps/ast.hpp` |
+| Validation checks | `src/core/mps/validation/` |
+| Services of your own | `src/core/mps/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/mps/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

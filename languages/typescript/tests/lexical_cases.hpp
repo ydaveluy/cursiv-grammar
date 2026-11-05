@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "typescript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "typescript/ast.hpp"
 
 inline bool typescript_lexical_cases(const cursiv::Parser& parser) {
   namespace ast = typescript::ast;

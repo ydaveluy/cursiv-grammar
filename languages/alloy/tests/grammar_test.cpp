@@ -9,13 +9,13 @@
 #include <string_view>
 #include <vector>
 
-#include "alloy/core/CoreServices.hpp"
-#include "alloy/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "alloy/CoreServices.hpp"
+#include "alloy/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace {
 
@@ -253,7 +253,7 @@ int main() {
                                                 alloy::install_core_module>();
   for (const char* source : {"sigÉ {}", "sig$Name {}", "sig\"Name {}"}) {
     const auto result = engine().parse(source);
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (cursiv::ast_cast<ast::SigDecl>(node))
         return fail("keyword split the beginning of a native identifier");
     // The permissive command grammar preserves malformed top-level names;

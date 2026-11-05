@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "wkt/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "wkt/ast.hpp"
 #include "wkt/generated/Wkt/Module.hpp"
 #include <cstdio>
 #include <string>

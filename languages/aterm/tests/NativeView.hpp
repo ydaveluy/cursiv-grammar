@@ -1,7 +1,7 @@
 #pragma once
-#include "aterm/core/Value.hpp"
-#include "cursiv/core/services/JsonValue.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
+#include "aterm/Value.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
 #include <bit>
 #include <charconv>
 #include <cstdio>

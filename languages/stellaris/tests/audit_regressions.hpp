@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "stellaris/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "stellaris/ast.hpp"
 #include "stellaris/generated/Stellaris/Module.hpp"
 #include <cstdio>
 #include <string>

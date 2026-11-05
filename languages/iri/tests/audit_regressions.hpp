@@ -2,13 +2,13 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/Check.hpp"
-#include "iri/core/CoreServices.hpp"
-#include "iri/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/Check.hpp"
+#include "iri/CoreServices.hpp"
+#include "iri/ast.hpp"
 
 namespace audit_regressions {
 inline void run() {
@@ -35,7 +35,7 @@ inline void run() {
     if (root && root->authority)
       CHECK(root->authority->raw ==
             std::string_view(source).substr(4, source.size() - 7));
-    CHECK(result.nodes.size() == 2);
+    CHECK(result.nodes().size() == 2);
     std::vector<cursiv::Diagnostic> diagnostics;
     language.language.documentValidator->validateDocument(document,
                                                           diagnostics);

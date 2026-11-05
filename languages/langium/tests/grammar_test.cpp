@@ -10,11 +10,11 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "langium/core/CoreServices.hpp"
-#include "langium/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "langium/CoreServices.hpp"
+#include "langium/ast.hpp"
 
 namespace {
 
@@ -51,7 +51,7 @@ int main() {
       return 1;
     }
     bool full = false, first = false;
-    for (const auto* node : audit_result.nodes)
+    for (const auto* node : audit_result.nodes())
       if (const auto* k = cursiv::ast_cast<langium::ast::Keyword>(node)) {
         full = full || k->predicate == "=>";
         first = first || k->predicate == "->";

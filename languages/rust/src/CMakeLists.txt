@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID rust
-    GRAMMAR    rust/core/RustGrammar.hpp
+    GRAMMAR    rust/RustGrammar.hpp
     NAMESPACE  rust::Rust
     EXTENSIONS .rs
     OUT        rust/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/rust/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(rustCore ${_core})
 target_link_libraries(rustCore PUBLIC rustGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/rust/cli/*.cpp)
-if(_cli)
-  add_executable(rust_cli ${_cli})
-  target_link_libraries(rust_cli
-                        PRIVATE rustCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(rust_cli cli.cpp)
+  target_include_directories(rust_cli PRIVATE cli)
+  target_link_libraries(rust_cli PRIVATE rustCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(rustCli ${_cli})
+    target_include_directories(rustCli PUBLIC cli)
+    target_link_libraries(rustCli PUBLIC rustCore cursiv::cli)
+    target_link_libraries(rust_cli PRIVATE rustCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/rust/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/rust/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/rust/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(rustLsp ${_lsp})
+  target_include_directories(rustLsp PUBLIC lsp)
   target_link_libraries(rustLsp PUBLIC rustCore cursiv::lsp)
-  add_executable(rust_lsp rust/lsp/main.cpp)
-  target_link_libraries(rust_lsp PRIVATE rustLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(rust_lsp lsp.cpp)
+    target_link_libraries(rust_lsp PRIVATE rustLsp)
+  endif()
 endif()
 
-if(TARGET rustLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rust/bench/main.cpp")
-  cursiv_add_benchmark(rust
-      SOURCES rust/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET rustLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(rust SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(rust)

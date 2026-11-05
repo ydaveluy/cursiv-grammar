@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/pegen/core/PegenGrammar.hpp` |
-| The AST | `src/pegen/core/ast.hpp` |
-| Validation checks | `src/pegen/core/validation/` |
-| Services of your own | `src/pegen/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/pegen/cli/main.cpp` |
-| LSP features | `src/pegen/lsp/LspModule.cpp` |
+| The grammar | `src/core/pegen/PegenGrammar.hpp` |
+| The AST | `src/core/pegen/ast.hpp` |
+| Validation checks | `src/core/pegen/validation/` |
+| Services of your own | `src/core/pegen/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/pegen/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

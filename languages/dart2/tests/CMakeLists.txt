@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every document under example/ parses clean.
 add_executable(dart2_grammar_test grammar_test.cpp)
-target_link_libraries(dart2_grammar_test PRIVATE dart2Core)
+target_link_libraries(dart2_grammar_test PRIVATE dart2Core cursiv::test)
 target_compile_definitions(dart2_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

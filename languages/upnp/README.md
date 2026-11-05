@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/upnp/core/UpnpGrammar.hpp` |
-| The AST | `src/upnp/core/ast.hpp` |
-| Validation checks | `src/upnp/core/validation/` |
-| Services of your own | `src/upnp/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/upnp/cli/main.cpp` |
-| LSP features | `src/upnp/lsp/LspModule.cpp` |
+| The grammar | `src/core/upnp/UpnpGrammar.hpp` |
+| The AST | `src/core/upnp/ast.hpp` |
+| Validation checks | `src/core/upnp/validation/` |
+| Services of your own | `src/core/upnp/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/upnp/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -1,8 +1,8 @@
 #pragma once
 #include <cmath>
 #include <cstdio>
-#include "cursiv/core/parser/Parser.hpp"
-#include "sapf/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "sapf/ast.hpp"
 
 inline bool sapf_native_regressions(const auto& language) {
   namespace ast = sapf::ast;

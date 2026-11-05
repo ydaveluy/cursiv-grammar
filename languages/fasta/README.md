@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/fasta/core/FastaGrammar.hpp` |
-| The AST | `src/fasta/core/ast.hpp` |
-| Validation checks | `src/fasta/core/validation/` |
-| Services of your own | `src/fasta/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/fasta/cli/main.cpp` |
-| LSP features | `src/fasta/lsp/LspModule.cpp` |
+| The grammar | `src/core/fasta/FastaGrammar.hpp` |
+| The AST | `src/core/fasta/ast.hpp` |
+| Validation checks | `src/core/fasta/validation/` |
+| Services of your own | `src/core/fasta/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/fasta/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

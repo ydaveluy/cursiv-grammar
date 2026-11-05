@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/pbm/core/PbmGrammar.hpp` |
-| The AST | `src/pbm/core/ast.hpp` |
-| Validation checks | `src/pbm/core/validation/` |
-| Services of your own | `src/pbm/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/pbm/cli/main.cpp` |
-| LSP features | `src/pbm/lsp/LspModule.cpp` |
+| The grammar | `src/core/pbm/PbmGrammar.hpp` |
+| The AST | `src/core/pbm/ast.hpp` |
+| Validation checks | `src/core/pbm/validation/` |
+| Services of your own | `src/core/pbm/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/pbm/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

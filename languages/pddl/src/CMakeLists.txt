@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID pddl
-    GRAMMAR    pddl/core/PddlGrammar.hpp
+    GRAMMAR    pddl/PddlGrammar.hpp
     NAMESPACE  pddl::Pddl
     EXTENSIONS .pddl
     OUT        pddl/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/pddl/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(pddlCore ${_core})
 target_link_libraries(pddlCore PUBLIC pddlGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/pddl/cli/*.cpp)
-if(_cli)
-  add_executable(pddl_cli ${_cli})
-  target_link_libraries(pddl_cli
-                        PRIVATE pddlCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(pddl_cli cli.cpp)
+  target_include_directories(pddl_cli PRIVATE cli)
+  target_link_libraries(pddl_cli PRIVATE pddlCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(pddlCli ${_cli})
+    target_include_directories(pddlCli PUBLIC cli)
+    target_link_libraries(pddlCli PUBLIC pddlCore cursiv::cli)
+    target_link_libraries(pddl_cli PRIVATE pddlCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/pddl/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/pddl/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/pddl/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(pddlLsp ${_lsp})
+  target_include_directories(pddlLsp PUBLIC lsp)
   target_link_libraries(pddlLsp PUBLIC pddlCore cursiv::lsp)
-  add_executable(pddl_lsp pddl/lsp/main.cpp)
-  target_link_libraries(pddl_lsp PRIVATE pddlLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(pddl_lsp lsp.cpp)
+    target_link_libraries(pddl_lsp PRIVATE pddlLsp)
+  endif()
 endif()
 
-if(TARGET pddlLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/pddl/bench/main.cpp")
-  cursiv_add_benchmark(pddl
-      SOURCES pddl/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET pddlLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(pddl SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(pddl)

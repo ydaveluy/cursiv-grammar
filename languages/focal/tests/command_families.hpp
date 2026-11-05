@@ -4,8 +4,8 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "focal/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "focal/ast.hpp"
 
 namespace focal_commands {
 namespace ast = focal::ast;
@@ -28,7 +28,7 @@ inline bool parents(const auto& language, const cursiv::ParseResult& parsed) {
         });
   };
   visit(visit, *parsed.value);
-  return valid && seen.size() == parsed.nodes.size();
+  return valid && seen.size() == parsed.nodes().size();
 }
 inline bool run(const auto& language) {
   const std::string source =

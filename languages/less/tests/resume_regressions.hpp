@@ -5,12 +5,12 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "less/core/ast.hpp"
-#include "less/core/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "less/ast.hpp"
+#include "less/CoreServices.hpp"
 
 namespace less_resume {
 inline bool run(const less::LessCoreServices& language) {
@@ -43,7 +43,7 @@ inline bool run(const less::LessCoreServices& language) {
       check(result.value->parent == nullptr, "root parent");
       walk(walk, *result.value);
     }
-    check(seen.size() == result.nodes.size(), "all allocations must be reachable");
+    check(seen.size() == result.nodes().size(), "all allocations must be reachable");
   };
   struct StringCase { std::string_view raw, value; bool escaped; };
   for (const auto& c : {
@@ -58,7 +58,7 @@ inline bool run(const less::LessCoreServices& language) {
     const auto result = language.parser->parse(source);
     verify(result, source);
     unsigned found = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<a::StringLit>(node)) {
         ++found;
         check(value->value == c.value && value->escaped == c.escaped,
@@ -77,7 +77,7 @@ inline bool run(const less::LessCoreServices& language) {
     const auto result = language.parser->parse(source);
     verify(result, source);
     unsigned found = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<a::Measurement>(node)) {
         ++found;
         check(value->value == c.value && value->unit == c.unit,
@@ -91,7 +91,7 @@ inline bool run(const less::LessCoreServices& language) {
     const auto result = language.parser->parse(source);
     verify(result, source);
     bool unit = false, selector = false, words = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* value = cursiv::ast_cast<a::Measurement>(node))
         unit = value->unit.empty();
       if (const auto* value = cursiv::ast_cast<a::Selector>(node))
@@ -107,7 +107,7 @@ inline bool run(const less::LessCoreServices& language) {
     const auto result = language.parser->parse(source);
     verify(result, source);
     bool found = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<a::MixinDef>(node))
         found = value->params.size() == 2;
     check(found, "comma and semicolon preserve two default parameters");
@@ -117,7 +117,7 @@ inline bool run(const less::LessCoreServices& language) {
     const auto result = language.parser->parse(source);
     verify(result, source);
     bool found = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<a::MixinDef>(node))
         if (value->params.size() == 2)
           if (const auto* first = std::get_if<a::VariableDecl*>(&value->params[0]))

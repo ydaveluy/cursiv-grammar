@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/wat/core/WatGrammar.hpp` |
-| The AST | `src/wat/core/ast.hpp` |
-| Validation checks | `src/wat/core/validation/` |
-| Services of your own | `src/wat/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/wat/cli/main.cpp` |
-| LSP features | `src/wat/lsp/LspModule.cpp` |
+| The grammar | `src/core/wat/WatGrammar.hpp` |
+| The AST | `src/core/wat/ast.hpp` |
+| Validation checks | `src/core/wat/validation/` |
+| Services of your own | `src/core/wat/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/wat/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

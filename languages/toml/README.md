@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/toml/core/TomlGrammar.hpp` |
-| The AST | `src/toml/core/ast.hpp` |
-| Validation checks | `src/toml/core/validation/` |
-| Services of your own | `src/toml/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/toml/cli/main.cpp` |
-| LSP features | `src/toml/lsp/LspModule.cpp` |
+| The grammar | `src/core/toml/TomlGrammar.hpp` |
+| The AST | `src/core/toml/ast.hpp` |
+| Validation checks | `src/core/toml/validation/` |
+| Services of your own | `src/core/toml/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/toml/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

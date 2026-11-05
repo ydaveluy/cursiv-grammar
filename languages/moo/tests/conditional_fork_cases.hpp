@@ -1,15 +1,14 @@
 #pragma once
 #include <cstdio>
-#include <memory_resource>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "moo/core/CoreServices.hpp"
-#include "moo/core/MooGrammar.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "moo/CoreServices.hpp"
+#include "moo/MooGrammar.hpp"
 
 namespace moo_conditional_fork_cases {
 struct Case { const char* name; std::string_view source; bool valid; unsigned conditionals; unsigned forks; };
@@ -114,7 +113,7 @@ inline bool run(const moo::MooCoreServices& services) {
     unsigned conditionals = 0, forks = 0;
     const a::ConditionalExpr* conditional = nullptr;
     const a::ForkStmt* fork = nullptr;
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* value = cursiv::ast_cast<a::ConditionalExpr>(node)) {
         ++conditionals; conditional = value;
         check(value->condition && value->consequent && value->alternate &&
@@ -169,19 +168,18 @@ inline bool run(const moo::MooCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size() == parsed.nodes.size() && !parsed.value->parent, test.name, "complete tree reachability");
+    check(seen.size() == parsed.nodes().size() && !parsed.value->parent, test.name, "complete tree reachability");
   }
   // Total conversion is a direct contract, without claiming that recovery
   // ever supplies one of these malformed fragments to the converter.
-  std::pmr::monotonic_buffer_resource memory;
   for (std::string_view malformed : {"", "a", "\"", "\"a", "a\"", "'a'"}) {
-    const auto converted = moo::strip_quotes(malformed, &memory);
+    const auto converted = moo::strip_quotes(malformed);
     check(!converted && !converted.error.message.empty(), "quote-totality", "malformed fragment returns an error");
   }
   for (const auto& pair : {
       std::pair<std::string_view, std::string_view>{R"moo("")moo", ""},
       {R"moo("x\ny")moo", "xny"}, {R"moo("a\"b")moo", "a\"b"}}) {
-    const auto converted = moo::strip_quotes(pair.first, &memory);
+    const auto converted = moo::strip_quotes(pair.first);
     check(converted && *converted.value == pair.second, "quote-totality", "native backslash erasure retained");
   }
   return !failures;

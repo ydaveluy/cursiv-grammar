@@ -1,10 +1,10 @@
 #pragma once
-#include "cobol85/core/CoreServices.hpp"
-#include "cobol85/core/ast.hpp"
+#include "cobol85/CoreServices.hpp"
+#include "cobol85/ast.hpp"
 #include "cobol85/generated/Cobol85/Module.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
 #include <cstdio>
 #include <string>
 namespace audit_regressions {
@@ -144,7 +144,7 @@ inline bool run() {
               program->environment->files[0]->optional_,
           "SELECT OPTIONAL flag is retained");
     bool range = false, all = false, quotedRange = false, repeatedValue = false;
-    for (const auto* node : native.nodes) {
+    for (const auto* node : native.nodes()) {
       if (const auto* item = cursiv::ast_cast<ast::DataItem>(node)) {
         range |= item->level == "88" && item->values.size() == 1 &&
                  item->values[0] == "1 THRU 9";

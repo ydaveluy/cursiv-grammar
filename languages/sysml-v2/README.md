@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/sysmlv2/core/SysmlV2Grammar.hpp` |
-| The AST | `src/sysmlv2/core/ast.hpp` |
-| Validation checks | `src/sysmlv2/core/validation/` |
-| Services of your own | `src/sysmlv2/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/sysmlv2/cli/main.cpp` |
-| LSP features | `src/sysmlv2/lsp/LspModule.cpp` |
+| The grammar | `src/core/sysmlv2/SysmlV2Grammar.hpp` |
+| The AST | `src/core/sysmlv2/ast.hpp` |
+| Validation checks | `src/core/sysmlv2/validation/` |
+| Services of your own | `src/core/sysmlv2/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/sysmlv2/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

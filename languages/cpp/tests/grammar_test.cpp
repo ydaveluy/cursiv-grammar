@@ -9,13 +9,13 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cpp/core/CoreServices.hpp"
-#include "cpp/core/ast.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cpp/CoreServices.hpp"
+#include "cpp/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace {
 
@@ -43,7 +43,7 @@ int main() {
   {
     const auto result = language.language.parser->parse("int value = 8 >> 1 >> 1 < 5;");
     const cpp::ast::BinaryExpr* comparison = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* binary = cursiv::ast_cast<cpp::ast::BinaryExpr>(node);
           binary && binary->op == "<") comparison = binary;
     const auto* shift = comparison

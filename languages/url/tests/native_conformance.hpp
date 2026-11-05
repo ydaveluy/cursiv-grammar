@@ -1,10 +1,10 @@
 #pragma once
 // Frozen projections from rfc3986 2.0.0, 2026-10-25; no runtime Python dependency.
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/services/JsonValue.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "url/core/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "url/CoreServices.hpp"
 #include <unordered_set>
 namespace native_conformance {
 using J = cursiv::JsonValue;
@@ -107,7 +107,7 @@ inline bool run() {
         });
     };
     walk(walk, *n);
-    check(seen.size() == r.nodes.size(), "all nodes reachable");
+    check(seen.size() == r.nodes().size(), "all nodes reachable");
     check(cursiv::test::validationHelper(language.language, std::string(c.text)).diagnostics.empty(),
           "valid repeated and empty query keys have no warnings");
   }

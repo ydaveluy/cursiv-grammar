@@ -10,13 +10,13 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "glsl/core/CoreServices.hpp"
-#include "glsl/core/Directives.hpp"
-#include "glsl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "glsl/CoreServices.hpp"
+#include "glsl/Directives.hpp"
+#include "glsl/ast.hpp"
 #include "native_regressions.hpp"
 #include "initializer_cases.hpp"
 

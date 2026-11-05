@@ -4,9 +4,9 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "pest/core/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "pest/ast.hpp"
 
 inline bool native_regressions(const auto& services) {
   namespace ast = pest::ast;

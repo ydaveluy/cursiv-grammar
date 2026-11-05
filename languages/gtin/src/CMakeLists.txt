@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID gtin
-    GRAMMAR    gtin/core/GtinGrammar.hpp
+    GRAMMAR    gtin/GtinGrammar.hpp
     NAMESPACE  gtin::Gtin
     EXTENSIONS .gtin
     OUT        gtin/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/gtin/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(gtinCore ${_core})
 target_link_libraries(gtinCore PUBLIC gtinGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/gtin/cli/*.cpp)
-if(_cli)
-  add_executable(gtin_cli ${_cli})
-  target_link_libraries(gtin_cli
-                        PRIVATE gtinCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(gtin_cli cli.cpp)
+  target_include_directories(gtin_cli PRIVATE cli)
+  target_link_libraries(gtin_cli PRIVATE gtinCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(gtinCli ${_cli})
+    target_include_directories(gtinCli PUBLIC cli)
+    target_link_libraries(gtinCli PUBLIC gtinCore cursiv::cli)
+    target_link_libraries(gtin_cli PRIVATE gtinCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/gtin/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/gtin/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/gtin/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(gtinLsp ${_lsp})
+  target_include_directories(gtinLsp PUBLIC lsp)
   target_link_libraries(gtinLsp PUBLIC gtinCore cursiv::lsp)
-  add_executable(gtin_lsp gtin/lsp/main.cpp)
-  target_link_libraries(gtin_lsp PRIVATE gtinLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(gtin_lsp lsp.cpp)
+    target_link_libraries(gtin_lsp PRIVATE gtinLsp)
+  endif()
 endif()
 
-if(TARGET gtinLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gtin/bench/main.cpp")
-  cursiv_add_benchmark(gtin
-      SOURCES gtin/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET gtinLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(gtin SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(gtin)

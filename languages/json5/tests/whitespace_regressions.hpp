@@ -5,8 +5,8 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "json5/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "json5/ast.hpp"
 
 namespace json5_whitespace_regressions {
 inline bool run(const cursiv::Parser &parser) {

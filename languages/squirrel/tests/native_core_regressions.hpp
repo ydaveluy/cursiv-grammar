@@ -5,9 +5,9 @@
 #include <string_view>
 #include <unordered_set>
 #include <variant>
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "squirrel/core/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "squirrel/CoreServices.hpp"
 
 namespace squirrel_native_cases {
 namespace ast = squirrel::ast;
@@ -33,7 +33,7 @@ bool inspect(const Services& services, const char* id, const std::string& source
     });
   };
   walk(walk,*root);
-  if (owned && seen.size()==parsed.nodes.size() && check(*root)) return true;
+  if (owned && seen.size()==parsed.nodes().size() && check(*root)) return true;
   std::fprintf(stderr,"squirrel: %s: AST/parent regression: %s\n",id,source.c_str());
   return false;
 }

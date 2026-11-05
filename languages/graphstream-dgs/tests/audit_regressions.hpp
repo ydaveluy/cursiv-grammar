@@ -6,12 +6,12 @@
 #include <variant>
 #include <vector>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/Check.hpp"
-#include "graphstreamdgs/core/CoreServices.hpp"
-#include "graphstreamdgs/core/ast.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/Check.hpp"
+#include "graphstreamdgs/CoreServices.hpp"
+#include "graphstreamdgs/ast.hpp"
 
 inline void dgs_regressions() {
   namespace ast = graphstreamdgs::ast;
@@ -67,14 +67,14 @@ inline void dgs_regressions() {
       if (!valuesPresent) return;
       const auto* boolean = std::get_if<bool>(&add->attributes[0]->values[0]);
       const auto* quoted =
-          std::get_if<std::string_view>(&add->attributes[1]->values[0]);
+          std::get_if<std::string>(&add->attributes[1]->values[0]);
       const auto* integer =
           std::get_if<std::int64_t>(&add->attributes[2]->values[0]);
       const auto* real = std::get_if<double>(&add->attributes[3]->values[0]);
       const auto* mapValue =
           std::get_if<ast::Map*>(&add->attributes[4]->values[0]);
       const auto* text =
-          std::get_if<std::string_view>(&add->attributes[5]->values[0]);
+          std::get_if<std::string>(&add->attributes[5]->values[0]);
       CHECK(boolean && *boolean && quoted && *quoted == "true" && integer &&
             *integer == 1 && real && *real == 1e10);
       CHECK(text && *text == "a\"b");
@@ -89,7 +89,7 @@ inline void dgs_regressions() {
       }
       const auto span = result.cst()[add->cstNodeId];
       CHECK(span.begin == source.find("AN 001") && span.end == source.size());
-      CHECK(result.nodes.size() == 11);
+      CHECK(result.nodes().size() == 11);
     }
   }
   {

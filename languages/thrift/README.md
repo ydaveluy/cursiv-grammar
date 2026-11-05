@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/thrift/core/ThriftGrammar.hpp` |
-| The AST | `src/thrift/core/ast.hpp` |
-| Validation checks | `src/thrift/core/validation/` |
-| Services of your own | `src/thrift/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/thrift/cli/main.cpp` |
-| LSP features | `src/thrift/lsp/LspModule.cpp` |
+| The grammar | `src/core/thrift/ThriftGrammar.hpp` |
+| The AST | `src/core/thrift/ast.hpp` |
+| Validation checks | `src/core/thrift/validation/` |
+| Services of your own | `src/core/thrift/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/thrift/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

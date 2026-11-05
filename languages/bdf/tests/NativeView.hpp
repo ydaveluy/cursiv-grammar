@@ -1,8 +1,8 @@
 #pragma once
 #include <charconv>
 #include <string>
-#include "bdf/core/View.hpp"
-#include "cursiv/core/services/JsonValue.hpp"
+#include "bdf/View.hpp"
+#include "cursiv/services/JsonValue.hpp"
 
 namespace native_view {
 using J = cursiv::JsonValue;

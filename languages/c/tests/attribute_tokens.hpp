@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <string_view>
 
-#include "c/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "c/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
 
 namespace c_attribute_tokens {
 

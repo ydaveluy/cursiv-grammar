@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/gtin/core/GtinGrammar.hpp` |
-| The AST | `src/gtin/core/ast.hpp` |
-| Validation checks | `src/gtin/core/validation/` |
-| Services of your own | `src/gtin/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/gtin/cli/main.cpp` |
-| LSP features | `src/gtin/lsp/LspModule.cpp` |
+| The grammar | `src/core/gtin/GtinGrammar.hpp` |
+| The AST | `src/core/gtin/ast.hpp` |
+| Validation checks | `src/core/gtin/validation/` |
+| Services of your own | `src/core/gtin/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/gtin/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

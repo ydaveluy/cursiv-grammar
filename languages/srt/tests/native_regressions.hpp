@@ -3,9 +3,9 @@
 #include <cstdio>
 #include <string>
 
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "srt/core/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "srt/ast.hpp"
 
 inline bool native_regressions(const auto& services) {
   namespace ast = srt::ast;
@@ -35,7 +35,7 @@ inline bool native_regressions(const auto& services) {
           first->lines[3] == "last", "caption markup, internal BOM and numeric line retained");
     check(!second->number && second->start == "0:0:3,0" && second->end == "0:0:4,0" &&
           second->lines.size() == 1 && second->lines[0] == "second", "unnumbered cue without blank separator or final newline");
-    check(first->parent == doc && second->parent == doc && result.nodes.size() == 3, "all cue nodes owned by document");
+    check(first->parent == doc && second->parent == doc && result.nodes().size() == 3, "all cue nodes owned by document");
   }
   for (std::string text : {"", "metadata\n", "1\n0:0:1,0-->0:0:2,0\nhello",
                           "0:0:1,0 --> 0:0:2,0\nhello\n",

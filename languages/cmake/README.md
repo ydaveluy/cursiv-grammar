@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/cmake/core/CmakeGrammar.hpp` |
-| The AST | `src/cmake/core/ast.hpp` |
-| Validation checks | `src/cmake/core/validation/` |
-| Services of your own | `src/cmake/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/cmake/cli/main.cpp` |
-| LSP features | `src/cmake/lsp/LspModule.cpp` |
+| The grammar | `src/core/cmake/CmakeGrammar.hpp` |
+| The AST | `src/core/cmake/ast.hpp` |
+| Validation checks | `src/core/cmake/validation/` |
+| Services of your own | `src/core/cmake/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/cmake/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

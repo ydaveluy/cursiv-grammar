@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdio>
 #include <string>
-#include "cursiv/core/parser/Parser.hpp"
-#include "modelica/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "modelica/ast.hpp"
 
 namespace modelica_native {
 inline bool run(const cursiv::Parser& parser) {
@@ -28,7 +28,7 @@ end M;)MO";
   bool quoted = false, empty = false, keyword = false, decimal = false;
   bool indexedExpr = false, indexedEq = false, pure = false, sign = false;
   bool selective = false, wildcard = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* n = cursiv::ast_cast<ComponentDecl>(node)) {
       quoted = quoted || n->name == "'a b\"c'";
       empty = empty || n->name == "''";

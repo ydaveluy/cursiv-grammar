@@ -5,12 +5,12 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseDiagnostic.hpp"
-#include "cursiv/engines/lr/runtime/LrParseStats.hpp"
-#include "cursiv/engines/lr/runtime/LrParser.hpp"
-#include "cursiv/engines/shared/runtime/RepairBudget.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseDiagnostic.hpp"
+#include "cursiv/lr/runtime/LrParseStats.hpp"
+#include "cursiv/lr/runtime/LrParser.hpp"
+#include "cursiv/shared/runtime/RepairBudget.hpp"
+#include "cursiv/Check.hpp"
 #include "json/generated/Json/Parser.hpp"
 #include "json/generated/Json/Table.hpp"
 

@@ -9,11 +9,11 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "idl/core/CoreServices.hpp"
-#include "idl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "idl/CoreServices.hpp"
+#include "idl/ast.hpp"
 #include "native_followup_cases.hpp"
 #include "lexical_annotation_cases.hpp"
 
@@ -58,7 +58,7 @@ int main() {
       return 1;
     }
     bool found = false;
-    for (const auto *node : audit_result.nodes)
+    for (const auto *node : audit_result.nodes())
       if (const auto *m = cursiv::ast_cast<idl::ast::Member>(node))
         found = m->annotations.size() == 2 &&
                 m->annotations[0]->name == "key" &&

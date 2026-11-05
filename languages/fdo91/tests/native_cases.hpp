@@ -1,11 +1,11 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "cursiv/core/grammar/Conversion.hpp"
-#include "fdo91/core/CoreServices.hpp"
-#include "fdo91/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "cursiv/grammar/Conversion.hpp"
+#include "fdo91/CoreServices.hpp"
+#include "fdo91/ast.hpp"
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -19,7 +19,7 @@ inline void argument(const fdo91::ast::ArgValue& value, Fields& fields) {
   namespace ast = fdo91::ast;
   std::visit([&](auto x) {
     using T = decltype(x);
-    if constexpr (std::is_same_v<T, std::string_view>) fields.push_back({"string", std::string(x)});
+    if constexpr (std::is_same_v<T, std::string>) fields.push_back({"string", std::string(x)});
     else if constexpr (std::is_same_v<T, ast::Ident*>) fields.push_back({"ident", x ? std::string(x->text) : "<null>"});
     else if constexpr (std::is_same_v<T, ast::Gid*>) fields.push_back({"gid", x ? std::string(x->text) : "<null>"});
     else if constexpr (std::is_same_v<T, ast::Hex*>) fields.push_back({"hex", x ? std::string(x->text) : "<null>"});
@@ -97,7 +97,7 @@ inline bool run(const fdo91::Fdo91CoreServices& services,
           });
     };
     visit(visit, *root);
-    if (!parents || seen.size() != result.nodes.size() || numbers != test.numbers) return false;
+    if (!parents || seen.size() != result.nodes().size() || numbers != test.numbers) return false;
     auto document = shared.documentFactory->fromString(source, "file:///audit.fdo91");
     std::vector<cursiv::Diagnostic> diagnostics;
     services.documentValidator->validateDocument(*document, diagnostics);

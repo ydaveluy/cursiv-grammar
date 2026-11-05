@@ -10,11 +10,11 @@
 #include <variant>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "javacc/core/CoreServices.hpp"
-#include "javacc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "javacc/CoreServices.hpp"
+#include "javacc/ast.hpp"
 #include "native_followup_cases.hpp"
 
 namespace {

@@ -20,12 +20,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/dart2/core/Dart2Grammar.hpp` |
-| The AST | `src/dart2/core/ast.hpp` |
-| Validation checks | `src/dart2/core/validation/` |
-| Services of your own | `src/dart2/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/dart2/cli/main.cpp` |
-| LSP features | `src/dart2/lsp/LspModule.cpp` |
+| The grammar | `src/core/dart2/Dart2Grammar.hpp` |
+| The AST | `src/core/dart2/ast.hpp` |
+| Validation checks | `src/core/dart2/validation/` |
+| Services of your own | `src/core/dart2/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/dart2/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

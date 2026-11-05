@@ -5,8 +5,8 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cql3/core/ast.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "cql3/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace cql3_json {
 namespace ast = cql3::ast;
@@ -30,7 +30,7 @@ inline bool parents(const auto& language, const cursiv::ParseResult& parsed) {
         });
   };
   visit(visit, *parsed.value);
-  return valid && seen.size() == parsed.nodes.size();
+  return valid && seen.size() == parsed.nodes().size();
 }
 inline bool run(const auto& language) {
   const std::string source = R"CQL(INSERT INTO ks.t JSON '{"k":1}';

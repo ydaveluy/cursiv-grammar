@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/refal/core/RefalGrammar.hpp` |
-| The AST | `src/refal/core/ast.hpp` |
-| Validation checks | `src/refal/core/validation/` |
-| Services of your own | `src/refal/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/refal/cli/main.cpp` |
-| LSP features | `src/refal/lsp/LspModule.cpp` |
+| The grammar | `src/core/refal/RefalGrammar.hpp` |
+| The AST | `src/core/refal/ast.hpp` |
+| Validation checks | `src/core/refal/validation/` |
+| Services of your own | `src/core/refal/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/refal/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

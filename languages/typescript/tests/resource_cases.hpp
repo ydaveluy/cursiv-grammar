@@ -2,11 +2,11 @@
 #include <cstdio>
 #include <string_view>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "typescript/core/CoreServices.hpp"
-#include "typescript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "typescript/CoreServices.hpp"
+#include "typescript/ast.hpp"
 namespace typescript_resources {
 namespace ast=typescript::ast;
 struct Binding {const char* name; const char* kind; bool definite, type, init;};
@@ -272,7 +272,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
     check(result.cst().text()==test.source,"CST source retained",test.source);
     std::vector<const ast::VarDecl*> lists;
     unsigned loops=0;
-    for(const auto* node:result.nodes) {
+    for(const auto* node:result.nodes()) {
       if(const auto* declaration=cursiv::ast_cast<ast::VarDecl>(node); declaration&&declaration->kind=="using")lists.push_back(declaration);
       const ast::VarDecl* initializer=nullptr;
       const ast::Expr* expression=nullptr;

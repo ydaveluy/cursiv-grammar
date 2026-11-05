@@ -5,10 +5,10 @@
 #include <string_view>
 #include <variant>
 
-#include "protobuf/core/Numbers.hpp"
-#include "protobuf/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "protobuf/Numbers.hpp"
+#include "protobuf/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace protobuf_proto2_extensions {
 
@@ -83,7 +83,7 @@ inline bool run(const auto& language) {
     if(!clean)continue;
     const auto* document=cursiv::ast_cast<ast::Document>(result.value);
     if(!document)return fail(test.name,"document AST missing");
-    for(const auto* node:result.nodes)
+    for(const auto* node:result.nodes())
       if(node!=document && !node->parent)return fail(test.name,"unowned AST node");
     const auto validation=cursiv::test::validationHelper(language,std::string(test.source));
     if(*test.validationCode) {

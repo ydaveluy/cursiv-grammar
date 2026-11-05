@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/star/core/StarGrammar.hpp` |
-| The AST | `src/star/core/ast.hpp` |
-| Validation checks | `src/star/core/validation/` |
-| Services of your own | `src/star/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/star/cli/main.cpp` |
-| LSP features | `src/star/lsp/LspModule.cpp` |
+| The grammar | `src/core/star/StarGrammar.hpp` |
+| The AST | `src/core/star/ast.hpp` |
+| Validation checks | `src/core/star/validation/` |
+| Services of your own | `src/core/star/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/star/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

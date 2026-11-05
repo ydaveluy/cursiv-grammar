@@ -2,11 +2,11 @@
 #include <cstdio>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "terraform/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "terraform/ast.hpp"
 namespace terraform_expression_layout {
 template<class Language> bool run(const Language& language) {
   namespace ast = terraform::ast;
@@ -93,12 +93,12 @@ template<class Language> bool run(const Language& language) {
           });
     };
     if (r.value) walk(walk, *r.value);
-    if (!owned || seen.size() != r.nodes.size()) {
+    if (!owned || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "terraform expression layout: %s ownership=%d seen=%zu nodes=%zu\n%s\n",
-                   test.id, owned, seen.size(), r.nodes.size(), test.source);
+                   test.id, owned, seen.size(), r.nodes().size(), test.source);
       return false;
     }
-    for (const auto* node : r.nodes)
+    for (const auto* node : r.nodes())
       if (cursiv::ast_cast<ast::AnonSymbolExpr>(node)) {
         const auto marker = r.cst().text(node->cstNodeId);
         if (marker.find('*') == marker.npos ||

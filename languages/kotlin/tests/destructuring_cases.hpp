@@ -6,9 +6,9 @@
 #include <type_traits>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "kotlin/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "kotlin/ast.hpp"
 
 namespace kotlin_destructuring {
 
@@ -42,7 +42,7 @@ inline bool run(const auto& language) {
           });
     };
     walk(walk, *result.value);
-    return valid && seen.size() == result.nodes.size();
+    return valid && seen.size() == result.nodes().size();
   };
   auto verify = [&]<class Owner>(std::string_view source, Kind kind,
                                  std::initializer_list<Entry> entries,
@@ -51,7 +51,7 @@ inline bool run(const auto& language) {
     const auto result = language.parser->parse(source);
     const Owner* owner = nullptr;
     unsigned owners = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<Owner>(node);
           value && value->destructuring == kind) {
         owner = value;

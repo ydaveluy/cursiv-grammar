@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "rcs/core/CoreServices.hpp"
-#include "rcs/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "rcs/CoreServices.hpp"
+#include "rcs/ast.hpp"
 // The grammar's end to end check: every sample under tests/ parses
 // clean, with no recovery and no diagnostics, and builds a File root; a
 // dedicated check on full.rcs reads the fields back, since a converter that
@@ -16,7 +16,7 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

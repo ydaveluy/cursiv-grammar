@@ -6,10 +6,10 @@
 #include <unordered_set>
 
 #include "builtin_inputs.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "stringtemplate/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "stringtemplate/ast.hpp"
 
 namespace stringtemplate_builtins {
 inline std::string_view trim(std::string_view text) {
@@ -68,11 +68,11 @@ inline bool run(const auto& services) {
           });
     };
     walk(walk, *root);
-    for (const auto* node : r.nodes)
+    for (const auto* node : r.nodes())
       if (!seen.contains(node)) describe("unreachable", *node);
-    if (!owned || seen.size() != r.nodes.size()) {
+    if (!owned || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "stringtemplate builtin: %s ownership=%d visited=%zu arena=%zu\n",
-                   test.id, owned, seen.size(), r.nodes.size());
+                   test.id, owned, seen.size(), r.nodes().size());
       return fail("complete AST/CST ownership");
     }
     const auto* tag = root->elements.size() == 1 ? cursiv::ast_cast<ast::ExprTag>(root->elements[0]) : nullptr;

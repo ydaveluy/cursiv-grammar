@@ -4,9 +4,9 @@
 #include <initializer_list>
 #include <string>
 #include <string_view>
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "sexpression/core/ast.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "sexpression/ast.hpp"
 
 namespace sexpression_reader_boundaries {
 namespace ast = sexpression::ast;

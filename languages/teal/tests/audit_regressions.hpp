@@ -1,10 +1,10 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "teal/core/ast.hpp"
-#include "teal/core/CoreServices.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "teal/ast.hpp"
+#include "teal/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include "teal/generated/Teal/Module.hpp"
 #include <cstdio>
 #include <string>

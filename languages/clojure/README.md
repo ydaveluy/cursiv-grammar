@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/clojure/core/ClojureGrammar.hpp` |
-| The AST | `src/clojure/core/ast.hpp` |
-| Validation checks | `src/clojure/core/validation/` |
-| Services of your own | `src/clojure/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/clojure/cli/main.cpp` |
-| LSP features | `src/clojure/lsp/LspModule.cpp` |
+| The grammar | `src/core/clojure/ClojureGrammar.hpp` |
+| The AST | `src/core/clojure/ast.hpp` |
+| Validation checks | `src/core/clojure/validation/` |
+| Services of your own | `src/core/clojure/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/clojure/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

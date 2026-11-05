@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/awk/core/AwkGrammar.hpp` |
-| The AST | `src/awk/core/ast.hpp` |
-| Validation checks | `src/awk/core/validation/` |
-| Services of your own | `src/awk/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/awk/cli/main.cpp` |
-| LSP features | `src/awk/lsp/LspModule.cpp` |
+| The grammar | `src/core/awk/AwkGrammar.hpp` |
+| The AST | `src/core/awk/ast.hpp` |
+| Validation checks | `src/core/awk/validation/` |
+| Services of your own | `src/core/awk/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/awk/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

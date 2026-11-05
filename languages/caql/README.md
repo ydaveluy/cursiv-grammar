@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/caql/core/CaqlGrammar.hpp` |
-| The AST | `src/caql/core/ast.hpp` |
-| Validation checks | `src/caql/core/validation/` |
-| Services of your own | `src/caql/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/caql/cli/main.cpp` |
-| LSP features | `src/caql/lsp/LspModule.cpp` |
+| The grammar | `src/core/caql/CaqlGrammar.hpp` |
+| The AST | `src/core/caql/ast.hpp` |
+| Validation checks | `src/core/caql/validation/` |
+| Services of your own | `src/core/caql/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/caql/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

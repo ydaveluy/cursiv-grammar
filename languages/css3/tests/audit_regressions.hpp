@@ -4,8 +4,8 @@
 #include <string_view>
 #include <utility>
 
-#include "css3/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "css3/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
 
 namespace css3_audit {
 
@@ -24,7 +24,7 @@ inline bool run(const cursiv::Parser& parser) {
            {R"(.x { content: "\0 \d800 \110000 "; })", "���"}}) {
     const auto result = parse(source);
     unsigned strings = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* string = cursiv::ast_cast<StringLit>(node)) {
         ++strings;
         check(string->value == expected);
@@ -34,7 +34,7 @@ inline bool run(const cursiv::Parser& parser) {
   {
     const auto result = parse(".--x { --:; --1:var(--x, blue); y:var(--x,); }");
     unsigned declarations = 0, variables = 0, classes = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* declaration = cursiv::ast_cast<Declaration>(node)) {
         ++declarations;
         if (declaration->property == "--") check(declaration->value.empty());
@@ -56,7 +56,7 @@ inline bool run(const cursiv::Parser& parser) {
   {
     const auto result = parse("a[data-x=\"A\" i] { color:red; }");
     unsigned attributes = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* attribute = cursiv::ast_cast<AttribSelector>(node)) {
         ++attributes;
         check(attribute->name == "data-x" && attribute->value == "A" && attribute->modifier == "i");
@@ -66,7 +66,7 @@ inline bool run(const cursiv::Parser& parser) {
   for (const std::string_view source : {":is(.a,.b) { color:red; }", ":not(.a > .b) { color:red; }"}) {
     const auto result = parse(source);
     unsigned pseudos = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* pseudo = cursiv::ast_cast<PseudoSelector>(node)) {
         ++pseudos;
         check(pseudo->args.size() == 5);
@@ -76,7 +76,7 @@ inline bool run(const cursiv::Parser& parser) {
   {
     const auto result = parse("a { --x:; color:; }");
     unsigned declarations = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* declaration = cursiv::ast_cast<Declaration>(node)) {
         ++declarations;
         check(declaration->value.empty());
@@ -86,7 +86,7 @@ inline bool run(const cursiv::Parser& parser) {
   {
     const auto result = parse("a { x:var(--x, var(--y, red)); }");
     unsigned variables = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* var = cursiv::ast_cast<VarRef>(node)) {
         ++variables;
         check(var->hasFallback && var->fallback.size() == 1);
@@ -188,7 +188,7 @@ inline bool run(const cursiv::Parser& parser) {
   {
     const auto result = parse("a {x:U+12??; y:U+?F; z:U+1?-AF;}");
     unsigned ranges = 0, tails = 0;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* range = cursiv::ast_cast<UnicodeRangeLit>(node)) {
         check(range->text == "U+12??" || range->text == "U+?" || range->text == "U+1?");
         ++ranges;

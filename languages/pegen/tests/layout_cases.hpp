@@ -4,9 +4,9 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/Check.hpp"
-#include "pegen/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/Check.hpp"
+#include "pegen/ast.hpp"
 namespace pegen_layout {
 inline void run(const auto& language) {
   struct Case { const char* source; bool valid; std::vector<std::size_t> alternatives; };
@@ -66,7 +66,7 @@ inline void run(const auto& language) {
     };
     CHECK(!grammar->parent);
     visit(visit, *grammar);
-    CHECK(visited.size() == result.nodes.size());
+    CHECK(visited.size() == result.nodes().size());
   }
 }
 }  // namespace pegen_layout

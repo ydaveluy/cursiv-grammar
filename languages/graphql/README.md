@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/graphql/core/GraphqlGrammar.hpp` |
-| The AST | `src/graphql/core/ast.hpp` |
-| Validation checks | `src/graphql/core/validation/` |
-| Services of your own | `src/graphql/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/graphql/cli/main.cpp` |
-| LSP features | `src/graphql/lsp/LspModule.cpp` |
+| The grammar | `src/core/graphql/GraphqlGrammar.hpp` |
+| The AST | `src/core/graphql/ast.hpp` |
+| Validation checks | `src/core/graphql/validation/` |
+| Services of your own | `src/core/graphql/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/graphql/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -4,7 +4,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
 endif()
 
 add_executable(smtlibv2_grammar_test grammar_test.cpp)
-target_link_libraries(smtlibv2_grammar_test PRIVATE smtlibv2Core)
+target_link_libraries(smtlibv2_grammar_test PRIVATE smtlibv2Core cursiv::test)
 target_compile_definitions(smtlibv2_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}")
 add_test(NAME smtlibv2_grammar_test COMMAND smtlibv2_grammar_test)

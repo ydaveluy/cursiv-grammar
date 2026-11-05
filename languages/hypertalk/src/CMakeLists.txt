@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID hypertalk
-    GRAMMAR    hypertalk/core/HypertalkGrammar.hpp
+    GRAMMAR    hypertalk/HypertalkGrammar.hpp
     NAMESPACE  hypertalk::Hypertalk
     EXTENSIONS .hypertalk
     OUT        hypertalk/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/hypertalk/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(hypertalkCore ${_core})
 target_link_libraries(hypertalkCore PUBLIC hypertalkGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/hypertalk/cli/*.cpp)
-if(_cli)
-  add_executable(hypertalk_cli ${_cli})
-  target_link_libraries(hypertalk_cli
-                        PRIVATE hypertalkCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(hypertalk_cli cli.cpp)
+  target_include_directories(hypertalk_cli PRIVATE cli)
+  target_link_libraries(hypertalk_cli PRIVATE hypertalkCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(hypertalkCli ${_cli})
+    target_include_directories(hypertalkCli PUBLIC cli)
+    target_link_libraries(hypertalkCli PUBLIC hypertalkCore cursiv::cli)
+    target_link_libraries(hypertalk_cli PRIVATE hypertalkCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/hypertalk/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/hypertalk/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/hypertalk/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(hypertalkLsp ${_lsp})
+  target_include_directories(hypertalkLsp PUBLIC lsp)
   target_link_libraries(hypertalkLsp PUBLIC hypertalkCore cursiv::lsp)
-  add_executable(hypertalk_lsp hypertalk/lsp/main.cpp)
-  target_link_libraries(hypertalk_lsp PRIVATE hypertalkLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(hypertalk_lsp lsp.cpp)
+    target_link_libraries(hypertalk_lsp PRIVATE hypertalkLsp)
+  endif()
 endif()
 
-if(TARGET hypertalkLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/hypertalk/bench/main.cpp")
-  cursiv_add_benchmark(hypertalk
-      SOURCES hypertalk/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET hypertalkLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(hypertalk SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(hypertalk)

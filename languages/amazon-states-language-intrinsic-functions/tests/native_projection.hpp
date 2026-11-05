@@ -1,5 +1,5 @@
 #pragma once
-#include "amazonstateslanguageintrinsicfunctions/core/ast.hpp"
+#include "amazonstateslanguageintrinsicfunctions/ast.hpp"
 #include <ostream>
 #include <string>
 namespace native_regressions {

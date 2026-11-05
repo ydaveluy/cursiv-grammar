@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/calculator/core/CalculatorGrammar.hpp` |
-| The AST | `src/calculator/core/ast.hpp` |
-| Validation checks | `src/calculator/core/validation/` |
-| Services of your own | `src/calculator/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/calculator/cli/main.cpp` |
-| LSP features | `src/calculator/lsp/LspModule.cpp` |
+| The grammar | `src/core/calculator/CalculatorGrammar.hpp` |
+| The AST | `src/core/calculator/ast.hpp` |
+| Validation checks | `src/core/calculator/validation/` |
+| Services of your own | `src/core/calculator/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/calculator/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

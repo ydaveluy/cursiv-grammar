@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/csv/core/CsvGrammar.hpp` |
-| The AST | `src/csv/core/ast.hpp` |
-| Validation checks | `src/csv/core/validation/` |
-| Services of your own | `src/csv/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/csv/cli/main.cpp` |
-| LSP features | `src/csv/lsp/LspModule.cpp` |
+| The grammar | `src/core/csv/CsvGrammar.hpp` |
+| The AST | `src/core/csv/ast.hpp` |
+| Validation checks | `src/core/csv/validation/` |
+| Services of your own | `src/core/csv/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/csv/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -1,6 +1,6 @@
 #pragma once
 #include "yield_cases.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace typescript_keyword_cases {
 namespace a=typescript::ast;
@@ -72,7 +72,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services){
     check(parsed.cst().text()==test.source,test.name,"whole source unchanged");
     bool rawSeen=false;
     const auto field=[&](std::string_view value){rawSeen|=value==test.raw;};
-    for(const auto* node:parsed.nodes){
+    for(const auto* node:parsed.nodes()){
       if(const auto* n=cursiv::ast_cast<a::Ident>(node))field(n->name);
       else if(const auto* n=cursiv::ast_cast<a::FunctionDecl>(node))field(n->name);
       else if(const auto* n=cursiv::ast_cast<a::FunctionExpr>(node))field(n->name);
@@ -102,7 +102,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services){
         check(child.parent==node&&node->cstNodeId<parsed.cst().size()&&child.cstNodeId<parsed.cst().size()&&parsed.cst().contains(node->cstNodeId,child.cstNodeId),test.name,"every parent and CST containment");work.push_back(&child);
       });
     }
-    check(seen.size()==parsed.nodes.size()&&!parsed.value->parent,test.name,"all allocations reachable once");
+    check(seen.size()==parsed.nodes().size()&&!parsed.value->parent,test.name,"all allocations reachable once");
   }
   std::printf("typescript keyword: %zu native/typed-validation controls\n",std::size(cases));
   return ok;

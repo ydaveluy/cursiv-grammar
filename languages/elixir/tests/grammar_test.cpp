@@ -8,11 +8,11 @@
 #include <set>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "elixir/core/CoreServices.hpp"
-#include "elixir/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "elixir/CoreServices.hpp"
+#include "elixir/ast.hpp"
 #include "audit_regressions.hpp"
 #include "modern_cases.hpp"
 #include "heredoc_lines.hpp"
@@ -77,7 +77,7 @@ int main() {
       return 1;
     }
     bool interpolation = false, inner = false;
-    for (const auto *node : result.nodes)
+    for (const auto *node : result.nodes())
       if (const auto *string = cursiv::ast_cast<elixir::ast::StringLit>(node)) {
         interpolation |=
             string->texts.size() == 2 && string->texts[0] == "left " &&

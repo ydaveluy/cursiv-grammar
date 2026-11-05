@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID gml
-    GRAMMAR    gml/core/GmlGrammar.hpp
+    GRAMMAR    gml/GmlGrammar.hpp
     NAMESPACE  gml::Gml
     EXTENSIONS .gml
     OUT        gml/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/gml/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(gmlCore ${_core})
 target_link_libraries(gmlCore PUBLIC gmlGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/gml/cli/*.cpp)
-if(_cli)
-  add_executable(gml_cli ${_cli})
-  target_link_libraries(gml_cli
-                        PRIVATE gmlCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(gml_cli cli.cpp)
+  target_include_directories(gml_cli PRIVATE cli)
+  target_link_libraries(gml_cli PRIVATE gmlCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(gmlCli ${_cli})
+    target_include_directories(gmlCli PUBLIC cli)
+    target_link_libraries(gmlCli PUBLIC gmlCore cursiv::cli)
+    target_link_libraries(gml_cli PRIVATE gmlCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/gml/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/gml/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/gml/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(gmlLsp ${_lsp})
+  target_include_directories(gmlLsp PUBLIC lsp)
   target_link_libraries(gmlLsp PUBLIC gmlCore cursiv::lsp)
-  add_executable(gml_lsp gml/lsp/main.cpp)
-  target_link_libraries(gml_lsp PRIVATE gmlLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(gml_lsp lsp.cpp)
+    target_link_libraries(gml_lsp PRIVATE gmlLsp)
+  endif()
 endif()
 
-if(TARGET gmlLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gml/bench/main.cpp")
-  cursiv_add_benchmark(gml
-      SOURCES gml/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET gmlLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(gml SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(gml)

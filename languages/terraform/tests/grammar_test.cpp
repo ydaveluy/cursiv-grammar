@@ -10,12 +10,12 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "terraform/core/CoreServices.hpp"
-#include "terraform/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "terraform/CoreServices.hpp"
+#include "terraform/ast.hpp"
 #include "native_followup_cases.hpp"
 #include "expression_layout_cases.hpp"
 

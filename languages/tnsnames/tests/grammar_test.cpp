@@ -9,15 +9,16 @@
 #include <type_traits>
 #include <variant>
 #include <utility>
+#include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstMetaData.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
-#include "tnsnames/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstMetaData.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
+#include "tnsnames/ast.hpp"
 #include "tnsnames/generated/Tnsnames/AstReflection.hpp"
 #include "tnsnames/generated/Tnsnames/Module.hpp"
 
@@ -50,7 +51,7 @@ T* as(cursiv::AstNode* n) {
 }
 
 template <class T>
-bool only(const cursiv::vector<T>& list, std::type_identity_t<T> value) {
+bool only(const std::vector<T>& list, std::type_identity_t<T> value) {
   return list.size() == 1 && list[0] == value;
 }
 
@@ -175,8 +176,8 @@ void protocols_and_addresses() {
           ? as<ast::BeqProtocol>(beq->description->addresses[0]->protocol)
           : nullptr;
   CHECK(beqProto != nullptr && only(beqProto->programs, "oracle") &&
-        only(beqProto->argv0, "orcl") && beqProto->argsLocal &&
-        beqProto->argsHasAddress);
+        only(beqProto->argv0, "orcl") && beqProto->argsLocal() &&
+        beqProto->argsHasAddress());
   CHECK(beq != nullptr && beq->description != nullptr &&
         beq->description->connectData != nullptr &&
         only(beq->description->connectData->sids, "orcl"));
@@ -224,9 +225,9 @@ void connect_data_fields() {
       CHECK(only(fm->delays, 3));
     }
     CHECK(only(cd->globalNames, "orcl_global.example.com"));
-    CHECK(cd->hs);
+    CHECK(cd->hs());
     CHECK(only(cd->servers, ast::ServerType::dedicated));
-    CHECK(cd->ur);
+    CHECK(cd->ur());
   }
 
   ast::Entry* const sidRdb = entry_at(r, 1);
@@ -249,10 +250,10 @@ void params_fields() {
   ast::Description* const d = full != nullptr ? full->description : nullptr;
   CHECK(d != nullptr);
   if (d != nullptr) {
-    CHECK(d->enableBroken);
-    CHECK(d->failover);      // ON
-    CHECK(d->loadBalance);   // TRUE
-    CHECK(d->sourceRoute);   // YES
+    CHECK(d->enableBroken());
+    CHECK(d->failover());      // ON
+    CHECK(d->loadBalance());   // TRUE
+    CHECK(d->sourceRoute());   // YES
     CHECK(only(d->sdus, 8192));
     CHECK(only(d->recvBufs, 11784));
     CHECK(only(d->sendBufs, 11784));
@@ -273,13 +274,13 @@ void params_fields() {
       dl != nullptr ? dl->descriptionList : nullptr;
   CHECK(list != nullptr);
   if (list != nullptr) {
-    CHECK(!list->failover);     // off
-    CHECK(!list->loadBalance);  // no
+    CHECK(!list->failover());     // off
+    CHECK(!list->loadBalance());  // no
     CHECK(list->descriptions.size() == 1);
     if (!list->descriptions.empty()) {
       ast::Description* const inner = list->descriptions[0];
       CHECK(inner->addressList != nullptr);
-      CHECK(inner->addressList != nullptr && inner->addressList->sourceRoute);
+      CHECK(inner->addressList != nullptr && inner->addressList->sourceRoute());
       CHECK(inner->addressList != nullptr &&
             inner->addressList->addresses.size() == 2);
     }
@@ -386,7 +387,7 @@ void corpus() {
                                                       : nullptr;
   CHECK(desc != nullptr);
   if (desc != nullptr) {
-    CHECK(desc->loadBalance);
+    CHECK(desc->loadBalance());
     CHECK(only(desc->connectTimeouts, 10));
     CHECK(only(desc->sdus, 12345));
     CHECK(only(desc->retryCounts, 3));
@@ -407,8 +408,8 @@ void corpus() {
       CHECK(as<ast::NmpProtocol>(addrs[3]->protocol) != nullptr);
       ast::BeqProtocol* const beq = as<ast::BeqProtocol>(addrs[4]->protocol);
       CHECK(beq != nullptr && only(beq->programs, "oracle_exe") &&
-            only(beq->argv0, "sid_identifier") && beq->argsLocal &&
-            beq->argsHasAddress);
+            only(beq->argv0, "sid_identifier") && beq->argsLocal() &&
+            beq->argsHasAddress());
     }
   }
 
@@ -452,7 +453,7 @@ void native_descriptor_values() {
   CHECK(cd != nullptr && only(cd->serviceNames, "svc$pdb") && only(cd->sids, "TCP"));
   const auto* tcp = description && description->addresses.size() == 1
       ? as<ast::TcpProtocol>(description->addresses[0]->protocol) : nullptr;
-  CHECK(tcp != nullptr && tcp->secure && only(tcp->hosts, "2001:db8::1") &&
+  CHECK(tcp != nullptr && tcp->secure() && only(tcp->hosts, "2001:db8::1") &&
         only(tcp->ports, 1522));
   CHECK(tcp != nullptr && tcp->parent == description->addresses[0]);
   CHECK(cd != nullptr && cd->parent == description && description->parent == entry);
@@ -472,7 +473,7 @@ void native_descriptor_values() {
     CHECK(e && e->description && only(e->description->transportConnectTimeouts, seconds));
     const auto* protocol = e && e->description && e->description->addresses.size() == 1
         ? as<ast::TcpProtocol>(e->description->addresses[0]->protocol) : nullptr;
-    CHECK(protocol && !protocol->secure && only(protocol->hosts, "db host"));
+    CHECK(protocol && !protocol->secure() && only(protocol->hosts, "db host"));
   }
   const auto empty = build("a=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=/tmp/db)"
                            "(PORT=1521))(CONNECT_DATA=))");
@@ -496,6 +497,28 @@ void native_descriptor_values() {
   CHECK(ifile_at(include, 0) && ifile_at(include, 0)->path == "child.ora");
 }
 
+void repeated_boolean_parameters() {
+  const auto parsed = build(
+      "a=(DESCRIPTION=(FAILOVER=YES)(LOAD_BALANCE=NO)"
+      "(ADDRESS=(PROTOCOL=TCPS)(PROTOCOL=TCP)(HOST=db))"
+      "(FAILOVER=OFF)(LOAD_BALANCE=TRUE)"
+      "(CONNECT_DATA=(HS=OK)(HS=OK)(UR=A)(UR=A)))");
+  const auto* entry = entry_at(parsed, 0);
+  const auto* description = entry ? entry->description : nullptr;
+  CHECK(description && description->failoverValues.size() == 2 &&
+        description->failoverValues[0] && !description->failoverValues[1] &&
+        !description->failover() && description->loadBalanceValues.size() == 2 &&
+        !description->loadBalanceValues[0] && description->loadBalanceValues[1] &&
+        description->loadBalance());
+  const auto* protocol = description && description->addresses.size() == 1
+      ? as<ast::TcpProtocol>(description->addresses[0]->protocol) : nullptr;
+  CHECK(protocol && protocol->secureValues.size() == 2 &&
+        protocol->secureValues[0] && !protocol->secureValues[1] && !protocol->secure());
+  const auto* data = description ? description->connectData : nullptr;
+  CHECK(data && data->hsValues.size() == 2 && data->hs() &&
+        data->urValues.size() == 2 && data->ur());
+}
+
 }  // namespace
 
 int main() {
@@ -507,6 +530,7 @@ int main() {
   connect_data_fields();
   params_fields();
   repeated_parameters();
+  repeated_boolean_parameters();
   ifile_directive();
   corpus();
   return cursiv::test::report("tnsnames_grammar_test");

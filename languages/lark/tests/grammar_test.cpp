@@ -8,11 +8,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "lark/core/CoreServices.hpp"
-#include "lark/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "lark/CoreServices.hpp"
+#include "lark/ast.hpp"
 #include "native_regressions.hpp"
 
 namespace {
@@ -44,7 +44,7 @@ int main() {
       return 1;
     }
     bool token = false, rule = false;
-    for (const auto *node : audit_result.nodes)
+    for (const auto *node : audit_result.nodes())
       if (const auto *d = cursiv::ast_cast<lark::ast::OverrideStmt>(node)) {
         token = token || (d->extend && d->declaration &&
                           d->declaration->terminal);

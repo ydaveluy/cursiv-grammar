@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID erlang
-    GRAMMAR    erlang/core/ErlangGrammar.hpp
+    GRAMMAR    erlang/ErlangGrammar.hpp
     NAMESPACE  erlang::Erlang
     EXTENSIONS .erl
     OUT        erlang/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/erlang/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(erlangCore ${_core})
 target_link_libraries(erlangCore PUBLIC erlangGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/erlang/cli/*.cpp)
-if(_cli)
-  add_executable(erlang_cli ${_cli})
-  target_link_libraries(erlang_cli
-                        PRIVATE erlangCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(erlang_cli cli.cpp)
+  target_include_directories(erlang_cli PRIVATE cli)
+  target_link_libraries(erlang_cli PRIVATE erlangCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(erlangCli ${_cli})
+    target_include_directories(erlangCli PUBLIC cli)
+    target_link_libraries(erlangCli PUBLIC erlangCore cursiv::cli)
+    target_link_libraries(erlang_cli PRIVATE erlangCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/erlang/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/erlang/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/erlang/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(erlangLsp ${_lsp})
+  target_include_directories(erlangLsp PUBLIC lsp)
   target_link_libraries(erlangLsp PUBLIC erlangCore cursiv::lsp)
-  add_executable(erlang_lsp erlang/lsp/main.cpp)
-  target_link_libraries(erlang_lsp PRIVATE erlangLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(erlang_lsp lsp.cpp)
+    target_link_libraries(erlang_lsp PRIVATE erlangLsp)
+  endif()
 endif()
 
-if(TARGET erlangLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/erlang/bench/main.cpp")
-  cursiv_add_benchmark(erlang
-      SOURCES erlang/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET erlangLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(erlang SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(erlang)

@@ -1,0 +1,485 @@
+// The bicep language: its grammar.
+#pragma once
+
+#include <string_view>
+
+#include "bicep/ast.hpp"
+#include "cursiv/grammar/GrammarSpec.hpp"
+
+namespace bicep {
+
+inline constexpr auto trim_1_1 = [](std::string_view t) {
+  return t.substr(1, t.size() - 2);
+};
+inline constexpr auto trim_1_2 = [](std::string_view t) {
+  return t.substr(1, t.size() - 3);
+};
+inline constexpr auto trim_3_3 = [](std::string_view t) {
+  return t.substr(3, t.size() - 6);
+};
+
+struct Bicep : cursiv::GrammarSpec {
+  // -- Trivia ----
+  struct WS : terminal<some(cr<R"( \t)">)> {};
+  struct SlComment : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
+  struct MlComment : terminal<through(lit<"/*">, lit<"*/">)> {};
+
+  static constexpr auto NLRun = some(cr<R"(\r\n)">);
+  struct NL : terminal<NLRun> {};
+  static constexpr auto StatementEnd = ref<NL> | eof;
+  // Swallows its own trailing NL, unlike an ordinary comment: the directive
+  // line leaves no blank-statement NL behind it either.
+  struct DisableNextLine
+      : terminal<lit<"#disable-next-line"> + some(cr<R"(^\r\n)">) + (NLRun | eof)> {};
+
+  struct ID : terminal<cr<"a-zA-Z_"> + many(w)> {};
+
+  // Soft keywords remain ordinary names where an identifier is expected.
+  static constexpr auto IdentSpelling =
+      ref<ID>;
+  static constexpr auto IdentExprSpelling =
+      ref<ID>;
+  static constexpr auto AmbientTypeName =
+      kw<"string"> | kw<"int"> | kw<"bool"> | kw<"array"> | kw<"object">;
+  static constexpr auto TypeNameSpelling =
+      ref<ID> | AmbientTypeName;
+
+  // -- Strings: '...', with '${' / '}' interpolation pieces ----
+  static constexpr auto Escape =
+      lit<"\\"> + (cr<R"(\\'nrt$)"> | (lit<"u{"> + some(cr<"0-9a-fA-F">) + lit<"}">));
+  static constexpr auto StrRun =
+      many(Escape | lit<"$", !lit<"{">> | cr<R"(^\\'\n\r\t$)">);
+  struct StrLeft : terminal<as<trim_1_2>(lit<"'"> + StrRun + lit<"${">)> {};
+  struct StrMiddle : terminal<as<trim_1_2>(lit<"}"> + StrRun + lit<"${">)> {};
+  struct StrRight : terminal<as<trim_1_1>(lit<"}"> + StrRun + lit<"'">)> {};
+  struct StrComplete : terminal<as<trim_1_1>(lit<"'"> + StrRun + lit<"'">)> {};
+  struct MultilineStr
+      : terminal<as<trim_3_3>(through(lit<"'''">, lit<"'''">))> {};
+
+  struct NUMBER : terminal<some(d) + option(lit<"."> + some(d))> {};
+
+  // -- Forward declarations: the expression/type webs are mutually
+  // recursive through member access, calls, arrays and objects. ----
+  struct Expression;
+  struct MemberExpr_;
+  struct PrimaryExpr_;
+  struct ObjectExpr_;
+  struct ArrayExpr_;
+  struct ForExpr_;
+  struct IfExpr_;
+  struct FunctionCall_;
+  struct LambdaExpr_;
+  struct ParenExpr_;
+  struct InterpString;
+  struct Decorator_;
+  struct TypeExpression;
+  struct SingularTypeExpr;
+  struct UnaryTypeBase;
+  struct UnaryTypeExpr;
+  struct PrimaryTypeExpr;
+  struct ParenTypeExpr;
+  struct ObjectType_;
+  struct TupleType_;
+  struct ObjectTypeProperty_;
+  struct ObjectTypeAdditionalProperties_;
+  struct TupleItem_;
+
+  static constexpr auto ElementSeparator = lit<","> | some(ref<NL>);
+  template<auto Item> static constexpr auto elements =
+      many(ref<NL>) + option(Item + many(ElementSeparator + Item) +
+                             option(ElementSeparator));
+  template<auto Item> static constexpr auto type_arguments =
+      many(ref<NL>) + option(some(Item, lit<","> + many(ref<NL>))) + many(ref<NL>);
+
+  // -- Interpolated strings ----
+  static constexpr auto InterpBody =
+      append<&ast::InterpString::quasis>(ref<StrLeft>) +
+      many(append<&ast::InterpString::expressions>(ref<Expression>) +
+           append<&ast::InterpString::quasis>(ref<StrMiddle>)) +
+      append<&ast::InterpString::expressions>(ref<Expression>) +
+      append<&ast::InterpString::quasis>(ref<StrRight>);
+  struct InterpString
+      : rule<create<ast::InterpString>(InterpBody) |
+             create<ast::InterpString>(
+                 append<&ast::InterpString::quasis>(ref<StrComplete>))> {};
+
+  // -- Number, bool, null and identifier literals ----
+  struct NumberLit_ : rule<assign<&ast::NumberLit::text>(ref<NUMBER>)> {};
+  struct BOOL_TOK : terminal<as<bool>(kw<"true"> | kw<"false">)> {};
+  struct BoolLit_ : rule<assign<&ast::BoolLit::value>(ref<BOOL_TOK>)> {};
+  struct NullLit_ : rule<create<ast::NullLit>(kw<"null">)> {};
+  struct IdentExpr_
+      : rule<create<ast::Ident>(assign<&ast::Ident::name>(IdentExprSpelling))> {
+  };
+
+  struct LiteralValue
+      : rule<ref<NumberLit_> | ref<BoolLit_> | ref<NullLit_> |
+             ref<IdentExpr_>> {};
+  // Type position: a plain name is already `TypeReference` below, so the
+  // identifier alternative is dropped here too.
+  struct LiteralValueNoIdent
+      : rule<ref<NumberLit_> | ref<BoolLit_> | ref<NullLit_>> {};
+
+  // -- Primary expressions ----
+  struct FunctionCall_
+      : rule<create<ast::FunctionCall>(
+            assign<&ast::FunctionCall::name>(IdentSpelling) + lit<"("> +
+            option(append<&ast::FunctionCall::args>(ref<Expression>) +
+                   many(lit<","> +
+                        append<&ast::FunctionCall::args>(ref<Expression>))) +
+            lit<")">)> {};
+
+  struct ParenExpr_
+      : rule<create<ast::ParenExpr>(
+            lit<"("> + assign<&ast::ParenExpr::inner>(ref<Expression>) +
+            lit<")">)> {};
+
+  struct LambdaExpr_
+      : rule<create<ast::LambdaExpr>(
+            ((lit<"("> +
+              option(append<&ast::LambdaExpr::params>(ref<Expression>) +
+                     many(lit<","> +
+                          append<&ast::LambdaExpr::params>(ref<Expression>))) +
+              lit<")">) |
+             append<&ast::LambdaExpr::params>(ref<IdentExpr_>)) +
+            lit<"=>"> + assign<&ast::LambdaExpr::body>(ref<Expression>))> {};
+
+  struct ObjectProperty_
+      : rule<create<ast::ObjectProperty>(
+            (assign<&ast::ObjectProperty::name>(IdentSpelling) |
+             assign<&ast::ObjectProperty::nameExpr>(ref<InterpString>)) +
+            lit<":"> + assign<&ast::ObjectProperty::value>(ref<Expression>))> {
+  };
+  struct ObjectExpr_
+      : rule<create<ast::ObjectExpr>(
+            lit<"{"> +
+            elements<append<&ast::ObjectExpr::properties>(ref<ObjectProperty_>)> +
+            lit<"}">)> {};
+
+  struct ArrayExpr_
+      : rule<create<ast::ArrayExpr>(
+            lit<"["> +
+            elements<append<&ast::ArrayExpr::items>(ref<Expression>)> +
+            lit<"]">)> {};
+
+  struct IfExpr_
+      : rule<create<ast::IfExpr>(
+            kw<"if"> + lit<"("> +
+            assign<&ast::IfExpr::condition>(ref<Expression>) + lit<")"> +
+            assign<&ast::IfExpr::body>(ref<ObjectExpr_>))> {};
+
+  static constexpr auto ForVarBlock =
+      lit<"("> + assign<&ast::ForExpr::item>(IdentSpelling) + lit<","> +
+      assign<&ast::ForExpr::index>(IdentSpelling) + lit<")">;
+  struct ForExpr_
+      : rule<create<ast::ForExpr>(
+            lit<"["> + kw<"for"> +
+            (assign<&ast::ForExpr::item>(IdentSpelling) | ForVarBlock) +
+            kw<"in"> + assign<&ast::ForExpr::collection>(ref<Expression>) +
+            lit<":"> +
+            (assign<&ast::ForExpr::body>(ref<Expression>) |
+             assign<&ast::ForExpr::guard>(ref<IfExpr_>)) +
+            lit<"]">)> {};
+
+  struct PrimaryExpr_
+      : rule<ref<FunctionCall_> | ref<LiteralValue> | ref<InterpString> |
+             assign<&ast::MultilineString::text>(ref<MultilineStr>) |
+             ref<ArrayExpr_> | ref<ForExpr_> | ref<ObjectExpr_> |
+             ref<ParenExpr_> | ref<LambdaExpr_>> {};
+
+  // -- Member access, indexing and calls (postfix chain) ----
+  static constexpr auto MemberTail =
+      nest<ast::IndexExpr, &ast::IndexExpr::object>(
+          lit<"["> + option(flag<&ast::IndexExpr::safe>(lit<"?">)) +
+          option(flag<&ast::IndexExpr::fromEnd>(lit<"^">)) +
+          assign<&ast::IndexExpr::index>(ref<Expression>) +
+          lit<"]">) |
+      nest<ast::MethodCallExpr, &ast::MethodCallExpr::object>(
+          lit<"."> + assign<&ast::MethodCallExpr::call>(ref<FunctionCall_>)) |
+      nest<ast::PropertyExpr, &ast::PropertyExpr::object>(
+          lit<"."> + option(flag<&ast::PropertyExpr::safe>(lit<"?">)) +
+          assign<&ast::PropertyExpr::property>(IdentSpelling)) |
+      nest<ast::NamedAccessExpr, &ast::NamedAccessExpr::object>(
+          lit<"::"> + assign<&ast::NamedAccessExpr::name>(IdentSpelling)) |
+      nest<ast::NonNullExpr, &ast::NonNullExpr::object>(lit<"!">);
+
+  struct MemberExpr_ : rule<ref<PrimaryExpr_> + many(MemberTail)> {};
+
+  // -- Unary prefix operators ----
+  struct UnaryExpr
+      : rule<create<ast::UnaryExpr>(
+            assign<&ast::UnaryExpr::op>(lit<"!"> | lit<"-"> | lit<"+">) +
+            assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>)) |
+             ref<MemberExpr_>> {};
+
+  // -- multiplicative > additive > relational > equality > && > || > ?? ----
+  struct BinaryExpr
+      : infix<UnaryExpr, ast::BinaryExpr,
+              levels(left(lit<"*"> | lit<"/"> | lit<"%">),
+                     left(lit<"+"> | lit<"-">),
+                     left(lit<">="> | lit<"<="> | lit<">"> | lit<"<">),
+                     left(lit<"=="> | lit<"!=">),
+                     left(lit<"&&">),
+                     // The source grammar spells this operator `'OR'` (a
+                     // transcription defect); ported as the real `||`.
+                     left(lit<"||">),
+                     left(lit<"??">))> {};
+
+  // -- The top-level expression, with its optional ternary ----
+  struct Expression
+      : rule<create<ast::CondExpr>(
+            assign<&ast::CondExpr::cond>(ref<BinaryExpr>) + lit<"?"> +
+            assign<&ast::CondExpr::thenValue>(ref<Expression>) + lit<":"> +
+            assign<&ast::CondExpr::elseValue>(ref<Expression>)) |
+             ref<BinaryExpr>> {};
+
+  // -- Decorators ----
+  // decoratorExpression restricts to `functionCall | memberExpression '.'
+  // functionCall`; both shapes already occur inside the general member
+  // chain, so the decorator's expression is read as one (a strict
+  // superset).
+  struct Decorator_
+      : rule<create<ast::Decorator>(
+            lit<"@"> + assign<&ast::Decorator::expression>(ref<MemberExpr_>) +
+            ref<NL>)> {};
+
+  // -- Types ----
+  struct AmbientTypeRef
+      : rule<create<ast::AmbientType>(assign<&ast::AmbientType::name>(
+            AmbientTypeName))> {};
+  struct TypeReference
+      : rule<create<ast::ParameterizedType>(
+                 assign<&ast::ParameterizedType::name>(TypeNameSpelling) + lit<"<"> +
+                 type_arguments<append<&ast::ParameterizedType::args>(ref<TypeExpression>)> +
+                 lit<">">) |
+             create<ast::TypeRef>(assign<&ast::TypeRef::name>(TypeNameSpelling))> {};
+  struct LiteralTypeExpr
+      : rule<create<ast::LiteralType>(
+            assign<&ast::LiteralType::value>(ref<LiteralValueNoIdent>))> {};
+  struct StringTypeExpr
+      : rule<assign<&ast::StringType::text>(ref<StrComplete>)> {};
+  struct MultilineStringTypeExpr
+      : rule<assign<&ast::MultilineStringType::text>(ref<MultilineStr>)> {};
+
+  struct ObjectTypeProperty_
+      : rule<create<ast::ObjectTypeProperty>(
+            many(append<&ast::ObjectTypeProperty::decorators>(
+                ref<Decorator_>)) +
+            assign<&ast::ObjectTypeProperty::name>(
+                IdentSpelling | ref<StrComplete> | ref<MultilineStr>) +
+            lit<":"> +
+            assign<&ast::ObjectTypeProperty::type>(ref<TypeExpression>))> {};
+  struct ObjectTypeAdditionalProperties_
+      : rule<create<ast::ObjectTypeAdditionalProperties>(
+            many(append<&ast::ObjectTypeAdditionalProperties::decorators>(
+                ref<Decorator_>)) +
+            lit<"*"> + lit<":"> +
+            assign<&ast::ObjectTypeAdditionalProperties::type>(
+                ref<TypeExpression>))> {};
+  struct ObjectType_
+      : rule<create<ast::ObjectType>(
+            lit<"{"> +
+            elements<append<&ast::ObjectType::members>(ref<ObjectTypeProperty_> |
+                       ref<ObjectTypeAdditionalProperties_>)> +
+            lit<"}">)> {};
+
+  struct TupleItem_
+      : rule<create<ast::TupleItem>(
+            many(append<&ast::TupleItem::decorators>(ref<Decorator_>)) +
+            assign<&ast::TupleItem::type>(ref<TypeExpression>))> {};
+  struct TupleType_
+      : rule<create<ast::TupleType>(
+            lit<"["> +
+            elements<append<&ast::TupleType::items>(ref<TupleItem_>)> +
+            lit<"]">)> {};
+
+  struct PrimaryTypeExpr
+      : rule<ref<AmbientTypeRef> | ref<TypeReference> | ref<LiteralTypeExpr> |
+             ref<StringTypeExpr> | ref<MultilineStringTypeExpr> |
+             ref<ObjectType_> | ref<TupleType_>> {};
+
+  struct ParenTypeExpr
+      : rule<create<ast::ParenType>(
+            lit<"("> + assign<&ast::ParenType::inner>(ref<TypeExpression>) +
+            lit<")">)> {};
+
+  struct SingularTypeExpr
+      : rule<(ref<PrimaryTypeExpr> | ref<ParenTypeExpr>) +
+             many(nest<ast::ArrayType, &ast::ArrayType::element>(lit<"["> + lit<"]">) |
+                  nest<ast::TypeItems, &ast::TypeItems::object>(lit<"["> + lit<"*"> + lit<"]">) |
+                  nest<ast::TypeIndex, &ast::TypeIndex::object>(lit<"["> +
+                      assign<&ast::TypeIndex::index>(ref<Expression>) + lit<"]">) |
+                  nest<ast::TypeAdditionalProperties, &ast::TypeAdditionalProperties::object>(
+                      lit<"."> + lit<"*">) |
+                  nest<ast::ParameterizedType, &ast::ParameterizedType::object>(
+                      lit<"."> + assign<&ast::ParameterizedType::name>(IdentSpelling) + lit<"<"> +
+                      type_arguments<append<&ast::ParameterizedType::args>(ref<TypeExpression>)> + lit<">">) |
+                  nest<ast::TypeProperty, &ast::TypeProperty::object>(
+                      lit<"."> + assign<&ast::TypeProperty::name>(IdentSpelling)))> {};
+
+  struct UnaryTypeBase : rule<ref<SingularTypeExpr> |
+      create<ast::LiteralType>(assign<&ast::LiteralType::op>(lit<"!"> | lit<"-"> | lit<"+">) +
+          assign<&ast::LiteralType::value>(ref<LiteralValueNoIdent>)) |
+      (assign<&ast::UnaryType::op>(lit<"!"> | lit<"-">) +
+       assign<&ast::UnaryType::operand>(ref<SingularTypeExpr>))> {};
+  struct UnaryTypeExpr : rule<ref<UnaryTypeBase> +
+      many(nest<ast::NullableType, &ast::NullableType::inner>(
+          lit<"?"> | flag<&ast::NullableType::nonNullable>(lit<"!">)))> {};
+
+  static constexpr auto UnionSeparator = option(ref<NL>) + lit<"|">;
+  static constexpr auto UnionMember = append<&ast::UnionType::options>(ref<UnaryTypeExpr>);
+
+  struct TypeExpression
+      : rule<create<ast::UnionType>(
+                 (UnionSeparator + UnionMember + many(UnionSeparator + UnionMember)) |
+                 (UnionMember + some(UnionSeparator + UnionMember))) |
+             ref<UnaryTypeExpr>> {};
+
+  // -- Top-level statements ----
+  struct TargetScopeDecl_
+      : rule<create<ast::TargetScopeDecl>(
+            kw<"targetScope"> + lit<"="> +
+            assign<&ast::TargetScopeDecl::value>(ref<Expression>) +
+            StatementEnd)> {};
+
+  static constexpr auto ExtensionClauses =
+      option(kw<"with"> + assign<&ast::ImportDecl::withClause>(ref<ObjectExpr_>)) +
+      option(kw<"as"> + assign<&ast::ImportDecl::alias>(IdentSpelling));
+  struct ImportDecl_ : rule<
+      many(append<&ast::ImportDecl::decorators>(ref<Decorator_>)) +
+      kw<"import"> + assign<&ast::ImportDecl::specification>(ref<InterpString>) +
+      ExtensionClauses + StatementEnd> {};
+  struct ExtensionDecl_ : rule<create<ast::ExtensionDecl>(
+      many(append<&ast::ImportDecl::decorators>(ref<Decorator_>)) +
+      kw<"extension"> + assign<&ast::ImportDecl::specification>(
+          ref<IdentExpr_> | ref<InterpString>) + ExtensionClauses + StatementEnd)> {};
+
+  struct ImportedSymbol_ : rule<
+      (assign<&ast::ImportedSymbol::name>(IdentSpelling) +
+       option(kw<"as"> + assign<&ast::ImportedSymbol::alias>(IdentSpelling))) |
+      (flag<&ast::ImportedSymbol::quoted>(assign<&ast::ImportedSymbol::name>(ref<StrComplete>)) +
+       kw<"as"> + assign<&ast::ImportedSymbol::alias>(IdentSpelling))> {};
+  struct CompileTimeImportDecl_ : rule<
+      many(append<&ast::CompileTimeImportDecl::decorators>(ref<Decorator_>)) +
+      kw<"import"> +
+      ((lit<"{"> + elements<append<&ast::CompileTimeImportDecl::symbols>(ref<ImportedSymbol_>)> + lit<"}">) |
+       (flag<&ast::CompileTimeImportDecl::wildcard>(lit<"*">) + kw<"as"> +
+        assign<&ast::CompileTimeImportDecl::alias>(IdentSpelling))) +
+      kw<"from"> + assign<&ast::CompileTimeImportDecl::path>(ref<InterpString>) + StatementEnd> {};
+
+  struct TestDecl_ : rule<many(append<&ast::TestDecl::decorators>(ref<Decorator_>)) +
+      kw<"test"> + assign<&ast::TestDecl::name>(IdentSpelling) +
+      assign<&ast::TestDecl::path>(ref<InterpString>) + lit<"="> +
+      assign<&ast::TestDecl::body>(ref<ObjectExpr_>) + StatementEnd> {};
+
+  struct MetadataDecl_
+      : rule<create<ast::MetadataDecl>(
+            kw<"metadata"> +
+            assign<&ast::MetadataDecl::name>(IdentSpelling) + lit<"="> +
+            assign<&ast::MetadataDecl::value>(ref<Expression>) + StatementEnd)> {};
+
+  struct ParameterDecl_
+      : rule<create<ast::ParameterDecl>(
+            many(append<&ast::ParameterDecl::decorators>(ref<Decorator_>)) +
+            kw<"param"> + assign<&ast::ParameterDecl::name>(IdentSpelling) +
+            ((assign<&ast::ParameterDecl::type>(ref<TypeExpression>) +
+              option(lit<"="> + assign<&ast::ParameterDecl::defaultValue>(
+                                     ref<Expression>))) |
+             (kw<"resource"> +
+              assign<&ast::ParameterDecl::resourceType>(
+                  ref<InterpString>) +
+              option(lit<"="> + assign<&ast::ParameterDecl::defaultValue>(
+                                     ref<Expression>)))) +
+            StatementEnd)> {};
+
+  struct TypeDecl_
+      : rule<create<ast::TypeDecl>(
+            many(append<&ast::TypeDecl::decorators>(ref<Decorator_>)) +
+            kw<"type"> + assign<&ast::TypeDecl::name>(IdentSpelling) +
+            lit<"="> + assign<&ast::TypeDecl::type>(ref<TypeExpression>) +
+            StatementEnd)> {};
+
+  struct VariableDecl_
+      : rule<create<ast::VariableDecl>(
+            many(append<&ast::VariableDecl::decorators>(ref<Decorator_>)) +
+            kw<"var"> + assign<&ast::VariableDecl::name>(IdentSpelling) +
+            lit<"="> + assign<&ast::VariableDecl::value>(ref<Expression>) +
+            StatementEnd)> {};
+
+  struct ResourceDecl_
+      : rule<create<ast::ResourceDecl>(
+            many(append<&ast::ResourceDecl::decorators>(ref<Decorator_>)) +
+            kw<"resource"> +
+            assign<&ast::ResourceDecl::name>(IdentSpelling) +
+            assign<&ast::ResourceDecl::type>(ref<InterpString>) +
+            option(
+                flag<&ast::ResourceDecl::existing>(kw<"existing">)) +
+            lit<"="> +
+            (assign<&ast::ResourceDecl::ifValue>(ref<IfExpr_>) |
+             assign<&ast::ResourceDecl::object>(ref<ObjectExpr_>) |
+             assign<&ast::ResourceDecl::forValue>(ref<ForExpr_>)) +
+            StatementEnd)> {};
+
+  struct ModuleDecl_
+      : rule<create<ast::ModuleDecl>(
+            many(append<&ast::ModuleDecl::decorators>(ref<Decorator_>)) +
+            kw<"module"> + assign<&ast::ModuleDecl::name>(IdentSpelling) +
+            assign<&ast::ModuleDecl::type>(ref<InterpString>) +
+            lit<"="> +
+            (assign<&ast::ModuleDecl::ifValue>(ref<IfExpr_>) |
+             assign<&ast::ModuleDecl::object>(ref<ObjectExpr_>) |
+             assign<&ast::ModuleDecl::forValue>(ref<ForExpr_>)) +
+            StatementEnd)> {};
+
+  struct OutputDecl_
+      : rule<create<ast::OutputDecl>(
+            many(append<&ast::OutputDecl::decorators>(ref<Decorator_>)) +
+            kw<"output"> + assign<&ast::OutputDecl::name>(IdentSpelling) +
+            (assign<&ast::OutputDecl::typeName>(IdentSpelling) |
+             (kw<"resource"> +
+              assign<&ast::OutputDecl::resourceType>(
+                  ref<InterpString>))) +
+            lit<"="> + assign<&ast::OutputDecl::value>(ref<Expression>) +
+            StatementEnd)> {};
+
+  struct FunctionParameter_
+      : rule<assign<&ast::FunctionParameter::name>(IdentSpelling) +
+             assign<&ast::FunctionParameter::type>(ref<TypeExpression>)> {};
+  static constexpr auto ParameterSeparator =
+      many(ref<NL>) + lit<","> + many(ref<NL>);
+  struct FunctionDecl_
+      : rule<many(append<&ast::FunctionDecl::decorators>(ref<Decorator_>)) +
+             kw<"func"> + assign<&ast::FunctionDecl::name>(IdentSpelling) +
+             lit<"("> + many(ref<NL>) +
+             option(some(append<&ast::FunctionDecl::parameters>(
+                             ref<FunctionParameter_>), ParameterSeparator) +
+                    option(ParameterSeparator)) +
+             many(ref<NL>) + lit<")"> +
+             assign<&ast::FunctionDecl::returnType>(ref<TypeExpression>) +
+             lit<"=>"> + many(ref<NL>) +
+             assign<&ast::FunctionDecl::body>(ref<Expression>) +
+             StatementEnd> {};
+  struct AssertDecl_
+      : rule<many(append<&ast::AssertDecl::decorators>(ref<Decorator_>)) +
+             kw<"assert"> + assign<&ast::AssertDecl::name>(IdentSpelling) +
+             lit<"="> + assign<&ast::AssertDecl::value>(ref<Expression>) +
+             StatementEnd> {};
+
+  static constexpr auto StatementAlt =
+      ref<TargetScopeDecl_> | ref<ImportDecl_> | ref<CompileTimeImportDecl_> |
+      ref<ExtensionDecl_> | ref<TestDecl_> | ref<MetadataDecl_> |
+      ref<ParameterDecl_> | ref<TypeDecl_> | ref<VariableDecl_> |
+      ref<ResourceDecl_> | ref<ModuleDecl_> | ref<OutputDecl_> |
+      ref<FunctionDecl_> | ref<AssertDecl_>;
+
+  // A blank line is its own (void) statement, so runs of them between
+  // declarations need no separate handling.
+  struct Program_
+      : rule<create<ast::Program>(
+            many(append<&ast::Program::body>(StatementAlt) | ref<NL>))> {};
+
+  using entry = Program_;
+  using ignored = list<WS, SlComment, MlComment, DisableNextLine>;
+};
+
+}  // namespace bicep

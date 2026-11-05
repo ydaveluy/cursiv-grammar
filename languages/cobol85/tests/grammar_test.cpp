@@ -9,11 +9,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cobol85/core/CoreServices.hpp"
-#include "cobol85/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cobol85/CoreServices.hpp"
+#include "cobol85/ast.hpp"
 
 namespace {
 
@@ -209,5 +209,24 @@ int main() {
 
   if (failures > 0) return 1;
   std::printf("cobol85: %d example(s) parse clean\n", checked);
+  {
+    const auto parsed = language.language.parser->parse(
+        "IDENTIFICATION DIVISION.\nPROGRAM-ID. Attributes.\n"
+        "DATA DIVISION.\nWORKING-STORAGE SECTION.\n"
+        "01 ITEM GLOBAL PIC X JUSTIFIED RIGHT BLANK WHEN ZERO.\n"
+        "PROCEDURE DIVISION.\nSTOP RUN.\n");
+    const cobol85::ast::DataItem* item = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* value = cursiv::ast_cast<cobol85::ast::DataItem>(node))
+        item = value;
+    using Attribute = cobol85::ast::DataAttribute;
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !item || item->attributes.size() != 3 ||
+        item->attributes[0] != Attribute::global ||
+        item->attributes[1] != Attribute::justified ||
+        item->attributes[2] != Attribute::blankWhenZero)
+      return fail("<data attributes>", "all clause attributes retained in order");
+  }
+
   return 0;
 }

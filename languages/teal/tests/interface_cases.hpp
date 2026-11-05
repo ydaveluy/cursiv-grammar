@@ -5,11 +5,11 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "teal/core/CoreServices.hpp"
-#include "teal/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "teal/CoreServices.hpp"
+#include "teal/ast.hpp"
 
 namespace teal_interfaces {
 inline bool run() {
@@ -62,7 +62,7 @@ inline bool run() {
     if (!c.clean || !clean) continue;
     unsigned interfaces = 0, records = 0;
     const a::RecordNewType* firstInterface = nullptr;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* body = cursiv::ast_cast<a::RecordNewType>(node)) {
         if (body->isInterface) { ++interfaces; if (!firstInterface) firstInterface = body; }
         else ++records;
@@ -83,7 +83,7 @@ inline bool run() {
           });
     };
     if (result.value) walk(walk, *result.value);
-    check(owned && seen.size() == result.nodes.size(),
+    check(owned && seen.size() == result.nodes().size(),
           "complete unique AST/CST ownership", c.name);
     const auto validation = cursiv::test::validationHelper(language, text);
     if (c.diagnostic) {

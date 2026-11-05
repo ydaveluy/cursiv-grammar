@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/arithmetic/core/ArithmeticGrammar.hpp` |
-| The AST | `src/arithmetic/core/ast.hpp` |
-| Validation checks | `src/arithmetic/core/validation/` |
-| Services of your own | `src/arithmetic/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/arithmetic/cli/main.cpp` |
-| LSP features | `src/arithmetic/lsp/LspModule.cpp` |
+| The grammar | `src/core/arithmetic/ArithmeticGrammar.hpp` |
+| The AST | `src/core/arithmetic/ast.hpp` |
+| Validation checks | `src/core/arithmetic/validation/` |
+| Services of your own | `src/core/arithmetic/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/arithmetic/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

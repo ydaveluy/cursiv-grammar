@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/powerbuilderdw/core/PowerbuilderdwGrammar.hpp` |
-| The AST | `src/powerbuilderdw/core/ast.hpp` |
-| Validation checks | `src/powerbuilderdw/core/validation/` |
-| Services of your own | `src/powerbuilderdw/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/powerbuilderdw/cli/main.cpp` |
-| LSP features | `src/powerbuilderdw/lsp/LspModule.cpp` |
+| The grammar | `src/core/powerbuilderdw/PowerbuilderdwGrammar.hpp` |
+| The AST | `src/core/powerbuilderdw/ast.hpp` |
+| Validation checks | `src/core/powerbuilderdw/validation/` |
+| Services of your own | `src/core/powerbuilderdw/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/powerbuilderdw/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

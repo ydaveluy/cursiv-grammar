@@ -5,12 +5,12 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "fen/core/CoreServices.hpp"
-#include "fen/core/CounterValue.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "fen/CoreServices.hpp"
+#include "fen/CounterValue.hpp"
 
 namespace code_audit {
 namespace ast = fen::ast;
@@ -43,7 +43,7 @@ inline bool run() {
               *n, [&](auto, auto, auto& child) { visit(&child, n); });
         };
     visit(r.value, nullptr);
-    check(reached.size() == r.nodes.size(), "all nodes reachable");
+    check(reached.size() == r.nodes().size(), "all nodes reachable");
     return r;
   };
   constexpr std::string_view board =
@@ -125,7 +125,7 @@ inline bool run() {
     unsigned errors = 0;
     auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, doc, source);
-    for (const auto* n : doc.parseResult.nodes) {
+    for (const auto* n : doc.parseResult.nodes()) {
       if (const auto* p = cursiv::ast_cast<ast::Fen>(n)) {
         language.language.validator->checkFen(*p, accept);
         language.language.validator->checkCastling(*p, accept);

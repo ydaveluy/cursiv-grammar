@@ -4,8 +4,8 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "nasm/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "nasm/ast.hpp"
 
 namespace nasm_lexical {
 namespace ast = nasm::ast;
@@ -28,7 +28,7 @@ inline bool parents(const auto& services, const cursiv::ParseResult& parsed) {
         });
   };
   visit(visit, *parsed.value);
-  return valid && seen.size() == parsed.nodes.size();
+  return valid && seen.size() == parsed.nodes().size();
 }
 inline bool run(const auto& services) {
   const std::string source =
@@ -66,7 +66,7 @@ inline bool run(const auto& services) {
     const std::string text = std::string("dd ") + literal + "\n";
     const auto result = services.parser->parse(text);
     unsigned exact = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<ast::IntegerLit>(node)) {
         if (value->text != literal) return fail("integer spelling changed", text);
         ++exact;
@@ -80,7 +80,7 @@ inline bool run(const auto& services) {
     const std::string text = std::string("dq ") + literal + "\n";
     const auto result = services.parser->parse(text);
     unsigned exact = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<ast::FloatLit>(node)) {
         if (value->text != literal) return fail("real spelling changed", text);
         ++exact;

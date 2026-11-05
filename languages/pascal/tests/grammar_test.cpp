@@ -6,12 +6,12 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 #include "native_regressions.hpp"
-#include "pascal/core/CoreServices.hpp"
-#include "pascal/core/ast.hpp"
+#include "pascal/CoreServices.hpp"
+#include "pascal/ast.hpp"
 
 namespace {
 

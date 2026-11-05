@@ -1,8 +1,8 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "wat/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "wat/ast.hpp"
 #include <cstdio>
 #include <string>
 #include <string_view>
@@ -273,7 +273,7 @@ template <class Language> bool modern_cases(const Language &language) {
       }
     };
     walk(walk, parsed.value, nullptr);
-    check(parents && reachable.size() == parsed.nodes.size(),
+    check(parents && reachable.size() == parsed.nodes().size(),
           "every captured node is reachable with its exact field parent");
     if (entry.validated) {
       auto errors = diagnostics(entry.source);
@@ -314,7 +314,7 @@ template <class Language> bool modern_cases(const Language &language) {
   auto text = [](const a::Instr *n, std::size_t i, std::string_view value) {
     if (!n || n->args.size() <= i)
       return false;
-    auto v = std::get_if<std::string_view>(&n->args[i]);
+    auto v = std::get_if<std::string>(&n->args[i]);
     return v && *v == value;
   };
   {

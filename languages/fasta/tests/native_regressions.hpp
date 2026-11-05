@@ -4,9 +4,9 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "fasta/core/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "fasta/ast.hpp"
 
 inline bool native_regressions(const auto& services) {
   namespace ast = fasta::ast;
@@ -38,7 +38,7 @@ inline bool native_regressions(const auto& services) {
         cursiv::ast_cast<ast::SequenceLine>(second->body[0]) : nullptr;
     check(second && second->description && second->description->text == "second" &&
               last && last->text == "CC", "bare CR and final line without newline");
-    check(parsed.nodes.size() == 12, "every allocated node belongs to the source tree");
+    check(parsed.nodes().size() == 12, "every allocated node belongs to the source tree");
     for (const auto* line : document->preamble) check(line->parent == document, "preamble parent");
     for (const auto* record : document->records) {
       check(record->parent == document && record->description->parent == record, "record parents");

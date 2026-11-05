@@ -1,8 +1,8 @@
 #pragma once
 #include <cstdio>
 #include <string>
-#include "cursiv/core/parser/Parser.hpp"
-#include "haskell/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "haskell/ast.hpp"
 namespace port_audit_cases {
 using namespace haskell;
 template<class T> const T* as(const cursiv::AstNode* n) { return cursiv::ast_cast<T>(n); }
@@ -27,7 +27,7 @@ inline bool run(const cursiv::Parser& parser) {
     const std::string source = std::string("x = ") + text + "\n";
     const auto result = parser.parse(source);
     bool found = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* literal = as<ast::FloatLit>(node)) found |= literal->text == text;
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() && found, text);
   }
@@ -35,7 +35,7 @@ inline bool run(const cursiv::Parser& parser) {
     const std::string source = std::string("x = ") + text + "\n";
     const auto result = parser.parse(source);
     bool found = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* literal = as<ast::CharLit>(node)) found |= literal->text == text;
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() && found, text);
   }
@@ -43,7 +43,7 @@ inline bool run(const cursiv::Parser& parser) {
     const std::string source = std::string("x = 1 ") + op + " 2\n";
     const auto result = parser.parse(source);
     bool found = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* chain = as<ast::OpChain>(node))
         found |= chain->ops.size() == 1 && chain->ops[0] == op &&
                  chain->operands.size() == 1 && as<ast::IntLit>(chain->first) &&

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/less/core/LessGrammar.hpp` |
-| The AST | `src/less/core/ast.hpp` |
-| Validation checks | `src/less/core/validation/` |
-| Services of your own | `src/less/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/less/cli/main.cpp` |
-| LSP features | `src/less/lsp/LspModule.cpp` |
+| The grammar | `src/core/less/LessGrammar.hpp` |
+| The AST | `src/core/less/ast.hpp` |
+| Validation checks | `src/core/less/validation/` |
+| Services of your own | `src/core/less/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/less/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

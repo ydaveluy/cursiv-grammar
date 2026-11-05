@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/bibcode/core/BibcodeGrammar.hpp` |
-| The AST | `src/bibcode/core/ast.hpp` |
-| Validation checks | `src/bibcode/core/validation/` |
-| Services of your own | `src/bibcode/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/bibcode/cli/main.cpp` |
-| LSP features | `src/bibcode/lsp/LspModule.cpp` |
+| The grammar | `src/core/bibcode/BibcodeGrammar.hpp` |
+| The AST | `src/core/bibcode/ast.hpp` |
+| Validation checks | `src/core/bibcode/validation/` |
+| Services of your own | `src/core/bibcode/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/bibcode/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

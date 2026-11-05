@@ -20,12 +20,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/plantuml/core/PlantUMLGrammar.hpp` |
-| The AST | `src/plantuml/core/ast.hpp` |
-| Validation checks | `src/plantuml/core/validation/` |
-| Services of your own | `src/plantuml/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/plantuml/cli/main.cpp` |
-| LSP features | `src/plantuml/lsp/LspModule.cpp` |
+| The grammar | `src/core/plantuml/PlantUMLGrammar.hpp` |
+| The AST | `src/core/plantuml/ast.hpp` |
+| Validation checks | `src/core/plantuml/validation/` |
+| Services of your own | `src/core/plantuml/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/plantuml/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/wren/core/WrenGrammar.hpp` |
-| The AST | `src/wren/core/ast.hpp` |
-| Validation checks | `src/wren/core/validation/` |
-| Services of your own | `src/wren/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/wren/cli/main.cpp` |
-| LSP features | `src/wren/lsp/LspModule.cpp` |
+| The grammar | `src/core/wren/WrenGrammar.hpp` |
+| The AST | `src/core/wren/ast.hpp` |
+| Validation checks | `src/core/wren/validation/` |
+| Services of your own | `src/core/wren/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/wren/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -21,12 +21,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/erlang/core/ErlangGrammar.hpp` |
-| The AST | `src/erlang/core/ast.hpp` |
-| Validation checks | `src/erlang/core/validation/` |
-| Services of your own | `src/erlang/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/erlang/cli/main.cpp` |
-| LSP features | `src/erlang/lsp/LspModule.cpp` |
+| The grammar | `src/core/erlang/ErlangGrammar.hpp` |
+| The AST | `src/core/erlang/ast.hpp` |
+| Validation checks | `src/core/erlang/validation/` |
+| Services of your own | `src/core/erlang/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/erlang/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

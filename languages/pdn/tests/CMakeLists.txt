@@ -13,7 +13,7 @@ list(JOIN _test_samples "," _test_samples_joined)
 
 # The grammar itself: every sample parses, and the tree holds a Game.
 add_executable(pdn_grammar_test grammar_test.cpp)
-target_link_libraries(pdn_grammar_test PRIVATE pdnCore)
+target_link_libraries(pdn_grammar_test PRIVATE pdnCore cursiv::test)
 target_compile_definitions(pdn_grammar_test PRIVATE
     "CURSIV_SAMPLES=\"${_samples_joined}\""
     "CURSIV_TEST_SAMPLES=\"${_test_samples_joined}\"")

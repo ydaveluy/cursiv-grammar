@@ -9,12 +9,12 @@
 #include <string>
 #include <unordered_map>
 
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "nasm/core/CoreServices.hpp"
-#include "nasm/core/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "nasm/CoreServices.hpp"
+#include "nasm/ast.hpp"
 #include "lexical_names.hpp"
 
 namespace {
@@ -207,7 +207,7 @@ int main() {
     const auto result = language.language.parser->parse("dq 18446744073709551615123456\n");
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) return 1;
     bool exact = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* number = cursiv::ast_cast<nasm::ast::IntegerLit>(node)) exact |= number->text == "18446744073709551615123456";
     if (!exact) return 1;
     const auto valid = cursiv::test::validationHelper(language.language,
@@ -235,7 +235,7 @@ int main() {
     const std::string text = std::string("do ") + literal + "\n";
     const auto result = language.language.parser->parse(text);
     unsigned exact = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* f = cursiv::ast_cast<ast::FloatLit>(node)) {
         if (f->text != literal) return 1;
         ++exact;
@@ -249,7 +249,7 @@ int main() {
     const auto result = language.language.parser->parse("db 1 ? 2+3 : 4\nresb 2+3\n");
     const ast::ConditionalExpr* ternary = nullptr;
     const ast::ReserveDecl* reserve = nullptr;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* t = cursiv::ast_cast<ast::ConditionalExpr>(node)) ternary = t;
       if (const auto* r = cursiv::ast_cast<ast::ReserveDecl>(node)) reserve = r;
     }

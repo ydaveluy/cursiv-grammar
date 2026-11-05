@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/csharp/core/CSharpGrammar.hpp` |
-| The AST | `src/csharp/core/ast.hpp` |
-| Validation checks | `src/csharp/core/validation/` |
-| Services of your own | `src/csharp/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/csharp/cli/main.cpp` |
-| LSP features | `src/csharp/lsp/LspModule.cpp` |
+| The grammar | `src/core/csharp/CSharpGrammar.hpp` |
+| The AST | `src/core/csharp/ast.hpp` |
+| Validation checks | `src/core/csharp/validation/` |
+| Services of your own | `src/core/csharp/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/csharp/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

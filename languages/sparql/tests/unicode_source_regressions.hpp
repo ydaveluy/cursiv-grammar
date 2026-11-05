@@ -8,8 +8,8 @@
 #include <utility>
 #include <variant>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "sparql/core/CodepointEscapes.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "sparql/CodepointEscapes.hpp"
 
 namespace sparql_uchar_tests {
 namespace ast = sparql::ast;
@@ -64,7 +64,7 @@ bool run(const Services& services) {
             });
       };
       walk(walk, *query);
-      okay &= seen.size() == parsed.nodes.size();
+      okay &= seen.size() == parsed.nodes().size();
     }
     if (!okay) {
       std::fprintf(stderr, "sparql UCHAR: %s: positive parse/translation/ownership failed\n%s\n",

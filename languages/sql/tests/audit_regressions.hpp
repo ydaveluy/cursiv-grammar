@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "sqlite/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "sqlite/ast.hpp"
 #include "sqlite/generated/Sqlite/Module.hpp"
 #include <cstdio>
 #include <string>

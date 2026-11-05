@@ -3,10 +3,10 @@
 #include <functional>
 #include <vector>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "terraform/core/CoreServices.hpp"
-#include "terraform/core/StringValue.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "terraform/CoreServices.hpp"
+#include "terraform/StringValue.hpp"
 #include "terraform/generated/Terraform/Module.hpp"
 namespace code_audit {
 namespace ast = terraform::ast;

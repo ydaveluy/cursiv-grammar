@@ -8,12 +8,12 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/Check.hpp"
-#include "pest/core/CoreServices.hpp"
-#include "pest/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/Check.hpp"
+#include "pest/CoreServices.hpp"
+#include "pest/ast.hpp"
 #include "native_regressions.hpp"
 
 namespace {

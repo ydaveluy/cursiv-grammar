@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/clif/core/ClifGrammar.hpp` |
-| The AST | `src/clif/core/ast.hpp` |
-| Validation checks | `src/clif/core/validation/` |
-| Services of your own | `src/clif/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/clif/cli/main.cpp` |
-| LSP features | `src/clif/lsp/LspModule.cpp` |
+| The grammar | `src/core/clif/ClifGrammar.hpp` |
+| The AST | `src/core/clif/ast.hpp` |
+| Validation checks | `src/core/clif/validation/` |
+| Services of your own | `src/core/clif/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/clif/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

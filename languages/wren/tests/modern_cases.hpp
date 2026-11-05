@@ -3,12 +3,12 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "wren/core/CoreServices.hpp"
-#include "wren/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "wren/CoreServices.hpp"
+#include "wren/ast.hpp"
 namespace wren_audit {
 template<class T> const T* as(const cursiv::AstNode* n) {
  return n && n->type == &cursiv::ast_type_tag<T> ? static_cast<const T*>(n) : nullptr;

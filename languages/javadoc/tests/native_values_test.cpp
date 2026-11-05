@@ -1,11 +1,11 @@
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "javadoc/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "javadoc/CoreServices.hpp"
 #include <algorithm>
 #include <cstdio>
 #include <unordered_set>
@@ -68,17 +68,22 @@ int main() {
           });
     };
     walk(walk, *doc);
-    check(owned && seen.size() == parsed.nodes.size(), c.name,
+    check(owned && seen.size() == parsed.nodes().size(), c.name,
           "complete ownership and parents");
     const auto validation =
         cursiv::test::validationHelper(lang.language, std::string(source));
     std::vector<std::string> codes;
     for (const auto &d : validation.diagnostics) {
-      check(d.code && d.code->isString() && d.range.begin <= d.range.end &&
+      // A check of the language states its code; a parse diagnostic carries
+      // it in `data`.
+      const std::string_view code = d.code && d.code->isString()
+                                        ? std::string_view(d.code->string())
+                                        : cursiv::data_code(d);
+      check(!code.empty() && d.range.begin <= d.range.end &&
                 d.range.end <= source.size(),
             c.name, "precise bounded diagnostic");
-      if (d.code && d.code->isString())
-        codes.push_back(d.code->string());
+      if (!code.empty())
+        codes.emplace_back(code);
     }
     std::sort(codes.begin(), codes.end());
     std::string actual;

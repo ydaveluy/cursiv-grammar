@@ -8,11 +8,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "fortran/core/CoreServices.hpp"
-#include "fortran/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "fortran/CoreServices.hpp"
+#include "fortran/ast.hpp"
 
 #include "port_audit_cases.hpp"
 #include "source_form.hpp"
@@ -41,7 +41,7 @@ int main() {
       return 1;
     }
     bool label = false, kind = false, format = false;
-    for (const auto *node : audit_result.nodes) {
+    for (const auto *node : audit_result.nodes()) {
       if (const auto *s = cursiv::ast_cast<fortran::ast::LabelledStmt>(node))
         label = s->label == "10" && s->statement;
       if (const auto *t = cursiv::ast_cast<fortran::ast::TypeSpec>(node))
@@ -50,9 +50,9 @@ int main() {
                 t->parameters[0]->value);
       if (const auto *t = cursiv::ast_cast<fortran::ast::FormatToken>(node))
         format = format || (t->parts.size() == 3 &&
-                            std::get<std::string_view>(t->parts[0]) == "I5" &&
-                            std::get<std::string_view>(t->parts[1]) == "," &&
-                            std::get<std::string_view>(t->parts[2]) == "F5.2");
+                            std::get<std::string>(t->parts[0]) == "I5" &&
+                            std::get<std::string>(t->parts[1]) == "," &&
+                            std::get<std::string>(t->parts[2]) == "F5.2");
     }
     if (!label || !kind || !format)
       return 1;
@@ -139,5 +139,27 @@ int main() {
   }
 
   std::printf("fortran: %zu example(s) parse clean\n", files.size());
+  {
+    const auto parsed = language.language.parser->parse(
+        "recursive integer function f()\n"
+        "type t\nsequence\nprivate\ninteger :: n\nend type t\n"
+        "f=1\nend function f\n");
+    const fortran::ast::FunctionUnit* function = nullptr;
+    const fortran::ast::DerivedTypeDecl* type = nullptr;
+    for (const auto* node : parsed.nodes()) {
+      if (const auto* value = cursiv::ast_cast<fortran::ast::FunctionUnit>(node))
+        function = value;
+      if (const auto* value = cursiv::ast_cast<fortran::ast::DerivedTypeDecl>(node))
+        type = value;
+    }
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !function || !type ||
+        function->qualifiers.size() != 1 || function->qualifiers[0] != "recursive" ||
+        !function->returnType || type->attributes.size() != 2 ||
+        type->attributes[0] != "sequence" || type->attributes[1] != "private" ||
+        type->components.size() != 1)
+      return fail("function and derived-type attributes retain their values");
+  }
+
   return 0;
 }

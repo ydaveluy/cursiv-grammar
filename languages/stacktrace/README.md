@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/stacktrace/core/StacktraceGrammar.hpp` |
-| The AST | `src/stacktrace/core/ast.hpp` |
-| Validation checks | `src/stacktrace/core/validation/` |
-| Services of your own | `src/stacktrace/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/stacktrace/cli/main.cpp` |
-| LSP features | `src/stacktrace/lsp/LspModule.cpp` |
+| The grammar | `src/core/stacktrace/StacktraceGrammar.hpp` |
+| The AST | `src/core/stacktrace/ast.hpp` |
+| Validation checks | `src/core/stacktrace/validation/` |
+| Services of your own | `src/core/stacktrace/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/stacktrace/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

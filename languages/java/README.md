@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/java/core/JavaGrammar.hpp` |
-| The AST | `src/java/core/ast.hpp` |
-| Validation checks | `src/java/core/validation/` |
-| Services of your own | `src/java/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/java/cli/main.cpp` |
-| LSP features | `src/java/lsp/LspModule.cpp` |
+| The grammar | `src/core/java/JavaGrammar.hpp` |
+| The AST | `src/core/java/ast.hpp` |
+| Validation checks | `src/core/java/validation/` |
+| Services of your own | `src/core/java/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/java/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

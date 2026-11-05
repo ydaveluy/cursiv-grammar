@@ -1,7 +1,7 @@
 #pragma once
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "ron/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "ron/ast.hpp"
 #include <cstdio>
 
 inline bool native_followup(const cursiv::Parser &parser) {

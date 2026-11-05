@@ -5,11 +5,11 @@
 #include <string_view>
 #include <unordered_set>
 #include <variant>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "tinymud/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "tinymud/ast.hpp"
 namespace tinymud_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace a = tinymud::ast;
@@ -45,7 +45,7 @@ QUIT
   bool description = false, clearing = false, lock = false, force = false, reference = false, open = false;
   bool player = false, stats = false, look = false, kill = false, page = false, password = false;
   unsigned flags = 0;
-  for (const auto* node : r.nodes) {
+  for (const auto* node : r.nodes()) {
     if (const auto* p = cursiv::ast_cast<a::DescribeCommand>(node)) {
       description |= p->object == "#42" && p->description == "9 lives! {a}; b=c?";
       clearing |= p->object == "me" && p->description.empty();
@@ -80,11 +80,11 @@ QUIT
           });
     };
     walk(walk, *root);
-    check(owned && seen.size() == r.nodes.size() && r.cst().text() == source, "complete AST ownership and unchanged source CST");
+    check(owned && seen.size() == r.nodes().size() && r.cst().text() == source, "complete AST ownership and unchanged source CST");
   }
   const auto renamed = language.language.parser->parse("@name me=Bob secret\n@open w;west=#44\n@toad Bob=Little frog\n");
   bool rhs = false, number = false, toad = false;
-  for (const auto* n : renamed.nodes) {
+  for (const auto* n : renamed.nodes()) {
     if (const auto* p = cursiv::ast_cast<a::NameCommand>(n)) rhs |= p->name == "Bob secret" && p->password.empty();
     if (const auto* p = cursiv::ast_cast<a::OpenCommand>(n)) number |= p->number == 44;
     if (const auto* p = cursiv::ast_cast<a::ToadCommand>(n)) toad |= p->name == "Little frog";

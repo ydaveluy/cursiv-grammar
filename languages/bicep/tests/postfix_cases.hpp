@@ -4,8 +4,8 @@
 #include <string>
 #include <unordered_set>
 
-#include "bicep/core/ast.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "bicep/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace bicep_postfix {
 namespace ast = bicep::ast;
@@ -28,7 +28,7 @@ inline bool parents(const auto& language, const cursiv::ParseResult& parsed) {
         });
   };
   visit(visit, *parsed.value);
-  return valid && seen.size() == parsed.nodes.size();
+  return valid && seen.size() == parsed.nodes().size();
 }
 inline bool run(const auto& language) {
   const std::string source =

@@ -1,11 +1,11 @@
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "star/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "star/CoreServices.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -77,7 +77,7 @@ int main() {
           });
     };
     walk(walk, *doc);
-    if (!owned || !raw || seen.size() != result.nodes.size())
+    if (!owned || !raw || seen.size() != result.nodes().size())
       return fail("ownership/source-backed fields");
     const auto validation =
         cursiv::test::validationHelper(language.language, source);

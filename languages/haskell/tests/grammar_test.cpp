@@ -8,11 +8,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "haskell/core/CoreServices.hpp"
-#include "haskell/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "haskell/CoreServices.hpp"
+#include "haskell/ast.hpp"
 #include "port_audit_cases.hpp"
 #include "native_followup_cases.hpp"
 
@@ -63,7 +63,7 @@ int main() {
                        diagnostic.end, diagnostic.message.c_str());
         return 1;
       }
-      for (const auto *node : result.nodes) {
+      for (const auto *node : result.nodes()) {
         if (const auto *t = cursiv::ast_cast<haskell::ast::TypeApp>(node))
           app = app || (t->func && t->arg);
         if (const auto *q = cursiv::ast_cast<haskell::ast::QuasiQuote>(node))
@@ -103,6 +103,20 @@ int main() {
       return fail(path, "the parse built no Module");
 
     std::printf("haskell: %s parses\n", path.c_str());
+  }
+
+  for (const char* spelling : {"qualified Data.List", "Data.List qualified"}) {
+    const std::string source =
+        "module M where { import " + std::string(spelling) + "; x = 1 }";
+    const auto parsed = language.language.parser->parse(source);
+    const haskell::ast::ImportDecl* imported = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* value = cursiv::ast_cast<haskell::ast::ImportDecl>(node))
+        imported = value;
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !imported || !imported->qualified ||
+        imported->moduleName != "Data.List")
+      return fail("<qualified import>", "prepositive and postpositive imports retained");
   }
 
   return 0;

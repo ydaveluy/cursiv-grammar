@@ -1,5 +1,5 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
+#include "cursiv/services/JsonValue.hpp"
 #include <string>
 using J = cursiv::JsonValue;
 inline J model_sets(const J::Array &input) {

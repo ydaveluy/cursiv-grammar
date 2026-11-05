@@ -4,9 +4,9 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "bicep/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "bicep/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace bicep_declarations_types {
 inline bool run(const auto& language) {
@@ -131,7 +131,7 @@ type Neg = -1
           });
     };
     walk(walk, *parsed.value);
-    return valid && seen.size() == parsed.nodes.size();
+    return valid && seen.size() == parsed.nodes().size();
   };
   check(owned(result), "all declaration/type AST children have unique parents and CST ownership");
   for (const auto source : {

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/hypertalk/core/HypertalkGrammar.hpp` |
-| The AST | `src/hypertalk/core/ast.hpp` |
-| Validation checks | `src/hypertalk/core/validation/` |
-| Services of your own | `src/hypertalk/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/hypertalk/cli/main.cpp` |
-| LSP features | `src/hypertalk/lsp/LspModule.cpp` |
+| The grammar | `src/core/hypertalk/HypertalkGrammar.hpp` |
+| The AST | `src/core/hypertalk/ast.hpp` |
+| Validation checks | `src/core/hypertalk/validation/` |
+| Services of your own | `src/core/hypertalk/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/hypertalk/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

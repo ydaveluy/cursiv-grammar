@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "xpath/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "xpath/ast.hpp"
 #include "xpath/generated/Xpath/Module.hpp"
 #include <cstdio>
 #include <string>

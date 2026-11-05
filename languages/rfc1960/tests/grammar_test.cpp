@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "rfc1960/core/CoreServices.hpp"
-#include "rfc1960/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "rfc1960/CoreServices.hpp"
+#include "rfc1960/ast.hpp"
 // The smoke test of the language: build the container the way a workspace
 // does, parse every sample under example/, and check each tree.
 
@@ -12,7 +12,7 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

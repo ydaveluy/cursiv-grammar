@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "pf/core/CoreServices.hpp"
-#include "pf/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "pf/CoreServices.hpp"
+#include "pf/ast.hpp"
 #include "native_followup.hpp"
 #include "bandwidth_cases.hpp"
 // The smoke test of the language: every corpus document parses clean, the
@@ -15,7 +15,7 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -137,7 +137,7 @@ int main() {
   const pf::ast::Rule& blockRule = **blockPtr;
   if (blockRule.action != "block" || blockRule.blockReturn != "return")
     return fail("example1.pf: wrong block/return");
-  if (!blockRule.log) return fail("example1.pf: expected log");
+  if (!blockRule.log()) return fail("example1.pf: expected log");
   if (blockRule.onIf == nullptr || blockRule.onIf->ifaces.size() != 1 ||
       blockRule.onIf->ifaces[0]->name != "$ext_if")
     return fail("example1.pf: wrong onspec");

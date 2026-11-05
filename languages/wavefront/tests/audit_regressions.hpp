@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "wavefront/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "wavefront/ast.hpp"
 #include "wavefront/generated/Wavefront/Module.hpp"
 #include <cstdio>
 #include <string>

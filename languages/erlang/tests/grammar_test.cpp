@@ -4,17 +4,16 @@
 #include <fstream>
 #include <initializer_list>
 #include <iterator>
-#include <memory_resource>
 #include <string>
 #include <utility>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "erlang/core/CoreServices.hpp"
-#include "erlang/core/ErlangGrammar.hpp"
-#include "erlang/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "erlang/CoreServices.hpp"
+#include "erlang/ErlangGrammar.hpp"
+#include "erlang/ast.hpp"
 #include "port_audit_cases.hpp"
 #include "primary_chains.hpp"
 
@@ -88,13 +87,12 @@ int main() {
   // Atom conversion also sees recovery fragments: incomplete delimiters and
   // escapes must produce diagnostics without indexing beyond their text.
   {
-    std::pmr::monotonic_buffer_resource memory;
     for (std::string_view text : {
              "", "'", "'unterminated", R"('\')", R"('\x')", R"('\x4')",
              R"('\xGG')", R"('\x{')", R"('\x{41')", R"('\x{}')",
              R"('\x{GG}')", R"('\x{110000}')", R"('\x{d800}')",
              R"('\^')", R"('\^!')", "'a'b'"})
-      if (erlang::unquoteAtom(text, &memory))
+      if (erlang::unquoteAtom(text))
         return fail("malformed atom conversion unexpectedly succeeded");
     for (const auto& [text, expected] :
          std::initializer_list<std::pair<std::string_view, std::string_view>>{
@@ -104,7 +102,7 @@ int main() {
              {R"('\q')", "q"}, {R"('\'')", "'"}, {R"('\\')", "\\"},
              {R"('\x{0}')", std::string_view("\0", 1)},
              {R"('\x{10ffff}')", "\xf4\x8f\xbf\xbf"}}) {
-      const auto converted = erlang::unquoteAtom(text, &memory);
+      const auto converted = erlang::unquoteAtom(text);
       if (!converted || *converted.value != expected)
         return fail("native atom conversion lost its decoded value");
     }
@@ -119,9 +117,9 @@ int main() {
       return 1;
     }
     bool types = false, bits = false;
-    for (const auto* node : audit_result.nodes) {
+    for (const auto* node : audit_result.nodes()) {
       if (const auto* t = cursiv::ast_cast<erlang::ast::TypeExpr>(node))
-        types = types || (t->parts.size() == 7 && std::get<std::string_view>(t->parts[0]) == "integer" && std::get<std::string_view>(t->parts[3]) == "|" && std::get<std::string_view>(t->parts[4]) == "atom");
+        types = types || (t->parts.size() == 7 && std::get<std::string>(t->parts[0]) == "integer" && std::get<std::string>(t->parts[3]) == "|" && std::get<std::string>(t->parts[4]) == "atom");
       if (const auto* b = cursiv::ast_cast<erlang::ast::BinElement>(node)) bits = b->bitTypes == "integer-little";
     }
     if (!types || !bits) return 1;
@@ -145,7 +143,7 @@ int main() {
     const auto parsed = language.language.parser->parse(R"('a\n\x{e9}\377\^A\q'() -> 'a\n\x{e9}\377\^A\q'.)");
     const std::string_view expected = "a\néÿ\1q";
     unsigned names = 0;
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* f = cursiv::ast_cast<erlang::ast::FunctionClause>(node)) {
         if (f->name != expected) return fail("quoted function name was not decoded");
         ++names;
@@ -162,7 +160,7 @@ int main() {
     const auto parsed = language.language.parser->parse(
         "f(X) -> R = catch g(X), 1 + catch 2 * 3.");
     bool match = false, addition = false;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* binary = cursiv::ast_cast<erlang::ast::BinaryExpr>(node)) {
         const auto* caught = cursiv::ast_cast<erlang::ast::CatchExpr>(binary->right);
         if (binary->op == erlang::ast::Operator::match)

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/rfc1035/core/Rfc1035Grammar.hpp` |
-| The AST | `src/rfc1035/core/ast.hpp` |
-| Validation checks | `src/rfc1035/core/validation/` |
-| Services of your own | `src/rfc1035/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/rfc1035/cli/main.cpp` |
-| LSP features | `src/rfc1035/lsp/LspModule.cpp` |
+| The grammar | `src/core/rfc1035/Rfc1035Grammar.hpp` |
+| The AST | `src/core/rfc1035/ast.hpp` |
+| Validation checks | `src/core/rfc1035/validation/` |
+| Services of your own | `src/core/rfc1035/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/rfc1035/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

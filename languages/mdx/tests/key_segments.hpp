@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "mdx/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "mdx/ast.hpp"
 
 template <class Language>
 bool check_key_segments(const Language& language) {

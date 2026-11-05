@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/memcachedprotocol/core/MemcachedProtocolGrammar.hpp` |
-| The AST | `src/memcachedprotocol/core/ast.hpp` |
-| Validation checks | `src/memcachedprotocol/core/validation/` |
-| Services of your own | `src/memcachedprotocol/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/memcachedprotocol/cli/main.cpp` |
-| LSP features | `src/memcachedprotocol/lsp/LspModule.cpp` |
+| The grammar | `src/core/memcachedprotocol/MemcachedProtocolGrammar.hpp` |
+| The AST | `src/core/memcachedprotocol/ast.hpp` |
+| Validation checks | `src/core/memcachedprotocol/validation/` |
+| Services of your own | `src/core/memcachedprotocol/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/memcachedprotocol/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

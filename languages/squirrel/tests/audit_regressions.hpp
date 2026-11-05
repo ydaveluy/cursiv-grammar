@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "squirrel/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "squirrel/ast.hpp"
 #include "squirrel/generated/Squirrel/Module.hpp"
 #include <cstdio>
 #include <string>

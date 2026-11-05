@@ -10,12 +10,12 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "acme/core/CoreServices.hpp"
-#include "acme/core/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "acme/CoreServices.hpp"
+#include "acme/ast.hpp"
 
 namespace {
 
@@ -143,7 +143,7 @@ int main() {
     const auto result = language.language.parser->parse("family F = { final public component type C; }");
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) return 1;
     const acme::ast::ComponentTypeDecl* declaration = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<acme::ast::ComponentTypeDecl>(node)) declaration = value;
     if (!declaration || declaration->modifiers.size() != 2) return 1;
     const auto invalid = cursiv::test::validationHelper(language.language, "family F = { PUBLIC public component type C; }");

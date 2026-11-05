@@ -1,9 +1,9 @@
-#include "yara/core/Integer.hpp"
+#include "yara/Integer.hpp"
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "yara/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "yara/ast.hpp"
 #include <cstdio>
 #include <string>
 #include <string_view>
@@ -211,7 +211,7 @@ rule r {condition: included})YR"},
       }
     };
     walk(walk, parsed.value, nullptr);
-    check(parents && reachable.size() == parsed.nodes.size(),
+    check(parents && reachable.size() == parsed.nodes().size(),
           "every captured node is reachable with its exact field parent");
     auto errors = diagnostics(entry.source);
     if (!errors.empty())
@@ -241,7 +241,7 @@ rule r {condition: included})YR"},
     auto result = parse("meta-precision");
     auto rr = rule(result);
     auto r = rr ? *rr : nullptr;
-    check(r && r->isPrivate && r->isGlobal && r->name == "meta_rule" &&
+    check(r && r->isPrivate() && r->isGlobal() && r->name == "meta_rule" &&
               r->tags.size() == 2 && r->tags[0] == "first" &&
               r->tags[1] == "second",
           "rule flags, identifier and ordered tags");
@@ -263,7 +263,7 @@ rule r {condition: included})YR"},
         "metadata retains exact signed integers, octal and size units");
     check(r && std::get<bool>(r->meta[5]->value) &&
               !std::get<bool>(r->meta[6]->value) &&
-              std::get<std::string_view>(r->meta[7]->value) == "a\nB\\\"",
+              std::get<std::string>(r->meta[7]->value) == "a\nB\\\"",
           "metadata boolean types and decoded string bytes");
   }
   {
@@ -271,7 +271,7 @@ rule r {condition: included})YR"},
     auto rr = rule(result);
     auto r = rr ? *rr : nullptr;
     auto text = r && r->strings.size() == 1
-                    ? std::get_if<std::string_view>(&r->strings[0]->value)
+                    ? std::get_if<std::string>(&r->strings[0]->value)
                     : nullptr;
     check(text && *text == std::string_view("a\0b\n\t\r\\\"", 8),
           "text pattern retains decoded NUL and every following byte");

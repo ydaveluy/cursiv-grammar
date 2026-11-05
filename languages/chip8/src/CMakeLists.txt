@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID chip8
-    GRAMMAR    chip8/core/Chip8Grammar.hpp
+    GRAMMAR    chip8/Chip8Grammar.hpp
     NAMESPACE  chip8::Chip8
     EXTENSIONS .chip8
     OUT        chip8/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/chip8/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(chip8Core ${_core})
 target_link_libraries(chip8Core PUBLIC chip8Generated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/chip8/cli/*.cpp)
-if(_cli)
-  add_executable(chip8_cli ${_cli})
-  target_link_libraries(chip8_cli
-                        PRIVATE chip8Core cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(chip8_cli cli.cpp)
+  target_include_directories(chip8_cli PRIVATE cli)
+  target_link_libraries(chip8_cli PRIVATE chip8Core cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(chip8Cli ${_cli})
+    target_include_directories(chip8Cli PUBLIC cli)
+    target_link_libraries(chip8Cli PUBLIC chip8Core cursiv::cli)
+    target_link_libraries(chip8_cli PRIVATE chip8Cli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/chip8/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/chip8/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/chip8/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(chip8Lsp ${_lsp})
+  target_include_directories(chip8Lsp PUBLIC lsp)
   target_link_libraries(chip8Lsp PUBLIC chip8Core cursiv::lsp)
-  add_executable(chip8_lsp chip8/lsp/main.cpp)
-  target_link_libraries(chip8_lsp PRIVATE chip8Lsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(chip8_lsp lsp.cpp)
+    target_link_libraries(chip8_lsp PRIVATE chip8Lsp)
+  endif()
 endif()
 
-if(TARGET chip8Lsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/chip8/bench/main.cpp")
-  cursiv_add_benchmark(chip8
-      SOURCES chip8/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET chip8Lsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(chip8 SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(chip8)

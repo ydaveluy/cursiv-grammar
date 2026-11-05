@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/odin/core/OdinGrammar.hpp` |
-| The AST | `src/odin/core/ast.hpp` |
-| Validation checks | `src/odin/core/validation/` |
-| Services of your own | `src/odin/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/odin/cli/main.cpp` |
-| LSP features | `src/odin/lsp/LspModule.cpp` |
+| The grammar | `src/core/odin/OdinGrammar.hpp` |
+| The AST | `src/core/odin/ast.hpp` |
+| Validation checks | `src/core/odin/validation/` |
+| Services of your own | `src/core/odin/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/odin/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

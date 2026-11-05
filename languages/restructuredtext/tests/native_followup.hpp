@@ -33,7 +33,7 @@ inline int rst_native_followup(const restructuredtext::RestructuredtextCoreServi
     const auto* d=r.value_as<ast::Document>();
     const auto* p=d&&d->blocks.size()==1?std::get_if<ast::Paragraph*>(&d->blocks[0]):nullptr;
     if(!r.accepted||r.cst().recovered()||!p||!*p) return 1;
-    for(const auto& s:(*p)->spans) if(!std::holds_alternative<std::string_view>(s)) {
+    for(const auto& s:(*p)->spans) if(!std::holds_alternative<std::string>(s)) {
       std::fprintf(stderr,"rst: literal text became inline markup: %s\n",source);return 1;
     }
   }

@@ -1,8 +1,8 @@
 #pragma once
-#include "blueprint/core/ast.hpp"
-#include "cursiv/core/services/JsonValue.hpp"
+#include "blueprint/ast.hpp"
+#include "cursiv/services/JsonValue.hpp"
 #ifndef AUDIT_BEFORE
-#include "blueprint/core/Value.hpp"
+#include "blueprint/Value.hpp"
 #endif
 #include <type_traits>
 using J=cursiv::JsonValue;

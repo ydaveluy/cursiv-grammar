@@ -1,10 +1,10 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "xml/core/CoreServices.hpp"
-#include "xml/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "xml/CoreServices.hpp"
+#include "xml/ast.hpp"
 #include "xml/generated/Xml/Module.hpp"
 #include <cstdio>
 #include <initializer_list>

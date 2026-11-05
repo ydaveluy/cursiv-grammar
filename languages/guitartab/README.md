@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/guitartab/core/GuitartabGrammar.hpp` |
-| The AST | `src/guitartab/core/ast.hpp` |
-| Validation checks | `src/guitartab/core/validation/` |
-| Services of your own | `src/guitartab/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/guitartab/cli/main.cpp` |
-| LSP features | `src/guitartab/lsp/LspModule.cpp` |
+| The grammar | `src/core/guitartab/GuitartabGrammar.hpp` |
+| The AST | `src/core/guitartab/ast.hpp` |
+| Validation checks | `src/core/guitartab/validation/` |
+| Services of your own | `src/core/guitartab/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/guitartab/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

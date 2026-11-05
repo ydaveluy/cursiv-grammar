@@ -3,8 +3,8 @@
 #include <cstdio>
 #include <initializer_list>
 #include <string_view>
-#include "cursiv/core/parser/Parser.hpp"
-#include "graphemes/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "graphemes/ast.hpp"
 #include "graphemes/generated/Graphemes/Module.hpp"
 
 namespace native_regressions {

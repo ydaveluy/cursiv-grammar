@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/suokif/core/SuokifGrammar.hpp` |
-| The AST | `src/suokif/core/ast.hpp` |
-| Validation checks | `src/suokif/core/validation/` |
-| Services of your own | `src/suokif/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/suokif/cli/main.cpp` |
-| LSP features | `src/suokif/lsp/LspModule.cpp` |
+| The grammar | `src/core/suokif/SuokifGrammar.hpp` |
+| The AST | `src/core/suokif/ast.hpp` |
+| Validation checks | `src/core/suokif/validation/` |
+| Services of your own | `src/core/suokif/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/suokif/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

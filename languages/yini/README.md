@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/yini/core/YiniGrammar.hpp` |
-| The AST | `src/yini/core/ast.hpp` |
-| Validation checks | `src/yini/core/validation/` |
-| Services of your own | `src/yini/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/yini/cli/main.cpp` |
-| LSP features | `src/yini/lsp/LspModule.cpp` |
+| The grammar | `src/core/yini/YiniGrammar.hpp` |
+| The AST | `src/core/yini/ast.hpp` |
+| Validation checks | `src/core/yini/validation/` |
+| Services of your own | `src/core/yini/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/yini/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

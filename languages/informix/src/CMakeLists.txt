@@ -1,6 +1,8 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID informix
-    GRAMMAR    informix/core/InformixGrammar.hpp
+    GRAMMAR    informix/InformixGrammar.hpp
     NAMESPACE  informix::Informix
     EXTENSIONS .4gl
     OUT        informix/generated)
@@ -9,34 +11,47 @@ cursiv_generate_language(ID informix
 target_compile_options(informixGenerated PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-fconstexpr-ops-limit=2147483647>)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/informix/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(informixCore ${_core})
 target_link_libraries(informixCore PUBLIC informixGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/informix/cli/*.cpp)
-if(_cli)
-  add_executable(informix_cli ${_cli})
-  target_link_libraries(informix_cli
-                        PRIVATE informixCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(informix_cli cli.cpp)
+  target_include_directories(informix_cli PRIVATE cli)
+  target_link_libraries(informix_cli PRIVATE informixCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(informixCli ${_cli})
+    target_include_directories(informixCli PUBLIC cli)
+    target_link_libraries(informixCli PUBLIC informixCore cursiv::cli)
+    target_link_libraries(informix_cli PRIVATE informixCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/informix/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/informix/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/informix/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(informixLsp ${_lsp})
+  target_include_directories(informixLsp PUBLIC lsp)
   target_link_libraries(informixLsp PUBLIC informixCore cursiv::lsp)
-  add_executable(informix_lsp informix/lsp/main.cpp)
-  target_link_libraries(informix_lsp PRIVATE informixLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(informix_lsp lsp.cpp)
+    target_link_libraries(informix_lsp PRIVATE informixLsp)
+  endif()
 endif()
 
-if(TARGET informixLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/informix/bench/main.cpp")
-  cursiv_add_benchmark(informix
-      SOURCES informix/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET informixLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(informix SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(informix)

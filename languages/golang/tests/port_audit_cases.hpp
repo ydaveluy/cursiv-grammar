@@ -2,8 +2,8 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "golang/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "golang/ast.hpp"
 
 namespace port_audit_cases {
 

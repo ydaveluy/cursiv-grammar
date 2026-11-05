@@ -8,12 +8,12 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "ada/core/CoreServices.hpp"
-#include "ada/core/ast.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "ada/CoreServices.hpp"
+#include "ada/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace {
 
@@ -94,7 +94,7 @@ int main() {
     bool unknown = false, parameter = false, returnType = false;
     bool callback = false, formalObject = false, decimal = false;
     bool ordinary = false, synchronized = false, others = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* value = as<ada::ast::AccessDef>(node)) {
         all |= value->all_ && value->mark == "Integer";
         callback |= value->isFunction && value->returnNullExclusion;
@@ -147,7 +147,7 @@ int main() {
     bool inReverse = false, ofReverse = false, block = false, accept = false;
     bool entry = false, task = false, protectedSpec = false, protectedBody = false;
     bool endLabel = false, nullProcedure = false, expressionFunction = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* value = as<ada::ast::QuantifiedExpr>(node)) {
         inReverse |= value->var && value->var->reverse_ && !value->var->isOf;
         ofReverse |= value->var && value->var->reverse_ && value->var->isOf;
@@ -242,7 +242,7 @@ int main() {
       return fail("(declaration payload)", "Unicode or declaration syntax failed");
     bool aspects = false, positive = false, negative = false;
     bool rename = false, stub = false, instance = false, entry = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* decl = as<ada::ast::SubprogramDecl>(node)) {
         if (decl->aspects.size() == 2 && decl->aspects[0]->name == "Pre" &&
             decl->aspects[1]->name == "Post" && decl->aspects[0]->value &&

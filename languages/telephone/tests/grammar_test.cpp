@@ -9,13 +9,13 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "telephone/core/CoreServices.hpp"
-#include "telephone/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "telephone/CoreServices.hpp"
+#include "telephone/ast.hpp"
 
 namespace {
 
@@ -54,7 +54,7 @@ int main() {
     const std::string_view spelling(source);
     if (number->hasCountryCode != spelling.starts_with("+1") ||
         number->hasPlus != spelling.starts_with("+1+") || number->parent ||
-        number->variation->parent != number || result.nodes.size() != 2 ||
+        number->variation->parent != number || result.nodes().size() != 2 ||
         result.cst().text() != spelling)
       failures += fail(source, "prefix flags or ownership were lost");
     std::vector<cursiv::Diagnostic> diagnostics;

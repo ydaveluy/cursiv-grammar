@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/microc/core/MicrocGrammar.hpp` |
-| The AST | `src/microc/core/ast.hpp` |
-| Validation checks | `src/microc/core/validation/` |
-| Services of your own | `src/microc/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/microc/cli/main.cpp` |
-| LSP features | `src/microc/lsp/LspModule.cpp` |
+| The grammar | `src/core/microc/MicrocGrammar.hpp` |
+| The AST | `src/core/microc/ast.hpp` |
+| Validation checks | `src/core/microc/validation/` |
+| Services of your own | `src/core/microc/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/microc/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

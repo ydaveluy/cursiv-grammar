@@ -1,9 +1,9 @@
 #pragma once
 #include <cstdio>
 #include <string>
-#include "cursiv/test/ValidationHelper.hpp"
-#include "icon/core/CoreServices.hpp"
-#include "icon/core/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "icon/CoreServices.hpp"
+#include "icon/ast.hpp"
 
 namespace icon_native_followup {
 inline bool run(const icon::IconCoreServices& services) {
@@ -46,7 +46,7 @@ end
   bool nullArguments = false, nullList = false, emptyList = false, emptyBlock = false;
   bool ifNoElse = false, whileNoDo = false, untilNoDo = false, everyNoDo = false;
   bool bareSuspend = false, bareReturn = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* declaration = cursiv::ast_cast<icon::ast::InvocableDeclaration>(node))
       invocable |= declaration->items.size() == 2 && declaration->items[0]->name == "_worker" &&
                    declaration->items[1]->name == "\"+\"" && declaration->items[1]->arity == "2";

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/metamath/core/MetamathGrammar.hpp` |
-| The AST | `src/metamath/core/ast.hpp` |
-| Validation checks | `src/metamath/core/validation/` |
-| Services of your own | `src/metamath/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/metamath/cli/main.cpp` |
-| LSP features | `src/metamath/lsp/LspModule.cpp` |
+| The grammar | `src/core/metamath/MetamathGrammar.hpp` |
+| The AST | `src/core/metamath/ast.hpp` |
+| Validation checks | `src/core/metamath/validation/` |
+| Services of your own | `src/core/metamath/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/metamath/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

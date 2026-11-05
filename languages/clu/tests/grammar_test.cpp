@@ -9,13 +9,13 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "clu/core/CoreServices.hpp"
-#include "clu/core/ast.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "clu/CoreServices.hpp"
+#include "clu/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace {
 
@@ -158,7 +158,7 @@ END _p;
     return fail("native-shapes", "array or sequence element type was lost");
   bool ch = false, str = false, real = false, force = false, zero_call = false,
        continued = false, handler = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* v = cursiv::ast_cast<ast::CharLit>(node)) ch |= v->value == "A";
     if (const auto* v = cursiv::ast_cast<ast::StringLit>(node)) str |= v->value == "a\n\"b";
     if (const auto* v = cursiv::ast_cast<ast::RealLit>(node)) real |= v->value == 50.;

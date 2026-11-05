@@ -5,10 +5,10 @@
 
 #include "AsPatternView.hpp"
 #include "as_pattern_cases.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "haskell/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "haskell/CoreServices.hpp"
 #include "haskell/generated/Haskell/Module.hpp"
 int main() {
   const auto language =
@@ -54,7 +54,7 @@ int main() {
     };
     walk(walk, *r.value);
     for (auto& s : ownedArgs) arguments.push_back(s);
-    if (!owned || seen.size() != r.nodes.size()) return fail("ownership");
+    if (!owned || seen.size() != r.nodes().size()) return fail("ownership");
     if (c.native && !c.invisible) {
       ++faithful;
       if (patterns.size() != c.patterns || types != c.types ||

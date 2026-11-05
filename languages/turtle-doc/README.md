@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/turtledoc/core/TurtleDocGrammar.hpp` |
-| The AST | `src/turtledoc/core/ast.hpp` |
-| Validation checks | `src/turtledoc/core/validation/` |
-| Services of your own | `src/turtledoc/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/turtledoc/cli/main.cpp` |
-| LSP features | `src/turtledoc/lsp/LspModule.cpp` |
+| The grammar | `src/core/turtledoc/TurtleDocGrammar.hpp` |
+| The AST | `src/core/turtledoc/ast.hpp` |
+| Validation checks | `src/core/turtledoc/validation/` |
+| Services of your own | `src/core/turtledoc/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/turtledoc/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

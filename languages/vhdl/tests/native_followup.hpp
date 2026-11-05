@@ -3,10 +3,10 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "vhdl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "vhdl/ast.hpp"
 namespace vhdl_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace ast=vhdl::ast;
@@ -28,7 +28,7 @@ template<class Language> bool run(const Language& language) {
     std::fprintf(stderr,"vhdl matching selected assignment failed: %s\n",source);diagnostics(r);return false;
   }
   bool concurrent=false,signal=false,variable=false,matchingCase=false,postponed=false,subprogram=false;
-  for(const auto* node:r.nodes){
+  for(const auto* node:r.nodes()){
     if(const auto* n=cursiv::ast_cast<ast::SignalAssign>(node))concurrent|=n->questioned&&n->selector&&n->selWave&&n->selWave->entries.size()==2;
     if(const auto* n=cursiv::ast_cast<ast::SeqSignalAssign>(node))signal|=n->questioned&&n->selector&&n->selWave&&n->selWave->entries.size()==2;
     if(const auto* n=cursiv::ast_cast<ast::SeqVarAssign>(node))variable|=n->questioned&&n->selector&&n->selExpr&&n->selExpr->entries.size()==2;

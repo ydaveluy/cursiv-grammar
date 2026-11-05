@@ -2,13 +2,13 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/services/JsonValue.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "html/core/CoreServices.hpp"
-#include "html/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "html/CoreServices.hpp"
+#include "html/ast.hpp"
 namespace {
 using J=cursiv::JsonValue;
 std::string lower(std::string_view text) { std::string out(text);for(char&c:out)if(c>='A'&&c<='Z')c+='a'-'A';return out; }

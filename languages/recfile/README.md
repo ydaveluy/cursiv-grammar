@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/recfile/core/RecfileGrammar.hpp` |
-| The AST | `src/recfile/core/ast.hpp` |
-| Validation checks | `src/recfile/core/validation/` |
-| Services of your own | `src/recfile/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/recfile/cli/main.cpp` |
-| LSP features | `src/recfile/lsp/LspModule.cpp` |
+| The grammar | `src/core/recfile/RecfileGrammar.hpp` |
+| The AST | `src/core/recfile/ast.hpp` |
+| Validation checks | `src/core/recfile/validation/` |
+| Services of your own | `src/core/recfile/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/recfile/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

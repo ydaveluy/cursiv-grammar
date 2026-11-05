@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/modula2pim4/core/Modula2pim4Grammar.hpp` |
-| The AST | `src/modula2pim4/core/ast.hpp` |
-| Validation checks | `src/modula2pim4/core/validation/` |
-| Services of your own | `src/modula2pim4/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/modula2pim4/cli/main.cpp` |
-| LSP features | `src/modula2pim4/lsp/LspModule.cpp` |
+| The grammar | `src/core/modula2pim4/Modula2pim4Grammar.hpp` |
+| The AST | `src/core/modula2pim4/ast.hpp` |
+| Validation checks | `src/core/modula2pim4/validation/` |
+| Services of your own | `src/core/modula2pim4/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/modula2pim4/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

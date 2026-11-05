@@ -1,11 +1,11 @@
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "rcs/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "rcs/CoreServices.hpp"
 #include <cstdio>
 #include <fstream>
 #include <iterator>
@@ -71,7 +71,7 @@ int main() {
           });
     };
     walk(walk, *file);
-    if (!owned || seen.size() != result.nodes.size())
+    if (!owned || seen.size() != result.nodes().size())
       return fail("ownership");
   }
   std::printf("RCS: %zu files, %u complete native repositories\n",

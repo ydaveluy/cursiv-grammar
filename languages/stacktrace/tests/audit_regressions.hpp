@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "stacktrace/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "stacktrace/ast.hpp"
 #include "stacktrace/generated/Stacktrace/Module.hpp"
 #include <fstream>
 #include <iterator>

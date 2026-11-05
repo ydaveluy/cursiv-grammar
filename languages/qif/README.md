@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/qif/core/QifGrammar.hpp` |
-| The AST | `src/qif/core/ast.hpp` |
-| Validation checks | `src/qif/core/validation/` |
-| Services of your own | `src/qif/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/qif/cli/main.cpp` |
-| LSP features | `src/qif/lsp/LspModule.cpp` |
+| The grammar | `src/core/qif/QifGrammar.hpp` |
+| The AST | `src/core/qif/ast.hpp` |
+| Validation checks | `src/core/qif/validation/` |
+| Services of your own | `src/core/qif/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/qif/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

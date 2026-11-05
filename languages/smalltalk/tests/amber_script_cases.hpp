@@ -5,9 +5,9 @@
 #include <unordered_set>
 #include <utility>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace amber_script_cases {
 inline bool run(const auto& language) {
@@ -87,9 +87,9 @@ inline bool run(const auto& language) {
           });
     };
     walk(walk, *root);
-    if (!owned || seen.size() != r.nodes.size()) {
+    if (!owned || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "smalltalk Amber script: %s ownership=%d seen=%zu parser-nodes=%zu source=%s\n",
-                   test.id, owned, seen.size(), r.nodes.size(), test.source);
+                   test.id, owned, seen.size(), r.nodes().size(), test.source);
       return false;
     }
   }

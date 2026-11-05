@@ -1,12 +1,12 @@
 #include "native_followup.hpp"
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "ruleworks/core/CoreServices.hpp"
-#include "ruleworks/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "ruleworks/CoreServices.hpp"
+#include "ruleworks/ast.hpp"
 // The smoke test of the language: build the container the way a workspace
 // does, read every example and the coverage document, and check the trees.
 
@@ -18,9 +18,9 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace {
 

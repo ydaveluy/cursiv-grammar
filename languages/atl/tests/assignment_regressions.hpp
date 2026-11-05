@@ -5,8 +5,8 @@
 #include <string>
 #include <string_view>
 
-#include "atl/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
+#include "atl/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
 
 namespace atl_assignment_regressions {
 

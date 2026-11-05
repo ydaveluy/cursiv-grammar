@@ -4,8 +4,8 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "plantuml/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "plantuml/ast.hpp"
 
 namespace plantuml_containers {
 inline bool run(const auto& language) {
@@ -68,7 +68,7 @@ inline bool run(const auto& language) {
         ? cursiv::ast_cast<a::ContainerDecl>(doc->elements[0]) : nullptr;
     const std::string_view name(c.name);
     unsigned containers = 0, closed = 0;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<a::ContainerDecl>(node)) {
         ++containers; closed += value->hasClosingBrace;
       }
@@ -94,7 +94,7 @@ inline bool run(const auto& language) {
           });
     };
     if (result.value) walk(walk, *result.value);
-    check(owned && seen.size() == result.nodes.size(),
+    check(owned && seen.size() == result.nodes().size(),
           "complete unique AST/CST ownership", c.name);
     if (name == "root-close-after-class") {
       const auto* cls = doc && doc->elements.size() == 1

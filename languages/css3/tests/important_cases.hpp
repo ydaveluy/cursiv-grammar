@@ -1,38 +1,37 @@
 #pragma once
 
 #include <cstdio>
-#include <memory_resource>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "css3/core/CoreServices.hpp"
-#include "css3/core/ValueConverters.hpp"
-#include "css3/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "css3/CoreServices.hpp"
+#include "css3/ValueConverters.hpp"
+#include "css3/ast.hpp"
 
 namespace css3_important_cases {
 namespace a=css3::ast;
-inline std::string signature(const a::ComponentValue* value, std::pmr::memory_resource* memory);
+inline std::string signature(const a::ComponentValue* value);
 template <class Values>
-std::string sequence(const Values& values,std::pmr::memory_resource* memory) {
+std::string sequence(const Values& values) {
   std::string result;
   for (const auto* value:values) {
     if (!result.empty()) result += "|";
-    result += signature(value,memory);
+    result += signature(value);
   }
   return result;
 }
-inline std::string signature(const a::ComponentValue* value,std::pmr::memory_resource* memory) {
-  if (const auto* n=cursiv::ast_cast<a::IdentValue>(value)) return "id:"+std::string(css3::decode_css(n->name,memory));
+inline std::string signature(const a::ComponentValue* value) {
+  if (const auto* n=cursiv::ast_cast<a::IdentValue>(value)) return "id:"+std::string(css3::decode_css(n->name));
   if (const auto* n=cursiv::ast_cast<a::PunctValue>(value)) return "p:"+std::string(n->text);
   if (const auto* n=cursiv::ast_cast<a::StringLit>(value)) return "s:"+std::string(n->value);
   if (const auto* n=cursiv::ast_cast<a::FunctionCall>(value))
-    return "fn:"+std::string(css3::decode_css(n->name,memory))+"("+sequence(n->args,memory)+")";
+    return "fn:"+std::string(css3::decode_css(n->name))+"("+sequence(n->args)+")";
   if (const auto* n=cursiv::ast_cast<a::GroupValue>(value))
-    return std::string(n->bracketed?"[]":"()")+"("+sequence(n->items,memory)+")";
+    return std::string(n->bracketed?"[]":"()")+"("+sequence(n->items)+")";
   return "?";
 }
 inline bool run(const css3::Css3CoreServices& services) {
@@ -88,12 +87,11 @@ inline bool run(const css3::Css3CoreServices& services) {
     check(parsed.cst().text()==test.source,test.name,"complete spelling/comments retained");
     const a::Declaration* declaration=nullptr;
     std::size_t count=0;
-    for (const auto* node:parsed.nodes) if (const auto* n=cursiv::ast_cast<a::Declaration>(node)) { declaration=n; ++count; }
-    std::pmr::monotonic_buffer_resource memory;
+    for (const auto* node:parsed.nodes()) if (const auto* n=cursiv::ast_cast<a::Declaration>(node)) { declaration=n; ++count; }
     check(count==1 && declaration && declaration->property=="x",test.name,"one typed declaration retained");
     if (declaration) {
       check(declaration->important==test.important,test.name,"only final decoded important marker sets flag");
-      check(sequence(declaration->value,&memory)==test.signature,test.name,"all non-marker bangs/identifiers/groups remain in ordered value AST");
+      check(sequence(declaration->value)==test.signature,test.name,"all non-marker bangs/identifiers/groups remain in ordered value AST");
     }
     if (std::string_view(test.name).find("crlf")!=std::string_view::npos)
       check(std::string_view(test.source).find("\r\n")!=std::string_view::npos,test.name,"real CRLF bytes reach lexer");
@@ -108,17 +106,16 @@ inline bool run(const css3::Css3CoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size()==parsed.nodes.size() && !parsed.value->parent,test.name,"every allocated node reachable once");
+    check(seen.size()==parsed.nodes().size() && !parsed.value->parent,test.name,"every allocated node reachable once");
   }
-  std::pmr::monotonic_buffer_resource memory;
   for (std::string_view text:{"","a","'","'a","a'","'a\""}) {
-    const auto value=css3::unquote(text,&memory);
+    const auto value=css3::unquote(text);
     check(!value && !value.error.message.empty(),"unquote-totality","malformed fragment gives a bounded error");
   }
   {
-    const auto empty=css3::unquote("''",&memory);
-    const auto escape=css3::unquote("'\\41'",&memory);
-    const auto newline=css3::unquote("'a\\\r\nb'",&memory);
+    const auto empty=css3::unquote("''");
+    const auto escape=css3::unquote("'\\41'");
+    const auto newline=css3::unquote("'a\\\r\nb'");
     check(empty && empty.value->empty() && escape && *escape.value=="A" && newline && *newline.value=="ab",
           "unquote-values","existing CSS escape decoding and continuation preserved");
   }

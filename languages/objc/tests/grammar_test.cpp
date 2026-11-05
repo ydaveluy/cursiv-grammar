@@ -1,13 +1,13 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
 #include "native_regressions.hpp"
 #include "resume_regressions.hpp"
 #include "native_followup.hpp"
-#include "objc/core/CoreServices.hpp"
-#include "objc/core/ast.hpp"
+#include "objc/CoreServices.hpp"
+#include "objc/ast.hpp"
 // The smoke test of the language: parse every file under example/, the way a
 // workspace would build one.
 
@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -53,6 +53,24 @@ static int audit_regression() {
         function->params.size() != 1 || !function->params[0]->specifiers ||
         function->params[0]->declarator)
       return 1;
+  }
+  {
+    const auto parsed = language.language.parser->parse(
+        "IBOutlet IBOutletCollection(View) IBOutlet id views;"
+        "void f(int a[const static volatile 4]);");
+    const objc::ast::Specifiers* outlets = nullptr;
+    const objc::ast::ArraySuffix* array = nullptr;
+    for (const auto* node : parsed.nodes()) {
+      if (const auto* n = cursiv::ast_cast<objc::ast::Specifiers>(node);
+          n && !n->ibOutlets.empty()) outlets = n;
+      if (const auto* n = cursiv::ast_cast<objc::ast::ArraySuffix>(node)) array = n;
+    }
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !outlets || outlets->ibOutlets.size() != 2 || !outlets->ibOutlet() ||
+        !outlets->ibOutletCollection() || outlets->ibOutletCollectionTypes.size() != 1 ||
+        outlets->ibOutletCollectionTypes[0] != "View" || !array ||
+        !array->isStatic || array->qualifiers.size() != 2)
+      return fail("repeatable outlet specifiers and static array qualifiers");
   }
   return 0;
 }

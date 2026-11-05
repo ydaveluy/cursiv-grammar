@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "snobol/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "snobol/ast.hpp"
 #include "snobol/generated/Snobol/Module.hpp"
 #include <cstdio>
 #include <string>

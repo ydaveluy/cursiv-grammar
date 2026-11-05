@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "toml/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "toml/ast.hpp"
 #include "toml/generated/Toml/Module.hpp"
 #include <cstdio>
 #include <string>

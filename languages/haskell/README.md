@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/haskell/core/HaskellGrammar.hpp` |
-| The AST | `src/haskell/core/ast.hpp` |
-| Validation checks | `src/haskell/core/validation/` |
-| Services of your own | `src/haskell/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/haskell/cli/main.cpp` |
-| LSP features | `src/haskell/lsp/LspModule.cpp` |
+| The grammar | `src/core/haskell/HaskellGrammar.hpp` |
+| The AST | `src/core/haskell/ast.hpp` |
+| Validation checks | `src/core/haskell/validation/` |
+| Services of your own | `src/core/haskell/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/haskell/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

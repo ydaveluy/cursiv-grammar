@@ -7,13 +7,13 @@
 #include <memory>
 #include <string>
 
-#include "cursiv/test/Check.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "muddb/core/ast.hpp"
-#include "muddb/core/CoreServices.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "muddb/ast.hpp"
+#include "muddb/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
 #include "native_cases.hpp"
 #include "muddb/generated/Muddb/Module.hpp"
 

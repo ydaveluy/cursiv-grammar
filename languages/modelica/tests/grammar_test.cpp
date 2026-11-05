@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "modelica/core/CoreServices.hpp"
-#include "modelica/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "modelica/CoreServices.hpp"
+#include "modelica/ast.hpp"
 #include "native_regressions.hpp"
 #include "inheritance_breaks.hpp"
 // The grammar end to end: every document under example/ (the corpus) and
@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

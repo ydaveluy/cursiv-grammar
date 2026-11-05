@@ -4,9 +4,9 @@
 #include <string>
 #include <string_view>
 
-#include "cobol85/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cobol85/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
 namespace cobol_communication_cases {
 

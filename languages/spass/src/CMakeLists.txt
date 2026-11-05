@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID spass
-    GRAMMAR    spass/core/SpassGrammar.hpp
+    GRAMMAR    spass/SpassGrammar.hpp
     NAMESPACE  spass::Spass
     EXTENSIONS .spass
     OUT        spass/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/spass/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(spassCore ${_core})
 target_link_libraries(spassCore PUBLIC spassGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/spass/cli/*.cpp)
-if(_cli)
-  add_executable(spass_cli ${_cli})
-  target_link_libraries(spass_cli
-                        PRIVATE spassCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(spass_cli cli.cpp)
+  target_include_directories(spass_cli PRIVATE cli)
+  target_link_libraries(spass_cli PRIVATE spassCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(spassCli ${_cli})
+    target_include_directories(spassCli PUBLIC cli)
+    target_link_libraries(spassCli PUBLIC spassCore cursiv::cli)
+    target_link_libraries(spass_cli PRIVATE spassCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/spass/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/spass/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/spass/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(spassLsp ${_lsp})
+  target_include_directories(spassLsp PUBLIC lsp)
   target_link_libraries(spassLsp PUBLIC spassCore cursiv::lsp)
-  add_executable(spass_lsp spass/lsp/main.cpp)
-  target_link_libraries(spass_lsp PRIVATE spassLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(spass_lsp lsp.cpp)
+    target_link_libraries(spass_lsp PRIVATE spassLsp)
+  endif()
 endif()
 
-if(TARGET spassLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/spass/bench/main.cpp")
-  cursiv_add_benchmark(spass
-      SOURCES spass/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET spassLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(spass SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(spass)

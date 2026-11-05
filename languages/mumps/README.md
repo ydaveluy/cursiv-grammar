@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/mumps/core/MumpsGrammar.hpp` |
-| The AST | `src/mumps/core/ast.hpp` |
-| Validation checks | `src/mumps/core/validation/` |
-| Services of your own | `src/mumps/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/mumps/cli/main.cpp` |
-| LSP features | `src/mumps/lsp/LspModule.cpp` |
+| The grammar | `src/core/mumps/MumpsGrammar.hpp` |
+| The AST | `src/core/mumps/ast.hpp` |
+| Validation checks | `src/core/mumps/validation/` |
+| Services of your own | `src/core/mumps/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/mumps/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

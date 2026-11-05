@@ -33,12 +33,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/apex/core/ApexGrammar.hpp` |
-| The AST | `src/apex/core/ast.hpp` |
-| Validation checks | `src/apex/core/validation/` |
-| Services of your own | `src/apex/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/apex/cli/main.cpp` |
-| LSP features | `src/apex/lsp/LspModule.cpp` |
+| The grammar | `src/core/apex/ApexGrammar.hpp` |
+| The AST | `src/core/apex/ast.hpp` |
+| Validation checks | `src/core/apex/validation/` |
+| Services of your own | `src/core/apex/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/apex/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

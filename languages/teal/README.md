@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/teal/core/TealGrammar.hpp` |
-| The AST | `src/teal/core/ast.hpp` |
-| Validation checks | `src/teal/core/validation/` |
-| Services of your own | `src/teal/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/teal/cli/main.cpp` |
-| LSP features | `src/teal/lsp/LspModule.cpp` |
+| The grammar | `src/core/teal/TealGrammar.hpp` |
+| The AST | `src/core/teal/ast.hpp` |
+| Validation checks | `src/core/teal/validation/` |
+| Services of your own | `src/core/teal/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/teal/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

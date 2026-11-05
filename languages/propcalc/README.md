@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/propcalc/core/PropcalcGrammar.hpp` |
-| The AST | `src/propcalc/core/ast.hpp` |
-| Validation checks | `src/propcalc/core/validation/` |
-| Services of your own | `src/propcalc/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/propcalc/cli/main.cpp` |
-| LSP features | `src/propcalc/lsp/LspModule.cpp` |
+| The grammar | `src/core/propcalc/PropcalcGrammar.hpp` |
+| The AST | `src/core/propcalc/ast.hpp` |
+| Validation checks | `src/core/propcalc/validation/` |
+| Services of your own | `src/core/propcalc/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/propcalc/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

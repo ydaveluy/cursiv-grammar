@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/json5/core/Json5Grammar.hpp` |
-| The AST | `src/json5/core/ast.hpp` |
-| Validation checks | `src/json5/core/validation/` |
-| Services of your own | `src/json5/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/json5/cli/main.cpp` |
-| LSP features | `src/json5/lsp/LspModule.cpp` |
+| The grammar | `src/core/json5/Json5Grammar.hpp` |
+| The AST | `src/core/json5/ast.hpp` |
+| Validation checks | `src/core/json5/validation/` |
+| Services of your own | `src/core/json5/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/json5/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

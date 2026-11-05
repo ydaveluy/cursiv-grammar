@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/sdl/core/SdlGrammar.hpp` |
-| The AST | `src/sdl/core/ast.hpp` |
-| Validation checks | `src/sdl/core/validation/` |
-| Services of your own | `src/sdl/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/sdl/cli/main.cpp` |
-| LSP features | `src/sdl/lsp/LspModule.cpp` |
+| The grammar | `src/core/sdl/SdlGrammar.hpp` |
+| The AST | `src/core/sdl/ast.hpp` |
+| Validation checks | `src/core/sdl/validation/` |
+| Services of your own | `src/core/sdl/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/sdl/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

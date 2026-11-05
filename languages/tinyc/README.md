@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/tinyc/core/TinycGrammar.hpp` |
-| The AST | `src/tinyc/core/ast.hpp` |
-| Validation checks | `src/tinyc/core/validation/` |
-| Services of your own | `src/tinyc/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/tinyc/cli/main.cpp` |
-| LSP features | `src/tinyc/lsp/LspModule.cpp` |
+| The grammar | `src/core/tinyc/TinycGrammar.hpp` |
+| The AST | `src/core/tinyc/ast.hpp` |
+| Validation checks | `src/core/tinyc/validation/` |
+| Services of your own | `src/core/tinyc/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/tinyc/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

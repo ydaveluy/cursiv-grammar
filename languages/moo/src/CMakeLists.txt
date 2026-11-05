@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID moo
-    GRAMMAR    moo/core/MooGrammar.hpp
+    GRAMMAR    moo/MooGrammar.hpp
     NAMESPACE  moo::Moo
     EXTENSIONS .moo
     OUT        moo/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/moo/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(mooCore ${_core})
 target_link_libraries(mooCore PUBLIC mooGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/moo/cli/*.cpp)
-if(_cli)
-  add_executable(moo_cli ${_cli})
-  target_link_libraries(moo_cli
-                        PRIVATE mooCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(moo_cli cli.cpp)
+  target_include_directories(moo_cli PRIVATE cli)
+  target_link_libraries(moo_cli PRIVATE mooCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(mooCli ${_cli})
+    target_include_directories(mooCli PUBLIC cli)
+    target_link_libraries(mooCli PUBLIC mooCore cursiv::cli)
+    target_link_libraries(moo_cli PRIVATE mooCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/moo/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/moo/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/moo/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(mooLsp ${_lsp})
+  target_include_directories(mooLsp PUBLIC lsp)
   target_link_libraries(mooLsp PUBLIC mooCore cursiv::lsp)
-  add_executable(moo_lsp moo/lsp/main.cpp)
-  target_link_libraries(moo_lsp PRIVATE mooLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(moo_lsp lsp.cpp)
+    target_link_libraries(moo_lsp PRIVATE mooLsp)
+  endif()
 endif()
 
-if(TARGET mooLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/moo/bench/main.cpp")
-  cursiv_add_benchmark(moo
-      SOURCES moo/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET mooLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(moo SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(moo)

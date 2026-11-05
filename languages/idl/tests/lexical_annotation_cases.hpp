@@ -4,8 +4,8 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "idl/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "idl/ast.hpp"
 
 namespace idl_lexical_annotations {
 inline bool run(const auto& services) {
@@ -79,9 +79,9 @@ inline bool run(const auto& services) {
           });
     };
     walk(walk, *r.value);
-    if (!owned || seen.size() != r.nodes.size()) {
+    if (!owned || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "idl lexical/annotation: %s ownership=%d seen=%zu arena=%zu\n",
-                   test.id, owned, seen.size(), r.nodes.size());
+                   test.id, owned, seen.size(), r.nodes().size());
       return false;
     }
     if (std::string_view(test.id).starts_with("annotation-")) {

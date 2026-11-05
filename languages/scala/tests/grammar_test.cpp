@@ -3,11 +3,11 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
 #include "modern_cases.hpp"
-#include "scala/core/CoreServices.hpp"
-#include "scala/core/ast.hpp"
+#include "scala/CoreServices.hpp"
+#include "scala/ast.hpp"
 // The smoke test of the language: every document under `example/` and
 // `tests/` parses clean (no recovery) and builds a CompilationUnit.
 
@@ -19,9 +19,9 @@
 #include <string>
 #include <utility>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
 
 namespace {
 

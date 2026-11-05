@@ -7,14 +7,14 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "json5/core/CoreServices.hpp"
-#include "json5/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "json5/CoreServices.hpp"
+#include "json5/ast.hpp"
 #include "whitespace_regressions.hpp"
 
 namespace {
@@ -42,8 +42,8 @@ bool decoded_values(const cursiv::Parser &parser) {
       object->members[2]->name != "Ⅰ" || object->members[3]->name != "ᛮ" ||
       object->members[4]->name != "Ⅻ")
     return false;
-  const auto *a = std::get_if<std::string_view>(&object->members[0]->value);
-  const auto *b = std::get_if<std::string_view>(&object->members[1]->value);
+  const auto *a = std::get_if<std::string>(&object->members[0]->value);
+  const auto *b = std::get_if<std::string>(&object->members[1]->value);
   if (!a || *a != std::string_view("A\nB😀\0Z\v", 10) || !b || *b != "xqz")
     return false;
   for (const std::string& newline :
@@ -53,7 +53,7 @@ bool decoded_values(const cursiv::Parser &parser) {
     const auto parsed = parser.parse(continued);
     const auto *root = parsed.value_as<json5::ast::Doc>();
     const auto *text = root && root->value
-                           ? std::get_if<std::string_view>(&*root->value)
+                           ? std::get_if<std::string>(&*root->value)
                            : nullptr;
     if (!parsed.accepted || parsed.cst().recovered() ||
         !parsed.diagnostics.empty() || !text || *text != "onetwo")
@@ -74,11 +74,11 @@ bool decoded_values(const cursiv::Parser &parser) {
       hex_object->members.size() != 3)
     return false;
   const auto *hex_value =
-      std::get_if<std::string_view>(&hex_object->members[0]->value);
+      std::get_if<std::string>(&hex_object->members[0]->value);
   const auto *unicode_value =
-      std::get_if<std::string_view>(&hex_object->members[1]->value);
+      std::get_if<std::string>(&hex_object->members[1]->value);
   const auto *nul_value =
-      std::get_if<std::string_view>(&hex_object->members[2]->value);
+      std::get_if<std::string>(&hex_object->members[2]->value);
   if (!hex_value || *hex_value != "\xc2\x80éÿ" ||
       !unicode_value || *hex_value != *unicode_value ||
       !nul_value || *nul_value != std::string_view("\0", 1))
@@ -127,7 +127,7 @@ int main() {
       return 1;
     }
     bool incomplete = false, wide = false;
-    for (const auto *node : audit_result.nodes)
+    for (const auto *node : audit_result.nodes())
       if (const auto *n = cursiv::ast_cast<json5::ast::Number>(node)) {
         incomplete = incomplete || n->text == "1e+";
         wide = wide || n->text == "0xFFFFFFFFFFFFFFFFFFFFFF";

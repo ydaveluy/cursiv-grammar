@@ -10,13 +10,13 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
-#include "sysmlv2/core/CoreServices.hpp"
-#include "sysmlv2/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
+#include "sysmlv2/CoreServices.hpp"
+#include "sysmlv2/ast.hpp"
 
 namespace {
 
@@ -36,7 +36,7 @@ bool clean(const cursiv::ParseResult& r) {
   return r.accepted && !r.cst().recovered() && r.diagnostics.empty();
 }
 
-const ast::Element* find(const cursiv::vector<ast::Element*>& members,
+const ast::Element* find(const std::vector<ast::Element*>& members,
                          std::string_view name) {
   for (ast::Element* const m : members)
     if (m != nullptr && m->name == name) return m;

@@ -5,10 +5,10 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "turing/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "turing/ast.hpp"
 
 namespace turing_three_types {
 struct Case { const char* id; std::string_view source; bool valid; };
@@ -93,11 +93,11 @@ inline bool run(const auto& services) {
           });
     };
     walk(walk, *root);
-    for (const auto* node : r.nodes)
+    for (const auto* node : r.nodes())
       if (!seen.contains(node)) describe("unreachable", *node);
-    if (!owned || seen.size() != r.nodes.size()) {
+    if (!owned || seen.size() != r.nodes().size()) {
       std::fprintf(stderr, "turing types: %s ownership=%d visited=%zu arena=%zu\n",
-                   test.id, owned, seen.size(), r.nodes.size());
+                   test.id, owned, seen.size(), r.nodes().size());
       return fail("complete parent/CST/arena ownership");
     }
     const auto* declaration = cursiv::ast_cast<ast::TypeDecl>(root->items[0]);

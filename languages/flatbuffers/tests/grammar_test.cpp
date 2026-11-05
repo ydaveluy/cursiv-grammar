@@ -9,11 +9,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "flatbuffers/core/CoreServices.hpp"
-#include "flatbuffers/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "flatbuffers/CoreServices.hpp"
+#include "flatbuffers/ast.hpp"
 
 namespace {
 
@@ -89,7 +89,7 @@ root_type N.Request;
       empty == nullptr || !empty->values.empty())
     return fail("schema regression values were lost");
   bool payload = false, service = false, root = false, reset = false, json = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* u = cursiv::ast_cast<ast::UnionDecl>(node); u && u->name == "Payload")
       payload = u->baseType != nullptr && u->baseType->name == "ubyte" &&
           u->values.size() == 1 && u->values[0]->metadata.size() == 1 &&
@@ -103,7 +103,7 @@ root_type N.Request;
     if (const auto* ns = cursiv::ast_cast<ast::Namespace>(node); ns && ns->path.empty())
       reset = true;
     if (const auto* kv = cursiv::ast_cast<ast::KeyValue>(node))
-      json = kv->name == "n" && std::get<std::string_view>(kv->value) == "1";
+      json = kv->name == "n" && std::get<std::string>(kv->value) == "1";
   }
   return payload && service && root && reset && json ? 0 :
       fail("schema regression nodes were lost");
@@ -146,7 +146,7 @@ int main() {
   {
     const auto parsed = language.language.parser->parse(R"(attribute "\uD83D\uDE00\xC3\xA9";)");
     const flatbuffers::ast::Attribute* value = nullptr;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* a = cursiv::ast_cast<flatbuffers::ast::Attribute>(node)) value = a;
     if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() || !value || value->name != "😀é")
       return fail("native paired Unicode/UTF-8 byte escapes lost their value");

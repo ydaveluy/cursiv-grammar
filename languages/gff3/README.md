@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/gff3/core/Gff3Grammar.hpp` |
-| The AST | `src/gff3/core/ast.hpp` |
-| Validation checks | `src/gff3/core/validation/` |
-| Services of your own | `src/gff3/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/gff3/cli/main.cpp` |
-| LSP features | `src/gff3/lsp/LspModule.cpp` |
+| The grammar | `src/core/gff3/Gff3Grammar.hpp` |
+| The AST | `src/core/gff3/ast.hpp` |
+| Validation checks | `src/core/gff3/validation/` |
+| Services of your own | `src/core/gff3/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/gff3/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

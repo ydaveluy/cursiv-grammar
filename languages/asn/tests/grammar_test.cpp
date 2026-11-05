@@ -7,11 +7,11 @@
 #include <iterator>
 #include <string>
 
-#include "asn/core/CoreServices.hpp"
-#include "asn/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "asn/CoreServices.hpp"
+#include "asn/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 #include "tags_real.hpp"
 #include "real_numbers.hpp"
 
@@ -105,7 +105,7 @@ END
         !modules->modules[0]->hasExports || modules->modules[1]->hasExports)
       return 1;
     const asn::ast::SequenceType *sequence = nullptr;
-    for (const auto *node : result.nodes)
+    for (const auto *node : result.nodes())
       if (const auto *type = cursiv::ast_cast<asn::ast::SequenceType>(node))
         sequence = type;
     if (!sequence || sequence->extensions.size() != 2 ||

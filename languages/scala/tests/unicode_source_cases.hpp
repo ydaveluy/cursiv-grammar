@@ -3,13 +3,13 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "scala/core/CoreServices.hpp"
-#include "scala/core/UnicodeSource.hpp"
-#include "scala/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "scala/CoreServices.hpp"
+#include "scala/UnicodeSource.hpp"
+#include "scala/ast.hpp"
 namespace scala_unicode_source {
 inline bool run(const scala::ScalaCoreServices& services,
                 const scala::ScalaSharedCoreServices& shared) {
@@ -138,30 +138,30 @@ inline bool run(const scala::ScalaCoreServices& services,
           });
     };
     if (r.value) walk(walk, *r.value);
-    if (!parents || seen.size() != r.nodes.size()) return fail("AST ownership/CST");
+    if (!parents || seen.size() != r.nodes().size()) return fail("AST ownership/CST");
     if (id == "keyword-val" || id == "unicode-line-comment-close" ||
         id == "unicode-line-comment-open" || id == "unicode-block-comment") {
       bool named = false;
-      for (const auto* node : r.nodes)
+      for (const auto* node : r.nodes())
         if (const auto* p = cursiv::ast_cast<ast::VarPattern>(node)) named |= p->name == "x";
       if (!named) return fail("decoded declaration survives");
     }
     if (id == "keyword-val") {
       bool raw = false;
-      for (const auto* node : r.nodes)
+      for (const auto* node : r.nodes())
         if (cursiv::ast_cast<ast::PatDef>(node))
           raw |= r.cst().text(node->cstNodeId).find("v\\u0061l") != std::string_view::npos;
       if (!raw) return fail("original source span");
     }
     if (id == "keyword-prefix-name") {
       bool canonical = false;
-      for (const auto* node : r.nodes)
+      for (const auto* node : r.nodes())
         if (const auto* p = cursiv::ast_cast<ast::VarPattern>(node)) canonical |= p->name == "ifx";
       if (!canonical) return fail("translated name");
     }
     if (id == "generated-slash-infix-name") {
       bool shape = false;
-      for (const auto* node : r.nodes)
+      for (const auto* node : r.nodes())
         if (const auto* p = cursiv::ast_cast<ast::InfixExpr>(node)) {
           const auto* rhs = cursiv::ast_cast<ast::PathExpr>(p->right);
           shape |= p->op == "\\" && rhs && rhs->path && rhs->path->root == "uD800";
@@ -170,13 +170,13 @@ inline bool run(const scala::ScalaCoreServices& services,
     }
     if (id == "utf16-high-char") {
       bool raw = false;
-      for (const auto* node : r.nodes)
+      for (const auto* node : r.nodes())
         if (const auto* p = cursiv::ast_cast<ast::CharLit>(node)) raw |= p->text == "'\\uD800'";
       if (!raw) return fail("single UTF16 Char spelling");
     }
     if (id == "unicode-nul-char" || id == "unicode-nul-string") {
       bool nul = false;
-      for (const auto* node : r.nodes) {
+      for (const auto* node : r.nodes()) {
         if (const auto* p = cursiv::ast_cast<ast::CharLit>(node))
           nul |= p->text.size() == 3 && p->text[1] == '\0';
         if (const auto* p = cursiv::ast_cast<ast::StringLit>(node))
@@ -186,7 +186,7 @@ inline bool run(const scala::ScalaCoreServices& services,
     }
     if (id == "unicode-crlf-string" || id == "unicode-crlf-triple") {
       bool pair = false;
-      for (const auto* node : r.nodes)
+      for (const auto* node : r.nodes())
         if (const auto* p = cursiv::ast_cast<ast::StringLit>(node))
           pair |= p->text.find("\r\n") != std::string_view::npos;
       if (!pair) return fail("CRLF pair not coalesced");

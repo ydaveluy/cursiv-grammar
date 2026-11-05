@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "sharc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "sharc/ast.hpp"
 #include "sharc/generated/Sharc/Module.hpp"
 #include <cstdio>
 #include <string>
@@ -136,7 +136,7 @@ inline bool run() {
                  "recovered=%d diagnostics=%zu program=%d statements=%zu nodes=%zu\n",
                  source, invalid.accepted, invalid.cst().recovered(),
                  invalid.diagnostics.size(), program != nullptr,
-                 program ? program->statements.size() : 0, invalid.nodes.size());
+                 program ? program->statements.size() : 0, invalid.nodes().size());
     for (const auto& diagnostic : invalid.diagnostics)
       std::fprintf(stderr,
                    "sharc immediate-first diagnostic: kind=%d begin=%zu end=%zu "

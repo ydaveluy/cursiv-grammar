@@ -1,10 +1,10 @@
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include "native_cases.hpp"
-#include "pbm/core/Bitmap.hpp"
-#include "pbm/core/CoreServices.hpp"
+#include "pbm/Bitmap.hpp"
+#include "pbm/CoreServices.hpp"
 #include "pbm/generated/Pbm/Module.hpp"
 #include <algorithm>
 #include <cstdio>
@@ -64,7 +64,7 @@ int main() {
           });
     };
     walk(walk, *doc);
-    check(seen.size() == result.nodes.size(), c.file);
+    check(seen.size() == result.nodes().size(), c.file);
     const auto validation =
         cursiv::test::validationHelper(language.language, text);
     if (*c.code) {

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/acme/core/AcmeGrammar.hpp` |
-| The AST | `src/acme/core/ast.hpp` |
-| Validation checks | `src/acme/core/validation/` |
-| Services of your own | `src/acme/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/acme/cli/main.cpp` |
-| LSP features | `src/acme/lsp/LspModule.cpp` |
+| The grammar | `src/core/acme/AcmeGrammar.hpp` |
+| The AST | `src/core/acme/ast.hpp` |
+| Validation checks | `src/core/acme/validation/` |
+| Services of your own | `src/core/acme/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/acme/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

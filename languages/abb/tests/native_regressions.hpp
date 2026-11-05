@@ -1,7 +1,7 @@
 #pragma once
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include <unordered_set>
 
 namespace abb_tests {
@@ -24,7 +24,7 @@ bool parents(const Language &language, const cursiv::ParseResult &result) {
         });
   };
   visit(visit, *result.value);
-  return valid && seen.size() == result.nodes.size();
+  return valid && seen.size() == result.nodes().size();
 }
 
 template <class Language> bool nativeRegressions(const Language &language) {

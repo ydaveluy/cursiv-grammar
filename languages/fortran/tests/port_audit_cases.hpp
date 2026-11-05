@@ -16,7 +16,7 @@ bool inspect(const Parser& parser, const std::string& source, Check check) {
     std::fprintf(stderr, "Fortran parse regression: %s\n", source.c_str());
     return false;
   }
-  for (const auto* node : result.nodes)
+  for (const auto* node : result.nodes())
     if (node != model && !node->parent) return false;
   if (check(*model)) return true;
   std::fprintf(stderr, "Fortran AST regression: %s\n", source.c_str());
@@ -45,6 +45,23 @@ bool run(const Parser& parser) {
                    as<NameRef>(a->target)->name == "abc" &&
                    a->target->parent == a;
           }))
+    return false;
+  // Every spelling of the type gives one keyword: the words joined, without
+  // the layout between them or inside them.
+  if (!inspect(parser,
+               "program p\ndouble precision::x\ndoubleprecision::y\n"
+               "dou&\n&ble pre&\n&cision::z\nend\n",
+               [](const Model& m) {
+                 const auto* p = m.units.size() == 1
+                                     ? as<MainProgramUnit>(m.units[0])
+                                     : nullptr;
+                 if (!p || p->body.size() != 3) return false;
+                 for (const auto* statement : p->body) {
+                   const auto* d = as<TypeDecl>(statement);
+                   if (!d || d->type->keyword != "doubleprecision") return false;
+                 }
+                 return true;
+               }))
     return false;
   if (!inspect(parser, "program p\ncomplex::x\nx=(1.0,-2.0)\nend\n",
                [](const Model& m) {

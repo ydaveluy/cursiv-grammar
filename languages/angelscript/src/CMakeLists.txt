@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID angelscript
-    GRAMMAR    angelscript/core/AngelscriptGrammar.hpp
+    GRAMMAR    angelscript/AngelscriptGrammar.hpp
     NAMESPACE  angelscript::Angelscript
     EXTENSIONS .as
     OUT        angelscript/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/angelscript/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(angelscriptCore ${_core})
 target_link_libraries(angelscriptCore PUBLIC angelscriptGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/angelscript/cli/*.cpp)
-if(_cli)
-  add_executable(angelscript_cli ${_cli})
-  target_link_libraries(angelscript_cli
-                        PRIVATE angelscriptCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(angelscript_cli cli.cpp)
+  target_include_directories(angelscript_cli PRIVATE cli)
+  target_link_libraries(angelscript_cli PRIVATE angelscriptCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(angelscriptCli ${_cli})
+    target_include_directories(angelscriptCli PUBLIC cli)
+    target_link_libraries(angelscriptCli PUBLIC angelscriptCore cursiv::cli)
+    target_link_libraries(angelscript_cli PRIVATE angelscriptCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/angelscript/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/angelscript/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/angelscript/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(angelscriptLsp ${_lsp})
+  target_include_directories(angelscriptLsp PUBLIC lsp)
   target_link_libraries(angelscriptLsp PUBLIC angelscriptCore cursiv::lsp)
-  add_executable(angelscript_lsp angelscript/lsp/main.cpp)
-  target_link_libraries(angelscript_lsp PRIVATE angelscriptLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(angelscript_lsp lsp.cpp)
+    target_link_libraries(angelscript_lsp PRIVATE angelscriptLsp)
+  endif()
 endif()
 
-if(TARGET angelscriptLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/angelscript/bench/main.cpp")
-  cursiv_add_benchmark(angelscript
-      SOURCES angelscript/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET angelscriptLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(angelscript SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(angelscript)

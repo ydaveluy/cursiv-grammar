@@ -10,13 +10,13 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "kuka/core/CoreServices.hpp"
-#include "kuka/core/ast.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "kuka/CoreServices.hpp"
+#include "kuka/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace {
 
@@ -63,7 +63,7 @@ int main() {
   {
     const auto r = parser.parse("DEF p()\nx=TRUE\ny=false\nFOR i=1 TO 2\n\nx=1\nENDFOR\nEND\n");
     unsigned booleans = 0;
-    for (const auto* n : r.nodes) booleans += cursiv::ast_cast<kuka::ast::BoolLit>(n) != nullptr;
+    for (const auto* n : r.nodes()) booleans += cursiv::ast_cast<kuka::ast::BoolLit>(n) != nullptr;
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || booleans != 2)
       return fail("native boolean identity or blank for-body line lost");
   }

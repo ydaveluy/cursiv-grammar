@@ -9,10 +9,10 @@
 #include <utility>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "pcre/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "pcre/ast.hpp"
 
 namespace pcre_audit {
 namespace extended {
@@ -74,7 +74,7 @@ inline bool owned(const cursiv::ParseResult &result) {
     }
   };
   walk(walk, result.value, nullptr);
-  return ok && nodes.size() == result.nodes.size();
+  return ok && nodes.size() == result.nodes().size();
 }
 } // namespace extended
 

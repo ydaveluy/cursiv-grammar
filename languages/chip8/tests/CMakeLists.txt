@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every example parses, and every opcode is pinned.
 add_executable(chip8_grammar_test grammar_test.cpp)
-target_link_libraries(chip8_grammar_test PRIVATE chip8Core)
+target_link_libraries(chip8_grammar_test PRIVATE chip8Core cursiv::test)
 target_compile_definitions(chip8_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

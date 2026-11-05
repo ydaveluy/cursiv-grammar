@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/glsl/core/GlslGrammar.hpp` |
-| The AST | `src/glsl/core/ast.hpp` |
-| Validation checks | `src/glsl/core/validation/` |
-| Services of your own | `src/glsl/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/glsl/cli/main.cpp` |
-| LSP features | `src/glsl/lsp/LspModule.cpp` |
+| The grammar | `src/core/glsl/GlslGrammar.hpp` |
+| The AST | `src/core/glsl/ast.hpp` |
+| Validation checks | `src/core/glsl/validation/` |
+| Services of your own | `src/core/glsl/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/glsl/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

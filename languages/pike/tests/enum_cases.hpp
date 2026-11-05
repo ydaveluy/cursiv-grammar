@@ -6,8 +6,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "pike/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "pike/ast.hpp"
 
 namespace pike_enum {
 namespace a = pike::ast;
@@ -43,7 +43,7 @@ inline bool run(const auto& language) {
           });
     };
     if (result.value) walk(walk, *result.value);
-    check(owned && seen.size() == result.nodes.size(),
+    check(owned && seen.size() == result.nodes().size(),
           "complete unique AST ownership and CST containment", name);
   };
   struct Case { const char* name; const char* source; bool clean; };
@@ -93,7 +93,7 @@ inline bool run(const auto& language) {
     std::vector<const a::EnumExpr*> enums;
     std::vector<const a::EnumDefinition*> definitions;
     std::vector<const a::NamedType*> namedTypes;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* value = as<a::EnumExpr>(node)) enums.push_back(value);
       if (const auto* value = as<a::EnumDefinition>(node)) definitions.push_back(value);
       if (const auto* value = as<a::NamedType>(node)) namedTypes.push_back(value);
@@ -178,7 +178,7 @@ inline bool run(const auto& language) {
     }
     if (name == "local-expression") {
       bool found = false;
-      for (const auto* node : result.nodes) {
+      for (const auto* node : result.nodes()) {
         const auto* statement = as<a::ExprStatement>(node);
         const auto* comma = statement ? as<a::CommaExpr>(statement->expr) : nullptr;
         found |= comma && comma->items.size() == 1 && comma->items[0] == value;
@@ -195,7 +195,7 @@ inline bool run(const auto& language) {
   if (clean) {
     const a::BinaryExpr* sum = nullptr;
     unsigned casts = 0;
-    for (const auto* node : parentheses.nodes) {
+    for (const auto* node : parentheses.nodes()) {
       if (const auto* n = as<a::BinaryExpr>(node)) sum = n;
       casts += as<a::CastExpr>(node) != nullptr;
     }

@@ -21,12 +21,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/alpaca/core/AlpacaGrammar.hpp` |
-| The AST | `src/alpaca/core/ast.hpp` |
-| Validation checks | `src/alpaca/core/validation/` |
-| Services of your own | `src/alpaca/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/alpaca/cli/main.cpp` |
-| LSP features | `src/alpaca/lsp/LspModule.cpp` |
+| The grammar | `src/core/alpaca/AlpacaGrammar.hpp` |
+| The AST | `src/core/alpaca/ast.hpp` |
+| Validation checks | `src/core/alpaca/validation/` |
+| Services of your own | `src/core/alpaca/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/alpaca/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -4,10 +4,10 @@
 #include "typedef_cases.hpp"
 #include "enum_cases.hpp"
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "pike/core/CoreServices.hpp"
-#include "pike/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "pike/CoreServices.hpp"
+#include "pike/ast.hpp"
 // The smoke test of the language: parse every corpus document, plus a
 // fixture exercising constructs the corpus itself never uses, and read a
 // few real field values back out of the tree.
@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -124,7 +124,7 @@ array xs=({1,2});array ys=xs[..1];
 )PIKE");
     bool modifiers=false, local=false, each=false, cls=false, type=false;
     bool range=false, strings=false, character=false, slice=false;
-    for(const auto* node:r.nodes){
+    for(const auto* node:r.nodes()){
       if(const auto* n=cursiv::ast_cast<pike::ast::FunctionDefinition>(node))
         modifiers|=n->modifiers.size()==2 && n->modifiers[0]==pike::ast::Modifier::Public && n->modifiers[1]==pike::ast::Modifier::Final;
       if(const auto* n=cursiv::ast_cast<pike::ast::LocalDeclaration>(node))

@@ -4,9 +4,9 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "glsl/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
+#include "glsl/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
 
 namespace glsl_initializers {
 inline bool run(const auto& language) {
@@ -32,14 +32,14 @@ void main() {}
           });
     };
     walk(walk, *parsed.value);
-    return valid && seen.size() == parsed.nodes.size();
+    return valid && seen.size() == parsed.nodes().size();
   };
   const auto result = language.parser->parse(source);
   const bool clean = result.accepted && !result.cst().recovered() && result.diagnostics.empty();
   check(clean && owned(result), "native nested trailing commas keep complete ownership");
   unsigned lists = 0, numbers = 0;
   bool nested = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* list = cursiv::ast_cast<a::ListInit>(node)) {
       ++lists;
       check(list->items.size() == 2, "each nonempty aggregate keeps two initializers");
@@ -57,7 +57,7 @@ struct S { float x; }; S s = {}; void main() {}
 )GLSL";
   const auto empty = language.parser->parse(extension);
   bool emptyList = false;
-  for (const auto* node : empty.nodes)
+  for (const auto* node : empty.nodes())
     if (const auto* list = cursiv::ast_cast<a::ListInit>(node)) emptyList |= list->items.empty();
   check(empty.accepted && !empty.cst().recovered() && empty.diagnostics.empty() && emptyList && owned(empty),
         "existing explicitly enabled empty initializer extension remains intact");

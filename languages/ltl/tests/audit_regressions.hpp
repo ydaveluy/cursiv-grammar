@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "cursiv/test/Check.hpp"
+#include "cursiv/Check.hpp"
 
 inline void ltl_regressions(ltl::LtlCoreServices &services) {
   namespace ast = ltl::ast;
@@ -42,7 +42,7 @@ inline void ltl_regressions(ltl::LtlCoreServices &services) {
     const auto span = result.cst()[equivalence->cstNodeId];
     CHECK(span.begin == 0 && span.end == source.size());
   }
-  CHECK(result.nodes.size() == 9);
+  CHECK(result.nodes().size() == 9);
   {
     const auto parsed = services.parser->parse("a -> b -> c");
     const auto* top = cursiv::ast_cast<ast::BinaryExpr>(parsed.value);
@@ -65,7 +65,7 @@ inline void ltl_regressions(ltl::LtlCoreServices &services) {
     const auto *atom = cursiv::ast_cast<ast::AtomicProp>(parsed.value);
     CHECK(parsed.accepted && !parsed.cst().recovered() &&
           parsed.diagnostics.empty());
-    CHECK(atom && atom->name == "aUb" && parsed.nodes.size() == 1);
+    CHECK(atom && atom->name == "aUb" && parsed.nodes().size() == 1);
   }
   {
     const auto parsed = services.parser->parse("X(¬p U <>q)");
@@ -93,6 +93,6 @@ inline void ltl_regressions(ltl::LtlCoreServices &services) {
           parsed.diagnostics.empty());
     CHECK(top && top->op == ast::BinaryOp::lor && both &&
           both->op == ast::BinaryOp::land && both->left != both->right &&
-          parsed.nodes.size() == 5);
+          parsed.nodes().size() == 5);
   }
 }

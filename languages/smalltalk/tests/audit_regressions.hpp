@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "smalltalk/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "smalltalk/ast.hpp"
 #include "smalltalk/generated/Smalltalk/Module.hpp"
 #include <cstdio>
 #include <string>

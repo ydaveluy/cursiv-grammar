@@ -3,9 +3,9 @@
 #include <functional>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
 
 namespace code_audit {
 namespace ast = gdscript::ast;
@@ -40,7 +40,7 @@ inline bool run() {
               *n, [&](auto, auto, auto& child) { visit(&child, n); });
         };
     visit(result.value, nullptr);
-    check(reached.size() == result.nodes.size(),
+    check(reached.size() == result.nodes().size(),
           "all allocated nodes are reachable");
     return result;
   };

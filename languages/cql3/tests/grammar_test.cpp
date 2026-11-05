@@ -1,11 +1,11 @@
 #include <cstdio>
 
-#include "cql3/core/CoreServices.hpp"
-#include "cql3/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
+#include "cql3/CoreServices.hpp"
+#include "cql3/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
 // The grammar end to end: every document under `example/` parses clean --
 // no recovery, no diagnostics -- and builds a Root at the top. One document
 // (createTable.cql3) is also read back field by field, since a structural
@@ -16,7 +16,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 #include "json_insert.hpp"
 #include "terms_selectors.hpp"
 
@@ -326,5 +326,20 @@ int main() {
   if (failures > 0) return 1;
 
   std::printf("cql3: %d example documents parse clean\n", count);
+  {
+    const auto parsed = language.language.parser->parse(
+        "CREATE TABLE t (id int PRIMARY KEY) WITH COMPACT STORAGE "
+        "AND comment = 'retained';");
+    const cql3::ast::TableOptions* options = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* value = cursiv::ast_cast<cql3::ast::TableOptions>(node))
+        options = value;
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !options ||
+        options->storageModifiers.size() != 1 || options->options.size() != 1 ||
+        options->options[0]->name != "comment")
+      return fail("<storage modifiers>", "COMPACT STORAGE and following option retained");
+  }
+
   return 0;
 }

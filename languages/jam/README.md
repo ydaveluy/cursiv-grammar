@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/jam/core/JamGrammar.hpp` |
-| The AST | `src/jam/core/ast.hpp` |
-| Validation checks | `src/jam/core/validation/` |
-| Services of your own | `src/jam/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/jam/cli/main.cpp` |
-| LSP features | `src/jam/lsp/LspModule.cpp` |
+| The grammar | `src/core/jam/JamGrammar.hpp` |
+| The AST | `src/core/jam/ast.hpp` |
+| Validation checks | `src/core/jam/validation/` |
+| Services of your own | `src/core/jam/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/jam/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

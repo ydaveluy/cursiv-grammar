@@ -3,10 +3,10 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "kirikiritjs/core/CoreServices.hpp"
-#include "kirikiritjs/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "kirikiritjs/CoreServices.hpp"
+#include "kirikiritjs/ast.hpp"
 
 namespace tjs_octet_regexp_cases {
 struct Case { const char* name; std::string_view source; std::string_view literal; bool valid; bool regexp; };
@@ -63,7 +63,7 @@ inline bool run(const kirikiritjs::KirikiriTjsCoreServices& services) {
     unsigned octets = 0, regexps = 0;
     const a::Expr* literal = nullptr;
     std::string_view text;
-    for (const auto* node : parsed.nodes) {
+    for (const auto* node : parsed.nodes()) {
       if (const auto* value = cursiv::ast_cast<a::OctetLit>(node)) { ++octets; literal = value; text = value->text; }
       if (const auto* value = cursiv::ast_cast<a::RegexLit>(node)) { ++regexps; literal = value; text = value->text; }
     }
@@ -85,7 +85,7 @@ inline bool run(const kirikiritjs::KirikiriTjsCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size() == parsed.nodes.size() && !parsed.value->parent, test.name, "complete tree reachability");
+    check(seen.size() == parsed.nodes().size() && !parsed.value->parent, test.name, "complete tree reachability");
   }
   // NUL ends the native lexer input. It cannot hide an unfinished octet
   // behind a line comment. This is a primary-source control, not a fresh

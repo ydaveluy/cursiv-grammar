@@ -6,10 +6,10 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "matlab/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "matlab/ast.hpp"
 
 namespace matlab_row_sign_cases {
 namespace a = matlab::ast;
@@ -148,7 +148,7 @@ inline bool run(const cursiv::Parser& parser,
         pending.push_back(&child);
       });
     }
-    check(seen.size() == result.nodes.size() && !result.value->parent,
+    check(seen.size() == result.nodes().size() && !result.value->parent,
           "all arena allocations reached once; detached root");
   }
   std::printf("matlab row signs: %zu boundary inferences (no vendor execution)\n",

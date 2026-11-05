@@ -1,8 +1,8 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "metamath/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "metamath/ast.hpp"
 #include <cstdio>
 #include <iterator>
 #include <string>
@@ -379,7 +379,7 @@ $}
       }
     };
     walk(walk, result.value, nullptr);
-    check(parents && reachable.size() == result.nodes.size(),
+    check(parents && reachable.size() == result.nodes().size(),
           "all captured nodes are reachable with the exact field parent");
   }
   auto parse = [&](std::string_view source) {

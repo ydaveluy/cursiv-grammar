@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/scss/core/ScssGrammar.hpp` |
-| The AST | `src/scss/core/ast.hpp` |
-| Validation checks | `src/scss/core/validation/` |
-| Services of your own | `src/scss/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/scss/cli/main.cpp` |
-| LSP features | `src/scss/lsp/LspModule.cpp` |
+| The grammar | `src/core/scss/ScssGrammar.hpp` |
+| The AST | `src/core/scss/ast.hpp` |
+| Validation checks | `src/core/scss/validation/` |
+| Services of your own | `src/core/scss/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/scss/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

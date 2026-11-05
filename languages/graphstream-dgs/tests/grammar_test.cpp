@@ -7,11 +7,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "graphstreamdgs/core/CoreServices.hpp"
-#include "graphstreamdgs/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "graphstreamdgs/CoreServices.hpp"
+#include "graphstreamdgs/ast.hpp"
 
 
 #include "audit_regressions.hpp"

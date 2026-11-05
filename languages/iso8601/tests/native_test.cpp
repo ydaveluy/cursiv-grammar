@@ -1,12 +1,12 @@
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
 #include "native_followup_cases.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "iso8601/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "iso8601/CoreServices.hpp"
 #include <array>
 #include <cstdint>
 #include <cstdio>
@@ -98,7 +98,7 @@ int main() {
           });
     };
     walk(walk, *doc);
-    if (!owned || seen.size() != result.nodes.size() || !raw)
+    if (!owned || seen.size() != result.nodes().size() || !raw)
       return fail("ownership/raw source-backed components");
     if (c.name == "expanded-year") {
       const auto *d = std::get_if<ia::DateValue *>(&doc->value);

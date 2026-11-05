@@ -1,10 +1,10 @@
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "lucene/core/CoreServices.hpp"
-#include "cursiv/test/Check.hpp"
-#include "lucene/core/Value.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "lucene/CoreServices.hpp"
+#include "cursiv/Check.hpp"
+#include "lucene/Value.hpp"
 #include "lucene/generated/Lucene/Module.hpp"
 #include <cstdio>
 #include <filesystem>
@@ -18,7 +18,7 @@ void diagnose(const char* label, const cursiv::ParseResult& result) {
   std::fprintf(stderr,
                "lucene probe [%s]: accepted=%d recovered=%d diagnostics=%zu nodes=%zu\n",
                label, result.accepted, result.cst().recovered(),
-               result.diagnostics.size(), result.nodes.size());
+               result.diagnostics.size(), result.nodes().size());
   for (const auto& diagnostic : result.diagnostics)
     std::fprintf(stderr,
                  "lucene diagnostic: kind=%u element=%u bytes=%u..%u\n",
@@ -26,7 +26,7 @@ void diagnose(const char* label, const cursiv::ParseResult& result) {
                  static_cast<unsigned>(diagnostic.element),
                  static_cast<unsigned>(diagnostic.begin),
                  static_cast<unsigned>(diagnostic.end));
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* word = cursiv::ast_cast<a::WordTerm>(node))
       std::fprintf(stderr, "lucene WordTerm raw=[%.*s]\n",
                    static_cast<int>(word->raw.size()),

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/lua/core/LuaGrammar.hpp` |
-| The AST | `src/lua/core/ast.hpp` |
-| Validation checks | `src/lua/core/validation/` |
-| Services of your own | `src/lua/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/lua/cli/main.cpp` |
-| LSP features | `src/lua/lsp/LspModule.cpp` |
+| The grammar | `src/core/lua/LuaGrammar.hpp` |
+| The AST | `src/core/lua/ast.hpp` |
+| Validation checks | `src/core/lua/validation/` |
+| Services of your own | `src/core/lua/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/lua/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/jpa/core/JpaGrammar.hpp` |
-| The AST | `src/jpa/core/ast.hpp` |
-| Validation checks | `src/jpa/core/validation/` |
-| Services of your own | `src/jpa/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/jpa/cli/main.cpp` |
-| LSP features | `src/jpa/lsp/LspModule.cpp` |
+| The grammar | `src/core/jpa/JpaGrammar.hpp` |
+| The AST | `src/core/jpa/ast.hpp` |
+| Validation checks | `src/core/jpa/validation/` |
+| Services of your own | `src/core/jpa/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/jpa/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

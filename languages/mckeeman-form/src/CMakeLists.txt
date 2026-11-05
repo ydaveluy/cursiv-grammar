@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID mckeemanform
-    GRAMMAR    mckeemanform/core/MckeemanFormGrammar.hpp
+    GRAMMAR    mckeemanform/MckeemanFormGrammar.hpp
     NAMESPACE  mckeemanform::MckeemanForm
     EXTENSIONS .mckeemanform
     OUT        mckeemanform/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/mckeemanform/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(mckeemanformCore ${_core})
 target_link_libraries(mckeemanformCore PUBLIC mckeemanformGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/mckeemanform/cli/*.cpp)
-if(_cli)
-  add_executable(mckeemanform_cli ${_cli})
-  target_link_libraries(mckeemanform_cli
-                        PRIVATE mckeemanformCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(mckeemanform_cli cli.cpp)
+  target_include_directories(mckeemanform_cli PRIVATE cli)
+  target_link_libraries(mckeemanform_cli PRIVATE mckeemanformCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(mckeemanformCli ${_cli})
+    target_include_directories(mckeemanformCli PUBLIC cli)
+    target_link_libraries(mckeemanformCli PUBLIC mckeemanformCore cursiv::cli)
+    target_link_libraries(mckeemanform_cli PRIVATE mckeemanformCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/mckeemanform/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/mckeemanform/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/mckeemanform/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(mckeemanformLsp ${_lsp})
+  target_include_directories(mckeemanformLsp PUBLIC lsp)
   target_link_libraries(mckeemanformLsp PUBLIC mckeemanformCore cursiv::lsp)
-  add_executable(mckeemanform_lsp mckeemanform/lsp/main.cpp)
-  target_link_libraries(mckeemanform_lsp PRIVATE mckeemanformLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(mckeemanform_lsp lsp.cpp)
+    target_link_libraries(mckeemanform_lsp PRIVATE mckeemanformLsp)
+  endif()
 endif()
 
-if(TARGET mckeemanformLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mckeemanform/bench/main.cpp")
-  cursiv_add_benchmark(mckeemanform
-      SOURCES mckeemanform/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET mckeemanformLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(mckeemanform SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(mckeemanform)

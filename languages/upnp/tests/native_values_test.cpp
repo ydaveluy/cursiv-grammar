@@ -1,11 +1,11 @@
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "upnp/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "upnp/CoreServices.hpp"
 #include <cstdio>
 #include <string_view>
 #include <unordered_set>
@@ -51,7 +51,7 @@ int main() {
           });
     };
     walk(walk, *d);
-    check(owned && seen.size() == r.nodes.size(), c.name, "complete ownership");
+    check(owned && seen.size() == r.nodes().size(), c.name, "complete ownership");
     auto v = cursiv::test::validationHelper(lang.language, std::string(text));
     const bool nul = std::string_view(c.name) == "escaped-zero";
     check(nul ? v.diagnostics.size() == 1 : v.diagnostics.empty(), c.name,

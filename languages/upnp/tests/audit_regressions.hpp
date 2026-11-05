@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "upnp/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "upnp/ast.hpp"
 #include "upnp/generated/Upnp/Module.hpp"
 #include <cstdio>
 #include <string>

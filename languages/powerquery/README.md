@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/powerquery/core/PowerqueryGrammar.hpp` |
-| The AST | `src/powerquery/core/ast.hpp` |
-| Validation checks | `src/powerquery/core/validation/` |
-| Services of your own | `src/powerquery/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/powerquery/cli/main.cpp` |
-| LSP features | `src/powerquery/lsp/LspModule.cpp` |
+| The grammar | `src/core/powerquery/PowerqueryGrammar.hpp` |
+| The AST | `src/core/powerquery/ast.hpp` |
+| Validation checks | `src/core/powerquery/validation/` |
+| Services of your own | `src/core/powerquery/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/powerquery/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

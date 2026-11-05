@@ -2,8 +2,8 @@
 #include <cstdio>
 #include <string>
 #include <variant>
-#include "cursiv/core/parser/Parser.hpp"
-#include "erlang/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "erlang/ast.hpp"
 namespace port_audit_cases {
 inline bool run(const cursiv::Parser& parser) {
   int failures = 0;

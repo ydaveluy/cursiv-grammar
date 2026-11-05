@@ -10,13 +10,13 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "c/core/CoreServices.hpp"
-#include "c/core/ast.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "c/CoreServices.hpp"
+#include "c/ast.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
 
 namespace {
 
@@ -149,7 +149,7 @@ int main() {
       return fail("native GNU assembler name or obsolete initializer syntax");
     unsigned labels = 0, colon = 0, omitted = 0;
     bool pieces = false;
-    for (const auto* node : result.nodes) {
+    for (const auto* node : result.nodes()) {
       if (const auto* item = cursiv::ast_cast<c::ast::InitDeclarator>(node)) {
         labels += !item->assemblerNameParts.empty();
         pieces |= item->assemblerNameParts.size() == 2 &&
@@ -168,5 +168,20 @@ int main() {
   }
 
   std::printf("c: %d examples parse\n", seen);
+  for (const char* qualifiers : {"const static volatile", "static const volatile",
+                                 "const volatile static"}) {
+    const std::string source = "void f(int a[" + std::string(qualifiers) + " 3]);";
+    const auto parsed = language.language.parser->parse(source);
+    const c::ast::ArraySuffix* array = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* value = cursiv::ast_cast<c::ast::ArraySuffix>(node))
+        array = value;
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !array || !array->isStatic ||
+        array->qualifiers.size() != 2 || array->qualifiers[0] != "const" ||
+        array->qualifiers[1] != "volatile" || !array->size)
+      return fail("array static and qualifiers retain all values");
+  }
+
   return 0;
 }

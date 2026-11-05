@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "wkt/core/CoreServices.hpp"
-#include "wkt/core/Numbers.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "wkt/CoreServices.hpp"
+#include "wkt/Numbers.hpp"
 
 inline bool native_regressions() {
   namespace ast = wkt::ast;

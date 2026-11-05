@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "pddl/core/CoreServices.hpp"
-#include "pddl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "pddl/CoreServices.hpp"
+#include "pddl/ast.hpp"
 #include "native_regressions.hpp"
 #include "native_followup.hpp"
 #include "preference_cases.hpp"
@@ -18,7 +18,7 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

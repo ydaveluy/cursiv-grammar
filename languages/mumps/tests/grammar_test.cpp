@@ -1,11 +1,11 @@
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "mumps/core/CoreServices.hpp"
-#include "mumps/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "mumps/CoreServices.hpp"
+#include "mumps/ast.hpp"
 // The smoke test of the language: every corpus file of `example/` parses,
 // clean unless it is named below as expected to fail, and a few real field
 // values come back out of the AST -- not merely the shape of the tree.
@@ -15,7 +15,7 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -450,6 +450,21 @@ int main() {
     const auto* label = as<mumps::ast::CodeLine>(doc.lines[2]);
     if (label == nullptr || label->label != "LOOP" || !label->commands.empty())
       return fail("a name and a line start did not read as a label line");
+  }
+
+  {
+    const auto parsed = language.language.parser->parse(
+        " set ^global(1)=1\n set &external=2\n set local=3\n");
+    unsigned globals = 0, externals = 0, locals = 0;
+    for (const auto* node : parsed.nodes())
+      if (const auto* variable = cursiv::ast_cast<mumps::ast::Variable>(node)) {
+        globals += variable->global && !variable->extrinsic && variable->name == "global";
+        externals += variable->extrinsic && !variable->global && variable->name == "external";
+        locals += !variable->extrinsic && !variable->global && variable->name == "local";
+      }
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || globals != 1 || externals != 1 || locals != 1)
+      return fail("local, global and external variable prefixes retain distinct flags");
   }
 
   std::puts("mumps: the corpus parses");

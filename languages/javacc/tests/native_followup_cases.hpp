@@ -4,12 +4,12 @@
 #include <string_view>
 #include <variant>
 #include <unordered_set>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "javacc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "javacc/ast.hpp"
 #include "unicode_input_cases.hpp"
 namespace javacc_native_followup {
 template<class Language> bool run(const Language& language) {
@@ -44,9 +44,9 @@ TOKEN : { <X: ["\n"-"\r", "é", "\377"]> }
       std::fprintf(stderr, "javacc kind=%u element=%u bytes=%u..%u\n", unsigned(d.kind), unsigned(d.element), d.begin, d.end);
   bool option = false, java = false, bnf = false, number = false, generic = false;
   bool dims = false, innerElse = false, outerElse = false, range = false, accent = false, octal = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* p = cursiv::ast_cast<a::OptionBinding>(node))
-      if (const auto* text = std::get_if<std::string_view>(&p->value)) option |= p->name == "TOKEN_EXTENDS" && *text == "base\n\n";
+      if (const auto* text = std::get_if<std::string>(&p->value)) option |= p->name == "TOKEN_EXTENDS" && *text == "base\n\n";
     if (const auto* p = cursiv::ast_cast<a::JavaCodeProduction>(node)) java |= p->name == "code" && p->accessModifier == "public";
     if (const auto* p = cursiv::ast_cast<a::BnfProduction>(node)) bnf |= p->name == "S" && p->accessModifier == "private";
     if (const auto* p = cursiv::ast_cast<a::IntLit>(node)) number |= p->text == "1_000";
@@ -76,12 +76,12 @@ TOKEN : { <X: ["\n"-"\r", "é", "\377"]> }
           });
     };
     walk(walk, *root);
-    check(owned && seen.size() == result.nodes.size(), "complete AST ownership");
+    check(owned && seen.size() == result.nodes().size(), "complete AST ownership");
   }
   const auto jjt = language.language.parser->parse(
       R"jjt(PARSER_BEGIN(P) class P {} PARSER_END(P) void S() #Node(")".equals("(")) : {} { <EOF> })jjt");
   bool argument = false;
-  for (const auto* node : jjt.nodes)
+  for (const auto* node : jjt.nodes())
     if (const auto* p = cursiv::ast_cast<a::NodeDescriptor>(node)) argument |= p->args == R"jjt(")".equals("("))jjt";
   check(jjt.accepted && !jjt.cst().recovered() && jjt.diagnostics.empty() && argument,
         "JJTree condition strings do not change parenthesis balancing");
@@ -90,7 +90,7 @@ TOKEN : { <X: ["\n"-"\r", "é", "\377"]> }
   many += " dimension; } PARSER_END(P) void S():{} { <EOF> }";
   const auto large = language.language.parser->parse(many);
   bool exact = false;
-  for (const auto* node : large.nodes) if (const auto* p = cursiv::ast_cast<a::ArrayType>(node)) exact |= p->dims == 300;
+  for (const auto* node : large.nodes()) if (const auto* p = cursiv::ast_cast<a::ArrayType>(node)) exact |= p->dims == 300;
   check(large.accepted && !large.cst().recovered() && large.diagnostics.empty() && exact,
         "dimension count does not wrap modulo256");
   struct Invalid { const char* source; const char* code; };

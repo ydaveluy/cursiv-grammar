@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/Check.hpp"
 
 inline void dice_regressions(const dice::DiceCoreServices &services) {
   namespace ast = dice::ast;
@@ -24,7 +24,7 @@ inline void dice_regressions(const dice::DiceCoreServices &services) {
         roll->parent == root);
   CHECK(zero && zero->negative && zero->value == "0000" &&
         zero->parent == root);
-  CHECK(result.nodes.size() == 3);
+  CHECK(result.nodes().size() == 3);
   if (roll) {
     const auto span = result.cst()[roll->cstNodeId];
     CHECK(span.begin == 0 && span.end == source.find('/'));
@@ -36,7 +36,7 @@ inline void dice_regressions(const dice::DiceCoreServices &services) {
           parsed.diagnostics.empty());
     CHECK(die && !die->count && !die->negative && die->sides == "6" &&
           !die->parent);
-    CHECK(parsed.nodes.size() == 1);
+    CHECK(parsed.nodes().size() == 1);
   }
   {
     const auto parsed = services.parser->parse("1+-2*3-4");

@@ -7,11 +7,11 @@
 #include <iterator>
 #include <string>
 
-#include "aspectj/core/CoreServices.hpp"
-#include "aspectj/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "aspectj/CoreServices.hpp"
+#include "aspectj/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -59,7 +59,7 @@ int main() {
         !result.diagnostics.empty())
       return fail("conditional lambda branches do not parse clean");
     const ast::TernaryExpr* conditional = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* c = as<ast::TernaryExpr>(node)) conditional = c;
     if (conditional == nullptr ||
         as<ast::LambdaExpr>(conditional->thenValue) == nullptr ||
@@ -80,7 +80,7 @@ int main() {
         !result.diagnostics.empty())
       return fail("native modifier patterns do not parse clean");
     bool abstract = false, native = false, strictfp = false, volatile_ = false;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* modifier = as<ast::ModifierPatternClause>(node)) {
         abstract |= modifier->modifier == "abstract" && !modifier->negated;
         native |= modifier->modifier == "native" && !modifier->negated;
@@ -101,7 +101,7 @@ int main() {
       return 1;
     }
     bool two = false, three = false;
-    for (const auto *node : result.nodes)
+    for (const auto *node : result.nodes())
       if (const auto *value =
               cursiv::ast_cast<aspectj::ast::NewArrayExpr>(node)) {
         if (value->dimensions.size() >= 2 && value->dimensions[0]->value &&
@@ -470,5 +470,21 @@ int main() {
   }
 
   std::puts("aspectj: every coverage document parses clean");
+  for (const std::string_view modifiers : {"static transitive", "transitive static"}) {
+    const std::string source = "module m { requires " + std::string(modifiers) +
+                               " dependency; }";
+    const auto parsed = language.language.parser->parse(source);
+    const aspectj::ast::RequiresDirective* requirement = nullptr;
+    for (const auto* node : parsed.nodes())
+      if (const auto* directive = cursiv::ast_cast<aspectj::ast::RequiresDirective>(node))
+        requirement = directive;
+    if (!parsed.accepted || parsed.cst().recovered() ||
+        !parsed.diagnostics.empty() || !requirement ||
+        requirement->modifiers.size() != 2 || requirement->module_ != "dependency" ||
+        requirement->modifiers[0] != modifiers.substr(0, modifiers.find(' ')) ||
+        requirement->modifiers[1] != modifiers.substr(modifiers.find(' ') + 1))
+      return fail("requires modifiers retain source order");
+  }
+
   return 0;
 }

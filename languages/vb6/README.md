@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/vb6/core/Vb6Grammar.hpp` |
-| The AST | `src/vb6/core/ast.hpp` |
-| Validation checks | `src/vb6/core/validation/` |
-| Services of your own | `src/vb6/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/vb6/cli/main.cpp` |
-| LSP features | `src/vb6/lsp/LspModule.cpp` |
+| The grammar | `src/core/vb6/Vb6Grammar.hpp` |
+| The AST | `src/core/vb6/ast.hpp` |
+| Validation checks | `src/core/vb6/validation/` |
+| Services of your own | `src/core/vb6/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/vb6/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

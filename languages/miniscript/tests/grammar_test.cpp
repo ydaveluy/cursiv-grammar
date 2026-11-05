@@ -1,11 +1,11 @@
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "miniscript/core/CoreServices.hpp"
-#include "miniscript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "miniscript/CoreServices.hpp"
+#include "miniscript/ast.hpp"
 // The smoke test of the language: every file in example/ parses clean and
 // builds a Document; a few documents are read back field by field, since a
 // converter that silently yields the wrong value passes every structural
@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

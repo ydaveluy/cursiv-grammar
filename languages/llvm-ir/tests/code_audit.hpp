@@ -3,9 +3,9 @@
 #include <functional>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
 
 namespace code_audit {
 namespace ast = llvmir::ast;
@@ -41,7 +41,7 @@ inline bool run() {
               *n, [&](auto, auto, auto& child) { visit(&child, n); });
         };
     visit(result.value, nullptr);
-    check(reached.size() == result.nodes.size(),
+    check(reached.size() == result.nodes().size(),
           "every allocated node is reachable");
     return result;
   };
@@ -265,7 +265,7 @@ inline bool run() {
   {
     const auto result = parse("declare i32 @g(i32,...) define i32 @f(i32 %x,...){%r=musttail call i32(i32,...) @g(i32 %x,...) ret i32 %r}");
     bool forward = false;
-    for (const auto* n : result.nodes) if (const auto* call = cursiv::ast_cast<ast::CallInst>(n))
+    for (const auto* n : result.nodes()) if (const auto* call = cursiv::ast_cast<ast::CallInst>(n))
       forward |= call->forwardsVarargs && call->tailKind && *call->tailKind == "musttail" && call->args.size() == 1;
     check(forward, "musttail variadic forwarding AST");
   }

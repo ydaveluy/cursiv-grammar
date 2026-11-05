@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/sharc/core/SharcGrammar.hpp` |
-| The AST | `src/sharc/core/ast.hpp` |
-| Validation checks | `src/sharc/core/validation/` |
-| Services of your own | `src/sharc/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/sharc/cli/main.cpp` |
-| LSP features | `src/sharc/lsp/LspModule.cpp` |
+| The grammar | `src/core/sharc/SharcGrammar.hpp` |
+| The AST | `src/core/sharc/ast.hpp` |
+| Validation checks | `src/core/sharc/validation/` |
+| Services of your own | `src/core/sharc/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/sharc/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

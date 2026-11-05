@@ -12,13 +12,13 @@
 #include <vector>
 #include <utility>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "edn/core/CoreServices.hpp"
-#include "edn/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "edn/CoreServices.hpp"
+#include "edn/ast.hpp"
 
 namespace {
 
@@ -80,7 +80,7 @@ void reader_values(const cursiv::Parser &parser) {
       check(number && number->text == numbers[i],
             "bigdecimal is a single number");
     }
-    const auto *text = std::get_if<std::string_view>(&values->items[9]);
+    const auto *text = std::get_if<std::string>(&values->items[9]);
     check(text && *text == "A\nB😀AZ", "string escapes are decoded");
   }
   const std::string source = "{#_ :skip :k #_ 1 2 #_ :tail}";
@@ -137,7 +137,7 @@ void native_reader_constraints(const edn::EdnCoreServices& services) {
     const auto result = parser.parse(R"("\377")");
     const auto* document = result.value_as<ast::Program>();
     const auto* value = document && document->values.size() == 1
-        ? std::get_if<std::string_view>(&document->values[0]) : nullptr;
+        ? std::get_if<std::string>(&document->values[0]) : nullptr;
     check(clean(result) && result.diagnostics.empty() && value && *value == "ÿ",
           "octal character U+00FF is encoded as UTF-8");
   }
@@ -268,8 +268,8 @@ int main() {
       check(std::holds_alternative<bool>(vec->items[6]) &&
                 !std::get<bool>(vec->items[6]),
             "false");
-      check(std::holds_alternative<std::string_view>(vec->items[7]) &&
-                std::get<std::string_view>(vec->items[7]) == "string literal",
+      check(std::holds_alternative<std::string>(vec->items[7]) &&
+                std::get<std::string>(vec->items[7]) == "string literal",
             "a string, quotes stripped");
       ast::Number *intLit = as<ast::Number>(vec->items[8]);
       check(intLit != nullptr && intLit->text == "1", "an integer");
@@ -285,8 +285,8 @@ int main() {
       check(ch != nullptr && ch->text == "A", "a character literal");
       ast::Tag *tag = as<ast::Tag>(vec->items[13]);
       check(tag != nullptr && tag->name == "tagged", "a tag");
-      check(tag && std::holds_alternative<std::string_view>(tag->value) &&
-                std::get<std::string_view>(tag->value) == "value",
+      check(tag && std::holds_alternative<std::string>(tag->value) &&
+                std::get<std::string>(tag->value) == "value",
             "a tag owns its payload");
       ast::Tag *nstag = as<ast::Tag>(vec->items[14]);
       check(nstag != nullptr && nstag->name == "tagged/with-namespace",

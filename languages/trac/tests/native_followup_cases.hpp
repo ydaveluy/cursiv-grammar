@@ -2,8 +2,8 @@
 #include <string_view>
 #include <unordered_set>
 #include <variant>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "trac/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "trac/ast.hpp"
 namespace trac_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace a = trac::ast;
@@ -30,6 +30,6 @@ template<class Language> bool run(const Language& language) {
         });
   };
   walk(walk, *root);
-  return owned && seen.size() == r.nodes.size();
+  return owned && seen.size() == r.nodes().size();
 }
 } // namespace trac_native_followup

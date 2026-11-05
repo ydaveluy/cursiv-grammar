@@ -4,12 +4,12 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "verilog/core/CoreServices.hpp"
-#include "verilog/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "verilog/CoreServices.hpp"
+#include "verilog/ast.hpp"
 namespace verilog_attributes {
 struct Expected {
   std::string_view name;
@@ -84,7 +84,7 @@ inline bool run(const verilog::VerilogCoreServices& services,
           });
     };
     visit(visit, *result.value);
-    if (!parents || seen.size() != result.nodes.size()) return fail("ownership/CST");
+    if (!parents || seen.size() != result.nodes().size()) return fail("ownership/CST");
     if (instances != test.instances || specs.size() != test.expected.size())
       return fail("attribute count");
     std::vector<bool> used(specs.size());

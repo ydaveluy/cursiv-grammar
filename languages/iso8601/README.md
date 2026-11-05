@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/iso8601/core/Iso8601Grammar.hpp` |
-| The AST | `src/iso8601/core/ast.hpp` |
-| Validation checks | `src/iso8601/core/validation/` |
-| Services of your own | `src/iso8601/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/iso8601/cli/main.cpp` |
-| LSP features | `src/iso8601/lsp/LspModule.cpp` |
+| The grammar | `src/core/iso8601/Iso8601Grammar.hpp` |
+| The AST | `src/core/iso8601/ast.hpp` |
+| Validation checks | `src/core/iso8601/validation/` |
+| Services of your own | `src/core/iso8601/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/iso8601/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

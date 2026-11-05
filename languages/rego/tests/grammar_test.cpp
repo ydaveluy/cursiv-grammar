@@ -12,11 +12,11 @@
 #include <string_view>
 
 #include "code_audit.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "rego/core/CoreServices.hpp"
-#include "rego/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "rego/CoreServices.hpp"
+#include "rego/ast.hpp"
 #include "native_followup.hpp"
 #include "postfix_adjacency_cases.hpp"
 
@@ -169,8 +169,8 @@ int main() {
   ast::ScalarTerm* msg_val =
       msg != nullptr ? as<ast::ScalarTerm>(msg->value) : nullptr;
   if (msg_val == nullptr ||
-      !std::holds_alternative<std::string_view>(msg_val->value) ||
-      !eq(std::get<std::string_view>(msg_val->value),
+      !std::holds_alternative<std::string>(msg_val->value) ||
+      !eq(std::get<std::string>(msg_val->value),
           "line1\nline2\ttab \"q\" A"))
     return fail("msg did not decode its escapes");
 
@@ -178,8 +178,8 @@ int main() {
   ast::ScalarTerm* raw_val =
       raw != nullptr ? as<ast::ScalarTerm>(raw->value) : nullptr;
   if (raw_val == nullptr ||
-      !std::holds_alternative<std::string_view>(raw_val->value) ||
-      !eq(std::get<std::string_view>(raw_val->value), "C:\\no\\escapes"))
+      !std::holds_alternative<std::string>(raw_val->value) ||
+      !eq(std::get<std::string>(raw_val->value), "C:\\no\\escapes"))
     return fail("raw did not stay verbatim");
 
   ast::Rule* n = find_rule(*doc, "n");
@@ -233,8 +233,8 @@ int main() {
     ast::ScalarTerm* greeting_val =
         greeting != nullptr ? as<ast::ScalarTerm>(greeting->value) : nullptr;
     if (greeting_val == nullptr ||
-        !std::holds_alternative<std::string_view>(greeting_val->value) ||
-        !eq(std::get<std::string_view>(greeting_val->value), "Caf\xc3\xa9 A"))
+        !std::holds_alternative<std::string>(greeting_val->value) ||
+        !eq(std::get<std::string>(greeting_val->value), "Caf\xc3\xa9 A"))
       return fail("greeting did not decode \\u00e9 to UTF-8");
   }
 

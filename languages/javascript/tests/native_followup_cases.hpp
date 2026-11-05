@@ -4,12 +4,12 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "javascript/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "javascript/ast.hpp"
 
 namespace javascript_native_followup {
 template<class Language> bool run(const Language& language) {
@@ -36,7 +36,7 @@ let x=1; x-->0; const n=08; const m=09.5;
   bool astral = false, combining = false, property = false, staticBlock = false;
   bool asyncField = false, method = false, brand = false, postfix = false, leadingZero = false;
   unsigned members = 0;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* p = cursiv::ast_cast<a::Ident>(node)) {
       astral |= p->name == "𐐀";
       combining |= p->name == "á";
@@ -72,12 +72,12 @@ let x=1; x-->0; const n=08; const m=09.5;
           });
     };
     walk(walk, *root);
-    check(owned && seen.size() == result.nodes.size(), "complete AST ownership");
+    check(owned && seen.size() == result.nodes().size(), "complete AST ownership");
   }
   const std::string physical = "const t=`a\r\nb`;";
   const auto templateResult = language.language.parser->parse(physical);
   bool normalized = false;
-  for (const auto* node : templateResult.nodes)
+  for (const auto* node : templateResult.nodes())
     if (const auto* p = cursiv::ast_cast<a::TemplateLit>(node))
       normalized |= p->quasis.size() == 1 && p->quasis[0] == "a\nb";
   check(clean(templateResult, "CRLF template parses") && normalized, "raw template value normalizes physical CRLF");
@@ -110,7 +110,7 @@ let x=1; x-->0; const n=08; const m=09.5;
   const auto arrowResult = language.language.parser->parse("const fn=async\nx=>x;");
   const auto* arrowProgram = arrowResult.template value_as<a::Program>();
   bool arrow = false;
-  for (const auto* n : arrowResult.nodes) if (const auto* p = cursiv::ast_cast<a::ArrowFunctionExpr>(n)) arrow |= !p->isAsync;
+  for (const auto* n : arrowResult.nodes()) if (const auto* p = cursiv::ast_cast<a::ArrowFunctionExpr>(n)) arrow |= !p->isAsync;
   check(clean(arrowResult, "async newline arrow parses") && arrowProgram && arrowProgram->body.size() == 2 && arrow,
         "async initializer and following arrow remain separate");
   for (const auto source : {"#!/usr/bin/env node\nconst x=1;", "--> initial\nconst x=1;", "const x=1;\n --> line\nconst y=2;",

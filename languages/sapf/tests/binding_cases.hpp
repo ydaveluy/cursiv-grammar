@@ -4,8 +4,8 @@
 #include <string>
 #include <unordered_set>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "sapf/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "sapf/ast.hpp"
 
 namespace sapf_bindings {
 namespace ast = sapf::ast;
@@ -27,7 +27,7 @@ inline bool parents(const auto& language, const cursiv::ParseResult& parsed) {
         });
   };
   visit(visit, *parsed.value);
-  return okay && seen.size() == parsed.nodes.size();
+  return okay && seen.size() == parsed.nodes().size();
 }
 inline bool run(const auto& language) {
   const std::string source =

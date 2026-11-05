@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/alef/core/AlefGrammar.hpp` |
-| The AST | `src/alef/core/ast.hpp` |
-| Validation checks | `src/alef/core/validation/` |
-| Services of your own | `src/alef/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/alef/cli/main.cpp` |
-| LSP features | `src/alef/lsp/LspModule.cpp` |
+| The grammar | `src/core/alef/AlefGrammar.hpp` |
+| The AST | `src/core/alef/ast.hpp` |
+| Validation checks | `src/core/alef/validation/` |
+| Services of your own | `src/core/alef/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/alef/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

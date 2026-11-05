@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/antlr/core/AntlrGrammar.hpp` |
-| The AST | `src/antlr/core/ast.hpp` |
-| Validation checks | `src/antlr/core/validation/` |
-| Services of your own | `src/antlr/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/antlr/cli/main.cpp` |
-| LSP features | `src/antlr/lsp/LspModule.cpp` |
+| The grammar | `src/core/antlr/AntlrGrammar.hpp` |
+| The AST | `src/core/antlr/ast.hpp` |
+| Validation checks | `src/core/antlr/validation/` |
+| Services of your own | `src/core/antlr/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/antlr/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

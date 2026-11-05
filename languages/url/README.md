@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/url/core/UrlGrammar.hpp` |
-| The AST | `src/url/core/ast.hpp` |
-| Validation checks | `src/url/core/validation/` |
-| Services of your own | `src/url/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/url/cli/main.cpp` |
-| LSP features | `src/url/lsp/LspModule.cpp` |
+| The grammar | `src/core/url/UrlGrammar.hpp` |
+| The AST | `src/core/url/ast.hpp` |
+| Validation checks | `src/core/url/validation/` |
+| Services of your own | `src/core/url/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/url/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

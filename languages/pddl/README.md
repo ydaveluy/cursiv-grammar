@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/pddl/core/PddlGrammar.hpp` |
-| The AST | `src/pddl/core/ast.hpp` |
-| Validation checks | `src/pddl/core/validation/` |
-| Services of your own | `src/pddl/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/pddl/cli/main.cpp` |
-| LSP features | `src/pddl/lsp/LspModule.cpp` |
+| The grammar | `src/core/pddl/PddlGrammar.hpp` |
+| The AST | `src/core/pddl/ast.hpp` |
+| Validation checks | `src/core/pddl/validation/` |
+| Services of your own | `src/core/pddl/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/pddl/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

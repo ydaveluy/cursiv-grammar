@@ -20,12 +20,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/protobuf/core/ProtobufGrammar.hpp` |
-| The AST | `src/protobuf/core/ast.hpp` |
-| Validation checks | `src/protobuf/core/validation/` |
-| Services of your own | `src/protobuf/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/protobuf/cli/main.cpp` |
-| LSP features | `src/protobuf/lsp/LspModule.cpp` |
+| The grammar | `src/core/protobuf/ProtobufGrammar.hpp` |
+| The AST | `src/core/protobuf/ast.hpp` |
+| Validation checks | `src/core/protobuf/validation/` |
+| Services of your own | `src/core/protobuf/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/protobuf/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

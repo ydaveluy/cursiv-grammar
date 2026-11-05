@@ -37,12 +37,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/evmbytecode/core/EvmBytecodeGrammar.hpp` |
-| The AST | `src/evmbytecode/core/ast.hpp` |
-| Validation checks | `src/evmbytecode/core/validation/` |
-| Services of your own | `src/evmbytecode/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/evmbytecode/cli/main.cpp` |
-| LSP features | `src/evmbytecode/lsp/LspModule.cpp` |
+| The grammar | `src/core/evmbytecode/EvmBytecodeGrammar.hpp` |
+| The AST | `src/core/evmbytecode/ast.hpp` |
+| Validation checks | `src/core/evmbytecode/validation/` |
+| Services of your own | `src/core/evmbytecode/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/evmbytecode/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -7,11 +7,11 @@
 #include <memory>
 #include <string>
 
-#include "cursiv/test/Check.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/Cst.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "clf/core/ast.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/Cst.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "clf/ast.hpp"
 #include "clf/generated/Clf/Module.hpp"
 
 

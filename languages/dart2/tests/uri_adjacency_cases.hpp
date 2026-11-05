@@ -7,9 +7,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "dart2/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "dart2/ast.hpp"
 
 namespace dart2_uri_adjacency {
 
@@ -36,7 +36,7 @@ inline bool run(const auto& language) {
           });
     };
     walk(walk, *result.value);
-    return valid && seen.size() == result.nodes.size();
+    return valid && seen.size() == result.nodes().size();
   };
   auto strings = [](const a::StringValue* value,
                      std::initializer_list<std::string_view> expected,
@@ -124,7 +124,7 @@ inline bool run(const auto& language) {
     constexpr std::string_view source = "void f(){ part('a' '.dart'); }";
     const auto result = language.parser->parse(source);
     const a::CallExpr* call = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* value = cursiv::ast_cast<a::CallExpr>(node)) call = value;
     const auto* callee = call ? cursiv::ast_cast<a::Ident>(call->callee) : nullptr;
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&

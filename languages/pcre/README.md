@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/pcre/core/PcreGrammar.hpp` |
-| The AST | `src/pcre/core/ast.hpp` |
-| Validation checks | `src/pcre/core/validation/` |
-| Services of your own | `src/pcre/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/pcre/cli/main.cpp` |
-| LSP features | `src/pcre/lsp/LspModule.cpp` |
+| The grammar | `src/core/pcre/PcreGrammar.hpp` |
+| The AST | `src/core/pcre/ast.hpp` |
+| Validation checks | `src/core/pcre/validation/` |
+| Services of your own | `src/core/pcre/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/pcre/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

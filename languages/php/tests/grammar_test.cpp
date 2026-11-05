@@ -1,12 +1,12 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "php/core/CoreServices.hpp"
-#include "php/core/ast.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "php/CoreServices.hpp"
+#include "php/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 #include "port_audit_cases.hpp"
 #include "dnf_hook_cases.hpp"
 // The smoke test of the language: parse every file under example/, the way a
@@ -20,7 +20,7 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -206,7 +206,7 @@ int main() {
   {
     const auto r=language.language.parser->parse("<?php $a=&$b;$x=new #[A] readonly class {};clone($o,['p'=>1]);$a?:$b?:$c;");
     bool reference=false, anonymous=false, clone=false, shortChain=false;
-    for(const auto* node:r.nodes){
+    for(const auto* node:r.nodes()){
       if(const auto* n=cursiv::ast_cast<php::ast::AssignExpr>(node))reference|=n->byRef&&n->op=="=";
       if(const auto* n=cursiv::ast_cast<php::ast::NewExpr>(node))anonymous|=n->anonClass&&n->anonymousAttributes.size()==1&&n->anonymousModifiers.size()==1&&n->anonymousModifiers[0]=="readonly";
       if(const auto* n=cursiv::ast_cast<php::ast::CloneExpr>(node))clone|=n->callSyntax&&n->args.size()==2&&n->args[0]->value&&n->args[1]->value;

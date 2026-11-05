@@ -5,9 +5,9 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreServices.hpp"
-#include "morsecode/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreServices.hpp"
+#include "morsecode/ast.hpp"
 
 inline int morse_table_regressions(const cursiv::CoreServices& services) {
   struct Case {
@@ -27,7 +27,7 @@ inline int morse_table_regressions(const cursiv::CoreServices& services) {
         cursiv::ast_cast<morsecode::ast::Message>(result.value);
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !message || message->parent ||
-        result.nodes.size() != 1 || result.cst().text() != c.source ||
+        result.nodes().size() != 1 || result.cst().text() != c.source ||
         !std::equal(message->letters.begin(), message->letters.end(),
                     c.decoded.begin(), c.decoded.end())) {
       ++failures;

@@ -1,11 +1,11 @@
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "redis/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "redis/CoreServices.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -64,7 +64,7 @@ int main() {
           });
     };
     walk(walk, *d);
-    if (!raw || !owned || seen.size() != r.nodes.size())
+    if (!raw || !owned || seen.size() != r.nodes().size())
       return fail("ownership/raw fields");
     const auto v = cursiv::test::validationHelper(language.language, source);
     std::vector<std::string> codes;

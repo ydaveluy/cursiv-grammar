@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/pf/core/PfGrammar.hpp` |
-| The AST | `src/pf/core/ast.hpp` |
-| Validation checks | `src/pf/core/validation/` |
-| Services of your own | `src/pf/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/pf/cli/main.cpp` |
-| LSP features | `src/pf/lsp/LspModule.cpp` |
+| The grammar | `src/core/pf/PfGrammar.hpp` |
+| The AST | `src/core/pf/ast.hpp` |
+| Validation checks | `src/core/pf/validation/` |
+| Services of your own | `src/core/pf/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/pf/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

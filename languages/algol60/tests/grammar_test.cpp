@@ -11,12 +11,12 @@
 #include <utility>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/test/Check.hpp"
-#include "algol60/core/CoreServices.hpp"
-#include "algol60/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/Check.hpp"
+#include "algol60/CoreServices.hpp"
+#include "algol60/ast.hpp"
 #include "statement_families.hpp"
 
 namespace {
@@ -38,7 +38,7 @@ T* as(cursiv::AstNode* n) {
   return n != nullptr ? const_cast<T*>(cursiv::ast_cast<T>(n)) : nullptr;
 }
 
-bool names_are(const cursiv::vector<std::string_view>& got,
+bool names_are(const std::vector<std::string_view>& got,
               std::initializer_list<std::string_view> want) {
   if (got.size() != want.size()) return false;
   std::size_t i = 0;
@@ -246,7 +246,7 @@ void numeric_boundaries() {
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
     const ast::NumberLiteral* value = nullptr;
-    for (const auto* node : result.nodes)
+    for (const auto* node : result.nodes())
       if (const auto* number = cursiv::ast_cast<ast::NumberLiteral>(node)) value = number;
     CHECK(value && value->value == expected);
   }
@@ -269,7 +269,7 @@ void native_empty_statements_and_division() {
   CHECK(block && block->labels.size() == 2 && block->labels[0] == "outer" &&
         block->labels[1] == "12" && block->statements.size() == 2);
   bool division = false, dummy_else = false;
-  for (const auto* node : parsed.nodes) {
+  for (const auto* node : parsed.nodes()) {
     if (const auto* binary = cursiv::ast_cast<ast::BinaryExpr>(node)) {
       division |= binary->op == ast::BinOp::intdiv;
       if (binary->op != ast::BinOp::intdiv)

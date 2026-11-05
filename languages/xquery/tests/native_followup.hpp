@@ -4,10 +4,10 @@
 #include <string_view>
 #include <vector>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "xquery/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "xquery/ast.hpp"
 namespace xquery_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace ast=xquery::ast;
@@ -159,7 +159,7 @@ return (local:f(x:=2), $x, + (:gap:) - 1, if(1){2}else{3})
   const auto* query=cursiv::ast_cast<ast::QueryList>(result.value);
   bool encoding=query&&query->modules.size()==1&&query->modules[0]->version=="4.0"&&query->modules[0]->encoding=="UTF-8";
   bool annotations=false,signs=false,otherwise=false;
-  for(const auto* node:result.nodes) {
+  for(const auto* node:result.nodes()) {
     if(const auto* a=cursiv::ast_cast<ast::Annotation>(node);a&&a->name=="local:a"&&a->args.size()==6) {
       const auto* text=cursiv::ast_cast<ast::StringLiteral>(a->args[0]);
       const auto* number=cursiv::ast_cast<ast::IntLiteral>(a->args[1]);
@@ -181,8 +181,8 @@ return (local:f(x:=2), $x, + (:gap:) - 1, if(1){2}else{3})
     });
   };
   if(result.value)walk(walk,*result.value);
-  if(!result.accepted||result.cst().recovered()||!result.diagnostics.empty()||!encoding||!annotations||!signs||!otherwise||!owned||seen.size()!=result.nodes.size()) {
-    std::fprintf(stderr,"XQuery native rich AST encoding=%d annotations=%d signs=%d else=%d owned=%d nodes=%zu/%zu\n",encoding,annotations,signs,otherwise,owned,seen.size(),result.nodes.size());ok=false;
+  if(!result.accepted||result.cst().recovered()||!result.diagnostics.empty()||!encoding||!annotations||!signs||!otherwise||!owned||seen.size()!=result.nodes().size()) {
+    std::fprintf(stderr,"XQuery native rich AST encoding=%d annotations=%d signs=%d else=%d owned=%d nodes=%zu/%zu\n",encoding,annotations,signs,otherwise,owned,seen.size(),result.nodes().size());ok=false;
   }
   const auto whitespace=language.language.parser->parse("declare boundary-space preserve;<a x=' '> </a>");
   const auto* wsRoot=cursiv::ast_cast<ast::QueryList>(whitespace.value);

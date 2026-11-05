@@ -4,10 +4,10 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "pddl/core/CoreServices.hpp"
-#include "pddl/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "pddl/CoreServices.hpp"
+#include "pddl/ast.hpp"
 
 namespace pddl_preference_cases {
 struct Case { const char* name; std::string_view source; bool valid; std::vector<std::string_view> names; };
@@ -45,7 +45,7 @@ inline bool run(const pddl::PddlCoreServices& services) {
     if (!clean || !test.valid) continue;
     check(parsed.cst().text() == test.source, test.name, "source retained exactly");
     std::vector<std::string_view> names;
-    for (const auto* node : parsed.nodes)
+    for (const auto* node : parsed.nodes())
       if (const auto* goal = cursiv::ast_cast<pddl::ast::GoalFormula>(node)) {
         if (goal->isPreference) {
           names.push_back(goal->preferenceName);
@@ -65,7 +65,7 @@ inline bool run(const pddl::PddlCoreServices& services) {
     std::sort(names.begin(), names.end()); std::sort(expected.begin(), expected.end());
     check(names == expected, test.name, "all named and unnamed preferences retained");
     if (std::string_view(test.name) == "and-plain-preferences")
-      for (const auto* node : parsed.nodes)
+      for (const auto* node : parsed.nodes())
         if (const auto* action = cursiv::ast_cast<pddl::ast::ActionDef>(node))
           check(action->hasPrecondition && action->precondition &&
                 action->precondition->operands.size() == 3 &&
@@ -76,7 +76,7 @@ inline bool run(const pddl::PddlCoreServices& services) {
                 action->precondition->operands[2]->preferenceName.empty(),
                 test.name, "plain and preference children preserve source order");
     if (std::string_view(test.name) == "forall-preference")
-      for (const auto* node : parsed.nodes)
+      for (const auto* node : parsed.nodes())
         if (const auto* action = cursiv::ast_cast<pddl::ast::ActionDef>(node))
           check(action->precondition && action->precondition->isForall &&
                 action->precondition->parameters && action->precondition->quantBody &&
@@ -94,7 +94,7 @@ inline bool run(const pddl::PddlCoreServices& services) {
         work.push_back(&child);
       });
     }
-    check(seen.size() == parsed.nodes.size() && !parsed.value->parent, test.name, "complete tree reachability");
+    check(seen.size() == parsed.nodes().size() && !parsed.value->parent, test.name, "complete tree reachability");
   }
   return !failures;
 }

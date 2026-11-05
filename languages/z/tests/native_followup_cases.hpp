@@ -2,9 +2,9 @@
 #include <cstdio>
 #include <string>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "z/core/CoreServices.hpp"
-#include "z/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "z/CoreServices.hpp"
+#include "z/ast.hpp"
 
 namespace native_followup {
 inline bool run(const z::ZCoreServices& services) {
@@ -24,7 +24,7 @@ inline bool run(const z::ZCoreServices& services) {
       });
     };
     if (r.value) walk(walk, *r.value);
-    return valid && seen.size() == r.nodes.size();
+    return valid && seen.size() == r.nodes().size();
   };
   for (const std::string newline : {"\n", "\r\n", "\r", "\u2028"}) {
     const std::string text = "┌\tState" + newline + "x\t:\tℕ" + newline + "y : ℕ |" + newline +

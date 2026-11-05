@@ -1,10 +1,10 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "mps/core/CoreServices.hpp"
-#include "mps/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "mps/CoreServices.hpp"
+#include "mps/ast.hpp"
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -89,7 +89,7 @@ inline bool run(const mps::MpsCoreServices& services,
           });
     };
     visit(visit, *root);
-    if (!parents || seen.size() != result.nodes.size()) return false;
+    if (!parents || seen.size() != result.nodes().size()) return false;
     auto document = shared.documentFactory->fromString(source, "file:///audit.mps");
     std::vector<cursiv::Diagnostic> diagnostics;
     services.documentValidator->validateDocument(*document, diagnostics);

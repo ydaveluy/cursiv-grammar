@@ -23,12 +23,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/wktcrsv1/core/WktCrsV1Grammar.hpp` |
-| The AST | `src/wktcrsv1/core/ast.hpp` |
-| Validation checks | `src/wktcrsv1/core/validation/` |
-| Services of your own | `src/wktcrsv1/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/wktcrsv1/cli/main.cpp` |
-| LSP features | `src/wktcrsv1/lsp/LspModule.cpp` |
+| The grammar | `src/core/wktcrsv1/WktCrsV1Grammar.hpp` |
+| The AST | `src/core/wktcrsv1/ast.hpp` |
+| Validation checks | `src/core/wktcrsv1/validation/` |
+| Services of your own | `src/core/wktcrsv1/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/wktcrsv1/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

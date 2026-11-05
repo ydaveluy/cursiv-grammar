@@ -1,8 +1,8 @@
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/services/JsonValue.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "flatbuffers/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "flatbuffers/CoreServices.hpp"
 #include "flatbuffers/generated/Flatbuffers/Module.hpp"
 #include <fstream>
 #include <iostream>
@@ -61,7 +61,7 @@ int main() {
           });
     };
     walk(walk, *r.value);
-    if (!owned || seen.size() != r.nodes.size() ||
+    if (!owned || seen.size() != r.nodes().size() ||
         J(es).toJsonString({.pretty = false}) != c.data) {
       std::fprintf(stderr, "FlatBuffers metadata: %s\n", c.file);
       return 1;

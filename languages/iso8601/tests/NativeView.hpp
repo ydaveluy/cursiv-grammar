@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "iso8601/core/ast.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "iso8601/ast.hpp"
 using J = cursiv::JsonValue;
 namespace ia = iso8601::ast;
 template <class T> J opt(const std::optional<T> &x) {

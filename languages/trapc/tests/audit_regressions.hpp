@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "trapc/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "trapc/ast.hpp"
 #include "trapc/generated/Trapc/Module.hpp"
 #include <cstdio>
 #include <string>

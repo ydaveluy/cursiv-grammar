@@ -7,7 +7,7 @@ endif()
 # here rather than under example/. Every one parses, and holds the type
 # the grammar builds.
 add_executable(infosapient_grammar_test grammar_test.cpp)
-target_link_libraries(infosapient_grammar_test PRIVATE infosapientCore)
+target_link_libraries(infosapient_grammar_test PRIVATE infosapientCore cursiv::test)
 target_compile_definitions(infosapient_grammar_test PRIVATE
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 add_test(NAME infosapient_grammar_test COMMAND infosapient_grammar_test)

@@ -4,10 +4,10 @@
 #include <functional>
 #include <string>
 
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "newick/core/CoreServices.hpp"
-#include "newick/core/LengthValue.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "newick/CoreServices.hpp"
+#include "newick/LengthValue.hpp"
 #include "newick/generated/Newick/Module.hpp"
 namespace code_audit {
 namespace ast = newick::ast;

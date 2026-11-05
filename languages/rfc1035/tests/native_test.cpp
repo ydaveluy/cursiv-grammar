@@ -6,12 +6,12 @@
 
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "rfc1035/core/CoreServices.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "rfc1035/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 int main() {
   const auto language = cursiv::create_language<rfc1035::Rfc1035CoreServices,
@@ -71,7 +71,7 @@ int main() {
           });
     };
     walk(walk, *domain);
-    if (!owned || seen.size() != result.nodes.size()) return fail("ownership");
+    if (!owned || seen.size() != result.nodes().size()) return fail("ownership");
   }
   std::printf("rfc1035: %zu raw names, %u native label objects\n", std::size(nativeCases), native);
   return native == 20 ? 0 : 1;

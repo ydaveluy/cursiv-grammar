@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/dice/core/DiceGrammar.hpp` |
-| The AST | `src/dice/core/ast.hpp` |
-| Validation checks | `src/dice/core/validation/` |
-| Services of your own | `src/dice/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/dice/cli/main.cpp` |
-| LSP features | `src/dice/lsp/LspModule.cpp` |
+| The grammar | `src/core/dice/DiceGrammar.hpp` |
+| The AST | `src/core/dice/ast.hpp` |
+| Validation checks | `src/core/dice/validation/` |
+| Services of your own | `src/core/dice/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/dice/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

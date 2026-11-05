@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/icalendar/core/IcalendarGrammar.hpp` |
-| The AST | `src/icalendar/core/ast.hpp` |
-| Validation checks | `src/icalendar/core/validation/` |
-| Services of your own | `src/icalendar/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/icalendar/cli/main.cpp` |
-| LSP features | `src/icalendar/lsp/LspModule.cpp` |
+| The grammar | `src/core/icalendar/IcalendarGrammar.hpp` |
+| The AST | `src/core/icalendar/ast.hpp` |
+| Validation checks | `src/core/icalendar/validation/` |
+| Services of your own | `src/core/icalendar/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/icalendar/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

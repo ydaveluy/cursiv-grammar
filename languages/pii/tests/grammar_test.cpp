@@ -7,11 +7,11 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "pii/core/CoreServices.hpp"
-#include "pii/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "pii/CoreServices.hpp"
+#include "pii/ast.hpp"
 
 namespace {
 
@@ -68,7 +68,7 @@ int main() {
           static_cast<const pii::ast::Isbn*>(doc->id)->digits != test.identifier)
         failures += fail(test.source, "wrong ISBN capture");
     }
-    if (doc->parent || doc->id->parent != doc || result.nodes.size() != 2)
+    if (doc->parent || doc->id->parent != doc || result.nodes().size() != 2)
       failures += fail(test.source, "wrong identifier ownership");
   }
   for (const char* source : {"S001236AX15000898", "S0012365x15000898",

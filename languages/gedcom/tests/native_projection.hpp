@@ -1,5 +1,5 @@
 #pragma once
-#include "gedcom/core/ast.hpp"
+#include "gedcom/ast.hpp"
 #include <ostream>
 namespace native_regressions {
 struct Projection {

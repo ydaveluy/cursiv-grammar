@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/php/core/PhpGrammar.hpp` |
-| The AST | `src/php/core/ast.hpp` |
-| Validation checks | `src/php/core/validation/` |
-| Services of your own | `src/php/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/php/cli/main.cpp` |
-| LSP features | `src/php/lsp/LspModule.cpp` |
+| The grammar | `src/core/php/PhpGrammar.hpp` |
+| The AST | `src/core/php/ast.hpp` |
+| Validation checks | `src/core/php/validation/` |
+| Services of your own | `src/core/php/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/php/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

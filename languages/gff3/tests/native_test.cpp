@@ -6,12 +6,12 @@
 
 #include "NativeCases.hpp"
 #include "NativeView.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "gff3/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "gff3/CoreServices.hpp"
 
 int source_format_cases(const auto& language) {
   for (const char* directive : {"##gff-version3", "##gff-version 3.",
@@ -199,7 +199,7 @@ int main() {
           });
     };
     walk(walk, *domain);
-    if (!owned || seen.size() != result.nodes.size())
+    if (!owned || seen.size() != result.nodes().size())
       return fail("ownership");
   }
   std::printf("gff3: %zu source files, %u native documents\n",

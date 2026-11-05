@@ -3,8 +3,8 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "vaxscan/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "vaxscan/ast.hpp"
 
 namespace vaxscan_followup {
 template <class Language> bool run(const Language& language) {
@@ -49,7 +49,7 @@ template <class Language> bool run(const Language& language) {
   const auto result = parser.parse(source);
   namespace ast = vaxscan::ast;
   bool number = false, string = false, algebra = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* n = cursiv::ast_cast<ast::IntLit>(node)) number |= n->value == 2147483647;
     if (const auto* s = cursiv::ast_cast<ast::StrLit>(node)) string |= s->value == "a'b";
     if (const auto* set = cursiv::ast_cast<ast::SetDecl>(node)) {
@@ -69,7 +69,7 @@ template <class Language> bool run(const Language& language) {
         });
   };
   if (result.value) walk(walk, *result.value);
-  if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !number || !string || !algebra || !owned || seen.size() != result.nodes.size()) {
+  if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !number || !string || !algebra || !owned || seen.size() != result.nodes().size()) {
     std::fprintf(stderr, "vaxscan: native literal/algebra values or ownership\n");
     return false;
   }

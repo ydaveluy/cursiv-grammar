@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID dif
-    GRAMMAR    dif/core/DifGrammar.hpp
+    GRAMMAR    dif/DifGrammar.hpp
     NAMESPACE  dif::Dif
     EXTENSIONS .dif
     OUT        dif/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/dif/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(difCore ${_core})
 target_link_libraries(difCore PUBLIC difGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/dif/cli/*.cpp)
-if(_cli)
-  add_executable(dif_cli ${_cli})
-  target_link_libraries(dif_cli
-                        PRIVATE difCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(dif_cli cli.cpp)
+  target_include_directories(dif_cli PRIVATE cli)
+  target_link_libraries(dif_cli PRIVATE difCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(difCli ${_cli})
+    target_include_directories(difCli PUBLIC cli)
+    target_link_libraries(difCli PUBLIC difCore cursiv::cli)
+    target_link_libraries(dif_cli PRIVATE difCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dif/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/dif/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/dif/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(difLsp ${_lsp})
+  target_include_directories(difLsp PUBLIC lsp)
   target_link_libraries(difLsp PUBLIC difCore cursiv::lsp)
-  add_executable(dif_lsp dif/lsp/main.cpp)
-  target_link_libraries(dif_lsp PRIVATE difLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(dif_lsp lsp.cpp)
+    target_link_libraries(dif_lsp PRIVATE difLsp)
+  endif()
 endif()
 
-if(TARGET difLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dif/bench/main.cpp")
-  cursiv_add_benchmark(dif
-      SOURCES dif/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET difLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(dif SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(dif)

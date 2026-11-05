@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/joss/core/JossGrammar.hpp` |
-| The AST | `src/joss/core/ast.hpp` |
-| Validation checks | `src/joss/core/validation/` |
-| Services of your own | `src/joss/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/joss/cli/main.cpp` |
-| LSP features | `src/joss/lsp/LspModule.cpp` |
+| The grammar | `src/core/joss/JossGrammar.hpp` |
+| The AST | `src/core/joss/ast.hpp` |
+| Validation checks | `src/core/joss/validation/` |
+| Services of your own | `src/core/joss/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/joss/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

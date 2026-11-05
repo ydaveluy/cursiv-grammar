@@ -5,7 +5,7 @@ The checkout supplies languages/* containing both CMakeLists.txt and src/.
 Pushes compare base..head. Missing history selects every language, as do a
 Cursiv dispatch and --force-all.
 
-Root README files and doc/, docs/, audit/ are documentation-only. Changes in
+Root README files and doc/, docs/ are documentation-only. Changes in
 bench/, .github/ or root CMake configuration select everything. Any other
 unknown path also selects everything conservatively: a new build dependency
 must not silently escape CI. Changes within a language select that existing
@@ -82,7 +82,7 @@ def result(languages: list[str], reason: str) -> dict:
 
 
 def is_documentation(path: str) -> bool:
-    if path.startswith(("doc/", "docs/", "audit/")):
+    if path.startswith(("doc/", "docs/")):
         return True
     name = path.lower()
     return "/" not in path and (name == "readme" or name.startswith("readme."))

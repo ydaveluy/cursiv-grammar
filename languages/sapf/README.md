@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/sapf/core/SapfGrammar.hpp` |
-| The AST | `src/sapf/core/ast.hpp` |
-| Validation checks | `src/sapf/core/validation/` |
-| Services of your own | `src/sapf/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/sapf/cli/main.cpp` |
-| LSP features | `src/sapf/lsp/LspModule.cpp` |
+| The grammar | `src/core/sapf/SapfGrammar.hpp` |
+| The AST | `src/core/sapf/ast.hpp` |
+| Validation checks | `src/core/sapf/validation/` |
+| Services of your own | `src/core/sapf/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/sapf/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

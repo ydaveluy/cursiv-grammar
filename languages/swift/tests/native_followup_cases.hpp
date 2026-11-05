@@ -2,11 +2,11 @@
 #include <cstdio>
 #include <string>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "swift/core/CoreServices.hpp"
-#include "swift/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "swift/CoreServices.hpp"
+#include "swift/ast.hpp"
 
 namespace native_followup {
 inline bool run(const swift::SwiftCoreServices& services) {
@@ -29,7 +29,7 @@ inline bool run(const swift::SwiftCoreServices& services) {
       });
     };
     if (r.value) walk(walk, *r.value);
-    return valid && seen.size() == r.nodes.size();
+    return valid && seen.size() == r.nodes().size();
   };
   {
     const std::string text = R"SW(@Attr(1, "two \(value)", [3], {x}) func f() {}

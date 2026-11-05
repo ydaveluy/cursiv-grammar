@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/velocity/core/VelocityGrammar.hpp` |
-| The AST | `src/velocity/core/ast.hpp` |
-| Validation checks | `src/velocity/core/validation/` |
-| Services of your own | `src/velocity/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/velocity/cli/main.cpp` |
-| LSP features | `src/velocity/lsp/LspModule.cpp` |
+| The grammar | `src/core/velocity/VelocityGrammar.hpp` |
+| The AST | `src/core/velocity/ast.hpp` |
+| Validation checks | `src/core/velocity/validation/` |
+| Services of your own | `src/core/velocity/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/velocity/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -3,9 +3,9 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "ini/core/CoreServices.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "ini/CoreServices.hpp"
 
 int main() {
   auto language = cursiv::create_language<ini::IniCoreServices,

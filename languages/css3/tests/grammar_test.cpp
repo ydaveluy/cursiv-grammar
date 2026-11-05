@@ -3,17 +3,18 @@
 // silently mismaps its value (a color, a media query's structure).
 
 #include <cstdio>
+#include <deque>
 #include <fstream>
 #include <iterator>
 #include <string>
 
-#include "css3/core/CoreServices.hpp"
-#include "css3/core/ast.hpp"
+#include "css3/CoreServices.hpp"
+#include "css3/ast.hpp"
 #include "audit_regressions.hpp"
 #include "important_cases.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -71,7 +72,7 @@ int main() {
     }
     std::size_t commas = 0, slashes = 0;
     bool escapedName = false, exponent = false;
-    for (const auto *node : result.nodes) {
+    for (const auto *node : result.nodes()) {
       if (const auto *value = cursiv::ast_cast<css3::ast::PunctValue>(node)) {
         commas += value->text == ",";
         slashes += value->text == "/";
@@ -168,8 +169,12 @@ int main() {
   // 3, section 8.1): `1px + 2px * 3` folds the product into one sum term,
   // and `10px - 3px - 2px` keeps three terms at one flat sum level.
   {
+    // A node lives as long as its parse result, so each one is kept for the
+    // checks below.
+    std::deque<cursiv::ParseResult> results;
     auto calc_sum = [&](const char* text) -> const css3::ast::CalcSum* {
-      const cursiv::ParseResult result = language.language.parser->parse(text);
+      const cursiv::ParseResult& result =
+          results.emplace_back(language.language.parser->parse(text));
       if (result.cst().recovered() || result.value == nullptr) return nullptr;
       const auto& sheet =
           *static_cast<const css3::ast::Stylesheet*>(result.value);

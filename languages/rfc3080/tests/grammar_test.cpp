@@ -1,14 +1,14 @@
 #include <cstdio>
 
-#include "cursiv/test/Check.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/Check.hpp"
+#include "cursiv/ValidationHelper.hpp"
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "rfc3080/core/CoreServices.hpp"
-#include "rfc3080/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "rfc3080/CoreServices.hpp"
+#include "rfc3080/ast.hpp"
 // The grammar's end to end check: every sample under tests/ parses
 // clean, with no recovery, and builds a Frame root.
 
@@ -17,7 +17,7 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 

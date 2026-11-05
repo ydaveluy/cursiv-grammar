@@ -8,14 +8,14 @@
 #include <string>
 #include <vector>
 
-#include "aql/core/ast.hpp"
+#include "aql/ast.hpp"
 #include "aql/generated/Aql/AstReflection.hpp"
 #include "aql/generated/Aql/Module.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "cursiv/test/Check.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "cursiv/Check.hpp"
 #include "upsert_filter.hpp"
 
 namespace {

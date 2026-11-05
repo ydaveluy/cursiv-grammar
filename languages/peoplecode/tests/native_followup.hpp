@@ -1,5 +1,5 @@
 #pragma once
-#include "peoplecode/core/ast.hpp"
+#include "peoplecode/ast.hpp"
 
 namespace peoplecode_followup {
 inline void run(const cursiv::Parser& parser) {

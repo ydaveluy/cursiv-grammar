@@ -9,11 +9,11 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "smalltalk/core/CoreServices.hpp"
-#include "smalltalk/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "smalltalk/CoreServices.hpp"
+#include "smalltalk/ast.hpp"
 #include "amber_script_cases.hpp"
 
 namespace {

@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID basic
-    GRAMMAR    basic/core/BasicGrammar.hpp
+    GRAMMAR    basic/BasicGrammar.hpp
     NAMESPACE  basic::Basic
     EXTENSIONS .bas
     OUT        basic/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/basic/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(basicCore ${_core})
 target_link_libraries(basicCore PUBLIC basicGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/basic/cli/*.cpp)
-if(_cli)
-  add_executable(basic_cli ${_cli})
-  target_link_libraries(basic_cli
-                        PRIVATE basicCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(basic_cli cli.cpp)
+  target_include_directories(basic_cli PRIVATE cli)
+  target_link_libraries(basic_cli PRIVATE basicCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(basicCli ${_cli})
+    target_include_directories(basicCli PUBLIC cli)
+    target_link_libraries(basicCli PUBLIC basicCore cursiv::cli)
+    target_link_libraries(basic_cli PRIVATE basicCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/basic/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/basic/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/basic/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(basicLsp ${_lsp})
+  target_include_directories(basicLsp PUBLIC lsp)
   target_link_libraries(basicLsp PUBLIC basicCore cursiv::lsp)
-  add_executable(basic_lsp basic/lsp/main.cpp)
-  target_link_libraries(basic_lsp PRIVATE basicLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(basic_lsp lsp.cpp)
+    target_link_libraries(basic_lsp PRIVATE basicLsp)
+  endif()
 endif()
 
-if(TARGET basicLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/basic/bench/main.cpp")
-  cursiv_add_benchmark(basic
-      SOURCES basic/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET basicLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(basic SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(basic)

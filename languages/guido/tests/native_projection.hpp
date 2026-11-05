@@ -1,5 +1,5 @@
 #pragma once
-#include "guido/core/ast.hpp"
+#include "guido/ast.hpp"
 #include <charconv>
 #include <iomanip>
 #include <iostream>

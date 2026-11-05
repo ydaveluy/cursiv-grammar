@@ -1,10 +1,10 @@
 
 #include <cstdio>
 
-#include "codeql/core/CoreServices.hpp"
-#include "codeql/core/ast.hpp"
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
+#include "codeql/CoreServices.hpp"
+#include "codeql/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
 // The grammar end to end: every document under `example/` parses clean --
 // no recovery, no diagnostics -- and builds a Document at the root. Two
 // documents' values are also read back, so a converter that silently drops
@@ -17,8 +17,8 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
 
 namespace {
 
@@ -118,8 +118,8 @@ static int audit_regression() {
     if (!sel || sel->results.size() != 2) return 1;
     const auto* lit =
         cursiv::ast_cast<codeql::ast::Literal>(sel->results[0]->value);
-    if (!lit || !std::holds_alternative<std::string_view>(lit->value) ||
-        std::get<std::string_view>(lit->value) != "a\nb")
+    if (!lit || !std::holds_alternative<std::string>(lit->value) ||
+        std::get<std::string>(lit->value) != "a\nb")
       return 1;
     const auto* outer =
         cursiv::ast_cast<codeql::ast::UnaryExpr>(sel->results[1]->value);

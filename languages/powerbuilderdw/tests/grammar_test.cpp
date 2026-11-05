@@ -7,13 +7,13 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "powerbuilderdw/core/CoreServices.hpp"
-#include "powerbuilderdw/core/ast.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "powerbuilderdw/CoreServices.hpp"
+#include "powerbuilderdw/ast.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
 
 namespace {
 
@@ -160,7 +160,7 @@ int main() {
        !data||data->attrs.size()!=3||!text||text->attrs.size()!=2)
       return fail("native argument/table/data/string form rejected or AST lost");
     const auto* attribute=cursiv::ast_cast<powerbuilderdw::ast::SimpleAttr>(text->attrs[0]);
-    const auto* value=attribute?std::get_if<std::string_view>(&attribute->value):nullptr;
+    const auto* value=attribute?std::get_if<std::string>(&attribute->value):nullptr;
     if(!value||*value!="~")return fail("single-quoted tilde escape parity or value lost");
     const char* numbers[]={"9007199254740993","12345678901234.5678901234","-1"};
     for(std::size_t i=0;i<3;++i) {

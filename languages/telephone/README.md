@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/telephone/core/TelephoneGrammar.hpp` |
-| The AST | `src/telephone/core/ast.hpp` |
-| Validation checks | `src/telephone/core/validation/` |
-| Services of your own | `src/telephone/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/telephone/cli/main.cpp` |
-| LSP features | `src/telephone/lsp/LspModule.cpp` |
+| The grammar | `src/core/telephone/TelephoneGrammar.hpp` |
+| The AST | `src/core/telephone/ast.hpp` |
+| Validation checks | `src/core/telephone/validation/` |
+| Services of your own | `src/core/telephone/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/telephone/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

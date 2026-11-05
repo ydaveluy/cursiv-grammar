@@ -1,6 +1,6 @@
 #pragma once
-#include "cursiv/core/services/JsonValue.hpp"
-#include "haskell/core/ast.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "haskell/ast.hpp"
 using J = cursiv::JsonValue;
 J expr(const haskell::ast::Expr* e) {
   using namespace haskell;

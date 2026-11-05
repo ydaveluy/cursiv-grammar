@@ -1,38 +1,53 @@
-# Generate the parser and its language module.
+# Core: the language itself. Generates the parser from the grammar, again when
+# the grammar changes, then builds the services and checks under core/. Every
+# other package links it.
 cursiv_generate_language(ID limbo
-    GRAMMAR    limbo/core/LimboGrammar.hpp
+    GRAMMAR    limbo/LimboGrammar.hpp
     NAMESPACE  limbo::Limbo
     EXTENSIONS .b
     OUT        limbo/generated)
 
-# Add custom services and validation over the generated module.
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/limbo/core/*.cpp)
+     ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(limboCore ${_core})
 target_link_libraries(limboCore PUBLIC limboGenerated)
 
-file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_SOURCE_DIR}/limbo/cli/*.cpp)
-if(_cli)
-  add_executable(limbo_cli ${_cli})
-  target_link_libraries(limbo_cli
-                        PRIVATE limboCore cursiv::cli)
+# CLI: the command line. cli.cpp starts the executable; the code under cli/
+# builds into a library that the tests can link. Delete cli.cpp to drop it.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cli.cpp")
+  add_executable(limbo_cli cli.cpp)
+  target_include_directories(limbo_cli PRIVATE cli)
+  target_link_libraries(limbo_cli PRIVATE limboCore cursiv::cli)
+  file(GLOB_RECURSE _cli CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/cli/*.cpp)
+  if(_cli)
+    add_library(limboCli ${_cli})
+    target_include_directories(limboCli PUBLIC cli)
+    target_link_libraries(limboCli PUBLIC limboCore cursiv::cli)
+    target_link_libraries(limbo_cli PRIVATE limboCli)
+  endif()
 endif()
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/limbo/lsp")
+# LSP: the language server. lsp.cpp starts the executable; the code under lsp/
+# builds into a library that the tests and the benchmark can link. Delete lsp.cpp
+# and lsp/ to drop it.
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lsp")
   file(GLOB_RECURSE _lsp CONFIGURE_DEPENDS
-       ${CMAKE_CURRENT_SOURCE_DIR}/limbo/lsp/*.cpp)
-  list(REMOVE_ITEM _lsp ${CMAKE_CURRENT_SOURCE_DIR}/limbo/lsp/main.cpp)
+       ${CMAKE_CURRENT_SOURCE_DIR}/lsp/*.cpp)
   add_library(limboLsp ${_lsp})
+  target_include_directories(limboLsp PUBLIC lsp)
   target_link_libraries(limboLsp PUBLIC limboCore cursiv::lsp)
-  add_executable(limbo_lsp limbo/lsp/main.cpp)
-  target_link_libraries(limbo_lsp PRIVATE limboLsp)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lsp.cpp")
+    add_executable(limbo_lsp lsp.cpp)
+    target_link_libraries(limbo_lsp PRIVATE limboLsp)
+  endif()
 endif()
 
-if(TARGET limboLsp AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/limbo/bench/main.cpp")
-  cursiv_add_benchmark(limbo
-      SOURCES limbo/bench/main.cpp)
+# Benchmark: bench.cpp measures the language through the LSP library. Delete it
+# to drop it.
+if(TARGET limboLsp AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench.cpp")
+  cursiv_add_benchmark(limbo SOURCES bench.cpp)
 endif()
 
+# VS Code: a WASI build copies the language server into vscode/server/.
 cursiv_package_language(limbo)

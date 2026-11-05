@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/spass/core/SpassGrammar.hpp` |
-| The AST | `src/spass/core/ast.hpp` |
-| Validation checks | `src/spass/core/validation/` |
-| Services of your own | `src/spass/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/spass/cli/main.cpp` |
-| LSP features | `src/spass/lsp/LspModule.cpp` |
+| The grammar | `src/core/spass/SpassGrammar.hpp` |
+| The AST | `src/core/spass/ast.hpp` |
+| Validation checks | `src/core/spass/validation/` |
+| Services of your own | `src/core/spass/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/spass/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

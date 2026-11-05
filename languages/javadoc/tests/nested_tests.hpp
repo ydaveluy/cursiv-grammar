@@ -6,9 +6,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "javadoc/core/Content.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "javadoc/Content.hpp"
 #include "deep_projection_tests.hpp"
 #include "nested_cases.hpp"
 
@@ -75,14 +75,14 @@ template <class Language> bool run(const Language& language) {
     std::sort(edges.begin(), edges.end());
     const bool valid = parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() &&
         parsed.cst().text() == test.source && doc && raw && owned &&
-        seen.size() == parsed.nodes.size() && joined(names) == test.names &&
+        seen.size() == parsed.nodes().size() && joined(names) == test.names &&
         joined(edges) == test.edges && braces == test.braces;
     if (!valid) {
       std::fprintf(stderr, "javadoc nested [%.*s]: accepted=%d recovered=%d diagnostics=%zu "
           "names=[%s] edges=[%s] braces=%u raw=%d parents=%d nodes=%zu/%zu\n",
           int(test.name.size()), test.name.data(), parsed.accepted, parsed.cst().recovered(),
           parsed.diagnostics.size(), joined(names).c_str(), joined(edges).c_str(), braces,
-          raw, owned, seen.size(), parsed.nodes.size());
+          raw, owned, seen.size(), parsed.nodes().size());
       ok = false;
     }
   }

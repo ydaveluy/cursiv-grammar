@@ -3,7 +3,6 @@
 #include <string_view>
 
 // Root ST4.3.4 compile-only:41prior expectations plus10classified observations.
-// See audit/review-20261030-port-fixes/stringtemplate-builtin-native-results01.json.
 namespace stringtemplate_builtins {
 struct Case { const char* id; std::string_view source; bool valid; };
 inline constexpr Case cases[] = {

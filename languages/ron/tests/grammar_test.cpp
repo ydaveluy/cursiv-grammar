@@ -2,10 +2,10 @@
 
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "ron/core/CoreServices.hpp"
-#include "ron/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "ron/CoreServices.hpp"
+#include "ron/ast.hpp"
 // The grammar's end to end check: every document under example/ and tests/
 // parses clean, with no recovery, and builds a Document root.
 
@@ -14,7 +14,7 @@
 #include <iterator>
 #include <string>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -46,9 +46,9 @@ Config2(élément2: "a\"b\n\u{1F600}", raw: r###"a"##b"###,
   if (!body || body->items.size() != 7 || body->items[0]->name != "élément2")
     return fail("native forms lost struct fields");
   const auto *text =
-      std::get_if<std::string_view>(&body->items[0]->value->payload);
+      std::get_if<std::string>(&body->items[0]->value->payload);
   const auto *raw =
-      std::get_if<std::string_view>(&body->items[1]->value->payload);
+      std::get_if<std::string>(&body->items[1]->value->payload);
   const auto *character =
       std::get_if<ast::CharLit *>(&body->items[2]->value->payload);
   const auto *mode = std::get_if<ast::Ident *>(&body->items[3]->value->payload);
@@ -119,7 +119,7 @@ static int audit_regression() {
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !list || !*list || (*list)->items.size() != 2)
       return 1;
-    const auto *text = std::get_if<std::string_view>(&(*list)->items[0]->payload);
+    const auto *text = std::get_if<std::string>(&(*list)->items[0]->payload);
     const auto *bytes = std::get_if<ron::ast::Bytes *>(&(*list)->items[1]->payload);
     if (!text || *text != "é" || !bytes || !*bytes ||
         (*bytes)->text != std::string_view("\xff", 1))
@@ -142,7 +142,7 @@ static int audit_regression() {
     const auto result = language.language.parser->parse(source);
     const auto *doc = result.value_as<ron::ast::Document>();
     const auto *text = doc && doc->values.size() == 1
-        ? std::get_if<std::string_view>(&doc->values[0]->payload) : nullptr;
+        ? std::get_if<std::string>(&doc->values[0]->payload) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !text || *text != "ab")
       return 1;

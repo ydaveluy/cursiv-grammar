@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-#include "csharp/core/ast.hpp"
+#include "csharp/ast.hpp"
 
 namespace csharp_audit {
 namespace ast = csharp::ast;
@@ -12,7 +12,7 @@ namespace ast = csharp::ast;
 template <class T, class Result>
 std::vector<const T *> nodes(const Result &result) {
   std::vector<const T *> found;
-  for (const auto *node : result.nodes)
+  for (const auto *node : result.nodes())
     if (const auto *value = cursiv::ast_cast<T>(node))
       found.push_back(value);
   return found;
@@ -217,11 +217,11 @@ template <class Parser> bool modern_cases(const Parser &parser) {
       ok &= values.size() == 1 && values[0]->elements.size() == 3 &&
             !values[0]->elements[0]->spread && values[0]->elements[2]->spread;
     } else if (test.name == "static-lambda")
-      ok &= lambdas.size() == 1 && lambdas[0]->isStatic &&
+      ok &= lambdas.size() == 1 && lambdas[0]->isStatic() &&
             lambdas[0]->params.size() == 1 &&
             lambdas[0]->params[0]->name == "x";
     else if (test.name == "lambda-return-default")
-      ok &= lambdas.size() == 1 && lambdas[0]->isStatic &&
+      ok &= lambdas.size() == 1 && lambdas[0]->isStatic() &&
             lambdas[0]->returnType && lambdas[0]->params.size() == 1 &&
             lambdas[0]->params[0]->defaultValue;
     else if (test.name == "function-pointer") {

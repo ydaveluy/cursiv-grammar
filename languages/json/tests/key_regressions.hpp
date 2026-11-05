@@ -6,13 +6,13 @@
 #include <string_view>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "json/core/CoreServices.hpp"
-#include "json/core/JsonString.hpp"
-#include "json/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "json/CoreServices.hpp"
+#include "json/JsonString.hpp"
+#include "json/ast.hpp"
 
 namespace json_key_regressions {
 inline bool run() {
@@ -65,7 +65,7 @@ inline bool run() {
     const std::string source = "\"" + std::string(key.escaped) + "\"";
     const auto result = services.language.parser->parse(source);
     const auto* doc = result.value_as<json::ast::Doc>();
-    const auto* value = doc ? std::get_if<std::string_view>(&doc->value) : nullptr;
+    const auto* value = doc ? std::get_if<std::string>(&doc->value) : nullptr;
     if (!result.accepted || result.cst().recovered() || !value || *value != key.decoded)
       return false;
   }
@@ -83,7 +83,7 @@ inline bool run() {
     const std::string source = "\"" + raw + "\"";
     const auto result = services.language.parser->parse(source);
     const auto* doc = result.value_as<json::ast::Doc>();
-    const auto* value = doc ? std::get_if<std::string_view>(&doc->value) : nullptr;
+    const auto* value = doc ? std::get_if<std::string>(&doc->value) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !value || *value != raw)
       return false;
@@ -110,8 +110,8 @@ inline bool run() {
     const auto* child = nested ? cursiv::ast_cast<json::ast::Object>(*nested) : nullptr;
     if (!child || child->parent != array || child->members.size() != 1 ||
         child->members[0]->parent != child || child->members[0]->name != "u" ||
-        !std::holds_alternative<std::string_view>(child->members[0]->value) ||
-        std::get<std::string_view>(child->members[0]->value) != "😀") return false;
+        !std::holds_alternative<std::string>(child->members[0]->value) ||
+        std::get<std::string>(child->members[0]->value) != "😀") return false;
   }
   return true;
 }

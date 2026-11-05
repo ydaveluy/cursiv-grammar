@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/vaxscan/core/VaxscanGrammar.hpp` |
-| The AST | `src/vaxscan/core/ast.hpp` |
-| Validation checks | `src/vaxscan/core/validation/` |
-| Services of your own | `src/vaxscan/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/vaxscan/cli/main.cpp` |
-| LSP features | `src/vaxscan/lsp/LspModule.cpp` |
+| The grammar | `src/core/vaxscan/VaxscanGrammar.hpp` |
+| The AST | `src/core/vaxscan/ast.hpp` |
+| Validation checks | `src/core/vaxscan/validation/` |
+| Services of your own | `src/core/vaxscan/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/vaxscan/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

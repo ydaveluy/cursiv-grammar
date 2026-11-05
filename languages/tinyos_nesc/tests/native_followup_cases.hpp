@@ -2,11 +2,11 @@
 #include <cstdio>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "tinyosnesc/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "tinyosnesc/ast.hpp"
 namespace tinyosnesc_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace a = tinyosnesc::ast;
@@ -34,7 +34,7 @@ template<class Language> bool run(const Language& language) {
         module->attribute.find("@safe()") != std::string_view::npos && module->attribute.find("@custom(1)") != std::string_view::npos,
         "parameters precede complete attribute sequence");
   bool bare = false, async = false, character = false, string = false, shift = false, bitwise = false, negate = false, member = false;
-  for (const auto* node : r.nodes) {
+  for (const auto* node : r.nodes()) {
     if (const auto* p = cursiv::ast_cast<a::UsesProvides>(node)) bare |= p->isProvides && p->members.size() == 1 && p->interfaces.empty();
     if (const auto* p = cursiv::ast_cast<a::InterfaceMember>(node)) async |= p->isAsync && p->isEvent;
     if (const auto* p = cursiv::ast_cast<a::FuncStat>(node)) {
@@ -58,7 +58,7 @@ template<class Language> bool run(const Language& language) {
           });
     };
     walk(walk, *root);
-    check(owned && seen.size() == r.nodes.size(), "complete AST ownership");
+    check(owned && seen.size() == r.nodes().size(), "complete AST ownership");
   }
   const auto q = language.language.parser->parse("interface Queue<t> { async command void push(t x); async event t done(); }");
   const auto* d = q.template value_as<a::Document>();

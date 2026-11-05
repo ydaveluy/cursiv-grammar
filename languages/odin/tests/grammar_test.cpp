@@ -1,11 +1,11 @@
 #include <cstdio>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "odin/core/CoreServices.hpp"
-#include "odin/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "odin/CoreServices.hpp"
+#include "odin/ast.hpp"
 #include "native_followup.hpp"
 // The smoke test of the language: every corpus document parses clean with no
 // diagnostics, one is read back field by field to catch a converter that
@@ -17,7 +17,7 @@
 #include <string>
 #include <variant>
 
-#include "cursiv/core/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
 
 namespace {
 
@@ -122,6 +122,23 @@ static int audit_regression() {
     language.language.documentValidator->validateDocument(*doc, diagnostics);
     if (diagnostics.empty()) return 1;
   }
+  {
+    const auto parsed = language.language.parser->parse(
+        "package p\nS :: struct # packed #packed {x:int}\n"
+        "U :: union #no_nil #shared_nil #no_nil {int,string}\n");
+    const odin::ast::StructType* structure = nullptr;
+    const odin::ast::UnionType* unionType = nullptr;
+    for (const auto* node : parsed.nodes()) {
+      if (const auto* n = cursiv::ast_cast<odin::ast::StructType>(node)) structure = n;
+      if (const auto* n = cursiv::ast_cast<odin::ast::UnionType>(node)) unionType = n;
+    }
+    if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
+        !structure || !structure->packed() || structure->tags.size() != 2 ||
+        structure->tags[0] != "packed" || structure->tags[1] != "packed" ||
+        !unionType || !unionType->noNil() || !unionType->sharedNil() ||
+        unionType->tags.size() != 3 || unionType->tags[2] != "no_nil")
+      return fail("tag keywords and repeated occurrences retained");
+  }
   return 0;
 }
 
@@ -195,7 +212,7 @@ int main() {
         tight->typeDecl->type != &cursiv::ast_type_tag<odin::ast::StructType>)
       return fail("coverage.odin: Tight is not a struct");
     const auto& tightStruct = *static_cast<const odin::ast::StructType*>(tight->typeDecl);
-    if (!tightStruct.simple || !tightStruct.allOrNone ||
+    if (!tightStruct.simple() || !tightStruct.allOrNone() ||
         tightStruct.minFieldAlign.empty() ||
         tightStruct.whereConditions.size() != 1 ||
         tightStruct.fields.size() != 2)

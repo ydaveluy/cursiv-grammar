@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/abnf/core/AbnfGrammar.hpp` |
-| The AST | `src/abnf/core/ast.hpp` |
-| Validation checks | `src/abnf/core/validation/` |
-| Services of your own | `src/abnf/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/abnf/cli/main.cpp` |
-| LSP features | `src/abnf/lsp/LspModule.cpp` |
+| The grammar | `src/core/abnf/AbnfGrammar.hpp` |
+| The AST | `src/core/abnf/ast.hpp` |
+| Validation checks | `src/core/abnf/validation/` |
+| Services of your own | `src/core/abnf/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/abnf/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

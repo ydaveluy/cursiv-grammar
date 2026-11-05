@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/rfc3080/core/Rfc3080Grammar.hpp` |
-| The AST | `src/rfc3080/core/ast.hpp` |
-| Validation checks | `src/rfc3080/core/validation/` |
-| Services of your own | `src/rfc3080/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/rfc3080/cli/main.cpp` |
-| LSP features | `src/rfc3080/lsp/LspModule.cpp` |
+| The grammar | `src/core/rfc3080/Rfc3080Grammar.hpp` |
+| The AST | `src/core/rfc3080/ast.hpp` |
+| Validation checks | `src/core/rfc3080/validation/` |
+| Services of your own | `src/core/rfc3080/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/rfc3080/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

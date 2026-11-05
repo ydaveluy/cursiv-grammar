@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/prolog/core/PrologGrammar.hpp` |
-| The AST | `src/prolog/core/ast.hpp` |
-| Validation checks | `src/prolog/core/validation/` |
-| Services of your own | `src/prolog/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/prolog/cli/main.cpp` |
-| LSP features | `src/prolog/lsp/LspModule.cpp` |
+| The grammar | `src/core/prolog/PrologGrammar.hpp` |
+| The AST | `src/core/prolog/ast.hpp` |
+| Validation checks | `src/core/prolog/validation/` |
+| Services of your own | `src/core/prolog/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/prolog/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

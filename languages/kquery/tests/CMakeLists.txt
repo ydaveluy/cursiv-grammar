@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: the corpus parses, and the tree holds what it declares.
 add_executable(kquery_grammar_test grammar_test.cpp)
-target_link_libraries(kquery_grammar_test PRIVATE kqueryCore)
+target_link_libraries(kquery_grammar_test PRIVATE kqueryCore cursiv::test)
 target_compile_definitions(kquery_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

@@ -6,12 +6,12 @@
 #include <unordered_set>
 #include <vector>
 
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/core/validation/ValidationAcceptor.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "v/core/ast.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/validation/ValidationAcceptor.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "v/ast.hpp"
 
 namespace v_interpolation {
 namespace ast = v::ast;
@@ -164,16 +164,16 @@ bool tree(const Language& language, const cursiv::ParseResult& result,
         });
   };
   visit(visit, *result.value);
-  if (!valid || seen.size() != result.nodes.size()) {
+  if (!valid || seen.size() != result.nodes().size()) {
     std::fprintf(stderr, "v tree diagnostic: %s seen=%zu arena-nodes=%zu\n",
-                 label, seen.size(), result.nodes.size());
-    for (const auto* node : result.nodes)
+                 label, seen.size(), result.nodes().size());
+    for (const auto* node : result.nodes())
       if (!seen.contains(node)) {
         std::fprintf(stderr, "v tree diagnostic: %s unreachable", label);
         dump("node", node); std::fputc('\n', stderr);
       }
   }
-  return valid && seen.size() == result.nodes.size();
+  return valid && seen.size() == result.nodes().size();
 }
 
 inline const ast::Expr* value(const cursiv::ParseResult& result) {

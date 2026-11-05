@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/cypher/core/CypherGrammar.hpp` |
-| The AST | `src/cypher/core/ast.hpp` |
-| Validation checks | `src/cypher/core/validation/` |
-| Services of your own | `src/cypher/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/cypher/cli/main.cpp` |
-| LSP features | `src/cypher/lsp/LspModule.cpp` |
+| The grammar | `src/core/cypher/CypherGrammar.hpp` |
+| The AST | `src/core/cypher/ast.hpp` |
+| Validation checks | `src/core/cypher/validation/` |
+| Services of your own | `src/core/cypher/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/cypher/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

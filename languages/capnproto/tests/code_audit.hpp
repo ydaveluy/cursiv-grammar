@@ -3,10 +3,10 @@
 #include <functional>
 #include <vector>
 
-#include "capnproto/core/CoreServices.hpp"
+#include "capnproto/CoreServices.hpp"
 #include "capnproto/generated/Capnproto/Module.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/workspace/Document.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/workspace/Document.hpp"
 namespace code_audit {
 namespace ast = capnproto::ast;
 inline bool run() {

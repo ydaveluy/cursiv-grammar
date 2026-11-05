@@ -20,12 +20,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/kirikiritjs/core/KirikiriTjsGrammar.hpp` |
-| The AST | `src/kirikiritjs/core/ast.hpp` |
-| Validation checks | `src/kirikiritjs/core/validation/` |
-| Services of your own | `src/kirikiritjs/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/kirikiritjs/cli/main.cpp` |
-| LSP features | `src/kirikiritjs/lsp/LspModule.cpp` |
+| The grammar | `src/core/kirikiritjs/KirikiriTjsGrammar.hpp` |
+| The AST | `src/core/kirikiritjs/ast.hpp` |
+| Validation checks | `src/core/kirikiritjs/validation/` |
+| Services of your own | `src/core/kirikiritjs/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/kirikiritjs/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.

@@ -11,12 +11,12 @@
 #include <string>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstNode.hpp"
-#include "cursiv/core/syntax-tree/ParseResult.hpp"
-#include "bcpl/core/ast.hpp"
-#include "bcpl/core/CoreServices.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstNode.hpp"
+#include "cursiv/syntax-tree/ParseResult.hpp"
+#include "bcpl/ast.hpp"
+#include "bcpl/CoreServices.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
 #include "section_tags.hpp"
 
 namespace {
@@ -127,7 +127,7 @@ int main() {
                        cursiv::ast_cast<bcpl::ast::NumberLit>(function->body),
                    function != nullptr &&
                        cursiv::ast_cast<bcpl::ast::VecAllocExpr>(function->body),
-                   r.nodes.size());
+                   r.nodes().size());
       for (const auto& diagnostic : r.diagnostics)
         std::fprintf(stderr, "bcpl method diagnostic: kind=%d begin=%zu end=%zu\n",
                      static_cast<int>(diagnostic.kind),

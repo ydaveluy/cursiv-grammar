@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every document in example/ parses clean.
 add_executable(graphstreamdgs_grammar_test grammar_test.cpp)
-target_link_libraries(graphstreamdgs_grammar_test PRIVATE graphstreamdgsCore)
+target_link_libraries(graphstreamdgs_grammar_test PRIVATE graphstreamdgsCore cursiv::test)
 target_compile_definitions(graphstreamdgs_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

@@ -5,7 +5,7 @@ endif()
 
 # The grammar itself: every example parses clean into a Program.
 add_executable(tinyc_grammar_test grammar_test.cpp)
-target_link_libraries(tinyc_grammar_test PRIVATE tinycCore)
+target_link_libraries(tinyc_grammar_test PRIVATE tinycCore cursiv::test)
 target_compile_definitions(tinyc_grammar_test PRIVATE
     CURSIV_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/example"
     CURSIV_TEST_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

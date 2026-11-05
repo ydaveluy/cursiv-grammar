@@ -5,10 +5,10 @@
 #include <unordered_set>
 #include <variant>
 #include <vector>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "less/core/CoreServices.hpp"
-#include "less/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "less/CoreServices.hpp"
+#include "less/ast.hpp"
 
 namespace less_lookup_cases {
 namespace a=less::ast;
@@ -83,7 +83,7 @@ inline bool run(const less::LessCoreServices& services){
     check(parsed.cst().text()==test.source,test.name,"complete source text");
     std::vector<const a::NamespaceValue*> namespaces;
     std::vector<const a::MixinRef*> calls;
-    for(const auto* node:parsed.nodes){
+    for(const auto* node:parsed.nodes()){
       if(const auto* value=cursiv::ast_cast<a::NamespaceValue>(node))namespaces.push_back(value);
       if(const auto* value=cursiv::ast_cast<a::MixinRef>(node))calls.push_back(value);
     }
@@ -134,7 +134,7 @@ inline bool run(const less::LessCoreServices& services){
       if(!test.namespaces)check(cursiv::ast_cast<a::MulTerm>(call->parent)!=nullptr,test.name,"direct invocation remains an expression, not a statement consuming its separator");
     }
     if(std::string_view(test.name)=="hex-color-control"){
-      bool color=false;for(const auto* node:parsed.nodes)if(const auto* value=cursiv::ast_cast<a::ColorLit>(node))color|=value->value=="#abc";
+      bool color=false;for(const auto* node:parsed.nodes())if(const auto* value=cursiv::ast_cast<a::ColorLit>(node))color|=value->value=="#abc";
       check(color,test.name,"ordinary hexadecimal color kept distinct from namespace call");
     }
     std::unordered_set<const cursiv::AstNode*> seen;
@@ -146,14 +146,14 @@ inline bool run(const less::LessCoreServices& services){
         check(child.parent==node&&node->cstNodeId<parsed.cst().size()&&child.cstNodeId<parsed.cst().size()&&parsed.cst().contains(node->cstNodeId,child.cstNodeId),test.name,"all typed parents and CST containment");work.push_back(&child);
       });
     }
-    check(seen.size()==parsed.nodes.size()&&!parsed.value->parent,test.name,"every allocated node reachable once");
+    check(seen.size()==parsed.nodes().size()&&!parsed.value->parent,test.name,"every allocated node reachable once");
   }
   // Existing statement-call API keeps its separator/important ownership;
   // these are primary-backed regressions, not extra fresh native witnesses.
   for(const auto* source:{"a{.m(1);}","a{.m(1)!important;}"}){
     const auto r=services.parser->parse(source);
     check(r.accepted&&!r.cst().recovered()&&r.diagnostics.empty()&&r.value,"statement-regression","old statement syntax preserved");
-    bool found=false;for(const auto* node:r.nodes)if(const auto* call=cursiv::ast_cast<a::MixinRef>(node))
+    bool found=false;for(const auto* node:r.nodes())if(const auto* call=cursiv::ast_cast<a::MixinRef>(node))
       found|=call->hasArguments&&call->important==(std::string_view(source).find("important")!=std::string_view::npos)&&cursiv::ast_cast<a::Block>(call->parent);
     check(found,"statement-regression","old call fields plus explicit-parentheses flag and immediate block owner");
   }

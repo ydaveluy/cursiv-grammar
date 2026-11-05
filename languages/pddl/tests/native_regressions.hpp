@@ -9,14 +9,14 @@
 #include <unordered_set>
 #include <variant>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreLanguage.hpp"
-#include "cursiv/core/services/JsonValue.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreLanguage.hpp"
+#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/ValidationHelper.hpp"
 #include "native_cases.hpp"
-#include "pddl/core/CoreServices.hpp"
-#include "pddl/core/ast.hpp"
+#include "pddl/CoreServices.hpp"
+#include "pddl/ast.hpp"
 #include "pddl/generated/Pddl/Module.hpp"
 
 namespace pddl_native_regression_detail {
@@ -393,7 +393,7 @@ inline int native_regressions() {
     };
     if (result.value)
       walk(walk, *result.value);
-    if (!owned || seen.size() != result.nodes.size())
+    if (!owned || seen.size() != result.nodes().size())
       return failed(c.name, "AST ownership, capture or span");
     const auto second = factory->parse(source);
     if (second.accepted != result.accepted ||

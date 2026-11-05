@@ -3,12 +3,12 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/syntax-tree/AstReflection.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "cursiv/test/ValidationHelper.hpp"
-#include "cursiv/test/ValidationResult.hpp"
-#include "java/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/syntax-tree/AstReflection.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "cursiv/ValidationHelper.hpp"
+#include "cursiv/ValidationResult.hpp"
+#include "java/ast.hpp"
 namespace java_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace a = java::ast;
@@ -40,7 +40,7 @@ class €Euro {
       std::fprintf(stderr, "java kind=%u element=%u bytes=%u..%u\n", unsigned(d.kind), unsigned(d.element), d.begin, d.end);
   bool euro = false, combining = false, contextual = false, prefix = false;
   bool lambda = false, varargs = false, compact = false, each = false, pattern = false;
-  for (const auto* node : result.nodes) {
+  for (const auto* node : result.nodes()) {
     if (const auto* p = cursiv::ast_cast<a::ClassDecl>(node)) { euro |= p->name == "€Euro";contextual |= p->name == "when"; }
     if (const auto* p = cursiv::ast_cast<a::VarDeclarator>(node)) combining |= p->name == "á";
     if (const auto* p = cursiv::ast_cast<a::ClassTypeRef>(node)) prefix |= p->name == "C" && p->qualifier && p->qualifier->name == "var";
@@ -70,7 +70,7 @@ class €Euro {
           });
     };
     walk(walk, *root);
-    check(owned && seen.size() == result.nodes.size(), "complete AST ownership");
+    check(owned && seen.size() == result.nodes().size(), "complete AST ownership");
   }
   for (const auto bad : {"class 😀 {}", "class \u00a0T {}", "class int {}", "class T { int null; }",
                           "class T { int _; }", "class record {}", "class var {}", "class sealed {}",

@@ -5,11 +5,11 @@
 #include <string_view>
 #include <vector>
 
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/services/CoreServices.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/Document.hpp"
-#include "postalcode/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/services/CoreServices.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/Document.hpp"
+#include "postalcode/ast.hpp"
 
 inline int postalcode_regressions(const cursiv::CoreServices& language) {
   int failures = 0;
@@ -30,7 +30,7 @@ inline int postalcode_regressions(const cursiv::CoreServices& language) {
         *static_cast<const postalcode::ast::PostalCode*>(result.value);
     if (code.forwardSortationArea != source.substr(0, 3) ||
         code.localDeliveryUnit != source.substr(source.size() - 3) ||
-        code.parent || result.nodes.size() != 1 ||
+        code.parent || result.nodes().size() != 1 ||
         result.cst().text() != source)
       ++failures;
     std::vector<cursiv::Diagnostic> diagnostics;

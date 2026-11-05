@@ -1,9 +1,9 @@
 #pragma once
-#include "cursiv/core/parser/Parser.hpp"
-#include "cursiv/core/validation/DocumentValidator.hpp"
-#include "cursiv/core/workspace/DocumentFactory.hpp"
-#include "vmf/core/CoreServices.hpp"
-#include "vmf/core/ast.hpp"
+#include "cursiv/parser/Parser.hpp"
+#include "cursiv/validation/DocumentValidator.hpp"
+#include "cursiv/workspace/DocumentFactory.hpp"
+#include "vmf/CoreServices.hpp"
+#include "vmf/ast.hpp"
 #include <string>
 #include <vector>
 
@@ -53,7 +53,7 @@ inline bool run(const vmf::VmfCoreServices& services,
       for (const auto* child : node.children) self(self, *child, node);
     };
     for (const auto* entry : root->entries) visit(visit, *entry, *root);
-    if (!valid || index != test.entries.size() || result.nodes.size() != index + 1) return false;
+    if (!valid || index != test.entries.size() || result.nodes().size() != index + 1) return false;
     auto document = shared.documentFactory->fromString(source, "file:///audit.vmf");
     std::vector<cursiv::Diagnostic> diagnostics;
     services.documentValidator->validateDocument(*document, diagnostics);

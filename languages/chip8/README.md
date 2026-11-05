@@ -19,12 +19,12 @@ The build generates the parser automatically. Rebuild after changing the grammar
 
 | What you want to change | File |
 |---|---|
-| The grammar | `src/chip8/core/Chip8Grammar.hpp` |
-| The AST | `src/chip8/core/ast.hpp` |
-| Validation checks | `src/chip8/core/validation/` |
-| Services of your own | `src/chip8/core/CoreServices.hpp` + `CoreModule.cpp` |
-| The command line | `src/chip8/cli/main.cpp` |
-| LSP features | `src/chip8/lsp/LspModule.cpp` |
+| The grammar | `src/core/chip8/Chip8Grammar.hpp` |
+| The AST | `src/core/chip8/ast.hpp` |
+| Validation checks | `src/core/chip8/validation/` |
+| Services of your own | `src/core/chip8/CoreServices.hpp` + `CoreModule.cpp` |
+| The command line | `src/cli.cpp` |
+| LSP features | `src/lsp/chip8/LspModule.cpp` |
 | Test cases | `tests/grammar_test.cpp` |
 
 Generated files live under `build/src/generated-src/`; do not edit them.
