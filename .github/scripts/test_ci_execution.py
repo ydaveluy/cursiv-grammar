@@ -122,8 +122,8 @@ class ReportTests(unittest.TestCase):
         (self.root / 'json-LR.json').write_text('{"status": "KO"}')
         text, failed = report.report(['csv', 'json'], self.root)
         self.assertTrue(failed)
-        self.assertIn('| csv | ✅ | ✅ | ✅ OK |', text)
-        self.assertIn('| json | ✅ | ❌ | ❌ KO |', text)
+        self.assertIn('| csv | ✅ | ✅ |', text)
+        self.assertIn('| json | ✅ | ❌ |', text)
 
     def test_missing_or_truncated_results_are_not_success(self):
         self.fill('csv')
@@ -131,7 +131,7 @@ class ReportTests(unittest.TestCase):
         (self.root / 'csv-LR.json').write_text('{')
         text, failed = report.report(['csv'], self.root)
         self.assertTrue(failed)
-        self.assertIn('| csv | ❌ | ❌ | ❌ KO |', text)
+        self.assertIn('| csv | ❌ | ❌ |', text)
 
     def test_empty_selection_has_no_failure(self):
         text, failed = report.report([], self.root)

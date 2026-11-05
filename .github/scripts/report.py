@@ -10,8 +10,8 @@ ENGINES = ['LL', 'LR']
 
 
 def report(languages, results):
-    rows = ['| Language | LL | LR | Result |',
-            '|---|---|---|---|']
+    rows = ['| Language | LL | LR |',
+            '|---|---|---|']
     failed = False
     for language in languages:
         statuses = []
@@ -24,9 +24,8 @@ def report(languages, results):
             ok = (result.get('status') == 'OK' and result.get('language') == language
                   and result.get('engine') == engine)
             statuses.append('✅' if ok else '❌')
-        ok = all(s == '✅' for s in statuses)
-        failed |= not ok
-        rows.append('| ' + ' | '.join([language, *statuses, '✅ OK' if ok else '❌ KO']) + ' |')
+        failed |= any(s != '✅' for s in statuses)
+        rows.append('| ' + ' | '.join([language, *statuses]) + ' |')
     if not languages:
         return 'No language build required for these changes.\n', False
     return '\n'.join(rows) + '\n', failed
