@@ -338,7 +338,8 @@ void numeric_literal_regressions() {
           "numeric literal expressions belong to their immediate owners");
   }
   for (const std::string_view invalid : {".", "--1", "1.2.3", "1e3"}) {
-    const auto parsed = parser().parse("HAI 1.2\nI HAS A n ITZ " + std::string(invalid) + "\nKTHXBYE\n");
+    const std::string source = "HAI 1.2\nI HAS A n ITZ " + std::string(invalid) + "\nKTHXBYE\n";
+    const auto parsed = parser().parse(source);
     check(!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty(),
           "neighboring malformed numeric initializer is rejected");
   }

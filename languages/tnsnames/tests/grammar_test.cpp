@@ -486,9 +486,10 @@ void native_descriptor_values() {
   const auto missingDuration = engine().parse(
       "a=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=db))(TRANSPORT_CONNECT_TIMEOUT=))");
   CHECK(!missingDuration.diagnostics.empty());
-  const auto overflow = engine().parse(
+  const std::string overflowSource =
       std::string("a=(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=db))") +
-      "(TRANSPORT_CONNECT_TIMEOUT=" + std::string(400, '9') + "ms))");
+      "(TRANSPORT_CONNECT_TIMEOUT=" + std::string(400, '9') + "ms))";
+  const auto overflow = engine().parse(overflowSource);
   CHECK(overflow.accepted && !overflow.cst().recovered() && !overflow.diagnostics.empty());
   CHECK(overflow.diagnostics.size() == 1 &&
         overflow.diagnostics[0].kind == cursiv::DiagnosticKind::conversion_error &&

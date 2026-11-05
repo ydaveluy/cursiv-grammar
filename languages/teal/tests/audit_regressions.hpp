@@ -33,8 +33,9 @@ inline bool run() {
                 : nullptr;
   check(d && d->types.size() == 3, "all annotated types retained");
   for (const char* newline : {"\n", "\r", "\r\n", "\n\r"}) {
-    const auto long_result = parser->parse(
-        std::string("local x = [==[") + newline + "a" + newline + "b]==]");
+    const std::string source =
+        std::string("local x = [==[") + newline + "a" + newline + "b]==]";
+    const auto long_result = parser->parse(source);
     const auto* root = long_result.value_as<ast::Block>();
     const auto* local = root && root->statements.size() == 1
         ? cursiv::ast_cast<ast::LocalAttrAssignStat>(root->statements[0]) : nullptr;

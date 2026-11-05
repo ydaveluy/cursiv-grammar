@@ -312,12 +312,12 @@ void check_reserved_words(const Language& language) {
       static_cast<const vb6::ast::WithStmt*>(proc->body[1]);
   if (second->target->type != &cursiv::ast_type_tag<vb6::ast::NewExpr>)
     fail("check_reserved_words: `With New Foo` should target a NewExpr");
-  for (const char* word : {"Next", "Int", "LenB", "InputB", "CDecl", "GoTo"})
-    if (!language.language.parser
-             ->parse(std::string("Dim ") + word + " As Long\n")
-             .diagnostics.empty())
+  for (const char* word : {"Next", "Int", "LenB", "InputB", "CDecl", "GoTo"}) {
+    const std::string source = std::string("Dim ") + word + " As Long\n";
+    if (!language.language.parser->parse(source).diagnostics.empty())
       fail(std::string("check_reserved_words: `") + word +
            "` should be a name");
+  }
 }
 
 // A name may hold an accented letter, even right behind a keyword (`ifé`);

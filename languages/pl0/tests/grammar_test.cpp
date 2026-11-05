@@ -39,7 +39,8 @@ int main() {
   }
   {
     const std::string digits(80, '9');
-    const auto r = language.language.parser->parse("CONST huge=" + digits + "; !" + digits + ".");
+    const std::string text = "CONST huge=" + digits + "; !" + digits + ".";
+    const auto r = language.language.parser->parse(text);
     const auto* p = r.value_as<pl0::ast::Program>();
     const auto* print = p && p->block ? cursiv::ast_cast<pl0::ast::PrintStmt>(p->block->body) : nullptr;
     const auto* number = print ? cursiv::ast_cast<pl0::ast::NumberExpr>(print->value) : nullptr;

@@ -41,7 +41,8 @@ inline int check_plain_clauses(const auto& language) {
       "list_of_includes. include(f). end_of_list.\n",
       "list_of_includes. include('f',[x,]). end_of_list.\n",
       "list_of_includes. include('f'). end_of_list. list_of_includes. end_of_list.\n"}) {
-    const auto parsed = language.language.parser->parse(with_includes(includes));
+    const std::string source = with_includes(includes);
+    const auto parsed = language.language.parser->parse(source);
     if (parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty()) return 1;
   }
   for (const char* body : {"|| ->", "p(X) || ->", "|| p(X) ->", "|| -> p(X)",
@@ -81,7 +82,8 @@ inline int check_plain_clauses(const auto& language) {
                            "|| not(p(X)) ->", "|| -> or(p(X),q(X))",
                            "|| -> p(not(q(X)))", "|| -> equal(a)",
                            "p(X),q(X) || ->"}) {
-    const auto parsed = language.language.parser->parse(plain_problem(body));
+    const std::string source = plain_problem(body);
+    const auto parsed = language.language.parser->parse(source);
     if (parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty()) {
       std::fprintf(stderr, "spass malformed plain clause: %s\n", body);
       return 1;

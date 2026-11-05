@@ -253,7 +253,8 @@ int main() {
           "field precedence and unary field operands follow gawk5.4.1");
   }
   for (const char* expression : {"12 / /a/", "/a/ / 2"}) {
-    const auto result = parser.parse("BEGIN { print " + std::string(expression) + " }");
+    const std::string source = "BEGIN { print " + std::string(expression) + " }";
+    const auto result = parser.parse(source);
     const auto* output = first<ast::PrintStmt>(result);
     const auto* div = output && output->args.size() == 1
         ? as<ast::BinaryExpr>(output->args[0]) : nullptr;

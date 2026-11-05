@@ -186,9 +186,18 @@ void transaction() {
   CHECK(event != nullptr && event->name == "SampleEvent");
 }
 
-void valid_datetime() { check_clean(engine().parse(example("datetime.cto"))); }
-void invalid_namespace() { check_invalid(engine().parse(example("namespace.cto"))); }
-void invalid_reference() { check_invalid(engine().parse(example("reference.cto"))); }
+void valid_datetime() {
+  const std::string src = example("datetime.cto");
+  check_clean(engine().parse(src));
+}
+void invalid_namespace() {
+  const std::string src = example("namespace.cto");
+  check_invalid(engine().parse(src));
+}
+void invalid_reference() {
+  const std::string src = example("reference.cto");
+  check_invalid(engine().parse(src));
+}
 
 // This port's own document: constructs no corpus file exercises.
 void coverage() {

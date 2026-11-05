@@ -39,7 +39,8 @@ inline bool run(const cursiv::Parser &parser) {
     }
   }
   for (const std::string_view newline : {"\u2028", "\u2029"}) {
-    const auto result = parser.parse("// comment" + std::string(newline) + "1");
+    const std::string source = "// comment" + std::string(newline) + "1";
+    const auto result = parser.parse(source);
     const auto *doc = result.value_as<json5::ast::Doc>();
     const auto *root = doc && doc->value
                            ? std::get_if<json5::ast::Value *>(&*doc->value)

@@ -83,7 +83,8 @@ inline int datalog_regressions(const cursiv::CoreServices& services) {
           string->value == "c\\d");
   }
   for (const std::string name : {"Ⅰ2", "Aª", "🄰"}) {
-    const auto r = services.parser->parse("p(" + name + ").");
+    const std::string source = "p(" + name + ").";
+    const auto r = services.parser->parse(source);
     const auto* root = cursiv::ast_cast<ast::Program>(r.value);
     const auto* statement =
         root && root->statements.size() == 1

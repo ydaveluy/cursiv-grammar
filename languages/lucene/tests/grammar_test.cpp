@@ -130,7 +130,8 @@ int main() {
     CHECK(word && word->raw == text);
   }
   for (const auto op : {"=", "<", "<=", ">", ">="}) {
-    const auto result = parser->parse(std::string("age") + op + "18");
+    const std::string source = std::string("age") + op + "18";
+    const auto result = parser->parse(source);
     const auto* q = cursiv::ast_cast<a::Query>(result.value);
     CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
     CHECK(q && q->clauses.size() == 1);

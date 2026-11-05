@@ -137,8 +137,9 @@ int main() {
       return fail("native separator, UTF-8, escape or stackalloc syntax");
   }
   for (const auto literal : {"1_", "0x_", "0xF_", "0b_", "0b1_", "1_e2", "1e2_", "1.2_", "1.2_e3"}) {
-    const auto result = language.language.parser->parse(
-        std::string("class C { double value = ") + literal + "; }");
+    const std::string source =
+        std::string("class C { double value = ") + literal + "; }";
+    const auto result = language.language.parser->parse(source);
     if (result.accepted && !result.cst().recovered() && result.diagnostics.empty())
       return fail(std::string("invalid trailing numeric separator accepted: ") + literal);
   }

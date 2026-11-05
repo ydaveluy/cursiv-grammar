@@ -365,16 +365,16 @@ void reserved_word_probes(const Language& language) {
                      as<vba::ast::InputStmt>(body[0]) != nullptr &&
                      as<vba::ast::Attribute>(body[1]) != nullptr;
             });
-  for (const char* word : {"Next", "InputB", "GoTo", "GoSub"})
-    if (language.language.parser
-            ->parse(std::string("Dim ") + word + " As Long\n")
-            .diagnostics.empty())
+  for (const char* word : {"Next", "InputB", "GoTo", "GoSub"}) {
+    const std::string source = std::string("Dim ") + word + " As Long\n";
+    if (language.language.parser->parse(source).diagnostics.empty())
       fail(std::string("'Dim ") + word + "': a reserved word is a name");
-  for (const char* word : {"Int", "LenB", "CDecl", "LINEINPUT"})
-    if (!language.language.parser
-             ->parse(std::string("Dim ") + word + " As Long\n")
-             .diagnostics.empty())
+  }
+  for (const char* word : {"Int", "LenB", "CDecl", "LINEINPUT"}) {
+    const std::string source = std::string("Dim ") + word + " As Long\n";
+    if (!language.language.parser->parse(source).diagnostics.empty())
       fail(std::string("'Dim ") + word + "': a plain word is refused");
+  }
   sub_probe(language, "Randomize:\nx = 1", "`Randomize:` opens a label",
             [](const Body& body) {
               return body.size() == 2 &&
