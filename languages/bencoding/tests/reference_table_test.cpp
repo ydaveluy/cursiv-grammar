@@ -21,7 +21,7 @@ int main() {
         return 1;
       }
       bool visited = false;
-      result.references->forceAll(cursiv::kNoCancel);
+      result.references->force(result.references->handles, cursiv::kNoCancel);
       result.references->visitResolved(
           result.cst(), [&](cursiv::TextOffset, cursiv::TextOffset,
                             const cursiv::AstNode &, bool) { visited = true; });
