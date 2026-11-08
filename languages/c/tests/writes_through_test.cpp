@@ -30,7 +30,7 @@ namespace gc = ::c::generated::C;
 
 // The writer's reading as a read step asks it: its stack's frames by depth, the
 // cursor its indentation reads from, and whether the table refused it.
-struct Written : cursiv::LrWriteReading {
+struct Written : cursiv::engine::LrWriteReading {
   struct Frames : Run {
     [[nodiscard]] std::uint32_t size() const { return s->size(); }
     [[nodiscard]] std::uint32_t state_at(std::uint32_t i) const {
@@ -47,7 +47,7 @@ struct Written : cursiv::LrWriteReading {
 // decides it.
 template <const auto& A>
 struct Whole {
-  cursiv::LrContext& c;
+  cursiv::engine::LrContext& c;
   Written& w;
   std::uint32_t forks = 0;
   bool split = false;
@@ -72,30 +72,30 @@ struct Whole {
     return write(at);
   }
   bool write(std::uint32_t at) {
-    const bool wrote = cursiv::lr_write_apply<A>(c, w, at);
+    const bool wrote = cursiv::engine::lr_write_apply<A>(c, w, at);
     w.at = c.committed;
     return wrote;
   }
   bool reduce(std::size_t, std::uint16_t p) {
-    return cursiv::lr_write_reduce<A>(c, p, cursiv::lr_shadow_holds(c, w));
+    return cursiv::engine::lr_write_reduce<A>(c, p, cursiv::engine::lr_shadow_holds(c, w));
   }
-  cursiv::Token scan(std::size_t, std::uint16_t mode) {
+  cursiv::engine::Token scan(std::size_t, std::uint16_t mode) {
     c.pending.clear();
     cursiv::TextOffset p = c.committed;
     for (;;) {
-      while (p < c.len && cursiv::lr_skips<A>(
+      while (p < c.len && cursiv::engine::lr_skips<A>(
                               mode, static_cast<unsigned char>(c.src[p])))
         ++p;
       c.pendEnd = p;
-      if (p >= c.len) return cursiv::Token{p, p, cursiv::kEofSymbol};
-      const cursiv::Scan s = c.drive->walk(c.src, c.len, mode, p);
-      if (s.term == cursiv::kInvalidSymbol || s.end == p)
-        return cursiv::Token{p, p, cursiv::kInvalidSymbol};
-      if (!cursiv::lr_is_trivia<A>(s.term) &&
-          !cursiv::lr_joins<A>(w.indent.depth, s.term))
-        return cursiv::Token{p, s.end, s.term};
+      if (p >= c.len) return cursiv::engine::Token{p, p, cursiv::engine::kEofSymbol};
+      const cursiv::engine::Scan s = c.drive->walk(c.src, c.len, mode, p);
+      if (s.term == cursiv::engine::kInvalidSymbol || s.end == p)
+        return cursiv::engine::Token{p, p, cursiv::engine::kInvalidSymbol};
+      if (!cursiv::engine::lr_is_trivia<A>(s.term) &&
+          !cursiv::engine::lr_joins<A>(w.indent.depth, s.term))
+        return cursiv::engine::Token{p, s.end, s.term};
       if (A.cfg.terms[s.term].recorded)
-        c.pending.push_back(cursiv::Token{p, s.end, s.term});
+        c.pending.push_back(cursiv::engine::Token{p, s.end, s.term});
       p = s.end;
     }
   }
@@ -110,7 +110,7 @@ struct Whole {
 // it -- stopping where they stop for the graph.
 template <const auto& A>
 struct Interpreted {
-  static inline cursiv::LrDrive drive{};
+  static inline cursiv::engine::LrDrive drive{};
 
   struct Pool : Whole<A> {
     void sync() {
@@ -137,20 +137,20 @@ struct Interpreted {
     }
   };
 
-  static cursiv::LrExit enter(cursiv::LrContext& c) {
+  static cursiv::engine::LrExit enter(cursiv::engine::LrContext& c) {
     Written w;
-    static_cast<cursiv::LrWriteReading&>(w) = cursiv::lr_write_reading(c);
+    static_cast<cursiv::engine::LrWriteReading&>(w) = cursiv::engine::lr_write_reading(c);
     w.run.s = &c.stack;
     w.at = c.committed;
     Pool x{{c, w}};
     for (;;) {
       w.dead = false;
-      cursiv::lr_read_step<A>(c, x, 0);
+      cursiv::engine::lr_read_step<A>(c, x, 0);
       x.sync();
-      if (w.dead) return cursiv::LrExit::pause;
+      if (w.dead) return cursiv::engine::LrExit::pause;
       if (w.done) {
-        cursiv::lr_flush_trivia<A>(c);
-        return cursiv::LrExit::accept;
+        cursiv::engine::lr_flush_trivia<A>(c);
+        return cursiv::engine::LrExit::accept;
       }
     }
   }
@@ -160,16 +160,16 @@ struct Interpreted {
 // writer, graphs and all: the records are the same. The graphs the drive's
 // parse opened, counted.
 template <const auto& A>
-unsigned writes_through(const cursiv::LrDrive& drive, std::string_view text,
+unsigned writes_through(const cursiv::engine::LrDrive& drive, std::string_view text,
                         const char* name) {
   Interpreted<A>::drive = drive;
   Interpreted<A>::drive.enter = &Interpreted<A>::enter;
   cursiv::Cst ran;
-  cursiv::LrParseStats stats{};
-  const bool ok = cursiv::lr_parser<A>.parse(text, ran, &stats, &drive);
+  cursiv::engine::LrParseStats stats{};
+  const bool ok = cursiv::engine::lr_parser<A>.parse(text, ran, &stats, &drive);
   cursiv::Cst read;
   const bool same =
-      cursiv::lr_parser<A>.parse(text, read, nullptr, &Interpreted<A>::drive);
+      cursiv::engine::lr_parser<A>.parse(text, read, nullptr, &Interpreted<A>::drive);
   if (!ok || !same || !ran.diagnostics().empty() ||
       !read.diagnostics().empty()) {
     std::printf("FAIL: %s: accepted %d by the drive, %d interpreted\n", name,

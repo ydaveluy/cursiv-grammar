@@ -24,21 +24,21 @@ struct Parsed {
   bool accepted = false;
   bool entry = false;
   std::vector<cursiv::ParseDiagnostic> notes;
-  cursiv::LrParseStats stats;
+  cursiv::engine::LrParseStats stats;
 };
 
 template <const auto& A>
-Parsed parse(std::string_view text, const cursiv::LrDrive& drive,
-             const cursiv::RepairBudget& budget = {}) {
+Parsed parse(std::string_view text, const cursiv::engine::LrDrive& drive,
+             const cursiv::engine::RepairBudget& budget = {}) {
   cursiv::Cst cst;
   Parsed p;
-  p.accepted = cursiv::lr_parser<A>.parse(text, cst, &p.stats, &drive, budget);
+  p.accepted = cursiv::engine::lr_parser<A>.parse(text, cst, &p.stats, &drive, budget);
   p.entry = cst.has_entry();
   p.notes.assign(cst.diagnostics().begin(), cst.diagnostics().end());
   return p;
 }
 
-cursiv::RepairBudget floor_only(std::uint64_t floor) {
+cursiv::engine::RepairBudget floor_only(std::uint64_t floor) {
   return {.floor = floor,
           .perByte = 0,
           .perSearch = ~std::uint64_t{0},

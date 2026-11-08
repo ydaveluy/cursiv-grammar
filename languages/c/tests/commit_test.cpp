@@ -63,8 +63,8 @@ int main() {
   for (const unsigned n : {64u, 256u, 1024u}) {
     const std::string doc = nested(n);
     cursiv::Cst cst;
-    cursiv::LrParseStats stats;
-    CHECK(cursiv::lr_parser<c::generated::C::kTable>.parse(
+    cursiv::engine::LrParseStats stats;
+    CHECK(cursiv::engine::lr_parser<c::generated::C::kTable>.parse(
         doc, cst, &stats, &c::generated::C::kDrive));
     std::printf("  %4u deep, %6zu bytes, %u splits\n", n, doc.size(),
                 stats.splits);

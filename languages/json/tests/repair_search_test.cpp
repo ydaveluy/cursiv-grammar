@@ -19,9 +19,9 @@ namespace gj = ::json::generated::Json;
 namespace {
 
 std::vector<cursiv::ParseDiagnostic> repaired(
-    std::string_view text, const cursiv::RepairBudget& budget = {}) {
+    std::string_view text, const cursiv::engine::RepairBudget& budget = {}) {
   cursiv::Cst cst;
-  (void)cursiv::lr_parser<gj::kTable>.parse(text, cst, nullptr, &gj::kDrive,
+  (void)cursiv::engine::lr_parser<gj::kTable>.parse(text, cst, nullptr, &gj::kDrive,
                                            budget);
   const auto d = cst.diagnostics();
   return {d.begin(), d.end()};
@@ -49,10 +49,10 @@ int main() {
     CHECK(whole.size() == 1 &&
           whole[0].kind == cursiv::DiagnosticKind::inserted);
     cursiv::Cst cst;
-    cursiv::LrParseStats stats{};
-    (void)cursiv::lr_parser<gj::kTable>.parse(
+    cursiv::engine::LrParseStats stats{};
+    (void)cursiv::engine::lr_parser<gj::kTable>.parse(
         doc, cst, &stats, &gj::kDrive,
-        cursiv::RepairBudget{
+        cursiv::engine::RepairBudget{
             .floor = 1u << 16, .perByte = 64, .perSearch = 1024});
     const auto& cut = cst.diagnostics();
     CHECK(stats.reachStops == 1 && stats.budgetStops == 0);

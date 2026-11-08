@@ -14,7 +14,7 @@ void Rfc822Validator::checkGroup(
   const auto* document = group.getDocument();
   if (!document || group.cstNodeId == cursiv::kNoNode) return;
   const auto& cst = document->parseResult.cst();
-  const auto commas = cursiv::find_nodes_for_keyword({&cst, group.cstNodeId}, ",");
+  const auto commas = cursiv::find_nodes_for_keyword(group, ",", document);
   for (std::size_t i = 1; i < group.mailboxes.size(); ++i) {
     const auto* previous = group.mailboxes[i - 1];
     const auto* current = group.mailboxes[i];
