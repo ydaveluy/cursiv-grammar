@@ -1,7 +1,6 @@
-// The MCP bridge: the endpoint lives in the language server and rides the LSP
-// wire as `cursiv/mcp`; this hosts the standard Streamable HTTP transport the
-// module itself cannot open under WASI. Localhost only, one bearer token per
-// session, no SSE -- the endpoint sends nothing on its own.
+// The MCP server of the extension. It accepts HTTP requests from this machine
+// only, with a token created for each session, and forwards them to the
+// language server.
 
 import * as crypto from 'node:crypto';
 import * as http from 'node:http';
@@ -10,9 +9,8 @@ import type { LanguageClient } from 'vscode-languageclient/node';
 
 const MCP_METHOD = 'cursiv/mcp';
 
-// Announcing the server to the editor is VS Code 1.101 API; serving it is not.
-// Declared here rather than taken from `@types/vscode` so the extension still
-// compiles, installs and serves against the older engine it asks for.
+// The MCP registration API of VS Code 1.101 and later, declared here so the
+// extension still builds and runs on VS Code 1.91.
 interface McpRegistry {
     lm?: {
         registerMcpServerDefinitionProvider?(
@@ -46,6 +44,9 @@ export function startMcpBridge(
     outputChannel: vscode.OutputChannel,
 ): vscode.Disposable {
     const token = crypto.randomUUID();
+    // The requests the language server has yet to answer, all answered at
+    // once when the bridge closes, as are any later ones.
+    let waiting: Set<() => void> | undefined = new Set();
 
     const server = http.createServer((request, response) => {
         const answer = (status: number, body?: unknown): void => {
@@ -59,8 +60,7 @@ export function startMcpBridge(
         };
         const refusal = (status: number, code: number, message: string): void =>
             answer(status, { jsonrpc: '2.0', id: null, error: { code, message } });
-        // Anti DNS-rebinding: a browser page reaching for the port names its
-        // origin, and no browser origin has business here.
+        // Refuse requests from web pages (protection against DNS rebinding).
         if (!isLocal(request.headers.host) || !isLocal(request.headers.origin)) {
             return refusal(403, -32000, 'forbidden origin');
         }
@@ -86,48 +86,79 @@ export function startMcpBridge(
                 return refusal(400, -32700, 'parse error');
             }
             const id = (message as { id?: unknown })?.id ?? null;
+            const stopped = (): void => answer(503, {
+                jsonrpc: '2.0',
+                id,
+                error: { code: -32603, message: 'the language server stopped' },
+            });
+            const pending = waiting;
+            if (pending === undefined) {
+                return stopped();
+            }
+            pending.add(stopped);
+            // Answered once: by the language server, or when the bridge closes.
+            const settle = (reply: () => void): void => {
+                if (pending.delete(stopped)) {
+                    reply();
+                }
+            };
             client.sendRequest(MCP_METHOD, message).then(
-                // A notification answers nothing, which the transport spells 202.
-                (result) => (result === null ? answer(202) : answer(200, result)),
-                (error) => answer(500, {
+                // A notification has no result: reply 202 Accepted.
+                (result) => settle(() => (result === null ? answer(202) : answer(200, result))),
+                (error) => settle(() => answer(500, {
                     jsonrpc: '2.0',
                     id,
                     error: { code: -32603, message: String((error as Error)?.message ?? error) },
-                }),
+                })),
             );
         });
     });
 
     const registration = new Promise<vscode.Disposable | undefined>((resolve) => {
+        // If the port cannot be opened, log the error and run without the MCP
+        // server. Later server errors are logged too.
+        server.on('error', (error: Error) => {
+            outputChannel.appendLine(`mcp: ${error.message}`);
+            resolve(undefined);
+        });
         server.listen(0, '127.0.0.1', () => {
             const address = server.address();
             if (address === null || typeof address === 'string') {
                 return resolve(undefined);
             }
             const url = `http://127.0.0.1:${address.port}/mcp`;
-            // The line an external client copies:
+            // Other MCP clients connect with this URL and token, for example:
             //   claude mcp add --transport http <name> <url> --header "Authorization: Bearer <token>"
             outputChannel.appendLine(`mcp: ${url} (Authorization: Bearer ${token})`);
             const api = vscode as unknown as McpRegistry;
             const register = api.lm?.registerMcpServerDefinitionProvider;
             const HttpDefinition = api.McpHttpServerDefinition;
-            // Before 1.101 the editor has no MCP registry, so the line above is
-            // the whole wiring: the server serves, a client is pointed at it.
+            // Before 1.101, VS Code cannot register MCP servers: clients use
+            // the URL above.
             if (register === undefined || HttpDefinition === undefined) {
                 return resolve(undefined);
             }
-            resolve(register.call(api.lm, `cursiv.${key}.mcp`, {
-                provideMcpServerDefinitions: () => [
-                    new HttpDefinition(`cursiv ${label}`, vscode.Uri.parse(url), {
-                        Authorization: `Bearer ${token}`,
-                    }),
-                ],
-            }));
+            try {
+                resolve(register.call(api.lm, `cursiv.${key}.mcp`, {
+                    provideMcpServerDefinitions: () => [
+                        new HttpDefinition(`cursiv ${label}`, vscode.Uri.parse(url), {
+                            Authorization: `Bearer ${token}`,
+                        }),
+                    ],
+                }));
+            } catch (error) {
+                outputChannel.appendLine(`mcp: ${String((error as Error)?.message ?? error)}`);
+                resolve(undefined);
+            }
         });
     });
 
     return new vscode.Disposable(() => {
         void registration.then((r) => r?.dispose());
         server.close();
+        const pending = waiting;
+        waiting = undefined;
+        pending?.forEach((stopped) => stopped());
+        pending?.clear();
     });
 }
