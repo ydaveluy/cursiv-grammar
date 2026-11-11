@@ -315,8 +315,10 @@ static int audit_regression() {
         RawCase{R"dart(r"a $b")dart", "a $b", false},
         RawCase{R"dart(r'a $b')dart", "a $b", false}}) {
     const auto r = language.language.parser->parse(raw.source);
+    std::size_t leaves = 0;
+    r.cst().visit_leaves([&](const cursiv::CstLeaf&) { ++leaves; });
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
-        r.cst().leaf_count() != 1)
+        leaves != 1)
       return __LINE__;
     const auto* unit = r.value_as<dart2::ast::CompilationUnit>();
     const auto* adjacent =
