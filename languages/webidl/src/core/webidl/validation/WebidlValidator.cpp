@@ -101,7 +101,7 @@ std::string_view rawName(const cursiv::AstNode &n,
                          cursiv::ValidationAcceptor &a,
                          std::string_view field = "name") {
   const auto *document = n.getDocument();
-  const auto span = a.featureSpan(n, field, 0);
+  const auto span = a.propertySpan(n, field, 0);
   if (!document || !span)
     return {};
   const auto source = document->textDocument().getText();

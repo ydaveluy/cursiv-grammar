@@ -78,7 +78,7 @@ bool listSeparator(const ast::Term *term) {
 std::string_view raw(const cursiv::AstNode &node, std::string_view property,
                      cursiv::ValidationAcceptor &accept) {
   auto *document = node.getDocument();
-  auto span = accept.featureSpan(node, property, 0);
+  auto span = accept.propertySpan(node, property, 0);
   if (!document || !span)
     return {};
   return document->textDocument().getText().substr(span->begin,
@@ -92,7 +92,7 @@ void quoted(const cursiv::AstNode &node, std::string_view property,
     accept
         .error(node, "Invalid escape sequence or Unicode scalar",
                "prolog.escape")
-        .range(accept.featureSpan(node, property, 0)
+        .range(accept.propertySpan(node, property, 0)
                    .value_or(accept.spanOf(node)));
 }
 } // namespace
@@ -156,7 +156,7 @@ void PrologValidator::checkTerm(const ast::Term &node,
   } else if (cursiv::ast_cast<ast::CompoundTerm>(&node)) {
     quoted(node, "functor", accept);
     auto *document = node.getDocument();
-    auto span = accept.featureSpan(node, "functor", 0);
+    auto span = accept.propertySpan(node, "functor", 0);
     if (document && span &&
         span->end < document->textDocument().getText().size() &&
         document->textDocument().getText()[span->end] != '(')

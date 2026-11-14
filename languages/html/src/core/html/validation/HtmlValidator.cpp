@@ -24,7 +24,7 @@ void HtmlValidator::checkAttributes(const ast::Element& element,
       accept.error(*attribute, "Invalid character in attribute name.", "html.attribute-name")
           .property<&ast::Attribute::name>();
     const auto* document = attribute->getDocument();
-    const auto span = accept.featureSpan(*attribute, "value", 0);
+    const auto span = accept.propertySpan(*attribute, "value", 0);
     if (!document || !span) continue;
     const auto source = document->textDocument().getText();
     const auto raw = source.substr(span->begin, span->end - span->begin);

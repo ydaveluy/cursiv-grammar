@@ -39,7 +39,7 @@ public:
                             const cursiv::CancellationToken &) const override {
     seen.assign(text);
     cursiv::ParseResult result{cursiv::Cst(text)};
-    result.bind_grammar(getGrammar());
+    result.bindGrammar(getGrammar());
     return result;
   }
 
@@ -88,7 +88,7 @@ int unicode_regressions() {
         decl = c;
     if (!clean(result) || !decl || decl->name != test.name)
       return fail("Unicode keyword/comment/identifier AST");
-    if (result.cst().text() != test.source || !result.cst().engine_stamped())
+    if (result.cst().text() != test.source || !result.cst().engineStamped())
       return fail("Unicode CST must retain original source and engine stamps");
     const auto observed = spy->parse(test.source);
     const auto decoded = lexical->parse(seen);

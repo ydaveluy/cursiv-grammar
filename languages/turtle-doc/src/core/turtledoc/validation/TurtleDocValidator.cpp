@@ -30,7 +30,7 @@ void check_unicode(const cursiv::AstNode &node, std::string_view member,
                    std::string_view source,
                    cursiv::ValidationAcceptor &accept) {
   const auto span =
-      accept.featureSpan(node, member, 0).value_or(accept.spanOf(node));
+      accept.propertySpan(node, member, 0).value_or(accept.spanOf(node));
   if (span.begin > span.end || span.end > source.size())
     return;
   const auto text = source.substr(span.begin, span.end - span.begin);

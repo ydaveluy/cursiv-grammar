@@ -26,7 +26,7 @@ std::optional<std::int64_t> integer(const ast::Expr *expr) {
 void escapes(const cursiv::AstNode &node, std::string_view property,
              cursiv::ValidationAcceptor &accept) {
   auto document = node.getDocument();
-  auto span = accept.featureSpan(node, property, 0);
+  auto span = accept.propertySpan(node, property, 0);
   if (!document || !span)
     return;
   auto raw = document->textDocument().getText().substr(span->begin,
@@ -76,7 +76,7 @@ void hexItems(const cursiv::AstNode &node, const auto &items,
       accept
           .error(node, "A fully wildcard byte cannot be negated",
                  "yara.hex-negation")
-          .range(accept.featureSpan(node, "items", i)
+          .range(accept.propertySpan(node, "items", i)
                      .value_or(accept.spanOf(node)));
 }
 } // namespace

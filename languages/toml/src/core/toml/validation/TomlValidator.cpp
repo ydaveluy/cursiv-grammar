@@ -23,7 +23,7 @@ Source source(const cursiv::AstNode &owner, std::string_view property,
   const auto *document = owner.getDocument();
   if (!document)
     return {};
-  const auto span = accept.featureSpan(owner, property, index);
+  const auto span = accept.propertySpan(owner, property, index);
   const auto text = document->textDocument().getText();
   if (!span || span->end < span->begin || span->end > text.size())
     return {};

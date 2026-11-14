@@ -46,7 +46,7 @@ void MetamathValidator::checkDatabase(
                    "metamath.duplicate-label")
             .property<&ast::LabeledStatement::label>();
     if (auto include = cursiv::ast_cast<ast::IncludeStmt>(child))
-      if (auto range = accept.featureSpan(*include, "filename", 0))
+      if (auto range = accept.propertySpan(*include, "filename", 0))
         filenames.push_back(*range);
   }
   std::vector<const ast::ScopeOpen *> scopes;

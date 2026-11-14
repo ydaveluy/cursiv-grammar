@@ -132,7 +132,7 @@ void SwiftValidator::checkRawString(const ast::RawStringLit& literal,
 
 void SwiftValidator::checkPrefix(const ast::PrefixExpr& expression,
                                  cursiv::ValidationAcceptor& accept) const {
-  const auto op = accept.featureSpan(expression, "op", 0);
+  const auto op = accept.propertySpan(expression, "op", 0);
   const auto* document = expression.getDocument();
   if (!op || !document || !expression.operand ||
       expression.operand->cstNodeId == cursiv::kNoNode) return;
@@ -166,7 +166,7 @@ void SwiftValidator::checkInitializer(const ast::InitializerDecl& initializer,
 
 void SwiftValidator::checkFile(const ast::File& file,
                                cursiv::ValidationAcceptor& accept) const {
-  const auto span = accept.featureSpan(file, "hashbang", 0);
+  const auto span = accept.propertySpan(file, "hashbang", 0);
   const auto* document = file.getDocument();
   if (!file.hashbang || !span || !document) return;
   const auto text = document->textDocument().getText();

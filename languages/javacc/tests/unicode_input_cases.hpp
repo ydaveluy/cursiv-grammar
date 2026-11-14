@@ -32,7 +32,7 @@ PARSER_END(P)
 )jj";
   const auto result = language.language.parser->parse(source);
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !result.value ||
-      result.cst().text() != source || !result.cst().engine_stamped()) return false;
+      result.cst().text() != source || !result.cst().engineStamped()) return false;
   bool name = false;
   for (const auto* node : result.nodes())
     if (const auto* p = cursiv::ast_cast<javacc::ast::VariableDeclaratorId>(node))

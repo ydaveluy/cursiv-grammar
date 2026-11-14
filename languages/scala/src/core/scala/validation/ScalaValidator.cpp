@@ -29,7 +29,7 @@ void check_retained_units(std::string_view text, const cursiv::AstNode& node,
   const auto* document = node.getDocument();
   if (!document) return;
   const auto source = document->textDocument().getText();
-  const auto originalRange = accept.featureSpan(node, member, index).value_or(accept.spanOfName(text, node));
+  const auto originalRange = accept.propertySpan(node, member, index).value_or(accept.spanOfName(text, node));
   const auto* translation = document->parseResult.cst().translation();
   const auto start = translation ? translation->translated(originalRange.begin)
                                 : std::optional<cursiv::TextOffset>{originalRange.begin};
@@ -73,7 +73,7 @@ void check_name(std::string_view name, const cursiv::AstNode& node,
   const auto* document = node.getDocument();
   if (!document) return;
   const auto source = document->textDocument().getText();
-  const auto range = accept.featureSpan(node, member, index).value_or(accept.spanOfName(name, node));
+  const auto range = accept.propertySpan(node, member, index).value_or(accept.spanOfName(name, node));
   if (range.begin > range.end || range.end > source.size()) return;
   if (line && physical_line(source.substr(range.begin, range.end - range.begin)))
     accept.error(node, "A quoted identifier cannot contain a physical line ending.",

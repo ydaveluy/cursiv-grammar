@@ -15,7 +15,7 @@ namespace {
 std::optional<cursiv::TextRange> nameSpan(
     const cursiv::AstNode& node, std::string_view feature,
     std::string_view spelling, cursiv::ValidationAcceptor& accept) {
-  const auto anchor = accept.featureSpan(node, feature, 0);
+  const auto anchor = accept.propertySpan(node, feature, 0);
   const auto name = accept.spanOfName(spelling, node);
   if (spelling.empty() || !anchor || name.begin < anchor->begin ||
       name.end > anchor->end || name.end - name.begin != spelling.size())

@@ -19,7 +19,7 @@ void AlloyValidator::checkModule(const ast::Module &module,
   std::unordered_set<std::string_view> names;
   auto declare = [&](const cursiv::AstNode &node, std::string_view name,
                      std::string_view field, std::size_t index = 0) {
-    const auto span = accept.featureSpan(node, field, index)
+    const auto span = accept.propertySpan(node, field, index)
                           .value_or(accept.spanOfName(name, node));
     if (badName(name))
       accept.error(span, "A declared name cannot contain $, / or @.",

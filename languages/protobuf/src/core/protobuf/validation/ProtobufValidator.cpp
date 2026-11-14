@@ -44,7 +44,7 @@ void field(const cursiv::AstNode &node, std::string_view text,
             node,
             "A field number must be in 1..536870911, excluding 19000..19999.",
             "protobuf.field-number")
-        .range(accept.featureSpan(node, "number", 0)
+        .range(accept.propertySpan(node, "number", 0)
                    .value_or(accept.spanOf(node)));
 }
 } // namespace

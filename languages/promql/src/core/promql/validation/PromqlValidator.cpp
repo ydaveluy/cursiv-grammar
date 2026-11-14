@@ -242,7 +242,7 @@ void PromqlValidator::checkSelector(const ast::Selector& node,cursiv::Validation
     else canDecide=false;
     if(matcher->name.find(':')!=std::string_view::npos) {
       const auto* document=matcher->getDocument();
-      const auto span=accept.featureSpan(*matcher,"name",0);
+      const auto span=accept.propertySpan(*matcher,"name",0);
       if(document&&span&&span->begin<document->textDocument().getText().size()) {
         const char first=document->textDocument().getText()[span->begin];
         if(first!='\''&&first!='"'&&first!='`')

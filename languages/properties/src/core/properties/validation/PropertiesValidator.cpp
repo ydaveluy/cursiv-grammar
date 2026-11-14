@@ -20,7 +20,7 @@ void PropertiesValidator::checkEscapes(
     return;
   const auto source = document->textDocument().getText();
   for (const auto property : {"key", "value"}) {
-    const auto span = accept.featureSpan(entry, property, 0);
+    const auto span = accept.propertySpan(entry, property, 0);
     if (!span || span->end < span->begin || span->end > source.size())
       continue;
     const auto raw = source.substr(span->begin, span->end - span->begin);

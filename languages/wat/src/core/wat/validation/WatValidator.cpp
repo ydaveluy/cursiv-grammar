@@ -36,7 +36,7 @@ std::optional<std::uint64_t> natural(std::string_view text) {
 void string(const cursiv::AstNode& node, std::string_view property,
             std::size_t index, cursiv::ValidationAcceptor& accept) {
   auto doc = node.getDocument();
-  auto span = accept.featureSpan(node, property, index);
+  auto span = accept.propertySpan(node, property, index);
   if (!doc || !span) return;
   auto text = doc->textDocument().getText().substr(span->begin,
                                                    span->end - span->begin);
@@ -96,7 +96,7 @@ void name(const cursiv::AstNode& node, std::string_view property,
   string(node, property, index, accept);
   if (!validUtf8(value))
     accept.error(node, "A text name must decode to valid UTF-8", "wat.name-utf8")
-        .range(accept.featureSpan(node, property, index).value_or(accept.spanOf(node)));
+        .range(accept.propertySpan(node, property, index).value_or(accept.spanOf(node)));
 }
 void names(const auto& node, std::string_view property, const auto& values,
            cursiv::ValidationAcceptor& accept) {
@@ -111,7 +111,7 @@ void limits(const auto& node, cursiv::ValidationAcceptor& accept) {
         .error(node, "The maximum must not be smaller than the minimum",
                "wat.limits")
         .range(
-            accept.featureSpan(node, "max", 0).value_or(accept.spanOf(node)));
+            accept.propertySpan(node, "max", 0).value_or(accept.spanOf(node)));
   if (node.shared && !node.max)
     accept.error(node, "A shared limit needs an explicit maximum",
                  "wat.shared-limit");
