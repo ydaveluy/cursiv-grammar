@@ -47,7 +47,7 @@ inline bool run(const cursiv::Parser& parser) {
   }
   auto body = [&](const std::string& source, auto check) {
     const auto result = parser.parse(source);
-    const auto* forms = result.template value_as<erlang::ast::Forms>();
+    const auto* forms = result.template valueAs<erlang::ast::Forms>();
     if (!forms || result.cst().recovered() || !result.diagnostics.empty()) return;
     for (const auto& form : forms->forms)
       if (const auto* fn = std::get_if<erlang::ast::FunctionDecl*>(&form)) {
@@ -107,7 +107,7 @@ inline bool run(const cursiv::Parser& parser) {
   {
     const std::string source = "f()->ok. % comment\rf()->not_a_function.\n";
     const auto result = parser.parse(source);
-    const auto* forms = result.template value_as<Forms>();
+    const auto* forms = result.template valueAs<Forms>();
     require(forms && forms->forms.size() == 1, "carriage return does not end an Erlang comment");
   }
   return failures == 0;

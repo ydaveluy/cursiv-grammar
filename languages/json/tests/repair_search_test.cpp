@@ -35,7 +35,7 @@ int main() {
   // among the repairs as cheap, the one that reads furthest drops it.
   {
     const auto d = repaired("[{\"a\": 1, {\"b\": 2}, {\"c\": 3}]\n");
-    CHECK(d.size() == 1 && d[0].kind == cursiv::DiagnosticKind::deleted);
+    CHECK(d.size() == 1 && d[0].kind == cursiv::DiagnosticKind::Deleted);
   }
   // An array left open inside a record: closing it, or dropping the
   // record's closer so the records after it are the array's, read on alike
@@ -47,7 +47,7 @@ int main() {
     doc += "]";
     const auto whole = repaired(doc);
     CHECK(whole.size() == 1 &&
-          whole[0].kind == cursiv::DiagnosticKind::inserted);
+          whole[0].kind == cursiv::DiagnosticKind::Inserted);
     cursiv::Cst cst;
     cursiv::engine::LrParseStats stats{};
     (void)cursiv::engine::lr_parser<gj::kTable>.parse(
@@ -56,8 +56,8 @@ int main() {
             .floor = 1u << 16, .perByte = 64, .perSearch = 1024});
     const auto& cut = cst.diagnostics();
     CHECK(stats.reachStops == 1 && stats.budgetStops == 0);
-    CHECK(cut.size() == 2 && cut[0].kind == cursiv::DiagnosticKind::inserted &&
-          cut[1].kind == cursiv::DiagnosticKind::bounded &&
+    CHECK(cut.size() == 2 && cut[0].kind == cursiv::DiagnosticKind::Inserted &&
+          cut[1].kind == cursiv::DiagnosticKind::Bounded &&
           cut[1].begin <= cut[0].begin && cut[1].end >= cut[0].end);
   }
   return cursiv::test::report("json_repair_search_test");

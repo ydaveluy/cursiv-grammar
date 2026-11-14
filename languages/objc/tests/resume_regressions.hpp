@@ -31,7 +31,7 @@ inline bool run(const objc::ObjcCoreServices& services) {
         const auto& span = result.cst()[node.cstNodeId];
         valid &= span.begin <= span.end && span.end <= source.size();
       }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             valid &= child.parent == &node;
             self(self, child);

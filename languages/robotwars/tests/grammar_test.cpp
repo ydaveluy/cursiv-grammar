@@ -10,7 +10,7 @@
 
 #include "cursiv/parser/Parser.hpp"
 #include "cursiv/services/CoreLanguage.hpp"
-#include "cursiv/services/Diagnostic.hpp"
+#include "cursiv/validation/Diagnostic.hpp"
 #include "cursiv/syntax-tree/AstNode.hpp"
 #include "cursiv/workspace/Document.hpp"
 #include "cursiv/workspace/DocumentBuilder.hpp"
@@ -88,7 +88,7 @@ void field_values_of_bottom(const World& world) {
       world.build("bottom.robotwars");
   CHECK(document->diagnostics.empty());
 
-  const auto* program = document->parseResult.value_as<ast::Program>();
+  const auto* program = document->parseResult.valueAs<ast::Program>();
   CHECK(program != nullptr);
   if (program == nullptr) return;
 
@@ -162,7 +162,7 @@ void field_values_of_unary(const World& world) {
   CHECK(document->diagnostics.empty());
   CHECK(!document->parseResult.cst().recovered());
 
-  const auto* program = document->parseResult.value_as<ast::Program>();
+  const auto* program = document->parseResult.valueAs<ast::Program>();
   CHECK(program != nullptr);
   if (program == nullptr) return;
 
@@ -187,7 +187,7 @@ void native_manual_cases(const World& world) {
   const auto result = world.language.language.parser->parse(
       "START ;label comment\na to b ;This stores a in b\n* 5 + 3 to a\n");
   CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
-  const auto* program = result.value_as<ast::Program>();
+  const auto* program = result.valueAs<ast::Program>();
   CHECK(program && program->items.size() == 5);
   if (!program || program->items.size() != 5) return;
   const auto* label = as<ast::Label>(program->items[0]);
@@ -233,7 +233,7 @@ void comments_before_controlled_instruction(const World& world) {
     const auto parsed = world.language.language.parser->parse(source);
     CHECK(parsed.accepted && parsed.diagnostics.empty() &&
           !parsed.cst().recovered() && parsed.cst().text() == source);
-    const auto* program = parsed.value_as<ast::Program>();
+    const auto* program = parsed.valueAs<ast::Program>();
     CHECK(program && !program->items.empty());
     if (!program || program->items.empty()) continue;
     const auto* condition = as<ast::IfStatement>(program->items[0]);
@@ -264,7 +264,7 @@ void comments_before_controlled_instruction(const World& world) {
     const auto parsed = world.language.language.parser->parse(source);
     CHECK(parsed.accepted && parsed.diagnostics.empty() &&
           !parsed.cst().recovered() && parsed.cst().text() == source);
-    const auto* program = parsed.value_as<ast::Program>();
+    const auto* program = parsed.valueAs<ast::Program>();
     const auto* guard = program && program->items.size() == 1
                             ? as<ast::AccumStatement>(program->items[0]) : nullptr;
     CHECK(guard && guard->comments.size() == 2 && guard->parent == program);
@@ -280,7 +280,7 @@ void comments_before_controlled_instruction(const World& world) {
         "IF A=1\n;outer\nIF B=2\n;inner\n3 TO C\n";
     const auto parsed = world.language.language.parser->parse(source);
     CHECK(parsed.accepted && parsed.diagnostics.empty() && !parsed.cst().recovered());
-    const auto* program = parsed.value_as<ast::Program>();
+    const auto* program = parsed.valueAs<ast::Program>();
     const auto* outer = program && program->items.size() == 1
                             ? as<ast::IfStatement>(program->items[0]) : nullptr;
     const auto* inner = outer ? as<ast::IfStatement>(outer->body) : nullptr;

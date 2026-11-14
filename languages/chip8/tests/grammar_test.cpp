@@ -77,7 +77,7 @@ void every_opcode_is_covered() {
 void jump_register_is_one_token() {
   const std::string source = "JP V0, ABC";
   const auto r = engine().parse(source);
-  const auto* program = r.value_as<ast::Program>();
+  const auto* program = r.valueAs<ast::Program>();
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
   CHECK(program && program->instructions.size() == 1);
   if (program && program->instructions.size() == 1)

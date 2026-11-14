@@ -2,7 +2,7 @@
 
 #include "rfc1035/ast.hpp"
 #include "rfc1035/Label.hpp"
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 
 inline cursiv::JsonValue native_view(const rfc1035::ast::Domain& domain) {
   using J = cursiv::JsonValue;

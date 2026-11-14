@@ -29,7 +29,7 @@ inline bool run() {
     auto r = language.language.parser->parse(source);
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
           "clean parse");
-    check(r.value_as<ast::Grammar>() != nullptr, "Grammar root");
+    check(r.valueAs<ast::Grammar>() != nullptr, "Grammar root");
     std::unordered_set<const cursiv::AstNode*> reached;
     std::function<void(const cursiv::AstNode*, const cursiv::AstNode*)> walk =
         [&](const auto* n, const auto* parent) {
@@ -39,7 +39,7 @@ inline bool run() {
             check(false, "AST ownership");
             return;
           }
-          language.language.astReflection->visitMembers(
+          language.language.astReflection->visitProperties(
               *n, [&](auto, auto, auto& child) { walk(&child, n); });
         };
     walk(r.value, nullptr);
@@ -50,14 +50,14 @@ inline bool run() {
   for (const char* source :
        {"", "grammar Empty", "import './other';", "entry R<>: 'x';"}) {
     const auto r = parse(source);
-    check(r.value_as<ast::Grammar>() != nullptr,
+    check(r.valueAs<ast::Grammar>() != nullptr,
           "empty declarations are grammars");
   }
   {
     const auto r = parse(
         "grammar ^grammar\nentry ^entry<>: ^returns=^ID EOF;\nterminal ^ID: "
         "/[a-z]+/;");
-    const auto* g = r.value_as<ast::Grammar>();
+    const auto* g = r.valueAs<ast::Grammar>();
     check(g && g->name == "grammar" && g->isDeclared && g->rules.size() == 2,
           "escaped declaration names");
     if (g && g->rules.size() == 2) {
@@ -86,7 +86,7 @@ inline bool run() {
     const auto r = parse(
         "infix Expr<a> on Atom<true> infers Binary: right assoc '^' > left "
         "assoc '*' | '/' > '+' | '-'; Atom<p>: <p> 'x';");
-    const auto* g = r.value_as<ast::Grammar>();
+    const auto* g = r.valueAs<ast::Grammar>();
     const auto* n = g && !g->rules.empty()
                         ? cursiv::ast_cast<ast::InfixRule>(g->rules[0])
                         : nullptr;
@@ -118,7 +118,7 @@ inline bool run() {
     const auto r = parse(
         "entry R: xs=[+Thing:ID]; interface Thing { parent?: @Thing+; } type "
         "Empty = ''; Data returns ^string: 'x'; Text returns string: ID;");
-    const auto* g = r.value_as<ast::Grammar>();
+    const auto* g = r.valueAs<ast::Grammar>();
     const auto* p = g && !g->rules.empty()
                         ? cursiv::ast_cast<ast::ParserRule>(g->rules[0])
                         : nullptr;
@@ -152,7 +152,7 @@ inline bool run() {
   {
     const auto r = parse(
         R"lang(interface Values { a: string = 'a\nb\t\0\v\f\r\b'; b: string = '\u0041\x41\q'; c: number = -Infinity; d: number = 1e1000; e: boolean = false; })lang");
-    const auto* g = r.value_as<ast::Grammar>();
+    const auto* g = r.valueAs<ast::Grammar>();
     if (g && g->interfaces.size() == 1 &&
         g->interfaces[0]->attributes.size() == 5) {
       const auto& as = g->interfaces[0]->attributes;
@@ -175,7 +175,7 @@ inline bool run() {
     const auto r = parse(
         "terminal A: 'a' | 'b' | 'c'; terminal T: (?='a')+; terminal E: "
         "''..'';");
-    const auto* g = r.value_as<ast::Grammar>();
+    const auto* g = r.valueAs<ast::Grammar>();
     if (g && g->rules.size() == 3) {
       const auto* a = cursiv::ast_cast<ast::TerminalRule>(g->rules[0]);
       const auto* alt =

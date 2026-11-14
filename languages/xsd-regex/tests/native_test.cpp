@@ -63,7 +63,7 @@ int main() {
         for (auto &v : p->items)
           if (auto *s = std::get_if<std::string_view>(&v))
             raw &= inside(*s);
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &n &&
                      r.cst().contains(n.cstNodeId, child.cstNodeId);

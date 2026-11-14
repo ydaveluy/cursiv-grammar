@@ -46,7 +46,7 @@ ex:r '''line\tvalue'''; ex:t """two\rwords""" .)SRC";
     check(result.accepted && !result.cst().recovered() &&
               result.diagnostics.empty(),
           "escaped RDF terms parse");
-    const auto *document = result.value_as<ast::Document>();
+    const auto *document = result.valueAs<ast::Document>();
     const auto *statement = triple(document, 1);
     const auto *iri = statement ? as<ast::IriRef>(statement->subject) : nullptr;
     check(iri && iri->value == "urn:λ", "IRI Unicode value");
@@ -70,7 +70,7 @@ ex:r '''line\tvalue'''; ex:t """two\rwords""" .)SRC";
     const auto result = parser->parse(source);
     check(result.accepted && !result.cst().recovered(),
           "comments in anonymous nodes and collections");
-    const auto *document = result.value_as<ast::Document>();
+    const auto *document = result.valueAs<ast::Document>();
     const auto *first = triple(document, 0);
     const auto *blank = first ? as<ast::BlankNode>(first->subject) : nullptr;
     const auto *collection = as<ast::Collection>(object(first, 0));
@@ -88,7 +88,7 @@ ex:r '''line\tvalue'''; ex:t """two\rwords""" .)SRC";
     check(result.accepted && !result.cst().recovered() &&
               result.diagnostics.empty(),
           "astral names and case-insensitive SPARQL directives");
-    const auto *document = result.value_as<ast::Document>();
+    const auto *document = result.valueAs<ast::Document>();
     const auto *declaration =
         document && !document->statements.empty()
             ? as<ast::SparqlPrefixDecl>(document->statements[0])
@@ -107,7 +107,7 @@ ex:r '''line\tvalue'''; ex:t """two\rwords""" .)SRC";
     check(result.accepted && !result.cst().recovered() &&
               result.diagnostics.empty(),
           "unbounded numeric and boolean values");
-    const auto *statement = triple(result.value_as<ast::Document>(), 0);
+    const auto *statement = triple(result.valueAs<ast::Document>(), 0);
     const auto *number = as<ast::NumberLit>(object(statement, 0));
     const auto *yes = as<ast::BoolLit>(object(statement, 1));
     const auto *no = as<ast::BoolLit>(object(statement, 2));
@@ -145,7 +145,7 @@ ex:r '''line\tvalue'''; ex:t """two\rwords""" .)SRC";
       auto sink = [&](cursiv::Diagnostic &&) { ++errors; };
       cursiv::ValidationAcceptor accept(sink, document, source);
       language.language.validator->checkDocument(
-          *document.parseResult.value_as<ast::Document>(), accept);
+          *document.parseResult.valueAs<ast::Document>(), accept);
       check(errors == control.errors, "RDF runtime diagnostic count");
     }
   }

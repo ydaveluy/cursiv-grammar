@@ -8,7 +8,7 @@ namespace tinybasic_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace a = tinybasic::ast;
   const auto result = language.language.parser->parse("1 0 A=-2*3+4-5\n20GOTO1 2\n");
-  const auto* root = result.template value_as<a::Program>();
+  const auto* root = result.template valueAs<a::Program>();
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !root || root->lines.size() != 2) return false;
   const auto* let = cursiv::ast_cast<a::LetStmt>(root->lines[0]->statement);
   const auto* sub = let ? cursiv::ast_cast<a::BinaryExpr>(let->value) : nullptr;
@@ -22,7 +22,7 @@ template<class Language> bool run(const Language& language) {
   bool owned = true;
   auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
     if (!seen.insert(&node).second) { owned = false; return; }
-    language.language.astReflection->visitMembers(node,
+    language.language.astReflection->visitProperties(node,
         [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
           owned &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
           self(self, child);

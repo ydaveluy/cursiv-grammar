@@ -21,7 +21,7 @@ inline bool run() {
   };
   auto raw = [&](std::string_view source, bool script) {
     auto result = parser->parse(source);
-    const auto *doc = result.value_as<html::ast::Document>();
+    const auto *doc = result.valueAs<html::ast::Document>();
     bool correct = result.accepted && !result.cst().recovered() &&
                    result.diagnostics.empty() && doc && doc->content.size() == 1;
     if (correct && script) {
@@ -55,7 +55,7 @@ inline bool run() {
     const std::string raw_source = script ? "<script>ok</script>" : "<style>ok</style>";
     const std::string source = "<" + std::string(name) + ">x</" + name + ">" + raw_source;
     auto result = parser->parse(source);
-    const auto *doc = result.value_as<html::ast::Document>();
+    const auto *doc = result.valueAs<html::ast::Document>();
     bool correct = result.accepted && !result.cst().recovered() &&
                    result.diagnostics.empty() && doc && doc->content.size() == 2;
     if (correct) {
@@ -73,7 +73,7 @@ inline bool run() {
   }
 
   auto adjacent_result = parser->parse("<style>one</STYLE><style>two</style>");
-  const auto *adjacent = adjacent_result.value_as<html::ast::Document>();
+  const auto *adjacent = adjacent_result.valueAs<html::ast::Document>();
   bool adjacent_ok = adjacent_result.accepted && !adjacent_result.cst().recovered() &&
                      adjacent_result.diagnostics.empty() && adjacent && adjacent->content.size() == 2;
   if (adjacent_ok) {
@@ -85,7 +85,7 @@ inline bool run() {
   check(adjacent_ok, "first matching closer separates adjacent raw-text nodes");
 
   auto fragment_result = parser->parse("hello <b>world</b> !");
-  const auto *fragment = fragment_result.value_as<html::ast::Document>();
+  const auto *fragment = fragment_result.valueAs<html::ast::Document>();
   bool fragment_ok = fragment_result.accepted && !fragment_result.cst().recovered() &&
                      fragment_result.diagnostics.empty() && fragment && fragment->content.size() == 3;
   if (fragment_ok) {
@@ -100,7 +100,7 @@ inline bool run() {
   check(fragment_ok, "document mixed content preserves top-level text around elements");
 
   auto declaration_result = parser->parse(" \n<!--before--><!DOCTYPE html>hello <br>");
-  const auto *declaration = declaration_result.value_as<html::ast::Document>();
+  const auto *declaration = declaration_result.valueAs<html::ast::Document>();
   bool declaration_ok = declaration_result.accepted && !declaration_result.cst().recovered() &&
                         declaration_result.diagnostics.empty() && declaration &&
                         declaration->doctypes.size() == 1 &&
@@ -115,7 +115,7 @@ inline bool run() {
   check(declaration_ok && saw_text, "a comment before the doctype preserves metadata and following text");
 
   auto duplicate_result = parser->parse("<!DOCTYPE html><!DOCTYPE html><br>");
-  const auto *duplicate = duplicate_result.value_as<html::ast::Document>();
+  const auto *duplicate = duplicate_result.valueAs<html::ast::Document>();
   check(duplicate_result.accepted && !duplicate_result.cst().recovered() &&
             duplicate_result.diagnostics.empty() && duplicate &&
             duplicate->doctypes.size() == 2 &&
@@ -124,7 +124,7 @@ inline bool run() {
         "duplicate declarations remain available for runtime validation");
 
   auto xml_result = parser->parse("<?xml version='1.0'?><?xml version='1.1'?><br>");
-  const auto *xml_doc = xml_result.value_as<html::ast::Document>();
+  const auto *xml_doc = xml_result.valueAs<html::ast::Document>();
   check(xml_result.accepted && !xml_result.cst().recovered() &&
             xml_result.diagnostics.empty() && xml_doc &&
             xml_doc->xmlDeclarations.size() == 2 &&
@@ -133,7 +133,7 @@ inline bool run() {
         "XML declaration extension retains repeated values for validation");
 
   auto cdata_result = parser->parse("<![CDATA[<tag>]]>");
-  const auto *cdata_doc = cdata_result.value_as<html::ast::Document>();
+  const auto *cdata_doc = cdata_result.valueAs<html::ast::Document>();
   bool cdata_ok = cdata_result.accepted && !cdata_result.cst().recovered() &&
                   cdata_result.diagnostics.empty() && cdata_doc &&
                   cdata_doc->content.size() == 1;
@@ -144,7 +144,7 @@ inline bool run() {
   }
   check(cdata_ok, "CDATA extension retains document-level raw text and parent");
   auto source_result = parser->parse("<div title='&amp;\r\nx'> \r\n&amp;<br> </div>");
-  const auto* source_doc = source_result.value_as<html::ast::Document>();
+  const auto* source_doc = source_result.valueAs<html::ast::Document>();
   bool source_ok = source_result.accepted && !source_result.cst().recovered() &&
                    source_result.diagnostics.empty() && source_doc && source_doc->content.size() == 1;
   if (source_ok) {

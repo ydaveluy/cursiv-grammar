@@ -42,7 +42,7 @@ int main() {
     document.language = &language.language;
     document.parseResult = language.language.parser->parse(source);
     const auto& result = document.parseResult;
-    const auto* number = result.value_as<telephone::ast::Number>();
+    const auto* number = result.valueAs<telephone::ast::Number>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !number || !number->variation ||
         number->variation->areaCode != "123" ||

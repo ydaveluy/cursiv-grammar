@@ -85,7 +85,7 @@ static int audit_regression() {
   {
     const auto r = language.language.parser->parse(
         "def f(a, /, b=1, *args: *tuple[int, ...], c, d=2, **kw,): pass\n");
-    const auto *m = r.value_as<python::ast::Module>();
+    const auto *m = r.valueAs<python::ast::Module>();
     const auto *f = m && m->body.size() == 1 ? cursiv::ast_cast<python::ast::FunctionDef>(m->body[0]) : nullptr;
     const auto *p = f ? f->params : nullptr;
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || !p ||
@@ -119,7 +119,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* mod = r.value_as<python::ast::Module>();
+    const auto* mod = r.valueAs<python::ast::Module>();
     if (!mod || mod->body.empty()) return 1;
     const auto* as = cursiv::ast_cast<python::ast::AssignStmt>(mod->body[0]);
     const auto* strs =

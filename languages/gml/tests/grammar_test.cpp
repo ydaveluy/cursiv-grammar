@@ -42,7 +42,7 @@ int main() {
   {
     const std::string source = "graph [\rtext \"alpha\r beta\r gamma\"\r]\r";
     const auto result = language.language.parser->parse(source);
-    const auto* root = result.value_as<gml::ast::List>();
+    const auto* root = result.valueAs<gml::ast::List>();
     const auto* nested = root && root->entries.size() == 1 ?
         std::get_if<gml::ast::List*>(&root->entries[0]->value) : nullptr;
     const auto* text = nested && (*nested)->entries.size() == 1 ?

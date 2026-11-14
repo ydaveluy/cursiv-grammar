@@ -78,7 +78,7 @@ int main() {
   const fs::path hello = fs::path(CURSIV_EXAMPLE_DIR) / "helloworld.v";
   const std::string text = read_file(hello);
   const cursiv::ParseResult result = language.language.parser->parse(text);
-  const auto& file = *result.value_as<v::ast::SourceFile>();
+  const auto& file = *result.valueAs<v::ast::SourceFile>();
   if (file.decls.size() != 1) return fail("helloworld.v: wrong decl count");
 
   const auto* const fn = as<v::ast::FunctionDecl>(file.decls[0]);

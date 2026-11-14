@@ -11,20 +11,20 @@ inline constexpr auto trim_name = [](std::string_view text) {
 };
 struct Stl : cursiv::GrammarSpec {
   struct WS : terminal<some(cr<" \t\r\n\v\f">)> {};
-  struct SOLID : terminal<cursiv::Lit<"solid", true>{}> {};
-  struct ENDSOLID : terminal<cursiv::Lit<"endsolid", true>{}> {};
-  struct FACET : terminal<cursiv::Lit<"facet", true>{}> {};
-  struct NORMAL : terminal<cursiv::Lit<"normal", true>{}> {};
-  struct OUTER : terminal<cursiv::Lit<"outer", true>{}> {};
-  struct LOOP : terminal<cursiv::Lit<"loop", true>{}> {};
-  struct ENDLOOP : terminal<cursiv::Lit<"endloop", true>{}> {};
-  struct ENDFACET : terminal<cursiv::Lit<"endfacet", true>{}> {};
-  struct VERTEX : terminal<cursiv::Lit<"vertex", true>{}> {};
+  struct SOLID : terminal<cursiv::detail::Lit<"solid", true>{}> {};
+  struct ENDSOLID : terminal<cursiv::detail::Lit<"endsolid", true>{}> {};
+  struct FACET : terminal<cursiv::detail::Lit<"facet", true>{}> {};
+  struct NORMAL : terminal<cursiv::detail::Lit<"normal", true>{}> {};
+  struct OUTER : terminal<cursiv::detail::Lit<"outer", true>{}> {};
+  struct LOOP : terminal<cursiv::detail::Lit<"loop", true>{}> {};
+  struct ENDLOOP : terminal<cursiv::detail::Lit<"endloop", true>{}> {};
+  struct ENDFACET : terminal<cursiv::detail::Lit<"endfacet", true>{}> {};
+  struct VERTEX : terminal<cursiv::detail::Lit<"vertex", true>{}> {};
   static constexpr auto infinity =
-      cursiv::Lit<"inf", true>{} + option(cursiv::Lit<"inity", true>{});
+      cursiv::detail::Lit<"inf", true>{} + option(cursiv::detail::Lit<"inity", true>{});
   struct NUMBER : terminal<option(cr<"+-">) +
                            (some(cr<"0-9eE.+-">) |
-                            (cursiv::Lit<"nan", true>{} +
+                            (cursiv::detail::Lit<"nan", true>{} +
                              option(lit<"("> + many(cr<"A-Za-z0-9_">) +
                                     lit<")">)) |
                             infinity)> {};

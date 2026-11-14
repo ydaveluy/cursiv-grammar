@@ -26,7 +26,7 @@ inline bool run() {
     auto r = language.language.parser->parse(source);
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
           "clean parse");
-    check(r.value_as<ast::Script>() != nullptr, "Script root");
+    check(r.valueAs<ast::Script>() != nullptr, "Script root");
     std::unordered_set<const cursiv::AstNode*> reached;
     std::function<void(const cursiv::AstNode*, const cursiv::AstNode*)> walk =
         [&](const auto* n, const auto* parent) {
@@ -36,7 +36,7 @@ inline bool run() {
             check(false, "unique AST ownership");
             return;
           }
-          language.language.astReflection->visitMembers(
+          language.language.astReflection->visitProperties(
               *n, [&](std::string_view, std::uint32_t, cursiv::AstNode& c) {
                 walk(&c, n);
               });
@@ -47,7 +47,7 @@ inline bool run() {
     return r;
   };
   auto select = [](const cursiv::ParseResult& r) {
-    const auto* root = r.value_as<ast::Script>();
+    const auto* root = r.valueAs<ast::Script>();
     return root && !root->statements.empty()
                ? cursiv::ast_cast<ast::Select>(root->statements[0]->statement)
                : nullptr;
@@ -112,7 +112,7 @@ inline bool run() {
         "CREATE TABLE 😀('some column' 'custom type', a$b DEFAULT abc, § "
         "DEFAULT -'12', g GENERATED ALWAYS AS (a$b+1)); SELECT "
         "\"m\".\"t\".\"c\";");
-    const auto* root = r.value_as<ast::Script>();
+    const auto* root = r.valueAs<ast::Script>();
     const auto* t = root && root->statements.size() == 2
                         ? cursiv::ast_cast<ast::CreateTableStmt>(
                               root->statements[0]->statement)
@@ -139,7 +139,7 @@ inline bool run() {
         "ALTER TABLE t ADD c TEXT; SELECT count(ALL a),CAST(12 AS) FROM t1; "
         "CREATE TABLE x(a INTEGER,b,PRIMARY KEY(a AUTOINCREMENT) UNIQUE(b) "
         "CHECK(a>0) ON CONFLICT IGNORE);");
-    const auto* root = r.value_as<ast::Script>();
+    const auto* root = r.valueAs<ast::Script>();
     const auto* a = root && root->statements.size() == 3
                         ? cursiv::ast_cast<ast::AlterTableStmt>(
                               root->statements[0]->statement)
@@ -167,7 +167,7 @@ inline bool run() {
               j->steps[0]->modifiers[1] == "NATURAL" &&
               j->steps[1]->modifiers[1] == "RIGHT",
           "join modifiers preserve native order");
-    const auto* root = r.value_as<ast::Script>();
+    const auto* root = r.valueAs<ast::Script>();
     check(
         root && root->statements.size() == 4 &&
             cursiv::ast_cast<ast::BeginStmt>(root->statements[1]->statement)
@@ -182,7 +182,7 @@ inline bool run() {
     const auto r = parse(
         "CREATE VIRTUAL TABLE x USING module(a(\"(\", ')'), \"a,b\", [a,b], "
         "`a,b`,,); ");
-    const auto* root = r.value_as<ast::Script>();
+    const auto* root = r.valueAs<ast::Script>();
     const auto* v = root && !root->statements.empty()
                         ? cursiv::ast_cast<ast::CreateVirtualTableStmt>(
                               root->statements[0]->statement)
@@ -217,7 +217,7 @@ inline bool run() {
   {
     const auto r = parse(
         "CREATE VIRTUAL TABLE x USING module(a /*, (*/ b,c(-- ) , \n x));");
-    const auto* root = r.value_as<ast::Script>();
+    const auto* root = r.valueAs<ast::Script>();
     const auto* v = root && !root->statements.empty()
                         ? cursiv::ast_cast<ast::CreateVirtualTableStmt>(
                               root->statements[0]->statement)
@@ -231,7 +231,7 @@ inline bool run() {
     const auto r = parse(
         "CREATE TABLE x(a DEFERRABLE,b NOT DEFERRABLE INITIALLY IMMEDIATE,c "
         "CONSTRAINT marker,CONSTRAINT table_marker);");
-    const auto* root = r.value_as<ast::Script>();
+    const auto* root = r.valueAs<ast::Script>();
     const auto* t = root && !root->statements.empty()
                         ? cursiv::ast_cast<ast::CreateTableStmt>(
                               root->statements[0]->statement)
@@ -271,7 +271,7 @@ inline bool run() {
         "SELECT 1 AS \"\",2; SELECT 1 IN \"\",1 IN (),1 IN \"\"(2); SELECT "
         "\"\".* FROM \"\" AS \"\" INDEXED BY \"\"; SELECT \"\".t.\"\" FROM "
         "\"\".t;");
-    const auto* root = r.value_as<ast::Script>();
+    const auto* root = r.valueAs<ast::Script>();
     const auto* first = select(r);
     check(first && first->parts[0]->core->columns[0]->alias &&
               first->parts[0]->core->columns[0]->alias->empty() &&
@@ -313,7 +313,7 @@ inline bool run() {
     const auto r = parse(
         "ANALYZE \"\"; REINDEX \"\"; VACUUM \"\"; ROLLBACK TRANSACTION \"\" TO "
         "SAVEPOINT \"\"; ALTER TABLE \"\".t ADD CONSTRAINT \"\" CHECK(1);");
-    const auto* root = r.value_as<ast::Script>();
+    const auto* root = r.valueAs<ast::Script>();
     if (root && root->statements.size() == 5) {
       const auto* a =
           cursiv::ast_cast<ast::AnalyzeStmt>(root->statements[0]->statement);
@@ -352,7 +352,7 @@ inline bool run() {
         language.language.validator->checkBind(*b, accept);
       if (const auto* j = cursiv::ast_cast<ast::JoinStep>(n))
         language.language.validator->checkJoin(*j, accept);
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           *n, [&](std::string_view, std::uint32_t, cursiv::AstNode& c) {
             walk(&c);
           });

@@ -34,7 +34,7 @@ inline bool run() {
                                "literal\n/* data */\n..dot\n.end\n.\n;";
     const auto result = parser->parse(source);
     check(result.accepted && !result.cst().recovered(), "multiline parse");
-    const auto *root = result.value_as<ast::Script>();
+    const auto *root = result.valueAs<ast::Script>();
     check(root && root->commands.size() == 1, "multiline command");
     const auto *args = root && root->commands.size() == 1
                            ? root->commands[0]->arguments
@@ -55,7 +55,7 @@ inline bool run() {
     const std::string source =
         "redirect \"a\\\"b\\\\c\\q\"; if size :over 18446744073709551615 {}";
     const auto result = parser->parse(source);
-    const auto *root = result.value_as<ast::Script>();
+    const auto *root = result.valueAs<ast::Script>();
     check(result.accepted && !result.cst().recovered() && root &&
               root->commands.size() == 2,
           "typed values parse");
@@ -78,7 +78,7 @@ inline bool run() {
   for (const std::string source :
        {"", "# comment\r hidden\n", "/* comment */"}) {
     const auto result = parser->parse(source);
-    const auto *root = result.value_as<ast::Script>();
+    const auto *root = result.valueAs<ast::Script>();
     check(result.accepted && !result.cst().recovered() && root &&
               root->commands.empty(),
           "empty script");

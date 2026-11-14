@@ -63,7 +63,7 @@ int main() {
         owned = false;
         return;
       }
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &n &&
                      result.cst().contains(n.cstNodeId, child.cstNodeId);

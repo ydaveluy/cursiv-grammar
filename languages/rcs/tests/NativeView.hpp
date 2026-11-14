@@ -1,4 +1,4 @@
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "rcs/ast.hpp"
 using J = cursiv::JsonValue;
 inline J hx(std::string_view s) {

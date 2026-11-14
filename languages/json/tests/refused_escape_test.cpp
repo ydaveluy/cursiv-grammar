@@ -23,7 +23,7 @@ void a_token_refused_in_its_middle_ends_at_its_closer() {
     CHECK(r.accepted);
     CHECK(r.diagnostics.size() == 1);
     for (const cursiv::ParseDiagnostic& d : r.diagnostics)
-      CHECK(d.kind == cursiv::DiagnosticKind::replaced && d.begin == begin &&
+      CHECK(d.kind == cursiv::DiagnosticKind::Replaced && d.begin == begin &&
             d.end == end);
   };
   one(R"({"path": "C:\users", "size": 12})", 9, 19);

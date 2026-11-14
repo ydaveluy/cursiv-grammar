@@ -46,7 +46,7 @@ inline bool run() {
     for (std::size_t i = 20; i < header.size(); ++i)
       header[i] = static_cast<char>(i * 71);
     const auto parsed = parser->parse(header);
-    const auto* value = parsed.value_as<ast::SegmentHeader>();
+    const auto* value = parsed.valueAs<ast::SegmentHeader>();
     check(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() &&
               value && value->options == std::string_view(header).substr(20),
           "TCP option bytes");

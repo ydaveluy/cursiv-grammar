@@ -54,7 +54,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* doc = r.value_as<pddl::ast::Document>();
+    const auto* doc = r.valueAs<pddl::ast::Document>();
     const auto* domain =
         doc ? std::get_if<pddl::ast::Domain*>(&doc->content) : nullptr;
     const auto* derived =
@@ -74,7 +74,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* doc = r.value_as<pddl::ast::Document>();
+    const auto* doc = r.valueAs<pddl::ast::Document>();
     const auto* domain =
         doc ? std::get_if<pddl::ast::Domain*>(&doc->content) : nullptr;
     const auto* action =

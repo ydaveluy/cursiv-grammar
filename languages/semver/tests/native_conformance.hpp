@@ -21,8 +21,8 @@ inline bool run() {
        "9007199254740993.0.1"}) {
     auto r = language.language.parser->parse(text);
     auto f = factory->parse(text);
-    const auto *v = r.value_as<semver::ast::Semver>();
-    const auto *w = f.value_as<semver::ast::Semver>();
+    const auto *v = r.valueAs<semver::ast::Semver>();
+    const auto *w = f.valueAs<semver::ast::Semver>();
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && v && v->core,
           "native positive parses cleanly");
     if (!v || !v->core) continue;
@@ -45,7 +45,7 @@ inline bool run() {
     std::unordered_set<const cursiv::AstNode *> seen;
     auto walk = [&](auto &&self, const cursiv::AstNode &n) -> void {
       check(seen.insert(&n).second, "unique AST ownership");
-      language.language.astReflection->visitMembers(n,
+      language.language.astReflection->visitProperties(n,
         [&](std::string_view, std::uint32_t, cursiv::AstNode &c) {
           check(c.parent == &n && r.cst().contains(n.cstNodeId, c.cstNodeId), "parent/CST containment");
           self(self, c);

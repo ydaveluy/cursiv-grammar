@@ -26,7 +26,7 @@ inline bool run() {
     std::function<void(const cursiv::AstNode*)> walk = [&](const auto* n) {
       if (!n) return;
       callback(n);
-      reflection->visitMembers(
+      reflection->visitProperties(
           *n, [&](std::string_view, std::uint32_t, cursiv::AstNode& c) {
             check(c.parent == n, "parent ownership");
             walk(&c);
@@ -128,7 +128,7 @@ line| 123456789012345678901234567890))
   };
   for (const char* source : cases) {
     const auto r = parse(source);
-    check(r.value_as<ast::Script>(), "script root");
+    check(r.valueAs<ast::Script>(), "script root");
     check(validate(source) == 0, "native valid script validates");
   }
   {
@@ -149,7 +149,7 @@ line| 123456789012345678901234567890))
     const auto r = parse(
         "(set-option :produce-models true) (set-option :verbosity 123) "
         "(set-option :regular-output-channel \"stdout\")");
-    const auto* d = r.value_as<ast::Script>();
+    const auto* d = r.valueAs<ast::Script>();
     check(d && d->commands.size() == 3, "three options");
     if (d && d->commands.size() == 3) {
       const auto* a = cursiv::ast_cast<ast::SetOptionCommand>(d->commands[0]);
@@ -174,7 +174,7 @@ line| 123456789012345678901234567890))
     const auto r = parse(
         "(declare-const a Int)\n; ignored\r(assert (= a 2))\n(assert (= a "
         "1))\n");
-    const auto* d = r.value_as<ast::Script>();
+    const auto* d = r.valueAs<ast::Script>();
     check(d && d->commands.size() == 2, "carriage return remains in comment");
   }
   {
@@ -187,7 +187,7 @@ line| 123456789012345678901234567890))
 (:name "Z3")
 true
 )smt");
-    const auto* d = r.value_as<ast::ResponseDoc>();
+    const auto* d = r.valueAs<ast::ResponseDoc>();
     check(d && d->responses.size() == 5, "five native solver responses");
     if (d && d->responses.size() == 5) {
       const auto* sat =
@@ -231,7 +231,7 @@ true
   {
     const auto r = parse(
         "success\nunsupported\n(error \"bad \"\"thing\"\"\")\n\"hello\"\n()\n");
-    const auto* d = r.value_as<ast::ResponseDoc>();
+    const auto* d = r.valueAs<ast::ResponseDoc>();
     check(d && d->responses.size() == 5, "general response stream");
     if (d && d->responses.size() == 5) {
       check(cursiv::ast_cast<ast::SuccessResponse>(d->responses[0]) &&
@@ -245,7 +245,7 @@ true
   }
   {
     const auto r = parse("(push) (pop) (push 2) (pop 2)");
-    const auto* d = r.value_as<ast::Script>();
+    const auto* d = r.valueAs<ast::Script>();
     check(d && d->commands.size() == 4, "default stack commands");
     if (d && d->commands.size() == 4) {
       const auto* a = cursiv::ast_cast<ast::PushCommand>(d->commands[0]);

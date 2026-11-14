@@ -120,7 +120,7 @@ int main() {
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty())
       return fail("CMU native property/representation example did not parse");
-    const auto* unit = result.value_as<acme::ast::CompUnit>();
+    const auto* unit = result.valueAs<acme::ast::CompUnit>();
     const auto* system = unit && unit->decls.size() == 1
         ? cursiv::ast_cast<acme::ast::SystemDecl>(unit->decls[0]) : nullptr;
     if (!system || system->members.size() != 3)

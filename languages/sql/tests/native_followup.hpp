@@ -30,7 +30,7 @@ inline bool run() {
           int(d.kind),std::size_t(d.begin),std::size_t(d.end),unsigned(d.element));
     return false;
   }
-  const auto* root = r.value_as<sqlite::ast::Script>();
+  const auto* root = r.valueAs<sqlite::ast::Script>();
   const auto* sel = root && root->statements.size()==3
       ? cursiv::ast_cast<sqlite::ast::Select>(root->statements[2]->statement) : nullptr;
   const auto* core = sel && !sel->parts.empty() ? sel->parts[0]->core : nullptr;
@@ -42,7 +42,7 @@ inline bool run() {
     return false;
   }
   const auto joined = parser.parse("SELECT j.a FROM (t1 JOIN t2 USING(a)) AS j;");
-  const auto* joinedRoot = joined.value_as<sqlite::ast::Script>();
+  const auto* joinedRoot = joined.valueAs<sqlite::ast::Script>();
   const auto* joinedSelect = joinedRoot && joinedRoot->statements.size()==1
       ? cursiv::ast_cast<sqlite::ast::Select>(joinedRoot->statements[0]->statement) : nullptr;
   const auto* first = joinedSelect && !joinedSelect->parts.empty() && joinedSelect->parts[0]->core->from
@@ -57,7 +57,7 @@ inline bool run() {
     std::fprintf(stderr,"sqlite native: PRAGMA nmnum keyword values retained\n");return false;
   }
   const auto attachment = parser.parse("ATTACH ':memory:' AS ('aux'||'1') KEY 'ignored'; DETACH ('aux'||'1');");
-  const auto* attachRoot = attachment.value_as<sqlite::ast::Script>();
+  const auto* attachRoot = attachment.valueAs<sqlite::ast::Script>();
   const auto* attach = attachRoot && attachRoot->statements.size()==2
       ? cursiv::ast_cast<sqlite::ast::AttachStmt>(attachRoot->statements[0]->statement) : nullptr;
   const auto* detach = attachRoot && attachRoot->statements.size()==2

@@ -35,7 +35,7 @@ int main() {
       std::fprintf(stderr, "audit regression: clean parse expected\n");
       return 1;
     }
-    const auto *document = audit_result.value_as<fasta::ast::Document>();
+    const auto *document = audit_result.valueAs<fasta::ast::Document>();
     const auto *header = document && !document->records.empty()
                              ? document->records[0]->description
                              : nullptr;

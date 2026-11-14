@@ -169,7 +169,7 @@ struct CSharp : cursiv::GrammarSpec {
                  lit<"\""> + option(Utf8Suffix)> {};
   struct RawDelimiter {};
   struct RAW_STRING
-      : terminal<through(mark<RawDelimiter>(repeat<3, cursiv::kUnbounded>(
+      : terminal<through(mark<RawDelimiter>(repeat<3, cursiv::GrammarSpec::kUnbounded>(
                       lit<"\"">)) + !lit<"\"">,
                   same<RawDelimiter> + !lit<"\"">)+option(Utf8Suffix)> {};
   struct VERBATIM_STRING

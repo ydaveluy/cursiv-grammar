@@ -16,7 +16,7 @@ bool parents(const Language &language, const cursiv::ParseResult &result) {
       valid = false;
       return;
     }
-    language.astReflection->visitMembers(
+    language.astReflection->visitProperties(
         node, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
           valid &= child.parent == &node &&
                    result.cst().contains(node.cstNodeId, child.cstNodeId);

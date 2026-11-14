@@ -78,7 +78,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
       const auto* node = work.back();
       work.pop_back();
       if (!seen.insert(node).second) { check(false, "unique ownership"); continue; }
-      services.astReflection->visitMembers(*node, [&](auto, auto, const auto& child) {
+      services.astReflection->visitProperties(*node, [&](auto, auto, const auto& child) {
         check(child.parent == node && node->cstNodeId < parsed.cst().size() &&
               child.cstNodeId < parsed.cst().size() &&
               parsed.cst().contains(node->cstNodeId, child.cstNodeId),

@@ -121,7 +121,7 @@ int main() {
     const bool invalid = source.starts_with("auto");
     auto document = language.shared->documentFactory->fromString(
         source, "file:///inference.c");
-    const auto* unit = document->parseResult.value_as<c::ast::TranslationUnit>();
+    const auto* unit = document->parseResult.valueAs<c::ast::TranslationUnit>();
     const auto* declaration = unit && !unit->items.empty()
                                   ? cursiv::ast_cast<c::ast::Declaration>(unit->items[0])
                                   : nullptr;

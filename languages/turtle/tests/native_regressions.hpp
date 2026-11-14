@@ -251,7 +251,7 @@ inline bool run() {
   for (const auto &c : cases) {
     const std::string source(c.source);
     const auto check = [&](const cursiv::ParseResult &r) {
-      const auto *doc = r.value_as<ast::Document>();
+      const auto *doc = r.valueAs<ast::Document>();
       if (r.cst().text() != source ||
           (!c.formFeed && (!r.accepted || r.cst().recovered() ||
                            !r.diagnostics.empty() || !doc)))
@@ -283,7 +283,7 @@ inline bool run() {
           owned &= captured(x->label);
         if (const auto *x = as<ast::RdfLiteral>(&n))
           owned &= captured(x->lang);
-        language.language.astReflection->visitMembers(
+        language.language.astReflection->visitProperties(
             n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
               owned &= child.parent == &n &&
                        r.cst().contains(n.cstNodeId, child.cstNodeId);

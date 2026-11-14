@@ -45,7 +45,7 @@ int prefix_ast_regression(const auto& language) {
       "fun f x = + x 1\nn = -2.5\n* (f n) - 4 2\n");
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
     return fail("prefix AST", "source does not parse clean");
-  const auto* model = result.template value_as<ast::Model>();
+  const auto* model = result.template valueAs<ast::Model>();
   if (!model || model->statements.size() != 2)
     return fail("prefix AST", "function and assignment not retained");
   const auto* fn = cursiv::ast_cast<ast::FnDef>(model->statements[0]);

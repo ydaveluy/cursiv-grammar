@@ -78,7 +78,7 @@ void accepted_and_refused_texts() {
 // every step.
 void named_and_bare_are_one_class() {
   cursiv::ParseResult r = build("(query [] N0:(Add w8 1 2))");
-  ast::Document* const doc = r.value_as<ast::Document>();
+  ast::Document* const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->units.size() == 1);
   ast::QueryCommand* const q = as<ast::QueryCommand>(doc->units[0]);
   CHECK(q != nullptr);
@@ -89,7 +89,7 @@ void named_and_bare_are_one_class() {
 
   cursiv::ParseResult bare = build("(query [] N0)");
   ast::QueryCommand* const q2 =
-      as<ast::QueryCommand>(bare.value_as<ast::Document>()->units[0]);
+      as<ast::QueryCommand>(bare.valueAs<ast::Document>()->units[0]);
   CHECK(q2 != nullptr && as<ast::VarRef>(q2->query) != nullptr &&
         as<ast::VarRef>(q2->query)->name == "N0");
 }
@@ -98,7 +98,7 @@ void array_declarations() {
   cursiv::ParseResult r = build(
       "array sym[4] : w32 -> w8 = symbolic\n"
       "array lit[3] : w32 -> w8 = [1 2 3]\n");
-  ast::Document* const doc = r.value_as<ast::Document>();
+  ast::Document* const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->units.size() == 2);
   ast::ArrayDecl* const sym = as<ast::ArrayDecl>(doc->units[0]);
   CHECK(sym != nullptr && sym->name == "sym" && sym->size == "4" &&
@@ -113,7 +113,7 @@ void update_chain() {
   cursiv::ParseResult r =
       build("(query [] (Read w8 0 U0:[1=2,0=3] @ base))");
   ast::QueryCommand* const q =
-      as<ast::QueryCommand>(r.value_as<ast::Document>()->units[0]);
+      as<ast::QueryCommand>(r.valueAs<ast::Document>()->units[0]);
   ast::ReadExpr* const read = q != nullptr ? as<ast::ReadExpr>(q->query) : nullptr;
   CHECK(read != nullptr && read->op == "Read" && read->width == "w8");
   ast::NamedExpr* const named = read != nullptr ? as<ast::NamedExpr>(read->array) : nullptr;
@@ -139,7 +139,7 @@ void corpus() {
     CHECK(r.accepted);
     CHECK(!r.cst().recovered());
     CHECK(r.diagnostics.empty());
-    ast::Document* const doc = r.value_as<ast::Document>();
+    ast::Document* const doc = r.valueAs<ast::Document>();
     CHECK(doc != nullptr && !doc->units.empty());
   }
 
@@ -149,7 +149,7 @@ void corpus() {
   const std::string text =
       read_file(std::string(CURSIV_EXAMPLE_DIR) + "/example/test6.kquery");
   const cursiv::ParseResult r = engine().parse(text);
-  ast::Document* const doc = r.value_as<ast::Document>();
+  ast::Document* const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->units.size() == 4);
   if (doc == nullptr || doc->units.size() != 4) return;
 
@@ -195,7 +195,7 @@ void operator_fixture() {
   CHECK(r.accepted);
   CHECK(!r.cst().recovered());
   CHECK(r.diagnostics.empty());
-  ast::Document* const doc = r.value_as<ast::Document>();
+  ast::Document* const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->units.size() == 2);
   if (doc == nullptr || doc->units.size() != 2) return;
 
@@ -246,7 +246,7 @@ void native_klee_forms() {
       "(query [(Eq (Not false) true) (Eq (Add true false) true)] false "
       "[(Concat w24 (w8 1) (w8 2) (w8 3)) (Concat w8 (w8 1)) "
       "(Extract 0 (w8 1)) (ZExt (w1 1)) (Select true false true)] [const-array])");
-  const auto* doc = r.value_as<ast::Document>();
+  const auto* doc = r.valueAs<ast::Document>();
   const auto* array = doc && doc->units.size() == 2 ? as<ast::ArrayDecl>(doc->units[0]) : nullptr;
   const auto* query = doc && doc->units.size() == 2 ? as<ast::QueryCommand>(doc->units[1]) : nullptr;
   CHECK(array && array->name == "const-array" && array->size.empty() &&

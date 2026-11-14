@@ -57,7 +57,7 @@ void every_example_parses_clean() {
                   r.diagnostics.size());
       ++cursiv::test::failures;
     }
-    if (r.value_as<ast::Document>() == nullptr) {
+    if (r.valueAs<ast::Document>() == nullptr) {
       std::printf("FAIL %s: root is not a Document\n",
                   entry.path().filename().string().c_str());
       ++cursiv::test::failures;
@@ -81,7 +81,7 @@ void field_values_of_one_document() {
   CHECK(!src.empty());
   const cursiv::ParseResult r = build(src);
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
-  const ast::Document* const doc = r.value_as<ast::Document>();
+  const ast::Document* const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr);
   if (doc == nullptr) return;
 
@@ -161,7 +161,7 @@ void blank_row_ends_the_instruction() {
   const cursiv::ParseResult r =
       build("L1\tTC\tFOO\n\tCAF\tZERO\n\t\nL2\tTC\tBAR\n");
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
-  const ast::Document* const doc = r.value_as<ast::Document>();
+  const ast::Document* const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr);
   if (doc == nullptr) return;
   CHECK(doc->lines.size() == 4);
@@ -183,7 +183,7 @@ void native_source_lines() {
                             "\t2CADR\tBAR\n\tTC\tFOO");
   CHECK(result.accepted && !result.cst().recovered() &&
         result.diagnostics.empty());
-  const auto* doc = result.value_as<ast::Document>();
+  const auto* doc = result.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->lines.size() == 4);
   if (!doc || doc->lines.size() != 4) return;
   const auto* include = line_as<ast::SourceInclude>(doc->lines[0]);

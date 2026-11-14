@@ -47,7 +47,7 @@ int main() {
            Case{"B0-323-01679-0/10027-7", "0323016790", "", "10027", "7"},
            Case{"B0-8044-2957-X/00001-0", "080442957X", "", "00001", "0"}}) {
     const auto result = language.language.parser->parse(test.source);
-    const auto* doc = result.value_as<pii::ast::Doc>();
+    const auto* doc = result.valueAs<pii::ast::Doc>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !doc || !doc->id ||
         doc->item != test.item || doc->check != test.check ||

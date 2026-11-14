@@ -113,7 +113,7 @@ static int audit_regression() {
     const auto r =
         parse("r\n F i=1:1:3,5,7:1:9 W i\n");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
-    const auto* doc = r.value_as<mumps::ast::Document>();
+    const auto* doc = r.valueAs<mumps::ast::Document>();
     const auto* line =
         doc && doc->lines.size() == 2
             ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[1])
@@ -130,7 +130,7 @@ static int audit_regression() {
   {
     const auto r = parse("r\n E TC\n");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return fail(("audit assertion line " + std::to_string(__LINE__)).c_str());
-    const auto* doc = r.value_as<mumps::ast::Document>();
+    const auto* doc = r.valueAs<mumps::ast::Document>();
     const auto* line =
         doc && doc->lines.size() == 2
             ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[1])
@@ -156,7 +156,7 @@ static int audit_regression() {
     const std::string source =
         "r\n D\n . . W 1&0!1\n100(%x) S %v=1'=2\n";
     const auto r = parse(source);
-    const auto* doc = r.value_as<mumps::ast::Document>();
+    const auto* doc = r.valueAs<mumps::ast::Document>();
     const auto* plainDo = doc && doc->lines.size() == 4
         ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[1]) : nullptr;
     const auto* call = plainDo && plainDo->commands.size() == 1
@@ -181,7 +181,7 @@ static int audit_regression() {
   {
     const auto r = parse(
         "r\n D  W 1\n I  W 2\n K  N\n K (a,b) N (a,b)\n I a=b,c=d W 1\n");
-    const auto* doc = r.value_as<mumps::ast::Document>();
+    const auto* doc = r.valueAs<mumps::ast::Document>();
     const auto* d = doc && doc->lines.size() == 6
         ? cursiv::ast_cast<mumps::ast::CodeLine>(doc->lines[1]) : nullptr;
     const auto* doCmd = d && d->commands.size() == 2

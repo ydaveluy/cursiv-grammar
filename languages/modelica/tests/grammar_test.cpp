@@ -48,7 +48,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* doc = r.value_as<modelica::ast::StoredDefinition>();
+    const auto* doc = r.valueAs<modelica::ast::StoredDefinition>();
     if (!doc || doc->classes.empty()) return 1;
     const auto* spec = cursiv::ast_cast<modelica::ast::LongClassSpec>(
         doc->classes[0]->def->specifier);

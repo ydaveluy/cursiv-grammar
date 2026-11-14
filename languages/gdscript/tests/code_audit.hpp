@@ -26,7 +26,7 @@ inline bool run() {
     check(result.accepted && !result.cst().recovered() &&
               result.diagnostics.empty(),
           "clean parse");
-    check(result.value_as<ast::Program>() != nullptr, "Program root");
+    check(result.valueAs<ast::Program>() != nullptr, "Program root");
     std::unordered_set<const cursiv::AstNode*> reached;
     std::function<void(const cursiv::AstNode*, const cursiv::AstNode*)> visit =
         [&](const auto* n, const auto* parent) {
@@ -36,7 +36,7 @@ inline bool run() {
             check(false, "unique ownership");
             return;
           }
-          language.language.astReflection->visitMembers(
+          language.language.astReflection->visitProperties(
               *n, [&](auto, auto, auto& child) { visit(&child, n); });
         };
     visit(result.value, nullptr);
@@ -59,7 +59,7 @@ inline bool run() {
   const std::string source =
       readFile(std::filesystem::path(CURSIV_TEST_DIR) / "native_features.gd");
   const auto result = parse(source);
-  const auto* program = result.value_as<ast::Program>();
+  const auto* program = result.valueAs<ast::Program>();
   auto method = [&](std::string_view name) -> const ast::MethodDecl* {
     if (program)
       for (const auto* item : program->body)
@@ -175,7 +175,7 @@ inline bool run() {
   {
     constexpr std::string_view text = "func f(): return 8.0 / 3 as int\n";
     const auto r = parse(text);
-    const auto* p = r.value_as<ast::Program>();
+    const auto* p = r.valueAs<ast::Program>();
     const auto* m = p && p->body.size() == 1
                         ? cursiv::ast_cast<ast::MethodDecl>(p->body[0])
                         : nullptr;
@@ -189,7 +189,7 @@ inline bool run() {
   for (std::string_view header : {"class_name InlineName extends Reference\n",
                                   "tool extends Reference\n"}) {
     const auto r = parse(header);
-    const auto* p = r.value_as<ast::Program>();
+    const auto* p = r.valueAs<ast::Program>();
     check(p && p->body.size() == 2 &&
               cursiv::ast_cast<ast::Inheritance>(p->body[1]),
           "inline class_name and tool keep the following extends declaration");
@@ -197,7 +197,7 @@ inline bool run() {
   }
   {
     const auto r = parse("static func f(): pass\n");
-    const auto* p = r.value_as<ast::Program>();
+    const auto* p = r.valueAs<ast::Program>();
     const auto* f = p && p->body.size() == 1
                         ? cursiv::ast_cast<ast::MethodDecl>(p->body[0])
                         : nullptr;

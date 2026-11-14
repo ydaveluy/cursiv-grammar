@@ -28,7 +28,7 @@ inline bool run(const auto& language) {
     std::unordered_set<const cursiv::AstNode*> seen;
     auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { valid = false; return; }
-      language.astReflection->visitMembers(node,
+      language.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             valid &= child.parent == &node &&
                      result.cst().contains(node.cstNodeId, child.cstNodeId);
@@ -137,7 +137,7 @@ inline bool run(const auto& language) {
   }
   for (const std::string_view text : {"", "\"", "\"\"", "\"\"\"", "text\"\"\"", "\nx\"\"\""}) {
     const auto result = elixir::heredoc_tail<"\"\"\"">(text);
-    check(!result && result.error.kind == cursiv::DiagnosticKind::conversion_error &&
+    check(!result && result.error.kind == cursiv::DiagnosticKind::ConversionError &&
           !result.error.message.empty(), "incomplete closing data-rule returns a conversion error", text);
   }
   for (const auto text : {std::string_view{"\n\"\"\""}, std::string_view{"\r\n \t\"\"\""}}) {

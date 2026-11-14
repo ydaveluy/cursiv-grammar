@@ -79,7 +79,7 @@ static int audit_regression() {
         "[deadbeef/44h/0h]xpub/*", "key/<0;1>/*"}) {
     const std::string source = "pk(" + std::string(key) + ")";
     const auto parse = language.language.parser->parse(source);
-    const auto* document = parse.value_as<miniscript::ast::Document>();
+    const auto* document = parse.valueAs<miniscript::ast::Document>();
     const auto* expression = document
         ? cursiv::ast_cast<miniscript::ast::KeyExpression>(document->expression)
         : nullptr;
@@ -93,7 +93,7 @@ static int audit_regression() {
     const std::string payload(wide ? 64 : 40, '0');
     const std::string source = std::string(op) + "(" + payload + ")";
     const auto parse = language.language.parser->parse(source);
-    const auto* document = parse.value_as<miniscript::ast::Document>();
+    const auto* document = parse.valueAs<miniscript::ast::Document>();
     const auto* expression = document
         ? cursiv::ast_cast<miniscript::ast::HashExpression>(document->expression)
         : nullptr;
@@ -109,7 +109,7 @@ static int audit_regression() {
         r.value == nullptr)
       return 1;
 
-    const auto* doc = r.value_as<miniscript::ast::Document>();
+    const auto* doc = r.valueAs<miniscript::ast::Document>();
     const auto* multi =
         doc ? cursiv::ast_cast<miniscript::ast::MultisigExpression>(
                   doc->expression)

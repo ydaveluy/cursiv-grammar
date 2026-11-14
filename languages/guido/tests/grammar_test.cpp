@@ -31,7 +31,7 @@ int main() {
   {
     const std::string source = R"GMN([s1:3\:5:*1/4.. {s2:7:,s6:0:} \title<"a\:b">])GMN";
     const auto parsed = language.language.parser->parse(source);
-    const auto* root = parsed.value_as<guido::ast::Prog>();
+    const auto* root = parsed.valueAs<guido::ast::Prog>();
     const auto* sequence = root && root->sequences.size() == 1 ? root->sequences[0] : nullptr;
     const auto* tab = sequence && sequence->items.size() == 3 ?
         cursiv::ast_cast<guido::ast::Tablature>(sequence->items[0]) : nullptr;

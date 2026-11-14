@@ -104,7 +104,7 @@ inline bool run(const cursiv::Parser& parser) {
       actual:calc(1px /* x */ + /* y */ 2px);
       comments:calc(1px/* x */+/* y */2px);
     })css");
-    const auto* sheet = result.value_as<Stylesheet>();
+    const auto* sheet = result.valueAs<Stylesheet>();
     const auto* rule = sheet && sheet->statements.size() == 1
         ? cursiv::ast_cast<Ruleset>(sheet->statements[0]) : nullptr;
     check(rule && rule->selectors && rule->selectors->selectors.size() == 2 &&
@@ -149,7 +149,7 @@ inline bool run(const cursiv::Parser& parser) {
       size:A4;
       @top-center {content:"Title";}
     })css");
-    const auto* sheet = result.value_as<Stylesheet>();
+    const auto* sheet = result.valueAs<Stylesheet>();
     const auto* page = sheet && sheet->statements.size() == 1
         ? cursiv::ast_cast<AtPage>(sheet->statements[0]) : nullptr;
     check(page && page->selectors.size() == 2 && page->declarations.size() == 1 &&
@@ -164,7 +164,7 @@ inline bool run(const cursiv::Parser& parser) {
   }
   for (const std::string_view source : {"@supports future(foo) {}", "@supports not(display:block) {}"}) {
     const auto result = parse(source);
-    const auto* sheet = result.value_as<Stylesheet>();
+    const auto* sheet = result.valueAs<Stylesheet>();
     const auto* supports = sheet && sheet->statements.size() == 1
         ? cursiv::ast_cast<AtSupports>(sheet->statements[0]) : nullptr;
     const auto* general = supports ? cursiv::ast_cast<SupportsGeneral>(supports->condition) : nullptr;
@@ -173,14 +173,14 @@ inline bool run(const cursiv::Parser& parser) {
   }
   {
     const auto result = parse("@mediaé(foo);");
-    const auto* sheet = result.value_as<Stylesheet>();
+    const auto* sheet = result.valueAs<Stylesheet>();
     const auto* unknown = sheet && sheet->statements.size() == 1
         ? cursiv::ast_cast<UnknownAtRule>(sheet->statements[0]) : nullptr;
     check(unknown && unknown->name == "@mediaé");
   }
   {
     const auto result = parse(R"css(@keyframes "slide" {from {opacity:0;} to {opacity:1;}})css");
-    const auto* sheet = result.value_as<Stylesheet>();
+    const auto* sheet = result.valueAs<Stylesheet>();
     const auto* frames = sheet && sheet->statements.size() == 1
         ? cursiv::ast_cast<AtKeyframes>(sheet->statements[0]) : nullptr;
     check(frames && frames->name == "slide" && frames->blocks.size() == 2);

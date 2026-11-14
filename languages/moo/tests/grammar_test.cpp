@@ -123,7 +123,7 @@ static int audit_regression() {
     const auto r = language.language.parser->parse(
         ";disabled client command\n@program o:v\nx=1; y=2;\n.");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return 1;
-    const auto* doc = r.value_as<moo::ast::Prog>();
+    const auto* doc = r.valueAs<moo::ast::Prog>();
     const auto* program =
         doc && doc->declarations.size() == 1
             ? cursiv::ast_cast<moo::ast::ProgramDecl>(doc->declarations[0])
@@ -158,7 +158,7 @@ x = {325.0, 325., 3.25e2, 0.325E3, .0325e+4, 32500e-2};
 s = "His name was \"Leroy\" and \\.";
 .)MOO";
     const auto result = language.language.parser->parse(source);
-    const auto *root = result.value_as<moo::ast::Prog>();
+    const auto *root = result.valueAs<moo::ast::Prog>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !root || root->declarations.size() != 1)
       return fail("native real literals and escaped quotes parse cleanly");

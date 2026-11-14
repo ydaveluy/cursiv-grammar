@@ -164,7 +164,7 @@ void GlslValidator::checkDirectives(const ast::TranslationUnit &n,
   const auto visit = [&](auto &&self, const cursiv::AstNode &node) -> void {
     if (const auto *d = cursiv::ast_cast<ast::RawDirective>(&node))
       directives.push_back(d);
-    services.astReflection->visitMembers(
+    services.astReflection->visitProperties(
         node, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
           self(self, child);
         });

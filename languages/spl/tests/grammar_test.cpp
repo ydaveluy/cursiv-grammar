@@ -102,7 +102,7 @@ void refused_texts() {
 // the wrong value passes every structural check alone.
 void field_values() {
   cursiv::ParseResult r = build("source=\"error.log\" status=404");
-  ast::Query* const q = r.value_as<ast::Query>();
+  ast::Query* const q = r.valueAs<ast::Query>();
   CHECK(q != nullptr && q->init != nullptr);
   if (q == nullptr || q->init == nullptr) return;
   CHECK(q->init->commandName.empty());
@@ -120,7 +120,7 @@ void field_values() {
   CHECK(v1 != nullptr && !v1->negative && v1->value == 404.0);
 
   cursiv::ParseResult p = build("index=web | timechart count by status");
-  ast::Query* const pq = p.value_as<ast::Query>();
+  ast::Query* const pq = p.valueAs<ast::Query>();
   CHECK(pq != nullptr && pq->pipeline.size() == 1);
   if (pq == nullptr || pq->pipeline.empty()) return;
   ast::NextCommand* const stage = pq->pipeline[0];
@@ -131,7 +131,7 @@ void field_values() {
   CHECK(by != nullptr && by->fields.size() == 1 && by->fields[0] == "status");
 
   cursiv::ParseResult g = build("index=web productID=*.html");
-  ast::Query* const gq = g.value_as<ast::Query>();
+  ast::Query* const gq = g.valueAs<ast::Query>();
   CHECK(gq != nullptr && gq->init != nullptr && gq->init->operations.size() == 2);
   ast::Comparison* const gc = as<ast::Comparison>(
       gq != nullptr && gq->init->operations.size() == 2 ? gq->init->operations[1]
@@ -144,7 +144,7 @@ void field_values() {
   CHECK(globName != nullptr && globName->name == ".html");
 
   cursiv::ParseResult j = build("index=web | join user [ search index=users ]");
-  ast::Query* const jq = j.value_as<ast::Query>();
+  ast::Query* const jq = j.valueAs<ast::Query>();
   CHECK(jq != nullptr && jq->pipeline.size() == 1);
   ast::NextCommand* const jstage = jq != nullptr ? jq->pipeline[0] : nullptr;
   CHECK(jstage != nullptr && jstage->subquery != nullptr);
@@ -157,7 +157,7 @@ void field_values() {
 // `(2/3)*4`, not `2/(3*4)`.
 void arithmetic_precedence() {
   cursiv::ParseResult r = build("search x=2/3*4");
-  ast::Query* const q = r.value_as<ast::Query>();
+  ast::Query* const q = r.valueAs<ast::Query>();
   CHECK(q != nullptr && q->init != nullptr && q->init->operations.size() == 1);
   if (q == nullptr || q->init == nullptr || q->init->operations.size() != 1)
     return;
@@ -195,7 +195,7 @@ void corpus() {
       ++cursiv::test::failures;
       continue;
     }
-    CHECK(r.value_as<ast::Query>() != nullptr);
+    CHECK(r.valueAs<ast::Query>() != nullptr);
   }
 }
 

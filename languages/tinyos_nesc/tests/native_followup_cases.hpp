@@ -25,7 +25,7 @@ template<class Language> bool run(const Language& language) {
   }
 })nc";
   const auto r = language.language.parser->parse(source);
-  const auto* root = r.template value_as<a::Document>();
+  const auto* root = r.template valueAs<a::Document>();
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && root, "native syntax shell/literals/conditions parse clean");
   if (!r.diagnostics.empty()) for (const auto& d : r.diagnostics)
     std::fprintf(stderr, "nesC kind=%u element=%u bytes=%u..%u\n", unsigned(d.kind), unsigned(d.element), d.begin, d.end);
@@ -51,7 +51,7 @@ template<class Language> bool run(const Language& language) {
     bool owned = true;
     auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; return; }
-      language.language.astReflection->visitMembers(node,
+      language.language.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             owned &= child.parent == &node && r.cst().contains(node.cstNodeId, child.cstNodeId);
             self(self, child);
@@ -61,7 +61,7 @@ template<class Language> bool run(const Language& language) {
     check(owned && seen.size() == r.nodes().size(), "complete AST ownership");
   }
   const auto q = language.language.parser->parse("interface Queue<t> { async command void push(t x); async event t done(); }");
-  const auto* d = q.template value_as<a::Document>();
+  const auto* d = q.template valueAs<a::Document>();
   const auto* i = d && d->components.size() == 1 ? cursiv::ast_cast<a::InterfaceDecl>(d->components[0]) : nullptr;
   check(q.accepted && !q.cst().recovered() && q.diagnostics.empty() && i && i->typeParameters.size() == 1 &&
         i->typeParameters[0] == "t" && i->members.size() == 2 && i->members[0]->isAsync && i->members[1]->isAsync && i->members[1]->isEvent,

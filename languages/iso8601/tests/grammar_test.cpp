@@ -46,7 +46,7 @@ void every_example_parses_clean() {
       ++cursiv::test::failures;
       continue;
     }
-    ast::Document *doc = r.value_as<ast::Document>();
+    ast::Document *doc = r.valueAs<ast::Document>();
     if (doc == nullptr) {
       std::printf("FAIL %s: no Document built\n",
                   path.filename().string().c_str());
@@ -62,7 +62,7 @@ ast::Document *parse_document(std::string_view text) {
   results.emplace_back(engine().parse(kept.back()));
   const cursiv::ParseResult &r = results.back();
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
-  return r.value_as<ast::Document>();
+  return r.valueAs<ast::Document>();
 }
 
 void calendar_date_extended_reads_back() {

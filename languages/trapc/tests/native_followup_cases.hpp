@@ -67,7 +67,7 @@ int f(void) { static_assert(1,"yes"); double h=0x1p2; unsigned char c=u8'a'; ret
   bool owned = true;
   auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
     if (!seen.insert(&node).second) { owned = false; return; }
-    language.language.astReflection->visitMembers(node,
+    language.language.astReflection->visitProperties(node,
         [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
           owned &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
           self(self, child);

@@ -37,7 +37,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* unit = r.value_as<objc::ast::TranslationUnit>();
+    const auto* unit = r.valueAs<objc::ast::TranslationUnit>();
     const auto* declaration =
         unit && unit->items.size() == 1
             ? cursiv::ast_cast<objc::ast::Declaration>(unit->items[0])

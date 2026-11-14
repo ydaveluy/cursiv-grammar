@@ -67,7 +67,7 @@ int main() {
 
   {
     const auto result = language.language.parser->parse("<a>::=[{(x|<b>)}]|\n<b>::=y");
-    const auto* doc = result.value_as<ebnf::ast::Document>();
+    const auto* doc = result.valueAs<ebnf::ast::Document>();
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !doc || doc->rules.size() != 2 || doc->rules[0]->lhs->name != "a" ||
         doc->rules[0]->alternatives.size() != 2 ||

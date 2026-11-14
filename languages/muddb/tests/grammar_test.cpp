@@ -40,14 +40,14 @@ void every_example_parses_clean() {
     const std::string text = read_example(name);
     const cursiv::ParseResult r = engine().parse(text);
     CHECK(r.accepted && !r.cst().recovered());
-    CHECK(r.value_as<ast::Db>() != nullptr);
+    CHECK(r.valueAs<ast::Db>() != nullptr);
   }
 }
 
 void minimal_dump_holds_its_two_rooms() {
   const std::string text = read_example("minimal.muddb");
   cursiv::ParseResult r = engine().parse(text);
-  ast::Db* db = r.value_as<ast::Db>();
+  ast::Db* db = r.valueAs<ast::Db>();
   CHECK(db != nullptr && db->rooms.size() == 2);
   if (db == nullptr || db->rooms.size() != 2) return;
 
@@ -72,7 +72,7 @@ void minimal_dump_holds_its_two_rooms() {
 void blank_fields_read_as_absent() {
   const std::string text = read_example("minimal.muddb");
   cursiv::ParseResult r = engine().parse(text);
-  ast::Db* db = r.value_as<ast::Db>();
+  ast::Db* db = r.valueAs<ast::Db>();
   CHECK(db != nullptr && !db->rooms.empty());
   if (db == nullptr || db->rooms.empty()) return;
 

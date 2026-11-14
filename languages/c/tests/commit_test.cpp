@@ -30,7 +30,7 @@ void inner_else(const cursiv::Parser& p) {
       p.parse("int f(int x) { if (x) if (x) x = 1; else x = 2; }");
   CHECK(r.accepted);
   CHECK(r.diagnostics.empty());
-  const auto* unit = r.value_as<c::ast::TranslationUnit>();
+  const auto* unit = r.valueAs<c::ast::TranslationUnit>();
   CHECK(unit != nullptr && unit->items.size() == 1);
   if (unit == nullptr || unit->items.size() != 1) return;
   const auto* fn = as<c::ast::FunctionDef>(unit->items[0], *reflection);

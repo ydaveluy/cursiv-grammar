@@ -56,7 +56,7 @@ template<class Language> bool run(const Language& language) {
   auto validate=[&](std::string_view text,std::string_view code,unsigned expected){
     cursiv::Document d(cursiv::TextDocument::create("file:///native-followup.vhd","vhdl",0,std::string(text)));
     d.language=&language.language;d.parseResult=parser.parse(d.textDocument().getText());
-    if(!d.parseSucceeded()||d.parseRecovered()||!d.parseResult.diagnostics.empty()){
+    if(!d.parseResult.accepted||d.parseRecovered()||!d.parseResult.diagnostics.empty()){
       std::fprintf(stderr,"vhdl validation fixture failed to parse: %.*s\n",int(text.size()),text.data());diagnostics(d.parseResult);return false;
     }
     if(d.parseResult.value)d.parseResult.value->parent=&d;

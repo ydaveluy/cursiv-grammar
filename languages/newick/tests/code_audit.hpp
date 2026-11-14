@@ -37,7 +37,7 @@ inline bool run() {
     auto r = language.language.parser->parse(source);
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
           "clean parse");
-    visit(r.value_as<ast::Clade>(), [&](const auto& n) {
+    visit(r.valueAs<ast::Clade>(), [&](const auto& n) {
       if (n.length)
         check(newick::length_value(*n.length).has_value(),
               "native valid branch length");
@@ -76,11 +76,11 @@ inline bool run() {
   };
   for (const char* source : cases) {
     const auto r = parse(source);
-    check(r.value_as<ast::Clade>(), "single tree root");
+    check(r.valueAs<ast::Clade>(), "single tree root");
   }
   {
     const auto r = parse("(A[a[b]c]B:1[x].2e[y]+3,'x''y':+2)root;");
-    const auto* n = r.value_as<ast::Clade>();
+    const auto* n = r.valueAs<ast::Clade>();
     check(n && n->children.size() == 2, "two clades");
     if (n && n->children.size() == 2)
       check(n->hasName && n->name == "root" && n->children[0]->name == "AB" &&
@@ -90,7 +90,7 @@ inline bool run() {
   }
   {
     const auto r = parse("('',)'';");
-    const auto* n = r.value_as<ast::Clade>();
+    const auto* n = r.valueAs<ast::Clade>();
     check(n && n->hasName && n->name.empty() && n->children.size() == 2,
           "explicit empty label");
     if (n && n->children.size() == 2)
@@ -100,7 +100,7 @@ inline bool run() {
   }
   {
     const auto r = parse("(A:1e1000,B:1e-1000,C:NaN,D:'1_000');");
-    const auto* n = r.value_as<ast::Clade>();
+    const auto* n = r.valueAs<ast::Clade>();
     check(n && n->children.size() == 4, "four lengths");
     if (n && n->children.size() == 4)
       check(n->children[0]->length == "1e1000" &&
@@ -121,7 +121,7 @@ inline bool run() {
   unsigned errors = 0;
   auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
   cursiv::ValidationAcceptor accept(sink, doc, invalid);
-  visit(doc.parseResult.value_as<ast::Clade>(), [&](const auto& n) {
+  visit(doc.parseResult.valueAs<ast::Clade>(), [&](const auto& n) {
     language.language.validator->checkClade(n, accept);
   });
   check(errors == 6, "precise runtime branch-length errors");

@@ -266,7 +266,7 @@ program demo; procedure p(procedure f); begin f; end; procedure q; begin end; be
         parents = false;
         return;
       }
-      services.astReflection->visitMembers(
+      services.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             parents &= child.parent == &n;
             self(self, child);

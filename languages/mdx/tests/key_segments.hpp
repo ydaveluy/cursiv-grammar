@@ -10,7 +10,7 @@ bool check_key_segments(const Language& language) {
   if (!parsed.accepted || parsed.cst().recovered() ||
       !parsed.diagnostics.empty())
     return false;
-  const auto* select = parsed.template value_as<ast::SelectStatement>();
+  const auto* select = parsed.template valueAs<ast::SelectStatement>();
   if (!select || select->axes.size() != 1) return false;
   const auto* set = cursiv::ast_cast<ast::SetExpr>(select->axes[0]->expr);
   if (!set || set->items.size() != 1) return false;
@@ -31,7 +31,7 @@ bool check_key_segments(const Language& language) {
   const auto ordinary =
       language.parser->parse("SELECT {[D].[a]]b]} ON 0 FROM [Cube]");
   const auto* ordinarySelect =
-      ordinary.template value_as<ast::SelectStatement>();
+      ordinary.template valueAs<ast::SelectStatement>();
   const auto* ordinarySet =
       ordinarySelect
           ? cursiv::ast_cast<ast::SetExpr>(ordinarySelect->axes[0]->expr)
@@ -44,7 +44,7 @@ bool check_key_segments(const Language& language) {
     return false;
   const auto rootKey =
       language.parser->parse("SELECT {&one&[two]} ON 0 FROM [Cube]");
-  const auto* rootSelect = rootKey.template value_as<ast::SelectStatement>();
+  const auto* rootSelect = rootKey.template valueAs<ast::SelectStatement>();
   const auto* rootSet =
       rootSelect ? cursiv::ast_cast<ast::SetExpr>(rootSelect->axes[0]->expr)
                  : nullptr;

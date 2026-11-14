@@ -22,8 +22,8 @@ struct Iso8601 : cursiv::GrammarSpec {
   struct Int2 : rule<repeat<2>(ref<Digit>)> {};
   struct Int3 : rule<repeat<3>(ref<Digit>)> {};
   struct Int4 : rule<repeat<4>(ref<Digit>)> {};
-  struct SInt2p : rule<cr<"+-"> + repeat<2, cursiv::kUnbounded>(ref<Digit>)> {};
-  struct SInt4p : rule<cr<"+-"> + repeat<4, cursiv::kUnbounded>(ref<Digit>)> {};
+  struct SInt2p : rule<cr<"+-"> + repeat<2, cursiv::GrammarSpec::kUnbounded>(ref<Digit>)> {};
+  struct SInt4p : rule<cr<"+-"> + repeat<4, cursiv::GrammarSpec::kUnbounded>(ref<Digit>)> {};
   struct Dec2 : rule<repeat<2>(ref<Digit>) + option(ref<Fraction>)> {};
 
   static constexpr auto YearNum = ref<Int4> | ref<SInt4p>;

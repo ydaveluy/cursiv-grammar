@@ -207,7 +207,7 @@ int main() {
   }
   {
     const auto result = language.language.parser->parse("WITH MEMBER [M] AS 2 SELECT {} ON AXIS(0) FROM (SELECT FROM Sales) WHERE a IS b:c^2 * 3");
-    const auto* q = result.value_as<mdx::ast::SelectStatement>();
+    const auto* q = result.valueAs<mdx::ast::SelectStatement>();
     const auto* mul = q ? cursiv::ast_cast<mdx::ast::BinaryExpr>(q->slicer) : nullptr;
     const auto* power = mul ? cursiv::ast_cast<mdx::ast::BinaryExpr>(mul->left) : nullptr;
     const auto* range = power ? cursiv::ast_cast<mdx::ast::BinaryExpr>(power->left) : nullptr;

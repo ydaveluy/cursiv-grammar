@@ -67,7 +67,7 @@ inline void run(const auto& language) {
     std::unordered_set<const cursiv::AstNode*> visited;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       CHECK(visited.insert(&node).second);
-      language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         CHECK(child.parent == &node);
         CHECK(parsed.cst().contains(node.cstNodeId, child.cstNodeId));
         if (!visited.contains(&child)) self(self, child);

@@ -305,7 +305,7 @@ struct Scala : cursiv::GrammarSpec {
   struct MultiStringQuotes
       : terminal<lit<"\""> + option(lit<"\"">) + !lit<"\"">> {};
   struct MultiStringClose
-      : terminal<as<drop_closer>(repeat<3, cursiv::kUnbounded>(lit<"\"">))> {};
+      : terminal<as<drop_closer>(repeat<3, cursiv::GrammarSpec::kUnbounded>(lit<"\"">))> {};
 
   struct StringShortHole
       : rule<create<ast::InterpolationPart>(

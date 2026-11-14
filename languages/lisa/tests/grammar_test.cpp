@@ -56,7 +56,7 @@ int main() {
   {
     const auto result = language.language.parser->parse(
         "declare{int x;}program{x= - //sign\n2; x=123456789012345678901234567890; x=2=3;}");
-    const auto* program = result.value_as<lisa::ast::Program>();
+    const auto* program = result.valueAs<lisa::ast::Program>();
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !program || program->statements.size() != 3)
       return fail("native-followup", "native signed/unbounded assignment forms");

@@ -117,7 +117,7 @@ int main() {
                      static_cast<int>(source.size()), source.data());
         return 1;
       }
-      const auto *unit = result.value_as<ast::TranslationUnit>();
+      const auto *unit = result.valueAs<ast::TranslationUnit>();
       const bool hasFunction = source.find("void") != std::string_view::npos;
       if (!unit || unit->items.size() != (hasFunction ? 2 : 1))
         return 1;

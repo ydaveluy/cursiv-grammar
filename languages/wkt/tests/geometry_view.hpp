@@ -1,5 +1,5 @@
 #pragma once
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "wkt/Dimensions.hpp"
 #include "wkt/Numbers.hpp"
 #include <algorithm>

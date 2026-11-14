@@ -19,7 +19,7 @@ inline bool native_followup(const cursiv::Parser &parser) {
                        {"1...2", "1", ".2", false},
                        {"b'A'..b'Z'", "b'A'", "b'Z'", false}}) {
     const auto r = parser.parse(c.text);
-    const auto *doc = r.value_as<ast::Document>();
+    const auto *doc = r.valueAs<ast::Document>();
     const auto *held = doc && doc->values.size() == 1
                            ? std::get_if<ast::Range *>(&doc->values[0]->payload)
                            : nullptr;

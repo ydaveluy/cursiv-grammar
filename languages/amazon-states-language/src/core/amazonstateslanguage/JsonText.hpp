@@ -76,7 +76,7 @@ inline auto json_string_value(std::string_view text) {
 // the same field. Spell each ASCII character once, with its JSON escape.
 template <cursiv::str Name, std::size_t I = 0>
 constexpr auto json_name_tail() {
-  if constexpr (I == Name.size()) return cursiv::lit<"\"">;
+  if constexpr (I == Name.size()) return cursiv::GrammarSpec::lit<"\"">;
   else {
     constexpr auto plain = [] {
       const char text[] = {Name[I], '\0'};
@@ -94,14 +94,14 @@ constexpr auto json_name_tail() {
                            digits[Name[I] & 15], '\0'};
       return cursiv::str{text};
     }();
-    return (cursiv::lit<plain> |
-            (cursiv::lit<"\\u"> + (cursiv::lit<hex> | cursiv::lit<hex_upper>))) +
+    return (cursiv::GrammarSpec::lit<plain> |
+            (cursiv::GrammarSpec::lit<"\\u"> + (cursiv::GrammarSpec::lit<hex> | cursiv::GrammarSpec::lit<hex_upper>))) +
            json_name_tail<Name, I + 1>();
   }
 }
 
 template <cursiv::str Name>
 inline constexpr auto json_name =
-    cursiv::as<json_string_value>(cursiv::lit<"\""> + json_name_tail<Name>());
+    cursiv::GrammarSpec::as<json_string_value>(cursiv::GrammarSpec::lit<"\""> + json_name_tail<Name>());
 
 }  // namespace amazonstateslanguage

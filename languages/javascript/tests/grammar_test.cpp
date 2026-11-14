@@ -69,7 +69,7 @@ export * from "b.json" with {type: "json"};
       "const \u1885 = 8; const \u1886 = 9; const a\u30FB = 10;"
       "const continued = \"a\\\r\nb\";";
   const auto trivia = parser.parse(unicode);
-  const auto *program = trivia.value_as<javascript::ast::Program>();
+  const auto *program = trivia.valueAs<javascript::ast::Program>();
   if (!trivia.accepted || trivia.cst().recovered() ||
       !trivia.diagnostics.empty() || !program || program->body.size() != 11)
     return fail("Unicode trivia or identifiers lost statements");
@@ -163,7 +163,7 @@ int main() {
     return n->type == &cursiv::ast_type_tag<javascript::ast::BinaryExpr>;
   };
   const auto topBinary = [](const cursiv::ParseResult &result) {
-    const auto *const program = result.value_as<javascript::ast::Program>();
+    const auto *const program = result.valueAs<javascript::ast::Program>();
     const auto *const stmt =
         static_cast<const javascript::ast::ExprStmt *>(program->body[0]);
     return static_cast<const javascript::ast::BinaryExpr *>(stmt->expression);

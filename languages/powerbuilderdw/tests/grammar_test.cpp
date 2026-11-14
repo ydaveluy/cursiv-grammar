@@ -140,7 +140,7 @@ int main() {
   {
     const std::string source=read_file(CURSIV_TEST_DIR "/vendor-external.srd");
     const auto r=language.language.parser->parse(source);
-    const auto* p=r.value_as<powerbuilderdw::ast::Document>();
+    const auto* p=r.valueAs<powerbuilderdw::ast::Document>();
     if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!p||p->headerLines.size()!=1||!p->release||*p->release!=19)
       return fail("official mixed-case release19 DataWindow export rejected");
   }
@@ -150,7 +150,7 @@ int main() {
       "datawindow(units=0) table(arguments = ((\"arg_name\", string list),(\"id\", number)) "
       "column=(type=decimal(10) name=id) retrieve=\"select id\" update=\"t\") "
       "data(9007199254740993,12345678901234.5678901234,-1,) text(text='~~' name=next) ");
-    const auto* p=r.value_as<powerbuilderdw::ast::Document>();
+    const auto* p=r.valueAs<powerbuilderdw::ast::Document>();
     const auto* table=p&&p->properties.size()==4?cursiv::ast_cast<powerbuilderdw::ast::TableProperty>(p->properties[1]):nullptr;
     const auto* data=p&&p->properties.size()==4?cursiv::ast_cast<powerbuilderdw::ast::AttrProperty>(p->properties[2]):nullptr;
     const auto* text=p&&p->properties.size()==4?cursiv::ast_cast<powerbuilderdw::ast::AttrProperty>(p->properties[3]):nullptr;

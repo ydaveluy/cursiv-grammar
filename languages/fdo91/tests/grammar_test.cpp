@@ -32,7 +32,7 @@ int main() {
 
   {
     const auto parsed = language.language.parser->parse("atom$de_set_data_type 1");
-    const auto* doc = parsed.value_as<fdo91::ast::Doc>();
+    const auto* doc = parsed.valueAs<fdo91::ast::Doc>();
     const auto* atom = doc && doc->atoms.size() == 1 ? doc->atoms[0] : nullptr;
     const auto* value = atom && atom->args.size() == 1
         ? std::get_if<fdo91::ast::Number*>(&atom->args[0]) : nullptr;

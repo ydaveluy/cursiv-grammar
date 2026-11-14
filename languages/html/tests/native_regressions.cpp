@@ -4,7 +4,7 @@
 #include <vector>
 #include "cursiv/parser/Parser.hpp"
 #include "cursiv/services/CoreLanguage.hpp"
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "cursiv/ValidationHelper.hpp"
 #include "cursiv/ValidationResult.hpp"
 #include "html/CoreServices.hpp"
@@ -90,7 +90,7 @@ int main(){
   {"p-search","<div><p>a<search>b</search></div>","[{\"attrs\":[],\"children\":[{\"attrs\":[],\"children\":[{\"kind\":\"text\",\"text\":\"a\"}],\"kind\":\"element\",\"name\":\"p\"},{\"attrs\":[],\"children\":[{\"kind\":\"text\",\"text\":\"b\"}],\"kind\":\"element\",\"name\":\"search\"}],\"kind\":\"element\",\"name\":\"div\"}]"},
  };
  for(const auto&c:cases){
-  const auto result=language.language.parser->parse(c.text);const auto*doc=result.value_as<html::ast::Document>();
+  const auto result=language.language.parser->parse(c.text);const auto*doc=result.valueAs<html::ast::Document>();
   J::Array children;bool parents=doc!=nullptr;
   if(doc)for(const auto&item:doc->content)children.push_back(project(item,doc,parents));
   const auto actual=J(std::move(children)).toJsonString({.pretty=false});

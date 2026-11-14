@@ -11,7 +11,7 @@
 
 #include "cursiv/parser/Parser.hpp"
 #include "cursiv/services/CoreLanguage.hpp"
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "cursiv/syntax-tree/AstReflection.hpp"
 #include "cursiv/ValidationHelper.hpp"
 #include "native_cases.hpp"
@@ -357,7 +357,7 @@ inline int native_regressions() {
       return failed(c.name, "expected clean parse");
     if (result.cst().text() != source)
       return failed(c.name, "CST source changed");
-    const auto *doc = result.value_as<ast::Document>();
+    const auto *doc = result.valueAs<ast::Document>();
     if (c.requireClean && !doc)
       return failed(c.name, "missing Document");
     bool owned = !result.value || !result.value->parent;
@@ -384,7 +384,7 @@ inline int native_regressions() {
         owned &= captured(x->timestamp) && captured(x->value);
       if (const auto *x = cursiv::ast_cast<ast::Constraint>(&n))
         owned &= captured(x->num1) && captured(x->num2);
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &n &&
                      result.cst().contains(n.cstNodeId, child.cstNodeId);

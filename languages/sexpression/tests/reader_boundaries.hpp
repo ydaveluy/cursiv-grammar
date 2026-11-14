@@ -43,7 +43,7 @@ inline void run(const auto& language) {
     if (valid != test.valid) std::fprintf(stderr, "reader boundary: %s\n", test.source);
     CHECK(valid == test.valid);
     if (!test.valid) continue;
-    const auto* root = parsed.template value_as<ast::Sexpr>();
+    const auto* root = parsed.template valueAs<ast::Sexpr>();
     CHECK(root && root->items.size() == test.forms);
     if (!root) continue;
     for (const auto* item : root->items) {
@@ -55,7 +55,7 @@ inline void run(const auto& language) {
   {
     const std::string source = "#<<\nbody\n\n42";
     const auto parsed = language.parser->parse(source);
-    const auto* root = parsed.template value_as<ast::Sexpr>();
+    const auto* root = parsed.template valueAs<ast::Sexpr>();
     CHECK(parsed.accepted && !parsed.cst().recovered() && root && root->items.size() == 2);
     const auto* value = root && !root->items.empty() ? cursiv::ast_cast<ast::String>(root->items[0]) : nullptr;
     CHECK(value && value->text == "#<<\nbody\n" && value->parent == root);

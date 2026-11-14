@@ -17,7 +17,7 @@ template <class Language> bool run(const Language& language) {
   bool ok = true;
   for (const auto& test : cases) {
     const auto parsed = parser.parse(test.source);
-    const auto* root = parsed.template value_as<ast::Pcre>();
+    const auto* root = parsed.template valueAs<ast::Pcre>();
     std::string literals;
     unsigned options = 0, groups = 0, classes = 0, quantified = 0;
     bool parents = true;
@@ -84,7 +84,7 @@ template <class Language> bool run(const Language& language) {
   // Scoped flag captures and standalone spelling must survive mode selection.
   {
     const auto result = parser.parse("(?x)(?xx-i:a b)(?-xx:c d)(?^xx:e f)");
-    const auto* root = result.template value_as<ast::Pcre>();
+    const auto* root = result.template valueAs<ast::Pcre>();
     const auto* seq = root && root->pattern && root->pattern->branches.size() == 1
         ? root->pattern->branches[0] : nullptr;
     const auto* first = seq && seq->items.size() == 4
@@ -103,7 +103,7 @@ template <class Language> bool run(const Language& language) {
   }
   {
     const auto result = parser.parse("(?x)(?xx)(?-x)(?^)(?)");
-    const auto* root = result.template value_as<ast::Pcre>();
+    const auto* root = result.template valueAs<ast::Pcre>();
     const auto* seq = root && root->pattern && root->pattern->branches.size() == 1
         ? root->pattern->branches[0] : nullptr;
     constexpr std::string_view spellings[] = {"x", "xx", "-x", "^", ""};

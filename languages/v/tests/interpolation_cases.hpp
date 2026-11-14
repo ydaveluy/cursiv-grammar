@@ -148,7 +148,7 @@ bool tree(const Language& language, const cursiv::ParseResult& result,
       dump("node", &node); std::fputc('\n', stderr);
       valid = false; return;
     }
-    language.astReflection->visitMembers(node,
+    language.astReflection->visitProperties(node,
         [&](std::string_view member, std::uint32_t index, cursiv::AstNode& child) {
           const bool parents = child.parent == &node;
           const bool contains = result.cst().contains(node.cstNodeId, child.cstNodeId);

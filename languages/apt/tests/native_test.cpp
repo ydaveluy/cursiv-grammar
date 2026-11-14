@@ -24,7 +24,7 @@ int main() {
     std::ifstream f(std::string(CURSIV_TEST_DIR) + "/native-cases/" + std::string(c.file));
     const std::string source((std::istreambuf_iterator<char>(f)), {});
     const auto result = language.language.parser->parse(source);
-    const auto* doc = result.value_as<apt::ast::Document>();
+    const auto* doc = result.valueAs<apt::ast::Document>();
     if (!doc || !result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || result.cst().text() != source || doc->records.size() != 1)
       return fail("parse/source/record count");
@@ -53,7 +53,7 @@ int main() {
     std::unordered_set<const cursiv::AstNode*> seen;
     auto walk = [&](auto&& self, const cursiv::AstNode& n) -> void {
       if (!seen.insert(&n).second) { owned = false; return; }
-      language.language.astReflection->visitMembers(n,
+      language.language.astReflection->visitProperties(n,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             owned &= child.parent == &n && result.cst().contains(n.cstNodeId, child.cstNodeId);
             self(self, child);

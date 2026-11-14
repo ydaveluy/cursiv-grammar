@@ -48,7 +48,7 @@ inline bool odin_native_followup(const cursiv::Parser& parser) {
         "package p\na := make([]u32, count)\nb := make(map[string]int)\n"
         "c := make([dynamic]^thread.Thread, 0)\n"
         "d := len(#sparse[Foo]int)\n");
-    const auto* root = types.value_as<ast::Unit>();
+    const auto* root = types.valueAs<ast::Unit>();
     if (!types.accepted || types.cst().recovered() || !types.diagnostics.empty() ||
         !root || root->items.size() != 4) return false;
     for (std::size_t i = 0; i < 4; ++i) {

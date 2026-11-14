@@ -206,7 +206,7 @@ static int audit_regression() {
         r.value == nullptr)
       return 1;
 
-    const auto* script = r.value_as<cypher::ast::Script>();
+    const auto* script = r.valueAs<cypher::ast::Script>();
     if (!script) return 1;
     const auto* query = std::get_if<cypher::ast::RegularQuery*>(&script->query);
     if (!query || !*query || !(*query)->first || (*query)->first->parts.empty())

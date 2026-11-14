@@ -226,7 +226,7 @@ value`;
   spawn (f[int](1));
 }
 )LIMBO");
-    const auto* root = result.value_as<ast::Program>();
+    const auto* root = result.valueAs<ast::Program>();
     bool generic = false, constraints = false, raises = false, handler = false;
     bool character = false, based = false, real = false, channel = false, send = false;
     bool power = false, slice = false, exports = false, spawn = false, labels = false, initializerKeys = false;
@@ -256,7 +256,7 @@ value`;
     bool owned = true;
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!reached.insert(&node).second) { owned = false; return; }
-      language.language.astReflection->visitMembers(node, [&](auto, auto, auto& child) {
+      language.language.astReflection->visitProperties(node, [&](auto, auto, auto& child) {
         owned &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });

@@ -92,7 +92,7 @@ int main() {
   // refuses, would not fail any check above -- diagnostics is where it
   // shows, and this walk is where a wrong value shows.
   const ast::RootNamespace* root =
-      docs[1].result.value_as<ast::RootNamespace>();
+      docs[1].result.valueAs<ast::RootNamespace>();
   CHECK(root != nullptr);
   if (root != nullptr) {
     const ast::Element* pkg = find(root->members, "ToasterSystem");

@@ -15,24 +15,24 @@ inline constexpr auto keepText = [](std::string_view t) { return t; };
 
 template <auto SuffixM, auto GreedyM, class Question, class Star, class Plus>
 constexpr auto ebnfSuffix() {
-  return cursiv::option(
-      cursiv::assign<SuffixM>(cursiv::ref<Question> | cursiv::ref<Star> |
-                              cursiv::ref<Plus>) +
-      cursiv::option(cursiv::flag<GreedyM>(cursiv::lit<"?">)));
+  return cursiv::GrammarSpec::option(
+      cursiv::GrammarSpec::assign<SuffixM>(cursiv::GrammarSpec::ref<Question> | cursiv::GrammarSpec::ref<Star> |
+                              cursiv::GrammarSpec::ref<Plus>) +
+      cursiv::GrammarSpec::option(cursiv::GrammarSpec::flag<GreedyM>(cursiv::GrammarSpec::lit<"?">)));
 }
 
 template <auto M, class OptionText> constexpr auto elementOptions() {
-  return cursiv::option(
-      cursiv::lit<"<"> +
-      cursiv::option(cursiv::some(cursiv::append<M>(cursiv::ref<OptionText>),
-                                  cursiv::lit<",">)) +
-      cursiv::lit<">">);
+  return cursiv::GrammarSpec::option(
+      cursiv::GrammarSpec::lit<"<"> +
+      cursiv::GrammarSpec::option(cursiv::GrammarSpec::some(cursiv::GrammarSpec::append<M>(cursiv::GrammarSpec::ref<OptionText>),
+                                  cursiv::GrammarSpec::lit<",">)) +
+      cursiv::GrammarSpec::lit<">">);
 }
 
 template <auto M, class OptionsKw, class Decl> constexpr auto optionsBlock() {
-  return cursiv::ref<OptionsKw> +
-         cursiv::many(cursiv::append<M>(cursiv::ref<Decl>) + cursiv::lit<";">) +
-         cursiv::lit<"}">;
+  return cursiv::GrammarSpec::ref<OptionsKw> +
+         cursiv::GrammarSpec::many(cursiv::GrammarSpec::append<M>(cursiv::GrammarSpec::ref<Decl>) + cursiv::GrammarSpec::lit<";">) +
+         cursiv::GrammarSpec::lit<"}">;
 }
 
 struct Antlr : cursiv::GrammarSpec {

@@ -8,7 +8,7 @@ namespace trac_native_followup {
 template<class Language> bool run(const Language& language) {
   namespace a = trac::ast;
   const auto r = language.language.parser->parse("#(ps,(#(rs)),#(rs),two words)");
-  const auto* root = r.template value_as<a::Program>();
+  const auto* root = r.template valueAs<a::Program>();
   if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || !root || root->macros.size() != 1) return false;
   const auto* active = cursiv::ast_cast<a::Active>(root->macros[0]);
   if (!active || active->name != "ps" || active->args.size() != 3 || !active->args[0]->quoted || active->args[1]->quoted || active->args[2]->quoted) return false;
@@ -23,7 +23,7 @@ template<class Language> bool run(const Language& language) {
   bool owned = true;
   auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
     if (!seen.insert(&node).second) { owned = false; return; }
-    language.language.astReflection->visitMembers(node,
+    language.language.astReflection->visitProperties(node,
         [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
           owned &= child.parent == &node && r.cst().contains(node.cstNodeId, child.cstNodeId);
           self(self, child);

@@ -312,7 +312,7 @@ inline bool run(const lolcode::LolcodeCoreServices& services) {
         return;
       }
       check(node.cstNodeId < parsed.cst().size(), test.name, "node CST span");
-      services.astReflection->visitMembers(node, [&](auto, auto, auto& child) {
+      services.astReflection->visitProperties(node, [&](auto, auto, auto& child) {
         check(child.parent == &node, test.name, "exact member parent");
         check(node.cstNodeId < parsed.cst().size() &&
                   child.cstNodeId < parsed.cst().size() &&
@@ -328,7 +328,7 @@ inline bool run(const lolcode::LolcodeCoreServices& services) {
     check(seen.size() == parsed.nodes().size(), test.name,
           "every allocated node reachable exactly once");
 
-    const auto* program = parsed.value_as<a::Program>();
+    const auto* program = parsed.valueAs<a::Program>();
     check(program != nullptr, test.name, "typed Program");
     const a::SwitchStmt* first = nullptr;
     unsigned switches = 0;
@@ -399,7 +399,7 @@ inline bool run(const lolcode::LolcodeCoreServices& services) {
   const std::string precise =
       "HAI 1.2\nWTF?\nOMG 9007199254740992\nOMG 9007199254740993\nOIC\nKTHXBYE\n";
   const auto parsed = services.parser->parse(precise);
-  const auto* program = parsed.value_as<a::Program>();
+  const auto* program = parsed.valueAs<a::Program>();
   const auto* statement = program && program->statements.size() == 1
       ? cursiv::ast_cast<a::SwitchStmt>(program->statements[0]) : nullptr;
   check(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() &&
@@ -415,7 +415,7 @@ inline bool run(const lolcode::LolcodeCoreServices& services) {
   // not claim that any particular recovery path supplies them at runtime.
   for (std::string_view text : {"", "\"", "a", "abc", "\"a", "a\"", "'a'"}) {
     const auto result = lolcode::unquote(text);
-    check(!result && result.error.kind == cursiv::DiagnosticKind::conversion_error &&
+    check(!result && result.error.kind == cursiv::DiagnosticKind::ConversionError &&
               !result.error.message.empty(),
           "unquote-direct", "malformed fragment returns conversion_error");
   }

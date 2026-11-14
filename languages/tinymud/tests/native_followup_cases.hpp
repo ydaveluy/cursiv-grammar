@@ -37,7 +37,7 @@ QUIT
 )mud";
   const auto v = cursiv::test::validationHelper(language.language, std::string(source));
   const auto& r = v.document->parseResult;
-  const auto* root = r.template value_as<a::Session>();
+  const auto* root = r.template valueAs<a::Session>();
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && v.diagnostics.empty() && root && root->lines.size() == 16,
         "native punctuation/refs/flags/defaults and blank lines parse and validate clean");
   if (!r.diagnostics.empty()) for (const auto& d : r.diagnostics)
@@ -73,7 +73,7 @@ QUIT
     bool owned = true;
     auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; return; }
-      language.language.astReflection->visitMembers(node,
+      language.language.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             owned &= child.parent == &node && r.cst().contains(node.cstNodeId, child.cstNodeId);
             self(self, child);

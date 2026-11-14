@@ -81,7 +81,7 @@ int main() {
     const cursiv::ParseResult result = language.language.parser->parse(text);
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("f1.zig does not parse clean");
-    const auto* const root = result.value_as<zig::ast::ContainerMembers>();
+    const auto* const root = result.valueAs<zig::ast::ContainerMembers>();
     if (root == nullptr || root->members.size() != 3)
       return fail("f1.zig does not hold the three declarations it wrote");
     const auto* const first =
@@ -107,7 +107,7 @@ int main() {
     const std::string text = read_file(
         std::filesystem::path(CURSIV_EXAMPLE_DIR) / "f2.zig");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto* const root = result.value_as<zig::ast::ContainerMembers>();
+    const auto* const root = result.valueAs<zig::ast::ContainerMembers>();
     const auto* const main = root == nullptr || root->members.empty()
                                  ? nullptr
                                  : static_cast<const zig::ast::Decl*>(root->members[0]);
@@ -138,7 +138,7 @@ int main() {
   {
     const cursiv::ParseResult result = language.language.parser->parse(
         "const y = if (a) b else c + 1;");
-    const auto* const root = result.value_as<zig::ast::ContainerMembers>();
+    const auto* const root = result.valueAs<zig::ast::ContainerMembers>();
     if (result.cst().recovered() || !result.diagnostics.empty() ||
         root == nullptr || root->members.size() != 1)
       return fail("the if-expression document does not parse clean");

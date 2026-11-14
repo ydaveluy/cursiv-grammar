@@ -126,7 +126,7 @@ int main() {
 
   {
     const auto result = language.language.parser->parse("fd 123456789012345678901234567890\n");
-    const auto* p = result.value_as<ast::Program>();
+    const auto* p = result.valueAs<ast::Program>();
     const auto* line = p && p->lines.size() == 1 ? as<ast::CommandLine>(p->lines[0]) : nullptr;
     const auto* forward = line && line->commands.size() == 1 ? as<ast::ForwardCmd>(line->commands[0]) : nullptr;
     const auto* number = forward ? as<ast::NumberLiteral>(forward->distance) : nullptr;

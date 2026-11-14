@@ -33,7 +33,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* doc = r.value_as<recfile::ast::Document>();
+    const auto* doc = r.valueAs<recfile::ast::Document>();
     if (!doc || doc->entries.size() != 2 ||
         !std::holds_alternative<recfile::ast::Record*>(
             doc->entries[0]) ||

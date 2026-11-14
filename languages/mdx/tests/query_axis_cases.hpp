@@ -48,7 +48,7 @@ inline bool run(const auto& services) {
       return false;
     }
     if (!clean) continue;
-    const auto* root = r.template value_as<mdx::ast::SelectStatement>();
+    const auto* root = r.template valueAs<mdx::ast::SelectStatement>();
     if (!root || root->parent != v.document.get() || root->axes.empty()) {
       std::fprintf(stderr, "mdx query axes: %s root/Document/axes lost\n", test.id);
       return false;
@@ -67,7 +67,7 @@ inline bool run(const auto& services) {
     };
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; describe("duplicate", node); return; }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view member, std::uint32_t index, cursiv::AstNode& child) {
             const bool parent = child.parent == &node;
             const bool contained = node.cstNodeId < r.cst().size() && child.cstNodeId < r.cst().size() &&

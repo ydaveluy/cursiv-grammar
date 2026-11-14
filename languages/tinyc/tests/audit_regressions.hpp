@@ -74,7 +74,7 @@ inline void run() {
     const auto comparison = language.language.parser->parse("a+b<c-d;");
     CHECK(comparison.accepted && !comparison.cst().recovered() &&
           comparison.diagnostics.empty());
-    const auto* root = comparison.value_as<ast::Program>();
+    const auto* root = comparison.valueAs<ast::Program>();
     const auto* statement = root && root->statements.size() == 1
         ? cursiv::ast_cast<ast::ExprStmt>(root->statements[0]) : nullptr;
     const auto* less = statement ? cursiv::ast_cast<ast::BinaryExpr>(statement->value) : nullptr;

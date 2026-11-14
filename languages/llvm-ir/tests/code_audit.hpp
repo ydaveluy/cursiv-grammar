@@ -27,7 +27,7 @@ inline bool run() {
     check(result.accepted && !result.cst().recovered() &&
               result.diagnostics.empty(),
           "clean parse");
-    check(result.value_as<ast::Module>() != nullptr, "Module root");
+    check(result.valueAs<ast::Module>() != nullptr, "Module root");
     std::unordered_set<const cursiv::AstNode*> reached;
     std::function<void(const cursiv::AstNode*, const cursiv::AstNode*)> visit =
         [&](const auto* n, const auto* parent) {
@@ -37,7 +37,7 @@ inline bool run() {
             check(false, "unique ownership");
             return;
           }
-          language.language.astReflection->visitMembers(
+          language.language.astReflection->visitProperties(
               *n, [&](auto, auto, auto& child) { visit(&child, n); });
         };
     visit(result.value, nullptr);
@@ -60,7 +60,7 @@ inline bool run() {
   const std::string source =
       read_file(std::filesystem::path(CURSIV_TEST_DIR) / "native_features.ll");
   const auto result = parse(source);
-  const auto* module = result.value_as<ast::Module>();
+  const auto* module = result.valueAs<ast::Module>();
   const ast::FuncDef *features = nullptr, *debug = nullptr, *splat = nullptr;
   const ast::IndirectSymbol *alias = nullptr, *ifunc = nullptr;
   const ast::GlobalVar *raw = nullptr, *auth = nullptr;
@@ -207,7 +207,7 @@ inline bool run() {
     const auto summary_source =
         read_file(std::filesystem::path(CURSIV_TEST_DIR) / "native_summary.ll");
     const auto r = parse(summary_source);
-    const auto* m = r.value_as<ast::Module>();
+    const auto* m = r.valueAs<ast::Module>();
     check(m && m->entities.size() == 4, "every ThinLTO definition retained");
     if (m && m->entities.size() == 4) {
       const auto* gv = cursiv::ast_cast<ast::SummaryEntry>(m->entities[1]);

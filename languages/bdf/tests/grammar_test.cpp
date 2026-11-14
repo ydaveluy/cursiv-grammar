@@ -68,7 +68,7 @@ int main() {
     auto document = language.shared->documentFactory->fromString(
         source, "file:///vertical.bdf");
     const auto& result = document->parseResult;
-    const auto* font = result.value_as<bdf::ast::Font>();
+    const auto* font = result.valueAs<bdf::ast::Font>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !font)
       return fail("native-vertical", "BDF 2.2 vertical metrics need repair");

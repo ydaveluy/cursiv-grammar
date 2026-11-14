@@ -30,7 +30,7 @@ inline void dgs_regressions() {
   {
     const std::string source = "DGS004\nh\nan n text:.5 plus:+12 real:-.5\nst +Infinity\n";
     const auto result = services.parser->parse(source);
-    const auto* root = result.value_as<ast::Document>();
+    const auto* root = result.valueAs<ast::Document>();
     const auto* add = root && root->events.size() == 2 ? cursiv::ast_cast<ast::AddNode>(root->events[0]) : nullptr;
     CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
     CHECK(add && add->attributes.size() == 3);

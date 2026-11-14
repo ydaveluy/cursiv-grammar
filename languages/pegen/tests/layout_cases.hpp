@@ -48,7 +48,7 @@ inline void run(const auto& language) {
     if (valid != test.valid) std::fprintf(stderr, "pegen layout: %s\n", test.source);
     CHECK(valid == test.valid);
     if (!valid || !test.valid) continue;
-    const auto* grammar = result.template value_as<pegen::ast::Grammar>();
+    const auto* grammar = result.template valueAs<pegen::ast::Grammar>();
     CHECK(grammar && grammar->rules.size() == test.alternatives.size());
     if (!grammar || grammar->rules.size() != test.alternatives.size()) continue;
     for (std::size_t i = 0; i < grammar->rules.size(); ++i) {
@@ -58,7 +58,7 @@ inline void run(const auto& language) {
     std::unordered_set<const cursiv::AstNode*> visited;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       CHECK(visited.insert(&node).second);
-      language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         CHECK(child.parent == &node);
         CHECK(result.cst().contains(node.cstNodeId, child.cstNodeId));
         if (!visited.contains(&child)) self(self, child);

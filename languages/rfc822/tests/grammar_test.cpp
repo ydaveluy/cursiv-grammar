@@ -60,7 +60,7 @@ int check_plain_address(const cursiv::Parser& parser,
   if (r.cst().recovered() || !r.diagnostics.empty())
     return fail(file, "does not parse clean");
 
-  const ast::BareMailbox* const mailbox = r.value_as<ast::BareMailbox>();
+  const ast::BareMailbox* const mailbox = r.valueAs<ast::BareMailbox>();
   if (mailbox == nullptr || mailbox->addr == nullptr)
     return fail(file, "built no BareMailbox");
   const ast::AddrSpec& addr = *mailbox->addr;
@@ -83,7 +83,7 @@ int check_group(const cursiv::Parser& parser, const std::filesystem::path& dir) 
   if (r.cst().recovered() || !r.diagnostics.empty())
     return fail(file, "does not parse clean");
 
-  const ast::Group* const group = r.value_as<ast::Group>();
+  const ast::Group* const group = r.valueAs<ast::Group>();
   if (group == nullptr || group->phrase.size() != 1 ||
       group->phrase[0] != "Friends" || group->mailboxes.size() != 2)
     return fail(file, "built the wrong Group");
@@ -118,7 +118,7 @@ int check_quoted_local(const cursiv::Parser& parser,
   const cursiv::ParseResult r = parser.parse(text);
   if (r.cst().recovered() || !r.diagnostics.empty())
     return fail(file, "does not parse clean");
-  const ast::BareMailbox* const mailbox = r.value_as<ast::BareMailbox>();
+  const ast::BareMailbox* const mailbox = r.valueAs<ast::BareMailbox>();
   if (mailbox == nullptr || mailbox->addr == nullptr ||
       !localPartIs(*mailbox->addr, {"quoted\"part"}))
     return fail(file, "the quoted local part is wrong");
@@ -133,7 +133,7 @@ int check_domain_literal(const cursiv::Parser& parser,
   const cursiv::ParseResult r = parser.parse(text);
   if (r.cst().recovered() || !r.diagnostics.empty())
     return fail(file, "does not parse clean");
-  const ast::BareMailbox* const mailbox = r.value_as<ast::BareMailbox>();
+  const ast::BareMailbox* const mailbox = r.valueAs<ast::BareMailbox>();
   const ast::DomainLiteral* const lit =
       (mailbox != nullptr && mailbox->addr != nullptr &&
        mailbox->addr->domain.size() == 1)
@@ -156,13 +156,13 @@ static int audit_regression() {
            {"\"a\r\n\t b\"@example.org", "a\t b"},
            {"\"a\\\r\n b\"@example.org", "a\r\nb"}}) {
     const auto parsed = language.language.parser->parse(text);
-    const auto* mailbox = parsed.value_as<rfc822::ast::BareMailbox>();
+    const auto* mailbox = parsed.valueAs<rfc822::ast::BareMailbox>();
     if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
         !mailbox || !mailbox->addr || !localPartIs(*mailbox->addr, {value})) return 1;
   }
   {
     const auto parsed = language.language.parser->parse("a@[one\r\n two]");
-    const auto* mailbox = parsed.value_as<rfc822::ast::BareMailbox>();
+    const auto* mailbox = parsed.valueAs<rfc822::ast::BareMailbox>();
     const auto* domain = mailbox && mailbox->addr && mailbox->addr->domain.size() == 1
         ? cursiv::ast_cast<rfc822::ast::DomainLiteral>(mailbox->addr->domain[0]) : nullptr;
     if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
@@ -182,7 +182,7 @@ static int audit_regression() {
            R"(a(one\\two)@example.com)",
            R"(a(outer(inner\)tail) end)@example.com)"}) {
     const auto result = language.language.parser->parse(text);
-    const auto* mailbox = result.value_as<rfc822::ast::BareMailbox>();
+    const auto* mailbox = result.valueAs<rfc822::ast::BareMailbox>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !mailbox || !mailbox->addr ||
         !localPartIs(*mailbox->addr, {"a"}) ||
@@ -219,13 +219,13 @@ static int audit_regression() {
   {
     const auto r=language.language.parser->parse("Friends: a@example.org, b@example.com;");
     if(!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return 1;
-    const auto* group=r.value_as<rfc822::ast::Group>();
+    const auto* group=r.valueAs<rfc822::ast::Group>();
     if(!group || group->mailboxes.size()!=2) return 1;
   }
   {
     const auto r=language.language.parser->parse("<@a.example,@b.example:user@example.org>");
     if(!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return 1;
-    const auto* mailbox=r.value_as<rfc822::ast::NamedMailbox>();
+    const auto* mailbox=r.valueAs<rfc822::ast::NamedMailbox>();
     if(!mailbox || !mailbox->routeAddr || mailbox->routeAddr->routes.size()!=2) return 1;
   }
   return 0;

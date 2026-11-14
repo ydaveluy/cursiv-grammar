@@ -33,7 +33,7 @@ const T* as(const redcode::ast::Expr* node) {
 // `text`'s first line's opcode field_a, asserted to parse clean.
 const redcode::ast::Expr* field_a(const cursiv::ParseResult& result) {
   if (result.cst().recovered() || !result.diagnostics.empty()) return nullptr;
-  const auto* file = result.value_as<redcode::ast::File>();
+  const auto* file = result.valueAs<redcode::ast::File>();
   if (file == nullptr || file->lines.empty()) return nullptr;
   const auto instr =
       std::get_if<redcode::ast::Instruction*>(&file->lines[0]);
@@ -50,7 +50,7 @@ int main() {
   {
     const auto parsed = language.language.parser->parse(
         "mOv.i *0,1\nSEQ.I {0,1\nSNE.I }0,1\nNOP 0\nLDP #0,1\nSTP #0,1\nORG\nEND");
-    const auto *file = parsed.value_as<redcode::ast::File>();
+    const auto *file = parsed.valueAs<redcode::ast::File>();
     if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
         !file || file->lines.size() != 8) return 1;
     const auto instruction = [&](std::size_t i) {

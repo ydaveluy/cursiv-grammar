@@ -90,7 +90,7 @@ inline bool run(const fdo91::Fdo91CoreServices& services,
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
       if (const auto* number = cursiv::ast_cast<fdo91::ast::Number>(&node)) numbers.emplace_back(number->text);
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
             self(self, child);

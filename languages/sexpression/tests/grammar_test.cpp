@@ -30,7 +30,7 @@ void examples() {
       const std::string source = cursiv::test::read_file(file.path().string());
       const auto result = engine().parse(source);
       CHECK(result.accepted && !result.cst().recovered());
-      CHECK(result.value_as<ast::Sexpr>() != nullptr);
+      CHECK(result.valueAs<ast::Sexpr>() != nullptr);
     }
   }
   CHECK(seen >= 3);
@@ -39,7 +39,7 @@ void datums() {
   for (const char* newline : {"\n", "\r", "\r\n", "\u0085", "\u2028", "\u2029"}) {
     const std::string source = std::string("a;comment") + newline + "b";
     const auto result = engine().parse(source);
-    const auto* root = result.value_as<ast::Sexpr>();
+    const auto* root = result.valueAs<ast::Sexpr>();
     CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
     const bool endsComment = std::string_view(newline).ends_with('\n');
     CHECK(root && root->items.size() == (endsComment ? 2 : 1));
@@ -53,7 +53,7 @@ void datums() {
         "#lang htdp/bsl\n[define café 1] {+ café .5} '[] '( )";
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *root = result.value_as<ast::Sexpr>();
+    const auto *root = result.valueAs<ast::Sexpr>();
     CHECK(root && root->items.size() == 5);
     if (!root || root->items.size() != 5)
       return;
@@ -77,7 +77,7 @@ void datums() {
         "#x#e10 5/9 1e-2 1+ 2x";
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *root = result.value_as<ast::Sexpr>();
+    const auto *root = result.valueAs<ast::Sexpr>();
     CHECK(root && root->items.size() == 15);
     if (root && root->items.size() == 15) {
       const char *expected[] = {"#e1.25",
@@ -106,7 +106,7 @@ void datums() {
         R"SRC(|a b| a\ b foo#bar "A\n\u0042\U0001F600\101Z" #\newline #\λ #\u03bb #\space #\) #t #false #:|a b| #"bytes" #rx"\\d+" #px#"a")SRC";
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *root = result.value_as<ast::Sexpr>();
+    const auto *root = result.valueAs<ast::Sexpr>();
     CHECK(root && root->items.size() == 15);
     if (root && root->items.size() == 15) {
       const auto *name = cursiv::ast_cast<ast::Atom>(root->items[0]);
@@ -128,7 +128,7 @@ void datums() {
         "#hash((a . 1)) #0=(a . #0#)";
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *root = result.value_as<ast::Sexpr>();
+    const auto *root = result.valueAs<ast::Sexpr>();
     CHECK(root && root->items.size() == 5);
     if (root && root->items.size() == 5) {
       const auto *quote = cursiv::ast_cast<ast::Prefix>(root->items[0]);
@@ -148,14 +148,14 @@ void datums() {
                                    "(arbitrary-native-form [x] {y})"}) {
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered());
-    CHECK(result.value_as<ast::Sexpr>() != nullptr);
+    CHECK(result.valueAs<ast::Sexpr>() != nullptr);
   }
 }
 void here_string() {
   const std::string source = "#<<END\nbody END\nλ\nEND\n42";
   const auto result = engine().parse(source);
   CHECK(result.accepted && !result.cst().recovered());
-  const auto *root = result.value_as<ast::Sexpr>();
+  const auto *root = result.valueAs<ast::Sexpr>();
   CHECK(root && root->items.size() == 2);
   const auto *string = root && !root->items.empty()
                            ? cursiv::ast_cast<ast::String>(root->items[0])
@@ -166,7 +166,7 @@ void numeric_kinds() {
   const std::string source = "inf.0 nan.0 #i+inf.0 #i-nan.0 #CI(AND #T #F)";
   const auto result = engine().parse(source);
   CHECK(result.accepted && !result.cst().recovered());
-  const auto *root = result.value_as<ast::Sexpr>();
+  const auto *root = result.valueAs<ast::Sexpr>();
   CHECK(root && root->items.size() == 5);
   if (!root || root->items.size() != 5)
     return;
@@ -185,7 +185,7 @@ void additional_atoms() {
       "+INF.0 -NaN.0 1# #xA# 1.2t3 #%app #HASHEQ((a . 1)) #Fx3(1) 1+inf.0i";
   const auto result = engine().parse(source);
   CHECK(result.accepted && !result.cst().recovered());
-  const auto *root = result.value_as<ast::Sexpr>();
+  const auto *root = result.valueAs<ast::Sexpr>();
   CHECK(root && root->items.size() == 9);
   if (!root || root->items.size() != 9)
     return;
@@ -203,7 +203,7 @@ void infix_list() {
   const std::string source = "(1 . + . 2 3)";
   const auto result = engine().parse(source);
   CHECK(result.accepted && !result.cst().recovered());
-  const auto *root = result.value_as<ast::Sexpr>();
+  const auto *root = result.valueAs<ast::Sexpr>();
   const auto *list = root && root->items.size() == 1
                          ? cursiv::ast_cast<ast::List>(root->items[0])
                          : nullptr;

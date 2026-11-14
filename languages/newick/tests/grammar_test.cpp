@@ -65,7 +65,7 @@ void ast_shape() {
   CHECK(r.accepted && !r.cst().recovered());
   CHECK(static_cast<bool>(r) && r.diagnostics.empty());
 
-  ast::Clade* const root = r.value_as<ast::Clade>();
+  ast::Clade* const root = r.valueAs<ast::Clade>();
   CHECK(root != nullptr);
   if (root == nullptr) return;
   // The entry adopts the clade: its record is the whole document, `;`
@@ -95,7 +95,7 @@ void ast_shape() {
 void ast_anonymous_leaves() {
   const cursiv::ParseResult r = engine().parse("(,,(,));");
   CHECK(r.accepted && !r.cst().recovered());
-  ast::Clade* const root = r.value_as<ast::Clade>();
+  ast::Clade* const root = r.valueAs<ast::Clade>();
   CHECK(root != nullptr && root->children.size() == 3);
   if (root == nullptr || root->children.size() != 3) return;
   CHECK(root->children[0]->name.empty() && root->children[0]->children.empty());
@@ -122,7 +122,7 @@ void corpus() {
         ++failures;
         continue;
       }
-      if (r.value_as<ast::Clade>() == nullptr) {
+      if (r.valueAs<ast::Clade>() == nullptr) {
         std::printf("FAIL %s: root is not a Clade\n", path.c_str());
         ++failures;
       }
@@ -144,7 +144,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* c = r.value_as<newick::ast::Clade>();
+    const auto* c = r.valueAs<newick::ast::Clade>();
     if (!c || c->children.size() != 2 ||
         c->children[0]->name != "Homo sapiens" ||
         c->children[1]->name != "Pan troglodytes" || !c->children[0]->length ||

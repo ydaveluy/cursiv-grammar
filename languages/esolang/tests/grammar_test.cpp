@@ -317,7 +317,7 @@ void numeric_literal_regressions() {
     const std::string source = "HAI 1.2\nI HAS A n ITZ " + test.text +
         "\nVISIBLE SUM OF n AN " + test.text + "\nKTHXBYE\n";
     const auto parsed = parser().parse(source);
-    const auto* program = parsed.value_as<ast::Program>();
+    const auto* program = parsed.valueAs<ast::Program>();
     check(parsed.accepted && !parsed.cst().recovered() &&
               parsed.diagnostics.empty() && parsed.cst().text() == source &&
               program && program->statements.size() == 2,

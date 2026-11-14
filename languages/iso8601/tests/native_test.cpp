@@ -90,7 +90,7 @@ int main() {
                           d->minutes, d->seconds});
       if (const auto *r = cursiv::ast_cast<ia::Recurring>(&n); r && r->count)
         raw &= inside(*r->count);
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &n &&
                      result.cst().contains(n.cstNodeId, child.cstNodeId);

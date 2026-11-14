@@ -42,7 +42,7 @@ inline bool run() {
   };
   for (const auto& test : valid) {
     const auto result = parser.parse(test.source);
-    const auto* root = result.value_as<wren::ast::Script>();
+    const auto* root = result.valueAs<wren::ast::Script>();
     const auto* statement = root && root->statements.size() == 1
         ? cursiv::ast_cast<wren::ast::ExprStat>(root->statements[0]) : nullptr;
     const auto* declaration = statement

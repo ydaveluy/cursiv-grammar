@@ -16,7 +16,7 @@ inline int audit_regressions(const cursiv::Parser &parser) {
                                   std::string_view first, std::size_t holes,
                                   bool emptyHole = false) {
     const auto result = parser.parse(source);
-    const auto *block = result.value_as<elixir::ast::Block>();
+    const auto *block = result.valueAs<elixir::ast::Block>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !block || block->body.size() != 1) {
       std::fprintf(stderr, "unclean literal: %.*s\n", int(source.size()),
@@ -55,7 +55,7 @@ inline int audit_regressions(const cursiv::Parser &parser) {
   const auto heredocs = [&]<class T>(std::string_view source,
                                      std::string_view expected) {
     const auto result = parser.parse(source);
-    const auto *block = result.value_as<elixir::ast::Block>();
+    const auto *block = result.valueAs<elixir::ast::Block>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !block || block->body.size() != 2)
       return false;
@@ -88,7 +88,7 @@ next
   }
   for (const auto source : {std::string_view{"x"}, std::string_view{"case"}}) {
     const auto result = parser.parse(source);
-    const auto *block = result.value_as<elixir::ast::Block>();
+    const auto *block = result.valueAs<elixir::ast::Block>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !block || block->body.size() != 1)
       return 1;
@@ -99,7 +99,7 @@ next
   }
   const auto expression =
       [](const cursiv::ParseResult &result) -> const elixir::ast::Expr * {
-    const auto *block = result.value_as<elixir::ast::Block>();
+    const auto *block = result.valueAs<elixir::ast::Block>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !block || block->body.size() != 1)
       return nullptr;
@@ -436,7 +436,7 @@ next
        {std::string_view{""}, std::string_view{"# comment\n"},
         std::string_view{"\n\n"}}) {
     const auto result = parser.parse(source);
-    const auto *block = result.value_as<elixir::ast::Block>();
+    const auto *block = result.valueAs<elixir::ast::Block>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !block || !block->body.empty()) {
       std::fprintf(stderr, "empty top-level block AST mismatch\n");

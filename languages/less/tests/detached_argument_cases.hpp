@@ -70,7 +70,7 @@ inline bool run(const less::LessCoreServices &language) {
     const auto walk = [&](auto &&self, const cursiv::AstNode &node) -> void {
       if (!seen.insert(&node).second) { check(false, "duplicate AST edge", test.source); return; }
       check(node.cstNodeId < result.cst().size(), "node CST span", test.source);
-      language.astReflection->visitMembers(node, [&](auto, auto, auto &child) {
+      language.astReflection->visitProperties(node, [&](auto, auto, auto &child) {
         check(child.parent == &node, "exact field parent", test.source);
         check(node.cstNodeId < result.cst().size() && child.cstNodeId < result.cst().size() &&
                   result.cst().contains(node.cstNodeId, child.cstNodeId), "child CST containment", test.source);

@@ -44,7 +44,7 @@ inline bool run(const objc::ObjcCoreServices& services) {
         valid = false;
         return;
       }
-      services.astReflection->visitMembers(
+      services.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             valid &= child.parent == &n;
             self(self, child);
@@ -320,7 +320,7 @@ b";int f(void){return 1\
   {
     const auto r = parser.parse(
         "NS_ASSUME_NONNULL_BEGIN @interface R @end NS_ASSUME_NONNULL_END");
-    const auto u = r.value_as<ast::TranslationUnit>();
+    const auto u = r.valueAs<ast::TranslationUnit>();
     check(u && u->items.size() == 3 &&
               as<ast::AnnotationMarker>(u->items[0])->text ==
                   "NS_ASSUME_NONNULL_BEGIN" &&

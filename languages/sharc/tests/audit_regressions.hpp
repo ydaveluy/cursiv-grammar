@@ -39,7 +39,7 @@ inline bool run() {
     // Programming reference rev2.4, Type18a example (pp9-66/9-67):
     // the final operand is an immediate mask, not a data register.
     const auto parsed = parser->parse("bit set mode2 0x00000070;");
-    const auto* root = parsed.value_as<ast::Program>();
+    const auto* root = parsed.valueAs<ast::Program>();
     const auto* statement = root && root->statements.size() == 1 ? root->statements[0] : nullptr;
     const auto* misc = statement ? cursiv::ast_cast<ast::Misc>(statement->atom) : nullptr;
     check(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() &&
@@ -53,7 +53,7 @@ inline bool run() {
       ".VAR ptr = ADDRESS(foo$bar);\n.ALIGN 1 << 3;\nIF EQ JUMP Target;\nR0 = ABS R1;\n");
   check(expressions.accepted && !expressions.cst().recovered() && expressions.diagnostics.empty(),
         "native case, default section, expression operators, binary/fract/address forms");
-  const auto* program = expressions.value_as<ast::Program>();
+  const auto* program = expressions.valueAs<ast::Program>();
   check(program && program->statements.size() == 10, "all native statements retained");
   if (program && program->statements.size() == 10) {
     const auto* section = cursiv::ast_cast<ast::SectionDecl>(program->statements[0]->atom);
@@ -93,7 +93,7 @@ inline bool run() {
     const std::string source = ".VAR " + std::string(name) + " = 1;\n" +
         label + ": .VAR sink = " + std::string(name) + ";\n";
     const auto parsed = parser->parse(source);
-    const auto* root = parsed.value_as<ast::Program>();
+    const auto* root = parsed.valueAs<ast::Program>();
     const auto* first = root && root->statements.size() == 2 ? root->statements[0] : nullptr;
     const auto* second = root && root->statements.size() == 2 ? root->statements[1] : nullptr;
     const auto* declared = first ? cursiv::ast_cast<ast::Declaration>(first->atom) : nullptr;

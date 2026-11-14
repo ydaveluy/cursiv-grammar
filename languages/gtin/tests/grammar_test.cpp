@@ -34,7 +34,7 @@ int main() {
       std::fprintf(stderr, "audit regression: clean parse expected\n");
       return 1;
     }
-    const auto* code = audit_result.value_as<gtin::ast::Gtin>();
+    const auto* code = audit_result.valueAs<gtin::ast::Gtin>();
     if (!code || code->text != "9991234567890") return 1;
     for (const auto text :
          {"4006381333931", "123456", "01234565", "1234565", "22", "12345",
@@ -43,7 +43,7 @@ int main() {
       const auto valid =
           cursiv::test::validationHelper(audit_language.language, text);
       const auto parsed = audit_language.language.parser->parse(text);
-      const auto* value = parsed.value_as<gtin::ast::Gtin>();
+      const auto* value = parsed.valueAs<gtin::ast::Gtin>();
       if (!valid.diagnostics.empty() || !parsed.accepted ||
           parsed.cst().recovered() || !parsed.diagnostics.empty() || !value ||
           value->text != text || value->parent != nullptr ||
@@ -94,7 +94,7 @@ int main() {
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
         root->type != &cursiv::ast_type_tag<gtin::ast::Gtin> ||
-        result.value_as<gtin::ast::Gtin>()->text != text)
+        result.valueAs<gtin::ast::Gtin>()->text != text)
       failures += fail(file, "the parse built no Gtin");
   }
 

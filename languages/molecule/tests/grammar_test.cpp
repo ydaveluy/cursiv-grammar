@@ -32,7 +32,7 @@ int main() {
 
   {
     const auto parse = language.language.parser->parse("CuSO4 · 5H2O");
-    const auto* formula = parse.value_as<molecule::ast::Molecule>();
+    const auto* formula = parse.valueAs<molecule::ast::Molecule>();
     if (!parse.accepted || parse.cst().recovered() ||
         !parse.diagnostics.empty() || !formula || formula->parts.size() != 2)
       return fail("hydrate", "no complete hydrate AST");

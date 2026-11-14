@@ -47,7 +47,7 @@ inline bool native_regressions(const auto& services) {
   }
   {
     const auto source = services.parser->parse(">id|free text\n ;literal\n A>C;D\n");
-    const auto* d = source.template value_as<ast::Document>();
+    const auto* d = source.template valueAs<ast::Document>();
     const auto* r = d && d->records.size() == 1 ? d->records[0] : nullptr;
     const auto* first = r && r->body.size() == 2 ? cursiv::ast_cast<ast::SequenceLine>(r->body[0]) : nullptr;
     const auto* second = r && r->body.size() == 2 ? cursiv::ast_cast<ast::SequenceLine>(r->body[1]) : nullptr;

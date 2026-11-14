@@ -32,7 +32,7 @@ inline bool run() {
   for (const char* source : {" X = 2^3^4\nEND\n", " X = 2**3**4\nEND\n",
                              " X = 2!3!4\nEND\n", " X = 8/2*2\nEND\n"}) {
     const auto power_result = parser->parse(source);
-    const auto* root = power_result.value_as<ast::Program>();
+    const auto* root = power_result.valueAs<ast::Program>();
     const auto* statement = root && !root->lines.empty()
         ? cursiv::ast_cast<ast::Statement>(root->lines[0]) : nullptr;
     const auto* outer = statement && statement->replacement.size() == 1
@@ -51,7 +51,7 @@ inline bool run() {
       " &TRIM =\n :f(NO)s(YES)\nend\n");
   check(branches.accepted && !branches.cst().recovered() && branches.diagnostics.empty(),
         "native names, builtin case folding, null replacement and both conditional gotos");
-  const auto* root = branches.value_as<ast::Program>();
+  const auto* root = branches.valueAs<ast::Program>();
   check(root && root->lines.size() == 4, "four native statement lines");
   if (root && root->lines.size() == 4) {
     const auto* first = cursiv::ast_cast<ast::Statement>(root->lines[0]);

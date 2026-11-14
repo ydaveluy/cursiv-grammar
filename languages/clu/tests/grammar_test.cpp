@@ -39,7 +39,7 @@ int check_fields(const std::filesystem::path& dir) {
   if (result.cst().recovered() || !result.diagnostics.empty())
     return fail(file, "the document does not parse clean");
 
-  const auto* const module = result.value_as<clu::ast::Module>();
+  const auto* const module = result.valueAs<clu::ast::Module>();
   if (module == nullptr) return fail(file, "the parse built no Module");
   if (module->routine == nullptr ||
       module->routine->type != &cursiv::ast_type_tag<clu::ast::Routine>)
@@ -76,7 +76,7 @@ int check_power_right_assoc() {
   if (r.cst().recovered() || !r.diagnostics.empty())
     return fail("probe", "a + b ** c ** d does not parse clean");
 
-  const auto* const module = r.value_as<clu::ast::Module>();
+  const auto* const module = r.valueAs<clu::ast::Module>();
   const auto& routine = *static_cast<const clu::ast::Routine*>(module->routine);
   const auto& outer =
       *static_cast<const clu::ast::VarInitStmt*>(routine.statements[0]);
@@ -109,7 +109,7 @@ int check_equate_bare_name_reading() {
       "p = proc ()\n    Q = foo\n    R = int\nend p\n");
   if (r.cst().recovered() || !r.diagnostics.empty())
     return fail("probe", "Q = foo does not parse clean");
-  const auto* const module = r.value_as<clu::ast::Module>();
+  const auto* const module = r.valueAs<clu::ast::Module>();
   const auto& routine = *static_cast<const clu::ast::Routine*>(module->routine);
   if (routine.bodyEquates.size() != 2)
     return fail("probe", "Q = foo, R = int did not read as two equates");
@@ -146,7 +146,7 @@ _P = PROC [T: TYPE] (a: ARRAY[T], s: SEQUENCE[INT]);
 END _p;
 )clu";
   const auto result = language.language.parser->parse(source);
-  const auto* module = result.value_as<ast::Module>();
+  const auto* module = result.valueAs<ast::Module>();
   const auto* routine = module ? cursiv::ast_cast<ast::Routine>(module->routine) : nullptr;
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
       !routine || routine->parms.size() != 1 || !routine->parms[0]->isTypeParam ||
@@ -178,7 +178,7 @@ END _p;
       "S = {t | t has equal: proctype(t, t) returns(bool)}; "
       "p = proc [u: type]() where u in S; end p;";
   const auto set_result = language.language.parser->parse(set_source);
-  const auto* set_module = set_result.value_as<ast::Module>();
+  const auto* set_module = set_result.valueAs<ast::Module>();
   const auto* set_routine = set_module
       ? cursiv::ast_cast<ast::Routine>(set_module->routine) : nullptr;
   const auto* set = set_module && set_module->equates.size() == 1

@@ -49,7 +49,7 @@ cursiv::ParseResult build(std::string_view text) {
 void soft_keyword_message_name() {
   const cursiv::ParseResult r =
       build("syntax = \"proto3\";\nmessage message { string body = 1; }\n");
-  ast::Document *const doc = r.value_as<ast::Document>();
+  ast::Document *const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->messages.size() == 1);
   if (doc == nullptr || doc->messages.size() != 1)
     return;
@@ -65,7 +65,7 @@ void soft_keyword_message_name() {
 void true_false_guard() {
   const cursiv::ParseResult r1 =
       build("syntax = \"proto3\";\noption allow = true;\n");
-  ast::Document *const doc1 = r1.value_as<ast::Document>();
+  ast::Document *const doc1 = r1.valueAs<ast::Document>();
   CHECK(doc1 != nullptr && doc1->options.size() == 1);
   if (doc1 != nullptr && doc1->options.size() == 1)
     CHECK(std::holds_alternative<bool>(doc1->options[0]->value) &&
@@ -73,7 +73,7 @@ void true_false_guard() {
 
   const cursiv::ParseResult r2 =
       build("syntax = \"proto3\";\nmessage M { bool true = 1; }\n");
-  ast::Document *const doc2 = r2.value_as<ast::Document>();
+  ast::Document *const doc2 = r2.valueAs<ast::Document>();
   CHECK(doc2 != nullptr && doc2->messages.size() == 1);
   if (doc2 != nullptr && doc2->messages.size() == 1 &&
       doc2->messages[0]->fields.size() == 1)
@@ -88,7 +88,7 @@ void gap_constructs() {
       (fs::path(CURSIV_TEST_DIR) / "gap_constructs.proto").string());
   const cursiv::ParseResult r = build(src);
   CHECK(is_clean(r));
-  ast::Document *const doc = r.value_as<ast::Document>();
+  ast::Document *const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr);
   if (doc == nullptr)
     return;
@@ -118,7 +118,7 @@ void field_values() {
   const std::string src =
       cursiv::test::read_file((dir / "example.proto").string());
   const cursiv::ParseResult r = build(src);
-  ast::Document *const doc = r.value_as<ast::Document>();
+  ast::Document *const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr);
   if (doc == nullptr)
     return;
@@ -202,7 +202,7 @@ void field_option_unescape() {
   const std::string src =
       cursiv::test::read_file((dir / "helloworldreserved.proto").string());
   const cursiv::ParseResult r = build(src);
-  ast::Document *const doc = r.value_as<ast::Document>();
+  ast::Document *const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->messages.size() == 2);
   if (doc == nullptr || doc->messages.size() != 2)
     return;
@@ -228,7 +228,7 @@ option (cfg) = { names: ["a", "b"]; child < count: - /* sign */ 1 >, count: 2 };
 )proto";
   const auto r = build(source);
   CHECK(is_clean(r));
-  const auto *doc = r.value_as<ast::Document>();
+  const auto *doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->options.size() == 3 && doc->enums.size() == 1);
   if (doc == nullptr || doc->options.size() != 3 || doc->enums.size() != 1)
     return;
@@ -276,7 +276,7 @@ option (small) = 42;
 )proto";
   const auto r = build(source);
   CHECK(is_clean(r));
-  const auto *doc = r.value_as<ast::Document>();
+  const auto *doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->options.size() == 4);
   if (doc == nullptr || doc->options.size() != 4)
     return;

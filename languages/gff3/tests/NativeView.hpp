@@ -1,5 +1,5 @@
 #pragma once
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "gff3/Value.hpp"
 #include "gff3/ast.hpp"
 #include <string>

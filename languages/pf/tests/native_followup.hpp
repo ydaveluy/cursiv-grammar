@@ -19,7 +19,7 @@ inline bool run(const pf::PfCoreServices& services) {
       "queue root on em0 bandwidth 1.5M, min 0.5M, max 2M\n"
       "include \"/etc/a\\\"b.conf\"\n");
   dump(result);
-  const auto* file = result.value_as<pf::ast::File>();
+  const auto* file = result.valueAs<pf::ast::File>();
   const auto* rule = file && file->lines.size() == 3
       ? std::get_if<pf::ast::Rule*>(&file->lines[0]) : nullptr;
   const auto* queue = file && file->lines.size() == 3
@@ -50,7 +50,7 @@ inline bool run(const pf::PfCoreServices& services) {
         "pass proto tcp from any os { Linux FreeBSD } to any\n"
         "pass proto icmp from any to any icmp-type { 1 2 }\n");
     dump(extra);
-    const auto* root = extra.value_as<pf::ast::File>();
+    const auto* root = extra.valueAs<pf::ast::File>();
     if (!extra.accepted || extra.cst().recovered() || !extra.diagnostics.empty() ||
         !root || root->lines.size() != 7) return fail(__LINE__);
     const auto* a = std::get_if<pf::ast::Rule*>(&root->lines[0]);
@@ -69,7 +69,7 @@ inline bool run(const pf::PfCoreServices& services) {
   }
   {
     const auto parsed = services.parser->parse("pass log quick log all\n");
-    const auto* file = parsed.value_as<pf::ast::File>();
+    const auto* file = parsed.valueAs<pf::ast::File>();
     const auto* slot = file && file->lines.size() == 1
         ? std::get_if<pf::ast::Rule*>(&file->lines[0]) : nullptr;
     const auto* rule = slot ? *slot : nullptr;

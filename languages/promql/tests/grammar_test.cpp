@@ -83,7 +83,7 @@ static int audit_regression() {
     }
   {
     const auto r=language.language.parser->parse("1e-999");
-    const auto* p=r.value_as<promql::ast::Query>();
+    const auto* p=r.valueAs<promql::ast::Query>();
     const auto* n=p?cursiv::ast_cast<promql::ast::NumberLit>(p->expression):nullptr;
     if(!n||n->value!=0||!r.diagnostics.empty())return 1;
   }
@@ -92,7 +92,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* q = r.value_as<promql::ast::Query>();
+    const auto* q = r.valueAs<promql::ast::Query>();
     const auto* bin =
         q ? cursiv::ast_cast<promql::ast::BinaryExpr>(q->expression) : nullptr;
     if (!bin || !cursiv::ast_cast<promql::ast::Timestamped>(bin->left))
@@ -101,7 +101,7 @@ static int audit_regression() {
   for (const char* text : {"foo @ 123 ^ bar", "foo ^ bar @ 123"}) {
     const auto r = language.language.parser->parse(text);
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return 1;
-    const auto* query = r.value_as<promql::ast::Query>();
+    const auto* query = r.valueAs<promql::ast::Query>();
     const auto* power =
         query ? cursiv::ast_cast<promql::ast::BinaryExpr>(query->expression)
               : nullptr;
@@ -114,7 +114,7 @@ static int audit_regression() {
   {
     const auto r = language.language.parser->parse("foo @ 123 ^ -2");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return 1;
-    const auto* query = r.value_as<promql::ast::Query>();
+    const auto* query = r.valueAs<promql::ast::Query>();
     const auto* power =
         query ? cursiv::ast_cast<promql::ast::BinaryExpr>(query->expression)
               : nullptr;

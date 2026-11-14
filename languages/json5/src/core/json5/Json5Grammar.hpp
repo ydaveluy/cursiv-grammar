@@ -10,7 +10,7 @@
 #include <variant>
 
 #include "cursiv/grammar/GrammarSpec.hpp"
-#include "cursiv/grammar/unicode/UnicodeRanges.hpp"
+#include "cursiv/text/unicode/UnicodeRanges.hpp"
 #include "json5/ast.hpp"
 
 namespace json5 {

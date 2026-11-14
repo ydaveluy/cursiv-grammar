@@ -87,7 +87,7 @@ int main() {
     const auto result = language.language.parser->parse(
         R"DOT(digraph "a" + /* " */ "b" { é [label="x\"" + "y"]; })DOT");
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty()) return 1;
-    const auto* graph = result.value_as<dot::ast::Graph>();
+    const auto* graph = result.valueAs<dot::ast::Graph>();
     if (!graph || !graph->id || *graph->id != "ab") return 1;
     bool label = false, unicode = false;
     for (const auto* node : result.nodes()) {

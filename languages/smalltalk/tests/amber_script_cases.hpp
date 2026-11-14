@@ -60,7 +60,7 @@ inline bool run(const auto& language) {
       return false;
     }
     if (!clean) continue;
-    const auto* root = r.template value_as<smalltalk::ast::Sequence>();
+    const auto* root = r.template valueAs<smalltalk::ast::Sequence>();
     if (!root || root->parent != v.document.get()) {
       std::fprintf(stderr, "smalltalk Amber script: %s lost/root-owned Sequence source=%s\n",
                    test.id, test.source);
@@ -74,7 +74,7 @@ inline bool run(const auto& language) {
                      test.id, test.source);
         owned = false; return;
       }
-      language.language.astReflection->visitMembers(node,
+      language.language.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             const bool parent = child.parent == &node;
             const bool contained = r.cst().contains(node.cstNodeId, child.cstNodeId);
@@ -113,7 +113,7 @@ inline bool run(const auto& language) {
   }
   const auto r = language.language.parser->parse(
       "[: item | ... item]. {1...2...}. #{'a' -> 1...}. #at:put");
-  const auto* root = r.template value_as<smalltalk::ast::Sequence>();
+  const auto* root = r.template valueAs<smalltalk::ast::Sequence>();
   if (!root || root->statements.size() != 4) {
     std::fprintf(stderr, "smalltalk Amber script: combined readback statements=%zu expected4 accepted=%d recovered=%d\n",
                  root ? root->statements.size() : 0, r.accepted, r.cst().recovered());

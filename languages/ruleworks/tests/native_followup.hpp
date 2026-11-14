@@ -22,7 +22,7 @@ inline bool run(const auto& services) {
   const auto result = services.language.parser->parse(source);
   check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
         "native dotted integers, doubled bars, unary minus, WM and quoted SQL variables");
-  const auto* program = result.template value_as<ast::Program>();
+  const auto* program = result.template valueAs<ast::Program>();
   const ast::OnEntry* entry = nullptr;
   if (program && program->constructs.size() == 3 && program->constructs[1]->lines.size() == 1)
     if (const auto* item = std::get_if<ast::OnEntry*>(&program->constructs[1]->lines[0])) entry = *item;
@@ -64,7 +64,7 @@ inline bool run(const auto& services) {
         "(returns <result> instance of result-class))");
     check(method.accepted && !method.cst().recovered() && method.diagnostics.empty(),
           "method argument and return INSTANCE OF restrictions");
-    const auto* root = method.template value_as<ast::Program>();
+    const auto* root = method.template valueAs<ast::Program>();
     const ast::MethodDecl* declaration = nullptr;
     if (root && root->constructs.size() == 1 && root->constructs[0]->lines.size() == 1)
       if (const auto* item = std::get_if<ast::MethodDecl*>(&root->constructs[0]->lines[0])) declaration = *item;

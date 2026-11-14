@@ -96,7 +96,7 @@ int main() {
   check("SET a \"b\"\v\fc", {"SET", "a", "b", "c"});
   {
     const auto whitespace = language.language.parser->parse("\v\f");
-    const auto *document = whitespace.value_as<redis::ast::Document>();
+    const auto *document = whitespace.valueAs<redis::ast::Document>();
     CHECK(whitespace.accepted && !whitespace.cst().recovered() && whitespace.diagnostics.empty());
     CHECK(document && document->commands.empty());
   }

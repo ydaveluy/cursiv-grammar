@@ -36,7 +36,7 @@ int main() {
         "NAME TEST FREE\nOBJSENSE MAX\nROWS\n N COST\n L LIMIT\n"
         "COLUMNS\n X COST 1D+2 LIMIT 2\nRHS\n LIMIT 4\nENDATA\n";
     const auto result = language.language.parser->parse(source);
-    const auto* model = result.value_as<mps::ast::Model>();
+    const auto* model = result.valueAs<mps::ast::Model>();
     const auto* column = model && model->columns.size() == 1
                              ? cursiv::ast_cast<mps::ast::ColumnCard>(model->columns[0]) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||

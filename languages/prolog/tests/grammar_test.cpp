@@ -41,7 +41,7 @@ bool ownsAll(const cursiv::ParseResult &result,
           parents = false;
           return;
         }
-        reflection.visitMembers(
+        reflection.visitProperties(
             node, [&](auto, auto, auto &child) { visit(child, &node); });
       };
   if (result.value)
@@ -59,10 +59,10 @@ int main() {
     cursiv::Document document(cursiv::TextDocument::create("file:///native.pl","prolog",0,source));
     document.language=&language.language;
     document.parseResult=language.language.parser->parse(source);
-    auto* p=document.parseResult.value_as<a::PText>();
+    auto* p=document.parseResult.valueAs<a::PText>();
     auto* call=p&&p->items.size()==2?cursiv::ast_cast<a::CompoundTerm>(p->items[0]->term):nullptr;
     auto* dict=p&&p->items.size()==2?cursiv::ast_cast<a::DictTerm>(p->items[1]->term):nullptr;
-    check(document.parseSucceeded()&&!document.parseRecovered()&&document.parseResult.diagnostics.empty()&&
+    check(document.parseResult.accepted&&!document.parseRecovered()&&document.parseResult.diagnostics.empty()&&
         call&&call->args.size()==3&&dict&&dict->entries.size()==2,"native grouped-comment integers and nil dict key parse");
     if(call&&call->args.size()==3) {
       const char* expected[]={"12","31","255"};
@@ -100,7 +100,7 @@ int main() {
         "file:///functor.pl", "prolog", 0, source));
     document.language = &language.language;
     document.parseResult = language.language.parser->parse(source);
-    check(document.parseSucceeded() && !document.parseRecovered() &&
+    check(document.parseResult.accepted && !document.parseRecovered() &&
               document.parseResult.diagnostics.empty(),
           "prefix/functor cases parse without recovery");
     auto root = cursiv::ast_cast<a::PText>(document.parseResult.value);
@@ -189,7 +189,7 @@ int main() {
         "file:///argument-operators.pl", "prolog", 0, source));
     document.language = &language.language;
     document.parseResult = language.language.parser->parse(source);
-    check(document.parseSucceeded() && !document.parseRecovered() &&
+    check(document.parseResult.accepted && !document.parseRecovered() &&
               document.parseResult.diagnostics.empty(),
           "operators remain available inside arguments and list tails");
     auto root = cursiv::ast_cast<a::PText>(document.parseResult.value);
@@ -338,7 +338,7 @@ int main() {
         cursiv::TextDocument::create("file:///reader.pl", "prolog", 0, source));
     document.language = &language.language;
     document.parseResult = language.language.parser->parse(source);
-    check(document.parseSucceeded() && !document.parseRecovered() &&
+    check(document.parseResult.accepted && !document.parseRecovered() &&
               document.parseResult.diagnostics.empty(),
           fixture.name);
     if (document.parseResult.value)
@@ -367,7 +367,7 @@ int main() {
     if(document.parseResult.value)document.parseResult.value->parent=&document;
     std::vector<cursiv::Diagnostic> diagnostics;
     language.language.documentValidator->validateDocument(document,diagnostics);
-    check(document.parseSucceeded()&&!document.parseRecovered()&&diagnostics.empty(),"native quoted/graphic/keyword dict tags remain valid");
+    check(document.parseResult.accepted&&!document.parseRecovered()&&diagnostics.empty(),"native quoted/graphic/keyword dict tags remain valid");
   }
   struct InvalidCase {
     const char *source;
@@ -400,7 +400,7 @@ int main() {
         "file:///invalid.pl", "prolog", 0, source));
     document.language = &language.language;
     document.parseResult = language.language.parser->parse(source);
-    check(document.parseSucceeded() && !document.parseRecovered() &&
+    check(document.parseResult.accepted && !document.parseRecovered() &&
               document.parseResult.diagnostics.empty(),
           fixture.source);
     if (document.parseResult.value)

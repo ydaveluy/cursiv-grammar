@@ -14,7 +14,7 @@ inline bool run() {
     const std::string source = std::string("java.lang.RuntimeException: message\n\tat ") +
         origin + "demo.Main.run(Main.java:9)\n";
     const auto result = parser->parse(source);
-    const auto* root = result.value_as<stacktrace::ast::StackTrace>();
+    const auto* root = result.valueAs<stacktrace::ast::StackTrace>();
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !root || root->frames.size() != 1) return false;
     const auto* frame = std::get_if<stacktrace::ast::AtLine*>(&root->frames[0]);

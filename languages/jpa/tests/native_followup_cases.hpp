@@ -22,7 +22,7 @@ template<class Language> bool run(const Language& language) {
       Numeric{"SELECT e FROM Employee e WHERE e.x = 1.e2D", 100},
       Numeric{"SELECT e FROM Employee e WHERE e.x = .25F", .25}}) {
     const auto result = language.language.parser->parse(c.source);
-    const auto* document = result.template value_as<a::Document>();
+    const auto* document = result.template valueAs<a::Document>();
     const auto* select = document ? cursiv::ast_cast<a::SelectStatement>(document->statement) : nullptr;
     const auto* relation = select ? cursiv::ast_cast<a::BinaryExpr>(select->where) : nullptr;
     const auto* number = relation ? cursiv::ast_cast<a::NumberLit>(relation->right) : nullptr;
@@ -33,7 +33,7 @@ template<class Language> bool run(const Language& language) {
   }
   const auto parseCase = [&](std::string_view source, auto inspect) {
     const auto result = language.language.parser->parse(source);
-    const auto* document = result.template value_as<a::Document>();
+    const auto* document = result.template valueAs<a::Document>();
     const auto* select = document ? cursiv::ast_cast<a::SelectStatement>(document->statement) : nullptr;
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() && select,
           "native character/parameter case parses clean");

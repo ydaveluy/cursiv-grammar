@@ -71,7 +71,7 @@ int main() {
     const auto r=language.language.parser->parse(
         "[% ~5, 'text', filter(a,b,c), substr(x,y,z), "
         "if p then a elseif q then b elseif r then c else d fi %]");
-    const auto* p=r.value_as<ast::Program>();
+    const auto* p=r.valueAs<ast::Program>();
     const auto* list=p?as<ast::ListExpr>(p->expression):nullptr;
     if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!list||list->items.size()!=5)
       return fail("native forms built no complete list");
@@ -96,12 +96,12 @@ int main() {
       const auto result = language.language.parser->parse(source);
       if (!result.accepted || result.cst().recovered() ||
           result.diagnostics.size() != 1 ||
-          result.diagnostics[0].kind != cursiv::DiagnosticKind::conversion_error)
+          result.diagnostics[0].kind != cursiv::DiagnosticKind::ConversionError)
         return fail("out-of-range literal must report a conversion error");
     }
     const std::string source = "˜9223372036854775808";
     const auto result = language.language.parser->parse(source);
-    const auto *program = result.value_as<ast::Program>();
+    const auto *program = result.valueAs<ast::Program>();
     const auto *integer = program ? cursiv::ast_cast<ast::IntegerLit>(program->expression) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !integer || integer->value != std::numeric_limits<std::int64_t>::min())

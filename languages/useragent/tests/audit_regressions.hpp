@@ -26,7 +26,7 @@ inline bool run() {
   for (const char* source : {R"(Client/1 (escaped \( and \) delimiters))",
                              R"(Client (outer (inner) escaped \) end))"}) {
     const auto comment_result = parser->parse(source);
-    const auto* document = comment_result.value_as<ast::Document>();
+    const auto* document = comment_result.valueAs<ast::Document>();
     check(comment_result.accepted && !comment_result.cst().recovered() &&
               comment_result.diagnostics.empty() && document &&
               document->products.size() == 1 && document->products[0]->comments.size() == 1,
@@ -34,7 +34,7 @@ inline bool run() {
   }
   {
     const auto multiple = parser->parse("Client/1 (first) (second) Other/2 (third)\n");
-    const auto* document = multiple.value_as<ast::Document>();
+    const auto* document = multiple.valueAs<ast::Document>();
     check(multiple.accepted && !multiple.cst().recovered() &&
               multiple.diagnostics.empty() && document && document->products.size() == 2 &&
               document->products[0]->comments.size() == 2 &&

@@ -102,7 +102,7 @@ rule r {condition: included})YR"},
         "file:///audit.yar", "yara", 0, std::string(source)));
     document.language = &language.language;
     document.parseResult = parser.parse(document.textDocument().getText());
-    check(document.parseSucceeded() && !document.parseRecovered(),
+    check(document.parseResult.accepted && !document.parseRecovered(),
           "runtime fixture parses without repair");
     if (document.parseResult.value)
       document.parseResult.value->parent = &document;

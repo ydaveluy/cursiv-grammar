@@ -93,7 +93,7 @@ inline bool run(const rego::RegoCoreServices& services) {
       return false;
     }
     if (!clean) continue;
-    const auto* root = r.value_as<rego::ast::Document>();
+    const auto* root = r.valueAs<rego::ast::Document>();
     if (!root || root->parent != v.document.get()) {
       std::fprintf(stderr, "rego postfix: %s root/Document parent lost source=%s\n", test.id, test.source);
       return false;
@@ -120,7 +120,7 @@ inline bool run(const rego::RegoCoreServices& services) {
         owned = false;
         return;
       }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view member, std::uint32_t index, cursiv::AstNode& child) {
             const bool parent = child.parent == &node;
             const bool contained = node.cstNodeId < r.cst().size() &&
@@ -203,7 +203,7 @@ inline bool run(const rego::RegoCoreServices& services) {
     }
   }
   const auto r = services.parser->parse("package audit\np := f(data[ 0 ].x).y\n");
-  const auto* root = r.value_as<rego::ast::Document>();
+  const auto* root = r.valueAs<rego::ast::Document>();
   const auto* rule = root && root->statements.size() == 2
       ? cursiv::ast_cast<rego::ast::Rule>(root->statements[1]) : nullptr;
   const auto* outer = rule ? cursiv::ast_cast<rego::ast::AccessExpr>(rule->value) : nullptr;

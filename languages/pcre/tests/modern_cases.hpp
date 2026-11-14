@@ -355,7 +355,7 @@ template <class Language> bool modern_cases(const Language &language) {
         "file:///audit.pcre", "pcre", 0, std::move(source)));
     document.language = &language.language;
     document.parseResult = parser.parse(document.textDocument().getText());
-    check(document.parseSucceeded() && !document.parseRecovered(),
+    check(document.parseResult.accepted && !document.parseRecovered(),
           "invalid form reaches AST validation");
     if (document.parseResult.value)
       document.parseResult.value->parent = &document;

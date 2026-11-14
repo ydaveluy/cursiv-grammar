@@ -76,7 +76,7 @@ void declarations_field_values() {
   const std::string text = read_file(std::string(CURSIV_TEST_DIR) +
                                      "/values.dsp");
   cursiv::ParseResult r = parse_clean(text, "values.dsp readback");
-  auto* const program = r.value_as<ast::Program>();
+  auto* const program = r.valueAs<ast::Program>();
   check(program != nullptr && program->statements.size() == 2,
         "values.dsp: two statements");
   if (program == nullptr || program->statements.size() != 2) return;

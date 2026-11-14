@@ -34,7 +34,7 @@ int main() {
 
   {
     const auto r=language.language.parser->parse("/* head */inc(1);if /* gap */(dec(2000000000)){dec(1);}");
-    const auto* p=r.value_as<pmmn::ast::Program>();
+    const auto* p=r.valueAs<pmmn::ast::Program>();
     const auto* inc=p&&p->commands.size()==2?cursiv::ast_cast<pmmn::ast::Inc>(p->commands[0]):nullptr;
     const auto* cond=p&&p->commands.size()==2?cursiv::ast_cast<pmmn::ast::If>(p->commands[1]):nullptr;
     if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!inc||inc->counter!=1||!cond||!cond->test||cond->test->counter!=2000000000ULL)

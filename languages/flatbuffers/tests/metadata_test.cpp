@@ -1,6 +1,6 @@
 #include "cursiv/parser/Parser.hpp"
 #include "cursiv/services/CoreLanguage.hpp"
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "cursiv/syntax-tree/AstReflection.hpp"
 #include "flatbuffers/CoreServices.hpp"
 #include "flatbuffers/generated/Flatbuffers/Module.hpp"
@@ -53,7 +53,7 @@ int main() {
         }
         es.push_back(J::Object{{"name", e->name}, {"values", vs}});
       }
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &n &&
                      r.cst().contains(n.cstNodeId, child.cstNodeId);

@@ -45,7 +45,7 @@ int main() {
     const auto result = language.language.parser->parse(source);
     if (!result.accepted || result.cst().recovered() ||
         result.diagnostics.size() != 1 ||
-        result.diagnostics[0].kind != cursiv::DiagnosticKind::conversion_error)
+        result.diagnostics[0].kind != cursiv::DiagnosticKind::ConversionError)
       return 1;
   }
   for (const std::string_view number : {"9223372036854775807", "07FFFFFFFFFFFFFFFH"}) {
@@ -240,9 +240,9 @@ int main() {
   const cursiv::ParseResult empty =
       parse("MODULE M; TYPE R = RECORD END; BEGIN END M.");
   const auto* const bareModule =
-      bare.value_as<modula2pim4::ast::ProgramModule>();
+      bare.valueAs<modula2pim4::ast::ProgramModule>();
   const auto* const emptyModule =
-      empty.value_as<modula2pim4::ast::ProgramModule>();
+      empty.valueAs<modula2pim4::ast::ProgramModule>();
   if (bareModule == nullptr || emptyModule == nullptr)
     return fail("empty modules: built no ProgramModule");
   if (!bareModule->block->body.empty() ||

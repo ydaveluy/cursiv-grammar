@@ -38,7 +38,7 @@ procedure _worker(rest[])
 end
 )icon";
   const auto result = services.parser->parse(source);
-  const auto* program = result.value_as<icon::ast::Program>();
+  const auto* program = result.valueAs<icon::ast::Program>();
   check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() && program &&
         program->declarations.size() == 4, "native declaration and expression document");
   bool invocable = false, record = false, blank = false, radix = false, large = false;
@@ -89,7 +89,7 @@ end
   {
     const auto lines = services.parser->parse(
         "procedure lines()\nwrite(1)\nwrite(2)\n+3\nreturn\nwrite(4)\n(5)\nend\n");
-    const auto* root = lines.value_as<icon::ast::Program>();
+    const auto* root = lines.valueAs<icon::ast::Program>();
     const auto* procedure = root && root->declarations.size() == 1
         ? cursiv::ast_cast<icon::ast::Procedure>(root->declarations[0]) : nullptr;
     check(lines.accepted && !lines.cst().recovered() && lines.diagnostics.empty() && procedure &&

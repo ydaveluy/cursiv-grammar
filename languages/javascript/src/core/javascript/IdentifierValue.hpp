@@ -4,7 +4,7 @@
 #include <string>
 #include <utility>
 #include "cursiv/grammar/Conversion.hpp"
-#include "cursiv/grammar/unicode/UnicodeRanges.hpp"
+#include "cursiv/text/unicode/UnicodeRanges.hpp"
 #include "cursiv/text/scalar_at.hpp"
 namespace javascript {
 inline bool identifier_character(char32_t cp, bool first) {

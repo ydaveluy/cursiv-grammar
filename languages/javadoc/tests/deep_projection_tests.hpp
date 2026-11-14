@@ -32,7 +32,7 @@ template <class Language> bool run(const Language& language) {
   const auto tagSource = source(parsedDepth);
   const std::string parsedSource = "/** " + tagSource + " */";
   const auto parsed = language.language.parser->parse(parsedSource);
-  const auto* doc = parsed.template value_as<ast::Documentation>();
+  const auto* doc = parsed.template valueAs<ast::Documentation>();
   const auto* outer = doc && doc->description.size() == 3
       ? std::get_if<ast::InlineTag*>(&doc->description[1]) : nullptr;
   std::unordered_set<const cursiv::AstNode*> seen;
@@ -49,7 +49,7 @@ template <class Language> bool run(const Language& language) {
     if (const auto* brace = cursiv::ast_cast<ast::InlineBrace>(node)) {
       ++braces; owned &= brace->open == "{" && brace->close == "}";
     }
-    language.language.astReflection->visitMembers(*node,
+    language.language.astReflection->visitProperties(*node,
         [&](std::string_view, std::uint32_t, const cursiv::AstNode& child) {
           owned &= child.parent == node &&
               parsed.cst().contains(node->cstNodeId, child.cstNodeId);

@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "cursiv/grammar/unicode/UnicodeRanges.hpp"
+#include "cursiv/text/unicode/UnicodeRanges.hpp"
 
 namespace fen {
 inline std::optional<std::string> counter_value(std::string_view text) {

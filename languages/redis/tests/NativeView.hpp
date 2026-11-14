@@ -1,6 +1,6 @@
 #pragma once
 #include "cursiv/syntax-tree/Cst.hpp"
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "redis/Argument.hpp"
 using J = cursiv::JsonValue;
 inline std::string hex(std::string_view s) {

@@ -40,7 +40,7 @@ int main() {
       std::fprintf(stderr, "audit regression: clean parse expected\n");
       return 1;
     }
-    const auto* fen = audit_result.value_as<fen::ast::Fen>();
+    const auto* fen = audit_result.valueAs<fen::ast::Fen>();
     if (!fen || fen->castling != "KK") return 1;
     const auto checked = cursiv::test::validationHelper(
         audit_language.language, "8/8/8/8/8/8/8/8 w KK - 0 1");
@@ -53,7 +53,7 @@ int main() {
     const auto language = cursiv::create_language<fen::FenCoreServices,
         fen::FenSharedCoreServices, fen::install_core_module>();
     const auto parsed = language.language.parser->parse("8/8/8/8/8/8/8/8 w - - +0 -0");
-    const auto* value = parsed.value_as<fen::ast::Fen>();
+    const auto* value = parsed.valueAs<fen::ast::Fen>();
     const auto checked = cursiv::test::validationHelper(language.language,
         "8/8/8/8/8/8/8/8 w - - +0 -0");
     if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||

@@ -54,7 +54,7 @@ template<class Services> bool run(const Services& services) {
   auto validate=[&](std::string source,std::string_view code,unsigned expected){
     cursiv::Document d(cursiv::TextDocument::create("file:///native-followup.zig","zig",0,std::move(source)));
     d.language=&services;d.parseResult=parser.parse(d.textDocument().getText());
-    if(!d.parseSucceeded()||d.parseRecovered()||!d.parseResult.diagnostics.empty()){
+    if(!d.parseResult.accepted||d.parseRecovered()||!d.parseResult.diagnostics.empty()){
       const auto text=d.textDocument().getText();
       std::fprintf(stderr,"zig native validation source does not parse: %.*s\n",int(text.size()),text.data());return false;
     }

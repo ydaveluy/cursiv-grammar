@@ -188,7 +188,7 @@ void JavaScriptValidator::checkNames(const ast::Program& program, cursiv::Valida
     if (const auto* n = cursiv::ast_cast<ast::LabeledStmt>(&node)) name(node, n->label, is_strict(n));
     if (const auto* n = cursiv::ast_cast<ast::BreakStmt>(&node)) name(node, n->label, is_strict(n));
     if (const auto* n = cursiv::ast_cast<ast::ContinueStmt>(&node)) name(node, n->label, is_strict(n));
-    services.astReflection->visitMembers(node,
+    services.astReflection->visitProperties(node,
         [&](std::string_view, std::uint32_t, cursiv::AstNode& child) { self(self, child); });
   };
   walk(walk, program);

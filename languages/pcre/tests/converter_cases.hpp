@@ -16,7 +16,7 @@ inline bool run(const cursiv::Parser& parser) {
     if (!value) { std::fprintf(stderr, "pcre converter: %s\n", reason); ok = false; }
   };
   const auto error = [](const auto& result) {
-    return !result && result.error.kind == cursiv::DiagnosticKind::conversion_error &&
+    return !result && result.error.kind == cursiv::DiagnosticKind::ConversionError &&
            !result.error.message.empty();
   };
   for (std::string_view text : {"", "(", "(?", "(?#", "(?#body", "a(?#)", "(?!a)",

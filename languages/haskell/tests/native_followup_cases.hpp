@@ -38,7 +38,7 @@ inline bool run(const cursiv::Parser& parser) {
         "type Applied = Proxy @Type Int; "
         "{-# INLINE [1] f #-}; f = 1 }\n";
     const auto result = parser.parse(source);
-    const auto* module = result.value_as<haskell::ast::Module>();
+    const auto* module = result.valueAs<haskell::ast::Module>();
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() && module &&
           module->exports.size() == 2 && module->exports[0]->name == "Data.List.map" &&
           module->exports[1]->name == "(Data.List.++)", "qualified export spellings");

@@ -43,7 +43,7 @@ int check_right_assoc(erlang::ErlangCoreServices& language) {
     const cursiv::ParseResult result = language.parser->parse(text);
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("'[1,2,3]--[1]--[2]' probe does not parse clean");
-    const auto* const forms = result.value_as<erlang::ast::Forms>();
+    const auto* const forms = result.valueAs<erlang::ast::Forms>();
     const auto* const* fn =
         std::get_if<erlang::ast::FunctionDecl*>(&forms->forms[1]);
     if (fn == nullptr) return fail("'--' probe built no function");
@@ -63,7 +63,7 @@ int check_right_assoc(erlang::ErlangCoreServices& language) {
     const cursiv::ParseResult result = language.parser->parse(text);
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("'A=B=C' probe does not parse clean");
-    const auto* const forms = result.value_as<erlang::ast::Forms>();
+    const auto* const forms = result.valueAs<erlang::ast::Forms>();
     const auto* const* fn =
         std::get_if<erlang::ast::FunctionDecl*>(&forms->forms[1]);
     if (fn == nullptr) return fail("'=' probe built no function");
@@ -233,7 +233,7 @@ int main() {
     const cursiv::ParseResult result = language.language.parser->parse(text);
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("fac.erl: does not parse clean");
-    const auto* const forms = result.value_as<erlang::ast::Forms>();
+    const auto* const forms = result.valueAs<erlang::ast::Forms>();
     if (forms == nullptr || forms->forms.empty())
       return fail("fac.erl: the parse built no forms");
 
@@ -267,7 +267,7 @@ int main() {
     const cursiv::ParseResult result = language.language.parser->parse(text);
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("helloword.erl: does not parse clean");
-    const auto* const forms = result.value_as<erlang::ast::Forms>();
+    const auto* const forms = result.valueAs<erlang::ast::Forms>();
     bool sawString = false;
     for (const auto& form : forms->forms) {
       const auto* const* fn = std::get_if<erlang::ast::FunctionDecl*>(&form);

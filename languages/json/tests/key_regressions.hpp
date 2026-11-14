@@ -36,7 +36,7 @@ inline bool run() {
     const std::string source = "{\"" + std::string(key.escaped) + "\":1,\"" +
                                std::string(key.equivalent) + "\":2}";
     const auto result = services.language.parser->parse(source);
-    const auto *doc = result.value_as<json::ast::Doc>();
+    const auto *doc = result.valueAs<json::ast::Doc>();
     const auto *value =
         doc ? std::get_if<json::ast::Value *>(&doc->value) : nullptr;
     const auto *object =
@@ -64,7 +64,7 @@ inline bool run() {
                         Key{R"(\u0000x)", "", std::string_view("\0x", 2)}}) {
     const std::string source = "\"" + std::string(key.escaped) + "\"";
     const auto result = services.language.parser->parse(source);
-    const auto* doc = result.value_as<json::ast::Doc>();
+    const auto* doc = result.valueAs<json::ast::Doc>();
     const auto* value = doc ? std::get_if<std::string>(&doc->value) : nullptr;
     if (!result.accepted || result.cst().recovered() || !value || *value != key.decoded)
       return false;
@@ -82,7 +82,7 @@ inline bool run() {
                          std::string("\xf4\x8f\xbf\xbf", 4)}) {
     const std::string source = "\"" + raw + "\"";
     const auto result = services.language.parser->parse(source);
-    const auto* doc = result.value_as<json::ast::Doc>();
+    const auto* doc = result.valueAs<json::ast::Doc>();
     const auto* value = doc ? std::get_if<std::string>(&doc->value) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !value || *value != raw)
@@ -91,7 +91,7 @@ inline bool run() {
   {
     const auto result = services.language.parser->parse(
         R"({"all":[null,false,true,-0.0,{"u":"😀"}]})");
-    const auto* document = result.value_as<json::ast::Doc>();
+    const auto* document = result.valueAs<json::ast::Doc>();
     const auto* value = document ? std::get_if<json::ast::Value*>(&document->value) : nullptr;
     const auto* object = value ? cursiv::ast_cast<json::ast::Object>(*value) : nullptr;
     const auto* items = object && object->members.size() == 1

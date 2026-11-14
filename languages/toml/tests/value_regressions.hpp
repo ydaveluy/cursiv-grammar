@@ -27,7 +27,7 @@ inline bool run() {
     return r.accepted && !r.cst().recovered() && r.diagnostics.empty();
   };
   const auto entry = [](const cursiv::ParseResult &r) -> const ast::KeyValue * {
-    const auto *d = r.value_as<ast::Document>();
+    const auto *d = r.valueAs<ast::Document>();
     return d && d->tables.size() == 1 && d->tables[0]->entries.size() == 1
                ? d->tables[0]->entries[0]
                : nullptr;

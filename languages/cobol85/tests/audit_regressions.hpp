@@ -123,7 +123,7 @@ inline bool run() {
     const auto native = parser->parse(source);
     check(native.accepted && !native.cst().recovered() && native.diagnostics.empty(),
           "conditional EVALUATE subjects and selectors parse");
-    const auto* unit = native.value_as<ast::CompilationUnit>();
+    const auto* unit = native.valueAs<ast::CompilationUnit>();
     const auto* program = unit && unit->programs.size() == 1 ? unit->programs[0] : nullptr;
     const auto* proc = program ? program->procedure : nullptr;
     const auto* first = proc && proc->statements.size() == 4

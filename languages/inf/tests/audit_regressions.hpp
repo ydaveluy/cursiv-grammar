@@ -105,7 +105,7 @@ inline void run() {
         "key=first\\ ; folded comment" + ending + "  second" + ending +
         "token=%str;key%,tail ; comment" + ending + "next=last" + ending;
     const auto result = language.language.parser->parse(source);
-    const auto* doc = result.value_as<inf::ast::Document>();
+    const auto* doc = result.valueAs<inf::ast::Document>();
     CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
           doc && doc->sections.size() == 1 && doc->sections[0]->lines.size() == 3);
     if (doc && doc->sections.size() == 1 && doc->sections[0]->lines.size() == 3) {

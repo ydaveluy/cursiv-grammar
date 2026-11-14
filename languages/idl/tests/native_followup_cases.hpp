@@ -33,7 +33,7 @@ module Inside {
 };
 )idl";
   const auto result = parser.parse(source);
-  const auto* root = result.value_as<idl::ast::Specification>();
+  const auto* root = result.valueAs<idl::ast::Specification>();
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !root) {
     std::fprintf(stderr, "idl native: clean standard source expected\n"); return false;
   }
@@ -89,7 +89,7 @@ module Inside {
                   positions && imports == 3 && annotatedImports == 3;
   if (!ok) std::fprintf(stderr, "idl native: fixed/string/anonymous-type AST fields lost\n");
   const auto onlyImport = parser.parse("@lead import Legacy;");
-  const auto* imported = onlyImport.value_as<idl::ast::Specification>();
+  const auto* imported = onlyImport.valueAs<idl::ast::Specification>();
   return ok && onlyImport.accepted && !onlyImport.cst().recovered() &&
          onlyImport.diagnostics.empty() && imported && imported->imports.size() == 1 &&
          imported->imports[0]->annotations.size() == 1 &&

@@ -25,7 +25,7 @@ inline bool run() {
     auto r = language.language.parser->parse(source);
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
           "clean parse");
-    const auto* root = r.value_as<ast::Collection>();
+    const auto* root = r.valueAs<ast::Collection>();
     check(root != nullptr, "collection root");
     std::function<void(const ast::GameTree*)> walk = [&](const auto* t) {
       for (const auto* n : t->nodes) {
@@ -47,7 +47,7 @@ inline bool run() {
   };
   {
     const auto r = parse("(;B[]KO[]DD[]FG[]TB[]TW[]XX[][x][];W[])");
-    const auto* root = r.value_as<ast::Collection>();
+    const auto* root = r.valueAs<ast::Collection>();
     check(root && root->trees.size() == 1 && root->trees[0]->nodes.size() == 2,
           "empty values keep game sequence");
     if (root && root->trees.size() == 1 && root->trees[0]->nodes.size() == 2) {
@@ -68,7 +68,7 @@ inline bool run() {
         "a" + std::string(count, '\\') + (count % 2 ? "]b" : "");
     const std::string source = "(;C[" + value + "]N[next])";
     const auto r = parse(source);
-    const auto* root = r.value_as<ast::Collection>();
+    const auto* root = r.valueAs<ast::Collection>();
     if (root && !root->trees.empty() && !root->trees[0]->nodes.empty()) {
       const auto& ps = root->trees[0]->nodes[0]->properties;
       check(ps.size() == 2 && ps[0]->values.size() == 1 &&
@@ -79,7 +79,7 @@ inline bool run() {
   }
   {
     const auto r = parse("(;FileFormat[4]AddBlack[aa][bb]Comment[legacy])");
-    const auto* root = r.value_as<ast::Collection>();
+    const auto* root = r.valueAs<ast::Collection>();
     if (root && !root->trees.empty() && !root->trees[0]->nodes.empty()) {
       const auto& ps = root->trees[0]->nodes[0]->properties;
       check(ps.size() == 3 && ps[0]->id == "FF" && ps[1]->id == "AB" &&
@@ -91,7 +91,7 @@ inline bool run() {
     const auto r = parse(
         "(;GM[1];B[aa](;W[bb];B[])(;W[cc](;B[dd])(;B[ee])))"
         "(;GM[2]SZ[8];B[a1])");
-    const auto* root = r.value_as<ast::Collection>();
+    const auto* root = r.valueAs<ast::Collection>();
     check(root && root->trees.size() == 2 &&
               root->trees[0]->nodes.size() == 2 &&
               root->trees[0]->children.size() == 2 &&
@@ -104,7 +104,7 @@ inline bool run() {
     const std::string bytes = std::string("caf\xe9\0", 5) + "\\\r\ntext\t";
     const std::string source = "(\f;\vCA[ISO-8859-1]C[" + bytes + "])";
     const auto r = parse(source);
-    const auto* root = r.value_as<ast::Collection>();
+    const auto* root = r.valueAs<ast::Collection>();
     if (root && !root->trees.empty() && !root->trees[0]->nodes.empty()) {
       const auto& ps = root->trees[0]->nodes[0]->properties;
       check(ps.size() == 2 && ps[1]->values.size() == 1 &&
@@ -116,7 +116,7 @@ inline bool run() {
     const std::string id(80, 'X');
     const std::string source = "(;" + id + "[v])";
     const auto r = parse(source);
-    const auto* root = r.value_as<ast::Collection>();
+    const auto* root = r.valueAs<ast::Collection>();
     check(root && !root->trees.empty() && !root->trees[0]->nodes.empty() &&
               root->trees[0]->nodes[0]->properties.size() == 1 &&
               root->trees[0]->nodes[0]->properties[0]->id == id,
@@ -130,7 +130,7 @@ inline bool run() {
     unsigned errors = 0;
     auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, doc, source);
-    const auto* root = doc.parseResult.value_as<ast::Collection>();
+    const auto* root = doc.parseResult.valueAs<ast::Collection>();
     if (root && !root->trees.empty() && !root->trees[0]->nodes.empty()) {
       const auto* n = root->trees[0]->nodes[0];
       language.language.validator->checkNode(*n, accept);

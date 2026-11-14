@@ -64,7 +64,7 @@ inline bool run(const auto& language) {
       return false;
     }
     if (!clean) continue;
-    const auto* root = r.template value_as<guido::ast::Prog>();
+    const auto* root = r.template valueAs<guido::ast::Prog>();
     if (!root || root->parent != v.document.get() ||
         root->segments.size() + root->sequences.size() != 1) {
       std::fprintf(stderr, "guido score-shape: %s root=%p parent=%p segments=%zu sequences=%zu\n",
@@ -81,7 +81,7 @@ inline bool run(const auto& language) {
         return false;
       }
       bool okay = true;
-      language.language.astReflection->visitMembers(*node,
+      language.language.astReflection->visitProperties(*node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             const bool parent = child.parent == node;
             const bool contained = r.cst().contains(node->cstNodeId, child.cstNodeId);
@@ -101,7 +101,7 @@ inline bool run(const auto& language) {
   }
   const auto result = language.language.parser->parse(
       "$n=-12; $r=+.5; $s=\"text\"; {[c], [d]}");
-  const auto* root = result.template value_as<guido::ast::Prog>();
+  const auto* root = result.template valueAs<guido::ast::Prog>();
   if (!root || root->variables.size() != 3 || root->segments.size() != 1 ||
       root->segments[0]->sequences.size() != 2 || !root->sequences.empty()) {
     std::fprintf(stderr, "guido score-shape: combined variables/voices structure lost\n");

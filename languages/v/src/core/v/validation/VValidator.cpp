@@ -51,7 +51,7 @@ bool containsString(const ast::Expr* expression,
     if (cursiv::ast_cast<ast::StringLit>(node) ||
         cursiv::ast_cast<ast::InterpolatedString>(node))
       return true;
-    reflection.visitMembers(*node, [&](std::string_view, std::uint32_t,
+    reflection.visitProperties(*node, [&](std::string_view, std::uint32_t,
                                        cursiv::AstNode& child) {
       pending.push_back(&child);
     });
@@ -108,7 +108,7 @@ bool invalidShortArguments(const ast::Expr* expression,
       }
       if (call && !continues(*node, extent.end, false, accept)) return true;
     }
-    reflection.visitMembers(*node, [&](std::string_view member, std::uint32_t,
+    reflection.visitProperties(*node, [&](std::string_view member, std::uint32_t,
                                        cursiv::AstNode& child) {
       pending.push_back({&child, argument || (call && member == "args")});
     });

@@ -112,7 +112,7 @@ static int audit_regression() {
         r.value == nullptr)
       return 1;
 
-    const auto* doc = r.value_as<codeql::ast::Document>();
+    const auto* doc = r.valueAs<codeql::ast::Document>();
     if (!doc || doc->body.size() != 1) return 1;
     const auto* sel = cursiv::ast_cast<codeql::ast::Select>(doc->body[0]);
     if (!sel || sel->results.size() != 2) return 1;
@@ -146,7 +146,7 @@ static int audit_regression() {
         "import Generic<Arg> as Inst "
         "overlay[local?] predicate p() { 1 = 1 } "
         "where (1 = 1 implies 2 = 2) implies (3 = 3 implies 4 = 4) select 1");
-    const auto* doc = r.value_as<codeql::ast::Document>();
+    const auto* doc = r.valueAs<codeql::ast::Document>();
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         !doc || doc->body.size() != 6) return 1;
     const auto* import_decl = cursiv::ast_cast<codeql::ast::ImportDecl>(doc->body[3]);

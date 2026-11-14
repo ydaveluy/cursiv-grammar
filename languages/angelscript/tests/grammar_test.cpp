@@ -168,7 +168,7 @@ int main() {
   {
     const std::string text = read(CURSIV_TEST_DIR "/declarations.as");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto& script = *result.value_as<ast::Script>();
+    const auto& script = *result.valueAs<ast::Script>();
 
     const ast::ImportDecl* import = nullptr;
     const ast::NamespaceDecl* game = nullptr;
@@ -240,7 +240,7 @@ int main() {
   {
     const std::string text = read(CURSIV_TEST_DIR "/expressions.as");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto& script = *result.value_as<ast::Script>();
+    const auto& script = *result.valueAs<ast::Script>();
 
     bool sawShift = false;
     const ast::BinExpr* precMulAdd = nullptr;

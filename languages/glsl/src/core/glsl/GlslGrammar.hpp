@@ -40,9 +40,9 @@ template <cursiv::str S, std::size_t I = 0> consteval auto spelling() {
     return c;
   }();
   if constexpr (I + 1 == S.size())
-    return lit<character>;
+    return GrammarSpec::lit<character>;
   else
-    return lit<character> + many(lit<"\\"> + (lit<"\r\n"> | cr<R"(\r\n)">)) +
+    return GrammarSpec::lit<character> + GrammarSpec::many(GrammarSpec::lit<"\\"> + (GrammarSpec::lit<"\r\n"> | GrammarSpec::cr<R"(\r\n)">)) +
            spelling<S, I + 1>();
 }
 } // namespace detail

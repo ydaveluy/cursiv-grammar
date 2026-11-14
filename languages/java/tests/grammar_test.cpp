@@ -93,7 +93,7 @@ int unicode_regressions() {
     const auto observed = spy->parse(test.source);
     const auto decoded = lexical->parse(seen);
     if (result.cst().size() != decoded.cst().size() ||
-        result.cst().entry_root() != decoded.cst().entry_root())
+        result.cst().entryRoot() != decoded.cst().entryRoot())
       return fail("Unicode CST ids must match the lexical tree");
     bool name = false;
     for (cursiv::NodeId id = 0; id < result.cst().size(); ++id) {

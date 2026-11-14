@@ -48,7 +48,7 @@ entity(𐀀, [ex:big=1234567890123456789012345678901234567890,
             ex:long="""long\ttext"""])
 activity(ex:a, 2026-10-28T12:00:00+14:00, -)
 endDocument)prov");
-    const auto *doc = result.value_as<provn::ast::Document>();
+    const auto *doc = result.valueAs<provn::ast::Document>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !doc || doc->prefixes.size() != 1 ||
         doc->prefixes[0]->iri != "http://example.org/é" ||

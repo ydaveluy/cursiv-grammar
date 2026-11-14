@@ -41,7 +41,7 @@ int main() {
  };
  for(const auto& c:cases) {
   const auto result=language.language.parser->parse(c.text);
-  const auto*graph=result.value_as<dot::ast::Graph>();
+  const auto*graph=result.valueAs<dot::ast::Graph>();
   std::vector<std::string_view> names;
   bool parents=true;
   for(const auto*n:result.nodes()) {
@@ -61,7 +61,7 @@ int main() {
   }
  }
  const auto groups=language.language.parser->parse("digraph G { a:p,b:q -> c:r,d:s [label=x]; }");
- const auto*g=groups.value_as<dot::ast::Graph>();
+ const auto*g=groups.valueAs<dot::ast::Graph>();
  const auto*stmt=g && g->statements.size()==1?cursiv::ast_cast<dot::ast::CompoundStmt>(g->statements[0]):nullptr;
  if(!stmt || stmt->endpoints.size()!=2 || stmt->ops.size()!=1 || stmt->ops[0]!=dot::ast::EdgeOp::directed ||
     !stmt->attrs || stmt->attrs->pairs.size()!=1 || stmt->attrs->pairs[0]->value!="x")return 1;
@@ -78,7 +78,7 @@ int main() {
  }
  const std::string numericSource = "digraph G { 123abc -> z; }";
  const auto numeric = language.language.parser->parse(numericSource);
- const auto* ng = numeric.value_as<dot::ast::Graph>();
+ const auto* ng = numeric.valueAs<dot::ast::Graph>();
  const auto* first = ng && ng->statements.size()==2 ? cursiv::ast_cast<dot::ast::CompoundStmt>(ng->statements[0]) : nullptr;
  const auto* second = ng && ng->statements.size()==2 ? cursiv::ast_cast<dot::ast::CompoundStmt>(ng->statements[1]) : nullptr;
  if(!first || !second || !first->ops.empty() || second->ops.size()!=1 || first->parent!=ng || second->parent!=ng)return 1;

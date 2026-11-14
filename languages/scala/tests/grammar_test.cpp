@@ -52,7 +52,7 @@ struct Parsed {
 ast::ClassTemplate* object_body(const Parsed& p,
                                 const cursiv::AstReflection& reflection) {
   if (!p.result.accepted || p.result.cst().recovered()) return nullptr;
-  ast::CompilationUnit* const u = p.result.value_as<ast::CompilationUnit>();
+  ast::CompilationUnit* const u = p.result.valueAs<ast::CompilationUnit>();
   if (u == nullptr || u->items.size() != 1) return nullptr;
   ast::ObjectDef* const obj = as<ast::ObjectDef>(reflection, u->items[0]);
   return obj != nullptr ? obj->templateOpt : nullptr;
@@ -220,7 +220,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* unit = r.value_as<scala::ast::CompilationUnit>();
+    const auto* unit = r.valueAs<scala::ast::CompilationUnit>();
     const auto* object =
         unit && unit->items.size() == 1
             ? cursiv::ast_cast<scala::ast::ObjectDef>(unit->items[0])
@@ -239,7 +239,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* unit = r.value_as<scala::ast::CompilationUnit>();
+    const auto* unit = r.valueAs<scala::ast::CompilationUnit>();
     const auto* object =
         unit && unit->items.size() == 1
             ? cursiv::ast_cast<scala::ast::ObjectDef>(unit->items[0])
@@ -257,7 +257,7 @@ static int audit_regression() {
     const auto r = language.language.parser->parse(
         "object X { val y = x match { case a :: b :: c => 1 } }");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return 1;
-    const auto* unit = r.value_as<scala::ast::CompilationUnit>();
+    const auto* unit = r.valueAs<scala::ast::CompilationUnit>();
     const auto* object =
         unit && unit->items.size() == 1
             ? cursiv::ast_cast<scala::ast::ObjectDef>(unit->items[0])

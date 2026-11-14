@@ -41,7 +41,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* doc = r.value_as<php::ast::Document>();
+    const auto* doc = r.valueAs<php::ast::Document>();
     const auto* phpBlock =
         doc && doc->items.size() == 1
             ? cursiv::ast_cast<php::ast::PhpBlock>(doc->items[0])
@@ -65,7 +65,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* doc = r.value_as<php::ast::Document>();
+    const auto* doc = r.valueAs<php::ast::Document>();
     const auto* block =
         doc && doc->items.size() == 1
             ? cursiv::ast_cast<php::ast::PhpBlock>(doc->items[0])
@@ -87,7 +87,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* doc = r.value_as<php::ast::Document>();
+    const auto* doc = r.valueAs<php::ast::Document>();
     const auto* block =
         doc && doc->items.size() == 1
             ? cursiv::ast_cast<php::ast::PhpBlock>(doc->items[0])
@@ -118,7 +118,7 @@ static int audit_regression() {
         std::string(body) + (contentLine ? std::string(newline) : "") +
         std::string(tag) + ";\n";
     const auto r = language.language.parser->parse(input);
-    const auto* doc = r.value_as<php::ast::Document>();
+    const auto* doc = r.valueAs<php::ast::Document>();
     const auto* block = doc && doc->items.size() == 1
         ? cursiv::ast_cast<php::ast::PhpBlock>(doc->items[0]) : nullptr;
     const auto* stmt = block && block->items.size() == 1

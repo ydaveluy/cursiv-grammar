@@ -21,7 +21,7 @@ int main() {
       std::ifstream f(entry.path(), std::ios::binary);
       const std::string source((std::istreambuf_iterator<char>(f)), {});
       const auto r = language.language.parser->parse(source);
-      const auto* d = r.value_as<ply::ast::Document>();
+      const auto* d = r.valueAs<ply::ast::Document>();
       if (!d || !r.accepted || r.cst().recovered() || !r.diagnostics.empty()) {
         std::fprintf(stderr, "PLY parse: %s\n", entry.path().c_str());
         return 1;

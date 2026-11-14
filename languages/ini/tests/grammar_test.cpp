@@ -17,7 +17,7 @@ int main() {
   };
   const auto inspect = [&](const std::string& source, auto check) {
     const auto parsed = language.language.parser->parse(source);
-    const auto* document = parsed.template value_as<ini::ast::Document>();
+    const auto* document = parsed.template valueAs<ini::ast::Document>();
     require(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() && document,
             "physical INI lines must parse without repairs");
     if (!document) return;

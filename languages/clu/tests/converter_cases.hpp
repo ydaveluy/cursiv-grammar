@@ -18,7 +18,7 @@ inline bool run(const cursiv::Parser& parser) {
                                   R"clu("\12x")clu",R"clu("\400")clu",
                                   R"clu("\q")clu",R"clu("\")clu"}) {
     const auto converted=clu::strip_quotes(text);
-    if(converted || converted.error.kind!=cursiv::DiagnosticKind::conversion_error || converted.error.message.empty())
+    if(converted || converted.error.kind!=cursiv::DiagnosticKind::ConversionError || converted.error.message.empty())
       return fail("incomplete/invalid escape must return a conversion diagnostic");
   }
   for(const auto [text,expected]:{

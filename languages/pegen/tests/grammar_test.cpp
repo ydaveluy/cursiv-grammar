@@ -94,7 +94,7 @@ _entrée[List[Tuple[str, int]]](memo):
   }
   {
     const auto nested = language.language.parser->parse("start[[]]: NAME {{}}\n");
-    const auto* root = nested.value_as<pegen::ast::Grammar>();
+    const auto* root = nested.valueAs<pegen::ast::Grammar>();
     const auto* r = root && root->rules.size() == 1 ? root->rules[0] : nullptr;
     if (!nested.accepted || nested.cst().recovered() || !nested.diagnostics.empty() ||
         !r || r->returnType != "[]" || r->body->alts.size() != 1 ||

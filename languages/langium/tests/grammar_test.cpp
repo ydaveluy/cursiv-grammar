@@ -74,7 +74,7 @@ int main() {
   {
     const auto result = language.language.parser->parse(
         "grammar ^grammar type X=string; interface I{entry:string;} R<a>: <true> 'x';");
-    const auto* g = result.value_as<langium::ast::Grammar>();
+    const auto* g = result.valueAs<langium::ast::Grammar>();
     const auto* type = g && g->types.size() == 1
         ? cursiv::ast_cast<langium::ast::SimpleType>(g->types[0]->type) : nullptr;
     const auto* rule = g && g->rules.size() == 1
@@ -192,7 +192,7 @@ int main() {
     auto guard_condition =
         [](const cursiv::ParseResult& r) -> const langium::ast::Condition* {
       if (r.cst().recovered() || !r.diagnostics.empty()) return nullptr;
-      const auto* g = r.value_as<langium::ast::Grammar>();
+      const auto* g = r.valueAs<langium::ast::Grammar>();
       if (!g || g->rules.empty()) return nullptr;
       const auto* pr = cursiv::ast_cast<langium::ast::ParserRule>(g->rules[0]);
       const auto* group =

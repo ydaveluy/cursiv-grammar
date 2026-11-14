@@ -22,7 +22,7 @@ bool inspect(const Services& services, const char* id, const char* text,
              Check check) {
   const std::string source(text);
   const auto parsed = services.parser->parse(source);
-  const auto* doc = parsed.template value_as<ast::Document>();
+  const auto* doc = parsed.template valueAs<ast::Document>();
   const bool clean = parsed.accepted && !parsed.cst().recovered() &&
                      parsed.diagnostics.empty() && doc;
   if (!clean || parsed.cst().text() != source) {
@@ -41,7 +41,7 @@ bool inspect(const Services& services, const char* id, const char* text,
     }
     const auto& span = parsed.cst()[current.cstNodeId];
     owned &= span.begin <= span.end && span.end <= source.size();
-    services.astReflection->visitMembers(
+    services.astReflection->visitProperties(
         current, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
           owned &= child.parent == &current &&
                    parsed.cst().contains(current.cstNodeId, child.cstNodeId);

@@ -61,22 +61,22 @@ inline constexpr auto class_set_operator = [](std::string_view text) {
 // templates. Explicit return types also avoid deduction inside an incomplete
 // enclosing grammar class. These are the ordinary DSL operators, in order.
 template <class A, class B>
-constexpr auto sequence_fragment(A a, B b) -> decltype(cursiv::operator+(a, b)) {
-  return cursiv::operator+(a, b);
+constexpr auto sequence_fragment(A a, B b) -> decltype(cursiv::detail::operator+(a, b)) {
+  return cursiv::detail::operator+(a, b);
 }
 template <class A, class B, class C>
 constexpr auto sequence_fragment(A a, B b, C c)
-    -> decltype(cursiv::operator+(cursiv::operator+(a, b), c)) {
-  return cursiv::operator+(cursiv::operator+(a, b), c);
+    -> decltype(cursiv::detail::operator+(cursiv::detail::operator+(a, b), c)) {
+  return cursiv::detail::operator+(cursiv::detail::operator+(a, b), c);
 }
 template <class A, class B>
-constexpr auto choice_fragment(A a, B b) -> decltype(cursiv::operator|(a, b)) {
-  return cursiv::operator|(a, b);
+constexpr auto choice_fragment(A a, B b) -> decltype(cursiv::detail::operator|(a, b)) {
+  return cursiv::detail::operator|(a, b);
 }
 template <class A, class B, class C>
 constexpr auto choice_fragment(A a, B b, C c)
-    -> decltype(cursiv::operator|(cursiv::operator|(a, b), c)) {
-  return cursiv::operator|(cursiv::operator|(a, b), c);
+    -> decltype(cursiv::detail::operator|(cursiv::detail::operator|(a, b), c)) {
+  return cursiv::detail::operator|(cursiv::detail::operator|(a, b), c);
 }
 
 struct Pcre : cursiv::GrammarSpec {

@@ -286,7 +286,7 @@ void LlvmIrValidator::checkModule(const ast::Module& node,
       if (!id || !definitions.contains(*id))
         accept.error(*ref, "undefined metadata reference");
     }
-    services.astReflection->visitMembers(
+    services.astReflection->visitProperties(
         n, [&](auto, auto, auto& child) { visit(child); });
   };
   visit(node);

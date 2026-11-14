@@ -29,7 +29,7 @@ inline bool run(const auto& language) {
     bool owned = result.value && !result.value->parent;
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; return; }
-      language.astReflection->visitMembers(node,
+      language.astReflection->visitProperties(node,
           [&](std::string_view member, std::uint32_t index, cursiv::AstNode& child) {
             const bool contained = node.cstNodeId < result.cst().size() &&
                 child.cstNodeId < result.cst().size() &&

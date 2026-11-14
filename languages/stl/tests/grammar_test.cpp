@@ -53,8 +53,8 @@ int main() {
     check(result.accepted && !result.cst().recovered() &&
               result.diagnostics.empty(),
           c.file);
-    const auto *doc = result.value_as<ast::Document>();
-    const auto *second = other.value_as<ast::Document>();
+    const auto *doc = result.valueAs<ast::Document>();
+    const auto *second = other.valueAs<ast::Document>();
     check(doc && second, c.file);
     if (!doc || !second)
       continue;
@@ -79,7 +79,7 @@ int main() {
         check(false, c.file);
         return;
       }
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           node, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             check(child.parent == &node &&
                       result.cst().contains(node.cstNodeId, child.cstNodeId),
@@ -167,7 +167,7 @@ int main() {
     check(result.accepted && !result.cst().recovered() &&
               result.diagnostics.empty(),
           "NaN payload parses");
-    const auto *doc = result.value_as<ast::Document>();
+    const auto *doc = result.valueAs<ast::Document>();
     if (!doc || doc->solids.size() != 1 || doc->solids[0]->facets.size() != 1 ||
         doc->solids[0]->facets[0]->vertices.size() != 3) {
       check(false, "NaN payload facet");

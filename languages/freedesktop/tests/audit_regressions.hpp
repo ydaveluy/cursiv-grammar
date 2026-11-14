@@ -20,7 +20,7 @@ inline bool run(const desktopentry::DesktopEntryCoreServices& services) {
   for (const auto& test : cases) {
     const std::string source(test.source);
     const auto result = services.parser->parse(source);
-    const auto* doc = result.value_as<desktopentry::ast::Document>();
+    const auto* doc = result.valueAs<desktopentry::ast::Document>();
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !doc || doc->groups.size() != test.groups.size())
       return false;

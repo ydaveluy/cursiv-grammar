@@ -136,7 +136,7 @@ void operator_precedence() {
   // `1 + 2 * 3` is `1 + (2 * 3)`: multiplicative is the tighter level.
   cursiv::ParseResult r = build("x = 1 + 2 * 3\n");
   ast::AssignStmt *const assign =
-      as<ast::AssignStmt>(r.value_as<ast::File>()->statements[0]);
+      as<ast::AssignStmt>(r.valueAs<ast::File>()->statements[0]);
   CHECK(assign != nullptr);
   ast::BinaryExpr *const add =
       assign != nullptr ? as<ast::BinaryExpr>(assign->value) : nullptr;
@@ -148,7 +148,7 @@ void operator_precedence() {
   // A left level folds left: `1 - 2 - 3` is `(1 - 2) - 3`.
   cursiv::ParseResult l = build("x = 1 - 2 - 3\n");
   ast::AssignStmt *const la =
-      as<ast::AssignStmt>(l.value_as<ast::File>()->statements[0]);
+      as<ast::AssignStmt>(l.valueAs<ast::File>()->statements[0]);
   ast::BinaryExpr *const outer =
       la != nullptr ? as<ast::BinaryExpr>(la->value) : nullptr;
   CHECK(outer != nullptr && outer->op == ast::Operator::subtract &&
@@ -158,7 +158,7 @@ void operator_precedence() {
   // The range operator binds looser than addition: `1:2+3` is `1:(2+3)`.
   cursiv::ParseResult ra = build("x = 1:2+3\n");
   ast::AssignStmt *const rassign =
-      as<ast::AssignStmt>(ra.value_as<ast::File>()->statements[0]);
+      as<ast::AssignStmt>(ra.valueAs<ast::File>()->statements[0]);
   ast::BinaryExpr *const range =
       rassign != nullptr ? as<ast::BinaryExpr>(rassign->value) : nullptr;
   CHECK(range != nullptr && range->op == ast::Operator::range);
@@ -168,7 +168,7 @@ void operator_precedence() {
   // `2 + (3 * (2 ^ 2))`.
   cursiv::ParseResult p = build("x = 2 + 3 * 2 ^ 2\n");
   ast::AssignStmt *const pAssign =
-      as<ast::AssignStmt>(p.value_as<ast::File>()->statements[0]);
+      as<ast::AssignStmt>(p.valueAs<ast::File>()->statements[0]);
   ast::BinaryExpr *const pAdd =
       pAssign != nullptr ? as<ast::BinaryExpr>(pAssign->value) : nullptr;
   CHECK(pAdd != nullptr && pAdd->op == ast::Operator::add);
@@ -183,7 +183,7 @@ void operator_precedence() {
   // `a < (1:5)`, never `(a < 1):5`.
   cursiv::ParseResult c = build("x = a < 1:5\n");
   ast::AssignStmt *const cAssign =
-      as<ast::AssignStmt>(c.value_as<ast::File>()->statements[0]);
+      as<ast::AssignStmt>(c.valueAs<ast::File>()->statements[0]);
   ast::BinaryExpr *const cLess =
       cAssign != nullptr ? as<ast::BinaryExpr>(cAssign->value) : nullptr;
   CHECK(cLess != nullptr && cLess->op == ast::Operator::less);
@@ -195,7 +195,7 @@ void operator_precedence() {
   // left like any other same-tier run: `1 == 2 < 3` is `(1 == 2) < 3`.
   cursiv::ParseResult e = build("x = 1 == 2 < 3\n");
   ast::AssignStmt *const eAssign =
-      as<ast::AssignStmt>(e.value_as<ast::File>()->statements[0]);
+      as<ast::AssignStmt>(e.valueAs<ast::File>()->statements[0]);
   ast::BinaryExpr *const eLess =
       eAssign != nullptr ? as<ast::BinaryExpr>(eAssign->value) : nullptr;
   CHECK(eLess != nullptr && eLess->op == ast::Operator::less);
@@ -207,7 +207,7 @@ void operator_precedence() {
 void index_args_and_colon() {
   cursiv::ParseResult r = build("y = x(1:2, :)\n");
   ast::AssignStmt *const assign =
-      as<ast::AssignStmt>(r.value_as<ast::File>()->statements[0]);
+      as<ast::AssignStmt>(r.valueAs<ast::File>()->statements[0]);
   ast::IndexExpr *const idx =
       assign != nullptr ? as<ast::IndexExpr>(assign->value) : nullptr;
   CHECK(idx != nullptr && idx->name == "x" && idx->args.size() == 2);
@@ -232,7 +232,7 @@ void signed_matrix_columns() {
   };
   for (const auto &test : cases) {
     cursiv::ParseResult result = engine().parse(test.source);
-    const auto *file = result.value_as<ast::File>();
+    const auto *file = result.valueAs<ast::File>();
     CHECK(result.accepted && !result.cst().recovered() &&
           result.diagnostics.empty() && file);
     const auto *assignment = file && !file->statements.empty()
@@ -275,7 +275,7 @@ void if_elseif_else_shape() {
   cursiv::ParseResult r =
       build("if a b = 1; elseif c d = 2; elseif e f = 3; else g = 4; end\n");
   ast::IfStmt *const ifs =
-      as<ast::IfStmt>(r.value_as<ast::File>()->statements[0]);
+      as<ast::IfStmt>(r.valueAs<ast::File>()->statements[0]);
   CHECK(ifs != nullptr && ifs->thenBody.size() == 1 &&
         ifs->elseIfs.size() == 2 && ifs->elseBody.size() == 1);
 }
@@ -305,7 +305,7 @@ void corpus() {
         ++failures;
         continue;
       }
-      CHECK(r.value_as<ast::File>() != nullptr);
+      CHECK(r.valueAs<ast::File>() != nullptr);
     }
   }
   CHECK(seen == 5);
@@ -319,7 +319,7 @@ void field_values_from_control_flow() {
   const std::string src = load_example(path);
   CHECK(!src.empty());
   const cursiv::ParseResult r = build(src);
-  ast::File *const file = r.value_as<ast::File>();
+  ast::File *const file = r.valueAs<ast::File>();
   CHECK(file != nullptr);
   if (file == nullptr)
     return;
@@ -370,7 +370,7 @@ int main() {
   for (const auto source : {"function=1;", "end=1;", "x=1e2.5;"}) CHECK(!accepts(source));
   {
     const auto r = engine().parse("a=-2^2; b=2^-1; c=2^3^4; d=2^3'; e=1.*2; f=2j;");
-    const auto* root = r.value_as<ast::File>();
+    const auto* root = r.valueAs<ast::File>();
     CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && root && root->statements.size() == 6);
     if (root && root->statements.size() == 6) {
       const auto value = [&](unsigned i) { auto* a = cursiv::ast_cast<ast::AssignStmt>(root->statements[i]); return a ? a->value : nullptr; };
@@ -390,7 +390,7 @@ int main() {
   }
   {
     const auto r = engine().parse("function [a,b]=pair(x,~)\na=x; b=x+1;\nend\n");
-    const auto* root = r.value_as<ast::File>();
+    const auto* root = r.valueAs<ast::File>();
     const auto* f = root && !root->statements.empty() ? cursiv::ast_cast<ast::FunctionDef>(root->statements[0]) : nullptr;
     CHECK(f && f->name == "pair" && f->outputs.size() == 2 && f->parameters.size() == 2 && f->parameters[1] == "~");
   }

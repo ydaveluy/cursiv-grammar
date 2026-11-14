@@ -85,7 +85,7 @@ void corpus_parses_clean() {
     CHECK(!src.empty());
     const cursiv::ParseResult r = build(src);
     CHECK(r.diagnostics.empty());
-    ast::Doc* doc = r.value_as<ast::Doc>();
+    ast::Doc* doc = r.valueAs<ast::Doc>();
     CHECK(doc != nullptr);
   }
 }
@@ -95,7 +95,7 @@ void corpus_parses_clean() {
 void basic_document() {
   const std::string src = load("basic.maml");
   const cursiv::ParseResult r = build(src);
-  ast::Doc* doc = r.value_as<ast::Doc>();
+  ast::Doc* doc = r.valueAs<ast::Doc>();
   CHECK(doc != nullptr);
   ast::Object* root = doc != nullptr ? obj(doc->value) : nullptr;
   CHECK(root != nullptr && root->members.size() == 7);
@@ -129,7 +129,7 @@ void basic_document() {
 void nested_document() {
   const std::string src = load("nested.maml");
   const cursiv::ParseResult r = build(src);
-  ast::Doc* doc = r.value_as<ast::Doc>();
+  ast::Doc* doc = r.valueAs<ast::Doc>();
   ast::Object* root = doc != nullptr ? obj(doc->value) : nullptr;
   CHECK(root != nullptr && root->members.size() == 5);
   if (root == nullptr || root->members.size() != 5) return;
@@ -174,7 +174,7 @@ void nested_document() {
 void scalar_document() {
   const std::string src = load("scalar.maml");
   const cursiv::ParseResult r = build(src);
-  ast::Doc* doc = r.value_as<ast::Doc>();
+  ast::Doc* doc = r.valueAs<ast::Doc>();
   ast::Array* root = doc != nullptr ? arr(doc->value) : nullptr;
   CHECK(root != nullptr && root->items.size() == 3);
   if (root == nullptr || root->items.size() != 3) return;
@@ -187,7 +187,7 @@ void scalar_document() {
 void strings_document() {
   const std::string src = load("strings.maml");
   const cursiv::ParseResult r = build(src);
-  ast::Doc* doc = r.value_as<ast::Doc>();
+  ast::Doc* doc = r.valueAs<ast::Doc>();
   ast::Object* root = doc != nullptr ? obj(doc->value) : nullptr;
   CHECK(root != nullptr && root->members.size() == 5);
   if (root == nullptr || root->members.size() != 5) return;
@@ -218,7 +218,7 @@ void comment_and_newline_separators() {
       "  a: 1\n"
       "  b: 2\n"
       "}\n");
-  ast::Doc* doc = r.value_as<ast::Doc>();
+  ast::Doc* doc = r.valueAs<ast::Doc>();
   ast::Object* root = doc != nullptr ? obj(doc->value) : nullptr;
   CHECK(root != nullptr && root->members.size() == 2);
 }
@@ -236,7 +236,7 @@ void refused_texts() {
 void native_semantics() {
   for (const auto source : {"9223372036854775807", "-9223372036854775808", "9007199254740993"}) {
     const auto parsed = build(source);
-    const auto* doc = parsed.value_as<ast::Doc>();
+    const auto* doc = parsed.valueAs<ast::Doc>();
     const auto* value = doc ? std::get_if<std::int64_t>(&doc->value) : nullptr;
     CHECK(value && std::to_string(*value) == source && parsed.diagnostics.empty());
   }
@@ -244,7 +244,7 @@ void native_semantics() {
     CHECK(accepts(source));
   {
     const auto parsed = build(R"({"\u{61}": "\u{1F600}\n"})");
-    const auto* doc = parsed.value_as<ast::Doc>();
+    const auto* doc = parsed.valueAs<ast::Doc>();
     const auto* root = doc ? obj(doc->value) : nullptr;
     CHECK(root && root->members.size() == 1 && root->members[0]->key == "a" &&
           str(root->members[0]->value) == "😀\n");

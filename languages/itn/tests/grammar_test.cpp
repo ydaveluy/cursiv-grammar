@@ -33,7 +33,7 @@ int main() {
       std::fprintf(stderr, "audit regression: clean parse expected\n");
       return 1;
     }
-    const auto* route = audit_result.value_as<itn::ast::Itinerary>();
+    const auto* route = audit_result.valueAs<itn::ast::Itinerary>();
     if (!route || route->lines.size() != 1 || route->lines[0]->longitude != -123 || route->lines[0]->latitude != 456) return 1;
   }
 

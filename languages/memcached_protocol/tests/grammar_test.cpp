@@ -41,7 +41,7 @@ int main() {
       return 1;
     }
     const auto *commands =
-        audit_result.value_as<memcachedprotocol::ast::CommandLine>();
+        audit_result.valueAs<memcachedprotocol::ast::CommandLine>();
     if (!commands || commands->commands.size() != 2)
       return 1;
     const auto *get =
@@ -105,7 +105,7 @@ int main() {
         "slabs reassign -1 2\nlru_crawler metadump all\nlru mode segmented\n"
         "watch fetchers mutations\ncache_memlimit 64 noreply\nshutdown graceful\n"
         "version ignored arguments\nquit ignored\n");
-    const auto* root = result.value_as<memcachedprotocol::ast::CommandLine>();
+    const auto* root = result.valueAs<memcachedprotocol::ast::CommandLine>();
     const auto* admin = root && root->commands.size() == 8
         ? cursiv::ast_cast<memcachedprotocol::ast::AdministrationCommand>(root->commands[0]) : nullptr;
     const auto* version = root && root->commands.size() == 8

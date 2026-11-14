@@ -76,7 +76,7 @@ inline bool run(const verilog::VerilogCoreServices& services,
         specs.push_back(spec);
         parents &= cursiv::ast_cast<ast::AttributeInstance>(spec->parent) != nullptr;
       }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             parents &= child.parent == &node &&
                        result.cst().contains(node.cstNodeId, child.cstNodeId);

@@ -515,7 +515,7 @@ end)
  auto validate = [&](std::string source, std::string_view code, unsigned expected) {
   cursiv::Document d(cursiv::TextDocument::create("file:///audit.ex", "elixir", 0, std::move(source)));
   d.language = &language.language;d.parseResult = parser.parse(d.textDocument().getText());
-  check(d.parseSucceeded() && !d.parseRecovered(), "invalid semantic form parses without repair");
+  check(d.parseResult.accepted && !d.parseRecovered(), "invalid semantic form parses without repair");
   if (d.parseResult.value) d.parseResult.value->parent = &d;
   std::vector<cursiv::Diagnostic> diagnostics;language.language.documentValidator->validateDocument(d, diagnostics);
   unsigned count = 0;for (const auto& x : diagnostics) if (x.code && x.code->isString() && x.code->string() == code) ++count;

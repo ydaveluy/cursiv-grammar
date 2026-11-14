@@ -99,7 +99,7 @@ int main() {
         "(dc.title any/relevant fish pRoX/distance<=3/unit=word dc.subject = \"\") "
         "sortBy dc.date/sort.descending dc.title";
     const auto result = language.language.parser->parse(source);
-    const auto* root = result.value_as<cql::ast::Cql>();
+    const auto* root = result.valueAs<cql::ast::Cql>();
     const auto* group = root
         ? cursiv::ast_cast<cql::ast::GroupClause>(root->clause) : nullptr;
     const auto* boolean = group && group->query
@@ -130,7 +130,7 @@ int main() {
       {R"(dc.title = "")", ""}};
   for (const auto& test : quoted_terms) {
     const auto result = language.language.parser->parse(test.source);
-    const auto* root = result.value_as<cql::ast::Cql>();
+    const auto* root = result.valueAs<cql::ast::Cql>();
     const auto* clause = root ? cursiv::ast_cast<cql::ast::SearchClause>(root->clause) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !clause || clause->term != test.expected)

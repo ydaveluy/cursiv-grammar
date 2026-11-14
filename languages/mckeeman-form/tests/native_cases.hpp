@@ -22,7 +22,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -50,7 +50,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -78,7 +78,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -106,7 +106,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -141,7 +141,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -176,7 +176,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -204,7 +204,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -232,7 +232,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -260,7 +260,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -288,7 +288,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -318,7 +318,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -348,7 +348,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -381,7 +381,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -415,7 +415,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -443,7 +443,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -471,7 +471,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -501,7 +501,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -529,7 +529,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -563,7 +563,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });
@@ -591,7 +591,7 @@ inline int checkNativeCases(const auto& language) {
     bool parents = result.value->parent == nullptr;
     const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      language.language.astReflection->visitMembers(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      language.language.astReflection->visitProperties(node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
         parents &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
         self(self, child);
       });

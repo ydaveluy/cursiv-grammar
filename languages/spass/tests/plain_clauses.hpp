@@ -24,7 +24,7 @@ inline int check_plain_clauses(const auto& language) {
       "include('file with spaces.dfg',[label_1,123]).\nend_of_list.\n");
   {
     const auto parsed = language.language.parser->parse(include_source);
-    const auto* root = parsed.template value_as<spass::ast::Problem>();
+    const auto* root = parsed.template valueAs<spass::ast::Problem>();
     if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
         parsed.cst().text() != include_source || !root || root->name != "plain" ||
         !root->description || !root->logicalPart || root->includes.size() != 2) return 1;
@@ -51,7 +51,7 @@ inline int check_plain_clauses(const auto& language) {
                            "true || false -> equal(a,a)"}) {
     const std::string source = plain_problem(body);
     const auto parsed = language.language.parser->parse(source);
-    const auto* root = parsed.template value_as<spass::ast::Problem>();
+    const auto* root = parsed.template valueAs<spass::ast::Problem>();
     if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
         parsed.cst().text() != source || !root || !root->logicalPart ||
         root->logicalPart->clauseLists.size() != 1) return 1;

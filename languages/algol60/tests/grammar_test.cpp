@@ -237,7 +237,7 @@ void numeric_boundaries() {
     CHECK(result.accepted && !result.cst().recovered());
     CHECK(result.diagnostics.size() == 1);
     if (result.diagnostics.size() == 1)
-      CHECK(result.diagnostics[0].kind == cursiv::DiagnosticKind::conversion_error);
+      CHECK(result.diagnostics[0].kind == cursiv::DiagnosticKind::ConversionError);
   }
   for (const auto& [literal, expected] :
        {std::pair{".0110+310", 1e308}, std::pair{"010+9999", 0.0},
@@ -264,7 +264,7 @@ void native_empty_statements_and_division() {
   }
   const std::string source = "outer: 12: begin x:=7÷2; if true then else end";
   const auto parsed = engine().parse(source);
-  const auto* block = parsed.value_as<ast::Block>();
+  const auto* block = parsed.valueAs<ast::Block>();
   CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
   CHECK(block && block->labels.size() == 2 && block->labels[0] == "outer" &&
         block->labels[1] == "12" && block->statements.size() == 2);

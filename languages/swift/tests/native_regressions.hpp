@@ -76,7 +76,7 @@ inline bool run(const swift::SwiftCoreServices& services) {
   bool parents=result.value!=nullptr;
   const auto walk=[&](auto&& self,const cursiv::AstNode& n)->void {
    if(!seen.insert(&n).second){parents=false;return;}
-   services.astReflection->visitMembers(n,[&](std::string_view,std::uint32_t,cursiv::AstNode& child){
+   services.astReflection->visitProperties(n,[&](std::string_view,std::uint32_t,cursiv::AstNode& child){
     parents &= child.parent==&n; self(self,child);
    });
   };

@@ -91,7 +91,7 @@ int main() {
   for(const auto text:{"circle C", "diamond D", "<> D", "() C", "note on link: text", "note right on link #red: colored"}) {
     const std::string source=std::string("@startuml\nclass A\nclass B\nA --> B\n")+text+"\n@enduml";
     const auto r=language.language.parser->parse(source);
-    const auto* p=r.value_as<plantuml::ast::Document>();
+    const auto* p=r.valueAs<plantuml::ast::Document>();
     if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!p||p->elements.size()!=4) {
       std::fprintf(stderr,"plantuml native: accepted=%d recovered=%d diagnostics=%zu elements=%zu\n",
           r.accepted,r.cst().recovered(),r.diagnostics.size(),p?p->elements.size():0);
@@ -118,7 +118,7 @@ int main() {
       "Alias -[dashed,#red]-> _A\nAlias -left-> Ä.B\n"
       "(Alias,_A) .. Attached\nAttached . (Alias,_A)\n"
       "note left of Alias: text\nnote right of Alias\nbody\nend note\n@enduml");
-    const auto* p=r.value_as<plantuml::ast::Document>();
+    const auto* p=r.valueAs<plantuml::ast::Document>();
     if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!p||p->elements.size()!=10)
       return fail("<native>","native classes, arrows or notes rejected");
     const auto* c=cursiv::ast_cast<plantuml::ast::ClassDecl>(p->elements[1]);

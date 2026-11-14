@@ -29,7 +29,7 @@ bool checkEmptyValue(const Language& language) {
   using properties::ast::Entry;
   const cursiv::ParseResult result =
       language.language.parser->parse("bare\nempty=\ncolon:\nfull=v\n");
-  const Document* const document = result.value_as<Document>();
+  const Document* const document = result.valueAs<Document>();
   if (document == nullptr || document->rows.size() != 4) return false;
   const auto value = [&](std::size_t row) {
     return std::get<Entry*>(document->rows[row])->value;
@@ -51,7 +51,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* doc = r.value_as<properties::ast::Document>();
+    const auto* doc = r.valueAs<properties::ast::Document>();
     if (!doc || doc->rows.size() != 3) return 1;
     const auto* one = std::get<properties::ast::Entry*>(doc->rows[0]);
     const auto* two = std::get<properties::ast::Entry*>(doc->rows[1]);
@@ -62,7 +62,7 @@ static int audit_regression() {
     const auto r =
         language.language.parser->parse("face=\\uD83D\\uDE00\nlead=   value\n");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return 1;
-    const auto* doc = r.value_as<properties::ast::Document>();
+    const auto* doc = r.valueAs<properties::ast::Document>();
     if (!doc || doc->rows.size() != 2 ||
         std::get<properties::ast::Entry*>(doc->rows[0])->value != "😀" ||
         std::get<properties::ast::Entry*>(doc->rows[1])->value != "value")

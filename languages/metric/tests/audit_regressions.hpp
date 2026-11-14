@@ -12,7 +12,7 @@ inline void metric_regressions(const metric::MetricCoreServices &services) {
   namespace ast = metric::ast;
   {
     const auto parse = services.parser->parse("MΩ·s");
-    const auto* product = parse.value_as<ast::BinaryUom>();
+    const auto* product = parse.valueAs<ast::BinaryUom>();
     const auto* ohm = product ? cursiv::ast_cast<ast::Measure>(product->left) : nullptr;
     CHECK(parse.accepted && !parse.cst().recovered() && parse.diagnostics.empty());
     CHECK(product && product->op == ast::Operator::multiply);

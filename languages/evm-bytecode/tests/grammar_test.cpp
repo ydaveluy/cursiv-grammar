@@ -67,7 +67,7 @@ int main() {
       std::fprintf(stderr, "audit regression: clean parse expected\n");
       return 1;
     }
-    const auto *program = audit_result.value_as<evmbytecode::ast::Program>();
+    const auto *program = audit_result.valueAs<evmbytecode::ast::Program>();
     if (!program || program->opcodes.size() != 3)
       return 1;
     const auto *push =

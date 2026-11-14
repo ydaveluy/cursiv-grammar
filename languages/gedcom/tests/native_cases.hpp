@@ -15,7 +15,7 @@ inline int run(const auto &language) {
     // GEDCOM 5.5.1, page 11: readers ignore leading blank physical lines.
     const std::string source = " \n\r\n\t0 HEAD\n \t\n1 NOTE  raw  \n0 TRLR\n";
     const auto result = language.language.parser->parse(source);
-    const auto* root = result.template value_as<gedcom::ast::Document>();
+    const auto* root = result.template valueAs<gedcom::ast::Document>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !root || root->lines.size() != 3 ||
         root->lines[1]->value != " raw  " || !root->lines[1]->hasValue)
@@ -167,7 +167,7 @@ inline int run(const auto &language) {
         parents = false;
         return;
       }
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           node, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             parents &= child.parent == &node &&
                        result.cst().contains(node.cstNodeId, child.cstNodeId);

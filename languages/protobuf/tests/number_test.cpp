@@ -61,7 +61,7 @@ int main() {
       }
       if (auto *p = cursiv::ast_cast<protobuf::ast::NumberLiteral>(&n))
         capture(p->text);
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &n &&
                      r.cst().contains(n.cstNodeId, child.cstNodeId);

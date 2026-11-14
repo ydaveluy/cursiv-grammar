@@ -41,7 +41,7 @@ struct Wkt : cursiv::GrammarSpec {
   struct NUMBER : terminal<some(cr<R"(^ \t\r\n(),)">)> {};
 
   template<cursiv::str Text>
-  static constexpr auto GeometryKeyword = cursiv::Lit<Text, true>{} +
+  static constexpr auto GeometryKeyword = cursiv::detail::Lit<Text, true>{} +
       &(option(ikw<"ZM"> | ikw<"Z"> | ikw<"M">) + !w);
 
   struct EMPTY_ : terminal<ikw<"EMPTY">> {};

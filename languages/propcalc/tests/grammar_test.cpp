@@ -59,7 +59,7 @@ bool checkEmptyOperands(const Language& language) {
   const cursiv::Parser& parser = *language.language.parser;
 
   const cursiv::ParseResult bare = parser.parse("|-");
-  const Proposition* const sequent = bare.value_as<Proposition>();
+  const Proposition* const sequent = bare.valueAs<Proposition>();
   if (!bare.accepted || bare.cst().recovered() || sequent == nullptr || sequent->premises == nullptr ||
       sequent->conclusion == nullptr ||
       !isEmptyVariable(sequent->premises) ||
@@ -69,7 +69,7 @@ bool checkEmptyOperands(const Language& language) {
   }
 
   const cursiv::ParseResult negated = parser.parse("! |- p");
-  const Proposition* const negation = negated.value_as<Proposition>();
+  const Proposition* const negation = negated.valueAs<Proposition>();
   const auto* const not_ =
       negation == nullptr ? nullptr : negation->premises;
   if (!negated.accepted || negated.cst().recovered() || not_ == nullptr ||
@@ -81,7 +81,7 @@ bool checkEmptyOperands(const Language& language) {
   }
 
   const cursiv::ParseResult chain = parser.parse("p ^ |- q");
-  const Proposition* const open = chain.value_as<Proposition>();
+  const Proposition* const open = chain.valueAs<Proposition>();
   const auto* binary = open ? cursiv::ast_cast<propcalc::ast::Binary>(open->premises) : nullptr;
   if (!chain.accepted || chain.cst().recovered() || !binary || binary->op != propcalc::ast::Connective::conjunction ||
       !isEmptyVariable(binary->right)) {

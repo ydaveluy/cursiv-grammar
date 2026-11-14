@@ -93,7 +93,7 @@ void every_corpus_example_parses_clean() {
     const cursiv::ParseResult r = engine().parse(text);
     check(r.accepted && !r.cst().recovered(), name);
     check(r.diagnostics.empty(), name);
-    check(r.value_as<ast::Program>() != nullptr, name);
+    check(r.valueAs<ast::Program>() != nullptr, name);
   }
 }
 
@@ -103,7 +103,7 @@ void dynamodb_example_reads_back() {
   const std::string text = read_file(std::string(CURSIV_EXAMPLE_DIR) +
                                      "/dynamodb_put_update_get_item.asl");
   const cursiv::ParseResult r = engine().parse(text);
-  const ast::Program* const program = r.value_as<ast::Program>();
+  const ast::Program* const program = r.valueAs<ast::Program>();
   check(program != nullptr, "dynamodb: root");
   if (program == nullptr) return;
   check(only(program->comment, "DYNAMODB_PUT_UPDATE_GET_ITEM"), "dynamodb: comment");
@@ -136,7 +136,7 @@ void choice_state_composite_reads_back() {
   const std::string text =
       read_file(std::string(CURSIV_EXAMPLE_DIR) + "/choice_state.asl");
   const cursiv::ParseResult r = engine().parse(text);
-  const ast::Program* const program = r.value_as<ast::Program>();
+  const ast::Program* const program = r.valueAs<ast::Program>();
   check(program != nullptr, "choice_state: root");
   if (program == nullptr) return;
   const ast::State* const choice = find(program, "ChoiceStateX");
@@ -169,7 +169,7 @@ void uncommon_fields_example_parses_clean_and_reads_back() {
   const cursiv::ParseResult r = engine().parse(text);
   check(r.accepted && !r.cst().recovered(), "uncommon_fields: parses clean");
   check(r.diagnostics.empty(), "uncommon_fields: no diagnostics");
-  const ast::Program* const program = r.value_as<ast::Program>();
+  const ast::Program* const program = r.valueAs<ast::Program>();
   check(program != nullptr, "uncommon_fields: root");
   if (program == nullptr) return;
   check(only(program->version, "1.0"), "uncommon_fields: version");
@@ -236,7 +236,7 @@ void state_keys_written_twice_keep_both() {
       R"( "Retry": [{"MaxAttempts": 1, "MaxAttempts": 2}], "End": true}}})");
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
        "twice: parses clean");
-  const ast::State* const state = find(r.value_as<ast::Program>(), "S");
+  const ast::State* const state = find(r.valueAs<ast::Program>(), "S");
   check(state != nullptr, "twice: S exists");
   if (state == nullptr) return;
   check(state->resources.size() == 2 && state->resources[0] == "a" &&
@@ -256,7 +256,7 @@ void json_values_and_escaped_names_read_back() {
       R"("Result":[null,"null","\u00E9","\uD83D\uDE00","line\nend"],"End":true}}})");
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
         "JSON escapes parse clean");
-  const auto* program = r.value_as<ast::Program>();
+  const auto* program = r.valueAs<ast::Program>();
   check(program && only(program->start_at, "S"), "escaped StartAt key");
   const auto* state = find(program, "S");
   check(state && only(state->types, "Pass"), "escaped Type key");
@@ -294,7 +294,7 @@ void native_jsonata_fields_read_back() {
       R"("Resource":"arn:aws:lambda:test","Output":null,"End":true}}})");
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
         "JSONata state machine parses clean");
-  const auto* program = r.value_as<ast::Program>();
+  const auto* program = r.valueAs<ast::Program>();
   check(program && only(program->query_languages, "JSONata"),
         "top-level QueryLanguage retained");
   const auto* choose = find(program, "Choose");
@@ -330,7 +330,7 @@ void native_jsonata_fields_read_back() {
       R"("Label":"batch","End":true}}})");
   check(map.accepted && !map.cst().recovered() && map.diagnostics.empty(),
         "Map options parse clean");
-  const auto* state = find(map.value_as<ast::Program>(), "M");
+  const auto* state = find(map.valueAs<ast::Program>(), "M");
   check(state && state->map_options.size() == 5 &&
             state->map_options[0]->key == "Items" &&
             state->map_options[4]->key == "Label",
@@ -367,7 +367,7 @@ int main() {
     check(result.accepted && !result.cst().recovered() &&
               result.diagnostics.empty(),
           "duplicate object members parse without recovery");
-    const auto *program = result.value_as<ast::Program>();
+    const auto *program = result.valueAs<ast::Program>();
     check(program && program->members.size() == 4 &&
               program->members[1] == "Comment" &&
               program->members[2] == "Comment" && program->comment.size() == 2 &&
@@ -411,7 +411,7 @@ int main() {
   {
     const auto parsed = engine().parse(
         R"({"StartAt":"S","States":{"S":{"Type":"Task","Resource":"r","InputPath":null,"OutputPath":null,"ResultPath":null,"Catch":[{"ErrorEquals":["E"],"ResultPath":null,"Next":"Done"}],"Next":"Done"},"Done":{"Type":"Succeed"}}})");
-    const auto* program = parsed.value_as<ast::Program>();
+    const auto* program = parsed.valueAs<ast::Program>();
     const auto* state = find(program, "S");
     check(parsed.accepted && !parsed.cst().recovered() &&
               parsed.diagnostics.empty() && state,

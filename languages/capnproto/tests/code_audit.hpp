@@ -29,7 +29,7 @@ inline bool run() {
         [&](const cursiv::AstNode* n) {
           if (!n) return;
           callback(n);
-          reflection->visitMembers(
+          reflection->visitProperties(
               *n, [&](std::string_view, std::uint32_t, cursiv::AstNode& c) {
                 check(c.parent == n, "parent ownership");
                 walk(&c);
@@ -125,7 +125,7 @@ const nested :List(List(UInt32)) = [[1,2,],[],];
   for (const auto* source : cases) {
     const auto r = parser->parse(source);
     clean(r);
-    check(r.value_as<ast::Document>() != nullptr, "document root");
+    check(r.valueAs<ast::Document>() != nullptr, "document root");
     visit(r.value, [](const auto*) {});
   }
   {
@@ -133,7 +133,7 @@ const nested :List(List(UInt32)) = [[1,2,],[],];
         "@0xb923423423423423;\n# ignored\rstruct Ignored {}\nstruct Visible "
         "{}\n");
     clean(r);
-    const auto* d = r.value_as<ast::Document>();
+    const auto* d = r.valueAs<ast::Document>();
     const auto* visible = d && d->content.size() == 2
                               ? cursiv::ast_cast<ast::StructDef>(d->content[1])
                               : nullptr;
@@ -149,7 +149,7 @@ const min :Int64 = - 9223372036854775808;
 const float :Float64 = 1.E+2;
 )capnp");
     clean(r);
-    const auto* d = r.value_as<ast::Document>();
+    const auto* d = r.valueAs<ast::Document>();
     check(d && d->content.size() == 6, "literal declarations");
     if (d && d->content.size() == 6) {
       const auto* t = cursiv::ast_cast<ast::ConstDef>(d->content[1]);

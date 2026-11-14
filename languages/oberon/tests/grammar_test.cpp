@@ -45,7 +45,7 @@ static int audit_regression() {
     const auto result = language.language.parser->parse(source);
     if (!result.accepted || result.cst().recovered() ||
         result.diagnostics.size() != 1 ||
-        result.diagnostics[0].kind != cursiv::DiagnosticKind::conversion_error)
+        result.diagnostics[0].kind != cursiv::DiagnosticKind::ConversionError)
       return 1;
   }
   for (const std::string_view number : {"9223372036854775807", "07FFFFFFFFFFFFFFFH"}) {
@@ -69,7 +69,7 @@ static int audit_regression() {
         "PROCEDURE p(a: ARRAY OF ARRAY OF CHAR; b: ARRAYOFCHAR); END p; "
         "BEGIN x := -x*2 END M.";
     const auto r = language.language.parser->parse(source);
-    const auto* module = r.value_as<oberon::ast::Module>();
+    const auto* module = r.valueAs<oberon::ast::Module>();
     const auto* proc = module && module->decls.size() == 2
         ? cursiv::ast_cast<oberon::ast::ProcDecl>(module->decls[1]) : nullptr;
     const auto* assignment = module && module->body.size() == 1
@@ -239,9 +239,9 @@ int main() {
   const cursiv::ParseResult empty = parse("MODULE M; BEGIN END M.");
   const cursiv::ParseResult arms =
       parse("MODULE M; BEGIN CASE x OF | 1: END END M.");
-  const auto* const bareModule = bare.value_as<oberon::ast::Module>();
-  const auto* const emptyModule = empty.value_as<oberon::ast::Module>();
-  const auto* const armsModule = arms.value_as<oberon::ast::Module>();
+  const auto* const bareModule = bare.valueAs<oberon::ast::Module>();
+  const auto* const emptyModule = empty.valueAs<oberon::ast::Module>();
+  const auto* const armsModule = arms.valueAs<oberon::ast::Module>();
   if (bareModule == nullptr || emptyModule == nullptr || armsModule == nullptr)
     return fail("empty.mod: built no Module");
   if (!bareModule->body.empty() || emptyModule->body.size() != 1 ||

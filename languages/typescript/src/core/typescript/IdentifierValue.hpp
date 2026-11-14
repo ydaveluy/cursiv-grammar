@@ -5,7 +5,7 @@
 #include <string_view>
 
 #include "cursiv/grammar/Conversion.hpp"
-#include "cursiv/grammar/unicode/UnicodeRanges.hpp"
+#include "cursiv/text/unicode/UnicodeRanges.hpp"
 #include "cursiv/text/scalar_at.hpp"
 
 namespace typescript {

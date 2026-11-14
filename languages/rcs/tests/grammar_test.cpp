@@ -54,7 +54,7 @@ static int audit_regression() {
         "1.1 date2026.01.01.00.00.00;authorbob;stateExp;branches;next;"
         "desc@@1.1 log@@text@@\n";
     const auto result = language.language.parser->parse(compact);
-    const auto *file = result.value_as<rcs::ast::File>();
+    const auto *file = result.valueAs<rcs::ast::File>();
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !file || !file->admin || file->admin->head != "1.1" || file->deltas.size() != 1 ||
         file->deltas[0]->author != "bob" || file->deltas[0]->state != "Exp" ||
@@ -117,7 +117,7 @@ int main() {
   const std::string text =
       read_file(fs::path(CURSIV_TEST_DIR) / "full.rcs");
   const cursiv::ParseResult result = language.language.parser->parse(text);
-  const auto* const file = result.value_as<rcs::ast::File>();
+  const auto* const file = result.valueAs<rcs::ast::File>();
   if (file == nullptr) return fail("full.rcs built no File");
 
   const rcs::ast::Admin* const admin = file->admin;

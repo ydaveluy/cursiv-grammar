@@ -132,7 +132,7 @@ inline int run(const auto &language) {
   };
   for (const auto &c : cases) {
     const auto r = language.language.parser->parse(c.source);
-    const auto *doc = r.template value_as<properties::ast::Document>();
+    const auto *doc = r.template valueAs<properties::ast::Document>();
     bool good =
         r.accepted && !r.cst().recovered() && r.diagnostics.empty() && doc;
     std::map<std::string, std::string> values;

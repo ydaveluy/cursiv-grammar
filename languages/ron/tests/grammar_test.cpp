@@ -37,7 +37,7 @@ Config2(élément2: "a\"b\n\u{1F600}", raw: r###"a"##b"###,
   if (!parsed.accepted || parsed.cst().recovered() ||
       !parsed.diagnostics.empty())
     return fail("native forms did not parse clean");
-  const auto *doc = parsed.value_as<ast::Document>();
+  const auto *doc = parsed.valueAs<ast::Document>();
   if (!doc || doc->values.size() != 1 || doc->attributes.size() != 1 ||
       doc->values[0]->classname != "Config2")
     return fail("native forms lost their document attributes or struct name");
@@ -88,7 +88,7 @@ Config2(élément2: "a\"b\n\u{1F600}", raw: r###"a"##b"###,
     return fail("native forms lost byte string values");
   const std::string comment = "// text\rignored\ntrue";
   const auto skipped = parser.parse(comment);
-  const auto *result = skipped.value_as<ast::Document>();
+  const auto *result = skipped.valueAs<ast::Document>();
   return result && result->values.size() == 1 &&
                  std::holds_alternative<bool>(result->values[0]->payload)
              ? 0
@@ -108,12 +108,12 @@ static int audit_regression() {
     const auto result = language.language.parser->parse(source);
     if (!result.accepted || result.cst().recovered() ||
         result.diagnostics.size() != 1 ||
-        result.diagnostics[0].kind != cursiv::DiagnosticKind::conversion_error)
+        result.diagnostics[0].kind != cursiv::DiagnosticKind::ConversionError)
       return 1;
   }
   {
     const auto result = language.language.parser->parse(R"(["\xC3\xA9", b"\xFF"])");
-    const auto *doc = result.value_as<ron::ast::Document>();
+    const auto *doc = result.valueAs<ron::ast::Document>();
     const auto *list = doc && doc->values.size() == 1
         ? std::get_if<ron::ast::ListV *>(&doc->values[0]->payload) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
@@ -140,7 +140,7 @@ static int audit_regression() {
   for (const std::string& source : {std::string("\"a\\\n  \tb\""),
                                     std::string("\"a\\\r\n  \tb\"")}) {
     const auto result = language.language.parser->parse(source);
-    const auto *doc = result.value_as<ron::ast::Document>();
+    const auto *doc = result.valueAs<ron::ast::Document>();
     const auto *text = doc && doc->values.size() == 1
         ? std::get_if<std::string>(&doc->values[0]->payload) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
@@ -176,7 +176,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto *doc = r.value_as<ron::ast::Document>();
+    const auto *doc = r.valueAs<ron::ast::Document>();
     if (!doc || doc->values.size() != 1 ||
         !std::holds_alternative<ron::ast::Number *>(doc->values[0]->payload) ||
         std::get<ron::ast::Number *>(doc->values[0]->payload)->text != "0xff")

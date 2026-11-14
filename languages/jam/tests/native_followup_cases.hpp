@@ -9,7 +9,7 @@ template<class Language> bool run(const Language& language) {
   namespace a = jam::ast;
   const auto result = language.language.parser->parse(
       "# intro\n[3/4] F#dim/G# Esus4/Db G+ | C C7 | %%\n# middle\n| Dm7-5");
-  const auto* root = result.template value_as<a::Jam>();
+  const auto* root = result.template valueAs<a::Jam>();
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
       !root || root->sections.size() != 1 || root->sections[0]->measures.size() != 4) {
     std::fprintf(stderr, "jam native: shape/comments/sharp source rejected\n");return false;
@@ -35,7 +35,7 @@ template<class Language> bool run(const Language& language) {
     std::fprintf(stderr, "jam native: musical AST payload lost\n");return false;
   }
   const auto beats = language.language.parser->parse("C / G");
-  const auto* beatRoot = beats.template value_as<a::Jam>();
+  const auto* beatRoot = beats.template valueAs<a::Jam>();
   if (!beats.accepted || beats.cst().recovered() || !beats.diagnostics.empty() ||
       !beatRoot || beatRoot->sections.size() != 1 || beatRoot->sections[0]->measures.size() != 1 ||
       beatRoot->sections[0]->measures[0]->items.size() != 3 ||

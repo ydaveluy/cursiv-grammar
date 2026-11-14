@@ -71,7 +71,7 @@ root_type N.Request;
   const auto result = parser.parse(source);
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
     return fail("schema regressions did not parse clean");
-  const auto* schema = result.value_as<ast::Schema>();
+  const auto* schema = result.valueAs<ast::Schema>();
   if (schema == nullptr) return fail("schema regressions built no schema");
   const auto* defaults = find_type(*schema, "Defaults");
   const auto* flags = find_enum(*schema, "Flags");

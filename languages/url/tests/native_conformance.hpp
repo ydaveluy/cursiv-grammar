@@ -1,7 +1,7 @@
 #pragma once
 // Frozen projections from rfc3986 2.0.0, 2026-10-25; no runtime Python dependency.
 #include "cursiv/services/CoreLanguage.hpp"
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "cursiv/syntax-tree/AstReflection.hpp"
 #include "cursiv/ValidationHelper.hpp"
 #include "url/CoreServices.hpp"
@@ -82,12 +82,12 @@ inline bool run() {
   for (const auto &c : cases) {
     const auto r = language.language.parser->parse(c.text);
     const auto f = factory->parse(c.text);
-    const auto *n = r.value_as<url::ast::Url>();
+    const auto *n = r.valueAs<url::ast::Url>();
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && n, "native positive parses");
     if (!n) continue;
     const auto expected = c.expected;
     check(project(n).toJsonString({.pretty = false}) == expected, "native five-component projection");
-    check(project(f.value_as<url::ast::Url>()).toJsonString({.pretty = false}) == expected &&
+    check(project(f.valueAs<url::ast::Url>()).toJsonString({.pretty = false}) == expected &&
           f.accepted && !f.cst().recovered(), "generated factory agrees");
     const auto components = project(n);
     std::string raw;
@@ -100,7 +100,7 @@ inline bool run() {
     std::unordered_set<const cursiv::AstNode *> seen;
     auto walk = [&](auto &&self, const cursiv::AstNode &node) -> void {
       check(seen.insert(&node).second, "unique AST ownership");
-      language.language.astReflection->visitMembers(node,
+      language.language.astReflection->visitProperties(node,
         [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
           check(child.parent == &node && r.cst().contains(node.cstNodeId, child.cstNodeId), "parent/CST containment");
           self(self, child);

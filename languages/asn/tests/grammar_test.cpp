@@ -100,7 +100,7 @@ END
       std::fprintf(stderr, "audit regression: parse failed\n");
       return 1;
     }
-    const auto *modules = result.value_as<asn::ast::Modules>();
+    const auto *modules = result.valueAs<asn::ast::Modules>();
     if (!modules || modules->modules.size() != 2 ||
         !modules->modules[0]->hasExports || modules->modules[1]->hasExports)
       return 1;

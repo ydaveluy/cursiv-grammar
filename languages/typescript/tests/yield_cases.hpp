@@ -160,7 +160,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
     while (!work.empty()) {
       const auto* node = work.back(); work.pop_back();
       if (!seen.insert(node).second) { check(false, test.name, "unique AST owner"); continue; }
-      services.astReflection->visitMembers(*node, [&](auto, auto, const auto& child) {
+      services.astReflection->visitProperties(*node, [&](auto, auto, const auto& child) {
         check(child.parent == node && node->cstNodeId < parsed.cst().size() && child.cstNodeId < parsed.cst().size() &&
               parsed.cst().contains(node->cstNodeId, child.cstNodeId), test.name, "every typed child owner and CST containment");
         work.push_back(&child);

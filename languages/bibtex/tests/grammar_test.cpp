@@ -30,7 +30,7 @@ int main() {
     std::unordered_set<const cursiv::AstNode*> nodes;
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       CHECK(nodes.insert(&node).second);
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           node, [&](auto, auto, cursiv::AstNode& child) {
             CHECK(child.parent == &node &&
                   result.cst().contains(node.cstNodeId, child.cstNodeId));
@@ -47,7 +47,7 @@ int main() {
        "software", "data-set", "string_other", "commentary", "3d"}) {
     const auto source = "@ " + std::string(type) + " (key, title={T})";
     const auto result = parse(source);
-    const auto* doc = result.value_as<ast::Document>();
+    const auto* doc = result.valueAs<ast::Document>();
     CHECK(doc && doc->declarations.size() == 1);
     if (!doc || doc->declarations.size() != 1) return 1;
     const auto* entry = cursiv::ast_cast<ast::Entry>(doc->declarations[0]);
@@ -64,7 +64,7 @@ text} # 999999999999999999999999999999, field:name = "100% @literal")
 @COMMENT(A (nested) comment)
 )bib";
   const auto result = parse(mixed);
-  const auto* doc = result.value_as<ast::Document>();
+  const auto* doc = result.valueAs<ast::Document>();
   CHECK(doc && doc->declarations.size() == 4);
   if (!doc || doc->declarations.size() != 4) return 1;
   const auto* strings = cursiv::ast_cast<ast::StringDef>(doc->declarations[0]);
@@ -110,14 +110,14 @@ text} # 999999999999999999999999999999, field:name = "100% @literal")
       std::tuple{CURSIV_TEST_DIR, "kinds.bib", std::size_t{11}}}) {
     const auto source = cursiv::test::read_file(std::string(dir) + "/" + name);
     const auto tree = parse(source);
-    CHECK(tree.value_as<ast::Document>()->declarations.size() == count);
+    CHECK(tree.valueAs<ast::Document>()->declarations.size() == count);
   }
   for (const auto source : {
       "junk % @misc{fake,title={X}}\n@misc{real,title={Y}}",
       "junk\n% @misc{fake,title={X}}\n@misc{real,title={Y}}",
       "junk % ignored\r@misc{fake,title={X}}\n@misc{real,title={Y}}"}) {
     const auto tree = parse(source);
-    const auto* document = tree.value_as<ast::Document>();
+    const auto* document = tree.valueAs<ast::Document>();
     CHECK(document && document->declarations.size() == 1);
     if (!document || document->declarations.size() != 1) return 1;
     const auto* real = cursiv::ast_cast<ast::Entry>(document->declarations[0]);
@@ -130,9 +130,9 @@ text} # 999999999999999999999999999999, field:name = "100% @literal")
       "\v% ignored @misc{fake,title={X}}\n@misc{real,title={Y}}",
       "\f% ignored @misc{fake,title={X}}\n@misc{real,title={Y}}"}) {
     const auto tree = parse(source);
-    CHECK(tree.value_as<ast::Document>()->declarations.size() == 2);
+    CHECK(tree.valueAs<ast::Document>()->declarations.size() == 2);
   }
-  CHECK(parse("").value_as<ast::Document>()->declarations.empty());
-  CHECK(parse("% comment\n").value_as<ast::Document>()->declarations.empty());
+  CHECK(parse("").valueAs<ast::Document>()->declarations.empty());
+  CHECK(parse("% comment\n").valueAs<ast::Document>()->declarations.empty());
   return cursiv::test::report("bibtex_grammar_test");
 }

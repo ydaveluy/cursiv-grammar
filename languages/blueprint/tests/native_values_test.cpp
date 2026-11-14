@@ -48,7 +48,7 @@ int main() {
       if (auto *s = cursiv::ast_cast<a::StringLit>(&n))
         check(s->raw.size() >= 2 && text.find(s->raw) != text.npos, c.name,
               "whole quoted source");
-      lang.language.astReflection->visitMembers(
+      lang.language.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &n &&
                      r.cst().contains(n.cstNodeId, child.cstNodeId);

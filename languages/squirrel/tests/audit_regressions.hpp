@@ -24,7 +24,7 @@ inline bool run() {
   check(r.accepted && !r.cst().recovered(),
         "newlines inside delimited expressions and after operators");
   auto rhs = [&](const cursiv::ParseResult& result) -> ast::Expr* {
-    const auto* root = result.value_as<ast::Chunk>();
+    const auto* root = result.valueAs<ast::Chunk>();
     const auto* decl = root && root->body.size() == 1
         ? cursiv::ast_cast<ast::LocalVarDecl>(root->body[0]) : nullptr;
     return decl && decl->vars.size() == 1 ? decl->vars[0]->init : nullptr;

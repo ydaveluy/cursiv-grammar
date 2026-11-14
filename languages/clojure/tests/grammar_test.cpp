@@ -41,7 +41,7 @@ int reader_values(const cursiv::Parser &parser) {
   const std::string literals =
       R"clj([+1 +1.25 1. 16rff -0xFF -0xFFN \uABCD \o101 ##Inf ##-Inf ##NaN])clj";
   const auto numbers = parser.parse(literals);
-  const auto *file = numbers.value_as<ast::File>();
+  const auto *file = numbers.valueAs<ast::File>();
   const auto *values = file && file->forms.size() == 1
                            ? as<ast::VectorForm>(file->forms[0])
                            : nullptr;
@@ -54,7 +54,7 @@ int reader_values(const cursiv::Parser &parser) {
     return fail("reader numeric forms were lost");
   const std::string source = R"clj(["A\n\u0042" #"\d+\\w"])clj";
   const auto parsed = parser.parse(source);
-  const auto *doc = parsed.value_as<ast::File>();
+  const auto *doc = parsed.valueAs<ast::File>();
   const auto *vector = doc && doc->forms.size() == 1
                            ? as<ast::VectorForm>(doc->forms[0])
                            : nullptr;
@@ -67,7 +67,7 @@ int reader_values(const cursiv::Parser &parser) {
     return fail("strings and regex escapes were conflated");
   const std::string metadata = "#^:private foo";
   const auto meta_result = parser.parse(metadata);
-  const auto *meta_doc = meta_result.value_as<ast::File>();
+  const auto *meta_doc = meta_result.valueAs<ast::File>();
   const auto *meta = meta_doc && meta_doc->forms.size() == 1
                          ? as<ast::MetaDataForm>(meta_doc->forms[0])
                          : nullptr;
@@ -77,7 +77,7 @@ int reader_values(const cursiv::Parser &parser) {
     return fail("old metadata spelling lost its metadata or target");
   const std::string forms = "foo;tail\nbar foo'bar foo#bar foo%bar";
   const auto symbols = parser.parse(forms);
-  const auto *symbol_doc = symbols.value_as<ast::File>();
+  const auto *symbol_doc = symbols.valueAs<ast::File>();
   if (!symbol_doc || symbol_doc->forms.size() != 5)
     return fail("symbol delimiters changed the form count");
   const char *expected[] = {"foo", "bar", "foo'bar", "foo#bar", "foo%bar"};
@@ -88,7 +88,7 @@ int reader_values(const cursiv::Parser &parser) {
   }
   const std::string map_source = "{#_ :skip :k #_ 1 2}";
   const auto maps = parser.parse(map_source);
-  const auto *map_doc = maps.value_as<ast::File>();
+  const auto *map_doc = maps.valueAs<ast::File>();
   const auto *map = map_doc && map_doc->forms.size() == 1
                         ? as<ast::MapForm>(map_doc->forms[0])
                         : nullptr;
@@ -99,7 +99,7 @@ int reader_values(const cursiv::Parser &parser) {
     return fail("discard shifted a map key/value pair");
   const std::string quote_source = "' #_ 1 2 #_ #_ 3 4 5";
   const auto quoted = parser.parse(quote_source);
-  const auto *quote_doc = quoted.value_as<ast::File>();
+  const auto *quote_doc = quoted.valueAs<ast::File>();
   const auto *quote = quote_doc && quote_doc->forms.size() == 3
                           ? as<ast::QuoteForm>(quote_doc->forms[0])
                           : nullptr;
@@ -131,7 +131,7 @@ int native_reader(const clojure::ClojureCoreServices& services) {
       R"clj(#! native hashbang comment
 ["\377" "\uD834\uDD1E" %foo %0 #+foo bar #=(+ 1 2) 077 077N 36r1N])clj";
   const auto parsed = services.parser->parse(source);
-  const auto* file = parsed.value_as<ast::File>();
+  const auto* file = parsed.valueAs<ast::File>();
   const auto* vector = file && file->forms.size() == 1
                            ? as<ast::VectorForm>(file->forms[0]) : nullptr;
   if (!parsed.accepted || parsed.cst().recovered() ||
@@ -156,7 +156,7 @@ int native_reader(const clojure::ClojureCoreServices& services) {
     return fail("native reader payload was changed");
   const std::string keyword_source = "[:foo ::bar :person/name]";
   const auto keywords = services.parser->parse(keyword_source);
-  const auto* keyword_file = keywords.value_as<ast::File>();
+  const auto* keyword_file = keywords.valueAs<ast::File>();
   const auto* keyword_vector = keyword_file && keyword_file->forms.size() == 1
       ? as<ast::VectorForm>(keyword_file->forms[0]) : nullptr;
   const auto* resolved = keyword_vector && keyword_vector->items.size() == 3
@@ -167,7 +167,7 @@ int native_reader(const clojure::ClojureCoreServices& services) {
   // Java whitespace preserves NBSP, figure space and narrow NBSP in symbols.
   const std::string whitespace = "[foo\u00a0bar foo\u2007bar foo\u202fbar foo\x1c" "bar]";
   const auto spaces = services.parser->parse(whitespace);
-  const auto* spaces_file = spaces.value_as<ast::File>();
+  const auto* spaces_file = spaces.valueAs<ast::File>();
   const auto* words = spaces_file && spaces_file->forms.size() == 1
                           ? as<ast::VectorForm>(spaces_file->forms[0]) : nullptr;
   if (!spaces.accepted || spaces.cst().recovered() || !words ||

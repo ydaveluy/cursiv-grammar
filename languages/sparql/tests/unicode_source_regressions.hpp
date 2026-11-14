@@ -39,7 +39,7 @@ bool run(const Services& services) {
   for (const auto& c : positives) {
     const std::string source(c.source);
     const auto parsed = services.parser->parse(source);
-    const auto* query = parsed.template value_as<ast::Query>();
+    const auto* query = parsed.template valueAs<ast::Query>();
     const auto* translation = parsed.cst().translation();
     bool okay = parsed.accepted && !parsed.cst().recovered() &&
                 parsed.diagnostics.empty() && query &&
@@ -56,7 +56,7 @@ bool run(const Services& services) {
         }
         const auto& span = parsed.cst()[node.cstNodeId];
         okay &= span.begin <= span.end && span.end <= source.size();
-        services.astReflection->visitMembers(
+        services.astReflection->visitProperties(
             node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
               okay &= child.parent == &node &&
                       parsed.cst().contains(node.cstNodeId, child.cstNodeId);
@@ -97,7 +97,7 @@ bool run(const Services& services) {
       const auto width = source[at + 1] == 'u' ? 6u : 10u;
       bool mapped = false;
       for (const auto& d : parsed.diagnostics)
-        mapped |= d.kind == cursiv::DiagnosticKind::conversion_error &&
+        mapped |= d.kind == cursiv::DiagnosticKind::ConversionError &&
                   d.begin == at && d.end == at + width;
       if (!mapped) {
         std::fprintf(stderr, "sparql UCHAR: %s: scalar diagnostic lost source range\n", c.id);
@@ -108,14 +108,14 @@ bool run(const Services& services) {
   {
     const std::string source = R"rq(SEL\u0045CT ?\u0061 WHERE {})rq";
     const auto parsed = services.parser->parse(source);
-    const auto* query = parsed.template value_as<ast::Query>();
+    const auto* query = parsed.template valueAs<ast::Query>();
     const auto* form = query ? std::get_if<ast::SelectQuery*>(&query->form) : nullptr;
     const auto* var = form && *form && (*form)->vars.size() == 1
         ? cursiv::ast_cast<ast::Var>((*form)->vars[0]) : nullptr;
     if (!var || var->name != "a" || var->parent != *form ||
         parsed.cst().text(var->cstNodeId) != R"rq(?\u0061)rq") return false;
     bool keyword_range = false;
-    parsed.cst().visit_leaves([&](const cursiv::CstLeaf& leaf) {
+    parsed.cst().visitLeaves([&](const cursiv::CstLeaf& leaf) {
       if (leaf.begin == 0 && leaf.end == std::string_view(R"rq(SEL\u0045CT)rq").size())
         keyword_range = true;
     });
@@ -126,7 +126,7 @@ bool run(const Services& services) {
                              std::pair{R"rq(ASK { <urn:s> <urn:p> "\u005Cn" })rq",
                                       std::string_view("\n")}}) {
     const auto parsed = services.parser->parse(sample.first);
-    const auto* query = parsed.template value_as<ast::Query>();
+    const auto* query = parsed.template valueAs<ast::Query>();
     const auto* form = query ? std::get_if<ast::AskQuery*>(&query->form) : nullptr;
     const ast::Triple* triple = form && *form
         ? audit_regressions::first_triple((*form)->where) : nullptr;

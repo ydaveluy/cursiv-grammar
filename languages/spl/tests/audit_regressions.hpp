@@ -33,7 +33,7 @@ inline bool run() {
     const auto result = parser->parse("host=web AND status=200 OR action=add | where host=web AND status=200 OR action=add");
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
           "search and where both accept a mixed boolean expression");
-    const auto* query = result.value_as<ast::Query>();
+    const auto* query = result.valueAs<ast::Query>();
     const auto* search = query && query->init && query->init->operations.size() == 1
         ? as<ast::BoolCombine>(query->init->operations[0]) : nullptr;
     const auto* where = query && query->pipeline.size() == 1 && query->pipeline[0]->operations.size() == 1
@@ -51,7 +51,7 @@ inline bool run() {
     const auto result = parser->parse("| makeresults | eval x=if(status==200 OR status==201 AND NOT isnull(user), 1, 0) | head | reverse");
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
           "argument predicates and native zero-option pipeline commands");
-    const auto* query = result.value_as<ast::Query>();
+    const auto* query = result.valueAs<ast::Query>();
     const auto* assignment = query && query->pipeline.size() == 3 &&
         query->pipeline[0]->operations.size() == 1
         ? as<ast::Comparison>(query->pipeline[0]->operations[0]) : nullptr;
@@ -83,7 +83,7 @@ inline bool run() {
     const auto result = parser->parse("index=web earliest=-h latest=\"-2months@month\" | search a AND b OR c");
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
           "relative-time aliases, implicit one and explicit later search context");
-    const auto* query = result.value_as<ast::Query>();
+    const auto* query = result.valueAs<ast::Query>();
     const auto* time = query && query->init && query->init->operations.size() == 3
         ? as<ast::Comparison>(query->init->operations[2]) : nullptr;
     const auto* date = time ? as<ast::DateLit>(time->value) : nullptr;

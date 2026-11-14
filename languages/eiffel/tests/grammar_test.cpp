@@ -110,7 +110,7 @@ feature
       from variant remaining: 10 until done loop step variant after_step: 9 end
     end
 end)e");
-    const auto* type = native.value_as<ast::ClassDecl>();
+    const auto* type = native.valueAs<ast::ClassDecl>();
     if (!native.accepted || native.cst().recovered() || !native.diagnostics.empty() ||
         !type || type->generics.size() != 2 || type->features.size() != 1)
       return fail("native generic constraints and creation: unclean parse");
@@ -146,7 +146,7 @@ end)e");
 This contains ]" and a quoted "word".
 ]tag"
     end)e");
-    const auto* type = native.value_as<eiffel::ast::ClassDecl>();
+    const auto* type = native.valueAs<eiffel::ast::ClassDecl>();
     if (!native.accepted || native.cst().recovered() || !native.diagnostics.empty() ||
         !type || type->features.size() != 1 || type->features[0]->features.size() != 1 ||
         type->features[0]->features[0]->value->explicitValue !=

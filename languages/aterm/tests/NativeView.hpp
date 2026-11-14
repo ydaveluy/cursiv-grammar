@@ -1,6 +1,6 @@
 #pragma once
 #include "aterm/Value.hpp"
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "cursiv/syntax-tree/Cst.hpp"
 #include <bit>
 #include <charconv>

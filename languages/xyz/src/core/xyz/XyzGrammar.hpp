@@ -21,9 +21,9 @@ struct Xyz : cursiv::GrammarSpec {
       : terminal<as<coordinate_value>(
             option(cr<"+-">) +
             (finite |
-             cursiv::Lit<"nan", true>{} |
-             (cursiv::Lit<"inf", true>{} +
-              option(cursiv::Lit<"inity", true>{}))) + field_end)> {};
+             cursiv::detail::Lit<"nan", true>{} |
+             (cursiv::detail::Lit<"inf", true>{} +
+              option(cursiv::detail::Lit<"inity", true>{}))) + field_end)> {};
   struct ATOMNAME : terminal<some(cr<"A-Za-z">) + &cr<R"( \t)">> {};
   struct EXTRA : terminal<some(cr<R"(^ \t\r\n)">)> {};
   struct DESC : terminal<some(cr<R"(^\r\n)">)> {};

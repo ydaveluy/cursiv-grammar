@@ -167,7 +167,7 @@ const x = 1;
     cursiv::Document document(cursiv::TextDocument::create("file:///audit.zig", "zig", 0, std::move(source)));
     document.language = &services;
     document.parseResult = parser.parse(document.textDocument().getText());
-    check(document.parseSucceeded() && !document.parseRecovered(), "semantic error parses cleanly");
+    check(document.parseResult.accepted && !document.parseRecovered(), "semantic error parses cleanly");
     if (document.parseResult.value) document.parseResult.value->parent = &document;
     std::vector<cursiv::Diagnostic> diagnostics;
     services.documentValidator->validateDocument(document, diagnostics);

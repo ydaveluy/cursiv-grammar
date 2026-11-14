@@ -84,7 +84,7 @@ std::string load_test(const char* name) {
 // One tuple of a parsed File, or null when the index or the root's shape
 // does not match.
 ast::Tuple* tuple_at(const cursiv::ParseResult& r, std::size_t i) {
-  ast::File* const f = r.value_as<ast::File>();
+  ast::File* const f = r.valueAs<ast::File>();
   return (f != nullptr && i < f->tuples.size()) ? f->tuples[i] : nullptr;
 }
 
@@ -99,7 +99,7 @@ void corpus() {
     CHECK(r.accepted);
     CHECK(!r.cst().recovered());
     CHECK(static_cast<bool>(r) && r.diagnostics.empty());
-    ast::File* const f = r.value_as<ast::File>();
+    ast::File* const f = r.valueAs<ast::File>();
     CHECK(f != nullptr && !f->tuples.empty());
   }
 
@@ -109,7 +109,7 @@ void corpus() {
   {
     const std::string src1 = load_example("example1.geek");
     const cursiv::ParseResult r = build(src1);
-    ast::File* const f = r.value_as<ast::File>();
+    ast::File* const f = r.valueAs<ast::File>();
     CHECK(f != nullptr && f->header == "GED/J");
 
     ast::Tuple* const dress = tuple_at(r, 0);
@@ -149,7 +149,7 @@ void corpus() {
   {
     const std::string src2 = load_example("example2.geek");
     const cursiv::ParseResult r = build(src2);
-    ast::File* const f = r.value_as<ast::File>();
+    ast::File* const f = r.valueAs<ast::File>();
     CHECK(f != nullptr && f->header == "GCS/MC");
 
     bool sawRefused = false;

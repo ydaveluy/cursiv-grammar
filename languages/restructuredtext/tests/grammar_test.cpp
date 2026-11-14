@@ -76,7 +76,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* doc = r.value_as<restructuredtext::ast::Document>();
+    const auto* doc = r.valueAs<restructuredtext::ast::Document>();
     if (!doc || doc->blocks.empty() ||
         !std::holds_alternative<restructuredtext::ast::Directive*>(
             doc->blocks[0]))

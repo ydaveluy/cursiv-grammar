@@ -80,7 +80,7 @@ static int audit_regression() {
     }
   {
     const auto parsed = language.language.parser->parse("for(`a b` in x) 1");
-    const auto *p = parsed.value_as<r::ast::Program>();
+    const auto *p = parsed.valueAs<r::ast::Program>();
     const auto *f = p && p->body.size() == 1 ? cursiv::ast_cast<r::ast::ForExpr>(p->body[0]) : nullptr;
     if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() || !f || f->var != "a b") return 1;
   }

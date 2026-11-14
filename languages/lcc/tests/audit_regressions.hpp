@@ -33,7 +33,7 @@ inline bool run(const lcc::LccCoreServices& services) {
   for (const auto& test : cases) {
     const std::string source(test.source);
     const auto result=services.parser->parse(source);
-    const auto* doc=result.value_as<lcc::ast::CallNumber>();
+    const auto* doc=result.valueAs<lcc::ast::CallNumber>();
     if (!result.accepted || result.cst().recovered() || !doc ||
         !result.diagnostics.empty() || doc->cutters.size()!=test.cutters.size())
       return false;

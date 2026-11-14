@@ -69,7 +69,7 @@ void field_values() {
       "example/AppClassPC.SSF_SS_PMT.SSF_Student.Student.OnExecute.pc");
   const cursiv::ParseResult r = engine().parse(src);
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
-  ast::Program* const prog = r.value_as<ast::Program>();
+  ast::Program* const prog = r.valueAs<ast::Program>();
   CHECK(prog != nullptr);
   if (prog == nullptr) return;
 
@@ -150,7 +150,7 @@ void coverage_document() {
   const std::string src = read_file(fs::path(CURSIV_TEST_DIR) / "coverage.pc");
   const cursiv::ParseResult r = engine().parse(src);
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
-  ast::Program* const prog = r.value_as<ast::Program>();
+  ast::Program* const prog = r.valueAs<ast::Program>();
   CHECK(prog != nullptr);
   if (prog == nullptr) return;
 
@@ -209,7 +209,7 @@ void precedence() {
       "End-If;\n";
   const cursiv::ParseResult r = engine().parse(src);
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
-  ast::Program* const prog = r.value_as<ast::Program>();
+  ast::Program* const prog = r.valueAs<ast::Program>();
   CHECK(prog != nullptr && !prog->statements.empty());
   if (prog == nullptr || prog->statements.empty()) return;
 

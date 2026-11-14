@@ -73,7 +73,7 @@ int main() {
       std::fprintf(stderr, "audit regression: clean parse expected\n");
       return 1;
     }
-    const auto *doc = audit_result.value_as<json::ast::Doc>();
+    const auto *doc = audit_result.valueAs<json::ast::Doc>();
     auto *const *root = std::get_if<json::ast::Value *>(&doc->value);
     const auto *array =
         root ? cursiv::ast_cast<json::ast::Array>(*root) : nullptr;

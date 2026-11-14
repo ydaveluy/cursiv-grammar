@@ -27,7 +27,7 @@ int main() {
                        std::ios::binary);
     const std::string source((std::istreambuf_iterator<char>(file)), {});
     const auto r = language.language.parser->parse(source);
-    const auto *d = r.value_as<ply::ast::Document>();
+    const auto *d = r.valueAs<ply::ast::Document>();
     const auto fail = [&](const char *what) {
       std::fprintf(stderr, "%s: %s\n", c.file, what);
       return 1;
@@ -59,7 +59,7 @@ int main() {
         owned = false;
         return;
       }
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &n &&
                      r.cst().contains(n.cstNodeId, child.cstNodeId);
@@ -136,7 +136,7 @@ int main() {
     if (!found)
       return fail("runtime diagnostic");
     const auto second = factory->parse(source);
-    const auto *other = second.value_as<ply::ast::Document>();
+    const auto *other = second.valueAs<ply::ast::Document>();
     if (!other || !second.accepted || second.cst().recovered() ||
         !second.diagnostics.empty() || other->body != d->body ||
         project(ply::read_data(*other)).toJsonString() !=

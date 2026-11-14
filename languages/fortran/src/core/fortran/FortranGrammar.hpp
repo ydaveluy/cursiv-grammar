@@ -20,16 +20,16 @@ static consteval auto keywordChars() {
     return cursiv::str{text};
   }();
   if constexpr (I + 1 == Word.size())
-    return cursiv::cr<chars>;
+    return cursiv::GrammarSpec::cr<chars>;
   else
-    return cursiv::cr<chars> + cursiv::option(Continuation) +
+    return cursiv::GrammarSpec::cr<chars> + cursiv::GrammarSpec::option(Continuation) +
            keywordChars<Word, Continuation, I + 1>();
 }
 template <cursiv::str Word, auto Continuation>
 static consteval auto keywordBody() {
   if constexpr ((Word[Word.size() - 1] >= 'a' && Word[Word.size() - 1] <= 'z'))
     return keywordChars<Word, Continuation>() +
-           !(cursiv::option(Continuation) + cursiv::cr<"a-zA-Z0-9_">);
+           !(cursiv::GrammarSpec::option(Continuation) + cursiv::GrammarSpec::cr<"a-zA-Z0-9_">);
   else
     return keywordChars<Word, Continuation>();
 }

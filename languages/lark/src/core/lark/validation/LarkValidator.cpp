@@ -5,7 +5,7 @@
 #include <string_view>
 #include <unordered_set>
 
-#include "cursiv/grammar/unicode/UnicodeRanges.hpp"
+#include "cursiv/text/unicode/UnicodeRanges.hpp"
 #include "cursiv/text/scalar_at.hpp"
 #include "cursiv/validation/ValidationRegistry.hpp"
 #include "lark/CoreServices.hpp"

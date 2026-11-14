@@ -1,5 +1,5 @@
 #pragma once
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "iso8601/ast.hpp"
 using J = cursiv::JsonValue;
 namespace ia = iso8601::ast;

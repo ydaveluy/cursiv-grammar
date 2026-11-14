@@ -45,7 +45,7 @@ inline int native_inline_regressions() {
     // Both parse results borrow this source until every capture is checked.
     const std::string source(sample.source);
     const auto check = [&](const cursiv::ParseResult &r) {
-      const auto *doc = r.value_as<ast::Document>();
+      const auto *doc = r.valueAs<ast::Document>();
       if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
           !doc || r.cst().text() != source || doc->blocks.size() != 1)
         return false;
@@ -86,7 +86,7 @@ inline int native_inline_regressions() {
         }
         const auto &span = r.cst()[node.cstNodeId];
         owned &= span.begin <= span.end && span.end <= source.size();
-        language.language.astReflection->visitMembers(
+        language.language.astReflection->visitProperties(
             node, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
               owned &= child.parent == &node &&
                        r.cst().contains(node.cstNodeId, child.cstNodeId);
@@ -106,7 +106,7 @@ inline int native_inline_regressions() {
   }
   const std::string source = "`first` and `second`.\n";
   const auto r = language.language.parser->parse(source);
-  const auto *doc = r.value_as<ast::Document>();
+  const auto *doc = r.valueAs<ast::Document>();
   if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() || !doc ||
       doc->blocks.size() != 1)
     return 1;

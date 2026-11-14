@@ -33,7 +33,7 @@ inline bool run(const cookie::CookieCoreServices& services) {
   for (const auto& test : cases) {
     const std::string source(test.source);
     const auto result = services.parser->parse(source);
-    const auto* doc = result.value_as<cookie::ast::Document>();
+    const auto* doc = result.valueAs<cookie::ast::Document>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !doc ||
         doc->pairs.size() != test.pairs.size())

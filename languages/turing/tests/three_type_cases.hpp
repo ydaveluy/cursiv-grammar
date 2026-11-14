@@ -59,7 +59,7 @@ inline bool run(const auto& services) {
       return fail("formal source/validation expectation");
     }
     if (!syntax) continue;
-    const auto* root = r.template value_as<ast::Program>();
+    const auto* root = r.template valueAs<ast::Program>();
     if (!root || root->parent != v.document.get() || root->items.size() != 1)
       return fail("Program/Document/one item");
     bool owned = true;
@@ -78,7 +78,7 @@ inline bool run(const auto& services) {
     };
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; describe("duplicate", node); return; }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view member, std::uint32_t index, cursiv::AstNode& child) {
             const bool parent = child.parent == &node;
             const bool contains = node.cstNodeId < r.cst().size() && child.cstNodeId < r.cst().size() &&

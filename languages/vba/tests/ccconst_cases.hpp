@@ -64,7 +64,7 @@ inline bool run(const vba::VbaCoreServices& services,
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
       if (const auto* n = cursiv::ast_cast<ast::CompilationConst>(&node)) { directive = n; ++count; }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             parents &= child.parent == &node && r.cst().contains(node.cstNodeId, child.cstNodeId);
             self(self, child);

@@ -60,7 +60,7 @@ ENDMODULE)RAPID");
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty())
       return fail("native RAPID strings did not parse cleanly");
-    const auto *module = result.value_as<abb::ast::Module>();
+    const auto *module = result.valueAs<abb::ast::Module>();
     const std::string expected[] = {"Contains a \" character",
                                     "Contains a \\ character",
                                     std::string("\0\aA\xc3\xa9", 5)};
@@ -90,7 +90,7 @@ ENDMODULE)RAPID");
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty())
       return fail("integer regression did not parse");
-    const auto *module = result.value_as<abb::ast::Module>();
+    const auto *module = result.valueAs<abb::ast::Module>();
     if (!module || module->declarations.size() != 4 ||
         module->procedures.size() != 1)
       return fail("integer regression lost declarations or procedure");

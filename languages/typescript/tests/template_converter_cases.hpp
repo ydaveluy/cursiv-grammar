@@ -17,7 +17,7 @@ inline bool run(const cursiv::Parser& parser) {
   };
   for (std::string_view text : {"", "text", "'", "``", "`a`", "`a${", "`a${value", "`\\"}) {
     const auto result = typescript::template_open_text(text);
-    check(!result && result.error.kind == cursiv::DiagnosticKind::conversion_error && !result.error.message.empty(),
+    check(!result && result.error.kind == cursiv::DiagnosticKind::ConversionError && !result.error.message.empty(),
           "missing opener, incomplete escape or embedded unescaped delimiter returns an error");
   }
   for (const auto [text, expected] : {

@@ -27,7 +27,7 @@ inline bool ownership(const auto& services, const cursiv::ParseResult& parsed,
     }
     const auto& span = parsed.cst()[node.cstNodeId];
     valid &= span.begin <= span.end && span.end <= source.size();
-    services.astReflection->visitMembers(node,
+    services.astReflection->visitProperties(node,
         [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
           valid &= child.parent == &node &&
                    parsed.cst().contains(node.cstNodeId, child.cstNodeId);
@@ -148,7 +148,7 @@ inline bool run(const auto& services) {
     const auto result = services.parser->parse(source);
     bool located = false;
     for (const auto& diagnostic : result.diagnostics)
-      located |= diagnostic.kind == cursiv::DiagnosticKind::conversion_error &&
+      located |= diagnostic.kind == cursiv::DiagnosticKind::ConversionError &&
                  diagnostic.begin == closer && diagnostic.end == source.size() &&
                  !diagnostic.message.empty();
     if (!located) return fail("local unmatched-tag diagnostic in original source", source);

@@ -69,7 +69,7 @@ int main() {
 "path" "C:\maps\a.map"
 }
 )map");
-    const auto *map = result.value_as<quakemap::ast::Map>();
+    const auto *map = result.valueAs<quakemap::ast::Map>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !map || map->entities.size() != 1)
       return failed_expectation("native rich map syntax/root",result);
@@ -88,7 +88,7 @@ int main() {
   {
     const auto result = language.language.parser->parse(
         "{\n\"message\" \"the \"\"hidden\"\" room\"\n}\n");
-    const auto *map = result.value_as<quakemap::ast::Map>();
+    const auto *map = result.valueAs<quakemap::ast::Map>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !map || map->entities.size() != 1 ||
         map->entities[0]->keyvalues.size() != 2 ||

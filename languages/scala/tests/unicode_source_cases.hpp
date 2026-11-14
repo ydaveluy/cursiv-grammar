@@ -131,7 +131,7 @@ inline bool run(const scala::ScalaCoreServices& services,
     bool parents = cursiv::ast_cast<ast::CompilationUnit>(r.value) != nullptr;
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { parents = false; return; }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             parents &= child.parent == &node && r.cst().contains(node.cstNodeId, child.cstNodeId);
             self(self, child);

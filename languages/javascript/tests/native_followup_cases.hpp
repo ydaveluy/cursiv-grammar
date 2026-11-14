@@ -31,7 +31,7 @@ f(o) { return #x in o + 1; } }
 let x=1; x-->0; const n=08; const m=09.5;
 )js";
   const auto result = language.language.parser->parse(source);
-  const auto* root = result.template value_as<a::Program>();
+  const auto* root = result.template valueAs<a::Program>();
   clean(result, "native identifier, class, private-brand and numeric forms parse clean");
   bool astral = false, combining = false, property = false, staticBlock = false;
   bool asyncField = false, method = false, brand = false, postfix = false, leadingZero = false;
@@ -65,7 +65,7 @@ let x=1; x-->0; const n=08; const m=09.5;
     bool owned = true;
     auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; return; }
-      language.language.astReflection->visitMembers(node,
+      language.language.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             owned &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
             self(self, child);
@@ -83,7 +83,7 @@ let x=1; x-->0; const n=08; const m=09.5;
   check(clean(templateResult, "CRLF template parses") && normalized, "raw template value normalizes physical CRLF");
   for (const auto source : {"export default function() {}", "export default async function() {}", "export default class {}"}) {
     const auto r = language.language.parser->parse(source);
-    const auto* p = r.template value_as<a::Program>();
+    const auto* p = r.template valueAs<a::Program>();
     const auto* e = p && p->body.size() == 1 ? cursiv::ast_cast<a::ExportStmt>(p->body[0]) : nullptr;
     bool anonymous = false;
     if (e && e->declaration) {
@@ -93,22 +93,22 @@ let x=1; x-->0; const n=08; const m=09.5;
     check(clean(r, source) && e && e->isDefault && anonymous && !e->defaultExpr, "anonymous default declaration retained as a declaration");
   }
   const auto asyncResult = language.language.parser->parse("async\nfunction f() {}");
-  const auto* asyncProgram = asyncResult.template value_as<a::Program>();
+  const auto* asyncProgram = asyncResult.template valueAs<a::Program>();
   const auto* f = asyncProgram && asyncProgram->body.size() == 2 ? cursiv::ast_cast<a::FunctionDecl>(asyncProgram->body[1]) : nullptr;
   check(clean(asyncResult, "async newline function parses") && f && !f->isAsync, "async newline is a separate statement");
   for (const auto source : {"async/*\n*/function f(){}", "async\u2028function f(){}"}) {
     const auto r = language.language.parser->parse(source);
-    const auto* p = r.template value_as<a::Program>();
+    const auto* p = r.template valueAs<a::Program>();
     const auto* function = p && p->body.size() == 2 ? cursiv::ast_cast<a::FunctionDecl>(p->body[1]) : nullptr;
     check(clean(r, source) && function && !function->isAsync, "comment or Unicode line terminator separates async/function");
   }
   const auto restricted = language.language.parser->parse("async/**/function f(){}");
-  const auto* restrictedProgram = restricted.template value_as<a::Program>();
+  const auto* restrictedProgram = restricted.template valueAs<a::Program>();
   const auto* restrictedFunction = restrictedProgram && restrictedProgram->body.size() == 1 ? cursiv::ast_cast<a::FunctionDecl>(restrictedProgram->body[0]) : nullptr;
   check(clean(restricted, "async comment function parses") && restrictedFunction && restrictedFunction->isAsync,
         "a comment without line terminators keeps async prefix");
   const auto arrowResult = language.language.parser->parse("const fn=async\nx=>x;");
-  const auto* arrowProgram = arrowResult.template value_as<a::Program>();
+  const auto* arrowProgram = arrowResult.template valueAs<a::Program>();
   bool arrow = false;
   for (const auto* n : arrowResult.nodes()) if (const auto* p = cursiv::ast_cast<a::ArrowFunctionExpr>(n)) arrow |= !p->isAsync;
   check(clean(arrowResult, "async newline arrow parses") && arrowProgram && arrowProgram->body.size() == 2 && arrow,

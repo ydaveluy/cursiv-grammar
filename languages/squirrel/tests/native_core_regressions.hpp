@@ -15,7 +15,7 @@ namespace ast = squirrel::ast;
 template<class Services, class Check>
 bool inspect(const Services& services, const char* id, const std::string& source, Check check) {
   const auto parsed = services.parser->parse(source);
-  const auto* root = parsed.template value_as<ast::Chunk>();
+  const auto* root = parsed.template valueAs<ast::Chunk>();
   if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
       !root || parsed.cst().text() != source) {
     std::fprintf(stderr,"squirrel: %s: parse failed: %s\n", id, source.c_str());
@@ -27,7 +27,7 @@ bool inspect(const Services& services, const char* id, const std::string& source
     if (!seen.insert(&node).second || node.cstNodeId >= parsed.cst().size()) { owned=false; return; }
     const auto& span=parsed.cst()[node.cstNodeId];
     owned &= span.begin<=span.end && span.end<=source.size();
-    services.astReflection->visitMembers(node,[&](std::string_view,std::uint32_t,cursiv::AstNode& child){
+    services.astReflection->visitProperties(node,[&](std::string_view,std::uint32_t,cursiv::AstNode& child){
       owned &= child.parent==&node && parsed.cst().contains(node.cstNodeId,child.cstNodeId);
       self(self,child);
     });

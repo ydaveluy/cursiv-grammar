@@ -32,7 +32,7 @@ inline bool run(const cursiv::CoreServices& language) {
     for (const auto* prefix : {".precision ", ".PrEcIsIoN = "}) {
       const std::string source = std::string(prefix) + std::string(test.value) + ";";
       const auto parsed = language.parser->parse(source);
-      const auto* root = parsed.value_as<ast::Program>();
+      const auto* root = parsed.valueAs<ast::Program>();
       const auto* statement = root && root->statements.size() == 1 ? root->statements[0] : nullptr;
       const auto* directive = statement ? cursiv::ast_cast<ast::Directive>(statement->atom) : nullptr;
       const auto* number = directive && directive->values.size() == 1

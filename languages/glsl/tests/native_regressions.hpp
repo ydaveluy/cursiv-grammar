@@ -418,7 +418,7 @@ void main(){float f(float x);})GLSL",
         owned = false;
         return;
       }
-      services.astReflection->visitMembers(
+      services.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &n;
             self(self, child);

@@ -174,7 +174,7 @@ template <class Language> bool modern_cases(const Language &language) {
         "file:///audit.wat", "wat", 0, std::string(source)));
     doc.language = &language.language;
     doc.parseResult = parser.parse(doc.textDocument().getText());
-    check(doc.parseSucceeded() && !doc.parseRecovered(),
+    check(doc.parseResult.accepted && !doc.parseRecovered(),
           "runtime fixture parses without repair");
     if (doc.parseResult.value)
       doc.parseResult.value->parent = &doc;

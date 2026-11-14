@@ -40,7 +40,7 @@ inline bool run(const cursiv::Parser& parser) {
         std::fprintf(stderr, "  kind=%d begin=%zu end=%zu element=%u\n", int(d.kind),
                      std::size_t(d.begin), std::size_t(d.end), unsigned(d.element));
     if (!clean || !test.clean) continue;
-    const auto* sheet = parsed.value_as<ast::Stylesheet>();
+    const auto* sheet = parsed.valueAs<ast::Stylesheet>();
     check(sheet && parsed.cst().text() == test.source, "stylesheet and exact source", test.source);
     if (!sheet) continue;
     if (std::string_view(test.kind) == "unknown") {
@@ -190,7 +190,7 @@ inline bool run(const cursiv::Parser& parser) {
   }
   for (const std::string_view text : {"", "!", "optional", "!op\\", "! optional", "!optionalx"}) {
     const auto result = scss::extend_optional(text);
-    check(!result && result.error.kind == cursiv::DiagnosticKind::conversion_error && !result.error.message.empty(),
+    check(!result && result.error.kind == cursiv::DiagnosticKind::ConversionError && !result.error.message.empty(),
           "partial/invalid conversion returns an error", "direct converter fragment");
   }
   for (const std::string_view text : {"!optional", "!OPTIONAL", "!\\6f ptional", "!\\00006fptional", "!\\oPtiO\\nal"}) {

@@ -40,7 +40,7 @@ inline bool parents(const auto& language, const cursiv::ParseResult& parsed) {
       okay = false;
       return;
     }
-    language.astReflection->visitMembers(node,
+    language.astReflection->visitProperties(node,
         [&](std::string_view member, std::uint32_t index, cursiv::AstNode& child) {
           const bool parent = child.parent == &node;
           const bool contains = node.cstNodeId < parsed.cst().size() &&

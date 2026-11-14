@@ -41,7 +41,7 @@ B : 'b';
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty())
       return fail("action islands");
-    const auto *grammar = result.value_as<antlr::ast::Grammar>();
+    const auto *grammar = result.valueAs<antlr::ast::Grammar>();
     if (!grammar || grammar->modes.size() != 1 ||
         grammar->actions.size() != 1 ||
         grammar->actions[0]->text !=

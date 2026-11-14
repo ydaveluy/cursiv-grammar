@@ -31,7 +31,7 @@ bool decoded_values(const cursiv::Parser &parser) {
   if (!result.accepted || result.cst().recovered() ||
       !result.diagnostics.empty())
     return false;
-  const auto *doc = result.value_as<json5::ast::Doc>();
+  const auto *doc = result.valueAs<json5::ast::Doc>();
   const auto *held = doc && doc->value
                          ? std::get_if<json5::ast::Value *>(&*doc->value)
                          : nullptr;
@@ -51,7 +51,7 @@ bool decoded_values(const cursiv::Parser &parser) {
         std::string(" "), std::string(" ")}) {
     const std::string continued = "'one\\" + newline + "two'";
     const auto parsed = parser.parse(continued);
-    const auto *root = parsed.value_as<json5::ast::Doc>();
+    const auto *root = parsed.valueAs<json5::ast::Doc>();
     const auto *text = root && root->value
                            ? std::get_if<std::string>(&*root->value)
                            : nullptr;
@@ -62,7 +62,7 @@ bool decoded_values(const cursiv::Parser &parser) {
   // Hex escapes denote Unicode code points, including Latin-1 characters.
   const auto hex_result = parser.parse(
       R"json5({'\xE9':'\x80\xE9\xFF','\u00E9':'\u0080\u00E9\u00FF','é':'\0'})json5");
-  const auto *hex_doc = hex_result.value_as<json5::ast::Doc>();
+  const auto *hex_doc = hex_result.valueAs<json5::ast::Doc>();
   const auto *hex_held = hex_doc && hex_doc->value
                              ? std::get_if<json5::ast::Value *>(&*hex_doc->value)
                              : nullptr;

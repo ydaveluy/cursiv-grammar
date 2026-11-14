@@ -58,7 +58,7 @@ int main() {
   };
   for (const auto& c : cases) {
     const auto result = language.language.parser->parse(c.text);
-    const auto* file = result.value_as<cmake::ast::File>();
+    const auto* file = result.valueAs<cmake::ast::File>();
     const cmake::ast::CommandInvocation* probe = nullptr;
     if (file) for (const auto* cmd : file->commands)
       if (cmd && cmd->name == "probe") probe = cmd;

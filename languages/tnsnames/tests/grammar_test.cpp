@@ -64,7 +64,7 @@ cursiv::ParseResult build(std::string_view text) {
 }
 
 ast::Entry* entry_at(const cursiv::ParseResult& r, std::size_t i) {
-  ast::Document* const doc = r.value_as<ast::Document>();
+  ast::Document* const doc = r.valueAs<ast::Document>();
   if (doc == nullptr || i >= doc->items.size()) return nullptr;
   const std::variant<ast::Entry*, ast::Ifile*>& item = doc->items[i];
   return std::holds_alternative<ast::Entry*>(item) ? std::get<ast::Entry*>(item)
@@ -72,7 +72,7 @@ ast::Entry* entry_at(const cursiv::ParseResult& r, std::size_t i) {
 }
 
 ast::Ifile* ifile_at(const cursiv::ParseResult& r, std::size_t i) {
-  ast::Document* const doc = r.value_as<ast::Document>();
+  ast::Document* const doc = r.valueAs<ast::Document>();
   if (doc == nullptr || i >= doc->items.size()) return nullptr;
   const std::variant<ast::Entry*, ast::Ifile*>& item = doc->items[i];
   return std::holds_alternative<ast::Ifile*>(item) ? std::get<ast::Ifile*>(item)
@@ -335,7 +335,7 @@ void corpus() {
   CHECK(!src.empty());
   const cursiv::ParseResult r = build(src);
 
-  ast::Document* const doc = r.value_as<ast::Document>();
+  ast::Document* const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->items.size() == 4);
   if (doc == nullptr || doc->items.size() != 4) return;
 
@@ -492,7 +492,7 @@ void native_descriptor_values() {
   const auto overflow = engine().parse(overflowSource);
   CHECK(overflow.accepted && !overflow.cst().recovered() && !overflow.diagnostics.empty());
   CHECK(overflow.diagnostics.size() == 1 &&
-        overflow.diagnostics[0].kind == cursiv::DiagnosticKind::conversion_error &&
+        overflow.diagnostics[0].kind == cursiv::DiagnosticKind::ConversionError &&
         overflow.diagnostics[0].begin < overflow.diagnostics[0].end);
   const auto include = build("IFILE= child.ora  ");
   CHECK(ifile_at(include, 0) && ifile_at(include, 0)->path == "child.ora");

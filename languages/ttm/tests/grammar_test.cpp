@@ -66,7 +66,7 @@ int main() {
         ttm::TtmSharedCoreServices, ttm::install_core_module>();
     const std::string source = "before;> #<ps;;a#<ad;1;2>b;<##<ps;quoted>>;@;> after";
     const auto r = language.language.parser->parse(source);
-    const auto *program = r.value_as<ttm::ast::Program>();
+    const auto *program = r.valueAs<ttm::ast::Program>();
     const auto *held = program && program->parts.size() == 3
         ? std::get_if<ttm::ast::Call *>(&program->parts[1]) : nullptr;
     const auto *call = held ? *held : nullptr;

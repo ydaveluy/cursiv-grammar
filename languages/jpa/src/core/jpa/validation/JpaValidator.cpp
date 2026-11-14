@@ -34,7 +34,7 @@ void JpaValidator::checkDocument(const ast::Document& document,
           parameter->text.find_first_not_of('0') == std::string_view::npos)
         accept.error(*parameter, "Positional parameters start at 1.", "jpa.parameter-index");
     }
-    services.astReflection->visitMembers(node,
+    services.astReflection->visitProperties(node,
         [&](std::string_view, std::uint32_t, cursiv::AstNode& child) { self(self, child); });
   };
   walk(walk, document);

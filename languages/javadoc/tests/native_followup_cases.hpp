@@ -23,7 +23,7 @@ template<class Language> bool run(const Language& language) {
   for (const auto source : {"{@code */}", "/** {@code {x:{y}}} */",
                              "/** {@snippet file=\"Example.java\"} */"}) {
     const auto result = language.language.parser->parse(source);
-    const auto* doc = result.template value_as<javadoc::ast::Documentation>();
+    const auto* doc = result.template valueAs<javadoc::ast::Documentation>();
     bool inlineTag = false;
     if (doc) for (const auto& item : doc->description)
       if (const auto* tag = std::get_if<javadoc::ast::InlineTag*>(&item))

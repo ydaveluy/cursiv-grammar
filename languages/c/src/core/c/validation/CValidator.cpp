@@ -23,11 +23,11 @@ namespace {
 template <class L>
 inline constexpr std::string_view kSpelling{};
 template <cursiv::str S, bool CI, class G>
-inline constexpr std::string_view kSpelling<cursiv::Lit<S, CI, G>> = S.view();
+inline constexpr std::string_view kSpelling<cursiv::detail::Lit<S, CI, G>> = S.view();
 template <class E>
 struct Words;
 template <class... Es>
-struct Words<cursiv::Choice<Es...>> {
+struct Words<cursiv::detail::Choice<Es...>> {
   static constexpr std::array<std::string_view, sizeof...(Es)> value{
       kSpelling<Es>...};
 };
@@ -43,7 +43,7 @@ void CValidator::checkReservedNames(const ast::TranslationUnit& unit,
   const cursiv::Cst& cst = document->parseResult.cst();
   const cursiv::Grammar* const grammar = cst.grammar();
   if (grammar == nullptr) return;
-  cst.visit_leaves([&](const cursiv::CstLeaf& leaf) {
+  cst.visitLeaves([&](const cursiv::CstLeaf& leaf) {
     // An attribute argument may contain any token, including keywords.
     // Its preserved token text is not an identifier use.
     const auto feature = grammar->recordFeature(cst[leaf.id]);

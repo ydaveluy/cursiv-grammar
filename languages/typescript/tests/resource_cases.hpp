@@ -353,7 +353,7 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
   }
   {
     const char* source="using();using.x;using[x];using?.();using=acquire();";
-    const auto parsed=services.parser->parse(source);const auto* root=parsed.value_as<ast::Program>();
+    const auto parsed=services.parser->parse(source);const auto* root=parsed.valueAs<ast::Program>();
     const auto expression=[&](std::size_t index)->const ast::Expr* {
       const auto* statement=root&&root->body.size()==5?cursiv::ast_cast<ast::ExprStmt>(root->body[index]):nullptr;
       return statement?statement->expression:nullptr;

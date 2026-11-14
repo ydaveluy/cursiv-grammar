@@ -2,7 +2,7 @@ void native_regressions() {
   {
     const std::string source = "GCS a42 a0000000000000000000000000000001";
     const auto result = build(source);
-    const auto* file = result.value_as<ast::File>();
+    const auto* file = result.valueAs<ast::File>();
     CHECK(file && file->tuples.size() == 2);
     if (file && file->tuples.size() == 2) {
       CHECK(std::get<std::string_view>(file->tuples[0]->kind) == "a");
@@ -16,7 +16,7 @@ void native_regressions() {
       "GCS UB++ dpu dx r% P! h! s+(-)>--:(--)>--- C()\n"
       "------END GEEK CODE BLOCK------\n";
   const auto parsed = build(source);
-  const auto* file = parsed.value_as<ast::File>();
+  const auto* file = parsed.valueAs<ast::File>();
   CHECK(file && file->header == "GCS" && file->version == "3.12");
   CHECK(file && file->tuples.size() == 8);
   if (!file || file->tuples.size() != 8) return;
@@ -34,7 +34,7 @@ void native_regressions() {
   CHECK(range && range->run.empty());
   const std::string separate = "GCS d x";
   const auto separated = build(separate);
-  CHECK(separated.value_as<ast::File>()->tuples.size() == 2);
+  CHECK(separated.valueAs<ast::File>()->tuples.size() == 2);
   auto language = cursiv::create_language<geekcode::GeekcodeCoreServices,
       geekcode::GeekcodeSharedCoreServices, geekcode::install_core_module>();
   CHECK(cursiv::test::validationHelper(language.language, source).diagnostics.empty());

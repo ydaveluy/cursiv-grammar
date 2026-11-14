@@ -126,7 +126,7 @@ int main() {
         language.language.parser->parse("1 + 2\n");
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("1 + 2", "does not parse clean");
-    const auto* const block = result.value_as<elixir::ast::Block>();
+    const auto* const block = result.valueAs<elixir::ast::Block>();
     if (block == nullptr || block->body.size() != 1)
       return fail("1 + 2", "the block does not hold one statement");
     const auto* const bin =
@@ -147,7 +147,7 @@ int main() {
         language.language.parser->parse(":atom\n");
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail(":atom", "does not parse clean");
-    const auto* const block = result.value_as<elixir::ast::Block>();
+    const auto* const block = result.valueAs<elixir::ast::Block>();
     const auto* const atom =
         static_cast<const elixir::ast::AtomLit*>(block->body[0]);
     if (atom->type != &cursiv::ast_type_tag<elixir::ast::AtomLit> ||
@@ -166,7 +166,7 @@ int main() {
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("a ++ b ++ c", "does not parse clean");
     const auto* const bin = static_cast<const elixir::ast::BinaryExpr*>(
-        result.value_as<elixir::ast::Block>()->body[0]);
+        result.valueAs<elixir::ast::Block>()->body[0]);
     if (bin->op != elixir::ast::Operator::concat || isBinary(bin->left) ||
         !isBinary(bin->right))
       return fail("a ++ b ++ c", "++ is not right-associative");
@@ -177,7 +177,7 @@ int main() {
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("a = b = c", "does not parse clean");
     const auto* const bin = static_cast<const elixir::ast::BinaryExpr*>(
-        result.value_as<elixir::ast::Block>()->body[0]);
+        result.valueAs<elixir::ast::Block>()->body[0]);
     if (bin->op != elixir::ast::Operator::pattern_match || isBinary(bin->left) ||
         !isBinary(bin->right))
       return fail("a = b = c", "= is not right-associative");
@@ -188,7 +188,7 @@ int main() {
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("a | b | c", "does not parse clean");
     const auto* const bin = static_cast<const elixir::ast::BinaryExpr*>(
-        result.value_as<elixir::ast::Block>()->body[0]);
+        result.valueAs<elixir::ast::Block>()->body[0]);
     if (bin->op != elixir::ast::Operator::prepend || isBinary(bin->left) ||
         !isBinary(bin->right))
       return fail("a | b | c", "| is not right-associative");
@@ -199,7 +199,7 @@ int main() {
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("a :: b :: c", "does not parse clean");
     const auto* const bin = static_cast<const elixir::ast::BinaryExpr*>(
-        result.value_as<elixir::ast::Block>()->body[0]);
+        result.valueAs<elixir::ast::Block>()->body[0]);
     if (bin->op != elixir::ast::Operator::type_op || isBinary(bin->left) ||
         !isBinary(bin->right))
       return fail("a :: b :: c", ":: is not right-associative");
@@ -212,7 +212,7 @@ int main() {
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("a <<< b |> c", "does not parse clean");
     const auto* const bin = static_cast<const elixir::ast::BinaryExpr*>(
-        result.value_as<elixir::ast::Block>()->body[0]);
+        result.valueAs<elixir::ast::Block>()->body[0]);
     if (bin->op != elixir::ast::Operator::pipe_op || !isBinary(bin->left) ||
         isBinary(bin->right))
       return fail("a <<< b |> c",

@@ -295,33 +295,33 @@ int main() {
   {
     const std::string text = slurp(example1.c_str());
     const auto result = parse_clean(language, example1, text);
-    const auto* doc = result ? result->value_as<rexx::ast::Block>() : nullptr;
+    const auto* doc = result ? result->valueAs<rexx::ast::Block>() : nullptr;
     if (doc != nullptr && doc->body.empty())
       fail("example1.rex built an empty program");
   }
   {
     const std::string text = slurp(bitstring.c_str());
     const auto result = parse_clean(language, bitstring, text);
-    const auto* doc = result ? result->value_as<rexx::ast::Block>() : nullptr;
+    const auto* doc = result ? result->valueAs<rexx::ast::Block>() : nullptr;
     if (doc != nullptr) check_bitstring(*doc);
   }
   {
     const std::string text = slurp(concatenation.c_str());
     const auto result = parse_clean(language, concatenation, text);
-    const auto* doc = result ? result->value_as<rexx::ast::Block>() : nullptr;
+    const auto* doc = result ? result->valueAs<rexx::ast::Block>() : nullptr;
     if (doc != nullptr) check_concatenation(*doc);
   }
   {
     const std::string coverage = std::string(CURSIV_TEST_DIR) + "/docs/coverage.rex";
     const std::string text = slurp(coverage.c_str());
     const auto result = parse_clean(language, coverage, text);
-    const auto* doc = result ? result->value_as<rexx::ast::Block>() : nullptr;
+    const auto* doc = result ? result->valueAs<rexx::ast::Block>() : nullptr;
     if (doc != nullptr) check_coverage(*doc);
   }
   {
     const std::string text = "x = f()\ny = f(,1)\ncall g\ncall g()\ncall g ,2\n";
     const auto result = parse_clean(language, "argument lists", text);
-    const auto* doc = result ? result->value_as<rexx::ast::Block>() : nullptr;
+    const auto* doc = result ? result->valueAs<rexx::ast::Block>() : nullptr;
     if (doc != nullptr) check_argument_lists(*doc);
   }
 

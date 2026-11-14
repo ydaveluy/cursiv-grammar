@@ -1,5 +1,5 @@
 #pragma once
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "javadoc/Content.hpp"
 namespace audit {
 using J = cursiv::JsonValue;

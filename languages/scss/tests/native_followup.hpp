@@ -43,7 +43,7 @@ inline bool run(const auto& services) {
   const auto result = services.language.parser->parse(source);
   check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
         "native URL/null/modulo/variable-flag forms parse clean");
-  const auto* sheet = result.template value_as<ast::Stylesheet>();
+  const auto* sheet = result.template valueAs<ast::Stylesheet>();
   check(sheet && sheet->statements.size() == 3, "two variables and one ruleset retained");
   const auto* rule = sheet && sheet->statements.size() == 3 ? as<ast::Ruleset>(sheet->statements[2]) : nullptr;
   if (sheet && sheet->statements.size() == 3) {
@@ -72,7 +72,7 @@ inline bool run(const auto& services) {
   {
     const auto value = services.language.parser->parse(
         ".a{raw:url(/*comment*/); quoted:url(/*lead*/\"a\"/*tail*/); spaced:url (foo); bare:calc url rgba format repeat if}");
-    const auto* root = value.template value_as<ast::Stylesheet>();
+    const auto* root = value.template valueAs<ast::Stylesheet>();
     const auto* rule = root && root->statements.size() == 1 ? as<ast::Ruleset>(root->statements[0]) : nullptr;
     check(value.accepted && !value.cst().recovered() && value.diagnostics.empty() &&
               rule && rule->body && rule->body->statements.size() == 4,
@@ -101,7 +101,7 @@ inline bool run(const auto& services) {
   }
   {
     const auto result = services.language.parser->parse("@warn 1 + 2; @error (1, 2);");
-    const auto* root = result.template value_as<ast::Stylesheet>();
+    const auto* root = result.template valueAs<ast::Stylesheet>();
     const auto* warn = root && root->statements.size()==2 ? as<ast::WarnDeclaration>(root->statements[0]) : nullptr;
     const auto* error = root && root->statements.size()==2 ? as<ast::ErrorDeclaration>(root->statements[1]) : nullptr;
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
@@ -127,7 +127,7 @@ inline bool run(const auto& services) {
         ForwardCase{"@forward \"mod\" with ($tone: red blue, $gap: (1px, 2px), $map: (small: 1px, big: 2px),);",
                     "", ast::ForwardVisibility::all, 0, 0, 3}}) {
       const auto result = services.language.parser->parse(probe.source);
-      const auto* sheet = result.template value_as<ast::Stylesheet>();
+      const auto* sheet = result.template valueAs<ast::Stylesheet>();
       const auto* forward = sheet && sheet->statements.size() == 1
           ? as<ast::ImportDeclaration>(sheet->statements[0]) : nullptr;
       const auto* path = forward ? as<ast::StringLit>(forward->path) : nullptr;
@@ -201,7 +201,7 @@ inline bool run(const auto& services) {
       if (!rejected) std::fprintf(stderr, "  accepted malformed @forward=%s\n", source);
     }
     const auto unknown = services.language.parser->parse("@forwarded \"mod\";");
-    const auto* root = unknown.template value_as<ast::Stylesheet>();
+    const auto* root = unknown.template valueAs<ast::Stylesheet>();
     const auto* at = root && root->statements.size() == 1
         ? as<ast::AtStatementDeclaration>(root->statements[0]) : nullptr;
     check(unknown.accepted && !unknown.cst().recovered() && unknown.diagnostics.empty() &&
@@ -233,7 +233,7 @@ inline bool run(const auto& services) {
         ConfigurationCase{"@forward \"mod\" with ($tone: red !important !default);",
                           ValueKind::list, ast::Prio::default_, ast::Prio::none}}) {
       const auto result = services.language.parser->parse(probe.source);
-      const auto* sheet = result.template value_as<ast::Stylesheet>();
+      const auto* sheet = result.template valueAs<ast::Stylesheet>();
       const auto* forward = sheet && sheet->statements.size() == 1
           ? as<ast::ImportDeclaration>(sheet->statements[0]) : nullptr;
       const auto* parameter = forward && forward->withArgs.size() == 1
@@ -305,7 +305,7 @@ inline bool run(const auto& services) {
     }
     const auto result = services.language.parser->parse(
         "$v: if(true, red, blue) !default; $w: if(false, red, blue) !default !global;");
-    const auto* sheet = result.template value_as<ast::Stylesheet>();
+    const auto* sheet = result.template valueAs<ast::Stylesheet>();
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
               sheet && sheet->statements.size() == 2, "variable if-expression defaults parse clean");
     if (sheet && sheet->statements.size() == 2)
@@ -318,7 +318,7 @@ inline bool run(const auto& services) {
       }
     const auto imports = services.language.parser->parse(
         "@use \"mod\" as ns with ($tone: red); @import \"print.css\" screen;");
-    const auto* imported = imports.template value_as<ast::Stylesheet>();
+    const auto* imported = imports.template valueAs<ast::Stylesheet>();
     const auto* use = imported && imported->statements.size() == 2
         ? as<ast::ImportDeclaration>(imported->statements[0]) : nullptr;
     const auto* css = imported && imported->statements.size() == 2
@@ -332,7 +332,7 @@ inline bool run(const auto& services) {
           "forward-only value changes preserve use/import dispatch and fields");
   }
   const auto pseudo = services.language.parser->parse("a:null:hover{v:1} a:url(foo):hover{v:1}");
-  const auto* p = pseudo.template value_as<ast::Stylesheet>();
+  const auto* p = pseudo.template valueAs<ast::Stylesheet>();
   check(pseudo.accepted && !pseudo.cst().recovered() && p && p->statements.size() == 2 &&
             as<ast::Ruleset>(p->statements[0]) && as<ast::Ruleset>(p->statements[1]), "null/url remain legal pseudo-selector names");
   return ok;

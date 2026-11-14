@@ -36,7 +36,7 @@ int main() {
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty())
       return fail("<native configuration>", "did not parse cleanly");
-    const auto* model = result.value_as<alpaca::ast::Model>();
+    const auto* model = result.valueAs<alpaca::ast::Model>();
     if (!model || model->states.size() != 2 || !model->beginTerminated ||
         model->initialConfiguration != "\n *\n**\n" ||
         model->states[0]->rules.size() != 1)

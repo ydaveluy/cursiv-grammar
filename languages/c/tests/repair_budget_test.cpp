@@ -33,7 +33,7 @@ Parsed parse(std::string_view text, const cursiv::engine::LrDrive& drive,
   cursiv::Cst cst;
   Parsed p;
   p.accepted = cursiv::engine::lr_parser<A>.parse(text, cst, &p.stats, &drive, budget);
-  p.entry = cst.has_entry();
+  p.entry = cst.hasEntry();
   p.notes.assign(cst.diagnostics().begin(), cst.diagnostics().end());
   return p;
 }
@@ -68,8 +68,8 @@ void the_bound_never_decides() {
   unsigned inserted = 0;
   bool bounded = false;
   for (const cursiv::ParseDiagnostic& n : p.notes) {
-    inserted += n.kind == cursiv::DiagnosticKind::inserted ? 1 : 0;
-    bounded = bounded || n.kind == cursiv::DiagnosticKind::bounded;
+    inserted += n.kind == cursiv::DiagnosticKind::Inserted ? 1 : 0;
+    bounded = bounded || n.kind == cursiv::DiagnosticKind::Bounded;
   }
   CHECK(p.accepted && inserted == 2 && !bounded);
 }

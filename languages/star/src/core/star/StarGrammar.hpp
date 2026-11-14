@@ -14,14 +14,14 @@ struct Star : cursiv::GrammarSpec {
   static constexpr auto quoteEnd = boundary | &cr<"[]{}:,">;
   struct WS : terminal<some(cr<" \t\v\f"> | (eol + !lit<";">))> {};
   struct COMMENT : terminal<lit<"#"> + many(cr<"^\r\n">)> {};
-  struct DATA : terminal<as<heading_name>(cursiv::Lit<"data_", true>{} +
+  struct DATA : terminal<as<heading_name>(cursiv::detail::Lit<"data_", true>{} +
                                           many(nonspace))> {};
-  struct SAVE : terminal<as<heading_name>(cursiv::Lit<"save_", true>{} +
+  struct SAVE : terminal<as<heading_name>(cursiv::detail::Lit<"save_", true>{} +
                                           some(nonspace))> {};
-  struct SAVE_END : terminal<cursiv::Lit<"save_", true>{} + boundary> {};
-  struct LOOP : terminal<cursiv::Lit<"loop_", true>{} + boundary> {};
-  struct STOP : terminal<cursiv::Lit<"stop_", true>{} + boundary> {};
-  struct GLOBAL : terminal<cursiv::Lit<"global_", true>{} + boundary> {};
+  struct SAVE_END : terminal<cursiv::detail::Lit<"save_", true>{} + boundary> {};
+  struct LOOP : terminal<cursiv::detail::Lit<"loop_", true>{} + boundary> {};
+  struct STOP : terminal<cursiv::detail::Lit<"stop_", true>{} + boundary> {};
+  struct GLOBAL : terminal<cursiv::detail::Lit<"global_", true>{} + boundary> {};
   struct DATANAME : terminal<lit<"_"> + many(nonspace)> {};
   struct STRING1
       : terminal<lit<"'"> + many(!(lit<"'"> + quoteEnd) + cr<"^\r\n">) +
@@ -34,8 +34,8 @@ struct Star : cursiv::GrammarSpec {
   struct TEXT : terminal<eol + lit<";"> + many(!(eol + lit<";">)+any) + eol +
                          lit<";">> {};
   static constexpr auto bareStart =
-      !(cursiv::Lit<"data_", true>{} | cursiv::Lit<"save_", true>{} |
-        cursiv::Lit<"global_", true>{}) +
+      !(cursiv::detail::Lit<"data_", true>{} | cursiv::detail::Lit<"save_", true>{} |
+        cursiv::detail::Lit<"global_", true>{}) +
       !ref<LOOP> + !ref<STOP> + !cr<"_#\"'[]{}">;
   struct LITERAL : terminal<bareStart + some(cr<"^ \t\r\n\v\f[]{}">)> {};
   struct ATOM

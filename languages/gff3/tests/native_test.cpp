@@ -100,7 +100,7 @@ int main() {
     const std::string source = "##gff-version 3\n"
         "chr1\t.\tCDS\t1\t9\t.\t+\t0\tID=c1;note%3Dkey=a%26b%3Dc\n";
     const auto parsed = language.language.parser->parse(source);
-    const auto* doc = parsed.value_as<gff3::ast::Document>();
+    const auto* doc = parsed.valueAs<gff3::ast::Document>();
     const auto* feature = doc && doc->lines.size() == 2 ?
         std::get_if<gff3::ast::Feature*>(&doc->lines[1]) : nullptr;
     if (!parsed.accepted || parsed.cst().recovered() || !feature ||
@@ -191,7 +191,7 @@ int main() {
         owned = false;
         return;
       }
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           node, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &node &&
                      result.cst().contains(node.cstNodeId, child.cstNodeId);

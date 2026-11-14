@@ -187,7 +187,7 @@ void check_pow_tighter_than_unary(const Language& language) {
     fail("check_pow_tighter_than_unary: the probe does not parse clean");
     return;
   }
-  const auto* const module = result.value_as<vb6::ast::Module>();
+  const auto* const module = result.valueAs<vb6::ast::Module>();
   if (module == nullptr || module->body.size() != 1) {
     fail("check_pow_tighter_than_unary: expected one top-level Sub");
     return;
@@ -239,7 +239,7 @@ void check_int_div_own_tier(const Language& language) {
     fail("check_int_div_own_tier: the probe does not parse clean");
     return;
   }
-  const auto* const module = result.value_as<vb6::ast::Module>();
+  const auto* const module = result.valueAs<vb6::ast::Module>();
   if (module == nullptr || module->body.size() != 1) {
     fail("check_int_div_own_tier: expected one top-level Sub");
     return;
@@ -292,7 +292,7 @@ void check_reserved_words(const Language& language) {
     fail("check_reserved_words: the probe does not parse clean");
     return;
   }
-  const auto* const module = result.value_as<vb6::ast::Module>();
+  const auto* const module = result.valueAs<vb6::ast::Module>();
   if (module == nullptr || module->config == nullptr ||
       module->body.size() != 1) {
     fail("check_reserved_words: expected a header block and one Sub");
@@ -336,7 +336,7 @@ void check_names(const Language& language) {
     fail("check_names: the probe does not parse clean");
     return;
   }
-  const auto* const module = result.value_as<vb6::ast::Module>();
+  const auto* const module = result.valueAs<vb6::ast::Module>();
   const auto* const proc =
       module != nullptr && module->body.size() == 2
           ? static_cast<const vb6::ast::Procedure*>(module->body[1])
@@ -363,7 +363,7 @@ void check_labels(const Language& language) {
     fail("check_labels: the probe does not parse clean");
     return;
   }
-  const auto* const module = result.value_as<vb6::ast::Module>();
+  const auto* const module = result.valueAs<vb6::ast::Module>();
   const auto* const proc =
       module != nullptr && module->body.size() == 1
           ? static_cast<const vb6::ast::Procedure*>(module->body[0])

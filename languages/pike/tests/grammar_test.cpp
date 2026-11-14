@@ -143,7 +143,7 @@ array xs=({1,2});array ys=xs[..1];
 
   {
     const auto r=language.language.parser->parse("int f(int a,int b){if(a)if(b)return 1;else return 2;return 0;}");
-    const auto* p=r.value_as<pike::ast::Program>();
+    const auto* p=r.valueAs<pike::ast::Program>();
     const auto* fn=p&&!p->definitions.empty()?cursiv::ast_cast<pike::ast::FunctionDefinition>(p->definitions[0]):nullptr;
     const auto* outer=fn&&fn->body&&!fn->body->statements.empty()?cursiv::ast_cast<pike::ast::If>(fn->body->statements[0]):nullptr;
     const auto* inner=outer?cursiv::ast_cast<pike::ast::If>(outer->then):nullptr;

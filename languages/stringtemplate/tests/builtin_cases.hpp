@@ -35,7 +35,7 @@ inline bool run(const auto& services) {
       return fail("native compiler acceptance mismatch");
     }
     if (!clean) continue;
-    const auto* root = r.template value_as<ast::Template>();
+    const auto* root = r.template valueAs<ast::Template>();
     if (!root || root->parent != v.document.get()) return fail("root/Document owner");
     bool owned = true;
     std::unordered_set<const cursiv::AstNode*> seen;
@@ -53,7 +53,7 @@ inline bool run(const auto& services) {
     };
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; describe("duplicate", node); return; }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view member, std::uint32_t index, cursiv::AstNode& child) {
             const bool parent = child.parent == &node;
             const bool contains = node.cstNodeId < r.cst().size() && child.cstNodeId < r.cst().size() &&

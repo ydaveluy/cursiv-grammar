@@ -32,7 +32,7 @@ int main() {
   {
     const std::string source = R"at("a\n\"b\q"(1,-2,.5){[x,y]}:kind?)at";
     const auto parsed = language.language.parser->parse(source);
-    const auto* doc = parsed.value_as<aterm::ast::Doc>();
+    const auto* doc = parsed.valueAs<aterm::ast::Doc>();
     const auto* fun = doc ? cursiv::ast_cast<aterm::ast::Function>(doc->term) : nullptr;
     if (!parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty() ||
         !fun || !aterm::quoted(*fun) || aterm::function_name(*fun) != "a\n\"bq" ||

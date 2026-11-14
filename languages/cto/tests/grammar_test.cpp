@@ -38,7 +38,7 @@ std::string test_doc(const char* name) {
 
 void check_clean(const cursiv::ParseResult& r) {
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
-  CHECK(r.value_as<ast::Model>() != nullptr);
+  CHECK(r.valueAs<ast::Model>() != nullptr);
 }
 
 void check_invalid(const cursiv::ParseResult& r) { CHECK(!r.diagnostics.empty()); }
@@ -68,7 +68,7 @@ void car() {
   CHECK(!src.empty());
   const cursiv::ParseResult r = engine().parse(src);
   check_clean(r);
-  const ast::Model* m = r.value_as<ast::Model>();
+  const ast::Model* m = r.valueAs<ast::Model>();
   if (m == nullptr) return;
 
   CHECK(m->namespaceName == "org.sample.car");
@@ -123,7 +123,7 @@ void owner() {
   CHECK(!src.empty());
   const cursiv::ParseResult r = engine().parse(src);
   check_clean(r);
-  const ast::Model* m = r.value_as<ast::Model>();
+  const ast::Model* m = r.valueAs<ast::Model>();
   if (m == nullptr) return;
 
   CHECK(m->imports.empty());
@@ -172,7 +172,7 @@ void transaction() {
   CHECK(!src.empty());
   const cursiv::ParseResult r = engine().parse(src);
   check_clean(r);
-  const ast::Model* m = r.value_as<ast::Model>();
+  const ast::Model* m = r.valueAs<ast::Model>();
   if (m == nullptr) return;
 
   CHECK(m->imports.size() == 1 && m->imports[0]->wildcard &&
@@ -205,7 +205,7 @@ void coverage() {
   CHECK(!src.empty());
   const cursiv::ParseResult r = engine().parse(src);
   check_clean(r);
-  const ast::Model* m = r.value_as<ast::Model>();
+  const ast::Model* m = r.valueAs<ast::Model>();
   if (m == nullptr || m->declarations.size() != 3) return;
 
   const auto* boite = as_class(m->declarations[1]);
@@ -254,7 +254,7 @@ void numeric_boundaries() {
     const auto source = with_default(value);
     const auto result = engine().parse(source);
     check_clean(result);
-    const auto* model = result.value_as<ast::Model>();
+    const auto* model = result.valueAs<ast::Model>();
     if (model == nullptr || model->declarations.size() != 1) continue;
     const auto* declaration = as_class(model->declarations[0]);
     CHECK(declaration != nullptr && declaration->properties.size() == 1);
@@ -266,7 +266,7 @@ void numeric_boundaries() {
     const std::string source = with_default("-9223372036854775808L");
     const auto result = engine().parse(source);
     check_clean(result);
-    const auto* model = result.value_as<ast::Model>();
+    const auto* model = result.valueAs<ast::Model>();
     const auto* declaration = model && model->declarations.size() == 1
         ? as_class(model->declarations[0]) : nullptr;
     CHECK(declaration && declaration->properties.size() == 1);
@@ -284,13 +284,13 @@ void numeric_boundaries() {
     CHECK(!result.cst().recovered());
     CHECK(result.diagnostics.size() == 1);
     if (result.diagnostics.size() == 1)
-      CHECK(result.diagnostics[0].kind == cursiv::DiagnosticKind::conversion_error);
+      CHECK(result.diagnostics[0].kind == cursiv::DiagnosticKind::ConversionError);
   }
   // The exponent used to fall beyond the converter's fixed 64-byte buffer.
   const auto source = with_default("1." + std::string(80, '0') + "e3D");
   const auto result = engine().parse(source);
   check_clean(result);
-  const auto* model = result.value_as<ast::Model>();
+  const auto* model = result.valueAs<ast::Model>();
   if (model == nullptr || model->declarations.size() != 1) return;
   const auto* declaration = as_class(model->declarations[0]);
   CHECK(declaration != nullptr && declaration->properties.size() == 1);
@@ -313,7 +313,7 @@ void native_defaults() {
   const auto result = engine().parse(
       "namespace x concept A { o Double n default = -1.25 range = [-3.5,2.0] }");
   check_clean(result);
-  const auto* model = result.value_as<ast::Model>();
+  const auto* model = result.valueAs<ast::Model>();
   const auto* declaration = model && model->declarations.size() == 1
       ? as_class(model->declarations[0]) : nullptr;
   CHECK(declaration && declaration->properties.size() == 1);
@@ -339,7 +339,7 @@ abstract participant P {}
 @Enum() enum Kind { @Value() o A optional o B }
 )cto");
   check_clean(result);
-  const auto* model = result.value_as<ast::Model>();
+  const auto* model = result.valueAs<ast::Model>();
   CHECK(model && model->imports.size() == 1 && model->declarations.size() == 5);
   if (!model || model->declarations.size() != 5) return;
   if (model->imports.size() == 1)

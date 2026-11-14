@@ -181,7 +181,7 @@ template <class Language> bool extended_class_cases(const Language &language) {
         "file:///extended.pcre", "pcre", 0, std::string(source)));
     document.language = &language.language;
     document.parseResult = parser.parse(document.textDocument().getText());
-    check(document.parseSucceeded() && !document.parseRecovered(),
+    check(document.parseResult.accepted && !document.parseRecovered(),
           "semantic class error reaches validator", source);
     if (document.parseResult.value) document.parseResult.value->parent = &document;
     std::vector<cursiv::Diagnostic> diagnostics;

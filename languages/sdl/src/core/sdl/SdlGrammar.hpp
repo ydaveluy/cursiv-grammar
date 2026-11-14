@@ -468,7 +468,7 @@ struct Sdl : cursiv::GrammarSpec {
 
   // The native input reader switches to raw records in LITERAL mode;
   // apparent quotes, comments and SDL declarations are pass-through text.
-  static constexpr auto EndLiteral = cursiv::Lit<"END_LITERAL", true>{};
+  static constexpr auto EndLiteral = cursiv::detail::Lit<"END_LITERAL", true>{};
   struct LITERAL_TEXT : terminal<some(!EndLiteral + any)> {};
   struct LiteralStmt
       : rule<create<ast::LiteralStmt>(

@@ -18,7 +18,7 @@ inline void run(const cursiv::Parser& parser) {
                    unsigned(d.kind), std::size_t(d.begin), std::size_t(d.end), unsigned(d.element));
   }
   CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
-  const auto* root = result.value_as<ast::Program>();
+  const auto* root = result.valueAs<ast::Program>();
   CHECK(root && root->statements.size() == 6);
   if (!root || root->statements.size() != 6) return;
   const auto* conditional = cursiv::ast_cast<ast::IfStmt>(root->statements[0]);

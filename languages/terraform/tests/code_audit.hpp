@@ -30,7 +30,7 @@ inline bool run() {
         [&](const cursiv::AstNode* n) {
           if (!n) return;
           callback(n);
-          reflection->visitMembers(
+          reflection->visitProperties(
               *n, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
                 check(child.parent == n, "parent ownership");
                 walk(&child);
@@ -122,14 +122,14 @@ OTHER
   for (const auto* source : cases) {
     const auto r = parser->parse(source);
     clean(r);
-    check(r.value_as<ast::File>() != nullptr, "generic body root");
+    check(r.valueAs<ast::File>() != nullptr, "generic body root");
     visit(r.value, [](const auto*) {});
   }
   for (const auto* source :
        {"a = 1 # ignored\rb = 2\n", "a = 1 // ignored\rb = 2\n"}) {
     const auto r = parser->parse(source);
     clean(r);
-    const auto* f = r.value_as<ast::File>();
+    const auto* f = r.valueAs<ast::File>();
     const auto* a = f && f->items.size() == 1
                         ? cursiv::ast_cast<ast::Argument>(f->items[0])
                         : nullptr;
@@ -140,7 +140,7 @@ OTHER
         "moved { from = old.x }\ncustom unquoted \"line\\nlabel\" {}\n_top = "
         "1\n");
     clean(r);
-    const auto* f = r.value_as<ast::File>();
+    const auto* f = r.valueAs<ast::File>();
     const auto* b = f && f->items.size() == 3
                         ? cursiv::ast_cast<ast::Block>(f->items[1])
                         : nullptr;
@@ -197,7 +197,7 @@ OTHER
     const auto r = parser->parse(
         "locals { a = rows[*].items[0].name b = rows.*.items[0].name }");
     clean(r);
-    const auto* f = r.value_as<ast::File>();
+    const auto* f = r.valueAs<ast::File>();
     const auto* b = f && f->items.size() == 1
                         ? cursiv::ast_cast<ast::Block>(f->items[0])
                         : nullptr;

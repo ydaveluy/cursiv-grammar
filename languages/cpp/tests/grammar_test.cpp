@@ -293,7 +293,7 @@ struct A { virtual void f() = 1; };
   {
     const auto result = language.language.parser->parse(
         "auto a = new int; auto b = new int(); auto c = new int{};");
-    const auto* unit = result.value_as<cpp::ast::TranslationUnit>();
+    const auto* unit = result.valueAs<cpp::ast::TranslationUnit>();
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !unit || unit->items.size() != 3) return fail("native new-initializer syntax");
     for (std::size_t i = 0; i < 3; ++i) {
@@ -335,7 +335,7 @@ struct A { virtual void f() = 1; };
           brace_argument |= cursiv::ast_cast<cpp::ast::BracedInitList>(argument) != nullptr;
       if (const auto* id = cursiv::ast_cast<cpp::ast::TemplateId>(&node))
         operator_template |= cursiv::ast_cast<cpp::ast::OperatorFunctionName>(id->templateName) != nullptr;
-      language.language.astReflection->visitMembers(node,
+      language.language.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) { self(self, child); });
     };
     walk(walk, *result.value);

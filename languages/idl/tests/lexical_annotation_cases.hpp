@@ -64,7 +64,7 @@ inline bool run(const auto& services) {
     };
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; describe("duplicate", node); return; }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view member, std::uint32_t index, cursiv::AstNode& child) {
             const bool parent = child.parent == &node;
             const bool contained = node.cstNodeId < r.cst().size() && child.cstNodeId < r.cst().size() &&
@@ -85,7 +85,7 @@ inline bool run(const auto& services) {
       return false;
     }
     if (std::string_view(test.id).starts_with("annotation-")) {
-      const auto* root = r.template value_as<idl::ast::Specification>();
+      const auto* root = r.template valueAs<idl::ast::Specification>();
       const auto* declaration = root && root->definitions.size() == 1
           ? cursiv::ast_cast<idl::ast::StructDecl>(root->definitions[0]) : nullptr;
       const auto* annotation = declaration && declaration->annotations.size() == 1

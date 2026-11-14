@@ -28,7 +28,7 @@ template <class Language> bool run(const Language& language) {
   bool ok = true;
   for (const auto& test : cases) {
     const auto parsed = language.language.parser->parse(test.source);
-    const auto* doc = parsed.template value_as<ast::Documentation>();
+    const auto* doc = parsed.template valueAs<ast::Documentation>();
     std::unordered_set<const cursiv::AstNode*> seen;
     std::vector<std::string> names, edges;
     unsigned braces = 0;
@@ -64,7 +64,7 @@ template <class Language> bool run(const Language& language) {
         text += '}';
         raw &= parsed.cst().text(brace->cstNodeId) == text;
       }
-      language.language.astReflection->visitMembers(node,
+      language.language.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, const cursiv::AstNode& child) {
             owned &= child.parent == &node &&
                 parsed.cst().contains(node.cstNodeId, child.cstNodeId);

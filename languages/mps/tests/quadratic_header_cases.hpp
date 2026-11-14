@@ -39,7 +39,7 @@ inline bool run(const mps::MpsCoreServices& services) {
       return false;
     }
     if (!clean) continue;
-    const auto* root = r.value_as<mps::ast::Model>();
+    const auto* root = r.valueAs<mps::ast::Model>();
     const auto* q = root && root->quadratic.size() == 1 ? root->quadratic[0] : nullptr;
     if (!root || root->parent != v.document.get() || !q || q->kind != test.kind ||
         q->row.has_value() != test.row || (test.row && *q->row != "COST") ||
@@ -53,7 +53,7 @@ inline bool run(const mps::MpsCoreServices& services) {
     bool owned = true;
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; return; }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             const bool parent = child.parent == &node;
             const bool contained = r.cst().contains(node.cstNodeId, child.cstNodeId);

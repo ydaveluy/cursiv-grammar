@@ -25,7 +25,7 @@ int main() {
       CHECK(other.accepted && !other.cst().recovered() &&
             other.diagnostics.empty());
     }
-    const auto *doc = result.value_as<wkt::ast::Document>();
+    const auto *doc = result.valueAs<wkt::ast::Document>();
     CHECK(doc && doc->geometries.size() == 1);
     if (!doc || doc->geometries.size() != 1)
       continue;
@@ -43,7 +43,7 @@ int main() {
         dim = p->dim;
       if (dim != wkt::ast::Dim::none)
         markers += char('0' + static_cast<unsigned>(dim));
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           node, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             CHECK(child.parent == &node &&
                   result.cst().contains(node.cstNodeId, child.cstNodeId));
@@ -63,7 +63,7 @@ int main() {
       if (projected != c.expected)
         std::fprintf(stderr, "WKT native AST mismatch: %s\n", c.name);
       CHECK(projected == c.expected);
-      const auto *second = other.value_as<wkt::ast::Document>();
+      const auto *second = other.valueAs<wkt::ast::Document>();
       CHECK(second && second->geometries.size() == 1);
       if (second && second->geometries.size() == 1)
         CHECK(

@@ -44,8 +44,8 @@ int main() {
     check(result.references && result.references->handles.empty() &&
               other.references && other.references->handles.empty(),
           "bitmap has an empty reference table");
-    const auto *doc = result.value_as<ast::Document>();
-    const auto *second = other.value_as<ast::Document>();
+    const auto *doc = result.valueAs<ast::Document>();
+    const auto *second = other.valueAs<ast::Document>();
     check(doc && second && result.cst().text(doc->cstNodeId) == text, c.file);
     if (!doc || !second)
       continue;
@@ -55,7 +55,7 @@ int main() {
     std::unordered_set<const cursiv::AstNode *> seen;
     const auto walk = [&](auto &&self, const cursiv::AstNode &node) -> void {
       check(seen.insert(&node).second, c.file);
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           node, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             check(child.parent == &node &&
                       result.cst().contains(node.cstNodeId, child.cstNodeId),
@@ -117,7 +117,7 @@ int main() {
                                {"separator", a.separator},
                                {"raster", a.raster}}) {
         bool found = false;
-        for (auto id = result.cst().subtree_begin(a.cstNodeId);
+        for (auto id = result.cst().subtreeBegin(a.cstNodeId);
              id < a.cstNodeId; ++id)
           if (result.cst().grammar()->recordWrites(result.cst()[id],
                                                    field.first)) {

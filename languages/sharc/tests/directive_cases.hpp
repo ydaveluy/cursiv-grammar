@@ -21,7 +21,7 @@ inline bool run(const cursiv::Parser& parser) {
   {
     constexpr auto text = ".FILE_ATTR at101=a123,at102,at103=\"999\",empty=\"\";";
     const auto parsed = parser.parse(text);
-    const auto* root = parsed.value_as<ast::Program>();
+    const auto* root = parsed.valueAs<ast::Program>();
     const auto* statement = root && root->statements.size() == 1 ? root->statements[0] : nullptr;
     const auto* directive = statement ? cursiv::ast_cast<ast::Directive>(statement->atom) : nullptr;
     check(clean(parsed) && parsed.cst().text() == text && directive &&
@@ -42,7 +42,7 @@ inline bool run(const cursiv::Parser& parser) {
   for (const std::string_view value : {"32", "40"}) {
     const std::string source = std::string(".precision = ") + std::string(value) + ";";
     const auto parsed = parser.parse(source);
-    const auto* root = parsed.value_as<ast::Program>();
+    const auto* root = parsed.valueAs<ast::Program>();
     const auto* directive = root && root->statements.size() == 1
         ? cursiv::ast_cast<ast::Directive>(root->statements[0]->atom) : nullptr;
     const auto* number = directive && directive->values.size() == 1
@@ -57,7 +57,7 @@ inline bool run(const cursiv::Parser& parser) {
                             ".NOLIST_DATFILE;", ".NOLIST_WRAPDATA;", ".ROUND_MINUS;",
                             ".ROUND_NEAREST;", ".ROUND_PLUS;", ".ROUND_ZERO;", ".PREVIOUS;"}) {
     const auto parsed = parser.parse(source);
-    const auto* root = parsed.value_as<ast::Program>();
+    const auto* root = parsed.valueAs<ast::Program>();
     const auto* directive = root && root->statements.size() == 1
         ? cursiv::ast_cast<ast::Directive>(root->statements[0]->atom) : nullptr;
     check(clean(parsed) && directive && directive->keyword == std::string_view(source).substr(0, std::string_view(source).size()-1) &&
@@ -66,7 +66,7 @@ inline bool run(const cursiv::Parser& parser) {
   }
   {
     const auto parsed = parser.parse("first:\nsecond: r0=1;\nfinish:");
-    const auto* root = parsed.value_as<ast::Program>();
+    const auto* root = parsed.valueAs<ast::Program>();
     const auto* first = root && root->statements.size() == 2 ? root->statements[0] : nullptr;
     const auto* last = root && root->statements.size() == 2 ? root->statements[1] : nullptr;
     check(clean(parsed) && first && last && first->labels.size() == 2 &&

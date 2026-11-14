@@ -178,7 +178,7 @@ async promise<int> f(promise<int> input) {
   {
     const std::string text = read(CURSIV_TEST_DIR "/expressions.lpc");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto &program = *result.value_as<ast::Program>();
+    const auto &program = *result.valueAs<ast::Program>();
 
     const ast::FuncDecl *const fn = findFunc(program, "precedence_test");
     if (fn == nullptr || fn->body == nullptr)
@@ -216,7 +216,7 @@ async promise<int> f(promise<int> input) {
   {
     const std::string text = read(CURSIV_TEST_DIR "/declarations.lpc");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto &program = *result.value_as<ast::Program>();
+    const auto &program = *result.valueAs<ast::Program>();
 
     const ast::FuncDecl *const fn = findFunc(program, "use_class");
     if (fn == nullptr || fn->body == nullptr)
@@ -242,7 +242,7 @@ async promise<int> f(promise<int> input) {
   {
     const std::string text = read(CURSIV_TEST_DIR "/statements.lpc");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto &program = *result.value_as<ast::Program>();
+    const auto &program = *result.valueAs<ast::Program>();
 
     const ast::FuncDecl *const fn = findFunc(program, "switch_ranges");
     if (fn == nullptr || fn->body == nullptr)

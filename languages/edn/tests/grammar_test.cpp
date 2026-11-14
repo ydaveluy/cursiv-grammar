@@ -62,7 +62,7 @@ void reader_values(const cursiv::Parser &parser) {
   const auto scalar_result = parser.parse(scalars);
   check(clean(scalar_result) && scalar_result.diagnostics.empty(),
         "reader scalars parse clean");
-  const auto *scalar_doc = scalar_result.value_as<ast::Program>();
+  const auto *scalar_doc = scalar_result.valueAs<ast::Program>();
   auto *values = scalar_doc && scalar_doc->values.size() == 1
                      ? as<ast::Vector>(scalar_doc->values[0])
                      : nullptr;
@@ -85,7 +85,7 @@ void reader_values(const cursiv::Parser &parser) {
   }
   const std::string source = "{#_ :skip :k #_ 1 2 #_ :tail}";
   const auto parsed = parser.parse(source);
-  const auto *doc = parsed.value_as<ast::Program>();
+  const auto *doc = parsed.valueAs<ast::Program>();
   const auto *map =
       doc && doc->values.size() == 1 ? as<ast::Map>(doc->values[0]) : nullptr;
   check(clean(parsed) && parsed.diagnostics.empty() && map &&
@@ -100,7 +100,7 @@ void reader_values(const cursiv::Parser &parser) {
   }
   const std::string nested = "#_ #_ 1 2 3";
   const auto nested_result = parser.parse(nested);
-  const auto *nested_doc = nested_result.value_as<ast::Program>();
+  const auto *nested_doc = nested_result.valueAs<ast::Program>();
   check(clean(nested_result) && nested_doc && nested_doc->values.size() == 2,
         "nested discard consumes the next non-discarded form");
   if (nested_doc && nested_doc->values.size() == 2) {
@@ -113,7 +113,7 @@ void reader_values(const cursiv::Parser &parser) {
   }
   const std::string namespace_source = "#:foo{:a 1 :_/b 2}";
   const auto namespaced = parser.parse(namespace_source);
-  const auto *namespace_doc = namespaced.value_as<ast::Program>();
+  const auto *namespace_doc = namespaced.valueAs<ast::Program>();
   const auto *namespace_map = namespace_doc && namespace_doc->values.size() == 1
                                   ? as<ast::Map>(namespace_doc->values[0])
                                   : nullptr;
@@ -135,7 +135,7 @@ void native_reader_constraints(const edn::EdnCoreServices& services) {
   }
   {
     const auto result = parser.parse(R"("\377")");
-    const auto* document = result.value_as<ast::Program>();
+    const auto* document = result.valueAs<ast::Program>();
     const auto* value = document && document->values.size() == 1
         ? std::get_if<std::string>(&document->values[0]) : nullptr;
     check(clean(result) && result.diagnostics.empty() && value && *value == "ÿ",

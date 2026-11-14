@@ -148,7 +148,7 @@ static int audit_regression() {
         r.value == nullptr)
       return 1;
 
-    const auto* doc = r.value_as<cql3::ast::Root>();
+    const auto* doc = r.valueAs<cql3::ast::Root>();
     if (!doc || doc->statements.size() != 4) return 1;
     const auto* table =
         cursiv::ast_cast<cql3::ast::CreateTable>(doc->statements[0]);
@@ -205,7 +205,7 @@ static int audit_regression() {
         "SELECT Ks.Fn(a) FROM t; --final");
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty())
       return fail("native-followup", "native statement forms need repair");
-    const auto* doc = r.value_as<cql3::ast::Root>();
+    const auto* doc = r.valueAs<cql3::ast::Root>();
     if (!doc || doc->statements.size() != 7) return 1;
     const auto* table = cursiv::ast_cast<cql3::ast::CreateTable>(doc->statements[0]);
     const auto* insert = cursiv::ast_cast<cql3::ast::Insert>(doc->statements[1]);
@@ -264,7 +264,7 @@ static int audit_regression() {
         !document->parseResult.diagnostics.empty()) return 1;
     std::vector<cursiv::Diagnostic> diagnostics;
     language.language.documentValidator->validateDocument(*document, diagnostics);
-    const auto* root = document->parseResult.value_as<cql3::ast::Root>();
+    const auto* root = document->parseResult.valueAs<cql3::ast::Root>();
     const auto* table = root && root->statements.size() == 2
                             ? cursiv::ast_cast<cql3::ast::CreateTable>(root->statements[1])
                             : nullptr;

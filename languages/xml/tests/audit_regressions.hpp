@@ -28,7 +28,7 @@ inline bool run() {
   auto r = parser->parse("<!DOCTYPE é [<!ENTITY a \"x>y\">]><é>&a;</é>");
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
         "xml valid syntax regression");
-  const auto* dtd_doc = r.value_as<ast::Document>();
+  const auto* dtd_doc = r.valueAs<ast::Document>();
   check(dtd_doc && dtd_doc->doctypes.size() == 1 &&
             dtd_doc->doctypes[0] == "<!DOCTYPE é [<!ENTITY a \"x>y\">]>",
         "xml preserves the doctype for runtime entity validation");
@@ -42,7 +42,7 @@ inline bool run() {
            "\xEF\xBB\xBF<a/>",
            "\xEF\xBB\xBF<?xml version=\"1.0\"?><a/>"}) {
     auto doc_result = parser->parse(source);
-    const auto *doc = doc_result.value_as<ast::Document>();
+    const auto *doc = doc_result.valueAs<ast::Document>();
     check(doc_result.accepted && !doc_result.cst().recovered() &&
               doc_result.diagnostics.empty() && doc && doc->root &&
               doc->root->name == "a" && doc->root->children.empty(),
@@ -52,7 +52,7 @@ inline bool run() {
   // Text inside elements remains source text, including whitespace-only
   // children; a BOM there is content rather than document trivia.
   auto mixed_result = parser->parse("<a> \t<b/>\xEF\xBB\xBF </a>");
-  const auto *mixed = mixed_result.value_as<ast::Document>();
+  const auto *mixed = mixed_result.valueAs<ast::Document>();
   bool mixed_ok = mixed_result.accepted && !mixed_result.cst().recovered() &&
                   mixed_result.diagnostics.empty() && mixed && mixed->root &&
                   mixed->root->children.size() == 3;

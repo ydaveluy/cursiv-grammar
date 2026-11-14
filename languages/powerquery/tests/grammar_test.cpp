@@ -50,7 +50,7 @@ void corpus() {
   const std::string path =
       std::string(CURSIV_EXAMPLE_DIR) + "/example.pq";
   cursiv::ParseResult r = parse_clean(path);
-  ast::Doc* const doc = r.value_as<ast::Doc>();
+  ast::Doc* const doc = r.valueAs<ast::Doc>();
   CHECK(doc != nullptr && doc->section != nullptr);
   if (doc == nullptr || doc->section == nullptr) return;
   ast::Section& section = *doc->section;
@@ -110,7 +110,7 @@ void coverage() {
   const std::string path =
       std::string(CURSIV_TEST_DIR) + "/coverage.pq";
   cursiv::ParseResult r = parse_clean(path);
-  ast::Doc* const doc = r.value_as<ast::Doc>();
+  ast::Doc* const doc = r.valueAs<ast::Doc>();
   CHECK(doc != nullptr && doc->section != nullptr);
   if (doc == nullptr || doc->section == nullptr) return;
   ast::Section& section = *doc->section;
@@ -224,35 +224,35 @@ static int audit_regression() {
   }
   {
     const auto r=language.language.parser->parse("1 ?? 2 ?? 3");
-    const auto* p=r.value_as<ast::Doc>();
+    const auto* p=r.valueAs<ast::Doc>();
     const auto* left=p?cursiv::ast_cast<ast::BinaryExpr>(p->expr):nullptr;
     const auto* right=left?cursiv::ast_cast<ast::BinaryExpr>(left->right):nullptr;
     if(!left||left->op!=ast::Op::coalesce||!right||right->op!=ast::Op::coalesce)return 1;
   }
   {
     const auto r=language.language.parser->parse("#date(2026,1,2)");
-    const auto* p=r.value_as<ast::Doc>();
+    const auto* p=r.valueAs<ast::Doc>();
     const auto* call=p?cursiv::ast_cast<ast::Invoke>(p->expr):nullptr;
     const auto* name=call?cursiv::ast_cast<ast::NameExpr>(call->callee):nullptr;
     if(!call||call->args.size()!=3||!name||name->name!="#date"||name->inclusive)return 1;
   }
   {
     const auto r=language.language.parser->parse("[Base Line=1, true=2, 12Name=3]");
-    const auto* p=r.value_as<ast::Doc>();
+    const auto* p=r.valueAs<ast::Doc>();
     const auto* record=p?cursiv::ast_cast<ast::RecordExpr>(p->expr):nullptr;
     if(!record||record->fields.size()!=3||record->fields[0]->name!="Base Line"||
        record->fields[1]->name!="true"||record->fields[2]->name!="12Name")return 1;
   }
   {
     const auto r=language.language.parser->parse("type [optional Base Line=number]");
-    const auto* p=r.value_as<ast::Doc>();
+    const auto* p=r.valueAs<ast::Doc>();
     const auto* type=p?cursiv::ast_cast<ast::TypeValueExpr>(p->expr):nullptr;
     const auto* record=type?cursiv::ast_cast<ast::RecordTypeNode>(type->type):nullptr;
     if(!record||record->fields.size()!=1||!record->fields[0]->optional||record->fields[0]->name!="Base Line")return 1;
   }
   {
     const auto r=language.language.parser->parse("try error \"x\" catch (e)=>e");
-    const auto* p=r.value_as<ast::Doc>();
+    const auto* p=r.valueAs<ast::Doc>();
     const auto* t=p?cursiv::ast_cast<ast::TryExpr>(p->expr):nullptr;
     if(!t||t->otherwiseExpr||!t->catchFunction||t->catchFunction->params.size()!=1||t->catchFunction->params[0]->name!="e")return 1;
   }
@@ -261,7 +261,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* doc = r.value_as<powerquery::ast::Doc>();
+    const auto* doc = r.valueAs<powerquery::ast::Doc>();
     const auto* str =
         doc ? cursiv::ast_cast<powerquery::ast::TextLit>(doc->expr) : nullptr;
     if (!str || str->value != "\nA😀") return 1;

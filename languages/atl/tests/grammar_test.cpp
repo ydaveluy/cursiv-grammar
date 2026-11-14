@@ -79,7 +79,7 @@ int main() {
   }
   {
     const auto result = language.language.parser->parse("query Q = 00012;");
-    const auto* q = result.value_as<atl::ast::Query>();
+    const auto* q = result.valueAs<atl::ast::Query>();
     const auto* i = q ? cursiv::ast_cast<atl::ast::IntLit>(q->body) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !i || i->value != 12)
       return fail("native decimal with leading zeroes lost its value");
@@ -92,7 +92,7 @@ int main() {
   }
   {
     const auto result = language.language.parser->parse("query Q = 1.25d;");
-    const auto* query = result.value_as<atl::ast::Query>();
+    const auto* query = result.valueAs<atl::ast::Query>();
     const auto* value = query ? cursiv::ast_cast<atl::ast::FloatLit>(query->body) : nullptr;
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
         !value || value->value != 1.25)

@@ -25,7 +25,7 @@ Form 1:
 _    __.___
 )joss";
   const auto result = language.language.parser->parse(source);
-  const auto* root = result.template value_as<a::Program>();
+  const auto* root = result.template valueAs<a::Program>();
   check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
         root && root->statements.size() == 9, "native primer document parses clean");
   if (result.cst().recovered() || !result.diagnostics.empty())
@@ -68,7 +68,7 @@ _    __.___
     bool owned = true;
     auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; return; }
-      language.language.astReflection->visitMembers(node,
+      language.language.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             owned &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
             self(self, child);

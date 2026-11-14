@@ -22,7 +22,7 @@ int main() {
     source += "  another=line" + eol + "flag" + eol + "empty=";
     if (random() % 2) source += eol;
     const auto parsed = language.language.parser->parse(source);
-    const auto* doc = parsed.value_as<ini::ast::Document>();
+    const auto* doc = parsed.valueAs<ini::ast::Document>();
     if (!doc || !parsed.accepted || parsed.cst().recovered() || !parsed.diagnostics.empty()) return 1;
     std::string rebuilt;
     for (const auto* line : doc->lines) { rebuilt += ini::source_text(*line); rebuilt += line->ending; }

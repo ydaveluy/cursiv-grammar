@@ -28,7 +28,7 @@ inline bool run() {
     auto r = language.language.parser->parse(source);
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
           "clean parse");
-    check(r.value_as<ast::Document>() != nullptr, "Document root");
+    check(r.valueAs<ast::Document>() != nullptr, "Document root");
     std::unordered_set<const cursiv::AstNode*> reached;
     std::function<void(const cursiv::AstNode*, const cursiv::AstNode*)> visit =
         [&](const auto* n, const auto* parent) {
@@ -38,7 +38,7 @@ inline bool run() {
             check(false, "unique ownership");
             return;
           }
-          language.language.astReflection->visitMembers(
+          language.language.astReflection->visitProperties(
               *n, [&](auto, auto, auto& child) { visit(&child, n); });
         };
     visit(r.value, nullptr);
@@ -47,7 +47,7 @@ inline bool run() {
   };
   for (std::string_view text : {"", "# comment", "\xef\xbb\xbf# comment\r\n"}) {
     const auto r = parse(text);
-    const auto* d = r.value_as<ast::Document>();
+    const auto* d = r.valueAs<ast::Document>();
     check(d && d->statements.empty(), "empty documents and BOM");
   }
   {
@@ -59,7 +59,7 @@ inline bool run() {
         "usemtl ruby red #part\nmtllib a.mtl b.mtl\n"
         "vendor arbitrary words 1/2\n";
     const auto r = parse(source);
-    const auto* d = r.value_as<ast::Document>();
+    const auto* d = r.valueAs<ast::Document>();
     check(d && d->statements.size() == 16, "every statement retained");
     if (d && d->statements.size() == 16) {
       const auto* rgb = cursiv::ast_cast<ast::Vertex>(d->statements[0]);
@@ -94,7 +94,7 @@ inline bool run() {
   }
   {
     const auto r = parse("mtllib a\\ b.mtl c.mtl\n");
-    const auto* d = r.value_as<ast::Document>();
+    const auto* d = r.valueAs<ast::Document>();
     const auto* m =
         d && d->statements.size() == 1
             ? cursiv::ast_cast<ast::MaterialLibrary>(d->statements[0])
@@ -105,7 +105,7 @@ inline bool run() {
   }
   {
     const auto r = parse("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1/ 2// 3\n");
-    const auto* d = r.value_as<ast::Document>();
+    const auto* d = r.valueAs<ast::Document>();
     const auto* f = d && d->statements.size() == 4
                         ? cursiv::ast_cast<ast::Faces>(d->statements[3])
                         : nullptr;
@@ -122,7 +122,7 @@ inline bool run() {
         "v 0 0 0\nv 1 0 0\nv 0 1 0\ndeg 1 1\n"
         "surf 0 1 0 1 1 2 3\nparm u 0 1\nparm v 0 1\n"
         "trim 0 1 1\nhole .1 .8 2\nscrv .2 .3 3\nend\n");
-    const auto* d = r.value_as<ast::Document>();
+    const auto* d = r.valueAs<ast::Document>();
     const auto* c =
         d && d->statements.size() == 10
             ? cursiv::ast_cast<ast::FreeFormSurface>(d->statements[4])
@@ -149,7 +149,7 @@ inline bool run() {
     unsigned errors = 0;
     auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, doc, source);
-    if (const auto* d = doc.parseResult.value_as<ast::Document>())
+    if (const auto* d = doc.parseResult.valueAs<ast::Document>())
       language.language.validator->checkDocument(*d, accept);
     check(errors == 0,
           "forward absolute and current relative indices validate");
@@ -164,7 +164,7 @@ inline bool run() {
     unsigned errors = 0;
     auto sink = [&](cursiv::Diagnostic&&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, doc, source);
-    const auto* d = doc.parseResult.value_as<ast::Document>();
+    const auto* d = doc.parseResult.valueAs<ast::Document>();
     if (d) language.language.validator->checkDocument(*d, accept);
     for (const auto* n : doc.parseResult.nodes())
       if (const auto* p = cursiv::ast_cast<ast::Vertex>(n))

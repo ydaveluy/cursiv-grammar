@@ -6,7 +6,7 @@ static int native_regressions() {
   source += "END\r\n";
   const auto parsed = language.language.parser->parse(source);
   CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
-  const auto* frame = parsed.value_as<rfc3080::ast::Frame>();
+  const auto* frame = parsed.valueAs<rfc3080::ast::Frame>();
   CHECK(frame && frame->channel == "0002147483647" && frame->seqno == "0004294967295");
   CHECK(frame && frame->size == "0003" && frame->ansno == "0002147483647");
   CHECK(frame && frame->payload == std::string_view("x\0y", 3));

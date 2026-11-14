@@ -65,7 +65,7 @@ inline bool run(const xyz::XyzCoreServices& services) {
   for (const auto& test : cases) {
     const std::string source(test.source);
     const auto result = services.parser->parse(source);
-    const auto* doc = result.value_as<xyz::ast::Document>();
+    const auto* doc = result.valueAs<xyz::ast::Document>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !doc)
       return false;

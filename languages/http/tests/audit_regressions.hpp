@@ -19,7 +19,7 @@ inline bool run(const cursiv::Parser& parser) {
   };
   {
     const auto result = parse("HTTP/1.1 200 OK\r\nContent-Length: 5\r\nX-Test: value\r\n\r\nhello");
-    const auto* message = result.value_as<http::ast::Message>();
+    const auto* message = result.valueAs<http::ast::Message>();
     check(message && !message->request_line && message->status_line);
     if (message && message->status_line) {
       const auto* status = message->status_line;
@@ -29,28 +29,28 @@ inline bool run(const cursiv::Parser& parser) {
   }
   {
     const auto result = parse("HTTP/1.0 204\r\n\r\n");
-    const auto* message = result.value_as<http::ast::Message>();
+    const auto* message = result.valueAs<http::ast::Message>();
     check(message && message->status_line && message->status_line->status == "204" && message->status_line->reason.empty() && message->body.empty());
   }
   {
     const auto result = parse("GET / HTTP/01.01\r\nHost: a\r\n\r\n");
-    const auto* message = result.value_as<http::ast::Message>();
+    const auto* message = result.valueAs<http::ast::Message>();
     check(message && message->request_line && message->request_line->version == "01.01" && !message->status_line);
   }
   {
     const auto result = parse("GET /x%2f?a=1 HTTP/1.1\r\nHost: a\r\n\r\n");
-    const auto* message = result.value_as<http::ast::Message>();
+    const auto* message = result.valueAs<http::ast::Message>();
     check(message && message->request_line && message->request_line->target == "/x%2f?a=1");
   }
   {
     constexpr auto source = "POST / HTTP/1.1\r\nContent-Length: 3\r\n\r\na\0b"sv;
     const auto result = parse(source);
-    const auto* message = result.value_as<http::ast::Message>();
+    const auto* message = result.valueAs<http::ast::Message>();
     check(message && message->body == "a\0b"sv);
   }
   {
     const auto result = parse("GET / HTTP/1.1\r\nX-Latin: \x80\xff\r\n\r\n");
-    const auto* message = result.value_as<http::ast::Message>();
+    const auto* message = result.valueAs<http::ast::Message>();
     check(message && message->headers.size() == 1 && message->headersTerminated &&
           message->headers[0]->value == "\x80\xff"sv);
   }

@@ -29,7 +29,7 @@ inline bool run() {
     auto r = language.language.parser->parse(source);
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
           "clean parse");
-    check(r.value_as<ast::Fen>() != nullptr, "Fen root");
+    check(r.valueAs<ast::Fen>() != nullptr, "Fen root");
     std::unordered_set<const cursiv::AstNode*> reached;
     std::function<void(const cursiv::AstNode*, const cursiv::AstNode*)> visit =
         [&](const auto* n, const auto* parent) {
@@ -39,7 +39,7 @@ inline bool run() {
             check(false, "AST ownership");
             return;
           }
-          language.language.astReflection->visitMembers(
+          language.language.astReflection->visitProperties(
               *n, [&](auto, auto, auto& child) { visit(&child, n); });
         };
     visit(r.value, nullptr);
@@ -52,7 +52,7 @@ inline bool run() {
                              " b KQkq a1 45 12"}) {
     const std::string source = std::string(board) + suffix;
     const auto r = parse(source);
-    const auto* n = r.value_as<ast::Fen>();
+    const auto* n = r.valueAs<ast::Fen>();
     check(n && n->placement && n->placement->ranks.size() == 8, "eight ranks");
     if (n) {
       check(n->color == (suffix[0] ? "b" : "w"), "active color default");
@@ -70,14 +70,14 @@ inline bool run() {
     const std::string source =
         "\u2003" + std::string(board) + "\u00a0w\x1cHAha\u0085-\t0\n1\u2029";
     const auto r = parse(source);
-    const auto* n = r.value_as<ast::Fen>();
+    const auto* n = r.valueAs<ast::Fen>();
     check(n && n->color == "w" && n->castling == "HAha" &&
               n->halfmoveClock == "0" && n->fullmoveClock == "1",
           "Unicode whitespace and file castling rights");
   }
   {
     const auto r = parse("4k3/8/8/8/8/8/8/R~3K2R w QKqk - 0 0");
-    const auto* n = r.value_as<ast::Fen>();
+    const auto* n = r.valueAs<ast::Fen>();
     if (n && n->placement && n->placement->ranks.size() == 8) {
       const auto& squares = n->placement->ranks[7]->squares;
       const auto* piece = squares.empty()
@@ -96,7 +96,7 @@ inline bool run() {
     const std::string source =
         std::string(board) + " w - - " + half + " " + full;
     const auto r = parse(source);
-    const auto* n = r.value_as<ast::Fen>();
+    const auto* n = r.valueAs<ast::Fen>();
     check(n && n->halfmoveClock == half && n->fullmoveClock == full &&
               fen::counter_value(n->halfmoveClock) == half &&
               fen::counter_value(n->fullmoveClock) == full,
@@ -112,7 +112,7 @@ inline bool run() {
   }
   {
     const auto r = parse("8/8/8/8/8/8/8/r\t6K w - - 0 1");
-    const auto* n = r.value_as<ast::Fen>();
+    const auto* n = r.valueAs<ast::Fen>();
     check(n && n->placement && n->placement->ranks.size() == 8 &&
               n->placement->ranks[7]->squares.size() == 1 && n->color == "6K",
           "whitespace cannot silently join board pieces");

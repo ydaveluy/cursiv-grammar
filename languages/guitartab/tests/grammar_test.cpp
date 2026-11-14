@@ -57,7 +57,7 @@ void ast_shape() {
   CHECK(r.accepted && !r.cst().recovered());
   CHECK(static_cast<bool>(r) && r.diagnostics.empty());
 
-  ast::Tab* const root = r.value_as<ast::Tab>();
+  ast::Tab* const root = r.valueAs<ast::Tab>();
   CHECK(root != nullptr);
   if (root == nullptr) return;
   CHECK(r.cst()[root->cstNodeId].begin == 0 &&
@@ -89,7 +89,7 @@ void ast_shape() {
 void ast_shape_spaced_marks() {
   const cursiv::ParseResult r = engine().parse("e x - o | --|");
   CHECK(r.accepted && !r.cst().recovered());
-  ast::Tab* const root = r.value_as<ast::Tab>();
+  ast::Tab* const root = r.valueAs<ast::Tab>();
   CHECK(root != nullptr && root->strings.size() == 1);
   if (root == nullptr || root->strings.size() != 1) return;
 
@@ -121,7 +121,7 @@ void corpus() {
       ++failures;
       continue;
     }
-    if (r.value_as<ast::Tab>() == nullptr) {
+    if (r.valueAs<ast::Tab>() == nullptr) {
       std::printf("FAIL %s: root is not a Tab\n", path.c_str());
       ++failures;
     }

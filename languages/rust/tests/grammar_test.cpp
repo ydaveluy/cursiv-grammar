@@ -39,7 +39,7 @@ std::vector<std::string> split(const std::string& s, char sep) {
 
 const rust::ast::Expr* initializer(const cursiv::ParseResult& result) {
   if (!result.accepted || !result.diagnostics.empty()) return nullptr;
-  const auto* root = result.value_as<rust::ast::Crate>();
+  const auto* root = result.valueAs<rust::ast::Crate>();
   if (!root || root->items.size() != 1) return nullptr;
   const auto* fn = cursiv::ast_cast<rust::ast::Function>(root->items[0]);
   if (!fn || !fn->body || fn->body->statements.size() != 1) return nullptr;
@@ -147,7 +147,7 @@ int literal_regressions(const cursiv::Parser& parser) {
        {"//\n", "//\r\n", "// body\rfn ignored(){}\n"}) {
     const std::string text = std::string(comment) + "fn main(){}";
     const auto result = parser.parse(text);
-    const auto* root = result.value_as<rust::ast::Crate>();
+    const auto* root = result.valueAs<rust::ast::Crate>();
     const auto* function = root && root->items.size() == 1
                                ? cursiv::ast_cast<rust::ast::Function>(root->items[0])
                                : nullptr;
@@ -159,7 +159,7 @@ int literal_regressions(const cursiv::Parser& parser) {
        {" ", "/* comment */", "/**/", "/***/", "// comment\n", "\u200e"}) {
     const std::string text = "#!" + std::string(gap) + "[allow(unused)] fn main(){}";
     const auto result = parser.parse(text);
-    const auto* root = result.value_as<rust::ast::Crate>();
+    const auto* root = result.valueAs<rust::ast::Crate>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !root || root->innerAttrs.size() != 1 ||
         root->items.size() != 1)
@@ -168,7 +168,7 @@ int literal_regressions(const cursiv::Parser& parser) {
   for (const std::string_view comment : {"/** doc */", "/*! doc */"}) {
     const std::string text = "#! " + std::string(comment) + " [not Rust]\nfn main(){}";
     const auto result = parser.parse(text);
-    const auto* root = result.value_as<rust::ast::Crate>();
+    const auto* root = result.valueAs<rust::ast::Crate>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !root || !root->innerAttrs.empty() ||
         root->items.size() != 1)
@@ -201,7 +201,7 @@ int literal_regressions(const cursiv::Parser& parser) {
         R"(cr#"raw"#tag)", "'é'tag"}) {
     const std::string text = "m!(" + std::string(literal) + ");";
     const auto result = parser.parse(text);
-    const auto* root = result.value_as<rust::ast::Crate>();
+    const auto* root = result.valueAs<rust::ast::Crate>();
     const auto* macro = root && root->items.size() == 1
                             ? cursiv::ast_cast<rust::ast::MacroStmt>(root->items[0])
                             : nullptr;
@@ -227,7 +227,7 @@ int modern_statements(const cursiv::Parser& parser) {
       "struct S<const N: usize = 4>; "
       "fn main(){ let Some(x) = Some(1) else { return; }; }";
   const auto result = parser.parse(text);
-  const auto* root = result.value_as<rust::ast::Crate>();
+  const auto* root = result.valueAs<rust::ast::Crate>();
   if (!root || !result.accepted || result.cst().recovered() ||
       !result.diagnostics.empty() || root->items.size() != 2)
     return fail(text, "expected generic default and let-else without recovery");
@@ -287,7 +287,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* crate = r.value_as<rust::ast::Crate>();
+    const auto* crate = r.valueAs<rust::ast::Crate>();
     if (!crate || crate->items.empty()) return 1;
     const auto* m = cursiv::ast_cast<rust::ast::MacroRulesDef>(crate->items[0]);
     if (!m || !m->tokens || m->tokens->open != "{" ||
@@ -336,7 +336,7 @@ int native_identifiers_and_operators(const cursiv::Parser& parser) {
   }
   {
     const auto result = parser.parse("use ::*; use *;");
-    const auto* crate = result.value_as<rust::ast::Crate>();
+    const auto* crate = result.valueAs<rust::ast::Crate>();
     const auto* absolute = crate && crate->items.size() == 2
         ? cursiv::ast_cast<rust::ast::UseDecl>(crate->items[0]) : nullptr;
     const auto* relative = crate && crate->items.size() == 2
@@ -365,7 +365,7 @@ int native_identifiers_and_operators(const cursiv::Parser& parser) {
 
   {
     const auto result = parser.parse("type F = fn(first: u8, u16, _: u32);");
-    const auto* root = result.value_as<rust::ast::Crate>();
+    const auto* root = result.valueAs<rust::ast::Crate>();
     const auto* alias = root && root->items.size() == 1
         ? cursiv::ast_cast<rust::ast::TypeAlias>(root->items[0]) : nullptr;
     const auto* function = alias ? cursiv::ast_cast<rust::ast::BareFnTy>(alias->type) : nullptr;
@@ -380,7 +380,7 @@ int native_identifiers_and_operators(const cursiv::Parser& parser) {
 
   {
     const auto result = parser.parse("fn f(x:u8){let name=match x {0..4 => 1, ..0 => 2, 4.. => 3};}");
-    const auto* root = result.value_as<rust::ast::Crate>();
+    const auto* root = result.valueAs<rust::ast::Crate>();
     const auto* function = root && root->items.size() == 1 ?
         cursiv::ast_cast<rust::ast::Function>(root->items[0]) : nullptr;
     const auto* statement = function && function->body && function->body->statements.size() == 1 ?
@@ -401,7 +401,7 @@ int native_identifiers_and_operators(const cursiv::Parser& parser) {
   }
   {
     const auto result = parser.parse("fn foo() where for<> for<> T:T{} type T=for<'a> Trait<'a>; type U=?Trait;");
-    const auto* root=result.value_as<rust::ast::Crate>();
+    const auto* root=result.valueAs<rust::ast::Crate>();
     const auto* f=root&&root->items.size()==3?cursiv::ast_cast<rust::ast::Function>(root->items[0]):nullptr;
     const auto* bound=f&&f->whereClause&&f->whereClause->items.size()==1?cursiv::ast_cast<rust::ast::TypeBoundWhereItem>(f->whereClause->items[0]):nullptr;
     const auto* ty=bound?cursiv::ast_cast<rust::ast::TraitObjectTy>(bound->type):nullptr;

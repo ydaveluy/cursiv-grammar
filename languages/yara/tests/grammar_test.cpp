@@ -43,7 +43,7 @@ int main() {
   {
     auto repeated = language.language.parser->parse(
         "private global private rule flags { condition: true }");
-    const auto declarations = rules(repeated.value_as<yara::ast::Document>());
+    const auto declarations = rules(repeated.valueAs<yara::ast::Document>());
     if (!repeated.accepted || repeated.cst().recovered() || !repeated.diagnostics.empty() ||
         declarations.size() != 1 || !declarations[0]->isPrivate() ||
         !declarations[0]->isGlobal() || declarations[0]->modifiers.size() != 3 ||

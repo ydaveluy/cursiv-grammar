@@ -58,7 +58,7 @@ inline bool run(const stellaris::StellarisCoreServices& services,
       if (!seen.insert(&node).second) { parents = false; return; }
       if (const auto* parameter = cursiv::ast_cast<ast::ParameterDefinition>(&node))
         parameters.push_back(parameter);
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             parents &= child.parent == &node &&
                        result.cst().contains(node.cstNodeId, child.cstNodeId);

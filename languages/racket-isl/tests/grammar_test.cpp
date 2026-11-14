@@ -33,7 +33,7 @@ void examples() {
       const std::string source = cursiv::test::read_file(file.path().string());
       const auto result = engine().parse(source);
       CHECK(result.accepted && !result.cst().recovered());
-      CHECK(result.value_as<ast::Program>() != nullptr);
+      CHECK(result.valueAs<ast::Program>() != nullptr);
     }
   }
   CHECK(seen >= 2);
@@ -44,7 +44,7 @@ void datums() {
         "#lang htdp/isl\n[define café 1] {+ café .5} '[] '( )";
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *root = result.value_as<ast::Program>();
+    const auto *root = result.valueAs<ast::Program>();
     CHECK(root && root->forms.size() == 5);
     if (!root || root->forms.size() != 5)
       return;
@@ -68,7 +68,7 @@ void datums() {
         "#x#e10 5/9 1e-2 1+ 2x";
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *root = result.value_as<ast::Program>();
+    const auto *root = result.valueAs<ast::Program>();
     CHECK(root && root->forms.size() == 15);
     if (root && root->forms.size() == 15) {
       const char *expected[] = {"#e1.25",
@@ -97,7 +97,7 @@ void datums() {
         R"SRC(|a b| a\ b foo#bar "A\n\u0042\U0001F600\101Z" #\newline #\λ #\u03bb #\space #\) #t #false #:|a b| #"bytes" #rx"\\d+" #px#"a")SRC";
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *root = result.value_as<ast::Program>();
+    const auto *root = result.valueAs<ast::Program>();
     CHECK(root && root->forms.size() == 15);
     if (root && root->forms.size() == 15) {
       const auto *name = cursiv::ast_cast<ast::Atom>(root->forms[0]);
@@ -119,7 +119,7 @@ void datums() {
         "#hash((a . 1)) #0=(a . #0#)";
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *root = result.value_as<ast::Program>();
+    const auto *root = result.valueAs<ast::Program>();
     CHECK(root && root->forms.size() == 5);
     if (root && root->forms.size() == 5) {
       const auto *quote = cursiv::ast_cast<ast::Prefix>(root->forms[0]);
@@ -139,14 +139,14 @@ void datums() {
                                    "(arbitrary-native-form [x] {y})"}) {
     const auto result = engine().parse(source);
     CHECK(result.accepted && !result.cst().recovered());
-    CHECK(result.value_as<ast::Program>() != nullptr);
+    CHECK(result.valueAs<ast::Program>() != nullptr);
   }
 }
 void here_string() {
   const std::string source = "#<<END\nbody END\nλ\nEND\n42";
   const auto result = engine().parse(source);
   CHECK(result.accepted && !result.cst().recovered());
-  const auto *root = result.value_as<ast::Program>();
+  const auto *root = result.valueAs<ast::Program>();
   CHECK(root && root->forms.size() == 2);
   const auto *string = root && !root->forms.empty()
                            ? cursiv::ast_cast<ast::String>(root->forms[0])
@@ -169,7 +169,7 @@ void validation() {
     int errors = 0;
     auto sink = [&](cursiv::Diagnostic &&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, document, source);
-    const auto *program = document.parseResult.value_as<ast::Program>();
+    const auto *program = document.parseResult.valueAs<ast::Program>();
     if (program)
       language.language.validator->checkProgram(*program, accept);
     CHECK(errors == ((source == "(and #true)" || source == "(or)") ? 1 : 0));
@@ -179,7 +179,7 @@ void numeric_kinds() {
   const std::string source = "inf.0 nan.0 #i+inf.0 #i-nan.0 #CI(AND #T #F)";
   const auto result = engine().parse(source);
   CHECK(result.accepted && !result.cst().recovered());
-  const auto *root = result.value_as<ast::Program>();
+  const auto *root = result.valueAs<ast::Program>();
   CHECK(root && root->forms.size() == 5);
   if (!root || root->forms.size() != 5)
     return;
@@ -198,7 +198,7 @@ void additional_atoms() {
       "+INF.0 -NaN.0 1# #xA# 1.2t3 #%app #HASHEQ((a . 1)) #Fx3(1) 1+inf.0i";
   const auto result = engine().parse(source);
   CHECK(result.accepted && !result.cst().recovered());
-  const auto *root = result.value_as<ast::Program>();
+  const auto *root = result.valueAs<ast::Program>();
   CHECK(root && root->forms.size() == 9);
   if (!root || root->forms.size() != 9)
     return;
@@ -217,7 +217,7 @@ void character_boundaries() {
       "#\\unknown #\\uabcdx #\\U0001F6001 #\\1234 #\\a1 #\\SPACE1";
   const auto result = engine().parse(source);
   CHECK(result.accepted && !result.cst().recovered());
-  const auto *root = result.value_as<ast::Program>();
+  const auto *root = result.valueAs<ast::Program>();
   CHECK(root && root->forms.size() == 12);
   if (!root || root->forms.size() != 12)
     return;
@@ -238,7 +238,7 @@ void native_reader_rejections() {
       racketisl::RacketIslSharedCoreServices, racketisl::install_core_module>();
   {
     const auto parsed = engine().parse("#lang htdp/isl (define x 1)");
-    const auto *program = parsed.value_as<ast::Program>();
+    const auto *program = parsed.valueAs<ast::Program>();
     CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() &&
           program && program->forms.size() == 2);
     if (program && program->forms.size() == 2) {
@@ -264,7 +264,7 @@ void line_comment_boundaries() {
   for (const std::string_view ending : {"\n", "\r", "\r\n", "\xc2\x85", "\xe2\x80\xa8", "\xe2\x80\xa9"}) {
     const std::string source = "a ; hidden" + std::string(ending) + "b";
     const auto result = engine().parse(source);
-    const auto *root = result.value_as<ast::Program>();
+    const auto *root = result.valueAs<ast::Program>();
     const bool endsComment = ending == "\n" || ending == "\r\n";
     CHECK(result.accepted && !result.cst().recovered() &&
           result.diagnostics.empty() && root &&

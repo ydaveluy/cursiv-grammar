@@ -133,7 +133,7 @@ int main() {
   {
     const std::string text = read(CURSIV_TEST_DIR "/aspects.aj");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto& unit = *result.value_as<ast::CompilationUnit>();
+    const auto& unit = *result.valueAs<ast::CompilationUnit>();
     if (unit.types.size() != 9) return fail("aspects: expected 9 top-level types");
 
     const auto* const logging = as<ast::AspectDecl>(unit.types[0]);
@@ -220,7 +220,7 @@ int main() {
   {
     const std::string text = read(CURSIV_TEST_DIR "/advice.aj");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto& unit = *result.value_as<ast::CompilationUnit>();
+    const auto& unit = *result.valueAs<ast::CompilationUnit>();
     const auto* const aspect = as<ast::AspectDecl>(unit.types[0]);
     if (aspect == nullptr) return fail("advice: AdviceExamples not found");
 
@@ -264,7 +264,7 @@ int main() {
   {
     const std::string text = read(CURSIV_TEST_DIR "/pointcuts.aj");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto& unit = *result.value_as<ast::CompilationUnit>();
+    const auto& unit = *result.valueAs<ast::CompilationUnit>();
     const auto* const aspect = as<ast::AspectDecl>(unit.types[0]);
     if (aspect == nullptr) return fail("pointcuts: PointcutCoverage not found");
 
@@ -340,7 +340,7 @@ int main() {
   {
     const std::string text = read(CURSIV_TEST_DIR "/itds.aj");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto& unit = *result.value_as<ast::CompilationUnit>();
+    const auto& unit = *result.valueAs<ast::CompilationUnit>();
     const auto* const aspect = as<ast::AspectDecl>(unit.types[0]);
     if (aspect == nullptr) return fail("itds: InterTypeExamples not found");
 
@@ -408,7 +408,7 @@ int main() {
   {
     const std::string text = read(CURSIV_TEST_DIR "/annotation_style.aj");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto& unit = *result.value_as<ast::CompilationUnit>();
+    const auto& unit = *result.valueAs<ast::CompilationUnit>();
 
     const auto* const logging = as<ast::ClassDecl>(unit.types[0]);
     if (logging == nullptr || logging->name != "LoggingAspect")

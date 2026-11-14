@@ -57,7 +57,7 @@ inline int run(const auto &language) {
   };
   for (const auto &c : cases) {
     const auto r = language.language.parser->parse(c.source);
-    const auto *doc = r.template value_as<csv::ast::Doc>();
+    const auto *doc = r.template valueAs<csv::ast::Doc>();
     bool good =
         r.accepted && !r.cst().recovered() && r.diagnostics.empty() && doc;
     if (good)

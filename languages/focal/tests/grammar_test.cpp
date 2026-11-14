@@ -34,7 +34,7 @@ int main() {
       std::fprintf(stderr, "audit regression: clean parse expected\n");
       return 1;
     }
-    const auto* program = audit_result.value_as<focal::ast::Program>();
+    const auto* program = audit_result.valueAs<focal::ast::Program>();
     if (!program || program->statements.size() != 1) return 1;
     const auto* command = cursiv::ast_cast<focal::ast::SetCommand>(program->statements[0]->command);
     const auto* value = command ? cursiv::ast_cast<focal::ast::NumberLiteral>(command->value) : nullptr;
@@ -62,7 +62,7 @@ int main() {
         "01.11 DO;SET X(2)=FRAN();WRITE ALL;GO\n"
         "01.12 TYPE %,1,%5,2,%5.2,3,$\n";
     const auto result = language.language.parser->parse(source);
-    const auto* program = result.value_as<focal::ast::Program>();
+    const auto* program = result.valueAs<focal::ast::Program>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !program || program->statements.size() != 12)
       return fail("DEC manual examples must parse cleanly");

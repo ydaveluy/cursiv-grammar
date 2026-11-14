@@ -45,7 +45,7 @@ int main() {
   }
   {
     const auto result = language.language.parser->parse("ISTC 0A920021223F3320");
-    const auto* code = result.value_as<istc::ast::Istc>();
+    const auto* code = result.valueAs<istc::ast::Istc>();
     if (!code || code->registration != "0A9" || code->year != "2002" ||
         code->work != "1223F332" || code->check != "0")
       return fail("compact ISTC", "adjacent component captures lost");

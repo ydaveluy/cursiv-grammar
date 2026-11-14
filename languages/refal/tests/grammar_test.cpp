@@ -100,7 +100,7 @@ void corpus() {
     const cursiv::ParseResult r = engine().parse(src);
     CHECK(r.accepted && !r.cst().recovered());
     CHECK(static_cast<bool>(r) && r.diagnostics.empty());
-    ast::Program* const program = r.value_as<ast::Program>();
+    ast::Program* const program = r.valueAs<ast::Program>();
     CHECK(program != nullptr && !program->items.empty());
   }
 }
@@ -111,7 +111,7 @@ void ast_example1() {
   const std::string src = load_example("example1.ref");
   const cursiv::ParseResult r = engine().parse(src);
   CHECK(r.accepted && !r.cst().recovered());
-  ast::Program* const program = r.value_as<ast::Program>();
+  ast::Program* const program = r.valueAs<ast::Program>();
   CHECK(program != nullptr && program->items.size() == 2);
   if (program == nullptr || program->items.size() != 2) return;
 
@@ -150,7 +150,7 @@ void ast_condition_and_block_ending() {
   const cursiv::ParseResult r =
       engine().parse("F { e.1, e.1 : { 1 = True; e.2 = False; } }");
   CHECK(r.accepted && !r.cst().recovered());
-  ast::Program* const program = r.value_as<ast::Program>();
+  ast::Program* const program = r.valueAs<ast::Program>();
   const ast::FunctionDef* const f =
       program != nullptr && !program->items.empty()
           ? cursiv::ast_cast<ast::FunctionDef>(program->items[0])
@@ -188,7 +188,7 @@ void native_followup() {
     CHECK(!cursiv::test::validationHelper(language.language,source).diagnostics.empty());
   const std::string source=R"ref(F { = (123 "123" '123' "a\"b" '\xAF'); })ref";
   const auto r=engine().parse(source);
-  const auto* root=r.value_as<ast::Program>();
+  const auto* root=r.valueAs<ast::Program>();
   const auto* f=root&&root->items.size()==1?cursiv::ast_cast<ast::FunctionDef>(root->items[0]):nullptr;
   const auto* sentence=f&&f->sentences.size()==1?f->sentences[0]:nullptr;
   const auto* group=sentence&&sentence->result.size()==1?cursiv::ast_cast<ast::Group>(sentence->result[0]):nullptr;
@@ -235,7 +235,7 @@ void column_one_comments() {
       "* inside F\r\n<* 3 4> 'a*text' \"*symbol\"; }\r\n"
       "* before G\r\nG { = False; }\r\n* trailing";
   const auto parsed = engine().parse(source);
-  const auto* program = parsed.value_as<ast::Program>();
+  const auto* program = parsed.valueAs<ast::Program>();
   CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
   CHECK(parsed.cst().text() == source);
   CHECK(program && program->items.size() == 2);

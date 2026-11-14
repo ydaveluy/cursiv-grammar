@@ -3,7 +3,7 @@
 #include <memory>
 #include <iterator>
 
-#include "cursiv/grammar/unicode/UnicodeRanges.hpp"
+#include "cursiv/text/unicode/UnicodeRanges.hpp"
 #include <optional>
 #include <string_view>
 

@@ -49,14 +49,14 @@ void every_example_parses_clean() {
     const std::string text = read_example(name);
     const cursiv::ParseResult r = engine().parse(text);
     CHECK(r.accepted && !r.cst().recovered());
-    CHECK(r.value_as<ast::Log>() != nullptr);
+    CHECK(r.valueAs<ast::Log>() != nullptr);
   }
 }
 
 void common_format_has_no_referer() {
   const std::string text = read_example("common1.clf");
   cursiv::ParseResult r = engine().parse(text);
-  ast::Log* log = r.value_as<ast::Log>();
+  ast::Log* log = r.valueAs<ast::Log>();
   CHECK(log != nullptr && log->lines.size() == 1);
   if (log == nullptr || log->lines.size() != 1) return;
   const ast::Line& line = *log->lines[0];
@@ -74,7 +74,7 @@ void common_format_has_no_referer() {
 void combined_format_carries_referer_and_useragent() {
   const std::string text = read_example("combined1.clf");
   cursiv::ParseResult r = engine().parse(text);
-  ast::Log* log = r.value_as<ast::Log>();
+  ast::Log* log = r.valueAs<ast::Log>();
   CHECK(log != nullptr && log->lines.size() == 1);
   if (log == nullptr || log->lines.size() != 1) return;
   const ast::Line& line = *log->lines[0];
@@ -89,7 +89,7 @@ void combined_format_carries_referer_and_useragent() {
 void zero_bytes_reads_as_a_dash() {
   const std::string text = read_example("problem1.clf");
   cursiv::ParseResult r = engine().parse(text);
-  ast::Log* log = r.value_as<ast::Log>();
+  ast::Log* log = r.valueAs<ast::Log>();
   CHECK(log != nullptr && log->lines.size() == 1);
   if (log == nullptr || log->lines.size() != 1) return;
   CHECK(log->lines[0]->bytes == "-");
@@ -102,7 +102,7 @@ void crlf_and_a_final_line_without_a_newline() {
   const std::string text = read_test_doc("edge_cases.clf");
   const cursiv::ParseResult r = engine().parse(text);
   CHECK(r.accepted && !r.cst().recovered());
-  ast::Log* log = r.value_as<ast::Log>();
+  ast::Log* log = r.valueAs<ast::Log>();
   CHECK(log != nullptr && log->lines.size() == 3);
 }
 

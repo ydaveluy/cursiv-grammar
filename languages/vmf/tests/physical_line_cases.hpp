@@ -57,7 +57,7 @@ inline bool run(const vmf::VmfCoreServices& services) {
       return false;
     }
     if (!clean) continue;
-    const auto* root = r.value_as<vmf::ast::Document>();
+    const auto* root = r.valueAs<vmf::ast::Document>();
     if (!root || root->parent != v.document.get()) {
       std::fprintf(stderr, "vmf physical-line: %s lost/root-owned Document source=%s\n",
                    test.id, test.source);
@@ -71,7 +71,7 @@ inline bool run(const vmf::VmfCoreServices& services) {
                      test.id, test.source);
         owned = false; return;
       }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             const bool parent = child.parent == &node;
             const bool contained = r.cst().contains(node.cstNodeId, child.cstNodeId);
@@ -91,7 +91,7 @@ inline bool run(const vmf::VmfCoreServices& services) {
     }
   }
   const auto r = services.parser->parse("one{}two{a 1}\nthree \"a\nb\"\n");
-  const auto* d = r.value_as<vmf::ast::Document>();
+  const auto* d = r.valueAs<vmf::ast::Document>();
   const bool okay = d && d->entries.size() == 3 && d->entries[0]->key == "one" &&
       !d->entries[0]->value && d->entries[0]->children.empty() &&
       d->entries[1]->children.size() == 1 && d->entries[1]->children[0]->key == "a" &&

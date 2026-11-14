@@ -17,7 +17,7 @@ template <class T> const T *as(const cursiv::AstNode *p) {
   return cursiv::ast_cast<T>(p);
 }
 inline const ast::SelectQuery *select(const cursiv::ParseResult &result) {
-  const auto *query = result.value_as<ast::Query>();
+  const auto *query = result.valueAs<ast::Query>();
   const auto *form =
       query ? std::get_if<ast::SelectQuery *>(&query->form) : nullptr;
   return form ? *form : nullptr;
@@ -74,7 +74,7 @@ inline bool run() {
                              : nullptr;
       check(name && name->value == "ex:", "namespace term retains colon");
     }
-    const auto *query = result.value_as<ast::Query>();
+    const auto *query = result.valueAs<ast::Query>();
     check(query && query->prologue && query->prologue->prefixes.size() == 1 &&
               query->prologue->prefixes[0]->prefix == "ex",
           "declaration retains prefix without colon");
@@ -119,7 +119,7 @@ inline bool run() {
     const auto result = parser->parse(source);
     check(result.accepted && !result.cst().recovered(),
           "comments in anonymous data");
-    const auto *query = result.value_as<ast::Query>();
+    const auto *query = result.valueAs<ast::Query>();
     const auto *ask =
         query ? std::get_if<ast::AskQuery *>(&query->form) : nullptr;
     const auto *triple = ask && *ask ? first_triple((*ask)->where) : nullptr;
@@ -150,7 +150,7 @@ inline bool run() {
     const std::string source = "ASK WHERE { FILTER(1+2*3=7 && 2-1=1) }";
     const auto result = parser->parse(source);
     check(result.accepted && !result.cst().recovered(), "arithmetic syntax");
-    const auto *query = result.value_as<ast::Query>();
+    const auto *query = result.valueAs<ast::Query>();
     const auto *ask =
         query ? std::get_if<ast::AskQuery *>(&query->form) : nullptr;
     const auto *filter =
@@ -186,7 +186,7 @@ inline bool run() {
       int errors = 0;
       auto sink = [&](cursiv::Diagnostic &&) { ++errors; };
       cursiv::ValidationAcceptor accept(sink, document, source);
-      const auto *query = document.parseResult.value_as<ast::Query>();
+      const auto *query = document.parseResult.valueAs<ast::Query>();
       const auto *ask =
           query ? std::get_if<ast::AskQuery *>(&query->form) : nullptr;
       const ast::BuiltInCall *call = nullptr;
@@ -211,7 +211,7 @@ inline bool run() {
     int errors = 0;
     auto sink = [&](cursiv::Diagnostic &&) { ++errors; };
     cursiv::ValidationAcceptor accept(sink, document, source);
-    if (const auto *query = document.parseResult.value_as<ast::Query>())
+    if (const auto *query = document.parseResult.valueAs<ast::Query>())
       language.language.validator->checkPrefixesDeclared(*query, accept);
     check(errors == 3, "default prefix must be declared");
   }
@@ -239,7 +239,7 @@ inline bool run() {
       if (diagnostic.code && *diagnostic.code == "sparql.prefix.duplicate") ++duplicates;
     };
     cursiv::ValidationAcceptor accept(sink, document, source);
-    if (const auto* query = document.parseResult.value_as<ast::Query>())
+    if (const auto* query = document.parseResult.valueAs<ast::Query>())
       language.language.validator->checkPrefixesDeclared(*query, accept);
     check(duplicates == 1, "SPARQL 1.0 A.5 forbids redeclaring a prefix");
   }

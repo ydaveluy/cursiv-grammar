@@ -88,7 +88,7 @@ int main() {
     std::unordered_set<const cursiv::AstNode*> seen;
     auto walk = [&](auto&& self, const cursiv::AstNode& n) -> void {
       if (!seen.insert(&n).second) { owned = false; return; }
-      language.language.astReflection->visitMembers(n,
+      language.language.astReflection->visitProperties(n,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             owned &= child.parent == &n && result.cst().contains(n.cstNodeId, child.cstNodeId);
             self(self, child);

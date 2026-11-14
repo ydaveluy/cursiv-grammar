@@ -40,7 +40,7 @@ TAG-name
     bool owned = true;
     auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; return; }
-      language.language.astReflection->visitMembers(node,
+      language.language.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             owned &= child.parent == &node && r.cst().contains(node.cstNodeId, child.cstNodeId);
             self(self, child);

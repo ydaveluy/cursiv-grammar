@@ -21,7 +21,7 @@ inline bool parents(const cursiv::AstReflection& reflection,
   std::unordered_set<const cursiv::AstNode*> seen;
   const auto visit = [&](auto&& self, const cursiv::AstNode& node) -> void {
     if (!seen.insert(&node).second) { okay = false; return; }
-    reflection.visitMembers(node,
+    reflection.visitProperties(node,
         [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
           okay &= child.parent == &node && parsed.cst().contains(node.cstNodeId, child.cstNodeId);
           self(self, child);

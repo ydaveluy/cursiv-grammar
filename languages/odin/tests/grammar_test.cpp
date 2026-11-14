@@ -68,7 +68,7 @@ static int audit_regression() {
   }
   for (const char* source : {"", " \t\r\n"}) {
     const auto parsed = language.language.parser->parse(source);
-    const auto* unit = parsed.value_as<odin::ast::Unit>();
+    const auto* unit = parsed.valueAs<odin::ast::Unit>();
     if (!parsed.accepted || parsed.cst().recovered() ||
         !parsed.diagnostics.empty() || !unit || !unit->packageName.empty() ||
         !unit->imports.empty() || !unit->items.empty())
@@ -78,7 +78,7 @@ static int audit_regression() {
                              "// comment\npackage main\nx :: 1\n",
                              "#+vet !using-stmt\npackage main\nx :: 1\n"}) {
     const auto parsed = language.language.parser->parse(source);
-    const auto* unit = parsed.value_as<odin::ast::Unit>();
+    const auto* unit = parsed.valueAs<odin::ast::Unit>();
     if (!parsed.accepted || parsed.cst().recovered() ||
         !parsed.diagnostics.empty() || !unit || unit->packageName != "main") {
       std::fprintf(stderr, "odin: valid package file rejected: %s\n", source);

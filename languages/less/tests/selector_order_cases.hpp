@@ -64,7 +64,7 @@ inline bool run(const less::LessCoreServices& services) {
   };
   for (const auto& test : cases) {
     const auto parsed = services.parser->parse(test.source);
-    const auto* sheet = parsed.value_as<a::Stylesheet>();
+    const auto* sheet = parsed.valueAs<a::Stylesheet>();
     const auto* rule = sheet && sheet->statements.size() == 1 ? cursiv::ast_cast<a::Ruleset>(sheet->statements[0]) : nullptr;
     const auto* selector = rule && rule->selectors && rule->selectors->items.size() == 1 ? rule->selectors->items[0] : nullptr;
     const bool clean = parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty() && sheet;
@@ -85,7 +85,7 @@ inline bool run(const less::LessCoreServices& services) {
     while (!work.empty()) {
       const auto* node = work.back(); work.pop_back();
       if (!seen.insert(node).second) { check(false, test.name, "unique ownership"); continue; }
-      services.astReflection->visitMembers(*node, [&](auto, auto, const auto& child) {
+      services.astReflection->visitProperties(*node, [&](auto, auto, const auto& child) {
         check(child.parent == node && node->cstNodeId < parsed.cst().size() &&
               child.cstNodeId < parsed.cst().size() && parsed.cst().contains(node->cstNodeId, child.cstNodeId),
               test.name, "every parent and CST containment");

@@ -49,7 +49,7 @@ struct Doc {
 };
 
 const iri::ast::Iri* iri_of(const cursiv::ParseResult& r) {
-  return r.value_as<iri::ast::Iri>();
+  return r.valueAs<iri::ast::Iri>();
 }
 
 }  // namespace

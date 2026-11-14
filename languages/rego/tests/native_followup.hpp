@@ -32,7 +32,7 @@ inline int rego_native_followup(const rego::RegoCoreServices& services) {
     }
   const std::string source="package audit\np if {}\n";
   const auto r=services.parser->parse(source);
-  const auto* d=r.value_as<rego::ast::Document>();
+  const auto* d=r.valueAs<rego::ast::Document>();
   const auto* rule=d&&d->statements.size()==2?cursiv::ast_cast<rego::ast::Rule>(d->statements[1]):nullptr;
   const auto* body=rule&&rule->bodies.size()==1?rule->bodies[0]:nullptr;
   const auto* q=body?body->body:nullptr;

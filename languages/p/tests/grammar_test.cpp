@@ -29,7 +29,7 @@ int main() {
 
   {
     const auto result = language.language.parser->parse("R(λ(R))λ");
-    const auto* root = result.value_as<p::ast::Prog>();
+    const auto* root = result.valueAs<p::ast::Prog>();
     const auto* first = root && root->symbols.size() == 3
                             ? cursiv::ast_cast<p::ast::Atom>(root->symbols[0]) : nullptr;
     const auto* group = root && root->symbols.size() == 3

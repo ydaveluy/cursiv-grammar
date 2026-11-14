@@ -28,7 +28,7 @@ inline bool run(const swift::SwiftCoreServices& services) {
     std::unordered_set<const cursiv::AstNode*> seen;
     auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { valid = false; return; }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             valid &= child.parent == &node &&
                      result.cst().contains(node.cstNodeId, child.cstNodeId);

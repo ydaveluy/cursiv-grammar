@@ -1,6 +1,6 @@
 #pragma once
 #include "blueprint/ast.hpp"
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #ifndef AUDIT_BEFORE
 #include "blueprint/Value.hpp"
 #endif

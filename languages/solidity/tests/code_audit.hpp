@@ -30,7 +30,7 @@ inline bool run() {
         "contract C { ufixed8x1 a; fixed8x0 b; ufixed128x0 c; uint7 d; bytes33 "
         "e; }");
     clean(result);
-    const auto* unit = result.value_as<ast::SourceUnit>();
+    const auto* unit = result.valueAs<ast::SourceUnit>();
     const auto* contract =
         unit && unit->items.size() == 1
             ? cursiv::ast_cast<ast::ContractDefinition>(unit->items[0])
@@ -61,7 +61,7 @@ inline bool run() {
         "contract B {} contract C layout at 1 + 2 * 3 is B {} contract D is B "
         "layout at 42 {}");
     clean(result);
-    const auto* unit = result.value_as<ast::SourceUnit>();
+    const auto* unit = result.valueAs<ast::SourceUnit>();
     check(unit && unit->items.size() == 3, "storage layout contracts");
     if (unit && unit->items.size() == 3) {
       for (unsigned i = 1; i < 3; ++i) {
@@ -95,7 +95,7 @@ inline bool run() {
         "constant S = \"a\\\r\nb\"; }";
     const auto result = parser->parse(source);
     clean(result);
-    const auto* unit = result.value_as<ast::SourceUnit>();
+    const auto* unit = result.valueAs<ast::SourceUnit>();
     const auto* contract =
         unit && unit->items.size() == 1
             ? cursiv::ast_cast<ast::ContractDefinition>(unit->items[0])
@@ -127,7 +127,7 @@ inline bool run() {
         "contract C { function f(bytes calldata a) external { a[:]; a[1:]; "
         "a[:2]; a[1:2]; } }");
     clean(result);
-    const auto* unit = result.value_as<ast::SourceUnit>();
+    const auto* unit = result.valueAs<ast::SourceUnit>();
     const auto* contract =
         unit && unit->items.size() == 1
             ? cursiv::ast_cast<ast::ContractDefinition>(unit->items[0])
@@ -164,7 +164,7 @@ inline bool run() {
         "1 } assembly \"\\x65vmasm\" (\"memory-safe\") { pop(1) } } }";
     const auto result = parser->parse(source);
     clean(result);
-    const auto* unit = result.value_as<ast::SourceUnit>();
+    const auto* unit = result.valueAs<ast::SourceUnit>();
     const auto* contract =
         unit && unit->items.size() == 1
             ? cursiv::ast_cast<ast::ContractDefinition>(unit->items[0])
@@ -221,7 +221,7 @@ inline bool run() {
             language.language.validator->checkNumber(*n, accept);
           if (const auto* n = cursiv::ast_cast<ast::ContractDefinition>(&node))
             language.language.validator->checkContract(*n, accept);
-          reflection->visitMembers(
+          reflection->visitProperties(
               node, [&](std::string_view, std::uint32_t,
                         cursiv::AstNode& child) { visit(child); });
         };

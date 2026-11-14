@@ -28,7 +28,7 @@ template<class Language> bool run(const Language& language) {
   auto expression = [&](std::string_view text, auto inspect) {
     const std::string source = "MAIN LET x = " + std::string(text) + " END MAIN";
     const auto result = language.language.parser->parse(source);
-    const auto* root = result.template value_as<a::Program>();
+    const auto* root = result.template valueAs<a::Program>();
     const auto* let = root && root->main && root->main->body.size() == 1
         ? cursiv::ast_cast<a::LetStmt>(root->main->body[0]) : nullptr;
     const bool clean = result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
@@ -179,7 +179,7 @@ FORMAT
 END REPORT;
 )4gl";
   const auto result = language.language.parser->parse(source);
-  const auto* root = result.template value_as<a::Program>();
+  const auto* root = result.template valueAs<a::Program>();
   check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
         root && root->main && root->definitions.size() == 1, "native declaration/statement source parses clean");
   if (result.cst().recovered() || !result.diagnostics.empty())
@@ -245,7 +245,7 @@ END REPORT;
     bool owned = true;
     auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false;return; }
-      language.language.astReflection->visitMembers(node,
+      language.language.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             owned &= child.parent == &node && result.cst().contains(node.cstNodeId, child.cstNodeId);
             self(self, child);
@@ -255,7 +255,7 @@ END REPORT;
     check(owned && seen.size() == result.nodes().size(), "every selected AST node is uniquely owned and contained in its parent CST");
   }
   const auto module = language.language.parser->parse("FUNCTION helper(x) DEFINE x INTEGER RETURN x END FUNCTION;");
-  const auto* mod = module.template value_as<a::Program>();
+  const auto* mod = module.template valueAs<a::Program>();
   check(module.accepted && !module.cst().recovered() && module.diagnostics.empty() && mod &&
         !mod->main && mod->definitions.size() == 1, "function-only source module does not require MAIN");
   const auto emptyUnique = language.language.parser->parse("MAIN CREATE TABLE t (UNIQUE ()) END MAIN");

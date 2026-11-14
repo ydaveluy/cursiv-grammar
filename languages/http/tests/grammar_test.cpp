@@ -49,7 +49,7 @@ int main() {
       std::fprintf(stderr, "audit regression: clean parse expected\n");
       return 1;
     }
-    const auto *message = audit_result.value_as<http::ast::Message>();
+    const auto *message = audit_result.valueAs<http::ast::Message>();
     if (!message || !message->headersTerminated || message->body != "payload" ||
         message->headers.size() != 1)
       return 1;

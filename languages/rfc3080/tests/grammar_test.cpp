@@ -39,7 +39,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* frame = r.value_as<rfc3080::ast::Frame>();
+    const auto* frame = r.valueAs<rfc3080::ast::Frame>();
     if (!frame || frame->payload != "END" || frame->size != "3") return 1;
   }
   {

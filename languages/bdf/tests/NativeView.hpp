@@ -2,7 +2,7 @@
 #include <charconv>
 #include <string>
 #include "bdf/View.hpp"
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 
 namespace native_view {
 using J = cursiv::JsonValue;

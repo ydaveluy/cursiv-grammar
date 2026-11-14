@@ -4,7 +4,7 @@
 #include <memory>
 #include <string_view>
 
-#include "cursiv/grammar/unicode/UnicodeRanges.hpp"
+#include "cursiv/text/unicode/UnicodeRanges.hpp"
 #include "cursiv/utils/Utf8.hpp"
 #include "cursiv/validation/ValidationRegistry.hpp"
 #include "icalendar/CoreServices.hpp"

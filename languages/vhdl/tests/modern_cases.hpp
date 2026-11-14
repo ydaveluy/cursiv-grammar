@@ -148,7 +148,7 @@ template<class Language> bool modern_cases(const Language& language) {
   for(const auto& entry:valid){
     cursiv::Document d(cursiv::TextDocument::create("file:///native.vhd","vhdl",0,std::string(entry.source)));
     d.language=&language.language;d.parseResult=parser.parse(d.textDocument().getText());
-    const bool clean=d.parseSucceeded() && !d.parseRecovered() && d.parseResult.diagnostics.empty();
+    const bool clean=d.parseResult.accepted && !d.parseRecovered() && d.parseResult.diagnostics.empty();
     if(!clean)std::fprintf(stderr,"vhdl native form: %.*s\n",int(entry.name.size()),entry.name.data());
     check(clean,"native-positive form parses without repair");
     if(d.parseResult.value)d.parseResult.value->parent=&d;
@@ -266,7 +266,7 @@ template<class Language> bool modern_cases(const Language& language) {
   auto validate=[&](std::string source,std::string_view code,unsigned expected) {
     cursiv::Document d(cursiv::TextDocument::create("file:///audit.vhd","vhdl",0,std::move(source)));
     d.language=&language.language;d.parseResult=parser.parse(d.textDocument().getText());
-    check(d.parseSucceeded() && !d.parseRecovered(),"semantic fixture parses without repair");
+    check(d.parseResult.accepted && !d.parseRecovered(),"semantic fixture parses without repair");
     if(d.parseResult.value)d.parseResult.value->parent=&d;
     std::vector<cursiv::Diagnostic> diagnostics;language.language.documentValidator->validateDocument(d,diagnostics);
     unsigned count=0;

@@ -49,7 +49,7 @@ inline bool sdl_native_regressions(const auto& language) {
       "LITERAL;\n#define X \"hello\"\n{ raw comment\n/* also raw\nEND_LITERAL;\nEND_MODULE sample;");
   check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
         "native quotes, ASCII characters, longword bit patterns and raw LITERAL text");
-  const auto* program = result.template value_as<ast::Program>();
+  const auto* program = result.template valueAs<ast::Program>();
   const auto* module = program && program->items.size() == 1
       ? cursiv::ast_cast<ast::Module>(program->items[0]) : nullptr;
   check(module && module->ident == "a\"bcd" && module->body.size() == 11,

@@ -31,7 +31,7 @@ namespace Audit::Inner {
 }
 )hexpat";
   const auto result = services.parser->parse(source);
-  const auto* document = result.value_as<hexpat::ast::Document>();
+  const auto* document = result.valueAs<hexpat::ast::Document>();
   check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
         document && document->items.size() == 1, "native declaration document parses clean");
   const auto* space = document && document->items.size() == 1

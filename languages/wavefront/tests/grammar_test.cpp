@@ -123,7 +123,7 @@ int main() {
     const std::string text = read_file(path);
     if (text.empty()) return fail("features.obj: empty or unreadable");
     const auto parsed = parse_clean(language, "features.obj", text);
-    const auto* doc = parsed.value_as<wavefront::ast::Document>();
+    const auto* doc = parsed.valueAs<wavefront::ast::Document>();
     if (doc == nullptr) return 1;
 
     const wavefront::ast::Statement* objectName = nullptr;
@@ -185,7 +185,7 @@ int main() {
         std::string(CURSIV_EXAMPLE_DIR) + "/b1_20_cube.obj";
     const std::string text = read_file(path);
     const auto parsed = parse_clean(language, "b1_20_cube.obj", text);
-    const auto* doc = parsed.value_as<wavefront::ast::Document>();
+    const auto* doc = parsed.valueAs<wavefront::ast::Document>();
     if (doc == nullptr) return 1;
     if (doc->statements.size() != 14)
       return fail("b1_20_cube.obj: expected 14 statements");
@@ -216,7 +216,7 @@ int main() {
     const std::string text = read_file(path);
     const auto parsed =
         parse_clean(language, "b1_43_cube_with_group_names.obj", text);
-    const auto* doc = parsed.value_as<wavefront::ast::Document>();
+    const auto* doc = parsed.valueAs<wavefront::ast::Document>();
     if (doc == nullptr) return 1;
     if (doc->statements.size() != 20)
       return fail("b1_43_cube_with_group_names.obj: expected 20 statements");
@@ -238,7 +238,7 @@ int main() {
     const std::string text = read_file(path);
     const auto parsed =
         parse_clean(language, "b1_31_rational_b_spline_surface.obj", text);
-    const auto* doc = parsed.value_as<wavefront::ast::Document>();
+    const auto* doc = parsed.valueAs<wavefront::ast::Document>();
     if (doc == nullptr) return 1;
 
     const auto& v1 =

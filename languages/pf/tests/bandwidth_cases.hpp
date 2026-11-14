@@ -25,7 +25,7 @@ inline bool run(const pf::PfCoreServices& services) {
       return false;
     }
     if (!clean) return true;
-    const auto* root = r.value_as<pf::ast::File>();
+    const auto* root = r.valueAs<pf::ast::File>();
     const auto* entry = root && root->lines.size() == 1
         ? std::get_if<pf::ast::QueueRule*>(&root->lines[0]) : nullptr;
     const auto* bw = entry && *entry && (*entry)->opts.size() == 1
@@ -44,7 +44,7 @@ inline bool run(const pf::PfCoreServices& services) {
     std::unordered_set<const cursiv::AstNode*> seen;
     const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
       if (!seen.insert(&node).second) { owned = false; return; }
-      services.astReflection->visitMembers(node,
+      services.astReflection->visitProperties(node,
           [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
             const bool parent = child.parent == &node;
             const bool contained = r.cst().contains(node.cstNodeId, child.cstNodeId);

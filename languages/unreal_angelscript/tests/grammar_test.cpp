@@ -80,7 +80,7 @@ int main() {
   {
     const std::string text = read(CURSIV_EXAMPLE_DIR "/Example_Actor.as");
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto& script = *result.value_as<ast::Script>();
+    const auto& script = *result.valueAs<ast::Script>();
 
     if (script.items.size() != 1) return fail("Example_Actor: item count");
 
@@ -151,7 +151,7 @@ int main() {
       const cursiv::ParseResult result = language.language.parser->parse(src);
       if (result.cst().recovered() || !result.diagnostics.empty())
         return fail(probe.text);
-      const auto& script = *result.value_as<ast::Script>();
+      const auto& script = *result.valueAs<ast::Script>();
       const auto* const fn = static_cast<const ast::FunctionDef*>(script.items[0]);
       const auto* const ret =
           static_cast<const ast::ReturnStmt*>(fn->body->items[0]);
@@ -176,7 +176,7 @@ int main() {
     const cursiv::ParseResult result = language.language.parser->parse(src);
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("forward declarations: do not parse clean");
-    const auto& script = *result.value_as<ast::Script>();
+    const auto& script = *result.valueAs<ast::Script>();
     if (script.items.size() != 3)
       return fail("forward declarations: item count");
     if (script.items[0]->type != &cursiv::ast_type_tag<ast::EnumForwardDecl>)

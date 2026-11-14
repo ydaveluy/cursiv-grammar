@@ -252,7 +252,7 @@ second"
  auto validate = [&](std::string source, std::string_view code, unsigned expected) {
   cursiv::Document d(cursiv::TextDocument::create("file:///audit.wren", "wren", 0, std::move(source)));
   d.language = &language.language;d.parseResult = parser.parse(d.textDocument().getText());
-  check(d.parseSucceeded() && !d.parseRecovered(), "semantic error parses without repair");
+  check(d.parseResult.accepted && !d.parseRecovered(), "semantic error parses without repair");
   if (d.parseResult.value) d.parseResult.value->parent = &d;
   std::vector<cursiv::Diagnostic> diagnostics;language.language.documentValidator->validateDocument(d, diagnostics);
   unsigned count = 0;for (const auto& v : diagnostics) if (v.code && v.code->isString() && v.code->string() == code) ++count;

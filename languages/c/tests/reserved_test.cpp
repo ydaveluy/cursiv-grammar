@@ -8,7 +8,7 @@
 
 #include "c/CoreServices.hpp"
 #include "cursiv/services/CoreLanguage.hpp"
-#include "cursiv/services/Diagnostic.hpp"
+#include "cursiv/validation/Diagnostic.hpp"
 #include "cursiv/services/SharedCoreServices.hpp"
 #include "cursiv/workspace/Document.hpp"
 #include "cursiv/workspace/DocumentBuilder.hpp"

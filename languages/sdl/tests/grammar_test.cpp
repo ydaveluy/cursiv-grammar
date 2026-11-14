@@ -75,7 +75,7 @@ int main() {
   const cursiv::ParseResult r = language.language.parser->parse(customText);
   CHECK(!r.cst().recovered());
   CHECK(r.diagnostics.empty());
-  auto* const program = r.value_as<ast::Program>();
+  auto* const program = r.valueAs<ast::Program>();
   CHECK(program != nullptr);
   if (program != nullptr) {
     CHECK(program->items.size() == 1);
@@ -167,7 +167,7 @@ int main() {
       "MODULE m; ITEM i LONGWORD PREFIX \"a_\" TAG t PREFIX \"b_\"; "
       "END_MODULE;");
   CHECK(!twice.cst().recovered() && twice.diagnostics.empty());
-  const auto* const twiceProgram = twice.value_as<ast::Program>();
+  const auto* const twiceProgram = twice.valueAs<ast::Program>();
   const auto* const twiceModule =
       twiceProgram != nullptr && twiceProgram->items.size() == 1 &&
               twiceProgram->items[0]->type == &cursiv::ast_type_tag<ast::Module>

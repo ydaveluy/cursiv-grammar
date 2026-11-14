@@ -46,7 +46,7 @@ void corpus() {
     CHECK(r.accepted);
     CHECK(!r.cst().recovered());
     CHECK(r.diagnostics.empty());
-    ast::CompilationUnit* const unit = r.value_as<ast::CompilationUnit>();
+    ast::CompilationUnit* const unit = r.valueAs<ast::CompilationUnit>();
     CHECK(unit != nullptr);
   }
 }
@@ -73,7 +73,7 @@ void metadata() {
       "@f1 int y = 0;\n");
   CHECK(r.accepted);
   CHECK(!r.cst().recovered());
-  ast::CompilationUnit* const unit = r.value_as<ast::CompilationUnit>();
+  ast::CompilationUnit* const unit = r.valueAs<ast::CompilationUnit>();
   CHECK(unit != nullptr);
   CHECK(unit->declarations.size() == 6);
   CHECK(names(unit->declarations[0]->annotations) == "a1");
@@ -105,7 +105,7 @@ void local_declarations() {
   const cursiv::ParseResult r =
       engine().parse("void f() {\n  const int limit = 80;\n}\n");
   CHECK(r.accepted && r.diagnostics.empty());
-  ast::CompilationUnit* const unit = r.value_as<ast::CompilationUnit>();
+  ast::CompilationUnit* const unit = r.valueAs<ast::CompilationUnit>();
   CHECK(unit != nullptr && unit->declarations.size() == 1);
   const auto* const fn =
       cursiv::ast_cast<ast::TopLevelFunction>(unit->declarations[0]);
@@ -120,7 +120,7 @@ void local_declarations() {
   CHECK(!engine().parse("void f() { int x int y; }\n").diagnostics.empty());
 
   const cursiv::ParseResult top = engine().parse("List<int> l;\n");
-  ast::CompilationUnit* const lib = top.value_as<ast::CompilationUnit>();
+  ast::CompilationUnit* const lib = top.valueAs<ast::CompilationUnit>();
   CHECK(lib != nullptr && lib->declarations.size() == 1 &&
         lib->stmtEntry == nullptr);
 }
@@ -131,7 +131,7 @@ void arrow_body() {
   const cursiv::ParseResult r =
       engine().parse("void f() {\n  var g = (x) => x is E && y;\n}\n");
   CHECK(r.accepted && r.diagnostics.empty());
-  ast::CompilationUnit* const unit = r.value_as<ast::CompilationUnit>();
+  ast::CompilationUnit* const unit = r.valueAs<ast::CompilationUnit>();
   CHECK(unit != nullptr && unit->declarations.size() == 1);
   const auto* const fn =
       unit != nullptr
@@ -165,7 +165,7 @@ void native_assignment_and_arguments() {
   )dart";
   const auto result = engine().parse(source);
   CHECK(result.accepted && !result.cst().recovered() && result.diagnostics.empty());
-  const auto* unit = result.value_as<ast::CompilationUnit>();
+  const auto* unit = result.valueAs<ast::CompilationUnit>();
   const auto* function = unit && unit->declarations.size() == 1
       ? cursiv::ast_cast<ast::TopLevelFunction>(unit->declarations[0]) : nullptr;
   const auto* body = function
@@ -228,7 +228,7 @@ static int audit_regression() {
         r.value == nullptr)
       return __LINE__;
 
-    const auto* unit = r.value_as<dart2::ast::CompilationUnit>();
+    const auto* unit = r.valueAs<dart2::ast::CompilationUnit>();
     if (!unit) return __LINE__;
     const auto* adjacent =
         cursiv::ast_cast<dart2::ast::AdjacentStrings>(unit->exprEntry);
@@ -252,7 +252,7 @@ static int audit_regression() {
     const auto r = language.language.parser->parse(source);
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty())
       return __LINE__;
-    const auto* unit = r.value_as<dart2::ast::CompilationUnit>();
+    const auto* unit = r.valueAs<dart2::ast::CompilationUnit>();
     const auto* adjacent =
         unit ? cursiv::ast_cast<dart2::ast::AdjacentStrings>(unit->exprEntry)
              : nullptr;
@@ -273,7 +273,7 @@ static int audit_regression() {
     const auto r = language.language.parser->parse(text);
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty())
       return __LINE__;
-    const auto* unit = r.value_as<dart2::ast::CompilationUnit>();
+    const auto* unit = r.valueAs<dart2::ast::CompilationUnit>();
     const auto* adjacent =
         unit ? cursiv::ast_cast<dart2::ast::AdjacentStrings>(unit->exprEntry)
              : nullptr;
@@ -316,11 +316,11 @@ static int audit_regression() {
         RawCase{R"dart(r'a $b')dart", "a $b", false}}) {
     const auto r = language.language.parser->parse(raw.source);
     std::size_t leaves = 0;
-    r.cst().visit_leaves([&](const cursiv::CstLeaf&) { ++leaves; });
+    r.cst().visitLeaves([&](const cursiv::CstLeaf&) { ++leaves; });
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         leaves != 1)
       return __LINE__;
-    const auto* unit = r.value_as<dart2::ast::CompilationUnit>();
+    const auto* unit = r.valueAs<dart2::ast::CompilationUnit>();
     const auto* adjacent =
         unit ? cursiv::ast_cast<dart2::ast::AdjacentStrings>(unit->exprEntry)
              : nullptr;
@@ -343,7 +343,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return __LINE__;
-    const auto* unit = r.value_as<dart2::ast::CompilationUnit>();
+    const auto* unit = r.valueAs<dart2::ast::CompilationUnit>();
     const auto* list =
         unit ? cursiv::ast_cast<dart2::ast::ListLit>(unit->exprEntry) : nullptr;
     const auto* spread =
@@ -357,7 +357,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return __LINE__;
-    const auto* unit = r.value_as<dart2::ast::CompilationUnit>();
+    const auto* unit = r.valueAs<dart2::ast::CompilationUnit>();
     const auto* cascade =
         unit ? cursiv::ast_cast<dart2::ast::CascadeExpr>(unit->exprEntry)
              : nullptr;

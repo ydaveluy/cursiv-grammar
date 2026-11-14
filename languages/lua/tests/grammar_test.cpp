@@ -245,7 +245,7 @@ void native_reader_constraints() {
                             "function f(...) return ... end", "return ...", "\ufeffreturn 1"})
     CHECK(cursiv::test::validationHelper(services(), source).diagnostics.empty());
   const auto result = parse(R"(x=[[\q]])");
-  const auto* root = result.value_as<ast::Block>();
+  const auto* root = result.valueAs<ast::Block>();
   const auto* assignment = root && root->statements.size() == 1
       ? as<ast::AssignStat>(root->statements[0]) : nullptr;
   const auto* value = assignment && assignment->values.size() == 1

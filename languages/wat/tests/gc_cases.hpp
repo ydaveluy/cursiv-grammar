@@ -225,7 +225,7 @@ bool run(const Language& language) {
     std::vector<cursiv::Diagnostic> errors;
     services.documentValidator->validateDocument(document, errors);
     if (c.validated) check(errors.empty(), c.name.data());
-    const auto* script = parsed.template value_as<ast::Script>();
+    const auto* script = parsed.template valueAs<ast::Script>();
     if (!script || script->cmds.empty()) continue;
     const auto* ptr = std::get_if<ast::Module*>(&script->cmds[0]);
     const auto* module = ptr ? *ptr : nullptr;

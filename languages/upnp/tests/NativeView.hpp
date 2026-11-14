@@ -3,7 +3,7 @@
 #ifndef AUDIT_BEFORE
 #include "upnp/Value.hpp"
 #endif
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 using J = cursiv::JsonValue;
 namespace audit {
 inline std::string hex(std::string_view s) {

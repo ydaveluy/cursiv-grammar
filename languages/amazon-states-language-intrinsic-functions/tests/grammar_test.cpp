@@ -58,7 +58,7 @@ void every_example_parses_clean() {
     const std::string text = read_example(name);
     const cursiv::ParseResult r = engine().parse(text);
     CHECK(r.accepted && !r.cst().recovered());
-    CHECK(r.value_as<ast::FuncCall>() != nullptr);
+    CHECK(r.valueAs<ast::FuncCall>() != nullptr);
   }
 }
 
@@ -66,7 +66,7 @@ void format_reads_its_string_and_two_paths() {
   const std::string text =
       read_example("intrinsic_states_format.asl-intrinsic");
   const cursiv::ParseResult r = engine().parse(text);
-  const ast::FuncCall* const call = r.value_as<ast::FuncCall>();
+  const ast::FuncCall* const call = r.valueAs<ast::FuncCall>();
   CHECK(call != nullptr);
   if (call == nullptr) return;
   CHECK(call->function == ast::Function::format);
@@ -80,7 +80,7 @@ void json_merge_carries_its_bool_flag() {
   const std::string text =
       read_example("intrinsic_states_json_merge.asl-intrinsic");
   const cursiv::ParseResult r = engine().parse(text);
-  const ast::FuncCall* const call = r.value_as<ast::FuncCall>();
+  const ast::FuncCall* const call = r.valueAs<ast::FuncCall>();
   CHECK(call != nullptr);
   if (call == nullptr || call->args.size() != 3) return;
   const ast::Arg* const last = call->args[2];
@@ -93,7 +93,7 @@ void nested_calls_carry_a_context_path_and_a_negative_int() {
   const std::string text =
       read_example("intrinsic_states_nested_calls.asl-intrinsic");
   const cursiv::ParseResult r = engine().parse(text);
-  const ast::FuncCall* const call = r.value_as<ast::FuncCall>();
+  const ast::FuncCall* const call = r.valueAs<ast::FuncCall>();
   CHECK(call != nullptr);
   if (call == nullptr) return;
   CHECK(call->function == ast::Function::array_get_item);
@@ -106,7 +106,7 @@ void nested_brackets_and_string_split_and_math_add_parse() {
   const std::string text =
       read_example("custom_bracket_paths.asl-intrinsic");
   const cursiv::ParseResult r = engine().parse(text);
-  const ast::FuncCall* const call = r.value_as<ast::FuncCall>();
+  const ast::FuncCall* const call = r.valueAs<ast::FuncCall>();
   CHECK(call != nullptr);
   if (call == nullptr) return;
   CHECK(call->function == ast::Function::array_contains);
@@ -118,7 +118,7 @@ void native_null_and_quoted_path_members() {
       "States.Array(null, $[0][1], $.rows[0][1], $['a]b'], $[\"a[b\"],\r\n"
       "$$.items[0][1], $data[0][1])");
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
-  const auto* call = r.value_as<ast::FuncCall>();
+  const auto* call = r.valueAs<ast::FuncCall>();
   CHECK(call != nullptr);
   if (call == nullptr || call->args.size() != 7) {
     CHECK(false);

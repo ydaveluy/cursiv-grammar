@@ -60,7 +60,7 @@ int main() {
           check(tag->open == "{@" && tag->close.empty() && parsed.cst().recovered(),
                 c.name, "missing close stays absent in AST; recovery does not invent source");
       }
-      lang.language.astReflection->visitMembers(
+      lang.language.astReflection->visitProperties(
           node, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &node &&
                      parsed.cst().contains(node.cstNodeId, child.cstNodeId);

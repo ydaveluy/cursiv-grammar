@@ -33,7 +33,7 @@ inline bool run() {
     std::function<void(const cursiv::AstNode*)> walk = [&](const auto* n) {
       if (!n) return;
       callback(n);
-      reflection->visitMembers(
+      reflection->visitProperties(
           *n, [&](std::string_view, std::uint32_t, cursiv::AstNode& c) {
             check(c.parent == n, "parent ownership");
             walk(&c);
@@ -167,7 +167,7 @@ p if {
             "JSON surrogate decoding");
     }
     if (std::string_view(text).find("ignored\r") != std::string_view::npos) {
-      const auto* d = r.value_as<ast::Document>();
+      const auto* d = r.valueAs<ast::Document>();
       check(d && d->statements.size() == 2,
             "carriage return remains in comment");
     }
@@ -176,7 +176,7 @@ p if {
   {
     const auto r =
         language.language.parser->parse("p := 1 + 2 * 3 < 8 in [true]\n");
-    const auto* d = r.value_as<ast::Document>();
+    const auto* d = r.valueAs<ast::Document>();
     const auto* rule = d && !d->statements.empty()
                            ? cursiv::ast_cast<ast::Rule>(d->statements[0])
                            : nullptr;

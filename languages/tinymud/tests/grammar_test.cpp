@@ -61,7 +61,7 @@ int main() {
   {
     const std::string text = read(CURSIV_EXAMPLE1);
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto& session = *result.value_as<tinymud::ast::Session>();
+    const auto& session = *result.valueAs<tinymud::ast::Session>();
     if (session.lines.size() != 4) return fail("example1 has the wrong shape");
 
     const auto* desc = as<tinymud::ast::DescribeCommand>(session.lines[0]);
@@ -84,7 +84,7 @@ int main() {
   {
     const std::string text = read(CURSIV_ADMIN);
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto& session = *result.value_as<tinymud::ast::Session>();
+    const auto& session = *result.valueAs<tinymud::ast::Session>();
 
     const auto* create = as<tinymud::ast::CreateCommand>(session.lines[2]);
     if (create == nullptr || !create->cost.has_value() ||
@@ -113,7 +113,7 @@ int main() {
   {
     const std::string text = read(CURSIV_NEGATIVE_BLANK_LINE);
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    const auto* session = result.value_as<tinymud::ast::Session>();
+    const auto* session = result.valueAs<tinymud::ast::Session>();
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() || !session || session->lines.size() != 2)
       return fail("a mid-document blank line should preserve the two commands");
   }

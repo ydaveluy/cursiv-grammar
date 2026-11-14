@@ -55,7 +55,7 @@ void corpus() {
   {
     const cursiv::ParseResult r = build(cursiv::test::read_file(dir + "example1.orwell"));
     CHECK(!r.cst().recovered() && r.diagnostics.empty());
-    ast::Program* const p = r.value_as<ast::Program>();
+    ast::Program* const p = r.valueAs<ast::Program>();
     CHECK(p != nullptr && p->decls.size() == 1);
     ast::Def* const def = p != nullptr ? as<ast::Def>(p->decls[0]) : nullptr;
     CHECK(def != nullptr && def->clauses.size() == 1);
@@ -76,7 +76,7 @@ void corpus() {
   {
     const cursiv::ParseResult r = build(cursiv::test::read_file(dir + "example2.orwell"));
     CHECK(!r.cst().recovered() && r.diagnostics.empty());
-    ast::Program* const p = r.value_as<ast::Program>();
+    ast::Program* const p = r.valueAs<ast::Program>();
     ast::Def* const def = p != nullptr && !p->decls.empty() ? as<ast::Def>(p->decls[0]) : nullptr;
     ast::DefClause* const clause =
         def != nullptr && !def->clauses.empty() ? def->clauses[0] : nullptr;
@@ -97,7 +97,7 @@ void corpus() {
   {
     const cursiv::ParseResult r = build(cursiv::test::read_file(dir + "example3.orwell"));
     CHECK(!r.cst().recovered() && r.diagnostics.empty());
-    ast::Program* const p = r.value_as<ast::Program>();
+    ast::Program* const p = r.valueAs<ast::Program>();
     ast::Def* const def = p != nullptr && !p->decls.empty() ? as<ast::Def>(p->decls[0]) : nullptr;
     ast::DefClause* const clause =
         def != nullptr && !def->clauses.empty() ? def->clauses[0] : nullptr;
@@ -139,7 +139,7 @@ char='a'
 text="A\065\n"
 )OW";
   const auto r = engine().parse(source);
-  auto* program = r.value_as<ast::Program>();
+  auto* program = r.valueAs<ast::Program>();
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty() &&
         program && program->decls.size() == 7);
   if (!program || program->decls.size() != 7) return;
@@ -175,7 +175,7 @@ void own_coverage() {
       std::printf("FAIL %s: did not parse clean\n", name);
       ++failures;
     }
-    ast::Program* const p = r.value_as<ast::Program>();
+    ast::Program* const p = r.valueAs<ast::Program>();
     if (p == nullptr || p->decls.empty()) {
       std::printf("FAIL %s: built no declarations\n", name);
       ++failures;
@@ -186,7 +186,7 @@ void own_coverage() {
   // clause never does.
   const cursiv::ParseResult r =
       build(cursiv::test::read_file(dir + "multiclause.orwell"));
-  ast::Program* const p = r.value_as<ast::Program>();
+  ast::Program* const p = r.valueAs<ast::Program>();
   ast::Def* const def = p != nullptr && !p->decls.empty() ? as<ast::Def>(p->decls[0]) : nullptr;
   CHECK(def != nullptr && def->clauses.size() == 2);
   CHECK(def != nullptr && def->clauses.size() == 2 && !def->clauses[0]->hasElse &&

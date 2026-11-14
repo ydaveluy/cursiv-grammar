@@ -17,7 +17,7 @@ inline bool rexx_native_regressions(const auto& language) {
       "drop x\nfoo\noptions\n'start':\nsay 1.2.3\nsay 1e2\nsay ''x\nsay ''b\n");
   check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
         "native DROP/command/OPTIONS/labels/symbols/empty encoded strings");
-  const auto* root = result.template value_as<ast::Block>();
+  const auto* root = result.template valueAs<ast::Block>();
   check(root && root->body.size() == 8, "all native clauses retained");
   if (root && root->body.size() == 8) {
     const auto* drop = cursiv::ast_cast<ast::DropStmt>(root->body[0]);
@@ -42,7 +42,7 @@ inline bool rexx_native_regressions(const auto& language) {
                              "say length/*outer /* inner */ tail*/('x')\n",
                              "say 'length'/*c*/('x')\n"}) {
     const auto parsed = language.language.parser->parse(source);
-    const auto* block = parsed.template value_as<ast::Block>();
+    const auto* block = parsed.template valueAs<ast::Block>();
     const auto* say = block && block->body.size() == 1
         ? cursiv::ast_cast<ast::SayStmt>(block->body[0]) : nullptr;
     const bool commentCall = std::string_view(source).find("/*") != std::string_view::npos;
@@ -55,7 +55,7 @@ inline bool rexx_native_regressions(const auto& language) {
   }
   for (const char* source : {"say 'a'/*c*/'b'\n", "say 'a' /*c*/'b'\n", "say 'a'/*c*/ 'b'\n"}) {
     const auto parsed = language.language.parser->parse(source);
-    const auto* block = parsed.template value_as<ast::Block>();
+    const auto* block = parsed.template valueAs<ast::Block>();
     const auto* say = block && block->body.size() == 1
         ? cursiv::ast_cast<ast::SayStmt>(block->body[0]) : nullptr;
     const auto* concat = say ? cursiv::ast_cast<ast::Concat>(say->value) : nullptr;

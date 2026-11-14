@@ -14,7 +14,7 @@ inline bool sapf_native_regressions(const auto& language) {
       "[] #[] () {} \"hello\" \\x1 [] = f1 { :rate1 2 } +1 1E+2 -3e-2 name2");
   check(result.accepted && !result.cst().recovered() && result.diagnostics.empty(),
         "empty containers, string values, numbered words and signed/exponent numbers");
-  const auto* file = result.template value_as<ast::File>();
+  const auto* file = result.template valueAs<ast::File>();
   check(file && file->items.size() == 11, "all source items retained");
   if (!file || file->items.size() != 11) return false;
   const auto* list = cursiv::ast_cast<ast::ListLiteral>(file->items[0]);

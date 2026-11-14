@@ -51,7 +51,7 @@ inline bool run(const cursiv::Parser& parser) {
       for (const auto& d : parsed.diagnostics)
         std::fprintf(stderr,"kind=%u element=%u bytes=%u..%u\n",unsigned(d.kind),unsigned(d.element),unsigned(d.begin),unsigned(d.end));
     if (!clean) continue;
-    const auto* program = parsed.value_as<a::Program>();
+    const auto* program = parsed.valueAs<a::Program>();
     check(program && program->body.size() == 1, test.name, "one following statement retained");
     if (test.comment) {
       unsigned comments = 0;

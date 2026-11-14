@@ -56,7 +56,7 @@ int main() {
         raw &= p >= lo && p - lo <= source.size() &&
                a->raw.size() <= source.size() - (p - lo);
       }
-      language.language.astReflection->visitMembers(
+      language.language.astReflection->visitProperties(
           n, [&](std::string_view, std::uint32_t, cursiv::AstNode &child) {
             owned &= child.parent == &n &&
                      r.cst().contains(n.cstNodeId, child.cstNodeId);

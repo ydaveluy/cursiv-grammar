@@ -122,7 +122,7 @@ inline bool run(const php::PhpCoreServices& services) {
     while (!work.empty()) {
       const auto* node = work.back(); work.pop_back();
       if (!seen.insert(node).second) { check(false, test.name, "unique AST ownership"); continue; }
-      services.astReflection->visitMembers(*node, [&](auto, auto, const auto& child) {
+      services.astReflection->visitProperties(*node, [&](auto, auto, const auto& child) {
         check(child.parent == node && node->cstNodeId < parsed.cst().size() &&
               child.cstNodeId < parsed.cst().size() && parsed.cst().contains(node->cstNodeId, child.cstNodeId),
               test.name, "typed child owner and CST containment");
@@ -145,7 +145,7 @@ inline bool run(const php::PhpCoreServices& services) {
     const std::string_view name(test.name);
     if (name == "single" || name == "nullable" || name == "union" || name == "intersection" ||
         name == "dnf-left" || name == "dnf-right" || name == "dnf-two" || name == "return-static") {
-      const auto* document = parsed.value_as<a::Document>();
+      const auto* document = parsed.valueAs<a::Document>();
       const auto* block = document && document->items.size() == 1 ? as<a::PhpBlock>(document->items[0]) : nullptr;
       const auto* owner = block && block->items.size() == 1 ? as<a::ClassDecl>(block->items[0]) : nullptr;
       const auto* method = owner && owner->members.size() == 1 ? as<a::MethodMember>(owner->members[0]) : nullptr;

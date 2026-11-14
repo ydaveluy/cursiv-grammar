@@ -33,7 +33,7 @@ void examples() {
     const std::string text = cursiv::test::read_file(entry.path().string());
     const cursiv::ParseResult r = engine().parse(text);
     CHECK(r.accepted && !r.cst().recovered());
-    CHECK(r.value_as<lisp::ast::Doc>() != nullptr);
+    CHECK(r.valueAs<lisp::ast::Doc>() != nullptr);
   }
   CHECK(seen > 0);
 }
@@ -44,7 +44,7 @@ void reader_values() {
     const std::string text = "() (A0) (a b . c) 'foo `(a ,b ,@c) #(1 a) #3(1)";
     const auto result = engine().parse(text);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *doc = result.value_as<ast::Doc>();
+    const auto *doc = result.valueAs<ast::Doc>();
     CHECK(doc && doc->expressions.size() == 7);
     if (doc && doc->expressions.size() == 7) {
       const auto *empty = cursiv::ast_cast<ast::List>(doc->expressions[0]);
@@ -65,7 +65,7 @@ void reader_values() {
         R"SRC(42 9007199254740993 5/9 1d3 #xFF #16rFF #C(1 2) "A\n" #\λ #*1010 #:foo |a b| a\ b)SRC";
     const auto result = engine().parse(text);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *doc = result.value_as<ast::Doc>();
+    const auto *doc = result.valueAs<ast::Doc>();
     CHECK(doc && doc->expressions.size() == 13);
     if (doc && doc->expressions.size() == 13) {
       const char *expected[] = {
@@ -92,7 +92,7 @@ void reader_values() {
         "#| a #| b |# c |# #+sbcl (yes) #-sbcl (no) #1=(a . #1#) ; final";
     const auto result = engine().parse(text);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *doc = result.value_as<ast::Doc>();
+    const auto *doc = result.valueAs<ast::Doc>();
     CHECK(doc && doc->expressions.size() == 3);
     if (doc && doc->expressions.size() == 3) {
       const auto *conditional =
@@ -109,7 +109,7 @@ void reader_values() {
   for (const std::string text : {"", " ; comment"}) {
     const auto result = engine().parse(text);
     CHECK(result.accepted && !result.cst().recovered());
-    const auto *doc = result.value_as<ast::Doc>();
+    const auto *doc = result.valueAs<ast::Doc>();
     CHECK(doc && doc->expressions.empty());
   }
 }

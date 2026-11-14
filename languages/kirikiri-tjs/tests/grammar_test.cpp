@@ -101,7 +101,7 @@ int main() {
   }
   {
     const auto r = language.language.parser->parse("a <-> b = c; -f incontextof x incontextof y; a instanceof b * c; var x=$65; var g=global;");
-    const auto* root = r.value_as<kirikiritjs::ast::Program>();
+    const auto* root = r.valueAs<kirikiritjs::ast::Program>();
     namespace a = kirikiritjs::ast;
     const auto expr = [&](unsigned i) -> const a::Expr* { const auto* s = root && root->body.size() > i ? cursiv::ast_cast<a::ExprStmt>(root->body[i]) : nullptr; return s && s->expressions.size() == 1 ? s->expressions[0] : nullptr; };
     const auto* swap = cursiv::ast_cast<a::AssignExpr>(expr(0));

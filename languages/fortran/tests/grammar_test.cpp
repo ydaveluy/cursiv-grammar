@@ -113,7 +113,7 @@ int main() {
       const cursiv::ParseResult result = language.language.parser->parse(src);
       if (result.cst().recovered() || !result.diagnostics.empty())
         return fail(std::string(probe.text) + ": did not parse clean");
-      const auto &model = *result.value_as<fortran::ast::Model>();
+      const auto &model = *result.valueAs<fortran::ast::Model>();
       if (model.units.empty())
         return fail(probe.text);
       const auto &unit =

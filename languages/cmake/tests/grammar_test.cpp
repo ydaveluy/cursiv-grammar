@@ -30,7 +30,7 @@ bool bracket_arguments(const cursiv::Parser& parser) {
            Case{"message([==[body ]=] inside]==])\n", "body ]=] inside"},
        }) {
     const auto result = parser.parse(c.input);
-    const auto* file = result.value_as<cmake::ast::File>();
+    const auto* file = result.valueAs<cmake::ast::File>();
     const auto* arg =
         file && file->commands.size() == 1 &&
                 file->commands[0]->arguments.size() == 1
@@ -46,7 +46,7 @@ bool bracket_arguments(const cursiv::Parser& parser) {
 
   // A malformed bracket opener can still be represented as unquoted text.
   const auto result = parser.parse("message([==[not closed]=])\n");
-  const auto* file = result.value_as<cmake::ast::File>();
+  const auto* file = result.valueAs<cmake::ast::File>();
   if (!result.accepted || result.cst().recovered() ||
       !result.diagnostics.empty() || !file || file->commands.size() != 1 ||
       file->commands[0]->arguments.size() != 3)

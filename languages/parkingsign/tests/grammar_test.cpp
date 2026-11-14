@@ -119,7 +119,7 @@ int auditFields(const cursiv::Parser &parser) {
   {
     const std::string source = "NOPARKING6PMTO8AMNIGHTLY";
     const auto result = parser.parse(source);
-    const auto *root = result.value_as<ast::Document>();
+    const auto *root = result.valueAs<ast::Document>();
     const auto *sign = root && root->signs.size() == 1
                            ? as<ast::NoParkingSign>(root->signs[0])
                            : nullptr;
@@ -135,7 +135,7 @@ int auditFields(const cursiv::Parser &parser) {
         "DISTRICT NO. 99999999999999999999999999999999999999999999999999 "
         "PERMITS EXEMPT";
     const auto result = parser.parse(source);
-    const auto *root = result.value_as<ast::Document>();
+    const auto *root = result.valueAs<ast::Document>();
     const auto *sign = root && root->signs.size() == 1
                            ? as<ast::PermitSign>(root->signs[0])
                            : nullptr;
@@ -148,7 +148,7 @@ int auditFields(const cursiv::Parser &parser) {
   {
     const std::string source = "0002 HOUR PARKING 0008:0030AM TO 6PM";
     const auto result = parser.parse(source);
-    const auto *root = result.value_as<ast::Document>();
+    const auto *root = result.valueAs<ast::Document>();
     const auto *sign = root && root->signs.size() == 1
                            ? as<ast::SingleTimeLimitSign>(root->signs[0])
                            : nullptr;

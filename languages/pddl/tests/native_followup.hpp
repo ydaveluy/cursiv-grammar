@@ -9,7 +9,7 @@ inline bool run(const pddl::PddlCoreServices& services) {
       "(:PREDICATES (P)) (:ACTION A :PARAMETERS () "
       ":PRECONDITION (AnD) :EFFECT (ONEOF (P))))";
   const auto result = services.parser->parse(source);
-  const auto* doc = result.value_as<pddl::ast::Document>();
+  const auto* doc = result.valueAs<pddl::ast::Document>();
   const auto* domain = doc ? std::get_if<pddl::ast::Domain*>(&doc->content) : nullptr;
   const auto* action = domain && *domain && (*domain)->structures.size() == 1
       ? std::get_if<pddl::ast::ActionDef*>(&(*domain)->structures[0]) : nullptr;
@@ -27,7 +27,7 @@ inline bool run(const pddl::PddlCoreServices& services) {
   if (!validation.diagnostics.empty()) return false;
   const auto disjunction = services.parser->parse(
       "(DEFINE (PROBLEM P) (:DOMAIN D) (:INIT) (:GOAL (OR)))");
-  const auto* problemDoc = disjunction.value_as<pddl::ast::Document>();
+  const auto* problemDoc = disjunction.valueAs<pddl::ast::Document>();
   const auto* problem = problemDoc
       ? std::get_if<pddl::ast::Problem*>(&problemDoc->content) : nullptr;
   return disjunction.accepted && !disjunction.cst().recovered() &&

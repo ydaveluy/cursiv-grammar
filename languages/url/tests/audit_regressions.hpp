@@ -64,7 +64,7 @@ inline bool run() {
   };
   for (const auto& c : cases) {
     const auto result = parser->parse(c.source);
-    const auto* value = result.value_as<ast::Url>();
+    const auto* value = result.valueAs<ast::Url>();
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() && value,
           "native URI reference must parse clean");
     if (!value) continue;

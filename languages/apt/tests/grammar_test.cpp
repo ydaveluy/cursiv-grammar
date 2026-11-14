@@ -41,7 +41,7 @@ int main() {
       {"deb [label=\"a\rb\"] https://example.org suite main\n", "label", "a\rb"}};
   for (const auto& c : nativeCases) {
     const auto result = language.language.parser->parse(c.source);
-    const auto* doc = result.value_as<apt::ast::Document>();
+    const auto* doc = result.valueAs<apt::ast::Document>();
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !doc || doc->records.size() != 1)
       return (fail("native whitespace/quoting", "not one clean record"), 1);

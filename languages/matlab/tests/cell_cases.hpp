@@ -118,7 +118,7 @@ inline bool run(const cursiv::Parser& parser,
   bool ok = true;
   for (const auto& test : cases) {
     const auto result = parser.parse(test.source);
-    const auto* file = result.value_as<a::File>();
+    const auto* file = result.valueAs<a::File>();
     const bool clean = result.accepted && !result.cst().recovered() &&
                        result.diagnostics.empty() && file;
     const auto check = [&](bool value, const char* message) {
@@ -178,7 +178,7 @@ inline bool run(const cursiv::Parser& parser,
                 text.ends_with("." + std::string(member->name)),
                 "member CST includes its whole target and field name");
       }
-      reflection.visitMembers(*node, [&](auto, auto, const auto& child) {
+      reflection.visitProperties(*node, [&](auto, auto, const auto& child) {
         check(child.parent == node && node->cstNodeId < result.cst().size() &&
               child.cstNodeId < result.cst().size() &&
               result.cst().contains(node->cstNodeId, child.cstNodeId),

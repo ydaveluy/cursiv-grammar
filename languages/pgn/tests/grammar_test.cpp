@@ -34,7 +34,7 @@ static int audit_regression() {
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
         r.value == nullptr)
       return 1;
-    const auto* db = r.value_as<pgn::ast::Database>();
+    const auto* db = r.valueAs<pgn::ast::Database>();
     if (!db || db->games.empty() || db->games[0]->elements.empty()) return 1;
     const auto* m =
         cursiv::ast_cast<pgn::ast::MoveNumber>(db->games[0]->elements[0]);

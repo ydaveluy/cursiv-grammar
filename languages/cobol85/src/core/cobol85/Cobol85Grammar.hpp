@@ -1135,7 +1135,7 @@ struct Cobol85 : cursiv::GrammarSpec {
   // call
 
   template <ast::CallMode M>
-  struct PassingMode : rule<as<M>(cursiv::Epsilon{})> {};
+  struct PassingMode : rule<as<M>(cursiv::detail::Epsilon{})> {};
   struct CallAddress : rule<ikw<"ADDRESS"> + ikw<"OF">> {};
   struct CallLength : rule<ikw<"LENGTH"> + option(ikw<"OF">)> {};
   static constexpr auto ArgumentModifier =

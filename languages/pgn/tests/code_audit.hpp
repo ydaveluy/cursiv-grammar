@@ -31,7 +31,7 @@ inline bool run() {
     auto r = language.language.parser->parse(source);
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
           "clean parse");
-    check(r.value_as<ast::Database>() != nullptr, "Database root");
+    check(r.valueAs<ast::Database>() != nullptr, "Database root");
     std::unordered_set<const cursiv::AstNode*> reached;
     std::function<void(const cursiv::AstNode*, const cursiv::AstNode*)> visit =
         [&](const auto* n, const auto* parent) {
@@ -41,7 +41,7 @@ inline bool run() {
             check(false, "AST ownership");
             return;
           }
-          language.language.astReflection->visitMembers(
+          language.language.astReflection->visitProperties(
               *n, [&](auto, auto, auto& child) { visit(&child, n); });
         };
     visit(r.value, nullptr);
@@ -50,12 +50,12 @@ inline bool run() {
   };
   {
     const auto r = parse("");
-    const auto* db = r.value_as<ast::Database>();
+    const auto* db = r.valueAs<ast::Database>();
     check(db && db->games.empty(), "empty database");
   }
   {
     const auto r = parse("1 . . . e4 *");
-    const auto* db = r.value_as<ast::Database>();
+    const auto* db = r.valueAs<ast::Database>();
     const auto* m =
         db && db->games.size() == 1 && !db->games[0]->elements.empty()
             ? cursiv::ast_cast<ast::MoveNumber>(db->games[0]->elements[0])
@@ -63,7 +63,7 @@ inline bool run() {
     check(m && m->number == "1" && std::ranges::count(m->dots, '.') == 3,
           "spaced move-number periods");
     const auto bare = parse("... e4 *");
-    const auto* bd = bare.value_as<ast::Database>();
+    const auto* bd = bare.valueAs<ast::Database>();
     const auto* bm =
         bd && bd->games.size() == 1 && !bd->games[0]->elements.empty()
             ? cursiv::ast_cast<ast::MoveNumber>(bd->games[0]->elements[0])
@@ -74,18 +74,18 @@ inline bool run() {
   for (const char* source :
        {"1.e4 e5", "[Event \"Header only\"]", "{ Comment only }"}) {
     const auto r = parse(source);
-    const auto* db = r.value_as<ast::Database>();
+    const auto* db = r.valueAs<ast::Database>();
     check(db && db->games.size() == 1 && !db->games[0]->terminated,
           "game without explicit result");
   }
   {
     const auto r = parse("1.e4 e5\n\n1.d4 d5\n");
-    const auto* db = r.value_as<ast::Database>();
+    const auto* db = r.valueAs<ast::Database>();
     check(db && db->games.size() == 2 && !db->games[0]->terminated &&
               !db->games[1]->terminated,
           "blank lines separate unterminated games");
     const auto header = parse("[Event \"One\"]\n\n\n[Event \"Two\"]\n");
-    const auto* hd = header.value_as<ast::Database>();
+    const auto* hd = header.valueAs<ast::Database>();
     check(hd && hd->games.size() == 2 && hd->games[0]->tags.size() == 1 &&
               hd->games[1]->tags.size() == 1 &&
               hd->games[0]->tags[0]->value == "One" &&
@@ -120,7 +120,7 @@ inline bool run() {
     const std::string number(100, '8');
     const std::string numbered = number + ".e4 *";
     const auto big = parse(numbered);
-    const auto* db = big.value_as<ast::Database>();
+    const auto* db = big.valueAs<ast::Database>();
     const auto* m =
         db && db->games.size() == 1 && !db->games[0]->elements.empty()
             ? cursiv::ast_cast<ast::MoveNumber>(db->games[0]->elements[0])
@@ -133,7 +133,7 @@ inline bool run() {
 [Annotator "A \"Q\" \\ path \q"]
 
 1.e4 *)pgn");
-    const auto* db = r.value_as<ast::Database>();
+    const auto* db = r.valueAs<ast::Database>();
     if (db && db->games.size() == 1) {
       const auto* g = db->games[0];
       check(g->tags.size() == 2 && g->tags[0]->value.empty() &&
@@ -146,7 +146,7 @@ inline bool run() {
   }
   {
     const auto r = parse("[Event \"One\"]\n[Event \"Two\"]\n\n*");
-    const auto* db = r.value_as<ast::Database>();
+    const auto* db = r.valueAs<ast::Database>();
     check(db && db->games.size() == 1 && db->games[0]->tags.size() == 2 &&
               db->games[0]->tags[0]->value == "One" &&
               db->games[0]->tags[1]->value == "Two",

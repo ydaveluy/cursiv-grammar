@@ -23,13 +23,13 @@ inline bool run(const cursiv::Parser& parser) {
            std::pair<std::string_view, double>{".5", .5}, {"1.", 1},
            {"0xFf", 255}, {"077", 63}, {"1_000", 1000}}) {
     const auto result = parse(text);
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* number = query ? cursiv::ast_cast<NumberLit>(query->expression) : nullptr;
     check(number && number->value == expected);
   }
   for (const std::string_view text : {"Inf", "NaN"}) {
     const auto result = parse(text);
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* number = query ? cursiv::ast_cast<NumberLit>(query->expression) : nullptr;
     check(number && (text == "Inf" ? std::isinf(number->value) : std::isnan(number->value)));
   }
@@ -37,7 +37,7 @@ inline bool run(const cursiv::Parser& parser) {
            std::pair<std::string_view, std::string_view>{R"("\a\b\f\n\r\t\v\x41\101\u00e9\U0001F600")", "\a\b\f\n\r\t\vAAé😀"},
            {"`a\\n\nb\r`", "a\\n\nb\r"}}) {
     const auto result = parse(text);
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* string = query ? cursiv::ast_cast<StringLit>(query->expression) : nullptr;
     check(string && string->value == expected);
   }
@@ -46,7 +46,7 @@ inline bool run(const cursiv::Parser& parser) {
     parse(text);
   {
     const auto result = parse("info(up)");
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* call = query ? cursiv::ast_cast<FunctionCall>(query->expression) : nullptr;
     check(call && call->name == "info" && call->args.size() == 1);
   }
@@ -54,7 +54,7 @@ inline bool run(const cursiv::Parser& parser) {
            std::pair<std::string_view, std::string_view>{"foo offset -5m", "-5m"},
            {"foo offset +5m", "+5m"}}) {
     const auto result = parse(text);
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* selector = query ? cursiv::ast_cast<Selector>(query->expression) : nullptr;
     const auto* unary = selector ? cursiv::ast_cast<UnaryExpr>(selector->offset) : nullptr;
     const auto* duration = unary ? cursiv::ast_cast<DurationLit>(unary->operand) : nullptr;
@@ -63,19 +63,19 @@ inline bool run(const cursiv::Parser& parser) {
   }
   {
     const auto result = parse("sum by (job,)(up)");
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* agg = query ? cursiv::ast_cast<AggregationExpr>(query->expression) : nullptr;
     check(agg && agg->hasGrouping && agg->groupBy.size() == 1 && agg->groupBy[0] == "job");
   }
   {
     const auto result = parse("foo + on(job,) group_left(x,) bar");
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* binary = query ? cursiv::ast_cast<BinaryExpr>(query->expression) : nullptr;
     check(binary && binary->matching && binary->matching->labels.size() == 1 && binary->matching->sideLabels.size() == 1);
   }
   {
     const auto result = parse("{\"métric\", \"étiquette\"=\"été\"}");
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* selector = query ? cursiv::ast_cast<Selector>(query->expression) : nullptr;
     check(selector && selector->metric.empty() && selector->matchers.size() == 2 &&
           selector->matchers[0]->name == "__name__" && selector->matchers[0]->value == "métric" &&
@@ -83,19 +83,19 @@ inline bool run(const cursiv::Parser& parser) {
   }
   {
     const auto result = parse("atan2_metric atan2 another");
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* binary = query ? cursiv::ast_cast<BinaryExpr>(query->expression) : nullptr;
     check(binary && binary->op == Operator::atan2);
   }
   {
     const auto result = parse("#\rfoo");
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* selector = query ? cursiv::ast_cast<Selector>(query->expression) : nullptr;
     check(selector && selector->metric == "foo");
   }
   {
     const auto result = parse("foo[11s+10s-5*2^2]");
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* selector = query ? cursiv::ast_cast<Selector>(query->expression) : nullptr;
     const auto* sub = selector ? cursiv::ast_cast<BinaryExpr>(selector->range) : nullptr;
     const auto* sum = sub ? cursiv::ast_cast<BinaryExpr>(sub->left) : nullptr;
@@ -108,7 +108,7 @@ inline bool run(const cursiv::Parser& parser) {
   }
   {
     const auto result = parse("foo[range():step()] offset -(1^2)");
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* subquery = query ? cursiv::ast_cast<Subquery>(query->expression) : nullptr;
     const auto* range = subquery ? cursiv::ast_cast<FunctionCall>(subquery->range) : nullptr;
     const auto* step = subquery ? cursiv::ast_cast<FunctionCall>(subquery->step) : nullptr;
@@ -120,13 +120,13 @@ inline bool run(const cursiv::Parser& parser) {
   }
   for (const std::string_view source : {"foo </ bar", "foo >/ bar"}) {
     const auto result = parse(source);
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* binary = query ? cursiv::ast_cast<BinaryExpr>(query->expression) : nullptr;
     check(binary && binary->op == (source[4] == '<' ? Operator::trim_upper : Operator::trim_lower));
   }
   {
     const auto result = parse("foo + on(job) fill_left(1) fill_right(-2) bar");
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* binary = query ? cursiv::ast_cast<BinaryExpr>(query->expression) : nullptr;
     check(binary && binary->matching && binary->fills.size() == 2);
     if (binary && binary->fills.size() == 2) {
@@ -139,7 +139,7 @@ inline bool run(const cursiv::Parser& parser) {
   }
   for (const std::string_view source : {"rate(foo[5m] anchored)", "rate(foo[5m] smoothed)"}) {
     const auto result = parse(source);
-    const auto* query = result.value_as<Query>();
+    const auto* query = result.valueAs<Query>();
     const auto* call = query ? cursiv::ast_cast<FunctionCall>(query->expression) : nullptr;
     const auto* modifier = call && call->args.size() == 1 ? cursiv::ast_cast<RangeModifier>(call->args[0]) : nullptr;
     check(modifier && (modifier->name == "anchored" || modifier->name == "smoothed") &&

@@ -1,5 +1,5 @@
 #pragma once
-#include "cursiv/services/JsonValue.hpp"
+#include "cursiv/utils/JsonValue.hpp"
 #include "cursiv/syntax-tree/AstReflection.hpp"
 #include "yara/Integer.hpp"
 #include "yara/ast.hpp"

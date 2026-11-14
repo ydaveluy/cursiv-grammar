@@ -44,7 +44,7 @@ inline void repeated_alignment(const auto& parse, const auto& validate,
       }
       continue;
     }
-    const auto* module = result.template value_as<ast::Module>();
+    const auto* module = result.template valueAs<ast::Module>();
     const auto* function = module && !module->entities.empty()
         ? cursiv::ast_cast<ast::FuncDef>(module->entities[0]) : nullptr;
     const auto* instruction = function && function->body &&

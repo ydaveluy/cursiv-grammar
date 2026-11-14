@@ -33,7 +33,7 @@ inline bool run(const less::LessCoreServices& language) {
         const auto span = result.cst()[node.cstNodeId];
         check(span.begin <= span.end && span.end <= source.size(), "source bounds");
       }
-      language.astReflection->visitMembers(node, [&](auto, auto, auto& child) {
+      language.astReflection->visitProperties(node, [&](auto, auto, auto& child) {
         check(child.parent == &node, "child parent");
         check(result.cst().contains(node.cstNodeId, child.cstNodeId), "child span");
         self(self, child);

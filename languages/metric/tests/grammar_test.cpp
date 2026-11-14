@@ -40,7 +40,7 @@ static int audit_regression() {
     const auto result = language.language.parser->parse(" km / s ");
     if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
       return 1;
-    const auto *ratio = result.value_as<metric::ast::BinaryUom>();
+    const auto *ratio = result.valueAs<metric::ast::BinaryUom>();
     const auto *unit = ratio ? cursiv::ast_cast<metric::ast::Measure>(ratio->left) : nullptr;
     if (!unit || unit->prefix != metric::ast::Prefix::k || unit->unit != metric::ast::Unit::m)
       return 1;

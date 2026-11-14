@@ -121,7 +121,7 @@ template <class Language> bool run(const Language& language) {
     if (c.expressionType == &cursiv::ast_type_tag<ast::UnsafeExpr>) {
       const cursiv::AstNode* value = nullptr;
       std::size_t children = 0;
-      language.astReflection->visitMembers(*expression,
+      language.astReflection->visitProperties(*expression,
           [&](std::string_view member, std::uint32_t, cursiv::AstNode& child) {
             ++children;
             if (member == "value") value = &child;

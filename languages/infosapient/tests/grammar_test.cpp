@@ -58,7 +58,7 @@ int main() {
     const auto result = engine().parse(
         "Native if temperature is very 5.0 and humidity are decreased "
         "then alarm is must 0.9 else alarm is slightly 0.1;");
-    const auto* rule = result.value_as<ast::ConditionalRule>();
+    const auto* rule = result.valueAs<ast::ConditionalRule>();
     const auto* premise = rule ? cursiv::ast_cast<ast::LogicalExpr>(rule->premise) : nullptr;
     const auto* left = premise ? cursiv::ast_cast<ast::AttribClause>(premise->left) : nullptr;
     const auto* right = premise ? cursiv::ast_cast<ast::AttribClause>(premise->right) : nullptr;

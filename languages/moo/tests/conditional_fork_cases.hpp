@@ -141,7 +141,7 @@ inline bool run(const moo::MooCoreServices& services) {
       check(c && t && f && c->op == a::Operator::logical_or && t->op == a::Operator::add &&
             f->op == a::Operator::multiply, test.name, "binary operators bind inside all conditional roles");
     }
-    const auto* root = parsed.value_as<a::Prog>();
+    const auto* root = parsed.valueAs<a::Prog>();
     const auto* program = root && root->declarations.size() == 1 ?
         cursiv::ast_cast<a::ProgramDecl>(root->declarations[0]) : nullptr;
     if (name == "fork-empty" && fork)
@@ -161,7 +161,7 @@ inline bool run(const moo::MooCoreServices& services) {
     while (!work.empty()) {
       const auto* node = work.back(); work.pop_back();
       if (!seen.insert(node).second) { check(false, test.name, "unique AST owner"); continue; }
-      services.astReflection->visitMembers(*node, [&](auto, auto, const auto& child) {
+      services.astReflection->visitProperties(*node, [&](auto, auto, const auto& child) {
         check(child.parent == node && node->cstNodeId < parsed.cst().size() &&
               child.cstNodeId < parsed.cst().size() && parsed.cst().contains(node->cstNodeId, child.cstNodeId),
               test.name, "member parent and CST containment");

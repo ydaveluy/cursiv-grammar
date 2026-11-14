@@ -132,7 +132,7 @@ void native_1986_forms() {
       "read fact[12]\nn += 12345678901\ncall eMpTy\nuncall EMPTY\n"
       "if n then else fi n\nfrom n do loop until n\n"));
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
-  const auto* program = r.value_as<ast::Program>();
+  const auto* program = r.valueAs<ast::Program>();
   CHECK(program && program->decls.size() == 2 && program->procedures.size() == 2);
   if (!program || program->decls.size() != 2 || program->procedures.size() != 2) return;
   CHECK(program->decls[0]->name == "FACT" && program->decls[0]->size == 20);

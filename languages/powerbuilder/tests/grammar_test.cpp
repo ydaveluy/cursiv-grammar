@@ -74,7 +74,7 @@ int main() {
       MessageBox("a","b")
       end function)PB";
     const auto r=language.language.parser->parse(source);
-    const auto* p=r.value_as<powerbuilder::ast::Document>();
+    const auto* p=r.valueAs<powerbuilder::ast::Document>();
     const auto* f=p&&p->items.size()==1?as<powerbuilder::ast::FunctionBody>(p->items[0]):nullptr;
     if(!r.accepted||r.cst().recovered()||!r.diagnostics.empty()||!f||f->body.size()!=7)
       return fail("<native>","comments, literals or RETURN statement boundary rejected");
@@ -99,7 +99,7 @@ int main() {
   {
     const auto r=language.language.parser->parse(
       "global function string continued(); return \"a&\n b\" end function");
-    const auto* p=r.value_as<powerbuilder::ast::Document>();
+    const auto* p=r.valueAs<powerbuilder::ast::Document>();
     const auto* f=p&&p->items.size()==1?as<powerbuilder::ast::FunctionBody>(p->items[0]):nullptr;
     const auto* ret=f&&f->body.size()==1?as<powerbuilder::ast::ReturnStmt>(f->body[0]):nullptr;
     const auto* str=ret?as<powerbuilder::ast::StringLit>(ret->value):nullptr;
@@ -115,7 +115,7 @@ int main() {
       "function long f() library \"native.dll\" alias for \"RealName;ansi\"\n"
       "function long g() throws exception\n"
       "global subroutine run(); call Parent::create fetch cur using descriptor desc end subroutine");
-    const auto* p=r.value_as<powerbuilder::ast::Document>();
+    const auto* p=r.valueAs<powerbuilder::ast::Document>();
     const auto* f=p&&p->items.size()==3?as<powerbuilder::ast::FunctionForwardDecl>(p->items[0]):nullptr;
     const auto* g=p&&p->items.size()==3?as<powerbuilder::ast::FunctionForwardDecl>(p->items[1]):nullptr;
     const auto* run=p&&p->items.size()==3?as<powerbuilder::ast::FunctionBody>(p->items[2]):nullptr;

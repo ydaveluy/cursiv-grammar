@@ -36,7 +36,7 @@ inline bool run() {
     const std::string source =
         std::string("local x = [==[") + newline + "a" + newline + "b]==]";
     const auto long_result = parser->parse(source);
-    const auto* root = long_result.value_as<ast::Block>();
+    const auto* root = long_result.valueAs<ast::Block>();
     const auto* local = root && root->statements.size() == 1
         ? cursiv::ast_cast<ast::LocalAttrAssignStat>(root->statements[0]) : nullptr;
     const auto* value = local && local->values.size() == 1
@@ -53,7 +53,7 @@ inline bool run() {
         "global record R field:number end\n"
         "local type Str = string\n"
         "local type F = function(number):number");
-    const auto *block = modern.value_as<ast::Block>();
+    const auto *block = modern.valueAs<ast::Block>();
     check(modern.accepted && !modern.cst().recovered() && modern.diagnostics.empty() &&
           block && block->statements.size() == 6, "native named declarations");
     const auto *global = block && block->statements.size() == 6
@@ -72,7 +72,7 @@ inline bool run() {
                             "global", "record", "functiontype", "type"}) {
     const auto source = std::string("local ") + name + "=1";
     const auto r = parser->parse(source);
-    const auto *block = r.value_as<ast::Block>();
+    const auto *block = r.valueAs<ast::Block>();
     const auto *decl = block && block->statements.size() == 1
         ? cursiv::ast_cast<ast::LocalAttrAssignStat>(block->statements[0]) : nullptr;
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() &&
@@ -88,7 +88,7 @@ inline bool run() {
                              R"(local x="\xG0")", R"(local x="\u{}")"}) {
     const auto r = parser->parse(source);
     check(r.accepted && !r.cst().recovered() && r.diagnostics.size() == 1 &&
-          r.diagnostics[0].kind == cursiv::DiagnosticKind::conversion_error,
+          r.diagnostics[0].kind == cursiv::DiagnosticKind::ConversionError,
           "malformed native short-string escape diagnostic");
   }
   {

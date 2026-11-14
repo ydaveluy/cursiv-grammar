@@ -38,7 +38,7 @@ bool run(const Language& language) {
             check(false, "unique ownership");
             return;
           }
-          language.language.astReflection->visitMembers(
+          language.language.astReflection->visitProperties(
               *n, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
                 walk(&child, n);
               });
@@ -61,7 +61,7 @@ tail: 'a'
  	/* keep */
 )";
     const auto r = parse(source);
-    const auto* f = r.template value_as<ast::File>();
+    const auto* f = r.template valueAs<ast::File>();
     check(f && f->prologue.size() == 4 && f->grammarSection.size() == 2,
           "declarations and production boundaries");
     const auto* token = find<ast::TokenSymbol>(r);
@@ -104,7 +104,7 @@ tail: 'a'
     const auto r = parse(
         "%define api.value.type {std::vector<int>}\n%define api.prefix "
         "\"foo\"\n%define parse.trace\n%%\ns: %empty");
-    const auto* f = r.template value_as<ast::File>();
+    const auto* f = r.template valueAs<ast::File>();
     if (f && f->prologue.size() == 3) {
       const auto* a = std::get<ast::Directive*>(f->prologue[0]);
       const auto* b = std::get<ast::Directive*>(f->prologue[1]);
@@ -119,12 +119,12 @@ tail: 'a'
   }
   {
     const auto r = parse("%%\ns: %empty\n%%");
-    const auto* f = r.template value_as<ast::File>();
+    const auto* f = r.template valueAs<ast::File>();
     check(f && f->epilogue && f->epilogue->empty(), "present empty epilogue");
   }
   {
     const auto r = parse("%%\ns: 'a'\n%token X;\nt: X");
-    const auto* f = r.template value_as<ast::File>();
+    const auto* f = r.template valueAs<ast::File>();
     check(f && f->grammarSection.size() == 3 &&
               std::holds_alternative<ast::SymbolDecl*>(f->grammarSection[1]),
           "declaration separates unterminated productions");
@@ -138,7 +138,7 @@ tail: 'a'
     const std::string text = "%%\ns: 'a' {" + std::string(body) + "}\nt: 'b'";
     const auto r = parse(text);
     const auto* action = find<ast::Action>(r);
-    const auto* f = r.template value_as<ast::File>();
+    const auto* f = r.template valueAs<ast::File>();
     check(action && action->code == body && f && f->grammarSection.size() == 2,
           "code comments, splices and digraphs preserve boundaries");
   }

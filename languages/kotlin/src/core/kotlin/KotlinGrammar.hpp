@@ -541,7 +541,7 @@ struct Kotlin : cursiv::GrammarSpec {
     return text.substr(0, text.size() - 3);
   };
   struct MultiLineClose : terminal<as<drop_closing_quotes>(
-                              repeat<3, cursiv::kUnbounded>(lit<"\"">))> {};
+                              repeat<3, cursiv::GrammarSpec::kUnbounded>(lit<"\"">))> {};
 
   static constexpr auto StringReferencePart =
       append<&ast::StringLiteral::parts>(

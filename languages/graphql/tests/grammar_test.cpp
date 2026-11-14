@@ -50,7 +50,7 @@ directive @custom on | FIELD | QUERY
   const auto result = parser.parse(source);
   if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty())
     return fail("literal regression: expected a clean parse");
-  const auto* doc = result.value_as<ast::Document>();
+  const auto* doc = result.valueAs<ast::Document>();
   if (doc == nullptr || doc->definitions.size() != 3)
     return fail("literal regression: definitions were lost");
   const auto* schema = as<ast::SchemaDefinition>(doc->definitions[0]);
