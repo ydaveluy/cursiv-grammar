@@ -318,7 +318,7 @@ struct Scss : cursiv::GrammarSpec {
              ref<RepeatCall> | ref<UrlRef> | ref<FormatRef> |
              ref<IfExpr> | ref<FunctionCall> | ref<StringLit> |
              ref<ParenGroup> | ref<ParentRef> |
-             (ref<IdentValue> + (!gap::none | !lit<"(">))> {};
+             (ref<IdentValue> + ((!gap::none) | !lit<"(">))> {};
 
   // `a -1` is a list of two: behind a blank, a `-` glued to a number signs it.
 
