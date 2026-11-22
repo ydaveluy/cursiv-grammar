@@ -2,7 +2,6 @@
 """Build and test one standalone language/configuration; retain failure logs."""
 import argparse
 import json
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -69,11 +68,6 @@ def run(args):
                 log = results / (label + '-cleanup.log')
                 log.write_text(str(error) + '\n')
                 result['stages'].append({'stage': 'cleanup', 'exit_code': 1, 'log': log.name})
-        if os.environ.get('GITHUB_STEP_SUMMARY'):
-            verdict = '✅ OK' if result['status'] == 'OK' else '❌ KO'
-            with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as stream:
-                stream.write('| Language | Compiler | Build + test |\n|---|---|---|\n'
-                             f'| {args.language} | {args.compiler} | {verdict} |\n')
         (results / (label + '.json')).write_text(json.dumps(result, indent=2) + '\n')
     return 0 if result['status'] == 'OK' else 1
 

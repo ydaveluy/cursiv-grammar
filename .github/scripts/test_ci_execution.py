@@ -64,9 +64,8 @@ sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
         self.assertIn('-DCMAKE_CXX_COMPILER=g++-14', commands[0]['args'])
         self.assertIn('-DCMAKE_CXX_FLAGS=-Wall -Wextra -Werror', commands[0]['args'])
         self.assertEqual(data['compiler'], 'GCC')
-        self.assertEqual((self.root / 'summary').read_text(),
-                         '| Language | Compiler | Build + test |\n|---|---|---|\n'
-                         '| csv | GCC | ✅ OK |\n')
+        # One table for the whole run comes from the report, none per build.
+        self.assertFalse((self.root / 'summary').exists())
 
     def test_configure_failure_stops_this_variant(self):
         with patch.dict(os.environ, {'CI_TEST_CONFIGURE': '2'}):
@@ -82,7 +81,7 @@ sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
         self.assertEqual(code, 1)
         self.assertEqual(data['stages'][-1]['stage'], 'build')
         self.assertEqual(len(commands), 2)
-        self.assertIn('❌ KO', (self.root / 'summary').read_text())
+        self.assertEqual(data['status'], 'KO')
 
     def test_test_failure_cannot_report_success(self):
         with patch.dict(os.environ, {'CI_TEST_TEST': '8'}):
@@ -132,8 +131,8 @@ class ReportTests(unittest.TestCase):
         text, failed = report.report(['csv', 'json'], self.root)
         self.assertTrue(failed)
         self.assertTrue(text.startswith('**2 languages: 1 OK, 1 KO**\n'))
-        self.assertIn('| csv | ✅ | ✅ |', text)
-        self.assertIn('| json | ✅ | ❌ |', text)
+        self.assertIn('| csv | ✅ OK | ✅ OK |', text)
+        self.assertIn('| json | ✅ OK | ❌ KO |', text)
 
     def test_missing_or_truncated_results_are_not_success(self):
         self.fill('csv')
@@ -141,8 +140,7 @@ class ReportTests(unittest.TestCase):
         (self.root / 'csv-Clang.json').write_text('{')
         text, failed = report.report(['csv'], self.root)
         self.assertTrue(failed)
-        self.assertIn('| csv | ❌ | ❌ |', text)
-        self.assertIn('| csv | ❌ missing | ❌ missing |', text)
+        self.assertIn('| csv | ❌ KO | ❌ KO |', text)
 
     def test_result_of_another_configuration_is_not_success(self):
         self.fill('csv')
@@ -152,7 +150,7 @@ class ReportTests(unittest.TestCase):
         _, failed = report.report(['csv'], self.root)
         self.assertTrue(failed)
 
-    def test_failures_show_the_failed_stage(self):
+    def test_one_table_with_failures_first(self):
         for language in ['csv', 'json', 'xml']:
             self.fill(language)
         self.write('json', 'GCC', 'KO', 'test')
@@ -160,22 +158,18 @@ class ReportTests(unittest.TestCase):
         (self.root / 'xml-GCC.json').unlink()
         text, failed = report.report(['csv', 'json', 'xml'], self.root)
         self.assertTrue(failed)
-        self.assertTrue(text.startswith('**3 languages: 1 OK, 2 KO**\n'))
-        failures, everything = text.split('<details>')
-        self.assertIn('| json | ❌ test | ✅ |', failures)
-        self.assertIn('| xml | ❌ missing | ❌ cleanup |', failures)
-        self.assertNotIn('csv', failures)
-        self.assertIn('<summary>All 3 languages</summary>\n\n| Language | GCC | Clang |', everything)
-        self.assertIn('| csv | ✅ | ✅ |', everything)
-        self.assertTrue(everything.endswith('</details>\n'))
+        self.assertEqual(text, '**3 languages: 1 OK, 2 KO**\n\n'
+                               '| Language | GCC | Clang |\n|---|---|---|\n'
+                               '| json | ❌ KO | ✅ OK |\n'
+                               '| xml | ❌ KO | ❌ KO |\n'
+                               '| csv | ✅ OK | ✅ OK |\n')
 
-    def test_all_ok_has_no_failure_table(self):
+    def test_all_ok(self):
         self.fill('csv')
         text, failed = report.report(['csv'], self.root)
         self.assertFalse(failed)
         self.assertTrue(text.startswith('**1 language: 1 OK, 0 KO**\n'))
-        self.assertNotIn('Failed languages', text)
-        self.assertIn('| csv | ✅ | ✅ |', text)
+        self.assertIn('| csv | ✅ OK | ✅ OK |', text)
 
     def test_empty_selection_has_no_failure(self):
         text, failed = report.report([], self.root)

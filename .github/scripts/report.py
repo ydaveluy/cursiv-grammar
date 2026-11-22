@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the per-language CI overview; missing/failed configurations fail it."""
+"""Render one OK / KO table of every language; a missing or failed build fails it."""
 import argparse
 import json
 import os
@@ -22,16 +22,6 @@ def load(files, language, compiler):
     return None
 
 
-def failed_stage(result):
-    """Return the stage that failed, or 'missing' without a valid result."""
-    if result is None:
-        return 'missing'
-    for stage in result.get('stages', []):
-        if stage.get('exit_code'):
-            return stage.get('stage', 'unknown')
-    return 'unknown'
-
-
 def table(header, rows):
     return ['| ' + ' | '.join(header) + ' |', '|' + '---|' * len(header), *rows]
 
@@ -42,29 +32,19 @@ def report(languages, results):
     files = {}
     for path in results.rglob('*.json'):
         files.setdefault(path.name, []).append(path)
-    everything, failures = [], []
+    failed, passed = [], []
     for language in languages:
-        cells, failed_cells = [], []
+        cells = []
         for compiler in COMPILERS:
             result = load(files, language, compiler)
-            if result is not None and result.get('status') == 'OK':
-                cells.append('✅')
-                failed_cells.append('✅')
-            else:
-                cells.append('❌')
-                failed_cells.append('❌ ' + failed_stage(result))
-        everything.append(f'| {language} | ' + ' | '.join(cells) + ' |')
-        if any(cell != '✅' for cell in cells):
-            failures.append(f'| {language} | ' + ' | '.join(failed_cells) + ' |')
-    header = ['Language', *COMPILERS]
+            cells.append('✅ OK' if result is not None and result.get('status') == 'OK' else '❌ KO')
+        row = f'| {language} | ' + ' | '.join(cells) + ' |'
+        (passed if all(cell == '✅ OK' for cell in cells) else failed).append(row)
     count = len(languages)
     lines = [f"**{count} language{'s' if count != 1 else ''}: "
-             f'{count - len(failures)} OK, {len(failures)} KO**', '']
-    if failures:
-        lines += ['### Failed languages', '', *table(header, failures), '']
-    lines += ['<details>', f'<summary>All {count} languages</summary>', '',
-              *table(header, everything), '', '</details>']
-    return '\n'.join(lines) + '\n', bool(failures)
+             f'{len(passed)} OK, {len(failed)} KO**', '',
+             *table(['Language', *COMPILERS], failed + passed)]
+    return '\n'.join(lines) + '\n', bool(failed)
 
 
 def main():
