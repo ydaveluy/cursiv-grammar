@@ -13,7 +13,7 @@ using J = cursiv::JsonValue;
 #include <charconv>
 int main() {
   auto language =
-      cursiv::create_language<flatbuffers::FlatbuffersCoreServices,
+      cursiv::createLanguage<flatbuffers::FlatbuffersCoreServices,
                               flatbuffers::FlatbuffersSharedCoreServices,
                               flatbuffers::install_core_module>();
   for (const auto &c : cases) {

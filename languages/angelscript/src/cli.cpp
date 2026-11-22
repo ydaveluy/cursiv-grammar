@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<angelscript::AngelscriptCoreServices,
+    &cursiv::registerLanguage<angelscript::AngelscriptCoreServices,
                            angelscript::AngelscriptSharedCoreServices,
                            angelscript::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<angelscript::AngelscriptSharedCoreServices>(
+  return cursiv::runCli<angelscript::AngelscriptSharedCoreServices>(
       argc, argv, kRegister);
 }

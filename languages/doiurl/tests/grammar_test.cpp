@@ -31,7 +31,7 @@ constexpr const char* kSamples[] = {
 
 int main() {
   const auto language =
-      cursiv::create_language<doiurl::DoiurlCoreServices,
+      cursiv::createLanguage<doiurl::DoiurlCoreServices,
                               doiurl::DoiurlSharedCoreServices,
                               doiurl::install_core_module>();
   if (doiurl_regressions(language.language)) return 1;
@@ -52,7 +52,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<doiurl::ast::DoiUri>)
+        root->type != &cursiv::kAstTypeTag<doiurl::ast::DoiUri>)
       return fail(sample, "the parse built no DoiUri");
   }
 

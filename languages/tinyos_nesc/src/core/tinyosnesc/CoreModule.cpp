@@ -9,7 +9,7 @@
 namespace tinyosnesc {
 
 void install_core_module(TinyosNescCoreServices& services) {
-  tinyosnesc::generated::TinyosNesc::install_generated_module(services);
+  tinyosnesc::generated::TinyosNesc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

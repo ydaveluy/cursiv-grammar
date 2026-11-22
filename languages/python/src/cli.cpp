@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<python::PythonCoreServices,
+    &cursiv::registerLanguage<python::PythonCoreServices,
                            python::PythonSharedCoreServices,
                            python::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<python::PythonSharedCoreServices>(
+  return cursiv::runCli<python::PythonSharedCoreServices>(
       argc, argv, kRegister);
 }

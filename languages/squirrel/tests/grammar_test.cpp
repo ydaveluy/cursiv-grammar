@@ -25,13 +25,13 @@ namespace ast = squirrel::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      squirrel::generated::Squirrel::create_parser();
+      squirrel::generated::Squirrel::createParser();
   return *p;
 }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -59,7 +59,7 @@ const char* const kExamples[] = {
 void every_example_parses_clean() {
   for (const char* const name : kExamples) {
     const std::string text =
-        cursiv::test::read_file(std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
+        cursiv::test::readFile(std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
     CHECK(!text.empty());
     const cursiv::ParseResult r = parse(kept(text));
     CHECK(r.accepted);
@@ -74,7 +74,7 @@ void every_example_parses_clean() {
 // statements: the function's name and parameter, and a couple of field
 // values read back.
 void ackermann_values() {
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       std::string(CURSIV_EXAMPLE_DIR) + "/ackermann.nut");
   const cursiv::ParseResult r = parse(kept(text));
   ast::Chunk* const root = as<ast::Chunk>(r.value);
@@ -95,7 +95,7 @@ void ackermann_values() {
 // the base name, a method's name, and the `<-` table-slot assignment.
 void class_values() {
   const std::string text =
-      cursiv::test::read_file(std::string(CURSIV_EXAMPLE_DIR) + "/class.nut");
+      cursiv::test::readFile(std::string(CURSIV_EXAMPLE_DIR) + "/class.nut");
   const cursiv::ParseResult r = parse(kept(text));
   ast::Chunk* const root = as<ast::Chunk>(r.value);
   CHECK(root != nullptr);

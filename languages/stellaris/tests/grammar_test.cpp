@@ -34,7 +34,7 @@ std::string read_file(const std::filesystem::path& path) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       stellaris::StellarisCoreServices, stellaris::StellarisSharedCoreServices,
       stellaris::install_core_module>();
 
@@ -58,7 +58,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<stellaris::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<stellaris::ast::Document>)
       return fail(path.filename().string() + ": root is not a Document");
   }
 

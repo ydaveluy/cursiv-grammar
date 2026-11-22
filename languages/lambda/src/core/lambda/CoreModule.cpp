@@ -9,7 +9,7 @@
 namespace lambda {
 
 void install_core_module(LambdaCoreServices& services) {
-  lambda::generated::Lambda::install_generated_module(services);
+  lambda::generated::Lambda::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

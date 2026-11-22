@@ -9,7 +9,7 @@
 namespace mdx {
 
 void install_core_module(MdxCoreServices& services) {
-  mdx::generated::Mdx::install_generated_module(services);
+  mdx::generated::Mdx::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

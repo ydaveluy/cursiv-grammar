@@ -5,7 +5,7 @@
 #include "thrift/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       thrift::ThriftSharedServices>(
       argc, argv, "thrift-lsp", &thrift::register_lsp_services);
 }

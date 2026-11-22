@@ -5,7 +5,7 @@
 #include "tinyc/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       tinyc::TinycSharedServices>(
       argc, argv, "tinyc-lsp", &tinyc::register_lsp_services);
 }

@@ -5,7 +5,7 @@
 #include "atl/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       atl::AtlSharedServices>(
       argc, argv, "atl-lsp", &atl::register_lsp_services);
 }

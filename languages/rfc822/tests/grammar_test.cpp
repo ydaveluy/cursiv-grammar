@@ -148,7 +148,7 @@ int check_domain_literal(const cursiv::Parser& parser,
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<rfc822::Rfc822CoreServices,
+      cursiv::createLanguage<rfc822::Rfc822CoreServices,
                               rfc822::Rfc822SharedCoreServices,
                               rfc822::install_core_module>();
   for (const auto& [text, value] : {
@@ -237,7 +237,7 @@ int main() {
     return 1;
   }
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       rfc822::Rfc822CoreServices, rfc822::Rfc822SharedCoreServices,
       rfc822::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
@@ -268,7 +268,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        !root->type->derivesFrom(&cursiv::ast_type_tag<ast::Address>))
+        !root->type->derivesFrom(&cursiv::kAstTypeTag<ast::Address>))
       failures += fail(file, "the parse built no Address");
   }
 

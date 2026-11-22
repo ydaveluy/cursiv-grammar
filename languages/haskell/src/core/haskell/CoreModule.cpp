@@ -9,7 +9,7 @@
 namespace haskell {
 
 void install_core_module(HaskellCoreServices& services) {
-  haskell::generated::Haskell::install_generated_module(services);
+  haskell::generated::Haskell::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

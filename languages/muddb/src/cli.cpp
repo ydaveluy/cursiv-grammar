@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<muddb::MuddbCoreServices,
+    &cursiv::registerLanguage<muddb::MuddbCoreServices,
                            muddb::MuddbSharedCoreServices,
                            muddb::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<muddb::MuddbSharedCoreServices>(
+  return cursiv::runCli<muddb::MuddbSharedCoreServices>(
       argc, argv, kRegister);
 }

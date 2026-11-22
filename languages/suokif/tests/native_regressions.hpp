@@ -10,7 +10,7 @@
 
 namespace native_regressions {
 inline bool run() {
-  auto language = cursiv::create_language<suokif::SuokifCoreServices,
+  auto language = cursiv::createLanguage<suokif::SuokifCoreServices,
       suokif::SuokifSharedCoreServices, suokif::install_core_module>();
   namespace ast = suokif::ast;
   bool ok = true;

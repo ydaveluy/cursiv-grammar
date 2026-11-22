@@ -19,7 +19,7 @@ struct Expected {
 };
 template<class T>
 Expected owned(std::string_view name, bool value = false, std::string_view op = {}) {
-  return {name, &cursiv::ast_type_tag<T>, value, op};
+  return {name, &cursiv::kAstTypeTag<T>, value, op};
 }
 inline bool run(const verilog::VerilogCoreServices& services,
                 const verilog::VerilogSharedCoreServices& shared) {

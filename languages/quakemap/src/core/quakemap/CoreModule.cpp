@@ -9,7 +9,7 @@
 namespace quakemap {
 
 void install_core_module(QuakemapCoreServices& services) {
-  quakemap::generated::Quakemap::install_generated_module(services);
+  quakemap::generated::Quakemap::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

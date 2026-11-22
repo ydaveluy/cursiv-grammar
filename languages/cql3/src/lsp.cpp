@@ -5,7 +5,7 @@
 #include "cql3/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       cql3::Cql3SharedServices>(
       argc, argv, "cql3-lsp", &cql3::register_lsp_services);
 }

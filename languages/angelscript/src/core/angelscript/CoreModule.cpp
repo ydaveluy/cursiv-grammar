@@ -9,7 +9,7 @@
 namespace angelscript {
 
 void install_core_module(AngelscriptCoreServices& services) {
-  angelscript::generated::Angelscript::install_generated_module(services);
+  angelscript::generated::Angelscript::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace eiffel {
 
 void install_core_module(EiffelCoreServices& services) {
-  eiffel::generated::Eiffel::install_generated_module(services);
+  eiffel::generated::Eiffel::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

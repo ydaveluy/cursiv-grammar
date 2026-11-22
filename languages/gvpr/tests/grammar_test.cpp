@@ -42,7 +42,7 @@ bool parse_clean(const Language& language, const std::filesystem::path& path) {
     return false;
   }
   const cursiv::AstNode* const root = result.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<gvpr::ast::Preds>) {
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<gvpr::ast::Preds>) {
     std::fprintf(stderr, "gvpr: %s did not build a Preds\n", path.string().c_str());
     return false;
   }
@@ -53,7 +53,7 @@ bool parse_clean(const Language& language, const std::filesystem::path& path) {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       gvpr::GvprCoreServices,
       gvpr::GvprSharedCoreServices,
       gvpr::install_core_module>();
@@ -68,7 +68,7 @@ int main() {
     if (!found) return 1;
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       gvpr::GvprCoreServices,
       gvpr::GvprSharedCoreServices,
       gvpr::install_core_module>();
@@ -96,7 +96,7 @@ int main() {
       read_file(std::filesystem::path(CURSIV_EXAMPLE_DIR) / "t1.gvpr");
   const cursiv::ParseResult t1 = language.language.parser->parse(t1Text);
   if (t1.cst().recovered() || !t1.diagnostics.empty() || t1.value == nullptr ||
-      t1.value->type != &cursiv::ast_type_tag<gvpr::ast::Preds>)
+      t1.value->type != &cursiv::kAstTypeTag<gvpr::ast::Preds>)
     return fail("t1.gvpr did not parse clean");
 
   const auto& preds = *static_cast<const gvpr::ast::Preds*>(t1.value);
@@ -104,7 +104,7 @@ int main() {
 
   const gvpr::ast::Pred* const pred = preds.items[0];
   if (pred == nullptr ||
-      pred->type != &cursiv::ast_type_tag<gvpr::ast::GuardedPred>)
+      pred->type != &cursiv::kAstTypeTag<gvpr::ast::GuardedPred>)
     return fail("t1.gvpr: expected a guarded pred");
   const auto& guarded = *static_cast<const gvpr::ast::GuardedPred*>(pred);
   if (guarded.kind != gvpr::ast::GuardKind::node_)
@@ -115,20 +115,20 @@ int main() {
 
   const gvpr::ast::Stmt* const stmt = guarded.guard->statements[0];
   if (stmt == nullptr ||
-      stmt->type != &cursiv::ast_type_tag<gvpr::ast::ExprStmt>)
+      stmt->type != &cursiv::kAstTypeTag<gvpr::ast::ExprStmt>)
     return fail("t1.gvpr: expected the guard to be one expression statement");
   const auto& exprStmt = *static_cast<const gvpr::ast::ExprStmt*>(stmt);
   if (exprStmt.expr == nullptr ||
-      exprStmt.expr->type != &cursiv::ast_type_tag<gvpr::ast::Binary>)
+      exprStmt.expr->type != &cursiv::kAstTypeTag<gvpr::ast::Binary>)
     return fail("t1.gvpr: expected the guard to compare with ==");
   const auto& eq = *static_cast<const gvpr::ast::Binary*>(exprStmt.expr);
   if (eq.op != gvpr::ast::BinOp::eq) return fail("t1.gvpr: expected ==");
-  if (eq.left == nullptr || eq.left->type != &cursiv::ast_type_tag<gvpr::ast::Var>)
+  if (eq.left == nullptr || eq.left->type != &cursiv::kAstTypeTag<gvpr::ast::Var>)
     return fail("t1.gvpr: expected a variable on the left of ==");
   const auto& layer = *static_cast<const gvpr::ast::Var*>(eq.left);
   if (layer.name != "layer") return fail("t1.gvpr: expected the name 'layer'");
   if (eq.right == nullptr ||
-      eq.right->type != &cursiv::ast_type_tag<gvpr::ast::StringLit>)
+      eq.right->type != &cursiv::kAstTypeTag<gvpr::ast::StringLit>)
     return fail("t1.gvpr: expected a string literal on the right of ==");
   const auto& str = *static_cast<const gvpr::ast::StringLit*>(eq.right);
   if (str.text != "\"(*a*)\"") return fail("t1.gvpr: expected the literal text");
@@ -142,41 +142,41 @@ int main() {
         "BEGIN { int a[int]; int x; x = a[1]; x = ARGV[0]; x = a[1, 2]; }";
     const cursiv::ParseResult r = language.language.parser->parse(text);
     if (r.cst().recovered() || !r.diagnostics.empty() || r.value == nullptr ||
-        r.value->type != &cursiv::ast_type_tag<ast::Preds>)
+        r.value->type != &cursiv::kAstTypeTag<ast::Preds>)
       return fail("arrays: did not parse clean");
     const auto& arrays = *static_cast<const ast::Preds*>(r.value);
     if (arrays.items.size() != 1 ||
-        arrays.items[0]->type != &cursiv::ast_type_tag<ast::SimplePred>)
+        arrays.items[0]->type != &cursiv::kAstTypeTag<ast::SimplePred>)
       return fail("arrays: expected one BEGIN pred");
     const auto& begin = *static_cast<const ast::SimplePred*>(arrays.items[0]);
     if (begin.body == nullptr || begin.body->statements.size() != 5)
       return fail("arrays: expected five statements");
     const auto assigned = [&](std::size_t i) -> const ast::Expr* {
       const ast::Stmt* const st = begin.body->statements[i];
-      if (st == nullptr || st->type != &cursiv::ast_type_tag<ast::ExprStmt>)
+      if (st == nullptr || st->type != &cursiv::kAstTypeTag<ast::ExprStmt>)
         return nullptr;
       const ast::Expr* const e = static_cast<const ast::ExprStmt*>(st)->expr;
-      if (e == nullptr || e->type != &cursiv::ast_type_tag<ast::Assign>)
+      if (e == nullptr || e->type != &cursiv::kAstTypeTag<ast::Assign>)
         return nullptr;
       return static_cast<const ast::Assign*>(e)->value;
     };
     const ast::Expr* const declared = assigned(2);
     if (declared == nullptr ||
-        declared->type != &cursiv::ast_type_tag<ast::Var> ||
+        declared->type != &cursiv::kAstTypeTag<ast::Var> ||
         static_cast<const ast::Var*>(declared)->index == nullptr)
       return fail("arrays: `a[1]` is not a Var with an index");
     const ast::Expr* const argv = assigned(3);
     if (argv == nullptr ||
-        argv->type != &cursiv::ast_type_tag<ast::ArrayCall> ||
+        argv->type != &cursiv::kAstTypeTag<ast::ArrayCall> ||
         static_cast<const ast::ArrayCall*>(argv)->name != "ARGV")
       return fail("arrays: `ARGV[0]` is not an ArrayCall");
     const ast::Expr* const pair = assigned(4);
     const ast::Expr* const pairIndex =
-        pair != nullptr && pair->type == &cursiv::ast_type_tag<ast::Var>
+        pair != nullptr && pair->type == &cursiv::kAstTypeTag<ast::Var>
             ? static_cast<const ast::Var*>(pair)->index
             : nullptr;
     if (pairIndex == nullptr ||
-        pairIndex->type != &cursiv::ast_type_tag<ast::Binary>)
+        pairIndex->type != &cursiv::kAstTypeTag<ast::Binary>)
       return fail("arrays: `a[1, 2]` is not one comma index");
   }
 

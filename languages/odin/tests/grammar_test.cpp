@@ -52,7 +52,7 @@ const char* const kExamples[] = {"test.odin", "demo.odin"};
 }  // namespace
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<odin::OdinCoreServices,
+  const auto language = cursiv::createLanguage<odin::OdinCoreServices,
                                                 odin::OdinSharedCoreServices,
                                                 odin::install_core_module>();
   if (!odin_native_followup(*language.language.parser)) return fail("native follow-up");
@@ -148,7 +148,7 @@ int main() {
     return 1;
   }
   const auto language =
-      cursiv::create_language<odin::OdinCoreServices,
+      cursiv::createLanguage<odin::OdinCoreServices,
                               odin::OdinSharedCoreServices,
                               odin::install_core_module>();
 
@@ -164,7 +164,7 @@ int main() {
     }
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<odin::ast::Unit>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<odin::ast::Unit>)
       return fail((std::string(name) + ": built no Unit").c_str());
 
     const auto& unit = *static_cast<const odin::ast::Unit*>(root);
@@ -185,31 +185,31 @@ int main() {
       return fail("coverage.odin: does not parse clean");
     }
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<odin::ast::Unit>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<odin::ast::Unit>)
       return fail("coverage.odin: built no Unit");
 
     const auto& unit = *static_cast<const odin::ast::Unit*>(root);
     const odin::ast::NamedDecl* multiPtr = nullptr;
     const odin::ast::NamedDecl* tight = nullptr;
     for (const odin::ast::Stmt* const item : unit.items) {
-      if (item->type != &cursiv::ast_type_tag<odin::ast::NamedDecl>) continue;
+      if (item->type != &cursiv::kAstTypeTag<odin::ast::NamedDecl>) continue;
       const auto& decl = *static_cast<const odin::ast::NamedDecl*>(item);
       if (decl.name == "multi_ptr") multiPtr = &decl;
       if (decl.name == "Tight") tight = &decl;
     }
     if (multiPtr == nullptr) return fail("coverage.odin: no multi_ptr declaration");
     if (multiPtr->value == nullptr ||
-        multiPtr->value->type != &cursiv::ast_type_tag<odin::ast::ProcExpr>)
+        multiPtr->value->type != &cursiv::kAstTypeTag<odin::ast::ProcExpr>)
       return fail("coverage.odin: multi_ptr is not a proc");
     const auto& proc = *static_cast<const odin::ast::ProcExpr*>(multiPtr->value);
     if (proc.params.size() != 1 ||
         proc.params[0]->type == nullptr ||
-        proc.params[0]->type->type != &cursiv::ast_type_tag<odin::ast::MultiPointerType>)
+        proc.params[0]->type->type != &cursiv::kAstTypeTag<odin::ast::MultiPointerType>)
       return fail("coverage.odin: multi_ptr's parameter is not a multi-pointer");
 
     if (tight == nullptr) return fail("coverage.odin: no Tight declaration");
     if (tight->typeDecl == nullptr ||
-        tight->typeDecl->type != &cursiv::ast_type_tag<odin::ast::StructType>)
+        tight->typeDecl->type != &cursiv::kAstTypeTag<odin::ast::StructType>)
       return fail("coverage.odin: Tight is not a struct");
     const auto& tightStruct = *static_cast<const odin::ast::StructType*>(tight->typeDecl);
     if (!tightStruct.simple() || !tightStruct.allOrNone() ||
@@ -231,29 +231,29 @@ int main() {
     return fail("test.odin: wrong import");
   if (unit.items.size() != 1) return fail("test.odin: expected one declaration");
 
-  if (unit.items[0]->type != &cursiv::ast_type_tag<odin::ast::NamedDecl>)
+  if (unit.items[0]->type != &cursiv::kAstTypeTag<odin::ast::NamedDecl>)
     return fail("test.odin: declaration is not a NamedDecl");
   const auto& mainDecl = *static_cast<const odin::ast::NamedDecl*>(unit.items[0]);
   if (mainDecl.name != "main") return fail("test.odin: wrong declaration name");
   if (mainDecl.value == nullptr ||
-      mainDecl.value->type != &cursiv::ast_type_tag<odin::ast::ProcExpr>)
+      mainDecl.value->type != &cursiv::kAstTypeTag<odin::ast::ProcExpr>)
     return fail("test.odin: main is not a proc");
 
   const auto& mainProc = *static_cast<const odin::ast::ProcExpr*>(mainDecl.value);
   if (mainProc.body == nullptr ||
-      mainProc.body->type != &cursiv::ast_type_tag<odin::ast::Block>)
+      mainProc.body->type != &cursiv::kAstTypeTag<odin::ast::Block>)
     return fail("test.odin: main's body is not a block");
   const auto& body = *static_cast<const odin::ast::Block*>(mainProc.body);
   if (body.items.size() != 2)
     return fail("test.odin: expected two statements in main's body");
-  if (body.items[1]->type != &cursiv::ast_type_tag<odin::ast::VarDecl>)
+  if (body.items[1]->type != &cursiv::kAstTypeTag<odin::ast::VarDecl>)
     return fail("test.odin: second statement is not a var_decl");
   const auto& varDecl = *static_cast<const odin::ast::VarDecl*>(body.items[1]);
   if (varDecl.names.size() != 2 || varDecl.names[0] != "i" || varDecl.names[1] != "j")
     return fail("test.odin: wrong variable names");
   if (varDecl.values.size() != 2)
     return fail("test.odin: wrong initializer count");
-  if (varDecl.values[0]->type != &cursiv::ast_type_tag<odin::ast::IntLit>)
+  if (varDecl.values[0]->type != &cursiv::kAstTypeTag<odin::ast::IntLit>)
     return fail("test.odin: first initializer is not an int literal");
   if (static_cast<const odin::ast::IntLit*>(varDecl.values[0])->text != "1")
     return fail("test.odin: wrong first initializer value");
@@ -268,13 +268,13 @@ int main() {
     if (r.cst().recovered() || !r.diagnostics.empty()) return nullptr;
     const auto& u = *static_cast<const odin::ast::Unit*>(r.value);
     if (u.items.size() != 1 ||
-        u.items[0]->type != &cursiv::ast_type_tag<odin::ast::VarDecl>)
+        u.items[0]->type != &cursiv::kAstTypeTag<odin::ast::VarDecl>)
       return nullptr;
     const auto& v = *static_cast<const odin::ast::VarDecl*>(u.items[0]);
     return v.values.size() == 1 ? v.values[0] : nullptr;
   };
   auto asBinary = [](const odin::ast::Expr* e) -> const odin::ast::BinaryExpr* {
-    return e != nullptr && e->type == &cursiv::ast_type_tag<odin::ast::BinaryExpr>
+    return e != nullptr && e->type == &cursiv::kAstTypeTag<odin::ast::BinaryExpr>
                ? static_cast<const odin::ast::BinaryExpr*>(e)
                : nullptr;
   };
@@ -305,7 +305,7 @@ int main() {
     const auto* top = asBinary(exprValue(text));
     const bool leftIsUnary =
         top != nullptr && top->left != nullptr &&
-        top->left->type == &cursiv::ast_type_tag<odin::ast::UnaryExpr>;
+        top->left->type == &cursiv::kAstTypeTag<odin::ast::UnaryExpr>;
     if (top == nullptr || top->op != "*" || !leftIsUnary)
       return fail("precedence: `-a * b` did not read as `(-a) * b`");
   }
@@ -325,13 +325,13 @@ int main() {
     const auto& block = *static_cast<const odin::ast::Block*>(proc.body);
     if (block.items.size() != 2 ||
         block.items[0]->type !=
-            &cursiv::ast_type_tag<odin::ast::TypeSwitchStmt> ||
-        block.items[1]->type != &cursiv::ast_type_tag<odin::ast::SwitchStmt>)
+            &cursiv::kAstTypeTag<odin::ast::TypeSwitchStmt> ||
+        block.items[1]->type != &cursiv::kAstTypeTag<odin::ast::SwitchStmt>)
       return fail("type switch: `switch v in val` is not a TypeSwitchStmt");
     const auto& ts =
         *static_cast<const odin::ast::TypeSwitchStmt*>(block.items[0]);
     if (ts.name != "v" || ts.value == nullptr ||
-        ts.value->type != &cursiv::ast_type_tag<odin::ast::Ident> ||
+        ts.value->type != &cursiv::kAstTypeTag<odin::ast::Ident> ||
         ts.cases.size() != 3 || ts.cases[0]->values.size() != 1 ||
         !std::holds_alternative<odin::ast::Type*>(ts.cases[0]->values[0]) ||
         ts.cases[1]->values.size() != 2 ||

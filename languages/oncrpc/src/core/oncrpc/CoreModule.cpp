@@ -9,7 +9,7 @@
 namespace oncrpc {
 
 void install_core_module(OncrpcCoreServices& services) {
-  oncrpc::generated::Oncrpc::install_generated_module(services);
+  oncrpc::generated::Oncrpc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

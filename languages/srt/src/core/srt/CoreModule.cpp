@@ -9,7 +9,7 @@
 namespace srt {
 
 void install_core_module(SrtCoreServices& services) {
-  srt::generated::Srt::install_generated_module(services);
+  srt::generated::Srt::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

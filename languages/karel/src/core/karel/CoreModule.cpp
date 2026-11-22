@@ -9,7 +9,7 @@
 namespace karel {
 
 void install_core_module(KarelCoreServices& services) {
-  karel::generated::Karel::install_generated_module(services);
+  karel::generated::Karel::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

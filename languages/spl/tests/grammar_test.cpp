@@ -13,7 +13,6 @@
 #include "cursiv/syntax-tree/AstReflection.hpp"
 #include "cursiv/Check.hpp"
 #include "spl/ast.hpp"
-#include "spl/generated/Spl/AstReflection.hpp"
 #include "spl/generated/Spl/Module.hpp"
 
 namespace {
@@ -23,19 +22,19 @@ namespace fs = std::filesystem;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      spl::generated::Spl::create_parser();
+      spl::generated::Spl::createParser();
   return *p;
 }
 
 const cursiv::AstReflection& reflection() {
   static const std::unique_ptr<cursiv::AstReflection> r =
-      spl::generated::Spl::create_ast_reflection();
+      spl::generated::Spl::createAstReflection();
   return *r;
 }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && reflection().isInstance(*n, &cursiv::ast_type_tag<T>))
+  return (n != nullptr && reflection().isInstance(*n, &cursiv::kAstTypeTag<T>))
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -185,7 +184,7 @@ void corpus() {
   const std::vector<fs::path> files = corpus_files();
   CHECK(!files.empty());
   for (const fs::path& file : files) {
-    const std::string src = cursiv::test::read_file(file.string());
+    const std::string src = cursiv::test::readFile(file.string());
     const cursiv::ParseResult r = engine().parse(src);
     const bool clean = r.accepted && !r.cst().recovered() && r.diagnostics.empty();
     if (!clean) {

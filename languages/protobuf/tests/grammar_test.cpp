@@ -31,7 +31,7 @@ namespace fs = std::filesystem;
 
 const cursiv::Parser &engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      protobuf::generated::Protobuf::create_parser();
+      protobuf::generated::Protobuf::createParser();
   return *p;
 }
 
@@ -84,7 +84,7 @@ void true_false_guard() {
 // `extend`, and `reserved N to max` -- constructs the shipped corpus never
 // exercises.
 void gap_constructs() {
-  const std::string src = cursiv::test::read_file(
+  const std::string src = cursiv::test::readFile(
       (fs::path(CURSIV_TEST_DIR) / "gap_constructs.proto").string());
   const cursiv::ParseResult r = build(src);
   CHECK(is_clean(r));
@@ -116,7 +116,7 @@ void gap_constructs() {
 void field_values() {
   const fs::path dir = fs::path(CURSIV_EXAMPLE_DIR) / "example";
   const std::string src =
-      cursiv::test::read_file((dir / "example.proto").string());
+      cursiv::test::readFile((dir / "example.proto").string());
   const cursiv::ParseResult r = build(src);
   ast::Document *const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr);
@@ -200,7 +200,7 @@ void field_values() {
 void field_option_unescape() {
   const fs::path dir = fs::path(CURSIV_EXAMPLE_DIR) / "example";
   const std::string src =
-      cursiv::test::read_file((dir / "helloworldreserved.proto").string());
+      cursiv::test::readFile((dir / "helloworldreserved.proto").string());
   const cursiv::ParseResult r = build(src);
   ast::Document *const doc = r.valueAs<ast::Document>();
   CHECK(doc != nullptr && doc->messages.size() == 2);
@@ -301,7 +301,7 @@ void corpus() {
 
   int clean_count = 0;
   for (const fs::path &file : files) {
-    const std::string src = cursiv::test::read_file(file.string());
+    const std::string src = cursiv::test::readFile(file.string());
     const cursiv::ParseResult r = engine().parse(src);
     CHECK(is_clean(r));
     if (!is_clean(r))
@@ -316,7 +316,7 @@ void corpus() {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<protobuf::ProtobufCoreServices,
+      cursiv::createLanguage<protobuf::ProtobufCoreServices,
                               protobuf::ProtobufSharedCoreServices,
                               protobuf::install_core_module>();
   if (!protobuf_proto2_extensions::run(language.language)) return 1;

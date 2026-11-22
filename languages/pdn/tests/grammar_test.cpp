@@ -39,7 +39,7 @@ std::vector<std::string> split(const std::string &s, char sep) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<pdn::PdnCoreServices, pdn::PdnSharedCoreServices,
+      cursiv::createLanguage<pdn::PdnCoreServices, pdn::PdnSharedCoreServices,
                               pdn::install_core_module>();
   {
     const auto r = language.language.parser->parse("1. 32x23x14 1-0");
@@ -63,7 +63,7 @@ int main() {
     return 1;
   }
   const auto language =
-      cursiv::create_language<pdn::PdnCoreServices, pdn::PdnSharedCoreServices,
+      cursiv::createLanguage<pdn::PdnCoreServices, pdn::PdnSharedCoreServices,
                               pdn::install_core_module>();
 
   pdn_regressions(language.language);
@@ -85,7 +85,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<pdn::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<pdn::ast::Document>)
       return fail(path, "the parse built no Document");
 
     cursiv::Document document(

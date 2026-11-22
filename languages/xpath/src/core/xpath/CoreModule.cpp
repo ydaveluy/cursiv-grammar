@@ -9,7 +9,7 @@
 namespace xpath {
 
 void install_core_module(XpathCoreServices& services) {
-  xpath::generated::Xpath::install_generated_module(services);
+  xpath::generated::Xpath::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

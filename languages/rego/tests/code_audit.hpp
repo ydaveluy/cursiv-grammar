@@ -18,10 +18,10 @@ inline unsigned validate(const rego::RegoCoreServices& services,
       services, std::string(source)).diagnostics.size());
 }
 inline bool run() {
-  auto language = cursiv::create_language<rego::RegoCoreServices,
+  auto language = cursiv::createLanguage<rego::RegoCoreServices,
                                           rego::RegoSharedCoreServices,
                                           rego::install_core_module>();
-  auto reflection = rego::generated::Rego::create_ast_reflection();
+  auto reflection = rego::generated::Rego::createAstReflection();
   bool ok = true;
   auto check = [&](bool b, const char* s) {
     if (!b) {

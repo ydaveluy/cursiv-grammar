@@ -5,7 +5,7 @@
 #include "graphstreamdgs/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       graphstreamdgs::GraphstreamDgsSharedServices>(
       argc, argv, "graphstreamdgs-lsp", &graphstreamdgs::register_lsp_services);
 }

@@ -5,7 +5,7 @@
 #include "fortran/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       fortran::FortranSharedServices>(
       argc, argv, "fortran-lsp", &fortran::register_lsp_services);
 }

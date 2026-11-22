@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <unordered_set>
 int main() {
-  const auto lang = cursiv::create_language<javadoc::JavadocCoreServices,
+  const auto lang = cursiv::createLanguage<javadoc::JavadocCoreServices,
                                             javadoc::JavadocSharedCoreServices,
                                             javadoc::install_core_module>();
   bool ok = true;
@@ -78,7 +78,7 @@ int main() {
       // it in `data`.
       const std::string_view code = d.code && d.code->isString()
                                         ? std::string_view(d.code->string())
-                                        : cursiv::data_code(d);
+                                        : cursiv::dataCode(d);
       check(!code.empty() && d.range.begin <= d.range.end &&
                 d.range.end <= source.size(),
             c.name, "precise bounded diagnostic");

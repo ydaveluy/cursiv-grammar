@@ -81,7 +81,7 @@ export * from "b.json" with {type: "json"};
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<javascript::JavaScriptCoreServices,
+        cursiv::createLanguage<javascript::JavaScriptCoreServices,
                                 javascript::JavaScriptSharedCoreServices,
                                 javascript::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -113,7 +113,7 @@ int main() {
     return fail("no example files found");
 
   const auto language =
-      cursiv::create_language<javascript::JavaScriptCoreServices,
+      cursiv::createLanguage<javascript::JavaScriptCoreServices,
                               javascript::JavaScriptSharedCoreServices,
                               javascript::install_core_module>();
   if (modern_syntax(*language.language.parser))
@@ -143,7 +143,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<javascript::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<javascript::ast::Program>)
       return fail(path.string() + ": the parse built no program");
   }
 
@@ -160,7 +160,7 @@ int main() {
     return language.language.parser->parse(text);
   };
   const auto isBinary = [](const cursiv::AstNode *n) {
-    return n->type == &cursiv::ast_type_tag<javascript::ast::BinaryExpr>;
+    return n->type == &cursiv::kAstTypeTag<javascript::ast::BinaryExpr>;
   };
   const auto topBinary = [](const cursiv::ParseResult &result) {
     const auto *const program = result.valueAs<javascript::ast::Program>();

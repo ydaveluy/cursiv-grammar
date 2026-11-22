@@ -28,7 +28,7 @@ std::string read_file(const char* path) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       karel::KarelCoreServices, karel::KarelSharedCoreServices,
       karel::install_core_module>();
 
@@ -44,7 +44,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<karel::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<karel::ast::Program>)
       return fail("example1.karel built no Program");
 
     const auto& program = *static_cast<const karel::ast::Program*>(root);
@@ -68,7 +68,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<karel::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<karel::ast::Program>)
       return fail("patrol.karel built no Program");
 
     const auto& program = *static_cast<const karel::ast::Program*>(root);

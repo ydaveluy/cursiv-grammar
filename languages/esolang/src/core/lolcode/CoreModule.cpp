@@ -9,7 +9,7 @@
 namespace lolcode {
 
 void install_core_module(LolcodeCoreServices& services) {
-  lolcode::generated::Lolcode::install_generated_module(services);
+  lolcode::generated::Lolcode::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

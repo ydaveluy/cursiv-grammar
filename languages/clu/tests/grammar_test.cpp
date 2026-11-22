@@ -25,7 +25,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 }
 
 int check_fields(const std::filesystem::path& dir) {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       clu::CluCoreServices, clu::CluSharedCoreServices,
       clu::install_core_module>();
 
@@ -42,7 +42,7 @@ int check_fields(const std::filesystem::path& dir) {
   const auto* const module = result.valueAs<clu::ast::Module>();
   if (module == nullptr) return fail(file, "the parse built no Module");
   if (module->routine == nullptr ||
-      module->routine->type != &cursiv::ast_type_tag<clu::ast::Routine>)
+      module->routine->type != &cursiv::kAstTypeTag<clu::ast::Routine>)
     return fail(file, "the module's routine is not a Routine");
 
   const auto& routine = *static_cast<const clu::ast::Routine*>(module->routine);
@@ -53,7 +53,7 @@ int check_fields(const std::filesystem::path& dir) {
       routine.ownVars[0]->decls[0]->names[0] != "po")
     return fail(file, "the own variable's name does not read back");
   if (routine.statements.empty() ||
-      routine.statements[0]->type != &cursiv::ast_type_tag<clu::ast::ForStmt>)
+      routine.statements[0]->type != &cursiv::kAstTypeTag<clu::ast::ForStmt>)
     return fail(file, "the first statement is not the for loop");
 
   const auto& loop =
@@ -68,7 +68,7 @@ int check_fields(const std::filesystem::path& dir) {
 // `**` is right-associative (CLU Reference Manual, A.6.11, p.356): the only
 // operator so marked, and the port's own infix table had it left.
 int check_power_right_assoc() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       clu::CluCoreServices, clu::CluSharedCoreServices,
       clu::install_core_module>();
   const cursiv::ParseResult r = language.language.parser->parse(
@@ -81,16 +81,16 @@ int check_power_right_assoc() {
   const auto& outer =
       *static_cast<const clu::ast::VarInitStmt*>(routine.statements[0]);
   const auto* const add = static_cast<const clu::ast::BinaryExpr*>(outer.value);
-  if (add->type != &cursiv::ast_type_tag<clu::ast::BinaryExpr> ||
+  if (add->type != &cursiv::kAstTypeTag<clu::ast::BinaryExpr> ||
       add->op != clu::ast::BinOp::add)
     return fail("probe", "a + (...) is not the outermost node");
   const auto* const rhs = static_cast<const clu::ast::BinaryExpr*>(add->right);
-  if (rhs->type != &cursiv::ast_type_tag<clu::ast::BinaryExpr> ||
+  if (rhs->type != &cursiv::kAstTypeTag<clu::ast::BinaryExpr> ||
       rhs->op != clu::ast::BinOp::power)
     return fail("probe", "b ** c ** d did not group under +");
   const auto* const rhsRight =
       static_cast<const clu::ast::BinaryExpr*>(rhs->right);
-  if (rhsRight->type != &cursiv::ast_type_tag<clu::ast::BinaryExpr> ||
+  if (rhsRight->type != &cursiv::kAstTypeTag<clu::ast::BinaryExpr> ||
       rhsRight->op != clu::ast::BinOp::power)
     return fail("probe", "b ** c ** d read left-associative: (b ** c) ** d");
   return 0;
@@ -102,7 +102,7 @@ int check_power_right_assoc() {
 // `foo` names a constant or a type is left to name resolution; a type keyword
 // still opens a type_spec (`R = int`).
 int check_equate_bare_name_reading() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       clu::CluCoreServices, clu::CluSharedCoreServices,
       clu::install_core_module>();
   const cursiv::ParseResult r = language.language.parser->parse(
@@ -119,7 +119,7 @@ int check_equate_bare_name_reading() {
     return fail("probe", "Q = foo no longer reads as an Expression");
   const auto* const name = static_cast<const clu::ast::NameRef*>(
       std::get<clu::ast::Expression*>(bare.value));
-  if (name->type != &cursiv::ast_type_tag<clu::ast::NameRef> ||
+  if (name->type != &cursiv::kAstTypeTag<clu::ast::NameRef> ||
       name->name != "foo")
     return fail("probe", "Q = foo is not the name foo");
 
@@ -131,7 +131,7 @@ int check_equate_bare_name_reading() {
 
 int check_native_shapes() {
   namespace ast = clu::ast;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       clu::CluCoreServices, clu::CluSharedCoreServices, clu::install_core_module>();
   const std::string source = R"clu(
 _P = PROC [T: TYPE] (a: ARRAY[T], s: SEQUENCE[INT]);
@@ -204,7 +204,7 @@ END _p;
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       clu::CluCoreServices, clu::CluSharedCoreServices,
       clu::install_core_module>();
 
@@ -244,7 +244,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<clu::ast::Module>)
+        root->type != &cursiv::kAstTypeTag<clu::ast::Module>)
       failures += fail(file, "the parse built no Module");
   }
 

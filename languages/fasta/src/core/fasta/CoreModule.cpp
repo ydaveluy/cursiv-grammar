@@ -9,7 +9,7 @@
 namespace fasta {
 
 void install_core_module(FastaCoreServices& services) {
-  fasta::generated::Fasta::install_generated_module(services);
+  fasta::generated::Fasta::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

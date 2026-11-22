@@ -9,7 +9,7 @@
 namespace evmbytecode {
 
 void install_core_module(EvmBytecodeCoreServices& services) {
-  evmbytecode::generated::EvmBytecode::install_generated_module(services);
+  evmbytecode::generated::EvmBytecode::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

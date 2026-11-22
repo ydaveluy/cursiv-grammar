@@ -9,7 +9,7 @@
 namespace istc {
 
 void install_core_module(IstcCoreServices& services) {
-  istc::generated::Istc::install_generated_module(services);
+  istc::generated::Istc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -30,7 +30,7 @@ int fail(const fs::path& file, const char* what) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<morsecode::MorsecodeCoreServices,
+      cursiv::createLanguage<morsecode::MorsecodeCoreServices,
                               morsecode::MorsecodeSharedCoreServices,
                               morsecode::install_core_module>();
   {
@@ -47,7 +47,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       morsecode::MorsecodeCoreServices, morsecode::MorsecodeSharedCoreServices,
       morsecode::install_core_module>();
 
@@ -78,7 +78,7 @@ int main() {
       }
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<morsecode::ast::Message>) {
+          root->type != &cursiv::kAstTypeTag<morsecode::ast::Message>) {
         failures += fail(entry.path(), "the parse built no Message");
         continue;
       }

@@ -5,7 +5,7 @@
 #include "pdn/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       pdn::PdnSharedServices>(
       argc, argv, "pdn-lsp", &pdn::register_lsp_services);
 }

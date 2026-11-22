@@ -20,7 +20,7 @@ namespace ast = infosapient::ast;
 
 const cursiv::Parser &engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      infosapient::generated::Infosapient::create_parser();
+      infosapient::generated::Infosapient::createParser();
   return *p;
 }
 
@@ -36,7 +36,7 @@ void corpus() {
   const std::vector<std::filesystem::path> paths = examples();
   CHECK(!paths.empty());
   for (const std::filesystem::path &path : paths) {
-    const std::string src = cursiv::test::read_file(path.string());
+    const std::string src = cursiv::test::readFile(path.string());
     CHECK(!src.empty());
 
     const cursiv::ParseResult r = engine().parse(src);
@@ -47,7 +47,7 @@ void corpus() {
 
     const cursiv::AstNode *const root = r.value;
     CHECK(root != nullptr &&
-          root->type == &cursiv::ast_type_tag<ast::ConditionalRule>);
+          root->type == &cursiv::kAstTypeTag<ast::ConditionalRule>);
   }
 }
 

@@ -31,7 +31,7 @@ int main() {
       if (entry.path().extension() == ".abnf") files.push_back(entry.path());
   if (files.empty()) return fail(CURSIV_EXAMPLE_DIR, "no example found");
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       abnf::AbnfCoreServices,
       abnf::AbnfSharedCoreServices,
       abnf::install_core_module>();
@@ -54,7 +54,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<abnf::ast::Rulelist>)
+        root->type != &cursiv::kAstTypeTag<abnf::ast::Rulelist>)
       return fail(path.string(), "built no rulelist");
 
     const auto& rulelist = *static_cast<const abnf::ast::Rulelist*>(root);

@@ -9,7 +9,7 @@
 namespace xyz {
 
 void install_core_module(XyzCoreServices& services) {
-  xyz::generated::Xyz::install_generated_module(services);
+  xyz::generated::Xyz::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

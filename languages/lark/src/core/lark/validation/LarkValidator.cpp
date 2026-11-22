@@ -21,7 +21,7 @@ std::string digits(std::string_view number) {
   std::string out;
   while (!number.empty()) {
     std::size_t width = 0;
-    const auto scalar = cursiv::scalar_at(number.data(), number.size(), width);
+    const auto scalar = cursiv::scalarAt(number.data(), number.size(), width);
     if (!width) return {};
     for (const auto& range : cursiv::unicode::kNd)
       if (scalar >= range.lo && scalar <= range.hi) {

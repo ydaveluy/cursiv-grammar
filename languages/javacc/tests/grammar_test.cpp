@@ -34,7 +34,7 @@ std::string read_file(const fs::path& path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
@@ -42,7 +42,7 @@ const T* as(const cursiv::AstNode* node) {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       javacc::JavaccCoreServices, javacc::JavaccSharedCoreServices,
       javacc::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("PARSER_BEGIN(P)\nclass P { void f(int x) { switch (x) { case 1: break; } } }\nPARSER_END(P)\nvoid Empty():{} { }\n");
@@ -52,7 +52,7 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       javacc::JavaccCoreServices, javacc::JavaccSharedCoreServices,
       javacc::install_core_module>();
 
@@ -77,7 +77,7 @@ int main() {
       return fail(doc.string() + ": the parse left diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<javacc::ast::JavaccInput>)
+        root->type != &cursiv::kAstTypeTag<javacc::ast::JavaccInput>)
       return fail(doc.string() + ": the parse built no javacc_input");
     if (doc.filename() == "Simple1.jj") simple1_doc = doc;
   }
@@ -105,7 +105,7 @@ int main() {
       return fail("Simple1.jj: expected two productions");
     const javacc::ast::Production* const prod0 = input.productions[0];
     if (prod0 == nullptr ||
-        prod0->type != &cursiv::ast_type_tag<javacc::ast::BnfProduction>)
+        prod0->type != &cursiv::kAstTypeTag<javacc::ast::BnfProduction>)
       return fail("Simple1.jj: first production is not a BnfProduction");
     const auto& input_prod = *static_cast<const javacc::ast::BnfProduction*>(prod0);
     if (input_prod.name != "Input" || input_prod.resultType == nullptr ||

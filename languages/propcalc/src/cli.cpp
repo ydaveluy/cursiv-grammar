@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<propcalc::PropcalcCoreServices,
+    &cursiv::registerLanguage<propcalc::PropcalcCoreServices,
                            propcalc::PropcalcSharedCoreServices,
                            propcalc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<propcalc::PropcalcSharedCoreServices>(
+  return cursiv::runCli<propcalc::PropcalcSharedCoreServices>(
       argc, argv, kRegister);
 }

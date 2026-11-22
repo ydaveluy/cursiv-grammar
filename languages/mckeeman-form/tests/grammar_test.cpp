@@ -26,7 +26,7 @@ int fail(const char* file, const char* what) {
 
 int main() {
   const auto language =
-      cursiv::create_language<mckeemanform::MckeemanFormCoreServices,
+      cursiv::createLanguage<mckeemanform::MckeemanFormCoreServices,
                               mckeemanform::MckeemanFormSharedCoreServices,
                               mckeemanform::install_core_module>();
 
@@ -47,7 +47,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<mckeemanform::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<mckeemanform::ast::Document>)
       return fail(path, "built no document");
 
     const auto& document =

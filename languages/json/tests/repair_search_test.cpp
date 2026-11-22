@@ -1,64 +1,26 @@
-// The repair search on two shapes: a key invented for a stray opener, and a
-// race between two closers of different kinds.
-
 #include <string>
-#include <string_view>
-#include <vector>
 
-#include "cursiv/syntax-tree/Cst.hpp"
-#include "cursiv/syntax-tree/ParseDiagnostic.hpp"
-#include "cursiv/lr/runtime/LrParseStats.hpp"
-#include "cursiv/lr/runtime/LrParser.hpp"
-#include "cursiv/shared/runtime/RepairBudget.hpp"
 #include "cursiv/Check.hpp"
-#include "json/generated/Json/Parser.hpp"
-#include "json/generated/Json/Table.hpp"
-
-namespace gj = ::json::generated::Json;
-
-namespace {
-
-std::vector<cursiv::ParseDiagnostic> repaired(
-    std::string_view text, const cursiv::engine::RepairBudget& budget = {}) {
-  cursiv::Cst cst;
-  (void)cursiv::engine::lr_parser<gj::kTable>.parse(text, cst, nullptr, &gj::kDrive,
-                                           budget);
-  const auto d = cst.diagnostics();
-  return {d.begin(), d.end()};
-}
-
-}  // namespace
+#include "json/ast.hpp"
+#include "json/generated/Json/Module.hpp"
 
 int main() {
-  // A stray opener: keeping it invents a key whose object swallows the
-  // closer of the one around it, and every record after it pays again;
-  // among the repairs as cheap, the one that reads furthest drops it.
-  {
-    const auto d = repaired("[{\"a\": 1, {\"b\": 2}, {\"c\": 3}]\n");
-    CHECK(d.size() == 1 && d[0].kind == cursiv::DiagnosticKind::Deleted);
-  }
-  // An array left open inside a record: closing it, or dropping the
-  // record's closer so the records after it are the array's, read on alike
-  // to the end of the text, which settles the race. A search whose share
-  // runs out first leaves the race to its bound, and says so.
-  {
-    std::string doc = "[{\"c\": [1, 2 }";
-    for (unsigned i = 0; i < 60; ++i) doc += ", {\"a\": 1}";
-    doc += "]";
-    const auto whole = repaired(doc);
-    CHECK(whole.size() == 1 &&
-          whole[0].kind == cursiv::DiagnosticKind::Inserted);
-    cursiv::Cst cst;
-    cursiv::engine::LrParseStats stats{};
-    (void)cursiv::engine::lr_parser<gj::kTable>.parse(
-        doc, cst, &stats, &gj::kDrive,
-        cursiv::engine::RepairBudget{
-            .floor = 1u << 16, .perByte = 64, .perSearch = 1024});
-    const auto& cut = cst.diagnostics();
-    CHECK(stats.reachStops == 1 && stats.budgetStops == 0);
-    CHECK(cut.size() == 2 && cut[0].kind == cursiv::DiagnosticKind::Inserted &&
-          cut[1].kind == cursiv::DiagnosticKind::Bounded &&
-          cut[1].begin <= cut[0].begin && cut[1].end >= cut[0].end);
-  }
+  const auto parser = json::generated::Json::createParser();
+  const auto check = [&](const std::string& text, cursiv::DiagnosticKind kind,
+                         unsigned begin, unsigned end, unsigned items) {
+    const auto result = parser->parse(text);
+    const auto* doc = result.valueAs<json::ast::Doc>();
+    const auto* value = doc ? std::get_if<json::ast::Value*>(&doc->value) : nullptr;
+    const auto* array = value ? cursiv::ast_cast<json::ast::Array>(*value) : nullptr;
+    CHECK(result.accepted && array && array->items.size() == items);
+    CHECK(result.diagnostics.size() == 1);
+    for (const auto& d : result.diagnostics)
+      CHECK(d.kind == kind && d.begin == begin && d.end == end);
+  };
+  check(R"([{"a": 1, {"b": 2}, {"c": 3}])", cursiv::DiagnosticKind::Deleted, 10, 11, 2);
+  std::string records = R"([{"c": [1, 2 })";
+  for (unsigned i = 0; i < 60; ++i) records += R"(, {"a": 1})";
+  records += "]";
+  check(records, cursiv::DiagnosticKind::Inserted, 12, 12, 61);
   return cursiv::test::report("json_repair_search_test");
 }

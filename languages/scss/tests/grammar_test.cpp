@@ -32,13 +32,13 @@ int fail(const fs::path& file, const char* what) {
 
 template <class T>
 bool is(const cursiv::AstNode* node) {
-  return node != nullptr && node->type == &cursiv::ast_type_tag<T>;
+  return node != nullptr && node->type == &cursiv::kAstTypeTag<T>;
 }
 
 }  // namespace
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<scss::ScssCoreServices,
+  const auto language = cursiv::createLanguage<scss::ScssCoreServices,
                                                 scss::ScssSharedCoreServices,
                                                 scss::install_core_module>();
   // Keyword-shaped pseudo names must retain the selector AST, including
@@ -133,7 +133,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       scss::ScssCoreServices, scss::ScssSharedCoreServices,
       scss::install_core_module>();
 

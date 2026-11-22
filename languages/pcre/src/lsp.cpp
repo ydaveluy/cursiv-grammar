@@ -5,7 +5,7 @@
 #include "pcre/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       pcre::PcreSharedServices>(
       argc, argv, "pcre-lsp", &pcre::register_lsp_services);
 }

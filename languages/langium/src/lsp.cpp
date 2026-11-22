@@ -5,7 +5,7 @@
 #include "langium/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       langium::LangiumSharedServices>(
       argc, argv, "langium-lsp", &langium::register_lsp_services);
 }

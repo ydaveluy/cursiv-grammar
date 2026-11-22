@@ -17,7 +17,7 @@ namespace {
 namespace fs = std::filesystem;
 
 const auto& services() {
-  static const auto language = cursiv::create_language<
+  static const auto language = cursiv::createLanguage<
       lisp::LispCoreServices, lisp::LispSharedCoreServices, lisp::install_core_module>();
   return language.language;
 }
@@ -30,7 +30,7 @@ void examples() {
     if (!entry.is_regular_file() || entry.path().extension() != ".lisp")
       continue;
     ++seen;
-    const std::string text = cursiv::test::read_file(entry.path().string());
+    const std::string text = cursiv::test::readFile(entry.path().string());
     const cursiv::ParseResult r = engine().parse(text);
     CHECK(r.accepted && !r.cst().recovered());
     CHECK(r.valueAs<lisp::ast::Doc>() != nullptr);

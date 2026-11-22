@@ -11,11 +11,11 @@
 #include <string>
 namespace audit_regressions {
 template <class T> T *as(cursiv::AstNode *p) {
-  return p && p->type == &cursiv::ast_type_tag<T> ? static_cast<T *>(p)
+  return p && p->type == &cursiv::kAstTypeTag<T> ? static_cast<T *>(p)
                                                   : nullptr;
 }
 inline bool run() {
-  auto parser = sieve::generated::Sieve::create_parser();
+  auto parser = sieve::generated::Sieve::createParser();
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) {
@@ -83,7 +83,7 @@ inline bool run() {
               root->commands.empty(),
           "empty script");
   }
-  const auto language = cursiv::create_language<sieve::SieveCoreServices,
+  const auto language = cursiv::createLanguage<sieve::SieveCoreServices,
                                                 sieve::SieveSharedCoreServices,
                                                 sieve::install_core_module>();
   for (const auto &[source, code] :

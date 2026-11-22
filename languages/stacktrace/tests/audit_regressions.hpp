@@ -9,7 +9,7 @@
 
 namespace audit_regressions {
 inline bool run() {
-  auto parser = stacktrace::generated::Stacktrace::create_parser();
+  auto parser = stacktrace::generated::Stacktrace::createParser();
   for (const auto* origin : {"space loader//", "space loader/mod.name@1.0/"}) {
     const std::string source = std::string("java.lang.RuntimeException: message\n\tat ") +
         origin + "demo.Main.run(Main.java:9)\n";

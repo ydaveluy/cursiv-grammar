@@ -35,14 +35,16 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 BitTorrent's data format: four shapes, no delimiters beyond a length count.
 
 ```
-d4:infod6:lengthi1024e4:name8:file.txt12:piece lengthi16384e6:pieces0:ee4:urlsl21:http://example.com:80ee
+d4:infod6:lengthi1024e4:name8:file.txt12:piece lengthi16384e6:pieces0:e4:urlsl21:http://example.com:80ee
 ```
 
 A dictionary (`d...e`) whose `info` key holds a nested dictionary
 (`length`, `name`, `piece length`, an empty `pieces` string), and whose
 `urls` key holds a list (`l...e`) of one string. A string is
 `<byte length>:<that many bytes>` — `8:file.txt` is the 8 bytes after the
-colon, whatever they are; an integer is `i<decimal>e`.
+colon. The scanner reads the decimal header and skips exactly that many bytes,
+including NUL and delimiters. A truncated string is a syntax error. An integer
+is `i<decimal>e`.
 
 ## The command line
 

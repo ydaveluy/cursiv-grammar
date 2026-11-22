@@ -23,7 +23,7 @@ int failures = 0;
 // The error diagnostics a document ends the build with: the parse's and the
 // validator's alike.
 std::size_t errors(std::string_view text) {
-  static const auto language = cursiv::create_language<
+  static const auto language = cursiv::createLanguage<
       javascript::JavaScriptCoreServices,
       javascript::JavaScriptSharedCoreServices, javascript::install_core_module>();
   static unsigned n = 0;

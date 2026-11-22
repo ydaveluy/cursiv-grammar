@@ -9,7 +9,7 @@
 namespace oberon {
 
 void install_core_module(OberonCoreServices& services) {
-  oberon::generated::Oberon::install_generated_module(services);
+  oberon::generated::Oberon::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

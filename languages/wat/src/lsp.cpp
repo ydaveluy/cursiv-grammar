@@ -5,7 +5,7 @@
 #include "wat/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       wat::WatSharedServices>(
       argc, argv, "wat-lsp", &wat::register_lsp_services);
 }

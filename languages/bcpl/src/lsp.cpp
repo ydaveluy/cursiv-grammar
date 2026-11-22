@@ -5,7 +5,7 @@
 #include "bcpl/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       bcpl::BcplSharedServices>(
       argc, argv, "bcpl-lsp", &bcpl::register_lsp_services);
 }

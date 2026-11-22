@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<trac::TracCoreServices,
+    &cursiv::registerLanguage<trac::TracCoreServices,
                            trac::TracSharedCoreServices,
                            trac::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<trac::TracSharedCoreServices>(
+  return cursiv::runCli<trac::TracSharedCoreServices>(
       argc, argv, kRegister);
 }

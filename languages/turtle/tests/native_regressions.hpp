@@ -244,10 +244,10 @@ inline bool typed(const Case &c, const ast::Document &doc) {
 }
 inline bool run() {
   const auto language =
-      cursiv::create_language<turtle::TurtleCoreServices,
+      cursiv::createLanguage<turtle::TurtleCoreServices,
                               turtle::TurtleSharedCoreServices,
                               turtle::install_core_module>();
-  const auto factory = turtle::generated::Turtle::create_parser();
+  const auto factory = turtle::generated::Turtle::createParser();
   for (const auto &c : cases) {
     const std::string source(c.source);
     const auto check = [&](const cursiv::ParseResult &r) {

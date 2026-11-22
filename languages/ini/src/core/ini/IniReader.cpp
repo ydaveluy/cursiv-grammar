@@ -22,7 +22,7 @@ std::size_t leading(std::string_view text, std::size_t& count) {
   count = 0;
   while (offset < text.size()) {
     std::size_t length = 0;
-    const char32_t c = cursiv::scalar_at(text.data() + offset, text.size() - offset, length);
+    const char32_t c = cursiv::scalarAt(text.data() + offset, text.size() - offset, length);
     if (!space(c)) break;
     offset += length;
     ++count;
@@ -34,7 +34,7 @@ std::string_view rtrim(std::string_view text) {
   std::size_t last = 0;
   for (std::size_t offset = 0; offset < text.size();) {
     std::size_t length = 0;
-    const char32_t c = cursiv::scalar_at(text.data() + offset, text.size() - offset, length);
+    const char32_t c = cursiv::scalarAt(text.data() + offset, text.size() - offset, length);
     offset += std::max(length, std::size_t{1});
     if (!space(c)) last = offset;
   }

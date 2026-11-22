@@ -39,7 +39,7 @@ int fail(const char* file, const char* what) {
 
 int main() {
   const auto language =
-      cursiv::create_language<pascal::PascalCoreServices,
+      cursiv::createLanguage<pascal::PascalCoreServices,
                               pascal::PascalSharedCoreServices,
                               pascal::install_core_module>();
 
@@ -56,7 +56,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<pascal::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<pascal::ast::Program>)
       return fail(name, "the parse built no Program");
     return 0;
   };

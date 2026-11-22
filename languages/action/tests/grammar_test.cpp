@@ -28,7 +28,7 @@ int fail(const std::string& what) {
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      action::generated::Action::create_parser();
+      action::generated::Action::createParser();
   return *p;
 }
 
@@ -62,7 +62,7 @@ int main() {
       return fail(doc.string() + ": the parse left diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<action::ast::File>)
+        root->type != &cursiv::kAstTypeTag<action::ast::File>)
       return fail(doc.string() + ": the parse built no file");
     if (doc.filename() == "primes.act") primes_doc = doc;
     if (doc.filename() == "example1.act") hello_doc = doc;
@@ -82,7 +82,7 @@ int main() {
     if (file.modules.size() != 1) return fail("primes.act: wrong module count");
     const action::ast::ProgModule& module = *file.modules[0];
     if (module.decls.empty() ||
-        module.decls[0]->type != &cursiv::ast_type_tag<action::ast::DefineDecl>)
+        module.decls[0]->type != &cursiv::kAstTypeTag<action::ast::DefineDecl>)
       return fail("primes.act: the first decl is not a DEFINE");
     const auto& define =
         *static_cast<const action::ast::DefineDecl*>(module.decls[0]);
@@ -91,7 +91,7 @@ int main() {
       return fail("primes.act: DEFINE size does not hold 8190");
     if (module.routines.size() != 1 ||
         module.routines[0]->type !=
-            &cursiv::ast_type_tag<action::ast::ProcRoutine>)
+            &cursiv::kAstTypeTag<action::ast::ProcRoutine>)
       return fail("primes.act: no single PROC routine");
     const auto& proc =
         *static_cast<const action::ast::ProcRoutine*>(module.routines[0]);
@@ -112,12 +112,12 @@ int main() {
     if (proc.name != "hello") return fail("example1.act: wrong PROC name");
     if (proc.body.size() != 1 ||
         proc.body[0]->type !=
-            &cursiv::ast_type_tag<action::ast::RoutineCallStmt>)
+            &cursiv::kAstTypeTag<action::ast::RoutineCallStmt>)
       return fail("example1.act: the body is not one routine call");
     const auto& call =
         *static_cast<const action::ast::RoutineCallStmt*>(proc.body[0]);
     if (call.name != "PrintE" || call.args.size() != 1 ||
-        call.args[0]->type != &cursiv::ast_type_tag<action::ast::StrLiteral>)
+        call.args[0]->type != &cursiv::kAstTypeTag<action::ast::StrLiteral>)
       return fail("example1.act: wrong PrintE call");
     const auto& arg = *static_cast<const action::ast::StrLiteral*>(call.args[0]);
     if (arg.text != "Hello World")
@@ -153,13 +153,13 @@ int main() {
         return nullptr;
       const auto* const stmt = first_stmt(result);
       if (stmt == nullptr ||
-          stmt->type != &cursiv::ast_type_tag<action::ast::AssignStmt>)
+          stmt->type != &cursiv::kAstTypeTag<action::ast::AssignStmt>)
         return nullptr;
       return static_cast<const action::ast::AssignStmt*>(stmt)->value;
     };
     const auto is_binary = [](const action::ast::Expr* e, action::ast::ArithOp op)
         -> const action::ast::BinaryExpr* {
-      if (e == nullptr || e->type != &cursiv::ast_type_tag<action::ast::BinaryExpr>)
+      if (e == nullptr || e->type != &cursiv::kAstTypeTag<action::ast::BinaryExpr>)
         return nullptr;
       const auto* const b = static_cast<const action::ast::BinaryExpr*>(e);
       return b->op == op ? b : nullptr;
@@ -207,7 +207,7 @@ int main() {
       const auto* const mul =
           is_binary(as_assign_value("-b * c"), action::ast::ArithOp::mul);
       if (mul == nullptr ||
-          mul->left->type != &cursiv::ast_type_tag<action::ast::UnaryMinus>)
+          mul->left->type != &cursiv::kAstTypeTag<action::ast::UnaryMinus>)
         return fail("precedence: unary `-` did not bind tighter than `*`");
     }
     // `!` is bitwise XOR (an arithmetic operator), never "not equal".
@@ -225,7 +225,7 @@ int main() {
         return fail("catch-all: `a > 0` did not parse clean");
       const auto* const if_stmt =
           static_cast<const action::ast::IfStmt*>(first_stmt(cmp));
-      if (if_stmt->cond->type != &cursiv::ast_type_tag<action::ast::Compare>)
+      if (if_stmt->cond->type != &cursiv::kAstTypeTag<action::ast::Compare>)
         return fail("catch-all: `a > 0` did not take the Compare reading");
 
       const cursiv::ParseResult bare = parse_proc("IF a THEN\n c = 1\nFI");
@@ -233,7 +233,7 @@ int main() {
         return fail("catch-all: bare `a` did not parse clean");
       const auto* const bare_if =
           static_cast<const action::ast::IfStmt*>(first_stmt(bare));
-      if (bare_if->cond->type != &cursiv::ast_type_tag<action::ast::ArithCond>)
+      if (bare_if->cond->type != &cursiv::kAstTypeTag<action::ast::ArithCond>)
         return fail("catch-all: bare `a` did not take the ArithCond reading");
     }
     // AND/OR chain their comparisons left to right, at equal precedence:
@@ -247,13 +247,13 @@ int main() {
         return fail("associativity: the AND/OR chain did not parse clean");
       const auto* const if_stmt =
           static_cast<const action::ast::IfStmt*>(first_stmt(chain));
-      if (if_stmt->cond->type != &cursiv::ast_type_tag<action::ast::BoolChain>)
+      if (if_stmt->cond->type != &cursiv::kAstTypeTag<action::ast::BoolChain>)
         return fail("associativity: no outer BoolChain");
       const auto& outer =
           *static_cast<const action::ast::BoolChain*>(if_stmt->cond);
       if (outer.op != action::ast::BoolOp::and_ ||
-          outer.right->type != &cursiv::ast_type_tag<action::ast::Compare> ||
-          outer.left->type != &cursiv::ast_type_tag<action::ast::BoolChain>)
+          outer.right->type != &cursiv::kAstTypeTag<action::ast::Compare> ||
+          outer.left->type != &cursiv::kAstTypeTag<action::ast::BoolChain>)
         return fail("associativity: AND/OR did not group left to right");
     }
   }

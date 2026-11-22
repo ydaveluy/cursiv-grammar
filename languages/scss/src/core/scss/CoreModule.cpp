@@ -9,7 +9,7 @@
 namespace scss {
 
 void install_core_module(ScssCoreServices& services) {
-  scss::generated::Scss::install_generated_module(services);
+  scss::generated::Scss::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

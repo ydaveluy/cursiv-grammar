@@ -2,6 +2,6 @@
 #include "romannumerals/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       romannumerals::RomannumeralsSharedServices, romannumerals::register_lsp_services>(argc, argv);
 }

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<guitartab::GuitartabCoreServices,
+    &cursiv::registerLanguage<guitartab::GuitartabCoreServices,
                            guitartab::GuitartabSharedCoreServices,
                            guitartab::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<guitartab::GuitartabSharedCoreServices>(
+  return cursiv::runCli<guitartab::GuitartabSharedCoreServices>(
       argc, argv, kRegister);
 }

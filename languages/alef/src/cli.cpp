@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<alef::AlefCoreServices,
+    &cursiv::registerLanguage<alef::AlefCoreServices,
                            alef::AlefSharedCoreServices,
                            alef::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<alef::AlefSharedCoreServices>(
+  return cursiv::runCli<alef::AlefSharedCoreServices>(
       argc, argv, kRegister);
 }

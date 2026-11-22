@@ -5,7 +5,7 @@
 #include "icon/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       icon::IconSharedServices>(
       argc, argv, "icon-lsp", &icon::register_lsp_services);
 }

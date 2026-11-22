@@ -35,7 +35,7 @@ const char* const kExamples[] = {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       modula2pim4::Modula2pim4CoreServices,
       modula2pim4::Modula2pim4SharedCoreServices,
       modula2pim4::install_core_module>();
@@ -69,7 +69,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<modula2pim4::ast::ProgramModule>)
+        root->type != &cursiv::kAstTypeTag<modula2pim4::ast::ProgramModule>)
       return fail(std::string(name) + ": built no ProgramModule");
   }
 
@@ -84,7 +84,7 @@ int main() {
     return fail("definition.mod: has diagnostics");
   if (defResult.value == nullptr ||
       defResult.value->type !=
-          &cursiv::ast_type_tag<modula2pim4::ast::DefinitionModule>)
+          &cursiv::kAstTypeTag<modula2pim4::ast::DefinitionModule>)
     return fail("definition.mod: built no DefinitionModule");
   const auto& defs =
       *static_cast<const modula2pim4::ast::DefinitionModule*>(defResult.value);
@@ -110,7 +110,7 @@ int main() {
     return fail("implementation.mod: has diagnostics");
   if (implResult.value == nullptr ||
       implResult.value->type !=
-          &cursiv::ast_type_tag<modula2pim4::ast::ProgramModule>)
+          &cursiv::kAstTypeTag<modula2pim4::ast::ProgramModule>)
     return fail("implementation.mod: built no ProgramModule");
   const auto& impl =
       *static_cast<const modula2pim4::ast::ProgramModule*>(implResult.value);
@@ -128,7 +128,7 @@ int main() {
     return fail("features.mod: has diagnostics");
   if (featuresResult.value == nullptr ||
       featuresResult.value->type !=
-          &cursiv::ast_type_tag<modula2pim4::ast::ProgramModule>)
+          &cursiv::kAstTypeTag<modula2pim4::ast::ProgramModule>)
     return fail("features.mod: built no ProgramModule");
 
   const auto& features =
@@ -194,9 +194,9 @@ int main() {
   // A `;` before END leaves an empty field behind it.
   if (shapeType.fields.size() != 2 ||
       shapeType.fields[0]->type !=
-          &cursiv::ast_type_tag<modula2pim4::ast::CaseField> ||
+          &cursiv::kAstTypeTag<modula2pim4::ast::CaseField> ||
       shapeType.fields[1]->type !=
-          &cursiv::ast_type_tag<modula2pim4::ast::EmptyField>)
+          &cursiv::kAstTypeTag<modula2pim4::ast::EmptyField>)
     return fail("features.mod: Shape holds a variant CASE and an empty field");
   const auto& caseField =
       *static_cast<const modula2pim4::ast::CaseField*>(shapeType.fields[0]);
@@ -228,7 +228,7 @@ int main() {
     return fail("features.mod: wrong Helper result type");
   if (helper.block->decls.size() != 2 ||
       helper.block->decls[1]->type !=
-          &cursiv::ast_type_tag<modula2pim4::ast::ProcDecl>)
+          &cursiv::kAstTypeTag<modula2pim4::ast::ProcDecl>)
     return fail("features.mod: Helper should nest one ProcDecl (Half)");
 
   // An empty statement is a statement, an empty field list a field: `BEGIN
@@ -248,7 +248,7 @@ int main() {
   if (!bareModule->block->body.empty() ||
       emptyModule->block->body.size() != 1 ||
       emptyModule->block->body[0]->type !=
-          &cursiv::ast_type_tag<modula2pim4::ast::EmptyStmt>)
+          &cursiv::kAstTypeTag<modula2pim4::ast::EmptyStmt>)
     return fail("BEGIN END: expected one empty statement");
   const auto& recordType = *static_cast<const modula2pim4::ast::RecordType*>(
       static_cast<const modula2pim4::ast::TypeDecl*>(
@@ -256,7 +256,7 @@ int main() {
           ->type);
   if (recordType.fields.size() != 1 ||
       recordType.fields[0]->type !=
-          &cursiv::ast_type_tag<modula2pim4::ast::EmptyField>)
+          &cursiv::kAstTypeTag<modula2pim4::ast::EmptyField>)
     return fail("RECORD END: expected one empty field");
 
   std::puts("modula2pim4: the corpus and the feature documents parse");

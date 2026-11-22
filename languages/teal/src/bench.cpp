@@ -2,6 +2,6 @@
 #include "teal/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       teal::TealSharedServices, teal::register_lsp_services>(argc, argv);
 }

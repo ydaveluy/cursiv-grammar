@@ -5,7 +5,7 @@
 #include "newick/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       newick::NewickSharedServices>(
       argc, argv, "newick-lsp", &newick::register_lsp_services);
 }

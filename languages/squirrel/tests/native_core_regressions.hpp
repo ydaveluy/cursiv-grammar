@@ -42,7 +42,7 @@ inline const ast::Expr* rhs(const ast::Chunk& root) {
   return local && local->vars.size()==1 ? local->vars[0]->init : nullptr;
 }
 inline bool run() {
-  const auto language=cursiv::create_language<squirrel::SquirrelCoreServices,
+  const auto language=cursiv::createLanguage<squirrel::SquirrelCoreServices,
       squirrel::SquirrelSharedCoreServices,squirrel::install_core_module>();
   const auto& services=language.language;
   struct Case {const char* id; const char* source;};

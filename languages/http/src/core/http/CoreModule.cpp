@@ -9,7 +9,7 @@
 namespace http {
 
 void install_core_module(HttpCoreServices& services) {
-  http::generated::Http::install_generated_module(services);
+  http::generated::Http::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

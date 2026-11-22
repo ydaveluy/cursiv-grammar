@@ -9,7 +9,7 @@
 namespace modelica {
 
 void install_core_module(ModelicaCoreServices& services) {
-  modelica::generated::Modelica::install_generated_module(services);
+  modelica::generated::Modelica::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

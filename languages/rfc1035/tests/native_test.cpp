@@ -14,7 +14,7 @@
 #include "cursiv/ValidationResult.hpp"
 
 int main() {
-  const auto language = cursiv::create_language<rfc1035::Rfc1035CoreServices,
+  const auto language = cursiv::createLanguage<rfc1035::Rfc1035CoreServices,
       rfc1035::Rfc1035SharedCoreServices, rfc1035::install_core_module>();
   for (const bool absolute : {false, true}) {
     const std::string prefix = std::string(63, 'a') + "." + std::string(63, 'b') +

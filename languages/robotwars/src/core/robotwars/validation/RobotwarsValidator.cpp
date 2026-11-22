@@ -41,7 +41,7 @@ void RobotwarsValidator::checkUniqueLabels(
     const ast::Program& program, cursiv::ValidationAcceptor& accept) const {
   std::unordered_map<std::string_view, std::vector<const ast::Label*>> names;
   for (const ast::Item* const item : program.items) {
-    if (item->type != &cursiv::ast_type_tag<ast::Label>) continue;
+    if (item->type != &cursiv::kAstTypeTag<ast::Label>) continue;
     const auto* const label = static_cast<const ast::Label*>(item);
     names[label->name].push_back(label);
   }

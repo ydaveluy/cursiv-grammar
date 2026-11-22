@@ -18,7 +18,7 @@
 namespace {
 namespace ast = racketbsl::ast;
 const cursiv::Parser &engine() {
-  static const auto parser = racketbsl::generated::RacketBsl::create_parser();
+  static const auto parser = racketbsl::generated::RacketBsl::createParser();
   return *parser;
 }
 void examples() {
@@ -29,7 +29,7 @@ void examples() {
       if (!file.is_regular_file() || file.path().extension() != ".rkt")
         continue;
       ++seen;
-      const std::string source = cursiv::test::read_file(file.path().string());
+      const std::string source = cursiv::test::readFile(file.path().string());
       const auto result = engine().parse(source);
       CHECK(result.accepted && !result.cst().recovered());
       CHECK(result.valueAs<ast::Program>() != nullptr);
@@ -154,7 +154,7 @@ void here_string() {
 }
 void validation() {
   auto language =
-      cursiv::create_language<racketbsl::RacketBslCoreServices,
+      cursiv::createLanguage<racketbsl::RacketBslCoreServices,
                               racketbsl::RacketBslSharedCoreServices,
                               racketbsl::install_core_module>();
   for (const std::string source :
@@ -254,7 +254,7 @@ void character_boundaries() {
 }
 void reader_validation() {
   auto language =
-      cursiv::create_language<racketbsl::RacketBslCoreServices,
+      cursiv::createLanguage<racketbsl::RacketBslCoreServices,
                               racketbsl::RacketBslSharedCoreServices,
                               racketbsl::install_core_module>();
   for (const auto &[source, code] :
@@ -289,7 +289,7 @@ void reader_validation() {
   }
 }
 void native_reader_rejections() {
-  auto language = cursiv::create_language<racketbsl::RacketBslCoreServices,
+  auto language = cursiv::createLanguage<racketbsl::RacketBslCoreServices,
       racketbsl::RacketBslSharedCoreServices, racketbsl::install_core_module>();
   {
     const auto parsed = engine().parse("#lang htdp/bsl (define x 1)");
@@ -333,7 +333,7 @@ void line_comment_boundaries() {
 } // namespace
 int main() {
   {
-    auto language = cursiv::create_language<racketbsl::RacketBslCoreServices,
+    auto language = cursiv::createLanguage<racketbsl::RacketBslCoreServices,
         racketbsl::RacketBslSharedCoreServices, racketbsl::install_core_module>();
     racketbsl_reader_boundaries::run(language.language);
   }

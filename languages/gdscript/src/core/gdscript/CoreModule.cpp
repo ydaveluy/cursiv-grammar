@@ -9,7 +9,7 @@
 namespace gdscript {
 
 void install_core_module(GdscriptCoreServices& services) {
-  gdscript::generated::Gdscript::install_generated_module(services);
+  gdscript::generated::Gdscript::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace abnf {
 
 void install_core_module(AbnfCoreServices& services) {
-  abnf::generated::Abnf::install_generated_module(services);
+  abnf::generated::Abnf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

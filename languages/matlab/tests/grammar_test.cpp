@@ -30,13 +30,13 @@ namespace fs = std::filesystem;
 
 const cursiv::Parser &engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      matlab::generated::Matlab::create_parser();
+      matlab::generated::Matlab::createParser();
   return *p;
 }
 
 const cursiv::AstReflection &reflection() {
   static const std::unique_ptr<cursiv::AstReflection> r =
-      matlab::generated::Matlab::create_ast_reflection();
+      matlab::generated::Matlab::createAstReflection();
   return *r;
 }
 
@@ -48,7 +48,7 @@ bool accepts(std::string_view text) {
 }
 
 template <class T> T *as(cursiv::AstNode *n) {
-  return (n != nullptr && reflection().isInstance(*n, &cursiv::ast_type_tag<T>))
+  return (n != nullptr && reflection().isInstance(*n, &cursiv::kAstTypeTag<T>))
              ? static_cast<T *>(n)
              : nullptr;
 }
@@ -281,7 +281,7 @@ void if_elseif_else_shape() {
 }
 
 std::string load_example(const fs::path &path) {
-  return cursiv::test::read_file(path.string());
+  return cursiv::test::readFile(path.string());
 }
 
 // Every document under example/ parses clean: no repair, no diagnostic, and

@@ -9,11 +9,11 @@
 #include <string>
 namespace audit_regressions {
 template <class T> T *as(cursiv::AstNode *p) {
-  return p && p->type == &cursiv::ast_type_tag<T> ? static_cast<T *>(p)
+  return p && p->type == &cursiv::kAstTypeTag<T> ? static_cast<T *>(p)
                                                   : nullptr;
 }
 inline bool run() {
-  auto parser = cobol85::generated::Cobol85::create_parser();
+  auto parser = cobol85::generated::Cobol85::createParser();
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) {
@@ -82,7 +82,7 @@ inline bool run() {
           "the conversion starts at CONVERTING");
   }
   {
-    auto language = cursiv::create_language<cobol85::Cobol85CoreServices,
+    auto language = cursiv::createLanguage<cobol85::Cobol85CoreServices,
                                             cobol85::Cobol85SharedCoreServices,
                                             cobol85::install_core_module>();
     const std::string input =

@@ -45,7 +45,7 @@ void diagnose(const char* label, const cursiv::ParseResult& result) {
 }
 } // namespace
 int main() {
-  const auto language = cursiv::create_language<lucene::LuceneCoreServices,
+  const auto language = cursiv::createLanguage<lucene::LuceneCoreServices,
       lucene::LuceneSharedCoreServices, lucene::install_core_module>();
   const auto& parser = language.language.parser;
   {

@@ -32,7 +32,7 @@ std::string read(const char* path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
@@ -45,7 +45,7 @@ const ast::Decl* find(const ast::Module& module, std::string_view name) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       asn::AsnCoreServices, asn::AsnSharedCoreServices,
       asn::install_core_module>();
 

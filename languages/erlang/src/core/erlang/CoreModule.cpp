@@ -9,7 +9,7 @@
 namespace erlang {
 
 void install_core_module(ErlangCoreServices& services) {
-  erlang::generated::Erlang::install_generated_module(services);
+  erlang::generated::Erlang::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

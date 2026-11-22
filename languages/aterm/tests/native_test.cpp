@@ -12,7 +12,7 @@
 #include <iterator>
 #include <unordered_set>
 int main() {
-  const auto language = cursiv::create_language<aterm::AtermCoreServices,
+  const auto language = cursiv::createLanguage<aterm::AtermCoreServices,
                                                 aterm::AtermSharedCoreServices,
                                                 aterm::install_core_module>();
   unsigned equal = 0, policies = 0, limitations = 0, negative = 0;

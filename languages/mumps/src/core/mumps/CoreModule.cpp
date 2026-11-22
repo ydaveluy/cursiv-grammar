@@ -9,7 +9,7 @@
 namespace mumps {
 
 void install_core_module(MumpsCoreServices& services) {
-  mumps::generated::Mumps::install_generated_module(services);
+  mumps::generated::Mumps::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

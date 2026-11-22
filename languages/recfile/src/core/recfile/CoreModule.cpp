@@ -9,7 +9,7 @@
 namespace recfile {
 
 void install_core_module(RecfileCoreServices& services) {
-  recfile::generated::Recfile::install_generated_module(services);
+  recfile::generated::Recfile::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

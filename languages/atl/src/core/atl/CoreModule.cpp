@@ -9,7 +9,7 @@
 namespace atl {
 
 void install_core_module(AtlCoreServices& services) {
-  atl::generated::Atl::install_generated_module(services);
+  atl::generated::Atl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace jam {
 
 void install_core_module(JamCoreServices& services) {
-  jam::generated::Jam::install_generated_module(services);
+  jam::generated::Jam::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

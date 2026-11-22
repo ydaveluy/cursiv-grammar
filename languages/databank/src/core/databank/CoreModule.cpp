@@ -9,7 +9,7 @@
 namespace databank {
 
 void install_core_module(DatabankCoreServices& services) {
-  databank::generated::Databank::install_generated_module(services);
+  databank::generated::Databank::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

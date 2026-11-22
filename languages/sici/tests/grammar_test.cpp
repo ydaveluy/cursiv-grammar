@@ -26,7 +26,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 int main() {
   if (!audit_regressions::run()) return 1;
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       sici::SiciCoreServices,
       sici::SiciSharedCoreServices,
       sici::install_core_module>();
@@ -58,7 +58,7 @@ int main() {
     }
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<sici::ast::Sici>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<sici::ast::Sici>)
       failures += fail(file, "the parse built no Sici");
   }
 

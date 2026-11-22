@@ -13,7 +13,7 @@
 #include <iterator>
 #include <unordered_set>
 int main() {
-  const auto language = cursiv::create_language<redis::RedisCoreServices,
+  const auto language = cursiv::createLanguage<redis::RedisCoreServices,
                                                 redis::RedisSharedCoreServices,
                                                 redis::install_core_module>();
   unsigned equal = 0, negative = 0;

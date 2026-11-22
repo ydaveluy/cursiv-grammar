@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<oncrpc::OncrpcCoreServices,
+    &cursiv::registerLanguage<oncrpc::OncrpcCoreServices,
                            oncrpc::OncrpcSharedCoreServices,
                            oncrpc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<oncrpc::OncrpcSharedCoreServices>(
+  return cursiv::runCli<oncrpc::OncrpcSharedCoreServices>(
       argc, argv, kRegister);
 }

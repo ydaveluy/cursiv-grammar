@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<lucene::LuceneCoreServices,
+    &cursiv::registerLanguage<lucene::LuceneCoreServices,
                            lucene::LuceneSharedCoreServices,
                            lucene::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<lucene::LuceneSharedCoreServices>(
+  return cursiv::runCli<lucene::LuceneSharedCoreServices>(
       argc, argv, kRegister);
 }

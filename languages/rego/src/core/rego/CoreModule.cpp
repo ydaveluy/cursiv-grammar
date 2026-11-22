@@ -9,7 +9,7 @@
 namespace rego {
 
 void install_core_module(RegoCoreServices& services) {
-  rego::generated::Rego::install_generated_module(services);
+  rego::generated::Rego::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

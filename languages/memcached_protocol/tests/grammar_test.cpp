@@ -29,7 +29,7 @@ int fail(const std::filesystem::path &file, const char *what) {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
         memcachedprotocol::MemcachedProtocolCoreServices,
         memcachedprotocol::MemcachedProtocolSharedCoreServices,
         memcachedprotocol::install_core_module>();
@@ -54,7 +54,7 @@ int main() {
   }
 
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       memcachedprotocol::MemcachedProtocolCoreServices,
       memcachedprotocol::MemcachedProtocolSharedCoreServices,
       memcachedprotocol::install_core_module>();
@@ -95,7 +95,7 @@ int main() {
       const cursiv::AstNode *const root = result.value;
       if (root == nullptr ||
           root->type !=
-              &cursiv::ast_type_tag<memcachedprotocol::ast::CommandLine>)
+              &cursiv::kAstTypeTag<memcachedprotocol::ast::CommandLine>)
         failures += fail(file, "the parse built no CommandLine");
     }
   }

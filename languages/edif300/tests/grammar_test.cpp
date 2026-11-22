@@ -35,7 +35,7 @@ std::string read_file(const std::string& path) {
 const ast::Form* as_form(const ast::Value& v) {
   if (!std::holds_alternative<cursiv::AstNode*>(v)) return nullptr;
   const cursiv::AstNode* node = std::get<cursiv::AstNode*>(v);
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<ast::Form>)
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<ast::Form>)
     return nullptr;
   return static_cast<const ast::Form*>(node);
 }
@@ -62,7 +62,7 @@ std::string_view as_text(const ast::Value& v) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       edif300::Edif300CoreServices, edif300::Edif300SharedCoreServices,
       edif300::install_core_module>();
 
@@ -77,7 +77,7 @@ int main() {
 
   const cursiv::AstNode* const corpusRoot = corpus.value;
   if (corpusRoot == nullptr ||
-      corpusRoot->type != &cursiv::ast_type_tag<ast::Form>)
+      corpusRoot->type != &cursiv::kAstTypeTag<ast::Form>)
     return fail("empty.edf: built no Form");
   const auto& root = *static_cast<const ast::Form*>(corpusRoot);
   if (root.keyword != "(edif") return fail("empty.edf: root is not (edif ...)");

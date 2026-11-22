@@ -35,7 +35,7 @@ int fail(const std::string& what) {
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      promql::generated::Promql::create_parser();
+      promql::generated::Promql::createParser();
   return *p;
 }
 
@@ -49,7 +49,7 @@ std::string read_file(const fs::path& path) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<promql::PromqlCoreServices,
+      cursiv::createLanguage<promql::PromqlCoreServices,
                               promql::PromqlSharedCoreServices,
                               promql::install_core_module>();
   for(const auto source:{
@@ -195,7 +195,7 @@ int main() {
       return fail(doc.string() + ": the parse left diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<promql::ast::Query>)
+        root->type != &cursiv::kAstTypeTag<promql::ast::Query>)
       return fail(doc.string() + ": the parse built no query");
     if (doc.filename() == "vector_match_operation.promql")
       readback_doc = doc;
@@ -215,7 +215,7 @@ int main() {
   const auto& query = *static_cast<const promql::ast::Query*>(result.value);
 
   if (query.expression == nullptr ||
-      query.expression->type != &cursiv::ast_type_tag<promql::ast::BinaryExpr>)
+      query.expression->type != &cursiv::kAstTypeTag<promql::ast::BinaryExpr>)
     return fail("vector_match_operation: expected a binary expression");
   const auto& top =
       *static_cast<const promql::ast::BinaryExpr*>(query.expression);
@@ -227,13 +227,13 @@ int main() {
     return fail("vector_match_operation: wrong ON(...) matching clause");
 
   if (top.left == nullptr ||
-      top.left->type != &cursiv::ast_type_tag<promql::ast::BinaryExpr>)
+      top.left->type != &cursiv::kAstTypeTag<promql::ast::BinaryExpr>)
     return fail("vector_match_operation: expected a comparison on the left");
   const auto& leftCompare = *static_cast<const promql::ast::BinaryExpr*>(top.left);
   if (leftCompare.op != promql::ast::Operator::gt)
     return fail("vector_match_operation: expected > on the left");
   if (leftCompare.left == nullptr ||
-      leftCompare.left->type != &cursiv::ast_type_tag<promql::ast::AggregationExpr>)
+      leftCompare.left->type != &cursiv::kAstTypeTag<promql::ast::AggregationExpr>)
     return fail("vector_match_operation: expected an aggregation");
   const auto& agg =
       *static_cast<const promql::ast::AggregationExpr*>(leftCompare.left);
@@ -242,7 +242,7 @@ int main() {
       agg.groupBy[1] != "second")
     return fail("vector_match_operation: wrong aggregation clause");
   if (agg.args.size() != 1 ||
-      agg.args[0]->type != &cursiv::ast_type_tag<promql::ast::Selector>)
+      agg.args[0]->type != &cursiv::kAstTypeTag<promql::ast::Selector>)
     return fail("vector_match_operation: wrong aggregation argument");
   const auto& sel = *static_cast<const promql::ast::Selector*>(agg.args[0]);
   if (sel.metric != "foo_metric" || sel.matchers.size() != 2)
@@ -257,12 +257,12 @@ int main() {
     return fail("vector_match_operation: wrong second label matcher");
 
   if (top.right == nullptr ||
-      top.right->type != &cursiv::ast_type_tag<promql::ast::BinaryExpr>)
+      top.right->type != &cursiv::kAstTypeTag<promql::ast::BinaryExpr>)
     return fail("vector_match_operation: expected a comparison on the right");
   const auto& rightCompare = *static_cast<const promql::ast::BinaryExpr*>(top.right);
   if (rightCompare.op != promql::ast::Operator::gt ||
       rightCompare.left == nullptr ||
-      rightCompare.left->type != &cursiv::ast_type_tag<promql::ast::Selector>)
+      rightCompare.left->type != &cursiv::kAstTypeTag<promql::ast::Selector>)
     return fail("vector_match_operation: wrong right-hand comparison");
   const auto& rightSel =
       *static_cast<const promql::ast::Selector*>(rightCompare.left);

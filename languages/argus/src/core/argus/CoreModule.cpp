@@ -9,7 +9,7 @@
 namespace argus {
 
 void install_core_module(ArgusCoreServices& services) {
-  argus::generated::Argus::install_generated_module(services);
+  argus::generated::Argus::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

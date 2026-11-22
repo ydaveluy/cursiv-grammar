@@ -63,7 +63,7 @@ const char* const kExamples[] = {
 };
 
 using Language =
-    decltype(cursiv::create_language<wavefront::WavefrontCoreServices,
+    decltype(cursiv::createLanguage<wavefront::WavefrontCoreServices,
                                      wavefront::WavefrontSharedCoreServices,
                                      wavefront::install_core_module>());
 
@@ -81,7 +81,7 @@ cursiv::ParseResult parse_clean(const Language& language,
   }
   const cursiv::AstNode* const root = result.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<wavefront::ast::Document>) {
+      root->type != &cursiv::kAstTypeTag<wavefront::ast::Document>) {
     std::fprintf(stderr, "wavefront: %s: built no Document\n", path.c_str());
     return result;
   }
@@ -93,7 +93,7 @@ cursiv::ParseResult parse_clean(const Language& language,
 int main() {
   if (!audit_regressions::run() || !code_audit::run()) return 1;
   const auto language =
-      cursiv::create_language<wavefront::WavefrontCoreServices,
+      cursiv::createLanguage<wavefront::WavefrontCoreServices,
                               wavefront::WavefrontSharedCoreServices,
                               wavefront::install_core_module>();
 
@@ -133,15 +133,15 @@ int main() {
     const wavefront::ast::Statement* useMapName = nullptr;
     const wavefront::ast::Statement* useMapOff = nullptr;
     for (const wavefront::ast::Statement* const stmt : doc->statements) {
-      if (stmt->type == &cursiv::ast_type_tag<wavefront::ast::ObjectName>)
+      if (stmt->type == &cursiv::kAstTypeTag<wavefront::ast::ObjectName>)
         objectName = stmt;
-      else if (stmt->type == &cursiv::ast_type_tag<wavefront::ast::Points>)
+      else if (stmt->type == &cursiv::kAstTypeTag<wavefront::ast::Points>)
         points = stmt;
-      else if (stmt->type == &cursiv::ast_type_tag<wavefront::ast::Call>)
+      else if (stmt->type == &cursiv::kAstTypeTag<wavefront::ast::Call>)
         call = stmt;
-      else if (stmt->type == &cursiv::ast_type_tag<wavefront::ast::Csh>)
+      else if (stmt->type == &cursiv::kAstTypeTag<wavefront::ast::Csh>)
         csh = stmt;
-      else if (stmt->type == &cursiv::ast_type_tag<wavefront::ast::UseMap>) {
+      else if (stmt->type == &cursiv::kAstTypeTag<wavefront::ast::UseMap>) {
         const auto& um = *static_cast<const wavefront::ast::UseMap*>(stmt);
         (um.off ? useMapOff : useMapName) = stmt;
       }
@@ -191,7 +191,7 @@ int main() {
       return fail("b1_20_cube.obj: expected 14 statements");
 
     if (doc->statements[0]->type !=
-        &cursiv::ast_type_tag<wavefront::ast::Vertex>)
+        &cursiv::kAstTypeTag<wavefront::ast::Vertex>)
       return fail("b1_20_cube.obj: statement 0 is not a Vertex");
     const auto& v0 =
         *static_cast<const wavefront::ast::Vertex*>(doc->statements[0]);
@@ -199,7 +199,7 @@ int main() {
       return fail("b1_20_cube.obj: wrong first vertex");
 
     if (doc->statements[8]->type !=
-        &cursiv::ast_type_tag<wavefront::ast::Faces>)
+        &cursiv::kAstTypeTag<wavefront::ast::Faces>)
       return fail("b1_20_cube.obj: statement 8 is not Faces");
     const auto& f0 =
         *static_cast<const wavefront::ast::Faces*>(doc->statements[8]);
@@ -221,7 +221,7 @@ int main() {
     if (doc->statements.size() != 20)
       return fail("b1_43_cube_with_group_names.obj: expected 20 statements");
     if (doc->statements[8]->type !=
-        &cursiv::ast_type_tag<wavefront::ast::Group>)
+        &cursiv::kAstTypeTag<wavefront::ast::Group>)
       return fail(
           "b1_43_cube_with_group_names.obj: statement 8 is not a Group");
     const auto& g =
@@ -248,7 +248,7 @@ int main() {
 
     const wavefront::ast::CurveSurfaceType* cstype = nullptr;
     for (const wavefront::ast::Statement* const stmt : doc->statements)
-      if (stmt->type == &cursiv::ast_type_tag<wavefront::ast::CurveSurfaceType>)
+      if (stmt->type == &cursiv::kAstTypeTag<wavefront::ast::CurveSurfaceType>)
         cstype = static_cast<const wavefront::ast::CurveSurfaceType*>(stmt);
     if (cstype == nullptr || !cstype->rational ||
         cstype->kind != wavefront::ast::CurveSurfaceKind::bspline)

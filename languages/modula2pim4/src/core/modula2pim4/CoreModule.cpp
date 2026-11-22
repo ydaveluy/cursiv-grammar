@@ -9,7 +9,7 @@
 namespace modula2pim4 {
 
 void install_core_module(Modula2pim4CoreServices& services) {
-  modula2pim4::generated::Modula2pim4::install_generated_module(services);
+  modula2pim4::generated::Modula2pim4::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

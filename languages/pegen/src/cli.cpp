@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<pegen::PegenCoreServices,
+    &cursiv::registerLanguage<pegen::PegenCoreServices,
                            pegen::PegenSharedCoreServices,
                            pegen::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<pegen::PegenSharedCoreServices>(
+  return cursiv::runCli<pegen::PegenSharedCoreServices>(
       argc, argv, kRegister);
 }

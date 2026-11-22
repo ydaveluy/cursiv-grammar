@@ -23,7 +23,7 @@ int fail(const std::filesystem::path& path, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       ebnf::EbnfCoreServices,
       ebnf::EbnfSharedCoreServices,
       ebnf::install_core_module>();
@@ -51,7 +51,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<ebnf::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<ebnf::ast::Document>) {
       failures += fail(entry.path(), "built no Document");
       continue;
     }

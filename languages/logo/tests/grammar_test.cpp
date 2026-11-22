@@ -31,7 +31,7 @@ std::string read_file(const std::string& path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T*>(n)
              : nullptr;
 }
@@ -39,7 +39,7 @@ const T* as(const cursiv::AstNode* n) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       logo::LogoCoreServices, logo::LogoSharedCoreServices,
       logo::install_core_module>();
 

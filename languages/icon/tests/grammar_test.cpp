@@ -34,7 +34,7 @@ const Doc kDocs[] = {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       icon::IconCoreServices,
       icon::IconSharedCoreServices,
       icon::install_core_module>();
@@ -45,7 +45,7 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       icon::IconCoreServices,
       icon::IconSharedCoreServices,
       icon::install_core_module>();
@@ -66,7 +66,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<icon::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<icon::ast::Program>)
       return fail("the parse built no program");
 
     const auto& program = *static_cast<const icon::ast::Program*>(root);
@@ -91,15 +91,15 @@ int main() {
   const icon::ast::Procedure* demo = nullptr;
   for (icon::ast::Declaration* const decl : program.declarations) {
     if (link == nullptr)
-      link = decl->type == &cursiv::ast_type_tag<icon::ast::LinkDeclaration>
+      link = decl->type == &cursiv::kAstTypeTag<icon::ast::LinkDeclaration>
                  ? static_cast<const icon::ast::LinkDeclaration*>(decl)
                  : nullptr;
     if (record == nullptr)
       record =
-          decl->type == &cursiv::ast_type_tag<icon::ast::RecordDeclaration>
+          decl->type == &cursiv::kAstTypeTag<icon::ast::RecordDeclaration>
               ? static_cast<const icon::ast::RecordDeclaration*>(decl)
               : nullptr;
-    if (decl->type == &cursiv::ast_type_tag<icon::ast::Procedure>) {
+    if (decl->type == &cursiv::kAstTypeTag<icon::ast::Procedure>) {
       const auto* const proc = static_cast<const icon::ast::Procedure*>(decl);
       if (proc->name == "demo") demo = proc;
     }

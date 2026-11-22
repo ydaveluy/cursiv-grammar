@@ -9,7 +9,7 @@
 namespace jpa {
 
 void install_core_module(JpaCoreServices& services) {
-  jpa::generated::Jpa::install_generated_module(services);
+  jpa::generated::Jpa::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

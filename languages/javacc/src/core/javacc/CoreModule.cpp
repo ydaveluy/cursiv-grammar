@@ -11,8 +11,8 @@
 namespace javacc {
 
 void install_core_module(JavaccCoreServices& services) {
-  javacc::generated::Javacc::install_generated_module(services);
-  services.parser = cursiv::translating_parser(std::move(services.parser),
+  javacc::generated::Javacc::installGeneratedModule(services);
+  services.parser = cursiv::translatingParser(std::move(services.parser),
                                                translate_unicode_escapes);
   register_validation_checks(services);
 }

@@ -15,7 +15,7 @@
 namespace code_audit {
 namespace ast = langium::ast;
 inline bool run() {
-  auto language = cursiv::create_language<langium::LangiumCoreServices,
+  auto language = cursiv::createLanguage<langium::LangiumCoreServices,
                                           langium::LangiumSharedCoreServices,
                                           langium::install_core_module>();
   bool ok = true;

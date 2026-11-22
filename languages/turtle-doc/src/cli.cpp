@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<turtledoc::TurtleDocCoreServices,
+    &cursiv::registerLanguage<turtledoc::TurtleDocCoreServices,
                            turtledoc::TurtleDocSharedCoreServices,
                            turtledoc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<turtledoc::TurtleDocSharedCoreServices>(
+  return cursiv::runCli<turtledoc::TurtleDocSharedCoreServices>(
       argc, argv, kRegister);
 }

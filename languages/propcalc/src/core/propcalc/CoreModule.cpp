@@ -9,7 +9,7 @@
 namespace propcalc {
 
 void install_core_module(PropcalcCoreServices& services) {
-  propcalc::generated::Propcalc::install_generated_module(services);
+  propcalc::generated::Propcalc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

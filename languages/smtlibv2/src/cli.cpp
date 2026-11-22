@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<smtlibv2::Smtlibv2CoreServices,
+    &cursiv::registerLanguage<smtlibv2::Smtlibv2CoreServices,
                            smtlibv2::Smtlibv2SharedCoreServices,
                            smtlibv2::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<smtlibv2::Smtlibv2SharedCoreServices>(
+  return cursiv::runCli<smtlibv2::Smtlibv2SharedCoreServices>(
       argc, argv, kRegister);
 }

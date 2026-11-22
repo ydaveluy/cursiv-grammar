@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<agc::AgcCoreServices,
+    &cursiv::registerLanguage<agc::AgcCoreServices,
                            agc::AgcSharedCoreServices,
                            agc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<agc::AgcSharedCoreServices>(
+  return cursiv::runCli<agc::AgcSharedCoreServices>(
       argc, argv, kRegister);
 }

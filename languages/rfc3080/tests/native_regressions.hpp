@@ -1,5 +1,5 @@
 static int native_regressions() {
-  const auto language = cursiv::create_language<rfc3080::Rfc3080CoreServices,
+  const auto language = cursiv::createLanguage<rfc3080::Rfc3080CoreServices,
       rfc3080::Rfc3080SharedCoreServices, rfc3080::install_core_module>();
   std::string source = "ANS\t0002147483647 0001 . 0004294967295 0003 0002147483647\r\n";
   source.append("x\0y", 3);

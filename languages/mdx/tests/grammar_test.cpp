@@ -54,7 +54,7 @@ const std::vector<const char*> kOwnDocs = {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<mdx::MdxCoreServices,
+        cursiv::createLanguage<mdx::MdxCoreServices,
                                 mdx::MdxSharedCoreServices,
                                 mdx::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -67,7 +67,7 @@ int main() {
   }
 
   const auto language =
-      cursiv::create_language<mdx::MdxCoreServices, mdx::MdxSharedCoreServices,
+      cursiv::createLanguage<mdx::MdxCoreServices, mdx::MdxSharedCoreServices,
                               mdx::install_core_module>();
 
   if (!check_key_segments(language.language))
@@ -85,7 +85,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<mdx::ast::SelectStatement>)
+        root->type != &cursiv::kAstTypeTag<mdx::ast::SelectStatement>)
       return fail("the parse built no select statement");
   }
 

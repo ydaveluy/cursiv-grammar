@@ -5,7 +5,8 @@ cursiv_generate_language(ID arden
     GRAMMAR    arden/ArdenGrammar.hpp
     NAMESPACE  arden::Arden
     EXTENSIONS .mlm
-    OUT        arden/generated)
+    OUT        arden/generated
+    LR_MAX_STATES 3000)
 
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)

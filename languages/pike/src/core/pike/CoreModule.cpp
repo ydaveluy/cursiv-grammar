@@ -9,7 +9,7 @@
 namespace pike {
 
 void install_core_module(PikeCoreServices& services) {
-  pike::generated::Pike::install_generated_module(services);
+  pike::generated::Pike::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<vaxscan::VaxscanCoreServices,
+    &cursiv::registerLanguage<vaxscan::VaxscanCoreServices,
                            vaxscan::VaxscanSharedCoreServices,
                            vaxscan::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<vaxscan::VaxscanSharedCoreServices>(
+  return cursiv::runCli<vaxscan::VaxscanSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -33,7 +33,7 @@ auto rules(const yara::ast::Document *doc) {
 int main() {
   if (!audit_regressions::run())
     return 1;
-  auto language = cursiv::create_language<yara::YaraCoreServices,
+  auto language = cursiv::createLanguage<yara::YaraCoreServices,
                                           yara::YaraSharedCoreServices,
                                           yara::install_core_module>();
   if (!yara_followup::run(language))

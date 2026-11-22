@@ -5,7 +5,7 @@
 #include "mckeemanform/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       mckeemanform::MckeemanFormSharedServices>(
       argc, argv, "mckeemanform-lsp", &mckeemanform::register_lsp_services);
 }

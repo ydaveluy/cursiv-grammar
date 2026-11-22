@@ -26,7 +26,7 @@ int fail(const std::string& path, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       molecule::MoleculeCoreServices, molecule::MoleculeSharedCoreServices,
       molecule::install_core_module>();
 
@@ -90,7 +90,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<molecule::ast::Molecule>) {
+        root->type != &cursiv::kAstTypeTag<molecule::ast::Molecule>) {
       failures += fail(entry.path().string(), "built no Molecule");
     }
   }

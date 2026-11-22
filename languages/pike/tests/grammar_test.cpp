@@ -51,7 +51,7 @@ const pike::ast::Program* parse_clean(const auto& language,
   }
   const cursiv::AstNode* const root = result.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<pike::ast::Program>) {
+      root->type != &cursiv::kAstTypeTag<pike::ast::Program>) {
     fail(label + ": the parse built no Program");
     status = 1;
     return nullptr;
@@ -62,7 +62,7 @@ const pike::ast::Program* parse_clean(const auto& language,
 }  // namespace
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<pike::PikeCoreServices,
+  const auto language = cursiv::createLanguage<pike::PikeCoreServices,
                                                 pike::PikeSharedCoreServices,
                                                 pike::install_core_module>();
   {
@@ -85,7 +85,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       pike::PikeCoreServices, pike::PikeSharedCoreServices,
       pike::install_core_module>();
 
@@ -175,11 +175,11 @@ array xs=({1,2});array ys=xs[..1];
     if (program->definitions.size() != 1)
       return fail("example1.pike: expected one top-level definition");
     const pike::ast::Definition* const def = program->definitions[0];
-    if (def->type != &cursiv::ast_type_tag<pike::ast::FunctionDefinition>)
+    if (def->type != &cursiv::kAstTypeTag<pike::ast::FunctionDefinition>)
       return fail("example1.pike: expected a function definition");
     const auto& fn = *static_cast<const pike::ast::FunctionDefinition*>(def);
     if (fn.name != "main") return fail("example1.pike: expected `main`");
-    if (fn.returnType->type != &cursiv::ast_type_tag<pike::ast::SimpleType>)
+    if (fn.returnType->type != &cursiv::kAstTypeTag<pike::ast::SimpleType>)
       return fail("example1.pike: expected a simple return type");
     if (static_cast<const pike::ast::SimpleType*>(fn.returnType)->kind !=
         pike::ast::SimpleTypeKind::Int)
@@ -188,16 +188,16 @@ array xs=({1,2});array ys=xs[..1];
     if (fn.body->statements.size() != 2)
       return fail("example1.pike: expected two statements");
     const pike::ast::Statement* const second = fn.body->statements[1];
-    if (second->type != &cursiv::ast_type_tag<pike::ast::Return>)
+    if (second->type != &cursiv::kAstTypeTag<pike::ast::Return>)
       return fail("example1.pike: expected a return statement");
     const auto& ret = *static_cast<const pike::ast::Return*>(second);
-    if (ret.value->type != &cursiv::ast_type_tag<pike::ast::CommaExpr>)
+    if (ret.value->type != &cursiv::kAstTypeTag<pike::ast::CommaExpr>)
       return fail("example1.pike: expected the wrapped comma expression");
     const auto& commaExpr =
         *static_cast<const pike::ast::CommaExpr*>(ret.value);
     if (commaExpr.items.size() != 1 ||
         commaExpr.items[0]->type !=
-            &cursiv::ast_type_tag<pike::ast::NumberLit>)
+            &cursiv::kAstTypeTag<pike::ast::NumberLit>)
       return fail("example1.pike: expected one NumberLit");
     if (static_cast<const pike::ast::NumberLit*>(commaExpr.items[0])->value !=
         "0")
@@ -217,10 +217,10 @@ array xs=({1,2});array ys=xs[..1];
     if (fn.args.size() != 2 || fn.args[0]->name != "argc" ||
         fn.args[1]->name != "argv")
       return fail("example2.pike: expected `argc`, `argv`");
-    if (fn.args[1]->type->type != &cursiv::ast_type_tag<pike::ast::ArrayType>)
+    if (fn.args[1]->type->type != &cursiv::kAstTypeTag<pike::ast::ArrayType>)
       return fail("example2.pike: expected `argv`'s type to be an array");
     if (fn.body->statements.size() != 1 ||
-        fn.body->statements[0]->type != &cursiv::ast_type_tag<pike::ast::If>)
+        fn.body->statements[0]->type != &cursiv::kAstTypeTag<pike::ast::If>)
       return fail("example2.pike: expected one `if` statement");
     const auto& ifStmt =
         *static_cast<const pike::ast::If*>(fn.body->statements[0]);
@@ -243,7 +243,7 @@ array xs=({1,2});array ys=xs[..1];
     if (program->definitions.empty())
       return fail("kitchen_sink.pike: expected definitions");
     if (program->definitions[0]->type !=
-        &cursiv::ast_type_tag<pike::ast::Import>)
+        &cursiv::kAstTypeTag<pike::ast::Import>)
       return fail("kitchen_sink.pike: expected an import first");
     const auto& import =
         *static_cast<const pike::ast::Import*>(program->definitions[0]);
@@ -265,7 +265,7 @@ array xs=({1,2});array ys=xs[..1];
           program->definitions[0]);
       const pike::ast::Statement* ret = nullptr;
       for (pike::ast::Statement* const s : fn.body->statements)
-        if (s->type == &cursiv::ast_type_tag<pike::ast::Return>) ret = s;
+        if (s->type == &cursiv::kAstTypeTag<pike::ast::Return>) ret = s;
       if (ret == nullptr) {
         fail(std::string(label) + ": expected a return statement");
         status = 1;

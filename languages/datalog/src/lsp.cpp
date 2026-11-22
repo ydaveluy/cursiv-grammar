@@ -5,7 +5,7 @@
 #include "datalog/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       datalog::DatalogSharedServices>(
       argc, argv, "datalog-lsp", &datalog::register_lsp_services);
 }

@@ -5,7 +5,7 @@
 #include "plantuml/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       plantuml::PlantUMLSharedServices>(
       argc, argv, "plantuml-lsp", &plantuml::register_lsp_services);
 }

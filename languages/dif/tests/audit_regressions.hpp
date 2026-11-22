@@ -14,7 +14,7 @@
 namespace audit_regressions {
 inline bool run() {
   namespace ast = dif::ast;
-  const auto language = cursiv::create_language<dif::DifCoreServices,
+  const auto language = cursiv::createLanguage<dif::DifCoreServices,
       dif::DifSharedCoreServices, dif::install_core_module>();
   bool ok = true;
   const auto check = [&](bool value, const char* message) {

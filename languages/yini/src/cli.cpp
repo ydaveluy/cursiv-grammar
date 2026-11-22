@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<yini::YiniCoreServices,
+    &cursiv::registerLanguage<yini::YiniCoreServices,
                            yini::YiniSharedCoreServices,
                            yini::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<yini::YiniSharedCoreServices>(
+  return cursiv::runCli<yini::YiniSharedCoreServices>(
       argc, argv, kRegister);
 }

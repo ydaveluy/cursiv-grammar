@@ -9,7 +9,7 @@
 namespace muddb {
 
 void install_core_module(MuddbCoreServices& services) {
-  muddb::generated::Muddb::install_generated_module(services);
+  muddb::generated::Muddb::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

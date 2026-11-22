@@ -9,7 +9,7 @@
 namespace algol60 {
 
 void install_core_module(Algol60CoreServices& services) {
-  algol60::generated::Algol60::install_generated_module(services);
+  algol60::generated::Algol60::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace pegen {
 
 void install_core_module(PegenCoreServices& services) {
-  pegen::generated::Pegen::install_generated_module(services);
+  pegen::generated::Pegen::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

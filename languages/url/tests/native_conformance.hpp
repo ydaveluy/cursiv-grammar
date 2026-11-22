@@ -45,10 +45,10 @@ inline J project(const url::ast::Url *n) {
                    {"fragment", n->hasFragment ? J(n->frag) : J(nullptr)}};
 }
 inline bool run() {
-  auto language = cursiv::create_language<url::UrlCoreServices,
+  auto language = cursiv::createLanguage<url::UrlCoreServices,
                                          url::UrlSharedCoreServices,
                                          url::install_core_module>();
-  auto factory = url::generated::Url::create_parser();
+  auto factory = url::generated::Url::createParser();
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) std::fprintf(stderr, "native URI: %s\n", message);

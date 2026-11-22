@@ -5,7 +5,7 @@
 #include "wren/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       wren::WrenSharedServices>(
       argc, argv, "wren-lsp", &wren::register_lsp_services);
 }

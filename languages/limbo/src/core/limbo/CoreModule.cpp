@@ -9,7 +9,7 @@
 namespace limbo {
 
 void install_core_module(LimboCoreServices& services) {
-  limbo::generated::Limbo::install_generated_module(services);
+  limbo::generated::Limbo::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

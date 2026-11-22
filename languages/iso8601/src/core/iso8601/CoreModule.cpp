@@ -9,7 +9,7 @@
 namespace iso8601 {
 
 void install_core_module(Iso8601CoreServices& services) {
-  iso8601::generated::Iso8601::install_generated_module(services);
+  iso8601::generated::Iso8601::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

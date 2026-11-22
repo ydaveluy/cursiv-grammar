@@ -9,7 +9,7 @@
 namespace thrift {
 
 void install_core_module(ThriftCoreServices& services) {
-  thrift::generated::Thrift::install_generated_module(services);
+  thrift::generated::Thrift::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

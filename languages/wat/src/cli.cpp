@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<wat::WatCoreServices,
+    &cursiv::registerLanguage<wat::WatCoreServices,
                            wat::WatSharedCoreServices,
                            wat::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<wat::WatSharedCoreServices>(
+  return cursiv::runCli<wat::WatSharedCoreServices>(
       argc, argv, kRegister);
 }

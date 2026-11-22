@@ -9,7 +9,7 @@
 namespace cookie {
 
 void install_core_module(CookieCoreServices& services) {
-  cookie::generated::Cookie::install_generated_module(services);
+  cookie::generated::Cookie::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

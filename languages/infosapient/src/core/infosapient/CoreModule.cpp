@@ -9,7 +9,7 @@
 namespace infosapient {
 
 void install_core_module(InfosapientCoreServices& services) {
-  infosapient::generated::Infosapient::install_generated_module(services);
+  infosapient::generated::Infosapient::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

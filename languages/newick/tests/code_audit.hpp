@@ -12,7 +12,7 @@
 namespace code_audit {
 namespace ast = newick::ast;
 inline bool run() {
-  auto language = cursiv::create_language<newick::NewickCoreServices,
+  auto language = cursiv::createLanguage<newick::NewickCoreServices,
                                           newick::NewickSharedCoreServices,
                                           newick::install_core_module>();
   bool ok = true;

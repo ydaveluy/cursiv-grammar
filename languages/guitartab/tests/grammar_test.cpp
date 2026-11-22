@@ -23,7 +23,7 @@ namespace ast = guitartab::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      guitartab::generated::Guitartab::create_parser();
+      guitartab::generated::Guitartab::createParser();
   return *p;
 }
 
@@ -114,7 +114,7 @@ void corpus() {
       continue;
     ++seen;
     const std::string path = entry.path().string();
-    const std::string text = cursiv::test::read_file(path);
+    const std::string text = cursiv::test::readFile(path);
     const cursiv::ParseResult r = engine().parse(text);
     if (!r.accepted || r.cst().recovered()) {
       std::printf("FAIL %s: did not parse clean\n", path.c_str());

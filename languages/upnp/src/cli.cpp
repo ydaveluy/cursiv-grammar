@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<upnp::UpnpCoreServices,
+    &cursiv::registerLanguage<upnp::UpnpCoreServices,
                            upnp::UpnpSharedCoreServices,
                            upnp::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<upnp::UpnpSharedCoreServices>(
+  return cursiv::runCli<upnp::UpnpSharedCoreServices>(
       argc, argv, kRegister);
 }

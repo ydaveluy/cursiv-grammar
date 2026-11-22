@@ -30,7 +30,7 @@ std::string read(const char* path) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       oncrpc::OncrpcCoreServices, oncrpc::OncrpcSharedCoreServices,
       oncrpc::install_core_module>();
 
@@ -43,7 +43,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<oncrpc::ast::Specification>)
+        root->type != &cursiv::kAstTypeTag<oncrpc::ast::Specification>)
       return fail("the parse built no specification");
   }
 
@@ -52,9 +52,9 @@ int main() {
   const auto& spec =
       *static_cast<const oncrpc::ast::Specification*>(result.value);
   if (spec.items.size() != 2) return fail("the sample does not hold two top-level definitions");
-  if (spec.items[0]->type != &cursiv::ast_type_tag<oncrpc::ast::StructDef>)
+  if (spec.items[0]->type != &cursiv::kAstTypeTag<oncrpc::ast::StructDef>)
     return fail("the sample's first definition is not the struct");
-  if (spec.items[1]->type != &cursiv::ast_type_tag<oncrpc::ast::ProgramDef>)
+  if (spec.items[1]->type != &cursiv::kAstTypeTag<oncrpc::ast::ProgramDef>)
     return fail("the sample's second definition is not the program");
 
   std::puts("oncrpc: the examples parse");

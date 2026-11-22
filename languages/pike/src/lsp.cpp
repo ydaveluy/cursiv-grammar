@@ -5,7 +5,7 @@
 #include "pike/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       pike::PikeSharedServices>(
       argc, argv, "pike-lsp", &pike::register_lsp_services);
 }

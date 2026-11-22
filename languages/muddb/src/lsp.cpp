@@ -5,7 +5,7 @@
 #include "muddb/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       muddb::MuddbSharedServices>(
       argc, argv, "muddb-lsp", &muddb::register_lsp_services);
 }

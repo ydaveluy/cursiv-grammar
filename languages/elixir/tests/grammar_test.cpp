@@ -46,7 +46,7 @@ const std::set<std::string>& knownFailing() {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       elixir::ElixirCoreServices, elixir::ElixirSharedCoreServices,
       elixir::install_core_module>();
   if (!elixir_audit::modern_cases(language)) return 1;
@@ -110,7 +110,7 @@ int main() {
       return fail(entry.path(), "the native-confirmed document does not parse clean");
     }
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<elixir::ast::Block>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<elixir::ast::Block>)
       return fail(entry.path(), "the parse built no block");
   }
   if (total == 0) {
@@ -131,13 +131,13 @@ int main() {
       return fail("1 + 2", "the block does not hold one statement");
     const auto* const bin =
         static_cast<const elixir::ast::BinaryExpr*>(block->body[0]);
-    if (bin->type != &cursiv::ast_type_tag<elixir::ast::BinaryExpr>)
+    if (bin->type != &cursiv::kAstTypeTag<elixir::ast::BinaryExpr>)
       return fail("1 + 2", "the statement is not a binary expression");
     if (bin->op != elixir::ast::Operator::add)
       return fail("1 + 2", "the operator is not add");
     const auto* const left =
         static_cast<const elixir::ast::IntegerLit*>(bin->left);
-    if (left->type != &cursiv::ast_type_tag<elixir::ast::IntegerLit> ||
+    if (left->type != &cursiv::kAstTypeTag<elixir::ast::IntegerLit> ||
         left->text != "1")
       return fail("1 + 2", "the left operand is not the integer 1");
   }
@@ -150,7 +150,7 @@ int main() {
     const auto* const block = result.valueAs<elixir::ast::Block>();
     const auto* const atom =
         static_cast<const elixir::ast::AtomLit*>(block->body[0]);
-    if (atom->type != &cursiv::ast_type_tag<elixir::ast::AtomLit> ||
+    if (atom->type != &cursiv::kAstTypeTag<elixir::ast::AtomLit> ||
         atom->text != "atom")
       return fail(":atom", "the atom text is not unquoted correctly");
   }
@@ -158,7 +158,7 @@ int main() {
   // `++ -- +++ --- .. <>`, `=`, `|` and `::` are right-associative in
   // Elixir: a right operand nests, a left one does not.
   const auto isBinary = [](const cursiv::AstNode* n) {
-    return n->type == &cursiv::ast_type_tag<elixir::ast::BinaryExpr>;
+    return n->type == &cursiv::kAstTypeTag<elixir::ast::BinaryExpr>;
   };
   {
     const cursiv::ParseResult result =

@@ -9,7 +9,7 @@
 namespace aterm {
 
 void install_core_module(AtermCoreServices& services) {
-  aterm::generated::Aterm::install_generated_module(services);
+  aterm::generated::Aterm::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

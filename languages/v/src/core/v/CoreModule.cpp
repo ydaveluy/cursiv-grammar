@@ -9,7 +9,7 @@
 namespace v {
 
 void install_core_module(VCoreServices& services) {
-  v::generated::V::install_generated_module(services);
+  v::generated::V::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<tinyc::TinycCoreServices,
+    &cursiv::registerLanguage<tinyc::TinycCoreServices,
                            tinyc::TinycSharedCoreServices,
                            tinyc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<tinyc::TinycSharedCoreServices>(
+  return cursiv::runCli<tinyc::TinycSharedCoreServices>(
       argc, argv, kRegister);
 }

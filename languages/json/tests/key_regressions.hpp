@@ -16,7 +16,7 @@
 
 namespace json_key_regressions {
 inline bool run() {
-  const auto services = cursiv::create_language<json::JsonCoreServices,
+  const auto services = cursiv::createLanguage<json::JsonCoreServices,
                                                 json::JsonSharedCoreServices,
                                                 json::install_core_module>();
   struct Key {

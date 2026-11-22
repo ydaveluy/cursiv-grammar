@@ -9,7 +9,7 @@
 namespace odin {
 
 void install_core_module(OdinCoreServices& services) {
-  odin::generated::Odin::install_generated_module(services);
+  odin::generated::Odin::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

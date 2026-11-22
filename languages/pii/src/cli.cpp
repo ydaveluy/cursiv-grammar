@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<pii::PiiCoreServices,
+    &cursiv::registerLanguage<pii::PiiCoreServices,
                            pii::PiiSharedCoreServices,
                            pii::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<pii::PiiSharedCoreServices>(
+  return cursiv::runCli<pii::PiiSharedCoreServices>(
       argc, argv, kRegister);
 }

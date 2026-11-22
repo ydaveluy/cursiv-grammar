@@ -15,7 +15,7 @@
 
 int main() {
   const auto language =
-      cursiv::create_language<rfc1960::Rfc1960CoreServices,
+      cursiv::createLanguage<rfc1960::Rfc1960CoreServices,
                               rfc1960::Rfc1960SharedCoreServices,
                               rfc1960::install_core_module>();
   unsigned native = 0;

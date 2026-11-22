@@ -11,7 +11,7 @@
 namespace fdo91 {
 
 void install_lsp_module(Fdo91Services& services) {
-  cursiv::install_default_lsp_services(services);
+  cursiv::installDefaultLspServices(services);
 }
 
 // The three storeys in order: the framework's defaults, the language's
@@ -22,7 +22,7 @@ bool register_lsp_services(cursiv::SharedCoreServices& sharedServices) {
   auto& shared =
       dynamic_cast<Fdo91SharedServices&>(sharedServices);
   auto services = std::make_unique<Fdo91Services>(shared);
-  cursiv::install_default_core_services(*services);
+  cursiv::installDefaultCoreServices(*services);
   install_core_module(*services);
   install_lsp_module(*services);
   shared.serviceRegistry->registerServices(std::move(services));

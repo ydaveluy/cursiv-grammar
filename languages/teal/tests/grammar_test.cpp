@@ -23,13 +23,13 @@ namespace ast = teal::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      teal::generated::Teal::create_parser();
+      teal::generated::Teal::createParser();
   return *p;
 }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -66,7 +66,7 @@ const char* const kOwnDocs[] = {
 
 void every_example_parses_clean() {
   for (const char* const name : kExamples) {
-    const std::string text = cursiv::test::read_file(
+    const std::string text = cursiv::test::readFile(
         std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
     CHECK(!text.empty());
     const cursiv::ParseResult r = parse(kept(text));
@@ -77,7 +77,7 @@ void every_example_parses_clean() {
     CHECK(root != nullptr);
   }
   for (const char* const name : kOwnDocs) {
-    const std::string text = cursiv::test::read_file(
+    const std::string text = cursiv::test::readFile(
         std::string(CURSIV_TEST_DIR) + "/" + name);
     CHECK(!text.empty());
     const cursiv::ParseResult r = parse(kept(text));
@@ -92,7 +92,7 @@ void every_example_parses_clean() {
 // `local values: {number}` then `local names = {"John", ...}`: an array
 // type read back, and a string table read back.
 void arrays_example_values() {
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       std::string(CURSIV_EXAMPLE_DIR) + "/arrays.tl");
   const cursiv::ParseResult r = parse(kept(text));
   ast::Block* const root = as<ast::Block>(r.value);
@@ -139,7 +139,7 @@ void arrays_example_values() {
 // `local Direction = enum "north" "south" "east" "west" end`: the string
 // values, unquoted, in order.
 void enums_example_values() {
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       std::string(CURSIV_EXAMPLE_DIR) + "/enums.tl");
   const cursiv::ParseResult r = parse(kept(text));
   ast::Block* const root = as<ast::Block>(r.value);
@@ -161,7 +161,7 @@ void enums_example_values() {
 // `local type Comparator = function<T>(T, T): boolean` then a generic
 // function reading a generic type back as its parameter.
 void functions_example_values() {
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       std::string(CURSIV_EXAMPLE_DIR) + "/functions.tl");
   const cursiv::ParseResult r = parse(kept(text));
   ast::Block* const root = as<ast::Block>(r.value);

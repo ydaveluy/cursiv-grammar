@@ -9,7 +9,7 @@
 namespace desktopentry {
 
 void install_core_module(DesktopEntryCoreServices& services) {
-  desktopentry::generated::DesktopEntry::install_generated_module(services);
+  desktopentry::generated::DesktopEntry::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace redis {
 
 void install_core_module(RedisCoreServices& services) {
-  redis::generated::Redis::install_generated_module(services);
+  redis::generated::Redis::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

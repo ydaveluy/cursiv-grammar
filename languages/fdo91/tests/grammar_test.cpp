@@ -25,7 +25,7 @@ int fail(const std::string& what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       fdo91::Fdo91CoreServices,
       fdo91::Fdo91SharedCoreServices,
       fdo91::install_core_module>();
@@ -63,7 +63,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<fdo91::ast::Doc>)
+        root->type != &cursiv::kAstTypeTag<fdo91::ast::Doc>)
       return fail(path.string() + ": the parse built no Doc");
 
     ++count;

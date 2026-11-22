@@ -17,7 +17,7 @@
 namespace {
 namespace ast = racketisl::ast;
 const cursiv::Parser &engine() {
-  static const auto parser = racketisl::generated::RacketIsl::create_parser();
+  static const auto parser = racketisl::generated::RacketIsl::createParser();
   return *parser;
 }
 void examples() {
@@ -30,7 +30,7 @@ void examples() {
            file.path().extension() != ".racketisl"))
         continue;
       ++seen;
-      const std::string source = cursiv::test::read_file(file.path().string());
+      const std::string source = cursiv::test::readFile(file.path().string());
       const auto result = engine().parse(source);
       CHECK(result.accepted && !result.cst().recovered());
       CHECK(result.valueAs<ast::Program>() != nullptr);
@@ -155,7 +155,7 @@ void here_string() {
 }
 void validation() {
   auto language =
-      cursiv::create_language<racketisl::RacketIslCoreServices,
+      cursiv::createLanguage<racketisl::RacketIslCoreServices,
                               racketisl::RacketIslSharedCoreServices,
                               racketisl::install_core_module>();
   for (const std::string source :
@@ -234,7 +234,7 @@ void character_boundaries() {
   }
 }
 void native_reader_rejections() {
-  auto language = cursiv::create_language<racketisl::RacketIslCoreServices,
+  auto language = cursiv::createLanguage<racketisl::RacketIslCoreServices,
       racketisl::RacketIslSharedCoreServices, racketisl::install_core_module>();
   {
     const auto parsed = engine().parse("#lang htdp/isl (define x 1)");
@@ -278,7 +278,7 @@ void line_comment_boundaries() {
 } // namespace
 int main() {
   {
-    auto language = cursiv::create_language<racketisl::RacketIslCoreServices,
+    auto language = cursiv::createLanguage<racketisl::RacketIslCoreServices,
         racketisl::RacketIslSharedCoreServices, racketisl::install_core_module>();
     racketisl_reader_boundaries::run(language.language);
   }

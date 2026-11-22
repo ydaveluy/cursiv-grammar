@@ -57,7 +57,7 @@ void translate_unicode_source(std::string_view source,
     // join two Char units or reject a native-valid literal.
     if (escape->unit >= 0xd800 && escape->unit <= 0xdfff) continue;
     std::string spelling;
-    cursiv::append_scalar(spelling, escape->unit);
+    cursiv::appendScalar(spelling, escape->unit);
     out.replace(begin, pos, spelling);
   }
 }

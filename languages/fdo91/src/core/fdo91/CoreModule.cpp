@@ -9,7 +9,7 @@
 namespace fdo91 {
 
 void install_core_module(Fdo91CoreServices& services) {
-  fdo91::generated::Fdo91::install_generated_module(services);
+  fdo91::generated::Fdo91::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

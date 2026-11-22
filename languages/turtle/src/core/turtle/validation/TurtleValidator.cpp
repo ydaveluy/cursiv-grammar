@@ -85,27 +85,27 @@ void check_term(const ast::Term *term, const Prefixes &prefixes,
                 std::string_view source, cursiv::ValidationAcceptor &accept) {
   if (term == nullptr)
     return;
-  if (term->type == &cursiv::ast_type_tag<ast::IriRef>) {
+  if (term->type == &cursiv::kAstTypeTag<ast::IriRef>) {
     check_unicode(*term, "value", source, accept);
-  } else if (term->type == &cursiv::ast_type_tag<ast::PrefixedTerm>) {
+  } else if (term->type == &cursiv::kAstTypeTag<ast::PrefixedTerm>) {
     const auto &prefixed = *static_cast<const ast::PrefixedTerm *>(term);
     const std::string_view prefix = prefix_of(prefixed.value);
     if (!prefixes.contains(prefix))
       accept.error(prefixed, "prefix is not declared")
           .property<&ast::PrefixedTerm::value>();
-  } else if (term->type == &cursiv::ast_type_tag<ast::BoolLit>) {
+  } else if (term->type == &cursiv::kAstTypeTag<ast::BoolLit>) {
     const auto text = spelling(*term, source, accept);
     if (!text.empty() && text != "true" && text != "false")
       accept.error(*term, "Turtle booleans must be lowercase");
-  } else if (term->type == &cursiv::ast_type_tag<ast::Collection>) {
+  } else if (term->type == &cursiv::kAstTypeTag<ast::Collection>) {
     for (const ast::Term *const item :
          static_cast<const ast::Collection *>(term)->items)
       check_term(item, prefixes, source, accept);
-  } else if (term->type == &cursiv::ast_type_tag<ast::BlankNodePropertyList>) {
+  } else if (term->type == &cursiv::kAstTypeTag<ast::BlankNodePropertyList>) {
     check_properties(
         static_cast<const ast::BlankNodePropertyList *>(term)->properties,
         prefixes, source, accept);
-  } else if (term->type == &cursiv::ast_type_tag<ast::RdfLiteral>) {
+  } else if (term->type == &cursiv::kAstTypeTag<ast::RdfLiteral>) {
     check_unicode(*term, "value", source, accept);
     check_term(static_cast<const ast::RdfLiteral *>(term)->datatype, prefixes,
                source, accept);
@@ -123,25 +123,25 @@ void TurtleValidator::checkDocument(const ast::Document &document,
   for (const ast::Statement *const statement : document.statements) {
     if (statement == nullptr)
       continue;
-    if (statement->type == &cursiv::ast_type_tag<ast::PrefixDecl>) {
+    if (statement->type == &cursiv::kAstTypeTag<ast::PrefixDecl>) {
       check_unicode(*statement, "iri", source, accept);
       prefixes.insert(static_cast<const ast::PrefixDecl *>(statement)->prefix);
       const auto text = spelling(*statement, source, accept);
       if (!text.empty() && !text.starts_with("@prefix"))
         accept.error(*statement, "use lowercase @prefix");
-    } else if (statement->type == &cursiv::ast_type_tag<ast::BaseDecl>) {
+    } else if (statement->type == &cursiv::kAstTypeTag<ast::BaseDecl>) {
       check_unicode(*statement, "iri", source, accept);
       const auto text = spelling(*statement, source, accept);
       if (!text.empty() && !text.starts_with("@base"))
         accept.error(*statement, "use lowercase @base");
     } else if (statement->type ==
-               &cursiv::ast_type_tag<ast::SparqlPrefixDecl>) {
+               &cursiv::kAstTypeTag<ast::SparqlPrefixDecl>) {
       check_unicode(*statement, "iri", source, accept);
       prefixes.insert(
           static_cast<const ast::SparqlPrefixDecl *>(statement)->prefix);
-    } else if (statement->type == &cursiv::ast_type_tag<ast::SparqlBaseDecl>) {
+    } else if (statement->type == &cursiv::kAstTypeTag<ast::SparqlBaseDecl>) {
       check_unicode(*statement, "iri", source, accept);
-    } else if (statement->type == &cursiv::ast_type_tag<ast::Triples>) {
+    } else if (statement->type == &cursiv::kAstTypeTag<ast::Triples>) {
       const auto &triples = *static_cast<const ast::Triples *>(statement);
       check_term(triples.subject, prefixes, source, accept);
       check_properties(triples.properties, prefixes, source, accept);

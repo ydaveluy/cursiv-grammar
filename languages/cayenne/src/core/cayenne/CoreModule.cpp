@@ -9,7 +9,7 @@
 namespace cayenne {
 
 void install_core_module(CayenneCoreServices& services) {
-  cayenne::generated::Cayenne::install_generated_module(services);
+  cayenne::generated::Cayenne::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

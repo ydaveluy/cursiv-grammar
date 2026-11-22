@@ -9,7 +9,7 @@
 namespace smalltalk {
 
 void install_core_module(SmalltalkCoreServices& services) {
-  smalltalk::generated::Smalltalk::install_generated_module(services);
+  smalltalk::generated::Smalltalk::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

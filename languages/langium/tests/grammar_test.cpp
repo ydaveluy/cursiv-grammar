@@ -40,7 +40,7 @@ int main() {
   if (!code_audit::run()) return 1;
   {
     const auto audit_language =
-        cursiv::create_language<langium::LangiumCoreServices,
+        cursiv::createLanguage<langium::LangiumCoreServices,
                                 langium::LangiumSharedCoreServices,
                                 langium::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -60,7 +60,7 @@ int main() {
   }
 
   const auto language =
-      cursiv::create_language<langium::LangiumCoreServices,
+      cursiv::createLanguage<langium::LangiumCoreServices,
                               langium::LangiumSharedCoreServices,
                               langium::install_core_module>();
 
@@ -100,7 +100,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<langium::ast::Grammar>)
+        root->type != &cursiv::kAstTypeTag<langium::ast::Grammar>)
       return fail((std::string(name) + ": built no Grammar").c_str());
 
     const auto& grammar = *static_cast<const langium::ast::Grammar*>(root);
@@ -123,7 +123,7 @@ int main() {
       return fail("features.langium: has diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<langium::ast::Grammar>)
+        root->type != &cursiv::kAstTypeTag<langium::ast::Grammar>)
       return fail("features.langium: built no Grammar");
   }
 
@@ -179,7 +179,7 @@ int main() {
       return fail("inline interface: 'a' should not be optional");
     if (a.defaultValue == nullptr ||
         a.defaultValue->type !=
-            &cursiv::ast_type_tag<langium::ast::NumberLiteral>)
+            &cursiv::kAstTypeTag<langium::ast::NumberLiteral>)
       return fail("inline interface: 'a' default is not a NumberLiteral");
     const auto& num =
         *static_cast<const langium::ast::NumberLiteral*>(a.defaultValue);

@@ -43,7 +43,7 @@ constexpr Sample kSamples[] = {
 int main() {
   if (!audit_regressions::run()) return 1;
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       dif::DifCoreServices, dif::DifSharedCoreServices,
       dif::install_core_module>();
 
@@ -59,7 +59,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<dif::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<dif::ast::Document>)
       return fail("the parse built no document");
 
     const auto& doc = *static_cast<const dif::ast::Document*>(root);

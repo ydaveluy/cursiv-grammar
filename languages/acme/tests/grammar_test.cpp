@@ -31,7 +31,7 @@ const acme::ast::CompUnit* parseClean(const cursiv::Parser& parser,
   if (out.cst().recovered() || !out.diagnostics.empty()) return nullptr;
   const cursiv::AstNode* const root = out.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<acme::ast::CompUnit>)
+      root->type != &cursiv::kAstTypeTag<acme::ast::CompUnit>)
     return nullptr;
   return static_cast<const acme::ast::CompUnit*>(root);
 }
@@ -51,7 +51,7 @@ int checkReadback(const cursiv::Parser& parser) {
   if (unit == nullptr) return fail("SabPerformanceFamily.acme does not parse clean");
   if (unit->decls.size() != 1) return fail("expected one top-level decl");
 
-  if (unit->decls[0]->type != &cursiv::ast_type_tag<acme::ast::FamilyDecl>)
+  if (unit->decls[0]->type != &cursiv::kAstTypeTag<acme::ast::FamilyDecl>)
     return fail("the top-level decl is not a family");
   const auto& family =
       *static_cast<const acme::ast::FamilyDecl*>(unit->decls[0]);
@@ -64,11 +64,11 @@ int checkReadback(const cursiv::Parser& parser) {
   const acme::ast::PropertyTypeDecl* normalDist = nullptr;
   const acme::ast::ComponentTypeDecl* performingComponent = nullptr;
   for (acme::ast::Member* const member : family.members) {
-    if (member->type == &cursiv::ast_type_tag<acme::ast::PropertyTypeDecl>) {
+    if (member->type == &cursiv::kAstTypeTag<acme::ast::PropertyTypeDecl>) {
       auto* const decl = static_cast<acme::ast::PropertyTypeDecl*>(member);
       if (decl->name == "NormalDistribution") normalDist = decl;
     } else if (member->type ==
-              &cursiv::ast_type_tag<acme::ast::ComponentTypeDecl>) {
+              &cursiv::kAstTypeTag<acme::ast::ComponentTypeDecl>) {
       performingComponent = static_cast<acme::ast::ComponentTypeDecl*>(member);
     }
   }
@@ -76,7 +76,7 @@ int checkReadback(const cursiv::Parser& parser) {
   if (performingComponent == nullptr)
     return fail("PerformingComponent was not found");
 
-  if (normalDist->type->type != &cursiv::ast_type_tag<acme::ast::PropTypeRecord>)
+  if (normalDist->type->type != &cursiv::kAstTypeTag<acme::ast::PropTypeRecord>)
     return fail("NormalDistribution's type is not a record");
   const auto& record =
       *static_cast<const acme::ast::PropTypeRecord*>(normalDist->type);
@@ -84,7 +84,7 @@ int checkReadback(const cursiv::Parser& parser) {
   if (record.fields[0]->name != "mean" || record.fields[1]->name != "stddev")
     return fail("record field names were not read back correctly");
   for (const acme::ast::PropTypeField* const field : record.fields) {
-    if (field->type->type != &cursiv::ast_type_tag<acme::ast::PropTypeSimple>)
+    if (field->type->type != &cursiv::kAstTypeTag<acme::ast::PropTypeSimple>)
       return fail("a record field's type is not the simple `float` spelling");
     const auto& simple =
         *static_cast<const acme::ast::PropTypeSimple*>(field->type);
@@ -97,7 +97,7 @@ int checkReadback(const cursiv::Parser& parser) {
   const auto& latency = *static_cast<const acme::ast::PropertyDecl*>(
       performingComponent->members[0]);
   if (latency.name != "latency") return fail("the property name is not `latency`");
-  if (latency.type->type != &cursiv::ast_type_tag<acme::ast::PropTypeRef>)
+  if (latency.type->type != &cursiv::kAstTypeTag<acme::ast::PropTypeRef>)
     return fail("latency's type is not a named reference");
   if (static_cast<const acme::ast::PropTypeRef*>(latency.type)->name !=
       "Performance")
@@ -109,7 +109,7 @@ int checkReadback(const cursiv::Parser& parser) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       acme::AcmeCoreServices, acme::AcmeSharedCoreServices,
       acme::install_core_module>();
   {

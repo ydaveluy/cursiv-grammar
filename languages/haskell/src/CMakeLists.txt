@@ -5,7 +5,8 @@ cursiv_generate_language(ID haskell
     GRAMMAR    haskell/HaskellGrammar.hpp
     NAMESPACE  haskell::Haskell
     EXTENSIONS .hs
-    OUT        haskell/generated)
+    OUT        haskell/generated
+    LR_MAX_STATES 3000)
 
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)

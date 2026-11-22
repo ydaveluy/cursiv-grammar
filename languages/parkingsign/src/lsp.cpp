@@ -5,7 +5,7 @@
 #include "parkingsign/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       parkingsign::ParkingsignSharedServices>(
       argc, argv, "parkingsign-lsp", &parkingsign::register_lsp_services);
 }

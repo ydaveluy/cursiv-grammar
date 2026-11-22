@@ -11,7 +11,7 @@
 #include "ply/Data.hpp"
 int main() {
   const auto language =
-      cursiv::create_language<ply::PlyCoreServices, ply::PlySharedCoreServices,
+      cursiv::createLanguage<ply::PlyCoreServices, ply::PlySharedCoreServices,
                               ply::install_core_module>();
   unsigned seen = 0;
   for (const char* path : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})

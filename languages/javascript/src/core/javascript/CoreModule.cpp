@@ -9,7 +9,7 @@
 namespace javascript {
 
 void install_core_module(JavaScriptCoreServices& services) {
-  javascript::generated::JavaScript::install_generated_module(services);
+  javascript::generated::JavaScript::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

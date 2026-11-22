@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<infosapient::InfosapientCoreServices,
+    &cursiv::registerLanguage<infosapient::InfosapientCoreServices,
                            infosapient::InfosapientSharedCoreServices,
                            infosapient::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<infosapient::InfosapientSharedCoreServices>(
+  return cursiv::runCli<infosapient::InfosapientSharedCoreServices>(
       argc, argv, kRegister);
 }

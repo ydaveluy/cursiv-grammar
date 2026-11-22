@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<flatbuffers::FlatbuffersCoreServices,
+    &cursiv::registerLanguage<flatbuffers::FlatbuffersCoreServices,
                            flatbuffers::FlatbuffersSharedCoreServices,
                            flatbuffers::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<flatbuffers::FlatbuffersSharedCoreServices>(
+  return cursiv::runCli<flatbuffers::FlatbuffersSharedCoreServices>(
       argc, argv, kRegister);
 }

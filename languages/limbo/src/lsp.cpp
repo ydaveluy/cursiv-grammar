@@ -5,7 +5,7 @@
 #include "limbo/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       limbo::LimboSharedServices>(
       argc, argv, "limbo-lsp", &limbo::register_lsp_services);
 }

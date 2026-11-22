@@ -9,7 +9,7 @@
 namespace lucene {
 
 void install_core_module(LuceneCoreServices& services) {
-  lucene::generated::Lucene::install_generated_module(services);
+  lucene::generated::Lucene::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

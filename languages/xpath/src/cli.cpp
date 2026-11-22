@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<xpath::XpathCoreServices,
+    &cursiv::registerLanguage<xpath::XpathCoreServices,
                            xpath::XpathSharedCoreServices,
                            xpath::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<xpath::XpathSharedCoreServices>(
+  return cursiv::runCli<xpath::XpathSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -9,7 +9,7 @@
 namespace turtledoc {
 
 void install_core_module(TurtleDocCoreServices& services) {
-  turtledoc::generated::TurtleDoc::install_generated_module(services);
+  turtledoc::generated::TurtleDoc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

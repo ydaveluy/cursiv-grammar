@@ -14,8 +14,12 @@ struct Integer : cursiv::Extends<cursiv::AstNode> {
   string_view text; // unbounded decimal spelling between i and e
 };
 struct ByteString : cursiv::Extends<cursiv::AstNode> {
-  string_view length; // decimal count, before the colon
-  string_view value;  // original payload bytes, including NUL
+  string_view encoded;
+  string_view length() const noexcept { return encoded.substr(0, encoded.find(':')); }
+  string_view value() const noexcept {
+    const auto colon = encoded.find(':');
+    return colon == encoded.npos ? string_view{} : encoded.substr(colon + 1);
+  }
 };
 struct List;
 struct Dict;

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<tsv::TsvCoreServices,
+    &cursiv::registerLanguage<tsv::TsvCoreServices,
                            tsv::TsvSharedCoreServices,
                            tsv::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<tsv::TsvSharedCoreServices>(
+  return cursiv::runCli<tsv::TsvSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -5,7 +5,7 @@
 #include "angelscript/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       angelscript::AngelscriptSharedServices>(
       argc, argv, "angelscript-lsp", &angelscript::register_lsp_services);
 }

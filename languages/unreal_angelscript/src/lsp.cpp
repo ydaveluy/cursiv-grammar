@@ -5,7 +5,7 @@
 #include "unrealangelscript/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       unrealangelscript::UnrealAngelscriptSharedServices>(
       argc, argv, "unrealangelscript-lsp", &unrealangelscript::register_lsp_services);
 }

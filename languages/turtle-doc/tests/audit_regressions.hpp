@@ -30,7 +30,7 @@ inline const ast::Term *object(const ast::Triples *triples, std::size_t index) {
                                                    : nullptr;
 }
 inline bool run() {
-  const auto parser = turtledoc::generated::TurtleDoc::create_parser();
+  const auto parser = turtledoc::generated::TurtleDoc::createParser();
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) {
@@ -117,7 +117,7 @@ ex:r '''line\tvalue'''; ex:t """two\rwords""" .)SRC";
   }
   {
     const auto language =
-        cursiv::create_language<turtledoc::TurtleDocCoreServices,
+        cursiv::createLanguage<turtledoc::TurtleDocCoreServices,
                                 turtledoc::TurtleDocSharedCoreServices,
                                 turtledoc::install_core_module>();
     const struct {

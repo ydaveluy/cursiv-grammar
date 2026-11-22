@@ -5,7 +5,7 @@
 #include "recfile/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       recfile::RecfileSharedServices>(
       argc, argv, "recfile-lsp", &recfile::register_lsp_services);
 }

@@ -40,7 +40,7 @@ int fail(const std::string& file, const char* what) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       vhdl::VhdlCoreServices, vhdl::VhdlSharedCoreServices,
       vhdl::install_core_module>();
   if (!vhdl_audit::modern_cases(language)) return 1;
@@ -59,7 +59,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<vhdl::ast::DesignFile>)
+        root->type != &cursiv::kAstTypeTag<vhdl::ast::DesignFile>)
       return fail(path, "the parse built no design file");
     return 0;
   };

@@ -19,7 +19,7 @@ struct Pegen : cursiv::GrammarSpec {
   struct NEWLINE
       : terminal<eol + many(many(cr<R"( \t\f)">) + option(ref<COMMENT>) + eol) +
                  option(many(cr<R"( \t\f)">) + option(ref<COMMENT>) + eof)> {};
-  struct LineEnd : rule<ref<NEWLINE> | eof> {};
+  struct LineEnd : rule<ref<NEWLINE> | &dedent | eof> {};
   struct CONTINUATION : terminal<lit<"\\"> + option(lit<"\r">) + lit<"\n">> {};
   struct NAME : terminal<(uc::XID_Start | cr<"_">) + many(uc::XID_Continue)> {};
   static constexpr auto word_boundary = uc::XID_Continue;

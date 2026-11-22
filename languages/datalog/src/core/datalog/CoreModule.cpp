@@ -9,7 +9,7 @@
 namespace datalog {
 
 void install_core_module(DatalogCoreServices& services) {
-  datalog::generated::Datalog::install_generated_module(services);
+  datalog::generated::Datalog::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

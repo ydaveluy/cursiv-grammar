@@ -9,7 +9,7 @@
 namespace ada {
 
 void install_core_module(AdaCoreServices& services) {
-  ada::generated::Ada::install_generated_module(services);
+  ada::generated::Ada::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

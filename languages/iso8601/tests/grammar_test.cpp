@@ -23,7 +23,7 @@ namespace fs = std::filesystem;
 
 const cursiv::Parser &engine() {
   static const auto language =
-      cursiv::create_language<iso8601::Iso8601CoreServices,
+      cursiv::createLanguage<iso8601::Iso8601CoreServices,
                               iso8601::Iso8601SharedCoreServices,
                               iso8601::install_core_module>();
   return *language.language.parser;
@@ -37,7 +37,7 @@ void every_example_parses_clean() {
   CHECK(!files.empty());
 
   for (const fs::path &path : files) {
-    const std::string text = cursiv::test::read_file(path.string());
+    const std::string text = cursiv::test::readFile(path.string());
     const cursiv::ParseResult r = engine().parse(text);
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) {
       std::printf("FAIL %s: accepted=%d recovered=%d diagnostics=%zu\n",
@@ -208,7 +208,7 @@ void recurring_reads_back() {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<iso8601::Iso8601CoreServices,
+        cursiv::createLanguage<iso8601::Iso8601CoreServices,
                                 iso8601::Iso8601SharedCoreServices,
                                 iso8601::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(

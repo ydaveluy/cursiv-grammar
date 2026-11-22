@@ -27,7 +27,7 @@ int fail(const std::string& what) {
 int main() {
   namespace fs = std::filesystem;
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       b::BCoreServices, b::BSharedCoreServices, b::install_core_module>();
 
   if(native_regressions::run(language)) return 1;
@@ -73,7 +73,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<b::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<b::ast::Program>)
       return fail(path.filename().string() + " built no program");
     ++count;
   }

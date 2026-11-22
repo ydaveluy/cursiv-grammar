@@ -9,7 +9,7 @@
 namespace flatbuffers {
 
 void install_core_module(FlatbuffersCoreServices& services) {
-  flatbuffers::generated::Flatbuffers::install_generated_module(services);
+  flatbuffers::generated::Flatbuffers::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

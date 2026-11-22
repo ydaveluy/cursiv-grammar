@@ -32,7 +32,7 @@ int main() {
 
   // The whole language in one call: the defaults, then `install_core_module`.
   const auto language =
-      cursiv::create_language<sgf::SgfCoreServices, sgf::SgfSharedCoreServices,
+      cursiv::createLanguage<sgf::SgfCoreServices, sgf::SgfSharedCoreServices,
                               sgf::install_core_module>();
 
   for (const char* path : kFiles) {
@@ -53,7 +53,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<sgf::ast::Collection>)
+        root->type != &cursiv::kAstTypeTag<sgf::ast::Collection>)
       return fail(path, "the parse built no collection");
 
     const auto& collection = *static_cast<const sgf::ast::Collection*>(root);

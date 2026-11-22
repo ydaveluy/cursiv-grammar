@@ -16,7 +16,7 @@ namespace code_audit {
 namespace ast = fen::ast;
 inline bool run() {
   auto language =
-      cursiv::create_language<fen::FenCoreServices, fen::FenSharedCoreServices,
+      cursiv::createLanguage<fen::FenCoreServices, fen::FenSharedCoreServices,
                               fen::install_core_module>();
   bool ok = true;
   auto check = [&](bool b, const char* message) {

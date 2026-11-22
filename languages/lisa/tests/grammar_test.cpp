@@ -26,7 +26,7 @@ int fail(const fs::path& path, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       lisa::LisaCoreServices, lisa::LisaSharedCoreServices,
       lisa::install_core_module>();
 
@@ -47,7 +47,7 @@ int main() {
     if (result.cst().recovered()) return fail(path, "does not parse clean");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<lisa::ast::Program>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<lisa::ast::Program>)
       return fail(path, "the parse built no Program");
     if (!result.diagnostics.empty())
       return fail(path, "the parse carries diagnostics");

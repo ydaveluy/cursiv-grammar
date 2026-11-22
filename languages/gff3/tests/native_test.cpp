@@ -78,7 +78,7 @@ int source_format_cases(const auto& language) {
 }
 
 int main() {
-  const auto language = cursiv::create_language<gff3::Gff3CoreServices,
+  const auto language = cursiv::createLanguage<gff3::Gff3CoreServices,
                                                 gff3::Gff3SharedCoreServices,
                                                 gff3::install_core_module>();
   if (source_format_cases(language)) return 1;

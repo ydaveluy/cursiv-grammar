@@ -9,7 +9,7 @@
 namespace less {
 
 void install_core_module(LessCoreServices& services) {
-  less::generated::Less::install_generated_module(services);
+  less::generated::Less::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace kotlin {
 
 void install_core_module(KotlinCoreServices& services) {
-  kotlin::generated::Kotlin::install_generated_module(services);
+  kotlin::generated::Kotlin::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

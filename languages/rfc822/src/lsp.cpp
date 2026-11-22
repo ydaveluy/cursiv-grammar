@@ -5,7 +5,7 @@
 #include "rfc822/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       rfc822::Rfc822SharedServices>(
       argc, argv, "rfc822-lsp", &rfc822::register_lsp_services);
 }

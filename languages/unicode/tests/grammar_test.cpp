@@ -29,7 +29,7 @@ std::string read_file(const std::string& path) {
 }
 
 graphemes::GraphemesCoreServices& language() {
-  static const auto lang = cursiv::create_language<
+  static const auto lang = cursiv::createLanguage<
       graphemes::GraphemesCoreServices, graphemes::GraphemesSharedCoreServices,
       graphemes::install_core_module>();
   return lang.language;
@@ -48,7 +48,7 @@ cursiv::ParseResult parse_clean(const std::string& text, const char* label) {
 graphemes::ast::Document* document(cursiv::ParseResult& r) {
   const cursiv::AstNode* const root = r.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<graphemes::ast::Document>)
+      root->type != &cursiv::kAstTypeTag<graphemes::ast::Document>)
     return nullptr;
   return static_cast<graphemes::ast::Document*>(
       const_cast<cursiv::AstNode*>(root));

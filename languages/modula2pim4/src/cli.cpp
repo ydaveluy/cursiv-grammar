@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<modula2pim4::Modula2pim4CoreServices,
+    &cursiv::registerLanguage<modula2pim4::Modula2pim4CoreServices,
                            modula2pim4::Modula2pim4SharedCoreServices,
                            modula2pim4::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<modula2pim4::Modula2pim4SharedCoreServices>(
+  return cursiv::runCli<modula2pim4::Modula2pim4SharedCoreServices>(
       argc, argv, kRegister);
 }

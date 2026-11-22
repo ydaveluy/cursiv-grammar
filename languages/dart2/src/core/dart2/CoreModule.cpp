@@ -9,7 +9,7 @@
 namespace dart2 {
 
 void install_core_module(Dart2CoreServices& services) {
-  dart2::generated::Dart2::install_generated_module(services);
+  dart2::generated::Dart2::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

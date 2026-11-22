@@ -22,13 +22,13 @@ namespace ast = janus::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      janus::generated::Janus::create_parser();
+      janus::generated::Janus::createParser();
   return *p;
 }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -45,7 +45,7 @@ void every_example_parses_clean() {
   for (const char* const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
   for (const auto& entry : std::filesystem::directory_iterator(dir)) {
     if (entry.path().extension() != ".janus") continue;
-    const std::string text = cursiv::test::read_file(entry.path().string());
+    const std::string text = cursiv::test::readFile(entry.path().string());
     CHECK(!text.empty());
     const cursiv::ParseResult r = parse(kept(text));
     CHECK(r.accepted);

@@ -28,7 +28,7 @@ int main() {
   static constexpr const char* kSamples[] = {"example1.xyz", "example2.xyz",
                                              "methane.xyz"};
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       xyz::XyzCoreServices,
       xyz::XyzSharedCoreServices,
       xyz::install_core_module>();
@@ -55,7 +55,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<xyz::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<xyz::ast::Document>)
       return fail(name, "the parse built no document");
 
     const auto& document = *static_cast<const xyz::ast::Document*>(root);

@@ -9,7 +9,7 @@
 namespace pascal {
 
 void install_core_module(PascalCoreServices& services) {
-  pascal::generated::Pascal::install_generated_module(services);
+  pascal::generated::Pascal::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace lark {
 
 void install_core_module(LarkCoreServices& services) {
-  lark::generated::Lark::install_generated_module(services);
+  lark::generated::Lark::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

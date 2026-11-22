@@ -8,7 +8,7 @@
 
 namespace native_regressions {
 inline bool run() {
-  auto language = cursiv::create_language<itn::ItnCoreServices,
+  auto language = cursiv::createLanguage<itn::ItnCoreServices,
       itn::ItnSharedCoreServices, itn::install_core_module>();
   bool ok = true;
   const auto check = [&](bool value, const char* message) {

@@ -9,7 +9,7 @@
 namespace cypher {
 
 void install_core_module(CypherCoreServices& services) {
-  cypher::generated::Cypher::install_generated_module(services);
+  cypher::generated::Cypher::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

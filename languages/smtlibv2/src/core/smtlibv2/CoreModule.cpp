@@ -9,7 +9,7 @@
 namespace smtlibv2 {
 
 void install_core_module(Smtlibv2CoreServices& services) {
-  smtlibv2::generated::Smtlibv2::install_generated_module(services);
+  smtlibv2::generated::Smtlibv2::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

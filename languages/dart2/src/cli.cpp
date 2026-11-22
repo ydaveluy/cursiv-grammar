@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<dart2::Dart2CoreServices,
+    &cursiv::registerLanguage<dart2::Dart2CoreServices,
                            dart2::Dart2SharedCoreServices,
                            dart2::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<dart2::Dart2SharedCoreServices>(
+  return cursiv::runCli<dart2::Dart2SharedCoreServices>(
       argc, argv, kRegister);
 }

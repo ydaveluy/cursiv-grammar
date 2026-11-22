@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<amazonstateslanguage::AmazonStatesLanguageCoreServices,
+    &cursiv::registerLanguage<amazonstateslanguage::AmazonStatesLanguageCoreServices,
                            amazonstateslanguage::AmazonStatesLanguageSharedCoreServices,
                            amazonstateslanguage::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<amazonstateslanguage::AmazonStatesLanguageSharedCoreServices>(
+  return cursiv::runCli<amazonstateslanguage::AmazonStatesLanguageSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -166,7 +166,7 @@ bool guarded_rulesets(const cursiv::Parser& parser) {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<less::LessCoreServices,
+        cursiv::createLanguage<less::LessCoreServices,
                                 less::LessSharedCoreServices,
                                 less::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -196,7 +196,7 @@ int main() {
       return 1;
   }
 
-  const auto language = cursiv::create_language<less::LessCoreServices,
+  const auto language = cursiv::createLanguage<less::LessCoreServices,
                                                 less::LessSharedCoreServices,
                                                 less::install_core_module>();
 
@@ -325,7 +325,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<less::ast::Stylesheet>)
+        root->type != &cursiv::kAstTypeTag<less::ast::Stylesheet>)
       return fail(std::string(name) + ": built no Stylesheet");
   }
 
@@ -347,7 +347,7 @@ int main() {
       return fail("features.less: has diagnostics");
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<less::ast::Stylesheet>)
+        root->type != &cursiv::kAstTypeTag<less::ast::Stylesheet>)
       return fail("features.less: built no Stylesheet");
     const auto &sheet = *static_cast<const less::ast::Stylesheet *>(root);
     if (sheet.statements.size() < 5)
@@ -357,13 +357,13 @@ int main() {
     // than `+`/`-`, and `+`/`-` chain left-associatively.
     const less::ast::Ruleset *precedence = nullptr;
     for (const auto *const stmt : sheet.statements) {
-      if (stmt->type != &cursiv::ast_type_tag<less::ast::Ruleset>)
+      if (stmt->type != &cursiv::kAstTypeTag<less::ast::Ruleset>)
         continue;
       const auto &rs = *static_cast<const less::ast::Ruleset *>(stmt);
       if (rs.selectors == nullptr || rs.selectors->items.size() != 1 ||
           rs.selectors->items[0]->elements.size() != 1 ||
           rs.selectors->items[0]->elements[0]->type !=
-              &cursiv::ast_type_tag<less::ast::NamedElement>)
+              &cursiv::kAstTypeTag<less::ast::NamedElement>)
         continue;
       const auto &elem = *static_cast<const less::ast::NamedElement *>(
           rs.selectors->items[0]->elements[0]);
@@ -429,7 +429,7 @@ int main() {
     return fail("example1.less: expected four statements");
 
   if (sheet.statements[0]->type !=
-      &cursiv::ast_type_tag<less::ast::VariableDecl>)
+      &cursiv::kAstTypeTag<less::ast::VariableDecl>)
     return fail("example1.less: statement 0 is not a VariableDecl");
   const auto &decl0 =
       *static_cast<const less::ast::VariableDecl *>(sheet.statements[0]);
@@ -440,13 +440,13 @@ int main() {
   const less::ast::CommandStatement &cmd0 = *decl0.value->items[0];
   const less::ast::Expr *const atom0 = bare_atom(cmd0);
   if (atom0 == nullptr ||
-      atom0->type != &cursiv::ast_type_tag<less::ast::ColorLit>)
+      atom0->type != &cursiv::kAstTypeTag<less::ast::ColorLit>)
     return fail("example1.less: variable value is not a color");
   const auto &color0 = *static_cast<const less::ast::ColorLit *>(atom0);
   if (color0.value != "#FF7F50")
     return fail("example1.less: wrong color");
 
-  if (sheet.statements[2]->type != &cursiv::ast_type_tag<less::ast::Ruleset>)
+  if (sheet.statements[2]->type != &cursiv::kAstTypeTag<less::ast::Ruleset>)
     return fail("example1.less: statement 2 is not a Ruleset");
   const auto &h1 =
       *static_cast<const less::ast::Ruleset *>(sheet.statements[2]);
@@ -470,7 +470,7 @@ int main() {
     return fail("example1.less: color property value shape is wrong");
   const less::ast::Expr *const valueNode = bare_atom(*color.value->items[0]);
   if (valueNode == nullptr ||
-      valueNode->type != &cursiv::ast_type_tag<less::ast::VarValue>)
+      valueNode->type != &cursiv::kAstTypeTag<less::ast::VarValue>)
     return fail("example1.less: color value is not a variable reference");
   const auto &varRef = *static_cast<const less::ast::VarValue *>(valueNode);
   if (varRef.name == nullptr || varRef.name->name != "primarycolor")

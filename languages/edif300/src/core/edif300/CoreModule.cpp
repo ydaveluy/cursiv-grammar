@@ -9,7 +9,7 @@
 namespace edif300 {
 
 void install_core_module(Edif300CoreServices& services) {
-  edif300::generated::Edif300::install_generated_module(services);
+  edif300::generated::Edif300::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

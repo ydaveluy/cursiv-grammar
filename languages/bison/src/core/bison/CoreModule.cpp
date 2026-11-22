@@ -9,7 +9,7 @@
 namespace bison {
 
 void install_core_module(BisonCoreServices& services) {
-  bison::generated::Bison::install_generated_module(services);
+  bison::generated::Bison::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace tnsnames {
 
 void install_core_module(TnsnamesCoreServices& services) {
-  tnsnames::generated::Tnsnames::install_generated_module(services);
+  tnsnames::generated::Tnsnames::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

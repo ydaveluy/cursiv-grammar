@@ -5,7 +5,7 @@
 #include "kotlin/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       kotlin::KotlinSharedServices>(
       argc, argv, "kotlin-lsp", &kotlin::register_lsp_services);
 }

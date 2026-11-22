@@ -66,22 +66,22 @@ void checkNumber(const Node& node, cursiv::ValidationAcceptor& accept,
 constexpr auto kUint32Max = std::numeric_limits<std::uint32_t>::max();
 
 std::string_view definitionName(const ast::Definition& def) {
-  if (def.type == &cursiv::ast_type_tag<ast::TypedefDef>) {
+  if (def.type == &cursiv::kAstTypeTag<ast::TypedefDef>) {
     const auto& d = static_cast<const ast::TypedefDef&>(def);
     if (d.decl != nullptr &&
-        d.decl->type == &cursiv::ast_type_tag<ast::ValueDecl>)
+        d.decl->type == &cursiv::kAstTypeTag<ast::ValueDecl>)
       return static_cast<const ast::ValueDecl*>(d.decl)->name;
     return {};
   }
-  if (def.type == &cursiv::ast_type_tag<ast::EnumDef>)
+  if (def.type == &cursiv::kAstTypeTag<ast::EnumDef>)
     return static_cast<const ast::EnumDef&>(def).name;
-  if (def.type == &cursiv::ast_type_tag<ast::StructDef>)
+  if (def.type == &cursiv::kAstTypeTag<ast::StructDef>)
     return static_cast<const ast::StructDef&>(def).name;
-  if (def.type == &cursiv::ast_type_tag<ast::UnionDef>)
+  if (def.type == &cursiv::kAstTypeTag<ast::UnionDef>)
     return static_cast<const ast::UnionDef&>(def).name;
-  if (def.type == &cursiv::ast_type_tag<ast::ConstantDef>)
+  if (def.type == &cursiv::kAstTypeTag<ast::ConstantDef>)
     return static_cast<const ast::ConstantDef&>(def).name;
-  if (def.type == &cursiv::ast_type_tag<ast::ProgramDef>)
+  if (def.type == &cursiv::kAstTypeTag<ast::ProgramDef>)
     return static_cast<const ast::ProgramDef&>(def).name;
   return {};
 }

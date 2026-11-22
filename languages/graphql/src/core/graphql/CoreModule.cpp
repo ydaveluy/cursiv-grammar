@@ -9,7 +9,7 @@
 namespace graphql {
 
 void install_core_module(GraphqlCoreServices& services) {
-  graphql::generated::Graphql::install_generated_module(services);
+  graphql::generated::Graphql::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

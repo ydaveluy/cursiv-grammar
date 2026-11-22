@@ -26,7 +26,7 @@ int fail(const std::string &what) {
 
 int main() {
   const auto language =
-      cursiv::create_language<qif::QifCoreServices, qif::QifSharedCoreServices,
+      cursiv::createLanguage<qif::QifCoreServices, qif::QifSharedCoreServices,
                               qif::install_core_module>();
 
   qif_regressions(language.language);
@@ -52,7 +52,7 @@ int main() {
 
       const cursiv::AstNode *const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<qif::ast::Document>)
+          root->type != &cursiv::kAstTypeTag<qif::ast::Document>)
         return fail(entry.path().string() + ": built no document");
     }
   if (count == 0)

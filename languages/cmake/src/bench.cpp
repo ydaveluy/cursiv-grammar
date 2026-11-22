@@ -2,6 +2,6 @@
 #include "cmake/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       cmake::CmakeSharedServices, cmake::register_lsp_services>(argc, argv);
 }

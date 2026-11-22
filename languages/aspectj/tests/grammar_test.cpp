@@ -38,14 +38,14 @@ const char* const kDocuments[] = {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       aspectj::AspectjCoreServices, aspectj::AspectjSharedCoreServices,
       aspectj::install_core_module>();
 
@@ -125,7 +125,7 @@ int main() {
     if (!result.diagnostics.empty())
       return fail(std::string(path) + " carries a diagnostic");
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::CompilationUnit>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::CompilationUnit>)
       return fail(std::string(path) + " built no compilation unit");
   }
 
@@ -152,7 +152,7 @@ int main() {
       return fail("aspects: abstractPointcut must have a null body");
     if (concrete == nullptr || concrete->body == nullptr)
       return fail("aspects: namedCall must have a body");
-    if (concrete->body->type != &cursiv::ast_type_tag<ast::BinaryPointcut>)
+    if (concrete->body->type != &cursiv::kAstTypeTag<ast::BinaryPointcut>)
       return fail("aspects: namedCall's body is not a && composition");
     const auto& composed = *static_cast<const ast::BinaryPointcut*>(concrete->body);
     if (composed.op != "&&") return fail("aspects: namedCall's operator is not &&");
@@ -166,7 +166,7 @@ int main() {
     const auto* const singleton = as<ast::AspectDecl>(unit.types[2]);
     if (singleton == nullptr ||
         singleton->perClause == nullptr ||
-        singleton->perClause->type != &cursiv::ast_type_tag<ast::IssingletonClause>)
+        singleton->perClause->type != &cursiv::kAstTypeTag<ast::IssingletonClause>)
       return fail("aspects: SingletonAspect perClause is not issingleton");
 
     const auto* const target = as<ast::AspectDecl>(unit.types[3]);

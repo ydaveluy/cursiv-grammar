@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<kotlin::KotlinCoreServices,
+    &cursiv::registerLanguage<kotlin::KotlinCoreServices,
                            kotlin::KotlinSharedCoreServices,
                            kotlin::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<kotlin::KotlinSharedCoreServices>(
+  return cursiv::runCli<kotlin::KotlinSharedCoreServices>(
       argc, argv, kRegister);
 }

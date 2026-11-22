@@ -33,7 +33,7 @@ int fail(const std::string& what) {
 
 template <class T>
 const T* as(const cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T*>(n)
              : nullptr;
 }
@@ -48,7 +48,7 @@ std::string read_file(const fs::path& path) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       v::VCoreServices, v::VSharedCoreServices, v::install_core_module>();
   if (!v_followup::run(language)) return 1;
   if (!v_interpolation::run(language.language)) return 1;
@@ -70,7 +70,7 @@ int main() {
     if (!result.diagnostics.empty())
       return fail(path.string() + ": the sample raised a diagnostic");
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<v::ast::SourceFile>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<v::ast::SourceFile>)
       return fail(path.string() + ": the parse built no SourceFile");
   }
 

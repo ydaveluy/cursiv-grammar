@@ -9,7 +9,7 @@
 namespace prolog {
 
 void install_core_module(PrologCoreServices& services) {
-  prolog::generated::Prolog::install_generated_module(services);
+  prolog::generated::Prolog::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

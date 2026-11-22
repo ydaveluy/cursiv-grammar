@@ -5,7 +5,7 @@
 #include "java/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       java::JavaSharedServices>(
       argc, argv, "java-lsp", &java::register_lsp_services);
 }

@@ -26,7 +26,7 @@ int fail(const std::string& file, const char* what) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       cobol85::Cobol85CoreServices, cobol85::Cobol85SharedCoreServices,
       cobol85::install_core_module>();
 
@@ -63,7 +63,7 @@ int main() {
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
           root->type !=
-              &cursiv::ast_type_tag<cobol85::ast::CompilationUnit>) {
+              &cursiv::kAstTypeTag<cobol85::ast::CompilationUnit>) {
         failures += fail(path, "the parse built no compilation unit");
         continue;
       }

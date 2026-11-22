@@ -30,7 +30,7 @@ int main() {
   namespace fs = std::filesystem;
 
   const auto language =
-      cursiv::create_language<abb::AbbCoreServices, abb::AbbSharedCoreServices,
+      cursiv::createLanguage<abb::AbbCoreServices, abb::AbbSharedCoreServices,
                               abb::install_core_module>();
 
   // The converter must also reject incomplete recovery fragments safely.
@@ -156,7 +156,7 @@ ENDMODULE)RAPID");
 
       const cursiv::AstNode *const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<abb::ast::Module>)
+          root->type != &cursiv::kAstTypeTag<abb::ast::Module>)
         return fail(path.filename().string() + " built no module");
       ++count;
     }

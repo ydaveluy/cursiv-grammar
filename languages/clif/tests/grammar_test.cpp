@@ -32,7 +32,7 @@ std::string read(const char* path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
@@ -87,7 +87,7 @@ int native_forms(const cursiv::Parser& parser) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       clif::ClifCoreServices, clif::ClifSharedCoreServices,
       clif::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;

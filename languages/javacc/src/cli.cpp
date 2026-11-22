@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<javacc::JavaccCoreServices,
+    &cursiv::registerLanguage<javacc::JavaccCoreServices,
                            javacc::JavaccSharedCoreServices,
                            javacc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<javacc::JavaccSharedCoreServices>(
+  return cursiv::runCli<javacc::JavaccSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -15,8 +15,8 @@ struct Icalendar : cursiv::GrammarSpec {
 
   struct NAME_RUN : terminal<some(cr<R"(^:;=\r\n \t)">)> {};
   struct HWS : terminal<some(cr<R"( \t)">)> {};
-  struct Name : rule<as<property_name>(some(ref<NAME_RUN> | ref<HWS>))> {};
-  struct ParamName : rule<as<trim_ows>(some(ref<NAME_RUN> | ref<HWS>))> {};
+  static constexpr auto namePart = ref<NAME_RUN> | ref<HWS>;
+  struct ParamName : rule<as<trim_ows>(some(namePart))> {};
   struct VALUE_RUN : terminal<some(cr<R"(^\r\n)">)> {};
   struct Value : rule<many(ref<VALUE_RUN>)> {};
   struct Q_RUN : terminal<some(cr<R"(^"\r\n)">)> {};
@@ -38,9 +38,11 @@ struct Icalendar : cursiv::GrammarSpec {
       : terminal<cr<"Ee"> + gap + cr<"Nn"> + gap + cr<"Dd"> + gap +
                  &cr<":;">> {};
 
+  struct PROPERTY_START : terminal<!(ref<BEGIN> | ref<END>) + namePart> {};
+  struct Name : rule<as<property_name>(ref<PROPERTY_START> + many(namePart))> {};
+
   struct Property
-      : rule<!(ref<BEGIN> | ref<END>) +
-             assign<&ast::Property::name>(ref<Name>) +
+      : rule<assign<&ast::Property::name>(ref<Name>) +
              many(lit<";"> + append<&ast::Property::params>(ref<Param>)) +
              option(flag<&ast::Property::hasValueDelimiter>(lit<":">) + assign<&ast::Property::value>(ref<Value>)) +
              line_end> {};

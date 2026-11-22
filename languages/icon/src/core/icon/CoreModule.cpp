@@ -9,7 +9,7 @@
 namespace icon {
 
 void install_core_module(IconCoreServices& services) {
-  icon::generated::Icon::install_generated_module(services);
+  icon::generated::Icon::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

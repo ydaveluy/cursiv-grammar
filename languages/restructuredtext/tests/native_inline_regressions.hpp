@@ -13,12 +13,12 @@
 // Docutils 0.23 Parser.parse controls; expectations are embedded for CI.
 inline int native_inline_regressions() {
   namespace ast = restructuredtext::ast;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       restructuredtext::RestructuredtextCoreServices,
       restructuredtext::RestructuredtextSharedCoreServices,
       restructuredtext::install_core_module>();
   const auto factory =
-      restructuredtext::generated::Restructuredtext::create_parser();
+      restructuredtext::generated::Restructuredtext::createParser();
   struct Case {
     std::string_view source;
     bool literal;

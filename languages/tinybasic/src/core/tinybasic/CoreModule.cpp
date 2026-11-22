@@ -9,7 +9,7 @@
 namespace tinybasic {
 
 void install_core_module(TinybasicCoreServices& services) {
-  tinybasic::generated::Tinybasic::install_generated_module(services);
+  tinybasic::generated::Tinybasic::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -37,7 +37,7 @@ const char* const kExamples[] = {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<oberon::OberonCoreServices,
+      cursiv::createLanguage<oberon::OberonCoreServices,
                               oberon::OberonSharedCoreServices,
                               oberon::install_core_module>();
   for (const std::string_view number : {"9223372036854775808", "08000000000000000H", "100X"}) {
@@ -103,7 +103,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       oberon::OberonCoreServices, oberon::OberonSharedCoreServices,
       oberon::install_core_module>();
 
@@ -121,7 +121,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<oberon::ast::Module>)
+        root->type != &cursiv::kAstTypeTag<oberon::ast::Module>)
       return fail((std::string(name) + ": built no Module").c_str());
   }
 
@@ -138,7 +138,7 @@ int main() {
   if (!featuresResult.diagnostics.empty())
     return fail("features.mod: has diagnostics");
   if (featuresResult.value == nullptr ||
-      featuresResult.value->type != &cursiv::ast_type_tag<oberon::ast::Module>)
+      featuresResult.value->type != &cursiv::kAstTypeTag<oberon::ast::Module>)
     return fail("features.mod: built no Module");
 
   // Read back the converters that a structural check alone would not catch:
@@ -188,10 +188,10 @@ int main() {
   if (module.decls.size() != 2)
     return fail("hello.mod: expected two declarations");
 
-  if (module.decls[0]->type != &cursiv::ast_type_tag<oberon::ast::VarDecl>)
+  if (module.decls[0]->type != &cursiv::kAstTypeTag<oberon::ast::VarDecl>)
     return fail("hello.mod: first declaration is not a VarDecl");
 
-  if (module.decls[1]->type != &cursiv::ast_type_tag<oberon::ast::ProcDecl>)
+  if (module.decls[1]->type != &cursiv::kAstTypeTag<oberon::ast::ProcDecl>)
     return fail("hello.mod: second declaration is not a ProcDecl");
   const auto& world = *static_cast<const oberon::ast::ProcDecl*>(module.decls[1]);
   if (world.name != "World*") return fail("hello.mod: wrong procedure name");
@@ -200,21 +200,21 @@ int main() {
   // A `;` before END leaves an empty statement behind it.
   if (world.body.size() != 4)
     return fail("hello.mod: expected three statements and an empty one");
-  if (world.body[3]->type != &cursiv::ast_type_tag<oberon::ast::EmptyStmt>)
+  if (world.body[3]->type != &cursiv::kAstTypeTag<oberon::ast::EmptyStmt>)
     return fail("hello.mod: the last statement of World is not empty");
 
   const auto& call0 = *static_cast<const oberon::ast::ExprStmt*>(world.body[0]);
-  if (call0.value->type != &cursiv::ast_type_tag<oberon::ast::ApplyExpr>)
+  if (call0.value->type != &cursiv::kAstTypeTag<oberon::ast::ApplyExpr>)
     return fail("hello.mod: first statement is not a call");
   const auto& write = *static_cast<const oberon::ast::ApplyExpr*>(call0.value);
-  if (write.operand->type != &cursiv::ast_type_tag<oberon::ast::NameExpr>)
+  if (write.operand->type != &cursiv::kAstTypeTag<oberon::ast::NameExpr>)
     return fail("hello.mod: call callee is not a NameExpr");
   const auto& writeCallee =
       *static_cast<const oberon::ast::NameExpr*>(write.operand);
   if (writeCallee.name != "Texts.WriteString")
     return fail("hello.mod: wrong callee name");
   if (write.args.size() != 2) return fail("hello.mod: expected two arguments");
-  if (write.args[1]->type != &cursiv::ast_type_tag<oberon::ast::StringLit>)
+  if (write.args[1]->type != &cursiv::kAstTypeTag<oberon::ast::StringLit>)
     return fail("hello.mod: second argument is not a string literal");
   const auto& greeting = *static_cast<const oberon::ast::StringLit*>(write.args[1]);
   if (greeting.value != "Hello World!")
@@ -246,10 +246,10 @@ int main() {
     return fail("empty.mod: built no Module");
   if (!bareModule->body.empty() || emptyModule->body.size() != 1 ||
       emptyModule->body[0]->type !=
-          &cursiv::ast_type_tag<oberon::ast::EmptyStmt>)
+          &cursiv::kAstTypeTag<oberon::ast::EmptyStmt>)
     return fail("BEGIN END: expected one empty statement");
   if (armsModule->body.size() != 1 ||
-      armsModule->body[0]->type != &cursiv::ast_type_tag<oberon::ast::CaseStmt>)
+      armsModule->body[0]->type != &cursiv::kAstTypeTag<oberon::ast::CaseStmt>)
     return fail("CASE: built no CaseStmt");
   const auto& caseStmt =
       *static_cast<const oberon::ast::CaseStmt*>(armsModule->body[0]);

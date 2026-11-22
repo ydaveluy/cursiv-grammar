@@ -25,7 +25,7 @@ void fail(const std::filesystem::path &file, const char *what) {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<fasta::FastaCoreServices,
+        cursiv::createLanguage<fasta::FastaCoreServices,
                                 fasta::FastaSharedCoreServices,
                                 fasta::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -43,7 +43,7 @@ int main() {
       return 1;
   }
 
-  const auto language = cursiv::create_language<fasta::FastaCoreServices,
+  const auto language = cursiv::createLanguage<fasta::FastaCoreServices,
                                                 fasta::FastaSharedCoreServices,
                                                 fasta::install_core_module>();
   if (!native_regressions(language.language)) return 1;
@@ -76,7 +76,7 @@ int main() {
 
       const cursiv::AstNode *const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<fasta::ast::Document>) {
+          root->type != &cursiv::kAstTypeTag<fasta::ast::Document>) {
         fail(path, "the parse built no Document");
         ++failures;
       }

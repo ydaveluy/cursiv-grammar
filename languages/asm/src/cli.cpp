@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<nasm::NasmCoreServices,
+    &cursiv::registerLanguage<nasm::NasmCoreServices,
                            nasm::NasmSharedCoreServices,
                            nasm::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<nasm::NasmSharedCoreServices>(
+  return cursiv::runCli<nasm::NasmSharedCoreServices>(
       argc, argv, kRegister);
 }

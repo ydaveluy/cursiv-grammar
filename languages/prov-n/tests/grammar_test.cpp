@@ -36,7 +36,7 @@ const char* const kExamples[] = {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       provn::ProvNCoreServices, provn::ProvNSharedCoreServices,
       provn::install_core_module>();
 
@@ -96,7 +96,7 @@ endDocument)prov");
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<provn::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<provn::ast::Document>)
       return fail((std::string(name) + ": built no Document").c_str());
 
     const auto& doc = *static_cast<const provn::ast::Document*>(root);
@@ -118,7 +118,7 @@ endDocument)prov");
       return fail("features.provn: has diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<provn::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<provn::ast::Document>)
       return fail("features.provn: built no Document");
     const auto& doc = *static_cast<const provn::ast::Document*>(root);
     if (doc.bundles.size() != 1)
@@ -142,14 +142,14 @@ endDocument)prov");
   if (ex4.expressions.size() != 4)
     return fail("example4.provn: expected four expressions");
 
-  if (ex4.expressions[0]->type != &cursiv::ast_type_tag<provn::ast::EntityExpr>)
+  if (ex4.expressions[0]->type != &cursiv::kAstTypeTag<provn::ast::EntityExpr>)
     return fail("example4.provn: first expression is not an EntityExpr");
   const auto& entity0 =
       *static_cast<const provn::ast::EntityExpr*>(ex4.expressions[0]);
   if (entity0.entity != "e2")
     return fail("example4.provn: first entity should read 'e2'");
 
-  if (ex4.expressions[2]->type != &cursiv::ast_type_tag<provn::ast::EntityExpr>)
+  if (ex4.expressions[2]->type != &cursiv::kAstTypeTag<provn::ast::EntityExpr>)
     return fail("example4.provn: third expression is not an EntityExpr");
   const auto& entity2 =
       *static_cast<const provn::ast::EntityExpr*>(ex4.expressions[2]);
@@ -168,7 +168,7 @@ endDocument)prov");
   if (entityWithAttrs.attributes.size() != 2)
     return fail("example1.provn: expected two attribute-value pairs");
   if (entityWithAttrs.attributes[0]->value->type !=
-      &cursiv::ast_type_tag<provn::ast::StringLiteral>)
+      &cursiv::kAstTypeTag<provn::ast::StringLiteral>)
     return fail("example1.provn: attribute value should be a StringLiteral");
   const auto& labelValue = *static_cast<const provn::ast::StringLiteral*>(
       entityWithAttrs.attributes[0]->value);

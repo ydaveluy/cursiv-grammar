@@ -5,7 +5,7 @@
 #include "robotwars/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       robotwars::RobotwarsSharedServices>(
       argc, argv, "robotwars-lsp", &robotwars::register_lsp_services);
 }

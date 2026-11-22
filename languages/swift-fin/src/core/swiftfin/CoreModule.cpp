@@ -9,7 +9,7 @@
 namespace swiftfin {
 
 void install_core_module(SwiftFinCoreServices& services) {
-  swiftfin::generated::SwiftFin::install_generated_module(services);
+  swiftfin::generated::SwiftFin::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

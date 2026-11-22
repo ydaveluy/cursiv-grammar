@@ -116,7 +116,7 @@ bool decoded_values(const cursiv::Parser &parser) {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<json5::Json5CoreServices,
+        cursiv::createLanguage<json5::Json5CoreServices,
                                 json5::Json5SharedCoreServices,
                                 json5::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -140,7 +140,7 @@ int main() {
       return 1;
   }
 
-  const auto language = cursiv::create_language<json5::Json5CoreServices,
+  const auto language = cursiv::createLanguage<json5::Json5CoreServices,
                                                 json5::Json5SharedCoreServices,
                                                 json5::install_core_module>();
   if (!decoded_values(*language.language.parser))
@@ -159,7 +159,7 @@ int main() {
 
   std::size_t rejected = 0;
   for (const std::filesystem::path &path : files) {
-    const std::string text = cursiv::test::read_file(path.string());
+    const std::string text = cursiv::test::readFile(path.string());
     const cursiv::ParseResult result = language.language.parser->parse(text);
     if (path.filename() == "empty.json5") {
       if (result.accepted && !result.cst().recovered() &&
@@ -180,7 +180,7 @@ int main() {
       return fail(path.string(), "the document carries a diagnostic");
 
     const cursiv::AstNode *const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<json5::ast::Doc>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<json5::ast::Doc>)
       return fail(path.string(), "the parse built no Doc");
   }
 

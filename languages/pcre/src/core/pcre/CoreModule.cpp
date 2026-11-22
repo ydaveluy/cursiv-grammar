@@ -9,7 +9,7 @@
 namespace pcre {
 
 void install_core_module(PcreCoreServices& services) {
-  pcre::generated::Pcre::install_generated_module(services);
+  pcre::generated::Pcre::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

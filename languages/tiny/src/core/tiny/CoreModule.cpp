@@ -9,7 +9,7 @@
 namespace tiny {
 
 void install_core_module(TinyCoreServices& services) {
-  tiny::generated::Tiny::install_generated_module(services);
+  tiny::generated::Tiny::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

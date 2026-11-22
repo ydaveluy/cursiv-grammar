@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<pest::PestCoreServices,
+    &cursiv::registerLanguage<pest::PestCoreServices,
                            pest::PestSharedCoreServices,
                            pest::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<pest::PestSharedCoreServices>(
+  return cursiv::runCli<pest::PestSharedCoreServices>(
       argc, argv, kRegister);
 }

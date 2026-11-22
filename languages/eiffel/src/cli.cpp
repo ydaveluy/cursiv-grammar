@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<eiffel::EiffelCoreServices,
+    &cursiv::registerLanguage<eiffel::EiffelCoreServices,
                            eiffel::EiffelSharedCoreServices,
                            eiffel::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<eiffel::EiffelSharedCoreServices>(
+  return cursiv::runCli<eiffel::EiffelSharedCoreServices>(
       argc, argv, kRegister);
 }

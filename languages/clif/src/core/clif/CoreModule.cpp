@@ -9,7 +9,7 @@
 namespace clif {
 
 void install_core_module(ClifCoreServices& services) {
-  clif::generated::Clif::install_generated_module(services);
+  clif::generated::Clif::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

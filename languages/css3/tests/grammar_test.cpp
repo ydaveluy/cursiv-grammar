@@ -54,11 +54,18 @@ const char* const kExamples[] = {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       css3::Css3CoreServices, css3::Css3SharedCoreServices,
       css3::install_core_module>();
   if (!css3_audit::run(*language.language.parser)) return 1;
   if (!css3_important_cases::run(language.language)) return 1;
+
+  const auto dimensions = language.language.parser->parse("a{b:a 1px;c:calc(100% - 2.4em)}");
+  unsigned known = 0;
+  for (const auto* node : dimensions.nodes())
+    if (cursiv::ast_cast<css3::ast::DimensionLit>(node)) ++known;
+  if (!dimensions.accepted || !dimensions.diagnostics.empty() || known != 2)
+    return fail("expected known dimensions in the declaration and the calculation");
 
   // Regression: inspect the semantic payload, not only clean acceptance.
   {
@@ -99,7 +106,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<css3::ast::Stylesheet>)
+        root->type != &cursiv::kAstTypeTag<css3::ast::Stylesheet>)
       return fail(std::string(name) + ": built no Stylesheet");
   }
 
@@ -113,7 +120,7 @@ int main() {
     if (sheet.statements.size() != 3)
       return fail("example1.css: expected three statements");
 
-    if (sheet.statements[0]->type != &cursiv::ast_type_tag<css3::ast::Ruleset>)
+    if (sheet.statements[0]->type != &cursiv::kAstTypeTag<css3::ast::Ruleset>)
       return fail("example1.css: statement 0 is not a Ruleset");
     const auto& body =
         *static_cast<const css3::ast::Ruleset*>(sheet.statements[0]);
@@ -128,7 +135,7 @@ int main() {
       return fail("example1.css: expected one `color` declaration");
     if (body.declarations[0]->value.size() != 1 ||
         body.declarations[0]->value[0]->type !=
-            &cursiv::ast_type_tag<css3::ast::HashRef>)
+            &cursiv::kAstTypeTag<css3::ast::HashRef>)
       return fail("example1.css: color value is not a hex color");
     const auto& color0 = *static_cast<const css3::ast::HashRef*>(
         body.declarations[0]->value[0]);
@@ -146,7 +153,7 @@ int main() {
         *static_cast<const css3::ast::Stylesheet*>(result.value);
     if (sheet.statements.size() != 4)
       return fail("mdn-at-media.css: expected four @media statements");
-    if (sheet.statements[3]->type != &cursiv::ast_type_tag<css3::ast::AtMedia>)
+    if (sheet.statements[3]->type != &cursiv::kAstTypeTag<css3::ast::AtMedia>)
       return fail("mdn-at-media.css: statement 3 is not an AtMedia");
     const auto& media =
         *static_cast<const css3::ast::AtMedia*>(sheet.statements[3]);
@@ -160,7 +167,7 @@ int main() {
     if (query.expressions[0]->feature != "min-device-width")
       return fail("mdn-at-media.css: wrong first media feature");
     if (media.body.size() != 1 ||
-        media.body[0]->type != &cursiv::ast_type_tag<css3::ast::Ruleset>)
+        media.body[0]->type != &cursiv::kAstTypeTag<css3::ast::Ruleset>)
       return fail("mdn-at-media.css: @media body should hold one ruleset");
   }
 
@@ -179,14 +186,14 @@ int main() {
       const auto& sheet =
           *static_cast<const css3::ast::Stylesheet*>(result.value);
       if (sheet.statements.empty() ||
-          sheet.statements[0]->type != &cursiv::ast_type_tag<css3::ast::Ruleset>)
+          sheet.statements[0]->type != &cursiv::kAstTypeTag<css3::ast::Ruleset>)
         return nullptr;
       const auto& rule =
           *static_cast<const css3::ast::Ruleset*>(sheet.statements[0]);
       if (rule.declarations.empty() || rule.declarations[0]->value.empty())
         return nullptr;
       const cursiv::AstNode* const value = rule.declarations[0]->value[0];
-      if (value->type != &cursiv::ast_type_tag<css3::ast::CalcExpr>)
+      if (value->type != &cursiv::kAstTypeTag<css3::ast::CalcExpr>)
         return nullptr;
       return static_cast<const css3::ast::CalcExpr*>(value)->sum;
     };
@@ -246,15 +253,15 @@ int main() {
         return fail(std::string(c.text) + ": does not parse clean");
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<css3::ast::Stylesheet>)
+          root->type != &cursiv::kAstTypeTag<css3::ast::Stylesheet>)
         return fail(std::string(c.text) + ": built no Stylesheet");
       const auto& sheet = *static_cast<const css3::ast::Stylesheet*>(root);
       if (sheet.statements.size() != 1)
         return fail(std::string(c.text) + ": expected one statement");
       const bool isRuleset = sheet.statements[0]->type ==
-                              &cursiv::ast_type_tag<css3::ast::Ruleset>;
+                              &cursiv::kAstTypeTag<css3::ast::Ruleset>;
       const bool isUnknown = sheet.statements[0]->type ==
-                              &cursiv::ast_type_tag<css3::ast::UnknownRuleset>;
+                              &cursiv::kAstTypeTag<css3::ast::UnknownRuleset>;
       if (c.wantRuleset && !isRuleset)
         return fail(std::string(c.text) + ": expected a Ruleset");
       if (!c.wantRuleset && !isUnknown)

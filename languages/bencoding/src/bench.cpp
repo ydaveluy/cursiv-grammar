@@ -2,6 +2,6 @@
 #include "bencoding/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       bencoding::BencodingSharedServices, bencoding::register_lsp_services>(argc, argv);
 }

@@ -9,7 +9,7 @@
 namespace hypertalk {
 
 void install_core_module(HypertalkCoreServices& services) {
-  hypertalk::generated::Hypertalk::install_generated_module(services);
+  hypertalk::generated::Hypertalk::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

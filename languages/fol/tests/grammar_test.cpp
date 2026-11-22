@@ -23,7 +23,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -31,7 +31,7 @@ T* as(cursiv::AstNode* n) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       fol::FolCoreServices, fol::FolSharedCoreServices,
       fol::install_core_module>();
 
@@ -64,7 +64,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<fol::ast::Condition>) {
+        root->type != &cursiv::kAstTypeTag<fol::ast::Condition>) {
       fail(path, "the parse built no Condition");
       ++failures;
     }

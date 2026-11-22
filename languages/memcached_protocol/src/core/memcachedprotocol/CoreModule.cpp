@@ -9,7 +9,7 @@
 namespace memcachedprotocol {
 
 void install_core_module(MemcachedProtocolCoreServices& services) {
-  memcachedprotocol::generated::MemcachedProtocol::install_generated_module(services);
+  memcachedprotocol::generated::MemcachedProtocol::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

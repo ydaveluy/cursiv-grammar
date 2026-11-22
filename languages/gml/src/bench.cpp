@@ -2,6 +2,6 @@
 #include "gml/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       gml::GmlSharedServices, gml::register_lsp_services>(argc, argv);
 }

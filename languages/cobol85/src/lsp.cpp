@@ -5,7 +5,7 @@
 #include "cobol85/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       cobol85::Cobol85SharedServices>(
       argc, argv, "cobol85-lsp", &cobol85::register_lsp_services);
 }

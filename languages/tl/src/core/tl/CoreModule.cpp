@@ -9,7 +9,7 @@
 namespace tl {
 
 void install_core_module(TlCoreServices& services) {
-  tl::generated::Tl::install_generated_module(services);
+  tl::generated::Tl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

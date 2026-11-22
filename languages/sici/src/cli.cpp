@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<sici::SiciCoreServices,
+    &cursiv::registerLanguage<sici::SiciCoreServices,
                            sici::SiciSharedCoreServices,
                            sici::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<sici::SiciSharedCoreServices>(
+  return cursiv::runCli<sici::SiciSharedCoreServices>(
       argc, argv, kRegister);
 }

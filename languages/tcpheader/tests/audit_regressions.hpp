@@ -10,11 +10,11 @@
 #include <string>
 namespace audit_regressions {
 template <class T> T *as(cursiv::AstNode *p) {
-  return p && p->type == &cursiv::ast_type_tag<T> ? static_cast<T *>(p)
+  return p && p->type == &cursiv::kAstTypeTag<T> ? static_cast<T *>(p)
                                                   : nullptr;
 }
 inline bool run() {
-  auto parser = tcpheader::generated::Tcpheader::create_parser();
+  auto parser = tcpheader::generated::Tcpheader::createParser();
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) {
@@ -38,7 +38,7 @@ inline bool run() {
             d->ackNumber[1] == '\n',
         "binary fields keep every byte");
 
-  const auto language = cursiv::create_language<tcpheader::TcpheaderCoreServices,
+  const auto language = cursiv::createLanguage<tcpheader::TcpheaderCoreServices,
       tcpheader::TcpheaderSharedCoreServices, tcpheader::install_core_module>();
   for (unsigned words : {5, 6, 8, 15}) {
     std::string header(4 * words, '\0');

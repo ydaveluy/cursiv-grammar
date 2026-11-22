@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<pascal::PascalCoreServices,
+    &cursiv::registerLanguage<pascal::PascalCoreServices,
                            pascal::PascalSharedCoreServices,
                            pascal::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<pascal::PascalSharedCoreServices>(
+  return cursiv::runCli<pascal::PascalSharedCoreServices>(
       argc, argv, kRegister);
 }

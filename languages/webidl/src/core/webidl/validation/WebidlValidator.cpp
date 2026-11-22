@@ -11,7 +11,7 @@
 namespace webidl {
 namespace {
 template <class T> bool is(const cursiv::AstNode *n) {
-  return n && n->type == &cursiv::ast_type_tag<T>;
+  return n && n->type == &cursiv::kAstTypeTag<T>;
 }
 bool keyword(std::string_view name) {
   constexpr std::string_view words[] = {"ArrayBuffer",

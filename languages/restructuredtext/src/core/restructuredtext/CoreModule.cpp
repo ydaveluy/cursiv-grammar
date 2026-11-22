@@ -9,7 +9,7 @@
 namespace restructuredtext {
 
 void install_core_module(RestructuredtextCoreServices& services) {
-  restructuredtext::generated::Restructuredtext::install_generated_module(services);
+  restructuredtext::generated::Restructuredtext::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -35,11 +35,11 @@ int check_hello_values(const fs::path& path, const cursiv::ParseResult& result) 
   if (line.number != 100 || line.items.size() != 1)
     return fail(path, "line did not read back");
   const ast::Stmt* const stmt = line.items[0]->stmt;
-  if (stmt == nullptr || stmt->type != &cursiv::ast_type_tag<ast::PrintStmt>)
+  if (stmt == nullptr || stmt->type != &cursiv::kAstTypeTag<ast::PrintStmt>)
     return fail(path, "expected a PRINT statement");
   const auto& print = *static_cast<const ast::PrintStmt*>(stmt);
   if (print.items.size() != 1 ||
-      print.items[0]->value->type != &cursiv::ast_type_tag<ast::StringLit>)
+      print.items[0]->value->type != &cursiv::kAstTypeTag<ast::StringLit>)
     return fail(path, "expected one string value");
   const auto& str = *static_cast<const ast::StringLit*>(print.items[0]->value);
   if (str.value != "Hello world")
@@ -55,7 +55,7 @@ int check_strings_values(const fs::path& path,
   if (program.lines.empty()) return fail(path, "no lines");
   const ast::Line& first = *program.lines[0];
   const ast::Stmt* const stmt = first.items[0]->stmt;
-  if (stmt == nullptr || stmt->type != &cursiv::ast_type_tag<ast::AssignStmt>)
+  if (stmt == nullptr || stmt->type != &cursiv::kAstTypeTag<ast::AssignStmt>)
     return fail(path, "expected an assignment on the first line");
   const auto& assign = *static_cast<const ast::AssignStmt*>(stmt);
   if (!assign.explicitLet || assign.target == nullptr ||
@@ -63,7 +63,7 @@ int check_strings_values(const fs::path& path,
       assign.target->suffix != ast::VarSuffix::dollar)
     return fail(path, "LET S$ did not read back");
   if (assign.values.size() != 1 ||
-      assign.values[0]->type != &cursiv::ast_type_tag<ast::StringLit>)
+      assign.values[0]->type != &cursiv::kAstTypeTag<ast::StringLit>)
     return fail(path, "S$ = ... did not read back as a string literal");
   const auto& str = *static_cast<const ast::StringLit*>(assign.values[0]);
   if (str.value != "abc123") return fail(path, "S$ value did not read back");
@@ -73,7 +73,7 @@ int check_strings_values(const fs::path& path,
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       basic::BasicCoreServices, basic::BasicSharedCoreServices,
       basic::install_core_module>();
 
@@ -135,7 +135,7 @@ int main() {
       continue;
     }
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::Program>) {
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::Program>) {
       failures += fail(path, "the parse built no Program");
       continue;
     }

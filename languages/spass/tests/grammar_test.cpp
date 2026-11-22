@@ -39,7 +39,7 @@ const char* const kExamples[] = {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       spass::SpassCoreServices, spass::SpassSharedCoreServices,
       spass::install_core_module>();
   if (check_plain_clauses(language)) return fail("native plain-clause structure");
@@ -58,7 +58,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<spass::ast::Problem>)
+        root->type != &cursiv::kAstTypeTag<spass::ast::Problem>)
       return fail((std::string(name) + ": built no Problem").c_str());
   }
 
@@ -114,7 +114,7 @@ int main() {
       return fail("features.spass: has diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<spass::ast::Problem>)
+        root->type != &cursiv::kAstTypeTag<spass::ast::Problem>)
       return fail("features.spass: built no Problem");
 
     const auto& problem = *static_cast<const spass::ast::Problem*>(root);

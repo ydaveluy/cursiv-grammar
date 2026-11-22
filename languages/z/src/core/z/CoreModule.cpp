@@ -9,7 +9,7 @@
 namespace z {
 
 void install_core_module(ZCoreServices& services) {
-  z::generated::Z::install_generated_module(services);
+  z::generated::Z::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

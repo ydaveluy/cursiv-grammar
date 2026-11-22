@@ -12,7 +12,7 @@
 namespace audit_regressions {
 inline void run() {
   const auto language =
-      cursiv::create_language<inf::InfCoreServices, inf::InfSharedCoreServices,
+      cursiv::createLanguage<inf::InfCoreServices, inf::InfSharedCoreServices,
                               inf::install_core_module>();
   const std::string source =
       "\ufeff[ spaced ] ignored\n"

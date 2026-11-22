@@ -9,7 +9,7 @@
 namespace gvpr {
 
 void install_core_module(GvprCoreServices& services) {
-  gvpr::generated::Gvpr::install_generated_module(services);
+  gvpr::generated::Gvpr::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

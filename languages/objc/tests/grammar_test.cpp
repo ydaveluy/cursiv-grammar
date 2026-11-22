@@ -29,7 +29,7 @@ int fail(const std::string& what) {
 }  // namespace
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<objc::ObjcCoreServices,
+  const auto language = cursiv::createLanguage<objc::ObjcCoreServices,
                                                 objc::ObjcSharedCoreServices,
                                                 objc::install_core_module>();
   {
@@ -87,7 +87,7 @@ int main() {
     if (entry.path().extension() == ".m") files.push_back(entry.path());
   if (files.empty()) return fail("no example files found");
 
-  const auto language = cursiv::create_language<objc::ObjcCoreServices,
+  const auto language = cursiv::createLanguage<objc::ObjcCoreServices,
                                                 objc::ObjcSharedCoreServices,
                                                 objc::install_core_module>();
 
@@ -109,7 +109,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<objc::ast::TranslationUnit>)
+        root->type != &cursiv::kAstTypeTag<objc::ast::TranslationUnit>)
       return fail(path.string() + ": the parse built no translation unit");
   }
 

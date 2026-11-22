@@ -5,7 +5,7 @@
 #include "javascript/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       javascript::JavaScriptSharedServices>(
       argc, argv, "javascript-lsp", &javascript::register_lsp_services);
 }

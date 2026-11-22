@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 int main() {
-  const auto language = cursiv::create_language<redis::RedisCoreServices,
+  const auto language = cursiv::createLanguage<redis::RedisCoreServices,
                                                 redis::RedisSharedCoreServices,
                                                 redis::install_core_module>();
   const auto clean = [&](std::string_view text) {
@@ -122,7 +122,7 @@ int main() {
   for (const auto &e : std::filesystem::directory_iterator(
            std::string(CURSIV_EXAMPLE_DIR) + "/example"))
     if (e.path().extension() == ".redis") {
-      const auto source = cursiv::test::read_file(e.path().string());
+      const auto source = cursiv::test::readFile(e.path().string());
       CHECK(clean(source));
       ++files;
     }

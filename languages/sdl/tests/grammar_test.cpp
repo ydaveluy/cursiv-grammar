@@ -31,7 +31,7 @@ int fail(const std::string& what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       sdl::SdlCoreServices, sdl::SdlSharedCoreServices,
       sdl::install_core_module>();
   if (!sdl_native_regressions(language)) return 1;
@@ -59,7 +59,7 @@ int main() {
       fail(path + ": " + std::to_string(result.diagnostics.size()) +
            " diagnostic(s) on a document expected clean");
     else if (result.value == nullptr ||
-             result.value->type != &cursiv::ast_type_tag<ast::Program>)
+             result.value->type != &cursiv::kAstTypeTag<ast::Program>)
       fail(path + ": the parse built no Program");
     else
       ++parsed;
@@ -82,9 +82,9 @@ int main() {
     const ast::Item* moduleItem =
         program->items.empty() ? nullptr : program->items[0];
     CHECK(moduleItem != nullptr &&
-          moduleItem->type == &cursiv::ast_type_tag<ast::Module>);
+          moduleItem->type == &cursiv::kAstTypeTag<ast::Module>);
     if (moduleItem != nullptr &&
-        moduleItem->type == &cursiv::ast_type_tag<ast::Module>) {
+        moduleItem->type == &cursiv::kAstTypeTag<ast::Module>) {
       const auto& mod = *static_cast<const ast::Module*>(moduleItem);
       CHECK(mod.name == "custom_constructs");
       CHECK(mod.ident == "1.0");
@@ -94,27 +94,27 @@ int main() {
            sawConditional = false, sawLiteral = false;
       for (const ast::Item* item : mod.body) {
         if (item == nullptr) continue;
-        if (item->type == &cursiv::ast_type_tag<ast::DeclareStmt>) {
+        if (item->type == &cursiv::kAstTypeTag<ast::DeclareStmt>) {
           sawDeclare = true;
           const auto& d = *static_cast<const ast::DeclareStmt*>(item);
           CHECK(d.name == "my_int");
           CHECK(d.prefix == "mi_");
           CHECK(d.tag == "tag1");
-        } else if (item->type == &cursiv::ast_type_tag<ast::IncludeStmt>) {
+        } else if (item->type == &cursiv::kAstTypeTag<ast::IncludeStmt>) {
           sawInclude = true;
           CHECK(static_cast<const ast::IncludeStmt*>(item)->path ==
                 "other.sdl");
-        } else if (item->type == &cursiv::ast_type_tag<ast::ReadStmt>) {
+        } else if (item->type == &cursiv::kAstTypeTag<ast::ReadStmt>) {
           sawRead = true;
           CHECK(static_cast<const ast::ReadStmt*>(item)->path ==
                 "included.sdl");
-        } else if (item->type == &cursiv::ast_type_tag<ast::AggregateStmt>) {
+        } else if (item->type == &cursiv::kAstTypeTag<ast::AggregateStmt>) {
           sawAggregate = true;
           const auto& agg = *static_cast<const ast::AggregateStmt*>(item);
           CHECK(agg.name == "rec");
           CHECK(agg.kind == "STRUCTURE");
           CHECK(agg.body.size() == 3);
-        } else if (item->type == &cursiv::ast_type_tag<ast::EntryDecl>) {
+        } else if (item->type == &cursiv::kAstTypeTag<ast::EntryDecl>) {
           sawEntry = true;
           const auto& e = *static_cast<const ast::EntryDecl*>(item);
           CHECK(e.name == "my_proc");
@@ -127,7 +127,7 @@ int main() {
             CHECK(e.opts->returnNames.size() == 1 &&
                   e.opts->returnNames[0] == "result");
           }
-        } else if (item->type == &cursiv::ast_type_tag<ast::IfSymbolStmt>) {
+        } else if (item->type == &cursiv::kAstTypeTag<ast::IfSymbolStmt>) {
           sawIfSymbol = true;
           const auto& i = *static_cast<const ast::IfSymbolStmt*>(item);
           CHECK(i.symbol == "flag");
@@ -135,15 +135,15 @@ int main() {
           CHECK(i.elseIfs.size() == 1);
           CHECK(i.hasElse);
           CHECK(i.elseBody.size() == 1);
-        } else if (item->type == &cursiv::ast_type_tag<ast::ConditionalStmt>) {
+        } else if (item->type == &cursiv::kAstTypeTag<ast::ConditionalStmt>) {
           sawConditional = true;
           const auto& c = *static_cast<const ast::ConditionalStmt*>(item);
           CHECK(c.languages.size() == 2);
-        } else if (item->type == &cursiv::ast_type_tag<ast::LiteralStmt>) {
+        } else if (item->type == &cursiv::kAstTypeTag<ast::LiteralStmt>) {
           sawLiteral = true;
           CHECK(static_cast<const ast::LiteralStmt*>(item)->text ==
                 "\n\"raw line one\"\n\"raw line two\"\n");
-        } else if (item->type == &cursiv::ast_type_tag<ast::ConstantStmt>) {
+        } else if (item->type == &cursiv::kAstTypeTag<ast::ConstantStmt>) {
           const auto& c = *static_cast<const ast::ConstantStmt*>(item);
           for (const ast::ConstantPhrase* phrase : c.phrases) {
             if (phrase == nullptr) continue;
@@ -170,12 +170,12 @@ int main() {
   const auto* const twiceProgram = twice.valueAs<ast::Program>();
   const auto* const twiceModule =
       twiceProgram != nullptr && twiceProgram->items.size() == 1 &&
-              twiceProgram->items[0]->type == &cursiv::ast_type_tag<ast::Module>
+              twiceProgram->items[0]->type == &cursiv::kAstTypeTag<ast::Module>
           ? static_cast<const ast::Module*>(twiceProgram->items[0])
           : nullptr;
   const auto* const item =
       twiceModule != nullptr && twiceModule->body.size() == 1 &&
-              twiceModule->body[0]->type == &cursiv::ast_type_tag<ast::ItemDecl>
+              twiceModule->body[0]->type == &cursiv::kAstTypeTag<ast::ItemDecl>
           ? static_cast<const ast::ItemDecl*>(twiceModule->body[0])
           : nullptr;
   CHECK(item != nullptr && item->prefixes.size() == 2 &&

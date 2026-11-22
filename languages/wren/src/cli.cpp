@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<wren::WrenCoreServices,
+    &cursiv::registerLanguage<wren::WrenCoreServices,
                            wren::WrenSharedCoreServices,
                            wren::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<wren::WrenSharedCoreServices>(
+  return cursiv::runCli<wren::WrenSharedCoreServices>(
       argc, argv, kRegister);
 }

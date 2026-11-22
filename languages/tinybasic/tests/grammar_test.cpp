@@ -24,7 +24,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       tinybasic::TinybasicCoreServices, tinybasic::TinybasicSharedCoreServices,
       tinybasic::install_core_module>();
   if (!tinybasic_native_followup::run(language)) return fail("native followup", "arithmetic, digits or AST mismatch");
@@ -55,7 +55,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<tinybasic::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<tinybasic::ast::Program>)
       failures += fail(file, "the parse built no Program");
   }
 
@@ -88,7 +88,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<tinybasic::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<tinybasic::ast::Program>)
       failures += fail(file, "the parse built no Program");
   }
   if (testDocs == 0) return fail(CURSIV_TEST_DIR, "no test documents");

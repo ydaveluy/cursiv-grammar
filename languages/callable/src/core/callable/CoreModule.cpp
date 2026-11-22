@@ -9,7 +9,7 @@
 namespace callable {
 
 void install_core_module(CallableCoreServices& services) {
-  callable::generated::Callable::install_generated_module(services);
+  callable::generated::Callable::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

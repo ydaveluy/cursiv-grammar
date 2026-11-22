@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<aspectj::AspectjCoreServices,
+    &cursiv::registerLanguage<aspectj::AspectjCoreServices,
                            aspectj::AspectjSharedCoreServices,
                            aspectj::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<aspectj::AspectjSharedCoreServices>(
+  return cursiv::runCli<aspectj::AspectjSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -5,7 +5,7 @@
 #include "pegen/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       pegen::PegenSharedServices>(
       argc, argv, "pegen-lsp", &pegen::register_lsp_services);
 }

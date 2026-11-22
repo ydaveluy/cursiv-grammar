@@ -2,6 +2,6 @@
 #include "sdl/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       sdl::SdlSharedServices, sdl::register_lsp_services>(argc, argv);
 }

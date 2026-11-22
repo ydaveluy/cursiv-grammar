@@ -9,7 +9,7 @@
 namespace metamath {
 
 void install_core_module(MetamathCoreServices& services) {
-  metamath::generated::Metamath::install_generated_module(services);
+  metamath::generated::Metamath::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

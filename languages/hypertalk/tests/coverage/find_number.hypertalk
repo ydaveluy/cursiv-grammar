@@ -2,3 +2,5 @@ find x in bg field 1
 find word "w" in card field 1
 put the number of this card into n
 put the number of cards into m
+find x
+find (the name of this card) in bg field 1

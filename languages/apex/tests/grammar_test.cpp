@@ -31,7 +31,7 @@ std::string read(const std::filesystem::path& path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
@@ -44,7 +44,7 @@ int check_clean(const cursiv::Parser& parser, const std::filesystem::path& path,
   if (!result.diagnostics.empty())
     return fail(path.filename().string() + " carries a diagnostic");
   if (result.value == nullptr ||
-      result.value->type != &cursiv::ast_type_tag<apex::ast::CompilationUnit>)
+      result.value->type != &cursiv::kAstTypeTag<apex::ast::CompilationUnit>)
     return fail(path.filename().string() + " built no compilation unit");
   if (text_out != nullptr) *text_out = text;
   return 0;
@@ -53,7 +53,7 @@ int check_clean(const cursiv::Parser& parser, const std::filesystem::path& path,
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       apex::ApexCoreServices, apex::ApexSharedCoreServices, apex::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
 

@@ -30,7 +30,7 @@ std::string read(const std::filesystem::path& path) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       callable::CallableCoreServices, callable::CallableSharedCoreServices,
       callable::install_core_module>();
 
@@ -52,7 +52,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<callable::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<callable::ast::Program>)
       return fail(path.filename().string() + " built no program");
 
     const auto& program = *static_cast<const callable::ast::Program*>(root);

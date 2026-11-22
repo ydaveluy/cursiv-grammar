@@ -34,7 +34,7 @@ bool checkFile(const Language& language, const char* path) {
 
   const cursiv::AstNode* const root = result.value;
   if (root == nullptr ||
-      !root->type->derivesFrom(&cursiv::ast_type_tag<rfc1960::ast::Filter>)) {
+      !root->type->derivesFrom(&cursiv::kAstTypeTag<rfc1960::ast::Filter>)) {
     std::fprintf(stderr, "rfc1960: %s built no filter\n", path);
     return false;
   }
@@ -45,7 +45,7 @@ bool checkFile(const Language& language, const char* path) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<rfc1960::Rfc1960CoreServices,
+      cursiv::createLanguage<rfc1960::Rfc1960CoreServices,
                               rfc1960::Rfc1960SharedCoreServices,
                               rfc1960::install_core_module>();
   {
@@ -74,7 +74,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       rfc1960::Rfc1960CoreServices, rfc1960::Rfc1960SharedCoreServices,
       rfc1960::install_core_module>();
 

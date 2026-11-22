@@ -9,7 +9,7 @@
 namespace lisp {
 
 void install_core_module(LispCoreServices& services) {
-  lisp::generated::Lisp::install_generated_module(services);
+  lisp::generated::Lisp::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<scala::ScalaCoreServices,
+    &cursiv::registerLanguage<scala::ScalaCoreServices,
                            scala::ScalaSharedCoreServices,
                            scala::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<scala::ScalaSharedCoreServices>(
+  return cursiv::runCli<scala::ScalaSharedCoreServices>(
       argc, argv, kRegister);
 }

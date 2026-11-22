@@ -9,7 +9,7 @@
 namespace kuka {
 
 void install_core_module(KukaCoreServices& services) {
-  kuka::generated::Kuka::install_generated_module(services);
+  kuka::generated::Kuka::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -17,17 +17,8 @@ if(TARGET json_cli)
            ${PROJECT_SOURCE_DIR}/example/example1.json)
 endif()
 
-# The table engine's own lanes: they read its types or pin its repairs, so they
-# exist only where the language is generated for it.
-get_target_property(_jsonEngine jsonGenerated CURSIV_ENGINE)
-if(_jsonEngine STREQUAL "LR")
-  # A string refused in its middle ends at its own closer.
-  add_executable(json_refused_escape_test refused_escape_test.cpp)
-  target_link_libraries(json_refused_escape_test PRIVATE jsonCore cursiv::test)
-  add_test(NAME json_refused_escape_test COMMAND json_refused_escape_test)
-
-  # The repair search on a stray opener and on two closers of different kinds.
-  add_executable(json_repair_search_test repair_search_test.cpp)
-  target_link_libraries(json_repair_search_test PRIVATE jsonCore cursiv::test)
-  add_test(NAME json_repair_search_test COMMAND json_repair_search_test)
-endif()
+foreach(lane IN ITEMS refused_escape repair_search)
+  add_executable(json_${lane}_test ${lane}_test.cpp)
+  target_link_libraries(json_${lane}_test PRIVATE jsonCore cursiv::test)
+  add_test(NAME json_${lane}_test COMMAND json_${lane}_test)
+endforeach()

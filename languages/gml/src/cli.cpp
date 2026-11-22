@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<gml::GmlCoreServices,
+    &cursiv::registerLanguage<gml::GmlCoreServices,
                            gml::GmlSharedCoreServices,
                            gml::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<gml::GmlSharedCoreServices>(
+  return cursiv::runCli<gml::GmlSharedCoreServices>(
       argc, argv, kRegister);
 }

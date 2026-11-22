@@ -58,7 +58,7 @@ bool check_until_and_precedence(ltl::LtlCoreServices &language) {
 
 int main() {
   const auto language =
-      cursiv::create_language<ltl::LtlCoreServices, ltl::LtlSharedCoreServices,
+      cursiv::createLanguage<ltl::LtlCoreServices, ltl::LtlSharedCoreServices,
                               ltl::install_core_module>();
 
   ltl_regressions(language.language);

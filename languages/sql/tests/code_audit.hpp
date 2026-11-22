@@ -12,7 +12,7 @@
 namespace code_audit {
 namespace ast = sqlite::ast;
 inline bool run() {
-  auto language = cursiv::create_language<sqlite::SqliteCoreServices,
+  auto language = cursiv::createLanguage<sqlite::SqliteCoreServices,
                                           sqlite::SqliteSharedCoreServices,
                                           sqlite::install_core_module>();
   bool ok = true;

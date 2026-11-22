@@ -24,7 +24,7 @@ int fail(const fs::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       awk::AwkCoreServices, awk::AwkSharedCoreServices,
       awk::install_core_module>();
 
@@ -55,7 +55,7 @@ int main() {
     }
     const cursiv::AstNode* const rootNode = result.value;
     if (rootNode == nullptr ||
-        rootNode->type != &cursiv::ast_type_tag<awk::ast::Program>) {
+        rootNode->type != &cursiv::kAstTypeTag<awk::ast::Program>) {
       failures += fail(entry.path(), "the parse built no Program");
       continue;
     }
@@ -83,19 +83,19 @@ int main() {
       const auto* begin = static_cast<const awk::ast::Rule*>(program.items[0]);
       const auto* main = static_cast<const awk::ast::Rule*>(program.items[1]);
       const auto* end = static_cast<const awk::ast::Rule*>(program.items[2]);
-      if (!is(begin->pattern, &cursiv::ast_type_tag<awk::ast::BeginPattern>))
+      if (!is(begin->pattern, &cursiv::kAstTypeTag<awk::ast::BeginPattern>))
         failures += fail(path, "the first rule is not BEGIN");
       if (main->pattern != nullptr)
         failures += fail(path, "the second rule is not pattern-less");
-      if (!is(end->pattern, &cursiv::ast_type_tag<awk::ast::EndPattern>))
+      if (!is(end->pattern, &cursiv::kAstTypeTag<awk::ast::EndPattern>))
         failures += fail(path, "the third rule is not END");
       if (main->action == nullptr || main->action->items.empty() ||
-          !is(main->action->items[0], &cursiv::ast_type_tag<awk::ast::IfStmt>)) {
+          !is(main->action->items[0], &cursiv::kAstTypeTag<awk::ast::IfStmt>)) {
         failures += fail(path, "the main rule's first statement is not if");
       } else {
         const auto* ifStmt =
             static_cast<const awk::ast::IfStmt*>(main->action->items[0]);
-        if (!is(ifStmt->cond, &cursiv::ast_type_tag<awk::ast::BinaryExpr>) ||
+        if (!is(ifStmt->cond, &cursiv::kAstTypeTag<awk::ast::BinaryExpr>) ||
             static_cast<const awk::ast::BinaryExpr*>(ifStmt->cond)->op !=
                 awk::ast::BinOp::Gt)
           failures += fail(path, "the if condition is not NF > 0");

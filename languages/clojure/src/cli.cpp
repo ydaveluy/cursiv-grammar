@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<clojure::ClojureCoreServices,
+    &cursiv::registerLanguage<clojure::ClojureCoreServices,
                            clojure::ClojureSharedCoreServices,
                            clojure::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<clojure::ClojureSharedCoreServices>(
+  return cursiv::runCli<clojure::ClojureSharedCoreServices>(
       argc, argv, kRegister);
 }

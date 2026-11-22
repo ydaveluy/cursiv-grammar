@@ -5,7 +5,7 @@
 #include "bison/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       bison::BisonSharedServices>(
       argc, argv, "bison-lsp", &bison::register_lsp_services);
 }

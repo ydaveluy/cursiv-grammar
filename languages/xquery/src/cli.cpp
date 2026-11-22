@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<xquery::XQueryCoreServices,
+    &cursiv::registerLanguage<xquery::XQueryCoreServices,
                            xquery::XQuerySharedCoreServices,
                            xquery::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<xquery::XQuerySharedCoreServices>(
+  return cursiv::runCli<xquery::XQuerySharedCoreServices>(
       argc, argv, kRegister);
 }

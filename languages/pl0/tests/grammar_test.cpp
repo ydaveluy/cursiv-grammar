@@ -27,7 +27,7 @@ std::string read_file(const std::string& path) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       pl0::Pl0CoreServices, pl0::Pl0SharedCoreServices,
       pl0::install_core_module>();
 
@@ -65,7 +65,7 @@ int main() {
     if (!result.diagnostics.empty()) return fail(path, "the sample carries diagnostics");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<pl0::ast::Program>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<pl0::ast::Program>)
       return fail(path, "the parse built no program");
   }
 

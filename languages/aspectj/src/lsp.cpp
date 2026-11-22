@@ -5,7 +5,7 @@
 #include "aspectj/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       aspectj::AspectjSharedServices>(
       argc, argv, "aspectj-lsp", &aspectj::register_lsp_services);
 }

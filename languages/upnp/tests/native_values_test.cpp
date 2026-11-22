@@ -10,7 +10,7 @@
 #include <string_view>
 #include <unordered_set>
 int main() {
-  const auto lang = cursiv::create_language<upnp::UpnpCoreServices,
+  const auto lang = cursiv::createLanguage<upnp::UpnpCoreServices,
                                             upnp::UpnpSharedCoreServices,
                                             upnp::install_core_module>();
   bool ok = true;

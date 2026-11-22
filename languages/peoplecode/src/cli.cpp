@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<peoplecode::PeoplecodeCoreServices,
+    &cursiv::registerLanguage<peoplecode::PeoplecodeCoreServices,
                            peoplecode::PeoplecodeSharedCoreServices,
                            peoplecode::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<peoplecode::PeoplecodeSharedCoreServices>(
+  return cursiv::runCli<peoplecode::PeoplecodeSharedCoreServices>(
       argc, argv, kRegister);
 }

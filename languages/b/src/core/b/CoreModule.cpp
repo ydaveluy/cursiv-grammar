@@ -9,7 +9,7 @@
 namespace b {
 
 void install_core_module(BCoreServices& services) {
-  b::generated::B::install_generated_module(services);
+  b::generated::B::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

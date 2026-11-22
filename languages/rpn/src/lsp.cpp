@@ -5,7 +5,7 @@
 #include "rpn/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       rpn::RpnSharedServices>(
       argc, argv, "rpn-lsp", &rpn::register_lsp_services);
 }

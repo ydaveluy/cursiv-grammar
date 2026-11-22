@@ -9,7 +9,7 @@
 namespace newick {
 
 void install_core_module(NewickCoreServices& services) {
-  newick::generated::Newick::install_generated_module(services);
+  newick::generated::Newick::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -5,7 +5,7 @@
 #include "bencoding/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       bencoding::BencodingSharedServices>(
       argc, argv, "bencoding-lsp", &bencoding::register_lsp_services);
 }

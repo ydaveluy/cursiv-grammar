@@ -5,7 +5,7 @@
 #include "semver/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       semver::SemverSharedServices>(
       argc, argv, "semver-lsp", &semver::register_lsp_services);
 }

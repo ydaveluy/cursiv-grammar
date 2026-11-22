@@ -9,7 +9,7 @@
 namespace d2 {
 
 void install_core_module(D2CoreServices& services) {
-  d2::generated::D2::install_generated_module(services);
+  d2::generated::D2::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

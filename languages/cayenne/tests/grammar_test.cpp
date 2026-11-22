@@ -26,7 +26,7 @@ bool check(const fs::path& file) {
   const std::string text((std::istreambuf_iterator<char>(stream)),
                          std::istreambuf_iterator<char>());
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       cayenne::CayenneCoreServices, cayenne::CayenneSharedCoreServices,
       cayenne::install_core_module>();
 
@@ -39,7 +39,7 @@ bool check(const fs::path& file) {
 
   const cursiv::AstNode* const root = result.value;
   if (root == nullptr ||
-      !root->type->derivesFrom(&cursiv::ast_type_tag<cayenne::ast::Expr>)) {
+      !root->type->derivesFrom(&cursiv::kAstTypeTag<cayenne::ast::Expr>)) {
     std::fprintf(stderr, "cayenne: %s: did not build an Expr\n",
                 file.string().c_str());
     return false;

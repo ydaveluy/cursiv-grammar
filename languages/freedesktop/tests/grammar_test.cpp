@@ -46,7 +46,7 @@ void check_file(const cursiv::Parser &parser,
   }
   const cursiv::AstNode *const root = result.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<desktopentry::ast::Document>) {
+      root->type != &cursiv::kAstTypeTag<desktopentry::ast::Document>) {
     std::fprintf(stderr, "desktopentry: %s built no Document\n",
                  path.filename().string().c_str());
     ++failures;
@@ -58,7 +58,7 @@ void check_file(const cursiv::Parser &parser,
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<desktopentry::DesktopEntryCoreServices,
+        cursiv::createLanguage<desktopentry::DesktopEntryCoreServices,
                                 desktopentry::DesktopEntrySharedCoreServices,
                                 desktopentry::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -81,7 +81,7 @@ int main() {
   }
 
   const auto language =
-      cursiv::create_language<desktopentry::DesktopEntryCoreServices,
+      cursiv::createLanguage<desktopentry::DesktopEntryCoreServices,
                               desktopentry::DesktopEntrySharedCoreServices,
                               desktopentry::install_core_module>();
 

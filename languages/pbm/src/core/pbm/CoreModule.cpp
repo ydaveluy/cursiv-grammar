@@ -9,7 +9,7 @@
 namespace pbm {
 
 void install_core_module(PbmCoreServices& services) {
-  pbm::generated::Pbm::install_generated_module(services);
+  pbm::generated::Pbm::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<objc::ObjcCoreServices,
+    &cursiv::registerLanguage<objc::ObjcCoreServices,
                            objc::ObjcSharedCoreServices,
                            objc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<objc::ObjcSharedCoreServices>(
+  return cursiv::runCli<objc::ObjcSharedCoreServices>(
       argc, argv, kRegister);
 }

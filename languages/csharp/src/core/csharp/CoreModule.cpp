@@ -9,7 +9,7 @@
 namespace csharp {
 
 void install_core_module(CSharpCoreServices& services) {
-  csharp::generated::CSharp::install_generated_module(services);
+  csharp::generated::CSharp::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

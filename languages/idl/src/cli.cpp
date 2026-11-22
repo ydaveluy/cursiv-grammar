@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<idl::IdlCoreServices,
+    &cursiv::registerLanguage<idl::IdlCoreServices,
                            idl::IdlSharedCoreServices,
                            idl::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<idl::IdlSharedCoreServices>(
+  return cursiv::runCli<idl::IdlSharedCoreServices>(
       argc, argv, kRegister);
 }

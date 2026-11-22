@@ -35,7 +35,7 @@ void native_regressions() {
   const std::string separate = "GCS d x";
   const auto separated = build(separate);
   CHECK(separated.valueAs<ast::File>()->tuples.size() == 2);
-  auto language = cursiv::create_language<geekcode::GeekcodeCoreServices,
+  auto language = cursiv::createLanguage<geekcode::GeekcodeCoreServices,
       geekcode::GeekcodeSharedCoreServices, geekcode::install_core_module>();
   CHECK(cursiv::test::validationHelper(language.language, source).diagnostics.empty());
   for (std::string_view invalid : {"GCS C%", "GCS Ppu", "GCS Lx", "GCS s%"}) {

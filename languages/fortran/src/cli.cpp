@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<fortran::FortranCoreServices,
+    &cursiv::registerLanguage<fortran::FortranCoreServices,
                            fortran::FortranSharedCoreServices,
                            fortran::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<fortran::FortranSharedCoreServices>(
+  return cursiv::runCli<fortran::FortranSharedCoreServices>(
       argc, argv, kRegister);
 }

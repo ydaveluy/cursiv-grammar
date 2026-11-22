@@ -11,9 +11,9 @@
 namespace code_audit {
 namespace ast = terraform::ast;
 inline bool run() {
-  const auto parser = terraform::generated::Terraform::create_parser();
+  const auto parser = terraform::generated::Terraform::createParser();
   const auto reflection =
-      terraform::generated::Terraform::create_ast_reflection();
+      terraform::generated::Terraform::createAstReflection();
   bool ok = true;
   const auto check = [&](bool value, const char* message) {
     if (!value) {
@@ -258,7 +258,7 @@ OTHER
   }
   {
     auto language =
-        cursiv::create_language<terraform::TerraformCoreServices,
+        cursiv::createLanguage<terraform::TerraformCoreServices,
                                 terraform::TerraformSharedCoreServices,
                                 terraform::install_core_module>();
     const std::string source =

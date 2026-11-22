@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<flowmatic::FlowmaticCoreServices,
+    &cursiv::registerLanguage<flowmatic::FlowmaticCoreServices,
                            flowmatic::FlowmaticSharedCoreServices,
                            flowmatic::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<flowmatic::FlowmaticSharedCoreServices>(
+  return cursiv::runCli<flowmatic::FlowmaticSharedCoreServices>(
       argc, argv, kRegister);
 }

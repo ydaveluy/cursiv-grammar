@@ -5,7 +5,7 @@
 #include "lolcode/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       lolcode::LolcodeSharedServices>(
       argc, argv, "lolcode-lsp", &lolcode::register_lsp_services);
 }

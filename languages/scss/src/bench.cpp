@@ -2,6 +2,6 @@
 #include "scss/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       scss::ScssSharedServices, scss::register_lsp_services>(argc, argv);
 }

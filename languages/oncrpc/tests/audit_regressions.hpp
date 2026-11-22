@@ -14,7 +14,7 @@
 namespace audit_regressions {
 inline bool run() {
   namespace ast = oncrpc::ast;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       oncrpc::OncrpcCoreServices, oncrpc::OncrpcSharedCoreServices,
       oncrpc::install_core_module>();
   bool ok = true;

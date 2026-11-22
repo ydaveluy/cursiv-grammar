@@ -6,7 +6,7 @@
 #include "solidity/ast.hpp"
 namespace native_followup {
 inline bool run(){
-  const auto language=cursiv::create_language<solidity::SolidityCoreServices,
+  const auto language=cursiv::createLanguage<solidity::SolidityCoreServices,
       solidity::SoliditySharedCoreServices,solidity::install_core_module>();
   const auto& parser=*language.language.parser;
   for(const auto source:{"contract contract {}","contract switch {}","contract int256 {}",

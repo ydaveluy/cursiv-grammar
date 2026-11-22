@@ -41,9 +41,9 @@ void CppValidator::checkReservedNames(const ast::TranslationUnit& unit,
   cst.visitLeaves([&](const cursiv::CstLeaf& leaf) {
     // An attribute argument may contain any token, including keywords.
     // Its preserved token text is not an identifier use.
-    const auto feature = grammar->recordFeature(cst[leaf.id]);
-    if (grammar->recordRule(cst[leaf.id]) != "ID" || feature.empty() ||
-        feature == "text")
+    const auto property = grammar->recordProperty(cst[leaf.id]);
+    if (grammar->recordRule(cst[leaf.id]) != "ID" || property.empty() ||
+        property == "text")
       return;
     const auto word = cst.text(leaf.id);
     if (std::ranges::find(reserved, word) != reserved.end())

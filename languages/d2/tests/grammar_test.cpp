@@ -27,7 +27,7 @@ int fail(const fs::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       d2::D2CoreServices, d2::D2SharedCoreServices, d2::install_core_module>();
 
   int failures = 0;
@@ -52,7 +52,7 @@ int main() {
       }
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<d2::ast::Diagram>) {
+          root->type != &cursiv::kAstTypeTag<d2::ast::Diagram>) {
         failures += fail(entry.path(), "did not build a Diagram root");
       }
     }

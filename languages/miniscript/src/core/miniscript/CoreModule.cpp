@@ -9,7 +9,7 @@
 namespace miniscript {
 
 void install_core_module(MiniscriptCoreServices& services) {
-  miniscript::generated::Miniscript::install_generated_module(services);
+  miniscript::generated::Miniscript::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace spass {
 
 void install_core_module(SpassCoreServices& services) {
-  spass::generated::Spass::install_generated_module(services);
+  spass::generated::Spass::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

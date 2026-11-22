@@ -9,7 +9,7 @@
 namespace flowmatic {
 
 void install_core_module(FlowmaticCoreServices& services) {
-  flowmatic::generated::Flowmatic::install_generated_module(services);
+  flowmatic::generated::Flowmatic::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

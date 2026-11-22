@@ -9,7 +9,7 @@
 namespace basic {
 
 void install_core_module(BasicCoreServices& services) {
-  basic::generated::Basic::install_generated_module(services);
+  basic::generated::Basic::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

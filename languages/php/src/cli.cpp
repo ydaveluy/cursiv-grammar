@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<php::PhpCoreServices,
+    &cursiv::registerLanguage<php::PhpCoreServices,
                            php::PhpSharedCoreServices,
                            php::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<php::PhpSharedCoreServices>(
+  return cursiv::runCli<php::PhpSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -9,7 +9,7 @@
 namespace mumath {
 
 void install_core_module(MumathCoreServices& services) {
-  mumath::generated::Mumath::install_generated_module(services);
+  mumath::generated::Mumath::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

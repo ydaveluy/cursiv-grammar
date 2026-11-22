@@ -25,7 +25,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 
 int main() {
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       jam::JamCoreServices, jam::JamSharedCoreServices,
       jam::install_core_module>();
   if (!jam_native_followup::run(language)) return 1;
@@ -55,7 +55,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<jam::ast::Jam>) {
+        root->type != &cursiv::kAstTypeTag<jam::ast::Jam>) {
       failures += fail(entry.path(), "the parse built no Jam root");
       continue;
     }

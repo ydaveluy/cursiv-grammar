@@ -9,7 +9,7 @@
 namespace trapc {
 
 void install_core_module(TrapcCoreServices& services) {
-  trapc::generated::Trapc::install_generated_module(services);
+  trapc::generated::Trapc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

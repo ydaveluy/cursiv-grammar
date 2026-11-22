@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<apt::AptCoreServices,
+    &cursiv::registerLanguage<apt::AptCoreServices,
                            apt::AptSharedCoreServices,
                            apt::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<apt::AptSharedCoreServices>(
+  return cursiv::runCli<apt::AptSharedCoreServices>(
       argc, argv, kRegister);
 }

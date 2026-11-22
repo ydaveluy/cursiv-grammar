@@ -42,7 +42,7 @@ bool parse_one(
   }
 
   const cursiv::AstNode* const root = result.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<dot::ast::Graph>) {
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<dot::ast::Graph>) {
     std::fprintf(stderr, "dot: %s did not build a Graph\n", path);
     return false;
   }
@@ -52,7 +52,7 @@ bool parse_one(
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       dot::DotCoreServices,
       dot::DotSharedCoreServices,
       dot::install_core_module>();

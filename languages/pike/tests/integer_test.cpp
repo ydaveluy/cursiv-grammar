@@ -11,10 +11,10 @@
 #include <iterator>
 #include <unordered_set>
 int main() {
-  const auto language = cursiv::create_language<pike::PikeCoreServices,
+  const auto language = cursiv::createLanguage<pike::PikeCoreServices,
                                                 pike::PikeSharedCoreServices,
                                                 pike::install_core_module>();
-  const auto factory = pike::generated::Pike::create_parser();
+  const auto factory = pike::generated::Pike::createParser();
   for (const auto &c : cases) {
     std::ifstream f(std::string(CURSIV_TEST_DIR) + "/numbers/" + c.file,
                     std::ios::binary);

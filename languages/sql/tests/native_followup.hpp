@@ -6,7 +6,7 @@
 #include "sqlite/ast.hpp"
 namespace native_followup {
 inline bool run() {
-  const auto language = cursiv::create_language<sqlite::SqliteCoreServices,
+  const auto language = cursiv::createLanguage<sqlite::SqliteCoreServices,
       sqlite::SqliteSharedCoreServices, sqlite::install_core_module>();
   const auto& parser = *language.language.parser;
   for (const auto source : {

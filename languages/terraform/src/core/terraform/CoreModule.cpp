@@ -9,7 +9,7 @@
 namespace terraform {
 
 void install_core_module(TerraformCoreServices& services) {
-  terraform::generated::Terraform::install_generated_module(services);
+  terraform::generated::Terraform::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

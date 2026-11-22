@@ -5,7 +5,7 @@
 #include "chip8/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       chip8::Chip8SharedServices>(
       argc, argv, "chip8-lsp", &chip8::register_lsp_services);
 }

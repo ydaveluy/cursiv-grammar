@@ -9,7 +9,7 @@
 namespace squirrel {
 
 void install_core_module(SquirrelCoreServices& services) {
-  squirrel::generated::Squirrel::install_generated_module(services);
+  squirrel::generated::Squirrel::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -33,7 +33,7 @@ void check(bool cond, const char* what) {
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      sharc::generated::Sharc::create_parser();
+      sharc::generated::Sharc::createParser();
   return *p;
 }
 
@@ -68,7 +68,7 @@ void document(const char* name) {
   cursiv::ParseResult r = parse_clean(text, name);
   const cursiv::AstNode* const root = r.value;
   check(root != nullptr &&
-            root->type == &cursiv::ast_type_tag<ast::Program>,
+            root->type == &cursiv::kAstTypeTag<ast::Program>,
         name);
 }
 
@@ -131,7 +131,7 @@ void refused_texts() {
 int main() {
   if (!audit_regressions::run()) return 1;
   if (!sharc_directive_cases::run(engine())) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       sharc::SharcCoreServices, sharc::SharcSharedCoreServices,
       sharc::install_core_module>();
   if (!sharc_precision_cases::run(language.language)) return 1;

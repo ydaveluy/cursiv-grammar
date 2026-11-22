@@ -9,7 +9,7 @@
 namespace pl0 {
 
 void install_core_module(Pl0CoreServices& services) {
-  pl0::generated::Pl0::install_generated_module(services);
+  pl0::generated::Pl0::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -28,7 +28,7 @@ namespace fs = std::filesystem;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      yini::generated::Yini::create_parser();
+      yini::generated::Yini::createParser();
   return *p;
 }
 
@@ -108,7 +108,7 @@ SectionView* find_section(DocumentView* d, std::string_view name) {
 }
 
 void corpus_parses_clean() {
-  const auto language = cursiv::create_language<yini::YiniCoreServices,
+  const auto language = cursiv::createLanguage<yini::YiniCoreServices,
       yini::YiniSharedCoreServices, yini::install_core_module>();
   const std::set<std::string> nativeInvalid = {
       "example/AppConfig.yini",
@@ -130,7 +130,7 @@ void corpus_parses_clean() {
     for (const auto& entry : fs::recursive_directory_iterator(dir)) {
       if (!entry.is_regular_file() || entry.path().extension() != ".yini") continue;
       ++seen;
-      const auto text = cursiv::test::read_file(entry.path().string());
+      const auto text = cursiv::test::readFile(entry.path().string());
       const auto parsed = language.language.parser->parse(text);
       CHECK(parsed.cst().text() == text);
       CHECK(cursiv::ast_cast<ast::Document>(parsed.value) != nullptr);
@@ -150,8 +150,8 @@ void corpus_parses_clean() {
 }
 
 void invalid_key_names_the_defect() {
-  const std::string text = cursiv::test::read_file(CURSIV_INVALID_KEY);
-  const auto language = cursiv::create_language<yini::YiniCoreServices,
+  const std::string text = cursiv::test::readFile(CURSIV_INVALID_KEY);
+  const auto language = cursiv::createLanguage<yini::YiniCoreServices,
       yini::YiniSharedCoreServices, yini::install_core_module>();
   const auto r = language.language.parser->parse(text);
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
@@ -164,7 +164,7 @@ void invalid_key_names_the_defect() {
 }
 
 void framework_coverage_values() {
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       (fs::path(CURSIV_TEST_DIR) / "framework-coverage.yini").string());
   cursiv::ParseResult r = parse(text);
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
@@ -236,7 +236,7 @@ void real_documents_read_back() {
     }
   }
   {
-    const std::string text = cursiv::test::read_file(
+    const std::string text = cursiv::test::readFile(
         (fs::path(CURSIV_EXAMPLE_DIR) / "example" / "Lists.yini").string());
     cursiv::ParseResult r = parse(text);
     // The native reader rejects the legacy colon-list syntax in this fixture.
@@ -262,7 +262,7 @@ void real_documents_read_back() {
     }
   }
   {
-    const std::string text = cursiv::test::read_file(
+    const std::string text = cursiv::test::readFile(
         (fs::path(CURSIV_EXAMPLE_DIR) / "example" / "Nested-Objects.yini")
             .string());
     cursiv::ParseResult r = parse(text);

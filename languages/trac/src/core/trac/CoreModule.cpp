@@ -9,7 +9,7 @@
 namespace trac {
 
 void install_core_module(TracCoreServices& services) {
-  trac::generated::Trac::install_generated_module(services);
+  trac::generated::Trac::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

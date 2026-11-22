@@ -25,15 +25,15 @@ namespace generated = amazonstateslanguageintrinsicfunctions::generated::
     AmazonStatesLanguageIntrinsicFunctions;
 
 const cursiv::Parser& engine() {
-  static const std::unique_ptr<cursiv::Parser> p = generated::create_parser();
+  static const std::unique_ptr<cursiv::Parser> p = generated::createParser();
   return *p;
 }
 
 std::string read_example(const char* name) {
   std::string text =
-      cursiv::test::read_file(std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
+      cursiv::test::readFile(std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
   if (text.empty())
-    text = cursiv::test::read_file(std::string(CURSIV_TEST_DIR) + "/" + name);
+    text = cursiv::test::readFile(std::string(CURSIV_TEST_DIR) + "/" + name);
   CHECK(!text.empty());
   return text;
 }
@@ -72,8 +72,8 @@ void format_reads_its_string_and_two_paths() {
   CHECK(call->function == ast::Function::format);
   CHECK(call->args.size() == 3);
   if (call->args.size() != 3) return;
-  CHECK(call->args[0]->type == &cursiv::ast_type_tag<ast::StringArg>);
-  CHECK(call->args[1]->type == &cursiv::ast_type_tag<ast::JsonPathArg>);
+  CHECK(call->args[0]->type == &cursiv::kAstTypeTag<ast::StringArg>);
+  CHECK(call->args[1]->type == &cursiv::kAstTypeTag<ast::JsonPathArg>);
 }
 
 void json_merge_carries_its_bool_flag() {
@@ -84,8 +84,8 @@ void json_merge_carries_its_bool_flag() {
   CHECK(call != nullptr);
   if (call == nullptr || call->args.size() != 3) return;
   const ast::Arg* const last = call->args[2];
-  CHECK(last->type == &cursiv::ast_type_tag<ast::BoolArg>);
-  if (last->type != &cursiv::ast_type_tag<ast::BoolArg>) return;
+  CHECK(last->type == &cursiv::kAstTypeTag<ast::BoolArg>);
+  if (last->type != &cursiv::kAstTypeTag<ast::BoolArg>) return;
   CHECK(static_cast<const ast::BoolArg*>(last)->value == false);
 }
 
@@ -99,7 +99,7 @@ void nested_calls_carry_a_context_path_and_a_negative_int() {
   CHECK(call->function == ast::Function::array_get_item);
   CHECK(call->args.size() == 2);
   if (call->args.size() != 2) return;
-  CHECK(call->args[0]->type == &cursiv::ast_type_tag<ast::FuncCall>);
+  CHECK(call->args[0]->type == &cursiv::kAstTypeTag<ast::FuncCall>);
 }
 
 void nested_brackets_and_string_split_and_math_add_parse() {
@@ -141,7 +141,7 @@ void native_null_and_quoted_path_members() {
 }  // namespace
 
 int main() {
-  const auto language=cursiv::create_language<amazonstateslanguageintrinsicfunctions::AmazonStatesLanguageIntrinsicFunctionsCoreServices, amazonstateslanguageintrinsicfunctions::AmazonStatesLanguageIntrinsicFunctionsSharedCoreServices, amazonstateslanguageintrinsicfunctions::install_core_module>();
+  const auto language=cursiv::createLanguage<amazonstateslanguageintrinsicfunctions::AmazonStatesLanguageIntrinsicFunctionsCoreServices, amazonstateslanguageintrinsicfunctions::AmazonStatesLanguageIntrinsicFunctionsSharedCoreServices, amazonstateslanguageintrinsicfunctions::install_core_module>();
   if(native_regressions::run(language)) return 1;
   every_example_parses_clean();
   format_reads_its_string_and_two_paths();

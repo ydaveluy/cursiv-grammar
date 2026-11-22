@@ -9,7 +9,7 @@
 namespace morsecode {
 
 void install_core_module(MorsecodeCoreServices& services) {
-  morsecode::generated::Morsecode::install_generated_module(services);
+  morsecode::generated::Morsecode::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

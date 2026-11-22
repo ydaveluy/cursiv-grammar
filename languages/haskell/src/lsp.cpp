@@ -5,7 +5,7 @@
 #include "haskell/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       haskell::HaskellSharedServices>(
       argc, argv, "haskell-lsp", &haskell::register_lsp_services);
 }

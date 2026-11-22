@@ -13,7 +13,7 @@
 
 namespace audit_regressions {
 inline bool run() {
-  auto language = cursiv::create_language<sici::SiciCoreServices,
+  auto language = cursiv::createLanguage<sici::SiciCoreServices,
                                           sici::SiciSharedCoreServices,
                                           sici::install_core_module>();
   bool ok = true;

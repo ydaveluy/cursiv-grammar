@@ -9,7 +9,7 @@
 namespace cpp {
 
 void install_core_module(CppCoreServices& services) {
-  cpp::generated::Cpp::install_generated_module(services);
+  cpp::generated::Cpp::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

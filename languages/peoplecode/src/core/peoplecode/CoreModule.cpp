@@ -9,7 +9,7 @@
 namespace peoplecode {
 
 void install_core_module(PeoplecodeCoreServices& services) {
-  peoplecode::generated::Peoplecode::install_generated_module(services);
+  peoplecode::generated::Peoplecode::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

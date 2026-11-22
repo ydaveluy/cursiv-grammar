@@ -9,7 +9,7 @@
 namespace yara {
 
 void install_core_module(YaraCoreServices& services) {
-  yara::generated::Yara::install_generated_module(services);
+  yara::generated::Yara::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

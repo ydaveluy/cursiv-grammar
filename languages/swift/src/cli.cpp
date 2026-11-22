@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<swift::SwiftCoreServices,
+    &cursiv::registerLanguage<swift::SwiftCoreServices,
                            swift::SwiftSharedCoreServices,
                            swift::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<swift::SwiftSharedCoreServices>(
+  return cursiv::runCli<swift::SwiftSharedCoreServices>(
       argc, argv, kRegister);
 }

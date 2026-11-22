@@ -11,8 +11,8 @@
 namespace code_audit {
 namespace ast = solidity::ast;
 inline bool run() {
-  const auto parser = solidity::generated::Solidity::create_parser();
-  auto reflection = solidity::generated::Solidity::create_ast_reflection();
+  const auto parser = solidity::generated::Solidity::createParser();
+  auto reflection = solidity::generated::Solidity::createAstReflection();
   bool ok = true;
   const auto check = [&](bool value, const char* message) {
     if (!value) {
@@ -188,7 +188,7 @@ inline bool run() {
   }
   {
     auto language =
-        cursiv::create_language<solidity::SolidityCoreServices,
+        cursiv::createLanguage<solidity::SolidityCoreServices,
                                 solidity::SoliditySharedCoreServices,
                                 solidity::install_core_module>();
     const std::string source =

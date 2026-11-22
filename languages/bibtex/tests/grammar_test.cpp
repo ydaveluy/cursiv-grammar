@@ -19,7 +19,7 @@
 
 namespace ast = bibtex::ast;
 int main() {
-  auto language = cursiv::create_language<bibtex::BibtexCoreServices,
+  auto language = cursiv::createLanguage<bibtex::BibtexCoreServices,
       bibtex::BibtexSharedCoreServices, bibtex::install_core_module>();
   const auto parse = [&](std::string_view source) {
     auto result = language.language.parser->parse(source);
@@ -108,7 +108,7 @@ text} # 999999999999999999999999999999, field:name = "100% @literal")
   for (const auto& [dir, name, count] : {
       std::tuple{CURSIV_EXAMPLE_DIR, "references.bib", std::size_t{3}},
       std::tuple{CURSIV_TEST_DIR, "kinds.bib", std::size_t{11}}}) {
-    const auto source = cursiv::test::read_file(std::string(dir) + "/" + name);
+    const auto source = cursiv::test::readFile(std::string(dir) + "/" + name);
     const auto tree = parse(source);
     CHECK(tree.valueAs<ast::Document>()->declarations.size() == count);
   }

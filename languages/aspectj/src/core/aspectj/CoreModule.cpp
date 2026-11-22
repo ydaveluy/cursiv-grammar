@@ -9,7 +9,7 @@
 namespace aspectj {
 
 void install_core_module(AspectjCoreServices& services) {
-  aspectj::generated::Aspectj::install_generated_module(services);
+  aspectj::generated::Aspectj::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

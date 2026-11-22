@@ -9,7 +9,7 @@
 namespace graphstreamdgs {
 
 void install_core_module(GraphstreamDgsCoreServices& services) {
-  graphstreamdgs::generated::GraphstreamDgs::install_generated_module(services);
+  graphstreamdgs::generated::GraphstreamDgs::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

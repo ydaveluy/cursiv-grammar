@@ -55,7 +55,7 @@ const vaxscan::ast::Module* parse_module(const cursiv::CoreLanguage<
   }
   const cursiv::AstNode* const root = out.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<vaxscan::ast::Module>) {
+      root->type != &cursiv::kAstTypeTag<vaxscan::ast::Module>) {
     fail((std::string(what) + ": built no Module").c_str());
     return nullptr;
   }
@@ -65,7 +65,7 @@ const vaxscan::ast::Module* parse_module(const cursiv::CoreLanguage<
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       vaxscan::VaxscanCoreServices, vaxscan::VaxscanSharedCoreServices,
       vaxscan::install_core_module>();
   if (!vaxscan_followup::run(language)) return 1;
@@ -101,19 +101,19 @@ int main() {
     return fail("hanoi.scn: expected a constant and two procedures");
 
   if (mod->statements[0]->type !=
-      &cursiv::ast_type_tag<vaxscan::ast::ConstantDecl>)
+      &cursiv::kAstTypeTag<vaxscan::ast::ConstantDecl>)
     return fail("hanoi.scn: first statement is not a ConstantDecl");
   const auto& disks =
       *static_cast<const vaxscan::ast::ConstantDecl*>(mod->statements[0]);
   if (disks.name != "disks") return fail("hanoi.scn: wrong constant name");
   if (disks.value == nullptr ||
-      disks.value->type != &cursiv::ast_type_tag<vaxscan::ast::StrLit>)
+      disks.value->type != &cursiv::kAstTypeTag<vaxscan::ast::StrLit>)
     return fail("hanoi.scn: constant value is not a StrLit");
   if (static_cast<const vaxscan::ast::StrLit*>(disks.value)->value != "SDI")
     return fail("hanoi.scn: wrong constant value");
 
   if (mod->statements[1]->type !=
-      &cursiv::ast_type_tag<vaxscan::ast::ProcedureDecl>)
+      &cursiv::kAstTypeTag<vaxscan::ast::ProcedureDecl>)
     return fail("hanoi.scn: second statement is not a ProcedureDecl");
   const auto& proc =
       *static_cast<const vaxscan::ast::ProcedureDecl*>(mod->statements[1]);

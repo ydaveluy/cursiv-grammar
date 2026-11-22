@@ -9,7 +9,7 @@
 namespace hexpat {
 
 void install_core_module(HexpatCoreServices& services) {
-  hexpat::generated::Hexpat::install_generated_module(services);
+  hexpat::generated::Hexpat::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

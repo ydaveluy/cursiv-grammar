@@ -30,14 +30,14 @@ std::string read_file(const std::filesystem::path& path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       asl::AslCoreServices, asl::AslSharedCoreServices, asl::install_core_module>();
 
   const std::filesystem::path example_dir = CURSIV_EXAMPLE_DIR;

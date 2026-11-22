@@ -9,7 +9,7 @@
 namespace suokif {
 
 void install_core_module(SuokifCoreServices& services) {
-  suokif::generated::Suokif::install_generated_module(services);
+  suokif::generated::Suokif::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

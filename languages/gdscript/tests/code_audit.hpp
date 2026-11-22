@@ -11,7 +11,7 @@ namespace code_audit {
 namespace ast = gdscript::ast;
 inline bool run() {
   const auto language =
-      cursiv::create_language<gdscript::GdscriptCoreServices,
+      cursiv::createLanguage<gdscript::GdscriptCoreServices,
                               gdscript::GdscriptSharedCoreServices,
                               gdscript::install_core_module>();
   bool ok = true;

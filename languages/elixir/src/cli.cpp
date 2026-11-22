@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<elixir::ElixirCoreServices,
+    &cursiv::registerLanguage<elixir::ElixirCoreServices,
                            elixir::ElixirSharedCoreServices,
                            elixir::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<elixir::ElixirSharedCoreServices>(
+  return cursiv::runCli<elixir::ElixirSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -40,7 +40,7 @@ int main() {
   }
 
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       semver::SemverCoreServices, semver::SemverSharedCoreServices,
       semver::install_core_module>();
 
@@ -67,7 +67,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<semver::ast::Semver>) {
+        root->type != &cursiv::kAstTypeTag<semver::ast::Semver>) {
       fail(path, "the parse built no Semver");
       ++failures;
     }

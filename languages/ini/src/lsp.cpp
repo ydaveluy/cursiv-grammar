@@ -4,6 +4,6 @@
 #include "ini/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<ini::IniSharedServices>(
+  return cursiv::runLanguageServerMain<ini::IniSharedServices>(
       argc, argv, "ini-lsp", &ini::register_lsp_services);
 }

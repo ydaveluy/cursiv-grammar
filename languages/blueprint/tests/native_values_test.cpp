@@ -14,7 +14,7 @@
 namespace a = blueprint::ast;
 int main() {
   const auto lang =
-      cursiv::create_language<blueprint::BlueprintCoreServices,
+      cursiv::createLanguage<blueprint::BlueprintCoreServices,
                               blueprint::BlueprintSharedCoreServices,
                               blueprint::install_core_module>();
   bool ok = true;

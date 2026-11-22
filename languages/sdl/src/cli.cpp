@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<sdl::SdlCoreServices,
+    &cursiv::registerLanguage<sdl::SdlCoreServices,
                            sdl::SdlSharedCoreServices,
                            sdl::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<sdl::SdlSharedCoreServices>(
+  return cursiv::runCli<sdl::SdlSharedCoreServices>(
       argc, argv, kRegister);
 }

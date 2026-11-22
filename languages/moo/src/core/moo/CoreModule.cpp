@@ -9,7 +9,7 @@
 namespace moo {
 
 void install_core_module(MooCoreServices& services) {
-  moo::generated::Moo::install_generated_module(services);
+  moo::generated::Moo::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

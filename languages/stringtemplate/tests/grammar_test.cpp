@@ -35,7 +35,7 @@ std::string read_file(const char* path) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       stringtemplate::StringtemplateCoreServices,
       stringtemplate::StringtemplateSharedCoreServices,
       stringtemplate::install_core_module>();
@@ -55,25 +55,25 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<stringtemplate::ast::Template>)
+        root->type != &cursiv::kAstTypeTag<stringtemplate::ast::Template>)
       return fail("the upstream example built no template");
 
     const auto& tmpl = *static_cast<const stringtemplate::ast::Template*>(root);
-    if (tmpl.elements.size() != 2 || tmpl.elements[1]->type != &cursiv::ast_type_tag<stringtemplate::ast::Text> || static_cast<const stringtemplate::ast::Text*>(tmpl.elements[1])->value != "\n\n")
+    if (tmpl.elements.size() != 2 || tmpl.elements[1]->type != &cursiv::kAstTypeTag<stringtemplate::ast::Text> || static_cast<const stringtemplate::ast::Text*>(tmpl.elements[1])->value != "\n\n")
       return fail("the upstream example must keep its expression tag and trailing newlines");
     const stringtemplate::ast::Element* el = tmpl.elements[0];
     if (el == nullptr ||
-        el->type != &cursiv::ast_type_tag<stringtemplate::ast::ExprTag>)
+        el->type != &cursiv::kAstTypeTag<stringtemplate::ast::ExprTag>)
       return fail("<title> did not build an ExprTag");
     const auto& tag = *static_cast<const stringtemplate::ast::ExprTag*>(el);
     const auto* value = tag.value;
     if (value == nullptr ||
-        value->type != &cursiv::ast_type_tag<stringtemplate::ast::MapExpr>)
+        value->type != &cursiv::kAstTypeTag<stringtemplate::ast::MapExpr>)
       return fail("the expression tag did not hold a map expression");
     const auto& map = *static_cast<const stringtemplate::ast::MapExpr*>(value);
     if (map.sources.size() != 1 ||
         map.sources[0]->type !=
-            &cursiv::ast_type_tag<stringtemplate::ast::NameExpr>)
+            &cursiv::kAstTypeTag<stringtemplate::ast::NameExpr>)
       return fail("<title> did not read back as a bare name");
     const auto& name =
         *static_cast<const stringtemplate::ast::NameExpr*>(map.sources[0]);
@@ -93,20 +93,20 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<stringtemplate::ast::Template>)
+        root->type != &cursiv::kAstTypeTag<stringtemplate::ast::Template>)
       return fail("full.st built no template");
 
     const auto& tmpl = *static_cast<const stringtemplate::ast::Template*>(root);
     bool sawIf = false, sawRegion = false;
     for (const stringtemplate::ast::Element* el : tmpl.elements) {
       if (el == nullptr) continue;
-      if (el->type == &cursiv::ast_type_tag<stringtemplate::ast::IfStat>) {
+      if (el->type == &cursiv::kAstTypeTag<stringtemplate::ast::IfStat>) {
         const auto& ifs = *static_cast<const stringtemplate::ast::IfStat*>(el);
         if (ifs.branches.size() != 2 || !ifs.hasElse || ifs.elseBody.empty())
           return fail("the if/elseif/else did not read back");
         sawIf = true;
       }
-      if (el->type == &cursiv::ast_type_tag<stringtemplate::ast::Region>) {
+      if (el->type == &cursiv::kAstTypeTag<stringtemplate::ast::Region>) {
         const auto& region = *static_cast<const stringtemplate::ast::Region*>(el);
         if (region.name != "header")
           return fail("the region name did not read back");

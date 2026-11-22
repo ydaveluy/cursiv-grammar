@@ -39,7 +39,7 @@ const char *const kExamples[] = {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<http::HttpCoreServices,
+        cursiv::createLanguage<http::HttpCoreServices,
                                 http::HttpSharedCoreServices,
                                 http::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -55,7 +55,7 @@ int main() {
       return 1;
   }
 
-  const auto language = cursiv::create_language<http::HttpCoreServices,
+  const auto language = cursiv::createLanguage<http::HttpCoreServices,
                                                 http::HttpSharedCoreServices,
                                                 http::install_core_module>();
   if (!http_audit::run(*language.language.parser)) return 1;
@@ -74,7 +74,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<http::ast::Message>)
+        root->type != &cursiv::kAstTypeTag<http::ast::Message>)
       return fail(std::string(name) + ": built no Message");
 
     const auto &message = *static_cast<const http::ast::Message *>(root);

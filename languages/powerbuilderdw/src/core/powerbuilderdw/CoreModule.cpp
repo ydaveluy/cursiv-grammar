@@ -9,7 +9,7 @@
 namespace powerbuilderdw {
 
 void install_core_module(PowerbuilderdwCoreServices& services) {
-  powerbuilderdw::generated::Powerbuilderdw::install_generated_module(services);
+  powerbuilderdw::generated::Powerbuilderdw::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

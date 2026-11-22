@@ -23,7 +23,7 @@ inline std::string shape(const tl::ast::Proposition* node) {
   return "null";
 }
 inline bool run() {
-  const auto language = cursiv::create_language<tl::TlCoreServices,
+  const auto language = cursiv::createLanguage<tl::TlCoreServices,
       tl::TlSharedCoreServices, tl::install_core_module>();
   struct Case { const char* text; const char* expected; std::size_t missing; };
   for (const Case c : {Case{"", "?", 1}, {"()", "?", 1}, {"⌐", "!(?)", 1},

@@ -9,7 +9,7 @@
 namespace ttm {
 
 void install_core_module(TtmCoreServices& services) {
-  ttm::generated::Ttm::install_generated_module(services);
+  ttm::generated::Ttm::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

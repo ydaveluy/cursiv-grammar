@@ -5,7 +5,7 @@
 #include "jpa/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       jpa::JpaSharedServices>(
       argc, argv, "jpa-lsp", &jpa::register_lsp_services);
 }

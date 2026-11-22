@@ -39,7 +39,7 @@ std::vector<std::string> split(const std::string& s, char sep) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<python::PythonCoreServices,
+      cursiv::createLanguage<python::PythonCoreServices,
                               python::PythonSharedCoreServices,
                               python::install_core_module>();
   for (const auto *source : {
@@ -205,7 +205,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       python::PythonCoreServices, python::PythonSharedCoreServices,
       python::install_core_module>();
 
@@ -224,7 +224,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<python::ast::Module>)
+        root->type != &cursiv::kAstTypeTag<python::ast::Module>)
       return fail(path, "the parse built no Module");
 
     std::printf("python: %s parses\n", path.c_str());

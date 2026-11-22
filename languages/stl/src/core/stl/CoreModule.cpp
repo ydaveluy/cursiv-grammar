@@ -9,7 +9,7 @@
 namespace stl {
 
 void install_core_module(StlCoreServices& services) {
-  stl::generated::Stl::install_generated_module(services);
+  stl::generated::Stl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

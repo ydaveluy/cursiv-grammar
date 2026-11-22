@@ -13,10 +13,10 @@
 #include <unordered_set>
 int main() {
   const auto language =
-      cursiv::create_language<protobuf::ProtobufCoreServices,
+      cursiv::createLanguage<protobuf::ProtobufCoreServices,
                               protobuf::ProtobufSharedCoreServices,
                               protobuf::install_core_module>();
-  const auto factory = protobuf::generated::Protobuf::create_parser();
+  const auto factory = protobuf::generated::Protobuf::createParser();
   unsigned natives = 0;
   for (const auto &c : cases) {
     std::ifstream f(std::string(CURSIV_TEST_DIR) + "/numbers/" + c.file,

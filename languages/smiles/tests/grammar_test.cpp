@@ -68,7 +68,7 @@ std::vector<const T*> suffixes(const smiles::ast::BranchedAtom& atom) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       smiles::SmilesCoreServices, smiles::SmilesSharedCoreServices,
       smiles::install_core_module>();
 
@@ -85,7 +85,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<smiles::ast::Smiles>)
+        root->type != &cursiv::kAstTypeTag<smiles::ast::Smiles>)
       return fail(std::string(name) + ": built no Smiles");
 
     const auto& doc = *static_cast<const smiles::ast::Smiles*>(root);
@@ -203,7 +203,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<smiles::ast::Smiles>)
+        root->type != &cursiv::kAstTypeTag<smiles::ast::Smiles>)
       return fail("coverage.smi: built no Smiles");
     const auto& doc = *static_cast<const smiles::ast::Smiles*>(root);
 

@@ -34,7 +34,7 @@ inline constexpr auto identifier_text = [](std::string_view text)
   bool all_space = true, all_operator = true;
   for (std::size_t i = 0; i < text.size();) {
     std::size_t width = 0;
-    const auto c = cursiv::scalar_at(text.data() + i, text.size() - i, width);
+    const auto c = cursiv::scalarAt(text.data() + i, text.size() - i, width);
     if (!width || c < 0x20 || c == 0x7F || c == '`' || c == '\\' ||
         c == 0x85 || c == 0xA0 || c == 0x1680 || (c >= 0x2000 && c <= 0x200A) ||
         c == 0x2028 || c == 0x2029 || c == 0x202F || c == 0x205F || c == 0x3000)

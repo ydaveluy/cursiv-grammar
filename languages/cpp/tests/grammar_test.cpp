@@ -27,7 +27,7 @@ int fail(const std::string& what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       cpp::CppCoreServices,
       cpp::CppSharedCoreServices,
       cpp::install_core_module>();
@@ -124,9 +124,9 @@ int main() {
     const cursiv::AstTypeTag* expected;
   };
   const KeywordCase keywordCases[]{
-      {"auto value = int(1);", &cursiv::ast_type_tag<cpp::ast::FunctionalCastExpr>},
-      {"auto value = static_cast<int>(1);", &cursiv::ast_type_tag<cpp::ast::NamedCastExpr>},
-      {"auto value = typeid(int);", &cursiv::ast_type_tag<cpp::ast::TypeidExpr>}};
+      {"auto value = int(1);", &cursiv::kAstTypeTag<cpp::ast::FunctionalCastExpr>},
+      {"auto value = static_cast<int>(1);", &cursiv::kAstTypeTag<cpp::ast::NamedCastExpr>},
+      {"auto value = typeid(int);", &cursiv::kAstTypeTag<cpp::ast::TypeidExpr>}};
   for (const auto& test : keywordCases) {
     const auto source = test.source;
     const auto result = language.language.parser->parse(source);
@@ -285,7 +285,7 @@ struct A { virtual void f() = 1; };
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<cpp::ast::TranslationUnit>)
+        root->type != &cursiv::kAstTypeTag<cpp::ast::TranslationUnit>)
       return fail(entry.path().string() + ": built no translation unit");
   }
   if (seen == 0) return fail("no examples found");

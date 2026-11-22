@@ -9,7 +9,7 @@
 namespace pest {
 
 void install_core_module(PestCoreServices& services) {
-  pest::generated::Pest::install_generated_module(services);
+  pest::generated::Pest::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

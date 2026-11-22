@@ -5,7 +5,7 @@
 #include "python/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       python::PythonSharedServices>(
       argc, argv, "python-lsp", &python::register_lsp_services);
 }

@@ -9,7 +9,7 @@
 namespace maml {
 
 void install_core_module(MamlCoreServices& services) {
-  maml::generated::Maml::install_generated_module(services);
+  maml::generated::Maml::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

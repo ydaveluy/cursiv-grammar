@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<microc::MicrocCoreServices,
+    &cursiv::registerLanguage<microc::MicrocCoreServices,
                            microc::MicrocSharedCoreServices,
                            microc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<microc::MicrocSharedCoreServices>(
+  return cursiv::runCli<microc::MicrocSharedCoreServices>(
       argc, argv, kRegister);
 }

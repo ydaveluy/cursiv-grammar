@@ -15,24 +15,21 @@ permissions:
 
 jobs:
   build:
-    name: ${{ matrix.engine }}
+    name: ${{ matrix.compiler }}
     runs-on: ubuntu-26.04
     timeout-minutes: 360
     strategy:
       fail-fast: false
       max-parallel: 1
-      # One build per engine, each with its own compiler, so both engines and
-      # both compilers are checked: the compilers flag different faults in a
-      # port's own code, which does not depend on the engine.
+      # One build per compiler: GCC and Clang flag different faults in a
+      # port's own code.
       matrix:
         include:
-          - engine: LR
-            compiler: GCC
+          - compiler: GCC
             container: gcc:16
             cc: gcc
             cxx: g++
-          - engine: LL
-            compiler: Clang
+          - compiler: Clang
             container: ""
             cc: clang-22
             cxx: clang++-22
@@ -72,12 +69,12 @@ jobs:
         run: >-
           python3 .github/scripts/run_language.py --language "$LANGUAGE"
           --cc "${{ matrix.cc }}" --cxx "${{ matrix.cxx }}"
-          --engine "${{ matrix.engine }}"
+          --compiler "${{ matrix.compiler }}"
           --cursiv-source "$CURSIV_SOURCE" --clean-build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: ci-${{ inputs.language }}-${{ matrix.engine }}
+          name: ci-${{ inputs.language }}-${{ matrix.compiler }}
           path: build/ci-results/
           if-no-files-found: warn
           overwrite: true

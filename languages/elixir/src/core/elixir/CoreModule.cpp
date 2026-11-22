@@ -9,7 +9,7 @@
 namespace elixir {
 
 void install_core_module(ElixirCoreServices& services) {
-  elixir::generated::Elixir::install_generated_module(services);
+  elixir::generated::Elixir::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace glsl {
 
 void install_core_module(GlslCoreServices& services) {
-  glsl::generated::Glsl::install_generated_module(services);
+  glsl::generated::Glsl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

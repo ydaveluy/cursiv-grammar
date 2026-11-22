@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<scss::ScssCoreServices,
+    &cursiv::registerLanguage<scss::ScssCoreServices,
                            scss::ScssSharedCoreServices,
                            scss::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<scss::ScssSharedCoreServices>(
+  return cursiv::runCli<scss::ScssSharedCoreServices>(
       argc, argv, kRegister);
 }

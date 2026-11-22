@@ -2,6 +2,6 @@
 #include "haskell/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       haskell::HaskellSharedServices, haskell::register_lsp_services>(argc, argv);
 }

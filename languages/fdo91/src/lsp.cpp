@@ -5,7 +5,7 @@
 #include "fdo91/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       fdo91::Fdo91SharedServices>(
       argc, argv, "fdo91-lsp", &fdo91::register_lsp_services);
 }

@@ -32,7 +32,7 @@ int fail(const char* file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       sapf::SapfCoreServices, sapf::SapfSharedCoreServices,
       sapf::install_core_module>();
 
@@ -50,7 +50,7 @@ int main() {
       return fail(path, "the document does not parse clean");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<sapf::ast::File>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<sapf::ast::File>)
       return fail(path, "the parse built no File");
 
     if (!result.diagnostics.empty())

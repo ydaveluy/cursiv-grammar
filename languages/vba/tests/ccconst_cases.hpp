@@ -22,25 +22,25 @@ inline bool run(const vba::VbaCoreServices& services,
     const void* valueType;
   };
   const Case cases[] = {
-    {"module-first", "#Const Build = 1\nDim ordinary As Integer\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"module-between", "Dim first As Integer\n#Const Build = 1\nDim last As Integer\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"procedure", "Sub M()\n#Const Build = 1\nDim ordinary As Integer\nEnd Sub\n", "Build", "", &cursiv::ast_type_tag<ast::Procedure>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"block-context", "Sub M()\nIf True Then\n#Const Build = 1\nEnd If\nEnd Sub\n", "Build", "", &cursiv::ast_type_tag<ast::IfStmt>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"typed-name", "#Const Build% = 1\n", "Build", "%", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"case-insensitive", "#cOnSt Build = 1\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"prefix-name", "#Const ConstValue = 1\n", "ConstValue", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"quoted-name", "#Const [Build Flag] = 1\n", "[Build Flag]", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"intrinsic-call", "#Const Build = CInt(1)\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IndexExpr>},
-    {"constant-reference", "#Const Build = OtherConstant\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::NameExpr>},
-    {"date-expression", "#Const Build = #1/1/2000#\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::DateLit>},
-    {"arithmetic", "#Const Build = (1 + 2) * 3\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::BinaryExpr>},
-    {"string", "#Const Build = \"Rem is text\"\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::StringLit>},
-    {"single-quote-comment", "#Const Build = 1 ' Rem is ordinary comment text\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"continued-expression", "#Const Build = 1 + _\n 2\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::BinaryExpr>},
-    {"continued-tail", "#Const Build = 1 _\n ' trailing comment\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"unicode-line-end", "#Const Build = 1 Dim ordinary As Integer ", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"unicode-indent", "　#Const Build = 1\n", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
-    {"eof-profile", "#Const Build = 1", "Build", "", &cursiv::ast_type_tag<ast::Module>, &cursiv::ast_type_tag<ast::IntLit>},
+    {"module-first", "#Const Build = 1\nDim ordinary As Integer\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"module-between", "Dim first As Integer\n#Const Build = 1\nDim last As Integer\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"procedure", "Sub M()\n#Const Build = 1\nDim ordinary As Integer\nEnd Sub\n", "Build", "", &cursiv::kAstTypeTag<ast::Procedure>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"block-context", "Sub M()\nIf True Then\n#Const Build = 1\nEnd If\nEnd Sub\n", "Build", "", &cursiv::kAstTypeTag<ast::IfStmt>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"typed-name", "#Const Build% = 1\n", "Build", "%", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"case-insensitive", "#cOnSt Build = 1\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"prefix-name", "#Const ConstValue = 1\n", "ConstValue", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"quoted-name", "#Const [Build Flag] = 1\n", "[Build Flag]", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"intrinsic-call", "#Const Build = CInt(1)\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IndexExpr>},
+    {"constant-reference", "#Const Build = OtherConstant\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::NameExpr>},
+    {"date-expression", "#Const Build = #1/1/2000#\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::DateLit>},
+    {"arithmetic", "#Const Build = (1 + 2) * 3\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::BinaryExpr>},
+    {"string", "#Const Build = \"Rem is text\"\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::StringLit>},
+    {"single-quote-comment", "#Const Build = 1 ' Rem is ordinary comment text\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"continued-expression", "#Const Build = 1 + _\n 2\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::BinaryExpr>},
+    {"continued-tail", "#Const Build = 1 _\n ' trailing comment\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"unicode-line-end", "#Const Build = 1 Dim ordinary As Integer ", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"unicode-indent", "　#Const Build = 1\n", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
+    {"eof-profile", "#Const Build = 1", "Build", "", &cursiv::kAstTypeTag<ast::Module>, &cursiv::kAstTypeTag<ast::IntLit>},
   };
   for (const auto& test : cases) {
     auto document = shared.documentFactory->fromString(test.source, "file:///ccconst.bas");

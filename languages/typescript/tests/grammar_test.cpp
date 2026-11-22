@@ -35,7 +35,7 @@ int fail(const std::string& what) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
@@ -50,7 +50,7 @@ int main() {
     if (entry.path().extension() == ".ts") files.push_back(entry.path());
   if (files.empty()) return fail("no example files found");
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       typescript::TypeScriptCoreServices, typescript::TypeScriptSharedCoreServices,
       typescript::install_core_module>();
   {
@@ -97,7 +97,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<typescript::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<typescript::ast::Program>)
       return fail(path.string() + ": the parse built no program");
   }
 

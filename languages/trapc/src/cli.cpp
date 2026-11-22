@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<trapc::TrapcCoreServices,
+    &cursiv::registerLanguage<trapc::TrapcCoreServices,
                            trapc::TrapcSharedCoreServices,
                            trapc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<trapc::TrapcSharedCoreServices>(
+  return cursiv::runCli<trapc::TrapcSharedCoreServices>(
       argc, argv, kRegister);
 }

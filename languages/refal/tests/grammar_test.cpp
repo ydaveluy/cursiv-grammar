@@ -25,7 +25,7 @@ namespace ast = refal::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      refal::generated::Refal::create_parser();
+      refal::generated::Refal::createParser();
   return *p;
 }
 
@@ -80,13 +80,13 @@ void refused_texts() {
 std::string load_example(std::string_view name) {
   const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" +
                            std::string(name);
-  return cursiv::test::read_file(path);
+  return cursiv::test::readFile(path);
 }
 
 std::string load_test_doc(std::string_view name) {
   const std::string path = std::string(CURSIV_TEST_DIR) + "/" +
                            std::string(name);
-  return cursiv::test::read_file(path);
+  return cursiv::test::readFile(path);
 }
 
 // Every document this language ships, parsed clean -- the ctest's own check
@@ -179,7 +179,7 @@ void native_followup() {
       R"ref(F { = \n; })ref", R"ref(F { = '\s'; })ref",
       "F { = 'line\ntransfer'; }"})
     CHECK(!accepts(source));
-  const auto language=cursiv::create_language<refal::RefalCoreServices,
+  const auto language=cursiv::createLanguage<refal::RefalCoreServices,
       refal::RefalSharedCoreServices,refal::install_core_module>();
   for (const auto source : {"F { = 4294967295; }", "\"QuotedName\" { = True; }"})
     CHECK(cursiv::test::validationHelper(language.language,source).diagnostics.empty());

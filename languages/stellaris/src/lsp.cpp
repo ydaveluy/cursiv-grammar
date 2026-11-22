@@ -5,7 +5,7 @@
 #include "stellaris/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       stellaris::StellarisSharedServices>(
       argc, argv, "stellaris-lsp", &stellaris::register_lsp_services);
 }

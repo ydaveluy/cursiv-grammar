@@ -10,11 +10,11 @@
 #include <string>
 namespace audit_regressions {
 template <class T> T *as(cursiv::AstNode *p) {
-  return p && p->type == &cursiv::ast_type_tag<T> ? static_cast<T *>(p)
+  return p && p->type == &cursiv::kAstTypeTag<T> ? static_cast<T *>(p)
                                                   : nullptr;
 }
 inline bool run() {
-  auto parser = teal::generated::Teal::create_parser();
+  auto parser = teal::generated::Teal::createParser();
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) {
@@ -92,7 +92,7 @@ inline bool run() {
           "malformed native short-string escape diagnostic");
   }
   {
-    const auto language = cursiv::create_language<teal::TealCoreServices,
+    const auto language = cursiv::createLanguage<teal::TealCoreServices,
         teal::TealSharedCoreServices, teal::install_core_module>();
     const auto result = cursiv::test::validationHelper(language.language,
         "local Point = record x:number end");

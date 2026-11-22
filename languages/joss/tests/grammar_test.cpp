@@ -30,7 +30,7 @@ std::string read_file(const char* path) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       joss::JossCoreServices, joss::JossSharedCoreServices,
       joss::install_core_module>();
 
@@ -57,7 +57,7 @@ int main() {
       return fail("a document carries an unexpected diagnostic");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<joss::ast::Program>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<joss::ast::Program>)
       return fail("the parse built no program");
   }
 
@@ -70,7 +70,7 @@ int main() {
   if (program.statements.size() != 2) return fail("readback.joss has 2 statements");
 
   if (program.statements[0]->type !=
-      &cursiv::ast_type_tag<joss::ast::AssignStmt>)
+      &cursiv::kAstTypeTag<joss::ast::AssignStmt>)
     return fail("the first statement is not an assignment");
   const auto& first =
       *static_cast<const joss::ast::AssignStmt*>(program.statements[0]);
@@ -79,14 +79,14 @@ int main() {
     return fail("the first assignment's target was not read back correctly");
   if (first.assignment->value == nullptr ||
       first.assignment->value->type !=
-          &cursiv::ast_type_tag<joss::ast::NumberLit>)
+          &cursiv::kAstTypeTag<joss::ast::NumberLit>)
     return fail("the first assignment's value is not a number literal");
   if (static_cast<const joss::ast::NumberLit*>(first.assignment->value)
           ->value != 3.0)
     return fail("the first assignment's number was not read back correctly");
 
   if (program.statements[1]->type !=
-      &cursiv::ast_type_tag<joss::ast::AssignStmt>)
+      &cursiv::kAstTypeTag<joss::ast::AssignStmt>)
     return fail("the second statement is not an assignment");
   const auto& second =
       *static_cast<const joss::ast::AssignStmt*>(program.statements[1]);
@@ -94,12 +94,12 @@ int main() {
       second.assignment->target->name != "B")
     return fail("the second assignment's target was not read back correctly");
   if (second.assignment->value == nullptr ||
-      second.assignment->value->type != &cursiv::ast_type_tag<joss::ast::BinMath>)
+      second.assignment->value->type != &cursiv::kAstTypeTag<joss::ast::BinMath>)
     return fail("the second assignment's value is not a binary expression");
   const auto& sum =
       *static_cast<const joss::ast::BinMath*>(second.assignment->value);
   if (sum.op != joss::ast::MathOp::add || sum.left == nullptr ||
-      sum.left->type != &cursiv::ast_type_tag<joss::ast::Variable>)
+      sum.left->type != &cursiv::kAstTypeTag<joss::ast::Variable>)
     return fail("the second assignment's sum was not read back correctly");
 
   std::puts("joss: every document parses, field values read back correctly");

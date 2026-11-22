@@ -63,7 +63,7 @@ template<class T> const T* first(const cursiv::ParseResult& result) {
 }
 
 int main() {
-  const auto language = cursiv::create_language<awk::AwkCoreServices,
+  const auto language = cursiv::createLanguage<awk::AwkCoreServices,
       awk::AwkSharedCoreServices, awk::install_core_module>();
   const auto& parser = *language.language.parser;
   bool ok = true;

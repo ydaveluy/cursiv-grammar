@@ -5,7 +5,7 @@
 #include "matlab/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       matlab::MatlabSharedServices>(
       argc, argv, "matlab-lsp", &matlab::register_lsp_services);
 }

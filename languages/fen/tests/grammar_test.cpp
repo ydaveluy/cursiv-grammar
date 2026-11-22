@@ -30,7 +30,7 @@ int main() {
   if (!code_audit::run()) return 1;
   {
     const auto audit_language =
-        cursiv::create_language<fen::FenCoreServices,
+        cursiv::createLanguage<fen::FenCoreServices,
                                 fen::FenSharedCoreServices,
                                 fen::install_core_module>();
     const auto audit_result =
@@ -50,7 +50,7 @@ int main() {
   }
 
   {
-    const auto language = cursiv::create_language<fen::FenCoreServices,
+    const auto language = cursiv::createLanguage<fen::FenCoreServices,
         fen::FenSharedCoreServices, fen::install_core_module>();
     const auto parsed = language.language.parser->parse("8/8/8/8/8/8/8/8 w - - +0 -0");
     const auto* value = parsed.valueAs<fen::ast::Fen>();
@@ -74,7 +74,7 @@ int main() {
 
   // The whole language in one call: the defaults, then `install_core_module`.
   const auto language =
-      cursiv::create_language<fen::FenCoreServices, fen::FenSharedCoreServices,
+      cursiv::createLanguage<fen::FenCoreServices, fen::FenSharedCoreServices,
                               fen::install_core_module>();
 
   int failures = 0;
@@ -99,7 +99,7 @@ int main() {
     }
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<fen::ast::Fen>) {
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<fen::ast::Fen>) {
       fail(path, "the parse built no Fen");
       ++failures;
       continue;

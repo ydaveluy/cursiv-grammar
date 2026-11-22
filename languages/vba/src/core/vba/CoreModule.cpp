@@ -9,7 +9,7 @@
 namespace vba {
 
 void install_core_module(VbaCoreServices& services) {
-  vba::generated::Vba::install_generated_module(services);
+  vba::generated::Vba::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

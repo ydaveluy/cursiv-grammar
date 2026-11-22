@@ -144,7 +144,7 @@ struct Creole : cursiv::GrammarSpec {
   static constexpr auto leadingBlanks = many(cr<R"( \t)">);
   static constexpr auto opens_other_block =
       (leadingBlanks + (lit<"="> | lit<"|">)) |
-      (leadingBlanks + lit<"----", !cr<R"(^ \t\r\n)">>) |
+      ref<HLINE> |
       lit<"{{{", !cr<R"(^ \t\r\n)">>;
   static constexpr auto opens_block =
       opens_other_block | (leadingBlanks + (lit<"*", !cr<"*">> | lit<"#">));

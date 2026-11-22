@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<gff3::Gff3CoreServices,
+    &cursiv::registerLanguage<gff3::Gff3CoreServices,
                            gff3::Gff3SharedCoreServices,
                            gff3::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<gff3::Gff3SharedCoreServices>(
+  return cursiv::runCli<gff3::Gff3SharedCoreServices>(
       argc, argv, kRegister);
 }

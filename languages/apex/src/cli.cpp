@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<apex::ApexCoreServices,
+    &cursiv::registerLanguage<apex::ApexCoreServices,
                            apex::ApexSharedCoreServices,
                            apex::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<apex::ApexSharedCoreServices>(
+  return cursiv::runCli<apex::ApexSharedCoreServices>(
       argc, argv, kRegister);
 }

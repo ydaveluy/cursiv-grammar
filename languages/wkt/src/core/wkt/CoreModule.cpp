@@ -9,7 +9,7 @@
 namespace wkt {
 
 void install_core_module(WktCoreServices& services) {
-  wkt::generated::Wkt::install_generated_module(services);
+  wkt::generated::Wkt::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace bcl {
 
 void install_core_module(BclCoreServices& services) {
-  bcl::generated::Bcl::install_generated_module(services);
+  bcl::generated::Bcl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

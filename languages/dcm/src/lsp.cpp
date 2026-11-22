@@ -5,7 +5,7 @@
 #include "dcm/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       dcm::DcmSharedServices>(
       argc, argv, "dcm-lsp", &dcm::register_lsp_services);
 }

@@ -11,7 +11,7 @@
 
 namespace native_regressions {
 inline bool run() {
-  auto language = cursiv::create_language<wktcrsv1::WktCrsV1CoreServices,
+  auto language = cursiv::createLanguage<wktcrsv1::WktCrsV1CoreServices,
       wktcrsv1::WktCrsV1SharedCoreServices, wktcrsv1::install_core_module>();
   bool ok = true;
   const auto check = [&](bool value, const char* message) {

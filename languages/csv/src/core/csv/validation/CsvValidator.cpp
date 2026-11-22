@@ -11,7 +11,7 @@ namespace csv {
 void CsvValidator::checkRowFieldCount(
     const ast::Row& row, cursiv::ValidationAcceptor& accept) const {
   if (row.parent == nullptr ||
-      row.parent->type != &cursiv::ast_type_tag<ast::Doc>)
+      row.parent->type != &cursiv::kAstTypeTag<ast::Doc>)
     return;
   const auto& doc = *static_cast<const ast::Doc*>(row.parent);
   if (doc.rows.empty() || &row == doc.rows[0]) return;

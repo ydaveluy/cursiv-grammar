@@ -23,7 +23,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       gff3::Gff3CoreServices, gff3::Gff3SharedCoreServices,
       gff3::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("##gff-version 3\nchr1\t.\tgene\t1\t2\t.\t+\t.\t.\n");
@@ -33,7 +33,7 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       gff3::Gff3CoreServices, gff3::Gff3SharedCoreServices,
       gff3::install_core_module>();
 
@@ -65,7 +65,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<gff3::ast::Document>) {
+          root->type != &cursiv::kAstTypeTag<gff3::ast::Document>) {
         fail(path, "the parse built no Document");
         ++failures;
       }

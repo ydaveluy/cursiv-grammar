@@ -26,7 +26,7 @@ int fail(const std::filesystem::path& path, const char* what) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       sieve::SieveCoreServices,
       sieve::SieveSharedCoreServices,
       sieve::install_core_module>();
@@ -53,7 +53,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<sieve::ast::Script>)
+        root->type != &cursiv::kAstTypeTag<sieve::ast::Script>)
       return fail(path, "the parse built no script");
 
     const auto& script = *static_cast<const sieve::ast::Script*>(root);

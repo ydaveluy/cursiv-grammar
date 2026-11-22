@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<javadoc::JavadocCoreServices,
+    &cursiv::registerLanguage<javadoc::JavadocCoreServices,
                            javadoc::JavadocSharedCoreServices,
                            javadoc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<javadoc::JavadocSharedCoreServices>(
+  return cursiv::runCli<javadoc::JavadocSharedCoreServices>(
       argc, argv, kRegister);
 }

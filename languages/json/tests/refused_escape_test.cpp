@@ -16,7 +16,7 @@ namespace {
 // much inside it is wrong or how far the closer is: one re-reading, and the
 // text after it read as written.
 void a_token_refused_in_its_middle_ends_at_its_closer() {
-  const auto parser = json_g::create_parser();
+  const auto parser = json_g::createParser();
   const auto one = [&](const std::string& text, cursiv::TextOffset begin,
                        cursiv::TextOffset end) {
     const cursiv::ParseResult r = parser->parse(text);

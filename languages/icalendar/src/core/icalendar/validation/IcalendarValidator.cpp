@@ -21,7 +21,7 @@ bool valid_name(std::string_view name) {
   if (name.empty()) return false;
   for (std::size_t i = 0; i < name.size();) {
     const auto lead = static_cast<unsigned char>(name[i]);
-    const auto width = cursiv::utf8_width(name[i]);
+    const auto width = cursiv::utf8Width(name[i]);
     if (width > name.size() - i) return false;
     char32_t cp = width == 1 ? lead : lead & (0x7F >> width);
     for (std::size_t j = 1; j < width; ++j)

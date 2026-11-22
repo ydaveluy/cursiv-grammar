@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<miniscript::MiniscriptCoreServices,
+    &cursiv::registerLanguage<miniscript::MiniscriptCoreServices,
                            miniscript::MiniscriptSharedCoreServices,
                            miniscript::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<miniscript::MiniscriptSharedCoreServices>(
+  return cursiv::runCli<miniscript::MiniscriptSharedCoreServices>(
       argc, argv, kRegister);
 }

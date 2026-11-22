@@ -31,7 +31,7 @@ int main() {
                          std::istreambuf_iterator<char>());
 
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<dice::DiceCoreServices,
+  const auto language = cursiv::createLanguage<dice::DiceCoreServices,
                                                 dice::DiceSharedCoreServices,
                                                 dice::install_core_module>();
 
@@ -47,7 +47,7 @@ int main() {
   // "-".
   const cursiv::AstNode *const root = result.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<dice::ast::BinaryNotation>)
+      root->type != &cursiv::kAstTypeTag<dice::ast::BinaryNotation>)
     return fail("the parse built no binary notation at its root");
 
   const auto &sub = *static_cast<const dice::ast::BinaryNotation *>(root);
@@ -55,7 +55,7 @@ int main() {
     return fail("the root operator is not '-'");
 
   if (sub.left == nullptr ||
-      sub.left->type != &cursiv::ast_type_tag<dice::ast::BinaryNotation>)
+      sub.left->type != &cursiv::kAstTypeTag<dice::ast::BinaryNotation>)
     return fail("the left side is not the '(1d6+2)*3' product");
   const auto &product =
       *static_cast<const dice::ast::BinaryNotation *>(sub.left);
@@ -63,7 +63,7 @@ int main() {
     return fail("the left side operator is not '*'");
 
   if (sub.right == nullptr ||
-      sub.right->type != &cursiv::ast_type_tag<dice::ast::DiceRoll>)
+      sub.right->type != &cursiv::kAstTypeTag<dice::ast::DiceRoll>)
     return fail("the right side is not a dice roll");
   const auto &roll = *static_cast<const dice::ast::DiceRoll *>(sub.right);
   if (roll.negative || !roll.count.has_value() || *roll.count != "1" ||

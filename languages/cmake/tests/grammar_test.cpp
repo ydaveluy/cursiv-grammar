@@ -64,7 +64,7 @@ bool bracket_arguments(const cursiv::Parser& parser) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<cmake::CmakeCoreServices,
+  const auto language = cursiv::createLanguage<cmake::CmakeCoreServices,
                                                 cmake::CmakeSharedCoreServices,
                                                 cmake::install_core_module>();
   if (!bracket_arguments(*language.language.parser)) return 1;
@@ -99,7 +99,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<cmake::ast::File>) {
+        root->type != &cursiv::kAstTypeTag<cmake::ast::File>) {
       report(path, "the parse built no File");
       ok = false;
     }

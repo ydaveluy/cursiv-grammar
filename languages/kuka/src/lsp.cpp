@@ -5,7 +5,7 @@
 #include "kuka/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       kuka::KukaSharedServices>(
       argc, argv, "kuka-lsp", &kuka::register_lsp_services);
 }

@@ -15,7 +15,7 @@
 
 int main() {
   const auto language =
-      cursiv::create_language<recfile::RecfileCoreServices,
+      cursiv::createLanguage<recfile::RecfileCoreServices,
                               recfile::RecfileSharedCoreServices,
                               recfile::install_core_module>();
   unsigned native = 0;

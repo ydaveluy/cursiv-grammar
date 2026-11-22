@@ -16,23 +16,23 @@ struct Case {
 };
 inline const Case cases[] = {
     {"short-call-call-tail", R"VCASE(fn main(){s:='$f()()'}
-)VCASE", true, &cursiv::ast_type_tag<ast::CallExpr>, R"VCASE(())VCASE"},
+)VCASE", true, &cursiv::kAstTypeTag<ast::CallExpr>, R"VCASE(())VCASE"},
     {"short-method-call-call-tail", R"VCASE(fn main(){s:='$f().g()()'}
-)VCASE", true, &cursiv::ast_type_tag<ast::CallExpr>, R"VCASE(())VCASE"},
+)VCASE", true, &cursiv::kAstTypeTag<ast::CallExpr>, R"VCASE(())VCASE"},
     {"short-call-selector-continuation", R"VCASE(fn main(){s:='$f().g().h'}
-)VCASE", true, &cursiv::ast_type_tag<ast::SelectorExpr>, R"VCASE()VCASE"},
+)VCASE", true, &cursiv::kAstTypeTag<ast::SelectorExpr>, R"VCASE()VCASE"},
     {"unsafe-empty-expression-body", R"VCASE(fn main(){s:='${unsafe {}}'}
 )VCASE", false, nullptr, R"VCASE()VCASE"},
     {"unsafe-multiple-expression-body", R"VCASE(fn main(){s:='${unsafe {1;2}}'}
 )VCASE", false, nullptr, R"VCASE()VCASE"},
     {"unsafe-single-expression-control", R"VCASE(fn main(){s:='${unsafe {1}}'}
-)VCASE", true, &cursiv::ast_type_tag<ast::UnsafeExpr>, R"VCASE()VCASE"},
+)VCASE", true, &cursiv::kAstTypeTag<ast::UnsafeExpr>, R"VCASE()VCASE"},
     {"unsafe-call-expression-control", R"VCASE(fn main(){s:='${unsafe {f()}}'}
-)VCASE", true, &cursiv::ast_type_tag<ast::UnsafeExpr>, R"VCASE()VCASE"},
+)VCASE", true, &cursiv::kAstTypeTag<ast::UnsafeExpr>, R"VCASE()VCASE"},
     {"short-call-name-argument", R"VCASE(fn main(){s:='$f(x)'}
 )VCASE", false, nullptr, R"VCASE()VCASE"},
     {"short-call-bool-argument", R"VCASE(fn main(){s:='$f(true)'}
-)VCASE", true, &cursiv::ast_type_tag<ast::CallExpr>, R"VCASE()VCASE"},
+)VCASE", true, &cursiv::kAstTypeTag<ast::CallExpr>, R"VCASE()VCASE"},
     {"short-call-parenthesized-argument", R"VCASE(fn main(){s:='$f((1))'}
 )VCASE", false, nullptr, R"VCASE()VCASE"},
     {"short-call-string-argument", R"VCASE(fn main(){s:="$f('x')"}
@@ -118,7 +118,7 @@ template <class Language> bool run(const Language& language) {
           ? cursiv::ast_cast<ast::BoolLit>(call->args[0]) : nullptr;
       check(argument && argument->value, c.name, "boolean argument stays valid");
     }
-    if (c.expressionType == &cursiv::ast_type_tag<ast::UnsafeExpr>) {
+    if (c.expressionType == &cursiv::kAstTypeTag<ast::UnsafeExpr>) {
       const cursiv::AstNode* value = nullptr;
       std::size_t children = 0;
       language.astReflection->visitProperties(*expression,
@@ -127,7 +127,7 @@ template <class Language> bool run(const Language& language) {
             if (member == "value") value = &child;
           });
       check(children == 1 && value &&
-                language.astReflection->isInstance(*value, &cursiv::ast_type_tag<ast::Expr>),
+                language.astReflection->isInstance(*value, &cursiv::kAstTypeTag<ast::Expr>),
             c.name, "unsafe owns one expression value instead of a statement list");
       if (std::string_view(c.name) == "unsafe-single-expression-control") {
         const auto* number = cursiv::ast_cast<ast::IntLit>(value);

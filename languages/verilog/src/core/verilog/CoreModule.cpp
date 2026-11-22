@@ -9,7 +9,7 @@
 namespace verilog {
 
 void install_core_module(VerilogCoreServices& services) {
-  verilog::generated::Verilog::install_generated_module(services);
+  verilog::generated::Verilog::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

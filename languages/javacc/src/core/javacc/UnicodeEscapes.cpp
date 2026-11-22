@@ -26,7 +26,7 @@ struct Reader {
     if (source[at] != '\\') {
       backslashes = 0;
       std::size_t width = 0;
-      const auto value = cursiv::scalar_at(source.data() + at, source.size() - at, width);
+      const auto value = cursiv::scalarAt(source.data() + at, source.size() - at, width);
       at += width ? width : 1;
       return {std::uint32_t(value), begin, at};
     }
@@ -73,7 +73,7 @@ void translate_unicode_escapes(std::string_view source,
       constexpr char digits[] = "0123456789ABCDEF";
       spelling = "\\u";
       for (int shift = 12; shift >= 0; shift -= 4) spelling += digits[(unit.value >> shift) & 15];
-    } else cursiv::append_scalar(spelling, unit.value);
+    } else cursiv::appendScalar(spelling, unit.value);
     out.replace(unit.begin, unit.end, spelling);
   }
 }

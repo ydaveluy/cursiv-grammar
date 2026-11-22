@@ -25,7 +25,7 @@ int fail(const std::string& what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       javadoc::JavadocCoreServices, javadoc::JavadocSharedCoreServices,
       javadoc::install_core_module>();
 
@@ -49,7 +49,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<javadoc::ast::Documentation>)
+        root->type != &cursiv::kAstTypeTag<javadoc::ast::Documentation>)
       return fail(entry.path().string() + ": the parse built no Documentation");
 
     ++checked;

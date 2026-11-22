@@ -5,7 +5,7 @@
 #include "csv/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       csv::CsvSharedServices>(
       argc, argv, "csv-lsp", &csv::register_lsp_services);
 }

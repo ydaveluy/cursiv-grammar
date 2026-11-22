@@ -9,7 +9,7 @@
 namespace protobuf {
 
 void install_core_module(ProtobufCoreServices& services) {
-  protobuf::generated::Protobuf::install_generated_module(services);
+  protobuf::generated::Protobuf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

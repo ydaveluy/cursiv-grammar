@@ -9,7 +9,7 @@
 namespace amazonstateslanguageintrinsicfunctions {
 
 void install_core_module(AmazonStatesLanguageIntrinsicFunctionsCoreServices& services) {
-  amazonstateslanguageintrinsicfunctions::generated::AmazonStatesLanguageIntrinsicFunctions::install_generated_module(services);
+  amazonstateslanguageintrinsicfunctions::generated::AmazonStatesLanguageIntrinsicFunctions::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

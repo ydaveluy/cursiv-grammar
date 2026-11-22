@@ -24,7 +24,7 @@ int fail(const std::string& path, const char* what) {
 
 int main() {
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       rfc1035::Rfc1035CoreServices, rfc1035::Rfc1035SharedCoreServices,
       rfc1035::install_core_module>();
 
@@ -56,7 +56,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<rfc1035::ast::Domain>)
+        root->type != &cursiv::kAstTypeTag<rfc1035::ast::Domain>)
       failures += fail(path, "did not build a Domain");
   }
 

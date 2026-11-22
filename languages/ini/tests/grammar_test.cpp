@@ -9,7 +9,7 @@
 #include "cursiv/ValidationResult.hpp"
 
 int main() {
-  const auto language = cursiv::create_language<ini::IniCoreServices,
+  const auto language = cursiv::createLanguage<ini::IniCoreServices,
       ini::IniSharedCoreServices, ini::install_core_module>();
   int failures = 0;
   const auto require = [&](bool condition, const char* message) {

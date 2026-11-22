@@ -25,7 +25,7 @@ int fail(const std::string &what) {
 
 // No RTTI in the AST: a node is identified by its tag, not a dynamic_cast.
 template <class T> const T *as(const clojure::ast::Form *form) {
-  if (form == nullptr || form->type != &cursiv::ast_type_tag<T>)
+  if (form == nullptr || form->type != &cursiv::kAstTypeTag<T>)
     return nullptr;
   return static_cast<const T *>(form);
 }
@@ -204,7 +204,7 @@ int native_reader(const clojure::ClojureCoreServices& services) {
 
 int main() {
   const auto language =
-      cursiv::create_language<clojure::ClojureCoreServices,
+      cursiv::createLanguage<clojure::ClojureCoreServices,
                               clojure::ClojureSharedCoreServices,
                               clojure::install_core_module>();
   if (reader_values(*language.language.parser) || native_reader(language.language))
@@ -256,7 +256,7 @@ int main() {
     if (!result.diagnostics.empty())
       return fail(path.string() + ": unexpected diagnostics");
     if (result.value == nullptr ||
-        result.value->type != &cursiv::ast_type_tag<clojure::ast::File>)
+        result.value->type != &cursiv::kAstTypeTag<clojure::ast::File>)
       return fail(path.string() + ": the parse built no file");
     results.push_back(std::move(result));
   }

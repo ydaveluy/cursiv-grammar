@@ -9,7 +9,7 @@
 namespace racketbsl {
 
 void install_core_module(RacketBslCoreServices& services) {
-  racketbsl::generated::RacketBsl::install_generated_module(services);
+  racketbsl::generated::RacketBsl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -27,7 +27,7 @@ int fail(const std::string& what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       wln::WlnCoreServices, wln::WlnSharedCoreServices,
       wln::install_core_module>();
 
@@ -51,7 +51,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<wln::ast::Document>)
+          root->type != &cursiv::kAstTypeTag<wln::ast::Document>)
         return fail(entry.path().string() + ": built no document");
     }
   if (count == 0) return fail("no .wln example found");

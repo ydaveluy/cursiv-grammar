@@ -5,7 +5,7 @@
 #include "asn/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       asn::AsnSharedServices>(
       argc, argv, "asn-lsp", &asn::register_lsp_services);
 }

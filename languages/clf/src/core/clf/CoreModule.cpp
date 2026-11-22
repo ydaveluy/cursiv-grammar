@@ -9,7 +9,7 @@
 namespace clf {
 
 void install_core_module(ClfCoreServices& services) {
-  clf::generated::Clf::install_generated_module(services);
+  clf::generated::Clf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

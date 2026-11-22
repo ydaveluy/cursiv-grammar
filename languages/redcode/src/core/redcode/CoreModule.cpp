@@ -9,7 +9,7 @@
 namespace redcode {
 
 void install_core_module(RedcodeCoreServices& services) {
-  redcode::generated::Redcode::install_generated_module(services);
+  redcode::generated::Redcode::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

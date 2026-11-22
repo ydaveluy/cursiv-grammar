@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<lisp::LispCoreServices,
+    &cursiv::registerLanguage<lisp::LispCoreServices,
                            lisp::LispSharedCoreServices,
                            lisp::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<lisp::LispSharedCoreServices>(
+  return cursiv::runCli<lisp::LispSharedCoreServices>(
       argc, argv, kRegister);
 }

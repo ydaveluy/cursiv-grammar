@@ -5,7 +5,7 @@
 #include "idl/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       idl::IdlSharedServices>(
       argc, argv, "idl-lsp", &idl::register_lsp_services);
 }

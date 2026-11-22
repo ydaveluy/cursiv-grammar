@@ -9,7 +9,7 @@
 namespace arithmetic {
 
 void install_core_module(ArithmeticCoreServices& services) {
-  arithmetic::generated::Arithmetic::install_generated_module(services);
+  arithmetic::generated::Arithmetic::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

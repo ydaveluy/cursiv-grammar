@@ -9,7 +9,7 @@
 namespace rfc1035 {
 
 void install_core_module(Rfc1035CoreServices& services) {
-  rfc1035::generated::Rfc1035::install_generated_module(services);
+  rfc1035::generated::Rfc1035::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

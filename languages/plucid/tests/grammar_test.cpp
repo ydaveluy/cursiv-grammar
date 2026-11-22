@@ -33,7 +33,7 @@ std::string read_file(const std::string& path) {
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -53,7 +53,7 @@ int main() {
   for (const std::string& t : texts)
     if (t.empty()) return fail("a test document is not readable");
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       plucid::PlucidCoreServices, plucid::PlucidSharedCoreServices,
       plucid::install_core_module>();
   for(const auto source:{"~5", "a ^ b", "'plain string'", "filter(a,b,c)", "substr(x,y,z)",

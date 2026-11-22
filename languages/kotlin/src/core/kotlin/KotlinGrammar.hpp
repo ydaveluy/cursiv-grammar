@@ -615,7 +615,7 @@ struct Kotlin : cursiv::GrammarSpec {
             kw<"continue"> |
             assign<&ast::ContinueExpr::label>(ref<ContinueAtLabel>))> {};
 
-  static constexpr auto ControlBody = ref<Block> | ref<Expression>;
+  static constexpr auto ControlBody = ref<Block> | (!lit<"{"> + ref<Expression>);
 
   // Every `atomicExpression` alternative except a bare name: shared with
   // `AtomicExpr` below, and with a member-access RHS, whose own leading
@@ -850,7 +850,7 @@ struct Kotlin : cursiv::GrammarSpec {
              destructuring_list<&ast::ForExpr::declarators,
                                 &ast::ForExpr::destructuring, DestructuringMode::values>) +
             ref<IN> + assign<&ast::ForExpr::iterable>(ref<Expression>) +
-            lit<")"> + option(assign<&ast::ForExpr::body>(ControlBody)))> {};
+            lit<")"> + (assign<&ast::ForExpr::body>(ControlBody) | !lit<"{">))> {};
 
   struct WhileExpr
       : rule<create<ast::WhileExpr>(

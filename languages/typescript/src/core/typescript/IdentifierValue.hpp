@@ -54,7 +54,7 @@ inline constexpr auto validate_identifier = [](std::string_view text)
       at = end + (braced ? 1 : 0);
     } else {
       std::size_t width = 0;
-      cp = cursiv::scalar_at(text.data() + at, text.size() - at, width);
+      cp = cursiv::scalarAt(text.data() + at, text.size() - at, width);
       if (!width) return Result::err("Invalid identifier character.");
       at += width;
     }

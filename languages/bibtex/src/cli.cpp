@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<bibtex::BibtexCoreServices,
+    &cursiv::registerLanguage<bibtex::BibtexCoreServices,
                            bibtex::BibtexSharedCoreServices,
                            bibtex::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<bibtex::BibtexSharedCoreServices>(
+  return cursiv::runCli<bibtex::BibtexSharedCoreServices>(
       argc, argv, kRegister);
 }

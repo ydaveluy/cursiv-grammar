@@ -11,11 +11,11 @@
 #include "wren/ast.hpp"
 namespace wren_audit {
 template<class T> const T* as(const cursiv::AstNode* n) {
- return n && n->type == &cursiv::ast_type_tag<T> ? static_cast<const T*>(n) : nullptr;
+ return n && n->type == &cursiv::kAstTypeTag<T> ? static_cast<const T*>(n) : nullptr;
 }
 inline bool modern_cases() {
  namespace ast = wren::ast;
- auto language = cursiv::create_language<wren::WrenCoreServices, wren::WrenSharedCoreServices, wren::install_core_module>();
+ auto language = cursiv::createLanguage<wren::WrenCoreServices, wren::WrenSharedCoreServices, wren::install_core_module>();
  const auto& parser = *language.language.parser;
  bool ok = true; unsigned checks = 0;
  auto check = [&](bool b, const char* message) { ++checks; if (!b) { std::fprintf(stderr, "wren audit: %s\n", message); ok = false; } };

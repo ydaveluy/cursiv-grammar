@@ -52,7 +52,7 @@ inline constexpr auto decode_identifier = [](std::string_view text)
       if (braced) ++at;
     } else {
       std::size_t width = 0;
-      cp = cursiv::scalar_at(text.data() + at, text.size() - at, width);
+      cp = cursiv::scalarAt(text.data() + at, text.size() - at, width);
       at += width;
     }
     if (!identifier_character(cp, first))

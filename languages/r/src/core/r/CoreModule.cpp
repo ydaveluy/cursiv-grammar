@@ -9,7 +9,7 @@
 namespace r {
 
 void install_core_module(RCoreServices& services) {
-  r::generated::R::install_generated_module(services);
+  r::generated::R::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

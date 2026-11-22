@@ -27,7 +27,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 
 template <class T>
 const T* as(const cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T*>(n)
              : nullptr;
 }
@@ -199,7 +199,7 @@ bool check_reserve_marker(const auto& language) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       nasm::NasmCoreServices, nasm::NasmSharedCoreServices,
       nasm::install_core_module>();
   if (!nasm_lexical::run(language.language)) return 1;

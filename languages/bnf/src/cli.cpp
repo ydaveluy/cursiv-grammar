@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<bnf::BnfCoreServices,
+    &cursiv::registerLanguage<bnf::BnfCoreServices,
                            bnf::BnfSharedCoreServices,
                            bnf::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<bnf::BnfSharedCoreServices>(
+  return cursiv::runCli<bnf::BnfSharedCoreServices>(
       argc, argv, kRegister);
 }

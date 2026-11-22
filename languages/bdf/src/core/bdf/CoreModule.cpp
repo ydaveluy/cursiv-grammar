@@ -9,7 +9,7 @@
 namespace bdf {
 
 void install_core_module(BdfCoreServices& services) {
-  bdf::generated::Bdf::install_generated_module(services);
+  bdf::generated::Bdf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

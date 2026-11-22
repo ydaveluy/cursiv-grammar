@@ -11,8 +11,8 @@
 namespace bcpl {
 
 void install_core_module(BcplCoreServices& services) {
-  bcpl::generated::Bcpl::install_generated_module(services);
-  services.parser = cursiv::translating_parser(std::move(services.parser),
+  bcpl::generated::Bcpl::installGeneratedModule(services);
+  services.parser = cursiv::translatingParser(std::move(services.parser),
                                                translate_section_tags);
   register_validation_checks(services);
 }

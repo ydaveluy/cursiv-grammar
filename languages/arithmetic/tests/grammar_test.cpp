@@ -22,7 +22,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       arithmetic::ArithmeticCoreServices, arithmetic::ArithmeticSharedCoreServices,
       arithmetic::install_core_module>();
 
@@ -55,7 +55,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<arithmetic::ast::File>) {
+        root->type != &cursiv::kAstTypeTag<arithmetic::ast::File>) {
       fail(path, "the parse built no File");
       ++failures;
     }
@@ -83,7 +83,7 @@ int main() {
         static_cast<const arithmetic::ast::BinaryExpression*>(outer->right);
     if (outer->op != arithmetic::ast::Operator::exponent ||
         rightOperand->type !=
-            &cursiv::ast_type_tag<arithmetic::ast::BinaryExpression> ||
+            &cursiv::kAstTypeTag<arithmetic::ast::BinaryExpression> ||
         rightOperand->op != arithmetic::ast::Operator::exponent) {
       std::fprintf(stderr, "arithmetic: 2^3^2=1: expected 2^(3^2)\n");
       return 1;

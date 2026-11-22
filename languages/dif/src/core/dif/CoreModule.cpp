@@ -9,7 +9,7 @@
 namespace dif {
 
 void install_core_module(DifCoreServices& services) {
-  dif::generated::Dif::install_generated_module(services);
+  dif::generated::Dif::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -5,7 +5,7 @@
 #include "fen/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       fen::FenSharedServices>(
       argc, argv, "fen-lsp", &fen::register_lsp_services);
 }

@@ -32,7 +32,7 @@ int fail(const std::string& what) {
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      webidl::generated::Webidl::create_parser();
+      webidl::generated::Webidl::createParser();
   return *p;
 }
 
@@ -45,7 +45,7 @@ std::string read_file(const fs::path& path) {
 const webidl::ast::Attribute* find_attribute(
     std::span<webidl::ast::Member* const> members, std::string_view name) {
   for (const webidl::ast::Member* const m : members) {
-    if (m->type != &cursiv::ast_type_tag<webidl::ast::Attribute>) continue;
+    if (m->type != &cursiv::kAstTypeTag<webidl::ast::Attribute>) continue;
     const auto& attr = *static_cast<const webidl::ast::Attribute*>(m);
     if (attr.name == name) return &attr;
   }
@@ -56,7 +56,7 @@ const webidl::ast::Attribute* find_attribute(
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<webidl::WebidlCoreServices,
+  const auto language = cursiv::createLanguage<webidl::WebidlCoreServices,
       webidl::WebidlSharedCoreServices, webidl::install_core_module>();
   if (!native_regressions(language.language)) return 1;
   std::vector<fs::path> docs;
@@ -80,7 +80,7 @@ int main() {
       return fail(doc.string() + ": the parse left diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<webidl::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<webidl::ast::Document>)
       return fail(doc.string() + ": the parse built no document");
     if (doc.filename() == "html_link_element.webidl") readback_doc = doc;
   }
@@ -99,7 +99,7 @@ int main() {
     return fail("html_link_element.webidl: expected one definition");
 
   const webidl::ast::Definition* const def = document.definitions[0];
-  if (def->type != &cursiv::ast_type_tag<webidl::ast::Interface>)
+  if (def->type != &cursiv::kAstTypeTag<webidl::ast::Interface>)
     return fail("html_link_element.webidl: expected an interface");
   const auto& iface = *static_cast<const webidl::ast::Interface*>(def);
 
@@ -108,7 +108,7 @@ int main() {
     return fail("html_link_element.webidl: wrong interface header");
   if (iface.attrs.size() != 2 || iface.attrs[0]->name != "Exposed" ||
       !iface.attrs[0]->rhs ||
-      iface.attrs[0]->rhs->type != &cursiv::ast_type_tag<webidl::ast::IdentifierValue> ||
+      iface.attrs[0]->rhs->type != &cursiv::kAstTypeTag<webidl::ast::IdentifierValue> ||
       static_cast<const webidl::ast::IdentifierValue*>(iface.attrs[0]->rhs)->text != "Window" ||
       iface.attrs[1]->name != "HTMLConstructor" ||
       iface.attrs[1]->rhs != nullptr)
@@ -119,7 +119,7 @@ int main() {
   const webidl::ast::Attribute* const disabled =
       find_attribute(iface.members, "disabled");
   if (disabled == nullptr ||
-      disabled->type->type != &cursiv::ast_type_tag<webidl::ast::PrimitiveType>)
+      disabled->type->type != &cursiv::kAstTypeTag<webidl::ast::PrimitiveType>)
     return fail("html_link_element.webidl: missing or mistyped 'disabled'");
   if (static_cast<const webidl::ast::PrimitiveType*>(disabled->type)->kind !=
       webidl::ast::Primitive::boolean_)
@@ -131,7 +131,7 @@ int main() {
   const webidl::ast::Attribute* const href =
       find_attribute(iface.members, "href");
   if (href == nullptr ||
-      href->type->type != &cursiv::ast_type_tag<webidl::ast::StringType>)
+      href->type->type != &cursiv::kAstTypeTag<webidl::ast::StringType>)
     return fail("html_link_element.webidl: missing or mistyped 'href'");
   if (static_cast<const webidl::ast::StringType*>(href->type)->name !=
       "USVString")
@@ -140,7 +140,7 @@ int main() {
   const webidl::ast::Attribute* const sheet =
       find_attribute(iface.members, "sheet");
   if (sheet == nullptr || !sheet->readonly_ || !sheet->type->nullable ||
-      sheet->type->type != &cursiv::ast_type_tag<webidl::ast::NamedType>)
+      sheet->type->type != &cursiv::kAstTypeTag<webidl::ast::NamedType>)
     return fail("html_link_element.webidl: 'sheet' is not a nullable named type");
   if (static_cast<const webidl::ast::NamedType*>(sheet->type)->name !=
       "StyleSheet")

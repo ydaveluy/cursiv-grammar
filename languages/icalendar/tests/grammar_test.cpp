@@ -61,7 +61,7 @@ const ast::Component* find_component(const std::vector<ast::Component*>& comps,
 
 int main() {
   {
-    const auto language = cursiv::create_language<icalendar::IcalendarCoreServices,
+    const auto language = cursiv::createLanguage<icalendar::IcalendarCoreServices,
         icalendar::IcalendarSharedCoreServices, icalendar::install_core_module>();
     const auto invalid = cursiv::test::validationHelper(language.language,
         "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:x\r\nBEGIN:X-A\r\nEND:X-B\r\nEND:VCALENDAR\r\n");
@@ -69,7 +69,7 @@ int main() {
   }
 
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       icalendar::IcalendarCoreServices, icalendar::IcalendarSharedCoreServices,
       icalendar::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//test//EN\r\nBEGIN:X-FOO\r\nEND:X-BAR\r\nEND:VCALENDAR\r\n");
@@ -83,7 +83,7 @@ int main() {
     if (!found) return 1;
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       icalendar::IcalendarCoreServices, icalendar::IcalendarSharedCoreServices,
       icalendar::install_core_module>();
 
@@ -99,7 +99,7 @@ int main() {
 
   const cursiv::AstNode* const corpusRoot = corpus.value;
   if (corpusRoot == nullptr ||
-      corpusRoot->type != &cursiv::ast_type_tag<ast::Document>)
+      corpusRoot->type != &cursiv::kAstTypeTag<ast::Document>)
     return fail("example1.ics: built no Document");
   const auto& corpusDoc = *static_cast<const ast::Document*>(corpusRoot);
   if (corpusDoc.components.size() != 1)

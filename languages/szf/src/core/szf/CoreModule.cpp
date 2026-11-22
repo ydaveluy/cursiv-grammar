@@ -9,7 +9,7 @@
 namespace szf {
 
 void install_core_module(SzfCoreServices& services) {
-  szf::generated::Szf::install_generated_module(services);
+  szf::generated::Szf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -5,7 +5,7 @@
 #include "memcachedprotocol/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       memcachedprotocol::MemcachedProtocolSharedServices>(
       argc, argv, "memcachedprotocol-lsp", &memcachedprotocol::register_lsp_services);
 }

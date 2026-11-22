@@ -5,7 +5,7 @@
 #include "guitartab/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       guitartab::GuitartabSharedServices>(
       argc, argv, "guitartab-lsp", &guitartab::register_lsp_services);
 }

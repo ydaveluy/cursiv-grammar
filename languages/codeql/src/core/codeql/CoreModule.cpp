@@ -9,7 +9,7 @@
 namespace codeql {
 
 void install_core_module(CodeqlCoreServices& services) {
-  codeql::generated::Codeql::install_generated_module(services);
+  codeql::generated::Codeql::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

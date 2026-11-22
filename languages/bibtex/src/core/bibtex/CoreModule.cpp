@@ -9,7 +9,7 @@
 namespace bibtex {
 
 void install_core_module(BibtexCoreServices& services) {
-  bibtex::generated::Bibtex::install_generated_module(services);
+  bibtex::generated::Bibtex::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

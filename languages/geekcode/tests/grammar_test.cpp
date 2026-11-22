@@ -25,7 +25,7 @@ namespace ast = geekcode::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      geekcode::generated::Geekcode::create_parser();
+      geekcode::generated::Geekcode::createParser();
   return *p;
 }
 
@@ -73,12 +73,12 @@ void refused_texts() {
 
 std::string load_example(const char* name) {
   const std::string path = std::string(CURSIV_EXAMPLE_DIR) + "/" + name;
-  return cursiv::test::read_file(path);
+  return cursiv::test::readFile(path);
 }
 
 std::string load_test(const char* name) {
   const std::string path = std::string(CURSIV_TEST_DIR) + "/" + name;
-  return cursiv::test::read_file(path);
+  return cursiv::test::readFile(path);
 }
 
 // One tuple of a parsed File, or null when the index or the root's shape

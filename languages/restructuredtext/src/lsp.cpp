@@ -5,7 +5,7 @@
 #include "restructuredtext/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       restructuredtext::RestructuredtextSharedServices>(
       argc, argv, "restructuredtext-lsp", &restructuredtext::register_lsp_services);
 }

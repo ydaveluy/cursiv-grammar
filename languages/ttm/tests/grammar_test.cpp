@@ -27,7 +27,7 @@ bool check(const fs::path& file) {
                          std::istreambuf_iterator<char>());
 
   const auto language =
-      cursiv::create_language<ttm::TtmCoreServices, ttm::TtmSharedCoreServices,
+      cursiv::createLanguage<ttm::TtmCoreServices, ttm::TtmSharedCoreServices,
                               ttm::install_core_module>();
 
   const cursiv::ParseResult result = language.language.parser->parse(text);
@@ -39,7 +39,7 @@ bool check(const fs::path& file) {
 
   const cursiv::AstNode* const root = result.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<ttm::ast::Program>) {
+      root->type != &cursiv::kAstTypeTag<ttm::ast::Program>) {
     std::fprintf(stderr, "ttm: %s: did not build a Program\n",
                  file.string().c_str());
     return false;
@@ -62,7 +62,7 @@ int main() {
   }
 
   {
-    const auto language = cursiv::create_language<ttm::TtmCoreServices,
+    const auto language = cursiv::createLanguage<ttm::TtmCoreServices,
         ttm::TtmSharedCoreServices, ttm::install_core_module>();
     const std::string source = "before;> #<ps;;a#<ad;1;2>b;<##<ps;quoted>>;@;> after";
     const auto r = language.language.parser->parse(source);

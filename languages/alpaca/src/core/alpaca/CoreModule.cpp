@@ -9,7 +9,7 @@
 namespace alpaca {
 
 void install_core_module(AlpacaCoreServices& services) {
-  alpaca::generated::Alpaca::install_generated_module(services);
+  alpaca::generated::Alpaca::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

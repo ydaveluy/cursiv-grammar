@@ -22,7 +22,7 @@ namespace ast = turing::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      turing::generated::Turing::create_parser();
+      turing::generated::Turing::createParser();
   return *p;
 }
 
@@ -34,21 +34,21 @@ cursiv::ParseResult parse(std::string_view text) {
   CHECK(!r.cst().recovered());
   CHECK(r.diagnostics.empty());
   CHECK(r.value != nullptr &&
-        r.value->type == &cursiv::ast_type_tag<ast::Program>);
+        r.value->type == &cursiv::kAstTypeTag<ast::Program>);
   return r;
 }
 
 std::string load(const char* name) {
   const std::string path =
       std::string(CURSIV_EXAMPLE_DIR) + "/example/" + name;
-  const std::string src = cursiv::test::read_file(path);
+  const std::string src = cursiv::test::readFile(path);
   CHECK(!src.empty());
   return src;
 }
 
 std::string load_test(const char* name) {
   const std::string src =
-      cursiv::test::read_file(std::string(CURSIV_TEST_DIR) + "/" + name);
+      cursiv::test::readFile(std::string(CURSIV_TEST_DIR) + "/" + name);
   CHECK(!src.empty());
   return src;
 }
@@ -70,12 +70,12 @@ void reads_the_grammars_v4_sample() {
   if (program->items.size() < 2) return;
 
   auto* const nameDecl = static_cast<ast::VarDecl*>(program->items[0]);
-  CHECK(nameDecl->type == &cursiv::ast_type_tag<ast::VarDecl>);
+  CHECK(nameDecl->type == &cursiv::kAstTypeTag<ast::VarDecl>);
   CHECK(nameDecl->names.size() == 1 && nameDecl->names[0] == "name");
   // "string" is a standardType keyword; only "nat" below falls through to a
   // plain (unresolved) named type.
   CHECK(nameDecl->typeSpec != nullptr &&
-        nameDecl->typeSpec->type == &cursiv::ast_type_tag<ast::StandardType>);
+        nameDecl->typeSpec->type == &cursiv::kAstTypeTag<ast::StandardType>);
 
   auto* const ageDecl = static_cast<ast::VarDecl*>(program->items[1]);
   CHECK(ageDecl->names.size() == 1 && ageDecl->names[0] == "age");
@@ -92,10 +92,10 @@ void reads_the_showcase() {
   ast::ConstDecl* pi = nullptr;
   ast::SubprogramDecl* square = nullptr;
   for (ast::Item* const item : program->items) {
-    if (item->type == &cursiv::ast_type_tag<ast::ConstDecl>) {
+    if (item->type == &cursiv::kAstTypeTag<ast::ConstDecl>) {
       auto* const c = static_cast<ast::ConstDecl*>(item);
       if (c->name == "Pi") pi = c;
-    } else if (item->type == &cursiv::ast_type_tag<ast::SubprogramDecl>) {
+    } else if (item->type == &cursiv::kAstTypeTag<ast::SubprogramDecl>) {
       auto* const s = static_cast<ast::SubprogramDecl*>(item);
       if (s->name == "Square") square = s;
     }
@@ -105,8 +105,8 @@ void reads_the_showcase() {
   if (pi != nullptr) {
     CHECK(std::holds_alternative<ast::Expr*>(pi->value));
     ast::Expr* const v = std::get<ast::Expr*>(pi->value);
-    CHECK(v != nullptr && v->type == &cursiv::ast_type_tag<ast::RealLit>);
-    if (v != nullptr && v->type == &cursiv::ast_type_tag<ast::RealLit>)
+    CHECK(v != nullptr && v->type == &cursiv::kAstTypeTag<ast::RealLit>);
+    if (v != nullptr && v->type == &cursiv::kAstTypeTag<ast::RealLit>)
       CHECK(static_cast<ast::RealLit*>(v)->value > 3.14 &&
             static_cast<ast::RealLit*>(v)->value < 3.15);
   }
@@ -117,7 +117,7 @@ void reads_the_showcase() {
     CHECK(square->params.size() == 1);
     CHECK(square->returnType != nullptr &&
           square->returnType->type ==
-              &cursiv::ast_type_tag<ast::StandardType>);
+              &cursiv::kAstTypeTag<ast::StandardType>);
     CHECK(square->endName == "Square");
   }
 }
@@ -174,37 +174,37 @@ void native_report_regressions() {
     auto r = parse("x := -2 ** 2");
     const auto* p = static_cast<ast::Program*>(r.value);
     const auto* value = static_cast<ast::AssignStmt*>(p->items[0])->value;
-    CHECK(value->type == &cursiv::ast_type_tag<ast::UnaryExpr>);
-    if (value->type == &cursiv::ast_type_tag<ast::UnaryExpr>) {
+    CHECK(value->type == &cursiv::kAstTypeTag<ast::UnaryExpr>);
+    if (value->type == &cursiv::kAstTypeTag<ast::UnaryExpr>) {
       const auto* u = static_cast<const ast::UnaryExpr*>(value);
       CHECK(u->op == ast::UnOp::minus);
-      CHECK(u->operand->type == &cursiv::ast_type_tag<ast::BinaryExpr>);
+      CHECK(u->operand->type == &cursiv::kAstTypeTag<ast::BinaryExpr>);
     }
   }
   {
     auto r = parse("x := not a = b");
     const auto* p = static_cast<ast::Program*>(r.value);
     const auto* value = static_cast<ast::AssignStmt*>(p->items[0])->value;
-    CHECK(value->type == &cursiv::ast_type_tag<ast::UnaryExpr>);
-    if (value->type == &cursiv::ast_type_tag<ast::UnaryExpr>) {
+    CHECK(value->type == &cursiv::kAstTypeTag<ast::UnaryExpr>);
+    if (value->type == &cursiv::kAstTypeTag<ast::UnaryExpr>) {
       const auto* u = static_cast<const ast::UnaryExpr*>(value);
       CHECK(u->op == ast::UnOp::logicalNot);
-      CHECK(u->operand->type == &cursiv::ast_type_tag<ast::BinaryExpr>);
+      CHECK(u->operand->type == &cursiv::kAstTypeTag<ast::BinaryExpr>);
     }
   }
   {
     auto r = parse(R"(x := "a\n\T\e\D\\\"")");
     const auto* p = static_cast<ast::Program*>(r.value);
     const auto* value = static_cast<ast::AssignStmt*>(p->items[0])->value;
-    CHECK(value->type == &cursiv::ast_type_tag<ast::StringLit>);
+    CHECK(value->type == &cursiv::kAstTypeTag<ast::StringLit>);
     CHECK(static_cast<const ast::StringLit*>(value)->value == "a\n\t\x1b\x7f\\\"");
   }
   {
     auto r = parse("x := - 9223372036854775808");
     const auto* p = static_cast<ast::Program*>(r.value);
     const auto* value = static_cast<ast::AssignStmt*>(p->items[0])->value;
-    CHECK(value->type == &cursiv::ast_type_tag<ast::IntLit>);
-    if (value->type == &cursiv::ast_type_tag<ast::IntLit>)
+    CHECK(value->type == &cursiv::kAstTypeTag<ast::IntLit>);
+    if (value->type == &cursiv::kAstTypeTag<ast::IntLit>)
       CHECK(static_cast<const ast::IntLit*>(value)->value == (-9223372036854775807LL - 1));
   }
   for (const auto text : {R"(put "raw
@@ -216,7 +216,7 @@ newline")", R"(put "bad\q")", "var if : int",
 }
 
 void case_default_validation() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       turing::TuringCoreServices, turing::TuringSharedCoreServices,
       turing::install_core_module>();
   for (const auto source : {"case x of label 1: label : end case",
@@ -236,7 +236,7 @@ void case_default_validation() {
 }
 
 int main() {
-  const auto language = cursiv::create_language<turing::TuringCoreServices,
+  const auto language = cursiv::createLanguage<turing::TuringCoreServices,
       turing::TuringSharedCoreServices, turing::install_core_module>();
   if (!turing_three_types::run(language.language)) return 1;
   every_example_parses_clean();

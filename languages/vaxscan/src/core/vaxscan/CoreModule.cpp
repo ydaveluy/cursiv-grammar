@@ -9,7 +9,7 @@
 namespace vaxscan {
 
 void install_core_module(VaxscanCoreServices& services) {
-  vaxscan::generated::Vaxscan::install_generated_module(services);
+  vaxscan::generated::Vaxscan::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -13,14 +13,14 @@
 namespace ini {
 
 void install_lsp_module(IniServices& services) {
-  cursiv::install_default_lsp_services(services);
+  cursiv::installDefaultLspServices(services);
 }
 
 std::unique_ptr<IniServices> create_lsp_services(
     IniSharedServices& sharedServices, std::string languageId) {
   auto services = std::make_unique<IniServices>(sharedServices);
   services->languageMetaData.languageId = std::move(languageId);
-  cursiv::install_default_core_services(*services);
+  cursiv::installDefaultCoreServices(*services);
   install_core_module(*services);
   install_lsp_module(*services);
   return services;
@@ -32,7 +32,7 @@ IniLanguage create_lsp_services(
   shared->fileSystemProvider =
       files != nullptr ? std::move(files)
                        : std::make_unique<cursiv::EmptyFileSystemProvider>();
-  cursiv::install_default_shared_lsp_services(*shared);
+  cursiv::installDefaultSharedLspServices(*shared);
   auto services = create_lsp_services(*shared);
   IniServices& language = *services;
   shared->serviceRegistry->registerServices(std::move(services));

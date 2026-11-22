@@ -88,7 +88,8 @@ val d=0b11u)AUDIT"},
       const auto loops = nodes<ForExpr>(result);
       const auto lambdas = nodes<FunctionLiteral>(result);
       ok &= loops.size() == 1 && loops[0]->annotations.size() == 1 &&
-            loops[0]->annotations[0]->name == "A" && lambdas.size() == 1 &&
+            loops[0]->annotations[0]->name == "A" && cursiv::ast_cast<Block>(loops[0]->body) &&
+            lambdas.size() == 1 &&
             lambdas[0]->annotations.size() == 1 &&
             lambdas[0]->annotations[0]->name == "A";
     } else if (test.name == "annotation-group") {

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<graphstreamdgs::GraphstreamDgsCoreServices,
+    &cursiv::registerLanguage<graphstreamdgs::GraphstreamDgsCoreServices,
                            graphstreamdgs::GraphstreamDgsSharedCoreServices,
                            graphstreamdgs::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<graphstreamdgs::GraphstreamDgsSharedCoreServices>(
+  return cursiv::runCli<graphstreamdgs::GraphstreamDgsSharedCoreServices>(
       argc, argv, kRegister);
 }

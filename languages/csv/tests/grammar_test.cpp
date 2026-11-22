@@ -23,7 +23,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       csv::CsvCoreServices, csv::CsvSharedCoreServices,
       csv::install_core_module>();
 
@@ -56,7 +56,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<csv::ast::Doc>) {
+        root->type != &cursiv::kAstTypeTag<csv::ast::Doc>) {
       fail(path, "the parse built no Doc");
       ++failures;
     }
@@ -72,7 +72,7 @@ int main() {
         {",,\n\n", 2}}) {
     const auto result = language.language.parser->parse(text);
     const auto *doc = result.value && result.value->type ==
-                                          &cursiv::ast_type_tag<csv::ast::Doc>
+                                          &cursiv::kAstTypeTag<csv::ast::Doc>
                           ? static_cast<const csv::ast::Doc *>(result.value)
                           : nullptr;
     if (result.cst().recovered() || !doc || doc->rows.size() != rowCount ||

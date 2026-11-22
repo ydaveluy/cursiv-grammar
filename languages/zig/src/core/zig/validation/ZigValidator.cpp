@@ -90,7 +90,7 @@ void ZigValidator::checkFieldOrder(const ast::ContainerMembers& members,
   const ast::ContainerMember* declaration = nullptr;
   for (const auto* member : members.members) {
     if (!member) continue;
-    if (member->type == &cursiv::ast_type_tag<ast::ContainerField>) {
+    if (member->type == &cursiv::kAstTypeTag<ast::ContainerField>) {
       if (declaration)
         accept.error(*member, "Container fields must precede declarations after the first field",
                      "zig.field-order").relatedInformation(*declaration, "Declaration between fields");
@@ -108,7 +108,7 @@ void ZigValidator::checkUniqueContainerFields(
       names;
   for (const ast::ContainerMember* const member : members.members) {
     if (member == nullptr ||
-        member->type != &cursiv::ast_type_tag<ast::ContainerField>)
+        member->type != &cursiv::kAstTypeTag<ast::ContainerField>)
       continue;
     const auto& field = *static_cast<const ast::ContainerField*>(member);
     if (field.name) {

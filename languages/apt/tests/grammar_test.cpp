@@ -23,7 +23,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       apt::AptCoreServices, apt::AptSharedCoreServices,
       apt::install_core_module>();
 
@@ -96,7 +96,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<apt::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<apt::ast::Document>) {
       fail(path, "the parse built no Document");
       ++failures;
     }

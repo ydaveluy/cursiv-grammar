@@ -30,7 +30,7 @@ int fail(const fs::path& file, const char* what) {
 
 int main() {
   if (!native_followup::run() || !audit_regressions::run() || !code_audit::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       sqlite::SqliteCoreServices, sqlite::SqliteSharedCoreServices,
       sqlite::install_core_module>();
 
@@ -76,7 +76,7 @@ int main() {
     }
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<sqlite::ast::Script>) {
+        root->type != &cursiv::kAstTypeTag<sqlite::ast::Script>) {
       failures += fail(entry.path(), "the parse built no Script");
       continue;
     }

@@ -9,7 +9,7 @@
 namespace amazonstateslanguage {
 
 void install_core_module(AmazonStatesLanguageCoreServices& services) {
-  amazonstateslanguage::generated::AmazonStatesLanguage::install_generated_module(services);
+  amazonstateslanguage::generated::AmazonStatesLanguage::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

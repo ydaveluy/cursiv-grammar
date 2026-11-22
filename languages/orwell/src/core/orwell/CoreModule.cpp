@@ -9,7 +9,7 @@
 namespace orwell {
 
 void install_core_module(OrwellCoreServices& services) {
-  orwell::generated::Orwell::install_generated_module(services);
+  orwell::generated::Orwell::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -5,7 +5,7 @@
 #include "z/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       z::ZSharedServices>(
       argc, argv, "z-lsp", &z::register_lsp_services);
 }

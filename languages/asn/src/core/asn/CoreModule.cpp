@@ -9,7 +9,7 @@
 namespace asn {
 
 void install_core_module(AsnCoreServices& services) {
-  asn::generated::Asn::install_generated_module(services);
+  asn::generated::Asn::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace cto {
 
 void install_core_module(CtoCoreServices& services) {
-  cto::generated::Cto::install_generated_module(services);
+  cto::generated::Cto::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

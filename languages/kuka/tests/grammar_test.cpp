@@ -33,7 +33,7 @@ std::string read(const std::filesystem::path& path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
@@ -46,7 +46,7 @@ int check_clean(const cursiv::Parser& parser, const std::filesystem::path& path,
   if (!result.diagnostics.empty())
     return fail(path.filename().string() + " carries a diagnostic");
   if (result.value == nullptr ||
-      result.value->type != &cursiv::ast_type_tag<kuka::ast::Module>)
+      result.value->type != &cursiv::kAstTypeTag<kuka::ast::Module>)
     return fail(path.filename().string() + " built no module");
   if (text_out != nullptr) *text_out = text;
   return 0;
@@ -55,7 +55,7 @@ int check_clean(const cursiv::Parser& parser, const std::filesystem::path& path,
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       kuka::KukaCoreServices, kuka::KukaSharedCoreServices,
       kuka::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;

@@ -9,7 +9,7 @@
 namespace informix {
 
 void install_core_module(InformixCoreServices& services) {
-  informix::generated::Informix::install_generated_module(services);
+  informix::generated::Informix::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

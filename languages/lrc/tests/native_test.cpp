@@ -23,7 +23,7 @@ std::string_view line_body(std::string_view text) {
 
 int main() {
   const auto language =
-      cursiv::create_language<lrc::LrcCoreServices, lrc::LrcSharedCoreServices,
+      cursiv::createLanguage<lrc::LrcCoreServices, lrc::LrcSharedCoreServices,
                               lrc::install_core_module>();
   unsigned equal = 0, different = 0;
   for (const auto &c : nativeCases) {

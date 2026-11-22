@@ -5,7 +5,7 @@
 #include "sdl/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       sdl::SdlSharedServices>(
       argc, argv, "sdl-lsp", &sdl::register_lsp_services);
 }

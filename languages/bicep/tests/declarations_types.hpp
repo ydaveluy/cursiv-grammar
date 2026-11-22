@@ -115,7 +115,7 @@ type Neg = -1
   const auto* oldImport = cursiv::ast_cast<a::ImportDecl>(root->body[14]);
   const auto* oldLiteral = cursiv::ast_cast<a::LiteralType>(type(15));
   const auto* oldNumber = oldLiteral ? cursiv::ast_cast<a::NumberLit>(oldLiteral->value) : nullptr;
-  check(oldImport && oldImport->type == &cursiv::ast_type_tag<a::ImportDecl> &&
+  check(oldImport && oldImport->type == &cursiv::kAstTypeTag<a::ImportDecl> &&
         oldImport->alias == "old" && oldLiteral && oldLiteral->op == "-" &&
         oldNumber && oldNumber->text == "1", "legacy import and signed literal type shapes remain unchanged");
   auto owned = [&](const cursiv::ParseResult& parsed) {

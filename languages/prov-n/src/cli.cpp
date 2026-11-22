@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<provn::ProvNCoreServices,
+    &cursiv::registerLanguage<provn::ProvNCoreServices,
                            provn::ProvNSharedCoreServices,
                            provn::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<provn::ProvNSharedCoreServices>(
+  return cursiv::runCli<provn::ProvNSharedCoreServices>(
       argc, argv, kRegister);
 }

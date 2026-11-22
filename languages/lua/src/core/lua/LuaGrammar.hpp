@@ -121,10 +121,9 @@ struct Lua : cursiv::GrammarSpec {
       | append<&ast::Call::args>(ref<StringExpr>);
 
   // A `(` after a prefix expression calls it, as Lua 5.2 reads `f\n(g)`: the
-  // run of calls on parentheses is a possessive of its own, its one opening
-  // token committing it, between the suffixes that open on any other.
+  // run of calls takes every `(` that follows.
   static constexpr auto ParenCalls =
-      many(nest<ast::CallExpr, &ast::CallExpr::callee>(ParenArgs));
+      many(nest<ast::CallExpr, &ast::CallExpr::callee>(ParenArgs)) + !lit<"(">;
 
   struct PrefixExpr
       : rule<(create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<ID>))  //

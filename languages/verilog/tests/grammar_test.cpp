@@ -39,7 +39,7 @@ int main() {
       CURSIV_TEST_DIR "/constructs.v", CURSIV_TEST_DIR "/ifdef.v",
   };
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       verilog::VerilogCoreServices, verilog::VerilogSharedCoreServices,
       verilog::install_core_module>();
   if (!verilog_audit::modern_cases(language)) return 1;
@@ -64,7 +64,7 @@ int main() {
     const cursiv::AstNode* const root = result.value;
     const bool isModuleRoot =
         root != nullptr &&
-        root->type == &cursiv::ast_type_tag<verilog::ast::SourceText>;
+        root->type == &cursiv::kAstTypeTag<verilog::ast::SourceText>;
     if (!isModuleRoot) return fail("the parse built no source text");
   }
 

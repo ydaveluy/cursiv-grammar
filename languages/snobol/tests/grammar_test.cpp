@@ -28,7 +28,7 @@ void fail(const std::string& what) {
 
 template <class T>
 T* as(cursiv::AstNode* node) {
-  return (node != nullptr && node->type == &cursiv::ast_type_tag<T>)
+  return (node != nullptr && node->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(node)
              : nullptr;
 }
@@ -189,7 +189,7 @@ void pow_binds_tighter_than_plus(const Language& language) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       snobol::SnobolCoreServices, snobol::SnobolSharedCoreServices,
       snobol::install_core_module>();
   every_example_parses_clean(language);

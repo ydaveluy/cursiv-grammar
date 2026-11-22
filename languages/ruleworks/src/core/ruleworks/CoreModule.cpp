@@ -9,7 +9,7 @@
 namespace ruleworks {
 
 void install_core_module(RuleworksCoreServices& services) {
-  ruleworks::generated::Ruleworks::install_generated_module(services);
+  ruleworks::generated::Ruleworks::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

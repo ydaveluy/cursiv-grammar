@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<sapf::SapfCoreServices,
+    &cursiv::registerLanguage<sapf::SapfCoreServices,
                            sapf::SapfSharedCoreServices,
                            sapf::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<sapf::SapfSharedCoreServices>(
+  return cursiv::runCli<sapf::SapfSharedCoreServices>(
       argc, argv, kRegister);
 }

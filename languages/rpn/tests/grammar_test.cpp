@@ -38,7 +38,7 @@ int main() {
   }
 
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       rpn::RpnCoreServices, rpn::RpnSharedCoreServices,
       rpn::install_core_module>();
   if (!audit_regressions::run(language.language)) return 1;
@@ -71,7 +71,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<rpn::ast::Expression>) {
+        root->type != &cursiv::kAstTypeTag<rpn::ast::Expression>) {
       fail(path, "the parse built no Expression");
       ++failures;
     }

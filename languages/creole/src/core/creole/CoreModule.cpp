@@ -9,7 +9,7 @@
 namespace creole {
 
 void install_core_module(CreoleCoreServices& services) {
-  creole::generated::Creole::install_generated_module(services);
+  creole::generated::Creole::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

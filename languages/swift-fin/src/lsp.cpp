@@ -5,7 +5,7 @@
 #include "swiftfin/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       swiftfin::SwiftFinSharedServices>(
       argc, argv, "swiftfin-lsp", &swiftfin::register_lsp_services);
 }

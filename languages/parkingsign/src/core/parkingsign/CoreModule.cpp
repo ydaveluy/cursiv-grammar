@@ -9,7 +9,7 @@
 namespace parkingsign {
 
 void install_core_module(ParkingsignCoreServices& services) {
-  parkingsign::generated::Parkingsign::install_generated_module(services);
+  parkingsign::generated::Parkingsign::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

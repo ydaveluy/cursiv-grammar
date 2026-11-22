@@ -9,7 +9,7 @@
 namespace kquery {
 
 void install_core_module(KqueryCoreServices& services) {
-  kquery::generated::Kquery::install_generated_module(services);
+  kquery::generated::Kquery::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

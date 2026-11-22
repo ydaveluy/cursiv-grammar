@@ -24,7 +24,7 @@ namespace fs = std::filesystem;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      wkt::generated::Wkt::create_parser();
+      wkt::generated::Wkt::createParser();
   return *p;
 }
 
@@ -34,13 +34,13 @@ cursiv::ParseResult parse(std::string_view text) {
 
 ast::Document* document(cursiv::ParseResult& r) {
   if (r.value == nullptr ||
-      r.value->type != &cursiv::ast_type_tag<ast::Document>)
+      r.value->type != &cursiv::kAstTypeTag<ast::Document>)
     return nullptr;
   return static_cast<ast::Document*>(r.value);
 }
 
 void check_clean(const fs::path& path) {
-  const std::string text = cursiv::test::read_file(path.string());
+  const std::string text = cursiv::test::readFile(path.string());
   cursiv::ParseResult r = parse(text);
   CHECK(r.accepted);
   CHECK(!r.cst().recovered());
@@ -216,7 +216,7 @@ void tin_element_read_back() {
 // A real corpus document, read end to end rather than only counted: the
 // index of each checked line is fixed by example2.wkt's own line order.
 void real_corpus_document_read_back() {
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       (fs::path(CURSIV_EXAMPLE_DIR) / "example" / "example2.wkt").string());
   cursiv::ParseResult r = parse(text);
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());
@@ -239,7 +239,7 @@ void real_corpus_document_read_back() {
   CHECK(seg0 != nullptr && *seg0 != nullptr && (*seg0)->points.size() == 2);
   auto* seg1 = std::get_if<ast::Geometry*>(&last->members[1]);
   CHECK(seg1 != nullptr && *seg1 != nullptr &&
-        (*seg1)->type == &cursiv::ast_type_tag<ast::ClothoidGeom>);
+        (*seg1)->type == &cursiv::kAstTypeTag<ast::ClothoidGeom>);
   if (seg1 != nullptr && *seg1 != nullptr) {
     auto* clothoid = static_cast<ast::ClothoidGeom*>(*seg1);
     CHECK(clothoid->startKappa.has_value() && *clothoid->startKappa == 0);

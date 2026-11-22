@@ -5,7 +5,7 @@
 #include "golang/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       golang::GolangSharedServices>(
       argc, argv, "golang-lsp", &golang::register_lsp_services);
 }

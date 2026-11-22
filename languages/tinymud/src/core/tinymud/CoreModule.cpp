@@ -9,7 +9,7 @@
 namespace tinymud {
 
 void install_core_module(TinymudCoreServices& services) {
-  tinymud::generated::Tinymud::install_generated_module(services);
+  tinymud::generated::Tinymud::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

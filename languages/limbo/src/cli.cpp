@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<limbo::LimboCoreServices,
+    &cursiv::registerLanguage<limbo::LimboCoreServices,
                            limbo::LimboSharedCoreServices,
                            limbo::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<limbo::LimboSharedCoreServices>(
+  return cursiv::runCli<limbo::LimboSharedCoreServices>(
       argc, argv, kRegister);
 }

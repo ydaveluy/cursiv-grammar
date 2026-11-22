@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<dice::DiceCoreServices,
+    &cursiv::registerLanguage<dice::DiceCoreServices,
                            dice::DiceSharedCoreServices,
                            dice::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<dice::DiceSharedCoreServices>(
+  return cursiv::runCli<dice::DiceSharedCoreServices>(
       argc, argv, kRegister);
 }

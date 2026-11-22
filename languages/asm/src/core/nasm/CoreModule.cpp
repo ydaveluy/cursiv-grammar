@@ -9,7 +9,7 @@
 namespace nasm {
 
 void install_core_module(NasmCoreServices& services) {
-  nasm::generated::Nasm::install_generated_module(services);
+  nasm::generated::Nasm::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

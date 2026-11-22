@@ -16,7 +16,6 @@
 #include "cursiv/syntax-tree/ParseResult.hpp"
 #include "cursiv/Check.hpp"
 #include "smtlibv2/ast.hpp"
-#include "smtlibv2/generated/Smtlibv2/AstReflection.hpp"
 #include "smtlibv2/generated/Smtlibv2/Module.hpp"
 
 namespace {
@@ -26,25 +25,25 @@ namespace fs = std::filesystem;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      smtlibv2::generated::Smtlibv2::create_parser();
+      smtlibv2::generated::Smtlibv2::createParser();
   return *p;
 }
 
 const cursiv::AstReflection& reflection() {
   static const std::unique_ptr<cursiv::AstReflection> r =
-      smtlibv2::generated::Smtlibv2::create_ast_reflection();
+      smtlibv2::generated::Smtlibv2::createAstReflection();
   return *r;
 }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && reflection().isInstance(*n, &cursiv::ast_type_tag<T>))
+  return (n != nullptr && reflection().isInstance(*n, &cursiv::kAstTypeTag<T>))
              ? static_cast<T*>(n)
              : nullptr;
 }
 
 std::string load(const std::string& path) {
-  const std::string src = cursiv::test::read_file(path);
+  const std::string src = cursiv::test::readFile(path);
   CHECK(!src.empty());
   return src;
 }

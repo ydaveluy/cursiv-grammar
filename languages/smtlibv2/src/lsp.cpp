@@ -5,7 +5,7 @@
 #include "smtlibv2/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       smtlibv2::Smtlibv2SharedServices>(
       argc, argv, "smtlibv2-lsp", &smtlibv2::register_lsp_services);
 }

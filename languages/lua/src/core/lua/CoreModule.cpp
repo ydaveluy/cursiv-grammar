@@ -9,7 +9,7 @@
 namespace lua {
 
 void install_core_module(LuaCoreServices& services) {
-  lua::generated::Lua::install_generated_module(services);
+  lua::generated::Lua::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

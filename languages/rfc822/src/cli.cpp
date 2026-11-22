@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<rfc822::Rfc822CoreServices,
+    &cursiv::registerLanguage<rfc822::Rfc822CoreServices,
                            rfc822::Rfc822SharedCoreServices,
                            rfc822::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<rfc822::Rfc822SharedCoreServices>(
+  return cursiv::runCli<rfc822::Rfc822SharedCoreServices>(
       argc, argv, kRegister);
 }

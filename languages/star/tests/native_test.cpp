@@ -13,7 +13,7 @@
 #include <iterator>
 #include <unordered_set>
 int main() {
-  const auto language = cursiv::create_language<star::StarCoreServices,
+  const auto language = cursiv::createLanguage<star::StarCoreServices,
                                                 star::StarSharedCoreServices,
                                                 star::install_core_module>();
   unsigned cif = 0, nmr = 0;

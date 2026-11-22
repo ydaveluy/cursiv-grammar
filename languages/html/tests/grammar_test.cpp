@@ -88,7 +88,7 @@ void check_custom_constructs(const html::ast::Document &doc, bool &ok) {
 int main() {
   if (!html_raw_text_regressions::run()) return 1;
   {
-    const auto language = cursiv::create_language<
+    const auto language = cursiv::createLanguage<
         html::HtmlCoreServices, html::HtmlSharedCoreServices,
         html::install_core_module>();
     const auto duplicate = cursiv::test::validationHelper(
@@ -100,7 +100,7 @@ int main() {
   }
   {
     const auto audit_language =
-        cursiv::create_language<html::HtmlCoreServices,
+        cursiv::createLanguage<html::HtmlCoreServices,
                                 html::HtmlSharedCoreServices,
                                 html::install_core_module>();
     const auto audit_result =
@@ -118,7 +118,7 @@ int main() {
       return 1;
   }
 
-  const auto language = cursiv::create_language<html::HtmlCoreServices,
+  const auto language = cursiv::createLanguage<html::HtmlCoreServices,
                                                 html::HtmlSharedCoreServices,
                                                 html::install_core_module>();
 
@@ -144,7 +144,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<html::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<html::ast::Document>) {
       fail(path, "did not build a Document", ok);
       continue;
     }

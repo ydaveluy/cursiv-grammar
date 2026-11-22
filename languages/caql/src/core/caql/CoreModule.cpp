@@ -9,7 +9,7 @@
 namespace caql {
 
 void install_core_module(CaqlCoreServices& services) {
-  caql::generated::Caql::install_generated_module(services);
+  caql::generated::Caql::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace rfc1960 {
 
 void install_core_module(Rfc1960CoreServices& services) {
-  rfc1960::generated::Rfc1960::install_generated_module(services);
+  rfc1960::generated::Rfc1960::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

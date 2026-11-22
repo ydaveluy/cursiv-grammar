@@ -5,7 +5,7 @@
 #include "sysmlv2/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       sysmlv2::SysmlV2SharedServices>(
       argc, argv, "sysmlv2-lsp", &sysmlv2::register_lsp_services);
 }

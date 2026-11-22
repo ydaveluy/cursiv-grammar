@@ -51,7 +51,7 @@ bool ownsAll(const cursiv::ParseResult &result,
 } // namespace
 int main() {
   namespace a = prolog::ast;
-  auto language = cursiv::create_language<prolog::PrologCoreServices,
+  auto language = cursiv::createLanguage<prolog::PrologCoreServices,
                                           prolog::PrologSharedCoreServices,
                                           prolog::install_core_module>();
   {

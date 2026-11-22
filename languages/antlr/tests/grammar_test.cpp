@@ -27,7 +27,7 @@ std::string read_file(const std::filesystem::path &p) {
 } // namespace
 
 int main() {
-  const auto language = cursiv::create_language<antlr::AntlrCoreServices,
+  const auto language = cursiv::createLanguage<antlr::AntlrCoreServices,
                                                 antlr::AntlrSharedCoreServices,
                                                 antlr::install_core_module>();
   {
@@ -91,7 +91,7 @@ B : 'b';
       return fail(entry.path().string() + ": parses with diagnostics");
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<antlr::ast::Grammar>)
+        root->type != &cursiv::kAstTypeTag<antlr::ast::Grammar>)
       return fail(entry.path().string() + ": the parse built no Grammar");
   }
   if (checked == 0)
@@ -116,7 +116,7 @@ B : 'b';
 
   bool foundGrammarSpec = false;
   for (const antlr::ast::RuleDecl *const rule : parserGrammar.rules) {
-    if (rule->type != &cursiv::ast_type_tag<antlr::ast::ParserRule>)
+    if (rule->type != &cursiv::kAstTypeTag<antlr::ast::ParserRule>)
       continue;
     const auto *const pr = static_cast<const antlr::ast::ParserRule *>(rule);
     if (pr->name != "grammarSpec")

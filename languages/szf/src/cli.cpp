@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<szf::SzfCoreServices,
+    &cursiv::registerLanguage<szf::SzfCoreServices,
                            szf::SzfSharedCoreServices,
                            szf::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<szf::SzfSharedCoreServices>(
+  return cursiv::runCli<szf::SzfSharedCoreServices>(
       argc, argv, kRegister);
 }

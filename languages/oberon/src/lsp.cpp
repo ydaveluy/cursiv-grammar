@@ -5,7 +5,7 @@
 #include "oberon/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       oberon::OberonSharedServices>(
       argc, argv, "oberon-lsp", &oberon::register_lsp_services);
 }

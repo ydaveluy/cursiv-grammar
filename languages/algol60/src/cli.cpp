@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<algol60::Algol60CoreServices,
+    &cursiv::registerLanguage<algol60::Algol60CoreServices,
                            algol60::Algol60SharedCoreServices,
                            algol60::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<algol60::Algol60SharedCoreServices>(
+  return cursiv::runCli<algol60::Algol60SharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -9,7 +9,7 @@
 namespace sharc {
 
 void install_core_module(SharcCoreServices& services) {
-  sharc::generated::Sharc::install_generated_module(services);
+  sharc::generated::Sharc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

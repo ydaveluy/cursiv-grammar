@@ -9,7 +9,7 @@
 namespace sdl {
 
 void install_core_module(SdlCoreServices& services) {
-  sdl::generated::Sdl::install_generated_module(services);
+  sdl::generated::Sdl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

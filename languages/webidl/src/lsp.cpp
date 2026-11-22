@@ -5,7 +5,7 @@
 #include "webidl/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       webidl::WebidlSharedServices>(
       argc, argv, "webidl-lsp", &webidl::register_lsp_services);
 }

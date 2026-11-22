@@ -34,7 +34,7 @@ std::string read_file(const std::string& path) {
 // AST classes are not polymorphic: identify a node by its tag, then cast.
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  return (node != nullptr && node->type == &cursiv::ast_type_tag<T>)
+  return (node != nullptr && node->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T*>(node)
              : nullptr;
 }
@@ -245,7 +245,7 @@ bool check_reserved_function_names(const auto& language) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       xquery::XQueryCoreServices, xquery::XQuerySharedCoreServices,
       xquery::install_core_module>();
 
@@ -264,7 +264,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<xquery::ast::QueryList>)
+        root->type != &cursiv::kAstTypeTag<xquery::ast::QueryList>)
       return fail(std::string(name) + ": built no QueryList");
   }
 
@@ -280,7 +280,7 @@ int main() {
     if (!result.diagnostics.empty()) return fail("features.xq: has diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<xquery::ast::QueryList>)
+        root->type != &cursiv::kAstTypeTag<xquery::ast::QueryList>)
       return fail("features.xq: built no QueryList");
   }
 

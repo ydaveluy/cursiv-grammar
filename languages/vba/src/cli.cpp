@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<vba::VbaCoreServices,
+    &cursiv::registerLanguage<vba::VbaCoreServices,
                            vba::VbaSharedCoreServices,
                            vba::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<vba::VbaSharedCoreServices>(
+  return cursiv::runCli<vba::VbaSharedCoreServices>(
       argc, argv, kRegister);
 }

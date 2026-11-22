@@ -130,7 +130,7 @@ int check_extra_toml_values(const fs::path& path,
 
 int main() {
   if (!audit_regressions::run() || !value_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       toml::TomlCoreServices, toml::TomlSharedCoreServices,
       toml::install_core_module>();
 
@@ -161,7 +161,7 @@ int main() {
         continue;
       }
       const cursiv::AstNode* const root = result.value;
-      if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::Document>) {
+      if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::Document>) {
         failures += fail(path, "the parse built no Document");
         continue;
       }

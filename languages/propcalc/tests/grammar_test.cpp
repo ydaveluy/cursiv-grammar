@@ -39,7 +39,7 @@ bool checkFile(const cursiv::CoreLanguage<propcalc::PropcalcCoreServices,
 
   const cursiv::AstNode* const root = result.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<propcalc::ast::Proposition>) {
+      root->type != &cursiv::kAstTypeTag<propcalc::ast::Proposition>) {
     std::fprintf(stderr, "propcalc: %s built no proposition\n", path.c_str());
     return false;
   }
@@ -48,7 +48,7 @@ bool checkFile(const cursiv::CoreLanguage<propcalc::PropcalcCoreServices,
 
 bool isEmptyVariable(const propcalc::ast::Expr* const expr) {
   return expr != nullptr &&
-         expr->type == &cursiv::ast_type_tag<propcalc::ast::VariableRef> &&
+         expr->type == &cursiv::kAstTypeTag<propcalc::ast::VariableRef> &&
          static_cast<const propcalc::ast::VariableRef*>(expr)->name.empty();
 }
 
@@ -73,7 +73,7 @@ bool checkEmptyOperands(const Language& language) {
   const auto* const not_ =
       negation == nullptr ? nullptr : negation->premises;
   if (!negated.accepted || negated.cst().recovered() || not_ == nullptr ||
-      not_->type != &cursiv::ast_type_tag<propcalc::ast::Negation> ||
+      not_->type != &cursiv::kAstTypeTag<propcalc::ast::Negation> ||
       !isEmptyVariable(
           static_cast<const propcalc::ast::Negation*>(not_)->operand)) {
     std::fprintf(stderr, "propcalc: `!` lost its empty operand\n");
@@ -95,7 +95,7 @@ bool checkEmptyOperands(const Language& language) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       propcalc::PropcalcCoreServices, propcalc::PropcalcSharedCoreServices,
       propcalc::install_core_module>();
 

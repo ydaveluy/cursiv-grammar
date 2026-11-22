@@ -9,7 +9,7 @@
 namespace tnt {
 
 void install_core_module(TntCoreServices& services) {
-  tnt::generated::Tnt::install_generated_module(services);
+  tnt::generated::Tnt::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

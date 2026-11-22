@@ -9,7 +9,7 @@
 namespace ebnf {
 
 void install_core_module(EbnfCoreServices& services) {
-  ebnf::generated::Ebnf::install_generated_module(services);
+  ebnf::generated::Ebnf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

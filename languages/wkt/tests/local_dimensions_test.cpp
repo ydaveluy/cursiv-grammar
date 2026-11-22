@@ -11,9 +11,9 @@
 
 int main() {
   const auto language =
-      cursiv::create_language<wkt::WktCoreServices, wkt::WktSharedCoreServices,
+      cursiv::createLanguage<wkt::WktCoreServices, wkt::WktSharedCoreServices,
                               wkt::install_core_module>();
-  auto factory = wkt::generated::Wkt::create_parser();
+  auto factory = wkt::generated::Wkt::createParser();
   for (const auto &c : wkt_local_cases::cases) {
     const std::string_view source(c.source);
     const auto result = language.language.parser->parse(source);

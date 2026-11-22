@@ -9,7 +9,7 @@
 namespace bibcode {
 
 void install_core_module(BibcodeCoreServices& services) {
-  bibcode::generated::Bibcode::install_generated_module(services);
+  bibcode::generated::Bibcode::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -12,7 +12,7 @@ namespace scss {
 void ScssValidator::checkReturnContext(
     const ast::ReturnStmt& node, cursiv::ValidationAcceptor& accept) const {
   for (const auto* parent = node.parent; parent; parent = parent->parent)
-    if (parent->type == &cursiv::ast_type_tag<ast::FunctionDeclaration>) return;
+    if (parent->type == &cursiv::kAstTypeTag<ast::FunctionDeclaration>) return;
   accept.error(node, "@return is only valid inside a function.");
 }
 

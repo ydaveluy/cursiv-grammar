@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<racketisl::RacketIslCoreServices,
+    &cursiv::registerLanguage<racketisl::RacketIslCoreServices,
                            racketisl::RacketIslSharedCoreServices,
                            racketisl::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<racketisl::RacketIslSharedCoreServices>(
+  return cursiv::runCli<racketisl::RacketIslSharedCoreServices>(
       argc, argv, kRegister);
 }

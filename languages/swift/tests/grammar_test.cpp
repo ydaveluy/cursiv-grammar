@@ -26,7 +26,7 @@ int fail(const std::string& what) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
@@ -112,7 +112,7 @@ bool check_parens_and_bare_catch(const cursiv::Parser& parser) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       swift::SwiftCoreServices,
       swift::SwiftSharedCoreServices,
       swift::install_core_module>();
@@ -127,6 +127,14 @@ int main() {
         !group || group->assignments.size() != 2 || !group->assignments[0] ||
         group->assignments[1] || group->isAssignment())
       return fail("assignment attributes retain both Boolean values");
+  }
+
+  {
+    const auto parsed = language.language.parser->parse(
+        "let a: Int? = 1\nvar g = 0\nif let n = a { g = n }\nlet b = 1\n");
+    const auto* file = as<swift::ast::File>(parsed.value);
+    if (!parsed.accepted || !parsed.diagnostics.empty() || !file || file->statements.size() != 4)
+      return fail("expected four statements around the conditional binding");
   }
 
   if (!native_regressions::run(language.language)) return 1;
@@ -149,7 +157,7 @@ int main() {
       return fail(entry.path().string() + ": did not parse clean");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<swift::ast::File>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<swift::ast::File>)
       return fail(entry.path().string() + ": wrong root type");
   }
   if (seen == 0) return fail("no .swift file found under " CURSIV_EXAMPLE_DIR);

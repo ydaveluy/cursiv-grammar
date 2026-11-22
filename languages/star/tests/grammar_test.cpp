@@ -25,7 +25,7 @@ int check(const char* path) {
   const std::string text((std::istreambuf_iterator<char>(file)),
                          std::istreambuf_iterator<char>());
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       star::StarCoreServices,
       star::StarSharedCoreServices,
       star::install_core_module>();
@@ -34,7 +34,7 @@ int check(const char* path) {
   if (result.cst().recovered()) return fail("a sample does not parse");
 
   const cursiv::AstNode* const root = result.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<star::ast::Doc>)
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<star::ast::Doc>)
     return fail("the parse built no document");
 
   const auto& doc = *static_cast<const star::ast::Doc*>(root);

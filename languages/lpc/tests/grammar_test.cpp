@@ -34,7 +34,7 @@ const char *const kCleanExamples[] = {
 };
 
 template <class T> const T *as(const ast::Expr *e) {
-  if (e == nullptr || e->type != &cursiv::ast_type_tag<T>)
+  if (e == nullptr || e->type != &cursiv::kAstTypeTag<T>)
     return nullptr;
   return static_cast<const T *>(e);
 }
@@ -42,7 +42,7 @@ template <class T> const T *as(const ast::Expr *e) {
 const ast::FuncDecl *findFunc(const ast::Program &program,
                               std::string_view name) {
   for (const ast::Item *const item : program.items) {
-    if (item->type != &cursiv::ast_type_tag<ast::FuncDecl>)
+    if (item->type != &cursiv::kAstTypeTag<ast::FuncDecl>)
       continue;
     const auto *const fn = static_cast<const ast::FuncDecl *>(item);
     if (fn->name == name)
@@ -54,7 +54,7 @@ const ast::FuncDecl *findFunc(const ast::Program &program,
 const ast::VarDecl *findVarDecl(const ast::CompoundStmt &body,
                                 std::string_view name) {
   for (const ast::Item *const item : body.items) {
-    if (item->type != &cursiv::ast_type_tag<ast::VarDecl>)
+    if (item->type != &cursiv::kAstTypeTag<ast::VarDecl>)
       continue;
     const auto *const decl = static_cast<const ast::VarDecl *>(item);
     for (const ast::VarName *const v : decl->names)
@@ -77,7 +77,7 @@ const ast::VarName *declaredName(const ast::VarDecl &decl,
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<lpc::LpcCoreServices,
+        cursiv::createLanguage<lpc::LpcCoreServices,
                                 lpc::LpcSharedCoreServices,
                                 lpc::install_core_module>();
     if (!lpc_heredoc_cases::run(audit_language.language)) return 1;
@@ -106,7 +106,7 @@ int main() {
   }
 
   const auto language =
-      cursiv::create_language<lpc::LpcCoreServices, lpc::LpcSharedCoreServices,
+      cursiv::createLanguage<lpc::LpcCoreServices, lpc::LpcSharedCoreServices,
                               lpc::install_core_module>();
 
   for (const auto source : {"float f(){return 1_000.5e-2;}", "float f(){return 1._2;}", R"LPC(string f(){return "\q";})LPC", "int f(){return '\\x';}", "int f(int x : (: 1 :)){return x;}", "mixed f(){return (: efun::write, 1 :);}", "mixed f(){return calls[0](1);}", "int f(){switch(1){case 1..:break;case ..0:break;}return 1;}"}) {
@@ -166,7 +166,7 @@ async promise<int> f(promise<int> input) {
       return 1;
     }
     const cursiv::AstNode *const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::Program>) {
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::Program>) {
       std::fprintf(stderr, "lpc: %s built no Program\n", path);
       return 1;
     }
@@ -249,13 +249,13 @@ async promise<int> f(promise<int> input) {
       return fail("switch_ranges not found");
     const ast::SwitchStmt *sw = nullptr;
     for (const ast::Item *const item : fn->body->items)
-      if (item->type == &cursiv::ast_type_tag<ast::SwitchStmt>)
+      if (item->type == &cursiv::kAstTypeTag<ast::SwitchStmt>)
         sw = static_cast<const ast::SwitchStmt *>(item);
     if (sw == nullptr)
       return fail("switch statement not found");
     const ast::CaseStmt *rangeCase = nullptr;
     for (const ast::Stmt *const item : sw->items)
-      if (item->type == &cursiv::ast_type_tag<ast::CaseStmt>) {
+      if (item->type == &cursiv::kAstTypeTag<ast::CaseStmt>) {
         const auto *const c = static_cast<const ast::CaseStmt *>(item);
         if (c->high != nullptr)
           rangeCase = c;

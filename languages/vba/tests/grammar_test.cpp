@@ -37,7 +37,7 @@ std::string read_file(const fs::path& path) {
                       std::istreambuf_iterator<char>());
 }
 
-using Language = decltype(cursiv::create_language<
+using Language = decltype(cursiv::createLanguage<
                            vba::VbaCoreServices, vba::VbaSharedCoreServices,
                            vba::install_core_module>());
 
@@ -55,7 +55,7 @@ const vba::ast::Module* parse_module(const Language& language,
     return nullptr;
   }
   const cursiv::AstNode* const root = out->value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<vba::ast::Module>) {
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<vba::ast::Module>) {
     fail(path.string() + ": the parse built no Module");
     return nullptr;
   }
@@ -135,10 +135,10 @@ void field_readback(const Language& language) {
   const vba::ast::Attribute* attr = nullptr;
   const vba::ast::Procedure* firstProc = nullptr;
   for (vba::ast::Item* item : module->body) {
-    if (attr == nullptr && item->type == &cursiv::ast_type_tag<vba::ast::Attribute>)
+    if (attr == nullptr && item->type == &cursiv::kAstTypeTag<vba::ast::Attribute>)
       attr = static_cast<const vba::ast::Attribute*>(item);
     if (firstProc == nullptr &&
-        item->type == &cursiv::ast_type_tag<vba::ast::Procedure>)
+        item->type == &cursiv::kAstTypeTag<vba::ast::Procedure>)
       firstProc = static_cast<const vba::ast::Procedure*>(item);
   }
   if (attr == nullptr || attr->value != "SQLHelperFunctions")
@@ -149,15 +149,15 @@ void field_readback(const Language& language) {
   if (firstProc != nullptr) {
     bool sawAssign = false;
     for (vba::ast::Item* stmt : firstProc->body) {
-      if (stmt->type != &cursiv::ast_type_tag<vba::ast::AssignStmt>) continue;
+      if (stmt->type != &cursiv::kAstTypeTag<vba::ast::AssignStmt>) continue;
       const auto* const assign = static_cast<const vba::ast::AssignStmt*>(stmt);
       const auto* const call =
-          assign->value->type == &cursiv::ast_type_tag<vba::ast::IndexExpr>
+          assign->value->type == &cursiv::kAstTypeTag<vba::ast::IndexExpr>
               ? static_cast<const vba::ast::IndexExpr*>(assign->value)
               : nullptr;
       if (call == nullptr) continue;
       const auto* const callee =
-          call->target->type == &cursiv::ast_type_tag<vba::ast::NameExpr>
+          call->target->type == &cursiv::kAstTypeTag<vba::ast::NameExpr>
               ? static_cast<const vba::ast::NameExpr*>(call->target)
               : nullptr;
       if (callee != nullptr && callee->name == "DateDiff" &&
@@ -172,7 +172,7 @@ void field_readback(const Language& language) {
 
 template <class T>
 const T* as(const cursiv::AstNode* n) {
-  return n != nullptr && n->type == &cursiv::ast_type_tag<T> ?
+  return n != nullptr && n->type == &cursiv::kAstTypeTag<T> ?
              static_cast<const T*>(n) : nullptr;
 }
 
@@ -459,7 +459,7 @@ void argument_list_probes(const Language& language) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       vba::VbaCoreServices, vba::VbaSharedCoreServices,
       vba::install_core_module>();
 

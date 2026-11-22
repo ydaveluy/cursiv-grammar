@@ -26,7 +26,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 int main() {
   // The whole language in one call: the defaults, then `install_core_module`.
   const auto language =
-      cursiv::create_language<postalcode::PostalcodeCoreServices,
+      cursiv::createLanguage<postalcode::PostalcodeCoreServices,
                               postalcode::PostalcodeSharedCoreServices,
                               postalcode::install_core_module>();
 
@@ -58,7 +58,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<postalcode::ast::PostalCode>)
+          root->type != &cursiv::kAstTypeTag<postalcode::ast::PostalCode>)
         failures += fail(file, "the parse built no PostalCode");
     }
 

@@ -9,7 +9,7 @@
 namespace itn {
 
 void install_core_module(ItnCoreServices& services) {
-  itn::generated::Itn::install_generated_module(services);
+  itn::generated::Itn::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

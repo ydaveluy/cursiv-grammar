@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<fdo91::Fdo91CoreServices,
+    &cursiv::registerLanguage<fdo91::Fdo91CoreServices,
                            fdo91::Fdo91SharedCoreServices,
                            fdo91::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<fdo91::Fdo91SharedCoreServices>(
+  return cursiv::runCli<fdo91::Fdo91SharedCoreServices>(
       argc, argv, kRegister);
 }

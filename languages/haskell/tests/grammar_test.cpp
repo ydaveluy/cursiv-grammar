@@ -37,14 +37,14 @@ std::vector<std::string> split(const std::string &s, char sep) {
 
 int main() {
   {
-    const auto language = cursiv::create_language<haskell::HaskellCoreServices,
+    const auto language = cursiv::createLanguage<haskell::HaskellCoreServices,
         haskell::HaskellSharedCoreServices, haskell::install_core_module>();
     if (!port_audit_cases::run(*language.language.parser) ||
         !haskell_native_followup::run(*language.language.parser)) return 1;
   }
   {
     const auto audit_language =
-        cursiv::create_language<haskell::HaskellCoreServices,
+        cursiv::createLanguage<haskell::HaskellCoreServices,
                                 haskell::HaskellSharedCoreServices,
                                 haskell::install_core_module>();
     bool app = false, quote = false, binary = false;
@@ -80,7 +80,7 @@ int main() {
   }
 
   const auto language =
-      cursiv::create_language<haskell::HaskellCoreServices,
+      cursiv::createLanguage<haskell::HaskellCoreServices,
                               haskell::HaskellSharedCoreServices,
                               haskell::install_core_module>();
 
@@ -99,7 +99,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<haskell::ast::Module>)
+        root->type != &cursiv::kAstTypeTag<haskell::ast::Module>)
       return fail(path, "the parse built no Module");
 
     std::printf("haskell: %s parses\n", path.c_str());

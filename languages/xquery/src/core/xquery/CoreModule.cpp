@@ -9,7 +9,7 @@
 namespace xquery {
 
 void install_core_module(XQueryCoreServices& services) {
-  xquery::generated::XQuery::install_generated_module(services);
+  xquery::generated::XQuery::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

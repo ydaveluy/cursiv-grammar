@@ -28,11 +28,19 @@ int fail(const char* file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       creole::CreoleCoreServices,
       creole::CreoleSharedCoreServices,
       creole::install_core_module>();
 
+  for (const auto text : {"a\n----\n", "a\r\n  ---- \r\n", "a\n----"}) {
+    const auto result = language.language.parser->parse(text);
+    const auto* doc = result.valueAs<creole::ast::Document>();
+    if (!result.accepted || !result.diagnostics.empty() || !doc || doc->blocks.size() != 2 ||
+        !cursiv::ast_cast<creole::ast::Paragraph>(doc->blocks[0]) ||
+        !cursiv::ast_cast<creole::ast::Hline>(doc->blocks[1]))
+      return fail("horizontal-rule", "expected a paragraph followed by a horizontal rule");
+  }
   for (const char* const name : kExamples) {
     const bool authored = std::string(name) == "lists-and-tables.creole";
     const std::string path = authored
@@ -50,7 +58,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<creole::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<creole::ast::Document>)
       return fail(name, "the parse built no document");
   }
 

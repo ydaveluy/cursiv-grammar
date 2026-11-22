@@ -50,7 +50,6 @@ Every language works the same way; its own README gives its examples.
   exact commit, so the badge above tells whether the latest Cursiv builds
   every language. To use a local checkout, add
   `-DCURSIV_SOURCE_DIR=/path/to/cursiv`.
-- The parser is LR by default. Add `-DCURSIV_DEFAULT_ENGINE=LL` for LL.
 - Each language has the presets `gcc-release`, `gcc-debug`, `clang-release`,
   `clang-debug`, `wasi-release` and `wasi-debug`, run from its directory. The
   WASI presets need wasi-sdk 34 or newer.

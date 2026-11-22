@@ -9,7 +9,7 @@
 namespace guitartab {
 
 void install_core_module(GuitartabCoreServices& services) {
-  guitartab::generated::Guitartab::install_generated_module(services);
+  guitartab::generated::Guitartab::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

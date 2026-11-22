@@ -57,7 +57,7 @@ inline bool run(const cursiv::Parser& parser) {
       unsigned comments = 0;
       for (cursiv::NodeId id = 0; id < parsed.cst().size(); ++id) {
         const auto& node = parsed.cst()[id];
-        if (!node.hidden || !parsed.cst().text(id).starts_with("/*")) continue;
+        if (!node.isHidden() || !parsed.cst().text(id).starts_with("/*")) continue;
         ++comments;
         check(node.begin == 0 && node.end == test.consumed, test.name, "exact native comment extent");
       }

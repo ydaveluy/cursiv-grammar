@@ -5,7 +5,7 @@
 #include "cto/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       cto::CtoSharedServices>(
       argc, argv, "cto-lsp", &cto::register_lsp_services);
 }

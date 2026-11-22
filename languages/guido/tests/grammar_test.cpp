@@ -24,7 +24,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       guido::GuidoCoreServices, guido::GuidoSharedCoreServices,
       guido::install_core_module>();
 
@@ -117,7 +117,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<guido::ast::Prog>) {
+          root->type != &cursiv::kAstTypeTag<guido::ast::Prog>) {
         fail(path, "the parse built no Prog");
         ++failures;
       }

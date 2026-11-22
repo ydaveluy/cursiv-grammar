@@ -9,7 +9,7 @@
 namespace stellaris {
 
 void install_core_module(StellarisCoreServices& services) {
-  stellaris::generated::Stellaris::install_generated_module(services);
+  stellaris::generated::Stellaris::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

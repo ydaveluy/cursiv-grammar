@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<pf::PfCoreServices,
+    &cursiv::registerLanguage<pf::PfCoreServices,
                            pf::PfSharedCoreServices,
                            pf::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<pf::PfSharedCoreServices>(
+  return cursiv::runCli<pf::PfSharedCoreServices>(
       argc, argv, kRegister);
 }

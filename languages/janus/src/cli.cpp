@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<janus::JanusCoreServices,
+    &cursiv::registerLanguage<janus::JanusCoreServices,
                            janus::JanusSharedCoreServices,
                            janus::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<janus::JanusSharedCoreServices>(
+  return cursiv::runCli<janus::JanusSharedCoreServices>(
       argc, argv, kRegister);
 }

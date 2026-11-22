@@ -9,7 +9,7 @@
 namespace qif {
 
 void install_core_module(QifCoreServices& services) {
-  qif::generated::Qif::install_generated_module(services);
+  qif::generated::Qif::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

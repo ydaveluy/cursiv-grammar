@@ -96,8 +96,10 @@ struct Php : cursiv::GrammarSpec {
                  !cr<R"(^ \t\r\n)">> {};
   struct PHP_CLOSE : terminal<lit<"?>"> + option(HeredocNewline)> {};
 
+  struct HTML_BRIDGE;
+  struct HTML_ECHO_BRIDGE;
   static constexpr auto SEMI =
-      implied(lit<";">, &ref<PHP_CLOSE> | eof);
+      implied(lit<";">, &(ref<PHP_CLOSE> | ref<HTML_BRIDGE> | ref<HTML_ECHO_BRIDGE>) | eof);
 
   struct Name
       : rule<(flag<&ast::Name::nsRelative>(ikw<"namespace"> + lit<"\\">) |

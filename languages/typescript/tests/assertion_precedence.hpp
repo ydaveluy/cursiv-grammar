@@ -16,6 +16,8 @@ namespace ast = typescript::ast;
 inline std::string tree(const ast::Expr* expression) {
   if (const auto* n = cursiv::ast_cast<ast::Ident>(expression))
     return std::string(n->name);
+  if (const auto* n = cursiv::ast_cast<ast::RegexLit>(expression))
+    return std::string(n->text);
   if (const auto* n = cursiv::ast_cast<ast::BinaryExpr>(expression))
     return "(" + std::string(n->op) + " " + tree(n->left) + " " + tree(n->right) + ")";
   if (const auto* n = cursiv::ast_cast<ast::AsExpr>(expression)) {
@@ -108,6 +110,9 @@ inline bool run(const typescript::TypeScriptCoreServices& services) {
       {"a+b as T+c*d", "(+ (as (+ a b) T) (* c d))"},
       {"a as T-b-c", "(- (- (as a T) b) c)"},
       {"a as T/b/c", "(/ (/ (as a T) b) c)"},
+      {R"(a as T / /[a\/ ]+/gi)", R"((/ (as a T) /[a\/ ]+/gi))"},
+      {"/ /", "/ /"},
+      {"/=/", "/=/"},
       {"a as T**b*c", "(* (** (as a T) b) c)"},
       {"a as T*b**c", "(* (as a T) (** b c))"},
       {"a as number<<b+c*d", "(<< (as a number) (+ b (* c d)))"},

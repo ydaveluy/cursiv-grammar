@@ -9,7 +9,7 @@
 namespace ctl {
 
 void install_core_module(CtlCoreServices& services) {
-  ctl::generated::Ctl::install_generated_module(services);
+  ctl::generated::Ctl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

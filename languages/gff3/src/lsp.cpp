@@ -5,7 +5,7 @@
 #include "gff3/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       gff3::Gff3SharedServices>(
       argc, argv, "gff3-lsp", &gff3::register_lsp_services);
 }

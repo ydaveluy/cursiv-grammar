@@ -9,7 +9,7 @@
 namespace php {
 
 void install_core_module(PhpCoreServices& services) {
-  php::generated::Php::install_generated_module(services);
+  php::generated::Php::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

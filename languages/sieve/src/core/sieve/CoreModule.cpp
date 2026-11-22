@@ -9,7 +9,7 @@
 namespace sieve {
 
 void install_core_module(SieveCoreServices& services) {
-  sieve::generated::Sieve::install_generated_module(services);
+  sieve::generated::Sieve::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

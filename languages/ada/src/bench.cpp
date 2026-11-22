@@ -2,6 +2,6 @@
 #include "ada/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       ada::AdaSharedServices, ada::register_lsp_services>(argc, argv);
 }

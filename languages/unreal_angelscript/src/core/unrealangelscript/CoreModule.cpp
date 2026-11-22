@@ -9,7 +9,7 @@
 namespace unrealangelscript {
 
 void install_core_module(UnrealAngelscriptCoreServices& services) {
-  unrealangelscript::generated::UnrealAngelscript::install_generated_module(services);
+  unrealangelscript::generated::UnrealAngelscript::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

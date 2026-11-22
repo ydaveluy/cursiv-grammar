@@ -19,7 +19,6 @@
 #include "cursiv/syntax-tree/ParseResult.hpp"
 #include "cursiv/Check.hpp"
 #include "tnsnames/ast.hpp"
-#include "tnsnames/generated/Tnsnames/AstReflection.hpp"
 #include "tnsnames/generated/Tnsnames/Module.hpp"
 
 namespace {
@@ -28,13 +27,13 @@ namespace ast = tnsnames::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      tnsnames::generated::Tnsnames::create_parser();
+      tnsnames::generated::Tnsnames::createParser();
   return *p;
 }
 
 const cursiv::AstReflection& reflection() {
   static const std::unique_ptr<cursiv::AstReflection> r =
-      tnsnames::generated::Tnsnames::create_ast_reflection();
+      tnsnames::generated::Tnsnames::createAstReflection();
   return *r;
 }
 
@@ -45,7 +44,7 @@ bool accepts(std::string_view text) {
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && reflection().isInstance(*n, &cursiv::ast_type_tag<T>))
+  return (n != nullptr && reflection().isInstance(*n, &cursiv::kAstTypeTag<T>))
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -81,7 +80,7 @@ ast::Ifile* ifile_at(const cursiv::ParseResult& r, std::size_t i) {
 
 std::string load(const char* dir, const char* name) {
   const std::string path = std::string(dir) + "/" + name;
-  return cursiv::test::read_file(path);
+  return cursiv::test::readFile(path);
 }
 
 void accepted_shapes() {

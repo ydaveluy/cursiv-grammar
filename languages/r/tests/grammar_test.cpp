@@ -44,7 +44,7 @@ std::vector<std::filesystem::path> rFiles(const char* dir) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<r::RCoreServices, r::RSharedCoreServices,
+      cursiv::createLanguage<r::RCoreServices, r::RSharedCoreServices,
                               r::install_core_module>();
   for (const auto *source : {"a<b<c", "a<b==c", "a<b>c", "a<b<=c", "a==b<c", "a==b==c",
                               "a!=b==c", "function(if)1", "for(if in x)1",
@@ -108,7 +108,7 @@ int main() {
   const std::vector<fs::path> fixtures = rFiles(CURSIV_TEST_DIR);
   if (fixtures.empty()) return fail("no fixture files found");
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       r::RCoreServices, r::RSharedCoreServices, r::install_core_module>();
   if (!port_audit::run(*language.language.parser))
     return fail("native syntax and AST regression");
@@ -127,7 +127,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<r::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<r::ast::Program>)
       return fail(path.string() + ": the parse built no program");
 
     if (path.filename() == "Complete.R") {
@@ -139,19 +139,19 @@ int main() {
       // `main <- function() {...}`, an assignment of a function definition.
       const r::ast::Expr* const first = program.body[0];
       if (first == nullptr ||
-          first->type != &cursiv::ast_type_tag<r::ast::AssignExpr>)
+          first->type != &cursiv::kAstTypeTag<r::ast::AssignExpr>)
         return fail(path.string() + ": the first statement is not an assignment");
       const auto& assign = *static_cast<const r::ast::AssignExpr*>(first);
       if (assign.op != "<-")
         return fail(path.string() + ": the assignment operator was misread");
       if (assign.target == nullptr ||
-          assign.target->type != &cursiv::ast_type_tag<r::ast::Ident>)
+          assign.target->type != &cursiv::kAstTypeTag<r::ast::Ident>)
         return fail(path.string() + ": the assignment target is not a name");
       const auto& target = *static_cast<const r::ast::Ident*>(assign.target);
       if (target.name != "main")
         return fail(path.string() + ": the assignment target was misread");
       if (assign.value == nullptr ||
-          assign.value->type != &cursiv::ast_type_tag<r::ast::FunctionDef>)
+          assign.value->type != &cursiv::kAstTypeTag<r::ast::FunctionDef>)
         return fail(path.string() + ": the assigned value is not a function");
     }
   }
@@ -168,7 +168,7 @@ int main() {
     if (!result.diagnostics.empty())
       return fail(path.string() + ": the parse reported diagnostics");
     if (result.value == nullptr ||
-        result.value->type != &cursiv::ast_type_tag<r::ast::Program>)
+        result.value->type != &cursiv::kAstTypeTag<r::ast::Program>)
       return fail(path.string() + ": the parse built no program");
   }
 
@@ -183,12 +183,12 @@ int main() {
       return fail("precedence probe: does not parse clean");
     const auto& program = *static_cast<const r::ast::Program*>(result.value);
     if (program.body.empty() ||
-        program.body[0]->type != &cursiv::ast_type_tag<r::ast::AssignExpr>)
+        program.body[0]->type != &cursiv::kAstTypeTag<r::ast::AssignExpr>)
       return fail("precedence probe: not an assignment");
     const auto& root = *static_cast<const r::ast::AssignExpr*>(program.body[0]);
     if (root.op != "<-") return fail("precedence probe: <- is not the root");
     if (root.target == nullptr ||
-        root.target->type != &cursiv::ast_type_tag<r::ast::AssignExpr>)
+        root.target->type != &cursiv::kAstTypeTag<r::ast::AssignExpr>)
       return fail("precedence probe: -> does not nest under <-");
     if (static_cast<const r::ast::AssignExpr*>(root.target)->op != "->")
       return fail("precedence probe: the nested operator is not ->");
@@ -202,7 +202,7 @@ int main() {
       if (result.cst().recovered() || !result.diagnostics.empty()) return -1;
       const auto& program = *static_cast<const r::ast::Program*>(result.value);
       if (program.body.empty() ||
-          program.body[0]->type != &cursiv::ast_type_tag<r::ast::CallExpr>)
+          program.body[0]->type != &cursiv::kAstTypeTag<r::ast::CallExpr>)
         return -1;
       return static_cast<int>(
           static_cast<const r::ast::CallExpr*>(program.body[0])->args.size());

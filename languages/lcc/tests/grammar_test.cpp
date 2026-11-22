@@ -24,7 +24,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       lcc::LccCoreServices,
       lcc::LccSharedCoreServices,
       lcc::install_core_module>();
@@ -55,7 +55,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<lcc::ast::CallNumber>) {
+        root->type != &cursiv::kAstTypeTag<lcc::ast::CallNumber>) {
       failures += fail(entry.path(), "the parse built no call number");
     }
   }

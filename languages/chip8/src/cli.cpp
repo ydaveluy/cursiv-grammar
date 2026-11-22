@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<chip8::Chip8CoreServices,
+    &cursiv::registerLanguage<chip8::Chip8CoreServices,
                            chip8::Chip8SharedCoreServices,
                            chip8::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<chip8::Chip8SharedCoreServices>(
+  return cursiv::runCli<chip8::Chip8SharedCoreServices>(
       argc, argv, kRegister);
 }

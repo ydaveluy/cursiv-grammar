@@ -9,7 +9,7 @@
 namespace url {
 
 void install_core_module(UrlCoreServices& services) {
-  url::generated::Url::install_generated_module(services);
+  url::generated::Url::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

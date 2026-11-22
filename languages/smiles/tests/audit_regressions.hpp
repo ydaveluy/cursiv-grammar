@@ -10,11 +10,11 @@
 #include <string>
 namespace audit_regressions {
 template <class T> T *as(cursiv::AstNode *p) {
-  return p && p->type == &cursiv::ast_type_tag<T> ? static_cast<T *>(p)
+  return p && p->type == &cursiv::kAstTypeTag<T> ? static_cast<T *>(p)
                                                   : nullptr;
 }
 inline bool run() {
-  auto parser = smiles::generated::Smiles::create_parser();
+  auto parser = smiles::generated::Smiles::createParser();
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) {
@@ -27,7 +27,7 @@ inline bool run() {
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty(),
         "smiles valid syntax regression");
 
-  const auto language = cursiv::create_language<smiles::SmilesCoreServices,
+  const auto language = cursiv::createLanguage<smiles::SmilesCoreServices,
       smiles::SmilesSharedCoreServices, smiles::install_core_module>();
   for (const char* symbol : {"Nh", "Mc", "Ts", "Og", "Uut", "b", "si", "te", "#6",
                              "'Rf'", "'Og'"}) {

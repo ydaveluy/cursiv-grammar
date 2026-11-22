@@ -9,7 +9,7 @@
 namespace apt {
 
 void install_core_module(AptCoreServices& services) {
-  apt::generated::Apt::install_generated_module(services);
+  apt::generated::Apt::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -23,7 +23,7 @@ int fail(const std::string& what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       xsdregex::XsdRegexCoreServices, xsdregex::XsdRegexSharedCoreServices,
       xsdregex::install_core_module>();
 
@@ -47,7 +47,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<xsdregex::ast::RegExp>)
+          root->type != &cursiv::kAstTypeTag<xsdregex::ast::RegExp>)
         return fail(entry.path().string() + ": did not build a RegExp");
     }
   for (const std::string& text : {std::string("\xc3", 1), std::string("\x80", 1),

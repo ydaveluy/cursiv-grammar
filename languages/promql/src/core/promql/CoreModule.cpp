@@ -9,7 +9,7 @@
 namespace promql {
 
 void install_core_module(PromqlCoreServices& services) {
-  promql::generated::Promql::install_generated_module(services);
+  promql::generated::Promql::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

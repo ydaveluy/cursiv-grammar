@@ -19,7 +19,7 @@ void InfValidator::checkSection(const ast::Section& section,
                                 cursiv::ValidationAcceptor& accept) const {
   std::size_t units = 0;
   for (std::size_t i = 0; i < section.name.size();) {
-    const auto width = cursiv::utf8_width(section.name[i]);
+    const auto width = cursiv::utf8Width(section.name[i]);
     units += width == 4 ? 2 : 1;
     i += width;
   }

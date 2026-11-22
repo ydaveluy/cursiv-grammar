@@ -29,7 +29,7 @@ int fail(const std::string& what) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       c::CCoreServices,
       c::CSharedCoreServices,
       c::install_core_module>();
@@ -49,12 +49,17 @@ int main() {
                            std::istreambuf_iterator<char>());
 
     const cursiv::ParseResult result = language.language.parser->parse(text);
-    if (result.cst().recovered())
+    if (!result.accepted || !result.diagnostics.empty())
       return fail(entry.path().string() + ": does not parse clean");
+    for (const auto* node : result.nodes()) {
+      if (node->cstNodeId >= result.cst().size() ||
+          (node->parent && !result.cst().contains(node->parent->cstNodeId, node->cstNodeId)))
+        return fail(entry.path().string() + ": node outside its parent's CST span");
+    }
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<c::ast::TranslationUnit>)
+        root->type != &cursiv::kAstTypeTag<c::ast::TranslationUnit>)
       return fail(entry.path().string() + ": built no translation unit");
   }
   if (seen == 0) return fail("no examples found");

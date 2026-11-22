@@ -24,7 +24,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 
 int main() {
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       p::PCoreServices, p::PSharedCoreServices, p::install_core_module>();
 
   {
@@ -79,7 +79,7 @@ int main() {
     }
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<p::ast::Prog>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<p::ast::Prog>)
       failures += fail(file, "the parse built no Prog");
   }
 

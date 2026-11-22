@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<mdx::MdxCoreServices,
+    &cursiv::registerLanguage<mdx::MdxCoreServices,
                            mdx::MdxSharedCoreServices,
                            mdx::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<mdx::MdxSharedCoreServices>(
+  return cursiv::runCli<mdx::MdxSharedCoreServices>(
       argc, argv, kRegister);
 }

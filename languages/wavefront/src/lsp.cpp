@@ -5,7 +5,7 @@
 #include "wavefront/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       wavefront::WavefrontSharedServices>(
       argc, argv, "wavefront-lsp", &wavefront::register_lsp_services);
 }

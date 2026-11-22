@@ -9,7 +9,7 @@
 namespace refal {
 
 void install_core_module(RefalCoreServices& services) {
-  refal::generated::Refal::install_generated_module(services);
+  refal::generated::Refal::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

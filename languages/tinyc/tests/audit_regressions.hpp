@@ -11,7 +11,7 @@
 namespace audit_regressions {
 inline void run() {
   namespace ast = tinyc::ast;
-  const auto language = cursiv::create_language<tinyc::TinycCoreServices,
+  const auto language = cursiv::createLanguage<tinyc::TinycCoreServices,
                                                 tinyc::TinycSharedCoreServices,
                                                 tinyc::install_core_module>();
   const std::string text = "{if(a)if(b)c;else d; do e=e+1;while(e<3); {;{}} "

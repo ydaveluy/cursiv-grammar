@@ -2,6 +2,6 @@
 #include "focal/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       focal::FocalSharedServices, focal::register_lsp_services>(argc, argv);
 }

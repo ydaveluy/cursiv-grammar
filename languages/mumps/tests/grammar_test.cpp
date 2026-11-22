@@ -46,7 +46,7 @@ void print_parse_failure(const cursiv::ParseResult& result) {
 // AST nodes are identified by tag, not RTTI: `dynamic_cast` does not apply.
 template <class T, class From>
 const T* as(const From* node) {
-  return (node != nullptr && node->type == &cursiv::ast_type_tag<T>)
+  return (node != nullptr && node->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T*>(node)
              : nullptr;
 }
@@ -66,7 +66,7 @@ bool expectedOutOfScope(std::string_view name) {
 }  // namespace
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<mumps::MumpsCoreServices,
+  const auto language = cursiv::createLanguage<mumps::MumpsCoreServices,
                                                 mumps::MumpsSharedCoreServices,
                                                 mumps::install_core_module>();
   const auto parse = [&](std::string_view source) {
@@ -225,7 +225,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       mumps::MumpsCoreServices, mumps::MumpsSharedCoreServices,
       mumps::install_core_module>();
 
@@ -255,7 +255,7 @@ int main() {
     }
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<mumps::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<mumps::ast::Document>) {
       std::fprintf(stderr, "mumps: %s built no document\n", name.data());
       return fail("the parse built no document");
     }
@@ -288,7 +288,7 @@ int main() {
     if (setCmd == nullptr || setCmd->assigns.size() != 1 ||
         setCmd->assigns[0]->targets.size() != 2 ||
         setCmd->assigns[0]->targets[0]->type !=
-            &cursiv::ast_type_tag<mumps::ast::Variable>)
+            &cursiv::kAstTypeTag<mumps::ast::Variable>)
       return fail("fibonacci.m: SET (A,B)=1 did not read back");
     const auto* one = as<mumps::ast::NumberLiteral>(
         setCmd->assigns[0]->value);

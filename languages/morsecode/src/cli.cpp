@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<morsecode::MorsecodeCoreServices,
+    &cursiv::registerLanguage<morsecode::MorsecodeCoreServices,
                            morsecode::MorsecodeSharedCoreServices,
                            morsecode::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<morsecode::MorsecodeSharedCoreServices>(
+  return cursiv::runCli<morsecode::MorsecodeSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<less::LessCoreServices,
+    &cursiv::registerLanguage<less::LessCoreServices,
                            less::LessSharedCoreServices,
                            less::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<less::LessSharedCoreServices>(
+  return cursiv::runCli<less::LessSharedCoreServices>(
       argc, argv, kRegister);
 }

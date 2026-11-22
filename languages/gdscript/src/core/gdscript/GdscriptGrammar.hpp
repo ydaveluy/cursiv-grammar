@@ -323,7 +323,7 @@ struct Gdscript : cursiv::GrammarSpec {
   // STATEMENTS
   // ==========
 
-  static constexpr auto stmtEnd = ref<NEWLINE> | lit<";"> | eof;
+  static constexpr auto stmtEnd = ref<NEWLINE> | lit<";"> | &dedent | eof;
 
   struct VarDeclStmt
       : rule<create<ast::LocalVarDecl>(

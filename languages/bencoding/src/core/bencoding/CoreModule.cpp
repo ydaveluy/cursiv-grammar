@@ -9,7 +9,7 @@
 namespace bencoding {
 
 void install_core_module(BencodingCoreServices& services) {
-  bencoding::generated::Bencoding::install_generated_module(services);
+  bencoding::generated::Bencoding::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

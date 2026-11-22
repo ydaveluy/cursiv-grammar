@@ -9,7 +9,7 @@
 namespace cql {
 
 void install_core_module(CqlCoreServices& services) {
-  cql::generated::Cql::install_generated_module(services);
+  cql::generated::Cql::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

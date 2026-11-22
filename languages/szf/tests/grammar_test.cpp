@@ -37,7 +37,7 @@ int main() {
   if (files.empty()) return fail("no example to parse");
 
   const auto language =
-      cursiv::create_language<szf::SzfCoreServices, szf::SzfSharedCoreServices,
+      cursiv::createLanguage<szf::SzfCoreServices, szf::SzfSharedCoreServices,
                               szf::install_core_module>();
 
   for (const fs::path& path : files) {
@@ -53,7 +53,7 @@ int main() {
       return fail(path.string() + ": does not parse clean");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<szf::ast::File>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<szf::ast::File>)
       return fail(path.string() + ": the parse built no File");
   }
 
@@ -95,7 +95,7 @@ int main() {
     bool preserved = false;
     for (cursiv::NodeId id = 0; id < result.cst().size(); ++id)
       preserved |=
-          result.cst()[id].hidden && result.cst().text(id) == "//notcomment";
+          result.cst()[id].isHidden() && result.cst().text(id) == "//notcomment";
     if (!result.accepted || result.cst().recovered() || !preserved)
       return fail("macro-sensitive source comment remains in CST");
   }

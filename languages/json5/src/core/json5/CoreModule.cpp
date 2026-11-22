@@ -9,7 +9,7 @@
 namespace json5 {
 
 void install_core_module(Json5CoreServices& services) {
-  json5::generated::Json5::install_generated_module(services);
+  json5::generated::Json5::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

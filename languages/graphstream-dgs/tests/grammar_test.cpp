@@ -27,7 +27,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       graphstreamdgs::GraphstreamDgsCoreServices,
       graphstreamdgs::GraphstreamDgsSharedCoreServices,
       graphstreamdgs::install_core_module>();
@@ -61,7 +61,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<graphstreamdgs::ast::Document>) {
+          root->type != &cursiv::kAstTypeTag<graphstreamdgs::ast::Document>) {
         failures += fail(entry.path(), "the parse built no document");
         continue;
       }

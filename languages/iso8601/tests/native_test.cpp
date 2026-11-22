@@ -16,7 +16,7 @@
 #include <unordered_set>
 int main() {
   const auto language =
-      cursiv::create_language<iso8601::Iso8601CoreServices,
+      cursiv::createLanguage<iso8601::Iso8601CoreServices,
                               iso8601::Iso8601SharedCoreServices,
                               iso8601::install_core_module>();
   if (!iso8601_native_followup::run(language)) return 1;

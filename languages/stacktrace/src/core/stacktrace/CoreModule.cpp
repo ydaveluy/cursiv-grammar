@@ -9,7 +9,7 @@
 namespace stacktrace {
 
 void install_core_module(StacktraceCoreServices& services) {
-  stacktrace::generated::Stacktrace::install_generated_module(services);
+  stacktrace::generated::Stacktrace::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

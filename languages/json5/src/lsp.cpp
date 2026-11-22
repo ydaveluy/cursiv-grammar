@@ -5,7 +5,7 @@
 #include "json5/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       json5::Json5SharedServices>(
       argc, argv, "json5-lsp", &json5::register_lsp_services);
 }

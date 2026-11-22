@@ -9,7 +9,7 @@
 namespace langium {
 
 void install_core_module(LangiumCoreServices& services) {
-  langium::generated::Langium::install_generated_module(services);
+  langium::generated::Langium::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -69,7 +69,7 @@ void check_unicode_names(const xml::ast::Document& doc, bool& ok) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       xml::XmlCoreServices, xml::XmlSharedCoreServices,
       xml::install_core_module>();
   if (!xml_dtd_islands::run(*language.language.parser)) return 1;
@@ -99,7 +99,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<xml::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<xml::ast::Document>) {
       fail(name, "did not build a Document", ok);
       continue;
     }

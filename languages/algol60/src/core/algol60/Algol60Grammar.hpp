@@ -95,8 +95,6 @@ struct Algol60 : cursiv::GrammarSpec {
 
   struct ExpOp : terminal<as<ast::BinOp::power>(lit<"↑"> | lit<"^">)> {};
   struct MulOp : terminal<as<ast::BinOp::mul>(lit<"×"> | lit<"*">)> {};
-  struct DivOp : terminal<as<ast::BinOp::div>(lit<"/">) |
-                          as<ast::BinOp::intdiv>(lit<"÷">)> {};
   struct SubOp : terminal<as<ast::BinOp::sub>(lit<"-"> | lit<"–">)> {};
 
   struct LeOp : terminal<as<ast::BinOp::le>(lit<"<="> | lit<"≤">)> {};
@@ -163,7 +161,8 @@ struct Algol60 : cursiv::GrammarSpec {
 
   struct SimpleArith
       : infix<Term, ast::BinaryExpr,
-              levels(left(ref<MulOp> | ref<DivOp>),
+              levels(left(ref<MulOp> | as<ast::BinOp::div>(lit<"/">) |
+                          as<ast::BinOp::intdiv>(lit<"÷">)),
                      left(as<ast::BinOp::add>(lit<"+">) | ref<SubOp>))> {};
 
   struct ArithExpr

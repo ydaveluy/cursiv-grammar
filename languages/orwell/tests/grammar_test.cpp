@@ -22,20 +22,20 @@ namespace ast = orwell::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      orwell::generated::Orwell::create_parser();
+      orwell::generated::Orwell::createParser();
   return *p;
 }
 
 const cursiv::AstReflection& reflection() {
   static const std::unique_ptr<cursiv::AstReflection> r =
-      orwell::generated::Orwell::create_ast_reflection();
+      orwell::generated::Orwell::createAstReflection();
   return *r;
 }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
   return (n != nullptr &&
-          reflection().isInstance(*n, &cursiv::ast_type_tag<T>))
+          reflection().isInstance(*n, &cursiv::kAstTypeTag<T>))
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -53,7 +53,7 @@ void corpus() {
 
   // example1: `power x n =1`
   {
-    const cursiv::ParseResult r = build(cursiv::test::read_file(dir + "example1.orwell"));
+    const cursiv::ParseResult r = build(cursiv::test::readFile(dir + "example1.orwell"));
     CHECK(!r.cst().recovered() && r.diagnostics.empty());
     ast::Program* const p = r.valueAs<ast::Program>();
     CHECK(p != nullptr && p->decls.size() == 1);
@@ -74,7 +74,7 @@ void corpus() {
 
   // example2: `power x n =1, if n=0`
   {
-    const cursiv::ParseResult r = build(cursiv::test::read_file(dir + "example2.orwell"));
+    const cursiv::ParseResult r = build(cursiv::test::readFile(dir + "example2.orwell"));
     CHECK(!r.cst().recovered() && r.diagnostics.empty());
     ast::Program* const p = r.valueAs<ast::Program>();
     ast::Def* const def = p != nullptr && !p->decls.empty() ? as<ast::Def>(p->decls[0]) : nullptr;
@@ -95,7 +95,7 @@ void corpus() {
 
   // example3: `roots a b c = [(-b+r)/(2*a),(-b-r)/(2*a)], if d>0`
   {
-    const cursiv::ParseResult r = build(cursiv::test::read_file(dir + "example3.orwell"));
+    const cursiv::ParseResult r = build(cursiv::test::readFile(dir + "example3.orwell"));
     CHECK(!r.cst().recovered() && r.diagnostics.empty());
     ast::Program* const p = r.valueAs<ast::Program>();
     ast::Def* const def = p != nullptr && !p->decls.empty() ? as<ast::Def>(p->decls[0]) : nullptr;
@@ -170,7 +170,7 @@ void own_coverage() {
                            "guards.orwell", "multiclause.orwell",
                            "comprehensions.orwell", "sections.orwell",
                            "literals.orwell"}) {
-    const cursiv::ParseResult r = build(cursiv::test::read_file(dir + name));
+    const cursiv::ParseResult r = build(cursiv::test::readFile(dir + name));
     if (r.cst().recovered() || !r.diagnostics.empty()) {
       std::printf("FAIL %s: did not parse clean\n", name);
       ++failures;
@@ -185,7 +185,7 @@ void own_coverage() {
   // The `%else` clause read back: the marker sets `hasElse`, the first
   // clause never does.
   const cursiv::ParseResult r =
-      build(cursiv::test::read_file(dir + "multiclause.orwell"));
+      build(cursiv::test::readFile(dir + "multiclause.orwell"));
   ast::Program* const p = r.valueAs<ast::Program>();
   ast::Def* const def = p != nullptr && !p->decls.empty() ? as<ast::Def>(p->decls[0]) : nullptr;
   CHECK(def != nullptr && def->clauses.size() == 2);

@@ -9,7 +9,7 @@
 namespace tcpheader {
 
 void install_core_module(TcpheaderCoreServices& services) {
-  tcpheader::generated::Tcpheader::install_generated_module(services);
+  tcpheader::generated::Tcpheader::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

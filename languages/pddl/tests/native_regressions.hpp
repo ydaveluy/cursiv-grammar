@@ -343,10 +343,10 @@ inline const char *typed_checks(const NativeCase &c, const ast::Document &doc) {
 
 inline int native_regressions() {
   using namespace pddl_native_regression_detail;
-  const auto language = cursiv::create_language<pddl::PddlCoreServices,
+  const auto language = cursiv::createLanguage<pddl::PddlCoreServices,
                                                 pddl::PddlSharedCoreServices,
                                                 pddl::install_core_module>();
-  const auto factory = pddl::generated::Pddl::create_parser();
+  const auto factory = pddl::generated::Pddl::createParser();
   unsigned nativePositive = 0, runtimeNegative = 0;
   for (const auto &c : nativeCases) {
     // ParseResult borrows source text: keep it alive through every AST read.

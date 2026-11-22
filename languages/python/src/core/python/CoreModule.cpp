@@ -9,7 +9,7 @@
 namespace python {
 
 void install_core_module(PythonCoreServices& services) {
-  python::generated::Python::install_generated_module(services);
+  python::generated::Python::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace logo {
 
 void install_core_module(LogoCoreServices& services) {
-  logo::generated::Logo::install_generated_module(services);
+  logo::generated::Logo::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

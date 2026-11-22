@@ -9,7 +9,7 @@
 namespace bnf {
 
 void install_core_module(BnfCoreServices& services) {
-  bnf::generated::Bnf::install_generated_module(services);
+  bnf::generated::Bnf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

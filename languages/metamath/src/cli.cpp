@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<metamath::MetamathCoreServices,
+    &cursiv::registerLanguage<metamath::MetamathCoreServices,
                            metamath::MetamathSharedCoreServices,
                            metamath::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<metamath::MetamathSharedCoreServices>(
+  return cursiv::runCli<metamath::MetamathSharedCoreServices>(
       argc, argv, kRegister);
 }

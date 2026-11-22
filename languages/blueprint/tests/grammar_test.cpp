@@ -22,7 +22,7 @@ int fail(const char* file, const char* what) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       blueprint::BlueprintCoreServices, blueprint::BlueprintSharedCoreServices,
       blueprint::install_core_module>();
 
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<blueprint::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<blueprint::ast::Document>)
       return fail(path, "built no Document root");
   }
 

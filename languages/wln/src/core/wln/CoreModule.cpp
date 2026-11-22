@@ -9,7 +9,7 @@
 namespace wln {
 
 void install_core_module(WlnCoreServices& services) {
-  wln::generated::Wln::install_generated_module(services);
+  wln::generated::Wln::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

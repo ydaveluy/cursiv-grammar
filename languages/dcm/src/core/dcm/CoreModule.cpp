@@ -9,7 +9,7 @@
 namespace dcm {
 
 void install_core_module(DcmCoreServices& services) {
-  dcm::generated::Dcm::install_generated_module(services);
+  dcm::generated::Dcm::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

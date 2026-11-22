@@ -29,7 +29,7 @@ namespace ast = newick::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      newick::generated::Newick::create_parser();
+      newick::generated::Newick::createParser();
   return *p;
 }
 
@@ -115,7 +115,7 @@ void corpus() {
         continue;
       ++seen;
       const std::string path = entry.path().string();
-      const std::string text = cursiv::test::read_file(path);
+      const std::string text = cursiv::test::readFile(path);
       const cursiv::ParseResult r = engine().parse(text);
       if (!r.accepted || r.cst().recovered()) {
         std::printf("FAIL %s: did not parse clean\n", path.c_str());
@@ -135,7 +135,7 @@ void corpus() {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<newick::NewickCoreServices,
+      cursiv::createLanguage<newick::NewickCoreServices,
                               newick::NewickSharedCoreServices,
                               newick::install_core_module>();
   {

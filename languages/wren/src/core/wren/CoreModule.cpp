@@ -9,7 +9,7 @@
 namespace wren {
 
 void install_core_module(WrenCoreServices& services) {
-  wren::generated::Wren::install_generated_module(services);
+  wren::generated::Wren::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

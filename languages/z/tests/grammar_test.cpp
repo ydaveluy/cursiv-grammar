@@ -34,7 +34,7 @@ std::string readFile(const std::filesystem::path& path) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       z::ZCoreServices, z::ZSharedCoreServices, z::install_core_module>();
   if (!native_followup::run(language.language)) return 1;
 
@@ -54,7 +54,7 @@ int main() {
       return fail(path.filename().string() + " carries diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<z::ast::Specification>)
+        root->type != &cursiv::kAstTypeTag<z::ast::Specification>)
       return fail(path.filename().string() + " built no specification");
   }
 
@@ -71,7 +71,7 @@ int main() {
   if (!coverageResult.diagnostics.empty())
     return fail("coverage.zed carries diagnostics");
   if (coverageResult.value == nullptr ||
-      coverageResult.value->type != &cursiv::ast_type_tag<z::ast::Specification>)
+      coverageResult.value->type != &cursiv::kAstTypeTag<z::ast::Specification>)
     return fail("coverage.zed built no specification");
 
   // ss.zed: one section, `ss`, with `ds` as a parent, and eight paragraphs
@@ -82,7 +82,7 @@ int main() {
   const auto& spec =
       *static_cast<const z::ast::Specification*>(ssResult.value);
   if (spec.items.size() != 1) return fail("ss.zed: not one top-level item");
-  if (spec.items[0]->type != &cursiv::ast_type_tag<z::ast::Section>)
+  if (spec.items[0]->type != &cursiv::kAstTypeTag<z::ast::Section>)
     return fail("ss.zed: the top-level item is not a section");
   const auto& section = *static_cast<const z::ast::Section*>(spec.items[0]);
   if (section.name != "ss") return fail("ss.zed: the section is not named ss");
@@ -90,7 +90,7 @@ int main() {
     return fail("ss.zed: the section does not declare ds as its parent");
   if (section.body.size() != 8)
     return fail("ss.zed: the section does not hold its eight paragraphs");
-  if (section.body[0]->type != &cursiv::ast_type_tag<z::ast::HorizontalDef>)
+  if (section.body[0]->type != &cursiv::kAstTypeTag<z::ast::HorizontalDef>)
     return fail("ss.zed: FID is not a horizontal definition");
   const auto& fid = *static_cast<const z::ast::HorizontalDef*>(section.body[0]);
   if (fid.name != "FID") return fail("ss.zed: the first paragraph is not FID");
@@ -110,15 +110,15 @@ int main() {
   const auto& precSection =
       *static_cast<const z::ast::Section*>(precSpec.items[0]);
   if (precSection.body.size() != 1 ||
-      precSection.body[0]->type != &cursiv::ast_type_tag<z::ast::Conjecture>)
+      precSection.body[0]->type != &cursiv::kAstTypeTag<z::ast::Conjecture>)
     return fail("the precedence probe built no Conjecture");
   const auto& conjecture =
       *static_cast<const z::ast::Conjecture*>(precSection.body[0]);
-  if (conjecture.value->type != &cursiv::ast_type_tag<z::ast::Infix>)
+  if (conjecture.value->type != &cursiv::kAstTypeTag<z::ast::Infix>)
     return fail("a ⇒ b ⇒ c: expected an Infix at the top");
   const auto& outer = *static_cast<const z::ast::Infix*>(conjecture.value);
   if (outer.op != "⇒" ||
-      outer.right->type != &cursiv::ast_type_tag<z::ast::Infix>)
+      outer.right->type != &cursiv::kAstTypeTag<z::ast::Infix>)
     return fail("a ⇒ b ⇒ c: expected a ⇒ (b ⇒ c), right-associative");
   if (static_cast<const z::ast::Infix*>(outer.right)->op != "⇒")
     return fail("a ⇒ b ⇒ c: the nested node is not another ⇒");

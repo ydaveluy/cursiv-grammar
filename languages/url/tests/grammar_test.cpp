@@ -29,7 +29,7 @@ int main() {
   if (!audit_regressions::run() || !native_conformance::run()) return 1;
   // The whole language in one call: the defaults, then `install_core_module`.
   const auto language =
-      cursiv::create_language<url::UrlCoreServices, url::UrlSharedCoreServices,
+      cursiv::createLanguage<url::UrlCoreServices, url::UrlSharedCoreServices,
                               url::install_core_module>();
   if (!uri_component_cases(language)) return 1;
 
@@ -61,7 +61,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<url::ast::Url>)
+          root->type != &cursiv::kAstTypeTag<url::ast::Url>)
         failures += fail(file, "the parse built no Url");
     }
 

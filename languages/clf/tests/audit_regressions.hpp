@@ -12,7 +12,7 @@
 inline void clf_regressions() {
   namespace ast = clf::ast;
   const auto language =
-      cursiv::create_language<clf::ClfCoreServices, clf::ClfSharedCoreServices,
+      cursiv::createLanguage<clf::ClfCoreServices, clf::ClfSharedCoreServices,
                               clf::install_core_module>();
   const auto& services = language.language;
   {

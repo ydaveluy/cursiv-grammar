@@ -5,7 +5,7 @@
 #include "ron/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       ron::RonSharedServices>(
       argc, argv, "ron-lsp", &ron::register_lsp_services);
 }

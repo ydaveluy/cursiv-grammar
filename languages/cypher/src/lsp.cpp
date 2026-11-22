@@ -5,7 +5,7 @@
 #include "cypher/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       cypher::CypherSharedServices>(
       argc, argv, "cypher-lsp", &cypher::register_lsp_services);
 }

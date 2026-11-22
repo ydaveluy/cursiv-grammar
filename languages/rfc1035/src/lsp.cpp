@@ -5,7 +5,7 @@
 #include "rfc1035/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       rfc1035::Rfc1035SharedServices>(
       argc, argv, "rfc1035-lsp", &rfc1035::register_lsp_services);
 }

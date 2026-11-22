@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<z::ZCoreServices,
+    &cursiv::registerLanguage<z::ZCoreServices,
                            z::ZSharedCoreServices,
                            z::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<z::ZSharedCoreServices>(
+  return cursiv::runCli<z::ZSharedCoreServices>(
       argc, argv, kRegister);
 }

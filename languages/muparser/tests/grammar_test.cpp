@@ -21,13 +21,13 @@ namespace ast = muparser::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      muparser::generated::Muparser::create_parser();
+      muparser::generated::Muparser::createParser();
   return *p;
 }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -40,7 +40,7 @@ const char* const kExamples[] = {
 
 void every_example_parses_clean() {
   for (const char* const name : kExamples) {
-    const std::string text = cursiv::test::read_file(
+    const std::string text = cursiv::test::readFile(
         std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
     CHECK(!text.empty());
     const cursiv::ParseResult r = parse(text);
@@ -54,7 +54,7 @@ void every_example_parses_clean() {
 // The corpus example never exercises assignment, equality, `&&`/`||`,
 // `<=`/`>=`/`<`, or a bare variable reference: constructs.muparser does.
 void own_constructs_parse_clean() {
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       std::string(CURSIV_TEST_DIR) + "/constructs.muparser");
   CHECK(!text.empty());
   const cursiv::ParseResult r = parse(text);

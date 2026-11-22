@@ -5,7 +5,7 @@
 #include "spass/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       spass::SpassSharedServices>(
       argc, argv, "spass-lsp", &spass::register_lsp_services);
 }

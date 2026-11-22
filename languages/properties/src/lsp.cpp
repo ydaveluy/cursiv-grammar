@@ -5,7 +5,7 @@
 #include "properties/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       properties::PropertiesSharedServices>(
       argc, argv, "properties-lsp", &properties::register_lsp_services);
 }

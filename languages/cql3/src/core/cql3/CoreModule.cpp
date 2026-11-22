@@ -9,7 +9,7 @@
 namespace cql3 {
 
 void install_core_module(Cql3CoreServices& services) {
-  cql3::generated::Cql3::install_generated_module(services);
+  cql3::generated::Cql3::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

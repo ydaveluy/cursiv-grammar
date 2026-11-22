@@ -9,7 +9,7 @@
 namespace asl {
 
 void install_core_module(AslCoreServices& services) {
-  asl::generated::Asl::install_generated_module(services);
+  asl::generated::Asl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

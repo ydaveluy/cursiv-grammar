@@ -25,7 +25,7 @@ struct OrwellCoreServices
   // One row per service, for whoever asks what a container holds: the
   // language's own rows come after the defaults.
   void visitServices(
-      cursiv::function_ref<void(const cursiv::ServiceSlot&)> yield) const override {
+      cursiv::FunctionRef<void(const cursiv::ServiceSlot&)> yield) const override {
     cursiv::CoreServices::visitServices(yield);
     yield({"validator", true, validator != nullptr});
   }

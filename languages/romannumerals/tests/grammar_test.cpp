@@ -27,7 +27,7 @@ int fail(const std::string& what) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<romannumerals::RomannumeralsCoreServices,
+      cursiv::createLanguage<romannumerals::RomannumeralsCoreServices,
                               romannumerals::RomannumeralsSharedCoreServices,
                               romannumerals::install_core_module>();
   for (const char* spelling : {"I", "IV", "IX", "MCMLXXII", "MMMMCMXCIX",
@@ -54,7 +54,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       romannumerals::RomannumeralsCoreServices,
       romannumerals::RomannumeralsSharedCoreServices,
       romannumerals::install_core_module>();
@@ -78,7 +78,7 @@ int main() {
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
           root->type !=
-              &cursiv::ast_type_tag<romannumerals::ast::RomanNumeral>)
+              &cursiv::kAstTypeTag<romannumerals::ast::RomanNumeral>)
         return fail(path + ": built no RomanNumeral");
       ++count;
     }

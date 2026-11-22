@@ -25,7 +25,7 @@ int fail(const std::string& path, const char* what) {
 
 template <class T>
 const T* as(const redcode::ast::Expr* node) {
-  return node != nullptr && node->type == &cursiv::ast_type_tag<T>
+  return node != nullptr && node->type == &cursiv::kAstTypeTag<T>
              ? static_cast<const T*>(node)
              : nullptr;
 }
@@ -43,7 +43,7 @@ const redcode::ast::Expr* field_a(const cursiv::ParseResult& result) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       redcode::RedcodeCoreServices, redcode::RedcodeSharedCoreServices,
       redcode::install_core_module>();
 
@@ -115,7 +115,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<redcode::ast::File>)
+          root->type != &cursiv::kAstTypeTag<redcode::ast::File>)
         return fail(path, "built no File");
     }
   if (seen == 0) return fail(CURSIV_EXAMPLE_DIR, "no .redcode example found");

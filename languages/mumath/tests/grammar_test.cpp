@@ -23,7 +23,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 
 template <class T>
 const T* as(const cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T*>(n)
              : nullptr;
 }
@@ -101,7 +101,7 @@ bool check_precedence(const auto& language) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       mumath::MumathCoreServices, mumath::MumathSharedCoreServices,
       mumath::install_core_module>();
 
@@ -133,7 +133,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<mumath::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<mumath::ast::Program>)
       failures += fail(file, "the parse built no Program");
   }
 

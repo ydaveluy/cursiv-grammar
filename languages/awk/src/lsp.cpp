@@ -5,7 +5,7 @@
 #include "awk/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       awk::AwkSharedServices>(
       argc, argv, "awk-lsp", &awk::register_lsp_services);
 }

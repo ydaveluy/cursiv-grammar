@@ -9,7 +9,7 @@
 namespace objc {
 
 void install_core_module(ObjcCoreServices& services) {
-  objc::generated::Objc::install_generated_module(services);
+  objc::generated::Objc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

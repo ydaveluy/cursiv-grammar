@@ -26,7 +26,7 @@ int fail(const char* what) {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       focal::FocalCoreServices, focal::FocalSharedCoreServices,
       focal::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("01.01 SET X=-1.5\n");
@@ -42,7 +42,7 @@ int main() {
   }
 
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       focal::FocalCoreServices, focal::FocalSharedCoreServices,
       focal::install_core_module>();
   if (!focal_commands::run(language.language)) return 1;
@@ -149,7 +149,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<focal::ast::Program>)
+          root->type != &cursiv::kAstTypeTag<focal::ast::Program>)
         return fail("the parse built no program");
 
       ++checked;

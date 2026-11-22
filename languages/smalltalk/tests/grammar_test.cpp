@@ -34,7 +34,7 @@ std::string read_file(const std::filesystem::path& path) {
 int main() {
   if (!audit_regressions::run()) return 1;
   const auto language =
-      cursiv::create_language<smalltalk::SmalltalkCoreServices,
+      cursiv::createLanguage<smalltalk::SmalltalkCoreServices,
                               smalltalk::SmalltalkSharedCoreServices,
                               smalltalk::install_core_module>();
   if (!amber_script_cases::run(language)) return fail("Amber script followup failed");
@@ -68,7 +68,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<smalltalk::ast::Sequence>)
+        root->type != &cursiv::kAstTypeTag<smalltalk::ast::Sequence>)
       return fail(path.string() + ": built no Sequence root");
 
     if (path.filename() == "temps-and-blocks.st")
@@ -83,31 +83,31 @@ int main() {
   if (sample->statements.size() != 3)
     return fail("temps-and-blocks.st: wrong statement count");
   if (sample->answer == nullptr ||
-      sample->answer->type != &cursiv::ast_type_tag<smalltalk::ast::VarRef>)
+      sample->answer->type != &cursiv::kAstTypeTag<smalltalk::ast::VarRef>)
     return fail("temps-and-blocks.st: wrong answer");
   if (static_cast<const smalltalk::ast::VarRef*>(sample->answer)->name != "sum")
     return fail("temps-and-blocks.st: answer names the wrong variable");
 
   const cursiv::AstNode* const first = sample->statements[0];
-  if (first->type != &cursiv::ast_type_tag<smalltalk::ast::Assignment>)
+  if (first->type != &cursiv::kAstTypeTag<smalltalk::ast::Assignment>)
     return fail("temps-and-blocks.st: first statement is not an assignment");
   const auto& assign = *static_cast<const smalltalk::ast::Assignment*>(first);
   if (assign.name != "sum") return fail("temps-and-blocks.st: wrong lhs");
   if (assign.value->type !=
-      &cursiv::ast_type_tag<smalltalk::ast::NumberLiteral>)
+      &cursiv::kAstTypeTag<smalltalk::ast::NumberLiteral>)
     return fail("temps-and-blocks.st: wrong rhs type");
   if (static_cast<const smalltalk::ast::NumberLiteral*>(assign.value)->value !=
       0.0)
     return fail("temps-and-blocks.st: wrong rhs value");
 
   const cursiv::AstNode* const third = sample->statements[2];
-  if (third->type != &cursiv::ast_type_tag<smalltalk::ast::MessageSend>)
+  if (third->type != &cursiv::kAstTypeTag<smalltalk::ast::MessageSend>)
     return fail("temps-and-blocks.st: third statement is not a send");
   const auto& send = *static_cast<const smalltalk::ast::MessageSend*>(third);
   if (send.selectorParts.size() != 1 || send.selectorParts[0] != "do:")
     return fail("temps-and-blocks.st: wrong selector");
   if (send.args.size() != 1 ||
-      send.args[0]->type != &cursiv::ast_type_tag<smalltalk::ast::Block>)
+      send.args[0]->type != &cursiv::kAstTypeTag<smalltalk::ast::Block>)
     return fail("temps-and-blocks.st: wrong argument");
   const auto& block = *static_cast<const smalltalk::ast::Block*>(send.args[0]);
   if (block.params.size() != 1 || block.params[0] != "each")

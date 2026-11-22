@@ -9,7 +9,7 @@
 namespace dot {
 
 void install_core_module(DotCoreServices& services) {
-  dot::generated::Dot::install_generated_module(services);
+  dot::generated::Dot::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -30,7 +30,7 @@ bool check(const fs::path &file) {
   const std::string text((std::istreambuf_iterator<char>(stream)),
                          std::istreambuf_iterator<char>());
 
-  const auto language = cursiv::create_language<json::JsonCoreServices,
+  const auto language = cursiv::createLanguage<json::JsonCoreServices,
                                                 json::JsonSharedCoreServices,
                                                 json::install_core_module>();
 
@@ -42,7 +42,7 @@ bool check(const fs::path &file) {
   }
 
   const cursiv::AstNode *const root = result.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<json::ast::Doc>) {
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<json::ast::Doc>) {
     std::fprintf(stderr, "json: %s: did not build a Doc\n",
                  file.string().c_str());
     return false;
@@ -63,7 +63,7 @@ int main() {
 
   {
     const auto audit_language =
-        cursiv::create_language<json::JsonCoreServices,
+        cursiv::createLanguage<json::JsonCoreServices,
                                 json::JsonSharedCoreServices,
                                 json::install_core_module>();
     const auto audit_result =

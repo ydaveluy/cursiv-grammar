@@ -56,7 +56,7 @@ int checkDir(const cursiv::CoreLanguage<upnp::UpnpCoreServices,
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<upnp::ast::SearchCrit>) {
+        root->type != &cursiv::kAstTypeTag<upnp::ast::SearchCrit>) {
       fail(entry.path().string() + ": built no SearchCrit");
       return -1;
     }
@@ -68,7 +68,7 @@ int checkDir(const cursiv::CoreLanguage<upnp::UpnpCoreServices,
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       upnp::UpnpCoreServices, upnp::UpnpSharedCoreServices,
       upnp::install_core_module>();
 

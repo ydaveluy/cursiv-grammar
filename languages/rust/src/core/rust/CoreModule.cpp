@@ -9,7 +9,7 @@
 namespace rust {
 
 void install_core_module(RustCoreServices& services) {
-  rust::generated::Rust::install_generated_module(services);
+  rust::generated::Rust::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

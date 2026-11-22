@@ -9,7 +9,7 @@
 namespace pdn {
 
 void install_core_module(PdnCoreServices& services) {
-  pdn::generated::Pdn::install_generated_module(services);
+  pdn::generated::Pdn::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

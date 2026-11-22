@@ -5,7 +5,7 @@
 #include "typescript/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       typescript::TypeScriptSharedServices>(
       argc, argv, "typescript-lsp", &typescript::register_lsp_services);
 }

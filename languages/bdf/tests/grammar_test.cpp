@@ -25,7 +25,7 @@ int fail(const char* path, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       bdf::BdfCoreServices,
       bdf::BdfSharedCoreServices,
       bdf::install_core_module>();
@@ -52,7 +52,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<bdf::ast::Font>) {
+        root->type != &cursiv::kAstTypeTag<bdf::ast::Font>) {
       failures += fail(path.c_str(), "the parse built no font");
       continue;
     }

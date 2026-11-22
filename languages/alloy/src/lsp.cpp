@@ -5,7 +5,7 @@
 #include "alloy/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       alloy::AlloySharedServices>(
       argc, argv, "alloy-lsp", &alloy::register_lsp_services);
 }

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<sqlite::SqliteCoreServices,
+    &cursiv::registerLanguage<sqlite::SqliteCoreServices,
                            sqlite::SqliteSharedCoreServices,
                            sqlite::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<sqlite::SqliteSharedCoreServices>(
+  return cursiv::runCli<sqlite::SqliteSharedCoreServices>(
       argc, argv, kRegister);
 }

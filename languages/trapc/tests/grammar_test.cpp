@@ -29,7 +29,7 @@ std::string read_file(const std::filesystem::path& path) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       trapc::TrapcCoreServices, trapc::TrapcSharedCoreServices,
       trapc::install_core_module>();
   if (!trapc_followup::run(language)) return 1;
@@ -62,7 +62,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<trapc::ast::TranslationUnit>) {
+        root->type != &cursiv::kAstTypeTag<trapc::ast::TranslationUnit>) {
       std::fprintf(stderr, "trapc: %s built no translation unit\n",
                    path.filename().c_str());
       ++failures;

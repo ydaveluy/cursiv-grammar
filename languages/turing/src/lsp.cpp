@@ -5,7 +5,7 @@
 #include "turing/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       turing::TuringSharedServices>(
       argc, argv, "turing-lsp", &turing::register_lsp_services);
 }

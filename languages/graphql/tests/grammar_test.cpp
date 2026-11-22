@@ -33,7 +33,7 @@ std::string read_file(const char *path) {
 }
 
 template <class T> const T *as(const cursiv::AstNode *node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>)
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>)
     return nullptr;
   return static_cast<const T *>(node);
 }
@@ -88,7 +88,7 @@ directive @custom on | FIELD | QUERY
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<graphql::GraphqlCoreServices,
+        cursiv::createLanguage<graphql::GraphqlCoreServices,
                                 graphql::GraphqlSharedCoreServices,
                                 graphql::install_core_module>();
     const auto audit_result =
@@ -102,7 +102,7 @@ int main() {
 
   {
     const auto audit_language =
-        cursiv::create_language<graphql::GraphqlCoreServices,
+        cursiv::createLanguage<graphql::GraphqlCoreServices,
                                 graphql::GraphqlSharedCoreServices,
                                 graphql::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -123,7 +123,7 @@ int main() {
   }
 
   const auto language =
-      cursiv::create_language<graphql::GraphqlCoreServices,
+      cursiv::createLanguage<graphql::GraphqlCoreServices,
                               graphql::GraphqlSharedCoreServices,
                               graphql::install_core_module>();
   const cursiv::Parser &parser = *language.language.parser;

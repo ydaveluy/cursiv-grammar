@@ -14,7 +14,7 @@
 namespace teal_interfaces {
 inline bool run() {
   namespace a = teal::ast;
-  const auto services = cursiv::create_language<teal::TealCoreServices,
+  const auto services = cursiv::createLanguage<teal::TealCoreServices,
       teal::TealSharedCoreServices, teal::install_core_module>();
   const auto& language = services.language;
   bool ok = true;

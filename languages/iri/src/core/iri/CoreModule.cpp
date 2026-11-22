@@ -9,7 +9,7 @@
 namespace iri {
 
 void install_core_module(IriCoreServices& services) {
-  iri::generated::Iri::install_generated_module(services);
+  iri::generated::Iri::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -24,7 +24,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 
 int main() {
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       pii::PiiCoreServices, pii::PiiSharedCoreServices,
       pii::install_core_module>();
 
@@ -56,7 +56,7 @@ int main() {
       continue;
     }
     if (test.source[0] == 'S') {
-      if (doc->id->type != &cursiv::ast_type_tag<pii::ast::Issn>) {
+      if (doc->id->type != &cursiv::kAstTypeTag<pii::ast::Issn>) {
         failures += fail(test.source, "wrong journal identifier type");
         continue;
       }
@@ -64,7 +64,7 @@ int main() {
       if (id.digits != test.identifier || id.year != test.year)
         failures += fail(test.source, "wrong ISSN/year capture");
     } else {
-      if (doc->id->type != &cursiv::ast_type_tag<pii::ast::Isbn> ||
+      if (doc->id->type != &cursiv::kAstTypeTag<pii::ast::Isbn> ||
           static_cast<const pii::ast::Isbn*>(doc->id)->digits != test.identifier)
         failures += fail(test.source, "wrong ISBN capture");
     }
@@ -104,7 +104,7 @@ int main() {
     }
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<pii::ast::Doc>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<pii::ast::Doc>)
       failures += fail(file, "the parse built no Doc");
   }
 

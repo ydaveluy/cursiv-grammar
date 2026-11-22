@@ -34,7 +34,7 @@ std::string read_file(const char* path) {
 
 int main() {
   const auto language =
-      cursiv::create_language<atl::AtlCoreServices, atl::AtlSharedCoreServices,
+      cursiv::createLanguage<atl::AtlCoreServices, atl::AtlSharedCoreServices,
                               atl::install_core_module>();
   if (!atl_assignment_regressions::run(*language.language.parser)) return 1;
   if (!atl_drop_reverse::run(language.language)) return 1;
@@ -138,7 +138,7 @@ int main() {
   const cursiv::ParseResult moduleResult =
       language.language.parser->parse(texts[0]);
   const cursiv::AstNode* const root = moduleResult.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<atl::ast::Module>)
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<atl::ast::Module>)
     return fail("module.atl did not build a Module");
 
   const auto& module = *static_cast<const atl::ast::Module*>(root);
@@ -155,10 +155,10 @@ int main() {
   const atl::ast::MatchedRule* man = nullptr;
   const atl::ast::CalledRule* main = nullptr;
   for (const atl::ast::ModuleElement* const elem : module.elements) {
-    if (elem->type == &cursiv::ast_type_tag<atl::ast::MatchedRule>) {
+    if (elem->type == &cursiv::kAstTypeTag<atl::ast::MatchedRule>) {
       const auto& rule = *static_cast<const atl::ast::MatchedRule*>(elem);
       if (rule.name == "Man") man = &rule;
-    } else if (elem->type == &cursiv::ast_type_tag<atl::ast::CalledRule>) {
+    } else if (elem->type == &cursiv::kAstTypeTag<atl::ast::CalledRule>) {
       const auto& rule = *static_cast<const atl::ast::CalledRule*>(elem);
       if (rule.name == "Main") main = &rule;
     }
@@ -196,11 +196,11 @@ int main() {
     if (result.cst().recovered() || !result.diagnostics.empty())
       return fail("a precedence probe does not parse clean");
     if (result.value == nullptr ||
-        result.value->type != &cursiv::ast_type_tag<atl::ast::Query>)
+        result.value->type != &cursiv::kAstTypeTag<atl::ast::Query>)
       return fail("a precedence probe did not build a Query");
     const auto& query = *static_cast<const atl::ast::Query*>(result.value);
     if (query.body == nullptr ||
-        query.body->type != &cursiv::ast_type_tag<atl::ast::BinaryExpr>)
+        query.body->type != &cursiv::kAstTypeTag<atl::ast::BinaryExpr>)
       return fail("a precedence probe's body is not a BinaryExpr");
     const auto& root = *static_cast<const atl::ast::BinaryExpr*>(query.body);
     if (root.op != probe.rootOp || !cursiv::ast_cast<atl::ast::BinaryExpr>(root.left))

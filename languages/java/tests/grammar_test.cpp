@@ -31,7 +31,7 @@ int fail(const std::string &what) {
 class InputSpy final : public cursiv::Parser {
 public:
   explicit InputSpy(std::string &seen)
-      : seen(seen), lexical(java::generated::Java::create_parser()) {}
+      : seen(seen), lexical(java::generated::Java::createParser()) {}
   const cursiv::Grammar &getGrammar() const noexcept override {
     return lexical->getGrammar();
   }
@@ -55,7 +55,7 @@ bool clean(const cursiv::ParseResult &result) {
 
 int unicode_regressions() {
   std::string seen;
-  const auto spy = cursiv::translating_parser(std::make_unique<InputSpy>(seen),
+  const auto spy = cursiv::translatingParser(std::make_unique<InputSpy>(seen),
                                               java::translate_unicode_escapes);
   for (const auto &test : unicode_input_cases) {
     const auto result = spy->parse(test.input);
@@ -63,11 +63,11 @@ int unicode_regressions() {
         result.cst().text() != test.input)
       return fail(std::string("UnicodeReader translation: ") + test.name);
   }
-  const auto language = cursiv::create_language<java::JavaCoreServices,
+  const auto language = cursiv::createLanguage<java::JavaCoreServices,
                                                 java::JavaSharedCoreServices,
                                                 java::install_core_module>();
   const auto &parser = *language.language.parser;
-  const auto lexical = java::generated::Java::create_parser();
+  const auto lexical = java::generated::Java::createParser();
   const struct {
     std::string_view source, name;
   } classes[] = {
@@ -88,8 +88,8 @@ int unicode_regressions() {
         decl = c;
     if (!clean(result) || !decl || decl->name != test.name)
       return fail("Unicode keyword/comment/identifier AST");
-    if (result.cst().text() != test.source || !result.cst().engineStamped())
-      return fail("Unicode CST must retain original source and engine stamps");
+    if (result.cst().text() != test.source || result.cst().grammar() == nullptr)
+      return fail("Unicode CST must retain original source and grammar");
     const auto observed = spy->parse(test.source);
     const auto decoded = lexical->parse(seen);
     if (result.cst().size() != decoded.cst().size() ||
@@ -98,12 +98,12 @@ int unicode_regressions() {
     bool name = false;
     for (cursiv::NodeId id = 0; id < result.cst().size(); ++id) {
       const auto &n = result.cst()[id];
-      if (n.engine != decoded.cst()[id].engine ||
+      if (n.engine() != decoded.cst()[id].engine() ||
           n.subtreeSize != decoded.cst()[id].subtreeSize ||
           result.cst().grammar()->recordRule(n) !=
               decoded.cst().grammar()->recordRule(decoded.cst()[id]) ||
-          result.cst().grammar()->recordFeature(n) !=
-              decoded.cst().grammar()->recordFeature(decoded.cst()[id]))
+          result.cst().grammar()->recordProperty(n) !=
+              decoded.cst().grammar()->recordProperty(decoded.cst()[id]))
         return fail("Unicode CST stamps/subtrees/grammar delegation");
       if (n.begin > n.end || n.end > test.source.size() ||
           (id && n.end < result.cst()[id - 1].end))
@@ -144,7 +144,7 @@ int unicode_regressions() {
   // parse and destruction of the service/parser, and across move assignment.
   const std::string shortSource = R"(class \u0054{})";
   cursiv::ParseResult retained = [&] {
-    const auto temporary = cursiv::create_language<java::JavaCoreServices,
+    const auto temporary = cursiv::createLanguage<java::JavaCoreServices,
                                                    java::JavaSharedCoreServices,
                                                    java::install_core_module>();
     auto first = temporary.language.parser->parse(shortSource);
@@ -224,7 +224,7 @@ int main() {
     return error;
   {
     const auto audit_language =
-        cursiv::create_language<java::JavaCoreServices,
+        cursiv::createLanguage<java::JavaCoreServices,
                                 java::JavaSharedCoreServices,
                                 java::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -243,7 +243,7 @@ int main() {
       return 1;
   }
 
-  const auto language = cursiv::create_language<java::JavaCoreServices,
+  const auto language = cursiv::createLanguage<java::JavaCoreServices,
                                                 java::JavaSharedCoreServices,
                                                 java::install_core_module>();
   if (!java_native_followup::run(language)) return 1;
@@ -272,7 +272,7 @@ int main() {
 
       const cursiv::AstNode *const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<java::ast::CompilationUnit>)
+          root->type != &cursiv::kAstTypeTag<java::ast::CompilationUnit>)
         return fail(entry.path().filename().string() +
                     " built no compilation unit");
       ++count;

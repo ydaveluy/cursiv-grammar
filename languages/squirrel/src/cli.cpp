@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<squirrel::SquirrelCoreServices,
+    &cursiv::registerLanguage<squirrel::SquirrelCoreServices,
                            squirrel::SquirrelSharedCoreServices,
                            squirrel::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<squirrel::SquirrelSharedCoreServices>(
+  return cursiv::runCli<squirrel::SquirrelSharedCoreServices>(
       argc, argv, kRegister);
 }

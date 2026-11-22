@@ -26,7 +26,7 @@ int fail(const std::string& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       istc::IstcCoreServices, istc::IstcSharedCoreServices,
       istc::install_core_module>();
 
@@ -85,7 +85,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<istc::ast::Istc>)
+          root->type != &cursiv::kAstTypeTag<istc::ast::Istc>)
         return fail(path, "the parse built no Istc");
 
       const auto& node = *static_cast<const istc::ast::Istc*>(root);

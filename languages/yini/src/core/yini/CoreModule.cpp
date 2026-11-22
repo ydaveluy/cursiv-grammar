@@ -9,7 +9,7 @@
 namespace yini {
 
 void install_core_module(YiniCoreServices& services) {
-  yini::generated::Yini::install_generated_module(services);
+  yini::generated::Yini::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

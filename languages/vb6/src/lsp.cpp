@@ -5,7 +5,7 @@
 #include "vb6/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       vb6::Vb6SharedServices>(
       argc, argv, "vb6-lsp", &vb6::register_lsp_services);
 }

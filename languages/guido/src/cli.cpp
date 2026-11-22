@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<guido::GuidoCoreServices,
+    &cursiv::registerLanguage<guido::GuidoCoreServices,
                            guido::GuidoSharedCoreServices,
                            guido::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<guido::GuidoSharedCoreServices>(
+  return cursiv::runCli<guido::GuidoSharedCoreServices>(
       argc, argv, kRegister);
 }

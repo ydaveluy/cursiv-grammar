@@ -5,7 +5,7 @@
 #include "lark/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       lark::LarkSharedServices>(
       argc, argv, "lark-lsp", &lark::register_lsp_services);
 }

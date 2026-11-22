@@ -15,7 +15,7 @@
 namespace audit_regressions {
 inline void run() {
   namespace ast = alloy::ast;
-  const auto language = cursiv::create_language<alloy::AlloyCoreServices,
+  const auto language = cursiv::createLanguage<alloy::AlloyCoreServices,
                                                 alloy::AlloySharedCoreServices,
                                                 alloy::install_core_module>();
   const std::string source =

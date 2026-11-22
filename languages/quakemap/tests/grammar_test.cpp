@@ -48,7 +48,7 @@ int failed_expectation(const char* expectation, const cursiv::ParseResult& r) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       quakemap::QuakemapCoreServices, quakemap::QuakemapSharedCoreServices,
       quakemap::install_core_module>();
 
@@ -151,7 +151,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<quakemap::ast::Map>) {
+          root->type != &cursiv::kAstTypeTag<quakemap::ast::Map>) {
         fail(path, "the parse built no Map");
         ++failures;
       }

@@ -147,15 +147,15 @@ void PromqlValidator::checkTimestampTarget(
   const ast::Expression* operand = node.operand;
   while (const auto* modified = cursiv::ast_cast<ast::RangeModifier>(operand))
     operand = modified->operand;
-  if (operand && operand->type != &cursiv::ast_type_tag<ast::Selector> &&
-      operand->type != &cursiv::ast_type_tag<ast::Subquery>)
+  if (operand && operand->type != &cursiv::kAstTypeTag<ast::Selector> &&
+      operand->type != &cursiv::kAstTypeTag<ast::Subquery>)
     accept.error(node,
                  "The @ modifier applies to a vector selector or subquery.");
   const auto* unary = cursiv::ast_cast<ast::UnaryExpr>(node.timestamp);
   if (node.timestamp &&
-      node.timestamp->type != &cursiv::ast_type_tag<ast::NumberLit> &&
-      node.timestamp->type != &cursiv::ast_type_tag<ast::DurationLit> &&
-      node.timestamp->type != &cursiv::ast_type_tag<ast::TimestampBoundary> &&
+      node.timestamp->type != &cursiv::kAstTypeTag<ast::NumberLit> &&
+      node.timestamp->type != &cursiv::kAstTypeTag<ast::DurationLit> &&
+      node.timestamp->type != &cursiv::kAstTypeTag<ast::TimestampBoundary> &&
       !(unary && (cursiv::ast_cast<ast::NumberLit>(unary->operand) ||
                   cursiv::ast_cast<ast::DurationLit>(unary->operand))))
     accept.error(node, "The @ timestamp must be a number, start() or end().")

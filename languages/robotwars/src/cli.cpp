@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<robotwars::RobotwarsCoreServices,
+    &cursiv::registerLanguage<robotwars::RobotwarsCoreServices,
                            robotwars::RobotwarsSharedCoreServices,
                            robotwars::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<robotwars::RobotwarsSharedCoreServices>(
+  return cursiv::runCli<robotwars::RobotwarsSharedCoreServices>(
       argc, argv, kRegister);
 }

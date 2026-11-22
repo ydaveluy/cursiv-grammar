@@ -2,6 +2,6 @@
 #include "geekcode/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       geekcode::GeekcodeSharedServices, geekcode::register_lsp_services>(argc, argv);
 }

@@ -5,7 +5,7 @@
 #include "powerbuilderdw/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       powerbuilderdw::PowerbuilderdwSharedServices>(
       argc, argv, "powerbuilderdw-lsp", &powerbuilderdw::register_lsp_services);
 }

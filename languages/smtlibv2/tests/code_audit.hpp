@@ -11,10 +11,10 @@
 namespace code_audit {
 namespace ast = smtlibv2::ast;
 inline bool run() {
-  auto language = cursiv::create_language<smtlibv2::Smtlibv2CoreServices,
+  auto language = cursiv::createLanguage<smtlibv2::Smtlibv2CoreServices,
                                           smtlibv2::Smtlibv2SharedCoreServices,
                                           smtlibv2::install_core_module>();
-  auto reflection = smtlibv2::generated::Smtlibv2::create_ast_reflection();
+  auto reflection = smtlibv2::generated::Smtlibv2::createAstReflection();
   bool ok = true;
   auto check = [&](bool b, const char* s) {
     if (!b) {

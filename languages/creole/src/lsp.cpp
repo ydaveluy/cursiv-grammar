@@ -5,7 +5,7 @@
 #include "creole/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       creole::CreoleSharedServices>(
       argc, argv, "creole-lsp", &creole::register_lsp_services);
 }

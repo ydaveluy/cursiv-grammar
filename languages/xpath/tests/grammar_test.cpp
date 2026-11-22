@@ -35,7 +35,7 @@ std::string read_file(const fs::path& path) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       xpath::XpathCoreServices, xpath::XpathSharedCoreServices,
       xpath::install_core_module>();
 
@@ -61,7 +61,7 @@ int main() {
       return fail(doc.string() + ": the parse left diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<xpath::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<xpath::ast::Document>)
       return fail(doc.string() + ": the parse built no document");
     if (doc.filename() == "expressions_028.xpath") readback_doc = doc;
   }
@@ -83,13 +83,13 @@ int main() {
   // Each top-level entry is `expr;`, and `expr` always builds a
   // SequenceExpr (even for one item), so the interesting node is inside it.
   for (const xpath::ast::Expr* const stmt : doc.expressions) {
-    if (stmt->type != &cursiv::ast_type_tag<xpath::ast::SequenceExpr>)
+    if (stmt->type != &cursiv::kAstTypeTag<xpath::ast::SequenceExpr>)
       continue;
     for (const xpath::ast::Expr* const expr :
         static_cast<const xpath::ast::SequenceExpr*>(stmt)->items) {
-      if (expr->type == &cursiv::ast_type_tag<xpath::ast::ArrowExpr>)
+      if (expr->type == &cursiv::kAstTypeTag<xpath::ast::ArrowExpr>)
         found_arrow = true;
-      if (expr->type->derivesFrom(&cursiv::ast_type_tag<xpath::ast::TreatExpr>))
+      if (expr->type->derivesFrom(&cursiv::kAstTypeTag<xpath::ast::TreatExpr>))
         found_treat = true;
     }
   }
@@ -108,12 +108,12 @@ int main() {
         *static_cast<const xpath::ast::Document*>(ktResult.value);
     if (ktDoc.expressions.size() != 1 ||
         ktDoc.expressions[0]->type !=
-            &cursiv::ast_type_tag<xpath::ast::SequenceExpr>)
+            &cursiv::kAstTypeTag<xpath::ast::SequenceExpr>)
       return fail("text(): wrong shape");
     const auto& seq =
         *static_cast<const xpath::ast::SequenceExpr*>(ktDoc.expressions[0]);
     if (seq.items.size() != 1 ||
-        seq.items[0]->type != &cursiv::ast_type_tag<xpath::ast::AxisStep>)
+        seq.items[0]->type != &cursiv::kAstTypeTag<xpath::ast::AxisStep>)
       return fail("text(): did not read as a kind test");
   }
 

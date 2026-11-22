@@ -5,7 +5,7 @@
 #include "csharp/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       csharp::CSharpSharedServices>(
       argc, argv, "csharp-lsp", &csharp::register_lsp_services);
 }

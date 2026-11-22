@@ -18,7 +18,7 @@ namespace code_audit {
 namespace ast = pgn::ast;
 inline bool run() {
   auto language =
-      cursiv::create_language<pgn::PgnCoreServices, pgn::PgnSharedCoreServices,
+      cursiv::createLanguage<pgn::PgnCoreServices, pgn::PgnSharedCoreServices,
                               pgn::install_core_module>();
   bool ok = true;
   auto check = [&](bool b, const char* message) {

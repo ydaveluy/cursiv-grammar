@@ -9,7 +9,7 @@
 namespace toml {
 
 void install_core_module(TomlCoreServices& services) {
-  toml::generated::Toml::install_generated_module(services);
+  toml::generated::Toml::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

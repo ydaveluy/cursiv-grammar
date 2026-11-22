@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<aql::AqlCoreServices,
+    &cursiv::registerLanguage<aql::AqlCoreServices,
                            aql::AqlSharedCoreServices,
                            aql::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<aql::AqlSharedCoreServices>(
+  return cursiv::runCli<aql::AqlSharedCoreServices>(
       argc, argv, kRegister);
 }

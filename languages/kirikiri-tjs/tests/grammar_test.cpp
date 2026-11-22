@@ -38,7 +38,7 @@ std::string read_file(const std::filesystem::path &path) {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<kirikiritjs::KirikiriTjsCoreServices,
+        cursiv::createLanguage<kirikiritjs::KirikiriTjsCoreServices,
                                 kirikiritjs::KirikiriTjsSharedCoreServices,
                                 kirikiritjs::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -83,7 +83,7 @@ int main() {
       files.push_back(entry.path());
 
   const auto language =
-      cursiv::create_language<kirikiritjs::KirikiriTjsCoreServices,
+      cursiv::createLanguage<kirikiritjs::KirikiriTjsCoreServices,
                               kirikiritjs::KirikiriTjsSharedCoreServices,
                               kirikiritjs::install_core_module>();
   if (!tjs_lexical_cases::run(*language.language.parser))
@@ -141,7 +141,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<kirikiritjs::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<kirikiritjs::ast::Program>)
       return fail(path.string() + ": the parse built no program");
 
     const auto &program = *static_cast<const kirikiritjs::ast::Program *>(root);
@@ -153,13 +153,13 @@ int main() {
         if (stmt == nullptr)
           continue;
         if (stmt->type ==
-            &cursiv::ast_type_tag<kirikiritjs::ast::FunctionDecl>) {
+            &cursiv::kAstTypeTag<kirikiritjs::ast::FunctionDecl>) {
           const auto &fn =
               *static_cast<const kirikiritjs::ast::FunctionDecl *>(stmt);
           if (!fn.name.empty())
             sawFunctionDecl = true;
         }
-        if (stmt->type == &cursiv::ast_type_tag<kirikiritjs::ast::ClassDecl>) {
+        if (stmt->type == &cursiv::kAstTypeTag<kirikiritjs::ast::ClassDecl>) {
           const auto &cls =
               *static_cast<const kirikiritjs::ast::ClassDecl *>(stmt);
           if (!cls.name.empty())
@@ -187,12 +187,12 @@ int main() {
     const auto &stmt =
         *static_cast<const kirikiritjs::ast::ExprStmt *>(program.body[0]);
     const cursiv::AstNode *const outer = stmt.expressions[0];
-    if (outer->type != &cursiv::ast_type_tag<kirikiritjs::ast::AssignExpr>)
+    if (outer->type != &cursiv::kAstTypeTag<kirikiritjs::ast::AssignExpr>)
       return fail("'a = b = c;' did not build an assignment");
     const auto &outerAssign =
         *static_cast<const kirikiritjs::ast::AssignExpr *>(outer);
     if (outerAssign.value->type !=
-        &cursiv::ast_type_tag<kirikiritjs::ast::AssignExpr>)
+        &cursiv::kAstTypeTag<kirikiritjs::ast::AssignExpr>)
       return fail("'a = b = c;' is not right-associative: value is not itself "
                   "an assignment");
     const auto &innerAssign =
@@ -215,18 +215,18 @@ int main() {
     const auto &assign =
         *static_cast<const kirikiritjs::ast::AssignExpr *>(stmt.expressions[0]);
     if (assign.value->type !=
-        &cursiv::ast_type_tag<kirikiritjs::ast::BinaryExpr>)
+        &cursiv::kAstTypeTag<kirikiritjs::ast::BinaryExpr>)
       return fail("'(int) a + 1' is not '((int) a) + 1': value is not a "
                   "top-level '+'");
     const auto &plus =
         *static_cast<const kirikiritjs::ast::BinaryExpr *>(assign.value);
     if (plus.left->type !=
-        &cursiv::ast_type_tag<kirikiritjs::ast::TypeConvertExpr>)
+        &cursiv::kAstTypeTag<kirikiritjs::ast::TypeConvertExpr>)
       return fail("'(int) a + 1': left of '+' is not the cast -- it binds "
                   "looser than documented");
     const auto &cast =
         *static_cast<const kirikiritjs::ast::TypeConvertExpr *>(plus.left);
-    if (cast.operand->type != &cursiv::ast_type_tag<kirikiritjs::ast::Ident>)
+    if (cast.operand->type != &cursiv::kAstTypeTag<kirikiritjs::ast::Ident>)
       return fail("'(int) a + 1': cast operand is not the plain name 'a'");
   }
 

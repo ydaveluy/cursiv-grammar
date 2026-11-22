@@ -9,7 +9,7 @@
 namespace fol {
 
 void install_core_module(FolCoreServices& services) {
-  fol::generated::Fol::install_generated_module(services);
+  fol::generated::Fol::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

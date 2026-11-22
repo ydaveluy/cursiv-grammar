@@ -29,7 +29,7 @@ int fail(const std::string &what) {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<fortran::FortranCoreServices,
+        cursiv::createLanguage<fortran::FortranCoreServices,
                                 fortran::FortranSharedCoreServices,
                                 fortran::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -69,7 +69,7 @@ int main() {
     return fail("no example files found");
 
   const auto language =
-      cursiv::create_language<fortran::FortranCoreServices,
+      cursiv::createLanguage<fortran::FortranCoreServices,
                               fortran::FortranSharedCoreServices,
                               fortran::install_core_module>();
   if (!port_audit::run(*language.language.parser))
@@ -92,7 +92,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<fortran::ast::Model>)
+        root->type != &cursiv::kAstTypeTag<fortran::ast::Model>)
       return fail(path.string() + ": the parse built no model");
   }
 
@@ -118,21 +118,21 @@ int main() {
         return fail(probe.text);
       const auto &unit =
           *static_cast<const fortran::ast::MainProgramUnit *>(model.units[0]);
-      if (unit.type != &cursiv::ast_type_tag<fortran::ast::MainProgramUnit> ||
+      if (unit.type != &cursiv::kAstTypeTag<fortran::ast::MainProgramUnit> ||
           unit.body.empty())
         return fail(probe.text);
       const auto &stmt =
           *static_cast<const fortran::ast::AssignStmt *>(unit.body[0]);
-      if (stmt.type != &cursiv::ast_type_tag<fortran::ast::AssignStmt>)
+      if (stmt.type != &cursiv::kAstTypeTag<fortran::ast::AssignStmt>)
         return fail(probe.text);
       if (probe.topIsUnary) {
-        if (stmt.value->type != &cursiv::ast_type_tag<fortran::ast::UnaryExpr>)
+        if (stmt.value->type != &cursiv::kAstTypeTag<fortran::ast::UnaryExpr>)
           return fail(probe.text);
         const auto &top =
             *static_cast<const fortran::ast::UnaryExpr *>(stmt.value);
         if (top.op != probe.topOp ||
             top.operand->type !=
-                &cursiv::ast_type_tag<fortran::ast::BinaryExpr>)
+                &cursiv::kAstTypeTag<fortran::ast::BinaryExpr>)
           return fail(probe.text);
       }
     }

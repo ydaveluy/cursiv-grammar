@@ -12,7 +12,7 @@
 namespace alef {
 
 void install_core_module(AlefCoreServices& services) {
-  alef::generated::Alef::install_generated_module(services);
+  alef::generated::Alef::installGeneratedModule(services);
   services.scopeComputation = std::make_unique<AlefScopeComputation>(services);
   register_validation_checks(services);
 }

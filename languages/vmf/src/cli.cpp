@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<vmf::VmfCoreServices,
+    &cursiv::registerLanguage<vmf::VmfCoreServices,
                            vmf::VmfSharedCoreServices,
                            vmf::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<vmf::VmfSharedCoreServices>(
+  return cursiv::runCli<vmf::VmfSharedCoreServices>(
       argc, argv, kRegister);
 }

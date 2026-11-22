@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<itn::ItnCoreServices,
+    &cursiv::registerLanguage<itn::ItnCoreServices,
                            itn::ItnSharedCoreServices,
                            itn::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<itn::ItnSharedCoreServices>(
+  return cursiv::runCli<itn::ItnSharedCoreServices>(
       argc, argv, kRegister);
 }

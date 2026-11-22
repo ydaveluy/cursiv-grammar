@@ -9,7 +9,7 @@
 namespace antlr {
 
 void install_core_module(AntlrCoreServices& services) {
-  antlr::generated::Antlr::install_generated_module(services);
+  antlr::generated::Antlr::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace turing {
 
 void install_core_module(TuringCoreServices& services) {
-  turing::generated::Turing::install_generated_module(services);
+  turing::generated::Turing::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

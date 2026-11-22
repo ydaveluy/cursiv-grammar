@@ -155,7 +155,7 @@ std::string_view literalError(std::string_view text, char quote) {
     bool unicode = false;
     if (c != '\\') {
       std::size_t width = 0;
-      const auto scalar = cursiv::scalar_at(text.data() + i, end - i, width);
+      const auto scalar = cursiv::scalarAt(text.data() + i, end - i, width);
       if (scalar == cursiv::kNoScalar) {
         if (!prefix.empty())
           return "The literal contains an invalid UTF-8 sequence.";

@@ -9,7 +9,7 @@
 namespace powerquery {
 
 void install_core_module(PowerqueryCoreServices& services) {
-  powerquery::generated::Powerquery::install_generated_module(services);
+  powerquery::generated::Powerquery::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

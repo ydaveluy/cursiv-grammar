@@ -9,7 +9,7 @@
 namespace spl {
 
 void install_core_module(SplCoreServices& services) {
-  spl::generated::Spl::install_generated_module(services);
+  spl::generated::Spl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

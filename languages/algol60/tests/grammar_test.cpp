@@ -25,7 +25,7 @@ namespace fs = std::filesystem;
 namespace ast = algol60::ast;
 
 const auto& language() {
-  static const auto language = cursiv::create_language<
+  static const auto language = cursiv::createLanguage<
       algol60::Algol60CoreServices, algol60::Algol60SharedCoreServices,
       algol60::install_core_module>();
   return language.language;
@@ -57,7 +57,7 @@ void corpus_parses_clean() {
   CHECK(!files.empty());
   for (const fs::path& path : files) {
     if (path.filename() == "primes.a60") continue;
-    const std::string text = cursiv::test::read_file(path.string());
+    const std::string text = cursiv::test::readFile(path.string());
     CHECK(!text.empty());
     const cursiv::ParseResult result = engine().parse(text);
     CHECK(result.accepted);
@@ -73,7 +73,7 @@ void corpus_parses_clean() {
 void jensen_ast() {
   const std::string path =
       std::string(CURSIV_EXAMPLE_DIR) + "/jensen.a60";
-  const std::string text = cursiv::test::read_file(path);
+  const std::string text = cursiv::test::readFile(path);
   CHECK(!text.empty());
   const cursiv::ParseResult result = engine().parse(text);
   CHECK(result.accepted && !result.cst().recovered());
@@ -204,7 +204,7 @@ void gap_coverage() {
                                "parameter_delimiter.a60"};
   for (const char* name : names) {
     const std::string path = std::string(CURSIV_TEST_DIR) + "/" + name;
-    const std::string text = cursiv::test::read_file(path);
+    const std::string text = cursiv::test::readFile(path);
     CHECK(!text.empty());
     const cursiv::ParseResult result = engine().parse(text);
     CHECK(result.accepted && !result.cst().recovered());
@@ -216,7 +216,7 @@ void gap_coverage() {
   // value, not read `10` as more mantissa digits.
   const std::string path =
       std::string(CURSIV_TEST_DIR) + "/unicode_and_exponent.a60";
-  const std::string text = cursiv::test::read_file(path);
+  const std::string text = cursiv::test::readFile(path);
   const cursiv::ParseResult result = engine().parse(text);
   ast::Block* root = as<ast::Block>(result.value);
   CHECK(root != nullptr && root->statements.size() >= 3);
@@ -262,20 +262,18 @@ void native_empty_statements_and_division() {
     const auto parsed = engine().parse(source);
     CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
   }
-  const std::string source = "outer: 12: begin x:=7÷2; if true then else end";
+  const std::string source = "outer: 12: begin x:=7÷2/3; if true then else end";
   const auto parsed = engine().parse(source);
   const auto* block = parsed.valueAs<ast::Block>();
   CHECK(parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty());
   CHECK(block && block->labels.size() == 2 && block->labels[0] == "outer" &&
         block->labels[1] == "12" && block->statements.size() == 2);
-  bool division = false, dummy_else = false;
+  bool divisions = false, dummy_else = false;
   for (const auto* node : parsed.nodes()) {
-    if (const auto* binary = cursiv::ast_cast<ast::BinaryExpr>(node)) {
-      division |= binary->op == ast::BinOp::intdiv;
-      if (binary->op != ast::BinOp::intdiv)
-        std::fprintf(stderr, "algol60 division AST: op=%d expected=%d\n",
-                     static_cast<int>(binary->op),
-                     static_cast<int>(ast::BinOp::intdiv));
+    if (const auto* binary = cursiv::ast_cast<ast::BinaryExpr>(node);
+        binary && binary->op == ast::BinOp::div) {
+      const auto* left = cursiv::ast_cast<ast::BinaryExpr>(binary->left);
+      divisions |= left && left->op == ast::BinOp::intdiv;
     }
     if (const auto* conditional = cursiv::ast_cast<ast::IfStmt>(node)) {
       const bool empty_then = as<ast::EmptyStmt>(conditional->then_branch);
@@ -289,9 +287,8 @@ void native_empty_statements_and_division() {
                      conditional->else_branch != nullptr);
     }
   }
-  CHECK(division);
+  CHECK(divisions);
   CHECK(dummy_else);
-  CHECK(division && dummy_else);
 }
 
 }  // namespace

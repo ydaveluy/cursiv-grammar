@@ -39,7 +39,7 @@ std::string read(const fs::path& path) {
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -187,7 +187,7 @@ int check_one(const fs::path& path, const auto& parse) {
   if (!result.diagnostics.empty())
     return fail(path, "the document carries diagnostics");
   const cursiv::AstNode* const root = result.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<cypher::ast::Script>)
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<cypher::ast::Script>)
     return fail(path, "the parse built no Script");
   return 0;
 }
@@ -196,7 +196,7 @@ int check_one(const fs::path& path, const auto& parse) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<cypher::CypherCoreServices,
+      cursiv::createLanguage<cypher::CypherCoreServices,
                               cypher::CypherSharedCoreServices,
                               cypher::install_core_module>();
   {
@@ -244,7 +244,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       cypher::CypherCoreServices, cypher::CypherSharedCoreServices,
       cypher::install_core_module>();
   if (!cypher_legacy::run(language.language)) return 1;

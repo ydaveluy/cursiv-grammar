@@ -5,7 +5,7 @@
 #include "turtle/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       turtle::TurtleSharedServices>(
       argc, argv, "turtle-lsp", &turtle::register_lsp_services);
 }

@@ -9,7 +9,7 @@
 namespace cobol85 {
 
 void install_core_module(Cobol85CoreServices& services) {
-  cobol85::generated::Cobol85::install_generated_module(services);
+  cobol85::generated::Cobol85::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

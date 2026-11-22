@@ -283,6 +283,15 @@ end)
   auto x = cursiv::ast_cast<ast::VarRef>(n);return x && x->name == s;
  };
  {
+  auto r = parser.parse("if x = y do x end");
+  auto block = cursiv::ast_cast<ast::BlockCallExpr>(first(r));
+  auto call = block ? cursiv::ast_cast<ast::CallExpr>(block->callee) : nullptr;
+  auto match = call && call->args.size() == 1 ? cursiv::ast_cast<ast::BinaryExpr>(call->args[0]) : nullptr;
+  check(r.accepted && r.diagnostics.empty() && call && name(call->callee, "if") &&
+        match && match->op == ast::Operator::pattern_match && name(match->left, "x") &&
+        name(match->right, "y"), "the match is an argument of the call that takes the do block");
+ }
+ {
   auto r = parser.parse("2 ** 3 ** 2");auto b = cursiv::ast_cast<ast::BinaryExpr>(first(r));
   auto left = b ? cursiv::ast_cast<ast::BinaryExpr>(b->left) : nullptr;
   check(b && b->op == ast::Operator::power && left && left->op == ast::Operator::power && number(left->left,"2") && number(left->right,"3") && number(b->right,"2"), "power is left associative");
@@ -511,6 +520,14 @@ end)
   check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() &&
         call && name(call->callee, "name") && call->args.empty(),
         "the attribute keeps its own parenthesized call");
+ }
+ {
+  const auto r = parser.parse("@service URI.parse(x)");
+  auto attribute = cursiv::ast_cast<ast::AtExpr>(first(r));
+  auto call = attribute ? cursiv::ast_cast<ast::CallExpr>(attribute->operand) : nullptr;
+  auto arg = call && call->args.size() == 1 ? cursiv::ast_cast<ast::CallExpr>(call->args[0]) : nullptr;
+  check(r.accepted && r.diagnostics.empty() && call && name(call->callee, "service") &&
+        arg && arg->args.size() == 1 && name(arg->args[0], "x"), "the attribute argument keeps its call");
  }
  auto validate = [&](std::string source, std::string_view code, unsigned expected) {
   cursiv::Document d(cursiv::TextDocument::create("file:///audit.ex", "elixir", 0, std::move(source)));

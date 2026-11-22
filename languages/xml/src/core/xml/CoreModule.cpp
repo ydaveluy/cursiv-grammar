@@ -9,7 +9,7 @@
 namespace xml {
 
 void install_core_module(XmlCoreServices& services) {
-  xml::generated::Xml::install_generated_module(services);
+  xml::generated::Xml::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -278,7 +278,7 @@ int comparison_validation(rust::RustCoreServices& language) {
 }  // namespace
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<rust::RustCoreServices,
+  const auto language = cursiv::createLanguage<rust::RustCoreServices,
                                                 rust::RustSharedCoreServices,
                                                 rust::install_core_module>();
   {
@@ -428,7 +428,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       rust::RustCoreServices, rust::RustSharedCoreServices,
       rust::install_core_module>();
 
@@ -458,7 +458,7 @@ int main() {
     }
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<rust::ast::Crate>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<rust::ast::Crate>)
       return fail(path, "the parse built no Crate");
 
     std::printf("rust: %s parses\n", path.c_str());

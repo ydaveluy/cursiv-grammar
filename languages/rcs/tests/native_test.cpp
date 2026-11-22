@@ -14,7 +14,7 @@
 
 int main() {
   const auto language =
-      cursiv::create_language<rcs::RcsCoreServices, rcs::RcsSharedCoreServices,
+      cursiv::createLanguage<rcs::RcsCoreServices, rcs::RcsSharedCoreServices,
                               rcs::install_core_module>();
   unsigned equal = 0;
   for (const auto &c : nativeCases) {

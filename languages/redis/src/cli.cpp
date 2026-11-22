@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<redis::RedisCoreServices,
+    &cursiv::registerLanguage<redis::RedisCoreServices,
                            redis::RedisSharedCoreServices,
                            redis::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<redis::RedisSharedCoreServices>(
+  return cursiv::runCli<redis::RedisSharedCoreServices>(
       argc, argv, kRegister);
 }

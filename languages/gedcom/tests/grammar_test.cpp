@@ -24,7 +24,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       gedcom::GedcomCoreServices, gedcom::GedcomSharedCoreServices,
       gedcom::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("0 HEAD\n1 NOTE caf\u00e9\n1 NOTE @I@\n0 TRLR\n");
@@ -34,7 +34,7 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       gedcom::GedcomCoreServices, gedcom::GedcomSharedCoreServices,
       gedcom::install_core_module>();
 
@@ -66,7 +66,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<gedcom::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<gedcom::ast::Document>) {
       fail(path, "the parse built no Document");
       ++failures;
     }

@@ -43,7 +43,7 @@ void translate_codepoint_escapes(std::string_view source,
       continue;
     }
     std::string spelling;
-    cursiv::append_scalar(spelling, cp);
+    cursiv::appendScalar(spelling, cp);
     out.replace(begin, pos, spelling);
   }
 }

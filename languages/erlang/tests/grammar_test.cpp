@@ -51,7 +51,7 @@ int check_right_assoc(erlang::ErlangCoreServices& language) {
         static_cast<const erlang::ast::BinaryExpr*>((*fn)->clauses[0]->body[0]);
     if (top->op != erlang::ast::Operator::list_subtract)
       return fail("'[1,2,3]--[1]--[2]' is not top-level --");
-    if (top->right->type != &cursiv::ast_type_tag<erlang::ast::BinaryExpr>)
+    if (top->right->type != &cursiv::kAstTypeTag<erlang::ast::BinaryExpr>)
       return fail("'[1,2,3]--[1]--[2]' right operand is not --");
     const auto* const right =
         static_cast<const erlang::ast::BinaryExpr*>(top->right);
@@ -71,7 +71,7 @@ int check_right_assoc(erlang::ErlangCoreServices& language) {
         static_cast<const erlang::ast::BinaryExpr*>((*fn)->clauses[0]->body[0]);
     if (top->op != erlang::ast::Operator::match)
       return fail("'A=B=C' is not top-level =");
-    if (top->right->type != &cursiv::ast_type_tag<erlang::ast::BinaryExpr>)
+    if (top->right->type != &cursiv::kAstTypeTag<erlang::ast::BinaryExpr>)
       return fail("'A=B=C' right operand is not =");
     const auto* const right =
         static_cast<const erlang::ast::BinaryExpr*>(top->right);
@@ -108,7 +108,7 @@ int main() {
     }
   }
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       erlang::ErlangCoreServices, erlang::ErlangSharedCoreServices,
       erlang::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("-spec f() -> integer() | atom().\nf(X) -> <<X/integer-little>>.\n");
@@ -125,7 +125,7 @@ int main() {
     if (!types || !bits) return 1;
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       erlang::ErlangCoreServices, erlang::ErlangSharedCoreServices,
       erlang::install_core_module>();
   if (!erlang_chains::run(language.language)) return 1;
@@ -205,7 +205,7 @@ int main() {
       return fail(entry.path(), "left diagnostics on a document with none expected");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<erlang::ast::Forms>)
+        root->type != &cursiv::kAstTypeTag<erlang::ast::Forms>)
       return fail(entry.path(), "the parse built no forms");
   }
   if (total == 0) {
@@ -224,7 +224,7 @@ int main() {
       return fail(testDir / "features.erl", "left diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<erlang::ast::Forms>)
+        root->type != &cursiv::kAstTypeTag<erlang::ast::Forms>)
       return fail(testDir / "features.erl", "the parse built no forms");
   }
 
@@ -248,7 +248,7 @@ int main() {
             return fail("fac.erl: -module does not carry one argument");
           const auto* const name =
               static_cast<const erlang::ast::AtomLit*>((*attr)->args[0]);
-          if (name->type != &cursiv::ast_type_tag<erlang::ast::AtomLit> ||
+          if (name->type != &cursiv::kAstTypeTag<erlang::ast::AtomLit> ||
               name->name != "fac")
             return fail("fac.erl: -module(fac) did not read back as fac");
         }
@@ -278,13 +278,13 @@ int main() {
           return fail("helloword.erl: hello_world/0 body is not one expr");
         const auto* const call =
             static_cast<const erlang::ast::Call*>(clause->body[0]);
-        if (call->type != &cursiv::ast_type_tag<erlang::ast::Call>)
+        if (call->type != &cursiv::kAstTypeTag<erlang::ast::Call>)
           return fail("helloword.erl: hello_world/0 body is not a call");
         if (call->args.size() != 1)
           return fail("helloword.erl: io:fwrite call does not take one arg");
         const auto* const str =
             static_cast<const erlang::ast::StringLit*>(call->args[0]);
-        if (str->type != &cursiv::ast_type_tag<erlang::ast::StringLit> ||
+        if (str->type != &cursiv::kAstTypeTag<erlang::ast::StringLit> ||
             str->parts.size() != 1 || str->parts[0] != "\"hello, world\\n\"")
           return fail("helloword.erl: the string literal did not read back");
         sawString = true;

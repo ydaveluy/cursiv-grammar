@@ -9,7 +9,7 @@
 namespace p {
 
 void install_core_module(PCoreServices& services) {
-  p::generated::P::install_generated_module(services);
+  p::generated::P::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

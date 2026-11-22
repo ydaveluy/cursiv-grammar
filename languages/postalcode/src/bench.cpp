@@ -2,6 +2,6 @@
 #include "postalcode/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       postalcode::PostalcodeSharedServices, postalcode::register_lsp_services>(argc, argv);
 }

@@ -47,7 +47,7 @@ const ast::Element* find(const std::vector<ast::Element*>& members,
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       sysmlv2::SysmlV2CoreServices, sysmlv2::SysmlV2SharedCoreServices,
       sysmlv2::install_core_module>();
   if (!native_followup::run(language.language)) return 1;
@@ -61,7 +61,7 @@ int main() {
   docs.push_back({CURSIV_TEST_DIR, "behavior.sysml", false, {}, {}});
 
   for (Doc& d : docs) {
-    d.text = cursiv::test::read_file(std::string(d.dir) + "/" + d.name);
+    d.text = cursiv::test::readFile(std::string(d.dir) + "/" + d.name);
     CHECK(!d.text.empty());
     d.result = language.language.parser->parse(d.text);
   }
@@ -71,7 +71,7 @@ int main() {
   for (const Doc& d : docs) {
     const bool ok = clean(d.result) &&
                     d.result.value != nullptr &&
-                    d.result.value->type == &cursiv::ast_type_tag<ast::RootNamespace>;
+                    d.result.value->type == &cursiv::kAstTypeTag<ast::RootNamespace>;
     if (d.isCorpus) {
       ++corpusTotal;
       if (ok) ++corpusClean;
@@ -111,7 +111,7 @@ int main() {
         CHECK(voltage != nullptr && voltage->value != nullptr);
         if (voltage != nullptr && voltage->value != nullptr) {
           const auto* lit = static_cast<const ast::Literal*>(voltage->value);
-          CHECK(voltage->value->type == &cursiv::ast_type_tag<ast::Literal>);
+          CHECK(voltage->value->type == &cursiv::kAstTypeTag<ast::Literal>);
           CHECK(lit->text == "120.0");
         }
 

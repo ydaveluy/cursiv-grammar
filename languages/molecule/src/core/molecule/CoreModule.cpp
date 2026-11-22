@@ -9,7 +9,7 @@
 namespace molecule {
 
 void install_core_module(MoleculeCoreServices& services) {
-  molecule::generated::Molecule::install_generated_module(services);
+  molecule::generated::Molecule::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

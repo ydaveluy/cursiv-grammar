@@ -38,7 +38,7 @@ std::string read(const fs::path& path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  return (node != nullptr && node->type == &cursiv::ast_type_tag<T>)
+  return (node != nullptr && node->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T*>(node)
              : nullptr;
 }
@@ -46,7 +46,7 @@ const T* as(const cursiv::AstNode* node) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       bicep::BicepCoreServices, bicep::BicepSharedCoreServices,
       bicep::install_core_module>();
   const cursiv::Parser& parser = *language.language.parser;
@@ -144,7 +144,7 @@ int main() {
       continue;
     }
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::Program>) {
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::Program>) {
       failures += fail(entry.path().string() + ": the parse built no Program");
       continue;
     }

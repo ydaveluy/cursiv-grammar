@@ -26,7 +26,7 @@ namespace ast = dart2::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      dart2::generated::Dart2::create_parser();
+      dart2::generated::Dart2::createParser();
   return *p;
 }
 
@@ -39,7 +39,7 @@ void corpus() {
   CHECK(!files.empty());
 
   for (const std::filesystem::path& file : files) {
-    const std::string text = cursiv::test::read_file(file.string());
+    const std::string text = cursiv::test::readFile(file.string());
     CHECK(!text.empty());
 
     const cursiv::ParseResult r = engine().parse(text);
@@ -219,7 +219,7 @@ void native_assignment_and_arguments() {
 }  // namespace
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<dart2::Dart2CoreServices,
+  const auto language = cursiv::createLanguage<dart2::Dart2CoreServices,
                                                 dart2::Dart2SharedCoreServices,
                                                 dart2::install_core_module>();
   {
@@ -376,7 +376,7 @@ static int audit_regression() {
 
 int main() {
   {
-    const auto language = cursiv::create_language<
+    const auto language = cursiv::createLanguage<
         dart2::Dart2CoreServices, dart2::Dart2SharedCoreServices,
         dart2::install_core_module>();
     CHECK(dart2_uri_adjacency::run(language.language));

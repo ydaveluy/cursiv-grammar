@@ -27,7 +27,7 @@ bool collect(const cmake::ast::Argument* argument, const cursiv::AstNode* parent
 struct Case { const char* name; const char* text; std::vector<std::string_view> arguments; };
 }
 int main() {
-  const auto language = cursiv::create_language<cmake::CmakeCoreServices,
+  const auto language = cursiv::createLanguage<cmake::CmakeCoreServices,
       cmake::CmakeSharedCoreServices, cmake::install_core_module>();
   const std::vector<Case> cases = {
     {"simple","function(probe)\nendfunction()\nprobe(name _name 123 a-b a;b)\n",{"name","_name","123","a-b","a;b"}},

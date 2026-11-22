@@ -9,7 +9,7 @@
 namespace pmmn {
 
 void install_core_module(PmmnCoreServices& services) {
-  pmmn::generated::Pmmn::install_generated_module(services);
+  pmmn::generated::Pmmn::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

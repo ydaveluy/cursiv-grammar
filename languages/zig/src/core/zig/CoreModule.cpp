@@ -9,7 +9,7 @@
 namespace zig {
 
 void install_core_module(ZigCoreServices& services) {
-  zig::generated::Zig::install_generated_module(services);
+  zig::generated::Zig::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

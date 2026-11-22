@@ -11,7 +11,7 @@
 namespace tinyosnesc {
 
 void install_lsp_module(TinyosNescServices& services) {
-  cursiv::install_default_lsp_services(services);
+  cursiv::installDefaultLspServices(services);
 }
 
 // The three storeys in order: the framework's defaults, the language's
@@ -22,7 +22,7 @@ bool register_lsp_services(cursiv::SharedCoreServices& sharedServices) {
   auto& shared =
       dynamic_cast<TinyosNescSharedServices&>(sharedServices);
   auto services = std::make_unique<TinyosNescServices>(shared);
-  cursiv::install_default_core_services(*services);
+  cursiv::installDefaultCoreServices(*services);
   install_core_module(*services);
   install_lsp_module(*services);
   shared.serviceRegistry->registerServices(std::move(services));

@@ -9,7 +9,7 @@
 namespace turtle {
 
 void install_core_module(TurtleCoreServices& services) {
-  turtle::generated::Turtle::install_generated_module(services);
+  turtle::generated::Turtle::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

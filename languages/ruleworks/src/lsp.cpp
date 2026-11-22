@@ -5,7 +5,7 @@
 #include "ruleworks/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       ruleworks::RuleworksSharedServices>(
       argc, argv, "ruleworks-lsp", &ruleworks::register_lsp_services);
 }

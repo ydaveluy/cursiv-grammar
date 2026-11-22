@@ -9,7 +9,7 @@
 namespace snobol {
 
 void install_core_module(SnobolCoreServices& services) {
-  snobol::generated::Snobol::install_generated_module(services);
+  snobol::generated::Snobol::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

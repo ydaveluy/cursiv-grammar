@@ -71,7 +71,7 @@ bool regressions(const auto& language) {
 
 int main() {
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       bibcode::BibcodeCoreServices, bibcode::BibcodeSharedCoreServices,
       bibcode::install_core_module>();
 
@@ -103,7 +103,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<bibcode::ast::Bibcode>)
+        root->type != &cursiv::kAstTypeTag<bibcode::ast::Bibcode>)
       failures += fail(file, "the parse built no Bibcode");
   }
 

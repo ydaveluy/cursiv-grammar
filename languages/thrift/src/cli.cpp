@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<thrift::ThriftCoreServices,
+    &cursiv::registerLanguage<thrift::ThriftCoreServices,
                            thrift::ThriftSharedCoreServices,
                            thrift::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<thrift::ThriftSharedCoreServices>(
+  return cursiv::runCli<thrift::ThriftSharedCoreServices>(
       argc, argv, kRegister);
 }

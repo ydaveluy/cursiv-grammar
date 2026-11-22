@@ -35,7 +35,7 @@ std::string read_file(const fs::path& path) {
                       std::istreambuf_iterator<char>());
 }
 
-using Language = decltype(cursiv::create_language<
+using Language = decltype(cursiv::createLanguage<
                            vb6::Vb6CoreServices, vb6::Vb6SharedCoreServices,
                            vb6::install_core_module>());
 
@@ -54,7 +54,7 @@ const vb6::ast::Module* parse_module(const Language& language,
   }
   const cursiv::AstNode* const root = out->value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<vb6::ast::Module>) {
+      root->type != &cursiv::kAstTypeTag<vb6::ast::Module>) {
     fail(path.string() + ": the parse built no Module");
     return nullptr;
   }
@@ -106,7 +106,7 @@ void field_readback(const Language& language) {
   }
   const vb6::ast::Procedure* testSimpleCalls = nullptr;
   for (vb6::ast::Item* item : module->body) {
-    if (item->type != &cursiv::ast_type_tag<vb6::ast::Procedure>) continue;
+    if (item->type != &cursiv::kAstTypeTag<vb6::ast::Procedure>) continue;
     const auto* const proc = static_cast<const vb6::ast::Procedure*>(item);
     if (proc->name == "TestSimpleCalls") {
       testSimpleCalls = proc;
@@ -120,10 +120,10 @@ void field_readback(const Language& language) {
   bool sawExplicitCall = false;
   bool sawImplicitCall = false;
   for (vb6::ast::Item* stmt : testSimpleCalls->body) {
-    if (stmt->type != &cursiv::ast_type_tag<vb6::ast::CallStmt>) continue;
+    if (stmt->type != &cursiv::kAstTypeTag<vb6::ast::CallStmt>) continue;
     const auto* const call = static_cast<const vb6::ast::CallStmt*>(stmt);
     const auto* const target =
-        call->target->type == &cursiv::ast_type_tag<vb6::ast::NameExpr>
+        call->target->type == &cursiv::kAstTypeTag<vb6::ast::NameExpr>
             ? static_cast<const vb6::ast::NameExpr*>(call->target)
             : nullptr;
     if (target == nullptr || target->name != "Function2") continue;
@@ -134,11 +134,11 @@ void field_readback(const Language& language) {
     // converter that silently mangles the span would still pass a
     // structural-only check.
     const auto* const first =
-        call->args[0]->value->type == &cursiv::ast_type_tag<vb6::ast::IntLit>
+        call->args[0]->value->type == &cursiv::kAstTypeTag<vb6::ast::IntLit>
             ? static_cast<const vb6::ast::IntLit*>(call->args[0]->value)
             : nullptr;
     const auto* const second =
-        call->args[1]->value->type == &cursiv::ast_type_tag<vb6::ast::IntLit>
+        call->args[1]->value->type == &cursiv::kAstTypeTag<vb6::ast::IntLit>
             ? static_cast<const vb6::ast::IntLit*>(call->args[1]->value)
             : nullptr;
     if (first == nullptr || first->text != "1" || second == nullptr ||
@@ -152,14 +152,14 @@ void field_readback(const Language& language) {
     sawImplicitCall = true;
   }
   for (vb6::ast::Item* stmt : testSimpleCalls->body) {
-    if (stmt->type != &cursiv::ast_type_tag<vb6::ast::CallStmt>) continue;
+    if (stmt->type != &cursiv::kAstTypeTag<vb6::ast::CallStmt>) continue;
     const auto* const call = static_cast<const vb6::ast::CallStmt*>(stmt);
-    if (call->target->type != &cursiv::ast_type_tag<vb6::ast::IndexExpr>)
+    if (call->target->type != &cursiv::kAstTypeTag<vb6::ast::IndexExpr>)
       continue;
     const auto* const index =
         static_cast<const vb6::ast::IndexExpr*>(call->target);
     const auto* const target =
-        index->target->type == &cursiv::ast_type_tag<vb6::ast::NameExpr>
+        index->target->type == &cursiv::kAstTypeTag<vb6::ast::NameExpr>
             ? static_cast<const vb6::ast::NameExpr*>(index->target)
             : nullptr;
     if (target != nullptr && target->name == "Function2" &&
@@ -201,14 +201,14 @@ void check_pow_tighter_than_unary(const Language& language) {
 
   const auto* const letX = static_cast<const vb6::ast::LetStmt*>(proc->body[0]);
   const auto* const negated =
-      letX->value->type == &cursiv::ast_type_tag<vb6::ast::UnaryExpr>
+      letX->value->type == &cursiv::kAstTypeTag<vb6::ast::UnaryExpr>
           ? static_cast<const vb6::ast::UnaryExpr*>(letX->value)
           : nullptr;
   if (negated == nullptr || negated->op != "-")
     fail("check_pow_tighter_than_unary: `-2 ^ 2` should be a UnaryExpr(-)");
   const auto* const powInsideNeg =
       negated != nullptr &&
-              negated->operand->type == &cursiv::ast_type_tag<vb6::ast::BinaryExpr>
+              negated->operand->type == &cursiv::kAstTypeTag<vb6::ast::BinaryExpr>
           ? static_cast<const vb6::ast::BinaryExpr*>(negated->operand)
           : nullptr;
   if (powInsideNeg == nullptr || powInsideNeg->op != "^")
@@ -216,14 +216,14 @@ void check_pow_tighter_than_unary(const Language& language) {
 
   const auto* const letY = static_cast<const vb6::ast::LetStmt*>(proc->body[1]);
   const auto* const pow =
-      letY->value->type == &cursiv::ast_type_tag<vb6::ast::BinaryExpr>
+      letY->value->type == &cursiv::kAstTypeTag<vb6::ast::BinaryExpr>
           ? static_cast<const vb6::ast::BinaryExpr*>(letY->value)
           : nullptr;
   if (pow == nullptr || pow->op != "^")
     fail("check_pow_tighter_than_unary: `2 ^ -2` should be a BinaryExpr(^)");
   const auto* const negRight =
       pow != nullptr &&
-              pow->right->type == &cursiv::ast_type_tag<vb6::ast::UnaryExpr>
+              pow->right->type == &cursiv::kAstTypeTag<vb6::ast::UnaryExpr>
           ? static_cast<const vb6::ast::UnaryExpr*>(pow->right)
           : nullptr;
   if (negRight == nullptr || negRight->op != "-")
@@ -252,7 +252,7 @@ void check_int_div_own_tier(const Language& language) {
   }
   const auto* const let = static_cast<const vb6::ast::LetStmt*>(proc->body[0]);
   const auto* const intDiv =
-      let->value->type == &cursiv::ast_type_tag<vb6::ast::BinaryExpr>
+      let->value->type == &cursiv::kAstTypeTag<vb6::ast::BinaryExpr>
           ? static_cast<const vb6::ast::BinaryExpr*>(let->value)
           : nullptr;
   if (intDiv == nullptr || intDiv->op != "\\") {
@@ -260,7 +260,7 @@ void check_int_div_own_tier(const Language& language) {
     return;
   }
   const auto* const mul =
-      intDiv->right->type == &cursiv::ast_type_tag<vb6::ast::BinaryExpr>
+      intDiv->right->type == &cursiv::kAstTypeTag<vb6::ast::BinaryExpr>
           ? static_cast<const vb6::ast::BinaryExpr*>(intDiv->right)
           : nullptr;
   if (mul == nullptr || mul->op != "*")
@@ -301,16 +301,16 @@ void check_reserved_words(const Language& language) {
   const auto* const proc =
       static_cast<const vb6::ast::Procedure*>(module->body[0]);
   if (proc->body.size() != 4 ||
-      proc->body[0]->type != &cursiv::ast_type_tag<vb6::ast::WithStmt> ||
-      proc->body[1]->type != &cursiv::ast_type_tag<vb6::ast::WithStmt> ||
-      proc->body[2]->type != &cursiv::ast_type_tag<vb6::ast::TimeStmt> ||
-      proc->body[3]->type != &cursiv::ast_type_tag<vb6::ast::RandomizeStmt>) {
+      proc->body[0]->type != &cursiv::kAstTypeTag<vb6::ast::WithStmt> ||
+      proc->body[1]->type != &cursiv::kAstTypeTag<vb6::ast::WithStmt> ||
+      proc->body[2]->type != &cursiv::kAstTypeTag<vb6::ast::TimeStmt> ||
+      proc->body[3]->type != &cursiv::kAstTypeTag<vb6::ast::RandomizeStmt>) {
     fail("check_reserved_words: expected With, With, Time, Randomize");
     return;
   }
   const auto* const second =
       static_cast<const vb6::ast::WithStmt*>(proc->body[1]);
-  if (second->target->type != &cursiv::ast_type_tag<vb6::ast::NewExpr>)
+  if (second->target->type != &cursiv::kAstTypeTag<vb6::ast::NewExpr>)
     fail("check_reserved_words: `With New Foo` should target a NewExpr");
   for (const char* word : {"Next", "Int", "LenB", "InputB", "CDecl", "GoTo"}) {
     const std::string source = std::string("Dim ") + word + " As Long\n";
@@ -342,8 +342,8 @@ void check_names(const Language& language) {
           ? static_cast<const vb6::ast::Procedure*>(module->body[1])
           : nullptr;
   if (proc == nullptr || proc->body.size() != 4 ||
-      proc->body[1]->type != &cursiv::ast_type_tag<vb6::ast::LetStmt> ||
-      proc->body[3]->type != &cursiv::ast_type_tag<vb6::ast::RandomizeStmt>)
+      proc->body[1]->type != &cursiv::kAstTypeTag<vb6::ast::LetStmt> ||
+      proc->body[3]->type != &cursiv::kAstTypeTag<vb6::ast::RandomizeStmt>)
     fail("check_names: expected three assignments and a Randomize");
 }
 
@@ -369,9 +369,9 @@ void check_labels(const Language& language) {
           ? static_cast<const vb6::ast::Procedure*>(module->body[0])
           : nullptr;
   if (proc == nullptr || proc->body.size() != 6 ||
-      proc->body[2]->type != &cursiv::ast_type_tag<vb6::ast::CallStmt> ||
-      proc->body[4]->type != &cursiv::ast_type_tag<vb6::ast::CloseStmt> ||
-      proc->body[5]->type != &cursiv::ast_type_tag<vb6::ast::LabelStmt>) {
+      proc->body[2]->type != &cursiv::kAstTypeTag<vb6::ast::CallStmt> ||
+      proc->body[4]->type != &cursiv::kAstTypeTag<vb6::ast::CloseStmt> ||
+      proc->body[5]->type != &cursiv::kAstTypeTag<vb6::ast::LabelStmt>) {
     fail("check_labels: expected On Error, x, Foo, y, Close, a label");
     return;
   }
@@ -388,7 +388,7 @@ void check_labels(const Language& language) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       vb6::Vb6CoreServices, vb6::Vb6SharedCoreServices,
       vb6::install_core_module>();
 

@@ -33,7 +33,7 @@ int checkFile(const cursiv::CoreLanguage<scotty::ScottyCoreServices,
     return fail(path, "the sample does not parse clean");
 
   const cursiv::AstNode* const root = result.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<scotty::ast::Model>)
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<scotty::ast::Model>)
     return fail(path, "the parse built no model");
 
   return 0;
@@ -75,7 +75,7 @@ int prefix_ast_regression(const auto& language) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       scotty::ScottyCoreServices, scotty::ScottySharedCoreServices,
       scotty::install_core_module>();
 

@@ -24,13 +24,13 @@ namespace ast = wren::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      wren::generated::Wren::create_parser();
+      wren::generated::Wren::createParser();
   return *p;
 }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -55,7 +55,7 @@ const char* const kExamples[] = {
 void every_example_parses_clean() {
   for (const char* const name : kExamples) {
     const std::string text =
-        cursiv::test::read_file(std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
+        cursiv::test::readFile(std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
     CHECK(!text.empty());
     const cursiv::ParseResult r = parse(kept(text));
     CHECK(r.accepted);
@@ -70,7 +70,7 @@ void every_example_parses_clean() {
 // run of top-level `var` declarations: the class's two members, and one
 // declaration's name and value read back.
 void binary_tree_values() {
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       std::string(CURSIV_EXAMPLE_DIR) + "/binary_tree.wren");
   const cursiv::ParseResult r = parse(kept(text));
   ast::Script* const root = as<ast::Script>(r.value);
@@ -103,7 +103,7 @@ void binary_tree_values() {
 // `for (d in 0...maxDepth) { ... }`: an exclusive range read back as a
 // `BinaryExpr` whose `op` is the operator's own spelling, `"..."`.
 void exclusive_range_in_for() {
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       std::string(CURSIV_EXAMPLE_DIR) + "/binary_tree.wren");
   const cursiv::ParseResult r = parse(kept(text));
   ast::Script* const root = as<ast::Script>(r.value);

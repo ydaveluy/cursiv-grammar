@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<sparql::SparqlCoreServices,
+    &cursiv::registerLanguage<sparql::SparqlCoreServices,
                            sparql::SparqlSharedCoreServices,
                            sparql::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<sparql::SparqlSharedCoreServices>(
+  return cursiv::runCli<sparql::SparqlSharedCoreServices>(
       argc, argv, kRegister);
 }

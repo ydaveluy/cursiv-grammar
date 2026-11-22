@@ -32,7 +32,7 @@ inline const ast::Triple *first_triple(const ast::GroupGraphPattern *pattern) {
 }
 inline bool run() {
   const auto services =
-      cursiv::create_language<sparql::SparqlCoreServices,
+      cursiv::createLanguage<sparql::SparqlCoreServices,
                               sparql::SparqlSharedCoreServices,
                               sparql::install_core_module>();
   const auto& parser = services.language.parser;
@@ -171,7 +171,7 @@ inline bool run() {
   }
   {
     const auto language =
-        cursiv::create_language<sparql::SparqlCoreServices,
+        cursiv::createLanguage<sparql::SparqlCoreServices,
                                 sparql::SparqlSharedCoreServices,
                                 sparql::install_core_module>();
     for (const std::string source :
@@ -227,7 +227,7 @@ inline bool run() {
           "SPARQL ASCII language subtags include digits after the first group");
   }
   {
-    const auto language = cursiv::create_language<sparql::SparqlCoreServices,
+    const auto language = cursiv::createLanguage<sparql::SparqlCoreServices,
         sparql::SparqlSharedCoreServices, sparql::install_core_module>();
     const std::string source = "PREFIX ex: <urn:a:> PREFIX ex: <urn:b:> ASK {}";
     cursiv::Document document(cursiv::TextDocument::create("memory:duplicate-prefix", "sparql", 0, source));

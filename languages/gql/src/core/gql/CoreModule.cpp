@@ -9,7 +9,7 @@
 namespace gql {
 
 void install_core_module(GqlCoreServices& services) {
-  gql::generated::Gql::install_generated_module(services);
+  gql::generated::Gql::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

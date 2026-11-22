@@ -9,7 +9,7 @@
 namespace sysmlv2 {
 
 void install_core_module(SysmlV2CoreServices& services) {
-  sysmlv2::generated::SysmlV2::install_generated_module(services);
+  sysmlv2::generated::SysmlV2::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

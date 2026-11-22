@@ -36,7 +36,7 @@ bool is_source_export(const std::filesystem::path& p) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  return node != nullptr && node->type == &cursiv::ast_type_tag<T>
+  return node != nullptr && node->type == &cursiv::kAstTypeTag<T>
              ? static_cast<const T*>(node)
              : nullptr;
 }
@@ -50,7 +50,7 @@ int main() {
     if (is_source_export(entry.path())) files.push_back(entry.path());
   if (files.empty()) return fail(CURSIV_EXAMPLE_DIR, "no example found");
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       powerbuilder::PowerbuilderCoreServices,
       powerbuilder::PowerbuilderSharedCoreServices,
       powerbuilder::install_core_module>();

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<pike::PikeCoreServices,
+    &cursiv::registerLanguage<pike::PikeCoreServices,
                            pike::PikeSharedCoreServices,
                            pike::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<pike::PikeSharedCoreServices>(
+  return cursiv::runCli<pike::PikeSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -9,7 +9,7 @@
 namespace awk {
 
 void install_core_module(AwkCoreServices& services) {
-  awk::generated::Awk::install_generated_module(services);
+  awk::generated::Awk::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

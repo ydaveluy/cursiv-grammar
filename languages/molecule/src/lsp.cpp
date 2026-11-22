@@ -5,7 +5,7 @@
 #include "molecule/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       molecule::MoleculeSharedServices>(
       argc, argv, "molecule-lsp", &molecule::register_lsp_services);
 }

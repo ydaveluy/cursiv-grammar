@@ -77,7 +77,7 @@ struct Reader {
       for (; digits < 4 && p < source.size(); ++digits) {
         std::size_t length = 0;
         const int d = hex_digit(
-            cursiv::scalar_at(source.data() + p, source.size() - p, length));
+            cursiv::scalarAt(source.data() + p, source.size() - p, length));
         if (d < 0) break;
         value = (value << 4) | unsigned(d);
         p += length;
@@ -136,7 +136,7 @@ void translate_unicode_escapes(std::string_view source,
       for (int shift = 12; shift >= 0; shift -= 4)
         spelling += digits[(unit.value >> shift) & 15];
     } else {
-      cursiv::append_scalar(spelling, unit.value);
+      cursiv::appendScalar(spelling, unit.value);
     }
     out.replace(unit.begin, unit.end, spelling);
   }

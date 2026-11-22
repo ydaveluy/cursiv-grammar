@@ -9,7 +9,7 @@
 namespace agc {
 
 void install_core_module(AgcCoreServices& services) {
-  agc::generated::Agc::install_generated_module(services);
+  agc::generated::Agc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

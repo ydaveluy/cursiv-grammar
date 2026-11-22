@@ -11,8 +11,8 @@
 namespace sparql {
 
 void install_core_module(SparqlCoreServices& services) {
-  sparql::generated::Sparql::install_generated_module(services);
-  services.parser = cursiv::translating_parser(std::move(services.parser),
+  sparql::generated::Sparql::installGeneratedModule(services);
+  services.parser = cursiv::translatingParser(std::move(services.parser),
                                                translate_codepoint_escapes);
   register_validation_checks(services);
 }

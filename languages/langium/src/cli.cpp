@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<langium::LangiumCoreServices,
+    &cursiv::registerLanguage<langium::LangiumCoreServices,
                            langium::LangiumSharedCoreServices,
                            langium::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<langium::LangiumSharedCoreServices>(
+  return cursiv::runCli<langium::LangiumSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -9,7 +9,7 @@
 namespace joss {
 
 void install_core_module(JossCoreServices& services) {
-  joss::generated::Joss::install_generated_module(services);
+  joss::generated::Joss::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

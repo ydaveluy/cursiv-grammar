@@ -5,7 +5,7 @@
 #include "maml/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       maml::MamlSharedServices>(
       argc, argv, "maml-lsp", &maml::register_lsp_services);
 }

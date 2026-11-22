@@ -9,7 +9,7 @@
 namespace kirikiritjs {
 
 void install_core_module(KirikiriTjsCoreServices& services) {
-  kirikiritjs::generated::KirikiriTjs::install_generated_module(services);
+  kirikiritjs::generated::KirikiriTjs::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

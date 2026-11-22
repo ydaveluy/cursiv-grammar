@@ -11,8 +11,8 @@
 namespace java {
 
 void install_core_module(JavaCoreServices& services) {
-  java::generated::Java::install_generated_module(services);
-  services.parser = cursiv::translating_parser(std::move(services.parser),
+  java::generated::Java::installGeneratedModule(services);
+  services.parser = cursiv::translatingParser(std::move(services.parser),
                                                translate_unicode_escapes);
   register_validation_checks(services);
 }

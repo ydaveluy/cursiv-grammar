@@ -9,7 +9,7 @@
 namespace ocl {
 
 void install_core_module(OclCoreServices& services) {
-  ocl::generated::Ocl::install_generated_module(services);
+  ocl::generated::Ocl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

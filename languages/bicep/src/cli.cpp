@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<bicep::BicepCoreServices,
+    &cursiv::registerLanguage<bicep::BicepCoreServices,
                            bicep::BicepSharedCoreServices,
                            bicep::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<bicep::BicepSharedCoreServices>(
+  return cursiv::runCli<bicep::BicepSharedCoreServices>(
       argc, argv, kRegister);
 }

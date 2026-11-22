@@ -13,7 +13,7 @@
 #include <unordered_set>
 int main() {
   const auto language =
-      cursiv::create_language<xsdregex::XsdRegexCoreServices,
+      cursiv::createLanguage<xsdregex::XsdRegexCoreServices,
                               xsdregex::XsdRegexSharedCoreServices,
                               xsdregex::install_core_module>();
   unsigned roundtrips = 0, controls = 0;

@@ -9,7 +9,7 @@
 namespace pf {
 
 void install_core_module(PfCoreServices& services) {
-  pf::generated::Pf::install_generated_module(services);
+  pf::generated::Pf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

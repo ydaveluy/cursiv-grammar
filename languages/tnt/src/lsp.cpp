@@ -5,7 +5,7 @@
 #include "tnt/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       tnt::TntSharedServices>(
       argc, argv, "tnt-lsp", &tnt::register_lsp_services);
 }

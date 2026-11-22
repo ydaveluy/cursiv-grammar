@@ -9,7 +9,7 @@
 namespace plucid {
 
 void install_core_module(PlucidCoreServices& services) {
-  plucid::generated::Plucid::install_generated_module(services);
+  plucid::generated::Plucid::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

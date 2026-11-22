@@ -24,7 +24,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       vmf::VmfCoreServices, vmf::VmfSharedCoreServices,
       vmf::install_core_module>();
   if (!audit_regressions::run(language.language, *language.shared)) return 1;
@@ -58,7 +58,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<vmf::ast::Document>) {
+          root->type != &cursiv::kAstTypeTag<vmf::ast::Document>) {
         fail(path, "the parse built no Document");
         ++failures;
       }

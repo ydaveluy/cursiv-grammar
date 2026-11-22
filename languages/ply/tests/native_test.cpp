@@ -14,9 +14,9 @@
 #include <unordered_set>
 int main() {
   const auto language =
-      cursiv::create_language<ply::PlyCoreServices, ply::PlySharedCoreServices,
+      cursiv::createLanguage<ply::PlyCoreServices, ply::PlySharedCoreServices,
                               ply::install_core_module>();
-  const auto factory = ply::generated::Ply::create_parser();
+  const auto factory = ply::generated::Ply::createParser();
   unsigned natives = 0, diagnostics = 0;
   std::array<NativeCase, std::size(cases) + std::size(resumeCases)> allCases;
   std::copy_n(cases, std::size(cases), allCases.begin());

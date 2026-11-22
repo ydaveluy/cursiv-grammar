@@ -26,7 +26,7 @@ std::string read(const std::string &path) {
 }
 
 template <class T> const T *as(const cursiv::AstNode *node) {
-  return (node != nullptr && node->type == &cursiv::ast_type_tag<T>)
+  return (node != nullptr && node->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T *>(node)
              : nullptr;
 }
@@ -37,7 +37,7 @@ int main() {
   if (!audit_regressions::run())
     return 1;
   const auto language =
-      cursiv::create_language<turtledoc::TurtleDocCoreServices,
+      cursiv::createLanguage<turtledoc::TurtleDocCoreServices,
                               turtledoc::TurtleDocSharedCoreServices,
                               turtledoc::install_core_module>();
 

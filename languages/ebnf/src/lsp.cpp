@@ -5,7 +5,7 @@
 #include "ebnf/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       ebnf::EbnfSharedServices>(
       argc, argv, "ebnf-lsp", &ebnf::register_lsp_services);
 }

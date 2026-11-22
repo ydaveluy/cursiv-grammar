@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<metric::MetricCoreServices,
+    &cursiv::registerLanguage<metric::MetricCoreServices,
                            metric::MetricSharedCoreServices,
                            metric::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<metric::MetricSharedCoreServices>(
+  return cursiv::runCli<metric::MetricSharedCoreServices>(
       argc, argv, kRegister);
 }

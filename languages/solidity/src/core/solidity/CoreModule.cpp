@@ -9,7 +9,7 @@
 namespace solidity {
 
 void install_core_module(SolidityCoreServices& services) {
-  solidity::generated::Solidity::install_generated_module(services);
+  solidity::generated::Solidity::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<awk::AwkCoreServices,
+    &cursiv::registerLanguage<awk::AwkCoreServices,
                            awk::AwkSharedCoreServices,
                            awk::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<awk::AwkSharedCoreServices>(
+  return cursiv::runCli<awk::AwkSharedCoreServices>(
       argc, argv, kRegister);
 }

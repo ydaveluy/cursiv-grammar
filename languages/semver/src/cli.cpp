@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<semver::SemverCoreServices,
+    &cursiv::registerLanguage<semver::SemverCoreServices,
                            semver::SemverSharedCoreServices,
                            semver::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<semver::SemverSharedCoreServices>(
+  return cursiv::runCli<semver::SemverSharedCoreServices>(
       argc, argv, kRegister);
 }

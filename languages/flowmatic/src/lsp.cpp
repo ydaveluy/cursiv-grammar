@@ -5,7 +5,7 @@
 #include "flowmatic/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       flowmatic::FlowmaticSharedServices>(
       argc, argv, "flowmatic-lsp", &flowmatic::register_lsp_services);
 }

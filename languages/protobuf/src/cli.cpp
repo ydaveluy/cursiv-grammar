@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<protobuf::ProtobufCoreServices,
+    &cursiv::registerLanguage<protobuf::ProtobufCoreServices,
                            protobuf::ProtobufSharedCoreServices,
                            protobuf::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<protobuf::ProtobufSharedCoreServices>(
+  return cursiv::runCli<protobuf::ProtobufSharedCoreServices>(
       argc, argv, kRegister);
 }

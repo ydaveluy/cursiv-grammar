@@ -5,7 +5,7 @@
 #include "sparql/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       sparql::SparqlSharedServices>(
       argc, argv, "sparql-lsp", &sparql::register_lsp_services);
 }

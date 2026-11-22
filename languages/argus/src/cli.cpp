@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<argus::ArgusCoreServices,
+    &cursiv::registerLanguage<argus::ArgusCoreServices,
                            argus::ArgusSharedCoreServices,
                            argus::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<argus::ArgusSharedCoreServices>(
+  return cursiv::runCli<argus::ArgusSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -5,7 +5,7 @@
 #include "algol60/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       algol60::Algol60SharedServices>(
       argc, argv, "algol60-lsp", &algol60::register_lsp_services);
 }

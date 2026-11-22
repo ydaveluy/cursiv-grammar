@@ -9,7 +9,7 @@
 namespace capnproto {
 
 void install_core_module(CapnprotoCoreServices& services) {
-  capnproto::generated::Capnproto::install_generated_module(services);
+  capnproto::generated::Capnproto::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

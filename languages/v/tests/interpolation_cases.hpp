@@ -29,29 +29,29 @@ struct Case {
 };
 inline const Case cases[] = {
     {"short-name", R"VCASE(fn main(){s:='hi $name!'}
-)VCASE", true, true, {R"VCASE(hi )VCASE", R"VCASE(!)VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE(hi )VCASE", R"VCASE(!)VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"braced-binary", R"VCASE(fn main(){s:="${ x + 1 }"}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::BinaryExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::BinaryExpr>}},
     {"adjacent", R"VCASE(fn main(){s:='$a$b'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::Ident>, &cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>, &cursiv::kAstTypeTag<ast::Ident>}},
     {"short-selector", R"VCASE(fn main(){s:='$u.name'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::SelectorExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::SelectorExpr>}},
     {"short-call", R"VCASE(fn main(){s:='$f()'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::CallExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::CallExpr>}},
     {"braced-index", R"VCASE(fn main(){s:='${a[0] + 1}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::BinaryExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::BinaryExpr>}},
     {"inner-double", R"VCASE(fn main(){s:='${f("x")}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::CallExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::CallExpr>}},
     {"inner-single", R"VCASE(fn main(){s:='${f('x')}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::CallExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::CallExpr>}},
     {"nested-interpolation", R"VCASE(fn main(){s:='${f('$x')}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::CallExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::CallExpr>}},
     {"format-zero", R"VCASE(fn main(){s:='${n:04d}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"format-plus", R"VCASE(fn main(){s:="${n:+10.2f}"}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"format-negative", R"VCASE(fn main(){s:='${n:-8x}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"raw-single", R"VCASE(fn main(){s:=r'${x} $x'}
 )VCASE", true, false, {}, {}},
     {"escaped-dollar", R"VCASE(fn main(){s:='\$x'}
@@ -61,35 +61,35 @@ inline const Case cases[] = {
     {"raw-double", R"VCASE(fn main(){s:=r"${x}"}
 )VCASE", true, false, {}, {}},
     {"short-index-tail", R"VCASE(fn main(){s:='$a[0]'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE([0])VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE([0])VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"even-backslashes", R"VCASE(fn main(){s:='\\$x'}
-)VCASE", true, true, {R"VCASE(\\)VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE(\\)VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"short-keyword-at-close", R"VCASE(fn main(){s:='$true'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"short-keyword-before-text", R"VCASE(fn main(){s:='$true!'}
 )VCASE", false, false, {}, {}},
     {"empty-braced", R"VCASE(fn main(){s:='${}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::StringLit>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::StringLit>}},
     {"empty-format", R"VCASE(fn main(){s:='${x:}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"invalid-format-name", R"VCASE(fn main(){s:='${x:long}'}
 )VCASE", false, false, {}, {}},
     {"invalid-escape", R"VCASE(fn main(){s:='\q $x'}
 )VCASE", false, false, {}, {}},
     {"unfinished-brace", R"VCASE(fn main(){s:='${x'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"missing-number", R"VCASE(fn main(){s:='${1'}
 )VCASE", false, false, {}, {}},
     {"missing-parenthesized-name", R"VCASE(fn main(){s:='${(x)'}
 )VCASE", false, false, {}, {}},
     {"missing-binary-name", R"VCASE(fn main(){s:='${a + b'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::BinaryExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::BinaryExpr>}},
     {"missing-selector-name", R"VCASE(fn main(){s:='${u.name'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::SelectorExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::SelectorExpr>}},
     {"missing-call", R"VCASE(fn main(){s:='${f()'}
 )VCASE", false, false, {}, {}},
     {"missing-format-code", R"VCASE(fn main(){s:='${x:d'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"missing-format-number", R"VCASE(fn main(){s:='${x:4'}
 )VCASE", false, false, {}, {}},
     {"missing-after-nested-string", R"VCASE(fn main(){s:='${f("x") + y'}
@@ -97,13 +97,13 @@ inline const Case cases[] = {
     {"missing-with-gap", R"VCASE(fn main(){s:='${x '}
 )VCASE", false, false, {}, {}},
     {"missing-after-rune", R"VCASE(fn main(){s:='${`a` + x'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::BinaryExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::BinaryExpr>}},
     {"short-call-argument", R"VCASE(fn main(){s:='$f(1)'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::CallExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::CallExpr>}},
     {"short-call-gap", R"VCASE(fn main(){s:='$f (1)'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE( (1))VCASE"}, {&cursiv::ast_type_tag<ast::Ident>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE( (1))VCASE"}, {&cursiv::kAstTypeTag<ast::Ident>}},
     {"short-selector-gap", R"VCASE(fn main(){s:='$u. field'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::SelectorExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::SelectorExpr>}},
     {"short-trailing-dot", R"VCASE(fn main(){s:='$u.'}
 )VCASE", false, false, {}, {}},
     {"short-dot-number", R"VCASE(fn main(){s:='$u.0'}
@@ -111,15 +111,15 @@ inline const Case cases[] = {
     {"short-dotdot", R"VCASE(fn main(){s:='$a..b'}
 )VCASE", false, false, {}, {}},
     {"short-reserved-selector-close", R"VCASE(fn main(){s:='$u.type'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::SelectorExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::SelectorExpr>}},
     {"short-reserved-selector-tail", R"VCASE(fn main(){s:='$u.type!'}
 )VCASE", false, false, {}, {}},
     {"braced-if-expression", R"VCASE(fn main(){s:='${if true {1} else {2}}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::IfExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::IfExpr>}},
     {"braced-unsafe-expression", R"VCASE(fn main(){s:='${unsafe {1}}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::UnsafeExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::UnsafeExpr>}},
     {"braced-match-expression", R"VCASE(fn main(){s:='${match 1 {1 {2} else {3}}}'}
-)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::ast_type_tag<ast::MatchExpr>}},
+)VCASE", true, true, {R"VCASE()VCASE", R"VCASE()VCASE"}, {&cursiv::kAstTypeTag<ast::MatchExpr>}},
 };
 
 template <class Language>

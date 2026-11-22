@@ -24,7 +24,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       flowmatic::FlowmaticCoreServices, flowmatic::FlowmaticSharedCoreServices,
       flowmatic::install_core_module>();
 
@@ -66,7 +66,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<flowmatic::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<flowmatic::ast::Program>)
       failures += fail(file, "the parse built no Program");
   }
 

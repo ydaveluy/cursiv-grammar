@@ -5,7 +5,7 @@
 #include "telephone/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       telephone::TelephoneSharedServices>(
       argc, argv, "telephone-lsp", &telephone::register_lsp_services);
 }

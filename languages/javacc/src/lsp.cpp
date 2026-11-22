@@ -5,7 +5,7 @@
 #include "javacc/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       javacc::JavaccSharedServices>(
       argc, argv, "javacc-lsp", &javacc::register_lsp_services);
 }

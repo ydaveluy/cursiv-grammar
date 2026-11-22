@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<romannumerals::RomannumeralsCoreServices,
+    &cursiv::registerLanguage<romannumerals::RomannumeralsCoreServices,
                            romannumerals::RomannumeralsSharedCoreServices,
                            romannumerals::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<romannumerals::RomannumeralsSharedCoreServices>(
+  return cursiv::runCli<romannumerals::RomannumeralsSharedCoreServices>(
       argc, argv, kRegister);
 }

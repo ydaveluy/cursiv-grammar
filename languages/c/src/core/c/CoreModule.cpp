@@ -12,7 +12,7 @@
 namespace c {
 
 void install_core_module(CCoreServices& services) {
-  c::generated::C::install_generated_module(services);
+  c::generated::C::installGeneratedModule(services);
   services.scopeComputation = std::make_unique<CScopeComputation>(services);
   register_validation_checks(services);
 }

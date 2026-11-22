@@ -33,9 +33,9 @@ int main() {
   if (!audit_regressions::run())
     return 1;
   const auto language =
-      cursiv::create_language<stl::StlCoreServices, stl::StlSharedCoreServices,
+      cursiv::createLanguage<stl::StlCoreServices, stl::StlSharedCoreServices,
                               stl::install_core_module>();
-  auto factory = stl::generated::Stl::create_parser();
+  auto factory = stl::generated::Stl::createParser();
   bool ok = true;
   const auto check = [&](bool value, const char *message) {
     if (!value) {
@@ -61,10 +61,8 @@ int main() {
     check(doc->binary == c.binary && doc->binary == second->binary &&
               doc->solids.size() == second->solids.size(),
           c.file);
-    check(result.references && other.references &&
-              result.references->handles.empty() &&
-              other.references->handles.empty(),
-          "empty reference table");
+    check(!result.references && !other.references,
+          "STL allocated a reference table");
     check(result.cst().text() == source, c.file);
     const auto rootText = result.cst().text(doc->cstNodeId);
     check(source.starts_with(rootText) &&

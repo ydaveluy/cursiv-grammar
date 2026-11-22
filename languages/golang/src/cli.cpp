@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<golang::GolangCoreServices,
+    &cursiv::registerLanguage<golang::GolangCoreServices,
                            golang::GolangSharedCoreServices,
                            golang::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<golang::GolangSharedCoreServices>(
+  return cursiv::runCli<golang::GolangSharedCoreServices>(
       argc, argv, kRegister);
 }

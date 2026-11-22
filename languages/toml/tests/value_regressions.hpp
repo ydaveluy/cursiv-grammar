@@ -13,7 +13,7 @@
 namespace value_regressions {
 inline bool run() {
   namespace ast = toml::ast;
-  const auto language = cursiv::create_language<toml::TomlCoreServices,
+  const auto language = cursiv::createLanguage<toml::TomlCoreServices,
                                                 toml::TomlSharedCoreServices,
                                                 toml::install_core_module>();
   bool ok = true;

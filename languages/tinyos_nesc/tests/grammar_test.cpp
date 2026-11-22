@@ -48,7 +48,7 @@ const char* const kFixtures[] = {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       tinyosnesc::TinyosNescCoreServices, tinyosnesc::TinyosNescSharedCoreServices,
       tinyosnesc::install_core_module>();
   if (!tinyosnesc_native_followup::run(language)) return fail("native followup syntax/AST/validation failed");
@@ -66,7 +66,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<tinyosnesc::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<tinyosnesc::ast::Document>)
       return fail(std::string(name) + ": built no Document");
     const auto& doc = *static_cast<const tinyosnesc::ast::Document*>(root);
     if (doc.components.empty())
@@ -95,7 +95,7 @@ int main() {
 
   const tinyosnesc::ast::Component* const component = doc.components[0];
   if (component == nullptr ||
-      component->type != &cursiv::ast_type_tag<tinyosnesc::ast::Module>)
+      component->type != &cursiv::kAstTypeTag<tinyosnesc::ast::Module>)
     return fail("BlinkC.nc: component is not a Module");
   const auto& module = *static_cast<const tinyosnesc::ast::Module*>(component);
   if (module.name != "BlinkC") return fail("BlinkC.nc: wrong module name");
@@ -113,11 +113,11 @@ int main() {
 
   bool foundCall = false;
   for (const tinyosnesc::ast::Stat* const stat : module.body) {
-    if (stat->type != &cursiv::ast_type_tag<tinyosnesc::ast::FuncStat>)
+    if (stat->type != &cursiv::kAstTypeTag<tinyosnesc::ast::FuncStat>)
       continue;
     const auto& func = *static_cast<const tinyosnesc::ast::FuncStat*>(stat);
     for (const tinyosnesc::ast::Stat* const inner : func.body) {
-      if (inner->type != &cursiv::ast_type_tag<tinyosnesc::ast::CallStat>)
+      if (inner->type != &cursiv::kAstTypeTag<tinyosnesc::ast::CallStat>)
         continue;
       const auto& call = *static_cast<const tinyosnesc::ast::CallStat*>(inner);
       if (call.target.find("Leds.led0Toggle") != std::string_view::npos)
@@ -144,46 +144,46 @@ int main() {
     if (mod.body.size() != 5)
       return fail("features.nc: expected five top-level members");
 
-    if (mod.body[0]->type != &cursiv::ast_type_tag<ast::PacketDefine>)
+    if (mod.body[0]->type != &cursiv::kAstTypeTag<ast::PacketDefine>)
       return fail("features.nc: 'typedef ...' is not a PacketDefine");
 
-    if (mod.body[1]->type != &cursiv::ast_type_tag<ast::FuncStat>)
+    if (mod.body[1]->type != &cursiv::kAstTypeTag<ast::FuncStat>)
       return fail("features.nc: 'task void loops()' is not a FuncStat");
     const auto& loops = *static_cast<const ast::FuncStat*>(mod.body[1]);
     if (loops.kind != "task") return fail("features.nc: loops kind != task");
     if (loops.body.size() != 4)
       return fail("features.nc: loops expected four statements");
-    if (loops.body[0]->type != &cursiv::ast_type_tag<ast::IfStat>)
+    if (loops.body[0]->type != &cursiv::kAstTypeTag<ast::IfStat>)
       return fail("features.nc: loops[0] is not an IfStat");
-    if (loops.body[1]->type != &cursiv::ast_type_tag<ast::ForStat>)
+    if (loops.body[1]->type != &cursiv::kAstTypeTag<ast::ForStat>)
       return fail("features.nc: loops[1] is not a ForStat");
-    if (loops.body[2]->type != &cursiv::ast_type_tag<ast::WhileStat>)
+    if (loops.body[2]->type != &cursiv::kAstTypeTag<ast::WhileStat>)
       return fail("features.nc: loops[2] is not a WhileStat");
-    if (loops.body[3]->type != &cursiv::ast_type_tag<ast::AtomicStat>)
+    if (loops.body[3]->type != &cursiv::kAstTypeTag<ast::AtomicStat>)
       return fail("features.nc: loops[3] is not an AtomicStat");
     const auto& ifStat = *static_cast<const ast::IfStat*>(loops.body[0]);
     if (ifStat.branches.size() != 1 || ifStat.branches[0]->body.empty() ||
         ifStat.branches[0]->body[0]->type !=
-            &cursiv::ast_type_tag<ast::CallStat>)
+            &cursiv::kAstTypeTag<ast::CallStat>)
       return fail("features.nc: if-branch body is not a CallStat (signal)");
     const auto& signalStat =
         *static_cast<const ast::CallStat*>(ifStat.branches[0]->body[0]);
     if (!signalStat.isSignal)
       return fail("features.nc: 'signal Done.fired()' not read as signal");
 
-    if (mod.body[2]->type != &cursiv::ast_type_tag<ast::EnumStat>)
+    if (mod.body[2]->type != &cursiv::kAstTypeTag<ast::EnumStat>)
       return fail("features.nc: 'enum {...}' is not an EnumStat");
 
-    if (mod.body[3]->type != &cursiv::ast_type_tag<ast::FuncStat>)
+    if (mod.body[3]->type != &cursiv::kAstTypeTag<ast::FuncStat>)
       return fail("features.nc: 'command ...' is not a FuncStat");
     const auto& cmd = *static_cast<const ast::FuncStat*>(mod.body[3]);
     if (cmd.kind != "command") return fail("features.nc: cmd kind != command");
     if (cmd.body.empty() ||
-        cmd.body[0]->type != &cursiv::ast_type_tag<ast::SwitchStat>)
+        cmd.body[0]->type != &cursiv::kAstTypeTag<ast::SwitchStat>)
       return fail("features.nc: cmd[0] is not a SwitchStat");
 
     // The catch-all itself: no leading keyword, `kind` empty.
-    if (mod.body[4]->type != &cursiv::ast_type_tag<ast::FuncStat>)
+    if (mod.body[4]->type != &cursiv::kAstTypeTag<ast::FuncStat>)
       return fail("features.nc: 'void helper()' is not a FuncStat");
     const auto& helper = *static_cast<const ast::FuncStat*>(mod.body[4]);
     if (!helper.kind.empty())
@@ -203,20 +203,20 @@ int main() {
     const auto& mod = *static_cast<const ast::Module*>(doc.components[0]);
     if (mod.body.size() != 4)
       return fail("braces.nc: expected four top-level members");
-    if (mod.body[0]->type != &cursiv::ast_type_tag<ast::PacketDefine>)
+    if (mod.body[0]->type != &cursiv::kAstTypeTag<ast::PacketDefine>)
       return fail("braces.nc: 'typedef ...' is not a PacketDefine");
     const auto& loops = *static_cast<const ast::FuncStat*>(mod.body[1]);
     if (loops.body.size() != 1 ||
-        loops.body[0]->type != &cursiv::ast_type_tag<ast::AtomicStat>)
+        loops.body[0]->type != &cursiv::kAstTypeTag<ast::AtomicStat>)
       return fail("braces.nc: loops is not one AtomicStat");
     const auto& atomic = *static_cast<const ast::AtomicStat*>(loops.body[0]);
     if (atomic.body.size() != 1)
       return fail("braces.nc: atomic lost its body");
-    if (mod.body[2]->type != &cursiv::ast_type_tag<ast::FuncStat>)
+    if (mod.body[2]->type != &cursiv::kAstTypeTag<ast::FuncStat>)
       return fail("braces.nc: helper is not a FuncStat");
     const auto& deref = *static_cast<const ast::FuncStat*>(mod.body[3]);
     if (deref.body.size() != 1 ||
-        deref.body[0]->type != &cursiv::ast_type_tag<ast::FuncStat>)
+        deref.body[0]->type != &cursiv::kAstTypeTag<ast::FuncStat>)
       return fail("braces.nc: '*p = 1;' is not one FuncStat");
   }
 

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<mps::MpsCoreServices,
+    &cursiv::registerLanguage<mps::MpsCoreServices,
                            mps::MpsSharedCoreServices,
                            mps::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<mps::MpsSharedCoreServices>(
+  return cursiv::runCli<mps::MpsSharedCoreServices>(
       argc, argv, kRegister);
 }

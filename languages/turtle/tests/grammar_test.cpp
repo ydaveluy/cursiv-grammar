@@ -36,7 +36,7 @@ const char *const kExamples[] = {CURSIV_EXAMPLE_DIR "/iriref_test.ttl",
                                  CURSIV_TEST_DIR "/features.ttl"};
 
 template <class T> const T *as(const cursiv::AstNode *node) {
-  return (node != nullptr && node->type == &cursiv::ast_type_tag<T>)
+  return (node != nullptr && node->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T *>(node)
              : nullptr;
 }
@@ -47,7 +47,7 @@ int main() {
   if (!audit_regressions::run() || !turtle_native_regressions::run())
     return 1;
   const auto language =
-      cursiv::create_language<turtle::TurtleCoreServices,
+      cursiv::createLanguage<turtle::TurtleCoreServices,
                               turtle::TurtleSharedCoreServices,
                               turtle::install_core_module>();
 

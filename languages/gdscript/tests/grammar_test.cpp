@@ -37,7 +37,7 @@ int main() {
   if (!code_audit::run()) return 1;
   {
     const auto audit_language =
-        cursiv::create_language<gdscript::GdscriptCoreServices,
+        cursiv::createLanguage<gdscript::GdscriptCoreServices,
                                 gdscript::GdscriptSharedCoreServices,
                                 gdscript::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -59,7 +59,7 @@ int main() {
   }
 
   const auto language =
-      cursiv::create_language<gdscript::GdscriptCoreServices,
+      cursiv::createLanguage<gdscript::GdscriptCoreServices,
                               gdscript::GdscriptSharedCoreServices,
                               gdscript::install_core_module>();
   if (!gdscript_pattern_rest::run(language.language)) return 1;

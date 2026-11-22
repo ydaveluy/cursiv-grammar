@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<sieve::SieveCoreServices,
+    &cursiv::registerLanguage<sieve::SieveCoreServices,
                            sieve::SieveSharedCoreServices,
                            sieve::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<sieve::SieveSharedCoreServices>(
+  return cursiv::runCli<sieve::SieveSharedCoreServices>(
       argc, argv, kRegister);
 }

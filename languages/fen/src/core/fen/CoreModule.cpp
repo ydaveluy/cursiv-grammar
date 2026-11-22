@@ -9,7 +9,7 @@
 namespace fen {
 
 void install_core_module(FenCoreServices& services) {
-  fen::generated::Fen::install_generated_module(services);
+  fen::generated::Fen::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

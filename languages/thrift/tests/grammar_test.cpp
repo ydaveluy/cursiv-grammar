@@ -27,7 +27,7 @@ int main() {
   if (!audit_regressions::run()) return 1;
   namespace fs = std::filesystem;
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       thrift::ThriftCoreServices, thrift::ThriftSharedCoreServices,
       thrift::install_core_module>();
 
@@ -66,7 +66,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<thrift::ast::Document>)
+          root->type != &cursiv::kAstTypeTag<thrift::ast::Document>)
         return fail(path.filename().string() + " built no document");
       ++count;
     }

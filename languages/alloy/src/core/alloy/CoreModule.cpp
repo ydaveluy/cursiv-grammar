@@ -9,7 +9,7 @@
 namespace alloy {
 
 void install_core_module(AlloyCoreServices& services) {
-  alloy::generated::Alloy::install_generated_module(services);
+  alloy::generated::Alloy::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

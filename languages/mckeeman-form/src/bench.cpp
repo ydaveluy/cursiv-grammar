@@ -2,6 +2,6 @@
 #include "mckeemanform/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       mckeemanform::MckeemanFormSharedServices, mckeemanform::register_lsp_services>(argc, argv);
 }

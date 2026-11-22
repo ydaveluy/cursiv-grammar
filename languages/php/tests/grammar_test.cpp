@@ -33,7 +33,7 @@ int fail(const std::string& what) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<php::PhpCoreServices, php::PhpSharedCoreServices,
+      cursiv::createLanguage<php::PhpCoreServices, php::PhpSharedCoreServices,
                               php::install_core_module>();
   {
     const auto r =
@@ -178,7 +178,7 @@ int main() {
     if (entry.path().extension() == ".php") files.push_back(entry.path());
   if (files.empty()) return fail("no example files found");
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       php::PhpCoreServices, php::PhpSharedCoreServices,
       php::install_core_module>();
   for (const auto source : {"<?php $a?:$b?:$c;", "<?php $a?$b:($c?$d:$e);",
@@ -234,7 +234,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<php::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<php::ast::Document>)
       return fail(path.string() + ": the parse built no document");
   }
 
@@ -265,7 +265,7 @@ int main() {
       const auto* const doc =
           static_cast<const php::ast::Document*>(result.value);
       if (doc == nullptr || doc->items.empty() ||
-          doc->items[0]->type != &cursiv::ast_type_tag<php::ast::PhpBlock>)
+          doc->items[0]->type != &cursiv::kAstTypeTag<php::ast::PhpBlock>)
         return nullptr;
       const auto* const block =
           static_cast<const php::ast::PhpBlock*>(doc->items[0]);
@@ -274,14 +274,14 @@ int main() {
     const auto value_of = [&](const std::string& stmt) -> const php::ast::Expr* {
       const php::ast::Item* const item = stmt_of(stmt);
       if (item == nullptr ||
-          item->type != &cursiv::ast_type_tag<php::ast::ExprStmt>)
+          item->type != &cursiv::kAstTypeTag<php::ast::ExprStmt>)
         return nullptr;
       return static_cast<const php::ast::ExprStmt*>(item)->value;
     };
     const auto binary = [](const php::ast::Expr* e,
                             const char* op) -> const php::ast::BinaryExpr* {
       const auto* const b =
-          e != nullptr && e->type == &cursiv::ast_type_tag<php::ast::BinaryExpr>
+          e != nullptr && e->type == &cursiv::kAstTypeTag<php::ast::BinaryExpr>
               ? static_cast<const php::ast::BinaryExpr*>(e)
               : nullptr;
       return b != nullptr && b->op == op ? b : nullptr;
@@ -298,19 +298,19 @@ int main() {
     {
       const auto* const value = value_of("print $a = $b;");
       if (value == nullptr ||
-          value->type != &cursiv::ast_type_tag<php::ast::PrintExpr>)
+          value->type != &cursiv::kAstTypeTag<php::ast::PrintExpr>)
         return fail("precedence: `print` did not parse its operand");
       const auto* const operand =
           static_cast<const php::ast::PrintExpr*>(value)->operand;
       if (operand == nullptr ||
-          operand->type != &cursiv::ast_type_tag<php::ast::AssignExpr>)
+          operand->type != &cursiv::kAstTypeTag<php::ast::AssignExpr>)
         return fail("precedence: `print`'s operand did not reach `=`");
     }
     // `-2 ** 2` is `-(2 ** 2)`: `**` binds tighter than unary minus.
     {
       const auto* const value = value_of("-2 ** 2;");
       if (value == nullptr ||
-          value->type != &cursiv::ast_type_tag<php::ast::UnaryExpr>)
+          value->type != &cursiv::kAstTypeTag<php::ast::UnaryExpr>)
         return fail("precedence: `-2 ** 2` did not parse as a unary minus");
       const auto* const unary = static_cast<const php::ast::UnaryExpr*>(value);
       if (unary->op != "-" || binary(unary->operand, "**") == nullptr)
@@ -321,12 +321,12 @@ int main() {
     {
       const auto* const value = value_of("!$a instanceof B;");
       if (value == nullptr ||
-          value->type != &cursiv::ast_type_tag<php::ast::UnaryExpr>)
+          value->type != &cursiv::kAstTypeTag<php::ast::UnaryExpr>)
         return fail("precedence: `!$a instanceof B` did not parse as `!`");
       const auto* const unary = static_cast<const php::ast::UnaryExpr*>(value);
       if (unary->op != "!" || unary->operand == nullptr ||
           unary->operand->type !=
-              &cursiv::ast_type_tag<php::ast::InstanceofExpr>)
+              &cursiv::kAstTypeTag<php::ast::InstanceofExpr>)
         return fail("precedence: `!` is not looser than `instanceof`");
     }
     // `$a = $b and $c` is `($a = $b) and $c`: assignment binds tighter
@@ -334,7 +334,7 @@ int main() {
     {
       const auto* const op = binary(value_of("$a = $b and $c;"), "and");
       if (op == nullptr || op->left == nullptr ||
-          op->left->type != &cursiv::ast_type_tag<php::ast::AssignExpr>)
+          op->left->type != &cursiv::kAstTypeTag<php::ast::AssignExpr>)
         return fail("precedence: assignment does not bind tighter than `and`");
     }
     // `$a ?? include 'x.php';` -- include/require reach every operand
@@ -342,7 +342,7 @@ int main() {
     {
       const auto* const op = binary(value_of("$a ?? include 'x.php';"), "??");
       if (op == nullptr || op->right == nullptr ||
-          op->right->type != &cursiv::ast_type_tag<php::ast::IncludeExpr>)
+          op->right->type != &cursiv::kAstTypeTag<php::ast::IncludeExpr>)
         return fail("precedence: `include` did not reach `??`'s operand");
     }
     {
@@ -356,11 +356,11 @@ int main() {
     // commas holds no value.
     const auto list_of = [&](const std::string& stmt) -> const php::ast::ArrayExpr* {
       const auto* const e = value_of(stmt);
-      if (e == nullptr || e->type != &cursiv::ast_type_tag<php::ast::AssignExpr>)
+      if (e == nullptr || e->type != &cursiv::kAstTypeTag<php::ast::AssignExpr>)
         return nullptr;
       const auto* const target = static_cast<const php::ast::AssignExpr*>(e)->target;
       return target != nullptr &&
-                     target->type == &cursiv::ast_type_tag<php::ast::ArrayExpr>
+                     target->type == &cursiv::kAstTypeTag<php::ast::ArrayExpr>
                  ? static_cast<const php::ast::ArrayExpr*>(target)
                  : nullptr;
     };
@@ -384,11 +384,11 @@ int main() {
     // `foreach ($a as $k => $v)`: the key comes first.
     {
       const php::ast::Item* const item = stmt_of("foreach ($a as $k => $v) {}");
-      if (item == nullptr || item->type != &cursiv::ast_type_tag<php::ast::ForeachStmt>)
+      if (item == nullptr || item->type != &cursiv::kAstTypeTag<php::ast::ForeachStmt>)
         return fail("foreach: not a ForeachStmt");
       const auto* const each = static_cast<const php::ast::ForeachStmt*>(item);
       const auto name = [](const php::ast::Expr* e) -> std::string_view {
-        return e != nullptr && e->type == &cursiv::ast_type_tag<php::ast::Var>
+        return e != nullptr && e->type == &cursiv::kAstTypeTag<php::ast::Var>
                    ? static_cast<const php::ast::Var*>(e)->name
                    : std::string_view{};
       };

@@ -9,7 +9,7 @@
 namespace gtin {
 
 void install_core_module(GtinCoreServices& services) {
-  gtin::generated::Gtin::install_generated_module(services);
+  gtin::generated::Gtin::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

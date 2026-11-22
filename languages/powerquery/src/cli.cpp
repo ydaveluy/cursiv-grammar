@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<powerquery::PowerqueryCoreServices,
+    &cursiv::registerLanguage<powerquery::PowerqueryCoreServices,
                            powerquery::PowerquerySharedCoreServices,
                            powerquery::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<powerquery::PowerquerySharedCoreServices>(
+  return cursiv::runCli<powerquery::PowerquerySharedCoreServices>(
       argc, argv, kRegister);
 }

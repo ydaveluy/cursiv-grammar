@@ -16,10 +16,10 @@ namespace {
 // is an integer setting, not an expression or a floating/fractional constant.
 bool precision_value(std::string_view text) {
   int base = 10;
-  if (text.size() > 2 && cursiv::folded_equal(text.substr(0, 2), "0x")) {
+  if (text.size() > 2 && cursiv::foldedEqual(text.substr(0, 2), "0x")) {
     text.remove_prefix(2);
     base = 16;
-  } else if (text.size() > 2 && cursiv::folded_equal(text.substr(0, 2), "b#")) {
+  } else if (text.size() > 2 && cursiv::foldedEqual(text.substr(0, 2), "b#")) {
     text.remove_prefix(2);
     base = 2;
   }
@@ -35,7 +35,7 @@ bool precision_value(std::string_view text) {
 
 void SharcValidator::checkDirective(const ast::Directive& directive,
                                     cursiv::ValidationAcceptor& accept) const {
-  if (!cursiv::folded_equal(directive.keyword, ".precision") ||
+  if (!cursiv::foldedEqual(directive.keyword, ".precision") ||
       directive.values.size() != 1) return;
   const auto* number = cursiv::ast_cast<ast::NumberLit>(directive.values[0]);
   if (number && !precision_value(number->value))

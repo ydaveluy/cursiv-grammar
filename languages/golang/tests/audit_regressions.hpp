@@ -10,7 +10,7 @@ namespace audit_regressions {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  return node && node->type == &cursiv::ast_type_tag<T>
+  return node && node->type == &cursiv::kAstTypeTag<T>
              ? static_cast<const T*>(node)
              : nullptr;
 }

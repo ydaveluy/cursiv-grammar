@@ -5,7 +5,7 @@
 #include "sici/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       sici::SiciSharedServices>(
       argc, argv, "sici-lsp", &sici::register_lsp_services);
 }

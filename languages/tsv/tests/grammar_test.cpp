@@ -25,7 +25,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       tsv::TsvCoreServices,
       tsv::TsvSharedCoreServices,
       tsv::install_core_module>();
@@ -53,7 +53,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<tsv::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<tsv::ast::Document>)
       return fail(file, "the parse built no document");
   }
 

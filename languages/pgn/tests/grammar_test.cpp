@@ -27,7 +27,7 @@ int fail(const std::string& path, const char* what) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<pgn::PgnCoreServices, pgn::PgnSharedCoreServices,
+      cursiv::createLanguage<pgn::PgnCoreServices, pgn::PgnSharedCoreServices,
                               pgn::install_core_module>();
   {
     const auto r = language.language.parser->parse("1... e5 *");
@@ -55,7 +55,7 @@ int main() {
   if (files.empty()) return fail(CURSIV_TEST_DIR, "no example found");
 
   const auto language =
-      cursiv::create_language<pgn::PgnCoreServices, pgn::PgnSharedCoreServices,
+      cursiv::createLanguage<pgn::PgnCoreServices, pgn::PgnSharedCoreServices,
                               pgn::install_core_module>();
 
   int checked = 0;
@@ -74,7 +74,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<pgn::ast::Database>)
+        root->type != &cursiv::kAstTypeTag<pgn::ast::Database>)
       return fail(path.string(), "built no database");
 
     const auto& database = *static_cast<const pgn::ast::Database*>(root);

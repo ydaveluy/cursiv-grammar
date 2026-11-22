@@ -5,7 +5,7 @@
 #include "vba/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       vba::VbaSharedServices>(
       argc, argv, "vba-lsp", &vba::register_lsp_services);
 }

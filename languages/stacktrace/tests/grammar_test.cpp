@@ -31,7 +31,7 @@ std::string read(const std::string& path) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       stacktrace::StacktraceCoreServices, stacktrace::StacktraceSharedCoreServices,
       stacktrace::install_core_module>();
 
@@ -58,7 +58,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<stacktrace::ast::StackTrace>) {
+        root->type != &cursiv::kAstTypeTag<stacktrace::ast::StackTrace>) {
       failures += fail(name, "the parse built no StackTrace");
       continue;
     }

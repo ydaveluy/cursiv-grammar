@@ -152,8 +152,8 @@ struct TypeScriptLexical : cursiv::GrammarSpec {
   static constexpr auto RegexBackslash = lit<"\\"> + cr<R"(^\r\n)">;
   static constexpr auto RegexClass =
       lit<"["> + many(RegexBackslash | cr<R"(^\r\n\\])">) + lit<"]">;
-  struct REGEX
-      : terminal<lit<"/"> + (RegexBackslash | RegexClass | cr<R"(^*\r\n\\/[)">) +
+  struct REGEX_BODY
+      : terminal<(RegexBackslash | RegexClass | cr<R"(^*\r\n\\/[)">) +
                  many(RegexBackslash | RegexClass | cr<R"(^\r\n\\/[)">) +
                  lit<"/"> + many(cr<"a-zA-Z">)> {};
 
@@ -213,7 +213,7 @@ struct TypeScriptLexical : cursiv::GrammarSpec {
   struct NullLit_ : rule<create<ast::NullLit>(kw<"null">)> {};
   struct BOOL_TOK : terminal<as<bool>(kw<"true"> | kw<"false">)> {};
   struct BoolLit_ : rule<assign<&ast::BoolLit::value>(ref<BOOL_TOK>)> {};
-  struct RegexLit_ : rule<assign<&ast::RegexLit::text>(ref<REGEX>)> {};
+  struct RegexLit_ : rule<assign<&ast::RegexLit::text>(lit<"/"> + gap::none + ref<REGEX_BODY>)> {};
 
   struct MetaProperty_
       : rule<create<ast::MetaProperty>(
@@ -836,19 +836,19 @@ struct TypeScriptContext : TypeScriptLexical {
                         "?="> |
                     lit<"&&="> | lit<"||=">;
   struct AssignmentOperator : rule<AssignmentOp> {};
-  template <class Conditional, class Recursive, class Arrow>
+  template <class Binary, class Conditional, class Recursive, class Arrow>
   static constexpr auto AssignmentBody = [] {
-    constexpr auto ordinary = ref<Conditional> +
-        option(nest<ast::AssignExpr, &ast::AssignExpr::target>(
-            assign<&ast::AssignExpr::op>(ref<AssignmentOperator>) +
-            assign<&ast::AssignExpr::value>(ref<Recursive>)));
+    constexpr auto ordinary = create<ast::AssignExpr>(
+        assign<&ast::AssignExpr::target>(ref<Binary>) +
+        assign<&ast::AssignExpr::op>(ref<AssignmentOperator>) +
+        assign<&ast::AssignExpr::value>(ref<Recursive>)) | ref<Conditional>;
     // Native5.9.3 dispatches Yield, then Arrow, then conditional/assignment.
     // The generator identifier and single-parameter paths exclude yield.
     if constexpr (GeneratorContext) return ref<YieldExpr_<Recursive>> | ref<Arrow> | ordinary;
     else return (YieldStart + ref<YieldExpr_<Recursive>>) |
         (!YieldStart + (ref<Arrow> | ordinary));
   }();
-  struct AssignExpr : rule<AssignmentBody<ConditionalExpr, AssignExpr, ArrowFunctionExpr_>> {};
+  struct AssignExpr : rule<AssignmentBody<BinaryExpr, ConditionalExpr, AssignExpr, ArrowFunctionExpr_>> {};
 
   struct Expression
       : infix<AssignExpr, ast::BinaryExpr, left(lit<",">)> {};
@@ -1218,7 +1218,7 @@ struct TypeScriptContext : TypeScriptLexical {
       lit<"?", !cr<"?"> + !(lit<"."> + !d)> +
       assign<&ast::ConditionalExpr::consequent>(ref<ContextAssign<GeneratorContext>>) + lit<":"> +
       assign<&ast::ConditionalExpr::alternate>(ref<NoInAssignExpr>)) | ref<NoInBinaryExpr>> {};
-  struct NoInAssignExpr : rule<AssignmentBody<NoInConditionalExpr, NoInAssignExpr, NoInArrowFunctionExpr>> {};
+  struct NoInAssignExpr : rule<AssignmentBody<NoInBinaryExpr, NoInConditionalExpr, NoInAssignExpr, NoInArrowFunctionExpr>> {};
   struct NoInExpression : infix<NoInAssignExpr, ast::BinaryExpr, left(lit<",">)> {};
 
   // -- Assignable (var/let/const target, parameter, for-in/of target) ----
@@ -1251,16 +1251,13 @@ struct TypeScriptContext : TypeScriptLexical {
   static constexpr auto ResourceBinding =
       ref<ResourceBindingIdent> | ref<ArrayLiteral> | ref<ObjectLiteral>;
   static constexpr auto ResourceFirstBinding = ResourceBindingName | lit<"{">;
-  static constexpr auto ResourceFollower = !LineBreak + &ResourceFirstBinding;
+  static constexpr auto ResourceFollower = !LineBreak + ResourceFirstBinding;
   static constexpr auto ResourceHead =
-      (kw<"using"> + ResourceFollower) |
-      (kw<"await"> + kw<"using"> + ResourceFollower);
-  // Plain `using of xs` is an expression initializer; `await using` differs.
-  // The plain `of` lookahead precedes the native same-line check.
+      option(kw<"await">) + kw<"using"> + ResourceFollower;
+  // In a for-header, of names a binding before =, ; or :, even across a newline.
   static constexpr auto ResourceForHead =
-      (kw<"using"> +
-       ((kw<"of"> + &(lit<"="> | lit<";"> | lit<":">)) |
-        (!LineBreak + !kw<"of"> + ResourceFirstBinding))) |
+      (kw<"using"> + ((kw<"of"> + (lit<"="> | lit<";"> | lit<":">)) |
+                      (!kw<"of"> + ResourceFollower))) |
       (kw<"await"> + kw<"using"> + ResourceFollower);
   static constexpr auto ResourceKind =
       option(flag<&ast::VarDecl::isAwaitUsing>(kw<"await">)) +
@@ -1283,7 +1280,7 @@ struct TypeScriptContext : TypeScriptLexical {
   struct ResourceStatement : rule<
       create<ast::VarDecl>(
           option(flag<&ast::VarDecl::isDeclare>(kw<"declare">) + !LineBreak) +
-          &ResourceHead + ResourceKind + ResourceFollower +
+          ResourceKind + !LineBreak + &ResourceFirstBinding +
           append<&ast::VarDecl::declarations>(ref<ResourceDeclarator>) +
           many(lit<","> + append<&ast::VarDecl::declarations>(ref<ResourceDeclarator>)) +
           option(ResourceTrailingComma)) + Eos> {};

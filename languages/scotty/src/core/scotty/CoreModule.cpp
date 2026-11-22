@@ -9,7 +9,7 @@
 namespace scotty {
 
 void install_core_module(ScottyCoreServices& services) {
-  scotty::generated::Scotty::install_generated_module(services);
+  scotty::generated::Scotty::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

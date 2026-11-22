@@ -25,7 +25,7 @@ namespace {
 namespace ast = lua::ast;
 
 const auto& services() {
-  static const auto language = cursiv::create_language<lua::LuaCoreServices,
+  static const auto language = cursiv::createLanguage<lua::LuaCoreServices,
       lua::LuaSharedCoreServices, lua::install_core_module>();
   return language.language;
 }
@@ -33,7 +33,7 @@ const cursiv::Parser& engine() { return *services().parser; }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -63,7 +63,7 @@ const char* const kExamples[] = {
 
 void every_example_parses_clean() {
   for (const char* const name : kExamples) {
-    const std::string text = cursiv::test::read_file(
+    const std::string text = cursiv::test::readFile(
         std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
     CHECK(!text.empty());
     const cursiv::ParseResult r = parse(kept(text));
@@ -93,7 +93,7 @@ void long_brackets_every_level() {
 
   // A level-six comment and a level-eight string, the string holding false
   // closers up to level six that must not end it early.
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       std::string(CURSIV_TEST_DIR) + "/long-bracket-level6.lua");
   CHECK(!text.empty());
   CHECK(clean(kept(text)));

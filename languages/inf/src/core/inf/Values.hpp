@@ -11,7 +11,7 @@ namespace inf {
 
 inline std::size_t space_size(std::string_view text, std::size_t at) {
   if (at >= text.size()) return 0;
-  const std::size_t width = cursiv::utf8_width(text[at]);
+  const std::size_t width = cursiv::utf8Width(text[at]);
   static constexpr std::string_view spaces =
       "\t\v\f \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005"
       "\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000";
@@ -81,7 +81,7 @@ inline std::string decode_value(const ast::Item& item, const cursiv::Cst& cst) {
       result += pending;
       pending.clear();
       leading = false;
-      const auto scalarWidth = cursiv::utf8_width(text[i]);
+      const auto scalarWidth = cursiv::utf8Width(text[i]);
       result.append(text.substr(i, scalarWidth));
       i += scalarWidth;
     }

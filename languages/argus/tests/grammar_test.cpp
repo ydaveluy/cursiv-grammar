@@ -31,7 +31,7 @@ std::string read_file(const char* path) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       argus::ArgusCoreServices, argus::ArgusSharedCoreServices,
       argus::install_core_module>();
 
@@ -201,7 +201,7 @@ end P
       return fail("a document carries an unexpected diagnostic");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<argus::ast::Module>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<argus::ast::Module>)
       return fail("the parse built no module");
   }
 
@@ -213,7 +213,7 @@ end P
   const auto& module =
       *static_cast<const argus::ast::Module*>(result.value);
   if (module.unit == nullptr ||
-      module.unit->type != &cursiv::ast_type_tag<argus::ast::Procedure>)
+      module.unit->type != &cursiv::kAstTypeTag<argus::ast::Procedure>)
     return fail("statements.arg's unit is not the Demo procedure");
 
   const auto& demo = *static_cast<const argus::ast::Procedure*>(module.unit);
@@ -231,7 +231,7 @@ end P
   // The first statement is `x: int` -- a declaration with no initializer.
   if (demo.body == nullptr || demo.body->statements.empty() ||
       demo.body->statements[0]->type !=
-          &cursiv::ast_type_tag<argus::ast::DeclStatement>)
+          &cursiv::kAstTypeTag<argus::ast::DeclStatement>)
     return fail("the first statement is not the expected declaration");
   const auto& firstDecl =
       *static_cast<const argus::ast::DeclStatement*>(demo.body->statements[0]);
@@ -299,10 +299,10 @@ end P
       return proc->body->statements[1]->type;
     };
     if (first_stmt_type("x := 5") !=
-        &cursiv::ast_type_tag<argus::ast::AssignStatement>)
+        &cursiv::kAstTypeTag<argus::ast::AssignStatement>)
       return fail("'x := 5' should read as AssignStatement, not IndexAssignStatement");
     if (first_stmt_type("x[1] := 5") !=
-        &cursiv::ast_type_tag<argus::ast::IndexAssignStatement>)
+        &cursiv::kAstTypeTag<argus::ast::IndexAssignStatement>)
       return fail("'x[1] := 5' should read as IndexAssignStatement");
   }
 

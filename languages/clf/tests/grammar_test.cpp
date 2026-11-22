@@ -23,20 +23,20 @@ namespace ast = clf::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      clf::generated::Clf::create_parser();
+      clf::generated::Clf::createParser();
   return *p;
 }
 
 std::string read_example(const char* name) {
   std::string text =
-      cursiv::test::read_file(std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
+      cursiv::test::readFile(std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
   CHECK(!text.empty());
   return text;
 }
 
 std::string read_test_doc(const char* name) {
   std::string text =
-      cursiv::test::read_file(std::string(CURSIV_TEST_DIR) + "/" + name);
+      cursiv::test::readFile(std::string(CURSIV_TEST_DIR) + "/" + name);
   CHECK(!text.empty());
   return text;
 }

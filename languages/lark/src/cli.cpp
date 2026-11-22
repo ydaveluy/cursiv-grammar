@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<lark::LarkCoreServices,
+    &cursiv::registerLanguage<lark::LarkCoreServices,
                            lark::LarkSharedCoreServices,
                            lark::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<lark::LarkSharedCoreServices>(
+  return cursiv::runCli<lark::LarkSharedCoreServices>(
       argc, argv, kRegister);
 }

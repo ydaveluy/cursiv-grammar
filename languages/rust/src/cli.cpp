@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<rust::RustCoreServices,
+    &cursiv::registerLanguage<rust::RustCoreServices,
                            rust::RustSharedCoreServices,
                            rust::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<rust::RustSharedCoreServices>(
+  return cursiv::runCli<rust::RustSharedCoreServices>(
       argc, argv, kRegister);
 }

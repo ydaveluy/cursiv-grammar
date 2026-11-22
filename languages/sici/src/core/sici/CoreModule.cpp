@@ -9,7 +9,7 @@
 namespace sici {
 
 void install_core_module(SiciCoreServices& services) {
-  sici::generated::Sici::install_generated_module(services);
+  sici::generated::Sici::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

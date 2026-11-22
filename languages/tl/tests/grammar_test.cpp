@@ -27,7 +27,7 @@ int fail(const std::string& path, const char* what) {
 int main() {
   if (!audit_regressions::run()) return 1;
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       tl::TlCoreServices,
       tl::TlSharedCoreServices,
       tl::install_core_module>();
@@ -58,7 +58,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<tl::ast::Formula>) {
+        root->type != &cursiv::kAstTypeTag<tl::ast::Formula>) {
       failures += fail(path, "built the wrong root type");
     }
   }

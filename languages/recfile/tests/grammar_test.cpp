@@ -25,7 +25,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<recfile::RecfileCoreServices,
+      cursiv::createLanguage<recfile::RecfileCoreServices,
                               recfile::RecfileSharedCoreServices,
                               recfile::install_core_module>();
   {
@@ -48,7 +48,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       recfile::RecfileCoreServices, recfile::RecfileSharedCoreServices,
       recfile::install_core_module>();
 
@@ -80,7 +80,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<recfile::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<recfile::ast::Document>) {
       fail(path, "the parse built no Document");
       ++failures;
     }

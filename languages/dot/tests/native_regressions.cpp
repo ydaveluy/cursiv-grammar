@@ -12,7 +12,7 @@
 #include "dot/CoreServices.hpp"
 #include "dot/ast.hpp"
 int main() {
- const auto language=cursiv::create_language<dot::DotCoreServices,dot::DotSharedCoreServices,dot::install_core_module>();
+ const auto language=cursiv::createLanguage<dot::DotCoreServices,dot::DotSharedCoreServices,dot::install_core_module>();
  struct Case { const char* name; const char* text; bool directed, strict; std::vector<std::string_view> nodes; };
  const std::vector<Case> cases={
   {"unicode-identifiers","graph G { 日本語; λ; 🙂; é; }",false,false,{"日本語","λ","🙂","é"}},

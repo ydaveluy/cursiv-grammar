@@ -25,7 +25,7 @@ int fail(const std::string& what) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
@@ -38,7 +38,7 @@ std::string read_file(const std::filesystem::path& path) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       arden::ArdenCoreServices, arden::ArdenSharedCoreServices,
       arden::install_core_module>();
 
@@ -96,7 +96,7 @@ int main() {
     if (!result.diagnostics.empty())
       return fail(path.string() + ": unexpected diagnostics");
     if (result.value == nullptr ||
-        result.value->type != &cursiv::ast_type_tag<arden::ast::Mlm>)
+        result.value->type != &cursiv::kAstTypeTag<arden::ast::Mlm>)
       return fail(path.string() + ": the parse built no mlm");
     results.push_back(std::move(result));
   }

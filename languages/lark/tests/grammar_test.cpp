@@ -33,7 +33,7 @@ std::string read(const std::filesystem::path &path) {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<lark::LarkCoreServices,
+        cursiv::createLanguage<lark::LarkCoreServices,
                                 lark::LarkSharedCoreServices,
                                 lark::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -55,7 +55,7 @@ int main() {
       return 1;
   }
 
-  const auto language = cursiv::create_language<lark::LarkCoreServices,
+  const auto language = cursiv::createLanguage<lark::LarkCoreServices,
                                                 lark::LarkSharedCoreServices,
                                                 lark::install_core_module>();
 
@@ -77,7 +77,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<lark::ast::Start>)
+        root->type != &cursiv::kAstTypeTag<lark::ast::Start>)
       return fail(path.filename().string() + ": built no Start node");
   }
 

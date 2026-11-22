@@ -24,12 +24,12 @@ namespace fs = std::filesystem;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      peoplecode::generated::Peoplecode::create_parser();
+      peoplecode::generated::Peoplecode::createParser();
   return *p;
 }
 
 std::string read_file(const fs::path& path) {
-  return cursiv::test::read_file(path.string());
+  return cursiv::test::readFile(path.string());
 }
 
 // Every example, sorted so a failure is reported at a stable line.
@@ -55,7 +55,7 @@ void corpus() {
                   r.cst().recovered(), r.diagnostics.size());
     CHECK(clean);
     CHECK(r.value != nullptr &&
-          r.value->type == &cursiv::ast_type_tag<ast::Program>);
+          r.value->type == &cursiv::kAstTypeTag<ast::Program>);
   }
 }
 

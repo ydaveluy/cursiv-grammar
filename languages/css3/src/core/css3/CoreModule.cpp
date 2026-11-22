@@ -9,7 +9,7 @@
 namespace css3 {
 
 void install_core_module(Css3CoreServices& services) {
-  css3::generated::Css3::install_generated_module(services);
+  css3::generated::Css3::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

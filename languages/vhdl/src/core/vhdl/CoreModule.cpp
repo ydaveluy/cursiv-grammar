@@ -9,7 +9,7 @@
 namespace vhdl {
 
 void install_core_module(VhdlCoreServices& services) {
-  vhdl::generated::Vhdl::install_generated_module(services);
+  vhdl::generated::Vhdl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

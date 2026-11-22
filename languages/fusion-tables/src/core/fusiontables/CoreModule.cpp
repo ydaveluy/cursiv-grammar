@@ -9,7 +9,7 @@
 namespace fusiontables {
 
 void install_core_module(FusionTablesCoreServices& services) {
-  fusiontables::generated::FusionTables::install_generated_module(services);
+  fusiontables::generated::FusionTables::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<qif::QifCoreServices,
+    &cursiv::registerLanguage<qif::QifCoreServices,
                            qif::QifSharedCoreServices,
                            qif::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<qif::QifSharedCoreServices>(
+  return cursiv::runCli<qif::QifSharedCoreServices>(
       argc, argv, kRegister);
 }

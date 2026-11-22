@@ -5,7 +5,7 @@
 #include "gql/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       gql::GqlSharedServices>(
       argc, argv, "gql-lsp", &gql::register_lsp_services);
 }

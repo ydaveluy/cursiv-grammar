@@ -5,7 +5,7 @@
 #include "scotty/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       scotty::ScottySharedServices>(
       argc, argv, "scotty-lsp", &scotty::register_lsp_services);
 }

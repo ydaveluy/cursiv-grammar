@@ -46,7 +46,7 @@ const char* const kFeatures[] = {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<pf::PfCoreServices, pf::PfSharedCoreServices,
+      cursiv::createLanguage<pf::PfCoreServices, pf::PfSharedCoreServices,
                               pf::install_core_module>();
   {
     const auto r = language.language.parser->parse("pass from ::1 to any");
@@ -62,7 +62,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       pf::PfCoreServices, pf::PfSharedCoreServices, pf::install_core_module>();
   if (!pf_followup::run(language.language)) return fail("native follow-up fields or validation differ");
   if (!bandwidth_cases::run(language.language)) return fail("bandwidth followup failed");
@@ -79,7 +79,7 @@ int main() {
       return fail(std::string(name) + ": has diagnostics");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<pf::ast::File>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<pf::ast::File>)
       return fail(std::string(name) + ": built no File");
 
     const auto& file = *static_cast<const pf::ast::File*>(root);
@@ -99,7 +99,7 @@ int main() {
       return fail(std::string(name) + ": has diagnostics");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<pf::ast::File>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<pf::ast::File>)
       return fail(std::string(name) + ": built no File");
   }
 

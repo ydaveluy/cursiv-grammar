@@ -5,7 +5,7 @@
 #include "arden/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       arden::ArdenSharedServices>(
       argc, argv, "arden-lsp", &arden::register_lsp_services);
 }

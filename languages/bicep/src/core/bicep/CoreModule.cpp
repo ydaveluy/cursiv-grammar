@@ -9,7 +9,7 @@
 namespace bicep {
 
 void install_core_module(BicepCoreServices& services) {
-  bicep::generated::Bicep::install_generated_module(services);
+  bicep::generated::Bicep::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

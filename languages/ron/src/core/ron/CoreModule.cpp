@@ -9,7 +9,7 @@
 namespace ron {
 
 void install_core_module(RonCoreServices& services) {
-  ron::generated::Ron::install_generated_module(services);
+  ron::generated::Ron::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

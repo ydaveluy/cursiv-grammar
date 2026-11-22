@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<sgf::SgfCoreServices,
+    &cursiv::registerLanguage<sgf::SgfCoreServices,
                            sgf::SgfSharedCoreServices,
                            sgf::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<sgf::SgfSharedCoreServices>(
+  return cursiv::runCli<sgf::SgfSharedCoreServices>(
       argc, argv, kRegister);
 }

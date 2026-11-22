@@ -14,7 +14,7 @@ namespace code_audit {
 namespace ast = wavefront::ast;
 inline bool run() {
   const auto language =
-      cursiv::create_language<wavefront::WavefrontCoreServices,
+      cursiv::createLanguage<wavefront::WavefrontCoreServices,
                               wavefront::WavefrontSharedCoreServices,
                               wavefront::install_core_module>();
   bool ok = true;

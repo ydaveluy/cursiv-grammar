@@ -22,7 +22,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       lambda::LambdaCoreServices, lambda::LambdaSharedCoreServices,
       lambda::install_core_module>();
 
@@ -55,7 +55,7 @@ int main() {
     // top-level term is -- so the test asks the family, not the exact class.
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        !root->type->derivesFrom(&cursiv::ast_type_tag<lambda::ast::Expression>)) {
+        !root->type->derivesFrom(&cursiv::kAstTypeTag<lambda::ast::Expression>)) {
       fail(path, "the parse built no Expression");
       ++failures;
     }

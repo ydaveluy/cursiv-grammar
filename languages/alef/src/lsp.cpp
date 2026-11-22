@@ -5,7 +5,7 @@
 #include "alef/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       alef::AlefSharedServices>(
       argc, argv, "alef-lsp", &alef::register_lsp_services);
 }

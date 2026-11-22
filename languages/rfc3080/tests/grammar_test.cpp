@@ -30,7 +30,7 @@ int fail(const std::string& what) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<rfc3080::Rfc3080CoreServices,
+      cursiv::createLanguage<rfc3080::Rfc3080CoreServices,
                               rfc3080::Rfc3080SharedCoreServices,
                               rfc3080::install_core_module>();
   {
@@ -66,7 +66,7 @@ int main() {
   namespace fs = std::filesystem;
 
   const auto language =
-      cursiv::create_language<rfc3080::Rfc3080CoreServices,
+      cursiv::createLanguage<rfc3080::Rfc3080CoreServices,
                               rfc3080::Rfc3080SharedCoreServices,
                               rfc3080::install_core_module>();
 
@@ -88,7 +88,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<rfc3080::ast::Frame>)
+        root->type != &cursiv::kAstTypeTag<rfc3080::ast::Frame>)
       return fail(path.filename().string() + " built no frame");
     ++count;
   }

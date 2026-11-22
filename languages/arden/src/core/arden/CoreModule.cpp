@@ -9,7 +9,7 @@
 namespace arden {
 
 void install_core_module(ArdenCoreServices& services) {
-  arden::generated::Arden::install_generated_module(services);
+  arden::generated::Arden::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

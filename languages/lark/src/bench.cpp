@@ -2,6 +2,6 @@
 #include "lark/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       lark::LarkSharedServices, lark::register_lsp_services>(argc, argv);
 }

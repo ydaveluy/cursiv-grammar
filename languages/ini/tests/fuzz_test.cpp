@@ -8,7 +8,7 @@
 #include "ini/CoreServices.hpp"
 
 int main() {
-  auto language = cursiv::create_language<ini::IniCoreServices,
+  auto language = cursiv::createLanguage<ini::IniCoreServices,
       ini::IniSharedCoreServices, ini::install_core_module>();
   std::mt19937 random(0x5eed02);
   constexpr std::string_view values[] = {"001", "true", "bare text", "\"quoted\"", "#; punctuation", "é 你好", ""};

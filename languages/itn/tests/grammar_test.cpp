@@ -25,7 +25,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 int main() {
   if (!native_regressions::run()) return 1;
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       itn::ItnCoreServices, itn::ItnSharedCoreServices,
       itn::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("-123|+456|Paris|0|\n");
@@ -37,7 +37,7 @@ int main() {
     if (!route || route->lines.size() != 1 || route->lines[0]->longitude != -123 || route->lines[0]->latitude != 456) return 1;
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       itn::ItnCoreServices, itn::ItnSharedCoreServices,
       itn::install_core_module>();
 
@@ -69,7 +69,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<itn::ast::Itinerary>) {
+        root->type != &cursiv::kAstTypeTag<itn::ast::Itinerary>) {
       fail(path, "the parse built no Itinerary");
       ++failures;
     }

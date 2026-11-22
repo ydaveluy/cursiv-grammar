@@ -5,7 +5,7 @@
 #include "lambda/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       lambda::LambdaSharedServices>(
       argc, argv, "lambda-lsp", &lambda::register_lsp_services);
 }

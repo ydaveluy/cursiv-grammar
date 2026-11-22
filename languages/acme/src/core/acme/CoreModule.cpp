@@ -9,7 +9,7 @@
 namespace acme {
 
 void install_core_module(AcmeCoreServices& services) {
-  acme::generated::Acme::install_generated_module(services);
+  acme::generated::Acme::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

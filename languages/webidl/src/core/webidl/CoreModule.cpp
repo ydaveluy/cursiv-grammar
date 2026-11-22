@@ -9,7 +9,7 @@
 namespace webidl {
 
 void install_core_module(WebidlCoreServices& services) {
-  webidl::generated::Webidl::install_generated_module(services);
+  webidl::generated::Webidl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

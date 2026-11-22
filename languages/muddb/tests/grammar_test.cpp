@@ -23,13 +23,13 @@ namespace ast = muddb::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      muddb::generated::Muddb::create_parser();
+      muddb::generated::Muddb::createParser();
   return *p;
 }
 
 std::string read_example(const char* name) {
   std::string text =
-      cursiv::test::read_file(std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
+      cursiv::test::readFile(std::string(CURSIV_EXAMPLE_DIR) + "/" + name);
   CHECK(!text.empty());
   return text;
 }
@@ -106,7 +106,7 @@ void broken_documents_are_refused() {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<muddb::MuddbCoreServices, muddb::MuddbSharedCoreServices, muddb::install_core_module>();
+  const auto language = cursiv::createLanguage<muddb::MuddbCoreServices, muddb::MuddbSharedCoreServices, muddb::install_core_module>();
   CHECK(native_regressions::run(language) == 0);
   every_example_parses_clean();
   minimal_dump_holds_its_two_rooms();

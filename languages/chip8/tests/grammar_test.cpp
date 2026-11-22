@@ -17,13 +17,13 @@ namespace ast = chip8::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      chip8::generated::Chip8::create_parser();
+      chip8::generated::Chip8::createParser();
   return *p;
 }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -35,7 +35,7 @@ const char* const kExamples[] = {
 
 void every_example_parses_clean() {
   for (const char* const path : kExamples) {
-    const std::string text = cursiv::test::read_file(path);
+    const std::string text = cursiv::test::readFile(path);
     CHECK(!text.empty());
     const cursiv::ParseResult r = engine().parse(text);
     CHECK(r.accepted);
@@ -48,7 +48,7 @@ void every_example_parses_clean() {
 // Every opcode reaches its own Op, and the operand slots it does not use
 // stay at -1.
 void every_opcode_is_covered() {
-  const std::string text = cursiv::test::read_file(
+  const std::string text = cursiv::test::readFile(
       std::string(CURSIV_TEST_DIR) + "/instruction-set.chip8");
   const cursiv::ParseResult r = engine().parse(text);
   CHECK(r.accepted && !r.cst().recovered());

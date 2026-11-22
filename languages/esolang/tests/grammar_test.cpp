@@ -40,7 +40,7 @@ std::string read_file(const fs::path &path) {
 
 const cursiv::Parser &parser() {
   static const auto language =
-      cursiv::create_language<lolcode::LolcodeCoreServices,
+      cursiv::createLanguage<lolcode::LolcodeCoreServices,
                               lolcode::LolcodeSharedCoreServices,
                               lolcode::install_core_module>();
   return *language.language.parser;
@@ -57,9 +57,9 @@ ast::Program *parse_clean(const std::string &text, const char *label) {
   check(!result.cst().recovered(), label);
   check(result.diagnostics.empty(), label);
   const cursiv::AstNode *const root = result.value;
-  check(root != nullptr && root->type == &cursiv::ast_type_tag<ast::Program>,
+  check(root != nullptr && root->type == &cursiv::kAstTypeTag<ast::Program>,
         label);
-  return (root != nullptr && root->type == &cursiv::ast_type_tag<ast::Program>)
+  return (root != nullptr && root->type == &cursiv::kAstTypeTag<ast::Program>)
              ? const_cast<ast::Program *>(
                    static_cast<const ast::Program *>(root))
              : nullptr;
@@ -350,7 +350,7 @@ void numeric_literal_regressions() {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<lolcode::LolcodeCoreServices,
+        cursiv::createLanguage<lolcode::LolcodeCoreServices,
                                 lolcode::LolcodeSharedCoreServices,
                                 lolcode::install_core_module>();
     if (!lolcode_switch_cases::run(audit_language.language))

@@ -28,7 +28,7 @@ std::string read_file(const char* path) {
 }
 
 using Language =
-    decltype(cursiv::create_language<powerbuilderdw::PowerbuilderdwCoreServices,
+    decltype(cursiv::createLanguage<powerbuilderdw::PowerbuilderdwCoreServices,
                                      powerbuilderdw::PowerbuilderdwSharedCoreServices,
                                      powerbuilderdw::install_core_module>());
 
@@ -49,7 +49,7 @@ const powerbuilderdw::ast::Document* parse_clean(Language& language,
   }
   const cursiv::AstNode* const root = out.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<powerbuilderdw::ast::Document>) {
+      root->type != &cursiv::kAstTypeTag<powerbuilderdw::ast::Document>) {
     std::fprintf(stderr, "powerbuilderdw: %s built no document\n", label);
     return nullptr;
   }
@@ -59,7 +59,7 @@ const powerbuilderdw::ast::Document* parse_clean(Language& language,
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       powerbuilderdw::PowerbuilderdwCoreServices,
       powerbuilderdw::PowerbuilderdwSharedCoreServices,
       powerbuilderdw::install_core_module>();
@@ -103,14 +103,14 @@ int main() {
 
   const auto* const table = static_cast<const powerbuilderdw::ast::TableProperty*>(
       doc.properties[1]);
-  if (table->type != &cursiv::ast_type_tag<powerbuilderdw::ast::TableProperty>)
+  if (table->type != &cursiv::kAstTypeTag<powerbuilderdw::ast::TableProperty>)
     return fail("header_and_types: second property is not TABLE(...)");
   if (table->items.size() != 5)
     return fail("header_and_types: TABLE(...) item count");
 
   const auto* const col0 =
       static_cast<const powerbuilderdw::ast::ColumnTypeAttr*>(table->items[0]);
-  if (col0->type != &cursiv::ast_type_tag<powerbuilderdw::ast::ColumnTypeAttr>)
+  if (col0->type != &cursiv::kAstTypeTag<powerbuilderdw::ast::ColumnTypeAttr>)
     return fail("header_and_types: first table item is not COLUMN=(TYPE=...)");
   if (col0->dataType != "CHAR" || !col0->size || *col0->size != 30.0)
     return fail("header_and_types: COLUMN=(TYPE=CHAR(30)...) misread");
@@ -119,7 +119,7 @@ int main() {
       static_cast<const powerbuilderdw::ast::ColumnTypeAttr*>(table->items[1]);
   bool sawFilter = false;
   for (const powerbuilderdw::ast::Attr* const attr : col1->attrs) {
-    if (attr->type != &cursiv::ast_type_tag<powerbuilderdw::ast::NestedAttr>)
+    if (attr->type != &cursiv::kAstTypeTag<powerbuilderdw::ast::NestedAttr>)
       continue;
     const auto* const nested =
         static_cast<const powerbuilderdw::ast::NestedAttr*>(attr);
@@ -129,7 +129,7 @@ int main() {
 
   const auto* const retrieve =
       static_cast<const powerbuilderdw::ast::RetrieveAttr*>(table->items[2]);
-  if (retrieve->type != &cursiv::ast_type_tag<powerbuilderdw::ast::RetrieveAttr>)
+  if (retrieve->type != &cursiv::kAstTypeTag<powerbuilderdw::ast::RetrieveAttr>)
     return fail("header_and_types: third table item is not RETRIEVE=...");
   if (retrieve->retrieveText.find("\"X\"") == std::string_view::npos)
     return fail("header_and_types: RETRIEVE= tilde-escape not unescaped");

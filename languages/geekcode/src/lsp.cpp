@@ -5,7 +5,7 @@
 #include "geekcode/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       geekcode::GeekcodeSharedServices>(
       argc, argv, "geekcode-lsp", &geekcode::register_lsp_services);
 }

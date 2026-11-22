@@ -9,7 +9,7 @@
 namespace inf {
 
 void install_core_module(InfCoreServices& services) {
-  inf::generated::Inf::install_generated_module(services);
+  inf::generated::Inf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

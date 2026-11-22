@@ -9,7 +9,7 @@
 namespace apex {
 
 void install_core_module(ApexCoreServices& services) {
-  apex::generated::Apex::install_generated_module(services);
+  apex::generated::Apex::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

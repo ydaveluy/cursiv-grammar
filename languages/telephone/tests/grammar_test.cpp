@@ -28,7 +28,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 
 int main() {
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       telephone::TelephoneCoreServices, telephone::TelephoneSharedCoreServices,
       telephone::install_core_module>();
 
@@ -93,7 +93,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<telephone::ast::Number>)
+        root->type != &cursiv::kAstTypeTag<telephone::ast::Number>)
       failures += fail(file, "the parse built no Number");
   }
 

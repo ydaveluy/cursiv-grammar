@@ -9,7 +9,7 @@
 namespace aql {
 
 void install_core_module(AqlCoreServices& services) {
-  aql::generated::Aql::install_generated_module(services);
+  aql::generated::Aql::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

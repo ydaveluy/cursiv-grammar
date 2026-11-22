@@ -5,7 +5,7 @@
 #include "llvmir/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       llvmir::LlvmIrSharedServices>(
       argc, argv, "llvmir-lsp", &llvmir::register_lsp_services);
 }

@@ -9,7 +9,7 @@
 namespace properties {
 
 void install_core_module(PropertiesCoreServices& services) {
-  properties::generated::Properties::install_generated_module(services);
+  properties::generated::Properties::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

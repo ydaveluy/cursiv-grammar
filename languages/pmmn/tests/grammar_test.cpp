@@ -28,7 +28,7 @@ int fail(const std::string& what) {
 
 int main() {
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       pmmn::PmmnCoreServices, pmmn::PmmnSharedCoreServices,
       pmmn::install_core_module>();
 
@@ -67,7 +67,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<pmmn::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<pmmn::ast::Program>)
       return fail(path.string() + ": the parse built no Program");
 
     ++parsed;

@@ -20,9 +20,9 @@ std::string source(const std::filesystem::path &file) {
 }
 int main() {
   const auto language =
-      cursiv::create_language<pbm::PbmCoreServices, pbm::PbmSharedCoreServices,
+      cursiv::createLanguage<pbm::PbmCoreServices, pbm::PbmSharedCoreServices,
                               pbm::install_core_module>();
-  const auto factory = pbm::generated::Pbm::create_parser();
+  const auto factory = pbm::generated::Pbm::createParser();
   bool ok = true;
   const auto check = [&](bool value, const char *message) {
     if (!value) {
@@ -41,9 +41,8 @@ int main() {
     check(result.accepted && !result.cst().recovered() &&
               result.diagnostics.empty(),
           c.file);
-    check(result.references && result.references->handles.empty() &&
-              other.references && other.references->handles.empty(),
-          "bitmap has an empty reference table");
+    check(!result.references && !other.references,
+          "bitmap allocated a reference table");
     const auto *doc = result.valueAs<ast::Document>();
     const auto *second = other.valueAs<ast::Document>();
     check(doc && second && result.cst().text(doc->cstNodeId) == text, c.file);

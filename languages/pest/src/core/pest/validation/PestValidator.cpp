@@ -33,7 +33,7 @@ std::optional<std::size_t> literal_size(std::string_view text) {
   text = text.substr(1, text.size() - 2);
   std::size_t count = 0;
   for (std::size_t i = 0; i < text.size(); ++count) {
-    if (text[i] != '\\') { i += cursiv::utf8_width(text[i]);continue; }
+    if (text[i] != '\\') { i += cursiv::utf8Width(text[i]);continue; }
     if (++i == text.size()) return std::nullopt;
     const char escape = text[i++];
     if (std::string_view("\"\\rnt0'").find(escape) != std::string_view::npos) continue;

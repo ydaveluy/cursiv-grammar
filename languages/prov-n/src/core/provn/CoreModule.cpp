@@ -9,7 +9,7 @@
 namespace provn {
 
 void install_core_module(ProvNCoreServices& services) {
-  provn::generated::ProvN::install_generated_module(services);
+  provn::generated::ProvN::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

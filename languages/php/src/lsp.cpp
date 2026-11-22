@@ -5,7 +5,7 @@
 #include "php/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       php::PhpSharedServices>(
       argc, argv, "php-lsp", &php::register_lsp_services);
 }

@@ -13,7 +13,7 @@ void InformixValidator::checkLike(const ast::LikeExpr& like,
   if (!like.escape) return;
   const auto text = like.escape->value;
   std::size_t width = 0;
-  if (!text.empty()) (void)cursiv::scalar_at(text.data(), text.size(), width);
+  if (!text.empty()) (void)cursiv::scalarAt(text.data(), text.size(), width);
   if (text.empty() || width != text.size())
     accept.error(*like.escape, "ESCAPE requires exactly one character.", "informix.escape");
 }

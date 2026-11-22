@@ -39,7 +39,7 @@ std::string read_file(const fs::path& path) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<modelica::ModelicaCoreServices,
+      cursiv::createLanguage<modelica::ModelicaCoreServices,
                               modelica::ModelicaSharedCoreServices,
                               modelica::install_core_module>();
   {
@@ -73,7 +73,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       modelica::ModelicaCoreServices, modelica::ModelicaSharedCoreServices,
       modelica::install_core_module>();
 
@@ -98,7 +98,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<modelica::ast::StoredDefinition>)
+        root->type != &cursiv::kAstTypeTag<modelica::ast::StoredDefinition>)
       return fail(doc, "the parse built no StoredDefinition");
 
     if (doc.filename() == "example1.mo") readbackDoc = doc;
@@ -117,7 +117,7 @@ int main() {
   const modelica::ast::ClassDef& def = *stored.classes[0]->def;
   if (def.kind != "model") return fail(readbackDoc, "wrong class kind");
   if (def.specifier == nullptr ||
-      def.specifier->type != &cursiv::ast_type_tag<modelica::ast::LongClassSpec>)
+      def.specifier->type != &cursiv::kAstTypeTag<modelica::ast::LongClassSpec>)
     return fail(readbackDoc, "wrong class specifier");
   const auto& spec = *static_cast<const modelica::ast::LongClassSpec*>(def.specifier);
   if (spec.name != "FirstOrder" || spec.endName != "FirstOrder")
@@ -128,7 +128,7 @@ int main() {
   for (const modelica::ast::CompositionSection* const section :
        spec.composition->sections) {
     for (const modelica::ast::Element* const element : section->elements) {
-      if (element->type != &cursiv::ast_type_tag<modelica::ast::ElementDecl>)
+      if (element->type != &cursiv::kAstTypeTag<modelica::ast::ElementDecl>)
         continue;
       const auto& decl = *static_cast<const modelica::ast::ElementDecl*>(element);
       if (decl.component == nullptr) continue;
@@ -139,7 +139,7 @@ int main() {
           foundParam = true;
           if (comp->mod == nullptr || comp->mod->value == nullptr ||
               comp->mod->value->type !=
-                  &cursiv::ast_type_tag<modelica::ast::NumberLit>)
+                  &cursiv::kAstTypeTag<modelica::ast::NumberLit>)
             return fail(readbackDoc, "wrong default value for c");
           const auto& num =
               *static_cast<const modelica::ast::NumberLit*>(comp->mod->value);
@@ -147,7 +147,7 @@ int main() {
         }
     }
     for (const modelica::ast::Equation* const eq : section->equations)
-      if (eq->type == &cursiv::ast_type_tag<modelica::ast::EqEquality>)
+      if (eq->type == &cursiv::kAstTypeTag<modelica::ast::EqEquality>)
         foundEquation = true;
   }
   if (!foundParam) return fail(readbackDoc, "parameter c not found");

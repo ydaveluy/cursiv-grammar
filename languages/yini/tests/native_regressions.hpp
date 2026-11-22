@@ -14,7 +14,7 @@
 namespace native_regressions {
 inline void run() {
   namespace a = yini::ast;
-  const auto language = cursiv::create_language<yini::YiniCoreServices,
+  const auto language = cursiv::createLanguage<yini::YiniCoreServices,
       yini::YiniSharedCoreServices, yini::install_core_module>();
   const auto noErrors = [&](const std::string& text) {
     const auto validation = cursiv::test::validationHelper(language.language, text);

@@ -23,7 +23,7 @@ void report(const std::filesystem::path& path, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       trac::TracCoreServices, trac::TracSharedCoreServices,
       trac::install_core_module>();
   if (!trac_native_followup::run(language)) {
@@ -58,7 +58,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<trac::ast::Program>) {
+          root->type != &cursiv::kAstTypeTag<trac::ast::Program>) {
         report(path, "built no Program root");
         ++failures;
       }

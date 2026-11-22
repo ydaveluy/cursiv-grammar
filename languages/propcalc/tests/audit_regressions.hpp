@@ -14,7 +14,7 @@
 namespace audit_regressions {
 inline bool run() {
   namespace ast = propcalc::ast;
-  const auto language = cursiv::create_language<propcalc::PropcalcCoreServices,
+  const auto language = cursiv::createLanguage<propcalc::PropcalcCoreServices,
       propcalc::PropcalcSharedCoreServices, propcalc::install_core_module>();
   bool ok = true;
   const auto check = [&](bool value, const char* message) {

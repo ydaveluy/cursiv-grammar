@@ -2,6 +2,6 @@
 #include "useragent/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       useragent::UseragentSharedServices, useragent::register_lsp_services>(argc, argv);
 }

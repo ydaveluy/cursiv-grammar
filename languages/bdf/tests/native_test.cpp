@@ -13,7 +13,7 @@
 #include "cursiv/ValidationResult.hpp"
 
 int main() {
-  const auto language = cursiv::create_language<bdf::BdfCoreServices,
+  const auto language = cursiv::createLanguage<bdf::BdfCoreServices,
       bdf::BdfSharedCoreServices, bdf::install_core_module>();
   unsigned native = 0;
   for (const auto& c : nativeCases) {

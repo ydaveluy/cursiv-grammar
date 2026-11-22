@@ -5,7 +5,7 @@
 #include "edif300/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       edif300::Edif300SharedServices>(
       argc, argv, "edif300-lsp", &edif300::register_lsp_services);
 }

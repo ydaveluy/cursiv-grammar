@@ -24,7 +24,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<gtin::GtinCoreServices,
+        cursiv::createLanguage<gtin::GtinCoreServices,
                                 gtin::GtinSharedCoreServices,
                                 gtin::install_core_module>();
     const auto audit_result =
@@ -61,7 +61,7 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<gtin::GtinCoreServices,
+  const auto language = cursiv::createLanguage<gtin::GtinCoreServices,
                                                 gtin::GtinSharedCoreServices,
                                                 gtin::install_core_module>();
 
@@ -93,7 +93,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<gtin::ast::Gtin> ||
+        root->type != &cursiv::kAstTypeTag<gtin::ast::Gtin> ||
         result.valueAs<gtin::ast::Gtin>()->text != text)
       failures += fail(file, "the parse built no Gtin");
   }

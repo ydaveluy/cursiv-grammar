@@ -45,7 +45,7 @@ bool clean(const cursiv::ParseResult &r) {
 }
 
 template <class T> T *as(ast::Value *v) {
-  return v != nullptr && v->type == &cursiv::ast_type_tag<T>
+  return v != nullptr && v->type == &cursiv::kAstTypeTag<T>
              ? static_cast<T *>(v)
              : nullptr;
 }
@@ -162,7 +162,7 @@ void native_reader_constraints(const edn::EdnCoreServices& services) {
 
 int main() {
   const auto language =
-      cursiv::create_language<edn::EdnCoreServices, edn::EdnSharedCoreServices,
+      cursiv::createLanguage<edn::EdnCoreServices, edn::EdnSharedCoreServices,
                               edn::install_core_module>();
   const cursiv::Parser &parser = *language.language.parser;
   reader_values(parser);
@@ -184,7 +184,7 @@ int main() {
         continue;
       }
       check(r.value != nullptr &&
-                r.value->type == &cursiv::ast_type_tag<ast::Program>,
+                r.value->type == &cursiv::kAstTypeTag<ast::Program>,
             "root is a Program");
     }
   check(sawAny, "example/ holds at least one .edn file");
@@ -199,7 +199,7 @@ int main() {
     check(clean(r), "nilfoo parses");
     ast::Program *prog =
         r.value != nullptr &&
-                r.value->type == &cursiv::ast_type_tag<ast::Program>
+                r.value->type == &cursiv::kAstTypeTag<ast::Program>
             ? static_cast<ast::Program *>(r.value)
             : nullptr;
     ast::Symbol *sym = prog != nullptr && prog->values.size() == 1
@@ -220,7 +220,7 @@ int main() {
     const cursiv::ParseResult r = parser.parse("+5");
     ast::Program *prog =
         r.value != nullptr &&
-                r.value->type == &cursiv::ast_type_tag<ast::Program>
+                r.value->type == &cursiv::kAstTypeTag<ast::Program>
             ? static_cast<ast::Program *>(r.value)
             : nullptr;
     check(prog != nullptr && prog->values.size() == 1 &&
@@ -239,7 +239,7 @@ int main() {
     check(clean(r) && r.diagnostics.empty(), "the rich document parses clean");
     ast::Program *prog =
         r.value != nullptr &&
-                r.value->type == &cursiv::ast_type_tag<ast::Program>
+                r.value->type == &cursiv::kAstTypeTag<ast::Program>
             ? static_cast<ast::Program *>(r.value)
             : nullptr;
     check(prog != nullptr && prog->values.size() == 1, "one top-level vector");

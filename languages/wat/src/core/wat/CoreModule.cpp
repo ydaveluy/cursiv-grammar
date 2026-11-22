@@ -9,7 +9,7 @@
 namespace wat {
 
 void install_core_module(WatCoreServices& services) {
-  wat::generated::Wat::install_generated_module(services);
+  wat::generated::Wat::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

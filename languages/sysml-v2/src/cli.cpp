@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<sysmlv2::SysmlV2CoreServices,
+    &cursiv::registerLanguage<sysmlv2::SysmlV2CoreServices,
                            sysmlv2::SysmlV2SharedCoreServices,
                            sysmlv2::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<sysmlv2::SysmlV2SharedCoreServices>(
+  return cursiv::runCli<sysmlv2::SysmlV2SharedCoreServices>(
       argc, argv, kRegister);
 }

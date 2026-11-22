@@ -5,7 +5,7 @@
 #include "istc/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       istc::IstcSharedServices>(
       argc, argv, "istc-lsp", &istc::register_lsp_services);
 }

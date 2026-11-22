@@ -30,21 +30,21 @@ void check_term(const ast::Term *term, const Prefixes &prefixes,
                 cursiv::ValidationAcceptor &accept) {
   if (term == nullptr)
     return;
-  using cursiv::ast_type_tag;
-  if (term->type == &ast_type_tag<ast::PrefixedTerm>) {
+  using cursiv::kAstTypeTag;
+  if (term->type == &kAstTypeTag<ast::PrefixedTerm>) {
     const auto &prefixed = *static_cast<const ast::PrefixedTerm *>(term);
     const std::string_view prefix = prefix_of(prefixed.value);
     if (!prefixes.contains(prefix))
       accept.error(prefixed, "prefix is not declared")
           .property<&ast::PrefixedTerm::value>();
-  } else if (term->type == &ast_type_tag<ast::StringLit>) {
+  } else if (term->type == &kAstTypeTag<ast::StringLit>) {
     check_term(static_cast<const ast::StringLit *>(term)->datatype, prefixes,
                accept);
-  } else if (term->type == &ast_type_tag<ast::Collection>) {
+  } else if (term->type == &kAstTypeTag<ast::Collection>) {
     for (const ast::Term *const item :
          static_cast<const ast::Collection *>(term)->items)
       check_term(item, prefixes, accept);
-  } else if (term->type == &ast_type_tag<ast::BlankNodePropertyList>) {
+  } else if (term->type == &kAstTypeTag<ast::BlankNodePropertyList>) {
     const auto *const props =
         static_cast<const ast::BlankNodePropertyList *>(term)->properties;
     if (props != nullptr)
@@ -55,22 +55,22 @@ void check_term(const ast::Term *term, const Prefixes &prefixes,
         for (const ast::Term *const object : po->objects)
           check_term(object, prefixes, accept);
       }
-  } else if (term->type == &ast_type_tag<ast::Projection>) {
+  } else if (term->type == &kAstTypeTag<ast::Projection>) {
     check_term(static_cast<const ast::Projection *>(term)->expression, prefixes,
                accept);
-  } else if (term->type == &ast_type_tag<ast::UnaryExpr>) {
+  } else if (term->type == &kAstTypeTag<ast::UnaryExpr>) {
     check_term(static_cast<const ast::UnaryExpr *>(term)->operand, prefixes,
                accept);
-  } else if (term->type == &ast_type_tag<ast::BinaryExpr>) {
+  } else if (term->type == &kAstTypeTag<ast::BinaryExpr>) {
     const auto &bin = *static_cast<const ast::BinaryExpr *>(term);
     check_term(bin.left, prefixes, accept);
     check_term(bin.right, prefixes, accept);
-  } else if (term->type == &ast_type_tag<ast::FuncCall>) {
+  } else if (term->type == &kAstTypeTag<ast::FuncCall>) {
     const auto &call = *static_cast<const ast::FuncCall *>(term);
     check_term(call.target, prefixes, accept);
     for (const ast::Term *const arg : call.args)
       check_term(arg, prefixes, accept);
-  } else if (term->type == &ast_type_tag<ast::BuiltInCall>) {
+  } else if (term->type == &kAstTypeTag<ast::BuiltInCall>) {
     for (const ast::Term *const arg :
          static_cast<const ast::BuiltInCall *>(term)->args)
       check_term(arg, prefixes, accept);

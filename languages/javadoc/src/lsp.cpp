@@ -5,7 +5,7 @@
 #include "javadoc/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       javadoc::JavadocSharedServices>(
       argc, argv, "javadoc-lsp", &javadoc::register_lsp_services);
 }

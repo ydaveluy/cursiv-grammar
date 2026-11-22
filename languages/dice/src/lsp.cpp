@@ -5,7 +5,7 @@
 #include "dice/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       dice::DiceSharedServices>(
       argc, argv, "dice-lsp", &dice::register_lsp_services);
 }

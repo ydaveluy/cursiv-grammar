@@ -26,7 +26,7 @@ namespace ast = robotwars::ast;
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  return node != nullptr && node->type == &cursiv::ast_type_tag<T>
+  return node != nullptr && node->type == &cursiv::kAstTypeTag<T>
              ? static_cast<const T*>(node)
              : nullptr;
 }
@@ -34,7 +34,7 @@ const T* as(const cursiv::AstNode* node) {
 struct World {
   cursiv::CoreLanguage<robotwars::RobotwarsCoreServices,
                        robotwars::RobotwarsSharedCoreServices>
-      language = cursiv::create_language<robotwars::RobotwarsCoreServices,
+      language = cursiv::createLanguage<robotwars::RobotwarsCoreServices,
                                          robotwars::RobotwarsSharedCoreServices,
                                          robotwars::install_core_module>();
 
@@ -46,7 +46,7 @@ struct World {
   std::shared_ptr<cursiv::Document> build(
       const char* name, const char* dir = CURSIV_EXAMPLE_DIR) const {
     const std::string path = std::string(dir) + "/" + name;
-    const std::string text = cursiv::test::read_file(path);
+    const std::string text = cursiv::test::readFile(path);
     CHECK(!text.empty());
     std::shared_ptr<cursiv::Document> document =
         language.shared->documentFactory->fromString(
@@ -76,7 +76,7 @@ void every_example_builds_clean(const World& world) {
     CHECK(!document->parseResult.cst().recovered());
     CHECK(document->parseResult.value != nullptr &&
           document->parseResult.value->type ==
-              &cursiv::ast_type_tag<ast::Program>);
+              &cursiv::kAstTypeTag<ast::Program>);
   }
 }
 

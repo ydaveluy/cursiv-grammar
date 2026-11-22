@@ -2,6 +2,6 @@
 #include "janus/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       janus::JanusSharedServices, janus::register_lsp_services>(argc, argv);
 }

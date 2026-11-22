@@ -9,7 +9,7 @@
 namespace smiles {
 
 void install_core_module(SmilesCoreServices& services) {
-  smiles::generated::Smiles::install_generated_module(services);
+  smiles::generated::Smiles::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

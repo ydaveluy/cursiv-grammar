@@ -9,7 +9,7 @@
 namespace lcc {
 
 void install_core_module(LccCoreServices& services) {
-  lcc::generated::Lcc::install_generated_module(services);
+  lcc::generated::Lcc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

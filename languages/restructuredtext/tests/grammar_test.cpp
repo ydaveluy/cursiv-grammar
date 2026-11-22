@@ -53,7 +53,7 @@ int expect_clean(const Language& language, const char* path, Check check) {
   if (!result.diagnostics.empty()) return fail("a sample carries diagnostics");
 
   const cursiv::AstNode* const root = result.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<Document>)
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<Document>)
     return fail("a sample built no document");
 
   return check(*static_cast<const Document*>(root));
@@ -66,7 +66,7 @@ int expect_clean(const Language& language, const char* path, Check check) {
 #include "native_block_regressions.hpp"
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       restructuredtext::RestructuredtextCoreServices,
       restructuredtext::RestructuredtextSharedCoreServices,
       restructuredtext::install_core_module>();
@@ -99,7 +99,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       restructuredtext::RestructuredtextCoreServices,
       restructuredtext::RestructuredtextSharedCoreServices,
       restructuredtext::install_core_module>();

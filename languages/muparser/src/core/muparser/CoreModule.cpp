@@ -9,7 +9,7 @@
 namespace muparser {
 
 void install_core_module(MuparserCoreServices& services) {
-  muparser::generated::Muparser::install_generated_module(services);
+  muparser::generated::Muparser::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -1,3 +1,4 @@
+#include <algorithm>
 // The smoke test of the language: every file in example/ parses clean and
 // builds a KotlinFile.
 
@@ -92,7 +93,7 @@ bool collection_candidates(const cursiv::Parser& parser) {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       kotlin::KotlinCoreServices, kotlin::KotlinSharedCoreServices,
       kotlin::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("class C { fun f() {} }\n");
@@ -102,10 +103,22 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       kotlin::KotlinCoreServices, kotlin::KotlinSharedCoreServices,
       kotlin::install_core_module>();
 
+  {
+    const auto parsed = language.language.parser->parse(
+        "class A { fun b() {} }\nfun f(a: A) {\n    a::b\n    a::b\n}\n");
+    const auto separate = std::ranges::any_of(parsed.nodes(), [](const auto* node) {
+      const auto* block = cursiv::ast_cast<kotlin::ast::Block>(node);
+      return block && block->statements.size() == 2 &&
+             cursiv::ast_cast<kotlin::ast::CallableReferenceExpr>(block->statements[0]) &&
+             cursiv::ast_cast<kotlin::ast::CallableReferenceExpr>(block->statements[1]);
+    });
+    if (!parsed.accepted || !parsed.diagnostics.empty() || !separate)
+      return fail("a::b on consecutive lines", "two callable reference statements");
+  }
   const bool candidatesOk = collection_candidates(*language.language.parser);
   if (!kotlin_destructuring::run(language.language)) return 1;
 
@@ -192,7 +205,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<kotlin::ast::KotlinFile>)
+        root->type != &cursiv::kAstTypeTag<kotlin::ast::KotlinFile>)
       return fail(path, "the parse built no KotlinFile");
 
     std::printf("kotlin: %s parses\n", path.c_str());

@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "aql/ast.hpp"
-#include "aql/generated/Aql/AstReflection.hpp"
 #include "aql/generated/Aql/Module.hpp"
 #include "cursiv/parser/Parser.hpp"
 #include "cursiv/syntax-tree/AstNode.hpp"
@@ -32,19 +31,19 @@ namespace fs = std::filesystem;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      aql::generated::Aql::create_parser();
+      aql::generated::Aql::createParser();
   return *p;
 }
 
 const cursiv::AstReflection& reflection() {
   static const std::unique_ptr<cursiv::AstReflection> r =
-      aql::generated::Aql::create_ast_reflection();
+      aql::generated::Aql::createAstReflection();
   return *r;
 }
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && reflection().isInstance(*n, &cursiv::ast_type_tag<T>))
+  return (n != nullptr && reflection().isInstance(*n, &cursiv::kAstTypeTag<T>))
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -58,12 +57,12 @@ cursiv::ParseResult build(const std::string& text) {
 }
 
 std::string load(const char* name) {
-  return cursiv::test::read_file(std::string(CURSIV_EXAMPLE_DIR) +
+  return cursiv::test::readFile(std::string(CURSIV_EXAMPLE_DIR) +
                                   "/example/" + name);
 }
 
 std::string load_test(const char* name) {
-  return cursiv::test::read_file(std::string(CURSIV_TEST_DIR) + "/" + name);
+  return cursiv::test::readFile(std::string(CURSIV_TEST_DIR) + "/" + name);
 }
 
 // Every document under example/ and this port's own tests/*.aql: a clean
@@ -77,7 +76,7 @@ void corpus() {
   CHECK(!files.empty());
 
   for (const fs::path& file : files) {
-    const std::string text = cursiv::test::read_file(file.string());
+    const std::string text = cursiv::test::readFile(file.string());
     CHECK(!text.empty());
     const cursiv::ParseResult r = engine().parse(text);
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) {
@@ -91,7 +90,7 @@ void corpus() {
     cursiv::AstNode* const root = r.value;
     const bool isQuery =
         root != nullptr &&
-        reflection().isInstance(*root, &cursiv::ast_type_tag<ast::Query>);
+        reflection().isInstance(*root, &cursiv::kAstTypeTag<ast::Query>);
     if (!isQuery) {
       std::printf("FAIL %s: root is not a Query\n",
                   file.filename().string().c_str());

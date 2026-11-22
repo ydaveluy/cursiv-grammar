@@ -9,7 +9,7 @@
 namespace dice {
 
 void install_core_module(DiceCoreServices& services) {
-  dice::generated::Dice::install_generated_module(services);
+  dice::generated::Dice::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

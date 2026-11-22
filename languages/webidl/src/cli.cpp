@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<webidl::WebidlCoreServices,
+    &cursiv::registerLanguage<webidl::WebidlCoreServices,
                            webidl::WebidlSharedCoreServices,
                            webidl::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<webidl::WebidlSharedCoreServices>(
+  return cursiv::runCli<webidl::WebidlSharedCoreServices>(
       argc, argv, kRegister);
 }

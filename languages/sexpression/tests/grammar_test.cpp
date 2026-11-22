@@ -16,7 +16,7 @@ namespace {
 namespace ast = sexpression::ast;
 const cursiv::Parser &engine() {
   static const auto parser =
-      sexpression::generated::Sexpression::create_parser();
+      sexpression::generated::Sexpression::createParser();
   return *parser;
 }
 void examples() {
@@ -27,7 +27,7 @@ void examples() {
       if (!file.is_regular_file() || file.path().extension() != ".sexpression")
         continue;
       ++seen;
-      const std::string source = cursiv::test::read_file(file.path().string());
+      const std::string source = cursiv::test::readFile(file.path().string());
       const auto result = engine().parse(source);
       CHECK(result.accepted && !result.cst().recovered());
       CHECK(result.valueAs<ast::Sexpr>() != nullptr);
@@ -213,7 +213,7 @@ void infix_list() {
   CHECK(head && head->text == "+");
 }
 void reader_constraints() {
-  auto language = cursiv::create_language<sexpression::SexpressionCoreServices,
+  auto language = cursiv::createLanguage<sexpression::SexpressionCoreServices,
                                          sexpression::SexpressionSharedCoreServices,
                                          sexpression::install_core_module>();
   for (const auto* source : {"(a]", "[a)", "{a]", "(. a)",
@@ -240,7 +240,7 @@ void reader_constraints() {
 } // namespace
 int main() {
   {
-    auto language = cursiv::create_language<sexpression::SexpressionCoreServices,
+    auto language = cursiv::createLanguage<sexpression::SexpressionCoreServices,
         sexpression::SexpressionSharedCoreServices, sexpression::install_core_module>();
     sexpression_reader_boundaries::run(language.language);
   }

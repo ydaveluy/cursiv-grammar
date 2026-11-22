@@ -9,7 +9,7 @@
 namespace clu {
 
 void install_core_module(CluCoreServices& services) {
-  clu::generated::Clu::install_generated_module(services);
+  clu::generated::Clu::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

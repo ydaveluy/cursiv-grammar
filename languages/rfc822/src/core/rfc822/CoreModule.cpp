@@ -9,7 +9,7 @@
 namespace rfc822 {
 
 void install_core_module(Rfc822CoreServices& services) {
-  rfc822::generated::Rfc822::install_generated_module(services);
+  rfc822::generated::Rfc822::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

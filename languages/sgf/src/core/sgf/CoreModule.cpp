@@ -9,7 +9,7 @@
 namespace sgf {
 
 void install_core_module(SgfCoreServices& services) {
-  sgf::generated::Sgf::install_generated_module(services);
+  sgf::generated::Sgf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

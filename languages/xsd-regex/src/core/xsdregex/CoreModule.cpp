@@ -9,7 +9,7 @@
 namespace xsdregex {
 
 void install_core_module(XsdRegexCoreServices& services) {
-  xsdregex::generated::XsdRegex::install_generated_module(services);
+  xsdregex::generated::XsdRegex::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

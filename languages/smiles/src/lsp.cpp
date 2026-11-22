@@ -5,7 +5,7 @@
 #include "smiles/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       smiles::SmilesSharedServices>(
       argc, argv, "smiles-lsp", &smiles::register_lsp_services);
 }

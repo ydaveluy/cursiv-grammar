@@ -9,7 +9,7 @@
 namespace microc {
 
 void install_core_module(MicrocCoreServices& services) {
-  microc::generated::Microc::install_generated_module(services);
+  microc::generated::Microc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

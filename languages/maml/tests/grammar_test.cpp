@@ -24,7 +24,7 @@ namespace {
 namespace ast = maml::ast;
 
 const auto& services() {
-  static const auto language = cursiv::create_language<maml::MamlCoreServices,
+  static const auto language = cursiv::createLanguage<maml::MamlCoreServices,
       maml::MamlSharedCoreServices, maml::install_core_module>();
   return language.language;
 }
@@ -42,7 +42,7 @@ cursiv::ParseResult build(std::string_view text) {
 }
 
 std::string load(std::string_view name) {
-  return cursiv::test::read_file(std::string(CURSIV_EXAMPLE_DIR) + "/" +
+  return cursiv::test::readFile(std::string(CURSIV_EXAMPLE_DIR) + "/" +
                                   std::string(name));
 }
 

@@ -9,7 +9,7 @@
 namespace corundum {
 
 void install_core_module(CorundumCoreServices& services) {
-  corundum::generated::Corundum::install_generated_module(services);
+  corundum::generated::Corundum::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

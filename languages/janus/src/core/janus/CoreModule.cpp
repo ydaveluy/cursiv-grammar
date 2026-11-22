@@ -9,7 +9,7 @@
 namespace janus {
 
 void install_core_module(JanusCoreServices& services) {
-  janus::generated::Janus::install_generated_module(services);
+  janus::generated::Janus::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

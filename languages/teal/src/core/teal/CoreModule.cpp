@@ -9,7 +9,7 @@
 namespace teal {
 
 void install_core_module(TealCoreServices& services) {
-  teal::generated::Teal::install_generated_module(services);
+  teal::generated::Teal::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

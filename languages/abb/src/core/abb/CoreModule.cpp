@@ -9,7 +9,7 @@
 namespace abb {
 
 void install_core_module(AbbCoreServices& services) {
-  abb::generated::Abb::install_generated_module(services);
+  abb::generated::Abb::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

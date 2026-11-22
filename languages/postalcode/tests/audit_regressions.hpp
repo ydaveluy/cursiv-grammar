@@ -22,7 +22,7 @@ inline int postalcode_regressions(const cursiv::CoreServices& language) {
     if (!result.accepted || result.cst().recovered() ||
         !result.diagnostics.empty() || !result.value ||
         result.value->type !=
-            &cursiv::ast_type_tag<postalcode::ast::PostalCode>) {
+            &cursiv::kAstTypeTag<postalcode::ast::PostalCode>) {
       ++failures;
       return;
     }

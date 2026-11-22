@@ -25,7 +25,7 @@ int fail(const std::string& what) {
 const flatbuffers::ast::TypeDecl* find_type(const flatbuffers::ast::Schema& schema,
                                             std::string_view name) {
   for (const flatbuffers::ast::Decl* decl : schema.declarations) {
-    if (decl->type != &cursiv::ast_type_tag<flatbuffers::ast::TypeDecl>) continue;
+    if (decl->type != &cursiv::kAstTypeTag<flatbuffers::ast::TypeDecl>) continue;
     const auto& td = *static_cast<const flatbuffers::ast::TypeDecl*>(decl);
     if (td.name == name) return &td;
   }
@@ -35,7 +35,7 @@ const flatbuffers::ast::TypeDecl* find_type(const flatbuffers::ast::Schema& sche
 const flatbuffers::ast::EnumDecl* find_enum(const flatbuffers::ast::Schema& schema,
                                             std::string_view name) {
   for (const flatbuffers::ast::Decl* decl : schema.declarations) {
-    if (decl->type != &cursiv::ast_type_tag<flatbuffers::ast::EnumDecl>) continue;
+    if (decl->type != &cursiv::kAstTypeTag<flatbuffers::ast::EnumDecl>) continue;
     const auto& ed = *static_cast<const flatbuffers::ast::EnumDecl*>(decl);
     if (ed.name == name) return &ed;
   }
@@ -113,7 +113,7 @@ root_type N.Request;
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       flatbuffers::FlatbuffersCoreServices, flatbuffers::FlatbuffersSharedCoreServices,
       flatbuffers::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("{}");
@@ -132,7 +132,7 @@ int main() {
         files.push_back(entry.path());
   if (files.empty()) return fail("no example files found");
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       flatbuffers::FlatbuffersCoreServices, flatbuffers::FlatbuffersSharedCoreServices,
       flatbuffers::install_core_module>();
   for (const char* source : {R"(attribute "\uD83D";)", R"(attribute "\uDE00";)",
@@ -168,7 +168,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<flatbuffers::ast::Schema>)
+        root->type != &cursiv::kAstTypeTag<flatbuffers::ast::Schema>)
       return fail(path.string() + ": the parse built no schema");
   }
 
@@ -189,7 +189,7 @@ int main() {
 
     bool sawNamespace = false;
     for (const flatbuffers::ast::Decl* decl : schema.declarations) {
-      if (decl->type != &cursiv::ast_type_tag<flatbuffers::ast::Namespace>)
+      if (decl->type != &cursiv::kAstTypeTag<flatbuffers::ast::Namespace>)
         continue;
       const auto& ns = *static_cast<const flatbuffers::ast::Namespace*>(decl);
       if (ns.path != "MyGame.Sample")

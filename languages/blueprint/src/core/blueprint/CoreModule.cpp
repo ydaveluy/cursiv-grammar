@@ -9,7 +9,7 @@
 namespace blueprint {
 
 void install_core_module(BlueprintCoreServices& services) {
-  blueprint::generated::Blueprint::install_generated_module(services);
+  blueprint::generated::Blueprint::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

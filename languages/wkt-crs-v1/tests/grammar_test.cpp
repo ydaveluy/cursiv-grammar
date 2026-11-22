@@ -25,7 +25,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 
 int main() {
   if (!audit_regressions::run() || !native_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       wktcrsv1::WktCrsV1CoreServices, wktcrsv1::WktCrsV1SharedCoreServices,
       wktcrsv1::install_core_module>();
 
@@ -63,7 +63,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<wktcrsv1::ast::PropsFile>) {
+        root->type != &cursiv::kAstTypeTag<wktcrsv1::ast::PropsFile>) {
       fail(path, "the parse built no PropsFile");
       ++failures;
     }

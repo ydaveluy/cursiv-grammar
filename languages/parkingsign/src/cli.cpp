@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<parkingsign::ParkingsignCoreServices,
+    &cursiv::registerLanguage<parkingsign::ParkingsignCoreServices,
                            parkingsign::ParkingsignSharedCoreServices,
                            parkingsign::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<parkingsign::ParkingsignSharedCoreServices>(
+  return cursiv::runCli<parkingsign::ParkingsignSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -43,7 +43,7 @@ std::string read_file(const std::string& path, bool& ok) {
 const ruleworks::ast::Program* as_program(const cursiv::ParseResult& result) {
   const cursiv::AstNode* const root = result.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<ruleworks::ast::Program>)
+      root->type != &cursiv::kAstTypeTag<ruleworks::ast::Program>)
     return nullptr;
   return static_cast<const ruleworks::ast::Program*>(root);
 }
@@ -52,7 +52,7 @@ const ruleworks::ast::Program* as_program(const cursiv::ParseResult& result) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<ruleworks::RuleworksCoreServices,
+      cursiv::createLanguage<ruleworks::RuleworksCoreServices,
                               ruleworks::RuleworksSharedCoreServices,
                               ruleworks::install_core_module>();
   {
@@ -83,7 +83,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       ruleworks::RuleworksCoreServices, ruleworks::RuleworksSharedCoreServices,
       ruleworks::install_core_module>();
 

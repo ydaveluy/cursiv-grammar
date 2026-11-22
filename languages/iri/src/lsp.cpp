@@ -5,7 +5,7 @@
 #include "iri/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       iri::IriSharedServices>(
       argc, argv, "iri-lsp", &iri::register_lsp_services);
 }

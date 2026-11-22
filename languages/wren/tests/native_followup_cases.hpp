@@ -9,7 +9,7 @@
 
 namespace wren_followup {
 inline bool run() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       wren::WrenCoreServices, wren::WrenSharedCoreServices,
       wren::install_core_module>();
   const auto& parser = *language.language.parser;

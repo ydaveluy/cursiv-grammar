@@ -5,7 +5,7 @@
 #include "action/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       action::ActionSharedServices>(
       argc, argv, "action-lsp", &action::register_lsp_services);
 }

@@ -39,7 +39,7 @@ int check_relational_tighter_than_equality(
         static_cast<const hypertalk::ast::BinaryExpr*>(put.values[0]);
     if (top->op != hypertalk::ast::BinOp::Equal)
       return fail("'a < b = c' is not top-level =");
-    if (top->left->type != &cursiv::ast_type_tag<hypertalk::ast::BinaryExpr>)
+    if (top->left->type != &cursiv::kAstTypeTag<hypertalk::ast::BinaryExpr>)
       return fail("'a < b = c' left operand is not a relational expr");
     const auto* const left =
         static_cast<const hypertalk::ast::BinaryExpr*>(top->left);
@@ -58,7 +58,7 @@ int check_relational_tighter_than_equality(
         static_cast<const hypertalk::ast::BinaryExpr*>(put.values[0]);
     if (top->op != hypertalk::ast::BinOp::IsEqual)
       return fail("'a contains b is c' is not top-level is");
-    if (top->left->type != &cursiv::ast_type_tag<hypertalk::ast::BinaryExpr>)
+    if (top->left->type != &cursiv::kAstTypeTag<hypertalk::ast::BinaryExpr>)
       return fail("'a contains b is c' left operand is not a relational expr");
     const auto* const left =
         static_cast<const hypertalk::ast::BinaryExpr*>(top->left);
@@ -72,7 +72,7 @@ int check_relational_tighter_than_equality(
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       hypertalk::HypertalkCoreServices, hypertalk::HypertalkSharedCoreServices,
       hypertalk::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("put 7 div 2 into x\n");
@@ -93,7 +93,7 @@ int main() {
     if (entry.path().extension() == ".hypertalk") files.push_back(entry.path());
   if (files.empty()) return fail("no example files found");
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       hypertalk::HypertalkCoreServices, hypertalk::HypertalkSharedCoreServices,
       hypertalk::install_core_module>();
 
@@ -118,7 +118,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<hypertalk::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<hypertalk::ast::Document>)
       return fail(path.string() + ": the parse built no document");
 
     const auto& doc = *static_cast<const hypertalk::ast::Document*>(root);
@@ -134,13 +134,13 @@ int main() {
       if (item == nullptr || item->statement == nullptr)
         return fail(path.string() + ": expected a bare statement");
       if (item->statement->type !=
-          &cursiv::ast_type_tag<hypertalk::ast::AnswerCmd>)
+          &cursiv::kAstTypeTag<hypertalk::ast::AnswerCmd>)
         return fail(path.string() + ": expected an AnswerCmd");
       const auto& answer =
           *static_cast<const hypertalk::ast::AnswerCmd*>(item->statement);
       if (answer.prompt == nullptr ||
           answer.prompt->type !=
-              &cursiv::ast_type_tag<hypertalk::ast::StringLit>)
+              &cursiv::kAstTypeTag<hypertalk::ast::StringLit>)
         return fail(path.string() + ": expected a string prompt");
       const auto& prompt =
           *static_cast<const hypertalk::ast::StringLit*>(answer.prompt);

@@ -39,7 +39,7 @@ const velocity::ast::VariableRef* find_variable(const velocity::ast::Block& bloc
   for (const velocity::ast::Atom& atom : block.atoms) {
     const auto* const expr = std::get_if<velocity::ast::Expr*>(&atom);
     if (expr == nullptr || *expr == nullptr) continue;
-    if ((*expr)->type != &cursiv::ast_type_tag<velocity::ast::VariableRef>)
+    if ((*expr)->type != &cursiv::kAstTypeTag<velocity::ast::VariableRef>)
       continue;
     const auto* const ref = static_cast<const velocity::ast::VariableRef*>(*expr);
     if (ref->name == name) return ref;
@@ -51,7 +51,7 @@ const velocity::ast::VariableRef* find_variable(const velocity::ast::Block& bloc
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       velocity::VelocityCoreServices, velocity::VelocitySharedCoreServices,
       velocity::install_core_module>();
   if (!velocity_followup::run(language)) return 1;
@@ -96,7 +96,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<velocity::ast::Block>)
+        root->type != &cursiv::kAstTypeTag<velocity::ast::Block>)
       return fail(path.string() + " built no Block");
 
     const auto& block = *static_cast<const velocity::ast::Block*>(root);
@@ -115,11 +115,11 @@ int main() {
   for (const velocity::ast::Atom& atom : helloBlock->atoms) {
     const auto* const directive = std::get_if<velocity::ast::Directive*>(&atom);
     if (directive == nullptr || *directive == nullptr) continue;
-    if ((*directive)->type != &cursiv::ast_type_tag<velocity::ast::SetDirective>)
+    if ((*directive)->type != &cursiv::kAstTypeTag<velocity::ast::SetDirective>)
       continue;
     const auto& set = *static_cast<const velocity::ast::SetDirective*>(*directive);
     if (set.value == nullptr ||
-        set.value->type != &cursiv::ast_type_tag<velocity::ast::StringLit>)
+        set.value->type != &cursiv::kAstTypeTag<velocity::ast::StringLit>)
       continue;
     const auto& lit = *static_cast<const velocity::ast::StringLit*>(set.value);
     if (lit.value != "Velocity")
@@ -135,11 +135,11 @@ int main() {
   for (const velocity::ast::Atom& atom : mathBlock->atoms) {
     const auto* const directive = std::get_if<velocity::ast::Directive*>(&atom);
     if (directive == nullptr || *directive == nullptr) continue;
-    if ((*directive)->type != &cursiv::ast_type_tag<velocity::ast::SetDirective>)
+    if ((*directive)->type != &cursiv::kAstTypeTag<velocity::ast::SetDirective>)
       continue;
     const auto& set = *static_cast<const velocity::ast::SetDirective*>(*directive);
     if (set.value == nullptr ||
-        set.value->type != &cursiv::ast_type_tag<velocity::ast::BinaryExpr>)
+        set.value->type != &cursiv::kAstTypeTag<velocity::ast::BinaryExpr>)
       continue;
     const auto& bin = *static_cast<const velocity::ast::BinaryExpr*>(set.value);
     if (bin.op == velocity::ast::Operator::lt) sawLt = true;

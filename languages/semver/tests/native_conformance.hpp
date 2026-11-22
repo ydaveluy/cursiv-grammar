@@ -6,10 +6,10 @@
 
 namespace native_conformance {
 inline bool run() {
-  auto language = cursiv::create_language<semver::SemverCoreServices,
+  auto language = cursiv::createLanguage<semver::SemverCoreServices,
                                          semver::SemverSharedCoreServices,
                                          semver::install_core_module>();
-  auto factory = semver::generated::Semver::create_parser();
+  auto factory = semver::generated::Semver::createParser();
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) std::fprintf(stderr, "native SemVer: %s\n", message);

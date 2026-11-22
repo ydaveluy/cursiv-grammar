@@ -796,23 +796,15 @@ struct Hypertalk : cursiv::GrammarSpec {
             ikw<"export"> + ikw<"paint"> + ikw<"to"> + ikw<"file"> +
             assign<&ast::ExportPaintCmd::file>(ref<Expression>))> {};
 
+  static constexpr auto FindWhat = assign<&ast::FindCmd::what>(ref<Expression>);
+  static constexpr auto MarkedCards =
+      flag<&ast::FindCmd::markedCardsOnly>(ikw<"marked">) + CardsKw;
   struct FindCmd
       : rule<create<ast::FindCmd>(
-            ikw<"find"> +
-            option(assign<&ast::FindCmd::style>(ref<FindForm>)) +
-            option(flag<&ast::FindCmd::international>(
-                ikw<"international">)) +
-            assign<&ast::FindCmd::what>(ref<Expression>) +
-            option(Of +
-                   ((assign<&ast::FindCmd::field>(ref<Expression>) +
-                     option(Of +
-                            flag<&ast::FindCmd::markedCardsOnly>(
-                                ikw<"marked">) +
-                            CardsKw))  //
-                    | (flag<&ast::FindCmd::markedCardsOnly>(
-                           ikw<"marked">) +
-                       CardsKw))))> {};
-
+            ikw<"find"> + option(assign<&ast::FindCmd::style>(ref<FindForm>)) +
+            option(flag<&ast::FindCmd::international>(ikw<"international">)) +
+            ((FindWhat + Of + ((assign<&ast::FindCmd::field>(ref<Expression>) +
+                                option(Of + MarkedCards)) | MarkedCards)) | FindWhat))> {};
 
   struct GoDestination
       : rule<ref<Expression> |

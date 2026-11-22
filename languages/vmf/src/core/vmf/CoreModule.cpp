@@ -9,7 +9,7 @@
 namespace vmf {
 
 void install_core_module(VmfCoreServices& services) {
-  vmf::generated::Vmf::install_generated_module(services);
+  vmf::generated::Vmf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

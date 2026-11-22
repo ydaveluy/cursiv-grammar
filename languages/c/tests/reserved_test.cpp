@@ -23,7 +23,7 @@ int failures = 0;
 // validator's alike.
 std::size_t errors(std::string_view text) {
   static const auto language =
-      cursiv::create_language<c::CCoreServices, c::CSharedCoreServices,
+      cursiv::createLanguage<c::CCoreServices, c::CSharedCoreServices,
                               c::install_core_module>();
   static unsigned n = 0;
   auto document = language.shared->documentFactory->fromString(

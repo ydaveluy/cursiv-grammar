@@ -40,7 +40,7 @@ ast::VarDeclStmt *find_var(const ast::TranslationUnit &unit,
   for (ast::Item *const item : unit.items) {
     if (item == nullptr)
       continue;
-    if (item->type == &cursiv::ast_type_tag<ast::VarDeclStmt>) {
+    if (item->type == &cursiv::kAstTypeTag<ast::VarDeclStmt>) {
       auto *const decl = static_cast<ast::VarDeclStmt *>(item);
       for (const ast::InitDeclarator *const d : decl->declarators)
         if (d != nullptr && d->name == name)
@@ -81,7 +81,7 @@ int check_max_vertices_values(const fs::path &path,
   const auto &unit = *static_cast<const ast::TranslationUnit *>(result.value);
   for (ast::Item *const item : unit.items) {
     if (item == nullptr ||
-        item->type != &cursiv::ast_type_tag<ast::QualifierDeclStmt>)
+        item->type != &cursiv::kAstTypeTag<ast::QualifierDeclStmt>)
       continue;
     const auto &decl = *static_cast<const ast::QualifierDeclStmt *>(item);
     if (decl.qualifier == nullptr)
@@ -100,7 +100,7 @@ int check_max_vertices_values(const fs::path &path,
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<glsl::GlslCoreServices,
+        cursiv::createLanguage<glsl::GlslCoreServices,
                                 glsl::GlslSharedCoreServices,
                                 glsl::install_core_module>();
     for (const std::string_view source :
@@ -132,7 +132,7 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<glsl::GlslCoreServices,
+  const auto language = cursiv::createLanguage<glsl::GlslCoreServices,
                                                 glsl::GlslSharedCoreServices,
                                                 glsl::install_core_module>();
 
@@ -168,7 +168,7 @@ int main() {
       }
       const cursiv::AstNode *const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<ast::TranslationUnit>) {
+          root->type != &cursiv::kAstTypeTag<ast::TranslationUnit>) {
         failures += fail(path, "the parse built no TranslationUnit");
         continue;
       }

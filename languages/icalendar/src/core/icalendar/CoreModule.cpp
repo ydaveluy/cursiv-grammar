@@ -9,7 +9,7 @@
 namespace icalendar {
 
 void install_core_module(IcalendarCoreServices& services) {
-  icalendar::generated::Icalendar::install_generated_module(services);
+  icalendar::generated::Icalendar::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

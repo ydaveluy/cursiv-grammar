@@ -28,7 +28,7 @@ int fail(const char* file, const char* what) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<plantuml::PlantUMLCoreServices,
+      cursiv::createLanguage<plantuml::PlantUMLCoreServices,
                               plantuml::PlantUMLSharedCoreServices,
                               plantuml::install_core_module>();
   {
@@ -52,7 +52,7 @@ int main() {
       "x7.plantuml",          "constructs.plantuml",
   };
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       plantuml::PlantUMLCoreServices, plantuml::PlantUMLSharedCoreServices,
       plantuml::install_core_module>();
 
@@ -74,7 +74,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<plantuml::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<plantuml::ast::Document>)
       return fail(name, "the parse built no document");
 
     const auto& doc = *static_cast<const plantuml::ast::Document*>(root);

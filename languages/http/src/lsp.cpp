@@ -5,7 +5,7 @@
 #include "http/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       http::HttpSharedServices>(
       argc, argv, "http-lsp", &http::register_lsp_services);
 }

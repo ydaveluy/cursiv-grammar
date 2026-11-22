@@ -9,7 +9,7 @@
 namespace action {
 
 void install_core_module(ActionCoreServices& services) {
-  action::generated::Action::install_generated_module(services);
+  action::generated::Action::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

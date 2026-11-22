@@ -9,7 +9,7 @@
 namespace lisa {
 
 void install_core_module(LisaCoreServices& services) {
-  lisa::generated::Lisa::install_generated_module(services);
+  lisa::generated::Lisa::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

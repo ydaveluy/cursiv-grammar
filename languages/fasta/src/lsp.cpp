@@ -5,7 +5,7 @@
 #include "fasta/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       fasta::FastaSharedServices>(
       argc, argv, "fasta-lsp", &fasta::register_lsp_services);
 }

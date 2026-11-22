@@ -9,7 +9,7 @@
 namespace romannumerals {
 
 void install_core_module(RomannumeralsCoreServices& services) {
-  romannumerals::generated::Romannumerals::install_generated_module(services);
+  romannumerals::generated::Romannumerals::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

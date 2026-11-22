@@ -22,7 +22,7 @@ namespace fs = std::filesystem;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      agc::generated::Agc::create_parser();
+      agc::generated::Agc::createParser();
   return *p;
 }
 
@@ -42,7 +42,7 @@ void every_example_parses_clean() {
   for (const auto& entry : fs::directory_iterator(dir)) {
     if (entry.path().extension() != ".agc") continue;
     ++seen;
-    const std::string src = cursiv::test::read_file(entry.path().string());
+    const std::string src = cursiv::test::readFile(entry.path().string());
     CHECK(!src.empty());
     const cursiv::ParseResult r = build(src);
     if (!r.accepted || r.cst().recovered()) {
@@ -77,7 +77,7 @@ const T* line_as(const std::variant<Nodes...>& line) {
 void field_values_of_one_document() {
   const fs::path path = fs::path(CURSIV_EXAMPLE_DIR) /
                         "example" / "DUMMY_501_INITIALIZATION.agc";
-  const std::string src = cursiv::test::read_file(path.string());
+  const std::string src = cursiv::test::readFile(path.string());
   CHECK(!src.empty());
   const cursiv::ParseResult r = build(src);
   CHECK(r.accepted && !r.cst().recovered() && r.diagnostics.empty());

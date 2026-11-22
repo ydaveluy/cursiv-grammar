@@ -41,7 +41,7 @@ bool expects_error(const std::filesystem::path& path) {
 
 template <class T>
 T* as(golang::ast::Item* item) {
-  if (item == nullptr || item->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (item == nullptr || item->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<T*>(item);
 }
 
@@ -53,7 +53,7 @@ int main() {
     if (golang::checked_literal(text))
       fail("incomplete rune/string conversion unexpectedly succeeded");
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       golang::GolangCoreServices, golang::GolangSharedCoreServices,
       golang::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("package p\nvar x = 0x_FF\n");
@@ -63,7 +63,7 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       golang::GolangCoreServices, golang::GolangSharedCoreServices,
       golang::install_core_module>();
   if (!audit_regressions::run(*language.language.parser) ||
@@ -93,7 +93,7 @@ int main() {
     }
     if (result.cst().recovered()) fail(name + ": the document did not parse clean");
     if (result.value == nullptr ||
-        result.value->type != &cursiv::ast_type_tag<golang::ast::SourceFile>)
+        result.value->type != &cursiv::kAstTypeTag<golang::ast::SourceFile>)
       fail(name + ": the parse built no source file");
   }
   if (total == 0) fail("no .go file found under " + std::string(CURSIV_EXAMPLE_DIR));
@@ -118,7 +118,7 @@ int main() {
     }
     if (result.cst().recovered()) fail(name + ": the document did not parse clean");
     if (result.value == nullptr ||
-        result.value->type != &cursiv::ast_type_tag<golang::ast::SourceFile>)
+        result.value->type != &cursiv::kAstTypeTag<golang::ast::SourceFile>)
       fail(name + ": the parse built no source file");
   }
   if (test_total == 0) fail("no .go file found under " + std::string(CURSIV_TEST_DIR));
@@ -129,7 +129,7 @@ int main() {
                                      "example.go");
   const cursiv::ParseResult result = language.language.parser->parse(text);
   if (result.value == nullptr ||
-      result.value->type != &cursiv::ast_type_tag<golang::ast::SourceFile>) {
+      result.value->type != &cursiv::kAstTypeTag<golang::ast::SourceFile>) {
     fail("example.go: the parse built no source file");
   } else {
     const auto& file = *static_cast<const golang::ast::SourceFile*>(result.value);
@@ -154,7 +154,7 @@ int main() {
       if (p.names.size() != 1 || p.names[0] != "ch")
         fail("example.go: generate's parameter name did not read back");
       const auto* ch = p.type != nullptr &&
-                                p.type->type == &cursiv::ast_type_tag<
+                                p.type->type == &cursiv::kAstTypeTag<
                                                     golang::ast::ChannelType>
                             ? static_cast<const golang::ast::ChannelType*>(p.type)
                             : nullptr;

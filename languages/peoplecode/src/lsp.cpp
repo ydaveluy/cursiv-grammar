@@ -5,7 +5,7 @@
 #include "peoplecode/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       peoplecode::PeoplecodeSharedServices>(
       argc, argv, "peoplecode-lsp", &peoplecode::register_lsp_services);
 }

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<unrealangelscript::UnrealAngelscriptCoreServices,
+    &cursiv::registerLanguage<unrealangelscript::UnrealAngelscriptCoreServices,
                            unrealangelscript::UnrealAngelscriptSharedCoreServices,
                            unrealangelscript::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<unrealangelscript::UnrealAngelscriptSharedCoreServices>(
+  return cursiv::runCli<unrealangelscript::UnrealAngelscriptSharedCoreServices>(
       argc, argv, kRegister);
 }

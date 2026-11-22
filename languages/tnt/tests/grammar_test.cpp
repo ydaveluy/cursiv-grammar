@@ -22,7 +22,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 
 template <class T>
 const T* as(const cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T*>(n)
              : nullptr;
 }
@@ -86,7 +86,7 @@ bool check_precedence(const auto& language,
 
 int main() {
   if (!native_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       tnt::TntCoreServices, tnt::TntSharedCoreServices,
       tnt::install_core_module>();
 

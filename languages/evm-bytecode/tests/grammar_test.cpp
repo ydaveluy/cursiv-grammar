@@ -34,7 +34,7 @@ std::string read(const std::filesystem::path &path) {
 }
 
 template <class T> const T *as(const cursiv::AstNode *node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>)
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>)
     return nullptr;
   return static_cast<const T *>(node);
 }
@@ -44,7 +44,7 @@ template <class T> const T *as(const cursiv::AstNode *node) {
 int main() {
   {
     const auto language =
-        cursiv::create_language<evmbytecode::EvmBytecodeCoreServices,
+        cursiv::createLanguage<evmbytecode::EvmBytecodeCoreServices,
                                 evmbytecode::EvmBytecodeSharedCoreServices,
                                 evmbytecode::install_core_module>();
     const auto truncated =
@@ -57,7 +57,7 @@ int main() {
 
   {
     const auto audit_language =
-        cursiv::create_language<evmbytecode::EvmBytecodeCoreServices,
+        cursiv::createLanguage<evmbytecode::EvmBytecodeCoreServices,
                                 evmbytecode::EvmBytecodeSharedCoreServices,
                                 evmbytecode::install_core_module>();
     const auto audit_result =
@@ -77,7 +77,7 @@ int main() {
   }
 
   {
-    const auto language = cursiv::create_language<
+    const auto language = cursiv::createLanguage<
         evmbytecode::EvmBytecodeCoreServices, evmbytecode::EvmBytecodeSharedCoreServices,
         evmbytecode::install_core_module>();
     for (const char* source : {"RJUMP 0x0000", "RJUMPI 0xffff", "DATALOADN 0x0010",
@@ -99,7 +99,7 @@ int main() {
   namespace fs = std::filesystem;
 
   const auto language =
-      cursiv::create_language<evmbytecode::EvmBytecodeCoreServices,
+      cursiv::createLanguage<evmbytecode::EvmBytecodeCoreServices,
                               evmbytecode::EvmBytecodeSharedCoreServices,
                               evmbytecode::install_core_module>();
   const cursiv::Parser &parser = *language.language.parser;

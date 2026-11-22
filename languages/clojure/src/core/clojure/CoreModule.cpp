@@ -9,7 +9,7 @@
 namespace clojure {
 
 void install_core_module(ClojureCoreServices& services) {
-  clojure::generated::Clojure::install_generated_module(services);
+  clojure::generated::Clojure::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

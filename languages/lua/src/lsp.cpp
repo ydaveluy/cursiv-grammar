@@ -5,7 +5,7 @@
 #include "lua/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       lua::LuaSharedServices>(
       argc, argv, "lua-lsp", &lua::register_lsp_services);
 }

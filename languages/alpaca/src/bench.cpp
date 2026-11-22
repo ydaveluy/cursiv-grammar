@@ -2,6 +2,6 @@
 #include "alpaca/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       alpaca::AlpacaSharedServices, alpaca::register_lsp_services>(argc, argv);
 }

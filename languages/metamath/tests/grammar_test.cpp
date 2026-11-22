@@ -29,7 +29,7 @@ std::string read(const char *path) {
 
 int main() {
   const auto language =
-      cursiv::create_language<metamath::MetamathCoreServices,
+      cursiv::createLanguage<metamath::MetamathCoreServices,
                               metamath::MetamathSharedCoreServices,
                               metamath::install_core_module>();
 
@@ -55,7 +55,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<metamath::ast::Database>)
+        root->type != &cursiv::kAstTypeTag<metamath::ast::Database>)
       return fail(path, "the parse built no database");
   }
 

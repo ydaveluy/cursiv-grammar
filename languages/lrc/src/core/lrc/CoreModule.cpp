@@ -9,7 +9,7 @@
 namespace lrc {
 
 void install_core_module(LrcCoreServices& services) {
-  lrc::generated::Lrc::install_generated_module(services);
+  lrc::generated::Lrc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

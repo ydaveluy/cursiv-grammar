@@ -28,7 +28,7 @@ int fail(const std::string &what) {
 
 const cursiv::Parser &engine() {
   static const auto language =
-      cursiv::create_language<alloy::AlloyCoreServices,
+      cursiv::createLanguage<alloy::AlloyCoreServices,
                               alloy::AlloySharedCoreServices,
                               alloy::install_core_module>();
   return *language.language.parser;
@@ -248,7 +248,7 @@ void reserved_words_are_not_names() {
 } // namespace
 
 int main() {
-  const auto language = cursiv::create_language<alloy::AlloyCoreServices,
+  const auto language = cursiv::createLanguage<alloy::AlloyCoreServices,
                                                 alloy::AlloySharedCoreServices,
                                                 alloy::install_core_module>();
   for (const char* source : {"sigÉ {}", "sig$Name {}", "sig\"Name {}"}) {
@@ -293,7 +293,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<alloy::ast::Module>)
+        root->type != &cursiv::kAstTypeTag<alloy::ast::Module>)
       return fail(file.string() + ": built no Module");
 
     ++parsed;

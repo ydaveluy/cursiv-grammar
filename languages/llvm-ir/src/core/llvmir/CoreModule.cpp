@@ -9,7 +9,7 @@
 namespace llvmir {
 
 void install_core_module(LlvmIrCoreServices& services) {
-  llvmir::generated::LlvmIr::install_generated_module(services);
+  llvmir::generated::LlvmIr::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

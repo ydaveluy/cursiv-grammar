@@ -12,7 +12,7 @@ void LuaValidator::checkAssignTargets(const ast::AssignStat& stat,
                                       cursiv::ValidationAcceptor& accept) const {
   for (const ast::Expr* const target : stat.targets) {
     if (target != nullptr &&
-        !target->type->derivesFrom(&cursiv::ast_type_tag<ast::Var>))
+        !target->type->derivesFrom(&cursiv::kAstTypeTag<ast::Var>))
       accept.error(*target, "cannot assign to this expression");
   }
 }
@@ -20,7 +20,7 @@ void LuaValidator::checkAssignTargets(const ast::AssignStat& stat,
 void LuaValidator::checkCallStat(const ast::CallStat& stat,
                                  cursiv::ValidationAcceptor& accept) const {
   if (stat.call != nullptr &&
-      !stat.call->type->derivesFrom(&cursiv::ast_type_tag<ast::Call>))
+      !stat.call->type->derivesFrom(&cursiv::kAstTypeTag<ast::Call>))
     accept.error(*stat.call, "syntax error: function call expected");
 }
 

@@ -26,7 +26,7 @@ int fail(const fs::path& file, const char* what) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
@@ -56,7 +56,7 @@ const ada::ast::ForSpec* loop_spec(const cursiv::ParseResult& result) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       ada::AdaCoreServices,
       ada::AdaSharedCoreServices,
       ada::install_core_module>();
@@ -210,7 +210,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<ada::ast::Compilation>) {
+        root->type != &cursiv::kAstTypeTag<ada::ast::Compilation>) {
       failures += fail(entry.path(), "the parse built no compilation");
       continue;
     }

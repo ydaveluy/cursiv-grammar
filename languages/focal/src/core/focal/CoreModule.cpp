@@ -9,7 +9,7 @@
 namespace focal {
 
 void install_core_module(FocalCoreServices& services) {
-  focal::generated::Focal::install_generated_module(services);
+  focal::generated::Focal::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

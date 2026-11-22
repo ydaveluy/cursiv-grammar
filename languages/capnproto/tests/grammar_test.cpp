@@ -29,7 +29,7 @@ int fail(const fs::path& file, const char* what) {
 
 int main() {
   if(!code_audit::run())return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       capnproto::CapnprotoCoreServices, capnproto::CapnprotoSharedCoreServices,
       capnproto::install_core_module>();
   {
@@ -75,7 +75,7 @@ int main() {
       }
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<capnproto::ast::Document>) {
+          root->type != &cursiv::kAstTypeTag<capnproto::ast::Document>) {
         failures += fail(entry.path(), "the parse built no Document");
         continue;
       }

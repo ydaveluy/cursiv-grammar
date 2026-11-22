@@ -9,7 +9,7 @@
 namespace gml {
 
 void install_core_module(GmlCoreServices& services) {
-  gml::generated::Gml::install_generated_module(services);
+  gml::generated::Gml::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace swift {
 
 void install_core_module(SwiftCoreServices& services) {
-  swift::generated::Swift::install_generated_module(services);
+  swift::generated::Swift::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

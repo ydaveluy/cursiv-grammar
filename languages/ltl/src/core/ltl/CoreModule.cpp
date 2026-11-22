@@ -9,7 +9,7 @@
 namespace ltl {
 
 void install_core_module(LtlCoreServices& services) {
-  ltl::generated::Ltl::install_generated_module(services);
+  ltl::generated::Ltl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -5,7 +5,7 @@
 #include "refal/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       refal::RefalSharedServices>(
       argc, argv, "refal-lsp", &refal::register_lsp_services);
 }

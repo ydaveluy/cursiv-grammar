@@ -12,7 +12,7 @@ namespace code_audit {
 namespace ast = sgf::ast;
 inline bool run() {
   auto language =
-      cursiv::create_language<sgf::SgfCoreServices, sgf::SgfSharedCoreServices,
+      cursiv::createLanguage<sgf::SgfCoreServices, sgf::SgfSharedCoreServices,
                               sgf::install_core_module>();
   bool ok = true;
   auto check = [&](bool b, const char* message) {

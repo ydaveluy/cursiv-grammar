@@ -9,7 +9,7 @@
 namespace sexpression {
 
 void install_core_module(SexpressionCoreServices& services) {
-  sexpression::generated::Sexpression::install_generated_module(services);
+  sexpression::generated::Sexpression::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

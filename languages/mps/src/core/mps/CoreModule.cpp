@@ -9,7 +9,7 @@
 namespace mps {
 
 void install_core_module(MpsCoreServices& services) {
-  mps::generated::Mps::install_generated_module(services);
+  mps::generated::Mps::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

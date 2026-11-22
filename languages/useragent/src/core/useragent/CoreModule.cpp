@@ -9,7 +9,7 @@
 namespace useragent {
 
 void install_core_module(UseragentCoreServices& services) {
-  useragent::generated::Useragent::install_generated_module(services);
+  useragent::generated::Useragent::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

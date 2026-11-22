@@ -9,7 +9,7 @@
 namespace typescript {
 
 void install_core_module(TypeScriptCoreServices& services) {
-  typescript::generated::TypeScript::install_generated_module(services);
+  typescript::generated::TypeScript::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -10,7 +10,7 @@
 #include "squirrel/CoreServices.hpp"
 
 inline bool squirrel_native_validation() {
-  const auto language = cursiv::create_language<squirrel::SquirrelCoreServices,
+  const auto language = cursiv::createLanguage<squirrel::SquirrelCoreServices,
       squirrel::SquirrelSharedCoreServices, squirrel::install_core_module>();
   int index = 0;
   for (const char* source : {"function f(a=1,b) {}", "function f(a=1,...) {}",

@@ -35,7 +35,7 @@ std::vector<std::string> split(const std::string& s, char sep) {
 
 int main() {
   const auto language =
-      cursiv::create_language<datalog::DatalogCoreServices,
+      cursiv::createLanguage<datalog::DatalogCoreServices,
                               datalog::DatalogSharedCoreServices,
                               datalog::install_core_module>();
   if (datalog_regressions(language.language)) return 1;
@@ -52,7 +52,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<datalog::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<datalog::ast::Program>)
       return fail(path, "the parse built no Program");
 
     std::printf("datalog: %s parses\n", path.c_str());

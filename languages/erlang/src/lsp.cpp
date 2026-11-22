@@ -5,7 +5,7 @@
 #include "erlang/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       erlang::ErlangSharedServices>(
       argc, argv, "erlang-lsp", &erlang::register_lsp_services);
 }

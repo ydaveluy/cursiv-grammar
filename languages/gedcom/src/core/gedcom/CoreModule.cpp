@@ -9,7 +9,7 @@
 namespace gedcom {
 
 void install_core_module(GedcomCoreServices& services) {
-  gedcom::generated::Gedcom::install_generated_module(services);
+  gedcom::generated::Gedcom::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

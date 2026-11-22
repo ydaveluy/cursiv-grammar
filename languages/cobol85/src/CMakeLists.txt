@@ -5,7 +5,8 @@ cursiv_generate_language(ID cobol85
     GRAMMAR    cobol85/Cobol85Grammar.hpp
     NAMESPACE  cobol85::Cobol85
     EXTENSIONS .cbl
-    OUT        cobol85/generated)
+    OUT        cobol85/generated
+    LR_MAX_STATES 5000)
 
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)

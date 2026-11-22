@@ -36,13 +36,13 @@ const pcre::ast::Pcre *parseClean(const cursiv::Parser &parser,
   if (!out.accepted || out.cst().recovered() || !out.diagnostics.empty())
     return nullptr;
   const cursiv::AstNode *const root = out.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<pcre::ast::Pcre>)
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<pcre::ast::Pcre>)
     return nullptr;
   return static_cast<const pcre::ast::Pcre *>(root);
 }
 
 template <class T> const T *nodeAs(const pcre::ast::Node *n) {
-  if (n == nullptr || n->type != &cursiv::ast_type_tag<T>)
+  if (n == nullptr || n->type != &cursiv::kAstTypeTag<T>)
     return nullptr;
   return static_cast<const T *>(n);
 }
@@ -172,7 +172,7 @@ int checkPosixClass(const cursiv::Parser &parser) {
 } // namespace
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<pcre::PcreCoreServices,
+  const auto language = cursiv::createLanguage<pcre::PcreCoreServices,
                                                 pcre::PcreSharedCoreServices,
                                                 pcre::install_core_module>();
   {
@@ -201,7 +201,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<pcre::PcreCoreServices,
+  const auto language = cursiv::createLanguage<pcre::PcreCoreServices,
                                                 pcre::PcreSharedCoreServices,
                                                 pcre::install_core_module>();
   if (!pcre_converter_cases::run(*language.language.parser))

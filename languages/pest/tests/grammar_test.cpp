@@ -29,7 +29,7 @@ std::string read_file(const fs::path& path) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       pest::PestCoreServices, pest::PestSharedCoreServices,
       pest::install_core_module>();
 
@@ -54,7 +54,7 @@ int main() {
     }
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<pest::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<pest::ast::Document>) {
       std::printf("FAIL %s: no Document root\n", path.c_str());
       ++cursiv::test::failures;
       continue;
@@ -77,7 +77,7 @@ int main() {
     CHECK(result.diagnostics.empty());
     const auto* const doc =
         result.value != nullptr &&
-                result.value->type == &cursiv::ast_type_tag<pest::ast::Document>
+                result.value->type == &cursiv::kAstTypeTag<pest::ast::Document>
             ? static_cast<const pest::ast::Document*>(result.value)
             : nullptr;
     const pest::ast::RuleDecl* mixed = nullptr;

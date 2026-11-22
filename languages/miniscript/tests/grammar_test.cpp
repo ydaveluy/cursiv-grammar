@@ -45,7 +45,7 @@ bool ends_with(const std::string& s, const char* suffix) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<miniscript::MiniscriptCoreServices,
+      cursiv::createLanguage<miniscript::MiniscriptCoreServices,
                               miniscript::MiniscriptSharedCoreServices,
                               miniscript::install_core_module>();
   for (const std::string_view source :
@@ -136,7 +136,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       miniscript::MiniscriptCoreServices,
       miniscript::MiniscriptSharedCoreServices,
       miniscript::install_core_module>();
@@ -154,7 +154,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<miniscript::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<miniscript::ast::Document>)
       return fail(path, "the parse built no Document");
 
     const auto& doc = *static_cast<const miniscript::ast::Document*>(root);
@@ -163,7 +163,7 @@ int main() {
 
     if (ends_with(path, "/multisig.ms")) {
       if (doc.expression->type !=
-          &cursiv::ast_type_tag<miniscript::ast::MultisigExpression>)
+          &cursiv::kAstTypeTag<miniscript::ast::MultisigExpression>)
         return fail(path, "multisig.ms should build a MultisigExpression");
       const auto& multisig =
           *static_cast<const miniscript::ast::MultisigExpression*>(
@@ -179,7 +179,7 @@ int main() {
 
     if (ends_with(path, "/taproot.ms")) {
       if (doc.expression->type !=
-          &cursiv::ast_type_tag<miniscript::ast::MultisigExpression>)
+          &cursiv::kAstTypeTag<miniscript::ast::MultisigExpression>)
         return fail(path, "taproot.ms should build a MultisigExpression");
       const auto& multisig =
           *static_cast<const miniscript::ast::MultisigExpression*>(
@@ -191,7 +191,7 @@ int main() {
 
     if (ends_with(path, "/wrappers.ms")) {
       if (doc.expression->type !=
-          &cursiv::ast_type_tag<miniscript::ast::WrappedExpression>)
+          &cursiv::kAstTypeTag<miniscript::ast::WrappedExpression>)
         return fail(path, "wrappers.ms should build a WrappedExpression");
       const auto& wrapped =
           *static_cast<const miniscript::ast::WrappedExpression*>(
@@ -200,7 +200,7 @@ int main() {
         return fail(path, "the wrapper letters should read 'sdv'");
       if (wrapped.inner == nullptr ||
           wrapped.inner->type !=
-              &cursiv::ast_type_tag<miniscript::ast::TimeExpression>)
+              &cursiv::kAstTypeTag<miniscript::ast::TimeExpression>)
         return fail(path, "sdv:older(1) should wrap a TimeExpression");
       const auto& time =
           *static_cast<const miniscript::ast::TimeExpression*>(

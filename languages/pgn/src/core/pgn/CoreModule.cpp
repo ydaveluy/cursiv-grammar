@@ -9,7 +9,7 @@
 namespace pgn {
 
 void install_core_module(PgnCoreServices& services) {
-  pgn::generated::Pgn::install_generated_module(services);
+  pgn::generated::Pgn::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

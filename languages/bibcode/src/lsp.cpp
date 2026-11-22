@@ -5,7 +5,7 @@
 #include "bibcode/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       bibcode::BibcodeSharedServices>(
       argc, argv, "bibcode-lsp", &bibcode::register_lsp_services);
 }

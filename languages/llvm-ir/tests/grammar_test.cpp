@@ -40,7 +40,7 @@ int main() {
   if (!code_audit::run()) return 1;
   {
     const auto audit_language =
-        cursiv::create_language<llvmir::LlvmIrCoreServices,
+        cursiv::createLanguage<llvmir::LlvmIrCoreServices,
                                 llvmir::LlvmIrSharedCoreServices,
                                 llvmir::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -55,7 +55,7 @@ int main() {
   }
 
   const auto language =
-      cursiv::create_language<llvmir::LlvmIrCoreServices,
+      cursiv::createLanguage<llvmir::LlvmIrCoreServices,
                               llvmir::LlvmIrSharedCoreServices,
                               llvmir::install_core_module>();
   if (!llvm_attribute_groups::run(language.language)) return 1;
@@ -71,7 +71,7 @@ int main() {
     if (!result.diagnostics.empty())
       return fail(entry.path().string() + ": left diagnostics");
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::Module>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::Module>)
       return fail(entry.path().string() + ": built no Module");
     ++clean;
   }
@@ -89,15 +89,15 @@ int main() {
   const ast::GlobalVar* fmtstr = nullptr;
   const ast::FuncDef* mainFn = nullptr;
   for (const ast::TopLevelEntity* const entity : checked->entities) {
-    if (entity->type == &cursiv::ast_type_tag<ast::TargetDef>) {
+    if (entity->type == &cursiv::kAstTypeTag<ast::TargetDef>) {
       const auto* const td = static_cast<const ast::TargetDef*>(entity);
       if (td->kind == "triple" && !td->text.empty()) sawTriple = true;
     }
-    if (entity->type == &cursiv::ast_type_tag<ast::GlobalVar>) {
+    if (entity->type == &cursiv::kAstTypeTag<ast::GlobalVar>) {
       const auto* const gv = static_cast<const ast::GlobalVar*>(entity);
       if (gv->name == "@.fmtstr") fmtstr = gv;
     }
-    if (entity->type == &cursiv::ast_type_tag<ast::FuncDef>) {
+    if (entity->type == &cursiv::kAstTypeTag<ast::FuncDef>) {
       const auto* const fn = static_cast<const ast::FuncDef*>(entity);
       if (fn->header != nullptr && fn->header->name == "@main") mainFn = fn;
     }

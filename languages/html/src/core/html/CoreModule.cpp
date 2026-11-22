@@ -9,7 +9,7 @@
 namespace html {
 
 void install_core_module(HtmlCoreServices& services) {
-  html::generated::Html::install_generated_module(services);
+  html::generated::Html::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

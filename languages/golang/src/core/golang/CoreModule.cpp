@@ -9,7 +9,7 @@
 namespace golang {
 
 void install_core_module(GolangCoreServices& services) {
-  golang::generated::Golang::install_generated_module(services);
+  golang::generated::Golang::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

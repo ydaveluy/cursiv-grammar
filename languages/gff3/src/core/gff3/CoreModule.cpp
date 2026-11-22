@@ -9,7 +9,7 @@
 namespace gff3 {
 
 void install_core_module(Gff3CoreServices& services) {
-  gff3::generated::Gff3::install_generated_module(services);
+  gff3::generated::Gff3::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

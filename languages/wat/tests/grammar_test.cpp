@@ -31,7 +31,7 @@ std::string read_file(const std::string& path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T*>(n)
              : nullptr;
 }
@@ -46,7 +46,7 @@ ast::Module* module_of(const ast::Cmd& c) {
 int main() {
   if (!audit_regressions::run()) return 1;
   const auto language =
-      cursiv::create_language<wat::WatCoreServices, wat::WatSharedCoreServices,
+      cursiv::createLanguage<wat::WatCoreServices, wat::WatSharedCoreServices,
                               wat::install_core_module>();
   if (!wat_gc_audit::run(language)) return 1;
 

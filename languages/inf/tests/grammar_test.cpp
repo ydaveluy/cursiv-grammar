@@ -24,7 +24,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 
 int main() {
   const auto language =
-      cursiv::create_language<inf::InfCoreServices, inf::InfSharedCoreServices,
+      cursiv::createLanguage<inf::InfCoreServices, inf::InfSharedCoreServices,
                               inf::install_core_module>();
 
   int total = 0;
@@ -55,7 +55,7 @@ int main() {
 
       const cursiv::AstNode* const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<inf::ast::Document>) {
+          root->type != &cursiv::kAstTypeTag<inf::ast::Document>) {
         fail(path, "the parse built no Document");
         ++failures;
       }

@@ -155,12 +155,12 @@ struct Javadoc : cursiv::GrammarSpec {
     else
       return ref<NL>;
   }();
-  template <bool Wrapped>
-  static constexpr auto lineEnd = [] {
+  template <auto Member, bool Wrapped>
+  static constexpr auto finishLine = [] {
     if constexpr (Wrapped)
-      return &(ref<DECORATED_NL> | ref<END> | eof);
+      return append<Member>(newline<true>) | &ref<END> | eof;
     else
-      return &(ref<NL> | eof);
+      return append<Member>(newline<false>) | eof;
   }();
 
   template <auto Member, bool Wrapped, bool First = false>
@@ -174,10 +174,9 @@ struct Javadoc : cursiv::GrammarSpec {
     return (option(append<Member>(ref<SPACE>)) +
             append<Member>(ref<InlineTag<Wrapped>> | first) +
             many(append<Member>(ref<InlineTag<Wrapped>> | ref<Text<Wrapped>>)) +
-            lineEnd<Wrapped> + option(append<Member>(newline<Wrapped>))) |
-           (option(append<Member>(ref<SPACE>)) +
-            append<Member>(newline<Wrapped>)) |
-           (append<Member>(ref<SPACE>) + lineEnd<Wrapped>);
+            finishLine<Member, Wrapped>) |
+           (append<Member>(ref<SPACE>) + finishLine<Member, Wrapped>) |
+           append<Member>(newline<Wrapped>);
   }();
 
   template <bool Wrapped>
@@ -186,8 +185,7 @@ struct Javadoc : cursiv::GrammarSpec {
              assign<&ast::BlockTag::name>(ref<NAME>) +
              many(append<&ast::BlockTag::content>(ref<InlineTag<Wrapped>> |
                                                   ref<Text<Wrapped>>)) +
-             lineEnd<Wrapped> +
-             option(append<&ast::BlockTag::content>(newline<Wrapped>)) +
+             finishLine<&ast::BlockTag::content, Wrapped> +
              many(line<&ast::BlockTag::content, Wrapped>)> {};
 
   struct WrappedDocument

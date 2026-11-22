@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<rpn::RpnCoreServices,
+    &cursiv::registerLanguage<rpn::RpnCoreServices,
                            rpn::RpnSharedCoreServices,
                            rpn::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<rpn::RpnSharedCoreServices>(
+  return cursiv::runCli<rpn::RpnSharedCoreServices>(
       argc, argv, kRegister);
 }

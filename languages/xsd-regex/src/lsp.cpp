@@ -5,7 +5,7 @@
 #include "xsdregex/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       xsdregex::XsdRegexSharedServices>(
       argc, argv, "xsdregex-lsp", &xsdregex::register_lsp_services);
 }

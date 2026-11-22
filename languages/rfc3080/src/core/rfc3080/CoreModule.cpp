@@ -9,7 +9,7 @@
 namespace rfc3080 {
 
 void install_core_module(Rfc3080CoreServices& services) {
-  rfc3080::generated::Rfc3080::install_generated_module(services);
+  rfc3080::generated::Rfc3080::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

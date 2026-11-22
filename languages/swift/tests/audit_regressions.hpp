@@ -6,7 +6,7 @@
 #include <string>
 namespace audit_regressions {
 template <class T> T *as(cursiv::AstNode *p) {
-  return p && p->type == &cursiv::ast_type_tag<T> ? static_cast<T *>(p)
+  return p && p->type == &cursiv::kAstTypeTag<T> ? static_cast<T *>(p)
                                                   : nullptr;
 }
 inline bool trailing_closure_boundaries(const cursiv::Parser &parser) {
@@ -129,7 +129,7 @@ inline bool trailing_closure_boundaries(const cursiv::Parser &parser) {
 }
 
 inline bool run() {
-  auto parser = swift::generated::Swift::create_parser();
+  auto parser = swift::generated::Swift::createParser();
   bool ok = trailing_closure_boundaries(*parser);
   auto check = [&](bool value, const char *message) {
     if (!value) {
@@ -496,11 +496,11 @@ inline bool run() {
         "@first @second extension C {}\n", "@first @second typealias T = Int\n",
         "@first @second import Foundation\n"};
     const cursiv::AstTypeTag *types[] = {
-        &cursiv::ast_type_tag<ast::VariableDecl>, &cursiv::ast_type_tag<ast::FunctionDecl>,
-        &cursiv::ast_type_tag<ast::EnumDecl>, &cursiv::ast_type_tag<ast::StructDecl>,
-        &cursiv::ast_type_tag<ast::ClassDecl>, &cursiv::ast_type_tag<ast::ProtocolDecl>,
-        &cursiv::ast_type_tag<ast::ExtensionDecl>, &cursiv::ast_type_tag<ast::TypealiasDecl>,
-        &cursiv::ast_type_tag<ast::ImportDecl>};
+        &cursiv::kAstTypeTag<ast::VariableDecl>, &cursiv::kAstTypeTag<ast::FunctionDecl>,
+        &cursiv::kAstTypeTag<ast::EnumDecl>, &cursiv::kAstTypeTag<ast::StructDecl>,
+        &cursiv::kAstTypeTag<ast::ClassDecl>, &cursiv::kAstTypeTag<ast::ProtocolDecl>,
+        &cursiv::kAstTypeTag<ast::ExtensionDecl>, &cursiv::kAstTypeTag<ast::TypealiasDecl>,
+        &cursiv::kAstTypeTag<ast::ImportDecl>};
     for (std::size_t i=0;i<9;++i) {
       auto r=parser->parse(inputs[i]); auto *f=as<ast::File>(r.value);
       auto *stmt=f && f->statements.size()==1?f->statements[0]:nullptr;
@@ -555,8 +555,8 @@ inline bool run() {
         "@tag public required init() {}\n",
         "@tag public final subscript(i: Int) -> Int { get { return 1 } }\n"};
     const cursiv::AstTypeTag *types[] = {
-        &cursiv::ast_type_tag<ast::VariableDecl>, &cursiv::ast_type_tag<ast::FunctionDecl>,
-        &cursiv::ast_type_tag<ast::InitializerDecl>, &cursiv::ast_type_tag<ast::SubscriptDecl>};
+        &cursiv::kAstTypeTag<ast::VariableDecl>, &cursiv::kAstTypeTag<ast::FunctionDecl>,
+        &cursiv::kAstTypeTag<ast::InitializerDecl>, &cursiv::kAstTypeTag<ast::SubscriptDecl>};
     const char *first[] = {"private", "public", "public", "public"};
     const char *second[] = {"final", "final", "required", "final"};
     for(std::size_t i=0;i<4;++i) {

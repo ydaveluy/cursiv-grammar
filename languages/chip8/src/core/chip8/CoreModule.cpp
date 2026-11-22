@@ -9,7 +9,7 @@
 namespace chip8 {
 
 void install_core_module(Chip8CoreServices& services) {
-  chip8::generated::Chip8::install_generated_module(services);
+  chip8::generated::Chip8::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

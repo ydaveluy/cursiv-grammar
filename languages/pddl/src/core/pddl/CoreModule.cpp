@@ -9,7 +9,7 @@
 namespace pddl {
 
 void install_core_module(PddlCoreServices& services) {
-  pddl::generated::Pddl::install_generated_module(services);
+  pddl::generated::Pddl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

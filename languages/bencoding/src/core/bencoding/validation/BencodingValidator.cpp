@@ -1,10 +1,10 @@
 #include "bencoding/validation/BencodingValidator.hpp"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
-#include <unordered_map>
-#include <vector>
+#include <utility>
 
 #include "bencoding/CoreServices.hpp"
 #include "cursiv/validation/ValidationRegistry.hpp"
@@ -13,24 +13,26 @@ namespace bencoding {
 
 void BencodingValidator::checkUniqueKeys(
     const ast::Dict &dict, cursiv::ValidationAcceptor &accept) const {
-  std::unordered_map<std::string_view, std::vector<const ast::Entry *>> keys;
-  const ast::ByteString *previous = nullptr;
-  for (const ast::Entry *const entry : dict.entries)
-    if (entry != nullptr && entry->key != nullptr) {
-      keys[entry->key->value].push_back(entry);
-      if (previous && previous->value > entry->key->value)
-        accept.error(*entry, "Dictionary keys must be in byte order.",
-                     "bencoding.key-order").property<&ast::Entry::key>();
-      previous = entry->key;
-    }
-
-  for (const auto &[key, entries] : keys) {
-    if (entries.size() <= 1)
-      continue;
-    const std::string message = "Duplicate key: " + std::string(key);
-    for (const ast::Entry *const entry : entries)
-      accept.error(*entry, message, "bencoding.duplicate-key")
+  std::map<std::string_view, const ast::Entry *> first;
+  std::string_view previous;
+  for (const ast::Entry *entry : dict.entries) {
+    if (!entry || !entry->key) continue;
+    const auto key = entry->key->value();
+    if (previous > key)
+      accept.error(*entry, "Dictionary keys must be in byte order.", "bencoding.key-order")
           .property<&ast::Entry::key>();
+    previous = key;
+    // Ordered keys insert at the end. Report the first occurrence once.
+    const auto size = first.size();
+    const auto it = first.try_emplace(first.end(), key, entry);
+    if (first.size() == size) {
+      const auto duplicate = [&](const ast::Entry &at) {
+        accept.error(at, "Duplicate key: " + std::string(key), "bencoding.duplicate-key")
+            .property<&ast::Entry::key>();
+      };
+      if (it->second) duplicate(*std::exchange(it->second, nullptr));
+      duplicate(*entry);
+    }
   }
 }
 
@@ -49,16 +51,12 @@ void BencodingValidator::checkInteger(
 
 void BencodingValidator::checkString(
     const ast::ByteString &string, cursiv::ValidationAcceptor &accept) const {
-  if (string.length.size() > 1 && string.length.front() == '0')
-    accept.error(string, "A byte count cannot have leading zeros.",
-                 "bencoding.string-length").property<&ast::ByteString::length>();
-  auto length = string.length;
-  while (length.size() > 1 && length.front() == '0')
-    length.remove_prefix(1);
-  if (length != std::to_string(string.value.size()))
-    accept.error(string,
-                 "The byte count does not match the captured payload size.",
-                 "bencoding.string-size").property<&ast::ByteString::length>();
+  const auto length = string.length();
+  if (length.size() > 1 && length.front() == '0') {
+    const auto begin = accept.spanOf(string).begin;
+    accept.error(string, "A byte count cannot have leading zeros.", "bencoding.string-length")
+        .range({begin, begin + static_cast<cursiv::TextOffset>(length.size())});
+  }
 }
 
 void BencodingValidator::checkDocument(

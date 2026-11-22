@@ -9,7 +9,7 @@
 namespace semver {
 
 void install_core_module(SemverCoreServices& services) {
-  semver::generated::Semver::install_generated_module(services);
+  semver::generated::Semver::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

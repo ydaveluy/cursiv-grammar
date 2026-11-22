@@ -42,7 +42,7 @@ int main() {
       if (entry.path().extension() == ".sol") files.push_back(entry.path());
   if (files.empty()) return fail("no example files found");
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       solidity::SolidityCoreServices, solidity::SoliditySharedCoreServices,
       solidity::install_core_module>();
 
@@ -58,7 +58,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<solidity::ast::SourceUnit>)
+        root->type != &cursiv::kAstTypeTag<solidity::ast::SourceUnit>)
       return fail(path.string() + ": the parse built no source unit");
   }
 
@@ -72,7 +72,7 @@ int main() {
   const solidity::ast::ContractDefinition* contract = nullptr;
   for (const solidity::ast::Item* const item : unit.items)
     if (item != nullptr &&
-        item->type == &cursiv::ast_type_tag<solidity::ast::ContractDefinition>) {
+        item->type == &cursiv::kAstTypeTag<solidity::ast::ContractDefinition>) {
       contract = static_cast<const solidity::ast::ContractDefinition*>(item);
       break;
     }
@@ -82,7 +82,7 @@ int main() {
   const solidity::ast::FunctionDefinition* function = nullptr;
   for (const solidity::ast::Item* const item : contract->body)
     if (item != nullptr &&
-        item->type == &cursiv::ast_type_tag<solidity::ast::FunctionDefinition>) {
+        item->type == &cursiv::kAstTypeTag<solidity::ast::FunctionDefinition>) {
       function = static_cast<const solidity::ast::FunctionDefinition*>(item);
       break;
     }
@@ -93,7 +93,7 @@ int main() {
     return fail("small_test.sol: parameter name misread");
   const solidity::ast::TypeName* const paramType = function->parameters[0]->type;
   if (paramType == nullptr ||
-      paramType->type != &cursiv::ast_type_tag<solidity::ast::ElementaryType>)
+      paramType->type != &cursiv::kAstTypeTag<solidity::ast::ElementaryType>)
     return fail("small_test.sol: parameter type misread");
   const auto& elementary = *static_cast<const solidity::ast::ElementaryType*>(paramType);
   if (elementary.text != "address")

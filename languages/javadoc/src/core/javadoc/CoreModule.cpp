@@ -9,7 +9,7 @@
 namespace javadoc {
 
 void install_core_module(JavadocCoreServices& services) {
-  javadoc::generated::Javadoc::install_generated_module(services);
+  javadoc::generated::Javadoc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

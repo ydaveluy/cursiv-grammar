@@ -28,7 +28,7 @@ int fail(const std::filesystem::path &file, const char *what) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<metric::MetricCoreServices,
+      cursiv::createLanguage<metric::MetricCoreServices,
                               metric::MetricSharedCoreServices,
                               metric::install_core_module>();
   for (const auto *source : {"k m", "m s", "µ m", "da\nm"}) {
@@ -90,7 +90,7 @@ int main() {
   }
   // The whole language in one call: the defaults, then `install_core_module`.
   const auto language =
-      cursiv::create_language<metric::MetricCoreServices,
+      cursiv::createLanguage<metric::MetricCoreServices,
                               metric::MetricSharedCoreServices,
                               metric::install_core_module>();
 
@@ -124,7 +124,7 @@ int main() {
 
       const cursiv::AstNode *const root = result.value;
       if (root == nullptr ||
-          !root->type->derivesFrom(&cursiv::ast_type_tag<metric::ast::Uom>))
+          !root->type->derivesFrom(&cursiv::kAstTypeTag<metric::ast::Uom>))
         failures += fail(file, "the parse built no Uom");
     }
 

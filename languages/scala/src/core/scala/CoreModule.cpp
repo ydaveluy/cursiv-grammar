@@ -13,8 +13,8 @@
 namespace scala {
 
 void install_core_module(ScalaCoreServices& services) {
-  scala::generated::Scala::install_generated_module(services);
-  services.parser = cursiv::translating_parser(
+  scala::generated::Scala::installGeneratedModule(services);
+  services.parser = cursiv::translatingParser(
       std::move(services.parser), translate_unicode_source);
   register_validation_checks(services);
 }

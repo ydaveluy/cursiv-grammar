@@ -9,7 +9,7 @@
 namespace sqlite {
 
 void install_core_module(SqliteCoreServices& services) {
-  sqlite::generated::Sqlite::install_generated_module(services);
+  sqlite::generated::Sqlite::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

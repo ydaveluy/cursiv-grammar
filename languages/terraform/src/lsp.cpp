@@ -5,7 +5,7 @@
 #include "terraform/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       terraform::TerraformSharedServices>(
       argc, argv, "terraform-lsp", &terraform::register_lsp_services);
 }

@@ -5,7 +5,7 @@
 #include "gedcom/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       gedcom::GedcomSharedServices>(
       argc, argv, "gedcom-lsp", &gedcom::register_lsp_services);
 }

@@ -25,7 +25,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       gml::GmlCoreServices, gml::GmlSharedCoreServices,
       gml::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("graph []\n");
@@ -35,7 +35,7 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       gml::GmlCoreServices, gml::GmlSharedCoreServices,
       gml::install_core_module>();
 
@@ -130,7 +130,7 @@ graph [
     }
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<gml::ast::List>) {
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<gml::ast::List>) {
       fail(path, "the parse built no List");
       ++failures;
     }

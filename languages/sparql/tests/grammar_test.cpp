@@ -50,7 +50,7 @@ int main() {
   if (!audit_regressions::run())
     return 1;
   const auto language =
-      cursiv::create_language<sparql::SparqlCoreServices,
+      cursiv::createLanguage<sparql::SparqlCoreServices,
                               sparql::SparqlSharedCoreServices,
                               sparql::install_core_module>();
   if (!sparql_uchar_tests::run(language.language)) return 1;
@@ -69,7 +69,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<sparql::ast::Query>)
+        root->type != &cursiv::kAstTypeTag<sparql::ast::Query>)
       return fail(std::string(name) + ": built no Query");
   }
 
@@ -87,7 +87,7 @@ int main() {
 
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<sparql::ast::Query>)
+        root->type != &cursiv::kAstTypeTag<sparql::ast::Query>)
       return fail(std::string(name) + ": built no Query");
   }
 
@@ -121,7 +121,7 @@ int main() {
       return fail("select_features.rq: DISTINCT not set");
     if (sel.vars.size() != 2)
       return fail("select_features.rq: expected 2 vars");
-    if (sel.vars[1]->type != &cursiv::ast_type_tag<sparql::ast::Var> ||
+    if (sel.vars[1]->type != &cursiv::kAstTypeTag<sparql::ast::Var> ||
         static_cast<const sparql::ast::Var *>(sel.vars[1])->name != "y")
       return fail("select_features.rq: $y not read back as 'y'");
 
@@ -164,12 +164,12 @@ int main() {
         for (const auto *const obj : po->objects) {
           if (obj == nullptr)
             continue;
-          if (obj->type == &cursiv::ast_type_tag<sparql::ast::StringLit>) {
+          if (obj->type == &cursiv::kAstTypeTag<sparql::ast::StringLit>) {
             const auto &s = *static_cast<const sparql::ast::StringLit *>(obj);
             if (s.value.find('\'') != std::string_view::npos &&
                 s.value.find('\\') != std::string_view::npos)
               sawBio = true;
-          } else if (obj->type == &cursiv::ast_type_tag<
+          } else if (obj->type == &cursiv::kAstTypeTag<
                                       sparql::ast::BlankNodePropertyList>) {
             sawBlank = true;
             const auto &bnode =
@@ -181,11 +181,11 @@ int main() {
                 for (const auto *const nestedObj : nestedPo->objects)
                   if (nestedObj != nullptr &&
                       nestedObj->type ==
-                          &cursiv::ast_type_tag<sparql::ast::Collection>)
+                          &cursiv::kAstTypeTag<sparql::ast::Collection>)
                     sawCollection = true;
               }
           } else if (obj->type ==
-                     &cursiv::ast_type_tag<sparql::ast::Collection>) {
+                     &cursiv::kAstTypeTag<sparql::ast::Collection>) {
             sawCollection = true;
           }
         }

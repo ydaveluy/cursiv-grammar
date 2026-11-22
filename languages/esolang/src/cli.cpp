@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<lolcode::LolcodeCoreServices,
+    &cursiv::registerLanguage<lolcode::LolcodeCoreServices,
                            lolcode::LolcodeSharedCoreServices,
                            lolcode::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<lolcode::LolcodeSharedCoreServices>(
+  return cursiv::runCli<lolcode::LolcodeSharedCoreServices>(
       argc, argv, kRegister);
 }

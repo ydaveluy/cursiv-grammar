@@ -5,7 +5,7 @@
 #include "trac/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       trac::TracSharedServices>(
       argc, argv, "trac-lsp", &trac::register_lsp_services);
 }

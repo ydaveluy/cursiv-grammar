@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<stacktrace::StacktraceCoreServices,
+    &cursiv::registerLanguage<stacktrace::StacktraceCoreServices,
                            stacktrace::StacktraceSharedCoreServices,
                            stacktrace::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<stacktrace::StacktraceSharedCoreServices>(
+  return cursiv::runCli<stacktrace::StacktraceSharedCoreServices>(
       argc, argv, kRegister);
 }

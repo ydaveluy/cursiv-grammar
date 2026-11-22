@@ -5,7 +5,7 @@
 #include "amazonstateslanguageintrinsicfunctions/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       amazonstateslanguageintrinsicfunctions::AmazonStatesLanguageIntrinsicFunctionsSharedServices>(
       argc, argv, "amazonstateslanguageintrinsicfunctions-lsp", &amazonstateslanguageintrinsicfunctions::register_lsp_services);
 }

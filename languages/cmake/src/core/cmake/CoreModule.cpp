@@ -9,7 +9,7 @@
 namespace cmake {
 
 void install_core_module(CmakeCoreServices& services) {
-  cmake::generated::Cmake::install_generated_module(services);
+  cmake::generated::Cmake::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

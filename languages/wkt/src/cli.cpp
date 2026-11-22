@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<wkt::WktCoreServices,
+    &cursiv::registerLanguage<wkt::WktCoreServices,
                            wkt::WktSharedCoreServices,
                            wkt::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<wkt::WktSharedCoreServices>(
+  return cursiv::runCli<wkt::WktSharedCoreServices>(
       argc, argv, kRegister);
 }

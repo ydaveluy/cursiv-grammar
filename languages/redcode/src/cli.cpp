@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<redcode::RedcodeCoreServices,
+    &cursiv::registerLanguage<redcode::RedcodeCoreServices,
                            redcode::RedcodeSharedCoreServices,
                            redcode::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<redcode::RedcodeSharedCoreServices>(
+  return cursiv::runCli<redcode::RedcodeSharedCoreServices>(
       argc, argv, kRegister);
 }

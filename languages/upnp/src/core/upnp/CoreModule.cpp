@@ -9,7 +9,7 @@
 namespace upnp {
 
 void install_core_module(UpnpCoreServices& services) {
-  upnp::generated::Upnp::install_generated_module(services);
+  upnp::generated::Upnp::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

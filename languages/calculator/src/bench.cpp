@@ -2,6 +2,6 @@
 #include "calculator/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       calculator::CalculatorSharedServices, calculator::register_lsp_services>(argc, argv);
 }

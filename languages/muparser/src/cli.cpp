@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<muparser::MuparserCoreServices,
+    &cursiv::registerLanguage<muparser::MuparserCoreServices,
                            muparser::MuparserSharedCoreServices,
                            muparser::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<muparser::MuparserSharedCoreServices>(
+  return cursiv::runCli<muparser::MuparserSharedCoreServices>(
       argc, argv, kRegister);
 }

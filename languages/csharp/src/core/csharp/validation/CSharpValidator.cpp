@@ -16,7 +16,7 @@ namespace csharp {
 namespace {
 bool rawWhitespace(std::string_view text) {
   for (std::size_t at = 0, width = 0; at < text.size(); at += width) {
-    const auto scalar = cursiv::scalar_at(text.data() + at, text.size() - at, width);
+    const auto scalar = cursiv::scalarAt(text.data() + at, text.size() - at, width);
     if (scalar != '\t' && scalar != '\v' && scalar != '\f' &&
         scalar != 0x1a && scalar != 0xfeff &&
         !cursiv::unicode::within(cursiv::unicode::kZs,

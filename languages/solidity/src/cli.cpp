@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<solidity::SolidityCoreServices,
+    &cursiv::registerLanguage<solidity::SolidityCoreServices,
                            solidity::SoliditySharedCoreServices,
                            solidity::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<solidity::SoliditySharedCoreServices>(
+  return cursiv::runCli<solidity::SoliditySharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -43,7 +43,7 @@ int check_create_table(const auto& language, const fs::path& dir) {
     return fail(path, "does not parse clean");
 
   const cursiv::AstNode* const root = result.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<cql3::ast::Root>)
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<cql3::ast::Root>)
     return fail(path, "the parse built no Root");
   const auto& doc = *static_cast<const cql3::ast::Root*>(root);
   if (doc.statements.size() != 1)
@@ -51,7 +51,7 @@ int check_create_table(const auto& language, const fs::path& dir) {
 
   const cql3::ast::Statement* const stmt = doc.statements[0];
   if (stmt == nullptr ||
-      stmt->type != &cursiv::ast_type_tag<cql3::ast::CreateTable>)
+      stmt->type != &cursiv::kAstTypeTag<cql3::ast::CreateTable>)
     return fail(path, "expected a CreateTable statement");
   const auto& table = *static_cast<const cql3::ast::CreateTable*>(stmt);
 
@@ -78,7 +78,7 @@ int check_create_table(const auto& language, const fs::path& dir) {
 
 template <class T>
 const T* is(const cursiv::AstNode* node) {
-  return node != nullptr && node->type == &cursiv::ast_type_tag<T>
+  return node != nullptr && node->type == &cursiv::kAstTypeTag<T>
              ? static_cast<const T*>(node)
              : nullptr;
 }
@@ -125,7 +125,7 @@ int check_coverage(const auto& language, const fs::path& dir) {
   if (result.cst().recovered() || !result.diagnostics.empty())
     return fail(path, "does not parse clean");
   if (result.value == nullptr ||
-      result.value->type != &cursiv::ast_type_tag<cql3::ast::Root>)
+      result.value->type != &cursiv::kAstTypeTag<cql3::ast::Root>)
     return fail(path, "the parse built no Root");
   return 0;
 }
@@ -133,7 +133,7 @@ int check_coverage(const auto& language, const fs::path& dir) {
 }  // namespace
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<cql3::Cql3CoreServices,
+  const auto language = cursiv::createLanguage<cql3::Cql3CoreServices,
                                                 cql3::Cql3SharedCoreServices,
                                                 cql3::install_core_module>();
   {
@@ -280,7 +280,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       cql3::Cql3CoreServices, cql3::Cql3SharedCoreServices,
       cql3::install_core_module>();
 
@@ -308,7 +308,7 @@ int main() {
     }
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<cql3::ast::Root>) {
+        root->type != &cursiv::kAstTypeTag<cql3::ast::Root>) {
       failures += fail(entry.path(), "the parse built no Root");
       continue;
     }

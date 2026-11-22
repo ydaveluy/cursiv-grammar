@@ -5,7 +5,7 @@
 #include "calculator/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       calculator::CalculatorSharedServices>(
       argc, argv, "calculator-lsp", &calculator::register_lsp_services);
 }

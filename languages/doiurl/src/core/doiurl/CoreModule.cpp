@@ -9,7 +9,7 @@
 namespace doiurl {
 
 void install_core_module(DoiurlCoreServices& services) {
-  doiurl::generated::Doiurl::install_generated_module(services);
+  doiurl::generated::Doiurl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

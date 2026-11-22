@@ -9,7 +9,7 @@
 namespace postalcode {
 
 void install_core_module(PostalcodeCoreServices& services) {
-  postalcode::generated::Postalcode::install_generated_module(services);
+  postalcode::generated::Postalcode::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

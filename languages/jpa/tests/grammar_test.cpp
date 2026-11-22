@@ -37,7 +37,7 @@ std::string read(const fs::path& path) {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       jpa::JpaCoreServices, jpa::JpaSharedCoreServices,
       jpa::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("select e from Employee e\n");
@@ -47,7 +47,7 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       jpa::JpaCoreServices, jpa::JpaSharedCoreServices,
       jpa::install_core_module>();
 
@@ -79,7 +79,7 @@ int main() {
     if (wantsDiagnostic) continue;
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<jpa::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<jpa::ast::Document>) {
       failures += fail(entry.path(), "the parse built no Document");
       continue;
     }
@@ -114,7 +114,7 @@ int main() {
     }
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<jpa::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<jpa::ast::Document>) {
       failures += fail(path, "the parse built no Document");
       continue;
     }
@@ -129,14 +129,14 @@ int main() {
     const cursiv::ParseResult result = language.language.parser->parse(text);
     const auto& doc = *static_cast<const jpa::ast::Document*>(result.value);
     if (doc.statement == nullptr ||
-        doc.statement->type != &cursiv::ast_type_tag<jpa::ast::SelectStatement>) {
+        doc.statement->type != &cursiv::kAstTypeTag<jpa::ast::SelectStatement>) {
       failures += fail(path, "the statement is not a SelectStatement");
     } else {
       const auto& select =
           *static_cast<const jpa::ast::SelectStatement*>(doc.statement);
       if (!select.distinct) failures += fail(path, "DISTINCT was not read");
       if (select.from.empty() ||
-          select.from[0]->type != &cursiv::ast_type_tag<jpa::ast::IdVarDecl>) {
+          select.from[0]->type != &cursiv::kAstTypeTag<jpa::ast::IdVarDecl>) {
         failures += fail(path, "the from-clause did not build an IdVarDecl");
       } else {
         const auto& idvar =

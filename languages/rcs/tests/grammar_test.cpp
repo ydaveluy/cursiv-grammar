@@ -35,7 +35,7 @@ std::string read_file(const std::filesystem::path& path) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<rcs::RcsCoreServices, rcs::RcsSharedCoreServices,
+      cursiv::createLanguage<rcs::RcsCoreServices, rcs::RcsSharedCoreServices,
                               rcs::install_core_module>();
   {
     const auto r = language.language.parser->parse(
@@ -83,7 +83,7 @@ int main() {
   }
   namespace fs = std::filesystem;
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       rcs::RcsCoreServices, rcs::RcsSharedCoreServices,
       rcs::install_core_module>();
 
@@ -106,7 +106,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<rcs::ast::File>)
+        root->type != &cursiv::kAstTypeTag<rcs::ast::File>)
       return fail(path.filename().string() + " built no file");
     ++count;
   }

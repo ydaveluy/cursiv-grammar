@@ -9,7 +9,7 @@
 namespace geekcode {
 
 void install_core_module(GeekcodeCoreServices& services) {
-  geekcode::generated::Geekcode::install_generated_module(services);
+  geekcode::generated::Geekcode::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

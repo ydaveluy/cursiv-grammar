@@ -12,7 +12,7 @@
 inline bool native_regressions() {
   namespace ast = wkt::ast;
   auto language =
-      cursiv::create_language<wkt::WktCoreServices, wkt::WktSharedCoreServices,
+      cursiv::createLanguage<wkt::WktCoreServices, wkt::WktSharedCoreServices,
                               wkt::install_core_module>();
   const auto clean = [](const auto& r) {
     return r.accepted && !r.cst().recovered() && r.diagnostics.empty() && r.value;

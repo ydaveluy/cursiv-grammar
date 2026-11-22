@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<lpc::LpcCoreServices,
+    &cursiv::registerLanguage<lpc::LpcCoreServices,
                            lpc::LpcSharedCoreServices,
                            lpc::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<lpc::LpcSharedCoreServices>(
+  return cursiv::runCli<lpc::LpcSharedCoreServices>(
       argc, argv, kRegister);
 }

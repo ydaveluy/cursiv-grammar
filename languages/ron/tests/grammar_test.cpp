@@ -99,7 +99,7 @@ Config2(élément2: "a\"b\n\u{1F600}", raw: r###"a"##b"###,
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<ron::RonCoreServices, ron::RonSharedCoreServices,
+      cursiv::createLanguage<ron::RonCoreServices, ron::RonSharedCoreServices,
                               ron::install_core_module>();
   for (const auto *source : {R"("\u{110000}")", R"("\u{D800}")",
                              R"("\u{100000000000000000000000000000000}")",
@@ -199,7 +199,7 @@ int main() {
   namespace fs = std::filesystem;
 
   const auto language =
-      cursiv::create_language<ron::RonCoreServices, ron::RonSharedCoreServices,
+      cursiv::createLanguage<ron::RonCoreServices, ron::RonSharedCoreServices,
                               ron::install_core_module>();
   if (!native_followup(*language.language.parser) ||
       native_shapes(*language.language.parser))
@@ -224,7 +224,7 @@ int main() {
 
       const cursiv::AstNode *const root = result.value;
       if (root == nullptr ||
-          root->type != &cursiv::ast_type_tag<ron::ast::Document>)
+          root->type != &cursiv::kAstTypeTag<ron::ast::Document>)
         return fail(path.filename().string() + " built no document");
       ++count;
     }

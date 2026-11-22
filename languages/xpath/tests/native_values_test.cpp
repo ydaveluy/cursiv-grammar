@@ -11,7 +11,7 @@
 #include <unordered_set>
 namespace a = xpath::ast;
 int main() {
-  const auto lang = cursiv::create_language<xpath::XpathCoreServices,
+  const auto lang = cursiv::createLanguage<xpath::XpathCoreServices,
                                             xpath::XpathSharedCoreServices,
                                             xpath::install_core_module>();
   bool ok = true;

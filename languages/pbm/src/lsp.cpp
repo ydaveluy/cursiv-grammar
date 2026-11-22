@@ -5,7 +5,7 @@
 #include "pbm/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       pbm::PbmSharedServices>(
       argc, argv, "pbm-lsp", &pbm::register_lsp_services);
 }

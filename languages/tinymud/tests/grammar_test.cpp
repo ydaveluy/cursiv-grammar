@@ -31,7 +31,7 @@ std::string read(const char* path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  return node != nullptr && node->type == &cursiv::ast_type_tag<T>
+  return node != nullptr && node->type == &cursiv::kAstTypeTag<T>
              ? static_cast<const T*>(node)
              : nullptr;
 }
@@ -39,7 +39,7 @@ const T* as(const cursiv::AstNode* node) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       tinymud::TinymudCoreServices, tinymud::TinymudSharedCoreServices,
       tinymud::install_core_module>();
   if (!tinymud_native_followup::run(language)) return fail("native followup syntax/AST/validation failed");
@@ -53,7 +53,7 @@ int main() {
       return fail("an example carries a diagnostic");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<tinymud::ast::Session>)
+        root->type != &cursiv::kAstTypeTag<tinymud::ast::Session>)
       return fail("the parse built no session");
   }
 

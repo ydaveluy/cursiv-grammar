@@ -104,8 +104,19 @@ struct Html : cursiv::GrammarSpec {
       ikw<"track"> | ikw<"wbr">;
   struct VOID_OPEN
       : terminal<as<open_name>(lit<"<"> + void_names + &RawTagBoundary)> {};
+  static constexpr auto paragraph_blocks =
+      ikw<"address"> | ikw<"article"> | ikw<"aside"> | ikw<"blockquote"> |
+      ikw<"center"> | ikw<"details"> | ikw<"dialog"> | ikw<"dir"> |
+      ikw<"div"> | ikw<"dl"> | ikw<"fieldset"> | ikw<"figcaption"> |
+      ikw<"figure"> | ikw<"footer"> | ikw<"form"> | ikw<"h1"> |
+      ikw<"h2"> | ikw<"h3"> | ikw<"h4"> | ikw<"h5"> |
+      ikw<"h6"> | ikw<"header"> | ikw<"hgroup"> | ikw<"main"> |
+      ikw<"menu"> | ikw<"nav"> | ikw<"ol"> | ikw<"search"> |
+      ikw<"section"> | ikw<"summary"> | ikw<"table"> | ikw<"ul">;
+  struct BLOCK_OPEN
+      : terminal<as<open_name>(lit<"<"> + paragraph_blocks + &RawTagBoundary)> {};
   static constexpr auto specialized_name =
-      (void_names |
+      (void_names | paragraph_blocks |
        ikw<"script"> | ikw<"style"> | ikw<"textarea"> | ikw<"title"> |
        ikw<"xmp"> | ikw<"iframe"> | ikw<"noembed"> | ikw<"noframes"> | ikw<"plaintext"> |
        ikw<"pre"> | ikw<"listing"> |
@@ -187,16 +198,18 @@ struct Html : cursiv::GrammarSpec {
                                        ref<Comment> | ref<Text>;
 
   static constexpr auto open_tag_prefix =
-      assign<&ast::Element::name>(ref<NORMAL_OPEN>) +
+      assign<&ast::Element::name>(ref<NORMAL_OPEN> | ref<BLOCK_OPEN>) +
       attributes;
 
-  static constexpr auto close_tag =
-      ref<TAG_OPEN> + ref<TAG_SLASH> +
-      assign<&ast::Element::closeName>(ref<TAG_NAME>) +
-      spaces + ref<TAG_CLOSE>;
   static constexpr auto close_start = ref<TAG_OPEN> + ref<TAG_SLASH>;
+  template <auto Name>
+  static constexpr auto close_tag = close_start + assign<&ast::Element::closeName>(Name) +
+                                    spaces + ref<TAG_CLOSE>;
   template <cursiv::str Name>
-  static constexpr auto matching_close = close_start + ikw<Name> + &RawTagBoundary;
+  struct CloseName : terminal<ikw<Name> + &RawTagBoundary> {};
+  template <cursiv::str Name>
+  static constexpr auto optional_close =
+      close_tag<ref<CloseName<Name>>> | !(close_start + ref<CloseName<Name>>);
   struct PreFirstTextValue : rule<as<pre_text_value>(ref<HTML_TEXT>)> {};
   struct PreFirstText : rule<assign<&ast::Text::text>(ref<PreFirstTextValue>)> {};
 
@@ -207,7 +220,7 @@ struct Html : cursiv::GrammarSpec {
              (flag<&ast::Element::selfClosing>(ref<TAG_SLASH_CLOSE>) |
               (ref<TAG_CLOSE> +
                option(append<&ast::Element::content>(ref<RawText<Name>>)) +
-               ((&matching_close<Name> + close_tag) | !matching_close<Name>)))> {};
+               optional_close<Name>))> {};
 
   template <cursiv::str Name>
   struct PreElement
@@ -215,7 +228,7 @@ struct Html : cursiv::GrammarSpec {
              (flag<&ast::Element::selfClosing>(ref<TAG_SLASH_CLOSE>) |
               (ref<TAG_CLOSE> +
                option(append<&ast::Element::content>(ref<PreFirstText>)) +
-               many(append<&ast::Element::content>(content_item)) + close_tag))> {};
+               many(append<&ast::Element::content>(content_item)) + close_tag<ref<TAG_NAME>>))> {};
 
   struct PLAIN_TEXT : terminal<as<text_value>(some(any))> {};
   struct PlainText : rule<assign<&ast::Text::text>(ref<PLAIN_TEXT>)> {};
@@ -237,15 +250,8 @@ struct Html : cursiv::GrammarSpec {
           (lit<"<"> + !(cr<"A-Za-z!?/%"> | tag_name_start) + many(text_char)) |
           (&cr<R"(^ \t\r\n\f<)"> + some(text_char));
     else if constexpr (Name.view() == "p")
-      return lit<"<"> + (ikw<"address"> | ikw<"article"> | ikw<"aside"> | ikw<"blockquote"> |
-          ikw<"center"> | ikw<"details"> | ikw<"dialog"> | ikw<"dir"> | ikw<"div"> |
-          ikw<"dl"> | ikw<"fieldset"> | ikw<"figcaption"> |
-          ikw<"figure"> | ikw<"footer"> | ikw<"form"> | ikw<"h1"> | ikw<"h2"> |
-          ikw<"h3"> | ikw<"h4"> | ikw<"h5"> | ikw<"h6"> | ikw<"header"> |
-          ikw<"hgroup"> | ikw<"hr"> | ikw<"main"> | ikw<"menu"> | ikw<"nav"> |
-          ikw<"ol"> | ikw<"p"> | ikw<"pre"> | ikw<"listing"> | ikw<"search"> | ikw<"section"> |
-          ikw<"summary"> | ikw<"table"> | ikw<"ul"> | ikw<"li"> | ikw<"dt"> | ikw<"dd"> |
-          ikw<"xmp"> | ikw<"plaintext">) + &RawTagBoundary;
+      return lit<"<"> + (ikw<"hr"> | ikw<"p"> | ikw<"pre"> | ikw<"listing"> |
+          ikw<"li"> | ikw<"dt"> | ikw<"dd"> | ikw<"xmp"> | ikw<"plaintext">) + &RawTagBoundary;
     else if constexpr (Name.view() == "dt" || Name.view() == "dd")
       return lit<"<"> + (ikw<"dt"> | ikw<"dd">) + &RawTagBoundary;
     else if constexpr (Name.view() == "rt" || Name.view() == "rp")
@@ -264,7 +270,10 @@ struct Html : cursiv::GrammarSpec {
   template <cursiv::str Name>
   struct IMPLIED_END : terminal<implied_end_text<Name>> {};
   template <cursiv::str Name>
-  static constexpr auto implied_end = ref<IMPLIED_END<Name>>;
+  static constexpr auto implied_end = [] {
+    if constexpr (Name.view() == "p") return ref<BLOCK_OPEN> | ref<IMPLIED_END<Name>>;
+    else return ref<IMPLIED_END<Name>>;
+  }();
 
   template <cursiv::str Name>
   struct OptionalEnd
@@ -274,11 +283,11 @@ struct Html : cursiv::GrammarSpec {
               (ref<TAG_CLOSE> +
                many(!implied_end<Name> + append<&ast::Element::content>(content_item)) +
                &(implied_end<Name> | close_start | eof) +
-               ((&matching_close<Name> + close_tag) | !matching_close<Name>)))> {};
+               optional_close<Name>))> {};
 
   struct Element
       : rule<(open_tag_prefix + ref<TAG_CLOSE> +
-              many(append<&ast::Element::content>(content_item)) + close_tag) |
+              many(append<&ast::Element::content>(content_item)) + close_tag<ref<TAG_NAME>>) |
              (open_tag_prefix +
               flag<&ast::Element::selfClosing>(ref<TAG_SLASH_CLOSE>))> {};
 

@@ -9,7 +9,7 @@
 namespace rcs {
 
 void install_core_module(RcsCoreServices& services) {
-  rcs::generated::Rcs::install_generated_module(services);
+  rcs::generated::Rcs::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

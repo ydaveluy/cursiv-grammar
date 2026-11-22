@@ -5,7 +5,7 @@
 #include "doiurl/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       doiurl::DoiurlSharedServices>(
       argc, argv, "doiurl-lsp", &doiurl::register_lsp_services);
 }

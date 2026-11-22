@@ -9,7 +9,7 @@
 namespace rpn {
 
 void install_core_module(RpnCoreServices& services) {
-  rpn::generated::Rpn::install_generated_module(services);
+  rpn::generated::Rpn::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

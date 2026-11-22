@@ -16,12 +16,12 @@ namespace {
 template <class Values>
 bool has_modifier(const Values& values, std::string_view keyword) {
   return std::ranges::any_of(values, [&](std::string_view value) {
-    return cursiv::folded_equal(value, keyword);
+    return cursiv::foldedEqual(value, keyword);
   });
 }
 bool primitive_is(const ast::TypeRef* type, std::string_view keyword) {
   const auto* primitive = cursiv::ast_cast<ast::PrimitiveTypeRef>(type);
-  return primitive && cursiv::folded_equal(primitive->keyword, keyword);
+  return primitive && cursiv::foldedEqual(primitive->keyword, keyword);
 }
 bool reserved_name(std::string_view name, bool globalFunction = false) {
   std::string lower(name);
@@ -61,8 +61,8 @@ void PhpValidator::checkParam(const ast::Param& node, cursiv::ValidationAcceptor
   const auto* function = cursiv::ast_cast<ast::FunctionDecl>(node.parent);
   const auto* method = function ? cursiv::ast_cast<ast::MethodMember>(function->parent) : nullptr;
   const auto* owner = method ? cursiv::ast_cast<ast::ClassDecl>(method->parent) : nullptr;
-  if (!owner || !cursiv::folded_equal(function->name, "__construct") ||
-      cursiv::folded_equal(owner->kind, "interface") ||
+  if (!owner || !cursiv::foldedEqual(function->name, "__construct") ||
+      cursiv::foldedEqual(owner->kind, "interface") ||
       has_modifier(method->modifiers, "abstract") || node.variadic)
     accept.error(node, "Promoted properties require a concrete constructor and a non-variadic parameter.",
                  "php.property-promotion");
@@ -85,14 +85,14 @@ void PhpValidator::checkHook(const ast::PropertyHook& node, cursiv::ValidationAc
       (owner && has_modifier(owner->modifiers, "readonly")))
     error("Hooked properties cannot be static or readonly.");
   const bool hasBody = node.body || node.expression;
-  const bool abstract = (owner && cursiv::folded_equal(owner->kind, "interface")) ||
+  const bool abstract = (owner && cursiv::foldedEqual(owner->kind, "interface")) ||
                         (modifier("abstract") && !hasBody);
   const bool isFinal = has_modifier(node.modifiers, "final");
   if ((abstract && (hasBody || modifier("private") || isFinal)) ||
       (!abstract && !hasBody) || (isFinal && modifier("private")))
     error("The property hook body, visibility and final modifier are incompatible.");
-  const bool isGet = cursiv::folded_equal(node.name, "get");
-  const bool isSet = cursiv::folded_equal(node.name, "set");
+  const bool isGet = cursiv::foldedEqual(node.name, "get");
+  const bool isSet = cursiv::foldedEqual(node.name, "set");
   if (!isGet && !isSet) error("A property hook must be named get or set.");
   if (isGet && node.hasParams) error("A get hook must not have an explicit parameter list.");
   if (isSet && node.hasParams) {
@@ -107,7 +107,7 @@ void PhpValidator::checkHook(const ast::PropertyHook& node, cursiv::ValidationAc
   const auto duplicate = [&](const auto& hooks) {
     for (const auto* hook : hooks) {
       if (hook == &node) break;
-      if (cursiv::folded_equal(hook->name, node.name)) {
+      if (cursiv::foldedEqual(hook->name, node.name)) {
         error("A property hook cannot be declared twice.");
         break;
       }
@@ -127,7 +127,7 @@ void PhpValidator::checkIntersection(const ast::IntersectionTypeRef& node, cursi
     const auto* named = cursiv::ast_cast<ast::NamedTypeRef>(option);
     const auto* name = named ? named->name : nullptr;
     const bool relativeSelf = name && !name->rooted && !name->nsRelative && name->parts.size() == 1 &&
-        (cursiv::folded_equal(name->parts[0], "self") || cursiv::folded_equal(name->parts[0], "parent"));
+        (cursiv::foldedEqual(name->parts[0], "self") || cursiv::foldedEqual(name->parts[0], "parent"));
     if (!named || relativeSelf) {
       accept.error(node, "Intersection members must be class names other than self or parent.", "php.type-composition");
       break;

@@ -34,7 +34,7 @@ void check(bool ok, const char* what) {
 }
 
 const cursiv::Parser& engine() {
-  static const std::unique_ptr<cursiv::Parser> p = generated::create_parser();
+  static const std::unique_ptr<cursiv::Parser> p = generated::createParser();
   return *p;
 }
 
@@ -46,7 +46,7 @@ std::string read_file(const std::string& path) {
 
 template <class T>
 const T* as(const cursiv::AstNode* node) {
-  if (node == nullptr || node->type != &cursiv::ast_type_tag<T>) return nullptr;
+  if (node == nullptr || node->type != &cursiv::kAstTypeTag<T>) return nullptr;
   return static_cast<const T*>(node);
 }
 
@@ -357,7 +357,7 @@ void native_jsonata_fields_read_back() {
 
 int main() {
   {
-    const auto language = cursiv::create_language<
+    const auto language = cursiv::createLanguage<
         amazonstateslanguage::AmazonStatesLanguageCoreServices,
         amazonstateslanguage::AmazonStatesLanguageSharedCoreServices,
         amazonstateslanguage::install_core_module>();
@@ -390,7 +390,7 @@ int main() {
   json_values_and_escaped_names_read_back();
   native_jsonata_fields_read_back();
   {
-    const auto language = cursiv::create_language<
+    const auto language = cursiv::createLanguage<
         amazonstateslanguage::AmazonStatesLanguageCoreServices,
         amazonstateslanguage::AmazonStatesLanguageSharedCoreServices,
         amazonstateslanguage::install_core_module>();

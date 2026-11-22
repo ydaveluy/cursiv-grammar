@@ -9,7 +9,7 @@
 namespace mckeemanform {
 
 void install_core_module(MckeemanFormCoreServices& services) {
-  mckeemanform::generated::MckeemanForm::install_generated_module(services);
+  mckeemanform::generated::MckeemanForm::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

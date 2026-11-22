@@ -9,7 +9,7 @@
 namespace tsv {
 
 void install_core_module(TsvCoreServices& services) {
-  tsv::generated::Tsv::install_generated_module(services);
+  tsv::generated::Tsv::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

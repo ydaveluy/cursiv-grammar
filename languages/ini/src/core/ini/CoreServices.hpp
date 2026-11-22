@@ -16,7 +16,7 @@ struct IniCoreServices : cursiv::CoreServicesFor<IniSharedCoreServices> {
   using CoreServicesFor::CoreServicesFor;
 
   void visitServices(
-      cursiv::function_ref<void(const cursiv::ServiceSlot&)> yield) const override {
+      cursiv::FunctionRef<void(const cursiv::ServiceSlot&)> yield) const override {
     cursiv::CoreServices::visitServices(yield);
     yield({"reader", true, reader != nullptr});
   }

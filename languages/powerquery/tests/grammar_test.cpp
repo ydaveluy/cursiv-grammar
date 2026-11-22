@@ -24,7 +24,7 @@ namespace ast = powerquery::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      powerquery::generated::Powerquery::create_parser();
+      powerquery::generated::Powerquery::createParser();
   return *p;
 }
 
@@ -34,7 +34,7 @@ T* as(cursiv::AstNode* n) {
 }
 
 cursiv::ParseResult parse_clean(const std::string& path) {
-  const std::string text = cursiv::test::read_file(path);
+  const std::string text = cursiv::test::readFile(path);
   CHECK(!text.empty());
   cursiv::ParseResult r = engine().parse(text);
   CHECK(static_cast<bool>(r));
@@ -194,7 +194,7 @@ void primitive_type_keywords() {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<powerquery::PowerqueryCoreServices,
+      cursiv::createLanguage<powerquery::PowerqueryCoreServices,
                               powerquery::PowerquerySharedCoreServices,
                               powerquery::install_core_module>();
   for(const auto source:{

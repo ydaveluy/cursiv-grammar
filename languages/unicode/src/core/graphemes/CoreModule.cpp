@@ -9,7 +9,7 @@
 namespace graphemes {
 
 void install_core_module(GraphemesCoreServices& services) {
-  graphemes::generated::Graphemes::install_generated_module(services);
+  graphemes::generated::Graphemes::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

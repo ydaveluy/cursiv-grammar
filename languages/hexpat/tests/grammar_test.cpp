@@ -51,7 +51,7 @@ const hexpat::ast::Document* parse_document(
   }
   const cursiv::AstNode* const root = result.value;
   if (root == nullptr ||
-      root->type != &cursiv::ast_type_tag<hexpat::ast::Document>) {
+      root->type != &cursiv::kAstTypeTag<hexpat::ast::Document>) {
     std::fprintf(stderr, "hexpat: %s built no document\n", label.c_str());
     *ok = false;
     return nullptr;
@@ -62,7 +62,7 @@ const hexpat::ast::Document* parse_document(
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       hexpat::HexpatCoreServices, hexpat::HexpatSharedCoreServices,
       hexpat::install_core_module>();
 
@@ -109,10 +109,10 @@ int main() {
   const hexpat::ast::Struct* headerItem = nullptr;
   for (const hexpat::ast::Item* item : dexDoc->items) {
     if (import == nullptr &&
-        item->type == &cursiv::ast_type_tag<hexpat::ast::Import>)
+        item->type == &cursiv::kAstTypeTag<hexpat::ast::Import>)
       import = static_cast<const hexpat::ast::Import*>(item);
     if (headerItem == nullptr &&
-        item->type == &cursiv::ast_type_tag<hexpat::ast::Struct>) {
+        item->type == &cursiv::kAstTypeTag<hexpat::ast::Struct>) {
       const auto* s = static_cast<const hexpat::ast::Struct*>(item);
       if (s->name == "header_item") headerItem = s;
     }
@@ -128,7 +128,7 @@ int main() {
     return fail("header_item does not hold the 23 fields it declares");
 
   const hexpat::ast::Item* first = headerItem->body->items[0];
-  if (first->type != &cursiv::ast_type_tag<hexpat::ast::StructMember>)
+  if (first->type != &cursiv::kAstTypeTag<hexpat::ast::StructMember>)
     return fail("header_item's first field is not a StructMember");
   const auto* member = static_cast<const hexpat::ast::StructMember*>(first);
   if (member->type == nullptr || member->type->name != "u8" ||

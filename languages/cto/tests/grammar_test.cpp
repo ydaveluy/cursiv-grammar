@@ -23,17 +23,17 @@ namespace ast = cto::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      cto::generated::Cto::create_parser();
+      cto::generated::Cto::createParser();
   return *p;
 }
 
 std::string example(const char* name) {
-  return cursiv::test::read_file(std::string(CURSIV_EXAMPLE_DIR) + "/" +
+  return cursiv::test::readFile(std::string(CURSIV_EXAMPLE_DIR) + "/" +
                                  name);
 }
 
 std::string test_doc(const char* name) {
-  return cursiv::test::read_file(std::string(CURSIV_TEST_DIR) + "/" + name);
+  return cursiv::test::readFile(std::string(CURSIV_TEST_DIR) + "/" + name);
 }
 
 void check_clean(const cursiv::ParseResult& r) {

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<edif300::Edif300CoreServices,
+    &cursiv::registerLanguage<edif300::Edif300CoreServices,
                            edif300::Edif300SharedCoreServices,
                            edif300::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<edif300::Edif300SharedCoreServices>(
+  return cursiv::runCli<edif300::Edif300SharedCoreServices>(
       argc, argv, kRegister);
 }

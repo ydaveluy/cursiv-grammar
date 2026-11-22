@@ -29,7 +29,7 @@ int fail(const std::string& what) {
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      iri::generated::Iri::create_parser();
+      iri::generated::Iri::createParser();
   return *p;
 }
 

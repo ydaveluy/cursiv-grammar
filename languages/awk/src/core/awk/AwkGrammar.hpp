@@ -149,10 +149,9 @@ struct Awk : cursiv::GrammarSpec {
 
   struct Primary : rule<ref<Primitive> | ref<PrefixUpdate> | ref<PostfixUpdate>> {};
 
-  struct PowerLevel : rule<ref<Primary> + option(
-      nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-          assign<&ast::BinaryExpr::op>(ref<POW>) +
-          assign<&ast::BinaryExpr::right>(ref<UnaryLevel>)))> {};
+  struct PowerLevel : rule<ref<Primary> + (nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
+      assign<&ast::BinaryExpr::op>(ref<POW>) +
+      assign<&ast::BinaryExpr::right>(ref<UnaryLevel>)) | !ref<POW>)> {};
 
   struct FieldOperand : rule<create<ast::UnaryExpr>(
       assign<&ast::UnaryExpr::op>(lit<"!"> | lit<"+"> | lit<"-">) +

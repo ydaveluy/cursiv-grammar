@@ -2,6 +2,6 @@
 #include "propcalc/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       propcalc::PropcalcSharedServices, propcalc::register_lsp_services>(argc, argv);
 }

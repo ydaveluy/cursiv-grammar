@@ -9,7 +9,7 @@
 namespace lpc {
 
 void install_core_module(LpcCoreServices& services) {
-  lpc::generated::Lpc::install_generated_module(services);
+  lpc::generated::Lpc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

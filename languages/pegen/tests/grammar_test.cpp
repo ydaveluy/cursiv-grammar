@@ -33,12 +33,12 @@ int fail(const char* file, const char* what) {
 
 int main() {
   {
-    auto language = cursiv::create_language<pegen::PegenCoreServices,
+    auto language = cursiv::createLanguage<pegen::PegenCoreServices,
         pegen::PegenSharedCoreServices, pegen::install_core_module>();
     pegen_layout::run(language.language);
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       pegen::PegenCoreServices, pegen::PegenSharedCoreServices,
       pegen::install_core_module>();
 
@@ -55,7 +55,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<pegen::ast::Grammar>)
+        root->type != &cursiv::kAstTypeTag<pegen::ast::Grammar>)
       return fail(path, "the parse built no grammar");
 
     const auto& grammar = *static_cast<const pegen::ast::Grammar*>(root);

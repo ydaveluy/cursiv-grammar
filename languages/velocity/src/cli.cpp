@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<velocity::VelocityCoreServices,
+    &cursiv::registerLanguage<velocity::VelocityCoreServices,
                            velocity::VelocitySharedCoreServices,
                            velocity::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<velocity::VelocitySharedCoreServices>(
+  return cursiv::runCli<velocity::VelocitySharedCoreServices>(
       argc, argv, kRegister);
 }

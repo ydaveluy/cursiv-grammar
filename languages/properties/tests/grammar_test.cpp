@@ -42,7 +42,7 @@ bool checkEmptyValue(const Language& language) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<properties::PropertiesCoreServices,
+      cursiv::createLanguage<properties::PropertiesCoreServices,
                               properties::PropertiesSharedCoreServices,
                               properties::install_core_module>();
   {
@@ -76,7 +76,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       properties::PropertiesCoreServices, properties::PropertiesSharedCoreServices,
       properties::install_core_module>();
 
@@ -109,7 +109,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<properties::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<properties::ast::Document>) {
       fail(path, "the parse built no Document");
       ++failures;
     }

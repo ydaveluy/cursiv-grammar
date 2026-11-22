@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<creole::CreoleCoreServices,
+    &cursiv::registerLanguage<creole::CreoleCoreServices,
                            creole::CreoleSharedCoreServices,
                            creole::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<creole::CreoleSharedCoreServices>(
+  return cursiv::runCli<creole::CreoleSharedCoreServices>(
       argc, argv, kRegister);
 }

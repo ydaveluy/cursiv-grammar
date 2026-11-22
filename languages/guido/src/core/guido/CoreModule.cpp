@@ -9,7 +9,7 @@
 namespace guido {
 
 void install_core_module(GuidoCoreServices& services) {
-  guido::generated::Guido::install_generated_module(services);
+  guido::generated::Guido::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

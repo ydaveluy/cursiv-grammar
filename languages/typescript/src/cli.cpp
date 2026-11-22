@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<typescript::TypeScriptCoreServices,
+    &cursiv::registerLanguage<typescript::TypeScriptCoreServices,
                            typescript::TypeScriptSharedCoreServices,
                            typescript::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<typescript::TypeScriptSharedCoreServices>(
+  return cursiv::runCli<typescript::TypeScriptSharedCoreServices>(
       argc, argv, kRegister);
 }

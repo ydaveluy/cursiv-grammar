@@ -33,7 +33,7 @@ int main() {
   if (files.empty()) return fail(CURSIV_EXAMPLE_DIR, "no example files");
 
   // The whole language in one call: the defaults, then `install_core_module`.
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       microc::MicrocCoreServices,
       microc::MicrocSharedCoreServices,
       microc::install_core_module>();
@@ -52,7 +52,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<microc::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<microc::ast::Program>)
       return fail(file, "built no program");
 
     const auto& program = *static_cast<const microc::ast::Program*>(root);

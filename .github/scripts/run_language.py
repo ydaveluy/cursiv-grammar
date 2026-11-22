@@ -27,11 +27,11 @@ def run(args):
         raise ValueError('Unknown language directory: ' + args.language)
     if args.jobs < 1:
         raise ValueError('--jobs must be positive')
-    label = f'{args.language}-{args.engine}'
+    label = f'{args.language}-{args.compiler}'
     build = args.build_root.resolve() / label
     results = args.results_dir.resolve()
     results.mkdir(parents=True, exist_ok=True)
-    result = {'language': args.language, 'engine': args.engine,
+    result = {'language': args.language, 'compiler': args.compiler,
               'status': 'KO', 'stages': []}
     configure = ['cmake', '-S', str(source), '-B', str(build), '-G', 'Ninja',
                  '-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_CXX_SCAN_FOR_MODULES=OFF',
@@ -39,7 +39,7 @@ def run(args):
                  '-DCMAKE_CXX_FLAGS=' + ('-Wall -Wextra -Werror ' + args.cxx_flags).strip(),
                  f'-DCURSIV_SOURCE_DIR={args.cursiv_source.resolve()}',
                  f'-DCMAKE_C_COMPILER={args.cc}', f'-DCMAKE_CXX_COMPILER={args.cxx}',
-                 f'-DCURSIV_DEFAULT_ENGINE={args.engine}', *args.cmake_arg]
+                 *args.cmake_arg]
     commands = [('configure', configure),
                 ('build', ['cmake', '--build', str(build), '--parallel', str(args.jobs)]),
                 ('test', ['ctest', '--test-dir', str(build), '--output-on-failure',
@@ -69,11 +69,11 @@ def run(args):
                 log = results / (label + '-cleanup.log')
                 log.write_text(str(error) + '\n')
                 result['stages'].append({'stage': 'cleanup', 'exit_code': 1, 'log': log.name})
-        summary = (f"| {args.language} | {args.engine} | "
-                   f"{'✅ OK' if result['status'] == 'OK' else '❌ KO'} |\n")
         if os.environ.get('GITHUB_STEP_SUMMARY'):
+            verdict = '✅ OK' if result['status'] == 'OK' else '❌ KO'
             with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as stream:
-                stream.write('| Language | Engine | Build + test |\n|---|---|---|\n' + summary)
+                stream.write('| Language | Compiler | Build + test |\n|---|---|---|\n'
+                             f'| {args.language} | {args.compiler} | {verdict} |\n')
         (results / (label + '.json')).write_text(json.dumps(result, indent=2) + '\n')
     return 0 if result['status'] == 'OK' else 1
 
@@ -83,7 +83,7 @@ def main():
     parser.add_argument('--language', required=True)
     parser.add_argument('--cxx', required=True)
     parser.add_argument('--cc', required=True)
-    parser.add_argument('--engine', required=True, choices=['LL', 'LR'])
+    parser.add_argument('--compiler', required=True, choices=['GCC', 'Clang'])
     parser.add_argument('--cursiv-source', required=True, type=Path)
     parser.add_argument('--repo-root', type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument('--build-root', type=Path, default=Path('build/ci'))

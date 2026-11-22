@@ -29,7 +29,7 @@ int fail(const char* what) {
 
 const cql::ast::BooleanExpr* as_boolean_expr(const cql::ast::Clause* node) {
   return (node != nullptr &&
-          node->type == &cursiv::ast_type_tag<cql::ast::BooleanExpr>)
+          node->type == &cursiv::kAstTypeTag<cql::ast::BooleanExpr>)
              ? static_cast<const cql::ast::BooleanExpr*>(node)
              : nullptr;
 }
@@ -38,7 +38,7 @@ const cql::ast::BooleanExpr* as_boolean_expr(const cql::ast::Clause* node) {
 // local to the caller, never returned from here.
 const cql::ast::Clause* top_clause(const cursiv::ParseResult& result) {
   if (result.cst().recovered() || result.value == nullptr ||
-      result.value->type != &cursiv::ast_type_tag<cql::ast::Cql>)
+      result.value->type != &cursiv::kAstTypeTag<cql::ast::Cql>)
     return nullptr;
   return static_cast<const cql::ast::Cql*>(result.value)->clause;
 }
@@ -89,7 +89,7 @@ int check_boolean_left_to_right(const auto& language) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       cql::CqlCoreServices, cql::CqlSharedCoreServices,
       cql::install_core_module>();
 
@@ -167,7 +167,7 @@ int main() {
     }
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<cql::ast::Cql>) {
+        root->type != &cursiv::kAstTypeTag<cql::ast::Cql>) {
       failures += fail(entry.path(), "the parse built no Cql");
       continue;
     }

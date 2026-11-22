@@ -43,7 +43,7 @@ constexpr Sample kSamples[] = {
 
 int main() {
   const auto language =
-      cursiv::create_language<bnf::BnfCoreServices, bnf::BnfSharedCoreServices,
+      cursiv::createLanguage<bnf::BnfCoreServices, bnf::BnfSharedCoreServices,
                               bnf::install_core_module>();
 
   for (const Sample& sample : kSamples) {
@@ -59,7 +59,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<bnf::ast::Grammar>)
+        root->type != &cursiv::kAstTypeTag<bnf::ast::Grammar>)
       return fail(sample.name, "the parse built no grammar");
   }
 

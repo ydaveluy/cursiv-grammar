@@ -6,29 +6,65 @@ import os
 from pathlib import Path
 import sys
 
-ENGINES = ['LL', 'LR']
+COMPILERS = ['GCC', 'Clang']
+
+
+def load(files, language, compiler):
+    """Return the valid result of one build, or None when it is missing."""
+    matches = files.get(f'{language}-{compiler}.json', [])
+    try:
+        result = json.loads(matches[0].read_text()) if len(matches) == 1 else None
+    except (OSError, ValueError):
+        return None
+    if (isinstance(result, dict) and result.get('language') == language
+            and result.get('compiler') == compiler):
+        return result
+    return None
+
+
+def failed_stage(result):
+    """Return the stage that failed, or 'missing' without a valid result."""
+    if result is None:
+        return 'missing'
+    for stage in result.get('stages', []):
+        if stage.get('exit_code'):
+            return stage.get('stage', 'unknown')
+    return 'unknown'
+
+
+def table(header, rows):
+    return ['| ' + ' | '.join(header) + ' |', '|' + '---|' * len(header), *rows]
 
 
 def report(languages, results):
-    rows = ['| Language | LL | LR |',
-            '|---|---|---|']
-    failed = False
-    for language in languages:
-        statuses = []
-        for engine in ENGINES:
-            matches = list(results.rglob(f'{language}-{engine}.json'))
-            try:
-                result = json.loads(matches[0].read_text()) if len(matches) == 1 else {}
-            except (OSError, ValueError):
-                result = {}
-            ok = (result.get('status') == 'OK' and result.get('language') == language
-                  and result.get('engine') == engine)
-            statuses.append('✅' if ok else '❌')
-        failed |= any(s != '✅' for s in statuses)
-        rows.append('| ' + ' | '.join([language, *statuses]) + ' |')
     if not languages:
         return 'No language build required for these changes.\n', False
-    return '\n'.join(rows) + '\n', failed
+    files = {}
+    for path in results.rglob('*.json'):
+        files.setdefault(path.name, []).append(path)
+    everything, failures = [], []
+    for language in languages:
+        cells, failed_cells = [], []
+        for compiler in COMPILERS:
+            result = load(files, language, compiler)
+            if result is not None and result.get('status') == 'OK':
+                cells.append('✅')
+                failed_cells.append('✅')
+            else:
+                cells.append('❌')
+                failed_cells.append('❌ ' + failed_stage(result))
+        everything.append(f'| {language} | ' + ' | '.join(cells) + ' |')
+        if any(cell != '✅' for cell in cells):
+            failures.append(f'| {language} | ' + ' | '.join(failed_cells) + ' |')
+    header = ['Language', *COMPILERS]
+    count = len(languages)
+    lines = [f"**{count} language{'s' if count != 1 else ''}: "
+             f'{count - len(failures)} OK, {len(failures)} KO**', '']
+    if failures:
+        lines += ['### Failed languages', '', *table(header, failures), '']
+    lines += ['<details>', f'<summary>All {count} languages</summary>', '',
+              *table(header, everything), '', '</details>']
+    return '\n'.join(lines) + '\n', bool(failures)
 
 
 def main():

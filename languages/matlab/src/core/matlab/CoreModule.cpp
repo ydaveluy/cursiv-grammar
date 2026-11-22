@@ -9,7 +9,7 @@
 namespace matlab {
 
 void install_core_module(MatlabCoreServices& services) {
-  matlab::generated::Matlab::install_generated_module(services);
+  matlab::generated::Matlab::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

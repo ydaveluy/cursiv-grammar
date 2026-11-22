@@ -9,7 +9,7 @@
 namespace ply {
 
 void install_core_module(PlyCoreServices& services) {
-  ply::generated::Ply::install_generated_module(services);
+  ply::generated::Ply::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

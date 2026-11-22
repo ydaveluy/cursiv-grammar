@@ -11,7 +11,7 @@
 
 namespace html_raw_text_regressions {
 inline bool run() {
-  auto parser = html::generated::Html::create_parser();
+  auto parser = html::generated::Html::createParser();
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) {

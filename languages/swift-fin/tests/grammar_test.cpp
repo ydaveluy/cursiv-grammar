@@ -18,7 +18,7 @@
 namespace {
 namespace ast = swiftfin::ast;
 const cursiv::Parser& engine() {
-  static const auto parser = swiftfin::generated::SwiftFin::create_parser();
+  static const auto parser = swiftfin::generated::SwiftFin::createParser();
   return *parser;
 }
 cursiv::ParseResult build(std::string_view text) {
@@ -27,7 +27,7 @@ cursiv::ParseResult build(std::string_view text) {
   return result;
 }
 std::string load(const char* dir, const char* name) {
-  return cursiv::test::read_file(std::string(dir) + "/" + name);
+  return cursiv::test::readFile(std::string(dir) + "/" + name);
 }
 const ast::Block* block(const ast::Message* message, std::string_view id) {
   if (message) for (const auto* item : message->blocks) if (item && item->id == id) return item;
@@ -141,7 +141,7 @@ void native_regressions() {
     CHECK(body->fields[0]->tag == "20" && body->fields[0]->value.empty());
     CHECK(body->fields[1]->tag == "21" && body->fields[1]->value == "A\r\n\n:NOTTAG:B");
   }
-  auto language = cursiv::create_language<swiftfin::SwiftFinCoreServices, swiftfin::SwiftFinSharedCoreServices, swiftfin::install_core_module>();
+  auto language = cursiv::createLanguage<swiftfin::SwiftFinCoreServices, swiftfin::SwiftFinSharedCoreServices, swiftfin::install_core_module>();
   const auto tagMode = cursiv::test::validationHelper(language.language, basic + "{3:{4:{ABC:\n-}}}");
   CHECK(tagMode.diagnostics.empty());
   for (const auto& [source, code] : {

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<json::JsonCoreServices,
+    &cursiv::registerLanguage<json::JsonCoreServices,
                            json::JsonSharedCoreServices,
                            json::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<json::JsonSharedCoreServices>(
+  return cursiv::runCli<json::JsonSharedCoreServices>(
       argc, argv, kRegister);
 }

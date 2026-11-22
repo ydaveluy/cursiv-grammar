@@ -87,7 +87,7 @@ bool invalidShortArguments(const ast::Expr* expression,
     const auto [node, argument] = pending.back();
     pending.pop_back();
     const auto* call = cursiv::ast_cast<ast::CallExpr>(node);
-    if (argument && reflection.isInstance(*node, &cursiv::ast_type_tag<ast::Expr>)) {
+    if (argument && reflection.isInstance(*node, &cursiv::kAstTypeTag<ast::Expr>)) {
       const auto extent = accept.spanOf(*node);
       const auto open = accept.keywordSpan(*node, "(", 0);
       // An absent keyword falls back to the whole node, including for `1`.

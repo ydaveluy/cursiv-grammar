@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<ply::PlyCoreServices,
+    &cursiv::registerLanguage<ply::PlyCoreServices,
                            ply::PlySharedCoreServices,
                            ply::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<ply::PlySharedCoreServices>(
+  return cursiv::runCli<ply::PlySharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -9,7 +9,7 @@
 namespace fortran {
 
 void install_core_module(FortranCoreServices& services) {
-  fortran::generated::Fortran::install_generated_module(services);
+  fortran::generated::Fortran::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

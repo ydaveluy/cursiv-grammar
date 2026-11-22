@@ -35,20 +35,20 @@ int fail(const fs::path& file, const char* what) {
 int check_expression_values(const fs::path& path,
                             const cursiv::ParseResult& result) {
   const auto& doc = *static_cast<const ast::Document*>(result.value);
-  if (doc.body.empty() || doc.body[0]->type != &cursiv::ast_type_tag<ast::Select>)
+  if (doc.body.empty() || doc.body[0]->type != &cursiv::kAstTypeTag<ast::Select>)
     return fail(path, "no leading select");
   const auto& select = *static_cast<const ast::Select*>(doc.body[0]);
   if (select.results.size() < 6) return fail(path, "select has too few items");
 
   const auto int_value = [](const ast::Expr* e) -> const std::int64_t* {
-    if (e->type != &cursiv::ast_type_tag<ast::Literal>) return nullptr;
+    if (e->type != &cursiv::kAstTypeTag<ast::Literal>) return nullptr;
     return std::get_if<std::int64_t>(&static_cast<const ast::Literal*>(e)->value);
   };
   const auto negated_int = [](const ast::Expr* e) -> const std::int64_t* {
-    if (e->type != &cursiv::ast_type_tag<ast::UnaryExpr>) return nullptr;
+    if (e->type != &cursiv::kAstTypeTag<ast::UnaryExpr>) return nullptr;
     const auto& u = *static_cast<const ast::UnaryExpr*>(e);
     if (u.op != ast::SignOp::minus) return nullptr;
-    if (u.operand->type != &cursiv::ast_type_tag<ast::Literal>) return nullptr;
+    if (u.operand->type != &cursiv::kAstTypeTag<ast::Literal>) return nullptr;
     return std::get_if<std::int64_t>(
         &static_cast<const ast::Literal*>(u.operand)->value);
   };
@@ -73,17 +73,17 @@ int check_fomula_implies(const fs::path& path,
   const auto& doc = *static_cast<const ast::Document*>(result.value);
   const ast::Select* select = nullptr;
   for (const ast::TopLevel* const item : doc.body)
-    if (item->type == &cursiv::ast_type_tag<ast::Select>)
+    if (item->type == &cursiv::kAstTypeTag<ast::Select>)
       select = static_cast<const ast::Select*>(item);
   if (select == nullptr || !select->where) return fail(path, "no where clause");
   const ast::Formula* const where = *select->where;
-  if (where->type != &cursiv::ast_type_tag<ast::BinFormula>)
+  if (where->type != &cursiv::kAstTypeTag<ast::BinFormula>)
     return fail(path, "where clause is not a binary formula");
   const auto& bin = *static_cast<const ast::BinFormula*>(where);
   if (bin.op != ast::LogicOp::implies)
     return fail(path, "the top connective is not implies");
-  if (bin.left->type != &cursiv::ast_type_tag<ast::ComparisonFormula> ||
-      bin.right->type != &cursiv::ast_type_tag<ast::ComparisonFormula>)
+  if (bin.left->type != &cursiv::kAstTypeTag<ast::ComparisonFormula> ||
+      bin.right->type != &cursiv::kAstTypeTag<ast::ComparisonFormula>)
     return fail(path, "implies did not bind the two comparisons directly");
   return 0;
 }
@@ -103,7 +103,7 @@ int check_coverage(const fs::path& path, const cursiv::ParseResult& result) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<codeql::CodeqlCoreServices,
+      cursiv::createLanguage<codeql::CodeqlCoreServices,
                               codeql::CodeqlSharedCoreServices,
                               codeql::install_core_module>();
   {
@@ -171,7 +171,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       codeql::CodeqlCoreServices, codeql::CodeqlSharedCoreServices,
       codeql::install_core_module>();
 
@@ -192,7 +192,7 @@ int main() {
       } else if (!result.diagnostics.empty()) {
         failures += fail(path, "carries diagnostics");
       } else if (result.value == nullptr ||
-                result.value->type != &cursiv::ast_type_tag<ast::Document>) {
+                result.value->type != &cursiv::kAstTypeTag<ast::Document>) {
         failures += fail(path, "built no Document");
       } else {
         failures += check_coverage(path, result);
@@ -225,7 +225,7 @@ int main() {
       continue;
     }
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::Document>) {
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::Document>) {
       failures += fail(path, "the parse built no Document");
       continue;
     }

@@ -2,6 +2,6 @@
 #include "css3/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       css3::Css3SharedServices, css3::register_lsp_services>(argc, argv);
 }

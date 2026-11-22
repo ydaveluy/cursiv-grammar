@@ -5,7 +5,7 @@
 #include "xquery/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       xquery::XQuerySharedServices>(
       argc, argv, "xquery-lsp", &xquery::register_lsp_services);
 }

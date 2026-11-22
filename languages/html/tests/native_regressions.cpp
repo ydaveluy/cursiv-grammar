@@ -33,7 +33,7 @@ J project(const html::ast::ElementContent& item,const cursiv::AstNode* parent,bo
 }
 }
 int main(){
- const auto language=cursiv::create_language<html::HtmlCoreServices,html::HtmlSharedCoreServices,html::install_core_module>();
+ const auto language=cursiv::createLanguage<html::HtmlCoreServices,html::HtmlSharedCoreServices,html::install_core_module>();
  struct Case{const char*name;const char*text;const char*expected;};
  const std::vector<Case> cases={
   {"quoted-less-than","<div title=\"a < b\">x</div>","[{\"attrs\":[{\"name\":\"title\",\"value\":\"a < b\"}],\"children\":[{\"kind\":\"text\",\"text\":\"x\"}],\"kind\":\"element\",\"name\":\"div\"}]"},

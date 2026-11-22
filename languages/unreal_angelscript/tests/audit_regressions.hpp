@@ -6,12 +6,12 @@
 #include <string>
 namespace audit_regressions {
 template <class T> T *as(cursiv::AstNode *p) {
-  return p && p->type == &cursiv::ast_type_tag<T> ? static_cast<T *>(p)
+  return p && p->type == &cursiv::kAstTypeTag<T> ? static_cast<T *>(p)
                                                   : nullptr;
 }
 inline bool run() {
   auto parser =
-      unrealangelscript::generated::UnrealAngelscript::create_parser();
+      unrealangelscript::generated::UnrealAngelscript::createParser();
   bool ok = true;
   auto check = [&](bool value, const char *message) {
     if (!value) {

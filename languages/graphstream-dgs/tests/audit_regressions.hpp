@@ -16,7 +16,7 @@
 inline void dgs_regressions() {
   namespace ast = graphstreamdgs::ast;
   const auto language =
-      cursiv::create_language<graphstreamdgs::GraphstreamDgsCoreServices,
+      cursiv::createLanguage<graphstreamdgs::GraphstreamDgsCoreServices,
                               graphstreamdgs::GraphstreamDgsSharedCoreServices,
                               graphstreamdgs::install_core_module>();
   const auto& services = language.language;

@@ -43,14 +43,14 @@ sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
         self.environment.start()
         self.addCleanup(self.environment.stop)
         self.args = argparse.Namespace(repo_root=self.root, language='csv',
-            engine='LL', cxx='g++-14', cc='gcc-14', jobs=2,
+            compiler='GCC', cxx='g++-14', cc='gcc-14', jobs=2,
             build_root=self.root / 'build', results_dir=self.root / 'results',
-            cursiv_source=self.root / 'engine', cmake_arg=[], cxx_flags='', clean_build=False)
+            cursiv_source=self.root / 'cursiv', cmake_arg=[], cxx_flags='', clean_build=False)
 
     def run_variant(self):
         with contextlib.redirect_stdout(io.StringIO()):
             code = run_language.run(self.args)
-        data = json.loads((self.args.results_dir / 'csv-LL.json').read_text())
+        data = json.loads((self.args.results_dir / 'csv-GCC.json').read_text())
         commands = [json.loads(s) for s in (self.root / 'commands').read_text().splitlines()]
         return code, data, commands
 
@@ -63,7 +63,10 @@ sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
         self.assertIn('-DCMAKE_C_COMPILER=gcc-14', commands[0]['args'])
         self.assertIn('-DCMAKE_CXX_COMPILER=g++-14', commands[0]['args'])
         self.assertIn('-DCMAKE_CXX_FLAGS=-Wall -Wextra -Werror', commands[0]['args'])
-        self.assertIn('✅ OK', (self.root / 'summary').read_text())
+        self.assertEqual(data['compiler'], 'GCC')
+        self.assertEqual((self.root / 'summary').read_text(),
+                         '| Language | Compiler | Build + test |\n|---|---|---|\n'
+                         '| csv | GCC | ✅ OK |\n')
 
     def test_configure_failure_stops_this_variant(self):
         with patch.dict(os.environ, {'CI_TEST_CONFIGURE': '2'}):
@@ -71,7 +74,7 @@ sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
         self.assertEqual(code, 1)
         self.assertEqual(data['status'], 'KO')
         self.assertEqual(len(commands), 1)
-        self.assertTrue((self.args.results_dir / 'csv-LL-configure.log').exists())
+        self.assertTrue((self.args.results_dir / 'csv-GCC-configure.log').exists())
 
     def test_build_failure_cannot_report_success(self):
         with patch.dict(os.environ, {'CI_TEST_BUILD': '2'}):
@@ -91,7 +94,7 @@ sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
 
     def test_cleanup_failure_is_not_a_green_result(self):
         self.args.clean_build = True
-        (self.args.build_root / 'csv-LL').mkdir(parents=True)
+        (self.args.build_root / 'csv-GCC').mkdir(parents=True)
         with patch.object(run_language.shutil, 'rmtree', side_effect=OSError('cleanup failed')):
             code, data, _ = self.run_variant()
         self.assertEqual(code, 1)
@@ -111,27 +114,68 @@ class ReportTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
+    def write(self, language, compiler, status='OK', failed=None):
+        stages = [{'stage': 'configure', 'exit_code': 0}]
+        if failed:
+            stages.append({'stage': failed, 'exit_code': 2})
+        (self.root / f'{language}-{compiler}.json').write_text(json.dumps({
+            'status': status, 'language': language, 'compiler': compiler, 'stages': stages}))
+
     def fill(self, language):
-        for engine in report.ENGINES:
-            (self.root / f'{language}-{engine}.json').write_text(json.dumps({
-                'status': 'OK', 'language': language, 'engine': engine}))
+        for compiler in report.COMPILERS:
+            self.write(language, compiler)
 
     def test_overview_keeps_successful_and_failed_languages(self):
         self.fill('csv')
         self.fill('json')
-        (self.root / 'json-LR.json').write_text('{"status": "KO"}')
+        self.write('json', 'Clang', 'KO', 'build')
         text, failed = report.report(['csv', 'json'], self.root)
         self.assertTrue(failed)
+        self.assertTrue(text.startswith('**2 languages: 1 OK, 1 KO**\n'))
         self.assertIn('| csv | ✅ | ✅ |', text)
         self.assertIn('| json | ✅ | ❌ |', text)
 
     def test_missing_or_truncated_results_are_not_success(self):
         self.fill('csv')
-        (self.root / 'csv-LL.json').unlink()
-        (self.root / 'csv-LR.json').write_text('{')
+        (self.root / 'csv-GCC.json').unlink()
+        (self.root / 'csv-Clang.json').write_text('{')
         text, failed = report.report(['csv'], self.root)
         self.assertTrue(failed)
         self.assertIn('| csv | ❌ | ❌ |', text)
+        self.assertIn('| csv | ❌ missing | ❌ missing |', text)
+
+    def test_result_of_another_configuration_is_not_success(self):
+        self.fill('csv')
+        self.write('csv', 'GCC')
+        path = self.root / 'csv-GCC.json'
+        path.write_text(path.read_text().replace('"csv"', '"json"'))
+        _, failed = report.report(['csv'], self.root)
+        self.assertTrue(failed)
+
+    def test_failures_show_the_failed_stage(self):
+        for language in ['csv', 'json', 'xml']:
+            self.fill(language)
+        self.write('json', 'GCC', 'KO', 'test')
+        self.write('xml', 'Clang', 'KO', 'cleanup')
+        (self.root / 'xml-GCC.json').unlink()
+        text, failed = report.report(['csv', 'json', 'xml'], self.root)
+        self.assertTrue(failed)
+        self.assertTrue(text.startswith('**3 languages: 1 OK, 2 KO**\n'))
+        failures, everything = text.split('<details>')
+        self.assertIn('| json | ❌ test | ✅ |', failures)
+        self.assertIn('| xml | ❌ missing | ❌ cleanup |', failures)
+        self.assertNotIn('csv', failures)
+        self.assertIn('<summary>All 3 languages</summary>\n\n| Language | GCC | Clang |', everything)
+        self.assertIn('| csv | ✅ | ✅ |', everything)
+        self.assertTrue(everything.endswith('</details>\n'))
+
+    def test_all_ok_has_no_failure_table(self):
+        self.fill('csv')
+        text, failed = report.report(['csv'], self.root)
+        self.assertFalse(failed)
+        self.assertTrue(text.startswith('**1 language: 1 OK, 0 KO**\n'))
+        self.assertNotIn('Failed languages', text)
+        self.assertIn('| csv | ✅ | ✅ |', text)
 
     def test_empty_selection_has_no_failure(self):
         text, failed = report.report([], self.root)

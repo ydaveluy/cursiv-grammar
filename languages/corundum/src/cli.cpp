@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<corundum::CorundumCoreServices,
+    &cursiv::registerLanguage<corundum::CorundumCoreServices,
                            corundum::CorundumSharedCoreServices,
                            corundum::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<corundum::CorundumSharedCoreServices>(
+  return cursiv::runCli<corundum::CorundumSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -5,7 +5,7 @@
 #include "iso8601/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       iso8601::Iso8601SharedServices>(
       argc, argv, "iso8601-lsp", &iso8601::register_lsp_services);
 }

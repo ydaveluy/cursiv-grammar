@@ -5,7 +5,7 @@
 #include "sapf/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       sapf::SapfSharedServices>(
       argc, argv, "sapf-lsp", &sapf::register_lsp_services);
 }

@@ -5,7 +5,7 @@
 #include "srt/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       srt::SrtSharedServices>(
       argc, argv, "srt-lsp", &srt::register_lsp_services);
 }

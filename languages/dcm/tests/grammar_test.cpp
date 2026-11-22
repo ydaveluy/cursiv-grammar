@@ -26,7 +26,7 @@ int fail(const fs::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       dcm::DcmCoreServices, dcm::DcmSharedCoreServices,
       dcm::install_core_module>();
 
@@ -57,7 +57,7 @@ int main() {
     }
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<dcm::ast::Document>) {
+        root->type != &cursiv::kAstTypeTag<dcm::ast::Document>) {
       failures += fail(entry.path(), "the parse built no Document");
       continue;
     }

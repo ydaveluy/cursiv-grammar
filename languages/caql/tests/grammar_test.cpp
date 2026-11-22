@@ -27,7 +27,7 @@ int fail(const std::string& what) {
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      caql::generated::Caql::create_parser();
+      caql::generated::Caql::createParser();
   return *p;
 }
 
@@ -127,7 +127,7 @@ int main() {
       return fail(doc.string() + ": the parse left diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<caql::ast::Query>)
+        root->type != &cursiv::kAstTypeTag<caql::ast::Query>)
       return fail(doc.string() + ": the parse built no query");
     if (doc.filename() == "s1.caql") readback_doc = doc;
   }
@@ -145,39 +145,39 @@ int main() {
   const auto& query = *static_cast<const caql::ast::Query*>(result.value);
 
   if (query.expression == nullptr ||
-      query.expression->type != &cursiv::ast_type_tag<caql::ast::BinaryExpr>)
+      query.expression->type != &cursiv::kAstTypeTag<caql::ast::BinaryExpr>)
     return fail("s1: expected a binary expression at the top");
   const auto& top = *static_cast<const caql::ast::BinaryExpr*>(query.expression);
   if (top.op != caql::ast::Operator::add)
     return fail("s1: expected + at the top");
   if (top.right == nullptr ||
-      top.right->type != &cursiv::ast_type_tag<caql::ast::NumberLit>)
+      top.right->type != &cursiv::kAstTypeTag<caql::ast::NumberLit>)
     return fail("s1: expected a number on the right");
   const auto& two = *static_cast<const caql::ast::NumberLit*>(top.right);
   if (two.value != 2.0) return fail("s1: wrong number on the right");
 
   if (top.left == nullptr ||
-      top.left->type != &cursiv::ast_type_tag<caql::ast::BinaryExpr>)
+      top.left->type != &cursiv::kAstTypeTag<caql::ast::BinaryExpr>)
     return fail("s1: expected a binary expression on the left");
   const auto& product = *static_cast<const caql::ast::BinaryExpr*>(top.left);
   if (product.op != caql::ast::Operator::multiply)
     return fail("s1: expected * on the left");
 
   for (const caql::ast::Expression* const side : {product.left, product.right}) {
-    if (side == nullptr || side->type != &cursiv::ast_type_tag<caql::ast::PipeExpr>)
+    if (side == nullptr || side->type != &cursiv::kAstTypeTag<caql::ast::PipeExpr>)
       return fail("s1: expected a pipe expression on each side of *");
     const auto& pipe = *static_cast<const caql::ast::PipeExpr*>(side);
     if (pipe.name != "stats:sum" || !pipe.args.empty())
       return fail("s1: wrong pipe call");
     if (pipe.operand == nullptr ||
-        pipe.operand->type != &cursiv::ast_type_tag<caql::ast::CallExpr>)
+        pipe.operand->type != &cursiv::kAstTypeTag<caql::ast::CallExpr>)
       return fail("s1: expected a call as the pipe operand");
     const auto& call = *static_cast<const caql::ast::CallExpr*>(pipe.operand);
     if (call.name != "find" || call.args.size() != 1)
       return fail("s1: wrong find() call");
     if (call.args[0] == nullptr || call.args[0]->limit ||
         call.args[0]->value == nullptr ||
-        call.args[0]->value->type != &cursiv::ast_type_tag<caql::ast::StringLit>)
+        call.args[0]->value->type != &cursiv::kAstTypeTag<caql::ast::StringLit>)
       return fail("s1: wrong find() argument");
     const auto& arg =
         *static_cast<const caql::ast::StringLit*>(call.args[0]->value);

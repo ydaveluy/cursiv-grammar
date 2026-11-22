@@ -23,7 +23,7 @@ void fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       calculator::CalculatorCoreServices, calculator::CalculatorSharedCoreServices,
       calculator::install_core_module>();
 
@@ -58,7 +58,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<calculator::ast::Equation>) {
+        root->type != &cursiv::kAstTypeTag<calculator::ast::Equation>) {
       fail(path, "the parse built no Equation");
       ++failures;
     }

@@ -9,7 +9,7 @@
 namespace edn {
 
 void install_core_module(EdnCoreServices& services) {
-  edn::generated::Edn::install_generated_module(services);
+  edn::generated::Edn::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

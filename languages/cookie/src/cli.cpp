@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<cookie::CookieCoreServices,
+    &cursiv::registerLanguage<cookie::CookieCoreServices,
                            cookie::CookieSharedCoreServices,
                            cookie::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<cookie::CookieSharedCoreServices>(
+  return cursiv::runCli<cookie::CookieSharedCoreServices>(
       argc, argv, kRegister);
 }

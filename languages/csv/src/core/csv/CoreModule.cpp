@@ -9,7 +9,7 @@
 namespace csv {
 
 void install_core_module(CsvCoreServices& services) {
-  csv::generated::Csv::install_generated_module(services);
+  csv::generated::Csv::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

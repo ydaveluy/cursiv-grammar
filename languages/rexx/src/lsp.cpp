@@ -5,7 +5,7 @@
 #include "rexx/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       rexx::RexxSharedServices>(
       argc, argv, "rexx-lsp", &rexx::register_lsp_services);
 }

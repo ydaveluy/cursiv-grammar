@@ -9,7 +9,7 @@
 namespace plantuml {
 
 void install_core_module(PlantUMLCoreServices& services) {
-  plantuml::generated::PlantUML::install_generated_module(services);
+  plantuml::generated::PlantUML::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

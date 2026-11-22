@@ -61,7 +61,7 @@ int check_condition_precedence(moo::MooCoreServices& language) {
     const auto* top = static_cast<const moo::ast::BinaryExpr*>(cond);
     if (top->op != moo::ast::Operator::logical_and)
       return fail("'1==2 && 3==4' is not top-level &&");
-    if (top->left->type != &cursiv::ast_type_tag<moo::ast::BinaryExpr>)
+    if (top->left->type != &cursiv::kAstTypeTag<moo::ast::BinaryExpr>)
       return fail("'1==2 && 3==4' left operand is not a comparison");
     const auto* left = static_cast<const moo::ast::BinaryExpr*>(top->left);
     if (left->op != moo::ast::Operator::equal)
@@ -105,7 +105,7 @@ int check_condition_precedence(moo::MooCoreServices& language) {
 
 static int audit_regression() {
   const auto language =
-      cursiv::create_language<moo::MooCoreServices, moo::MooSharedCoreServices,
+      cursiv::createLanguage<moo::MooCoreServices, moo::MooSharedCoreServices,
                               moo::install_core_module>();
   {
     const auto r = language.language.parser->parse(
@@ -143,7 +143,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       moo::MooCoreServices, moo::MooSharedCoreServices,
       moo::install_core_module>();
 
@@ -201,7 +201,7 @@ s = "His name was \"Leroy\" and \\.";
       return fail((std::string(name) + ": has diagnostics").c_str());
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<moo::ast::Prog>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<moo::ast::Prog>)
       return fail((std::string(name) + ": built no Prog").c_str());
 
     const auto& prog = *static_cast<const moo::ast::Prog*>(root);
@@ -218,7 +218,7 @@ s = "His name was \"Leroy\" and \\.";
     if (result.cst().recovered()) return fail("features.moo: does not parse clean");
     if (!result.diagnostics.empty()) return fail("features.moo: has diagnostics");
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<moo::ast::Prog>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<moo::ast::Prog>)
       return fail("features.moo: built no Prog");
   }
 
@@ -229,7 +229,7 @@ s = "His name was \"Leroy\" and \\.";
   const auto& prog = *static_cast<const moo::ast::Prog*>(result.value);
   if (prog.declarations.size() != 1) return fail("hello.moo: expected one declaration");
 
-  if (prog.declarations[0]->type != &cursiv::ast_type_tag<moo::ast::ProgramDecl>)
+  if (prog.declarations[0]->type != &cursiv::kAstTypeTag<moo::ast::ProgramDecl>)
     return fail("hello.moo: declaration is not a ProgramDecl");
   const auto& decl =
       *static_cast<const moo::ast::ProgramDecl*>(prog.declarations[0]);
@@ -247,7 +247,7 @@ s = "His name was \"Leroy\" and \\.";
   if (call.verb != "tell") return fail("hello.moo: wrong verb");
   if (call.args.size() != 1) return fail("hello.moo: expected one argument");
 
-  if (call.args[0]->type != &cursiv::ast_type_tag<moo::ast::StringLit>)
+  if (call.args[0]->type != &cursiv::kAstTypeTag<moo::ast::StringLit>)
     return fail("hello.moo: wrong argument node type");
   const auto& arg = *static_cast<const moo::ast::StringLit*>(call.args[0]);
   if (arg.value != "Hello to the world of MOO!")

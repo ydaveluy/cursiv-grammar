@@ -9,7 +9,7 @@
 namespace json {
 
 void install_core_module(JsonCoreServices& services) {
-  json::generated::Json::install_generated_module(services);
+  json::generated::Json::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

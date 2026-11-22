@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<mumath::MumathCoreServices,
+    &cursiv::registerLanguage<mumath::MumathCoreServices,
                            mumath::MumathSharedCoreServices,
                            mumath::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<mumath::MumathSharedCoreServices>(
+  return cursiv::runCli<mumath::MumathSharedCoreServices>(
       argc, argv, kRegister);
 }

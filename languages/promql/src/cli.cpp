@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<promql::PromqlCoreServices,
+    &cursiv::registerLanguage<promql::PromqlCoreServices,
                            promql::PromqlSharedCoreServices,
                            promql::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<promql::PromqlSharedCoreServices>(
+  return cursiv::runCli<promql::PromqlSharedCoreServices>(
       argc, argv, kRegister);
 }

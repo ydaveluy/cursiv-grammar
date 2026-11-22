@@ -27,7 +27,7 @@ int fail(const std::string &path, const char *what) {
 }
 
 template <class T> const T *as(const ast::Sign *sign) {
-  if (sign == nullptr || sign->type != &cursiv::ast_type_tag<T>)
+  if (sign == nullptr || sign->type != &cursiv::kAstTypeTag<T>)
     return nullptr;
   return static_cast<const T *>(sign);
 }
@@ -171,7 +171,7 @@ int main() {
     return fail(CURSIV_EXAMPLE_DIR, "no example found");
 
   const auto language =
-      cursiv::create_language<parkingsign::ParkingsignCoreServices,
+      cursiv::createLanguage<parkingsign::ParkingsignCoreServices,
                               parkingsign::ParkingsignSharedCoreServices,
                               parkingsign::install_core_module>();
 
@@ -194,7 +194,7 @@ int main() {
       return fail(path.string(), "parses with diagnostics");
 
     const cursiv::AstNode *const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::Document>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::Document>)
       return fail(path.string(), "built no document");
 
     const auto &doc = *static_cast<const ast::Document *>(root);

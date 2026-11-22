@@ -25,7 +25,7 @@ int fail(const std::string& what) {
 
 template <class T>
 const T* as(const cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<const T*>(n)
              : nullptr;
 }
@@ -71,7 +71,7 @@ std::string render(const cursiv::AstNode* n) {
 // IMPLIES, IFF, tightest to loosest), plus the regression a
 // flat single level would get backwards.
 bool check_precedence() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       ctl::CtlCoreServices, ctl::CtlSharedCoreServices,
       ctl::install_core_module>();
 
@@ -100,7 +100,7 @@ bool check_precedence() {
 }
 
 bool check_native_forms() {
-  const auto language = cursiv::create_language<ctl::CtlCoreServices,
+  const auto language = cursiv::createLanguage<ctl::CtlCoreServices,
       ctl::CtlSharedCoreServices, ctl::install_core_module>();
   struct Probe { const char* text; const char* tree; };
   for (const Probe p : {
@@ -142,7 +142,7 @@ bool check_native_forms() {
 // be the (loosest) implication, not the last-written (rightmost) ∧ a
 // flat single level would produce.
 bool check_connectives(const std::filesystem::path& test_dir) {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       ctl::CtlCoreServices, ctl::CtlSharedCoreServices,
       ctl::install_core_module>();
 
@@ -187,7 +187,7 @@ bool check_connectives(const std::filesystem::path& test_dir) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       ctl::CtlCoreServices,
       ctl::CtlSharedCoreServices,
       ctl::install_core_module>();
@@ -209,7 +209,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        !root->type->derivesFrom(&cursiv::ast_type_tag<ctl::ast::Proposition>))
+        !root->type->derivesFrom(&cursiv::kAstTypeTag<ctl::ast::Proposition>))
       return fail(entry.path().string() + ": the parse built no proposition");
   }
   if (seen == 0) return fail("no examples found under " CURSIV_EXAMPLE_DIR);

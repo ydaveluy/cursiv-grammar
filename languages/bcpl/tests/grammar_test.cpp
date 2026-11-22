@@ -29,7 +29,7 @@ int fail(const std::string& what) {
 }
 
 const bcpl::BcplCoreServices& services() {
-  static const auto language = cursiv::create_language<
+  static const auto language = cursiv::createLanguage<
       bcpl::BcplCoreServices, bcpl::BcplSharedCoreServices,
       bcpl::install_core_module>();
   return language.language;
@@ -46,10 +46,10 @@ std::string read_file(const fs::path& path) {
 const bcpl::ast::FunctionDef* find_function(const bcpl::ast::Program& program,
                                             std::string_view name) {
   for (const bcpl::ast::Decl* const decl : program.declarations) {
-    if (decl->type != &cursiv::ast_type_tag<bcpl::ast::LetDecl>) continue;
+    if (decl->type != &cursiv::kAstTypeTag<bcpl::ast::LetDecl>) continue;
     const auto& let = *static_cast<const bcpl::ast::LetDecl*>(decl);
     for (const bcpl::ast::Definition* const def : let.definitions) {
-      if (def->type != &cursiv::ast_type_tag<bcpl::ast::FunctionDef>) continue;
+      if (def->type != &cursiv::kAstTypeTag<bcpl::ast::FunctionDef>) continue;
       const auto& fn = *static_cast<const bcpl::ast::FunctionDef*>(def);
       if (fn.name != nullptr && fn.name->name == name) return &fn;
     }
@@ -169,7 +169,7 @@ int main() {
       return fail(doc.string() + ": the parse left diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<bcpl::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<bcpl::ast::Program>)
       return fail(doc.string() + ": the parse built no program");
     if (doc.filename() == "fact.bcpl") fact_doc = doc;
     if (doc.filename() == "match.bcpl") match_doc = doc;
@@ -194,7 +194,7 @@ int main() {
     const auto& fn = *factorial;
     if (fn.params.size() != 1 || fn.params[0]->name != "n")
       return fail("fact.bcpl: `factorial` has the wrong parameters");
-    if (fn.body->type != &cursiv::ast_type_tag<bcpl::ast::CondExpr>)
+    if (fn.body->type != &cursiv::kAstTypeTag<bcpl::ast::CondExpr>)
       return fail("fact.bcpl: `factorial`'s body is not a conditional");
   }
 
@@ -208,7 +208,7 @@ int main() {
     if (classify == nullptr)
       return fail("match.bcpl: no `classify` definition");
     const auto& fn = *classify;
-    if (fn.body->type != &cursiv::ast_type_tag<bcpl::ast::ValofExpr>)
+    if (fn.body->type != &cursiv::kAstTypeTag<bcpl::ast::ValofExpr>)
       return fail("match.bcpl: `classify`'s body is not VALOF");
   }
 

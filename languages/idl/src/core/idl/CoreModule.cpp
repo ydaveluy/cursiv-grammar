@@ -9,7 +9,7 @@
 namespace idl {
 
 void install_core_module(IdlCoreServices& services) {
-  idl::generated::Idl::install_generated_module(services);
+  idl::generated::Idl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

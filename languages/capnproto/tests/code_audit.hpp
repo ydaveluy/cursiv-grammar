@@ -10,9 +10,9 @@
 namespace code_audit {
 namespace ast = capnproto::ast;
 inline bool run() {
-  const auto parser = capnproto::generated::Capnproto::create_parser();
+  const auto parser = capnproto::generated::Capnproto::createParser();
   const auto reflection =
-      capnproto::generated::Capnproto::create_ast_reflection();
+      capnproto::generated::Capnproto::createAstReflection();
   bool ok = true;
   const auto check = [&](bool b, const char* message) {
     if (!b) {
@@ -254,7 +254,7 @@ const float :Float64 = 1.E+2;
   }
   {
     auto language =
-        cursiv::create_language<capnproto::CapnprotoCoreServices,
+        cursiv::createLanguage<capnproto::CapnprotoCoreServices,
                                 capnproto::CapnprotoSharedCoreServices,
                                 capnproto::install_core_module>();
     const std::string source =

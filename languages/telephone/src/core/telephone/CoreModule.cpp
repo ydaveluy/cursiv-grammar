@@ -9,7 +9,7 @@
 namespace telephone {
 
 void install_core_module(TelephoneCoreServices& services) {
-  telephone::generated::Telephone::install_generated_module(services);
+  telephone::generated::Telephone::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

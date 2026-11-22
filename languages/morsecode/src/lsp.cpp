@@ -5,7 +5,7 @@
 #include "morsecode/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       morsecode::MorsecodeSharedServices>(
       argc, argv, "morsecode-lsp", &morsecode::register_lsp_services);
 }

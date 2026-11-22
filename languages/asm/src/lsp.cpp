@@ -5,7 +5,7 @@
 #include "nasm/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       nasm::NasmSharedServices>(
       argc, argv, "nasm-lsp", &nasm::register_lsp_services);
 }

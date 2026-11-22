@@ -43,7 +43,7 @@ const bison::ast::Production* find_production(const bison::ast::File& file,
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<bison::BisonCoreServices,
+  const auto language = cursiv::createLanguage<bison::BisonCoreServices,
                                                 bison::BisonSharedCoreServices,
                                                 bison::install_core_module>();
   if (!code_audit::run(language)) return fail("native syntax and AST checks");
@@ -86,7 +86,7 @@ a: 'a' { f({1}); } %?{1};
       return fail(doc.string() + ": the parse left diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<bison::ast::File>)
+        root->type != &cursiv::kAstTypeTag<bison::ast::File>)
       return fail(doc.string() + ": the parse built no file");
     if (doc.filename() == "calc.y") calc_doc = doc;
     if (doc.filename() == "irc.y") irc_doc = doc;

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<odin::OdinCoreServices,
+    &cursiv::registerLanguage<odin::OdinCoreServices,
                            odin::OdinSharedCoreServices,
                            odin::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<odin::OdinSharedCoreServices>(
+  return cursiv::runCli<odin::OdinSharedCoreServices>(
       argc, argv, kRegister);
 }

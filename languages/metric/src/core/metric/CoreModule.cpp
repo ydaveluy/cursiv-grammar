@@ -9,7 +9,7 @@
 namespace metric {
 
 void install_core_module(MetricCoreServices& services) {
-  metric::generated::Metric::install_generated_module(services);
+  metric::generated::Metric::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -27,7 +27,7 @@ int fail(const std::string& what) {
 int main() {
   namespace fs = std::filesystem;
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       tiny::TinyCoreServices,
       tiny::TinySharedCoreServices,
       tiny::install_core_module>();
@@ -54,7 +54,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<tiny::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<tiny::ast::Program>)
       return fail(path.string() + ": built no Program");
 
     ++parsed;

@@ -9,7 +9,7 @@
 namespace wktcrsv1 {
 
 void install_core_module(WktCrsV1CoreServices& services) {
-  wktcrsv1::generated::WktCrsV1::install_generated_module(services);
+  wktcrsv1::generated::WktCrsV1::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

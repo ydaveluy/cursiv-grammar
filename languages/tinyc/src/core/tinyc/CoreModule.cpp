@@ -9,7 +9,7 @@
 namespace tinyc {
 
 void install_core_module(TinycCoreServices& services) {
-  tinyc::generated::Tinyc::install_generated_module(services);
+  tinyc::generated::Tinyc::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

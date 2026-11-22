@@ -5,7 +5,7 @@
 #include "infosapient/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       infosapient::InfosapientSharedServices>(
       argc, argv, "infosapient-lsp", &infosapient::register_lsp_services);
 }

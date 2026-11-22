@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<powerbuilder::PowerbuilderCoreServices,
+    &cursiv::registerLanguage<powerbuilder::PowerbuilderCoreServices,
                            powerbuilder::PowerbuilderSharedCoreServices,
                            powerbuilder::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<powerbuilder::PowerbuilderSharedCoreServices>(
+  return cursiv::runCli<powerbuilder::PowerbuilderSharedCoreServices>(
       argc, argv, kRegister);
 }

@@ -9,7 +9,7 @@
 namespace velocity {
 
 void install_core_module(VelocityCoreServices& services) {
-  velocity::generated::Velocity::install_generated_module(services);
+  velocity::generated::Velocity::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -306,12 +306,12 @@ struct Elixir : cursiv::GrammarSpec {
   static constexpr auto NoDoArgItem = append<&ast::CallExpr::options>(ref<NoDoKeywordOptionRule>) |
                                      append<&ast::CallExpr::args>(ref<NoDoExpression>);
   static constexpr auto ParenArgs = NLs + option(some(CallArgItem, Comma) + option(Comma) + NLs);
-  // Native @ precedence (320) is above dot/access (310). Keep the
-  // attribute's own call, then let PostfixExpr apply .member or [index].
+  // A parenthesized attribute call starts at its name. Dot and index
+  // suffixes on the attribute value are read by PostfixExpr.
   struct AtExpr : rule<create<ast::AtExpr>(lit<"@"> + NLs +
-      assign<&ast::AtExpr::operand>(ref<Primary> + option(
+      assign<&ast::AtExpr::operand>((ref<VarRef> +
           nest<ast::CallExpr, &ast::CallExpr::callee>(
-              gap::none + lit<"("> + ParenArgs + lit<")">))))> {};
+              gap::none + lit<"("> + ParenArgs + lit<")">)) | ref<Primary>))> {};
   static constexpr auto NoParenArgs = !gap::none + !lit<"("> + !lit<".."> +
       ((!(lit<"+"> | lit<"-">)) | &(lit<"+", !s> | lit<"-", !s>)) +
       flag<&ast::CallExpr::noParens>(some(NoDoArgItem, Comma));
@@ -365,23 +365,18 @@ struct Elixir : cursiv::GrammarSpec {
                left(as<ast::Operator::and_and_and>(lit<"&&&"> + NLs) | as<ast::Operator::and_and>(lit<"&&"> + NLs) | as<ast::Operator::and_kw>(ref<AND> + NLs)),
                left(as<ast::Operator::or_or_or>(lit<"|||"> + NLs) | as<ast::Operator::or_or>(lit<"||"> + NLs) | as<ast::Operator::or_kw>(ref<OR> + NLs)))> {};
 
-  struct MatchExpr
-      : rule<ref<InfixMid> +
-             option(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(as<ast::Operator::pattern_match>(lit<"="> + NLs)) +
-                 assign<&ast::BinaryExpr::right>(ref<AmpWrapExpr>)))> {};
-
   struct CapturedOperatorArity : rule<create<ast::BinaryExpr>(
       assign<&ast::BinaryExpr::left>(ref<OperatorLit>) +
       assign<&ast::BinaryExpr::op>(as<ast::Operator::divide>(lit<"/"> + NLs)) +
       assign<&ast::BinaryExpr::right>(ref<IntegerLit>))> {};
 
-  struct AmpWrapExpr
+  struct MatchOperand
       : rule<create<ast::AmpExpr>(
                  ref<CAPTURE_OP> +
                  assign<&ast::AmpExpr::operand>(ref<CapturedOperatorArity> | ref<AmpWrapExpr>))
-             | ref<MatchExpr>> {};
-
+             | ref<InfixMid>> {};
+  struct AmpWrapExpr : infix<MatchOperand, ast::BinaryExpr,
+      right(as<ast::Operator::pattern_match>(lit<"="> + NLs))> {};
 
   struct InfixLow1
       : infix<AmpWrapExpr, ast::BinaryExpr,

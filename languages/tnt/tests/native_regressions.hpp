@@ -11,7 +11,7 @@
 
 namespace native_regressions {
 inline bool run() {
-  auto language = cursiv::create_language<tnt::TntCoreServices, tnt::TntSharedCoreServices, tnt::install_core_module>();
+  auto language = cursiv::createLanguage<tnt::TntCoreServices, tnt::TntSharedCoreServices, tnt::install_core_module>();
   bool ok = true;
   const auto check = [&](bool value, const char* message) {
     if (!value) { std::fprintf(stderr, "TNT regression: %s\n", message); ok = false; }

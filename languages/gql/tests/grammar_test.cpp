@@ -40,7 +40,7 @@ int check_match_with_path(const auto &language, const fs::path &dir) {
     return fail(path, "does not parse clean");
 
   const cursiv::AstNode *const root = result.value;
-  if (root == nullptr || root->type != &cursiv::ast_type_tag<gql::ast::Program>)
+  if (root == nullptr || root->type != &cursiv::kAstTypeTag<gql::ast::Program>)
     return fail(path, "the parse built no Program");
   const auto &program = *static_cast<const gql::ast::Program *>(root);
   if (program.procedure == nullptr)
@@ -51,11 +51,11 @@ int check_match_with_path(const auto &language, const fs::path &dir) {
   const gql::ast::Statement *const stmt =
       program.procedure->body->statements[0];
   if (stmt == nullptr ||
-      stmt->type != &cursiv::ast_type_tag<gql::ast::CompositeQuery>)
+      stmt->type != &cursiv::kAstTypeTag<gql::ast::CompositeQuery>)
     return fail(path, "expected a CompositeQuery");
   const auto &composite = *static_cast<const gql::ast::CompositeQuery *>(stmt);
   if (!composite.operations.empty() || composite.first == nullptr ||
-      composite.first->type != &cursiv::ast_type_tag<gql::ast::LinearStatement>)
+      composite.first->type != &cursiv::kAstTypeTag<gql::ast::LinearStatement>)
     return fail(path, "expected exactly one LinearStatement operand");
   const auto &linear =
       *static_cast<const gql::ast::LinearStatement *>(composite.first);
@@ -63,7 +63,7 @@ int check_match_with_path(const auto &language, const fs::path &dir) {
     return fail(path, "expected exactly one simple statement");
   const gql::ast::SimpleStatement *const simple = linear.simples[0];
   if (simple == nullptr ||
-      simple->type != &cursiv::ast_type_tag<gql::ast::MatchStmt>)
+      simple->type != &cursiv::kAstTypeTag<gql::ast::MatchStmt>)
     return fail(path, "expected a MatchStmt");
   const auto &match = *static_cast<const gql::ast::MatchStmt *>(simple);
   if (match.pattern == nullptr || match.pattern->paths.size() != 1)
@@ -73,7 +73,7 @@ int check_match_with_path(const auto &language, const fs::path &dir) {
     return fail(path, "expected a RETURN with three items");
   if (linear.result->items[0]->value == nullptr ||
       linear.result->items[0]->value->type !=
-          &cursiv::ast_type_tag<gql::ast::PropertyRef>)
+          &cursiv::kAstTypeTag<gql::ast::PropertyRef>)
     return fail(path, "expected the first return item to be a property ref");
   const auto &propRef = *static_cast<const gql::ast::PropertyRef *>(
       linear.result->items[0]->value);
@@ -102,20 +102,20 @@ int check_concat_left_assoc(const auto &language) {
 
   const gql::ast::Expr *const value = linear.result->items[0]->value;
   if (value == nullptr ||
-      value->type != &cursiv::ast_type_tag<gql::ast::BinaryExpr>)
+      value->type != &cursiv::kAstTypeTag<gql::ast::BinaryExpr>)
     return fail("<probe>", "expected the top expression to be a BinaryExpr");
   const auto &outer = *static_cast<const gql::ast::BinaryExpr *>(value);
   if (outer.op != gql::ast::BinOp::concat)
     return fail("<probe>", "expected the outer operator to be ||");
 
   if (outer.left == nullptr ||
-      outer.left->type != &cursiv::ast_type_tag<gql::ast::BinaryExpr>)
+      outer.left->type != &cursiv::kAstTypeTag<gql::ast::BinaryExpr>)
     return fail("<probe>", "expected the left operand to itself be a ||");
   const auto &inner = *static_cast<const gql::ast::BinaryExpr *>(outer.left);
   if (inner.op != gql::ast::BinOp::concat)
     return fail("<probe>", "expected the inner operator to be ||");
   if (outer.right == nullptr ||
-      outer.right->type == &cursiv::ast_type_tag<gql::ast::BinaryExpr>)
+      outer.right->type == &cursiv::kAstTypeTag<gql::ast::BinaryExpr>)
     return fail("<probe>", "expected the right operand to be a single literal");
 
   return 0;
@@ -243,7 +243,7 @@ int check_closed_element_types(const auto &language) {
 const gql::ast::SelectStmt *first_select(const cursiv::ParseResult &result) {
   const auto *const program =
       result.value != nullptr &&
-              result.value->type == &cursiv::ast_type_tag<gql::ast::Program>
+              result.value->type == &cursiv::kAstTypeTag<gql::ast::Program>
           ? static_cast<const gql::ast::Program *>(result.value)
           : nullptr;
   if (program == nullptr || program->procedure == nullptr ||
@@ -252,11 +252,11 @@ const gql::ast::SelectStmt *first_select(const cursiv::ParseResult &result) {
   const gql::ast::Statement *const stmt =
       program->procedure->body->statements[0];
   if (stmt == nullptr ||
-      stmt->type != &cursiv::ast_type_tag<gql::ast::CompositeQuery>)
+      stmt->type != &cursiv::kAstTypeTag<gql::ast::CompositeQuery>)
     return nullptr;
   const auto &composite = *static_cast<const gql::ast::CompositeQuery *>(stmt);
   if (!composite.operations.empty() || composite.first == nullptr ||
-      composite.first->type != &cursiv::ast_type_tag<gql::ast::SelectStmt>)
+      composite.first->type != &cursiv::kAstTypeTag<gql::ast::SelectStmt>)
     return nullptr;
   return static_cast<const gql::ast::SelectStmt *>(composite.first);
 }
@@ -318,7 +318,7 @@ int check_coverage(const auto &language, const fs::path &dir) {
   if (result.cst().recovered() || !result.diagnostics.empty())
     return fail(path, "does not parse clean");
   if (result.value == nullptr ||
-      result.value->type != &cursiv::ast_type_tag<gql::ast::Program>)
+      result.value->type != &cursiv::kAstTypeTag<gql::ast::Program>)
     return fail(path, "the parse built no Program");
   return 0;
 }
@@ -328,7 +328,7 @@ int check_coverage(const auto &language, const fs::path &dir) {
 int main() {
   {
     const auto audit_language =
-        cursiv::create_language<gql::GqlCoreServices,
+        cursiv::createLanguage<gql::GqlCoreServices,
                                 gql::GqlSharedCoreServices,
                                 gql::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse(
@@ -367,7 +367,7 @@ int main() {
   }
 
   const auto language =
-      cursiv::create_language<gql::GqlCoreServices, gql::GqlSharedCoreServices,
+      cursiv::createLanguage<gql::GqlCoreServices, gql::GqlSharedCoreServices,
                               gql::install_core_module>();
 
   if (!gql_native_regressions::run(*language.language.parser)) return 1;
@@ -393,7 +393,7 @@ int main() {
     }
     const cursiv::AstNode *const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<gql::ast::Program>) {
+        root->type != &cursiv::kAstTypeTag<gql::ast::Program>) {
       failures += fail(entry.path(), "the parse built no Program");
       continue;
     }

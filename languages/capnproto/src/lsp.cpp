@@ -5,7 +5,7 @@
 #include "capnproto/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       capnproto::CapnprotoSharedServices>(
       argc, argv, "capnproto-lsp", &capnproto::register_lsp_services);
 }

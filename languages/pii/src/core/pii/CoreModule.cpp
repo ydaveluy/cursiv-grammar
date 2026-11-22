@@ -9,7 +9,7 @@
 namespace pii {
 
 void install_core_module(PiiCoreServices& services) {
-  pii::generated::Pii::install_generated_module(services);
+  pii::generated::Pii::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

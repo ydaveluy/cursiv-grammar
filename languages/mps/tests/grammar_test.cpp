@@ -24,7 +24,7 @@ int fail(const char* sample, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       mps::MpsCoreServices,
       mps::MpsSharedCoreServices,
       mps::install_core_module>();
@@ -68,7 +68,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<mps::ast::Model>)
+        root->type != &cursiv::kAstTypeTag<mps::ast::Model>)
       return fail(sample, "the parse built no Model");
 
     const auto& model = *static_cast<const mps::ast::Model*>(root);

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<zig::ZigCoreServices,
+    &cursiv::registerLanguage<zig::ZigCoreServices,
                            zig::ZigSharedCoreServices,
                            zig::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<zig::ZigSharedCoreServices>(
+  return cursiv::runCli<zig::ZigSharedCoreServices>(
       argc, argv, kRegister);
 }

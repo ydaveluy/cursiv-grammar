@@ -37,7 +37,7 @@ const char* const kExamples[] = {
 
 int main() {
   {
-    const auto audit_language = cursiv::create_language<
+    const auto audit_language = cursiv::createLanguage<
       informix::InformixCoreServices, informix::InformixSharedCoreServices,
       informix::install_core_module>();
     const auto audit_result = audit_language.language.parser->parse("MAIN\n DEFINE X INTEGER\n LET X = 1\nEND MAIN\n");
@@ -47,7 +47,7 @@ int main() {
     }
   }
 
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       informix::InformixCoreServices, informix::InformixSharedCoreServices,
       informix::install_core_module>();
   if (!informix_native_followup::run(language)) return 1;
@@ -66,7 +66,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<informix::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<informix::ast::Program>)
       return fail((std::string(name) + ": built no Program").c_str());
 
     const auto& program = *static_cast<const informix::ast::Program*>(root);
@@ -88,7 +88,7 @@ int main() {
     if (!result.diagnostics.empty()) return fail("coverage.4gl: has diagnostics");
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<informix::ast::Program>)
+        root->type != &cursiv::kAstTypeTag<informix::ast::Program>)
       return fail("coverage.4gl: built no Program");
     const auto& program = *static_cast<const informix::ast::Program*>(root);
     if (program.definitions.size() != 3)
@@ -109,7 +109,7 @@ int main() {
   const informix::ast::VarGroup& g2 = *main.types[0]->groups[2];
   if (g2.names.size() != 1 || g2.names[0] != "c")
     return fail("example3.4gl: third group is not `c`");
-  if (g2.type->type != &cursiv::ast_type_tag<informix::ast::ScalarType>)
+  if (g2.type->type != &cursiv::kAstTypeTag<informix::ast::ScalarType>)
     return fail("example3.4gl: `c`'s type is not scalar");
   const auto& cType = *static_cast<const informix::ast::ScalarType*>(g2.type);
   if (cType.keyword != "CHAR" || !cType.size1.has_value() ||
@@ -118,16 +118,16 @@ int main() {
 
   if (main.body.size() != 9)
     return fail("example3.4gl: expected 9 statements");
-  if (main.body[0]->type != &cursiv::ast_type_tag<informix::ast::LetStmt>)
+  if (main.body[0]->type != &cursiv::kAstTypeTag<informix::ast::LetStmt>)
     return fail("example3.4gl: first statement is not LET");
   const auto& let0 = *static_cast<const informix::ast::LetStmt*>(main.body[0]);
-  if (let0.target->type != &cursiv::ast_type_tag<informix::ast::NameRef>)
+  if (let0.target->type != &cursiv::kAstTypeTag<informix::ast::NameRef>)
     return fail("example3.4gl: LET target is not a name");
   const auto& target0 =
       *static_cast<const informix::ast::NameRef*>(let0.target);
   if (target0.name != "c") return fail("example3.4gl: LET target is not `c`");
   if (let0.values.size() != 1 ||
-      let0.values[0]->type != &cursiv::ast_type_tag<informix::ast::StringLit>)
+      let0.values[0]->type != &cursiv::kAstTypeTag<informix::ast::StringLit>)
     return fail("example3.4gl: LET value is not one string literal");
   const auto& lit0 =
       *static_cast<const informix::ast::StringLit*>(let0.values[0]);
@@ -150,18 +150,18 @@ int main() {
         *static_cast<const informix::ast::Program*>(precResult.value);
     if (precProgram.main == nullptr || precProgram.main->body.size() != 1 ||
         precProgram.main->body[0]->type !=
-            &cursiv::ast_type_tag<informix::ast::LetStmt>)
+            &cursiv::kAstTypeTag<informix::ast::LetStmt>)
       return fail("<precedence>: expected one LET statement");
     const auto& precLet =
         *static_cast<const informix::ast::LetStmt*>(precProgram.main->body[0]);
     if (precLet.values.size() != 1 ||
         precLet.values[0]->type !=
-            &cursiv::ast_type_tag<informix::ast::BetweenExpr>)
+            &cursiv::kAstTypeTag<informix::ast::BetweenExpr>)
       return fail("<precedence>: a + b BETWEEN c AND d should be BETWEEN at top");
     const auto& precBetween =
         *static_cast<const informix::ast::BetweenExpr*>(precLet.values[0]);
     if (precBetween.operand == nullptr ||
-        precBetween.operand->type != &cursiv::ast_type_tag<informix::ast::BinaryExpr>)
+        precBetween.operand->type != &cursiv::kAstTypeTag<informix::ast::BinaryExpr>)
       return fail("<precedence>: BETWEEN's operand should be a + b, not just b");
   }
 

@@ -9,7 +9,7 @@
 namespace calculator {
 
 void install_core_module(CalculatorCoreServices& services) {
-  calculator::generated::Calculator::install_generated_module(services);
+  calculator::generated::Calculator::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

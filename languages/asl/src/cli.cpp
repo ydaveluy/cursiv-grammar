@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<asl::AslCoreServices,
+    &cursiv::registerLanguage<asl::AslCoreServices,
                            asl::AslSharedCoreServices,
                            asl::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<asl::AslSharedCoreServices>(
+  return cursiv::runCli<asl::AslSharedCoreServices>(
       argc, argv, kRegister);
 }

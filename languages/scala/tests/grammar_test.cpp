@@ -34,7 +34,7 @@ int fail(const std::string& what) {
 
 template <class T>
 T* as(const cursiv::AstReflection& reflection, cursiv::AstNode* n) {
-  return (n != nullptr && reflection.isInstance(*n, &cursiv::ast_type_tag<T>))
+  return (n != nullptr && reflection.isInstance(*n, &cursiv::kAstTypeTag<T>))
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -212,7 +212,7 @@ int check_precedence(const cursiv::Parser& parser,
 }  // namespace
 
 static int audit_regression() {
-  const auto language = cursiv::create_language<scala::ScalaCoreServices,
+  const auto language = cursiv::createLanguage<scala::ScalaCoreServices,
                                                 scala::ScalaSharedCoreServices,
                                                 scala::install_core_module>();
   {
@@ -288,7 +288,7 @@ int main() {
     std::fputs("audit regression failed\n", stderr);
     return 1;
   }
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       scala::ScalaCoreServices,
       scala::ScalaSharedCoreServices,
       scala::install_core_module>();
@@ -316,7 +316,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<scala::ast::CompilationUnit>)
+        root->type != &cursiv::kAstTypeTag<scala::ast::CompilationUnit>)
       return fail(entry.path().string() + ": the parse built no compilation unit");
   }
 

@@ -31,7 +31,7 @@ int fail(const std::string& what) {
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && n->type == &cursiv::ast_type_tag<T>)
+  return (n != nullptr && n->type == &cursiv::kAstTypeTag<T>)
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -60,7 +60,7 @@ ast::DefaultRule* find_default(ast::Document& doc, const char* name) {
 int main() {
   namespace fs = std::filesystem;
 
-  const auto language = cursiv::create_language<rego::RegoCoreServices,
+  const auto language = cursiv::createLanguage<rego::RegoCoreServices,
                                                 rego::RegoSharedCoreServices,
                                                 rego::install_core_module>();
 
@@ -85,7 +85,7 @@ int main() {
       return fail(path.filename().string() + " left diagnostics");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::Document>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::Document>)
       return fail(path.filename().string() + " built no Document");
     ++count;
   }

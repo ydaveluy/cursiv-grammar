@@ -12,7 +12,7 @@ namespace ast = llvmir::ast;
 #include "repeated_alignment.hpp"
 inline bool run() {
   const auto language =
-      cursiv::create_language<llvmir::LlvmIrCoreServices,
+      cursiv::createLanguage<llvmir::LlvmIrCoreServices,
                               llvmir::LlvmIrSharedCoreServices,
                               llvmir::install_core_module>();
   bool ok = true;

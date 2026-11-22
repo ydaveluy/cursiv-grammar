@@ -5,7 +5,7 @@
 #include "snobol/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       snobol::SnobolSharedServices>(
       argc, argv, "snobol-lsp", &snobol::register_lsp_services);
 }

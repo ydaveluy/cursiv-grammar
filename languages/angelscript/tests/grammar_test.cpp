@@ -36,7 +36,7 @@ const char* const kCleanExamples[] = {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       angelscript::AngelscriptCoreServices,
       angelscript::AngelscriptSharedCoreServices,
       angelscript::install_core_module>();
@@ -152,7 +152,7 @@ int main() {
       return 1;
     }
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::Script>) {
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::Script>) {
       std::fprintf(stderr, "angelscript: %s built no Script\n", path);
       return 1;
     }
@@ -173,9 +173,9 @@ int main() {
     const ast::ImportDecl* import = nullptr;
     const ast::NamespaceDecl* game = nullptr;
     for (const ast::Item* const item : script.items) {
-      if (item->type == &cursiv::ast_type_tag<ast::ImportDecl>)
+      if (item->type == &cursiv::kAstTypeTag<ast::ImportDecl>)
         import = static_cast<const ast::ImportDecl*>(item);
-      if (item->type == &cursiv::ast_type_tag<ast::NamespaceDecl>)
+      if (item->type == &cursiv::kAstTypeTag<ast::NamespaceDecl>)
         game = static_cast<const ast::NamespaceDecl*>(item);
     }
     if (import == nullptr || import->name != "notify")
@@ -188,11 +188,11 @@ int main() {
     const ast::EnumDecl* status = nullptr;
     const ast::ClassDecl* entity = nullptr;
     for (const ast::Item* const item : game->items) {
-      if (item->type == &cursiv::ast_type_tag<ast::EnumDecl>) {
+      if (item->type == &cursiv::kAstTypeTag<ast::EnumDecl>) {
         const auto* const e = static_cast<const ast::EnumDecl*>(item);
         if (e->name == "Status") status = e;
       }
-      if (item->type == &cursiv::ast_type_tag<ast::ClassDecl>) {
+      if (item->type == &cursiv::kAstTypeTag<ast::ClassDecl>) {
         const auto* const c = static_cast<const ast::ClassDecl*>(item);
         if (c->name == "Entity") entity = c;
       }
@@ -212,7 +212,7 @@ int main() {
     bool sawDamage = false;
     bool sawHealth = false;
     for (const ast::Item* const member : entity->members) {
-      if (member->type == &cursiv::ast_type_tag<ast::FuncDecl>) {
+      if (member->type == &cursiv::kAstTypeTag<ast::FuncDecl>) {
         const auto& fn = *static_cast<const ast::FuncDecl*>(member);
         if (fn.name == "damage") {
           sawDamage = true;
@@ -222,7 +222,7 @@ int main() {
             return fail("declarations: damage() default value");
         }
       }
-      if (member->type == &cursiv::ast_type_tag<ast::VirtPropDecl>) {
+      if (member->type == &cursiv::kAstTypeTag<ast::VirtPropDecl>) {
         const auto& vp = *static_cast<const ast::VirtPropDecl*>(member);
         if (vp.name == "health") {
           sawHealth = true;
@@ -248,15 +248,15 @@ int main() {
     const ast::BinExpr* precBitEq = nullptr;
     const ast::BinExpr* precShiftRel = nullptr;
     for (const ast::Item* const item : script.items) {
-      if (item->type != &cursiv::ast_type_tag<ast::FuncDecl>) continue;
+      if (item->type != &cursiv::kAstTypeTag<ast::FuncDecl>) continue;
       const auto& fn = *static_cast<const ast::FuncDecl*>(item);
       if (fn.name != "showcase" || fn.body == nullptr) continue;
       for (const ast::Item* const stmt : fn.body->items) {
-        if (stmt->type != &cursiv::ast_type_tag<ast::VarDecl>) continue;
+        if (stmt->type != &cursiv::kAstTypeTag<ast::VarDecl>) continue;
         const auto& decl = *static_cast<const ast::VarDecl*>(stmt);
         for (const ast::VarInit* const init : decl.declarators) {
           if (init->initExpr == nullptr ||
-              init->initExpr->type != &cursiv::ast_type_tag<ast::BinExpr>)
+              init->initExpr->type != &cursiv::kAstTypeTag<ast::BinExpr>)
             continue;
           const auto* const bin =
               static_cast<const ast::BinExpr*>(init->initExpr);
@@ -272,7 +272,7 @@ int main() {
       return fail("expressions: shiftedLeft is not a '<<' BinExpr");
 
     const auto isBin = [](const ast::Expr* e, const char* op) {
-      return e != nullptr && e->type == &cursiv::ast_type_tag<ast::BinExpr> &&
+      return e != nullptr && e->type == &cursiv::kAstTypeTag<ast::BinExpr> &&
              static_cast<const ast::BinExpr*>(e)->op == op;
     };
 

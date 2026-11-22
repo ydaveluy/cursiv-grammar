@@ -10,7 +10,7 @@
 #include "zig/ast.hpp"
 namespace zig_audit {
 template<class T> const T* as(const cursiv::AstNode* n) {
-  return n && n->type == &cursiv::ast_type_tag<T> ? static_cast<const T*>(n) : nullptr;
+  return n && n->type == &cursiv::kAstTypeTag<T> ? static_cast<const T*>(n) : nullptr;
 }
 inline bool modern_cases(zig::ZigCoreServices& services) {
   namespace ast = zig::ast;

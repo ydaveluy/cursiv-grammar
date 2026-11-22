@@ -9,7 +9,7 @@
 namespace racketisl {
 
 void install_core_module(RacketIslCoreServices& services) {
-  racketisl::generated::RacketIsl::install_generated_module(services);
+  racketisl::generated::RacketIsl::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

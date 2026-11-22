@@ -11,10 +11,10 @@
 #include <iterator>
 #include <unordered_set>
 int main() {
-  const auto language = cursiv::create_language<yara::YaraCoreServices,
+  const auto language = cursiv::createLanguage<yara::YaraCoreServices,
                                                 yara::YaraSharedCoreServices,
                                                 yara::install_core_module>();
-  const auto factory = yara::generated::Yara::create_parser();
+  const auto factory = yara::generated::Yara::createParser();
   for (const auto &c : cases) {
     std::ifstream f(std::string(CURSIV_TEST_DIR) + "/numbers/" + c.file,
                     std::ios::binary);

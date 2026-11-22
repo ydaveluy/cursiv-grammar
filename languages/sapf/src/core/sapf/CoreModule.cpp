@@ -9,7 +9,7 @@
 namespace sapf {
 
 void install_core_module(SapfCoreServices& services) {
-  sapf::generated::Sapf::install_generated_module(services);
+  sapf::generated::Sapf::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

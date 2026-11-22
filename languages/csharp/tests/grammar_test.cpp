@@ -26,7 +26,7 @@ int fail(const std::string& what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       csharp::CSharpCoreServices, csharp::CSharpSharedCoreServices,
       csharp::install_core_module>();
   csharp_raw_layout::run(language.language);
@@ -230,7 +230,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<csharp::ast::CompilationUnit>)
+        root->type != &cursiv::kAstTypeTag<csharp::ast::CompilationUnit>)
       return fail(entry.path().filename().string() +
                    " built no compilation unit");
     ++count;

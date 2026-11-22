@@ -9,7 +9,7 @@
 namespace rexx {
 
 void install_core_module(RexxCoreServices& services) {
-  rexx::generated::Rexx::install_generated_module(services);
+  rexx::generated::Rexx::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -9,7 +9,7 @@
 namespace robotwars {
 
 void install_core_module(RobotwarsCoreServices& services) {
-  robotwars::generated::Robotwars::install_generated_module(services);
+  robotwars::generated::Robotwars::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

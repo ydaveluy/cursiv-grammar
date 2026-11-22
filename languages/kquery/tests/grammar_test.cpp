@@ -15,7 +15,6 @@
 #include "cursiv/syntax-tree/ParseResult.hpp"
 #include "cursiv/Check.hpp"
 #include "kquery/ast.hpp"
-#include "kquery/generated/Kquery/AstReflection.hpp"
 #include "kquery/generated/Kquery/Module.hpp"
 
 namespace {
@@ -24,13 +23,13 @@ namespace ast = kquery::ast;
 
 const cursiv::Parser& engine() {
   static const std::unique_ptr<cursiv::Parser> p =
-      kquery::generated::Kquery::create_parser();
+      kquery::generated::Kquery::createParser();
   return *p;
 }
 
 const cursiv::AstReflection& reflection() {
   static const std::unique_ptr<cursiv::AstReflection> r =
-      kquery::generated::Kquery::create_ast_reflection();
+      kquery::generated::Kquery::createAstReflection();
   return *r;
 }
 
@@ -41,7 +40,7 @@ bool accepts(std::string_view text) {
 
 template <class T>
 T* as(cursiv::AstNode* n) {
-  return (n != nullptr && reflection().isInstance(*n, &cursiv::ast_type_tag<T>))
+  return (n != nullptr && reflection().isInstance(*n, &cursiv::kAstTypeTag<T>))
              ? static_cast<T*>(n)
              : nullptr;
 }
@@ -55,7 +54,7 @@ cursiv::ParseResult build(std::string_view text) {
 }
 
 std::string read_file(std::string_view path) {
-  return cursiv::test::read_file(std::string(path));
+  return cursiv::test::readFile(std::string(path));
 }
 
 void accepted_and_refused_texts() {

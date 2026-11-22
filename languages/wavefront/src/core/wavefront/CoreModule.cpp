@@ -9,7 +9,7 @@
 namespace wavefront {
 
 void install_core_module(WavefrontCoreServices& services) {
-  wavefront::generated::Wavefront::install_generated_module(services);
+  wavefront::generated::Wavefront::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

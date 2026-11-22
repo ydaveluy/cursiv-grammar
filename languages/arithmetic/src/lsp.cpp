@@ -5,7 +5,7 @@
 #include "arithmetic/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       arithmetic::ArithmeticSharedServices>(
       argc, argv, "arithmetic-lsp", &arithmetic::register_lsp_services);
 }

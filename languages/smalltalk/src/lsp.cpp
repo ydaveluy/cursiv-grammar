@@ -5,7 +5,7 @@
 #include "smalltalk/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       smalltalk::SmalltalkSharedServices>(
       argc, argv, "smalltalk-lsp", &smalltalk::register_lsp_services);
 }

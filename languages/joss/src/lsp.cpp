@@ -5,7 +5,7 @@
 #include "joss/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       joss::JossSharedServices>(
       argc, argv, "joss-lsp", &joss::register_lsp_services);
 }

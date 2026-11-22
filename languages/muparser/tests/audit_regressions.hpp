@@ -10,7 +10,7 @@
 inline void muparser_regressions() {
   namespace ast = muparser::ast;
   const auto language =
-      cursiv::create_language<muparser::MuparserCoreServices,
+      cursiv::createLanguage<muparser::MuparserCoreServices,
                               muparser::MuparserSharedCoreServices,
                               muparser::install_core_module>();
   const auto& services = language.language;

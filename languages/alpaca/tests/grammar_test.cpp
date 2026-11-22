@@ -23,7 +23,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 }  // namespace
 
 int main() {
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       alpaca::AlpacaCoreServices, alpaca::AlpacaSharedCoreServices,
       alpaca::install_core_module>();
 
@@ -69,7 +69,7 @@ int main() {
       return fail(entry.path(), "left diagnostics behind");
 
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<alpaca::ast::Model>)
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<alpaca::ast::Model>)
       return fail(entry.path(), "built no Model");
   }
   if (seen == 0) return fail(CURSIV_EXAMPLE_DIR, "no example found");

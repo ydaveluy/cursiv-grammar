@@ -40,7 +40,7 @@ const char* const kCleanExamples[] = {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       unrealangelscript::UnrealAngelscriptCoreServices,
       unrealangelscript::UnrealAngelscriptSharedCoreServices,
       unrealangelscript::install_core_module>();
@@ -63,7 +63,7 @@ int main() {
       return 1;
     }
     const cursiv::AstNode* const root = result.value;
-    if (root == nullptr || root->type != &cursiv::ast_type_tag<ast::Script>) {
+    if (root == nullptr || root->type != &cursiv::kAstTypeTag<ast::Script>) {
       std::fprintf(stderr, "unrealangelscript: %s built no Script\n", path);
       return 1;
     }
@@ -85,14 +85,14 @@ int main() {
     if (script.items.size() != 1) return fail("Example_Actor: item count");
 
     const auto* const decl = static_cast<const ast::VarDecl*>(script.items[0]);
-    if (decl->type != &cursiv::ast_type_tag<ast::VarDecl>)
+    if (decl->type != &cursiv::kAstTypeTag<ast::VarDecl>)
       return fail("Example_Actor: root item is not a VarDecl");
     if (decl->specifiers == nullptr || decl->specifiers->parts.size() != 1)
       return fail("Example_Actor: expected one type specifier");
 
     const auto* const classDef =
         static_cast<const ast::ClassDef*>(decl->specifiers->parts[0]);
-    if (classDef->type != &cursiv::ast_type_tag<ast::ClassDef>)
+    if (classDef->type != &cursiv::kAstTypeTag<ast::ClassDef>)
       return fail("Example_Actor: expected a ClassDef");
     if (classDef->name != "AExampleActor")
       return fail("Example_Actor: wrong class name");
@@ -104,7 +104,7 @@ int main() {
     bool sawExampleBool = false;
     bool sawUFunctionCallable = false;
     for (const ast::Item* const member : classDef->members) {
-      if (member->type != &cursiv::ast_type_tag<ast::PropertyDef>) continue;
+      if (member->type != &cursiv::kAstTypeTag<ast::PropertyDef>) continue;
       const auto& prop = *static_cast<const ast::PropertyDef*>(member);
       for (const auto* field : prop.declarators) {
         if (field->name != "ExampleUPropertyBool") continue;
@@ -119,7 +119,7 @@ int main() {
     if (!sawExampleBool) return fail("Example_Actor: ExampleUPropertyBool not found");
 
     for (const ast::Item* const member : classDef->members) {
-      if (member->type != &cursiv::ast_type_tag<ast::FunctionDef>) continue;
+      if (member->type != &cursiv::kAstTypeTag<ast::FunctionDef>) continue;
       const auto& fn = *static_cast<const ast::FunctionDef*>(member);
       if (fn.declarator != nullptr && fn.declarator->name == "ExampleUFunction") {
         sawUFunctionCallable = true;
@@ -155,14 +155,14 @@ int main() {
       const auto* const fn = static_cast<const ast::FunctionDef*>(script.items[0]);
       const auto* const ret =
           static_cast<const ast::ReturnStmt*>(fn->body->items[0]);
-      if (ret->type != &cursiv::ast_type_tag<ast::ReturnStmt>)
+      if (ret->type != &cursiv::kAstTypeTag<ast::ReturnStmt>)
         return fail(probe.text);
       const ast::Expr* const top = ret->value;
-      if (top == nullptr || top->type != &cursiv::ast_type_tag<ast::BinaryExpr>)
+      if (top == nullptr || top->type != &cursiv::kAstTypeTag<ast::BinaryExpr>)
         return fail(probe.text);
       const auto& topBin = *static_cast<const ast::BinaryExpr*>(top);
       if (topBin.op != probe.top) return fail(probe.text);
-      if (topBin.left->type != &cursiv::ast_type_tag<ast::BinaryExpr>)
+      if (topBin.left->type != &cursiv::kAstTypeTag<ast::BinaryExpr>)
         return fail(probe.text);
       if (static_cast<const ast::BinaryExpr*>(topBin.left)->op != probe.left)
         return fail(probe.text);
@@ -179,11 +179,11 @@ int main() {
     const auto& script = *result.valueAs<ast::Script>();
     if (script.items.size() != 3)
       return fail("forward declarations: item count");
-    if (script.items[0]->type != &cursiv::ast_type_tag<ast::EnumForwardDecl>)
+    if (script.items[0]->type != &cursiv::kAstTypeTag<ast::EnumForwardDecl>)
       return fail("`enum EFwd;` is not an EnumForwardDecl");
-    if (script.items[1]->type != &cursiv::ast_type_tag<ast::EnumForwardDecl>)
+    if (script.items[1]->type != &cursiv::kAstTypeTag<ast::EnumForwardDecl>)
       return fail("`enum EBased : int32;` is not an EnumForwardDecl");
-    if (script.items[2]->type != &cursiv::ast_type_tag<ast::VarDecl>)
+    if (script.items[2]->type != &cursiv::kAstTypeTag<ast::VarDecl>)
       return fail("`class X;` is not a VarDecl");
   }
 

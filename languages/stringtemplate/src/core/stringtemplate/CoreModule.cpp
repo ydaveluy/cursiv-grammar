@@ -9,7 +9,7 @@
 namespace stringtemplate {
 
 void install_core_module(StringtemplateCoreServices& services) {
-  stringtemplate::generated::Stringtemplate::install_generated_module(services);
+  stringtemplate::generated::Stringtemplate::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<edn::EdnCoreServices,
+    &cursiv::registerLanguage<edn::EdnCoreServices,
                            edn::EdnSharedCoreServices,
                            edn::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<edn::EdnSharedCoreServices>(
+  return cursiv::runCli<edn::EdnSharedCoreServices>(
       argc, argv, kRegister);
 }

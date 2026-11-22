@@ -14,7 +14,7 @@
 #include "cursiv/ValidationResult.hpp"
 
 int main() {
-  const auto language = cursiv::create_language<apt::AptCoreServices,
+  const auto language = cursiv::createLanguage<apt::AptCoreServices,
       apt::AptSharedCoreServices, apt::install_core_module>();
   for (const auto& c : nativeCases) {
     const auto fail = [&](const char* what) {

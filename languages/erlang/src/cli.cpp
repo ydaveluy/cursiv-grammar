@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<erlang::ErlangCoreServices,
+    &cursiv::registerLanguage<erlang::ErlangCoreServices,
                            erlang::ErlangSharedCoreServices,
                            erlang::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<erlang::ErlangSharedCoreServices>(
+  return cursiv::runCli<erlang::ErlangSharedCoreServices>(
       argc, argv, kRegister);
 }

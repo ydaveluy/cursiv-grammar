@@ -2,6 +2,6 @@
 #include "matlab/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::bench::run_language<
+  return cursiv::bench::runLanguage<
       matlab::MatlabSharedServices, matlab::register_lsp_services>(argc, argv);
 }

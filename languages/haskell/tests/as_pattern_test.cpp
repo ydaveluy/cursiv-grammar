@@ -12,10 +12,10 @@
 #include "haskell/generated/Haskell/Module.hpp"
 int main() {
   const auto language =
-      cursiv::create_language<haskell::HaskellCoreServices,
+      cursiv::createLanguage<haskell::HaskellCoreServices,
                               haskell::HaskellSharedCoreServices,
                               haskell::install_core_module>();
-  const auto factory = haskell::generated::Haskell::create_parser();
+  const auto factory = haskell::generated::Haskell::createParser();
   unsigned faithful = 0, gaps = 0;
   for (const auto& c : cases) {
     std::ifstream f(std::string(CURSIV_TEST_DIR) + "/as-patterns/" + c.file);

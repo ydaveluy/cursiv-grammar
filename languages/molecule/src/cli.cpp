@@ -8,11 +8,11 @@
 
 // Adds the language to the workspace that the command line creates.
 constexpr auto kRegister =
-    &cursiv::register_language<molecule::MoleculeCoreServices,
+    &cursiv::registerLanguage<molecule::MoleculeCoreServices,
                            molecule::MoleculeSharedCoreServices,
                            molecule::install_core_module>;
 
 int main(int argc, char** argv) {
-  return cursiv::run_cli<molecule::MoleculeSharedCoreServices>(
+  return cursiv::runCli<molecule::MoleculeSharedCoreServices>(
       argc, argv, kRegister);
 }

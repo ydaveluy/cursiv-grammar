@@ -9,7 +9,7 @@
 namespace star {
 
 void install_core_module(StarCoreServices& services) {
-  star::generated::Star::install_generated_module(services);
+  star::generated::Star::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

@@ -33,7 +33,7 @@ std::string read_file(const std::filesystem::path& path) {
 
 int main() {
   if (!audit_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       zig::ZigCoreServices, zig::ZigSharedCoreServices,
       zig::install_core_module>();
   if (!zig_audit::modern_cases(language.language)) return 1;
@@ -56,7 +56,7 @@ int main() {
       if (!result.diagnostics.empty())
         return fail(name + " carries an unexpected diagnostic");
       if (result.value == nullptr ||
-          result.value->type != &cursiv::ast_type_tag<zig::ast::ContainerMembers>)
+          result.value->type != &cursiv::kAstTypeTag<zig::ast::ContainerMembers>)
         return fail(name + " built no ContainerMembers root");
     }
   }
@@ -86,7 +86,7 @@ int main() {
       return fail("f1.zig does not hold the three declarations it wrote");
     const auto* const first =
         static_cast<const zig::ast::Decl*>(root->members[0]);
-    if (first->type != &cursiv::ast_type_tag<zig::ast::Decl>)
+    if (first->type != &cursiv::kAstTypeTag<zig::ast::Decl>)
       return fail("f1.zig's first member is not a Decl");
     if (!first->docComment || *first->docComment != "///doc comment")
       return fail("f1.zig's doc comment did not read back");
@@ -97,7 +97,7 @@ int main() {
       return fail("f1.zig's `const v` did not read back");
     if (first->varDecl->value == nullptr ||
         first->varDecl->value->type !=
-            &cursiv::ast_type_tag<zig::ast::StringLiteral>)
+            &cursiv::kAstTypeTag<zig::ast::StringLiteral>)
       return fail("f1.zig's `v`'s initializer did not read back");
   }
 
@@ -116,20 +116,20 @@ int main() {
       return fail("f2.zig's main does not hold its six statements");
     const auto& stmts = main->body->statements;
     for (std::size_t i = 0; i < 4; ++i)
-      if (stmts[i]->type != &cursiv::ast_type_tag<zig::ast::VarDeclExprStmt>)
+      if (stmts[i]->type != &cursiv::kAstTypeTag<zig::ast::VarDeclExprStmt>)
         return fail("f2.zig's declarations are not plain statements");
     const auto* const outer = static_cast<const zig::ast::Loop*>(stmts[4]);
-    if (outer->type != &cursiv::ast_type_tag<zig::ast::Loop> ||
-        outer->thenBranch->type != &cursiv::ast_type_tag<zig::ast::Block>)
+    if (outer->type != &cursiv::kAstTypeTag<zig::ast::Loop> ||
+        outer->thenBranch->type != &cursiv::kAstTypeTag<zig::ast::Block>)
       return fail("f2.zig's while is not a loop over a block");
     const auto& inner =
         static_cast<const zig::ast::Block*>(outer->thenBranch)->statements;
     if (inner.size() != 2 ||
-        inner[1]->type != &cursiv::ast_type_tag<zig::ast::Loop> ||
+        inner[1]->type != &cursiv::kAstTypeTag<zig::ast::Loop> ||
         static_cast<const zig::ast::Loop*>(inner[1])->thenBranch->type !=
-            &cursiv::ast_type_tag<zig::ast::AssignExpr>)
+            &cursiv::kAstTypeTag<zig::ast::AssignExpr>)
       return fail("f2.zig's inner while does not loop over its assignment");
-    if (stmts[5]->type != &cursiv::ast_type_tag<zig::ast::Loop> ||
+    if (stmts[5]->type != &cursiv::kAstTypeTag<zig::ast::Loop> ||
         static_cast<const zig::ast::Loop*>(stmts[5])->forPrefix == nullptr)
       return fail("f2.zig's for is not a statement of its own");
   }
@@ -145,9 +145,9 @@ int main() {
     const auto* const decl = static_cast<const zig::ast::Decl*>(root->members[0]);
     const auto* const value =
         decl->varDecl == nullptr ? nullptr : decl->varDecl->value;
-    if (value == nullptr || value->type != &cursiv::ast_type_tag<zig::ast::IfExpr> ||
+    if (value == nullptr || value->type != &cursiv::kAstTypeTag<zig::ast::IfExpr> ||
         static_cast<const zig::ast::IfExpr*>(value)->elseBranch->type !=
-            &cursiv::ast_type_tag<zig::ast::BinaryExpr>)
+            &cursiv::kAstTypeTag<zig::ast::BinaryExpr>)
       return fail("`else c + 1` did not stay in the if-expression");
   }
 

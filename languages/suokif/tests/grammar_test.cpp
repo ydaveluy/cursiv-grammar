@@ -25,7 +25,7 @@ int fail(const std::filesystem::path& file, const char* what) {
 
 int main() {
   if (!native_regressions::run()) return 1;
-  const auto language = cursiv::create_language<
+  const auto language = cursiv::createLanguage<
       suokif::SuokifCoreServices, suokif::SuokifSharedCoreServices,
       suokif::install_core_module>();
 
@@ -48,7 +48,7 @@ int main() {
 
     const cursiv::AstNode* const root = result.value;
     if (root == nullptr ||
-        root->type != &cursiv::ast_type_tag<suokif::ast::Document>)
+        root->type != &cursiv::kAstTypeTag<suokif::ast::Document>)
       return fail(path, "built no Document");
   }
   if (total == 0) return fail(CURSIV_EXAMPLE_DIR, "no example found");

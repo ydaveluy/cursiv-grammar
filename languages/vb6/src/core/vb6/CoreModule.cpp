@@ -9,7 +9,7 @@
 namespace vb6 {
 
 void install_core_module(Vb6CoreServices& services) {
-  vb6::generated::Vb6::install_generated_module(services);
+  vb6::generated::Vb6::installGeneratedModule(services);
   register_validation_checks(services);
 }
 

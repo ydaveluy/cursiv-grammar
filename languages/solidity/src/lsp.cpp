@@ -5,7 +5,7 @@
 #include "solidity/LspModule.hpp"
 
 int main(int argc, char** argv) {
-  return cursiv::run_language_server_main<
+  return cursiv::runLanguageServerMain<
       solidity::SoliditySharedServices>(
       argc, argv, "solidity-lsp", &solidity::register_lsp_services);
 }

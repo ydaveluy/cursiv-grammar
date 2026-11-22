@@ -10,7 +10,7 @@
 namespace native_regressions {
 inline bool run() {
   using namespace std::literals;
-  auto parser = graphemes::generated::Graphemes::create_parser();
+  auto parser = graphemes::generated::Graphemes::createParser();
   bool ok = true;
   const auto check = [&](std::string_view text, std::initializer_list<std::string_view> expected) {
     const auto parsed = parser->parse(text);
