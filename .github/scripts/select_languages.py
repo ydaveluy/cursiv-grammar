@@ -11,8 +11,9 @@ unknown path also selects everything conservatively: a new build dependency
 must not silently escape CI. Changes within a language select that existing
 language, including its documentation. Deleted/incomplete ports are filtered.
 
-The selection is dealt round-robin into at most SHARDS shards, each built in
-one tree. An empty selection has a zero count; the workflow then skips its builds.
+The selection is split into two groups, each one job matrix with one entry
+per language. An empty selection has a zero count and two empty groups; the
+workflow then skips its builds.
 """
 
 import argparse
@@ -24,12 +25,12 @@ import sys
 
 
 EVENTS = ("push", "repository_dispatch")
-# Build trees per compiler: each builds Cursiv once, and the shards run side by side.
-SHARDS = 4
+# The entries a job matrix may hold.
+MAX_GROUP_SIZE = 256
 
 
 class SelectionError(ValueError):
-    """A selection cannot be made for this event."""
+    """A selection cannot be represented as two job matrices."""
 
 
 def inventory(repo: Path) -> list[str]:
@@ -66,12 +67,16 @@ def resolve_commit(repo: Path, ref: str) -> str | None:
 
 
 def result(languages: list[str], reason: str) -> dict:
-    count = min(SHARDS, len(languages))
+    if len(languages) > 2 * MAX_GROUP_SIZE:
+        raise SelectionError(
+            f"{len(languages)} languages selected; the two groups hold "
+            f"at most {2 * MAX_GROUP_SIZE} ({MAX_GROUP_SIZE} each)"
+        )
+    middle = (len(languages) + 1) // 2
     return {
         "languages": languages,
-        "shards": [
-            {"index": i + 1, "languages": languages[i::count]} for i in range(count)
-        ],
+        "group_1": languages[:middle],
+        "group_2": languages[middle:],
         "count": len(languages),
         "reason": reason,
     }

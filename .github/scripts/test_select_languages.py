@@ -64,7 +64,8 @@ class SelectLanguagesTest(unittest.TestCase):
         head = self.commit()
         selected = self.select(head=head)
         self.assertEqual(selected["languages"], ["alpha"])
-        self.assertEqual(selected["shards"], [{"index": 1, "languages": ["alpha"]}])
+        self.assertEqual(selected["group_1"], ["alpha"])
+        self.assertEqual(selected["group_2"], [])
         self.assertEqual(selected["count"], 1)
 
     def test_push_compares_both_endpoints(self):
@@ -183,21 +184,24 @@ class SelectLanguagesTest(unittest.TestCase):
         shutil.rmtree(self.repo / "languages")
         selected = self.select(event="repository_dispatch")
         self.assertEqual(selected["languages"], [])
-        self.assertEqual(selected["shards"], [])
+        self.assertEqual(selected["group_1"], [])
+        self.assertEqual(selected["group_2"], [])
         self.assertEqual(selected["count"], 0)
 
-    def test_languages_are_dealt_into_at_most_the_shard_count(self):
-        for name in ["gamma", "delta", "epsilon", "zeta"]:
-            self.port(name)
-        self.commit()
+    def test_languages_split_into_two_balanced_groups(self):
+        for number in range(313):
+            self.port(f"port-{number:03d}")
         selected = self.select(event="repository_dispatch")
-        shards = selected["shards"]
-        self.assertEqual([shard["index"] for shard in shards],
-                         list(range(1, selector.SHARDS + 1)))
-        dealt = sorted(name for shard in shards for name in shard["languages"])
-        self.assertEqual(dealt, selected["languages"])
-        sizes = [len(shard["languages"]) for shard in shards]
-        self.assertLessEqual(max(sizes) - min(sizes), 1)
+        self.assertEqual(selected["count"], 315)
+        self.assertEqual(len(selected["group_1"]), 158)
+        self.assertEqual(len(selected["group_2"]), 157)
+        self.assertEqual(selected["group_1"] + selected["group_2"], selected["languages"])
+
+    def test_more_languages_than_two_groups_hold_are_refused(self):
+        for number in range(2 * selector.MAX_GROUP_SIZE - 1):
+            self.port(f"port-{number:03d}")
+        with self.assertRaisesRegex(selector.SelectionError, "513.*at most 512"):
+            self.select(event="repository_dispatch")
 
     def test_cli_prints_the_selection_and_writes_github_outputs(self):
         self.write("languages/alpha/src/source.cpp")
@@ -227,7 +231,8 @@ class SelectLanguagesTest(unittest.TestCase):
         )
         self.assertEqual(outputs["existing"], "preserved")
         self.assertEqual(json.loads(outputs["languages"]), ["alpha"])
-        self.assertEqual(json.loads(outputs["shards"]), [{"index": 1, "languages": ["alpha"]}])
+        self.assertEqual(json.loads(outputs["group_1"]), ["alpha"])
+        self.assertEqual(json.loads(outputs["group_2"]), [])
         self.assertEqual(outputs["count"], "1")
         self.assertEqual(outputs["reason"], selected["reason"])
 

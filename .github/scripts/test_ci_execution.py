@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 import report
-import run_languages
+import run_language
 
 
 class ExecutionTests(unittest.TestCase):
@@ -17,19 +17,19 @@ class ExecutionTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        source = self.root / 'languages' / 'csv'
+        source.mkdir(parents=True)
+        (source / 'CMakeLists.txt').write_text('project(csv)\n')
         tools = self.root / 'bin'
         tools.mkdir()
-        # CI_TEST_<STAGE> is the exit code of a stage; CI_TEST_ONLY limits it to
-        # commands with an argument containing that text.
+        # CI_TEST_<STAGE> is the exit code of a stage.
         fake = """#!/usr/bin/env python3
 import json, os, pathlib, sys
 stage = 'test' if pathlib.Path(sys.argv[0]).name == 'ctest' else ('build' if '--build' in sys.argv else 'configure')
 with open(os.environ['CI_TEST_COMMANDS'], 'a') as log:
     log.write(json.dumps({'stage': stage, 'args': sys.argv[1:]}) + '\\n')
 print(stage + ' output')
-only = os.environ.get('CI_TEST_ONLY')
-code = int(os.environ.get('CI_TEST_' + stage.upper(), '0'))
-sys.exit(code if only is None or any(only in arg for arg in sys.argv[1:]) else 0)
+sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
 """
         for name in ['cmake', 'ctest']:
             tool = tools / name
@@ -44,67 +44,56 @@ sys.exit(code if only is None or any(only in arg for arg in sys.argv[1:]) else 0
         self.addCleanup(self.environment.stop)
         self.results = self.root / 'build' / 'ci-results'
 
-    def run_languages(self, languages=('csv', 'json')):
+    def run_language(self):
         with contextlib.redirect_stdout(io.StringIO()):
-            code = run_languages.run(self.root, list(languages), 'GCC', self.root / 'cursiv')
-        data = {language: json.loads((self.results / f'{language}-GCC.json').read_text())
-                for language in languages}
+            code = run_language.run(self.root, 'csv', 'GCC', self.root / 'cursiv')
+        data = json.loads((self.results / 'csv-GCC.json').read_text())
         commands = [json.loads(s) for s in (self.root / 'commands').read_text().splitlines()]
         return code, data, commands
 
-    def test_one_tree_builds_every_language_then_checks_each(self):
-        code, data, commands = self.run_languages()
+    def test_the_language_builds_against_the_installed_cursiv(self):
+        code, data, commands = self.run_language()
         self.assertEqual(code, 0)
-        self.assertEqual([d['status'] for d in data.values()], ['OK', 'OK'])
-        self.assertEqual([c['stage'] for c in commands],
-                         ['configure', 'build', 'build', 'test', 'build', 'test'])
+        self.assertEqual(data['status'], 'OK')
+        self.assertEqual([c['stage'] for c in commands], ['configure', 'build', 'test'])
         configure = commands[0]['args']
-        self.assertIn('-DCURSIV_GRAMMARS=csv;json', configure)
+        self.assertIn(str((self.root / 'languages' / 'csv').resolve()), configure)
+        self.assertIn(f"-DCMAKE_PREFIX_PATH={(self.root / 'cursiv').resolve()}", configure)
+        self.assertIn('-DFETCHCONTENT_FULLY_DISCONNECTED=ON', configure)
         self.assertIn('-DCMAKE_CXX_FLAGS=-Wall -Wextra -Werror', configure)
-        self.assertEqual(commands[1]['args'][-3:], ['--', '-k', '0'])
-        self.assertEqual(commands[2]['args'][-2:], ['--target', 'languages/csv/all'])
-        self.assertIn(str(self.root / 'build' / 'ci' / 'GCC' / 'languages' / 'json'),
-                      commands[5]['args'])
-        self.assertIn('--no-tests=error', commands[5]['args'])
+        self.assertIn('--no-tests=error', commands[2]['args'])
         # One table for the whole run comes from the report, none per build.
         self.assertFalse((self.root / 'summary').exists())
 
-    def test_configure_failure_fails_every_language(self):
+    def test_configure_failure_stops_the_language(self):
         with patch.dict(os.environ, {'CI_TEST_CONFIGURE': '2'}):
-            code, data, commands = self.run_languages()
+            code, data, commands = self.run_language()
         self.assertEqual(code, 1)
+        self.assertEqual(data['status'], 'KO')
         self.assertEqual(len(commands), 1)
-        for result in data.values():
-            self.assertEqual(result['status'], 'KO')
-            self.assertEqual(result['stages'][-1]['log'], 'GCC-configure.log')
-        self.assertTrue((self.results / 'GCC-configure.log').exists())
+        self.assertTrue((self.results / 'csv-GCC-configure.log').exists())
 
-    def test_build_failure_spares_the_other_languages(self):
-        with patch.dict(os.environ, {'CI_TEST_BUILD': '2', 'CI_TEST_ONLY': 'languages/csv/all'}):
-            code, data, _ = self.run_languages()
+    def test_build_failure_cannot_report_success(self):
+        with patch.dict(os.environ, {'CI_TEST_BUILD': '2'}):
+            code, data, commands = self.run_language()
         self.assertEqual(code, 1)
-        self.assertEqual(data['csv']['status'], 'KO')
-        self.assertEqual(data['csv']['stages'][-1]['stage'], 'build')
-        self.assertTrue((self.results / 'csv-GCC-build.log').exists())
-        self.assertEqual(data['json']['status'], 'OK')
-
-    def test_a_failed_whole_build_alone_is_no_verdict(self):
-        with patch.dict(os.environ, {'CI_TEST_BUILD': '2', 'CI_TEST_ONLY': '-k'}):
-            code, data, _ = self.run_languages()
-        self.assertEqual(code, 0)
-        self.assertEqual([d['status'] for d in data.values()], ['OK', 'OK'])
+        self.assertEqual(data['status'], 'KO')
+        self.assertEqual(data['stages'][-1]['stage'], 'build')
+        self.assertEqual(len(commands), 2)
 
     def test_test_failure_cannot_report_success(self):
-        with patch.dict(os.environ, {'CI_TEST_TEST': '8', 'CI_TEST_ONLY': 'languages/json'}):
-            code, data, _ = self.run_languages()
+        with patch.dict(os.environ, {'CI_TEST_TEST': '8'}):
+            code, data, commands = self.run_language()
         self.assertEqual(code, 1)
-        self.assertEqual(data['json']['status'], 'KO')
-        self.assertEqual(data['json']['stages'][-1]['exit_code'], 8)
-        self.assertEqual(data['csv']['status'], 'OK')
+        self.assertEqual(data['status'], 'KO')
+        self.assertEqual(data['stages'][-1]['exit_code'], 8)
+        self.assertEqual(len(commands), 3)
 
-    def test_empty_selection_cannot_build_every_language(self):
-        with self.assertRaises(ValueError):
-            run_languages.run(self.root, [], 'GCC', self.root / 'cursiv')
+    def test_a_parent_path_is_no_language(self):
+        (self.root / 'CMakeLists.txt').write_text('project(all)\n')
+        for language in ['..', 'csv/..', 'missing']:
+            with self.assertRaises(ValueError):
+                run_language.run(self.root, language, 'GCC', self.root / 'cursiv')
         self.assertFalse((self.root / 'commands').exists())
 
 

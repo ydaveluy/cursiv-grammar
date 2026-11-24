@@ -1,0 +1,66 @@
+name: Build one language
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        required: true
+        type: string
+      # The cache key of the installed Cursiv, without its compiler.
+      cursiv:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.compiler }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      # One build per compiler: GCC and Clang flag different faults in a
+      # port's own code.
+      matrix:
+        include:
+          - compiler: GCC
+            container: gcc:16
+            cc: gcc
+            cxx: g++
+          - compiler: Clang
+            container: ""
+            cc: clang-22
+            cxx: clang++-22
+    container: ${{ matrix.container }}
+    env:
+      LANGUAGE: ${{ inputs.language }}
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install GCC build tools
+        if: matrix.compiler == 'GCC'
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends cmake ninja-build python3
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/cursiv-install
+          key: ${{ inputs.cursiv }}-${{ matrix.compiler }}
+          fail-on-cache-miss: true
+      - name: Build and test
+        run: >-
+          python3 .github/scripts/run_language.py --language "$LANGUAGE"
+          --compiler "${{ matrix.compiler }}" --cursiv .cache/cursiv-install
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: ci-${{ inputs.language }}-${{ matrix.compiler }}
+          path: build/ci-results/
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 7

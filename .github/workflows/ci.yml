@@ -21,9 +21,11 @@ jobs:
     runs-on: ubuntu-26.04
     outputs:
       languages: ${{ steps.select.outputs.languages }}
-      shards: ${{ steps.select.outputs.shards }}
+      group_1: ${{ steps.select.outputs.group_1 }}
+      group_2: ${{ steps.select.outputs.group_2 }}
       count: ${{ steps.select.outputs.count }}
       engine_sha: ${{ steps.engine.outputs.sha }}
+      cursiv: ${{ steps.engine.outputs.package }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -49,23 +51,24 @@ jobs:
       - name: Record Cursiv revision
         id: engine
         if: steps.select.outputs.count != '0'
+        env:
+          RECIPE: ${{ hashFiles('.github/workflows/ci.yml') }}
         run: |
           revision=$(git -C .cache/cursiv-engine rev-parse HEAD)
           echo "sha=$revision" >> "$GITHUB_OUTPUT"
+          # The cache key of the installed Cursiv, which each compiler completes.
+          echo "package=cursiv-$revision-$RECIPE" >> "$GITHUB_OUTPUT"
           echo "Cursiv: $revision" >> "$GITHUB_STEP_SUMMARY"
 
-  # One tree per compiler and shard: each builds Cursiv once, and Ninja overlaps
-  # its languages. GCC and Clang flag different faults in a language's own code.
-  build:
-    name: ${{ matrix.compiler }} ${{ matrix.shard.index }}
+  # Cursiv is built and installed once per compiler, and kept for the later
+  # runs on the same revision. Every language job links that package.
+  engine:
+    name: Cursiv / ${{ matrix.compiler }}
     needs: select
     if: needs.select.outputs.count != '0'
     runs-on: ubuntu-26.04
     strategy:
-      fail-fast: false
       matrix:
-        compiler: [GCC, Clang]
-        shard: ${{ fromJSON(needs.select.outputs.shards) }}
         include:
           - compiler: GCC
             container: gcc:16
@@ -77,52 +80,67 @@ jobs:
             cxx: clang++-22
     container: ${{ matrix.container }}
     env:
-      CI_LANGUAGES: ${{ toJSON(matrix.shard.languages) }}
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
-      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: package
         with:
-          persist-credentials: false
+          path: .cache/cursiv-install
+          key: ${{ needs.select.outputs.cursiv }}-${{ matrix.compiler }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.package.outputs.cache-hit != 'true'
         with:
           repository: ydaveluy/cursiv
           ref: ${{ needs.select.outputs.engine_sha }}
-          path: .cache/cursiv-engine
+          path: cursiv
           persist-credentials: false
       - name: Install GCC build tools
-        if: matrix.compiler == 'GCC'
+        if: steps.package.outputs.cache-hit != 'true' && matrix.compiler == 'GCC'
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends cmake git ninja-build python3 ccache
-      - name: Install Clang build tools
-        if: matrix.compiler == 'Clang'
+          apt-get install -y --no-install-recommends cmake git ninja-build
+      - name: Build and install Cursiv
+        if: steps.package.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ccache
-      - name: Configure ccache
-        run: ccache --max-size 1G
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .cache/ccache
-          key: ubuntu26-${{ matrix.compiler }}-${{ needs.select.outputs.engine_sha }}-${{ hashFiles('.github/workflows/ci.yml', '.github/scripts/run_languages.py') }}
-      - name: Build and test
-        run: >-
-          python3 .github/scripts/run_languages.py --compiler "${{ matrix.compiler }}"
-          --cursiv-source .cache/cursiv-engine
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
-        with:
-          name: ci-${{ matrix.compiler }}-${{ matrix.shard.index }}
-          path: build/ci-results/
-          if-no-files-found: warn
-          overwrite: true
-          retention-days: 7
+          cmake -S cursiv -B cursiv/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCURSIV_BUILD_TESTS=OFF
+          cmake --build cursiv/build --target src/all
+          cmake --install cursiv/build --prefix .cache/cursiv-install
+
+  # A matrix holds at most 256 entries: two groups, one entry per language.
+  # Four languages of each group build at a time, under both compilers:
+  # sixteen jobs.
+  languages_1:
+    name: ${{ matrix.language }}
+    needs: [select, engine]
+    if: needs.select.outputs.group_1 != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        language: ${{ fromJSON(needs.select.outputs.group_1) }}
+    uses: ./.github/workflows/language.yml
+    with:
+      language: ${{ matrix.language }}
+      cursiv: ${{ needs.select.outputs.cursiv }}
+
+  languages_2:
+    name: ${{ matrix.language }}
+    needs: [select, engine]
+    if: needs.select.outputs.group_2 != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        language: ${{ fromJSON(needs.select.outputs.group_2) }}
+    uses: ./.github/workflows/language.yml
+    with:
+      language: ${{ matrix.language }}
+      cursiv: ${{ needs.select.outputs.cursiv }}
 
   report:
     name: Language results
-    needs: [select, build]
+    needs: [select, languages_1, languages_2]
     if: always() && needs.select.result == 'success'
     runs-on: ubuntu-26.04
     steps:
