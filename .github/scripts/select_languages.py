@@ -11,7 +11,8 @@ unknown path also selects everything conservatively: a new build dependency
 must not silently escape CI. Changes within a language select that existing
 language, including its documentation. Deleted/incomplete ports are filtered.
 
-An empty selection has a zero count; the workflow then skips its builds.
+The selection is dealt round-robin into at most SHARDS shards, each built in
+one tree. An empty selection has a zero count; the workflow then skips its builds.
 """
 
 import argparse
@@ -23,6 +24,8 @@ import sys
 
 
 EVENTS = ("push", "repository_dispatch")
+# Build trees per compiler: each builds Cursiv once, and the shards run side by side.
+SHARDS = 4
 
 
 class SelectionError(ValueError):
@@ -63,8 +66,12 @@ def resolve_commit(repo: Path, ref: str) -> str | None:
 
 
 def result(languages: list[str], reason: str) -> dict:
+    count = min(SHARDS, len(languages))
     return {
         "languages": languages,
+        "shards": [
+            {"index": i + 1, "languages": languages[i::count]} for i in range(count)
+        ],
         "count": len(languages),
         "reason": reason,
     }
