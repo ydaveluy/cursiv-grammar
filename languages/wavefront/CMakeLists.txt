@@ -2,14 +2,15 @@ cmake_minimum_required(VERSION 3.30)
 project(wavefront LANGUAGES CXX)
 
 include(FetchContent)
-# A local checkout wins over the tag: `-DCURSIV_SOURCE_DIR=<path>` is how you
-# build this language against an engine you are also editing.
+# An installed Cursiv is used when CMake finds one, and `main` is downloaded
+# otherwise. `-DCURSIV_SOURCE_DIR=<path>` builds against a local checkout.
 if(CURSIV_SOURCE_DIR)
   FetchContent_Declare(cursiv SOURCE_DIR ${CURSIV_SOURCE_DIR})
 else()
   FetchContent_Declare(cursiv
       GIT_REPOSITORY https://github.com/ydaveluy/cursiv.git
-      GIT_TAG        main)
+      GIT_TAG        main
+      FIND_PACKAGE_ARGS CONFIG)
 endif()
 FetchContent_MakeAvailable(cursiv)
 

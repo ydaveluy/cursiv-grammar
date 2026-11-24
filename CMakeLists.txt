@@ -10,7 +10,8 @@ if(CURSIV_SOURCE_DIR)
 else()
   FetchContent_Declare(cursiv
       GIT_REPOSITORY https://github.com/ydaveluy/cursiv.git
-      GIT_TAG        main)
+      GIT_TAG        main
+      FIND_PACKAGE_ARGS CONFIG)
 endif()
 FetchContent_MakeAvailable(cursiv)
 
