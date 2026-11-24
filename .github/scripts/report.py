@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Render one OK / KO table of every language; a missing or failed build fails it."""
-import argparse
+"""Render one OK / KO table of the languages in CI_LANGUAGES; a missing or failed build fails it."""
 import json
 import os
 from pathlib import Path
@@ -48,13 +47,8 @@ def report(languages, results):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--results', type=Path, default=Path('build/ci-results'))
-    parser.add_argument('--language')
-    parser.add_argument('--languages', default=os.environ.get('CI_LANGUAGES', '[]'))
-    args = parser.parse_args()
-    languages = [args.language] if args.language else json.loads(args.languages)
-    markdown, failed = report(languages, args.results)
+    languages = json.loads(os.environ.get('CI_LANGUAGES', '[]'))
+    markdown, failed = report(languages, Path(__file__).resolve().parents[2] / 'build' / 'ci-results')
     print(markdown)
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as stream:

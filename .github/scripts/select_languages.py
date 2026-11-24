@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Select independent language CI jobs from the checked-out language inventory.
+"""Select the languages to build from the checked-out language inventory.
 
 The checkout supplies languages/* containing both CMakeLists.txt and src/.
-Pushes compare base..head. Missing history selects every language, as do a
-Cursiv dispatch and --force-all.
+Pushes compare base..head. Missing history selects every language, as does a
+Cursiv dispatch.
 
 Root README files and doc/, docs/ are documentation-only. Changes in
 bench/, .github/ or root CMake configuration select everything. Any other
@@ -11,8 +11,7 @@ unknown path also selects everything conservatively: a new build dependency
 must not silently escape CI. Changes within a language select that existing
 language, including its documentation. Deleted/incomplete ports are filtered.
 
-Empty selections have two empty matrix groups, with no placeholder build.
-The workflow must skip its build jobs when their group is empty.
+An empty selection has a zero count; the workflow then skips its builds.
 """
 
 import argparse
@@ -23,12 +22,11 @@ import subprocess
 import sys
 
 
-MAX_GROUP_SIZE = 256
 EVENTS = ("push", "repository_dispatch")
 
 
 class SelectionError(ValueError):
-    """A selection cannot be represented safely as a CI matrix."""
+    """A selection cannot be made for this event."""
 
 
 def inventory(repo: Path) -> list[str]:
@@ -65,17 +63,8 @@ def resolve_commit(repo: Path, ref: str) -> str | None:
 
 
 def result(languages: list[str], reason: str) -> dict:
-    if len(languages) > 2 * MAX_GROUP_SIZE:
-        raise SelectionError(
-            f"{len(languages)} languages selected; the two CI groups support "
-            f"at most {2 * MAX_GROUP_SIZE} languages "
-            f"({MAX_GROUP_SIZE} per group)"
-        )
-    middle = (len(languages) + 1) // 2
     return {
         "languages": languages,
-        "group_1": languages[:middle],
-        "group_2": languages[middle:],
         "count": len(languages),
         "reason": reason,
     }
@@ -94,13 +83,10 @@ def select_languages(
     base: str,
     head: str,
     event: str,
-    force_all: bool = False,
 ) -> dict:
     if event not in EVENTS:
         raise SelectionError(f"unsupported event: {event}")
     available = inventory(repo)
-    if force_all:
-        return result(available, "force-all")
     if event == "repository_dispatch":
         return result(available, "cursiv-dispatch")
 
@@ -151,8 +137,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base", default="", help="push before SHA")
     parser.add_argument("--head", default="HEAD", help="push head SHA")
     parser.add_argument("--event", required=True, choices=EVENTS)
-    parser.add_argument("--force-all", action="store_true")
-    parser.add_argument("--output", type=Path, help="also write the selection as JSON")
     args = parser.parse_args(argv)
     try:
         selection = select_languages(
@@ -160,12 +144,8 @@ def main(argv: list[str] | None = None) -> int:
             base=args.base,
             head=args.head,
             event=args.event,
-            force_all=args.force_all,
         )
         encoded = json.dumps(selection, ensure_ascii=True)
-        if args.output:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(encoded + "\n", encoding="utf-8")
         if output := os.environ.get("GITHUB_OUTPUT"):
             with open(output, "a", encoding="utf-8") as stream:
                 for key, value in selection.items():

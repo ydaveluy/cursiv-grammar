@@ -51,13 +51,12 @@ class SelectLanguagesTest(unittest.TestCase):
         self.git("commit", "-q", "-m", "test revision")
         return self.git("rev-parse", "HEAD")
 
-    def select(self, *, base=None, head="HEAD", event="push", force_all=False):
+    def select(self, *, base=None, head="HEAD", event="push"):
         return selector.select_languages(
             self.repo,
             base=self.base if base is None else base,
             head=head,
             event=event,
-            force_all=force_all,
         )
 
     def test_push_selects_only_changed_language(self):
@@ -65,8 +64,6 @@ class SelectLanguagesTest(unittest.TestCase):
         head = self.commit()
         selected = self.select(head=head)
         self.assertEqual(selected["languages"], ["alpha"])
-        self.assertEqual(selected["group_1"], ["alpha"])
-        self.assertEqual(selected["group_2"], [])
         self.assertEqual(selected["count"], 1)
 
     def test_push_compares_both_endpoints(self):
@@ -112,8 +109,6 @@ class SelectLanguagesTest(unittest.TestCase):
         self.commit()
         selected = self.select()
         self.assertEqual(selected["languages"], [])
-        self.assertEqual(selected["group_1"], [])
-        self.assertEqual(selected["group_2"], [])
         self.assertEqual(selected["count"], 0)
         self.assertEqual(selected["reason"], "no-existing-languages-changed")
 
@@ -165,12 +160,10 @@ class SelectLanguagesTest(unittest.TestCase):
         self.assertEqual(selected["languages"], ["alpha", "beta"])
         self.assertEqual(selected["reason"], "unknown-files-changed")
 
-    def test_empty_diff_ignores_uncommitted_files_and_has_empty_groups(self):
+    def test_empty_diff_ignores_uncommitted_files(self):
         self.write("languages/alpha/src/source.cpp", "// not in the event commits\n")
         selected = self.select(head=self.base)
         self.assertEqual(selected["count"], 0)
-        self.assertEqual(selected["group_1"], [])
-        self.assertEqual(selected["group_2"], [])
         self.assertEqual(selected["reason"], "no-changes")
 
     def test_incomplete_ports_are_not_in_the_inventory(self):
@@ -180,54 +173,30 @@ class SelectLanguagesTest(unittest.TestCase):
         self.assertEqual(self.select()["languages"], [])
         self.assertEqual(selector.inventory(self.repo), ["alpha", "beta"])
 
-    def test_cursiv_dispatch_and_forced_runs_select_every_language(self):
-        self.assertEqual(
-            self.select(event="repository_dispatch")["languages"], ["alpha", "beta"]
-        )
-        self.assertEqual(self.select(force_all=True)["reason"], "force-all")
-
-    def test_316_languages_split_into_two_balanced_groups(self):
-        for number in range(314):
-            self.port(f"port-{number:03d}")
-        selected = self.select(force_all=True)
-        self.assertEqual(selected["count"], 316)
-        self.assertEqual(len(selected["group_1"]), 158)
-        self.assertEqual(len(selected["group_2"]), 158)
-        self.assertEqual(
-            selected["group_1"] + selected["group_2"], selected["languages"]
-        )
-        self.assertEqual(len(set(selected["languages"])), 316)
-
-    def test_matrix_limit_is_explicit_and_512_is_supported(self):
-        for number in range(510):
-            self.port(f"port-{number:03d}")
-        selected = self.select(force_all=True)
-        self.assertEqual(len(selected["group_1"]), 256)
-        self.assertEqual(len(selected["group_2"]), 256)
-        self.port("one-too-many")
-        with self.assertRaisesRegex(selector.SelectionError, "513.*at most 512"):
-            self.select(force_all=True)
+    def test_cursiv_dispatch_selects_every_language(self):
+        selected = self.select(event="repository_dispatch")
+        self.assertEqual(selected["languages"], ["alpha", "beta"])
+        self.assertEqual(selected["reason"], "cursiv-dispatch")
 
     def test_empty_inventory_is_supported(self):
         shutil.rmtree(self.repo / "languages")
-        selected = self.select(force_all=True)
+        selected = self.select(event="repository_dispatch")
         self.assertEqual(selected["languages"], [])
         self.assertEqual(selected["count"], 0)
 
-    def test_cli_writes_matching_json_and_github_outputs(self):
+    def test_cli_prints_the_selection_and_writes_github_outputs(self):
         self.write("languages/alpha/src/source.cpp")
         head = self.commit()
         script = self.repo / ".github/scripts/select_languages.py"
         script.parent.mkdir(parents=True)
         shutil.copyfile(Path(selector.__file__), script)
-        output = self.repo / "results/selection.json"
         github_output = self.repo / "github-output"
         github_output.write_text("existing=preserved\n", encoding="utf-8")
         env = dict(self.env, GITHUB_OUTPUT=str(github_output))
         completed = subprocess.run(
             [
                 sys.executable, str(script), "--base", self.base, "--head", head,
-                "--event", "push", "--output", str(output),
+                "--event", "push",
             ],
             cwd=self.repo.parent,
             env=env,
@@ -236,7 +205,6 @@ class SelectLanguagesTest(unittest.TestCase):
             text=True,
         )
         selected = json.loads(completed.stdout)
-        self.assertEqual(selected, json.loads(output.read_text(encoding="utf-8")))
         self.assertEqual(selected["languages"], ["alpha"])
         outputs = dict(
             line.split("=", 1)
@@ -244,8 +212,6 @@ class SelectLanguagesTest(unittest.TestCase):
         )
         self.assertEqual(outputs["existing"], "preserved")
         self.assertEqual(json.loads(outputs["languages"]), ["alpha"])
-        self.assertEqual(json.loads(outputs["group_1"]), ["alpha"])
-        self.assertEqual(json.loads(outputs["group_2"]), [])
         self.assertEqual(outputs["count"], "1")
         self.assertEqual(outputs["reason"], selected["reason"])
 

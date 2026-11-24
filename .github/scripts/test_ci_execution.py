@@ -1,5 +1,4 @@
 """Check CI failure propagation and visible per-language verdicts."""
-import argparse
 import contextlib
 import io
 import json
@@ -10,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 import report
-import run_language
+import run_languages
 
 
 class ExecutionTests(unittest.TestCase):
@@ -18,19 +17,20 @@ class ExecutionTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        source = self.root / 'languages' / 'csv'
-        source.mkdir(parents=True)
-        (source / 'CMakeLists.txt').write_text('project(csv)\n')
         tools = self.root / 'bin'
         tools.mkdir()
-        fake = '''#!/usr/bin/env python3
+        # CI_TEST_<STAGE> is the exit code of a stage; CI_TEST_ONLY limits it to
+        # commands with an argument containing that text.
+        fake = """#!/usr/bin/env python3
 import json, os, pathlib, sys
 stage = 'test' if pathlib.Path(sys.argv[0]).name == 'ctest' else ('build' if '--build' in sys.argv else 'configure')
 with open(os.environ['CI_TEST_COMMANDS'], 'a') as log:
     log.write(json.dumps({'stage': stage, 'args': sys.argv[1:]}) + '\\n')
 print(stage + ' output')
-sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
-'''
+only = os.environ.get('CI_TEST_ONLY')
+code = int(os.environ.get('CI_TEST_' + stage.upper(), '0'))
+sys.exit(code if only is None or any(only in arg for arg in sys.argv[1:]) else 0)
+"""
         for name in ['cmake', 'ctest']:
             tool = tools / name
             tool.write_text(fake)
@@ -42,68 +42,69 @@ sys.exit(int(os.environ.get('CI_TEST_' + stage.upper(), '0')))
         })
         self.environment.start()
         self.addCleanup(self.environment.stop)
-        self.args = argparse.Namespace(repo_root=self.root, language='csv',
-            compiler='GCC', cxx='g++-14', cc='gcc-14', jobs=2,
-            build_root=self.root / 'build', results_dir=self.root / 'results',
-            cursiv_source=self.root / 'cursiv', cmake_arg=[], cxx_flags='', clean_build=False)
+        self.results = self.root / 'build' / 'ci-results'
 
-    def run_variant(self):
+    def run_languages(self, languages=('csv', 'json')):
         with contextlib.redirect_stdout(io.StringIO()):
-            code = run_language.run(self.args)
-        data = json.loads((self.args.results_dir / 'csv-GCC.json').read_text())
+            code = run_languages.run(self.root, list(languages), 'GCC', self.root / 'cursiv')
+        data = {language: json.loads((self.results / f'{language}-GCC.json').read_text())
+                for language in languages}
         commands = [json.loads(s) for s in (self.root / 'commands').read_text().splitlines()]
         return code, data, commands
 
-    def test_build_and_all_ctest_are_required(self):
-        code, data, commands = self.run_variant()
+    def test_one_tree_builds_every_language_then_checks_each(self):
+        code, data, commands = self.run_languages()
         self.assertEqual(code, 0)
-        self.assertEqual(data['status'], 'OK')
-        self.assertEqual([c['stage'] for c in commands], ['configure', 'build', 'test'])
-        self.assertIn('--no-tests=error', commands[-1]['args'])
-        self.assertIn('-DCMAKE_C_COMPILER=gcc-14', commands[0]['args'])
-        self.assertIn('-DCMAKE_CXX_COMPILER=g++-14', commands[0]['args'])
-        self.assertIn('-DCMAKE_CXX_FLAGS=-Wall -Wextra -Werror', commands[0]['args'])
-        self.assertEqual(data['compiler'], 'GCC')
+        self.assertEqual([d['status'] for d in data.values()], ['OK', 'OK'])
+        self.assertEqual([c['stage'] for c in commands],
+                         ['configure', 'build', 'build', 'test', 'build', 'test'])
+        configure = commands[0]['args']
+        self.assertIn('-DCURSIV_GRAMMARS=csv;json', configure)
+        self.assertIn('-DCMAKE_CXX_FLAGS=-Wall -Wextra -Werror', configure)
+        self.assertEqual(commands[1]['args'][-3:], ['--', '-k', '0'])
+        self.assertEqual(commands[2]['args'][-2:], ['--target', 'languages/csv/all'])
+        self.assertIn(str(self.root / 'build' / 'ci' / 'GCC' / 'languages' / 'json'),
+                      commands[5]['args'])
+        self.assertIn('--no-tests=error', commands[5]['args'])
         # One table for the whole run comes from the report, none per build.
         self.assertFalse((self.root / 'summary').exists())
 
-    def test_configure_failure_stops_this_variant(self):
+    def test_configure_failure_fails_every_language(self):
         with patch.dict(os.environ, {'CI_TEST_CONFIGURE': '2'}):
-            code, data, commands = self.run_variant()
+            code, data, commands = self.run_languages()
         self.assertEqual(code, 1)
-        self.assertEqual(data['status'], 'KO')
         self.assertEqual(len(commands), 1)
-        self.assertTrue((self.args.results_dir / 'csv-GCC-configure.log').exists())
+        for result in data.values():
+            self.assertEqual(result['status'], 'KO')
+            self.assertEqual(result['stages'][-1]['log'], 'GCC-configure.log')
+        self.assertTrue((self.results / 'GCC-configure.log').exists())
 
-    def test_build_failure_cannot_report_success(self):
-        with patch.dict(os.environ, {'CI_TEST_BUILD': '2'}):
-            code, data, commands = self.run_variant()
+    def test_build_failure_spares_the_other_languages(self):
+        with patch.dict(os.environ, {'CI_TEST_BUILD': '2', 'CI_TEST_ONLY': 'languages/csv/all'}):
+            code, data, _ = self.run_languages()
         self.assertEqual(code, 1)
-        self.assertEqual(data['stages'][-1]['stage'], 'build')
-        self.assertEqual(len(commands), 2)
-        self.assertEqual(data['status'], 'KO')
+        self.assertEqual(data['csv']['status'], 'KO')
+        self.assertEqual(data['csv']['stages'][-1]['stage'], 'build')
+        self.assertTrue((self.results / 'csv-GCC-build.log').exists())
+        self.assertEqual(data['json']['status'], 'OK')
+
+    def test_a_failed_whole_build_alone_is_no_verdict(self):
+        with patch.dict(os.environ, {'CI_TEST_BUILD': '2', 'CI_TEST_ONLY': '-k'}):
+            code, data, _ = self.run_languages()
+        self.assertEqual(code, 0)
+        self.assertEqual([d['status'] for d in data.values()], ['OK', 'OK'])
 
     def test_test_failure_cannot_report_success(self):
-        with patch.dict(os.environ, {'CI_TEST_TEST': '8'}):
-            code, data, commands = self.run_variant()
+        with patch.dict(os.environ, {'CI_TEST_TEST': '8', 'CI_TEST_ONLY': 'languages/json'}):
+            code, data, _ = self.run_languages()
         self.assertEqual(code, 1)
-        self.assertEqual(data['status'], 'KO')
-        self.assertEqual(data['stages'][-1]['exit_code'], 8)
-        self.assertEqual(len(commands), 3)
+        self.assertEqual(data['json']['status'], 'KO')
+        self.assertEqual(data['json']['stages'][-1]['exit_code'], 8)
+        self.assertEqual(data['csv']['status'], 'OK')
 
-    def test_cleanup_failure_is_not_a_green_result(self):
-        self.args.clean_build = True
-        (self.args.build_root / 'csv-GCC').mkdir(parents=True)
-        with patch.object(run_language.shutil, 'rmtree', side_effect=OSError('cleanup failed')):
-            code, data, _ = self.run_variant()
-        self.assertEqual(code, 1)
-        self.assertEqual(data['status'], 'KO')
-        self.assertEqual(data['stages'][-1]['stage'], 'cleanup')
-
-    def test_parent_path_cannot_build_all_languages(self):
-        self.args.language = '..'
+    def test_empty_selection_cannot_build_every_language(self):
         with self.assertRaises(ValueError):
-            run_language.run(self.args)
+            run_languages.run(self.root, [], 'GCC', self.root / 'cursiv')
         self.assertFalse((self.root / 'commands').exists())
 
 
