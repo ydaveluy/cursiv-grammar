@@ -1,10 +1,6 @@
 cmake_minimum_required(VERSION 3.30)
 project(edif300 LANGUAGES CXX)
 
-# ~670 distinct forms, past DynSet's default 8-word (512-bit) capacity. Must
-# reach cursiv::core itself (added below), not just this project's targets.
-add_compile_definitions(CURSIV_SET_WORDS=16u)
-
 include(FetchContent)
 # A local checkout wins over the tag: `-DCURSIV_SOURCE_DIR=<path>` is how you
 # build this language against an engine you are also editing.

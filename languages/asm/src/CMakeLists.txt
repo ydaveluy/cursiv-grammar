@@ -7,20 +7,6 @@ cursiv_generate_language(ID nasm
     EXTENSIONS .asm
     OUT        nasm/generated)
 
-# The mnemonic and register vocabularies alone are ~2450 terminals, past the
-# default 8-word (512-bit) ceiling of the generator's per-state terminal
-# sets; cursivLrGen (linked into nasm_gen) builds the tables, so it needs
-# the same raised ceiling.
-if(CMAKE_CROSSCOMPILING)
-  cursiv_host_manifest("target_compile_definitions(nasm_gen PRIVATE CURSIV_SET_WORDS=64u)")
-  cursiv_host_manifest("target_compile_definitions(cursivLrGen PRIVATE CURSIV_SET_WORDS=64u)")
-else()
-  target_compile_definitions(nasm_gen PRIVATE CURSIV_SET_WORDS=64u)
-  if(TARGET cursivLrGen)
-    target_compile_definitions(cursivLrGen PRIVATE CURSIV_SET_WORDS=64u)
-  endif()
-endif()
-
 file(GLOB_RECURSE _core CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
 add_library(nasmCore ${_core})
