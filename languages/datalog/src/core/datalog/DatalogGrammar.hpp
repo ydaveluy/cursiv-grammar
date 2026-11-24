@@ -43,7 +43,6 @@ struct Datalog : cursiv::GrammarSpec {
                  many(cr<R"(^\n)">)> {};
 
   struct VARIABLE : terminal<VariableBody + !NameChar> {};
-  struct IDENTIFIER : terminal<some(NameChar)> {};
   struct ATOM : terminal<!((IntegerBody | VariableBody | lit<"true"> |
                             lit<"false">)+!NameChar) +
                          some(NameChar)> {};
@@ -53,7 +52,7 @@ struct Datalog : cursiv::GrammarSpec {
             lit<"\"">)> {};
   struct INTEGER : terminal<IntegerBody + !NameChar> {};
   struct NameValue
-      : rule<ref<IDENTIFIER> | ref<INTEGER> | kw<"true"> | kw<"false">> {};
+      : rule<ref<ATOM> | ref<VARIABLE> | ref<INTEGER> | kw<"true"> | kw<"false">> {};
 
   struct Variable : rule<assign<&ast::Variable::name>(ref<VARIABLE>)> {};
 
