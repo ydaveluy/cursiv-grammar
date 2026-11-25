@@ -264,8 +264,9 @@ struct Restructuredtext : cursiv::GrammarSpec {
       : rule<create<ast::Directive>(
             ref<COMMENT_MARK> +
             assign<&ast::Directive::header>(ref<DIRECTIVE_HEADER>) +
-            (ref<EOL> | ref<BLANK>)+option(
-                assign<&ast::Directive::body>(ref<DirectiveBody>)))> {};
+            (ref<EOL> | ref<BLANK>) +
+            option(assign<&ast::Directive::body>(ref<DirectiveBody>)) +
+            !ref<INDENT>)> {};
   struct LastDirective
       : rule<ref<COMMENT_MARK> +
              assign<&ast::Directive::header>(ref<DIRECTIVE_HEADER>)> {};
@@ -284,12 +285,13 @@ struct Restructuredtext : cursiv::GrammarSpec {
       option(assign<&ast::ExplicitTarget::destination>(ref<REST_OF_LINE>));
   struct ExplicitTarget : rule<create<ast::ExplicitTarget>(target_header +
       (ref<EOL> | ref<BLANK>) +
-      option(assign<&ast::ExplicitTarget::continuation>(ref<DirectiveBody>)))> {};
+      option(assign<&ast::ExplicitTarget::continuation>(ref<DirectiveBody>)) +
+      !ref<INDENT>)> {};
   struct LastExplicitTarget : rule<create<ast::ExplicitTarget>(target_header)> {};
   struct Comment
       : rule<ref<COMMENT_MARK> +
              assign<&ast::Comment::firstLine>(ref<COMMENT_TEXT>) +
-             (ref<EOL> | ref<BLANK>) + option(raw_block)> {};
+             (ref<EOL> | ref<BLANK>) + option(raw_block) + !ref<INDENT>> {};
   struct LastComment
       : rule<ref<COMMENT_MARK> +
              assign<&ast::Comment::firstLine>(ref<COMMENT_TEXT>)> {};
@@ -339,7 +341,7 @@ struct Restructuredtext : cursiv::GrammarSpec {
   // line end, unless it is the last one of its body; one that reads its
   // own line break may be followed by a transition.
   template <auto Body>
-  static constexpr auto unit =
+  static constexpr auto block_unit =
       ((append<Body>(ref<BulletItemRule>) | append<Body>(ref<EnumItem>) |
         append<Body>(ref<ExplicitTarget> | ref<Directive> | ref<Comment>)) +
        after_blank<Body>) |
@@ -347,14 +349,26 @@ struct Restructuredtext : cursiv::GrammarSpec {
       (append<Body>(ref<EmptyComment>) + after_line<Body>) |
       (append<Body>(ref<BareComment>) + after_line<Body>) |
       (append<Body>(ref<LineBlock>) + line_end<Body>) |
-      (append<Body>(ref<DefinitionItem>) + after_blank<Body>) |
-      (append<Body>(ref<Paragraph>) + line_end<Body>);
+      (append<Body>(ref<DefinitionItem>) + after_blank<Body>);
+  // A paragraph holds the lines up to a blank line. A line break ends it only
+  // before another kind of block or a change of indentation, or at the end of
+  // the input: a plain line there continues it.
   template <auto Body>
-  static constexpr auto last =
+  static constexpr auto paragraph_unit =
+      append<Body>(ref<Paragraph>) +
+      ((ref<BLANK> + after_blank<Body>) |
+       (ref<EOL> + (eof | &(ref<INDENT> | ref<DEDENT>) | block_unit<Body>)));
+  template <auto Body>
+  static constexpr auto unit = block_unit<Body> | paragraph_unit<Body>;
+  template <auto Body>
+  static constexpr auto last_block =
       append<Body>(ref<LastBullet>) | append<Body>(ref<LastEnum>) |
       append<Body>(ref<LastExplicitTarget> | ref<LastDirective> | ref<LastComment>) |
-      append<Body>(ref<MarkComment>) | append<Body>(ref<LineBlock>) |
-      append<Body>(ref<Paragraph>);
+      append<Body>(ref<MarkComment>) | append<Body>(ref<LineBlock>);
+  template <auto Body>
+  static constexpr auto last =
+      last_block<Body> |
+      (append<Body>(ref<Paragraph>) + option(ref<EOL> + last_block<Body>));
   template <auto Body>
   static constexpr auto suite =
       ref<INDENT> +
@@ -440,7 +454,10 @@ struct Restructuredtext : cursiv::GrammarSpec {
              after_blank<&ast::Document::blocks> +
              many((append<&ast::Document::blocks>(ref<Section>) +
                    after_line<&ast::Document::blocks>) |
-                  unit<&ast::Document::blocks>) +
+                  unit<&ast::Document::blocks> |
+                  (append<&ast::Document::blocks>(ref<Paragraph>) +
+                   ref<EOL> + append<&ast::Document::blocks>(ref<Section>) +
+                   after_line<&ast::Document::blocks>)) +
              option(last<&ast::Document::blocks>)> {};
 
   using entry = Doc;

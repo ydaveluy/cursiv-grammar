@@ -8,6 +8,7 @@
 // The smoke test of the language: build the container the way a workspace
 // does, read every sample, and check the trees.
 
+#include <chrono>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -292,6 +293,72 @@ int main() {
     const cursiv::ParseResult result = language.language.parser->parse(broken);
     if (!result.accepted || result.cst().recovered())
       return fail("an unmatched backtick should remain literal text");
+  }
+
+  // A long block has one reading, so it parses at once. Indented text under
+  // explicit markup is its body, a block quote follows only another block,
+  // and a paragraph runs up to a blank line.
+  {
+    std::string body, plain;
+    for (int i = 1; i <= 800; ++i)
+      body += "   line " + std::to_string(i) + " of body\n";
+    for (int i = 1; i <= 3000; ++i)
+      plain += "plain line " + std::to_string(i) + "\n";
+    const auto quick = [&](const std::string& text, auto check) {
+      const auto start = std::chrono::steady_clock::now();
+      const cursiv::ParseResult result = language.language.parser->parse(text);
+      const auto elapsed = std::chrono::steady_clock::now() - start;
+      const auto* const doc = static_cast<const Document*>(result.value);
+      return elapsed < std::chrono::seconds(2) && !result.cst().recovered() &&
+             doc != nullptr && check(*doc);
+    };
+    namespace ast = restructuredtext::ast;
+    if (!quick(".. note::\n\n" + body, [](const Document& doc) {
+          const auto* const directive =
+              doc.blocks.size() == 1
+                  ? std::get_if<ast::Directive*>(&doc.blocks[0]) : nullptr;
+          return directive != nullptr && (*directive)->body != nullptr &&
+                 (*directive)->body->entries.size() == 1600;
+        }))
+      return fail("a directive's indented block should be its body");
+    if (!quick(".. a comment\n\n" + body, [](const Document& doc) {
+          const auto* const comment =
+              doc.blocks.size() == 1
+                  ? std::get_if<ast::Comment*>(&doc.blocks[0]) : nullptr;
+          return comment != nullptr && (*comment)->bodyLines.size() == 800;
+        }))
+      return fail("a comment's indented block should be its body");
+    if (!quick(".. _site: https://example.org/\n" + body,
+               [](const Document& doc) {
+          const auto* const target =
+              doc.blocks.size() == 1
+                  ? std::get_if<ast::ExplicitTarget*>(&doc.blocks[0]) : nullptr;
+          return target != nullptr && (*target)->continuation != nullptr &&
+                 (*target)->continuation->entries.size() == 1600;
+        }))
+      return fail("a target's indented lines should be its continuation");
+    if (!quick(".. note::\n\n   body\n\n..\n\n   a quote\n",
+               [](const Document& doc) {
+          return doc.blocks.size() == 3 &&
+                 std::holds_alternative<ast::Directive*>(doc.blocks[0]) &&
+                 std::holds_alternative<ast::Comment*>(doc.blocks[1]) &&
+                 std::holds_alternative<ast::BlockQuote*>(doc.blocks[2]);
+        }))
+      return fail("an empty comment should end a directive before a quote");
+    if (!quick(plain, [](const Document& doc) {
+          const auto* const paragraph =
+              doc.blocks.size() == 1
+                  ? std::get_if<ast::Paragraph*>(&doc.blocks[0]) : nullptr;
+          return paragraph != nullptr && joined(**paragraph);
+        }))
+      return fail("plain lines should read as one paragraph");
+    if (!quick("first line\nsecond line", [](const Document& doc) {
+          const auto* const paragraph =
+              doc.blocks.size() == 1
+                  ? std::get_if<ast::Paragraph*>(&doc.blocks[0]) : nullptr;
+          return paragraph != nullptr && joined(**paragraph);
+        }))
+      return fail("a last line with no line break should join its paragraph");
   }
 
   std::puts("restructuredtext: the samples parse");
