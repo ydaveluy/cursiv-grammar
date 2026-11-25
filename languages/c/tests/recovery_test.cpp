@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <string>
 
 #include "c/ast.hpp"
@@ -22,7 +21,8 @@ int main() {
   const std::string comment = "int f() { int x; /* " + std::string(1'000'000, 'a');
   const auto open = parser->parse(comment);
   CHECK(open.accepted && open.valueAs<c::ast::TranslationUnit>());
-  CHECK(std::ranges::count(open.diagnostics, cursiv::DiagnosticKind::Inserted,
-                           &cursiv::ParseDiagnostic::kind) == 2);
+  CHECK(open.diagnostics.size() == 1 &&
+        open.diagnostics.front().kind == cursiv::DiagnosticKind::Replaced &&
+        open.diagnostics.front().begin == comment.find("/*"));
   return cursiv::test::report("c_recovery_test");
 }
