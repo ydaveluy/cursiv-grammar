@@ -176,13 +176,11 @@ struct Turing : cursiv::GrammarSpec {
                   as<ast::BinOp::greater>(lit<">">) |
                   as<ast::BinOp::member>(kw<"in">) |
                   as<ast::BinOp::notMember>(kw<"not"> + kw<"in">)))> {};
-  struct Not : rule<
-      (assign<&ast::UnaryExpr::op>(as<ast::UnOp::logicalNot>(kw<"not">)) +
-       assign<&ast::UnaryExpr::operand>(ref<Not>)) | ref<Relational>> {};
   // The report specifies left association, including exponentiation; `not`
   // binds less tightly than relations and more tightly than `and`.
-  struct Expression : infix<Not, ast::BinaryExpr,
-      levels(left(as<ast::BinOp::logicalAnd>(kw<"and">)),
+  struct Expression : infix<Relational, ast::BinaryExpr,
+      levels(prefix<ast::UnaryExpr>(as<ast::UnOp::logicalNot>(kw<"not">)),
+             left(as<ast::BinOp::logicalAnd>(kw<"and">)),
              left(as<ast::BinOp::logicalOr>(kw<"or">)),
              left(as<ast::BinOp::implies>(lit<"->">)))> {};
 

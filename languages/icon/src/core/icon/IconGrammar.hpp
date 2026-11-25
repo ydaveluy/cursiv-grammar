@@ -94,10 +94,8 @@ struct Icon : cursiv::GrammarSpec {
   struct ControlExpr;
   struct MaybeExpression;
   struct MaybeSubscript;
-  struct OuterLadder;
   struct ToExpr;
   struct InnerLadder;
-  struct Unary;
   struct Postfix;
   struct Primary;
   struct Subscript;
@@ -188,22 +186,16 @@ struct Icon : cursiv::GrammarSpec {
                         SubscriptItems +
                         RBracket))> {};
 
-  // expr12: the prefix chain.
-  struct Unary
-      : rule<create<ast::PrefixExpr>(
-             assign<&ast::PrefixExpr::op>(OpPrefix) +
-             assign<&ast::PrefixExpr::operand>(ref<Unary>))  //
-             | ref<Postfix>> {};
-
-  // expr5..expr11 folded into one table over the prefix chain.
+  // expr5..expr12: the prefix chain and the binary levels over it, one table.
   struct InnerLadder
-      : infix<Unary, ast::BinaryExpr,
-              levels(left(OpBackslashAtBang),  //
-                     right(OpCaret),           //
-                     left(OpMulDivModPow),     //
-                     left(OpAddSub),           //
-                     left(OpConcat),           //
-                     left(OpCompare),          //
+      : infix<Postfix, ast::BinaryExpr,
+              levels(prefix<ast::PrefixExpr>(OpPrefix),  //
+                     left(OpBackslashAtBang),            //
+                     right(OpCaret),                     //
+                     left(OpMulDivModPow),               //
+                     left(OpAddSub),                     //
+                     left(OpConcat),                     //
+                     left(OpCompare),                    //
                      right(OpPipe))> {};
 
   // expr4: `a to b`, `a to b by c` -- ternary, so not a level of a ladder;
@@ -217,7 +209,7 @@ struct Icon : cursiv::GrammarSpec {
   };
 
   // expr1..expr3 folded into one table over the to-range level.
-  struct OuterLadder
+  struct Expression
       : infix<ToExpr, ast::BinaryExpr,
               levels(right(OpAssign),  //
                      left(OpQuestion),  //
@@ -276,8 +268,6 @@ struct Icon : cursiv::GrammarSpec {
                    assign<&ast::EveryExpr::generator>(ref<Expression>) +
                    option(kw<"do"> + assign<&ast::EveryExpr::doClause>(ref<Expression>)))  //
              > {};
-
-  struct Expression : rule<ref<OuterLadder>> {};
 
   struct Parameter
       : rule<create<ast::Parameter>(

@@ -623,14 +623,8 @@ struct Solidity : cursiv::GrammarSpec {
                  nest<ast::PostfixExpr, &ast::PostfixExpr::operand>(
                      assign<&ast::PostfixExpr::op>(lit<"++"> | lit<"--">)))> {};
 
-  struct UnaryExpr
-      : rule<create<ast::PrefixExpr>(
-                 assign<&ast::PrefixExpr::op>(lit<"++"> | lit<"--"> | lit<"!"> |
-                                              lit<"~"> | kw<"delete"> |
-                                              lit<"-">) +
-                 assign<&ast::PrefixExpr::operand>(ref<UnaryExpr>)) |
-             ref<PostfixExpr>> {};
-
+  static constexpr auto OpPrefix =
+      lit<"++"> | lit<"--"> | lit<"!"> | lit<"~"> | kw<"delete"> | lit<"-">;
   static constexpr auto OpExp = lit<"**">;
   static constexpr auto OpMulDivMod = lit<"*"> | lit<"/"> | lit<"%">;
   static constexpr auto OpAddSub = lit<"+"> | lit<"-">;
@@ -643,17 +637,18 @@ struct Solidity : cursiv::GrammarSpec {
   static constexpr auto OpAnd = lit<"&&">;
   static constexpr auto OpOr = lit<"||">;
 
-  struct BinaryExpr : infix<UnaryExpr, ast::BinaryExpr,
-                            levels(right(OpExp),       //
-                                   left(OpMulDivMod),  //
-                                   left(OpAddSub),     //
-                                   left(OpShift),      //
-                                   left(OpBitAnd),     //
-                                   left(OpBitXor),     //
-                                   left(OpBitOr),      //
-                                   left(OpCompare),    //
-                                   left(OpEquality),   //
-                                   left(OpAnd),        //
+  struct BinaryExpr : infix<PostfixExpr, ast::BinaryExpr,
+                            levels(prefix<ast::PrefixExpr>(OpPrefix),  //
+                                   right(OpExp),                       //
+                                   left(OpMulDivMod),                  //
+                                   left(OpAddSub),                     //
+                                   left(OpShift),                      //
+                                   left(OpBitAnd),                     //
+                                   left(OpBitXor),                     //
+                                   left(OpBitOr),                      //
+                                   left(OpCompare),                    //
+                                   left(OpEquality),                   //
+                                   left(OpAnd),                        //
                                    left(OpOr))> {};
 
   struct ConditionalExpr

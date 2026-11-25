@@ -246,12 +246,10 @@ struct Vhdl : cursiv::GrammarSpec {
              many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
                  assign<&ast::BinaryExpr::op>(OpAdd) +
                  assign<&ast::BinaryExpr::right>(ref<Term>)))> {};
-  struct ShiftExpr : infix<SimpleExpr, ast::BinaryExpr,
-                            left(OpShift)> {};
-  struct RelationExpr : infix<ShiftExpr, ast::BinaryExpr,
-                               left(OpRel)> {};
-  struct LogicalExpr : infix<RelationExpr, ast::BinaryExpr,
-                              left(OpLogical)> {};
+  // Shift, relational and logical operators over simple expressions.
+  struct LogicalExpr
+      : infix<SimpleExpr, ast::BinaryExpr,
+              levels(left(OpShift), left(OpRel), left(OpLogical))> {};
 
   struct Expression
       : rule<create<ast::CondOpExpr>(

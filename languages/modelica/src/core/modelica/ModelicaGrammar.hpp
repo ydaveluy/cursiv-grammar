@@ -100,9 +100,7 @@ struct Modelica : cursiv::GrammarSpec {
 
   struct Subscript;
   struct Primary;
-  struct Factor;
   struct Term;
-  struct SignedTerm;
   struct ArithExpr;
   struct Relation;
   struct LogicalFactor;
@@ -270,33 +268,24 @@ struct Modelica : cursiv::GrammarSpec {
                    lit<"}">)  //
              | (create<ast::EndExpr> + kw<"end">)> {};
 
-  struct Factor
-      : rule<(assign<&ast::BinaryExpr::left>(ref<Primary>) +
-              assign<&ast::BinaryExpr::op>(lit<"^"> | lit<".^">) +
-              assign<&ast::BinaryExpr::right>(ref<Primary>))  //
-             | ref<Primary>> {};
-
+  // Power takes one operator; the multiplicative operators chain to the left.
   struct Term
-      : infix<Factor, ast::BinaryExpr, (left(MulOp))> {};
+      : infix<Primary, ast::BinaryExpr,
+              levels(nonassoc(lit<"^"> | lit<".^">), left(MulOp))> {};
 
   // A leading sign precedes the first whole term. Subsequent additive
   // operands are unsigned terms, as in the native arithmetic-expression.
-  struct SignedTerm
-      : rule<(assign<&ast::UnaryExpr::op>(AddOp) +
-              assign<&ast::UnaryExpr::operand>(ref<Term>))  //
-             | ref<Term>> {};
-
   struct ArithExpr
-      : rule<ref<SignedTerm> +
+      : rule<(create<ast::UnaryExpr>(
+                  assign<&ast::UnaryExpr::op>(AddOp) +
+                  assign<&ast::UnaryExpr::operand>(ref<Term>))  //
+              | ref<Term>) +
              many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
                  assign<&ast::BinaryExpr::op>(AddOp) +
                  assign<&ast::BinaryExpr::right>(ref<Term>)))> {};
 
   struct Relation
-      : rule<(assign<&ast::BinaryExpr::left>(ref<ArithExpr>) +
-              assign<&ast::BinaryExpr::op>(RelOp) +
-              assign<&ast::BinaryExpr::right>(ref<ArithExpr>))  //
-             | ref<ArithExpr>> {};
+      : infix<ArithExpr, ast::BinaryExpr, nonassoc(RelOp)> {};
 
   struct LogicalFactor
       : rule<(assign<&ast::UnaryExpr::op>(kw<"not">) +

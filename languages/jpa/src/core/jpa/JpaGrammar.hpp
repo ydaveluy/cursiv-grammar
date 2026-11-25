@@ -68,11 +68,8 @@ struct Jpa : cursiv::GrammarSpec {
   struct AllAnyExpr;
   struct ExistsExpr;
   struct ExprBase;
-  struct ExprUnary;
-  struct ExprMul;
   struct ExprAdd;
   struct ExprPredicate;
-  struct ExprNot;
   struct Expression;
   struct RangeVarDecl;
   struct Join;
@@ -299,23 +296,14 @@ struct Jpa : cursiv::GrammarSpec {
              ref<CurrentValueExpr> | ref<SubqueryExpr> |
              ref<PathExprRule> | (lit<"("> + ref<Expression> + lit<")">)> {};
 
-  struct ExprUnary
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
-                 assign<&ast::UnaryExpr::operand>(ref<ExprUnary>)) |
-             ref<ExprBase>> {};
-
-  struct ExprMul
-      : rule<ref<ExprUnary> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(as<ast::Operator::multiply>(lit<"*">) | as<ast::Operator::divide>(lit<"/">)) +
-                 assign<&ast::BinaryExpr::right>(ref<ExprUnary>)))> {};
-
+  // Arithmetic: unary + -, then * /, then + -.
   struct ExprAdd
-      : rule<ref<ExprMul> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::subtract>(lit<"-">)) +
-                 assign<&ast::BinaryExpr::right>(ref<ExprMul>)))> {};
+      : infix<ExprBase, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(lit<"+"> | lit<"-">),
+                     left(as<ast::Operator::multiply>(lit<"*">) |
+                          as<ast::Operator::divide>(lit<"/">)),
+                     left(as<ast::Operator::add>(lit<"+">) |
+                          as<ast::Operator::subtract>(lit<"-">)))> {};
 
 
   // Comparison, BETWEEN, LIKE, IN, IS [NOT] NULL/EMPTY, MEMBER OF: one
@@ -368,15 +356,12 @@ struct Jpa : cursiv::GrammarSpec {
                       assign<&ast::MemberOfExpr::collection>(
                           ref<PathExprRule>)))> {};
 
-  struct ExprNot
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ikw<"NOT">) +
-                 assign<&ast::UnaryExpr::operand>(ref<ExprNot>)) |
-             ref<ExprPredicate>> {};
-
+  // Logic: NOT, then AND, then OR.
   struct Expression
-      : infix<ExprNot, ast::BinaryExpr,
-              levels(left(as<ast::Operator::logical_and>(ikw<"AND">)), left(as<ast::Operator::logical_or>(ikw<"OR">)))> {};
+      : infix<ExprPredicate, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(ikw<"NOT">),
+                     left(as<ast::Operator::logical_and>(ikw<"AND">)),
+                     left(as<ast::Operator::logical_or>(ikw<"OR">)))> {};
 
   struct OrderByItem
       : rule<assign<&ast::OrderByItem::key>(ref<PathExprRule>) +

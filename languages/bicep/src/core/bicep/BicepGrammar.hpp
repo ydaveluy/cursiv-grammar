@@ -205,17 +205,11 @@ struct Bicep : cursiv::GrammarSpec {
 
   struct MemberExpr_ : rule<ref<PrimaryExpr_> + many(MemberTail)> {};
 
-  // -- Unary prefix operators ----
-  struct UnaryExpr
-      : rule<create<ast::UnaryExpr>(
-            assign<&ast::UnaryExpr::op>(lit<"!"> | lit<"-"> | lit<"+">) +
-            assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>)) |
-             ref<MemberExpr_>> {};
-
-  // -- multiplicative > additive > relational > equality > && > || > ?? ----
+  // -- unary > multiplicative > additive > relational > equality > && > || > ?? ----
   struct BinaryExpr
-      : infix<UnaryExpr, ast::BinaryExpr,
-              levels(left(lit<"*"> | lit<"/"> | lit<"%">),
+      : infix<MemberExpr_, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(lit<"!"> | lit<"-"> | lit<"+">),
+                     left(lit<"*"> | lit<"/"> | lit<"%">),
                      left(lit<"+"> | lit<"-">),
                      left(lit<">="> | lit<"<="> | lit<">"> | lit<"<">),
                      left(lit<"=="> | lit<"!=">),

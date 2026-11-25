@@ -98,7 +98,6 @@ struct Elixir : cursiv::GrammarSpec {
   struct Block;
   struct ClauseBlock;
   struct InfixHigh;
-  struct Membership;
   struct Section;
   struct ClauseBody;
   struct AmpWrapExpr;
@@ -350,11 +349,9 @@ struct Elixir : cursiv::GrammarSpec {
       assign<&ast::UnaryExpr::op>(ref<NOT> | lit<"!">) + NLs +
       assign<&ast::UnaryExpr::operand>(ref<MembershipTail>))> {};
   struct MembershipBase : rule<ref<NegatedMembership> | ref<InfixHigh>> {};
-  struct Membership
-      : infix<MembershipBase, ast::BinaryExpr,
-              left(as<ast::Operator::not_in>(ref<NOT> + ref<IN> + NLs) |
-                   as<ast::Operator::in_>(ref<IN> + NLs))> {};
-  struct InfixMid : infix<Membership, ast::BinaryExpr, levels(
+  struct InfixMid : infix<MembershipBase, ast::BinaryExpr, levels(
+               left(as<ast::Operator::not_in>(ref<NOT> + ref<IN> + NLs) |
+                    as<ast::Operator::in_>(ref<IN> + NLs)),
                left(ref<PIPEOP_OP> | as<ast::Operator::lt3>(lit<"<<<"> + NLs) | ref<GT3_OP> |
                     as<ast::Operator::ltlt_tilde>(lit<"<<~"> + NLs) | ref<TILDEGTGT_OP> | as<ast::Operator::lt_tilde_gt>(lit<"<~>"> + NLs) |
                     as<ast::Operator::lt_tilde>(lit<"<~"> + NLs) | ref<TILDEGT_OP> | as<ast::Operator::lt_pipe_gt>(lit<"<|>"> + NLs)),

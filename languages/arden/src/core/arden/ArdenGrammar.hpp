@@ -298,12 +298,10 @@ struct Arden : cursiv::GrammarSpec {
   struct ExprNot;
   struct ExprComparison;
   struct ExprConcat;
-  struct ExprFormatted;
   struct ExprStringPrefix;
   struct ExprLocalizedBare;
   struct ExprNegation;
   struct ExprAddSub;
-  struct ExprMulDiv;
   struct ExprPower;
   struct ExprAtTime;
   struct ExprBefore;
@@ -544,13 +542,8 @@ struct Arden : cursiv::GrammarSpec {
 
   // A4 group "... before ... / ... after ... º from ...".
   struct ExprBefore
-      : rule<create<ast::BinaryComparison>(
-                 assign<&ast::BinaryComparison::left>(ref<ExprAgo>) +
-                 assign<&ast::BinaryComparison::op>(
-                     ref<BeforeRelOp> | ref<AfterRelOp> | ref<FromRelOp>) +
-                 assign<&ast::BinaryComparison::right>(ref<ExprAgo>))
-                 //
-                 | ref<ExprAgo>> {};
+      : infix<ExprAgo, ast::BinaryComparison,
+              nonassoc(ref<BeforeRelOp> | ref<AfterRelOp> | ref<FromRelOp>)> {};
 
   struct ExprAtTime
       : rule<create<ast::FuncApply>(
@@ -573,13 +566,12 @@ struct Arden : cursiv::GrammarSpec {
   struct ADD_OP : terminal<as<ast::BinOp::add>(lit<"+">)> {};
   struct SUB_OP : terminal<as<ast::BinOp::subtract>(lit<"-">)> {};
 
-  // A4 group "... * ... / ... / ...".
-  struct ExprMulDiv
-      : infix<ExprPower, ast::BinaryExpr, left(ref<MUL_OP> | ref<DIV_OP>)> {};
-
-  // A4 group "... + ... / ... - ...": binary, tighter than unary +/- below.
+  // A4 groups "... * ... / ... / ..." and "... + ... / ... - ...": binary,
+  // tighter than unary +/- below.
   struct ExprAddSub
-      : infix<ExprMulDiv, ast::BinaryExpr, left(ref<ADD_OP> | ref<SUB_OP>)> {};
+      : infix<ExprPower, ast::BinaryExpr,
+              levels(left(ref<MUL_OP> | ref<DIV_OP>),
+                     left(ref<ADD_OP> | ref<SUB_OP>))> {};
 
   // A4 group "+ ... / - ...": unary, looser than binary +/- above -- `-a+b`
   // reads `-(a+b)`, matching HL7's own errata ("... has higher precedence
@@ -632,19 +624,10 @@ struct Arden : cursiv::GrammarSpec {
   struct FORMATTED_WITH_OP
       : rule<as<ast::BinOp::formatted_with>(ikw<"formatted"> + ikw<"with">)> {};
 
-  // A4 group "... formatted with ...": non-associative, one step tighter
-  // than `||` below.
-  struct ExprFormatted
-      : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<ExprStringPrefix>) +
-                 assign<&ast::BinaryExpr::op>(ref<FORMATTED_WITH_OP>) +
-                 assign<&ast::BinaryExpr::right>(ref<ExprStringPrefix>))
-                 //
-                 | ref<ExprStringPrefix>> {};
-
-  // A4 group "... || ...".
+  // A4 groups "... formatted with ..." (non-associative) and "... || ...".
   struct ExprConcat
-      : infix<ExprFormatted, ast::BinaryExpr, left(ref<CONCAT_OP>)> {};
+      : infix<ExprStringPrefix, ast::BinaryExpr,
+              levels(nonassoc(ref<FORMATTED_WITH_OP>), left(ref<CONCAT_OP>))> {};
 
   // A4 group "... = / <> / < / <= / > / >= ... / is within .../ is before...
   // / occur .../ is in ... / is present / is <type> / is <object-name>":

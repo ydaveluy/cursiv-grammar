@@ -167,7 +167,6 @@ struct Vaxscan : cursiv::GrammarSpec {
   struct Expression;
   struct NotChain;
   struct Compare;
-  struct Unary;
   struct Postfix;
   struct Primary;
   struct PartRef;
@@ -227,15 +226,11 @@ struct Vaxscan : cursiv::GrammarSpec {
                  assign<&ast::SubscriptExpr::part>(ref<PartRef>)) |
              ref<Primary>> {};
 
-  struct Unary
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"-"> | lit<"+">) +
-                 assign<&ast::UnaryExpr::operand>(ref<Unary>)) |
-             ref<Postfix>> {};
-
+  // Unary sign, then * /, + -, &, and the comparisons.
   struct Compare
-      : infix<Unary, ast::BinaryExpr,
-              levels(left(lit<"*"> | lit<"/">),
+      : infix<Postfix, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(lit<"-"> | lit<"+">),
+                     left(lit<"*"> | lit<"/">),
                      left(lit<"+"> | lit<"-">),
                      left(lit<"&">),
                      left(lit<"=="> | lit<"<>"> | lit<"><"> | lit<"<="> |

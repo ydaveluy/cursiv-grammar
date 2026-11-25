@@ -158,13 +158,10 @@ struct Yara : cursiv::GrammarSpec {
                       lit<"."> +
                       assign<&ast::MemberExpr::field>(ref<Identifier>)))> {
   };
-  struct Unary : rule<create<ast::PrefixExpr>(
-                          assign<&ast::PrefixExpr::op>(lit<"-"> | lit<"~">) +
-                          assign<&ast::PrefixExpr::operand>(ref<Unary>)) |
-                      ref<Postfix>> {};
   struct Arith
-      : infix<Unary, ast::BinaryExpr,
-              levels(left(lit<"*"> | lit<"\\"> | lit<"%">),
+      : infix<Postfix, ast::BinaryExpr,
+              levels(prefix<ast::PrefixExpr>(lit<"-"> | lit<"~">),
+                     left(lit<"*"> | lit<"\\"> | lit<"%">),
                      left(lit<"+"> | lit<"-">), left(lit<"<<"> | lit<">>">),
                      left(lit<"&">), left(lit<"^">), left(lit<"|">))> {};
   static constexpr auto SetItem =

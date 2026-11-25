@@ -57,6 +57,7 @@ struct Literal;
 struct StringLiteral;
 struct StringPart;
 struct FunctionLiteral;
+struct AnonymousFunction;
 struct ThisExpr;
 struct SuperExpr;
 struct IfExpr;
@@ -244,9 +245,7 @@ struct SuperTypeEntry : cursiv::Extends<SuperType> {
 
 struct SuperTypeCall : cursiv::Extends<SuperType> {
   Type* type;
-  vector<TypeProjection*> typeArguments;
   vector<Argument*> arguments;
-  vector<Expr*> trailingLambdas;
 };
 
 struct SuperTypeDelegate : cursiv::Extends<SuperType> {
@@ -405,6 +404,16 @@ struct FunctionLiteral : cursiv::Extends<Expr> {
   vector<Annotation *> annotations;
   vector<LambdaParam*> parameters;
   vector<Node*> body;
+};
+
+// `fun (x: Int): Int { ... }` used as an expression.
+struct AnonymousFunction : cursiv::Extends<Expr> {
+  boolean isSuspend;
+  Type* receiverType;
+  vector<Param*> valueParameters;
+  Type* returnType;
+  vector<TypeConstraint*> typeConstraints;
+  Node* body;
 };
 
 struct ThisExpr : cursiv::Extends<Expr> {

@@ -1,6 +1,8 @@
-// The scala language: its grammar (Scala 2.12). Semicolons and newlines are
-// trivia, read back from the gap where they decide: between two statements
-// and around a postfix operator. The postfix chain is one rule, left-recursive.
+// The scala language: its grammar (Scala 2.12). A line end is the token
+// `NEWLINE` where a rule reads it -- between two statements -- and a blank
+// elsewhere; it is a blank too before a token that goes on with the statement,
+// and always inside `( )` and `[ ]`. The postfix chain is one rule,
+// left-recursive.
 #pragma once
 
 #include <string_view>
@@ -13,8 +15,8 @@ namespace scala {
 struct Scala : cursiv::GrammarSpec {
   // ==== Trivia =============================================================
 
-  struct WS : terminal<some(cr<R"( \t\f\r\n)">)> {};
-  struct SEMI : terminal<lit<";">> {};
+  struct WS : terminal<some(cr<R"( \t)">)> {};
+  struct NL_TRIVIA : terminal<eol | lit<"\f">> {};
   struct SL_COMMENT : terminal<lit<"//"> + many(cr<R"(^\r\n)">)> {};
   struct ML_COMMENT
       : terminal<lit<"/*"> +
@@ -54,6 +56,25 @@ struct Scala : cursiv::GrammarSpec {
   static constexpr auto VarId =
       !(lit<"_"> + !IdContinue) + Letter + Idrest;
   static constexpr auto word_boundary = IdContinue;
+
+  // A line end ends a statement unless the next token, past blanks and
+  // comments, goes on with it: one that cannot start a statement (SLS 1.2), or
+  // a `{` right behind the line end. Then it is a blank.
+  static constexpr auto LineSkip =
+      many(cr<R"( \t\r\n\f)"> | (lit<"//"> + many(cr<R"(^\r\n)">)) |
+           (lit<"/*"> + many(cr<"^*"> | (some(lit<"*">) + cr<"^*/">)) +
+            some(lit<"*">) + lit<"/">));
+  static constexpr auto GoesOn =
+      lit<".", !DecDigit> | lit<"["> | lit<","> | lit<")"> | lit<"]"> |
+      lit<"}"> | lit<"=", !OpCharacter> | lit<":", !OpCharacter> |
+      lit<"=>", !OpCharacter> | lit<"<-", !OpCharacter> |
+      lit<"<:", !OpCharacter> | lit<">:", !OpCharacter> |
+      lit<"<%", !OpCharacter> | lit<"#", !OpCharacter> | kw<"else"> |
+      kw<"catch"> | kw<"finally"> | kw<"extends"> | kw<"with"> |
+      kw<"match"> | kw<"yield"> | kw<"forSome">;
+  struct NEWLINE
+      : terminal<(eol | lit<"\f">) + !(LineSkip + (GoesOn | eof)) +
+                 !(many(cr<R"( \t)">) + lit<"{">)> {};
   static constexpr auto ReservedOp =
       (lit<"="> | lit<"=>"> | lit<":"> | lit<"<-"> | lit<"<:"> | lit<"<%"> |
        lit<">:"> | lit<"#"> | lit<"@">)+!Opchar;
@@ -72,11 +93,15 @@ struct Scala : cursiv::GrammarSpec {
   struct ID
       : terminal<(!ReservedWord + VarId) | (lit<"`"> + some(CharNoBackQuote | Escape) +
                           lit<"`">)> {};
-  struct OP_ID : terminal<OpName> {};
+  // A lone `+ - ~ !` is one token: a prefix operator, or a name after a `.` or
+  // in a definition. A path in an expression never starts with it.
+  static constexpr auto LoneSign = cr<"+~!-"> + !Opchar;
+  struct PrefixSign : terminal<LoneSign> {};
+  struct OP_ID : terminal<!LoneSign + OpName> {};
   struct VARIABLE_ID
       : terminal<!ReservedWord + &(uc::Ll | cr<"_">) + VarId> {};
   static constexpr auto StarName = lit<"*", !Opchar> | lit<"`*`">;
-  static constexpr auto Name = ref<ID> | ref<OP_ID>;
+  static constexpr auto Name = ref<ID> | ref<OP_ID> | ref<PrefixSign>;
 
   // ==== Literals =============================================================
 
@@ -145,32 +170,33 @@ struct Scala : cursiv::GrammarSpec {
   struct QualId : rule<some(append<&ast::QualId::parts>(Name), lit<".">)> {
   };
 
-  // `head ('.' Id)*`, where `head` is `this`, `super[Q].Id`, or `Id` alone /
-  // followed by `.this` or `.super[Q].Id`: an iterative rewrite of the same
-  // language -- at most one leading segment ever comes before `this`/`super`.
-  struct StableId
-      : rule<create<ast::StableId>(
-            ((flag<&ast::StableId::hasThis>(kw<"this">))  //
-             | (flag<&ast::StableId::hasSuper>(kw<"super">) +
-                option(lit<"["> +
-                       assign<&ast::StableId::superQualifier>(Name |
-                                                               kw<"this">) +
-                       CloseBracket) +
-                lit<"."> + assign<&ast::StableId::root>(Name))  //
-             | (assign<&ast::StableId::root>(Name) +
-                option(
-                    lit<"."> +
-                    ((flag<&ast::StableId::hasThis>(kw<"this">))  //
-                     | (flag<&ast::StableId::hasSuper>(kw<"super">) +
-                        option(
-                            lit<"["> +
-                            assign<&ast::StableId::superQualifier>(
-                                Name | kw<"this">) +
-                            CloseBracket) +
-                        lit<"."> +
-                        assign<&ast::StableId::qualifierPrefix>(
-                            Name)))))) +
-            many(lit<"."> + append<&ast::StableId::segments>(Name)))> {};
+  // `head ('.' Id)*`, where `head` is `this`, `super[Q].Id`, or a `Head` name
+  // alone / followed by `.this` or `.super[Q].Id`: an iterative rewrite of the
+  // same language -- at most one leading segment comes before `this`/`super`.
+  template <auto Head>
+  static constexpr auto StableIdOf = create<ast::StableId>(
+      ((flag<&ast::StableId::hasThis>(kw<"this">))  //
+       | (flag<&ast::StableId::hasSuper>(kw<"super">) +
+          option(lit<"["> +
+                 assign<&ast::StableId::superQualifier>(Name |
+                                                         kw<"this">) +
+                 CloseBracket) +
+          lit<"."> + assign<&ast::StableId::root>(Name))  //
+       | (assign<&ast::StableId::root>(Head) +
+          option(
+              lit<"."> +
+              ((flag<&ast::StableId::hasThis>(kw<"this">))  //
+               | (flag<&ast::StableId::hasSuper>(kw<"super">) +
+                  option(
+                      lit<"["> +
+                      assign<&ast::StableId::superQualifier>(
+                          Name | kw<"this">) +
+                      CloseBracket) +
+                  lit<"."> +
+                  assign<&ast::StableId::qualifierPrefix>(
+                      Name)))))) +
+      many(lit<"."> + append<&ast::StableId::segments>(Name)));
+  struct StableId : rule<StableIdOf<Name>> {};
 
   // Every grammar rule below may be mutually recursive with rules defined
   // later in the file; forward-declaring them all here (as the c example
@@ -245,14 +271,24 @@ struct Scala : cursiv::GrammarSpec {
   struct PackageObject_;
   struct CompilationUnit_;
 
-  // A genuine `;`/newline in the trivia gap -- required between two
-  // statements with no other separator, so an expression that could still
-  // extend (`a + b`) is never mistaken for one statement ending and a new
-  // one starting on the same line.
-  static constexpr auto Separator = gap::has(eol | lit<"\f"> | lit<";">);
-  // A `;` or a blank line: no operator reaches past it.
-  static constexpr auto StatementBreak =
-      gap::has(lit<";"> | (eol + many(cr<R"( \t\r)">) + eol));
+  // Line ends are blanks between `( )` and `[ ]`, and count again inside
+  // `{ }` (SLS 1.2).
+  static constexpr auto indent_open = lit<"("> | lit<"[">;
+  static constexpr auto indent_block = lit<"{"> | lit<"${">;
+  static constexpr auto indent_close = lit<")"> | lit<"]"> | lit<"}">;
+
+  using indent_newline = NEWLINE;
+  // A block comment that spans lines ends a statement, as it does for scalac.
+  static constexpr auto indent_newline_in = ref<ML_COMMENT>;
+
+  // A statement ends at a `;` or a line end; one line end counts, so a comment
+  // that follows it stays next to the statement it comes before.
+  static constexpr auto Sep =
+      (some(lit<";">) + option(ref<NEWLINE> + many(lit<";">))) |
+      (ref<NEWLINE> + many(lit<";">));
+  static constexpr auto Semis = many(lit<";">);
+  // A parameter clause may stand behind one line end (SLS 1.2).
+  static constexpr auto NL = option(ref<NEWLINE>);
 
   // The modifier set here is widened to the general one (see `defPrefix`,
   // defined with the definitions below) since every definition rule parses
@@ -270,14 +306,16 @@ struct Scala : cursiv::GrammarSpec {
   // A block ends on a function literal whose body is the rest of the block
   // (SLS 6.23 `ResultExpr`).
   static constexpr auto LambdaResult =
-      Separator + assign<&ast::Block::result>(ref<BlockLambda_>);
+      Sep + assign<&ast::Block::result>(ref<BlockLambda_>);
 
-  // Braces are the caller's: `caseClause`'s block has none of its own.
+  // Braces are the caller's: `caseClause`'s block has none of its own. A
+  // block may be empty.
   struct BlockContent_
       : rule<create<ast::Block>(
-            (BlockStatOnce + many(Separator + BlockStatOnce) +
-             option(LambdaResult)) |
-            assign<&ast::Block::result>(ref<BlockLambda_>))> {};
+            Semis +
+            option((BlockStatOnce + many(Sep + BlockStatOnce) +
+                    (LambdaResult | option(Sep))) |
+                   assign<&ast::Block::result>(ref<BlockLambda_>)))> {};
 
   static constexpr auto BareBlock = ref<BlockContent_>;
 
@@ -320,14 +358,13 @@ struct Scala : cursiv::GrammarSpec {
                     assign<&ast::StableId::root>(ref<StringRef>))))))> {};
   struct StringLongHole
       : rule<create<ast::InterpolationPart>(
-            skip(ignore<WS, SEMI>, hide<SL_COMMENT, ML_COMMENT>,
+            skip(ignore<WS, NL_TRIVIA>, hide<SL_COMMENT, ML_COMMENT>,
             lit<"${"> +
-            assign<&ast::InterpolationPart::expression>(
-                ref<BlockBody_> | create<ast::Block>(&CloseBrace)) +
+            assign<&ast::InterpolationPart::expression>(ref<BlockBody_>) +
             CloseBrace))> {};
   struct PatternLongHole
       : rule<create<ast::InterpolationPart>(
-            skip(ignore<WS, SEMI>, hide<SL_COMMENT, ML_COMMENT>,
+            skip(ignore<WS, NL_TRIVIA>, hide<SL_COMMENT, ML_COMMENT>,
             lit<"${"> +
             assign<&ast::InterpolationPart::pattern>(ref<Pattern_>) +
             CloseBrace))> {};
@@ -408,7 +445,8 @@ struct Scala : cursiv::GrammarSpec {
 
 
   static constexpr auto RefinementTail =
-      lit<"{"> + many(append<&ast::RefinedType::members>(ref<RefineStat>)) +
+      lit<"{"> + Semis +
+      many(append<&ast::RefinedType::members>(ref<RefineStat>) + Semis) +
       CloseBrace;
 
   // `annotType ('with' annotType)* refinement?` or a bare `refinement`.
@@ -422,8 +460,9 @@ struct Scala : cursiv::GrammarSpec {
                            left(Name)> {};
 
   static constexpr auto ExistentialDecls =
-      kw<"forSome"> + lit<"{"> +
-      some(append<&ast::ExistentialType::decls>(ref<TypeDcl> | ref<ValDcl>)) +
+      kw<"forSome"> + lit<"{"> + Semis +
+      some(append<&ast::ExistentialType::decls>(ref<TypeDcl> | ref<ValDcl>) +
+           Semis) +
       CloseBrace;
 
   // `functionArgTypes '=>' type_ | infixType existentialClause?`. The
@@ -496,7 +535,7 @@ struct Scala : cursiv::GrammarSpec {
 
   struct ParamClause
       : rule<create<ast::ParamClause>(
-            lit<"("> +
+            NL + lit<"("> +
             option(append<&ast::ParamClause::params>(ref<Param>) +
                    many(lit<","> +
                         append<&ast::ParamClause::params>(ref<Param>))) +
@@ -505,7 +544,8 @@ struct Scala : cursiv::GrammarSpec {
   template <auto ClausesMember, auto ImplicitMember>
   static constexpr auto paramClausesInto =
       many(append<ClausesMember>(ref<ParamClause>)) +
-      option(lit<"("> + kw<"implicit"> + append<ImplicitMember>(ref<Param>) +
+      option(NL + lit<"("> + kw<"implicit"> +
+             append<ImplicitMember>(ref<Param>) +
              many(lit<","> + append<ImplicitMember>(ref<Param>)) +
              CloseParen);
 
@@ -530,7 +570,7 @@ struct Scala : cursiv::GrammarSpec {
 
   struct ClassParamClause
       : rule<create<ast::ClassParamClause>(
-            lit<"("> +
+            NL + lit<"("> +
             option(
                 append<&ast::ClassParamClause::params>(ref<ClassParam>) +
                 many(lit<","> + append<&ast::ClassParamClause::params>(
@@ -540,7 +580,7 @@ struct Scala : cursiv::GrammarSpec {
   template <auto ClausesMember, auto ImplicitMember>
   static constexpr auto classParamClausesInto =
       many(append<ClausesMember>(ref<ClassParamClause>)) +
-      option(lit<"("> + kw<"implicit"> +
+      option(NL + lit<"("> + kw<"implicit"> +
              append<ImplicitMember>(ref<ClassParam>) +
              many(lit<","> + append<ImplicitMember>(ref<ClassParam>)) +
              CloseParen);
@@ -589,7 +629,7 @@ struct Scala : cursiv::GrammarSpec {
       | (lit<"{"> +
          append<ArgsMember>(create<ast::MatchBlock>(CaseClausesBody)) +
          CloseBrace)  //
-      | (lit<"{"> + option(append<ArgsMember>(ref<BlockBody_>)) + CloseBrace);
+      | (lit<"{"> + append<ArgsMember>(ref<BlockBody_>) + CloseBrace);
 
   // The primary atoms of `simpleExpr`/`simpleExpr1`.
   struct SimpleExprChain
@@ -601,9 +641,12 @@ struct Scala : cursiv::GrammarSpec {
              | ref<BlockExprAtom_>                                            //
              | ref<InterpolatedString> |
              ref<Literal> //
-             // A `.` after a path is the path's own next segment.
+             // A `.` after a path is the path's own next segment, and a
+             // lone sign never starts one: it is a prefix operator.
              | create<ast::PathExpr>(
-                   assign<&ast::PathExpr::path>(ref<StableId>) + !lit<".">) //
+                   assign<&ast::PathExpr::path>(
+                       StableIdOf<ref<ID> | ref<OP_ID>>) +
+                   !lit<".">) //
              | create<ast::UnderscoreExpr>(lit<"_">)                        //
              | create<ast::ParenExpr>(
                    lit<"("> +
@@ -630,7 +673,6 @@ struct Scala : cursiv::GrammarSpec {
                         callArgsInto<&ast::CallExpr::args>)) +
              option(nest<ast::EtaExpr, &ast::EtaExpr::operand>(lit<"_">))> {};
 
-  struct PrefixSign : terminal<cr<"+~!-"> + !Opchar> {};
   struct PrefixExpr
       : rule<create<ast::PrefixOpExpr>(
                  assign<&ast::PrefixOpExpr::op>(ref<PrefixSign>) +
@@ -646,7 +688,26 @@ struct Scala : cursiv::GrammarSpec {
   static constexpr auto OpcharNoColon = !lit<":"> + Opchar;
   static constexpr auto LeftTail = option(many(Opchar) + OpcharNoColon);
   static constexpr auto RightTail = many(Opchar) + lit<":">;
-  struct OpLetter : rule<!Separator + ref<ID> + !StatementBreak> {};
+  // The identifier at the start of `text`, without the line end after it.
+  inline static constexpr auto identifier_text = [](std::string_view text) {
+    std::size_t end = 0;
+    if (!text.empty() && text[0] == '`') {
+      end = text.find('`', 1);
+      return text.substr(
+          0, end == std::string_view::npos ? text.size() : end + 1);
+    }
+    while (end < text.size() && text[end] != ' ' && text[end] != '\t' &&
+           text[end] != '\n' && text[end] != '\r' && text[end] != '\f' &&
+           !(text[end] == '/' && end + 1 < text.size() &&
+             (text[end + 1] == '/' || text[end + 1] == '*')))
+      ++end;
+    return text.substr(0, end);
+  };
+  // A letter operator takes one line end behind it, and none before a `;` or a
+  // blank line.
+  struct OpLetter
+      : rule<as<identifier_text>(ref<ID> + !(ref<NEWLINE> + ref<NEWLINE>) +
+                                 !lit<";"> + NL)> {};
   struct OpPipe : terminal<&OpName + cr<"|"> + LeftTail> {};
   struct OpPipeR : terminal<&OpName + cr<"|"> + RightTail> {};
   struct OpCaret : terminal<&OpName + cr<"^"> + LeftTail> {};
@@ -669,40 +730,37 @@ struct Scala : cursiv::GrammarSpec {
 
   struct InfixExpr
       : infix<PrefixExpr, ast::InfixExpr,
-             levels(left(ref<OpOther>), right(ref<OpOtherR>),
-                    left(ref<OpMulDiv>), right(ref<OpMulDivR>),
-                    left(ref<OpAddSub>), right(ref<OpAddSubR>),
-                    left(ref<OpColon>), right(ref<OpColonR>),
-                    left(ref<OpAngle>), right(ref<OpAngleR>),
-                    left(ref<OpEqBang>), right(ref<OpEqBangR>),
-                    left(ref<OpAmp>), right(ref<OpAmpR>),
-                    left(ref<OpCaret>), right(ref<OpCaretR>),
-                    left(ref<OpPipe>), right(ref<OpPipeR>),
-                    left(ref<OpLetter>))> {};
+              levels(left(ref<OpOther>), right(ref<OpOtherR>),
+                     left(ref<OpMulDiv>), right(ref<OpMulDivR>),
+                     left(ref<OpAddSub>), right(ref<OpAddSubR>),
+                     left(ref<OpColon>), right(ref<OpColonR>),
+                     left(ref<OpAngle>), right(ref<OpAngleR>),
+                     left(ref<OpEqBang>), right(ref<OpEqBangR>),
+                     left(ref<OpAmp>), right(ref<OpAmpR>),
+                     left(ref<OpCaret>), right(ref<OpCaretR>),
+                     left(ref<OpPipe>), right(ref<OpPipeR>),
+                     left(ref<OpLetter>))> {};
 
-  // A postfix id follows its operand with no separator between them and
-  // comes before a token no operand opens on: an operator ending a line takes
-  // the next line as its right operand unless a `;` or a blank line comes
-  // between.
+  // A postfix id comes before a token no operand opens on: an operator ending
+  // a line takes the next line as its right operand unless a `;` or a blank
+  // line comes between.
+  static constexpr auto NotOperand =
+      CloseBrace | CloseParen | lit<","> | Arrow | lit<"=", !Opchar> |
+      lit<":", !Opchar> | LeftArrow | lit<"@", !Opchar> |
+      (kw<"val"> | kw<"var"> | kw<"def"> | kw<"type"> | kw<"class"> |
+       kw<"object"> | kw<"trait"> | kw<"case"> | kw<"import"> |
+       kw<"package"> | kw<"else"> | kw<"match"> | kw<"catch"> |
+       kw<"finally"> | kw<"yield"> | kw<"lazy"> | kw<"implicit"> |
+       kw<"override"> | kw<"private"> | kw<"protected"> | kw<"final"> |
+       kw<"sealed"> | kw<"abstract">);
   static constexpr auto PostfixBoundary =
-      StatementBreak | eof | &CloseBrace | &CloseParen | &lit<","> |
-      &Arrow | &lit<"=", !Opchar> | &lit<":", !Opchar> |
-      &LeftArrow | &lit<"@", !Opchar> |
-      &(kw<"val"> | kw<"var"> | kw<"def"> | kw<"type"> | kw<"class"> |
-        kw<"object"> | kw<"trait"> | kw<"case"> | kw<"import"> |
-        kw<"package"> | kw<"else"> | kw<"match"> | kw<"catch"> |
-        kw<"finally"> | kw<"yield"> | kw<"lazy"> | kw<"implicit"> |
-        kw<"override"> | kw<"private"> | kw<"protected"> | kw<"final"> |
-        kw<"sealed"> | kw<"abstract">);
-  // A sign right after an expression is its infix operator: the sign that
-  // opens a next statement stands behind a separator.
-  static constexpr auto SignBoundary = Separator | !ref<PrefixSign>;
+      eof | &lit<";"> | &(ref<NEWLINE> + ref<NEWLINE>) | &NotOperand |
+      &(ref<NEWLINE> + (NotOperand | eof));
   struct PostfixExpr
       : rule<ref<InfixExpr> +
              option(nest<ast::PostfixExpr, &ast::PostfixExpr::operand>(
-                 !Separator + assign<&ast::PostfixExpr::postfixOp>(Name) +
-                 PostfixBoundary)) +
-             SignBoundary> {};
+                 assign<&ast::PostfixExpr::postfixOp>(Name) +
+                 PostfixBoundary))> {};
 
   static constexpr auto AscriptionSuffix =
       lit<":", !Opchar> +
@@ -712,15 +770,18 @@ struct Scala : cursiv::GrammarSpec {
        | (flag<&ast::AscribeExpr::varargsSplice>(lit<"_"> + StarName)));
 
   static constexpr auto EnumeratorsBody =
-      some(append<&ast::ForExpr::enumerators>(ref<Generator_>));
+      append<&ast::ForExpr::enumerators>(ref<Generator_>) +
+      many(option(Sep) + append<&ast::ForExpr::enumerators>(ref<Generator_>)) +
+      option(Sep);
 
   // `postfixExpr (ascription? | 'match' '{' caseClauses '}' | '=' expr)`.
   struct Expr1
       : rule<create<ast::IfExpr>(
-                 kw<"if"> + lit<"("> +
-                 assign<&ast::IfExpr::cond>(ref<Expr_>) + CloseParen +
-                 assign<&ast::IfExpr::thenBranch>(ref<Expr_>) +
-                 option(commit(kw<"else">, assign<&ast::IfExpr::elseBranch>(ref<Expr_>))))  //
+                 kw<"if"> + lit<"("> + assign<&ast::IfExpr::cond>(ref<Expr_>) +
+                 CloseParen + assign<&ast::IfExpr::thenBranch>(ref<Expr_>) +
+                 option(commit(
+                     Semis + kw<"else">,
+                     assign<&ast::IfExpr::elseBranch>(ref<Expr_>))))  //
              | create<ast::WhileExpr>(
                    kw<"while"> + lit<"("> +
                    assign<&ast::WhileExpr::cond>(ref<Expr_>) + CloseParen +
@@ -733,7 +794,7 @@ struct Scala : cursiv::GrammarSpec {
                           assign<&ast::TryExpr::finallyBlock>(ref<Expr_>)))  //
              | create<ast::DoWhileExpr>(
                    kw<"do"> + assign<&ast::DoWhileExpr::body>(ref<Expr_>) +
-                   kw<"while"> + lit<"("> +
+                   option(Sep) + kw<"while"> + lit<"("> +
                    assign<&ast::DoWhileExpr::cond>(ref<Expr_>) + CloseParen)  //
              | create<ast::ForExpr>(
                    kw<"for"> +
@@ -747,8 +808,7 @@ struct Scala : cursiv::GrammarSpec {
              // `return` may end a statement: a line break after it is one.
              | create<ast::ReturnExpr>(
                    kw<"return"> +
-                   option(!gap::line +
-                          assign<&ast::ReturnExpr::value>(ref<Expr_>)))  //
+                   option(assign<&ast::ReturnExpr::value>(ref<Expr_>)))  //
              | (ref<PostfixExpr> +
                 option(nest<ast::AssignExpr, &ast::AssignExpr::target>(
                            lit<"=", !Opchar> +
@@ -767,34 +827,31 @@ struct Scala : cursiv::GrammarSpec {
                                  assign<&ast::Lambda::body>(ref<Expr_>))  //
              | create<ast::Lambda>(
                    append<&ast::Lambda::params>(create<ast::Binding>(
-                       option(flag<&ast::Binding::isImplicit>(
-                           kw<"implicit">)) +
+                       option(flag<&ast::Binding::isImplicit>(kw<"implicit">)) +
                        assign<&ast::Binding::name>(Name))) +
-                   Arrow +
-                   assign<&ast::Lambda::body>(ref<Expr_>))  //
+                   Arrow + assign<&ast::Lambda::body>(ref<Expr_>))  //
              | create<ast::Lambda>(
                    append<&ast::Lambda::params>(create<ast::Binding>(
                        flag<&ast::Binding::isUnderscore>(lit<"_">))) +
-                   Arrow +
-                   assign<&ast::Lambda::body>(ref<Expr_>))  //
+                   Arrow + assign<&ast::Lambda::body>(ref<Expr_>))  //
              | ref<Expr1>> {};
 
   // ==== for-comprehensions, case clauses ====================================
 
   struct Guard_
-      : rule<create<ast::Guard>(kw<"if"> +
-                                assign<&ast::Guard::cond>(ref<PostfixExpr>))> {
-  };
+      : rule<create<ast::Guard>(
+            kw<"if"> + assign<&ast::Guard::cond>(ref<PostfixExpr>))> {};
 
   struct Generator_
       : rule<create<ast::Generator>(
-            assign<&ast::Generator::pattern>(ref<Pattern1_>) +
-            LeftArrow + assign<&ast::Generator::source>(ref<Expr_>) +
-            many(append<&ast::Generator::refinements>(ref<Guard_>) |
-                 append<&ast::Generator::refinements>(create<ast::ValueDef>(
-                     assign<&ast::ValueDef::pattern>(ref<Pattern1_>) +
-                     lit<"=", !Opchar> +
-                     assign<&ast::ValueDef::value>(ref<Expr_>)))))> {};
+            assign<&ast::Generator::pattern>(ref<Pattern1_>) + LeftArrow +
+            assign<&ast::Generator::source>(ref<Expr_>) +
+            many(option(Sep) +
+                 (append<&ast::Generator::refinements>(ref<Guard_>) |
+                  append<&ast::Generator::refinements>(create<ast::ValueDef>(
+                      assign<&ast::ValueDef::pattern>(ref<Pattern1_>) +
+                      lit<"=", !Opchar> +
+                      assign<&ast::ValueDef::value>(ref<Expr_>))))))> {};
 
   struct CaseClause_
       : rule<create<ast::CaseClause>(
@@ -823,14 +880,17 @@ struct Scala : cursiv::GrammarSpec {
             assign<&ast::Lambda::body>(ref<BlockBody_>))> {};
 
   // The content of braces that may stand for what they hold: one expression
-  // or one function literal is that value, more statements are a block.
+  // or one function literal is that value, more statements or none are a
+  // block.
   struct BlockBody_
-      : rule<ref<Expr1> | ref<BlockLambda_> |
-             create<ast::Block>(
-                 (((BlockDefOnce + many(Separator + BlockStatOnce)) |
-                   (BlockExprOnce + some(Separator + BlockStatOnce))) +
-                  option(LambdaResult)) |
-                 (BlockExprOnce + LambdaResult))> {};
+      : rule<Semis +
+             ((ref<Expr1> + Semis) | ref<BlockLambda_> |
+              create<ast::Block>(option(
+                  ((((BlockDefOnce + many(Sep + BlockStatOnce)) |
+                     (BlockExprOnce + some(Sep + BlockStatOnce))) +
+                    option(LambdaResult)) |
+                   (BlockExprOnce + LambdaResult)) +
+                  Semis)))> {};
 
   struct BlockExprAtom_
       : rule<create<ast::MatchBlock>(lit<"{"> + CaseClausesBody + CloseBrace)  //
@@ -1021,8 +1081,8 @@ struct Scala : cursiv::GrammarSpec {
                 assign<&ast::SecondaryCtorDef::selfInvocation>(
                     SelfInvocation) +
                 assign<&ast::SecondaryCtorDef::body>(
-                    create<ast::Block>(many(Separator + BlockStatOnce))) +
-                CloseBrace)))> {};
+                    create<ast::Block>(many(Sep + BlockStatOnce))) +
+                Semis + CloseBrace)))> {};
 
   struct TypeDef_
       : rule<create<ast::TypeDef>(
@@ -1075,8 +1135,9 @@ struct Scala : cursiv::GrammarSpec {
 
   template <auto Members>
   static constexpr auto TemplateStatsInto =
+      Semis +
       option(append<Members>(ref<TemplateStat_>) +
-             many(Separator + append<Members>(ref<TemplateStat_>)));
+             many(Sep + append<Members>(ref<TemplateStat_>)) + Semis);
 
   struct TemplateBody_
       : rule<create<ast::TemplateBody>(
@@ -1100,8 +1161,8 @@ struct Scala : cursiv::GrammarSpec {
   struct RefineStat : rule<ref<Dcl> | ref<TypeDef_>> {};
 
   static constexpr auto EarlyDefsBody =
-      lit<"{"> +
-      some(append<&ast::ClassTemplate::earlyDefs>(ref<PatVarDef_>)) +
+      lit<"{"> + Semis +
+      some(append<&ast::ClassTemplate::earlyDefs>(ref<PatVarDef_>) + Semis) +
       CloseBrace + kw<"with">;
 
   struct ClassTemplate_
@@ -1193,18 +1254,21 @@ struct Scala : cursiv::GrammarSpec {
   struct Packaging_
       : rule<create<ast::Packaging>(
             kw<"package"> + assign<&ast::Packaging::name>(ref<QualId>) +
-            lit<"{"> + many(append<&ast::Packaging::items>(ref<TopStat_>)) +
+            lit<"{"> + Semis +
+            many(append<&ast::Packaging::items>(ref<TopStat_>) + Semis) +
             CloseBrace)> {};
 
   struct CompilationUnit_
       : rule<create<ast::CompilationUnit>(
+            Semis +
             many(kw<"package"> +
                  append<&ast::CompilationUnit::packageClauses>(ref<QualId>) +
-                 !lit<"{">) +
-            many(append<&ast::CompilationUnit::items>(ref<TopStat_>)))> {};
+                 !lit<"{"> + Semis) +
+            many(append<&ast::CompilationUnit::items>(ref<TopStat_>) +
+                 Semis))> {};
 
   using entry = CompilationUnit_;
-  using ignored = list<WS, SEMI>;
+  using ignored = list<WS, NL_TRIVIA>;
   using hidden = list<SL_COMMENT, ML_COMMENT>;
 };
 

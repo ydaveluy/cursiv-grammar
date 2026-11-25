@@ -62,8 +62,6 @@ struct Pascal : cursiv::GrammarSpec {
   struct PATH_STRING : terminal<as<unquote>(QUOTED)> {};
 
   struct Expression;
-  struct Factor;
-  struct Power;
   struct Postfix;
   struct ActualArg;
   struct SetElement;
@@ -119,25 +117,18 @@ struct Pascal : cursiv::GrammarSpec {
                   nest<ast::FieldExpr, &ast::FieldExpr::object>(
                       lit<"."> + assign<&ast::FieldExpr::field>(ref<IDENT>)) |
                   nest<ast::DerefExpr, &ast::DerefExpr::operand>(lit<"^">))> {};
-  struct Factor
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"-">) +
-                 assign<&ast::UnaryExpr::operand>(ref<Power>)) |
-             create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"+"> | ikw<"not"> | lit<"@">) +
-                 assign<&ast::UnaryExpr::operand>(ref<Factor>)) |
-             ref<Postfix>> {};
-  struct Power
-      : infix<Factor, ast::BinaryExpr, left(lit<"**">)> {};
   static constexpr auto MulOp = lit<"*"> | lit<"/"> | ikw<"div"> | ikw<"mod"> |
                                 ikw<"and"> | ikw<"shl"> | ikw<"shr"> |
                                 ikw<"as"> | ikw<"is"> | lit<"><">;
   static constexpr auto AddOp = lit<"+"> | lit<"-"> | ikw<"or"> | ikw<"xor">;
   static constexpr auto RelOp = lit<"<>"> | lit<"<="> | lit<">="> | lit<"="> |
                                 lit<"<"> | lit<">"> | ikw<"in">;
-  struct Expression : infix<Power, ast::BinaryExpr,
-                                levels(left(MulOp), left(AddOp), left(RelOp))> {
-  };
+  // `+ not @` bind tighter than `**`; the sign `-` is looser than `**`.
+  struct Expression
+      : infix<Postfix, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(lit<"+"> | ikw<"not"> | lit<"@">),
+                     left(lit<"**">), prefix<ast::UnaryExpr>(lit<"-">),
+                     left(MulOp), left(AddOp), left(RelOp))> {};
 
   struct CompoundStmt
       : rule<ikw<"begin"> +

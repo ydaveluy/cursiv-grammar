@@ -34,7 +34,6 @@ struct V : cursiv::GrammarSpec {
   struct FunctionLit;
   struct Operand;
   struct PrimaryExpr;
-  struct UnaryExpr;
   struct ExprStmt;
   struct IncDecStmt;
   struct AssignStmt;
@@ -379,11 +378,6 @@ struct V : cursiv::GrammarSpec {
 
   static constexpr auto OpUnary =
       lit<"-"> | lit<"!"> | lit<"~"> | lit<"*"> | lit<"&">;
-  struct UnaryExpr
-      : rule<create<ast::PrefixExpr>(
-                 assign<&ast::PrefixExpr::op>(OpUnary) +
-                 assign<&ast::PrefixExpr::operand>(ref<UnaryExpr>))  //
-             | ref<PrimaryExpr>> {};
 
   // Native V precedence tiers for the supported operator subset.
   static constexpr auto OpMul =
@@ -397,9 +391,11 @@ struct V : cursiv::GrammarSpec {
   static constexpr auto OpMembership = kw<"in"> | kw<"!in">;
   static constexpr auto OpLogOr = lit<"||">;
 
+  // Prefix operators bind tighter than every binary level.
   struct Expression
-      : infix<UnaryExpr, ast::BinaryExpr,
-              levels(left(OpMul), left(OpAdd), left(OpRel), left(OpMembership),
+      : infix<PrimaryExpr, ast::BinaryExpr,
+              levels(prefix<ast::PrefixExpr>(OpUnary), left(OpMul), left(OpAdd),
+                     left(OpRel), left(OpMembership),
                      left(OpLogAnd | OpLogOr))> {};
 
   // -- Statements ----

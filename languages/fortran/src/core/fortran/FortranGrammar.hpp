@@ -300,17 +300,16 @@ struct Fortran : cursiv::GrammarSpec {
                            assign<&ast::UnaryExpr::operand>(ref<Signed>))  //
                        | ref<PowerMulDiv>> {};
 
-  struct AddSubLevel
-      : infix<Signed, ast::BinaryExpr, left(OpAddSub)> {};
-
-  struct ConcatRel : infix<AddSubLevel, ast::BinaryExpr,
-                           levels(left(OpConcat), nonassoc(OpRel))> {};
+  // Binary `+ -`, then `//`, then the relational operators over signed terms.
+  struct Relational
+      : infix<Signed, ast::BinaryExpr,
+              levels(left(OpAddSub), left(OpConcat), nonassoc(OpRel))> {};
 
   struct NotLevel
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(OpNot) +
                  assign<&ast::UnaryExpr::operand>(ref<NotLevel>))  //
-             | ref<ConcatRel>> {};
+             | ref<Relational>> {};
 
   struct Expression : infix<NotLevel, ast::BinaryExpr,
                             levels(left(OpAnd),  //

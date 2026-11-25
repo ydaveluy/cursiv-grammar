@@ -85,19 +85,19 @@ struct B : cursiv::GrammarSpec {
   static constexpr auto CallStep = nest<ast::CallExpr, &ast::CallExpr::callee>(
       lit<"("> + many(append<&ast::CallExpr::args>(ref<Assignment>), lit<",">) +
       lit<")">);
-  struct Primary : rule<ref<PrimaryBase> + many(IndexStep | CallStep)> {};
+  static constexpr auto PostfixStep =
+      nest<ast::PostfixExpr, &ast::PostfixExpr::operand>(
+          assign<&ast::PostfixExpr::op>(IncDecOp));
 
-  struct Postfix : rule<ref<Primary> +
-                        many(nest<ast::PostfixExpr, &ast::PostfixExpr::operand>(
-                            assign<&ast::PostfixExpr::op>(IncDecOp)))> {};
-
+  // A primary reads its index and call steps, then its `++` and `--` steps.
   struct UnaryExpr
       : rule<create<ast::PrefixExpr>(
                  assign<&ast::PrefixExpr::op>(UnaryOp | IncDecOp) +
                  assign<&ast::PrefixExpr::operand>(ref<UnaryExpr>)) |
              create<ast::AddrExpr>(
                  lit<"&"> + assign<&ast::AddrExpr::target>(ref<UnaryExpr>)) |
-             ref<Postfix>> {};
+             (ref<PrimaryBase> + many(IndexStep | CallStep) +
+              many(PostfixStep))> {};
 
   struct BinaryExpr
       : infix<UnaryExpr, ast::BinaryExpr,
@@ -118,10 +118,9 @@ struct B : cursiv::GrammarSpec {
       : terminal<as<[](std::string_view text) { return text.substr(1); }>(
             lit<"="> + option(CompoundOp))> {};
   struct Assignment
-      : rule<(assign<&ast::AssignExpr::target>(ref<Ternary>) +
-                 assign<&ast::AssignExpr::op>(ref<AssignOperator>) +
-                 assign<&ast::AssignExpr::value>(ref<Assignment>)) |
-             ref<Ternary>> {};
+      : infix<Ternary, ast::AssignExpr, right(ref<AssignOperator>),
+              &ast::AssignExpr::target, &ast::AssignExpr::op,
+              &ast::AssignExpr::value> {};
 
   struct Rvalue
       : infix<Assignment, ast::BinaryExpr, right(lit<",">)> {};

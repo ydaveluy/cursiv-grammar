@@ -225,40 +225,18 @@ struct Plucid : cursiv::GrammarSpec {
       : rule<ref<PrefixExpr> | ref<LengthExpr> | ref<ArgExpr> |
             ref<Primary>> {};
 
-  struct ConcatExpr
-      : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<AppliedExpr>) +
-                 assign<&ast::BinaryExpr::op>(as<ast::InfixOp::concat>(lit<"^"> | lit<"ˆ">)) +
-                 assign<&ast::BinaryExpr::right>(ref<ConcatExpr>))  //
-             | ref<AppliedExpr>> {};
-
-  struct PowExpr
-      : rule<ref<ConcatExpr> +
-            many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::power>(lit<"**">)) +
-                assign<&ast::BinaryExpr::right>(ref<ConcatExpr>)))> {};
-
-  struct MulExpr
-      : rule<ref<PowExpr> +
-            many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::multiply>(lit<"*">) | as<ast::InfixOp::divide>(lit<"/">) |
-                                             as<ast::InfixOp::int_div>(kw<"div">) | as<ast::InfixOp::mod>(kw<"mod">)) +
-                assign<&ast::BinaryExpr::right>(ref<PowExpr>)))> {};
-
-  struct AddExpr
-      : rule<ref<MulExpr> +
-            many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::add>(lit<"+">) | as<ast::InfixOp::subtract>(lit<"-">)) +
-                assign<&ast::BinaryExpr::right>(ref<MulExpr>)))> {};
-
-  // pLucid's associativity table leaves relation unlisted; chained here
-  // (`a eq b ne c`) as a low-price over-acceptance, not a language rule.
+  // One table from `^` to the relations, the tightest first. Relation is
+  // unlisted in pLucid's associativity table: it chains (`a eq b ne c`) as a
+  // low-price over-acceptance, not a language rule.
   struct RelExpr
-      : rule<ref<AddExpr> +
-            many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::le>(lit<"<=">) | as<ast::InfixOp::ge>(lit<">=">) | as<ast::InfixOp::lt>(lit<"<">) |
-                                             as<ast::InfixOp::gt>(lit<">">) | as<ast::InfixOp::eq>(kw<"eq">) | as<ast::InfixOp::ne>(kw<"ne">)) +
-                assign<&ast::BinaryExpr::right>(ref<AddExpr>)))> {};
+      : infix<AppliedExpr, ast::BinaryExpr,
+              levels(right(as<ast::InfixOp::concat>(lit<"^"> | lit<"ˆ">)),
+                     left(as<ast::InfixOp::power>(lit<"**">)),
+                     left(as<ast::InfixOp::multiply>(lit<"*">) | as<ast::InfixOp::divide>(lit<"/">) |
+                          as<ast::InfixOp::int_div>(kw<"div">) | as<ast::InfixOp::mod>(kw<"mod">)),
+                     left(as<ast::InfixOp::add>(lit<"+">) | as<ast::InfixOp::subtract>(lit<"-">)),
+                     left(as<ast::InfixOp::le>(lit<"<=">) | as<ast::InfixOp::ge>(lit<">=">) | as<ast::InfixOp::lt>(lit<"<">) |
+                          as<ast::InfixOp::gt>(lit<">">) | as<ast::InfixOp::eq>(kw<"eq">) | as<ast::InfixOp::ne>(kw<"ne">)))> {};
 
   struct NotExpr
       : rule<create<ast::PrefixExpr>(
@@ -266,40 +244,16 @@ struct Plucid : cursiv::GrammarSpec {
                  assign<&ast::PrefixExpr::operand>(ref<RelExpr>))  //
              | ref<RelExpr>> {};
 
-  struct AndExpr
-      : rule<ref<NotExpr> +
-            many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::logical_and>(kw<"and">)) +
-                assign<&ast::BinaryExpr::right>(ref<NotExpr>)))> {};
-
-  struct OrExpr
-      : rule<ref<AndExpr> +
-            many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(as<ast::InfixOp::logical_or>(kw<"or">)) +
-                assign<&ast::BinaryExpr::right>(ref<AndExpr>)))> {};
-
-  struct ConsExpr
-      : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<OrExpr>) +
-                 assign<&ast::BinaryExpr::op>(as<ast::InfixOp::list_append>(lit<"<>">) |
-                                              as<ast::InfixOp::list_cons>(lit<"::">)) +
-                 assign<&ast::BinaryExpr::right>(ref<ConsExpr>))  //
-             | ref<OrExpr>> {};
-
-  struct FbyExpr
-      : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<ConsExpr>) +
-                 assign<&ast::BinaryExpr::op>(as<ast::InfixOp::fby>(kw<"fby">)) +
-                 assign<&ast::BinaryExpr::right>(ref<FbyExpr>))  //
-             | ref<ConsExpr>> {};
-
+  // One table from `and` to the stream operators, the tightest first.
   struct AsaExpr
-      : rule<ref<FbyExpr> +
-            many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                assign<&ast::BinaryExpr::op>(
-                    as<ast::InfixOp::whenever>(kw<"whenever">) | as<ast::InfixOp::wvr>(kw<"wvr">) | as<ast::InfixOp::upon>(kw<"upon">) | as<ast::InfixOp::asa>(kw<"asa">) |
-                    as<ast::InfixOp::attime>(kw<"attime">)) +
-                assign<&ast::BinaryExpr::right>(ref<FbyExpr>)))> {};
+      : infix<NotExpr, ast::BinaryExpr,
+              levels(left(as<ast::InfixOp::logical_and>(kw<"and">)),
+                     left(as<ast::InfixOp::logical_or>(kw<"or">)),
+                     right(as<ast::InfixOp::list_append>(lit<"<>">) | as<ast::InfixOp::list_cons>(lit<"::">)),
+                     right(as<ast::InfixOp::fby>(kw<"fby">)),
+                     left(as<ast::InfixOp::whenever>(kw<"whenever">) | as<ast::InfixOp::wvr>(kw<"wvr">) |
+                          as<ast::InfixOp::upon>(kw<"upon">) | as<ast::InfixOp::asa>(kw<"asa">) |
+                          as<ast::InfixOp::attime>(kw<"attime">)))> {};
 
   struct CurrentDecl
       : rule<create<ast::CurrentDecl>(

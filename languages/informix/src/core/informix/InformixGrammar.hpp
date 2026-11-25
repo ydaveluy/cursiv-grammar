@@ -91,7 +91,6 @@ struct Informix : cursiv::GrammarSpec {
   // ------------------------------------------------------------------ Expr
 
   struct Expression;
-  struct Unary;
   struct ArithConcat;
   struct LikeExpression;
   struct Postfix;
@@ -241,17 +240,14 @@ struct Informix : cursiv::GrammarSpec {
             lit<"("> + assign<&ast::QuantifiedExpr::subquery>(ref<SelectStmt>) +
             lit<")">)> {};
 
-  struct Unary
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"-"> | lit<"+">) +
-                 assign<&ast::UnaryExpr::operand>(ref<Unary>)) |
-             ref<UnitsAtom>> {};
-
   static constexpr auto OpPower = as<ast::Op::power>(lit<"**">) |
                                   as<ast::Op::mod>(ikw<"MOD">);
+  // Sign, `**` and `MOD`, `*` `/` `DIV`, `+` `-`, `||`, tightest first.
   struct ArithConcat
-      : infix<Unary, ast::BinaryExpr,
-              levels(left(OpPower), left(OpMul), left(OpAdd), left(OpConcat))> {};
+      : infix<UnitsAtom, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(lit<"-"> | lit<"+">),
+                     left(OpPower), left(OpMul), left(OpAdd),
+                     left(OpConcat))> {};
 
   struct LikeExpression : rule<ref<ArithConcat> + option(
       nest<ast::LikeExpr, &ast::LikeExpr::operand>(

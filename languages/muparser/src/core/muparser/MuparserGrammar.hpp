@@ -16,7 +16,6 @@ struct Muparser : cursiv::GrammarSpec {
   struct AND : terminal<as<ast::Operator::and_>(lit<"&&">)> {};
 
   struct Expression;
-  struct Unary;
 
   struct Primary
       : rule<(lit<"("> + ref<Expression> + lit<")">) |
@@ -34,19 +33,13 @@ struct Muparser : cursiv::GrammarSpec {
              create<ast::VariableRef>(
                  assign<&ast::VariableRef::name>(ref<ID>))> {};
 
-  struct PowExpr : rule<ref<Primary> +
-                        option(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                            assign<&ast::BinaryExpr::op>(as<ast::Operator::pow>(lit<"^">)) +
-                            assign<&ast::BinaryExpr::right>(ref<Unary>)))> {};
-
-  struct Unary : rule<create<ast::UnaryExpr>(
-                          assign<&ast::UnaryExpr::op>(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::sub>(lit<"-">)) +
-                          assign<&ast::UnaryExpr::operand>(ref<Unary>)) |
-                      ref<PowExpr>> {};
-
+  // From the tightest: right-associative `^`, prefix `+`/`-`, then the
+  // left-associative binary levels.
   struct Binary
-      : infix<Unary, ast::BinaryExpr,
-              levels(left(as<ast::Operator::mul>(lit<"*">) | as<ast::Operator::div>(lit<"/">)), left(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::sub>(lit<"-">)),
+      : infix<Primary, ast::BinaryExpr,
+              levels(right(as<ast::Operator::pow>(lit<"^">)),
+                     prefix<ast::UnaryExpr>(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::sub>(lit<"-">)),
+                     left(as<ast::Operator::mul>(lit<"*">) | as<ast::Operator::div>(lit<"/">)), left(as<ast::Operator::add>(lit<"+">) | as<ast::Operator::sub>(lit<"-">)),
                      left(as<ast::Operator::lte>(lit<"<=">) | as<ast::Operator::gte>(lit<">=">) | as<ast::Operator::lt>(lit<"<">) | as<ast::Operator::gt>(lit<">">) | as<ast::Operator::eq>(lit<"==">) |
                           as<ast::Operator::neq>(lit<"!=">)),
                      left(ref<AND>), left(as<ast::Operator::or_>(lit<"||">)))> {};

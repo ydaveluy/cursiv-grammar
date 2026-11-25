@@ -387,18 +387,6 @@ struct Powerquery : cursiv::GrammarSpec {
 
   struct TypeExpression : rule<ref<TypeValue> | ref<PostfixExpr>> {};
 
-  struct UnaryExpr
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"+">) +
-                 assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
-             | create<ast::UnaryExpr>(
-                   assign<&ast::UnaryExpr::op>(lit<"-">) +
-                   assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
-             | create<ast::UnaryExpr>(
-                   assign<&ast::UnaryExpr::op>(kw<"not">) +
-                   assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>))  //
-             | ref<TypeExpression>> {};
-
   static constexpr auto OpMeta = as<ast::Op::meta>(kw<"meta">);
   static constexpr auto OpMul = as<ast::Op::multiply>(lit<"*">) | as<ast::Op::divide>(lit<"/">);
   static constexpr auto OpAdd = as<ast::Op::add>(lit<"+">) | as<ast::Op::subtract>(lit<"-">) | as<ast::Op::concat>(lit<"&">);
@@ -412,8 +400,9 @@ struct Powerquery : cursiv::GrammarSpec {
   // productions right-recurse; arithmetic associates left, and metadata
   // permits a single unparenthesized operation.
   struct TightExpr
-      : infix<UnaryExpr, ast::BinaryExpr,
-              levels(nonassoc(OpMeta),  //
+      : infix<TypeExpression, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(lit<"+"> | lit<"-"> | kw<"not">),  //
+                     nonassoc(OpMeta),  //
                      left(OpMul),  //
                      left(OpAdd),  //
                      right(OpRel),  //
@@ -430,9 +419,10 @@ struct Powerquery : cursiv::GrammarSpec {
                  kw<"is"> +
                  assign<&ast::IsExpr::type>(ref<NullablePrimitiveType>)))> {};
 
-  struct LogicalExpr
-      : infix<IsExpr, ast::BinaryExpr, levels(right(OpAnd), right(OpOr))> {};
-  struct CoalescingExpr : infix<LogicalExpr, ast::BinaryExpr, right(as<ast::Op::coalesce>(lit<"??">))> {};
+  struct CoalescingExpr
+      : infix<IsExpr, ast::BinaryExpr,
+              levels(right(OpAnd), right(OpOr),
+                     right(as<ast::Op::coalesce>(lit<"??">)))> {};
 
   struct Param
       : rule<create<ast::Param>(

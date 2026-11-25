@@ -475,14 +475,11 @@ struct Php : cursiv::GrammarSpec {
                                          assign<&ast::InstanceofExpr::type>(ref<ChainExpr>)) |
              ref<UnaryLevel>> {};
 
-  struct NotLevel
-      : rule<create<ast::UnaryExpr>(assign<&ast::UnaryExpr::op>(lit<"!">) +
-                                    assign<&ast::UnaryExpr::operand>(ref<NotLevel>)) |
-             ref<InstanceofLevel>> {};
-
-  struct BinaryLevel
-      : infix<NotLevel, ast::BinaryExpr,
-              levels(left(lit<"*"> | lit<"/"> | lit<"%">),
+  // `!`, then the binary levels tightest first, over the instanceof level.
+  struct CoalesceLevel
+      : infix<InstanceofLevel, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(lit<"!">),
+                     left(lit<"*"> | lit<"/"> | lit<"%">),
                      left(lit<"+"> | lit<"-">), left(lit<"<<"> | lit<">>">),
                      left(lit<".">), left(lit<"|>">),
                      nonassoc(lit<"<="> | lit<">="> | lit<"<"> | lit<">">),
@@ -490,10 +487,7 @@ struct Php : cursiv::GrammarSpec {
                           lit<"!="> | lit<"<=>">),
                      left(lit<"&", !cr<"&=">>), left(lit<"^">),
                      left(lit<"|", !cr<"|=">>), left(lit<"&&">),
-                     left(lit<"||">))> {};
-
-  struct CoalesceLevel
-      : infix<BinaryLevel, ast::BinaryExpr, right(lit<"??">)> {};
+                     left(lit<"||">), right(lit<"??">))> {};
   static constexpr auto AssignOp =
       lit<"+="> | lit<"-="> | lit<"*="> | lit<"**="> | lit<"/="> | lit<".="> | lit<"%="> |
       lit<"&="> | lit<"|="> | lit<"^="> | lit<"<<="> | lit<">>="> | lit<"?" "?="> |

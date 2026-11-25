@@ -493,28 +493,20 @@ struct Xpath : cursiv::GrammarSpec {
       as<ast::BinOp::gt>(lit<">">) | as<ast::BinOp::node_is>(kw<"is">) | as<ast::BinOp::node_precedes>(lit<"<<">) |
       as<ast::BinOp::node_follows>(lit<">>">);
 
-  struct AdditiveExpr
+  // The binary levels, from union and intersection up to `or`; `to` and the
+  // comparisons do not chain.
+  struct OrExpr
       : infix<InstanceOfExpr, ast::BinaryExpr,
               levels(left(as<ast::BinOp::intersect>(kw<"intersect">) | as<ast::BinOp::except>(kw<"except">)),
                      left(as<ast::BinOp::union_>(lit<"|">) | as<ast::BinOp::union_>(kw<"union">)),
                      left(as<ast::BinOp::mul>(lit<"*">) | as<ast::BinOp::div_>(kw<"div">) | as<ast::BinOp::idiv>(kw<"idiv">) |
                           as<ast::BinOp::mod>(kw<"mod">)),
-                     left(as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::sub>(lit<"-">)))> {};
-  struct RangeExpr
-      : rule<ref<AdditiveExpr> +
-             option(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(as<ast::BinOp::to>(kw<"to">)) +
-                 assign<&ast::BinaryExpr::right>(ref<AdditiveExpr>)))> {};
-  struct StringConcatExpr : infix<RangeExpr, ast::BinaryExpr,
-                                  left(as<ast::BinOp::concat>(lit<"||">))> {};
-  struct ComparisonExpr
-      : rule<ref<StringConcatExpr> +
-             option(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(CompareOp) +
-                 assign<&ast::BinaryExpr::right>(ref<StringConcatExpr>)))> {};
-  struct OrExpr
-      : infix<ComparisonExpr, ast::BinaryExpr,
-              levels(left(as<ast::BinOp::and_>(kw<"and">)), left(as<ast::BinOp::or_>(kw<"or">)))> {};
+                     left(as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::sub>(lit<"-">)),
+                     nonassoc(as<ast::BinOp::to>(kw<"to">)),
+                     left(as<ast::BinOp::concat>(lit<"||">)),
+                     nonassoc(CompareOp),
+                     left(as<ast::BinOp::and_>(kw<"and">)),
+                     left(as<ast::BinOp::or_>(kw<"or">)))> {};
 
   // ------------------------------------------------------------ flow control
 

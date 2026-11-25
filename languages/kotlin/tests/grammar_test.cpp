@@ -33,12 +33,6 @@ std::vector<std::string> split(const std::string& s, char sep) {
   return parts;
 }
 
-bool ends_with(const std::string& path, const char* suffix) {
-  const std::string s(suffix);
-  return path.size() >= s.size() &&
-         path.compare(path.size() - s.size(), s.size(), s) == 0;
-}
-
 bool collection_candidates(const cursiv::Parser& parser) {
   struct Case {
     const char* name;
@@ -181,16 +175,6 @@ int main() {
                            std::istreambuf_iterator<char>());
 
     const cursiv::ParseResult result = language.language.parser->parse(text);
-
-    // fun_on_same_line.kt has an upstream .errors sibling: two top-level
-    // functions with no NEWLINE/';' between them, refused, not merely
-    // tolerated.
-    if (ends_with(path, "fun_on_same_line.kt")) {
-      if (!result.cst().recovered() && result.diagnostics.empty())
-        return fail(path, "expected this sample to be refused");
-      std::printf("kotlin: %s is correctly refused\n", path.c_str());
-      continue;
-    }
 
     if (result.cst().recovered()) {
       for (const auto& diagnostic : result.diagnostics)

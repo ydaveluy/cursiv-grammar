@@ -301,19 +301,15 @@ struct Eiffel : cursiv::GrammarSpec {
                                     append<&ast::IndexExpr::indices>(ref<Expression>))) +
                         lit<"]">))> {};
 
-  struct Unary
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ikw<"old"> | ikw<"not"> | lit<"¬"> |
-                                             lit<"+"> | lit<"-"> | ref<FREE_OP>) +
-                 assign<&ast::UnaryExpr::operand>(ref<Unary>))  //
-             | ref<Postfix>> {};
-
   struct AndThenOp : rule<ikw<"and"> + ikw<"then">> {};
   struct OrElseOp : rule<ikw<"or"> + ikw<"else">> {};
 
+  // Prefix operators, free operators, `^`, multiplicative and additive, the tightest first.
   struct AddSubLevel
-      : infix<Unary, ast::BinaryExpr,
-              levels(left(ref<FREE_OP>),                                   //
+      : infix<Postfix, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(ikw<"old"> | ikw<"not"> | lit<"¬"> | lit<"+"> |
+                                            lit<"-"> | ref<FREE_OP>),  //
+                     left(ref<FREE_OP>),                                   //
                      right(lit<"^">),                                      //
                      left(lit<"*"> | lit<"/"> | lit<"//"> | lit<"\\\\">),  //
                      left(lit<"+"> | lit<"-">))> {};
@@ -324,24 +320,14 @@ struct Eiffel : cursiv::GrammarSpec {
                  assign<&ast::IntervalExpr::last>(ref<AddSubLevel>))  //
              | ref<AddSubLevel>> {};
 
-  struct RelLevel
+  // Comparisons, then `and`, `or` and `implies`, the tightest first.
+  struct Expression
       : infix<IntervalLevel, ast::BinaryExpr,
-              left(lit<"="> | lit<"/="> | lit<"~"> | lit<"/~"> | lit<"<="> | lit<">="> |
-                   lit<"<"> | lit<">">)> {};
-
-  struct AndLevel
-      : infix<RelLevel, ast::BinaryExpr,
-              left(ikw<"and"> | ref<AndThenOp>)> {};
-
-  struct OrLevel
-      : infix<AndLevel, ast::BinaryExpr,
-              left(ikw<"or"> | ref<OrElseOp> | ikw<"xor">)> {};
-
-  struct ImpliesLevel
-      : infix<OrLevel, ast::BinaryExpr,
-              left(ikw<"implies">)> {};
-
-  struct Expression : rule<ref<ImpliesLevel>> {};
+              levels(left(lit<"="> | lit<"/="> | lit<"~"> | lit<"/~"> | lit<"<="> | lit<">="> |
+                          lit<"<"> | lit<">">),
+                     left(ikw<"and"> | ref<AndThenOp>),
+                     left(ikw<"or"> | ref<OrElseOp> | ikw<"xor">),
+                     left(ikw<"implies">))> {};
 
   // ---- Instructions ----
 

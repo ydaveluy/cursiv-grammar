@@ -49,8 +49,6 @@ struct Python : cursiv::GrammarSpec {
   struct Inversion;
   struct Comparison;
   struct BitwiseOr;
-  struct Factor;
-  struct Power;
   struct AwaitPrimary;
   struct Primary;
   struct Atom;
@@ -413,20 +411,10 @@ struct Python : cursiv::GrammarSpec {
                              assign<&ast::AwaitExpr::value>(ref<Primary>))  //
       | ref<Primary>> {};
 
-  struct Power : rule<
-      create<ast::BinOp>(assign<&ast::BinOp::left>(ref<AwaitPrimary>) +
-                         assign<&ast::BinOp::op>(lit<"**">) +
-                         assign<&ast::BinOp::right>(ref<Factor>))  //
-      | ref<AwaitPrimary>> {};
-
-  struct Factor : rule<
-      create<ast::UnaryOp>(assign<&ast::UnaryOp::op>(lit<"+"> | lit<"-"> |
-                                                      lit<"~">) +
-                           assign<&ast::UnaryOp::operand>(ref<Factor>))  //
-      | ref<Power>> {};
-
-  // PRECEDENCE TABLE A: term .. bitwise_or
-  // =======================================
+  // PRECEDENCE TABLE A: power .. bitwise_or
+  // ========================================
+  // `**` is tighter than unary `+ - ~` but its right operand may start with
+  // one: `-2 ** 2` is `-(2 ** 2)` and `2 ** -1` is valid.
 
   static constexpr auto TermOp =
       lit<"*"> | lit<"//"> | lit<"/"> | lit<"%"> | lit<"@">;
@@ -436,8 +424,11 @@ struct Python : cursiv::GrammarSpec {
   static constexpr auto BitXorOp = lit<"^">;
   static constexpr auto BitOrOp = lit<"|">;
 
-  struct BitwiseOr : infix<Factor, ast::BinOp,
-                           levels(left(TermOp), left(SumOp), left(ShiftOp),
+  struct BitwiseOr : infix<AwaitPrimary, ast::BinOp,
+                           levels(right(lit<"**">),
+                                  prefix<ast::UnaryOp>(lit<"+"> | lit<"-"> |
+                                                       lit<"~">),
+                                  left(TermOp), left(SumOp), left(ShiftOp),
                                   left(BitAndOp), left(BitXorOp),
                                   left(BitOrOp))> {};
 

@@ -754,12 +754,13 @@ struct TypeScriptContext : TypeScriptLexical {
           assign<&ast::AwaitExpr::operand>(ref<Recursive>)) | ref<Chain>;
   struct UnaryExpr : rule<UnaryBody<UnaryExpr, PostfixExpr>> {};
 
+  static constexpr auto PowerOp = lit<"**", !cr<"=">>;
   static constexpr auto MultiplicativeOp =
       lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> | lit<"%", !cr<"=">>;
   static constexpr auto AdditiveOp = lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>;
 
   struct PowerExpr
-      : infix<UnaryExpr, ast::BinaryExpr, right(lit<"**", !cr<"=">>)> {};
+      : infix<UnaryExpr, ast::BinaryExpr, right(PowerOp)> {};
   struct MultiplyExpr : infix<PowerExpr, ast::BinaryExpr, left(MultiplicativeOp)> {};
   struct AddExpr : infix<MultiplyExpr, ast::BinaryExpr, left(AdditiveOp)> {};
   static constexpr auto ShiftOp =
@@ -767,22 +768,22 @@ struct TypeScriptContext : TypeScriptLexical {
       (lit<">"> + gap::none + lit<">"> + gap::none + lit<">", !cr<"=">>) |
       (lit<">"> + gap::none + lit<">", !cr<"=>">>);
 
+  // One table for `**` to `<<`; Power, Multiply and Add stay for AssertionTail.
   struct ShiftExpr
-      : infix<AddExpr, ast::BinaryExpr, left(ShiftOp)> {};
+      : infix<UnaryExpr, ast::BinaryExpr,
+              levels(right(PowerOp), left(MultiplicativeOp), left(AdditiveOp),
+                     left(ShiftOp))> {};
 
   template <class Power, class Multiply, class Add>
   static constexpr auto AssertionTailFor =
       option(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-          assign<&ast::BinaryExpr::op>(lit<"**", !cr<"=">>) +
+          assign<&ast::BinaryExpr::op>(PowerOp) +
           assign<&ast::BinaryExpr::right>(ref<Power>))) +
       many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-          assign<&ast::BinaryExpr::op>(
-              lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> |
-              lit<"%", !cr<"=">>) +
+          assign<&ast::BinaryExpr::op>(MultiplicativeOp) +
           assign<&ast::BinaryExpr::right>(ref<Power>))) +
       many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-          assign<&ast::BinaryExpr::op>(
-              lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>) +
+          assign<&ast::BinaryExpr::op>(AdditiveOp) +
           assign<&ast::BinaryExpr::right>(ref<Multiply>))) +
       many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
           assign<&ast::BinaryExpr::op>(ShiftOp) +

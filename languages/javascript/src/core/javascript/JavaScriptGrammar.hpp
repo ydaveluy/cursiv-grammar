@@ -165,7 +165,6 @@ struct JavaScript : cursiv::GrammarSpec {
   struct LogicalOrExpr;
   struct CoalesceExpr;
   struct BitwiseOrExpr;
-  struct ExponentExpr;
   struct UnaryExpr;
   struct UpdateExpr;
   struct PostfixExpr;
@@ -303,7 +302,7 @@ struct JavaScript : cursiv::GrammarSpec {
              | ref<PostfixExpr>> {};
 
   // -- Unary chain ----
-  struct UnaryExpr
+  struct PrefixedExpr
       : rule<create<ast::UnaryExpr>(
                  assign<&ast::UnaryExpr::op>(kw<"delete"> | kw<"void"> |
                                              kw<"typeof">) +
@@ -315,26 +314,23 @@ struct JavaScript : cursiv::GrammarSpec {
                    assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>)) //
              | create<ast::AwaitExpr>(
                    kw<"await"> +
-                   assign<&ast::AwaitExpr::operand>(ref<UnaryExpr>)) //
-             | ref<UpdateExpr>> {};
+                   assign<&ast::AwaitExpr::operand>(ref<UnaryExpr>))> {};
+  struct UnaryExpr : rule<ref<PrefixedExpr> | ref<UpdateExpr>> {};
 
-  // ExponentiationExpression: right-associative, and its left operand is
-  // `UpdateExpression`, not a full unary -- `-a ** b` is a SyntaxError in
-  // real JS (parenthesize either side to disambiguate the sign).
-  struct ExponentExpr
-      : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<UpdateExpr>) +
-                 assign<&ast::BinaryExpr::op>(lit<"**", !cr<"=">>) +
-                 assign<&ast::BinaryExpr::right>(ref<ExponentExpr>)) //
-             | ref<UnaryExpr>> {};
+  // An operand of the table below: no `**` follows a prefixed unary one, so
+  // `-a ** b` is refused while `a ** -b` and `++a ** b` parse.
+  static constexpr auto PowerOp = lit<"**", !cr<"=">>;
+  struct PowerOperand
+      : rule<(ref<PrefixedExpr> + !PowerOp) | ref<UpdateExpr>> {};
 
-  // -- Binary ladder (one table, tightest to loosest, through bitwise-OR) --
+  // -- Binary ladder (one table, tightest to loosest, `**` through shifts) --
   // Every operator that is a textual prefix of another one defined in a
   // DIFFERENT rule (AssignExpr's `=`, `**=`, ...) carries a guard: maximal
   // munch is automatic within one infix<> table, never across two.
   struct ShiftExpr
-      : infix<ExponentExpr, ast::BinaryExpr,
-              levels(left(lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> |
+      : infix<PowerOperand, ast::BinaryExpr,
+              levels(right(PowerOp),
+                     left(lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> |
                           lit<"%", !cr<"=">>),
                      left(lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>),
                      left(lit<"<<", !cr<"=">> | lit<">>>", !cr<"=">> |
@@ -347,14 +343,15 @@ struct JavaScript : cursiv::GrammarSpec {
           assign<&ast::Ident::name>(ref<PrivateIdentifier>))) +
       assign<&ast::BinaryExpr::op>(kw<"in">) +
       assign<&ast::BinaryExpr::right>(ref<ShiftExpr>))> {};
-  struct RelationalExpr : rule<(ref<PrivateBrandExpr> | ref<ShiftExpr>) +
-      many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-          assign<&ast::BinaryExpr::op>(RelationalOp) +
-          assign<&ast::BinaryExpr::right>(ref<ShiftExpr>)))> {};
+  // A private-brand test, or a shift expression; the brand may begin an
+  // operand but not follow a relational operator.
+  struct RelationalOperand
+      : rule<ref<PrivateBrandExpr> | ref<ShiftExpr>> {};
 
   struct BitwiseOrExpr
-      : infix<RelationalExpr, ast::BinaryExpr,
-              levels(left(lit<"==="> | lit<"!=="> | lit<"==", !cr<"=">> |
+      : infix<RelationalOperand, ast::BinaryExpr,
+              levels(left(RelationalOp + !ref<PrivateIdentifier>),
+                     left(lit<"==="> | lit<"!=="> | lit<"==", !cr<"=">> |
                           lit<"!=", !cr<"=">>),
                      left(lit<"&", !cr<"&=">>),
                      left(lit<"^", !cr<"=">>),

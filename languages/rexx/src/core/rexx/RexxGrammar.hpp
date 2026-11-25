@@ -257,16 +257,11 @@ struct Rexx : cursiv::GrammarSpec {
       : rule<ref<FunctionCall> | ref<ParenExpr> | ref<Symbol> |
              ref<BinaryLit> | ref<HexLit> | ref<StringLit>> {};
 
-  struct PrefixExpr
-      : rule<create<ast::PrefixExpr>(
-                 assign<&ast::PrefixExpr::op>(
-                     ref<PLUS> | ref<MINUS> | ref<NOT_TOK>) +
-                 assign<&ast::PrefixExpr::operand>(ref<PrefixExpr>)) |
-             ref<Term>> {};
-
+  // Signs, then `**`, then `* / % //`, then `+ -`.
   struct SumLevel
-      : infix<PrefixExpr, ast::BinExpr,
-              levels(left(as<ast::Op::Pow>(lit<"**">)),
+      : infix<Term, ast::BinExpr,
+              levels(prefix<ast::PrefixExpr>(ref<PLUS> | ref<MINUS> | ref<NOT_TOK>),
+                     left(as<ast::Op::Pow>(lit<"**">)),
                      left(as<ast::Op::Mul>(lit<"*">) | ref<DIV> | as<ast::Op::IntDiv>(lit<"%">) | as<ast::Op::Mod>(lit<"//">)),
                      left(ref<PLUS> | ref<MINUS>))> {};
 

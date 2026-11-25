@@ -48,8 +48,6 @@ struct Gdscript : cursiv::GrammarSpec {
   struct SuperCall;
   struct Primary;
   struct IsExpr;
-  struct SignExpr;
-  struct ArithExpr;
   struct CompareExpr;
   struct LogicNotExpr;
   struct LogicExpr;
@@ -229,11 +227,6 @@ struct Gdscript : cursiv::GrammarSpec {
       : rule<ref<CastPrimary> +
              many(nest<ast::IsExpr, &ast::IsExpr::value>(
                  kw<"is"> + assign<&ast::IsExpr::type>(ref<CastPrimary>)))> {};
-  struct SignExpr
-      : rule<create<ast::UnaryOp>(
-                 assign<&ast::UnaryOp::op>(lit<"~"> | lit<"-"> | lit<"+">) +
-                 assign<&ast::UnaryOp::operand>(ref<SignExpr>)) |
-             ref<IsExpr>> {};
 
   static constexpr auto FactorOp = lit<"*"> | lit<"/"> | lit<"%">;
   static constexpr auto PlusOp = lit<"+">;
@@ -242,19 +235,17 @@ struct Gdscript : cursiv::GrammarSpec {
   static constexpr auto BitAndOp = lit<"&">;
   static constexpr auto BitXorOp = lit<"^">;
   static constexpr auto BitOrOp = lit<"|">;
-
-  struct ArithExpr
-      : infix<SignExpr, ast::BinOp,
-              levels(left(FactorOp), left(PlusOp | MinusOp), left(ShiftOp),
-                     left(BitAndOp), left(BitXorOp), left(BitOrOp))> {};
-
   static constexpr auto CompareOp =
       lit<"<"> | lit<">"> | lit<"<="> | lit<">="> | lit<"=="> | lit<"!=">;
   static constexpr auto InOp = kw<"in">;
 
+  // Sign operators, `*` up to `in`, over `is`/`as` operands.
   struct CompareExpr
-      : infix<ArithExpr, ast::BinOp,
-              levels(left(CompareOp), left(InOp))> {};
+      : infix<IsExpr, ast::BinOp,
+              levels(prefix<ast::UnaryOp>(lit<"~"> | lit<"-"> | lit<"+">),
+                     left(FactorOp), left(PlusOp | MinusOp), left(ShiftOp),
+                     left(BitAndOp), left(BitXorOp), left(BitOrOp),
+                     left(CompareOp), left(InOp))> {};
 
   struct LogicNotExpr
       : rule<create<ast::UnaryOp>(

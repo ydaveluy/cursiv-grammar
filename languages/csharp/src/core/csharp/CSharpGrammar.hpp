@@ -28,7 +28,6 @@ struct CSharp : cursiv::GrammarSpec {
   struct EqualityAndAbove_;
   struct IsAsExpr_;
   struct RelationalAndBelow_;
-  struct AdditiveLevel_;
   struct CastExpr_;
   struct UnaryExpr_;
   struct PostfixChain_;
@@ -931,23 +930,20 @@ struct CSharp : cursiv::GrammarSpec {
   static constexpr auto OpMul = lit<"*"> | lit<"/"> | lit<"%">;
   static constexpr auto OpAdd = lit<"+"> | lit<"-">;
 
-  struct AdditiveLevel_
-      : infix<SwitchExpr_, ast::BinaryExpr, levels(left(OpMul), left(OpAdd))> {
-  };
-
   // Keep generic closers as individual tokens while requiring adjacent
   // characters for shift operators.
   struct RightShiftOp_
       : rule<(Gt + gap::none + Gt + gap::none + Gt) |
              (Gt + gap::none + Gt)> {};
   struct ShiftOp_ : rule<(Lt + gap::none + Lt) | ref<RightShiftOp_>> {};
-  struct ShiftExpr_
-      : infix<AdditiveLevel_, ast::BinaryExpr, left(ref<ShiftOp_>)> {};
 
   static constexpr auto OpRel = lit<"<="> | Gt | lit<">="> | Lt;
 
+  // Multiplicative, additive, shift and relational operators.
   struct RelationalAndBelow_
-      : infix<ShiftExpr_, ast::BinaryExpr, left(OpRel)> {};
+      : infix<SwitchExpr_, ast::BinaryExpr,
+              levels(left(OpMul), left(OpAdd), left(ref<ShiftOp_>),
+                     left(OpRel))> {};
 
   // `is`/`as` read a type or pattern, not another expression, so they sit
   // outside the infix table; the whole thing is itself a relational

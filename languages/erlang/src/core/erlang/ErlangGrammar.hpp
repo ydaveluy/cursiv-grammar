@@ -206,33 +206,19 @@ struct Erlang : cursiv::GrammarSpec {
   static constexpr auto PrefixOpText =
       lit<"+"> | lit<"-"> | kw<"bnot"> | kw<"not">;
 
-  struct Expr;
-  struct Unary;
   struct PrimaryChain;
   struct ExprMax;
 
-  struct ExprInfix
-      : infix<Unary, ast::BinaryExpr,
-             levels(left(OpMult),           //
+  struct Expr
+      : infix<PrimaryChain, ast::BinaryExpr,
+             levels(prefix<ast::UnaryExpr>(PrefixOpText),  //
+                    left(OpMult),           //
                     left(OpAddLevel),       //
                     right(OpListLevel),     //
                     nonassoc(OpCompareLevel),   //
                     right(as<ast::Operator::andalso_>(kw<"andalso">)),  //
                     right(as<ast::Operator::orelse_>(kw<"orelse">)),   //
                     right(as<ast::Operator::match>(lit<"=">) | as<ast::Operator::send>(lit<"!">)))> {};
-
-  struct Expr : rule<ref<ExprInfix>> {};
-
-  // Yecc's lowest-priority catch prefix may start any operator operand.
-  // Calling Expr here lets it absorb the full following expression; a
-  // separate root-only alternative would reject `A = catch B`.
-  struct Unary
-      : rule<create<ast::CatchExpr>(
-                 kw<"catch"> + assign<&ast::CatchExpr::operand>(ref<Expr>)) |
-             create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(PrefixOpText) +
-                 assign<&ast::UnaryExpr::operand>(ref<Unary>)) |
-             ref<PrimaryChain>> {};
 
   static constexpr auto MapFieldBody =
       create<ast::MapField>(
@@ -277,16 +263,21 @@ struct Erlang : cursiv::GrammarSpec {
              (ref<MapLiteral> + many(MapTail)) |
              (ref<RecordLiteral> + many(RecordTail))> {};
 
+  // Yecc's lowest-priority catch prefix may start any operator operand.
+  // Calling Expr here lets it absorb the full following expression; a
+  // separate root-only alternative would reject `A = catch B`.
   struct PrimaryChain
-      : rule<((ref<ExprMax> +
-               nest<ast::ModuleRef, &ast::ModuleRef::module>(
-                  lit<":"> +
-                  assign<&ast::ModuleRef::member>(ref<ExprMax>))) |
-              ref<SectionPrimary>) +
+      : rule<create<ast::CatchExpr>(
+                 kw<"catch"> + assign<&ast::CatchExpr::operand>(ref<Expr>)) |
+             (((ref<ExprMax> +
+                nest<ast::ModuleRef, &ast::ModuleRef::module>(
+                   lit<":"> +
+                   assign<&ast::ModuleRef::member>(ref<ExprMax>))) |
+               ref<SectionPrimary>) +
               many(nest<ast::Call, &ast::Call::target>(
                   lit<"("> +
                   many(append<&ast::Call::args>(ref<Expr>), lit<",">) +
-                  lit<")">))> {};
+                  lit<")">)))> {};
 
   struct ListLit
       : rule<create<ast::ListLit>(

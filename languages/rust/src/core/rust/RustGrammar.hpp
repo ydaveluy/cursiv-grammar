@@ -827,29 +827,16 @@ struct Rust : cursiv::GrammarSpec {
                  kw<"as"> +
                  assign<&ast::CastExpr::type>(ref<TypeNoBounds>)))> {};
 
-  struct ArithExpr
+  // One table for every binary level from `*` to `||`, the tightest first.
+  struct LogicalOrExpr
       : infix<CastExpr, ast::BinaryExpr,
               levels(left(ref<STAR> | as<ast::Operator::divide>(lit<"/", !cr<"=/*">>) | as<ast::Operator::remainder>(lit<"%", !cr<"=">>)),
-                     left(as<ast::Operator::add>(lit<"+", !cr<"=">>) | ref<MINUS>))> {};
-
-  struct ShiftExpr
-      : rule<ref<ArithExpr> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(ref<ShlOp> | ref<ShrOp>) +
-                 assign<&ast::BinaryExpr::right>(ref<ArithExpr>)))> {};
-
-  struct BitwiseExpr
-      : infix<ShiftExpr, ast::BinaryExpr,
-              levels(left(ref<AND>), left(as<ast::Operator::bit_xor>(lit<"^", !cr<"=">>)), left(as<ast::Operator::bit_or>(lit<"|", !cr<"|=">>)))> {};
-
-  struct ComparisonExpr
-      : infix<BitwiseExpr, ast::BinaryExpr,
-              left(as<ast::Operator::eq>(lit<"==">) | as<ast::Operator::ne>(lit<"!=">) | ref<LT> | ref<GT> | as<ast::Operator::le>(lit<"<=">) |
-                   as<ast::Operator::ge>(lit<">=">))> {};
-
-  struct LogicalOrExpr
-      : infix<ComparisonExpr, ast::BinaryExpr,
-              levels(left(ref<ANDAND>), left(ref<OROR>))> {};
+                     left(as<ast::Operator::add>(lit<"+", !cr<"=">>) | ref<MINUS>),
+                     left(ref<ShlOp> | ref<ShrOp>),
+                     left(ref<AND>), left(as<ast::Operator::bit_xor>(lit<"^", !cr<"=">>)), left(as<ast::Operator::bit_or>(lit<"|", !cr<"|=">>)),
+                     left(as<ast::Operator::eq>(lit<"==">) | as<ast::Operator::ne>(lit<"!=">) | ref<LT> | ref<GT> | as<ast::Operator::le>(lit<"<=">) |
+                   as<ast::Operator::ge>(lit<">=">)),
+                     left(ref<ANDAND>), left(ref<OROR>))> {};
 
   struct RangeExpr
       : rule<create<ast::RangeExpr>(

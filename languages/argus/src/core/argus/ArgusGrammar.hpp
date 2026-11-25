@@ -46,7 +46,6 @@ struct Argus : cursiv::GrammarSpec {
   struct Primary;
   struct Entity;
   struct PostfixExpr;
-  struct Unary;
   struct ExprLadder;
   struct CallAt;
   struct Expression;
@@ -254,15 +253,11 @@ struct Argus : cursiv::GrammarSpec {
                      many(append<&ast::Call::args>(ref<Expression>), lit<",">) +
                      lit<")">))> {};
 
-  struct Unary
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::not_>(lit<"~">) | ref<OP_NEG>) +
-                 assign<&ast::UnaryExpr::operand>(ref<Unary>))  //
-             | ref<PostfixExpr>> {};
-
+  // Operators from the tightest level to the loosest; the first reads `~` and `-`.
   struct ExprLadder
-      : infix<Unary, ast::BinaryExpr,
-              levels(right(as<ast::Operator::power>(lit<"**">)),                              //
+      : infix<PostfixExpr, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(as<ast::UnaryOp::not_>(lit<"~">) | ref<OP_NEG>),  //
+                     right(as<ast::Operator::power>(lit<"**">)),                              //
                      left(as<ast::Operator::intdiv>(lit<"//">) | as<ast::Operator::div>(lit<"/">) | as<ast::Operator::mul>(lit<"*">)),  //
                      left(as<ast::Operator::add>(lit<"+">) | ref<OP_SUB> | as<ast::Operator::concat>(lit<"||">)),  //
                      left(as<ast::Operator::le>(lit<"<=">) | as<ast::Operator::lt>(lit<"<">) | as<ast::Operator::eq>(lit<"=">) |        //

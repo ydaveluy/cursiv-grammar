@@ -144,13 +144,10 @@ struct Apex : cursiv::GrammarSpec {
   struct TypeOrVoid;
   struct CreatedName;
   struct Expression;
-  struct AssignmentExpr;
   struct TernaryExpr;
   struct EqualityAndAbove;
   struct InstanceOfExpr;
   struct RelationalAndBelow;
-  struct ShiftLevel;
-  struct AdditiveLevel;
   struct CastExpr;
   struct UnaryExpr;
   struct PostfixExpr;
@@ -420,26 +417,19 @@ struct Apex : cursiv::GrammarSpec {
              ref<UnaryExpr>> {};
 
   struct UnaryExpr
-      : rule<create<ast::PrefixExpr>(assign<&ast::PrefixExpr::op>(PrefixOp) +
-                                      assign<&ast::PrefixExpr::operand>(ref<UnaryExpr>)) |
-             create<ast::PrefixExpr>(assign<&ast::PrefixExpr::op>(NotOp) +
+      : rule<create<ast::PrefixExpr>(assign<&ast::PrefixExpr::op>(PrefixOp | NotOp) +
                                       assign<&ast::PrefixExpr::operand>(ref<UnaryExpr>)) |
              ref<PostfixExpr>> {};
-
-  struct AdditiveLevel
-      : infix<CastExpr, ast::BinaryExpr,
-              levels(left(OpMul), left(OpAdd))> {};
 
   // Keep generic closers as individual tokens; a shift requires adjacent bytes.
   struct ShiftOp : rule<(Lt + gap::none + Lt) |
                         (Gt + gap::none + Gt + gap::none + Gt) |
                         (Gt + gap::none + Gt)> {};
-  struct ShiftLevel
-      : infix<AdditiveLevel, ast::BinaryExpr, left(ref<ShiftOp>)> {};
 
+  // Binary levels from `* / %` up to the relational operators.
   struct RelationalAndBelow
-      : infix<ShiftLevel, ast::BinaryExpr,
-              left(OpRel)> {};
+      : infix<CastExpr, ast::BinaryExpr,
+              levels(left(OpMul), left(OpAdd), left(ref<ShiftOp>), left(OpRel))> {};
 
   struct InstanceOfExpr
       : rule<create<ast::InstanceOfExpr>(
@@ -459,13 +449,10 @@ struct Apex : cursiv::GrammarSpec {
                  assign<&ast::TernaryExpr::elseValue>(ref<TernaryExpr>)) |
              ref<EqualityAndAbove>> {};
 
-  struct AssignmentExpr
-      : rule<create<ast::AssignExpr>(assign<&ast::AssignExpr::target>(ref<TernaryExpr>) +
-                                      assign<&ast::AssignExpr::op>(AssignOp) +
-                                      assign<&ast::AssignExpr::value>(ref<Expression>)) |
-             ref<TernaryExpr>> {};
-
-  struct Expression : rule<ref<AssignmentExpr>> {};
+  // Assignment, right-associative, over the ternary.
+  struct Expression
+      : infix<TernaryExpr, ast::AssignExpr, right(AssignOp),
+              &ast::AssignExpr::target, &ast::AssignExpr::op, &ast::AssignExpr::value> {};
 
   // -- variable initializers, declarators, parameters ----
 

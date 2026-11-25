@@ -256,19 +256,12 @@ struct Angelscript : cursiv::GrammarSpec {
   static constexpr auto MulOp = lit<"*"> | lit<"/"> | lit<"%">;
   static constexpr auto AddOp = lit<"+"> | lit<"-">;
 
-  struct ArithLevel
-      : infix<ExprTerm, ast::BinExpr,
-              levels(left(lit<"**">), left(MulOp), left(AddOp))> {};
-
-  // ShiftOp keeps generic closers as individual tokens while requiring
-  // adjacent bytes for the operator itself.
-  struct ShiftLevel
-      : infix<ArithLevel, ast::BinExpr, left(ref<ShiftOp>)> {};
-
+  // Binary operators from tightest to loosest.
   struct Expr
-      : infix<ShiftLevel, ast::BinExpr,
-              levels(left(lit<"&">), left(lit<"^">), left(lit<"|">),
-                     left(lit<"<="> | lit<">="> | Lt | Gt),
+      : infix<ExprTerm, ast::BinExpr,
+              levels(left(lit<"**">), left(MulOp), left(AddOp),
+                     left(ref<ShiftOp>), left(lit<"&">), left(lit<"^">),
+                     left(lit<"|">), left(lit<"<="> | lit<">="> | Lt | Gt),
                      left(lit<"=="> | lit<"!="> | kw<"is"> | kw<"!is"> |
                           kw<"xor"> | lit<"^^">),
                      left(lit<"&&"> | kw<"and">),

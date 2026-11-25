@@ -149,20 +149,16 @@ struct Awk : cursiv::GrammarSpec {
 
   struct Primary : rule<ref<Primitive> | ref<PrefixUpdate> | ref<PostfixUpdate>> {};
 
-  struct PowerLevel : rule<ref<Primary> + (nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-      assign<&ast::BinaryExpr::op>(ref<POW>) +
-      assign<&ast::BinaryExpr::right>(ref<UnaryLevel>)) | !ref<POW>)> {};
-
   struct FieldOperand : rule<create<ast::UnaryExpr>(
       assign<&ast::UnaryExpr::op>(lit<"!"> | lit<"+"> | lit<"-">) +
       assign<&ast::UnaryExpr::operand>(ref<UnaryLevel>)) |
       ref<Primitive> | ref<PrefixUpdate> | ref<Lvalue>> {};
 
+  // `^` is right-associative and binds tighter than the prefix operators.
   struct UnaryLevel
-      : rule<create<ast::UnaryExpr>(
-            assign<&ast::UnaryExpr::op>(lit<"!"> | lit<"+"> | lit<"-">) +
-            assign<&ast::UnaryExpr::operand>(ref<UnaryLevel>))  //
-            | ref<PowerLevel>> {};
+      : infix<Primary, ast::BinaryExpr,
+              levels(right(ref<POW>),
+                     prefix<ast::UnaryExpr>(lit<"!"> | lit<"+"> | lit<"-">))> {};
 
   struct MulAddLevel
       : infix<UnaryLevel, ast::BinaryExpr, levels(left(OpMul), left(OpAdd))> {};
@@ -172,17 +168,14 @@ struct Awk : cursiv::GrammarSpec {
              many(nest<ast::ConcatExpr, &ast::ConcatExpr::left>(
                  !lit<"/"> + assign<&ast::ConcatExpr::right>(ref<MulAddLevel>)))> {};
 
-  struct RelationalLevel
-      : infix<ConcatLevel, ast::BinaryExpr, left(OpRel)> {};
-
   struct RelMatchLevel
-      : infix<RelationalLevel, ast::BinaryExpr, left(OpMatchOnly)> {};
+      : infix<ConcatLevel, ast::BinaryExpr,
+              levels(left(OpRel), left(OpMatchOnly))> {};
 
-  struct PrintRelationalLevel
-      : infix<ConcatLevel, ast::BinaryExpr, left(PrintOpRel)> {};
-
+  // As `RelMatchLevel`, with `>` left to the output redirection.
   struct MatchOnlyLevel
-      : infix<PrintRelationalLevel, ast::BinaryExpr, left(OpMatchOnly)> {};
+      : infix<ConcatLevel, ast::BinaryExpr,
+              levels(left(PrintOpRel), left(OpMatchOnly))> {};
 
   struct InLevel
       : rule<ref<RelMatchLevel> +

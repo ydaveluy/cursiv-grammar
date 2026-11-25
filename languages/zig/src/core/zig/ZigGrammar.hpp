@@ -96,8 +96,6 @@ struct Zig : cursiv::GrammarSpec {
   struct SuffixExpr;
   struct PrimaryTypeExpr;
   struct PrimaryExpr;
-  struct PrefixExpr;
-  struct BitwiseChain;
   struct IfExpr;
   struct IfTypeExpr;
   struct IfPrefix;
@@ -233,6 +231,9 @@ struct Zig : cursiv::GrammarSpec {
       : rule<option(assign<&ast::Block::label>(ref<ID>) + lit<":">) +
              BlockBody> {};
 
+  // A branch that opens a block is the block form, as in Zig's ordered choice.
+  static constexpr auto BlockStart = lit<"{"> | (ref<ID> + lit<":"> + lit<"{">);
+
   static constexpr auto ForBlockTail =
       option(kw<"else"> + assign<&ast::Loop::elseBranch>(ref<Statement>));
   static constexpr auto ForAssignTail =
@@ -252,11 +253,12 @@ struct Zig : cursiv::GrammarSpec {
       ((assign<&ast::Loop::forPrefix>(ref<ForPrefix>) +
         ((assign<&ast::Loop::thenBranch>(ref<LabeledBlock>) + ForBlockTail)  //
          |
-         (assign<&ast::Loop::thenBranch>(ref<AssignExpr>) + ForAssignTail)))  //
+         (!BlockStart + assign<&ast::Loop::thenBranch>(ref<AssignExpr>) +
+          ForAssignTail)))  //
        | (assign<&ast::Loop::whilePrefix>(ref<WhilePrefix>) +
           ((assign<&ast::Loop::thenBranch>(ref<LabeledBlock>) +
             WhileBlockTail)  //
-           | (assign<&ast::Loop::thenBranch>(ref<AssignExpr>) +
+           | (!BlockStart + assign<&ast::Loop::thenBranch>(ref<AssignExpr>) +
               WhileAssignTail))));
 
   struct LabeledLoopStmt
@@ -280,7 +282,7 @@ struct Zig : cursiv::GrammarSpec {
                             assign<&ast::IfExpr::elsePayload>(ref<ID>) +
                             lit<"|">) +
                      assign<&ast::IfExpr::elseBranch>(ref<Statement>))) |
-             (assign<&ast::IfExpr::thenBranch>(ref<AssignExpr>) +
+             (!BlockStart + assign<&ast::IfExpr::thenBranch>(ref<AssignExpr>) +
               (lit<";"> |
                (kw<"else"> +
                 option(lit<"|"> +
@@ -342,27 +344,13 @@ struct Zig : cursiv::GrammarSpec {
 
   // --- expression ladder -------------------------------------------------
 
-  struct PrefixExpr
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(PrefixOp) +
-                 assign<&ast::UnaryExpr::operand>(ref<PrefixExpr>))  //
-             | ref<PrimaryExpr>> {};
-
-  struct BitwiseChain
-      : infix<PrefixExpr, ast::BinaryExpr,
-              levels(left(MultiplyOp), left(AdditionOp), left(BitShiftOp),
-                     left(BitwiseOp))> {};
-
-  struct CompareExpr
-      : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<BitwiseChain>) +
-                 assign<&ast::BinaryExpr::op>(CompareOp) +
-                 assign<&ast::BinaryExpr::right>(ref<BitwiseChain>))  //
-             | ref<BitwiseChain>> {};
-
+  // Prefix operators bind tightest; a comparison reads at most one operator.
   struct Expr
-      : infix<CompareExpr, ast::BinaryExpr,
-              levels(left(kw<"and">), left(kw<"or">))> {};
+      : infix<PrimaryExpr, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(PrefixOp), left(MultiplyOp),
+                     left(AdditionOp), left(BitShiftOp), left(BitwiseOp),
+                     nonassoc(CompareOp), left(kw<"and">),
+                     left(kw<"or">))> {};
 
   struct AssignExpr
       : rule<create<ast::AssignExpr>(

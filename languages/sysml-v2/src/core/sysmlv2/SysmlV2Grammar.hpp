@@ -169,8 +169,22 @@ struct SysmlV2 : cursiv::GrammarSpec {
              | create<ast::NameRef>(
                    assign<&ast::NameRef::name>(ref<Chain>))> {};
 
+  // An operand: `istype`, `@`, `@@` or `all` and a bare name, or a base
+  // expression and its postfix chain.
   struct PrimaryExpression
-      : rule<ref<BaseExpression> +
+      : rule<create<ast::Unary>(
+                 assign<&ast::Unary::op>(kw<"istype"> | kw<"hastype"> | kw<"as">) +
+                 assign<&ast::Unary::operand>(create<ast::NameRef>(
+                     assign<&ast::NameRef::name>(ref<QualifiedName>))))  //
+             | create<ast::Unary>(
+                   assign<&ast::Unary::op>(lit<"@@"> | lit<"@">) +
+                   assign<&ast::Unary::operand>(create<ast::NameRef>(
+                       assign<&ast::NameRef::name>(ref<Chain>))))  //
+             | create<ast::Unary>(
+                   assign<&ast::Unary::op>(kw<"all">) +
+                   assign<&ast::Unary::operand>(create<ast::NameRef>(
+                       assign<&ast::NameRef::name>(ref<Chain>))))  //
+             | (ref<BaseExpression> +
              many(nest<ast::Postfix, &ast::Postfix::base>(
                       assign<&ast::Postfix::op>(lit<".">) +
                       assign<&ast::Postfix::name>(ref<QualifiedName>))  //
@@ -204,35 +218,18 @@ struct SysmlV2 : cursiv::GrammarSpec {
                         option(some(append<&ast::Postfix::args>(
                                         ref<Argument>),
                                     lit<",">)) +
-                        lit<")">))> {};
+                        lit<")">)))> {};
 
   static constexpr auto OpUnary = lit<"+"> | lit<"-"> | lit<"~"> | kw<"not">;
 
-  struct UnaryExpression
-      : rule<create<ast::Unary>(
-                 assign<&ast::Unary::op>(kw<"istype"> | kw<"hastype"> | kw<"as">) +
-                 assign<&ast::Unary::operand>(create<ast::NameRef>(
-                     assign<&ast::NameRef::name>(ref<QualifiedName>)))) |
-             create<ast::Unary>(
-                 assign<&ast::Unary::op>(OpUnary) +
-                 assign<&ast::Unary::operand>(ref<UnaryExpression>))  //
-             | create<ast::Unary>(
-                   assign<&ast::Unary::op>(lit<"@@"> | lit<"@">) +
-                   assign<&ast::Unary::operand>(create<ast::NameRef>(
-                       assign<&ast::NameRef::name>(ref<Chain>))))  //
-             | create<ast::Unary>(
-                   assign<&ast::Unary::op>(kw<"all">) +
-                   assign<&ast::Unary::operand>(create<ast::NameRef>(
-                       assign<&ast::NameRef::name>(ref<Chain>))))  //
-             | ref<PrimaryExpression>> {};
-
-  // POW right-assoc, tightest; MUL, ADD, RANGE, CMP, TYPECHECK (widened: the
-  // right operand accepts a full expression rather than only a type
-  // reference -- over-acceptance), EQ, BITAND, XOR, BITOR,
+  // The prefix operators bind tightest, then POW right-assoc; MUL, ADD, RANGE,
+  // CMP, TYPECHECK (widened: the right operand accepts a full expression rather
+  // than only a type reference -- over-acceptance), EQ, BITAND, XOR, BITOR,
   // IMPLIES, COALESCE, loosest.
   struct OperatorExpression
-      : infix<UnaryExpression, ast::Binary,
-              levels(right(lit<"**"> | lit<"^">),
+      : infix<PrimaryExpression, ast::Binary,
+              levels(prefix<ast::Unary>(OpUnary),
+                     right(lit<"**"> | lit<"^">),
                      left(lit<"*"> | lit<"/"> | lit<"%">),
                      left(lit<"+"> | lit<"-">), left(lit<"..">),
                      left(lit<"<="> | lit<">="> | lit<"<"> | lit<">">),

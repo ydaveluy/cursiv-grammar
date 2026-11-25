@@ -22,10 +22,10 @@ struct Tinyc : cursiv::GrammarSpec {
 
   struct Term : rule<ref<Identifier> | ref<IntegerLiteral> | ref<ParenExpr>> {};
 
+  // `+` and `-` bind tighter than the single, non-chaining `<`.
   static constexpr auto OpAdd = lit<"+"> | lit<"-">;
-  struct Sum : infix<Term, ast::BinaryExpr, left(OpAdd)> {};
-
-  struct Test : infix<Sum, ast::BinaryExpr, nonassoc(lit<"<">)> {};
+  struct Test : infix<Term, ast::BinaryExpr,
+                      levels(left(OpAdd), nonassoc(lit<"<">))> {};
 
   struct Expr : rule<create<ast::Assign>(
                          assign<&ast::Assign::target>(ref<Identifier>) +

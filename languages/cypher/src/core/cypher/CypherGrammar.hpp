@@ -609,20 +609,11 @@ struct Cypher : cursiv::GrammarSpec {
                           ref<StringListNullExpression>))) |
              ref<StringListNullExpression>> {};
 
-  struct NotExpression
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(ref<NOT>) +
-                 assign<&ast::UnaryExpr::operand>(ref<NotExpression>))  //
-             | ref<ComparisonExpression>> {};
-
-  struct AndExpression
-      : infix<NotExpression, ast::BinaryExpr, left(ref<AND>)> {};
-
-  struct XorExpression
-      : infix<AndExpression, ast::BinaryExpr, left(ref<XOR>)> {};
-
+  // NOT, AND, XOR, OR from the tightest to the loosest.
   struct Expression
-      : infix<XorExpression, ast::BinaryExpr, left(ref<OR>)> {};
+      : infix<ComparisonExpression, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(ref<NOT>), left(ref<AND>),
+                     left(ref<XOR>), left(ref<OR>))> {};
 
   // reading / updating clauses
 

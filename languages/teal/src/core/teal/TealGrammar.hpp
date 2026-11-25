@@ -346,25 +346,16 @@ struct Teal : cursiv::GrammarSpec {
              many(nest<ast::AsExpr, &ast::AsExpr::expr>(
                  ref<ContextWord<"as">> + assign<&ast::AsExpr::type>(ref<Typ>)))> {};
 
-  // `^` binds tighter than a unary operator, but a unary operand may itself
-  // hold a `^` chain (`-2^2` is `-(2^2)`); the alternatives below are the
-  // whole of that, not a table entry.
-  struct Unary
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(as<ast::UnOp::lnot>(kw<"not">) | as<ast::UnOp::len>(lit<"#">) |
-                                             as<ast::UnOp::neg>(lit<"-">) | as<ast::UnOp::bnot>(lit<"~">)) +
-                 assign<&ast::UnaryExpr::operand>(ref<Unary>))  //
-             | create<ast::BinaryExpr>(
-                   assign<&ast::BinaryExpr::left>(ref<AtomAs>) +
-                   assign<&ast::BinaryExpr::op>(as<ast::BinOp::pow>(lit<"^">)) +
-                   assign<&ast::BinaryExpr::right>(ref<Unary>))  //
-             | ref<AtomAs>> {};
-
-  // The bitwise level sits between comparison and concatenation, as the Lua
-  // manual places it (Teal follows Lua's precedence).
+  // `^` binds tighter than the unary operators, which bind tighter than the
+  // rest: `-2^2` is `-(2^2)`, `2^-2` is `2^(-2)`, `2^3^2` is `2^(3^2)`. The
+  // bitwise level sits between comparison and concatenation, as in Lua.
   struct Expression
-      : infix<Unary, ast::BinaryExpr,
-              levels(left(as<ast::BinOp::mul>(lit<"*">) | as<ast::BinOp::div>(lit<"/">) | as<ast::BinOp::idiv>(lit<"//">) |
+      : infix<AtomAs, ast::BinaryExpr,
+              levels(right(as<ast::BinOp::pow>(lit<"^">)),  //
+                     prefix<ast::UnaryExpr>(
+                         as<ast::UnOp::lnot>(kw<"not">) | as<ast::UnOp::len>(lit<"#">) |
+                         as<ast::UnOp::neg>(lit<"-">) | as<ast::UnOp::bnot>(lit<"~">)),  //
+                     left(as<ast::BinOp::mul>(lit<"*">) | as<ast::BinOp::div>(lit<"/">) | as<ast::BinOp::idiv>(lit<"//">) |
                           as<ast::BinOp::mod>(lit<"%">)),               //
                      left(as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::sub>(lit<"-">)),  //
                      right(as<ast::BinOp::concat>(lit<"..">)),           //

@@ -297,6 +297,7 @@ struct Bcpl : cursiv::GrammarSpec {
                      assign<&ast::BinaryExpr::op>(MultOp) +
                      assign<&ast::BinaryExpr::right>(ref<PostfixExpr>)))> {};
 
+  // Additive level, kept apart: `+` and `-` may also start the next statement.
   struct AddExpr
       : rule<ref<MultExpr> +
             many(!gap::line +
@@ -304,40 +305,18 @@ struct Bcpl : cursiv::GrammarSpec {
                      assign<&ast::BinaryExpr::op>(AddOp) +
                      assign<&ast::BinaryExpr::right>(ref<MultExpr>)))> {};
 
-  struct RelExpr
-      : rule<ref<AddExpr> +
-            many(!gap::line +
-                 nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                     assign<&ast::BinaryExpr::op>(Relop) +
-                     assign<&ast::BinaryExpr::right>(ref<AddExpr>)))> {};
-
+  // Relational and shift levels.
   struct ShiftExpr
-      : rule<ref<RelExpr> +
-            many(!gap::line +
-                 nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                     assign<&ast::BinaryExpr::op>(ShiftOp) +
-                     assign<&ast::BinaryExpr::right>(ref<RelExpr>)))> {};
+      : infix<AddExpr, ast::BinaryExpr,
+              levels(left(!gap::line + Relop),    //
+                     left(!gap::line + ShiftOp))> {};
 
-  struct AndExpr
-      : rule<ref<ShiftExpr> +
-            many(!gap::line +
-                 nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                     assign<&ast::BinaryExpr::op>(lit<"&">) +
-                     assign<&ast::BinaryExpr::right>(ref<ShiftExpr>)))> {};
-
-  struct OrExpr
-      : rule<ref<AndExpr> +
-            many(!gap::line +
-                 nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                     assign<&ast::BinaryExpr::op>(lit<"|">) +
-                     assign<&ast::BinaryExpr::right>(ref<AndExpr>)))> {};
-
+  // `&`, `|` and equivalence levels.
   struct EqvExpr
-      : rule<ref<OrExpr> +
-            many(!gap::line +
-                 nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                     assign<&ast::BinaryExpr::op>(EqvOp) +
-                     assign<&ast::BinaryExpr::right>(ref<OrExpr>)))> {};
+      : infix<ShiftExpr, ast::BinaryExpr,
+              levels(left(!gap::line + lit<"&">),  //
+                     left(!gap::line + lit<"|">),  //
+                     left(!gap::line + EqvOp))> {};
 
   struct Expression
       : rule<create<ast::CondExpr>(

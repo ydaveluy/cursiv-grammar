@@ -88,10 +88,6 @@ struct Sqlite : cursiv::GrammarSpec {
   struct ExprBase;
   struct ExprUnary;
   struct ExprCollate;
-  struct ExprString;
-  struct ExprMultiplication;
-  struct ExprAddition;
-  struct ExprBitwise;
   struct ExprComparison;
   struct ExprBinarySuffix;
   struct ExprNot;
@@ -394,35 +390,11 @@ struct Sqlite : cursiv::GrammarSpec {
                  ikw<"COLLATE"> +
                  assign<&ast::CollateExpr::collation>(ref<Name>)))> {};
 
-  struct ExprString
-      : rule<ref<ExprCollate> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(OpString) +
-                 assign<&ast::BinaryExpr::right>(ref<ExprCollate>)))> {};
-
-  struct ExprMultiplication
-      : rule<ref<ExprString> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(OpMulLvl) +
-                 assign<&ast::BinaryExpr::right>(ref<ExprString>)))> {};
-
-  struct ExprAddition
-      : rule<ref<ExprMultiplication> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(OpAddLvl) +
-                 assign<&ast::BinaryExpr::right>(ref<ExprMultiplication>)))> {};
-
-  struct ExprBitwise
-      : rule<ref<ExprAddition> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(OpBitwise) +
-                 assign<&ast::BinaryExpr::right>(ref<ExprAddition>)))> {};
-
+  // Operators from `||` to the comparisons, over a COLLATE operand.
   struct ExprComparison
-      : rule<ref<ExprBitwise> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(OpCompare) +
-                 assign<&ast::BinaryExpr::right>(ref<ExprBitwise>)))> {};
+      : infix<ExprCollate, ast::BinaryExpr,
+              levels(left(OpString), left(OpMulLvl), left(OpAddLvl),
+                     left(OpBitwise), left(OpCompare))> {};
 
   static constexpr auto InTargetSubquery =
       lit<"("> + assign<&ast::InExpr::subquery>(ref<Select>) + lit<")">;

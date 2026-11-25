@@ -162,87 +162,77 @@ struct Prolog : cursiv::GrammarSpec {
                  assign<&ast::UnaryTerm::op>(ref<GraphicOp<"$">>) + NotFunctor +
                  assign<&ast::UnaryTerm::operand>(ref<Primary>)) |
              ref<Primary>> {};
-  struct DotTerm : infix<DollarTerm, ast::BinaryTerm, left(ref<DOT_OP>)> {};
+  // Dot binds tighter than `^` and `**`, which bind tighter than the prefix
+  // `-`, `+` and `\`.
   struct PowerTerm
-      : rule<create<ast::UnaryTerm>(
-                 assign<&ast::UnaryTerm::op>(ref<GraphicOp<"-">> |
+      : infix<DollarTerm, ast::BinaryTerm,
+              levels(left(ref<DOT_OP>),
+                     right(ref<GraphicOp<"**">> | ref<GraphicOp<"^">>),
+                     prefix<ast::UnaryTerm>((ref<GraphicOp<"-">> |
                                              ref<GraphicOp<"+">> |
                                              ref<GraphicOp<"\\">>) +
-                 NotFunctor +
-                 assign<&ast::UnaryTerm::operand>(ref<PowerTerm>)) |
-             create<ast::BinaryTerm>(
-                 assign<&ast::BinaryTerm::left>(ref<DotTerm>) +
-                 assign<&ast::BinaryTerm::op>(ref<GraphicOp<"**">> |
-                                              ref<GraphicOp<"^">>) +
-                 assign<&ast::BinaryTerm::right>(ref<PowerTerm>)) |
-             ref<DotTerm>> {};
-  struct MulTerm
-      : infix<PowerTerm, ast::BinaryTerm,
-              left(ref<GraphicOp<R"(*)">> | ref<GraphicOp<R"(/)">> |
-                   ref<GraphicOp<R"(//)">> | ref<WordOp<R"(div)">> |
-                   ref<WordOp<R"(rdiv)">> | ref<WordOp<R"(rem)">> |
-                   ref<WordOp<R"(mod)">> | ref<GraphicOp<R"(<<)">> |
-                   ref<GraphicOp<R"(>>)">> | ref<WordOp<R"(xor)">>)> {};
-  struct AddTerm
-      : infix<MulTerm, ast::BinaryTerm,
-              left(ref<GraphicOp<R"(+)">> | ref<GraphicOp<R"(-)">> |
-                   ref<GraphicOp<R"(/\)">> | ref<GraphicOp<R"(\/)">>)> {};
-  struct ColonTerm
-      : infix<AddTerm, ast::BinaryTerm, right(ref<GraphicOp<R"(:)">>)> {};
-  struct CompareTerm
-      : infix<ColonTerm, ast::BinaryTerm,
-              left(ref<GraphicOp<R"(=)">> | ref<GraphicOp<R"(\=)">> |
-                   ref<GraphicOp<R"(==)">> | ref<GraphicOp<R"(\==)">> |
-                   ref<GraphicOp<R"(@<)">> | ref<GraphicOp<R"(@=<)">> |
-                   ref<GraphicOp<R"(@>)">> | ref<GraphicOp<R"(@>=)">> |
-                   ref<GraphicOp<R"(=..)">> | ref<WordOp<R"(is)">> |
-                   ref<GraphicOp<R"(=:=)">> | ref<GraphicOp<R"(=\=)">> |
-                   ref<GraphicOp<R"(<)">> | ref<GraphicOp<R"(=<)">> |
-                   ref<GraphicOp<R"(>)">> | ref<GraphicOp<R"(>=)">> |
-                   ref<GraphicOp<R"(=@=)">> | ref<GraphicOp<R"(\=@=)">> |
-                   ref<GraphicOp<R"(>:<)">> | ref<GraphicOp<R"(:<)">> |
-                   ref<WordOp<R"(as)">>)> {};
+                                            NotFunctor))> {};
+  // One table from `*` to `:=`, the tightest first.
   struct AssignTerm
-      : infix<CompareTerm, ast::BinaryTerm, left(ref<GraphicOp<R"(:=)">>)> {};
-  struct NegatedTerm : rule<create<ast::UnaryTerm>(
-                            assign<&ast::UnaryTerm::op>(ref<GraphicOp<"\\+">>) +
-                            NotFunctor +
-                            assign<&ast::UnaryTerm::operand>(ref<NegatedTerm>)) |
-                        ref<AssignTerm>> {};
+      : infix<PowerTerm, ast::BinaryTerm,
+              levels(left(ref<GraphicOp<R"(*)">> | ref<GraphicOp<R"(/)">> |
+                          ref<GraphicOp<R"(//)">> | ref<WordOp<R"(div)">> |
+                          ref<WordOp<R"(rdiv)">> | ref<WordOp<R"(rem)">> |
+                          ref<WordOp<R"(mod)">> | ref<GraphicOp<R"(<<)">> |
+                          ref<GraphicOp<R"(>>)">> | ref<WordOp<R"(xor)">>),
+                     left(ref<GraphicOp<R"(+)">> | ref<GraphicOp<R"(-)">> |
+                          ref<GraphicOp<R"(/\)">> | ref<GraphicOp<R"(\/)">>),
+                     right(ref<GraphicOp<R"(:)">>),
+                     left(ref<GraphicOp<R"(=)">> | ref<GraphicOp<R"(\=)">> |
+                          ref<GraphicOp<R"(==)">> | ref<GraphicOp<R"(\==)">> |
+                          ref<GraphicOp<R"(@<)">> | ref<GraphicOp<R"(@=<)">> |
+                          ref<GraphicOp<R"(@>)">> | ref<GraphicOp<R"(@>=)">> |
+                          ref<GraphicOp<R"(=..)">> | ref<WordOp<R"(is)">> |
+                          ref<GraphicOp<R"(=:=)">> | ref<GraphicOp<R"(=\=)">> |
+                          ref<GraphicOp<R"(<)">> | ref<GraphicOp<R"(=<)">> |
+                          ref<GraphicOp<R"(>)">> | ref<GraphicOp<R"(>=)">> |
+                          ref<GraphicOp<R"(=@=)">> | ref<GraphicOp<R"(\=@=)">> |
+                          ref<GraphicOp<R"(>:<)">> | ref<GraphicOp<R"(:<)">> |
+                          ref<WordOp<R"(as)">>),
+                     left(ref<GraphicOp<R"(:=)">>))> {};
   struct DictEntry
       : rule<assign<&ast::DictEntry::key>(ref<Primary>) + lit<":"> +
              assign<&ast::DictEntry::value>(ref<ArgTerm>)> {};
-  struct CommaTerm
-      : infix<NegatedTerm, ast::BinaryTerm, right(lit<",">)> {};
   // Inside a compound or dict, comma separates arguments rather than acting
   // as an operator. A list item also leaves bar to the list's tail syntax.
+  static constexpr auto NotLevel =
+      prefix<ast::UnaryTerm>(ref<GraphicOp<"\\+">> + NotFunctor);
+  static constexpr auto CommaLevel = right(lit<",">);
+  static constexpr auto ArrowLevel =
+      right(ref<GraphicOp<R"(->)">> | ref<GraphicOp<R"(*->)">>);
+  static constexpr auto SemicolonLevel = right(lit<";">);
+  static constexpr auto BarLevel = right(lit<"|">);
+  static constexpr auto WithComma =
+      levels(NotLevel, CommaLevel, ArrowLevel, SemicolonLevel, BarLevel);
+  static constexpr auto WithBar =
+      levels(NotLevel, ArrowLevel, SemicolonLevel, BarLevel);
+  static constexpr auto WithoutBar =
+      levels(NotLevel, ArrowLevel, SemicolonLevel);
   template <bool UseComma, bool UseBar>
   struct Expression {
-    using Commas = std::conditional_t<UseComma, CommaTerm, NegatedTerm>;
-    struct ArrowTerm
-        : infix<Commas, ast::BinaryTerm,
-                right(ref<GraphicOp<R"(->)">> | ref<GraphicOp<R"(*->)">>)> {};
-    struct SemicolonTerm
-        : infix<ArrowTerm, ast::BinaryTerm, right(lit<";">)> {};
-    struct BarTerm
-        : infix<SemicolonTerm, ast::BinaryTerm, right(lit<"|">)> {};
-    using Bars = std::conditional_t<UseBar, BarTerm, SemicolonTerm>;
-    struct DirectiveTerm
-        : rule<create<ast::UnaryTerm>(
-                   assign<&ast::UnaryTerm::op>(PrefixWord) +
-                   NotFunctor +
-                   assign<&ast::UnaryTerm::operand>(ref<DirectiveTerm>)) |
-               ref<Bars>> {};
+    struct ControlTerm
+        : infix<AssignTerm, ast::BinaryTerm,
+                std::conditional_t<
+                    UseComma, decltype(WithComma),
+                    std::conditional_t<UseBar, decltype(WithBar),
+                                       decltype(WithoutBar)>>{}> {};
+    // The prefix words bind looser than `,` and tighter than the rule arrows;
+    // the prefix `:-` and `?-` read a whole rule.
     struct RuleTerm
-        : infix<DirectiveTerm, ast::BinaryTerm,
-                left(ref<GraphicOp<R"(:-)">> | ref<GraphicOp<R"(-->)">> |
-                     ref<GraphicOp<R"(=>)">>)> {};
-    struct Term : rule<create<ast::UnaryTerm>(
-                           assign<&ast::UnaryTerm::op>(ref<GraphicOp<":-">> |
-                                                       ref<GraphicOp<"?-">>) +
-                           NotFunctor +
-                           assign<&ast::UnaryTerm::operand>(ref<Term>)) |
-                       ref<RuleTerm>> {};
+        : infix<ControlTerm, ast::BinaryTerm,
+                levels(prefix<ast::UnaryTerm>(PrefixWord + NotFunctor),
+                       left(ref<GraphicOp<R"(:-)">> | ref<GraphicOp<R"(-->)">> |
+                            ref<GraphicOp<R"(=>)">>))> {};
+    struct Term
+        : infix<RuleTerm, ast::BinaryTerm,
+                prefix<ast::UnaryTerm>((ref<GraphicOp<":-">> |
+                                        ref<GraphicOp<"?-">>) +
+                                       NotFunctor)> {};
   };
   struct Term : Expression<true, true>::Term {};
   struct ArgTerm : Expression<false, true>::Term {};

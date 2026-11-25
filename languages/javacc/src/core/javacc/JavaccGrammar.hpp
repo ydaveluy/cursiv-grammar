@@ -597,23 +597,13 @@ struct Javacc : cursiv::GrammarSpec {
   struct RUnsignedShift : rule<as<[] { return std::string_view(">>>"); }>(
                               lit<">"> + lit<">"> + lit<">">)> {};
 
-  // GT opens both a relational `>` and the RSignedShift/RUnsignedShift
-  // sequences below: one infix<> table cannot give it two precedence steps,
-  // so the relational level is a hand-written wrapper instead of one shared
-  // ladder.
-  struct ShiftExpression
+  // Multiplicative, additive, shift and relational levels.
+  struct RelationalExpression
       : infix<UnaryExpression, ast::BinaryExpr,
               levels(left(OpMul),  //
                      left(OpAdd),  //
-                     left(lit<"<<"> | ref<RUnsignedShift> |
-                          ref<RSignedShift>))> {};
-
-  struct RelationalExpression
-      : rule<ref<ShiftExpression> +
-             many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(lit<"<="> | lit<">="> | lit<"<"> |
-                                              lit<">">) +
-                 assign<&ast::BinaryExpr::right>(ref<ShiftExpression>)))> {};
+                     left(lit<"<<"> | ref<RUnsignedShift> | ref<RSignedShift>),  //
+                     left(lit<"<="> | lit<">="> | lit<"<"> | lit<">">))> {};
 
   struct InstanceOfExpression
       : rule<create<ast::InstanceOfExpr>(

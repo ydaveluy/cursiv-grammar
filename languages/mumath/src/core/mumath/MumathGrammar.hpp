@@ -40,11 +40,8 @@ struct Mumath : cursiv::GrammarSpec {
   static constexpr auto MulOp = lit<"*"> | lit<"/"> | kw<"mod">;
 
   struct Expression;
-  struct Conjunction;
   struct Not;
   struct Comparison;
-  struct SimpleExpression;
-  struct Term;
   struct Power;
   struct Unary;
   struct Factor;
@@ -93,17 +90,10 @@ struct Mumath : cursiv::GrammarSpec {
                  assign<&ast::PositiveExpression::operand>(ref<Unary>)) |
              ref<Power>> {};
 
-  struct Term : infix<Unary, ast::BinaryExpression, left(MulOp)> {};
-
-  struct SimpleExpression
-      : infix<Term, ast::BinaryExpression, left(AddOp)> {};
-
+  // Operands of NOT: product, sum, then comparison, which chains to the left.
   struct Comparison
-      : rule<ref<SimpleExpression> +
-             many(nest<ast::BinaryExpression, &ast::BinaryExpression::left>(
-                 assign<&ast::BinaryExpression::op>(RelOp) +
-                 assign<&ast::BinaryExpression::right>(ref<SimpleExpression>)))> {
-  };
+      : infix<Unary, ast::BinaryExpression,
+              levels(left(MulOp), left(AddOp), left(RelOp))> {};
 
   // NOT is looser than comparison, so `NOT A=B` reads `NOT(A=B)`, not
   // `(NOT A)=B`; stacks (`NOT NOT A`).
@@ -113,13 +103,10 @@ struct Mumath : cursiv::GrammarSpec {
                  assign<&ast::NotExpression::operand>(ref<Not>))  //
              | ref<Comparison>> {};
 
-  struct Conjunction : infix<Not, ast::BinaryExpression,
-                             left(kw<"AND">)> {};
-
   // AND/OR are the loosest operators: `A<=B AND A>=B` reads
   // `(A<=B) AND (A>=B)`.
-  struct Expression
-      : infix<Conjunction, ast::BinaryExpression, left(kw<"OR">)> {};
+  struct Expression : infix<Not, ast::BinaryExpression,
+                            levels(left(kw<"AND">), left(kw<"OR">))> {};
 
   struct FunctionDesignator
       : rule<assign<&ast::CallExpression::func>(ref<ID>) + lit<"("> +

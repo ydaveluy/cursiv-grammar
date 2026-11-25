@@ -414,22 +414,15 @@ struct Vb6 : cursiv::GrammarSpec {
   struct PowExpr;
   struct SignedPowerAtom : rule<create<ast::UnaryExpr>(assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) + assign<&ast::UnaryExpr::operand>(ref<SignedPowerAtom>)) | ref<ValuePrimary>> {};
   struct PowExpr : rule<ref<ValuePrimary> + many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(assign<&ast::BinaryExpr::op>(OpPow) + assign<&ast::BinaryExpr::right>(ref<SignedPowerAtom>)))> {};
-  struct UnaryPM : rule<create<ast::UnaryExpr>(assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) + assign<&ast::UnaryExpr::operand>(ref<UnaryPM>)) | ref<PowExpr>> {};
 
-  // Multiplicative `*`/`/`, integer division `\` and `Mod` are three
-  // distinct tiers, tightest to loosest in that order, not one.
+  // Prefix `+`/`-`, then `* /`, `\`, `Mod`, `+ -`, `&` and the comparisons,
+  // tightest to loosest. `*` and `/` bind tighter than `\`, which binds
+  // tighter than `Mod`: three tiers, not one.
   struct ExprArith
-      : infix<UnaryPM, ast::BinaryExpr,
-              levels(left(OpMul), left(OpIntDiv), left(OpModText),
-                     left(OpAdd), left(OpConcat), left(OpComp))> {};
-
-  // `Not` binds looser than comparison but tighter than `And`: `Not a = b`
-  // reads as `Not (a = b)`.
-  struct NotExpr
-      : rule<create<ast::UnaryExpr>(assign<&ast::UnaryExpr::op>(ikw<"NOT">) +
-                                     assign<&ast::UnaryExpr::operand>(
-                                         ref<NotExpr>)) |
-             ref<ExprArith>> {};
+      : infix<PowExpr, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(OpAdd), left(OpMul),
+                     left(OpIntDiv), left(OpModText), left(OpAdd),
+                     left(OpConcat), left(OpComp))> {};
 
   static constexpr auto OpAnd = ikw<"AND">;
   static constexpr auto OpOr = ikw<"OR">;
@@ -437,10 +430,12 @@ struct Vb6 : cursiv::GrammarSpec {
   static constexpr auto OpEqv = ikw<"EQV">;
   static constexpr auto OpImp = ikw<"IMP">;
 
+  // `Not` binds looser than comparison but tighter than `And`: `Not a = b`
+  // reads as `Not (a = b)`.
   struct Expression
-      : infix<NotExpr, ast::BinaryExpr,
-              levels(left(OpAnd), left(OpOr), left(OpXor), left(OpEqv),
-                     left(OpImp))> {};
+      : infix<ExprArith, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(ikw<"NOT">), left(OpAnd),
+                     left(OpOr), left(OpXor), left(OpEqv), left(OpImp))> {};
 
   // -- Shared list helpers ----------------------------------------------
 

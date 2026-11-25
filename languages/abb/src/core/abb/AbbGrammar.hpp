@@ -136,10 +136,12 @@ struct Abb : cursiv::GrammarSpec {
              many(nest<&ast::Binary::left>(
                  assign<&ast::Binary::op>(lit<"+"> | lit<"-">) +
                  assign<&ast::Binary::right>(ref<Term>)))> {};
-  struct Relation : infix<SimpleExpression, ast::Binary,
-                          nonassoc(lit<"<="> | lit<">="> | lit<"<>"> |
-                                   lit<"<"> | lit<">"> | lit<"=">)> {};
-  struct LogicalTerm : infix<Relation, ast::Binary, left(ikw<"AND">)> {};
+  // Relational operators do not chain; AND binds looser than they do.
+  struct LogicalTerm
+      : infix<SimpleExpression, ast::Binary,
+              levels(nonassoc(lit<"<="> | lit<">="> | lit<"<>"> | lit<"<"> |
+                              lit<">"> | lit<"=">),
+                     left(ikw<"AND">))> {};
   // NOT applies to the initial logical term; OR and XOR share a left level.
   struct Expression
       : rule<(create<ast::Unary>(

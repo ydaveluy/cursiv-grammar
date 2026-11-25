@@ -797,53 +797,24 @@ struct XQuery : cursiv::GrammarSpec {
                  assign<&ast::InstanceOfExpr::type>(ref<SequenceType>))  //
              | ref<TreatExpr>> {};
 
-  struct RecordPutExpr : infix<InstanceOfExpr, ast::BinaryExpr,
-                               left(as<ast::BinOp::record_put>(lit<"+:=">))> {};
-
-  struct IntersectExceptExpr
-      : infix<RecordPutExpr, ast::BinaryExpr,
-              left(as<ast::BinOp::intersect>(kw<"intersect">) |
-                   as<ast::BinOp::except>(kw<"except">))> {};
-
-  struct UnionExpr : infix<IntersectExceptExpr, ast::BinaryExpr,
-                           left(as<ast::BinOp::union_>(kw<"union">) |
-                                as<ast::BinOp::union_>(lit<"|">))> {};
-
-  struct MultiplicativeExpr
-      : infix<UnionExpr, ast::BinaryExpr,
-              left(as<ast::BinOp::mul>(lit<"*">) | as<ast::BinOp::mul>(lit<"×">) | as<ast::BinOp::div_>(kw<"div">) | as<ast::BinOp::div_>(lit<"÷">) | as<ast::BinOp::idiv>(kw<"idiv">) |
-                   as<ast::BinOp::mod>(kw<"mod">))> {};
-
-  struct AdditiveExpr : infix<MultiplicativeExpr, ast::BinaryExpr,
-                              left(as<ast::BinOp::add>(lit<"+">) |
-                                   as<ast::BinOp::sub>(lit<"-">))> {};
-
-  struct RangeExpr
-      : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<AdditiveExpr>) +
-                 assign<&ast::BinaryExpr::op>(as<ast::BinOp::range>(kw<"to">)) +
-                 assign<&ast::BinaryExpr::right>(ref<AdditiveExpr>))  //
-             | ref<AdditiveExpr>> {};
-
-  struct StringConcatExpr : infix<RangeExpr, ast::BinaryExpr,
-                                  left(as<ast::BinOp::concat>(lit<"||">))> {};
-
-  struct OtherwiseExpr
-      : infix<StringConcatExpr, ast::BinaryExpr,
-              left(as<ast::BinOp::otherwise_>(kw<"otherwise">))> {};
-
-  struct ComparisonExpr
-      : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<OtherwiseExpr>) +
-                 assign<&ast::BinaryExpr::op>(ValueComp | GeneralComp | NodeComp) +
-                 assign<&ast::BinaryExpr::right>(ref<OtherwiseExpr>))  //
-             | ref<OtherwiseExpr>> {};
-
-  struct AndExpr : infix<ComparisonExpr, ast::BinaryExpr,
-                         left(as<ast::BinOp::and_>(kw<"and">))> {};
-
+  // Binary operators from `+:=` (tightest) to `or` (loosest).
   struct OrExpr
-      : infix<AndExpr, ast::BinaryExpr, left(as<ast::BinOp::or_>(kw<"or">))> {};
+      : infix<InstanceOfExpr, ast::BinaryExpr,
+              levels(left(as<ast::BinOp::record_put>(lit<"+:=">)),
+                     left(as<ast::BinOp::intersect>(kw<"intersect">) |
+                          as<ast::BinOp::except>(kw<"except">)),
+                     left(as<ast::BinOp::union_>(kw<"union">) |
+                          as<ast::BinOp::union_>(lit<"|">)),
+                     left(as<ast::BinOp::mul>(lit<"*">) | as<ast::BinOp::mul>(lit<"×">) | as<ast::BinOp::div_>(kw<"div">) | as<ast::BinOp::div_>(lit<"÷">) | as<ast::BinOp::idiv>(kw<"idiv">) |
+                          as<ast::BinOp::mod>(kw<"mod">)),
+                     left(as<ast::BinOp::add>(lit<"+">) |
+                          as<ast::BinOp::sub>(lit<"-">)),
+                     nonassoc(as<ast::BinOp::range>(kw<"to">)),
+                     left(as<ast::BinOp::concat>(lit<"||">)),
+                     left(as<ast::BinOp::otherwise_>(kw<"otherwise">)),
+                     nonassoc(ValueComp | GeneralComp | NodeComp),
+                     left(as<ast::BinOp::and_>(kw<"and">)),
+                     left(as<ast::BinOp::or_>(kw<"or">)))> {};
 
   // ---- FLWOR ---------------------------------------------------------------
 

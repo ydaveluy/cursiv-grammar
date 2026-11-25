@@ -265,7 +265,6 @@ struct Vba : cursiv::GrammarSpec {
   struct LExpression;
   struct NotExpr;
   struct ArithChain;
-  struct NegExpr;
   struct PowExpr;
   struct AtomExpr;
   struct Postfix;
@@ -395,7 +394,6 @@ struct Vba : cursiv::GrammarSpec {
   // directly (`2^-2`). Repeated powers associate left: `(2^3)^2`.
   struct SignedPowerAtom : rule<create<ast::UnaryExpr>(assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) + assign<&ast::UnaryExpr::operand>(ref<SignedPowerAtom>)) | ref<AtomExpr>> {};
   struct PowExpr : rule<ref<AtomExpr> + many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(assign<&ast::BinaryExpr::op>(lit<"^">) + assign<&ast::BinaryExpr::right>(ref<SignedPowerAtom>)))> {};
-  struct NegExpr : rule<create<ast::UnaryExpr>(assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) + assign<&ast::UnaryExpr::operand>(ref<NegExpr>)) | ref<PowExpr>> {};
 
   static constexpr auto OpMul = lit<"/"> | lit<"*">;
   static constexpr auto OpIntDiv = lit<"\\">;
@@ -407,10 +405,12 @@ struct Vba : cursiv::GrammarSpec {
                                  lit<"<>"> | lit<"><"> | lit<">"> | lit<"<"> |
                                  lit<"=">;
 
-  // */, \, Mod are each their own level, tightest to loosest.
+  // The sign and each of */, \, Mod, +-, &, comparisons is its own level,
+  // tightest to loosest. The sign reads a `^` chain: `-2^2` is `-(2^2)`.
   struct ArithChain
-      : infix<NegExpr, ast::BinaryExpr,
-              levels(left(OpMul), left(OpIntDiv), left(OpModText),
+      : infix<PowExpr, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(lit<"+"> | lit<"-">),
+                     left(OpMul), left(OpIntDiv), left(OpModText),
                      left(OpAdd), left(OpConcat), left(OpRel))> {};
 
   // Not: tighter than And, looser than a comparison.

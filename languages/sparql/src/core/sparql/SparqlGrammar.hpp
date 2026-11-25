@@ -168,8 +168,6 @@ struct Sparql : cursiv::GrammarSpec {
   struct Triples;
   struct Unary;
   struct PrimaryExpr;
-  struct NumericExpr;
-  struct Relational;
   struct Expression;
   struct BuiltInCallRule;
   struct FunctionCall;
@@ -272,21 +270,10 @@ struct Sparql : cursiv::GrammarSpec {
                  assign<&ast::UnaryExpr::operand>(ref<PrimaryExpr>)) |
              ref<PrimaryExpr>> {};
 
-  struct NumericExpr
-      : infix<Unary, ast::BinaryExpr, levels(left(OpMul), left(OpAdd))> {};
-
-  // One optional comparison, never a chain: `a < b < c` is not SPARQL, so
-  // this sits outside the infix ladders rather than repeating like
-  // `*`/`+`/`&&`/`||` do.
-  struct Relational
-      : rule<create<ast::BinaryExpr>(
-                 assign<&ast::BinaryExpr::left>(ref<NumericExpr>) +
-                 assign<&ast::BinaryExpr::op>(OpCompare) +
-                 assign<&ast::BinaryExpr::right>(ref<NumericExpr>)) |
-             ref<NumericExpr>> {};
-
+  // A comparison is optional and never chains: `a < b < c` is not SPARQL.
   struct Expression
-      : infix<Relational, ast::BinaryExpr, levels(left(OpAnd), left(OpOr))> {};
+      : infix<Unary, ast::BinaryExpr,
+              levels(left(OpMul), left(OpAdd), nonassoc(OpCompare), left(OpAnd), left(OpOr))> {};
 
   static constexpr auto BuiltInName =
       as<ast::BuiltIn::str>(ikw<"STR">) | as<ast::BuiltIn::lang>(ikw<"LANG">) | as<ast::BuiltIn::lang_matches>(ikw<"LANGMATCHES">) | as<ast::BuiltIn::datatype>(ikw<"DATATYPE">) |

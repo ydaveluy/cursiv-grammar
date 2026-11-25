@@ -566,15 +566,13 @@ struct Cpp : cursiv::GrammarSpec {
   static constexpr auto OpMul = lit<"*"> | lit<"/"> | lit<"%">;
   static constexpr auto OpAdd = lit<"+"> | lit<"-">;
 
-  struct AdditiveLevel
-      : infix<CastExpression, ast::BinaryExpr,
-              levels(left(OpPtrMem), left(OpMul), left(OpAdd))> {};
-
   // Reuse adjacent operator rules while keeping individual '>' tokens
   // available to close nested template arguments.
   struct ShiftOp : rule<ref<OpShl> | ref<OpShr>> {};
   struct ShiftExpression
-      : infix<AdditiveLevel, ast::BinaryExpr, left(ref<ShiftOp>)> {};
+      : infix<CastExpression, ast::BinaryExpr,
+              levels(left(OpPtrMem), left(OpMul), left(OpAdd),
+                     left(ref<ShiftOp>))> {};
 
   static constexpr auto OpRel = lit<"<="> | lit<">="> | Lt | Gt;
   static constexpr auto OpEq = lit<"=="> | lit<"!="> | kw<"not_eq">;

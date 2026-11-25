@@ -78,17 +78,10 @@ struct Alloy : cursiv::GrammarSpec {
 
 
   struct Expr;
-  struct Iff;
   struct Implies;
   struct And;
-  struct GeneralNeg;
   struct CompareExpr;
-  struct QuantPrefix;
-  struct AddSub;
-  struct Cardinality;
-  struct Multiply;
   struct Shift;
-  struct Range;
   struct IntersectOverride;
   struct ArrowExpr;
   struct Restrict;
@@ -183,10 +176,11 @@ struct Alloy : cursiv::GrammarSpec {
                            lit<",">) +
                       lit<"]">))> {};
 
-  struct Range : infix<BoxJoin, ast::BinaryExpr,
-                       left(as<ast::BinOp::range_restrict>(lit<":>">))> {};
-  struct Restrict : infix<Range, ast::BinaryExpr,
-                          left(as<ast::BinOp::domain_restrict>(lit<"<:">))> {};
+  // `:>` then `<:` over box joins.
+  struct Restrict
+      : infix<BoxJoin, ast::BinaryExpr,
+              levels(left(as<ast::BinOp::range_restrict>(lit<":>">)),
+                     left(as<ast::BinOp::domain_restrict>(lit<"<:">)))> {};
 
   struct ArrowExpr
       : rule<ref<Restrict> +
@@ -198,41 +192,45 @@ struct Alloy : cursiv::GrammarSpec {
 
   struct IntersectOverride
       : infix<ArrowExpr, ast::BinaryExpr,
-              levels(left(as<ast::BinOp::intersect>(lit<"&">)), left(as<ast::BinOp::override_>(lit<"++">)))> {};
-  struct Cardinality
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::card>(lit<"#">) | as<ast::UnaryOp::integer>(kw<"sum"> | kw<"int">)) +
-                 assign<&ast::UnaryExpr::operand>(ref<Cardinality>)) |
-             ref<IntersectOverride>> {};
+              levels(left(as<ast::BinOp::intersect>(lit<"&">)),
+                     left(as<ast::BinOp::override_>(lit<"++">)))> {};
 
-  struct Multiply
-      : infix<Cardinality, ast::BinaryExpr,
-              left(as<ast::BinOp::multiply>(kw<"fun/mul">) | as<ast::BinOp::divide>(kw<"fun/div">) | as<ast::BinOp::remainder>(kw<"fun/rem">))> {};
-  struct AddSub : infix<Multiply, ast::BinaryExpr,
-                            left(as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::subtract>(lit<"-">) |
-                                 as<ast::BinOp::integer_add>(kw<"fun/add">) | as<ast::BinOp::integer_subtract>(kw<"fun/sub">))> {
-  };
-  struct Shift : infix<AddSub, ast::BinaryExpr,
-                           left(as<ast::BinOp::shift_left>(lit<"<<">) | as<ast::BinOp::shift_right>(lit<">>>">) |
-                                as<ast::BinOp::shift_arithmetic>(lit<">>">))> {};
-  struct QuantPrefix
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::no>(kw<"no">) | as<ast::UnaryOp::lone>(kw<"lone">) |
-                                             as<ast::UnaryOp::some>(kw<"some">) | as<ast::UnaryOp::one>(kw<"one">) |
-                                             as<ast::UnaryOp::set>(kw<"set">) | as<ast::UnaryOp::sequence>(kw<"seq">)) +
-                 assign<&ast::UnaryExpr::operand>(ref<QuantPrefix>)) |
-             ref<Shift>> {};
+  // The `#`, `sum` and `int` prefixes, then multiplication, addition and shifts.
+  struct Shift
+      : infix<IntersectOverride, ast::BinaryExpr,
+              levels(
+                  prefix<ast::UnaryExpr>(as<ast::UnaryOp::card>(lit<"#">) |
+                                         as<ast::UnaryOp::integer>(kw<"sum"> |
+                                                                   kw<"int">)),
+                  left(as<ast::BinOp::multiply>(kw<"fun/mul">) |
+                       as<ast::BinOp::divide>(kw<"fun/div">) |
+                       as<ast::BinOp::remainder>(kw<"fun/rem">)),
+                  left(as<ast::BinOp::add>(lit<"+">) |
+                       as<ast::BinOp::subtract>(lit<"-">) |
+                       as<ast::BinOp::integer_add>(kw<"fun/add">) |
+                       as<ast::BinOp::integer_subtract>(kw<"fun/sub">)),
+                  left(as<ast::BinOp::shift_left>(lit<"<<">) |
+                       as<ast::BinOp::shift_right>(lit<">>>">) |
+                       as<ast::BinOp::shift_arithmetic>(lit<">>">)))> {};
 
+  // The multiplicity prefixes, then comparisons.
   struct CompareExpr
-      : infix<QuantPrefix, ast::CompareExpr, left(CompareOp)> {};
-  struct GeneralNeg
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(as<ast::UnaryOp::not_>(lit<"!"> | kw<"not">)) +
-                 assign<&ast::UnaryExpr::operand>(ref<GeneralNeg>)) |
-             ref<CompareExpr>> {};
+      : infix<Shift, ast::CompareExpr,
+              levels(prefix<ast::UnaryExpr>(as<ast::UnaryOp::no>(kw<"no">) |
+                                            as<ast::UnaryOp::lone>(kw<"lone">) |
+                                            as<ast::UnaryOp::some>(kw<"some">) |
+                                            as<ast::UnaryOp::one>(kw<"one">) |
+                                            as<ast::UnaryOp::set>(kw<"set">) |
+                                            as<ast::UnaryOp::sequence>(
+                                                kw<"seq">)),
+                     left(CompareOp))> {};
 
-  struct And : infix<GeneralNeg, ast::BinaryExpr,
-                     left(as<ast::BinOp::and_>(lit<"&&"> | kw<"and">))> {};
+  // The `!` and `not` prefixes, then `&&`.
+  struct And
+      : infix<CompareExpr, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(as<ast::UnaryOp::not_>(
+                         lit<"!"> | kw<"not">)),
+                     left(as<ast::BinOp::and_>(lit<"&&"> | kw<"and">)))> {};
   struct Implies
       : rule<ref<And> +
              option(nest<ast::IfExpr, &ast::IfExpr::cond>(
@@ -241,10 +239,10 @@ struct Alloy : cursiv::GrammarSpec {
                  option(kw<"else"> +
                         assign<&ast::IfExpr::else_>(ref<Implies>))))> {};
 
-  struct Iff : infix<Implies, ast::BinaryExpr,
-                     left(as<ast::BinOp::iff>(lit<"<=>"> | kw<"iff">))> {};
-  struct Expr : infix<Iff, ast::BinaryExpr,
-                      left(as<ast::BinOp::or_>(lit<"||"> | kw<"or">))> {};
+  struct Expr
+      : infix<Implies, ast::BinaryExpr,
+              levels(left(as<ast::BinOp::iff>(lit<"<=>"> | kw<"iff">)),
+                     left(as<ast::BinOp::or_>(lit<"||"> | kw<"or">)))> {};
 
   struct SigExt
       : rule<create<ast::SigExtends>(

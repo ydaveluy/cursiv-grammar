@@ -145,19 +145,18 @@ struct Oberon : cursiv::GrammarSpec {
              | ref<BoolLit>                                       //
              | ref<SetLit>                                        //
              | ref<DesignatorCall>                                //
-             | (lit<"("> + ref<Expression> + lit<")">)             //
-             | create<ast::UnaryExpr>(
-                   assign<&ast::UnaryExpr::op>(lit<"~">) +
-                   assign<&ast::UnaryExpr::operand>(ref<Factor>))> {};
+             | (lit<"("> + ref<Expression> + lit<")">)> {};
 
-  struct Term : infix<Factor, ast::BinaryExpr, left(MulOp)> {};
-  struct SignedTerm
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
-                 assign<&ast::UnaryExpr::operand>(ref<Term>)) |
-             ref<Term>> {};
+  // `~` binds tighter than the multiplying operators.
+  struct Term
+      : infix<Factor, ast::BinaryExpr,
+              levels(prefix<ast::UnaryExpr>(lit<"~">), left(MulOp))> {};
+  // A sign may only start a simple expression: `a + -b` is not Oberon.
   struct SimpleExpression
-      : rule<ref<SignedTerm> +
+      : rule<(create<ast::UnaryExpr>(
+                  assign<&ast::UnaryExpr::op>(lit<"+"> | lit<"-">) +
+                  assign<&ast::UnaryExpr::operand>(ref<Term>)) |
+              ref<Term>) +
              many(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
                  assign<&ast::BinaryExpr::op>(AddOp) +
                  assign<&ast::BinaryExpr::right>(ref<Term>)))> {};

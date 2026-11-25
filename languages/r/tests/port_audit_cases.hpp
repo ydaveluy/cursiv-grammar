@@ -149,6 +149,25 @@ bool run(const Parser& parser) {
                as<UnaryExpr>(p.body[3]);
       }))
     return false;
+  // Line ends are blanks in `( )` and `[ ]`, and end an expression again in
+  // `{ }`, also inside a call; `[[` sets `listAccess`.
+  if (!inspect(parser, "f({ a\nb })\n(a\n+ b)\n{ a\n+ b }\nx[[1]]\nx[1]\n",
+               [](const Program& p) {
+        if (p.body.size() != 5) return false;
+        const auto* call = as<CallExpr>(p.body[0]);
+        const auto* inner = call && call->args.size() == 1
+                                ? as<Block>(call->args[0]->value)
+                                : nullptr;
+        const auto* paren = as<ParenExpr>(p.body[1]);
+        const auto* block = as<Block>(p.body[2]);
+        const auto* list = as<IndexExpr>(p.body[3]);
+        const auto* index = as<IndexExpr>(p.body[4]);
+        return inner && inner->body.size() == 2 && paren &&
+               as<BinaryExpr>(paren->inner) && block &&
+               block->body.size() == 2 && list && list->listAccess && index &&
+               !index->listAccess;
+      }))
+    return false;
   if (!inspect(parser, "\\(`a b`, . = 1, ... = 2) `a b`\n",
                [](const Program& p) {
                  const auto* f =

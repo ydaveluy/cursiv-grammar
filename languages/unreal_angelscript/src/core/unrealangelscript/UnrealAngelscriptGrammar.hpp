@@ -128,7 +128,6 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
   struct AssignmentExpression;
   struct ConditionalExpression;
   struct BinaryLadder;
-  struct UnaryExpression;
   struct PostfixExpression;
   struct PrimaryExpression;
   struct MemberDeclaration;
@@ -375,18 +374,6 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
                         assign<&ast::PostfixOpExpr::op>(lit<"++"> |
                                                          lit<"--">)))> {};
 
-  // Object references use ordinary values; C++ pointer prefixes are absent.
-  struct UnaryExpression
-      : rule<create<ast::PrefixExpr>(
-                 assign<&ast::PrefixExpr::op>(lit<"++"> | lit<"--">) +
-                 assign<&ast::PrefixExpr::operand>(ref<UnaryExpression>))  //
-             | create<ast::PrefixExpr>(
-                   assign<&ast::PrefixExpr::op>(lit<"+"> |
-                                                 lit<"~"> | lit<"-"> |
-                                                 lit<"!">) +
-                   assign<&ast::PrefixExpr::operand>(ref<UnaryExpression>))  //
-             | ref<PostfixExpression>> {};
-
   static constexpr auto OpMul = lit<"*"> | lit<"/"> | lit<"%">;
   static constexpr auto OpAdd = lit<"+"> | lit<"-">;
   static constexpr auto OpRel = lit<"<="> | lit<">="> | Lt | Gt;
@@ -396,23 +383,21 @@ struct UnrealAngelscript : cursiv::GrammarSpec {
   static constexpr auto OpEq = lit<"=="> | lit<"!="> | lit<"^^">;
   static constexpr auto BitXor = lit<"^">;
 
-  // `<`/`>` open both the shift operator and the plain relational one: one
-  // infix table can only give a token one step, so the shift level is its
-  // own table, nested as the primary of the level above it (as the csharp
-  // port does for the same reason).
-  struct MulAddLevel : infix<UnaryExpression, ast::BinaryExpr,
-                             levels(left(OpMul), left(OpAdd))> {};
-
-  struct ShiftLadder : infix<MulAddLevel, ast::BinaryExpr, left(ref<ShiftOp>)> {};
-
+  // Prefix operators, then binary operators, from tightest to loosest.
+  // Object references use ordinary values; C++ pointer prefixes are absent.
   struct BinaryLadder
-      : infix<ShiftLadder, ast::BinaryExpr,
-              levels(left(lit<"&">),   //
-                     left(BitXor),     //
-                     left(lit<"|">),   //
-                     left(OpRel),      //
-                     left(OpEq),       //
-                     left(lit<"&&">),  //
+      : infix<PostfixExpression, ast::BinaryExpr,
+              levels(prefix<ast::PrefixExpr>(lit<"++"> | lit<"--"> | lit<"+"> |
+                                             lit<"~"> | lit<"-"> | lit<"!">),
+                     left(OpMul),         //
+                     left(OpAdd),         //
+                     left(ref<ShiftOp>),  //
+                     left(lit<"&">),      //
+                     left(BitXor),        //
+                     left(lit<"|">),      //
+                     left(OpRel),         //
+                     left(OpEq),          //
+                     left(lit<"&&">),     //
                      left(lit<"||">))> {};
 
   struct ConditionalExpression
