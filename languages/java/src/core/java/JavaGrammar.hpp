@@ -1118,8 +1118,10 @@ struct Java : cursiv::GrammarSpec {
             many(
                 append<&ast::CompilationUnit::imports>(ref<ImportDeclaration>) |
                 lit<";">) +
-            many(append<&ast::CompilationUnit::types>(ref<TypeDeclaration>) |
-                 lit<";">))> {};
+            // `;` before the first type belong to the imports above: each run
+            // of them reads one way.
+            many(append<&ast::CompilationUnit::types>(ref<TypeDeclaration>) +
+                 many(lit<";">)))> {};
 
   struct ModularCompilationUnit
       : rule<create<ast::CompilationUnit>(

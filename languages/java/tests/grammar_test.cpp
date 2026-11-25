@@ -250,6 +250,29 @@ int main() {
 
   if (!java_literal_dimension_cases(*language.language.parser)) return 1;
 
+  // Empty declarations read one way: a long run stays linear.
+  {
+    const std::string run(10000, ';');
+    const struct {
+      std::string source;
+      std::size_t imports, types;
+    } units[] = {
+        {run, 0, 0},
+        {"package p;;" + run + "import a.B;" + run + "import c.D;" + run +
+             "class A {}" + run + "class B {}" + run,
+         2, 2},
+    };
+    for (const auto &unit : units) {
+      const auto result = language.language.parser->parse(unit.source);
+      const auto *root = result.valueAs<java::ast::CompilationUnit>();
+      if (!clean(result) || !root || root->imports.size() != unit.imports ||
+          root->types.size() != unit.types)
+        return fail("empty declarations between top-level declarations");
+    }
+    if (clean(language.language.parser->parse("class A {} import a.B;")))
+      return fail("an import after a type declaration is refused");
+  }
+
   int count = 0;
   for (const char *const dir : {CURSIV_EXAMPLE_DIR, CURSIV_TEST_DIR})
     for (const auto &entry : std::filesystem::directory_iterator(dir)) {
