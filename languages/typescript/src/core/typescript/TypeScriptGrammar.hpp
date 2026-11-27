@@ -27,18 +27,17 @@ inline constexpr auto template_open_text = [](std::string_view text) {
 struct TypeScriptLexical : cursiv::GrammarSpec {
   // -- Trivia ----
   static constexpr auto LineTerminator = cr<R"(\r\n\u2028\u2029)">;
+  static constexpr auto Bom = lit<"\uFEFF">;
   struct WS
-      : terminal<some(cr<R"( \t\v\f\r\n\uFEFF\u2028\u2029)"> | uc::Zs)> {};
+      : terminal<Bom | some(cr<R"( \t\v\f\r\n\u2028\u2029)"> | uc::Zs)> {};
   struct SL_COMMENT : terminal<lit<"//"> + many(~LineTerminator)> {};
   struct ML_COMMENT : terminal<through(lit<"/*">, lit<"*/">)> {};
   struct HTML_COMMENT : terminal<through(lit<"<!--">, lit<"-->">)> {};
   struct CDATA_COMMENT : terminal<through(lit<"<![CDATA[">, lit<"]]>">)> {};
 
   // A byte-order mark and a `#!` line open the text and nothing else.
-  struct PROLOGUE
-      : terminal<(lit<"\xEF\xBB\xBF"> +
-                  option(lit<"#!"> + many(~LineTerminator))) |
-                 (lit<"#!"> + many(~LineTerminator))> {};
+  static constexpr auto Hashbang = lit<"#!"> + many(~LineTerminator);
+  struct PROLOGUE : terminal<(Bom + option(Hashbang)) | Hashbang> {};
 
   static constexpr auto LineBreak =
       gap::has(eol | lit<"\xE2\x80\xA8"> | lit<"\xE2\x80\xA9">);
@@ -1643,7 +1642,7 @@ struct TypeScriptContext : TypeScriptLexical {
 
   struct Program_
       : rule<create<ast::Program>(
-            option(assign<&ast::Program::prologue>(ref<PROLOGUE>)) +
+            option(gap::none + assign<&ast::Program::prologue>(ref<PROLOGUE>)) +
             many(append<&ast::Program::body>(ref<ContextStatement<GeneratorContext>>)))> {};
 
   using entry = Program_;

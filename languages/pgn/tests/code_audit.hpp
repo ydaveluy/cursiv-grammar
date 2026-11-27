@@ -91,6 +91,15 @@ inline bool run() {
               hd->games[0]->tags[0]->value == "One" &&
               hd->games[1]->tags[0]->value == "Two",
           "header-only games stay distinct");
+    for (const std::string end : {"\r", "\n", "\r\n"}) {
+      const auto source = "[Event \"One\"]" + end + "[Result \"*\"]" + end + end +
+                          "1. e4 e5 *" + end;
+      const auto game = parse(source);
+      const auto* db = game.valueAs<ast::Database>();
+      check(db && db->games.size() == 1 && db->games[0]->tags.size() == 2 &&
+                db->games[0]->elements.size() == 3 && db->games[0]->terminated,
+            "headers and moves share a game across physical line endings");
+    }
   }
   {
     const auto r = parse("1.-- -- 2.Z0 Z0 3.0000 0000 4.@@@@ @@@@ *");

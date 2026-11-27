@@ -71,10 +71,8 @@ struct Corundum : cursiv::GrammarSpec {
             assign<&ast::Call::name>(ref<ID_FUNCTION> | ref<ID>) +
             ((lit<"("> + option(CallArgList) + lit<")">) | CallArgList))> {};
 
-  struct ReadAtom : rule<ref<CallAtom>                              //
-                         | (ref<IdentAtom> + option(IndexSuffix))    //
-                         | (ref<GlobalIdentAtom> + option(IndexSuffix))> {
-  };
+  static constexpr auto Writable =
+      (ref<IdentAtom> | ref<GlobalIdentAtom>) + option(IndexSuffix);
 
   struct FuncArg
       : rule<create<ast::NamedArg>(
@@ -99,7 +97,7 @@ struct Corundum : cursiv::GrammarSpec {
                              lit<",">))) +
              lit<"]">> {};
 
-  struct ValuePrimary : rule<ref<ReadAtom>       //
+  struct ValuePrimary : rule<ref<CallAtom> | Writable
                              | ref<IntLitAtom>    //
                              | ref<FloatLitAtom>  //
                              | ref<StringLitAtom> //
@@ -113,7 +111,7 @@ struct Corundum : cursiv::GrammarSpec {
                               left(as<ast::BinOp::add>(lit<"+">) | as<ast::BinOp::sub>(lit<"-">)))> {};
 
   struct ExprPrimary
-      : rule<(ref<ReadAtom> +
+      : rule<ref<CallAtom> | (Writable +
               option(nest<ast::Assign, &ast::Assign::target>(
                   assign<&ast::Assign::op>(AnyAssignOp) +
                   (assign<&ast::Assign::value>(ref<ArrayLitAtom>)  //

@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "cursiv/grammar/Grammar.hpp"
 #include "cursiv/validation/ValidationRegistry.hpp"
 #include "cursiv/workspace/Document.hpp"
 #include "cmake/CoreServices.hpp"
@@ -43,21 +44,18 @@ bool command_line(std::string_view gap, bool newline) {
 
 void CmakeValidator::checkArgument(const ast::Argument& argument,
                                    cursiv::ValidationAcceptor& accept) const {
-  // Bracket arguments and bracket comments reset the native lexer's
-  // separation state. Ordinary quoted adjacency is only a native warning.
+  // Bracket arguments and comments require a separator before an adjacent argument.
   if (!cursiv::ast_cast<ast::CompoundArgument>(&argument)) {
     if (const auto* document = argument.getDocument();
         document && argument.cstNodeId != cursiv::kNoNode) {
       const auto& cst = document->parseResult.cst();
-      const auto begin = cst[argument.cstNodeId].begin;
-      if (begin > 0) {
-        const char previous = cst.text()[begin - 1];
-        const bool separated = previous == ' ' || previous == '\t' ||
-                               previous == '\r' || previous == '\n' ||
-                               previous == '(';
-        if (!separated &&
-            (previous == ']' ||
-             cursiv::ast_cast<ast::BracketArgument>(&argument)))
+      const auto first = cst.subtreeBegin(argument.cstNodeId);
+      if (first != 0) {
+        const auto previous = cst.leafBefore(first);
+        const auto& token = cst[previous];
+        if (token.end == cst[first].begin &&
+            (token.isHidden() || (cst.grammar() && cst.grammar()->recordRule(token) == "BRACKET") ||
+             (cursiv::ast_cast<ast::BracketArgument>(&argument) && cst.text(previous) != "(")))
           accept.error(argument, "Argument not separated from preceding token by whitespace.",
                        "cmake.argument-separation");
       }

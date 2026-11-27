@@ -50,6 +50,7 @@ int main() {
     {"parentheses","function(probe)\nendfunction()\nprobe((a b) c (d (e)))\n",{"(","a","b",")","c","(","d","(","e",")",")"}},
     {"unicode","function(probe)\nendfunction()\nprobe(café \"日本語\" [[λ]])\n",{"café","日本語","λ"}},
     {"quoted-adjacency","function(probe)\nendfunction()\nprobe(\"a\"b c\"d\" \"e\"\"f\")\n",{"a","b","c\"d\"","e","f"}},
+    {"unquoted-closing-bracket","function(probe)\nendfunction()\nprobe(x]\"#\" [hi]\"(\")\n",{"x]","#","[hi]","("}},
     {"bracket-close-runs","function(probe)\nendfunction()\nprobe([==[a ]===] b ]] c]==])\n",{"a ]===] b ]] c"}},
     {"crlf","function(probe)\nendfunction()\nprobe([[\r\na\r\nb]] \"x\r\ny\" \"a\\\r\nb\")\n",{"a\nb","x\ny","ab"}},
     {"bracket-before-parentheses","function(probe)\nendfunction()\nprobe([[a]](b))\n",{"a","(","b",")"}},
@@ -70,6 +71,14 @@ int main() {
     if (!ok || args != c.arguments || !validation.diagnostics.empty()) {
       std::fprintf(stderr, "cmake: native argument regression: %s\n", c.name);
       for (const auto& d : validation.diagnostics) std::fprintf(stderr, "%s\n", d.message.c_str());
+      return 1;
+    }
+  }
+  for (const std::string_view text : {" \xEF\xBB\xBF" "message(ok)",
+                                      "# comment\n\xEF\xBB\xBF" "message(ok)"}) {
+    const auto parsed = language.language.parser->parse(text);
+    if (parsed.accepted && !parsed.cst().recovered() && parsed.diagnostics.empty()) {
+      std::fputs("cmake: misplaced byte-order mark accepted\n", stderr);
       return 1;
     }
   }

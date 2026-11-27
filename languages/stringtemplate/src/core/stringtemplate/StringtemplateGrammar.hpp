@@ -96,7 +96,7 @@ struct Stringtemplate : cursiv::GrammarSpec {
   }();
   template <bool Nested>
   struct TEXT : terminal<as<textValue>(
-                    some((lit<"\\"> + option(any)) | textChar<Nested>))> {};
+                    some((lit<"\\"> + (any | eof)) | textChar<Nested>))> {};
   struct PIPE : terminal<lit<"|"> + option(cr<R"( \t\r\n)">)> {};
 
   // Escapes outside an expression are exactly n, t, space and four hex digits.

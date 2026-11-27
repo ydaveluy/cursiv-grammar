@@ -24,7 +24,6 @@ struct Gdscript : cursiv::GrammarSpec {
   static constexpr auto blank_line =
       many(cr<R"( \t)">) + option(comment_body) + eol;
   struct NEWLINE : terminal<eol + many(blank_line)> {};
-  struct LeadingTrivia : terminal<some(blank_line)> {};
   static constexpr auto indent_open = lit<"("> | lit<"["> | lit<"{">;
   static constexpr auto indent_close = lit<")"> | lit<"]"> | lit<"}">;
   using indent_newline = NEWLINE;
@@ -529,9 +528,11 @@ struct Gdscript : cursiv::GrammarSpec {
              ref<ToolDecl> | ref<PassDecl> | ref<ClassVarDecl> |
              ref<ConstDecl> | ref<SignalDecl> | ref<EnumDecl> |
              ref<MethodDecl> | ref<InnerClassDecl>> {};
+  // The blank and comment lines before the first declaration end with a
+  // NEWLINE.
   struct Program
       : rule<create<ast::Program>(
-            option(lit<"\xef\xbb\xbf">) + option(ref<LeadingTrivia>) +
+            option(lit<"\xef\xbb\xbf">) + option(ref<NEWLINE>) +
             many(append<&ast::Program::body>(ref<TopLevelDecl>)))> {};
 
   using entry = Program;

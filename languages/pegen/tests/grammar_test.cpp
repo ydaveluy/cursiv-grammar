@@ -101,6 +101,22 @@ _entrée[List[Tuple[str, int]]](memo):
         r->body->alts[0]->action != "{}")
       return fail("target-atoms", "nested empty containers lost their source text");
   }
+  for (const std::string newline : {"\n", "\r", "\r\n"}) {
+    const auto type = "List[unsigned" + newline + "int]";
+    const auto action = " return(a # note" + newline + "+ b) ";
+    const auto source = "start[" + type + "]: a[" + type + "]=NAME [" +
+                        newline + " NAME" + newline + "] {" + action + "}" + newline;
+    const auto parsed = language.language.parser->parse(source);
+    const auto* root = parsed.valueAs<pegen::ast::Grammar>();
+    const auto* r = root && root->rules.size() == 1 ? root->rules[0] : nullptr;
+    if (!r || !parsed.accepted || !parsed.diagnostics.empty() || parsed.cst().recovered() ||
+        r->returnType != type || !r->body || r->body->alts.size() != 1)
+      return fail("target-lines", "lost a line ending in a rule annotation");
+    const auto* alt = r->body->alts[0];
+    const auto* binding = alt->items.empty() ? nullptr : cursiv::ast_cast<pegen::ast::Named>(alt->items[0]);
+    if (!binding || binding->attrType != type || alt->action != action)
+      return fail("target-lines", "lost a line ending in a binding or action");
+  }
   const std::string duplicate = "start: NAME\nstart: STRING\n";
   const auto validation = cursiv::test::validationHelper(language.language, duplicate);
   bool diagnosed = false;

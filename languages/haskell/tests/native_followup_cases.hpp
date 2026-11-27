@@ -15,6 +15,8 @@ inline bool run(const cursiv::Parser& parser) {
       std::string("x\v=\v1\n"),
       std::string("{-# custom ignored body #-}\nmodule Audit where x = 1\n"),
       std::string("x = 1\f"),
+      std::string("\f\t{-# LANGUAGE DataKinds #-}{ x = 1 }\n"),
+      std::string("{-# LANGUAGE DataKinds #-}\n  { x = 1 }\n"),
       std::string("x = 1 -- comment\fy = 2\n"),
       std::string("s = \"left\\\n  \\right\\&\\SOH\"\n"),
       std::string("f :: [] a -> (->) a a\n"),
@@ -24,11 +26,35 @@ inline bool run(const cursiv::Parser& parser) {
     check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() && result.value,
           "report lexical form, builtin type constructor or qualified/backtick section");
   }
+  {
+    const auto result = parser.parse(
+        "{-# LANGUAGE LambdaCase #-}\n -- another extension\n  {-# LANGUAGE DataKinds #-}\n"
+        "module M where\n  f = 1\n  g = f\n");
+    const auto *mod = result.valueAs<haskell::ast::Module>();
+    check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
+              mod && mod->pragmas.size() == 2 && mod->decls.size() == 2,
+          "header pragmas at different columns precede the module layout");
+  }
   for (const char* source : {"x = '\\q'\n", "x = '\\&'\n", "x = '\\^a'\n",
                              "s = \"a\nb\"\n", "s = \"\\unknown\"\n"}) {
     const auto result = parser.parse(source);
     check(!result.accepted || result.cst().recovered() || !result.diagnostics.empty(),
           "invalid escape or literal newline must not parse clean");
+  }
+  {
+    const auto result = parser.parse(
+        "module M where\n  f = let\n    x = 1\n    y = x\n    in y\n  g = 2\n");
+    const auto* module = result.valueAs<haskell::ast::Module>();
+    const haskell::ast::LetExpr* let = nullptr;
+    for (const auto* node : result.nodes())
+      if (const auto* expr = cursiv::ast_cast<haskell::ast::LetExpr>(node)) let = expr;
+    const auto* body = let ? cursiv::ast_cast<haskell::ast::Var>(let->body) : nullptr;
+    check(result.accepted && result.diagnostics.empty() && !result.cst().recovered() &&
+              module && module->decls.size() == 2 && let && let->decls.size() == 2 &&
+              body && body->name == "y", "a let closes before the next module declaration");
+    const auto outer = parser.parse("f = let\n  x = 1\nin x\n");
+    check(!outer.accepted || outer.cst().recovered() || !outer.diagnostics.empty(),
+          "in cannot start a new module declaration");
   }
   {
     const std::string source =

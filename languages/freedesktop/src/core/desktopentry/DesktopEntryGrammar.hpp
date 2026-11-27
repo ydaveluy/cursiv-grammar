@@ -20,7 +20,7 @@ struct DesktopEntry : cursiv::GrammarSpec {
 
   struct KEY : terminal<as<[](std::string_view text) {
     return text.substr(0, text.find_last_not_of(" \t\v\f") + 1);
-  }>(some(cr<R"(^=\[\]\r\n)">))> {};
+  }>(cr<R"(^#=\[\] \t\v\f\r\n)"> + many(cr<R"(^=\[\]\r\n)">))> {};
   struct IDENT : terminal<some(cr<R"(^_.@\[\] \t\r\n)">)> {};
   struct GROUP_HEADER : terminal<as<[](std::string_view text) {
     return text.substr(1, text.size() - 2);

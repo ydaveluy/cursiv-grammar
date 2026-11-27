@@ -1,9 +1,11 @@
 #include "javascript/validation/JavaScriptValidator.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include "cursiv/syntax-tree/AstReflection.hpp"
 #include <string_view>
+#include <vector>
 
 #include "cursiv/syntax-tree/AstNode.hpp"
 #include "cursiv/validation/ValidationRegistry.hpp"
@@ -36,24 +38,20 @@ bool is_module(const ast::Program& program) {
   return false;
 }
 
-// Whether the code around `node` is strict: its own function's prologue, a
-// class body, or the program's prologue, whichever encloses it first says
-// so; a sloppy function inside a strict one inherits.
+bool introduces_strict(const cursiv::AstNode& node) {
+  const ast::BlockStmt* body = nullptr;
+  if (const auto* f = cursiv::ast_cast<ast::FunctionDecl>(&node)) body = f->body;
+  else if (const auto* f = cursiv::ast_cast<ast::FunctionExpr>(&node)) body = f->body;
+  else if (const auto* f = cursiv::ast_cast<ast::ArrowFunctionExpr>(&node)) body = f->block;
+  else if (const auto* p = cursiv::ast_cast<ast::Program>(&node))
+    return is_module(*p) || prologue_strict(p->body);
+  else return cursiv::ast_cast<ast::ClassDecl>(&node) || cursiv::ast_cast<ast::ClassExpr>(&node);
+  return body && prologue_strict(body->body);
+}
+
 bool is_strict(const cursiv::AstNode* node) {
-  for (const cursiv::AstNode* p = node->parent; p != nullptr; p = p->parent) {
-    if (const auto* const f = cursiv::ast_cast<ast::FunctionDecl>(p)) {
-      if (f->body != nullptr && prologue_strict(f->body->body)) return true;
-    } else if (const auto* const f = cursiv::ast_cast<ast::FunctionExpr>(p)) {
-      if (f->body != nullptr && prologue_strict(f->body->body)) return true;
-    } else if (const auto* const f = cursiv::ast_cast<ast::ArrowFunctionExpr>(p)) {
-      if (f->block != nullptr && prologue_strict(f->block->body)) return true;
-    } else if (cursiv::ast_cast<ast::ClassDecl>(p) != nullptr ||
-               cursiv::ast_cast<ast::ClassExpr>(p) != nullptr) {
-      return true;
-    } else if (const auto* const program = cursiv::ast_cast<ast::Program>(p)) {
-      return is_module(*program) || prologue_strict(program->body);
-    }
-  }
+  for (const auto* p = node->parent; p; p = p->parent)
+    if (introduces_strict(*p)) return true;
   return false;
 }
 
@@ -84,21 +82,6 @@ bool legacy_octal(std::string_view text) {
 bool hard_reserved(std::string_view name) {
   constexpr std::string_view words = " break do instanceof typeof case else new var catch finally return void continue for switch while debugger function this with default if throw delete in try class enum extends super const export import null true false ";
   return !name.empty() && words.find(" " + std::string(name) + " ") != words.npos;
-}
-
-bool async_or_generator(const cursiv::AstNode& node, bool async) {
-  for (const auto* p = node.parent; p; p = p->parent) {
-    if (const auto* f = cursiv::ast_cast<ast::FunctionDecl>(p))
-      return async ? f->isAsync : f->isGenerator;
-    if (const auto* f = cursiv::ast_cast<ast::FunctionExpr>(p)) {
-      bool value = async ? f->isAsync : f->isGenerator;
-      if (const auto* owner = cursiv::ast_cast<ast::Prop>(f->parent)) value |= async ? owner->isAsync : owner->isGenerator;
-      if (const auto* owner = cursiv::ast_cast<ast::ClassMember>(f->parent)) value |= async ? owner->isAsync : owner->isGenerator;
-      return value;
-    }
-    if (const auto* f = cursiv::ast_cast<ast::ArrowFunctionExpr>(p)) return async && f->isAsync;
-  }
-  return false;
 }
 
 struct EscapeState { bool invalid = false; bool legacy = false; };
@@ -165,33 +148,60 @@ void JavaScriptValidator::checkLegacyOctal(
 }
 
 void JavaScriptValidator::checkNames(const ast::Program& program, cursiv::ValidationAcceptor& accept) const {
+  struct Context { bool strict, async, generator, parameter; };
+  struct Visit { const cursiv::AstNode* node; Context context; };
   const bool module = is_module(program);
-  const auto name = [&](const cursiv::AstNode& node, std::string_view text, bool strict, bool async = false, bool generator = false) {
-    if (text.empty()) return;
-    if (hard_reserved(text) || (strict && strict_only(text)) ||
-        (text == "await" && (module || async || async_or_generator(node, true))) ||
-        (text == "yield" && (generator || async_or_generator(node, false))))
-      accept.error(node, "A reserved word cannot be used as this name.", "javascript.reserved-name");
-  };
-  const auto walk = [&](auto&& self, const cursiv::AstNode& node) -> void {
-    if (const auto* n = cursiv::ast_cast<ast::Ident>(&node); n && !is_property_name(*n)) name(node, n->name, is_strict(n));
-    if (const auto* n = cursiv::ast_cast<ast::FunctionDecl>(&node)) name(node, n->name, is_strict(n) || (n->body && prologue_strict(n->body->body)), n->isAsync, n->isGenerator);
-    if (const auto* n = cursiv::ast_cast<ast::FunctionExpr>(&node)) name(node, n->name, is_strict(n) || (n->body && prologue_strict(n->body->body)), n->isAsync, n->isGenerator);
-    if (const auto* n = cursiv::ast_cast<ast::ClassDecl>(&node)) name(node, n->name, true);
-    if (const auto* n = cursiv::ast_cast<ast::ClassExpr>(&node)) name(node, n->name, true);
-    if (const auto* n = cursiv::ast_cast<ast::ImportSpecifier>(&node)) {
-      auto binding = n->local.empty() ? n->imported : n->local;
-      if (!binding.empty() && (binding[0] == '\'' || binding[0] == '"'))
+  std::vector<Visit> pending{{&program, {}}};
+  while (!pending.empty()) {
+    auto [node, binding] = pending.back();
+    pending.pop_back();
+    binding.strict = binding.strict || introduces_strict(*node);
+    auto children = binding;
+    std::string_view name;
+    if (const auto* f = cursiv::ast_cast<ast::FunctionDecl>(node)) {
+      name = f->name;
+      children = {binding.strict, f->isAsync, f->isGenerator, false};
+    } else if (const auto* f = cursiv::ast_cast<ast::FunctionExpr>(node)) {
+      name = f->name;
+      children = {binding.strict, f->isAsync, f->isGenerator, false};
+      if (const auto* p = cursiv::ast_cast<ast::Prop>(f->parent); p && p->value == f) {
+        children.async |= p->isAsync;
+        children.generator |= p->isGenerator;
+      } else if (const auto* p = cursiv::ast_cast<ast::ClassMember>(f->parent); p && p->value == f) {
+        children.async |= p->isAsync;
+        children.generator |= p->isGenerator;
+      }
+      binding = children;
+    } else if (const auto* f = cursiv::ast_cast<ast::ArrowFunctionExpr>(node)) {
+      children = {binding.strict, f->isAsync, false, false};
+    } else if (cursiv::ast_cast<ast::Param>(node)) {
+      children.parameter = true;
+    } else if (binding.parameter && cursiv::ast_cast<ast::YieldExpr>(node)) {
+      accept.error(*node, "A parameter cannot contain a yield expression.", "javascript.yield-parameter");
+    } else if (const auto* n = cursiv::ast_cast<ast::Ident>(node); n && !is_property_name(*n)) name = n->name;
+    else if (const auto* n = cursiv::ast_cast<ast::ClassDecl>(node)) name = n->name;
+    else if (const auto* n = cursiv::ast_cast<ast::ClassExpr>(node)) name = n->name;
+    else if (const auto* n = cursiv::ast_cast<ast::LabeledStmt>(node)) name = n->label;
+    else if (const auto* n = cursiv::ast_cast<ast::BreakStmt>(node)) name = n->label;
+    else if (const auto* n = cursiv::ast_cast<ast::ContinueStmt>(node)) name = n->label;
+    else if (const auto* n = cursiv::ast_cast<ast::ImportSpecifier>(node)) {
+      name = n->local.empty() ? n->imported : n->local;
+      binding.strict = binding.async = true;
+      if (name.starts_with('\'') || name.starts_with('"')) {
         accept.error(*n, "A string-named import requires a local binding.", "javascript.import-binding");
-      else name(node, binding, true, true);
+        name = {};
+      }
     }
-    if (const auto* n = cursiv::ast_cast<ast::LabeledStmt>(&node)) name(node, n->label, is_strict(n));
-    if (const auto* n = cursiv::ast_cast<ast::BreakStmt>(&node)) name(node, n->label, is_strict(n));
-    if (const auto* n = cursiv::ast_cast<ast::ContinueStmt>(&node)) name(node, n->label, is_strict(n));
-    services.astReflection->visitProperties(node,
-        [&](std::string_view, std::uint32_t, cursiv::AstNode& child) { self(self, child); });
-  };
-  walk(walk, program);
+    if (!name.empty() && (hard_reserved(name) || (binding.strict && strict_only(name)) ||
+        (name == "await" && (module || binding.async)) || (name == "yield" && binding.generator)))
+      accept.error(*node, "A reserved word cannot be used as this name.", "javascript.reserved-name");
+
+    const auto first = pending.size();
+    services.astReflection->visitProperties(*node, [&](std::string_view, std::uint32_t, cursiv::AstNode& child) {
+      pending.push_back({&child, children});
+    });
+    std::reverse(pending.begin() + first, pending.end());
+  }
 }
 void JavaScriptValidator::checkString(const ast::StringLit& n, cursiv::ValidationAcceptor& a) const {
   if (n.text.size() < 2) return;

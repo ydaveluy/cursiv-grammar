@@ -16,7 +16,7 @@ inline int datalog_regressions(const cursiv::CoreServices& services) {
   const auto check = [&](bool value) { failures += !value; };
   {
     const auto r = services.parser->parse(
-        "p(X1, -1, 01, 123456789012345678901234567890, true).");
+        "p\t(\u00a0X1\t, -1, 01, 123456789012345678901234567890, true\r).");
     const auto* root = cursiv::ast_cast<ast::Program>(r.value);
     check(r.accepted && !r.cst().recovered() && r.diagnostics.empty() && root);
     const auto* statement =

@@ -85,9 +85,7 @@ struct Prop : cursiv::Extends<cursiv::AstNode> {
   boolean isMethod;
   boolean isAsync;
   boolean isGenerator;
-  // Both null for `...expr` (spread) and for the permissive `{expr}`
-  // shorthand: tell them apart by whether `value` is a `Spread`.
-  Expr *key; // null for a spread or shorthand property
+  Expr *key; // null for spread, shorthand and shorthand with a default
   Expr
       *value; // FunctionExpr* for get/set/method; the argument when key is null
 };

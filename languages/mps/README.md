@@ -31,8 +31,10 @@ Generated files live under `build/src/generated-src/`; do not edit them.
 
 ## The sample
 
-Textual MPS describes optimization models using free-format or fixed-column
-cards. Numeric spellings, including Fortran D exponents, are retained.
+MPS describes optimization models in fixed columns or whitespace-separated
+fields. `NAME … FREE` selects free format. When a model fits both layouts,
+an aligned header and matching row and column references select fixed columns.
+The parser preserves numeric spellings, including Fortran `D` exponents.
 
 ```
 NAME          TESTPROB

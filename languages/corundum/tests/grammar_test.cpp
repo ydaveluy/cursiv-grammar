@@ -67,6 +67,24 @@ int main() {
       corundum::install_core_module>();
 
   {
+    using namespace corundum::ast;
+    const auto& parser = *language.language.parser;
+    const auto result = parser.parse("send arg = (12.5)\n");
+    const auto* root = as<Block>(result.value);
+    const auto* call = root && root->statements.size() == 1
+                           ? as<Call>(root->statements[0]) : nullptr;
+    const auto* arg = call && call->args.size() == 1 ? as<NamedArg>(call->args[0]) : nullptr;
+    const auto* value = arg ? as<FloatLit>(arg->value) : nullptr;
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !call || call->name != "send" || !arg || arg->name != "arg" ||
+        !value || value->value != 12.5)
+      return fail("bare call with a named argument");
+    const auto invalid = parser.parse("send() = 12.5\n");
+    if (invalid.accepted && !invalid.cst().recovered() && invalid.diagnostics.empty())
+      return fail("assignment to a call result");
+  }
+
+  {
     // The author's comparison_list groups its right-recursive conditions
     // independently of the general rvalue operator ladder.
     const std::string source =

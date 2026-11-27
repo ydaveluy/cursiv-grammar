@@ -10,7 +10,11 @@
 
 namespace javascript {
 
-struct JavaScript : cursiv::GrammarSpec {
+template <bool Yield> struct FunctionBody;
+struct OrdinaryAssignment;
+struct FormalParameter;
+
+struct JavaScriptCommon : cursiv::GrammarSpec {
   // A LineTerminator in the gap before the token in hand, comments included:
   // the two separators past ASCII count as ECMAScript counts them.
   static constexpr auto LineBreak =
@@ -57,12 +61,8 @@ struct JavaScript : cursiv::GrammarSpec {
       kw<"const"> | kw<"export"> | kw<"import"> | kw<"null"> |
       kw<"true"> | kw<"false">;
   static constexpr auto StrictReserved = HardReserved | kw<"await">;
-  // Each of these lexes as a plain identifier outside its own construct
-  // (`static`/`let`/`implements`/... only in non-strict code, gated on a
-  // runtime flag cursiv has no equivalent of): soft keywords, not a gap --
-  // simply never excluded from `RawId` below, so the same shift reads them
-  // there too and the parse decides which reading stands. Over-accepts in
-  // strict code (semantic-predicate).
+  // Soft keywords can name identifiers. The expression grammar selects yield by
+  // function context, and the validator checks strict and module bindings.
   static constexpr auto SoftReserved =
       kw<"async"> | kw<"as"> | kw<"from"> | kw<"yield"> | kw<"of"> | kw<"target"> | kw<"meta"> |
       kw<"static"> | kw<"let"> | kw<"implements"> | kw<"private"> |
@@ -158,40 +158,6 @@ struct JavaScript : cursiv::GrammarSpec {
   };
   struct TplTail : terminal<as<drop_ends<1>>(lit<"}"> + TplRun + lit<"`">)> {};
 
-  struct Expression;
-  struct AssignExpr;
-  struct ConditionalExpr;
-  struct BinaryExpr;
-  struct LogicalOrExpr;
-  struct CoalesceExpr;
-  struct BitwiseOrExpr;
-  struct UnaryExpr;
-  struct UpdateExpr;
-  struct PostfixExpr;
-  struct PrimaryExpr;
-  struct NewExpr_;
-  struct FunctionExpr_;
-  struct ArrowFunctionExpr_;
-  struct ClassExpr_;
-  struct ArrayLiteral;
-  struct ObjectLiteral;
-  struct Statement;
-  struct BlockStmt_;
-  struct FunctionBody;
-  struct Assignable;
-
-  // -- Templates (tag stays null for the untagged use in PrimaryExpr) ----
-  // The text is all in the terminals: an interpolation's expression gets the
-  // grammar's ordinary trivia.
-  static constexpr auto TemplateBody =
-      append<&ast::TemplateLit::quasis>(ref<TplNoSub>) |
-      (append<&ast::TemplateLit::quasis>(ref<TplHead>) +
-       append<&ast::TemplateLit::expressions>(ref<Expression>) +
-       many(append<&ast::TemplateLit::quasis>(ref<TplMiddle>) +
-            append<&ast::TemplateLit::expressions>(ref<Expression>)) +
-       append<&ast::TemplateLit::quasis>(ref<TplTail>));
-  struct TemplateLiteral : rule<create<ast::TemplateLit>(TemplateBody)> {};
-
   // -- Primary expressions ----
   struct ThisExpr_ : rule<create<ast::ThisExpr>(kw<"this">)> {};
   struct SuperExpr_ : rule<create<ast::SuperExpr>(kw<"super">)> {};
@@ -212,261 +178,31 @@ struct JavaScript : cursiv::GrammarSpec {
   struct StringLiteral : rule<assign<&ast::StringLit::text>(ref<STRING>)> {};
   struct RegexLit_ : rule<assign<&ast::RegexLit::text>(ref<REGEX>)> {};
 
-  struct Literal : rule<ref<NullLit_> | ref<BoolLit_> | ref<StringLiteral> |
-                        ref<TemplateLiteral> | ref<RegexLit_> |
-                        ref<BigIntLit_> | ref<NumberLit_>> {};
-
-  struct ParenExpr : rule<lit<"("> + ref<Expression> + lit<")">> {};
-
-  struct YieldExpr_
-      : rule<create<ast::YieldExpr>(
-            kw<"yield"> +
-            option(!LineBreak +
-                   option(flag<&ast::YieldExpr::delegate>(lit<"*">)) +
-                   assign<&ast::YieldExpr::argument>(ref<AssignExpr>)))> {};
-
-  struct ImportCallExpr_
-      : rule<create<ast::ImportCallExpr>(
-            kw<"import"> + lit<"("> +
-            assign<&ast::ImportCallExpr::source>(ref<AssignExpr>) +
-            option(lit<","> + option(assign<&ast::ImportCallExpr::options>(
-                                         ref<AssignExpr>) +
-                                     option(lit<",">))) +
-            lit<")">)> {};
-
-  struct PrimaryExpr
-      : rule<ref<ThisExpr_> | ref<SuperExpr_> | ref<NewTargetExpr_> |
-             ref<Literal> | ref<ArrayLiteral> | ref<ObjectLiteral> |
-             ref<ParenExpr> | ref<FunctionExpr_> | ref<ClassExpr_> |
-             ref<ImportCallExpr_> | ref<ImportMetaExpr_> | ref<Ident>> {};
-
   // -- Member / call / new chain ----
   static constexpr auto Spread = lit<"...">;
-  struct SpreadArg
-      : rule<create<ast::Spread>(
-            Spread + assign<&ast::Spread::argument>(ref<AssignExpr>))> {};
-  static constexpr auto OneArg = ref<SpreadArg> | ref<AssignExpr>;
 
-  static constexpr auto MemberTail =
-      nest<ast::MemberExpr, &ast::MemberExpr::object>(
-          option(flag<&ast::MemberExpr::optional>(lit<"?.">)) +
-          flag<&ast::MemberExpr::computed>(lit<"[">) +
-          assign<&ast::MemberExpr::property>(ref<Expression>) + lit<"]">) |
-      nest<ast::MemberExpr, &ast::MemberExpr::object>(
-          (flag<&ast::MemberExpr::optional>(lit<"?.">) |
-           lit<".">)+assign<&ast::MemberExpr::property>(ref<MemberName>));
-
-  static constexpr auto CallArguments =
-      lit<"("> +
-      option(append<&ast::CallExpr::args>(OneArg) +
-             many(lit<","> + append<&ast::CallExpr::args>(OneArg)) +
-             option(lit<",">)) +
-      lit<")">;
-  static constexpr auto NewArguments =
-      lit<"("> +
-      option(append<&ast::NewExpr::args>(OneArg) +
-             many(lit<","> + append<&ast::NewExpr::args>(OneArg)) +
-             option(lit<",">)) +
-      lit<")">;
-
-  struct MemberOnlyExpr
-      : rule<(ref<PrimaryExpr> | ref<NewExpr_>)+many(MemberTail)> {};
-
-  // A `(` after `new X` is X's arguments, never a call on the bare `new X`.
-  struct NewExpr_
-      : rule<create<ast::NewExpr>(
-            kw<"new"> + assign<&ast::NewExpr::callee>(ref<MemberOnlyExpr>) +
-            (NewArguments | !lit<"(">))> {};
-
-  static constexpr auto PostfixTail =
-      MemberTail |
-      nest<ast::CallExpr, &ast::CallExpr::callee>(
-          option(flag<&ast::CallExpr::optional>(lit<"?.">)) +
-          CallArguments) |
-      nest<ast::TemplateLit, &ast::TemplateLit::tag>(TemplateBody) |
-      // No line break before a postfix operator: `a \n ++b` is two statements.
-      nest<ast::PostfixUpdateExpr, &ast::PostfixUpdateExpr::operand>(
-          !LineBreak +
-          assign<&ast::PostfixUpdateExpr::op>(lit<"++"> | lit<"--">));
-
-  struct PostfixExpr
-      : rule<(ref<PrimaryExpr> | ref<NewExpr_>)+many(PostfixTail)> {};
-
-  // UpdateExpression: a postfix chain, or prefix `++`/`--` of a full unary
-  // expression -- the only unary forms `**` accepts on its left (`++x ** 2`
-  // parses, `-x ** 2`/`typeof x ** 2`/... are a SyntaxError below).
-  struct UpdateExpr
-      : rule<create<ast::PrefixUpdateExpr>(
-                 assign<&ast::PrefixUpdateExpr::op>(lit<"++"> | lit<"--">) +
-                 assign<&ast::PrefixUpdateExpr::operand>(ref<UnaryExpr>)) //
-             | ref<PostfixExpr>> {};
-
-  // -- Unary chain ----
-  struct PrefixedExpr
-      : rule<create<ast::UnaryExpr>(
-                 assign<&ast::UnaryExpr::op>(kw<"delete"> | kw<"void"> |
-                                             kw<"typeof">) +
-                 assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>)) //
-             | create<ast::UnaryExpr>(
-                   assign<&ast::UnaryExpr::op>(lit<"+", !cr<"+=">> |
-                                               lit<"-", !cr<"-=">> | lit<"~"> |
-                                               lit<"!", !cr<"=">>) +
-                   assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>)) //
-             | create<ast::AwaitExpr>(
-                   kw<"await"> +
-                   assign<&ast::AwaitExpr::operand>(ref<UnaryExpr>))> {};
-  struct UnaryExpr : rule<ref<PrefixedExpr> | ref<UpdateExpr>> {};
-
-  // An operand of the table below: no `**` follows a prefixed unary one, so
-  // `-a ** b` is refused while `a ** -b` and `++a ** b` parse.
   static constexpr auto PowerOp = lit<"**", !cr<"=">>;
-  struct PowerOperand
-      : rule<(ref<PrefixedExpr> + !PowerOp) | ref<UpdateExpr>> {};
-
-  // -- Binary ladder (one table, tightest to loosest, `**` through shifts) --
-  // Every operator that is a textual prefix of another one defined in a
-  // DIFFERENT rule (AssignExpr's `=`, `**=`, ...) carries a guard: maximal
-  // munch is automatic within one infix<> table, never across two.
-  struct ShiftExpr
-      : infix<PowerOperand, ast::BinaryExpr,
-              levels(right(PowerOp),
-                     left(lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> |
-                          lit<"%", !cr<"=">>),
-                     left(lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>),
-                     left(lit<"<<", !cr<"=">> | lit<">>>", !cr<"=">> |
-                          lit<">>", !cr<"=>">>))> {};
 
   static constexpr auto RelationalOp = lit<"<="> | lit<">="> | lit<"<", !cr<"=<">> |
       lit<">", !cr<"=>">> | kw<"instanceof"> | kw<"in">;
-  struct PrivateBrandExpr : rule<create<ast::BinaryExpr>(
-      assign<&ast::BinaryExpr::left>(create<ast::Ident>(
-          assign<&ast::Ident::name>(ref<PrivateIdentifier>))) +
-      assign<&ast::BinaryExpr::op>(kw<"in">) +
-      assign<&ast::BinaryExpr::right>(ref<ShiftExpr>))> {};
-  // A private-brand test, or a shift expression; the brand may begin an
-  // operand but not follow a relational operator.
-  struct RelationalOperand
-      : rule<ref<PrivateBrandExpr> | ref<ShiftExpr>> {};
 
-  struct BitwiseOrExpr
-      : infix<RelationalOperand, ast::BinaryExpr,
-              levels(left(RelationalOp + !ref<PrivateIdentifier>),
-                     left(lit<"==="> | lit<"!=="> | lit<"==", !cr<"=">> |
-                          lit<"!=", !cr<"=">>),
-                     left(lit<"&", !cr<"&=">>),
-                     left(lit<"^", !cr<"=">>),
-                     left(lit<"|", !cr<"|=">>))> {};
-
-  // ShortCircuitExpression: `??` never mixes with `&&`/`||` without
-  // parentheses in real ECMAScript (a SyntaxError either way round) -- each
-  // is its own table over BitwiseOrExpr rather than a further rung of one
-  // shared ladder.
-  struct LogicalOrExpr
-      : infix<BitwiseOrExpr, ast::BinaryExpr,
-              levels(left(lit<"&&", !cr<"=">>), left(lit<"||", !cr<"=">>))> {};
-
-  // At least one `??`: a bare operand is LogicalOrExpr's alone, and an
-  // operand two rules read is a cell the parser must decide, once per operand.
-  struct CoalesceExpr
-      : rule<ref<BitwiseOrExpr> +
-             some(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
-                 assign<&ast::BinaryExpr::op>(lit<"??", !cr<"=">>) +
-                 assign<&ast::BinaryExpr::right>(ref<BitwiseOrExpr>)))> {};
-
-  struct BinaryExpr : rule<ref<LogicalOrExpr> | ref<CoalesceExpr>> {};
-
-  struct ConditionalExpr
-      : rule<create<ast::ConditionalExpr>(
-                 assign<&ast::ConditionalExpr::test>(ref<BinaryExpr>) +
-                 lit<"?", !cr<".?">> +
-                 assign<&ast::ConditionalExpr::consequent>(ref<AssignExpr>) +
-                 lit<":"> +
-                 assign<&ast::ConditionalExpr::alternate>(ref<AssignExpr>)) //
-             | ref<BinaryExpr>
-             // An arrow or a yield is an assignment expression, as the
-             // specification ranks them: no operator or tail follows one.
-             | ref<ArrowFunctionExpr_> | ref<YieldExpr_>> {};
-
-  struct AssignExpr
-      : infix<ConditionalExpr, ast::AssignExpr,
-              right(lit<"=", !cr<"=>">> | lit<"*="> | lit<"/="> | lit<"%="> |
-                    lit<"+="> | lit<"-="> | lit<"<<="> | lit<">>>="> |
-                    lit<">>="> | lit<"&="> | lit<"^="> | lit<"|="> |
-                    lit<"**="> |
-                    lit<"?"
-                        "?="> |
-                    lit<"&&="> | lit<"||=">),
-              &ast::AssignExpr::target, &ast::AssignExpr::op,
-              &ast::AssignExpr::value> {};
-
-  struct Expression
-      : infix<AssignExpr, ast::BinaryExpr, left(lit<",">)> {};
-
-  // -- Functions ----
-  struct ParamItem
-      : rule<create<ast::Param>(
-                 flag<&ast::Param::rest>(Spread) +
-                 assign<&ast::Param::pattern>(ref<AssignExpr>) +
-                 !lit<",">) // A rest parameter cannot have a following comma.
-             | create<ast::Param>(
-                   assign<&ast::Param::pattern>(ref<Assignable>) +
-                   option(lit<"="> + assign<&ast::Param::defaultValue>(
-                                         ref<AssignExpr>)))> {};
-
-  // Parameterised on the target member: FunctionExpr, FunctionDecl and
-  // (through MethodBody/ClassMethodBody) an inner FunctionExpr each own
-  // their own `params` list. `ParamTailFor` starts right after the opening
-  // "(" so a caller that already consumed it (to also flag on it) can
-  // continue with the same list.
+  // Methods mark the opening parenthesis before reading the same parameter tail.
   template <auto Ptr>
   static constexpr auto ParamTailFor =
-      option(some(append<Ptr>(ref<ParamItem>), lit<",">) + option(lit<",">)) +
+      option(some(append<Ptr>(ref<FormalParameter>), lit<",">) + option(lit<",">)) +
       lit<")">;
   template <auto Ptr>
   static constexpr auto ParamListFor = lit<"("> + ParamTailFor<Ptr>;
   static constexpr auto ParamList = ParamListFor<&ast::FunctionExpr::params>;
 
+  template <bool Generator>
+  static constexpr auto FunctionExprTail =
+      option(assign<&ast::FunctionExpr::name>(ref<RawId>)) + ParamList +
+      assign<&ast::FunctionExpr::body>(ref<FunctionBody<Generator>>);
   struct FunctionExpr_
       : rule<create<ast::FunctionExpr>(
             (flag<&ast::FunctionExpr::isAsync>(ref<ASYNC_FUNCTION>) | kw<"function">) +
-            option(flag<&ast::FunctionExpr::isGenerator>(lit<"*">)) +
-            option(assign<&ast::FunctionExpr::name>(ref<RawId>)) + ParamList +
-            assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {};
-
-  struct ArrowSingleParam
-      : rule<assign<&ast::Param::pattern>(ref<Ident>)> {};
-
-  static constexpr auto ArrowParams =
-      (lit<"("> +
-       option(append<&ast::ArrowFunctionExpr::params>(ref<ParamItem>) +
-              many(lit<","> + append<&ast::ArrowFunctionExpr::params>(
-                                  ref<ParamItem>)) +
-              option(lit<",">)) +
-       lit<")">) //
-      | append<&ast::ArrowFunctionExpr::params>(ref<ArrowSingleParam>);
-
-  struct ArrowFunctionExpr_
-      : rule<create<ast::ArrowFunctionExpr>(
-            option(flag<&ast::ArrowFunctionExpr::isAsync>(kw<"async">) + !LineBreak) +
-            ArrowParams + !LineBreak + lit<"=>"> +
-            (assign<&ast::ArrowFunctionExpr::block>(
-                 ref<FunctionBody>) //
-                                    // ConciseBody: [lookahead != {] -- a brace
-                                    // after `=>` opens a block, never an object
-                                    // literal.
-             | (!lit<"{"> +
-                assign<&ast::ArrowFunctionExpr::exprBody>(ref<AssignExpr>))))> {
-  };
-
-  // -- Array / object literals ----
-  struct ArrayLiteral
-      : rule<create<ast::ArrayLit>(
-            lit<"["> +
-            many(append<&ast::ArrayLit::elements>(create<ast::ArraySlot>(
-                option(assign<&ast::ArraySlot::value>(OneArg)) + lit<",">))) +
-            option(append<&ast::ArrayLit::elements>(create<ast::ArraySlot>(
-                assign<&ast::ArraySlot::value>(OneArg)))) +
-            lit<"]">)> {};
+            ((flag<&ast::FunctionExpr::isGenerator>(lit<"*">) + FunctionExprTail<true>) | FunctionExprTail<false>))> {};
 
   // `get`/`set` are keys too, through their own terminal (declared above,
   // shared with the accessor introducer below): one token, and what follows
@@ -477,47 +213,15 @@ struct JavaScript : cursiv::GrammarSpec {
             ref<RawId> | AllKeywords | ref<GetKwTerm> | ref<SetKwTerm>))> {};
   static constexpr auto PropKey = ref<PropKeyIdent> | ref<StringLiteral> |
                                   ref<NumberLit_> | ref<BigIntLit_>;
-  static constexpr auto PropName =
-      (flag<&ast::Prop::computed>(lit<"[">) +
-       assign<&ast::Prop::key>(ref<AssignExpr>) + lit<"]">) //
-      | assign<&ast::Prop::key>(PropKey);
 
-  struct MethodBody
+  struct AccessorBody
       : rule<create<ast::FunctionExpr>(
-            ParamList + assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {
-  };
-  // The method alternative also needs `isMethod` on the ENCLOSING `Prop`,
-  // and a directive reads one part: the "(" is consumed here to set it,
-  // so the params it opens pick up right after it.
+            ParamList + assign<&ast::FunctionExpr::body>(ref<FunctionBody<false>>))> {};
+  template <bool Generator>
   struct MethodBodyTail
       : rule<create<ast::FunctionExpr>(
             ParamTailFor<&ast::FunctionExpr::params> +
-            assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {};
-
-  struct Property
-      : rule<create<ast::Prop>(
-            (PropName + lit<":"> +
-             assign<&ast::Prop::value>(ref<AssignExpr>)) //
-            | (option(flag<&ast::Prop::isAsync>(kw<"async">) + !LineBreak) +
-               option(flag<&ast::Prop::isGenerator>(lit<"*">)) + PropName +
-               flag<&ast::Prop::isMethod>(lit<"(">) +
-               assign<&ast::Prop::value>(ref<MethodBodyTail>)) //
-            | (flag<&ast::Prop::isGetter>(ref<GetKwTerm>) + PropName +
-               assign<&ast::Prop::value>(ref<MethodBody>)) //
-            | (flag<&ast::Prop::isSetter>(ref<SetKwTerm>) + PropName +
-               assign<&ast::Prop::value>(ref<MethodBody>)) //
-            // `...x` (spread) and the permissive bare-expression shorthand
-            // this grammar also allows here (see ast::Prop::key).
-            | assign<&ast::Prop::value>(OneArg))> {};
-
-  struct ObjectLiteral
-      : rule<create<ast::ObjectLit>(
-            lit<"{"> +
-            option(append<&ast::ObjectLit::properties>(ref<Property>) +
-                   many(lit<","> + append<&ast::ObjectLit::properties>(
-                                       ref<Property>)) +
-                   option(lit<",">)) +
-            lit<"}">)> {};
+            assign<&ast::FunctionExpr::body>(ref<FunctionBody<Generator>>))> {};
 
   // -- Classes ----
   // `get`, `set`, `static` and `async` name a member only before `(`, `=`, `;`
@@ -530,185 +234,22 @@ struct JavaScript : cursiv::GrammarSpec {
                     ref<GetKwTerm> | ref<SetKwTerm> | ref<StaticKwTerm> |
                     kw<"async">)) +
                 (&(lit<"("> | lit<"="> | lit<";"> | lit<"}">) | LineBreak))> {};
-  static constexpr auto ClassMemberKey =
-      (flag<&ast::ClassMember::computed>(lit<"[">) +
-       assign<&ast::ClassMember::key>(ref<AssignExpr>) + lit<"]">) //
-      | assign<&ast::ClassMember::key>(ref<ClassMemberKeyIdent> |
-                                       ref<StringLiteral> | ref<NumberLit_> |
-                                       ref<BigIntLit_>);
 
-  struct ClassMethodBody
-      : rule<create<ast::FunctionExpr>(
-            ParamList + assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {
-  };
-  struct ClassMethodBodyTail
-      : rule<create<ast::FunctionExpr>(
-            ParamTailFor<&ast::FunctionExpr::params> +
-            assign<&ast::FunctionExpr::body>(ref<FunctionBody>))> {};
-
-  struct ClassMember
-      : rule<
-            // A static initialisation block: only this alternative can
-            // continue with "{" right after (bare) "static", so no lookahead
-            // is needed to keep it apart from the modifier below.
-            create<ast::ClassMember>(
-                flag<&ast::ClassMember::isStatic>(ref<StaticKwTerm>) +
-                assign<&ast::ClassMember::staticBlock>(ref<BlockStmt_>)) //
-            // A method, getter or setter, optionally static.
-            |
-            create<ast::ClassMember>(
-                option(flag<&ast::ClassMember::isStatic>(
-                    ref<StaticKwTerm> + !lit<"{">)) +
-                ((option(flag<&ast::ClassMember::isAsync>(kw<"async">) + !LineBreak) +
-                  option(flag<&ast::ClassMember::isGenerator>(lit<"*">)) +
-                  ClassMemberKey +
-                  flag<&ast::ClassMember::isMethod>(lit<"(">) +
-                  assign<&ast::ClassMember::value>(ref<ClassMethodBodyTail>)) //
-                 | (flag<&ast::ClassMember::isGetter>(ref<GetKwTerm>) +
-                    ClassMemberKey +
-                    assign<&ast::ClassMember::value>(ref<ClassMethodBody>)) //
-                 | (flag<&ast::ClassMember::isSetter>(ref<SetKwTerm>) +
-                    ClassMemberKey +
-                    assign<&ast::ClassMember::value>(ref<ClassMethodBody>)))) //
-            // A field, optionally static.
-            | create<ast::ClassMember>(
-                  option(flag<&ast::ClassMember::isStatic>(
-                      ref<StaticKwTerm> + !lit<"{">)) +
-                  ClassMemberKey +
-                  option(lit<"="> +
-                         assign<&ast::ClassMember::value>(ref<AssignExpr>)) + Eos)> {
-  };
-
-  static constexpr auto ClassBody =
-      lit<"{"> +
-      many(append<&ast::ClassExpr::members>(ref<ClassMember>) | lit<";">) +
-      lit<"}">;
-
-  struct ClassExpr_
-      : rule<create<ast::ClassExpr>(
-            kw<"class"> + option(assign<&ast::ClassExpr::name>(ref<RawId>)) +
-            option(kw<"extends"> +
-                   assign<&ast::ClassExpr::superClass>(ref<UnaryExpr>)) +
-            ClassBody)> {};
-
-  static constexpr auto ClassDeclarationTail =
-      option(kw<"extends"> + assign<&ast::ClassDecl::superClass>(ref<UnaryExpr>)) +
-      lit<"{"> + many(append<&ast::ClassDecl::members>(ref<ClassMember>) | lit<";">) + lit<"}">;
-  struct ClassDeclaration : rule<create<ast::ClassDecl>(
-      kw<"class"> + assign<&ast::ClassDecl::name>(ref<RawId>) + ClassDeclarationTail)> {};
-  struct DefaultClassDeclaration : rule<create<ast::ClassDecl>(
-      kw<"class"> + option(assign<&ast::ClassDecl::name>(ref<RawId>)) + ClassDeclarationTail)> {};
-
-  static constexpr auto FunctionDeclarationPrefix =
+  template <bool Generator, auto Name>
+  static constexpr auto FunctionDeclarationTail = Name + ParamListFor<&ast::FunctionDecl::params> +
+      assign<&ast::FunctionDecl::body>(ref<FunctionBody<Generator>>);
+  template <auto Name>
+  static constexpr auto FunctionDeclarationBody =
       (flag<&ast::FunctionDecl::isAsync>(ref<ASYNC_FUNCTION>) | kw<"function">) +
-      option(flag<&ast::FunctionDecl::isGenerator>(lit<"*">));
-  static constexpr auto FunctionDeclarationTail = ParamListFor<&ast::FunctionDecl::params> +
-      assign<&ast::FunctionDecl::body>(ref<FunctionBody>);
-  struct FunctionDeclaration : rule<create<ast::FunctionDecl>(FunctionDeclarationPrefix +
-      assign<&ast::FunctionDecl::name>(ref<RawId>) + FunctionDeclarationTail)> {};
-  struct DefaultFunctionDeclaration : rule<create<ast::FunctionDecl>(FunctionDeclarationPrefix +
-      option(assign<&ast::FunctionDecl::name>(ref<RawId>)) + FunctionDeclarationTail)> {};
-
-  // -- Assignable (var/let/const target, parameter, for-in/of target) ----
-  struct Assignable
-      : rule<ref<Ident> | ref<ArrayLiteral> | ref<ObjectLiteral>> {};
-
-  // -- Statements ---- ASI as the specification reads it: a semicolon is
-  // inserted where the next token is refused behind a line break, before `}`
-  // or at the end; the restricted productions (return, break, continue, throw,
-  // yield, postfix update, arrow) refuse a line break with `!LineBreak`.
-
-
-  struct Declarator_ : rule<create<ast::Declarator>(
-                           assign<&ast::Declarator::id>(ref<Assignable>) +
-                           option(lit<"="> + assign<&ast::Declarator::init>(
-                                                 ref<AssignExpr>)))> {};
+      ((flag<&ast::FunctionDecl::isGenerator>(lit<"*">) + FunctionDeclarationTail<true, Name>) |
+       FunctionDeclarationTail<false, Name>);
+  static constexpr auto DeclaredName = assign<&ast::FunctionDecl::name>(ref<RawId>);
+  struct FunctionDeclaration : rule<create<ast::FunctionDecl>(FunctionDeclarationBody<DeclaredName>)> {};
+  struct DefaultFunctionDeclaration : rule<create<ast::FunctionDecl>(FunctionDeclarationBody<option(DeclaredName)>)> {};
 
   static constexpr auto VarKind = kw<"var"> | kw<"let"> | kw<"const">;
 
-  struct VarDeclList
-      : rule<create<ast::VarDecl>(
-            assign<&ast::VarDecl::kind>(VarKind) +
-            some(append<&ast::VarDecl::declarations>(ref<Declarator_>), lit<",">))> {};
-
-  struct VariableStatement : rule<ref<VarDeclList> + Eos> {};
-
-  // `async function` also needs no guard here: read as a bare `async`
-  // expression statement, it leaves "function" where `Eos` cannot stand, so
-  // that reading fails and only FunctionDeclaration's survives.
-  struct ExpressionStatement
-      : rule<create<ast::ExprStmt>(
-            !lit<"{"> + !kw<"class"> + !kw<"function"> +
-            assign<&ast::ExprStmt::expression>(ref<Expression>) + Eos)> {};
-
   struct EmptyStatement : rule<create<ast::EmptyStmt>(lit<";">)> {};
-
-  struct BlockStmt_
-      : rule<create<ast::BlockStmt>(
-            lit<"{"> + many(append<&ast::BlockStmt::body>(ref<Statement>)) +
-            lit<"}">)> {};
-
-  struct FunctionBody
-      : rule<create<ast::BlockStmt>(
-            lit<"{"> + many(append<&ast::BlockStmt::body>(ref<Statement>)) +
-            lit<"}">)> {};
-
-  struct IfStatement
-      : rule<create<ast::IfStmt>(
-            kw<"if"> + lit<"("> + assign<&ast::IfStmt::test>(ref<Expression>) +
-            lit<")"> + assign<&ast::IfStmt::consequent>(ref<Statement>) +
-            option(commit(kw<"else">, assign<&ast::IfStmt::alternate>(ref<Statement>))))> {};
-
-  struct DoWhileStatement
-      : rule<create<ast::DoWhileStmt>(
-            kw<"do"> + assign<&ast::DoWhileStmt::body>(ref<Statement>) +
-            kw<"while"> + lit<"("> +
-            assign<&ast::DoWhileStmt::test>(ref<Expression>) + lit<")"> +
-            Eos)> {};
-
-  struct WhileStatement
-      : rule<create<ast::WhileStmt>(
-            kw<"while"> + lit<"("> +
-            assign<&ast::WhileStmt::test>(ref<Expression>) + lit<")"> +
-            assign<&ast::WhileStmt::body>(ref<Statement>))> {};
-
-  struct ForClassicStatement
-      : rule<create<ast::ForStmt>(
-            kw<"for"> + lit<"("> +
-            option(assign<&ast::ForStmt::initDecl>(ref<VarDeclList>) |
-                   assign<&ast::ForStmt::initExpr>(ref<Expression>)) +
-            lit<";"> + option(assign<&ast::ForStmt::test>(ref<Expression>)) +
-            lit<";"> + option(assign<&ast::ForStmt::update>(ref<Expression>)) +
-            lit<")"> + assign<&ast::ForStmt::body>(ref<Statement>))> {};
-
-  struct ForBindingDeclarator
-      : rule<assign<&ast::Declarator::id>(ref<Assignable>)> {};
-  struct ForBindingDecl
-      : rule<create<ast::VarDecl>(
-            assign<&ast::VarDecl::kind>(VarKind) +
-            append<&ast::VarDecl::declarations>(ref<ForBindingDeclarator>))> {};
-
-  struct ForInStatement
-      : rule<create<ast::ForInStmt>(
-            kw<"for"> + lit<"("> +
-            (assign<&ast::ForInStmt::leftDecl>(ref<ForBindingDecl>) //
-             | assign<&ast::ForInStmt::leftExpr>(ref<UnaryExpr>)) +
-            kw<"in"> + assign<&ast::ForInStmt::right>(ref<Expression>) +
-            lit<")"> + assign<&ast::ForInStmt::body>(ref<Statement>))> {};
-
-  struct ForOfStatement
-      : rule<create<ast::ForOfStmt>(
-            kw<"for"> +
-            option(flag<&ast::ForOfStmt::isAwait>(kw<"await">)) +
-            lit<"("> +
-            (assign<&ast::ForOfStmt::leftDecl>(ref<ForBindingDecl>) //
-             | assign<&ast::ForOfStmt::leftExpr>(ref<UnaryExpr>)) +
-            kw<"of"> + assign<&ast::ForOfStmt::right>(ref<AssignExpr>) +
-            lit<")"> + assign<&ast::ForOfStmt::body>(ref<Statement>))> {};
-
-  struct IterationStatement
-      : rule<ref<DoWhileStatement> | ref<WhileStatement> | ref<ForOfStatement> |
-             ref<ForInStatement> | ref<ForClassicStatement>> {};
 
   struct ContinueStatement
       : rule<create<ast::ContinueStmt>(
@@ -723,71 +264,8 @@ struct JavaScript : cursiv::GrammarSpec {
             option(!LineBreak + assign<&ast::BreakStmt::label>(ref<LabelIdentifier>)) +
             Eos)> {};
 
-  struct ReturnStatement
-      : rule<create<ast::ReturnStmt>(
-            kw<"return"> +
-            option(!LineBreak +
-                   assign<&ast::ReturnStmt::argument>(ref<Expression>)) +
-            Eos)> {};
-
-  struct YieldStatement
-      : rule<create<ast::ExprStmt>(
-            assign<&ast::ExprStmt::expression>(ref<YieldExpr_>) + Eos)> {};
-
-  struct ThrowStatement
-      : rule<create<ast::ThrowStmt>(
-            kw<"throw"> + !LineBreak +
-            assign<&ast::ThrowStmt::argument>(ref<Expression>) + Eos)> {};
-
-  struct WithStatement
-      : rule<create<ast::WithStmt>(
-            kw<"with"> + lit<"("> +
-            assign<&ast::WithStmt::object>(ref<Expression>) + lit<")"> +
-            assign<&ast::WithStmt::body>(ref<Statement>))> {};
-
-  struct LabelledStatement
-      : rule<create<ast::LabeledStmt>(
-            assign<&ast::LabeledStmt::label>(ref<LabelIdentifier>) + lit<":"> +
-            assign<&ast::LabeledStmt::body>(ref<Statement>))> {};
-
-  struct CaseClause
-      : rule<create<ast::SwitchCase>(
-            kw<"case"> + assign<&ast::SwitchCase::test>(ref<Expression>) +
-            lit<":"> +
-            many(append<&ast::SwitchCase::consequent>(ref<Statement>)))> {};
-  struct DefaultClause
-      : rule<create<ast::SwitchCase>(
-            kw<"default"> + lit<":"> +
-            many(append<&ast::SwitchCase::consequent>(ref<Statement>)))> {};
-
-  struct SwitchStatement
-      : rule<create<ast::SwitchStmt>(
-            kw<"switch"> + lit<"("> +
-            assign<&ast::SwitchStmt::discriminant>(ref<Expression>) + lit<")"> +
-            lit<"{"> + many(append<&ast::SwitchStmt::cases>(ref<CaseClause>)) +
-            option(append<&ast::SwitchStmt::cases>(ref<DefaultClause>) +
-                   many(append<&ast::SwitchStmt::cases>(ref<CaseClause>))) +
-            lit<"}">)> {};
-
   struct DebuggerStatement
       : rule<create<ast::DebuggerStmt>(kw<"debugger"> + Eos)> {};
-
-  struct CatchClause_
-      : rule<create<ast::CatchClause>(
-            kw<"catch"> +
-            option(lit<"("> +
-                   assign<&ast::CatchClause::param>(ref<Assignable>) +
-                   lit<")">) +
-            assign<&ast::CatchClause::body>(ref<BlockStmt_>))> {};
-
-  struct TryStatement
-      : rule<create<ast::TryStmt>(
-            kw<"try"> + assign<&ast::TryStmt::block>(ref<BlockStmt_>) +
-            ((assign<&ast::TryStmt::handler>(ref<CatchClause_>) +
-              option(kw<"finally"> +
-                     assign<&ast::TryStmt::finalizer>(ref<BlockStmt_>))) //
-             | (kw<"finally"> +
-                assign<&ast::TryStmt::finalizer>(ref<BlockStmt_>))))> {};
 
   // -- Modules ----
   struct ModuleExportName : rule<as<std::string_view>(ref<RawId> | AllKeywords | ref<STRING>)> {};
@@ -859,6 +337,531 @@ struct JavaScript : cursiv::GrammarSpec {
   struct ExportStarSpecifier
       : rule<assign<&ast::ExportSpecifier::exported>(ref<ModuleExportName>)> {};
 
+};
+
+// The ECMAScript Yield parameter follows expressions and statements until a function boundary.
+template <bool Yield>
+struct JavaScriptSyntax : JavaScriptCommon {
+  static consteval auto identifier() {
+    if constexpr (Yield) return !kw<"yield"> + ref<Ident>;
+    else return ref<Ident>;
+  }
+  struct Expression;
+  struct AssignExpr;
+  struct ConditionalExpr;
+  struct BinaryExpr;
+  struct LogicalOrExpr;
+  struct CoalesceExpr;
+  struct BitwiseOrExpr;
+  struct UnaryExpr;
+  struct UpdateExpr;
+  struct PostfixExpr;
+  struct PrimaryExpr;
+  struct NewExpr_;
+  struct ArrowFunctionExpr_;
+  struct ClassExpr_;
+  struct ArrayLiteral;
+  struct ObjectLiteral;
+  struct Statement;
+  struct BlockStmt_;
+  struct Assignable;
+
+  // -- Templates (tag stays null for the untagged use in PrimaryExpr) ----
+  // The text is all in the terminals: an interpolation's expression gets the
+  // grammar's ordinary trivia.
+  static consteval auto templateBody() {
+    return append<&ast::TemplateLit::quasis>(ref<TplNoSub>) |
+      (append<&ast::TemplateLit::quasis>(ref<TplHead>) +
+       append<&ast::TemplateLit::expressions>(ref<Expression>) +
+       many(append<&ast::TemplateLit::quasis>(ref<TplMiddle>) +
+            append<&ast::TemplateLit::expressions>(ref<Expression>)) +
+       append<&ast::TemplateLit::quasis>(ref<TplTail>));
+  }
+  struct TemplateLiteral : rule<create<ast::TemplateLit>(templateBody())> {};
+
+  struct Literal : rule<ref<NullLit_> | ref<BoolLit_> | ref<StringLiteral> |
+                        ref<TemplateLiteral> | ref<RegexLit_> |
+                        ref<BigIntLit_> | ref<NumberLit_>> {};
+
+  struct ParenExpr : rule<lit<"("> + ref<Expression> + lit<")">> {};
+
+  struct YieldExpr_
+      : rule<create<ast::YieldExpr>(
+            kw<"yield"> +
+            option(!LineBreak +
+                   option(flag<&ast::YieldExpr::delegate>(lit<"*">)) +
+                   assign<&ast::YieldExpr::argument>(ref<AssignExpr>)))> {};
+
+  struct ImportCallExpr_
+      : rule<create<ast::ImportCallExpr>(
+            kw<"import"> + lit<"("> +
+            assign<&ast::ImportCallExpr::source>(ref<AssignExpr>) +
+            option(lit<","> + option(assign<&ast::ImportCallExpr::options>(
+                                         ref<AssignExpr>) +
+                                     option(lit<",">))) +
+            lit<")">)> {};
+
+  struct PrimaryExpr
+      : rule<ref<ThisExpr_> | ref<SuperExpr_> | ref<NewTargetExpr_> |
+             ref<Literal> | ref<ArrayLiteral> | ref<ObjectLiteral> |
+             ref<ParenExpr> | ref<FunctionExpr_> | ref<ClassExpr_> |
+             ref<ImportCallExpr_> | ref<ImportMetaExpr_> | identifier()> {};
+  struct SpreadArg
+      : rule<create<ast::Spread>(
+            Spread + assign<&ast::Spread::argument>(ref<AssignExpr>))> {};
+  static consteval auto oneArg() {
+    return ref<SpreadArg> | ref<AssignExpr>;
+  }
+
+  static consteval auto memberTail() {
+    return nest<ast::MemberExpr, &ast::MemberExpr::object>(
+          option(flag<&ast::MemberExpr::optional>(lit<"?.">)) +
+          flag<&ast::MemberExpr::computed>(lit<"[">) +
+          assign<&ast::MemberExpr::property>(ref<Expression>) + lit<"]">) |
+      nest<ast::MemberExpr, &ast::MemberExpr::object>(
+          (flag<&ast::MemberExpr::optional>(lit<"?.">) |
+           lit<".">)+assign<&ast::MemberExpr::property>(ref<MemberName>));
+  }
+
+  static consteval auto callArguments() {
+    return lit<"("> +
+      option(append<&ast::CallExpr::args>(oneArg()) +
+             many(lit<","> + append<&ast::CallExpr::args>(oneArg())) +
+             option(lit<",">)) +
+      lit<")">;
+  }
+  static consteval auto newArguments() {
+    return lit<"("> +
+      option(append<&ast::NewExpr::args>(oneArg()) +
+             many(lit<","> + append<&ast::NewExpr::args>(oneArg())) +
+             option(lit<",">)) +
+      lit<")">;
+  }
+
+  struct MemberOnlyExpr
+      : rule<(ref<PrimaryExpr> | ref<NewExpr_>)+many(memberTail())> {};
+
+  // A `(` after `new X` is X's arguments, never a call on the bare `new X`.
+  struct NewExpr_
+      : rule<create<ast::NewExpr>(
+            kw<"new"> + assign<&ast::NewExpr::callee>(ref<MemberOnlyExpr>) +
+            (newArguments() | !lit<"(">))> {};
+
+  static consteval auto postfixTail() {
+    return memberTail() |
+      nest<ast::CallExpr, &ast::CallExpr::callee>(
+          option(flag<&ast::CallExpr::optional>(lit<"?.">)) +
+          callArguments()) |
+      nest<ast::TemplateLit, &ast::TemplateLit::tag>(templateBody()) |
+      // No line break before a postfix operator: `a \n ++b` is two statements.
+      nest<ast::PostfixUpdateExpr, &ast::PostfixUpdateExpr::operand>(
+          !LineBreak +
+          assign<&ast::PostfixUpdateExpr::op>(lit<"++"> | lit<"--">));
+  }
+
+  struct PostfixExpr
+      : rule<(ref<PrimaryExpr> | ref<NewExpr_>)+many(postfixTail())> {};
+
+  // UpdateExpression: a postfix chain, or prefix `++`/`--` of a full unary
+  // expression -- the only unary forms `**` accepts on its left (`++x ** 2`
+  // parses, `-x ** 2`/`typeof x ** 2`/... are a SyntaxError below).
+  struct UpdateExpr
+      : rule<create<ast::PrefixUpdateExpr>(
+                 assign<&ast::PrefixUpdateExpr::op>(lit<"++"> | lit<"--">) +
+                 assign<&ast::PrefixUpdateExpr::operand>(ref<UnaryExpr>)) //
+             | ref<PostfixExpr>> {};
+
+  // -- Unary chain ----
+  struct PrefixedExpr
+      : rule<create<ast::UnaryExpr>(
+                 assign<&ast::UnaryExpr::op>(kw<"delete"> | kw<"void"> |
+                                             kw<"typeof">) +
+                 assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>)) //
+             | create<ast::UnaryExpr>(
+                   assign<&ast::UnaryExpr::op>(lit<"+", !cr<"+=">> |
+                                               lit<"-", !cr<"-=">> | lit<"~"> |
+                                               lit<"!", !cr<"=">>) +
+                   assign<&ast::UnaryExpr::operand>(ref<UnaryExpr>)) //
+             | create<ast::AwaitExpr>(
+                   kw<"await"> +
+                   assign<&ast::AwaitExpr::operand>(ref<UnaryExpr>))> {};
+  struct UnaryExpr : rule<ref<PrefixedExpr> | ref<UpdateExpr>> {};
+  struct PowerOperand
+      : rule<(ref<PrefixedExpr> + !PowerOp) | ref<UpdateExpr>> {};
+
+  // -- Binary ladder (one table, tightest to loosest, `**` through shifts) --
+  // Every operator that is a textual prefix of another one defined in a
+  // DIFFERENT rule (AssignExpr's `=`, `**=`, ...) carries a guard: maximal
+  // munch is automatic within one infix<> table, never across two.
+  struct ShiftExpr
+      : infix<PowerOperand, ast::BinaryExpr,
+              levels(right(PowerOp),
+                     left(lit<"*", !cr<"*=">> | lit<"/", !cr<"=">> |
+                          lit<"%", !cr<"=">>),
+                     left(lit<"+", !cr<"+=">> | lit<"-", !cr<"-=">>),
+                     left(lit<"<<", !cr<"=">> | lit<">>>", !cr<"=">> |
+                          lit<">>", !cr<"=>">>))> {};
+  struct PrivateBrandExpr : rule<create<ast::BinaryExpr>(
+      assign<&ast::BinaryExpr::left>(create<ast::Ident>(
+          assign<&ast::Ident::name>(ref<PrivateIdentifier>))) +
+      assign<&ast::BinaryExpr::op>(kw<"in">) +
+      assign<&ast::BinaryExpr::right>(ref<ShiftExpr>))> {};
+  // A private-brand test, or a shift expression; the brand may begin an
+  // operand but not follow a relational operator.
+  struct RelationalOperand
+      : rule<ref<PrivateBrandExpr> | ref<ShiftExpr>> {};
+
+  struct BitwiseOrExpr
+      : infix<RelationalOperand, ast::BinaryExpr,
+              levels(left(RelationalOp + !ref<PrivateIdentifier>),
+                     left(lit<"==="> | lit<"!=="> | lit<"==", !cr<"=">> |
+                          lit<"!=", !cr<"=">>),
+                     left(lit<"&", !cr<"&=">>),
+                     left(lit<"^", !cr<"=">>),
+                     left(lit<"|", !cr<"|=">>))> {};
+
+  // ShortCircuitExpression: `??` never mixes with `&&`/`||` without
+  // parentheses in real ECMAScript (a SyntaxError either way round) -- each
+  // is its own table over BitwiseOrExpr rather than a further rung of one
+  // shared ladder.
+  struct LogicalOrExpr
+      : infix<BitwiseOrExpr, ast::BinaryExpr,
+              levels(left(lit<"&&", !cr<"=">>), left(lit<"||", !cr<"=">>))> {};
+
+  // At least one `??`: a bare operand is LogicalOrExpr's alone, and an
+  // operand two rules read is a cell the parser must decide, once per operand.
+  struct CoalesceExpr
+      : rule<ref<BitwiseOrExpr> +
+             some(nest<ast::BinaryExpr, &ast::BinaryExpr::left>(
+                 assign<&ast::BinaryExpr::op>(lit<"??", !cr<"=">>) +
+                 assign<&ast::BinaryExpr::right>(ref<BitwiseOrExpr>)))> {};
+
+  struct BinaryExpr : rule<ref<LogicalOrExpr> | ref<CoalesceExpr>> {};
+
+  static consteval auto assignmentForms() {
+    if constexpr (Yield) return ref<ArrowFunctionExpr_> | ref<YieldExpr_>;
+    else return ref<ArrowFunctionExpr_>;
+  }
+
+  struct ConditionalExpr
+      : rule<create<ast::ConditionalExpr>(
+                 assign<&ast::ConditionalExpr::test>(ref<BinaryExpr>) +
+                 lit<"?", !cr<".?">> +
+                 assign<&ast::ConditionalExpr::consequent>(ref<AssignExpr>) +
+                 lit<":"> +
+                 assign<&ast::ConditionalExpr::alternate>(ref<AssignExpr>)) //
+             | ref<BinaryExpr>
+             // An arrow or a yield is an assignment expression, as the
+             // specification ranks them: no operator or tail follows one.
+             | assignmentForms()> {};
+
+  struct AssignExpr
+      : infix<ConditionalExpr, ast::AssignExpr,
+              right(lit<"=", !cr<"=>">> | lit<"*="> | lit<"/="> | lit<"%="> |
+                    lit<"+="> | lit<"-="> | lit<"<<="> | lit<">>>="> |
+                    lit<">>="> | lit<"&="> | lit<"^="> | lit<"|="> |
+                    lit<"**="> |
+                    lit<"?"
+                        "?="> |
+                    lit<"&&="> | lit<"||=">),
+              &ast::AssignExpr::target, &ast::AssignExpr::op,
+              &ast::AssignExpr::value> {};
+
+  struct Expression
+      : infix<AssignExpr, ast::BinaryExpr, left(lit<",">)> {};
+
+  // -- Functions ----
+  struct ParamItem
+      : rule<create<ast::Param>(
+                 flag<&ast::Param::rest>(Spread) +
+                 assign<&ast::Param::pattern>(ref<AssignExpr>) +
+                 !lit<",">) // A rest parameter cannot have a following comma.
+             | create<ast::Param>(
+                   assign<&ast::Param::pattern>(ref<Assignable>) +
+                   option(lit<"="> + assign<&ast::Param::defaultValue>(
+                                         ref<AssignExpr>)))> {};
+
+  struct ArrowSingleParam : rule<assign<&ast::Param::pattern>(identifier())> {};
+
+  static consteval auto arrowParams() {
+    return (lit<"("> +
+       option(append<&ast::ArrowFunctionExpr::params>(ref<ParamItem>) +
+              many(lit<","> + append<&ast::ArrowFunctionExpr::params>(
+                                  ref<ParamItem>)) +
+              option(lit<",">)) +
+       lit<")">) //
+      | append<&ast::ArrowFunctionExpr::params>(ref<ArrowSingleParam>);
+  }
+
+  struct ArrowFunctionExpr_
+      : rule<create<ast::ArrowFunctionExpr>(
+            option(flag<&ast::ArrowFunctionExpr::isAsync>(kw<"async">) + !LineBreak) +
+            arrowParams() + !LineBreak + lit<"=>"> +
+            (assign<&ast::ArrowFunctionExpr::block>(
+                 ref<FunctionBody<false>>) //
+                                    // ConciseBody: [lookahead != {] -- a brace
+                                    // after `=>` opens a block, never an object
+                                    // literal.
+             | (!lit<"{"> +
+                assign<&ast::ArrowFunctionExpr::exprBody>(ref<OrdinaryAssignment>))))> {
+  };
+
+  // -- Array / object literals ----
+  struct ArrayLiteral
+      : rule<create<ast::ArrayLit>(
+            lit<"["> +
+            many(append<&ast::ArrayLit::elements>(create<ast::ArraySlot>(
+                option(assign<&ast::ArraySlot::value>(oneArg())) + lit<",">))) +
+            option(append<&ast::ArrayLit::elements>(create<ast::ArraySlot>(
+                assign<&ast::ArraySlot::value>(oneArg())))) +
+            lit<"]">)> {};
+  static consteval auto propName() {
+    return (flag<&ast::Prop::computed>(lit<"[">) +
+       assign<&ast::Prop::key>(ref<AssignExpr>) + lit<"]">) //
+      | assign<&ast::Prop::key>(PropKey);
+  }
+  template <bool Generator>
+  static constexpr auto PropMethod = propName() + flag<&ast::Prop::isMethod>(lit<"(">) +
+      assign<&ast::Prop::value>(ref<MethodBodyTail<Generator>>);
+
+  struct Property
+      : rule<create<ast::Prop>(
+            (propName() + lit<":"> +
+             assign<&ast::Prop::value>(ref<AssignExpr>)) //
+            | (option(flag<&ast::Prop::isAsync>(kw<"async">) + !LineBreak) +
+               ((flag<&ast::Prop::isGenerator>(lit<"*">) + PropMethod<true>) | PropMethod<false>)) //
+            | (flag<&ast::Prop::isGetter>(ref<GetKwTerm>) + propName() +
+               assign<&ast::Prop::value>(ref<AccessorBody>)) //
+            | (flag<&ast::Prop::isSetter>(ref<SetKwTerm>) + propName() +
+               assign<&ast::Prop::value>(ref<AccessorBody>)) //
+            | assign<&ast::Prop::value>(ref<SpreadArg> | identifier() +
+                option(nest<ast::AssignExpr, &ast::AssignExpr::target>(
+                    assign<&ast::AssignExpr::op>(lit<"=", !cr<"=>">>) +
+                    assign<&ast::AssignExpr::value>(ref<AssignExpr>)))))> {};
+
+  struct ObjectLiteral
+      : rule<create<ast::ObjectLit>(
+            lit<"{"> +
+            option(append<&ast::ObjectLit::properties>(ref<Property>) +
+                   many(lit<","> + append<&ast::ObjectLit::properties>(
+                                       ref<Property>)) +
+                   option(lit<",">)) +
+            lit<"}">)> {};
+  static consteval auto classMemberKey() {
+    return (flag<&ast::ClassMember::computed>(lit<"[">) +
+       assign<&ast::ClassMember::key>(ref<AssignExpr>) + lit<"]">) //
+      | assign<&ast::ClassMember::key>(ref<ClassMemberKeyIdent> |
+                                       ref<StringLiteral> | ref<NumberLit_> |
+                                       ref<BigIntLit_>);
+  }
+
+  template <bool Generator>
+  static constexpr auto ClassMethod = classMemberKey() +
+      flag<&ast::ClassMember::isMethod>(lit<"(">) +
+      assign<&ast::ClassMember::value>(ref<MethodBodyTail<Generator>>);
+
+  struct ClassMember
+      : rule<
+            // A static initialisation block: only this alternative can
+            // continue with "{" right after (bare) "static", so no lookahead
+            // is needed to keep it apart from the modifier below.
+            create<ast::ClassMember>(
+                flag<&ast::ClassMember::isStatic>(ref<StaticKwTerm>) +
+                assign<&ast::ClassMember::staticBlock>(ref<FunctionBody<false>>)) //
+            // A method, getter or setter, optionally static.
+            |
+            create<ast::ClassMember>(
+                option(flag<&ast::ClassMember::isStatic>(
+                    ref<StaticKwTerm> + !lit<"{">)) +
+                ((option(flag<&ast::ClassMember::isAsync>(kw<"async">) + !LineBreak) +
+                  ((flag<&ast::ClassMember::isGenerator>(lit<"*">) + ClassMethod<true>) | ClassMethod<false>)) //
+                 | (flag<&ast::ClassMember::isGetter>(ref<GetKwTerm>) +
+                    classMemberKey() +
+                    assign<&ast::ClassMember::value>(ref<AccessorBody>)) //
+                 | (flag<&ast::ClassMember::isSetter>(ref<SetKwTerm>) +
+                    classMemberKey() +
+                    assign<&ast::ClassMember::value>(ref<AccessorBody>)))) //
+            // A field, optionally static.
+            | create<ast::ClassMember>(
+                  option(flag<&ast::ClassMember::isStatic>(
+                      ref<StaticKwTerm> + !lit<"{">)) +
+                  classMemberKey() +
+                  option(lit<"="> +
+                         assign<&ast::ClassMember::value>(ref<OrdinaryAssignment>)) + Eos)> {
+  };
+
+  static consteval auto classBody() {
+    return lit<"{"> +
+      many(append<&ast::ClassExpr::members>(ref<ClassMember>) | lit<";">) +
+      lit<"}">;
+  }
+
+  struct ClassExpr_
+      : rule<create<ast::ClassExpr>(
+            kw<"class"> + option(assign<&ast::ClassExpr::name>(ref<RawId>)) +
+            option(kw<"extends"> +
+                   assign<&ast::ClassExpr::superClass>(ref<UnaryExpr>)) +
+            classBody())> {};
+
+  static consteval auto classDeclarationTail() {
+    return option(kw<"extends"> + assign<&ast::ClassDecl::superClass>(ref<UnaryExpr>)) +
+      lit<"{"> + many(append<&ast::ClassDecl::members>(ref<ClassMember>) | lit<";">) + lit<"}">;
+  }
+  struct ClassDeclaration : rule<create<ast::ClassDecl>(
+      kw<"class"> + assign<&ast::ClassDecl::name>(ref<RawId>) + classDeclarationTail())> {};
+  struct DefaultClassDeclaration : rule<create<ast::ClassDecl>(
+      kw<"class"> + option(assign<&ast::ClassDecl::name>(ref<RawId>)) + classDeclarationTail())> {};
+
+  // -- Assignable (var/let/const target, parameter, for-in/of target) ----
+  struct Assignable
+      : rule<identifier() | ref<ArrayLiteral> | ref<ObjectLiteral>> {};
+
+  // -- Statements ---- ASI as the specification reads it: a semicolon is
+  // inserted where the next token is refused behind a line break, before `}`
+  // or at the end; the restricted productions (return, break, continue, throw,
+  // yield, postfix update, arrow) refuse a line break with `!LineBreak`.
+
+  struct Declarator_ : rule<create<ast::Declarator>(
+                           assign<&ast::Declarator::id>(ref<Assignable>) +
+                           option(lit<"="> + assign<&ast::Declarator::init>(
+                                                 ref<AssignExpr>)))> {};
+
+  struct VarDeclList
+      : rule<create<ast::VarDecl>(
+            assign<&ast::VarDecl::kind>(VarKind) +
+            some(append<&ast::VarDecl::declarations>(ref<Declarator_>), lit<",">))> {};
+
+  struct VariableStatement : rule<ref<VarDeclList> + Eos> {};
+
+  // `async function` also needs no guard here: read as a bare `async`
+  // expression statement, it leaves "function" where `Eos` cannot stand, so
+  // that reading fails and only FunctionDeclaration's survives.
+  struct ExpressionStatement
+      : rule<create<ast::ExprStmt>(
+            !lit<"{"> + !kw<"class"> + !kw<"function"> +
+            assign<&ast::ExprStmt::expression>(ref<Expression>) + Eos)> {};
+
+  struct BlockStmt_
+      : rule<create<ast::BlockStmt>(
+            lit<"{"> + many(append<&ast::BlockStmt::body>(ref<Statement>)) +
+            lit<"}">)> {};
+
+  struct IfStatement
+      : rule<create<ast::IfStmt>(
+            kw<"if"> + lit<"("> + assign<&ast::IfStmt::test>(ref<Expression>) +
+            lit<")"> + assign<&ast::IfStmt::consequent>(ref<Statement>) +
+            option(commit(kw<"else">, assign<&ast::IfStmt::alternate>(ref<Statement>))))> {};
+
+  struct DoWhileStatement
+      : rule<create<ast::DoWhileStmt>(
+            kw<"do"> + assign<&ast::DoWhileStmt::body>(ref<Statement>) +
+            kw<"while"> + lit<"("> +
+            assign<&ast::DoWhileStmt::test>(ref<Expression>) + lit<")"> +
+            Eos)> {};
+
+  struct WhileStatement
+      : rule<create<ast::WhileStmt>(
+            kw<"while"> + lit<"("> +
+            assign<&ast::WhileStmt::test>(ref<Expression>) + lit<")"> +
+            assign<&ast::WhileStmt::body>(ref<Statement>))> {};
+
+  struct ForClassicStatement
+      : rule<create<ast::ForStmt>(
+            kw<"for"> + lit<"("> +
+            option(assign<&ast::ForStmt::initDecl>(ref<VarDeclList>) |
+                   assign<&ast::ForStmt::initExpr>(ref<Expression>)) +
+            lit<";"> + option(assign<&ast::ForStmt::test>(ref<Expression>)) +
+            lit<";"> + option(assign<&ast::ForStmt::update>(ref<Expression>)) +
+            lit<")"> + assign<&ast::ForStmt::body>(ref<Statement>))> {};
+
+  struct ForBindingDeclarator
+      : rule<assign<&ast::Declarator::id>(ref<Assignable>)> {};
+  struct ForBindingDecl
+      : rule<create<ast::VarDecl>(
+            assign<&ast::VarDecl::kind>(VarKind) +
+            append<&ast::VarDecl::declarations>(ref<ForBindingDeclarator>))> {};
+
+  struct ForInStatement
+      : rule<create<ast::ForInStmt>(
+            kw<"for"> + lit<"("> +
+            (assign<&ast::ForInStmt::leftDecl>(ref<ForBindingDecl>) //
+             | assign<&ast::ForInStmt::leftExpr>(ref<UnaryExpr>)) +
+            kw<"in"> + assign<&ast::ForInStmt::right>(ref<Expression>) +
+            lit<")"> + assign<&ast::ForInStmt::body>(ref<Statement>))> {};
+
+  struct ForOfStatement
+      : rule<create<ast::ForOfStmt>(
+            kw<"for"> +
+            option(flag<&ast::ForOfStmt::isAwait>(kw<"await">)) +
+            lit<"("> +
+            (assign<&ast::ForOfStmt::leftDecl>(ref<ForBindingDecl>) //
+             | assign<&ast::ForOfStmt::leftExpr>(ref<UnaryExpr>)) +
+            kw<"of"> + assign<&ast::ForOfStmt::right>(ref<AssignExpr>) +
+            lit<")"> + assign<&ast::ForOfStmt::body>(ref<Statement>))> {};
+
+  struct IterationStatement
+      : rule<ref<DoWhileStatement> | ref<WhileStatement> | ref<ForOfStatement> |
+             ref<ForInStatement> | ref<ForClassicStatement>> {};
+
+  struct ReturnStatement
+      : rule<create<ast::ReturnStmt>(
+            kw<"return"> +
+            option(!LineBreak +
+                   assign<&ast::ReturnStmt::argument>(ref<Expression>)) +
+            Eos)> {};
+
+  struct ThrowStatement
+      : rule<create<ast::ThrowStmt>(
+            kw<"throw"> + !LineBreak +
+            assign<&ast::ThrowStmt::argument>(ref<Expression>) + Eos)> {};
+
+  struct WithStatement
+      : rule<create<ast::WithStmt>(
+            kw<"with"> + lit<"("> +
+            assign<&ast::WithStmt::object>(ref<Expression>) + lit<")"> +
+            assign<&ast::WithStmt::body>(ref<Statement>))> {};
+
+  struct LabelledStatement
+      : rule<create<ast::LabeledStmt>(
+            assign<&ast::LabeledStmt::label>(ref<LabelIdentifier>) + lit<":"> +
+            assign<&ast::LabeledStmt::body>(ref<Statement>))> {};
+
+  struct CaseClause
+      : rule<create<ast::SwitchCase>(
+            kw<"case"> + assign<&ast::SwitchCase::test>(ref<Expression>) +
+            lit<":"> +
+            many(append<&ast::SwitchCase::consequent>(ref<Statement>)))> {};
+  struct DefaultClause
+      : rule<create<ast::SwitchCase>(
+            kw<"default"> + lit<":"> +
+            many(append<&ast::SwitchCase::consequent>(ref<Statement>)))> {};
+
+  struct SwitchStatement
+      : rule<create<ast::SwitchStmt>(
+            kw<"switch"> + lit<"("> +
+            assign<&ast::SwitchStmt::discriminant>(ref<Expression>) + lit<")"> +
+            lit<"{"> + many(append<&ast::SwitchStmt::cases>(ref<CaseClause>)) +
+            option(append<&ast::SwitchStmt::cases>(ref<DefaultClause>) +
+                   many(append<&ast::SwitchStmt::cases>(ref<CaseClause>))) +
+            lit<"}">)> {};
+
+  struct CatchClause_
+      : rule<create<ast::CatchClause>(
+            kw<"catch"> +
+            option(lit<"("> +
+                   assign<&ast::CatchClause::param>(ref<Assignable>) +
+                   lit<")">) +
+            assign<&ast::CatchClause::body>(ref<BlockStmt_>))> {};
+
+  struct TryStatement
+      : rule<create<ast::TryStmt>(
+            kw<"try"> + assign<&ast::TryStmt::block>(ref<BlockStmt_>) +
+            ((assign<&ast::TryStmt::handler>(ref<CatchClause_>) +
+              option(kw<"finally"> +
+                     assign<&ast::TryStmt::finalizer>(ref<BlockStmt_>))) //
+             | (kw<"finally"> +
+                assign<&ast::TryStmt::finalizer>(ref<BlockStmt_>))))> {};
+
   struct ExportDeclaration_
       : rule<ref<VariableStatement> | ref<ClassDeclaration> |
              ref<FunctionDeclaration>> {};
@@ -890,7 +893,7 @@ struct JavaScript : cursiv::GrammarSpec {
              ref<ClassDeclaration> | ref<FunctionDeclaration> |
              ref<IfStatement> | ref<IterationStatement> |
              ref<ContinueStatement> | ref<BreakStatement> |
-             ref<ReturnStatement> | ref<YieldStatement> | ref<WithStatement> |
+             ref<ReturnStatement> | ref<WithStatement> |
              ref<SwitchStatement> | ref<ThrowStatement> | ref<TryStatement> |
              ref<DebuggerStatement> | ref<LabelledStatement> |
              ref<ExpressionStatement>> {};
@@ -905,5 +908,12 @@ struct JavaScript : cursiv::GrammarSpec {
   static constexpr auto word_boundary = IdContinue | cr<R"(\\)">;
   using hidden = list<SL_COMMENT, ML_COMMENT, HTML_COMMENT, HTML_CLOSE_LINE>;
 };
+
+template <bool Yield>
+struct FunctionBody : JavaScriptSyntax<Yield>::BlockStmt_ {};
+struct OrdinaryAssignment : JavaScriptSyntax<false>::AssignExpr {};
+struct FormalParameter : JavaScriptSyntax<false>::ParamItem {};
+
+struct JavaScript : JavaScriptSyntax<false> {};
 
 } // namespace javascript

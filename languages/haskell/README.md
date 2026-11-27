@@ -39,10 +39,10 @@ depth (Leaf _) = 1
 depth (Branch l r) = 1 + max (depth l) (depth r)
 ```
 
-A suite (`where`/`let`/`do`/`of`) opens on an indented line, the way
-`../python` does; nested comments (`{- a {- b -} c -}`) balance. A
-declaration's right-hand side may not continue onto a further, unbracketed
-line.
+An indented line opens a `where`, `let`, `do` or `of` block. A `let`
+expression can put `in` on a continuation line. An outdent must return to
+an open indentation level. Other unbracketed continuations of a declaration's
+right-hand side have limited support. Block comments can nest.
 
 ## The command line
 

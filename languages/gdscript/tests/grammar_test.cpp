@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "cursiv/ValidationHelper.hpp"
 #include "cursiv/parser/Parser.hpp"
 #include "cursiv/services/CoreLanguage.hpp"
 #include "cursiv/syntax-tree/AstNode.hpp"
@@ -63,6 +64,14 @@ int main() {
                               gdscript::GdscriptSharedCoreServices,
                               gdscript::install_core_module>();
   if (!gdscript_pattern_rest::run(language.language)) return 1;
+  // Blank and comment lines before the first declaration keep the level; an
+  // indented declaration does not.
+  for (const char* source : {"   # c\nvar x = 1\n", "\n\n# a\n  # b\n\n\t# c\nvar x = 1\n"})
+    if (!cursiv::test::validationHelper(language.language, source).diagnostics.empty())
+      return fail(std::string("diagnostics on leading comments: ") + source);
+  for (const char* source : {"  var x = 1\n", "var x = 1\n  var y = 2\n"})
+    if (cursiv::test::validationHelper(language.language, source).diagnostics.empty())
+      return fail(std::string("unexpected indentation accepted: ") + source);
 
   int checked = 0;
   // `custom_features.gd` lives beside this test, not in the corpus: it is

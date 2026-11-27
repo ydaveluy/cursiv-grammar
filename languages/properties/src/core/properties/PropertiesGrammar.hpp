@@ -26,10 +26,13 @@ struct Properties : cursiv::GrammarSpec {
   struct HWS : terminal<some(cr<R"( \t\f)">)> {};
   static constexpr auto esc =
       lit<"\\"> + ((eol + many(horizontal)) | any | eof);
+  // At EOF a continued empty line disappears if another byte follows its first CR or LF.
+  static constexpr auto emptyTail = lit<"\\"> +
+      ((lit<"\r\n"> + many(horizontal)) | (eol + some(horizontal))) + eof;
 
   struct KEY : terminal<as<decode>(
                    !(many(continued) + cr<"!#">)+!(some(continued) + eol) +
-                   !(some(continued) + some(horizontal) + eof) +
+                   !(many(continued) + emptyTail) +
                    some(esc | cr<R"(^ :=\t\f\r\n\\)">))> {};
   struct VALUE : terminal<as<decode>(some(esc | cr<R"(^\r\n\\)">))> {};
   struct Delimiter : terminal<cr<":="> + option(ref<HWS>)> {};

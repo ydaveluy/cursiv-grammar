@@ -105,7 +105,7 @@ struct Cmake : cursiv::GrammarSpec {
             many(append<&ast::CommandInvocation::arguments>(argument)) +
             lit<")">)> {};
 
-  struct File : rule<create<ast::File>(option(lit<"\xEF\xBB\xBF">) + many(
+  struct File : rule<create<ast::File>(option(gap::none + lit<"\xEF\xBB\xBF">) + many(
                     append<&ast::File::commands>(ref<CommandInvocation>)))> {};
 
   using entry = File;

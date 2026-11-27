@@ -47,6 +47,20 @@ inline bool run() {
       check(string && string->value == "a\nb", "native multiline string preserves its newline");
     }
   }
+  {
+    const auto result = parser->parse(R"(\\<\n>\<tail\)");
+    const auto *root = as<ast::Template>(result.value);
+    check(result.accepted && !result.cst().recovered() && root &&
+              root->elements.size() == 3,
+          "paired backslashes leave the next delimiter active");
+    if (root && root->elements.size() == 3) {
+      const char *expected[] = {"\\", "\n", "<tail\\"};
+      for (std::size_t i = 0; i < 3; ++i) {
+        const auto *text = as<ast::Text>(root->elements[i]);
+        check(text && text->value == expected[i], "backslash parity in text");
+      }
+    }
+  }
   for (const auto source : {"<\\u41>", "<\\u>", "<\\b>", "<\\r>",
                             "<\\z>", "<é>", "<if>", "<super>"}) {
     const auto result = parser->parse(source);

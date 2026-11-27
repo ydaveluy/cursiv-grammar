@@ -80,7 +80,7 @@ struct Antlr : cursiv::GrammarSpec {
       : terminal<lit<"{"> +
                  many(ref<CodeString> | ref<CodeChar> | ref<BLOCK_COMMENT> |
                       ref<LINE_COMMENT> | (lit<"\\"> + any) | ref<RawAction> |
-                      ref<ActionText> | lit<"/">) +
+                      ref<ActionText> | (lit<"/"> + !cr<"*/">)) +
                  lit<"}">> {};
   struct ARG_ACTION : terminal<as<stripOne>(ref<RawArgAction>)> {};
   struct ACTION : terminal<as<stripOne>(ref<RawAction>)> {};

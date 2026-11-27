@@ -10,6 +10,7 @@
 #include "cursiv/services/CoreLanguage.hpp"
 #include "cursiv/syntax-tree/AstNode.hpp"
 #include "joss/CoreServices.hpp"
+#include "joss/JossGrammar.hpp"
 #include "joss/ast.hpp"
 #include "native_followup_cases.hpp"
 #include "command_lists.hpp"
@@ -30,6 +31,13 @@ std::string read_file(const char* path) {
 }  // namespace
 
 int main() {
+  for (const auto text : {"\n__", "\r__", "  \r\n__"})
+    if (joss::form_layout(text).value != "__") return fail("incorrect form layout");
+  if (joss::form_layout("  ") || joss::form_layout("\r\n") ||
+      joss::unquote("") || joss::unquote("\"abc'") ||
+      joss::unquote("''").value != "")
+    return fail("incorrect conversion of an empty or incomplete field");
+
   const auto language = cursiv::createLanguage<
       joss::JossCoreServices, joss::JossSharedCoreServices,
       joss::install_core_module>();

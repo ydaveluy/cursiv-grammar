@@ -8,7 +8,7 @@ list(JOIN _samples "," _samples_joined)
 
 # The grammar itself: every sample parses, and the tree holds a Module.
 add_executable(haskell_grammar_test grammar_test.cpp)
-target_link_libraries(haskell_grammar_test PRIVATE haskellCore)
+target_link_libraries(haskell_grammar_test PRIVATE haskellCore cursiv::test)
 target_compile_definitions(haskell_grammar_test PRIVATE
     "CURSIV_SAMPLES=\"${_samples_joined}\"")
 add_test(NAME haskell_grammar_test COMMAND haskell_grammar_test)

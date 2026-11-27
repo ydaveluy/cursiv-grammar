@@ -58,6 +58,18 @@ B : 'b';
   if (!antlr_audit::modern_cases(language))
     return 1;
 
+  {
+    const auto result = language.language.parser->parse(
+        "lexer grammar T; @members { int n = 6 /**// 2; } "
+        "options { caseInsensitive=true; } A: 'a';");
+    const auto* grammar = result.valueAs<antlr::ast::Grammar>();
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !grammar || grammar->actions.size() != 1 || grammar->options.size() != 1 ||
+        grammar->actions[0]->text != " int n = 6 /**// 2; " ||
+        grammar->options[0]->name != "caseInsensitive")
+      return fail("a division following a comment changed the action boundary");
+  }
+
   // The official ANTLR 4.13.2 tool accepts tokens {} but requires a name
   // in channels {}. Neither block accepts a trailing comma.
   for (const char* text : {

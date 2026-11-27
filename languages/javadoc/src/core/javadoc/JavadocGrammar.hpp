@@ -13,13 +13,14 @@ struct Javadoc : cursiv::GrammarSpec {
       NameStart | uc::Mn | uc::Mc | uc::Nd | uc::Pc | uc::Cf | cr<".:-">;
   struct NAME : terminal<NameStart + many(NamePart)> {};
   struct SPACE : terminal<some(cr<R"( \t)">)> {};
-  struct START : terminal<many(cr<R"( \t\r\n)">) + lit<"/**"> +
-                          many(!lit<"*/"> + lit<"*">)> {};
+  static constexpr auto stars = some(!lit<"*/"> + lit<"*">);
+  static constexpr auto indentSpace = many(cr<R"( \t\f)">);
+  static constexpr auto margin = indentSpace + stars;
+  struct START : terminal<many(cr<R"( \t\f\r\n)">) + lit<"/**"> +
+                          option(stars) + option(margin + &(indentSpace + lit<"@"> + NameStart))> {};
   struct END : terminal<some(lit<"*">) + lit<"/">> {};
   struct NL : terminal<eol | lit<"\f">> {};
-  struct DECORATED_NL : terminal<ref<NL> + option(many(cr<R"( \t)">) +
-                                                  some(!lit<"*/"> + lit<"*">))> {
-  };
+  struct DECORATED_NL : terminal<(eol + option(margin)) | lit<"\f">> {};
 
   template<bool Wrapped> struct Brace;
   template<bool Wrapped>

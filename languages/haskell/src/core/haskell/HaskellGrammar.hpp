@@ -219,15 +219,20 @@ struct Haskell : cursiv::GrammarSpec {
   struct CaseAlt_;
   struct TypeEqn;
 
-  template <auto BodyPtr, auto Item>
-  static constexpr auto genericBlock =
-      (lit<"{"> + many(lit<";">) +
-       many(append<BodyPtr>(Item) + some(lit<";">)) +
-       option(append<BodyPtr>(Item)) + lit<"}">) //
-      | (some(ref<NEWLINE>) + indent +
-         some(append<BodyPtr>(Item) + many(lit<";">) + many(ref<NEWLINE>)) +
-         dedent) |
-      (append<BodyPtr>(Item) + many(lit<";"> + append<BodyPtr>(Item)));
+  template <auto Member, auto Item>
+  static constexpr auto bracedItems = many(ref<NEWLINE>) + lit<"{"> + many(lit<";">) +
+      many(append<Member>(Item) + some(lit<";">)) + option(append<Member>(Item)) + lit<"}">;
+  template <auto Member, auto Item>
+  static constexpr auto inlineItems = append<Member>(Item) + many(lit<";"> + append<Member>(Item));
+  template <auto Member, auto Item>
+  static constexpr auto layoutItems = some(append<Member>(Item) + many(lit<";">) + many(ref<NEWLINE>));
+  struct IndentPadding : terminal<some(cr<R"( \t)">)> {};
+  template <auto Body>
+  static constexpr auto indented = some(ref<NEWLINE>) + indent + Body +
+      dedent + option(ref<IndentPadding>);
+  template <auto Member, auto Item>
+  static constexpr auto genericBlock = bracedItems<Member, Item> |
+      indented<layoutItems<Member, Item>> | inlineItems<Member, Item>;
   template <auto BodyPtr>
   static constexpr auto declBlock = genericBlock<BodyPtr, ref<Decl_>>;
   template <auto BodyPtr>
@@ -452,6 +457,14 @@ struct Haskell : cursiv::GrammarSpec {
   struct AsBinder : rule<create<ast::Var> +
                          option(assign<&ast::Var::qualifier>(ref<QUAL_TOK>)) +
                          assign<&ast::Var::name>(ref<AsName>)> {};
+  static constexpr auto letBody = kw<"in"> + assign<&ast::LetExpr::body>(ref<Exp>);
+  static constexpr auto letContinuation = letBody | indented<letBody + many(ref<NEWLINE>)>;
+  static constexpr auto letBraces = bracedItems<&ast::LetExpr::decls, ref<Decl_>>;
+  static constexpr auto letDecls = ((letBraces | inlineItems<&ast::LetExpr::decls, ref<Decl_>>) +
+      letContinuation) |
+      indented<((letBraces + many(ref<NEWLINE>)) | layoutItems<&ast::LetExpr::decls, ref<Decl_>>) +
+               letContinuation + many(ref<NEWLINE>)>;
+
   struct Aexp
       : rule<create<ast::AsPat>(assign<&ast::AsPat::binder>(ref<AsBinder>) +
                                 ATSIGN +
@@ -470,9 +483,7 @@ struct Haskell : cursiv::GrammarSpec {
              | create<ast::Lambda>(
                    BACKSLASH + some(append<&ast::Lambda::params>(ref<Apat>)) +
                    RARROW + assign<&ast::Lambda::body>(ref<Exp>)) //
-             | create<ast::LetExpr>(kw<"let"> +
-                                    declBlock<&ast::LetExpr::decls> + kw<"in"> +
-                                    assign<&ast::LetExpr::body>(ref<Exp>)) //
+             | create<ast::LetExpr>(kw<"let"> + letDecls) //
              | create<ast::LambdaCaseExpr>(
                    BACKSLASH + kw<"case"> +
                    altBlock<&ast::LambdaCaseExpr::alts>) //
@@ -947,10 +958,6 @@ struct Haskell : cursiv::GrammarSpec {
           some(append<&ast::Module::exports>(ref<ExportItem>), lit<",">)) +
       option(lit<",">) + lit<")">;
 
-  // A leading comment or blank run before the first pragma/decl: nothing
-  // yet has matched a `NEWLINE` for it to fold into (python's LeadingTrivia).
-  struct LeadingTrivia : terminal<some(blank_line)> {};
-
   // Between two declarations: a `;` or a newline, or none after a layout
   // block, which closed on its own newline -- no byte but a comment between.
   static constexpr auto DeclSep =
@@ -964,12 +971,16 @@ struct Haskell : cursiv::GrammarSpec {
       many(lit<";">) + option(ModuleItem + many(DeclSep + ModuleItem) +
                               many(lit<";">) + many(ref<NEWLINE>));
 
+  // Header pragmas precede the module's layout block.
+  struct HeaderGap : terminal<eol + many(blank_line) + some(horizontalWhite) +
+                              &(lit<"{-#"> | lit<"{", !lit<"-">> | kw<"module">)> {};
+  static constexpr auto header_newline = ref<HeaderGap> | ref<NEWLINE>;
   struct Module
       : rule<create<ast::Module>(
-            option(ref<LeadingTrivia>) +
+            option(header_newline) +
             many(append<&ast::Module::pragmas>(ref<LanguagePragma> |
                                                ref<OptionsPragma> | ref<UnknownPragma>) +
-                 many(lit<";">) + many(ref<NEWLINE>)) +
+                 many(lit<";">) + many(header_newline)) +
             option(kw<"module"> + assign<&ast::Module::name>(ref<MODID_TOK>) +
                    option(ModuleExports) + kw<"where"> + many(ref<NEWLINE>)) +
             ((lit<"{"> + ModuleItems + lit<"}"> + many(ref<NEWLINE>)) |

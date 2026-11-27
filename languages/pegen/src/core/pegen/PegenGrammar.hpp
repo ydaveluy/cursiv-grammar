@@ -48,21 +48,23 @@ struct Pegen : cursiv::GrammarSpec {
        (lit<"'"> + many(fpart | cr<R"(^{}'\\\r\n)">) + lit<"'">))> {};
   struct NUMBER : terminal<cr<"0-9"> + many(cr<"a-zA-Z0-9_.">)> {};
 
+  struct TargetBracket : terminal<lit<"[">> {};
+  struct TargetParen : terminal<lit<"(">> {};
   struct TargetAtom;
-  static constexpr auto target_items =
-      many(ref<TargetAtom> | ref<WS> | ref<NEWLINE> | ref<COMMENT> | ref<CONTINUATION>);
-  static constexpr auto target_trivia =
-      many(ref<WS> | ref<NEWLINE> | ref<COMMENT> | ref<CONTINUATION>);
+  static constexpr auto target_gap =
+      ref<WS> | ref<NEWLINE> | (ref<COMMENT> + ref<NEWLINE>) | ref<CONTINUATION>;
+  static constexpr auto target_items = many(ref<TargetAtom> | target_gap);
+  static constexpr auto target_trivia = many(target_gap);
   static constexpr auto target_nonempty =
       target_trivia + some(ref<TargetAtom> + target_trivia);
   struct ACTION
-      : rule<as<strip_delimiters>(lit<"{"> + tight(target_nonempty + lit<"}">))> {
+      : rule<as<strip_delimiters>(tight(lit<"{"> + target_nonempty + lit<"}">))> {
   };
   struct Annotation
-      : rule<as<strip_delimiters>(lit<"["> + tight(target_nonempty + lit<"]">))> {
+      : rule<as<strip_delimiters>(tight(ref<TargetBracket> + target_nonempty + lit<"]">))> {
   };
-  struct NestedAction : rule<lit<"{"> + tight(target_items + lit<"}">)> {};
-  struct NestedAnnotation : rule<lit<"["> + tight(target_items + lit<"]">)> {};
+  struct NestedAction : rule<tight(lit<"{"> + target_items + lit<"}">)> {};
+  struct NestedAnnotation : rule<tight(ref<TargetBracket> + target_items + lit<"]">)> {};
   struct TargetAtom : rule<ref<NestedAction> | ref<NestedAnnotation> | ref<NAME> | ref<NUMBER> |
       ref<STRING> | ref<FSTRING> | lit<"!"> |
       lit<"!="> |
@@ -70,7 +72,7 @@ struct Pegen : cursiv::GrammarSpec {
       lit<"%="> |
       lit<"&"> |
       lit<"&="> |
-      lit<"("> |
+      ref<TargetParen> |
       lit<")"> |
       lit<"*"> |
       lit<"**"> |
@@ -193,7 +195,9 @@ struct Pegen : cursiv::GrammarSpec {
   using entry = Grammar;
   using ignored = list<WS, COMMENT, CONTINUATION>;
   using indent_newline = NEWLINE;
-  static constexpr auto indent_open = lit<"("> | lit<"["> | lit<"{">;
+  // Target code retains its physical line endings inside its own brackets.
+  static constexpr auto indent_open = lit<"("> | lit<"[">;
+  static constexpr auto indent_block = lit<"{"> | ref<TargetBracket> | ref<TargetParen>;
   static constexpr auto indent_close = lit<")"> | lit<"]"> | lit<"}">;
 };
 

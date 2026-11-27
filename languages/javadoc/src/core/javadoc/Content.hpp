@@ -73,13 +73,16 @@ inline std::string inline_content(const ast::InlineTag &tag) {
       ++i;
     if (doc && doc->wrapped) {
       auto next = i + 1;
-      while (next < raw.size() && (raw[next] == ' ' || raw[next] == '\t'))
+      while (next < raw.size() &&
+             (raw[next] == ' ' || raw[next] == '\t' || raw[next] == '\f'))
         ++next;
-      if (next < raw.size() && raw[next] == '*') {
-        while (next < raw.size() && raw[next] == '*')
-          ++next;
-        i = next - 1;
+      if (next == raw.size()) continue;
+      if (raw[next] == '*') {
+        while (next < raw.size() && raw[next] == '*') ++next;
+      } else if (raw[next] != '\r' && raw[next] != '\n') {
+        continue;
       }
+      i = next - 1;
     }
   }
   if (tag.name == "code" || tag.name == "literal") {

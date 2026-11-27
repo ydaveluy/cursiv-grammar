@@ -9,12 +9,18 @@
 namespace joss {
 
 inline constexpr auto unquote = [](std::string_view t) {
-  return t.substr(1, t.size() - 2);
+  using Result = cursiv::ConversionResult<std::string_view>;
+  if (t.size() < 2 || (t.front() != '"' && t.front() != '\'') || t.back() != t.front())
+    return Result::err("Expected a quoted JOSS string.");
+  return Result::ok(t.substr(1, t.size() - 2));
 };
 inline constexpr auto form_layout = [](std::string_view t) {
+  using Result = cursiv::ConversionResult<std::string_view>;
   const auto line = t.find_first_of("\r\n");
-  const auto width = t.substr(line).starts_with("\r\n") ? 2u : 1u;
-  return t.substr(line + width);
+  if (line == t.npos) return Result::err("Expected a new line before the form layout.");
+  t.remove_prefix(line + (t.substr(line).starts_with("\r\n") ? 2 : 1));
+  if (t.empty()) return Result::err("Expected a form layout.");
+  return Result::ok(t);
 };
 
 struct Joss : cursiv::GrammarSpec {

@@ -78,6 +78,26 @@ int main() {
         (count == 3 && !grammar->productions[0]->alternatives[0]->elements.empty()))
       return fail(text, "empty alternatives or single-letter header lost");
   }
+  for (const char* text : {"<head> ::= one <mid> ::= two", "head ::= one mid ::= two"}) {
+    const auto result = language.language.parser->parse(text);
+    const auto* grammar = cursiv::ast_cast<bnf::ast::Grammar>(result.value);
+    if (!result.accepted || !result.diagnostics.empty() || !grammar ||
+        grammar->productions.size() != 1 || grammar->productions[0]->alternatives.size() != 1)
+      return fail(text, "an inline assignment started another production");
+    const auto& elements = grammar->productions[0]->alternatives[0]->elements;
+    if (elements.size() != 4 || !elements[1]->nonterminal ||
+        elements[1]->text != "mid" || elements[2]->nonterminal ||
+        elements[2]->text != "::=")
+      return fail(text, "inline nonterminal or assignment spelling was lost");
+  }
+  {
+    const auto result = language.language.parser->parse("<less|greater> --> < | >\nnext-->ok");
+    const auto* grammar = cursiv::ast_cast<bnf::ast::Grammar>(result.value);
+    if (!result.accepted || !result.diagnostics.empty() || !grammar ||
+        grammar->productions.size() != 2 || grammar->productions[0]->name != "less|greater" ||
+        grammar->productions[0]->alternatives.size() != 2 || grammar->productions[1]->name != "next")
+      return fail("arrows", "header name, adjacent arrow or literal alternatives lost");
+  }
   {
     const auto result = language.language.parser->parse(
         "x ::=\nother ::= \"\"\nnext ::= <x> | \"a\"");

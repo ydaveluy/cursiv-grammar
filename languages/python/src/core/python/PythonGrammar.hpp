@@ -24,7 +24,6 @@ struct Python : cursiv::GrammarSpec {
   static constexpr auto blank_line =
       many(cr<R"( \t\f)">) + option(comment_body) + eol;
   struct NEWLINE : terminal<eol + many(blank_line)> {};
-  struct LeadingTrivia : terminal<some(blank_line)> {};
   // `indent` and `dedent` are the parse's own: inside these brackets they
   // answer nothing.
   static constexpr auto indent_open = lit<"("> | lit<"["> | lit<"{">;
@@ -1061,8 +1060,9 @@ struct Python : cursiv::GrammarSpec {
   // MODULE
   // ======
 
+  // The blank and comment lines before the first statement end with a NEWLINE.
   struct Module : rule<create<ast::Module>(
-      option(ref<LeadingTrivia>) +
+      option(ref<NEWLINE>) +
       many(append<&ast::Module::body>(ref<CompoundStmt>) |
            sameLineBlock<&ast::Module::body>))> {};
 

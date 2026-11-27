@@ -29,6 +29,15 @@ inline bool typescript_lexical_cases(const cursiv::Parser& parser) {
     if (!decl || decl->declarations.size() != 1)
       return fail("Unicode whitespace between keyword and binding");
   }
+  for (const std::string prefix : {"\ufeff", "#!node", "\ufeff#!node"}) {
+    const std::string source = prefix + "\nconst value=1;";
+    const auto result = parser.parse(source);
+    const auto* root = program(result);
+    if (!root || root->prologue != prefix || root->body.size() != 1)
+      return fail("file prologue and following declaration");
+  }
+  if (program(parser.parse("\n#!node\nconst value=1;")))
+    return fail("hashbang after the first line");
   for (const std::string line : {"\r", "\n", "\r\n", "\u2028", "\u2029"}) {
     const std::string source = "let a=1;// comment" + line + "let b=2;";
     const auto result = parser.parse(source);

@@ -6,7 +6,7 @@
 namespace muddb {
 
 struct Muddb : cursiv::GrammarSpec {
-  struct EOL : terminal<lit<"\r\n"> | lit<"\n"> | (lit<"\r"> + !lit<"\n">)> {};
+  struct EOL : terminal<eol> {};
 
   struct END : terminal<lit<"***END OF DUMP***">> {};
 

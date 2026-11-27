@@ -20,7 +20,8 @@ inline constexpr auto unquote = [](std::string_view t) {
 };
 
 struct Datalog : cursiv::GrammarSpec {
-  static constexpr auto NameChar = cr<R"(^(,)=:.~?"% \n)">;
+  static constexpr auto Space = s | uc::Zs | uc::Zl | uc::Zp;
+  static constexpr auto NameChar = ~(Space | cr<R"((,)=:.~?"%)">);
   static constexpr auto word_boundary = NameChar;
   static constexpr auto Upper =
       uc::Lu | cr<"\u2160-\u216F\u24B6-\u24CF\U0001F130-\U0001F149"
@@ -37,7 +38,7 @@ struct Datalog : cursiv::GrammarSpec {
   static constexpr auto IntegerBody =
       lit<"0"> | (option(lit<"-">) + cr<"1-9"> + many(d));
 
-  struct WS : terminal<some(s | uc::Zs | uc::Zl | uc::Zp)> {};
+  struct WS : terminal<some(Space)> {};
   struct COMMENT
       : terminal<(lit<"%"> | (lit<"#"> + &(cr<" \t"> | lit<"lang">))) +
                  many(cr<R"(^\n)">)> {};

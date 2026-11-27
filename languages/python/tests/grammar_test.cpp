@@ -50,7 +50,7 @@ static int audit_regression() {
            "def f(*,**kw): pass\n", "x=lambda ,a:a\n", "def f(if): pass\n",
            "class True: pass\n", "x=f\"{a!foo}\"\n", "x=f\"{a! r}\"\n",
            "a:=1\n", "x=f\"a\nb\"\n", "match x:\n case {**_}: pass\n",
-           "try: pass\nexcept A,B as x: pass\n"}) {
+           "try: pass\nexcept A,B as x: pass\n", "  x=1\n", "x=1\n  y=2\n"}) {
     const auto r = language.language.parser->parse(source);
     if (r.accepted && !r.cst().recovered() && r.diagnostics.empty()) {
       std::fprintf(stderr, "python: native-invalid syntax accepted: %s\n", source);
@@ -77,7 +77,8 @@ static int audit_regression() {
            "x=lambda **kw,:kw\n", "def f(*,a,b=1,**kw,): pass\n",
            "x=b\"a\" br\"b\"\n", "x=\"\\uD800\"\n", "x=\"\\U0010FFFF\"\n",
            "x=\"\\q\"\n", "x=f\"{1+\n2}\"\n", "x=[a:=1]\n",
-           "match a:=1:\n case 1: pass\n"})
+           "match a:=1:\n case 1: pass\n", "   # c\nx=1\n",
+           "\n\n# a\n  # b\n\n\t# c\nx=1\n"})
     if (!cursiv::test::validationHelper(language.language, source).diagnostics.empty()) {
       std::fprintf(stderr, "python: native-valid control diagnosed: %s\n", source);
       return 1;

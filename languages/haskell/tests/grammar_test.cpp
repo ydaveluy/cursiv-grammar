@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "cursiv/ValidationHelper.hpp"
 #include "cursiv/parser/Parser.hpp"
 #include "cursiv/services/CoreLanguage.hpp"
 #include "cursiv/syntax-tree/AstNode.hpp"
@@ -83,6 +84,12 @@ int main() {
       cursiv::createLanguage<haskell::HaskellCoreServices,
                               haskell::HaskellSharedCoreServices,
                               haskell::install_core_module>();
+  // Blank and comment lines before the first declaration keep the level, and
+  // the declarations may stand indented.
+  for (const char *source : {"\n\n-- a\n  -- b\n\n{- c -}\n  {- d\n  -}\nx = 1\n",
+                             "   -- c\nx = 1\n", "  x = 1\n  y = 2\n"})
+    if (!cursiv::test::validationHelper(language.language, source).diagnostics.empty())
+      return fail(source, "diagnosed");
 
   for (const std::string &path : split(CURSIV_SAMPLES, ',')) {
     std::ifstream file(path);

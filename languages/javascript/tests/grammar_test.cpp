@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "cursiv/ValidationHelper.hpp"
 #include "cursiv/parser/Parser.hpp"
 #include "cursiv/services/CoreLanguage.hpp"
 #include "cursiv/syntax-tree/AstNode.hpp"
@@ -21,6 +22,42 @@ namespace {
 int fail(const std::string &what) {
   std::fprintf(stderr, "javascript: %s\n", what.c_str());
   return 1;
+}
+
+int yield_context(const javascript::JavaScriptCoreServices& services) {
+  namespace ast = javascript::ast;
+  struct Case { const char* text; int bare, argument, delegate; };
+  constexpr Case cases[] = {
+      {"switch(yield){}", 0, 0, 0},
+      {"function* yield(){} async function await(){}", 0, 0, 0},
+      {"function* f(){let g=function yield(){};} async function h(){let g=function await(){};}", 0, 0, 0},
+      {"function* f(){switch(yield){} yield +1; yield* xs;}", 1, 1, 1},
+      {"function* f(){function g(){switch(yield){}} let h=()=>yield; yield;}", 1, 0, 0},
+      {"let o={*[yield](){yield;}, async *m(){yield* xs;}};", 1, 0, 1},
+      {"class C{*m(){yield;} async *n(){yield 1;}}", 1, 1, 0},
+      {"function* f(){let g=(x=function*(){yield;})=>0;}", 1, 0, 0},
+      {"function* f(){let {x=yield}=o; let a={yield:yield};}", 2, 0, 0},
+  };
+  for (const auto& [text, bare, argument, delegate] : cases) {
+    const auto result = services.parser->parse(text);
+    if (!result.accepted || result.cst().recovered() || !result.diagnostics.empty() ||
+        !cursiv::test::validationHelper(services, std::string(text)).diagnostics.empty())
+      return fail(text);
+    int b = 0, a = 0, d = 0;
+    for (const auto* node : result.nodes())
+      if (const auto* y = cursiv::ast_cast<ast::YieldExpr>(node)) {
+        b += !y->argument;
+        a += y->argument && !y->delegate;
+        d += y->argument && y->delegate;
+      }
+    if (b != bare || a != argument || d != delegate) return fail(text);
+  }
+  for (const char* text : {"yield 1;", "function* f(){let o={yield};}",
+                           "function* f(){(yield)=>0;}", "function* f(){(x=yield)=>0;}",
+                           "let f=function* yield(){};", "function* yield(){'use strict';}"})
+    if (cursiv::test::validationHelper(services, std::string(text)).diagnostics.empty())
+      return fail(text);
+  return 0;
 }
 
 int modern_syntax(const cursiv::Parser &parser) {
@@ -116,7 +153,7 @@ int main() {
       cursiv::createLanguage<javascript::JavaScriptCoreServices,
                               javascript::JavaScriptSharedCoreServices,
                               javascript::install_core_module>();
-  if (modern_syntax(*language.language.parser))
+  if (yield_context(language.language) || modern_syntax(*language.language.parser))
     return 1;
   if (!javascript_native_followup::run(language))
     return 1;

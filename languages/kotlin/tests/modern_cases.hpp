@@ -37,6 +37,8 @@ val String?.copy: String? get()=this
       {"annotation-all", R"AUDIT(@all:Deprecated("x") val x=1)AUDIT"},
       {"annotation-typeargs", R"AUDIT(annotation class A<T>
 @A<String> class C)AUDIT"},
+      {"annotated-types", R"AUDIT(typealias Test = Box<
+         out @Outer Int?, (@Inner Int)?, @Wrap() (Int), @Only (Int?), @Both T? & Any>)AUDIT"},
       {"context-class", R"AUDIT(context(x:String) class C)AUDIT"},
       {"context-function-type",
        R"AUDIT(val f:context(String) () -> Unit = {})AUDIT"},
@@ -137,6 +139,27 @@ val d=0b11u)AUDIT"},
       const auto values = nodes<WhenExpr>(result);
       ok &= values.size() == 1 && values[0]->entries.size() == 2 &&
             values[0]->entries[0]->guard && !values[0]->entries[1]->guard;
+    } else if (test.name == "annotated-types") {
+      bool outer = false, inner = false;
+      for (const auto *t : nodes<NullableType>(result)) {
+        if (!t->base) continue;
+        outer |= t->annotations.size() == 1 && t->annotations[0]->name == "Outer" &&
+                 t->base->annotations.empty();
+        inner |= t->annotations.empty() && t->base->annotations.size() == 1 &&
+                 t->base->annotations[0]->name == "Inner";
+      }
+      bool explicitArgs = false, typeOnly = false;
+      for (const auto *group : nodes<ParenthesizedType>(result)) {
+        if (group->annotations.size() != 1) continue;
+        explicitArgs |= group->annotations[0]->name == "Wrap" &&
+                        cursiv::ast_cast<UserType>(group->type);
+        typeOnly |= group->annotations[0]->name == "Only" &&
+                    cursiv::ast_cast<NullableType>(group->type);
+      }
+      const auto both = nodes<IntersectionType>(result);
+      ok &= outer && inner && explicitArgs && typeOnly && both.size() == 1 &&
+            both[0]->annotations.size() == 1 && both[0]->annotations[0]->name == "Both" &&
+            cursiv::ast_cast<NullableType>(both[0]->left) && both[0]->left->annotations.empty();
     } else if (test.name == "annotation-typeargs" ||
                test.name == "annotation-all") {
       bool found = false;
@@ -200,6 +223,14 @@ val d=0b11u)AUDIT"},
     if (!ok) {
       std::fprintf(stderr, "kotlin audit: %.*s failed\n",
                    static_cast<int>(test.name.size()), test.name.data());
+      return false;
+    }
+  }
+  for (const auto *text : {"typealias T = Box<@A (Int)>",
+                           "typealias T = Box<@A(Int) -> Unit>"}) {
+    const auto result = parser.parse(text);
+    if (result.accepted && !result.cst().recovered() && result.diagnostics.empty()) {
+      std::fprintf(stderr, "kotlin: annotation arguments consumed as a type: %s\n", text);
       return false;
     }
   }

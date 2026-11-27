@@ -6,8 +6,6 @@ inline constexpr std::string_view heading_name(std::string_view text) {
   return text.substr(5);
 }
 struct Star : cursiv::GrammarSpec {
-  static constexpr auto eol =
-      lit<"\r\n"> | lit<"\n"> | (lit<"\r"> + !lit<"\n">);
   static constexpr auto space = cr<" \t\r\n\v\f">;
   static constexpr auto nonspace = ~space;
   static constexpr auto boundary = !nonspace;

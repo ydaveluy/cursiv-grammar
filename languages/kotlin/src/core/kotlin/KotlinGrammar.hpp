@@ -295,14 +295,18 @@ struct Kotlin : cursiv::GrammarSpec {
             option(AnnotationTypeArguments) +
             option(value_arguments<&ast::Annotation::arguments>))> {};
 
+  static constexpr auto annotation_head =
+      ((assign<&ast::Annotation::useSiteTarget>(SiteTarget) + lit<":"> +
+        assign<&ast::Annotation::name>(ref<DottedName>)) |
+       assign<&ast::Annotation::name>(ref<AtDottedName>)) +
+      option(AnnotationTypeArguments);
   struct Annotation
-      : rule<create<ast::Annotation>(
-            ((assign<&ast::Annotation::useSiteTarget>(SiteTarget) + lit<":"> +
-              assign<&ast::Annotation::name>(ref<DottedName>)) |
-             assign<&ast::Annotation::name>(ref<AtDottedName>)) +
-            option(AnnotationTypeArguments) +
-            option(value_arguments<&ast::Annotation::arguments>))> {};
-
+      : rule<create<ast::Annotation>(annotation_head +
+                 option(value_arguments<&ast::Annotation::arguments>))> {};
+  template <auto End>
+  struct TypeAnnotation
+      : rule<create<ast::Annotation>(annotation_head +
+                 (value_arguments<&ast::Annotation::arguments> | End))> {};
   struct AnnotationGroup
       : rule<create<ast::AnnotationGroup>(
             ((assign<&ast::AnnotationGroup::useSiteTarget>(SiteTarget) +
@@ -375,31 +379,50 @@ struct Kotlin : cursiv::GrammarSpec {
       option(lit<",">) + lit<")"> + NLs + lit<"->"> + NLs +
       assign<&ast::FunctionType::returnType>(ref<Type>);
 
+  template <class A>
   static constexpr auto type_annotation =
-      annotation_modifier<&ast::Type::annotations>;
+      append<&ast::Type::annotations>(ref<A> | ref<AnnotationGroup>);
+  template <class A>
   static constexpr auto type_modifiers =
-      many(type_annotation) +
-      option(flag<&ast::Type::isSuspend>(
-          ref<SUSPEND> + many(type_annotation | ref<SUSPEND>)));
-  static constexpr auto nullable_suffix = option(
-      nest<ast::NullableType, &ast::NullableType::base>(some(lit<"?">)));
+      many(type_annotation<A>) + option(flag<&ast::Type::isSuspend>(
+          ref<SUSPEND> + many(type_annotation<A> | ref<SUSPEND>)));
+
+  static constexpr auto simple_type =
+      create<ast::UserType>(user_type_body) | create<ast::DynamicType>(kw<"dynamic">);
+  template <auto Inner>
+  static constexpr auto grouped = lit<"("> + Inner + lit<")">;
+  static constexpr auto question_marks = some(lit<"?">);
+  template <auto Base>
+  static constexpr auto nullable_type = create<ast::NullableType>(
+      assign<&ast::NullableType::base>(Base) + question_marks);
+  template <auto Base>
+  static constexpr auto intersection_type = create<ast::IntersectionType>(
+      assign<&ast::IntersectionType::left>(Base) + lit<"&"> +
+      assign<&ast::IntersectionType::right>(ref<Type>));
+  template <class T>
+  static constexpr auto grouped_type = grouped<ref<T>> +
+      option(nest<ast::NullableType, &ast::NullableType::base>(question_marks));
+
+  using SpacedAnnotation = TypeAnnotation<(!lit<"(">) | (!gap::none)>;
+  using ClosedAnnotation = TypeAnnotation<!lit<"(">>;
+  static constexpr auto distinct_type =
+      create<ast::FunctionType>(function_type_body) | nullable_type<simple_type> |
+      intersection_type<nullable_type<simple_type> | simple_type>;
+  // These parenthesized types cannot be an annotation's argument expression.
+  struct TypeOnly
+      : rule<(type_modifiers<SpacedAnnotation> + distinct_type) |
+             intersection_type<grouped_type<Type>> | nullable_type<grouped<ref<Type>>> |
+             grouped<ref<TypeOnly>>> {};
+  template <class A, class T>
+  static constexpr auto modified_group =
+      &(ref<LabelReference> | lit<"@"> | ref<SUSPEND>) + type_modifiers<A> +
+      (intersection_type<grouped_type<T>> | nullable_type<grouped<ref<T>>> |
+       create<ast::ParenthesizedType>(grouped<assign<&ast::ParenthesizedType::type>(ref<T>)>));
 
   struct Type
-      : rule<((type_modifiers +
-               (create<ast::FunctionType>(function_type_body) |
-                ((create<ast::UserType>(user_type_body) |
-                  create<ast::DynamicType>(kw<"dynamic">)) +
-                 nullable_suffix))) |
-              (lit<"("> + ref<Type> + lit<")"> + nullable_suffix) |
-              (&(lit<"@"> | ref<SUSPEND>) + type_modifiers +
-               create<ast::ParenthesizedType>(
-                   lit<"("> +
-                   assign<&ast::ParenthesizedType::type>(ref<Type>) +
-                   lit<")">) +
-               nullable_suffix)) +
-             many(nest<ast::IntersectionType, &ast::IntersectionType::left>(
-                      lit<"&"> +
-                      assign<&ast::IntersectionType::right>(ref<Type>)))> {};
+      : rule<(type_modifiers<SpacedAnnotation> + (distinct_type | simple_type)) |
+             intersection_type<grouped_type<Type>> | grouped_type<Type> |
+             modified_group<ClosedAnnotation, Type> | modified_group<SpacedAnnotation, TypeOnly>> {};
 
   // PARAMETERS / DECLARATORS
   // ========================
@@ -507,7 +530,7 @@ struct Kotlin : cursiv::GrammarSpec {
 
   // A function type as a supertype: `interface F : (Int) -> Unit`.
   struct SupertypeFunctionType
-      : rule<type_modifiers + create<ast::FunctionType>(function_type_body)> {};
+      : rule<type_modifiers<Annotation> + create<ast::FunctionType>(function_type_body)> {};
 
   struct SuperTypeSpecifier
       : rule<create<ast::SuperTypeDelegate>(

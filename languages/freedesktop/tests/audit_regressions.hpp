@@ -11,6 +11,7 @@ inline bool run(const desktopentry::DesktopEntryCoreServices& services) {
   struct Case { const char* source; std::vector<Group> groups; };
   const std::array cases = {
     Case{"[Desktop Entry]\nName=App\nEmpty=\n", {Group{"Desktop Entry", {{"Name","App"},{"Empty",""}}}}},
+    Case{"[Desktop Entry]\r\n\t\r\n  # ignored=comment\r\n  Name =App\r\n", {Group{"Desktop Entry", {{"Name","App"}}}}},
     Case{"[Équipe]\nNom=bonjour\n", {Group{"Équipe", {{"Nom","bonjour"}}}}},
     Case{"[Desktop Entry]\n123=number\nÉtiquette=oui\nX_Name=under\n", {Group{"Desktop Entry", {{"123","number"},{"Étiquette","oui"},{"X_Name","under"}}}}},
     Case{"[Desktop Entry]\nName[es_419]=Hola\nName[sr_RS.UTF-8@latin]=Zdravo\n", {Group{"Desktop Entry", {{"Name[es_419]","Hola"},{"Name[sr_RS.UTF-8@latin]","Zdravo"}}}}},
