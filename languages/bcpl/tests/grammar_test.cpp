@@ -78,10 +78,30 @@ int main() {
         value == nullptr || value->text != literal)
       return fail(source + ": native numeric spelling lost");
   }
+  {
+    const std::string literal = "\"a* // the quote and star \" * stay in the comment\n *b\"";
+    const std::string source = "SECTION \"ab**cd\"\nLET native() = " + literal;
+    const auto r = engine().parse(source);
+    const auto* program = cursiv::ast_cast<bcpl::ast::Program>(r.value);
+    const auto* fn = program ? find_function(*program, "native") : nullptr;
+    const auto* value = fn ? cursiv::ast_cast<bcpl::ast::StringLit>(fn->body) : nullptr;
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
+        !value || value->text != literal || program->directives.size() != 1 ||
+        program->directives.front()->text != "\"ab**cd\"")
+      return fail("string continuation crossed a token boundary");
+  }
+  for (const char* source : {R"(LET f() = "escaped *[")", R"(LET f() = "*4_7_7")",
+                             R"(LET f() = '*#g*#A')", "LET f() = \"a\nb\""}) {
+    const auto r = engine().parse(source);
+    if (r.accepted && !r.cst().recovered() && r.diagnostics.empty())
+      return fail(std::string(source) + ": invalid literal accepted");
+  }
   for (const char* source : {
            "/* outer /* nested */ outer */ LET native() = 1",
            R"bcpl(LET native() = "He said *"hi*"**")bcpl",
            R"bcpl(LET native() = '*x41')bcpl",
+           R"bcpl(LET native() = '*x_A')bcpl",
+           R"bcpl(LET native() = "*#g*#1234*#u*#FACE")bcpl",
            R"bcpl(LET native() = '*377')bcpl",
            R"bcpl(LET native() = '*#C13F')bcpl",
            "LET native(a) = a #/ 2.0",

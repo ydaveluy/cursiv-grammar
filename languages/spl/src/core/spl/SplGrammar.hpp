@@ -21,18 +21,24 @@ struct Spl : cursiv::GrammarSpec {
 
   struct LIKE_KW : terminal<ikw<"LIKE">> {};
 
-  // Commands and functions: one terminal per word category, so a word
-  // classifies the same way cursiv's per-state lexer chooses between a
-  // keyword and a plain name; `in` and `like` also serve as functions.
+  // Commands with their own argument syntax have a dedicated terminal.
   struct INIT_COMMAND
-      : terminal<ikw<"datamodel"> | ikw<"datamodelsimple"> | ikw<"dbinspect"> | ikw<"eventcount"> | ikw<"from"> | ikw<"gentimes"> |
-          ikw<"history"> | ikw<"inputcsv"> | ikw<"inputintelligence"> | ikw<"inputlookup"> | ikw<"makeresults"> | ikw<"metadata"> |
-          ikw<"metasearch"> | ikw<"msearch"> | ikw<"rest"> | ikw<"savedsearch"> | ikw<"tstats">> {};
+      : terminal<ikw<"datamodel"> | ikw<"datamodelsimple"> | ikw<"dbinspect"> | ikw<"eventcount"> | ikw<"from"> |
+          ikw<"history"> | ikw<"inputcsv"> | ikw<"inputlookup"> | ikw<"makeresults"> | ikw<"metadata"> |
+          ikw<"metasearch"> | ikw<"msearch"> | ikw<"savedsearch">> {};
+
+  struct GENTIMES : terminal<ikw<"gentimes">> {};
+  struct TSTATS : terminal<ikw<"tstats">> {};
+  struct REST : terminal<ikw<"rest">> {};
+  struct INPUTINTELLIGENCE : terminal<ikw<"inputintelligence">> {};
+  static constexpr auto GeneratingCommand = ref<GENTIMES> | ref<REST> | ref<INPUTINTELLIGENCE> | ref<TSTATS>;
 
   struct SEARCH_COMMAND : terminal<ikw<"search">> {};
 
+  struct FIELDS_KW : terminal<ikw<"fields">> {};
+  struct LOOKUP_KW : terminal<ikw<"lookup">> {};
   struct STD_COMMAND_AND_FUNCTION
-      : terminal<ikw<"lookup"> | ikw<"replace"> | ikw<"spath">> {};
+      : terminal<ikw<"replace"> | ikw<"spath">> {};
 
   struct STD_COMMAND
       : terminal<ikw<"abstract"> | ikw<"accum"> | ikw<"addcoltotals"> | ikw<"addinfo"> | ikw<"addtotals"> | ikw<"analyzefields"> |
@@ -41,7 +47,7 @@ struct Spl : cursiv::GrammarSpec {
           ikw<"bucketdir"> | ikw<"chart"> | ikw<"cluster"> | ikw<"cofilter"> | ikw<"collect"> | ikw<"concurrency"> |
           ikw<"contingency"> | ikw<"convert"> | ikw<"correlate"> | ikw<"ctable"> | ikw<"dbxquery"> | ikw<"dedup"> |
           ikw<"delete"> | ikw<"delta"> | ikw<"diff"> | ikw<"entitymerge"> | ikw<"erex"> | ikw<"eval"> |
-          ikw<"eventstats"> | ikw<"extract"> | ikw<"fieldformat"> | ikw<"fields"> | ikw<"fieldsummary"> | ikw<"filldown"> |
+          ikw<"eventstats"> | ikw<"extract"> | ikw<"fieldformat"> | ikw<"fieldsummary"> | ikw<"filldown"> |
           ikw<"fillnull"> | ikw<"findtypes"> | ikw<"folderize"> | ikw<"foreach"> | ikw<"format"> | ikw<"fromjson"> |
           ikw<"gauge"> | ikw<"geom"> | ikw<"geomfilter"> | ikw<"geostats"> | ikw<"head"> | ikw<"highlight"> |
           ikw<"iconify"> | ikw<"iplocation"> | ikw<"join"> | ikw<"kmeans"> | ikw<"kvform"> | ikw<"loadjob"> |
@@ -62,11 +68,24 @@ struct Spl : cursiv::GrammarSpec {
   struct MODIFIER_AND_FUNCTION : terminal<ikw<"earliest"> | ikw<"latest">> {};
   struct TIME_AND_FUNCTION : terminal<ikw<"now">> {};
 
-  // The three percentile functions take an embedded number: `exactperc95`,
-  // `percentile50`, `upperperc90`.
+  static constexpr auto CountWord = ikw<"count"> | ikw<"c">;
+  static constexpr auto perc = cr<"Pp"> + cr<"Ee"> + cr<"Rr"> + cr<"Cc">;
+  static constexpr auto percentilePrefix =
+      (cr<"Ee"> + cr<"Xx"> + cr<"Aa"> + cr<"Cc"> + cr<"Tt">) |
+      (cr<"Uu"> + cr<"Pp"> + cr<"Pp"> + cr<"Ee"> + cr<"Rr">);
+  static constexpr auto percentile = ((percentilePrefix + perc) |
+      (perc + option(cr<"Ee"> + cr<"Nn"> + cr<"Tt"> + cr<"Ii"> + cr<"Ll"> + cr<"Ee">)) |
+      cr<"Pp">) + some(d);
+  static constexpr auto StatWords = CountWord | ikw<"avg"> | ikw<"mean"> | ikw<"dc"> |
+      ikw<"distinct_count"> | ikw<"estdc"> | ikw<"max"> | ikw<"median"> | ikw<"min"> |
+      ikw<"mode"> | ikw<"range"> | ikw<"stdev"> | ikw<"stdevp"> | ikw<"sum"> |
+      ikw<"sumsq"> | ikw<"var"> | ikw<"varp"> | ikw<"first"> | ikw<"last"> |
+      ikw<"values"> | ikw<"earliest_time"> | ikw<"latest_time"> | ikw<"rate"> |
+      percentile;
+  struct StatFunction : terminal<StatWords | ikw<"earliest"> | ikw<"latest">> {};
+
   struct FUNCTION
-      : terminal<
-          (lit<"exactperc"> + some(d)) | (lit<"percentile"> + some(d)) | (lit<"upperperc"> + some(d)) |
+      : terminal<StatWords |
           ikw<"abs"> | ikw<"acos"> | ikw<"acosh"> | ikw<"asin"> | ikw<"asinh"> | ikw<"atan"> |
           ikw<"atan2"> | ikw<"atanh"> | ikw<"bit_and"> | ikw<"bit_or"> | ikw<"bit_not"> | ikw<"bit_xor"> |
           ikw<"bit_shift_left"> | ikw<"bit_shift_right"> | ikw<"case"> | ikw<"cidrmatch"> | ikw<"ceiling"> | ikw<"coalesce"> |
@@ -83,12 +102,8 @@ struct Spl : cursiv::GrammarSpec {
           ikw<"sigfig"> | ikw<"sin"> | ikw<"sinh"> | ikw<"split"> | ikw<"sqrt"> | ikw<"strftime"> |
           ikw<"strptime"> | ikw<"substr"> | ikw<"tan"> | ikw<"tanh"> | ikw<"time"> | ikw<"tonumber"> |
           ikw<"tostring"> | ikw<"trim"> | ikw<"true"> | ikw<"typeof"> | ikw<"upper"> | ikw<"urldecode"> |
-          ikw<"validate"> | ikw<"avg"> | ikw<"count"> | ikw<"distinct_count"> | ikw<"estdc"> | ikw<"estdc_error"> |
-          ikw<"max"> | ikw<"mean"> | ikw<"median"> | ikw<"min"> | ikw<"mode"> | ikw<"range"> |
-          ikw<"stdev"> | ikw<"stdevp"> | ikw<"sum"> | ikw<"sumsq"> | ikw<"var"> | ikw<"varp"> |
-          ikw<"first"> | ikw<"last"> | ikw<"list"> | ikw<"values"> | ikw<"earliest_time"> | ikw<"latest_time"> |
-          ikw<"per_day"> | ikw<"per_hour"> | ikw<"per_minute"> | ikw<"per_second"> | ikw<"rate"> | ikw<"rate_avg"> |
-          ikw<"rate_sum">> {};
+          ikw<"validate"> | ikw<"estdc_error"> | ikw<"list"> | ikw<"per_day"> | ikw<"per_hour"> |
+          ikw<"per_minute"> | ikw<"per_second"> | ikw<"rate_avg"> | ikw<"rate_sum">> {};
 
   struct AS_KW : terminal<ikw<"AS">> {};
   struct BY_KW : terminal<ikw<"BY">> {};
@@ -98,13 +113,14 @@ struct Spl : cursiv::GrammarSpec {
   struct NOT_KW : terminal<kw<"NOT">> {};
 
   // SPL1 time aliases share the same structural unit, without letter-by-letter spelling.
-  static constexpr auto TimeUnit =
+  static constexpr auto SpanUnit =
       ikw<"seconds"> | ikw<"second"> | ikw<"secs"> | ikw<"sec"> | ikw<"s"> |
       ikw<"minutes"> | ikw<"minute"> | ikw<"mins"> | ikw<"min"> | ikw<"m"> |
       ikw<"hours"> | ikw<"hour"> | ikw<"hrs"> | ikw<"hr"> | ikw<"h"> |
       ikw<"days"> | ikw<"day"> | ikw<"d"> |
+      ikw<"months"> | ikw<"month"> | ikw<"mon">;
+  static constexpr auto TimeUnit = SpanUnit |
       ikw<"weeks"> | ikw<"week"> | ikw<"w"> |
-      ikw<"months"> | ikw<"month"> | ikw<"mon"> |
       ikw<"quarters"> | ikw<"quarter"> | ikw<"qtrs"> | ikw<"qtr"> | ikw<"q"> |
       ikw<"years"> | ikw<"year"> | ikw<"yrs"> | ikw<"yr"> | ikw<"y"> |
       ikw<"w0"> | ikw<"w1"> | ikw<"w2"> | ikw<"w3"> | ikw<"w4"> |
@@ -122,13 +138,11 @@ struct Spl : cursiv::GrammarSpec {
                       lit<"\"">)> {};
   struct IDENTIFIER : terminal<cr<"A-Za-z_.:"> + many(cr<"A-Za-z_.:0-9">)> {};
 
-  // A command or function word is also a plain name (`id`): cursiv's
-  // per-state lexer takes the keyword reading where a command/function is
-  // expected and the name reading everywhere else -- no terminal is spelled
-  // twice.
-  static constexpr auto CommandWord =
-      ref<SEARCH_COMMAND> | ref<INIT_COMMAND> | ref<STD_COMMAND> | ref<STD_COMMAND_AND_FUNCTION>;
-  static constexpr auto FunctionHead = ref<FUNCTION> | ref<STD_COMMAND_AND_FUNCTION> |
+  // Command and function keywords are ordinary names in value positions.
+  static constexpr auto GenericCommand = ref<INIT_COMMAND> | ref<STD_COMMAND> | ref<STD_COMMAND_AND_FUNCTION>;
+  static constexpr auto PipelineWord = ref<LOOKUP_KW> | ref<FIELDS_KW>;
+  static constexpr auto CommandWord = GenericCommand | GeneratingCommand | PipelineWord | ref<SEARCH_COMMAND>;
+  static constexpr auto FunctionHead = ref<FUNCTION> | ref<LOOKUP_KW> | ref<STD_COMMAND_AND_FUNCTION> |
                                        ref<MODIFIER_AND_FUNCTION> | ref<TIME_AND_FUNCTION> |
                                        ref<LIKE_KW>;
   static constexpr auto IdWord = ref<IDENTIFIER> | CommandWord | FunctionHead;
@@ -221,11 +235,91 @@ struct Spl : cursiv::GrammarSpec {
             assign<&ast::InTest::subject>(ref<Expr>) + ref<IN_KW> + lit<"("> +
             option(some(append<&ast::InTest::options>(ref<Expr>), lit<",">)) + lit<")">)> {};
 
-  struct OutputClause : rule<create<ast::OutputClause>(
-      some(append<&ast::OutputClause::sources>(ref<Expr>)) +
-      (flag<&ast::OutputClause::isNew>(ref<OUTPUTNEW_KW>) | ref<OUTPUT_KW>) +
-      some(append<&ast::OutputClause::targets>(IdWord), lit<",">))> {};
+  static constexpr auto LookupChar = uc::L | uc::M | uc::N | cr<"_.:-"> | lit<"/", !cr<"/*">>;
+  struct LookupWord : terminal<some(LookupChar)> {};
+  struct FieldWord : terminal<!((ikw<"AS"> | ikw<"OUTPUT"> | ikw<"OUTPUTNEW">) + !LookupChar) +
+      some(LookupChar)> {};
+  static constexpr auto LookupName = ref<STRING> | ref<FieldWord>;
+  struct LookupField : rule<assign<&ast::LookupField::tableField>(LookupName) +
+      option(!gap::none + ref<AS_KW> + !gap::none + assign<&ast::LookupField::eventField>(LookupName))> {};
 
+  template <auto Fields>
+  static constexpr auto lookup_fields =
+      some(append<Fields>(ref<LookupField>), lit<","> | !gap::none);
+  template <auto Value>
+  static constexpr auto scalar = Value | (lit<"\""> + gap::none + Value + gap::none + lit<"\"">);
+  static constexpr auto TrueWord = ikw<"true"> | ikw<"t"> | ikw<"yes"> | kw<"1">;
+  static constexpr auto FalseWord = ikw<"false"> | ikw<"f"> | ikw<"no"> | kw<"0">;
+  template <auto Word>
+  static constexpr auto quotedWord = Word | (lit<"\""> + Word + lit<"\"">);
+  struct TrueOption : terminal<quotedWord<TrueWord>> {};
+  struct FalseOption : terminal<quotedWord<FalseWord>> {};
+  static constexpr auto LookupBool = as<true>(ref<TrueOption>) | as<false>(ref<FalseOption>);
+
+  struct Lookup : rule<unordered(
+      option(ikw<"local"> + lit<"="> + assign<&ast::Lookup::local>(LookupBool) + !gap::none),
+      option(ikw<"update"> + lit<"="> + assign<&ast::Lookup::update>(LookupBool) + !gap::none)) +
+      assign<&ast::Lookup::table>(ref<LookupWord> | ref<STRING>) + !gap::none +
+      lookup_fields<&ast::Lookup::inputs> +
+      option(!gap::none + (ref<OUTPUT_KW> | flag<&ast::Lookup::outputNew>(ref<OUTPUTNEW_KW>)) + !gap::none +
+             lookup_fields<&ast::Lookup::outputs>)> {};
+
+  template <class Command>
+  static constexpr auto lookup_command =
+      assign<&Command::commandName>(ref<LOOKUP_KW>) + !gap::none + append<&Command::operations>(ref<Lookup>);
+
+  template <auto Key, auto Value>
+  struct Parameter : rule<create<ast::Comparison>(assign<&ast::Comparison::field>(Key) +
+      assign<&ast::Comparison::op>(as<ast::CompareOp::eq>(lit<"=">)) +
+      assign<&ast::Comparison::value>(Value))> {};
+
+  static constexpr auto dayMonth = d + option(d);
+  struct Calendar : terminal<dayMonth + lit<"/"> + dayMonth + lit<"/"> +
+      repeat<2>(d) + option(repeat<2>(d)) +
+      option(lit<":"> + dayMonth + lit<":"> + repeat<2>(d) + lit<":"> + repeat<2>(d))> {};
+  struct Interval : terminal<option(cr<"+-">) + some(d) + cr<"smhd">> {};
+  struct Integer : terminal<as<double>(some(d))> {};
+  struct IntegerArg : rule<create<ast::NumberLit>(
+      option((flag<&ast::NumberLit::negative>(lit<"-">) | lit<"+">) + gap::none) +
+      assign<&ast::NumberLit::value>(ref<Integer>))> {};
+  static constexpr auto timestampArg = ref<IntegerArg> |
+      create<ast::DateLit>(assign<&ast::DateLit::text>(ref<Calendar>));
+  static constexpr auto intervalArg = create<ast::DateLit>(assign<&ast::DateLit::text>(ref<Interval>));
+  template <class Command, auto Key, auto Value>
+  static constexpr auto parameter = !gap::none + append<&Command::operations>(ref<Parameter<Key, Value>>);
+  template <class Command>
+  static constexpr auto gentimes = assign<&Command::commandName>(ref<GENTIMES>) + unordered(
+      parameter<Command, ikw<"start">, scalar<timestampArg>>,
+      option(parameter<Command, ikw<"end">, scalar<timestampArg>>),
+      option(parameter<Command, ikw<"increment">, scalar<intervalArg>>));
+
+  static constexpr auto argEscape = lit<"\\"> + any;
+  struct ArgWord : terminal<some(cr<R"(^ \t\r\n\[\]|"\\)"> | argEscape |
+      (lit<"["> + many(cr<R"(^\]\\\r\n)"> | argEscape) + lit<"]">))> {};
+  static constexpr auto textArg = ref<StringLit> |
+      create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<ArgWord>));
+  struct ArgBool : rule<create<ast::NameExpr>(assign<&ast::NameExpr::name>(TrueWord | FalseWord))> {};
+  struct ResourcePart : terminal<some(cr<R"(^/ \t\r\n\[\]|=")">)> {};
+  struct ResourcePath : rule<create<ast::PathExpr>(lit<"/"> + option(gap::none + some(
+          append<&ast::PathExpr::segments>(ref<ResourcePart>), gap::none + lit<"/"> + gap::none) +
+          option(gap::none + lit<"/">)))> {};
+  struct Resource : rule<create<ast::BareExpr>(assign<&ast::BareExpr::value>(scalar<ref<ResourcePath>>))> {};
+  struct RestOption : rule<
+      ref<Parameter<ikw<"count"> | ikw<"timeout">, scalar<ref<IntegerArg>>>> |
+      ref<Parameter<ikw<"strict">, scalar<ref<ArgBool>>>> |
+      ref<Parameter<!(ikw<"count"> | ikw<"timeout"> | ikw<"strict">) + ref<IDENTIFIER>, textArg>>> {};
+  template <class Command>
+  static constexpr auto rest = assign<&Command::commandName>(ref<REST>) + !gap::none + many(append<&Command::operations>(ref<RestOption>) + !gap::none) +
+      append<&Command::operations>(ref<Resource>) + many(!gap::none + append<&Command::operations>(ref<RestOption>));
+  struct IntelligenceOption : rule<
+      ref<Parameter<ikw<"fields"> | ikw<"delim_regex"> | ikw<"extract_regex"> | ikw<"ignore_regex">, textArg>> |
+      ref<Parameter<ikw<"skip_header_lines">, scalar<ref<IntegerArg>>>> |
+      ref<Parameter<ikw<"include_raw"> | ikw<"append"> | ikw<"no_parse">, scalar<ref<ArgBool>>>>> {};
+  template <class Command>
+  static constexpr auto intelligence = assign<&Command::commandName>(ref<INPUTINTELLIGENCE>) + !gap::none +
+      append<&Command::operations>(create<ast::BareExpr>(assign<&ast::BareExpr::value>(ref<StringLit> |
+          create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<LookupWord>))))) +
+      many(!gap::none + append<&Command::operations>(ref<IntelligenceOption>));
   struct ByClause
       : rule<create<ast::ByClause>(ref<BY_KW> +
                                    some(append<&ast::ByClause::fields>(IdWord)))> {};
@@ -244,12 +338,14 @@ struct Spl : cursiv::GrammarSpec {
       : rule<assign<&ast::BareExpr::value>(ref<Expr>)> {};
 
   static constexpr auto SimpleOperation =
-      ref<LikeTest> | ref<InTest> | ref<OutputClause> | ref<ByClause> |
+      ref<LikeTest> | ref<InTest> | ref<ByClause> |
       ref<Alias> | ref<Comparison> | ref<BareExpr>;
   struct AtomOp : rule<SimpleOperation |
              (lit<"("> + ref<Operation> + lit<")">)> {};
-  struct SearchAtom : rule<SimpleOperation |
-             (lit<"("> + ref<SearchOperation> + lit<")">)> {};
+  struct SearchAtom : rule<SimpleOperation | (lit<"("> + ref<SearchOperation> +
+      many(nest<ast::BoolCombine, &ast::BoolCombine::left>(
+          assign<&ast::BoolCombine::op>(as<ast::BoolOp::and_>(!gap::none)) +
+          assign<&ast::BoolCombine::right>(ref<SearchOperation>))) + lit<")">)> {};
   struct Not
       : rule<create<ast::Negation>(ref<NOT_KW> +
                  assign<&ast::Negation::operand>(ref<Not>)) | ref<AtomOp>> {};
@@ -267,6 +363,67 @@ struct Spl : cursiv::GrammarSpec {
               levels(left(as<ast::BoolOp::or_>(kw<"OR">)),
                      left(as<ast::BoolOp::and_>(kw<"AND">)))> {};
 
+  struct PrefixText : terminal<some(cr<R"(^() \t\r\n|")">)> {};
+  static constexpr auto statField = ref<StringLit> |
+      create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<LookupWord>));
+  struct Prefix : rule<create<ast::FuncCall>(assign<&ast::FuncCall::name>(ikw<"prefix">) + lit<"("> +
+      append<&ast::FuncCall::args>(ref<StringLit> |
+          create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<PrefixText>))) + lit<")">)> {};
+  struct AggregateValue : rule<create<ast::FuncCall>(
+      assign<&ast::FuncCall::name>(CountWord) +
+      ((lit<"("> + lit<")">) | (!gap::none + !(ikw<"from"> | ikw<"where"> | ref<BY_KW> | ref<AS_KW>) +
+       append<&ast::FuncCall::args>(statField)))) | create<ast::FuncCall>(
+      assign<&ast::FuncCall::name>(ref<StatFunction>) + lit<"("> +
+      append<&ast::FuncCall::args>(ref<Prefix> | statField) + lit<")">) |
+      create<ast::NameExpr>(assign<&ast::NameExpr::name>(CountWord))> {};
+  struct Aggregate : rule<create<ast::Alias>(assign<&ast::Alias::value>(ref<AggregateValue>) +
+      ref<AS_KW> + assign<&ast::Alias::name>(ref<LookupWord> | ref<STRING>)) |
+      create<ast::BareExpr>(assign<&ast::BareExpr::value>(ref<AggregateValue>))> {};
+  template <auto K>
+  struct ClauseWord : rule<create<ast::BareExpr>(assign<&ast::BareExpr::value>(
+      create<ast::NameExpr>(assign<&ast::NameExpr::name>(K))))> {};
+  struct GroupPrefix : terminal<ikw<"prefix"> + lit<"("> +
+      (ref<PrefixText> | ref<STRING>) + lit<")">> {};
+  struct StatBy : rule<create<ast::ByClause>(ref<BY_KW> +
+      some(append<&ast::ByClause::fields>(ref<GroupPrefix> | ref<LookupWord> | ref<STRING>),
+           lit<","> | !gap::none))> {};
+  struct Span : terminal<ikw<"auto"> | (some(d) + SpanUnit)> {};
+  struct StatOption : rule<
+      ref<Parameter<ikw<"prestats"> | ikw<"local"> | ikw<"append"> | ikw<"summariesonly"> |
+          ikw<"include_reduced_buckets"> | ikw<"allow_old_summaries">, scalar<ref<ArgBool>>>> |
+      ref<Parameter<ikw<"chunk_size">, scalar<ref<IntegerArg>>>> |
+      ref<Parameter<ikw<"fillnull_value">, textArg>>> {};
+  template <class Command>
+  static constexpr auto tstats = assign<&Command::commandName>(ref<TSTATS>) + many(!gap::none + append<&Command::operations>(ref<StatOption>)) +
+      !gap::none + some(append<&Command::operations>(ref<Aggregate>), lit<","> | !gap::none) +
+      option(!gap::none + append<&Command::operations>(ref<ClauseWord<ikw<"from">>>) +
+             parameter<Command, ikw<"datamodel">, statField>) +
+      option(!gap::none + append<&Command::operations>(ref<ClauseWord<ikw<"where">>>) + !gap::none +
+             some(!ref<BY_KW> + append<&Command::operations>(ref<SearchOperation>))) +
+      option(!gap::none + append<&Command::operations>(ref<StatBy>) +
+             option(parameter<Command, ikw<"span">, create<ast::DateLit>(assign<&ast::DateLit::text>(ref<Span>))>)) +
+      many(!gap::none + append<&Command::operations>(ref<StatOption>));
+  struct InteriorStars : terminal<some(LookupChar) + some(some(lit<"*">) + some(LookupChar))> {};
+  static constexpr auto fieldName = create<ast::NameExpr>(
+      assign<&ast::NameExpr::name>(ref<LookupWord> | ref<InteriorStars>));
+  struct PlainField : terminal<!lit<"-", !LookupChar> + some(LookupChar)> {};
+  static constexpr auto fieldPattern = ref<StringLit> |
+      create<ast::Glob>(flag<&ast::Glob::leadingStar>(some(lit<"*">)) +
+          option(gap::none + assign<&ast::Glob::inner>(fieldName)) +
+          option(gap::none + flag<&ast::Glob::trailingStar>(some(lit<"*">)))) |
+      create<ast::Glob>(assign<&ast::Glob::inner>(fieldName) + gap::none +
+          flag<&ast::Glob::trailingStar>(some(lit<"*">))) |
+      create<ast::Glob>(assign<&ast::Glob::inner>(create<ast::NameExpr>(
+          assign<&ast::NameExpr::name>(ref<InteriorStars>)))) |
+      create<ast::NameExpr>(assign<&ast::NameExpr::name>(ref<PlainField>));
+  template <class Command>
+  static constexpr auto fields = assign<&Command::commandName>(ref<FIELDS_KW>) + !gap::none +
+      option(append<&Command::operations>(ref<ClauseWord<lit<"+"> | lit<"-">>>) + !gap::none) +
+      some(append<&Command::operations>(create<ast::BareExpr>(assign<&ast::BareExpr::value>(fieldPattern))),
+           lit<","> | !gap::none);
+  template <class Command>
+  static constexpr auto generating = gentimes<Command> | rest<Command> | intelligence<Command> | tstats<Command>;
+
   struct InitCommand;
   struct NextCommand;
 
@@ -276,18 +433,21 @@ struct Spl : cursiv::GrammarSpec {
   };
 
   struct InitCommand
-      : rule<option(lit<"|">) +
-             ((!ref<INIT_COMMAND> + option(assign<&ast::InitCommand::commandName>(ref<SEARCH_COMMAND>)) +
+      : rule<(lit<"|"> + (lookup_command<ast::InitCommand> | fields<ast::InitCommand>)) |
+             (option(lit<"|">) + generating<ast::InitCommand>) |
+             (option(lit<"|"> + !PipelineWord) +
+             ((!(ref<INIT_COMMAND> | GeneratingCommand) + option(assign<&ast::InitCommand::commandName>(ref<SEARCH_COMMAND>)) +
                some(append<&ast::InitCommand::operations>(ref<SearchOperation>))) |
               (assign<&ast::InitCommand::commandName>(ref<INIT_COMMAND>) +
                many(append<&ast::InitCommand::operations>(ref<Operation>)))) +
-             option(assign<&ast::InitCommand::subquery>(ref<Subquery>))> {};
+             option(assign<&ast::InitCommand::subquery>(ref<Subquery>)))> {};
   struct NextCommand
-      : rule<((assign<&ast::NextCommand::commandName>(ref<SEARCH_COMMAND>) +
+      : rule<lookup_command<ast::NextCommand> | fields<ast::NextCommand> | generating<ast::NextCommand> |
+             (((assign<&ast::NextCommand::commandName>(ref<SEARCH_COMMAND>) +
                some(append<&ast::NextCommand::operations>(ref<SearchOperation>))) |
-              (!ref<SEARCH_COMMAND> + assign<&ast::NextCommand::commandName>(CommandWord) +
+              (assign<&ast::NextCommand::commandName>(GenericCommand) +
                many(append<&ast::NextCommand::operations>(ref<Operation>)))) +
-             option(assign<&ast::NextCommand::subquery>(ref<Subquery>))> {};
+             option(assign<&ast::NextCommand::subquery>(ref<Subquery>)))> {};
 
   struct Query
       : rule<assign<&ast::Query::init>(ref<InitCommand>) +

@@ -52,8 +52,9 @@ struct Kotlin : cursiv::GrammarSpec {
   struct NEWLINE : terminal<eol> {};
   struct NL_TRIVIA : terminal<eol> {};
 
-  static constexpr auto Anysemi = ref<NEWLINE> | lit<";">;
-  static constexpr auto Semi = some(ref<NEWLINE>) | lit<";">;
+  static constexpr auto Semicolon = lit<";", !lit<";">>;
+  static constexpr auto Anysemi = ref<NEWLINE> | Semicolon;
+  static constexpr auto Semi = some(ref<NEWLINE>) | Semicolon;
   // A prefix that is already a complete statement on its own (a class with
   // no body, a property with no initializer, ...) makes the newline right
   // after it a legal statement end, competing with continuing on the next
@@ -311,14 +312,14 @@ struct Kotlin : cursiv::GrammarSpec {
       : rule<create<ast::AnnotationGroup>(
             ((assign<&ast::AnnotationGroup::useSiteTarget>(SiteTarget) +
               lit<":">) |
-             lit<"@">)+lit<"["> +
+             (lit<"@"> + gap::none)) + lit<"["> +
             some(append<&ast::AnnotationGroup::annotations>(
                 ref<UnescapedAnnotation>)) +
             lit<"]">)> {};
 
-  template <auto AnnsPtr>
+  template <auto AnnsPtr, class A = Annotation>
   static constexpr auto annotation_modifier =
-      append<AnnsPtr>(ref<Annotation> | ref<AnnotationGroup>);
+      append<AnnsPtr>(ref<A> | ref<AnnotationGroup>);
   template <auto ModsPtr, auto AnnsPtr>
   static constexpr auto modifiers =
       many(append<ModsPtr>(AllModifierKw) | annotation_modifier<AnnsPtr>);
@@ -381,7 +382,7 @@ struct Kotlin : cursiv::GrammarSpec {
 
   template <class A>
   static constexpr auto type_annotation =
-      append<&ast::Type::annotations>(ref<A> | ref<AnnotationGroup>);
+      annotation_modifier<&ast::Type::annotations, A>;
   template <class A>
   static constexpr auto type_modifiers =
       many(type_annotation<A>) + option(flag<&ast::Type::isSuspend>(
@@ -505,7 +506,7 @@ struct Kotlin : cursiv::GrammarSpec {
 
   struct TypeConstraint
       : rule<create<ast::TypeConstraint>(
-            many(append<&ast::TypeConstraint::annotations>(ref<Annotation>)) +
+            many(annotation_modifier<&ast::TypeConstraint::annotations>) +
             assign<&ast::TypeConstraint::name>(ref<SimpleIdentifier>) +
             lit<":"> +
             assign<&ast::TypeConstraint::bound>(ref<Type>))> {};
@@ -534,16 +535,16 @@ struct Kotlin : cursiv::GrammarSpec {
 
   struct SuperTypeSpecifier
       : rule<create<ast::SuperTypeDelegate>(
-                 many(append<&ast::SuperType::annotations>(ref<Annotation>)) +
+                 many(annotation_modifier<&ast::SuperType::annotations>) +
                  assign<&ast::SuperTypeDelegate::type>(ref<UserType>) + NLs +
                  ref<BY> + assign<&ast::SuperTypeDelegate::delegate>(
                                ref<Expression>)) |
             create<ast::SuperTypeCall>(
-                many(append<&ast::SuperType::annotations>(ref<Annotation>)) +
+                many(annotation_modifier<&ast::SuperType::annotations>) +
                 assign<&ast::SuperTypeCall::type>(ref<UserType>) +
                 value_arguments<&ast::SuperTypeCall::arguments>) |
             create<ast::SuperTypeEntry>(
-                many(append<&ast::SuperType::annotations>(ref<Annotation>)) +
+                many(annotation_modifier<&ast::SuperType::annotations>) +
                 assign<&ast::SuperTypeEntry::type>(
                     ref<UserType> | ref<SupertypeFunctionType>))> {};
 
@@ -630,7 +631,7 @@ struct Kotlin : cursiv::GrammarSpec {
   // `return` and `throw` read their value whole and end at a line end, a
   // closer or a separator; `return` has no value when one follows it.
   static constexpr auto JumpEnd =
-      &(ref<NEWLINE> | lit<"}"> | lit<")"> | lit<"]"> | lit<","> | lit<";"> |
+      &(ref<NEWLINE> | lit<"}"> | lit<")"> | lit<"]"> | lit<","> | Semicolon |
         lit<"->"> | kw<"else"> | kw<"while"> | eof);
 
   struct ThrowExpr
@@ -748,8 +749,7 @@ struct Kotlin : cursiv::GrammarSpec {
                                                lit<"!">) +
                  assign<&ast::PrefixExpr::operand>(ref<PrefixUnaryExpr>)) |
             create<ast::AnnotatedExpr>(
-                some(append<&ast::AnnotatedExpr::annotations>(
-                    ref<Annotation>)) +
+                some(annotation_modifier<&ast::AnnotatedExpr::annotations, ClosedAnnotation>) +
                 assign<&ast::AnnotatedExpr::operand>(ref<PrefixUnaryExpr>)) |
             create<ast::LabeledExpr>(
                 assign<&ast::LabeledExpr::label>(ref<LabelDefinition>) +
@@ -843,10 +843,10 @@ struct Kotlin : cursiv::GrammarSpec {
   // `else` may start a line; `else ->` is a `when` entry. A branch may be
   // empty before `;` or `else`, which stay with the statement list.
   static constexpr auto if_else =
-      NLs + option(lit<";"> + NLs + &kw<"else">) + kw<"else"> + !lit<"->"> +
+      NLs + option(Semicolon + NLs + &kw<"else">) + kw<"else"> + !lit<"->"> +
       NLs;
   static constexpr auto if_empty_else =
-      &(lit<";"> | kw<"else">) + option(lit<";"> + NLs + &kw<"else">) +
+      &(Semicolon | kw<"else">) + option(Semicolon + NLs + &kw<"else">) +
       kw<"else"> + !lit<"->"> + NLs;
   static constexpr auto if_no_else = !(kw<"else"> + !lit<"->">);
 
@@ -866,13 +866,13 @@ struct Kotlin : cursiv::GrammarSpec {
             ((assign<&ast::IfExpr::thenBranch>(ExprBody) + if_no_else) |
              (((assign<&ast::IfExpr::thenBranch>(ControlBody) + if_else) |
                if_empty_else) +
-              (assign<&ast::IfExpr::elseBranch>(ExprBody) | &lit<";">)) |
-             &lit<";">))> {};
+              (assign<&ast::IfExpr::elseBranch>(ExprBody) | &Semicolon)) |
+             &Semicolon))> {};
 
   struct CatchClause
       : rule<create<ast::CatchClause>(
             ref<CATCH> + lit<"("> +
-            many(append<&ast::CatchClause::annotations>(ref<Annotation>)) +
+            many(annotation_modifier<&ast::CatchClause::annotations>) +
             assign<&ast::CatchClause::name>(ref<SimpleIdentifier>) +
             lit<":"> + assign<&ast::CatchClause::type>(ref<Type>) +
             option(lit<",">) + lit<")"> + assign<&ast::CatchClause::body>(ref<Block>))> {};
@@ -915,13 +915,13 @@ struct Kotlin : cursiv::GrammarSpec {
                                 &ast::ForExpr::destructuring, DestructuringMode::values>) +
             ref<IN> + assign<&ast::ForExpr::iterable>(ref<Expression>) +
             lit<")"> + NLs +
-            (assign<&ast::ForExpr::body>(ControlBody) | &lit<";">))> {};
+            (assign<&ast::ForExpr::body>(ControlBody) | &Semicolon))> {};
 
   struct WhileExpr
       : rule<create<ast::WhileExpr>(
             kw<"while"> + lit<"("> +
             assign<&ast::WhileExpr::cond>(ref<Expression>) + lit<")"> +
-            NLs + (assign<&ast::WhileExpr::body>(ControlBody) | &lit<";">))> {};
+            NLs + (assign<&ast::WhileExpr::body>(ControlBody) | &Semicolon))> {};
 
   struct DoWhileExpr
       : rule<create<ast::DoWhileExpr>(
@@ -1012,7 +1012,7 @@ struct Kotlin : cursiv::GrammarSpec {
 
   struct EnumEntry
       : rule<create<ast::EnumEntry>(
-            many(append<&ast::EnumEntry::annotations>(ref<Annotation>)) +
+            many(annotation_modifier<&ast::EnumEntry::annotations>) +
             assign<&ast::EnumEntry::name>(ref<SimpleIdentifier>) +
             option(value_arguments<&ast::EnumEntry::arguments>) +
             option(lit<"{"> +
@@ -1059,9 +1059,9 @@ struct Kotlin : cursiv::GrammarSpec {
               option(lit<"{"> +
                      many(append<&ast::ClassDecl::enumEntries>(
                          ref<EnumEntry>)) +
-                     option(lit<";"> + class_members) + lit<"}">)) |
+                     option(Semicolon + class_members) + lit<"}">)) |
              (class_head +
-              option(lit<"{"> + option(lit<";">) + class_members +
+              option(lit<"{"> + option(Semicolon) + class_members +
                      lit<"}">))))> {};
 
   struct ObjectDeclaration
@@ -1238,13 +1238,15 @@ struct Kotlin : cursiv::GrammarSpec {
                       some(append<&ast::KotlinFile::fileAnnotations>(
                           ref<UnescapedAnnotation>)) + lit<"]">) |
                   append<&ast::KotlinFile::fileAnnotations>(
-                      ref<UnescapedAnnotation>)) +
-                 option(Semi)) +
-            option(many(append<&ast::KotlinFile::fileAnnotations>(ref<Annotation>) |
-                        AllModifierKw) +
+                      ref<UnescapedAnnotation>)) + NLs) +
+            option(many(&SiteTarget +
+                        annotation_modifier<&ast::KotlinFile::fileAnnotations>) +
+                   option(AllModifierKw +
+                          many(AllModifierKw |
+                               annotation_modifier<&ast::KotlinFile::fileAnnotations>)) +
                    kw<"package"> +
                    assign<&ast::KotlinFile::packageName>(ref<DottedName>) +
-                   option(some(ref<NEWLINE>) | (lit<";"> + NLs))) +
+                   option(some(ref<NEWLINE>) | (Semicolon + NLs))) +
             many(append<&ast::KotlinFile::imports>(ref<ImportHeader>) +
                  many(Anysemi)) +
             many(Anysemi) +

@@ -236,6 +236,9 @@ struct Haskell : cursiv::GrammarSpec {
   template <auto BodyPtr>
   static constexpr auto declBlock = genericBlock<BodyPtr, ref<Decl_>>;
   template <auto BodyPtr>
+  static constexpr auto whereDecls =
+      kw<"where"> + (declBlock<BodyPtr> | &(some(ref<NEWLINE>) + !indent) | eof);
+  template <auto BodyPtr>
   static constexpr auto stmtBlock = genericBlock<BodyPtr, ref<DoStmt_>>;
   template <auto BodyPtr>
   static constexpr auto altBlock = genericBlock<BodyPtr, ref<CaseAlt_>>;
@@ -427,7 +430,7 @@ struct Haskell : cursiv::GrammarSpec {
             assign<&ast::CaseAlt::pattern>(ref<Pat>) +
             ((RARROW + assign<&ast::CaseAlt::body>(ref<Exp>)) //
              | some(append<&ast::CaseAlt::guards>(ref<GuardedExpr>))) +
-            option(kw<"where"> + declBlock<&ast::CaseAlt::whereDecls>))> {};
+            option(whereDecls<&ast::CaseAlt::whereDecls>))> {};
 
   struct DoStmt_
       : rule<create<ast::DoStmt>(kw<"let"> +
@@ -625,7 +628,7 @@ struct Haskell : cursiv::GrammarSpec {
             option(DCOLON + assign<&ast::ValueDecl::resultSig>(ref<CType>)) +
             (append<&ast::ValueDecl::rhs>(ref<PlainRhs>) //
              | some(append<&ast::ValueDecl::rhs>(ref<GuardedRhsOne>))) +
-            option(kw<"where"> + declBlock<&ast::ValueDecl::whereDecls>))> {};
+            option(whereDecls<&ast::ValueDecl::whereDecls>))> {};
 
   struct TypeSigDecl
       : rule<create<ast::TypeSigDecl>(
@@ -807,7 +810,7 @@ struct Haskell : cursiv::GrammarSpec {
             option(PIPE +
                    some(append<&ast::ClassDecl::dependencies>(ref<FunDep>),
                         lit<",">)) +
-            option(kw<"where"> + declBlock<&ast::ClassDecl::body>))> {};
+            option(whereDecls<&ast::ClassDecl::body>))> {};
 
   struct InstanceDecl
       : rule<create<ast::InstanceDecl>(
@@ -819,7 +822,7 @@ struct Haskell : cursiv::GrammarSpec {
                    lit<"#-}">) +
             option(assign<&ast::InstanceDecl::context>(ref<BType>) + DARROW) +
             assign<&ast::InstanceDecl::head>(ref<CType>) +
-            option(kw<"where"> + declBlock<&ast::InstanceDecl::body>))> {};
+            option(whereDecls<&ast::InstanceDecl::body>))> {};
 
   struct StandaloneDeriving
       : rule<create<ast::StandaloneDerivingDecl>(

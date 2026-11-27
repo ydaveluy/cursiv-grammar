@@ -13,12 +13,10 @@ class AwkValidator final : public cursiv::DefaultCoreService {
   using cursiv::DefaultCoreService::DefaultCoreService;
   void checkRegex(const ast::RegexLit&, cursiv::ValidationAcceptor&) const;
 
-  void checkUniqueFunctionNames(const ast::Program& program,
+  void checkNames(const ast::Program& program,
                                 cursiv::ValidationAcceptor& accept) const;
   void checkAssignment(const ast::AssignExpr& expression,
                        cursiv::ValidationAcceptor& accept) const;
-  void checkBuiltin(const ast::CallExpr& call,
-                    cursiv::ValidationAcceptor& accept) const;
   void checkRule(const ast::Rule& rule,
                  cursiv::ValidationAcceptor& accept) const;
   void checkDelete(const ast::DeleteStmt& statement,

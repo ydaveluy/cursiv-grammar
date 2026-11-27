@@ -14,7 +14,27 @@ struct Awk : cursiv::GrammarSpec {
   struct COMMENT : terminal<lit<"#"> + many(cr<R"(^\n)">)> {};
 
   static constexpr auto identifier = cr<"A-Za-z_"> + many(cr<"A-Za-z_0-9">);
-  struct ID : terminal<identifier + many(lit<"::"> + identifier)> {};
+  static constexpr auto StandardBuiltin =
+      kw<"atan2"> | kw<"close"> | kw<"cos"> | kw<"exp"> | kw<"gsub"> |
+      kw<"fflush"> | kw<"index"> | kw<"int"> | kw<"length"> | kw<"log"> | kw<"match"> |
+      kw<"rand"> | kw<"sin"> | kw<"split"> | kw<"sprintf"> | kw<"sqrt"> |
+      kw<"srand"> | kw<"sub"> | kw<"substr"> | kw<"system"> | kw<"tolower"> |
+      kw<"toupper">;
+  struct Builtin : terminal<option(lit<"awk::">) +
+      (StandardBuiltin | kw<"and"> | kw<"asort"> | kw<"asorti"> |
+      kw<"bindtextdomain"> | kw<"compl"> | kw<"dcgettext"> | kw<"dcngettext"> |
+      kw<"gensub"> | kw<"isarray"> | kw<"lshift"> |
+      kw<"mkbool"> | kw<"mktime"> | kw<"or"> | kw<"patsplit"> |
+      kw<"rshift"> | kw<"strftime"> | kw<"strtonum"> | kw<"systime"> |
+      kw<"typeof"> | kw<"xor">)> {};
+  static constexpr auto Reserved = StandardBuiltin | kw<"BEGIN"> | kw<"END"> |
+      kw<"break"> | kw<"continue"> | kw<"delete"> | kw<"do"> | kw<"else"> |
+      kw<"exit"> | kw<"for"> | kw<"func"> | kw<"function"> | kw<"getline"> |
+      kw<"if"> | kw<"in"> | kw<"next"> | kw<"nextfile"> | kw<"print"> |
+      kw<"printf"> | kw<"return"> | kw<"while">;
+  // Standard keywords and functions reserve both parts of a qualified name.
+  static constexpr auto namePart = !Reserved + identifier;
+  struct ID : terminal<namePart + option(lit<"::"> + namePart)> {};
 
   struct Name : rule<ref<ID> | kw<"switch"> | kw<"case"> | kw<"default"> |
                      kw<"BEGINFILE"> | kw<"ENDFILE">> {};
@@ -50,18 +70,6 @@ struct Awk : cursiv::GrammarSpec {
   static constexpr auto Terminator = some(lit<";"> | ref<NEWLINE>);
   static constexpr auto StmtSep = Terminator | &lit<"}">;
 
-  static constexpr auto BuiltinName = option(lit<"awk::">) + (
-      kw<"atan2"> | kw<"close"> | kw<"cos"> | kw<"exp"> | kw<"gsub"> |
-      kw<"index"> | kw<"int"> | kw<"length"> | kw<"log"> | kw<"match"> |
-      kw<"rand"> | kw<"sin"> | kw<"split"> | kw<"sprintf"> | kw<"sqrt"> |
-      kw<"srand"> | kw<"sub"> | kw<"substr"> | kw<"system"> | kw<"tolower"> |
-      kw<"toupper"> | kw<"and"> | kw<"asort"> | kw<"asorti"> |
-      kw<"bindtextdomain"> | kw<"compl"> | kw<"dcgettext"> | kw<"dcngettext"> |
-      kw<"fflush"> | kw<"gensub"> | kw<"isarray"> | kw<"lshift"> |
-      kw<"mkbool"> | kw<"mktime"> | kw<"or"> | kw<"patsplit"> |
-      kw<"rshift"> | kw<"strftime"> | kw<"strtonum"> | kw<"systime"> |
-      kw<"typeof"> | kw<"xor">);
-
   struct POW : terminal<as<ast::BinOp::Pow>(lit<"**"> | lit<"^">)> {};
 
   static constexpr auto OpMul = as<ast::BinOp::Mul>(lit<"*">) | as<ast::BinOp::Div>(lit<"/">) | as<ast::BinOp::Mod>(lit<"%">);
@@ -90,17 +98,16 @@ struct Awk : cursiv::GrammarSpec {
 
   static constexpr auto IndexSuffix = nest<ast::IndexExpr, &ast::IndexExpr::object>(
       lit<"["> + some(append<&ast::IndexExpr::indices>(ref<Expr>), lit<","> + NLOpt) + lit<"]">);
+  struct ArrayRef : rule<create<ast::VarRef>(assign<&ast::VarRef::name>(ref<Name>)) +
+                         many(IndexSuffix)> {};
   struct Lvalue : rule<create<ast::FieldExpr>(
-                             lit<"$"> +
-                             assign<&ast::FieldExpr::index>(ref<FieldOperand>))  //
-                       | (create<ast::VarRef>(assign<&ast::VarRef::name>(ref<Name>)) +
-                          many(IndexSuffix))> {};
+      lit<"$"> + assign<&ast::FieldExpr::index>(ref<FieldOperand>)) | ref<ArrayRef>> {};
 
   struct CallExpr : rule<create<ast::CallExpr>(
       option(flag<&ast::CallExpr::indirect>(lit<"@">)) +
-      ((&BuiltinName + assign<&ast::CallExpr::name>(ref<ID> | kw<"length">) +
+      ((assign<&ast::CallExpr::name>(ref<Builtin> | kw<"length">) +
         (flag<&ast::CallExpr::spaced>(!gap::none) | gap::none)) |
-       (!BuiltinName + assign<&ast::CallExpr::name>(ref<ID>) + gap::none)) +
+       (!ref<Builtin> + assign<&ast::CallExpr::name>(ref<Name>) + gap::none)) +
       lit<"("> + option(some(append<&ast::CallExpr::args>(ref<Expr>), lit<","> + NLOpt)) +
       lit<")">) | create<ast::CallExpr>(
           assign<&ast::CallExpr::name>(kw<"length">) + !lit<"(">)> {};
@@ -132,11 +139,10 @@ struct Awk : cursiv::GrammarSpec {
             some(append<&ast::MultiInExpr::items>(ref<Expr>),
                  lit<","> + NLOpt) +
             lit<")"> + kw<"in"> +
-            assign<&ast::MultiInExpr::array>(ref<Lvalue>))> {};
+            assign<&ast::MultiInExpr::array>(ref<ArrayRef>))> {};
 
   struct Primitive
-      : rule<ref<MultiIn>                                                //
-            | (lit<"("> + ref<Expr> + lit<")">)                          //
+      : rule<(lit<"("> + ref<Expr> + lit<")">)                          //
             | create<ast::NumberLit>(
                   assign<&ast::NumberLit::text>(ref<NUMBER>))            //
             | create<ast::StringLit>(
@@ -144,10 +150,10 @@ struct Awk : cursiv::GrammarSpec {
                   assign<&ast::StringLit::text>(ref<STRING>))            //
             | create<ast::RegexLit>(option(flag<&ast::RegexLit::typed>(lit<"@">) + gap::none) +
                   assign<&ast::RegexLit::text>(ref<ERE>))  //
-            | ref<SimpleGetline>                                         //
             | ref<CallExpr>> {};
 
-  struct Primary : rule<ref<Primitive> | ref<PrefixUpdate> | ref<PostfixUpdate>> {};
+  struct Primary : rule<ref<MultiIn> | ref<SimpleGetline> | ref<Primitive> |
+                        ref<PrefixUpdate> | ref<PostfixUpdate>> {};
 
   struct FieldOperand : rule<create<ast::UnaryExpr>(
       assign<&ast::UnaryExpr::op>(lit<"!"> | lit<"+"> | lit<"-">) +
@@ -180,12 +186,12 @@ struct Awk : cursiv::GrammarSpec {
   struct InLevel
       : rule<ref<RelMatchLevel> +
              option(nest<ast::InExpr, &ast::InExpr::operand>(
-                 kw<"in"> + assign<&ast::InExpr::array>(ref<Lvalue>)))> {};
+                 kw<"in"> + assign<&ast::InExpr::array>(ref<ArrayRef>)))> {};
 
   struct PInLevel
       : rule<ref<MatchOnlyLevel> +
              option(nest<ast::InExpr, &ast::InExpr::operand>(
-                 kw<"in"> + assign<&ast::InExpr::array>(ref<Lvalue>)))> {};
+                 kw<"in"> + assign<&ast::InExpr::array>(ref<ArrayRef>)))> {};
 
   struct AndOrLevel
       : infix<InLevel, ast::BinaryExpr,
@@ -298,8 +304,8 @@ struct Awk : cursiv::GrammarSpec {
              assign<&ast::ForStmt::body>(ref<Stmt>)> {};
 
   struct ForInStmt
-      : rule<kw<"for"> + lit<"("> + assign<&ast::ForInStmt::var>(ref<ID>) +
-             kw<"in"> + assign<&ast::ForInStmt::array>(ref<Lvalue>) + lit<")"> +
+      : rule<kw<"for"> + lit<"("> + assign<&ast::ForInStmt::var>(ref<Name>) +
+             kw<"in"> + assign<&ast::ForInStmt::array>(ref<ArrayRef>) + lit<")"> +
              NLOpt + assign<&ast::ForInStmt::body>(ref<Stmt>)> {};
 
   struct SwitchCase : rule<

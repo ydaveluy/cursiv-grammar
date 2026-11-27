@@ -91,11 +91,26 @@ int main() {
   if (!tjs_octet_regexp_cases::run(language.language))
     return fail("native octet/regexp lexical contract failed");
 
+  {
+    namespace ast = kirikiritjs::ast;
+    const auto r = language.language.parser->parse("new factory(1)(...);");
+    const auto* root = r.valueAs<ast::Program>();
+    const auto* stmt = root && root->body.size() == 1
+        ? cursiv::ast_cast<ast::ExprStmt>(root->body[0]) : nullptr;
+    const auto* ctor = stmt && stmt->expressions.size() == 1
+        ? cursiv::ast_cast<ast::NewExpr>(stmt->expressions[0]) : nullptr;
+    const auto* call = ctor ? cursiv::ast_cast<ast::CallExpr>(ctor->callee) : nullptr;
+    if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty() ||
+        !ctor || !ctor->spreadArgs || !ctor->args.empty() || !call ||
+        call->spreadArgs || call->args.size() != 1)
+      return fail("the final call supplies the constructor arguments");
+  }
   for (const auto source : {"var x:int=1; function f(a:real=2,rest:string*):void{return;} ", "try f(); catch(e) g();", "property p{getter:int{return 1;} setter(v:int){x=v;}}", "var ́wide=1;", "var v=global; var n=NaN; var i=Infinity;", "#! /usr/bin/tjs\nvar x=1;", "var x=$65;", "switch(x){var y=1;case 1:y=2;}", "var x=(int)-a;", "var x=0x.8p2; var y=0b1.p+ 2; var z=1e+ 3;"}) {
     const auto r = language.language.parser->parse(source);
     if (!r.accepted || r.cst().recovered() || !r.diagnostics.empty()) return fail(std::string("native form rejected: ") + source);
   }
-  for (const auto source : {"var if=1;", "var property=1;", "function getter(){}", "var $name=1;", "var \\u0061=1;", "var x=0o12;", "var x=1p2;", "var x=a if b;"}) {
+  for (const auto source : {"var if=1;", "var property=1;", "function getter(){}", "var $name=1;", "var \\u0061=1;", "var x=0o12;", "var x=1p2;", "var x=a if b;",
+                            "new f;", "new f() incontextof c;", "new f().value;"}) {
     const auto r = language.language.parser->parse(source);
     if (r.accepted && !r.cst().recovered() && r.diagnostics.empty()) return fail(std::string("native-invalid form accepted: ") + source);
   }

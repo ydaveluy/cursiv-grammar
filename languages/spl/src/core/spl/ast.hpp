@@ -1,6 +1,5 @@
-// The SPL language: its AST. `Expr` is the arithmetic/value family (numbers,
-// strings, dates, globs, paths, calls); `Operation` is a search-pipeline
-// predicate (comparisons, LIKE/IN, BY/AS/OUTPUT, boolean combinators).
+// Expr represents a value. Operation represents a search predicate or a
+// command argument, including the table and field mappings of a lookup.
 #pragma once
 
 #include <cstdint>
@@ -93,12 +92,18 @@ struct InTest : cursiv::Extends<Operation> {
   vector<Expr*> options;
 };
 
-// `lookup ... OUTPUT a`, `... a b OUTPUT x, y`, `... a b c OUTPUTNEW x, y, z`:
-// as many sources as targets, one to three of each.
-struct OutputClause : cursiv::Extends<Operation> {
-  vector<Expr*> sources;
-  boolean isNew;
-  vector<string_view> targets;
+struct LookupField : cursiv::Extends<cursiv::AstNode> {
+  string_view tableField;
+  string_view eventField;
+};
+
+struct Lookup : cursiv::Extends<Operation> {
+  string_view table;
+  vector<LookupField*> inputs;
+  vector<LookupField*> outputs;
+  boolean outputNew;
+  boolean local;
+  boolean update;
 };
 
 struct ByClause : cursiv::Extends<Operation> {

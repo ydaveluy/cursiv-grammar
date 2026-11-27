@@ -182,9 +182,6 @@ struct KirikiriTjs : cursiv::GrammarSpec {
              ref<ParenExpr> | ref<AnonFunctionExpr> | ref<Identifier>> {
   };
 
-  // -- Member / call / new / cast (one mutually recursive tier: `new` binds
-  // no looser than a member or call chain, and its own result re-enters the
-  // same chain) ----
   struct Argument
       : rule<create<ast::Arg>(assign<&ast::Arg::value>(ref<AssignExpr>) +
                               option(flag<&ast::Arg::star>(lit<"*">))) //
@@ -202,14 +199,11 @@ struct KirikiriTjs : cursiv::GrammarSpec {
       lit<")">;
 
   struct MemberCallExpr;
+  // The final call supplies the constructor arguments.
   struct NewExpr
       : rule<create<ast::NewExpr>(
             kw<"new"> + assign<&ast::NewExpr::callee>(ref<MemberCallExpr>) +
-            option(ArgumentsInto<ast::NewExpr>))> {};
-  // TJS2's own documentation lists `int`/`real`/`string` casts beside calls
-  // and postfix operators, its tightest step -- so `(int)
-  // y + 1` is `((int) y) + 1`, and the operand is the same tight chain
-  // `new` takes.
+            ArgumentsInto<ast::NewExpr>)> {};
   static constexpr auto TypeConverterText =
       kw<"int"> | kw<"real"> | kw<"string">;
   struct TypeConvertExpr
@@ -224,8 +218,7 @@ struct KirikiriTjs : cursiv::GrammarSpec {
                  assign<&ast::TypeConvertExpr::operand>(ref<UnaryChainExpr>))> {
   };
   struct MemberCallExpr
-      : rule<(
-            ref<PrimaryExpr> | ref<NewExpr>)+many(nest<ast::MemberExpr,
+      : rule<ref<PrimaryExpr> + many(nest<ast::MemberExpr,
                                                 &ast::MemberExpr::object>(
                                                flag<
                                                    &ast::MemberExpr::computed>(
@@ -262,7 +255,7 @@ struct KirikiriTjs : cursiv::GrammarSpec {
       assign<&ast::BinaryExpr::right>(ref<UnaryChainExpr>)) |
       nest<ast::IsValidExpr, &ast::IsValidExpr::operand>(kw<"isvalid">))> {};
   struct UnaryChainExpr
-      : rule<create<ast::CharFromCodeExpr>(lit<"$"> +
+      : rule<ref<NewExpr> | create<ast::CharFromCodeExpr>(lit<"$"> +
                  assign<&ast::CharFromCodeExpr::operand>(ref<UnaryChainExpr>)) |
              ref<TypeConvertExpr> | create<ast::CharCodeExpr>(
                  lit<"#"> +

@@ -41,6 +41,16 @@ A search: a leading, comma-less list of terms (here two field comparisons,
 ANDed by mere juxtaposition), piped into `rex` and `table`. `search` may be
 written or dropped; `|` starts every stage after the first.
 
+## Lookup fields
+
+In `| lookup prices.csv sku AS id OUTPUT price AS amount, currency`, the
+command has one `ast::Lookup` operation. Its `table` is `prices.csv`.
+Each entry in `inputs` or `outputs` is a `LookupField` in source order.
+The input maps table field `sku` to event field `id`. The outputs map
+`price` to `amount` and keep `currency` under its own name. An omitted
+`AS` leaves `eventField` empty. `outputNew` records the use of `OUTPUTNEW`,
+and `local` and `update` hold the search options.
+
 ## The command line
 
 ```bash

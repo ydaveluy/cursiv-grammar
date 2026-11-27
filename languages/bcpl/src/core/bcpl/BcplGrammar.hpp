@@ -48,25 +48,49 @@ struct Bcpl : cursiv::GrammarSpec {
       (DecimalDigits + Exponent);
   struct FloatNumber : terminal<FloatBody> {};
 
-  // Keep the complete source spelling; interpretation depends on the
-  // compiler's character encoding and word length.
-  static constexpr auto Hex = cr<"0-9A-Fa-f">;
-  static constexpr auto EncodingSwitch = lit<"*#"> + cr<"gGuU">;
-  static constexpr auto CharEscape =
-      lit<"*"> + ((cr<"xX"> + repeat<2>(Hex)) |
-                  repeat<3>(cr<"0-7">) |
-                  (lit<"##"> + repeat<1, 8>(Hex)) |
-                  (lit<"#"> + repeat<1, 4>(Hex)) |
-                  cr<R"(nNcCpPsSbBtTeE"'*)">);
-  struct CharConst
-      : terminal<lit<"'"> + many(EncodingSwitch) +
-                 (CharEscape | cr<R"(^'*\r\n)">) + lit<"'">> {};
-  static constexpr auto StringContinuation =
-      lit<"*"> + some(s | ref<SL_COMMENT>) + lit<"*">;
-  struct StringConst
-      : terminal<lit<"\""> +
-                 many(StringContinuation | (lit<"*"> + any) |
-                      cr<R"(^"*)">) + lit<"\"">> {};
+  // The Cintsys text reader skips carriage returns inside literals.
+  static constexpr auto CarriageReturns = many(lit<"\r">);
+  static constexpr auto Star = lit<"*"> + CarriageReturns;
+  static constexpr auto Slash = lit<"/"> + CarriageReturns;
+  static constexpr auto Hash = lit<"#"> + CarriageReturns;
+  static constexpr auto Hex = cr<"0-9a-fA-F">;
+  static constexpr auto Oct = cr<"0-7">;
+  static constexpr auto DigitSeparators = many(cr<R"(_\r)">);
+  template <auto Digit, unsigned Max>
+  static constexpr auto escapeDigits = DigitSeparators + repeat<1, Max>(Digit + DigitSeparators);
+  static constexpr auto UseUtf8 = Star + Hash + cr<"uU"> + CarriageReturns;
+  static constexpr auto UseGb2312 = Star + Hash + cr<"gG"> + CarriageReturns;
+  static constexpr auto UtfCode = Star + Hash +
+      ((Hash + escapeDigits<Hex, 8>) | escapeDigits<Hex, 4>);
+  static constexpr auto GbCode = Star + Hash + escapeDigits<d, 4>;
+  static constexpr auto ByteEscape = Star +
+      ((cr<"xX"> + escapeDigits<Hex, 2>) |
+       (cr<"0-3"> + DigitSeparators + repeat<0, 2>(Oct + DigitSeparators)) |
+       (cr<"4-7"> + DigitSeparators + option(Oct + DigitSeparators) + !cr<R"(_\r0-7)">) |
+       cr<R"(nNcCpPsSbBtTeE"'*)">);
+  static constexpr auto FormatSpace = (cr<R"( \t\n\f)"> + CarriageReturns) |
+      (Slash + Slash + many(cr<R"(^\n\f)">) + cr<R"(\n\f)"> + CarriageReturns);
+  static constexpr auto Formatting = Star +
+      ((some(FormatSpace) + option(Slash)) | Slash) + Star;
+  // After a continuation or encoding switch, the next character is data, even a quote.
+  static constexpr auto Switches = many(Formatting | UseUtf8 | UseGb2312);
+  static constexpr auto CharByte = &cr<R"(\x00-\x7f)"> + cr<R"(^*\r\n)">;
+  static constexpr auto StringChar = cr<R"(^"*\r\n)">;
+  template <auto Plain, auto Code>
+  static constexpr auto contents = (Plain | ByteEscape | Code) + CarriageReturns;
+  template <auto Code>
+  static constexpr auto textChar = contents<StringChar, Code> |
+      (some(Formatting) + contents<(StringChar | lit<"\"">), Code>);
+  template <auto Mode, auto Code>
+  static constexpr auto textRun = Mode + many(Formatting) +
+      contents<(StringChar | lit<"\"">), Code> + many(textChar<Code>);
+  struct CharConst : terminal<lit<"'"> + CarriageReturns +
+      ((many(Formatting) + contents<CharByte, UtfCode>) |
+       (Switches + ((UseUtf8 + many(Formatting) + contents<CharByte, UtfCode>) |
+                    (UseGb2312 + many(Formatting) + contents<CharByte, GbCode>)))) + lit<"'">> {};
+  struct StringConst : terminal<lit<"\""> + CarriageReturns + many(textChar<UtfCode>) +
+      many(Switches + (textRun<UseUtf8, UtfCode> | textRun<UseGb2312, GbCode>)) +
+      lit<"\"">> {};
 
   struct SignedNumber
       : terminal<option(cr<"+-">) +

@@ -57,6 +57,17 @@ inline bool run(const cursiv::Parser& parser) {
           "in cannot start a new module declaration");
   }
   {
+    const auto result = parser.parse(
+        "module M where\n  f = a where\n  a = b where\n    b = 1\n  g = 2\n");
+    const auto* module = result.valueAs<haskell::ast::Module>();
+    const bool three = module && module->decls.size() == 3;
+    const auto* f = three ? cursiv::ast_cast<haskell::ast::ValueDecl>(module->decls[0]) : nullptr;
+    const auto* a = three ? cursiv::ast_cast<haskell::ast::ValueDecl>(module->decls[1]) : nullptr;
+    check(result.accepted && result.diagnostics.empty() && !result.cst().recovered() &&
+              f && f->whereDecls.empty() && a && a->whereDecls.size() == 1,
+          "where at the enclosing column leaves the next binding in the module");
+  }
+  {
     const std::string source =
         "{-# options_ghc -Wall #-}\n"
         "module Audit (Data.List.map, (Data.List.++)) where { "

@@ -33,6 +33,8 @@ val String?.copy: String? get()=this
  consume @A { 1 }
 }
 )AUDIT"},
+      {"file-annotation-boundary", "@file:A;@file:B\nclass C"},
+      {"annotated-expression-group", "fun f() { val x = @[A B] value }"},
       {"annotation-group", "class C(@field:[A B] val x:Int)"},
       {"annotation-all", R"AUDIT(@all:Deprecated("x") val x=1)AUDIT"},
       {"annotation-typeargs", R"AUDIT(annotation class A<T>
@@ -94,6 +96,18 @@ val d=0b11u)AUDIT"},
             lambdas.size() == 1 &&
             lambdas[0]->annotations.size() == 1 &&
             lambdas[0]->annotations[0]->name == "A";
+    } else if (test.name == "file-annotation-boundary") {
+      const auto* file = cursiv::ast_cast<KotlinFile>(result.value);
+      const auto* decl = file && file->members.size() == 1
+          ? cursiv::ast_cast<ClassDecl>(file->members[0]) : nullptr;
+      ok &= file && file->fileAnnotations.size() == 1 && file->fileAnnotations[0]->name == "A" &&
+            decl && decl->annotations.size() == 1 && decl->annotations[0]->name == "B" &&
+            decl->annotations[0]->useSiteTarget == "file";
+    } else if (test.name == "annotated-expression-group") {
+      const auto values = nodes<AnnotatedExpr>(result);
+      const auto* group = values.size() == 1 && values[0]->annotations.size() == 1
+          ? cursiv::ast_cast<AnnotationGroup>(values[0]->annotations[0]) : nullptr;
+      ok &= group && group->annotations.size() == 2 && group->annotations[1]->name == "B";
     } else if (test.name == "annotation-group") {
       const auto values = nodes<AnnotationGroup>(result);
       ok &= values.size() == 1 && values[0]->useSiteTarget == "field" &&
@@ -227,10 +241,12 @@ val d=0b11u)AUDIT"},
     }
   }
   for (const auto *text : {"typealias T = Box<@A (Int)>",
-                           "typealias T = Box<@A(Int) -> Unit>"}) {
+                           "typealias T = Box<@A(Int) -> Unit>",
+                           "@file:A;@file:B", "typealias T = List<@ [A] Int>",
+                           "class C;;class D", "val x = @[A] @B (f)"}) {
     const auto result = parser.parse(text);
     if (result.accepted && !result.cst().recovered() && result.diagnostics.empty()) {
-      std::fprintf(stderr, "kotlin: annotation arguments consumed as a type: %s\n", text);
+      std::fprintf(stderr, "kotlin: invalid syntax accepted: %s\n", text);
       return false;
     }
   }

@@ -1,11 +1,15 @@
 #include "awk/validation/AwkValidator.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
+#include "cursiv/syntax-tree/AstWalk.hpp"
 #include "cursiv/validation/ValidationRegistry.hpp"
 #include "awk/CoreServices.hpp"
 
@@ -18,66 +22,6 @@ void AwkValidator::checkAssignment(const ast::AssignExpr& expression,
       !cursiv::ast_cast<ast::FieldExpr>(expression.target))
     accept.error(expression, "Assignment needs a variable, array element or field.",
                  "awk.assignment-target").property<&ast::AssignExpr::target>();
-}
-
-void AwkValidator::checkBuiltin(const ast::CallExpr& call,
-                               cursiv::ValidationAcceptor& accept) const {
-  if (call.indirect) return;
-  auto name = call.name;
-  const bool qualified = name.starts_with("awk::");
-  if (qualified) name.remove_prefix(5);
-  else if (name.find("::") != std::string_view::npos) return;
-  static constexpr std::string_view standard[] = {
-    "atan2", "close", "cos", "exp", "fflush", "gsub", "index", "int", "length",
-    "log", "match", "rand", "sin", "split", "sprintf", "sqrt", "srand", "sub",
-    "substr", "system", "tolower", "toupper",
-  };
-  bool isStandard = false;
-  for (const auto builtin : standard) isStandard |= name == builtin;
-  if (qualified && isStandard) {
-    accept.error(call, "This reserved function name cannot be qualified.", "awk.qualified-builtin")
-        .property<&ast::CallExpr::name>();
-    return;
-  }
-  if (!isStandard && !qualified) {
-    const cursiv::AstNode* item = &call;
-    while (item && item->parent && !cursiv::ast_cast<ast::Program>(item->parent)) {
-      item = item->parent;
-      if (const auto* function = cursiv::ast_cast<ast::FunctionDef>(item))
-        for (const auto parameter : function->params) if (parameter == name) return;
-    }
-    if (item) if (const auto* program = cursiv::ast_cast<ast::Program>(item->parent)) {
-      std::string_view current = "\"awk\"";
-      for (const auto* preceding : program->items) {
-        if (preceding == item) break;
-        const auto* directive = cursiv::ast_cast<ast::Directive>(preceding);
-        if (directive && directive->name == "namespace") current = directive->value;
-      }
-      if (current != "\"awk\"") return;
-    }
-  }
-  struct Arity { std::string_view name; unsigned minimum, maximum; };
-  static constexpr Arity arities[] = {
-    {"atan2",2,2}, {"close",1,2}, {"cos",1,1}, {"exp",1,1}, {"gsub",2,3},
-    {"index",2,2}, {"int",1,1}, {"length",0,1}, {"log",1,1}, {"match",2,3},
-    {"rand",0,0}, {"sin",1,1}, {"split",2,4}, {"sqrt",1,1}, {"srand",0,1},
-    {"sub",2,3}, {"substr",2,3}, {"system",1,1}, {"tolower",1,1}, {"toupper",1,1},
-    {"asort",1,3}, {"asorti",1,3}, {"bindtextdomain",1,2}, {"compl",1,1},
-    {"dcgettext",1,3}, {"dcngettext",3,5}, {"fflush",0,1}, {"gensub",3,4},
-    {"isarray",1,1}, {"lshift",2,2}, {"mkbool",1,1}, {"mktime",1,2},
-    {"patsplit",2,4}, {"rshift",2,2}, {"strftime",0,3}, {"strtonum",1,1},
-    {"systime",0,0}, {"typeof",1,2},
-  };
-  bool valid = true;
-  if (name == "and" || name == "or" || name == "xor") valid = call.args.size() >= 2;
-  else if (name == "sprintf") valid = !call.args.empty();
-  else for (const auto& arity : arities) if (arity.name == name) {
-    valid = call.args.size() >= arity.minimum && call.args.size() <= arity.maximum;
-    break;
-  }
-  if (!valid)
-    accept.error(call, "Invalid number of arguments for " + std::string(name) + ".",
-                 "awk.builtin-arity").property<&ast::CallExpr::args>();
 }
 
 void AwkValidator::checkRule(const ast::Rule& rule,
@@ -107,31 +51,143 @@ void AwkValidator::checkSwitch(const ast::SwitchStmt& statement,
   }
 }
 
-void AwkValidator::checkUniqueFunctionNames(
-    const ast::Program& program, cursiv::ValidationAcceptor& accept) const {
-  std::unordered_map<std::string, std::vector<const ast::FunctionDef*>> names;
-  std::string current = "awk";
+namespace {
+
+using Name = std::string_view;
+
+struct Builtin {
+  unsigned min, max;
+  bool extension = false;
+};
+
+const auto& builtins() {
+  static const std::unordered_map<Name, Builtin> functions = {
+    {"atan2",{2,2}}, {"close",{1,2}}, {"cos",{1,1}}, {"exp",{1,1}},
+    {"fflush",{0,1}}, {"gsub",{2,3}}, {"index",{2,2}}, {"int",{1,1}},
+    {"length",{0,1}}, {"log",{1,1}}, {"match",{2,3}}, {"rand",{0,0}},
+    {"sin",{1,1}}, {"split",{2,4}}, {"sprintf",{1,~0u}}, {"sqrt",{1,1}},
+    {"srand",{0,1}}, {"sub",{2,3}}, {"substr",{2,3}}, {"system",{1,1}},
+    {"tolower",{1,1}}, {"toupper",{1,1}},
+    {"and",{2,~0u,true}}, {"asort",{1,3,true}}, {"asorti",{1,3,true}},
+    {"bindtextdomain",{1,2,true}}, {"compl",{1,1,true}}, {"dcgettext",{1,3,true}},
+    {"dcngettext",{3,5,true}}, {"gensub",{3,4,true}}, {"isarray",{1,1,true}},
+    {"lshift",{2,2,true}}, {"mkbool",{1,1,true}}, {"mktime",{1,2,true}},
+    {"or",{2,~0u,true}}, {"patsplit",{2,4,true}}, {"rshift",{2,2,true}},
+    {"strftime",{0,3,true}}, {"strtonum",{1,1,true}}, {"systime",{0,0,true}},
+    {"typeof",{1,2,true}}, {"xor",{2,~0u,true}},
+  };
+  return functions;
+}
+
+}  // namespace
+
+void AwkValidator::checkNames(const ast::Program& program,
+                              cursiv::ValidationAcceptor& accept) const {
+  struct Symbol {
+    bool variable{};
+    std::vector<const ast::FunctionDef*> definitions;
+  };
+  std::unordered_map<Name, std::unordered_map<Name, Symbol>> symbols;
+  std::unordered_set<Name> parameters;
+  Name current = "awk";
+  const auto& functions = builtins();
+  std::vector<std::pair<const cursiv::AstNode*, bool>> pending;
   for (const auto* item : program.items) {
     if (const auto* directive = cursiv::ast_cast<ast::Directive>(item)) {
       if (directive->name == "namespace" && directive->value.size() >= 2)
-        current = std::string(directive->value.substr(1, directive->value.size()-2));
+        current = directive->value.substr(1, directive->value.size() - 2);
+      continue;
     }
+    if (!item) continue;
     const auto* def = cursiv::ast_cast<ast::FunctionDef>(item);
-    if (!def) continue;
-    std::string name(def->name);
-    bool upper = !name.empty();
-    for (char c : name) upper &= (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9');
-    if (name.find("::") == std::string::npos && current != "awk" && !upper)
-      name = current + "::" + name;
-    if (name.starts_with("awk::")) name.erase(0,5);
-    names[name].push_back(def);
+    parameters.clear();
+    if (def) {
+      for (const auto parameter : def->params) {
+        if (parameter.find("::") != Name::npos)
+          accept.error(*def, "A parameter name cannot be qualified.", "awk.parameter").property<&ast::FunctionDef::params>();
+        parameters.insert(parameter);
+      }
+    }
+    const auto use = [&](Name spelling, const cursiv::AstNode& node) {
+      const auto* call = cursiv::ast_cast<ast::CallExpr>(&node);
+      const auto* definition = cursiv::ast_cast<ast::FunctionDef>(&node);
+      const auto pos = spelling.find("::");
+      const bool qualified = pos != Name::npos;
+      const auto name = qualified ? spelling.substr(pos + 2) : spelling;
+      const auto space = qualified ? spelling.substr(0, pos)
+          : (name.find_first_of("abcdefghijklmnopqrstuvwxyz") == Name::npos ? Name{"awk"} : current);
+      const bool keyword = name == "switch" || name == "case" || name == "default" ||
+                           name == "BEGINFILE" || name == "ENDFILE";
+      if (!definition && !(qualified && keyword) &&
+          parameters.contains(spelling.starts_with("awk::") ? name : spelling)) {
+        if (call && !call->indirect && (!call->spaced || call->args.size() != 1))
+          accept.error(*call, "A function parameter needs an indirect call.", "awk.function-variable")
+              .property<&ast::CallExpr::name>();
+        return;
+      }
+      if (keyword && (!qualified || space == "awk")) {
+        accept.error(node, "This keyword cannot be used as a name here.", "awk.reserved-name");
+        return;
+      }
+      const auto fn = functions.find(name);
+      if (fn != functions.end() && (space == "awk" || !fn->second.extension)) {
+        if (!call || call->indirect)
+          accept.error(node, "A built-in function cannot be used as a variable or definition.", "awk.reserved-name");
+        else if (qualified && !fn->second.extension)
+          accept.error(*call, "This reserved function name cannot be qualified.", "awk.qualified-builtin").property<&ast::CallExpr::name>();
+        else if (call->args.size() < fn->second.min || call->args.size() > fn->second.max)
+          accept.error(*call, "Invalid number of arguments for " + std::string(name) + ".",
+                       "awk.builtin-arity").property<&ast::CallExpr::args>();
+        return;
+      }
+      auto& symbol = symbols[space][name];
+      if (definition) {
+        symbol.definitions.push_back(definition);
+        if (symbol.variable)
+          accept.error(*definition, "A variable already has this function name.", "awk.function-variable").property<&ast::FunctionDef::name>();
+      } else if (call && !call->indirect) {
+        if (symbol.variable)
+          accept.error(*call, "A variable cannot be called directly.", "awk.function-variable").property<&ast::CallExpr::name>();
+      } else {
+        if (!symbol.definitions.empty())
+          accept.error(node, "A function name cannot be used as a variable.", "awk.function-variable");
+        symbol.variable = true;
+      }
+    };
+    if (def) use(def->name, *def);
+    // GNU awk resolves a call after its arguments have introduced their variables.
+    pending.emplace_back(item, false);
+    while (!pending.empty()) {
+      const auto [node, afterArguments] = pending.back();
+      pending.pop_back();
+      if (const auto* call = cursiv::ast_cast<ast::CallExpr>(node)) {
+        if (afterArguments) {
+          use(call->name, *node);
+          continue;
+        }
+        pending.emplace_back(node, true);
+      } else if (const auto* var = cursiv::ast_cast<ast::VarRef>(node)) {
+        use(var->name, *node);
+      } else if (const auto* loop = cursiv::ast_cast<ast::ForInStmt>(node)) {
+        use(loop->var, *node);
+      }
+      const auto first = pending.size();
+      cursiv::visitContents(*services.astReflection, *node, [&](const cursiv::AstNode& child) {
+        pending.emplace_back(&child, false);
+      });
+      std::reverse(pending.begin() + static_cast<std::ptrdiff_t>(first), pending.end());
+    }
   }
-
-  for (const auto& [name, defs] : names) {
-    if (defs.size() <= 1) continue;
-    const std::string message = "Duplicate function name: " + std::string(name);
-    for (const ast::FunctionDef* const def : defs)
-      accept.error(*def, message).property<&ast::FunctionDef::name>();
+  for (const auto& [space, names] : symbols) {
+    for (const auto& [name, symbol] : names) {
+      if (symbol.definitions.size() > 1) {
+        std::string full;
+        if (space != "awk") full = std::string(space) + "::";
+        full += name;
+        for (const auto* def : symbol.definitions)
+          accept.error(*def, "Duplicate function name: " + full).property<&ast::FunctionDef::name>();
+      }
+    }
   }
 }
 
@@ -159,9 +215,8 @@ void register_validation_checks(AwkCoreServices& services) {
   services.validationRegistry->registerChecks(
       {cursiv::ValidationRegistry::makeValidationCheck<&V::checkRegex>(validator),
        cursiv::ValidationRegistry::makeValidationCheck<
-          &V::checkUniqueFunctionNames>(validator),
+          &V::checkNames>(validator),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkAssignment>(validator),
-       cursiv::ValidationRegistry::makeValidationCheck<&V::checkBuiltin>(validator),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkRule>(validator),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkDelete>(validator),
        cursiv::ValidationRegistry::makeValidationCheck<&V::checkSwitch>(validator)});

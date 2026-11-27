@@ -126,6 +126,8 @@ int main() {
     {"builtin-shadow-call","function f(typeof) { return typeof (2) } BEGIN { print f(3) }"},
     {"builtin-shadow-index","function f(asort) { asort[1]=2; return asort[1] } BEGIN { print f(a) }"},
     {"namespace-functions","@namespace \"one\"\nfunction f() {return 1}\n@namespace \"two\"\nfunction f() {return 2}\nBEGIN {print one::f(),two::f()}"},
+    {"keyword-index-parameter","function f(switch) { for (switch in a) print switch }"},
+    {"namespace-variable","@namespace \"mine\"\nBEGIN { asort=1; print asort }"},
     {"keyword-parameter","function f(switch) {return switch} BEGIN {print f(2)}"},
     {"i18n-string","BEGIN { print _\"hello\" }"},
     {"namespace-extension","@namespace \"mine\"\nfunction typeof(x,y,z) {return x}\nBEGIN {print typeof(1,2,3)}"}
@@ -274,16 +276,29 @@ int main() {
     check(outer && left && a && a->op == ast::BinOp::Div && b &&
           b->op == ast::BinOp::Div, "implicit concat keeps two division subtrees");
   }
+  {
+    const auto result = parser.parse("{ print $((i,j) in a[1]) }");
+    const auto* field = first<ast::FieldExpr>(result);
+    const auto* membership = field ? as<ast::MultiInExpr>(field->index) : nullptr;
+    check(result.accepted && !result.cst().recovered() && result.diagnostics.empty() &&
+          membership && membership->items.size() == 2 && as<ast::IndexExpr>(membership->array),
+          "grouped membership indexes a field and retains the subarray");
+  }
   for (const char* invalid : {"BEGIN { print \"x\" /a/ }",
                              "BEGIN { r=@ /a/ }",
                              "BEGIN { print 1 > a ? b : c }",
-                             "BEGIN { print 1 > x=\"file\" }"}) {
+                             "BEGIN { print 1 > x=\"file\" }",
+                             "{ print $(i,j) in a }", "{ print i in $2 }",
+                             "{ for (i in $2) print i }", "{ print $getline }"}) {
     const auto result = parser.parse(invalid);
     check(!result.accepted || result.cst().recovered() || !result.diagnostics.empty(),
-          "native-invalid slash, typed-prefix or redirection syntax refused");
+          invalid);
   }
   struct Invalid { const char* text; const char* code; unsigned count; };
   const Invalid invalid[] = {
+    {"BEGIN { switch=1 }","awk.reserved-name",1},
+    {"BEGIN { print f(f) }","awk.function-variable",1},
+    {"function f(x){ return x(1) }","awk.function-variable",1},
     {"BEGIN","awk.action",1},
     {"BEGIN { print @/a/ }","awk.typed-regexp-context",1},
     {"BEGIN { print \"x\" @/a/ }","awk.typed-regexp-context",1},
